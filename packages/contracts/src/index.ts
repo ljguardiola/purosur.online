@@ -372,6 +372,8 @@ export {
   snapshotUploadBodySchema,
 } from "./register/snapshot-upload.js";
 export type { StartupPending } from "./register/startup-pending.js";
+export type { AverageTicketBody } from "./sales/average-ticket.js";
+export { averageTicketSchema } from "./sales/average-ticket.js";
 export type {
   CancelLockedSaleOutcome,
   PrintOriginalReceiptOutcome,

@@ -4,6 +4,7 @@ import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { weekPaymentsReport } from "../payments/test-support/payments-report-fixtures";
 import {
+  averageTicketReport,
   cashierSalesReport,
   categoryProductsReport,
   weekReport,
@@ -24,6 +25,7 @@ opensOnlyScreens([
   "/reports/sales-by-payment-method",
   "/reports/sales-by-product-and-category",
   "/reports/sales-by-cashier",
+  "/reports/average-ticket",
 ]);
 
 beforeEach(resetPageState);
@@ -55,6 +57,10 @@ function reportsServices(capabilities: Capability[]) {
     kind: "ok",
     value: cashierSalesReport,
   });
+  vi.mocked(services.averageTicketScreen.fetchAverageTicket).mockResolvedValue({
+    kind: "ok",
+    value: averageTicketReport,
+  });
   vi.mocked(services.reportRegisterFilter.fetchReportRegisters).mockResolvedValue({
     kind: "ok",
     value: registers,
@@ -83,6 +89,7 @@ test("opens the list of reports from the rail's Reportes item", async () => {
     .element(sections.getByRole("link", { name: "Ventas por producto y por categoría" }))
     .toBeVisible();
   await expect.element(sections.getByRole("link", { name: "Ventas por cajero" })).toBeVisible();
+  await expect.element(sections.getByRole("link", { name: "Ticket promedio" })).toBeVisible();
 });
 
 test("opens the sales by day report from the list and reads it from the cloud", async () => {
@@ -244,6 +251,71 @@ test("rewrites a refused range of the sales by cashier report out of the address
   expect(services.salesByCashierScreen.fetchSalesByCashier).toHaveBeenCalledWith({});
 });
 
+test("opens the average ticket report from the list and reads it from the cloud", async () => {
+  const services = reportsServices(["reports_area"]);
+  window.history.pushState(null, "", "/reports");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await userEvent.click(screen.getByRole("main").getByRole("link", { name: "Ticket promedio" }));
+
+  await expect
+    .element(screen.getByRole("heading", { name: "Ticket promedio", level: 1 }))
+    .toBeVisible();
+  expect(window.location.pathname).toBe("/reports/average-ticket");
+  await expect
+    .element(screen.getByRole("table").getByText("Del 08/10/2026 al 14/10/2026"))
+    .toBeVisible();
+  expect(services.averageTicketScreen.fetchAverageTicket).toHaveBeenCalledWith({});
+  expect(document.title).toBe("Ticket promedio · Puro Sur");
+});
+
+test("keeps the average ticket report's filters after following its own side column link", async () => {
+  const url = "/reports/average-ticket?sort=ascending&sortBy=amount";
+  const services = reportsServices(["reports_area"]);
+  window.history.pushState(null, "", url);
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await expect
+    .element(screen.getByRole("table").getByText("Del 08/10/2026 al 14/10/2026"))
+    .toBeVisible();
+  const sectionLink = screen
+    .getByRole("navigation", { name: "Reportes" })
+    .getByRole("link", { name: "Ticket promedio" });
+  await expect.element(sectionLink).toHaveAttribute("href", url);
+
+  await userEvent.click(sectionLink);
+
+  await expect.poll(() => `${window.location.pathname}${window.location.search}`).toBe(url);
+});
+
+test("keeps the order of the average ticket report in the address", async () => {
+  const services = reportsServices(["reports_area"]);
+  window.history.pushState(null, "", "/reports/average-ticket");
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await expect
+    .element(screen.getByRole("table").getByText("Del 08/10/2026 al 14/10/2026"))
+    .toBeVisible();
+
+  await userEvent.click(
+    screen.getByRole("table").getByRole("button", { name: "Importe", exact: true }),
+  );
+
+  await expect.poll(() => window.location.search).toBe("?sortBy=amount");
+});
+
+test("rewrites a refused range of the average ticket report out of the address", async () => {
+  const services = reportsServices(["reports_area"]);
+  window.history.pushState(
+    null,
+    "",
+    "/reports/average-ticket?from=2026-10-08&to=2026-10-07&sortBy=sales",
+  );
+
+  await render(<App help={emptyHelp} services={services} />);
+
+  await expect.poll(() => window.location.search).toBe("?sortBy=sales");
+  expect(services.averageTicketScreen.fetchAverageTicket).toHaveBeenCalledWith({});
+});
+
 test("keeps the sales by payment method report's filters after following its own side column link", async () => {
   const url = "/reports/sales-by-payment-method?sortBy=method";
   const services = reportsServices(["reports_area"]);
@@ -314,6 +386,7 @@ test.each([
   "/reports/sales-by-payment-method",
   "/reports/sales-by-product-and-category",
   "/reports/sales-by-cashier",
+  "/reports/average-ticket",
 ])("sends a user without the reports permission who opens %s to Mi cuenta", async (path) => {
   const services = reportsServices(["stock_area"]);
   window.history.pushState(null, "", path);
@@ -327,4 +400,5 @@ test.each([
     services.salesByProductAndCategoryScreen.fetchSalesByProductAndCategory,
   ).not.toHaveBeenCalled();
   expect(services.salesByCashierScreen.fetchSalesByCashier).not.toHaveBeenCalled();
+  expect(services.averageTicketScreen.fetchAverageTicket).not.toHaveBeenCalled();
 });
