@@ -441,3 +441,5 @@ export function syncedEventPayloadSchema<Key extends SyncedEventPayloadKey>(
 ): z.ZodType<SyncedEventPayloads[Key]> {
   return SCHEMAS[key];
 }
+
+export const READABLE_EVENT_VERSIONS: readonly string[] = [];
