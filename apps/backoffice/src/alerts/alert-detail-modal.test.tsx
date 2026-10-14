@@ -1721,3 +1721,97 @@ test("tells that an alert for quarantined events resolves by itself and still of
     .toBeVisible();
   await expect.element(screen.getByRole("button", { name: "Cerrar la alerta" })).toBeEnabled();
 });
+
+function expiringLotsAlert(detail: {
+  lotCount: number;
+  windowDays: number;
+  aboutViewerBranch?: boolean;
+}) {
+  return baseDetail({
+    kind: "lots_expiring",
+    level: "informational",
+    audience: "local",
+    scope: "location-1",
+    scopeDisplay: "location-1",
+    scopeKind: "branch",
+    closing: "by_itself",
+    detail: { aboutViewerBranch: true, ...detail },
+  });
+}
+
+test.each([
+  [{ lotCount: 6, windowDays: 30 }, "6 lotes vencidos o por vencer en 30 días"],
+  [{ lotCount: 1, windowDays: 30 }, "1 lote vencido o por vencer en 30 días"],
+  [{ lotCount: 3, windowDays: 1 }, "3 lotes vencidos o por vencer en el próximo día"],
+  [{ lotCount: 2, windowDays: 0 }, "2 lotes vencidos o que vencen hoy"],
+  [{ lotCount: 1, windowDays: 0 }, "1 lote vencido o que vence hoy"],
+] as const)(
+  "tells how many lots of the branch are expired or nearing expiry (%o)",
+  async (detail, text) => {
+    const services = createServices();
+    vi.mocked(services.fetchAlert).mockResolvedValue(ok(expiringLotsAlert(detail)));
+
+    const screen = await renderModal(services);
+
+    await expect.element(screen.getByText("Productos por vencer", { exact: true })).toBeVisible();
+    await expect.element(screen.getByText(text, { exact: false })).toBeVisible();
+    await expect.element(screen.getByText("Informativa")).toBeVisible();
+    await expect.element(screen.getByText("Sucursal", { exact: true })).toBeVisible();
+    expect(screen.getByText("location-1").query()).toBeNull();
+  },
+);
+
+test("tells what to do about lots nearing their expiry", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(
+    ok(expiringLotsAlert({ lotCount: 6, windowDays: 30 })),
+  );
+
+  const screen = await renderModal(services);
+
+  await expect
+    .element(
+      screen.getByText(
+        "Revisar esos productos en el local y avisar para venderlos, bajarlos de precio o retirarlos antes de que venzan.",
+      ),
+    )
+    .toBeVisible();
+  await expectNoAccessibilityViolations(document.body);
+});
+
+test("links the alert of lots nearing their expiry to the expiring lots screen for a person who may see it", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(
+    ok(expiringLotsAlert({ lotCount: 6, windowDays: 30 })),
+  );
+
+  const screen = await renderModal(services, { access: accessWith("stock_expiries") });
+
+  const link = screen.getByRole("link", { name: "Ver vencimientos" });
+  await expect.element(link).toBeVisible();
+  await expect.element(link).toHaveAttribute("href", "/expiring-lots");
+});
+
+test("does not link the alert of lots nearing their expiry of another branch to the expiring lots screen", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(
+    ok(expiringLotsAlert({ lotCount: 6, windowDays: 30, aboutViewerBranch: false })),
+  );
+
+  const screen = await renderModal(services, { access: accessWith("stock_expiries") });
+
+  await expect.element(screen.getByText("Productos por vencer", { exact: true })).toBeVisible();
+  expect(screen.getByRole("link", { name: "Ver vencimientos" }).query()).toBeNull();
+});
+
+test("does not link the alert of lots nearing their expiry to the expiring lots screen for a person who may not see it", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(
+    ok(expiringLotsAlert({ lotCount: 6, windowDays: 30 })),
+  );
+
+  const screen = await renderModal(services, { access: accessWith("alerts_area") });
+
+  await expect.element(screen.getByText("Productos por vencer", { exact: true })).toBeVisible();
+  expect(screen.getByRole("link", { name: "Ver vencimientos" }).query()).toBeNull();
+});
