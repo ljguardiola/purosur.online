@@ -1618,6 +1618,9 @@ describe("wiring the stock routes", () => {
     { method: "POST", url: "/api/inventory-adjustments" },
     { method: "GET", url: "/api/recipes" },
     { method: "PUT", url: "/api/recipes/00000000-0000-0000-0000-000000000000" },
+    { method: "GET", url: "/api/assembly-batches" },
+    { method: "GET", url: "/api/assembly-batches/preview" },
+    { method: "POST", url: "/api/assembly-batches" },
   ] as const;
 
   const formerStockRequests = [
@@ -2585,6 +2588,21 @@ describe("the route access inventory", () => {
         method: "PUT",
         url: "/api/recipes/:productId",
         access: capabilityAccess("recipes"),
+      },
+      {
+        method: "GET",
+        url: "/api/assembly-batches",
+        access: capabilityAccess("batches"),
+      },
+      {
+        method: "GET",
+        url: "/api/assembly-batches/preview",
+        access: capabilityAccess("batches"),
+      },
+      {
+        method: "POST",
+        url: "/api/assembly-batches",
+        access: capabilityAccess("batches"),
       },
       {
         method: "GET",

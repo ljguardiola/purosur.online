@@ -59,3 +59,36 @@ export function lotOfOpeningCount(line: {
     expiresOn: line.expiresOn,
   };
 }
+
+export interface NewBatchLot {
+  productId: string;
+  locationId: string;
+  assemblyBatchId: string;
+  quantityReceived: number;
+  costTotalCents: number;
+  costQuantity: number;
+  costIncomplete: boolean;
+  expiresOn: string | null;
+}
+
+export function lotOfAssemblyBatch(batch: {
+  batchId: string;
+  productId: string;
+  locationId: string;
+  output: number;
+  costTotalCents: number;
+  costQuantity: number;
+  costIncomplete: boolean;
+  expiresOn: string | null;
+}): NewBatchLot {
+  return {
+    productId: batch.productId,
+    locationId: batch.locationId,
+    assemblyBatchId: batch.batchId,
+    quantityReceived: batch.output,
+    costTotalCents: batch.costTotalCents,
+    costQuantity: batch.costQuantity,
+    costIncomplete: batch.costIncomplete,
+    expiresOn: batch.expiresOn,
+  };
+}

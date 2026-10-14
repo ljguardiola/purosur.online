@@ -2,6 +2,7 @@ import { stockPeriodSchema } from "@purosur/contracts";
 import { createRoute, stripSearchParams } from "@tanstack/react-router";
 import { z } from "zod";
 import {
+  canManageBatches,
   canManageRecipes,
   canPerformStockCounts,
   canRecordInitialInventory,
@@ -68,6 +69,13 @@ export const recipesListFilters = z.object({
   sort: z.enum(["ascending", "descending"]).default("ascending").catch("ascending"),
 });
 
+export const assemblyBatchesFilters = z.object({
+  search: z.string().default("").catch(""),
+  period: periodFilter,
+});
+
+export type AssemblyBatchesFilters = z.output<typeof assemblyBatchesFilters>;
+
 export type RecipesListFilters = z.output<typeof recipesListFilters>;
 
 export const stockBalancesRoute = createRoute({
@@ -122,4 +130,13 @@ export const recipesListRoute = createRoute({
   validateSearch: recipesListFilters,
   search: { middlewares: [stripSearchParams(recipesListFilters.parse({}))] },
   component: lazyScreen(() => import("./recipes-list-page"), "RecipesListPage"),
+});
+
+export const assemblyBatchesRoute = createRoute({
+  getParentRoute: () => stockAreaRoute,
+  path: "assembly-batches",
+  beforeLoad: ({ context: { session } }) => refuseWithout(session, canManageBatches),
+  validateSearch: assemblyBatchesFilters,
+  search: { middlewares: [stripSearchParams(assemblyBatchesFilters.parse({}))] },
+  component: lazyScreen(() => import("./assembly-batches-page"), "AssemblyBatchesPage"),
 });

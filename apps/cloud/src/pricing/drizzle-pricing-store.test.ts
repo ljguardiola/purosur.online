@@ -19,6 +19,7 @@ import { seededPriceListId } from "../test-support/seeded-price-list.js";
 import { DrizzlePriceReviewReader } from "./drizzle-price-review-reader.js";
 import { DrizzlePricingStore } from "./drizzle-pricing-store.js";
 import { insertPriceReviewPostponement } from "./test-support/price-review-postponements.js";
+import { rowsReadFrom } from "./test-support/rows-read-from.js";
 
 const MOMENT = new Date("2026-01-05T12:00:00.000Z");
 const EARLIER = new Date("2026-01-01T09:00:00.000Z");
@@ -546,5 +547,73 @@ describe("DrizzlePricingStore's clock", () => {
     expectTypeOf<[PgDatabase<PgQueryResultHKT>]>().not.toExtend<
       ConstructorParameters<typeof DrizzlePricingStore>
     >();
+  });
+});
+
+describe("DrizzlePricingStore's current price", () => {
+  async function currentPriceRead(productId: string, priceListId: string) {
+    const { result, rows } = await rowsReadFrom(testDatabase.client, "prices", (logged) =>
+      new DrizzlePricingStore(logged, () => MOMENT).transaction((tx) =>
+        tx.currentPrice(productId, priceListId),
+      ),
+    );
+    return { current: result, rows };
+  }
+
+  it("reads only the price that starts last out of a long history", async () => {
+    const productId = await insertProduct();
+    const priceListId = await seededPriceListId(db);
+    await db.insert(prices).values(
+      [1, 2, 3, 4, 5, 6].map((month) => ({
+        productId,
+        priceListId,
+        unitPrice: 100 * month,
+        validFrom: new Date(Date.UTC(2025, month, 1)),
+      })),
+    );
+
+    const { current, rows } = await currentPriceRead(productId, priceListId);
+
+    expect(current?.unitPrice).toBe(600);
+    expect(rows).toBe(1);
+  });
+
+  it("reads every price that starts at the newest moment and takes the one with the greater id", async () => {
+    const productId = await insertProduct();
+    const priceListId = await seededPriceListId(db);
+    await db.insert(prices).values([
+      { id: LESSER_ID, productId, priceListId, unitPrice: 1000, validFrom: LATER },
+      { id: GREATER_ID, productId, priceListId, unitPrice: 2000, validFrom: LATER },
+      { productId, priceListId, unitPrice: 500, validFrom: EARLIER },
+    ]);
+
+    const { current, rows } = await currentPriceRead(productId, priceListId);
+
+    expect(current).toEqual({ id: GREATER_ID, unitPrice: 2000, validFrom: LATER });
+    expect(rows).toBe(2);
+  });
+
+  it("reads none of the prices of another price list, whatever moment they start", async () => {
+    const productId = await insertProduct();
+    const priceListId = await seededPriceListId(db);
+    const otherPriceListId = await insertOtherPriceList();
+    await db.insert(prices).values([
+      { productId, priceListId, unitPrice: 1000, validFrom: EARLIER },
+      { productId, priceListId: otherPriceListId, unitPrice: 9000, validFrom: LATER },
+    ]);
+
+    const { current, rows } = await currentPriceRead(productId, priceListId);
+
+    expect(current?.unitPrice).toBe(1000);
+    expect(rows).toBe(1);
+  });
+
+  it("has no price for a product with none", async () => {
+    const productId = await insertProduct();
+
+    expect(await currentPriceRead(productId, await seededPriceListId(db))).toEqual({
+      current: undefined,
+      rows: 0,
+    });
   });
 });

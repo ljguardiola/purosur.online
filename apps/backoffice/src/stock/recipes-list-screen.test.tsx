@@ -94,6 +94,49 @@ test("shows the breadcrumb, the heading and each recipe with its product, compon
     ]);
 });
 
+test("shows the unit cost of the last batch with the day it was assembled", async () => {
+  const services = createServices();
+  const screen = await loaded(services, [
+    {
+      ...mixDeFrutosSecos,
+      lastBatch: {
+        unitCostCents: 991_200,
+        costIncomplete: false,
+        assembledAt: "2026-09-15T13:30:00.000Z",
+      },
+    },
+    {
+      ...cajaDeInfusiones,
+      lastBatch: {
+        unitCostCents: 12_000,
+        costIncomplete: false,
+        assembledAt: "2026-09-10T13:30:00.000Z",
+      },
+    },
+  ]);
+
+  await expect
+    .poll(() => rowTexts(screen).map((text) => text.replace(/.*componentes.*?(\$)/, "$1")))
+    .toEqual(["$ 120,00Tanda del 10/09/2026", "$ 9.912,00 / kgTanda del 15/09/2026"]);
+});
+
+test("says the cost of the last batch is incomplete when the cloud could not complete it", async () => {
+  const services = createServices();
+  const screen = await loaded(services, [
+    {
+      ...mixDeFrutosSecos,
+      lastBatch: {
+        unitCostCents: null,
+        costIncomplete: true,
+        assembledAt: "2026-09-15T13:30:00.000Z",
+      },
+    },
+  ]);
+
+  await expect.element(screen.getByText("Costo incompleto")).toBeVisible();
+  await expect.element(screen.getByText("Tanda del 15/09/2026")).toBeVisible();
+});
+
 test("counts the assembled products under the table", async () => {
   const services = createServices();
   const screen = await loaded(services, [mixDeFrutosSecos, cajaDeInfusiones]);

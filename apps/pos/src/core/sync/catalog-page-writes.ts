@@ -165,7 +165,7 @@ export function prepareCatalogPageWrites(database: LocalDatabase, mode: PageWrit
         product_id: row.product_id,
         price_list_id: row.price_list_id,
         unit_price: row.unit_price,
-        valid_from: row.valid_from,
+        valid_from: new Date(row.valid_from).toISOString(),
         version: row.version,
       });
     },

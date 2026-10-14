@@ -42,6 +42,19 @@ test("each period, product and moment has its own key", () => {
     stockKeys.initialLots({ cost: "incomplete" }),
     stockKeys.initialLots({ product: "miel" }),
     stockKeys.initialLots({ cost: "known", product: "miel" }),
+    stockKeys.assemblyBatches(7),
+    stockKeys.assemblyBatches(30),
+    stockKeys.assemblyBatchProposal({ productId: "p-1", size: 5_000 }),
+    stockKeys.assemblyBatchProposal({ productId: "p-1", size: 6_000 }),
+    stockKeys.assemblyBatchProposal({ productId: "p-2", size: 5_000 }),
+    stockKeys.assemblyBatchLot({ productId: "p-1", size: 5_000, used: [], output: 4_900 }),
+    stockKeys.assemblyBatchLot({ productId: "p-1", size: 5_000, used: [], output: 4_800 }),
+    stockKeys.assemblyBatchLot({
+      productId: "p-1",
+      size: 5_000,
+      used: [{ componentProductId: "c-1", quantity: 100 }],
+      output: 4_900,
+    }),
   ];
 
   expect(new Set(keys.map((key) => JSON.stringify(key))).size).toBe(keys.length);

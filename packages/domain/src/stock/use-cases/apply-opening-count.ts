@@ -1,7 +1,6 @@
 import { lotOfOpeningCount } from "../model/lot.js";
-import { receiptAllocations } from "../model/lot-allocation.js";
 import { isMovementQuantity } from "../model/stock-quantity.js";
-import { allocateToLots, recordStockMovement } from "./apply-stock-movement.js";
+import { recordLotReceipt } from "./record-lot-receipt.js";
 import type { StockStoreTransaction } from "./stock-store.js";
 
 export interface ApplyOpeningCountInput {
@@ -37,22 +36,19 @@ export async function applyOpeningCount(
   }
 
   const coveringCount = await tx.earliestCountAtOrAfter(key, input.occurredAt);
-  const { movementId, balance } = await recordStockMovement(tx, {
-    ...key,
-    id: input.movementId,
-    kind: "opening_count",
-    reason: null,
-    delta: input.counted,
-    occurredAt: input.occurredAt,
-    actorId: input.actorId,
-    supersededByCountId: coveringCount?.movementId ?? null,
-  });
-  const lots = await tx.productLots(key);
-  const lotId = await tx.recordInitialCountLot(
-    lotOfOpeningCount({ ...input, movementId: input.movementId }),
+  const { lotId } = await recordLotReceipt(
+    tx,
+    {
+      ...key,
+      id: input.movementId,
+      kind: "opening_count",
+      reason: null,
+      delta: input.counted,
+      occurredAt: input.occurredAt,
+      actorId: input.actorId,
+      supersededByCountId: coveringCount?.movementId ?? null,
+    },
+    () => tx.recordInitialCountLot(lotOfOpeningCount({ ...input, movementId: input.movementId })),
   );
-  if (balance !== null) {
-    await allocateToLots(tx, key, movementId, receiptAllocations(lotId, lots, input.counted));
-  }
   return { kind: "recorded", lotId };
 }

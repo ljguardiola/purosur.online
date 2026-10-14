@@ -4,6 +4,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from
 import { recipeComponents, recipes } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { registerRecipesRoutes } from "./recipes-routes.js";
+import { insertAssemblyBatch } from "./test-support/assembly-batch-fixtures.js";
 import {
   BACKOFFICE_ORIGIN,
   insertProduct,
@@ -100,6 +101,34 @@ describe("GET /recipes", () => {
 
     expect(response.statusCode).toBe(403);
     expect(response.json()).toMatchObject({ code: "forbidden" });
+  });
+
+  it("lists each recipe with the last batch made at the session's branch", async () => {
+    const { headers, userId, locationId } = await recipeManager();
+    const { mix, nuts } = await assembledProducts();
+    await db.insert(recipes).values({ productId: mix, actorId: userId });
+    await db.insert(recipeComponents).values({
+      productId: mix,
+      componentProductId: nuts,
+      quantityPerOutputUnit: 600,
+      position: 0,
+    });
+    await insertAssemblyBatch(db, {
+      productId: mix,
+      locationId,
+      actorId: userId,
+      assembledAt: new Date("2026-05-04T13:00:00.000Z"),
+      cost: { totalCents: 50_200, quantity: 14_000 },
+    });
+
+    const response = await app.inject({ method: "GET", url: "/recipes", headers });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().recipes[0].lastBatch).toEqual({
+      unitCostCents: 3_586,
+      costIncomplete: false,
+      assembledAt: "2026-05-04T13:00:00.000Z",
+    });
   });
 
   it("lists the recipes with no last batch, and the active products a recipe may use", async () => {
