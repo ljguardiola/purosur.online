@@ -4,7 +4,11 @@ import {
   type RegisterInstallationState,
   registerInstallationState,
 } from "../model/register-installation.js";
-import type { BranchRegisters, RegisterEnrollmentCode } from "./branch-register-store.js";
+import type {
+  BranchRegisters,
+  RegisterEnrollmentCode,
+  RegisterPointTerminal,
+} from "./branch-register-store.js";
 
 export interface ListBranchRegistersPorts {
   registers: BranchRegisters;
@@ -25,6 +29,7 @@ export interface BranchRegisterSummary {
   name: string;
   pendingCode: PendingEnrollmentCode | null;
   pointOfSaleNumber: number | null;
+  pointTerminal: RegisterPointTerminal;
   installation: RegisterInstallationState;
 }
 
@@ -52,6 +57,7 @@ export async function listBranchRegisters(
     name: register.name,
     pendingCode: pendingCodeOf(register.enrollmentCode, now),
     pointOfSaleNumber: register.pointOfSaleNumber,
+    pointTerminal: register.pointTerminal,
     installation: registerInstallationState(register.installations),
   }));
 }

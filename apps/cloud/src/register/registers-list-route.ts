@@ -13,10 +13,6 @@ import {
   routeSessionSource,
 } from "../sessions/route-access.js";
 import { DrizzleBranchRegisterStore } from "./drizzle-branch-register-store.js";
-import {
-  DrizzleRegisterPointTerminalReader,
-  type RegisterPointTerminal,
-} from "./drizzle-register-point-terminal-reader.js";
 
 export interface RegistersRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
@@ -48,10 +44,7 @@ function toInstallationWire(
   }
 }
 
-function toRegisterWire(
-  register: BranchRegisterSummary,
-  pointTerminal: RegisterPointTerminal,
-): RegisterSummaryBody {
+function toRegisterWire(register: BranchRegisterSummary): RegisterSummaryBody {
   return {
     id: register.id,
     name: register.name,
@@ -62,8 +55,8 @@ function toRegisterWire(
         }
       : null,
     point_of_sale_number: register.pointOfSaleNumber,
-    point_terminal_id: pointTerminal.terminalId,
-    point_terminal_version: pointTerminal.version,
+    point_terminal_id: register.pointTerminal.terminalId,
+    point_terminal_version: register.pointTerminal.version,
     installation: toInstallationWire(register.installation),
   };
 }
@@ -76,7 +69,6 @@ export function registerRegistersListRoute<TQueryResult extends PgQueryResultHKT
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
   const registers = new DrizzleBranchRegisterStore(options.db, now);
-  const pointTerminals = new DrizzleRegisterPointTerminalReader(options.db);
 
   app.get(
     "/registers",
@@ -91,14 +83,7 @@ export function registerRegistersListRoute<TQueryResult extends PgQueryResultHKT
         { registers, clock: { now } },
         { locationId: openSession.locationId },
       );
-      const terminalOf = await pointTerminals.ofBranch(openSession.locationId);
-      await reply
-        .code(200)
-        .send(
-          registerListSchema.parse(
-            listed.map((register) => toRegisterWire(register, terminalOf(register.id))),
-          ),
-        );
+      await reply.code(200).send(registerListSchema.parse(listed.map(toRegisterWire)));
     },
   );
 }

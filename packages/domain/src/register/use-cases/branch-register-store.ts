@@ -7,11 +7,17 @@ export interface RegisterEnrollmentCode extends EnrollmentCodeState {
   issuedAt: Date;
 }
 
+export interface RegisterPointTerminal {
+  terminalId: string | null;
+  version: number;
+}
+
 export interface BranchRegister {
   id: string;
   name: string;
   enrollmentCode: RegisterEnrollmentCode | null;
   pointOfSaleNumber: number | null;
+  pointTerminal: RegisterPointTerminal;
   installations: RegisterInstallationRecord[];
 }
 
