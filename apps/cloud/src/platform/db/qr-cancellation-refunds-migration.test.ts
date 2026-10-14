@@ -203,17 +203,17 @@ describe("the QR cancellation refunds migration applied over a database that alr
     });
 
     it("refuses an attempt key another refund already used", async () => {
-      const { migrated, refundId, saleId, paymentId, transactionId } = await migratedWithRefund();
+      const { migrated, refundId, saleId, paymentId } = await migratedWithRefund();
       await migrated.query(
         "update payment_refunds set confirmed_by = 'manager', confirmed_at = now(), attempt_key = 'key-1' where id = $1",
         [refundId],
       );
       const { rows } = await migrated.query<{ id: string }>(
         `insert into payment_refunds
-           (id, sale_id, payment_id, payment_transaction_id, origin_event_id, origin, method, provider, amount, state, occurred_at, confirmed_by, confirmed_at)
-         values (gen_random_uuid(), $1, $2, $3, gen_random_uuid(), 'sale_cancelled', 'QR', 'MERCADOPAGO_QR', 100, 'PENDING', now(), 'manager', now())
+           (id, sale_id, payment_id, origin_event_id, origin, method, provider, amount, state, occurred_at, confirmed_by, confirmed_at)
+         values (gen_random_uuid(), $1, $2, gen_random_uuid(), 'sale_cancelled', 'QR', 'MERCADOPAGO_QR', 100, 'PENDING', now(), 'manager', now())
          returning id`,
-        [saleId, paymentId, transactionId],
+        [saleId, paymentId],
       );
 
       await expect(

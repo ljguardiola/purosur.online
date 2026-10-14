@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { paymentRefunds } from "../platform/db/schema.js";
+import { signedInWith } from "../stock/test-support/stock-route-fixtures.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { buildJobHelpers } from "../test-support/job-helpers.js";
 import {
@@ -60,9 +61,10 @@ describe("mercadoPagoRefundFollowJobs", () => {
 
   it("sends a refund a person confirmed that Mercado Pago could not be reached for, and records what it answers", async () => {
     const pending = await aPendingQrRefundOfCancelledSale(testDatabase.db, { cancelledAt: NOW });
+    const { userId } = await signedInWith(testDatabase.db, ["confirm_refunds"], NOW);
     await testDatabase.db
       .update(paymentRefunds)
-      .set({ confirmedBy: "manager", confirmedAt: NOW, attemptKey: "key-1" })
+      .set({ confirmedBy: userId, confirmedAt: NOW, attemptKey: "key-1" })
       .where(eq(paymentRefunds.id, pending.refundId));
     const mercadoPago = new FakeMercadoPagoOrders();
 
@@ -81,10 +83,11 @@ describe("mercadoPagoRefundFollowJobs", () => {
 
   it("marks a refund Mercado Pago processed as done by whoever confirmed it", async () => {
     const pending = await aPendingQrRefundOfCancelledSale(testDatabase.db, { cancelledAt: NOW });
+    const { userId } = await signedInWith(testDatabase.db, ["confirm_refunds"], NOW);
     await testDatabase.db
       .update(paymentRefunds)
       .set({
-        confirmedBy: "manager",
+        confirmedBy: userId,
         confirmedAt: NOW,
         attemptKey: "key-1",
         sentAt: NOW,
@@ -103,7 +106,7 @@ describe("mercadoPagoRefundFollowJobs", () => {
       .select()
       .from(paymentRefunds)
       .where(eq(paymentRefunds.id, pending.refundId));
-    expect(refund).toMatchObject({ state: "APPROVED", doneBy: "manager", doneAt: NOW });
+    expect(refund).toMatchObject({ state: "APPROVED", doneBy: userId, doneAt: NOW });
   });
 
   it("never sends a refund nobody confirmed", async () => {

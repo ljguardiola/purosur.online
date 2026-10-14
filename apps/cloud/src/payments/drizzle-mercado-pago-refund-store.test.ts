@@ -77,13 +77,18 @@ describe("DrizzleMercadoPagoRefundStore", () => {
 
   describe("confirmedPendingRefunds", () => {
     it("lists only the pending refunds a person confirmed, whatever their branch", async () => {
-      const confirmed = await aPendingQrRefundOfCancelledSale(db, { cancelledAt: NOW });
+      const confirmed = await aPendingQrRefundOfCancelledSale(db, {
+        cancelledAt: NOW,
+        orderId: "ORD-A",
+      });
       const unconfirmed = await aPendingQrRefundOfCancelledSale(db, {
         cancelledAt: NOW,
+        orderId: "ORD-B",
         registerName: "Caja 2",
       });
       const done = await aPendingQrRefundOfCancelledSale(db, {
         cancelledAt: NOW,
+        orderId: "ORD-C",
         registerName: "Caja 3",
       });
       await db
@@ -300,7 +305,7 @@ describe("DrizzleMercadoPagoRefundStore", () => {
       const { refundId, userId } = await lockedPending();
       await store().transaction(async (tx) => {
         await tx.recordRefundConfirmed(refundId, userId, NOW, "key-1");
-        await tx.recordRefundRefusal(refundId, "insufficient_balance");
+        await tx.recordRefundRefusal(refundId, "insufficient_balance", NOW);
       });
 
       await store().transaction((tx) => tx.recordRefundSent(refundId, "REF-1", LATER));
@@ -317,7 +322,9 @@ describe("DrizzleMercadoPagoRefundStore", () => {
       const { refundId, userId } = await lockedPending();
       await store().transaction((tx) => tx.recordRefundConfirmed(refundId, userId, NOW, "key-1"));
 
-      await store().transaction((tx) => tx.recordRefundRefusal(refundId, "refund_period_exceeded"));
+      await store().transaction((tx) =>
+        tx.recordRefundRefusal(refundId, "refund_period_exceeded", LATER),
+      );
 
       expect((await storedRefund(refundId))?.lastRefusalReason).toBe("refund_period_exceeded");
       const audits = await db.select().from(auditLog).where(eq(auditLog.entityId, refundId));
