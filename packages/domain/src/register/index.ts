@@ -92,10 +92,6 @@ export {
   SERIAL_DEVICE_ROLES,
   serialDeviceStandings,
 } from "./model/serial-devices.js";
-export {
-  isSafeMomentToUpdate,
-  REGISTER_UPDATE_HOLD_LIMIT_MS,
-} from "./model/update-safe-moment.js";
 export type {
   SnapshotCorruptionStage,
   SnapshotFailureReason,
@@ -117,3 +113,7 @@ export {
 } from "./model/snapshot-lifecycle-rules.js";
 export type { RetainableSnapshotGeneration } from "./model/snapshot-retention.js";
 export { snapshotGenerationsToPrune } from "./model/snapshot-retention.js";
+export {
+  isSafeMomentToUpdate,
+  REGISTER_UPDATE_HOLD_LIMIT_MS,
+} from "./model/update-safe-moment.js";

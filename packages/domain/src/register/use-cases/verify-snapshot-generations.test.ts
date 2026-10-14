@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { SNAPSHOT_UPLOAD_DEADLINE_MS } from "../model/snapshot-generation.js";
-import { verifySnapshotGenerations } from "./verify-snapshot-generations.js";
 import { FixedClock } from "./test-support/fake-register-store.js";
 import { FakeSnapshotObjects, FakeSnapshotStore } from "./test-support/fake-snapshot-store.js";
+import { verifySnapshotGenerations } from "./verify-snapshot-generations.js";
 
 const NOW = new Date("2026-10-14T15:00:00.000Z");
 const SHA = "d".repeat(64);

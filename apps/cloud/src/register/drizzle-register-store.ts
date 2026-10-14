@@ -292,6 +292,7 @@ class DrizzleRegisterStoreTransaction<TQueryResult extends PgQueryResultHKT>
     };
     return {
       snapshotKeys: await versionsOf(registerSnapshotKeys, snapshotKeyPurpose),
+      retainedSnapshotKeyVersions: [],
       contingencyTicketKeys: await versionsOf(
         registerContingencyTicketKeys,
         contingencyTicketKeyPurpose,

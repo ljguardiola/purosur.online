@@ -1,5 +1,10 @@
 export type { Clock, OperationAuthority, OperationAuthorization } from "../../shared/index.js";
 export type {
+  ApplySnapshotRetentionPorts,
+  SnapshotRetentionSummary,
+} from "./apply-snapshot-retention.js";
+export { applySnapshotRetention } from "./apply-snapshot-retention.js";
+export type {
   AuthenticateInstallationInput,
   AuthenticateInstallationOutcome,
 } from "./authenticate-installation.js";
@@ -69,6 +74,11 @@ export type {
 } from "./list-branch-registers.js";
 export { listBranchRegisters } from "./list-branch-registers.js";
 export type {
+  ListRestorableSnapshotGenerationsPorts,
+  RestorableSnapshotGeneration,
+} from "./list-restorable-snapshot-generations.js";
+export { listRestorableSnapshotGenerations } from "./list-restorable-snapshot-generations.js";
+export type {
   LocalDatabaseHealth,
   LocalDatabaseHealthPorts,
 } from "./local-database-health.js";
@@ -98,6 +108,12 @@ export type {
   RecordCashMovementPorts,
 } from "./record-cash-movement.js";
 export { recordCashMovement } from "./record-cash-movement.js";
+export type {
+  RecordSnapshotUploadedInput,
+  RecordSnapshotUploadedOutcome,
+  RecordSnapshotUploadedPorts,
+} from "./record-snapshot-uploaded.js";
+export { recordSnapshotUploaded } from "./record-snapshot-uploaded.js";
 export type {
   RegisterSerialDevicesInput,
   RegisterSerialDevicesOutcome,
@@ -129,6 +145,18 @@ export type {
 } from "./register-store.js";
 export { reportLocalDatabaseDamage } from "./report-local-database-damage.js";
 export type {
+  ReportSnapshotCorruptionInput,
+  ReportSnapshotCorruptionPorts,
+} from "./report-snapshot-corruption.js";
+export { reportSnapshotCorruption } from "./report-snapshot-corruption.js";
+export type {
+  AuthorizedSnapshotUpload,
+  RequestSnapshotUploadInput,
+  RequestSnapshotUploadOutcome,
+  RequestSnapshotUploadPorts,
+} from "./request-snapshot-upload.js";
+export { requestSnapshotUpload } from "./request-snapshot-upload.js";
+export type {
   RotateDeviceTokenInput,
   RotateDeviceTokenOutcome,
 } from "./rotate-device-token.js";
@@ -144,3 +172,17 @@ export type {
   SetReceiptPrinterAddressPorts,
 } from "./set-receipt-printer-address.js";
 export { setReceiptPrinterAddress } from "./set-receipt-printer-address.js";
+export type {
+  NewSnapshotGeneration,
+  SnapshotGeneration,
+  SnapshotObjectContent,
+  SnapshotObjects,
+  SnapshotSettlement,
+  SnapshotStore,
+  SnapshotStoreTransaction,
+} from "./snapshot-generations.js";
+export type {
+  SnapshotVerificationSummary,
+  VerifySnapshotGenerationsPorts,
+} from "./verify-snapshot-generations.js";
+export { verifySnapshotGenerations } from "./verify-snapshot-generations.js";

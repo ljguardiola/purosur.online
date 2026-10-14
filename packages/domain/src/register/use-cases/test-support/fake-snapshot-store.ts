@@ -1,5 +1,5 @@
-import type { SnapshotLifecycleRules } from "../../model/snapshot-lifecycle-rules.js";
 import type { SnapshotCorruptionStage } from "../../model/snapshot-generation.js";
+import type { SnapshotLifecycleRules } from "../../model/snapshot-lifecycle-rules.js";
 import type {
   NewSnapshotGeneration,
   SnapshotGeneration,
