@@ -51,7 +51,7 @@ export interface MercadoPagoRefundTransaction extends RefundStoreTransaction {
   ): Promise<void>;
   recordAttemptKey(refundId: string, attemptKey: string | null): Promise<void>;
   recordRefundSent(refundId: string, providerRefundId: string, sentAt: Date): Promise<void>;
-  recordRefundRefusal(refundId: string, reason: string): Promise<void>;
+  recordRefundRefusal(refundId: string, reason: string, refusedAt: Date): Promise<void>;
 }
 
 export interface MercadoPagoRefundStore {

@@ -95,7 +95,7 @@ class FakeMercadoPagoRefundTransaction implements MercadoPagoRefundTransaction {
     });
   }
 
-  async recordRefundRefusal(refundId: string, reason: string): Promise<void> {
+  async recordRefundRefusal(refundId: string, reason: string, _refusedAt: Date): Promise<void> {
     this.begin("recordRefundRefusal");
     this.refund(refundId).lastRefusalReason = reason;
   }

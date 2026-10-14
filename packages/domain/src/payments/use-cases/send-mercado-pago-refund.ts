@@ -121,11 +121,11 @@ async function sendAndRecord(
         await tx.recordRefundSent(refund.id, progress.providerRefundId, now);
         return { kind: "sent", refundId: refund.id };
       case "waiting_for_balance":
-        await tx.recordRefundRefusal(refund.id, INSUFFICIENT_BALANCE_REFUSAL);
+        await tx.recordRefundRefusal(refund.id, INSUFFICIENT_BALANCE_REFUSAL, now);
         await tx.recordAttemptKey(refund.id, null);
         return { kind: "insufficient_balance", refundId: refund.id };
       case "refused":
-        await tx.recordRefundRefusal(refund.id, progress.reason);
+        await tx.recordRefundRefusal(refund.id, progress.reason, now);
         return { kind: "refused", refundId: refund.id, reason: progress.reason };
       case "unknown":
         return { kind: "provider_unavailable", refundId: refund.id };
