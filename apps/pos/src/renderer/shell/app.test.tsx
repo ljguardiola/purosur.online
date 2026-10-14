@@ -1705,7 +1705,7 @@ describe("App", () => {
       ...answering.core,
       async registerStatus() {
         return {
-          conditions: completed ? [{ kind: "fiscal_emission_stopped" }] : [],
+          conditions: completed ? [{ kind: "fiscal_emission_stopped", level: "critical" }] : [],
           cloud: "unreachable",
           serial_devices: { scale: "matching", reader: "matching" },
           serial_devices_setup_offered: false,
@@ -1729,7 +1729,7 @@ describe("App", () => {
       .element(
         screen
           .getByRole("region", { name: "Estado de la caja" })
-          .getByText("Emisión de facturas detenida"),
+          .getByRole("button", { name: "1 aviso" }),
       )
       .toBeVisible();
   });
