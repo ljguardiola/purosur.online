@@ -85,8 +85,11 @@ function renderField(options: Partial<HarnessProps> = {}) {
 test("prefills the proposed output and explains where it comes from", async () => {
   const screen = await renderField();
 
-  await expect.element(screen.getByRole("textbox", { name: /^Obtenido/ })).toHaveValue("4,950");
-  await expect.element(screen.getByText("Propuesto: 4,950 kg, la suma de lo usado.")).toBeVisible();
+  const output = screen.getByRole("textbox", { name: /^Obtenido/ });
+  await expect.element(output).toHaveValue("4,950");
+  await expect
+    .element(output)
+    .toHaveAccessibleDescription(/^Propuesto: 4,950 kg, la suma de lo usado\./);
 });
 
 test("shows no hint and no value when the recipe proposes no output", async () => {

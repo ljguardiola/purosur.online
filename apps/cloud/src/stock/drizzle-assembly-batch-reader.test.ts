@@ -35,8 +35,7 @@ async function seeded() {
   const { userId: actorId, locationId } = await signedInWith(db, [], NOW);
   const mix = await insertProduct(db, { name: "Mix de frutos secos", saleUnit: "KG" });
   const nuts = await insertProduct(db, { name: "Nueces", saleUnit: "KG" });
-  const bag = await insertProduct(db, { name: "Bolsa", saleUnit: "UNIT" });
-  return { actorId, locationId, mix: mix.productId, nuts: nuts.productId, bag: bag.productId };
+  return { actorId, locationId, mix: mix.productId, nuts: nuts.productId };
 }
 
 const MAY = {
@@ -45,17 +44,13 @@ const MAY = {
 };
 
 describe("DrizzleAssemblyBatchReader.batches", () => {
-  it("lists a batch with its product, what was used of each component, its unit cost and its expiry", async () => {
-    const { actorId, locationId, mix, nuts, bag } = await seeded();
+  it("lists a batch with its product, its unit cost and its expiry", async () => {
+    const { actorId, locationId, mix } = await seeded();
     const { batchId } = await insertAssemblyBatch(db, {
       productId: mix,
       locationId,
       actorId,
       assembledAt: new Date("2026-05-04T13:00:00.000Z"),
-      used: [
-        { componentProductId: nuts, quantity: 12_000 },
-        { componentProductId: bag, quantity: 2_000 },
-      ],
       cost: { totalCents: 50_200, quantity: 14_000 },
       expiresOn: "2027-01-15",
     });
@@ -74,13 +69,6 @@ describe("DrizzleAssemblyBatchReader.batches", () => {
       costIncomplete: false,
       expiresOn: "2027-01-15",
     });
-    expect(listed[0]?.lines).toHaveLength(2);
-    expect(listed[0]?.lines).toEqual(
-      expect.arrayContaining([
-        { componentProductId: nuts, name: "Nueces", saleUnit: "KG", quantity: 12_000 },
-        { componentProductId: bag, name: "Bolsa", saleUnit: "UNIT", quantity: 2_000 },
-      ]),
-    );
   });
 
   it("answers no unit cost for a batch whose cost is incomplete", async () => {

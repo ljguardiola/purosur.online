@@ -1,4 +1,4 @@
-import { assemblyBatches, assemblyBatchLines, lots } from "../../platform/db/schema.js";
+import { assemblyBatches, lots } from "../../platform/db/schema.js";
 import type { TestDatabase } from "../../test-support/build-test-database.js";
 
 type Db = TestDatabase["db"];
@@ -16,7 +16,6 @@ export async function insertAssemblyBatch(
     actorId: string;
     assembledAt: Date;
     output?: number;
-    used?: { componentProductId: string; quantity: number }[];
     cost?: { totalCents: number; quantity: number } | null;
     costIncomplete?: boolean;
     expiresOn?: string | null;
@@ -35,15 +34,6 @@ export async function insertAssemblyBatch(
     .returning({ id: assemblyBatches.id });
   if (!inserted) {
     throw new Error("test setup: seeding the batch returned no row");
-  }
-  if (batch.used?.length) {
-    await db.insert(assemblyBatchLines).values(
-      batch.used.map((use) => ({
-        batchId: inserted.id,
-        componentProductId: use.componentProductId,
-        quantity: use.quantity,
-      })),
-    );
   }
   const cost = batch.cost === undefined ? { totalCents: 50_200, quantity: output } : batch.cost;
   const [lot] = await db

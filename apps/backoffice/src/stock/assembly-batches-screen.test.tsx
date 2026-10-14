@@ -340,7 +340,6 @@ async function registerMix(screen: Screen) {
 
 function previewOf5kg() {
   return {
-    recipeVersion: mixDeFrutosSecos.version,
     proposal: {
       used: mixDeFrutosSecos.components.map((component) => ({
         componentProductId: component.componentProductId,
@@ -348,8 +347,6 @@ function previewOf5kg() {
       })),
       output: 4_950,
     },
-    used: [],
-    planned: [],
     lot: null,
   };
 }

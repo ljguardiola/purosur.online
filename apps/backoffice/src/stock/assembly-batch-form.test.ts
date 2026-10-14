@@ -4,6 +4,7 @@ import {
   ASSEMBLY_BATCH_FIELDS,
   assemblyBatchBodyOf,
   batchOutputMessage,
+  batchProposalOf,
   batchSizeMessage,
   batchUsedMessage,
   EMPTY_ASSEMBLY_BATCH_FORM,
@@ -68,9 +69,12 @@ describe("proposalRequestOf", () => {
     expect(proposalRequestOf(chosen, recipe)).toEqual({ productId: recipe.productId, size: 5_000 });
   });
 
-  it.each([[""], ["0"], ["abc"], ["1,2345"]])("asks for nothing with the size %j", (size) => {
-    expect(proposalRequestOf({ ...chosen, size }, recipe)).toBeUndefined();
-  });
+  it.each([[""], ["0"], ["abc"], ["1,2345"], ["2.147.484"]])(
+    "asks for nothing with the size %j",
+    (size) => {
+      expect(proposalRequestOf({ ...chosen, size }, recipe)).toBeUndefined();
+    },
+  );
 
   it("asks for nothing without a recipe", () => {
     expect(proposalRequestOf(chosen, undefined)).toBeUndefined();
@@ -94,11 +98,26 @@ describe("lotPreviewRequestOf", () => {
     });
   });
 
+  it("leaves the output to the cloud's proposal until the person types one", () => {
+    expect(lotPreviewRequestOf(chosen, { recipe, proposal })).toEqual({
+      productId: recipe.productId,
+      size: 5_000,
+      used: [
+        { componentProductId: almendras.id, quantity: 2_000 },
+        { componentProductId: nueces.id, quantity: 1_500 },
+        { componentProductId: recipe.components[2]?.componentProductId, quantity: 1_000 },
+        { componentProductId: recipe.components[3]?.componentProductId, quantity: 500 },
+      ],
+    });
+  });
+
   it.each([
     ["a used quantity that is not a number", { used: { [almendras.id]: "x" } }],
     ["a blank used quantity", { used: { [almendras.id]: "" } }],
+    ["a used quantity above the largest one", { used: { [almendras.id]: "2.147.484" } }],
     ["an output of zero", { output: "0" }],
     ["a blank output", { output: "" }],
+    ["an output above the largest one", { output: "2.147.484" }],
     ["an invalid size", { size: "" }],
   ])("asks for nothing with %s", (_name, change) => {
     expect(lotPreviewRequestOf({ ...chosen, ...change }, { recipe, proposal })).toBeUndefined();
@@ -106,6 +125,32 @@ describe("lotPreviewRequestOf", () => {
 
   it("asks for nothing without the proposal", () => {
     expect(lotPreviewRequestOf(chosen, { recipe, proposal: undefined })).toBeUndefined();
+  });
+});
+
+describe("batchProposalOf", () => {
+  const lotPreview = { ...mixPreview, proposal: { ...proposal, output: 4_900 } };
+
+  it("proposes the output the cloud answered for what is used", () => {
+    expect(batchProposalOf({ used: { [nueces.id]: "1,4" } }, proposal, lotPreview)).toEqual({
+      used: proposal.used,
+      output: 4_900,
+    });
+  });
+
+  it("keeps the output proposed for the size while nothing used was edited", () => {
+    expect(batchProposalOf({ used: {} }, proposal, undefined)).toEqual(proposal);
+  });
+
+  it("proposes no output while the cloud answers for an edited quantity", () => {
+    expect(batchProposalOf({ used: { [nueces.id]: "1,4" } }, proposal, undefined)).toEqual({
+      used: proposal.used,
+      output: null,
+    });
+  });
+
+  it("proposes nothing before the size is proposed", () => {
+    expect(batchProposalOf({ used: {} }, undefined, lotPreview)).toBeUndefined();
   });
 });
 
@@ -165,8 +210,18 @@ describe("messages", () => {
   it("asks for the size when it is blank and explains the format when it is unreadable", () => {
     expect(batchSizeMessage("", "KG", true)).toBe("Ingresá el tamaño de la tanda.");
     expect(batchSizeMessage("abc", "KG", true)).toBe(KG_MESSAGE);
-    expect(batchSizeMessage("0", "KG", true)).toBe("Ingresá un tamaño mayor a cero para la tanda.");
   });
+
+  it.each([
+    ["0", "KG", "Ingresá un tamaño mayor a cero, de hasta 2.147.483,647 kg."],
+    ["2.147.484", "KG", "Ingresá un tamaño mayor a cero, de hasta 2.147.483,647 kg."],
+    ["2.147.484", "UNIT", "Ingresá un tamaño mayor a cero, de hasta 2.147.483 u."],
+  ] as const)(
+    "asks for a size from zero up to the largest one for %j in %s",
+    (size, saleUnit, message) => {
+      expect(batchSizeMessage(size, saleUnit, false)).toBe(message);
+    },
+  );
 
   it("asks to wait for the quantities while a readable size has no proposal yet", () => {
     expect(batchSizeMessage("5", "KG", false)).toBe(
@@ -187,9 +242,17 @@ describe("messages", () => {
     expect(batchUsedMessage(chosen, recipe, proposal)).toBe("Revisá lo usado.");
   });
 
-  it("asks for the output when it is blank, explains the format, and refuses zero", () => {
+  it("asks for the output when it is blank and explains the format when it is unreadable", () => {
     expect(batchOutputMessage("", "KG")).toBe("Ingresá lo obtenido.");
     expect(batchOutputMessage("abc", "KG")).toBe(KG_MESSAGE);
-    expect(batchOutputMessage("0", "KG")).toBe("Ingresá una cantidad obtenida mayor a cero.");
   });
+
+  it.each(["0", "2.147.484"])(
+    "asks for an output from zero up to the largest one for %j",
+    (output) => {
+      expect(batchOutputMessage(output, "KG")).toBe(
+        "Ingresá una cantidad obtenida mayor a cero, de hasta 2.147.483,647 kg.",
+      );
+    },
+  );
 });

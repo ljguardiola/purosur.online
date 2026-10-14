@@ -16,7 +16,6 @@ const batch = {
   unitCostCents: 3_586,
   costIncomplete: false,
   expiresOn: "2027-01-15",
-  lines: [{ componentProductId: "p-2", name: "Nueces", saleUnit: "KG", quantity: 12_000 }],
 };
 
 describe("assemblyBatchResultSchema", () => {
@@ -76,7 +75,7 @@ const recipe = {
 };
 
 describe("assemblyBatchListSchema", () => {
-  it("accepts the batches with the components they used, and the recipes a batch may be made from", () => {
+  it("accepts the batches and the recipes a batch may be made from", () => {
     const list = { batches: [batch], recipes: [recipe] };
 
     expect(assemblyBatchListSchema.safeParse(list).data).toEqual(list);
@@ -100,26 +99,12 @@ describe("assemblyBatchListSchema", () => {
     "unitCostCents",
     "costIncomplete",
     "expiresOn",
-    "lines",
   ])("rejects a batch without %s", (key) => {
     expect(
       assemblyBatchListSchema.safeParse({ batches: [{ ...batch, [key]: undefined }], recipes: [] })
         .success,
     ).toBe(false);
   });
-
-  it.each(["componentProductId", "name", "saleUnit", "quantity"])(
-    "rejects a line without %s",
-    (key) => {
-      const [line] = batch.lines;
-      expect(
-        assemblyBatchListSchema.safeParse({
-          batches: [{ ...batch, lines: [{ ...line, [key]: undefined }] }],
-          recipes: [],
-        }).success,
-      ).toBe(false);
-    },
-  );
 
   it("rejects a sale unit other than the unit or the kilo", () => {
     expect(
@@ -131,18 +116,7 @@ describe("assemblyBatchListSchema", () => {
 
 describe("assemblyBatchPreviewSchema", () => {
   const preview = {
-    recipeVersion: 2,
     proposal: { used: [{ componentProductId: "p-2", quantity: 6_000 }], output: null },
-    used: [{ componentProductId: "p-2", quantity: 6_000 }],
-    planned: [
-      {
-        componentProductId: "p-2",
-        allocations: [
-          { lotId: "l-1", quantity: 5_000, expiresOn: "2027-01-15" },
-          { lotId: null, quantity: 1_000, expiresOn: null },
-        ],
-      },
-    ],
     lot: {
       costTotalCents: 21_000,
       costQuantity: 10_000,
@@ -152,7 +126,7 @@ describe("assemblyBatchPreviewSchema", () => {
     },
   };
 
-  it("accepts a preview whose planned allocations may fall on a lot to open", () => {
+  it("accepts the proposal and the lot the batch would have", () => {
     expect(assemblyBatchPreviewSchema.safeParse(preview).data).toEqual(preview);
   });
 
@@ -169,14 +143,11 @@ describe("assemblyBatchPreviewSchema", () => {
     ).toBe(true);
   });
 
-  it.each(["recipeVersion", "proposal", "used", "planned", "lot"])(
-    "rejects a preview without %s",
-    (key) => {
-      expect(assemblyBatchPreviewSchema.safeParse({ ...preview, [key]: undefined }).success).toBe(
-        false,
-      );
-    },
-  );
+  it.each(["proposal", "lot"])("rejects a preview without %s", (key) => {
+    expect(assemblyBatchPreviewSchema.safeParse({ ...preview, [key]: undefined }).success).toBe(
+      false,
+    );
+  });
 
   it.each(["costTotalCents", "costQuantity", "unitCostCents", "costIncomplete", "expiresOn"])(
     "rejects a lot without %s",
@@ -189,18 +160,6 @@ describe("assemblyBatchPreviewSchema", () => {
       ).toBe(false);
     },
   );
-
-  it("rejects an allocation without its lot, its quantity or its expiry", () => {
-    for (const key of ["lotId", "quantity", "expiresOn"]) {
-      const [first] = preview.planned[0]?.allocations ?? [];
-      expect(
-        assemblyBatchPreviewSchema.safeParse({
-          ...preview,
-          planned: [{ componentProductId: "p-2", allocations: [{ ...first, [key]: undefined }] }],
-        }).success,
-      ).toBe(false);
-    }
-  });
 });
 
 describe("assemblyBatchRefusalSchema", () => {
@@ -208,6 +167,7 @@ describe("assemblyBatchRefusalSchema", () => {
 
   it.each([
     { code: "product_not_found", message },
+    { code: "component_not_found", message, componentProductId: "p-2" },
     { code: "no_recipe", message },
     { code: "stale_recipe", message },
     { code: "invalid_size", message },
@@ -220,6 +180,7 @@ describe("assemblyBatchRefusalSchema", () => {
 
   it.each([
     [{ code: "invalid_quantity", message }],
+    [{ code: "component_not_found", message }],
     [{ code: "recorded", message }],
     [{ code: "stale_recipe" }],
   ])("rejects the body %j", (body) => {

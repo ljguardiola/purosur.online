@@ -2,7 +2,7 @@ import type { SaleUnit } from "../../../catalog/index.js";
 import type { Clock } from "../../../shared/index.js";
 import type { NewBatchLot, NewInitialCountLot, NewLot } from "../../model/lot.js";
 import type { StockLot } from "../../model/lot-allocation.js";
-import type { LotCost } from "../../model/lot-value.js";
+import { isLotCostIncomplete, type LotCost } from "../../model/lot-value.js";
 import type {
   AssemblyBatchStore,
   AssemblyBatchTransaction,
@@ -353,7 +353,10 @@ class FakeStockStoreTransaction implements AssemblyBatchTransaction {
         return {
           lotId: lot.id,
           cost,
-          costIncomplete: lot.technical || !lot.costComplete,
+          costIncomplete: isLotCostIncomplete({
+            technical: lot.technical,
+            costIncomplete: !lot.costComplete,
+          }),
           expiresOn: lot.expiresOn,
         };
       });

@@ -3,6 +3,8 @@ import {
   assemblyBatchesCountText,
   batchDayText,
   batchExpiryText,
+  batchLotCostText,
+  batchLotExpiryText,
   batchUnitCostText,
 } from "./assembly-batch-text";
 
@@ -34,6 +36,18 @@ test("names a batch by the day it was assembled in Argentina", () => {
 test("writes the expiry day, or says the batch does not expire", () => {
   expect(batchExpiryText("2026-11-02")).toBe("02/11/2026");
   expect(batchExpiryText(null)).toBe("Sin vencimiento");
+});
+
+test("writes the cost of a batch's lot, or says it is incomplete", () => {
+  expect(batchLotCostText({ unitCostCents: 991_200, costIncomplete: false }, "KG")).toBe(
+    "$ 9.912,00 / kg",
+  );
+  expect(batchLotCostText({ unitCostCents: null, costIncomplete: true }, "KG")).toBe("Incompleto");
+});
+
+test("writes the expiry day of a batch's lot, or says it does not expire", () => {
+  expect(batchLotExpiryText("2026-11-02")).toBe("02/11/2026");
+  expect(batchLotExpiryText(null)).toBe("No vence");
 });
 
 test.each([

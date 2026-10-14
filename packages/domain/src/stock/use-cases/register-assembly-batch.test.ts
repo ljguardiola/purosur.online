@@ -274,6 +274,28 @@ describe("registerAssemblyBatch", () => {
     expect(batchLot).toMatchObject({ costComplete: false, costTotalCents: 50_100 });
   });
 
+  it("marks the batch's lot incomplete when a later count covers a component, adding only the known parts", async () => {
+    const store = storeWithRecipe();
+    store.seedMovement({
+      ...NUTS,
+      kind: "count",
+      reason: null,
+      delta: 0,
+      occurredAt: new Date("2026-05-04T14:00:00.000Z"),
+      actorId: "person-2",
+      supersededByCountId: null,
+    });
+
+    const outcome = await register(store);
+
+    const batchLot = store.snapshot().lots.find((lot) => lot.assemblyBatchId === "batch-1");
+    expect(batchLot).toMatchObject({ costComplete: false, costTotalCents: 200, expiresOn: null });
+    expect(outcome).toMatchObject({
+      kind: "recorded",
+      batch: { unitCostCents: null, costIncomplete: true },
+    });
+  });
+
   it("gives the batch's lot no expiry when no consumed lot has one", async () => {
     const store = storeWithRecipe();
 
@@ -397,14 +419,29 @@ describe("registerAssemblyBatch refusals", () => {
     expect(await refusal({}, store)).toEqual({ kind: "product_not_found" });
   });
 
-  it("refuses a component that is no longer active", async () => {
+  it("refuses a component that is no longer active, naming it", async () => {
     const store = new FakeStockStore();
     store.seedProduct({ id: MIX.productId, saleUnit: "KG" });
     store.seedProduct({ id: NUTS.productId, saleUnit: "KG", active: false });
     store.seedProduct({ id: BAG.productId, saleUnit: "UNIT" });
     store.seedRecipe(RECIPE);
 
-    expect(await refusal({}, store)).toEqual({ kind: "product_not_found" });
+    expect(await refusal({}, store)).toEqual({
+      kind: "component_not_found",
+      componentProductId: NUTS.productId,
+    });
+  });
+
+  it("refuses a component that no longer exists, naming it", async () => {
+    const store = new FakeStockStore();
+    store.seedProduct({ id: MIX.productId, saleUnit: "KG" });
+    store.seedProduct({ id: NUTS.productId, saleUnit: "KG" });
+    store.seedRecipe(RECIPE);
+
+    expect(await refusal({}, store)).toEqual({
+      kind: "component_not_found",
+      componentProductId: BAG.productId,
+    });
   });
 
   it("refuses a batch made from a version of the recipe that is no longer the current one", async () => {

@@ -6,7 +6,7 @@ const TITLES = [
   "No se registró la tanda",
   "Demasiadas solicitudes",
   "La receta cambió",
-  "Este producto ya no tiene receta",
+  "Nueces ya no está disponible",
 ];
 
 test.each([
@@ -22,9 +22,9 @@ test.each([
     "Cerrá esta ventana y volvé a abrirla para usar la receta actual.",
   ],
   [
-    { kind: "productGone" } as const,
-    "Este producto ya no tiene receta",
-    "Cerrá esta ventana y actualizá la lista.",
+    { kind: "componentGone", name: "Nueces" } as const,
+    "Nueces ya no está disponible",
+    "Quitalo de la receta en Recetas para registrar esta tanda.",
   ],
 ])(
   "tells %j with its title and what to do next, and nothing else",

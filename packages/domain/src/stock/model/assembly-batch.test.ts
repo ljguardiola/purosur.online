@@ -7,6 +7,7 @@ import {
   batchQuantityRefusal,
   type ConsumedAllocation,
   pairedWithRecipe,
+  proposedOutput,
   usedQuantityRefusal,
 } from "./assembly-batch.js";
 import { MAX_STOCK_QUANTITY, STOCK_QUANTITY_PER_UNIT } from "./stock-quantity.js";
@@ -170,6 +171,27 @@ function consumed(overrides: Partial<ConsumedAllocation> = {}): ConsumedAllocati
     ...overrides,
   };
 }
+
+describe("proposedOutput", () => {
+  it("is the sum of what is used when every component shares the product's sale unit", () => {
+    expect(
+      proposedOutput("KG", [
+        { componentProductId: "a", saleUnit: "KG", quantity: 1_250 },
+        { componentProductId: "b", saleUnit: "KG", quantity: 0 },
+        { componentProductId: "c", saleUnit: "KG", quantity: 3_000 },
+      ]),
+    ).toBe(4_250);
+  });
+
+  it("is none when a component has another sale unit", () => {
+    expect(
+      proposedOutput("KG", [
+        { componentProductId: "a", saleUnit: "KG", quantity: 1_250 },
+        { componentProductId: "b", saleUnit: "UNIT", quantity: 1_000 },
+      ]),
+    ).toBeNull();
+  });
+});
 
 describe("batchLotFacts", () => {
   it("costs the lot at the sum of the cost of the quantities consumed from each lot, with the output as its cost quantity", () => {

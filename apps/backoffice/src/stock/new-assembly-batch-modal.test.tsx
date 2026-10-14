@@ -33,12 +33,16 @@ const registered: AssemblyBatchResult["batch"] = {
 };
 
 function previewFor({ size, used }: AssemblyBatchPreviewRequest): AssemblyBatchPreview {
-  const scale = (quantity: number) => Math.round((quantity * size) / 5_000);
-  const proposal = {
-    used: mixPreview.proposal.used.map((use) => ({ ...use, quantity: scale(use.quantity) })),
-    output: scale(4_950),
+  const sum = (uses: readonly { quantity: number }[]) =>
+    uses.reduce((total, use) => total + use.quantity, 0);
+  const proposed = mixPreview.proposal.used.map((use) => ({
+    ...use,
+    quantity: Math.round((use.quantity * size) / 5_000),
+  }));
+  return {
+    ...mixPreview,
+    proposal: { used: proposed, output: sum(used ?? proposed) },
   };
-  return used === undefined ? { ...mixPreview, proposal, used: proposal.used } : mixPreview;
 }
 
 function createServices(
@@ -194,8 +198,19 @@ test("asks the cloud for the proposal of the typed size and fills the components
       "Maní1,000 kgUsado de Maníkg",
       "Pasas0,500 kgUsado de Pasaskg",
     ]);
-  await expect.element(dialog.getByRole("textbox", { name: /^Obtenido/ })).toHaveValue("4,950");
-  await expect.element(dialog.getByText("Propuesto: 4,950 kg, la suma de lo usado.")).toBeVisible();
+  await expect.element(dialog.getByRole("textbox", { name: /^Obtenido/ })).toHaveValue("5,000");
+  await expect.element(dialog.getByText("Propuesto: 5,000 kg, la suma de lo usado.")).toBeVisible();
+});
+
+test("proposes the output as the sum of what is used once a used quantity is edited", async () => {
+  const screen = await renderModal();
+  await prepareMix(screen);
+
+  await userEvent.fill(screen.getByRole("textbox", { name: "Usado de Nueces" }), "1,4");
+
+  const dialog = screen.getByRole("dialog");
+  await expect.element(dialog.getByRole("textbox", { name: /^Obtenido/ })).toHaveValue("4,900");
+  await expect.element(dialog.getByText("Propuesto: 4,900 kg, la suma de lo usado.")).toBeVisible();
 });
 
 test("shows no unit suffix of kilos for a product sold by unit", async () => {
@@ -236,7 +251,9 @@ test("shows the cost and the expiry the cloud previews for what is used and obta
   await prepareMix(screen);
 
   const dialog = screen.getByRole("dialog");
+  await expect.element(dialog.getByText("Costo del lote")).toBeVisible();
   await expect.element(dialog.getByText("$ 9.912,00 / kg")).toBeVisible();
+  await expect.element(dialog.getByText("Vencimiento", { exact: true })).toBeVisible();
   await expect.element(dialog.getByText("02/11/2026")).toBeVisible();
   await expect
     .element(dialog.getByText("El vencimiento más próximo entre los lotes de los componentes."))
@@ -250,8 +267,58 @@ test("shows the cost and the expiry the cloud previews for what is used and obta
       { componentProductId: mixDeFrutosSecos.components[2]?.componentProductId, quantity: 1_000 },
       { componentProductId: mixDeFrutosSecos.components[3]?.componentProductId, quantity: 500 },
     ],
-    output: 4_950,
   });
+});
+
+test("shows the lot loading, without the cost of what was used before, while the preview is read again", async () => {
+  let lotReads = 0;
+  const services = createServices({
+    fetchAssemblyBatchPreview: vi
+      .fn<NewAssemblyBatchModalServices["fetchAssemblyBatchPreview"]>()
+      .mockImplementation((request) => {
+        if (request.used !== undefined) {
+          lotReads += 1;
+          if (lotReads > 1) {
+            return new Promise(() => {});
+          }
+        }
+        return Promise.resolve({ kind: "ok", value: previewFor(request) });
+      }),
+  });
+  const screen = await renderModal({ services });
+  await prepareMix(screen);
+  const dialog = screen.getByRole("dialog");
+  await expect.element(dialog.getByText("$ 9.912,00 / kg")).toBeVisible();
+
+  await userEvent.fill(screen.getByRole("textbox", { name: "Usado de Nueces" }), "1,4");
+
+  await expect.element(dialog.getByRole("status").first()).toHaveTextContent("Cargando…");
+  expect(dialog.getByText("$ 9.912,00 / kg").query()).toBeNull();
+});
+
+test("tells the cost of the lot could not be calculated and reads it again on retry", async () => {
+  let lotReads = 0;
+  const services = createServices({
+    fetchAssemblyBatchPreview: vi
+      .fn<NewAssemblyBatchModalServices["fetchAssemblyBatchPreview"]>()
+      .mockImplementation(async (request) => {
+        if (request.used !== undefined) {
+          lotReads += 1;
+          if (lotReads === 1) {
+            return { kind: "failed" };
+          }
+        }
+        return { kind: "ok", value: previewFor(request) };
+      }),
+  });
+  const screen = await renderModal({ services });
+  await prepareMix(screen);
+  const dialog = screen.getByRole("dialog");
+
+  await expect.element(dialog.getByText("No pudimos abrir el costo del lote")).toBeVisible();
+  await userEvent.click(dialog.getByRole("button", { name: "Reintentar" }));
+
+  await expect.element(dialog.getByText("$ 9.912,00 / kg")).toBeVisible();
 });
 
 test("reads the preview again with what the person typed as used and as obtained", async () => {
@@ -300,8 +367,8 @@ test("says the cost is incomplete and the batch does not expire when the cloud p
   await prepareMix(screen);
 
   const dialog = screen.getByRole("dialog");
-  await expect.element(dialog.getByText("Costo incompleto")).toBeVisible();
-  await expect.element(dialog.getByText("Sin vencimiento")).toBeVisible();
+  await expect.element(dialog.getByText("Incompleto", { exact: true })).toBeVisible();
+  await expect.element(dialog.getByText("No vence")).toBeVisible();
 });
 
 test("replaces the quantities the person did not edit when the size changes and keeps the edited ones", async () => {
@@ -315,7 +382,7 @@ test("replaces the quantities the person did not edit when the size changes and 
     .element(screen.getByRole("textbox", { name: "Usado de Almendras" }))
     .toHaveValue("2,400");
   await expect.element(screen.getByRole("textbox", { name: "Usado de Nueces" })).toHaveValue("1,4");
-  await expect.element(screen.getByRole("textbox", { name: /^Obtenido/ })).toHaveValue("5,940");
+  await expect.element(screen.getByRole("textbox", { name: /^Obtenido/ })).toHaveValue("5,600");
 });
 
 test("starts over when another product is chosen", async () => {
@@ -491,9 +558,12 @@ test("tells that the recipe changed and reads the batches again", async () => {
   await expect.poll(() => readBatches.mock.calls.length).toBe(2);
 });
 
-test.each(["product_not_found", "no_recipe"] as const)(
-  "tells that the product has no recipe anymore on %s and reads the batches again",
-  async (kind) => {
+test.each([
+  ["product_not_found", "Este producto ya no está disponible. Elegí otro."],
+  ["no_recipe", "Este producto ya no tiene receta. Elegí otro."],
+] as const)(
+  "tells once, at the product, why %s refused it and reads the batches again",
+  async (kind, message) => {
     const readBatches = vi
       .fn<typeof fetchAssemblyBatches>()
       .mockResolvedValue({ kind: "ok", value: assemblyBatchList([]) });
@@ -503,12 +573,41 @@ test.each(["product_not_found", "no_recipe"] as const)(
       { readBatches },
     );
 
-    await expect
-      .element(dialog.getByText("Este producto ya no tiene receta").first())
-      .toBeVisible();
+    await expect.element(dialog.getByText(message)).toBeVisible();
+    expect(dialog.getByText(/^Este producto/).all()).toHaveLength(1);
     await expect.poll(() => readBatches.mock.calls.length).toBe(2);
   },
 );
+
+test("names the component that is no longer available and reads the batches again", async () => {
+  const readBatches = vi
+    .fn<typeof fetchAssemblyBatches>()
+    .mockResolvedValue({ kind: "ok", value: assemblyBatchList([]) });
+
+  const dialog = await registerMixWith(
+    vi
+      .fn<NewAssemblyBatchModalServices["registerAssemblyBatch"]>()
+      .mockResolvedValue({ kind: "component_not_found", componentProductId: nueces.id }),
+    { readBatches },
+  );
+
+  await expect.element(dialog.getByText("Nueces ya no está disponible")).toBeVisible();
+  await expect
+    .element(dialog.getByText("Quitalo de la receta en Recetas para registrar esta tanda."))
+    .toBeVisible();
+  expect(dialog.getByText("Este producto ya no está disponible. Elegí otro.").query()).toBeNull();
+  await expect.poll(() => readBatches.mock.calls.length).toBe(2);
+});
+
+test("tells that the recipe changed when the component refused is not one of the recipe shown", async () => {
+  const dialog = await registerMixWith(
+    vi
+      .fn<NewAssemblyBatchModalServices["registerAssemblyBatch"]>()
+      .mockResolvedValue({ kind: "component_not_found", componentProductId: "another-product" }),
+  );
+
+  await expect.element(dialog.getByText("La receta cambió")).toBeVisible();
+});
 
 test("shows a failed attempt", async () => {
   const dialog = await registerMixWith(

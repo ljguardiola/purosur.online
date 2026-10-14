@@ -14,7 +14,6 @@ function batch(id: string, assembledAt: string): AssemblyBatchListing {
     unitCostCents: 3_586,
     costIncomplete: false,
     expiresOn: null,
-    lines: [{ componentProductId: "nuts", name: "Nueces", saleUnit: "KG", quantity: 12_000 }],
   };
 }
 

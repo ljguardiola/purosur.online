@@ -2,7 +2,7 @@ import { saveRecipe } from "@purosur/domain/stock/use-cases";
 import { eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { assemblyBatches, stockMovements } from "../platform/db/schema.js";
+import { assemblyBatches, products, stockMovements } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { registerAssemblyBatchesRoutes } from "./assembly-batches-routes.js";
 import { DrizzleRecipeStore } from "./drizzle-recipe-store.js";
@@ -135,7 +135,6 @@ describe("GET /assembly-batches", () => {
         locationId,
         actorId: userId,
         assembledAt: new Date(at),
-        used: [{ componentProductId: ids.nuts, quantity: 6_000 }],
       });
     }
 
@@ -150,7 +149,6 @@ describe("GET /assembly-batches", () => {
     expect(listed.batches[0]).toMatchObject({
       productName: "Mix de frutos secos",
       unitCostCents: 3_586,
-      lines: [{ name: "Nueces", quantity: 6_000 }],
     });
     expect(listed.recipes).toMatchObject([
       { productId: ids.mix, version: 1, lastBatch: { assembledAt: "2026-09-14T10:00:00.000Z" } },
@@ -184,15 +182,14 @@ describe("GET /assembly-batches/preview", () => {
     expect((await preview(headers, `productId=${MISSING_ID}&size=1000`)).statusCode).toBe(403);
   });
 
-  it("proposes the quantities of the recipe for the size and plans the lots they would be taken from", async () => {
+  it("proposes the quantities of the recipe for the size and costs the lot they would make", async () => {
     const { headers, userId, locationId } = await batchMaker();
     const ids = await mixWithStock(userId, locationId);
 
     const response = await preview(headers, `productId=${ids.mix}&size=10000&output=10000`);
 
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toMatchObject({
-      recipeVersion: 1,
+    expect(response.json()).toEqual({
       proposal: {
         used: [
           { componentProductId: ids.nuts, quantity: 6_000 },
@@ -200,32 +197,27 @@ describe("GET /assembly-batches/preview", () => {
         ],
         output: null,
       },
-      planned: [
-        {
-          componentProductId: ids.nuts,
-          allocations: [{ quantity: 6_000, expiresOn: "2027-01-15" }],
-        },
-        { componentProductId: ids.bag, allocations: [{ quantity: 10_000, expiresOn: null }] },
-      ],
-      lot: { costTotalCents: 80_000, costQuantity: 10_000, expiresOn: "2027-01-15" },
+      lot: {
+        costTotalCents: 80_000,
+        costQuantity: 10_000,
+        unitCostCents: 8_000,
+        costIncomplete: false,
+        expiresOn: "2027-01-15",
+      },
     });
   });
 
-  it("plans the quantities given in place of the proposal", async () => {
+  it("costs the lot by the quantities given in place of the proposal", async () => {
     const { headers, userId, locationId } = await batchMaker();
     const ids = await mixWithStock(userId, locationId);
 
     const response = await preview(
       headers,
-      `productId=${ids.mix}&size=10000&used=${ids.nuts}:2000&used=${ids.bag}:0`,
+      `productId=${ids.mix}&size=10000&used=${ids.nuts}:2000&used=${ids.bag}:0&output=2000`,
     );
 
     expect(response.json()).toMatchObject({
-      used: [
-        { componentProductId: ids.nuts, quantity: 2_000 },
-        { componentProductId: ids.bag, quantity: 0 },
-      ],
-      lot: null,
+      lot: { costTotalCents: 10_000, costQuantity: 2_000 },
     });
   });
 
@@ -408,6 +400,20 @@ describe("POST /assembly-batches", () => {
       body: { code: "validation_failed" },
     });
     expect(await db.select().from(assemblyBatches)).toEqual([]);
+  });
+
+  it("answers a component that is no longer active as not found, naming it", async () => {
+    const { headers, userId, locationId } = await batchMaker();
+    const ids = await mixWithStock(userId, locationId);
+    await db.update(products).set({ active: false }).where(eq(products.id, ids.bag));
+
+    const response = await post(headers, body(ids));
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      code: "component_not_found",
+      componentProductId: ids.bag,
+    });
   });
 
   it("answers an output a product sold by the unit cannot hold as invalid", async () => {

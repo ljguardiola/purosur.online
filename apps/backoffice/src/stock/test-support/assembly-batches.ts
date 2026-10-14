@@ -16,9 +16,6 @@ export const mixBatch: AssemblyBatch = {
   unitCostCents: 991_200,
   costIncomplete: false,
   expiresOn: "2026-11-02",
-  lines: [
-    { componentProductId: almendras.id, name: almendras.name, saleUnit: "KG", quantity: 2_000 },
-  ],
 };
 
 export const infusionsBatch: AssemblyBatch = {
@@ -31,7 +28,6 @@ export const infusionsBatch: AssemblyBatch = {
   unitCostCents: null,
   costIncomplete: true,
   expiresOn: null,
-  lines: [],
 };
 
 export function assemblyBatchList(
@@ -42,7 +38,6 @@ export function assemblyBatchList(
 }
 
 export const mixPreview: AssemblyBatchPreview = {
-  recipeVersion: mixDeFrutosSecos.version,
   proposal: {
     used: [
       { componentProductId: almendras.id, quantity: 2_000 },
@@ -52,13 +47,6 @@ export const mixPreview: AssemblyBatchPreview = {
     ],
     output: 4_950,
   },
-  used: [
-    { componentProductId: almendras.id, quantity: 2_000 },
-    { componentProductId: nueces.id, quantity: 1_500 },
-    { componentProductId: mani.id, quantity: 1_000 },
-    { componentProductId: pasas.id, quantity: 500 },
-  ],
-  planned: [],
   lot: {
     costTotalCents: 4_906_440,
     costQuantity: 4_950,

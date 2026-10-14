@@ -1,6 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
 import type { PreviewLot } from "./batch-lot-reader.js";
-import { previewAssemblyBatch } from "./preview-assembly-batch.js";
+import { type PreviewAssemblyBatchInput, previewAssemblyBatch } from "./preview-assembly-batch.js";
 import type { RecipeListing } from "./recipe-list-reader.js";
 import { FakeBatchLotReader } from "./test-support/fake-batch-lot-reader.js";
 import { FakeRecipeListReader } from "./test-support/fake-recipe-list-reader.js";
@@ -79,9 +79,8 @@ describe("previewAssemblyBatch", () => {
   it("proposes the quantities of the recipe for the size, and no output when a sale unit differs", async () => {
     const outcome = await preview();
 
-    expect(outcome).toMatchObject({
+    expect(outcome).toEqual({
       kind: "previewed",
-      recipeVersion: 2,
       proposal: {
         used: [
           { componentProductId: "nuts", quantity: 6_000 },
@@ -89,58 +88,53 @@ describe("previewAssemblyBatch", () => {
         ],
         output: null,
       },
+      lot: null,
     });
   });
 
-  it("plans the lots each component would be consumed from, as a sale would", async () => {
-    const outcome = await preview();
-
-    expect(outcome).toMatchObject({
-      planned: [
-        {
-          componentProductId: "nuts",
-          allocations: [
-            { lotId: "nuts-soon", quantity: 5_000, expiresOn: "2027-01-15" },
-            { lotId: "nuts-late", quantity: 1_000, expiresOn: "2027-03-01" },
-          ],
-        },
-        {
-          componentProductId: "bag",
-          allocations: [{ lotId: "bag-lot", quantity: 10_000, expiresOn: null }],
-        },
-      ],
-    });
-  });
-
-  it("plans the quantities given in place of the proposal", async () => {
+  it("costs the lot by the quantities given in place of the proposal", async () => {
     const outcome = await preview({
       used: [
         { componentProductId: "nuts", quantity: 2_000 },
         { componentProductId: "bag", quantity: 0 },
       ],
+      output: 2_000,
     });
 
     expect(outcome).toMatchObject({
-      used: [
-        { componentProductId: "nuts", quantity: 2_000 },
-        { componentProductId: "bag", quantity: 0 },
-      ],
-      planned: [
-        { componentProductId: "nuts", allocations: [{ lotId: "nuts-soon", quantity: 2_000 }] },
-        { componentProductId: "bag", allocations: [] },
-      ],
+      lot: { costTotalCents: 6_000, costQuantity: 2_000, expiresOn: "2027-01-15" },
     });
   });
 
-  it("answers the proposal as what would be used when no quantities are given", async () => {
-    const outcome = await preview();
-
-    expect(outcome).toMatchObject({
+  it("proposes the output as the sum of the quantities given when every sale unit is the same", async () => {
+    const outcome = await preview({
+      productId: "syrup",
       used: [
-        { componentProductId: "nuts", quantity: 6_000 },
-        { componentProductId: "bag", quantity: 10_000 },
+        { componentProductId: "sugar", quantity: 5_000 },
+        { componentProductId: "water", quantity: 2_000 },
       ],
     });
+
+    expect(outcome).toMatchObject({
+      proposal: {
+        used: [
+          { componentProductId: "sugar", quantity: 7_000 },
+          { componentProductId: "water", quantity: 3_000 },
+        ],
+        output: 7_000,
+      },
+      lot: { costTotalCents: 5_000, costQuantity: 7_000 },
+    });
+  });
+
+  it("accepts the quantities given and the output left undefined", () => {
+    expectTypeOf<{
+      productId: string;
+      locationId: string;
+      size: number;
+      used: undefined;
+      output: undefined;
+    }>().toExtend<PreviewAssemblyBatchInput>();
   });
 
   it("answers the cost and expiry the batch's lot would have for an output given", async () => {
@@ -170,7 +164,7 @@ describe("previewAssemblyBatch", () => {
     });
   });
 
-  it("plans a shortfall onto a technical lot, which leaves the cost incomplete", async () => {
+  it("costs a shortfall as consumed from a technical lot, which leaves the cost incomplete", async () => {
     const outcome = await previewAssemblyBatch(
       {
         recipes: new FakeRecipeListReader([MIX]),
@@ -180,10 +174,6 @@ describe("previewAssemblyBatch", () => {
     );
 
     expect(outcome).toMatchObject({
-      planned: [
-        { componentProductId: "nuts", allocations: [{ lotId: null, quantity: 6_000 }] },
-        {},
-      ],
       lot: { costTotalCents: 1_000, costIncomplete: true, unitCostCents: null },
     });
   });

@@ -99,7 +99,7 @@ describe("fetchAssemblyBatchPreview", () => {
   });
 
   test("returns failed when the preview does not have the expected shape", async () => {
-    vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { recipeVersion: 1 }));
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { lot: null }));
 
     expect(await fetchAssemblyBatchPreview({ productId: "p-1", size: 5_000 })).toEqual({
       kind: "failed",
@@ -187,6 +187,21 @@ describe("registerAssemblyBatch", () => {
 
     expect(await registerAssemblyBatch(body)).toEqual({
       kind: "invalid_quantity",
+      componentProductId: nueces.id,
+    });
+  });
+
+  test("returns component_not_found with the component the cloud refused", async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      jsonResponse(400, {
+        code: "component_not_found",
+        message: "refused",
+        componentProductId: nueces.id,
+      }),
+    );
+
+    expect(await registerAssemblyBatch(body)).toEqual({
+      kind: "component_not_found",
       componentProductId: nueces.id,
     });
   });
