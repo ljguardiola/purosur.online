@@ -162,6 +162,10 @@ import { registerEventsRoute } from "./sync/events-route.js";
 import { registerQuarantinedEventReleaseRoute } from "./sync/quarantined-event-release-route.js";
 import type { QuarantinedEventsRouteOptions } from "./sync/quarantined-events-list-route.js";
 import { registerQuarantinedEventsListRoute } from "./sync/quarantined-events-list-route.js";
+import {
+  type RegistersBelowMinimumRouteOptions,
+  registerRegistersBelowMinimumRoute,
+} from "./sync/registers-below-minimum-route.js";
 import { registerUserCreationRoutes } from "./users/user-creation-route.js";
 import { registerUserDeactivationRoutes } from "./users/user-deactivation-route.js";
 import { registerUserEditRoutes } from "./users/user-edit-route.js";
@@ -197,6 +201,7 @@ export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = Postgre
   products?: WithoutClock<ProductsRouteOptions<TQueryResult>>;
   alerts?: WithoutClock<AlertsRouteOptions<TQueryResult>>;
   quarantinedEvents?: WithoutClock<QuarantinedEventsRouteOptions<TQueryResult>>;
+  registersBelowMinimum?: RegistersBelowMinimumRouteOptions<TQueryResult>;
   prices?: WithoutClock<PricesRouteOptions<TQueryResult>>;
   discounts?: WithoutClock<DiscountsRouteOptions<TQueryResult>>;
   registers?: WithoutClock<RegistersRouteOptions<TQueryResult>>;
@@ -253,6 +258,7 @@ interface DatabaseWiring<TQueryResult extends PgQueryResultHKT> {
   deviceTokenRotationKey: Uint8Array;
   installationKeysEncryptionKey: Uint8Array;
   enqueueTaxAuthorityCount?: EnqueueTaxAuthorityCount;
+  releaseCheckToken?: string | undefined;
 }
 
 export function databaseRouteOptions<TQueryResult extends PgQueryResultHKT>(
@@ -282,6 +288,7 @@ export function databaseRouteOptions<TQueryResult extends PgQueryResultHKT>(
     products: backoffice,
     alerts: backoffice,
     quarantinedEvents: backoffice,
+    registersBelowMinimum: { db, releaseCheckToken: wiring.releaseCheckToken },
     prices: backoffice,
     discounts: backoffice,
     registers: backoffice,
@@ -517,6 +524,10 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
       if (options.quarantinedEvents) {
         registerQuarantinedEventsListRoute(api, { ...options.quarantinedEvents, now });
         registerQuarantinedEventReleaseRoute(api, { ...options.quarantinedEvents, now });
+      }
+
+      if (options.registersBelowMinimum) {
+        registerRegistersBelowMinimumRoute(api, options.registersBelowMinimum);
       }
 
       if (options.prices) {

@@ -29,6 +29,10 @@ export type {
   StockApplication,
   UnappliedEvent,
 } from "./event-application-ports.js";
+export type {
+  InstallationLeftBehind,
+  InstallationsLeftBehindReader,
+} from "./installations-left-behind-reader.js";
 export type { PruneOutboxOutcome } from "./prune-outbox.js";
 export { pruneOutbox } from "./prune-outbox.js";
 export type { PullChangesInput } from "./pull-changes.js";

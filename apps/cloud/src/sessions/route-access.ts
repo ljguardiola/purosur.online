@@ -1,3 +1,4 @@
+import { timingSafeEqual } from "node:crypto";
 import { type Capability, grantsCapability } from "@purosur/domain";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type {
@@ -28,6 +29,7 @@ export type RouteAccess =
   | { level: "open_session" }
   | { level: "open_session_peek" }
   | { level: "session_cookie" }
+  | { level: "release_check" }
   | { level: "capability"; capability: Capability }
   | { level: "record"; recordParam: string; grants: RecordGrants };
 
@@ -40,6 +42,7 @@ export const PUBLIC_ACCESS: RouteAccess = { level: "public" };
 export const OPEN_SESSION_ACCESS: RouteAccess = { level: "open_session" };
 export const OPEN_SESSION_PEEK_ACCESS: RouteAccess = { level: "open_session_peek" };
 export const SESSION_COOKIE_ACCESS: RouteAccess = { level: "session_cookie" };
+export const RELEASE_CHECK_ACCESS: RouteAccess = { level: "release_check" };
 
 export function capabilityAccess(capability: Capability): RouteAccess {
   return { level: "capability", capability };
@@ -78,6 +81,7 @@ declare module "fastify" {
   interface FastifyContextConfig {
     access?: RouteAccess;
     sessionSource?: RouteSessionSource;
+    releaseCheckToken?: string | undefined;
   }
 
   interface FastifyInstance {
@@ -132,6 +136,7 @@ function isAccessGranted(
 ): boolean {
   switch (access.level) {
     case "public":
+    case "release_check":
     case "open_session":
     case "open_session_peek":
     case "session_cookie":
@@ -148,6 +153,29 @@ async function refuse(reply: FastifyReply, code: 401 | 403): Promise<FastifyRepl
   return reply;
 }
 
+const RELEASE_CHECK_REJECTED_RESPONSE = {
+  code: "unauthenticated",
+  message: "the release-check token is missing or not accepted",
+} as const;
+
+function bearerTokenOf(authorization: string | undefined): string | undefined {
+  const match = /^Bearer (.+)$/.exec(authorization ?? "");
+  return match?.[1];
+}
+
+function releaseCheckTokenMatches(expected: string | undefined, authorization: string | undefined) {
+  const received = bearerTokenOf(authorization);
+  if (!expected || received === undefined) {
+    return false;
+  }
+  const expectedBuffer = Buffer.from(expected, "utf8");
+  const receivedBuffer = Buffer.from(received, "utf8");
+  return (
+    expectedBuffer.length === receivedBuffer.length &&
+    timingSafeEqual(expectedBuffer, receivedBuffer)
+  );
+}
+
 async function enforceDeclaredAccess(
   request: FastifyRequest,
   reply: FastifyReply,
@@ -158,6 +186,21 @@ async function enforceDeclaredAccess(
   }
   if (access.level === "public") {
     return undefined;
+  }
+  if (access.level === "release_check") {
+    if (
+      releaseCheckTokenMatches(
+        request.routeOptions.config.releaseCheckToken,
+        request.headers.authorization,
+      )
+    ) {
+      return undefined;
+    }
+    await reply
+      .code(401)
+      .header("WWW-Authenticate", "Bearer")
+      .send(RELEASE_CHECK_REJECTED_RESPONSE);
+    return reply;
   }
   if (!sessionSource) {
     throw new Error(`${request.method} ${request.routeOptions.url} has no session source`);
@@ -225,7 +268,12 @@ export function registerRouteAccess(app: FastifyInstance): void {
 
   app.addHook("onRoute", (routeOptions) => {
     const access = declaredAccessOf(routeOptions);
-    if (access && access.level !== "public" && !routeOptions.config?.sessionSource) {
+    if (
+      access &&
+      access.level !== "public" &&
+      access.level !== "release_check" &&
+      !routeOptions.config?.sessionSource
+    ) {
       throw new Error(
         `${String(routeOptions.method)} ${routeOptions.url} declares ${access.level} access but no session source`,
       );
