@@ -1571,6 +1571,7 @@ describe("createCoreClient", () => {
       paid_orders_without_sale: [],
       paid_order_discovery: "checked",
       selling_blocked: false,
+      may_go_selling: true,
     };
 
     const asked = client.startupPending();

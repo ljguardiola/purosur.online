@@ -9,7 +9,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { createRootRouteWithContext, createRoute, RouterProvider } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { Component } from "react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { render as renderInPage } from "vitest-browser-react";
 import { createQueryClient } from "../platform/query-client";
@@ -61,6 +61,7 @@ const NOTHING_PENDING: StartupPending = {
   paid_orders_without_sale: [],
   paid_order_discovery: "checked",
   selling_blocked: false,
+  may_go_selling: true,
 };
 const BLOCKED_BY_PAID_ORDER: StartupPending = {
   ...NOTHING_PENDING,
@@ -74,6 +75,7 @@ const BLOCKED_BY_PAID_ORDER: StartupPending = {
     },
   ],
   selling_blocked: true,
+  may_go_selling: false,
 };
 const SALE_TO_PRINT_PENDING: StartupPending = {
   ...NOTHING_PENDING,
@@ -1361,6 +1363,51 @@ describe("the register's router", () => {
       await expect.poll(() => router.state.location.pathname).toBe("/session");
     });
 
+    it("lands on it while the search for paid orders without a sale has not run yet", async () => {
+      const router = routerWithPending(async () => ({
+        ...NOTHING_PENDING,
+        paid_order_discovery: "pending",
+      }));
+      const screen = await render(<RouterProvider router={router} />);
+
+      await expect.element(screenFor["/startup-pending"](screen)).toBeVisible();
+      expect(router.state.location.pathname).toBe("/startup-pending");
+    });
+
+    it("goes on to the sale by itself once the paid-order check ends with nothing found", async () => {
+      vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+      onTestFinished(() => {
+        vi.useRealTimers();
+      });
+      let answer: StartupPending = { ...NOTHING_PENDING, paid_order_discovery: "pending" };
+      const router = routerWithPending(async () => answer);
+      const screen = await render(<RouterProvider router={router} />);
+      await expect.element(screenFor["/startup-pending"](screen)).toBeVisible();
+      answer = NOTHING_PENDING;
+
+      await vi.advanceTimersByTimeAsync(3000);
+
+      await expect.element(screenFor["/session"](screen)).toBeVisible();
+      expect(router.state.location.pathname).toBe("/session");
+    });
+
+    it("lets the person go back to the sale left open while a paid order blocks starting another", async () => {
+      const router = routerWithPending(async () => ({
+        ...BLOCKED_BY_PAID_ORDER,
+        may_go_selling: true,
+      }));
+      const screen = await render(<RouterProvider router={router} />);
+      await expect.element(screenFor["/startup-pending"](screen)).toBeVisible();
+
+      await userEvent.click(screen.getByRole("button", { name: "Ir a vender" }));
+      await expect.element(screenFor["/session"](screen)).toBeVisible();
+      await userEvent.click(screen.getByRole("link", { name: "Caja" }));
+      await userEvent.click(screen.getByRole("link", { name: "Venta" }));
+
+      await expect.element(screenFor["/session"](screen)).toBeVisible();
+      expect(router.state.location.pathname).toBe("/session");
+    });
+
     it("keeps landing on it while a paid order without a sale blocks selling, even after Ir a vender", async () => {
       let answer = SALE_TO_PRINT_PENDING;
       const router = routerWithPending(async () => answer);
@@ -1398,7 +1445,7 @@ describe("the register's router", () => {
         .toBeVisible();
     });
 
-    it("passes the order to refund through the core and lets the person sell afterwards", async () => {
+    it("passes the order to refund through the core and goes on to the sale by itself afterwards", async () => {
       let answer = BLOCKED_BY_PAID_ORDER;
       const convertPaidOrderIntoRefund = vi.fn<RouterContext["convertPaidOrderIntoRefund"]>(
         async () => {
@@ -1427,9 +1474,9 @@ describe("the register's router", () => {
       );
 
       expect(convertPaidOrderIntoRefund).toHaveBeenCalledExactlyOnceWith("tx-1");
-      await userEvent.click(screen.getByRole("button", { name: "Ir a vender" }));
 
       await expect.element(screenFor["/session"](screen)).toBeVisible();
+      expect(router.state.location.pathname).toBe("/session");
     });
 
     it("keeps the rail's Caja reachable from it", async () => {

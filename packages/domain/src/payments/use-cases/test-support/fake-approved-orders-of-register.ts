@@ -9,7 +9,7 @@ export class FakeApprovedOrdersOfRegister implements ApprovedOrdersOfRegister {
     this.lanes = lanes;
   }
 
-  async approvedUnreplacedSince(
+  async approvedWithoutSaleSince(
     registerId: string,
     since: Date,
   ): Promise<ApprovedOrderOfRegister[]> {
@@ -19,6 +19,7 @@ export class FakeApprovedOrdersOfRegister implements ApprovedOrdersOfRegister {
           transaction.registerId === registerId &&
           transaction.state === PAID_ORDER_PAYMENT_STATE &&
           transaction.replaced === PAID_ORDER_REPLACED &&
+          !this.lanes.heldBySales.has(transaction.id) &&
           transaction.createdAt.getTime() >= since.getTime(),
       )
       .map((transaction) => ({

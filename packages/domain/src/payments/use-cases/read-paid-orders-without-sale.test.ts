@@ -2,14 +2,17 @@ import { describe, expect, it } from "vitest";
 import { readPaidOrdersWithoutSale } from "./read-paid-orders-without-sale.js";
 import { anApprovedOrder, NOW, paidOrderWorld } from "./test-support/fake-paid-order-world.js";
 
+const NO_OPEN_SALE = { openSale: false };
+
 describe("readPaidOrdersWithoutSale", () => {
   it("does not block selling when the register has none", () => {
     const { ports } = paidOrderWorld();
 
-    expect(readPaidOrdersWithoutSale(ports)).toEqual({
+    expect(readPaidOrdersWithoutSale(ports, NO_OPEN_SALE)).toEqual({
       kind: "read",
       paidOrders: [],
       sellingBlocked: false,
+      mayGoSelling: true,
     });
   });
 
@@ -18,11 +21,21 @@ describe("readPaidOrdersWithoutSale", () => {
     const order = anApprovedOrder();
     local.recordPaidOrderWithoutSale(order, NOW);
 
-    expect(readPaidOrdersWithoutSale(ports)).toEqual({
+    expect(readPaidOrdersWithoutSale(ports, NO_OPEN_SALE)).toEqual({
       kind: "read",
       paidOrders: [{ ...order, recordedAt: NOW, resolved: false }],
       sellingBlocked: true,
+      mayGoSelling: false,
     });
+  });
+
+  it("lets the cashier go back to the sale already open while one blocks starting another", () => {
+    const { local, ports } = paidOrderWorld();
+    local.recordPaidOrderWithoutSale(anApprovedOrder(), NOW);
+
+    const read = readPaidOrdersWithoutSale(ports, { openSale: true });
+
+    expect([read.sellingBlocked, read.mayGoSelling]).toEqual([true, true]);
   });
 
   it("leaves out the resolved ones and stops blocking once all are resolved", () => {
@@ -30,10 +43,11 @@ describe("readPaidOrdersWithoutSale", () => {
     local.recordPaidOrderWithoutSale(anApprovedOrder(), NOW);
     local.resolvePaidOrderWithoutSale("payment-1", NOW);
 
-    expect(readPaidOrdersWithoutSale(ports)).toEqual({
+    expect(readPaidOrdersWithoutSale(ports, NO_OPEN_SALE)).toEqual({
       kind: "read",
       paidOrders: [],
       sellingBlocked: false,
+      mayGoSelling: true,
     });
   });
 
@@ -46,11 +60,12 @@ describe("readPaidOrdersWithoutSale", () => {
     );
     local.resolvePaidOrderWithoutSale("payment-1", NOW);
 
-    const read = readPaidOrdersWithoutSale(ports);
+    const read = readPaidOrdersWithoutSale(ports, NO_OPEN_SALE);
 
     expect(read.paidOrders.map((paidOrder) => paidOrder.paymentTransactionId)).toEqual([
       "payment-2",
     ]);
     expect(read.sellingBlocked).toBe(true);
+    expect(read.mayGoSelling).toBe(false);
   });
 });

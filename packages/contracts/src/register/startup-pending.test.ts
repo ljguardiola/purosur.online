@@ -38,6 +38,7 @@ const PENDING = {
   paid_orders_without_sale: [PAID_ORDER_WITHOUT_SALE],
   paid_order_discovery: "checked",
   selling_blocked: true,
+  may_go_selling: false,
 };
 
 describe("startupPendingSchema", () => {
@@ -53,6 +54,7 @@ describe("startupPendingSchema", () => {
       paid_orders_without_sale: [],
       paid_order_discovery: "checked",
       selling_blocked: false,
+      may_go_selling: true,
     };
 
     expect(startupPendingSchema.parse(nothing)).toEqual(nothing);
@@ -95,6 +97,7 @@ describe("startupPendingSchema", () => {
     ["a list of paid orders without a sale", { ...PENDING, paid_orders_without_sale: undefined }],
     ["the state of the paid-order check", { ...PENDING, paid_order_discovery: undefined }],
     ["whether selling is blocked", { ...PENDING, selling_blocked: undefined }],
+    ["whether the cashier may go selling", { ...PENDING, may_go_selling: undefined }],
     [
       "the payment of a paid order without a sale",
       {

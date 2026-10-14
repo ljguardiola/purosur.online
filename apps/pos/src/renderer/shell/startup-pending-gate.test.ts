@@ -9,6 +9,7 @@ const NOTHING: StartupPending = {
   paid_orders_without_sale: [],
   paid_order_discovery: "checked",
   selling_blocked: false,
+  may_go_selling: true,
 };
 const A_SALE_TO_PRINT: StartupPending = {
   ...NOTHING,
@@ -57,8 +58,14 @@ const A_PAID_ORDER_WITHOUT_SALE: StartupPending = {
     },
   ],
   selling_blocked: true,
+  may_go_selling: false,
+};
+const BLOCKED_WITH_AN_OPEN_SALE: StartupPending = {
+  ...A_PAID_ORDER_WITHOUT_SALE,
+  may_go_selling: true,
 };
 const DEFERRED_SEARCH: StartupPending = { ...NOTHING, paid_order_discovery: "deferred" };
+const PENDING_SEARCH: StartupPending = { ...NOTHING, paid_order_discovery: "pending" };
 
 describe("startupPendingGate", () => {
   it.each([
@@ -67,6 +74,7 @@ describe("startupPendingGate", () => {
     ["a pending payment", A_PAYMENT],
     ["a paid order without a sale", A_PAID_ORDER_WITHOUT_SALE],
     ["a search for paid orders deferred", DEFERRED_SEARCH],
+    ["a search for paid orders not run yet", PENDING_SEARCH],
   ])("lands on the pending screen when the core lists %s", async (_name, pending) => {
     const gate = startupPendingGate();
 
@@ -141,5 +149,22 @@ describe("startupPendingGate", () => {
 
     expect(await gate.lands(async () => NOTHING)).toBe(false);
     expect(gate.dismissed()).toBe(true);
+  });
+
+  it("still lands on the pending screen when the search not run yet turns out deferred", async () => {
+    const gate = startupPendingGate();
+    await gate.lands(async () => PENDING_SEARCH);
+
+    expect(await gate.lands(async () => DEFERRED_SEARCH)).toBe(true);
+  });
+
+  it("lets the cashier go back to the sale left open while a paid order blocks starting another", async () => {
+    const gate = startupPendingGate();
+    expect(await gate.lands(async () => BLOCKED_WITH_AN_OPEN_SALE)).toBe(true);
+
+    gate.dismiss();
+
+    expect(gate.dismissed()).toBe(true);
+    expect(await gate.lands(async () => BLOCKED_WITH_AN_OPEN_SALE)).toBe(false);
   });
 });

@@ -808,6 +808,7 @@ const NOTHING_PENDING: StartupPending = {
   paid_orders_without_sale: [],
   paid_order_discovery: "checked",
   selling_blocked: false,
+  may_go_selling: true,
 };
 const PAYMENT_PENDING: StartupPending = {
   ...NOTHING_PENDING,

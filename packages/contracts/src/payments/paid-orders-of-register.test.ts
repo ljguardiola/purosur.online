@@ -78,7 +78,7 @@ describe("latePaymentRefundOpeningSchema", () => {
 });
 
 describe("latePaymentRefundRefusalDetailSchema", () => {
-  it.each(["not_approved", "replaced"])("accepts the refusal %s", (refusal) => {
+  it.each(["not_approved", "replaced", "held_by_sale"])("accepts the refusal %s", (refusal) => {
     expect(latePaymentRefundRefusalDetailSchema.parse({ refusal })).toEqual({ refusal });
   });
 

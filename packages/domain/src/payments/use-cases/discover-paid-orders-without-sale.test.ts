@@ -8,7 +8,16 @@ const NOTHING_FOUND = {
   duplicateCharges: 0,
   withoutSale: 0,
   failed: 0,
+  completedSaleIds: [],
 };
+
+function openSaleOf(
+  local: ReturnType<typeof paidOrderWorld>["local"],
+  order: ReturnType<typeof anApprovedOrder>,
+) {
+  local.sales.set(order.saleId, "OPEN");
+  local.saleActors.set(order.saleId, "cashier-1");
+}
 
 describe("discoverPaidOrdersWithoutSale", () => {
   it("asks the cloud for the orders paid in the last 72 hours", async () => {
@@ -20,24 +29,38 @@ describe("discoverPaidOrdersWithoutSale", () => {
   });
 
   it("defers the check, recording and asking nothing, when the cloud cannot be reached", async () => {
-    const { refunds, local, ports } = paidOrderWorld({ kind: "unreachable" });
+    const { refunds, local, sale, ports } = paidOrderWorld({ kind: "unreachable" });
 
     expect(await discoverPaidOrdersWithoutSale(ports)).toEqual({ kind: "deferred" });
 
     expect(local.recordedOrders.size).toBe(0);
-    expect(local.applied).toEqual([]);
+    expect(sale.settled).toEqual([]);
     expect(refunds.asked).toEqual([]);
   });
 
   it("leaves alone an order whose payment the register already approved", async () => {
     const order = anApprovedOrder();
-    const { refunds, local, ports } = paidOrderWorld({ kind: "listed", orders: [order] });
+    const { refunds, local, sale, ports } = paidOrderWorld({ kind: "listed", orders: [order] });
     local.payments.set(order.paymentTransactionId, "APPROVED");
     local.sales.set(order.saleId, "COMPLETED");
 
     expect(await discoverPaidOrdersWithoutSale(ports)).toEqual(NOTHING_FOUND);
 
-    expect(local.applied).toEqual([]);
+    expect(sale.settled).toEqual([]);
+    expect(local.recordedOrders.size).toBe(0);
+    expect(refunds.asked).toEqual([]);
+  });
+
+  it("leaves to the charge under way an order whose payment the register still has pending", async () => {
+    const order = anApprovedOrder();
+    const { refunds, local, sale, ports } = paidOrderWorld({ kind: "listed", orders: [order] });
+    openSaleOf(local, order);
+    local.payments.set(order.paymentTransactionId, "PENDING");
+
+    expect(await discoverPaidOrdersWithoutSale(ports)).toEqual(NOTHING_FOUND);
+
+    expect(local.steps).toEqual([]);
+    expect(sale.settled).toEqual([]);
     expect(local.recordedOrders.size).toBe(0);
     expect(refunds.asked).toEqual([]);
   });
@@ -45,21 +68,96 @@ describe("discoverPaidOrdersWithoutSale", () => {
   it("applies the paid order to the sale that is still open, charging nothing again", async () => {
     const order = anApprovedOrder();
     const { refunds, local, ports } = paidOrderWorld({ kind: "listed", orders: [order] });
-    local.sales.set(order.saleId, "OPEN");
+    openSaleOf(local, order);
 
-    expect(await discoverPaidOrdersWithoutSale(ports)).toEqual({ ...NOTHING_FOUND, applied: 1 });
+    expect(await discoverPaidOrdersWithoutSale(ports)).toEqual({
+      ...NOTHING_FOUND,
+      applied: 1,
+      completedSaleIds: [order.saleId],
+    });
 
-    expect(local.applied).toEqual([order.paymentTransactionId]);
+    expect(local.payments.get(order.paymentTransactionId)).toBe("APPROVED");
     expect(local.recordedOrders.size).toBe(0);
     expect(refunds.asked).toEqual([]);
   });
 
+  it("settles the paid order as the open sale's own cashier, after holding it as a pending payment, in one transaction", async () => {
+    const order = anApprovedOrder();
+    const { local, sale, ports } = paidOrderWorld({ kind: "listed", orders: [order] });
+    openSaleOf(local, order);
+    local.payments.set(order.paymentTransactionId, "EXPIRED");
+
+    await discoverPaidOrdersWithoutSale(ports);
+
+    expect(sale.settled).toEqual([
+      { actorId: "cashier-1", paymentTransactionId: order.paymentTransactionId },
+    ]);
+    expect(local.steps).toEqual(["begin", "hold payment-1", "settle payment-1", "commit"]);
+  });
+
+  it("leaves the sale open for the cashier, completing nothing, when the paid order covers part of it", async () => {
+    const order = anApprovedOrder();
+    const { local, sale, ports } = paidOrderWorld({ kind: "listed", orders: [order] });
+    openSaleOf(local, order);
+    sale.answer = { kind: "partially_paid" };
+
+    expect(await discoverPaidOrdersWithoutSale(ports)).toEqual({ ...NOTHING_FOUND, applied: 1 });
+
+    expect(local.payments.get(order.paymentTransactionId)).toBe("APPROVED");
+    expect(local.steps).not.toContain("approve payment-1");
+  });
+
+  it("keeps the payment approved on the open sale when the sale cannot be settled", async () => {
+    const order = anApprovedOrder();
+    const { local, sale, ports } = paidOrderWorld({ kind: "listed", orders: [order] });
+    openSaleOf(local, order);
+    sale.answer = { kind: "refused" };
+
+    expect(await discoverPaidOrdersWithoutSale(ports)).toEqual({ ...NOTHING_FOUND, applied: 1 });
+
+    expect(local.payments.get(order.paymentTransactionId)).toBe("APPROVED");
+    expect(local.steps).toEqual([
+      "begin",
+      "hold payment-1",
+      "settle payment-1",
+      "approve payment-1",
+      "commit",
+    ]);
+  });
+
+  it("leaves the payment as it was when settling it fails", async () => {
+    const order = anApprovedOrder();
+    const { local, sale, ports } = paidOrderWorld({ kind: "listed", orders: [order] });
+    openSaleOf(local, order);
+    local.payments.set(order.paymentTransactionId, "EXPIRED");
+    sale.answer = new Error("the register cannot sign the sale's events");
+
+    expect(await discoverPaidOrdersWithoutSale(ports)).toEqual({ ...NOTHING_FOUND, failed: 1 });
+
+    expect(local.payments.get(order.paymentTransactionId)).toBe("EXPIRED");
+    expect(local.steps.at(-1)).toBe("rollback");
+  });
+
+  it("applies nothing when the open sale's cashier is unknown", async () => {
+    const order = anApprovedOrder();
+    const { local, sale, ports } = paidOrderWorld({ kind: "listed", orders: [order] });
+    local.sales.set(order.saleId, "OPEN");
+
+    expect(await discoverPaidOrdersWithoutSale(ports)).toEqual({ ...NOTHING_FOUND, failed: 1 });
+
+    expect(sale.settled).toEqual([]);
+    expect(local.payments.has(order.paymentTransactionId)).toBe(false);
+  });
+
   it.each(["COMPLETED", "CANCELLED"] as const)(
     "asks the cloud to refund an order charged again for a %s sale",
-    async (sale) => {
+    async (state) => {
       const order = anApprovedOrder();
-      const { refunds, local, ports } = paidOrderWorld({ kind: "listed", orders: [order] });
-      local.sales.set(order.saleId, sale);
+      const { refunds, local, sale, ports } = paidOrderWorld({
+        kind: "listed",
+        orders: [order],
+      });
+      local.sales.set(order.saleId, state);
 
       expect(await discoverPaidOrdersWithoutSale(ports)).toEqual({
         ...NOTHING_FOUND,
@@ -68,7 +166,7 @@ describe("discoverPaidOrdersWithoutSale", () => {
 
       expect(refunds.pendingRefunds).toEqual([order.paymentTransactionId]);
       expect(local.recordedOrders.size).toBe(0);
-      expect(local.applied).toEqual([]);
+      expect(sale.settled).toEqual([]);
     },
   );
 
@@ -126,12 +224,12 @@ describe("discoverPaidOrdersWithoutSale", () => {
       saleId: "sale-duplicate",
     });
     const lost = anApprovedOrder({ paymentTransactionId: "lost", saleId: "sale-lost" });
-    const { local, ports } = paidOrderWorld({
+    const { local, sale, ports } = paidOrderWorld({
       kind: "listed",
       orders: [failing, duplicate, lost],
     });
-    local.sales.set(failing.saleId, "OPEN");
-    local.failingToApply.add(failing.paymentTransactionId);
+    openSaleOf(local, failing);
+    sale.answer = new Error("the local database refused the payment");
     local.sales.set(duplicate.saleId, "COMPLETED");
 
     expect(await discoverPaidOrdersWithoutSale(ports)).toEqual({
@@ -140,6 +238,7 @@ describe("discoverPaidOrdersWithoutSale", () => {
       duplicateCharges: 1,
       withoutSale: 1,
       failed: 1,
+      completedSaleIds: [],
     });
   });
 

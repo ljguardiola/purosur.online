@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { ArrowLeft, Check } from "lucide-react";
-import { within } from "storybook/test";
+import { expect, userEvent, waitFor, within } from "storybook/test";
 import {
   playHoverSetsDataHovered,
   playTabReachesFocusVisible,
@@ -50,6 +50,21 @@ export const PrimaryWithIcon: Story = {
 
 export const PrimaryDisabled: Story = {
   args: { disabled: true },
+};
+
+export const PrimaryDisabledWithReason: Story = {
+  args: {
+    size: "sale",
+    children: "Ir a vender",
+    disabledReason: "Pasá el cobro a reembolso para empezar a vender.",
+  },
+  play: async ({ canvasElement }) => {
+    await userEvent.tab();
+    await expect(theButton(canvasElement)).toHaveFocus();
+    await waitFor(() => {
+      expect(within(document.body).getByRole("tooltip")).toBeInTheDocument();
+    });
+  },
 };
 
 export const PrimaryWaitingForData: Story = {

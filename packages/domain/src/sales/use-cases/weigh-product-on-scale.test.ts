@@ -215,13 +215,13 @@ describe("weighProductOnScale", () => {
 
   it("refuses to open a sale while a paid order without a sale is unresolved", async () => {
     expect(
-      await weigh(ledger({ paidOrderWithoutSaleUnresolved: true }), STABLE_1250, "queso"),
+      await weigh(ledger({ paidOrdersWithoutSale: [{ resolved: false }] }), STABLE_1250, "queso"),
     ).toEqual({ kind: "paid_order_without_sale" });
   });
 
   it("weighs onto the open sale while a paid order without a sale is unresolved", async () => {
     const outcome = await weigh(
-      ledger({ sales: [OPEN_SALE], paidOrderWithoutSaleUnresolved: true }),
+      ledger({ sales: [OPEN_SALE], paidOrdersWithoutSale: [{ resolved: false }] }),
       STABLE_1250,
       "queso",
     );

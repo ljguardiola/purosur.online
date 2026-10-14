@@ -4,7 +4,7 @@ import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { deferred } from "../platform/test-support/deferred";
-import { PaidOrderRefundModal } from "./paid-order-refund-modal";
+import { RefundPaidOrderModal } from "./refund-paid-order-modal";
 
 const ORDER = {
   payment_transaction_id: "tx-1",
@@ -26,7 +26,7 @@ async function renderModal(options: { convert?: Convert } = {}) {
     onClose: vi.fn(),
   };
   const screen = await render(
-    <PaidOrderRefundModal order={ORDER} convertPaidOrderIntoRefund={convert} {...handlers} />,
+    <RefundPaidOrderModal order={ORDER} convertPaidOrderIntoRefund={convert} {...handlers} />,
   );
   const dialog = screen.getByRole("dialog", { name: "¿Pasar el cobro a reembolso?" });
   return { screen, dialog, convert, ...handlers };
@@ -36,7 +36,7 @@ function confirmButton(dialog: Awaited<ReturnType<typeof renderModal>>["dialog"]
   return dialog.getByRole("button", { name: "Pasar a reembolso" });
 }
 
-describe("PaidOrderRefundModal", () => {
+describe("RefundPaidOrderModal", () => {
   it("shows the amount and time of the payment and what passing it to refund means", async () => {
     const { screen, dialog } = await renderModal();
 
@@ -47,6 +47,19 @@ describe("PaidOrderRefundModal", () => {
     await expect.element(dialog.getByText(/se confirma después en el backoffice/)).toBeVisible();
     await expect.element(dialog.getByText(/no se le cobra de nuevo/)).toBeVisible();
     await expectNoAccessibilityViolations(screen.container);
+  });
+
+  it("sends one request when the confirmation is pressed twice before the modal shows it is sending", async () => {
+    const answer = deferred<ConvertPaidOrderIntoRefundOutcome>();
+    const { dialog, convert, onConverted } = await renderModal({ convert: () => answer.promise });
+    const confirm = confirmButton(dialog).element() as HTMLElement;
+
+    confirm.click();
+    confirm.click();
+    answer.resolve({ kind: "converted" });
+
+    await vi.waitFor(() => expect(onConverted).toHaveBeenCalled());
+    expect(convert).toHaveBeenCalledOnce();
   });
 
   it("closes without asking the core when going back", async () => {

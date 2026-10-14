@@ -4,6 +4,7 @@ import { buildTestDatabase, type TestDatabase } from "../test-support/build-test
 import { DrizzleApprovedOrdersOfRegister } from "./drizzle-approved-orders-of-register.js";
 import {
   insertRegister,
+  insertSyncedSaleHolding,
   pendingPointTransaction,
   pendingTransaction,
 } from "./test-support/payment-transaction-fixtures.js";
@@ -37,7 +38,7 @@ describe("DrizzleApprovedOrdersOfRegister", () => {
     });
     await db.insert(paymentTransactions).values(paid);
 
-    expect(await orders().approvedUnreplacedSince(registerId, SINCE)).toEqual([
+    expect(await orders().approvedWithoutSaleSince(registerId, SINCE)).toEqual([
       {
         paymentTransactionId: paid.id,
         saleId: paid.saleId,
@@ -58,7 +59,7 @@ describe("DrizzleApprovedOrdersOfRegister", () => {
       }),
     );
 
-    const [order] = await orders().approvedUnreplacedSince(registerId, SINCE);
+    const [order] = await orders().approvedWithoutSaleSince(registerId, SINCE);
 
     expect([order?.method, order?.provider]).toEqual(["POINT", "MERCADOPAGO_POINT"]);
   });
@@ -75,7 +76,7 @@ describe("DrizzleApprovedOrdersOfRegister", () => {
     });
     await db.insert(paymentTransactions).values([newer, older]);
 
-    const answered = await orders().approvedUnreplacedSince(registerId, SINCE);
+    const answered = await orders().approvedWithoutSaleSince(registerId, SINCE);
 
     expect(answered.map((order) => order.paymentTransactionId)).toEqual([older.id, newer.id]);
   });
@@ -91,7 +92,7 @@ describe("DrizzleApprovedOrdersOfRegister", () => {
       );
     }
 
-    expect(await orders().approvedUnreplacedSince(registerId, SINCE)).toEqual([]);
+    expect(await orders().approvedWithoutSaleSince(registerId, SINCE)).toEqual([]);
   });
 
   it("leaves out an approved order that another order replaced", async () => {
@@ -104,7 +105,33 @@ describe("DrizzleApprovedOrdersOfRegister", () => {
       }),
     );
 
-    expect(await orders().approvedUnreplacedSince(registerId, SINCE)).toEqual([]);
+    expect(await orders().approvedWithoutSaleSince(registerId, SINCE)).toEqual([]);
+  });
+
+  it("leaves out an approved order a sale the register synced holds approved", async () => {
+    const registerId = await insertRegister(db, "Caja 1");
+    const held = pendingTransaction(registerId, {
+      state: "APPROVED",
+      createdAt: new Date("2026-10-12T09:00:00.000Z"),
+    });
+    await db.insert(paymentTransactions).values(held);
+    await insertSyncedSaleHolding(db, held, "APPROVED");
+
+    expect(await orders().approvedWithoutSaleSince(registerId, SINCE)).toEqual([]);
+  });
+
+  it("keeps an approved order the sale the register synced holds as not approved", async () => {
+    const registerId = await insertRegister(db, "Caja 1");
+    const chargedAgain = pendingTransaction(registerId, {
+      state: "APPROVED",
+      createdAt: new Date("2026-10-12T09:00:00.000Z"),
+    });
+    await db.insert(paymentTransactions).values(chargedAgain);
+    await insertSyncedSaleHolding(db, chargedAgain, "EXPIRED");
+
+    const answered = await orders().approvedWithoutSaleSince(registerId, SINCE);
+
+    expect(answered.map((order) => order.paymentTransactionId)).toEqual([chargedAgain.id]);
   });
 
   it("leaves out the orders of another register", async () => {
@@ -117,7 +144,7 @@ describe("DrizzleApprovedOrdersOfRegister", () => {
       }),
     );
 
-    expect(await orders().approvedUnreplacedSince(registerId, SINCE)).toEqual([]);
+    expect(await orders().approvedWithoutSaleSince(registerId, SINCE)).toEqual([]);
   });
 
   it("includes an order created exactly when the window starts and leaves out an earlier one", async () => {
@@ -129,7 +156,7 @@ describe("DrizzleApprovedOrdersOfRegister", () => {
     });
     await db.insert(paymentTransactions).values([atStart, before]);
 
-    const answered = await orders().approvedUnreplacedSince(registerId, SINCE);
+    const answered = await orders().approvedWithoutSaleSince(registerId, SINCE);
 
     expect(answered.map((order) => order.paymentTransactionId)).toEqual([atStart.id]);
   });

@@ -421,7 +421,7 @@ describe("addScannedProduct", () => {
   });
 
   it("refuses to open a new sale while a paid order without a sale is unresolved", () => {
-    const store = ledger({ paidOrderWithoutSaleUnresolved: true });
+    const store = ledger({ paidOrdersWithoutSale: [{ resolved: false }] });
     const before = structuredClone(store.state);
 
     expect(scan(store)).toEqual({ kind: "paid_order_without_sale" });
@@ -429,20 +429,22 @@ describe("addScannedProduct", () => {
   });
 
   it("keeps accepting lines on an open sale while a paid order without a sale is unresolved", () => {
-    const store = ledger({ sales: [OPEN_SALE], paidOrderWithoutSaleUnresolved: true });
+    const store = ledger({ sales: [OPEN_SALE], paidOrdersWithoutSale: [{ resolved: false }] });
 
     expect(scan(store).kind).toBe("added");
   });
 
   it("opens a new sale once no paid order without a sale is unresolved", () => {
-    expect(scan(ledger({ paidOrderWithoutSaleUnresolved: false })).kind).toBe("added");
+    expect(scan(ledger({ paidOrdersWithoutSale: [{ resolved: true }] })).kind).toBe("added");
   });
 
   it("checks the installation's revocation before a paid order without a sale, and that before the register's identity", () => {
-    expect(scan(ledger({ revoked: true, paidOrderWithoutSaleUnresolved: true }))).toEqual({
+    expect(scan(ledger({ revoked: true, paidOrdersWithoutSale: [{ resolved: false }] }))).toEqual({
       kind: "installation_revoked",
     });
-    expect(scan(ledger({ paidOrderWithoutSaleUnresolved: true, identity: undefined }))).toEqual({
+    expect(
+      scan(ledger({ paidOrdersWithoutSale: [{ resolved: false }], identity: undefined })),
+    ).toEqual({
       kind: "paid_order_without_sale",
     });
   });

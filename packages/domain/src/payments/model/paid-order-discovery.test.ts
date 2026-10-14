@@ -1,11 +1,15 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
+import type { SaleState } from "../../sales/index.js";
 import {
   classifyPaidOrder,
+  type LocalStateOfPaidOrder,
   PAID_ORDER_DISCOVERY_WINDOW_HOURS,
   PAID_ORDER_PAYMENT_STATE,
   PAID_ORDER_REPLACED,
   paidOrderDiscoveryStart,
+  paidOrdersWithoutSaleLetSell,
   paidOrderWithoutSaleBlocksSelling,
+  SALE_PAYMENT_STATE_HOLDING_PAID_ORDER,
 } from "./paid-order-discovery.js";
 
 describe("paid order discovery window", () => {
@@ -31,6 +35,17 @@ describe("paid order of a register", () => {
     expect(PAID_ORDER_PAYMENT_STATE).toBe("APPROVED");
     expect(PAID_ORDER_REPLACED).toBe(false);
   });
+
+  it("is already held by a sale the register synced when that sale holds it approved", () => {
+    expect(SALE_PAYMENT_STATE_HOLDING_PAID_ORDER).toBe("APPROVED");
+  });
+});
+
+describe("the local state of a paid order", () => {
+  it("names its sale by the states a sale can be in, and nothing else", () => {
+    expectTypeOf<NonNullable<LocalStateOfPaidOrder["sale"]>>().toEqualTypeOf<SaleState>();
+    expectTypeOf<string>().not.toExtend<LocalStateOfPaidOrder["sale"]>();
+  });
 });
 
 describe("classifying a paid order against the register's local state", () => {
@@ -40,9 +55,15 @@ describe("classifying a paid order against the register's local state", () => {
     expect(classifyPaidOrder({ payment: "APPROVED", sale: undefined })).toBe("recorded");
   });
 
+  it("leaves to the charge under way a payment the register still has pending", () => {
+    expect(classifyPaidOrder({ payment: "PENDING", sale: "OPEN" })).toBe("charge_under_way");
+    expect(classifyPaidOrder({ payment: "PENDING", sale: undefined })).toBe("charge_under_way");
+    expect(classifyPaidOrder({ payment: "PENDING", sale: "COMPLETED" })).toBe("charge_under_way");
+  });
+
   it.each([
     ["no local payment", undefined],
-    ["a pending local payment", "PENDING"],
+    ["a declined local payment", "DECLINED"],
     ["a cancelled local payment", "CANCELLED"],
     ["an expired local payment", "EXPIRED"],
   ] as const)("applies it to the open sale when there is %s", (_name, payment) => {
@@ -59,7 +80,7 @@ describe("classifying a paid order against the register's local state", () => {
 
   it("is a paid order without a sale when the register has no such sale", () => {
     expect(classifyPaidOrder({ payment: undefined, sale: undefined })).toBe("without_sale");
-    expect(classifyPaidOrder({ payment: "PENDING", sale: undefined })).toBe("without_sale");
+    expect(classifyPaidOrder({ payment: "EXPIRED", sale: undefined })).toBe("without_sale");
   });
 });
 
@@ -71,5 +92,18 @@ describe("blocking sales", () => {
   it("does not block selling when none is unresolved", () => {
     expect(paidOrderWithoutSaleBlocksSelling([])).toBe(false);
     expect(paidOrderWithoutSaleBlocksSelling([{ resolved: true }])).toBe(false);
+  });
+
+  it("lets the cashier sell when no paid order without a sale is unresolved", () => {
+    expect(paidOrdersWithoutSaleLetSell([{ resolved: true }], { openSale: false })).toBe(true);
+    expect(paidOrdersWithoutSaleLetSell([], { openSale: true })).toBe(true);
+  });
+
+  it("keeps the cashier from starting a sale while one is unresolved", () => {
+    expect(paidOrdersWithoutSaleLetSell([{ resolved: false }], { openSale: false })).toBe(false);
+  });
+
+  it("lets the cashier go on with the sale already open while one is unresolved", () => {
+    expect(paidOrdersWithoutSaleLetSell([{ resolved: false }], { openSale: true })).toBe(true);
   });
 });

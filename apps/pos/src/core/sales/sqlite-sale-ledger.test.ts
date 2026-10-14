@@ -678,19 +678,23 @@ describe("a paid order without a sale", () => {
   }
 
   it("is none on a register that holds no paid order without a sale", () => {
-    expect(ledger.transaction((tx) => tx.paidOrderWithoutSaleUnresolved())).toBe(false);
+    expect(ledger.transaction((tx) => tx.paidOrdersWithoutSale())).toEqual([]);
   });
 
   it("is unresolved until it is converted into a refund", () => {
     recordPaidOrder(null);
 
-    expect(ledger.transaction((tx) => tx.paidOrderWithoutSaleUnresolved())).toBe(true);
+    expect(ledger.transaction((tx) => tx.paidOrdersWithoutSale())).toMatchObject([
+      { paymentTransactionId: "payment-1", resolved: false },
+    ]);
   });
 
-  it("is no longer unresolved once resolved", () => {
+  it("is resolved once converted", () => {
     recordPaidOrder("2026-09-30T11:30:00.000Z");
 
-    expect(ledger.transaction((tx) => tx.paidOrderWithoutSaleUnresolved())).toBe(false);
+    expect(ledger.transaction((tx) => tx.paidOrdersWithoutSale())).toMatchObject([
+      { paymentTransactionId: "payment-1", resolved: true },
+    ]);
   });
 });
 

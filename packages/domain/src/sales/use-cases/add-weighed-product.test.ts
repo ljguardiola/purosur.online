@@ -274,15 +274,15 @@ describe("addWeighedProduct", () => {
   });
 
   it("refuses to open a sale while a paid order without a sale is unresolved", () => {
-    expect(weigh(ledger({ paidOrderWithoutSaleUnresolved: true }))).toEqual({
+    expect(weigh(ledger({ paidOrdersWithoutSale: [{ resolved: false }] }))).toEqual({
       kind: "paid_order_without_sale",
     });
   });
 
   it("adds to the open sale while a paid order without a sale is unresolved", () => {
-    expect(weigh(ledger({ sales: [OPEN_SALE], paidOrderWithoutSaleUnresolved: true })).kind).toBe(
-      "added",
-    );
+    expect(
+      weigh(ledger({ sales: [OPEN_SALE], paidOrdersWithoutSale: [{ resolved: false }] })).kind,
+    ).toBe("added");
   });
 
   it("refuses to open a sale when the register has no identity yet", () => {

@@ -39,6 +39,7 @@ const NOTHING: StartupPending = {
   paid_orders_without_sale: [],
   paid_order_discovery: "checked",
   selling_blocked: false,
+  may_go_selling: true,
 };
 const NEVER_PRINTED: StartupPending["sales_to_print"][number] = {
   sale_id: "sale-1",
@@ -97,8 +98,22 @@ const BLOCKED_BY_QR: StartupPending = {
   ...NOTHING,
   paid_orders_without_sale: [QR_PAID_ORDER],
   selling_blocked: true,
+  may_go_selling: false,
 };
 const SELLING_BLOCKED_REASON = "Pasá el cobro a reembolso para empezar a vender.";
+
+function goSelling(screen: Awaited<ReturnType<typeof renderScreen>>["screen"]) {
+  return screen.getByRole("button", { name: "Ir a vender" });
+}
+
+async function expectGoSellingLocked(screen: Awaited<ReturnType<typeof renderScreen>>["screen"]) {
+  await expect.element(goSelling(screen)).toHaveAttribute("aria-disabled", "true");
+}
+
+async function expectGoSellingOpen(screen: Awaited<ReturnType<typeof renderScreen>>["screen"]) {
+  await expect.element(goSelling(screen)).toBeEnabled();
+  await expect.element(goSelling(screen)).not.toHaveAttribute("aria-disabled");
+}
 
 type Overrides = {
   person?: SignedInPerson;
@@ -259,6 +274,7 @@ describe("StartupPendingScreen", () => {
         paid_orders_without_sale: [],
         paid_order_discovery: "checked",
         selling_blocked: false,
+        may_go_selling: true,
       }),
     });
 
@@ -286,6 +302,7 @@ describe("StartupPendingScreen", () => {
         paid_orders_without_sale: [],
         paid_order_discovery: "checked",
         selling_blocked: false,
+        may_go_selling: true,
       }),
     });
     const table = screen.getByRole("table", { name: "Pendientes" });
@@ -331,11 +348,35 @@ describe("StartupPendingScreen", () => {
     await expect.element(screen.getByText("Venta sin ticket")).toBeVisible();
   });
 
-  it("says nothing is left once every item has been resolved", async () => {
-    const { screen } = await renderScreen({ loadStartupPending: async () => NOTHING });
+  it("goes on to selling by itself once the core lists nothing left and the paid-order check is done", async () => {
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+    const load = vi
+      .fn<() => Promise<StartupPending>>()
+      .mockResolvedValueOnce({ ...NOTHING, sales_to_print: [NEVER_PRINTED] })
+      .mockResolvedValue(NOTHING);
+    const { screen, onGoSelling } = await renderScreen({ loadStartupPending: load });
+    await expect.element(screen.getByText("Venta sin ticket")).toBeVisible();
+    expect(onGoSelling).not.toHaveBeenCalled();
 
-    await expect.element(screen.getByText("No queda nada pendiente")).toBeVisible();
-    await expect.element(screen.getByRole("button", { name: "Ir a vender" })).toBeEnabled();
+    await vi.advanceTimersByTimeAsync(3000);
+
+    await vi.waitFor(() => expect(onGoSelling).toHaveBeenCalledOnce());
+  });
+
+  it.each([
+    ["a paid order blocks starting a sale", BLOCKED_BY_QR],
+    ["a sale is left to print", { ...NOTHING, sales_to_print: [NEVER_PRINTED] }],
+    ["a payment is still being confirmed", { ...NOTHING, pending_payments: [QR_PAYMENT] }],
+    ["the paid-order check has not run yet", { ...NOTHING, paid_order_discovery: "pending" }],
+    ["the paid-order check was deferred", { ...NOTHING, paid_order_discovery: "deferred" }],
+  ] satisfies [string, StartupPending][])("stays while %s", async (_name, pending) => {
+    const { screen, onGoSelling } = await renderScreen({ loadStartupPending: async () => pending });
+
+    await expect
+      .element(screen.getByRole("table", { name: "Pendientes" }).getByRole("row").nth(1))
+      .toBeVisible();
+    await expect.element(screen.getByText("No queda nada pendiente")).not.toBeInTheDocument();
+    expect(onGoSelling).not.toHaveBeenCalled();
   });
 
   it("names who opened the session, since when and with how much cash", async () => {
@@ -607,39 +648,60 @@ describe("StartupPendingScreen", () => {
       await expect.element(screen.getByText("Bloquea la venta").first()).toBeVisible();
     });
 
-    it("disables Ir a vender and says why while the core blocks selling", async () => {
+    it("locks Ir a vender while the core keeps the cashier from selling, saying why only in its tooltip", async () => {
       const { screen, onGoSelling } = await renderScreen({
         loadStartupPending: async () => BLOCKED_BY_QR,
       });
+      await expectGoSellingLocked(screen);
+      await expect.element(screen.getByText(SELLING_BLOCKED_REASON)).not.toBeInTheDocument();
 
-      await expect.element(screen.getByText(SELLING_BLOCKED_REASON)).toBeVisible();
-      await expect.element(screen.getByRole("button", { name: "Ir a vender" })).toBeDisabled();
+      await userEvent.hover(goSelling(screen));
+
+      await expect.element(screen.getByRole("tooltip")).toHaveTextContent(SELLING_BLOCKED_REASON);
+      goSelling(screen)
+        .element()
+        .dispatchEvent(new MouseEvent("click", { bubbles: true }));
       expect(onGoSelling).not.toHaveBeenCalled();
     });
 
-    it("does not decide by itself that selling is blocked", async () => {
+    it("lets the cashier go back to the sale left open while the paid order blocks starting another", async () => {
+      const { screen, onGoSelling } = await renderScreen({
+        loadStartupPending: async () => ({ ...BLOCKED_BY_QR, may_go_selling: true }),
+      });
+      await expect.element(screen.getByText("Bloquea la venta")).toBeVisible();
+      await expectGoSellingOpen(screen);
+
+      await userEvent.click(goSelling(screen));
+
+      expect(onGoSelling).toHaveBeenCalledOnce();
+    });
+
+    it("shows the paid order as blocking the sale only when the core says selling is blocked", async () => {
       const { screen } = await renderScreen({
-        loadStartupPending: async () => ({ ...BLOCKED_BY_QR, selling_blocked: false }),
+        loadStartupPending: async () => ({
+          ...BLOCKED_BY_QR,
+          selling_blocked: false,
+          may_go_selling: true,
+        }),
       });
 
       await expect.element(screen.getByText("Cobro con QR pagado sin venta")).toBeVisible();
-      await expect.element(screen.getByRole("button", { name: "Ir a vender" })).toBeEnabled();
-      await expect.element(screen.getByText(SELLING_BLOCKED_REASON)).not.toBeInTheDocument();
+      await expect.element(screen.getByText("Bloquea la venta")).not.toBeInTheDocument();
+      await expectGoSellingOpen(screen);
     });
 
-    it("enables Ir a vender again once the core stops blocking selling", async () => {
+    it("enables Ir a vender again once the core stops keeping the cashier from selling", async () => {
       vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
       const load = vi
         .fn<() => Promise<StartupPending>>()
         .mockResolvedValueOnce(BLOCKED_BY_QR)
         .mockResolvedValue(NOTHING);
       const { screen } = await renderScreen({ loadStartupPending: load });
-      await expect.element(screen.getByRole("button", { name: "Ir a vender" })).toBeDisabled();
+      await expectGoSellingLocked(screen);
 
       await vi.advanceTimersByTimeAsync(3000);
 
-      await expect.element(screen.getByRole("button", { name: "Ir a vender" })).toBeEnabled();
-      await expect.element(screen.getByText(SELLING_BLOCKED_REASON)).not.toBeInTheDocument();
+      await expectGoSellingOpen(screen);
     });
 
     it("offers to pass the order to refund with a confirmation that names the payment", async () => {
@@ -680,7 +742,7 @@ describe("StartupPendingScreen", () => {
       await expect.element(screen.getByText("El cobro quedó como reembolso")).toBeVisible();
       await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
       await expect.element(screen.getByText("No queda nada pendiente")).toBeVisible();
-      await expect.element(screen.getByRole("button", { name: "Ir a vender" })).toBeEnabled();
+      await expectGoSellingOpen(screen);
     });
 
     it("closes the confirmation and reads the items again when the core no longer finds the order", async () => {
@@ -744,7 +806,7 @@ describe("StartupPendingScreen", () => {
           screen.getByText("No hay conexión con la nube. Probá de nuevo cuando vuelva.").first(),
         )
         .toBeVisible();
-      await expect.element(screen.getByRole("button", { name: "Ir a vender" })).toBeDisabled();
+      await expectGoSellingLocked(screen);
     });
 
     it("has no accessibility violations", async () => {
@@ -764,6 +826,8 @@ describe("StartupPendingScreen", () => {
   describe("the search for paid orders without a sale", () => {
     const WARNING =
       "Puede haber un cobro pagado para esta caja sin venta. La caja lo va a consultar cuando vuelva la conexión.";
+    const CONSULTING =
+      "Puede haber un cobro pagado para esta caja sin venta. La caja lo está consultando.";
 
     it("warns, without blocking, when the search was deferred for lack of connection", async () => {
       const { screen, onGoSelling } = await renderScreen({
@@ -772,17 +836,42 @@ describe("StartupPendingScreen", () => {
 
       await expect.element(screen.getByText(WARNING)).toBeVisible();
       await expect.element(screen.getByText("Sin consultar")).toBeVisible();
-      await expect.element(screen.getByRole("button", { name: "Ir a vender" })).toBeEnabled();
-      await userEvent.click(screen.getByRole("button", { name: "Ir a vender" }));
+      await expectGoSellingOpen(screen);
+      await userEvent.click(goSelling(screen));
       expect(onGoSelling).toHaveBeenCalledOnce();
     });
 
-    it("warns when it is still pending and nothing else is known", async () => {
-      const { screen } = await renderScreen({
-        loadStartupPending: async () => ({ ...NOTHING, paid_order_discovery: "pending" }),
-      });
+    it("keeps the warning while the check runs, then goes on to selling by itself once it found nothing", async () => {
+      vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+      const load = vi
+        .fn<() => Promise<StartupPending>>()
+        .mockResolvedValueOnce({ ...NOTHING, paid_order_discovery: "pending" })
+        .mockResolvedValue(NOTHING);
+      const { screen, onGoSelling } = await renderScreen({ loadStartupPending: load });
+      await expect.element(screen.getByText(CONSULTING)).toBeVisible();
+      await expect.element(screen.getByText("Consultando")).toBeVisible();
+      expect(onGoSelling).not.toHaveBeenCalled();
 
-      await expect.element(screen.getByText(WARNING)).toBeVisible();
+      await vi.advanceTimersByTimeAsync(3000);
+
+      await vi.waitFor(() => expect(onGoSelling).toHaveBeenCalledOnce());
+    });
+
+    it("warns, without blocking, while the search has not been done yet, beside the other items", async () => {
+      const { screen } = await renderScreen({
+        loadStartupPending: async () => ({
+          ...NOTHING,
+          sales_to_print: [NEVER_PRINTED],
+          paid_order_discovery: "pending",
+        }),
+      });
+      const rows = screen.getByRole("table", { name: "Pendientes" }).getByRole("row");
+
+      await expect.element(rows.nth(2).getByText("Cobros pagados sin consultar")).toBeVisible();
+      await expect.element(rows.nth(2).getByText(CONSULTING)).toBeVisible();
+      await expect.element(rows.nth(2).getByText("Consultando")).toBeVisible();
+      await expect.element(screen.getByText(WARNING)).not.toBeInTheDocument();
+      await expectGoSellingOpen(screen);
     });
 
     it("says nothing once the search found nothing", async () => {
@@ -831,6 +920,7 @@ describe("StartupPendingScreen", () => {
         paid_orders_without_sale: [],
         paid_order_discovery: "checked",
         selling_blocked: false,
+        may_go_selling: true,
       }),
     });
     await expect.element(screen.getByText("Venta sin ticket")).toBeVisible();

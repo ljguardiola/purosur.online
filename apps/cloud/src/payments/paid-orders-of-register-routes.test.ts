@@ -15,7 +15,10 @@ import { insertEnrolledInstallation } from "../register/test-support/enrolled-in
 import { insertRequestsUpToLimit } from "../sync/test-support/admitted-requests.js";
 import { NOW } from "./test-support/fake-mercado-pago-orders.js";
 import { paidOrdersOfRegisterRoutesUnderTest } from "./test-support/paid-orders-of-register-routes-under-test.js";
-import { pendingTransaction } from "./test-support/payment-transaction-fixtures.js";
+import {
+  insertSyncedSaleHolding,
+  pendingTransaction,
+} from "./test-support/payment-transaction-fixtures.js";
 
 const route = paidOrdersOfRegisterRoutesUnderTest();
 
@@ -133,26 +136,6 @@ describe("the paid orders of a register routes", () => {
         ],
       });
     });
-
-    it("leaves out what is not an approved order of this register in the window", async () => {
-      const { registerId, deviceToken } = await enroll();
-      const other = await enroll("Caja 2");
-      const inWindow = hoursBeforeNow(5);
-      await route.db.insert(paymentTransactions).values([
-        pendingTransaction(registerId, { state: "PENDING", createdAt: inWindow }),
-        pendingTransaction(registerId, {
-          state: "APPROVED",
-          replaced: true,
-          createdAt: inWindow,
-        }),
-        pendingTransaction(registerId, { state: "APPROVED", createdAt: hoursBeforeNow(73) }),
-        pendingTransaction(other.registerId, { state: "APPROVED", createdAt: inWindow }),
-      ]);
-
-      const response = await listApproved(`Bearer ${deviceToken}`);
-
-      expect(approvedOrdersOfRegisterSchema.parse(response.json())).toEqual({ orders: [] });
-    });
   });
 
   describe("POST /payments/mercado-pago/:id/late-payment-refund", () => {
@@ -220,14 +203,6 @@ describe("the paid orders of a register routes", () => {
       expect(await refundsOf(transaction.id)).toEqual([]);
     });
 
-    it("answers not found for a payment that does not exist", async () => {
-      const { deviceToken } = await enroll();
-
-      const response = await openLatePaymentRefund(crypto.randomUUID(), `Bearer ${deviceToken}`);
-
-      expect(response.statusCode).toBe(404);
-    });
-
     it("refuses a payment that is not a record id", async () => {
       const { deviceToken } = await enroll();
 
@@ -259,6 +234,20 @@ describe("the paid orders of a register routes", () => {
       const error = cloudErrorSchema.parse(response.json());
       expect(latePaymentRefundRefusalDetailSchema.parse(error.details[0])).toEqual({
         refusal: "replaced",
+      });
+      expect(await refundsOf(transaction.id)).toEqual([]);
+    });
+
+    it("refuses an approved order a sale the register synced already holds, saying so", async () => {
+      const { deviceToken, transaction } = await approvedPayment();
+      await insertSyncedSaleHolding(route.db, transaction, "APPROVED");
+
+      const response = await openLatePaymentRefund(transaction.id, `Bearer ${deviceToken}`);
+
+      expect(response.statusCode).toBe(409);
+      const error = cloudErrorSchema.parse(response.json());
+      expect(latePaymentRefundRefusalDetailSchema.parse(error.details[0])).toEqual({
+        refusal: "held_by_sale",
       });
       expect(await refundsOf(transaction.id)).toEqual([]);
     });

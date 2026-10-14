@@ -69,6 +69,7 @@ const NOTHING_PENDING = {
   paid_orders_without_sale: [],
   paid_order_discovery: "checked" as const,
   selling_blocked: false,
+  may_go_selling: true,
 };
 
 function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
@@ -2423,6 +2424,7 @@ describe("answerRendererRequest", () => {
       paid_orders_without_sale: [],
       paid_order_discovery: "checked" as const,
       selling_blocked: false,
+      may_go_selling: true,
     };
 
     expect(

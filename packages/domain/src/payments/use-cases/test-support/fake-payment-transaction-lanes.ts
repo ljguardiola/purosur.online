@@ -43,6 +43,11 @@ class FakeLane implements PaymentTransactionLane {
     return stored?.registerId === registerId ? structuredClone(stored) : null;
   }
 
+  async paidOrderHeldBySale(paymentTransactionId: string): Promise<boolean> {
+    this.lanes.operations.push("paidOrderHeldBySale");
+    return this.lanes.heldBySales.has(paymentTransactionId);
+  }
+
   async recordPendingTransaction(transaction: MercadoPagoOrderTransaction): Promise<void> {
     this.lanes.operations.push("recordPendingTransaction");
     this.lanes.failIfAsked("recordPendingTransaction");
@@ -205,6 +210,7 @@ export class FakePaymentTransactionLanes implements PaymentTransactionLanes {
   readonly transactions = new Map<string, MercadoPagoOrderTransaction>();
   readonly resultReadAt = new Map<string, Date>();
   readonly latePaymentRefunds = new Map<string, OpenedLatePaymentRefund>();
+  readonly heldBySales = new Set<string>();
   replacementLandsBeforeNextWrite = false;
   readonly lanesEntered: string[] = [];
   held = false;

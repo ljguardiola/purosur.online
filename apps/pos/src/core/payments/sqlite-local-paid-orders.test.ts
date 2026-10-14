@@ -4,13 +4,9 @@ import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import { migrationClock } from "../platform/test-support/migration-clock";
 import { openLocalDatabase } from "../platform/test-support/open-local-database";
-import { SqliteSaleLedger } from "../sales/sqlite-sale-ledger";
 import { createSignedInPerson } from "../sessions/signed-in-person";
-import { SqliteSignInStore } from "../sessions/sqlite-sign-in-store";
 import { SqliteLocalPaidOrders } from "./sqlite-local-paid-orders";
 import {
-  CHARGE_CHAIN_KEY,
-  CHARGE_NOW,
   openSaleOfTwoYerbas,
   seedChargeRegister,
 } from "./test-support/mercado-pago-charge-requests";
@@ -20,19 +16,8 @@ const RESOLVED_AT = new Date("2026-10-13T12:30:00.000Z");
 
 let database: LocalDatabase;
 
-function localPaidOrders(canSignEvents = true) {
-  return new SqliteLocalPaidOrders({
-    database,
-    settlement: {
-      ledger: new SqliteSaleLedger(
-        database,
-        new SqliteSignInStore(database),
-        canSignEvents ? CHARGE_CHAIN_KEY : undefined,
-      ),
-      clock: { now: () => CHARGE_NOW },
-      ids: { next: () => "generated-id" },
-    },
-  });
+function localPaidOrders() {
+  return new SqliteLocalPaidOrders({ database });
 }
 
 function anOrder(overrides: Partial<ApprovedOrderOfRegister> = {}): ApprovedOrderOfRegister {
@@ -107,12 +92,23 @@ describe("the local state of a paid order", () => {
   });
 });
 
-describe("applying an approved payment to the open sale", () => {
-  it("settles the pending payment the register held and completes the sale it pays", async () => {
+describe("the cashier of an open sale", () => {
+  it("is the one who opened it", async () => {
     const saleId = await openSale();
-    addQrPayment("PENDING", saleId);
 
-    localPaidOrders().applyApprovedPayment(anOrder({ saleId }));
+    expect(localPaidOrders().actorOfSale(saleId)).toBe("u1");
+  });
+
+  it("is unknown for a sale the register does not hold", () => {
+    expect(localPaidOrders().actorOfSale("sale-gone")).toBeUndefined();
+  });
+});
+
+describe("holding a paid order as a pending payment of its sale", () => {
+  it("records a pending payment the register never held", async () => {
+    const saleId = await openSale();
+
+    localPaidOrders().holdAsPendingPayment(anOrder({ saleId }));
 
     expect(paymentRows()).toEqual([
       {
@@ -121,50 +117,15 @@ describe("applying an approved payment to the open sale", () => {
         method: "QR",
         provider: "MERCADOPAGO_QR",
         amount: 3000,
-        state: "APPROVED",
+        state: "PENDING",
       },
-    ]);
-    expect(database.prepare("SELECT state FROM sales").all()).toEqual([{ state: "COMPLETED" }]);
-    expect(database.prepare("SELECT event_type FROM outbox").all()).toEqual([
-      { event_type: "sale_completed" },
     ]);
   });
 
-  it("records the payment approved when the register never held it", async () => {
+  it("records a pending payment on the integrated terminal", async () => {
     const saleId = await openSale();
 
-    localPaidOrders().applyApprovedPayment(anOrder({ saleId }));
-
-    expect(paymentRows()).toEqual([
-      {
-        id: "qr-1",
-        sale_id: saleId,
-        method: "QR",
-        provider: "MERCADOPAGO_QR",
-        amount: 3000,
-        state: "APPROVED",
-      },
-    ]);
-    expect(database.prepare("SELECT state FROM sales").all()).toEqual([{ state: "COMPLETED" }]);
-  });
-
-  it.each(["EXPIRED", "CANCELLED", "DECLINED"])(
-    "approves a payment the register had recorded as %s",
-    async (state) => {
-      const saleId = await openSale();
-      addQrPayment(state, saleId);
-
-      localPaidOrders().applyApprovedPayment(anOrder({ saleId }));
-
-      expect(paymentRows()).toMatchObject([{ id: "qr-1", state: "APPROVED" }]);
-      expect(database.prepare("SELECT state FROM sales").all()).toEqual([{ state: "COMPLETED" }]);
-    },
-  );
-
-  it("records a payment on the integrated terminal", async () => {
-    const saleId = await openSale();
-
-    localPaidOrders().applyApprovedPayment(
+    localPaidOrders().holdAsPendingPayment(
       anOrder({
         saleId,
         paymentTransactionId: "point-1",
@@ -174,38 +135,56 @@ describe("applying an approved payment to the open sale", () => {
     );
 
     expect(paymentRows()).toMatchObject([
-      { id: "point-1", method: "POINT", provider: "MERCADOPAGO_POINT", state: "APPROVED" },
+      { id: "point-1", method: "POINT", provider: "MERCADOPAGO_POINT", state: "PENDING" },
     ]);
   });
 
-  it("leaves the sale open for the cashier when the payment covers part of it", async () => {
+  it.each(["EXPIRED", "CANCELLED", "DECLINED"])(
+    "holds again as pending a payment the register had recorded as %s",
+    async (state) => {
+      const saleId = await openSale();
+      addQrPayment(state, saleId);
+
+      localPaidOrders().holdAsPendingPayment(anOrder({ saleId }));
+
+      expect(paymentRows()).toMatchObject([{ id: "qr-1", state: "PENDING" }]);
+    },
+  );
+});
+
+describe("approving a payment held pending", () => {
+  it("approves it", async () => {
     const saleId = await openSale();
+    addQrPayment("PENDING", saleId);
 
-    localPaidOrders().applyApprovedPayment(anOrder({ saleId, amount: 1000 }));
-
-    expect(paymentRows()).toMatchObject([{ id: "qr-1", amount: 1000, state: "APPROVED" }]);
-    expect(database.prepare("SELECT state FROM sales").all()).toEqual([{ state: "OPEN" }]);
-  });
-
-  it("keeps the payment approved on the open sale when the sale cannot be completed", async () => {
-    const saleId = await openSale();
-    database
-      .prepare("UPDATE cash_sessions SET state = 'CLOSED', closed_at = '2026-10-09T20:00:00.000Z'")
-      .run();
-
-    localPaidOrders().applyApprovedPayment(anOrder({ saleId }));
+    localPaidOrders().approvePayment("qr-1");
 
     expect(paymentRows()).toMatchObject([{ id: "qr-1", state: "APPROVED" }]);
-    expect(database.prepare("SELECT state FROM sales").all()).toEqual([{ state: "OPEN" }]);
+  });
+});
+
+describe("working in one transaction", () => {
+  it("keeps what the work wrote", async () => {
+    const saleId = await openSale();
+    const local = localPaidOrders();
+
+    local.inOneTransaction(() => local.holdAsPendingPayment(anOrder({ saleId })));
+
+    expect(paymentRows()).toHaveLength(1);
   });
 
-  it("changes nothing when the register cannot sign the sale's events", async () => {
+  it("undoes what the work wrote when it fails", async () => {
     const saleId = await openSale();
+    const local = localPaidOrders();
 
-    expect(() => localPaidOrders(false).applyApprovedPayment(anOrder({ saleId }))).toThrow();
+    expect(() =>
+      local.inOneTransaction(() => {
+        local.holdAsPendingPayment(anOrder({ saleId }));
+        throw new Error("the sale could not be settled");
+      }),
+    ).toThrow("the sale could not be settled");
 
     expect(paymentRows()).toEqual([]);
-    expect(database.prepare("SELECT state FROM sales").all()).toEqual([{ state: "OPEN" }]);
   });
 });
 

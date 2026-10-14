@@ -424,6 +424,7 @@ function coreAnswering(
             paid_orders_without_sale: [],
             paid_order_discovery: "checked",
             selling_blocked: false,
+            may_go_selling: true,
           }
         : cashDrawer.startupPending();
     },
@@ -1490,6 +1491,7 @@ describe("App", () => {
       paid_orders_without_sale: [],
       paid_order_discovery: "checked",
       selling_blocked: false,
+      may_go_selling: true,
     };
 
     const PENDING_NOTHING: typeof PENDING = {
@@ -1508,6 +1510,7 @@ describe("App", () => {
         },
       ],
       selling_blocked: true,
+      may_go_selling: false,
     };
 
     function lockedUntilResumed() {
@@ -1537,7 +1540,7 @@ describe("App", () => {
       await expect.element(screen.getByRole("heading", { name: SESSION_TITLE })).toBeVisible();
     });
 
-    it("passes a paid order without a sale to refund through the core and then goes on to the sale", async () => {
+    it("passes a paid order without a sale to refund through the core and then goes on to the sale by itself", async () => {
       let pending = BLOCKING_PENDING;
       const convertPaidOrderIntoRefund = vi.fn<CoreClient["convertPaidOrderIntoRefund"]>(
         async () => {
@@ -1556,7 +1559,9 @@ describe("App", () => {
       postCoreStatus("up");
       await expect.element(screen.getByRole("heading", { name: LOCKED_TITLE })).toBeVisible();
       await resumeLockedRegister(screen);
-      await expect.element(screen.getByRole("button", { name: "Ir a vender" })).toBeDisabled();
+      await expect
+        .element(screen.getByRole("button", { name: "Ir a vender" }))
+        .toHaveAttribute("aria-disabled", "true");
 
       await userEvent.click(
         screen.getByRole("button", { name: "Pasar a reembolso el cobro de las 15:30" }),
@@ -1568,7 +1573,6 @@ describe("App", () => {
       );
 
       expect(convertPaidOrderIntoRefund).toHaveBeenCalledExactlyOnceWith("tx-1");
-      await userEvent.click(screen.getByRole("button", { name: "Ir a vender" }));
       await expect.element(screen.getByRole("heading", { name: SESSION_TITLE })).toBeVisible();
     });
 

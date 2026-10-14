@@ -80,6 +80,7 @@ describe("what a stopped register left pending", () => {
       paid_orders_without_sale: [],
       paid_order_discovery: "checked",
       selling_blocked: false,
+      may_go_selling: true,
     });
   });
 
@@ -172,6 +173,21 @@ describe("what a stopped register left pending", () => {
       },
     ]);
     expect(pending.selling_blocked).toBe(true);
+    expect(pending.may_go_selling).toBe(false);
+  });
+
+  it("lets the cashier go back to the sale left open while a paid order without a sale blocks starting another", async () => {
+    database.exec(
+      `INSERT INTO paid_orders_without_sale (payment_transaction_id, sale_id, method, provider, amount, created_at, recorded_at, resolved_at)
+       VALUES ('order-1', 'sale-gone', 'QR', 'MERCADOPAGO_QR', 5000,
+               '2026-10-13T10:00:00.000Z', '2026-10-13T11:00:00.000Z', NULL);
+       INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at)
+       VALUES ('open-sale', 'register-1', 'device-1', 'session-1', 'u1', 'OPEN', NULL)`,
+    );
+
+    const pending = await pendingOf();
+
+    expect([pending.selling_blocked, pending.may_go_selling]).toEqual([true, true]);
   });
 
   it("does not block selling once every paid order without a sale was converted", async () => {
@@ -185,6 +201,7 @@ describe("what a stopped register left pending", () => {
 
     expect(pending.paid_orders_without_sale).toEqual([]);
     expect(pending.selling_blocked).toBe(false);
+    expect(pending.may_go_selling).toBe(true);
   });
 
   it.each(["pending", "deferred", "checked"] as const)(

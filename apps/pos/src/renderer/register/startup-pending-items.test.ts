@@ -9,6 +9,7 @@ const NOTHING: StartupPending = {
   paid_orders_without_sale: [],
   paid_order_discovery: "checked",
   selling_blocked: false,
+  may_go_selling: true,
 };
 
 const A_PAID_ORDER: StartupPending["paid_orders_without_sale"][number] = {
@@ -83,9 +84,9 @@ describe("hasStartupPendingItems", () => {
     ).toBe(true);
   });
 
-  it("is true when the search for paid orders was deferred, and false while it is still pending", () => {
+  it("is true while the search for paid orders is not done, deferred or not run yet", () => {
     expect(hasStartupPendingItems({ ...NOTHING, paid_order_discovery: "deferred" })).toBe(true);
-    expect(hasStartupPendingItems({ ...NOTHING, paid_order_discovery: "pending" })).toBe(false);
+    expect(hasStartupPendingItems({ ...NOTHING, paid_order_discovery: "pending" })).toBe(true);
   });
 });
 

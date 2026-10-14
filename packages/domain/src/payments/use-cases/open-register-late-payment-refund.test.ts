@@ -68,6 +68,7 @@ describe("openRegisterLatePaymentRefund", () => {
     expect(lanes.operations).toEqual([
       "enterLane",
       "recordedTransaction",
+      "paidOrderHeldBySale",
       "openLatePaymentRefund",
       "leaveLane",
     ]);
@@ -104,6 +105,15 @@ describe("openRegisterLatePaymentRefund", () => {
     lanes.seed(storedTransaction({ state: "APPROVED", replaced: true }));
 
     expect(await openRegisterLatePaymentRefund(ports, INPUT)).toEqual({ kind: "replaced" });
+    expect(lanes.latePaymentRefunds.size).toBe(0);
+  });
+
+  it("refuses an approved payment a sale the register synced already holds", async () => {
+    const { lanes, ports } = mercadoPagoOrderWorld();
+    lanes.seed(storedTransaction({ state: "APPROVED" }));
+    lanes.heldBySales.add(TRANSACTION_ID);
+
+    expect(await openRegisterLatePaymentRefund(ports, INPUT)).toEqual({ kind: "held_by_sale" });
     expect(lanes.latePaymentRefunds.size).toBe(0);
   });
 });

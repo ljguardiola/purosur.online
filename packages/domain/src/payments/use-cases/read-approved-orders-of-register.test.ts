@@ -79,6 +79,17 @@ describe("readApprovedOrdersOfRegister", () => {
     );
   });
 
+  it("leaves out an approved order a sale the register synced already holds", async () => {
+    const { lanes, ports } = world();
+    lanes.seed(storedTransaction({ id: "held", state: "APPROVED", createdAt: hoursBeforeNow(1) }));
+    lanes.seed(storedTransaction({ id: "lost", state: "APPROVED", createdAt: hoursBeforeNow(1) }));
+    lanes.heldBySales.add("held");
+
+    const outcome = await readApprovedOrdersOfRegister(ports, { registerId: REGISTER_ID });
+
+    expect(outcome.orders.map((order) => order.paymentTransactionId)).toEqual(["lost"]);
+  });
+
   it("leaves out the orders of another register", async () => {
     const { lanes, ports } = world();
     lanes.seed(

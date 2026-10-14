@@ -8,6 +8,7 @@ import { buildTestDatabase, type TestDatabase } from "../test-support/build-test
 import { DrizzlePaymentTransactionLanes } from "./drizzle-payment-transaction-lanes.js";
 import {
   insertRegister,
+  insertSyncedSaleHolding,
   pendingPointTransaction,
   pendingTransaction,
 } from "./test-support/payment-transaction-fixtures.js";
@@ -421,6 +422,41 @@ describe("DrizzlePaymentTransactionLanes", () => {
       await expect(
         lanes.inPaymentTransactionLane(id, (lane) => lane.recordOrderCreated(id, "ORD01", null)),
       ).rejects.toThrow(`payment transaction ${id} is not recorded`);
+    });
+  });
+
+  describe("a paid order a sale the register synced holds", () => {
+    async function recorded() {
+      const registerId = await insertRegister(db, "caja-1");
+      const transaction = pendingTransaction(registerId, { state: "APPROVED" });
+      await db.insert(paymentTransactions).values(transaction);
+      return transaction;
+    }
+
+    function heldBySale(paymentTransactionId: string) {
+      return lanes.inPaymentTransactionLane(paymentTransactionId, (lane) =>
+        lane.paidOrderHeldBySale(paymentTransactionId),
+      );
+    }
+
+    it("is held when the synced sale holds its payment approved", async () => {
+      const transaction = await recorded();
+      await insertSyncedSaleHolding(db, transaction, "APPROVED");
+
+      expect(await heldBySale(transaction.id)).toBe(true);
+    });
+
+    it("is not held when the synced sale holds its payment as not approved", async () => {
+      const transaction = await recorded();
+      await insertSyncedSaleHolding(db, transaction, "EXPIRED");
+
+      expect(await heldBySale(transaction.id)).toBe(false);
+    });
+
+    it("is not held when no synced sale holds it", async () => {
+      const transaction = await recorded();
+
+      expect(await heldBySale(transaction.id)).toBe(false);
     });
   });
 

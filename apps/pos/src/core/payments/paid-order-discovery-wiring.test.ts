@@ -1,5 +1,6 @@
 import type { DiscoverPaidOrdersWithoutSaleOutcome } from "@purosur/domain/payments/use-cases";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { printingEachCompletedSale } from "../sales/printing-completed-sales";
 import { createPaidOrderDiscovery } from "./paid-order-discovery-wiring";
 
 const CHECKED: DiscoverPaidOrdersWithoutSaleOutcome = {
@@ -8,8 +9,10 @@ const CHECKED: DiscoverPaidOrdersWithoutSaleOutcome = {
   duplicateCharges: 0,
   withoutSale: 0,
   failed: 0,
+  completedSaleIds: [],
 };
 const DEFERRED: DiscoverPaidOrdersWithoutSaleOutcome = { kind: "deferred" };
+const NOT_PRINTING = { afterEachCompletedSale: <T>(follow: T) => follow };
 
 function deferredRun() {
   let resolve: (outcome: DiscoverPaidOrdersWithoutSaleOutcome) => void = () => {};
@@ -33,6 +36,7 @@ function subject(outcomes: (DiscoverPaidOrdersWithoutSaleOutcome | Error)[]) {
       }
       return outcome;
     },
+    printing: NOT_PRINTING,
     reportFailure: (activity, error) => {
       failures.push([activity, error]);
     },
@@ -125,6 +129,7 @@ describe("never discovering twice at once", () => {
         runs += 1;
         return underWay.promise;
       },
+      printing: NOT_PRINTING,
       reportFailure: () => {},
     });
 
@@ -143,6 +148,7 @@ describe("never discovering twice at once", () => {
     const outcomes = [underWay.promise, Promise.resolve(CHECKED)];
     const discovery = createPaidOrderDiscovery({
       discover: () => outcomes.shift() ?? Promise.resolve(CHECKED),
+      printing: NOT_PRINTING,
       reportFailure: () => {},
     });
     const first = discovery.discoverAtStartup();
@@ -152,5 +158,65 @@ describe("never discovering twice at once", () => {
     await discovery.discoverAtStartup();
 
     expect(discovery.state()).toBe("checked");
+  });
+});
+
+describe("the sales a discovery completes", () => {
+  function printingSubject(outcomes: DiscoverPaidOrdersWithoutSaleOutcome[]) {
+    const events: string[] = [];
+    const discovery = createPaidOrderDiscovery({
+      discover: async () => outcomes.shift() ?? CHECKED,
+      printing: {
+        afterEachCompletedSale: (follow) =>
+          follow &&
+          printingEachCompletedSale(
+            {
+              beforePrinting: async (saleId) => {
+                events.push(`authorize ${saleId}`);
+              },
+              print: async (saleId) => {
+                events.push(`print ${saleId}`);
+              },
+              syncNow: () => {
+                events.push("sync");
+              },
+              onFailure: () => {},
+            },
+            follow,
+          ),
+      },
+      reportFailure: () => {},
+    });
+    return { discovery, events };
+  }
+
+  it("authorizes, prints and then syncs a sale the startup discovery completes", async () => {
+    const { discovery, events } = printingSubject([
+      { ...CHECKED, applied: 1, completedSaleIds: ["sale-1"] },
+    ]);
+
+    await discovery.discoverAtStartup();
+
+    await vi.waitFor(() => expect(events).toEqual(["authorize sale-1", "print sale-1", "sync"]));
+  });
+
+  it("authorizes, prints and syncs a sale a discovery after a sync completes", async () => {
+    const { discovery, events } = printingSubject([
+      DEFERRED,
+      { ...CHECKED, applied: 1, completedSaleIds: ["sale-2"] },
+    ]);
+    await discovery.discoverAtStartup();
+
+    discovery.afterEachSync();
+
+    await vi.waitFor(() => expect(events).toEqual(["authorize sale-2", "print sale-2", "sync"]));
+  });
+
+  it("prints nothing when the discovery completed no sale", async () => {
+    const { discovery, events } = printingSubject([{ ...CHECKED, applied: 1 }]);
+
+    await discovery.discoverAtStartup();
+
+    expect(events).toEqual([]);
   });
 });

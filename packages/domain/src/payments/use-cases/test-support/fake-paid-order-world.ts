@@ -7,6 +7,8 @@ import type {
   LatePaymentRefundRequestAnswer,
   LatePaymentRefundRequests,
   LocalPaidOrders,
+  PaidOrderSale,
+  PaidOrderSettlement,
   PaidOrdersOfRegister,
   PaidOrderWithoutSale,
 } from "../paid-order-ports.js";
@@ -68,9 +70,9 @@ class FakeLatePaymentRefundRequests implements LatePaymentRefundRequests {
 class FakeLocalPaidOrders implements LocalPaidOrders {
   readonly payments = new Map<string, PaymentTransactionState>();
   readonly sales = new Map<string, SaleState>();
-  readonly applied: string[] = [];
+  readonly saleActors = new Map<string, string>();
   readonly recordedOrders = new Map<string, PaidOrderWithoutSale>();
-  readonly failingToApply = new Set<string>();
+  readonly steps: string[] = [];
 
   localStateOf(order: ApprovedOrderOfRegister): LocalStateOfPaidOrder {
     return {
@@ -79,12 +81,35 @@ class FakeLocalPaidOrders implements LocalPaidOrders {
     };
   }
 
-  applyApprovedPayment(order: ApprovedOrderOfRegister): void {
-    if (this.failingToApply.has(order.paymentTransactionId)) {
-      throw new Error("the local database refused the payment");
+  actorOfSale(saleId: string): string | undefined {
+    return this.saleActors.get(saleId);
+  }
+
+  inOneTransaction<TOutcome>(work: () => TOutcome): TOutcome {
+    const before = new Map(this.payments);
+    this.steps.push("begin");
+    try {
+      const outcome = work();
+      this.steps.push("commit");
+      return outcome;
+    } catch (error) {
+      this.payments.clear();
+      for (const [id, state] of before) {
+        this.payments.set(id, state);
+      }
+      this.steps.push("rollback");
+      throw error;
     }
-    this.applied.push(order.paymentTransactionId);
-    this.payments.set(order.paymentTransactionId, "APPROVED");
+  }
+
+  holdAsPendingPayment(order: ApprovedOrderOfRegister): void {
+    this.steps.push(`hold ${order.paymentTransactionId}`);
+    this.payments.set(order.paymentTransactionId, "PENDING");
+  }
+
+  approvePayment(paymentTransactionId: string): void {
+    this.steps.push(`approve ${paymentTransactionId}`);
+    this.payments.set(paymentTransactionId, "APPROVED");
   }
 
   paidOrderWithoutSale(paymentTransactionId: string): PaidOrderWithoutSale | undefined {
@@ -115,10 +140,37 @@ class FakeLocalPaidOrders implements LocalPaidOrders {
   }
 }
 
+class FakePaidOrderSale implements PaidOrderSale {
+  readonly settled: { actorId: string; paymentTransactionId: string }[] = [];
+  answer: PaidOrderSettlement | Error | undefined;
+  private readonly local: FakeLocalPaidOrders;
+
+  constructor(local: FakeLocalPaidOrders) {
+    this.local = local;
+  }
+
+  settleApprovedPayment(payment: {
+    actorId: string;
+    paymentTransactionId: string;
+  }): PaidOrderSettlement {
+    this.settled.push({ ...payment });
+    this.local.steps.push(`settle ${payment.paymentTransactionId}`);
+    if (this.answer instanceof Error) {
+      throw this.answer;
+    }
+    const answer = this.answer ?? { kind: "completed", saleId: "sale-1" };
+    if (answer.kind !== "refused") {
+      this.local.payments.set(payment.paymentTransactionId, "APPROVED");
+    }
+    return answer;
+  }
+}
+
 export function paidOrderWorld(answer: ApprovedOrdersAnswer = { kind: "listed", orders: [] }) {
   const cloud = new FakePaidOrdersOfRegister(answer);
   const refunds = new FakeLatePaymentRefundRequests();
   const local = new FakeLocalPaidOrders();
-  const ports = { cloud, refunds, local, clock: new FixedClock(NOW) };
-  return { cloud, refunds, local, ports };
+  const sale = new FakePaidOrderSale(local);
+  const ports = { cloud, refunds, local, sale, clock: new FixedClock(NOW) };
+  return { cloud, refunds, local, sale, ports };
 }

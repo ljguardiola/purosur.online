@@ -50,9 +50,13 @@ describe("the register's help", () => {
 
   it("explains how to pass a paid order without a sale to refund, and the warning shown when there was no connection to look for one", () => {
     expect(titlesFound("Pasar a reembolso")).toEqual([STARTUP_PENDING_TITLE]);
-    expect(titlesFound("no deja vender hasta que lo pases a reembolso")).toEqual([
+    expect(titlesFound("la flecha de vuelta de la fila")).toEqual([STARTUP_PENDING_TITLE]);
+    expect(titlesFound("Cobros pagados sin consultar")).toEqual([STARTUP_PENDING_TITLE]);
+    expect(titlesFound("Ir a vender lleva a terminarla")).toEqual([STARTUP_PENDING_TITLE]);
+    expect(titlesFound("no deja empezar una venta nueva hasta que lo pases a reembolso")).toEqual([
       STARTUP_PENDING_TITLE,
     ]);
+    expect(titlesFound("Tocá Pasar a reembolso en la fila")).toEqual([]);
     expect(titlesFound("cuando vuelve la conexión")).toEqual([STARTUP_PENDING_TITLE]);
   });
 

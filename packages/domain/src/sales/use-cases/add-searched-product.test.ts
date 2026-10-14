@@ -229,7 +229,7 @@ describe("addSearchedProduct", () => {
   });
 
   it("refuses to open a sale while a paid order without a sale is unresolved", () => {
-    expect(add(ledger({ paidOrderWithoutSaleUnresolved: true }))).toEqual({
+    expect(add(ledger({ paidOrdersWithoutSale: [{ resolved: false }] }))).toEqual({
       kind: "paid_order_without_sale",
     });
   });
