@@ -21,7 +21,7 @@
     "record:arca-responses": "node dist/record-arca-responses.js"
   },
   "dependencies": {
-    "@fastify/static": "^10.1.4",
+    "@fastify/static": "^10.1.6",
     "@purosur/contracts": "workspace:*",
     "@purosur/domain": "workspace:*",
     "@sentry/node": "^11.4.0",
