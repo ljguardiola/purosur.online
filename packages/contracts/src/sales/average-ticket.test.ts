@@ -21,18 +21,29 @@ describe("averageTicketSchema", () => {
     expect(averageTicketSchema.safeParse({ ...report, change_tenths: -120 }).success).toBe(true);
   });
 
-  it("accepts ranges without sales, which have no average ticket and no change", () => {
+  it("accepts ranges without sales, which have no average ticket, no change and no weeks", () => {
     const empty = {
       ...report,
       current: { sales_count: 0, total: 0, average_ticket: null },
       previous: { sales_count: 0, total: 0, average_ticket: null },
       change_tenths: null,
-      weeks: [
-        { from: "2026-10-08", to: "2026-10-14", sales_count: 0, total: 0, average_ticket: null },
-      ],
+      weeks: [],
     };
 
     expect(averageTicketSchema.parse(empty)).toEqual(empty);
+  });
+
+  it("accepts a range with no previous period, which has no previous figures and no change", () => {
+    const withoutPrevious = {
+      ...report,
+      range: { from: "0001-01-01", to: "0001-01-07" },
+      previous_range: null,
+      previous: null,
+      change_tenths: null,
+      weeks: [],
+    };
+
+    expect(averageTicketSchema.parse(withoutPrevious)).toEqual(withoutPrevious);
   });
 
   it.each([
@@ -58,6 +69,8 @@ describe("averageTicketSchema", () => {
       { weeks: [{ ...report.weeks[0], average_ticket: undefined }] },
     ],
     ["no weeks field", { weeks: undefined }],
+    ["a missing previous range", { previous_range: undefined }],
+    ["missing previous figures", { previous: undefined }],
   ])("refuses %s", (_name, change) => {
     expect(averageTicketSchema.safeParse({ ...report, ...change }).success).toBe(false);
   });

@@ -582,9 +582,20 @@ describe("GET /reports/average-ticket", () => {
       current: { sales_count: 0, total: 0, average_ticket: null },
       previous: { sales_count: 0, total: 0, average_ticket: null },
       change_tenths: null,
-      weeks: [
-        { from: "2026-10-07", to: "2026-10-07", sales_count: 0, total: 0, average_ticket: null },
-      ],
+      weeks: [],
+    });
+  });
+
+  it("answers no previous period when the range starts on the first calendar day", async () => {
+    const { headers } = await signedInWith(db, ["view_reports"], NOW);
+
+    const response = await averageTicket(headers, "?from=0001-01-01&to=0001-01-07");
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      previous_range: null,
+      previous: null,
+      change_tenths: null,
     });
   });
 
@@ -616,19 +627,6 @@ describe("GET /reports/average-ticket", () => {
         },
       ],
     });
-  });
-
-  it("cuts a longer range into weeks counted back from its last day", async () => {
-    const { headers } = await signedInWith(db, ["view_reports"], NOW);
-
-    const response = await averageTicket(headers, "?from=2026-09-30&to=2026-10-07");
-
-    expect(
-      response.json().weeks.map(({ from, to }: { from: string; to: string }) => [from, to]),
-    ).toEqual([
-      ["2026-10-01", "2026-10-07"],
-      ["2026-09-30", "2026-09-30"],
-    ]);
   });
 
   it("shows a pushed sale only once its event was applied", async () => {

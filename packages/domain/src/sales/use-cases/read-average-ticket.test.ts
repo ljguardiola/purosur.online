@@ -99,19 +99,23 @@ describe("readAverageTicket", () => {
     expect(report.changeTenths).toBeNull();
   });
 
-  it("cuts the asked range into weeks counted back from its last day", async () => {
+  it("has no previous period, no previous figures and no change when the asked range starts on the first calendar day", async () => {
+    const reader = new FakeSalesReportReader(sold);
+
     const report = await readAverageTicket(
-      { reader: new FakeSalesReportReader(sold), clock },
+      { reader, clock },
       {
         locationId: "branch-1",
-        asked: { from: "2026-09-30", to: "2026-10-09" },
+        asked: { from: "0001-01-01", to: "0001-01-07" },
         registerId: undefined,
       },
     );
 
-    expect(report.weeks.map(({ from, to }) => [from, to])).toEqual([
-      ["2026-10-03", "2026-10-09"],
-      ["2026-09-30", "2026-10-02"],
+    expect(report.previousRange).toBeNull();
+    expect(report.previous).toBeNull();
+    expect(report.changeTenths).toBeNull();
+    expect(reader.salesByDayReads.map(({ range }) => range)).toEqual([
+      { from: "0001-01-01", to: "0001-01-07" },
     ]);
   });
 });

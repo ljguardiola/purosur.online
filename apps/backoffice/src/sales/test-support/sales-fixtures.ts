@@ -173,11 +173,6 @@ export const singleDayAverageTicketReport: AverageTicketBody = {
   ],
 };
 
-export const fallingAverageTicketReport: AverageTicketBody = {
-  ...averageTicketReport,
-  change_tenths: -125,
-};
-
 export const unchangedAverageTicketReport: AverageTicketBody = {
   ...averageTicketReport,
   change_tenths: 0,
@@ -197,5 +192,16 @@ export const noSalesAverageTicketReport: AverageTicketBody = {
   current: { sales_count: 0, total: 0, average_ticket: null },
   previous: { sales_count: 0, total: 0, average_ticket: null },
   change_tenths: null,
-  weeks: [{ from: "2026-10-07", to: "2026-10-07", sales_count: 0, total: 0, average_ticket: null }],
+  weeks: [],
+};
+
+export const noPreviousAverageTicketReport: AverageTicketBody = {
+  range: { from: "0001-01-01", to: "0001-01-07" },
+  previous_range: null,
+  current: { sales_count: 1, total: 4_800, average_ticket: 4_800 },
+  previous: null,
+  change_tenths: null,
+  weeks: [
+    { from: "0001-01-01", to: "0001-01-07", sales_count: 1, total: 4_800, average_ticket: 4_800 },
+  ],
 };

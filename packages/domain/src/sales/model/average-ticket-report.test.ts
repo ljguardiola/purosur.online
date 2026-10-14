@@ -38,6 +38,18 @@ describe("previousReportPeriod", () => {
     });
   });
 
+  it("starts on the first calendar day when the range starts the day after it", () => {
+    expect(previousReportPeriod({ from: "0001-01-02", to: "0001-01-02" })).toEqual({
+      from: "0001-01-01",
+      to: "0001-01-01",
+    });
+  });
+
+  it("is none when it would start before the first calendar day", () => {
+    expect(previousReportPeriod({ from: "0001-01-02", to: "0001-01-03" })).toBeNull();
+    expect(previousReportPeriod({ from: "0001-01-01", to: "0001-01-07" })).toBeNull();
+  });
+
   it("has the length of the range and touches it, whatever the range", () => {
     fc.assert(
       fc.property(calendarDays, fc.integer({ min: 0, max: 400 }), (from, length) => {
@@ -46,6 +58,10 @@ describe("previousReportPeriod", () => {
           .slice(0, 10);
         const previous = previousReportPeriod({ from, to });
 
+        expect(previous).not.toBeNull();
+        if (previous === null) {
+          return;
+        }
         expect(dayCount(previous)).toBe(dayCount({ from, to }));
         expect(dayCount({ from: previous.to, to: from })).toBe(2);
       }),
@@ -172,11 +188,8 @@ describe("salesOfWeeks", () => {
     ]);
   });
 
-  it("is all empty weeks for a range without sales", () => {
-    expect(salesOfWeeks({ from: "2026-10-01", to: "2026-10-08" }, [])).toEqual([
-      { from: "2026-10-02", to: "2026-10-08", salesCount: 0, total: 0, averageTicket: null },
-      { from: "2026-10-01", to: "2026-10-01", salesCount: 0, total: 0, averageTicket: null },
-    ]);
+  it("is no week for a range without sales", () => {
+    expect(salesOfWeeks({ from: "2026-10-01", to: "2026-10-08" }, [])).toEqual([]);
   });
 
   it("covers the range without gaps and keeps every sale, whatever the range", () => {
@@ -190,7 +203,7 @@ describe("salesOfWeeks", () => {
             salesCount: fc.integer({ min: 1, max: 50 }),
             total: fc.integer({ min: 0, max: 1_000_000 }),
           }),
-          { maxLength: 8 },
+          { minLength: 1, maxLength: 8 },
         ),
         (from, length, sold) => {
           const at = (offset: number) =>
@@ -198,9 +211,9 @@ describe("salesOfWeeks", () => {
               .toISOString()
               .slice(0, 10);
           const range = { from, to: at(length) };
-          const days = [
-            ...new Map(sold.filter((s) => s.offset <= length).map((s) => [s.offset, s])).values(),
-          ].map((s) => day(at(s.offset), s.salesCount, s.total));
+          const days = [...new Map(sold.map((s) => [s.offset % (length + 1), s])).entries()].map(
+            ([offset, s]) => day(at(offset), s.salesCount, s.total),
+          );
 
           const weeks = salesOfWeeks(range, days);
 

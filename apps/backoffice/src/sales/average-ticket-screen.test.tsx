@@ -16,7 +16,7 @@ import { AverageTicketScreen } from "./average-ticket-screen";
 import type { AverageTicketScreenServices } from "./average-ticket-services";
 import {
   averageTicketReport,
-  fallingAverageTicketReport,
+  noPreviousAverageTicketReport,
   noSalesAverageTicketReport,
   quietWeekAverageTicketReport,
   singleDayAverageTicketReport,
@@ -118,19 +118,25 @@ test("names the report, the average ticket of the period and how it compares wit
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("names the period only in its range fields", async () => {
-  const screen = await renderScreen(createServices());
-  await expect.element(screen.getByText("Período anterior")).toBeVisible();
+function besideTheFigures(screen: Screen, text: RegExp) {
+  return screen
+    .getByText(text)
+    .elements()
+    .filter((element) => element.closest('table, [role="group"]') === null);
+}
 
-  expect(screen.getByText(/24\/09\/2026/).query()).toBeNull();
-  expect(screen.getByText(/14\/10\/2026/).query()).toBeNull();
+test("names the period only in its range fields, outside the week rows", async () => {
+  const screen = await renderScreen(createServices());
+  await expect.element(screen.getByText("$ 250,00")).toBeVisible();
+
+  expect(besideTheFigures(screen, /24\/09\/2026/)).toEqual([]);
+  expect(besideTheFigures(screen, /14\/10\/2026/)).toEqual([]);
 });
 
-test("counts a single sale as 1 venta and names a single previous day", async () => {
+test("counts a single sale as 1 venta", async () => {
   const screen = await renderScreen(withReport(singleDayAverageTicketReport));
 
   await expect.element(screen.getByText("1 venta", { exact: true })).toBeVisible();
-  await expect.element(screen.getByText("El 06/10/2026")).toBeVisible();
 });
 
 test("has no previous average and no difference when the previous period had no sales", async () => {
@@ -140,10 +146,12 @@ test("has no previous average and no difference when the previous period had no 
   expect(screen.getByText("—", { exact: true }).elements()).toHaveLength(2);
 });
 
-test("writes a fall with a minus sign", async () => {
-  const screen = await renderScreen(withReport(fallingAverageTicketReport));
+test("has no previous period and no difference when the cloud answers none", async () => {
+  const screen = await renderScreen(withReport(noPreviousAverageTicketReport));
+  await expect.element(screen.getByText("1 venta", { exact: true })).toBeVisible();
 
-  await expect.element(screen.getByText("−12,5 %")).toBeVisible();
+  expect(screen.getByText("—", { exact: true }).elements()).toHaveLength(2);
+  expect(besideTheFigures(screen, /^(El|Del) /)).toEqual([]);
 });
 
 test("writes no change without a sign", async () => {
