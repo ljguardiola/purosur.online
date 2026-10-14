@@ -1,4 +1,6 @@
 import type {
+  FreightList,
+  LinkablePurchaseSummary,
   PackagingList,
   PackagingSummary,
   PurchaseChoices,
@@ -8,6 +10,12 @@ import type {
 import { useQueryClient } from "@tanstack/react-query";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { fetchCloudQuery, useCloudQuery } from "../platform/use-cloud-query";
+import type {
+  FetchFreightsInput,
+  FetchLinkablePurchasesInput,
+  fetchFreights,
+  fetchLinkablePurchases,
+} from "./freights-api";
 import type { fetchPackagings } from "./packagings-api";
 import type { fetchPurchaseChoices, fetchPurchases } from "./purchases-api";
 import type { fetchSuppliers } from "./suppliers-api";
@@ -19,6 +27,8 @@ export const purchasingKeys = {
   packagings: [...purchasingKey, "packagings"] as const,
   purchases: [...purchasingKey, "purchases"] as const,
   purchaseChoices: [...purchasingKey, "purchase-choices"] as const,
+  freights: [...purchasingKey, "freights"] as const,
+  linkablePurchases: [...purchasingKey, "linkable-purchases"] as const,
 };
 
 export function useSuppliersQuery(params: {
@@ -68,6 +78,37 @@ export function usePurchaseChoicesQuery(params: {
   return useCloudQuery<PurchaseChoices>({
     queryKey: purchasingKeys.purchaseChoices,
     read: params.fetchPurchaseChoices,
+    onSessionEnded: params.onSessionEnded,
+    onForbidden: sendToMyAccount,
+  });
+}
+
+export function useFreightsQuery(params: {
+  input: FetchFreightsInput;
+  fetchFreights: typeof fetchFreights;
+  onSessionEnded: () => void;
+}) {
+  const sendToMyAccount = useSendToMyAccount();
+  return useCloudQuery<FreightList>({
+    queryKey: [...purchasingKeys.freights, params.input],
+    keepPreviousData: true,
+    read: () => params.fetchFreights(params.input),
+    onSessionEnded: params.onSessionEnded,
+    onForbidden: sendToMyAccount,
+  });
+}
+
+export function useLinkablePurchasesQuery(params: {
+  input: FetchLinkablePurchasesInput;
+  enabled: boolean;
+  fetchLinkablePurchases: typeof fetchLinkablePurchases;
+  onSessionEnded: () => void;
+}) {
+  const sendToMyAccount = useSendToMyAccount();
+  return useCloudQuery<LinkablePurchaseSummary[]>({
+    queryKey: [...purchasingKeys.linkablePurchases, params.input],
+    enabled: params.enabled,
+    read: () => params.fetchLinkablePurchases(params.input),
     onSessionEnded: params.onSessionEnded,
     onForbidden: sendToMyAccount,
   });

@@ -14,6 +14,7 @@ import { pendingRefundsRoute, salesByPaymentMethodRoute } from "../payments/rout
 import { rolesListRoute } from "../permissions/routes";
 import { discountsListRoute, pricesListRoute } from "../pricing/routes";
 import {
+  freightsListRoute,
   newPurchaseRoute,
   packagingsListRoute,
   purchasesListRoute,
@@ -78,6 +79,7 @@ const routeTree = rootRoute.addChildren([
       purchasesListRoute,
       newPurchaseRoute,
       expiringLotsRoute,
+      freightsListRoute,
       recipesListRoute,
       initialInventoryRoute,
     ]),

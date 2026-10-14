@@ -25,6 +25,7 @@ import type { DiscountsListScreenServices } from "../pricing/discounts-list-serv
 import type { PricesListScreenServices } from "../pricing/prices-list-services";
 import type { NewPurchaseScreenServices } from "../purchasing/new-purchase-services";
 import type { PackagingsListScreenServices } from "../purchasing/packagings-list-services";
+import type { FreightsListScreenServices } from "../purchasing/freights-list-services";
 import type { PurchasesListScreenServices } from "../purchasing/purchases-list-services";
 import type { SuppliersListScreenServices } from "../purchasing/suppliers-list-services";
 import type { RegistersListScreenServices } from "../register/registers-list-services";
@@ -89,6 +90,7 @@ export type AppServices = {
   suppliersListScreen: SuppliersListScreenServices;
   packagingsListScreen: PackagingsListScreenServices;
   purchasesListScreen: PurchasesListScreenServices;
+  freightsListScreen: FreightsListScreenServices;
   recipesListScreen: RecipesListScreenServices;
   newPurchaseScreen: NewPurchaseScreenServices;
   initialInventoryScreen: InitialInventoryScreenServices;
