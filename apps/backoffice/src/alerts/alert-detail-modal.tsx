@@ -28,6 +28,7 @@ import { createLink } from "@tanstack/react-router";
 import {
   ArrowLeft,
   Bell,
+  CalendarClock,
   Check,
   CloudDownload,
   CloudOff,
@@ -53,9 +54,11 @@ import { useSendToMyAccount } from "../platform/send-to-my-account";
 import {
   type BackofficeAccess,
   canCloseAlertsManually,
+  canSeeExpiringLots,
   canSeeQuarantinedEvents,
 } from "../shell/backoffice-access";
 import { alertKindDescription } from "./alert-kind-description";
+import { alertKindLabel } from "./alert-kind-label";
 import { ALERT_LEVEL_TONE } from "./alert-level-tone";
 import { alertScopeLabel } from "./alert-scope-label";
 import { closeAlert as closeAlertDefault, fetchAlert as fetchAlertDefault } from "./alerts-api";
@@ -158,6 +161,8 @@ function alertIcon(kind: string): Icon {
       return <WifiOff />;
     case "offline_authorization_code_missing":
       return <CloudDownload />;
+    case "lots_expiring":
+      return <CalendarClock />;
     default:
       return <Bell />;
   }
@@ -258,6 +263,27 @@ function offlineAuthorizationCodeMissingDescription({
   return `La quincena empieza el ${formatCalendarDay(detail.fortnightStart)}. Sin el CAEA, si ARCA no responde, la caja no puede emitir facturas y las ventas quedan diferidas. Hay que conectarla a internet hoy.`;
 }
 
+function lotsExpiringDescription({
+  lotCount,
+  windowDays,
+}: Extract<AlertDetail, { kind: "lots_expiring" }>["detail"]): string {
+  const lots = formatNumber(lotCount);
+  const summary =
+    windowDays === 0
+      ? plural(lotCount, {
+          one: `${lots} lote vencido o que vence hoy`,
+          other: `${lots} lotes vencidos o que vencen hoy`,
+        })
+      : `${plural(lotCount, {
+          one: `${lots} lote vencido o por vencer`,
+          other: `${lots} lotes vencidos o por vencer`,
+        })} en ${plural(windowDays, {
+          one: "el próximo día",
+          other: `${formatNumber(windowDays)} días`,
+        })}`;
+  return `${summary}.`;
+}
+
 function fiscalUnknownDescription({
   pointOfSale,
   number,
@@ -309,6 +335,8 @@ function alertTitle(alert: AlertDetail): string {
       return "Reembolso pendiente por un pago tardío";
     case "refund_task":
       return "Reembolso pendiente de confirmar";
+    case "lots_expiring":
+      return alertKindLabel(alert.kind);
   }
 }
 
@@ -328,6 +356,9 @@ function alertDescription(alert: AlertDetail, catalog: PermissionCatalogWire = [
   }
   if (alert.kind === "event_invariant_violated") {
     return invariantViolationDescription(alert.detail);
+  }
+  if (alert.kind === "lots_expiring") {
+    return lotsExpiringDescription(alert.detail);
   }
   const targetName = alert.scopeDisplay;
   if (targetName === null) {
@@ -430,6 +461,17 @@ function AlertDescription({ alert }: { alert: AlertDetail }) {
             <li key={code}>{`${code}: ${message}`}</li>
           ))}
         </ul>
+      </>
+    );
+  }
+  if (alert.kind === "lots_expiring") {
+    return (
+      <>
+        <p className="text-text text-body">{alertDescription(alert)}</p>
+        <p className="text-text text-detail">
+          Revisar esos productos en el local y avisar para venderlos, bajarlos de precio o
+          retirarlos antes de que venzan.
+        </p>
       </>
     );
   }
@@ -612,6 +654,11 @@ function OpenAlertDetailModal({
             {alert.kind === "events_quarantined" && canSeeQuarantinedEvents(access) ? (
               <ScreenLink to="/quarantined-events" variant="text">
                 Ver eventos en cuarentena
+              </ScreenLink>
+            ) : null}
+            {alert.kind === "lots_expiring" && canSeeExpiringLots(access) ? (
+              <ScreenLink to="/expiring-lots" variant="text">
+                Ver vencimientos
               </ScreenLink>
             ) : null}
             <div className="flex flex-col gap-1 rounded-lg border border-border p-3 text-detail">
