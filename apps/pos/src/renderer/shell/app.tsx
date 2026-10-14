@@ -470,6 +470,14 @@ function Register({ core }: { core: CoreClient }) {
     [core, queryClient],
   );
 
+  useEffect(
+    () =>
+      core.onStorageStandingChanged(() => {
+        void queryClient.invalidateQueries({ queryKey: registerKeys.status });
+      }),
+    [core, queryClient],
+  );
+
   useEffect(() => {
     router.update({
       ...router.options,
