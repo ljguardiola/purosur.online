@@ -7,6 +7,7 @@ import {
   pointOfSaleClaims,
   registerEnrollmentCodes,
   registerPointsOfSale,
+  registerPointTerminals,
   registers,
   rolePermissions,
   roles,
@@ -180,6 +181,8 @@ describe("GET /registers", () => {
         name: "Caja 1",
         pending_code: null,
         point_of_sale_number: null,
+        point_terminal_id: null,
+        point_terminal_version: 0,
         installation: null,
       },
       {
@@ -187,6 +190,8 @@ describe("GET /registers", () => {
         name: "Caja 2",
         pending_code: null,
         point_of_sale_number: null,
+        point_terminal_id: null,
+        point_terminal_version: 0,
         installation: null,
       },
     ]);
@@ -222,6 +227,26 @@ describe("GET /registers", () => {
     expect(response.json()).toMatchObject([{ id: registerId, point_of_sale_number: 3 }]);
   });
 
+  it("lists the Point terminal a register is assigned and the version of its assignment", async () => {
+    const locationId = await seededLocationId(db);
+    const assignedId = await insertRegister(locationId, "Caja 1");
+    const clearedId = await insertRegister(locationId, "Caja 2");
+    await insertRegister(locationId, "Caja 3");
+    await db.insert(registerPointTerminals).values([
+      { registerId: assignedId, terminalId: "PAX_A910__SMARTPOS1", version: 2 },
+      { registerId: clearedId, terminalId: null, version: 3 },
+    ]);
+    const rawSessionId = await insertSession(await insertUserWithPermission(locationId));
+
+    const response = await getRegisters(rawSessionId);
+
+    expect(response.json()).toMatchObject([
+      { name: "Caja 1", point_terminal_id: "PAX_A910__SMARTPOS1", point_terminal_version: 2 },
+      { name: "Caja 2", point_terminal_id: null, point_terminal_version: 3 },
+      { name: "Caja 3", point_terminal_id: null, point_terminal_version: 0 },
+    ]);
+  });
+
   it("lists an unexpired, unredeemed pending code's seconds since issued and until expiry", async () => {
     const locationId = await seededLocationId(db);
     const registerId = await insertRegister(locationId, "Caja 1");
@@ -246,6 +271,8 @@ describe("GET /registers", () => {
         name: "Caja 1",
         pending_code: { seconds_since_issued: 60, seconds_until_expiry: 840 },
         point_of_sale_number: null,
+        point_terminal_id: null,
+        point_terminal_version: 0,
         installation: null,
       },
     ]);

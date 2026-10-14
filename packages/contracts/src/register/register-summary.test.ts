@@ -16,6 +16,7 @@ const withoutCode = {
   pending_code: null,
   point_of_sale_number: null,
   point_terminal_id: null,
+  point_terminal_version: 0,
   installation: null,
 };
 const enrolledInstallation = {
@@ -35,6 +36,7 @@ const withCode = {
   pending_code: pendingCode,
   point_of_sale_number: 3,
   point_terminal_id: "PAX_A910__SMARTPOS1234567890",
+  point_terminal_version: 3,
   installation: null,
 };
 
@@ -86,6 +88,7 @@ describe("registerSummarySchema", () => {
     "pending_code",
     "point_of_sale_number",
     "point_terminal_id",
+    "point_terminal_version",
     "installation",
   ])("requires %s", (field) => {
     const { [field as keyof typeof withCode]: _omitted, ...rest } = withCode;
@@ -124,6 +127,11 @@ describe("registerSummarySchema", () => {
     ["point_terminal_id", ""],
     ["point_terminal_id", "PAX A910"],
     ["point_terminal_id", 7],
+    ["point_terminal_version", undefined],
+    ["point_terminal_version", null],
+    ["point_terminal_version", -1],
+    ["point_terminal_version", 1.5],
+    ["point_terminal_version", "1"],
     ["point_of_sale_number", undefined],
     ["point_of_sale_number", 0],
     ["point_of_sale_number", 1.5],
