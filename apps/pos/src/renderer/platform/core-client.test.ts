@@ -1974,6 +1974,43 @@ describe("createCoreClient", () => {
     expect(second).toBe(2);
   });
 
+  it("tells each listener every time the storage standing changes, until it stops listening", () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+    let first = 0;
+    let second = 0;
+    const stopFirst = client.onStorageStandingChanged(() => {
+      first += 1;
+    });
+    client.onStorageStandingChanged(() => {
+      second += 1;
+    });
+
+    port.answer({ type: "storage-standing-changed" });
+    stopFirst();
+    port.answer({ type: "storage-standing-changed" });
+
+    expect(first).toBe(1);
+    expect(second).toBe(2);
+  });
+
+  it("does not take a storage standing change for the answer to a pending request", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const devices = client.readSerialDevices();
+    port.answer({ type: "storage-standing-changed" });
+    port.answer({
+      type: "read-serial-devices-result",
+      request_id: "request-1",
+      outcome: { kind: "unavailable" },
+    });
+
+    expect(await devices).toEqual({ kind: "unavailable" });
+  });
+
   it("hands each listener every code the barcode reader reads, until it stops listening", () => {
     const client = clientWithSequentialIds();
     const port = new FakePort();
