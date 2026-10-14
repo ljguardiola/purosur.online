@@ -44,6 +44,22 @@ describe("ChargeScreen · Point integrada", () => {
     await expectNoAccessibilityViolations(screen.container);
   });
 
+  it("shows the terminal as not configured on the register and cannot be chosen", async () => {
+    const { screen, startMercadoPagoCharge } = await renderScreen({
+      paymentMethodAvailability: async () => ({ ...AVAILABLE, point: "not_configured" }),
+    });
+
+    await expect.element(screen.getByRole("radio", { name: "Point integrada" })).toBeDisabled();
+    await expect.element(screen.getByText("No configurada en esta caja")).toBeVisible();
+    await expect.element(screen.getByRole("radio", { name: "QR de Mercado Pago" })).toBeEnabled();
+    await userEvent.click(screen.getByText("Point integrada", { exact: true }), { force: true });
+    await expect
+      .element(screen.getByRole("heading", { name: "¿Cuánto se cobra con la Point?" }))
+      .not.toBeInTheDocument();
+    expect(startMercadoPagoCharge).not.toHaveBeenCalled();
+    await expectNoAccessibilityViolations(screen.container);
+  });
+
   it("offers no terminal below its minimum and says why, keeping the QR available", async () => {
     const { screen } = await renderScreen({
       paymentMethodAvailability: async () => ({ ...AVAILABLE, point: "below_minimum" }),
