@@ -34,7 +34,6 @@ export {
   PAID_ORDER_PAYMENT_STATE,
   PAID_ORDER_REPLACED,
   paidOrdersSellingRefusal,
-  paidOrdersWithoutSaleLetSell,
   paidOrderWithoutSaleBlocksSelling,
   SALE_PAYMENT_STATE_HOLDING_PAID_ORDER,
 } from "./model/paid-order-discovery.js";
