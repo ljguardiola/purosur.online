@@ -19,6 +19,11 @@ export const transferRefund: PendingRefundsBody["refunds"][number] = {
   provider_order_id: null,
   cancelled_by: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
   cancelled_by_name: "Lucía",
+  sent_by_cloud: false,
+  confirmed_at: null,
+  confirmed_by_name: null,
+  sent_at: null,
+  last_refusal_reason: null,
 };
 
 const secondRefund: PendingRefundsBody["refunds"][number] = {
@@ -37,6 +42,11 @@ const secondRefund: PendingRefundsBody["refunds"][number] = {
   provider_order_id: null,
   cancelled_by: "ffffffff-ffff-4fff-8fff-ffffffffffff",
   cancelled_by_name: null,
+  sent_by_cloud: false,
+  confirmed_at: null,
+  confirmed_by_name: null,
+  sent_at: null,
+  last_refusal_reason: null,
 };
 
 export const LATE_PAYMENT_REFUND_ID = "99999999-9999-4999-8999-999999999999";
@@ -57,6 +67,11 @@ export const latePaymentRefund: PendingRefundsBody["refunds"][number] = {
   provider_order_id: null,
   cancelled_by: null,
   cancelled_by_name: null,
+  sent_by_cloud: false,
+  confirmed_at: null,
+  confirmed_by_name: null,
+  sent_at: null,
+  last_refusal_reason: null,
 };
 
 const OTHER_ORDER_REFUND_ID = "77777777-7777-4777-8777-777777777777";

@@ -260,3 +260,88 @@ export function idempotencyKeyAlreadyUsedError(): Record<string, unknown> {
     409,
   );
 }
+
+export const REFUND_ID = "REF01JQ4S4KY8HWQ6NA5PXB65B3D3";
+
+function documentedRefund(status: string, amount: string): Record<string, unknown> {
+  return {
+    id: REFUND_ID,
+    transaction_id: "PAY01JQ4S4KY8HWQ6NA5PXB65B3D0",
+    reference_id: "12345678",
+    amount,
+    status,
+  };
+}
+
+export function refundedOrder(amount = "50.00", refundStatus = "processing") {
+  return {
+    id: ORDER_ID,
+    status: "refunded",
+    status_detail: "refunded",
+    transactions: { refunds: [documentedRefund(refundStatus, amount)] },
+  };
+}
+
+export function refundedOrderRead(amount = "50.00", refundStatus = "processed") {
+  return {
+    ...(paidOrder(amount) as Record<string, unknown>),
+    status: "refunded",
+    status_detail: "refunded",
+    transactions: {
+      ...(paidOrder(amount).transactions as Record<string, unknown>),
+      refunds: [documentedRefund(refundStatus, amount)],
+    },
+  };
+}
+
+export function insufficientMoneyForRefundError(): Record<string, unknown> {
+  return documentedError(
+    "insufficient_money_for_refund",
+    "The account does not have enough available money to make the refund.",
+    428,
+  );
+}
+
+export function orderAlreadyRefundedError(): Record<string, unknown> {
+  return documentedError("order_already_refunded", "The order was already refunded.", 409);
+}
+
+export function refundInProgressError(): Record<string, unknown> {
+  return documentedError("refund_in_progress", "A refund of the order is in progress.", 409);
+}
+
+export function movementOperationsPendingError(): Record<string, unknown> {
+  return documentedError("movement_operations_pending", "The order has operations pending.", 409);
+}
+
+export function orderPaymentNotYetEnabledForRefundError(): Record<string, unknown> {
+  return documentedError(
+    "order_payment_not_yet_enabled_for_refund",
+    "The payment is not yet enabled to be refunded.",
+    425,
+  );
+}
+
+export function cannotRefundOrderError(): Record<string, unknown> {
+  return documentedError(
+    "cannot_refund_order",
+    "The order cannot be refunded. Only orders with status processed can be refunded.",
+    409,
+  );
+}
+
+export function refundPeriodExceededError(): Record<string, unknown> {
+  return documentedError("refund_period_exceeded", "The refund period was exceeded.", 409);
+}
+
+export function paymentNotRefundableError(): Record<string, unknown> {
+  return documentedError("payment_not_refundable", "The payment cannot be refunded.", 422);
+}
+
+export function inStorePaymentRefundOrderError(): Record<string, unknown> {
+  return documentedError(
+    "in_store_payment_refund_order",
+    "The payment of an in-store order cannot be refunded through this endpoint.",
+    400,
+  );
+}

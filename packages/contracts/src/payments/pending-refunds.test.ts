@@ -1,6 +1,7 @@
 import { ARGENTINA_TIME_ZONE } from "@purosur/domain";
 import { describe, expect, it } from "vitest";
 import {
+  confirmedRefundSchema,
   discardedRefundSchema,
   markedRefundDoneSchema,
   pendingRefundsSchema,
@@ -26,6 +27,11 @@ const refund: Record<string, unknown> = {
   provider_order_id: null,
   cancelled_by: "u1",
   cancelled_by_name: "Lucia",
+  sent_by_cloud: false,
+  confirmed_at: null,
+  confirmed_by_name: null,
+  sent_at: null,
+  last_refusal_reason: null,
 };
 
 describe("pendingRefundsSchema", () => {
@@ -78,6 +84,24 @@ describe("pendingRefundsSchema", () => {
     expect(pendingRefundsSchema.parse(list)).toEqual(list);
   });
 
+  it("accepts the refund of a QR payment the cloud sends, with how far it got", () => {
+    const list = {
+      refunds: [
+        {
+          ...refund,
+          method: "QR",
+          sent_by_cloud: true,
+          confirmed_at: "2026-10-07T16:00:00.000Z",
+          confirmed_by_name: "Lucia",
+          sent_at: "2026-10-07T16:00:02.000Z",
+          last_refusal_reason: "insufficient_balance",
+        },
+      ],
+    };
+
+    expect(pendingRefundsSchema.parse(list)).toEqual(list);
+  });
+
   it("refuses a refund missing any one of its fields", () => {
     const accepted = Object.keys(refund).filter((key) => {
       const { [key]: _removed, ...rest } = refund;
@@ -105,6 +129,11 @@ describe("pendingRefundsSchema", () => {
     ["covering methods that are not a list", { covered_by: "CASH" }],
     ["an order that is not text", { provider_order_id: 1 }],
     ["an empty order", { provider_order_id: "" }],
+    ["a sent-by-cloud flag that is not a boolean", { sent_by_cloud: "yes" }],
+    ["a confirmation date that is not ISO", { confirmed_at: "ayer" }],
+    ["a confirmer name that is not text", { confirmed_by_name: 1 }],
+    ["a sent date that is not ISO", { sent_at: "ayer" }],
+    ["a refusal reason that is not text", { last_refusal_reason: 1 }],
     ["a fractional time pending", { seconds_pending: 1.5 }],
     ["a negative time pending", { seconds_pending: -1 }],
   ])("refuses a refund with %s", (_case, change) => {
@@ -159,5 +188,31 @@ describe("discardedRefundSchema", () => {
     ["with a moment that is not ISO", { ...discarded, discarded_at: "hoy" }],
   ])("refuses %s", (_case, body) => {
     expect(discardedRefundSchema.safeParse(body).success).toBe(false);
+  });
+});
+
+describe("confirmedRefundSchema", () => {
+  const confirmed = { refund_id: REFUND_ID };
+
+  it.each([
+    ["sent", { ...confirmed, outcome: "sent" }],
+    ["done", { ...confirmed, outcome: "done", done_at: "2026-10-13T15:00:00.000Z" }],
+    ["insufficient_balance", { ...confirmed, outcome: "insufficient_balance" }],
+    ["refused", { ...confirmed, outcome: "refused", reason: "refund_period_exceeded" }],
+    ["provider_unavailable", { ...confirmed, outcome: "provider_unavailable" }],
+  ])("accepts a refund confirmed that ended as %s", (_outcome, body) => {
+    expect(confirmedRefundSchema.parse(body)).toEqual(body);
+  });
+
+  it.each([
+    ["an outcome no confirmation has", { ...confirmed, outcome: "refunded" }],
+    ["a done refund without the moment it was done", { ...confirmed, outcome: "done" }],
+    ["a done moment that is not ISO", { ...confirmed, outcome: "done", done_at: "ayer" }],
+    ["a refusal without its reason", { ...confirmed, outcome: "refused" }],
+    ["a refusal with an empty reason", { ...confirmed, outcome: "refused", reason: "" }],
+    ["a refund that is not a record id", { refund_id: "refund-1", outcome: "sent" }],
+    ["no outcome", confirmed],
+  ])("refuses %s", (_case, body) => {
+    expect(confirmedRefundSchema.safeParse(body).success).toBe(false);
   });
 });
