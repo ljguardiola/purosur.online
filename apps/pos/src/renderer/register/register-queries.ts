@@ -17,7 +17,7 @@ import type { CoreData } from "../platform/use-core-query";
 import { coreQueryOptions, useCoreQuery } from "../platform/use-core-query";
 import type { CashSessionState } from "./cash-session-state";
 import { cashSessionStateOf } from "./cash-session-state";
-import { hasStartupPendingItems } from "./startup-pending-items";
+import { startupPendingMayChange } from "./startup-pending-items";
 
 const registerKey = ["register"] as const;
 
@@ -254,7 +254,7 @@ export function useStartupPendingQuery(
     queryKey: registerKeys.startupPending,
     read,
     refetchInterval: (answer) =>
-      answer !== undefined && answer !== "not_permitted" && hasStartupPendingItems(answer)
+      answer !== undefined && answer !== "not_permitted" && startupPendingMayChange(answer)
         ? STARTUP_PENDING_REREAD_MS
         : false,
   });

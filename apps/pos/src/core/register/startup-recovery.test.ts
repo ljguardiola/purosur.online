@@ -19,6 +19,9 @@ function recovery(overrides: Partial<Parameters<typeof recoverAtStartup>[0]> = {
     followInterruptedCharges: async () => {
       events.push("charges followed");
     },
+    discoverPaidOrders: async () => {
+      events.push("paid orders discovered");
+    },
     startSync: () => {
       events.push("sync started");
     },
@@ -31,7 +34,7 @@ function recovery(overrides: Partial<Parameters<typeof recoverAtStartup>[0]> = {
 }
 
 describe("recovering at startup", () => {
-  it("starts sync only after the interrupted authorizations and charges were settled", async () => {
+  it("starts sync only after the interrupted authorizations and charges were settled and the paid orders discovered", async () => {
     const authorizations = deferred();
     const charges = deferred();
     const { events, started } = recovery({
@@ -52,7 +55,12 @@ describe("recovering at startup", () => {
     expect(events).toEqual(["authorizations settled"]);
     charges.resolve();
     await started.finished;
-    expect(events).toEqual(["authorizations settled", "charges followed", "sync started"]);
+    expect(events).toEqual([
+      "authorizations settled",
+      "charges followed",
+      "paid orders discovered",
+      "sync started",
+    ]);
   });
 
   it("answers that the authorizations are settled without waiting for the charges", async () => {
@@ -81,6 +89,6 @@ describe("recovering at startup", () => {
     await started.finished;
 
     expect(failures).toEqual([["settling the interrupted real-time authorizations", broken]]);
-    expect(events).toEqual(["charges followed", "sync started"]);
+    expect(events).toEqual(["charges followed", "paid orders discovered", "sync started"]);
   });
 });

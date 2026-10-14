@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
 import {
+  approvedOrdersOfRegisterSchema,
   type CloudErrorCode,
   changesPageSchema,
   changesQuerySchema,
@@ -191,6 +192,13 @@ export async function startStandInCloud(
     send(response, 200, pushEventsResponseSchema.parse({ status: "ok", ack_seq: acknowledgedSeq }));
   }
 
+  function answerApprovedOrders(request: IncomingMessage, response: ServerResponse): void {
+    if (!hasDeviceToken(request, response, "a read of the approved orders")) {
+      return;
+    }
+    send(response, 200, approvedOrdersOfRegisterSchema.parse({ orders: [] }));
+  }
+
   function answerHealthCheck(request: IncomingMessage, response: ServerResponse): void {
     if (!hasDeviceToken(request, response, "a health check")) {
       return;
@@ -285,6 +293,8 @@ export async function startStandInCloud(
       await answerAuthorization(request, response);
     } else if (route === "GET /api/health") {
       answerHealthCheck(request, response);
+    } else if (route === "GET /api/payments/mercado-pago/approved") {
+      answerApprovedOrders(request, response);
     } else if (route === "GET /api/changes") {
       pageAfter(url, request, response);
     } else {

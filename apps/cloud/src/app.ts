@@ -89,6 +89,7 @@ import {
   type MercadoPagoOrderRoutesOptions,
   registerMercadoPagoOrderRoutes,
 } from "./payments/mercado-pago-order-routes.js";
+import { registerPaidOrdersOfRegisterRoutes } from "./payments/paid-orders-of-register-routes.js";
 import {
   type PaymentsReportRouteOptions,
   registerPaymentsReportRoutes,
@@ -644,6 +645,11 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
           registerMercadoPagoOrderRoutes(api, {
             ...options.devices,
             ...options.mercadoPagoOrders,
+            now,
+          });
+          registerPaidOrdersOfRegisterRoutes(api, {
+            ...options.devices,
+            connections: options.mercadoPagoOrders.connections,
             now,
           });
         }
