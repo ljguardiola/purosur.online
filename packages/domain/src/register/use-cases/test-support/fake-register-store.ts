@@ -40,11 +40,19 @@ export interface FakeRegisterKey extends VersionedKey {
   registerId: string;
 }
 
+export interface FakeSnapshotGenerationKeyUse {
+  registerId: string;
+  keyVersion: number;
+  status: "declared" | "uploaded" | "verified" | "failed";
+  pruned: boolean;
+}
+
 export interface FakeRegisterState {
   codes: FakeEnrollmentCode[];
   attempts: FakeEnrollmentAttempt[];
   installations: FakeInstallation[];
   snapshotKeys: FakeRegisterKey[];
+  snapshotGenerations: FakeSnapshotGenerationKeyUse[];
   contingencyTicketKeys: FakeRegisterKey[];
   enrollmentAlerts: EnrollmentAlert[];
   installationRevocations: InstallationRevocation[];
@@ -219,8 +227,15 @@ class FakeRegisterStoreTransaction implements RegisterStoreTransaction {
       keys
         .filter((key) => key.registerId === registerId)
         .map(({ version, key }) => ({ version, key }));
+    const retained = this.state.snapshotGenerations.filter(
+      (generation) =>
+        generation.registerId === registerId &&
+        generation.status !== "failed" &&
+        !generation.pruned,
+    );
     return {
       snapshotKeys: ofRegister(this.state.snapshotKeys),
+      retainedSnapshotKeyVersions: retained.map((generation) => generation.keyVersion),
       contingencyTicketKeys: ofRegister(this.state.contingencyTicketKeys),
     };
   }
@@ -276,6 +291,7 @@ export class FakeRegisterStore implements RegisterStore {
     attempts: [],
     installations: [],
     snapshotKeys: [],
+    snapshotGenerations: [],
     contingencyTicketKeys: [],
     enrollmentAlerts: [],
     installationRevocations: [],
@@ -302,6 +318,10 @@ export class FakeRegisterStore implements RegisterStore {
 
   seedSnapshotKey(key: FakeRegisterKey): void {
     this.state.snapshotKeys.push({ ...key });
+  }
+
+  seedSnapshotGeneration(generation: FakeSnapshotGenerationKeyUse): void {
+    this.state.snapshotGenerations.push({ ...generation });
   }
 
   seedContingencyTicketKey(key: FakeRegisterKey): void {
