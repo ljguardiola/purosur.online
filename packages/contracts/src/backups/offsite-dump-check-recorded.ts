@@ -1,18 +1,15 @@
-import { isOffsiteDumpNight, OFFSITE_DUMP_FAILURE_REASONS } from "@purosur/domain";
+import { OFFSITE_DUMP_FAILURE_REASONS } from "@purosur/domain";
 import { z } from "zod";
-
-const night = z.string().refine(isOffsiteDumpNight, {
-  message: "night must be a calendar day written YYYY-MM-DD",
-});
+import { offsiteDumpNightSchema } from "./offsite-dump-night.js";
 
 export const offsiteDumpCheckRecordedSchema = z.discriminatedUnion("status", [
   z.object({
-    night,
+    night: offsiteDumpNightSchema,
     status: z.literal("verified"),
     sizeBytes: z.number().int().nonnegative(),
   }),
   z.object({
-    night,
+    night: offsiteDumpNightSchema,
     status: z.literal("failed"),
     reason: z.enum(OFFSITE_DUMP_FAILURE_REASONS),
   }),
