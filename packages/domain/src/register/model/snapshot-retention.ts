@@ -20,7 +20,7 @@ function hourOf(instant: Date): number {
 
 function monthOf(day: string): number {
   const [year = 0, month = 1] = day.split("-").map(Number);
-  return year * 12 + month - 1;
+  return year * 12 + month;
 }
 
 function newestFirst(a: RetainableSnapshotGeneration, b: RetainableSnapshotGeneration): number {
