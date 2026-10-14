@@ -41,7 +41,7 @@ function ask(minimum: string | undefined, authorization: string | undefined = `B
     method: "GET",
     url: "/sync/registers-below-minimum",
     ...(minimum === undefined ? {} : { query: { minimum } }),
-    headers: authorization === undefined ? {} : { authorization },
+    headers: authorization === null ? {} : { authorization },
   });
 }
 
@@ -69,7 +69,7 @@ describe("GET /sync/registers-below-minimum", () => {
   it("answers 401 without an authorization header, reading nothing", async () => {
     await installation("Caja 1", "1.0.0");
 
-    const response = await ask("1.4.0", undefined);
+    const response = await ask("1.4.0", null);
 
     expect(response.statusCode).toBe(401);
     expect(response.body).not.toContain("Caja 1");
@@ -93,7 +93,7 @@ describe("GET /sync/registers-below-minimum", () => {
 
     expect((await ask("1.4.0", "Bearer ")).statusCode).toBe(401);
     expect((await ask("1.4.0", `Bearer ${TOKEN}`)).statusCode).toBe(401);
-    expect((await ask("1.4.0", undefined)).statusCode).toBe(401);
+    expect((await ask("1.4.0", null)).statusCode).toBe(401);
   });
 
   it("answers 401 before looking at the minimum when the token is wrong", async () => {
