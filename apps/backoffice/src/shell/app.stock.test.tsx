@@ -18,6 +18,7 @@ opensOnlyScreens([
   "/account",
   "/alerts",
   "/expiring-lots",
+  "/freights",
   "/help",
   "/initial-inventory",
   "/inventory",
@@ -80,6 +81,10 @@ function stockServices(capabilities: Capability[]) {
     kind: "ok",
     value: [],
   });
+  vi.mocked(services.freightsListScreen.fetchFreights).mockResolvedValue({
+    kind: "ok",
+    value: { items: [], count: 0, totalCents: 0 },
+  });
   vi.mocked(services.newPurchaseScreen.fetchPurchaseChoices).mockResolvedValue({
     kind: "ok",
     value: { suppliers: [], products: [], packagings: [], today: "2026-09-16" },
@@ -95,6 +100,7 @@ const SECTION_LABELS = [
   "Presentaciones de compra",
   "Compras",
   "Vencimientos",
+  "Flete",
   "Recetas",
   "Inventario inicial",
 ];
@@ -108,6 +114,7 @@ test.each([
   ["purchase_packagings", "Presentaciones de compra", "/purchase-packagings"],
   ["purchases", "Compras", "/purchases"],
   ["stock_expiries", "Vencimientos", "/expiring-lots"],
+  ["freights", "Flete", "/freights"],
   ["recipes", "Recetas", "/recipes"],
   ["initial_inventory", "Inventario inicial", "/initial-inventory"],
 ] as const)(
@@ -222,6 +229,7 @@ test.each([
   ["/purchases/new", "suppliers"],
   ["/expiring-lots", "suppliers"],
   ["/initial-inventory", "suppliers"],
+  ["/freights", "suppliers"],
   ["/recipes", "purchases"],
   ["/suppliers", "recipes"],
   ["/purchases", "recipes"],
@@ -282,6 +290,7 @@ const STOCK_SCREENS = [
   ["/purchases", "Compras"],
   ["/purchases/new", "Registrar compra"],
   ["/expiring-lots", "Vencimientos"],
+  ["/freights", "Flete"],
   ["/recipes", "Recetas"],
   ["/initial-inventory", "Inventario inicial"],
 ] as const;
