@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { recordIdSchema } from "../shared/index.js";
 
 const SHA256_HEX = /^[0-9a-f]{64}$/;
 
@@ -7,7 +8,7 @@ export const snapshotSha256Schema = z.string().regex(SHA256_HEX);
 export const snapshotKeyVersionSchema = z.number().int().positive().safe();
 
 export const snapshotUploadBodySchema = z.strictObject({
-  generation_id: z.uuid(),
+  generation_id: recordIdSchema(),
   size: snapshotSizeSchema,
   sha256: snapshotSha256Schema,
   key_version: snapshotKeyVersionSchema,

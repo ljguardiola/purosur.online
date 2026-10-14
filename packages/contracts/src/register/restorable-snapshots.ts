@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { recordIdSchema } from "../shared/index.js";
 import {
   snapshotKeyVersionSchema,
   snapshotSha256Schema,
@@ -6,7 +7,7 @@ import {
 } from "./snapshot-upload.js";
 
 const restorableSnapshotSchema = z.object({
-  generation_id: z.uuid(),
+  generation_id: recordIdSchema(),
   created_at: z.iso.datetime(),
   size: snapshotSizeSchema,
   sha256: snapshotSha256Schema,
