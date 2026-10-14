@@ -153,7 +153,8 @@ function registerVersionText({ major, minor, patch }) {
 }
 
 async function main() {
-  const installerDir = process.argv[2];
+  const requireNewer = process.argv[2] === "--require-newer";
+  const installerDir = process.argv[requireNewer ? 3 : 2];
   const missing = [
     ...(installerDir ? [] : ["the installer directory argument"]),
     ...Object.values(BUCKET_VARIABLES).filter((name) => !process.env[name]),
@@ -174,9 +175,14 @@ async function main() {
       version: process.env.POS_VERSION,
       bucket,
     });
-    console.log(
-      result.published ? `publish-pos-update: ${result.reason}` : `::notice::${result.reason}`,
-    );
+    if (result.published) {
+      console.log(`publish-pos-update: ${result.reason}`);
+    } else if (requireNewer) {
+      console.error(`::error::${result.reason}`);
+      process.exitCode = 1;
+    } else {
+      console.log(`::notice::${result.reason}`);
+    }
   } catch (error) {
     console.error(`::error::${error.message}`);
     process.exitCode = 1;
