@@ -1,5 +1,5 @@
 {
-  "id": "b0a8efb7-eaee-43db-9007-f8286c7d8502",
+  "id": "5aec732e-05ae-4b48-b6cb-932d6622bc1a",
   "prevId": "cb568710-da2a-48f8-a675-88d079cbb57b",
   "version": "7",
   "dialect": "postgresql",
@@ -2904,167 +2904,6 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.offline_fiscal_documents": {
-      "name": "offline_fiscal_documents",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "sale_id": {
-          "name": "sale_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "register_id": {
-          "name": "register_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "point_of_sale": {
-          "name": "point_of_sale",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "document_type": {
-          "name": "document_type",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "number": {
-          "name": "number",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "issued_on": {
-          "name": "issued_on",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "generated_at": {
-          "name": "generated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "generation_stamp": {
-          "name": "generation_stamp",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "offline_authorization_code": {
-          "name": "offline_authorization_code",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "fortnight_start": {
-          "name": "fortnight_start",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "fortnight_end": {
-          "name": "fortnight_end",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "buyer_document_type": {
-          "name": "buyer_document_type",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "buyer_document_number": {
-          "name": "buyer_document_number",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "buyer_tax_status_code": {
-          "name": "buyer_tax_status_code",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "total": {
-          "name": "total",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "net_amount": {
-          "name": "net_amount",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "cause": {
-          "name": "cause",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "recorded_at": {
-          "name": "recorded_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "offline_fiscal_documents_register_id_registers_id_fk": {
-          "name": "offline_fiscal_documents_register_id_registers_id_fk",
-          "tableFrom": "offline_fiscal_documents",
-          "tableTo": "registers",
-          "columnsFrom": ["register_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "offline_fiscal_documents_sale_id_unique": {
-          "name": "offline_fiscal_documents_sale_id_unique",
-          "nullsNotDistinct": false,
-          "columns": ["sale_id"]
-        },
-        "offline_fiscal_documents_number_key": {
-          "name": "offline_fiscal_documents_number_key",
-          "nullsNotDistinct": false,
-          "columns": ["point_of_sale", "document_type", "number"]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {
-        "offline_fiscal_documents_document_type_known": {
-          "name": "offline_fiscal_documents_document_type_known",
-          "value": "\"offline_fiscal_documents\".\"document_type\" in ('factura_c')"
-        },
-        "offline_fiscal_documents_cause_known": {
-          "name": "offline_fiscal_documents_cause_known",
-          "value": "\"offline_fiscal_documents\".\"cause\" in ('no_connectivity', 'unclear_outcome', 'numbering_conflict')"
-        },
-        "offline_fiscal_documents_generation_stamp_shape": {
-          "name": "offline_fiscal_documents_generation_stamp_shape",
-          "value": "\"offline_fiscal_documents\".\"generation_stamp\" ~ '^[0-9]{14}$'"
-        }
-      },
-      "isRLSEnabled": false
-    },
     "public.offline_number_blocks": {
       "name": "offline_number_blocks",
       "schema": "",
@@ -3464,6 +3303,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "origin_event_id": {
+          "name": "origin_event_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
         "provider_order_id": {
           "name": "provider_order_id",
           "type": "text",
@@ -3530,9 +3375,61 @@
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
+        },
+        "confirmed_by": {
+          "name": "confirmed_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "confirmed_at": {
+          "name": "confirmed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sent_at": {
+          "name": "sent_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "provider_refund_id": {
+          "name": "provider_refund_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "attempt_key": {
+          "name": "attempt_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "last_refusal_reason": {
+          "name": "last_refusal_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {
+        "payment_refunds_attempt_key_unique": {
+          "name": "payment_refunds_attempt_key_unique",
+          "columns": [
+            {
+              "expression": "attempt_key",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"payment_refunds\".\"attempt_key\" is not null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
         "payment_refunds_transaction_without_order_unique": {
           "name": "payment_refunds_transaction_without_order_unique",
           "columns": [
@@ -3635,9 +3532,9 @@
           "name": "payment_refunds_origin_check",
           "value": "\"payment_refunds\".\"origin\" in ('sale_cancelled', 'late_payment')"
         },
-        "payment_refunds_one_source_check": {
-          "name": "payment_refunds_one_source_check",
-          "value": "(\"payment_refunds\".\"payment_id\" is null) <> (\"payment_refunds\".\"payment_transaction_id\" is null)"
+        "payment_refunds_source_check": {
+          "name": "payment_refunds_source_check",
+          "value": "(\"payment_refunds\".\"origin\" = 'late_payment' and \"payment_refunds\".\"payment_id\" is null and \"payment_refunds\".\"payment_transaction_id\" is not null and \"payment_refunds\".\"origin_event_id\" is null) or (\"payment_refunds\".\"origin\" = 'sale_cancelled' and \"payment_refunds\".\"payment_id\" is not null)"
         },
         "payment_refunds_done_check": {
           "name": "payment_refunds_done_check",
@@ -3646,6 +3543,18 @@
         "payment_refunds_discarded_check": {
           "name": "payment_refunds_discarded_check",
           "value": "(\"payment_refunds\".\"discarded_by\" is null) = (\"payment_refunds\".\"discarded_at\" is null) and (\"payment_refunds\".\"state\" = 'DISCARDED' or \"payment_refunds\".\"discarded_by\" is null)"
+        },
+        "payment_refunds_confirmation_check": {
+          "name": "payment_refunds_confirmation_check",
+          "value": "(\"payment_refunds\".\"confirmed_by\" is null) = (\"payment_refunds\".\"confirmed_at\" is null)"
+        },
+        "payment_refunds_attempt_confirmed_check": {
+          "name": "payment_refunds_attempt_confirmed_check",
+          "value": "\"payment_refunds\".\"attempt_key\" is null or \"payment_refunds\".\"confirmed_at\" is not null"
+        },
+        "payment_refunds_sent_check": {
+          "name": "payment_refunds_sent_check",
+          "value": "(\"payment_refunds\".\"sent_at\" is null) = (\"payment_refunds\".\"provider_refund_id\" is null) and (\"payment_refunds\".\"sent_at\" is null or \"payment_refunds\".\"confirmed_at\" is not null)"
         }
       },
       "isRLSEnabled": false

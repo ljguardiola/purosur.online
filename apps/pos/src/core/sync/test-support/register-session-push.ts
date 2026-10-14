@@ -8,6 +8,7 @@ import type { MercadoPagoChargeOrders } from "@purosur/domain/payments/use-cases
 import { derivePinVerifier } from "../../credentials/pin-verifier";
 import {
   abandonMercadoPagoChargeFor,
+  followMercadoPagoChargeFor,
   startMercadoPagoChargeFor,
 } from "../../payments/mercado-pago-charge-requests";
 import type { LocalDatabase } from "../../platform/local-database";
@@ -80,6 +81,11 @@ const OFFLINE_QR_ORDERS: MercadoPagoChargeOrders = {
   requestOrder: async () => ({ kind: "created", expiresAt: new Date("2026-10-09T12:03:00.000Z") }),
   readOrder: async () => ({ kind: "unreachable" }),
   cancelOrder: async () => ({ kind: "unreachable" }),
+};
+
+const APPROVED_QR_ORDERS: MercadoPagoChargeOrders = {
+  ...OFFLINE_QR_ORDERS,
+  readOrder: async () => ({ kind: "read", state: "APPROVED" }),
 };
 
 function expectOutcome(step: string, actual: string, expected: string): void {
@@ -559,6 +565,33 @@ export async function withRegisterSession<TResult>(
       cancelledOnTerminal.kind,
       "cancelled",
     );
+    nextStep();
+    const onQr = await scanProductFor(deps(), "7790001000011");
+    if (onQr.kind !== "added") {
+      throw new Error(
+        `The register session's "scan a product to pay part by QR" ended as "${onQr.kind}"`,
+      );
+    }
+    nextStep();
+    const qrDeposit = await startMercadoPagoChargeFor(
+      { ...deps(), orders: APPROVED_QR_ORDERS },
+      { saleId: onQr.sale.id, method: "QR", amount: 700 },
+    );
+    if (qrDeposit.kind !== "order_shown") {
+      throw new Error(`The register session's "start the QR deposit" ended as "${qrDeposit.kind}"`);
+    }
+    nextStep();
+    const approvedQr = await followMercadoPagoChargeFor(
+      { ...deps(), orders: APPROVED_QR_ORDERS },
+      { paymentTransactionId: qrDeposit.payment_transaction_id },
+    );
+    expectOutcome("follow the QR deposit until it is approved", approvedQr.kind, "partially_paid");
+    nextStep();
+    const cancelledOnQr = await cancelPaidSaleFor(deps(), {
+      saleId: onQr.sale.id,
+      authorization: { user_id: GRACE, pin: PIN },
+    });
+    expectOutcome("cancel the sale paid by QR authorized by PIN", cancelledOnQr.kind, "cancelled");
     nextStep();
     const replacedScan = await scanProductFor(deps(), "7790001000028");
     if (replacedScan.kind !== "added") {

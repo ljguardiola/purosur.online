@@ -18,7 +18,7 @@ const ALERT_KIND_DESCRIPTIONS = {
   fiscal_rejected: "ARCA rechazó una factura",
   offline_authorization_code_missing: "Una caja todavía no bajó el CAEA de la quincena",
   late_payment_refund: "Mercado Pago cobró un pago QR que hay que devolver",
-  refund_task: "Una venta anulada tiene un reembolso sin marcar como hecho",
+  refund_task: "Una venta anulada tiene un reembolso pendiente",
   fiscal_unknown: "Un comprobante quedó sin respuesta clara de ARCA",
   fiscal_emission_stopped: "Una caja no puede emitir comprobantes fiscales",
   outbox_chain_broken: "Eventos de una caja alterados en su disco",

@@ -258,6 +258,7 @@ interface DatabaseWiring<TQueryResult extends PgQueryResultHKT> {
   deviceTokenRotationKey: Uint8Array;
   installationKeysEncryptionKey: Uint8Array;
   enqueueTaxAuthorityCount?: EnqueueTaxAuthorityCount;
+  refundSending?: NonNullable<RefundRouteOptions<TQueryResult>["sending"]>;
   releaseCheckToken?: string | undefined;
 }
 
@@ -298,7 +299,7 @@ export function databaseRouteOptions<TQueryResult extends PgQueryResultHKT>(
     stock: backoffice,
     salesReports: backoffice,
     paymentsReports: backoffice,
-    refunds: backoffice,
+    refunds: wiring.refundSending ? { ...backoffice, sending: wiring.refundSending } : backoffice,
     devices,
     firstPinCodes: devices,
     health: { db, certificateFingerprint: wiring.certificateFingerprint },

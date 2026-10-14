@@ -1,4 +1,5 @@
 import type { AlertKind } from "../../alerts/index.js";
+import type { MercadoPagoRefundStage } from "../model/mercado-pago-refund.js";
 import type { PaymentMethod } from "../model/payment.js";
 import type { RefundOrigin } from "../model/payment-refund.js";
 
@@ -6,6 +7,7 @@ export interface LockedRefund {
   id: string;
   state: string;
   origin: string;
+  method: string;
 }
 
 export interface PendingRefundRecord {
@@ -22,10 +24,15 @@ export interface PendingRefundRecord {
   providerOrderId: string | null;
   cancelledBy: string | null;
   cancelledByName: string | null;
+  confirmedAt: Date | null;
+  sentAt: Date | null;
+  lastRefusalReason: string | null;
 }
 
 export interface PendingRefund extends PendingRefundRecord {
   discardable: boolean;
+  sentByCloud: boolean;
+  deliveryStage: MercadoPagoRefundStage | null;
   secondsPending: number;
 }
 

@@ -670,8 +670,15 @@
     {
       "idx": 95,
       "version": "7",
-      "when": 1791955047734,
-      "tag": "0099_offline_fiscal_documents",
+      "when": 1791937138674,
+      "tag": "0099_qr_cancellation_refunds",
+      "breakpoints": true
+    },
+    {
+      "idx": 96,
+      "version": "7",
+      "when": 1791979245536,
+      "tag": "0100_offline_fiscal_documents",
       "breakpoints": true
     }
   ]
