@@ -24,7 +24,11 @@ export async function paymentMethodAvailabilityFor({
   const cloudReachable = cloud() === "reachable";
   return {
     qr: qrAvailability(cloudReachable),
-    point: pointTerminalAvailability(cloudReachable, sale.pending),
+    point: pointTerminalAvailability({
+      terminalAssigned: true,
+      cloudReachable,
+      pendingCents: sale.pending,
+    }),
     point_minimum: MERCADO_PAGO_POINT_MINIMUM_ORDER_CENTS,
   };
 }

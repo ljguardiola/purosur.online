@@ -54,8 +54,9 @@ class FakePointTerminalAssignmentStoreTransaction
 
   async lockPointTerminalHolder(terminalId: string): Promise<string | undefined> {
     this.store.operationOrder.push("lockPointTerminalHolder");
-    return this.state.registerPointTerminals.find((candidate) => candidate.terminalId === terminalId)
-      ?.registerId;
+    return this.state.registerPointTerminals.find(
+      (candidate) => candidate.terminalId === terminalId,
+    )?.registerId;
   }
 
   async recordPointTerminalAssignment(record: PointTerminalAssignmentRecord): Promise<void> {

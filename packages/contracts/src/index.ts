@@ -173,6 +173,14 @@ export {
   markedRefundDoneSchema,
   pendingRefundsSchema,
 } from "./payments/pending-refunds.js";
+export type {
+  PointTerminalAssignmentAnswer,
+  PointTerminalAssignmentBody,
+} from "./payments/point-terminal-assignment.js";
+export {
+  pointTerminalAssignmentBodySchema,
+  pointTerminalAssignmentSchema,
+} from "./payments/point-terminal-assignment.js";
 export type { SalesByPaymentMethodBody } from "./payments/sales-by-payment-method.js";
 export { salesByPaymentMethodSchema } from "./payments/sales-by-payment-method.js";
 export type { PermissionCatalogWire } from "./permissions/permission-catalog.js";
