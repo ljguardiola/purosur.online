@@ -1289,6 +1289,23 @@ describe("register status messages", () => {
     [[{ kind: "installation_revoked", level: "critical" }], "unreachable"],
     [[{ kind: "serial_device_missing", level: "warning" }], "reachable"],
     [[{ kind: "fiscal_emission_stopped", level: "critical" }], "unreachable"],
+    [[{ kind: "disk_space_low", level: "warning" }], "unreachable"],
+    [[{ kind: "wal_oversized", level: "warning" }], "unreachable"],
+    [
+      [
+        {
+          kind: "sales_denied",
+          reason: "disk_space_short_at_startup",
+          required_free_bytes: 5_000_000_000,
+          level: "critical",
+        },
+      ],
+      "unreachable",
+    ],
+    [
+      [{ kind: "sales_denied", reason: "disk_full", disk_free_ratio: 0.03, level: "critical" }],
+      "unreachable",
+    ],
   ])("accepts the status with conditions %j and the cloud %s", (conditions, cloud) => {
     const message = {
       type: "register-status",
@@ -1331,6 +1348,130 @@ describe("register status messages", () => {
       "a sales denial with a reason it does not know",
       {
         conditions: [{ kind: "sales_denied", reason: "installation_revoked", level: "critical" }],
+        cloud: "reachable",
+        serial_devices: STANDINGS,
+        serial_devices_setup_offered: false,
+      },
+    ],
+    [
+      "a full disk without its free ratio",
+      {
+        conditions: [{ kind: "sales_denied", reason: "disk_full", level: "critical" }],
+        cloud: "reachable",
+        serial_devices: STANDINGS,
+        serial_devices_setup_offered: false,
+      },
+    ],
+    [
+      "a full disk with a free ratio above one",
+      {
+        conditions: [
+          { kind: "sales_denied", reason: "disk_full", disk_free_ratio: 1.5, level: "critical" },
+        ],
+        cloud: "reachable",
+        serial_devices: STANDINGS,
+        serial_devices_setup_offered: false,
+      },
+    ],
+    [
+      "a full disk with a negative free ratio",
+      {
+        conditions: [
+          { kind: "sales_denied", reason: "disk_full", disk_free_ratio: -0.1, level: "critical" },
+        ],
+        cloud: "reachable",
+        serial_devices: STANDINGS,
+        serial_devices_setup_offered: false,
+      },
+    ],
+    [
+      "a full disk that also carries the space required at startup",
+      {
+        conditions: [
+          {
+            kind: "sales_denied",
+            reason: "disk_full",
+            disk_free_ratio: 0.03,
+            required_free_bytes: 5,
+            level: "critical",
+          },
+        ],
+        cloud: "reachable",
+        serial_devices: STANDINGS,
+        serial_devices_setup_offered: false,
+      },
+    ],
+    [
+      "a startup shortage without the space it requires",
+      {
+        conditions: [
+          { kind: "sales_denied", reason: "disk_space_short_at_startup", level: "critical" },
+        ],
+        cloud: "reachable",
+        serial_devices: STANDINGS,
+        serial_devices_setup_offered: false,
+      },
+    ],
+    [
+      "a startup shortage requiring a fraction of a byte",
+      {
+        conditions: [
+          {
+            kind: "sales_denied",
+            reason: "disk_space_short_at_startup",
+            required_free_bytes: 1.5,
+            level: "critical",
+          },
+        ],
+        cloud: "reachable",
+        serial_devices: STANDINGS,
+        serial_devices_setup_offered: false,
+      },
+    ],
+    [
+      "a startup shortage requiring a negative space",
+      {
+        conditions: [
+          {
+            kind: "sales_denied",
+            reason: "disk_space_short_at_startup",
+            required_free_bytes: -1,
+            level: "critical",
+          },
+        ],
+        cloud: "reachable",
+        serial_devices: STANDINGS,
+        serial_devices_setup_offered: false,
+      },
+    ],
+    [
+      "a startup shortage that also carries a free ratio",
+      {
+        conditions: [
+          {
+            kind: "sales_denied",
+            reason: "disk_space_short_at_startup",
+            required_free_bytes: 5,
+            disk_free_ratio: 0.03,
+            level: "critical",
+          },
+        ],
+        cloud: "reachable",
+        serial_devices: STANDINGS,
+        serial_devices_setup_offered: false,
+      },
+    ],
+    [
+      "a broken event history that carries a free ratio",
+      {
+        conditions: [
+          {
+            kind: "sales_denied",
+            reason: "event_history_broken",
+            disk_free_ratio: 0.03,
+            level: "critical",
+          },
+        ],
         cloud: "reachable",
         serial_devices: STANDINGS,
         serial_devices_setup_offered: false,
@@ -1635,6 +1776,12 @@ describe("serial device messages", () => {
 
   it("accepts the notice that the connected serial devices changed, which answers no request", () => {
     const message = { type: "serial-devices-changed" };
+
+    expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("accepts the notice that the register's storage standing changed, which answers no request", () => {
+    const message = { type: "storage-standing-changed" };
 
     expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
   });
