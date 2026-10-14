@@ -1,6 +1,7 @@
 import { expect, test } from "vitest";
 import {
   canCloseAlertsManually,
+  canManageBatches,
   canManageProductsAndCategories,
   canManagePromotions,
   canManagePurchasePackagings,
@@ -54,6 +55,7 @@ test.each([
   ["canManagePurchasePackagings", "purchase_packagings", canManagePurchasePackagings],
   ["canRecordPurchases", "purchases", canRecordPurchases],
   ["canManageRecipes", "recipes", canManageRecipes],
+  ["canManageBatches", "batches", canManageBatches],
   ["canSeeReports", "reports_area", canSeeReports],
   ["canSeeRefundsArea", "refunds_area", canSeeRefundsArea],
   ["canReactivateUser", "reactivate_users", canReactivateUser],
