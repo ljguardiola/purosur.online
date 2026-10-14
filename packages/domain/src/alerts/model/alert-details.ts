@@ -138,6 +138,11 @@ interface OutboxChainBrokenDetail {
   deviceId: string;
 }
 
+interface LotsExpiringDetail {
+  lotCount: number;
+  windowDays: number;
+}
+
 export interface AlertDetails {
   backoffice_passkey_changed: PasskeyChangedDetail;
   backoffice_recovery_requested: RecoveryRequestedDetail;
@@ -159,6 +164,7 @@ export interface AlertDetails {
   fiscal_unknown: FiscalUnknownDetail;
   fiscal_emission_stopped: FiscalEmissionStoppedDetail;
   outbox_chain_broken: OutboxChainBrokenDetail;
+  lots_expiring: LotsExpiringDetail;
 }
 
 export type OpenAlertInput = {

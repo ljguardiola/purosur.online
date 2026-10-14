@@ -3,6 +3,7 @@ import type { AlertConditionObservation } from "../model/alert-condition-observa
 import { ALERT_CONDITION_STABLE_CLEAR_MS } from "../model/alert-condition-resolution.js";
 import type { OpenAlertInput } from "../model/alert-details.js";
 import { observeAlertCondition } from "./observe-alert-condition.js";
+import { resolveStablyClearedAlerts } from "./resolve-stably-cleared-alerts.js";
 import { NOW, seededAlert } from "./test-support/alert-fixtures.js";
 import { FakeAlertStore, FixedClock, PrefixHasher } from "./test-support/fake-alert-store.js";
 
@@ -571,8 +572,13 @@ describe("observeAlertCondition for lots nearing expiry", () => {
     };
 
     await observe(store, cleared, NOW);
-    await observe(store, cleared, new Date(NOW.getTime() + ALERT_CONDITION_STABLE_CLEAR_MS));
+    const later = new Date(NOW.getTime() + ALERT_CONDITION_STABLE_CLEAR_MS);
+    await resolveStablyClearedAlerts({
+      store,
+      clock: new FixedClock(later),
+      hasher: new PrefixHasher(),
+    });
 
-    expect(store.snapshot().alerts[0]?.resolvedAt).not.toBeNull();
+    expect(store.snapshot().alerts[0]?.resolvedAt).toEqual(later);
   });
 });

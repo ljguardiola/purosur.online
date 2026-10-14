@@ -177,6 +177,11 @@ const outboxChainBrokenDetailSchema = z.object({
   deviceId: z.string(),
 });
 
+const lotsExpiringDetailSchema = z.object({
+  lotCount: z.int(),
+  windowDays: z.int(),
+});
+
 const ALERT_INSTANT = { timeZone: ARGENTINA_TIME_ZONE };
 
 const alertBase = {
@@ -294,6 +299,11 @@ const alertDetailKinds = [
     ...alertBase,
     kind: z.literal("outbox_chain_broken" satisfies AlertKind),
     detail: outboxChainBrokenDetailSchema,
+  }),
+  z.object({
+    ...alertBase,
+    kind: z.literal("lots_expiring" satisfies AlertKind),
+    detail: lotsExpiringDetailSchema,
   }),
 ] as const;
 
