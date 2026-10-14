@@ -2672,6 +2672,11 @@ describe("the route access inventory", () => {
       },
       {
         method: "POST",
+        url: "/api/refunds/:id/confirmation",
+        access: capabilityAccess("refunds_area"),
+      },
+      {
+        method: "POST",
         url: "/api/refunds/:id/discard",
         access: capabilityAccess("refunds_area"),
       },
@@ -2881,6 +2886,8 @@ describe("wiring the Mercado Pago notification route", () => {
           createPointOrder: async () => ({ kind: "unavailable" }),
           readOrder: async () => ({ kind: "unavailable" }),
           cancelOrder: async () => ({ kind: "unavailable" }),
+          refundOrder: async () => ({ kind: "unavailable" }),
+          readOrderRefunds: async () => ({ kind: "unavailable" }),
         },
       },
     });

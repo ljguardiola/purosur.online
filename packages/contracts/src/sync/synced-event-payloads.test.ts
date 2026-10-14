@@ -141,6 +141,7 @@ describe("synced event payloads", () => {
       "sale_cancelled@3",
       "sale_cancelled@4",
       "sale_cancelled@5",
+      "sale_cancelled@6",
       "sale_completed@1",
       "sale_completed@2",
       "sale_completed@3",
@@ -169,7 +170,7 @@ describe("synced event payloads", () => {
   it.each([
     ["an unknown event type", "sale_opened", 1],
     ["a sale_completed version nobody emitted", "sale_completed", 9],
-    ["a sale_cancelled version nobody emitted", "sale_cancelled", 6],
+    ["a sale_cancelled version nobody emitted", "sale_cancelled", 7],
     ["version zero", "sale_completed", 0],
     ["a cash_session_opened version nobody emitted", "cash_session_opened", 2],
     ["a cash_session_closed version nobody emitted", "cash_session_closed", 2],
@@ -670,6 +671,101 @@ describe("synced event payloads", () => {
     });
 
     it.each([1, 2, 3, 4])("keeps refusing the standalone terminal refund in version %s", (v) => {
+      expect(
+        accepts("sale_cancelled", v, {
+          ...recordedPayload("sale_cancelled", v),
+          refunds: [REFUND],
+        }),
+      ).toBe(false);
+    });
+  });
+
+  describe("a sale cancelled after being paid by Mercado Pago QR", () => {
+    const cancelled = (): Payload => recordedPayload("sale_cancelled", 6);
+    const QR_PAYMENT = {
+      ...CASH_PAYMENT_V2,
+      id: "pay-3",
+      method: "QR",
+      provider: "MERCADOPAGO_QR",
+      tendered: null,
+    };
+    const REFUND = {
+      id: "refund-3",
+      kind: "REFUND",
+      parent_id: "pay-3",
+      method: "QR",
+      provider: "MERCADOPAGO_QR",
+      amount: 2700,
+      state: "PENDING",
+      occurred_at: "2026-10-06T11:30:00.000Z",
+    };
+    const CASH_REFUND = {
+      ...REFUND,
+      id: "refund-1",
+      parent_id: "pay-1",
+      method: "CASH",
+      provider: "NONE",
+      state: "APPROVED",
+    };
+
+    it("accepts the QR payment with its pending refund, alone or beside a cash one", () => {
+      expect(accepts("sale_cancelled", 6, cancelled())).toBe(true);
+      expect(
+        accepts("sale_cancelled", 6, {
+          ...cancelled(),
+          payments: [CASH_PAYMENT_V2, QR_PAYMENT],
+          refunds: [CASH_REFUND, REFUND],
+        }),
+      ).toBe(true);
+    });
+
+    it("keeps accepting the standalone terminal sales of version 5 in version 6", () => {
+      expect(accepts("sale_cancelled", 6, recordedPayload("sale_cancelled", 5, 1))).toBe(true);
+    });
+
+    it.each([
+      ["an approved state", { state: "APPROVED" }],
+      ["the none provider", { provider: "NONE" }],
+      ["the Point provider", { provider: "MERCADOPAGO_POINT" }],
+      ["a negative amount", { amount: -1 }],
+    ])("refuses a QR refund with %s", (_description, change) => {
+      expect(
+        accepts("sale_cancelled", 6, {
+          ...cancelled(),
+          payments: [QR_PAYMENT],
+          refunds: [{ ...REFUND, ...change }],
+        }),
+      ).toBe(false);
+    });
+
+    it("refuses a cash refund that is pending", () => {
+      expect(
+        accepts("sale_cancelled", 6, {
+          ...cancelled(),
+          refunds: [{ ...CASH_REFUND, state: "PENDING" }],
+        }),
+      ).toBe(false);
+    });
+
+    it("refuses a cancelled sale holding a Point payment", () => {
+      expect(
+        accepts("sale_cancelled", 6, {
+          ...cancelled(),
+          payments: [{ ...QR_PAYMENT, method: "POINT", provider: "MERCADOPAGO_POINT" }],
+        }),
+      ).toBe(false);
+    });
+
+    it.each([1, 2, 3, 4, 5])("keeps refusing the QR payment in version %s", (v) => {
+      expect(
+        accepts("sale_cancelled", v, {
+          ...recordedPayload("sale_cancelled", v),
+          payments: [QR_PAYMENT],
+        }),
+      ).toBe(false);
+    });
+
+    it.each([1, 2, 3, 4, 5])("keeps refusing the QR refund in version %s", (v) => {
       expect(
         accepts("sale_cancelled", v, {
           ...recordedPayload("sale_cancelled", v),
@@ -1492,7 +1588,7 @@ describe("sale_cancelled v1", () => {
   });
 
   it("refuses a version nobody emitted", () => {
-    expect(syncedEventPayloadKey("sale_cancelled", 6)).toBeUndefined();
+    expect(syncedEventPayloadKey("sale_cancelled", 7)).toBeUndefined();
   });
 
   it("refuses a cancelled sale without payments", () => {
