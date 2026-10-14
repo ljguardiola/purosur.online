@@ -88,15 +88,18 @@ describe("the register's help", () => {
     expect(titlesFound("desde esa terminal o la app de Mercado Pago")).toEqual([
       "Cancelar una venta",
     ]);
-    expect(titlesFound("Quien lo devolvió lo marca como hecho en el backoffice")).toEqual([
+    expect(titlesFound("quien lo devolvió lo marca como hecho en el backoffice")).toEqual([
       "Cancelar una venta",
     ]);
   });
 
-  it("explains that the pending refund of a Mercado Pago QR payment is sent by the cloud once a person confirms it in the backoffice", () => {
-    expect(titlesFound("el de un pago con QR, lo envía la nube a Mercado Pago")).toEqual([
-      "Cancelar una venta",
-    ]);
+  it("explains that the pending refund of a Mercado Pago QR payment is sent by the cloud once a person confirms it in the backoffice, with nobody marking it done", () => {
+    expect(
+      titlesFound(
+        "El de un pago con QR, en cambio, lo envía la nube a Mercado Pago cuando alguien lo confirma en el backoffice",
+      ),
+    ).toEqual(["Cancelar una venta"]);
+    expect(titlesFound("Un reembolso pendiente lo hace alguien fuera de la caja")).toEqual([]);
   });
 
   it("explains that an order already on the terminal is cancelled there, and another method is offered once the terminal confirms it", () => {

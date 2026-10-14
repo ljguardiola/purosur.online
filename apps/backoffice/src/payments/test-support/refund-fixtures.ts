@@ -20,9 +20,7 @@ export const transferRefund: PendingRefundsBody["refunds"][number] = {
   cancelled_by: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
   cancelled_by_name: "Lucía",
   sent_by_cloud: false,
-  confirmed_at: null,
-  confirmed_by_name: null,
-  sent_at: null,
+  delivery_stage: null,
   last_refusal_reason: null,
 };
 
@@ -43,9 +41,7 @@ const secondRefund: PendingRefundsBody["refunds"][number] = {
   cancelled_by: "ffffffff-ffff-4fff-8fff-ffffffffffff",
   cancelled_by_name: null,
   sent_by_cloud: false,
-  confirmed_at: null,
-  confirmed_by_name: null,
-  sent_at: null,
+  delivery_stage: null,
   last_refusal_reason: null,
 };
 
@@ -68,9 +64,7 @@ export const latePaymentRefund: PendingRefundsBody["refunds"][number] = {
   cancelled_by: null,
   cancelled_by_name: null,
   sent_by_cloud: false,
-  confirmed_at: null,
-  confirmed_by_name: null,
-  sent_at: null,
+  delivery_stage: null,
   last_refusal_reason: null,
 };
 
@@ -108,33 +102,28 @@ export const unconfirmedCloudRefund: PendingRefund = {
   method: "QR",
   amount: 340_000,
   sent_by_cloud: true,
-};
-
-const confirmed: Partial<PendingRefund> = {
-  confirmed_at: "2026-10-09T10:00:00.000Z",
-  confirmed_by_name: "Marina",
+  delivery_stage: "unconfirmed",
 };
 
 export const confirmedUnsentCloudRefund: PendingRefund = {
   ...unconfirmedCloudRefund,
-  ...confirmed,
+  delivery_stage: "confirmed",
 };
 
 export const sentCloudRefund: PendingRefund = {
   ...unconfirmedCloudRefund,
-  ...confirmed,
-  sent_at: "2026-10-09T10:00:05.000Z",
+  delivery_stage: "sent",
 };
 
 export const noBalanceCloudRefund: PendingRefund = {
   ...unconfirmedCloudRefund,
-  ...confirmed,
+  delivery_stage: "waiting_for_balance",
   last_refusal_reason: "insufficient_balance",
 };
 
 export const refusedCloudRefund: PendingRefund = {
   ...unconfirmedCloudRefund,
-  ...confirmed,
+  delivery_stage: "refused",
   last_refusal_reason: "refund_period_exceeded",
 };
 

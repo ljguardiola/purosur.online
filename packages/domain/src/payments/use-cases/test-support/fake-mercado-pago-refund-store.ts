@@ -95,9 +95,10 @@ class FakeMercadoPagoRefundTransaction implements MercadoPagoRefundTransaction {
     });
   }
 
-  async recordRefundRefusal(refundId: string, reason: string, _refusedAt: Date): Promise<void> {
+  async recordRefundRefusal(refundId: string, reason: string, refusedAt: Date): Promise<void> {
     this.begin("recordRefundRefusal");
     this.refund(refundId).lastRefusalReason = reason;
+    this.store.refusals.push({ refundId, reason, refusedAt });
   }
 
   async recordRefundDone(refundId: string, doneBy: string, doneAt: Date): Promise<void> {
@@ -125,6 +126,7 @@ export class FakeMercadoPagoRefundStore implements MercadoPagoRefundStore {
   readonly cancellations = new Map<string, string>();
   readonly log: string[];
   resolvedAlerts: ResolvedRefundAlert[] = [];
+  readonly refusals: { refundId: string; reason: string; refusedAt: Date }[] = [];
   failOn: MercadoPagoRefundWrite | undefined;
 
   constructor(refunds: FakeMercadoPagoStoredRefund[], log: string[] = []) {

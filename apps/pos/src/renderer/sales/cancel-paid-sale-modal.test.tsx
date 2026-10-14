@@ -32,7 +32,7 @@ const TRANSFER_REFUND: OpenSale["refunds_on_cancel"][number] = {
 const CASH_LINE = "Devolver $ 1.000,00 en efectivo";
 const TRANSFER_LINE = "Reembolso pendiente de la transferencia por $ 2.500,00";
 const PENDING_NOTE =
-  "Un reembolso pendiente lo hace alguien fuera de la caja y lo marca como hecho en el backoffice.";
+  "Un reembolso pendiente no se hace desde la caja: se atiende en el backoffice.";
 const CANCEL = "Cancelar la venta";
 
 type Props = {

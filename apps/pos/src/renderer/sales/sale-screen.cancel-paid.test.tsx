@@ -212,7 +212,7 @@ describe("SaleScreen cancelling a sale with an approved Mercado Pago QR payment"
     await expect
       .element(
         dialog.getByText(
-          "Queda un reembolso pendiente que la nube envía a Mercado Pago al confirmarlo.",
+          "La nube lo envía a Mercado Pago cuando alguien lo confirma en el backoffice.",
         ),
       )
       .toBeVisible();

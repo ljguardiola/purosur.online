@@ -137,6 +137,9 @@ describe("confirmMercadoPagoRefund", () => {
         lastRefusalReason: "insufficient_balance",
       }),
     ]);
+    expect(world.store.refusals).toEqual([
+      { refundId: "refund-1", reason: "insufficient_balance", refusedAt: NOW },
+    ]);
   });
 
   it("keeps the refund pending with the reason Mercado Pago gave when it refuses", async () => {
@@ -156,6 +159,9 @@ describe("confirmMercadoPagoRefund", () => {
       lastRefusalReason: "refund_period_exceeded",
       sentAt: null,
     });
+    expect(world.store.refusals).toEqual([
+      { refundId: "refund-1", reason: "refund_period_exceeded", refusedAt: NOW },
+    ]);
   });
 
   it("keeps the confirmation and the key when Mercado Pago cannot be reached, so the same request is repeated later", async () => {

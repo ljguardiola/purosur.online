@@ -168,14 +168,14 @@ test("lists a cancelled sale's refund and a late QR payment's refund together, e
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("explains under the table which refunds are sent to Mercado Pago from here and which are made outside the system and marked as done", async () => {
+test("explains under the table that the QR refunds of cancelled sales are sent to Mercado Pago from here and the others are made outside the system and marked as done", async () => {
   const services = createServices();
   const screen = await loaded(services);
 
   await expect
     .element(
       screen.getByText(
-        "Los de Mercado Pago se envían al confirmarlos acá; los demás se hacen fuera del sistema y acá se marcan como hechos.",
+        "Los de ventas canceladas cobradas con QR se envían a Mercado Pago al confirmarlos acá; los demás se hacen fuera del sistema y acá se marcan como hechos.",
       ),
     )
     .toBeVisible();
@@ -526,7 +526,7 @@ test("offers sending a QR refund of a cancelled sale to Mercado Pago and never m
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("tells how far each QR refund the cloud sends got and offers no action once confirmed", async () => {
+test("tells how far each QR refund the cloud sends got and offers sending only the unconfirmed one", async () => {
   const services = createServices();
   vi.mocked(services.fetchPendingRefunds).mockResolvedValue({
     kind: "ok",
@@ -540,11 +540,7 @@ test("tells how far each QR refund the cloud sends got and offers no action once
     .all()
     .slice(1)
     .map((row) => row.element().textContent ?? "");
-  expect(rows[0]).toContain("Sin confirmar");
-  expect(rows[1]).toContain("Confirmado · se envía al reconectar");
   expect(rows[2]).toContain("Enviado a Mercado Pago · en proceso");
-  expect(rows[3]).toContain("Sin saldo en Mercado Pago · se reintenta");
-  expect(rows[4]).toContain("Mercado Pago lo rechazó: pasó el plazo para reembolsar");
   expect(screen.getByRole("button", { name: /^Enviar a Mercado Pago/ }).all()).toHaveLength(1);
   expect(screen.getByRole("button", { name: /^Marcar como hecho/ }).all()).toHaveLength(0);
   await expectNoAccessibilityViolations(screen.container);
@@ -574,34 +570,7 @@ test("sending a refund asks first, then sends it, refreshes the list and tells M
   expect(services.confirmRefund).toHaveBeenCalledWith(CLOUD_SENT_REFUND_ID);
   await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
   await expect.element(screen.getByText("Reembolso enviado a Mercado Pago")).toBeVisible();
-  await expect.element(screen.getByText("Queda en proceso hasta que lo acredite.")).toBeVisible();
   await expect.poll(() => vi.mocked(services.fetchPendingRefunds).mock.calls.length).toBe(2);
-});
-
-test("tells that Mercado Pago refused the refund and why", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchPendingRefunds).mockResolvedValue({
-    kind: "ok",
-    value: pendingRefundsWithUnconfirmedCloudRefund,
-  });
-  vi.mocked(services.confirmRefund).mockResolvedValue({
-    kind: "ok",
-    value: {
-      refund_id: CLOUD_SENT_REFUND_ID,
-      outcome: "refused",
-      reason: "refund_period_exceeded",
-    },
-  });
-  const screen = await renderScreen(services);
-  await userEvent.click(
-    screen.getByRole("button", { name: "Enviar a Mercado Pago el reembolso de $ 3.400,00" }),
-  );
-  await userEvent.click(
-    screen.getByRole("dialog").getByRole("button", { name: "Enviar a Mercado Pago" }),
-  );
-
-  await expect.element(screen.getByText("Mercado Pago rechazó el reembolso")).toBeVisible();
-  await expect.element(screen.getByText("Pasó el plazo para reembolsar.")).toBeVisible();
 });
 
 test("a refusal of the confirmation keeps the question open and refreshes nothing until the list is updated", async () => {

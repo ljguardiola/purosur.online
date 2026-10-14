@@ -254,7 +254,7 @@ describe("GET /refunds/pending", () => {
 });
 
 describe("GET /refunds/pending, a QR refund of a cancelled sale", () => {
-  it("lists it as one the cloud sends, unconfirmed", async () => {
+  it("lists it as one the cloud sends, at the stage the domain answers for it", async () => {
     const { headers } = await signedInWith(db, ["confirm_refunds"], NOW);
     const pending = await aPendingQrRefundOfCancelledSale(db, { cancelledAt: NOW });
 
@@ -265,9 +265,7 @@ describe("GET /refunds/pending, a QR refund of a cancelled sale", () => {
         id: pending.refundId,
         method: "QR",
         sent_by_cloud: true,
-        confirmed_at: null,
-        confirmed_by_name: null,
-        sent_at: null,
+        delivery_stage: "unconfirmed",
         last_refusal_reason: null,
       }),
     ]);
@@ -279,7 +277,9 @@ describe("GET /refunds/pending, a QR refund of a cancelled sale", () => {
 
     const body = pendingRefundsSchema.parse((await pendingRefunds(headers)).json());
 
-    expect(body.refunds.map((refund) => refund.sent_by_cloud)).toEqual([false]);
+    expect(body.refunds.map((refund) => [refund.sent_by_cloud, refund.delivery_stage])).toEqual([
+      [false, null],
+    ]);
   });
 });
 

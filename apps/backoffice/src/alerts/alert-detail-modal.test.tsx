@@ -1636,8 +1636,15 @@ test("explains the refund of a cancelled sale left pending to the branch, closin
     .toBeVisible();
   await expect
     .element(
+      screen.getByText("Hay un reembolso de una venta anulada que todavía no se completó.", {
+        exact: true,
+      }),
+    )
+    .toBeVisible();
+  await expect
+    .element(
       screen.getByText(
-        "Hay un reembolso aprobado que todavía no quedó marcado como hecho en el sistema.",
+        "Si es de un pago con QR, confirmarlo en Reembolsos pendientes para que la nube lo envíe a Mercado Pago; si es de otro medio y ya se hizo por fuera del sistema, marcarlo como hecho, y si todavía no se hizo, hacerlo cuanto antes. El Administrador ya fue avisado.",
         { exact: true },
       ),
     )
@@ -1645,14 +1652,9 @@ test("explains the refund of a cancelled sale left pending to the branch, closin
   await expect
     .element(
       screen.getByText(
-        "Si ese reembolso ya se hizo por fuera del sistema, marcarlo como hecho; si todavía no se hizo, hacerlo cuanto antes. El Administrador ya fue avisado.",
+        "Se cierra cuando su reembolso se marca como hecho o Mercado Pago lo acredita.",
         { exact: true },
       ),
-    )
-    .toBeVisible();
-  await expect
-    .element(
-      screen.getByText("Se cierra cuando su reembolso se marca como hecho.", { exact: true }),
     )
     .toBeVisible();
 });

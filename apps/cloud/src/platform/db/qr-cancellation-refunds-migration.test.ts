@@ -103,6 +103,34 @@ describe("the QR cancellation refunds migration applied over a database that alr
     ).rejects.toThrow();
   });
 
+  it("refuses a late-payment refund that names a cancelling event", async () => {
+    const { database, saleId, transactionId } = await databaseBefore();
+    const migrated = await database.applyMigration();
+
+    await expect(
+      migrated.query(
+        `insert into payment_refunds
+           (id, sale_id, payment_transaction_id, origin_event_id, origin, method, provider, amount, state, occurred_at)
+         values (gen_random_uuid(), $1, $2, gen_random_uuid(), 'late_payment', 'QR', 'MERCADOPAGO_QR', 100, 'PENDING', now())`,
+        [saleId, transactionId],
+      ),
+    ).rejects.toThrow(/payment_refunds_source_check/);
+  });
+
+  it("refuses a refund of a cancelled sale tied to no payment of the sale", async () => {
+    const { database, saleId, transactionId } = await databaseBefore();
+    const migrated = await database.applyMigration();
+
+    await expect(
+      migrated.query(
+        `insert into payment_refunds
+           (id, sale_id, payment_transaction_id, origin_event_id, origin, method, provider, amount, state, occurred_at)
+         values (gen_random_uuid(), $1, $2, gen_random_uuid(), 'sale_cancelled', 'QR', 'MERCADOPAGO_QR', 100, 'PENDING', now())`,
+        [saleId, transactionId],
+      ),
+    ).rejects.toThrow(/payment_refunds_source_check/);
+  });
+
   it("keeps every recorded refund unconfirmed, unsent and unrefused", async () => {
     const { database } = await databaseBefore();
 

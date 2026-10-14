@@ -21,7 +21,6 @@ const TRANSFER_REFUND: FakePendingRefund = {
   cancelledBy: "cashier",
   cancelledByName: "Lucia",
   confirmedAt: null,
-  confirmedByName: null,
   sentAt: null,
   lastRefusalReason: null,
   locationId: "branch-1",
@@ -39,7 +38,13 @@ describe("listPendingRefunds", () => {
 
     const { locationId: _branch, ...listed } = TRANSFER_REFUND;
     expect(refunds).toEqual([
-      { ...listed, discardable: false, sentByCloud: false, secondsPending: 11_730 },
+      {
+        ...listed,
+        discardable: false,
+        sentByCloud: false,
+        deliveryStage: null,
+        secondsPending: 11_730,
+      },
     ]);
     expect(store.pendingReads).toEqual(["branch-1"]);
   });
@@ -134,7 +139,6 @@ describe("listPendingRefunds", () => {
       ...TRANSFER_REFUND,
       method: "QR",
       confirmedAt,
-      confirmedByName: "Lucia",
       sentAt: new Date("2026-10-07T16:00:02.000Z"),
       lastRefusalReason: "insufficient_balance",
     };
@@ -143,9 +147,12 @@ describe("listPendingRefunds", () => {
     const refunds = await listPendingRefunds({ reader: store, clock }, { locationId: "branch-1" });
 
     expect(refunds.map(({ sentByCloud }) => sentByCloud)).toEqual([false, true]);
+    expect(refunds.map(({ deliveryStage }) => deliveryStage)).toEqual([
+      null,
+      "waiting_for_balance",
+    ]);
     expect(refunds[1]).toMatchObject({
       confirmedAt,
-      confirmedByName: "Lucia",
       sentAt: new Date("2026-10-07T16:00:02.000Z"),
       lastRefusalReason: "insufficient_balance",
     });
@@ -157,6 +164,6 @@ describe("listPendingRefunds", () => {
 
     const [refund] = await listPendingRefunds({ reader: store, clock }, { locationId: "branch-1" });
 
-    expect(refund?.sentByCloud).toBe(false);
+    expect(refund).toMatchObject({ sentByCloud: false, deliveryStage: null });
   });
 });

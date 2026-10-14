@@ -318,7 +318,7 @@ describe("DrizzleMercadoPagoRefundStore", () => {
       });
     });
 
-    it("records why Mercado Pago did not refund, leaving an audit entry", async () => {
+    it("records why Mercado Pago did not refund, leaving an audit entry at the moment it was refused", async () => {
       const { refundId, userId } = await lockedPending();
       await store().transaction((tx) => tx.recordRefundConfirmed(refundId, userId, NOW, "key-1"));
 
@@ -328,9 +328,13 @@ describe("DrizzleMercadoPagoRefundStore", () => {
 
       expect((await storedRefund(refundId))?.lastRefusalReason).toBe("refund_period_exceeded");
       const audits = await db.select().from(auditLog).where(eq(auditLog.entityId, refundId));
-      expect(audits.map((audit) => audit.newValue)).toContainEqual({
-        lastRefusalReason: "refund_period_exceeded",
-      });
+      expect(audits.map(({ actorId, at, newValue }) => ({ actorId, at, newValue }))).toContainEqual(
+        {
+          actorId: userId,
+          at: LATER,
+          newValue: { lastRefusalReason: "refund_period_exceeded" },
+        },
+      );
     });
 
     it("marks the refund done after locking it, logging the completion for its branch", async () => {

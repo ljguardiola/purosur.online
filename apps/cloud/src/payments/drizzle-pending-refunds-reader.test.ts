@@ -65,7 +65,6 @@ describe("DrizzlePendingRefundsReader.pendingRefunds", () => {
         cancelledBy: userId,
         cancelledByName: "Ada Lucero",
         confirmedAt: null,
-        confirmedByName: null,
         sentAt: null,
         lastRefusalReason: null,
       },
@@ -134,7 +133,7 @@ describe("DrizzlePendingRefundsReader.pendingRefunds", () => {
   });
 
   describe("the refund of a QR payment of a cancelled sale", () => {
-    it("lists how far the cloud got with it: who confirmed it, when it was sent and why Mercado Pago did not refund it", async () => {
+    it("lists how far the cloud got with it: when it was confirmed and sent and why Mercado Pago did not refund it", async () => {
       const pending = await aPendingQrRefundOfCancelledSale(db, { cancelledAt: NOW });
       const { userId } = await signedInWith(db, [], NOW);
       const sentAt = new Date("2026-10-07T15:10:00.000Z");
@@ -156,22 +155,9 @@ describe("DrizzlePendingRefundsReader.pendingRefunds", () => {
         method: "QR",
         origin: "sale_cancelled",
         confirmedAt: NOW,
-        confirmedByName: "Ada Lucero",
         sentAt,
         lastRefusalReason: "insufficient_balance",
       });
-    });
-
-    it("names nobody as having confirmed it when the person is not a known user", async () => {
-      const pending = await aPendingQrRefundOfCancelledSale(db, { cancelledAt: NOW });
-      await db
-        .update(paymentRefunds)
-        .set({ confirmedBy: "not-a-known-user", confirmedAt: NOW })
-        .where(eq(paymentRefunds.id, pending.refundId));
-
-      const [refund] = await reader().pendingRefunds(pending.locationId);
-
-      expect(refund).toMatchObject({ confirmedAt: NOW, confirmedByName: null });
     });
   });
 
@@ -195,7 +181,6 @@ describe("DrizzlePendingRefundsReader.pendingRefunds", () => {
           cancelledBy: null,
           cancelledByName: null,
           confirmedAt: null,
-          confirmedByName: null,
           sentAt: null,
           lastRefusalReason: null,
         },

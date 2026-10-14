@@ -97,7 +97,7 @@ describe("RefundLines", () => {
     await expect
       .element(
         screen.getByText(
-          "Queda un reembolso pendiente que la nube envía a Mercado Pago al confirmarlo.",
+          "La nube lo envía a Mercado Pago cuando alguien lo confirma en el backoffice.",
           { exact: true },
         ),
       )

@@ -28,9 +28,7 @@ const refund: Record<string, unknown> = {
   cancelled_by: "u1",
   cancelled_by_name: "Lucia",
   sent_by_cloud: false,
-  confirmed_at: null,
-  confirmed_by_name: null,
-  sent_at: null,
+  delivery_stage: null,
   last_refusal_reason: null,
 };
 
@@ -91,9 +89,7 @@ describe("pendingRefundsSchema", () => {
           ...refund,
           method: "QR",
           sent_by_cloud: true,
-          confirmed_at: "2026-10-07T16:00:00.000Z",
-          confirmed_by_name: "Lucia",
-          sent_at: "2026-10-07T16:00:02.000Z",
+          delivery_stage: "waiting_for_balance",
           last_refusal_reason: "insufficient_balance",
         },
       ],
@@ -130,9 +126,7 @@ describe("pendingRefundsSchema", () => {
     ["an order that is not text", { provider_order_id: 1 }],
     ["an empty order", { provider_order_id: "" }],
     ["a sent-by-cloud flag that is not a boolean", { sent_by_cloud: "yes" }],
-    ["a confirmation date that is not ISO", { confirmed_at: "ayer" }],
-    ["a confirmer name that is not text", { confirmed_by_name: 1 }],
-    ["a sent date that is not ISO", { sent_at: "ayer" }],
+    ["a delivery stage no refund has", { delivery_stage: "lost" }],
     ["a refusal reason that is not text", { last_refusal_reason: 1 }],
     ["a fractional time pending", { seconds_pending: 1.5 }],
     ["a negative time pending", { seconds_pending: -1 }],
@@ -146,18 +140,6 @@ describe("pendingRefundsSchema", () => {
 describe("pendingRefundsSchema, declared time zone", () => {
   it("declares the same zone for the moment of the sale", () => {
     expect(pendingRefundsSchema.shape.refunds.element.shape.sale_occurred_at.meta()).toEqual({
-      timeZone: ARGENTINA_TIME_ZONE,
-    });
-  });
-
-  it("declares the zone the moment a refund was confirmed is shown in", () => {
-    expect(pendingRefundsSchema.shape.refunds.element.shape.confirmed_at.unwrap().meta()).toEqual({
-      timeZone: ARGENTINA_TIME_ZONE,
-    });
-  });
-
-  it("declares the zone the moment a refund was sent is shown in", () => {
-    expect(pendingRefundsSchema.shape.refunds.element.shape.sent_at.unwrap().meta()).toEqual({
       timeZone: ARGENTINA_TIME_ZONE,
     });
   });

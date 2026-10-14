@@ -6,6 +6,8 @@ import {
   isAwaitingMercadoPago,
   isProcessedByMercadoPago,
   isRefundSentByCloud,
+  MERCADO_PAGO_REFUND_STAGES,
+  mercadoPagoRefundStage,
   progressOfRefundAnswer,
   refundableAmount,
   refundIsBackedByItsCancellation,
@@ -168,5 +170,39 @@ describe("isAwaitingMercadoPago", () => {
     expect(
       isAwaitingMercadoPago({ ...confirmed, lastRefusalReason: "payment_not_refundable" }),
     ).toBe(false);
+  });
+});
+
+describe("mercadoPagoRefundStage", () => {
+  const unconfirmed = { confirmedAt: null, sentAt: null, lastRefusalReason: null };
+  const confirmed = { ...unconfirmed, confirmedAt: new Date("2026-10-13T12:00:00.000Z") };
+  const sent = { ...confirmed, sentAt: new Date("2026-10-13T12:00:02.000Z") };
+
+  it.each([
+    ["no person confirmed it", unconfirmed, "unconfirmed"],
+    ["a person confirmed it and it was not sent yet", confirmed, "confirmed"],
+    ["it was sent and nothing refused it", sent, "sent"],
+    [
+      "Mercado Pago found the balance insufficient",
+      { ...sent, lastRefusalReason: INSUFFICIENT_BALANCE_REFUSAL },
+      "waiting_for_balance",
+    ],
+    [
+      "Mercado Pago refused it for another reason",
+      { ...sent, lastRefusalReason: "payment_not_refundable" },
+      "refused",
+    ],
+  ] as const)("answers how far it got when %s", (_case, refund, stage) => {
+    expect(mercadoPagoRefundStage(refund)).toBe(stage);
+  });
+
+  it("names every stage it answers", () => {
+    expect(MERCADO_PAGO_REFUND_STAGES).toEqual([
+      "unconfirmed",
+      "confirmed",
+      "sent",
+      "waiting_for_balance",
+      "refused",
+    ]);
   });
 });
