@@ -92,7 +92,7 @@ export const cashierSalesReport: SalesByCashierBody = {
     {
       cashier_id: BETO_ID,
       name: "Beto",
-      sessions: 3,
+      sessions: 4,
       sales_count: 25,
       total: 875_000,
       average_ticket: 35_000,
