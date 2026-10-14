@@ -32,3 +32,7 @@ test("names a kind that shares its name with a member every object has by the ki
 test("names the alert of lots nearing their expiry", () => {
   expect(alertKindLabel("lots_expiring")).toBe("Productos por vencer");
 });
+
+test("names the alert of an offsite dump that could not be verified", () => {
+  expect(alertKindLabel("offsite_dump_unverified")).toBe("Copia de seguridad externa sin verificar");
+});

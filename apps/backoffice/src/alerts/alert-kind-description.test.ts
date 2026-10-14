@@ -76,3 +76,9 @@ test("describes a branch with lots already expired or nearing their expiry date"
     "Hay lotes de productos vencidos o por llegar a su fecha de vencimiento.",
   );
 });
+
+test("describes an offsite dump of a night that could not be verified", () => {
+  expect(alertKindDescription("offsite_dump_unverified")).toBe(
+    "La copia cifrada de la base de datos de una noche no se pudo verificar fuera de la nube.",
+  );
+});
