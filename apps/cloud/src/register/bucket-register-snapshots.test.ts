@@ -126,9 +126,9 @@ describe("BucketRegisterSnapshots.authorizeUpload", () => {
   it("signs a URL that differs when the key version differs", async () => {
     const { snapshots } = bucketAnswering(unused);
     const of = async (keyVersion: number) =>
-      new URL(
-        (await snapshots.authorizeUpload({ ...UPLOAD, keyVersion })).url,
-      ).searchParams.get("X-Amz-Signature");
+      new URL((await snapshots.authorizeUpload({ ...UPLOAD, keyVersion })).url).searchParams.get(
+        "X-Amz-Signature",
+      );
 
     expect(await of(1)).not.toBe(await of(2));
   });
