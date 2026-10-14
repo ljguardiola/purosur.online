@@ -27,7 +27,7 @@ describe("listRestorableSnapshotGenerations", () => {
 
     const generations = await list(store);
 
-    expect(generations.map((generation) => generation.id)).toEqual(["newer", "older"]);
+    expect(generations.map((generation) => generation.generationId)).toEqual(["newer", "older"]);
   });
 
   it("describes each generation with what a restore needs", async () => {
