@@ -599,7 +599,7 @@ describe("the open sale of the cash session", () => {
     openSale,
     { ...openSale, total: 0, cancellable: false },
     { ...openSale, cancellable: false, cancel_refusal: "mercado_pago_charge_in_progress" },
-    { ...openSale, paid: 3200, cancellable: false, cancel_refusal: "holds_mercado_pago_payment" },
+    { ...openSale, paid: 3200, cancellable: false, cancel_refusal: "holds_point_payment" },
     { ...openSale, paid: 3200, refunds_on_cancel: [cashRefund, transferRefund] },
     null,
   ])("accepts the open sale answered: %j", (sale) => {
@@ -626,6 +626,7 @@ describe("the open sale of the cash session", () => {
     { ...openSale, cancel_refusal: "closed" },
     { ...openSale, cancel_refusal: true },
     { ...openSale, cancel_refusal: "holds_standalone_terminal_payment" },
+    { ...openSale, cancel_refusal: "holds_mercado_pago_payment" },
     { ...openSale, paid: -1 },
     { ...openSale, refunds_on_cancel: [{ ...cashRefund, method: "CARD" }] },
     { ...openSale, refunds_on_cancel: [{ ...cashRefund, state: "DONE" }] },
@@ -1281,15 +1282,18 @@ describe("register status messages", () => {
 
   it.each([
     [[], "unknown"],
-    [[{ kind: "sales_denied", reason: "event_history_broken" }], "reachable"],
-    [[{ kind: "sales_denied", reason: "local_database_damaged" }], "reachable"],
+    [[{ kind: "sales_denied", reason: "event_history_broken", level: "critical" }], "reachable"],
+    [[{ kind: "sales_denied", reason: "local_database_damaged", level: "critical" }], "reachable"],
     [
-      [{ kind: "sales_denied", reason: "event_history_broken" }, { kind: "register_silent" }],
+      [
+        { kind: "sales_denied", reason: "event_history_broken", level: "critical" },
+        { kind: "register_silent", level: "critical" },
+      ],
       "unreachable",
     ],
-    [[{ kind: "installation_revoked" }], "unreachable"],
-    [[{ kind: "serial_device_missing" }], "reachable"],
-    [[{ kind: "fiscal_emission_stopped" }], "unreachable"],
+    [[{ kind: "installation_revoked", level: "critical" }], "unreachable"],
+    [[{ kind: "serial_device_missing", level: "warning" }], "reachable"],
+    [[{ kind: "fiscal_emission_stopped", level: "critical" }], "unreachable"],
   ])("accepts the status with conditions %j and the cloud %s", (conditions, cloud) => {
     const message = {
       type: "register-status",
@@ -1304,7 +1308,7 @@ describe("register status messages", () => {
     [
       "a condition the register does not detect itself",
       {
-        conditions: [{ kind: "stock_low" }],
+        conditions: [{ kind: "stock_low", level: "warning" }],
         cloud: "reachable",
         serial_devices: STANDINGS,
         serial_devices_setup_offered: false,
@@ -1322,7 +1326,7 @@ describe("register status messages", () => {
     [
       "a sales denial without its reason",
       {
-        conditions: [{ kind: "sales_denied" }],
+        conditions: [{ kind: "sales_denied", level: "critical" }],
         cloud: "reachable",
         serial_devices: STANDINGS,
         serial_devices_setup_offered: false,
@@ -1331,7 +1335,34 @@ describe("register status messages", () => {
     [
       "a sales denial with a reason it does not know",
       {
-        conditions: [{ kind: "sales_denied", reason: "installation_revoked" }],
+        conditions: [{ kind: "sales_denied", reason: "installation_revoked", level: "critical" }],
+        cloud: "reachable",
+        serial_devices: STANDINGS,
+        serial_devices_setup_offered: false,
+      },
+    ],
+    [
+      "a condition without its level",
+      {
+        conditions: [{ kind: "register_silent" }],
+        cloud: "reachable",
+        serial_devices: STANDINGS,
+        serial_devices_setup_offered: false,
+      },
+    ],
+    [
+      "a sales denial without its level",
+      {
+        conditions: [{ kind: "sales_denied", reason: "event_history_broken" }],
+        cloud: "reachable",
+        serial_devices: STANDINGS,
+        serial_devices_setup_offered: false,
+      },
+    ],
+    [
+      "a condition with a level it does not know",
+      {
+        conditions: [{ kind: "register_silent", level: "urgent" }],
         cloud: "reachable",
         serial_devices: STANDINGS,
         serial_devices_setup_offered: false,
@@ -1620,7 +1651,7 @@ describe("serial device messages", () => {
         type: "register-status",
         request_id: REQUEST_ID,
         status: {
-          conditions: [{ kind: "serial_device_missing" }],
+          conditions: [{ kind: "serial_device_missing", level: "warning" }],
           cloud: "reachable",
           serial_devices: { scale: kind, reader: "not_registered" },
           serial_devices_setup_offered: false,

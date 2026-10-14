@@ -1,5 +1,9 @@
 import type { Clock } from "../../shared/index.js";
 import type { MercadoPagoOrderResult } from "../model/mercado-pago-order-result.js";
+import type {
+  MercadoPagoOrderRefund,
+  MercadoPagoRefundAnswer,
+} from "../model/mercado-pago-refund.js";
 import type { LatePaymentRefund } from "../model/payment-refund.js";
 import type {
   MercadoPagoOrderTransaction,
@@ -90,6 +94,10 @@ export type MercadoPagoOrderReading =
   | { kind: "read"; result: MercadoPagoOrderResult }
   | { kind: "unavailable" };
 
+export type MercadoPagoOrderRefundsReading =
+  | { kind: "read"; refunds: readonly MercadoPagoOrderRefund[] }
+  | { kind: "unavailable" };
+
 export type MercadoPagoOrderCancellation =
   | { kind: "cancelled"; result: MercadoPagoOrderResult }
   | { kind: "cannot_cancel" }
@@ -101,6 +109,8 @@ export interface MercadoPagoOrders {
   createPointOrder(request: MercadoPagoPointOrderRequest): Promise<MercadoPagoPointOrderCreation>;
   readOrder(orderId: string): Promise<MercadoPagoOrderReading>;
   cancelOrder(orderId: string, idempotencyKey: string): Promise<MercadoPagoOrderCancellation>;
+  refundOrder(orderId: string, idempotencyKey: string): Promise<MercadoPagoRefundAnswer>;
+  readOrderRefunds(orderId: string): Promise<MercadoPagoOrderRefundsReading>;
 }
 
 export interface MercadoPagoCancellationKeys {

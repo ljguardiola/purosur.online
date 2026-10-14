@@ -393,6 +393,7 @@ export function PriceChangeModal({
                 kind="price"
                 label={PRICE_LABEL[current.saleUnit]}
                 prefix="$"
+                inputMode="decimal"
                 required
                 {...(current.currentPrice
                   ? {

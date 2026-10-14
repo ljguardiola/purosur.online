@@ -12,6 +12,7 @@ const LATE_PAYMENT: FakeStoredRefund = {
   locationId: "branch-1",
   state: "PENDING",
   origin: "late_payment",
+  method: "QR",
 };
 
 function discard(store: FakeRefundStore, input: { refundId?: string; locationId?: string } = {}) {

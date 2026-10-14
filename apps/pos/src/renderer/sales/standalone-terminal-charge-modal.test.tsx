@@ -85,6 +85,7 @@ describe("StandaloneTerminalChargeModal", () => {
     const { field } = await renderModal();
 
     await expect.element(field).toHaveValue("4.760,00");
+    await expect.element(field).toHaveAttribute("inputmode", "decimal");
   });
 
   it("fills the amount with the pending balance, and shows what is paid and what is to be charged now, when part of the sale is already paid", async () => {

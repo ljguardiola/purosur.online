@@ -114,6 +114,7 @@ import { registerPriceMarginRoute } from "./pricing/price-margin-route.js";
 import { registerPriceSetRoute } from "./pricing/price-set-route.js";
 import type { PricesRouteOptions } from "./pricing/prices-list-route.js";
 import { registerPricesListRoute } from "./pricing/prices-list-route.js";
+import { registerFreightsRoutes } from "./purchasing/freights-routes.js";
 import { registerPackagingsRoutes } from "./purchasing/packagings-routes.js";
 import { registerPurchasesRoutes } from "./purchasing/purchases-routes.js";
 import type { PurchasingRouteOptions } from "./purchasing/purchasing-route-options.js";
@@ -128,6 +129,10 @@ import {
 import { registerRegisterCoverageRoute } from "./register/register-coverage-route.js";
 import { registerRegisterCreationRoute } from "./register/register-creation-route.js";
 import { registerRegisterEnrollmentCodeRoute } from "./register/register-enrollment-code-route.js";
+import {
+  type RegisterSnapshotUrls,
+  registerRegisterSnapshotRoutes,
+} from "./register/register-snapshot-routes.js";
 import { registerRegisterSyncStatusRoute } from "./register/register-sync-status-route.js";
 import {
   type RegisterUpdateFeed,
@@ -163,6 +168,10 @@ import { registerEventsRoute } from "./sync/events-route.js";
 import { registerQuarantinedEventReleaseRoute } from "./sync/quarantined-event-release-route.js";
 import type { QuarantinedEventsRouteOptions } from "./sync/quarantined-events-list-route.js";
 import { registerQuarantinedEventsListRoute } from "./sync/quarantined-events-list-route.js";
+import {
+  type RegistersBelowMinimumRouteOptions,
+  registerRegistersBelowMinimumRoute,
+} from "./sync/registers-below-minimum-route.js";
 import { registerUserCreationRoutes } from "./users/user-creation-route.js";
 import { registerUserDeactivationRoutes } from "./users/user-deactivation-route.js";
 import { registerUserEditRoutes } from "./users/user-edit-route.js";
@@ -198,6 +207,7 @@ export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = Postgre
   products?: WithoutClock<ProductsRouteOptions<TQueryResult>>;
   alerts?: WithoutClock<AlertsRouteOptions<TQueryResult>>;
   quarantinedEvents?: WithoutClock<QuarantinedEventsRouteOptions<TQueryResult>>;
+  registersBelowMinimum?: RegistersBelowMinimumRouteOptions<TQueryResult>;
   prices?: WithoutClock<PricesRouteOptions<TQueryResult>>;
   discounts?: WithoutClock<DiscountsRouteOptions<TQueryResult>>;
   registers?: WithoutClock<RegistersRouteOptions<TQueryResult>>;
@@ -217,6 +227,7 @@ export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = Postgre
   >;
   mercadoPagoNotifications?: WithoutClock<MercadoPagoNotificationRoutesOptions<TQueryResult>>;
   registerUpdateFeed?: RegisterUpdateFeed;
+  registerSnapshotUrls?: RegisterSnapshotUrls;
   health?: WithoutClock<HealthArcaOptions<TQueryResult>>;
   firstPinCodes?: WithoutClock<FirstPinCodeRouteOptions<TQueryResult>>;
 }
@@ -236,6 +247,7 @@ type DatabaseRouteOptions<TQueryResult extends PgQueryResultHKT> = Required<
     | "mercadoPagoOrders"
     | "mercadoPagoNotifications"
     | "registerUpdateFeed"
+    | "registerSnapshotUrls"
   >
 >;
 
@@ -254,6 +266,8 @@ interface DatabaseWiring<TQueryResult extends PgQueryResultHKT> {
   deviceTokenRotationKey: Uint8Array;
   installationKeysEncryptionKey: Uint8Array;
   enqueueTaxAuthorityCount?: EnqueueTaxAuthorityCount;
+  refundSending?: NonNullable<RefundRouteOptions<TQueryResult>["sending"]>;
+  releaseCheckToken?: string | undefined;
 }
 
 export function databaseRouteOptions<TQueryResult extends PgQueryResultHKT>(
@@ -283,6 +297,7 @@ export function databaseRouteOptions<TQueryResult extends PgQueryResultHKT>(
     products: backoffice,
     alerts: backoffice,
     quarantinedEvents: backoffice,
+    registersBelowMinimum: { db, releaseCheckToken: wiring.releaseCheckToken },
     prices: backoffice,
     discounts: backoffice,
     registers: backoffice,
@@ -292,7 +307,7 @@ export function databaseRouteOptions<TQueryResult extends PgQueryResultHKT>(
     stock: backoffice,
     salesReports: backoffice,
     paymentsReports: backoffice,
-    refunds: backoffice,
+    refunds: wiring.refundSending ? { ...backoffice, sending: wiring.refundSending } : backoffice,
     devices,
     firstPinCodes: devices,
     health: { db, certificateFingerprint: wiring.certificateFingerprint },
@@ -488,6 +503,7 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
         registerSuppliersRoutes(api, { ...options.purchasing, now });
         registerPackagingsRoutes(api, { ...options.purchasing, now });
         registerPurchasesRoutes(api, { ...options.purchasing, now });
+        registerFreightsRoutes(api, { ...options.purchasing, now });
       }
 
       if (options.tags) {
@@ -518,6 +534,10 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
       if (options.quarantinedEvents) {
         registerQuarantinedEventsListRoute(api, { ...options.quarantinedEvents, now });
         registerQuarantinedEventReleaseRoute(api, { ...options.quarantinedEvents, now });
+      }
+
+      if (options.registersBelowMinimum) {
+        registerRegistersBelowMinimumRoute(api, options.registersBelowMinimum);
       }
 
       if (options.prices) {
@@ -597,6 +617,12 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
           ...options.devices,
           ...(options.registerUpdateFeed && { feed: options.registerUpdateFeed }),
           reportError: (error) => reportError("the register update feed failed", error),
+          now,
+        });
+        registerRegisterSnapshotRoutes(api, {
+          ...options.devices,
+          ...(options.registerSnapshotUrls && { urls: options.registerSnapshotUrls }),
+          reportError: (error) => reportError("the register snapshot backups failed", error),
           now,
         });
         if (options.fiscalAuthorization) {

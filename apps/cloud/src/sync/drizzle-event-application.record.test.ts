@@ -635,11 +635,12 @@ describe("recording the cancelled sales of applied events", () => {
     const sessionId = randomUUID();
     await openSession(deviceId, sessionId);
     const cancelled = aCancelledSale({ sessionId, ...overrides });
+    const eventId = randomUUID();
     await record(
       { kind: "sale_cancelled", sale: cancelled },
-      { deviceId, aggregateType: "Sale", aggregateId: cancelled.id },
+      { eventId, deviceId, aggregateType: "Sale", aggregateId: cancelled.id },
     );
-    return { cancelled, sessionId, registerId, locationId, deviceId };
+    return { cancelled, sessionId, registerId, locationId, deviceId, eventId };
   }
 
   it("keeps the sale as cancelled, with when and who authorized it, and no completion time", async () => {
@@ -699,7 +700,7 @@ describe("recording the cancelled sales of applied events", () => {
     );
   });
 
-  it("keeps a cash refund as done and a transfer refund as pending, each tied to its payment", async () => {
+  it("keeps a cash refund as done and a transfer refund as pending, each tied to its payment and to the event that cancelled the sale", async () => {
     const base = aCancelledSale();
     const [cash] = base.payments;
     const [cashRefund] = base.refunds;
@@ -724,7 +725,7 @@ describe("recording the cancelled sales of applied events", () => {
       state: "PENDING" as const,
     };
 
-    const { cancelled } = await recordCancelled({
+    const { cancelled, eventId } = await recordCancelled({
       payments: [cash, transfer],
       refunds: [cashRefund, transferRefund],
     });
@@ -736,6 +737,7 @@ describe("recording the cancelled sales of applied events", () => {
       saleId: cancelled.id,
       paymentId: transfer.id,
       paymentTransactionId: null,
+      originEventId: eventId,
       providerOrderId: null,
       origin: "sale_cancelled",
       method: "TRANSFER",
@@ -747,8 +749,15 @@ describe("recording the cancelled sales of applied events", () => {
       doneAt: null,
       discardedBy: null,
       discardedAt: null,
+      confirmedBy: null,
+      confirmedAt: null,
+      sentAt: null,
+      providerRefundId: null,
+      attemptKey: null,
+      lastRefusalReason: null,
     });
     expect(rows.find((row) => row.id === cashRefund.id)).toMatchObject({
+      originEventId: eventId,
       method: "CASH",
       state: "APPROVED",
       doneBy: null,

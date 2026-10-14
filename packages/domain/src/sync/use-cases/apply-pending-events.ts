@@ -78,7 +78,7 @@ function failureOf(ports: ApplyPendingEventsPorts, error: unknown): Failure {
 
 async function requireMercadoPagoPaymentsBacked(
   tx: EventApplicationTransaction,
-  sale: CompletedSale,
+  sale: Pick<CompletedSale, "id" | "payments">,
 ): Promise<void> {
   for (const payment of sale.payments) {
     if (
@@ -144,7 +144,7 @@ async function applyEvent(
       );
     }
   }
-  if (fact.kind === "sale_completed") {
+  if (fact.kind === "sale_completed" || fact.kind === "sale_cancelled") {
     await requireMercadoPagoPaymentsBacked(tx, fact.sale);
   }
   await recordFact(tx, fact, event);

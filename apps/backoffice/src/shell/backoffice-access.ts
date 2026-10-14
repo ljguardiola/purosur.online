@@ -114,3 +114,7 @@ export function canRecordPurchases(access: BackofficeAccess): boolean {
 export function canManageRecipes(access: BackofficeAccess): boolean {
   return grants(access, "recipes");
 }
+
+export function canManageFreights(access: BackofficeAccess): boolean {
+  return grants(access, "freights");
+}

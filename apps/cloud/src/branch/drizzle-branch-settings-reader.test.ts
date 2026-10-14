@@ -1,3 +1,8 @@
+import {
+  DEFAULT_EXPIRING_LOT_ALERT_DAYS,
+  DEFAULT_GOOD_CONDITION_RETURN_DAYS,
+  DEFAULT_UNREVIEWED_PRICE_ALERT_DAYS,
+} from "@purosur/domain";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { branchHours, branchSettings, locations } from "../platform/db/schema.js";
@@ -31,9 +36,9 @@ describe("DrizzleBranchSettingsReader", () => {
       whatsappNumber: "",
       instagramHandle: "",
       hours: [],
-      expiringLotAlertDays: 30,
-      unreviewedPriceAlertDays: 30,
-      goodConditionReturnDays: 15,
+      expiringLotAlertDays: DEFAULT_EXPIRING_LOT_ALERT_DAYS,
+      unreviewedPriceAlertDays: DEFAULT_UNREVIEWED_PRICE_ALERT_DAYS,
+      goodConditionReturnDays: DEFAULT_GOOD_CONDITION_RETURN_DAYS,
       version: 1,
     });
   });

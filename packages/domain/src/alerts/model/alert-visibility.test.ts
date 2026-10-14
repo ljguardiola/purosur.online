@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { alertLocationId, alertSightOf, canSeeAlert } from "./alert-visibility.js";
+import {
+  alertLocationId,
+  alertSightOf,
+  canSeeAlert,
+  isAlertOfViewerBranch,
+} from "./alert-visibility.js";
 
 const HERE = "location-here";
 const ELSEWHERE = "location-elsewhere";
@@ -89,5 +94,16 @@ describe("alertLocationId", () => {
   it("is none when the alert names no location", () => {
     expect(alertLocationId("local", undefined)).toBeNull();
     expect(alertLocationId("all", undefined)).toBeNull();
+  });
+});
+
+describe("isAlertOfViewerBranch", () => {
+  it("is true only for an alert about the viewer's own location", () => {
+    expect(isAlertOfViewerBranch(viewer(), { locationId: HERE })).toBe(true);
+    expect(isAlertOfViewerBranch(viewer(), { locationId: ELSEWHERE })).toBe(false);
+  });
+
+  it("is false for an alert about no location", () => {
+    expect(isAlertOfViewerBranch(viewer(), { locationId: null })).toBe(false);
   });
 });

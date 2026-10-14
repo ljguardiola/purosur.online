@@ -156,6 +156,7 @@ export function EditLotCostModal({
               kind="price"
               label={referenceCostLabel(lot.saleUnit)}
               prefix="$"
+              inputMode="decimal"
               description={
                 lot.withdrawn
                   ? `Lote de una línea retirada de la puesta en marcha, con ${formatStockQuantity(lot.remaining, lot.saleUnit)} en stock.`

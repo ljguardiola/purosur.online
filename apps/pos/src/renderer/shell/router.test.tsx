@@ -2566,7 +2566,13 @@ describe("the register's status bar", () => {
     const context = {
       ...contextWith("up", "enrolled", PERSON, undefined, NO_SESSION),
       registerStatus: async () => ({
-        conditions: [{ kind: "sales_denied" as const, reason: "event_history_broken" as const }],
+        conditions: [
+          {
+            kind: "sales_denied" as const,
+            reason: "event_history_broken" as const,
+            level: "critical" as const,
+          },
+        ],
         cloud: "unreachable" as const,
         serial_devices: { scale: "matching" as const, reader: "matching" as const },
         serial_devices_setup_offered: false,
@@ -2576,7 +2582,7 @@ describe("the register's status bar", () => {
 
     const screen = await render(<RouterProvider router={router} />);
 
-    await expect.element(screen.getByText("La caja no puede vender")).toBeVisible();
+    await expect.element(screen.getByRole("button", { name: "1 aviso" })).toBeVisible();
     await expect.element(screen.getByText("Sin conexión con la nube")).toBeVisible();
   });
 });

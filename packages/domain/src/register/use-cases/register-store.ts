@@ -110,6 +110,7 @@ export interface InstallationEnrollment {
 
 export interface RegisterKeys {
   snapshotKeys: VersionedKey[];
+  retainedSnapshotKeyVersions: number[];
   contingencyTicketKeys: VersionedKey[];
 }
 

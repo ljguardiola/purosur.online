@@ -26,13 +26,11 @@ export function hasApprovedPayment(payments: readonly { state: string }[]): bool
   return payments.some((payment) => payment.state === APPROVED_PAYMENT_STATE);
 }
 
-export function holdsApprovedMercadoPagoPayment(
+export function holdsApprovedPointPayment(
   payments: readonly { state: string; method: string }[],
 ): boolean {
   return payments.some(
-    (payment) =>
-      payment.state === APPROVED_PAYMENT_STATE &&
-      (payment.method === "QR" || payment.method === "POINT"),
+    (payment) => payment.state === APPROVED_PAYMENT_STATE && payment.method === "POINT",
   );
 }
 

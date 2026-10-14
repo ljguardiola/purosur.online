@@ -69,7 +69,7 @@ export function createServices(
 export const lucia: BranchUser = {
   id: "user-1",
   firstName: "Lucía",
-  email: "lucia.perez@purosur.online",
+  email: "lucia.perez@example.com",
   version: 1,
   role: shiftRole,
   passkeyCount: 1,
@@ -129,7 +129,7 @@ export const NO_DEACTIVATE_ACCESS = NO_CAPABILITIES_ACCESS;
 export const adminTarget: BranchUser = {
   id: "user-4",
   firstName: "Ana Fernández",
-  email: "ana@purosur.online",
+  email: "ana@example.com",
   version: 1,
   role: { id: "00000000-0000-4000-8000-000000000001", isAdministrator: true, name: null },
   passkeyCount: 1,
@@ -146,7 +146,7 @@ export const REACTIVATE_USERS_ACCESS = accessWith("users_area", "reactivate_user
 export const sofia: BranchUser = {
   id: "user-5",
   firstName: "Sofía Díaz",
-  email: "sofia.diaz@purosur.online",
+  email: "sofia.diaz@example.com",
   version: 1,
   active: false,
   role: shiftRole,
@@ -170,7 +170,7 @@ export async function openStaleModal(services: UserDetailScreenServices) {
   await expect.element(screen.getByRole("heading", { name: "Lucía", level: 1 })).toBeVisible();
   const dialog = await openEditModal(screen);
   vi.mocked(services.editUser).mockResolvedValueOnce({ kind: "stale_version" });
-  await userEvent.fill(dialog.getByRole("textbox", { name: /^Correo/ }), "nueva@purosur.online");
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Correo/ }), "nueva@example.com");
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
   await expect.element(dialog.getByText("Este usuario cambió mientras lo editabas")).toBeVisible();
   return { screen, dialog };

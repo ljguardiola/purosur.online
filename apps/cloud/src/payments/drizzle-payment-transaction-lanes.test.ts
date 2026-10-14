@@ -488,6 +488,7 @@ describe("DrizzlePaymentTransactionLanes", () => {
           saleId: transaction.saleId,
           paymentId: null,
           paymentTransactionId: transaction.id,
+          originEventId: null,
           providerOrderId: null,
           origin: "late_payment",
           method: "QR",
@@ -499,6 +500,12 @@ describe("DrizzlePaymentTransactionLanes", () => {
           doneAt: null,
           discardedBy: null,
           discardedAt: null,
+          confirmedBy: null,
+          confirmedAt: null,
+          sentAt: null,
+          providerRefundId: null,
+          attemptKey: null,
+          lastRefusalReason: null,
         },
       ]);
     });

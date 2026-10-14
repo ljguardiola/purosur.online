@@ -14,13 +14,19 @@ import { pendingRefundsRoute, salesByPaymentMethodRoute } from "../payments/rout
 import { rolesListRoute } from "../permissions/routes";
 import { discountsListRoute, pricesListRoute } from "../pricing/routes";
 import {
+  freightsListRoute,
   newPurchaseRoute,
   packagingsListRoute,
   purchasesListRoute,
   suppliersListRoute,
 } from "../purchasing/routes";
 import { registersListRoute } from "../register/routes";
-import { reportsIndexRoute, salesByDayRoute } from "../sales/routes";
+import {
+  reportsIndexRoute,
+  salesByCashierRoute,
+  salesByDayRoute,
+  salesByProductAndCategoryRoute,
+} from "../sales/routes";
 import { signInRoute } from "../sessions/routes";
 import {
   expiringLotsRoute,
@@ -78,6 +84,7 @@ const routeTree = rootRoute.addChildren([
       purchasesListRoute,
       newPurchaseRoute,
       expiringLotsRoute,
+      freightsListRoute,
       recipesListRoute,
       initialInventoryRoute,
     ]),
@@ -86,7 +93,13 @@ const routeTree = rootRoute.addChildren([
       fiscalConfigurationRoute,
       pendingRefundsRoute,
     ]),
-    reportsAreaRoute.addChildren([reportsIndexRoute, salesByDayRoute, salesByPaymentMethodRoute]),
+    reportsAreaRoute.addChildren([
+      reportsIndexRoute,
+      salesByDayRoute,
+      salesByPaymentMethodRoute,
+      salesByProductAndCategoryRoute,
+      salesByCashierRoute,
+    ]),
     settingsAreaRoute.addChildren([
       myAccountRoute,
       usersListRoute,

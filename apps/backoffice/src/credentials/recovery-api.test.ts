@@ -21,7 +21,7 @@ afterEach(() => {
 test("requestRecoveryLink posts the normalized request and reports it as sent on an empty 2xx", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(200));
 
-  const outcome = await requestRecoveryLink("lucia.perez@purosur.online");
+  const outcome = await requestRecoveryLink("lucia.perez@example.com");
 
   expect(outcome).toEqual({ kind: "sent" });
   expect(fetch).toHaveBeenCalledWith(
@@ -29,7 +29,7 @@ test("requestRecoveryLink posts the normalized request and reports it as sent on
     expect.objectContaining({
       method: "POST",
       headers: expect.objectContaining({ "Content-Type": "application/json" }),
-      body: JSON.stringify({ email: "lucia.perez@purosur.online" }),
+      body: JSON.stringify({ email: "lucia.perez@example.com" }),
     }),
   );
 });
@@ -39,7 +39,7 @@ test("requestRecoveryLink reports rate_limited with the Retry-After header in se
     jsonResponse(429, { code: "rate_limited", message: "too many" }, { "Retry-After": "3600" }),
   );
 
-  const outcome = await requestRecoveryLink("lucia.perez@purosur.online");
+  const outcome = await requestRecoveryLink("lucia.perez@example.com");
 
   expect(outcome).toEqual({ kind: "rate_limited", retryAfterSeconds: 3600 });
 });
@@ -47,7 +47,7 @@ test("requestRecoveryLink reports rate_limited with the Retry-After header in se
 test("requestRecoveryLink reports failed on a 429 without a usable Retry-After", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(429, { code: "rate_limited" }));
 
-  const outcome = await requestRecoveryLink("lucia.perez@purosur.online");
+  const outcome = await requestRecoveryLink("lucia.perez@example.com");
 
   expect(outcome).toEqual({ kind: "failed" });
 });
@@ -58,7 +58,7 @@ test("requestRecoveryLink reports failed on any other status, including validati
   await expect(requestRecoveryLink("bad")).resolves.toEqual({ kind: "failed" });
 
   vi.mocked(fetch).mockResolvedValue(jsonResponse(403, { code: "origin_rejected" }));
-  await expect(requestRecoveryLink("lucia.perez@purosur.online")).resolves.toEqual({
+  await expect(requestRecoveryLink("lucia.perez@example.com")).resolves.toEqual({
     kind: "failed",
   });
 });
@@ -77,7 +77,7 @@ test("requestRecoveryLink reports the field the cloud refused as validation_fail
 test("requestRecoveryLink reports failed when the network call itself rejects", async () => {
   vi.mocked(fetch).mockRejectedValue(new TypeError("network down"));
 
-  await expect(requestRecoveryLink("lucia.perez@purosur.online")).resolves.toEqual({
+  await expect(requestRecoveryLink("lucia.perez@example.com")).resolves.toEqual({
     kind: "failed",
   });
 });

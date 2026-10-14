@@ -38,9 +38,9 @@ test("describes a QR payment Mercado Pago charged that has to be given back, wha
   );
 });
 
-test("describes the refund of a cancelled sale left without being marked as done", () => {
+test("describes a cancelled sale with a pending refund", () => {
   expect(alertKindDescription("refund_task")).toBe(
-    "Una venta anulada tiene un reembolso sin marcar como hecho",
+    "Una venta anulada tiene un reembolso pendiente",
   );
 });
 
@@ -69,4 +69,10 @@ test("gives no description to a kind this app does not know yet", () => {
 test("gives no description to a kind that shares its name with a member every object has", () => {
   expect(alertKindDescription("constructor")).toBe("");
   expect(alertKindDescription("toString")).toBe("");
+});
+
+test("describes a branch with lots already expired or nearing their expiry date", () => {
+  expect(alertKindDescription("lots_expiring")).toBe(
+    "Hay lotes de productos vencidos o por llegar a su fecha de vencimiento.",
+  );
 });

@@ -1,5 +1,5 @@
 import { createRoute, Outlet, useMatchRoute } from "@tanstack/react-router";
-import { ChartColumn, List, Wallet } from "lucide-react";
+import { ChartColumn, List, Package, Users, Wallet } from "lucide-react";
 import { AreaLayout, SectionLink } from "./area-layout";
 import { signedInRoute } from "./signed-in-route";
 
@@ -13,6 +13,10 @@ function ReportsArea() {
   const matchRoute = useMatchRoute();
   const salesByDayShown = Boolean(matchRoute({ to: "/reports/sales-by-day" }));
   const salesByPaymentMethodShown = Boolean(matchRoute({ to: "/reports/sales-by-payment-method" }));
+  const salesByProductAndCategoryShown = Boolean(
+    matchRoute({ to: "/reports/sales-by-product-and-category" }),
+  );
+  const salesByCashierShown = Boolean(matchRoute({ to: "/reports/sales-by-cashier" }));
   return (
     <AreaLayout
       area="reports"
@@ -46,6 +50,24 @@ function ReportsArea() {
                 icon={<Wallet />}
                 search={salesByPaymentMethodShown ? true : {}}
                 active={salesByPaymentMethodShown}
+              />
+            </li>
+            <li>
+              <SectionLink
+                to="/reports/sales-by-product-and-category"
+                label="Ventas por producto y por categoría"
+                icon={<Package />}
+                search={salesByProductAndCategoryShown ? true : {}}
+                active={salesByProductAndCategoryShown}
+              />
+            </li>
+            <li>
+              <SectionLink
+                to="/reports/sales-by-cashier"
+                label="Ventas por cajero"
+                icon={<Users />}
+                search={salesByCashierShown ? true : {}}
+                active={salesByCashierShown}
               />
             </li>
           </ul>

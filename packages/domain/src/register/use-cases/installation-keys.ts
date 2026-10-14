@@ -22,6 +22,16 @@ async function firstKey(
   return key;
 }
 
+function snapshotKeysStillNeeded(
+  snapshotKeys: readonly VersionedKey[],
+  retainedVersions: readonly number[],
+): VersionedKey[] {
+  const latest = latestKey(snapshotKeys);
+  return inVersionOrder(snapshotKeys).filter(
+    (key) => key.version === latest?.version || retainedVersions.includes(key.version),
+  );
+}
+
 // A register gets its keys the first time one of its installations is handed them.
 export async function registerKeysHandedOver(
   tx: RegisterStoreTransaction,
@@ -31,7 +41,7 @@ export async function registerKeysHandedOver(
   const held = await tx.lockRegisterKeys(registerId);
   const snapshotKeyVersions =
     held.snapshotKeys.length > 0
-      ? inVersionOrder(held.snapshotKeys)
+      ? snapshotKeysStillNeeded(held.snapshotKeys, held.retainedSnapshotKeyVersions)
       : [await firstKey(keys, (key) => tx.recordSnapshotKey(registerId, key))];
   const contingencyTicketKey =
     latestKey(held.contingencyTicketKeys) ??

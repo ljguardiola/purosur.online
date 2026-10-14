@@ -61,6 +61,7 @@ export {
   alertLocationId,
   alertSightOf,
   canSeeAlert,
+  isAlertOfViewerBranch,
 } from "./model/alert-visibility.js";
 export type { FiscalUnknownAlertKey } from "./model/fiscal-unknown-alert.js";
 export { fiscalUnknownAlertKey } from "./model/fiscal-unknown-alert.js";

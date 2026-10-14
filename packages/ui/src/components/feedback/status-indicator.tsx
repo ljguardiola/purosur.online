@@ -8,17 +8,15 @@ export type StatusIndicatorProps = {
   children: Exclude<ReactNode, null | undefined | boolean>;
 };
 
-const pillClassName =
+export const statusIndicatorClassName =
   "inline-flex h-7 items-center gap-2 rounded-full px-3 font-sans text-detail font-semibold";
 
 const spinnerBaseClassName = "size-icon-xs shrink-0 animate-spin motion-reduce:animate-none";
 const dotBaseClassName = "size-2 shrink-0 rounded-full";
 
-export function StatusIndicator({ tone, busy = false, children }: StatusIndicatorProps) {
-  const className = [pillClassName, toneClassName[tone].surface].join(" ");
-
+export function StatusIndicatorContent({ tone, busy = false, children }: StatusIndicatorProps) {
   return (
-    <span className={className}>
+    <>
       {busy ? (
         <Loader
           aria-hidden="true"
@@ -31,6 +29,16 @@ export function StatusIndicator({ tone, busy = false, children }: StatusIndicato
         />
       )}
       {children}
+    </>
+  );
+}
+
+export function StatusIndicator(props: StatusIndicatorProps) {
+  const className = [statusIndicatorClassName, toneClassName[props.tone].surface].join(" ");
+
+  return (
+    <span className={className}>
+      <StatusIndicatorContent {...props} />
     </span>
   );
 }
