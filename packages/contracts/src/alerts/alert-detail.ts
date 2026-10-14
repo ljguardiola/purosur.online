@@ -180,6 +180,7 @@ const outboxChainBrokenDetailSchema = z.object({
 const lotsExpiringDetailSchema = z.object({
   lotCount: z.int(),
   windowDays: z.int(),
+  aboutViewerBranch: z.boolean(),
 });
 
 const ALERT_INSTANT = { timeZone: ARGENTINA_TIME_ZONE };

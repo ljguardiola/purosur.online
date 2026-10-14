@@ -656,7 +656,9 @@ function OpenAlertDetailModal({
                 Ver eventos en cuarentena
               </ScreenLink>
             ) : null}
-            {alert.kind === "lots_expiring" && canSeeExpiringLots(access) ? (
+            {alert.kind === "lots_expiring" &&
+            alert.detail.aboutViewerBranch &&
+            canSeeExpiringLots(access) ? (
               <ScreenLink to="/expiring-lots" variant="text">
                 Ver vencimientos
               </ScreenLink>
