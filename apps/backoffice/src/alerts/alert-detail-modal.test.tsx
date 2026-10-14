@@ -1722,7 +1722,11 @@ test("tells that an alert for quarantined events resolves by itself and still of
   await expect.element(screen.getByRole("button", { name: "Cerrar la alerta" })).toBeEnabled();
 });
 
-function expiringLotsAlert(detail: { lotCount: number; windowDays: number }) {
+function expiringLotsAlert(detail: {
+  lotCount: number;
+  windowDays: number;
+  aboutViewerBranch?: boolean;
+}) {
   return baseDetail({
     kind: "lots_expiring",
     level: "informational",
@@ -1731,7 +1735,7 @@ function expiringLotsAlert(detail: { lotCount: number; windowDays: number }) {
     scopeDisplay: "location-1",
     scopeKind: "branch",
     closing: "by_itself",
-    detail,
+    detail: { aboutViewerBranch: true, ...detail },
   });
 }
 
@@ -1786,6 +1790,18 @@ test("links the alert of lots nearing their expiry to the expiring lots screen f
   const link = screen.getByRole("link", { name: "Ver vencimientos" });
   await expect.element(link).toBeVisible();
   await expect.element(link).toHaveAttribute("href", "/expiring-lots");
+});
+
+test("does not link the alert of lots nearing their expiry of another branch to the expiring lots screen", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(
+    ok(expiringLotsAlert({ lotCount: 6, windowDays: 30, aboutViewerBranch: false })),
+  );
+
+  const screen = await renderModal(services, { access: accessWith("stock_expiries") });
+
+  await expect.element(screen.getByText("Productos por vencer", { exact: true })).toBeVisible();
+  expect(screen.getByRole("link", { name: "Ver vencimientos" }).query()).toBeNull();
 });
 
 test("does not link the alert of lots nearing their expiry to the expiring lots screen for a person who may not see it", async () => {

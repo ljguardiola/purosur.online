@@ -278,9 +278,36 @@ describe("GET /alerts/:id", () => {
       kind: "lots_expiring",
       level: "informational",
       scopeKind: "branch",
-      detail: { lotCount: 6, windowDays: 30 },
+      detail: { lotCount: 6, windowDays: 30, aboutViewerBranch: true },
       closing: "by_itself",
       open: true,
+    });
+  });
+
+  it("tells someone who sees every branch's alerts that an alert of lots nearing expiry is about another branch", async () => {
+    const roleId = await insertRole("supervisor", ["view_all_alerts"]);
+    const userId = await insertUserWithRole("Grace", roleId);
+    const rawSessionId = await insertSession(userId);
+    const [expiring] = await db
+      .insert(alerts)
+      .values({
+        kind: "lots_expiring",
+        scope: otherLocationId,
+        level: "informational",
+        audience: "local",
+        locationId: otherLocationId,
+        detail: { lotCount: 2, windowDays: 30 },
+        openedAt: NOON,
+      })
+      .returning({ id: alerts.id });
+    if (!expiring) throw new Error("test setup: inserting the alert returned no row");
+
+    const response = await getAlert(rawSessionId, expiring.id);
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      kind: "lots_expiring",
+      detail: { lotCount: 2, windowDays: 30, aboutViewerBranch: false },
     });
   });
 

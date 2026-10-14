@@ -213,7 +213,10 @@ describe("alertDetailSchema", () => {
     expectTypeOf<WireDetail<"outbox_chain_broken">>().toEqualTypeOf<
       AlertDetails["outbox_chain_broken"]
     >();
-    expectTypeOf<WireDetail<"lots_expiring">>().toEqualTypeOf<AlertDetails["lots_expiring"]>();
+    expectTypeOf<Omit<WireDetail<"lots_expiring">, "aboutViewerBranch">>().toEqualTypeOf<
+      AlertDetails["lots_expiring"]
+    >();
+    expectTypeOf<WireDetail<"lots_expiring">["aboutViewerBranch"]>().toBeBoolean();
     expectTypeOf<WireDetail<"fiscal_emission_stopped">>().toEqualTypeOf<
       AlertDetails["fiscal_emission_stopped"]
     >();
@@ -353,7 +356,7 @@ describe("alertDetailSchema", () => {
       },
       fiscal_emission_stopped: { deviceId: "device-1", reason: "legal_name_missing" },
       outbox_chain_broken: { deviceId: "device-1" },
-      lots_expiring: { lotCount: 3, windowDays: 30 },
+      lots_expiring: { lotCount: 3, windowDays: 30, aboutViewerBranch: true },
       fiscal_unknown: {
         fiscalDocumentId: "document-1",
         saleId: "sale-1",
@@ -397,11 +400,11 @@ describe("alertDetailSchema", () => {
       expect(alertDetailSchema.safeParse(alert).success).toBe(false);
     });
 
-    it("accepts a lots-expiring alert with the count of lots and the window in days", () => {
+    it("accepts a lots-expiring alert with the count of lots, the window in days and whether it is about the viewer's branch", () => {
       const alert = {
         ...base,
         kind: "lots_expiring",
-        detail: { lotCount: 3, windowDays: 30 },
+        detail: { lotCount: 3, windowDays: 30, aboutViewerBranch: false },
       };
 
       expect(alertDetailSchema.safeParse(alert).data).toEqual(alert);
@@ -410,11 +413,12 @@ describe("alertDetailSchema", () => {
     it.each([
       ["a lot count as text", { lotCount: "3" }],
       ["a window as text", { windowDays: "30" }],
+      ["its branch as text", { aboutViewerBranch: "true" }],
     ])("refuses a lots-expiring alert with %s", (_case, change) => {
       const alert = {
         ...base,
         kind: "lots_expiring",
-        detail: { lotCount: 3, windowDays: 30, ...change },
+        detail: { lotCount: 3, windowDays: 30, aboutViewerBranch: true, ...change },
       };
 
       expect(alertDetailSchema.safeParse(alert).success).toBe(false);
