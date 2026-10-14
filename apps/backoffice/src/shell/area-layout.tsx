@@ -4,9 +4,9 @@ import { Boxes, ChartColumn, Home, LifeBuoy, Package, Settings, Wallet } from "l
 import type { ReactNode } from "react";
 import { AccountFooter } from "./account-footer";
 import {
+  canManageFreights,
   canManageProductsAndCategories,
   canManagePurchasePackagings,
-  canManageFreights,
   canManageRecipes,
   canManageSuppliers,
   canPerformStockCounts,

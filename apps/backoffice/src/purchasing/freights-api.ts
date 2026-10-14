@@ -2,7 +2,7 @@ import {
   type Freight,
   type FreightBody,
   type FreightList,
-  freightListQuerySchema,
+  type freightListQuerySchema,
   freightListSchema,
   freightSchema,
   type LinkablePurchaseSummary,
@@ -102,9 +102,7 @@ export async function fetchLinkablePurchases({
   return parsed.success ? { kind: "ok", value: parsed.data } : { kind: "failed" };
 }
 
-async function refusedFreight(
-  response: Response,
-): Promise<FreightRefusal | { kind: "not_found" }> {
+async function refusedFreight(response: Response): Promise<FreightRefusal | { kind: "not_found" }> {
   if (response.status === 400) {
     const field = await readValidationFailedField(response);
     return field === undefined ? { kind: "failed" } : { kind: "validation_failed", field };

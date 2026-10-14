@@ -46,6 +46,8 @@ test("keeps the freights list filters a URL names", () => {
 });
 
 test("falls back for a freights list filter the list does not offer", () => {
-  expect(freightsListFilters.parse({ search: 1, period: 7 })).toEqual(freightsListFilters.parse({}));
+  expect(freightsListFilters.parse({ search: 1, period: 7 })).toEqual(
+    freightsListFilters.parse({}),
+  );
   expect(freightsListFilters.parse({ period: "soon" })).toEqual(freightsListFilters.parse({}));
 });

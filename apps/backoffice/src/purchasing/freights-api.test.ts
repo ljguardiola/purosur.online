@@ -1,11 +1,6 @@
 import type { FreightBody, FreightList } from "@purosur/contracts";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import {
-  editFreight,
-  fetchFreights,
-  fetchLinkablePurchases,
-  recordFreight,
-} from "./freights-api";
+import { editFreight, fetchFreights, fetchLinkablePurchases, recordFreight } from "./freights-api";
 import {
   compraAndina,
   compraMolinos,
@@ -53,7 +48,10 @@ describe("fetchFreights", () => {
   test("lists the freights of the period with their count and total on 200", async () => {
     vi.mocked(fetch).mockResolvedValue(jsonResponse(200, freights));
 
-    expect(await fetchFreights({ period: 90, search: "" })).toEqual({ kind: "ok", value: freights });
+    expect(await fetchFreights({ period: 90, search: "" })).toEqual({
+      kind: "ok",
+      value: freights,
+    });
     expect(fetch).toHaveBeenCalledWith("/api/freights?period=90");
   });
 

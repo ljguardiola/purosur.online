@@ -1,4 +1,4 @@
-import { CalendarDate, parseDate } from "@internationalized/date";
+import { type CalendarDate, parseDate } from "@internationalized/date";
 import {
   type FreightBody,
   type FreightSummary,
@@ -72,13 +72,13 @@ export function freightFormValuesOf(freight: FreightSummary): FreightFormValues 
   };
 }
 
-export function freightDateMessage({ date }: FreightFormValues): string {
+function freightDateMessage({ date }: FreightFormValues): string {
   return date === null
     ? "Ingresá la fecha del flete."
     : "La fecha del flete no puede ser posterior a hoy.";
 }
 
-export function freightAmountMessage({ amount }: FreightFormValues): string {
+function freightAmountMessage({ amount }: FreightFormValues): string {
   const cents = parseAmountCents(amount);
   if (cents === undefined) {
     return "Escribí el monto con coma para los centavos, por ejemplo 1.250,50.";
@@ -86,19 +86,19 @@ export function freightAmountMessage({ amount }: FreightFormValues): string {
   return cents <= 0 ? "El monto tiene que ser mayor a cero." : "El monto es demasiado grande.";
 }
 
-export function freightCarrierNameMessage({ carrierName }: FreightFormValues): string {
+function freightCarrierNameMessage({ carrierName }: FreightFormValues): string {
   return carrierName.trim() === ""
     ? "Ingresá el medio del flete."
     : `El medio puede tener hasta ${schemaLimit(carrierNameSchema.meta()?.["maxLength"])} caracteres.`;
 }
 
-export function freightDescriptionMessage({ description }: FreightFormValues): string {
+function freightDescriptionMessage({ description }: FreightFormValues): string {
   return description.trim() === ""
     ? "Ingresá la descripción del flete."
     : `La descripción puede tener hasta ${schemaLimit(descriptionSchema.meta()?.["maxLength"])} caracteres.`;
 }
 
-export function freightPurchasesMessage(_values: FreightFormValues): string {
+function freightPurchasesMessage(_values: FreightFormValues): string {
   return "Elegí al menos una compra.";
 }
 
@@ -123,10 +123,10 @@ if (!firstPeriodOption) {
   throw new Error("The contract declares no freight period");
 }
 
-export const freightPeriodOptions: [
-  typeof firstPeriodOption,
-  ...(typeof firstPeriodOption)[],
-] = [firstPeriodOption, ...otherPeriodOptions];
+export const freightPeriodOptions: [typeof firstPeriodOption, ...(typeof firstPeriodOption)[]] = [
+  firstPeriodOption,
+  ...otherPeriodOptions,
+];
 
 export function freightPeriodOf(value: string): FreightPeriod | undefined {
   return periods.find((days) => String(days) === value);

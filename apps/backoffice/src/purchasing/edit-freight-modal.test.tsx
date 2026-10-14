@@ -71,7 +71,9 @@ type ModalScreen = Awaited<ReturnType<typeof renderModal>>;
 
 async function readyDialog(screen: ModalScreen) {
   const dialog = screen.getByRole("dialog");
-  await expect.element(dialog.getByRole("checkbox", { name: "Distribuidora Andina" })).toBeVisible();
+  await expect
+    .element(dialog.getByRole("checkbox", { name: "Distribuidora Andina" }))
+    .toBeVisible();
   return dialog;
 }
 
@@ -98,7 +100,9 @@ test("shows the freight's description as the title, with its values filled and i
   await expect
     .element(dialog.getByRole("textbox", { name: /^Descripción/ }))
     .toHaveValue("Envío desde Buenos Aires");
-  await expect.element(dialog.getByRole("checkbox", { name: "Distribuidora Andina" })).toBeChecked();
+  await expect
+    .element(dialog.getByRole("checkbox", { name: "Distribuidora Andina" }))
+    .toBeChecked();
   await expect.element(dialog.getByRole("checkbox", { name: "Molinos del Valle" })).toBeChecked();
 });
 
@@ -106,9 +110,9 @@ test("reads the purchases of the period together with the ones the freight alrea
   const services = createServices();
   await renderModal({ services, period: 365 });
 
-  await expect.poll(() => vi.mocked(services.fetchLinkablePurchases).mock.calls).toEqual([
-    [{ period: 365, freightId: envioDesdeBuenosAires.id }],
-  ]);
+  await expect
+    .poll(() => vi.mocked(services.fetchLinkablePurchases).mock.calls)
+    .toEqual([[{ period: 365, freightId: envioDesdeBuenosAires.id }]]);
 });
 
 test("shows a freight of the store's own trip with its carrier disabled", async () => {

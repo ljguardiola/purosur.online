@@ -1,11 +1,11 @@
 import type { Freight, FreightSummary, LinkablePurchaseSummary } from "@purosur/contracts";
 
-export const distribuidoraAndina = {
+const distribuidoraAndina = {
   id: "5a900000-0000-4000-8000-000000000001",
   name: "Distribuidora Andina",
 };
 
-export const molinosDelValle = {
+const molinosDelValle = {
   id: "5a900000-0000-4000-8000-000000000002",
   name: "Molinos del Valle",
 };

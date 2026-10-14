@@ -12,9 +12,7 @@ beforeEach(() => {
   window.history.pushState(null, "", "/");
 });
 
-function createServices(
-  overrides: Partial<NewFreightModalServices> = {},
-): NewFreightModalServices {
+function createServices(overrides: Partial<NewFreightModalServices> = {}): NewFreightModalServices {
   return {
     recordFreight: vi.fn<NewFreightModalServices["recordFreight"]>(),
     fetchLinkablePurchases: vi
@@ -65,7 +63,9 @@ type ModalScreen = Awaited<ReturnType<typeof renderModal>>;
 
 async function readyDialog(screen: ModalScreen) {
   const dialog = screen.getByRole("dialog");
-  await expect.element(dialog.getByRole("checkbox", { name: "Distribuidora Andina" })).toBeVisible();
+  await expect
+    .element(dialog.getByRole("checkbox", { name: "Distribuidora Andina" }))
+    .toBeVisible();
   return dialog;
 }
 
@@ -117,9 +117,9 @@ test("reads the purchases of the period the list shows, and nothing while closed
   expect(services.fetchLinkablePurchases).not.toHaveBeenCalled();
   await screen.rerender(modalElement({ services, period: 30 }));
 
-  await expect.poll(() => vi.mocked(services.fetchLinkablePurchases).mock.calls).toEqual([
-    [{ period: 30 }],
-  ]);
+  await expect
+    .poll(() => vi.mocked(services.fetchLinkablePurchases).mock.calls)
+    .toEqual([[{ period: 30 }]]);
 });
 
 test("records the freight with its texts trimmed and the chosen purchases, and hands it over", async () => {
@@ -307,7 +307,9 @@ test("offers to read the purchases again when they could not be loaded", async (
   await expect.element(dialog.getByRole("button", { name: "Registrar el flete" })).toBeDisabled();
   await userEvent.click(dialog.getByRole("button", { name: "Reintentar" }));
 
-  await expect.element(dialog.getByRole("checkbox", { name: "Distribuidora Andina" })).toBeVisible();
+  await expect
+    .element(dialog.getByRole("checkbox", { name: "Distribuidora Andina" }))
+    .toBeVisible();
 });
 
 test("says there is nothing to link when the period holds no purchase", async () => {

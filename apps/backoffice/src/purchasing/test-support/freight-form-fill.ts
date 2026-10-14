@@ -20,7 +20,12 @@ export async function toggle(dialog: FreightDialog, label: string) {
 
 export async function fillFreight(dialog: FreightDialog, fill: FreightFill) {
   if (fill.date !== undefined) {
-    await userEvent.click(dialog.getByRole("group", { name: /^Fecha/ }).getByRole("spinbutton").first());
+    await userEvent.click(
+      dialog
+        .getByRole("group", { name: /^Fecha/ })
+        .getByRole("spinbutton")
+        .first(),
+    );
     await userEvent.keyboard(fill.date);
   }
   if (fill.amount !== undefined) {

@@ -88,7 +88,9 @@ export function FreightsListScreen({
     dataColumn({
       id: "date",
       header: "Fecha",
-      render: (item: FreightSummary) => <TableCellText strong>{formatDisplayDate(item.date)}</TableCellText>,
+      render: (item: FreightSummary) => (
+        <TableCellText strong>{formatDisplayDate(item.date)}</TableCellText>
+      ),
     }),
     dataColumn({
       id: "freight",

@@ -1,7 +1,7 @@
 import {
   type FreightBody,
-  type LinkablePurchaseSummary,
   freightBodySchema,
+  type LinkablePurchaseSummary,
 } from "@purosur/contracts";
 import {
   Checkbox,
@@ -31,7 +31,8 @@ import {
 } from "./freight-form";
 import { receiptLabel } from "./receipt-label";
 
-export const FREIGHT_PURCHASE_NOT_FOUND = "Alguna de las compras ya no está disponible. Elegí otras.";
+export const FREIGHT_PURCHASE_NOT_FOUND =
+  "Alguna de las compras ya no está disponible. Elegí otras.";
 
 export type FreightNotice =
   | { kind: "attemptFailed" }
@@ -197,11 +198,7 @@ export function FreightFields({
       </div>
       <form.AppField name="ownTrip">
         {(field) => (
-          <Checkbox
-            name="ownTrip"
-            checked={field.state.value}
-            onCheckedChange={field.handleChange}
-          >
+          <Checkbox name="ownTrip" checked={field.state.value} onCheckedChange={field.handleChange}>
             Viaje propio (costo estimado)
           </Checkbox>
         )}

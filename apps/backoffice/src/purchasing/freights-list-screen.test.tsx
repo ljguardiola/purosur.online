@@ -127,11 +127,13 @@ test("reads the freights of the default period without a search", async () => {
 
 test("opens on the period and the search the URL carries", async () => {
   const services = createServices();
-  await loaded(services, { filters: freightsListFilters.parse({ period: 365, search: "expreso" }) });
+  await loaded(services, {
+    filters: freightsListFilters.parse({ period: 365, search: "expreso" }),
+  });
 
-  await expect.poll(() => vi.mocked(services.fetchFreights).mock.calls).toContainEqual([
-    { period: 365, search: "expreso" },
-  ]);
+  await expect
+    .poll(() => vi.mocked(services.fetchFreights).mock.calls)
+    .toContainEqual([{ period: 365, search: "expreso" }]);
 });
 
 test("the search field reads the freights again with the typed text", async () => {
@@ -140,9 +142,9 @@ test("the search field reads the freights again with the typed text", async () =
 
   await userEvent.fill(screen.getByPlaceholder("Buscar por descripción o medio"), "  molino ");
 
-  await expect.poll(() => vi.mocked(services.fetchFreights).mock.calls).toContainEqual([
-    { period: 90, search: "molino" },
-  ]);
+  await expect
+    .poll(() => vi.mocked(services.fetchFreights).mock.calls)
+    .toContainEqual([{ period: 90, search: "molino" }]);
 });
 
 test("the period filter offers the periods and reads the freights again for the chosen one", async () => {
@@ -160,9 +162,9 @@ test("the period filter offers the periods and reads the freights again for the 
     .toEqual(["Últimos 30 días", "Últimos 90 días", "Últimos 365 días"]);
   await userEvent.click(screen.getByRole("option", { name: "Últimos 30 días" }));
 
-  await expect.poll(() => vi.mocked(services.fetchFreights).mock.calls).toContainEqual([
-    { period: 30, search: "" },
-  ]);
+  await expect
+    .poll(() => vi.mocked(services.fetchFreights).mock.calls)
+    .toContainEqual([{ period: 30, search: "" }]);
 });
 
 test("reports the search and the period that change", async () => {
@@ -185,7 +187,9 @@ test("says there are no freights in the period, following the chosen period", as
   const screen = await renderScreen(services);
 
   await expect.element(screen.getByText("Sin fletes en los últimos 90 días")).toBeVisible();
-  await expect.element(screen.getByText("Un flete se vincula a una o varias compras.")).toBeVisible();
+  await expect
+    .element(screen.getByText("Un flete se vincula a una o varias compras."))
+    .toBeVisible();
 
   await userEvent.click(screen.getByRole("button", { name: /Período:/ }));
   await userEvent.click(screen.getByRole("option", { name: "Últimos 30 días" }));
@@ -211,7 +215,9 @@ test("shows the table loading while the freights load", async () => {
   });
   const screen = await renderScreen(services);
 
-  await expect.element(screen.getByRole("table", { name: "Fletes" })).toHaveAttribute("aria-busy", "true");
+  await expect
+    .element(screen.getByRole("table", { name: "Fletes" }))
+    .toHaveAttribute("aria-busy", "true");
 });
 
 test("offers to read the freights again when they could not be loaded", async () => {
@@ -258,9 +264,9 @@ test("Nuevo flete opens the modal, and recording closes it and reads the freight
   await expect
     .element(dialog.getByRole("checkbox", { name: "Distribuidora Andina" }))
     .toBeVisible();
-  await expect.poll(() => vi.mocked(services.fetchLinkablePurchases).mock.calls).toEqual([
-    [{ period: 90 }],
-  ]);
+  await expect
+    .poll(() => vi.mocked(services.fetchLinkablePurchases).mock.calls)
+    .toEqual([[{ period: 90 }]]);
   await fillFreight(dialog, {
     date: "12092026",
     amount: "18500",
