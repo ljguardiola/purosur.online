@@ -2,7 +2,7 @@ import { cloudErrorSchema, deviceTokenRotationSchema } from "@purosur/contracts"
 import { eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { registerInstallations } from "../platform/db/schema.js";
+import { registerInstallations, registerSnapshotGenerations } from "../platform/db/schema.js";
 import { registerHealthRoute } from "../platform/health-route.js";
 import { registerRouteAccess } from "../sessions/route-access.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
@@ -120,7 +120,7 @@ describe("POST /devices/current/tokens", () => {
     expect({ ...second, device_token: first.device_token }).toEqual(first);
   });
 
-  it("hands back a snapshot key version and a contingency-ticket key the register got since the last rotation", async () => {
+  it("hands back the new snapshot key version, the older one a retained generation still uses and a contingency-ticket key the register got since the last rotation", async () => {
     const { deviceId, deviceToken } = await insertEnrolledInstallation(db, { now: NOW });
     const first = deviceTokenRotationSchema.parse((await rotate(`Bearer ${deviceToken}`)).json());
     const [installation] = await db
@@ -133,6 +133,16 @@ describe("POST /devices/current/tokens", () => {
     await keyStore(db).transaction(async (tx) => {
       await tx.recordSnapshotKey(registerId, newSnapshotKey);
       await tx.recordContingencyTicketKey(registerId, newTicketKey);
+    });
+    await db.insert(registerSnapshotGenerations).values({
+      id: "0f8fad5b-d9cb-469f-a165-70867728950e",
+      registerId,
+      deviceId,
+      createdAt: NOW,
+      size: 4096,
+      sha256: "ab".repeat(32),
+      keyVersion: 1,
+      status: "verified",
     });
 
     const second = deviceTokenRotationSchema.parse(

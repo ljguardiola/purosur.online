@@ -3,7 +3,9 @@ import {
   isPastSnapshotUploadDeadline,
   SNAPSHOT_CORRUPTION_STAGES,
   SNAPSHOT_FAILURE_REASONS,
+  SNAPSHOT_RETENTION_INTERVAL_MS,
   SNAPSHOT_UPLOAD_DEADLINE_MS,
+  SNAPSHOT_VERIFICATION_INTERVAL_MS,
 } from "./snapshot-generation.js";
 
 const CREATED_AT = new Date("2026-10-14T12:00:00.000Z");
@@ -15,6 +17,11 @@ describe("snapshot generation", () => {
 
   it("names the reasons a generation fails", () => {
     expect(SNAPSHOT_FAILURE_REASONS).toEqual(["hash_mismatch", "size_mismatch", "never_uploaded"]);
+  });
+
+  it("checks uploaded objects every minute and applies retention every 15 minutes", () => {
+    expect(SNAPSHOT_VERIFICATION_INTERVAL_MS).toBe(60 * 1000);
+    expect(SNAPSHOT_RETENTION_INTERVAL_MS).toBe(15 * 60 * 1000);
   });
 
   it("waits one hour for an object to appear", () => {
