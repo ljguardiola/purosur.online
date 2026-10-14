@@ -1,4 +1,3 @@
-import type { SaleState } from "../../sales/index.js";
 import { APPROVED_PAYMENT_STATE } from "./payment.js";
 import type { PaymentTransactionState } from "./payment-transaction.js";
 
@@ -14,7 +13,7 @@ export function paidOrderDiscoveryStart(now: Date): Date {
 
 export interface LocalStateOfPaidOrder {
   payment: PaymentTransactionState | undefined;
-  sale: SaleState | undefined;
+  sale: string | undefined;
 }
 
 export type PaidOrderClassification =

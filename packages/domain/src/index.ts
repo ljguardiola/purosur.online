@@ -240,7 +240,6 @@ export {
 } from "./fiscal/index.js";
 export type {
   LatePaymentRefund,
-  LocalStateOfPaidOrder,
   MercadoPagoChargeInProgress,
   MercadoPagoOrderTransaction,
   MercadoPagoPaymentTransaction,

@@ -28,7 +28,7 @@ export function anApprovedOrder(
   };
 }
 
-export class FakePaidOrdersOfRegister implements PaidOrdersOfRegister {
+class FakePaidOrdersOfRegister implements PaidOrdersOfRegister {
   answer: ApprovedOrdersAnswer;
   readonly askedSince: Date[] = [];
 
@@ -42,7 +42,7 @@ export class FakePaidOrdersOfRegister implements PaidOrdersOfRegister {
   }
 }
 
-export class FakeLatePaymentRefundRequests implements LatePaymentRefundRequests {
+class FakeLatePaymentRefundRequests implements LatePaymentRefundRequests {
   readonly answers = new Map<string, LatePaymentRefundRequestAnswer>();
   readonly asked: string[] = [];
   private readonly pending = new Set<string>();
@@ -65,7 +65,7 @@ export class FakeLatePaymentRefundRequests implements LatePaymentRefundRequests 
   }
 }
 
-export class FakeLocalPaidOrders implements LocalPaidOrders {
+class FakeLocalPaidOrders implements LocalPaidOrders {
   readonly payments = new Map<string, PaymentTransactionState>();
   readonly sales = new Map<string, SaleState>();
   readonly applied: string[] = [];
