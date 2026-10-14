@@ -104,6 +104,67 @@ describe("salesOfCashiers", () => {
   });
 });
 
+describe("salesOfCashiers on ties, whatever order the rows arrive in", () => {
+  const idsOf = (rows: ReturnType<typeof cashier>[]) =>
+    salesOfCashiers(rows).map((row) => row.cashierId);
+
+  it.each([
+    [
+      "named before unnamed",
+      [cashier("u1", "Zoe", 1, 1, 100), cashier("u2", null, 1, 1, 100)],
+      ["u1", "u2"],
+    ],
+    [
+      "named before unnamed, unnamed with the lower id",
+      [cashier("u1", null, 1, 1, 100), cashier("u2", "Zoe", 1, 1, 100)],
+      ["u2", "u1"],
+    ],
+    [
+      "the same name by id",
+      [cashier("B1", "Ana", 1, 1, 100), cashier("a1", "Ana", 1, 1, 100)],
+      ["B1", "a1"],
+    ],
+    [
+      "the same name by id, lower id last",
+      [cashier("a1", "Ana", 1, 1, 100), cashier("B1", "Ana", 1, 1, 100)],
+      ["B1", "a1"],
+    ],
+    [
+      "the same count by amount",
+      [cashier("u1", "Ana", 1, 1, 100), cashier("u2", "Ana", 1, 1, 200)],
+      ["u2", "u1"],
+    ],
+  ])("orders %s", (_name, rows, expected) => {
+    expect(idsOf(rows)).toEqual(expected);
+    expect(idsOf([...rows].reverse())).toEqual(expected);
+  });
+});
+
+describe("salesOfCashiers by name in every arrival order", () => {
+  const rows = [
+    cashier("u4", "B", 1, 1, 100),
+    cashier("u3", "Zoe", 1, 1, 100),
+    cashier("u2", "a", 1, 1, 100),
+    cashier("u1", "Ángel", 1, 1, 100),
+  ];
+  const arrivals = [0, 1, 2, 3].flatMap((first) =>
+    [0, 1, 2, 3]
+      .filter((second) => second !== first)
+      .map((second) => {
+        const rest = [0, 1, 2, 3].filter((index) => index !== first && index !== second);
+        return [first, second, ...rest, ...rest.slice().reverse()].slice(0, 4);
+      }),
+  );
+
+  it.each(arrivals)("orders names as code units for arrival %s,%s,%s,%s", (...indexes) => {
+    const names = salesOfCashiers(indexes.map((index) => rows[index] ?? rows[0] as never)).map(
+      (row) => row.name,
+    );
+
+    expect(names).toEqual(["B", "Zoe", "a", "Ángel"]);
+  });
+});
+
 describe("cashierSalesTotals", () => {
   it("counts the cashiers and adds their sales and amount", () => {
     const rows = salesOfCashiers([
