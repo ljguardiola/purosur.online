@@ -874,6 +874,16 @@ test.each([
     /su base de datos está dañada/,
     /Restaurar la base de datos de la caja desde su copia de respaldo/,
   ],
+  [
+    "disk_space_short_at_startup",
+    /necesita más espacio libre en el disco de la notebook del que tiene/,
+    /Liberar espacio en la notebook, borrando archivos que no sean de la caja, y reiniciar la caja/,
+  ],
+  [
+    "disk_full",
+    /La venta en curso se puede completar y cobrar/,
+    /Cobrar la venta en curso y liberar espacio en la notebook/,
+  ],
 ] as const)(
   "tells why a register can't sell in its row when the reason is %s",
   async (salesDeniedReason, meaning, whatToDo) => {
