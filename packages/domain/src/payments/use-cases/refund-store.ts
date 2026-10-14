@@ -6,6 +6,7 @@ export interface LockedRefund {
   id: string;
   state: string;
   origin: string;
+  method: string;
 }
 
 export interface PendingRefundRecord {
@@ -22,10 +23,15 @@ export interface PendingRefundRecord {
   providerOrderId: string | null;
   cancelledBy: string | null;
   cancelledByName: string | null;
+  confirmedAt: Date | null;
+  confirmedByName: string | null;
+  sentAt: Date | null;
+  lastRefusalReason: string | null;
 }
 
 export interface PendingRefund extends PendingRefundRecord {
   discardable: boolean;
+  sentByCloud: boolean;
   secondsPending: number;
 }
 

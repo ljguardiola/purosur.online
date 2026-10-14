@@ -16,6 +16,14 @@ export {
   MERCADO_PAGO_POINT_MINIMUM_ORDER_CENTS,
   MERCADO_PAGO_POINT_ORDER_EXPIRY_MINUTES,
 } from "./model/mercado-pago-point-order.js";
+export type {
+  MercadoPagoOrderRefund,
+  MercadoPagoRefundAnswer,
+} from "./model/mercado-pago-refund.js";
+export {
+  INSUFFICIENT_BALANCE_REFUSAL,
+  MERCADO_PAGO_REFUND_FOLLOW_INTERVAL_MS,
+} from "./model/mercado-pago-refund.js";
 export { nonCashCharge } from "./model/non-cash-charge.js";
 export type {
   ConfirmedByHandMethod,

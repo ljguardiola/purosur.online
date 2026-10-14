@@ -1,5 +1,4 @@
 import type { AlertKind } from "../../../alerts/index.js";
-import type { LockedRefund } from "../refund-store.js";
 import type {
   MercadoPagoRefundRecord,
   MercadoPagoRefundReference,
@@ -7,6 +6,7 @@ import type {
   MercadoPagoRefundTransaction,
   OriginCancellation,
 } from "../mercado-pago-refund-ports.js";
+import type { LockedRefund } from "../refund-store.js";
 import type { ResolvedRefundAlert } from "./fake-refund-store.js";
 
 export interface FakeMercadoPagoStoredRefund extends MercadoPagoRefundRecord {
@@ -49,7 +49,9 @@ class FakeMercadoPagoRefundTransaction implements MercadoPagoRefundTransaction {
     const refund = this.store.refunds.find(
       (stored) => stored.id === refundId && stored.locationId === locationId,
     );
-    return refund && { id: refund.id, state: refund.state, origin: refund.origin, method: refund.method };
+    return (
+      refund && { id: refund.id, state: refund.state, origin: refund.origin, method: refund.method }
+    );
   }
 
   async lockMercadoPagoRefund(
@@ -84,11 +86,7 @@ class FakeMercadoPagoRefundTransaction implements MercadoPagoRefundTransaction {
     this.refund(refundId).attemptKey = attemptKey;
   }
 
-  async recordRefundSent(
-    refundId: string,
-    providerRefundId: string,
-    sentAt: Date,
-  ): Promise<void> {
+  async recordRefundSent(refundId: string, providerRefundId: string, sentAt: Date): Promise<void> {
     this.begin("recordRefundSent");
     Object.assign(this.refund(refundId), {
       providerRefundId,

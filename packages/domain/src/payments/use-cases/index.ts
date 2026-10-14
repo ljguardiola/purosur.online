@@ -31,6 +31,11 @@ export type {
 } from "./confirm-mercado-pago-order-notification.js";
 export { confirmMercadoPagoOrderNotification } from "./confirm-mercado-pago-order-notification.js";
 export type {
+  ConfirmMercadoPagoRefundInput,
+  ConfirmMercadoPagoRefundOutcome,
+} from "./confirm-mercado-pago-refund.js";
+export { confirmMercadoPagoRefund } from "./confirm-mercado-pago-refund.js";
+export type {
   CreateMercadoPagoPointOrderInput,
   CreateMercadoPagoPointOrderOutcome,
 } from "./create-mercado-pago-point-order.js";
@@ -51,6 +56,8 @@ export type {
   FollowMercadoPagoChargeOutcome,
 } from "./follow-mercado-pago-charge.js";
 export { followMercadoPagoCharge } from "./follow-mercado-pago-charge.js";
+export type { FollowMercadoPagoRefundsOutcome } from "./follow-mercado-pago-refunds.js";
+export { followMercadoPagoRefunds } from "./follow-mercado-pago-refunds.js";
 export type {
   ListPendingRefundsInput,
   ListPendingRefundsPorts,
@@ -90,6 +97,7 @@ export type {
   MercadoPagoOrderCreation,
   MercadoPagoOrderPorts,
   MercadoPagoOrderReading,
+  MercadoPagoOrderRefundsReading,
   MercadoPagoOrders,
   MercadoPagoPointOrderCreation,
   MercadoPagoPointOrderRequest,
@@ -101,6 +109,15 @@ export type {
   RecordedOrderState,
 } from "./mercado-pago-order-ports.js";
 export { PaymentTransactionAlreadyRecorded } from "./mercado-pago-order-ports.js";
+export type {
+  MercadoPagoRefundKeys,
+  MercadoPagoRefundPorts,
+  MercadoPagoRefundRecord,
+  MercadoPagoRefundReference,
+  MercadoPagoRefundStore,
+  MercadoPagoRefundTransaction,
+  OriginCancellation,
+} from "./mercado-pago-refund-ports.js";
 export type {
   OpenOverdueRefundTaskAlertsOutcome,
   OpenOverdueRefundTaskAlertsPorts,

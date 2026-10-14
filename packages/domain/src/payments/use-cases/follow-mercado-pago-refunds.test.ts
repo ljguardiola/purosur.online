@@ -126,7 +126,7 @@ describe("followMercadoPagoRefunds", () => {
     const outcome = await followMercadoPagoRefunds(world.ports);
 
     expect(outcome).toEqual({ kind: "followed", followed: 1, done: 0, unavailable: 0 });
-    expect(world.store.refunds[0]).toMatchObject({ state: "PENDING", doneBy: undefined });
+    expect(world.store.refunds).toEqual([aSentRefund()]);
     expect(world.store.resolvedAlerts).toEqual([]);
   });
 
