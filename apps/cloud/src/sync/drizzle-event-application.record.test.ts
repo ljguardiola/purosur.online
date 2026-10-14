@@ -749,6 +749,12 @@ describe("recording the cancelled sales of applied events", () => {
       doneAt: null,
       discardedBy: null,
       discardedAt: null,
+      confirmedBy: null,
+      confirmedAt: null,
+      sentAt: null,
+      providerRefundId: null,
+      attemptKey: null,
+      lastRefusalReason: null,
     });
     expect(rows.find((row) => row.id === cashRefund.id)).toMatchObject({
       originEventId: eventId,

@@ -464,6 +464,12 @@ describe("DrizzlePaymentTransactionLanes", () => {
           doneAt: null,
           discardedBy: null,
           discardedAt: null,
+          confirmedBy: null,
+          confirmedAt: null,
+          sentAt: null,
+          providerRefundId: null,
+          attemptKey: null,
+          lastRefusalReason: null,
         },
       ]);
     });
