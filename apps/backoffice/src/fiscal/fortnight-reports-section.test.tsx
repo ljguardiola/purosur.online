@@ -157,7 +157,9 @@ test("shows the empty state when no fortnight has closed", async () => {
 test("shows a placeholder while the presentations load", async () => {
   const screen = await render(sectionFor({ status: "loading" }));
 
-  await expect.element(screen.getByText("Cargando…").first()).toBeVisible();
+  await expect
+    .element(screen.getByRole("table", { name: "Informes quincenales" }))
+    .toHaveAttribute("aria-busy", "true");
 });
 
 test("shows a load failure, and Reintentar asks again", async () => {
