@@ -8,6 +8,14 @@ import { buildHealthUrl, fetchHealth, MAX_REQUEST_TIMEOUT_MS } from "./verify-cl
 const LOG_PREFIX = "production-baseline";
 const SHA_RE = /^[0-9a-f]{40}$/;
 export const DEPLOYMENT_LIST_LIMIT = 1000;
+const NEVER_SERVED_STATUSES = new Set(["FAILED", "SKIPPED"]);
+
+function hasNeverServed(deployments) {
+  return (
+    deployments.length < DEPLOYMENT_LIST_LIMIT &&
+    deployments.every((deployment) => NEVER_SERVED_STATUSES.has(deployment?.status))
+  );
+}
 
 function reportedVersion(health) {
   const version =
@@ -30,18 +38,18 @@ export function decideBaseline({ deploymentList, health, tagsAtVersion = [], pre
       reason: `could not list production's deployments: ${deploymentList.error}`,
     };
   }
-  if (deploymentList.deployments.length === 0) {
+  if (hasNeverServed(deploymentList.deployments)) {
     return {
       refused: false,
       tag: null,
-      reason: "production has never been deployed, so no release runs there",
+      reason: "production has never served a deployment, so no release runs there",
     };
   }
   const version = reportedVersion(health);
   if (version === null) {
     return {
       refused: true,
-      reason: `production has deployments but its health ${describeHealth(health)}`,
+      reason: `production has deployments that may have served but its health ${describeHealth(health)}`,
     };
   }
   const [tag] = releaseTagsNewestFirst(tagsAtVersion, prefix);
@@ -112,12 +120,12 @@ export async function runCli({
         RAILWAY_ENVIRONMENT,
         "--json",
         "--limit",
-        "1",
+        String(DEPLOYMENT_LIST_LIMIT),
       ]),
     );
     let health;
     let tagsAtVersion = [];
-    if (deploymentList.error === null && deploymentList.deployments.length > 0) {
+    if (deploymentList.error === null && !hasNeverServed(deploymentList.deployments)) {
       health = await fetchHealth(buildHealthUrl(PRODUCTION_DOMAIN), {
         fetchImpl,
         requestTimeoutMs: MAX_REQUEST_TIMEOUT_MS,
