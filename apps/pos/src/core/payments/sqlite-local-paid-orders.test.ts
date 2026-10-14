@@ -20,14 +20,11 @@ const RESOLVED_AT = new Date("2026-10-13T12:30:00.000Z");
 
 let database: LocalDatabase;
 
-function localPaidOrders({
-  outboxChainKey = CHARGE_CHAIN_KEY as string | undefined,
-  ...rest
-} = {}) {
+function localPaidOrders(canSignEvents = true) {
   return new SqliteLocalPaidOrders({
     database,
     settlement: {
-      ledger: new SqliteSaleLedger(database, new SqliteSignInStore(database), outboxChainKey),
+      ledger: new SqliteSaleLedger(database, new SqliteSignInStore(database), canSignEvents ? CHARGE_CHAIN_KEY : undefined),
       clock: { now: () => CHARGE_NOW },
       ids: { next: () => "generated-id" },
     },

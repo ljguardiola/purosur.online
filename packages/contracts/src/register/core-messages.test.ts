@@ -663,6 +663,9 @@ describe("what a stopped register left pending", () => {
     ],
     unknown_fiscal_documents: [],
     pending_payments: [],
+    paid_orders_without_sale: [],
+    paid_order_discovery: "deferred",
+    selling_blocked: false,
   };
 
   it("accepts a request for it", () => {
