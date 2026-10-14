@@ -6,7 +6,7 @@ import {
   freightBodySchema,
   freightPeriodDaysSchema,
 } from "@purosur/contracts";
-import { parseAmountCents } from "@purosur/ui";
+import { formatAmountInput, formatNumber, parseAmountCents } from "@purosur/ui";
 import { schemaLimit } from "../platform/schema-limit";
 
 const { description: descriptionSchema, means: meansSchema } = freightBodySchema.shape;
@@ -30,6 +30,9 @@ export const EMPTY_FREIGHT_FORM: FreightFormValues = {
   description: "",
   purchaseIds: [],
 };
+
+export const FREIGHT_PURCHASE_NOT_FOUND =
+  "Alguna de las compras ya no está disponible. Elegí otras.";
 
 export const FREIGHT_FIELDS = {
   date: "date",
@@ -56,15 +59,10 @@ export function freightRequestFrom({
   };
 }
 
-function amountOf(cents: number): string {
-  const whole = Math.trunc(cents / 100);
-  return `${whole},${String(cents % 100).padStart(2, "0")}`;
-}
-
 export function freightFormValuesOf(freight: FreightSummary): FreightFormValues {
   return {
     date: parseDate(freight.date),
-    amount: amountOf(freight.amountCents),
+    amount: formatAmountInput(freight.amountCents),
     ownTrip: freight.means.kind === "own_trip",
     carrierName: freight.means.kind === "carrier" ? freight.means.name : "",
     description: freight.description,
@@ -114,7 +112,7 @@ const periods: readonly FreightPeriod[] = [...freightPeriodDaysSchema.values];
 
 const [firstPeriodOption, ...otherPeriodOptions] = periods.map((days) => ({
   value: String(days),
-  label: `Últimos ${days} días`,
+  label: `Últimos ${formatNumber(days)} días`,
 }));
 
 if (!firstPeriodOption) {

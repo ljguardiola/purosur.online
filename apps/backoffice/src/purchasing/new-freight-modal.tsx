@@ -5,12 +5,12 @@ import { Check, Truck, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import {
-  FREIGHT_PURCHASE_NOT_FOUND,
   FreightFields,
   type FreightNotice,
   FreightNotices,
   useFreightRequestForm,
 } from "./freight-fields";
+import { FREIGHT_PURCHASE_NOT_FOUND } from "./freight-form";
 import type { FreightPeriod, fetchLinkablePurchases, recordFreight } from "./freights-api";
 import { useLinkablePurchasesQuery, useRefreshPurchasing } from "./purchasing-queries";
 

@@ -6,7 +6,7 @@ import type {
   FreightPurchaseListing,
   LinkablePurchaseListing,
 } from "@purosur/domain/purchasing/use-cases";
-import { and, asc, desc, eq, exists, gte, ilike, inArray, lte, or, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, exists, gte, ilike, inArray, or, type SQL } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { containsPattern } from "../platform/contains-pattern.js";
 import {
@@ -36,7 +36,7 @@ export class DrizzleFreightListReader<TQueryResult extends PgQueryResultHKT>
     this.db = db;
   }
 
-  async freights({ locationId, from, to, search }: FreightListQuery): Promise<FreightListing[]> {
+  async freights({ locationId, from, search }: FreightListQuery): Promise<FreightListing[]> {
     const rows = await this.db
       .select()
       .from(freights)
@@ -44,7 +44,6 @@ export class DrizzleFreightListReader<TQueryResult extends PgQueryResultHKT>
         and(
           eq(freights.locationId, locationId),
           gte(freights.freightOn, from),
-          to === undefined ? undefined : lte(freights.freightOn, to),
           search === undefined ? undefined : this.matches(containsPattern(search)),
         ),
       )

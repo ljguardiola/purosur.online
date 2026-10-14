@@ -4,13 +4,12 @@ import { Check, Pencil, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import {
-  FREIGHT_PURCHASE_NOT_FOUND,
   FreightFields,
   type FreightNotice,
   FreightNotices,
   useFreightRequestForm,
 } from "./freight-fields";
-import { freightFormValuesOf } from "./freight-form";
+import { FREIGHT_PURCHASE_NOT_FOUND, freightFormValuesOf } from "./freight-form";
 import type { editFreight, FreightPeriod, fetchLinkablePurchases } from "./freights-api";
 import { useLinkablePurchasesQuery, useRefreshPurchasing } from "./purchasing-queries";
 

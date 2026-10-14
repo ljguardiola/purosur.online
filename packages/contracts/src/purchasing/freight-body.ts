@@ -34,8 +34,7 @@ export const freightBodySchema = z.object({
   }),
   purchaseIds: z
     .array(recordIdSchema("purchaseIds must hold purchases' ids"), { error: PURCHASES_MESSAGE })
-    .min(MIN_FREIGHT_PURCHASES, PURCHASES_MESSAGE)
-    .refine((ids) => new Set(ids).size === ids.length, "purchaseIds must not repeat a purchase"),
+    .min(MIN_FREIGHT_PURCHASES, PURCHASES_MESSAGE),
 });
 
 export type FreightBody = z.input<typeof freightBodySchema>;

@@ -20,7 +20,6 @@ export interface FreightListing {
 export interface FreightListQuery {
   locationId: string;
   from: string;
-  to?: string;
   search?: string;
 }
 

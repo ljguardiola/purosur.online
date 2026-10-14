@@ -32,9 +32,6 @@ import {
 } from "./freight-form";
 import { receiptLabel } from "./receipt-label";
 
-export const FREIGHT_PURCHASE_NOT_FOUND =
-  "Alguna de las compras ya no está disponible. Elegí otras.";
-
 export type FreightNotice =
   | { kind: "attemptFailed" }
   | { kind: "rateLimited"; retryAfterSeconds: number }
@@ -198,11 +195,7 @@ export function FreightFields({
         </div>
       </div>
       <form.AppField name="ownTrip">
-        {(field) => (
-          <Checkbox name="ownTrip" checked={field.state.value} onCheckedChange={field.handleChange}>
-            Viaje propio (costo estimado)
-          </Checkbox>
-        )}
+        {(field) => <field.Checkbox>Viaje propio (costo estimado)</field.Checkbox>}
       </form.AppField>
       <form.AppField name="description">
         {(field) => <field.TextField kind="plain-text" label="Descripción" required />}
