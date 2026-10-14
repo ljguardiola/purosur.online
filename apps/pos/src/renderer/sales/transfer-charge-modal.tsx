@@ -151,7 +151,7 @@ export function TransferChargeModal({
               kind="amount"
               prefix="$"
               label="Importe a cobrar con este medio"
-              inputMode="numeric"
+              inputMode="decimal"
               value={field.state.value}
               onChange={field.handleChange}
               disabled={submitting}

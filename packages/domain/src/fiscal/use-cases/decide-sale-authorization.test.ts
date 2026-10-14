@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { FiscalOnlineSignalEvidence } from "../model/fiscal-online-signal.js";
 import type { FacturaC, PreEmissionGateOutcome } from "../model/pre-emission-gate.js";
-import type { RealTimeSeries } from "../model/real-time-authorization.js";
+import type { OfflineSeries, RealTimeSeries } from "../model/real-time-authorization.js";
 import {
   FICTIONAL_CUIT,
   FICTIONAL_GROSS_INCOME_REGISTRATION,
@@ -9,6 +9,7 @@ import {
 } from "../test-support/fictional-tax-identities.js";
 import { decideSaleAuthorization } from "./decide-sale-authorization.js";
 import {
+  type FakeSaleAuthorizationState,
   FakeSaleAuthorizationTransaction,
   SequentialIds,
 } from "./test-support/fake-sale-authorization.js";
@@ -46,35 +47,50 @@ const SERIES: RealTimeSeries = {
   pointOfSale: 12,
   localLastAuthorized: 40,
   taxAuthorityLastAuthorized: 38,
-  documentWaiting: false,
+  documentRequesting: false,
+  documentUnknown: false,
 };
+const OFFLINE_SERIES: OfflineSeries = {
+  pointOfSale: 7,
+  blocksInAssignmentOrder: [{ firstNumber: 101, lastNumber: 1100 }],
+  localLastUsed: 120,
+  taxAuthorityLastAuthorized: 100,
+};
+const FIRST_HALF = { start: "2026-10-01", end: "2026-10-15" };
+const SECOND_HALF = { start: "2026-10-16", end: "2026-10-31" };
+const FIRST_HALF_CODE = "71234567890123";
+const SECOND_HALF_CODE = "71234567899999";
+const ORIGIN = { registerId: "register-1", actorId: "cashier" };
 const PASSED: PreEmissionGateOutcome = { kind: "passed", document: DOCUMENT };
 
-interface Changes {
+interface Changes extends Partial<FakeSaleAuthorizationState> {
   gate?: PreEmissionGateOutcome;
-  online?: FiscalOnlineSignalEvidence;
-  series?: Partial<RealTimeSeries>;
-  takenShortCodes?: string[];
+  occurredAt?: Date;
+  decidedAt?: Date;
 }
 
 function decide({
   gate = PASSED,
-  online = ONLINE,
-  series = {},
-  takenShortCodes = [],
+  occurredAt = OCCURRED_AT,
+  decidedAt = DECIDED_AT,
+  ...state
 }: Changes = {}) {
-  const tx = new FakeSaleAuthorizationTransaction(
-    online,
-    { ...SERIES, ...series },
-    takenShortCodes,
-  );
+  const tx = new FakeSaleAuthorizationTransaction({
+    online: ONLINE,
+    series: SERIES,
+    offlineSeries: OFFLINE_SERIES,
+    heldCodes: [{ fortnight: FIRST_HALF, code: FIRST_HALF_CODE }],
+    origin: ORIGIN,
+    takenShortCodes: [],
+    ...state,
+  });
   const ids = new SequentialIds();
   const shortCodes = new ScriptedShortCodes(SHORT_CODES);
   const outcome = decideSaleAuthorization(tx, ids, shortCodes, {
     saleId: SALE_ID,
     gate,
-    decidedAt: DECIDED_AT,
-    occurredAt: OCCURRED_AT,
+    decidedAt,
+    occurredAt,
     total: SALE_TOTAL,
   });
   return { tx, ids, outcome };
@@ -98,6 +114,8 @@ describe("decideSaleAuthorization", () => {
     ]);
     expect(tx.routings).toEqual([]);
     expect(tx.routingAttempts).toEqual([]);
+    expect(tx.offlineDocuments).toEqual([]);
+    expect(tx.outbox).toEqual([]);
     expect(ids.issued).toBe(1);
   });
 
@@ -108,23 +126,35 @@ describe("decideSaleAuthorization", () => {
       "pre_emission_gate_failed",
     ],
     [
-      "the register is not fiscally online",
-      { online: { ...ONLINE, arcaReachable: false } },
+      "the register has no point of sale",
+      { series: { ...SERIES, pointOfSale: null } },
+      "point_of_sale_missing",
+    ],
+    [
+      "a document is waiting for its answer",
+      { series: { ...SERIES, documentRequesting: true } },
+      "document_waiting",
+    ],
+    [
+      "the tax authority's count is unknown",
+      { series: { ...SERIES, taxAuthorityLastAuthorized: null } },
+      "tax_authority_count_unknown",
+    ],
+    [
+      "the register is offline and holds no code for the sale's date",
+      { online: { ...ONLINE, arcaReachable: false }, heldCodes: [] },
       "fiscally_offline",
     ],
     [
-      "the register has no point of sale",
-      { series: { pointOfSale: null } },
-      "point_of_sale_missing",
-    ],
-    ["a document is waiting", { series: { documentWaiting: true } }, "document_waiting"],
-    [
-      "the tax authority's count is unknown",
-      { series: { taxAuthorityLastAuthorized: null } },
-      "tax_authority_count_unknown",
+      "the real-time series is suspended and the offline block is exhausted",
+      {
+        series: { ...SERIES, documentUnknown: true },
+        offlineSeries: { ...OFFLINE_SERIES, localLastUsed: 1100 },
+      },
+      "document_waiting",
     ],
   ] satisfies [string, Changes, string][])(
-    "routes the sale to the deferred flow, reserving nothing, when %s",
+    "routes the sale to the deferred flow, numbering nothing, when %s",
     (_case, changes, reason) => {
       const { tx, ids, outcome } = decide(changes);
 
@@ -141,13 +171,130 @@ describe("decideSaleAuthorization", () => {
         },
       ]);
       expect(tx.reservations).toEqual([]);
+      expect(tx.offlineDocuments).toEqual([]);
+      expect(tx.outbox).toEqual([]);
       expect(ids.issued).toBe(1);
     },
   );
 
+  describe("issuing under the pre-obtained code", () => {
+    const OFFLINE = { online: { ...ONLINE, arcaReachable: false } };
+
+    it("issues the next number of the offline block, recording that the register was not online", () => {
+      const { tx, outcome } = decide(OFFLINE);
+
+      expect(outcome).toEqual({
+        kind: "issued_offline",
+        fiscalDocumentId: "id-1",
+        cause: "no_connectivity",
+      });
+      expect(tx.offlineDocuments).toEqual([
+        {
+          id: "id-1",
+          saleId: SALE_ID,
+          pointOfSale: 7,
+          documentType: "factura_c",
+          number: 121,
+          issuedOn: "2026-10-01",
+          generatedAt: DECIDED_AT,
+          generationStamp: "20261001233000",
+          offlineAuthorizationCode: FIRST_HALF_CODE,
+          fortnight: FIRST_HALF,
+          document: DOCUMENT,
+          buyerDocumentType: 99,
+          buyerDocumentNumber: 0,
+          cause: "no_connectivity",
+        },
+      ]);
+      expect(tx.reservations).toEqual([]);
+      expect(tx.routings).toEqual([]);
+    });
+
+    it("issues under the code while connectivity, token and tax authority work, when the series is suspended by an unclear outcome", () => {
+      const { tx, outcome } = decide({ series: { ...SERIES, documentUnknown: true } });
+
+      expect(outcome).toEqual({
+        kind: "issued_offline",
+        fiscalDocumentId: "id-1",
+        cause: "unclear_outcome",
+      });
+      expect(tx.offlineDocuments).toMatchObject([{ cause: "unclear_outcome", number: 121 }]);
+    });
+
+    it("sends the document to the cloud in the same transaction, with its cause and generation stamp", () => {
+      const { tx, ids } = decide(OFFLINE);
+
+      expect(tx.outbox).toEqual([
+        {
+          event_id: "id-2",
+          aggregate_type: "Sale",
+          aggregate_id: SALE_ID,
+          event_type: "offline_fiscal_document_issued",
+          schema_version: 1,
+          payload: expect.objectContaining({
+            fiscal_document_id: "id-1",
+            register_id: "register-1",
+            number: 121,
+            generation_stamp: "20261001233000",
+            offline_authorization_code: FIRST_HALF_CODE,
+            cause: "no_connectivity",
+          }),
+          occurred_at: DECIDED_AT.toISOString(),
+          actor_id: "cashier",
+        },
+      ]);
+      expect(ids.issued).toBe(2);
+    });
+
+    it("uses the code of the fortnight containing the sale's own date even when decided in the next one", () => {
+      const { tx, outcome } = decide({
+        ...OFFLINE,
+        occurredAt: new Date("2026-10-16T02:59:59.000Z"),
+        decidedAt: new Date("2026-10-16T03:00:01.000Z"),
+        online: { ...ONLINE, lastHealthCheckOkAt: null },
+        heldCodes: [
+          { fortnight: SECOND_HALF, code: SECOND_HALF_CODE },
+          { fortnight: FIRST_HALF, code: FIRST_HALF_CODE },
+        ],
+      });
+
+      expect(outcome).toMatchObject({ kind: "issued_offline" });
+      expect(tx.offlineDocuments).toMatchObject([
+        {
+          issuedOn: "2026-10-15",
+          offlineAuthorizationCode: FIRST_HALF_CODE,
+          fortnight: FIRST_HALF,
+          generationStamp: "20261016000001",
+        },
+      ]);
+      expect(tx.codeLookups).toEqual([FIRST_HALF]);
+    });
+
+    it("reads the code of the sale's fortnight in the transaction instead of relying on a current one", () => {
+      const { tx } = decide({
+        ...OFFLINE,
+        heldCodes: [{ fortnight: SECOND_HALF, code: SECOND_HALF_CODE }],
+      });
+
+      expect(tx.codeLookups).toEqual([FIRST_HALF]);
+      expect(tx.offlineDocuments).toEqual([]);
+    });
+
+    it("never issues under the code for a sale whose gate failed", () => {
+      const { tx, outcome } = decide({
+        ...OFFLINE,
+        gate: { kind: "failed", reason: "legal_name_missing" },
+      });
+
+      expect(outcome).toEqual({ kind: "deferred", reason: "pre_emission_gate_failed" });
+      expect(tx.offlineDocuments).toEqual([]);
+      expect(tx.outbox).toEqual([]);
+    });
+  });
+
   it("draws another short code for the record when the first is already taken", () => {
     const { tx, outcome } = decide({
-      series: { pointOfSale: null },
+      series: { ...SERIES, pointOfSale: null },
       takenShortCodes: ["7KQ4M2P9"],
     });
 

@@ -86,6 +86,12 @@ test("labels the quantity input with the field's own visible label", async () =>
   await expect.element(screen.getByRole("textbox", { name: "Contenido neto" })).toBeVisible();
 });
 
+test("asks for a keyboard with the decimal comma for the quantity", async () => {
+  const screen = await render(<QuantityUnitField {...baseProps()} />);
+
+  expect(quantityInput(screen).inputMode).toBe("decimal");
+});
+
 test("names the unit picker by both its chosen option and the caller's own unitLabel", async () => {
   const screen = await render(<QuantityUnitField {...baseProps({ unit: "kg" })} />);
 

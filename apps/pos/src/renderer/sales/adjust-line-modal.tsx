@@ -294,7 +294,7 @@ export function AdjustLineModal({
                   label={valueLabel(kind)}
                   labelVisuallyHidden
                   {...(kind === "PRICE" ? {} : { description: REPLACES_PROMOTION_HINT })}
-                  inputMode="numeric"
+                  inputMode={kind === "PERCENT" ? "numeric" : "decimal"}
                   value={field.state.value}
                   onChange={field.handleChange}
                   disabled={submitting}

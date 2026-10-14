@@ -38,6 +38,7 @@ import {
   lotAllocations,
   lots,
   offlineAuthorizationCodeAcquisitionReports,
+  offlineFiscalDocuments,
   offlineNumberBlocks,
   offsiteDumpChecks,
   passkeyChallenges,
@@ -623,6 +624,27 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
       saleEvent: { event_type: "sale_completed" },
       receivedAt: new Date("2026-01-05T12:00:00.000Z"),
       notAfter: new Date("2026-01-05T12:00:04.000Z"),
+    });
+    await db.insert(offlineFiscalDocuments).values({
+      id: "00000000-0000-4000-8000-000000000103",
+      saleId: "00000000-0000-4000-8000-000000000104",
+      registerId: register.id,
+      pointOfSale: 7,
+      documentType: "factura_c",
+      number: 43,
+      issuedOn: "2026-01-05",
+      generatedAt: new Date("2026-01-05T12:00:00.000Z"),
+      generationStamp: "20260105090000",
+      offlineAuthorizationCode: "21403471111111",
+      fortnightStart: "2026-01-01",
+      fortnightEnd: "2026-01-15",
+      buyerDocumentType: 99,
+      buyerDocumentNumber: 0,
+      buyerTaxStatusCode: 5,
+      total: 10_000,
+      netAmount: 10_000,
+      cause: "no_connectivity",
+      recordedAt: new Date("2026-01-05T12:00:00.000Z"),
     });
     await db.transaction(async (tx) => {
       const [code] = await tx
