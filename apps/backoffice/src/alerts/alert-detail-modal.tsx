@@ -162,7 +162,10 @@ function alertIcon(kind: string): Icon {
     case "offline_authorization_code_missing":
       return <CloudDownload />;
     case "lots_expiring":
+    case "fortnight_report_pending":
       return <CalendarClock />;
+    case "fortnight_report_overdue":
+      return <TriangleAlert />;
     default:
       return <Bell />;
   }
@@ -284,6 +287,59 @@ function lotsExpiringDescription({
   return `${summary}.`;
 }
 
+function fortnightReportSubject({
+  pointOfSaleNumber,
+  fortnightStart,
+  fortnightEnd,
+}: {
+  pointOfSaleNumber: number;
+  fortnightStart: string;
+  fortnightEnd: string;
+}): string {
+  return `el informe de la quincena ${formatCalendarDayRange(fortnightStart, fortnightEnd)} del punto de venta ${formatPointOfSaleNumber(pointOfSaleNumber)}`;
+}
+
+function fortnightReportDeadlineText(deadline: string, daysLeft: number): string {
+  if (daysLeft === 0) {
+    return `Vence hoy, ${formatCalendarDay(deadline)}.`;
+  }
+  const left = plural(daysLeft, {
+    one: "Queda 1 día.",
+    other: `Quedan ${formatNumber(daysLeft)} días.`,
+  });
+  return `Vence el ${formatCalendarDay(deadline)}. ${left}`;
+}
+
+function fortnightReportWaitingText({
+  reason,
+  registerName,
+}: Extract<AlertDetail, { kind: "fortnight_report_pending" }>["detail"]): string {
+  switch (reason) {
+    case "blocked":
+      return `Se puede presentar cuando la caja${registerName === undefined ? "" : ` «${registerName}»`} termine de sincronizar.`;
+    case "refused":
+      return "ARCA rechazó la presentación. La nube la vuelve a intentar sola; si sigue rechazándola, conviene revisar el punto de venta en ARCA.";
+    case "pending":
+      return "La nube lo presentará sola en cuanto pueda.";
+  }
+}
+
+function fortnightReportParagraphs(
+  alert: Extract<AlertDetail, { kind: "fortnight_report_pending" | "fortnight_report_overdue" }>,
+): string[] {
+  if (alert.kind === "fortnight_report_overdue") {
+    return [
+      `Venció el ${formatCalendarDay(alert.detail.deadline)} el plazo para presentar a ARCA ${fortnightReportSubject(alert.detail)}.`,
+      "Se sigue intentando presentarlo y se registra lo que responda ARCA. Después de regularizar la situación con ARCA, hay que cerrar esta alerta a mano.",
+    ];
+  }
+  return [
+    `Falta presentar a ARCA ${fortnightReportSubject(alert.detail)}.`,
+    fortnightReportDeadlineText(alert.detail.deadline, alert.detail.daysLeft),
+    fortnightReportWaitingText(alert.detail),
+  ];
+}
+
 function fiscalUnknownDescription({
   pointOfSale,
   number,
@@ -336,6 +392,8 @@ function alertTitle(alert: AlertDetail): string {
     case "refund_task":
       return "Reembolso pendiente de confirmar";
     case "lots_expiring":
+    case "fortnight_report_pending":
+    case "fortnight_report_overdue":
       return alertKindLabel(alert.kind);
   }
 }
@@ -410,6 +468,8 @@ function alertDescription(alert: AlertDetail, catalog: PermissionCatalogWire = [
     case "fiscal_emission_stopped":
     case "late_payment_refund":
     case "refund_task":
+    case "fortnight_report_pending":
+    case "fortnight_report_overdue":
       return "";
   }
 }
@@ -461,6 +521,17 @@ function AlertDescription({ alert }: { alert: AlertDetail }) {
             <li key={code}>{`${code}: ${message}`}</li>
           ))}
         </ul>
+      </>
+    );
+  }
+  if (alert.kind === "fortnight_report_pending" || alert.kind === "fortnight_report_overdue") {
+    return (
+      <>
+        {fortnightReportParagraphs(alert).map((paragraph) => (
+          <p key={paragraph} className="text-text text-body">
+            {paragraph}
+          </p>
+        ))}
       </>
     );
   }
