@@ -3,6 +3,7 @@ import {
   type AlertKind,
   ARGENTINA_TIME_ZONE,
   FACTURA_C_DOCUMENT_TYPE,
+  FORTNIGHT_REPORT_PENDING_REASONS,
   PRE_EMISSION_GATE_FAILURE_REASONS,
   REJECTION_CLASSES,
   SALES_DENIED_REASONS,
@@ -183,6 +184,20 @@ const lotsExpiringDetailSchema = z.object({
   aboutViewerBranch: z.boolean(),
 });
 
+const fortnightReportOverdueDetailSchema = z.object({
+  pointOfSaleNumber: z.int(),
+  registerId: z.string(),
+  registerName: z.string().optional(),
+  fortnightStart: z.string(),
+  fortnightEnd: z.string(),
+  deadline: z.string(),
+});
+
+const fortnightReportPendingDetailSchema = fortnightReportOverdueDetailSchema.extend({
+  daysLeft: z.int(),
+  reason: z.enum(FORTNIGHT_REPORT_PENDING_REASONS),
+});
+
 const ALERT_INSTANT = { timeZone: ARGENTINA_TIME_ZONE };
 
 const alertBase = {
@@ -305,6 +320,16 @@ const alertDetailKinds = [
     ...alertBase,
     kind: z.literal("lots_expiring" satisfies AlertKind),
     detail: lotsExpiringDetailSchema,
+  }),
+  z.object({
+    ...alertBase,
+    kind: z.literal("fortnight_report_pending" satisfies AlertKind),
+    detail: fortnightReportPendingDetailSchema,
+  }),
+  z.object({
+    ...alertBase,
+    kind: z.literal("fortnight_report_overdue" satisfies AlertKind),
+    detail: fortnightReportOverdueDetailSchema,
   }),
 ] as const;
 
