@@ -48,7 +48,7 @@ async function renderModal(
 
 describe("PointChargeModal", () => {
   it("asks how much is charged on the terminal and shows what is owed", async () => {
-    const { screen } = await renderModal(undefined, {
+    const { screen, field } = await renderModal(undefined, {
       total: TOTAL,
       paid: 1_000_000,
       pending: 4_070_000,
