@@ -46,6 +46,7 @@ export {
   fiscalUnknownAlertKey,
   isAlertKind,
   isAlertLevel,
+  isAlertOfViewerBranch,
   isDueForEscalation,
   isOpenAlert,
   offlineAuthorizationCodeAcquisitionLevel,
