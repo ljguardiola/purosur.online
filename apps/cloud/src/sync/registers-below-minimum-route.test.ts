@@ -36,7 +36,7 @@ function startApp(releaseCheckToken: string | undefined) {
   registerRegistersBelowMinimumRoute(app, { db, releaseCheckToken });
 }
 
-function ask(minimum: string | undefined, authorization: string | undefined = `Bearer ${TOKEN}`) {
+function ask(minimum: string | undefined, authorization: string | null = `Bearer ${TOKEN}`) {
   return app.inject({
     method: "GET",
     url: "/sync/registers-below-minimum",
