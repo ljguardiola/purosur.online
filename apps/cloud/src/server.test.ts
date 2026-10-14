@@ -727,6 +727,7 @@ describe("startServer", () => {
       RECOVERY_EMAIL_REPLY_TO: "purosur.comarca@gmail.com",
       BACKOFFICE_ORIGIN: "https://staging.purosur.online",
       EDGE_ORIGIN_SECRET: "edge-secret",
+      RELEASE_CHECK_TOKEN: "release-check-token",
       ARCA_CERTIFICATE: VALID_ARCA_CERTIFICATE,
       ARCA_ENVIRONMENT: "homologation",
       DEVICE_TOKEN_ROTATION_KEY: ROTATION_KEY,
@@ -829,6 +830,10 @@ describe("startServer", () => {
       quarantinedEvents: {
         db: fakeRecovery.db,
         backofficeOrigin: fakeRecovery.backofficeOrigin,
+      },
+      registersBelowMinimum: {
+        db: fakeRecovery.db,
+        releaseCheckToken: "release-check-token",
       },
       prices: {
         db: fakeRecovery.db,
