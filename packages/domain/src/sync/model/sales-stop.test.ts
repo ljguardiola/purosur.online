@@ -4,6 +4,7 @@ import {
   isSalesStopReason,
   SALES_DENIED_FOR_DAMAGED_LOCAL_DATABASE,
   SALES_STOP_REASONS,
+  salesDenialOf,
   salesDeniedReportOf,
 } from "./sales-stop.js";
 
@@ -45,38 +46,51 @@ describe("salesDeniedReportOf", () => {
 });
 
 describe("salesDeniedReportOf with a storage stop", () => {
-  it("reports a register short of disk space at startup as unable to sell, and why", () => {
-    expect(salesDeniedReportOf({ stopped: false }, "short_at_startup")).toEqual({
-      sales_denied: true,
-      sales_denied_reason: "disk_space_short_at_startup",
-    });
-  });
-
-  it("reports a register whose disk is full as unable to sell, and why", () => {
-    expect(salesDeniedReportOf({ stopped: false }, "disk_full")).toEqual({
+  it("reports a register stopped by its storage as unable to sell, and why", () => {
+    expect(salesDeniedReportOf({ stopped: false }, { reason: "disk_full" })).toEqual({
       sales_denied: true,
       sales_denied_reason: "disk_full",
     });
   });
 
-  it("reports that a register with no storage stop can sell", () => {
-    expect(salesDeniedReportOf({ stopped: false }, undefined)).toEqual({ sales_denied: false });
-  });
-
-  it("keeps the reason of a persisted stop over a storage stop", () => {
-    expect(
-      salesDeniedReportOf({ stopped: true, reason: "event_history_broken" }, "disk_full"),
-    ).toEqual({ sales_denied: true, sales_denied_reason: "event_history_broken" });
-  });
-
   it("reports nothing of a revoked installation, whatever the storage stop", () => {
     expect(
-      salesDeniedReportOf({ stopped: true, reason: "installation_revoked" }, "short_at_startup"),
+      salesDeniedReportOf(
+        { stopped: true, reason: "installation_revoked" },
+        { reason: "disk_full" },
+      ),
     ).toEqual({});
   });
+});
 
-  it("reports nothing of a stop with no recorded reason, whatever the storage stop", () => {
-    expect(salesDeniedReportOf({ stopped: true, reason: undefined }, "disk_full")).toEqual({});
+describe("salesDenialOf", () => {
+  const SHORT_AT_STARTUP = {
+    reason: "disk_space_short_at_startup",
+    required_free_bytes: 5_000_000_000,
+  } as const;
+
+  it("denies nothing to a register still opening new sales with no storage stop", () => {
+    expect(salesDenialOf({ stopped: false }, undefined)).toBeUndefined();
+  });
+
+  it("denies sales for the storage stop of a register with no persisted stop, with what it needs", () => {
+    expect(salesDenialOf({ stopped: false }, SHORT_AT_STARTUP)).toEqual(SHORT_AT_STARTUP);
+  });
+
+  it("names a broken event history over a storage stop", () => {
+    expect(
+      salesDenialOf({ stopped: true, reason: "event_history_broken" }, SHORT_AT_STARTUP),
+    ).toEqual({ reason: "event_history_broken" });
+  });
+
+  it("denies nothing it can name to a revoked installation, whatever the storage stop", () => {
+    expect(
+      salesDenialOf({ stopped: true, reason: "installation_revoked" }, SHORT_AT_STARTUP),
+    ).toBeUndefined();
+  });
+
+  it("denies nothing it can name to a stop with no recorded reason, whatever the storage stop", () => {
+    expect(salesDenialOf({ stopped: true, reason: undefined }, SHORT_AT_STARTUP)).toBeUndefined();
   });
 });
 

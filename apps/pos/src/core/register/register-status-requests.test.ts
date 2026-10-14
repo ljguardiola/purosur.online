@@ -403,29 +403,7 @@ describe("whether the register offers the serial devices setup", () => {
 });
 
 describe("the register's storage conditions on its status", () => {
-  it("holds no storage condition while the disk and the log are fine", async () => {
-    expect((await status()).conditions).toEqual([]);
-  });
-
-  it("holds a low disk as a warning", async () => {
-    const { conditions } = await status("unknown", NO_DEVICES, {
-      ...ROOMY_STORAGE,
-      diskStanding: "low",
-    });
-
-    expect(conditions).toEqual([{ kind: "disk_space_low", level: "warning" }]);
-  });
-
-  it("holds an oversized log as a warning", async () => {
-    const { conditions } = await status("unknown", NO_DEVICES, {
-      ...ROOMY_STORAGE,
-      walOversized: true,
-    });
-
-    expect(conditions).toEqual([{ kind: "wal_oversized", level: "warning" }]);
-  });
-
-  it("holds a full disk as the reason sales are denied, with the free space left", async () => {
+  it("holds the conditions of the storage standing the watch reads", async () => {
     const { conditions } = await status("unknown", NO_DEVICES, {
       ...ROOMY_STORAGE,
       diskStanding: "full",
@@ -434,22 +412,6 @@ describe("the register's storage conditions on its status", () => {
 
     expect(conditions).toEqual([
       { kind: "sales_denied", reason: "disk_full", disk_free_ratio: 0.03, level: "critical" },
-    ]);
-  });
-
-  it("holds a disk that was short of space at startup as the reason sales are denied, with the space required", async () => {
-    const { conditions } = await status("unknown", NO_DEVICES, {
-      ...ROOMY_STORAGE,
-      startupShortOf: { requiredFreeBytes: 3_000_000_000 },
-    });
-
-    expect(conditions).toEqual([
-      {
-        kind: "sales_denied",
-        reason: "disk_space_short_at_startup",
-        required_free_bytes: 3_000_000_000,
-        level: "critical",
-      },
     ]);
   });
 });

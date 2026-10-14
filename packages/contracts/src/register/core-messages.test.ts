@@ -1306,6 +1306,7 @@ describe("register status messages", () => {
       [{ kind: "sales_denied", reason: "disk_full", disk_free_ratio: 0.03, level: "critical" }],
       "unreachable",
     ],
+    [[{ kind: "sales_denied", reason: "disk_full", level: "critical" }], "unreachable"],
   ])("accepts the status with conditions %j and the cloud %s", (conditions, cloud) => {
     const message = {
       type: "register-status",
@@ -1348,15 +1349,6 @@ describe("register status messages", () => {
       "a sales denial with a reason it does not know",
       {
         conditions: [{ kind: "sales_denied", reason: "installation_revoked", level: "critical" }],
-        cloud: "reachable",
-        serial_devices: STANDINGS,
-        serial_devices_setup_offered: false,
-      },
-    ],
-    [
-      "a full disk without its free ratio",
-      {
-        conditions: [{ kind: "sales_denied", reason: "disk_full", level: "critical" }],
         cloud: "reachable",
         serial_devices: STANDINGS,
         serial_devices_setup_offered: false,

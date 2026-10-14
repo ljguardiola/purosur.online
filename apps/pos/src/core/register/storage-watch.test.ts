@@ -1,7 +1,7 @@
 import Database from "better-sqlite3";
 import { describe, expect, it, vi } from "vitest";
 import type { StorageReading } from "../sync/storage-telemetry";
-import { createStorageWatch } from "./storage-watch";
+import { createStorageWatch, type StorageWatch } from "./storage-watch";
 
 const INTERVAL_MS = 60_000;
 const MEGABYTE = 1024 * 1024;
@@ -16,12 +16,15 @@ const PLENTY: StorageReading = {
 const LOW: StorageReading = { ...PLENTY, disk_free_bytes: GIGABYTE * 1.5, disk_free_ratio: 0.08 };
 const FULL: StorageReading = { ...PLENTY, disk_free_bytes: GIGABYTE * 0.5, disk_free_ratio: 0.03 };
 const OVERSIZED_WAL: StorageReading = { ...PLENTY, wal_size_bytes: 300 * MEGABYTE };
+const SHORT_FOR_STARTUP: StorageReading = { ...PLENTY, disk_free_bytes: 2 * GIGABYTE };
+const DISK_FULL_ERROR = new Database.SqliteError("database or disk is full", "SQLITE_FULL");
 
-function setup(options: { first?: StorageReading | Error; startupShortOf?: number } = {}) {
+function setup(options: { first?: StorageReading | Error } = {}) {
   const world = { reading: options.first ?? PLENTY };
   const pending: { run: () => Promise<void>; delayMs: number; cancelled: boolean }[] = [];
   const onChange = vi.fn();
   const onFailure = vi.fn();
+  const onStartupFailure = vi.fn();
   const watch = createStorageWatch({
     read: async () => {
       if (world.reading instanceof Error) {
@@ -37,10 +40,9 @@ function setup(options: { first?: StorageReading | Error; startupShortOf?: numbe
         entry.cancelled = true;
       };
     },
-    startupShortOf:
-      options.startupShortOf === undefined ? null : { requiredFreeBytes: options.startupShortOf },
     onChange,
     onFailure,
+    onStartupFailure,
   });
   const nextRead = () => pending.filter((entry) => !entry.cancelled).at(-1);
   async function advance(reading?: StorageReading | Error): Promise<void> {
@@ -54,7 +56,7 @@ function setup(options: { first?: StorageReading | Error; startupShortOf?: numbe
     entry.cancelled = true;
     await entry.run();
   }
-  return { watch, onChange, onFailure, nextRead, advance };
+  return { watch, onChange, onFailure, onStartupFailure, nextRead, advance };
 }
 
 describe("watching the register's storage", () => {
@@ -64,7 +66,7 @@ describe("watching the register's storage", () => {
     expect(watch.standing()).toEqual({
       startupShortOf: null,
       diskStanding: "enough",
-      diskFreeRatio: 1,
+      diskFreeRatio: undefined,
       walOversized: false,
     });
     expect(watch.stop()).toBeUndefined();
@@ -100,7 +102,7 @@ describe("watching the register's storage", () => {
 
     await watch.start();
 
-    expect(watch.stop()).toBe("disk_full");
+    expect(watch.stop()).toEqual({ reason: "disk_full", disk_free_ratio: 0.03 });
   });
 
   it("does not stop new sales while the disk is only low", async () => {
@@ -111,21 +113,46 @@ describe("watching the register's storage", () => {
     expect(watch.stop()).toBeUndefined();
   });
 
-  it("stops new sales for the whole session when the disk was short of space at startup", async () => {
-    const { watch } = setup({ startupShortOf: 3 * GIGABYTE });
+  it("stops new sales for the whole session when the check at startup finds the disk short of space", async () => {
+    const { watch, advance } = setup({ first: SHORT_FOR_STARTUP });
+    const required = 8 * PLENTY.database_size_bytes + 2 * GIGABYTE;
 
+    await watch.checkAtStartup();
     await watch.start();
+    await advance(PLENTY);
 
-    expect(watch.stop()).toBe("short_at_startup");
-    expect(watch.standing().startupShortOf).toEqual({ requiredFreeBytes: 3 * GIGABYTE });
+    expect(watch.stop()).toEqual({
+      reason: "disk_space_short_at_startup",
+      required_free_bytes: required,
+    });
+    expect(watch.standing().startupShortOf).toEqual({ requiredFreeBytes: required });
   });
 
-  it("names the startup shortage over a full disk", async () => {
-    const { watch } = setup({ first: FULL, startupShortOf: 3 * GIGABYTE });
+  it("reports a failed check at startup through its own reporter and holds no shortage", async () => {
+    const failure = new Error("the volume is gone");
+    const { watch, onStartupFailure, onFailure } = setup({ first: failure });
 
-    await watch.start();
+    await watch.checkAtStartup();
 
-    expect(watch.stop()).toBe("short_at_startup");
+    expect(onStartupFailure).toHaveBeenCalledWith(failure);
+    expect(onFailure).not.toHaveBeenCalled();
+    expect(watch.standing().startupShortOf).toBeNull();
+  });
+
+  it("takes a full disk its own check at startup reports back to it", async () => {
+    const watch: StorageWatch = createStorageWatch({
+      read: async () => {
+        throw DISK_FULL_ERROR;
+      },
+      intervalMs: INTERVAL_MS,
+      scheduleNext: () => () => {},
+      onChange: vi.fn(),
+      onStartupFailure: (error) => watch.noteFailure(error),
+    });
+
+    await watch.checkAtStartup();
+
+    expect(watch.standing().diskStanding).toBe("full");
   });
 
   it("tells nobody about the first read when nothing is wrong", async () => {
@@ -165,15 +192,13 @@ describe("watching the register's storage", () => {
   });
 
   describe("when a write fails because the disk is full", () => {
-    const DISK_FULL_ERROR = new Database.SqliteError("database or disk is full", "SQLITE_FULL");
-
     it("stops new sales and tells right away, before any read finds the disk full", async () => {
       const { watch, onChange } = setup();
       await watch.start();
 
       watch.noteFailure(DISK_FULL_ERROR);
 
-      expect(watch.stop()).toBe("disk_full");
+      expect(watch.stop()?.reason).toBe("disk_full");
       expect(watch.standing().diskStanding).toBe("full");
       expect(onChange).toHaveBeenCalledTimes(1);
     });
@@ -195,7 +220,31 @@ describe("watching the register's storage", () => {
 
       await advance(FULL);
 
-      expect(watch.stop()).toBe("disk_full");
+      expect(watch.stop()?.reason).toBe("disk_full");
+    });
+
+    it("carries no figure of the free space until a read made after the failure gives one", async () => {
+      const { watch, advance } = setup({ first: FULL });
+      await watch.start();
+      watch.noteFailure(DISK_FULL_ERROR);
+      const before = watch.standing().diskFreeRatio;
+
+      await advance({ ...FULL, disk_free_ratio: 0.02 });
+
+      expect(before).toBeUndefined();
+      expect(watch.standing().diskFreeRatio).toBe(0.02);
+    });
+
+    it("tells nothing before it starts, and tells once its first read still finds the disk full", async () => {
+      const { watch, onChange } = setup({ first: FULL });
+
+      watch.noteFailure(DISK_FULL_ERROR);
+      const toldBeforeStart = onChange.mock.calls.length;
+      await watch.start();
+
+      expect(toldBeforeStart).toBe(0);
+      expect(watch.standing().diskFreeRatio).toBe(0.03);
+      expect(onChange).toHaveBeenCalledTimes(1);
     });
 
     it("lets new sales open again once a read finds the disk above the stop thresholds", async () => {

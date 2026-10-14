@@ -1,13 +1,9 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
-import type { SerialDeviceStanding } from "../../register/index.js";
+import type { SerialDeviceStanding, StorageStanding } from "../../register/index.js";
 import { argentinaInstant } from "../../shared/index.js";
 import { ALERT_KINDS, isAlertKind } from "./alert-catalog.js";
 import { alertKindPolicy } from "./alert-kind-policy.js";
-import {
-  REGISTER_OWN_CONDITIONS,
-  registerOwnConditions,
-  type StorageStanding,
-} from "./register-own-conditions.js";
+import { REGISTER_OWN_CONDITIONS, registerOwnConditions } from "./register-own-conditions.js";
 
 const MINUTE_MS = 60 * 1000;
 const HOURS = [{ dayOfWeek: 1, opensAt: "09:00", closesAt: "18:00" }];
@@ -288,7 +284,7 @@ describe("registerOwnConditions", () => {
     ]);
   });
 
-  it("names the startup shortage over a full disk when both hold", () => {
+  it("names the startup shortage over a full disk when both hold, and holds the full disk as low", () => {
     expect(
       conditions({
         storage: {
@@ -305,25 +301,32 @@ describe("registerOwnConditions", () => {
         required_free_bytes: 5_000_000_000,
         level: "critical",
       },
+      { kind: "disk_space_low", level: "warning" },
     ]);
   });
 
-  it("names a persisted stop's reason over a storage one", () => {
+  it("names a persisted stop's reason over a storage one, and holds the full disk as low", () => {
     expect(
       conditions({
         salesStop: { stopped: true, reason: "event_history_broken" },
         storage: { ...HEALTHY_STORAGE, diskStanding: "full", diskFreeRatio: 0.03 },
       }),
-    ).toEqual([{ kind: "sales_denied", reason: "event_history_broken", level: "critical" }]);
+    ).toEqual([
+      { kind: "sales_denied", reason: "event_history_broken", level: "critical" },
+      { kind: "disk_space_low", level: "warning" },
+    ]);
   });
 
-  it("holds only installation_revoked for a revoked installation, whatever the storage", () => {
+  it("holds installation_revoked for a revoked installation, and a full disk as low", () => {
     expect(
       conditions({
         salesStop: { stopped: true, reason: "installation_revoked" },
         storage: { ...HEALTHY_STORAGE, diskStanding: "full", diskFreeRatio: 0.03 },
       }),
-    ).toEqual([{ kind: "installation_revoked", level: "critical" }]);
+    ).toEqual([
+      { kind: "installation_revoked", level: "critical" },
+      { kind: "disk_space_low", level: "warning" },
+    ]);
   });
 
   it("holds wal_oversized as a warning while the WAL is oversized", () => {

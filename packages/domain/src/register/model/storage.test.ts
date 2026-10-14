@@ -5,7 +5,9 @@ import {
   RETAINED_SNAPSHOT_GENERATIONS,
   requiredFreeBytes,
   STORAGE_READ_INTERVAL_MS,
+  type StorageStanding,
   startupDiskVerdict,
+  storageSalesStopOf,
   WAL_SIZE_LIMIT_BYTES,
   walOversized,
 } from "./storage.js";
@@ -120,5 +122,54 @@ describe("startupDiskVerdict", () => {
         expect(verdict.kind).toBe(free < requiredFreeBytes(size) ? "short" : "fine");
       }),
     );
+  });
+});
+
+describe("storageSalesStopOf", () => {
+  const ROOMY: StorageStanding = {
+    startupShortOf: null,
+    diskStanding: "enough",
+    diskFreeRatio: 0.4,
+    walOversized: false,
+  };
+
+  it("stops nothing while the disk has room", () => {
+    expect(storageSalesStopOf(ROOMY)).toBeUndefined();
+  });
+
+  it("stops nothing while the disk is only low", () => {
+    expect(
+      storageSalesStopOf({ ...ROOMY, diskStanding: "low", diskFreeRatio: 0.08 }),
+    ).toBeUndefined();
+  });
+
+  it("stops sales for a full disk, with its free ratio", () => {
+    expect(storageSalesStopOf({ ...ROOMY, diskStanding: "full", diskFreeRatio: 0.03 })).toEqual({
+      reason: "disk_full",
+      disk_free_ratio: 0.03,
+    });
+  });
+
+  it("stops sales for a full disk with no free ratio when none was read since it filled", () => {
+    expect(
+      storageSalesStopOf({ ...ROOMY, diskStanding: "full", diskFreeRatio: undefined }),
+    ).toStrictEqual({ reason: "disk_full" });
+  });
+
+  it("stops sales for a register short of space at startup, with the space it requires", () => {
+    expect(
+      storageSalesStopOf({ ...ROOMY, startupShortOf: { requiredFreeBytes: 5_000_000_000 } }),
+    ).toEqual({ reason: "disk_space_short_at_startup", required_free_bytes: 5_000_000_000 });
+  });
+
+  it("names the startup shortage over a full disk", () => {
+    expect(
+      storageSalesStopOf({
+        ...ROOMY,
+        startupShortOf: { requiredFreeBytes: 5_000_000_000 },
+        diskStanding: "full",
+        diskFreeRatio: 0.03,
+      }),
+    ).toEqual({ reason: "disk_space_short_at_startup", required_free_bytes: 5_000_000_000 });
   });
 });

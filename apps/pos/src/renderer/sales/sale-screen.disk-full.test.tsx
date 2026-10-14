@@ -1,18 +1,23 @@
 import type { RegisterStatus } from "@purosur/contracts";
 import { describe, expect, it } from "vitest";
+import type { CoreData } from "../platform/use-core-query";
 import { renderScreen } from "./test-support/sale-screen";
 
 const DISK_FULL_TITLE = "No se pueden abrir ventas nuevas: queda 3 % de disco";
 const DISK_FULL_MEANING =
   "La venta en curso se puede completar y cobrar. Para volver a vender hay que liberar espacio en la notebook.";
 
-function statusHolding(conditions: RegisterStatus["conditions"]): () => Promise<RegisterStatus> {
-  return async () => ({
-    conditions,
-    cloud: "reachable",
-    serial_devices: { scale: "not_registered", reader: "not_registered" },
-    serial_devices_setup_offered: false,
-  });
+function statusHolding(conditions: RegisterStatus["conditions"]): CoreData<RegisterStatus> {
+  return {
+    status: "loaded",
+    value: {
+      conditions,
+      cloud: "reachable",
+      serial_devices: { scale: "not_registered", reader: "not_registered" },
+      serial_devices_setup_offered: false,
+    },
+    refreshing: false,
+  };
 }
 
 describe("SaleScreen while the disk is full", () => {

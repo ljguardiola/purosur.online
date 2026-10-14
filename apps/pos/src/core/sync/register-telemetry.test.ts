@@ -40,27 +40,10 @@ function readerStopped(
 }
 
 describe("the register's telemetry", () => {
-  it("reports sales denied because the disk was short of space at startup", async () => {
+  it("reports sales denied for the storage stop the watch reads", async () => {
     expect(
-      await readerStopped({ stopped: false }, undefined, undefined, "short_at_startup")(),
-    ).toMatchObject({ sales_denied: true, sales_denied_reason: "disk_space_short_at_startup" });
-  });
-
-  it("reports sales denied because the disk is full", async () => {
-    expect(
-      await readerStopped({ stopped: false }, undefined, undefined, "disk_full")(),
+      await readerStopped({ stopped: false }, undefined, undefined, { reason: "disk_full" })(),
     ).toMatchObject({ sales_denied: true, sales_denied_reason: "disk_full" });
-  });
-
-  it("keeps reporting a persisted stop over a storage stop", async () => {
-    expect(
-      await readerStopped(
-        { stopped: true, reason: "event_history_broken" },
-        undefined,
-        undefined,
-        "disk_full",
-      )(),
-    ).toMatchObject({ sales_denied: true, sales_denied_reason: "event_history_broken" });
   });
 
   it("reports its storage and that it can sell while it still opens new sales", async () => {
