@@ -24,7 +24,7 @@ export function refundConfirmationNotice(body: ConfirmedRefundBody): RefundConfi
       return {
         tone: "success",
         title: "Mercado Pago acreditó el reembolso",
-        description: "Ya no queda pendiente.",
+        description: "El dinero vuelve al medio con el que pagó el cliente.",
       };
     case "insufficient_balance":
       return {

@@ -88,3 +88,29 @@ export function isAwaitingMercadoPago(refund: {
     (refund.lastRefusalReason === null || refund.lastRefusalReason === INSUFFICIENT_BALANCE_REFUSAL)
   );
 }
+
+export const MERCADO_PAGO_REFUND_STAGES = [
+  "unconfirmed",
+  "confirmed",
+  "sent",
+  "waiting_for_balance",
+  "refused",
+] as const;
+export type MercadoPagoRefundStage = (typeof MERCADO_PAGO_REFUND_STAGES)[number];
+
+export function mercadoPagoRefundStage(refund: {
+  confirmedAt: Date | null;
+  sentAt: Date | null;
+  lastRefusalReason: string | null;
+}): MercadoPagoRefundStage {
+  if (refund.confirmedAt === null) {
+    return "unconfirmed";
+  }
+  if (refund.lastRefusalReason === INSUFFICIENT_BALANCE_REFUSAL) {
+    return "waiting_for_balance";
+  }
+  if (refund.lastRefusalReason !== null) {
+    return "refused";
+  }
+  return refund.sentAt === null ? "confirmed" : "sent";
+}

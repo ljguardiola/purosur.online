@@ -157,7 +157,7 @@ export function PendingRefundsScreen({
               onPress: () => setDoneTarget(refund),
             };
           }
-          return refund.confirmed_at === null
+          return refund.delivery_stage === "unconfirmed"
             ? {
                 icon: <Send />,
                 "aria-label": `Enviar a Mercado Pago el reembolso de ${formatCents(refund.amount)}`,
@@ -211,8 +211,8 @@ export function PendingRefundsScreen({
           }}
           footer={
             <p className="text-text-subtle text-detail">
-              Los de Mercado Pago se envían al confirmarlos acá; los demás se hacen fuera del
-              sistema y acá se marcan como hechos.
+              Los de ventas canceladas cobradas con QR se envían a Mercado Pago al confirmarlos acá;
+              los demás se hacen fuera del sistema y acá se marcan como hechos.
             </p>
           }
         />

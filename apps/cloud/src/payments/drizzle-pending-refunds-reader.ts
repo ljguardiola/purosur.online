@@ -7,7 +7,6 @@ import {
 import type { PendingRefundRecord, PendingRefundsReader } from "@purosur/domain/payments/use-cases";
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { alias } from "drizzle-orm/pg-core";
 import {
   paymentRefunds,
   paymentTransactions,
@@ -31,7 +30,6 @@ export class DrizzlePendingRefundsReader<TQueryResult extends PgQueryResultHKT>
   }
 
   async pendingRefunds(locationId: string): Promise<PendingRefundRecord[]> {
-    const confirmers = alias(users, "confirmers");
     const rows = await this.db
       .select({
         id: paymentRefunds.id,
@@ -49,7 +47,6 @@ export class DrizzlePendingRefundsReader<TQueryResult extends PgQueryResultHKT>
         cancelledBy: sales.actorId,
         cancelledByName: users.firstName,
         confirmedAt: paymentRefunds.confirmedAt,
-        confirmedByName: confirmers.firstName,
         sentAt: paymentRefunds.sentAt,
         lastRefusalReason: paymentRefunds.lastRefusalReason,
       })
@@ -65,7 +62,6 @@ export class DrizzlePendingRefundsReader<TQueryResult extends PgQueryResultHKT>
         eq(registers.id, sql`coalesce(${sales.registerId}, ${paymentTransactions.registerId})`),
       )
       .leftJoin(users, sql`${users.id}::text = ${sales.actorId}`)
-      .leftJoin(confirmers, sql`${confirmers.id}::text = ${paymentRefunds.confirmedBy}`)
       .where(
         and(
           eq(sql`coalesce(${sales.locationId}, ${registers.locationId})`, locationId),

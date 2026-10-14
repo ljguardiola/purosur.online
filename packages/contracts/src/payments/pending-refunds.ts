@@ -1,4 +1,9 @@
-import { ARGENTINA_TIME_ZONE, PAYMENT_METHODS, REFUND_ORIGINS } from "@purosur/domain";
+import {
+  ARGENTINA_TIME_ZONE,
+  MERCADO_PAGO_REFUND_STAGES,
+  PAYMENT_METHODS,
+  REFUND_ORIGINS,
+} from "@purosur/domain";
 import { z } from "zod";
 import { recordIdSchema } from "../shared/index.js";
 
@@ -23,9 +28,7 @@ export const pendingRefundsSchema = z.object({
       cancelled_by: z.string().nullable(),
       cancelled_by_name: z.string().nullable(),
       sent_by_cloud: z.boolean(),
-      confirmed_at: instant.meta({ timeZone: ARGENTINA_TIME_ZONE }).nullable(),
-      confirmed_by_name: z.string().nullable(),
-      sent_at: instant.meta({ timeZone: ARGENTINA_TIME_ZONE }).nullable(),
+      delivery_stage: z.enum(MERCADO_PAGO_REFUND_STAGES).nullable(),
       last_refusal_reason: z.string().nullable(),
     }),
   ),

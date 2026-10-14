@@ -19,10 +19,11 @@ export {
 export type {
   MercadoPagoOrderRefund,
   MercadoPagoRefundAnswer,
+  MercadoPagoRefundStage,
 } from "./model/mercado-pago-refund.js";
 export {
-  INSUFFICIENT_BALANCE_REFUSAL,
   MERCADO_PAGO_REFUND_FOLLOW_INTERVAL_MS,
+  MERCADO_PAGO_REFUND_STAGES,
 } from "./model/mercado-pago-refund.js";
 export { nonCashCharge } from "./model/non-cash-charge.js";
 export type {

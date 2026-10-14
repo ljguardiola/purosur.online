@@ -1,4 +1,4 @@
-import { REFUND_DONE_STATE, REFUND_PENDING_STATE } from "@purosur/domain";
+import { PLANNED_REFUND_STATES, REFUND_PENDING_STATE } from "@purosur/domain";
 import type {
   MercadoPagoRefundRecord,
   MercadoPagoRefundReference,
@@ -82,7 +82,7 @@ class DrizzleMercadoPagoRefundTransaction<TQueryResult extends PgQueryResultHKT>
         and(
           eq(paymentRefunds.paymentId, paymentId),
           ne(paymentRefunds.id, refundId),
-          inArray(paymentRefunds.state, [REFUND_PENDING_STATE, REFUND_DONE_STATE]),
+          inArray(paymentRefunds.state, PLANNED_REFUND_STATES),
         ),
       );
     return Number(others?.amount ?? 0);

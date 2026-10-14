@@ -30,7 +30,7 @@ const STANDALONE_TERMINAL_REFUND_EXPLANATION =
   "Lo devuelve una persona desde la terminal independiente o la app de Mercado Pago, nunca en efectivo.";
 
 const QR_REFUND_EXPLANATION =
-  "Queda un reembolso pendiente que la nube envía a Mercado Pago al confirmarlo.";
+  "La nube lo envía a Mercado Pago cuando alguien lo confirma en el backoffice.";
 
 function pendingRefundExplanation(refund: Refund): string | null {
   if (refund.state !== "PENDING") {
