@@ -180,6 +180,7 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
       fetchPendingRefunds: vi.fn().mockReturnValue(new Promise(() => {})),
       markRefundDone: vi.fn(),
       discardRefund: vi.fn(),
+      confirmRefund: vi.fn(),
     },
     userDetailScreen: {
       fetchUser: vi.fn().mockReturnValue(new Promise(() => {})),

@@ -93,20 +93,23 @@ test.each([
   ["already_confirmed", "Este reembolso ya estaba confirmado"],
   ["not_backed", "No consta la cancelación que justifica este reembolso"],
   ["exceeds_refundable", "El reembolso es mayor a lo que queda por devolver del pago"],
-] as const)("tells when the cloud answers %s, and updating the list reports it", async (kind, title) => {
-  const confirmRefund = vi
-    .fn<SendRefundModalServices["confirmRefund"]>()
-    .mockResolvedValue({ kind });
-  const onOutdated = vi.fn();
-  const screen = await renderModal({ confirmRefund, onOutdated });
-  const dialog = await confirm(screen);
+] as const)(
+  "tells when the cloud answers %s, and updating the list reports it",
+  async (kind, title) => {
+    const confirmRefund = vi
+      .fn<SendRefundModalServices["confirmRefund"]>()
+      .mockResolvedValue({ kind });
+    const onOutdated = vi.fn();
+    const screen = await renderModal({ confirmRefund, onOutdated });
+    const dialog = await confirm(screen);
 
-  await expect.element(dialog.getByRole("alert")).toHaveTextContent(title);
-  expect(dialog.getByRole("button", { name: "Enviar a Mercado Pago" }).query()).toBeNull();
-  await userEvent.click(dialog.getByRole("button", { name: "Actualizar la lista" }));
+    await expect.element(dialog.getByRole("alert")).toHaveTextContent(title);
+    expect(dialog.getByRole("button", { name: "Enviar a Mercado Pago" }).query()).toBeNull();
+    await userEvent.click(dialog.getByRole("button", { name: "Actualizar la lista" }));
 
-  expect(onOutdated).toHaveBeenCalledTimes(1);
-});
+    expect(onOutdated).toHaveBeenCalledTimes(1);
+  },
+);
 
 test("tells when Mercado Pago is not configured, and the confirmation stays available", async () => {
   const confirmRefund = vi
@@ -115,7 +118,9 @@ test("tells when Mercado Pago is not configured, and the confirmation stays avai
   const screen = await renderModal({ confirmRefund });
   const dialog = await confirm(screen);
 
-  await expect.element(dialog.getByRole("alert")).toHaveTextContent("Mercado Pago no está configurado");
+  await expect
+    .element(dialog.getByRole("alert"))
+    .toHaveTextContent("Mercado Pago no está configurado");
   await expect.element(dialog.getByRole("button", { name: "Enviar a Mercado Pago" })).toBeEnabled();
 });
 

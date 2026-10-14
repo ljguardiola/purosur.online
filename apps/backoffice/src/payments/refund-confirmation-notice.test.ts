@@ -14,7 +14,11 @@ test.each([
   ],
   [
     { refund_id, outcome: "done" as const, done_at: "2026-10-09T10:00:00.000Z" },
-    { tone: "success", title: "Mercado Pago acreditó el reembolso" },
+    {
+      tone: "success",
+      title: "Mercado Pago acreditó el reembolso",
+      description: "Ya no queda pendiente.",
+    },
   ],
   [
     { refund_id, outcome: "insufficient_balance" as const },
