@@ -2,7 +2,7 @@ import {
   aMercadoPagoChargeInProgress,
   cancellableWithoutAuthorization,
   hasApprovedPayment,
-  holdsApprovedMercadoPagoPayment,
+  holdsApprovedPointPayment,
   type MercadoPagoChargeInProgress,
   type MercadoPagoPaymentMethod,
   mercadoPagoChargeInProgress,
@@ -15,7 +15,7 @@ import {
 
 export type SaleLinesLock = "approved_payment" | "mercado_pago_charge_in_progress";
 
-export type SaleCancelRefusal = "mercado_pago_charge_in_progress" | "holds_mercado_pago_payment";
+export type SaleCancelRefusal = "mercado_pago_charge_in_progress" | "holds_point_payment";
 
 export interface OpenSaleStanding {
   balance: SaleBalance;
@@ -47,7 +47,7 @@ export function saleCancelRefusal(
   if (aMercadoPagoChargeInProgress(pendingMercadoPagoPayments, now)) {
     return "mercado_pago_charge_in_progress";
   }
-  return holdsApprovedMercadoPagoPayment(payments) ? "holds_mercado_pago_payment" : null;
+  return holdsApprovedPointPayment(payments) ? "holds_point_payment" : null;
 }
 
 export function openSaleStanding(

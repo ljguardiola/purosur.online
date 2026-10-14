@@ -26,7 +26,7 @@ test("shows the breadcrumb, heading, and the Datos section's role and email", as
   await expect.element(screen.getByText("Configuración · Usuarios")).toBeVisible();
   await expect.element(screen.getByRole("heading", { name: "Lucía", level: 1 })).toBeVisible();
   await expect.element(screen.getByText("Responsable de turno")).toBeVisible();
-  await expect.element(screen.getByText("lucia.perez@purosur.online")).toBeVisible();
+  await expect.element(screen.getByText("lucia.perez@example.com")).toBeVisible();
   expect(services.fetchUser).toHaveBeenCalledWith("user-1");
 });
 
@@ -227,7 +227,7 @@ test("shows Datos and Editar enabled once the user loads, whatever the credentia
 
   const screen = await renderScreen(services);
 
-  await expect.element(screen.getByText("lucia.perez@purosur.online")).toBeVisible();
+  await expect.element(screen.getByText("lucia.perez@example.com")).toBeVisible();
   await expect.element(screen.getByRole("button", { name: "Editar" })).toBeEnabled();
 });
 

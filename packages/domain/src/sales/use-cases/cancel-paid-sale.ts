@@ -40,7 +40,7 @@ export type CancelPaidSaleOutcome<Grant extends CancelPaidSaleGrant> =
   | SellingSessionRefusal
   | { kind: "no_open_sale" }
   | { kind: "mercado_pago_charge_in_progress" }
-  | { kind: "holds_mercado_pago_payment" }
+  | { kind: "holds_point_payment" }
   | { kind: "unavailable" }
   | { kind: "cancelled"; refunds: SaleRefund[]; grant: Grant };
 
@@ -157,7 +157,7 @@ function saleCancelledEvent(
     aggregate_type: "Sale",
     aggregate_id: sale.id,
     event_type: "sale_cancelled",
-    schema_version: 5,
+    schema_version: 6,
     payload: {
       id: sale.id,
       register_id: sale.registerId,

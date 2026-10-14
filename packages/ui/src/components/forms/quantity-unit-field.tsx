@@ -117,7 +117,7 @@ export function QuantityUnitField<U extends string>(props: QuantityUnitFieldProp
       <div
         className={`${boxBaseClassName} ${fieldBoxStateClassName({ disabled, invalid, forcedFocus: unitOpen })}`}
       >
-        <AriaInput className={valueClassName} />
+        <AriaInput inputMode="decimal" className={valueClassName} />
         <AriaSelect
           name={`${name}.unit`}
           selectedKey={unit}

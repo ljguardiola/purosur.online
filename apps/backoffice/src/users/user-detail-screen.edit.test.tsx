@@ -56,13 +56,13 @@ test("Recargar reads the user again through the cache once, refreshing the roles
   const services = createServices();
   const { dialog } = await openStaleModal(services);
 
-  const reloaded: BranchUser = { ...lucia, email: "otra@purosur.online", version: 5 };
+  const reloaded: BranchUser = { ...lucia, email: "otra@example.com", version: 5 };
   vi.mocked(services.fetchUser).mockResolvedValueOnce({ kind: "ok", value: reloaded });
   await userEvent.click(dialog.getByRole("button", { name: "Recargar" }));
 
   await expect
     .element(dialog.getByRole("textbox", { name: /^Correo/ }))
-    .toHaveValue("otra@purosur.online");
+    .toHaveValue("otra@example.com");
   expect(services.fetchUser).toHaveBeenCalledTimes(2);
   await expect.poll(() => vi.mocked(services.fetchRoles).mock.calls.length).toBe(2);
 });
@@ -96,7 +96,7 @@ test("keeps the loaded screen and an open edit modal with its typed email when t
   const screen = await renderScreen(services, () => {});
   await expect.element(screen.getByRole("heading", { name: "Lucía", level: 1 })).toBeVisible();
   const dialog = await openEditModal(screen);
-  await userEvent.fill(dialog.getByRole("textbox", { name: /^Correo/ }), "nueva@purosur.online");
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Correo/ }), "nueva@example.com");
 
   await screen.rerender(
     <main>
@@ -113,7 +113,7 @@ test("keeps the loaded screen and an open edit modal with its typed email when t
 
   await expect
     .element(screen.getByRole("dialog").getByRole("textbox", { name: /^Correo/ }))
-    .toHaveValue("nueva@purosur.online");
+    .toHaveValue("nueva@example.com");
   expect(services.fetchUser).toHaveBeenCalledTimes(1);
 });
 
@@ -125,22 +125,22 @@ test("a change refreshes the user and the roles from the server, keeping what is
     .mockReturnValueOnce(refreshedUser.promise);
   vi.mocked(services.editUser).mockResolvedValue({ kind: "ok" });
   const screen = await renderScreen(services);
-  await expect.element(screen.getByText("lucia.perez@purosur.online")).toBeVisible();
+  await expect.element(screen.getByText("lucia.perez@example.com")).toBeVisible();
   const dialog = await openEditModal(screen);
 
-  await userEvent.fill(dialog.getByRole("textbox", { name: /^Correo/ }), "nueva@purosur.online");
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Correo/ }), "nueva@example.com");
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
 
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
   await expect.poll(() => vi.mocked(services.fetchUser).mock.calls.length).toBe(2);
   await expect.poll(() => vi.mocked(services.fetchRoles).mock.calls.length).toBe(2);
-  await expect.element(screen.getByText("lucia.perez@purosur.online")).toBeVisible();
+  await expect.element(screen.getByText("lucia.perez@example.com")).toBeVisible();
   await expect.element(screen.getByRole("button", { name: "Editar" })).toBeEnabled();
   refreshedUser.resolve({
     kind: "ok",
-    value: { ...lucia, email: "nueva@purosur.online", version: 2 },
+    value: { ...lucia, email: "nueva@example.com", version: 2 },
   });
-  await expect.element(screen.getByText("nueva@purosur.online")).toBeVisible();
+  await expect.element(screen.getByText("nueva@example.com")).toBeVisible();
 });
 
 function RefreshProbe({ onReady }: { onReady: (refresh: () => Promise<void>) => void }) {
@@ -155,7 +155,7 @@ test("a refresh of the user in the background does not overwrite what is typed i
     .mockResolvedValueOnce({ kind: "ok", value: lucia })
     .mockResolvedValueOnce({
       kind: "ok",
-      value: { ...lucia, email: "otra@purosur.online", version: 4 },
+      value: { ...lucia, email: "otra@example.com", version: 4 },
     });
   let refreshUsers: () => Promise<void> = () => Promise.resolve();
   const screen = await render(
@@ -177,15 +177,15 @@ test("a refresh of the user in the background does not overwrite what is typed i
   );
   await expect.element(screen.getByRole("heading", { name: "Lucía", level: 1 })).toBeVisible();
   const dialog = await openEditModal(screen);
-  await userEvent.fill(dialog.getByRole("textbox", { name: /^Correo/ }), "escrito@purosur.online");
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Correo/ }), "escrito@example.com");
 
   await refreshUsers();
 
   await expect.poll(() => vi.mocked(services.fetchUser).mock.calls.length).toBe(2);
-  await expect.element(screen.getByText("otra@purosur.online")).toBeVisible();
+  await expect.element(screen.getByText("otra@example.com")).toBeVisible();
   await expect
     .element(dialog.getByRole("textbox", { name: /^Correo/ }))
-    .toHaveValue("escrito@purosur.online");
+    .toHaveValue("escrito@example.com");
 });
 
 test("Editar opens the edit modal offering the roles the screen read, and Cancelar closes it", async () => {

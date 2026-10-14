@@ -1,6 +1,8 @@
+import { freightPeriodSchema } from "@purosur/contracts";
 import { createRoute, stripSearchParams } from "@tanstack/react-router";
 import { z } from "zod";
 import {
+  canManageFreights,
   canManagePurchasePackagings,
   canManageSuppliers,
   canRecordPurchases,
@@ -55,4 +57,20 @@ export const newPurchaseRoute = createRoute({
   path: "purchases/new",
   beforeLoad: ({ context: { session } }) => refuseWithout(session, canRecordPurchases),
   component: lazyScreen(() => import("./new-purchase-page"), "NewPurchasePage"),
+});
+
+export const freightsListFilters = z.object({
+  search: z.string().default("").catch(""),
+  period: freightPeriodSchema.catch(freightPeriodSchema.parse(undefined)),
+});
+
+export type FreightsListFilters = z.output<typeof freightsListFilters>;
+
+export const freightsListRoute = createRoute({
+  getParentRoute: () => stockAreaRoute,
+  path: "freights",
+  beforeLoad: ({ context: { session } }) => refuseWithout(session, canManageFreights),
+  validateSearch: freightsListFilters,
+  search: { middlewares: [stripSearchParams(freightsListFilters.parse({}))] },
+  component: lazyScreen(() => import("./freights-list-page"), "FreightsListPage"),
 });

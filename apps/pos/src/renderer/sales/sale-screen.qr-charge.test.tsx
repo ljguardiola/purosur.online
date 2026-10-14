@@ -16,12 +16,12 @@ const SALE_IN_A_QR_WAIT: OpenSale = {
   lines_lock: "mercado_pago_charge_in_progress",
   cancel_refusal: "mercado_pago_charge_in_progress",
 };
-const SALE_WITH_QR_PAYMENT: OpenSale = {
+const SALE_WITH_POINT_PAYMENT: OpenSale = {
   ...SALE_OF_YERBA,
   paid: 100_000,
   pending: 376_000,
   lines_lock: "approved_payment",
-  cancel_refusal: "holds_mercado_pago_payment",
+  cancel_refusal: "holds_point_payment",
 };
 
 describe("SaleScreen while a QR charge of the sale is in its wait", () => {
@@ -97,15 +97,15 @@ describe("SaleScreen while a QR charge of the sale is in its wait", () => {
   });
 });
 
-describe("SaleScreen with an approved QR payment", () => {
+describe("SaleScreen with an approved integrated terminal payment", () => {
   it("explains the lines are locked by the approved payment", async () => {
-    const { field } = await renderScreen({ currentSale: async () => SALE_WITH_QR_PAYMENT });
+    const { field } = await renderScreen({ currentSale: async () => SALE_WITH_POINT_PAYMENT });
 
     await expect.element(field).toHaveAccessibleDescription(APPROVED_PAYMENT_LOCK);
   });
 
   it("keeps offering to cancel and says it cannot be voided from the register, as the core still answers", async () => {
-    const currentSale = answering(SALE_WITH_QR_PAYMENT);
+    const currentSale = answering(SALE_WITH_POINT_PAYMENT);
     const cancelSale = vi.fn();
     const cancelPaidSale = vi.fn();
     const { screen } = await renderScreen({ currentSale, cancelSale, cancelPaidSale });
@@ -117,7 +117,7 @@ describe("SaleScreen with an approved QR payment", () => {
     await expect
       .element(
         screen.getByText(
-          "La venta tiene un pago con Mercado Pago: todavía no se puede anular desde la caja.",
+          "La venta tiene un pago con la terminal de Mercado Pago: todavía no se puede anular desde la caja.",
         ),
       )
       .toBeVisible();

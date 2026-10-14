@@ -1,5 +1,9 @@
 import type { SyncChange } from "@purosur/contracts";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import {
+  insertCompletedSale,
+  insertOfflineFiscalDocument,
+} from "../fiscal/test-support/real-time-authorization-database";
 import type { LocalDatabase } from "../platform/local-database";
 import type { RegisterPulledChange } from "./pulled-change";
 import type { SqliteLocalReplica } from "./sqlite-local-replica";
@@ -210,5 +214,22 @@ describe("the register's local copy of its offline number blocks", () => {
     replica.adoptDevice({ deviceId: "device-a", pepper: TEST_PEPPER });
 
     expect(savedBlocks()).toHaveLength(1);
+  });
+});
+
+describe("the register's own history of documents issued under a pre-obtained code", () => {
+  it("stays when another installation takes over, as the floor of the register's offline numbering", () => {
+    database.exec(
+      `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
+       VALUES ('session-1', 'register-1', 'device-a', 'u1', '2026-09-30T08:00:00.000Z', 0, 'OPEN')`,
+    );
+    insertCompletedSale(database, "sale-1");
+    insertOfflineFiscalDocument(database, { number: 7 });
+
+    replica.adoptDevice({ deviceId: "device-b", pepper: TEST_PEPPER });
+
+    expect(database.prepare("SELECT sale_id, number FROM offline_fiscal_documents").all()).toEqual([
+      { sale_id: "sale-1", number: 7 },
+    ]);
   });
 });

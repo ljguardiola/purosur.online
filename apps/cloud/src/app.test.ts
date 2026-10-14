@@ -1286,6 +1286,10 @@ describe("wiring the purchasing routes", () => {
       app.inject({ method: "GET", url: "/api/purchases" }),
       app.inject({ method: "POST", url: "/api/purchases", headers: ORIGIN }),
       app.inject({ method: "GET", url: "/api/purchase-choices" }),
+      app.inject({ method: "GET", url: "/api/freights" }),
+      app.inject({ method: "POST", url: "/api/freights", headers: ORIGIN }),
+      app.inject({ method: "PUT", url: `/api/freights/${ID}`, headers: ORIGIN }),
+      app.inject({ method: "GET", url: "/api/freights/linkable-purchases" }),
     ]);
     return responses.map((response) => response.statusCode);
   }
@@ -1293,7 +1297,7 @@ describe("wiring the purchasing routes", () => {
   it("does not register the purchasing routes when no purchasing option is given", async () => {
     const app = buildApp({ now: () => APP_CLOCK, version: "abc1234" });
 
-    expect(await purchasingResponses(app)).toEqual(Array(13).fill(404));
+    expect(await purchasingResponses(app)).toEqual(Array(17).fill(404));
   });
 
   it("registers the purchasing routes when a purchasing option is given", async () => {
@@ -1303,7 +1307,7 @@ describe("wiring the purchasing routes", () => {
       purchasing: { db: testDatabase.db, backofficeOrigin: "https://staging.purosur.online" },
     });
 
-    expect(await purchasingResponses(app)).toEqual(Array(13).fill(401));
+    expect(await purchasingResponses(app)).toEqual(Array(17).fill(401));
   });
 });
 
@@ -2431,6 +2435,14 @@ describe("the route access inventory", () => {
       { method: "GET", url: "/api/purchases", access: capabilityAccess("purchases") },
       { method: "POST", url: "/api/purchases", access: capabilityAccess("purchases") },
       { method: "GET", url: "/api/purchase-choices", access: capabilityAccess("purchases") },
+      { method: "GET", url: "/api/freights", access: capabilityAccess("freights") },
+      {
+        method: "GET",
+        url: "/api/freights/linkable-purchases",
+        access: capabilityAccess("freights"),
+      },
+      { method: "POST", url: "/api/freights", access: capabilityAccess("freights") },
+      { method: "PUT", url: "/api/freights/:id", access: capabilityAccess("freights") },
       {
         method: "GET",
         url: "/api/tags",
@@ -2666,6 +2678,11 @@ describe("the route access inventory", () => {
       },
       {
         method: "POST",
+        url: "/api/refunds/:id/confirmation",
+        access: capabilityAccess("refunds_area"),
+      },
+      {
+        method: "POST",
         url: "/api/refunds/:id/discard",
         access: capabilityAccess("refunds_area"),
       },
@@ -2719,6 +2736,14 @@ describe("the route access inventory", () => {
       { method: "GET", url: "/api/changes", access: PUBLIC_ACCESS },
       { method: "POST", url: "/api/events", access: PUBLIC_ACCESS },
       { method: "GET", url: "/api/register/update", access: PUBLIC_ACCESS },
+      { method: "POST", url: "/api/devices/current/snapshots", access: PUBLIC_ACCESS },
+      {
+        method: "POST",
+        url: "/api/devices/current/snapshots/:generationId/uploaded",
+        access: PUBLIC_ACCESS,
+      },
+      { method: "POST", url: "/api/devices/current/snapshot-corruption", access: PUBLIC_ACCESS },
+      { method: "GET", url: "/api/devices/current/snapshots", access: PUBLIC_ACCESS },
       { method: "POST", url: "/api/pin-code-redemptions", access: PUBLIC_ACCESS },
       { method: "POST", url: "/api/sign-in-lookups", access: PUBLIC_ACCESS },
       { method: "POST", url: "/api/devices/current/tokens", access: PUBLIC_ACCESS },
@@ -2875,6 +2900,8 @@ describe("wiring the Mercado Pago notification route", () => {
           createPointOrder: async () => ({ kind: "unavailable" }),
           readOrder: async () => ({ kind: "unavailable" }),
           cancelOrder: async () => ({ kind: "unavailable" }),
+          refundOrder: async () => ({ kind: "unavailable" }),
+          readOrderRefunds: async () => ({ kind: "unavailable" }),
         },
       },
     });

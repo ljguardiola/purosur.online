@@ -3,14 +3,21 @@ import {
   FACTURA_C_DOCUMENT_TYPE,
   type FiscalDocumentState,
   type FiscalOnlineSignalEvidence,
+  IN_PROGRESS_FISCAL_DOCUMENT_STATES,
   NUMBER_CONSUMING_STATES,
+  type OfflineNumberBlockRange,
+  type OutboxEventDraft,
   SERIES_WAITING_STATES,
 } from "@purosur/domain";
 import {
   decideSaleAuthorization,
   type FiscalDocumentReservation,
+  type Fortnight,
+  type OfflineFiscalDocument,
+  type OfflineSeries,
   type RealTimeSeries,
   type SaleAuthorizationTransaction,
+  type SaleOrigin,
   type ShortCodeRandomness,
 } from "@purosur/domain/fiscal/use-cases";
 import type { SaleAuthorizationDecision } from "@purosur/domain/sales/use-cases";
@@ -33,7 +40,15 @@ interface PointOfSaleRow {
   tax_authority_count: number | null;
 }
 
-function sqliteSaleAuthorizationTransaction(database: LocalDatabase): SaleAuthorizationTransaction {
+interface OfflinePointOfSaleRow {
+  point_of_sale_number: number;
+  tax_authority_last_authorized_number: number | null;
+}
+
+function sqliteSaleAuthorizationTransaction(
+  database: LocalDatabase,
+  appendOutboxEvent: (event: OutboxEventDraft) => void,
+): SaleAuthorizationTransaction {
   return {
     fiscalOnlineEvidence(): FiscalOnlineSignalEvidence {
       const latest = database
@@ -66,7 +81,8 @@ function sqliteSaleAuthorizationTransaction(database: LocalDatabase): SaleAuthor
           pointOfSale: null,
           localLastAuthorized: null,
           taxAuthorityLastAuthorized: null,
-          documentWaiting: false,
+          documentRequesting: false,
+          documentUnknown: false,
         };
       }
       const local = database
@@ -77,8 +93,8 @@ function sqliteSaleAuthorizationTransaction(database: LocalDatabase): SaleAuthor
         )
         .get(pointOfSale.point_of_sale, FACTURA_C_DOCUMENT_TYPE, ...NUMBER_CONSUMING_STATES);
       const waiting = database
-        .prepare<(number | string)[], { waiting: 1 }>(
-          `SELECT 1 AS waiting FROM fiscal_documents
+        .prepare<(number | string)[], { state: FiscalDocumentState }>(
+          `SELECT state FROM fiscal_documents
            WHERE point_of_sale = ? AND document_type = ?
              AND state IN (${placeholdersFor(SERIES_WAITING_STATES)})`,
         )
@@ -87,8 +103,70 @@ function sqliteSaleAuthorizationTransaction(database: LocalDatabase): SaleAuthor
         pointOfSale: pointOfSale.point_of_sale,
         localLastAuthorized: local?.last_authorized ?? null,
         taxAuthorityLastAuthorized: pointOfSale.tax_authority_count,
-        documentWaiting: waiting !== undefined,
+        documentRequesting:
+          waiting !== undefined && IN_PROGRESS_FISCAL_DOCUMENT_STATES.includes(waiting.state),
+        documentUnknown:
+          waiting !== undefined && !IN_PROGRESS_FISCAL_DOCUMENT_STATES.includes(waiting.state),
       };
+    },
+
+    offlineSeries(): OfflineSeries {
+      const offlinePointOfSale = database
+        .prepare<[], OfflinePointOfSaleRow>(
+          `SELECT point_of_sale_number, tax_authority_last_authorized_number
+           FROM register_offline_point_of_sale`,
+        )
+        .get();
+      if (offlinePointOfSale === undefined) {
+        return {
+          pointOfSale: null,
+          blocksInAssignmentOrder: [],
+          localLastUsed: null,
+          taxAuthorityLastAuthorized: null,
+        };
+      }
+      const pointOfSale = offlinePointOfSale.point_of_sale_number;
+      const blocks = database
+        .prepare<[number, string], OfflineNumberBlockRange>(
+          `SELECT first_number AS firstNumber, last_number AS lastNumber
+           FROM offline_number_blocks
+           WHERE point_of_sale = ? AND document_type = ?
+           ORDER BY first_number`,
+        )
+        .all(pointOfSale, FACTURA_C_DOCUMENT_TYPE);
+      const lastUsed = database
+        .prepare<[number, string], { last_number: number | null }>(
+          `SELECT max(number) AS last_number FROM offline_fiscal_documents
+           WHERE point_of_sale = ? AND document_type = ?`,
+        )
+        .get(pointOfSale, FACTURA_C_DOCUMENT_TYPE);
+      return {
+        pointOfSale,
+        blocksInAssignmentOrder: blocks,
+        localLastUsed: lastUsed?.last_number ?? null,
+        taxAuthorityLastAuthorized: offlinePointOfSale.tax_authority_last_authorized_number,
+      };
+    },
+
+    offlineAuthorizationCodeOf({ start }: Fortnight): string | null {
+      const held = database
+        .prepare<[string], { code: string }>(
+          "SELECT code FROM offline_authorization_codes WHERE fortnight_start = ?",
+        )
+        .get(start);
+      return held?.code ?? null;
+    },
+
+    originOfSale(saleId: string): SaleOrigin {
+      const origin = database
+        .prepare<[string], { register_id: string; actor_id: string }>(
+          "SELECT register_id, actor_id FROM sales WHERE id = ?",
+        )
+        .get(saleId);
+      if (origin === undefined) {
+        throw new Error(`the sale ${saleId} does not exist`);
+      }
+      return { registerId: origin.register_id, actorId: origin.actor_id };
     },
 
     reserveFiscalDocument(reservation: FiscalDocumentReservation): void {
@@ -113,6 +191,40 @@ function sqliteSaleAuthorizationTransaction(database: LocalDatabase): SaleAuthor
         });
     },
 
+    issueOfflineFiscalDocument(document: OfflineFiscalDocument): void {
+      database
+        .prepare(
+          `INSERT INTO offline_fiscal_documents (
+             id, sale_id, point_of_sale, document_type, number, issued_on, generated_at,
+             generation_stamp, offline_authorization_code, fortnight_start, fortnight_end, document,
+             buyer_document_type, buyer_document_number, cause
+           ) VALUES (
+             @id, @sale_id, @point_of_sale, @document_type, @number, @issued_on, @generated_at,
+             @generation_stamp, @offline_authorization_code, @fortnight_start, @fortnight_end,
+             @document, @buyer_document_type, @buyer_document_number, @cause
+           )`,
+        )
+        .run({
+          id: document.id,
+          sale_id: document.saleId,
+          point_of_sale: document.pointOfSale,
+          document_type: document.documentType,
+          number: document.number,
+          issued_on: document.issuedOn,
+          generated_at: document.generatedAt.toISOString(),
+          generation_stamp: document.generationStamp,
+          offline_authorization_code: document.offlineAuthorizationCode,
+          fortnight_start: document.fortnight.start,
+          fortnight_end: document.fortnight.end,
+          document: JSON.stringify(document.document),
+          buyer_document_type: document.buyerDocumentType,
+          buyer_document_number: document.buyerDocumentNumber,
+          cause: document.cause,
+        });
+    },
+
+    appendOutboxEvent,
+
     routeSaleToDeferred(deferred: DeferredSale): void {
       insertDeferredSale(database, deferred);
     },
@@ -122,13 +234,19 @@ function sqliteSaleAuthorizationTransaction(database: LocalDatabase): SaleAuthor
 export function decideSaleAuthorizationIn(
   database: LocalDatabase,
   { ids, saleId, gate, decidedAt, occurredAt, total }: SaleAuthorizationDecision,
+  appendOutboxEvent: (event: OutboxEventDraft) => void,
   shortCodes: ShortCodeRandomness = cryptoShortCodes,
 ): void {
-  decideSaleAuthorization(sqliteSaleAuthorizationTransaction(database), ids, shortCodes, {
-    saleId,
-    gate,
-    decidedAt,
-    occurredAt,
-    total,
-  });
+  decideSaleAuthorization(
+    sqliteSaleAuthorizationTransaction(database, appendOutboxEvent),
+    ids,
+    shortCodes,
+    {
+      saleId,
+      gate,
+      decidedAt,
+      occurredAt,
+      total,
+    },
+  );
 }

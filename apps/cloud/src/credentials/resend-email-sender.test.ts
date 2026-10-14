@@ -1,5 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { FICTIONAL_RECOVERY_REPLY_TO } from "../test-support/recovery-reply-to.js";
+import {
+  FICTIONAL_RECOVERY_REPLY_TO,
+  FICTIONAL_RECOVERY_SENDER,
+} from "../test-support/recovery-email.js";
 import { createResendRecoveryEmailSender } from "./resend-email-sender.js";
 
 function fakeFetch(response: { ok: boolean; status: number; body?: unknown }) {
@@ -15,7 +18,7 @@ describe("createResendRecoveryEmailSender", () => {
     const fetch = fakeFetch({ ok: true, status: 200 });
     const sender = createResendRecoveryEmailSender({
       apiKey: "re_test_key",
-      from: "Puro Sur <acceso@mail.staging.purosur.online>",
+      from: FICTIONAL_RECOVERY_SENDER,
       replyTo: FICTIONAL_RECOVERY_REPLY_TO,
       fetch,
     });
@@ -35,7 +38,7 @@ describe("createResendRecoveryEmailSender", () => {
     });
     const body = JSON.parse(init.body as string);
     expect(body).toMatchObject({
-      from: "Puro Sur <acceso@mail.staging.purosur.online>",
+      from: FICTIONAL_RECOVERY_SENDER,
       to: ["ada@example.com"],
       reply_to: FICTIONAL_RECOVERY_REPLY_TO,
     });
@@ -64,7 +67,7 @@ describe("createResendRecoveryEmailSender", () => {
     const fetch = fakeFetch({ ok: true, status: 200 });
     const sender = createResendRecoveryEmailSender({
       apiKey: "re_test_key",
-      from: "Puro Sur <acceso@mail.staging.purosur.online>",
+      from: FICTIONAL_RECOVERY_SENDER,
       replyTo: FICTIONAL_RECOVERY_REPLY_TO,
       fetch,
     });
@@ -85,7 +88,7 @@ describe("createResendRecoveryEmailSender", () => {
     const fetch = fakeFetch({ ok: false, status: 422, body: { message: "invalid from address" } });
     const sender = createResendRecoveryEmailSender({
       apiKey: "re_test_key",
-      from: "Puro Sur <acceso@mail.staging.purosur.online>",
+      from: FICTIONAL_RECOVERY_SENDER,
       replyTo: FICTIONAL_RECOVERY_REPLY_TO,
       fetch,
     });
@@ -100,7 +103,7 @@ describe("createResendRecoveryEmailSender sending a first PIN code", () => {
   function senderWith(fetch: ReturnType<typeof fakeFetch>) {
     return createResendRecoveryEmailSender({
       apiKey: "re_test_key",
-      from: "Puro Sur <acceso@mail.staging.purosur.online>",
+      from: FICTIONAL_RECOVERY_SENDER,
       replyTo: FICTIONAL_RECOVERY_REPLY_TO,
       fetch,
     });
@@ -117,7 +120,7 @@ describe("createResendRecoveryEmailSender sending a first PIN code", () => {
     expect(init.headers).toMatchObject({ Authorization: "Bearer re_test_key" });
     const body = JSON.parse(init.body as string);
     expect(body).toMatchObject({
-      from: "Puro Sur <acceso@mail.staging.purosur.online>",
+      from: FICTIONAL_RECOVERY_SENDER,
       to: ["ada@example.com"],
       reply_to: FICTIONAL_RECOVERY_REPLY_TO,
       subject: "Tu código para crear el PIN",
@@ -180,7 +183,7 @@ describe("createResendRecoveryEmailSender when Resend does not answer", () => {
   function senderWith(fetch: typeof globalThis.fetch) {
     return createResendRecoveryEmailSender({
       apiKey: "re_test_key",
-      from: "Puro Sur <acceso@mail.staging.purosur.online>",
+      from: FICTIONAL_RECOVERY_SENDER,
       replyTo: FICTIONAL_RECOVERY_REPLY_TO,
       fetch,
     });

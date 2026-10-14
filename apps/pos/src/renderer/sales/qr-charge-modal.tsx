@@ -155,7 +155,7 @@ export function QrChargeModal({
               prefix="$"
               label="Importe a cobrar con este medio"
               description="Si cobrás menos, el resto queda pendiente para otro medio."
-              inputMode="numeric"
+              inputMode="decimal"
               value={field.state.value}
               onChange={field.handleChange}
               disabled={submitting}

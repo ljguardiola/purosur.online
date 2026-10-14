@@ -19,6 +19,7 @@ import { and, asc, eq, isNull, min, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { openEventInvariantAlert } from "../alerts/event-invariant-alert.js";
 import { openQuarantinedEventAlert } from "../alerts/quarantined-event-alert.js";
+import { recordAppliedOfflineFiscalDocument } from "../fiscal/drizzle-applied-offline-fiscal-documents.js";
 import { recordAppliedQrPaymentReplacement } from "../payments/drizzle-applied-qr-payment-replacement.js";
 import { providerTransactionOfPayment } from "../payments/drizzle-provider-transactions.js";
 import { describeDatabaseFailure, errorCode } from "../platform/db/describe-database-failure.js";
@@ -131,13 +132,26 @@ class DrizzleEventApplicationTransaction<TQueryResult extends PgQueryResultHKT>
       case "sale_completed":
         return recordAppliedSale(this.tx, await this.originOf(event), fact, this.now());
       case "sale_cancelled":
-        return recordAppliedCancelledSale(this.tx, await this.originOf(event), fact, this.now());
+        return recordAppliedCancelledSale(
+          this.tx,
+          await this.originOf(event),
+          fact,
+          event.eventId,
+          this.now(),
+        );
       case "sale_print_state_changed":
         return recordAppliedPrintState(this.tx, await this.originOf(event), fact);
       case "reprint_recorded":
         return recordAppliedReprint(this.tx, await this.originOf(event), fact);
       case "qr_payment_replaced":
         return recordAppliedQrPaymentReplacement(
+          this.tx,
+          await this.originOf(event),
+          fact,
+          this.now(),
+        );
+      case "offline_fiscal_document_issued":
+        return recordAppliedOfflineFiscalDocument(
           this.tx,
           await this.originOf(event),
           fact,

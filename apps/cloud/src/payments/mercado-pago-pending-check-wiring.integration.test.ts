@@ -8,7 +8,10 @@ import {
   createIntegrationDatabase,
   type IntegrationDatabase,
 } from "../test-support/integration-database.js";
-import { FICTIONAL_RECOVERY_REPLY_TO } from "../test-support/recovery-reply-to.js";
+import {
+  FICTIONAL_RECOVERY_REPLY_TO,
+  FICTIONAL_RECOVERY_SENDER,
+} from "../test-support/recovery-email.js";
 import { MERCADO_PAGO_PENDING_CHECK_TASK_IDENTIFIER } from "./mercado-pago-pending-check-task.js";
 import {
   FakeMercadoPagoOrders,
@@ -66,7 +69,7 @@ function setUp(mercadoPago: FakeMercadoPagoOrders) {
     {
       databaseUrl: integrationDb.databaseUrl,
       emailSender: { transport: "log" },
-      emailFrom: "Puro Sur <acceso@mail.staging.purosur.online>",
+      emailFrom: FICTIONAL_RECOVERY_SENDER,
       emailReplyTo: FICTIONAL_RECOVERY_REPLY_TO,
       backofficeOrigin: "https://staging.purosur.online",
       arcaCertificate: { environment: "production", notAfter: new Date("2126-09-01T19:42:17Z") },

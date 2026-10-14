@@ -6,6 +6,9 @@ import {
   insertCompletedSale,
   insertDeferredSale,
   insertFiscalDocument,
+  insertOfflineFiscalDocument,
+  OFFLINE_CODE,
+  OFFLINE_POINT_OF_SALE,
   openFiscalDatabase,
 } from "./test-support/real-time-authorization-database";
 
@@ -33,6 +36,22 @@ describe("the fiscal document of a sale", () => {
         document: FACTURA_C,
         authorizationCode: "75123456789012",
         authorizationCodeDueOn: "2026-10-10",
+      },
+    });
+  });
+
+  it("is the factura C issued under a pre-obtained code, with its number, date, code and fortnight", () => {
+    insertOfflineFiscalDocument(database, { number: 7 });
+
+    expect(readSaleFiscalDocument(database, "sale-1")).toEqual({
+      kind: "offline_authorized",
+      authorized: {
+        pointOfSale: OFFLINE_POINT_OF_SALE,
+        number: 7,
+        issuedOn: "2026-09-30",
+        document: FACTURA_C,
+        offlineAuthorizationCode: OFFLINE_CODE,
+        fortnight: { start: "2026-09-16", end: "2026-09-30" },
       },
     });
   });

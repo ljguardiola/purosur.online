@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import { discardRefund, fetchPendingRefunds, markRefundDone } from "./refunds-api";
+import { confirmRefund, discardRefund, fetchPendingRefunds, markRefundDone } from "./refunds-api";
 import {
+  CLOUD_SENT_REFUND_ID,
   LATE_PAYMENT_REFUND_ID,
   pendingRefunds,
   TRANSFER_REFUND_ID,
@@ -154,5 +155,70 @@ describe("discardRefund", () => {
     vi.mocked(fetch).mockRejectedValue(new Error("network down"));
 
     expect(await discardRefund(LATE_PAYMENT_REFUND_ID)).toEqual({ kind: "failed" });
+  });
+});
+
+describe("confirmRefund", () => {
+  const refund_id = CLOUD_SENT_REFUND_ID;
+
+  test.each([
+    { refund_id, outcome: "sent" },
+    { refund_id, outcome: "done", done_at: "2026-10-09T10:00:00.000Z" },
+    { refund_id, outcome: "insufficient_balance" },
+    { refund_id, outcome: "refused", reason: "cannot_refund_order" },
+    { refund_id, outcome: "provider_unavailable" },
+  ])("posts the confirmation of the refund and answers %j", async (body) => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(200, body));
+
+    expect(await confirmRefund(CLOUD_SENT_REFUND_ID)).toEqual({ kind: "ok", value: body });
+    expect(fetch).toHaveBeenCalledWith(`/api/refunds/${CLOUD_SENT_REFUND_ID}/confirmation`, {
+      method: "POST",
+    });
+  });
+
+  test.each([
+    { refund_id },
+    { refund_id, outcome: "done" },
+    { refund_id, outcome: "refused" },
+    { refund_id, outcome: "unknown" },
+  ])("treats a success body that does not match, %j, as failed", async (body) => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(200, body));
+
+    expect(await confirmRefund(CLOUD_SENT_REFUND_ID)).toEqual({ kind: "failed" });
+  });
+
+  test.each([
+    [404, undefined, { kind: "not_found" }],
+    [409, { code: "refund_not_confirmable" }, { kind: "not_confirmable" }],
+    [409, { code: "already_done" }, { kind: "already_done" }],
+    [409, { code: "already_confirmed" }, { kind: "already_confirmed" }],
+    [409, { code: "refund_not_backed" }, { kind: "not_backed" }],
+    [409, { code: "exceeds_refundable" }, { kind: "exceeds_refundable" }],
+    [409, { code: "something_else" }, { kind: "failed" }],
+    [409, undefined, { kind: "failed" }],
+    [503, { code: "payment_provider_not_configured" }, { kind: "not_configured" }],
+    [503, undefined, { kind: "failed" }],
+    [401, undefined, { kind: "unauthenticated" }],
+    [403, undefined, { kind: "forbidden" }],
+    [500, undefined, { kind: "failed" }],
+  ])("answers %i with %j as %j", async (status, body, outcome) => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(status, body));
+
+    expect(await confirmRefund(CLOUD_SENT_REFUND_ID)).toEqual(outcome);
+  });
+
+  test("reads the retry time of a rate-limited response", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(429, undefined, { "Retry-After": "20" }));
+
+    expect(await confirmRefund(CLOUD_SENT_REFUND_ID)).toEqual({
+      kind: "rate_limited",
+      retryAfterSeconds: 20,
+    });
+  });
+
+  test("answers failed when the request cannot be sent", async () => {
+    vi.mocked(fetch).mockRejectedValue(new Error("network down"));
+
+    expect(await confirmRefund(CLOUD_SENT_REFUND_ID)).toEqual({ kind: "failed" });
   });
 });
