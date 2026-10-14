@@ -1,9 +1,10 @@
-import { argentinaCompactTimestamp, type OutboxEventDraft } from "../../shared/index.js";
+import type { OutboxEventDraft } from "../../shared/index.js";
 import {
   FINAL_CONSUMER_DOCUMENT_NUMBER,
   FINAL_CONSUMER_DOCUMENT_TYPE,
 } from "./factura-c-fiscal-block.js";
 import { FACTURA_C_DOCUMENT_TYPE, type FiscalDocumentType } from "./fiscal-rejection-standing.js";
+import { generationStampOf } from "./generation-stamp.js";
 import type { Fortnight } from "./offline-authorization-code.js";
 import type { FacturaC } from "./pre-emission-gate.js";
 import type { OfflineAuthorizationCause } from "./real-time-authorization.js";
@@ -34,7 +35,7 @@ export function offlineFiscalDocument(issue: OfflineFiscalDocumentIssue): Offlin
   return {
     ...issue,
     documentType: FACTURA_C_DOCUMENT_TYPE,
-    generationStamp: argentinaCompactTimestamp(issue.generatedAt),
+    generationStamp: generationStampOf(issue.generatedAt),
     buyerDocumentType: FINAL_CONSUMER_DOCUMENT_TYPE,
     buyerDocumentNumber: FINAL_CONSUMER_DOCUMENT_NUMBER,
   };

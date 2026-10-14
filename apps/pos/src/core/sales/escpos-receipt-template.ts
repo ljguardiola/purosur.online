@@ -348,7 +348,10 @@ function isOffline(block: InvoiceBlock): block is OfflineInvoiceBlock {
 
 function authorizationLine(block: InvoiceBlock): string {
   if (isOffline(block)) {
-    const firstDay = Number(block.fortnight.start.slice(-2));
+    const firstDay = formatDate(new Date(`${block.fortnight.start}T00:00:00Z`), {
+      day: "numeric",
+      timeZone: "UTC",
+    });
     return `CAEA ${block.authorizationCode}  ·  Quincena ${firstDay} al ${calendarDay(block.fortnight.end)}`;
   }
   return `CAE ${block.authorizationCode}  ·  Vto. ${calendarDay(block.authorizationCodeDueOn)}`;

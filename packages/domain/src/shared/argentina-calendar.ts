@@ -20,21 +20,3 @@ const ARGENTINA_OFFSET = "-03:00";
 export function argentinaInstant(day: string, time: string): string {
   return `${day}T${time}:00${ARGENTINA_OFFSET}`;
 }
-
-const CLOCK_FORMAT = new Intl.DateTimeFormat("en-CA", {
-  timeZone: ARGENTINA_TIME_ZONE,
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-  hour: "2-digit",
-  minute: "2-digit",
-  second: "2-digit",
-  hourCycle: "h23",
-});
-
-export function argentinaCompactTimestamp(instant: Date): string {
-  return CLOCK_FORMAT.formatToParts(instant)
-    .filter(({ type }) => type !== "literal")
-    .map(({ value }) => value)
-    .join("");
-}

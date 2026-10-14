@@ -185,14 +185,14 @@ export function decideSaleAuthorizationRoute(
   if (gate.kind === "failed") {
     return deferred("pre_emission_gate_failed");
   }
+  if (series.pointOfSale !== null && series.documentUnknown) {
+    return offlineRoute("unclear_outcome", gate.document, input);
+  }
   if (!isRegisterFiscallyOnline(online, now)) {
     return offlineRoute("no_connectivity", gate.document, input);
   }
   if (series.pointOfSale === null) {
     return deferred("point_of_sale_missing");
-  }
-  if (series.documentUnknown) {
-    return offlineRoute("unclear_outcome", gate.document, input);
   }
   if (series.documentRequesting) {
     return deferred("document_waiting");

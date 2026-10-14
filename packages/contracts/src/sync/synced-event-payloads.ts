@@ -2,6 +2,7 @@ import {
   CASH_MOVEMENT_KINDS,
   CASH_MOVEMENT_TYPES,
   cashMovementReason,
+  FACTURA_C_DOCUMENT_TYPE,
   isCalendarDay,
   isValidCashAmount,
   isValidCashMovementAmount,
@@ -10,13 +11,13 @@ import {
   mayBeManualDiscountPercent,
   mayBeMovementQuantity,
   mayBeOverriddenUnitPrice,
+  OFFLINE_AUTHORIZATION_CAUSES,
   PRE_EMISSION_GATE_FAILURE_REASONS,
   receiptReprintReason,
   WEIGHT_SOURCES,
 } from "@purosur/domain";
 import { z } from "zod";
-import { offlineFiscalDocumentIssuedSchema } from "../fiscal/offline-fiscal-document-issued.js";
-import { recordIdSchema } from "../shared/index.js";
+import { pointOfSaleNumberSchema, recordIdSchema } from "../shared/index.js";
 
 const text = z.string().min(1);
 const instant = z.iso.datetime();
@@ -372,6 +373,27 @@ const fiscalGateFailedSchema = z.object({
   register_id: text,
   reason: z.enum(PRE_EMISSION_GATE_FAILURE_REASONS),
   evaluated_at: instant,
+});
+
+const offlineFiscalDocumentIssuedSchema = z.object({
+  fiscal_document_id: text,
+  sale_id: text,
+  register_id: text,
+  point_of_sale: pointOfSaleNumberSchema,
+  document_type: z.literal(FACTURA_C_DOCUMENT_TYPE),
+  number: z.int().positive(),
+  issued_on: z.string().refine(isCalendarDay),
+  generated_at: instant,
+  generation_stamp: z.string().regex(/^\d{14}$/),
+  offline_authorization_code: text,
+  fortnight_start: z.string().refine(isCalendarDay),
+  fortnight_end: z.string().refine(isCalendarDay),
+  buyer_document_type: z.int().nonnegative(),
+  buyer_document_number: z.int().nonnegative(),
+  buyer_tax_status_code: z.int(),
+  total: cents,
+  net_amount: cents,
+  cause: z.enum(OFFLINE_AUTHORIZATION_CAUSES),
 });
 
 const qrPaymentReplacedSchema = z.object({
