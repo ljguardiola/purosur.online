@@ -77,6 +77,11 @@ export interface RegisterPointOfSaleRow {
   version: number;
 }
 
+export interface RegisterPointTerminalRow {
+  assigned: boolean;
+  version: number;
+}
+
 export interface RegisterOfflinePointOfSaleRow {
   pointOfSaleNumber: number;
   taxAuthorityLastAuthorizedNumber: number | null;
@@ -157,6 +162,7 @@ export type PulledCloudChange = { changeSeq: number; entityId: string } & (
   | { entity: "role"; row: RoleRow }
   | { entity: "register"; row: RegisterRow }
   | { entity: "register_point_of_sale"; row: RegisterPointOfSaleRow }
+  | { entity: "register_point_terminal"; row: RegisterPointTerminalRow }
   | { entity: "register_offline_point_of_sale"; row: RegisterOfflinePointOfSaleRow }
   | { entity: "discount"; row: DiscountRow }
   | { entity: "issuer_identification"; row: IssuerIdentificationVersionRow }
