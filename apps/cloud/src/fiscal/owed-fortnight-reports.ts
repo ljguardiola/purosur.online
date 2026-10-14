@@ -1,9 +1,9 @@
-import { fortnightClosesAt } from "@purosur/domain";
+import { isFortnightReportOutstanding, owesFortnightReport } from "@purosur/domain";
 import type {
   OwedFortnightReport,
   RecordedFortnightReport,
 } from "@purosur/domain/fiscal/use-cases";
-import { and, eq, lt } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import {
   caeaCodes,
@@ -22,7 +22,7 @@ export async function owedFortnightReportsWithState<TQueryResult extends PgQuery
   today: string,
 ): Promise<OwedFortnightReportWithState[]> {
   const presentations = await closedFortnightPresentations(db, today);
-  return presentations.filter(({ state }) => state !== "accepted");
+  return presentations.filter(({ state }) => isFortnightReportOutstanding(state));
 }
 
 export async function closedFortnightPresentations<TQueryResult extends PgQueryResultHKT>(
@@ -30,7 +30,7 @@ export async function closedFortnightPresentations<TQueryResult extends PgQueryR
   today: string,
   locationId?: string,
 ): Promise<OwedFortnightReportWithState[]> {
-  const codes = await db.select().from(caeaCodes).where(lt(caeaCodes.fortnightEnd, today));
+  const codes = await db.select().from(caeaCodes);
   const claims = await db
     .select({
       pointOfSaleNumber: pointOfSaleClaims.pointOfSaleNumber,
@@ -61,9 +61,8 @@ export async function closedFortnightPresentations<TQueryResult extends PgQueryR
 
   return codes.flatMap((code) => {
     const fortnight = { start: code.fortnightStart, end: code.fortnightEnd };
-    const closesAt = fortnightClosesAt(fortnight);
     return claims
-      .filter(({ claimedAt }) => claimedAt < closesAt)
+      .filter(({ claimedAt }) => owesFortnightReport({ fortnight, claimedAt }, today))
       .map(({ pointOfSaleNumber, registerId }) => ({
         owed: {
           pointOfSaleNumber,

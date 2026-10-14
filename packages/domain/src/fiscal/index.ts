@@ -78,7 +78,9 @@ export {
   fortnightClosesAt,
   fortnightReportDeadline,
   fortnightReportStanding,
+  isFortnightReportOutstanding,
   isFortnightReportRetryDue,
+  owesFortnightReport,
 } from "./model/fortnight-report.js";
 export {
   ISSUER_IDENTIFICATION_GROSS_INCOME_REGISTRATION_MAX_LENGTH,
@@ -95,8 +97,8 @@ export {
   fortnightContaining,
   fortnightsWithinRequestWindowOn,
   hasFortnightStarted,
+  isSecondHalfOfMonth,
   OFFLINE_AUTHORIZATION_CODE_ACQUISITION_RETRY_INTERVAL_MS,
-  offlineAuthorizationCodePeriod,
   offlineAuthorizationCodeRequestOpensOn,
 } from "./model/offline-authorization-code.js";
 export type { OfflineAuthorizationCodeAcquisitionUrgency } from "./model/offline-authorization-code-acquisition-urgency.js";

@@ -1,6 +1,7 @@
 import {
   dataColumn,
   formatCalendarDayNumeric,
+  formatCalendarDayRange,
   formatPointOfSaleNumber,
   InlineNotice,
   StatusIndicator,
@@ -10,11 +11,7 @@ import {
 import { FileText, TriangleAlert } from "lucide-react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import type { CloudData } from "../platform/use-cloud-query";
-import {
-  fortnightLabel,
-  fortnightShortLabel,
-  presentationStateBadge,
-} from "./fortnight-presentation-labels";
+import { presentationStateBadge } from "./fortnight-presentation-labels";
 import type { FortnightPresentation } from "./fortnight-presentations-api";
 import type { RegisterPointOfSale } from "./register-points-of-sale-api";
 
@@ -25,13 +22,6 @@ type FortnightReportsSectionProps = {
 const NO_PRESENTATIONS: FortnightPresentation[] = [];
 const UNKNOWN_REGISTER = "Una caja";
 
-function vouchersText(presentation: FortnightPresentation, registerName: string): string {
-  if (presentation.state === "accepted") {
-    return "Sin movimiento";
-  }
-  return presentation.state === "blocked" ? `Faltan comprobantes de ${registerName}` : "—";
-}
-
 export function FortnightReportsSection({ data }: FortnightReportsSectionProps) {
   const [presentations, registers] = data.status === "loaded" ? data.value : [NO_PRESENTATIONS, []];
   const registerNameOf = (registerId: string) =>
@@ -41,17 +31,13 @@ export function FortnightReportsSection({ data }: FortnightReportsSectionProps) 
     dataColumn({
       id: "fortnight",
       header: "Quincena",
-      render: (item: FortnightPresentation) => fortnightLabel(item.fortnight),
+      render: (item: FortnightPresentation) =>
+        formatCalendarDayRange(item.fortnight.start, item.fortnight.end),
     }),
     dataColumn({
       id: "pointOfSale",
       header: "Punto de venta",
       render: (item: FortnightPresentation) => formatPointOfSaleNumber(item.pointOfSaleNumber),
-    }),
-    dataColumn({
-      id: "vouchers",
-      header: "Comprobantes",
-      render: (item: FortnightPresentation) => vouchersText(item, registerNameOf(item.registerId)),
     }),
     dataColumn({
       id: "state",
@@ -85,8 +71,8 @@ export function FortnightReportsSection({ data }: FortnightReportsSectionProps) 
           key={`${item.pointOfSaleNumber}:${item.fortnight.start}`}
           tone="error"
           icon={<TriangleAlert />}
-          title={`No se puede presentar el informe del ${fortnightShortLabel(item.fortnight)}`}
-          description={`${registerNameOf(item.registerId)} estuvo sin conexión y la nube todavía no tiene todos sus comprobantes de esa quincena. Se puede presentar cuando termine de sincronizar.`}
+          title={`${registerNameOf(item.registerId)} todavía no terminó de sincronizar`}
+          description={`El informe ${formatCalendarDayRange(item.fortnight.start, item.fortnight.end)} del punto de venta ${formatPointOfSaleNumber(item.pointOfSaleNumber)} se puede presentar cuando termine.`}
         />
       ))}
       <Table

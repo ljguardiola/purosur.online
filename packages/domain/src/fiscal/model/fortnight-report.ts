@@ -1,7 +1,7 @@
 import { argentinaInstant, shiftCalendarDay } from "../../shared/index.js";
 import type { Fortnight } from "./offline-authorization-code.js";
 
-export type FortnightReportState = "blocked" | "ready" | "submitting" | "refused" | "accepted";
+export type FortnightReportState = "blocked" | "submitting" | "refused" | "accepted";
 
 export type FortnightReportStanding =
   | { kind: "not_due" }
@@ -26,11 +26,26 @@ export function fortnightReportDeadline(
   return [taxAuthorityDeadline, eighthDay].sort()[0] ?? eighthDay;
 }
 
+function hasFortnightClosed({ end }: Fortnight, today: string): boolean {
+  return end < today;
+}
+
+export function owesFortnightReport(
+  { fortnight, claimedAt }: { fortnight: Fortnight; claimedAt: Date },
+  today: string,
+): boolean {
+  return hasFortnightClosed(fortnight, today) && claimedAt < fortnightClosesAt(fortnight);
+}
+
+export function isFortnightReportOutstanding(state: FortnightReportState | null): boolean {
+  return state !== "accepted";
+}
+
 export function fortnightReportStanding(
-  report: { fortnight: Fortnight; deadline: string; state: FortnightReportState },
+  report: { fortnight: Fortnight; deadline: string; state: FortnightReportState | null },
   today: string,
 ): FortnightReportStanding {
-  if (report.state === "accepted" || today <= report.fortnight.end) {
+  if (!isFortnightReportOutstanding(report.state) || !hasFortnightClosed(report.fortnight, today)) {
     return { kind: "not_due" };
   }
   if (today > report.deadline) {

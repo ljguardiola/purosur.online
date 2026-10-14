@@ -1,5 +1,6 @@
-import { offlineAuthorizationCodePeriod } from "@purosur/domain";
+import { isSecondHalfOfMonth } from "@purosur/domain";
 import type {
+  Fortnight,
   OfflineAuthorizationCode,
   OfflineAuthorizationCodeCall,
   OfflineAuthorizationCodeLookupAnswer,
@@ -73,6 +74,14 @@ function isOnly(rejections: TaxAuthorityRejection[], code: number): boolean {
   return rejections.length === 1 && rejections[0]?.code === code;
 }
 
+function periodOf(fortnight: Fortnight): { Periodo: number; Orden: number } {
+  const { start } = fortnight;
+  return {
+    Periodo: Number(`${start.slice(0, 4)}${start.slice(5, 7)}`),
+    Orden: isSecondHalfOfMonth(fortnight) ? 2 : 1,
+  };
+}
+
 export class WsfeTaxAuthorityOfflineAuthorizationCodes
   implements TaxAuthorityOfflineAuthorizationCodes
 {
@@ -116,16 +125,11 @@ export class WsfeTaxAuthorityOfflineAuthorizationCodes
   ): Promise<Read> {
     try {
       this.client ??= createWsfeClient(this.endpoint);
-      const { period, order } = offlineAuthorizationCodePeriod(fortnight);
       const client = await this.client;
       let answer: unknown;
       try {
         [answer] = await client[`${operation}Async`](
-          {
-            Auth: { Token: token, Sign: sign, Cuit: this.cuitDigits },
-            Periodo: period,
-            Orden: order,
-          },
+          { Auth: { Token: token, Sign: sign, Cuit: this.cuitDigits }, ...periodOf(fortnight) },
           { timeout: this.timeoutMs },
         );
       } finally {

@@ -2084,7 +2084,6 @@ export const caeaCodes = pgTable(
 
 export const fortnightReportState = pgEnum("fortnight_report_state", [
   "blocked",
-  "ready",
   "submitting",
   "refused",
   "accepted",

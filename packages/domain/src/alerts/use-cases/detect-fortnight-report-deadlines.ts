@@ -18,10 +18,7 @@ export async function detectFortnightReportDeadlines({
   for (const owed of await presentations.owedPresentations(today)) {
     const { pointOfSaleNumber, registerId, fortnight, state } = owed;
     const deadline = fortnightReportDeadline(fortnight, owed.taxAuthorityDeadline);
-    const standing = fortnightReportStanding(
-      { fortnight, deadline, state: state ?? "ready" },
-      today,
-    );
+    const standing = fortnightReportStanding({ fortnight, deadline, state }, today);
     const scope = pointOfSaleFortnightScope(pointOfSaleNumber, fortnight.start);
     if (standing.kind === "pending") {
       pendingScopes.add(scope);

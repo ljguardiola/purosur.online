@@ -1,4 +1,4 @@
-CREATE TYPE "public"."fortnight_report_state" AS ENUM('blocked', 'ready', 'submitting', 'refused', 'accepted');--> statement-breakpoint
+CREATE TYPE "public"."fortnight_report_state" AS ENUM('blocked', 'submitting', 'refused', 'accepted');--> statement-breakpoint
 CREATE TABLE "fortnight_reports" (
 	"point_of_sale_number" integer NOT NULL,
 	"fortnight_start" date NOT NULL,

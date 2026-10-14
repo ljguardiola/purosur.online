@@ -313,14 +313,18 @@ function fortnightReportDeadlineText(deadline: string, daysLeft: number): string
 function fortnightReportWaitingText({
   reason,
   registerName,
-}: Extract<AlertDetail, { kind: "fortnight_report_pending" }>["detail"]): string {
+}: Extract<AlertDetail, { kind: "fortnight_report_pending" }>["detail"]): string[] {
   switch (reason) {
     case "blocked":
-      return `Se puede presentar cuando la caja${registerName === undefined ? "" : ` «${registerName}»`} termine de sincronizar.`;
+      return [
+        `Se puede presentar cuando la caja${registerName === undefined ? "" : ` «${registerName}»`} termine de sincronizar.`,
+      ];
     case "refused":
-      return "ARCA rechazó la presentación. La nube la vuelve a intentar sola; si sigue rechazándola, conviene revisar el punto de venta en ARCA.";
+      return [
+        "ARCA rechazó la presentación. La nube la vuelve a intentar sola; si sigue rechazándola, conviene revisar el punto de venta en ARCA.",
+      ];
     case "pending":
-      return "La nube lo presentará sola en cuanto pueda.";
+      return [];
   }
 }
 
@@ -330,13 +334,13 @@ function fortnightReportParagraphs(
   if (alert.kind === "fortnight_report_overdue") {
     return [
       `Venció el ${formatCalendarDay(alert.detail.deadline)} el plazo para presentar a ARCA ${fortnightReportSubject(alert.detail)}.`,
-      "Se sigue intentando presentarlo y se registra lo que responda ARCA. Después de regularizar la situación con ARCA, hay que cerrar esta alerta a mano.",
+      "Conviene regularizar la situación del punto de venta con ARCA.",
     ];
   }
   return [
     `Falta presentar a ARCA ${fortnightReportSubject(alert.detail)}.`,
     fortnightReportDeadlineText(alert.detail.deadline, alert.detail.daysLeft),
-    fortnightReportWaitingText(alert.detail),
+    ...fortnightReportWaitingText(alert.detail),
   ];
 }
 

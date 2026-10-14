@@ -4,7 +4,6 @@ import { pointOfSaleNumberSchema } from "../shared/index.js";
 
 const fortnightReportStateSchema: z.ZodType<FortnightReportState> = z.enum([
   "blocked",
-  "ready",
   "submitting",
   "refused",
   "accepted",
