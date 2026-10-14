@@ -367,6 +367,8 @@ export type {
   SearchProductsOutcome,
   WeighProductOutcome,
 } from "./sales/sale.js";
+export type { SalesByCashierBody } from "./sales/sales-by-cashier.js";
+export { salesByCashierSchema } from "./sales/sales-by-cashier.js";
 export type {
   SalesByProductAndCategoryBody,
   SalesByProductAndCategoryQuery,
