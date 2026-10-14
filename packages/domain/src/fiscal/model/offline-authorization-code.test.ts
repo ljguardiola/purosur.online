@@ -9,6 +9,7 @@ import {
   isSecondHalfOfMonth,
   OFFLINE_AUTHORIZATION_CODE_ACQUISITION_RETRY_INTERVAL_MS,
   OFFLINE_AUTHORIZATION_CODE_REQUEST_LEAD_DAYS,
+  offlineAuthorizationCodePeriod,
   offlineAuthorizationCodeRequestOpensOn,
 } from "./offline-authorization-code.js";
 
@@ -171,5 +172,32 @@ describe("hasFortnightStarted", () => {
 describe("OFFLINE_AUTHORIZATION_CODE_ACQUISITION_RETRY_INTERVAL_MS", () => {
   it("is ten minutes", () => {
     expect(OFFLINE_AUTHORIZATION_CODE_ACQUISITION_RETRY_INTERVAL_MS).toBe(10 * 60 * 1000);
+  });
+});
+
+describe("offlineAuthorizationCodePeriod", () => {
+  it("is the fortnight's year and month with order 1 for the first half", () => {
+    expect(offlineAuthorizationCodePeriod({ start: "2026-10-01", end: "2026-10-15" })).toEqual({
+      period: 202610,
+      order: 1,
+    });
+  });
+
+  it("is the fortnight's year and month with order 2 for the second half", () => {
+    expect(offlineAuthorizationCodePeriod({ start: "2027-02-16", end: "2027-02-28" })).toEqual({
+      period: 202702,
+      order: 2,
+    });
+  });
+
+  it("names the month of every fortnight and orders only the second half as 2", () => {
+    fc.assert(
+      fc.property(anyDay, (day) => {
+        const fortnight = fortnightContaining(day);
+        const { period, order } = offlineAuthorizationCodePeriod(fortnight);
+        expect(String(period)).toBe(`${fortnight.start.slice(0, 4)}${fortnight.start.slice(5, 7)}`);
+        expect(order).toBe(isSecondHalfOfMonth(fortnight) ? 2 : 1);
+      }),
+    );
   });
 });
