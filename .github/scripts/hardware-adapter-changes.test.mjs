@@ -52,7 +52,7 @@ test("does not mistake a similarly named folder or file for an adapter folder", 
   );
 });
 
-function withRepo(run) {
+async function withRepo(run) {
   const dir = mkdtempSync(join(tmpdir(), "hardware-adapter-changes-"));
   const git = (...args) => execFileSync("git", ["-C", dir, ...args], { encoding: "utf8" }).trim();
   const commit = (message, files) => {
@@ -75,7 +75,7 @@ function withRepo(run) {
   };
   git("init", "-q", "-b", "main");
   try {
-    return run({ git, commit, runGit: async (args) => git(...args) });
+    return await run({ git, commit, runGit: async (args) => git(...args) });
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
