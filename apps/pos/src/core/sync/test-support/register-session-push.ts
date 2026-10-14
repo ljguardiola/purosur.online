@@ -307,6 +307,7 @@ export async function withRegisterSession<TResult>(
       now,
       ids: uuidV7Ids,
       paidOrderDiscovery: () => "checked" as const,
+      newSalesStoppedByDisk: () => false,
     });
 
     for (const [step, request] of [

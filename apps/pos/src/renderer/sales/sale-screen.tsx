@@ -336,6 +336,7 @@ export function SaleScreen({
       case "line_quantity_limit":
       case "not_permitted":
       case "installation_revoked":
+      case "disk_space_short":
       case "paid_order_without_sale":
       case "paid_orders_not_checked":
         refuse(submitted, outcome);
