@@ -9,6 +9,7 @@ import {
 import { useRef, useState } from "react";
 import { fieldContext, formContext } from "./request-form-context";
 import {
+  BoundCheckbox,
   BoundComboBox,
   BoundDateField,
   BoundOptionCardGroup,
@@ -33,6 +34,7 @@ const { useAppForm } = createFormHook({
     SegmentedControl: BoundSegmentedControl,
     ToggleChipGroup: BoundToggleChipGroup,
     Toggle: BoundToggle,
+    Checkbox: BoundCheckbox,
   },
   formComponents: {},
 });
