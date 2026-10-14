@@ -8,6 +8,8 @@ export type { OffsiteDumpCheckRecorded } from "./backups/offsite-dump-check-reco
 export { offsiteDumpCheckRecordedSchema } from "./backups/offsite-dump-check-recorded.js";
 export type { OffsiteDumpCheckReport } from "./backups/offsite-dump-check-report.js";
 export { offsiteDumpCheckReportSchema } from "./backups/offsite-dump-check-report.js";
+export type { OffsiteDumpManifest } from "./backups/offsite-dump-manifest.js";
+export { offsiteDumpManifestSchema } from "./backups/offsite-dump-manifest.js";
 export type { BranchSettingsEditBody } from "./branch/branch-settings-edit.js";
 export { branchSettingsEditBodySchema } from "./branch/branch-settings-edit.js";
 export type { BrandCreationBody } from "./catalog/brand-creation.js";
