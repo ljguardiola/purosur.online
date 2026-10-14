@@ -181,3 +181,55 @@ test("the CLI names what is missing", async () => {
   assert.equal(status, 1);
   assert.match(errors.join("\n"), /TARGET_SHA/);
 });
+
+function gateOptions(sha, runGit, env) {
+  const errors = [];
+  return {
+    errors,
+    options: {
+      argv: ["gate"],
+      env: { TARGET_SHA: sha, GITHUB_OUTPUT: "out", ...env },
+      runGit,
+      appendOutput: async () => {},
+      log: () => {},
+      logError: (message) => errors.push(message),
+    },
+  };
+}
+
+test("the gate refuses a release that changes a device when no hardware test is given", async () => {
+  await withRepo(async ({ git, commit, runGit }) => {
+    commit("old", { "README.md": "1" });
+    git("tag", "pos-v1.0.0");
+    const sha = commit("new", { [`${SALES}/receipt-printer/pc850.ts`]: "1" });
+
+    for (const hardwareTest of [undefined, "", "  \n"]) {
+      const gate = gateOptions(sha, runGit, { HARDWARE_TEST: hardwareTest });
+
+      assert.equal(await runCli(gate.options), 1);
+      assert.match(gate.errors.join("\n"), /printer/);
+    }
+  });
+});
+
+test("the gate passes a release that changes a device once a hardware test is given", async () => {
+  await withRepo(async ({ git, commit, runGit }) => {
+    commit("old", { "README.md": "1" });
+    git("tag", "pos-v1.0.0");
+    const sha = commit("new", { [`${SALES}/receipt-printer/pc850.ts`]: "1" });
+    const gate = gateOptions(sha, runGit, { HARDWARE_TEST: "Ana, 2026-10-14: ok" });
+
+    assert.equal(await runCli(gate.options), 0);
+  });
+});
+
+test("the gate passes a release that changes no device without a hardware test", async () => {
+  await withRepo(async ({ git, commit, runGit }) => {
+    commit("old", { "README.md": "1" });
+    git("tag", "pos-v1.0.0");
+    const sha = commit("new", { "README.md": "2" });
+    const gate = gateOptions(sha, runGit, {});
+
+    assert.equal(await runCli(gate.options), 0);
+  });
+});

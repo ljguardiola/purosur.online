@@ -5,6 +5,8 @@ import {
   candidateManifest,
   commitOfRun,
   parseCandidateManifest,
+  recordHardwareTest,
+  registerReleaseNotes,
   runCli,
   runNumberOfVersion,
   runOfCommit,
@@ -213,4 +215,89 @@ test("the CLI names what is missing and refuses an unknown command", async () =>
   const noOutput = cliHarness({ INSTALLER_VERSION: "0.0.1", GITHUB_OUTPUT: "" });
   assert.equal(await runCli({ ...noOutput.options, argv: ["run-of-version"] }), 1);
   assert.match(noOutput.errors.join("\n"), /GITHUB_OUTPUT/);
+});
+
+test("adds the installer version to the release notes", () => {
+  assert.equal(
+    registerReleaseNotes({ notes: "## Features\n\n- a\n", version: "0.0.57", devices: [] }),
+    "## Features\n\n- a\n\nInstaller version 0.0.57\n",
+  );
+});
+
+test("flags the devices to test by hand in the release notes", () => {
+  assert.equal(
+    registerReleaseNotes({ notes: "- a\n", version: "0.0.57", devices: ["printer", "scale"] }),
+    "- a\n\nInstaller version 0.0.57\n\n## Hardware test required: printer, scale\n",
+  );
+});
+
+test("records the hands-on hardware test after the release notes", () => {
+  assert.equal(
+    recordHardwareTest({
+      body: "- a\n\nInstaller version 0.0.57\n",
+      hardwareTest: " 2026-10-14, Ana: printed 3 receipts \n",
+    }),
+    "- a\n\nInstaller version 0.0.57\n\n## Hardware test\n\n2026-10-14, Ana: printed 3 receipts\n",
+  );
+});
+
+test("refuses to record a blank hardware test", () => {
+  assert.throws(() => recordHardwareTest({ body: "x", hardwareTest: "  \n" }), /hardware test/);
+});
+
+test("the CLI appends the installer version and the devices to the notes file", async () => {
+  const harness = cliHarness(
+    {
+      RELEASE_NOTES_FILE: "notes.md",
+      INSTALLER_VERSION: "0.0.57",
+      DEVICES: "printer,barcode reader",
+    },
+    { "notes.md": "- a\n" },
+  );
+
+  assert.equal(await runCli({ ...harness.options, argv: ["release-notes"] }), 0);
+  assert.equal(
+    harness.written["notes.md"],
+    "- a\n\nInstaller version 0.0.57\n\n## Hardware test required: printer, barcode reader\n",
+  );
+});
+
+test("the CLI appends only the installer version when no device is flagged", async () => {
+  const harness = cliHarness(
+    { RELEASE_NOTES_FILE: "notes.md", INSTALLER_VERSION: "0.0.57", DEVICES: "" },
+    { "notes.md": "- a\n" },
+  );
+
+  assert.equal(await runCli({ ...harness.options, argv: ["release-notes"] }), 0);
+  assert.equal(harness.written["notes.md"], "- a\n\nInstaller version 0.0.57\n");
+});
+
+test("the CLI appends the hardware test to the release body file", async () => {
+  const harness = cliHarness(
+    { RELEASE_BODY_FILE: "body.md", HARDWARE_TEST: "Ana, 2026-10-14: all fine" },
+    { "body.md": "- a\n" },
+  );
+
+  assert.equal(await runCli({ ...harness.options, argv: ["record-hardware-test"] }), 0);
+  assert.equal(
+    harness.written["body.md"],
+    "- a\n\n## Hardware test\n\nAna, 2026-10-14: all fine\n",
+  );
+});
+
+test("the CLI refuses a manifest whose commit is not the one expected", async () => {
+  const manifest = candidateManifest({ sha: SHA, version: "0.0.57" });
+  const matching = cliHarness(
+    { MANIFEST_FILE: "m.json", EXPECTED_SHA: SHA },
+    { "m.json": manifest },
+  );
+  const other = cliHarness(
+    { MANIFEST_FILE: "m.json", EXPECTED_SHA: OTHER_SHA },
+    { "m.json": manifest },
+  );
+
+  assert.equal(await runCli({ ...matching.options, argv: ["read-manifest"] }), 0);
+  assert.equal(await runCli({ ...other.options, argv: ["read-manifest"] }), 1);
+  assert.match(other.errors.join("\n"), /not the expected commit/);
+  assert.deepEqual(other.outputs, []);
 });
