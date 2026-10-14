@@ -423,6 +423,7 @@ export type {
   SerialDeviceRole,
   SerialDeviceStanding,
   SerialDevicesReport,
+  StartupDiskVerdict,
   WatchedRegister,
 } from "./register/index.js";
 export {
@@ -473,6 +474,7 @@ export {
   SERIAL_DEVICE_ROLES,
   STORAGE_READ_INTERVAL_MS,
   serialDeviceStandings,
+  startupDiskVerdict,
   WAL_SIZE_LIMIT_BYTES,
   walOversized,
 } from "./register/index.js";

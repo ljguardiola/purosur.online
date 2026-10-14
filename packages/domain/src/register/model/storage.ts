@@ -37,3 +37,16 @@ export function diskStanding({
 export function walOversized(walSizeBytes: number): boolean {
   return walSizeBytes > WAL_SIZE_LIMIT_BYTES;
 }
+
+export type StartupDiskVerdict = { kind: "fine" } | { kind: "short"; required_free_bytes: number };
+
+export function startupDiskVerdict({
+  freeBytes,
+  databaseSizeBytes,
+}: {
+  freeBytes: number;
+  databaseSizeBytes: number;
+}): StartupDiskVerdict {
+  const required = requiredFreeBytes(databaseSizeBytes);
+  return freeBytes < required ? { kind: "short", required_free_bytes: required } : { kind: "fine" };
+}

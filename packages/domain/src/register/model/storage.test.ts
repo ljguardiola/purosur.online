@@ -4,8 +4,8 @@ import {
   diskStanding,
   RETAINED_SNAPSHOT_GENERATIONS,
   requiredFreeBytes,
-  startupDiskVerdict,
   STORAGE_READ_INTERVAL_MS,
+  startupDiskVerdict,
   WAL_SIZE_LIMIT_BYTES,
   walOversized,
 } from "./storage.js";
