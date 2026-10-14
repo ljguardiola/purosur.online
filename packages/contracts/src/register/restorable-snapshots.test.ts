@@ -17,6 +17,13 @@ describe("restorableSnapshotsSchema", () => {
     });
   });
 
+  it("reads a generation id written in uppercase as lowercase", () => {
+    const uppercase = { ...GENERATION, generation_id: GENERATION.generation_id.toUpperCase() };
+    expect(restorableSnapshotsSchema.parse({ generations: [uppercase] })).toEqual({
+      generations: [GENERATION],
+    });
+  });
+
   it("reads an empty list", () => {
     expect(restorableSnapshotsSchema.parse({ generations: [] })).toEqual({ generations: [] });
   });

@@ -13,6 +13,13 @@ describe("snapshotUploadBodySchema", () => {
     expect(snapshotUploadBodySchema.parse(BODY)).toEqual(BODY);
   });
 
+  it("reads a generation id written in uppercase as lowercase", () => {
+    expect(
+      snapshotUploadBodySchema.parse({ ...BODY, generation_id: BODY.generation_id.toUpperCase() })
+        .generation_id,
+    ).toBe(BODY.generation_id);
+  });
+
   it.each([
     ["a generation id that is not a uuid", { generation_id: "generation-1" }],
     ["a size of zero", { size: 0 }],
