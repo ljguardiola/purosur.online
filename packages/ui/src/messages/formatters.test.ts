@@ -2,6 +2,7 @@ import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import {
   formatAmountInput,
+  formatBytes,
   formatCalendarDay,
   formatCalendarDayNumeric,
   formatCalendarDayRange,
@@ -44,6 +45,37 @@ describe("formatNumber", () => {
 
   it("passes formatting options through to Intl.NumberFormat", () => {
     expect(formatNumber(1234.5, { minimumFractionDigits: 2 })).toBe("1.234,50");
+  });
+});
+
+describe("formatBytes", () => {
+  const MEGABYTE = 1024 * 1024;
+  const GIGABYTE = 1024 * MEGABYTE;
+
+  it("shows a whole number of gigabytes without decimals", () => {
+    expect(formatBytes(2 * GIGABYTE)).toBe("2 GB");
+  });
+
+  it("shows gigabytes with a decimal comma", () => {
+    expect(formatBytes(12.5 * GIGABYTE)).toBe("12,5 GB");
+  });
+
+  it("shows under a gigabyte in megabytes", () => {
+    expect(formatBytes(500 * MEGABYTE)).toBe("500 MB");
+  });
+
+  it("switches to gigabytes at exactly one", () => {
+    expect(formatBytes(GIGABYTE)).toBe("1 GB");
+    expect(formatBytes(900 * MEGABYTE)).toBe("900 MB");
+  });
+
+  it("rounds up so a space required is never understated", () => {
+    expect(formatBytes(4.61 * GIGABYTE)).toBe("4,7 GB");
+    expect(formatBytes(500 * MEGABYTE + 1)).toBe("501 MB");
+  });
+
+  it("shows nothing as zero megabytes", () => {
+    expect(formatBytes(0)).toBe("0 MB");
   });
 });
 

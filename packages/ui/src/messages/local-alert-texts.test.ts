@@ -36,6 +36,65 @@ test("gives a register that can't sell because its database is damaged its title
   });
 });
 
+test("gives a register short of disk space at startup its title, the space it requires, and what to do", () => {
+  expect(
+    localAlertText({
+      kind: "sales_denied",
+      reason: "disk_space_short_at_startup",
+      required_free_bytes: 12.5 * 1024 ** 3,
+    }),
+  ).toEqual({
+    title: "La caja no puede vender: falta espacio en el disco",
+    meaning:
+      "Esta caja no habilita las ventas porque necesita 12,5 GB libres en el disco de la notebook y tiene menos.",
+    whatToDo:
+      "Liberar espacio en la notebook, borrando archivos que no sean de la caja, y reiniciar la caja.",
+  });
+});
+
+test("gives a register whose disk is full its title with the space left, what it means and what to do", () => {
+  expect(
+    localAlertText({ kind: "sales_denied", reason: "disk_full", disk_free_ratio: 0.034 }),
+  ).toEqual({
+    title: "No se pueden abrir ventas nuevas: queda 3,4 % de disco",
+    meaning:
+      "La venta en curso se puede completar y cobrar. Para volver a vender hay que liberar espacio en la notebook.",
+    whatToDo:
+      "Cobrar la venta en curso y liberar espacio en la notebook, borrando archivos que no sean de la caja. Cuando haya lugar, la caja vuelve a abrir ventas sola. Si no se puede, avisar al Administrador.",
+  });
+});
+
+test("shows the space left on a full disk without the float noise of a ratio", () => {
+  expect(
+    localAlertText({ kind: "sales_denied", reason: "disk_full", disk_free_ratio: 0.07 }).title,
+  ).toBe("No se pueden abrir ventas nuevas: queda 7 % de disco");
+  expect(
+    localAlertText({ kind: "sales_denied", reason: "disk_full", disk_free_ratio: 0 }).title,
+  ).toBe("No se pueden abrir ventas nuevas: queda 0 % de disco");
+});
+
+test("gives a register whose disk is running low its title, what it means and what to do", () => {
+  expect(localAlertText({ kind: "disk_space_low" })).toEqual({
+    title: "Queda poco espacio en el disco",
+    meaning:
+      "El disco de la notebook se está llenando. Se puede seguir vendiendo, pero si se llena la caja deja de abrir ventas nuevas.",
+    whatToDo:
+      "Liberar espacio en la notebook antes de que se llene, borrando archivos que no sean de la caja.",
+  });
+  expect(localAlertTitle("disk_space_low")).toBe("Queda poco espacio en el disco");
+});
+
+test("gives a register whose write-ahead log grew too large its title, what it means and what to do", () => {
+  expect(localAlertText({ kind: "wal_oversized" })).toEqual({
+    title: "El registro de cambios de la caja creció de más",
+    meaning:
+      "El archivo donde la caja anota sus cambios antes de guardarlos definitivamente creció más de lo normal.",
+    whatToDo:
+      "Se puede seguir vendiendo. Si no baja solo en un rato, reiniciar la caja y avisar al Administrador.",
+  });
+  expect(localAlertTitle("wal_oversized")).toBe("El registro de cambios de la caja creció de más");
+});
+
 test("gives a register whose installation was revoked its condition's title, what it means and what to do", () => {
   expect(localAlertText({ kind: "installation_revoked" })).toEqual({
     title: "La instalación de esta caja fue revocada",
@@ -116,6 +175,26 @@ test("gives no title to a kind that shares its name with a member every object h
 test("asks for the reason of a register that can't sell, and for none of the other kinds", () => {
   expectTypeOf<{ kind: "sales_denied" }>().not.toExtend<LocalAlertSubject>();
   expectTypeOf<{ kind: "sales_denied"; reason: "unknown" }>().not.toExtend<LocalAlertSubject>();
+  expectTypeOf<{ kind: "sales_denied"; reason: "disk_full" }>().not.toExtend<LocalAlertSubject>();
+  expectTypeOf<{
+    kind: "sales_denied";
+    reason: "disk_full";
+    disk_free_ratio: number;
+  }>().toExtend<LocalAlertSubject>();
+  expectTypeOf<{
+    kind: "sales_denied";
+    reason: "disk_space_short_at_startup";
+  }>().not.toExtend<LocalAlertSubject>();
+  expectTypeOf<{
+    kind: "sales_denied";
+    reason: "disk_space_short_at_startup";
+    required_free_bytes: number;
+  }>().toExtend<LocalAlertSubject>();
+  expectTypeOf<{
+    kind: "sales_denied";
+    reason: "event_history_broken";
+    disk_free_ratio: number;
+  }>().not.toExtend<LocalAlertSubject>();
   expectTypeOf<{ kind: "register_silent" }>().toExtend<LocalAlertSubject>();
   expectTypeOf<{
     kind: "register_silent";
@@ -131,6 +210,8 @@ test("knows the kinds that have a fixed text", () => {
   expect(isLocalAlertKind("late_payment_refund")).toBe(true);
   expect(isLocalAlertKind("refund_task")).toBe(true);
   expect(isLocalAlertKind("fiscal_emission_stopped")).toBe(true);
+  expect(isLocalAlertKind("disk_space_low")).toBe(true);
+  expect(isLocalAlertKind("wal_oversized")).toBe(true);
 });
 
 test("does not know a kind that has none, nor a member every object has", () => {
@@ -147,5 +228,7 @@ test("names exactly the kinds that have a fixed text", () => {
     | "late_payment_refund"
     | "refund_task"
     | "fiscal_emission_stopped"
+    | "disk_space_low"
+    | "wal_oversized"
   >();
 });
