@@ -207,7 +207,10 @@ test("runCli sends the header only to the cloud service's hostnames and rate-lim
   await runCli(deps);
 
   const [transformRule] = JSON.parse(calls.fetch[0].options.body).rules;
-  assert.equal(transformRule.expression, 'http.host in {"staging.purosur.online"}');
+  assert.equal(
+    transformRule.expression,
+    'http.host in {"staging.purosur.online" "purosur.online"}',
+  );
   const [rateLimitRule] = JSON.parse(calls.fetch[1].options.body).rules;
   assert.equal(rateLimitRule.expression, "true");
 });
