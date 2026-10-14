@@ -839,6 +839,9 @@ describe("startServer", () => {
         db: fakeRecovery.db,
         releaseCheckToken: "release-check-token",
       },
+      readableEventVersions: {
+        releaseCheckToken: "release-check-token",
+      },
       prices: {
         db: fakeRecovery.db,
         backofficeOrigin: fakeRecovery.backofficeOrigin,
