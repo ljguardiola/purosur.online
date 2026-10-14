@@ -173,6 +173,68 @@ describe("the Cloud Server service's environment", () => {
     });
   });
 
+  describe("in production", () => {
+    beforeEach(() => {
+      vi.stubEnv("RELEASE_CHECK_TOKEN", "release-check-token");
+    });
+
+    it("serves the backoffice from the production domain", async () => {
+      const cloud = findService(await compile("production"), "Cloud Server");
+      expect(cloud.variables?.["BACKOFFICE_ORIGIN"]).toEqual({
+        type: "literal",
+        value: "https://purosur.online",
+      });
+    });
+
+    it("sends the recovery email from the production domain", async () => {
+      const cloud = findService(await compile("production"), "Cloud Server");
+      expect(cloud.variables?.["RECOVERY_EMAIL_FROM"]).toEqual({
+        type: "literal",
+        value: "Puro Sur <acceso@mail.purosur.online>",
+      });
+    });
+
+    it("runs against ARCA's production environment", async () => {
+      const cloud = findService(await compile("production"), "Cloud Server");
+      expect(cloud.variables?.["ARCA_ENVIRONMENT"]).toEqual({
+        type: "literal",
+        value: "production",
+      });
+    });
+
+    it("carries the release check token the promotion asks the cloud with", async () => {
+      const cloud = findService(await compile("production"), "Cloud Server");
+      expect(cloud.variables?.["RELEASE_CHECK_TOKEN"]).toEqual({
+        type: "literal",
+        value: "release-check-token",
+      });
+    });
+
+    it("does not compile without the release check token", async () => {
+      vi.stubEnv("RELEASE_CHECK_TOKEN", "");
+
+      await expect(compile("production")).rejects.toThrow(
+        "missing required environment variable RELEASE_CHECK_TOKEN",
+      );
+    });
+  });
+
+  it("compiles staging without a release check token and gives it none", async () => {
+    vi.stubEnv("RELEASE_CHECK_TOKEN", "");
+
+    const cloud = findService(await compile("staging"), "Cloud Server");
+
+    expect(cloud.variables?.["RELEASE_CHECK_TOKEN"]).toBeUndefined();
+  });
+
+  it("gives staging no release check token even when the environment holds one", async () => {
+    vi.stubEnv("RELEASE_CHECK_TOKEN", "release-check-token");
+
+    const cloud = findService(await compile("staging"), "Cloud Server");
+
+    expect(cloud.variables?.["RELEASE_CHECK_TOKEN"]).toBeUndefined();
+  });
+
   it("refuses an environment with no ARCA environment", async () => {
     await expect(compile("preview")).rejects.toThrow("no ARCA environment configured for preview");
   });
