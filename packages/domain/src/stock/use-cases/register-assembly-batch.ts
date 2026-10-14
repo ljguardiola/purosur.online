@@ -8,6 +8,7 @@ import {
   pairedWithRecipe,
 } from "../model/assembly-batch.js";
 import { lotOfAssemblyBatch } from "../model/lot.js";
+import { knownLotCost } from "../model/lot-value.js";
 import { mayBeInRecipe, productsInLockOrder } from "../model/recipe.js";
 import { lotUnitCostCents } from "../model/unit-cost.js";
 import { type AppliedLotAllocation, recordStockMovement } from "./apply-stock-movement.js";
@@ -126,20 +127,16 @@ export async function registerAssemblyBatch(
       consumed.push(...allocations);
     }
 
-    const lotCosts = new Map(
-      (await tx.lotCosts([...new Set(consumed.map((allocation) => allocation.lotId))])).map(
-        (lotCost) => [lotCost.lotId, lotCost],
-      ),
-    );
-    const allocations: ConsumedAllocation[] = consumed.map(({ lotId, quantity }) => {
-      const lotCost = lotCosts.get(lotId);
-      return {
-        quantity: -quantity,
-        cost: lotCost?.cost ?? null,
-        costIncomplete: lotCost?.costIncomplete ?? true,
-        expiresOn: lotCost?.expiresOn ?? null,
-      };
-    });
+    const lotCosts = await tx.lotCosts([
+      ...new Set(consumed.map((allocation) => allocation.lotId)),
+    ]);
+    const allocations: ConsumedAllocation[] = lotCosts.map((lotCost) => ({
+      cost: knownLotCost(lotCost),
+      expiresOn: lotCost.expiresOn,
+      quantity: consumed
+        .filter((allocation) => allocation.lotId === lotCost.lotId)
+        .reduce((sum, allocation) => sum - allocation.quantity, 0),
+    }));
     const facts = batchLotFacts(allocations, input.output);
 
     const key = { productId: input.productId, locationId: input.locationId };

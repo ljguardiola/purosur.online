@@ -1,6 +1,6 @@
 import type { SaleUnit } from "../../catalog/index.js";
 import { roundHalfUp } from "../../shared/index.js";
-import { knownLotCost, type LotCost } from "./lot-value.js";
+import type { LotCost } from "./lot-value.js";
 import { isMovementQuantity, STOCK_QUANTITY_PER_UNIT } from "./stock-quantity.js";
 
 export interface BatchComponentUse {
@@ -53,7 +53,6 @@ export function assemblyProposal({
 export interface ConsumedAllocation {
   quantity: number;
   cost: LotCost | null;
-  costIncomplete: boolean;
   expiresOn: string | null;
 }
 
@@ -77,7 +76,7 @@ export function batchLotFacts(
   let costIncomplete = false;
   const expiries: string[] = [];
   for (const allocation of allocations) {
-    const known = knownLotCost(allocation);
+    const known = allocation.cost;
     if (known === null) {
       costIncomplete = true;
     } else {

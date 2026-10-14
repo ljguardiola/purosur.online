@@ -166,7 +166,6 @@ function consumed(overrides: Partial<ConsumedAllocation> = {}): ConsumedAllocati
   return {
     quantity: 1_000,
     cost: { totalCents: 1_000, quantity: 1_000 },
-    costIncomplete: false,
     expiresOn: null,
     ...overrides,
   };
@@ -207,15 +206,11 @@ describe("batchLotFacts", () => {
     expect(facts.costTotalCents).toBe(3);
   });
 
-  it("marks the lot incomplete when a consumed lot has an incomplete cost, adding only the known parts", () => {
+  it("marks the lot incomplete when a consumed lot has no known cost, adding only the known parts", () => {
     const facts = batchLotFacts(
       [
         consumed({ quantity: 1_000, cost: { totalCents: 800, quantity: 1_000 } }),
-        consumed({
-          quantity: 1_000,
-          cost: { totalCents: 900, quantity: 1_000 },
-          costIncomplete: true,
-        }),
+        consumed({ quantity: 1_000, cost: null }),
       ],
       1_000,
     );
@@ -224,8 +219,8 @@ describe("batchLotFacts", () => {
     expect(facts.costTotalCents).toBe(800);
   });
 
-  it("marks the lot incomplete when a consumed lot has no cost at all", () => {
-    const facts = batchLotFacts([consumed({ cost: null, costIncomplete: true })], 1_000);
+  it("costs nothing when no consumed lot has a known cost", () => {
+    const facts = batchLotFacts([consumed({ cost: null })], 1_000);
 
     expect(facts).toMatchObject({ costTotalCents: 0, costIncomplete: true });
   });
@@ -256,7 +251,6 @@ describe("batchLotFacts", () => {
       }),
       { nil: null },
     ),
-    costIncomplete: fc.boolean(),
     expiresOn: fc.option(fc.constantFrom("2026-12-31", "2027-01-15", "2027-06-01"), { nil: null }),
   });
 
@@ -265,7 +259,7 @@ describe("batchLotFacts", () => {
       fc.property(fc.array(allocation, { maxLength: 6 }), (allocations) => {
         const known = allocations.filter(
           (item): item is typeof item & { cost: NonNullable<typeof item.cost> } =>
-            item.cost !== null && !item.costIncomplete,
+            item.cost !== null,
         );
         const denominator = known.reduce(
           (product, item) => product * BigInt(item.cost.quantity),
@@ -293,7 +287,7 @@ describe("batchLotFacts", () => {
     fc.assert(
       fc.property(fc.array(allocation, { maxLength: 6 }), (allocations) => {
         expect(batchLotFacts(allocations, 1_000).costIncomplete).toBe(
-          allocations.some((item) => item.cost === null || item.costIncomplete),
+          allocations.some((item) => item.cost === null),
         );
       }),
     );

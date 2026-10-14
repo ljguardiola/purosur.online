@@ -9,6 +9,7 @@ import {
   usedQuantityRefusal,
 } from "../model/assembly-batch.js";
 import { movementAllocations } from "../model/lot-allocation.js";
+import { knownLotCost } from "../model/lot-value.js";
 import { isMovementQuantity } from "../model/stock-quantity.js";
 import { lotUnitCostCents } from "../model/unit-cost.js";
 import type { BatchLotReader } from "./batch-lot-reader.js";
@@ -94,9 +95,7 @@ export async function previewAssemblyBatch(
       locationId: input.locationId,
     });
     const allocations: PlannedComponentAllocation[] = [];
-    for (const { target, quantity } of use.quantity === 0
-      ? []
-      : movementAllocations(componentLots, -use.quantity)) {
+    for (const { target, quantity } of movementAllocations(componentLots, -use.quantity)) {
       const lot =
         target.kind === "lot"
           ? componentLots.find((candidate) => candidate.id === target.lotId)
@@ -108,8 +107,7 @@ export async function previewAssemblyBatch(
       });
       consumed.push({
         quantity: -quantity,
-        cost: lot?.cost ?? null,
-        costIncomplete: lot?.costIncomplete ?? true,
+        cost: lot ? knownLotCost(lot) : null,
         expiresOn: lot?.expiresOn ?? null,
       });
     }
