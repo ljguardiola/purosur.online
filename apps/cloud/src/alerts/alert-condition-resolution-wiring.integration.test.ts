@@ -208,20 +208,26 @@ describe("the background worker the server sets up on a real Postgres", () => {
 
   it("keeps an informational alert open for a branch with a lot inside its expiry window, then resolves it once the lot is gone and the condition stayed cleared", async () => {
     const [location] = await db.select({ id: locations.id }).from(locations).limit(1);
+    if (!location) {
+      throw new Error("test setup: no location seeded");
+    }
     const [actor] = await db
       .insert(users)
-      .values({ firstName: "Ada", email: "ada-lots@example.com", locationId: location?.id })
+      .values({ firstName: "Ada", email: "ada-lots@example.com", locationId: location.id })
       .returning({ id: users.id });
     const [category] = await db
       .insert(categories)
       .values({ name: "Frutos secos" })
       .returning({ id: categories.id });
+    if (!actor || !category) {
+      throw new Error("test setup: seeding the user and category returned no row");
+    }
     const [product] = await db
       .insert(products)
-      .values({ name: "Almendras", categoryId: category?.id ?? "", saleUnit: "KG" })
+      .values({ name: "Almendras", categoryId: category.id, saleUnit: "KG" })
       .returning({ id: products.id });
-    if (!location || !actor || !product) {
-      throw new Error("test setup: seeding the branch, user and product returned no row");
+    if (!product) {
+      throw new Error("test setup: seeding the product returned no row");
     }
     const lotId = await insertPurchasedLot(db, {
       productId: product.id,
