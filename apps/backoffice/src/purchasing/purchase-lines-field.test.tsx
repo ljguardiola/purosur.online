@@ -6,7 +6,12 @@ import { ADMINISTRATOR_ACCESS } from "../shell/test-support/backoffice-access";
 import {
   emptyPurchaseForm,
   PURCHASE_FIELDS,
+  PURCHASE_RECEIPT_TYPE_REQUIRED,
+  PURCHASE_SUPPLIER_REQUIRED,
+  purchaseDateMessage,
   purchaseLinesMessage,
+  purchaseNoteMessage,
+  purchaseReceiptNumberMessage,
   purchaseRegistrationRequestFrom,
 } from "./purchase-form";
 import { PurchaseLinesField } from "./purchase-lines-field";
@@ -22,7 +27,14 @@ function Harness() {
       from: (current) => purchaseRegistrationRequestFrom(current, products),
     },
     fields: PURCHASE_FIELDS,
-    messages: { lines: (current) => purchaseLinesMessage(current, products) },
+    messages: {
+      supplierId: PURCHASE_SUPPLIER_REQUIRED,
+      purchasedOn: purchaseDateMessage,
+      receiptType: PURCHASE_RECEIPT_TYPE_REQUIRED,
+      receiptNumber: purchaseReceiptNumberMessage,
+      note: purchaseNoteMessage,
+      lines: (current) => purchaseLinesMessage(current, products),
+    },
     onSubmit: async () => {},
   });
   return (
