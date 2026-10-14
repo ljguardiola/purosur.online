@@ -60,7 +60,7 @@ async function soldBy(
     deviceId,
     completedAt: options.completedAt ?? MOMENT,
     total,
-    inOpenSession: options.inOpenSession,
+    ...(options.inOpenSession === undefined ? {} : { inOpenSession: options.inOpenSession }),
     overrides: { actorId, lines: [] },
   });
 }
