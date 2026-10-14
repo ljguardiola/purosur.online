@@ -111,14 +111,18 @@ describe("every route enforces the access it declares", () => {
   });
 
   describe("answers 401 unauthenticated on every token route without its token", () => {
-    it.each(routesDeclaring(["release_check", "offsite_dump_check"]))("$method $url", async (route) => {
-      const response = await send(route);
+    it.each(routesDeclaring(["release_check", "offsite_dump_check"]))(
+      "$method $url",
+      async (route) => {
+        const response = await send(route);
 
-      expect(response.statusCode, `responded ${response.statusCode}, body: ${response.body}`).toBe(
-        401,
-      );
-      expect(response.json()).toMatchObject({ code: "unauthenticated" });
-    });
+        expect(
+          response.statusCode,
+          `responded ${response.statusCode}, body: ${response.body}`,
+        ).toBe(401);
+        expect(response.json()).toMatchObject({ code: "unauthenticated" });
+      },
+    );
   });
 
   describe("lets every public route through without a session", () => {

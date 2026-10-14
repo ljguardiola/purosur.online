@@ -41,10 +41,10 @@ import { hashSecretCode } from "./platform/secret-code.js";
 import { insertEnrolledInstallation } from "./register/test-support/enrolled-installation.js";
 import {
   capabilityAccess,
+  OFFSITE_DUMP_CHECK_ACCESS,
   OPEN_SESSION_ACCESS,
   OPEN_SESSION_PEEK_ACCESS,
   PUBLIC_ACCESS,
-  OFFSITE_DUMP_CHECK_ACCESS,
   RELEASE_CHECK_ACCESS,
   recordAccess,
   SESSION_COOKIE_ACCESS,

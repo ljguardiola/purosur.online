@@ -210,9 +210,7 @@ async function enforceDeclaredAccess(
     await reply
       .code(401)
       .header("WWW-Authenticate", "Bearer")
-      .send(
-        releaseCheck ? RELEASE_CHECK_REJECTED_RESPONSE : OFFSITE_DUMP_CHECK_REJECTED_RESPONSE,
-      );
+      .send(releaseCheck ? RELEASE_CHECK_REJECTED_RESPONSE : OFFSITE_DUMP_CHECK_REJECTED_RESPONSE);
     return reply;
   }
   if (!sessionSource) {

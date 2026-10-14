@@ -17,8 +17,8 @@ import { buildTestDatabase, type TestDatabase } from "../test-support/build-test
 import { seededLocationId } from "../test-support/seeded-location.js";
 import {
   capabilityAccess,
-  OPEN_SESSION_ACCESS,
   OFFSITE_DUMP_CHECK_ACCESS,
+  OPEN_SESSION_ACCESS,
   OPEN_SESSION_PEEK_ACCESS,
   openSessionOf,
   originGuard,

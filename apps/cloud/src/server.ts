@@ -21,6 +21,7 @@ import {
   arcaCertificateExpiryJobs,
   enqueueArcaCertificateExpiryCheck,
 } from "./alerts/arca-certificate-expiry-task.js";
+import { unverifiedOffsiteDumpJobs } from "./alerts/unverified-offsite-dump-task.js";
 import {
   type BackofficeErrorReporting,
   type BuildAppOptions,
@@ -96,6 +97,7 @@ export interface ServerEnv {
   RECOVERY_EMAIL_TRANSPORT?: string | undefined;
   EDGE_ORIGIN_SECRET?: string | undefined;
   RELEASE_CHECK_TOKEN?: string | undefined;
+  OFFSITE_DUMP_CHECK_TOKEN?: string | undefined;
   /** PEM text of the ARCA X.509 certificate authorizing this business at the tax authority. */
   ARCA_CERTIFICATE?: string | undefined;
   /** The ARCA environment the certificate belongs to: `homologation` or `production`. */
@@ -376,6 +378,7 @@ export function resolveRecoveryEnv(env: ServerEnv): RecoveryEnv | undefined {
 export interface SetUpRecoveryEnv extends RecoveryEnv {
   arcaCertificate: { environment: string; notAfter: Date };
   arcaVitality: { endpoint: string };
+  offsiteDumpCheck?: { environment: string };
   arcaWsaa?: {
     endpoint: string;
     certificatePem: string;
@@ -490,6 +493,9 @@ export async function setUpRecovery(
       alertEscalationJobs({ now }),
       alertConditionResolutionJobs({ now }),
       arcaCertificateExpiryJobs({ now, ...recoveryEnv.arcaCertificate }),
+      ...(recoveryEnv.offsiteDumpCheck
+        ? [unverifiedOffsiteDumpJobs({ now, ...recoveryEnv.offsiteDumpCheck })]
+        : []),
       arcaVitalityJobs({
         now,
         vitality: new WsfeArcaVitalityService({
@@ -661,6 +667,9 @@ export async function startServer(env: ServerEnv, deps: StartServerDeps): Promis
             notAfter: requireCertificateNotAfter(env),
           },
           arcaVitality: { endpoint: arcaEndpoints(requireArcaEnvironment(env)).wsfe },
+          ...(env.OFFSITE_DUMP_CHECK_TOKEN
+            ? { offsiteDumpCheck: { environment: requireArcaEnvironment(env) } }
+            : {}),
           ...resolveArcaSigning(env, arcaEndpoints),
           ...(mercadoPago ? { mercadoPago } : {}),
         },
@@ -690,6 +699,7 @@ export async function startServer(env: ServerEnv, deps: StartServerDeps): Promis
           deviceTokenRotationKey: database.deviceTokenRotationKey,
           installationKeysEncryptionKey: database.installationKeysEncryptionKey,
           releaseCheckToken: env.RELEASE_CHECK_TOKEN,
+          offsiteDumpCheckToken: env.OFFSITE_DUMP_CHECK_TOKEN,
           ...(invoicing ? { enqueueTaxAuthorityCount: enqueueTaxAuthorityCountJob } : {}),
           ...(mercadoPago
             ? {
