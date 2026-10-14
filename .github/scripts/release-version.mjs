@@ -1,12 +1,15 @@
 import { execFile } from "node:child_process";
 import { appendFile, writeFile } from "node:fs/promises";
 import { promisify } from "node:util";
+import { releaseImagePromoted } from "./release-image.mjs";
 
 const LOG_PREFIX = "release-version";
 
 // The root files and folders a build reads outside any workspace package: patches/ holds the
-// patched dependencies that `pnpm install` applies.
+// patched dependencies that `pnpm install` applies, and .dockerignore decides what reaches the
+// cloud image's build.
 const ROOT_BUILD_PATHS = [
+  ".dockerignore",
   "package.json",
   "pnpm-lock.yaml",
   "pnpm-workspace.yaml",
@@ -110,9 +113,16 @@ async function releaseTags({ prefix, runGit, mergedInto }) {
     .sort((a, b) => compareVersions(b.slice(prefix.length), a.slice(prefix.length)));
 }
 
-export async function previousReleaseTag({ prefix, sha, excludeTag, runGit }) {
-  const tags = await releaseTags({ prefix, runGit, mergedInto: sha });
-  return tags.find((tag) => tag !== excludeTag) ?? null;
+async function newestReleaseTag({ prefix, sha, runGit }) {
+  const [newest] = await releaseTags({ prefix, runGit, mergedInto: sha });
+  return newest ?? null;
+}
+
+async function previousPromotedReleaseTag({ prefix, sha, excludeTag, runGit, isPromoted }) {
+  for (const tag of await releaseTags({ prefix, runGit, mergedInto: sha })) {
+    if (tag !== excludeTag && (await isPromoted(tag))) return tag;
+  }
+  return null;
 }
 
 async function assertNotAlreadyReleased({ prefix, sha, runGit }) {
@@ -189,7 +199,7 @@ async function listCommits({ previousTag, sha, paths, runGit }) {
 export async function planRelease({ spec, sha, runGit }) {
   const { prefix, rootPackages } = spec;
   await assertNotAlreadyReleased({ prefix, sha, runGit });
-  const previousTag = await previousReleaseTag({ prefix, sha, runGit });
+  const previousTag = await newestReleaseTag({ prefix, sha, runGit });
   const paths = await includedPathsAt({ sha, rootPackages, runGit });
   const commits = await listCommits({ previousTag, sha, paths, runGit });
   if (commits.length === 0) {
@@ -221,6 +231,7 @@ export async function runCli({
   runGit = runGitViaChildProcess,
   appendOutput = appendFile,
   writeNotes = writeFile,
+  isPromoted,
   log = console.log,
   logError = console.error,
 } = {}) {
@@ -230,6 +241,7 @@ export async function runCli({
     TARGET_SHA,
     RELEASE_NOTES_FILE,
     RELEASE_TAG,
+    REGISTRY_TOKEN,
     GITHUB_OUTPUT,
   } = env;
   const [command] = argv;
@@ -263,13 +275,18 @@ export async function runCli({
         );
         return 1;
       }
-      const previous = await previousReleaseTag({
+      if (isPromoted === undefined && !REGISTRY_TOKEN) {
+        logError(`${LOG_PREFIX}: REGISTRY_TOKEN is required to find the releases production ran`);
+        return 1;
+      }
+      const previous = await previousPromotedReleaseTag({
         prefix: RELEASE_TAG_PREFIX,
         sha: TARGET_SHA,
         excludeTag: RELEASE_TAG,
         runGit,
+        isPromoted: isPromoted ?? ((tag) => releaseImagePromoted({ tag, token: REGISTRY_TOKEN })),
       });
-      log(`${LOG_PREFIX}: the release before ${RELEASE_TAG} is ${previous ?? "none"}`);
+      log(`${LOG_PREFIX}: the promoted release before ${RELEASE_TAG} is ${previous ?? "none"}`);
       await appendOutput(GITHUB_OUTPUT, `previous_tag=${previous ?? ""}\n`);
       return 0;
     }

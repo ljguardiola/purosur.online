@@ -37,7 +37,7 @@ jobs:
       - name: Require an administrator
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ACTOR: ${{ github.actor }}
+          ACTOR: ${{ github.triggering_actor }}
         run: node .github/scripts/actor-is-admin.mjs
 
       - name: Read the commit staging serves
