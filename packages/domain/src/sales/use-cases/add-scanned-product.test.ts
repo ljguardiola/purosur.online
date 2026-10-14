@@ -420,6 +420,33 @@ describe("addScannedProduct", () => {
     nothingRecorded(store, before);
   });
 
+  it("refuses to open a new sale while a paid order without a sale is unresolved", () => {
+    const store = ledger({ paidOrderWithoutSaleUnresolved: true });
+    const before = structuredClone(store.state);
+
+    expect(scan(store)).toEqual({ kind: "paid_order_without_sale" });
+    nothingRecorded(store, before);
+  });
+
+  it("keeps accepting lines on an open sale while a paid order without a sale is unresolved", () => {
+    const store = ledger({ sales: [OPEN_SALE], paidOrderWithoutSaleUnresolved: true });
+
+    expect(scan(store).kind).toBe("added");
+  });
+
+  it("opens a new sale once no paid order without a sale is unresolved", () => {
+    expect(scan(ledger({ paidOrderWithoutSaleUnresolved: false })).kind).toBe("added");
+  });
+
+  it("checks the installation's revocation before a paid order without a sale, and that before the register's identity", () => {
+    expect(scan(ledger({ revoked: true, paidOrderWithoutSaleUnresolved: true }))).toEqual({
+      kind: "installation_revoked",
+    });
+    expect(scan(ledger({ paidOrderWithoutSaleUnresolved: true, identity: undefined }))).toEqual({
+      kind: "paid_order_without_sale",
+    });
+  });
+
   it("refuses to open a new sale when the register has no identity yet", () => {
     const store = ledger({ identity: undefined });
     const before = structuredClone(store.state);

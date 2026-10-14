@@ -228,6 +228,12 @@ describe("addSearchedProduct", () => {
     expect(add(ledger({ revoked: true }))).toEqual({ kind: "installation_revoked" });
   });
 
+  it("refuses to open a sale while a paid order without a sale is unresolved", () => {
+    expect(add(ledger({ paidOrderWithoutSaleUnresolved: true }))).toEqual({
+      kind: "paid_order_without_sale",
+    });
+  });
+
   it("refuses to open a sale when the register has no identity yet", () => {
     expect(add(ledger({ identity: undefined }))).toEqual({ kind: "unavailable" });
   });
