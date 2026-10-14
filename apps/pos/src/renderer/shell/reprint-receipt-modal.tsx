@@ -16,21 +16,21 @@ import {
 } from "@purosur/ui";
 import { Printer, TriangleAlert, X } from "lucide-react";
 import { useState } from "react";
-import { AuthorizationSection } from "../shell/authorization-section";
-import type { SignedInPerson } from "../shell/signed-in-person";
-import { useAuthorization } from "../shell/use-authorization";
+import { AuthorizationSection } from "./authorization-section";
 import {
   EMPTY_REPRINT_RECEIPT_FORM,
   invalidReasonMessage,
   reprintReceiptFormRequestSchema,
   reprintReceiptRequestFrom,
 } from "./reprint-receipt-form";
-import type { SaleDetail } from "./sale-history-text";
+import type { NextReceiptCopy, SaleDetail } from "./sale-receipt-text";
 import {
   comprobantePresentation,
   nonEmptyRows,
   receiptCopyPresentation,
-} from "./sale-history-text";
+} from "./sale-receipt-text";
+import type { SignedInPerson } from "./signed-in-person";
+import { useAuthorization } from "./use-authorization";
 
 const FAILED_MESSAGE = "No se pudo reimprimir. Probá de nuevo.";
 const BUSY_MESSAGE =
@@ -40,8 +40,11 @@ const REQUIRED_REASON_MESSAGE = "Escribí el motivo de la reimpresión.";
 const AUTHORIZING = "reimprimir comprobantes";
 const PERMISSION: AuthorizablePermissionKey = "reprint_receipt";
 
+type ReprintableSale = Pick<SaleDetail, "sale_id" | "occurred_at"> &
+  Partial<Pick<SaleDetail, "comprobante" | "operation_number">> & { next_copy: NextReceiptCopy };
+
 export type ReprintReceiptModalProps = {
-  sale: SaleDetail;
+  sale: ReprintableSale;
   person: SignedInPerson;
   loadAuthorizers: (permission: AuthorizablePermissionKey) => Promise<SignInUser[]>;
   reprintSaleReceipt: (
@@ -67,7 +70,8 @@ export function ReprintReceiptModal({
 }: ReprintReceiptModalProps) {
   const [notice, setNotice] = useState<string>();
   const copy = receiptCopyPresentation(sale.next_copy);
-  const comprobante = comprobantePresentation(sale.comprobante);
+  const comprobante =
+    sale.comprobante === undefined ? undefined : comprobantePresentation(sale.comprobante);
   const authorization = useAuthorization({
     person,
     permission: PERMISSION,
@@ -135,14 +139,15 @@ export function ReprintReceiptModal({
     void submit();
   }
 
+  const operationNumber = sale.operation_number ?? null;
   const rows = nonEmptyRows([
     ...(copy.legend === undefined ? [] : [{ label: "Leyenda", value: copy.legend }]),
     ...(comprobante === undefined
       ? []
       : [{ label: "Comprobante", value: `${comprobante.name} · ${comprobante.detail}` }]),
-    ...(sale.operation_number === null
+    ...(operationNumber === null
       ? []
-      : [{ label: "Operación", value: formatOperationNumber(sale.operation_number) }]),
+      : [{ label: "Operación", value: formatOperationNumber(operationNumber) }]),
   ]);
 
   return (

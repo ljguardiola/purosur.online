@@ -33,6 +33,7 @@ import type {
   PinPolicy,
   PreviewSaleDiscountOutcome,
   PreviewSaleLineAdjustmentOutcome,
+  PrintOriginalReceiptOutcome,
   ReadInitialCountOutcome,
   ReadReceiptPrinterOutcome,
   ReadSerialDevicesOutcome,
@@ -93,13 +94,16 @@ import { NoSessionScreen } from "../register/no-session-screen";
 import { OlderVersionScreen } from "../register/older-version-screen";
 import { OutOfServiceScreen } from "../register/out-of-service-screen";
 import { ReceiptPrinterScreen } from "../register/receipt-printer-screen";
+import type { StartupPendingAnswer } from "../register/register-queries";
 import {
   registerNameQueryOptions,
   registerStatusQueryOptions,
+  startupPendingQueryOptions,
   useRegisterNameQuery,
 } from "../register/register-queries";
 import { mayConfigureSerialDevices } from "../register/serial-devices-offer";
 import { SerialDevicesScreen } from "../register/serial-devices-screen";
+import { StartupPendingScreen } from "../register/startup-pending-screen";
 import { ChargeScreen } from "../sales/charge-screen";
 import { SaleScreen } from "../sales/sale-screen";
 import { SalesHistoryScreen } from "../sales/sales-history-screen";
@@ -112,6 +116,7 @@ import { BrandPanelScreen } from "./brand-panel-screen";
 import { CoreDownNotice } from "./core-down-notice";
 import { RegisterUpdatingNotice } from "./register-updating-notice";
 import type { SignedInPerson } from "./signed-in-person";
+import type { StartupPendingGate } from "./startup-pending-gate";
 import { StatusBarLayout } from "./status-bar-layout";
 
 export type CoreStatus = CoreStatusMessage["status"];
@@ -226,6 +231,7 @@ export interface RouterContext {
     authorization: Authorization | undefined,
   ) => Promise<CancelPaidSaleOutcome>;
   receiptPrintStatus: (saleId: string) => Promise<ReceiptPrintStatusOutcome>;
+  printOriginalReceipt: (saleId: string) => Promise<PrintOriginalReceiptOutcome>;
   reprintSaleReceipt: (
     saleId: string,
     reason: string,
@@ -240,6 +246,8 @@ export interface RouterContext {
     devices: SerialDevicesToRegister,
   ) => Promise<RegisterSerialDevicesOutcome>;
   takeSerialDevicesOffer: (readStatus: () => Promise<RegisterStatus>) => Promise<boolean>;
+  startupPending: () => Promise<StartupPendingAnswer>;
+  startupPendingGate: StartupPendingGate;
   readInitialCount: () => Promise<ReadInitialCountOutcome>;
   recordInitialCountLine: (
     productId: string,
@@ -566,8 +574,17 @@ const initialCountRoute = createRoute({
 const openSessionRoute = createRoute({
   getParentRoute: () => statusBarRoute,
   path: "/session",
-  beforeLoad: ({ context }) => {
+  beforeLoad: async ({ context }) => {
     const { id, person } = requireOpenSession(context);
+    const landsOnStartupPending = await context.startupPendingGate.lands(() =>
+      context.queryClient.fetchQuery({
+        ...startupPendingQueryOptions(context.startupPending),
+        staleTime: 0,
+      }),
+    );
+    if (landsOnStartupPending) {
+      throw redirect({ to: "/startup-pending" });
+    }
     return { id, person };
   },
   component: function OpenSessionRoute() {
@@ -616,6 +633,56 @@ const openSessionRoute = createRoute({
         cancelSale={cancelSale}
         cancelPaidSale={cancelPaidSale}
         loadAuthorizers={authorizers}
+        onSessionInvalid={() => void refreshCashSession()}
+      />
+    );
+  },
+});
+
+const startupPendingRoute = createRoute({
+  getParentRoute: () => statusBarRoute,
+  path: "/startup-pending",
+  beforeLoad: ({ context }) => {
+    const { id, openedAt, openedBy, person } = requireOpenSession(context);
+    if (context.startupPendingGate.dismissed()) {
+      throw redirect({ to: "/session" });
+    }
+    return { id, openedAt, openedBy, person };
+  },
+  component: function StartupPendingRoute() {
+    const {
+      id,
+      openedAt,
+      openedBy,
+      person,
+      signOut,
+      startupPending,
+      startupPendingGate,
+      cashBalance,
+      printOriginalReceipt,
+      reprintSaleReceipt,
+      authorizers,
+      refreshCashSession,
+    } = startupPendingRoute.useRouteContext();
+    const registerName = useRegisterName();
+    const navigate = startupPendingRoute.useNavigate();
+    return (
+      <StartupPendingScreen
+        sessionId={id}
+        person={person}
+        sessionOwner={openedBy}
+        openedAt={openedAt}
+        registerName={registerName}
+        lock={signOut}
+        loadStartupPending={startupPending}
+        loadCashBalance={cashBalance}
+        printOriginalReceipt={printOriginalReceipt}
+        reprintSaleReceipt={reprintSaleReceipt}
+        loadAuthorizers={authorizers}
+        onGoSelling={() => {
+          startupPendingGate.dismiss();
+          void navigate({ to: "/session" });
+        }}
         onSessionInvalid={() => void refreshCashSession()}
       />
     );
@@ -937,6 +1004,7 @@ export const routeTree = rootRoute.addChildren([
       serialDevicesRoute,
       initialCountRoute,
       openSessionRoute,
+      startupPendingRoute,
       chargeRoute,
       historyRoute,
       cashRoute,
@@ -1023,6 +1091,7 @@ export function createAppRouter(
     | "cancelSale"
     | "cancelPaidSale"
     | "receiptPrintStatus"
+    | "printOriginalReceipt"
     | "reprintSaleReceipt"
     | "salesHistory"
     | "saleHistoryDetail"
@@ -1031,6 +1100,8 @@ export function createAppRouter(
     | "readSerialDevices"
     | "registerSerialDevices"
     | "takeSerialDevicesOffer"
+    | "startupPending"
+    | "startupPendingGate"
     | "readInitialCount"
     | "recordInitialCountLine"
     | "withdrawInitialCountLine"

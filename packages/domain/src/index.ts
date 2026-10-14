@@ -526,6 +526,7 @@ export {
   saleStandingOf,
   saleTotal,
   startedReceiptPrint,
+  UNPRINTED_SALE_STANDINGS,
   WEIGHT_SOURCES,
 } from "./sales/index.js";
 export {

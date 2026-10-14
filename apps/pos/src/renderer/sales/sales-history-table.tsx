@@ -14,12 +14,8 @@ import {
 } from "@purosur/ui";
 import { Eye, ReceiptText, TriangleAlert } from "lucide-react";
 import type { CoreData } from "../platform/use-core-query";
-import {
-  comprobantePresentation,
-  operationText,
-  paymentMethodsText,
-  saleStatePresentation,
-} from "./sale-history-text";
+import { comprobantePresentation } from "../shell/sale-receipt-text";
+import { operationText, paymentMethodsText, saleStatePresentation } from "./sale-history-text";
 import type { ShownSalesHistory } from "./sales-queries";
 
 type Row = Extract<ShownSalesHistory, { kind: "found" }>["rows"][number];

@@ -99,6 +99,12 @@ export type {
 } from "./preview-sale-line-adjustment.js";
 export { previewSaleLineAdjustment } from "./preview-sale-line-adjustment.js";
 export type {
+  PrintOriginalReceiptInput,
+  PrintOriginalReceiptOutcome,
+  PrintOriginalReceiptPorts,
+} from "./print-original-receipt.js";
+export { printOriginalReceipt } from "./print-original-receipt.js";
+export type {
   PrintSaleReceiptInput,
   PrintSaleReceiptOutcome,
   PrintSaleReceiptPorts,
@@ -120,6 +126,12 @@ export type {
   SalesHistoryRow,
 } from "./read-sales-history.js";
 export { readSalesHistory } from "./read-sales-history.js";
+export type {
+  SaleToPrintAtStartup,
+  StartupSale,
+  StartupSales,
+} from "./read-sales-to-print-at-startup.js";
+export { readSalesToPrintAtStartup } from "./read-sales-to-print-at-startup.js";
 export type {
   ReceiptDeliveryOfInput,
   ReceiptDeliveryOfOutcome,
