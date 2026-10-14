@@ -21,8 +21,7 @@ const TRANSFER_REFUND: Refund = {
 };
 const CASH_LINE = "Devolver $ 1.000,00 en efectivo";
 const TRANSFER_LINE = "Reembolso pendiente de la transferencia por $ 2.500,00";
-const PENDING_NOTE =
-  "Un reembolso pendiente no se hace desde la caja: se atiende en el backoffice.";
+const PENDING_NOTE = "No se hace desde la caja: se atiende en el backoffice.";
 const FAILED_NOTICE = "No se pudo cancelar la venta. Probá de nuevo.";
 
 type CancelSale = () => Promise<CancelLockedSaleOutcome>;
@@ -73,6 +72,19 @@ describe("CancelLockedPaidSaleModal", () => {
 
     await expect.element(dialog.getByText(CASH_LINE)).toBeVisible();
     await expect.element(dialog.getByText(PENDING_NOTE)).not.toBeInTheDocument();
+  });
+
+  it("adds no note of its own under a pending QR refund, whose line already says how it is handled", async () => {
+    const { dialog } = await renderModal({
+      refunds: [{ payment_id: "p9", method: "QR", amount: 70_000, state: "PENDING" }],
+    });
+
+    await expect
+      .element(
+        dialog.getByText("Reembolso pendiente del pago con QR por $ 700,00", { exact: true }),
+      )
+      .toBeVisible();
+    await expect.element(dialog.getByText(/se atiende en el backoffice/)).not.toBeInTheDocument();
   });
 
   it("closes without cancelling when going back", async () => {

@@ -38,7 +38,7 @@ test("describes a QR payment Mercado Pago charged that has to be given back, wha
   );
 });
 
-test("describes the refund of a cancelled sale left without being marked as done", () => {
+test("describes a cancelled sale with a pending refund", () => {
   expect(alertKindDescription("refund_task")).toBe(
     "Una venta anulada tiene un reembolso pendiente",
   );

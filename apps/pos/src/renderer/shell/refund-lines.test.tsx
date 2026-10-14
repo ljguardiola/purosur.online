@@ -104,18 +104,25 @@ describe("RefundLines", () => {
       .toBeVisible();
   });
 
-  it("explains nothing under a pending transfer refund", async () => {
-    const refund: Refund = {
-      payment_id: "p2",
-      method: "TRANSFER",
-      amount: 250_000,
-      state: "PENDING",
-    };
+  it.each([
+    ["transfer", "TRANSFER"],
+    ["terminal", "POINT"],
+  ] as const)(
+    "explains under a pending %s refund that it is handled in the backoffice, not at the register",
+    async (_, method) => {
+      const refund: Refund = { payment_id: "p2", method, amount: 250_000, state: "PENDING" };
 
-    const screen = await render(<RefundLines refunds={[refund]} />);
+      const screen = await render(<RefundLines refunds={[refund]} />);
 
-    await expect.element(screen.getByText(/Lo devuelve una persona/)).not.toBeInTheDocument();
-  });
+      await expect
+        .element(
+          screen.getByText("No se hace desde la caja: se atiende en el backoffice.", {
+            exact: true,
+          }),
+        )
+        .toBeVisible();
+    },
+  );
 
   it("says a standalone terminal payment's refund given back now goes back by that terminal", async () => {
     const refund: Refund = {
