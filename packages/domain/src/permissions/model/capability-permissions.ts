@@ -27,6 +27,7 @@ export const CAPABILITY_PERMISSIONS = {
   stock_losses: ["record_stock_losses"],
   stock_adjustments: ["adjust_stock"],
   stock_movements: ["record_stock_losses", "adjust_stock"],
+  stock_expiries: ["manage_expiration_dates"],
   stock_area: [
     "view_stock_balances",
     "perform_stock_counts",
@@ -37,6 +38,7 @@ export const CAPABILITY_PERMISSIONS = {
     "manage_purchase_presentations",
     "record_purchases",
     "manage_freight",
+    "manage_expiration_dates",
     "manage_recipes",
   ],
   suppliers: ["manage_suppliers"],

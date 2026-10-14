@@ -57,6 +57,7 @@ export {
 } from "./model/sale-history.js";
 export type { ListPrice, SoldProduct } from "./model/sale-line.js";
 export { mayBeSaleLineQuantity, saleTotal } from "./model/sale-line.js";
+export { UNPRINTED_SALE_STANDINGS } from "./model/sale-print-standing.js";
 export type { SalesOfDay, SalesReportTotals } from "./model/sales-report.js";
 export { SALES_REPORT_SALE_STATE } from "./model/sales-report.js";
 export type { WeightSource } from "./model/weight-source.js";

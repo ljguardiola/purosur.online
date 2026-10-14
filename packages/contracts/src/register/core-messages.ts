@@ -1,4 +1,5 @@
 import {
+  ALERT_LEVELS,
   type AuthorizablePermissionKey,
   CASH_MOVEMENT_DIRECTIONS,
   CASH_MOVEMENT_KINDS,
@@ -20,6 +21,7 @@ import {
   signInUserSchema,
 } from "../shared/index.js";
 import { receiptPrinterAddressSchema } from "./receipt-printer-address.js";
+import { startupPendingSchema } from "./startup-pending.js";
 
 const requestId = requestIdSchema;
 
@@ -125,6 +127,11 @@ const sessionOpenSaleRequestMessageSchema = z.object({
   request_id: requestId,
 });
 
+const startupPendingRequestMessageSchema = z.object({
+  type: z.literal("startup-pending-request"),
+  request_id: requestId,
+});
+
 const lockedClosersRequestMessageSchema = z.object({
   type: z.literal("locked-closers-request"),
   request_id: requestId,
@@ -178,6 +185,7 @@ export const registerRendererToCoreMessageSchema = z.discriminatedUnion("type", 
   cashBalanceRequestMessageSchema,
   cashCountPreviewRequestMessageSchema,
   sessionOpenSaleRequestMessageSchema,
+  startupPendingRequestMessageSchema,
   lockedClosersRequestMessageSchema,
   registerStatusRequestMessageSchema,
   readReceiptPrinterMessageSchema,
@@ -320,8 +328,15 @@ const SERIAL_DEVICE_STANDING_KINDS = [
 ] as const;
 
 const registerOwnConditionSchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("sales_denied"), reason: z.enum(SALES_DENIED_REASONS) }),
-  z.object({ kind: z.enum(REGISTER_OWN_CONDITIONS).exclude(["sales_denied"]) }),
+  z.object({
+    kind: z.literal("sales_denied"),
+    reason: z.enum(SALES_DENIED_REASONS),
+    level: z.enum(ALERT_LEVELS),
+  }),
+  z.object({
+    kind: z.enum(REGISTER_OWN_CONDITIONS).exclude(["sales_denied"]),
+    level: z.enum(ALERT_LEVELS),
+  }),
 ]);
 
 const registerStatusSchema = z.object({
@@ -450,6 +465,13 @@ export const registerCoreToRendererMessageSchema = z.discriminatedUnion("type", 
     sale: sessionOpenSaleSchema.nullable(),
   }),
   z.object({ type: z.literal("session-open-sale-unavailable"), request_id: requestId }),
+  z.object({
+    type: z.literal("startup-pending"),
+    request_id: requestId,
+    pending: startupPendingSchema,
+  }),
+  z.object({ type: z.literal("startup-pending-unavailable"), request_id: requestId }),
+  z.object({ type: z.literal("startup-pending-not-permitted"), request_id: requestId }),
   z.object({
     type: z.literal("cash-session"),
     request_id: requestId,

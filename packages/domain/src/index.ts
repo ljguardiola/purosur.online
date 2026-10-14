@@ -537,6 +537,7 @@ export {
   saleStandingOf,
   saleTotal,
   startedReceiptPrint,
+  UNPRINTED_SALE_STANDINGS,
   WEIGHT_SOURCES,
 } from "./sales/index.js";
 export {
@@ -613,6 +614,7 @@ export {
   STOCK_PERIOD_DAYS,
   STOCK_QUANTITY_DECIMALS,
   STOCK_QUANTITY_PER_UNIT,
+  SYSTEM_LOSS_REASONS,
   visibleManualStockMovementKinds,
 } from "./stock/index.js";
 export type {
