@@ -2,19 +2,23 @@ import { randomUUID } from "node:crypto";
 import type { SyncedFact } from "@purosur/domain/sync/use-cases";
 import { describe, expect, it } from "vitest";
 import { offlineFiscalDocuments } from "../platform/db/schema.js";
+import { applyCompletedSale } from "../sales/test-support/applied-sales.js";
 import { eventApplicationUnderTest } from "./test-support/drizzle-event-application.js";
 import { anOfflineFiscalDocumentFact } from "./test-support/synced-facts.js";
 import { unappliedEventOf } from "./test-support/unapplied-event.js";
 
 const system = eventApplicationUnderTest();
 
-async function record(fact: SyncedFact, deviceId: string) {
+async function record(
+  fact: Extract<SyncedFact, { kind: "offline_fiscal_document_issued" }>,
+  deviceId: string,
+) {
   const event = unappliedEventOf(
     {
       event_id: randomUUID(),
-      device_seq: 1,
+      device_seq: 3,
       aggregate_type: "Sale",
-      aggregate_id: randomUUID(),
+      aggregate_id: fact.document.saleId,
       event_type: "offline_fiscal_document_issued",
       schema_version: 1,
       payload: {},
@@ -27,17 +31,30 @@ async function record(fact: SyncedFact, deviceId: string) {
   await system.application.transaction((tx) => tx.record(fact, event));
 }
 
+async function enrolledWithSale() {
+  const { deviceId, registerId } = await system.enrollInstallation();
+  return { deviceId, registerId, saleId: await appliedSaleOf(deviceId) };
+}
+
+function appliedSaleOf(deviceId: string) {
+  return applyCompletedSale(system.db, {
+    deviceId,
+    completedAt: new Date("2026-10-06T11:20:00.000Z"),
+    total: 4800,
+  });
+}
+
 describe("recording the document a register issued under a pre-obtained code", () => {
   it("keeps every field of the document with the register it came from", async () => {
-    const { deviceId, registerId } = await system.enrollInstallation();
-    const fact = anOfflineFiscalDocumentFact({ registerId, cause: "numbering_conflict" });
+    const { deviceId, registerId, saleId } = await enrolledWithSale();
+    const fact = anOfflineFiscalDocumentFact({ registerId, saleId, cause: "numbering_conflict" });
 
     await record(fact, deviceId);
 
     expect(await system.db.select().from(offlineFiscalDocuments)).toEqual([
       {
         id: fact.document.fiscalDocumentId,
-        saleId: fact.document.saleId,
+        saleId,
         registerId,
         pointOfSale: 7,
         documentType: "factura_c",
@@ -60,8 +77,8 @@ describe("recording the document a register issued under a pre-obtained code", (
   });
 
   it("leaves the document as it is when the same document is recorded again", async () => {
-    const { deviceId, registerId } = await system.enrollInstallation();
-    const fact = anOfflineFiscalDocumentFact({ registerId });
+    const { deviceId, registerId, saleId } = await enrolledWithSale();
+    const fact = anOfflineFiscalDocumentFact({ registerId, saleId });
 
     await record(fact, deviceId);
     await record(fact, deviceId);
@@ -70,36 +87,58 @@ describe("recording the document a register issued under a pre-obtained code", (
   });
 
   it("refuses a different document under a number already issued at the point of sale", async () => {
-    const { deviceId, registerId } = await system.enrollInstallation();
-    await record(anOfflineFiscalDocumentFact({ registerId }), deviceId);
+    const { deviceId, registerId, saleId } = await enrolledWithSale();
+    await record(anOfflineFiscalDocumentFact({ registerId, saleId }), deviceId);
+    const anotherSaleId = await appliedSaleOf(deviceId);
 
     await expect(
-      record(anOfflineFiscalDocumentFact({ registerId, number: 12 }), deviceId),
+      record(
+        anOfflineFiscalDocumentFact({ registerId, saleId: anotherSaleId, number: 12 }),
+        deviceId,
+      ),
     ).rejects.toThrow();
 
     expect(await system.db.select().from(offlineFiscalDocuments)).toHaveLength(1);
   });
 
   it("refuses a second document for the same sale", async () => {
-    const { deviceId, registerId } = await system.enrollInstallation();
-    const first = anOfflineFiscalDocumentFact({ registerId });
-    await record(first, deviceId);
+    const { deviceId, registerId, saleId } = await enrolledWithSale();
+    await record(anOfflineFiscalDocumentFact({ registerId, saleId }), deviceId);
 
     await expect(
-      record(
-        anOfflineFiscalDocumentFact({ registerId, saleId: first.document.saleId, number: 13 }),
-        deviceId,
-      ),
+      record(anOfflineFiscalDocumentFact({ registerId, saleId, number: 13 }), deviceId),
     ).rejects.toThrow();
   });
 
   it("refuses a document that names another register than the one that pushed it", async () => {
-    const { deviceId } = await system.enrollInstallation();
+    const { deviceId, saleId } = await enrolledWithSale();
     const other = await system.enrollInstallation({ registerName: "Caja 2" });
 
     await expect(
-      record(anOfflineFiscalDocumentFact({ registerId: other.registerId }), deviceId),
+      record(anOfflineFiscalDocumentFact({ registerId: other.registerId, saleId }), deviceId),
     ).rejects.toThrow(/register/);
+
+    expect(await system.db.select().from(offlineFiscalDocuments)).toEqual([]);
+  });
+
+  it("refuses a document of a sale that was never applied", async () => {
+    const { deviceId, registerId } = await system.enrollInstallation();
+
+    await expect(
+      record(anOfflineFiscalDocumentFact({ registerId, saleId: randomUUID() }), deviceId),
+    ).rejects.toThrow(/sale .* is not applied/);
+
+    expect(await system.db.select().from(offlineFiscalDocuments)).toEqual([]);
+  });
+
+  it("refuses a document of a sale applied for another register", async () => {
+    const { deviceId, registerId } = await system.enrollInstallation();
+    const other = await system.enrollInstallation({ registerName: "Caja 2" });
+    const othersSaleId = await appliedSaleOf(other.deviceId);
+
+    await expect(
+      record(anOfflineFiscalDocumentFact({ registerId, saleId: othersSaleId }), deviceId),
+    ).rejects.toThrow(/sale .* is not applied/);
 
     expect(await system.db.select().from(offlineFiscalDocuments)).toEqual([]);
   });

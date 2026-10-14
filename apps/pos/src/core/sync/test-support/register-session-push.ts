@@ -1,4 +1,9 @@
 import { encodePinHash } from "@purosur/contracts";
+import {
+  FICTIONAL_CUIT,
+  FICTIONAL_GROSS_INCOME_REGISTRATION,
+  FICTIONAL_LEGAL_NAME,
+} from "@purosur/domain/fiscal/test-support";
 import type { MercadoPagoChargeOrders } from "@purosur/domain/payments/use-cases";
 import { derivePinVerifier } from "../../credentials/pin-verifier";
 import {
@@ -65,6 +70,8 @@ const DISCOUNT = "b5d2f7a1-8c40-4e96-a3b7-1f9e6c4d2a10";
 const BUY_THREE_PAY_TWO = "c9f4b2e7-1a58-4d36-8e0b-4a7c3f9d1e17";
 const THRESHOLD = "d3e6a9c1-5f28-4b74-8a0d-9c2e7f1b4a11";
 const CATEGORY = "f1a7c3e9-4b52-4d68-9e01-7a3c5b8d2f12";
+const OFFLINE_NUMBER_BLOCK = "3e9a5c1f-7b24-4d86-a0c3-5f1e8b2d7a21";
+const OFFLINE_POINT_OF_SALE = 31;
 const PEPPER = Buffer.alloc(32, 9).toString("base64url");
 const PIN = "4826";
 const PIN_HASH = "hash-of-the-pin";
@@ -180,6 +187,42 @@ function seed(database: ReturnType<typeof openLocalDatabase>): void {
        VALUES (?, 'Galletitas 3x2', 'BUY_N_PAY_M', NULL, 3, 2, 'PRODUCT', ?, '2026-09-01', '2026-12-31', '[]', 1, 1)`,
     )
     .run(BUY_THREE_PAY_TWO, COOKIES);
+}
+
+function holdOfflineAuthorization(database: ReturnType<typeof openLocalDatabase>): void {
+  database
+    .prepare(
+      `INSERT INTO issuer_identification_versions (
+         version, legal_name, gross_income_registration, activity_start_date, authorized_cuit, tax_status
+       ) VALUES (1, ?, ?, '2020-01-15', ?, 'Monotributo')`,
+    )
+    .run(FICTIONAL_LEGAL_NAME, FICTIONAL_GROSS_INCOME_REGISTRATION, FICTIONAL_CUIT);
+  database
+    .prepare(
+      "INSERT INTO buyer_tax_status_sets (params_version, set_id, options) VALUES (1, 'set-1', ?)",
+    )
+    .run(JSON.stringify([{ code: 5, description: "Consumidor Final", invoice_class: "A/M/C" }]));
+  database
+    .prepare(
+      `INSERT INTO register_offline_point_of_sale (
+         register_id, point_of_sale_number, tax_authority_last_authorized_number, version
+       ) VALUES (?, ?, 0, 1)`,
+    )
+    .run(REGISTER, OFFLINE_POINT_OF_SALE);
+  database
+    .prepare(
+      `INSERT INTO offline_number_blocks (
+         id, point_of_sale, document_type, first_number, last_number, status, version
+       ) VALUES (?, ?, 'factura_c', 1, 1000, 'in_use', 1)`,
+    )
+    .run(OFFLINE_NUMBER_BLOCK, OFFLINE_POINT_OF_SALE);
+  database
+    .prepare(
+      `INSERT INTO offline_authorization_codes (
+         fortnight_start, fortnight_end, code, report_deadline, version
+       ) VALUES ('2026-10-01', '2026-10-15', '36251478963214', '2026-10-23', 1)`,
+    )
+    .run();
 }
 
 async function untilPrinted(jobs: ReceiptPrintJobs, saleId: string): Promise<void> {
@@ -571,6 +614,24 @@ export async function withRegisterSession<TResult>(
       saleId: receiptScan.sale.id,
       nextStep,
     });
+    holdOfflineAuthorization(database);
+    nextStep();
+    const offlineScan = await scanProductFor(deps(), "7790001000028");
+    if (offlineScan.kind !== "added") {
+      throw new Error(
+        `The register session's "scan a product to invoice offline" ended as "${offlineScan.kind}"`,
+      );
+    }
+    nextStep();
+    const offlineTransfer = await chargeSaleByTransferFor(deps(), {
+      saleId: offlineScan.sale.id,
+      amount: offlineScan.sale.total,
+    });
+    expectOutcome(
+      "charge a sale invoiced under the pre-obtained code",
+      offlineTransfer.kind,
+      "completed",
+    );
     nextStep();
     const closed = await closeCashSessionFor(deps(), {
       sessionId: opened.cash_session.id,

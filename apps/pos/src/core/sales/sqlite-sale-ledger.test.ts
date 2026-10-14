@@ -23,8 +23,6 @@ import {
 } from "@purosur/domain/sales/use-cases";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
-  insertCompletedSale,
-  insertFiscalDocument,
   insertHealthCheck,
   insertOfflineAuthorizationCode,
   insertOfflineNumberBlock,
@@ -984,51 +982,6 @@ describe("charging an open sale in cash", () => {
       expect(await printedReceipt(saleId)).toContain(
         `${" ".repeat(7)}CAEA 36251478963214  ·  Quincena 16 al 30/09/2026`,
       );
-    });
-
-    it("defers the sale, with no document and no event, when no code covers the sale's date", () => {
-      insertOfflineAuthorizationCode(database, {
-        fortnightStart: "2026-10-01",
-        fortnightEnd: "2026-10-15",
-      });
-      const saleId = sellTwo();
-
-      charge(saleId, 3000);
-
-      expect(
-        database.prepare("SELECT count(*) AS total FROM offline_fiscal_documents").get(),
-      ).toEqual({
-        total: 0,
-      });
-      expect(database.prepare("SELECT sale_id, reason FROM deferred_sales").all()).toEqual([
-        { sale_id: saleId, reason: "fiscally_offline" },
-      ]);
-      expect(outbox()).toEqual([
-        { device_seq: 1, aggregate_id: saleId, event_type: "sale_completed" },
-      ]);
-    });
-
-    it("issues the document as an unclear outcome while the register is online but an earlier document of the series is unclear", () => {
-      insertOfflineAuthorizationCode(database);
-      insertHealthCheck(database, { checkedAt: "2026-09-30T11:59:58.000Z" });
-      insertPointOfSale(database, 40);
-      insertCompletedSale(database, "earlier-sale");
-      insertFiscalDocument(database, {
-        id: "earlier-doc",
-        saleId: "earlier-sale",
-        number: 41,
-        state: "UNKNOWN",
-      });
-      const saleId = sellTwo();
-
-      charge(saleId, 3000);
-
-      expect(database.prepare("SELECT sale_id, cause FROM offline_fiscal_documents").all()).toEqual(
-        [{ sale_id: saleId, cause: "unclear_outcome" }],
-      );
-      expect(database.prepare("SELECT count(*) AS total FROM fiscal_documents").get()).toEqual({
-        total: 1,
-      });
     });
 
     it("leaves nothing behind when the document cannot be issued with the sale", () => {

@@ -324,13 +324,23 @@ describe("decideSaleAuthorizationRoute", () => {
     });
   });
 
-  it("names lack of connectivity, not the unclear outcome, when both hold", () => {
+  it("names the unclear outcome, not lack of connectivity, when both hold", () => {
     expect(
       decide({
         online: { ...ONLINE, arcaReachable: false },
         series: { ...SERIES, documentUnknown: true },
       }),
-    ).toMatchObject({ cause: "no_connectivity" });
+    ).toMatchObject({ kind: "issue_offline", cause: "unclear_outcome" });
+  });
+
+  it("defers a sale suspended by an unclear outcome as waiting on that document when the register is also offline and holds no code", () => {
+    expect(
+      decide({
+        online: { ...ONLINE, arcaReachable: false },
+        series: { ...SERIES, documentUnknown: true },
+        offlineAuthorizationCode: null,
+      }),
+    ).toEqual({ kind: "defer", reason: "document_waiting" });
   });
 
   it("defers a sale of a register without a point of sale while it is online, before looking at the series", () => {

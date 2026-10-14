@@ -459,6 +459,16 @@ describe("deciding a sale's authorization when the register holds a code for its
       ]);
     });
 
+    it("takes the first number of the earliest block when a later block was stored before it", () => {
+      database.prepare("DELETE FROM offline_number_blocks").run();
+      insertOfflineNumberBlock(database, "block-2", 1001, 2000, OFFLINE_POINT_OF_SALE);
+      insertOfflineNumberBlock(database, "block-1", 1, 1000, OFFLINE_POINT_OF_SALE);
+
+      decide();
+
+      expect(offlineDocuments().map((row) => (row as { number: number }).number)).toEqual([1]);
+    });
+
     it("ignores the documents and blocks of another offline point of sale", () => {
       insertOfflineNumberBlock(database, "other", 5001, 6000, POINT_OF_SALE);
       alreadyIssued(POINT_OF_SALE, 5001);

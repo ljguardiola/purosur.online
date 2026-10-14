@@ -2,6 +2,7 @@ import { canonicalOutboxEvent } from "@purosur/domain";
 import { describe, expect, it } from "vitest";
 import { inbox, offlineFiscalDocuments } from "../platform/db/schema.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
+import { applyCompletedSale } from "../sales/test-support/applied-sales.js";
 import { applySyncedEventsTask } from "./apply-synced-events-task.js";
 import { hmacEventChain } from "./hmac-event-chain.js";
 import { eventsRouteUnderTest, NOW } from "./test-support/events-route.js";
@@ -54,9 +55,15 @@ function pushOf(registerId: string) {
 
 describe("a document issued under a pre-obtained code pushed through POST /events", () => {
   it("is found with its cause and generation stamp once applied, and a push sent again adds nothing", async () => {
-    const { deviceToken, registerId } = await insertEnrolledInstallation(route.db, {
+    const { deviceId, deviceToken, registerId } = await insertEnrolledInstallation(route.db, {
       now: NOW,
       outboxChainKey: CHAIN_KEY,
+    });
+    await applyCompletedSale(route.db, {
+      deviceId,
+      completedAt: new Date("2026-10-06T11:19:00.000Z"),
+      total: 4800,
+      overrides: { id: SALE_ID },
     });
     const body = pushOf(registerId);
     const push = () =>
