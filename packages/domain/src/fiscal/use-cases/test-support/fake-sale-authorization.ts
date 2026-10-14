@@ -12,7 +12,7 @@ import type {
   SaleOrigin,
 } from "../sale-authorization-ports.js";
 
-export interface HeldOfflineCode {
+interface HeldOfflineCode {
   fortnight: Fortnight;
   code: string;
 }

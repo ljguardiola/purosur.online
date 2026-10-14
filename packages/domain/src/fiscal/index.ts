@@ -37,7 +37,6 @@ export type {
 } from "./model/factura-c-fiscal-block.js";
 export {
   AUTHORIZATION_CODE_TYPE_CAE,
-  AUTHORIZATION_CODE_TYPE_CAEA,
   CURRENCY_PESOS,
   EXCHANGE_RATE_PESOS,
   FACTURA_C_VOUCHER_TYPE,
@@ -93,13 +92,8 @@ export type { OfflineAuthorizationCodeAcquisitionUrgency } from "./model/offline
 export { offlineAuthorizationCodeAcquisitionUrgency } from "./model/offline-authorization-code-acquisition-urgency.js";
 export type { RegisterOfflineAuthorizationCodeHolding } from "./model/offline-authorization-code-holding.js";
 export { mustHoldOfflineAuthorizationCode } from "./model/offline-authorization-code-holding.js";
-export type {
-  OfflineFiscalDocument,
-  OfflineFiscalDocumentIssue,
-  OfflineFiscalDocumentIssuedFact,
-} from "./model/offline-fiscal-document.js";
+export type { OfflineFiscalDocumentIssuedFact } from "./model/offline-fiscal-document.js";
 export {
-  OFFLINE_FISCAL_DOCUMENT_ISSUED_EVENT_TYPE,
   offlineFiscalDocument,
   offlineFiscalDocumentIssuedEvent,
 } from "./model/offline-fiscal-document.js";
