@@ -159,8 +159,14 @@ describe("rotateDeviceToken", () => {
     ]);
   });
 
-  it("hands back every snapshot key version and the latest contingency-ticket key the register holds now, with the installation's own outbox-chain key", async () => {
+  it("hands back the latest snapshot key version, the versions a retained generation uses and the latest contingency-ticket key the register holds now, with the installation's own outbox-chain key", async () => {
     const store = storeWith();
+    store.seedSnapshotGeneration({
+      registerId: "register-1",
+      keyVersion: 1,
+      status: "verified",
+      pruned: false,
+    });
     store.seedSnapshotKey({ registerId: "register-1", version: 2, key: "snapshot-2" });
     store.seedContingencyTicketKey({ registerId: "register-1", version: 2, key: "ticket-2" });
     store.seedSnapshotKey({ registerId: "register-other", version: 3, key: "other-snapshot" });
@@ -181,6 +187,55 @@ describe("rotateDeviceToken", () => {
       },
     });
   });
+
+  it("stops handing back a retired snapshot key version once no retained generation uses it", async () => {
+    const store = storeWith();
+    store.seedSnapshotKey({ registerId: "register-1", version: 2, key: "snapshot-2" });
+    store.seedSnapshotKey({ registerId: "register-1", version: 3, key: "snapshot-3" });
+    store.seedSnapshotGeneration({
+      registerId: "register-1",
+      keyVersion: 1,
+      status: "verified",
+      pruned: true,
+    });
+    store.seedSnapshotGeneration({
+      registerId: "register-1",
+      keyVersion: 2,
+      status: "failed",
+      pruned: false,
+    });
+
+    const outcome = await rotate(store, CURRENT);
+
+    expect(outcome).toMatchObject({
+      keys: { snapshotKeyVersions: [{ version: 3, key: "snapshot-3" }] },
+    });
+  });
+
+  it.each(["declared", "uploaded", "verified"] as const)(
+    "keeps handing back the snapshot key version of a %s generation",
+    async (status) => {
+      const store = storeWith();
+      store.seedSnapshotKey({ registerId: "register-1", version: 2, key: "snapshot-2" });
+      store.seedSnapshotGeneration({
+        registerId: "register-1",
+        keyVersion: 1,
+        status,
+        pruned: false,
+      });
+
+      const outcome = await rotate(store, CURRENT);
+
+      expect(outcome).toMatchObject({
+        keys: {
+          snapshotKeyVersions: [
+            { version: 1, key: "snapshot-1" },
+            { version: 2, key: "snapshot-2" },
+          ],
+        },
+      });
+    },
+  );
 
   it("generates and keeps the keys of an installation enrolled before it was handed any", async () => {
     const store = storeWith({ outboxChainKey: null, registerKeys: false });

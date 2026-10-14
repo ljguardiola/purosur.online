@@ -129,6 +129,10 @@ import {
 import { registerRegisterCoverageRoute } from "./register/register-coverage-route.js";
 import { registerRegisterCreationRoute } from "./register/register-creation-route.js";
 import { registerRegisterEnrollmentCodeRoute } from "./register/register-enrollment-code-route.js";
+import {
+  type RegisterSnapshotUrls,
+  registerRegisterSnapshotRoutes,
+} from "./register/register-snapshot-routes.js";
 import { registerRegisterSyncStatusRoute } from "./register/register-sync-status-route.js";
 import {
   type RegisterUpdateFeed,
@@ -223,6 +227,7 @@ export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = Postgre
   >;
   mercadoPagoNotifications?: WithoutClock<MercadoPagoNotificationRoutesOptions<TQueryResult>>;
   registerUpdateFeed?: RegisterUpdateFeed;
+  registerSnapshotUrls?: RegisterSnapshotUrls;
   health?: WithoutClock<HealthArcaOptions<TQueryResult>>;
   firstPinCodes?: WithoutClock<FirstPinCodeRouteOptions<TQueryResult>>;
 }
@@ -242,6 +247,7 @@ type DatabaseRouteOptions<TQueryResult extends PgQueryResultHKT> = Required<
     | "mercadoPagoOrders"
     | "mercadoPagoNotifications"
     | "registerUpdateFeed"
+    | "registerSnapshotUrls"
   >
 >;
 
@@ -612,6 +618,12 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
           ...options.devices,
           ...(options.registerUpdateFeed && { feed: options.registerUpdateFeed }),
           reportError: (error) => reportError("the register update feed failed", error),
+          now,
+        });
+        registerRegisterSnapshotRoutes(api, {
+          ...options.devices,
+          ...(options.registerSnapshotUrls && { urls: options.registerSnapshotUrls }),
+          reportError: (error) => reportError("the register snapshot backups failed", error),
           now,
         });
         if (options.fiscalAuthorization) {

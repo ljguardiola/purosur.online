@@ -123,8 +123,14 @@ describe("enrollInstallation", () => {
     ]);
   });
 
-  it("hands over every snapshot key version and the latest contingency-ticket key the register already holds, generating none of them", async () => {
+  it("hands over the latest snapshot key version, the versions a retained generation uses and the latest contingency-ticket key the register already holds, generating none of them", async () => {
     const store = storeWithCode();
+    store.seedSnapshotGeneration({
+      registerId: "register-1",
+      keyVersion: 1,
+      status: "verified",
+      pruned: false,
+    });
     store.seedSnapshotKey({ registerId: "register-1", version: 2, key: "snapshot-2" });
     store.seedSnapshotKey({ registerId: "register-1", version: 1, key: "snapshot-1" });
     store.seedSnapshotKey({ registerId: "register-other", version: 3, key: "other-snapshot" });

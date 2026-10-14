@@ -348,6 +348,15 @@ export {
 } from "./register/register-update.js";
 export type { ReportRegisterListBody } from "./register/report-register-list.js";
 export { reportRegisterListSchema } from "./register/report-register-list.js";
+export type { RestorableSnapshots } from "./register/restorable-snapshots.js";
+export { restorableSnapshotsSchema } from "./register/restorable-snapshots.js";
+export type { SnapshotCorruptionBody } from "./register/snapshot-corruption.js";
+export { snapshotCorruptionBodySchema } from "./register/snapshot-corruption.js";
+export type { SnapshotUploadAnswer, SnapshotUploadBody } from "./register/snapshot-upload.js";
+export {
+  snapshotUploadAnswerSchema,
+  snapshotUploadBodySchema,
+} from "./register/snapshot-upload.js";
 export type { StartupPending } from "./register/startup-pending.js";
 export type {
   CancelLockedSaleOutcome,
