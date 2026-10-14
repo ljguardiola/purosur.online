@@ -87,8 +87,20 @@ export function runOfCommit(runs, sha) {
   return Math.max(...numbers);
 }
 
-export const registerReleaseNotes = () => undefined;
-export const recordHardwareTest = () => undefined;
+export function registerReleaseNotes({ notes, version, devices }) {
+  const sections = [notes.trimEnd(), `Installer version ${version}`];
+  if (devices.length > 0) {
+    sections.push(`## Hardware test required: ${devices.join(", ")}`);
+  }
+  return `${sections.filter((section) => section !== "").join("\n\n")}\n`;
+}
+
+export function recordHardwareTest({ body, hardwareTest }) {
+  if (hardwareTest.trim() === "") {
+    throw new Error(`${LOG_PREFIX}: the hardware test to record is blank`);
+  }
+  return `${body.trimEnd()}\n\n## Hardware test\n\n${hardwareTest.trim()}\n`;
+}
 
 function parseRuns(text) {
   let runs;
@@ -133,10 +145,36 @@ const COMMANDS = {
       return "";
     },
   },
+  "release-notes": {
+    needs: ["RELEASE_NOTES_FILE", "INSTALLER_VERSION"],
+    async run({ RELEASE_NOTES_FILE, INSTALLER_VERSION, DEVICES = "" }, { readFile, writeFile }) {
+      assertInstallerVersion(INSTALLER_VERSION);
+      const devices = DEVICES.split(",").filter((device) => device !== "");
+      const notes = await readFile(RELEASE_NOTES_FILE);
+      await writeFile(
+        RELEASE_NOTES_FILE,
+        registerReleaseNotes({ notes, version: INSTALLER_VERSION, devices }),
+      );
+      return "";
+    },
+  },
+  "record-hardware-test": {
+    needs: ["RELEASE_BODY_FILE", "HARDWARE_TEST"],
+    async run({ RELEASE_BODY_FILE, HARDWARE_TEST }, { readFile, writeFile }) {
+      const body = await readFile(RELEASE_BODY_FILE);
+      await writeFile(RELEASE_BODY_FILE, recordHardwareTest({ body, hardwareTest: HARDWARE_TEST }));
+      return "";
+    },
+  },
   "read-manifest": {
     needs: ["MANIFEST_FILE"],
-    async run({ MANIFEST_FILE }, { readFile }) {
+    async run({ MANIFEST_FILE, EXPECTED_SHA }, { readFile }) {
       const { sha, version } = parseCandidateManifest(await readFile(MANIFEST_FILE));
+      if (EXPECTED_SHA && sha !== EXPECTED_SHA) {
+        throw new Error(
+          `${LOG_PREFIX}: the candidate was built from ${sha}, not the expected commit ${EXPECTED_SHA}`,
+        );
+      }
       return `sha=${sha}\nversion=${version}\n`;
     },
   },

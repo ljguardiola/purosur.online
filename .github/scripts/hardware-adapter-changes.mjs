@@ -48,13 +48,14 @@ async function runGitViaChildProcess(args) {
 }
 
 export async function runCli({
+  argv = process.argv.slice(2),
   env = process.env,
   runGit = runGitViaChildProcess,
   appendOutput = appendFile,
   log = console.log,
   logError = console.error,
 } = {}) {
-  const { TARGET_SHA, RELEASE_TAG, GITHUB_OUTPUT } = env;
+  const { TARGET_SHA, RELEASE_TAG, GITHUB_OUTPUT, HARDWARE_TEST } = env;
   if (!TARGET_SHA || !GITHUB_OUTPUT) {
     logError(`${LOG_PREFIX}: TARGET_SHA and GITHUB_OUTPUT are required`);
     return 1;
@@ -66,6 +67,12 @@ export async function runCli({
       runGit,
     });
     const devices = devicesChanged(paths);
+    if (argv[0] === "gate" && devices.length > 0 && (HARDWARE_TEST ?? "").trim() === "") {
+      logError(
+        `${LOG_PREFIX}: this release changes the ${devices.join(", ")} adapter code and needs a recorded hands-on hardware test`,
+      );
+      return 1;
+    }
     log(
       devices.length === 0
         ? `${LOG_PREFIX}: no hardware adapter changed`
