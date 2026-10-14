@@ -698,8 +698,22 @@
     {
       "idx": 99,
       "version": "7",
-      "when": 1792017148290,
-      "tag": "0103_fortnight_reports",
+      "when": 1792007629613,
+      "tag": "0103_register_point_terminals",
+      "breakpoints": true
+    },
+    {
+      "idx": 100,
+      "version": "7",
+      "when": 1792010204957,
+      "tag": "0104_assembly_batches",
+      "breakpoints": true
+    },
+    {
+      "idx": 101,
+      "version": "7",
+      "when": 1792020020420,
+      "tag": "0105_fortnight_reports",
       "breakpoints": true
     }
   ]

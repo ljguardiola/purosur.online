@@ -420,6 +420,53 @@ describe("addScannedProduct", () => {
     nothingRecorded(store, before);
   });
 
+  it("refuses to open a new sale while a paid order without a sale is unresolved", () => {
+    const store = ledger({ paidOrdersWithoutSale: [{ resolved: false }] });
+    const before = structuredClone(store.state);
+
+    expect(scan(store)).toEqual({ kind: "paid_order_without_sale" });
+    nothingRecorded(store, before);
+  });
+
+  it("keeps accepting lines on an open sale while a paid order without a sale is unresolved", () => {
+    const store = ledger({ sales: [OPEN_SALE], paidOrdersWithoutSale: [{ resolved: false }] });
+
+    expect(scan(store).kind).toBe("added");
+  });
+
+  it("opens a new sale once no paid order without a sale is unresolved", () => {
+    expect(scan(ledger({ paidOrdersWithoutSale: [{ resolved: true }] })).kind).toBe("added");
+  });
+
+  it("refuses to open a new sale while this run's paid-order check waits for the cloud", () => {
+    const store = ledger({ paidOrderDiscovery: "pending" });
+    const before = structuredClone(store.state);
+
+    expect(scan(store)).toEqual({ kind: "paid_orders_not_checked" });
+    nothingRecorded(store, before);
+  });
+
+  it("keeps accepting lines on an open sale while this run's paid-order check waits for the cloud", () => {
+    const store = ledger({ sales: [OPEN_SALE], paidOrderDiscovery: "pending" });
+
+    expect(scan(store).kind).toBe("added");
+  });
+
+  it("opens a new sale once this run's paid-order check is deferred", () => {
+    expect(scan(ledger({ paidOrderDiscovery: "deferred" })).kind).toBe("added");
+  });
+
+  it("checks the installation's revocation before a paid order without a sale, and that before the register's identity", () => {
+    expect(scan(ledger({ revoked: true, paidOrdersWithoutSale: [{ resolved: false }] }))).toEqual({
+      kind: "installation_revoked",
+    });
+    expect(
+      scan(ledger({ paidOrdersWithoutSale: [{ resolved: false }], identity: undefined })),
+    ).toEqual({
+      kind: "paid_order_without_sale",
+    });
+  });
+
   it("refuses to open a new sale when the register has no identity yet", () => {
     const store = ledger({ identity: undefined });
     const before = structuredClone(store.state);

@@ -1,7 +1,8 @@
-import type {
-  LatePaymentRefund,
-  MercadoPagoOrderTransaction,
-  PaymentTransactionState,
+import {
+  type LatePaymentRefund,
+  type MercadoPagoOrderTransaction,
+  type PaymentTransactionState,
+  SALE_PAYMENT_STATE_HOLDING_PAID_ORDER,
 } from "@purosur/domain";
 import {
   type LatePaymentRefundOpening,
@@ -15,7 +16,7 @@ import {
 import { and, eq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { postgresErrorChain } from "../platform/db/postgres-error-chain.js";
-import { paymentTransactions } from "../platform/db/schema.js";
+import { paymentTransactions, salePayments } from "../platform/db/schema.js";
 import type { DedicatedConnections } from "../platform/dedicated-connections.js";
 import { openLatePaymentRefund } from "./open-late-payment-refund.js";
 
@@ -68,6 +69,20 @@ class DrizzlePaymentTransactionLane<TQueryResult extends PgQueryResultHKT>
     return row.method === "POINT"
       ? { ...transaction, method: "POINT", provider: "MERCADOPAGO_POINT" }
       : { ...transaction, method: "QR", provider: "MERCADOPAGO_QR" };
+  }
+
+  async paidOrderHeldBySale(paymentTransactionId: string): Promise<boolean> {
+    const [held] = await this.db
+      .select({ id: salePayments.id })
+      .from(salePayments)
+      .where(
+        and(
+          eq(salePayments.id, paymentTransactionId),
+          eq(salePayments.state, SALE_PAYMENT_STATE_HOLDING_PAID_ORDER),
+        ),
+      )
+      .limit(1);
+    return held !== undefined;
   }
 
   recordPendingTransaction(transaction: MercadoPagoOrderTransaction): Promise<void> {

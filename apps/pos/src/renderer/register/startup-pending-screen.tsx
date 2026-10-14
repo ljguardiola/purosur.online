@@ -1,6 +1,7 @@
 import type {
   Authorization,
   CashBalance,
+  ConvertPaidOrderIntoRefundOutcome,
   PrintOriginalReceiptOutcome,
   ReceiptCopyShown,
   ReprintSaleReceiptOutcome,
@@ -24,21 +25,31 @@ import {
   TableCellText,
   useTableModel,
 } from "@purosur/ui";
-import { ArrowRight, CheckCheck, Printer, TriangleAlert } from "lucide-react";
-import { useState } from "react";
+import { ArrowRight, CheckCheck, Printer, TriangleAlert, Undo2 } from "lucide-react";
+import { useEffect, useState } from "react";
 import type { CoreData } from "../platform/use-core-query";
 import { OpenSessionRail } from "../shell/open-session-rail";
 import { ReprintReceiptModal } from "../shell/reprint-receipt-modal";
 import { receiptCopyPresentation } from "../shell/sale-receipt-text";
 import type { SignedInPerson } from "../shell/signed-in-person";
+import { RefundPaidOrderModal } from "./refund-paid-order-modal";
 import type { StartupPendingAnswer } from "./register-queries";
 import {
   useCashBalanceQuery,
   useRefreshStartupPending,
   useStartupPendingQuery,
 } from "./register-queries";
+import { hasStartupPendingItems } from "./startup-pending-items";
 
 type SaleToPrint = StartupPending["sales_to_print"][number];
+type PaidOrder = StartupPending["paid_orders_without_sale"][number];
+
+const SELLING_BLOCKED_REASON = "Pasá el cobro a reembolso para empezar a vender.";
+const CHECKING_REASON = "Esperá a que la caja termine de consultar los cobros pagados.";
+const UNCHECKED_PAID_ORDERS =
+  "Puede haber un cobro pagado para esta caja sin venta. La caja lo va a consultar cuando vuelva la conexión.";
+const CONSULTING_PAID_ORDERS =
+  "Puede haber un cobro pagado para esta caja sin venta. La caja lo está consultando.";
 
 const FAILED_PROBLEM = { title: "No se pudo imprimir el ticket", description: "Probá de nuevo." };
 
@@ -72,8 +83,12 @@ export type StartupPendingScreenProps = {
     reason: string,
     authorization: Authorization | undefined,
   ) => Promise<ReprintSaleReceiptOutcome>;
+  convertPaidOrderIntoRefund: (
+    paymentTransactionId: string,
+  ) => Promise<ConvertPaidOrderIntoRefundOutcome>;
   loadAuthorizers: (permission: AuthorizablePermissionKey) => Promise<SignInUser[]>;
   onGoSelling: () => void;
+  onNothingLeft: () => void;
   onSessionInvalid: () => void;
 };
 
@@ -86,13 +101,15 @@ type PendingItem = {
   title: string;
   detail: string;
   sale: SaleToPrint | undefined;
+  paidOrder: PaidOrder | undefined;
+  unchecked: "consulting" | "deferred" | undefined;
 };
 
 function pendingItemsOf(pending: StartupPendingAnswer): PendingItem[] {
   if (pending === "not_permitted") {
     return [];
   }
-  return [
+  const others = [
     ...pending.sales_to_print.map((sale) =>
       sale.standing === "never_printed"
         ? {
@@ -100,12 +117,16 @@ function pendingItemsOf(pending: StartupPendingAnswer): PendingItem[] {
             title: "Venta sin ticket",
             detail: `${saleText(sale.completed_at, sale.total)} Nunca se imprimió: sale como ticket original.`,
             sale,
+            paidOrder: undefined,
+            unchecked: undefined,
           }
         : {
             id: sale.sale_id,
             title: "Ticket sin confirmar",
             detail: `${saleText(sale.completed_at, sale.total)} Puede que el ticket haya salido: se reimprime como duplicado.`,
             sale,
+            paidOrder: undefined,
+            unchecked: undefined,
           },
     ),
     ...pending.unknown_fiscal_documents.map((document) => ({
@@ -113,14 +134,43 @@ function pendingItemsOf(pending: StartupPendingAnswer): PendingItem[] {
       title: `Factura de las ${formatClockTime(document.completed_at)}`,
       detail: "Se está consultando a ARCA si quedó autorizada.",
       sale: undefined,
+      paidOrder: undefined,
+      unchecked: undefined,
     })),
     ...pending.pending_payments.map((payment) => ({
       id: payment.payment_id,
       title: `Cobro con ${payment.method === "QR" ? "QR" : "Point"} sin confirmar`,
       detail: `${formatCents(payment.amount)} de la venta de las ${formatClockTime(payment.occurred_at)}. Se está consultando a Mercado Pago.`,
       sale: undefined,
+      paidOrder: undefined,
+      unchecked: undefined,
     })),
   ];
+  const paidOrders = pending.paid_orders_without_sale.map((order) => ({
+    id: order.payment_transaction_id,
+    title: `Cobro con ${order.method === "QR" ? "QR" : "Point"} pagado sin venta`,
+    detail: `${formatCents(order.amount)} cobrados a las ${formatClockTime(order.created_at)}. La venta no quedó en la caja.`,
+    sale: undefined,
+    paidOrder: order,
+    unchecked: undefined,
+  }));
+  const unchecked: PendingItem[] =
+    pending.paid_order_discovery === "checked"
+      ? []
+      : [
+          {
+            id: "paid-order-discovery",
+            title: "Cobros pagados sin consultar",
+            detail:
+              pending.paid_order_discovery === "pending"
+                ? CONSULTING_PAID_ORDERS
+                : UNCHECKED_PAID_ORDERS,
+            sale: undefined,
+            paidOrder: undefined,
+            unchecked: pending.paid_order_discovery === "pending" ? "consulting" : "deferred",
+          },
+        ];
+  return [...paidOrders, ...others, ...unchecked];
 }
 
 function printLabel(sale: SaleToPrint): string {
@@ -130,7 +180,17 @@ function printLabel(sale: SaleToPrint): string {
     : `Reimprimir como duplicado la venta de las ${time}`;
 }
 
-function itemState(item: PendingItem, printingSaleIds: ReadonlySet<string>) {
+function itemState(
+  item: PendingItem,
+  printingSaleIds: ReadonlySet<string>,
+  sellingBlocked: boolean,
+) {
+  if (item.paidOrder !== undefined) {
+    return sellingBlocked ? <StatusIndicator tone="error">Bloquea la venta</StatusIndicator> : null;
+  }
+  if (item.unchecked === "deferred") {
+    return <StatusIndicator tone="warning">Sin consultar</StatusIndicator>;
+  }
   if (item.sale === undefined) {
     return (
       <StatusIndicator tone="neutral" busy>
@@ -156,10 +216,12 @@ function PendingTable({
   data,
   printingSaleIds,
   onPrint,
+  onRefund,
 }: {
   data: CoreData<StartupPendingAnswer>;
   printingSaleIds: ReadonlySet<string>;
   onPrint: (sale: SaleToPrint) => void;
+  onRefund: (order: PaidOrder) => void;
 }) {
   const columns = [
     dataColumn({
@@ -172,11 +234,16 @@ function PendingTable({
     dataColumn({
       id: "state",
       header: "Estado",
-      render: (item: PendingItem) => itemState(item, printingSaleIds),
+      render: (item: PendingItem) =>
+        itemState(
+          item,
+          printingSaleIds,
+          data.status === "loaded" && data.value !== "not_permitted" && data.value.selling_blocked,
+        ),
     }),
     actionsColumn({
-      id: "print",
-      header: "Imprimir",
+      id: "actions",
+      header: "Acción",
       actions: [
         (item: PendingItem) => {
           const { sale } = item;
@@ -184,6 +251,14 @@ function PendingTable({
             ? undefined
             : { icon: <Printer />, "aria-label": printLabel(sale), onPress: () => onPrint(sale) };
         },
+        ({ paidOrder }: PendingItem) =>
+          paidOrder === undefined
+            ? undefined
+            : {
+                icon: <Undo2 />,
+                "aria-label": `Pasar a reembolso el cobro de las ${formatClockTime(paidOrder.created_at)}`,
+                onPress: () => onRefund(paidOrder),
+              },
       ],
     }),
   ] as const;
@@ -222,8 +297,10 @@ export function StartupPendingScreen({
   loadCashBalance,
   printOriginalReceipt,
   reprintSaleReceipt,
+  convertPaidOrderIntoRefund,
   loadAuthorizers,
   onGoSelling,
+  onNothingLeft,
   onSessionInvalid,
 }: StartupPendingScreenProps) {
   const pending = useStartupPendingQuery(loadStartupPending);
@@ -231,6 +308,8 @@ export function StartupPendingScreen({
   const refreshPending = useRefreshStartupPending();
   const [printingSaleIds, setPrintingSaleIds] = useState<ReadonlySet<string>>(new Set());
   const [duplicateOf, setDuplicateOf] = useState<SaleToPrint>();
+  const [refundOf, setRefundOf] = useState<PaidOrder>();
+  const [refunded, setRefunded] = useState(false);
   const [sent, setSent] = useState<ReceiptCopyShown>();
   const [problem, setProblem] = useState<{ title: string; description: string }>();
 
@@ -278,6 +357,26 @@ export function StartupPendingScreen({
     }
   }
 
+  const settled =
+    pending.status === "loaded" &&
+    pending.value !== "not_permitted" &&
+    pending.value.may_go_selling &&
+    !hasStartupPendingItems(pending.value) &&
+    !refunded &&
+    sent === undefined;
+
+  useEffect(() => {
+    if (settled) {
+      onNothingLeft();
+    }
+  }, [settled, onNothingLeft]);
+
+  const keptFromSelling =
+    pending.status === "loaded" &&
+    pending.value !== "not_permitted" &&
+    !pending.value.may_go_selling
+      ? pending.value
+      : undefined;
   const since = `Desde las ${formatClockTime(openedAt)}`;
   const openingFloat =
     balance.status === "loaded"
@@ -300,18 +399,36 @@ export function StartupPendingScreen({
           title="Hay cosas para resolver"
           description="La caja se cerró sin terminar algunas operaciones. Esto es lo que quedó."
         />
-        <PendingTable data={pending} printingSaleIds={printingSaleIds} onPrint={print} />
+        <PendingTable
+          data={pending}
+          printingSaleIds={printingSaleIds}
+          onPrint={print}
+          onRefund={setRefundOf}
+        />
       </main>
       <SidePanel
         footer={
-          <>
-            <p className="text-detail text-text-subtle">
-              Lo que quedó pendiente se puede resolver después.
-            </p>
-            <Button size="sale" fullWidth icon={<ArrowRight />} onPress={onGoSelling}>
+          keptFromSelling ? (
+            <Button
+              size="sale"
+              fullWidth
+              icon={<ArrowRight />}
+              disabledReason={
+                keptFromSelling.selling_blocked ? SELLING_BLOCKED_REASON : CHECKING_REASON
+              }
+            >
               Ir a vender
             </Button>
-          </>
+          ) : (
+            <>
+              <p className="text-detail text-text-subtle">
+                Lo que quedó pendiente se puede resolver después.
+              </p>
+              <Button size="sale" fullWidth icon={<ArrowRight />} onPress={onGoSelling}>
+                Ir a vender
+              </Button>
+            </>
+          )
         }
       >
         <Eyebrow text="Sesión abierta" />
@@ -341,6 +458,32 @@ export function StartupPendingScreen({
           onClose={() => setDuplicateOf(undefined)}
         />
       )}
+      {refundOf === undefined ? null : (
+        <RefundPaidOrderModal
+          order={refundOf}
+          convertPaidOrderIntoRefund={convertPaidOrderIntoRefund}
+          onConverted={() => {
+            setRefundOf(undefined);
+            setRefunded(true);
+            void refreshPending();
+          }}
+          onGone={() => {
+            setRefundOf(undefined);
+            void refreshPending();
+          }}
+          onSessionInvalid={onSessionInvalid}
+          onClose={() => setRefundOf(undefined)}
+        />
+      )}
+      {refunded ? (
+        <FloatingNotification
+          tone="success"
+          icon={<Undo2 />}
+          title="El cobro quedó como reembolso"
+          description="Se confirma después en el backoffice."
+          onDismiss={() => setRefunded(false)}
+        />
+      ) : null}
       {sent === undefined ? null : (
         <FloatingNotification
           tone="success"

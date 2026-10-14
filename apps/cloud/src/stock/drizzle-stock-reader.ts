@@ -23,6 +23,7 @@ import type {
 import { and, asc, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import {
+  assemblyBatches,
   categories,
   lots,
   products,
@@ -154,16 +155,19 @@ export class DrizzleStockReader<TQueryResult extends PgQueryResultHKT>
         costTotalCents: lots.costTotalCents,
         costQuantity: lots.costQuantity,
         initialCount: sql<boolean>`${lots.originMovementId} is not null`,
+        assembledAt: assemblyBatches.assembledAt,
       })
       .from(lots)
       .leftJoin(purchaseLines, eq(purchaseLines.id, lots.purchaseLineId))
       .leftJoin(purchases, eq(purchases.id, purchaseLines.purchaseId))
       .leftJoin(suppliers, eq(suppliers.id, purchases.supplierId))
+      .leftJoin(assemblyBatches, eq(assemblyBatches.id, lots.assemblyBatchId))
       .where(eq(lots.locationId, locationId));
     return rows
       .filter(isLotInStock)
-      .map(({ purchasedOn, supplierName, costTotalCents, costQuantity, ...lot }) => ({
+      .map(({ purchasedOn, supplierName, costTotalCents, costQuantity, assembledAt, ...lot }) => ({
         ...lot,
+        assemblyBatch: assembledAt === null ? null : { assembledAt },
         purchase:
           purchasedOn === null || supplierName === null ? null : { purchasedOn, supplierName },
         cost:

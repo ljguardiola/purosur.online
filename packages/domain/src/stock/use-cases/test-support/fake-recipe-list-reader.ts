@@ -7,11 +7,15 @@ export class FakeRecipeListReader implements RecipeListReader {
     this.listings = listings;
   }
 
-  async recipes(): Promise<RecipeListing[]> {
+  readonly locationsAsked: string[] = [];
+
+  async recipes(locationId: string): Promise<RecipeListing[]> {
+    this.locationsAsked.push(locationId);
     return [...this.listings].sort((a, b) => a.productName.localeCompare(b.productName));
   }
 
-  async recipe(productId: string): Promise<RecipeListing | undefined> {
+  async recipe(productId: string, locationId: string): Promise<RecipeListing | undefined> {
+    this.locationsAsked.push(locationId);
     return this.listings.find((listing) => listing.productId === productId);
   }
 }

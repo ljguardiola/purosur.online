@@ -31,11 +31,13 @@ import type { SuppliersListScreenServices } from "../purchasing/suppliers-list-s
 import type { RegistersListScreenServices } from "../register/registers-list-services";
 import type { ReportRegisterFilterProps } from "../register/report-register-filter";
 import type { ReportRegisterFilterServices } from "../register/report-register-filter-services";
+import type { AverageTicketScreenServices } from "../sales/average-ticket-services";
 import type { SalesByCashierScreenServices } from "../sales/sales-by-cashier-services";
 import type { SalesByDayScreenServices } from "../sales/sales-by-day-services";
 import type { SalesByProductAndCategoryScreenServices } from "../sales/sales-by-product-and-category-services";
 import { checkSessionStatus, fetchSession, type SessionOutcome } from "../sessions/session-api";
 import type { SignInScreenServices } from "../sessions/sign-in-services";
+import type { AssemblyBatchesScreenServices } from "../stock/assembly-batches-services";
 import type { ExpiringLotsScreenServices } from "../stock/expiring-lots-services";
 import type { InitialInventoryScreenServices } from "../stock/initial-inventory-services";
 import type { RecipesListScreenServices } from "../stock/recipes-list-services";
@@ -83,6 +85,7 @@ export type AppServices = {
   salesByDayScreen: SalesByDayScreenServices;
   salesByProductAndCategoryScreen: SalesByProductAndCategoryScreenServices;
   salesByCashierScreen: SalesByCashierScreenServices;
+  averageTicketScreen: AverageTicketScreenServices;
   salesByPaymentMethodScreen: SalesByPaymentMethodScreenServices;
   reportFiltersRegisterFilter: ComponentType<ReportRegisterFilterProps>;
   reportRegisterFilter: ReportRegisterFilterServices;
@@ -96,6 +99,7 @@ export type AppServices = {
   purchasesListScreen: PurchasesListScreenServices;
   freightsListScreen: FreightsListScreenServices;
   recipesListScreen: RecipesListScreenServices;
+  assemblyBatchesScreen: AssemblyBatchesScreenServices;
   newPurchaseScreen: NewPurchaseScreenServices;
   initialInventoryScreen: InitialInventoryScreenServices;
   fiscalConfigurationScreen: FiscalConfigurationScreenServices;

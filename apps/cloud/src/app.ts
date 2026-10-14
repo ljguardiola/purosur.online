@@ -90,11 +90,13 @@ import {
   type MercadoPagoOrderRoutesOptions,
   registerMercadoPagoOrderRoutes,
 } from "./payments/mercado-pago-order-routes.js";
+import { registerPaidOrdersOfRegisterRoutes } from "./payments/paid-orders-of-register-routes.js";
 import {
   type PaymentsReportRouteOptions,
   registerPaymentsReportRoutes,
 } from "./payments/payments-report-routes.js";
 import { type RefundRouteOptions, registerRefundRoutes } from "./payments/refund-routes.js";
+import { registerRegisterPointTerminalRoute } from "./payments/register-point-terminal-route.js";
 import { registerPermissionCatalogRoute } from "./permissions/permission-catalog-route.js";
 import { registerRoleCreationRoutes } from "./permissions/role-creation-route.js";
 import { registerRoleEditRoutes } from "./permissions/role-edit-route.js";
@@ -154,6 +156,7 @@ import { registerSessionReadRoute } from "./sessions/session-read-route.js";
 import { registerSessionSignOutRoute } from "./sessions/session-sign-out-route.js";
 import { registerSessionStatusRoute } from "./sessions/session-status-route.js";
 import { registerSignInLookupRoute } from "./sessions/sign-in-lookup-route.js";
+import { registerAssemblyBatchesRoutes } from "./stock/assembly-batches-routes.js";
 import { registerExpiringLotsRoutes } from "./stock/expiring-lots-route.js";
 import { registerInitialInventoryLotsRoutes } from "./stock/initial-inventory-lots-route.js";
 import { registerRecipesRoutes } from "./stock/recipes-routes.js";
@@ -558,6 +561,7 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
         registerStockBalancesRoute(api, { ...options.stock, now });
         registerStockProductsRoute(api, { ...options.stock, now });
         registerRecipesRoutes(api, { ...options.stock, now });
+        registerAssemblyBatchesRoutes(api, { ...options.stock, now });
         registerStockCountsRoutes(api, { ...options.stock, now });
         registerInitialInventoryLotsRoutes(api, { ...options.stock, now });
         registerStockMovementsRoutes(api, { ...options.stock, now });
@@ -583,6 +587,7 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
         registerRegisterCreationRoute(api, { ...options.registers, now });
         registerRegisterCoverageRoute(api, { ...options.registers, now });
         registerRegisterEnrollmentCodeRoute(api, { ...options.registers, now });
+        registerRegisterPointTerminalRoute(api, { ...options.registers, now });
       }
 
       if (options.registersPointsOfSale) {
@@ -642,6 +647,11 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
           registerMercadoPagoOrderRoutes(api, {
             ...options.devices,
             ...options.mercadoPagoOrders,
+            now,
+          });
+          registerPaidOrdersOfRegisterRoutes(api, {
+            ...options.devices,
+            connections: options.mercadoPagoOrders.connections,
             now,
           });
         }

@@ -116,6 +116,12 @@ export type {
 export { printSaleReceipt } from "./print-sale-receipt.js";
 export type { ProductSalesReportReader, SoldLinesQuery } from "./product-sales-report-reader.js";
 export type {
+  AverageTicketReport,
+  ReadAverageTicketInput,
+  TicketOfPeriod,
+} from "./read-average-ticket.js";
+export { readAverageTicket } from "./read-average-ticket.js";
+export type {
   ReadSaleHistoryDetailInput,
   ReadSaleHistoryDetailOutcome,
   ReadSaleHistoryDetailPorts,

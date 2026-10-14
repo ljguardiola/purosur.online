@@ -9,13 +9,15 @@ import {
   Tag,
   useTableModel,
 } from "@purosur/ui";
-import { KeySquare, Laptop, Plus } from "lucide-react";
+import { CreditCard, KeySquare, Laptop, Plus } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useAuthorization } from "../platform/authorization-modal";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { type BackofficeAccess, canAssignPointTerminal } from "../shell/backoffice-access";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
+import { AssignPointTerminalModal } from "./assign-point-terminal-modal";
 import { type EmissionState, EnrollmentCodeModal } from "./enrollment-code-modal";
 import { installationLines } from "./installation-text";
 import { NewRegisterModal } from "./new-register-modal";
@@ -29,6 +31,7 @@ import {
   useRefreshRegisters,
   useRegisterCoverageQuery,
   useRegistersQuery,
+  useReloadRegister,
 } from "./register-queries";
 import type {
   EmitEnrollmentCodeOutcome,
@@ -38,6 +41,7 @@ import type {
 import type { RegistersListScreenServices } from "./registers-list-services";
 
 export type RegistersListScreenProps = {
+  access: BackofficeAccess;
   onSessionEnded: () => void;
   services: RegistersListScreenServices;
 };
@@ -57,7 +61,11 @@ const NO_REGISTERS: RegisterSummary[] = [];
 
 const COUNTDOWN_TICK_SECONDS = 30;
 
-export function RegistersListScreen({ onSessionEnded, services }: RegistersListScreenProps) {
+export function RegistersListScreen({
+  access,
+  onSessionEnded,
+  services,
+}: RegistersListScreenProps) {
   const sendToMyAccount = useSendToMyAccount();
   const {
     fetchRegisters,
@@ -70,7 +78,9 @@ export function RegistersListScreen({ onSessionEnded, services }: RegistersListS
   const data = useRegistersQuery({ fetchRegisters, onSessionEnded });
   const coverage = useRegisterCoverageQuery({ fetchRegisterCoverage, onSessionEnded });
   const refreshRegisters = useRefreshRegisters();
+  const reloadRegister = useReloadRegister({ fetchRegisters });
   const [newModalOpen, setNewModalOpen] = useState(false);
+  const [terminalTarget, setTerminalTarget] = useState<RegisterSummary | null>(null);
   const [emission, setEmission] = useState<EmissionState>({ kind: "closed" });
   const { run: runEmission, modal: emissionAuthModal } =
     useAuthorization<EmitEnrollmentCodeOutcome>({
@@ -148,6 +158,17 @@ export function RegistersListScreen({ onSessionEnded, services }: RegistersListS
     void refreshRegisters();
   }
 
+  const emitAction = (item: RegisterSummary) => ({
+    icon: <KeySquare />,
+    "aria-label": `Emitir código de alta para ${item.name}`,
+    onPress: () => void handleEmitClick(item),
+  });
+  const assignTerminalAction = (item: RegisterSummary) => ({
+    icon: <CreditCard />,
+    "aria-label": `Asignar terminal Point a ${item.name}`,
+    onPress: () => setTerminalTarget(item),
+  });
+
   const columns = [
     dataColumn({
       id: "register",
@@ -209,6 +230,16 @@ export function RegistersListScreen({ onSessionEnded, services }: RegistersListS
         ),
     }),
     dataColumn({
+      id: "pointTerminal",
+      header: "Terminal Point",
+      render: (item: RegisterSummary) =>
+        item.pointTerminalId === null ? (
+          <span className="text-text-subtle text-detail">Sin asignar</span>
+        ) : (
+          <span className="text-text text-detail">{item.pointTerminalId}</span>
+        ),
+    }),
+    dataColumn({
       id: "status",
       header: "Estado",
       render: (item: RegisterSummary) => installationStatus(item.installation),
@@ -216,13 +247,7 @@ export function RegistersListScreen({ onSessionEnded, services }: RegistersListS
     actionsColumn({
       id: "actions",
       header: "Acciones",
-      actions: [
-        (item: RegisterSummary) => ({
-          icon: <KeySquare />,
-          "aria-label": `Emitir código de alta para ${item.name}`,
-          onPress: () => void handleEmitClick(item),
-        }),
-      ],
+      actions: canAssignPointTerminal(access) ? [emitAction, assignTerminalAction] : [emitAction],
     }),
   ] as const;
 
@@ -275,6 +300,17 @@ export function RegistersListScreen({ onSessionEnded, services }: RegistersListS
           setNewModalOpen(false);
           void refreshRegisters();
         }}
+        onSessionEnded={onSessionEnded}
+        services={services}
+      />
+      <AssignPointTerminalModal
+        target={terminalTarget}
+        onClose={() => setTerminalTarget(null)}
+        onSaved={() => {
+          setTerminalTarget(null);
+          void refreshRegisters();
+        }}
+        reload={reloadRegister}
         onSessionEnded={onSessionEnded}
         services={services}
       />

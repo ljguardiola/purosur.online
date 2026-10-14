@@ -7,10 +7,11 @@ import { defaultRegistersListScreenServices } from "./registers-list-services";
 const route = getRouteApi("/signed-in/settings-area/registers");
 
 export function RegistersListPage(): ReactElement {
-  const { services, sessionActions } = route.useRouteContext();
+  const { session, services, sessionActions } = route.useRouteContext();
   useDocumentTitle("Cajas registradoras · Puro Sur");
   return (
     <RegistersListScreen
+      access={session}
       onSessionEnded={sessionActions.sessionEnded}
       services={services.registersListScreen ?? defaultRegistersListScreenServices}
     />

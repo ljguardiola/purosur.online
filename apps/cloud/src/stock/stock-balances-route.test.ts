@@ -2,6 +2,7 @@ import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { registerStockBalancesRoute } from "./stock-balances-route.js";
+import { insertAssemblyBatch } from "./test-support/assembly-batch-fixtures.js";
 import { insertPurchasedLot } from "./test-support/lot-fixtures.js";
 import {
   BACKOFFICE_ORIGIN,
@@ -144,6 +145,26 @@ describe("GET /inventory-levels", () => {
         },
       ],
       summary: { productCount: 1, valueCents: 20_000, withoutCostCount: 0 },
+    });
+  });
+
+  it("answers the lot of an assembled batch with the moment it was assembled in ISO form", async () => {
+    const { headers, locationId, userId } = await signedInWith(db, ["view_stock_balances"], NOON);
+    const mix = await insertProduct(db, { name: "Mix", saleUnit: "KG" });
+    await insertAssemblyBatch(db, {
+      productId: mix.productId,
+      locationId,
+      actorId: userId,
+      assembledAt: new Date("2026-05-04T13:00:00.000Z"),
+    });
+    await insertBalance(db, { productId: mix.productId, locationId, quantity: 14_000 });
+
+    const response = await listBalances(headers);
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().products[0].lots[0]).toMatchObject({
+      technical: false,
+      origin: { kind: "assembly_batch", assembledAt: "2026-05-04T13:00:00.000Z" },
     });
   });
 });

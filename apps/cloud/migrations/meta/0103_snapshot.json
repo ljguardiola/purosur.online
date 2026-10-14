@@ -1,5 +1,5 @@
 {
-  "id": "8041c62d-0cd5-4af7-943d-bbe8a23830fa",
+  "id": "a747f366-48a6-4ebc-b265-f9d06e61cc79",
   "prevId": "ba0e5aa6-a760-4ee3-9c53-e500b76845d9",
   "version": "7",
   "dialect": "postgresql",
@@ -1594,12 +1594,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "caught_up_at": {
-          "name": "caught_up_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
         "wal_size_bytes": {
           "name": "wal_size_bytes",
           "type": "bigint",
@@ -2155,91 +2149,6 @@
         "fiscal_requests_decision_answer_check": {
           "name": "fiscal_requests_decision_answer_check",
           "value": "\"fiscal_requests\".\"decision\" is null or coalesce(\"fiscal_requests\".\"answer_kind\" in ('unclear', 'not_attempted'), false)"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.fortnight_reports": {
-      "name": "fortnight_reports",
-      "schema": "",
-      "columns": {
-        "point_of_sale_number": {
-          "name": "point_of_sale_number",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "fortnight_start": {
-          "name": "fortnight_start",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "fortnight_end": {
-          "name": "fortnight_end",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "state": {
-          "name": "state",
-          "type": "fortnight_report_state",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "last_attempt_at": {
-          "name": "last_attempt_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "rejections": {
-          "name": "rejections",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "recorded_at": {
-          "name": "recorded_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "fortnight_reports_point_of_sale_number_point_of_sale_claims_point_of_sale_number_fk": {
-          "name": "fortnight_reports_point_of_sale_number_point_of_sale_claims_point_of_sale_number_fk",
-          "tableFrom": "fortnight_reports",
-          "tableTo": "point_of_sale_claims",
-          "columnsFrom": ["point_of_sale_number"],
-          "columnsTo": ["point_of_sale_number"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "fortnight_reports_fortnight_start_caea_codes_fortnight_start_fk": {
-          "name": "fortnight_reports_fortnight_start_caea_codes_fortnight_start_fk",
-          "tableFrom": "fortnight_reports",
-          "tableTo": "caea_codes",
-          "columnsFrom": ["fortnight_start"],
-          "columnsTo": ["fortnight_start"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "fortnight_reports_pkey": {
-          "name": "fortnight_reports_pkey",
-          "columns": ["point_of_sale_number", "fortnight_start"]
-        }
-      },
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "fortnight_reports_fortnight_ends_after_start": {
-          "name": "fortnight_reports_fortnight_ends_after_start",
-          "value": "\"fortnight_reports\".\"fortnight_end\" > \"fortnight_reports\".\"fortnight_start\""
         }
       },
       "isRLSEnabled": false
@@ -6354,6 +6263,63 @@
       },
       "isRLSEnabled": false
     },
+    "public.register_point_terminals": {
+      "name": "register_point_terminals",
+      "schema": "",
+      "columns": {
+        "register_id": {
+          "name": "register_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "terminal_id": {
+          "name": "terminal_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version": {
+          "name": "version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "register_point_terminals_terminal_id_key": {
+          "name": "register_point_terminals_terminal_id_key",
+          "columns": [
+            {
+              "expression": "terminal_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "register_point_terminals_register_id_registers_id_fk": {
+          "name": "register_point_terminals_register_id_registers_id_fk",
+          "tableFrom": "register_point_terminals",
+          "tableTo": "registers",
+          "columnsFrom": ["register_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.register_points_of_sale": {
       "name": "register_points_of_sale",
       "schema": "",
@@ -8805,11 +8771,6 @@
       "name": "change_op",
       "schema": "public",
       "values": ["insert", "update", "delete"]
-    },
-    "public.fortnight_report_state": {
-      "name": "fortnight_report_state",
-      "schema": "public",
-      "values": ["blocked", "submitting", "refused", "accepted"]
     },
     "public.installation_request_endpoint": {
       "name": "installation_request_endpoint",

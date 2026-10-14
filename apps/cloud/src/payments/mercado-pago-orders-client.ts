@@ -5,7 +5,6 @@ import type {
   MercadoPagoOrderReading,
   MercadoPagoOrderRefundsReading,
   MercadoPagoOrders,
-  MercadoPagoPointOrderCreation,
   MercadoPagoPointOrderRequest,
   MercadoPagoQrOrderRequest,
 } from "@purosur/domain/payments/use-cases";
@@ -14,7 +13,6 @@ import { z } from "zod";
 export interface MercadoPagoOrdersClientOptions {
   accessToken: string;
   externalPosId: string;
-  pointTerminalId?: string;
   fetch?: typeof globalThis.fetch;
 }
 
@@ -244,17 +242,13 @@ export function createMercadoPagoOrdersClient(
 
     async createPointOrder(
       request: MercadoPagoPointOrderRequest,
-    ): Promise<MercadoPagoPointOrderCreation> {
-      const { pointTerminalId } = options;
-      if (pointTerminalId === undefined) {
-        return { kind: "not_configured" };
-      }
+    ): Promise<MercadoPagoOrderCreation> {
       return createOrder(request, {
         type: "point",
         external_reference: request.externalReference,
         expiration_time: `PT${request.expiresAfterMinutes}M`,
         transactions: { payments: [{ amount: pesosOfCents(request.amount) }] },
-        config: { point: { terminal_id: pointTerminalId, print_on_terminal: "no_ticket" } },
+        config: { point: { terminal_id: request.terminalId, print_on_terminal: "no_ticket" } },
       });
     },
 

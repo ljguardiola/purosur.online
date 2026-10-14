@@ -19,6 +19,7 @@ import {
   registerEnrollmentCodes,
   registerInstallations,
   registerPointsOfSale,
+  registerPointTerminals,
   registers,
 } from "../platform/db/schema.js";
 import { type PendingChanges, withPendingChanges } from "../sync/change-log.js";
@@ -146,6 +147,8 @@ class DrizzleBranchRegisterStoreTransaction<TQueryResult extends PgQueryResultHK
   }
 }
 
+const NEVER_ASSIGNED_VERSION = 0;
+
 export class DrizzleBranchRegisterStore<TQueryResult extends PgQueryResultHKT>
   implements BranchRegisterStore, BranchRegisters
 {
@@ -177,10 +180,13 @@ export class DrizzleBranchRegisterStore<TQueryResult extends PgQueryResultHKT>
         redeemedAt: registerEnrollmentCodes.redeemedAt,
         failedAttempts: registerEnrollmentCodes.failedAttempts,
         pointOfSaleNumber: registerPointsOfSale.pointOfSaleNumber,
+        pointTerminalId: registerPointTerminals.terminalId,
+        pointTerminalVersion: registerPointTerminals.version,
       })
       .from(registers)
       .leftJoin(registerEnrollmentCodes, eq(registerEnrollmentCodes.registerId, registers.id))
       .leftJoin(registerPointsOfSale, eq(registerPointsOfSale.registerId, registers.id))
+      .leftJoin(registerPointTerminals, eq(registerPointTerminals.registerId, registers.id))
       .where(eq(registers.locationId, locationId))
       .orderBy(asc(registers.name));
     const installations = await this.db
@@ -195,7 +201,17 @@ export class DrizzleBranchRegisterStore<TQueryResult extends PgQueryResultHKT>
       .innerJoin(registers, eq(registers.id, registerInstallations.registerId))
       .where(eq(registers.locationId, locationId));
     return rows.map(
-      ({ id, name, issuedAt, expiresAt, redeemedAt, failedAttempts, pointOfSaleNumber }) => ({
+      ({
+        id,
+        name,
+        issuedAt,
+        expiresAt,
+        redeemedAt,
+        failedAttempts,
+        pointOfSaleNumber,
+        pointTerminalId,
+        pointTerminalVersion,
+      }) => ({
         id,
         name,
         enrollmentCode:
@@ -203,6 +219,10 @@ export class DrizzleBranchRegisterStore<TQueryResult extends PgQueryResultHKT>
             ? { issuedAt, expiresAt, redeemedAt, failedAttempts }
             : null,
         pointOfSaleNumber,
+        pointTerminal: {
+          terminalId: pointTerminalId,
+          version: pointTerminalVersion ?? NEVER_ASSIGNED_VERSION,
+        },
         installations: installations
           .filter(({ registerId }) => registerId === id)
           .map(({ hostname, windowsVersion, enrolledAt, revokedAt }) => ({

@@ -7,3 +7,7 @@ export function formatTenthsOfPercent(tenths: number): string {
   });
   return `${tenths < 0 ? "−" : ""}${magnitude} %`;
 }
+
+export function formatSignedTenthsOfPercent(tenths: number): string {
+  return tenths > 0 ? `+ ${formatTenthsOfPercent(tenths)}` : formatTenthsOfPercent(tenths);
+}

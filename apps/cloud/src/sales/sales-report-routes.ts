@@ -1,4 +1,5 @@
 import {
+  averageTicketSchema,
   reportQuerySchema,
   salesByCashierSchema,
   salesByProductAndCategoryQuerySchema,
@@ -6,6 +7,7 @@ import {
   salesReportSchema,
 } from "@purosur/contracts";
 import {
+  readAverageTicket,
   readSalesByCashier,
   readSalesByDay,
   readSalesByProductAndCategory,
@@ -124,6 +126,40 @@ export function registerSalesReportRoutes<TQueryResult extends PgQueryResultHKT>
           total: report.totals.total,
           average_ticket: report.totals.averageTicket,
         },
+      }),
+    );
+  });
+
+  app.get("/reports/average-ticket", { preHandler, config }, async (request, reply) => {
+    const query = await readValidatedBody(reply, reportQuerySchema, request.query);
+    if (!query) {
+      return;
+    }
+    const report = await readAverageTicket(
+      { reader, clock: { now } },
+      {
+        locationId: openSessionOf(request).locationId,
+        asked: { from: query.from, to: query.to },
+        registerId: query.register_id,
+      },
+    );
+    const ticketOf = ({ salesCount, total, averageTicket }: typeof report.current) => ({
+      sales_count: salesCount,
+      total,
+      average_ticket: averageTicket,
+    });
+    await reply.code(200).send(
+      averageTicketSchema.parse({
+        range: report.range,
+        previous_range: report.previousRange,
+        current: ticketOf(report.current),
+        previous: report.previous === null ? null : ticketOf(report.previous),
+        change_tenths: report.changeTenths,
+        weeks: report.weeks.map((week) => ({
+          from: week.from,
+          to: week.to,
+          ...ticketOf(week),
+        })),
       }),
     );
   });

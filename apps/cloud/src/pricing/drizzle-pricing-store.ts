@@ -11,8 +11,8 @@ import type {
   PricingStoreTransaction,
   RecordedPriceReview,
 } from "@purosur/domain/pricing/use-cases";
-import { and, desc, eq, isNull } from "drizzle-orm";
-import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import { and, desc, eq, isNull, max } from "drizzle-orm";
+import { alias, type PgDatabase, type PgQueryResultHKT } from "drizzle-orm/pg-core";
 import {
   auditLog,
   branchSettings,
@@ -58,10 +58,21 @@ export class DrizzlePricingStoreTransaction<TQueryResult extends PgQueryResultHK
   }
 
   async currentPrice(productId: string, priceListId: string): Promise<CurrentPrice | undefined> {
+    const every = alias(prices, "every_price");
+    const newestStart = this.tx
+      .select({ validFrom: max(every.validFrom) })
+      .from(every)
+      .where(and(eq(every.productId, productId), eq(every.priceListId, priceListId)));
     const candidates = await this.tx
       .select({ id: prices.id, unitPrice: prices.unitPrice, validFrom: prices.validFrom })
       .from(prices)
-      .where(and(eq(prices.productId, productId), eq(prices.priceListId, priceListId)));
+      .where(
+        and(
+          eq(prices.productId, productId),
+          eq(prices.priceListId, priceListId),
+          eq(prices.validFrom, newestStart),
+        ),
+      );
     return newestPrice(candidates);
   }
 

@@ -11,6 +11,8 @@ import {
   arcaVitalityChecks,
   arcaWsaaTicketRefusals,
   arcaWsaaTokens,
+  assemblyBatches,
+  assemblyBatchLines,
   auditLog,
   backofficeRateLimitAttempts,
   branchFirstCashSessions,
@@ -70,6 +72,7 @@ import {
   registerInstallations,
   registerOfflinePointsOfSale,
   registerPointsOfSale,
+  registerPointTerminals,
   registerSnapshotGenerations,
   registerSnapshotKeys,
   registerSnapshotLifecycleRules,
@@ -297,6 +300,9 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
       fiscalAddressId: fiscalAddress.id,
       version: 1,
     });
+    await db
+      .insert(registerPointTerminals)
+      .values({ registerId: register.id, terminalId: "PAX_A910__SMARTPOS1", version: 1 });
     await db.insert(pointOfSaleClaims).values({
       pointOfSaleNumber: 4,
       registerId: register.id,
@@ -757,6 +763,21 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
       componentProductId: component?.id as string,
       quantityPerOutputUnit: 500,
       position: 0,
+    });
+    const [batch] = await db
+      .insert(assemblyBatches)
+      .values({
+        productId: product.id,
+        locationId: await seededLocationId(db),
+        assembledAt: new Date("2026-01-05T12:00:00.000Z"),
+        outputQty: 1000,
+        actorId: user.id,
+      })
+      .returning({ id: assemblyBatches.id });
+    await db.insert(assemblyBatchLines).values({
+      batchId: batch?.id as string,
+      componentProductId: component?.id as string,
+      quantity: 500,
     });
     const [freight] = await db
       .insert(freights)

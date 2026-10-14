@@ -1505,6 +1505,7 @@ describe("wiring the sales report routes", () => {
     { method: "GET", url: "/api/reports/sales-by-day" },
     { method: "GET", url: "/api/reports/sales-by-product-and-category" },
     { method: "GET", url: "/api/reports/sales-by-cashier" },
+    { method: "GET", url: "/api/reports/average-ticket" },
   ] as const;
 
   async function statusCodes(app: ReturnType<typeof buildApp>): Promise<number[]> {
@@ -1617,6 +1618,9 @@ describe("wiring the stock routes", () => {
     { method: "POST", url: "/api/inventory-adjustments" },
     { method: "GET", url: "/api/recipes" },
     { method: "PUT", url: "/api/recipes/00000000-0000-0000-0000-000000000000" },
+    { method: "GET", url: "/api/assembly-batches" },
+    { method: "GET", url: "/api/assembly-batches/preview" },
+    { method: "POST", url: "/api/assembly-batches" },
   ] as const;
 
   const formerStockRequests = [
@@ -2588,6 +2592,21 @@ describe("the route access inventory", () => {
       },
       {
         method: "GET",
+        url: "/api/assembly-batches",
+        access: capabilityAccess("batches"),
+      },
+      {
+        method: "GET",
+        url: "/api/assembly-batches/preview",
+        access: capabilityAccess("batches"),
+      },
+      {
+        method: "POST",
+        url: "/api/assembly-batches",
+        access: capabilityAccess("batches"),
+      },
+      {
+        method: "GET",
         url: "/api/inventory-counts",
         access: capabilityAccess("stock_counts"),
       },
@@ -2658,6 +2677,11 @@ describe("the route access inventory", () => {
       },
       {
         method: "GET",
+        url: "/api/reports/average-ticket",
+        access: capabilityAccess("reports_area"),
+      },
+      {
+        method: "GET",
         url: "/api/reports/sales-by-payment-method",
         access: capabilityAccess("reports_area"),
       },
@@ -2710,6 +2734,11 @@ describe("the route access inventory", () => {
         method: "POST",
         url: "/api/registers/:id/device-codes",
         access: capabilityAccess("registers_area"),
+      },
+      {
+        method: "PUT",
+        url: "/api/registers/:id/point-terminal",
+        access: capabilityAccess("cash_area"),
       },
       {
         method: "GET",

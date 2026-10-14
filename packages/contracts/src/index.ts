@@ -144,6 +144,7 @@ export {
 } from "./fiscal/unclear-outcome-question.js";
 export type {
   AbandonMercadoPagoChargeOutcome,
+  ConvertPaidOrderIntoRefundOutcome,
   FollowMercadoPagoChargeOutcome,
   PaymentsCoreToRendererMessage,
   PaymentsRendererToCoreMessage,
@@ -166,6 +167,16 @@ export {
   mercadoPagoOrderRequestSchema,
   mercadoPagoPaymentSchema,
 } from "./payments/mercado-pago-order.js";
+export type {
+  ApprovedOrdersOfRegisterBody,
+  LatePaymentRefundOpeningBody,
+  LatePaymentRefundRefusalDetail,
+} from "./payments/paid-orders-of-register.js";
+export {
+  approvedOrdersOfRegisterSchema,
+  latePaymentRefundOpeningSchema,
+  latePaymentRefundRefusalDetailSchema,
+} from "./payments/paid-orders-of-register.js";
 export type { PaymentMethodAvailability } from "./payments/payment-method-availability.js";
 export { paymentMethodAvailabilitySchema } from "./payments/payment-method-availability.js";
 export type {
@@ -180,6 +191,14 @@ export {
   markedRefundDoneSchema,
   pendingRefundsSchema,
 } from "./payments/pending-refunds.js";
+export type {
+  PointTerminalAssignmentAnswer,
+  PointTerminalAssignmentBody,
+} from "./payments/point-terminal-assignment.js";
+export {
+  pointTerminalAssignmentBodySchema,
+  pointTerminalAssignmentSchema,
+} from "./payments/point-terminal-assignment.js";
 export type { SalesByPaymentMethodBody } from "./payments/sales-by-payment-method.js";
 export { salesByPaymentMethodSchema } from "./payments/sales-by-payment-method.js";
 export type { PermissionCatalogWire } from "./permissions/permission-catalog.js";
@@ -358,6 +377,8 @@ export {
   snapshotUploadBodySchema,
 } from "./register/snapshot-upload.js";
 export type { StartupPending } from "./register/startup-pending.js";
+export type { AverageTicketBody } from "./sales/average-ticket.js";
+export { averageTicketSchema } from "./sales/average-ticket.js";
 export type {
   CancelLockedSaleOutcome,
   PrintOriginalReceiptOutcome,
@@ -476,6 +497,24 @@ export {
   withoutEchoedQueryValues,
   withoutQueryParameters,
 } from "./shared/index.js";
+export type {
+  AssemblyBatch,
+  AssemblyBatchList,
+  AssemblyBatchPreview,
+  AssemblyBatchRefusal,
+  AssemblyBatchResult,
+} from "./stock/assembly-batch-answers.js";
+export {
+  assemblyBatchListSchema,
+  assemblyBatchPreviewSchema,
+  assemblyBatchRefusalSchema,
+  assemblyBatchResultSchema,
+} from "./stock/assembly-batch-answers.js";
+export type { AssemblyBatchBody, AssemblyBatchPreviewQuery } from "./stock/assembly-batch-body.js";
+export {
+  assemblyBatchBodySchema,
+  assemblyBatchPreviewQuerySchema,
+} from "./stock/assembly-batch-body.js";
 export type {
   ExpiredLotDiscardResult,
   ExpiringLot,

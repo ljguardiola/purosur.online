@@ -1,6 +1,6 @@
 import type { LotCost } from "../model/lot-value.js";
 
-export type LotOriginKind = "initial_count" | "purchase" | "technical";
+export type LotOriginKind = "initial_count" | "purchase" | "technical" | "assembly_batch";
 
 export interface LockedLot {
   origin: LotOriginKind;

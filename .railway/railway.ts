@@ -204,9 +204,6 @@ export default defineRailway((ctx) => {
             MERCADOPAGO_ACCESS_TOKEN: mercadoPago.accessToken,
             MERCADOPAGO_QR_EXTERNAL_POS_ID: mercadoPago.externalPosId,
             MERCADOPAGO_WEBHOOK_SECRET: mercadoPago.webhookSecret,
-            ...(mercadoPago.pointTerminalId
-              ? { MERCADOPAGO_POINT_TERMINAL_ID: mercadoPago.pointTerminalId }
-              : {}),
           }
         : {}),
     },

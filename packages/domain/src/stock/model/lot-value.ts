@@ -15,6 +15,16 @@ export function knownLotCost({
   return costIncomplete ? null : cost;
 }
 
+export function isLotCostIncomplete({
+  technical,
+  costIncomplete,
+}: {
+  technical: boolean;
+  costIncomplete: boolean;
+}): boolean {
+  return technical || costIncomplete;
+}
+
 export function isLotInStock({ remaining }: { remaining: number }): boolean {
   return remaining !== 0;
 }

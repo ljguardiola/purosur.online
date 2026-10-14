@@ -1,4 +1,5 @@
 import type {
+  AverageTicketBody,
   SalesByCashierBody,
   SalesByProductAndCategoryBody,
   SalesReportBody,
@@ -128,4 +129,79 @@ export const noCashierSalesReport: SalesByCashierBody = {
   range: { from: "2026-10-07", to: "2026-10-07" },
   rows: [],
   totals: { cashiers: 0, sales_count: 0, total: 0, average_ticket: null },
+};
+
+export const averageTicketReport: AverageTicketBody = {
+  range: { from: "2026-09-24", to: "2026-10-14" },
+  previous_range: { from: "2026-09-03", to: "2026-09-23" },
+  current: { sales_count: 70, total: 1_750_000, average_ticket: 25_000 },
+  previous: { sales_count: 55, total: 1_320_000, average_ticket: 24_000 },
+  change_tenths: 42,
+  weeks: [
+    {
+      from: "2026-10-08",
+      to: "2026-10-14",
+      sales_count: 40,
+      total: 1_100_000,
+      average_ticket: 27_500,
+    },
+    {
+      from: "2026-10-01",
+      to: "2026-10-07",
+      sales_count: 10,
+      total: 500_000,
+      average_ticket: 50_000,
+    },
+    {
+      from: "2026-09-24",
+      to: "2026-09-30",
+      sales_count: 20,
+      total: 150_000,
+      average_ticket: 7_500,
+    },
+  ],
+};
+
+export const singleDayAverageTicketReport: AverageTicketBody = {
+  range: { from: "2026-10-07", to: "2026-10-07" },
+  previous_range: { from: "2026-10-06", to: "2026-10-06" },
+  current: { sales_count: 1, total: 4_800, average_ticket: 4_800 },
+  previous: { sales_count: 0, total: 0, average_ticket: null },
+  change_tenths: null,
+  weeks: [
+    { from: "2026-10-07", to: "2026-10-07", sales_count: 1, total: 4_800, average_ticket: 4_800 },
+  ],
+};
+
+export const unchangedAverageTicketReport: AverageTicketBody = {
+  ...averageTicketReport,
+  change_tenths: 0,
+};
+
+export const quietWeekAverageTicketReport: AverageTicketBody = {
+  ...averageTicketReport,
+  weeks: [
+    ...averageTicketReport.weeks.slice(0, 2),
+    { from: "2026-09-24", to: "2026-09-30", sales_count: 0, total: 0, average_ticket: null },
+  ],
+};
+
+export const noSalesAverageTicketReport: AverageTicketBody = {
+  range: { from: "2026-10-07", to: "2026-10-07" },
+  previous_range: { from: "2026-10-06", to: "2026-10-06" },
+  current: { sales_count: 0, total: 0, average_ticket: null },
+  previous: { sales_count: 0, total: 0, average_ticket: null },
+  change_tenths: null,
+  weeks: [],
+};
+
+export const noPreviousAverageTicketReport: AverageTicketBody = {
+  range: { from: "0001-01-01", to: "0001-01-07" },
+  previous_range: null,
+  current: { sales_count: 1, total: 4_800, average_ticket: 4_800 },
+  previous: null,
+  change_tenths: null,
+  weeks: [
+    { from: "0001-01-01", to: "0001-01-07", sales_count: 1, total: 4_800, average_ticket: 4_800 },
+  ],
 };
