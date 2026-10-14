@@ -11,6 +11,6 @@ describe("the dump-offsite command", { timeout: 0 }, () => {
 
     expect(result.status).toBe(1);
     expect(result.stderr).toContain("offsite-dump: OFFSITE_DUMP_DATABASE_URL");
-    expect(result.stderr).toContain("is not set");
+    expect(result.stderr).toContain("are not set");
   });
 });

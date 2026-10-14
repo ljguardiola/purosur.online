@@ -150,7 +150,10 @@ describe("offsiteDumpCommand", () => {
 
     expect(exitCode).toBe(0);
     expect(run.requests.map((request) => [request.method, request.url])).toEqual([
-      ["PUT", "https://dump-vault.s3.us-west-004.example-storage.test/offsite-dumps/2026-10-14.dump.age"],
+      [
+        "PUT",
+        "https://dump-vault.s3.us-west-004.example-storage.test/offsite-dumps/2026-10-14.dump.age",
+      ],
       [
         "PUT",
         "https://dump-vault.s3.us-west-004.example-storage.test/offsite-dumps/2026-10-14.manifest.json",

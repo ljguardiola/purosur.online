@@ -3,11 +3,7 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import {
-  dumpToFile,
-  offsiteDumpCommands,
-  type PipelineCommand,
-} from "./offsite-dump-pipeline.js";
+import { dumpToFile, offsiteDumpCommands, type PipelineCommand } from "./offsite-dump-pipeline.js";
 
 function node(script: string): PipelineCommand {
   return { file: process.execPath, args: ["-e", script] };
@@ -83,12 +79,15 @@ describe("dumpToFile", () => {
   it("does not leave the command's arguments in its failure message", async () => {
     const failing = {
       file: process.execPath,
-      args: ["-e", "process.exit(1)", "--dbname=postgresql://u:s3cret@host/db"],
+      args: ["-e", "process.exit(1)", "--", "--dbname=postgresql://u:s3cret@host/db"],
     };
 
-    await expect(
-      dumpToFile({ dump: failing, encrypt: UPPERCASE }, join(directory, "out")),
-    ).rejects.not.toThrow("s3cret");
+    const failure = await dumpToFile({ dump: failing, encrypt: UPPERCASE }, join(directory, "out"))
+      .then(() => undefined)
+      .catch((error: unknown) => error);
+
+    expect(failure).toBeInstanceOf(Error);
+    expect((failure as Error).message).not.toContain("s3cret");
   });
 });
 
@@ -101,7 +100,9 @@ describe("offsiteDumpCommands", () => {
   it("dumps the database in pg_dump's custom archive format", () => {
     expect(commands.dump.file).toBe("pg_dump");
     expect(commands.dump.args).toContain("--format=custom");
-    expect(commands.dump.args).toContain("--dbname=postgresql://offsite_dump:pw@db.internal:5432/app");
+    expect(commands.dump.args).toContain(
+      "--dbname=postgresql://offsite_dump:pw@db.internal:5432/app",
+    );
   });
 
   it("leaves out graphile-worker's queue, which its row-level security hides from this role and its own migration recreates", () => {
