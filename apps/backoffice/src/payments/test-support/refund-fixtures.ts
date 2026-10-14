@@ -95,3 +95,59 @@ export const pendingRefundsWithLatePayment: PendingRefundsBody = {
 export const pendingRefundsWithLatePaymentOfOtherOrder: PendingRefundsBody = {
   refunds: [transferRefund, latePaymentOfOtherOrderRefund],
 };
+
+export const CLOUD_SENT_REFUND_ID = "55555555-5555-4555-8555-555555555555";
+
+type PendingRefund = PendingRefundsBody["refunds"][number];
+
+export const unconfirmedCloudRefund: PendingRefund = {
+  ...transferRefund,
+  id: CLOUD_SENT_REFUND_ID,
+  register_id: "44444444-4444-4444-8444-444444444444",
+  register_name: "Caja de la entrada",
+  method: "QR",
+  amount: 340_000,
+  sent_by_cloud: true,
+};
+
+const confirmed: Partial<PendingRefund> = {
+  confirmed_at: "2026-10-09T10:00:00.000Z",
+  confirmed_by_name: "Marina",
+};
+
+export const confirmedUnsentCloudRefund: PendingRefund = {
+  ...unconfirmedCloudRefund,
+  ...confirmed,
+};
+
+export const sentCloudRefund: PendingRefund = {
+  ...unconfirmedCloudRefund,
+  ...confirmed,
+  sent_at: "2026-10-09T10:00:05.000Z",
+};
+
+export const noBalanceCloudRefund: PendingRefund = {
+  ...unconfirmedCloudRefund,
+  ...confirmed,
+  last_refusal_reason: "insufficient_balance",
+};
+
+export const refusedCloudRefund: PendingRefund = {
+  ...unconfirmedCloudRefund,
+  ...confirmed,
+  last_refusal_reason: "refund_period_exceeded",
+};
+
+export const pendingRefundsWithUnconfirmedCloudRefund: PendingRefundsBody = {
+  refunds: [transferRefund, unconfirmedCloudRefund],
+};
+
+export const pendingRefundsOfEveryCloudRefundStage: PendingRefundsBody = {
+  refunds: [
+    unconfirmedCloudRefund,
+    { ...confirmedUnsentCloudRefund, id: "66666666-6666-4666-8666-666666666661" },
+    { ...sentCloudRefund, id: "66666666-6666-4666-8666-666666666662" },
+    { ...noBalanceCloudRefund, id: "66666666-6666-4666-8666-666666666663" },
+    { ...refusedCloudRefund, id: "66666666-6666-4666-8666-666666666664" },
+  ],
+};
