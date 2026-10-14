@@ -1818,7 +1818,9 @@ test("does not link the alert of lots nearing their expiry to the expiring lots 
   expect(screen.getByRole("link", { name: "Ver vencimientos" }).query()).toBeNull();
 });
 
-function offsiteDumpUnverifiedAlert(reason: string) {
+function offsiteDumpUnverifiedAlert(
+  reason: Extract<AlertDetail, { kind: "offsite_dump_unverified" }>["detail"]["reason"],
+) {
   return baseDetail({
     kind: "offsite_dump_unverified",
     level: "critical",

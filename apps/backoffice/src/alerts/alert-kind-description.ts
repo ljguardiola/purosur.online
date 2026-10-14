@@ -23,6 +23,8 @@ const ALERT_KIND_DESCRIPTIONS = {
   fiscal_emission_stopped: "Una caja no puede emitir comprobantes fiscales",
   outbox_chain_broken: "Eventos de una caja alterados en su disco",
   lots_expiring: "Hay lotes de productos vencidos o por llegar a su fecha de vencimiento.",
+  offsite_dump_unverified:
+    "La copia cifrada de la base de datos de una noche no se pudo verificar fuera de la nube.",
 } satisfies Record<AlertKind, string>;
 
 export const DESCRIBED_ALERT_KINDS: readonly string[] = Object.keys(ALERT_KIND_DESCRIPTIONS);
