@@ -22,6 +22,6 @@ export async function readApprovedOrdersOfRegister(
 ): Promise<ReadApprovedOrdersOfRegisterOutcome> {
   return {
     kind: "read",
-    orders: await orders.approvedUnreplacedSince(registerId, paidOrderDiscoveryStart(clock.now())),
+    orders: await orders.approvedWithoutSaleSince(registerId, paidOrderDiscoveryStart(clock.now())),
   };
 }

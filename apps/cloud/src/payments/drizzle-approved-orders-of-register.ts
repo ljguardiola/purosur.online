@@ -3,14 +3,15 @@ import {
   MERCADO_PAGO_PROVIDERS,
   PAID_ORDER_PAYMENT_STATE,
   PAID_ORDER_REPLACED,
+  SALE_PAYMENT_STATE_HOLDING_PAID_ORDER,
 } from "@purosur/domain";
 import type {
   ApprovedOrderOfRegister,
   ApprovedOrdersOfRegister,
 } from "@purosur/domain/payments/use-cases";
-import { and, asc, eq, gte } from "drizzle-orm";
+import { and, asc, eq, gte, notExists } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { paymentTransactions } from "../platform/db/schema.js";
+import { paymentTransactions, salePayments } from "../platform/db/schema.js";
 
 function known<TKnown extends string>(
   options: readonly TKnown[],
@@ -33,7 +34,7 @@ export class DrizzleApprovedOrdersOfRegister<TQueryResult extends PgQueryResultH
     this.db = db;
   }
 
-  async approvedUnreplacedSince(
+  async approvedWithoutSaleSince(
     registerId: string,
     since: Date,
   ): Promise<ApprovedOrderOfRegister[]> {
@@ -46,6 +47,17 @@ export class DrizzleApprovedOrdersOfRegister<TQueryResult extends PgQueryResultH
           eq(paymentTransactions.state, PAID_ORDER_PAYMENT_STATE),
           eq(paymentTransactions.replaced, PAID_ORDER_REPLACED),
           gte(paymentTransactions.createdAt, since),
+          notExists(
+            this.db
+              .select({ id: salePayments.id })
+              .from(salePayments)
+              .where(
+                and(
+                  eq(salePayments.id, paymentTransactions.id),
+                  eq(salePayments.state, SALE_PAYMENT_STATE_HOLDING_PAID_ORDER),
+                ),
+              ),
+          ),
         ),
       )
       .orderBy(asc(paymentTransactions.createdAt));

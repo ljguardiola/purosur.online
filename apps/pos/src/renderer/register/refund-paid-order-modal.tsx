@@ -8,7 +8,7 @@ import {
   SummaryRowGroup,
 } from "@purosur/ui";
 import { ArrowLeft, TriangleAlert, Undo2 } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 const FAILED_MESSAGE = "No se pudo pasar el cobro a reembolso. Probá de nuevo.";
 
@@ -19,7 +19,7 @@ const REFUSALS = {
   unavailable: FAILED_MESSAGE,
 } as const;
 
-export type PaidOrderRefundModalProps = {
+export type RefundPaidOrderModalProps = {
   order: Pick<
     StartupPending["paid_orders_without_sale"][number],
     "payment_transaction_id" | "method" | "amount" | "created_at"
@@ -33,26 +33,29 @@ export type PaidOrderRefundModalProps = {
   onClose: () => void;
 };
 
-export function PaidOrderRefundModal({
+export function RefundPaidOrderModal({
   order,
   convertPaidOrderIntoRefund,
   onConverted,
   onGone,
   onSessionInvalid,
   onClose,
-}: PaidOrderRefundModalProps) {
+}: RefundPaidOrderModalProps) {
   const [submitting, setSubmitting] = useState(false);
   const [notice, setNotice] = useState<string>();
+  const converting = useRef(false);
 
   async function confirm() {
-    if (submitting) {
+    if (converting.current) {
       return;
     }
+    converting.current = true;
     setSubmitting(true);
     setNotice(undefined);
     const outcome = await convertPaidOrderIntoRefund(order.payment_transaction_id).catch(
       (): ConvertPaidOrderIntoRefundOutcome => ({ kind: "unavailable" }),
     );
+    converting.current = false;
     setSubmitting(false);
     switch (outcome.kind) {
       case "converted":

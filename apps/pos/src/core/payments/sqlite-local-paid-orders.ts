@@ -3,11 +3,6 @@ import type {
   LocalPaidOrders,
   PaidOrderWithoutSale,
 } from "@purosur/domain/payments/use-cases";
-import {
-  type IdGenerator,
-  type SaleLedger,
-  settleApprovedMercadoPagoPayment,
-} from "@purosur/domain/sales/use-cases";
 import type { LocalDatabase } from "../platform/local-database";
 import {
   approvePendingMercadoPagoPayment,
@@ -16,15 +11,8 @@ import {
 
 type LocalStateOfPaidOrder = ReturnType<LocalPaidOrders["localStateOf"]>;
 
-interface PaidOrderSettlement {
-  ledger: SaleLedger;
-  clock: { now: () => Date };
-  ids: IdGenerator;
-}
-
 export interface SqliteLocalPaidOrdersDeps {
   database: LocalDatabase;
-  settlement?: PaidOrderSettlement;
 }
 
 interface PaidOrderRow {
@@ -69,32 +57,25 @@ export class SqliteLocalPaidOrders implements LocalPaidOrders {
       )
       .get(order.paymentTransactionId);
     const sale = this.deps.database
-      .prepare<[string], { state: string }>("SELECT state FROM sales WHERE id = ?")
+      .prepare<[string], { state: LocalStateOfPaidOrder["sale"] }>(
+        "SELECT state FROM sales WHERE id = ?",
+      )
       .get(order.saleId);
     return { payment: payment?.state, sale: sale?.state };
   }
 
-  applyApprovedPayment(order: ApprovedOrderOfRegister): void {
-    const { database, settlement } = this.deps;
-    if (settlement === undefined) {
-      throw new Error("these local paid orders cannot settle a payment");
-    }
-    database.transaction(() => {
-      const sale = database
-        .prepare<[string], { actor_id: string }>("SELECT actor_id FROM sales WHERE id = ?")
-        .get(order.saleId);
-      if (sale === undefined) {
-        throw new Error(`the sale ${order.saleId} of the paid order is not held`);
-      }
-      this.holdAsPending(order);
-      const outcome = settleApprovedMercadoPagoPayment(settlement, {
-        actorId: sale.actor_id,
-        paymentTransactionId: order.paymentTransactionId,
-      });
-      if (outcome.kind !== "completed" && outcome.kind !== "partially_paid") {
-        approvePendingMercadoPagoPayment(database, order.paymentTransactionId);
-      }
-    })();
+  actorOfSale(saleId: string): string | undefined {
+    return this.deps.database
+      .prepare<[string], { actor_id: string }>("SELECT actor_id FROM sales WHERE id = ?")
+      .get(saleId)?.actor_id;
+  }
+
+  inOneTransaction<TOutcome>(work: () => TOutcome): TOutcome {
+    return this.deps.database.transaction(work)();
+  }
+
+  approvePayment(paymentTransactionId: string): void {
+    approvePendingMercadoPagoPayment(this.deps.database, paymentTransactionId);
   }
 
   paidOrderWithoutSale(paymentTransactionId: string): PaidOrderWithoutSale | undefined {
@@ -140,7 +121,7 @@ export class SqliteLocalPaidOrders implements LocalPaidOrders {
       .map(paidOrderOf);
   }
 
-  private holdAsPending(order: ApprovedOrderOfRegister): void {
+  holdAsPendingPayment(order: ApprovedOrderOfRegister): void {
     const { database } = this.deps;
     const held = database
       .prepare<[string], { id: string }>("SELECT id FROM payment_transactions WHERE id = ?")

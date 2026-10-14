@@ -1,4 +1,5 @@
 import type { ChargeRefusal } from "../../fiscal/index.js";
+import { paidOrdersWithoutSaleLetSell } from "../../payments/index.js";
 import { discountAppliesOn } from "../../pricing/index.js";
 import type { Clock } from "../../shared/index.js";
 import { argentinaCalendarDay } from "../../shared/index.js";
@@ -56,7 +57,7 @@ export function saleToAddTo(
   if (!existing && tx.installationRevoked()) {
     return { kind: "installation_revoked" };
   }
-  if (!existing && tx.paidOrderWithoutSaleUnresolved()) {
+  if (!paidOrdersWithoutSaleLetSell(tx.paidOrdersWithoutSale(), { openSale: !!existing })) {
     return { kind: "paid_order_without_sale" };
   }
   const target = existing ?? tx.registerIdentity();

@@ -10,11 +10,11 @@ import {
   postToCloudWithBearer,
 } from "../platform/cloud-client";
 import type { LocalDatabase } from "../platform/local-database";
-import { SqliteSaleLedger } from "../sales/sqlite-sale-ledger";
+import type { ReceiptPrinting } from "../sales/receipt-printing-wiring";
 import type { ActionGate } from "../sessions/action-gate";
-import { SqliteSignInStore } from "../sessions/sqlite-sign-in-store";
 import { CloudPaidOrdersOfRegister } from "./cloud-paid-orders-of-register";
 import { convertPaidOrderIntoRefundFor } from "./paid-order-refund-requests";
+import { paidOrderSale } from "./paid-order-sale";
 import { SqliteLocalPaidOrders } from "./sqlite-local-paid-orders";
 
 export type PaidOrderDiscoveryState = "pending" | "deferred" | "checked";
@@ -27,19 +27,37 @@ export interface PaidOrderDiscovery {
 
 export interface PaidOrderDiscoveryDeps {
   discover: () => Promise<DiscoverPaidOrdersWithoutSaleOutcome>;
+  printing: Pick<ReceiptPrinting, "afterEachCompletedSale">;
   reportFailure: (activity: string, error: unknown) => void;
+}
+
+function withCompletedSales(outcome: DiscoverPaidOrdersWithoutSaleOutcome) {
+  return {
+    outcome,
+    followed:
+      outcome.kind === "checked"
+        ? outcome.completedSaleIds.map((saleId) => ({
+            outcome: { kind: "completed", sale_id: saleId },
+          }))
+        : [],
+  };
 }
 
 export function createPaidOrderDiscovery({
   discover,
+  printing,
   reportFailure,
 }: PaidOrderDiscoveryDeps): PaidOrderDiscovery {
   let state: PaidOrderDiscoveryState = "pending";
   let underWay: Promise<void> | undefined;
+  const discoverWithCompletedSales = async (_request: undefined) =>
+    withCompletedSales(await discover());
+  const discoverAndPrint =
+    printing.afterEachCompletedSale(discoverWithCompletedSales) ?? discoverWithCompletedSales;
 
   async function discoverOnce(): Promise<void> {
     try {
-      const outcome = await discover();
+      const { outcome } = await discoverAndPrint(undefined);
       if (outcome.kind === "deferred") {
         state = "deferred";
       } else if (outcome.failed > 0) {
@@ -79,6 +97,7 @@ export function createPaidOrderDiscovery({
 export interface PaidOrderDiscoveryWiringDeps {
   database: LocalDatabase | undefined;
   gate: ActionGate | undefined;
+  printing: Pick<ReceiptPrinting, "afterEachCompletedSale">;
   cloudClient: CloudClientDeps | undefined;
   readDeviceToken: () => Promise<string | undefined>;
   readOutboxChainKey: () => Promise<string | undefined>;
@@ -96,6 +115,7 @@ export interface PaidOrderDiscoveryWiring extends PaidOrderDiscovery {
 export function createPaidOrderDiscoveryWiring({
   database,
   gate,
+  printing,
   cloudClient,
   readDeviceToken,
   readOutboxChainKey,
@@ -118,18 +138,15 @@ export function createPaidOrderDiscoveryWiring({
       if (database === undefined || cloud === undefined) {
         return { kind: "deferred" };
       }
-      const ledger = new SqliteSaleLedger(
-        database,
-        new SqliteSignInStore(database),
-        await readOutboxChainKey(),
-      );
       return discoverPaidOrdersWithoutSale({
         cloud,
         refunds: cloud,
-        local: new SqliteLocalPaidOrders({ database, settlement: { ledger, clock: { now }, ids } }),
+        local: new SqliteLocalPaidOrders({ database }),
+        sale: paidOrderSale({ database, outboxChainKey: await readOutboxChainKey(), now, ids }),
         clock: { now },
       });
     },
+    printing,
     reportFailure,
   });
   return {

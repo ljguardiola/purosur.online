@@ -135,6 +135,8 @@ export type {
   LatePaymentRefundRequests,
   LocalPaidOrders,
   PaidOrderDiscoveryPorts,
+  PaidOrderSale,
+  PaidOrderSettlement,
   PaidOrdersOfRegister,
   PaidOrderWithoutSale,
 } from "./paid-order-ports.js";
@@ -162,6 +164,7 @@ export type {
 } from "./read-mercado-pago-order-payment.js";
 export { readMercadoPagoOrderPayment } from "./read-mercado-pago-order-payment.js";
 export type {
+  ReadPaidOrdersWithoutSaleInput,
   ReadPaidOrdersWithoutSaleOutcome,
   ReadPaidOrdersWithoutSalePorts,
 } from "./read-paid-orders-without-sale.js";

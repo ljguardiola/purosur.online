@@ -26,19 +26,20 @@ import {
   useTableModel,
 } from "@purosur/ui";
 import { ArrowRight, CheckCheck, Printer, TriangleAlert, Undo2 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { CoreData } from "../platform/use-core-query";
 import { OpenSessionRail } from "../shell/open-session-rail";
 import { ReprintReceiptModal } from "../shell/reprint-receipt-modal";
 import { receiptCopyPresentation } from "../shell/sale-receipt-text";
 import type { SignedInPerson } from "../shell/signed-in-person";
-import { PaidOrderRefundModal } from "./paid-order-refund-modal";
+import { RefundPaidOrderModal } from "./refund-paid-order-modal";
 import type { StartupPendingAnswer } from "./register-queries";
 import {
   useCashBalanceQuery,
   useRefreshStartupPending,
   useStartupPendingQuery,
 } from "./register-queries";
+import { hasStartupPendingItems } from "./startup-pending-items";
 
 type SaleToPrint = StartupPending["sales_to_print"][number];
 type PaidOrder = StartupPending["paid_orders_without_sale"][number];
@@ -46,6 +47,8 @@ type PaidOrder = StartupPending["paid_orders_without_sale"][number];
 const SELLING_BLOCKED_REASON = "Pasá el cobro a reembolso para empezar a vender.";
 const UNCHECKED_PAID_ORDERS =
   "Puede haber un cobro pagado para esta caja sin venta. La caja lo va a consultar cuando vuelva la conexión.";
+const CONSULTING_PAID_ORDERS =
+  "Puede haber un cobro pagado para esta caja sin venta. La caja lo está consultando.";
 
 const FAILED_PROBLEM = { title: "No se pudo imprimir el ticket", description: "Probá de nuevo." };
 
@@ -149,21 +152,22 @@ function pendingItemsOf(pending: StartupPendingAnswer): PendingItem[] {
     paidOrder: order,
     unchecked: undefined,
   }));
-  const searching =
-    pending.paid_order_discovery === "pending" && paidOrders.length === 0 && others.length === 0;
   const unchecked: PendingItem[] =
-    pending.paid_order_discovery === "deferred" || searching
-      ? [
+    pending.paid_order_discovery === "checked"
+      ? []
+      : [
           {
             id: "paid-order-discovery",
             title: "Cobros pagados sin consultar",
-            detail: UNCHECKED_PAID_ORDERS,
+            detail:
+              pending.paid_order_discovery === "pending"
+                ? CONSULTING_PAID_ORDERS
+                : UNCHECKED_PAID_ORDERS,
             sale: undefined,
             paidOrder: undefined,
-            unchecked: searching ? "consulting" : "deferred",
+            unchecked: pending.paid_order_discovery === "pending" ? "consulting" : "deferred",
           },
-        ]
-      : [];
+        ];
   return [...paidOrders, ...others, ...unchecked];
 }
 
@@ -174,9 +178,13 @@ function printLabel(sale: SaleToPrint): string {
     : `Reimprimir como duplicado la venta de las ${time}`;
 }
 
-function itemState(item: PendingItem, printingSaleIds: ReadonlySet<string>) {
+function itemState(
+  item: PendingItem,
+  printingSaleIds: ReadonlySet<string>,
+  sellingBlocked: boolean,
+) {
   if (item.paidOrder !== undefined) {
-    return <StatusIndicator tone="error">Bloquea la venta</StatusIndicator>;
+    return sellingBlocked ? <StatusIndicator tone="error">Bloquea la venta</StatusIndicator> : null;
   }
   if (item.unchecked === "deferred") {
     return <StatusIndicator tone="warning">Sin consultar</StatusIndicator>;
@@ -224,7 +232,12 @@ function PendingTable({
     dataColumn({
       id: "state",
       header: "Estado",
-      render: (item: PendingItem) => itemState(item, printingSaleIds),
+      render: (item: PendingItem) =>
+        itemState(
+          item,
+          printingSaleIds,
+          data.status === "loaded" && data.value !== "not_permitted" && data.value.selling_blocked,
+        ),
     }),
     actionsColumn({
       id: "actions",
@@ -341,10 +354,22 @@ export function StartupPendingScreen({
     }
   }
 
-  const sellingBlocked =
+  const nothingLeft =
     pending.status === "loaded" &&
     pending.value !== "not_permitted" &&
-    pending.value.selling_blocked;
+    pending.value.may_go_selling &&
+    !hasStartupPendingItems(pending.value);
+
+  useEffect(() => {
+    if (nothingLeft) {
+      onGoSelling();
+    }
+  }, [nothingLeft, onGoSelling]);
+
+  const keptFromSelling =
+    pending.status === "loaded" &&
+    pending.value !== "not_permitted" &&
+    !pending.value.may_go_selling;
   const since = `Desde las ${formatClockTime(openedAt)}`;
   const openingFloat =
     balance.status === "loaded"
@@ -376,22 +401,25 @@ export function StartupPendingScreen({
       </main>
       <SidePanel
         footer={
-          <>
-            <p className="text-detail text-text-subtle">
-              {sellingBlocked
-                ? SELLING_BLOCKED_REASON
-                : "Lo que quedó pendiente se puede resolver después."}
-            </p>
+          keptFromSelling ? (
             <Button
               size="sale"
               fullWidth
               icon={<ArrowRight />}
-              disabled={sellingBlocked}
-              onPress={onGoSelling}
+              disabledReason={SELLING_BLOCKED_REASON}
             >
               Ir a vender
             </Button>
-          </>
+          ) : (
+            <>
+              <p className="text-detail text-text-subtle">
+                Lo que quedó pendiente se puede resolver después.
+              </p>
+              <Button size="sale" fullWidth icon={<ArrowRight />} onPress={onGoSelling}>
+                Ir a vender
+              </Button>
+            </>
+          )
         }
       >
         <Eyebrow text="Sesión abierta" />
@@ -422,7 +450,7 @@ export function StartupPendingScreen({
         />
       )}
       {refundOf === undefined ? null : (
-        <PaidOrderRefundModal
+        <RefundPaidOrderModal
           order={refundOf}
           convertPaidOrderIntoRefund={convertPaidOrderIntoRefund}
           onConverted={() => {

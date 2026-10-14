@@ -6,6 +6,7 @@ import type {
   PreEmissionGateOutcome,
 } from "../../fiscal/index.js";
 import type {
+  PaidOrderResolution,
   PendingMercadoPagoSalePayment,
   PlannedRefund,
   SalePayment,
@@ -80,7 +81,7 @@ export interface SaleLedgerTransaction {
   openSession(): SellingSession | undefined;
   openSale(sessionId: string): SaleWithLines | undefined;
   installationRevoked(): boolean;
-  paidOrderWithoutSaleUnresolved(): boolean;
+  paidOrdersWithoutSale(): PaidOrderResolution[];
   registerIdentity(): RegisterIdentity | undefined;
   activeProductByBarcode(code: string): SellableProduct | undefined;
   activeProductById(productId: string): SellableProduct | undefined;

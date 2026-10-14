@@ -457,6 +457,7 @@ const interruptedCharges = createInterruptedChargesWiring({
 const paidOrderDiscovery = createPaidOrderDiscoveryWiring({
   database: localDatabase,
   gate: actionGate,
+  printing: receiptPrinting,
   cloudClient,
   readDeviceToken,
   readOutboxChainKey: async () => (await mainRequests.readCredentials())?.keys?.outbox_chain_key,

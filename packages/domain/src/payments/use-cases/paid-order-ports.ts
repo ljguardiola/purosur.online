@@ -12,7 +12,7 @@ export interface ApprovedOrderOfRegister {
 }
 
 export interface ApprovedOrdersOfRegister {
-  approvedUnreplacedSince(registerId: string, since: Date): Promise<ApprovedOrderOfRegister[]>;
+  approvedWithoutSaleSince(registerId: string, since: Date): Promise<ApprovedOrderOfRegister[]>;
 }
 
 export type ApprovedOrdersAnswer =
@@ -41,16 +41,32 @@ export interface PaidOrderWithoutSale extends ApprovedOrderOfRegister {
 
 export interface LocalPaidOrders {
   localStateOf(order: ApprovedOrderOfRegister): LocalStateOfPaidOrder;
-  applyApprovedPayment(order: ApprovedOrderOfRegister): void;
+  actorOfSale(saleId: string): string | undefined;
+  inOneTransaction<TOutcome>(work: () => TOutcome): TOutcome;
+  holdAsPendingPayment(order: ApprovedOrderOfRegister): void;
+  approvePayment(paymentTransactionId: string): void;
   paidOrderWithoutSale(paymentTransactionId: string): PaidOrderWithoutSale | undefined;
   recordPaidOrderWithoutSale(order: ApprovedOrderOfRegister, recordedAt: Date): void;
   resolvePaidOrderWithoutSale(paymentTransactionId: string, resolvedAt: Date): void;
   paidOrdersWithoutSale(): PaidOrderWithoutSale[];
 }
 
+export type PaidOrderSettlement =
+  | { kind: "completed"; saleId: string }
+  | { kind: "partially_paid" }
+  | { kind: "refused" };
+
+export interface PaidOrderSale {
+  settleApprovedPayment(payment: {
+    actorId: string;
+    paymentTransactionId: string;
+  }): PaidOrderSettlement;
+}
+
 export interface PaidOrderDiscoveryPorts {
   cloud: PaidOrdersOfRegister;
   refunds: LatePaymentRefundRequests;
   local: LocalPaidOrders;
+  sale: PaidOrderSale;
   clock: Clock;
 }

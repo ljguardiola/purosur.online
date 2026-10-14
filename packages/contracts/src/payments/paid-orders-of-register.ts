@@ -27,6 +27,6 @@ export const latePaymentRefundOpeningSchema = z.object({
 export type LatePaymentRefundOpeningBody = z.output<typeof latePaymentRefundOpeningSchema>;
 
 export const latePaymentRefundRefusalDetailSchema = z.object({
-  refusal: z.enum(["not_approved", "replaced"]),
+  refusal: z.enum(["not_approved", "replaced", "held_by_sale"]),
 });
 export type LatePaymentRefundRefusalDetail = z.output<typeof latePaymentRefundRefusalDetailSchema>;

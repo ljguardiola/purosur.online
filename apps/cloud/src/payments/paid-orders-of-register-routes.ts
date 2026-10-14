@@ -45,6 +45,7 @@ function refusalError(refusal: LatePaymentRefundRefusalDetail["refusal"], messag
 
 const NOT_APPROVED = refusalError("not_approved", "that payment was not approved");
 const REPLACED = refusalError("replaced", "that payment was replaced by another order");
+const HELD_BY_SALE = refusalError("held_by_sale", "a sale this register synced holds that payment");
 
 function toWire(
   orders: Awaited<ReturnType<typeof readApprovedOrdersOfRegister>>["orders"],
@@ -152,6 +153,9 @@ export function registerPaidOrdersOfRegisterRoutes<TQueryResult extends PgQueryR
             return;
           case "replaced":
             await reply.code(cloudErrorStatus(REPLACED.code)).send(REPLACED);
+            return;
+          case "held_by_sale":
+            await reply.code(cloudErrorStatus(HELD_BY_SALE.code)).send(HELD_BY_SALE);
             return;
         }
       },

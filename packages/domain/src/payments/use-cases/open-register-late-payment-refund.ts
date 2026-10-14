@@ -20,7 +20,8 @@ export type OpenRegisterLatePaymentRefundOutcome =
   | { kind: LatePaymentRefundOpening }
   | { kind: "not_found" }
   | { kind: "not_approved" }
-  | { kind: "replaced" };
+  | { kind: "replaced" }
+  | { kind: "held_by_sale" };
 
 export async function openRegisterLatePaymentRefund(
   { lanes, clock }: OpenRegisterLatePaymentRefundPorts,
@@ -38,6 +39,9 @@ export async function openRegisterLatePaymentRefund(
       }
       if (transaction.replaced) {
         return { kind: "replaced" };
+      }
+      if (await lane.paidOrderHeldBySale(paymentTransactionId)) {
+        return { kind: "held_by_sale" };
       }
       return {
         kind: await lane.openLatePaymentRefund(latePaymentRefund(transaction), clock.now()),

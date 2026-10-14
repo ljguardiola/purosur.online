@@ -10,8 +10,10 @@ import type { PaidOrderDiscoveryState } from "../payments/paid-order-discovery-w
 import { SqliteLocalPaidOrders } from "../payments/sqlite-local-paid-orders";
 import { SqliteMercadoPagoPayments } from "../payments/sqlite-mercado-pago-payments";
 import type { LocalDatabase } from "../platform/local-database";
+import { readOpenSale } from "../sales/sqlite-open-sale";
 import { SqliteStartupSales } from "../sales/sqlite-startup-sales";
 import type { ActionGate } from "../sessions/action-gate";
+import { readOpenSession } from "./sqlite-cash-ledger";
 
 export type StartupPendingAnswer = StartupPending | "not_permitted";
 
@@ -25,9 +27,11 @@ export async function startupPendingFor({
   paidOrderDiscovery: () => PaidOrderDiscoveryState;
 }): Promise<StartupPendingAnswer> {
   const guarded = await gate.run({ kind: "sell" }, async () => {
-    const { paidOrders, sellingBlocked } = readPaidOrdersWithoutSale({
-      local: new SqliteLocalPaidOrders({ database }),
-    });
+    const session = readOpenSession(database);
+    const { paidOrders, sellingBlocked, mayGoSelling } = readPaidOrdersWithoutSale(
+      { local: new SqliteLocalPaidOrders({ database }) },
+      { openSale: session !== undefined && readOpenSale(database, session.id) !== undefined },
+    );
     return {
       sales_to_print: readSalesToPrintAtStartup({ sales: new SqliteStartupSales(database) }).map(
         ({ saleId, completedAt, total, standing }) => ({
@@ -65,6 +69,7 @@ export async function startupPendingFor({
       ),
       paid_order_discovery: paidOrderDiscovery(),
       selling_blocked: sellingBlocked,
+      may_go_selling: mayGoSelling,
     };
   });
   return guarded.kind === "performed" ? guarded.result : "not_permitted";

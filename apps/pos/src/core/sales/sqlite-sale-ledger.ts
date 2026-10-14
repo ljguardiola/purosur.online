@@ -26,6 +26,7 @@ import {
   readIssuerIdentificationInEffect,
 } from "../fiscal/sqlite-pre-emission-gate";
 import { decideSaleAuthorizationIn } from "../fiscal/sqlite-sale-authorization";
+import { SqliteLocalPaidOrders } from "../payments/sqlite-local-paid-orders";
 import {
   approvePendingMercadoPagoPayment,
   insertPendingMercadoPagoPayment,
@@ -97,7 +98,8 @@ export class SqliteSaleLedger implements SaleLedger {
       openSession: () => this.openSession(),
       openSale: (sessionId) => readOpenSale(this.database, sessionId),
       installationRevoked: () => this.installationRevoked(),
-      paidOrderWithoutSaleUnresolved: () => this.paidOrderWithoutSaleUnresolved(),
+      paidOrdersWithoutSale: () =>
+        new SqliteLocalPaidOrders({ database: this.database }).paidOrdersWithoutSale(),
       registerIdentity: () => this.registerIdentity(),
       activeProductByBarcode: (code) => readActiveProductByBarcode(this.database, code),
       activeProductById: (productId) => readActiveProductById(this.database, productId),
@@ -158,14 +160,6 @@ export class SqliteSaleLedger implements SaleLedger {
       )
       .get();
     return row?.installation_revoked_at != null;
-  }
-
-  private paidOrderWithoutSaleUnresolved(): boolean {
-    return (
-      this.database
-        .prepare("SELECT 1 FROM paid_orders_without_sale WHERE resolved_at IS NULL LIMIT 1")
-        .get() !== undefined
-    );
   }
 
   private registerIdentity(): RegisterIdentity | undefined {

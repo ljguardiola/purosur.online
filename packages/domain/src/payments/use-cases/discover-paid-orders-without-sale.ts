@@ -8,10 +8,13 @@ export type DiscoverPaidOrdersWithoutSaleOutcome =
       duplicateCharges: number;
       withoutSale: number;
       failed: number;
+      completedSaleIds: string[];
     }
   | { kind: "deferred" };
 
-type Handled = "applied" | "duplicate_charge" | "without_sale" | "nothing" | "failed";
+type Handled =
+  | { kind: "applied"; completedSaleId: string | undefined }
+  | { kind: "duplicate_charge" | "without_sale" | "nothing" | "failed" };
 
 export async function discoverPaidOrdersWithoutSale(
   ports: PaidOrderDiscoveryPorts,
@@ -20,47 +23,85 @@ export async function discoverPaidOrdersWithoutSale(
   if (answer.kind === "unreachable") {
     return { kind: "deferred" };
   }
-  const counts = { applied: 0, duplicateCharges: 0, withoutSale: 0, failed: 0 };
+  const outcome = {
+    kind: "checked" as const,
+    applied: 0,
+    duplicateCharges: 0,
+    withoutSale: 0,
+    failed: 0,
+    completedSaleIds: [] as string[],
+  };
   for (const order of answer.orders) {
     const handled = await handle(ports, order);
-    if (handled === "applied") {
-      counts.applied += 1;
-    } else if (handled === "duplicate_charge") {
-      counts.duplicateCharges += 1;
-    } else if (handled === "without_sale") {
-      counts.withoutSale += 1;
-    } else if (handled === "failed") {
-      counts.failed += 1;
+    if (handled.kind === "applied") {
+      outcome.applied += 1;
+      if (handled.completedSaleId !== undefined) {
+        outcome.completedSaleIds.push(handled.completedSaleId);
+      }
+    } else if (handled.kind === "duplicate_charge") {
+      outcome.duplicateCharges += 1;
+    } else if (handled.kind === "without_sale") {
+      outcome.withoutSale += 1;
+    } else if (handled.kind === "failed") {
+      outcome.failed += 1;
     }
   }
-  return { kind: "checked", ...counts };
+  return outcome;
+}
+
+function applyToOpenSale(
+  { local, sale }: PaidOrderDiscoveryPorts,
+  order: ApprovedOrderOfRegister,
+): Handled {
+  const actorId = local.actorOfSale(order.saleId);
+  if (actorId === undefined) {
+    return { kind: "failed" };
+  }
+  return local.inOneTransaction<Handled>(() => {
+    local.holdAsPendingPayment(order);
+    const settlement = sale.settleApprovedPayment({
+      actorId,
+      paymentTransactionId: order.paymentTransactionId,
+    });
+    if (settlement.kind === "refused") {
+      local.approvePayment(order.paymentTransactionId);
+    }
+    return {
+      kind: "applied",
+      completedSaleId: settlement.kind === "completed" ? settlement.saleId : undefined,
+    };
+  });
 }
 
 async function handle(
-  { refunds, local, clock }: PaidOrderDiscoveryPorts,
+  ports: PaidOrderDiscoveryPorts,
   order: ApprovedOrderOfRegister,
 ): Promise<Handled> {
+  const { refunds, local, clock } = ports;
   try {
     if (local.paidOrderWithoutSale(order.paymentTransactionId)) {
-      return "nothing";
+      return { kind: "nothing" };
     }
     switch (classifyPaidOrder(local.localStateOf(order))) {
       case "recorded":
-        return "nothing";
+      case "charge_under_way":
+        return { kind: "nothing" };
       case "apply_to_open_sale":
-        local.applyApprovedPayment(order);
-        return "applied";
+        return applyToOpenSale(ports, order);
       case "duplicate_charge": {
         const opening = await refunds.openLatePaymentRefund(order.paymentTransactionId);
-        return opening.kind === "opened" || opening.kind === "already_open"
-          ? "duplicate_charge"
-          : "failed";
+        return {
+          kind:
+            opening.kind === "opened" || opening.kind === "already_open"
+              ? "duplicate_charge"
+              : "failed",
+        };
       }
       case "without_sale":
         local.recordPaidOrderWithoutSale(order, clock.now());
-        return "without_sale";
+        return { kind: "without_sale" };
     }
   } catch {
-    return "failed";
+    return { kind: "failed" };
   }
 }

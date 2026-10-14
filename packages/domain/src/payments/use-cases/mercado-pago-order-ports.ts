@@ -30,6 +30,7 @@ export interface PaymentTransactionLane {
     registerId: string,
     paymentTransactionId: string,
   ): Promise<MercadoPagoOrderTransaction | null>;
+  paidOrderHeldBySale(paymentTransactionId: string): Promise<boolean>;
   recordPendingTransaction(transaction: MercadoPagoOrderTransaction): Promise<void>;
   recordCancelledWithoutOrder(transaction: MercadoPagoOrderTransaction): Promise<void>;
   recordCreationAttempt(paymentTransactionId: string, expiresAt: Date): Promise<void>;

@@ -4,21 +4,21 @@ import { hasStartupPendingItems } from "../register/startup-pending-items";
 
 export function startupPendingGate() {
   let dismissed = false;
-  let sellingBlocked = false;
+  let mayGoSelling = true;
   return {
-    dismissed: () => dismissed && !sellingBlocked,
+    dismissed: () => dismissed && mayGoSelling,
     dismiss: () => {
       dismissed = true;
     },
     lands: async (read: () => Promise<StartupPending | "not_permitted">): Promise<boolean> => {
       const pending = await read().catch(() => undefined);
       if (pending === undefined || pending === "not_permitted") {
-        sellingBlocked = false;
+        mayGoSelling = true;
         dismissed = true;
         return false;
       }
-      sellingBlocked = pending.selling_blocked;
-      if (sellingBlocked) {
+      mayGoSelling = pending.may_go_selling;
+      if (!mayGoSelling) {
         return true;
       }
       if (dismissed) {

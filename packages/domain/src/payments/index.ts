@@ -17,10 +17,13 @@ export {
   MERCADO_PAGO_POINT_ORDER_EXPIRY_MINUTES,
 } from "./model/mercado-pago-point-order.js";
 export { nonCashCharge } from "./model/non-cash-charge.js";
+export type { PaidOrderResolution } from "./model/paid-order-discovery.js";
 export {
   PAID_ORDER_PAYMENT_STATE,
   PAID_ORDER_REPLACED,
+  paidOrdersWithoutSaleLetSell,
   paidOrderWithoutSaleBlocksSelling,
+  SALE_PAYMENT_STATE_HOLDING_PAID_ORDER,
 } from "./model/paid-order-discovery.js";
 export type {
   ConfirmedByHandMethod,
