@@ -152,6 +152,21 @@ export type {
 } from "./fiscal-document-authorization-ports.js";
 export { FiscalDocumentAlreadyRecorded } from "./fiscal-document-authorization-ports.js";
 export type {
+  FortnightReportChange,
+  FortnightReportKey,
+  FortnightReportPorts,
+  FortnightReportStore,
+  HeldFortnightReport,
+  NoMovementDeclarationAnswer,
+  NoMovementDeclarationCall,
+  NoMovementDeclarationLookupAnswer,
+  OfflineDocumentsOfFortnight,
+  OwedFortnightReport,
+  RecordedFortnightReport,
+  RegisterEventStreams,
+  TaxAuthorityNoMovementDeclarations,
+} from "./fortnight-report-ports.js";
+export type {
   InterruptedRealTimeAuthorization,
   InterruptedRealTimeAuthorizationPorts,
   InterruptedRealTimeAuthorizations,
@@ -258,6 +273,12 @@ export type {
   RenewWsaaTokenOutcome,
 } from "./renew-wsaa-token.js";
 export { renewWsaaToken } from "./renew-wsaa-token.js";
+export type {
+  FortnightPresentation,
+  FortnightPresentationOutcome,
+  ReportFortnightsOutcome,
+} from "./report-fortnights.js";
+export { reportFortnights } from "./report-fortnights.js";
 export { reportOfflineAuthorizationCodeAcquisitionFailures } from "./report-offline-authorization-code-acquisition-failures.js";
 export type {
   AcquisitionFailureNotice,
