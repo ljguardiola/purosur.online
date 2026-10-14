@@ -37,6 +37,7 @@ export interface RegisteredAssemblyBatch {
 
 export type RegisterAssemblyBatchOutcome =
   | { kind: "product_not_found" }
+  | { kind: "component_not_found"; componentProductId: string }
   | { kind: "no_recipe" }
   | { kind: "stale_recipe" }
   | BatchQuantityRefusal
@@ -76,16 +77,16 @@ export async function registerAssemblyBatch(
     }
 
     const active = new Set(await tx.activeProductIds(lockOrder));
+    if (!mayBeInRecipe({ active: active.has(input.productId) })) {
+      return { kind: "product_not_found" };
+    }
     const components: (BatchComponentUse & { saleUnit: SaleUnit })[] = [];
     for (const { componentProductId, quantity } of paired) {
       const saleUnit = saleUnits.get(componentProductId);
-      if (saleUnit === undefined) {
-        return { kind: "product_not_found" };
+      if (saleUnit === undefined || !mayBeInRecipe({ active: active.has(componentProductId) })) {
+        return { kind: "component_not_found", componentProductId };
       }
       components.push({ componentProductId, quantity, saleUnit });
-    }
-    if (!lockOrder.every((id) => mayBeInRecipe({ active: active.has(id) }))) {
-      return { kind: "product_not_found" };
     }
 
     const refusal = batchQuantityRefusal({
@@ -111,6 +112,7 @@ export async function registerAssemblyBatch(
     });
 
     const consumed: AppliedLotAllocation[] = [];
+    const consumedWithoutLot: ConsumedAllocation[] = [];
     for (const use of components.filter((candidate) => candidate.quantity > 0)) {
       const key = { productId: use.componentProductId, locationId: input.locationId };
       const coveringCount = await tx.earliestCountAtOrAfter(key, assembledAt);
@@ -125,6 +127,9 @@ export async function registerAssemblyBatch(
         supersededByCountId: coveringCount?.movementId ?? null,
       });
       consumed.push(...allocations);
+      if (allocations.length === 0) {
+        consumedWithoutLot.push({ quantity: use.quantity, cost: null, expiresOn: null });
+      }
     }
 
     const lotCosts = await tx.lotCosts([
@@ -137,7 +142,7 @@ export async function registerAssemblyBatch(
         .filter((allocation) => allocation.lotId === lotCost.lotId)
         .reduce((sum, allocation) => sum - allocation.quantity, 0),
     }));
-    const facts = batchLotFacts(allocations, input.output);
+    const facts = batchLotFacts([...allocations, ...consumedWithoutLot], input.output);
 
     const key = { productId: input.productId, locationId: input.locationId };
     const coveringCount = await tx.earliestCountAtOrAfter(key, assembledAt);

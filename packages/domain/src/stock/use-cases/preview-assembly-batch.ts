@@ -6,6 +6,7 @@ import {
   batchLotFacts,
   type ConsumedAllocation,
   pairedWithRecipe,
+  proposedOutput,
   usedQuantityRefusal,
 } from "../model/assembly-batch.js";
 import { movementAllocations } from "../model/lot-allocation.js";
@@ -28,17 +29,6 @@ export interface PreviewAssemblyBatchPorts {
   lots: BatchLotReader;
 }
 
-export interface PlannedComponentAllocation {
-  lotId: string | null;
-  quantity: number;
-  expiresOn: string | null;
-}
-
-export interface PlannedComponent {
-  componentProductId: string;
-  allocations: PlannedComponentAllocation[];
-}
-
 export interface PreviewedBatchLot extends BatchLotFacts {
   unitCostCents: number | null;
 }
@@ -49,14 +39,7 @@ export type PreviewAssemblyBatchOutcome =
   | { kind: "stale_recipe" }
   | { kind: "invalid_quantity"; componentProductId: string }
   | { kind: "invalid_output" }
-  | {
-      kind: "previewed";
-      recipeVersion: number;
-      proposal: AssemblyProposal;
-      used: BatchComponentUse[];
-      planned: PlannedComponent[];
-      lot: PreviewedBatchLot | null;
-    };
+  | { kind: "previewed"; proposal: AssemblyProposal; lot: PreviewedBatchLot | null };
 
 export async function previewAssemblyBatch(
   { recipes, lots }: PreviewAssemblyBatchPorts,
@@ -87,44 +70,34 @@ export async function previewAssemblyBatch(
     return { kind: "invalid_output" };
   }
 
-  const planned: PlannedComponent[] = [];
   const consumed: ConsumedAllocation[] = [];
   for (const use of paired) {
     const componentLots = await lots.productLots({
       productId: use.componentProductId,
       locationId: input.locationId,
     });
-    const allocations: PlannedComponentAllocation[] = [];
     for (const { target, quantity } of movementAllocations(componentLots, -use.quantity)) {
       const lot =
         target.kind === "lot"
           ? componentLots.find((candidate) => candidate.id === target.lotId)
           : undefined;
-      allocations.push({
-        lotId: target.kind === "lot" ? target.lotId : null,
-        quantity: -quantity,
-        expiresOn: lot?.expiresOn ?? null,
-      });
       consumed.push({
         quantity: -quantity,
         cost: lot ? knownLotCost(lot) : null,
         expiresOn: lot?.expiresOn ?? null,
       });
     }
-    planned.push({ componentProductId: use.componentProductId, allocations });
   }
 
-  const output = input.output ?? proposal.output;
+  const proposed = { used: proposal.used, output: proposedOutput(listing.saleUnit, paired) };
+  const output = input.output ?? proposed.output;
   const lot =
     output !== null && isMovementQuantity(listing.saleUnit, output)
       ? batchLotFacts(consumed, output)
       : null;
   return {
     kind: "previewed",
-    recipeVersion: listing.version,
-    proposal,
-    used: paired.map(({ componentProductId, quantity }) => ({ componentProductId, quantity })),
-    planned,
+    proposal: proposed,
     lot: lot && {
       ...lot,
       unitCostCents: lotUnitCostCents({

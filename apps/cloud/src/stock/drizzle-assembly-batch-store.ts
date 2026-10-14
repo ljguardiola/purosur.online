@@ -1,3 +1,4 @@
+import { isLotCostIncomplete } from "@purosur/domain";
 import type {
   AssemblyBatchStore,
   AssemblyBatchTransaction,
@@ -71,7 +72,7 @@ class DrizzleAssemblyBatchTransaction<TQueryResult extends PgQueryResultHKT>
         lot.costTotalCents === null || lot.costQuantity === null
           ? null
           : { totalCents: lot.costTotalCents, quantity: lot.costQuantity },
-      costIncomplete: lot.technical || lot.costIncomplete,
+      costIncomplete: isLotCostIncomplete(lot),
       expiresOn: lot.expiresOn,
     }));
   }

@@ -1,12 +1,5 @@
 import type { SaleUnit } from "../../catalog/index.js";
 
-export interface AssemblyBatchLineListing {
-  componentProductId: string;
-  name: string;
-  saleUnit: SaleUnit;
-  quantity: number;
-}
-
 export interface AssemblyBatchListing {
   id: string;
   productId: string;
@@ -17,7 +10,6 @@ export interface AssemblyBatchListing {
   unitCostCents: number | null;
   costIncomplete: boolean;
   expiresOn: string | null;
-  lines: AssemblyBatchLineListing[];
 }
 
 export interface AssemblyBatchesQuery {

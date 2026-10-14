@@ -3,7 +3,9 @@ import { type AssemblyBatchResult, assemblyBatchBodySchema } from "@purosur/cont
 import {
   Button,
   EmptyState,
+  FieldGroup,
   LoadFailure,
+  LoadingPlaceholder,
   Modal,
   SummaryRowGroup,
   sortedItems,
@@ -22,12 +24,14 @@ import {
 import { AssemblyBatchComponentsField } from "./assembly-batch-components-field";
 import {
   ASSEMBLY_BATCH_FIELDS,
+  ASSEMBLY_BATCH_NO_RECIPE,
   ASSEMBLY_BATCH_NOTHING_USED,
   ASSEMBLY_BATCH_OUTPUT_REFUSED,
   ASSEMBLY_BATCH_PRODUCT_NOT_FOUND,
   ASSEMBLY_BATCH_PRODUCT_REQUIRED,
   assemblyBatchBodyOf,
   batchOutputMessage,
+  batchProposalOf,
   batchSizeMessage,
   batchUsedMessage,
   EMPTY_ASSEMBLY_BATCH_FORM,
@@ -37,7 +41,7 @@ import {
 } from "./assembly-batch-form";
 import { AssemblyBatchNotice } from "./assembly-batch-notice";
 import { AssemblyBatchOutputField } from "./assembly-batch-output-field";
-import { BATCH_COST_INCOMPLETE, batchExpiryText, batchUnitCostText } from "./assembly-batch-text";
+import { batchLotCostText, batchLotExpiryText } from "./assembly-batch-text";
 import type { fetchAssemblyBatchPreview, registerAssemblyBatch } from "./assembly-batches-api";
 import {
   useAssemblyBatchLotQuery,
@@ -122,11 +126,25 @@ export function NewAssemblyBatchModal({
           sendToMyAccount();
           return;
         case "product_not_found":
-        case "no_recipe":
-          setNotice({ kind: "productGone" });
           showFieldError("productId", ASSEMBLY_BATCH_PRODUCT_NOT_FOUND);
           void refreshStock();
           return;
+        case "no_recipe":
+          showFieldError("productId", ASSEMBLY_BATCH_NO_RECIPE);
+          void refreshStock();
+          return;
+        case "component_not_found": {
+          const component = chosen.components.find(
+            (candidate) => candidate.componentProductId === outcome.componentProductId,
+          );
+          if (component) {
+            setNotice({ kind: "componentGone", name: component.name });
+          } else {
+            setNotice({ kind: "staleRecipe" });
+          }
+          void refreshStock();
+          return;
+        }
         case "stale_recipe":
           setNotice({ kind: "staleRecipe" });
           void refreshStock();
@@ -167,17 +185,19 @@ export function NewAssemblyBatchModal({
     fetchAssemblyBatchPreview: services.fetchAssemblyBatchPreview,
     onSessionEnded,
   });
-  const proposal =
+  const sizeProposal =
     proposalRequest !== undefined && proposalRead.status === "loaded"
       ? proposalRead.value.proposal
       : undefined;
-  const lotRequest = lotPreviewRequestOf(values, { recipe, proposal });
+  const lotRequest = lotPreviewRequestOf(values, { recipe, proposal: sizeProposal });
   const lotRead = useAssemblyBatchLotQuery({
     request: lotRequest,
     fetchAssemblyBatchPreview: services.fetchAssemblyBatchPreview,
     onSessionEnded,
   });
-  const lot = lotRequest !== undefined && lotRead.status === "loaded" ? lotRead.value.lot : null;
+  const lotPreview =
+    lotRequest !== undefined && lotRead.status === "loaded" ? lotRead.value : undefined;
+  const proposal = batchProposalOf(values, sizeProposal, lotPreview);
 
   const clearRefusals = () => {
     setRefusals({});
@@ -189,6 +209,7 @@ export function NewAssemblyBatchModal({
   const [firstOption, ...otherOptions] = options;
   const saleUnit = recipe?.saleUnit ?? "UNIT";
   const proposedOutput = proposal?.output;
+  const lot = lotPreview?.lot ?? null;
 
   return (
     <Modal
@@ -274,21 +295,22 @@ export function NewAssemblyBatchModal({
           </div>
           {recipe ? (
             <>
-              <h3 className="font-bold text-body text-text">Componentes usados</h3>
-              {proposalRequest !== undefined && proposalRead.status === "failed" ? (
-                <LoadFailure {...cloudLoadFailure(proposalRead, "las cantidades de la tanda")} />
-              ) : (
-                <form.AppField name="used">
-                  {() => (
-                    <AssemblyBatchComponentsField
-                      components={recipe.components}
-                      proposal={proposal}
-                      refusals={refusals}
-                      onUsedChange={clearRefusals}
-                    />
-                  )}
-                </form.AppField>
-              )}
+              <FieldGroup label="Componentes usados">
+                {proposalRequest !== undefined && proposalRead.status === "failed" ? (
+                  <LoadFailure {...cloudLoadFailure(proposalRead, "las cantidades de la tanda")} />
+                ) : (
+                  <form.AppField name="used">
+                    {() => (
+                      <AssemblyBatchComponentsField
+                        components={recipe.components}
+                        proposal={proposal}
+                        refusals={refusals}
+                        onUsedChange={clearRefusals}
+                      />
+                    )}
+                  </form.AppField>
+                )}
+              </FieldGroup>
               <form.AppField name="output">
                 {() => (
                   <AssemblyBatchOutputField
@@ -304,22 +326,31 @@ export function NewAssemblyBatchModal({
                   />
                 )}
               </form.AppField>
-              <SummaryRowGroup
-                variant="filled"
-                orientation="horizontal"
-                rows={[
-                  {
-                    label: "Costo del lote",
-                    value: lot
-                      ? (batchUnitCostText(lot, saleUnit) ?? BATCH_COST_INCOMPLETE)
-                      : NOT_YET,
-                  },
-                  { label: "Vence", value: lot ? batchExpiryText(lot.expiresOn) : NOT_YET },
-                ]}
-              />
-              <p className="text-detail text-text-subtle">
-                El vencimiento más próximo entre los lotes de los componentes.
-              </p>
+              {lotRequest !== undefined && lotRead.status === "loading" ? (
+                <LoadingPlaceholder variant="rows" rows={2} />
+              ) : lotRequest !== undefined && lotRead.status === "failed" ? (
+                <LoadFailure {...cloudLoadFailure(lotRead, "el costo del lote")} />
+              ) : (
+                <>
+                  <SummaryRowGroup
+                    variant="filled"
+                    orientation="horizontal"
+                    rows={[
+                      {
+                        label: "Costo del lote",
+                        value: lot ? batchLotCostText(lot, saleUnit) : NOT_YET,
+                      },
+                      {
+                        label: "Vencimiento",
+                        value: lot ? batchLotExpiryText(lot.expiresOn) : NOT_YET,
+                      },
+                    ]}
+                  />
+                  <p className="text-detail text-text-subtle">
+                    El vencimiento más próximo entre los lotes de los componentes.
+                  </p>
+                </>
+              )}
             </>
           ) : null}
         </div>

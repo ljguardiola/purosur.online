@@ -24,6 +24,7 @@ export type RegisterAssemblyBatchOutcome =
   | { kind: "ok"; batch: AssemblyBatchResult["batch"] }
   | { kind: "validation_failed"; field: string }
   | { kind: "product_not_found" }
+  | { kind: "component_not_found"; componentProductId: string }
   | { kind: "no_recipe" }
   | { kind: "stale_recipe" }
   | { kind: "nothing_used" }
@@ -93,7 +94,8 @@ export function fetchAssemblyBatchPreview({
 function outcomeOf(refused: AssemblyBatchRefusal): RegisterAssemblyBatchOutcome {
   switch (refused.code) {
     case "invalid_quantity":
-      return { kind: "invalid_quantity", componentProductId: refused.componentProductId };
+    case "component_not_found":
+      return { kind: refused.code, componentProductId: refused.componentProductId };
     case "invalid_size":
       return { kind: "failed" };
     default:

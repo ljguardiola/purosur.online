@@ -1,7 +1,15 @@
-import type { AssemblyBatchBody, AssemblyBatchPreview, RecipeSummary } from "@purosur/contracts";
+import {
+  type AssemblyBatchBody,
+  type AssemblyBatchPreview,
+  assemblyBatchBodySchema,
+  assemblyBatchPreviewQuerySchema,
+  type RecipeSummary,
+} from "@purosur/contracts";
 import type { SaleUnit } from "@purosur/domain";
+import { schemaLimit } from "../platform/schema-limit";
 import {
   formatStockQuantityInput,
+  formatStockQuantityLimit,
   parseStockQuantity,
   quantityMessage,
 } from "../platform/stock-quantity";
@@ -33,10 +41,16 @@ export const ASSEMBLY_BATCH_FIELDS = {
 } as const;
 
 export const ASSEMBLY_BATCH_PRODUCT_REQUIRED = "Elegí el producto armado.";
-export const ASSEMBLY_BATCH_PRODUCT_NOT_FOUND = "Este producto ya no tiene receta. Elegí otro.";
+export const ASSEMBLY_BATCH_PRODUCT_NOT_FOUND = "Este producto ya no está disponible. Elegí otro.";
+export const ASSEMBLY_BATCH_NO_RECIPE = "Este producto ya no tiene receta. Elegí otro.";
 export const ASSEMBLY_BATCH_NOTHING_USED = "Usá al menos un componente.";
 export const ASSEMBLY_BATCH_OUTPUT_REFUSED =
   "La cantidad obtenida no es válida para este producto.";
+
+const usedSchema = assemblyBatchBodySchema.shape.used;
+const outputSchema = assemblyBatchBodySchema.shape.output;
+const MAX_SIZE = schemaLimit(assemblyBatchPreviewQuerySchema.shape.size.meta()?.["maxValue"]);
+const MAX_OUTPUT = schemaLimit(outputSchema.meta()?.["maxValue"]);
 
 type Inputs = {
   recipe: RecipeSummary | undefined;
@@ -71,7 +85,7 @@ export function outputText(
 
 function batchSize(size: string, saleUnit: SaleUnit): number | undefined {
   const parsed = parseStockQuantity(size, saleUnit);
-  return parsed !== undefined && parsed > 0 ? parsed : undefined;
+  return parsed !== undefined && parsed > 0 && parsed <= MAX_SIZE ? parsed : undefined;
 }
 
 export function proposalRequestOf(
@@ -115,11 +129,30 @@ export function lotPreviewRequestOf(
     componentProductId: component.componentProductId,
     quantity: usedQuantity(values, component, proposal),
   }));
-  const output = outputQuantity(values, recipe.saleUnit, proposal);
-  if (used.some(({ quantity }) => Number.isNaN(quantity)) || !(output > 0)) {
+  if (!usedSchema.safeParse(used).success) {
     return undefined;
   }
-  return { ...request, used, output };
+  if (values.output === null) {
+    return { ...request, used };
+  }
+  const output = outputSchema.safeParse(parseStockQuantity(values.output, recipe.saleUnit));
+  return output.success ? { ...request, used, output: output.data } : undefined;
+}
+
+export function batchProposalOf(
+  values: Pick<AssemblyBatchFormValues, "used">,
+  sizeProposal: AssemblyBatchProposal | undefined,
+  lotPreview: AssemblyBatchPreview | undefined,
+): AssemblyBatchProposal | undefined {
+  if (sizeProposal === undefined) {
+    return undefined;
+  }
+  if (lotPreview !== undefined) {
+    return { used: sizeProposal.used, output: lotPreview.proposal.output };
+  }
+  return Object.keys(values.used).length === 0
+    ? sizeProposal
+    : { used: sizeProposal.used, output: null };
 }
 
 export function assemblyBatchBodyOf(
@@ -149,8 +182,8 @@ export function batchSizeMessage(size: string, saleUnit: SaleUnit, proposed: boo
   if (parsed === undefined) {
     return quantityMessage(saleUnit);
   }
-  if (parsed === 0) {
-    return "Ingresá un tamaño mayor a cero para la tanda.";
+  if (parsed === 0 || parsed > MAX_SIZE) {
+    return `Ingresá un tamaño mayor a cero, de hasta ${formatStockQuantityLimit(MAX_SIZE, saleUnit)}.`;
   }
   return proposed
     ? "Revisá el tamaño de la tanda."
@@ -179,5 +212,5 @@ export function batchOutputMessage(output: string, saleUnit: SaleUnit): string {
   }
   return parseStockQuantity(output, saleUnit) === undefined
     ? quantityMessage(saleUnit)
-    : "Ingresá una cantidad obtenida mayor a cero.";
+    : `Ingresá una cantidad obtenida mayor a cero, de hasta ${formatStockQuantityLimit(MAX_OUTPUT, saleUnit)}.`;
 }

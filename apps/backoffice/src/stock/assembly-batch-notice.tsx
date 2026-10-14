@@ -6,7 +6,7 @@ export type AssemblyBatchNotice =
   | { kind: "attemptFailed" }
   | { kind: "rateLimited"; retryAfterSeconds: number }
   | { kind: "staleRecipe" }
-  | { kind: "productGone" };
+  | { kind: "componentGone"; name: string };
 
 export function AssemblyBatchNotice({ notice }: { notice: AssemblyBatchNotice }) {
   switch (notice.kind) {
@@ -37,13 +37,13 @@ export function AssemblyBatchNotice({ notice }: { notice: AssemblyBatchNotice })
           description="Cerrá esta ventana y volvé a abrirla para usar la receta actual."
         />
       );
-    case "productGone":
+    case "componentGone":
       return (
         <InlineNotice
           tone="error"
           icon={<TriangleAlert />}
-          title="Este producto ya no tiene receta"
-          description="Cerrá esta ventana y actualizá la lista."
+          title={`${notice.name} ya no está disponible`}
+          description="Quitalo de la receta en Recetas para registrar esta tanda."
         />
       );
   }

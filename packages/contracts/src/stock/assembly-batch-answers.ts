@@ -32,14 +32,6 @@ const assemblyBatchSchema = z.object({
   assembledAt: moment,
   output: z.int(),
   ...batchCostSchema,
-  lines: z.array(
-    z.object({
-      componentProductId: z.string(),
-      name: z.string(),
-      saleUnit: saleUnitSchema,
-      quantity: z.int(),
-    }),
-  ),
 });
 
 export const assemblyBatchListSchema = z.object({
@@ -53,21 +45,7 @@ export type AssemblyBatchList = z.output<typeof assemblyBatchListSchema>;
 const usedQuantitySchema = z.object({ componentProductId: z.string(), quantity: z.int() });
 
 export const assemblyBatchPreviewSchema = z.object({
-  recipeVersion: z.int(),
   proposal: z.object({ used: z.array(usedQuantitySchema), output: z.int().nullable() }),
-  used: z.array(usedQuantitySchema),
-  planned: z.array(
-    z.object({
-      componentProductId: z.string(),
-      allocations: z.array(
-        z.object({
-          lotId: z.string().nullable(),
-          quantity: z.int(),
-          expiresOn: calendarDay.nullable(),
-        }),
-      ),
-    }),
-  ),
   lot: z
     .object({
       costTotalCents: z.int(),
@@ -83,6 +61,7 @@ const message = z.string();
 
 export const assemblyBatchRefusalSchema = z.discriminatedUnion("code", [
   z.object({ code: z.literal("product_not_found"), message }),
+  z.object({ code: z.literal("component_not_found"), message, componentProductId: z.string() }),
   z.object({ code: z.literal("no_recipe"), message }),
   z.object({ code: z.literal("stale_recipe"), message }),
   z.object({ code: z.literal("invalid_size"), message }),

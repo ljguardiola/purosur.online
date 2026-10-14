@@ -21,28 +21,24 @@ export function AssemblyBatchOutputField({
   return (
     <SharedFieldError>
       {(errorMessageId) => (
-        <div className="flex flex-col gap-1">
-          <TextField
-            {...quantityFieldKind(saleUnit)}
-            label="Obtenido"
-            required
-            value={shown}
-            onChange={(value) => {
-              onOutputChange();
-              field.handleChange(value);
-            }}
-            {...(refusal !== undefined
-              ? { errorMessage: refusal }
-              : errorMessageId !== undefined
-                ? { errorMessageId }
-                : {})}
-          />
-          {proposedText === undefined ? null : (
-            <p className="text-detail text-text-subtle">
-              Propuesto: {proposedText}, la suma de lo usado.
-            </p>
-          )}
-        </div>
+        <TextField
+          {...quantityFieldKind(saleUnit)}
+          label="Obtenido"
+          required
+          value={shown}
+          onChange={(value) => {
+            onOutputChange();
+            field.handleChange(value);
+          }}
+          {...(proposedText === undefined
+            ? {}
+            : { description: `Propuesto: ${proposedText}, la suma de lo usado.` })}
+          {...(refusal !== undefined
+            ? { errorMessage: refusal }
+            : errorMessageId !== undefined
+              ? { errorMessageId }
+              : {})}
+        />
       )}
     </SharedFieldError>
   );

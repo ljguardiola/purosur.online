@@ -31,6 +31,7 @@ import type { StockRouteOptions } from "./stock-route-options.js";
 
 const REFUSALS = {
   product_not_found: { status: 404, message: "no active product with that id" },
+  component_not_found: { status: 400, message: "a component is not an active product" },
   no_recipe: { status: 404, message: "the product has no recipe" },
   stale_recipe: { status: 409, message: "the recipe was changed since it was loaded" },
   invalid_size: { status: 400, message: "the size is not a quantity the product can hold" },

@@ -589,6 +589,7 @@ export {
   INITIAL_COUNT_COST_FILTERS,
   isCountedQuantity,
   isListedInStockBalances,
+  isLotCostIncomplete,
   isLotInStock,
   isMovementQuantity,
   isReferenceUnitCost,

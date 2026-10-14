@@ -18,7 +18,6 @@ export { applyRegisterStockMovements } from "./apply-register-stock-movements.js
 export type { AppliedLotAllocation, AppliedStockMovement } from "./apply-stock-movement.js";
 export type {
   AssemblyBatchesQuery,
-  AssemblyBatchLineListing,
   AssemblyBatchListing,
   AssemblyBatchListReader,
 } from "./assembly-batch-list-reader.js";
@@ -80,8 +79,6 @@ export type {
   LotOriginKind,
 } from "./lot-cost-store.js";
 export type {
-  PlannedComponent,
-  PlannedComponentAllocation,
   PreviewAssemblyBatchInput,
   PreviewAssemblyBatchOutcome,
   PreviewAssemblyBatchPorts,

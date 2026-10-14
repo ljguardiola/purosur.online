@@ -224,7 +224,6 @@ export function useAssemblyBatchLotQuery(
   const { request } = params;
   return useCloudQuery<AssemblyBatchPreview>({
     queryKey: stockKeys.assemblyBatchLot(request ?? { productId: "", size: 0 }),
-    keepPreviousData: true,
     enabled: request !== undefined,
     read: () =>
       request === undefined

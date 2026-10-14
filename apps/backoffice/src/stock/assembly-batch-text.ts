@@ -15,6 +15,17 @@ export function batchUnitCostText(
     : formatStockUnitCost(unitCostCents, saleUnit);
 }
 
+export function batchLotCostText(
+  cost: { unitCostCents: number | null; costIncomplete: boolean },
+  saleUnit: SaleUnit,
+): string {
+  return batchUnitCostText(cost, saleUnit) ?? "Incompleto";
+}
+
+export function batchLotExpiryText(expiresOn: string | null): string {
+  return expiresOn === null ? "No vence" : formatCalendarDayNumeric(expiresOn);
+}
+
 export function batchDayText(assembledAt: string): string {
   return `Tanda del ${formatStockDay(assembledAt)}`;
 }

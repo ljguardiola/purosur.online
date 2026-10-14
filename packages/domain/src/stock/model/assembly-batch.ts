@@ -30,6 +30,15 @@ function proposedQuantity(saleUnit: SaleUnit, quantityPerOutputUnit: number, siz
   );
 }
 
+export function proposedOutput(
+  saleUnit: SaleUnit,
+  used: readonly (BatchComponentUse & { saleUnit: SaleUnit })[],
+): number | null {
+  return used.every((use) => use.saleUnit === saleUnit)
+    ? used.reduce((sum, use) => sum + use.quantity, 0)
+    : null;
+}
+
 export function assemblyProposal({
   saleUnit,
   size,
@@ -41,12 +50,12 @@ export function assemblyProposal({
 }): AssemblyProposal {
   const used = components.map((component) => ({
     componentProductId: component.componentProductId,
+    saleUnit: component.saleUnit,
     quantity: proposedQuantity(component.saleUnit, component.quantityPerOutputUnit, size),
   }));
-  const sharesSaleUnit = components.every((component) => component.saleUnit === saleUnit);
   return {
-    used,
-    output: sharesSaleUnit ? used.reduce((sum, use) => sum + use.quantity, 0) : null,
+    used: used.map(({ componentProductId, quantity }) => ({ componentProductId, quantity })),
+    output: proposedOutput(saleUnit, used),
   };
 }
 
