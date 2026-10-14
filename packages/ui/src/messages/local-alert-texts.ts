@@ -34,13 +34,20 @@ function diskSalesDeniedText(subject: DiskSalesDeniedSubject): LocalAlertText {
   if (subject.reason === "disk_space_short_at_startup") {
     return {
       title: "La caja no puede vender: falta espacio en el disco",
-      meaning: `Esta caja no habilita las ventas porque necesita ${formatBytes(subject.required_free_bytes)} libres en el disco de la notebook y tiene menos.`,
+      meaning:
+        subject.required_free_bytes === undefined
+          ? "Esta caja no habilita las ventas porque necesita más espacio libre en el disco de la notebook del que tiene."
+          : `Esta caja no habilita las ventas porque necesita ${formatBytes(subject.required_free_bytes)} libres en el disco de la notebook y tiene menos.`,
       whatToDo:
         "Liberar espacio en la notebook, borrando archivos que no sean de la caja, y reiniciar la caja.",
     };
   }
   return {
-    title: `No se pueden abrir ventas nuevas: queda ${formatPercent(freeSpaceLeftPercent(subject.disk_free_ratio))} de disco`,
+    title: `No se pueden abrir ventas nuevas: ${
+      subject.disk_free_ratio === undefined
+        ? "el disco está casi lleno"
+        : `queda ${formatPercent(freeSpaceLeftPercent(subject.disk_free_ratio))} de disco`
+    }`,
     meaning:
       "La venta en curso se puede completar y cobrar. Para volver a vender hay que liberar espacio en la notebook.",
     whatToDo:
@@ -108,8 +115,12 @@ const FIXED_LOCAL_ALERT_TEXTS = {
 export type LocalAlertKind = keyof typeof FIXED_LOCAL_ALERT_TEXTS | "sales_denied";
 
 type DiskSalesDeniedSubject =
-  | { kind: "sales_denied"; reason: "disk_space_short_at_startup"; required_free_bytes: number }
-  | { kind: "sales_denied"; reason: "disk_full"; disk_free_ratio: number };
+  | {
+      kind: "sales_denied";
+      reason: "disk_space_short_at_startup";
+      required_free_bytes?: number | undefined;
+    }
+  | { kind: "sales_denied"; reason: "disk_full"; disk_free_ratio?: number | undefined };
 
 export type LocalAlertSubject =
   | { kind: "sales_denied"; reason: FixedSalesDeniedReason }

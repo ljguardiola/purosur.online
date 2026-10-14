@@ -81,10 +81,9 @@ function localSubjectOf(alert: AlertSummary): LocalAlertSubject | undefined {
     return undefined;
   }
   if (alert.kind === "sales_denied") {
-    const reason = alert.salesDeniedReason;
-    return reason === null || reason === "disk_space_short_at_startup" || reason === "disk_full"
+    return alert.salesDeniedReason === null
       ? undefined
-      : { kind: alert.kind, reason };
+      : { kind: alert.kind, reason: alert.salesDeniedReason };
   }
   return { kind: alert.kind };
 }
