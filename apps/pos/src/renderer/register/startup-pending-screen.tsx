@@ -372,7 +372,9 @@ export function StartupPendingScreen({
   }, [settled, onNothingLeft]);
 
   const keptFromSelling =
-    pending.status === "loaded" && pending.value !== "not_permitted" && !pending.value.may_go_selling
+    pending.status === "loaded" &&
+    pending.value !== "not_permitted" &&
+    !pending.value.may_go_selling
       ? pending.value
       : undefined;
   const since = `Desde las ${formatClockTime(openedAt)}`;

@@ -938,7 +938,11 @@ describe("StartupPendingScreen", () => {
       vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
       const load = vi
         .fn<() => Promise<StartupPending>>()
-        .mockResolvedValueOnce({ ...NOTHING, paid_order_discovery: "pending", may_go_selling: false })
+        .mockResolvedValueOnce({
+          ...NOTHING,
+          paid_order_discovery: "pending",
+          may_go_selling: false,
+        })
         .mockResolvedValue({ ...NOTHING, paid_order_discovery: "deferred" });
       const { screen } = await renderScreen({ loadStartupPending: load });
       await expectGoSellingLocked(screen);

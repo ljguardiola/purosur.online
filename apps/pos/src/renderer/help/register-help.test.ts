@@ -46,7 +46,9 @@ describe("the register's help", () => {
     expect(titlesFound("duplicado")).toContain(STARTUP_PENDING_TITLE);
     expect(titlesFound("seguir vendiendo")).toEqual([STARTUP_PENDING_TITLE]);
     expect(
-      titlesFound("salvo un cobro pagado sin venta y la consulta de los cobros pagados mientras sigue"),
+      titlesFound(
+        "salvo un cobro pagado sin venta y la consulta de los cobros pagados mientras sigue",
+      ),
     ).toEqual([STARTUP_PENDING_TITLE]);
   });
 
