@@ -404,6 +404,14 @@ describe("the Mercado Pago orders client", () => {
       expect(await client.createQrOrder(REQUEST)).toStrictEqual({ kind: "refused" });
     });
 
+    it("answers that an order is already queued on the terminal when Mercado Pago answers 409 already_queued_order_on_terminal", async () => {
+      const { client } = clientAnswering(answer(409, alreadyQueuedOrderOnTerminalError()));
+
+      expect(await client.createQrOrder(REQUEST)).toStrictEqual({
+        kind: "queued_order_on_terminal",
+      });
+    });
+
     it.each([408, 500, 502, 503])(
       "cannot tell what became of the order when Mercado Pago answers %i",
       async (status) => {

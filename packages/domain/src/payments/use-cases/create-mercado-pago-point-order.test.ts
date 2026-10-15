@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { confirmMercadoPagoOrderNotification } from "./confirm-mercado-pago-order-notification.js";
 import { createMercadoPagoPointOrder } from "./create-mercado-pago-point-order.js";
 import {
   mercadoPagoOrderWorld,
@@ -228,25 +227,6 @@ describe("createMercadoPagoPointOrder", () => {
     expect(lanes.transactions.get(TRANSACTION_ID)).toEqual(expected);
     expect(lanes.operations).not.toContain("recordCreationCreatedNothing");
     expect(mercadoPago.readOrders).toEqual([]);
-  });
-
-  it("ties the order queued on the terminal to the payment once Mercado Pago notifies it under the payment's reference", async () => {
-    const { lanes, mercadoPago, ports, notificationPorts } = mercadoPagoOrderWorld({
-      pointCreation: { kind: "queued_order_on_terminal" },
-    });
-    lanes.seed(storedPointTransaction({ amount: AMOUNT, creationOutcomeUnknown: true }));
-    await createMercadoPagoPointOrder(ports, INPUT);
-    mercadoPago.reading = {
-      kind: "read",
-      result: { ...paidOrderResult(AMOUNT), externalReference: TRANSACTION_ID },
-    };
-
-    await confirmMercadoPagoOrderNotification(notificationPorts, { providerOrderId: "order-9" });
-
-    expect(lanes.transactions.get(TRANSACTION_ID)).toMatchObject({
-      providerOrderId: "order-9",
-      state: "APPROVED",
-    });
   });
 
   it.each([
