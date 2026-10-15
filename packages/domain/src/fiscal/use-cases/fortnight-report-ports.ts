@@ -1,7 +1,14 @@
 import type { Clock } from "../../shared/index.js";
 import type { InstallationStreamReach } from "../../sync/index.js";
-import type { TaxAuthorityRejection } from "../model/fiscal-rejection-standing.js";
-import type { FortnightReportState } from "../model/fortnight-report.js";
+import type {
+  FiscalDocumentType,
+  TaxAuthorityRejection,
+} from "../model/fiscal-rejection-standing.js";
+import type {
+  DocumentTypeReportState,
+  FortnightReportMovement,
+  FortnightReportState,
+} from "../model/fortnight-report.js";
 import type { Fortnight } from "../model/offline-authorization-code.js";
 import type { WsaaTokenSource } from "./fiscal-document-authorization-ports.js";
 import type {
@@ -24,30 +31,58 @@ export interface FortnightReportKey {
 
 export interface RecordedFortnightReport {
   state: FortnightReportState;
+  movement: FortnightReportMovement | null;
   lastAttemptAt: Date | null;
 }
 
 export interface FortnightReportChange {
   state: FortnightReportState;
   at: Date;
+  movement?: FortnightReportMovement;
+  rejections?: TaxAuthorityRejection[];
+}
+
+export interface DocumentTypeReportChange {
+  documentType: FiscalDocumentType;
+  state: DocumentTypeReportState;
+  at: Date;
+  reportedThrough: number;
+  rejectedNumber?: number;
   rejections?: TaxAuthorityRejection[];
 }
 
 export interface HeldFortnightReport {
   recorded(): Promise<RecordedFortnightReport | null>;
   record(change: FortnightReportChange): Promise<void>;
+  recordDocumentType(change: DocumentTypeReportChange): Promise<void>;
 }
 
 export interface FortnightReportStore {
   owedReports(today: string): Promise<OwedFortnightReport[]>;
+  acceptedWithUnreportedDocuments(): Promise<OwedFortnightReport[]>;
   holdReport<TOutcome>(
     key: FortnightReportKey,
     work: (report: HeldFortnightReport) => Promise<TOutcome>,
   ): Promise<TOutcome>;
 }
 
+export interface OfflineDocumentOfFortnight {
+  documentType: FiscalDocumentType;
+  number: number;
+  issuedOn: string;
+  generatedAt: Date;
+  buyerDocumentType: number;
+  buyerDocumentNumber: number;
+  buyerTaxStatusCode: number;
+  total: number;
+  netAmount: number;
+}
+
 export interface OfflineDocumentsOfFortnight {
-  countOn(pointOfSaleNumber: number, fortnight: Fortnight): Promise<number>;
+  documentsOn(
+    pointOfSaleNumber: number,
+    fortnight: Fortnight,
+  ): Promise<OfflineDocumentOfFortnight[]>;
 }
 
 export interface RegisterEventStreams {
@@ -76,11 +111,48 @@ export interface TaxAuthorityNoMovementDeclarations {
   declare(call: NoMovementDeclarationCall): Promise<NoMovementDeclarationAnswer>;
 }
 
+export interface OfflineDocumentLastReportedCall {
+  token: WsaaToken;
+  pointOfSaleNumber: number;
+  documentType: FiscalDocumentType;
+}
+
+export type OfflineDocumentLastReportedAnswer =
+  | { kind: "read"; number: number }
+  | { kind: "refused"; rejections: TaxAuthorityRejection[] }
+  | { kind: "no_answer" };
+
+export type OfflineDocumentBatchLimitAnswer =
+  | { kind: "read"; limit: number }
+  | { kind: "refused"; rejections: TaxAuthorityRejection[] }
+  | { kind: "no_answer" };
+
+export interface OfflineDocumentReportCall {
+  token: WsaaToken;
+  pointOfSaleNumber: number;
+  documentType: FiscalDocumentType;
+  code: string;
+  documents: OfflineDocumentOfFortnight[];
+}
+
+export type OfflineDocumentReportAnswer =
+  | { kind: "accepted" }
+  | { kind: "rejected"; number: number; rejections: TaxAuthorityRejection[] }
+  | { kind: "refused"; rejections: TaxAuthorityRejection[] }
+  | { kind: "no_answer" };
+
+export interface TaxAuthorityOfflineDocumentReports {
+  lastReported(call: OfflineDocumentLastReportedCall): Promise<OfflineDocumentLastReportedAnswer>;
+  batchLimit(token: WsaaToken): Promise<OfflineDocumentBatchLimitAnswer>;
+  report(call: OfflineDocumentReportCall): Promise<OfflineDocumentReportAnswer>;
+}
+
 export interface FortnightReportPorts {
   reports: FortnightReportStore;
   documents: OfflineDocumentsOfFortnight;
   streams: RegisterEventStreams;
   declarations: TaxAuthorityNoMovementDeclarations;
+  documentReports: TaxAuthorityOfflineDocumentReports;
   codeStore: OfflineAuthorizationCodeStore;
   codeAuthority: TaxAuthorityOfflineAuthorizationCodes;
   tokens: WsaaTokenSource;

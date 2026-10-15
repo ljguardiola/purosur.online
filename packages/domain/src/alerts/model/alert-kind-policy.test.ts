@@ -62,6 +62,14 @@ describe("alertKindPolicy", () => {
     ["offsite_dump_unverified", "critical", null, "all", "environment", true],
     ["fortnight_report_pending", "warning", null, "all", "pointOfSaleFortnight", true],
     ["fortnight_report_overdue", "critical", null, "all", "pointOfSaleFortnight", true],
+    [
+      "fortnight_report_needs_regularization",
+      "critical",
+      null,
+      "all",
+      "pointOfSaleFortnight",
+      true,
+    ],
     ["update_required", "critical", null, "all", "register", true],
     ["register_silent", "critical", null, "local", "register", true],
     ["sales_denied", "critical", null, "local", "register", true],
@@ -159,6 +167,7 @@ describe("alertClosing", () => {
       offsite_dump_unverified: "by_itself",
       fortnight_report_pending: "by_itself",
       fortnight_report_overdue: "by_hand",
+      fortnight_report_needs_regularization: "by_hand",
     });
   });
 
@@ -234,6 +243,7 @@ describe("alertKindsWithScope", () => {
     expect(alertKindsWithScope("pointOfSaleFortnight")).toEqual([
       "fortnight_report_pending",
       "fortnight_report_overdue",
+      "fortnight_report_needs_regularization",
     ]);
   });
 });

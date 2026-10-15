@@ -51,6 +51,7 @@ describe("alertConditionResolutionJobs", () => {
         openUnclearOutcomeAlerts: vi.fn().mockResolvedValue(0),
         detectExpiringLots: vi.fn().mockResolvedValue(0),
         detectFortnightReportDeadlines: vi.fn().mockResolvedValue(0),
+        detectFortnightReportRegularizations: vi.fn().mockResolvedValue(0),
       },
     );
     const task = jobs.taskList[ALERT_CONDITION_RESOLUTION_TASK_IDENTIFIER];
@@ -92,6 +93,7 @@ describe("alertConditionResolutionJobs", () => {
         openUnclearOutcomeAlerts: vi.fn().mockResolvedValue(0),
         detectExpiringLots: vi.fn().mockResolvedValue(0),
         detectFortnightReportDeadlines: vi.fn().mockResolvedValue(0),
+        detectFortnightReportRegularizations: vi.fn().mockResolvedValue(0),
       },
     );
     const task = jobs.taskList[ALERT_CONDITION_RESOLUTION_TASK_IDENTIFIER];
@@ -131,6 +133,7 @@ describe("alertConditionResolutionJobs", () => {
         openUnclearOutcomeAlerts: vi.fn().mockResolvedValue(0),
         detectExpiringLots: vi.fn().mockResolvedValue(0),
         detectFortnightReportDeadlines: vi.fn().mockResolvedValue(0),
+        detectFortnightReportRegularizations: vi.fn().mockResolvedValue(0),
       },
     );
     const task = jobs.taskList[ALERT_CONDITION_RESOLUTION_TASK_IDENTIFIER];
@@ -173,6 +176,7 @@ describe("alertConditionResolutionJobs", () => {
         openUnclearOutcomeAlerts: vi.fn().mockResolvedValue(0),
         detectExpiringLots: vi.fn().mockResolvedValue(0),
         detectFortnightReportDeadlines: vi.fn().mockResolvedValue(0),
+        detectFortnightReportRegularizations: vi.fn().mockResolvedValue(0),
       },
     );
     const task = jobs.taskList[ALERT_CONDITION_RESOLUTION_TASK_IDENTIFIER];
@@ -215,6 +219,7 @@ describe("alertConditionResolutionJobs", () => {
         openUnclearOutcomeAlerts,
         detectExpiringLots: vi.fn().mockResolvedValue(0),
         detectFortnightReportDeadlines: vi.fn().mockResolvedValue(0),
+        detectFortnightReportRegularizations: vi.fn().mockResolvedValue(0),
       },
     );
     const task = jobs.taskList[ALERT_CONDITION_RESOLUTION_TASK_IDENTIFIER];
@@ -257,6 +262,7 @@ describe("alertConditionResolutionJobs", () => {
         openUnclearOutcomeAlerts,
         detectExpiringLots,
         detectFortnightReportDeadlines: vi.fn().mockResolvedValue(0),
+        detectFortnightReportRegularizations: vi.fn().mockResolvedValue(0),
       },
     );
     const task = jobs.taskList[ALERT_CONDITION_RESOLUTION_TASK_IDENTIFIER];
@@ -299,6 +305,7 @@ describe("alertConditionResolutionJobs", () => {
         openUnclearOutcomeAlerts: vi.fn().mockResolvedValue(0),
         detectExpiringLots,
         detectFortnightReportDeadlines,
+        detectFortnightReportRegularizations: vi.fn().mockResolvedValue(0),
       },
     );
     const task = jobs.taskList[ALERT_CONDITION_RESOLUTION_TASK_IDENTIFIER];
@@ -315,5 +322,46 @@ describe("alertConditionResolutionJobs", () => {
     ];
     expect(dbArgument).toBe(fakeDb);
     expect(depsArgument.now()).toEqual(new Date("2026-01-05T12:00:00.000Z"));
+  });
+
+  it("opens the alerts of the fortnight presentations that need regularization right after looking for the reports near or past their deadline, on the same database", async () => {
+    const fakeClient: PoolClient = Object.create(null);
+    const fakeDb = { marker: "fake-db" };
+    const calls: string[] = [];
+    const detectFortnightReportDeadlines = vi.fn().mockImplementation(async () => {
+      calls.push("detectFortnightReportDeadlines");
+      return 0;
+    });
+    const detectFortnightReportRegularizations = vi.fn().mockImplementation(async () => {
+      calls.push("detectFortnightReportRegularizations");
+      return 0;
+    });
+
+    const jobs = alertConditionResolutionJobs(
+      { now: () => new Date("2026-01-05T12:00:00.000Z") },
+      {
+        createDatabase: vi.fn().mockReturnValue(fakeDb),
+        resolve: vi.fn().mockResolvedValue(0),
+        detectQuiet: vi.fn().mockResolvedValue(0),
+        detectMissingCodes: vi.fn().mockResolvedValue(0),
+        openRefundTaskAlerts: vi.fn().mockResolvedValue(0),
+        openUnclearOutcomeAlerts: vi.fn().mockResolvedValue(0),
+        detectExpiringLots: vi.fn().mockResolvedValue(0),
+        detectFortnightReportDeadlines,
+        detectFortnightReportRegularizations,
+      },
+    );
+    const task = jobs.taskList[ALERT_CONDITION_RESOLUTION_TASK_IDENTIFIER];
+    if (!task) {
+      throw new Error("test setup: expected the registered alert condition resolution task");
+    }
+
+    await task({}, jobHelpers(fakeClient, vi.fn()));
+
+    expect(calls).toEqual([
+      "detectFortnightReportDeadlines",
+      "detectFortnightReportRegularizations",
+    ]);
+    expect(detectFortnightReportRegularizations.mock.calls[0]?.[0]).toBe(fakeDb);
   });
 });

@@ -1,5 +1,10 @@
 export type { Clock, OperationAuthority, OperationAuthorization } from "../../shared/index.js";
 export type {
+  AnswerSnapshotVerificationInput,
+  AnswerSnapshotVerificationPorts,
+} from "./answer-snapshot-verification.js";
+export { answerSnapshotVerification } from "./answer-snapshot-verification.js";
+export type {
   ApplySnapshotRetentionPorts,
   SnapshotRetentionSummary,
 } from "./apply-snapshot-retention.js";
@@ -91,6 +96,11 @@ export type {
 } from "./open-cash-session.js";
 export { openCashSession } from "./open-cash-session.js";
 export type {
+  PruneSnapshotGenerationsOnDiskOutcome,
+  PruneSnapshotGenerationsOnDiskPorts,
+} from "./prune-snapshot-generations-on-disk.js";
+export { pruneSnapshotGenerationsOnDisk } from "./prune-snapshot-generations-on-disk.js";
+export type {
   ReadReceiptPrinterAddressOutcome,
   ReadReceiptPrinterAddressPorts,
 } from "./read-receipt-printer-address.js";
@@ -160,6 +170,12 @@ export type {
   RotateDeviceTokenOutcome,
 } from "./rotate-device-token.js";
 export { rotateDeviceToken } from "./rotate-device-token.js";
+export type {
+  RunSnapshotCycleInput,
+  RunSnapshotCycleOutcome,
+  RunSnapshotCyclePorts,
+} from "./run-snapshot-cycle.js";
+export { runSnapshotCycle } from "./run-snapshot-cycle.js";
 export type { SerialDeviceEnumeration } from "./serial-device-enumeration.js";
 export type {
   SerialDeviceRegistrations,
@@ -171,6 +187,17 @@ export type {
   SetReceiptPrinterAddressPorts,
 } from "./set-receipt-printer-address.js";
 export { setReceiptPrinterAddress } from "./set-receipt-printer-address.js";
+export type {
+  SnapshotCycleState,
+  SnapshotLog,
+  SnapshotWorkerJob,
+  SnapshotWorkerLauncher,
+} from "./snapshot-cycle-ports.js";
+export type {
+  SnapshotGenerationsOnDisk,
+  SnapshotVerificationAnswer,
+  SnapshotVerificationCloud,
+} from "./snapshot-disk-pruning-ports.js";
 export type {
   AuthorizedSnapshotUpload,
   NewSnapshotGeneration,
@@ -188,6 +215,18 @@ export {
   SnapshotGenerationIdTaken,
   SnapshotUploadWindowClosed,
 } from "./snapshot-generations.js";
+export type {
+  LocalSnapshotGenerations,
+  SnapshotCloudStep,
+  SnapshotDeclarationAnswer,
+  SnapshotUploadCloud,
+} from "./snapshot-upload-ports.js";
+export type {
+  SnapshotUploadTally,
+  UploadPendingSnapshotGenerationsOutcome,
+  UploadPendingSnapshotGenerationsPorts,
+} from "./upload-pending-snapshot-generations.js";
+export { uploadPendingSnapshotGenerations } from "./upload-pending-snapshot-generations.js";
 export type {
   SnapshotVerificationSummary,
   VerifySnapshotGenerationsPorts,
