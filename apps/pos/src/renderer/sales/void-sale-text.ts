@@ -8,34 +8,16 @@ type Voidability = SaleDetail["voidability"];
 export type VoidRefusal = Extract<Voidability, { kind: "not_voidable" }>["refusal"];
 export type VoidRefund = Extract<Voidability, { kind: "voidable" }>["refunds"][number];
 
-const NOT_YET = "Todavía no se puede anular";
-
-export function voidRefusalNotice(
-  refusal: VoidRefusal,
-): { title: string; description: string } | undefined {
+export function voidRefusalReason(refusal: VoidRefusal): string | undefined {
   switch (refusal) {
     case "session_closed":
-      return {
-        title: "No se puede anular: la sesión ya cerró",
-        description: "Se tramita como devolución, escaneando el ticket del cliente en Devolver.",
-      };
+      return "La sesión de la venta ya cerró. Se tramita como devolución.";
     case "invoice_in_flight":
-      return {
-        title: NOT_YET,
-        description:
-          "La factura se está pidiendo a ARCA. Vas a poder anular cuando termine el trámite.",
-      };
+      return "La factura se está pidiendo a ARCA. Vas a poder anular cuando termine el trámite.";
     case "carries_invoice":
-      return {
-        title: NOT_YET,
-        description: "La caja todavía no anula una venta con factura. Se tramita como devolución.",
-      };
+      return "La caja todavía no anula una venta con factura. Se tramita como devolución.";
     case "mercado_pago_payment":
-      return {
-        title: NOT_YET,
-        description:
-          "La caja todavía no anula una venta con un pago de Mercado Pago. Se tramita como devolución.",
-      };
+      return "La caja todavía no anula una venta con un pago de Mercado Pago. Se tramita como devolución.";
     case "not_completed":
       return undefined;
   }
@@ -58,10 +40,7 @@ export function voidRefundPresentation(refund: VoidRefund): {
   }
   return {
     title,
-    description:
-      refund.method === "QR"
-        ? "Queda un reembolso pendiente que la nube envía a Mercado Pago al confirmarlo."
-        : "Queda un reembolso pendiente: una persona lo hace por fuera de la caja.",
+    description: "Queda un reembolso pendiente: una persona lo hace por fuera de la caja.",
     chip: { label: "Pendiente", tone: "info" },
     pending: true,
   };

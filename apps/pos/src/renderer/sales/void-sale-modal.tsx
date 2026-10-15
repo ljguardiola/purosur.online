@@ -20,16 +20,14 @@ import { comprobantePresentation } from "../shell/sale-receipt-text";
 import type { SignedInPerson } from "../shell/signed-in-person";
 import { useAuthorization } from "../shell/use-authorization";
 import type { VoidRefund } from "./void-sale-text";
-import { voidRefundPresentation, voidRefusalNotice } from "./void-sale-text";
+import { voidRefundPresentation, voidRefusalReason } from "./void-sale-text";
 
 export type { VoidRefund } from "./void-sale-text";
 
 const FAILED_MESSAGE = "No se pudo anular la venta. Probá de nuevo.";
 const UNCONFIRMED_MESSAGE = "Confirmá los reembolsos pendientes antes de anular la venta.";
-const NOT_COMPLETED_MESSAGE = "La venta ya no se puede anular";
+const NOT_COMPLETED_REASON = "La venta ya no se puede anular.";
 const AUTHORIZING = "anular ventas";
-
-type Notice = { title: string; description?: string };
 
 export type VoidSaleModalProps = {
   sale: Pick<SaleDetail, "sale_id" | "occurred_at" | "total" | "comprobante" | "operation_number">;
@@ -63,8 +61,8 @@ export function VoidSaleModal({
   onClose,
 }: VoidSaleModalProps) {
   const [submitting, setSubmitting] = useState(false);
-  const [notice, setNotice] = useState<Notice>();
-  const [refused, setRefused] = useState(false);
+  const [notice, setNotice] = useState<string>();
+  const [refusalReason, setRefusalReason] = useState<string>();
   const [confirmed, setConfirmed] = useState<readonly number[]>([]);
   const authorization = useAuthorization({
     person,
@@ -73,17 +71,16 @@ export function VoidSaleModal({
     loadAuthorizers,
   });
 
-  const shown = refunds.map(voidRefundPresentation);
-  const pending = shown.flatMap(({ pending: isPending }, index) => (isPending ? [index] : []));
-  const allConfirmed = pending.every((index) => confirmed.includes(index));
-  const authorizer =
-    authorization.chosen !== null && authorization.authorizers.status === "loaded"
-      ? authorization.authorizers.value.find((user) => user.id === authorization.chosen)
-      : undefined;
+  const shown = refunds.map((refund, position) => ({
+    position,
+    ...voidRefundPresentation(refund),
+  }));
+  const pending = shown.flatMap((refund) => (refund.pending ? [refund.position] : []));
+  const allConfirmed = pending.every((position) => confirmed.includes(position));
   const comprobante = comprobantePresentation(sale.comprobante);
 
   async function confirm() {
-    if (submitting || refused || !allConfirmed || !authorization.ready) {
+    if (submitting || refusalReason !== undefined || !allConfirmed || !authorization.ready) {
       return;
     }
     setSubmitting(true);
@@ -93,7 +90,7 @@ export function VoidSaleModal({
     );
     setSubmitting(false);
     if (outcome === "failed") {
-      setNotice({ title: FAILED_MESSAGE });
+      setNotice(FAILED_MESSAGE);
       return;
     }
     switch (outcome.kind) {
@@ -114,25 +111,24 @@ export function VoidSaleModal({
         if (authorization.required) {
           authorization.refuse(outcome);
         } else if (outcome.kind === "lacks_permission") {
-          setNotice({ title: `Ya no tenés permiso para ${AUTHORIZING}.` });
+          setNotice(`Ya no tenés permiso para ${AUTHORIZING}.`);
         } else {
-          setNotice({ title: FAILED_MESSAGE });
+          setNotice(FAILED_MESSAGE);
         }
         break;
       case "pending_refunds_unconfirmed":
-        setNotice({ title: UNCONFIRMED_MESSAGE });
+        setNotice(UNCONFIRMED_MESSAGE);
         break;
       case "not_completed":
       case "session_closed":
       case "invoice_in_flight":
       case "carries_invoice":
       case "mercado_pago_payment":
-        setNotice(voidRefusalNotice(outcome.kind) ?? { title: NOT_COMPLETED_MESSAGE });
-        setRefused(true);
+        setRefusalReason(voidRefusalReason(outcome.kind) ?? NOT_COMPLETED_REASON);
         onRefused();
         break;
       case "unavailable":
-        setNotice({ title: FAILED_MESSAGE });
+        setNotice(FAILED_MESSAGE);
         break;
     }
   }
@@ -167,7 +163,8 @@ export function VoidSaleModal({
             size="large"
             icon={<CircleX />}
             fullWidth
-            disabled={submitting || refused || !allConfirmed || !authorization.ready}
+            disabled={submitting || !allConfirmed || !authorization.ready}
+            {...(refusalReason === undefined ? {} : { disabledReason: refusalReason })}
             onPress={() => void confirm()}
           >
             Anular la venta
@@ -190,8 +187,8 @@ export function VoidSaleModal({
         <div className="flex flex-col gap-3">
           <Eyebrow text="REEMBOLSOS · CADA PAGO VUELVE POR SU MEDIO" />
           <ul className="flex flex-col gap-3">
-            {shown.map((refund, index) => (
-              <li key={refund.title} className="flex flex-col gap-2">
+            {shown.map((refund) => (
+              <li key={refund.position} className="flex flex-col gap-2">
                 <div className="flex items-center justify-between gap-3">
                   <span className="text-body font-bold text-text">{refund.title}</span>
                   <Tag tone={refund.chip.tone}>{refund.chip.label}</Tag>
@@ -199,14 +196,14 @@ export function VoidSaleModal({
                 <p className="text-detail text-text-subtle">{refund.description}</p>
                 {refund.pending ? (
                   <Checkbox
-                    name={`confirm-refund-${index}`}
-                    checked={confirmed.includes(index)}
+                    name={`confirm-refund-${refund.position}`}
+                    checked={confirmed.includes(refund.position)}
                     disabled={submitting}
                     onCheckedChange={(checked) =>
                       setConfirmed(
                         checked
-                          ? [...confirmed, index]
-                          : confirmed.filter((other) => other !== index),
+                          ? [...confirmed, refund.position]
+                          : confirmed.filter((other) => other !== refund.position),
                       )
                     }
                   >
@@ -220,9 +217,6 @@ export function VoidSaleModal({
         <ul className="flex flex-col gap-1 text-body text-text">
           <li>No se emite nota de crédito: la venta todavía no tenía factura.</li>
           <li>La mercadería vuelve al stock.</li>
-          {authorizer === undefined ? null : (
-            <li>Autoriza: {authorizer.first_name}, con su PIN.</li>
-          )}
         </ul>
         <AuthorizationSection
           authorization={authorization}
@@ -230,12 +224,7 @@ export function VoidSaleModal({
           disabled={submitting}
         />
         {notice === undefined ? null : (
-          <InlineNotice
-            tone="error"
-            icon={<TriangleAlert />}
-            title={notice.title}
-            {...(notice.description === undefined ? {} : { description: notice.description })}
-          />
+          <InlineNotice tone="error" icon={<TriangleAlert />} title={notice} />
         )}
       </div>
     </Modal>

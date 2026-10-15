@@ -131,7 +131,7 @@ class DrizzleEventApplicationTransaction<TQueryResult extends PgQueryResultHKT>
           this.now(),
         );
       case "sale_voided":
-        return recordAppliedVoidedSale(this.tx, fact, event.eventId);
+        return recordAppliedVoidedSale(this.tx, await this.originOf(event), fact, event.eventId);
       case "sale_print_state_changed":
         return recordAppliedPrintState(this.tx, await this.originOf(event), fact);
       case "reprint_recorded":

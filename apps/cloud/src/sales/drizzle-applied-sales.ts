@@ -153,6 +153,7 @@ export async function recordAppliedCancelledSale<TQueryResult extends PgQueryRes
 
 export async function recordAppliedVoidedSale<TQueryResult extends PgQueryResultHKT>(
   tx: PgDatabase<TQueryResult>,
+  { registerId }: AppliedOrigin,
   { sale }: Extract<SyncedFact, { kind: "sale_voided" }>,
   eventId: string,
 ): Promise<void> {
@@ -160,7 +161,12 @@ export async function recordAppliedVoidedSale<TQueryResult extends PgQueryResult
     .update(sales)
     .set({ state: "VOIDED", voidedAt: sale.voidedAt, voidAuthorizedBy: sale.authorizedBy })
     .where(
-      and(eq(sales.id, sale.id), eq(sales.sessionId, sale.sessionId), eq(sales.state, "COMPLETED")),
+      and(
+        eq(sales.id, sale.id),
+        eq(sales.registerId, registerId),
+        eq(sales.sessionId, sale.sessionId),
+        eq(sales.state, "COMPLETED"),
+      ),
     )
     .returning({ id: sales.id });
   if (!voided) {

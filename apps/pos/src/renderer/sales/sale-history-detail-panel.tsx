@@ -7,7 +7,6 @@ import {
   formatCents,
   formatClockTime,
   formatOperationNumber,
-  InlineNotice,
   LoadFailure,
   LoadingPlaceholder,
   plural,
@@ -26,7 +25,7 @@ import {
 import { paymentMethodName } from "./sale-history-text";
 import type { ShownSaleHistoryDetail } from "./sales-queries";
 import { useSaleHistoryDetailQuery } from "./sales-queries";
-import { voidRefusalNotice } from "./void-sale-text";
+import { voidRefusalReason } from "./void-sale-text";
 
 function detailRows(sale: SaleDetail): SummaryRowProps[] {
   const comprobante = comprobantePresentation(sale.comprobante);
@@ -59,9 +58,9 @@ type SaleActions = {
 
 function SaleFooter({ sale, onReprint, onVoid }: { sale: SaleDetail } & SaleActions) {
   const { voidability } = sale;
-  const notice =
-    voidability.kind === "voidable" ? undefined : voidRefusalNotice(voidability.refusal);
-  const offersVoid = voidability.kind === "voidable" || notice !== undefined;
+  const refusalReason =
+    voidability.kind === "voidable" ? undefined : voidRefusalReason(voidability.refusal);
+  const offersVoid = voidability.kind === "voidable" || refusalReason !== undefined;
   if (sale.reprint.kind !== "available" && !offersVoid) {
     return null;
   }
@@ -84,7 +83,7 @@ function SaleFooter({ sale, onReprint, onVoid }: { sale: SaleDetail } & SaleActi
           size="large"
           fullWidth
           icon={<CircleX />}
-          disabled={voidability.kind !== "voidable"}
+          {...(refusalReason === undefined ? {} : { disabledReason: refusalReason })}
           onPress={() => onVoid(sale)}
         >
           Anular venta
@@ -95,14 +94,6 @@ function SaleFooter({ sale, onReprint, onVoid }: { sale: SaleDetail } & SaleActi
           Sin permiso para anular, se pide el PIN de alguien que lo tenga.
         </p>
       ) : null}
-      {notice === undefined ? null : (
-        <InlineNotice
-          tone="warning"
-          icon={<TriangleAlert />}
-          title={notice.title}
-          description={notice.description}
-        />
-      )}
     </div>
   );
 }
