@@ -6,6 +6,8 @@ export {
   batteryReportStanding,
   batteryStanding,
   CRITICAL_BATTERY_PERCENT,
+  CRITICAL_BATTERY_PUSH_LIMIT_MS,
+  CRITICAL_BATTERY_SALE_RECHECK_MS,
   isOnBatteryTooLong,
   LOW_BATTERY_PERCENT,
   nextOnBatterySince,
