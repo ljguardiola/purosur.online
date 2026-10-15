@@ -11,13 +11,13 @@ import {
   type FakeSaleVoidLedgerWrite,
 } from "./test-support/fake-sale-void-ledger.js";
 import { TEN_PERCENT_SALE_DISCOUNT } from "./test-support/sale-discounts.js";
-import type { SaleToVoid } from "./void-sale-ports.js";
 import {
   type VoidSaleGrant,
   type VoidSaleInput,
   type VoidSaleOutcome,
   voidSale,
 } from "./void-sale.js";
+import type { SaleToVoid } from "./void-sale-ports.js";
 
 const NOW = new Date("2026-10-07T15:30:00.000Z");
 const PAID_AT = new Date("2026-10-07T15:10:00.000Z");
@@ -557,7 +557,6 @@ describe("voidSale", () => {
 
       expect(outcome).toMatchObject({ kind: "voided" });
     });
-
   });
 
   describe("a payment that was never approved", () => {

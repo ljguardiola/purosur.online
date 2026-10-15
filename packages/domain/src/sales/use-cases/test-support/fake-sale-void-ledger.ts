@@ -1,10 +1,9 @@
 import type { FiscalDocumentState } from "../../../fiscal/index.js";
-import type { SalePayment } from "../../../payments/index.js";
 import type { CashMovement } from "../../../register/index.js";
 import type { OutboxEventDraft } from "../../../shared/index.js";
 import type { SaleWithLines } from "../../model/sale.js";
 import type { SaleCashMovement, SaleRefund, SaleStockMovement } from "../sale-ledger.js";
-import type { SaleVoidLedger, SaleVoidTransaction } from "../void-sale-ports.js";
+import type { SaleToVoid, SaleVoidLedger, SaleVoidTransaction } from "../void-sale-ports.js";
 
 type StoredSale = SaleWithLines & { voidedAt?: Date; authorizedBy?: string };
 
@@ -19,7 +18,7 @@ type StoredStockMovement = SaleStockMovement & { saleId: string; kind: "sale" | 
 export interface FakeSaleVoidLedgerState {
   openSessionId: string | undefined;
   sales: StoredSale[];
-  payments: SalePayment[];
+  payments: SaleToVoid["payments"];
   fiscalDocuments: { saleId: string; state: FiscalDocumentState }[];
   deferredRecords: StoredDeferredRecord[];
   stockMovements: StoredStockMovement[];
