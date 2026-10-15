@@ -4972,11 +4972,38 @@ describe("the register's local migrations", () => {
            ('d1', 'sale-1', '2026-10-09T12:05:00.000Z', 1500, 'fiscally_offline', '7KQ4M2P9',
             '2026-10-09T12:05:01.000Z', NULL),
            ('d2', 'sale-2', '2026-10-09T12:06:00.000Z', 2550, 'rejected', 'R3XW8H5N',
-            '2026-10-09T12:06:06.000Z', '2026-10-09T12:30:00.000Z');`,
+            '2026-10-09T12:06:06.000Z', '2026-10-09T12:30:00.000Z');
+         INSERT INTO offline_fiscal_documents (
+           id, sale_id, point_of_sale, document_type, number, issued_on, generated_at, generation_stamp,
+           offline_authorization_code, fortnight_start, fortnight_end, document, buyer_document_type,
+           buyer_document_number, cause
+         ) VALUES (
+           'offline-1', 'sale-1', 31, 'factura_c', 7, '2026-10-09', '2026-10-09T12:05:00.000Z',
+           '20261009090500', '75123456789012', '2026-10-01', '2026-10-15', '{}', 99, 0, 'no_connectivity'
+         );`,
       );
       before.close();
 
       const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+      expect(
+        after.prepare("SELECT id, sale_id, number, cause FROM offline_fiscal_documents").all(),
+      ).toEqual([{ id: "offline-1", sale_id: "sale-1", number: 7, cause: "no_connectivity" }]);
+      const issueOffline = (cause: string) =>
+        after
+          .prepare(
+            `INSERT INTO offline_fiscal_documents (
+               id, sale_id, point_of_sale, document_type, number, issued_on, generated_at, generation_stamp,
+               offline_authorization_code, fortnight_start, fortnight_end, document, buyer_document_type,
+               buyer_document_number, cause
+             ) VALUES (
+               'offline-2', 'sale-2', 31, 'factura_c', 8, '2026-10-09', '2026-10-09T12:06:00.000Z',
+               '20261009090600', '75123456789012', '2026-10-01', '2026-10-15', '{}', 99, 0, ?
+             )`,
+          )
+          .run(cause);
+      expect(() => issueOffline("forgotten")).toThrow(/CHECK/);
+      expect(() => issueOffline("clock_behind")).not.toThrow();
+      expect(() => issueOffline("no_connectivity")).toThrow(/UNIQUE/);
 
       expect(
         after
