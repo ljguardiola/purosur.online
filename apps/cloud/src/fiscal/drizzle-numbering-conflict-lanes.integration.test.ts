@@ -1,10 +1,19 @@
+import { FACTURA_C_DOCUMENT_TYPE } from "@purosur/domain";
+import type {
+  ExternalBillingOpening,
+  NumberingConflictLane,
+} from "@purosur/domain/fiscal/use-cases";
+import { eq } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
-import { FACTURA_C_DOCUMENT_TYPE } from "@purosur/domain";
-import type { NumberingConflictLane } from "@purosur/domain/fiscal/use-cases";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { alerts, fiscalRequests, taxAuthorityLastAuthorizedNumbers } from "../platform/db/schema.js";
+import {
+  alerts,
+  fiscalRequests,
+  taxAuthorityLastAuthorizedNumbers,
+} from "../platform/db/schema.js";
 import { postgresDedicatedConnections } from "../platform/dedicated-connections.js";
+import { changesLoggedAfter, lastLoggedChangeSeq } from "../sync/test-support/logged-changes.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
@@ -107,9 +116,11 @@ describe("the numbering conflict lane on a real Postgres", () => {
     expect(
       (await inLane(7, (lane) => lane.numberingConflictRequest(fiscalDocumentId)))?.diagnosis,
     ).toEqual({ kind: "collision" });
-    const [row] = await sql`
-      select diagnosis, diagnosed_at from fiscal_requests where fiscal_document_id = ${fiscalDocumentId}`;
-    expect(row).toEqual({ diagnosis: "collision", diagnosed_at: NOW });
+    const [row] = await db
+      .select({ diagnosis: fiscalRequests.diagnosis, diagnosedAt: fiscalRequests.diagnosedAt })
+      .from(fiscalRequests)
+      .where(eq(fiscalRequests.fiscalDocumentId, fiscalDocumentId));
+    expect(row).toEqual({ diagnosis: "collision", diagnosedAt: NOW });
   });
 
   it("keeps a date-behind diagnosis apart from a collision", async () => {
@@ -129,36 +140,83 @@ describe("the numbering conflict lane on a real Postgres", () => {
   });
 
   describe("settling the documents in a range", () => {
-    const AUTHORIZED = {
+    const AUTHORIZED: Partial<typeof fiscalRequests.$inferInsert> = {
       answerKind: "authorized",
       authorizationCode: "74123456789012",
       authorizationCodeDueOn: "2026-10-16",
       answeredAt: FROZEN_AT,
     };
-    const UNCLEAR = { answerKind: "unclear", unclearCodes: [], answeredAt: FROZEN_AT };
+    const UNCLEAR: Partial<typeof fiscalRequests.$inferInsert> = {
+      answerKind: "unclear",
+      unclearCodes: [],
+      answeredAt: FROZEN_AT,
+    };
 
     it.each([
       ["answered authorized", AUTHORIZED, "authorized"],
-      ["decided adopted", { ...UNCLEAR, decision: "adopted", adoptedAuthorizationCode: "75123456789012", adoptedAuthorizationCodeDueOn: "2026-10-16", decidedAt: NOW }, "authorized"],
-      ["decided conflicting", { ...UNCLEAR, decision: "conflicting", decidedAt: NOW }, "conflicting"],
-      ["decided released", { ...UNCLEAR, decision: "released", decidedAt: NOW }, "released_or_rejected"],
-      ["answered rejected", { answerKind: "rejected", rejectionCodes: [10015], rejectionClass: "content", answeredAt: FROZEN_AT }, "released_or_rejected"],
-      ["not attempted and decided released", { answerKind: "not_attempted", answeredAt: FROZEN_AT, decision: "released", decidedAt: NOW }, "released_or_rejected"],
-      ["not attempted and not decided", { answerKind: "not_attempted", answeredAt: FROZEN_AT }, "undecided"],
+      [
+        "decided adopted",
+        {
+          ...UNCLEAR,
+          decision: "adopted",
+          adoptedAuthorizationCode: "75123456789012",
+          adoptedAuthorizationCodeDueOn: "2026-10-16",
+          decidedAt: NOW,
+        },
+        "authorized",
+      ],
+      [
+        "decided conflicting",
+        { ...UNCLEAR, decision: "conflicting", decidedAt: NOW },
+        "conflicting",
+      ],
+      [
+        "decided released",
+        { ...UNCLEAR, decision: "released", decidedAt: NOW },
+        "released_or_rejected",
+      ],
+      [
+        "answered rejected",
+        {
+          answerKind: "rejected",
+          rejectionCodes: [10015],
+          rejectionClass: "content",
+          answeredAt: FROZEN_AT,
+        },
+        "released_or_rejected",
+      ],
+      [
+        "not attempted and decided released",
+        {
+          answerKind: "not_attempted",
+          answeredAt: FROZEN_AT,
+          decision: "released",
+          decidedAt: NOW,
+        },
+        "released_or_rejected",
+      ],
+      [
+        "not attempted and not decided",
+        { answerKind: "not_attempted", answeredAt: FROZEN_AT },
+        "undecided",
+      ],
       ["unclear and not decided", UNCLEAR, "undecided"],
       ["not answered yet", {}, "undecided"],
-    ] as const)("settles a document %s as %s", async (_case, columns, settlement) => {
-      const pointOfSale = 8;
-      settled += 1;
-      const number = 700 + settled;
-      await recordRequest(pointOfSale, number, columns);
+    ] satisfies [string, Partial<typeof fiscalRequests.$inferInsert>, string][])(
+      "settles a document %s as %s",
+      async (_case, columns, settlement) => {
+        const pointOfSale = 8;
+        settled += 1;
+        const number = 700 + settled;
+        await recordRequest(pointOfSale, number, columns);
 
-      const documents = await inLane(pointOfSale, (lane) =>
-        lane.documentsInNumberingRange({ after: number - 1, through: number }),
-      );
+        const documents = await inLane(pointOfSale, (lane) =>
+          lane.documentsInNumberingRange({ after: number - 1, through: number }),
+        );
 
-      expect(documents).toEqual([{ number, settlement }]);
-    });
+        expect(documents).toEqual([{ number, settlement }]);
+      },
+    );
 
     it("gives only the numbers after the first bound through the second, of its own point of sale", async () => {
       const base = 10_000_000;
@@ -206,18 +264,22 @@ describe("the numbering conflict lane on a real Postgres", () => {
     });
 
     it("logs the register's point of sale as changed when the freeze is taken and when it is lifted", async () => {
-      const [{ last }] = await sql<{ last: number }[]>`select coalesce(max(change_seq), 0)::int as last from changes`;
+      const last = await lastLoggedChangeSeq(db);
 
       await inLane(7, (lane) =>
         lane.freezeNumbering({ countBeforeFreeze: 12, frozenAt: FROZEN_AT }),
       );
       await inLane(7, (lane) => lane.liftNumberingFreeze());
 
-      const logged = await sql`
-        select entity, entity_id, op from changes where change_seq > ${last} order by change_seq`;
-      expect(logged).toEqual([
-        { entity: "register_point_of_sale", entity_id: registerId, op: "update" },
-        { entity: "register_point_of_sale", entity_id: registerId, op: "update" },
+      expect(
+        (await changesLoggedAfter(db, last)).map(({ entity, entityId, op }) => ({
+          entity,
+          entityId,
+          op,
+        })),
+      ).toEqual([
+        { entity: "register_point_of_sale", entityId: registerId, op: "update" },
+        { entity: "register_point_of_sale", entityId: registerId, op: "update" },
       ]);
     });
 
@@ -267,19 +329,23 @@ describe("the numbering conflict lane on a real Postgres", () => {
     });
 
     it("logs the register's point of sale as changed when the count moves", async () => {
-      const [{ last }] = await sql<{ last: number }[]>`select coalesce(max(change_seq), 0)::int as last from changes`;
+      const last = await lastLoggedChangeSeq(db);
 
       await inLane(7, (lane) => lane.continueNumberingAfter(30));
 
-      const logged = await sql`
-        select entity, entity_id from changes where change_seq > ${last} order by change_seq`;
-      expect(logged).toEqual([{ entity: "register_point_of_sale", entity_id: registerId }]);
+      expect(
+        (await changesLoggedAfter(db, last)).map(({ entity, entityId }) => ({ entity, entityId })),
+      ).toEqual([{ entity: "register_point_of_sale", entityId: registerId }]);
     });
   });
 
   describe("the external billing alert", () => {
     it("opens one alert for the number, once however many times it is asked", async () => {
-      const opening = { pointOfSale: 7, documentType: FACTURA_C_DOCUMENT_TYPE, number: 31 };
+      const opening: ExternalBillingOpening = {
+        pointOfSale: 7,
+        documentType: FACTURA_C_DOCUMENT_TYPE,
+        number: 31,
+      };
 
       await inLane(7, (lane) => lane.openExternalBillingAlert(opening));
       await inLane(7, (lane) => lane.openExternalBillingAlert(opening));
@@ -299,7 +365,11 @@ describe("the numbering conflict lane on a real Postgres", () => {
 
     it("opens an alert apiece for different numbers", async () => {
       await inLane(7, (lane) =>
-        lane.openExternalBillingAlert({ pointOfSale: 7, documentType: FACTURA_C_DOCUMENT_TYPE, number: 32 }),
+        lane.openExternalBillingAlert({
+          pointOfSale: 7,
+          documentType: FACTURA_C_DOCUMENT_TYPE,
+          number: 32,
+        }),
       );
 
       const scopes = (await db.select().from(alerts))
