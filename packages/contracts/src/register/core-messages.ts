@@ -350,8 +350,13 @@ const salesDeniedConditionSchema = z.discriminatedUnion("reason", [
 
 const registerOwnConditionSchema = z.discriminatedUnion("kind", [
   salesDeniedConditionSchema,
+  z.strictObject({
+    kind: z.literal("battery_low"),
+    charge_percent: z.int().min(0).max(100),
+    level: z.enum(ALERT_LEVELS),
+  }),
   z.object({
-    kind: z.enum(REGISTER_OWN_CONDITIONS).exclude(["sales_denied"]),
+    kind: z.enum(REGISTER_OWN_CONDITIONS).exclude(["sales_denied", "battery_low"]),
     level: z.enum(ALERT_LEVELS),
   }),
 ]);
