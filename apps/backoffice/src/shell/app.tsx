@@ -31,6 +31,7 @@ import type { SuppliersListScreenServices } from "../purchasing/suppliers-list-s
 import type { RegistersListScreenServices } from "../register/registers-list-services";
 import type { ReportRegisterFilterProps } from "../register/report-register-filter";
 import type { ReportRegisterFilterServices } from "../register/report-register-filter-services";
+import type { SnapshotBackupsScreenServices } from "../register/snapshot-backups-services";
 import type { AverageTicketScreenServices } from "../sales/average-ticket-services";
 import type { SalesByCashierScreenServices } from "../sales/sales-by-cashier-services";
 import type { SalesByDayScreenServices } from "../sales/sales-by-day-services";
@@ -75,6 +76,7 @@ export type AppServices = {
   userCredentialSections: UserCredentialSectionsServices;
   rolesListScreen: RolesListScreenServices;
   registersListScreen: RegistersListScreenServices;
+  snapshotBackupsScreen: SnapshotBackupsScreenServices;
   branchSettingsScreen: BranchSettingsScreenServices;
   categoriesListScreen: CategoriesListScreenServices;
   brandsListScreen: BrandsListScreenServices;

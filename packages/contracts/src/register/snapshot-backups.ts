@@ -1,4 +1,5 @@
 import {
+  ARGENTINA_TIME_ZONE,
   SNAPSHOT_FAILURE_REASONS,
   SNAPSHOT_GENERATION_STATUSES,
   SNAPSHOT_LIFECYCLE_LIMITS,
@@ -29,7 +30,7 @@ const tierCountSchema = z.number().int().nonnegative();
 
 const snapshotBackupGenerationSchema = z.object({
   id: recordIdSchema(),
-  created_at: z.iso.datetime(),
+  created_at: z.iso.datetime().meta({ timeZone: ARGENTINA_TIME_ZONE }),
   size: snapshotSizeSchema,
   status: z.enum(SNAPSHOT_GENERATION_STATUSES),
   failure_reason: z.enum(SNAPSHOT_FAILURE_REASONS).nullable(),
