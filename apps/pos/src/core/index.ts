@@ -1,7 +1,7 @@
 import { execFile } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { hostname, release, version } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import { promisify } from "node:util";
 import { type CoreReadyMessage, mainToCoreMessageSchema } from "@purosur/contracts";
@@ -79,6 +79,8 @@ import { createSerialDeviceWatch, pathOfMatchingDevice } from "./register/serial
 import { serialDevicesReportOf } from "./register/serial-devices-report";
 import { readSerialDevicesFor, registerSerialDevicesFor } from "./register/serial-devices-requests";
 import { listSerialPorts, serialportEnumeration } from "./register/serialport-enumeration";
+import type { SnapshotCycleSchedule } from "./register/snapshot-cycle-schedule";
+import { startSnapshotCycle } from "./register/snapshot-cycle-wiring";
 import { readOpenSession } from "./register/sqlite-cash-ledger";
 import { SqliteSerialDeviceRegistrations } from "./register/sqlite-serial-device-registrations";
 import { startupPendingFor } from "./register/startup-pending-requests";
@@ -193,6 +195,7 @@ const cloudClient: CloudClientDeps | undefined =
 
 const now = () => new Date();
 const LOCAL_DATABASE_FILE = "register.sqlite";
+const SNAPSHOTS_FOLDER = "snapshots";
 const SYNC_INTERVAL_MS = 30_000;
 const SYNC_FAILURE_BACKOFF = { baseMs: 2000, maxMs: 60_000 };
 const PULLED_NOTICE: CoreToRendererMessage = { type: "pulled" };
@@ -1086,6 +1089,8 @@ const rendererConnection = createRendererConnection(
   () => signedInPerson.clear(),
 );
 
+let snapshotCycle: SnapshotCycleSchedule | undefined;
+
 messagesFromMain.deliverTo((event) => {
   const [rendererPort] = event.ports;
   if (rendererPort) {
@@ -1099,6 +1104,8 @@ messagesFromMain.deliverTo((event) => {
         .then((answer) => process.parentPort.postMessage(answer));
     } else if (message.type === "update-hold-release") {
       updateHold.release();
+    } else if (message.type === "snapshot-worker-exited") {
+      snapshotCycle?.workerExited();
     } else {
       mainRequests.receive(message);
     }
@@ -1108,4 +1115,23 @@ messagesFromMain.deliverTo((event) => {
 process.parentPort.postMessage({ type: "core-ready" } satisfies CoreReadyMessage);
 void batteryWatch.start();
 void storageWatch?.start();
+if (localDatabase !== undefined && localDatabasePath !== undefined) {
+  snapshotCycle = startSnapshotCycle({
+    database: localDatabase,
+    databasePath: localDatabasePath,
+    snapshotsFolder: join(dirname(localDatabasePath), SNAPSHOTS_FOLDER),
+    cloudUrl,
+    readCredentials: () => mainRequests.readCredentials(),
+    batteryReport: () => batteryWatch.report(),
+    cloudReachability: () => cloudReachability,
+    readStorage: storageReadingReader(localDatabasePath, nodeStorageFileSystem),
+    newGenerationId: () => uuidV7Ids.next(),
+    postToMain: (message) => process.parentPort.postMessage(message),
+    scheduleNext: (run, delayMs) => {
+      const timer = setTimeout(run, delayMs);
+      return () => clearTimeout(timer);
+    },
+    onFailure: (error) => reportFailure("running the snapshot cycle", error),
+  });
+}
 void barcodeReaderWiring.startWatch();
