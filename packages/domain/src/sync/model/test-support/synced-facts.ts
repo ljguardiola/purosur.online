@@ -200,3 +200,27 @@ export const AN_OPENING_COUNT_WITHDRAWN_FACT: SyncedFact = {
     actorId: "cashier-1",
   },
 };
+
+export const AN_OFFLINE_FISCAL_DOCUMENT_ISSUED_FACT: SyncedFact = {
+  kind: "offline_fiscal_document_issued",
+  document: {
+    fiscalDocumentId: "fiscal-document-1",
+    saleId: "sale-1",
+    registerId: "register-1",
+    pointOfSale: 12,
+    documentType: "factura_c",
+    number: 241,
+    issuedOn: "2026-10-07",
+    generatedAt: new Date("2026-10-07T10:00:00.000Z"),
+    generationStamp: "20261007100000",
+    offlineAuthorizationCode: "71234567890123",
+    fortnightStart: "2026-10-01",
+    fortnightEnd: "2026-10-15",
+    buyerDocumentType: 99,
+    buyerDocumentNumber: 0,
+    buyerTaxStatusCode: 5,
+    total: 1500,
+    netAmount: 1500,
+    cause: "no_connectivity",
+  },
+};

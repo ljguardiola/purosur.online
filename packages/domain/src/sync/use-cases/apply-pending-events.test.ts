@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   A_CASH_MOVEMENT_FACT,
   A_SESSION_OPENED_FACT,
+  AN_OFFLINE_FISCAL_DOCUMENT_ISSUED_FACT,
   AN_OPENING_COUNT_RECORDED_FACT,
   AN_OPENING_COUNT_WITHDRAWN_FACT,
   aCancelledSaleFact,
@@ -441,6 +442,50 @@ describe("an event that cannot be applied yet", () => {
     expect(application.state.quarantines).toEqual([
       expect.objectContaining({ eventId: "sale-event", reason: { kind: "not_recorded" } }),
     ]);
+  });
+
+  describe("an offline fiscal document", () => {
+    const documentEvent = (overrides: Partial<FakeStoredEvent> = {}) =>
+      aStoredEvent({
+        eventId: "document-event",
+        aggregateType: "FiscalDocument",
+        aggregateId: "fiscal-document-1",
+        eventType: "offline_fiscal_document_issued",
+        schemaVersion: 1,
+        ...overrides,
+      });
+    const upcaster = () =>
+      new FakeEventUpcaster({ "document-event": AN_OFFLINE_FISCAL_DOCUMENT_ISSUED_FACT });
+
+    it("advances the offline numbering of its series right after it is recorded", async () => {
+      const application = new FakeEventApplication([documentEvent()]);
+
+      await run(application, upcaster());
+
+      expect(application.state.writeOrder).toEqual(["record", "offline numbering"]);
+      expect(application.state.offlineNumberingAdvanced).toEqual([
+        { pointOfSale: 12, number: 241 },
+      ]);
+      expect(application.event("document-event").appliedAt).toEqual(NOW);
+    });
+
+    it("advances nothing when it cannot be recorded", async () => {
+      const application = new FakeEventApplication([documentEvent()]);
+      application.failRecording.set("document-event", new Error("recording unavailable"));
+
+      await run(application, upcaster());
+
+      expect(application.state.offlineNumberingAdvanced).toEqual([]);
+      expect(application.event("document-event").appliedAt).toBeNull();
+    });
+
+    it("is the only fact that advances the offline numbering", async () => {
+      const application = new FakeEventApplication([appliedSessionOpening(), saleEvent()]);
+
+      await run(application, new FakeEventUpcaster({ "sale-event": aCompletedSaleFact() }));
+
+      expect(application.state.offlineNumberingAdvanced).toEqual([]);
+    });
   });
 
   describe("an opening count", () => {

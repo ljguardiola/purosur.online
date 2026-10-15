@@ -26,6 +26,7 @@ export interface FakeEventApplicationState {
   stockApplied: { eventId: string; saleId: string }[];
   openingCountsApplied: { eventId: string; movementId: string }[];
   openingCountsWithdrawn: { eventId: string; withdrawnMovementId: string }[];
+  offlineNumberingAdvanced: { pointOfSale: number; number: number }[];
   writeOrder: string[];
   appliedOrder: string[];
   quarantines: EventQuarantine[];
@@ -66,6 +67,7 @@ export class FakeEventApplication implements EventApplication {
     stockApplied: [],
     openingCountsApplied: [],
     openingCountsWithdrawn: [],
+    offlineNumberingAdvanced: [],
     writeOrder: [],
     appliedOrder: [],
     quarantines: [],
@@ -198,6 +200,13 @@ export class FakeEventApplication implements EventApplication {
           withdrawnMovementId: withdrawal.withdrawnMovementId,
         });
         return { kind: "applied" };
+      },
+      advanceOfflineNumbering: async (document) => {
+        this.state.writeOrder.push("offline numbering");
+        this.state.offlineNumberingAdvanced.push({
+          pointOfSale: document.pointOfSale,
+          number: document.number,
+        });
       },
       markApplied: async (eventId, at) => {
         this.event(eventId).appliedAt = at;
