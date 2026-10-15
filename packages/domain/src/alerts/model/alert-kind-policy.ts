@@ -236,6 +236,14 @@ const ALERT_KIND_POLICIES = {
     deduplicates: true,
     resolvesAfterStableClear: false,
   },
+  fortnight_report_needs_regularization: {
+    level: "critical",
+    escalation: null,
+    audience: "all",
+    scopeKind: "pointOfSaleFortnight",
+    deduplicates: true,
+    resolvesAfterStableClear: false,
+  },
 } as const satisfies Record<AlertKind, AlertKindPolicy>;
 
 export function alertKindPolicy(kind: AlertKind): AlertKindPolicy {

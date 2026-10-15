@@ -79,6 +79,23 @@ export function fortnightReportNoLongerPendingObservation(
   return { holds: false, kind: "fortnight_report_pending", scope };
 }
 
+export function fortnightReportNeedsRegularizationAlert({
+  pointOfSaleNumber,
+  registerId,
+  fortnight,
+}: Omit<FortnightReportPresentation, "deadline">): OpenAlertInput {
+  return {
+    kind: "fortnight_report_needs_regularization",
+    scope: pointOfSaleFortnightScope(pointOfSaleNumber, fortnight.start),
+    detail: {
+      pointOfSaleNumber,
+      registerId,
+      fortnightStart: fortnight.start,
+      fortnightEnd: fortnight.end,
+    },
+  };
+}
+
 export function fortnightReportOverdueAlert(
   presentation: FortnightReportPresentation,
 ): OpenAlertInput {
