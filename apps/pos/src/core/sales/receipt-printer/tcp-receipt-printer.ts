@@ -5,7 +5,10 @@ import type {
   ReceiptPrinter,
   ReceiptPrintWatch,
 } from "@purosur/domain/sales/use-cases";
-import { RAW_PRINTING_PORT, reachSameReceiptPrinter } from "../../register/receipt-printer-endpoint";
+import {
+  RAW_PRINTING_PORT,
+  reachSameReceiptPrinter,
+} from "../../register/receipt-printer-endpoint";
 
 type PrinterStatus = Parameters<ReceiptPrintWatch["onStatus"]>[0];
 

@@ -20,8 +20,8 @@ import {
 } from "@purosur/domain/sales/use-cases";
 import type { LocalDatabase } from "../platform/local-database";
 import type { ActionGate } from "../sessions/action-gate";
-import { escPosReceiptTemplate } from "./receipt-printer/escpos-receipt-template";
 import type { ReceiptPrintJobs } from "./receipt-print-jobs";
+import { escPosReceiptTemplate } from "./receipt-printer/escpos-receipt-template";
 import { SqliteReceiptLedger } from "./sqlite-receipt-ledger";
 
 export interface ReceiptRequestDeps {

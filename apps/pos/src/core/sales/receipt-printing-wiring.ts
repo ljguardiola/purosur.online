@@ -9,13 +9,16 @@ import {
 } from "./printing-completed-sales";
 import { createReceiptPrintJobs } from "./receipt-print-jobs";
 import {
+  TcpReceiptPrinter,
+  type TcpReceiptPrinterOptions,
+} from "./receipt-printer/tcp-receipt-printer";
+import {
   printCompletedSaleReceiptFor,
   printOriginalReceiptFor,
   type ReceiptRequestDeps,
   receiptPrintStatusFor,
   reprintSaleReceiptFor,
 } from "./receipt-requests";
-import { TcpReceiptPrinter, type TcpReceiptPrinterOptions } from "./receipt-printer/tcp-receipt-printer";
 
 function savedReceiptPrinters(
   settings: SqliteReceiptPrinterSettings,
