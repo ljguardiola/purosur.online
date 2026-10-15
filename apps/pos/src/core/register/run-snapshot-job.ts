@@ -1,6 +1,10 @@
 import { mkdir, rename, rm } from "node:fs/promises";
 import type { SnapshotWorkerJobMessage } from "@purosur/contracts";
-import { latestKeyVersion, type SnapshotCorruptionStage } from "@purosur/domain";
+import {
+  isHeldSnapshotKeyOutdated,
+  latestKeyVersion,
+  type SnapshotCorruptionStage,
+} from "@purosur/domain";
 import type { UploadPendingSnapshotGenerationsOutcome } from "@purosur/domain/register/use-cases";
 import type { CloudClientDeps } from "../platform/cloud-client";
 import { cloudCurrentSnapshotKeyVersion } from "./current-snapshot-key-version";
@@ -82,10 +86,6 @@ async function takeSnapshot(
   }
 }
 
-function mayEncryptWithHeldKey(job: TakeJob, currentKeyVersion: number | undefined): boolean {
-  return currentKeyVersion === undefined || currentKeyVersion <= job.key.version;
-}
-
 export async function runSnapshotJob(
   job: SnapshotWorkerJobMessage,
   deps: SnapshotJobDeps,
@@ -95,7 +95,7 @@ export async function runSnapshotJob(
   let currentKeyVersion: number | undefined;
   if (job.kind === "take") {
     currentKeyVersion = await cloudCurrentSnapshotKeyVersion(deps.cloud, job.device_token);
-    if (mayEncryptWithHeldKey(job, currentKeyVersion)) {
+    if (!isHeldSnapshotKeyOutdated(job.key.version, currentKeyVersion)) {
       try {
         await takeSnapshot(job, deps);
       } catch (error) {

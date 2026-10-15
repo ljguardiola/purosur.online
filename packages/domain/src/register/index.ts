@@ -45,6 +45,7 @@ export { cashBreakdown, expectedCash } from "./model/expected-cash.js";
 export {
   hasDistinctKeyVersions,
   INSTALLATION_KEY_BYTES,
+  isHeldSnapshotKeyOutdated,
   isWellFormedInstallationKey,
   latestKey,
   latestKeyVersion,

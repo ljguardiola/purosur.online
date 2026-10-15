@@ -1,5 +1,5 @@
 import { snapshotBackupsSchema } from "@purosur/contracts";
-import { formatDate, plural } from "@purosur/ui";
+import { formatDate, formatNumber, plural } from "@purosur/ui";
 import { schemaText } from "../platform/schema-text";
 import type { SnapshotBackupGeneration, SnapshotLifecycleRules } from "./snapshot-backups-api";
 
@@ -26,14 +26,14 @@ export function snapshotGenerationDate(instant: string): string {
 
 export function snapshotTierCaptions(rules: SnapshotLifecycleRules) {
   return {
-    hourly: plural(rules.hourly, { one: "Última hora", other: `Últimas ${rules.hourly} horas` }),
-    daily: plural(rules.daily, { one: "Último día", other: `Últimos ${rules.daily} días` }),
-    monthly: plural(rules.monthly, { one: "Hasta 1 mes", other: `Hasta ${rules.monthly} meses` }),
+    hourly: plural(rules.hourly, { one: "Última hora", other: `Últimas ${formatNumber(rules.hourly)} horas` }),
+    daily: plural(rules.daily, { one: "Último día", other: `Últimos ${formatNumber(rules.daily)} días` }),
+    monthly: plural(rules.monthly, { one: "Hasta 1 mes", other: `Hasta ${formatNumber(rules.monthly)} meses` }),
   };
 }
 
 export function snapshotRecentCaption(limit: number): string {
-  return plural(limit, { one: "La más nueva", other: `Las ${limit} más nuevas` });
+  return plural(limit, { one: "La más nueva", other: `Las ${formatNumber(limit)} más nuevas` });
 }
 
 export const SNAPSHOT_LOCATION_TEXT: Record<SnapshotBackupGeneration["location"], string> = {

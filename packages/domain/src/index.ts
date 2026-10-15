@@ -522,6 +522,7 @@ export {
   isDeviceTokenRotationDue,
   isInstallationReportTooLong,
   isLockedToAnother,
+  isHeldSnapshotKeyOutdated,
   isNewerRegisterVersion,
   isOutOfService,
   isPendingSnapshotGeneration,

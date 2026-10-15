@@ -30,3 +30,13 @@ export function latestKey(keys: readonly VersionedKey[]): VersionedKey | undefin
 export function latestKeyVersion(versions: readonly number[]): number | undefined {
   return versions.length === 0 ? undefined : Math.max(...versions);
 }
+
+export function isHeldSnapshotKeyOutdated(
+  heldVersion: number | undefined,
+  currentVersion: number | undefined,
+): boolean {
+  if (currentVersion === undefined) {
+    return false;
+  }
+  return heldVersion === undefined || currentVersion > heldVersion;
+}

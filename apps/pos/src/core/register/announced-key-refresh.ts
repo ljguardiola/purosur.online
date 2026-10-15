@@ -1,5 +1,5 @@
 import type { DeviceCredentials } from "@purosur/contracts";
-import { latestKey } from "@purosur/domain";
+import { isHeldSnapshotKeyOutdated, latestKey } from "@purosur/domain";
 import type { DeviceTokenRotation } from "./device-token-rotation";
 
 export interface AnnouncedKeyRefreshDeps {
@@ -18,8 +18,8 @@ export async function refreshKeysWhenAnnounced(
   if (credentials === undefined) {
     return;
   }
-  const heldVersion = latestKey(credentials.keys?.snapshot_key_versions ?? [])?.version ?? 0;
-  if (announcedKeyVersion > heldVersion) {
+  const heldVersion = latestKey(credentials.keys?.snapshot_key_versions ?? [])?.version;
+  if (isHeldSnapshotKeyOutdated(heldVersion, announcedKeyVersion)) {
     await deps.refreshInstallationKeysNow();
   }
 }
