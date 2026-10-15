@@ -143,6 +143,7 @@ describe("synced event payloads", () => {
       "cash_movement_recorded@1",
       "cash_session_closed@1",
       "cash_session_opened@1",
+      "clock_corrected@1",
       "fiscal_gate_failed@1",
       "offline_fiscal_document_issued@1",
       "opening_count_recorded@1",
