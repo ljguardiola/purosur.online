@@ -1,10 +1,13 @@
 import {
   diagnoseNumberingConflict as diagnose,
-  isNumberingConflict,
+  isNumberingConflictAnswer,
   NUMBERING_CONFLICT_REASK_INTERVAL_MS,
   type NumberingConflictDiagnosis,
 } from "../model/numbering-conflict.js";
-import type { DiagnoseNumberingConflictPorts } from "./numbering-conflict-ports.js";
+import type {
+  DiagnoseNumberingConflictPorts,
+  NumberingFreeze,
+} from "./numbering-conflict-ports.js";
 
 export interface DiagnoseNumberingConflictInput {
   fiscalDocumentId: string;
@@ -32,7 +35,7 @@ export async function diagnoseNumberingConflict(
     if (request === null) {
       return { kind: "not_found" };
     }
-    if (request.answer?.kind !== "unclear" || !isNumberingConflict(request.unclearCodes)) {
+    if (!isNumberingConflictAnswer(request)) {
       return { kind: "not_a_numbering_conflict" };
     }
     if (request.diagnosis !== null) {
@@ -70,19 +73,21 @@ export async function diagnoseNumberingConflict(
       lastAuthorized: lastAuthorized.number,
       lastAuthorizedIssuedOn,
     });
-    const now = clock.now();
-    await lane.recordNumberingDiagnosis(fiscalDocumentId, diagnosis, now);
+    const diagnosedAt = clock.now();
     if (diagnosis.kind === "date_behind") {
+      await lane.recordNumberingDiagnosis({
+        fiscalDocumentId,
+        diagnosis,
+        diagnosedAt,
+        freeze: null,
+      });
       return diagnosis;
     }
-    if ((await lane.numberingFreeze()) !== null) {
-      return { kind: "collision", freeze: "already_frozen" };
-    }
-    await lane.freezeNumbering({
-      countBeforeFreeze: await lane.taxAuthorityCount(),
-      frozenAt: now,
-    });
-    await lane.requestNumberingReconciliation();
-    return { kind: "collision", freeze: "frozen" };
+    const freeze: NumberingFreeze | null =
+      (await lane.numberingFreeze()) === null
+        ? { countBeforeFreeze: await lane.taxAuthorityCount(), frozenAt: diagnosedAt }
+        : null;
+    await lane.recordNumberingDiagnosis({ fiscalDocumentId, diagnosis, diagnosedAt, freeze });
+    return { kind: "collision", freeze: freeze === null ? "already_frozen" : "frozen" };
   });
 }

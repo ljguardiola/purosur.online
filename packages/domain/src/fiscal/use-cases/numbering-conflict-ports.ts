@@ -23,6 +23,13 @@ export interface NumberingFreeze {
   frozenAt: Date;
 }
 
+export interface NumberingDiagnosisRecord {
+  fiscalDocumentId: string;
+  diagnosis: NumberingConflictDiagnosis;
+  diagnosedAt: Date;
+  freeze: NumberingFreeze | null;
+}
+
 export interface ExternalBillingOpening {
   pointOfSale: number;
   documentType: FiscalDocumentType;
@@ -31,15 +38,13 @@ export interface ExternalBillingOpening {
 
 export interface NumberingConflictLane {
   numberingConflictRequest(fiscalDocumentId: string): Promise<NumberingConflictRequest | null>;
-  recordNumberingDiagnosis(
-    fiscalDocumentId: string,
-    diagnosis: NumberingConflictDiagnosis,
-    diagnosedAt: Date,
-  ): Promise<void>;
+  /**
+   * Records the diagnosis and, given a freeze, takes it and requests the point of sale's
+   * reconciliation, all or nothing.
+   */
+  recordNumberingDiagnosis(record: NumberingDiagnosisRecord): Promise<void>;
   numberingFreeze(): Promise<NumberingFreeze | null>;
   taxAuthorityCount(): Promise<number>;
-  freezeNumbering(freeze: NumberingFreeze): Promise<void>;
-  requestNumberingReconciliation(): Promise<void>;
   documentsInNumberingRange(range: {
     after: number;
     through: number;

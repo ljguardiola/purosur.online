@@ -203,6 +203,7 @@ export type {
 export {
   ARCA_VITALITY_CHECK_INTERVAL_MS,
   AUTHORIZATION_CODE_TYPE_CAE,
+  awaitsNumberingDiagnosis,
   awaitsUnclearOutcomeDecision,
   CURRENCY_PESOS,
   chargeRefusal,
@@ -235,7 +236,7 @@ export {
   isIssuerIdentificationActivityStartDate,
   isIssuerIdentificationGrossIncomeRegistrationTooLong,
   isIssuerIdentificationLegalNameTooLong,
-  isNumberingConflict,
+  isNumberingConflictAnswer,
   isPointOfSaleNumber,
   isSameFiscalAddressName,
   isSecondHalfOfMonth,

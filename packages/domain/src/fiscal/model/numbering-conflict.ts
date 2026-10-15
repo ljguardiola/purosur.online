@@ -1,9 +1,29 @@
+import type { RealTimeAuthorizationAnswer } from "./real-time-authorization.js";
+
 const NUMBER_OR_DATE_OUT_OF_ORDER_CODE = 10016;
 
 export const NUMBERING_CONFLICT_REASK_INTERVAL_MS = 30_000;
 
 export function isNumberingConflict(codes: readonly number[]): boolean {
   return codes.includes(NUMBER_OR_DATE_OUT_OF_ORDER_CODE);
+}
+
+export interface NumberingConflictAnswer {
+  answer: RealTimeAuthorizationAnswer | null;
+  unclearCodes: readonly number[];
+}
+
+export function isNumberingConflictAnswer({
+  answer,
+  unclearCodes,
+}: NumberingConflictAnswer): boolean {
+  return answer?.kind === "unclear" && isNumberingConflict(unclearCodes);
+}
+
+export function awaitsNumberingDiagnosis(
+  request: NumberingConflictAnswer & { diagnosis: NumberingConflictDiagnosis | null },
+): boolean {
+  return request.diagnosis === null && isNumberingConflictAnswer(request);
 }
 
 export interface NumberingConflictFacts {

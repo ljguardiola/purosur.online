@@ -4,6 +4,7 @@ import type {
   NumberingConflictLane,
   NumberingConflictLanes,
   NumberingConflictRequest,
+  NumberingDiagnosisRecord,
   NumberingFreeze,
 } from "@purosur/domain/fiscal/use-cases";
 import { and, asc, eq, gt, lte } from "drizzle-orm";
@@ -19,6 +20,7 @@ import { withPendingChanges } from "../sync/change-log.js";
 import { DrizzleTaxAuthorityCounts } from "./drizzle-tax-authority-counts.js";
 import type { EnqueueNumberingReconciliation } from "./enqueue-numbering-conflict.js";
 import { answerOf } from "./fiscal-request-answer.js";
+import { diagnosisOf } from "./fiscal-request-diagnosis.js";
 import { notePointOfSaleHolderChanged } from "./note-point-of-sale-holder-changed.js";
 import { withPointOfSaleLaneLock } from "./point-of-sale-lane-lock.js";
 
@@ -48,17 +50,6 @@ function settlementOf({
     return "released_or_rejected";
   }
   return "undecided";
-}
-
-function diagnosisOf(diagnosis: string | null): NumberingConflictRequest["diagnosis"] {
-  switch (diagnosis) {
-    case "date_behind":
-      return { kind: "date_behind" };
-    case "collision":
-      return { kind: "collision" };
-    default:
-      return null;
-  }
 }
 
 class DrizzleNumberingConflictLane<TQueryResult extends PgQueryResultHKT>
@@ -101,15 +92,24 @@ class DrizzleNumberingConflictLane<TQueryResult extends PgQueryResultHKT>
     };
   }
 
-  async recordNumberingDiagnosis(
-    fiscalDocumentId: string,
-    diagnosis: NonNullable<NumberingConflictRequest["diagnosis"]>,
-    diagnosedAt: Date,
-  ): Promise<void> {
-    await this.db
-      .update(fiscalRequests)
-      .set({ diagnosis: diagnosis.kind, diagnosedAt })
-      .where(eq(fiscalRequests.fiscalDocumentId, fiscalDocumentId));
+  async recordNumberingDiagnosis({
+    fiscalDocumentId,
+    diagnosis,
+    diagnosedAt,
+    freeze,
+  }: NumberingDiagnosisRecord): Promise<void> {
+    await withPendingChanges(this.db, undefined, async (tx, pending) => {
+      await tx
+        .update(fiscalRequests)
+        .set({ diagnosis: diagnosis.kind, diagnosedAt })
+        .where(eq(fiscalRequests.fiscalDocumentId, fiscalDocumentId));
+      if (freeze === null) {
+        return;
+      }
+      await tx.insert(numberingFreezes).values({ pointOfSaleNumber: this.pointOfSale, ...freeze });
+      await notePointOfSaleHolderChanged(tx, pending, this.pointOfSale);
+      await this.enqueueReconciliation(tx, this.pointOfSale);
+    });
   }
 
   async numberingFreeze(): Promise<NumberingFreeze | null> {
@@ -129,19 +129,6 @@ class DrizzleNumberingConflictLane<TQueryResult extends PgQueryResultHKT>
       .from(taxAuthorityLastAuthorizedNumbers)
       .where(eq(taxAuthorityLastAuthorizedNumbers.pointOfSaleNumber, this.pointOfSale));
     return row?.lastAuthorized ?? 0;
-  }
-
-  async freezeNumbering({ countBeforeFreeze, frozenAt }: NumberingFreeze): Promise<void> {
-    await withPendingChanges(this.db, undefined, async (tx, pending) => {
-      await tx
-        .insert(numberingFreezes)
-        .values({ pointOfSaleNumber: this.pointOfSale, countBeforeFreeze, frozenAt });
-      await notePointOfSaleHolderChanged(tx, pending, this.pointOfSale);
-    });
-  }
-
-  async requestNumberingReconciliation(): Promise<void> {
-    await this.db.transaction((tx) => this.enqueueReconciliation(tx, this.pointOfSale));
   }
 
   async documentsInNumberingRange({

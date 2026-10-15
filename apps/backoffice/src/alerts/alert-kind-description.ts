@@ -1,5 +1,4 @@
 import type { AlertKind } from "@purosur/domain";
-import { formatPointOfSaleNumber } from "@purosur/ui";
 
 const ALERT_KIND_DESCRIPTIONS = {
   backoffice_passkey_changed: "Se registró o dio de baja una passkey",
@@ -39,11 +38,4 @@ export function alertKindDescription(kind: string): string {
   return Object.hasOwn(ALERT_KIND_DESCRIPTIONS, kind)
     ? ALERT_KIND_DESCRIPTIONS[kind as keyof typeof ALERT_KIND_DESCRIPTIONS]
     : "";
-}
-
-export function externalBillingSummary(scopeDisplay: string | null): string {
-  const [pointOfSale = ""] = (scopeDisplay ?? "").split(":");
-  return /^\d+$/.test(pointOfSale)
-    ? `Un comprobante del punto de venta ${formatPointOfSaleNumber(Number(pointOfSale))} se emitió fuera del sistema`
-    : alertKindDescription("external_billing");
 }

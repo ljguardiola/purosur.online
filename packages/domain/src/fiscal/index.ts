@@ -87,7 +87,8 @@ export {
   latestIssuerIdentification,
 } from "./model/issuer-identification.js";
 export {
-  isNumberingConflict,
+  awaitsNumberingDiagnosis,
+  isNumberingConflictAnswer,
   NUMBERING_CONFLICT_REASK_INTERVAL_MS,
 } from "./model/numbering-conflict.js";
 export type { Fortnight } from "./model/offline-authorization-code.js";

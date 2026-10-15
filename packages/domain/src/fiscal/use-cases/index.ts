@@ -207,6 +207,7 @@ export type {
   NumberingConflictLanes,
   NumberingConflictRequest,
   NumberingConflictRequests,
+  NumberingDiagnosisRecord,
   NumberingFreeze,
   ReconcileNumberingConflictPorts,
 } from "./numbering-conflict-ports.js";

@@ -1,4 +1,4 @@
-import { isNumberingConflict } from "@purosur/domain";
+import { awaitsNumberingDiagnosis } from "@purosur/domain";
 import { and, eq, isNull, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { fiscalRequests } from "../platform/db/schema.js";
@@ -6,6 +6,8 @@ import type {
   EnqueueNumberingDiagnosis,
   EnqueueNumberingReconciliation,
 } from "./enqueue-numbering-conflict.js";
+import { answerOf } from "./fiscal-request-answer.js";
+import { diagnosisOf } from "./fiscal-request-diagnosis.js";
 import {
   DIAGNOSE_NUMBERING_CONFLICT_TASK_IDENTIFIER,
   NUMBERING_CONFLICT_PRIORITY,
@@ -63,12 +65,25 @@ export async function enqueueMissingNumberingConflicts<TQueryResult extends PgQu
   const undiagnosed = await db
     .select({
       fiscalDocumentId: fiscalRequests.fiscalDocumentId,
+      answerKind: fiscalRequests.answerKind,
+      authorizationCode: fiscalRequests.authorizationCode,
+      authorizationCodeDueOn: fiscalRequests.authorizationCodeDueOn,
+      rejectionCodes: fiscalRequests.rejectionCodes,
+      rejectionClass: fiscalRequests.rejectionClass,
       unclearCodes: fiscalRequests.unclearCodes,
+      diagnosis: fiscalRequests.diagnosis,
     })
     .from(fiscalRequests)
     .where(and(eq(fiscalRequests.answerKind, "unclear"), isNull(fiscalRequests.diagnosis)));
-  for (const { fiscalDocumentId, unclearCodes } of undiagnosed) {
-    if (isNumberingConflict(unclearCodes ?? [])) {
+  for (const row of undiagnosed) {
+    const { fiscalDocumentId } = row;
+    if (
+      awaitsNumberingDiagnosis({
+        answer: answerOf(row),
+        unclearCodes: row.unclearCodes ?? [],
+        diagnosis: diagnosisOf(row.diagnosis),
+      })
+    ) {
       await db.execute(
         sql`select graphile_worker.add_job(
           ${DIAGNOSE_NUMBERING_CONFLICT_TASK_IDENTIFIER}::text,

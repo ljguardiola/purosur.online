@@ -1,7 +1,7 @@
 import {
   awaitsUnclearOutcomeDecision,
   fiscalRejectionAlertObservation,
-  isNumberingConflict,
+  isNumberingConflictAnswer,
 } from "@purosur/domain";
 import {
   type AuthorizationRequestRecord,
@@ -67,7 +67,7 @@ class DrizzlePointOfSaleLane<TQueryResult extends PgQueryResultHKT> implements P
     } else {
       await this.withdrawUnclearOutcome(transaction, fiscalDocumentId);
     }
-    if (answer.kind === "unclear" && isNumberingConflict(unclearCodes)) {
+    if (isNumberingConflictAnswer({ answer, unclearCodes })) {
       await this.enqueueNumberingDiagnosis(transaction, fiscalDocumentId);
     }
   }

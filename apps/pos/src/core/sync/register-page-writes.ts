@@ -44,7 +44,12 @@ export function prepareRegisterPageWrites(database: LocalDatabase, mode: PageWri
        fiscal_address_id = CASE WHEN excluded.version > register_point_of_sale.version
          THEN excluded.fiscal_address_id ELSE register_point_of_sale.fiscal_address_id END,
        tax_authority_last_authorized_number = CASE
-         WHEN excluded.version = register_point_of_sale.version THEN excluded.tax_authority_last_authorized_number
+         WHEN excluded.version = register_point_of_sale.version
+           AND excluded.tax_authority_last_authorized_number IS NOT NULL
+           AND (register_point_of_sale.tax_authority_last_authorized_number IS NULL
+             OR excluded.tax_authority_last_authorized_number > register_point_of_sale.tax_authority_last_authorized_number)
+         THEN excluded.tax_authority_last_authorized_number
+         WHEN excluded.version = register_point_of_sale.version THEN register_point_of_sale.tax_authority_last_authorized_number
          WHEN excluded.point_of_sale_number = register_point_of_sale.point_of_sale_number
            AND register_point_of_sale.tax_authority_last_authorized_number IS NOT NULL
            AND (excluded.tax_authority_last_authorized_number IS NULL
@@ -57,7 +62,9 @@ export function prepareRegisterPageWrites(database: LocalDatabase, mode: PageWri
        OR (excluded.version = register_point_of_sale.version
          AND excluded.tax_authority_last_authorized_number IS NOT NULL
          AND (register_point_of_sale.tax_authority_last_authorized_number IS NULL
-           OR excluded.tax_authority_last_authorized_number > register_point_of_sale.tax_authority_last_authorized_number))`
+           OR excluded.tax_authority_last_authorized_number > register_point_of_sale.tax_authority_last_authorized_number))
+       OR (excluded.version = register_point_of_sale.version
+         AND excluded.numbering_frozen <> register_point_of_sale.numbering_frozen)`
       : redeliveredPointOfSale("register_point_of_sale", true);
   const savePointOfSale = database.prepare(
     `INSERT INTO register_point_of_sale (
