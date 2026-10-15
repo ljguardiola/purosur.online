@@ -5,6 +5,7 @@ import {
   type BatteryReading,
   batteryHealthPercent,
   batteryReportOf,
+  batteryReportStanding,
   batteryStanding,
   CRITICAL_BATTERY_PERCENT,
   isOnBatteryTooLong,
@@ -208,5 +209,37 @@ describe("isOnBatteryTooLong", () => {
   it("is false with no battery or no report", () => {
     expect(isOnBatteryTooLong({ present: false })).toBe(false);
     expect(isOnBatteryTooLong(undefined)).toBe(false);
+  });
+});
+
+describe("batteryReportStanding", () => {
+  const report = (chargePercent: number, onBatteryNow: boolean) => ({
+    present: true as const,
+    charge_percent: chargePercent,
+    on_battery: onBatteryNow,
+    on_battery_minutes: 0,
+  });
+
+  it("applies the thresholds of a reading to a report", () => {
+    fc.assert(
+      fc.property(fc.integer({ min: 0, max: 100 }), fc.boolean(), (charge, onBatteryNow) => {
+        const reading: BatteryReading = {
+          kind: "present",
+          chargePercent: charge,
+          onBattery: onBatteryNow,
+        };
+        return batteryReportStanding(report(charge, onBatteryNow)) === batteryStanding(reading);
+      }),
+    );
+  });
+
+  it("is low or critical on battery below the thresholds", () => {
+    expect(batteryReportStanding(report(19, true))).toBe("low");
+    expect(batteryReportStanding(report(9, true))).toBe("critical");
+  });
+
+  it("is normal with no battery or no report", () => {
+    expect(batteryReportStanding({ present: false })).toBe("normal");
+    expect(batteryReportStanding(undefined)).toBe("normal");
   });
 });
