@@ -160,6 +160,7 @@
                       "DeviceCredentialsRequest",
                       "RegisterUpdateAnswer",
                       "MainToCoreMessage",
+                      "QuitRegisterMessage",
                       "UpdateSafeMomentAnswer"
                     ]
                   }
