@@ -25,6 +25,9 @@ function toWire(presentation: BranchFortnightPresentation) {
     fortnight_start: presentation.fortnight.start,
     fortnight_end: presentation.fortnight.end,
     deadline: presentation.deadline,
+    document_type: presentation.documentType,
+    document_count: presentation.documentCount,
+    rejected_document: presentation.rejectedDocument,
     state: presentation.state,
   };
 }
