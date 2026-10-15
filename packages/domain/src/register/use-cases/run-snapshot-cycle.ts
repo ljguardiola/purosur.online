@@ -14,6 +14,7 @@ export interface RunSnapshotCyclePorts {
 
 export type RunSnapshotCycleOutcome =
   | { kind: "launched"; job: SnapshotWorkerJob }
+  | { kind: "launch_unavailable" }
   | { kind: "skipped"; reason: SnapshotSkipReason };
 
 export async function runSnapshotCycle({
@@ -37,6 +38,5 @@ export async function runSnapshotCycle({
     decision.kind === "take"
       ? { kind: "take", generationId: ids.next(), sequences: current }
       : { kind: "upload_pending" };
-  await launcher.launch(job);
-  return { kind: "launched", job };
+  return (await launcher.launch(job)) ? { kind: "launched", job } : { kind: "launch_unavailable" };
 }

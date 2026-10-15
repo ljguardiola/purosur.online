@@ -46,6 +46,7 @@ export {
   hasDistinctKeyVersions,
   INSTALLATION_KEY_BYTES,
   isWellFormedInstallationKey,
+  latestKey,
 } from "./model/installation-key.js";
 export {
   INSTALLATION_REPORT_MAX_LENGTH,

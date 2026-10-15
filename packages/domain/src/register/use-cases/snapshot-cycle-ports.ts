@@ -15,5 +15,5 @@ export type SnapshotWorkerJob =
   | { kind: "upload_pending" };
 
 export interface SnapshotWorkerLauncher {
-  launch(job: SnapshotWorkerJob): Promise<void>;
+  launch(job: SnapshotWorkerJob): Promise<boolean>;
 }

@@ -520,6 +520,7 @@ export {
   isWellFormedEnrollmentCode,
   isWellFormedInstallationKey,
   lastSuccessfulSyncOfRegister,
+  latestKey,
   mayAuthorize,
   nextOnBatterySince,
   nextOperationNumber,
