@@ -42,9 +42,7 @@ describe("snapshotCycleDecision", () => {
 
   it("takes a snapshot when only the applied cloud sequence moved", () => {
     expect(
-      snapshotCycleDecision(
-        facts({ current: { lastDeviceSeq: 10, pullCursor: 21 } }),
-      ),
+      snapshotCycleDecision(facts({ current: { lastDeviceSeq: 10, pullCursor: 21 } })),
     ).toEqual({ kind: "take" });
   });
 
