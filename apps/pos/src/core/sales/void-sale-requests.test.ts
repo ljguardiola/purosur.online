@@ -60,6 +60,7 @@ function deps(
     paidOrderDiscovery: () => "checked",
     newSalesStoppedByDisk: () => false,
     localDatabaseDamaged: () => false,
+    newSalesStoppedByBattery: () => false,
     ...overrides,
   };
 }

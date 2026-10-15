@@ -310,6 +310,7 @@ export async function withRegisterSession<TResult>(
       paidOrderDiscovery: () => "checked" as const,
       newSalesStoppedByDisk: () => false,
       localDatabaseDamaged: () => false,
+      newSalesStoppedByBattery: () => false,
     });
 
     for (const [step, request] of [
