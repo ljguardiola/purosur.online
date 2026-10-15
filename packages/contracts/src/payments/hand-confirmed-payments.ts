@@ -1,4 +1,7 @@
-import { CONFIRMED_BY_HAND_METHODS, isCalendarDay, isReportPeriodAsked } from "@purosur/domain";
+import {
+  ARGENTINA_TIME_ZONE,
+  CONFIRMED_BY_HAND_METHODS, isCalendarDay, isReportPeriodAsked,
+} from "@purosur/domain";
 import { z } from "zod";
 import { recordIdSchema } from "../shared/index.js";
 
@@ -36,7 +39,7 @@ export const handConfirmedPaymentsSchema = z.object({
       id: recordIdSchema(),
       method,
       amount: cents,
-      confirmed_at: z.iso.datetime(),
+      confirmed_at: z.iso.datetime().meta({ timeZone: ARGENTINA_TIME_ZONE }),
       cashier_name: z.string().nullable(),
       confirmed_by_name: z.string().nullable(),
       sale_operation_number: z.int().positive().nullable(),
