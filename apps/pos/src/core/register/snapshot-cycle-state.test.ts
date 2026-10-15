@@ -42,13 +42,18 @@ const STORAGE: StorageReading = {
 };
 
 function stateWith(
-  options: { battery?: BatteryReport | undefined; reachability?: CloudReachability } = {},
+  options: {
+    battery?: BatteryReport | undefined;
+    reachability?: CloudReachability;
+    damaged?: boolean;
+  } = {},
 ) {
   return createSnapshotCycleState({
     snapshotsFolder: folder,
     batteryReport: () => options.battery,
     readStorage: async () => STORAGE,
     cloudReachability: () => options.reachability ?? "reachable",
+    localDatabaseDamaged: () => options.damaged ?? false,
   });
 }
 
@@ -139,5 +144,13 @@ describe("createSnapshotCycleState", () => {
     ] as const)("is %s when the cloud was last seen %s", async (reachability, expected) => {
       expect(await stateWith({ reachability }).cloudReachable()).toBe(expected);
     });
+  });
+
+  it("answers that the local database is damaged when the register says so", async () => {
+    expect(await stateWith({ damaged: true }).localDatabaseDamaged()).toBe(true);
+  });
+
+  it("answers that the local database is not damaged when the register says so", async () => {
+    expect(await stateWith({ damaged: false }).localDatabaseDamaged()).toBe(false);
   });
 });

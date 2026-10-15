@@ -37,9 +37,18 @@ class FakeWorker implements SnapshotWorkerProcess {
   stdout = null;
   stderr = null;
   private exitListener: ((code: number | null) => void) | undefined;
+  private messageListener: ((message: unknown) => void) | undefined;
 
   once(_event: "exit", listener: (code: number | null) => void): void {
     this.exitListener = listener;
+  }
+
+  on(_event: "message", listener: (message: unknown) => void): void {
+    this.messageListener = listener;
+  }
+
+  say(message: unknown): void {
+    this.messageListener?.(message);
   }
 
   postMessage(message: unknown): void {
@@ -125,6 +134,44 @@ describe("createSnapshotWorkerLauncher", () => {
 
     expect(notices).toEqual([]);
     workers[0]?.exit(null);
+
+    expect(notices).toEqual([EXITED]);
+  });
+
+  it("tells the core which stage the copy failed at when the worker said so before it exited", () => {
+    const { launcher, workers, notices } = setup();
+    launcher.handleCoreMessage(LAUNCH);
+
+    workers[0]?.say({ type: "snapshot-copy-failed", stage: "integrity_check" });
+    workers[0]?.exit(1);
+
+    expect(notices).toEqual([{ ...EXITED, copy_failed_stage: "integrity_check" }]);
+  });
+
+  it("does not carry the failure of one worker over to the exit of the next", () => {
+    const { launcher, workers, notices } = setup();
+    launcher.handleCoreMessage(LAUNCH);
+    workers[0]?.say({ type: "snapshot-copy-failed", stage: "copy" });
+    workers[0]?.exit(1);
+    launcher.handleCoreMessage(LAUNCH);
+
+    workers[1]?.exit(0);
+
+    expect(notices).toEqual([{ ...EXITED, copy_failed_stage: "copy" }, EXITED]);
+  });
+
+  it.each([
+    ["another type", { type: "snapshot-finished", stage: "copy" }],
+    ["no stage", { type: "snapshot-copy-failed" }],
+    ["a stage that is not text", { type: "snapshot-copy-failed", stage: 3 }],
+    ["text", "snapshot-copy-failed"],
+    ["nothing", undefined],
+  ])("ignores a message from the worker with %s", (_name, message) => {
+    const { launcher, workers, notices } = setup();
+    launcher.handleCoreMessage(LAUNCH);
+
+    workers[0]?.say(message);
+    workers[0]?.exit(1);
 
     expect(notices).toEqual([EXITED]);
   });

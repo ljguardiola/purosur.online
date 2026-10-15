@@ -23,6 +23,9 @@ function setup(options: { reachable?: boolean; outcome?: RunSnapshotCycleOutcome
     checkpoint: (): void => {
       events.push("checkpoint");
     },
+    recordCopyFailure: async (stage: string): Promise<void> => {
+      events.push(`copy failed at ${stage}`);
+    },
   };
   const schedule = createSnapshotCycleSchedule({
     runCycle: () => behavior.runCycle(),
@@ -31,6 +34,7 @@ function setup(options: { reachable?: boolean; outcome?: RunSnapshotCycleOutcome
       scheduled.push({ run, delayMs });
     },
     checkpoint: () => behavior.checkpoint(),
+    recordCopyFailure: (stage) => behavior.recordCopyFailure(stage),
     onFailure: (error) => failures.push(error),
   });
   async function tick(): Promise<void> {
@@ -159,5 +163,37 @@ describe("createSnapshotCycleSchedule", () => {
 
     expect(failures).toEqual([failure]);
     expect(events).toEqual(["cycle", "cycle"]);
+  });
+
+  it("records the failure of a copy after the checkpoint when the worker exited because of it", async () => {
+    const { schedule, events } = setup({ outcome: SKIPPED });
+
+    await schedule.workerExited("integrity_check");
+
+    expect(events).toEqual(["checkpoint", "copy failed at integrity_check"]);
+  });
+
+  it("records no failure of a worker that exited with none", async () => {
+    const { schedule, events } = setup({ outcome: SKIPPED });
+
+    await schedule.workerExited();
+
+    expect(events).toEqual(["checkpoint"]);
+  });
+
+  it("reports a failure it could not record and lets the next cycle run", async () => {
+    const { schedule, events, failures, behavior, tick } = setup({ outcome: LAUNCHED });
+    const failure = new Error("disk is read-only");
+    behavior.recordCopyFailure = async () => {
+      throw failure;
+    };
+    schedule.start();
+    await tick();
+
+    await schedule.workerExited("copy");
+    await tick();
+
+    expect(failures).toEqual([failure]);
+    expect(events).toEqual(["cycle", "checkpoint", "cycle"]);
   });
 });
