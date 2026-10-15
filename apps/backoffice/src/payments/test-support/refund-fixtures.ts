@@ -68,9 +68,9 @@ export const latePaymentRefund: PendingRefundsBody["refunds"][number] = {
   last_refusal_reason: null,
 };
 
-export const LATE_POINT_PAYMENT_REFUND_ID = "98989898-9898-4989-8989-989898989898";
+const LATE_POINT_PAYMENT_REFUND_ID = "98989898-9898-4989-8989-989898989898";
 
-export const latePointPaymentRefund: PendingRefundsBody["refunds"][number] = {
+const latePointPaymentRefund: PendingRefundsBody["refunds"][number] = {
   ...latePaymentRefund,
   id: LATE_POINT_PAYMENT_REFUND_ID,
   method: "POINT",
@@ -79,7 +79,7 @@ export const latePointPaymentRefund: PendingRefundsBody["refunds"][number] = {
   delivery_stage: null,
 };
 
-export const confirmedLatePaymentRefund: PendingRefundsBody["refunds"][number] = {
+const confirmedLatePaymentRefund: PendingRefundsBody["refunds"][number] = {
   ...latePaymentRefund,
   discardable: false,
   delivery_stage: "sent",
