@@ -1,5 +1,5 @@
 {
-  "id": "84f98755-63ff-46b0-aa8f-c09932e39880",
+  "id": "c2a078fd-c881-4694-915e-95d103b87e61",
   "prevId": "286b1eb8-e6d7-4863-9ae2-922b997ccbbe",
   "version": "7",
   "dialect": "postgresql",
@@ -2254,6 +2254,18 @@
           "type": "date",
           "primaryKey": false,
           "notNull": false
+        },
+        "diagnosis": {
+          "name": "diagnosis",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "diagnosed_at": {
+          "name": "diagnosed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {
@@ -2327,6 +2339,18 @@
         "fiscal_requests_decision_answer_check": {
           "name": "fiscal_requests_decision_answer_check",
           "value": "\"fiscal_requests\".\"decision\" is null or coalesce(\"fiscal_requests\".\"answer_kind\" in ('unclear', 'not_attempted'), false)"
+        },
+        "fiscal_requests_diagnosis_check": {
+          "name": "fiscal_requests_diagnosis_check",
+          "value": "\"fiscal_requests\".\"diagnosis\" in ('date_behind', 'collision')"
+        },
+        "fiscal_requests_diagnosis_time_check": {
+          "name": "fiscal_requests_diagnosis_time_check",
+          "value": "(\"fiscal_requests\".\"diagnosis\" is null) = (\"fiscal_requests\".\"diagnosed_at\" is null)"
+        },
+        "fiscal_requests_diagnosis_answer_check": {
+          "name": "fiscal_requests_diagnosis_answer_check",
+          "value": "\"fiscal_requests\".\"diagnosis\" is null or coalesce(\"fiscal_requests\".\"answer_kind\" = 'unclear', false)"
         }
       },
       "isRLSEnabled": false
@@ -3454,6 +3478,42 @@
         "lots_technical_has_no_expiry_or_purchase_date_check": {
           "name": "lots_technical_has_no_expiry_or_purchase_date_check",
           "value": "not \"lots\".\"technical\" or (\"lots\".\"expires_on\" is null and \"lots\".\"purchased_on\" is null)"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.numbering_freezes": {
+      "name": "numbering_freezes",
+      "schema": "",
+      "columns": {
+        "point_of_sale_number": {
+          "name": "point_of_sale_number",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "count_before_freeze": {
+          "name": "count_before_freeze",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "frozen_at": {
+          "name": "frozen_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "numbering_freezes_non_negative_check": {
+          "name": "numbering_freezes_non_negative_check",
+          "value": "\"numbering_freezes\".\"count_before_freeze\" >= 0"
         }
       },
       "isRLSEnabled": false
@@ -6919,13 +6979,6 @@
         },
         "object_deleted": {
           "name": "object_deleted",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "on_register_disk": {
-          "name": "on_register_disk",
           "type": "boolean",
           "primaryKey": false,
           "notNull": true,

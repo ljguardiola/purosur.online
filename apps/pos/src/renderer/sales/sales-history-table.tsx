@@ -21,7 +21,7 @@ import type { ShownSalesHistory } from "./sales-queries";
 type Row = Extract<ShownSalesHistory, { kind: "found" }>["rows"][number];
 
 export type SessionFilter = "open" | "all";
-export type StateFilter = "all" | "completed" | "in_progress" | "deferred";
+export type StateFilter = "all" | "completed" | "voided" | "in_progress" | "deferred";
 
 const SESSION_OPTIONS = [
   { value: "open", label: "La abierta" },
@@ -31,6 +31,7 @@ const SESSION_OPTIONS = [
 const STATE_OPTIONS = [
   { value: "all", label: "Todos" },
   { value: "completed", label: "Completada" },
+  { value: "voided", label: "Anulada" },
   { value: "in_progress", label: "En trámite" },
   { value: "deferred", label: "Diferida" },
 ] as const;

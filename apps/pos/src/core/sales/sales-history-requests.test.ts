@@ -55,6 +55,8 @@ interface SaleSeed {
   operationNumber: number;
   deferred?: boolean;
   authorizedDocumentNumber?: number;
+  state?: "COMPLETED" | "VOIDED";
+  session?: string;
 }
 
 function addSale({
@@ -63,13 +65,15 @@ function addSale({
   operationNumber,
   deferred = false,
   authorizedDocumentNumber,
+  state = "COMPLETED",
+  session = "s1",
 }: SaleSeed): void {
   database
     .prepare(
-      `INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at, operation_number)
-       VALUES (?, 'r1', 'device-1', 's1', 'clerk', 'COMPLETED', ?, ?)`,
+      `INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at, operation_number, voided_at)
+       VALUES (?, 'r1', 'device-1', ?, 'clerk', ?, ?, ?, ?)`,
     )
-    .run(id, occurredAt, operationNumber);
+    .run(id, session, state, occurredAt, operationNumber, state === "VOIDED" ? occurredAt : null);
   database
     .prepare(
       `INSERT INTO sale_lines (id, sale_id, position, product_id, product_name, quantity, list_unit_price, price_list_id, discount_amount, line_total)
@@ -206,6 +210,25 @@ describe("the sales history", () => {
     ]);
   });
 
+  it("shows a voided sale as voided and answers the voided sales when asked for them", async () => {
+    addSale({ id: "plain", occurredAt: "2026-10-08T09:00:00.000Z", operationNumber: 1 });
+    addSale({
+      id: "gone",
+      occurredAt: "2026-10-08T10:00:00.000Z",
+      operationNumber: 2,
+      state: "VOIDED",
+    });
+
+    const all = await salesHistoryFor(deps(), ASK);
+    const voided = await salesHistoryFor(deps(), { ...ASK, state: "voided" });
+
+    expect(all.kind === "found" && all.rows.map(({ sale_id, state }) => [sale_id, state])).toEqual([
+      ["gone", "voided"],
+      ["plain", "completed"],
+    ]);
+    expect(voided.kind === "found" && voided.rows.map(({ sale_id }) => sale_id)).toEqual(["gone"]);
+  });
+
   it("answers the sales of the open session only when asked for it", async () => {
     database.exec(
       `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state, closed_at)
@@ -277,8 +300,73 @@ describe("the detail of a sale of the history", () => {
         line_count: 1,
         payments: [{ method: "CASH", amount: 3000 }],
         state: "completed",
+        voidability: { kind: "not_voidable", refusal: "carries_invoice" },
+        void_authorization_required: true,
+        reprint: { kind: "available" },
         next_copy: { kind: "original" },
       },
+    });
+  });
+
+  it("answers the refunds a sale of the open session would give when it may be voided", async () => {
+    addSale({
+      id: "unbilled",
+      occurredAt: "2026-10-08T09:30:00.000Z",
+      operationNumber: 483,
+      deferred: true,
+    });
+
+    const answer = await saleHistoryDetailFor(deps(), "unbilled");
+
+    expect(answer.kind === "found" && answer.detail.voidability).toEqual({
+      kind: "voidable",
+      refunds: [{ method: "CASH", amount: 3000, state: "APPROVED" }],
+    });
+  });
+
+  it("answers that voiding needs no other person's authorization to a person who may void", async () => {
+    addPerson("supervisor", "Grace", ["view_sales_history", "void_sale"]);
+    signedInPerson.set("supervisor");
+
+    const answer = await saleHistoryDetailFor(deps(), "sale-1");
+
+    expect(answer.kind === "found" && answer.detail.void_authorization_required).toBe(false);
+  });
+
+  it("answers that a sale of a closed session cannot be voided", async () => {
+    database.exec(
+      `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state, closed_at)
+       VALUES ('s0', 'r1', 'device-1', 'clerk', '2026-10-07T08:00:00.000Z', 0, 'CLOSED', '2026-10-07T20:00:00.000Z');`,
+    );
+    addSale({
+      id: "old",
+      occurredAt: "2026-10-07T09:00:00.000Z",
+      operationNumber: 1,
+      session: "s0",
+    });
+
+    const answer = await saleHistoryDetailFor(deps(), "old");
+
+    expect(answer.kind === "found" && answer.detail.voidability).toEqual({
+      kind: "not_voidable",
+      refusal: "session_closed",
+    });
+  });
+
+  it("answers a voided sale as voided, no longer voidable", async () => {
+    addSale({
+      id: "gone",
+      occurredAt: "2026-10-08T10:00:00.000Z",
+      operationNumber: 2,
+      state: "VOIDED",
+    });
+
+    const answer = await saleHistoryDetailFor(deps(), "gone");
+
+    expect(answer.kind === "found" && answer.detail).toMatchObject({
+      state: "voided",
+      voidability: { kind: "not_voidable", refusal: "not_completed" },
+      reprint: { kind: "sale_voided" },
     });
   });
 

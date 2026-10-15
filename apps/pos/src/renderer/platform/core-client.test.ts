@@ -1158,6 +1158,62 @@ describe("createCoreClient", () => {
     ]);
   });
 
+  it("asks the core to void a sale, confirming the pending refunds and naming who authorizes", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+    const authorization = { user_id: "u2", pin: "1234" };
+
+    const voided = client.voidSale("sale-1", true, authorization);
+    port.answer({
+      type: "void-sale-result",
+      request_id: "request-1",
+      outcome: {
+        kind: "voided",
+        refunds: [],
+        authorized_by: { user_id: "u2", first_name: "Grace" },
+      },
+    });
+
+    expect(await voided).toEqual({
+      kind: "voided",
+      refunds: [],
+      authorized_by: { user_id: "u2", first_name: "Grace" },
+    });
+    expect(port.posted).toEqual([
+      {
+        type: "void-sale",
+        request_id: "request-1",
+        sale_id: "sale-1",
+        pending_refunds_confirmed: true,
+        authorization,
+      },
+    ]);
+  });
+
+  it("asks the core to void a sale without an authorization when none is given", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const voided = client.voidSale("sale-1", false, undefined);
+    port.answer({
+      type: "void-sale-result",
+      request_id: "request-1",
+      outcome: { kind: "session_closed" },
+    });
+
+    expect(await voided).toEqual({ kind: "session_closed" });
+    expect(port.posted).toEqual([
+      {
+        type: "void-sale",
+        request_id: "request-1",
+        sale_id: "sale-1",
+        pending_refunds_confirmed: false,
+      },
+    ]);
+  });
+
   it.each([
     { kind: "results", products: [], more: true },
     { kind: "no_open_session" },

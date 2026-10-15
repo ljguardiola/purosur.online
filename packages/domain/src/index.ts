@@ -44,6 +44,7 @@ export {
   canSeeAlert,
   ESCALATED_LEVEL,
   escalatesAt,
+  externalBillingObservation,
   FORTNIGHT_REPORT_PENDING_REASONS,
   fiscalRejectionAlertObservation,
   fiscalUnknownAlertKey,
@@ -204,6 +205,7 @@ export type {
 export {
   ARCA_VITALITY_CHECK_INTERVAL_MS,
   AUTHORIZATION_CODE_TYPE_CAE,
+  awaitsNumberingDiagnosis,
   awaitsUnclearOutcomeDecision,
   CURRENCY_PESOS,
   chargeRefusal,
@@ -238,6 +240,7 @@ export {
   isIssuerIdentificationActivityStartDate,
   isIssuerIdentificationGrossIncomeRegistrationTooLong,
   isIssuerIdentificationLegalNameTooLong,
+  isNumberingConflictAnswer,
   isOfflineDocumentReported,
   isPointOfSaleNumber,
   isSameFiscalAddressName,
@@ -249,6 +252,7 @@ export {
   latestIssuerIdentification,
   mustHoldOfflineAuthorizationCode,
   NUMBER_CONSUMING_STATES,
+  NUMBERING_CONFLICT_REASK_INTERVAL_MS,
   nextBuyerTaxStatusFetchAt,
   nextOfflineNumber,
   OFFLINE_AUTHORIZATION_CAUSES,
@@ -339,6 +343,7 @@ export {
   REFUND_STATES,
   REFUND_TASK_ORIGINS,
   SALE_PAYMENT_STATE_HOLDING_PAID_ORDER,
+  SALE_VOIDED_REFUND_ORIGIN,
 } from "./payments/index.js";
 export type {
   AuthorizablePermissionKey,
@@ -618,6 +623,7 @@ export {
   receiptReprintReason,
   SALE_STANDING_DEFINITIONS,
   SALE_STANDINGS,
+  SALE_VOID_REFUSALS,
   SALES_HISTORY_PAGE_SIZE,
   SALES_REPORT_GROUPS,
   SALES_REPORT_SALE_STATE,

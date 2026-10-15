@@ -7,6 +7,7 @@ import { FICTIONAL_CERTIFICATE_CUIT } from "@purosur/domain/fiscal/test-support"
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterEach, describe, expect, expectTypeOf, it, vi } from "vitest";
 import { type BuildAppOptions, buildApp as buildRealApp } from "./app.js";
+import { enqueueNumberingDiagnosisJob } from "./fiscal/graphile-numbering-conflict-queue.js";
 import { enqueueOfflineAuthorizationCodeRequest } from "./fiscal/graphile-offline-authorization-code-queue.js";
 import { enqueueTaxAuthorityCountJob } from "./fiscal/graphile-tax-authority-count-queue.js";
 import {
@@ -782,6 +783,7 @@ describe("startServer", () => {
       recordAuthorizedCuit: vi.fn().mockResolvedValue(undefined),
       enqueueMissingTaxAuthorityCounts: vi.fn().mockResolvedValue(undefined),
       enqueueMissingUnclearOutcomes: vi.fn().mockResolvedValue(undefined),
+      enqueueMissingNumberingConflicts: vi.fn().mockResolvedValue(undefined),
       now,
     });
 
@@ -974,6 +976,7 @@ describe("startServer checking the offsite dump", () => {
         recordAuthorizedCuit: vi.fn().mockResolvedValue(undefined),
         enqueueMissingTaxAuthorityCounts: vi.fn().mockResolvedValue(undefined),
         enqueueMissingUnclearOutcomes: vi.fn().mockResolvedValue(undefined),
+        enqueueMissingNumberingConflicts: vi.fn().mockResolvedValue(undefined),
       },
     );
     return { buildApp, setUpRecovery };
@@ -1110,6 +1113,7 @@ describe("startServer checking the certificate's expiry", () => {
       recordAuthorizedCuit: vi.fn().mockResolvedValue(undefined),
       enqueueMissingTaxAuthorityCounts: vi.fn().mockResolvedValue(undefined),
       enqueueMissingUnclearOutcomes: vi.fn().mockResolvedValue(undefined),
+      enqueueMissingNumberingConflicts: vi.fn().mockResolvedValue(undefined),
       enqueueArcaCertificateExpiryCheck,
     });
 
@@ -1181,6 +1185,7 @@ describe("startServer with the ARCA private key", () => {
       recordAuthorizedCuit: vi.fn().mockResolvedValue(undefined),
       enqueueMissingTaxAuthorityCounts: vi.fn().mockResolvedValue(undefined),
       enqueueMissingUnclearOutcomes: vi.fn().mockResolvedValue(undefined),
+      enqueueMissingNumberingConflicts: vi.fn().mockResolvedValue(undefined),
     });
     return { started, setUpRecovery };
   }
@@ -1370,6 +1375,7 @@ describe("startServer fetching the buyer tax-status values", () => {
       recordAuthorizedCuit: vi.fn().mockResolvedValue(undefined),
       enqueueMissingTaxAuthorityCounts: vi.fn().mockResolvedValue(undefined),
       enqueueMissingUnclearOutcomes: vi.fn().mockResolvedValue(undefined),
+      enqueueMissingNumberingConflicts: vi.fn().mockResolvedValue(undefined),
       enqueueBuyerTaxStatusFetch,
     });
     return { started, steps, recovery, setUpRecovery, enqueueBuyerTaxStatusFetch };
@@ -1459,6 +1465,9 @@ describe("startServer authorizing sales in real time", () => {
     const enqueueMissingUnclearOutcomes = vi.fn(async () => {
       steps.push("enqueueMissingUnclearOutcomes");
     });
+    const enqueueMissingNumberingConflicts = vi.fn(async () => {
+      steps.push("enqueueMissingNumberingConflicts");
+    });
     const started = startServer(startEnv, {
       arcaEndpoints: arcaEndpointsOf,
       initSentry: vi.fn(),
@@ -1468,6 +1477,7 @@ describe("startServer authorizing sales in real time", () => {
       enqueueBuyerTaxStatusFetch: vi.fn().mockResolvedValue(undefined),
       enqueueMissingTaxAuthorityCounts,
       enqueueMissingUnclearOutcomes,
+      enqueueMissingNumberingConflicts,
     });
     return {
       started,
@@ -1477,6 +1487,7 @@ describe("startServer authorizing sales in real time", () => {
       buildApp,
       enqueueMissingTaxAuthorityCounts,
       enqueueMissingUnclearOutcomes,
+      enqueueMissingNumberingConflicts,
     };
   }
 
@@ -1517,6 +1528,7 @@ describe("startServer authorizing sales in real time", () => {
       certificateFingerprint: credentials.fingerprint,
       enqueueUnclearOutcome: enqueueUnclearOutcomeJob,
       withdrawUnclearOutcome: withdrawUnclearOutcomeJob,
+      enqueueNumberingDiagnosis: enqueueNumberingDiagnosisJob,
     });
   });
 
@@ -1570,6 +1582,7 @@ describe("startServer authorizing sales in real time", () => {
     expect(steps).toEqual([
       "enqueueMissingTaxAuthorityCounts",
       "enqueueMissingUnclearOutcomes",
+      "enqueueMissingNumberingConflicts",
       "listen",
     ]);
   });
@@ -1582,6 +1595,16 @@ describe("startServer authorizing sales in real time", () => {
     await started;
 
     expect(enqueueMissingUnclearOutcomes).toHaveBeenCalledWith(recovery.db);
+  });
+
+  it("asks again for the numbering conflict work still owed before it starts listening", async () => {
+    const { started, recovery, enqueueMissingNumberingConflicts } = start({
+      ...env,
+      ARCA_PRIVATE_KEY: credentials.privateKeyPem,
+    });
+    await started;
+
+    expect(enqueueMissingNumberingConflicts).toHaveBeenCalledWith(recovery.db);
   });
 
   it("wires none of it without the key, as no WSAA token is ever renewed to ask with", async () => {
@@ -1643,6 +1666,7 @@ describe("startServer creating Mercado Pago QR orders", () => {
       enqueueBuyerTaxStatusFetch: vi.fn().mockResolvedValue(undefined),
       enqueueMissingTaxAuthorityCounts: vi.fn().mockResolvedValue(undefined),
       enqueueMissingUnclearOutcomes: vi.fn().mockResolvedValue(undefined),
+      enqueueMissingNumberingConflicts: vi.fn().mockResolvedValue(undefined),
     });
     return { started, buildApp, recovery, setUp };
   }
@@ -1784,6 +1808,7 @@ describe("startServer with the real app", () => {
         recordAuthorizedCuit: vi.fn().mockResolvedValue(undefined),
         enqueueMissingTaxAuthorityCounts: vi.fn().mockResolvedValue(undefined),
         enqueueMissingUnclearOutcomes: vi.fn().mockResolvedValue(undefined),
+        enqueueMissingNumberingConflicts: vi.fn().mockResolvedValue(undefined),
       },
     );
 
@@ -2043,6 +2068,7 @@ describe("startServer ARCA endpoints", () => {
         recordAuthorizedCuit: vi.fn().mockResolvedValue(undefined),
         enqueueMissingTaxAuthorityCounts: vi.fn().mockResolvedValue(undefined),
         enqueueMissingUnclearOutcomes: vi.fn().mockResolvedValue(undefined),
+        enqueueMissingNumberingConflicts: vi.fn().mockResolvedValue(undefined),
         arcaEndpoints,
       },
     );

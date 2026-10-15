@@ -12,6 +12,7 @@ export type AlertScopeKind =
   | "environment"
   | "event"
   | "pointOfSaleDocumentType"
+  | "pointOfSaleDocumentNumber"
   | "registerFortnight"
   | "refund"
   | "fiscalDocument"
@@ -233,6 +234,14 @@ const ALERT_KIND_POLICIES = {
     escalation: null,
     audience: "all",
     scopeKind: "pointOfSaleFortnight",
+    deduplicates: true,
+    resolvesAfterStableClear: false,
+  },
+  external_billing: {
+    level: "critical",
+    escalation: null,
+    audience: "all",
+    scopeKind: "pointOfSaleDocumentNumber",
     deduplicates: true,
     resolvesAfterStableClear: false,
   },

@@ -412,6 +412,14 @@ function fiscalUnknownDescription({
   return `Comprobante ${document}, desde el ${alertDateTime(new Date(unclearSince))}. Mientras no se resuelva, ese punto de venta no pide CAE y las ventas de la caja quedan diferidas.`;
 }
 
+function externalBillingDescription({
+  pointOfSale,
+  number,
+}: Extract<AlertDetail, { kind: "external_billing" }>["detail"]): string {
+  const document = `${formatPointOfSaleNumber(pointOfSale)}-${formatInvoiceNumber(number)}`;
+  return `ARCA tiene autorizado el comprobante ${document} de este punto de venta y ninguna venta de la caja lo justifica. Revisar quién lo emitió fuera del sistema. No se emite ninguna nota de crédito automática.`;
+}
+
 function alertTitle(alert: AlertDetail): string {
   const localTitle = alert.audience === "local" ? localAlertTitle(alert.kind) : undefined;
   if (localTitle !== undefined) {
@@ -458,6 +466,7 @@ function alertTitle(alert: AlertDetail): string {
     case "offsite_dump_unverified":
     case "fortnight_report_pending":
     case "fortnight_report_overdue":
+    case "external_billing":
     case "fortnight_report_needs_regularization":
       return alertKindLabel(alert.kind);
   }
@@ -527,6 +536,8 @@ function alertDescription(alert: AlertDetail, catalog: PermissionCatalogWire = [
       return offlineAuthorizationCodeMissingDescription(alert);
     case "fiscal_unknown":
       return fiscalUnknownDescription(alert.detail);
+    case "external_billing":
+      return externalBillingDescription(alert.detail);
     case "outbox_chain_broken":
       return `La caja «${targetName}» envió eventos que no coinciden con su cadena: alguno se alteró, se quitó o se reordenó en el disco de la caja. La nube rechazó el envío y dio de baja la instalación.`;
     case "fiscal_rejected":
@@ -577,6 +588,12 @@ const CLOSING_NOTES: Record<AlertDetail["closing"], string | null> = {
     "Se resuelve sola cuando no queda ningún evento de esta caja en cuarentena.",
   by_hand: "No se cierra sola: se cierra a mano después de revisarla.",
 };
+
+function closingNote(alert: AlertDetail): string | null {
+  return alert.kind === "external_billing" && alert.closing === "by_hand"
+    ? "No se cierra sola: se cierra a mano después de revisar el comprobante."
+    : CLOSING_NOTES[alert.closing];
+}
 
 function AlertDescription({ alert }: { alert: AlertDetail }) {
   if (alert.kind === "fiscal_rejected") {
@@ -847,8 +864,8 @@ function OpenAlertDetailModal({
                 ))}
               </div>
             </div>
-            {alert.open && CLOSING_NOTES[alert.closing] !== null ? (
-              <p className="text-text-subtle text-detail">{CLOSING_NOTES[alert.closing]}</p>
+            {alert.open && closingNote(alert) !== null ? (
+              <p className="text-text-subtle text-detail">{closingNote(alert)}</p>
             ) : null}
           </>
         ) : null}

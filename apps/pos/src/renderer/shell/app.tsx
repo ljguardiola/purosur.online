@@ -404,6 +404,11 @@ function Register({ core }: { core: CoreClient }) {
     cancelSale: () => core.cancelSale(),
     cancelPaidSale: (saleId: string, authorization: Authorization | undefined) =>
       core.cancelPaidSale(saleId, authorization),
+    voidSale: (
+      saleId: string,
+      pendingRefundsConfirmed: boolean,
+      authorization: Authorization | undefined,
+    ) => core.voidSale(saleId, pendingRefundsConfirmed, authorization),
     receiptPrintStatus: (saleId: string) => core.receiptPrintStatus(saleId),
     printOriginalReceipt: (saleId: string) => core.printOriginalReceipt(saleId),
     convertPaidOrderIntoRefund: (paymentTransactionId: string) =>

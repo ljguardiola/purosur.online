@@ -26,8 +26,8 @@ function insertCompletedSale(saleId: string, state = "COMPLETED"): void {
   database.exec(
     `INSERT OR IGNORE INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
      VALUES ('s1', 'r1', 'device-1', 'u1', '2026-09-30T12:00:00.000Z', 0, 'OPEN');
-     INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at, operation_number)
-     VALUES ('${saleId}', 'r1', 'device-1', 's1', 'u1', '${state}', ${state === "OPEN" ? "NULL" : `'${COMPLETED_AT}'`}, ${state === "OPEN" ? "NULL" : "(SELECT 482 + count(*) FROM sales)"});`,
+     INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at, operation_number, voided_at)
+     VALUES ('${saleId}', 'r1', 'device-1', 's1', 'u1', '${state}', ${state === "OPEN" ? "NULL" : `'${COMPLETED_AT}'`}, ${state === "OPEN" ? "NULL" : "(SELECT 482 + count(*) FROM sales)"}, ${state === "VOIDED" ? `'${COMPLETED_AT}'` : "NULL"});`,
   );
 }
 
@@ -95,6 +95,17 @@ describe("a receipt ledger's delivery of a sale", () => {
     expect(inTransaction((tx) => tx.receiptDelivery("sale-open"))).toBeUndefined();
   });
 
+  it("is known for a voided sale, so its detail can still be read", () => {
+    insertCompletedSale("sale-gone", "VOIDED");
+
+    expect(inTransaction((tx) => tx.receiptDelivery("sale-gone"))).toMatchObject({
+      printAttemptedAt: null,
+      printedAt: null,
+      reprintCount: 0,
+      voided: true,
+    });
+  });
+
   it("starts with nothing attempted, printed or reprinted", () => {
     insertCompletedSale("sale-1");
 
@@ -102,6 +113,7 @@ describe("a receipt ledger's delivery of a sale", () => {
       printAttemptedAt: null,
       printedAt: null,
       reprintCount: 0,
+      voided: false,
     });
   });
 
@@ -117,6 +129,7 @@ describe("a receipt ledger's delivery of a sale", () => {
       printAttemptedAt: attemptedAt,
       printedAt: null,
       reprintCount: 0,
+      voided: false,
     });
 
     inTransaction((tx) => {
@@ -142,6 +155,7 @@ describe("a receipt ledger's delivery of a sale", () => {
       printAttemptedAt: attemptedAt,
       printedAt,
       reprintCount: 2,
+      voided: false,
     });
   });
 });

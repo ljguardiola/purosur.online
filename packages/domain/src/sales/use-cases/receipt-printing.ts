@@ -1,6 +1,7 @@
 import type { Clock, OperationAuthority, OutboxEventDraft } from "../../shared/index.js";
 import { receiptContent } from "../model/receipt-content.js";
 import { nextReceiptCopy, type ReceiptCopy } from "../model/receipt-copy.js";
+import { receiptPrintAvailability } from "../model/receipt-print-availability.js";
 import type {
   ReceiptLedger,
   ReceiptLedgerTransaction,
@@ -29,6 +30,7 @@ export interface ReceiptPrintingPorts<Grant extends ReceiptPrintGrant, Refusal> 
 
 export type ReceiptPrintOutcome =
   | { kind: "not_found" }
+  | { kind: "sale_voided" }
   | { kind: "unavailable" }
   | { kind: "printer_not_configured" }
   | { kind: "printed"; copy: ReceiptCopy }
@@ -101,6 +103,9 @@ async function printGrantedReceipt<Grant extends ReceiptPrintGrant, Refusal>(
     const delivery = tx.receiptDelivery(saleId);
     if (delivery === undefined) {
       return { kind: "not_found" };
+    }
+    if (receiptPrintAvailability(delivery).kind === "sale_voided") {
+      return { kind: "sale_voided" };
     }
     if (!tx.outboxReady()) {
       return { kind: "unavailable" };

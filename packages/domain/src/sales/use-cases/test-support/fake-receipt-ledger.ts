@@ -11,6 +11,7 @@ import type {
 export interface FakeReceiptSale {
   id: string;
   completed: boolean;
+  voided: boolean;
   source: ReceiptSource;
   printAttemptedAt: Date | null;
   printedAt: Date | null;
@@ -45,11 +46,12 @@ export class FakeReceiptLedger implements ReceiptLedger {
     const outcome = work({
       receiptDelivery: (saleId): ReceiptDelivery | undefined => {
         const sale = working.sales.find(({ id }) => id === saleId);
-        return sale?.completed
+        return sale?.completed || sale?.voided
           ? {
               printAttemptedAt: sale.printAttemptedAt,
               printedAt: sale.printedAt,
               reprintCount: sale.reprints.length,
+              voided: sale.voided,
             }
           : undefined;
       },

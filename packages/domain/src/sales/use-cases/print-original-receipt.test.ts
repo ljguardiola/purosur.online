@@ -9,6 +9,7 @@ import {
   NOT_PERMITTED,
   receiptRig,
   SENT_AT,
+  voidedSale,
 } from "./test-support/receipt-rig.js";
 
 describe("printOriginalReceipt", () => {
@@ -139,6 +140,18 @@ describe("printOriginalReceipt", () => {
       expect(await printOriginalReceipt(rig.ports, { saleId: "sale-1" }, rig.watch)).toEqual({
         kind: "not_found",
       });
+    });
+
+    it("answers sale_voided and records and sends nothing for a voided sale", async () => {
+      const rig = receiptRig([voidedSale()]);
+
+      const outcome = await printOriginalReceipt(rig.ports, { saleId: "sale-1" }, rig.watch);
+
+      expect(outcome).toEqual({ kind: "sale_voided" });
+      expect(rig.printer.sent).toEqual([]);
+      expect(rig.ledger.state.sales[0]?.printAttemptedAt).toBeNull();
+      expect(rig.ledger.state.sales[0]?.stored).toBeUndefined();
+      expect(rig.ledger.state.outbox).toEqual([]);
     });
 
     it("answers unavailable and records nothing when the outbox is not ready", async () => {

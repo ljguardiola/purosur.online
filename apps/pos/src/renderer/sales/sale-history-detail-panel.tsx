@@ -13,7 +13,7 @@ import {
   SidePanel,
   SummaryRowGroup,
 } from "@purosur/ui";
-import { FileSearch, Lock, Printer, ReceiptText, TriangleAlert } from "lucide-react";
+import { CircleX, FileSearch, Lock, Printer, ReceiptText, TriangleAlert } from "lucide-react";
 import type { ReactNode } from "react";
 import type { CoreData } from "../platform/use-core-query";
 import type { SaleDetail } from "../shell/sale-receipt-text";
@@ -25,6 +25,7 @@ import {
 import { paymentMethodName } from "./sale-history-text";
 import type { ShownSaleHistoryDetail } from "./sales-queries";
 import { useSaleHistoryDetailQuery } from "./sales-queries";
+import { voidRefusalReason } from "./void-sale-text";
 
 function detailRows(sale: SaleDetail): SummaryRowProps[] {
   const comprobante = comprobantePresentation(sale.comprobante);
@@ -38,6 +39,7 @@ function detailRows(sale: SaleDetail): SummaryRowProps[] {
             value: comprobante.detail,
           },
         ]),
+    ...(sale.state === "voided" ? [{ label: "Estado", value: "Anulada" }] : []),
     ...(sale.operation_number === null
       ? []
       : [{ label: "Operación", value: formatOperationNumber(sale.operation_number) }]),
@@ -49,7 +51,54 @@ function detailRows(sale: SaleDetail): SummaryRowProps[] {
   ];
 }
 
-function Sale({ sale, onReprint }: { sale: SaleDetail; onReprint: (sale: SaleDetail) => void }) {
+type SaleActions = {
+  onReprint: (sale: SaleDetail) => void;
+  onVoid: (sale: SaleDetail) => void;
+};
+
+function SaleFooter({ sale, onReprint, onVoid }: { sale: SaleDetail } & SaleActions) {
+  const { voidability } = sale;
+  const refusalReason =
+    voidability.kind === "voidable" ? undefined : voidRefusalReason(voidability.refusal);
+  const offersVoid = voidability.kind === "voidable" || refusalReason !== undefined;
+  if (sale.reprint.kind !== "available" && !offersVoid) {
+    return null;
+  }
+  return (
+    <div className="flex flex-col gap-3">
+      {sale.reprint.kind === "available" ? (
+        <Button
+          variant="secondary"
+          size="large"
+          fullWidth
+          icon={<Printer />}
+          onPress={() => onReprint(sale)}
+        >
+          {receiptCopyPresentation(sale.next_copy).printButton}
+        </Button>
+      ) : null}
+      {offersVoid ? (
+        <Button
+          variant="secondary"
+          size="large"
+          fullWidth
+          icon={<CircleX />}
+          {...(refusalReason === undefined ? {} : { disabledReason: refusalReason })}
+          onPress={() => onVoid(sale)}
+        >
+          Anular venta
+        </Button>
+      ) : null}
+      {sale.void_authorization_required && offersVoid ? (
+        <p className="text-detail text-text-subtle">
+          Sin permiso para anular, se pide el PIN de alguien que lo tenga.
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+function Sale({ sale, onReprint, onVoid }: { sale: SaleDetail } & SaleActions) {
   const details = nonEmptyRows(detailRows(sale));
   const payments = nonEmptyRows(
     sale.payments.map((payment) => ({
@@ -60,17 +109,7 @@ function Sale({ sale, onReprint }: { sale: SaleDetail; onReprint: (sale: SaleDet
   return (
     <SidePanel
       label="Detalle de la venta"
-      footer={
-        <Button
-          variant="secondary"
-          size="large"
-          fullWidth
-          icon={<Printer />}
-          onPress={() => onReprint(sale)}
-        >
-          {receiptCopyPresentation(sale.next_copy).printButton}
-        </Button>
-      }
+      footer={<SaleFooter sale={sale} onReprint={onReprint} onVoid={onVoid} />}
     >
       <FigureStat
         label={`VENTA DE LAS ${formatClockTime(sale.occurred_at)}`}
@@ -94,10 +133,10 @@ function Message({ children }: { children: ReactNode }) {
 function SelectedSale({
   detail,
   onReprint,
+  onVoid,
 }: {
   detail: CoreData<ShownSaleHistoryDetail>;
-  onReprint: (sale: SaleDetail) => void;
-}) {
+} & SaleActions) {
   if (detail.status === "loading") {
     return (
       <Message>
@@ -120,7 +159,7 @@ function SelectedSale({
   }
   switch (detail.value.kind) {
     case "found":
-      return <Sale sale={detail.value.detail} onReprint={onReprint} />;
+      return <Sale sale={detail.value.detail} onReprint={onReprint} onVoid={onVoid} />;
     case "not_found":
       return (
         <Message>
@@ -158,25 +197,25 @@ function SelectedSaleReader({
   saleId,
   readDetail,
   onReprint,
+  onVoid,
 }: {
   saleId: string;
   readDetail: SaleHistoryDetailPanelProps["readDetail"];
-  onReprint: (sale: SaleDetail) => void;
-}) {
+} & SaleActions) {
   const detail = useSaleHistoryDetailQuery({ saleId, read: readDetail });
-  return <SelectedSale detail={detail} onReprint={onReprint} />;
+  return <SelectedSale detail={detail} onReprint={onReprint} onVoid={onVoid} />;
 }
 
 export type SaleHistoryDetailPanelProps = {
   saleId: string | undefined;
   readDetail: Parameters<typeof useSaleHistoryDetailQuery>[0]["read"];
-  onReprint: (sale: SaleDetail) => void;
-};
+} & SaleActions;
 
 export function SaleHistoryDetailPanel({
   saleId,
   readDetail,
   onReprint,
+  onVoid,
 }: SaleHistoryDetailPanelProps) {
   if (saleId === undefined) {
     return (
@@ -189,5 +228,12 @@ export function SaleHistoryDetailPanel({
       </Message>
     );
   }
-  return <SelectedSaleReader saleId={saleId} readDetail={readDetail} onReprint={onReprint} />;
+  return (
+    <SelectedSaleReader
+      saleId={saleId}
+      readDetail={readDetail}
+      onReprint={onReprint}
+      onVoid={onVoid}
+    />
+  );
 }

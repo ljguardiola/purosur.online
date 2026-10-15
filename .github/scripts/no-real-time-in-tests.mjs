@@ -419,13 +419,18 @@ export function readVitestProjects(configSource) {
 }
 
 export function readVerifyStaticTestGlobs(packageJsonSource) {
-  const script = JSON.parse(packageJsonSource).scripts?.["verify:static"];
+  const scripts = JSON.parse(packageJsonSource).scripts;
+  const script = scripts?.["verify:static"];
   if (!script) throw new Error("package.json has no verify:static script");
-  const globs = script
+  const withParts = script.replace(
+    /\bpnpm (verify:static:[\w-]+)/g,
+    (command, name) => scripts[name] ?? command,
+  );
+  const globs = withParts
     .match(/node --test\b([^&;|]*)/)?.[1]
     .trim()
     .split(/\s+/)
-    .filter(Boolean);
+    .filter((argument) => argument !== "" && !argument.startsWith("--"));
   if (!globs?.length) throw new Error("verify:static script has no `node --test` glob");
   return globs;
 }

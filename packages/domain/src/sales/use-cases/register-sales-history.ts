@@ -16,6 +16,7 @@ export interface SalesHistoryEntry {
   paymentMethods: PaymentMethod[];
   total: number;
   fiscal: SaleFiscalFacts;
+  voided: boolean;
 }
 
 export interface SalesHistoryPage {
@@ -32,6 +33,8 @@ export interface SaleHistoryRecord {
   total: number;
   payments: { method: PaymentMethod; amount: number }[];
   fiscal: SaleFiscalFacts;
+  voided: boolean;
+  inOpenSession: boolean;
 }
 
 export interface RegisterSalesHistory {

@@ -38,6 +38,7 @@ interface HealthCheckRow {
 interface PointOfSaleRow {
   point_of_sale: number;
   tax_authority_count: number | null;
+  numbering_frozen: number;
 }
 
 interface OfflinePointOfSaleRow {
@@ -71,7 +72,8 @@ function sqliteSaleAuthorizationTransaction(
       const pointOfSale = database
         .prepare<[], PointOfSaleRow>(
           `SELECT register_point_of_sale.point_of_sale_number AS point_of_sale,
-                  register_point_of_sale.tax_authority_last_authorized_number AS tax_authority_count
+                  register_point_of_sale.tax_authority_last_authorized_number AS tax_authority_count,
+                  register_point_of_sale.numbering_frozen
            FROM register_point_of_sale
            JOIN own_register ON own_register.id = register_point_of_sale.register_id
            WHERE own_register.removed = 0`,
@@ -84,6 +86,7 @@ function sqliteSaleAuthorizationTransaction(
           taxAuthorityLastAuthorized: null,
           documentRequesting: false,
           documentUnknown: false,
+          numberingFrozen: false,
         };
       }
       const local = database
@@ -104,6 +107,7 @@ function sqliteSaleAuthorizationTransaction(
         pointOfSale: pointOfSale.point_of_sale,
         localLastAuthorized: local?.last_authorized ?? null,
         taxAuthorityLastAuthorized: pointOfSale.tax_authority_count,
+        numberingFrozen: pointOfSale.numbering_frozen === 1,
         documentRequesting:
           waiting !== undefined && IN_PROGRESS_FISCAL_DOCUMENT_STATES.includes(waiting.state),
         documentUnknown:

@@ -466,6 +466,7 @@ export type {
   SaleDiscountRequest,
   ScanProductOutcome,
   SearchProductsOutcome,
+  VoidSaleOutcome,
   WeighProductOutcome,
 } from "./sales/sale.js";
 export type { SalesByCashierBody } from "./sales/sales-by-cashier.js";

@@ -740,8 +740,22 @@
     {
       "idx": 105,
       "version": "7",
-      "when": 1792081200789,
-      "tag": "0109_snapshot_generations_on_register_disk",
+      "when": 1792077096405,
+      "tag": "0109_numbering_conflict_freeze",
+      "breakpoints": true
+    },
+    {
+      "idx": 106,
+      "version": "7",
+      "when": 1792087184000,
+      "tag": "0110_voided_sales",
+      "breakpoints": true
+    },
+    {
+      "idx": 107,
+      "version": "7",
+      "when": 1792100034069,
+      "tag": "0111_snapshot_generations_on_register_disk",
       "breakpoints": true
     }
   ]

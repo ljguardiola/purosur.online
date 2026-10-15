@@ -46,6 +46,7 @@ describe("recording a deferred sale", () => {
         routed_at: "2026-09-30T12:05:01.000Z",
         satisfied_by_fiscal_document_id: null,
         satisfied_at: null,
+        cancelled_at: null,
       },
     ]);
   });

@@ -5,8 +5,10 @@ import {
   aCancelledSale,
   aCashSessionOpenedFact,
   aCompletedSale,
+  aVoidedSaleOf,
   type CancelledSale,
   type CompletedSale,
+  type VoidedSale,
 } from "../../sync/test-support/synced-facts.js";
 import { unappliedEventOf } from "../../sync/test-support/unapplied-event.js";
 
@@ -102,4 +104,57 @@ export async function applyCancelledSale<TQueryResult extends PgQueryResultHKT>(
     );
   });
   return cancelled;
+}
+
+export async function applyVoidedSale<TQueryResult extends PgQueryResultHKT>(
+  db: PgDatabase<TQueryResult>,
+  sale: {
+    deviceId: string;
+    completedAt: Date;
+    voidedAt: Date;
+    completed: Partial<CompletedSale>;
+  },
+): Promise<VoidedSale> {
+  const { deviceId, completedAt, voidedAt, completed: overrides } = sale;
+  const application = new DrizzleEventApplication(db, () => voidedAt);
+  const sessionId = randomUUID();
+  const completed = aCompletedSale({
+    sessionId,
+    completedAt,
+    lines: [],
+    cashMovements: [],
+    ...overrides,
+  });
+  const voided = aVoidedSaleOf(completed, { voidedAt });
+  const eventOf = (aggregateType: string, aggregateId: string, eventType: string) =>
+    unappliedEventOf(
+      {
+        event_id: randomUUID(),
+        device_seq: 1,
+        aggregate_type: aggregateType,
+        aggregate_id: aggregateId,
+        event_type: eventType,
+        schema_version: 1,
+        payload: {},
+        occurred_at: voidedAt.toISOString(),
+        actor_id: completed.actorId,
+        chain_hmac: "hmac",
+      },
+      { deviceId },
+    );
+  await application.transaction(async (tx) => {
+    await tx.record(
+      aCashSessionOpenedFact({ id: sessionId, openedAt: completedAt }),
+      eventOf("CashSession", sessionId, "cash_session_opened"),
+    );
+    await tx.record(
+      { kind: "sale_completed", sale: completed },
+      eventOf("Sale", completed.id, "sale_completed"),
+    );
+    await tx.record(
+      { kind: "sale_voided", sale: voided },
+      eventOf("Sale", completed.id, "sale_voided"),
+    );
+  });
+  return voided;
 }

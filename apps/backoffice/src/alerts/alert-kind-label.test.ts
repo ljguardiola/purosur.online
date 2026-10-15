@@ -18,6 +18,7 @@ test("names a kind of the catalog by its title", () => {
   expect(alertKindLabel("fiscal_unknown")).toBe("Resultado fiscal incierto");
   expect(alertKindLabel("fiscal_emission_stopped")).toBe("Emisión de facturas detenida");
   expect(alertKindLabel("outbox_chain_broken")).toBe("Cadena de eventos alterada");
+  expect(alertKindLabel("external_billing")).toBe("Facturación externa");
 });
 
 test("names a kind this app does not know yet, such as one a later cloud adds, by the kind itself", () => {

@@ -93,6 +93,11 @@ export {
   isIssuerIdentificationLegalNameTooLong,
   latestIssuerIdentification,
 } from "./model/issuer-identification.js";
+export {
+  awaitsNumberingDiagnosis,
+  isNumberingConflictAnswer,
+  NUMBERING_CONFLICT_REASK_INTERVAL_MS,
+} from "./model/numbering-conflict.js";
 export type { Fortnight } from "./model/offline-authorization-code.js";
 export {
   fortnightAfter,
@@ -145,6 +150,7 @@ export {
   DEFERRAL_REASONS,
   IN_PROGRESS_FISCAL_DOCUMENT_STATES,
   invoiceDateOf,
+  isFiscalOutcomeUnresolved,
   NUMBER_CONSUMING_STATES,
   OFFLINE_AUTHORIZATION_CAUSES,
   REAL_TIME_AUTHORIZATION_TIMEOUT_MS,

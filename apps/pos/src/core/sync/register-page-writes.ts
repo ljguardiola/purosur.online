@@ -20,6 +20,7 @@ function redeliveredPointOfSale(table: string, fiscalAddress: boolean): string {
   return `ON CONFLICT (register_id) DO UPDATE SET
        point_of_sale_number = excluded.point_of_sale_number,
        ${fiscalAddress ? "fiscal_address_id = excluded.fiscal_address_id," : ""}
+       ${fiscalAddress ? "numbering_frozen = excluded.numbering_frozen," : ""}
        ${keptNumbers.join(",\n       ")},
        version = excluded.version
      WHERE excluded.version >= ${table}.version`;
@@ -43,25 +44,35 @@ export function prepareRegisterPageWrites(database: LocalDatabase, mode: PageWri
        fiscal_address_id = CASE WHEN excluded.version > register_point_of_sale.version
          THEN excluded.fiscal_address_id ELSE register_point_of_sale.fiscal_address_id END,
        tax_authority_last_authorized_number = CASE
-         WHEN excluded.version = register_point_of_sale.version THEN excluded.tax_authority_last_authorized_number
+         WHEN excluded.version = register_point_of_sale.version
+           AND excluded.tax_authority_last_authorized_number IS NOT NULL
+           AND (register_point_of_sale.tax_authority_last_authorized_number IS NULL
+             OR excluded.tax_authority_last_authorized_number > register_point_of_sale.tax_authority_last_authorized_number)
+         THEN excluded.tax_authority_last_authorized_number
+         WHEN excluded.version = register_point_of_sale.version THEN register_point_of_sale.tax_authority_last_authorized_number
          WHEN excluded.point_of_sale_number = register_point_of_sale.point_of_sale_number
            AND register_point_of_sale.tax_authority_last_authorized_number IS NOT NULL
            AND (excluded.tax_authority_last_authorized_number IS NULL
              OR excluded.tax_authority_last_authorized_number < register_point_of_sale.tax_authority_last_authorized_number)
          THEN register_point_of_sale.tax_authority_last_authorized_number
          ELSE excluded.tax_authority_last_authorized_number END,
+       numbering_frozen = excluded.numbering_frozen,
        version = excluded.version
      WHERE excluded.version > register_point_of_sale.version
        OR (excluded.version = register_point_of_sale.version
          AND excluded.tax_authority_last_authorized_number IS NOT NULL
          AND (register_point_of_sale.tax_authority_last_authorized_number IS NULL
-           OR excluded.tax_authority_last_authorized_number > register_point_of_sale.tax_authority_last_authorized_number))`
+           OR excluded.tax_authority_last_authorized_number > register_point_of_sale.tax_authority_last_authorized_number))
+       OR (excluded.version = register_point_of_sale.version
+         AND excluded.numbering_frozen <> register_point_of_sale.numbering_frozen)`
       : redeliveredPointOfSale("register_point_of_sale", true);
   const savePointOfSale = database.prepare(
     `INSERT INTO register_point_of_sale (
-       register_id, point_of_sale_number, fiscal_address_id, tax_authority_last_authorized_number, version
+       register_id, point_of_sale_number, fiscal_address_id, tax_authority_last_authorized_number,
+       numbering_frozen, version
      ) VALUES (
-       @register_id, @point_of_sale_number, @fiscal_address_id, @tax_authority_last_authorized_number, @version
+       @register_id, @point_of_sale_number, @fiscal_address_id, @tax_authority_last_authorized_number,
+       @numbering_frozen, @version
      )
      ${savePointOfSaleConflict}`,
   );
@@ -114,7 +125,11 @@ export function prepareRegisterPageWrites(database: LocalDatabase, mode: PageWri
       entity_id,
       row,
     }: Extract<SyncChange, { entity: "register_point_of_sale" }>): void {
-      savePointOfSale.run({ register_id: entity_id, ...row });
+      savePointOfSale.run({
+        register_id: entity_id,
+        ...row,
+        numbering_frozen: row.numbering_frozen ? 1 : 0,
+      });
     },
 
     offlinePointOfSale({

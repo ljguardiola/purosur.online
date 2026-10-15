@@ -87,6 +87,7 @@ function portsOf(taxAuthority: TaxAuthorityInvoicing): AuthorizeFiscalDocumentPo
       postgresDedicatedConnections(sql),
       async () => {},
       async () => {},
+      async () => {},
     ),
     clock: { now: () => RECEIVED_AT },
     tokens: { validToken: async () => TOKEN },
