@@ -102,6 +102,12 @@ interface FiscalRejectedDetail {
   rejections: TaxAuthorityRejection[];
 }
 
+interface ExternalBillingDetail {
+  pointOfSale: number;
+  documentType: FiscalDocumentType;
+  number: number;
+}
+
 interface OfflineAuthorizationCodeMissingDetail {
   deviceId: string;
   fortnightStart: string;
@@ -190,6 +196,7 @@ export interface AlertDetails {
   offsite_dump_unverified: OffsiteDumpUnverifiedDetail;
   fortnight_report_pending: FortnightReportPendingDetail;
   fortnight_report_overdue: FortnightReportOverdueDetail;
+  external_billing: ExternalBillingDetail;
 }
 
 export type OpenAlertInput = {

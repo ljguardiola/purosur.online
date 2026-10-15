@@ -23,6 +23,7 @@ const ALERT_KIND_LIST = [
   "offsite_dump_unverified",
   "fortnight_report_pending",
   "fortnight_report_overdue",
+  "external_billing",
 ] as const;
 
 export type AlertKind = (typeof ALERT_KIND_LIST)[number];

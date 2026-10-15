@@ -45,6 +45,7 @@ export {
   ESCALATED_LEVEL,
   escalatesAt,
   FORTNIGHT_REPORT_PENDING_REASONS,
+  externalBillingObservation,
   fiscalRejectionAlertObservation,
   fiscalUnknownAlertKey,
   isAlertKind,

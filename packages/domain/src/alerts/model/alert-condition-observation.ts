@@ -156,6 +156,25 @@ export function fiscalRejectionObservation({
   };
 }
 
+export function externalBillingObservation({
+  pointOfSale,
+  documentType,
+  number,
+}: {
+  pointOfSale: number;
+  documentType: FiscalDocumentType;
+  number: number;
+}): AlertConditionObservation {
+  return {
+    holds: true,
+    alert: {
+      kind: "external_billing",
+      scope: [pointOfSale, documentType, number].join(":"),
+      detail: { pointOfSale, documentType, number },
+    },
+  };
+}
+
 export function fiscalDocumentAuthorizedObservation({
   pointOfSale,
   documentType,
