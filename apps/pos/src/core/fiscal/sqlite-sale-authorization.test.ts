@@ -683,3 +683,168 @@ describe("deciding a sale's authorization when the point of sale's numbering is 
     expect(routings()).toMatchObject([{ sale_id: "sale-1", reason: "numbering_frozen" }]);
   });
 });
+
+describe("deciding a sale's authorization against the register's clock marks", () => {
+  function setClockMark(pointOfSale: number, reading: string) {
+    database
+      .prepare(
+        `INSERT INTO register_clock_marks (point_of_sale, document_type, reading)
+         VALUES (?, 'factura_c', ?)`,
+      )
+      .run(pointOfSale, reading);
+  }
+
+  function clockMarks() {
+    return database
+      .prepare(
+        "SELECT point_of_sale, document_type, reading FROM register_clock_marks ORDER BY point_of_sale",
+      )
+      .all();
+  }
+
+  beforeEach(() => {
+    insertSaleCompletedEvent(database, "sale-1");
+    insertHealthCheck(database);
+    insertPointOfSale(database, 40);
+  });
+
+  describe("on the real-time series", () => {
+    it("reserves the number and raises the mark to the instant of the decision when the register holds none", () => {
+      decide();
+
+      expect(documents()).toMatchObject([{ number: 41, state: "REQUESTING" }]);
+      expect(clockMarks()).toEqual([
+        {
+          point_of_sale: POINT_OF_SALE,
+          document_type: "factura_c",
+          reading: DECIDED_AT.toISOString(),
+        },
+      ]);
+    });
+
+    it("raises a mark that is behind the decision", () => {
+      setClockMark(POINT_OF_SALE, "2026-09-30T11:00:00.000Z");
+
+      decide();
+
+      expect(clockMarks()).toEqual([
+        {
+          point_of_sale: POINT_OF_SALE,
+          document_type: "factura_c",
+          reading: DECIDED_AT.toISOString(),
+        },
+      ]);
+    });
+
+    it("keeps a mark ahead of the decision within the tolerance, reserving the number", () => {
+      setClockMark(POINT_OF_SALE, "2026-09-30T12:05:30.000Z");
+
+      decide();
+
+      expect(documents()).toMatchObject([{ number: 41 }]);
+      expect(clockMarks()).toEqual([
+        {
+          point_of_sale: POINT_OF_SALE,
+          document_type: "factura_c",
+          reading: "2026-09-30T12:05:30.000Z",
+        },
+      ]);
+    });
+
+    it("reserves nothing and defers the sale as clock_behind when the clock reads more than a minute behind the mark", () => {
+      setClockMark(POINT_OF_SALE, "2026-09-30T12:07:00.000Z");
+
+      decide();
+
+      expect(documents()).toEqual([]);
+      expect(routings()).toMatchObject([{ sale_id: "sale-1", reason: "clock_behind" }]);
+      expect(clockMarks()).toEqual([
+        {
+          point_of_sale: POINT_OF_SALE,
+          document_type: "factura_c",
+          reading: "2026-09-30T12:07:00.000Z",
+        },
+      ]);
+    });
+
+    it("ignores the mark of another point of sale", () => {
+      setClockMark(OFFLINE_POINT_OF_SALE, "2026-09-30T13:00:00.000Z");
+
+      decide();
+
+      expect(documents()).toMatchObject([{ number: 41 }]);
+    });
+
+    it("defers the sale as clock_behind when the clock reads a day before the tax authority's last authorized day", () => {
+      database
+        .prepare(
+          "UPDATE register_point_of_sale SET tax_authority_last_authorized_issued_on = '2026-10-01'",
+        )
+        .run();
+
+      decide();
+
+      expect(documents()).toEqual([]);
+      expect(routings()).toMatchObject([{ sale_id: "sale-1", reason: "clock_behind" }]);
+    });
+
+    it("reserves the number when the clock reads the tax authority's last authorized day", () => {
+      database
+        .prepare(
+          "UPDATE register_point_of_sale SET tax_authority_last_authorized_issued_on = '2026-09-30'",
+        )
+        .run();
+
+      decide();
+
+      expect(documents()).toMatchObject([{ number: 41 }]);
+    });
+  });
+
+  describe("when the register holds a code and a block", () => {
+    beforeEach(() => {
+      insertOfflinePointOfSale(database, OFFLINE_POINT_OF_SALE, 0);
+      insertOfflineNumberBlock(database, "block-1", 1, 1000, OFFLINE_POINT_OF_SALE);
+      insertOfflineAuthorizationCode(database);
+      setClockMark(POINT_OF_SALE, "2026-09-30T12:07:00.000Z");
+    });
+
+    it("issues the document under the code as a clock_behind cause and raises the offline series' mark to the sale's instant", () => {
+      decide();
+
+      expect(documents()).toEqual([]);
+      expect(offlineDocuments()).toMatchObject([{ number: 1, cause: "clock_behind" }]);
+      expect(clockMarks()).toEqual([
+        {
+          point_of_sale: POINT_OF_SALE,
+          document_type: "factura_c",
+          reading: "2026-09-30T12:07:00.000Z",
+        },
+        {
+          point_of_sale: OFFLINE_POINT_OF_SALE,
+          document_type: "factura_c",
+          reading: SALE_COMPLETED_AT.toISOString(),
+        },
+      ]);
+    });
+
+    it("defers the sale as clock_behind when the offline series' own mark is ahead of the sale by more than a minute", () => {
+      setClockMark(OFFLINE_POINT_OF_SALE, "2026-09-30T12:09:00.000Z");
+
+      decide();
+
+      expect(offlineDocuments()).toEqual([]);
+      expect(routings()).toMatchObject([{ sale_id: "sale-1", reason: "clock_behind" }]);
+    });
+  });
+
+  it("never lowers the mark when the sale is deferred for another reason", () => {
+    database.prepare("DELETE FROM register_point_of_sale").run();
+    setClockMark(POINT_OF_SALE, "2026-09-30T12:07:00.000Z");
+
+    decide();
+
+    expect(routings()).toMatchObject([{ reason: "point_of_sale_missing" }]);
+    expect(clockMarks()).toMatchObject([{ reading: "2026-09-30T12:07:00.000Z" }]);
+  });
+});

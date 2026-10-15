@@ -24,6 +24,7 @@ function offlinePointOfSaleChange(
     row: {
       point_of_sale_number: pointOfSaleNumber,
       tax_authority_last_authorized_number: taxAuthorityLastAuthorizedNumber,
+      tax_authority_last_authorized_issued_on: null,
       highest_synced_offline_number: null,
       version,
     },
