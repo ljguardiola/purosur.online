@@ -1,13 +1,13 @@
 import type { SnapshotLifecycleRules } from "../../model/snapshot-lifecycle-rules.js";
 import type {
+  SnapshotBackupGenerationFacts,
   SnapshotBackupRegister,
   SnapshotBackupsReader,
 } from "../snapshot-backups-read-ports.js";
-import type { SnapshotGeneration } from "../snapshot-generations.js";
 
 export class FakeSnapshotBackupsReader implements SnapshotBackupsReader {
   private readonly registers: SnapshotBackupRegister[] = [];
-  private readonly generations: SnapshotGeneration[] = [];
+  private readonly generations: SnapshotBackupGenerationFacts[] = [];
   private rules: SnapshotLifecycleRules | undefined;
 
   seedRegister(register: SnapshotBackupRegister): void {
@@ -18,7 +18,9 @@ export class FakeSnapshotBackupsReader implements SnapshotBackupsReader {
     this.rules = { ...rules };
   }
 
-  seedGeneration(generation: Partial<SnapshotGeneration> & Pick<SnapshotGeneration, "id">): void {
+  seedGeneration(
+    generation: Partial<SnapshotBackupGenerationFacts> & Pick<SnapshotBackupGenerationFacts, "id">,
+  ): void {
     this.generations.push({
       registerId: "register-1",
       deviceId: "device-1",
@@ -31,6 +33,7 @@ export class FakeSnapshotBackupsReader implements SnapshotBackupsReader {
       uploadReportedAt: null,
       pruned: false,
       objectDeleted: false,
+      onRegisterDisk: false,
       ...structuredClone(generation),
     });
   }
@@ -47,7 +50,7 @@ export class FakeSnapshotBackupsReader implements SnapshotBackupsReader {
     return this.rules ? { ...this.rules } : undefined;
   }
 
-  async generationsOf(registerId: string): Promise<SnapshotGeneration[]> {
+  async generationsOf(registerId: string): Promise<SnapshotBackupGenerationFacts[]> {
     return this.generations
       .filter((generation) => generation.registerId === registerId)
       .map((generation) => structuredClone(generation));

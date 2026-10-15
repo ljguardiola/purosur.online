@@ -2,6 +2,7 @@ import {
   ARGENTINA_TIME_ZONE,
   SNAPSHOT_FAILURE_REASONS,
   SNAPSHOT_LIFECYCLE_LIMITS,
+  SNAPSHOT_LOCATIONS,
 } from "@purosur/domain";
 import { describe, expect, it } from "vitest";
 import {
@@ -19,6 +20,7 @@ const GENERATION = {
   failure_reason: null,
   key_version: 2,
   counts_for_restore: true,
+  location: "disk_and_bucket",
 };
 
 const BACKUPS = {
@@ -61,8 +63,16 @@ describe("snapshotBackupsSchema", () => {
     ]);
   });
 
+  it.each(SNAPSHOT_LOCATIONS)("reads a generation kept at %s", (location) => {
+    const placed = { ...GENERATION, location };
+    expect(snapshotBackupsSchema.parse({ ...BACKUPS, generations: [placed] }).generations).toEqual([
+      placed,
+    ]);
+  });
+
   it.each([
     ["a status that is not one of the generation's", { status: "lost" }],
+    ["a location that is not known", { location: "cloud" }],
     ["a failure reason that is not known", { failure_reason: "cosmic_ray" }],
     ["a creation time that is not an instant", { created_at: "yesterday" }],
     ["a size of zero", { size: 0 }],

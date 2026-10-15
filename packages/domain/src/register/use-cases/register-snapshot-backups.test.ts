@@ -110,6 +110,7 @@ describe("registerSnapshotBackups", () => {
         failureReason: null,
         keyVersion: 2,
         countsForRestore: true,
+        location: "bucket",
       },
       {
         id: "failed",
@@ -119,7 +120,39 @@ describe("registerSnapshotBackups", () => {
         failureReason: "hash_mismatch",
         keyVersion: 1,
         countsForRestore: false,
+        location: "bucket",
       },
+    ]);
+  });
+
+  it("places each generation by what the register's disk holds and what the bucket holds", async () => {
+    const world = setup();
+    world.reader.seedGeneration({
+      id: "on-disk-and-uploaded",
+      createdAt: minutesBefore(10),
+      status: "verified",
+      onRegisterDisk: true,
+    });
+    world.reader.seedGeneration({
+      id: "uploaded-only",
+      createdAt: minutesBefore(20),
+      status: "verified",
+    });
+    world.reader.seedGeneration({
+      id: "declared",
+      createdAt: minutesBefore(5),
+      status: "declared",
+      onRegisterDisk: true,
+    });
+
+    const answer = await backupsOf(world);
+
+    expect(
+      answer.kind === "listed" && answer.generations.map(({ id, location }) => [id, location]),
+    ).toEqual([
+      ["declared", "disk"],
+      ["on-disk-and-uploaded", "disk_and_bucket"],
+      ["uploaded-only", "bucket"],
     ]);
   });
 
