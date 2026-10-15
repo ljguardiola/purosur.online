@@ -8,7 +8,7 @@ import { sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { auditLog, registerSnapshotLifecycleRules } from "../platform/db/schema.js";
 
-export const SNAPSHOT_LIFECYCLE_RULES_SINGLETON_ID = "00000000-0000-0000-0000-000000000002";
+const SNAPSHOT_LIFECYCLE_RULES_SINGLETON_ID = "00000000-0000-0000-0000-000000000002";
 
 type Transaction<TQueryResult extends PgQueryResultHKT> = Parameters<
   Parameters<PgDatabase<TQueryResult>["transaction"]>[0]

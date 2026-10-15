@@ -13,7 +13,7 @@ import { registerSnapshotBackupsRoutes } from "../snapshot-backups-routes.js";
 import { insertEnrolledInstallation } from "./enrolled-installation.js";
 import { keyStore } from "./key-store.js";
 
-export const BACKUPS_PERMISSION = "view_backups_and_rotate_key";
+const BACKUPS_PERMISSION = "view_backups_and_rotate_key";
 
 export function buildBackupsApp<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,

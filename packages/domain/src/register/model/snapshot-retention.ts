@@ -42,7 +42,7 @@ function newestOfEachBucket(
   return [...kept.values()];
 }
 
-export const SNAPSHOT_RETENTION_TIERS = ["recent", "hourly", "daily", "monthly"] as const;
+const SNAPSHOT_RETENTION_TIERS = ["recent", "hourly", "daily", "monthly"] as const;
 
 export type SnapshotRetentionTier = (typeof SNAPSHOT_RETENTION_TIERS)[number];
 
