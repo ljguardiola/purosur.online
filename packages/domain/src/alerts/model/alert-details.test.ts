@@ -255,6 +255,31 @@ describe("OpenAlertInput of a fortnight report", () => {
     }>().toExtend<OpenAlertInput>();
   });
 
+  it("accepts the point of sale, its register and the fortnight, without a deadline, for an alert that needs regularization", () => {
+    expectTypeOf<{
+      kind: "fortnight_report_needs_regularization";
+      scope: string;
+      detail: {
+        pointOfSaleNumber: number;
+        registerId: string;
+        fortnightStart: string;
+        fortnightEnd: string;
+      };
+    }>().toExtend<OpenAlertInput>();
+  });
+
+  it("refuses an alert that needs regularization without the fortnight's end", () => {
+    expectTypeOf<{
+      kind: "fortnight_report_needs_regularization";
+      scope: string;
+      detail: {
+        pointOfSaleNumber: number;
+        registerId: string;
+        fortnightStart: string;
+      };
+    }>().not.toExtend<OpenAlertInput>();
+  });
+
   it("refuses an overdue alert without the deadline", () => {
     expectTypeOf<{
       kind: "fortnight_report_overdue";
