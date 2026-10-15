@@ -8,6 +8,8 @@ export interface LocalAlertText {
 
 const SALES_DENIED_TITLE = "La caja no puede vender";
 
+const BATTERY_LOW_TITLE = "La notebook está sin enchufar";
+
 const FIXED_SALES_DENIED_TEXTS = {
   event_history_broken: {
     title: SALES_DENIED_TITLE,
@@ -22,12 +24,26 @@ const FIXED_SALES_DENIED_TEXTS = {
     whatToDo:
       "Restaurar la base de datos de la caja desde su copia de respaldo. No hace falta dar de alta la caja de nuevo: cuando vuelva a vender, esta alerta se cierra sola.",
   },
+  battery_critical: {
+    title: "No se pueden abrir ventas nuevas: queda poca batería",
+    meaning:
+      "La venta en curso se puede completar y cobrar. Después la caja envía lo pendiente y se cierra sola.",
+    whatToDo: "Conectar la notebook a la corriente para seguir vendiendo.",
+  },
 } satisfies Record<string, LocalAlertText>;
 
 type FixedSalesDeniedReason = keyof typeof FIXED_SALES_DENIED_TEXTS;
 
 function freeSpaceLeftPercent(ratio: number): number {
   return Math.round(ratio * 1000) / 10;
+}
+
+function batteryLowText(subject: BatteryLowSubject): LocalAlertText {
+  return {
+    title: BATTERY_LOW_TITLE,
+    meaning: `Queda ${formatPercent(subject.charge_percent)} de batería. Por debajo del ${formatPercent(subject.critical_percent)} no se abren ventas nuevas.`,
+    whatToDo: "Conectar la notebook a la corriente.",
+  };
 }
 
 function diskSalesDeniedText(subject: DiskSalesDeniedSubject): LocalAlertText {
@@ -91,6 +107,25 @@ const FIXED_LOCAL_ALERT_TEXTS = {
     whatToDo:
       "Se puede seguir vendiendo. Si no baja solo en un rato, reiniciar la caja y avisar al Administrador.",
   },
+  on_battery: {
+    title: "Caja funcionando a batería",
+    meaning:
+      "La notebook lleva más de 10 minutos sin corriente eléctrica, funcionando solo con la batería.",
+    whatToDo:
+      "Revisar si volvió la luz y, de poder, conectar la notebook a la corriente. Si no volvió, seguir atendiendo con normalidad; el Administrador ya fue avisado.",
+  },
+  battery_missing: {
+    title: "Batería no detectada",
+    meaning: "La notebook no informa tener batería conectada.",
+    whatToDo:
+      "Seguir vendiendo con normalidad. El Administrador ya fue avisado y se encarga de revisar el equipo.",
+  },
+  critical_battery_action_not_shutdown: {
+    title: "Windows no apaga la notebook con batería crítica",
+    meaning:
+      "Si se corta la luz y la batería se agota, la notebook puede apagarse de golpe en lugar de cerrarse en orden.",
+    whatToDo: "Avisar al Administrador. La ayuda de la caja explica cómo configurarlo.",
+  },
   late_payment_refund: {
     title: "Reembolso pendiente por un pago tardío",
     meaning: "Mercado Pago cobró un QR de una venta que ya se había cobrado por otro medio.",
@@ -112,7 +147,14 @@ const FIXED_LOCAL_ALERT_TEXTS = {
   },
 } satisfies Record<string, LocalAlertText>;
 
-export type LocalAlertKind = keyof typeof FIXED_LOCAL_ALERT_TEXTS | "sales_denied";
+export type LocalAlertKind = keyof typeof FIXED_LOCAL_ALERT_TEXTS | "sales_denied" | "battery_low";
+
+interface BatteryLowSubject {
+  kind: "battery_low";
+  charge_percent: number;
+  critical_percent: number;
+  reason?: undefined;
+}
 
 type DiskSalesDeniedSubject =
   | {
@@ -126,17 +168,28 @@ export type LocalAlertSubject =
   | { kind: "sales_denied"; reason: FixedSalesDeniedReason }
   | DiskSalesDeniedSubject
   | { kind: "late_payment_refund"; providerOrderId: string | null; reason?: undefined }
-  | { kind: Exclude<LocalAlertKind, "sales_denied" | "late_payment_refund">; reason?: undefined };
+  | BatteryLowSubject
+  | {
+      kind: Exclude<LocalAlertKind, "sales_denied" | "late_payment_refund" | "battery_low">;
+      reason?: undefined;
+    };
 
 export function isLocalAlertKind(value: string): value is LocalAlertKind {
-  return value === "sales_denied" || Object.hasOwn(FIXED_LOCAL_ALERT_TEXTS, value);
+  return (
+    value === "sales_denied" ||
+    value === "battery_low" ||
+    Object.hasOwn(FIXED_LOCAL_ALERT_TEXTS, value)
+  );
 }
 
 export function localAlertTitle(kind: string): string | undefined {
   if (!isLocalAlertKind(kind)) {
     return undefined;
   }
-  return kind === "sales_denied" ? SALES_DENIED_TITLE : FIXED_LOCAL_ALERT_TEXTS[kind].title;
+  if (kind === "sales_denied") {
+    return SALES_DENIED_TITLE;
+  }
+  return kind === "battery_low" ? BATTERY_LOW_TITLE : FIXED_LOCAL_ALERT_TEXTS[kind].title;
 }
 
 function secondPaidOrderText(providerOrderId: string): LocalAlertText {
@@ -151,6 +204,9 @@ export function localAlertText(subject: LocalAlertSubject): LocalAlertText {
     return subject.reason === "disk_space_short_at_startup" || subject.reason === "disk_full"
       ? diskSalesDeniedText(subject)
       : FIXED_SALES_DENIED_TEXTS[subject.reason];
+  }
+  if (subject.kind === "battery_low") {
+    return batteryLowText(subject);
   }
   if (subject.kind === "late_payment_refund" && subject.providerOrderId !== null) {
     return secondPaidOrderText(subject.providerOrderId);
