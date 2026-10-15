@@ -169,30 +169,28 @@ class DrizzleNumberingConflictLane<TQueryResult extends PgQueryResultHKT>
     return rows.map((row) => ({ number: row.number, settlement: settlementOf(row) }));
   }
 
-  async openExternalBillingAlert(opening: ExternalBillingOpening): Promise<void> {
-    const observation = externalBillingObservation(opening);
-    if (!observation.holds) {
-      return;
-    }
-    await this.db.transaction(async (tx) => {
-      await openAlert(tx, observation.alert, { now: this.now });
-    });
-  }
-
-  async continueNumberingAfter(lastAuthorized: number): Promise<void> {
-    await new DrizzleTaxAuthorityCounts(this.db).advance({
-      pointOfSale: this.pointOfSale,
-      lastAuthorized,
-      readAt: this.now(),
-    });
-  }
-
-  async liftNumberingFreeze(): Promise<void> {
+  async settleNumberingReconciliation({
+    externalBillings,
+    lastAuthorized,
+  }: {
+    externalBillings: readonly ExternalBillingOpening[];
+    lastAuthorized: number;
+  }): Promise<void> {
     await withPendingChanges(this.db, undefined, async (tx, pending) => {
+      for (const billing of externalBillings) {
+        const observation = externalBillingObservation(billing);
+        if (observation.holds) {
+          await openAlert(tx, observation.alert, { now: this.now });
+        }
+      }
+      await new DrizzleTaxAuthorityCounts(tx, pending).advance({
+        pointOfSale: this.pointOfSale,
+        lastAuthorized,
+        readAt: this.now(),
+      });
       await tx
         .delete(numberingFreezes)
         .where(eq(numberingFreezes.pointOfSaleNumber, this.pointOfSale));
-      await notePointOfSaleHolderChanged(tx, pending, this.pointOfSale);
     });
   }
 }

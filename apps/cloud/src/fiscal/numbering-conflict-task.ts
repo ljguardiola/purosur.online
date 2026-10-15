@@ -60,8 +60,6 @@ function pointOfSaleOf(payload: unknown): number {
   return pointOfSale;
 }
 
-// A run that has to wait for the tax authority, or for a document still being decided, fails so
-// graphile-worker runs it again with its own backoff; startup asks again once its attempts are used up.
 export function numberingConflictJobs<TQueryResult extends PgQueryResultHKT>({
   now,
   vouchers,
@@ -80,24 +78,38 @@ export function numberingConflictJobs<TQueryResult extends PgQueryResultHKT>({
   };
   return {
     taskList: {
-      [DIAGNOSE_NUMBERING_CONFLICT_TASK_IDENTIFIER]: async (payload) => {
+      [DIAGNOSE_NUMBERING_CONFLICT_TASK_IDENTIFIER]: async (payload, helpers) => {
         const fiscalDocumentId = fiscalDocumentIdOf(payload);
         const outcome = await diagnoseNumberingConflict(
           { ...ports, requests: new DrizzleUnclearOutcomeRequests(db), vouchers },
           { fiscalDocumentId },
         );
         if (outcome.kind === "retry") {
-          throw new Error(
-            `the numbering conflict of fiscal document ${fiscalDocumentId} was not diagnosed: the tax authority gave no answer`,
+          await helpers.addJob(
+            DIAGNOSE_NUMBERING_CONFLICT_TASK_IDENTIFIER,
+            { fiscalDocumentId },
+            {
+              jobKey: numberingDiagnosisJobKey(fiscalDocumentId),
+              jobKeyMode: "replace",
+              priority: NUMBERING_CONFLICT_PRIORITY,
+              runAt: outcome.askAgainAt,
+            },
           );
         }
       },
-      [RECONCILE_NUMBERING_CONFLICT_TASK_IDENTIFIER]: async (payload) => {
+      [RECONCILE_NUMBERING_CONFLICT_TASK_IDENTIFIER]: async (payload, helpers) => {
         const pointOfSale = pointOfSaleOf(payload);
         const outcome = await reconcileNumberingConflict(ports, { pointOfSale });
         if (outcome.kind === "retry" || outcome.kind === "waiting") {
-          throw new Error(
-            `the numbering of point of sale ${pointOfSale} was not reconciled: ${outcome.kind}`,
+          await helpers.addJob(
+            RECONCILE_NUMBERING_CONFLICT_TASK_IDENTIFIER,
+            { pointOfSale },
+            {
+              jobKey: numberingReconciliationJobKey(pointOfSale),
+              jobKeyMode: "replace",
+              priority: NUMBERING_CONFLICT_PRIORITY,
+              runAt: outcome.askAgainAt,
+            },
           );
         }
       },

@@ -1,6 +1,7 @@
 import {
   diagnoseNumberingConflict as diagnose,
   isNumberingConflict,
+  NUMBERING_CONFLICT_REASK_INTERVAL_MS,
   type NumberingConflictDiagnosis,
 } from "../model/numbering-conflict.js";
 import type { DiagnoseNumberingConflictPorts } from "./numbering-conflict-ports.js";
@@ -15,7 +16,7 @@ export type DiagnoseNumberingConflictOutcome =
   | { kind: "already_diagnosed"; diagnosis: NumberingConflictDiagnosis }
   | { kind: "not_a_numbering_conflict" }
   | { kind: "not_found" }
-  | { kind: "retry" };
+  | { kind: "retry"; askAgainAt: Date };
 
 export async function diagnoseNumberingConflict(
   { requests, lanes, clock, tokens, vouchers, taxAuthority }: DiagnoseNumberingConflictPorts,
@@ -38,13 +39,17 @@ export async function diagnoseNumberingConflict(
       return { kind: "already_diagnosed", diagnosis: request.diagnosis };
     }
 
+    const retry = (): DiagnoseNumberingConflictOutcome => ({
+      kind: "retry",
+      askAgainAt: new Date(clock.now().getTime() + NUMBERING_CONFLICT_REASK_INTERVAL_MS),
+    });
     const token = await tokens.validToken();
     if (token === null) {
-      return { kind: "retry" };
+      return retry();
     }
     const lastAuthorized = await taxAuthority.lastAuthorized({ token, pointOfSale });
     if (lastAuthorized.kind === "no_answer") {
-      return { kind: "retry" };
+      return retry();
     }
     let lastAuthorizedIssuedOn: string | null = null;
     if (lastAuthorized.number > 0) {
@@ -54,7 +59,7 @@ export async function diagnoseNumberingConflict(
         number: lastAuthorized.number,
       });
       if (voucher.kind === "no_answer") {
-        return { kind: "retry" };
+        return retry();
       }
       lastAuthorizedIssuedOn = voucher.kind === "found" ? voucher.voucher.issuedOn : null;
     }

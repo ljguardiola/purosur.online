@@ -1,4 +1,6 @@
-export const NUMBER_OR_DATE_OUT_OF_ORDER_CODE = 10016;
+const NUMBER_OR_DATE_OUT_OF_ORDER_CODE = 10016;
+
+export const NUMBERING_CONFLICT_REASK_INTERVAL_MS = 30_000;
 
 export function isNumberingConflict(codes: readonly number[]): boolean {
   return codes.includes(NUMBER_OR_DATE_OUT_OF_ORDER_CODE);
@@ -26,7 +28,7 @@ export function diagnoseNumberingConflict({
   return onlyDateBehind ? { kind: "date_behind" } : { kind: "collision" };
 }
 
-export type NumberingDocumentSettlement =
+type NumberingDocumentSettlement =
   | "authorized"
   | "conflicting"
   | "released_or_rejected"

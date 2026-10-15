@@ -246,6 +246,7 @@ export {
   latestIssuerIdentification,
   mustHoldOfflineAuthorizationCode,
   NUMBER_CONSUMING_STATES,
+  NUMBERING_CONFLICT_REASK_INTERVAL_MS,
   nextBuyerTaxStatusFetchAt,
   nextOfflineNumber,
   OFFLINE_AUTHORIZATION_CAUSES,

@@ -44,10 +44,15 @@ export interface NumberingConflictLane {
     after: number;
     through: number;
   }): Promise<NumberingReconciliationDocument[]>;
-  openExternalBillingAlert(opening: ExternalBillingOpening): Promise<void>;
-  /** Sets the count so the series continues right after the number; never lowers a count already held. */
-  continueNumberingAfter(lastAuthorized: number): Promise<void>;
-  liftNumberingFreeze(): Promise<void>;
+  /**
+   * Opens an alert for each external billing, sets the count so the series continues right after
+   * the last authorized number (never lowering a count already held) and lifts the freeze, all or
+   * nothing.
+   */
+  settleNumberingReconciliation(settlement: {
+    externalBillings: readonly ExternalBillingOpening[];
+    lastAuthorized: number;
+  }): Promise<void>;
 }
 
 export interface NumberingConflictLanes {
@@ -72,6 +77,7 @@ export interface DiagnoseNumberingConflictPorts {
 
 export interface ReconcileNumberingConflictPorts {
   lanes: NumberingConflictLanes;
+  clock: Clock;
   tokens: WsaaTokenSource;
   taxAuthority: TaxAuthorityLastAuthorizedLookup;
 }
