@@ -17,6 +17,7 @@ import {
   temporaryObjectPath,
   writeManifest,
 } from "./snapshot-generations-folder";
+import { reportGenerationsOnDisk } from "./snapshot-on-disk-report";
 import { uploadPendingGenerations } from "./snapshot-upload";
 
 type TakeJob = Extract<SnapshotWorkerJobMessage, { kind: "take" }>;
@@ -99,5 +100,12 @@ export async function runSnapshotJob(
     now: deps.now,
     ...(deps.durability === undefined ? {} : { durability: deps.durability }),
   });
+  if (uploads.kind === "every_pending_tried") {
+    await reportGenerationsOnDisk({
+      folder: job.snapshots_folder,
+      deviceToken: job.device_token,
+      cloud: deps.cloud,
+    });
+  }
   return { kind: "completed", uploads };
 }
