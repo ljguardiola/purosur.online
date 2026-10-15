@@ -20,6 +20,7 @@ export type RegisterOperation =
   | { kind: "record_initial_inventory" }
   | { kind: "configure_receipt_printer" }
   | { kind: "configure_serial_devices" }
+  | { kind: "correct_register_clock" }
   | { kind: "record_cash_movement"; movement: CashMovementKind }
   | { kind: "close_cash_session"; session: OpenSession }
   | { kind: "close_locked_register"; session: OpenSession | undefined };
@@ -43,6 +44,7 @@ const REPRINT_RECEIPT_PERMISSION = "reprint_receipt";
 const VIEW_SALES_HISTORY_PERMISSION = "view_sales_history";
 const RECORD_INITIAL_INVENTORY_PERMISSION = "record_initial_inventory";
 const ENROLL_REGISTER_DEVICES_PERMISSION = "enroll_register_devices";
+const CORRECT_REGISTER_CLOCK_PERMISSION = "correct_register_clock";
 
 const PERMITTED = { kind: "permitted" } as const;
 const REFUSED = { kind: "refused" } as const;
@@ -113,6 +115,12 @@ export function registerOperationAccess(
         : holdsPermission(actor.access, ENROLL_REGISTER_DEVICES_PERMISSION)
           ? PERMITTED
           : REFUSED;
+    case "correct_register_clock":
+      return actor.access === undefined
+        ? NO_ACCESS
+        : holdsPermission(actor.access, CORRECT_REGISTER_CLOCK_PERMISSION)
+          ? PERMITTED
+          : REFUSED;
     case "record_cash_movement": {
       if (actor.access === undefined) {
         return NO_ACCESS;
@@ -168,7 +176,7 @@ const PERMISSION_OF_ABILITY = {
   view_sales_history: VIEW_SALES_HISTORY_PERMISSION,
   reprint_receipt: "reprint_receipt",
   read_register_help: "read_register_help",
-  correct_register_clock: "correct_register_clock",
+  correct_register_clock: CORRECT_REGISTER_CLOCK_PERMISSION,
   record_initial_inventory: RECORD_INITIAL_INVENTORY_PERMISSION,
   configure_receipt_printer: ENROLL_REGISTER_DEVICES_PERMISSION,
   configure_serial_devices: ENROLL_REGISTER_DEVICES_PERMISSION,
