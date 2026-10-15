@@ -110,6 +110,24 @@ describe("reconcileHandConfirmedPayments", () => {
     ]);
   });
 
+  it.each([
+    ["before", [null, "Ana"], "Ana"],
+    ["after", ["Ana", null], "Ana"],
+    ["before", [null, "Zoe"], "Zoe"],
+    ["after", ["Zoe", null], "Zoe"],
+  ])(
+    "puts a cashier with an unknown name last when it comes %s a named one",
+    (_position, names, named) => {
+      const report = reconcileHandConfirmedPayments(
+        names.map((cashierName, index) =>
+          aPayment({ id: `p-${index}`, cashierId: `c-${index}`, cashierName, amount: 500 }),
+        ),
+      );
+
+      expect(report.cashiers.map(({ cashierName }) => cashierName)).toEqual([named, null]);
+    },
+  );
+
   it("keeps a cashier with an unknown name and groups by the cashier's id", () => {
     const report = reconcileHandConfirmedPayments([
       aPayment({ id: "a", cashierId: "gone", cashierName: null, amount: 700 }),
