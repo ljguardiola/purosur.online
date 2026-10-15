@@ -8,7 +8,7 @@ export interface LocalSnapshotGenerations {
 }
 
 export type SnapshotDeclarationAnswer<Authorization> =
-  | { kind: "accepted"; authorization: Authorization }
+  | { kind: "accepted"; authorization: Authorization; currentKeyVersion: number }
   | { kind: "refused"; code: string }
   | { kind: "failed" }
   | { kind: "unreachable" };

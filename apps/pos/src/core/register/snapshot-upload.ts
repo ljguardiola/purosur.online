@@ -52,6 +52,7 @@ export function cloudSnapshotUploads(
         ? {
             kind: "accepted",
             authorization: { url: answer.data.upload_url, headers: answer.data.required_headers },
+            currentKeyVersion: answer.data.current_key_version,
           }
         : { kind: "failed" };
     },
