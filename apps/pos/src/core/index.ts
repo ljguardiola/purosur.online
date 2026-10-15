@@ -598,6 +598,7 @@ const rendererRequestDeps: RendererRequestDeps = {
             storage: storageWatch.standing,
             localDatabaseDamaged,
             battery: () => batteryWatch.report(),
+            newSalesStoppedByBattery: batteryShutdown.newSalesStoppedByBattery,
             criticalBatteryAction: () => criticalBatteryAction,
           }),
   registerService: register.service,

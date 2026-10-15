@@ -26,6 +26,7 @@ export interface RegisterStatusDeps {
   storage: () => StorageStanding;
   localDatabaseDamaged: () => boolean;
   battery: () => BatteryReport | undefined;
+  newSalesStoppedByBattery: () => boolean;
   criticalBatteryAction: () => CriticalBatteryAction;
 }
 
@@ -38,6 +39,7 @@ export async function registerStatusFor({
   storage,
   localDatabaseDamaged,
   battery,
+  newSalesStoppedByBattery,
   criticalBatteryAction,
 }: RegisterStatusDeps): Promise<RegisterStatus> {
   const reading = serialDevices();
@@ -56,6 +58,7 @@ export async function registerStatusFor({
       storage: storage(),
       localDatabaseDamaged: localDatabaseDamaged(),
       battery: battery(),
+      newSalesStoppedByBattery: newSalesStoppedByBattery(),
       criticalBatteryAction: criticalBatteryAction(),
     }),
     cloud: cloud(),

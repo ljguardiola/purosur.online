@@ -91,6 +91,7 @@ interface RegisterOwnStanding {
   storage: StorageStanding;
   localDatabaseDamaged: boolean;
   battery: BatteryReport | undefined;
+  newSalesStoppedByBattery: boolean;
   criticalBatteryAction: CriticalBatteryAction;
 }
 
@@ -104,6 +105,7 @@ export function registerOwnConditions({
   storage,
   localDatabaseDamaged,
   battery,
+  newSalesStoppedByBattery,
   criticalBatteryAction,
 }: RegisterOwnStanding): HeldRegisterOwnCondition[] {
   const revoked = isInstallationRevoked(salesStop);
@@ -112,7 +114,7 @@ export function registerOwnConditions({
     salesStop,
     storageSalesStopOf(storage),
     localDatabaseDamaged,
-    batteryStanding === "critical",
+    newSalesStoppedByBattery,
   );
   const held: {
     [Kind in RegisterOwnCondition]: Extract<DetectedRegisterOwnCondition, { kind: Kind }> | null;
