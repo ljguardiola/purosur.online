@@ -10,7 +10,7 @@ export type RecordTaxAuthorityLastAuthorizedOutcome =
   | { kind: "no_answer" };
 
 export async function recordTaxAuthorityLastAuthorized(
-  { tokens, taxAuthority, counts, clock }: TaxAuthorityCountPorts,
+  { tokens, taxAuthority, vouchers, counts, clock }: TaxAuthorityCountPorts,
   { pointOfSale }: RecordTaxAuthorityLastAuthorizedInput,
 ): Promise<RecordTaxAuthorityLastAuthorizedOutcome> {
   const token = await tokens.validToken();
@@ -21,6 +21,16 @@ export async function recordTaxAuthorityLastAuthorized(
   if (answer.kind === "no_answer") {
     return { kind: "no_answer" };
   }
-  await counts.advance({ pointOfSale, lastAuthorized: answer.number, readAt: clock.now() });
+  let issuedOn: string | null = null;
+  if (answer.number > 0) {
+    const voucher = await vouchers.voucherAt({ token, pointOfSale, number: answer.number });
+    issuedOn = voucher.kind === "found" ? voucher.voucher.issuedOn : null;
+  }
+  await counts.advance({
+    pointOfSale,
+    lastAuthorized: answer.number,
+    issuedOn,
+    readAt: clock.now(),
+  });
   return { kind: "recorded" };
 }

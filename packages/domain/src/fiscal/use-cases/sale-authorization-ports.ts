@@ -1,7 +1,7 @@
 import type { OutboxEventDraft } from "../../shared/index.js";
 import type { DeferredSale } from "../model/deferred-sale.js";
-import type { FiscalDocumentType } from "../model/fiscal-rejection-standing.js";
 import type { FiscalOnlineSignalEvidence } from "../model/fiscal-online-signal.js";
+import type { FiscalDocumentType } from "../model/fiscal-rejection-standing.js";
 import type { Fortnight } from "../model/offline-authorization-code.js";
 import type { OfflineFiscalDocument } from "../model/offline-fiscal-document.js";
 import type { FacturaC } from "../model/pre-emission-gate.js";
