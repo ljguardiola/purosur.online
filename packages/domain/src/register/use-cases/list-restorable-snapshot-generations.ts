@@ -1,3 +1,4 @@
+import { countsForSnapshotRestore } from "../model/snapshot-generation.js";
 import type { SnapshotStore } from "./snapshot-generations.js";
 
 export interface ListRestorableSnapshotGenerationsPorts {
@@ -19,7 +20,7 @@ export async function listRestorableSnapshotGenerations(
 ): Promise<RestorableSnapshotGeneration[]> {
   const generations = await store.transaction((tx) => tx.generationsOf(registerId));
   return generations
-    .filter((generation) => generation.status === "verified" && !generation.pruned)
+    .filter(countsForSnapshotRestore)
     .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
     .map((generation) => ({
       generationId: generation.id,

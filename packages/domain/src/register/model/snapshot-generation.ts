@@ -64,3 +64,10 @@ export function isRetainedSnapshotGeneration(generation: {
     (SNAPSHOT_STATUSES_RETAINED as readonly SnapshotGenerationStatus[]).includes(generation.status)
   );
 }
+
+export function countsForSnapshotRestore(generation: {
+  status: SnapshotGenerationStatus;
+  pruned: boolean;
+}): boolean {
+  return generation.status === "verified" && !generation.pruned;
+}
