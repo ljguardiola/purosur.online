@@ -50,6 +50,8 @@ const SERIES: RealTimeSeries = {
   documentRequesting: false,
   documentUnknown: false,
   numberingFrozen: false,
+  clockMark: null,
+  taxAuthorityLastIssuedOn: null,
 };
 const OFFLINE_SERIES: OfflineSeries = {
   pointOfSale: 7,
@@ -57,6 +59,7 @@ const OFFLINE_SERIES: OfflineSeries = {
   localLastUsed: 120,
   taxAuthorityLastAuthorized: 100,
   highestSyncedNumber: null,
+  clockMark: null,
 };
 const FIRST_HALF = { start: "2026-10-01", end: "2026-10-15" };
 const SECOND_HALF = { start: "2026-10-16", end: "2026-10-31" };
@@ -121,6 +124,42 @@ describe("decideSaleAuthorization", () => {
     expect(ids.issued).toBe(1);
   });
 
+  it("raises the clock mark of the reserved series to the moment of the decision", () => {
+    const { tx } = decide();
+
+    expect(tx.clockMarkRaises).toEqual([
+      { pointOfSale: 12, documentType: "factura_c", reading: DECIDED_AT },
+    ]);
+  });
+
+  it("raises the clock mark of the offline series, not the real-time one, to the time of the sale when it issues offline", () => {
+    const { tx } = decide({ online: { ...ONLINE, arcaReachable: false } });
+
+    expect(tx.clockMarkRaises).toEqual([
+      { pointOfSale: 7, documentType: "factura_c", reading: OCCURRED_AT },
+    ]);
+  });
+
+  it("issues offline, naming the clock, when the real-time series' mark is more than a minute ahead of the decision", () => {
+    const { tx, outcome } = decide({
+      series: { ...SERIES, clockMark: new Date(DECIDED_AT.getTime() + 61_000) },
+    });
+
+    expect(outcome).toEqual({
+      kind: "issued_offline",
+      fiscalDocumentId: "id-1",
+      cause: "clock_behind",
+    });
+    expect(tx.reservations).toEqual([]);
+    expect(tx.offlineDocuments).toMatchObject([{ pointOfSale: 7, number: 121 }]);
+  });
+
+  it("reserves nothing and raises no mark for a sale routed to the deferred flow", () => {
+    const { tx } = decide({ series: { ...SERIES, pointOfSale: null } });
+
+    expect(tx.clockMarkRaises).toEqual([]);
+  });
+
   it.each([
     [
       "the pre-emission gate failed",
@@ -146,6 +185,25 @@ describe("decideSaleAuthorization", () => {
       "the register is offline and holds no code for the sale's date",
       { online: { ...ONLINE, arcaReachable: false }, heldCodes: [] },
       "fiscally_offline",
+    ],
+    [
+      "the register's clock is behind its own mark and the real-time series cannot be used",
+      {
+        series: { ...SERIES, clockMark: new Date(DECIDED_AT.getTime() + 61_000) },
+        heldCodes: [],
+      },
+      "clock_behind",
+    ],
+    [
+      "the offline series' mark is more than a minute ahead of the sale while the register is offline",
+      {
+        online: { ...ONLINE, arcaReachable: false },
+        offlineSeries: {
+          ...OFFLINE_SERIES,
+          clockMark: new Date(OCCURRED_AT.getTime() + 61_000),
+        },
+      },
+      "clock_behind",
     ],
     [
       "the real-time series is suspended and the offline block is exhausted",
@@ -175,6 +233,7 @@ describe("decideSaleAuthorization", () => {
       expect(tx.reservations).toEqual([]);
       expect(tx.offlineDocuments).toEqual([]);
       expect(tx.outbox).toEqual([]);
+      expect(tx.clockMarkRaises).toEqual([]);
       expect(ids.issued).toBe(1);
     },
   );
