@@ -22,7 +22,7 @@ describe("fortnightPresentationListSchema", () => {
     expect(fortnightPresentationListSchema.parse([])).toEqual([]);
   });
 
-  it.each(["blocked", "submitting", "refused", "accepted"] as const)(
+  it.each(["blocked", "submitting", "refused", "accepted", "needs_regularization"] as const)(
     "reads the %s state",
     (state) => {
       expect(fortnightPresentationListSchema.parse([{ ...presentation, state }])).toEqual([
