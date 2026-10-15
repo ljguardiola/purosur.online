@@ -8,7 +8,7 @@ export type FortnightReportStanding =
   | { kind: "pending"; daysLeft: number; pressing: boolean }
   | { kind: "missed" };
 
-export const FORTNIGHT_REPORT_RETRY_INTERVAL_MS = 60 * 60 * 1000;
+const FORTNIGHT_REPORT_RETRY_INTERVAL_MS = 60 * 60 * 1000;
 
 const DAYS_TO_REPORT_AFTER_CLOSE = 8;
 const PRESSING_DAYS_LEFT = 1;

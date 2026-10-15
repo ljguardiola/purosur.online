@@ -25,7 +25,6 @@ export type {
   AlertRoleSummary,
   ArcaCertificateExpiringDetail,
   EmailChangedDetail,
-  FortnightReportPendingReason,
   OpenAlertInput,
   PasskeyChangedDetail,
   RecoveryRequestedDetail,

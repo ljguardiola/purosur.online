@@ -69,17 +69,12 @@ export type {
   TaxAuthorityRejection,
 } from "./model/fiscal-rejection-standing.js";
 export { FACTURA_C_DOCUMENT_TYPE } from "./model/fiscal-rejection-standing.js";
-export type {
-  FortnightReportStanding,
-  FortnightReportState,
-} from "./model/fortnight-report.js";
+export type { FortnightReportState } from "./model/fortnight-report.js";
 export {
-  FORTNIGHT_REPORT_RETRY_INTERVAL_MS,
   fortnightClosesAt,
   fortnightReportDeadline,
   fortnightReportStanding,
   isFortnightReportOutstanding,
-  isFortnightReportRetryDue,
   owesFortnightReport,
 } from "./model/fortnight-report.js";
 export {
