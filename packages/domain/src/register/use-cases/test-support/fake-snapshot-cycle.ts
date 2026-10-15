@@ -48,9 +48,14 @@ export class FakeSnapshotCycleState implements SnapshotCycleState {
 
 export class RecordingSnapshotWorkerLauncher implements SnapshotWorkerLauncher {
   launched: SnapshotWorkerJob[] = [];
+  available = true;
 
-  async launch(job: SnapshotWorkerJob): Promise<void> {
+  async launch(job: SnapshotWorkerJob): Promise<boolean> {
+    if (!this.available) {
+      return false;
+    }
     this.launched.push(job);
+    return true;
   }
 }
 

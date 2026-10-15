@@ -117,4 +117,14 @@ describe("runSnapshotCycle", () => {
 
     expect(outcome).toMatchObject({ kind: "launched", job: { kind: "take" } });
   });
+
+  it("reports that nothing was launched when the launcher cannot launch the job", async () => {
+    const { run, launcher } = setup();
+    launcher.available = false;
+
+    const outcome = await run();
+
+    expect(outcome).toEqual({ kind: "launch_unavailable" });
+    expect(launcher.launched).toEqual([]);
+  });
 });
