@@ -5,7 +5,12 @@ import {
   type BatteryReading,
   batteryHealthPercent,
   batteryReportOf,
+  batteryStanding,
+  CRITICAL_BATTERY_PERCENT,
+  isOnBatteryTooLong,
+  LOW_BATTERY_PERCENT,
   nextOnBatterySince,
+  ON_BATTERY_CONDITION_MINUTES,
 } from "./battery.js";
 
 const onBattery: BatteryReading = { kind: "present", chargePercent: 80, onBattery: true };
@@ -138,5 +143,70 @@ describe("batteryReportOf", () => {
         );
       }),
     );
+  });
+});
+
+describe("battery thresholds", () => {
+  it("are 20 and 10 percent of charge and 10 minutes on battery", () => {
+    expect(LOW_BATTERY_PERCENT).toBe(20);
+    expect(CRITICAL_BATTERY_PERCENT).toBe(10);
+    expect(ON_BATTERY_CONDITION_MINUTES).toBe(10);
+  });
+});
+
+describe("batteryStanding", () => {
+  const reading = (chargePercent: number, onBatteryNow: boolean): BatteryReading => ({
+    kind: "present",
+    chargePercent,
+    onBattery: onBatteryNow,
+  });
+
+  it("is low on battery below 20 percent and normal from 20 up", () => {
+    expect(batteryStanding(reading(19, true))).toBe("low");
+    expect(batteryStanding(reading(10, true))).toBe("low");
+    expect(batteryStanding(reading(20, true))).toBe("normal");
+  });
+
+  it("is critical on battery below 10 percent", () => {
+    expect(batteryStanding(reading(9, true))).toBe("critical");
+    expect(batteryStanding(reading(0, true))).toBe("critical");
+  });
+
+  it("is normal on mains power at any charge", () => {
+    expect(batteryStanding(reading(0, false))).toBe("normal");
+    expect(batteryStanding(reading(9, false))).toBe("normal");
+    expect(batteryStanding(reading(15, false))).toBe("normal");
+  });
+
+  it("is normal when there is no battery or it cannot be read", () => {
+    expect(batteryStanding({ kind: "absent" })).toBe("normal");
+    expect(batteryStanding({ kind: "unreadable" })).toBe("normal");
+  });
+});
+
+describe("isOnBatteryTooLong", () => {
+  const report = (onBatteryNow: boolean, minutes: number) => ({
+    present: true as const,
+    charge_percent: 80,
+    on_battery: onBatteryNow,
+    on_battery_minutes: minutes,
+  });
+
+  it("is true on battery for more than 10 minutes", () => {
+    expect(isOnBatteryTooLong(report(true, 11))).toBe(true);
+  });
+
+  it("is false at 10 minutes or less", () => {
+    expect(isOnBatteryTooLong(report(true, 10))).toBe(false);
+    expect(isOnBatteryTooLong(report(true, 0))).toBe(false);
+  });
+
+  it("is false on mains power", () => {
+    expect(isOnBatteryTooLong(report(false, 30))).toBe(false);
+  });
+
+  it("is false with no battery or no report", () => {
+    expect(isOnBatteryTooLong({ present: false })).toBe(false);
+    expect(isOnBatteryTooLong(undefined)).toBe(false);
   });
 });
