@@ -156,7 +156,8 @@ export function RotateSnapshotKeyModal({
             />
           )}
           <p className="text-body text-text">
-            {`Solo los backups que se generen desde ahora usan la clave nueva. Los que ya existen se siguen pudiendo leer.`}
+            Solo los backups que se generen desde ahora usan la clave nueva. Los que ya existen se
+            siguen pudiendo leer.
           </p>
         </div>
       </Modal>
