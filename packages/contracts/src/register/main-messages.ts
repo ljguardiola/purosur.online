@@ -85,6 +85,7 @@ export const mainToCoreMessageSchema = z.discriminatedUnion("type", [
   ...deviceCredentialsAnswerSchema.options,
   z.object({ type: z.literal("update-safe-moment-request"), request_id: requestIdSchema }),
   z.object({ type: z.literal("update-hold-release") }),
+  z.object({ type: z.literal("snapshot-worker-exited") }),
 ]);
 export type MainToCoreMessage = z.output<typeof mainToCoreMessageSchema>;
 

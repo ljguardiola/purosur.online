@@ -377,11 +377,21 @@ export type { RestorableSnapshots } from "./register/restorable-snapshots.js";
 export { restorableSnapshotsSchema } from "./register/restorable-snapshots.js";
 export type { SnapshotCorruptionBody } from "./register/snapshot-corruption.js";
 export { snapshotCorruptionBodySchema } from "./register/snapshot-corruption.js";
+export type { SnapshotManifest } from "./register/snapshot-manifest.js";
+export { snapshotManifestSchema } from "./register/snapshot-manifest.js";
 export type { SnapshotUploadAnswer, SnapshotUploadBody } from "./register/snapshot-upload.js";
 export {
   snapshotUploadAnswerSchema,
   snapshotUploadBodySchema,
 } from "./register/snapshot-upload.js";
+export type {
+  SnapshotWorkerJobMessage,
+  SnapshotWorkerLaunchRequest,
+} from "./register/snapshot-worker.js";
+export {
+  snapshotWorkerJobSchema,
+  snapshotWorkerLaunchSchema,
+} from "./register/snapshot-worker.js";
 export type { StartupPending } from "./register/startup-pending.js";
 export type { AverageTicketBody } from "./sales/average-ticket.js";
 export { averageTicketSchema } from "./sales/average-ticket.js";

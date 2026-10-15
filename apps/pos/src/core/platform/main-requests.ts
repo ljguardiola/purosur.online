@@ -85,7 +85,8 @@ export function createMainRequests(deps: {
       if (
         message.type === "health-check" ||
         message.type === "update-hold-release" ||
-        message.type === "update-safe-moment-request"
+        message.type === "update-safe-moment-request" ||
+        message.type === "snapshot-worker-exited"
       ) {
         return;
       }
