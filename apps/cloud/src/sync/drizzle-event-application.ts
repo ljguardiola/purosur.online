@@ -146,6 +146,7 @@ class DrizzleEventApplicationTransaction<TQueryResult extends PgQueryResultHKT>
       case "opening_count_recorded":
       case "opening_count_withdrawn":
       case "fiscal_gate_failed":
+      case "clock_corrected":
         return;
     }
   }

@@ -420,6 +420,13 @@ const offlineFiscalDocumentIssuedSchema = z.object({
   cause: z.enum(OFFLINE_AUTHORIZATION_CAUSES),
 });
 
+const clockCorrectedSchema = z.object({
+  point_of_sale: pointOfSaleNumberSchema,
+  document_type: z.literal(FACTURA_C_DOCUMENT_TYPE),
+  previous_reading: instant,
+  corrected_reading: instant,
+});
+
 const qrPaymentReplacedSchema = z.object({
   payment_transaction_id: text,
   sale_id: text,
@@ -459,6 +466,7 @@ const PAYLOAD_SCHEMAS = {
   "cash_movement_recorded@1": cashMovementRecordedSchema,
   "fiscal_gate_failed@1": fiscalGateFailedSchema,
   "offline_fiscal_document_issued@1": offlineFiscalDocumentIssuedSchema,
+  "clock_corrected@1": clockCorrectedSchema,
   "qr_payment_replaced@1": qrPaymentReplacedSchema,
   "opening_count_recorded@1": openingCountRecordedSchema,
   "opening_count_withdrawn@1": openingCountWithdrawnSchema,

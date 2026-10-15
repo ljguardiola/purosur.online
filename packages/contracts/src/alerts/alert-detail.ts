@@ -154,6 +154,15 @@ const externalBillingDetailSchema = z.object({
   number: z.int(),
 });
 
+const clockCorrectedDetailSchema = z.object({
+  pointOfSale: z.int(),
+  documentType: z.literal(FACTURA_C_DOCUMENT_TYPE),
+  previousReading: z.string(),
+  correctedReading: z.string(),
+  actorId: z.string(),
+  actorName,
+});
+
 const latePaymentRefundDetailSchema = z.object({
   saleId: z.string(),
   amount: z.int(),
@@ -357,6 +366,11 @@ const alertDetailKinds = [
     ...alertBase,
     kind: z.literal("fortnight_report_overdue" satisfies AlertKind),
     detail: fortnightReportOverdueDetailSchema,
+  }),
+  z.object({
+    ...alertBase,
+    kind: z.literal("clock_corrected" satisfies AlertKind),
+    detail: clockCorrectedDetailSchema,
   }),
   z.object({
     ...alertBase,

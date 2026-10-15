@@ -211,6 +211,7 @@ export {
   CLOCK_CORRECTED_EVENT_TYPE,
   CURRENCY_PESOS,
   chargeRefusal,
+  clockCorrectedEvent,
   DEFERRAL_REASONS,
   EXCHANGE_RATE_PESOS,
   earliestThresholdStartDay,

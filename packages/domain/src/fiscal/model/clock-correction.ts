@@ -28,6 +28,11 @@ export function clockLoweringsFor(marks: readonly ClockMark[], reading: Date): C
     }));
 }
 
+export interface ClockCorrectedFact extends ClockLowering {
+  registerId: string;
+  actorId: string;
+}
+
 export interface CashSessionStanding {
   openSessionId: string | null;
   lastClosedSessionId: string | null;
