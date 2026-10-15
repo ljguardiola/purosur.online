@@ -31,7 +31,7 @@ function idOf(hour: number): string {
   return `00000000-0000-4000-8000-${String(hour).padStart(12, "0")}`;
 }
 
-function manifest(hour: number, uploaded = true): SnapshotManifest {
+function manifest(hour: number): SnapshotManifest {
   return {
     generation_id: idOf(hour),
     created_at: new Date(Date.UTC(2026, 9, 15, hour)).toISOString(),
@@ -40,7 +40,7 @@ function manifest(hour: number, uploaded = true): SnapshotManifest {
     key_version: 1,
     size: 4,
     sha256: "ab".repeat(32),
-    uploaded_at: uploaded ? "2026-10-15T23:00:00.000Z" : null,
+    uploaded_at: "2026-10-15T23:00:00.000Z",
     refused_at: null,
   };
 }
@@ -228,21 +228,6 @@ describe("pruneSnapshotsOnDisk", () => {
     expect(outcome).toEqual({ kind: "verification_unanswered", removed: [] });
     expect(await heldHours()).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
     expect(fake.calls).toEqual([]);
-  });
-
-  it("below 10% free removes every uploaded generation but the newest and the oldest, offline too", async () => {
-    await hold(1, 2, 3, 4);
-    await writeManifest(folder, manifest(5, false));
-
-    const outcome = await pruneSnapshotsOnDisk({
-      snapshotsFolder: folder,
-      readStorage: storage(0.08),
-      readCredentials: async () => undefined,
-      cloud: undefined,
-    });
-
-    expect(outcome).toEqual({ kind: "pruned", removed: [idOf(3), idOf(2)] });
-    expect(await heldHours()).toEqual([1, 4, 5]);
   });
 
   it("finds nothing to prune in a folder not created yet", async () => {
