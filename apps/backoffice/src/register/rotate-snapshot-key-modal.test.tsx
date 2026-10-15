@@ -66,7 +66,8 @@ async function confirm(dialog: Dialog) {
 test("names the register and explains that only the backups made from now on use the new key", async () => {
   const { dialog } = await renderModal(createServices());
 
-  await expect.element(dialog.getByText(/Caja 1/)).toBeVisible();
+  await expect.element(dialog.getByText("Caja 1", { exact: true })).toBeVisible();
+  expect(dialog.getByText(/Vas a rotar/).query()).toBeNull();
   await expect
     .element(dialog.getByText(/Solo los backups que se generen desde ahora usan la clave nueva/))
     .toBeVisible();
@@ -180,7 +181,7 @@ test("explains that a register with no key yet has nothing to rotate", async () 
 
   await expect.element(dialog.getByText("Esta caja todavía no tiene una clave")).toBeVisible();
   await expect
-    .element(dialog.getByText("No hay nada para rotar hasta que genere su primer backup."))
+    .element(dialog.getByText("La caja recibe su clave cuando se da de alta en una computadora."))
     .toBeVisible();
   expect(onRotated).not.toHaveBeenCalled();
 });
