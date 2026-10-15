@@ -75,6 +75,7 @@ function authorizationPorts(taxAuthority: TaxAuthorityInvoicing): AuthorizeFisca
       postgresDedicatedConnections(sql),
       async () => {},
       async () => {},
+      async () => {},
     ),
     clock: { now: () => RECEIVED_AT },
     tokens: { validToken: async () => TOKEN },
@@ -187,6 +188,7 @@ describe("the unclear outcome lanes on a real Postgres", () => {
     const request = authorizationRequestRecord(registerId, { pointOfSale: 35, number: 1 });
     await new DrizzlePointOfSaleLanes(
       postgresDedicatedConnections(sql),
+      async () => {},
       async () => {},
       async () => {},
     ).inPointOfSaleLane(35, (lane) => lane.recordRequest(request));

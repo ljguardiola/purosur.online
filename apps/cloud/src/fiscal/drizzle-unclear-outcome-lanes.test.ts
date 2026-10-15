@@ -48,6 +48,7 @@ beforeAll(async () => {
     connections,
     async () => {},
     async () => {},
+    async () => {},
   );
 });
 

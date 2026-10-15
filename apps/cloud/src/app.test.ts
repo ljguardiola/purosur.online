@@ -1905,6 +1905,7 @@ describe("wiring the unclear outcome route", () => {
       certificateFingerprint: "AA:BB",
       enqueueUnclearOutcome: async () => {},
       withdrawUnclearOutcome: async () => {},
+      enqueueNumberingDiagnosis: async () => {},
     };
   }
 
