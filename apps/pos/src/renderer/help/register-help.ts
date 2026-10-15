@@ -240,6 +240,43 @@ export const help = defineHelp("es-AR", {
         },
       ],
     },
+    "critical-battery-shutdown": {
+      category: "register",
+      title: "Apagar la notebook con batería crítica",
+      body: [
+        {
+          kind: "paragraph",
+          text: "Con la notebook a batería y menos del 10 % de carga, la caja deja terminar la venta abierta, envía lo pendiente y se cierra sola. Si la batería sigue bajando, Windows tiene que apagar la notebook en orden antes de que se corte sola. Se configura una vez en cada notebook.",
+        },
+        {
+          kind: "steps",
+          items: [
+            "Abrí el Panel de control y entrá en Opciones de energía.",
+            "En el plan que está en uso, tocá Cambiar la configuración del plan y después Cambiar la configuración avanzada de energía.",
+            "Desplegá Batería, entrá en Acción de batería crítica y, en Con batería, elegí Apagar.",
+            "En Nivel de batería crítica, en Con batería, poné 5 %. Tiene que quedar por debajo del 10 % para que la caja se cierre sola primero, y por encima del nivel en que la notebook se corta por sí sola.",
+            "Tocá Aceptar.",
+          ],
+        },
+        {
+          kind: "note",
+          text: "Esto no cambia la suspensión por inactividad ni al cerrar la tapa. Mientras Windows no esté configurado para apagar, la barra de la caja muestra el aviso Windows no apaga la notebook con batería crítica.",
+        },
+        { kind: "heading", text: "Lo mismo con comandos" },
+        {
+          kind: "paragraph",
+          text: "En una ventana del Símbolo del sistema, corré estos comandos uno por uno:",
+        },
+        {
+          kind: "steps",
+          items: [
+            "powercfg /setdcvalueindex SCHEME_CURRENT SUB_BATTERY BATACTIONCRIT 3",
+            "powercfg /setdcvalueindex SCHEME_CURRENT SUB_BATTERY BATLEVELCRIT 5",
+            "powercfg /setactive SCHEME_CURRENT",
+          ],
+        },
+      ],
+    },
     "startup-pending": {
       category: "register",
       title: "Cosas para resolver al empezar",
