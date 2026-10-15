@@ -4,11 +4,18 @@ import type {
   OfflineNumberBlockStore,
 } from "../offline-number-block-store.js";
 
+export interface LockedOfflineNumberSeries {
+  pointOfSaleNumber: number;
+  documentType: FiscalDocumentType;
+}
+
 export class FakeOfflineNumberBlocks implements OfflineNumberBlockStore {
   readonly blocks: OfflineNumberBlockRecord[];
   readonly operations: string[];
   readonly taxAuthorityCounts: Map<number, number>;
   readonly requiredTaxAuthorityCounts: number[];
+  readonly highestSyncedNumbers: Map<number, number>;
+  readonly lockedSeries: LockedOfflineNumberSeries[];
   private readonly beforeRecord: () => void;
 
   constructor(
@@ -17,12 +24,37 @@ export class FakeOfflineNumberBlocks implements OfflineNumberBlockStore {
     beforeRecord: () => void = () => {},
     taxAuthorityCounts: Map<number, number> = new Map(),
     requiredTaxAuthorityCounts: number[] = [],
+    highestSyncedNumbers: Map<number, number> = new Map(),
+    lockedSeries: LockedOfflineNumberSeries[] = [],
   ) {
     this.blocks = blocks;
     this.operations = operations;
     this.beforeRecord = beforeRecord;
     this.taxAuthorityCounts = taxAuthorityCounts;
     this.requiredTaxAuthorityCounts = requiredTaxAuthorityCounts;
+    this.highestSyncedNumbers = highestSyncedNumbers;
+    this.lockedSeries = lockedSeries;
+  }
+
+  async highestSyncedOfflineNumber(
+    pointOfSaleNumber: number,
+    _documentType: FiscalDocumentType,
+  ): Promise<number | null> {
+    this.operations.push("highestSyncedOfflineNumber");
+    return this.highestSyncedNumbers.get(pointOfSaleNumber) ?? null;
+  }
+
+  async markOfflineNumberBlockUsedUp(block: OfflineNumberBlockRecord): Promise<void> {
+    this.operations.push("markOfflineNumberBlockUsedUp");
+    const held = this.blocks.find(
+      (candidate) =>
+        candidate.pointOfSaleNumber === block.pointOfSaleNumber &&
+        candidate.documentType === block.documentType &&
+        candidate.range.firstNumber === block.range.firstNumber,
+    );
+    if (held !== undefined) {
+      held.status = "used_up";
+    }
   }
 
   async taxAuthorityLastAuthorized(pointOfSaleNumber: number): Promise<number | null> {
@@ -36,21 +68,25 @@ export class FakeOfflineNumberBlocks implements OfflineNumberBlockStore {
   }
 
   async lockOfflineNumberBlocks(
-    _pointOfSaleNumber: number,
-    _documentType: FiscalDocumentType,
-  ): Promise<void> {
-    this.operations.push("lockOfflineNumberBlocks");
-  }
-
-  async hasOfflineNumberBlock(
     pointOfSaleNumber: number,
     documentType: FiscalDocumentType,
-  ): Promise<boolean> {
-    this.operations.push("hasOfflineNumberBlock");
-    return this.blocks.some(
+  ): Promise<void> {
+    this.operations.push("lockOfflineNumberBlocks");
+    this.lockedSeries.push({ pointOfSaleNumber, documentType });
+  }
+
+  async offlineNumberBlockInUse(
+    pointOfSaleNumber: number,
+    documentType: FiscalDocumentType,
+  ): Promise<OfflineNumberBlockRecord | null> {
+    this.operations.push("offlineNumberBlockInUse");
+    const held = this.blocks.find(
       (block) =>
-        block.pointOfSaleNumber === pointOfSaleNumber && block.documentType === documentType,
+        block.pointOfSaleNumber === pointOfSaleNumber &&
+        block.documentType === documentType &&
+        block.status === "in_use",
     );
+    return held === undefined ? null : structuredClone(held);
   }
 
   async recordOfflineNumberBlock(record: OfflineNumberBlockRecord): Promise<void> {

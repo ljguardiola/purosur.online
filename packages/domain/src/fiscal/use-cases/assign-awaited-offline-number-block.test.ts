@@ -36,6 +36,16 @@ describe("assignAwaitedOfflineNumberBlock", () => {
     ]);
   });
 
+  it("assigns the first block right after the highest number its synced documents used when it is above the count", async () => {
+    const store = storeWithOfflineRegister();
+    store.seedTaxAuthorityCount(12, 37);
+    store.seedHighestSyncedOfflineNumber(12, 240);
+
+    const outcome = await assignAwaited(store);
+
+    expect(outcome).toEqual({ kind: "assigned", range: { firstNumber: 241, lastNumber: 1240 } });
+  });
+
   it("assigns nothing when no register has that point of sale as its offline one", async () => {
     const store = new FakeRegisterPointOfSaleStore();
     store.seedTaxAuthorityCount(12, 37);
@@ -94,8 +104,9 @@ describe("assignAwaitedOfflineNumberBlock", () => {
     expect(store.operationOrder).toEqual([
       "lockOfflineNumberBlocks",
       "offlineRegisterOf",
-      "hasOfflineNumberBlock",
+      "offlineNumberBlockInUse",
       "taxAuthorityLastAuthorized",
+      "highestSyncedOfflineNumber",
       "recordOfflineNumberBlock",
     ]);
     expect(store.transactionCount).toBe(1);

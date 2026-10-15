@@ -252,6 +252,7 @@ const OFFLINE_SERIES = {
   blocksInAssignmentOrder: [{ firstNumber: 101, lastNumber: 1100 }],
   localLastUsed: null,
   taxAuthorityLastAuthorized: 100,
+  highestSyncedNumber: null,
 };
 const OCCURRED_AT = new Date("2026-10-01T11:59:58.000Z");
 const CODE = "71234567890123";

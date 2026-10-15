@@ -85,6 +85,7 @@ const issuerIdentificationRow = {
 const offlinePointOfSaleRow = {
   point_of_sale_number: 20,
   tax_authority_last_authorized_number: 38,
+  highest_synced_offline_number: 240,
   version: 1,
 };
 
@@ -317,6 +318,24 @@ describe("changesPageSchema", () => {
         ...offlinePointOfSaleRow,
         tax_authority_last_authorized_number: 0,
       }),
+    ],
+    [
+      "the offline point of sale of a register none of whose documents was synced yet",
+      change(1, "register_offline_point_of_sale", {
+        ...offlinePointOfSaleRow,
+        highest_synced_offline_number: null,
+      }),
+    ],
+    [
+      "the offline point of sale of a register whose synced documents used no number",
+      change(1, "register_offline_point_of_sale", {
+        ...offlinePointOfSaleRow,
+        highest_synced_offline_number: 0,
+      }),
+    ],
+    [
+      "an offline number block used up",
+      change(1, "offline_number_block", { ...offlineNumberBlockRow, status: "used_up" }),
     ],
     [
       "the offline authorization code of a fortnight",
@@ -558,6 +577,20 @@ describe("changesPageSchema", () => {
     );
   });
 
+  it("reads the offline point of sale of a cloud that does not send the highest synced offline number yet as not known", () => {
+    const { highest_synced_offline_number: _highest, ...legacyRow } = offlinePointOfSaleRow;
+
+    expect(
+      changesPageSchema.parse(pageOf(change(1, "register_offline_point_of_sale", legacyRow)))
+        .changes[0],
+    ).toEqual(
+      change(1, "register_offline_point_of_sale", {
+        ...legacyRow,
+        highest_synced_offline_number: null,
+      }),
+    );
+  });
+
   it("reads a threshold of a cloud that does not send its revision yet as the first of its day", () => {
     const { revision: _revision, ...legacyRow } = thresholdRow;
 
@@ -732,7 +765,7 @@ describe("changesPageSchema", () => {
     ],
     [
       "an offline number block of a status it does not know",
-      pageOf(change(1, "offline_number_block", { ...offlineNumberBlockRow, status: "used_up" })),
+      pageOf(change(1, "offline_number_block", { ...offlineNumberBlockRow, status: "reserved" })),
     ],
     [
       "an offline number block without its range",
@@ -843,6 +876,24 @@ describe("changesPageSchema", () => {
         change(1, "register_offline_point_of_sale", {
           ...offlinePointOfSaleRow,
           tax_authority_last_authorized_number: 1.5,
+        }),
+      ),
+    ],
+    [
+      "an offline point of sale with a negative highest synced offline number",
+      pageOf(
+        change(1, "register_offline_point_of_sale", {
+          ...offlinePointOfSaleRow,
+          highest_synced_offline_number: -1,
+        }),
+      ),
+    ],
+    [
+      "an offline point of sale with a fractional highest synced offline number",
+      pageOf(
+        change(1, "register_offline_point_of_sale", {
+          ...offlinePointOfSaleRow,
+          highest_synced_offline_number: 1.5,
         }),
       ),
     ],

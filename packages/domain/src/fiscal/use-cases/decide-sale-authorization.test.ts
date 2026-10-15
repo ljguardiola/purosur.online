@@ -55,6 +55,7 @@ const OFFLINE_SERIES: OfflineSeries = {
   blocksInAssignmentOrder: [{ firstNumber: 101, lastNumber: 1100 }],
   localLastUsed: 120,
   taxAuthorityLastAuthorized: 100,
+  highestSyncedNumber: null,
 };
 const FIRST_HALF = { start: "2026-10-01", end: "2026-10-15" };
 const SECOND_HALF = { start: "2026-10-16", end: "2026-10-31" };

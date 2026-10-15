@@ -1,0 +1,1 @@
+ALTER TYPE "public"."offline_number_block_status" ADD VALUE 'used_up';

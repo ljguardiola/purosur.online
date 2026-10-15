@@ -41,6 +41,7 @@ export interface FakeInboxState {
   caughtUps: { deviceId: string; at: Date }[];
   refusedPushes: { deviceId: string; events: readonly PushedEvent[]; refusedAt: Date }[];
   brokenChainRevocations: { deviceId: string; revokedAt: Date }[];
+  offlineNumberingAdvancedFor: { eventId: string; at: Date }[];
 }
 
 export class FakeInbox implements Inbox {
@@ -55,6 +56,7 @@ export class FakeInbox implements Inbox {
     caughtUps: [],
     refusedPushes: [],
     brokenChainRevocations: [],
+    offlineNumberingAdvancedFor: [],
   };
   calls: string[] = [];
   failReceiving = false;
@@ -162,6 +164,12 @@ export class FakeInbox implements Inbox {
         for (const event of events) {
           working.received.push({ deviceId, event: structuredClone(event), receivedAt });
         }
+      },
+      advanceOfflineNumbering: async (offlineDocuments, at) => {
+        this.calls.push("advanceOfflineNumbering");
+        working.offlineNumberingAdvancedFor.push(
+          ...offlineDocuments.map((event) => ({ eventId: event.event_id, at })),
+        );
       },
       installationRegister: async (deviceId) => {
         this.calls.push(`installationRegister ${deviceId}`);
