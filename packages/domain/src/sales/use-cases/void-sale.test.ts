@@ -11,6 +11,7 @@ import {
   type FakeSaleVoidLedgerWrite,
 } from "./test-support/fake-sale-void-ledger.js";
 import { TEN_PERCENT_SALE_DISCOUNT } from "./test-support/sale-discounts.js";
+import type { SaleToVoid } from "./void-sale-ports.js";
 import {
   type VoidSaleGrant,
   type VoidSaleInput,
@@ -557,22 +558,10 @@ describe("voidSale", () => {
       expect(outcome).toMatchObject({ kind: "voided" });
     });
 
-    it("ignores a payment that was never approved", async () => {
-      const store = ledger({
-        payments: [
-          CASH_PAYMENT,
-          { ...TRANSFER_PAYMENT, state: "PENDING" } as unknown as SalePayment,
-        ],
-      });
-
-      const outcome = await void_(store, { pendingRefundsConfirmed: false });
-
-      expect(outcome).toMatchObject({ kind: "voided", refunds: [CASH_REFUND] });
-    });
   });
 
   describe("a payment that was never approved", () => {
-    const UNAPPROVED_QR = { ...QR_PAYMENT, state: "EXPIRED" } as unknown as SalePayment;
+    const UNAPPROVED_QR: SaleToVoid["payments"][number] = { ...QR_PAYMENT, state: "EXPIRED" };
 
     it("does not keep the sale from being voided, whatever its method", async () => {
       const store = ledger({ payments: [CASH_PAYMENT, UNAPPROVED_QR] });
