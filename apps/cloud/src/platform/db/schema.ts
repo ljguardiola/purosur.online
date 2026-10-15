@@ -2153,6 +2153,7 @@ export const fortnightReportState = pgEnum("fortnight_report_state", [
   "submitting",
   "refused",
   "accepted",
+  "needs_regularization",
 ]);
 
 export const fortnightReports = pgTable(

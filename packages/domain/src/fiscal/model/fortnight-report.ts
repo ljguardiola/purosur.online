@@ -1,7 +1,23 @@
 import { argentinaInstant, shiftCalendarDay } from "../../shared/index.js";
 import type { Fortnight } from "./offline-authorization-code.js";
 
-export type FortnightReportState = "blocked" | "submitting" | "refused" | "accepted";
+export type FortnightReportState =
+  | "blocked"
+  | "submitting"
+  | "refused"
+  | "accepted"
+  | "needs_regularization";
+
+export type DocumentTypeReportState = Exclude<FortnightReportState, "needs_regularization">;
+
+export type FortnightReportMovement = "none" | "documents";
+
+export type UnreportedDocumentsRemedy = "report_the_rest" | "manual_regularization";
+
+export type OfflineDocumentBatch<TDocument> =
+  | { kind: "batch"; documents: TDocument[] }
+  | { kind: "gap"; expectedNumber: number }
+  | { kind: "all_reported" };
 
 export type FortnightReportStanding =
   | { kind: "not_due" }
@@ -38,7 +54,64 @@ export function owesFortnightReport(
 }
 
 export function isFortnightReportOutstanding(state: FortnightReportState | null): boolean {
-  return state !== "accepted";
+  return state !== "accepted" && state !== "needs_regularization";
+}
+
+export function remedyForUnreportedDocuments(
+  movement: FortnightReportMovement,
+): UnreportedDocumentsRemedy {
+  return movement === "documents" ? "report_the_rest" : "manual_regularization";
+}
+
+export function isOfflineDocumentReported(number: number, reportedThrough: number | null): boolean {
+  return reportedThrough !== null && number <= reportedThrough;
+}
+
+export function offlineDocumentPresentations<
+  TDocument extends { documentType: string; number: number },
+>(documents: TDocument[]): { documentType: TDocument["documentType"]; documents: TDocument[] }[] {
+  const byType = new Map<TDocument["documentType"], TDocument[]>();
+  for (const document of documents) {
+    byType.set(document.documentType, [...(byType.get(document.documentType) ?? []), document]);
+  }
+  return [...byType.entries()]
+    .sort(([left], [right]) => (left < right ? -1 : 1))
+    .map(([documentType, presented]) => ({
+      documentType,
+      documents: presented.sort((left, right) => left.number - right.number),
+    }));
+}
+
+export function nextOfflineDocumentBatch<TDocument extends { number: number }>(
+  documents: TDocument[],
+  lastReported: number,
+  limit: number,
+): OfflineDocumentBatch<TDocument> {
+  const pending = documents.filter(({ number }) => number > lastReported);
+  if (pending.length === 0) {
+    return { kind: "all_reported" };
+  }
+  const batch: TDocument[] = [];
+  for (const document of pending) {
+    if (batch.length === limit || document.number !== lastReported + 1 + batch.length) {
+      break;
+    }
+    batch.push(document);
+  }
+  return batch.length === 0
+    ? { kind: "gap", expectedNumber: lastReported + 1 }
+    : { kind: "batch", documents: batch };
+}
+
+export function fortnightReportStateOfDocumentTypes(
+  states: DocumentTypeReportState[],
+): DocumentTypeReportState {
+  for (const state of ["refused", "blocked", "submitting"] as const) {
+    if (states.includes(state)) {
+      return state;
+    }
+  }
+  return "accepted";
 }
 
 export function fortnightReportStanding(

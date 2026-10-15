@@ -10,6 +10,7 @@ const STATE_BADGES: Record<
   refused: { label: "Rechazado", tone: "error" },
   blocked: { label: "Bloqueado", tone: "error" },
   accepted: { label: "Aceptado", tone: "success" },
+  needs_regularization: { label: "A regularizar", tone: "error" },
 };
 
 export function presentationStateBadge(state: FortnightPresentation["state"]) {

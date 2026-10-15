@@ -7,6 +7,7 @@ const fortnightReportStateSchema: z.ZodType<FortnightReportState> = z.enum([
   "submitting",
   "refused",
   "accepted",
+  "needs_regularization",
 ]);
 
 export const fortnightPresentationSchema = z.object({
