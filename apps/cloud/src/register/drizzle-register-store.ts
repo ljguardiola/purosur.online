@@ -24,6 +24,7 @@ import {
   registerEnrollmentAttempts,
   registerEnrollmentCodes,
   registerInstallations,
+  registerOfflinePointsOfSale,
   registerPointsOfSale,
   registerSnapshotGenerations,
   registerSnapshotKeys,
@@ -340,17 +341,23 @@ class DrizzleRegisterStoreTransaction<TQueryResult extends PgQueryResultHKT>
     if (this.enqueueTaxAuthorityCount === undefined) {
       return;
     }
-    const [held] = await this.tx
+    const [realTime] = await this.tx
       .select({ pointOfSale: registerPointsOfSale.pointOfSaleNumber })
       .from(registerPointsOfSale)
       .where(eq(registerPointsOfSale.registerId, registerId));
-    if (held === undefined) {
-      return;
+    const [offline] = await this.tx
+      .select({ pointOfSale: registerOfflinePointsOfSale.pointOfSaleNumber })
+      .from(registerOfflinePointsOfSale)
+      .where(eq(registerOfflinePointsOfSale.registerId, registerId));
+    for (const held of [realTime, offline]) {
+      if (held === undefined) {
+        continue;
+      }
+      await this.tx
+        .delete(taxAuthorityLastAuthorizedNumbers)
+        .where(eq(taxAuthorityLastAuthorizedNumbers.pointOfSaleNumber, held.pointOfSale));
+      await this.enqueueTaxAuthorityCount(this.tx, held.pointOfSale);
     }
-    await this.tx
-      .delete(taxAuthorityLastAuthorizedNumbers)
-      .where(eq(taxAuthorityLastAuthorizedNumbers.pointOfSaleNumber, held.pointOfSale));
-    await this.enqueueTaxAuthorityCount(this.tx, held.pointOfSale);
   }
 
   async openEnrollmentAlert(alert: EnrollmentAlert): Promise<void> {

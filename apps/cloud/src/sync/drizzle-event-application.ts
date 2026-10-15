@@ -1,5 +1,6 @@
 import { reportsFailedQuery } from "@purosur/contracts";
 import type { EventInvariantBreaks, EventQuarantine } from "@purosur/domain";
+import { assignNextOfflineNumberBlock } from "@purosur/domain/fiscal/use-cases";
 import {
   applyOpeningCount,
   applyRegisterStockMovements,
@@ -20,6 +21,7 @@ import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { openEventInvariantAlert } from "../alerts/event-invariant-alert.js";
 import { openQuarantinedEventAlert } from "../alerts/quarantined-event-alert.js";
 import { recordAppliedOfflineFiscalDocument } from "../fiscal/drizzle-applied-offline-fiscal-documents.js";
+import { DrizzleRegisterOfflinePointOfSaleStoreTransaction } from "../fiscal/drizzle-register-offline-point-of-sale-store.js";
 import { recordAppliedQrPaymentReplacement } from "../payments/drizzle-applied-qr-payment-replacement.js";
 import { providerTransactionOfPayment } from "../payments/drizzle-provider-transactions.js";
 import { describeDatabaseFailure, errorCode } from "../platform/db/describe-database-failure.js";
@@ -38,6 +40,7 @@ import { recordAppliedCancelledSale, recordAppliedSale } from "../sales/drizzle-
 import { DrizzleStockStoreTransaction } from "../stock/drizzle-stock-store.js";
 import { type PendingChanges, withPendingChanges } from "./change-log.js";
 import { lockDeviceQuarantines } from "./lock-device-quarantines.js";
+import { unappliedEventColumns } from "./unapplied-event-columns.js";
 
 type OpeningCountRecordedFact = Extract<SyncedFact, { kind: "opening_count_recorded" }>["count"];
 type OpeningCountWithdrawnFact = Extract<
@@ -45,6 +48,10 @@ type OpeningCountWithdrawnFact = Extract<
   { kind: "opening_count_withdrawn" }
 >["withdrawal"];
 type CompletedSale = Extract<SyncedFact, { kind: "sale_completed" }>["sale"];
+type IssuedOfflineDocument = Extract<
+  SyncedFact,
+  { kind: "offline_fiscal_document_issued" }
+>["document"];
 
 type Transaction<TQueryResult extends PgQueryResultHKT> = Parameters<
   Parameters<PgDatabase<TQueryResult>["transaction"]>[0]
@@ -74,22 +81,7 @@ class DrizzleEventApplicationTransaction<TQueryResult extends PgQueryResultHKT>
 
   async unappliedEventsOf({ aggregateType, aggregateId }: AggregateKey): Promise<UnappliedEvent[]> {
     return this.tx
-      .select({
-        eventId: inbox.eventId,
-        deviceId: inbox.deviceId,
-        deviceSeq: inbox.deviceSeq,
-        aggregateType: inbox.aggregateType,
-        aggregateId: inbox.aggregateId,
-        eventType: inbox.eventType,
-        schemaVersion: inbox.schemaVersion,
-        payload: inbox.payload,
-        occurredAt: inbox.occurredAt,
-        receivedAt: inbox.receivedAt,
-        actorId: inbox.actorId,
-        attempts: inbox.attempts,
-        quarantinedAt: inbox.quarantinedAt,
-        nextAttemptAt: inbox.nextAttemptAt,
-      })
+      .select(unappliedEventColumns)
       .from(inbox)
       .where(
         and(
@@ -244,6 +236,18 @@ class DrizzleEventApplicationTransaction<TQueryResult extends PgQueryResultHKT>
           reason: `a sale moved a quantity of product ${outcome.productId} it can't be sold in`,
         };
     }
+  }
+
+  async advanceOfflineNumbering(document: IssuedOfflineDocument): Promise<void> {
+    await assignNextOfflineNumberBlock(
+      new DrizzleRegisterOfflinePointOfSaleStoreTransaction(
+        this.tx,
+        this.now,
+        this.pending,
+        undefined,
+      ),
+      { pointOfSaleNumber: document.pointOfSale, documentType: document.documentType },
+    );
   }
 
   async markApplied(eventId: string, at: Date): Promise<void> {

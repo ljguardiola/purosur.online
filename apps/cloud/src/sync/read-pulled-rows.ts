@@ -1,11 +1,13 @@
-import type {
-  FiscalDocumentType,
-  NetContentUnit,
-  SaleUnit,
-  StockMovementKind,
+import {
+  FACTURA_C_DOCUMENT_TYPE,
+  type FiscalDocumentType,
+  type NetContentUnit,
+  type SaleUnit,
+  type StockMovementKind,
 } from "@purosur/domain";
 import { asc, eq, inArray } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import { highestSyncedOfflineNumber as highestSyncedOfflineNumberOf } from "../fiscal/drizzle-highest-synced-offline-number.js";
 import { OFFLINE_AUTHORIZATION_CODE_VERSION } from "../fiscal/offline-authorization-code-version.js";
 import {
   branchFirstCashSessions,
@@ -377,7 +379,17 @@ export async function readRegisterOfflinePointsOfSale<TQueryResult extends PgQue
     )
     .where(inArray(registerOfflinePointsOfSale.registerId, [...registerIds]))
     .orderBy(asc(registerOfflinePointsOfSale.registerId));
-  return new Map(rows.map(({ registerId, ...row }) => [registerId, row]));
+  const withHighestSynced = await Promise.all(
+    rows.map(async ({ registerId, ...row }) => {
+      const highestSyncedOfflineNumber = await highestSyncedOfflineNumberOf(
+        tx,
+        row.pointOfSaleNumber,
+        FACTURA_C_DOCUMENT_TYPE,
+      );
+      return [registerId, { ...row, highestSyncedOfflineNumber }] as const;
+    }),
+  );
+  return new Map(withHighestSynced);
 }
 
 export async function readOfflineAuthorizationCodes<TQueryResult extends PgQueryResultHKT>(
