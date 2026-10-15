@@ -1,10 +1,10 @@
-import type { TaxAuthorityVoucherLookup, VoucherAnswer } from "../unclear-outcome-ports.js";
 import type {
   LastAuthorizedAnswer,
   LastAuthorizedCount,
   TaxAuthorityCounts,
   TaxAuthorityLastAuthorizedLookup,
 } from "../tax-authority-count-ports.js";
+import type { TaxAuthorityVoucherLookup, VoucherAnswer } from "../unclear-outcome-ports.js";
 import type { WsaaToken } from "../wsaa-token-ports.js";
 
 export class FakeLastAuthorizedLookup implements TaxAuthorityLastAuthorizedLookup {

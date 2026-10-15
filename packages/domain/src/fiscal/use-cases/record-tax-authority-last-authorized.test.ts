@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { recordTaxAuthorityLastAuthorized } from "./record-tax-authority-last-authorized.js";
-import type { VoucherAnswer } from "./unclear-outcome-ports.js";
 import type { LastAuthorizedAnswer, LastAuthorizedCount } from "./tax-authority-count-ports.js";
 import { ManualClock } from "./test-support/fake-arca-vitality.js";
 import {
@@ -8,6 +7,7 @@ import {
   FakeTaxAuthorityCounts,
   FakeVoucherLookup,
 } from "./test-support/fake-tax-authority-count.js";
+import type { VoucherAnswer } from "./unclear-outcome-ports.js";
 
 const NOW = new Date("2026-10-01T12:00:00.000Z");
 const EARLIER = new Date("2026-09-30T12:00:00.000Z");

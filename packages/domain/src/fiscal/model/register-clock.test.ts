@@ -1,10 +1,10 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import {
-  isBehindClockMark,
   isBeforeTaxAuthorityLastIssuedDay,
-  raisedClockMark,
+  isBehindClockMark,
   REGISTER_CLOCK_TOLERANCE_MS,
+  raisedClockMark,
 } from "./register-clock.js";
 
 const MARK = new Date("2026-10-01T12:00:00.000Z");

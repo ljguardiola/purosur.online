@@ -64,7 +64,12 @@ async function issueWsaaToken() {
 
 function taskUnderTest(taxAuthority: TaxAuthorityLastAuthorizedLookup) {
   const jobs = taxAuthorityCountJobs(
-    { now: () => NOW, taxAuthority, certificateFingerprint: FINGERPRINT },
+    {
+      now: () => NOW,
+      taxAuthority,
+      vouchers: { voucherAt: async () => ({ kind: "none" }) },
+      certificateFingerprint: FINGERPRINT,
+    },
     { createDatabase: () => testDatabase.db },
   );
   const task = jobs.taskList[TAX_AUTHORITY_COUNT_TASK_IDENTIFIER];
