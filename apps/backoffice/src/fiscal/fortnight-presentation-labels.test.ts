@@ -7,6 +7,7 @@ test.each([
   ["refused", { label: "Rechazado", tone: "error" }],
   ["blocked", { label: "Bloqueado", tone: "error" }],
   ["accepted", { label: "Aceptado", tone: "success" }],
+  ["needs_regularization", { label: "A regularizar", tone: "error" }],
 ] as const)("badges the state %s", (state, badge) => {
   expect(presentationStateBadge(state)).toEqual(badge);
 });
