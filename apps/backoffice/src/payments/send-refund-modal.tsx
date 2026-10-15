@@ -34,7 +34,7 @@ const OUTDATED_TITLES = {
   not_confirmable: "Este reembolso no se puede enviar a Mercado Pago",
   already_done: "Este reembolso ya estaba hecho",
   already_confirmed: "Este reembolso ya estaba confirmado",
-  not_backed: "No consta la cancelación que justifica este reembolso",
+  not_backed: "No consta lo que justifica este reembolso",
   exceeds_refundable: "El reembolso es mayor a lo que queda por devolver del pago",
 } as const;
 
