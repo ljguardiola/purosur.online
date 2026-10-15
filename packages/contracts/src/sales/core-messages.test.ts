@@ -1633,6 +1633,7 @@ describe("asking for the detail of one sale of the history", () => {
         { method: "TRANSFER", amount: 2500, state: "PENDING" },
       ],
     },
+    void_authorization_required: false,
     next_copy: { kind: "duplicate", order_number: 2 },
   };
   const answer = (outcome: unknown) => ({
@@ -1648,6 +1649,7 @@ describe("asking for the detail of one sale of the history", () => {
       detail: { ...detail, operation_number: null, next_copy: { kind: "original" } },
     },
     { kind: "found", detail: { ...detail, occurred_at: "2026-10-08T09:00:00.000-03:00" } },
+    { kind: "found", detail: { ...detail, void_authorization_required: true } },
     {
       kind: "found",
       detail: {
@@ -1682,6 +1684,8 @@ describe("asking for the detail of one sale of the history", () => {
     { kind: "found", detail: { ...detail, next_copy: { kind: "reprint" } } },
     { kind: "found", detail: { ...detail, served_by_first_name: undefined } },
     { kind: "found", detail: { ...detail, state: "cancelled" } },
+    { kind: "found", detail: { ...detail, void_authorization_required: undefined } },
+    { kind: "found", detail: { ...detail, void_authorization_required: "yes" } },
     { kind: "found", detail: { ...detail, voidability: undefined } },
     { kind: "found", detail: { ...detail, voidability: { kind: "voidable" } } },
     {

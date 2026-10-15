@@ -14,7 +14,7 @@ export interface SalesHistoryRequestDeps {
 
 export interface SalesHistoryRequest {
   session: "open" | "all";
-  state: "all" | "completed" | "in_progress" | "deferred";
+  state: "all" | "completed" | "in_progress" | "deferred" | "voided";
   page: number;
 }
 
@@ -91,6 +91,7 @@ export async function saleHistoryDetailFor(
       line_count: detail.lineCount,
       payments: detail.payments,
       state: detail.standing,
+      voidability: detail.voidability,
       next_copy:
         detail.nextCopy.kind === "original"
           ? detail.nextCopy
