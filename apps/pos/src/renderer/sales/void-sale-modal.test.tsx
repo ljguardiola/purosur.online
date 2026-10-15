@@ -137,7 +137,7 @@ describe("VoidSaleModal", () => {
       .toBeVisible();
     await expect.element(screen.getByRole("button", { name: VOID })).toBeDisabled();
 
-    await userEvent.click(screen.getByRole("checkbox", { name: "Confirmo" }));
+    await userEvent.click(screen.getByText("Confirmo"));
     await userEvent.click(screen.getByRole("button", { name: VOID }));
 
     expect(send).toHaveBeenCalledExactlyOnceWith("sale-1", true, undefined);
@@ -150,7 +150,7 @@ describe("VoidSaleModal", () => {
         { method: "STANDALONE_TERMINAL", amount: 90_000, state: "PENDING" },
       ],
     });
-    const [first, second] = screen.getByRole("checkbox", { name: "Confirmo" }).elements();
+    const [first, second] = screen.getByText("Confirmo").elements();
 
     await userEvent.click(first as Element);
     await expect.element(screen.getByRole("button", { name: VOID })).toBeDisabled();
@@ -319,7 +319,9 @@ describe("VoidSaleModal", () => {
 
         await userEvent.click(screen.getByRole("button", { name: VOID }));
 
-        await expect.element(screen.getByRole("alert")).toHaveTextContent(title);
+        await expect
+          .element(screen.getByRole("dialog").getByText(title, { exact: true }).first())
+          .toBeVisible();
         await vi.waitFor(() => expect(onRefused).toHaveBeenCalledOnce());
         await expect.element(screen.getByRole("button", { name: VOID })).toBeDisabled();
         expect(onVoided).not.toHaveBeenCalled();

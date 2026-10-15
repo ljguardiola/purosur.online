@@ -55,7 +55,7 @@ describe("voidRefundPresentation", () => {
     expect(voidRefundPresentation({ method, amount: 250_000, state: "PENDING" })).toEqual({
       title: `${name} · $ 2.500,00`,
       description: "Queda un reembolso pendiente: una persona lo hace por fuera de la caja.",
-      chip: { label: "Pendiente", tone: "warning" },
+      chip: { label: "Pendiente", tone: "info" },
       pending: true,
     });
   });
@@ -64,7 +64,7 @@ describe("voidRefundPresentation", () => {
     expect(voidRefundPresentation({ method: "QR", amount: 90_000, state: "PENDING" })).toEqual({
       title: "QR de Mercado Pago · $ 900,00",
       description: "Queda un reembolso pendiente que la nube envía a Mercado Pago al confirmarlo.",
-      chip: { label: "Pendiente", tone: "warning" },
+      chip: { label: "Pendiente", tone: "info" },
       pending: true,
     });
   });

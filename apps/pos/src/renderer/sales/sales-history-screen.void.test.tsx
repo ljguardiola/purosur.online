@@ -69,24 +69,23 @@ describe("SalesHistoryScreen voiding a sale", () => {
   });
 
   it("closes the review, says the sale was voided and reads the sales again once it is voided", async () => {
-    const reads = { detail: 0 };
+    let done = false;
     const { screen, voidSale, saleHistoryDetail, salesHistory } = await renderScreen({
-      saleHistoryDetail: async () => {
-        reads.detail += 1;
-        return {
-          kind: "found",
-          detail:
-            reads.detail === 1
-              ? DETAIL
-              : {
-                  ...DETAIL,
-                  state: "voided",
-                  voidability: { kind: "not_voidable", refusal: "not_completed" },
-                },
-        };
+      voidSale: async () => {
+        done = true;
+        return { kind: "voided", refunds: [], authorized_by: null };
       },
-      salesHistory: async () =>
-        pageOf([{ ...FISCAL_ROW, state: reads.detail > 1 ? "voided" : "completed" }]),
+      saleHistoryDetail: async () => ({
+        kind: "found",
+        detail: done
+          ? {
+              ...DETAIL,
+              state: "voided",
+              voidability: { kind: "not_voidable", refusal: "not_completed" },
+            }
+          : DETAIL,
+      }),
+      salesHistory: async () => pageOf([{ ...FISCAL_ROW, state: done ? "voided" : "completed" }]),
     });
     await chooseSale(screen, "11:42");
     await userEvent.click(screen.getByRole("button", { name: "Anular venta" }));
