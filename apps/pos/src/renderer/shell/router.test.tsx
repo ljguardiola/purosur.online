@@ -1294,17 +1294,17 @@ describe("the register's router", () => {
   describe("the clock guard", () => {
     const LAGGING: ReadClockGuardOutcome = {
       kind: "read",
-      reading: "2026-09-15T09:10:00.000Z",
+      reading: "2026-09-15T09:10:00.000-03:00",
       blocks: [
         {
           point_of_sale: 3,
           document_type: "factura_c",
-          latest_reading: "2026-09-16T11:31:00.000Z",
+          latest_reading: "2026-09-16T11:31:00.000-03:00",
           tax_authority_last_authorized_issued_on: null,
         },
       ],
       may_correct: true,
-      correction_available: true,
+      correction: "available",
     };
 
     it("offers correcting the clock on the no-session screen while it lags", async () => {

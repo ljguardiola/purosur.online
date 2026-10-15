@@ -1,4 +1,5 @@
 import type { OutboxEventDraft } from "../../../shared/index.js";
+import type { ClockMark } from "../../model/clock-correction.js";
 import type { DeferredSale } from "../../model/deferred-sale.js";
 import type { FiscalOnlineSignalEvidence } from "../../model/fiscal-online-signal.js";
 import type { Fortnight } from "../../model/offline-authorization-code.js";
@@ -6,7 +7,6 @@ import type { OfflineFiscalDocument } from "../../model/offline-fiscal-document.
 import type { OfflineSeries, RealTimeSeries } from "../../model/real-time-authorization.js";
 import { ShortCodeTaken } from "../deferred-sale-ports.js";
 import type {
-  ClockMarkRaise,
   FiscalDocumentReservation,
   IdGenerator,
   SaleAuthorizationTransaction,
@@ -33,7 +33,7 @@ export class FakeSaleAuthorizationTransaction implements SaleAuthorizationTransa
   readonly outbox: OutboxEventDraft[] = [];
   readonly routings: DeferredSale[] = [];
   readonly routingAttempts: DeferredSale[] = [];
-  readonly clockMarkRaises: ClockMarkRaise[] = [];
+  readonly recordedClockMarks: ClockMark[] = [];
   readonly codeLookups: Fortnight[] = [];
   private readonly state: FakeSaleAuthorizationState;
 
@@ -78,8 +78,8 @@ export class FakeSaleAuthorizationTransaction implements SaleAuthorizationTransa
     this.outbox.push(event);
   }
 
-  raiseClockMark(raise: ClockMarkRaise): void {
-    this.clockMarkRaises.push(raise);
+  recordClockMark(mark: ClockMark): void {
+    this.recordedClockMarks.push(mark);
   }
 
   routeSaleToDeferred(deferred: DeferredSale): void {

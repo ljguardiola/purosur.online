@@ -13,7 +13,7 @@ const READ: ReadClockGuardOutcome = {
   reading: "2026-10-01T15:00:00.000Z",
   blocks: [],
   may_correct: true,
-  correction_available: false,
+  correction: "not_behind",
 };
 const CORRECTED: CorrectRegisterClockOutcome = { kind: "not_behind" };
 

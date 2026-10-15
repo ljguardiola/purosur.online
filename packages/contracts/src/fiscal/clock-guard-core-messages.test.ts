@@ -30,7 +30,7 @@ const READ = {
   reading: "2026-10-01T15:00:00.000Z",
   blocks: [BLOCK],
   may_correct: true,
-  correction_available: true,
+  correction: "available",
 };
 
 const LOWERING = {
@@ -73,8 +73,20 @@ describe("fiscalCoreToRendererMessageSchema", () => {
       expect(accepts(READ)).toBe(true);
     });
 
+    it("accepts a reading and a mark written on the clock of their time zone", () => {
+      const block = { ...BLOCK, latest_reading: "2026-10-01T13:00:00.000-03:00" };
+
+      expect(accepts({ ...READ, reading: "2026-10-01T12:00:00.000-03:00", blocks: [block] })).toBe(
+        true,
+      );
+    });
+
     it("accepts a read with no block", () => {
-      expect(accepts({ ...READ, blocks: [], correction_available: false })).toBe(true);
+      expect(accepts({ ...READ, blocks: [], correction: "not_behind" })).toBe(true);
+    });
+
+    it("accepts a read whose correction was already made in the period", () => {
+      expect(accepts({ ...READ, correction: "already_corrected_in_period" })).toBe(true);
     });
 
     it("accepts a block with neither a mark nor a tax authority day", () => {
@@ -104,7 +116,8 @@ describe("fiscalCoreToRendererMessageSchema", () => {
         { ...READ, blocks: [{ ...BLOCK, latest_reading: "late" }] },
       ],
       ["no permission answer", { ...READ, may_correct: undefined }],
-      ["no availability answer", { ...READ, correction_available: undefined }],
+      ["no availability answer", { ...READ, correction: undefined }],
+      ["an availability answer of yes or no", { ...READ, correction: true }],
       ["an outcome of another operation", { kind: "corrected", lowerings: [LOWERING] }],
     ])("rejects %s", (_case, outcome) => {
       expect(accepts(outcome)).toBe(false);

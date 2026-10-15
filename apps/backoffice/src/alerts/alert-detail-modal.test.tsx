@@ -1819,9 +1819,9 @@ test("tells which register's clock was confirmed as correct, for which point of 
   await expect.element(screen.getByText("Caja 1", { exact: true })).toBeVisible();
   await expect.element(screen.getByText("00003", { exact: true })).toBeVisible();
   await expect.element(screen.getByText("Lectura anterior", { exact: true })).toBeVisible();
-  await expect.element(screen.getByText("16/09/2026 11:31", { exact: true })).toBeVisible();
+  await expect.element(screen.getByText("16/09/2026 · 11:31", { exact: true })).toBeVisible();
   await expect.element(screen.getByText("Lectura nueva", { exact: true })).toBeVisible();
-  await expect.element(screen.getByText("15/09/2026 12:10", { exact: true })).toBeVisible();
+  await expect.element(screen.getByText("15/09/2026 · 12:10", { exact: true })).toBeVisible();
   await expect.element(screen.getByText("Corrigió", { exact: true })).toBeVisible();
   await expect.element(screen.getByText("Lucía", { exact: true })).toBeVisible();
   await expectNoAccessibilityViolations(document.body);

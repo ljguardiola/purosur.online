@@ -10,17 +10,17 @@ type Guard = Extract<ReadClockGuardOutcome, { kind: "read" }>;
 
 const GUARD: Guard = {
   kind: "read",
-  reading: "2026-09-15T09:10:00.000Z",
+  reading: "2026-09-15T09:10:00.000-03:00",
   blocks: [
     {
       point_of_sale: 3,
       document_type: "factura_c",
-      latest_reading: "2026-09-16T11:31:00.000Z",
+      latest_reading: "2026-09-16T11:31:00.000-03:00",
       tax_authority_last_authorized_issued_on: null,
     },
   ],
   may_correct: true,
-  correction_available: true,
+  correction: "available",
 };
 
 type Correct = () => Promise<CorrectRegisterClockOutcome>;
@@ -98,7 +98,7 @@ describe("CorrectRegisterClockModal", () => {
       .element(dialog.getByText("Se puede confirmar una sola vez por sesión de caja"))
       .toBeVisible();
     await expect
-      .element(dialog.getByText("Le avisa al Administrador quién lo confirmó."))
+      .element(dialog.getByText("Si la hora vuelve a atrasar, corregila en Windows."))
       .toBeVisible();
     await expect.element(confirmButton(dialog)).toBeEnabled();
     await expectNoAccessibilityViolations(screen.container);
@@ -134,7 +134,7 @@ describe("CorrectRegisterClockModal", () => {
 
   it("tells it was already used in this cash session and keeps the confirmation disabled", async () => {
     const { dialog, correct } = await renderModal({
-      guard: { ...GUARD, correction_available: false },
+      guard: { ...GUARD, correction: "already_corrected_in_period" },
     });
 
     await expect
@@ -144,10 +144,32 @@ describe("CorrectRegisterClockModal", () => {
     expect(correct).not.toHaveBeenCalled();
   });
 
+  it("does not tell the confirmation was already used when the register holds nothing it can lower", async () => {
+    const { dialog } = await renderModal({ guard: { ...GUARD, correction: "not_behind" } });
+
+    await expect
+      .element(dialog.getByText("Se puede confirmar una sola vez por sesión de caja"))
+      .toBeVisible();
+    await expect
+      .element(dialog.getByText("Ya se confirmó la hora en esta sesión de caja"))
+      .not.toBeInTheDocument();
+  });
+
+  it("does not say whom the confirmation is told to", async () => {
+    const { dialog } = await renderModal();
+
+    await expect
+      .element(dialog.getByText("Se puede confirmar una sola vez por sesión de caja"))
+      .toBeVisible();
+    await expect
+      .element(dialog.getByText("Le avisa al Administrador quién lo confirmó."))
+      .not.toBeInTheDocument();
+  });
+
   it("tells it was already used since the last cash session closed when none is open", async () => {
     const { dialog } = await renderModal({
       cashSessionOpen: false,
-      guard: { ...GUARD, correction_available: false },
+      guard: { ...GUARD, correction: "already_corrected_in_period" },
     });
 
     await expect

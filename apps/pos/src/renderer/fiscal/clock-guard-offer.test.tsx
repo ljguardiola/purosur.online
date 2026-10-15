@@ -10,17 +10,17 @@ type Read = Extract<ReadClockGuardOutcome, { kind: "read" }>;
 
 const BLOCKED: Read = {
   kind: "read",
-  reading: "2026-09-15T09:10:00.000Z",
+  reading: "2026-09-15T09:10:00.000-03:00",
   blocks: [
     {
       point_of_sale: 3,
       document_type: "factura_c",
-      latest_reading: "2026-09-16T11:31:00.000Z",
+      latest_reading: "2026-09-16T11:31:00.000-03:00",
       tax_authority_last_authorized_issued_on: null,
     },
   ],
   may_correct: true,
-  correction_available: true,
+  correction: "available",
 };
 
 const CORRECTED: CorrectRegisterClockOutcome = {
@@ -84,6 +84,42 @@ describe("ClockGuardOffer", () => {
       .not.toBeInTheDocument();
   });
 
+  it("informs without the action when the register holds nothing a correction can lower", async () => {
+    const { screen } = await renderOffer([
+      {
+        ...BLOCKED,
+        blocks: [
+          {
+            point_of_sale: 3,
+            document_type: "factura_c",
+            latest_reading: null,
+            tax_authority_last_authorized_issued_on: "2026-09-16",
+          },
+        ],
+        correction: "not_behind",
+      },
+    ]);
+
+    await expect.element(screen.getByText("El reloj de la caja atrasa")).toBeVisible();
+    await expect
+      .element(screen.getByRole("button", { name: "Corregir el reloj" }))
+      .not.toBeInTheDocument();
+  });
+
+  it("offers the action when the period's correction was already made, to tell it in the correction", async () => {
+    const { screen } = await renderOffer([
+      { ...BLOCKED, correction: "already_corrected_in_period" },
+    ]);
+
+    await userEvent.click(screen.getByRole("button", { name: "Corregir el reloj" }));
+
+    await expect
+      .element(
+        screen.getByText("Ya se confirmó la hora desde que se cerró la última sesión de caja"),
+      )
+      .toBeVisible();
+  });
+
   it("shows nothing while the clock guard blocks nothing", async () => {
     const { screen, readClockGuard } = await renderOffer([{ ...BLOCKED, blocks: [] }]);
 
@@ -131,11 +167,40 @@ describe("ClockGuardOffer", () => {
 
     expect(correctRegisterClock).toHaveBeenCalledOnce();
     await expect.element(screen.getByText("La hora de la caja quedó confirmada")).toBeVisible();
+    await expect.element(screen.getByText("Las facturas se emiten de nuevo.")).toBeVisible();
     await expect
       .element(screen.getByRole("dialog", { name: "No se pueden emitir comprobantes" }))
       .not.toBeInTheDocument();
     await expect.element(screen.getByText("El reloj de la caja atrasa")).not.toBeInTheDocument();
     expect(readClockGuard).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not tell invoices are issued again when the clock guard still blocks after the clock is confirmed", async () => {
+    const { screen, readClockGuard } = await renderOffer([
+      BLOCKED,
+      {
+        ...BLOCKED,
+        blocks: [
+          {
+            point_of_sale: 3,
+            document_type: "factura_c",
+            latest_reading: null,
+            tax_authority_last_authorized_issued_on: "2026-09-16",
+          },
+        ],
+        correction: "not_behind",
+      },
+    ]);
+    await userEvent.click(screen.getByRole("button", { name: "Corregir el reloj" }));
+
+    await userEvent.click(screen.getByRole("button", { name: "La hora de la caja es correcta" }));
+
+    await expect.element(screen.getByText("La hora de la caja quedó confirmada")).toBeVisible();
+    expect(readClockGuard).toHaveBeenCalledTimes(2);
+    await expect.element(screen.getByText("Todavía no se emiten facturas.")).toBeVisible();
+    await expect
+      .element(screen.getByText("Las facturas se emiten de nuevo."))
+      .not.toBeInTheDocument();
   });
 
   it("keeps the correction open with the refusal and reads the clock guard again when the clock is no longer behind", async () => {

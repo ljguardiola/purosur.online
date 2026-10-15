@@ -630,6 +630,12 @@ describe("decideSaleAuthorizationRoute under a clock behind the offline series' 
     ).toEqual({ kind: "defer", reason: "clock_behind" });
   });
 
+  it("defers as the clock being behind even while the register holds no offline point of sale", () => {
+    expect(
+      decide({ online: OFFLINE, offlineSeries: { ...OFFLINE_BEHIND, pointOfSale: null } }),
+    ).toEqual({ kind: "defer", reason: "clock_behind" });
+  });
+
   it("issues the sale offline when the mark is no more than a minute ahead of the sale", () => {
     expect(
       decide({

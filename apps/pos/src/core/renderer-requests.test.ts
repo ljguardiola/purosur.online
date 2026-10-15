@@ -1772,7 +1772,7 @@ describe("answerRendererRequest", () => {
       reading: "2026-10-01T15:00:00.000Z",
       blocks: [],
       may_correct: false,
-      correction_available: false,
+      correction: "not_behind",
     };
     const { deps: withGuard } = deps(true, {
       clockGuard: { read: async () => outcome, correct: async () => ({ kind: "not_behind" }) },

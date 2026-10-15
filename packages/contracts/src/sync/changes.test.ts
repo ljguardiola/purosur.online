@@ -85,7 +85,6 @@ const issuerIdentificationRow = {
 const offlinePointOfSaleRow = {
   point_of_sale_number: 20,
   tax_authority_last_authorized_number: 38,
-  tax_authority_last_authorized_issued_on: "2026-09-30",
   highest_synced_offline_number: 240,
   version: 1,
 };
@@ -566,46 +565,53 @@ describe("changesPageSchema", () => {
     );
   });
 
-  it.each([
-    ["register_point_of_sale", pointOfSaleRow],
-    ["register_offline_point_of_sale", offlinePointOfSaleRow],
-  ] as const)(
-    "reads the %s of a cloud that does not send the day of the tax authority's last authorized document yet as not known",
-    (entity, row) => {
-      const { tax_authority_last_authorized_issued_on: _day, ...legacyRow } = row;
+  it("reads the point of sale of a cloud that does not send the day of the tax authority's last authorized document yet as not known", () => {
+    const { tax_authority_last_authorized_issued_on: _day, ...legacyRow } = pointOfSaleRow;
 
-      expect(changesPageSchema.parse(pageOf(change(1, entity, legacyRow))).changes[0]).toEqual(
-        change(1, entity, { ...legacyRow, tax_authority_last_authorized_issued_on: null }),
-      );
-    },
-  );
-
-  it.each([
-    ["register_point_of_sale", pointOfSaleRow],
-    ["register_offline_point_of_sale", offlinePointOfSaleRow],
-  ] as const)("keeps a %s whose last authorized document's day is not known", (entity, row) => {
-    const unknown = { ...row, tax_authority_last_authorized_issued_on: null };
-
-    expect(changesPageSchema.parse(pageOf(change(1, entity, unknown))).changes[0]).toEqual(
-      change(1, entity, unknown),
+    expect(
+      changesPageSchema.parse(pageOf(change(1, "register_point_of_sale", legacyRow))).changes[0],
+    ).toEqual(
+      change(1, "register_point_of_sale", {
+        ...legacyRow,
+        tax_authority_last_authorized_issued_on: null,
+      }),
     );
   });
 
-  it.each([
-    ["register_point_of_sale", pointOfSaleRow],
-    ["register_offline_point_of_sale", offlinePointOfSaleRow],
-  ] as const)(
-    "refuses a %s whose last authorized document's day is not a calendar day",
-    (entity, row) => {
-      for (const day of ["2026-13-01", "yesterday", 20260930]) {
-        expect(() =>
-          changesPageSchema.parse(
-            pageOf(change(1, entity, { ...row, tax_authority_last_authorized_issued_on: day })),
+  it("keeps a point of sale whose last authorized document's day is not known", () => {
+    const unknown = { ...pointOfSaleRow, tax_authority_last_authorized_issued_on: null };
+
+    expect(
+      changesPageSchema.parse(pageOf(change(1, "register_point_of_sale", unknown))).changes[0],
+    ).toEqual(change(1, "register_point_of_sale", unknown));
+  });
+
+  it("refuses a point of sale whose last authorized document's day is not a calendar day", () => {
+    for (const day of ["2026-13-01", "yesterday", 20260930]) {
+      expect(() =>
+        changesPageSchema.parse(
+          pageOf(
+            change(1, "register_point_of_sale", {
+              ...pointOfSaleRow,
+              tax_authority_last_authorized_issued_on: day,
+            }),
           ),
-        ).toThrow();
-      }
-    },
-  );
+        ),
+      ).toThrow();
+    }
+  });
+
+  it("carries no day of the tax authority's last authorized document for an offline point of sale", () => {
+    const withDay = {
+      ...offlinePointOfSaleRow,
+      tax_authority_last_authorized_issued_on: "2026-09-30",
+    };
+
+    expect(
+      changesPageSchema.parse(pageOf(change(1, "register_offline_point_of_sale", withDay)))
+        .changes[0],
+    ).toEqual(change(1, "register_offline_point_of_sale", offlinePointOfSaleRow));
+  });
 
   it("reads the point of sale of a cloud that does not send the numbering freeze yet as not frozen", () => {
     const { numbering_frozen: _frozen, ...legacyRow } = pointOfSaleRow;

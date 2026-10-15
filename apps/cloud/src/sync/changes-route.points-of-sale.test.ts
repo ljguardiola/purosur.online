@@ -403,7 +403,6 @@ describe("GET /changes carrying the register's own offline point of sale", () =>
         row: {
           point_of_sale_number: 8,
           tax_authority_last_authorized_number: null,
-          tax_authority_last_authorized_issued_on: null,
           highest_synced_offline_number: null,
           version: 1,
         },
@@ -436,7 +435,6 @@ describe("GET /changes carrying the register's own offline point of sale", () =>
       row: {
         point_of_sale_number: 8,
         tax_authority_last_authorized_number: 41,
-        tax_authority_last_authorized_issued_on: "2026-09-28",
         highest_synced_offline_number: null,
         version: 1,
       },
@@ -471,7 +469,6 @@ describe("GET /changes carrying the register's own offline point of sale", () =>
       row: {
         point_of_sale_number: 8,
         tax_authority_last_authorized_number: 41,
-        tax_authority_last_authorized_issued_on: null,
         highest_synced_offline_number: 63,
       },
     });
@@ -513,7 +510,6 @@ describe("GET /changes carrying the register's own offline point of sale", () =>
         row: {
           point_of_sale_number: 9,
           tax_authority_last_authorized_number: null,
-          tax_authority_last_authorized_issued_on: null,
           highest_synced_offline_number: null,
           version: 2,
         },

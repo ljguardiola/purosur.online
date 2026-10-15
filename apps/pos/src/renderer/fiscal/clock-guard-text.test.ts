@@ -1,11 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { clockReadingText, lastDocumentOf, modalEyebrow } from "./clock-guard-text";
-
-describe("clockReadingText", () => {
-  it("shows the day and the time of an instant", () => {
-    expect(clockReadingText("2026-09-16T11:31:00.000Z")).toBe("16/09/2026 · 11:31");
-  });
-});
+import { lastDocumentOf, modalEyebrow } from "./clock-guard-text";
 
 describe("lastDocumentOf", () => {
   it("is nothing when no block is given", () => {
@@ -17,18 +11,31 @@ describe("lastDocumentOf", () => {
       {
         point_of_sale: 2,
         document_type: "factura_c",
-        latest_reading: "2026-09-15T10:00:00.000Z",
+        latest_reading: "2026-09-15T10:00:00.000-03:00",
         tax_authority_last_authorized_issued_on: null,
       },
       {
         point_of_sale: 3,
         document_type: "factura_c",
-        latest_reading: "2026-09-16T11:31:00.000Z",
+        latest_reading: "2026-09-16T11:31:00.000-03:00",
         tax_authority_last_authorized_issued_on: null,
       },
     ]);
 
     expect(last).toEqual({ pointOfSale: 3, text: "16/09/2026 · 11:31" });
+  });
+
+  it("shows the latest reading on the clock it is written in, whatever the day in UTC", () => {
+    const last = lastDocumentOf([
+      {
+        point_of_sale: 3,
+        document_type: "factura_c",
+        latest_reading: "2026-09-16T22:31:00.000-03:00",
+        tax_authority_last_authorized_issued_on: null,
+      },
+    ]);
+
+    expect(last?.text).toBe("16/09/2026 · 22:31");
   });
 
   it("shows the day the tax authority last authorized when no block has a reading", () => {
@@ -55,7 +62,7 @@ describe("lastDocumentOf", () => {
       {
         point_of_sale: 3,
         document_type: "factura_c",
-        latest_reading: "2026-09-16T11:31:00.000Z",
+        latest_reading: "2026-09-16T11:31:00.000-03:00",
         tax_authority_last_authorized_issued_on: null,
       },
     ]);
@@ -64,7 +71,7 @@ describe("lastDocumentOf", () => {
   });
 
   it("keeps the first block when two share the latest reading", () => {
-    const reading = "2026-09-16T11:31:00.000Z";
+    const reading = "2026-09-16T11:31:00.000-03:00";
     const last = lastDocumentOf([
       {
         point_of_sale: 4,

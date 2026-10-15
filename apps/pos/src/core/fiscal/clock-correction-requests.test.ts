@@ -232,17 +232,17 @@ describe("correcting the register's clock from the register", () => {
 });
 
 describe("reading the register's clock guard", () => {
-  it("answers the reading, no block and nothing to correct on a fresh register", async () => {
+  it("answers the reading in Argentina time, no block and nothing to correct on a fresh register", async () => {
     expect(await readClockGuardFor(deps())).toEqual({
       kind: "read",
-      reading: NOW.toISOString(),
+      reading: "2026-10-01T12:00:00.000-03:00",
       blocks: [],
       may_correct: true,
-      correction_available: false,
+      correction: "not_behind",
     });
   });
 
-  it("answers the blocks with their mark and the tax authority's day, and whether a correction is available", async () => {
+  it("answers the blocks with their mark in Argentina time and the tax authority's day, and whether a correction is available", async () => {
     setMark(12, AHEAD);
     database.exec(
       `INSERT INTO register_point_of_sale (
@@ -253,28 +253,28 @@ describe("reading the register's clock guard", () => {
 
     expect(await readClockGuardFor(deps())).toEqual({
       kind: "read",
-      reading: NOW.toISOString(),
+      reading: "2026-10-01T12:00:00.000-03:00",
       blocks: [
         {
           point_of_sale: 12,
           document_type: "factura_c",
-          latest_reading: AHEAD,
+          latest_reading: "2026-10-01T13:00:00.000-03:00",
           tax_authority_last_authorized_issued_on: "2026-10-02",
         },
       ],
       may_correct: true,
-      correction_available: true,
+      correction: "available",
     });
   });
 
-  it("answers that a correction is no longer available once it was made in the period", async () => {
+  it("answers that the period's correction was already made once it was made in the period", async () => {
     setMark(12, AHEAD);
     openSession("session-1");
     await correctRegisterClockFor(deps());
     setMark(31, AHEAD);
 
     expect(await readClockGuardFor(deps())).toMatchObject({
-      correction_available: false,
+      correction: "already_corrected_in_period",
       blocks: [{ point_of_sale: 31 }],
     });
   });

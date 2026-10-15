@@ -127,7 +127,7 @@ describe("decideSaleAuthorization", () => {
   it("raises the clock mark of the reserved series to the moment of the decision", () => {
     const { tx } = decide();
 
-    expect(tx.clockMarkRaises).toEqual([
+    expect(tx.recordedClockMarks).toEqual([
       { pointOfSale: 12, documentType: "factura_c", reading: DECIDED_AT },
     ]);
   });
@@ -135,8 +135,30 @@ describe("decideSaleAuthorization", () => {
   it("raises the clock mark of the offline series, not the real-time one, to the time of the sale when it issues offline", () => {
     const { tx } = decide({ online: { ...ONLINE, arcaReachable: false } });
 
-    expect(tx.clockMarkRaises).toEqual([
+    expect(tx.recordedClockMarks).toEqual([
       { pointOfSale: 7, documentType: "factura_c", reading: OCCURRED_AT },
+    ]);
+  });
+
+  it("keeps the reserved series' mark when the decision is behind it within the tolerance", () => {
+    const mark = new Date(DECIDED_AT.getTime() + 30_000);
+    const { tx, outcome } = decide({ series: { ...SERIES, clockMark: mark } });
+
+    expect(outcome).toMatchObject({ kind: "reserved" });
+    expect(tx.recordedClockMarks).toEqual([
+      { pointOfSale: 12, documentType: "factura_c", reading: mark },
+    ]);
+  });
+
+  it("keeps the offline series' mark when the sale is behind it within the tolerance", () => {
+    const mark = new Date(OCCURRED_AT.getTime() + 30_000);
+    const { tx } = decide({
+      online: { ...ONLINE, arcaReachable: false },
+      offlineSeries: { ...OFFLINE_SERIES, clockMark: mark },
+    });
+
+    expect(tx.recordedClockMarks).toEqual([
+      { pointOfSale: 7, documentType: "factura_c", reading: mark },
     ]);
   });
 
@@ -157,7 +179,7 @@ describe("decideSaleAuthorization", () => {
   it("reserves nothing and raises no mark for a sale routed to the deferred flow", () => {
     const { tx } = decide({ series: { ...SERIES, pointOfSale: null } });
 
-    expect(tx.clockMarkRaises).toEqual([]);
+    expect(tx.recordedClockMarks).toEqual([]);
   });
 
   it.each([
@@ -233,7 +255,7 @@ describe("decideSaleAuthorization", () => {
       expect(tx.reservations).toEqual([]);
       expect(tx.offlineDocuments).toEqual([]);
       expect(tx.outbox).toEqual([]);
-      expect(tx.clockMarkRaises).toEqual([]);
+      expect(tx.recordedClockMarks).toEqual([]);
       expect(ids.issued).toBe(1);
     },
   );

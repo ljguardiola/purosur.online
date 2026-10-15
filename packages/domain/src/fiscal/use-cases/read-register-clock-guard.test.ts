@@ -207,33 +207,43 @@ describe("readRegisterClockGuard", () => {
 
   describe("whether a correction is available", () => {
     it("is when a mark is ahead of the reading and no correction was made in the period", () => {
-      expect(read({ marks: [REAL_TIME_MARK] }).correctionAvailable).toBe(true);
+      expect(read({ marks: [REAL_TIME_MARK] }).correction).toBe("available");
     });
 
-    it("is not when no mark is more than a minute ahead of the reading", () => {
-      expect(
-        read({ marks: [{ ...REAL_TIME_MARK, reading: ahead(60_000) }] }).correctionAvailable,
-      ).toBe(false);
+    it("is not, with nothing behind, when no mark is more than a minute ahead of the reading", () => {
+      expect(read({ marks: [{ ...REAL_TIME_MARK, reading: ahead(60_000) }] }).correction).toBe(
+        "not_behind",
+      );
     });
 
-    it("is not when only the tax authority's day blocks, which no correction lowers", () => {
+    it("is not, with nothing behind, when only the tax authority's day blocks, which no correction lowers", () => {
       const floor = {
         pointOfSale: 12,
         documentType: "factura_c",
         lastIssuedOn: "2026-10-02",
       } as const;
 
-      expect(read({ floor }).correctionAvailable).toBe(false);
+      expect(read({ floor }).correction).toBe("not_behind");
     });
 
-    it("is not when a correction was made in the open cash session", () => {
+    it("is not, with nothing behind, when only the tax authority's day blocks and the period's correction was made", () => {
+      const state = {
+        floor: { pointOfSale: 12, documentType: "factura_c", lastIssuedOn: "2026-10-02" } as const,
+        standing: { openSessionId: "session-1", lastClosedSessionId: "session-0" },
+        periodsWithCorrection: ["session-1"],
+      };
+
+      expect(read(state).correction).toBe("not_behind");
+    });
+
+    it("is not, already used, when a correction was made in the open cash session", () => {
       const state = {
         marks: [REAL_TIME_MARK],
         standing: { openSessionId: "session-1", lastClosedSessionId: "session-0" },
         periodsWithCorrection: ["session-1"],
       };
 
-      expect(read(state).correctionAvailable).toBe(false);
+      expect(read(state).correction).toBe("already_corrected_in_period");
     });
 
     it("is when the correction was made in an earlier cash session", () => {
@@ -243,17 +253,17 @@ describe("readRegisterClockGuard", () => {
         periodsWithCorrection: ["session-1"],
       };
 
-      expect(read(state).correctionAvailable).toBe(true);
+      expect(read(state).correction).toBe("available");
     });
 
-    it("is not when a correction was made since the last session closed, with none open", () => {
+    it("is not, already used, when a correction was made since the last session closed, with none open", () => {
       const state = {
         marks: [REAL_TIME_MARK],
         standing: { openSessionId: null, lastClosedSessionId: "session-1" },
         periodsWithCorrection: ["after session session-1"],
       };
 
-      expect(read(state).correctionAvailable).toBe(false);
+      expect(read(state).correction).toBe("already_corrected_in_period");
     });
 
     it("is when the correction since the last session closed does not count against the next session", () => {
@@ -263,7 +273,7 @@ describe("readRegisterClockGuard", () => {
         periodsWithCorrection: ["after session session-1"],
       };
 
-      expect(read(state).correctionAvailable).toBe(true);
+      expect(read(state).correction).toBe("available");
     });
   });
 });

@@ -47,7 +47,7 @@ test("lists each correction with when it was made, which register and point of s
   await expect.element(screen.getByText("Corrigió Ada", { exact: true })).toBeVisible();
   await expect.element(screen.getByText("07/10/2026 · 11:31", { exact: true })).toBeVisible();
   await expect.element(screen.getByText("05/10/2026 · 09:00", { exact: true })).toBeVisible();
-  await expect.element(screen.getByText("Abierta", { exact: true })).toBeVisible();
+  await expect.element(screen.getByText("Abierto", { exact: true })).toBeVisible();
 });
 
 test("tells an open alert from a closed one", async () => {
@@ -55,8 +55,8 @@ test("tells an open alert from a closed one", async () => {
     sectionFor(loaded([correction(), correction({ id: "correction-2", alertState: "closed" })])),
   );
 
-  await expect.element(screen.getByText("Abierta", { exact: true })).toBeVisible();
-  await expect.element(screen.getByText("Cerrada", { exact: true })).toBeVisible();
+  await expect.element(screen.getByText("Abierto", { exact: true })).toBeVisible();
+  await expect.element(screen.getByText("Cerrado", { exact: true })).toBeVisible();
 });
 
 test("shows the empty state when no clock was ever corrected", async () => {
