@@ -69,6 +69,7 @@ describe("receiving the events a register pushes", () => {
       caughtUps: [],
       refusedPushes: [],
       brokenChainRevocations: [],
+      offlineNumberingAdvancedFor: [],
     });
   });
 
@@ -264,7 +265,70 @@ describe("receiving the events a register pushes", () => {
       caughtUps: [],
       refusedPushes: [],
       brokenChainRevocations: [],
+      offlineNumberingAdvancedFor: [],
     });
+  });
+});
+
+describe("advancing the offline numbering with what a register pushes", () => {
+  it("advances it for the events it receives, right after receiving them", async () => {
+    const inbox = new FakeInbox();
+
+    await receive(inbox, eventsOf(1, 2));
+
+    expect(inbox.state.offlineNumberingAdvancedFor).toEqual([
+      { eventId: "event-1", at: NOW },
+      { eventId: "event-2", at: NOW },
+    ]);
+    expect(inbox.calls.indexOf("advanceOfflineNumbering")).toBe(
+      inbox.calls.indexOf("receive device-1") + 1,
+    );
+  });
+
+  it("advances it only for the events it did not hold yet", async () => {
+    const inbox = new FakeInbox([{ deviceId: DEVICE, seqs: [1, 2] }]);
+
+    await receive(inbox, [...eventsOf(2, 3), fakeEvent(3)]);
+
+    expect(inbox.state.offlineNumberingAdvancedFor).toEqual([{ eventId: "event-3", at: NOW }]);
+  });
+
+  it.each([
+    [
+      "revoked",
+      () => {
+        const inbox = new FakeInbox();
+        inbox.revokedDevices.add(DEVICE);
+        return { inbox, events: eventsOf(1), appVersion: "1.4.0" };
+      },
+    ],
+    ["a gap", () => ({ inbox: new FakeInbox(), events: eventsOf(1, 3), appVersion: "1.4.0" })],
+    [
+      "a stale device",
+      () => ({
+        inbox: new FakeInbox([{ deviceId: DEVICE, seqs: [1] }]),
+        events: [fakeEvent(1, "another-event"), fakeEvent(2)],
+        appVersion: "1.4.0",
+      }),
+    ],
+    [
+      "a broken chain",
+      () => ({
+        inbox: new FakeInbox(),
+        events: [fakeEvent(1), { ...fakeEvent(2), chain_hmac: "forged-link" }],
+        appVersion: "1.4.0",
+      }),
+    ],
+    [
+      "a version that is not accepted",
+      () => ({ inbox: new FakeInbox(), events: eventsOf(1), appVersion: "not-a-version" }),
+    ],
+  ])("advances nothing for a push answered as %s", async (_name, build) => {
+    const { inbox, events, appVersion } = build();
+
+    await receive(inbox, events, { appVersion });
+
+    expect(inbox.state.offlineNumberingAdvancedFor).toEqual([]);
   });
 });
 
