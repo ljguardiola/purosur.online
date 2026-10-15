@@ -22,11 +22,13 @@ export async function pruneSnapshotGenerationsOnDisk({
     plan.removeIfVerified.length === 0
       ? undefined
       : await cloud.verifiedAmong(plan.removeIfVerified.map((offered) => offered.generationId));
-  const verified = new Set(answer?.kind === "answered" ? answer.verifiedGenerationIds : []);
-  const removing = [
-    ...plan.remove,
-    ...plan.removeIfVerified.filter((offered) => verified.has(offered.generationId)),
-  ];
+  const verified =
+    answer?.kind === "answered"
+      ? plan.removeIfVerified.filter((offered) =>
+          answer.verifiedGenerationIds.includes(offered.generationId),
+        )
+      : [];
+  const removing = [...plan.remove, ...verified];
   for (const generation of removing) {
     await disk.remove(generation);
   }
