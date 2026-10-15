@@ -150,6 +150,73 @@ describe("salesDeniedReportOf with a damaged local database", () => {
   });
 });
 
+describe("salesDenialOf with a critically low battery", () => {
+  const SHORT_AT_STARTUP = {
+    reason: "disk_space_short_at_startup",
+    required_free_bytes: 5_000_000_000,
+  } as const;
+
+  it("denies sales for the battery of a register still opening new sales", () => {
+    expect(salesDenialOf({ stopped: false }, undefined, false, true)).toEqual({
+      reason: "battery_critical",
+    });
+  });
+
+  it("names the battery over a storage stop", () => {
+    expect(salesDenialOf({ stopped: false }, SHORT_AT_STARTUP, false, true)).toEqual({
+      reason: "battery_critical",
+    });
+  });
+
+  it("names a damaged local database over the battery", () => {
+    expect(salesDenialOf({ stopped: false }, undefined, true, true)).toEqual({
+      reason: "local_database_damaged",
+    });
+  });
+
+  it("names a broken event history over the battery", () => {
+    expect(
+      salesDenialOf({ stopped: true, reason: "event_history_broken" }, undefined, false, true),
+    ).toEqual({ reason: "event_history_broken" });
+  });
+
+  it("denies nothing it can name to a revoked installation, whatever the battery", () => {
+    expect(
+      salesDenialOf({ stopped: true, reason: "installation_revoked" }, undefined, false, true),
+    ).toBeUndefined();
+  });
+
+  it("names the battery of a stop with no recorded reason", () => {
+    expect(salesDenialOf({ stopped: true, reason: undefined }, undefined, false, true)).toEqual({
+      reason: "battery_critical",
+    });
+  });
+
+  it("denies nothing when the battery is not critical", () => {
+    expect(salesDenialOf({ stopped: false }, undefined, false, false)).toBeUndefined();
+  });
+});
+
+describe("salesDeniedReportOf with a critically low battery", () => {
+  it("reports a register on a critically low battery as unable to sell, and why", () => {
+    expect(salesDeniedReportOf({ stopped: false }, undefined, false, true)).toEqual({
+      sales_denied: true,
+      sales_denied_reason: "battery_critical",
+    });
+  });
+
+  it("reports nothing of a revoked installation, whatever the battery", () => {
+    expect(
+      salesDeniedReportOf(
+        { stopped: true, reason: "installation_revoked" },
+        undefined,
+        false,
+        true,
+      ),
+    ).toEqual({});
+  });
+});
+
 describe("SALES_DENIED_FOR_DAMAGED_LOCAL_DATABASE", () => {
   it("reports that a register whose local database is damaged can't sell, and why", () => {
     expect(SALES_DENIED_FOR_DAMAGED_LOCAL_DATABASE).toEqual({
