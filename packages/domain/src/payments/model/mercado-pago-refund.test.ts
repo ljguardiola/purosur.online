@@ -11,12 +11,15 @@ import {
   progressOfRefundAnswer,
   refundableAmount,
   refundIsBackedByItsCancellation,
+  refundIsBackedByItsLatePayment,
 } from "./mercado-pago-refund.js";
 
 describe("isRefundSentByCloud", () => {
   it.each([
     ["QR", "sale_cancelled", true],
-    ["QR", "late_payment", false],
+    ["QR", "late_payment", true],
+    ["QR", "sale_voided", false],
+    ["POINT", "late_payment", false],
     ["POINT", "sale_cancelled", false],
     ["TRANSFER", "sale_cancelled", false],
     ["CASH", "sale_cancelled", false],
@@ -204,5 +207,48 @@ describe("mercadoPagoRefundStage", () => {
       "waiting_for_balance",
       "refused",
     ]);
+  });
+});
+
+describe("refundIsBackedByItsLatePayment", () => {
+  const sameOrder = { orderId: "ORD-1" };
+  const approved = { state: "APPROVED", orderId: "ORD-1", otherOrderId: null };
+
+  it("is backed when the cloud holds the payment of the order as approved", () => {
+    expect(refundIsBackedByItsLatePayment(sameOrder, approved)).toBe(true);
+  });
+
+  it.each(["PENDING", "DECLINED", "CANCELLED", "EXPIRED"])(
+    "is not backed when the cloud holds the payment as %s",
+    (state) => {
+      expect(refundIsBackedByItsLatePayment(sameOrder, { ...approved, state })).toBe(false);
+    },
+  );
+
+  it("is not backed when the payment's order is another than the one to refund", () => {
+    expect(refundIsBackedByItsLatePayment({ orderId: "ORD-2" }, approved)).toBe(false);
+  });
+
+  it("is not backed when the payment has no order", () => {
+    expect(refundIsBackedByItsLatePayment({ orderId: null }, { ...approved, orderId: null })).toBe(
+      false,
+    );
+  });
+
+  it("is not backed when the cloud holds no payment for it", () => {
+    expect(refundIsBackedByItsLatePayment(sameOrder, null)).toBe(false);
+  });
+
+  describe("when the paid order is another than the payment's own", () => {
+    const other = { state: "EXPIRED", orderId: "ORD-1", otherOrderId: "ORD-2" };
+
+    it("is backed by the paid order the cloud recorded, whatever the payment's state", () => {
+      expect(refundIsBackedByItsLatePayment({ orderId: "ORD-2" }, other)).toBe(true);
+    });
+
+    it("is not backed when the order to refund is not the recorded one", () => {
+      expect(refundIsBackedByItsLatePayment({ orderId: "ORD-1" }, other)).toBe(false);
+      expect(refundIsBackedByItsLatePayment({ orderId: null }, other)).toBe(false);
+    });
   });
 });

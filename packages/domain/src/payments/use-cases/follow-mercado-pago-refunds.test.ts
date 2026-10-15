@@ -189,8 +189,8 @@ describe("followMercadoPagoRefunds", () => {
     expect(outcome).toEqual({ kind: "followed", followed: 0, done: 0, unavailable: 0 });
   });
 
-  it("ignores a late-payment refund, which stays manual", async () => {
-    const world = refundWorld([aConfirmedRefund({ origin: "late_payment" })]);
+  it("ignores a late POINT payment refund, which stays manual", async () => {
+    const world = refundWorld([aConfirmedRefund({ origin: "late_payment", method: "POINT" })]);
 
     const outcome = await followMercadoPagoRefunds(world.ports);
 

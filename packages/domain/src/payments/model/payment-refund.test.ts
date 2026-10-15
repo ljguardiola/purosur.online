@@ -4,6 +4,7 @@ import {
   DISCARDABLE_REFUND_ALERT_KINDS,
   isRefundDiscardable,
   isRefundDiscarded,
+  isRefundOriginDiscardable,
   isRefundPending,
   LATE_PAYMENT_REFUND_ORIGIN,
   latePaymentRefund,
@@ -229,17 +230,36 @@ describe("isRefundDiscarded", () => {
   });
 });
 
-describe("isRefundDiscardable", () => {
+describe("isRefundOriginDiscardable", () => {
   it("is true for the refund of a payment that arrived late", () => {
-    expect(isRefundDiscardable("late_payment")).toBe(true);
+    expect(isRefundOriginDiscardable("late_payment")).toBe(true);
   });
 
   it.each(["sale_cancelled", "sale_voided", "", "other"])(
     "is false for the origin %j",
     (origin) => {
-      expect(isRefundDiscardable(origin)).toBe(false);
+      expect(isRefundOriginDiscardable(origin)).toBe(false);
     },
   );
+});
+
+describe("isRefundDiscardable", () => {
+  it("is true for the refund of a late payment no person has confirmed", () => {
+    expect(isRefundDiscardable({ origin: "late_payment", confirmedAt: null })).toBe(true);
+  });
+
+  it("is false once a person confirmed the refund of a late payment", () => {
+    expect(
+      isRefundDiscardable({
+        origin: "late_payment",
+        confirmedAt: new Date("2026-10-13T14:00:00Z"),
+      }),
+    ).toBe(false);
+  });
+
+  it.each(["sale_cancelled", "sale_voided"])("is false for an unconfirmed %s refund", (origin) => {
+    expect(isRefundDiscardable({ origin, confirmedAt: null })).toBe(false);
+  });
 });
 
 describe("refundAlertKind", () => {

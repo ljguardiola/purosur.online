@@ -69,6 +69,43 @@ describe("listPendingRefunds", () => {
     expect(refunds[1]).toMatchObject({ cancelledBy: null, cancelledByName: null });
   });
 
+  it("lists an unconfirmed late QR payment refund as one the cloud sends, still discardable", async () => {
+    const late: FakePendingRefund = { ...TRANSFER_REFUND, method: "QR", origin: "late_payment" };
+    const store = new FakeRefundStore([], [late]);
+
+    const [refund] = await listPendingRefunds({ reader: store, clock }, { locationId: "branch-1" });
+
+    expect(refund).toMatchObject({
+      discardable: true,
+      sentByCloud: true,
+      deliveryStage: "unconfirmed",
+    });
+  });
+
+  it("lists a confirmed late QR payment refund as no longer discardable, with how far it got", async () => {
+    const late: FakePendingRefund = {
+      ...TRANSFER_REFUND,
+      method: "QR",
+      origin: "late_payment",
+      confirmedAt: new Date("2026-10-07T16:00:00.000Z"),
+      sentAt: new Date("2026-10-07T16:00:02.000Z"),
+    };
+    const store = new FakeRefundStore([], [late]);
+
+    const [refund] = await listPendingRefunds({ reader: store, clock }, { locationId: "branch-1" });
+
+    expect(refund).toMatchObject({ discardable: false, sentByCloud: true, deliveryStage: "sent" });
+  });
+
+  it("lists a late POINT payment refund as one carried out by hand, discardable", async () => {
+    const late: FakePendingRefund = { ...TRANSFER_REFUND, method: "POINT", origin: "late_payment" };
+    const store = new FakeRefundStore([], [late]);
+
+    const [refund] = await listPendingRefunds({ reader: store, clock }, { locationId: "branch-1" });
+
+    expect(refund).toMatchObject({ discardable: true, sentByCloud: false, deliveryStage: null });
+  });
+
   it("lists the Mercado Pago order a late-payment refund names", async () => {
     const late: FakePendingRefund = {
       ...TRANSFER_REFUND,

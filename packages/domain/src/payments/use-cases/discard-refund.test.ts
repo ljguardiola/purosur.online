@@ -13,6 +13,7 @@ const LATE_PAYMENT: FakeStoredRefund = {
   state: "PENDING",
   origin: "late_payment",
   method: "QR",
+  confirmedAt: null,
 };
 
 function discard(store: FakeRefundStore, input: { refundId?: string; locationId?: string } = {}) {
@@ -63,6 +64,45 @@ describe("discardRefund", () => {
     expect(store.refunds).toEqual([cancelled]);
     expect(store.resolvedAlerts).toEqual([]);
     expect(store.operationOrder).toEqual(["lockRefund"]);
+  });
+
+  describe("once a person confirmed the refund", () => {
+    const confirmedAt = new Date("2026-10-08T13:00:00.000Z");
+
+    it("refuses to discard a pending late-payment refund, writing nothing", async () => {
+      const confirmed: FakeStoredRefund = { ...LATE_PAYMENT, confirmedAt };
+      const store = new FakeRefundStore([{ ...confirmed }]);
+
+      expect(await discard(store)).toEqual({ kind: "already_confirmed" });
+      expect(store.refunds).toEqual([confirmed]);
+      expect(store.resolvedAlerts).toEqual([]);
+      expect(store.operationOrder).toEqual(["lockRefund"]);
+    });
+
+    it("answers that a confirmed refund already done is done", async () => {
+      const done: FakeStoredRefund = { ...LATE_PAYMENT, confirmedAt, state: "APPROVED" };
+      const store = new FakeRefundStore([{ ...done }]);
+
+      expect(await discard(store)).toEqual({ kind: "already_done" });
+    });
+
+    it("answers that a confirmed refund already discarded is discarded", async () => {
+      const discarded: FakeStoredRefund = { ...LATE_PAYMENT, confirmedAt, state: "DISCARDED" };
+      const store = new FakeRefundStore([{ ...discarded }]);
+
+      expect(await discard(store)).toEqual({ kind: "already_discarded" });
+    });
+
+    it("answers that a confirmed refund of a cancelled sale is not discardable", async () => {
+      const cancelled: FakeStoredRefund = {
+        ...LATE_PAYMENT,
+        confirmedAt,
+        origin: "sale_cancelled",
+      };
+      const store = new FakeRefundStore([{ ...cancelled }]);
+
+      expect(await discard(store)).toEqual({ kind: "not_discardable" });
+    });
   });
 
   it("answers not found for a refund that does not exist or belongs to another branch", async () => {

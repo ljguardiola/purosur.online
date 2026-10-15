@@ -1,3 +1,4 @@
+import type { LatePaymentOfRefund } from "../../model/mercado-pago-refund.js";
 import type { MercadoPagoRefundPorts } from "../mercado-pago-refund-ports.js";
 import { FakeMercadoPagoOrders } from "./fake-mercado-pago-orders.js";
 import { FakeMercadoPagoRefundKeys } from "./fake-mercado-pago-refund-keys.js";
@@ -38,6 +39,18 @@ export function aQrRefundOfCancelledSale(
   };
 }
 
+export function aQrRefundOfLatePayment(
+  overrides: Partial<FakeMercadoPagoStoredRefund> = {},
+): FakeMercadoPagoStoredRefund {
+  return aQrRefundOfCancelledSale({ origin: "late_payment", originEventId: null, ...overrides });
+}
+
+export function anApprovedLatePayment(
+  overrides: Partial<LatePaymentOfRefund> = {},
+): LatePaymentOfRefund {
+  return { state: "APPROVED", orderId: "ORD-1", otherOrderId: null, ...overrides };
+}
+
 export function aConfirmedRefund(
   overrides: Partial<FakeMercadoPagoStoredRefund> = {},
 ): FakeMercadoPagoStoredRefund {
@@ -59,6 +72,9 @@ export function refundWorld(refunds: FakeMercadoPagoStoredRefund[] = [aQrRefundO
   const lanes = new FakePaymentTransactionLanes();
   const store = new FakeMercadoPagoRefundStore(refunds, lanes.operations);
   store.cancellations.set("event-1", "sale-1");
+  for (const refund of refunds) {
+    store.latePayments.set(refund.id, anApprovedLatePayment({ orderId: refund.orderId }));
+  }
   const mercadoPago = new FakeMercadoPagoOrders(lanes, {
     creation: { kind: "unavailable" },
     pointCreation: { kind: "unavailable" },

@@ -205,7 +205,8 @@ describe("confirmMercadoPagoRefund", () => {
     });
 
     it.each([
-      ["a late-payment refund", { origin: "late_payment" }],
+      ["a late POINT payment refund", { origin: "late_payment", method: "POINT" }],
+      ["a refund of a voided sale", { origin: "sale_voided" }],
       ["a refund of another method", { method: "TRANSFER" }],
       ["a refund that names no payment transaction", { paymentTransactionId: null }],
     ])("answers that %s is not confirmable", async (_case, change) => {

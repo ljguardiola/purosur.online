@@ -1,4 +1,5 @@
 import type { AlertKind } from "../../../alerts/index.js";
+import type { LatePaymentOfRefund } from "../../model/mercado-pago-refund.js";
 import type {
   MercadoPagoRefundRecord,
   MercadoPagoRefundReference,
@@ -50,7 +51,13 @@ class FakeMercadoPagoRefundTransaction implements MercadoPagoRefundTransaction {
       (stored) => stored.id === refundId && stored.locationId === locationId,
     );
     return (
-      refund && { id: refund.id, state: refund.state, origin: refund.origin, method: refund.method }
+      refund && {
+        id: refund.id,
+        state: refund.state,
+        origin: refund.origin,
+        method: refund.method,
+        confirmedAt: refund.confirmedAt,
+      }
     );
   }
 
@@ -69,6 +76,11 @@ class FakeMercadoPagoRefundTransaction implements MercadoPagoRefundTransaction {
     this.store.log.push("cancellationOfEvent");
     const saleId = this.store.cancellations.get(originEventId);
     return saleId === undefined ? null : { saleId };
+  }
+
+  async latePaymentOfRefund(refundId: string): Promise<LatePaymentOfRefund | null> {
+    this.store.log.push("latePaymentOfRefund");
+    return this.store.latePayments.get(refundId) ?? null;
   }
 
   async recordRefundConfirmed(
@@ -124,6 +136,7 @@ class FakeMercadoPagoRefundTransaction implements MercadoPagoRefundTransaction {
 export class FakeMercadoPagoRefundStore implements MercadoPagoRefundStore {
   refunds: FakeMercadoPagoStoredRefund[];
   readonly cancellations = new Map<string, string>();
+  readonly latePayments = new Map<string, LatePaymentOfRefund>();
   readonly log: string[];
   resolvedAlerts: ResolvedRefundAlert[] = [];
   readonly refusals: { refundId: string; reason: string; refusedAt: Date }[] = [];
