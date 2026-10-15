@@ -164,7 +164,7 @@ test.each([
   [429, undefined, { "Retry-After": "20" }, { kind: "rate_limited", retryAfterSeconds: 20 }],
   [500, undefined, undefined, { kind: "failed" }],
 ])("both changes answer %s as %j", async (status, body, headers, outcome) => {
-  vi.mocked(fetch).mockResolvedValue(jsonResponse(status, body, headers));
+  vi.mocked(fetch).mockImplementation(async () => jsonResponse(status, body, headers));
 
   expect(await changeSnapshotLifecycleRules(RULES)).toEqual(outcome);
   expect(await rotateSnapshotKey("register-1")).toEqual(outcome);

@@ -7,7 +7,15 @@ import { emptyHelp, resetPageState } from "./test-support/app";
 import { createAppServices } from "./test-support/app-services";
 import { opensOnlyScreens } from "./test-support/screen-routes";
 
-opensOnlyScreens(["/", "/account", "/help", "/location-settings", "/registers", "/roles"]);
+opensOnlyScreens([
+  "/",
+  "/account",
+  "/backups",
+  "/help",
+  "/location-settings",
+  "/registers",
+  "/roles",
+]);
 
 beforeEach(resetPageState);
 
@@ -134,6 +142,7 @@ test("redirects a typed /registers to Mi cuenta for a user without enroll_regist
 });
 
 test("shows the Backups item after Cajas registradoras for a user holding view_backups_and_rotate_key", async () => {
+  window.history.pushState(null, "", "/account");
   const services = createAppServices({
     fetchSession: vi.fn().mockResolvedValue(
       openSession({
@@ -148,6 +157,7 @@ test("shows the Backups item after Cajas registradoras for a user holding view_b
   const screen = await render(<App help={emptyHelp} services={services} />);
   await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
 
+  await expect.element(screen.getByRole("link", { name: "Backups" })).toBeVisible();
   const links = screen.getByRole("link").elements();
   const labels = links.map((link) => link.textContent);
   expect(labels.indexOf("Backups")).toBe(labels.indexOf("Cajas registradoras") + 1);
