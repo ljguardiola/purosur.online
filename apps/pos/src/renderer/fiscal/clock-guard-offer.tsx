@@ -2,8 +2,8 @@ import type { CorrectRegisterClockOutcome, ReadClockGuardOutcome } from "@purosu
 import { Button, FloatingNotification, HighlightedNotice } from "@purosur/ui";
 import { Check, Clock, TriangleAlert } from "lucide-react";
 import { useState } from "react";
-import type { ShownClockGuard } from "./clock-guard-queries";
-import { useClockGuardQuery, useRefreshClockGuard } from "./clock-guard-queries";
+import type { ShownClockGuard } from "./fiscal-queries";
+import { useClockGuardQuery, useRefreshClockGuard } from "./fiscal-queries";
 import { CorrectRegisterClockModal } from "./correct-register-clock-modal";
 
 export type ClockGuardOfferProps = {

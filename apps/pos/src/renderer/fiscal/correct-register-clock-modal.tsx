@@ -2,7 +2,7 @@ import type { CorrectRegisterClockOutcome } from "@purosur/contracts";
 import { Button, HighlightedNotice, InlineNotice, Modal, SummaryRowGroup } from "@purosur/ui";
 import { ArrowLeft, Check, Clock, Info, TriangleAlert } from "lucide-react";
 import { useRef, useState } from "react";
-import type { ShownClockGuard } from "./clock-guard-queries";
+import type { ShownClockGuard } from "./fiscal-queries";
 import { clockReadingText, lastDocumentOf, modalEyebrow } from "./clock-guard-text";
 
 const FAILED_MESSAGE = "No se pudo confirmar la hora. Probá de nuevo.";
