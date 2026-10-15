@@ -268,3 +268,21 @@ describe("OpenAlertInput of a fortnight report", () => {
     }>().not.toExtend<OpenAlertInput>();
   });
 });
+
+describe("an external billing alert", () => {
+  it("accepts the point of sale, the document type and the number", () => {
+    expectTypeOf<{
+      kind: "external_billing";
+      scope: string;
+      detail: { pointOfSale: number; documentType: "factura_c"; number: number };
+    }>().toExtend<OpenAlertInput>();
+  });
+
+  it("refuses one without its number", () => {
+    expectTypeOf<{
+      kind: "external_billing";
+      scope: string;
+      detail: { pointOfSale: number; documentType: "factura_c" };
+    }>().not.toExtend<OpenAlertInput>();
+  });
+});

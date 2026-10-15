@@ -36,6 +36,7 @@ describe("ALERT_KINDS", () => {
       "offsite_dump_unverified",
       "fortnight_report_pending",
       "fortnight_report_overdue",
+      "external_billing",
     ]);
   });
 });

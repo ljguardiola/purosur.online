@@ -206,6 +206,9 @@ describe("alertDetailSchema", () => {
     expectTypeOf<WireDetail<"register_silent">>().toEqualTypeOf<AlertDetails["register_silent"]>();
     expectTypeOf<WireDetail<"sales_denied">>().toEqualTypeOf<AlertDetails["sales_denied"]>();
     expectTypeOf<WireDetail<"fiscal_rejected">>().toEqualTypeOf<AlertDetails["fiscal_rejected"]>();
+    expectTypeOf<WireDetail<"external_billing">>().toEqualTypeOf<
+      AlertDetails["external_billing"]
+    >();
     expectTypeOf<WireDetail<"late_payment_refund">>().toEqualTypeOf<
       AlertDetails["late_payment_refund"]
     >();
@@ -389,6 +392,7 @@ describe("alertDetailSchema", () => {
         fortnightEnd: "2026-09-15",
         deadline: "2026-09-23",
       },
+      external_billing: { pointOfSale: 12, documentType: "factura_c", number: 41 },
       fiscal_unknown: {
         fiscalDocumentId: "document-1",
         saleId: "sale-1",
@@ -574,6 +578,20 @@ describe("alertDetailSchema", () => {
         ...base,
         kind: "fiscal_rejected",
         detail: { ...detailOf.fiscal_rejected, ...change },
+      };
+
+      expect(alertDetailSchema.safeParse(alert).success).toBe(false);
+    });
+
+    it.each([
+      ["a document type the domain does not know", { documentType: "factura_a" }],
+      ["a fractional number", { number: 41.5 }],
+      ["a number as text", { number: "41" }],
+    ])("refuses an external billing alert with %s", (_case, change) => {
+      const alert = {
+        ...base,
+        kind: "external_billing",
+        detail: { ...detailOf.external_billing, ...change },
       };
 
       expect(alertDetailSchema.safeParse(alert).success).toBe(false);
