@@ -105,7 +105,7 @@ describe("SalesHistoryScreen voiding a sale", () => {
       .not.toBeInTheDocument();
   });
 
-  it("reads the sale again, and keeps the review open with the reason, when the core refuses to void it", async () => {
+  it("reads the sale again, and keeps the review open with voiding locked, when the core refuses to void it", async () => {
     const { screen, saleHistoryDetail } = await renderScreen({
       voidSale: async () => ({ kind: "session_closed" }),
     });
@@ -115,8 +115,8 @@ describe("SalesHistoryScreen voiding a sale", () => {
     await userEvent.click(screen.getByRole("button", { name: "Anular la venta" }));
 
     await expect
-      .element(screen.getByRole("dialog").getByText("No se puede anular: la sesión ya cerró"))
-      .toBeVisible();
+      .element(screen.getByRole("dialog").getByRole("button", { name: "Anular la venta" }))
+      .toHaveAttribute("aria-disabled", "true");
     await expect.poll(() => saleHistoryDetail.mock.calls.length).toBe(2);
   });
 

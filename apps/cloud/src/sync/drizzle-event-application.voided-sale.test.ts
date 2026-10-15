@@ -16,8 +16,12 @@ import {
   stockMovements,
   users,
 } from "../platform/db/schema.js";
+import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { syncedEventUpcaster } from "./synced-event-upcaster.js";
-import { eventApplicationUnderTest } from "./test-support/drizzle-event-application.js";
+import {
+  APPLICATION_NOW,
+  eventApplicationUnderTest,
+} from "./test-support/drizzle-event-application.js";
 import { insertInboxEvent } from "./test-support/inbox-events.js";
 import {
   aCancelledSale,
@@ -295,6 +299,27 @@ describe("recording the voided sales of applied events", () => {
     ).rejects.toThrow("is not a completed sale");
 
     expect((await system.db.select().from(sales))[0]).toMatchObject({ state: "COMPLETED" });
+  });
+
+  it("writes nothing when the voiding is pushed by the installation of another register", async () => {
+    const { deviceId } = await system.enrollInstallation();
+    const completed = await completedSaleOfOpenSession(deviceId);
+    const other = await insertEnrolledInstallation(system.db, {
+      now: APPLICATION_NOW,
+      registerName: "Caja 2",
+    });
+    const movementsBefore = await system.db.select().from(cashMovements);
+
+    await expect(
+      record(
+        { kind: "sale_voided", sale: aVoidedSaleOf(completed) },
+        eventOf(other.deviceId, "sale_voided", completed.id),
+      ),
+    ).rejects.toThrow("is not a completed sale");
+
+    expect((await system.db.select().from(sales))[0]).toMatchObject({ state: "COMPLETED" });
+    expect(await system.db.select().from(paymentRefunds)).toEqual([]);
+    expect(await system.db.select().from(cashMovements)).toEqual(movementsBefore);
   });
 
   it("writes nothing when a refund names a payment the sale does not have", async () => {

@@ -161,6 +161,21 @@ describe("VoidSaleModal", () => {
     expect(send).toHaveBeenCalledExactlyOnceWith("sale-1", true, undefined);
   });
 
+  it("confirms each of two equal pending refunds on its own", async () => {
+    const reported = vi.spyOn(console, "error");
+    onTestFinished(() => reported.mockRestore());
+    const { screen, send } = await renderModal({ refunds: [TRANSFER_REFUND, TRANSFER_REFUND] });
+    const [first, second] = screen.getByText("Confirmo").elements();
+
+    await userEvent.click(first as Element);
+    await expect.element(screen.getByRole("button", { name: VOID })).toBeDisabled();
+    await userEvent.click(second as Element);
+    await userEvent.click(screen.getByRole("button", { name: VOID }));
+
+    expect(send).toHaveBeenCalledExactlyOnceWith("sale-1", true, undefined);
+    expect(reported).not.toHaveBeenCalled();
+  });
+
   it("sends the void with nothing confirmed when every refund is given back now", async () => {
     const { screen, send, requested } = await renderModal();
 
@@ -211,13 +226,15 @@ describe("VoidSaleModal", () => {
       expect(requested).toEqual(["void_sale"]);
     });
 
-    it("says who authorizes, with their PIN, once someone is chosen", async () => {
+    it("names who authorizes only in the authorization's own field once someone is chosen", async () => {
       const { screen } = await renderModal({ authorizationRequired: true });
 
-      await expect.element(screen.getByText(/^Autoriza: /)).not.toBeInTheDocument();
       await authorizeAs(screen, "Sofía", "1234");
 
-      await expect.element(screen.getByText("Autoriza: Sofía, con su PIN.")).toBeVisible();
+      await expect
+        .element(screen.getByRole("button", { name: /Persona que autoriza/ }))
+        .toHaveTextContent("Sofía");
+      await expect.element(screen.getByText(/Autoriza: /)).not.toBeInTheDocument();
     });
 
     it("sends who authorizes and their PIN", async () => {
@@ -307,37 +324,40 @@ describe("VoidSaleModal", () => {
     });
 
     it.each([
-      ["session_closed", "No se puede anular: la sesión ya cerró"],
-      ["invoice_in_flight", "Todavía no se puede anular"],
-      ["carries_invoice", "Todavía no se puede anular"],
-      ["mercado_pago_payment", "Todavía no se puede anular"],
+      ["session_closed", "La sesión de la venta ya cerró. Se tramita como devolución."],
+      [
+        "invoice_in_flight",
+        "La factura se está pidiendo a ARCA. Vas a poder anular cuando termine el trámite.",
+      ],
+      [
+        "carries_invoice",
+        "La caja todavía no anula una venta con factura. Se tramita como devolución.",
+      ],
+      [
+        "mercado_pago_payment",
+        "La caja todavía no anula una venta con un pago de Mercado Pago. Se tramita como devolución.",
+      ],
+      ["not_completed", "La venta ya no se puede anular."],
     ] as const)(
-      "says why the sale cannot be voided on %s, and tells the screen to read it again",
-      async (kind, title) => {
-        const { screen, onRefused, onVoided } = await renderModal({
+      "locks voiding on %s, says why only in its tooltip, and tells the screen to read the sale again",
+      async (kind, reason) => {
+        const { screen, send, onRefused, onVoided } = await renderModal({
           voidSale: async () => ({ kind }),
         });
+        const voidButton = screen.getByRole("button", { name: VOID });
 
-        await userEvent.click(screen.getByRole("button", { name: VOID }));
+        await userEvent.click(voidButton);
 
-        await expect
-          .element(screen.getByRole("dialog").getByText(title, { exact: true }).first())
-          .toBeVisible();
         await vi.waitFor(() => expect(onRefused).toHaveBeenCalledOnce());
-        await expect.element(screen.getByRole("button", { name: VOID })).toBeDisabled();
+        await expect.element(voidButton).toHaveAttribute("aria-disabled", "true");
+        await expect.element(screen.getByRole("alert")).not.toBeInTheDocument();
+        await userEvent.hover(voidButton);
+        await expect.element(screen.getByRole("tooltip")).toHaveTextContent(reason);
+        voidButton.element().dispatchEvent(new MouseEvent("click", { bubbles: true }));
+        expect(send).toHaveBeenCalledOnce();
         expect(onVoided).not.toHaveBeenCalled();
       },
     );
-
-    it("tells the screen to read a sale that is no longer completed again", async () => {
-      const { screen, onRefused } = await renderModal({
-        voidSale: async () => ({ kind: "not_completed" }),
-      });
-
-      await userEvent.click(screen.getByRole("button", { name: VOID }));
-
-      await vi.waitFor(() => expect(onRefused).toHaveBeenCalledOnce());
-    });
 
     it("asks to confirm the pending refunds when the core says they were not", async () => {
       const { screen } = await renderModal({

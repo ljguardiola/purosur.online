@@ -166,7 +166,6 @@ describe("SaleHistoryDetailPanel", () => {
     await expect
       .element(screen.getByText("Sin permiso para anular, se pide el PIN de alguien que lo tenga."))
       .not.toBeInTheDocument();
-    await expect.element(screen.getByText("Todavía no se puede anular")).not.toBeInTheDocument();
   });
 
   it("says another person's PIN is asked when the person may not void, and still offers voiding", async () => {
@@ -185,41 +184,39 @@ describe("SaleHistoryDetailPanel", () => {
   });
 
   it.each([
-    [
-      "session_closed",
-      "No se puede anular: la sesión ya cerró",
-      "Se tramita como devolución, escaneando el ticket del cliente en Devolver.",
-    ],
+    ["session_closed", "La sesión de la venta ya cerró. Se tramita como devolución."],
     [
       "invoice_in_flight",
-      "Todavía no se puede anular",
       "La factura se está pidiendo a ARCA. Vas a poder anular cuando termine el trámite.",
     ],
     [
       "carries_invoice",
-      "Todavía no se puede anular",
       "La caja todavía no anula una venta con factura. Se tramita como devolución.",
     ],
     [
       "mercado_pago_payment",
-      "Todavía no se puede anular",
       "La caja todavía no anula una venta con un pago de Mercado Pago. Se tramita como devolución.",
     ],
   ] as const)(
-    "disables voiding and says why when the sale cannot be voided: %s",
-    async (refusal, title, description) => {
+    "locks voiding and says why only in its tooltip when the sale cannot be voided: %s",
+    async (refusal, reason) => {
       const { screen, onVoid } = await renderPanel({
         read: async () => ({
           kind: "found",
           detail: { ...FISCAL_SALE, voidability: { kind: "not_voidable", refusal } },
         }),
       });
+      const voidButton = screen.getByRole("button", { name: "Anular venta" });
 
-      await expect.element(screen.getByText(title, { exact: true })).toBeVisible();
-      await expect.element(screen.getByText(description, { exact: true })).toBeVisible();
-      await expect.element(screen.getByRole("button", { name: "Anular venta" })).toBeDisabled();
+      await expect.element(voidButton).toHaveAttribute("aria-disabled", "true");
+      await expect.element(screen.getByText(reason)).not.toBeInTheDocument();
+      await userEvent.hover(voidButton);
+      await expect.element(screen.getByRole("tooltip")).toHaveTextContent(reason);
+      voidButton.element().dispatchEvent(new MouseEvent("click", { bubbles: true }));
       expect(onVoid).not.toHaveBeenCalled();
       await expectNoAccessibilityViolations(screen.container);
+      await userEvent.unhover(voidButton);
+      await expect.element(screen.getByRole("tooltip")).not.toBeInTheDocument();
     },
   );
 
@@ -242,7 +239,6 @@ describe("SaleHistoryDetailPanel", () => {
     await expect
       .element(screen.getByRole("button", { name: /imprimir|Imprimir/ }))
       .not.toBeInTheDocument();
-    await expect.element(screen.getByText("Todavía no se puede anular")).not.toBeInTheDocument();
   });
 
   it("offers no printing when the core says the sale's receipt is not printed, and still offers voiding", async () => {
