@@ -159,6 +159,7 @@
                       "DeviceCredentialsAnswer",
                       "DeviceCredentialsRequest",
                       "RegisterUpdateAnswer",
+                      "SnapshotWorkerLaunchRequest",
                       "UpdateSafeMomentAnswer"
                     ]
                   }
