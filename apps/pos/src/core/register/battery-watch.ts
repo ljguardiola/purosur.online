@@ -1,5 +1,10 @@
 import type { BatteryReading, BatteryReport } from "@purosur/domain";
-import { batteryReportOf, nextOnBatterySince } from "@purosur/domain";
+import {
+  batteryReportOf,
+  batteryReportStanding,
+  isOnBatteryTooLong,
+  nextOnBatterySince,
+} from "@purosur/domain";
 import type { BatteryReader } from "./battery-reader";
 
 export interface BatteryWatchDeps {
@@ -7,6 +12,7 @@ export interface BatteryWatchDeps {
   intervalMs: number;
   scheduleNext: (run: () => Promise<void>, delayMs: number) => () => void;
   clock: { now(): Date };
+  onChange?: () => void;
   onFailure?: (error: unknown) => void;
 }
 
@@ -15,10 +21,17 @@ export interface BatteryWatch {
   report(): BatteryReport | undefined;
 }
 
+function conditionsKey(report: BatteryReport | undefined): string {
+  const standing = batteryReportStanding(report);
+  const chargeShown = standing === "low" && report?.present === true ? report.charge_percent : "";
+  return [standing, chargeShown, isOnBatteryTooLong(report), report?.present === false].join("|");
+}
+
 export function createBatteryWatch(deps: BatteryWatchDeps): BatteryWatch {
   let latest: BatteryReading | undefined;
   let onBatterySince: Date | undefined;
   let failing = false;
+  let announced = conditionsKey(undefined);
 
   async function readOnce(): Promise<void> {
     let reading: BatteryReading;
@@ -34,6 +47,21 @@ export function createBatteryWatch(deps: BatteryWatchDeps): BatteryWatch {
     }
     latest = reading;
     onBatterySince = nextOnBatterySince(onBatterySince, reading, deps.clock.now());
+    announceChange();
+  }
+
+  function currentReport(): BatteryReport | undefined {
+    return latest === undefined
+      ? undefined
+      : batteryReportOf(latest, onBatterySince, deps.clock.now());
+  }
+
+  function announceChange(): void {
+    const key = conditionsKey(currentReport());
+    if (key !== announced) {
+      announced = key;
+      deps.onChange?.();
+    }
   }
 
   async function read(): Promise<void> {
@@ -43,7 +71,6 @@ export function createBatteryWatch(deps: BatteryWatchDeps): BatteryWatch {
 
   return {
     start: read,
-    report: () =>
-      latest === undefined ? undefined : batteryReportOf(latest, onBatterySince, deps.clock.now()),
+    report: currentReport,
   };
 }
