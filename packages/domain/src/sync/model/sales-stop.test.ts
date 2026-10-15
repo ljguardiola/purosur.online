@@ -113,9 +113,9 @@ describe("salesDenialOf with a damaged local database", () => {
   });
 
   it("names a broken event history over the damage", () => {
-    expect(salesDenialOf({ stopped: true, reason: "event_history_broken" }, undefined, true)).toEqual(
-      { reason: "event_history_broken" },
-    );
+    expect(
+      salesDenialOf({ stopped: true, reason: "event_history_broken" }, undefined, true),
+    ).toEqual({ reason: "event_history_broken" });
   });
 
   it("denies nothing it can name to a revoked installation, whatever the damage", () => {

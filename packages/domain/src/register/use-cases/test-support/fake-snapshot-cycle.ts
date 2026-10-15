@@ -20,6 +20,7 @@ export class FakeSnapshotCycleState implements SnapshotCycleState {
   };
   pending = false;
   reachable = true;
+  damaged = false;
 
   async lastGeneration(): Promise<SnapshotSequences | undefined> {
     return this.last;
@@ -39,6 +40,10 @@ export class FakeSnapshotCycleState implements SnapshotCycleState {
 
   async cloudReachable(): Promise<boolean> {
     return this.reachable;
+  }
+
+  async localDatabaseDamaged(): Promise<boolean> {
+    return this.damaged;
   }
 }
 
