@@ -1,3 +1,4 @@
+import { FACTURA_C_DOCUMENT_TYPE } from "../model/fiscal-rejection-standing.js";
 import {
   offlineFiscalDocument,
   offlineFiscalDocumentIssuedEvent,
@@ -67,6 +68,11 @@ export function decideSaleAuthorization(
       cause: route.cause,
     });
     tx.issueOfflineFiscalDocument(document);
+    tx.raiseClockMark({
+      pointOfSale: route.pointOfSale,
+      documentType: document.documentType,
+      reading: occurredAt,
+    });
     tx.appendOutboxEvent(
       offlineFiscalDocumentIssuedEvent({
         eventId: ids.next(),
@@ -84,6 +90,11 @@ export function decideSaleAuthorization(
     issuedOn: invoiceDateOf(decidedAt),
     document: route.document,
     reservedAt: decidedAt,
+  });
+  tx.raiseClockMark({
+    pointOfSale: route.pointOfSale,
+    documentType: FACTURA_C_DOCUMENT_TYPE,
+    reading: decidedAt,
   });
   return { kind: "reserved", fiscalDocumentId };
 }

@@ -7,6 +7,7 @@ import { isNumberingConflict } from "./numbering-conflict.js";
 import { type Fortnight, fortnightContaining } from "./offline-authorization-code.js";
 import { type NextOfflineNumberInput, nextOfflineNumber } from "./offline-number-block.js";
 import type { FacturaC, PreEmissionGateOutcome } from "./pre-emission-gate.js";
+import { isBeforeTaxAuthorityLastIssuedDay, isBehindClockMark } from "./register-clock.js";
 
 export const REAL_TIME_AUTHORIZATION_TIMEOUT_MS = 5_000;
 export const AUTHORIZATION_CALL_MARGIN_MS = 500;
@@ -74,6 +75,7 @@ export const DEFERRAL_REASONS = [
   "rejected",
   "unclear_outcome",
   "numbering_frozen",
+  "clock_behind",
 ] as const;
 
 export type DeferralReason = (typeof DEFERRAL_REASONS)[number];
@@ -104,16 +106,20 @@ export interface RealTimeSeries {
   documentRequesting: boolean;
   documentUnknown: boolean;
   numberingFrozen: boolean;
+  clockMark: Date | null;
+  taxAuthorityLastIssuedOn: string | null;
 }
 
 export interface OfflineSeries extends NextOfflineNumberInput {
   pointOfSale: number | null;
+  clockMark: Date | null;
 }
 
 export const OFFLINE_AUTHORIZATION_CAUSES = [
   "no_connectivity",
   "unclear_outcome",
   "numbering_conflict",
+  "clock_behind",
 ] as const;
 
 export type OfflineAuthorizationCause = (typeof OFFLINE_AUTHORIZATION_CAUSES)[number];
@@ -122,6 +128,7 @@ const DEFERRAL_REASON_OF_CAUSE: Record<OfflineAuthorizationCause, DeferralReason
   no_connectivity: "fiscally_offline",
   unclear_outcome: "document_waiting",
   numbering_conflict: "numbering_frozen",
+  clock_behind: "clock_behind",
 };
 
 export interface SaleAuthorizationRouteInput {
@@ -161,6 +168,9 @@ function offlineRoute(
   document: FacturaC,
   { occurredAt, offlineSeries, offlineAuthorizationCode }: SaleAuthorizationRouteInput,
 ): SaleAuthorizationRoute {
+  if (offlineSeries.pointOfSale !== null && isBehindClockMark(occurredAt, offlineSeries.clockMark)) {
+    return deferred("clock_behind");
+  }
   const number = nextOfflineNumber(offlineSeries);
   if (offlineSeries.pointOfSale === null || offlineAuthorizationCode === null || number === null) {
     return deferred(DEFERRAL_REASON_OF_CAUSE[cause]);
@@ -189,6 +199,13 @@ export function decideSaleAuthorizationRoute(
   }
   if (series.pointOfSale !== null && series.documentUnknown) {
     return offlineRoute("unclear_outcome", gate.document, input);
+  }
+  if (
+    series.pointOfSale !== null &&
+    (isBehindClockMark(now, series.clockMark) ||
+      isBeforeTaxAuthorityLastIssuedDay(now, series.taxAuthorityLastIssuedOn))
+  ) {
+    return offlineRoute("clock_behind", gate.document, input);
   }
   if (!isRegisterFiscallyOnline(online, now)) {
     return offlineRoute("no_connectivity", gate.document, input);
