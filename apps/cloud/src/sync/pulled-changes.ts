@@ -74,6 +74,7 @@ export interface RegisterPointOfSaleRow {
   pointOfSaleNumber: number;
   fiscalAddressId: string;
   taxAuthorityLastAuthorizedNumber: number | null;
+  numberingFrozen: boolean;
   version: number;
 }
 

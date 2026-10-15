@@ -905,7 +905,8 @@ describe("the register's local migrations", () => {
         "0053_price_and_discount_lookups",
         "0054_assembly_movements",
         "0055_offline_numbering_floor",
-        "0056_voided_sales",
+        "0056_numbering_freeze",
+        "0057_voided_sales",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -988,7 +989,8 @@ describe("the register's local migrations", () => {
         "0053_price_and_discount_lookups",
         "0054_assembly_movements",
         "0055_offline_numbering_floor",
-        "0056_voided_sales",
+        "0056_numbering_freeze",
+        "0057_voided_sales",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1066,7 +1068,8 @@ describe("the register's local migrations", () => {
         "0053_price_and_discount_lookups",
         "0054_assembly_movements",
         "0055_offline_numbering_floor",
-        "0056_voided_sales",
+        "0056_numbering_freeze",
+        "0057_voided_sales",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1143,7 +1146,8 @@ describe("the register's local migrations", () => {
         "0053_price_and_discount_lookups",
         "0054_assembly_movements",
         "0055_offline_numbering_floor",
-        "0056_voided_sales",
+        "0056_numbering_freeze",
+        "0057_voided_sales",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1249,7 +1253,8 @@ describe("the register's local migrations", () => {
         "0053_price_and_discount_lookups",
         "0054_assembly_movements",
         "0055_offline_numbering_floor",
-        "0056_voided_sales",
+        "0056_numbering_freeze",
+        "0057_voided_sales",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1345,7 +1350,8 @@ describe("the register's local migrations", () => {
         "0053_price_and_discount_lookups",
         "0054_assembly_movements",
         "0055_offline_numbering_floor",
-        "0056_voided_sales",
+        "0056_numbering_freeze",
+        "0057_voided_sales",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1445,7 +1451,8 @@ describe("the register's local migrations", () => {
         "0053_price_and_discount_lookups",
         "0054_assembly_movements",
         "0055_offline_numbering_floor",
-        "0056_voided_sales",
+        "0056_numbering_freeze",
+        "0057_voided_sales",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1528,7 +1535,8 @@ describe("the register's local migrations", () => {
         "0053_price_and_discount_lookups",
         "0054_assembly_movements",
         "0055_offline_numbering_floor",
-        "0056_voided_sales",
+        "0056_numbering_freeze",
+        "0057_voided_sales",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1603,7 +1611,8 @@ describe("the register's local migrations", () => {
         "0053_price_and_discount_lookups",
         "0054_assembly_movements",
         "0055_offline_numbering_floor",
-        "0056_voided_sales",
+        "0056_numbering_freeze",
+        "0057_voided_sales",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -3387,6 +3396,40 @@ describe("the register's local migrations", () => {
     }
   });
 
+  it("declare the point of sale for redelivery from its first change over the one received before it held whether its numbering is frozen, leaving the pull cursor as it is", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.filter(
+        (migration) => migration.name < "0056_numbering_freeze",
+      );
+      const before = openLocalDatabase(path, previous, migrationClock);
+      before.exec(
+        `UPDATE sync_state SET pull_cursor = 9, device_id = 'device-a' WHERE id = 1;
+         INSERT INTO own_register (id, name, version, removed) VALUES ('r1', 'Caja 1', 1, 0);
+         INSERT INTO register_point_of_sale (register_id, point_of_sale_number, fiscal_address_id, version)
+         VALUES ('r1', 12, 'address-1', 2);
+         UPDATE pulled_table_redeliveries SET cursor = 7
+         WHERE table_name = 'register_point_of_sale';`,
+      );
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+
+      expect(
+        after
+          .prepare("SELECT table_name, cursor FROM pulled_table_redeliveries ORDER BY table_name")
+          .all(),
+      ).toContainEqual({ table_name: "register_point_of_sale", cursor: 0 });
+      expect(after.prepare("SELECT pull_cursor FROM sync_state").all()).toEqual([
+        { pull_cursor: 9 },
+      ]);
+      after.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
   it("refuse a redelivery cursor below zero", () => {
     const database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS, migrationClock);
 
@@ -4518,8 +4561,8 @@ describe("the register's local migrations", () => {
     const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
     try {
       const path = join(folder, "register.sqlite");
-      const previous = LOCAL_MIGRATIONS.filter((migration) => migration.name < "0056_voided_sales");
-      expect(LOCAL_MIGRATIONS.map((migration) => migration.name)).toContain("0056_voided_sales");
+      const previous = LOCAL_MIGRATIONS.filter((migration) => migration.name < "0057_voided_sales");
+      expect(LOCAL_MIGRATIONS.map((migration) => migration.name)).toContain("0057_voided_sales");
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
         `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
@@ -4763,6 +4806,131 @@ describe("the register's local migrations", () => {
       expect(() => insertBlock.run({ ...block, id: "b0", last_number: 2000 })).toThrow(/CHECK/);
       expect(() => insertBlock.run(block)).not.toThrow();
       expect(() => insertBlock.run({ ...block, id: "b3", last_number: 4000 })).toThrow(/UNIQUE/);
+      after.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
+  it("let a point of sale be frozen and a sale be deferred for its frozen numbering, keeping the points of sale and deferred sales a register already holds", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.filter(
+        (migration) => migration.name < "0056_numbering_freeze",
+      );
+      expect(LOCAL_MIGRATIONS.map((migration) => migration.name)).toContain(
+        "0056_numbering_freeze",
+      );
+      const before = openLocalDatabase(path, previous, migrationClock);
+      before.exec(
+        `INSERT INTO register_point_of_sale (register_id, point_of_sale_number, fiscal_address_id, tax_authority_last_authorized_number, version)
+         VALUES ('r1', 12, 'address-1', 40, 3);
+         INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
+         VALUES ('s1', 'r1', 'device-a', 'u1', '2026-10-09T12:00:00.000Z', 0, 'OPEN');
+         INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at)
+         VALUES
+           ('sale-1', 'r1', 'device-a', 's1', 'u1', 'COMPLETED', '2026-10-09T12:05:00.000Z'),
+           ('sale-2', 'r1', 'device-a', 's1', 'u1', 'COMPLETED', '2026-10-09T12:06:00.000Z');
+         INSERT INTO fiscal_documents (
+           id, sale_id, point_of_sale, document_type, number, issued_on, document, state,
+           authorization_code, authorization_code_due_on, reserved_at, resolved_at
+         ) VALUES
+           ('doc-2', 'sale-2', 12, 'factura_c', 42, '2026-10-09', '{"total":2550}', 'AUTHORIZED',
+            '75123456789012', '2026-10-19', '2026-10-09T12:06:00.000Z', '2026-10-09T12:06:01.000Z');
+         INSERT INTO deferred_sales (
+           id, sale_id, occurred_at, total, reason, short_code, routed_at,
+           satisfied_by_fiscal_document_id, satisfied_at
+         ) VALUES
+           ('d1', 'sale-1', '2026-10-09T12:05:00.000Z', 1500, 'fiscally_offline', '7KQ4M2P9',
+            '2026-10-09T12:05:01.000Z', NULL, NULL),
+           ('d2', 'sale-2', '2026-10-09T12:06:00.000Z', 2550, 'unclear_outcome', 'R3XW8H5N',
+            '2026-10-09T12:06:06.000Z', 'doc-2', '2026-10-09T12:30:00.000Z');`,
+      );
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+
+      expect(
+        after
+          .prepare(
+            "SELECT register_id, point_of_sale_number, tax_authority_last_authorized_number, numbering_frozen, version FROM register_point_of_sale",
+          )
+          .all(),
+      ).toEqual([
+        {
+          register_id: "r1",
+          point_of_sale_number: 12,
+          tax_authority_last_authorized_number: 40,
+          numbering_frozen: 0,
+          version: 3,
+        },
+      ]);
+      expect(
+        after
+          .prepare(
+            `SELECT id, sale_id, occurred_at, total, reason, short_code, routed_at,
+                    satisfied_by_fiscal_document_id, satisfied_at
+             FROM deferred_sales ORDER BY id`,
+          )
+          .all(),
+      ).toEqual([
+        {
+          id: "d1",
+          sale_id: "sale-1",
+          occurred_at: "2026-10-09T12:05:00.000Z",
+          total: 1500,
+          reason: "fiscally_offline",
+          short_code: "7KQ4M2P9",
+          routed_at: "2026-10-09T12:05:01.000Z",
+          satisfied_by_fiscal_document_id: null,
+          satisfied_at: null,
+        },
+        {
+          id: "d2",
+          sale_id: "sale-2",
+          occurred_at: "2026-10-09T12:06:00.000Z",
+          total: 2550,
+          reason: "unclear_outcome",
+          short_code: "R3XW8H5N",
+          routed_at: "2026-10-09T12:06:06.000Z",
+          satisfied_by_fiscal_document_id: "doc-2",
+          satisfied_at: "2026-10-09T12:30:00.000Z",
+        },
+      ]);
+      expect(after.pragma("foreign_key_check")).toEqual([]);
+
+      const setFrozen = (value: number) =>
+        after.prepare("UPDATE register_point_of_sale SET numbering_frozen = ?").run(value);
+      expect(() => setFrozen(1)).not.toThrow();
+      expect(() => setFrozen(0)).not.toThrow();
+      expect(() => setFrozen(2)).toThrow(/CHECK/);
+
+      const defer = (values: { id: string; sale_id: string; short_code: string; reason: string }) =>
+        after
+          .prepare(
+            `INSERT INTO deferred_sales (id, sale_id, occurred_at, total, reason, short_code, routed_at)
+             VALUES (@id, @sale_id, '2026-10-09T12:05:00.000Z', 1500, @reason, @short_code,
+                     '2026-10-09T12:05:01.000Z')`,
+          )
+          .run(values);
+      after.exec("DELETE FROM deferred_sales WHERE id = 'd1'");
+      expect(() =>
+        defer({ id: "x1", sale_id: "sale-1", short_code: "7KQ4M2P9", reason: "forgotten" }),
+      ).toThrow(/CHECK/);
+      expect(() =>
+        defer({ id: "x1", sale_id: "sale-1", short_code: "7KQ4M2P9", reason: "numbering_frozen" }),
+      ).not.toThrow();
+      expect(() =>
+        defer({ id: "x2", sale_id: "sale-1", short_code: "7KQ4M2PA", reason: "rejected" }),
+      ).toThrow(/UNIQUE/);
+      expect(() =>
+        after
+          .prepare(
+            "UPDATE deferred_sales SET satisfied_by_fiscal_document_id = 'doc-2', satisfied_at = '2026-10-09T12:40:00.000Z' WHERE sale_id = 'sale-1'",
+          )
+          .run(),
+      ).toThrow(/an authorized fiscal document of its own sale/);
       after.close();
     } finally {
       rmSync(folder, { recursive: true, force: true });

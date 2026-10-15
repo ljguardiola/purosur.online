@@ -110,6 +110,7 @@ const pointOfSaleRow = {
   point_of_sale_number: 12,
   fiscal_address_id: ENTITY_ID,
   tax_authority_last_authorized_number: 38,
+  numbering_frozen: false,
   version: 1,
 };
 
@@ -561,6 +562,30 @@ describe("changesPageSchema", () => {
         tax_authority_last_authorized_number: null,
       }),
     );
+  });
+
+  it("reads the point of sale of a cloud that does not send the numbering freeze yet as not frozen", () => {
+    const { numbering_frozen: _frozen, ...legacyRow } = pointOfSaleRow;
+
+    expect(
+      changesPageSchema.parse(pageOf(change(1, "register_point_of_sale", legacyRow))).changes[0],
+    ).toEqual(change(1, "register_point_of_sale", { ...legacyRow, numbering_frozen: false }));
+  });
+
+  it("keeps the numbering freeze a point of sale is held under", () => {
+    const frozenRow = { ...pointOfSaleRow, numbering_frozen: true };
+
+    expect(
+      changesPageSchema.parse(pageOf(change(1, "register_point_of_sale", frozenRow))).changes[0],
+    ).toEqual(change(1, "register_point_of_sale", frozenRow));
+  });
+
+  it("refuses a numbering freeze that is not a boolean", () => {
+    expect(() =>
+      changesPageSchema.parse(
+        pageOf(change(1, "register_point_of_sale", { ...pointOfSaleRow, numbering_frozen: "yes" })),
+      ),
+    ).toThrow();
   });
 
   it("reads the offline point of sale of a cloud that does not send the tax authority count yet as not known", () => {

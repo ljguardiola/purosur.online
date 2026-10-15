@@ -7,6 +7,7 @@ export {
   isAlertLevel,
 } from "./model/alert-catalog.js";
 export {
+  externalBillingObservation,
   fiscalRejectionAlertObservation,
   offlineAuthorizationCodeHeldObservation,
   offlineAuthorizationCodeMissingObservation,

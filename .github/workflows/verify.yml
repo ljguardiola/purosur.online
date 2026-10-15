@@ -56,21 +56,36 @@ jobs:
         env:
           CHANGE_BASE_REF: ${{ github.event.pull_request.base.sha }}
 
-  # tsc, the cloud's own build, biome, dependency-cruiser and the repository's own automation tests:
-  # none of these need Postgres or a browser, so this job carries no Playwright setup.
+  # tsc, the builds, biome, dependency-cruiser and the repository's own automation tests: none of
+  # these need Postgres or a browser, so this job carries no Playwright setup. Each leg runs one part
+  # of verify:static, or one shard of it, so the parts run side by side.
   static:
-    name: static
+    name: static (${{ matrix.part }})
     needs: [scope]
     # A push always runs this in full. On `pull_request`, it is skipped only when scope positively
     # decided the change is docs-only; a failed or missing scope decision falls through to running
     # it, the same fail-safe default change-scope.mjs itself applies.
     if: ${{ !cancelled() && (github.event_name != 'pull_request' || needs.scope.result != 'success' || needs.scope.outputs.docs_only != 'true') }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - part: types
+            command: pnpm verify:static:types
+          - part: builds
+            command: pnpm verify:static:builds
+          - part: automation 1/2
+            command: pnpm verify:static:automation
+            shard: 1/2
+          - part: automation 2/2
+            command: pnpm verify:static:automation
+            shard: 2/2
     runs-on: ubuntu-24.04
-    timeout-minutes: 6
+    timeout-minutes: 5
     steps:
-      # Full history, so the migration guard below can diff the working tree against the commit
-      # this change is built on, and the secret scan can read every commit since it, not just the
-      # single commit checkout otherwise fetches.
+      # Full history, so the migration guard among the automation tests can diff the working tree
+      # against the commit this change is built on, and the secret scan can read every commit since
+      # it, not just the single commit checkout otherwise fetches.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
@@ -89,9 +104,10 @@ jobs:
         run: pnpm audit
         continue-on-error: true
 
-      - run: pnpm verify:static
+      - run: ${{ matrix.command }}
         env:
           CHANGE_BASE_REF: ${{ github.event_name == 'push' && github.event.before || github.event.pull_request.base.sha }}
+          TEST_SHARD: ${{ matrix.shard }}
 
   # The durations of the newest successful Verify run that kept them, on main or on the head branch
   # under review, downloaded once and handed to every shard below so they all split alike.

@@ -41,6 +41,7 @@ import {
   locations,
   lotAllocations,
   lots,
+  numberingFreezes,
   offlineAuthorizationCodeAcquisitionReports,
   offlineFiscalDocuments,
   offlineNumberBlocks,
@@ -847,6 +848,11 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
       status: "verified",
       sizeBytes: 1_000,
       recordedAt: new Date("2026-10-14T09:00:00.000Z"),
+    });
+    await db.insert(numberingFreezes).values({
+      pointOfSaleNumber: 7,
+      countBeforeFreeze: 12,
+      frozenAt: new Date("2026-10-14T09:00:00.000Z"),
     });
 
     const afterSeeding = await countsByTable(client);
