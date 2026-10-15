@@ -1,8 +1,8 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
 import {
   APPROVED_PAYMENT_STATE,
-  cancellableWithoutAuthorization,
   CONFIRMED_BY_HAND_METHODS,
+  cancellableWithoutAuthorization,
   hasApprovedPayment,
   holdsApprovedPointPayment,
   isConfirmedByHand,

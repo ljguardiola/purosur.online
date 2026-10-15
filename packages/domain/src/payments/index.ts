@@ -44,6 +44,7 @@ export type {
 } from "./model/payment.js";
 export {
   APPROVED_PAYMENT_STATE,
+  CONFIRMED_BY_HAND_METHODS,
   cancellableWithoutAuthorization,
   hasApprovedPayment,
   holdsApprovedPointPayment,

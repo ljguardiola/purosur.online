@@ -16,7 +16,7 @@ export function isMercadoPagoMethod(method: string): boolean {
 
 export const APPROVED_PAYMENT_STATE = "APPROVED" satisfies PaymentTransactionState;
 
-const CONFIRMED_BY_HAND_METHODS = ["TRANSFER", "STANDALONE_TERMINAL"] as const;
+export const CONFIRMED_BY_HAND_METHODS = ["TRANSFER", "STANDALONE_TERMINAL"] as const;
 
 export type ConfirmedByHandMethod = (typeof CONFIRMED_BY_HAND_METHODS)[number];
 
