@@ -571,6 +571,27 @@ describe("voidSale", () => {
     });
   });
 
+  describe("a payment that was never approved", () => {
+    const UNAPPROVED_QR = { ...QR_PAYMENT, state: "EXPIRED" } as SalePayment;
+
+    it("does not keep the sale from being voided, whatever its method", async () => {
+      const store = ledger({ payments: [CASH_PAYMENT, UNAPPROVED_QR] });
+
+      const outcome = await void_(store);
+
+      expect(outcome).toMatchObject({ kind: "voided", refunds: [CASH_REFUND] });
+    });
+
+    it("is left out of the event", async () => {
+      const store = ledger({ payments: [CASH_PAYMENT, UNAPPROVED_QR] });
+
+      await void_(store);
+
+      const payload = store.state.outbox[0]?.payload as { payments: { id: string }[] };
+      expect(payload.payments.map(({ id }) => id)).toEqual(["payment-1"]);
+    });
+  });
+
   describe("what keeps a sale from being voided", () => {
     const REFUSED_CASES: [SaleVoidRefusal, Partial<FakeSaleVoidLedgerState>][] = [
       ["not_completed", { sales: [{ ...COMPLETED_SALE, state: "VOIDED" }] }],
