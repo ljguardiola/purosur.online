@@ -8,7 +8,7 @@ const MANIFEST_SUFFIX = ".json";
 const OBJECT_SUFFIX = ".snapshot";
 const TEMPORARY_SUFFIX = ".tmp";
 
-export function manifestPath(folder: string, generationId: string): string {
+function manifestPath(folder: string, generationId: string): string {
   return join(folder, `${generationId}${MANIFEST_SUFFIX}`);
 }
 
