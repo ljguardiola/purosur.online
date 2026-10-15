@@ -27,6 +27,7 @@ const SALE: Sale = {
   state: "completed",
   voidability: { kind: "not_voidable", refusal: "carries_invoice" },
   void_authorization_required: false,
+  reprint: { kind: "available" },
   next_copy: { kind: "duplicate", order_number: 1 },
 };
 

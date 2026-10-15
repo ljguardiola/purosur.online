@@ -26,6 +26,7 @@ const SALE: SaleDetail = {
   state: "deferred",
   voidability: { kind: "voidable", refunds: [] },
   void_authorization_required: false,
+  reprint: { kind: "available" },
   next_copy: { kind: "original" },
 };
 const CASH_REFUND: VoidRefund = { method: "CASH", amount: 5_070_000, state: "APPROVED" };
