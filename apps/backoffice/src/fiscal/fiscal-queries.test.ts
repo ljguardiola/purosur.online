@@ -41,3 +41,12 @@ test("invalidating the fiscal key marks the fortnight presentations stale too", 
 
   expect(client.getQueryState(fiscalKeys.fortnightPresentations)?.isInvalidated).toBe(true);
 });
+
+test("invalidating the fiscal key marks the clock corrections stale too", async () => {
+  const client = new QueryClient();
+  client.setQueryData(fiscalKeys.clockCorrections, []);
+
+  await client.invalidateQueries({ queryKey: fiscalKey, refetchType: "none" });
+
+  expect(client.getQueryState(fiscalKeys.clockCorrections)?.isInvalidated).toBe(true);
+});

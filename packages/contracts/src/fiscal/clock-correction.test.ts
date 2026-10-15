@@ -1,6 +1,10 @@
-import type { ClockCorrectionAlertState } from "@purosur/domain";
+import { ARGENTINA_TIME_ZONE, type ClockCorrectionAlertState } from "@purosur/domain";
 import { describe, expect, expectTypeOf, it } from "vitest";
-import { type ClockCorrectionBody, clockCorrectionListSchema } from "./clock-correction.js";
+import {
+  type ClockCorrectionBody,
+  clockCorrectionListSchema,
+  clockCorrectionSchema,
+} from "./clock-correction.js";
 
 const correction = {
   id: "5b9e2f4a-7c1d-4e83-a6f0-3d8c1b7e9a42",
@@ -48,4 +52,13 @@ describe("clockCorrectionListSchema", () => {
   it("carries the alert's state as the domain names it", () => {
     expectTypeOf<ClockCorrectionBody["alert_state"]>().toEqualTypeOf<ClockCorrectionAlertState>();
   });
+});
+
+describe("clockCorrectionSchema, declared time zone", () => {
+  it.each(["corrected_at", "previous_reading", "corrected_reading"] as const)(
+    "declares the zone the %s is shown in",
+    (field) => {
+      expect(clockCorrectionSchema.shape[field].meta()).toEqual({ timeZone: ARGENTINA_TIME_ZONE });
+    },
+  );
 });
