@@ -1,6 +1,9 @@
 ALTER TABLE register_point_of_sale
   ADD COLUMN numbering_frozen INTEGER NOT NULL DEFAULT 0 CHECK (numbering_frozen IN (0, 1));
 
+INSERT INTO pulled_table_redeliveries (table_name) VALUES ('register_point_of_sale')
+  ON CONFLICT (table_name) DO UPDATE SET cursor = 0;
+
 DROP TRIGGER deferred_sales_inserted_satisfied_by_own_authorization;
 DROP TRIGGER deferred_sales_updated_satisfied_by_own_authorization;
 
