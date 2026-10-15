@@ -31,7 +31,7 @@ afterEach(() => {
   rmSync(folder, { recursive: true, force: true });
 });
 
-function start() {
+function start(walSizeBytes = 0) {
   const posted: SnapshotWorkerLaunchRequest[] = [];
   const scheduled: { run: () => Promise<void>; delayMs: number }[] = [];
   const failures: unknown[] = [];
@@ -54,7 +54,7 @@ function start() {
     cloudReachability: () => "reachable",
     readStorage: async () => ({
       database_size_bytes: 1,
-      wal_size_bytes: 0,
+      wal_size_bytes: walSizeBytes,
       disk_free_bytes: 100 * 1024 * 1024 * 1024,
       disk_free_ratio: 0.5,
     }),
@@ -108,5 +108,21 @@ describe("startSnapshotCycle", () => {
     schedule.workerExited();
 
     expect(statSync(`${databasePath}-wal`).size).toBe(0);
+  });
+
+  it("shrinks the write-ahead log itself when an oversized log made the cycle skip", async () => {
+    const { scheduled, posted } = start(257 * 1024 * 1024);
+    database.pragma("wal_autocheckpoint = 0");
+    database.exec("CREATE TABLE notes (id INTEGER PRIMARY KEY, body TEXT)");
+    const insert = database.prepare("INSERT INTO notes (body) VALUES (?)");
+    for (let index = 0; index < 200; index += 1) {
+      insert.run("x".repeat(500));
+    }
+    expect(statSync(`${databasePath}-wal`).size).toBeGreaterThan(0);
+
+    await scheduled[0]?.run();
+
+    expect(statSync(`${databasePath}-wal`).size).toBe(0);
+    expect(posted).toEqual([]);
   });
 });

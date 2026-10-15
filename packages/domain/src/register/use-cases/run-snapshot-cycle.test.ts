@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { runSnapshotCycle } from "./run-snapshot-cycle.js";
 import {
   FakeSnapshotCycleState,
+  RecordingSnapshotLog,
   RecordingSnapshotWorkerLauncher,
   SequentialIds,
 } from "./test-support/fake-snapshot-cycle.js";
@@ -10,7 +11,8 @@ function setup() {
   const state = new FakeSnapshotCycleState();
   const launcher = new RecordingSnapshotWorkerLauncher();
   const ids = new SequentialIds();
-  return { state, launcher, ids, run: () => runSnapshotCycle({ state, launcher, ids }) };
+  const log = new RecordingSnapshotLog();
+  return { state, launcher, ids, log, run: () => runSnapshotCycle({ state, launcher, ids, log }) };
 }
 
 describe("runSnapshotCycle", () => {
@@ -126,5 +128,53 @@ describe("runSnapshotCycle", () => {
 
     expect(outcome).toEqual({ kind: "launch_unavailable" });
     expect(launcher.launched).toEqual([]);
+  });
+
+  it("asks for the log to be checkpointed when an oversized log is why it skipped", async () => {
+    const { run, state, log } = setup();
+    state.storageReading = {
+      diskFreeBytes: 100 * 1024 * 1024 * 1024,
+      diskFreeRatio: 0.5,
+      walSizeBytes: 257 * 1024 * 1024,
+    };
+
+    await run();
+
+    expect(log.checkpoints).toBe(1);
+  });
+
+  it.each([
+    [
+      "unchanged",
+      (state: FakeSnapshotCycleState) => (state.current = { lastDeviceSeq: 10, pullCursor: 20 }),
+    ],
+    [
+      "battery_low",
+      (state: FakeSnapshotCycleState) => {
+        state.batteryReading = { kind: "present", chargePercent: 1, onBattery: true };
+      },
+    ],
+  ] as const)("does not checkpoint the log when it skipped as %s", async (_reason, apply) => {
+    const { run, state, log } = setup();
+    apply(state);
+
+    await run();
+
+    expect(log.checkpoints).toBe(0);
+  });
+
+  it("leaves the log to the worker's exit when it launches one despite an oversized log", async () => {
+    const { run, state, log, launcher } = setup();
+    state.storageReading = {
+      diskFreeBytes: 100 * 1024 * 1024 * 1024,
+      diskFreeRatio: 0.5,
+      walSizeBytes: 257 * 1024 * 1024,
+    };
+    state.pending = true;
+
+    await run();
+
+    expect(launcher.launched).toEqual([{ kind: "upload_pending" }]);
+    expect(log.checkpoints).toBe(0);
   });
 });

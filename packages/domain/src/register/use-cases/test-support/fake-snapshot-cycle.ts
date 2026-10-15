@@ -3,6 +3,7 @@ import type { SnapshotCycleFacts, SnapshotSequences } from "../../model/snapshot
 import type { IdGenerator } from "../cash-ledger.js";
 import type {
   SnapshotCycleState,
+  SnapshotLog,
   SnapshotWorkerJob,
   SnapshotWorkerLauncher,
 } from "../snapshot-cycle-ports.js";
@@ -65,5 +66,13 @@ export class SequentialIds implements IdGenerator {
   next(): string {
     this.issued += 1;
     return `generation-${this.issued}`;
+  }
+}
+
+export class RecordingSnapshotLog implements SnapshotLog {
+  checkpoints = 0;
+
+  async checkpoint(): Promise<void> {
+    this.checkpoints += 1;
   }
 }
