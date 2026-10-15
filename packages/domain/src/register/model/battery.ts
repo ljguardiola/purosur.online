@@ -1,5 +1,13 @@
 export const BATTERY_READ_INTERVAL_MS = 60_000;
 
+export const LOW_BATTERY_PERCENT = 20;
+
+export const CRITICAL_BATTERY_PERCENT = 10;
+
+export const ON_BATTERY_CONDITION_MINUTES = 10;
+
+export type BatteryStanding = "normal" | "low" | "critical";
+
 export type BatteryReading =
   | { kind: "unreadable" }
   | { kind: "absent" }
@@ -71,4 +79,22 @@ export function batteryReportOf(
     on_battery: reading.onBattery,
     on_battery_minutes: onBatteryMinutes,
   };
+}
+
+export function batteryStanding(reading: BatteryReading): BatteryStanding {
+  if (reading.kind !== "present" || !reading.onBattery) {
+    return "normal";
+  }
+  if (reading.chargePercent < CRITICAL_BATTERY_PERCENT) {
+    return "critical";
+  }
+  return reading.chargePercent < LOW_BATTERY_PERCENT ? "low" : "normal";
+}
+
+export function isOnBatteryTooLong(report: BatteryReport | undefined): boolean {
+  return (
+    report?.present === true &&
+    report.on_battery &&
+    report.on_battery_minutes > ON_BATTERY_CONDITION_MINUTES
+  );
 }

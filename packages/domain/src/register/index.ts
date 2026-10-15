@@ -1,9 +1,14 @@
-export type { BatteryReading, BatteryReport } from "./model/battery.js";
+export type { BatteryReading, BatteryReport, BatteryStanding } from "./model/battery.js";
 export {
   BATTERY_READ_INTERVAL_MS,
   batteryHealthPercent,
   batteryReportOf,
+  batteryStanding,
+  CRITICAL_BATTERY_PERCENT,
+  isOnBatteryTooLong,
+  LOW_BATTERY_PERCENT,
   nextOnBatterySince,
+  ON_BATTERY_CONDITION_MINUTES,
 } from "./model/battery.js";
 export { cashCountDifference } from "./model/cash-count.js";
 export type { CashMovementDirection } from "./model/cash-movement-direction.js";

@@ -1,11 +1,9 @@
-import type { BatteryReading } from "./battery.js";
+import { type BatteryReading, batteryStanding } from "./battery.js";
 import { diskStanding, walOversized } from "./storage.js";
 
 export const SNAPSHOT_INTERVAL_ONLINE_MS = 5 * 60 * 1000;
 
 export const SNAPSHOT_INTERVAL_OFFLINE_MS = 30 * 60 * 1000;
-
-export const SNAPSHOT_BATTERY_FLOOR_PERCENT = 20;
 
 export function snapshotIntervalMs(cloudReachable: boolean): number {
   return cloudReachable ? SNAPSHOT_INTERVAL_ONLINE_MS : SNAPSHOT_INTERVAL_OFFLINE_MS;
@@ -50,7 +48,7 @@ function blockingReason({
   battery,
   storage,
 }: SnapshotCycleFacts): Exclude<SnapshotSkipReason, "unchanged" | "database_damaged"> | undefined {
-  if (battery.kind === "present" && battery.chargePercent < SNAPSHOT_BATTERY_FLOOR_PERCENT) {
+  if (batteryStanding(battery) !== "normal") {
     return "battery_low";
   }
   if (
