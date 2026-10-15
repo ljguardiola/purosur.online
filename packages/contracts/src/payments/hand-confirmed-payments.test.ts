@@ -1,3 +1,4 @@
+import { ARGENTINA_TIME_ZONE } from "@purosur/domain";
 import { describe, expect, it } from "vitest";
 import {
   handConfirmedPaymentsQuerySchema,
@@ -72,6 +73,12 @@ const report = {
 describe("handConfirmedPaymentsSchema", () => {
   it("accepts the reconciliation of a range with its payments", () => {
     expect(handConfirmedPaymentsSchema.parse(report)).toEqual(report);
+  });
+
+  it("declares the zone the confirmation instant is shown in", () => {
+    expect(handConfirmedPaymentsSchema.shape.payments.element.shape.confirmed_at.meta()).toEqual({
+      timeZone: ARGENTINA_TIME_ZONE,
+    });
   });
 
   it("accepts a range without payments", () => {
