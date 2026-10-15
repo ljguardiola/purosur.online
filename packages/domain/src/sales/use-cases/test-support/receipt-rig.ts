@@ -51,6 +51,7 @@ export function completedSale(overrides: Partial<FakeReceiptSale> = {}): FakeRec
   return {
     id: "sale-1",
     completed: true,
+    voided: false,
     source: SOURCE,
     printAttemptedAt: null,
     printedAt: null,
@@ -58,6 +59,10 @@ export function completedSale(overrides: Partial<FakeReceiptSale> = {}): FakeRec
     reprints: [],
     ...overrides,
   };
+}
+
+export function voidedSale(overrides: Partial<FakeReceiptSale> = {}): FakeReceiptSale {
+  return completedSale({ completed: false, voided: true, ...overrides });
 }
 
 export function receiptRig(

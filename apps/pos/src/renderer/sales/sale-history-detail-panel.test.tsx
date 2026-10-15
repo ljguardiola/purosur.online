@@ -19,6 +19,15 @@ const FISCAL_SALE: SaleDetail = {
     { method: "CASH", amount: 2_000_000 },
   ],
   state: "completed",
+  voidability: {
+    kind: "voidable",
+    refunds: [
+      { method: "TRANSFER", amount: 3_070_000, state: "PENDING" },
+      { method: "CASH", amount: 2_000_000, state: "APPROVED" },
+    ],
+  },
+  void_authorization_required: false,
+  reprint: { kind: "available" },
   next_copy: { kind: "duplicate", order_number: 1 },
 };
 
@@ -35,14 +44,16 @@ async function renderPanel(
       (async (): Promise<SaleHistoryDetailOutcome> => ({ kind: "found", detail: FISCAL_SALE })),
   );
   const onReprint = vi.fn();
+  const onVoid = vi.fn();
   const screen = await render(
     <SaleHistoryDetailPanel
       saleId={"saleId" in options ? options.saleId : "sale-1"}
       readDetail={read}
       onReprint={onReprint}
+      onVoid={onVoid}
     />,
   );
-  return { screen, read, onReprint };
+  return { screen, read, onReprint, onVoid };
 }
 
 describe("SaleHistoryDetailPanel", () => {
@@ -143,11 +154,105 @@ describe("SaleHistoryDetailPanel", () => {
       .not.toBeInTheDocument();
   });
 
-  it("offers no way to cancel the sale", async () => {
-    const { screen } = await renderPanel();
+  it("offers voiding a voidable sale next to the print button, and hands the sale over", async () => {
+    const { screen, onVoid } = await renderPanel();
 
-    await expect.element(screen.getByText("VENTA DE LAS 11:05")).toBeVisible();
+    await expect
+      .element(screen.getByRole("button", { name: "Reimprimir duplicado" }))
+      .toBeVisible();
+    await userEvent.click(screen.getByRole("button", { name: "Anular venta" }));
+
+    expect(onVoid).toHaveBeenCalledExactlyOnceWith(FISCAL_SALE);
+    await expect
+      .element(screen.getByText("Sin permiso para anular, se pide el PIN de alguien que lo tenga."))
+      .not.toBeInTheDocument();
+  });
+
+  it("says another person's PIN is asked when the person may not void, and still offers voiding", async () => {
+    const { screen, onVoid } = await renderPanel({
+      read: async () => ({
+        kind: "found",
+        detail: { ...FISCAL_SALE, void_authorization_required: true },
+      }),
+    });
+
+    await expect
+      .element(screen.getByText("Sin permiso para anular, se pide el PIN de alguien que lo tenga."))
+      .toBeVisible();
+    await userEvent.click(screen.getByRole("button", { name: "Anular venta" }));
+    expect(onVoid).toHaveBeenCalledOnce();
+  });
+
+  it.each([
+    ["session_closed", "La sesión de la venta ya cerró. Se tramita como devolución."],
+    [
+      "invoice_in_flight",
+      "La factura se está pidiendo a ARCA. Vas a poder anular cuando termine el trámite.",
+    ],
+    [
+      "carries_invoice",
+      "La caja todavía no anula una venta con factura. Se tramita como devolución.",
+    ],
+    [
+      "mercado_pago_payment",
+      "La caja todavía no anula una venta con un pago de Mercado Pago. Se tramita como devolución.",
+    ],
+  ] as const)(
+    "locks voiding and says why only in its tooltip when the sale cannot be voided: %s",
+    async (refusal, reason) => {
+      const { screen, onVoid } = await renderPanel({
+        read: async () => ({
+          kind: "found",
+          detail: { ...FISCAL_SALE, voidability: { kind: "not_voidable", refusal } },
+        }),
+      });
+      const voidButton = screen.getByRole("button", { name: "Anular venta" });
+
+      await expect.element(voidButton).toHaveAttribute("aria-disabled", "true");
+      await expect.element(screen.getByText(reason)).not.toBeInTheDocument();
+      await userEvent.hover(voidButton);
+      await expect.element(screen.getByRole("tooltip")).toHaveTextContent(reason);
+      voidButton.element().dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      expect(onVoid).not.toHaveBeenCalled();
+      await expectNoAccessibilityViolations(screen.container);
+      await userEvent.unhover(voidButton);
+      await expect.element(screen.getByRole("tooltip")).not.toBeInTheDocument();
+    },
+  );
+
+  it("shows a voided sale as voided, with no print or void button", async () => {
+    const { screen } = await renderPanel({
+      read: async () => ({
+        kind: "found",
+        detail: {
+          ...FISCAL_SALE,
+          state: "voided",
+          voidability: { kind: "not_voidable", refusal: "not_completed" },
+          reprint: { kind: "sale_voided" },
+        },
+      }),
+    });
+
+    await expect.element(screen.getByText("Estado", { exact: true })).toBeVisible();
+    await expect.element(screen.getByText("Anulada", { exact: true })).toBeVisible();
     await expect.element(screen.getByRole("button", { name: /Anular/ })).not.toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("button", { name: /imprimir|Imprimir/ }))
+      .not.toBeInTheDocument();
+  });
+
+  it("offers no printing when the core says the sale's receipt is not printed, and still offers voiding", async () => {
+    const { screen } = await renderPanel({
+      read: async () => ({
+        kind: "found",
+        detail: { ...FISCAL_SALE, reprint: { kind: "sale_voided" } },
+      }),
+    });
+
+    await expect.element(screen.getByRole("button", { name: "Anular venta" })).toBeVisible();
+    await expect
+      .element(screen.getByRole("button", { name: /imprimir|Imprimir/ }))
+      .not.toBeInTheDocument();
   });
 
   it("shows the sale loading, with no print button yet", async () => {

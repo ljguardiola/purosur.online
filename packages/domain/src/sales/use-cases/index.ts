@@ -126,6 +126,7 @@ export type {
   ReadSaleHistoryDetailOutcome,
   ReadSaleHistoryDetailPorts,
   SaleHistoryDetail,
+  SaleVoidability,
 } from "./read-sale-history-detail.js";
 export { readSaleHistoryDetail } from "./read-sale-history-detail.js";
 export type { ReadSalesByCashierInput, SalesByCashierReport } from "./read-sales-by-cashier.js";
@@ -226,6 +227,18 @@ export type {
   SettleApprovedMercadoPagoPaymentOutcome,
 } from "./settle-approved-mercado-pago-payment.js";
 export { settleApprovedMercadoPagoPayment } from "./settle-approved-mercado-pago-payment.js";
+export type {
+  VoidSaleGrant,
+  VoidSaleInput,
+  VoidSaleOutcome,
+  VoidSalePorts,
+} from "./void-sale.js";
+export { voidSale } from "./void-sale.js";
+export type {
+  SaleToVoid,
+  SaleVoidLedger,
+  SaleVoidTransaction,
+} from "./void-sale-ports.js";
 export type {
   WeighProductOnScaleInput,
   WeighProductOnScaleOutcome,

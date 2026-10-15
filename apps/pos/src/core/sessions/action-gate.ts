@@ -22,6 +22,7 @@ type SignedInOperation = OperationOf<
 type AuthorizableOperation = OperationOf<
   | "record_cash_movement"
   | "cancel_paid_sale"
+  | "void_sale"
   | "adjust_sale_line"
   | "apply_sale_discount"
   | "reprint_receipt"

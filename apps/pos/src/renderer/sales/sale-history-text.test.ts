@@ -54,6 +54,7 @@ describe("saleStatePresentation", () => {
     ["completed", "Completada", "success"],
     ["in_progress", "En trámite", "info"],
     ["deferred", "Diferida", "neutral"],
+    ["voided", "Anulada", "neutral"],
   ] as const)("shows %s as %s", (state, label, tone) => {
     expect(saleStatePresentation(state)).toEqual({ label, tone });
   });

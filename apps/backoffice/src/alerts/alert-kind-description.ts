@@ -29,6 +29,7 @@ const ALERT_KIND_DESCRIPTIONS = {
     "Falta presentar a ARCA el informe de una quincena de un punto de venta",
   fortnight_report_overdue:
     "Venció el plazo para presentar a ARCA el informe de una quincena de un punto de venta",
+  external_billing: "Un comprobante se emitió fuera del sistema",
   fortnight_report_needs_regularization:
     "Llegaron comprobantes de una quincena ya informada a ARCA sin movimiento",
 } satisfies Record<AlertKind, string>;

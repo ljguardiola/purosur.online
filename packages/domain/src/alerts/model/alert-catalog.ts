@@ -23,6 +23,7 @@ const ALERT_KIND_LIST = [
   "offsite_dump_unverified",
   "fortnight_report_pending",
   "fortnight_report_overdue",
+  "external_billing",
   "fortnight_report_needs_regularization",
 ] as const;
 

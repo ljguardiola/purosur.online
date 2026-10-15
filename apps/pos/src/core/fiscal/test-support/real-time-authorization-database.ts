@@ -73,14 +73,16 @@ export function insertPointOfSale(
   database: LocalDatabase,
   taxAuthorityLastAuthorized: number | null,
   pointOfSale = POINT_OF_SALE,
+  numberingFrozen = false,
 ): void {
   database
     .prepare(
       `INSERT INTO register_point_of_sale (
-         register_id, point_of_sale_number, fiscal_address_id, tax_authority_last_authorized_number, version
-       ) VALUES ('register-1', ?, 'address-1', ?, 1)`,
+         register_id, point_of_sale_number, fiscal_address_id, tax_authority_last_authorized_number,
+         numbering_frozen, version
+       ) VALUES ('register-1', ?, 'address-1', ?, ?, 1)`,
     )
-    .run(pointOfSale, taxAuthorityLastAuthorized);
+    .run(pointOfSale, taxAuthorityLastAuthorized, numberingFrozen ? 1 : 0);
 }
 
 export interface HealthCheckRow {

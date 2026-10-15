@@ -24,11 +24,13 @@ interface SaleRow {
   id: string;
   occurred_at: string;
   operation_number: number | null;
+  voided: 0 | 1;
 }
 
 interface DetailRow extends SaleRow {
   first_name: string;
   line_count: number;
+  in_open_session: 0 | 1;
 }
 
 interface FiscalDocumentRow {
@@ -37,17 +39,20 @@ interface FiscalDocumentRow {
   number: number;
 }
 
-const OF_THIS_REGISTER = `sales.state = 'COMPLETED'
+const OF_THIS_REGISTER = `sales.state IN ('COMPLETED', 'VOIDED')
   AND sales.register_id IN (SELECT id FROM own_register WHERE removed = 0)`;
 
 const IN_THE_OPEN_SESSION =
   "sales.session_id IN (SELECT id FROM cash_sessions WHERE state = 'OPEN')";
+
+const VOIDED = "(sales.state = 'VOIDED')";
 
 const DEFERRED_SALE_SATISFIED = "(deferred_sales.satisfied_at IS NOT NULL)";
 
 const DEFERRED = `EXISTS (
   SELECT 1 FROM deferred_sales
   WHERE deferred_sales.sale_id = sales.id
+    AND deferred_sales.cancelled_at IS NULL
     AND ${DEFERRED_SALE_SATISFIED} = ${Number(PENDING_DEFERRED_SALE_RECORD.satisfied)}
 )`;
 
@@ -67,10 +72,14 @@ function factCondition(sql: string, parameters: string[], holds: boolean): Condi
 }
 
 function definitionCondition({
+  voided,
   deferred,
   documentBeingRequested,
 }: SaleStandingDefinition): Condition {
-  const facts = [factCondition(DEFERRED, [], deferred)];
+  const facts = [factCondition(VOIDED, [], voided)];
+  if (deferred !== undefined) {
+    facts.push(factCondition(DEFERRED, [], deferred));
+  }
   if (documentBeingRequested !== undefined) {
     facts.push(
       factCondition(
@@ -122,6 +131,7 @@ export class SqliteRegisterSalesHistory implements RegisterSalesHistory {
       .prepare<[string], DetailRow>(
         `SELECT sales.id AS id, sales.occurred_at AS occurred_at,
                 sales.operation_number AS operation_number, users.first_name AS first_name,
+                ${VOIDED} AS voided, (${IN_THE_OPEN_SESSION}) AS in_open_session,
                 (SELECT count(*) FROM sale_lines WHERE sale_lines.sale_id = sales.id) AS line_count
          FROM sales JOIN users ON users.id = sales.actor_id
          WHERE sales.id = ? AND ${OF_THIS_REGISTER}`,
@@ -142,6 +152,8 @@ export class SqliteRegisterSalesHistory implements RegisterSalesHistory {
         amount,
       })),
       fiscal: this.fiscalFactsOf(sale.id),
+      voided: sale.voided === 1,
+      inOpenSession: sale.in_open_session === 1,
     };
   }
 
@@ -151,7 +163,7 @@ export class SqliteRegisterSalesHistory implements RegisterSalesHistory {
     const rows = this.database
       .prepare<(string | number)[], SaleRow>(
         `SELECT sales.id AS id, sales.occurred_at AS occurred_at,
-                sales.operation_number AS operation_number
+                sales.operation_number AS operation_number, ${VOIDED} AS voided
          FROM sales WHERE ${where}
          ORDER BY sales.occurred_at DESC, sales.rowid DESC LIMIT ? OFFSET ?`,
       )
@@ -179,6 +191,7 @@ export class SqliteRegisterSalesHistory implements RegisterSalesHistory {
       paymentMethods: methods.map(({ method }) => method),
       total: this.totalOf(row.id),
       fiscal: this.fiscalFactsOf(row.id),
+      voided: row.voided === 1,
     };
   }
 
@@ -197,7 +210,7 @@ export class SqliteRegisterSalesHistory implements RegisterSalesHistory {
       .get({ sale_id: saleId });
     const deferredRecord = this.database
       .prepare<[string], { satisfied: 0 | 1 }>(
-        `SELECT ${DEFERRED_SALE_SATISFIED} AS satisfied FROM deferred_sales WHERE sale_id = ?`,
+        `SELECT ${DEFERRED_SALE_SATISFIED} AS satisfied FROM deferred_sales WHERE sale_id = ? AND cancelled_at IS NULL`,
       )
       .get(saleId);
     return {

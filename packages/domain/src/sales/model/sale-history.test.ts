@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import type { FiscalDocumentState } from "../../fiscal/index.js";
 import {
   isDeferralPending,
+  SALE_STANDING_DEFINITIONS,
+  SALE_STANDINGS,
   SALES_HISTORY_PAGE_SIZE,
   type SaleFiscalDocument,
   type SaleFiscalFacts,
@@ -15,38 +17,69 @@ function document(state: FiscalDocumentState): SaleFiscalDocument {
 
 const NO_DOCUMENT: SaleFiscalFacts = { deferred: false, fiscalDocument: null };
 
+describe("SALE_STANDINGS", () => {
+  it("lists the standings a sale of the history can have, a voided one last", () => {
+    expect(SALE_STANDINGS).toEqual(["completed", "in_progress", "deferred", "voided"]);
+  });
+});
+
+describe("SALE_STANDING_DEFINITIONS", () => {
+  it("defines each standing but completed by the facts that make a sale have it", () => {
+    expect(SALE_STANDING_DEFINITIONS).toEqual({
+      voided: { voided: true },
+      deferred: { voided: false, deferred: true },
+      in_progress: { voided: false, deferred: false, documentBeingRequested: true },
+    });
+  });
+});
+
 describe("saleStandingOf", () => {
+  it("is voided when the sale was voided", () => {
+    expect(saleStandingOf({ ...NO_DOCUMENT, voided: true })).toBe("voided");
+  });
+
+  it("is voided before it is deferred or in progress", () => {
+    expect(saleStandingOf({ voided: true, deferred: true, fiscalDocument: null })).toBe("voided");
+    expect(
+      saleStandingOf({ voided: true, deferred: false, fiscalDocument: document("REQUESTING") }),
+    ).toBe("voided");
+  });
+
   it("is completed when the sale has no fiscal document and was not deferred", () => {
-    expect(saleStandingOf(NO_DOCUMENT)).toBe("completed");
+    expect(saleStandingOf({ ...NO_DOCUMENT, voided: false })).toBe("completed");
   });
 
   it("is completed when its fiscal document is authorized", () => {
-    expect(saleStandingOf({ deferred: false, fiscalDocument: document("AUTHORIZED") })).toBe(
-      "completed",
-    );
+    expect(
+      saleStandingOf({ voided: false, deferred: false, fiscalDocument: document("AUTHORIZED") }),
+    ).toBe("completed");
   });
 
   it("is in progress while its fiscal document is being requested", () => {
-    expect(saleStandingOf({ deferred: false, fiscalDocument: document("REQUESTING") })).toBe(
-      "in_progress",
-    );
+    expect(
+      saleStandingOf({ voided: false, deferred: false, fiscalDocument: document("REQUESTING") }),
+    ).toBe("in_progress");
   });
 
   it("is deferred when it was routed to a deferred sale", () => {
-    expect(saleStandingOf({ deferred: true, fiscalDocument: null })).toBe("deferred");
+    expect(saleStandingOf({ voided: false, deferred: true, fiscalDocument: null })).toBe(
+      "deferred",
+    );
   });
 
   it.each<FiscalDocumentState>(["REJECTED", "UNKNOWN", "RELEASED", "CONFLICTING"])(
     "is deferred when its fiscal document ended %s and the sale was routed to deferred",
     (state) => {
-      expect(saleStandingOf({ deferred: true, fiscalDocument: document(state) })).toBe("deferred");
+      expect(
+        saleStandingOf({ voided: false, deferred: true, fiscalDocument: document(state) }),
+      ).toBe("deferred");
     },
   );
 
   it("is deferred before it is in progress", () => {
-    expect(saleStandingOf({ deferred: true, fiscalDocument: document("REQUESTING") })).toBe(
-      "deferred",
-    );
+    expect(
+      saleStandingOf({ voided: false, deferred: true, fiscalDocument: document("REQUESTING") }),
+    ).toBe("deferred");
   });
 });
 

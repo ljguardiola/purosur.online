@@ -5,7 +5,7 @@ import {
   type FakeHistorySale,
   FakeRegisterSalesHistory,
 } from "./test-support/fake-register-sales-history.js";
-import { completedSale, FIRST_PRINT_AT, SENT_AT } from "./test-support/receipt-rig.js";
+import { completedSale, FIRST_PRINT_AT, SENT_AT, voidedSale } from "./test-support/receipt-rig.js";
 
 function historySale(
   overrides: Partial<NonNullable<FakeHistorySale["record"]>> = {},
@@ -19,6 +19,7 @@ function historySale(
       paymentMethods: ["CASH"],
       total: 7500,
       fiscal: { deferred: false, fiscalDocument: null },
+      voided: false,
     },
     record: {
       saleId: "sale-1",
@@ -40,6 +41,8 @@ function historySale(
           number: 1204,
         },
       },
+      voided: false,
+      inOpenSession: true,
       ...overrides,
     },
   };
@@ -65,6 +68,8 @@ describe("readSaleHistoryDetail", () => {
           { method: "TRANSFER", amount: 2500 },
         ],
         standing: "completed",
+        voidability: { kind: "not_voidable", refusal: "carries_invoice" },
+        reprint: { kind: "available" },
         nextCopy: { kind: "original" },
       },
     });
@@ -114,6 +119,111 @@ describe("readSaleHistoryDetail", () => {
 
     expect(readSaleHistoryDetail({ history, ledger }, { saleId: "sale-1" })).toEqual({
       kind: "not_found",
+    });
+  });
+
+  it("says reprinting is available for a sale that stands", () => {
+    const history = new FakeRegisterSalesHistory([historySale()]);
+    const ledger = new FakeReceiptLedger({ sales: [completedSale()] });
+    const outcome = readSaleHistoryDetail({ history, ledger }, { saleId: "sale-1" });
+
+    expect(outcome.kind === "found" && outcome.detail.reprint).toEqual({ kind: "available" });
+  });
+
+  it("says a voided sale's receipt is not printed", () => {
+    const history = new FakeRegisterSalesHistory([historySale({ voided: true })]);
+    const ledger = new FakeReceiptLedger({ sales: [voidedSale()] });
+    const outcome = readSaleHistoryDetail({ history, ledger }, { saleId: "sale-1" });
+
+    expect(outcome.kind === "found" && outcome.detail.reprint).toEqual({ kind: "sale_voided" });
+  });
+
+  describe("whether the sale may be voided", () => {
+    const CASH_ONLY = [{ method: "CASH" as const, amount: 7500 }];
+    const NO_INVOICE = { deferred: true, fiscalDocument: null };
+
+    function voidability(overrides: Parameters<typeof historySale>[0]) {
+      const history = new FakeRegisterSalesHistory([historySale(overrides)]);
+      const ledger = new FakeReceiptLedger({ sales: [completedSale()] });
+      const outcome = readSaleHistoryDetail({ history, ledger }, { saleId: "sale-1" });
+      return outcome.kind === "found" ? outcome.detail.voidability : undefined;
+    }
+
+    it("shows the refund each payment would get, cash on the spot and the rest pending", () => {
+      expect(
+        voidability({
+          fiscal: NO_INVOICE,
+          payments: [
+            { method: "CASH", amount: 5000 },
+            { method: "TRANSFER", amount: 1500 },
+            { method: "STANDALONE_TERMINAL", amount: 1000 },
+          ],
+        }),
+      ).toEqual({
+        kind: "voidable",
+        refunds: [
+          { method: "CASH", amount: 5000, state: "APPROVED" },
+          { method: "TRANSFER", amount: 1500, state: "PENDING" },
+          { method: "STANDALONE_TERMINAL", amount: 1000, state: "PENDING" },
+        ],
+      });
+    });
+
+    it("is voidable with no refunds planned when nothing was paid", () => {
+      expect(voidability({ fiscal: NO_INVOICE, payments: [] })).toEqual({
+        kind: "voidable",
+        refunds: [],
+      });
+    });
+
+    it("says why a sale of a closed session cannot be voided", () => {
+      expect(
+        voidability({ fiscal: NO_INVOICE, payments: CASH_ONLY, inOpenSession: false }),
+      ).toEqual({ kind: "not_voidable", refusal: "session_closed" });
+    });
+
+    it("says why a sale whose invoice is being requested cannot be voided", () => {
+      const fiscal = {
+        deferred: false,
+        fiscalDocument: {
+          state: "REQUESTING" as const,
+          documentType: "factura_c" as const,
+          pointOfSale: 3,
+          number: 1204,
+        },
+      };
+
+      expect(voidability({ fiscal, payments: CASH_ONLY })).toEqual({
+        kind: "not_voidable",
+        refusal: "invoice_in_flight",
+      });
+    });
+
+    it("says why a sale paid through Mercado Pago cannot be voided", () => {
+      expect(
+        voidability({
+          fiscal: NO_INVOICE,
+          payments: [{ method: "QR", amount: 7500 }],
+        }),
+      ).toEqual({ kind: "not_voidable", refusal: "mercado_pago_payment" });
+    });
+
+    it("says a voided sale is not a completed one", () => {
+      expect(voidability({ fiscal: NO_INVOICE, payments: CASH_ONLY, voided: true })).toEqual({
+        kind: "not_voidable",
+        refusal: "not_completed",
+      });
+    });
+
+    it("shows a voided sale with the voided standing", () => {
+      const history = new FakeRegisterSalesHistory([
+        historySale({ fiscal: NO_INVOICE, voided: true }),
+      ]);
+      const ledger = new FakeReceiptLedger({ sales: [completedSale()] });
+
+      const outcome = readSaleHistoryDetail({ history, ledger }, { saleId: "sale-1" });
+
+      expect(outcome).toMatchObject({ kind: "found", detail: { standing: "voided" } });
     });
   });
 });

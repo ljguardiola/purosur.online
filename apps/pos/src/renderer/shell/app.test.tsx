@@ -293,6 +293,9 @@ function coreAnswering(
     async cancelPaidSale() {
       return { kind: "unavailable" };
     },
+    async voidSale() {
+      return { kind: "unavailable" };
+    },
     async receiptPrintStatus(saleId) {
       return sales.receiptPrintStatus === undefined
         ? { kind: "found", next_copy: { kind: "original" }, printed: true, standing: "printed" }

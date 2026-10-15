@@ -136,6 +136,7 @@ import {
 import { saleHistoryDetailFor, salesHistoryFor } from "./sales/sales-history-requests";
 import { anySaleIsOpen } from "./sales/sqlite-open-sale-presence";
 import { createSystelScale } from "./sales/systel-scale";
+import { voidSaleFor } from "./sales/void-sale-requests";
 import { createActionGate } from "./sessions/action-gate";
 import { authorizersOf } from "./sessions/authorizers";
 import { hashPin } from "./sessions/pin-hash";
@@ -896,6 +897,21 @@ const rendererRequestDeps: RendererRequestDeps = {
       ? undefined
       : async (request) =>
           cancelPaidSaleFor(
+            {
+              database: localDatabase,
+              gate: actionGate,
+              readOutboxChainKey: async () =>
+                (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
+              now,
+              ids: uuidV7Ids,
+            },
+            request,
+          ),
+  voidSale:
+    localDatabase === undefined || actionGate === undefined
+      ? undefined
+      : async (request) =>
+          voidSaleFor(
             {
               database: localDatabase,
               gate: actionGate,

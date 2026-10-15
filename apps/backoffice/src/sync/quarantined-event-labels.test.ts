@@ -12,6 +12,10 @@ test("capitalizes the Spanish name of a known event type in the column", () => {
   expect(quarantinedEventColumnText("sale_cancelled")).toBe("Venta cancelada");
 });
 
+test("capitalizes the Spanish name of a voided sale in the column", () => {
+  expect(quarantinedEventColumnText("sale_voided")).toBe("Venta anulada");
+});
+
 test("names a quarantined replacement of a QR payment by its Spanish name in the column", () => {
   expect(quarantinedEventColumnText("qr_payment_replaced")).toBe("Reemplazo de pago QR");
 });

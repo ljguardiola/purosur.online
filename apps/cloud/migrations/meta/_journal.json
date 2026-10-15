@@ -736,6 +736,20 @@
       "when": 1792060232561,
       "tag": "0108_fortnight_document_reports",
       "breakpoints": true
+    },
+    {
+      "idx": 105,
+      "version": "7",
+      "when": 1792077096405,
+      "tag": "0109_numbering_conflict_freeze",
+      "breakpoints": true
+    },
+    {
+      "idx": 106,
+      "version": "7",
+      "when": 1792087184000,
+      "tag": "0110_voided_sales",
+      "breakpoints": true
     }
   ]
 }

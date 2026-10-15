@@ -40,7 +40,7 @@ export interface CompletedSaleCashMovement {
   occurredAt: Date;
 }
 
-interface CompletedSaleStockMovement {
+export interface CompletedSaleStockMovement {
   id: string;
   saleLineId: string;
   productId: string;

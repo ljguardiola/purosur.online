@@ -3,10 +3,10 @@ import { eq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import {
   registerOfflinePointsOfSale,
-  registerPointsOfSale,
   taxAuthorityLastAuthorizedNumbers,
 } from "../platform/db/schema.js";
 import { type PendingChanges, withPendingChanges } from "../sync/change-log.js";
+import { notePointOfSaleHolderChanged } from "./note-point-of-sale-holder-changed.js";
 
 export class DrizzleTaxAuthorityCounts<TQueryResult extends PgQueryResultHKT>
   implements TaxAuthorityCounts
@@ -33,21 +33,7 @@ export class DrizzleTaxAuthorityCounts<TQueryResult extends PgQueryResultHKT>
             readAt,
           },
         });
-      const [holder] = await tx
-        .select({
-          registerId: registerPointsOfSale.registerId,
-          version: registerPointsOfSale.version,
-        })
-        .from(registerPointsOfSale)
-        .where(eq(registerPointsOfSale.pointOfSaleNumber, pointOfSale));
-      if (holder) {
-        pending.note({
-          entity: "register_point_of_sale",
-          entityId: holder.registerId,
-          version: holder.version,
-          op: "update",
-        });
-      }
+      await notePointOfSaleHolderChanged(tx, pending, pointOfSale);
       const [offlineHolder] = await tx
         .select({
           registerId: registerOfflinePointsOfSale.registerId,

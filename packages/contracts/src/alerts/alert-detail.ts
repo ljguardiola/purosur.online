@@ -148,6 +148,12 @@ const fiscalRejectedDetailSchema = z.object({
   rejections: z.array(z.object({ code: z.int(), message: z.string() })),
 });
 
+const externalBillingDetailSchema = z.object({
+  pointOfSale: z.int(),
+  documentType: z.literal(FACTURA_C_DOCUMENT_TYPE),
+  number: z.int(),
+});
+
 const latePaymentRefundDetailSchema = z.object({
   saleId: z.string(),
   amount: z.int(),
@@ -351,6 +357,11 @@ const alertDetailKinds = [
     ...alertBase,
     kind: z.literal("fortnight_report_overdue" satisfies AlertKind),
     detail: fortnightReportOverdueDetailSchema,
+  }),
+  z.object({
+    ...alertBase,
+    kind: z.literal("external_billing" satisfies AlertKind),
+    detail: externalBillingDetailSchema,
   }),
   z.object({
     ...alertBase,

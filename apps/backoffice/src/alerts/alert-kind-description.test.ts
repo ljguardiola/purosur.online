@@ -92,6 +92,12 @@ test("describes a fortnight's report not yet presented and one whose deadline wa
   );
 });
 
+test("describes a voucher issued outside the system", () => {
+  expect(alertKindDescription("external_billing")).toBe(
+    "Un comprobante se emitió fuera del sistema",
+  );
+});
+
 test("describes a fortnight already reported without movement that later received invoices", () => {
   expect(alertKindDescription("fortnight_report_needs_regularization")).toBe(
     "Llegaron comprobantes de una quincena ya informada a ARCA sin movimiento",

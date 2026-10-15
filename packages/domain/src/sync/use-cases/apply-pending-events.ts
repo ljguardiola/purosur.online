@@ -119,6 +119,9 @@ async function recordFact(
         await applyStock(tx.applySaleStock(fact.sale, fact.sale.stockMovements, event));
       }
       return;
+    case "sale_voided":
+      await tx.record(fact, event);
+      return applyStock(tx.applySaleVoidStock(fact.sale, fact.sale.stockMovements, event));
     default:
       return tx.record(fact, event);
   }

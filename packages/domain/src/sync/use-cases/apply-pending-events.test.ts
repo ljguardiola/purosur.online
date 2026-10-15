@@ -6,6 +6,7 @@ import {
   AN_OPENING_COUNT_WITHDRAWN_FACT,
   aCancelledSaleFact,
   aCompletedSaleFact,
+  aVoidedSaleFact,
 } from "../model/test-support/synced-facts.js";
 import { applyPendingEvents } from "./apply-pending-events.js";
 import {
@@ -441,6 +442,60 @@ describe("an event that cannot be applied yet", () => {
     expect(application.state.quarantines).toEqual([
       expect.objectContaining({ eventId: "sale-event", reason: { kind: "not_recorded" } }),
     ]);
+  });
+
+  describe("a voided sale", () => {
+    const voidEvent = (overrides: Partial<FakeStoredEvent> = {}) =>
+      saleEvent({
+        eventId: "void-event",
+        eventType: "sale_voided",
+        schemaVersion: 1,
+        ...overrides,
+      });
+    const upcaster = () =>
+      new FakeEventUpcaster({ "void-event": aVoidedSaleFact({ id: "sale-1" }) });
+
+    it("is recorded and then returns its merchandise to stock in its own transaction", async () => {
+      const application = new FakeEventApplication([appliedSessionOpening(), voidEvent()]);
+
+      await run(application, upcaster());
+
+      expect(application.state.recorded.map(({ fact }) => fact.kind)).toEqual(["sale_voided"]);
+      expect(application.state.stockReturned).toEqual([
+        { eventId: "void-event", saleId: "sale-1" },
+      ]);
+      expect(application.state.writeOrder).toEqual(["record", "stock return"]);
+      expect(application.event("void-event").appliedAt).toEqual(NOW);
+    });
+
+    it("is retried, with the reason, and leaves nothing recorded when its stock return is refused", async () => {
+      const application = new FakeEventApplication([appliedSessionOpening(), voidEvent()]);
+      application.refuseStock.set("void-event", "product product-1 is not in the catalog");
+
+      await run(application, upcaster());
+
+      expect(application.event("void-event")).toMatchObject({
+        appliedAt: null,
+        attempts: 1,
+        error: "product product-1 is not in the catalog",
+      });
+      expect(application.state.recorded).toEqual([]);
+      expect(application.calls).toContain("rollback");
+    });
+
+    it("is quarantined as not recorded when its recording fails on its last allowed attempt", async () => {
+      const application = new FakeEventApplication([
+        appliedSessionOpening(),
+        voidEvent({ attempts: 7 }),
+      ]);
+      application.failRecording.set("void-event", new Error("sale sale-1 was never completed"));
+
+      await run(application, upcaster());
+
+      expect(application.state.quarantines).toEqual([
+        expect.objectContaining({ eventId: "void-event", reason: { kind: "not_recorded" } }),
+      ]);
+    });
   });
 
   describe("an opening count", () => {

@@ -48,6 +48,7 @@ export {
   hasApprovedPayment,
   holdsApprovedPointPayment,
   isConfirmedByHand,
+  isMercadoPagoMethod,
   MERCADO_PAGO_PAYMENT_METHODS,
   MERCADO_PAGO_PROVIDERS,
   PAYMENT_METHODS,
@@ -66,6 +67,7 @@ export { paymentRecord } from "./model/payment-record.js";
 export type {
   LatePaymentRefund,
   PlannedRefund,
+  PlannedRefundState,
   RefundablePayment,
   RefundOrigin,
   RefundState,
@@ -77,6 +79,7 @@ export {
   latePaymentRefundOfUnrecordedOrder,
   methodsCoveringRefundedSale,
   PLANNED_REFUND_STATES,
+  plannedRefundState,
   plannedRefunds,
   REFUND_DISCARDED_STATE,
   REFUND_DONE_STATE,
@@ -85,6 +88,7 @@ export {
   REFUND_STATES,
   REFUND_TASK_ORIGINS,
   refundsSettleApprovedPayments,
+  SALE_VOIDED_REFUND_ORIGIN,
 } from "./model/payment-refund.js";
 export type {
   MercadoPagoOrderTransaction,

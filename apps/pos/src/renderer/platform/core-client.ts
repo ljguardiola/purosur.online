@@ -73,6 +73,7 @@ import type {
   StockCoreToRendererMessage,
   StockRendererToCoreMessage,
   SyncCoreToRendererMessage,
+  VoidSaleOutcome,
   WeighCountedProductOutcome,
   WeighProductOutcome,
   WithdrawInitialCountLineOutcome,
@@ -215,6 +216,11 @@ export interface CoreClient {
     saleId: string,
     authorization: Authorization | undefined,
   ): Promise<CancelPaidSaleOutcome>;
+  voidSale(
+    saleId: string,
+    pendingRefundsConfirmed: boolean,
+    authorization: Authorization | undefined,
+  ): Promise<VoidSaleOutcome>;
   receiptPrintStatus(saleId: string): Promise<ReceiptPrintStatusOutcome>;
   printOriginalReceipt(saleId: string): Promise<PrintOriginalReceiptOutcome>;
   reprintSaleReceipt(
@@ -643,6 +649,18 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
           ...(authorization === undefined ? {} : { authorization }),
         },
         (answer) => (answer.type === "cancel-paid-sale-result" ? answer.outcome : undefined),
+      );
+    },
+    voidSale(saleId, pendingRefundsConfirmed, authorization) {
+      return ask(
+        {
+          type: "void-sale",
+          request_id: deps.newRequestId(),
+          sale_id: saleId,
+          pending_refunds_confirmed: pendingRefundsConfirmed,
+          ...(authorization === undefined ? {} : { authorization }),
+        },
+        (answer) => (answer.type === "void-sale-result" ? answer.outcome : undefined),
       );
     },
     receiptPrintStatus(saleId) {

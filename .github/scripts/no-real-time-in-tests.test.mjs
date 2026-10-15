@@ -543,6 +543,21 @@ test("reads the node --test glob from the verify:static script", () => {
   assert.deepEqual(readVerifyStaticTestGlobs(packageJson), [".github/scripts/*.test.mjs"]);
 });
 
+test("reads the node --test glob from a part script the verify:static script runs", () => {
+  const packageJson = JSON.stringify({
+    scripts: {
+      "verify:static": "pnpm verify:static:types && pnpm verify:static:automation",
+      "verify:static:types": "tsc --noEmit",
+      "verify:static:automation": `node --test --test-shard=\${TEST_SHARD:-1/1} .github/scripts/*.test.mjs .claude/hooks/*.test.mjs`,
+    },
+  });
+
+  assert.deepEqual(readVerifyStaticTestGlobs(packageJson), [
+    ".github/scripts/*.test.mjs",
+    ".claude/hooks/*.test.mjs",
+  ]);
+});
+
 test("reads only the node --test arguments up to the next shell operator", () => {
   const scriptWith = (script) => JSON.stringify({ scripts: { "verify:static": script } });
 
