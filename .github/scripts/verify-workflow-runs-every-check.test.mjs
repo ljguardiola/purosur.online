@@ -91,8 +91,8 @@ const STATIC_BASE_REF = `\${{ github.event_name == 'push' && github.event.before
 const STATIC_MATRIX = [
   ["types", "pnpm verify:static:types"],
   ["builds", "pnpm verify:static:builds"],
-  ["automation 1/2", "pnpm verify:static:automation --test-shard=1/2"],
-  ["automation 2/2", "pnpm verify:static:automation --test-shard=2/2"],
+  ["automation 1/2", "pnpm verify:static:automation", "1/2"],
+  ["automation 2/2", "pnpm verify:static:automation", "2/2"],
 ];
 
 function staticJobLines({
@@ -104,6 +104,7 @@ function staticJobLines({
   run = `\${{ matrix.command }}`,
   stepExtra = [],
   baseRef = STATIC_BASE_REF,
+  testShard = `\${{ matrix.shard }}`,
 } = {}) {
   return [
     "  static:",
@@ -113,9 +114,10 @@ function staticJobLines({
     "    strategy:",
     "      matrix:",
     "        include:",
-    ...matrix.flatMap(([part, command]) => [
+    ...matrix.flatMap(([part, command, shard]) => [
       `          - part: ${part}`,
       ...(command === null ? [] : [`            command: ${command}`]),
+      ...(shard === undefined ? [] : [`            shard: ${shard}`]),
     ]),
     ...matrixExtra.map((line) => `        ${line}`),
     "    steps:",
@@ -124,7 +126,9 @@ function staticJobLines({
     "      - run: pnpm install --frozen-lockfile",
     `      - run: ${run}`,
     ...stepExtra.map((line) => `        ${line}`),
-    ...(baseRef === null ? [] : ["        env:", `          CHANGE_BASE_REF: ${baseRef}`]),
+    "        env:",
+    ...(baseRef === null ? [] : [`          CHANGE_BASE_REF: ${baseRef}`]),
+    ...(testShard === null ? [] : [`          TEST_SHARD: ${testShard}`]),
   ];
 }
 
@@ -136,6 +140,7 @@ function workflow({
   staticMatrixExtra = [],
   staticFetchDepth = "0",
   staticBaseRef = STATIC_BASE_REF,
+  staticTestShard = `\${{ matrix.shard }}`,
   shardValues = [1, 2, 3, 4],
   testsRun,
   staticIf = RUN_CONDITION,
@@ -195,6 +200,7 @@ function workflow({
       run: staticRun,
       stepExtra: staticStepExtra,
       baseRef: staticBaseRef,
+      testShard: staticTestShard,
     }),
     "  tests:",
     `    if: ${testsIf}`,
@@ -221,8 +227,7 @@ const STATIC_PART_SCRIPTS = {
     "tsc --noEmit && tsc --noEmit -p apps/backoffice && tsc --noEmit -p apps/pos && tsc --noEmit -p apps/cloud/tsconfig.test.json",
   "verify:static:builds":
     "pnpm --filter @purosur/cloud build && pnpm --filter @purosur/backoffice build && node .github/scripts/backoffice-download-budget.mjs && pnpm --filter @purosur/pos build && biome ci . --error-on-warnings && pnpm depcruise && knip && node .github/scripts/react-compiler-check.mjs",
-  "verify:static:automation":
-    "node --test .github/scripts/*.test.mjs .github/scripts/test-support/*.test.mjs .claude/hooks/*.test.mjs",
+  "verify:static:automation": `node --test --test-shard=\${TEST_SHARD:-1/1} .github/scripts/*.test.mjs .github/scripts/test-support/*.test.mjs .claude/hooks/*.test.mjs`,
 };
 
 function packageJson({
@@ -396,7 +401,10 @@ test("flags a static job that no longer runs its matrix's command", () => {
     packageJson(),
   );
 
-  assertSingleViolation(violations, /static job has no step whose run is exactly `\$\{\{ matrix\.command \}\}`/);
+  assertSingleViolation(
+    violations,
+    /static job has no step whose run is exactly `\$\{\{ matrix\.command \}\}`/,
+  );
 });
 
 test("passes when the static matrix runs an unsharded automation part", () => {
@@ -420,9 +428,9 @@ test("passes when the static matrix shards the automation part three ways", () =
       staticMatrix: [
         ["types", "pnpm verify:static:types"],
         ["builds", "pnpm verify:static:builds"],
-        ["automation 1/3", "pnpm verify:static:automation --test-shard=1/3"],
-        ["automation 2/3", "pnpm verify:static:automation --test-shard=2/3"],
-        ["automation 3/3", "pnpm verify:static:automation --test-shard=3/3"],
+        ["automation 1/3", "pnpm verify:static:automation", "1/3"],
+        ["automation 2/3", "pnpm verify:static:automation", "2/3"],
+        ["automation 3/3", "pnpm verify:static:automation", "3/3"],
       ],
     }),
     packageJson(),
@@ -456,8 +464,8 @@ for (const [label, matrix, pattern] of [
     "runs shards that skip a number",
     [
       ...STATIC_MATRIX.slice(0, 2),
-      ["automation 1/3", "pnpm verify:static:automation --test-shard=1/3"],
-      ["automation 3/3", "pnpm verify:static:automation --test-shard=3/3"],
+      ["automation 1/3", "pnpm verify:static:automation", "1/3"],
+      ["automation 3/3", "pnpm verify:static:automation", "3/3"],
     ],
     /static job's shards of `pnpm verify:static:automation` are not a contiguous 1\.\.n range/,
   ],
@@ -465,8 +473,8 @@ for (const [label, matrix, pattern] of [
     "runs shards that disagree on their count",
     [
       ...STATIC_MATRIX.slice(0, 2),
-      ["automation 1/2", "pnpm verify:static:automation --test-shard=1/2"],
-      ["automation 2/3", "pnpm verify:static:automation --test-shard=2/3"],
+      ["automation 1/2", "pnpm verify:static:automation", "1/2"],
+      ["automation 2/3", "pnpm verify:static:automation", "2/3"],
     ],
     /static job's shards of `pnpm verify:static:automation` are not a contiguous 1\.\.n range/,
   ],
@@ -490,6 +498,58 @@ for (const [label, matrix, pattern] of [
     assertSingleViolation(violations, pattern);
   });
 }
+
+test("accepts a static job without TEST_SHARD when no part runs in shards", () => {
+  const violations = findVerifyWorkflowViolations(
+    workflow({
+      staticMatrix: [
+        ["types", "pnpm verify:static:types"],
+        ["builds", "pnpm verify:static:builds"],
+        ["automation", "pnpm verify:static:automation"],
+      ],
+      staticTestShard: null,
+    }),
+    packageJson(),
+  );
+
+  assert.deepEqual(violations, []);
+});
+
+test("flags a static matrix that shards a part whose script does not read TEST_SHARD", () => {
+  const violations = findVerifyWorkflowViolations(
+    workflow({
+      staticMatrix: [
+        ["types", "pnpm verify:static:types"],
+        ["builds 1/2", "pnpm verify:static:builds", "1/2"],
+        ["builds 2/2", "pnpm verify:static:builds", "2/2"],
+        ["automation", "pnpm verify:static:automation"],
+      ],
+    }),
+    packageJson(),
+  );
+
+  assertSingleViolation(
+    violations,
+    /static job runs `pnpm verify:static:builds` in shards, but its script does not pass --test-shard=\$\{TEST_SHARD:-1\/1\}/,
+  );
+});
+
+test("flags a static matrix shard that is not a shard of the form k/n", () => {
+  const violations = findVerifyWorkflowViolations(
+    workflow({
+      staticMatrix: [
+        ...STATIC_MATRIX.slice(0, 3),
+        ["automation last", "pnpm verify:static:automation", "last"],
+      ],
+    }),
+    packageJson(),
+  );
+
+  assertSingleViolation(
+    violations,
+    /static job's shards of `pnpm verify:static:automation` are not a contiguous 1\.\.n range/,
+  );
+});
 
 test("flags a static matrix that swallows a part's failure", () => {
   const violations = findVerifyWorkflowViolations(
@@ -536,6 +596,16 @@ for (const [label, options, pattern] of [
     "runs its parts from the wrong base",
     { staticBaseRef: `\${{ github.sha }}` },
     /static job's verify:static step's CHANGE_BASE_REF is/,
+  ],
+  [
+    "does not hand each shard its matrix shard, so every shard runs the whole part",
+    { staticTestShard: null },
+    /static job's verify:static step's TEST_SHARD is `undefined`, expected `\$\{\{ matrix\.shard \}\}`/,
+  ],
+  [
+    "hands every shard the same shard",
+    { staticTestShard: "1/2" },
+    /static job's verify:static step's TEST_SHARD is `1\/2`/,
   ],
 ]) {
   test(`flags a static job that ${label}`, () => {
@@ -1032,7 +1102,7 @@ for (const dropped of [
   "pnpm depcruise",
   "knip",
   "node .github/scripts/react-compiler-check.mjs",
-  "node --test .github/scripts/*.test.mjs .github/scripts/test-support/*.test.mjs .claude/hooks/*.test.mjs",
+  `node --test --test-shard=\${TEST_SHARD:-1/1} .github/scripts/*.test.mjs .github/scripts/test-support/*.test.mjs .claude/hooks/*.test.mjs`,
 ]) {
   test(`flags verify:static parts that no longer run ${dropped}`, () => {
     const staticParts = Object.fromEntries(

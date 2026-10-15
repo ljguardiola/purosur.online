@@ -548,7 +548,7 @@ test("reads the node --test glob from a part script the verify:static script run
     scripts: {
       "verify:static": "pnpm verify:static:types && pnpm verify:static:automation",
       "verify:static:types": "tsc --noEmit",
-      "verify:static:automation": "node --test .github/scripts/*.test.mjs .claude/hooks/*.test.mjs",
+      "verify:static:automation": `node --test --test-shard=\${TEST_SHARD:-1/1} .github/scripts/*.test.mjs .claude/hooks/*.test.mjs`,
     },
   });
 
