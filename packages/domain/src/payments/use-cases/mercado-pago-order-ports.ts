@@ -86,6 +86,7 @@ export interface MercadoPagoPointOrderRequest {
 export type MercadoPagoOrderCreation =
   | { kind: "created"; orderId: string; result: MercadoPagoOrderResult }
   | { kind: "refused" }
+  | { kind: "queued_order_on_terminal" }
   | { kind: "throttled" }
   | { kind: "unavailable" };
 

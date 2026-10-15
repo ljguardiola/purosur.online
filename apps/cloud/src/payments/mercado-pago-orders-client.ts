@@ -27,6 +27,7 @@ const UNPROCESSABLE = 422;
 const BAD_REQUEST = 400;
 const INSUFFICIENT_MONEY = 428;
 const ALREADY_REFUNDED_CODE = "order_already_refunded";
+const QUEUED_ORDER_ON_TERMINAL_CODE = "already_queued_order_on_terminal";
 const FINAL_REFUSAL_CODES: ReadonlyMap<number, readonly string[]> = new Map([
   [CONFLICT, ["cannot_refund_order", "refund_period_exceeded", "idempotency_key_already_used"]],
   [UNPROCESSABLE, ["payment_not_refundable"]],
@@ -232,6 +233,9 @@ export function createMercadoPagoOrdersClient(
     }
     if (answer.status === TOO_MANY_REQUESTS) {
       return { kind: "throttled" };
+    }
+    if (answer.status === CONFLICT && conflictCode(answer.body) === QUEUED_ORDER_ON_TERMINAL_CODE) {
+      return { kind: "queued_order_on_terminal" };
     }
     return { kind: "refused" };
   }

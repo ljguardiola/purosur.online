@@ -5,6 +5,7 @@ import type {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createMercadoPagoOrdersClient } from "./mercado-pago-orders-client.js";
 import {
+  alreadyQueuedOrderOnTerminalError,
   canceledOrder,
   cannotCancelOrderError,
   cannotRefundOrderError,
@@ -200,6 +201,23 @@ describe("creating an order on the integrated terminal", () => {
     expect(await client.createPointOrder(POINT_REQUEST)).toStrictEqual({ kind: "refused" });
   });
 
+  it("answers that an order is already queued on the terminal when Mercado Pago answers 409 already_queued_order_on_terminal", async () => {
+    const { client } = clientAnswering(answer(409, alreadyQueuedOrderOnTerminalError()));
+
+    expect(await client.createPointOrder(POINT_REQUEST)).toStrictEqual({
+      kind: "queued_order_on_terminal",
+    });
+  });
+
+  it.each([
+    ["409 with another code", () => answer(409, { errors: [{ code: "other" }], status: 409 })],
+    ["400 with the queued order's code", () => answer(400, alreadyQueuedOrderOnTerminalError())],
+  ])("refuses the order when Mercado Pago answers %s", async (_name, response) => {
+    const { client } = clientAnswering(response());
+
+    expect(await client.createPointOrder(POINT_REQUEST)).toStrictEqual({ kind: "refused" });
+  });
+
   it.each([408, 500, 502, 503])(
     "cannot tell what became of the order when Mercado Pago answers %i",
     async (status) => {
@@ -384,6 +402,14 @@ describe("the Mercado Pago orders client", () => {
       const { client } = clientAnswering(answer(status, body));
 
       expect(await client.createQrOrder(REQUEST)).toStrictEqual({ kind: "refused" });
+    });
+
+    it("answers that an order is already queued on the terminal when Mercado Pago answers 409 already_queued_order_on_terminal", async () => {
+      const { client } = clientAnswering(answer(409, alreadyQueuedOrderOnTerminalError()));
+
+      expect(await client.createQrOrder(REQUEST)).toStrictEqual({
+        kind: "queued_order_on_terminal",
+      });
     });
 
     it.each([408, 500, 502, 503])(
