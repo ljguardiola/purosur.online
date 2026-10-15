@@ -317,6 +317,7 @@ export async function readRegisterPointsOfSale<TQueryResult extends PgQueryResul
       pointOfSaleNumber: registerPointsOfSale.pointOfSaleNumber,
       fiscalAddressId: registerPointsOfSale.fiscalAddressId,
       taxAuthorityLastAuthorizedNumber: taxAuthorityLastAuthorizedNumbers.lastAuthorized,
+      taxAuthorityLastAuthorizedIssuedOn: taxAuthorityLastAuthorizedNumbers.issuedOn,
       numberingFrozen: sql<boolean>`${numberingFreezes.pointOfSaleNumber} is not null`,
       version: registerPointsOfSale.version,
     })
@@ -373,6 +374,7 @@ export async function readRegisterOfflinePointsOfSale<TQueryResult extends PgQue
       registerId: registerOfflinePointsOfSale.registerId,
       pointOfSaleNumber: registerOfflinePointsOfSale.pointOfSaleNumber,
       taxAuthorityLastAuthorizedNumber: taxAuthorityLastAuthorizedNumbers.lastAuthorized,
+      taxAuthorityLastAuthorizedIssuedOn: taxAuthorityLastAuthorizedNumbers.issuedOn,
       version: registerOfflinePointsOfSale.version,
     })
     .from(registerOfflinePointsOfSale)

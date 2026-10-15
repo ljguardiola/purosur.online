@@ -19,6 +19,7 @@ import { and, asc, eq, isNull, min, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { openEventInvariantAlert } from "../alerts/event-invariant-alert.js";
 import { openQuarantinedEventAlert } from "../alerts/quarantined-event-alert.js";
+import { recordAppliedClockCorrection } from "../fiscal/drizzle-applied-clock-corrections.js";
 import { recordAppliedOfflineFiscalDocument } from "../fiscal/drizzle-applied-offline-fiscal-documents.js";
 import { recordAppliedQrPaymentReplacement } from "../payments/drizzle-applied-qr-payment-replacement.js";
 import { providerTransactionOfPayment } from "../payments/drizzle-provider-transactions.js";
@@ -150,10 +151,17 @@ class DrizzleEventApplicationTransaction<TQueryResult extends PgQueryResultHKT>
           fact,
           this.now(),
         );
+      case "clock_corrected":
+        return recordAppliedClockCorrection(
+          this.tx,
+          await this.originOf(event),
+          fact,
+          event,
+          this.now(),
+        );
       case "opening_count_recorded":
       case "opening_count_withdrawn":
       case "fiscal_gate_failed":
-      case "clock_corrected":
         return;
     }
   }

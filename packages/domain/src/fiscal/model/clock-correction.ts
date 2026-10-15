@@ -33,6 +33,8 @@ export interface ClockCorrectedFact extends ClockLowering {
   actorId: string;
 }
 
+export type ClockCorrectionAlertState = "open" | "closed";
+
 export interface CashSessionStanding {
   openSessionId: string | null;
   lastClosedSessionId: string | null;

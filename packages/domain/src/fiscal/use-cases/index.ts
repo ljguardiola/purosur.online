@@ -104,6 +104,10 @@ export type {
   ClockCorrectionTransaction,
 } from "./clock-correction-ports.js";
 export type {
+  BranchClockCorrection,
+  ClockCorrectionReader,
+} from "./clock-correction-reader.js";
+export type {
   ConfigureRegisterOfflinePointOfSaleInput,
   ConfigureRegisterOfflinePointOfSaleOutcome,
 } from "./configure-register-offline-point-of-sale.js";

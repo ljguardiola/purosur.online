@@ -177,6 +177,7 @@ export type {
   BuyerIdentificationThreshold,
   BuyerTaxStatusOption,
   ChargeRefusal,
+  ClockCorrectionAlertState,
   DeferralReason,
   DeferredSale,
   DeferredSaleDocumentBlock,

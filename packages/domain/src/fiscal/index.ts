@@ -17,7 +17,7 @@ export {
   isValidBuyerTaxStatusSet,
   latestBuyerTaxStatusSet,
 } from "./model/buyer-tax-status-set.js";
-export type { ClockCorrectedFact } from "./model/clock-correction.js";
+export type { ClockCorrectedFact, ClockCorrectionAlertState } from "./model/clock-correction.js";
 export { CLOCK_CORRECTED_EVENT_TYPE, clockCorrectedEvent } from "./model/clock-correction.js";
 export { selectConsumerBuyerTaxStatus } from "./model/consumer-buyer-tax-status.js";
 export { isValidCuit } from "./model/cuit.js";
