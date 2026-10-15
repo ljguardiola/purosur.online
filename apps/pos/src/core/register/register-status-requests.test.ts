@@ -107,6 +107,7 @@ function status(
   localDatabaseDamaged = false,
   battery: BatteryReport | undefined = undefined,
   criticalBatteryAction: CriticalBatteryAction = { kind: "unreadable" },
+  newSalesStoppedByBattery = false,
 ) {
   return registerStatusFor({
     database,
@@ -117,6 +118,7 @@ function status(
     storage: () => storage,
     localDatabaseDamaged: () => localDatabaseDamaged,
     battery: () => battery,
+    newSalesStoppedByBattery: () => newSalesStoppedByBattery,
     criticalBatteryAction: () => criticalBatteryAction,
   });
 }
@@ -154,6 +156,7 @@ function statusWatchedBy(watch: SerialDeviceWatch) {
     storage: () => ROOMY_STORAGE,
     localDatabaseDamaged: () => false,
     battery: () => undefined,
+    newSalesStoppedByBattery: () => false,
     criticalBatteryAction: () => ({ kind: "unreadable" }),
   });
 }
@@ -216,10 +219,29 @@ describe("the register's status", () => {
     ]);
   });
 
-  it("holds sales_denied for a critically low battery", async () => {
+  it("holds sales_denied while the battery stops new sales", async () => {
+    expect(
+      (
+        await status(
+          "unknown",
+          NO_DEVICES,
+          ROOMY_STORAGE,
+          false,
+          onBattery(15),
+          { kind: "unreadable" },
+          true,
+        )
+      ).conditions,
+    ).toEqual([
+      { kind: "sales_denied", reason: "battery_critical", level: "critical" },
+      { kind: "battery_low", charge_percent: 15, critical_percent: 10, level: "warning" },
+    ]);
+  });
+
+  it("holds no sales_denied for a critically low battery report while the battery does not stop new sales", async () => {
     expect(
       (await status("unknown", NO_DEVICES, ROOMY_STORAGE, false, onBattery(5))).conditions,
-    ).toEqual([{ kind: "sales_denied", reason: "battery_critical", level: "critical" }]);
+    ).toEqual([]);
   });
 
   it("holds the on battery condition after more than ten minutes on battery", async () => {

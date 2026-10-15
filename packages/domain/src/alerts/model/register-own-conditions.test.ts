@@ -51,6 +51,7 @@ function conditions(overrides: Partial<Parameters<typeof registerOwnConditions>[
     storage: HEALTHY_STORAGE,
     localDatabaseDamaged: false,
     battery: undefined,
+    newSalesStoppedByBattery: false,
     criticalBatteryAction: { kind: "unreadable" },
     ...overrides,
   });
@@ -402,16 +403,23 @@ describe("registerOwnConditions for the battery", () => {
     expect(conditions({ battery: onMainsAt(3) })).toEqual([]);
   });
 
-  it("holds sales_denied for a critical battery in place of battery_low", () => {
-    expect(conditions({ battery: onBatteryAt(9) })).toEqual([
+  it("holds sales_denied while the battery stops new sales, whatever the report says", () => {
+    expect(conditions({ newSalesStoppedByBattery: true, battery: onBatteryAt(9) })).toEqual([
+      { kind: "sales_denied", reason: "battery_critical", level: "critical" },
+    ]);
+    expect(conditions({ newSalesStoppedByBattery: true, battery: undefined })).toEqual([
       { kind: "sales_denied", reason: "battery_critical", level: "critical" },
     ]);
   });
 
-  it("names a damaged local database over the critical battery", () => {
-    expect(conditions({ battery: onBatteryAt(9), localDatabaseDamaged: true })).toEqual([
-      { kind: "sales_denied", reason: "local_database_damaged", level: "critical" },
-    ]);
+  it("holds no sales_denied for a critical report while the battery does not stop new sales", () => {
+    expect(conditions({ battery: onBatteryAt(9) })).toEqual([]);
+  });
+
+  it("names a damaged local database over the battery stopping new sales", () => {
+    expect(
+      conditions({ newSalesStoppedByBattery: true, localDatabaseDamaged: true }),
+    ).toEqual([{ kind: "sales_denied", reason: "local_database_damaged", level: "critical" }]);
   });
 
   it("holds on_battery as critical after more than 10 minutes on battery", () => {
