@@ -1,4 +1,4 @@
-import type { FortnightReportState } from "@purosur/domain";
+import { FACTURA_C_DOCUMENT_TYPE, type FortnightReportState } from "@purosur/domain";
 import { z } from "zod";
 import { pointOfSaleNumberSchema } from "../shared/index.js";
 
@@ -16,6 +16,11 @@ export const fortnightPresentationSchema = z.object({
   fortnight_start: z.string(),
   fortnight_end: z.string(),
   deadline: z.string(),
+  document_type: z.literal(FACTURA_C_DOCUMENT_TYPE).nullable(),
+  document_count: z.number().int().nonnegative(),
+  rejected_document: z
+    .object({ number: z.number().int().positive(), unprocessed: z.number().int().nonnegative() })
+    .nullable(),
   state: fortnightReportStateSchema.nullable(),
 });
 
