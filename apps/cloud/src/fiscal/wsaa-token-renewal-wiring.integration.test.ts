@@ -1,7 +1,7 @@
 import { WSAA_ALREADY_AUTHENTICATED_RETRY_MS } from "@purosur/domain";
 import { FICTIONAL_CERTIFICATE_CUIT } from "@purosur/domain/fiscal/test-support";
 import postgres from "postgres";
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AccessEmailSender } from "../credentials/recovery-email-sender.js";
 import { setUpRecovery } from "../server.js";
 import {
@@ -30,12 +30,14 @@ const UNUSED_EMAIL_SENDER: AccessEmailSender = {
 };
 
 const NOW = new Date("2026-10-01T16:00:00.000Z");
+const ONE_MINUTE_MS = 60_000;
 const ACQUISITION_TASK_IDENTIFIER = "offline-authorization-code-acquisition";
 
 let integrationDb: IntegrationDatabase;
 let sql: ReturnType<typeof postgres>;
 let fakeWsaa: FakeWsaaServer;
 let credentials: ArcaTestCredentials;
+let scheduledMinute = new Date("2026-10-01T16:00:00.000Z");
 
 beforeAll(async () => {
   integrationDb = await createIntegrationDatabase("wsaa_token_renewal_wiring");
@@ -50,30 +52,41 @@ afterAll(async () => {
   await integrationDb.close();
 });
 
-function setUp(
-  now: () => Date = () => NOW,
-  invoicing?: { endpoint: string; cuit: string; certificateFingerprint: string },
-) {
-  return setUpRecovery(
-    {
-      databaseUrl: integrationDb.databaseUrl,
-      emailSender: { transport: "log" },
-      emailFrom: FICTIONAL_RECOVERY_SENDER,
-      emailReplyTo: FICTIONAL_RECOVERY_REPLY_TO,
-      backofficeOrigin: "https://staging.purosur.online",
-      arcaCertificate: { environment: "production", notAfter: new Date("2126-09-01T19:42:17Z") },
-      arcaVitality: { endpoint: UNREACHABLE_WSFE_ENDPOINT },
-      ...(invoicing ? { arcaInvoicing: invoicing } : {}),
-      arcaWsaa: {
-        endpoint: fakeWsaa.endpoint,
-        certificatePem: credentials.certificatePem,
-        privateKeyPem: credentials.privateKeyPem,
-        certificateFingerprint: credentials.fingerprint,
-      },
+type Invoicing = { endpoint: string; cuit: string; certificateFingerprint: string };
+
+function serverEnvironment(invoicing?: Invoicing) {
+  return {
+    databaseUrl: integrationDb.databaseUrl,
+    emailSender: { transport: "log" as const },
+    emailFrom: FICTIONAL_RECOVERY_SENDER,
+    emailReplyTo: FICTIONAL_RECOVERY_REPLY_TO,
+    backofficeOrigin: "https://staging.purosur.online",
+    arcaCertificate: {
+      environment: "production",
+      notAfter: new Date("2126-09-01T19:42:17Z"),
     },
-    now,
-    { emailSender: UNUSED_EMAIL_SENDER },
-  );
+    arcaVitality: { endpoint: UNREACHABLE_WSFE_ENDPOINT },
+    ...(invoicing ? { arcaInvoicing: invoicing } : {}),
+    arcaWsaa: {
+      endpoint: fakeWsaa.endpoint,
+      certificatePem: credentials.certificatePem,
+      privateKeyPem: credentials.privateKeyPem,
+      certificateFingerprint: credentials.fingerprint,
+    },
+  };
+}
+
+function theScheduledMinuteArrives() {
+  vi.setSystemTime(scheduledMinute);
+}
+
+async function setUp(now: () => Date = () => NOW, invoicing?: Invoicing) {
+  const recovery = await setUpRecovery(serverEnvironment(invoicing), now, {
+    emailSender: UNUSED_EMAIL_SENDER,
+    schedules: false,
+  });
+  theScheduledMinuteArrives();
+  return recovery;
 }
 
 async function pendingRenewals() {
@@ -84,6 +97,16 @@ async function pendingRenewals() {
     where t.identifier = ${WSAA_TOKEN_RENEWAL_TASK_IDENTIFIER}
   `;
 }
+
+beforeEach(() => {
+  scheduledMinute = new Date(scheduledMinute.getTime() + ONE_MINUTE_MS);
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(scheduledMinute.getTime() - 1);
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 describe("the WSAA token renewal the server sets up on a real Postgres", () => {
   it("issues and persists a token on the first run and keeps it, without calling WSAA, on the second", async () => {
@@ -115,6 +138,27 @@ describe("the WSAA token renewal the server sets up on a real Postgres", () => {
 
       expect(fakeWsaa.requests).toHaveLength(1);
       expect(await sql`select 1 from arca_wsaa_tokens`).toHaveLength(1);
+    } finally {
+      await recovery.close();
+    }
+  }, 90_000);
+
+  it("renews the token on its own schedule when the server starts with its schedules", async () => {
+    await sql`delete from arca_wsaa_tokens`;
+    fakeWsaa.behave(answers("login-cms-issued.xml"));
+    const recovery = await setUpRecovery(serverEnvironment(), () => NOW, {
+      emailSender: UNUSED_EMAIL_SENDER,
+    });
+    try {
+      theScheduledMinuteArrives();
+
+      await vi.waitFor(
+        async () =>
+          expect(await sql`select token from arca_wsaa_tokens where service = 'wsfe'`).toEqual([
+            { token: "FICTIONAL-TOKEN-0001" },
+          ]),
+        { timeout: 20_000, interval: 100 },
+      );
     } finally {
       await recovery.close();
     }
