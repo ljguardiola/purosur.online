@@ -189,6 +189,31 @@ describe("startRecoveryWorker", () => {
     ]);
   });
 
+  it("registers every task but schedules none when its schedules are turned off", async () => {
+    const runWorker = vi.fn().mockResolvedValue(fakeRunner());
+    const otherTask = vi.fn();
+
+    await startRecoveryWorker(
+      {
+        databaseUrl: "postgres://user:pass@db/purosur",
+        now: () => FIXED_NOW,
+        backofficeOrigin: "https://staging.purosur.online",
+        emailSender,
+        jobs: [{ taskList: { "other-task": otherTask }, crontab: ["0 * * * * other-task"] }],
+        schedules: false,
+      },
+      { runWorker },
+    );
+
+    const [options] = runWorker.mock.calls[0] as [RunnerOptions];
+    expect(options.taskList?.["other-task"]).toBe(otherTask);
+    expect(options.taskList?.[RECOVERY_REJECTED_ATTEMPT_FLUSH_TASK_IDENTIFIER]).toBeInstanceOf(
+      Function,
+    );
+    expect(options.crontab).toBeUndefined();
+    expect(options.parsedCronItems).toEqual([]);
+  });
+
   it("delegates stop() to the runner returned by graphile-worker, then awaits closing the pool it owns", async () => {
     const events: string[] = [];
     const drain = deferred();

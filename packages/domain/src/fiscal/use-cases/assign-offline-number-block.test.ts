@@ -10,13 +10,16 @@ const input = {
 
 function storeKnowing(
   lastAuthorized: number | null,
-  ...blocks: ConstructorParameters<typeof FakeOfflineNumberBlocks>[0][]
+  blocks: ConstructorParameters<typeof FakeOfflineNumberBlocks>[0] = [],
+  highestSynced: number | null = null,
 ) {
   return new FakeOfflineNumberBlocks(
-    blocks[0] ?? [],
+    blocks,
     [],
     () => {},
     new Map(lastAuthorized === null ? [] : [[12, lastAuthorized]]),
+    [],
+    new Map(highestSynced === null ? [] : [[12, highestSynced]]),
   );
 }
 
@@ -44,6 +47,34 @@ describe("assignFirstOfflineNumberBlock", () => {
     expect(outcome).toEqual({ kind: "assigned", range: { firstNumber: 1, lastNumber: 1000 } });
   });
 
+  it("starts right after the highest synced number when it is above the tax authority's count", async () => {
+    const store = storeKnowing(37, [], 240);
+
+    const outcome = await assignFirstOfflineNumberBlock(store, input);
+
+    expect(outcome).toEqual({ kind: "assigned", range: { firstNumber: 241, lastNumber: 1240 } });
+  });
+
+  it("starts right after the tax authority's count when it is above the highest synced number", async () => {
+    const store = storeKnowing(300, [], 240);
+
+    const outcome = await assignFirstOfflineNumberBlock(store, input);
+
+    expect(outcome).toEqual({ kind: "assigned", range: { firstNumber: 301, lastNumber: 1300 } });
+  });
+
+  it("assigns a block even when the point of sale only has a used up one", async () => {
+    const store = storeKnowing(
+      37,
+      [{ ...input, range: { firstNumber: 1, lastNumber: 1000 }, status: "used_up" }],
+      1000,
+    );
+
+    const outcome = await assignFirstOfflineNumberBlock(store, input);
+
+    expect(outcome).toEqual({ kind: "assigned", range: { firstNumber: 1001, lastNumber: 2000 } });
+  });
+
   it("locks the point of sale's blocks before it reads or writes them", async () => {
     const store = storeKnowing(37);
 
@@ -51,8 +82,9 @@ describe("assignFirstOfflineNumberBlock", () => {
 
     expect(store.operations).toEqual([
       "lockOfflineNumberBlocks",
-      "hasOfflineNumberBlock",
+      "offlineNumberBlockInUse",
       "taxAuthorityLastAuthorized",
+      "highestSyncedOfflineNumber",
       "recordOfflineNumberBlock",
     ]);
   });
@@ -67,7 +99,7 @@ describe("assignFirstOfflineNumberBlock", () => {
     expect(store.requiredTaxAuthorityCounts).toEqual([12]);
     expect(store.operations).toEqual([
       "lockOfflineNumberBlocks",
-      "hasOfflineNumberBlock",
+      "offlineNumberBlockInUse",
       "taxAuthorityLastAuthorized",
       "requireTaxAuthorityCount",
     ]);
@@ -98,7 +130,7 @@ describe("assignFirstOfflineNumberBlock", () => {
 
     await assignFirstOfflineNumberBlock(store, input);
 
-    expect(store.operations).toEqual(["lockOfflineNumberBlocks", "hasOfflineNumberBlock"]);
+    expect(store.operations).toEqual(["lockOfflineNumberBlocks", "offlineNumberBlockInUse"]);
   });
 
   it("is not stopped by a block of another point of sale or document type", async () => {

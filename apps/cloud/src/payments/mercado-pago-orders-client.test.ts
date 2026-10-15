@@ -5,6 +5,7 @@ import type {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createMercadoPagoOrdersClient } from "./mercado-pago-orders-client.js";
 import {
+  alreadyQueuedOrderOnTerminalError,
   canceledOrder,
   cannotCancelOrderError,
   cannotRefundOrderError,
@@ -110,6 +111,20 @@ function createdResult(overrides: Partial<MercadoPagoOrderResult> = {}): Mercado
 
 type MercadoPagoOrderResult = Extract<MercadoPagoOrderReading, { kind: "read" }>["result"];
 
+function pointCreatedOrderWithoutPaymentDetail(): Record<string, unknown> {
+  return {
+    id: ORDER_ID,
+    type: "point",
+    external_reference: ORDER_EXTERNAL_REFERENCE,
+    status: "created",
+    status_detail: "created",
+    config: { point: { terminal_id: POINT_TERMINAL_ID, print_on_terminal: "no_ticket" } },
+    transactions: {
+      payments: [{ id: "PAY01JQ4S4KY8HWQ6NA5PXB65B3D0", amount: "50.00", status: "created" }],
+    },
+  };
+}
+
 describe("creating an order on the integrated terminal", () => {
   const POINT_REQUEST = { ...REQUEST, terminalId: POINT_TERMINAL_ID };
 
@@ -158,12 +173,47 @@ describe("creating an order on the integrated terminal", () => {
     });
   });
 
+  it("answers the order that was created when its payment states no detail yet", async () => {
+    const { client } = clientAnswering(answer(201, pointCreatedOrderWithoutPaymentDetail()));
+
+    expect(await client.createPointOrder(POINT_REQUEST)).toStrictEqual({
+      kind: "created",
+      orderId: ORDER_ID,
+      result: createdResult({
+        payments: [{ status: "created", statusDetail: null, paidAmount: null }],
+      }),
+    });
+  });
+
+  it("does not read an order whose payment states no detail", async () => {
+    const { client } = clientAnswering(answer(200, pointCreatedOrderWithoutPaymentDetail()));
+
+    expect(await client.readOrder(ORDER_ID)).toStrictEqual({ kind: "unavailable" });
+  });
+
   it.each([
     [400, { errors: [{ code: "property_value", message: "bad terminal" }] }],
     [401, "Unauthorized"],
     [409, { code: "idempotency_key_already_used" }],
   ])("refuses the order when Mercado Pago answers %i", async (status, body) => {
     const { client } = clientAnswering(answer(status, body));
+
+    expect(await client.createPointOrder(POINT_REQUEST)).toStrictEqual({ kind: "refused" });
+  });
+
+  it("answers that an order is already queued on the terminal when Mercado Pago answers 409 already_queued_order_on_terminal", async () => {
+    const { client } = clientAnswering(answer(409, alreadyQueuedOrderOnTerminalError()));
+
+    expect(await client.createPointOrder(POINT_REQUEST)).toStrictEqual({
+      kind: "queued_order_on_terminal",
+    });
+  });
+
+  it.each([
+    ["409 with another code", () => answer(409, { errors: [{ code: "other" }], status: 409 })],
+    ["400 with the queued order's code", () => answer(400, alreadyQueuedOrderOnTerminalError())],
+  ])("refuses the order when Mercado Pago answers %s", async (_name, response) => {
+    const { client } = clientAnswering(response());
 
     expect(await client.createPointOrder(POINT_REQUEST)).toStrictEqual({ kind: "refused" });
   });
@@ -325,6 +375,10 @@ describe("the Mercado Pago orders client", () => {
     it.each([
       ["a missing identifier", { ...createdOrder(), id: undefined }],
       ["a missing status", { ...createdOrder(), status: undefined }],
+      [
+        "a payment that states no detail",
+        { ...createdOrder(), transactions: { payments: [{ status: "created", amount: "50.00" }] } },
+      ],
       ["an amount paid that is not a decimal number", { ...paidOrder(), total_paid_amount: "x" }],
       ["an amount paid of three decimals", { ...paidOrder(), total_paid_amount: "50.001" }],
       ["a negative amount paid", { ...paidOrder(), total_paid_amount: "-50.00" }],
@@ -348,6 +402,14 @@ describe("the Mercado Pago orders client", () => {
       const { client } = clientAnswering(answer(status, body));
 
       expect(await client.createQrOrder(REQUEST)).toStrictEqual({ kind: "refused" });
+    });
+
+    it("answers that an order is already queued on the terminal when Mercado Pago answers 409 already_queued_order_on_terminal", async () => {
+      const { client } = clientAnswering(answer(409, alreadyQueuedOrderOnTerminalError()));
+
+      expect(await client.createQrOrder(REQUEST)).toStrictEqual({
+        kind: "queued_order_on_terminal",
+      });
     });
 
     it.each([408, 500, 502, 503])(

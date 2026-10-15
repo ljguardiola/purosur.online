@@ -140,6 +140,7 @@ export interface InboxTransaction {
     eventIds: readonly string[],
   ): Promise<ReadonlyMap<string, HeldEventPosition>>;
   receive(deviceId: string, events: readonly PushedEvent[], receivedAt: Date): Promise<void>;
+  advanceOfflineNumbering(offlineDocuments: readonly PushedEvent[], at: Date): Promise<void>;
   recordPushReport(deviceId: string, report: PushReport, at: Date): Promise<void>;
   installationRegister(deviceId: string): Promise<InstallationRegister>;
   recordRegisterVersionStanding(standing: RegisterVersionStanding, at: Date): Promise<void>;

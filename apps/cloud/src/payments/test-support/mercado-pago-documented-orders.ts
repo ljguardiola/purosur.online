@@ -255,6 +255,14 @@ export function instoreOrderLockedError(): Record<string, unknown> {
   );
 }
 
+export function alreadyQueuedOrderOnTerminalError(): Record<string, unknown> {
+  return documentedError(
+    "already_queued_order_on_terminal",
+    "The terminal already has a queued order.",
+    409,
+  );
+}
+
 export function idempotencyKeyAlreadyUsedError(): Record<string, unknown> {
   return documentedError(
     "idempotency_key_already_used",
