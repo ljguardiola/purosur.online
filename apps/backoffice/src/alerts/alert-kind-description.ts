@@ -1,4 +1,5 @@
 import type { AlertKind } from "@purosur/domain";
+import { formatPointOfSaleNumber } from "@purosur/ui";
 
 const ALERT_KIND_DESCRIPTIONS = {
   backoffice_passkey_changed: "Se registró o dio de baja una passkey",
@@ -29,6 +30,7 @@ const ALERT_KIND_DESCRIPTIONS = {
     "Falta presentar a ARCA el informe de una quincena de un punto de venta",
   fortnight_report_overdue:
     "Venció el plazo para presentar a ARCA el informe de una quincena de un punto de venta",
+  external_billing: "Un comprobante se emitió fuera del sistema",
 } satisfies Record<AlertKind, string>;
 
 export const DESCRIBED_ALERT_KINDS: readonly string[] = Object.keys(ALERT_KIND_DESCRIPTIONS);
@@ -37,4 +39,11 @@ export function alertKindDescription(kind: string): string {
   return Object.hasOwn(ALERT_KIND_DESCRIPTIONS, kind)
     ? ALERT_KIND_DESCRIPTIONS[kind as keyof typeof ALERT_KIND_DESCRIPTIONS]
     : "";
+}
+
+export function externalBillingSummary(scopeDisplay: string | null): string {
+  const [pointOfSale = ""] = (scopeDisplay ?? "").split(":");
+  return /^\d+$/.test(pointOfSale)
+    ? `Un comprobante del punto de venta ${formatPointOfSaleNumber(Number(pointOfSale))} se emitió fuera del sistema`
+    : alertKindDescription("external_billing");
 }

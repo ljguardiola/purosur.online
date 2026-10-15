@@ -27,7 +27,11 @@ import type { BackofficeAccess } from "../shell/backoffice-access";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
 import { ALERT_LEVEL_LABELS, AlertDetailModal, alertDateTime } from "./alert-detail-modal";
-import { alertKindDescription, DESCRIBED_ALERT_KINDS } from "./alert-kind-description";
+import {
+  alertKindDescription,
+  DESCRIBED_ALERT_KINDS,
+  externalBillingSummary,
+} from "./alert-kind-description";
 import { alertKindLabel } from "./alert-kind-label";
 import { ALERT_LEVEL_TONE } from "./alert-level-tone";
 import { alertScopeLabel } from "./alert-scope-label";
@@ -102,6 +106,9 @@ function alertRowDescription(alert: AlertSummary): string {
   }
   if (alert.kind === "refund_task" && alert.resolvedAt !== null) {
     return "Reembolso de una venta anulada";
+  }
+  if (alert.kind === "external_billing") {
+    return externalBillingSummary(alert.scopeDisplay);
   }
   const subject = localSubjectOf(alert);
   if (subject === undefined) {

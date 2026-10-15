@@ -1,5 +1,5 @@
 import type { AlertScopeKind } from "@purosur/domain";
-import { formatCalendarDayRange, formatPointOfSaleNumber } from "@purosur/ui";
+import { formatCalendarDayRange, formatInvoiceNumber, formatPointOfSaleNumber } from "@purosur/ui";
 
 const ARCA_ENVIRONMENT_LABELS: ReadonlyMap<string, string> = new Map([
   ["production", "Producción"],
@@ -23,9 +23,20 @@ function pointOfSaleFortnightScopeLabel(scopeDisplay: string): string {
     : scopeDisplay;
 }
 
+function pointOfSaleDocumentNumberScopeLabel(scopeDisplay: string): string {
+  const [pointOfSale = "", documentType = "", number = ""] = scopeDisplay.split(":");
+  const label = FISCAL_DOCUMENT_TYPE_LABELS.get(documentType);
+  return label !== undefined && /^\d+$/.test(pointOfSale) && /^\d+$/.test(number)
+    ? `Punto de venta ${formatPointOfSaleNumber(Number(pointOfSale))} · ${label} · ${formatInvoiceNumber(Number(number))}`
+    : scopeDisplay;
+}
+
 export function alertScopeLabel(scopeKind: string | null, scopeDisplay: string): string {
   if (scopeKind === ("pointOfSaleDocumentType" satisfies AlertScopeKind)) {
     return fiscalDocumentScopeLabel(scopeDisplay);
+  }
+  if (scopeKind === ("pointOfSaleDocumentNumber" satisfies AlertScopeKind)) {
+    return pointOfSaleDocumentNumberScopeLabel(scopeDisplay);
   }
   if (scopeKind === ("refund" satisfies AlertScopeKind)) {
     return "Tarea de reembolso";
