@@ -51,9 +51,10 @@ describe("snapshotUploadAnswerSchema", () => {
     upload_url: "https://bucket.example.test/snapshots/r/g?X-Amz-Signature=abc",
     required_headers: { "x-amz-meta-key-version": "2" },
     expires_at: "2026-10-14T15:15:00.000Z",
+    current_key_version: 3,
   };
 
-  it("reads the upload URL, the headers to send and when it expires", () => {
+  it("reads the upload URL, the headers to send, when it expires and the register's current key version", () => {
     expect(snapshotUploadAnswerSchema.parse(ANSWER)).toEqual(ANSWER);
   });
 
@@ -63,6 +64,16 @@ describe("snapshotUploadAnswerSchema", () => {
     ["whose scheme starts with https", "httpsx://bucket.example.test"],
   ])("refuses an upload URL %s", (_name, upload_url) => {
     expect(snapshotUploadAnswerSchema.safeParse({ ...ANSWER, upload_url }).success).toBe(false);
+  });
+
+  it.each([
+    ["missing", undefined],
+    ["zero", 0],
+    ["fractional", 1.5],
+  ])("refuses a current key version that is %s", (_name, current_key_version) => {
+    expect(
+      snapshotUploadAnswerSchema.safeParse({ ...ANSWER, current_key_version }).success,
+    ).toBe(false);
   });
 
   it("refuses an expiry that is not an instant", () => {
