@@ -116,6 +116,16 @@ describe("paymentStateOfMercadoPagoOrder", () => {
     });
   });
 
+  it("leaves a processed order with a payment that states no detail for a person to review", () => {
+    const withoutDetail = order({ payments: [{ ...ACCREDITED, statusDetail: null }] });
+
+    expect(paymentStateOfMercadoPagoOrder(withoutDetail, 2500)).toEqual({
+      state: "PENDING",
+      needsReview: true,
+    });
+    expect(paidAmountOfMercadoPagoOrder(withoutDetail)).toBeNull();
+  });
+
   it("leaves a processed order with a payment that is not processed for a person to review", () => {
     const notProcessed = order({ payments: [{ ...ACCREDITED, status: "failed" }] });
 
