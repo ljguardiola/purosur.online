@@ -1,5 +1,5 @@
 import type { Scale, ScaleReading } from "@purosur/domain/sales/use-cases";
-import type { SerialLink } from "./open-serial-link.js";
+import type { SerialLink } from "../serial-link/open-serial-link.js";
 
 const REQUEST_WEIGHT = 0x05;
 const FRAME_START = 0x02;

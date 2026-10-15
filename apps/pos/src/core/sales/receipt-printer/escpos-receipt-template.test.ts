@@ -13,7 +13,7 @@ import type { StoredReceipt } from "@purosur/domain/sales/use-cases";
 import { formatPercent } from "@purosur/ui/formatters";
 import { describe, expect, it } from "vitest";
 import { escPosReceiptTemplate } from "./escpos-receipt-template";
-import { printoutOf } from "./test-support/escpos-printout";
+import { printoutOf } from "../test-support/escpos-printout";
 
 const RULE = "─".repeat(48);
 const ORIGINAL: ReceiptCopy = { kind: "original" };

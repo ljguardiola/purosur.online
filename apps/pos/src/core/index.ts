@@ -99,7 +99,7 @@ import { createRendererConnection } from "./renderer-connection";
 import { type CoreToRendererMessage, rendererToCoreMessageSchema } from "./renderer-messages";
 import { answerRendererRequest, type RendererRequestDeps } from "./renderer-requests";
 import { createBarcodeReaderWiring } from "./sales/barcode-reader-wiring";
-import { openSerialLink } from "./sales/open-serial-link";
+import { openSerialLink } from "./sales/serial-link/open-serial-link";
 import { createReceiptPrinting } from "./sales/receipt-printing-wiring";
 import {
   addSearchedProductFor,
@@ -125,7 +125,7 @@ import {
 } from "./sales/sale-requests";
 import { saleHistoryDetailFor, salesHistoryFor } from "./sales/sales-history-requests";
 import { anySaleIsOpen } from "./sales/sqlite-open-sale-presence";
-import { createSystelScale } from "./sales/systel-scale";
+import { createSystelScale } from "./sales/scale/systel-scale";
 import { voidSaleFor } from "./sales/void-sale-requests";
 import { createActionGate } from "./sessions/action-gate";
 import { authorizersOf } from "./sessions/authorizers";

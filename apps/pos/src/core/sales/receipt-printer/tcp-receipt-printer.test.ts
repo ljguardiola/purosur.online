@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { TcpReceiptPrinter } from "./tcp-receipt-printer.js";
 import { FakeThermalPrinter } from "./test-support/fake-thermal-printer.js";
-import { ManualTimers } from "./test-support/manual-timers.js";
-import { ReceiptPrintObserver, settled } from "./test-support/receipt-print-watch.js";
-import { ScriptedSocket } from "./test-support/scripted-socket.js";
+import { ManualTimers } from "../test-support/manual-timers.js";
+import { ReceiptPrintObserver, settled } from "../test-support/receipt-print-watch.js";
+import { ScriptedSocket } from "../test-support/scripted-socket.js";
 
 const POLL_INTERVAL_MS = 500;
 const CONNECT_LIMIT_MS = 3000;

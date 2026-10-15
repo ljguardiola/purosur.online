@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import { RECEIPT_LOGO } from "./receipt-logo";
 
 const GENERATOR = fileURLToPath(
-  new URL("../../../scripts/generate-receipt-logo.ts", import.meta.url),
+  new URL("../../../../scripts/generate-receipt-logo.ts", import.meta.url),
 );
 const COMMITTED = fileURLToPath(new URL("./receipt-logo.ts", import.meta.url));
 

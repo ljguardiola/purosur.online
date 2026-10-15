@@ -15,7 +15,7 @@ import {
   receiptPrintStatusFor,
   reprintSaleReceiptFor,
 } from "./receipt-requests";
-import { TcpReceiptPrinter, type TcpReceiptPrinterOptions } from "./tcp-receipt-printer";
+import { TcpReceiptPrinter, type TcpReceiptPrinterOptions } from "./receipt-printer/tcp-receipt-printer";
 
 function savedReceiptPrinters(
   settings: SqliteReceiptPrinterSettings,

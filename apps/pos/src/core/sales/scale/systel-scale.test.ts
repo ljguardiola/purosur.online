@@ -1,8 +1,8 @@
 import fc from "fast-check";
 import { beforeEach, describe, expect, it } from "vitest";
 import { createSystelScale, decodeScaleAnswer } from "./systel-scale.js";
-import { ManualTimers } from "./test-support/manual-timers.js";
-import { ScriptedSerialLink } from "./test-support/scripted-serial-link.js";
+import { ManualTimers } from "../test-support/manual-timers.js";
+import { ScriptedSerialLink } from "../test-support/scripted-serial-link.js";
 
 const REQUEST = 0x05;
 const QUIET_GAP_MS = 50;
