@@ -353,6 +353,7 @@ const registerOwnConditionSchema = z.discriminatedUnion("kind", [
   z.strictObject({
     kind: z.literal("battery_low"),
     charge_percent: z.int().min(0).max(100),
+    critical_percent: z.int().min(0).max(100),
     level: z.enum(ALERT_LEVELS),
   }),
   z.object({

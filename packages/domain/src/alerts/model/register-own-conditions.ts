@@ -6,6 +6,7 @@ import {
 import {
   type BatteryReport,
   batteryReportStanding,
+  CRITICAL_BATTERY_PERCENT,
   type CriticalBatteryAction,
   criticalBatteryActionShowsCondition,
   isOnBatteryTooLong,
@@ -57,7 +58,7 @@ type DetectedRegisterOwnCondition = {
   [Kind in RegisterOwnCondition]: Kind extends "sales_denied"
     ? SalesDeniedCondition
     : Kind extends "battery_low"
-      ? { kind: Kind; charge_percent: number }
+      ? { kind: Kind; charge_percent: number; critical_percent: number }
       : { kind: Kind };
 }[RegisterOwnCondition];
 
@@ -139,7 +140,11 @@ export function registerOwnConditions({
     wal_oversized: storage.walOversized ? { kind: "wal_oversized" } : null,
     battery_low:
       batteryStanding === "low" && battery?.present === true
-        ? { kind: "battery_low", charge_percent: battery.charge_percent }
+        ? {
+            kind: "battery_low",
+            charge_percent: battery.charge_percent,
+            critical_percent: CRITICAL_BATTERY_PERCENT,
+          }
         : null,
     on_battery: isOnBatteryTooLong(battery) ? { kind: "on_battery" } : null,
     battery_missing: battery?.present === false ? { kind: "battery_missing" } : null,
