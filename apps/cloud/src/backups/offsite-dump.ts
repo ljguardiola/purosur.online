@@ -94,6 +94,8 @@ async function put(
         "content-type": upload.contentType,
         "content-length": String(upload.sizeBytes),
         "x-amz-content-sha256": upload.sha256,
+        // Amazon S3 refuses a PUT into a bucket with Object Lock retention unless it carries a checksum.
+        "x-amz-checksum-sha256": Buffer.from(upload.sha256, "hex").toString("base64"),
       },
       body: upload.body,
       aws: { datetime: amzDate(deps.now()) },

@@ -22,7 +22,10 @@ import type {
   RegisterPointOfSaleStoreTransaction,
 } from "../register-point-of-sale-store.js";
 import { PointOfSaleClaimConflict } from "../register-point-of-sale-store.js";
-import { FakeOfflineNumberBlocks } from "./fake-offline-number-blocks.js";
+import {
+  FakeOfflineNumberBlocks,
+  type LockedOfflineNumberSeries,
+} from "./fake-offline-number-blocks.js";
 
 export interface FakeBranchRegister {
   id: string;
@@ -53,6 +56,7 @@ export interface FakeRegisterPointOfSaleState {
   offlineNumberBlocks: OfflineNumberBlockRecord[];
   taxAuthorityCounts: [pointOfSaleNumber: number, lastAuthorized: number][];
   requiredTaxAuthorityCounts: number[];
+  highestSyncedNumbers: [pointOfSaleNumber: number, highest: number][];
 }
 
 type WriteOperation =
@@ -154,6 +158,8 @@ class FakeRegisterOfflinePointOfSaleStoreTransaction
       },
       new Map(state.taxAuthorityCounts),
       state.requiredTaxAuthorityCounts,
+      new Map(state.highestSyncedNumbers),
+      store.offlineNumberBlockLocks,
     );
   }
 
@@ -180,11 +186,22 @@ class FakeRegisterOfflinePointOfSaleStoreTransaction
     return this.blocks.lockOfflineNumberBlocks(pointOfSaleNumber, documentType);
   }
 
-  hasOfflineNumberBlock(
+  offlineNumberBlockInUse(
     pointOfSaleNumber: number,
     documentType: FiscalDocumentType,
-  ): Promise<boolean> {
-    return this.blocks.hasOfflineNumberBlock(pointOfSaleNumber, documentType);
+  ): Promise<OfflineNumberBlockRecord | null> {
+    return this.blocks.offlineNumberBlockInUse(pointOfSaleNumber, documentType);
+  }
+
+  highestSyncedOfflineNumber(
+    pointOfSaleNumber: number,
+    documentType: FiscalDocumentType,
+  ): Promise<number | null> {
+    return this.blocks.highestSyncedOfflineNumber(pointOfSaleNumber, documentType);
+  }
+
+  markOfflineNumberBlockUsedUp(block: OfflineNumberBlockRecord): Promise<void> {
+    return this.blocks.markOfflineNumberBlockUsedUp(block);
   }
 
   recordOfflineNumberBlock(record: OfflineNumberBlockRecord): Promise<void> {
@@ -221,11 +238,13 @@ export class FakeRegisterPointOfSaleStore
     offlineNumberBlocks: [],
     taxAuthorityCounts: [],
     requiredTaxAuthorityCounts: [],
+    highestSyncedNumbers: [],
   };
 
   failingWrites = new Set<WriteOperation>();
   pointOfSaleClaimConflicts = new Set<number>();
   operationOrder: string[] = [];
+  offlineNumberBlockLocks: LockedOfflineNumberSeries[] = [];
   transactionCount = 0;
 
   seedRegister(register: FakeBranchRegister): void {
@@ -254,6 +273,10 @@ export class FakeRegisterPointOfSaleStore
 
   seedTaxAuthorityCount(pointOfSaleNumber: number, lastAuthorized: number): void {
     this.state.taxAuthorityCounts.push([pointOfSaleNumber, lastAuthorized]);
+  }
+
+  seedHighestSyncedOfflineNumber(pointOfSaleNumber: number, highest: number): void {
+    this.state.highestSyncedNumbers.push([pointOfSaleNumber, highest]);
   }
 
   snapshot(): FakeRegisterPointOfSaleState {

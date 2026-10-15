@@ -1,5 +1,5 @@
 {
-  "id": "96564802-3879-4a47-aec8-24748e2b5685",
+  "id": "5b0c1365-ae34-4166-b804-e3e1aae2fbde",
   "prevId": "31d96195-899f-4eb8-934c-bf0d4f8622de",
   "version": "7",
   "dialect": "postgresql",
@@ -4215,11 +4215,11 @@
         },
         "payment_refunds_origin_check": {
           "name": "payment_refunds_origin_check",
-          "value": "\"payment_refunds\".\"origin\" in ('sale_cancelled', 'late_payment', 'sale_voided')"
+          "value": "\"payment_refunds\".\"origin\" in ('sale_cancelled', 'late_payment')"
         },
         "payment_refunds_source_check": {
           "name": "payment_refunds_source_check",
-          "value": "(\"payment_refunds\".\"origin\" = 'late_payment' and \"payment_refunds\".\"payment_id\" is null and \"payment_refunds\".\"payment_transaction_id\" is not null and \"payment_refunds\".\"origin_event_id\" is null) or (\"payment_refunds\".\"origin\" in ('sale_cancelled', 'sale_voided') and \"payment_refunds\".\"payment_id\" is not null)"
+          "value": "(\"payment_refunds\".\"origin\" = 'late_payment' and \"payment_refunds\".\"payment_id\" is null and \"payment_refunds\".\"payment_transaction_id\" is not null and \"payment_refunds\".\"origin_event_id\" is null) or (\"payment_refunds\".\"origin\" = 'sale_cancelled' and \"payment_refunds\".\"payment_id\" is not null)"
         },
         "payment_refunds_done_check": {
           "name": "payment_refunds_done_check",
@@ -7608,18 +7608,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "voided_at": {
-          "name": "voided_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "void_authorized_by": {
-          "name": "void_authorized_by",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
         "total": {
           "name": "total",
           "type": "bigint",
@@ -7734,7 +7722,7 @@
         },
         "sales_state_check": {
           "name": "sales_state_check",
-          "value": "\"sales\".\"state\" in ('COMPLETED', 'CANCELLED', 'VOIDED')"
+          "value": "\"sales\".\"state\" in ('COMPLETED', 'CANCELLED')"
         },
         "sales_sale_discount_kind_check": {
           "name": "sales_sale_discount_kind_check",
@@ -7758,15 +7746,11 @@
         },
         "sales_state_matches_timestamps_check": {
           "name": "sales_state_matches_timestamps_check",
-          "value": "(\"sales\".\"state\" = 'COMPLETED' and \"sales\".\"completed_at\" is not null and \"sales\".\"cancelled_at\" is null and \"sales\".\"voided_at\" is null)\n      or (\"sales\".\"state\" = 'CANCELLED' and \"sales\".\"cancelled_at\" is not null and \"sales\".\"completed_at\" is null and \"sales\".\"voided_at\" is null)\n      or (\"sales\".\"state\" = 'VOIDED' and \"sales\".\"completed_at\" is not null and \"sales\".\"voided_at\" is not null and \"sales\".\"cancelled_at\" is null)"
+          "value": "(\"sales\".\"state\" = 'COMPLETED' and \"sales\".\"completed_at\" is not null and \"sales\".\"cancelled_at\" is null)\n      or (\"sales\".\"state\" = 'CANCELLED' and \"sales\".\"cancelled_at\" is not null and \"sales\".\"completed_at\" is null)"
         },
         "sales_cancellation_authorizer_only_when_cancelled_check": {
           "name": "sales_cancellation_authorizer_only_when_cancelled_check",
           "value": "\"sales\".\"cancellation_authorized_by\" is null or \"sales\".\"state\" = 'CANCELLED'"
-        },
-        "sales_void_authorizer_only_when_voided_check": {
-          "name": "sales_void_authorizer_only_when_voided_check",
-          "value": "\"sales\".\"void_authorized_by\" is null or \"sales\".\"state\" = 'VOIDED'"
         }
       },
       "isRLSEnabled": false
@@ -8561,15 +8545,15 @@
       "checkConstraints": {
         "stock_movements_kind_check": {
           "name": "stock_movements_kind_check",
-          "value": "\"stock_movements\".\"kind\" in ('loss', 'adjustment', 'count', 'sale', 'sale_void', 'receipt', 'opening_count', 'opening_count_withdrawal', 'assembly_out', 'assembly_in')"
+          "value": "\"stock_movements\".\"kind\" in ('loss', 'adjustment', 'count', 'sale', 'receipt', 'opening_count', 'opening_count_withdrawal', 'assembly_out', 'assembly_in')"
         },
         "stock_movements_reason_unless_count_sale_or_receipt_check": {
           "name": "stock_movements_reason_unless_count_sale_or_receipt_check",
-          "value": "(\"stock_movements\".\"kind\" in ('count', 'sale', 'sale_void', 'receipt', 'opening_count', 'opening_count_withdrawal', 'assembly_out', 'assembly_in')) = (\"stock_movements\".\"reason\" is null)"
+          "value": "(\"stock_movements\".\"kind\" in ('count', 'sale', 'receipt', 'opening_count', 'opening_count_withdrawal', 'assembly_out', 'assembly_in')) = (\"stock_movements\".\"reason\" is null)"
         },
         "stock_movements_sale_line_iff_sale_check": {
           "name": "stock_movements_sale_line_iff_sale_check",
-          "value": "(\"stock_movements\".\"kind\" in ('sale', 'sale_void')) = (\"stock_movements\".\"sale_line_id\" is not null)"
+          "value": "(\"stock_movements\".\"kind\" = 'sale') = (\"stock_movements\".\"sale_line_id\" is not null)"
         },
         "stock_movements_purchase_line_iff_receipt_check": {
           "name": "stock_movements_purchase_line_iff_receipt_check",
@@ -9163,7 +9147,7 @@
     "public.offline_number_block_status": {
       "name": "offline_number_block_status",
       "schema": "public",
-      "values": ["in_use"]
+      "values": ["in_use", "used_up"]
     },
     "public.passkey_management_challenge_kind": {
       "name": "passkey_management_challenge_kind",

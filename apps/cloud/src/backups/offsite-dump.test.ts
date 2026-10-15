@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
 import {
   OFFSITE_DUMP_MAX_OBJECT_BYTES,
@@ -199,6 +200,27 @@ describe("offsiteDumpCommand", () => {
 
     expect(run.requests[0]?.headers.get("x-amz-content-sha256")).toBe(SHA256);
     expect(run.requests[0]?.headers.get("content-length")).toBe(String(ENCRYPTED_DUMP.length));
+  });
+
+  it("signs a SHA-256 checksum of each upload's bytes, which storage with retention requires", async () => {
+    const run = harness();
+
+    await offsiteDumpCommand(ENV, run.deps);
+
+    const [dump, manifest] = run.requests;
+    expect(dump?.headers.get("x-amz-checksum-sha256")).toBe(
+      Buffer.from(SHA256, "hex").toString("base64"),
+    );
+    expect(manifest?.headers.get("x-amz-checksum-sha256")).toBe(
+      createHash("sha256")
+        .update(manifest?.body ?? "")
+        .digest("base64"),
+    );
+    for (const request of run.requests) {
+      expect(request.headers.get("authorization")).toMatch(
+        /SignedHeaders=[^,]*x-amz-checksum-sha256/,
+      );
+    }
   });
 
   it("removes the workspace after a success", async () => {

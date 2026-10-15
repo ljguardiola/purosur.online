@@ -86,7 +86,7 @@ describe("the background worker the server sets up on a real Postgres", () => {
         arcaVitality: { endpoint: UNREACHABLE_WSFE_ENDPOINT },
       },
       () => NOW,
-      { emailSender: UNUSED_EMAIL_SENDER },
+      { emailSender: UNUSED_EMAIL_SENDER, schedules: false },
     );
 
     try {
@@ -133,7 +133,7 @@ describe("the background worker the server sets up on a real Postgres", () => {
         arcaVitality: { endpoint: UNREACHABLE_WSFE_ENDPOINT },
       },
       () => NOW,
-      { emailSender: UNUSED_EMAIL_SENDER },
+      { emailSender: UNUSED_EMAIL_SENDER, schedules: false },
     );
 
     try {
@@ -179,7 +179,7 @@ describe("the background worker the server sets up on a real Postgres", () => {
         arcaVitality: { endpoint: UNREACHABLE_WSFE_ENDPOINT },
       },
       () => NOW,
-      { emailSender: UNUSED_EMAIL_SENDER },
+      { emailSender: UNUSED_EMAIL_SENDER, schedules: false },
     );
 
     try {
@@ -253,7 +253,7 @@ describe("the background worker the server sets up on a real Postgres", () => {
         arcaVitality: { endpoint: UNREACHABLE_WSFE_ENDPOINT },
       },
       () => currentTime,
-      { emailSender: UNUSED_EMAIL_SENDER },
+      { emailSender: UNUSED_EMAIL_SENDER, schedules: false },
     );
 
     try {
@@ -331,7 +331,7 @@ describe("the background worker the server sets up on a real Postgres", () => {
         arcaVitality: { endpoint: UNREACHABLE_WSFE_ENDPOINT },
       },
       () => currentTime,
-      { emailSender: UNUSED_EMAIL_SENDER },
+      { emailSender: UNUSED_EMAIL_SENDER, schedules: false },
     );
     const scope = "6:2019-12-16";
     const presentation = {

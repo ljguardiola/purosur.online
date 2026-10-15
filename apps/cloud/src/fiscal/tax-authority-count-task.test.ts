@@ -22,6 +22,7 @@ import {
   TAX_AUTHORITY_COUNT_TASK_IDENTIFIER,
   taxAuthorityCountJobs,
 } from "./tax-authority-count-task.js";
+import { insertAppliedOfflineDocument } from "./test-support/synced-offline-documents.js";
 
 const NOW = new Date("2026-10-06T15:00:00.000Z");
 const FINGERPRINT = "AB:CD:EF";
@@ -191,6 +192,24 @@ describe("taxAuthorityCountJobs", () => {
       ]);
       expect(await testDatabase.db.select().from(offlineNumberBlocks)).toMatchObject([
         { pointOfSaleNumber: 8, registerId, firstNumber: 38, lastNumber: 1037, assignedAt: NOW },
+      ]);
+    });
+
+    it("starts right after the highest number synced when that is above the count read", async () => {
+      const registerId = await configureRegisterWithOfflinePointOfSale([]);
+      await insertAppliedOfflineDocument(testDatabase.db, registerId, {
+        pointOfSale: 8,
+        number: 60,
+      });
+      await issueWsaaToken();
+      const taxAuthority = new FakeLastAuthorizedLookup();
+      taxAuthority.answer = { kind: "read", number: 37 };
+      const { task } = taskUnderTest(taxAuthority);
+
+      await task({ pointOfSale: 8 }, buildJobHelpers().helpers);
+
+      expect(await testDatabase.db.select().from(offlineNumberBlocks)).toMatchObject([
+        { pointOfSaleNumber: 8, firstNumber: 61, lastNumber: 1060 },
       ]);
     });
 

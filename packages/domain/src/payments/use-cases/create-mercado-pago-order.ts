@@ -159,12 +159,19 @@ export async function createMercadoPagoOrder<
           return attempt.outcome;
         }
         const creation = attempt;
-        if (creation.kind === "refused" || creation.kind === "throttled") {
+        if (creation.kind === "queued_order_on_terminal" && earlierAttemptMayHaveCreatedOrder) {
+          return { kind: "recorded", transaction };
+        }
+        if (
+          creation.kind === "refused" ||
+          creation.kind === "queued_order_on_terminal" ||
+          creation.kind === "throttled"
+        ) {
           if (!earlierAttemptMayHaveCreatedOrder) {
             await lane.recordCreationCreatedNothing(paymentTransactionId);
           }
           return {
-            kind: creation.kind === "refused" ? "provider_refused" : "provider_unavailable",
+            kind: creation.kind === "throttled" ? "provider_unavailable" : "provider_refused",
           };
         }
         if (creation.kind === "unavailable") {

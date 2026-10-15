@@ -20,6 +20,7 @@ import {
   taxAuthorityLastAuthorizedNumbers,
 } from "../platform/db/schema.js";
 import { type PendingChanges, withPendingChanges } from "../sync/change-log.js";
+import { highestSyncedOfflineNumber } from "./drizzle-highest-synced-offline-number.js";
 import {
   claimPointOfSale,
   lockBranchRegister,
@@ -39,8 +40,9 @@ function offlineAuditValueOf(setup: { pointOfSaleNumber: number; version: number
   return { point_of_sale_number: setup.pointOfSaleNumber, version: setup.version };
 }
 
-class DrizzleRegisterOfflinePointOfSaleStoreTransaction<TQueryResult extends PgQueryResultHKT>
-  implements RegisterOfflinePointOfSaleStoreTransaction
+export class DrizzleRegisterOfflinePointOfSaleStoreTransaction<
+  TQueryResult extends PgQueryResultHKT,
+> implements RegisterOfflinePointOfSaleStoreTransaction
 {
   private readonly tx: PgDatabase<TQueryResult>;
   private readonly now: () => Date;
@@ -130,21 +132,65 @@ class DrizzleRegisterOfflinePointOfSaleStoreTransaction<TQueryResult extends PgQ
     await this.tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${key}, 0))`);
   }
 
-  async hasOfflineNumberBlock(
+  async offlineNumberBlockInUse(
     pointOfSaleNumber: number,
     documentType: FiscalDocumentType,
-  ): Promise<boolean> {
+  ): Promise<OfflineNumberBlockRecord | null> {
     const [block] = await this.tx
-      .select({ id: offlineNumberBlocks.id })
+      .select({
+        registerId: offlineNumberBlocks.registerId,
+        firstNumber: offlineNumberBlocks.firstNumber,
+        lastNumber: offlineNumberBlocks.lastNumber,
+        status: offlineNumberBlocks.status,
+      })
       .from(offlineNumberBlocks)
       .where(
         and(
           eq(offlineNumberBlocks.pointOfSaleNumber, pointOfSaleNumber),
           eq(offlineNumberBlocks.documentType, documentType),
+          eq(offlineNumberBlocks.status, "in_use"),
+        ),
+      );
+    return block === undefined
+      ? null
+      : {
+          pointOfSaleNumber,
+          documentType,
+          registerId: block.registerId,
+          range: { firstNumber: block.firstNumber, lastNumber: block.lastNumber },
+          status: block.status,
+        };
+  }
+
+  highestSyncedOfflineNumber(
+    pointOfSaleNumber: number,
+    documentType: FiscalDocumentType,
+  ): Promise<number | null> {
+    return highestSyncedOfflineNumber(this.tx, pointOfSaleNumber, documentType);
+  }
+
+  async markOfflineNumberBlockUsedUp(block: OfflineNumberBlockRecord): Promise<void> {
+    const [updated] = await this.tx
+      .update(offlineNumberBlocks)
+      .set({ status: "used_up", version: sql`${offlineNumberBlocks.version} + 1` })
+      .where(
+        and(
+          eq(offlineNumberBlocks.pointOfSaleNumber, block.pointOfSaleNumber),
+          eq(offlineNumberBlocks.documentType, block.documentType),
+          eq(offlineNumberBlocks.firstNumber, block.range.firstNumber),
         ),
       )
-      .limit(1);
-    return block !== undefined;
+      .returning({ id: offlineNumberBlocks.id, version: offlineNumberBlocks.version });
+    if (!updated) {
+      throw new Error("an offline number block to mark used up was not found");
+    }
+    this.pending.note({
+      entity: "offline_number_block",
+      entityId: updated.id,
+      version: updated.version,
+      op: "update",
+      registerId: block.registerId,
+    });
   }
 
   async recordOfflineNumberBlock(record: OfflineNumberBlockRecord): Promise<void> {

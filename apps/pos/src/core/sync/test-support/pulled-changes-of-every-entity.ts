@@ -114,7 +114,12 @@ function upsertOf(entity: PulledEntity, changeSeq: number): SyncChange {
       return {
         ...base,
         entity,
-        row: { point_of_sale_number: 31, tax_authority_last_authorized_number: 4, version: 1 },
+        row: {
+          point_of_sale_number: 31,
+          tax_authority_last_authorized_number: 4,
+          highest_synced_offline_number: null,
+          version: 1,
+        },
       };
     case "discount":
       return {

@@ -118,7 +118,7 @@ describe("the background worker the server sets up on a real Postgres", () => {
         arcaVitality: { endpoint: UNREACHABLE_WSFE_ENDPOINT },
       },
       () => NOW,
-      { emailSender: UNUSED_EMAIL_SENDER },
+      { emailSender: UNUSED_EMAIL_SENDER, schedules: false },
     );
 
     try {

@@ -210,6 +210,48 @@ describe("createMercadoPagoPointOrder", () => {
     });
   });
 
+  it("keeps the payment pending, awaiting the earlier attempt's order, when a retry finds an order already queued on the terminal", async () => {
+    const { lanes, mercadoPago, ports } = mercadoPagoOrderWorld({
+      pointCreation: { kind: "queued_order_on_terminal" },
+    });
+    lanes.seed(storedPointTransaction({ amount: AMOUNT, creationOutcomeUnknown: true }));
+
+    const outcome = await createMercadoPagoPointOrder(ports, INPUT);
+
+    const expected = storedPointTransaction({
+      amount: AMOUNT,
+      creationOutcomeUnknown: true,
+      expiresAt: new Date("2026-10-09T12:05:10.000Z"),
+    });
+    expect(outcome).toEqual({ kind: "recorded", transaction: expected });
+    expect(lanes.transactions.get(TRANSACTION_ID)).toEqual(expected);
+    expect(lanes.operations).not.toContain("recordCreationCreatedNothing");
+    expect(mercadoPago.readOrders).toEqual([]);
+  });
+
+  it.each([
+    ["the first attempt", null],
+    ["a retry after an attempt that created nothing", false],
+  ])(
+    "refuses the order, recording that nothing was created, when %s finds another order queued on the terminal",
+    async (_attempt, creationOutcomeUnknown) => {
+      const { lanes, ports } = mercadoPagoOrderWorld({
+        pointCreation: { kind: "queued_order_on_terminal" },
+      });
+      if (creationOutcomeUnknown !== null) {
+        lanes.seed(storedPointTransaction({ amount: AMOUNT, creationOutcomeUnknown }));
+      }
+
+      const outcome = await createMercadoPagoPointOrder(ports, INPUT);
+
+      expect(outcome).toEqual({ kind: "provider_refused" });
+      expect(lanes.transactions.get(TRANSACTION_ID)).toMatchObject({
+        state: "PENDING",
+        creationOutcomeUnknown: false,
+      });
+    },
+  );
+
   it("answers unavailable when Mercado Pago asks to try again later", async () => {
     const { ports } = mercadoPagoOrderWorld({ pointCreation: { kind: "throttled" } });
 

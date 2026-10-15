@@ -74,7 +74,7 @@ describe("the ARCA vitality check the server sets up on a real Postgres", () => 
         arcaVitality: { endpoint: fakeWsfe.endpoint },
       },
       () => CHECKED_AT,
-      { emailSender: UNUSED_EMAIL_SENDER },
+      { emailSender: UNUSED_EMAIL_SENDER, schedules: false },
     );
     try {
       await recovery.workerUtils.addJob(
@@ -123,7 +123,7 @@ describe("the ARCA vitality check the server sets up on a real Postgres", () => 
         arcaVitality: { endpoint: fakeWsfe.endpoint },
       },
       () => CHECKED_AT,
-      { emailSender: UNUSED_EMAIL_SENDER },
+      { emailSender: UNUSED_EMAIL_SENDER, schedules: false },
     );
     try {
       await recovery.workerUtils.addJob(
@@ -160,7 +160,7 @@ describe("the ARCA vitality check the server sets up on a real Postgres", () => 
         arcaVitality: { endpoint: fakeWsfe.endpoint },
       },
       () => CHECKED_AT,
-      { emailSender: UNUSED_EMAIL_SENDER },
+      { emailSender: UNUSED_EMAIL_SENDER, schedules: false },
     );
     try {
       await recovery.workerUtils.addJob(WATCHDOG_TASK_IDENTIFIER, {});

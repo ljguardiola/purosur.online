@@ -2,7 +2,7 @@ import type { PaymentTransactionState } from "./payment-transaction.js";
 
 interface MercadoPagoOrderPayment {
   status: string;
-  statusDetail: string;
+  statusDetail: string | null;
   paidAmount: number | null;
 }
 

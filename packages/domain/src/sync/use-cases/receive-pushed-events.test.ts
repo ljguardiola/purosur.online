@@ -69,6 +69,7 @@ describe("receiving the events a register pushes", () => {
       caughtUps: [],
       refusedPushes: [],
       brokenChainRevocations: [],
+      offlineNumberingAdvancedFor: [],
     });
   });
 
@@ -264,7 +265,128 @@ describe("receiving the events a register pushes", () => {
       caughtUps: [],
       refusedPushes: [],
       brokenChainRevocations: [],
+      offlineNumberingAdvancedFor: [],
     });
+  });
+});
+
+describe("advancing the offline numbering with what a register pushes", () => {
+  function offlineDocumentAt(
+    deviceSeq: number,
+    previous: PushedEvent | null,
+    eventId = `event-${deviceSeq}`,
+  ): PushedEvent {
+    return chainedFrom(previous?.chain_hmac ?? null, {
+      ...unchainedFakeEvent(deviceSeq, eventId),
+      event_type: "offline_fiscal_document_issued",
+    });
+  }
+
+  function saleOpenedAt(deviceSeq: number, previous: PushedEvent | null): PushedEvent {
+    return chainedFrom(previous?.chain_hmac ?? null, unchainedFakeEvent(deviceSeq));
+  }
+
+  function offlineDocumentsFrom(firstSeq: number, count: number): PushedEvent[] {
+    const documents: PushedEvent[] = [];
+    let previous = firstSeq === 1 ? null : fakeEvent(firstSeq - 1);
+    for (let deviceSeq = firstSeq; deviceSeq < firstSeq + count; deviceSeq += 1) {
+      previous = offlineDocumentAt(deviceSeq, previous);
+      documents.push(previous);
+    }
+    return documents;
+  }
+
+  it("advances it for the offline documents it receives, right after receiving them", async () => {
+    const inbox = new FakeInbox();
+
+    await receive(inbox, offlineDocumentsFrom(1, 2));
+
+    expect(inbox.state.offlineNumberingAdvancedFor).toEqual([
+      { eventId: "event-1", at: NOW },
+      { eventId: "event-2", at: NOW },
+    ]);
+    expect(inbox.calls.indexOf("advanceOfflineNumbering")).toBe(
+      inbox.calls.indexOf("receive device-1") + 1,
+    );
+  });
+
+  it("advances it only for the offline documents among the events it receives", async () => {
+    const inbox = new FakeInbox();
+    const first = offlineDocumentAt(1, null);
+    const second = saleOpenedAt(2, first);
+    const third = offlineDocumentAt(3, second);
+
+    await receive(inbox, [first, second, third]);
+
+    expect(inbox.state.offlineNumberingAdvancedFor).toEqual([
+      { eventId: "event-1", at: NOW },
+      { eventId: "event-3", at: NOW },
+    ]);
+  });
+
+  it("advances it only for the offline documents it did not hold yet", async () => {
+    const inbox = new FakeInbox([{ deviceId: DEVICE, seqs: [1, 2] }]);
+    const third = offlineDocumentAt(3, fakeEvent(2));
+
+    await receive(inbox, [fakeEvent(2), third, third]);
+
+    expect(inbox.state.offlineNumberingAdvancedFor).toEqual([{ eventId: "event-3", at: NOW }]);
+  });
+
+  it.each([
+    [
+      "revoked",
+      () => {
+        const inbox = new FakeInbox();
+        inbox.revokedDevices.add(DEVICE);
+        return { inbox, events: offlineDocumentsFrom(1, 1), appVersion: "1.4.0" };
+      },
+    ],
+    [
+      "a gap",
+      () => ({
+        inbox: new FakeInbox(),
+        events: [...offlineDocumentsFrom(1, 1), ...offlineDocumentsFrom(3, 1)],
+        appVersion: "1.4.0",
+      }),
+    ],
+    [
+      "a stale device",
+      () => {
+        const replaced = offlineDocumentAt(1, null, "another-event");
+        return {
+          inbox: new FakeInbox([{ deviceId: DEVICE, seqs: [1] }]),
+          events: [replaced, offlineDocumentAt(2, replaced)],
+          appVersion: "1.4.0",
+        };
+      },
+    ],
+    [
+      "a broken chain",
+      () => {
+        const first = offlineDocumentAt(1, null);
+        const second = offlineDocumentAt(2, first);
+        return {
+          inbox: new FakeInbox(),
+          events: [first, { ...second, chain_hmac: "forged-link" }],
+          appVersion: "1.4.0",
+        };
+      },
+    ],
+    [
+      "a version that is not accepted",
+      () => ({
+        inbox: new FakeInbox(),
+        events: offlineDocumentsFrom(1, 1),
+        appVersion: "not-a-version",
+      }),
+    ],
+  ])("advances nothing for a push answered as %s", async (_name, build) => {
+    const { inbox, events, appVersion } = build();
+
+    await receive(inbox, events, { appVersion });
+
+    expect(inbox.state.offlineNumberingAdvancedFor).toEqual([]);
   });
 });
 

@@ -43,6 +43,7 @@ interface PointOfSaleRow {
 interface OfflinePointOfSaleRow {
   point_of_sale_number: number;
   tax_authority_last_authorized_number: number | null;
+  highest_synced_offline_number: number | null;
 }
 
 function sqliteSaleAuthorizationTransaction(
@@ -113,7 +114,7 @@ function sqliteSaleAuthorizationTransaction(
     offlineSeries(): OfflineSeries {
       const offlinePointOfSale = database
         .prepare<[], OfflinePointOfSaleRow>(
-          `SELECT point_of_sale_number, tax_authority_last_authorized_number
+          `SELECT point_of_sale_number, tax_authority_last_authorized_number, highest_synced_offline_number
            FROM register_offline_point_of_sale`,
         )
         .get();
@@ -123,6 +124,7 @@ function sqliteSaleAuthorizationTransaction(
           blocksInAssignmentOrder: [],
           localLastUsed: null,
           taxAuthorityLastAuthorized: null,
+          highestSyncedNumber: null,
         };
       }
       const pointOfSale = offlinePointOfSale.point_of_sale_number;
@@ -145,6 +147,7 @@ function sqliteSaleAuthorizationTransaction(
         blocksInAssignmentOrder: blocks,
         localLastUsed: lastUsed?.last_number ?? null,
         taxAuthorityLastAuthorized: offlinePointOfSale.tax_authority_last_authorized_number,
+        highestSyncedNumber: offlinePointOfSale.highest_synced_offline_number,
       };
     },
 

@@ -3,18 +3,24 @@ import type { LocalDatabase } from "../platform/local-database";
 import { type PageWriteMode, versionAccepted } from "./page-write-mode";
 import type { RemovalOf } from "./pulled-change";
 
-function redeliveredPointOfSale(table: string, fiscalAddress: boolean): string {
-  const keysCount = `tax_authority_last_authorized_number = CASE
+function keepingHighest(table: string, column: string): string {
+  return `${column} = CASE
          WHEN excluded.point_of_sale_number = ${table}.point_of_sale_number
-           AND ${table}.tax_authority_last_authorized_number IS NOT NULL
-           AND (excluded.tax_authority_last_authorized_number IS NULL
-             OR excluded.tax_authority_last_authorized_number < ${table}.tax_authority_last_authorized_number)
-         THEN ${table}.tax_authority_last_authorized_number
-         ELSE excluded.tax_authority_last_authorized_number END`;
+           AND ${table}.${column} IS NOT NULL
+           AND (excluded.${column} IS NULL OR excluded.${column} < ${table}.${column})
+         THEN ${table}.${column}
+         ELSE excluded.${column} END`;
+}
+
+function redeliveredPointOfSale(table: string, fiscalAddress: boolean): string {
+  const keptNumbers = [
+    keepingHighest(table, "tax_authority_last_authorized_number"),
+    ...(fiscalAddress ? [] : [keepingHighest(table, "highest_synced_offline_number")]),
+  ];
   return `ON CONFLICT (register_id) DO UPDATE SET
        point_of_sale_number = excluded.point_of_sale_number,
        ${fiscalAddress ? "fiscal_address_id = excluded.fiscal_address_id," : ""}
-       ${keysCount},
+       ${keptNumbers.join(",\n       ")},
        version = excluded.version
      WHERE excluded.version >= ${table}.version`;
 }
@@ -64,26 +70,26 @@ export function prepareRegisterPageWrites(database: LocalDatabase, mode: PageWri
       ? `ON CONFLICT (register_id) DO UPDATE SET
        point_of_sale_number = CASE WHEN excluded.version > register_offline_point_of_sale.version
          THEN excluded.point_of_sale_number ELSE register_offline_point_of_sale.point_of_sale_number END,
-       tax_authority_last_authorized_number = CASE
-         WHEN excluded.version = register_offline_point_of_sale.version THEN excluded.tax_authority_last_authorized_number
-         WHEN excluded.point_of_sale_number = register_offline_point_of_sale.point_of_sale_number
-           AND register_offline_point_of_sale.tax_authority_last_authorized_number IS NOT NULL
-           AND (excluded.tax_authority_last_authorized_number IS NULL
-             OR excluded.tax_authority_last_authorized_number < register_offline_point_of_sale.tax_authority_last_authorized_number)
-         THEN register_offline_point_of_sale.tax_authority_last_authorized_number
-         ELSE excluded.tax_authority_last_authorized_number END,
+       ${keepingHighest("register_offline_point_of_sale", "tax_authority_last_authorized_number")},
+       ${keepingHighest("register_offline_point_of_sale", "highest_synced_offline_number")},
        version = excluded.version
      WHERE excluded.version > register_offline_point_of_sale.version
        OR (excluded.version = register_offline_point_of_sale.version
          AND excluded.tax_authority_last_authorized_number IS NOT NULL
          AND (register_offline_point_of_sale.tax_authority_last_authorized_number IS NULL
-           OR excluded.tax_authority_last_authorized_number > register_offline_point_of_sale.tax_authority_last_authorized_number))`
+           OR excluded.tax_authority_last_authorized_number > register_offline_point_of_sale.tax_authority_last_authorized_number))
+       OR (excluded.version = register_offline_point_of_sale.version
+         AND excluded.highest_synced_offline_number IS NOT NULL
+         AND (register_offline_point_of_sale.highest_synced_offline_number IS NULL
+           OR excluded.highest_synced_offline_number > register_offline_point_of_sale.highest_synced_offline_number))`
       : redeliveredPointOfSale("register_offline_point_of_sale", false);
   const saveOfflinePointOfSale = database.prepare(
     `INSERT INTO register_offline_point_of_sale (
-       register_id, point_of_sale_number, tax_authority_last_authorized_number, version
+       register_id, point_of_sale_number, tax_authority_last_authorized_number,
+       highest_synced_offline_number, version
      ) VALUES (
-       @register_id, @point_of_sale_number, @tax_authority_last_authorized_number, @version
+       @register_id, @point_of_sale_number, @tax_authority_last_authorized_number,
+       @highest_synced_offline_number, @version
      )
      ${saveOfflinePointOfSaleConflict}`,
   );

@@ -904,7 +904,8 @@ describe("the register's local migrations", () => {
         "0052_paid_orders_without_sale",
         "0053_price_and_discount_lookups",
         "0054_assembly_movements",
-        "0055_voided_sales",
+        "0055_offline_numbering_floor",
+        "0056_voided_sales",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -986,7 +987,8 @@ describe("the register's local migrations", () => {
         "0052_paid_orders_without_sale",
         "0053_price_and_discount_lookups",
         "0054_assembly_movements",
-        "0055_voided_sales",
+        "0055_offline_numbering_floor",
+        "0056_voided_sales",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1063,7 +1065,8 @@ describe("the register's local migrations", () => {
         "0052_paid_orders_without_sale",
         "0053_price_and_discount_lookups",
         "0054_assembly_movements",
-        "0055_voided_sales",
+        "0055_offline_numbering_floor",
+        "0056_voided_sales",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1139,7 +1142,8 @@ describe("the register's local migrations", () => {
         "0052_paid_orders_without_sale",
         "0053_price_and_discount_lookups",
         "0054_assembly_movements",
-        "0055_voided_sales",
+        "0055_offline_numbering_floor",
+        "0056_voided_sales",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1244,7 +1248,8 @@ describe("the register's local migrations", () => {
         "0052_paid_orders_without_sale",
         "0053_price_and_discount_lookups",
         "0054_assembly_movements",
-        "0055_voided_sales",
+        "0055_offline_numbering_floor",
+        "0056_voided_sales",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1339,7 +1344,8 @@ describe("the register's local migrations", () => {
         "0052_paid_orders_without_sale",
         "0053_price_and_discount_lookups",
         "0054_assembly_movements",
-        "0055_voided_sales",
+        "0055_offline_numbering_floor",
+        "0056_voided_sales",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1438,7 +1444,8 @@ describe("the register's local migrations", () => {
         "0052_paid_orders_without_sale",
         "0053_price_and_discount_lookups",
         "0054_assembly_movements",
-        "0055_voided_sales",
+        "0055_offline_numbering_floor",
+        "0056_voided_sales",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1520,7 +1527,8 @@ describe("the register's local migrations", () => {
         "0052_paid_orders_without_sale",
         "0053_price_and_discount_lookups",
         "0054_assembly_movements",
-        "0055_voided_sales",
+        "0055_offline_numbering_floor",
+        "0056_voided_sales",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1594,7 +1602,8 @@ describe("the register's local migrations", () => {
         "0052_paid_orders_without_sale",
         "0053_price_and_discount_lookups",
         "0054_assembly_movements",
-        "0055_voided_sales",
+        "0055_offline_numbering_floor",
+        "0056_voided_sales",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -3345,6 +3354,39 @@ describe("the register's local migrations", () => {
     }
   });
 
+  it("declare the offline point of sale for redelivery from its first change over the one received before it held the highest synced offline number, leaving the pull cursor as it is", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.filter(
+        (migration) => migration.name < "0055_offline_numbering_floor",
+      );
+      const before = openLocalDatabase(path, previous, migrationClock);
+      before.exec(
+        `UPDATE sync_state SET pull_cursor = 9, device_id = 'device-a' WHERE id = 1;
+         INSERT INTO register_offline_point_of_sale (register_id, point_of_sale_number, version)
+         VALUES ('r1', 31, 2);
+         UPDATE pulled_table_redeliveries SET cursor = 7
+         WHERE table_name = 'register_offline_point_of_sale';`,
+      );
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+
+      expect(
+        after
+          .prepare("SELECT table_name, cursor FROM pulled_table_redeliveries ORDER BY table_name")
+          .all(),
+      ).toContainEqual({ table_name: "register_offline_point_of_sale", cursor: 0 });
+      expect(after.prepare("SELECT pull_cursor FROM sync_state").all()).toEqual([
+        { pull_cursor: 9 },
+      ]);
+      after.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
   it("refuse a redelivery cursor below zero", () => {
     const database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS, migrationClock);
 
@@ -4476,8 +4518,8 @@ describe("the register's local migrations", () => {
     const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
     try {
       const path = join(folder, "register.sqlite");
-      const previous = LOCAL_MIGRATIONS.filter((migration) => migration.name < "0055_voided_sales");
-      expect(LOCAL_MIGRATIONS.map((migration) => migration.name)).toContain("0055_voided_sales");
+      const previous = LOCAL_MIGRATIONS.filter((migration) => migration.name < "0056_voided_sales");
+      expect(LOCAL_MIGRATIONS.map((migration) => migration.name)).toContain("0056_voided_sales");
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
         `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
@@ -4639,5 +4681,91 @@ describe("the register's local migrations", () => {
       ).toThrow(/CHECK/);
       database.close();
     });
+  });
+
+  it("let an offline point of sale hold the highest number synced and an offline block be used up, keeping what a register already holds", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.filter(
+        (migration) => migration.name < "0055_offline_numbering_floor",
+      );
+      expect(LOCAL_MIGRATIONS.map((migration) => migration.name)).toContain(
+        "0055_offline_numbering_floor",
+      );
+      const before = openLocalDatabase(path, previous, migrationClock);
+      before.exec(
+        `INSERT INTO register_offline_point_of_sale (register_id, point_of_sale_number, tax_authority_last_authorized_number, version)
+         VALUES ('r1', 31, 1000, 2);
+         INSERT INTO offline_number_blocks (id, point_of_sale, document_type, first_number, last_number, status, version)
+         VALUES ('b1', 31, 'factura_c', 1001, 2000, 'in_use', 3);`,
+      );
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+
+      expect(
+        after
+          .prepare(
+            "SELECT register_id, point_of_sale_number, tax_authority_last_authorized_number, highest_synced_offline_number, version FROM register_offline_point_of_sale",
+          )
+          .all(),
+      ).toEqual([
+        {
+          register_id: "r1",
+          point_of_sale_number: 31,
+          tax_authority_last_authorized_number: 1000,
+          highest_synced_offline_number: null,
+          version: 2,
+        },
+      ]);
+      expect(
+        after
+          .prepare(
+            "SELECT id, point_of_sale, document_type, first_number, last_number, status, version FROM offline_number_blocks",
+          )
+          .all(),
+      ).toEqual([
+        {
+          id: "b1",
+          point_of_sale: 31,
+          document_type: "factura_c",
+          first_number: 1001,
+          last_number: 2000,
+          status: "in_use",
+          version: 3,
+        },
+      ]);
+      const setHighest = (value: number) =>
+        after
+          .prepare("UPDATE register_offline_point_of_sale SET highest_synced_offline_number = ?")
+          .run(value);
+      expect(() => setHighest(1500)).not.toThrow();
+      expect(() => setHighest(-1)).toThrow(/CHECK/);
+      const insertBlock = after.prepare(
+        `INSERT INTO offline_number_blocks (
+           id, point_of_sale, document_type, first_number, last_number, status, version
+         ) VALUES (@id, @point_of_sale, @document_type, @first_number, @last_number, @status, 1)`,
+      );
+      const block = {
+        id: "b2",
+        point_of_sale: 31,
+        document_type: "factura_c",
+        first_number: 2001,
+        last_number: 3000,
+        status: "used_up",
+      };
+      expect(() => insertBlock.run({ ...block, id: "b0", status: "closed" })).toThrow(/CHECK/);
+      expect(() => insertBlock.run({ ...block, id: "b0", point_of_sale: 0 })).toThrow(/CHECK/);
+      expect(() => insertBlock.run({ ...block, id: "b0", document_type: "FACTURA_C" })).toThrow(
+        /CHECK/,
+      );
+      expect(() => insertBlock.run({ ...block, id: "b0", last_number: 2000 })).toThrow(/CHECK/);
+      expect(() => insertBlock.run(block)).not.toThrow();
+      expect(() => insertBlock.run({ ...block, id: "b3", last_number: 4000 })).toThrow(/UNIQUE/);
+      after.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
   });
 });

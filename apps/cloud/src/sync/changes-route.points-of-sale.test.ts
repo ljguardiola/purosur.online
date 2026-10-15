@@ -4,6 +4,10 @@ import type { FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { DrizzleRegisterOfflinePointOfSaleStore } from "../fiscal/drizzle-register-offline-point-of-sale-store.js";
 import { DrizzleTaxAuthorityCounts } from "../fiscal/drizzle-tax-authority-counts.js";
+import {
+  insertAppliedOfflineDocument,
+  insertReceivedOfflineDocumentEvent,
+} from "../fiscal/test-support/synced-offline-documents.js";
 import { locations } from "../platform/db/schema.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
@@ -285,6 +289,7 @@ describe("GET /changes carrying the register's own offline point of sale", () =>
         row: {
           point_of_sale_number: 8,
           tax_authority_last_authorized_number: null,
+          highest_synced_offline_number: null,
           version: 1,
         },
       },
@@ -315,9 +320,59 @@ describe("GET /changes carrying the register's own offline point of sale", () =>
       row: {
         point_of_sale_number: 8,
         tax_authority_last_authorized_number: 41,
+        highest_synced_offline_number: null,
         version: 1,
       },
     });
+  });
+
+  it("gives the highest offline number synced on the offline point of sale beside the tax authority's last authorized number, to an installation that pulls from the start", async () => {
+    const locationId = await seededLocationId(db);
+    const { registerId, actorId } = await registerWithRealTime(locationId, "Caja 1", 7);
+    const { deviceId, deviceToken } = await insertEnrolledInstallation(db, {
+      now: NOW,
+      existingRegisterId: registerId,
+    });
+    await configureOffline({ locationId, registerId, pointOfSaleNumber: 8, version: 0, actorId });
+    await new DrizzleTaxAuthorityCounts(db).advance({
+      pointOfSale: 8,
+      lastAuthorized: 41,
+      readAt: NOW,
+    });
+    await insertAppliedOfflineDocument(db, registerId, { pointOfSale: 8, number: 57 });
+    await insertReceivedOfflineDocumentEvent(
+      db,
+      { deviceId, registerId },
+      { pointOfSale: 8, number: 63 },
+    );
+
+    const pulled = await pullAfterSeed(deviceToken);
+
+    expect(
+      pulled.filter(({ entity }) => entity === "register_offline_point_of_sale").at(-1),
+    ).toMatchObject({
+      row: {
+        point_of_sale_number: 8,
+        tax_authority_last_authorized_number: 41,
+        highest_synced_offline_number: 63,
+      },
+    });
+  });
+
+  it("gives no highest offline number while no document was synced on the offline point of sale", async () => {
+    const locationId = await seededLocationId(db);
+    const { registerId, actorId } = await registerWithRealTime(locationId, "Caja 1", 7);
+    const { deviceToken } = await insertEnrolledInstallation(db, {
+      now: NOW,
+      existingRegisterId: registerId,
+    });
+    await configureOffline({ locationId, registerId, pointOfSaleNumber: 8, version: 0, actorId });
+
+    const pulled = await pullAfterSeed(deviceToken);
+
+    expect(
+      pulled.filter(({ entity }) => entity === "register_offline_point_of_sale").at(-1),
+    ).toMatchObject({ row: { highest_synced_offline_number: null } });
   });
 
   it("gives the offline point of sale as it is now for every change logged for it", async () => {
@@ -340,6 +395,7 @@ describe("GET /changes carrying the register's own offline point of sale", () =>
         row: {
           point_of_sale_number: 9,
           tax_authority_last_authorized_number: null,
+          highest_synced_offline_number: null,
           version: 2,
         },
       }),

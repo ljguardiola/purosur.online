@@ -17,10 +17,15 @@ export interface OfflineNumberBlockStore {
     pointOfSaleNumber: number,
     documentType: FiscalDocumentType,
   ): Promise<void>;
-  hasOfflineNumberBlock(
+  offlineNumberBlockInUse(
     pointOfSaleNumber: number,
     documentType: FiscalDocumentType,
-  ): Promise<boolean>;
+  ): Promise<OfflineNumberBlockRecord | null>;
+  highestSyncedOfflineNumber(
+    pointOfSaleNumber: number,
+    documentType: FiscalDocumentType,
+  ): Promise<number | null>;
+  markOfflineNumberBlockUsedUp(block: OfflineNumberBlockRecord): Promise<void>;
   taxAuthorityLastAuthorized(pointOfSaleNumber: number): Promise<number | null>;
   requireTaxAuthorityCount(pointOfSaleNumber: number): Promise<void>;
   recordOfflineNumberBlock(record: OfflineNumberBlockRecord): Promise<void>;

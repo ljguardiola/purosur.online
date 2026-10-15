@@ -406,6 +406,47 @@ describe("createMercadoPagoQrOrder", () => {
       expect(lanes.transactions.get(TRANSACTION_ID)?.creationOutcomeUnknown).toBe(true);
     });
 
+    it("keeps the payment pending, awaiting the earlier attempt's order, when a retry finds an order already queued on the terminal", async () => {
+      const { lanes, mercadoPago, ports } = mercadoPagoOrderWorld({
+        creation: { kind: "queued_order_on_terminal" },
+      });
+      lanes.seed(storedTransaction({ creationOutcomeUnknown: true }));
+
+      const outcome = await createMercadoPagoQrOrder(ports, INPUT);
+
+      const expected = storedTransaction({
+        creationOutcomeUnknown: true,
+        expiresAt: new Date("2026-10-09T12:03:10.000Z"),
+      });
+      expect(outcome).toEqual({ kind: "recorded", transaction: expected });
+      expect(lanes.transactions.get(TRANSACTION_ID)).toEqual(expected);
+      expect(lanes.operations).not.toContain("recordCreationCreatedNothing");
+      expect(mercadoPago.readOrders).toEqual([]);
+    });
+
+    it.each([
+      ["the first attempt", null],
+      ["a retry after an attempt that created nothing", false],
+    ])(
+      "refuses the order, recording that nothing was created, when %s finds another order queued on the terminal",
+      async (_attempt, creationOutcomeUnknown) => {
+        const { lanes, ports } = mercadoPagoOrderWorld({
+          creation: { kind: "queued_order_on_terminal" },
+        });
+        if (creationOutcomeUnknown !== null) {
+          lanes.seed(storedTransaction({ creationOutcomeUnknown }));
+        }
+
+        const outcome = await createMercadoPagoQrOrder(ports, INPUT);
+
+        expect(outcome).toEqual({ kind: "provider_refused" });
+        expect(lanes.transactions.get(TRANSACTION_ID)).toMatchObject({
+          state: "PENDING",
+          creationOutcomeUnknown: false,
+        });
+      },
+    );
+
     it("keeps a payment pending for a person to review once its expiry is reached when a retry after an unknown answer is refused", async () => {
       const { lanes, mercadoPago, ports } = mercadoPagoOrderWorld({
         creation: { kind: "unavailable" },

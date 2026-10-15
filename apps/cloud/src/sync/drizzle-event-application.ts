@@ -42,6 +42,7 @@ import {
 import { DrizzleStockStoreTransaction } from "../stock/drizzle-stock-store.js";
 import { type PendingChanges, withPendingChanges } from "./change-log.js";
 import { lockDeviceQuarantines } from "./lock-device-quarantines.js";
+import { unappliedEventColumns } from "./unapplied-event-columns.js";
 
 type OpeningCountRecordedFact = Extract<SyncedFact, { kind: "opening_count_recorded" }>["count"];
 type OpeningCountWithdrawnFact = Extract<
@@ -79,22 +80,7 @@ class DrizzleEventApplicationTransaction<TQueryResult extends PgQueryResultHKT>
 
   async unappliedEventsOf({ aggregateType, aggregateId }: AggregateKey): Promise<UnappliedEvent[]> {
     return this.tx
-      .select({
-        eventId: inbox.eventId,
-        deviceId: inbox.deviceId,
-        deviceSeq: inbox.deviceSeq,
-        aggregateType: inbox.aggregateType,
-        aggregateId: inbox.aggregateId,
-        eventType: inbox.eventType,
-        schemaVersion: inbox.schemaVersion,
-        payload: inbox.payload,
-        occurredAt: inbox.occurredAt,
-        receivedAt: inbox.receivedAt,
-        actorId: inbox.actorId,
-        attempts: inbox.attempts,
-        quarantinedAt: inbox.quarantinedAt,
-        nextAttemptAt: inbox.nextAttemptAt,
-      })
+      .select(unappliedEventColumns)
       .from(inbox)
       .where(
         and(
