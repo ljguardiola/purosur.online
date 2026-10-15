@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { FortnightPresentationNeedingRegularization } from "./fortnight-report-regularization-ports.js";
 import { detectFortnightReportRegularizations } from "./detect-fortnight-report-regularizations.js";
+import type { FortnightPresentationNeedingRegularization } from "./fortnight-report-regularization-ports.js";
 import {
   FakeFortnightRegularizationReader,
   FakeFortnightReportRegularizationAlerts,
@@ -29,7 +29,7 @@ function detect(
 function alertOf(pointOfSaleNumber: number, fortnight: { start: string; end: string }) {
   return {
     kind: "fortnight_report_needs_regularization",
-    scope: `:`,
+    scope: `${pointOfSaleNumber}:${fortnight.start}`,
     detail: {
       pointOfSaleNumber,
       registerId: "register-1",
