@@ -94,6 +94,7 @@ export async function receivePushedEvents(
     }
 
     await tx.receive(deviceId, toReceive, now);
+    await tx.advanceOfflineNumbering(toReceive, now);
     await tx.recordAcceptedPush(deviceId, now);
     await tx.recordRegisterSynced(registerId, now);
     if (events.length === 0) {
