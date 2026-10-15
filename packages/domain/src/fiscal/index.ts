@@ -30,6 +30,19 @@ export {
   SHORT_CODE_ALPHABET,
 } from "./model/deferred-sale.js";
 export type {
+  NumberingConflictDiagnosis,
+  NumberingConflictFacts,
+  NumberingDocumentSettlement,
+  NumberingReconciliation,
+  NumberingReconciliationDocument,
+  NumberingReconciliationInput,
+} from "./model/numbering-conflict.js";
+export {
+  decideNumberingReconciliation,
+  diagnoseNumberingConflict,
+  isNumberingConflict,
+} from "./model/numbering-conflict.js";
+export type {
   AuthorizedFacturaC,
   FacturaCFiscalBlock,
   OfflineAuthorizedFacturaC,

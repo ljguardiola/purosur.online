@@ -5,6 +5,7 @@ import {
 } from "./fiscal-online-signal.js";
 import { type Fortnight, fortnightContaining } from "./offline-authorization-code.js";
 import { type NextOfflineNumberInput, nextOfflineNumber } from "./offline-number-block.js";
+import { isNumberingConflict } from "./numbering-conflict.js";
 import type { FacturaC, PreEmissionGateOutcome } from "./pre-emission-gate.js";
 
 export const REAL_TIME_AUTHORIZATION_TIMEOUT_MS = 5_000;
@@ -214,8 +215,6 @@ export type RealTimeAuthorizationAnswer =
   | { kind: "not_attempted" }
   | { kind: "unclear" };
 
-const NUMBER_OR_DATE_OUT_OF_ORDER_CODE = 10016;
-
 const INTERNAL_ERROR_CODES: ReadonlySet<number> = new Set([500, 501, 502, 600, 602]);
 
 const STANDING_REJECTION_CODES: ReadonlySet<number> = new Set([10000, 10005, 1005, 601]);
@@ -232,7 +231,7 @@ export function taxAuthorityRejectionAnswer(
   codes: readonly number[],
   standingCodes: ReadonlySet<number> = STANDING_REJECTION_CODES,
 ): RealTimeAuthorizationAnswer {
-  if (codes.includes(NUMBER_OR_DATE_OUT_OF_ORDER_CODE) || hasInternalErrorCode(codes)) {
+  if (isNumberingConflict(codes) || hasInternalErrorCode(codes)) {
     return { kind: "unclear" };
   }
   return {
