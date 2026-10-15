@@ -8,7 +8,7 @@ export class SnapshotCopyFailed extends Error {
   readonly stage: SnapshotCorruptionStage;
 
   constructor(stage: SnapshotCorruptionStage, cause: unknown) {
-    super(`the snapshot copy failed at ${stage}`,{ cause });
+    super(`the snapshot copy failed at ${stage}`, { cause });
     this.stage = stage;
   }
 }
