@@ -17,6 +17,7 @@ function setup(first: BatteryReading | Error = ON_MAINS) {
   const world = { reading: first, now: START };
   const pending: { run: () => Promise<void>; delayMs: number; cancelled: boolean }[] = [];
   const onFailure = vi.fn();
+  const onChange = vi.fn();
   const read = vi.fn(async () => {
     if (world.reading instanceof Error) {
       throw world.reading;
@@ -35,6 +36,7 @@ function setup(first: BatteryReading | Error = ON_MAINS) {
     },
     clock: { now: () => world.now },
     onFailure,
+    onChange,
   });
   const nextRead = () => pending.filter((entry) => !entry.cancelled).at(-1);
   async function advance(minutes: number, reading?: BatteryReading | Error): Promise<void> {
@@ -49,7 +51,7 @@ function setup(first: BatteryReading | Error = ON_MAINS) {
     entry.cancelled = true;
     await entry.run();
   }
-  return { world, watch, read, onFailure, nextRead, advance };
+  return { world, watch, read, onFailure, onChange, nextRead, advance };
 }
 
 describe("watching the register's battery", () => {
@@ -181,5 +183,104 @@ describe("watching the register's battery", () => {
 
     await expect(watch.start()).resolves.toBeUndefined();
     expect(watch.report()).toBeUndefined();
+  });
+
+  describe("telling the conditions it drives changed", () => {
+    const LOW: BatteryReading = { kind: "present", chargePercent: 19, onBattery: true };
+    const CRITICAL: BatteryReading = { kind: "present", chargePercent: 9, onBattery: true };
+
+    it("says nothing while a register on mains power reads as normal", async () => {
+      const { watch, advance, onChange } = setup(ON_MAINS);
+
+      await watch.start();
+      await advance(1, { kind: "present", chargePercent: 40, onBattery: false });
+
+      expect(onChange).not.toHaveBeenCalled();
+    });
+
+    it("says nothing while the battery cannot be read", async () => {
+      const { watch, advance, onChange } = setup({ kind: "unreadable" });
+
+      await watch.start();
+      await advance(1);
+
+      expect(onChange).not.toHaveBeenCalled();
+    });
+
+    it("says so when the first read already finds a condition", async () => {
+      const { watch, onChange } = setup(LOW);
+
+      await watch.start();
+
+      expect(onChange).toHaveBeenCalledTimes(1);
+    });
+
+    it("says so when the charge drops from normal to low and from low to critical, and when it recovers", async () => {
+      const { watch, advance, onChange } = setup(ON_BATTERY);
+      await watch.start();
+      expect(onChange).not.toHaveBeenCalled();
+
+      await advance(1, LOW);
+      expect(onChange).toHaveBeenCalledTimes(1);
+
+      await advance(1, CRITICAL);
+      expect(onChange).toHaveBeenCalledTimes(2);
+
+      await advance(1, ON_MAINS);
+      expect(onChange).toHaveBeenCalledTimes(3);
+    });
+
+    it("says so when the charge changes while it is low, because the condition names it", async () => {
+      const { watch, advance, onChange } = setup(LOW);
+      await watch.start();
+
+      await advance(1, { kind: "present", chargePercent: 18, onBattery: true });
+
+      expect(onChange).toHaveBeenCalledTimes(2);
+    });
+
+    it("says nothing while a read repeats what the last one found", async () => {
+      const { watch, advance, onChange } = setup(CRITICAL);
+      await watch.start();
+
+      await advance(1);
+      await advance(1, { kind: "present", chargePercent: 5, onBattery: true });
+
+      expect(onChange).toHaveBeenCalledTimes(1);
+    });
+
+    it("says so when the register has been on battery for more than ten minutes, and when it goes back to mains power", async () => {
+      const { watch, advance, onChange } = setup(ON_BATTERY);
+      await watch.start();
+
+      await advance(10);
+      expect(onChange).not.toHaveBeenCalled();
+      await advance(1);
+      expect(onChange).toHaveBeenCalledTimes(1);
+      await advance(1);
+      expect(onChange).toHaveBeenCalledTimes(1);
+
+      await advance(1, ON_MAINS);
+      expect(onChange).toHaveBeenCalledTimes(2);
+    });
+
+    it("says so when Windows lists no battery, and when one comes back", async () => {
+      const { watch, advance, onChange } = setup({ kind: "absent" });
+
+      await watch.start();
+      expect(onChange).toHaveBeenCalledTimes(1);
+
+      await advance(1, ON_MAINS);
+      expect(onChange).toHaveBeenCalledTimes(2);
+    });
+
+    it("says so when a battery it could read can no longer be read", async () => {
+      const { watch, advance, onChange } = setup(CRITICAL);
+      await watch.start();
+
+      await advance(1, new Error("boom"));
+
+      expect(onChange).toHaveBeenCalledTimes(2);
+    });
   });
 });
