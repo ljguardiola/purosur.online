@@ -11,7 +11,7 @@ export function endSnapshotWorker(
     deps.post({ type: "snapshot-copy-failed", stage: result.stage });
     return;
   }
-  const version = result.uploads.latestAnnouncedKeyVersion;
+  const version = result.latestAnnouncedKeyVersion;
   if (version !== undefined) {
     deps.post({ type: "snapshot-key-version-announced", version });
     return;

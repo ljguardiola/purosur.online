@@ -57,6 +57,12 @@ export { closeCashSession } from "./close-cash-session.js";
 export type { CreateRegisterInput, CreateRegisterOutcome } from "./create-register.js";
 export { createRegister } from "./create-register.js";
 export type {
+  CurrentSnapshotKeyVersionInput,
+  CurrentSnapshotKeyVersionOutcome,
+  CurrentSnapshotKeyVersionPorts,
+} from "./current-snapshot-key-version.js";
+export { currentSnapshotKeyVersion } from "./current-snapshot-key-version.js";
+export type {
   EmitEnrollmentCodeInput,
   EmitEnrollmentCodeOutcome,
   EmitEnrollmentCodePorts,

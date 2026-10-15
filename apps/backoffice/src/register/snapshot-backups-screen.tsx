@@ -286,7 +286,7 @@ export function SnapshotBackupsScreen({
           if (rotated !== null) {
             showNotice(
               "Clave rotada",
-              `${rotated.name} ahora cifra con la versión ${keyVersion} de su clave.`,
+              `Las próximas generaciones de ${rotated.name} se cifran con la versión ${keyVersion} de su clave.`,
             );
           }
         }}

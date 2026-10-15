@@ -530,6 +530,7 @@ export {
   lastSnapshotGenerationSequences,
   lastSuccessfulSyncOfRegister,
   latestKey,
+  latestKeyVersion,
   mayAuthorize,
   nextOnBatterySince,
   nextOperationNumber,

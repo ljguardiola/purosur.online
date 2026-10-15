@@ -389,6 +389,8 @@ export {
 } from "./register/snapshot-backups.js";
 export type { SnapshotCorruptionBody } from "./register/snapshot-corruption.js";
 export { snapshotCorruptionBodySchema } from "./register/snapshot-corruption.js";
+export type { CurrentSnapshotKeyVersionAnswer } from "./register/snapshot-key-version.js";
+export { currentSnapshotKeyVersionAnswerSchema } from "./register/snapshot-key-version.js";
 export type { SnapshotManifest } from "./register/snapshot-manifest.js";
 export { snapshotManifestSchema } from "./register/snapshot-manifest.js";
 export type { SnapshotsOnDiskBody } from "./register/snapshot-on-disk.js";

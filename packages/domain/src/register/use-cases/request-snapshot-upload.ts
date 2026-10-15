@@ -1,4 +1,5 @@
 import type { Clock } from "../../shared/index.js";
+import { latestKeyVersion } from "../model/installation-key.js";
 import {
   isAwaitingSnapshotVerification,
   snapshotUploadUrlExpiry,
@@ -94,7 +95,7 @@ export async function requestSnapshotUpload(
     }
     return {
       kind: "declared",
-      currentKeyVersion: Math.max(...keyVersions),
+      currentKeyVersion: latestKeyVersion(keyVersions) ?? input.keyVersion,
       upload: {
         registerId: input.registerId,
         generationId: input.generationId,
