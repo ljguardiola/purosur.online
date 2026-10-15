@@ -1,5 +1,10 @@
 export type { Clock } from "../../shared/index.js";
 export type { ArcaReachabilityEvidence } from "../model/arca-reachability.js";
+export type {
+  CashSessionStanding,
+  ClockLowering,
+  ClockMark,
+} from "../model/clock-correction.js";
 export type { FiscalOnlineSignalEvidence } from "../model/fiscal-online-signal.js";
 export type {
   RejectionStandingChange,
@@ -94,6 +99,11 @@ export type {
 export type { CheckArcaVitalityOutcome } from "./check-arca-vitality.js";
 export { checkArcaVitality } from "./check-arca-vitality.js";
 export type {
+  ClockCorrectionLedger,
+  ClockCorrectionRecord,
+  ClockCorrectionTransaction,
+} from "./clock-correction-ports.js";
+export type {
   ConfigureRegisterOfflinePointOfSaleInput,
   ConfigureRegisterOfflinePointOfSaleOutcome,
 } from "./configure-register-offline-point-of-sale.js";
@@ -103,6 +113,12 @@ export type {
   ConfigureRegisterPointOfSaleOutcome,
 } from "./configure-register-point-of-sale.js";
 export { configureRegisterPointOfSale } from "./configure-register-point-of-sale.js";
+export type {
+  CorrectRegisterClockGrant,
+  CorrectRegisterClockOutcome,
+  CorrectRegisterClockPorts,
+} from "./correct-register-clock.js";
+export { correctRegisterClock } from "./correct-register-clock.js";
 export type {
   CreateFiscalAddressInput,
   CreateFiscalAddressOutcome,
@@ -340,6 +356,7 @@ export type {
 } from "./request-real-time-authorization.js";
 export { requestRealTimeAuthorization } from "./request-real-time-authorization.js";
 export type {
+  ClockMarkRaise,
   FiscalDocumentReservation,
   IdGenerator,
   SaleAuthorizationTransaction,
