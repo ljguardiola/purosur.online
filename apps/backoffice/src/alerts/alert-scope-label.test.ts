@@ -62,3 +62,16 @@ test("shows the scope of a fortnight's report it cannot read as it comes", () =>
     "x:2026-09-01:2026-09-15",
   );
 });
+
+test("names the point of sale, the invoice class and the number of a voucher issued outside the system", () => {
+  expect(alertScopeLabel("pointOfSaleDocumentNumber", "3:factura_c:41")).toBe(
+    "Punto de venta 00003 · Factura C · 00000041",
+  );
+});
+
+test.each(["3:factura_z:41", "3:factura_c", "x:factura_c:41", "3:factura_c:x"])(
+  "shows the scope %j of a voucher issued outside the system that it cannot read as it comes",
+  (scopeDisplay) => {
+    expect(alertScopeLabel("pointOfSaleDocumentNumber", scopeDisplay)).toBe(scopeDisplay);
+  },
+);

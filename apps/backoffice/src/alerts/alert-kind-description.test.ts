@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { alertKindDescription } from "./alert-kind-description";
+import { alertKindDescription, externalBillingSummary } from "./alert-kind-description";
 
 test("describes a kind of the catalog by what happened", () => {
   expect(alertKindDescription("register_enrolled")).toBe("Se dio de alta una caja");
@@ -91,3 +91,22 @@ test("describes a fortnight's report not yet presented and one whose deadline wa
     "Venció el plazo para presentar a ARCA el informe de una quincena de un punto de venta",
   );
 });
+
+test("describes a voucher issued outside the system", () => {
+  expect(alertKindDescription("external_billing")).toBe(
+    "Un comprobante se emitió fuera del sistema",
+  );
+});
+
+test("names the point of sale of a voucher issued outside the system from the alert's scope", () => {
+  expect(externalBillingSummary("3:factura_c:41")).toBe(
+    "Un comprobante del punto de venta 00003 se emitió fuera del sistema",
+  );
+});
+
+test.each([null, "", "factura_c", "x:factura_c:41"])(
+  "describes a voucher issued outside the system without its point of sale when the scope %j does not name one",
+  (scopeDisplay) => {
+    expect(externalBillingSummary(scopeDisplay)).toBe("Un comprobante se emitió fuera del sistema");
+  },
+);

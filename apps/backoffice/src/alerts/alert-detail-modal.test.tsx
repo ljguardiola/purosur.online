@@ -1738,6 +1738,47 @@ test("tells a document ARCA left without a clear answer: its number, since when,
   expect(screen.getByText(/fiscal-document-1/).query()).toBeNull();
 });
 
+test("tells that ARCA authorized a voucher no sale of the register justifies: its number, that it needs a review and that no credit note is issued, closing by hand", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(
+    ok(
+      baseDetail({
+        kind: "external_billing",
+        level: "critical",
+        audience: "all",
+        scope: "3:factura_c:41",
+        scopeDisplay: "3:factura_c:41",
+        scopeKind: "pointOfSaleDocumentNumber",
+        closing: "by_hand",
+        detail: { pointOfSale: 3, documentType: "factura_c", number: 41 },
+      }),
+    ),
+  );
+
+  const screen = await renderModal(services, { access: accessWith("close_alerts_manually") });
+
+  await expect.element(screen.getByText("Facturación externa", { exact: true })).toBeVisible();
+  await expect
+    .element(
+      screen.getByText(
+        "ARCA tiene autorizado el comprobante 00003-00000041 de este punto de venta y ninguna venta de la caja lo justifica. Revisar quién lo emitió fuera del sistema. No se emite ninguna nota de crédito automática.",
+        { exact: true },
+      ),
+    )
+    .toBeVisible();
+  await expect
+    .element(screen.getByText("Punto de venta 00003 · Factura C · 00000041", { exact: true }))
+    .toBeVisible();
+  await expect
+    .element(
+      screen.getByText("No se cierra sola: se cierra a mano después de revisar el comprobante.", {
+        exact: true,
+      }),
+    )
+    .toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Cerrar la alerta" })).toBeEnabled();
+});
+
 test("tells that an alert for quarantined events resolves by itself and still offers closing it by hand", async () => {
   const services = createServices();
   vi.mocked(services.fetchAlert).mockResolvedValue(ok(quarantinedEventAlert));

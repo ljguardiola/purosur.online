@@ -863,6 +863,32 @@ test("names a register's stopped fiscal emission by its fixed title, with what i
   await expect.element(row.getByText(/Seguir vendiendo igual/)).toBeVisible();
 });
 
+test("names a voucher issued outside the system by its fixed title, with its point of sale and its scope", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlerts).mockResolvedValue(
+    ok([
+      {
+        ...passkeyAlert,
+        kind: "external_billing",
+        level: "critical",
+        audience: "all",
+        scope: "3:factura_c:41",
+        scopeDisplay: "3:factura_c:41",
+        scopeKind: "pointOfSaleDocumentNumber",
+      },
+    ]),
+  );
+
+  const screen = await renderScreen(services);
+
+  const row = screen.getByRole("row", { name: /Facturación externa/ });
+  await expect.element(row.getByText("Facturación externa")).toBeVisible();
+  await expect
+    .element(row.getByText("Un comprobante del punto de venta 00003 se emitió fuera del sistema"))
+    .toBeVisible();
+  await expect.element(row.getByText("Punto de venta 00003 · Factura C · 00000041")).toBeVisible();
+});
+
 test.each([
   [
     "event_history_broken",
