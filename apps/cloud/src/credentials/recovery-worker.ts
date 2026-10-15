@@ -36,7 +36,7 @@ export interface StartRecoveryWorkerOptions {
   emailSender: AccessEmailSender;
   now: () => Date;
   jobs?: readonly BackgroundJobs[];
-  /** Only a wiring test turns these off, so graphile-worker's wall-clock crontab never adds a run the test did not ask for. */
+  /** Only a test turns these off, so graphile-worker's wall-clock crontab never adds a run the test did not ask for. */
   schedules?: boolean;
 }
 
