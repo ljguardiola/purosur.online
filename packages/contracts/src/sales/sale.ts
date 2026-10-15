@@ -8,6 +8,7 @@ import {
   mayBeOverriddenUnitPrice,
   mayBeSaleLineQuantity,
   SALE_UNITS,
+  SALE_VOID_REFUSALS,
   SEARCH_RESULT_LIMIT,
   WEIGHT_SOURCES,
 } from "@purosur/domain";
@@ -314,6 +315,20 @@ export const cancelPaidSaleOutcomeSchema = z.discriminatedUnion("kind", [
   ...authorizationRefusalSchema.options,
 ]);
 export type CancelPaidSaleOutcome = z.infer<typeof cancelPaidSaleOutcomeSchema>;
+
+export const voidSaleOutcomeSchema = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.literal("voided"),
+    refunds: z.array(plannedRefundSchema),
+    authorized_by: authorizedBySchema.nullable(),
+  }),
+  z.object({ kind: z.literal("not_found") }),
+  z.object({ kind: z.enum(SALE_VOID_REFUSALS) }),
+  z.object({ kind: z.literal("pending_refunds_unconfirmed") }),
+  notSignedInOutcome,
+  ...authorizationRefusalSchema.options,
+]);
+export type VoidSaleOutcome = z.infer<typeof voidSaleOutcomeSchema>;
 
 export const addProductOutcomeSchema = z.discriminatedUnion("kind", [
   addedOutcome,

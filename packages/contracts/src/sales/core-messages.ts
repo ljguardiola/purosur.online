@@ -32,6 +32,7 @@ import {
   scanProductOutcomeSchema,
   searchProductsOutcomeSchema,
   shownLineQuantitySchema,
+  voidSaleOutcomeSchema,
   weighProductOutcomeSchema,
 } from "./sale.js";
 import {
@@ -111,6 +112,14 @@ const cancelPaidSaleMessageSchema = z.object({
   type: z.literal("cancel-paid-sale"),
   request_id: requestId,
   sale_id: z.string(),
+  authorization: authorizationSchema.optional(),
+});
+
+const voidSaleMessageSchema = z.object({
+  type: z.literal("void-sale"),
+  request_id: requestId,
+  sale_id: z.string(),
+  pending_refunds_confirmed: z.boolean(),
   authorization: authorizationSchema.optional(),
 });
 
@@ -224,6 +233,7 @@ export const salesRendererToCoreMessageSchema = z.discriminatedUnion("type", [
   removeSaleLineMessageSchema,
   cancelSaleMessageSchema,
   cancelPaidSaleMessageSchema,
+  voidSaleMessageSchema,
   searchProductsMessageSchema,
   addProductMessageSchema,
   addWeighedProductMessageSchema,
@@ -351,6 +361,11 @@ export const salesCoreToRendererMessageSchema = z.discriminatedUnion("type", [
     type: z.literal("cancel-paid-sale-result"),
     request_id: requestId,
     outcome: cancelPaidSaleOutcomeSchema,
+  }),
+  z.object({
+    type: z.literal("void-sale-result"),
+    request_id: requestId,
+    outcome: voidSaleOutcomeSchema,
   }),
   z.object({
     type: z.literal("search-products-result"),
