@@ -374,7 +374,6 @@ export async function readRegisterOfflinePointsOfSale<TQueryResult extends PgQue
       registerId: registerOfflinePointsOfSale.registerId,
       pointOfSaleNumber: registerOfflinePointsOfSale.pointOfSaleNumber,
       taxAuthorityLastAuthorizedNumber: taxAuthorityLastAuthorizedNumbers.lastAuthorized,
-      taxAuthorityLastAuthorizedIssuedOn: taxAuthorityLastAuthorizedNumbers.issuedOn,
       version: registerOfflinePointsOfSale.version,
     })
     .from(registerOfflinePointsOfSale)

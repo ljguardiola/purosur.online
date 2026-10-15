@@ -87,7 +87,6 @@ export interface RegisterPointTerminalRow {
 export interface RegisterOfflinePointOfSaleRow {
   pointOfSaleNumber: number;
   taxAuthorityLastAuthorizedNumber: number | null;
-  taxAuthorityLastAuthorizedIssuedOn: string | null;
   highestSyncedOfflineNumber: number | null;
   version: number;
 }

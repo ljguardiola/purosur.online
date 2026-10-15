@@ -1,5 +1,5 @@
 import { clockCorrectionSchema } from "@purosur/contracts";
-import { formatDate } from "@purosur/ui";
+import { formatDate, formatDayAndTime } from "@purosur/ui";
 import { schemaText } from "../platform/schema-text";
 
 const CLOCK_CORRECTION_TIME_ZONE = schemaText(
@@ -25,5 +25,5 @@ export function clockCorrectionTime(instant: string): string {
 }
 
 export function clockCorrectionReading(instant: string): string {
-  return `${clockCorrectionDay(instant)} · ${clockCorrectionTime(instant)}`;
+  return formatDayAndTime(instant, CLOCK_CORRECTION_TIME_ZONE);
 }

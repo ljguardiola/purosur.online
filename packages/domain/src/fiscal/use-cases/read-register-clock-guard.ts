@@ -15,11 +15,26 @@ export interface ClockGuardBlock {
   taxAuthorityLastIssuedOn: string | null;
 }
 
+type ClockCorrectionAvailability = "available" | "not_behind" | "already_corrected_in_period";
+
 export interface RegisterClockGuardState {
   reading: Date;
   blocks: ClockGuardBlock[];
   mayCorrect: boolean;
-  correctionAvailable: boolean;
+  correction: ClockCorrectionAvailability;
+}
+
+function clockCorrectionAvailability(
+  reader: RegisterClockGuardReader,
+  marks: readonly ClockMark[],
+  reading: Date,
+): ClockCorrectionAvailability {
+  if (clockLoweringsFor(marks, reading).length === 0) {
+    return "not_behind";
+  }
+  return reader.clockCorrectionRecordedIn(clockCorrectionPeriodKey(reader.cashSessionStanding()))
+    ? "already_corrected_in_period"
+    : "available";
 }
 
 export interface ReadRegisterClockGuardPorts {
@@ -67,8 +82,6 @@ export function readRegisterClockGuard(
         { kind: "correct_register_clock" },
         { id: userId, access: reader.correctorAccess(userId) },
       ).kind === "permitted",
-    correctionAvailable:
-      clockLoweringsFor(marks, reading).length > 0 &&
-      !reader.clockCorrectionRecordedIn(clockCorrectionPeriodKey(reader.cashSessionStanding())),
+    correction: clockCorrectionAvailability(reader, marks, reading),
   };
 }

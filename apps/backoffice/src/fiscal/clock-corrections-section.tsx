@@ -56,9 +56,9 @@ const columns = [
     header: "Aviso",
     render: (item: ClockCorrection) =>
       item.alertState === "open" ? (
-        <StatusIndicator tone="warning">Abierta</StatusIndicator>
+        <StatusIndicator tone="warning">Abierto</StatusIndicator>
       ) : (
-        <StatusIndicator tone="neutral">Cerrada</StatusIndicator>
+        <StatusIndicator tone="neutral">Cerrado</StatusIndicator>
       ),
   }),
 ] as const;

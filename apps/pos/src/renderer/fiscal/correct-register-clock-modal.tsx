@@ -1,9 +1,16 @@
 import type { CorrectRegisterClockOutcome } from "@purosur/contracts";
-import { Button, HighlightedNotice, InlineNotice, Modal, SummaryRowGroup } from "@purosur/ui";
+import {
+  Button,
+  formatDayAndTime,
+  HighlightedNotice,
+  InlineNotice,
+  Modal,
+  SummaryRowGroup,
+} from "@purosur/ui";
 import { ArrowLeft, Check, Clock, Info, TriangleAlert } from "lucide-react";
 import { useRef, useState } from "react";
+import { lastDocumentOf, modalEyebrow } from "./clock-guard-text";
 import type { ShownClockGuard } from "./fiscal-queries";
-import { clockReadingText, lastDocumentOf, modalEyebrow } from "./clock-guard-text";
 
 const FAILED_MESSAGE = "No se pudo confirmar la hora. Probá de nuevo.";
 
@@ -35,7 +42,7 @@ export function CorrectRegisterClockModal({
   onClose,
 }: CorrectRegisterClockModalProps) {
   const [submitting, setSubmitting] = useState(false);
-  const [used, setUsed] = useState(!guard.correction_available);
+  const [used, setUsed] = useState(guard.correction === "already_corrected_in_period");
   const [refusal, setRefusal] = useState<string>();
   const [settled, setSettled] = useState(false);
   const correcting = useRef(false);
@@ -122,7 +129,7 @@ export function CorrectRegisterClockModal({
         </p>
         <SummaryRowGroup
           rows={[
-            { label: "Hora de la caja", value: clockReadingText(guard.reading), strong: true },
+            { label: "Hora de la caja", value: formatDayAndTime(guard.reading), strong: true },
             ...(last === undefined ? [] : [{ label: "Último comprobante", value: last.text }]),
           ]}
         />
@@ -147,7 +154,7 @@ export function CorrectRegisterClockModal({
                 ? "Se puede confirmar una sola vez por sesión de caja"
                 : "Se puede confirmar una sola vez hasta la próxima apertura de caja"
             }
-            description="Le avisa al Administrador quién lo confirmó."
+            description="Si la hora vuelve a atrasar, corregila en Windows."
           />
         )}
         {refusal === undefined ? null : (

@@ -11,6 +11,7 @@ import {
   invoiceOwnFortnight,
   type OfflineAuthorizationCause,
 } from "../model/real-time-authorization.js";
+import { raisedClockMark } from "../model/register-clock.js";
 import type { ShortCodeRandomness } from "./deferred-sale-ports.js";
 import { recordDeferredSale } from "./record-deferred-sale.js";
 import type { IdGenerator, SaleAuthorizationTransaction } from "./sale-authorization-ports.js";
@@ -34,13 +35,15 @@ export function decideSaleAuthorization(
   shortCodes: ShortCodeRandomness,
   { saleId, gate, decidedAt, occurredAt, total }: DecideSaleAuthorizationInput,
 ): DecideSaleAuthorizationOutcome {
+  const series = tx.realTimeSeries();
+  const offlineSeries = tx.offlineSeries();
   const route = decideSaleAuthorizationRoute({
     gate,
     online: tx.fiscalOnlineEvidence(),
     now: decidedAt,
     occurredAt,
-    series: tx.realTimeSeries(),
-    offlineSeries: tx.offlineSeries(),
+    series,
+    offlineSeries,
     offlineAuthorizationCode: tx.offlineAuthorizationCodeOf(invoiceOwnFortnight(occurredAt)),
   });
   if (route.kind === "defer") {
@@ -68,10 +71,10 @@ export function decideSaleAuthorization(
       cause: route.cause,
     });
     tx.issueOfflineFiscalDocument(document);
-    tx.raiseClockMark({
+    tx.recordClockMark({
       pointOfSale: route.pointOfSale,
       documentType: document.documentType,
-      reading: occurredAt,
+      reading: raisedClockMark(offlineSeries.clockMark, occurredAt),
     });
     tx.appendOutboxEvent(
       offlineFiscalDocumentIssuedEvent({
@@ -91,10 +94,10 @@ export function decideSaleAuthorization(
     document: route.document,
     reservedAt: decidedAt,
   });
-  tx.raiseClockMark({
+  tx.recordClockMark({
     pointOfSale: route.pointOfSale,
     documentType: FACTURA_C_DOCUMENT_TYPE,
-    reading: decidedAt,
+    reading: raisedClockMark(series.clockMark, decidedAt),
   });
   return { kind: "reserved", fiscalDocumentId };
 }

@@ -6,6 +6,7 @@ import {
   type IdGenerator,
   readRegisterClockGuard,
 } from "@purosur/domain/fiscal/use-cases";
+import { inArgentinaTime } from "../platform/argentina-time";
 import type { LocalDatabase } from "../platform/local-database";
 import type { ActionGate } from "../sessions/action-gate";
 import type { SignedInPerson } from "../sessions/signed-in-person";
@@ -49,15 +50,15 @@ export function readClockGuardFor({
   );
   return {
     kind: "read",
-    reading: state.reading.toISOString(),
+    reading: inArgentinaTime(state.reading),
     blocks: state.blocks.map((block) => ({
       point_of_sale: block.pointOfSale,
       document_type: block.documentType,
-      latest_reading: block.latestReading?.toISOString() ?? null,
+      latest_reading: block.latestReading === null ? null : inArgentinaTime(block.latestReading),
       tax_authority_last_authorized_issued_on: block.taxAuthorityLastIssuedOn,
     })),
     may_correct: state.mayCorrect,
-    correction_available: state.correctionAvailable,
+    correction: state.correction,
   };
 }
 

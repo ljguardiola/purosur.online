@@ -2,9 +2,9 @@ import type { CorrectRegisterClockOutcome, ReadClockGuardOutcome } from "@purosu
 import { Button, FloatingNotification, HighlightedNotice } from "@purosur/ui";
 import { Check, Clock, TriangleAlert } from "lucide-react";
 import { useState } from "react";
+import { CorrectRegisterClockModal } from "./correct-register-clock-modal";
 import type { ShownClockGuard } from "./fiscal-queries";
 import { useClockGuardQuery, useRefreshClockGuard } from "./fiscal-queries";
-import { CorrectRegisterClockModal } from "./correct-register-clock-modal";
 
 export type ClockGuardOfferProps = {
   registerName: string | null;
@@ -37,7 +37,7 @@ export function ClockGuardOffer({
           title="El reloj de la caja atrasa"
           description="Mientras tanto no se emiten facturas. Se puede vender igual: la factura sale cuando se corrige."
           actions={
-            blocked.may_correct ? (
+            blocked.may_correct && blocked.correction !== "not_behind" ? (
               <Button variant="secondary" icon={<Clock />} onPress={() => setCorrecting(blocked)}>
                 Corregir el reloj
               </Button>
@@ -53,8 +53,7 @@ export function ClockGuardOffer({
           correctRegisterClock={correctRegisterClock}
           onCorrected={() => {
             setCorrecting(undefined);
-            setConfirmed(true);
-            void refresh();
+            void refresh().then(() => setConfirmed(true));
           }}
           onRefused={() => void refresh()}
           onSessionInvalid={onSessionInvalid}
@@ -66,7 +65,11 @@ export function ClockGuardOffer({
           tone="success"
           icon={<Check />}
           title="La hora de la caja quedó confirmada"
-          description="Las facturas se emiten de nuevo."
+          description={
+            guard.status === "loaded" && guard.value.blocks.length === 0
+              ? "Las facturas se emiten de nuevo."
+              : "Todavía no se emiten facturas."
+          }
           onDismiss={() => setConfirmed(false)}
         />
       ) : null}

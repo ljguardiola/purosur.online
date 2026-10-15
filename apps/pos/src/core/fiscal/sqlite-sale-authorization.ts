@@ -10,7 +10,7 @@ import {
   SERIES_WAITING_STATES,
 } from "@purosur/domain";
 import {
-  type ClockMarkRaise,
+  type ClockMark,
   decideSaleAuthorization,
   type FiscalDocumentReservation,
   type Fortnight,
@@ -252,13 +252,12 @@ function sqliteSaleAuthorizationTransaction(
         });
     },
 
-    raiseClockMark({ pointOfSale, documentType, reading }: ClockMarkRaise): void {
+    recordClockMark({ pointOfSale, documentType, reading }: ClockMark): void {
       database
         .prepare(
           `INSERT INTO register_clock_marks (point_of_sale, document_type, reading)
            VALUES (@point_of_sale, @document_type, @reading)
-           ON CONFLICT (point_of_sale, document_type) DO UPDATE SET reading = excluded.reading
-           WHERE excluded.reading > register_clock_marks.reading`,
+           ON CONFLICT (point_of_sale, document_type) DO UPDATE SET reading = excluded.reading`,
         )
         .run({
           point_of_sale: pointOfSale,

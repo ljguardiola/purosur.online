@@ -188,6 +188,7 @@ export {
   formatClockTime,
   formatCountdown,
   formatDate,
+  formatDayAndTime,
   formatInvoiceNumber,
   formatNumber,
   formatOperationNumber,

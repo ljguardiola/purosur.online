@@ -27,17 +27,17 @@ const documentTypeSchema = z.literal(FACTURA_C_DOCUMENT_TYPE);
 const readClockGuardOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("read"),
-    reading: z.iso.datetime(),
+    reading: z.iso.datetime({ offset: true }),
     blocks: z.array(
       z.object({
         point_of_sale: pointOfSaleNumberSchema,
         document_type: documentTypeSchema,
-        latest_reading: z.iso.datetime().nullable(),
+        latest_reading: z.iso.datetime({ offset: true }).nullable(),
         tax_authority_last_authorized_issued_on: z.string().nullable(),
       }),
     ),
     may_correct: z.boolean(),
-    correction_available: z.boolean(),
+    correction: z.enum(["available", "not_behind", "already_corrected_in_period"]),
   }),
   unavailableOutcome,
 ]);

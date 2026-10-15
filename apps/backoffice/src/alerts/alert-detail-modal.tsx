@@ -11,6 +11,7 @@ import {
   formatCalendarDay,
   formatCalendarDayRange,
   formatDate,
+  formatDayAndTime,
   formatInvoiceNumber,
   formatNumber,
   formatPercent,
@@ -608,8 +609,8 @@ function ClockCorrectionRows({
 }) {
   const rows = [
     ["Punto de venta", formatPointOfSaleNumber(detail.pointOfSale)],
-    ["Lectura anterior", alertDateTime(new Date(detail.previousReading))],
-    ["Lectura nueva", alertDateTime(new Date(detail.correctedReading))],
+    ["Lectura anterior", formatDayAndTime(detail.previousReading, ALERT_TIME_ZONE)],
+    ["Lectura nueva", formatDayAndTime(detail.correctedReading, ALERT_TIME_ZONE)],
     ...(detail.actorName === undefined ? [] : [["Corrigió", detail.actorName]]),
   ] as const;
   return (

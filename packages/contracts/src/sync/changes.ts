@@ -191,11 +191,6 @@ const registerOfflinePointOfSaleChangeSchema = z.object({
   row: z.object({
     point_of_sale_number: pointOfSaleNumberSchema,
     tax_authority_last_authorized_number: z.int().nonnegative().nullable().default(null),
-    tax_authority_last_authorized_issued_on: z
-      .string()
-      .refine(isCalendarDay)
-      .nullable()
-      .default(null),
     highest_synced_offline_number: z.int().nonnegative().nullable().default(null),
     version: z.int().positive(),
   }),

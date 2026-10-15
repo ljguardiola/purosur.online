@@ -370,7 +370,6 @@ export type {
 } from "./request-real-time-authorization.js";
 export { requestRealTimeAuthorization } from "./request-real-time-authorization.js";
 export type {
-  ClockMarkRaise,
   FiscalDocumentReservation,
   IdGenerator,
   SaleAuthorizationTransaction,

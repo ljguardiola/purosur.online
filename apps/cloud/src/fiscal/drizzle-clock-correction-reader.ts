@@ -1,3 +1,4 @@
+import { isOpenAlert } from "@purosur/domain";
 import type {
   BranchClockCorrection,
   ClockCorrectionReader,
@@ -28,7 +29,7 @@ export class DrizzleClockCorrectionReader<TQueryResult extends PgQueryResultHKT>
         actorFirstName: users.firstName,
         previousReading: clockCorrections.previousReading,
         correctedReading: clockCorrections.correctedReading,
-        alertResolvedAt: alerts.resolvedAt,
+        resolvedAt: alerts.resolvedAt,
       })
       .from(clockCorrections)
       .innerJoin(registers, eq(registers.id, clockCorrections.registerId))
@@ -36,9 +37,9 @@ export class DrizzleClockCorrectionReader<TQueryResult extends PgQueryResultHKT>
       .innerJoin(alerts, eq(alerts.id, clockCorrections.alertId))
       .where(eq(registers.locationId, locationId))
       .orderBy(desc(clockCorrections.correctedAt), desc(clockCorrections.eventId));
-    return rows.map(({ alertResolvedAt, ...row }) => ({
+    return rows.map(({ resolvedAt, ...row }) => ({
       ...row,
-      alertState: alertResolvedAt === null ? "open" : "closed",
+      alertState: isOpenAlert({ resolvedAt }) ? "open" : "closed",
     }));
   }
 }
