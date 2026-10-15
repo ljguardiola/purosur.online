@@ -110,6 +110,20 @@ function createdResult(overrides: Partial<MercadoPagoOrderResult> = {}): Mercado
 
 type MercadoPagoOrderResult = Extract<MercadoPagoOrderReading, { kind: "read" }>["result"];
 
+function pointCreatedOrderWithoutPaymentDetail(): Record<string, unknown> {
+  return {
+    id: ORDER_ID,
+    type: "point",
+    external_reference: ORDER_EXTERNAL_REFERENCE,
+    status: "created",
+    status_detail: "created",
+    config: { point: { terminal_id: POINT_TERMINAL_ID, print_on_terminal: "no_ticket" } },
+    transactions: {
+      payments: [{ id: "PAY01JQ4S4KY8HWQ6NA5PXB65B3D0", amount: "50.00", status: "created" }],
+    },
+  };
+}
+
 describe("creating an order on the integrated terminal", () => {
   const POINT_REQUEST = { ...REQUEST, terminalId: POINT_TERMINAL_ID };
 
@@ -156,6 +170,24 @@ describe("creating an order on the integrated terminal", () => {
       orderId: ORDER_ID,
       result: createdResult(),
     });
+  });
+
+  it("answers the order that was created when its payment states no detail yet", async () => {
+    const { client } = clientAnswering(answer(201, pointCreatedOrderWithoutPaymentDetail()));
+
+    expect(await client.createPointOrder(POINT_REQUEST)).toStrictEqual({
+      kind: "created",
+      orderId: ORDER_ID,
+      result: createdResult({
+        payments: [{ status: "created", statusDetail: null, paidAmount: null }],
+      }),
+    });
+  });
+
+  it("does not read an order whose payment states no detail", async () => {
+    const { client } = clientAnswering(answer(200, pointCreatedOrderWithoutPaymentDetail()));
+
+    expect(await client.readOrder(ORDER_ID)).toStrictEqual({ kind: "unavailable" });
   });
 
   it.each([
