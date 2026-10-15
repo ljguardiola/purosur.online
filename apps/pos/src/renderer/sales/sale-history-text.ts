@@ -26,6 +26,7 @@ const STATE_PRESENTATION = {
   completed: { label: "Completada", tone: "success" },
   in_progress: { label: "En trámite", tone: "info" },
   deferred: { label: "Diferida", tone: "neutral" },
+  voided: { label: "Anulada", tone: "neutral" },
 } as const satisfies Record<ShownSaleState, { label: string; tone: TagProps["tone"] }>;
 
 export function operationText(operationNumber: number): string {

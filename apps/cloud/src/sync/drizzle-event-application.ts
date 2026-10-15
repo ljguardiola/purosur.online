@@ -34,7 +34,11 @@ import {
   recordAppliedPrintState,
   recordAppliedReprint,
 } from "../sales/drizzle-applied-sale-receipts.js";
-import { recordAppliedCancelledSale, recordAppliedSale } from "../sales/drizzle-applied-sales.js";
+import {
+  recordAppliedCancelledSale,
+  recordAppliedSale,
+  recordAppliedVoidedSale,
+} from "../sales/drizzle-applied-sales.js";
 import { DrizzleStockStoreTransaction } from "../stock/drizzle-stock-store.js";
 import { type PendingChanges, withPendingChanges } from "./change-log.js";
 import { lockDeviceQuarantines } from "./lock-device-quarantines.js";
@@ -46,6 +50,7 @@ type OpeningCountWithdrawnFact = Extract<
   { kind: "opening_count_withdrawn" }
 >["withdrawal"];
 type CompletedSale = Extract<SyncedFact, { kind: "sale_completed" }>["sale"];
+type VoidedSale = Extract<SyncedFact, { kind: "sale_voided" }>["sale"];
 
 type Transaction<TQueryResult extends PgQueryResultHKT> = Parameters<
   Parameters<PgDatabase<TQueryResult>["transaction"]>[0]
@@ -125,6 +130,8 @@ class DrizzleEventApplicationTransaction<TQueryResult extends PgQueryResultHKT>
           event.eventId,
           this.now(),
         );
+      case "sale_voided":
+        return recordAppliedVoidedSale(this.tx, await this.originOf(event), fact, event.eventId);
       case "sale_print_state_changed":
         return recordAppliedPrintState(this.tx, await this.originOf(event), fact);
       case "reprint_recorded":
@@ -229,6 +236,34 @@ class DrizzleEventApplicationTransaction<TQueryResult extends PgQueryResultHKT>
         return {
           kind: "refused",
           reason: `a sale moved a quantity of product ${outcome.productId} it can't be sold in`,
+        };
+    }
+  }
+
+  async applySaleVoidStock(
+    sale: VoidedSale,
+    movements: VoidedSale["stockMovements"],
+    event: UnappliedEvent,
+  ): Promise<StockApplication> {
+    const { locationId } = await this.originOf(event);
+    const outcome = await applyRegisterStockMovements(
+      new DrizzleStockStoreTransaction(this.tx, this.pending),
+      {
+        locationId,
+        occurredAt: sale.voidedAt,
+        actorId: sale.actorId,
+        movements: movements.map((movement) => ({ ...movement, kind: "sale_void" })),
+      },
+    );
+    switch (outcome.kind) {
+      case "applied":
+        return { kind: "applied" };
+      case "not_found":
+        return { kind: "refused", reason: `product ${outcome.productId} is not in the catalog` };
+      case "invalid_quantity":
+        return {
+          kind: "refused",
+          reason: `a voided sale returned a quantity of product ${outcome.productId} it can't be sold in`,
         };
     }
   }

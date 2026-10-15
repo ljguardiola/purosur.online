@@ -367,6 +367,24 @@ const saleCancelledV6Schema = saleCancelledV5Schema.extend({
   refunds: z.array(saleRefundWithQrSchema).min(1),
 });
 
+const returnedStockMovementSchema = z.object({
+  id: text,
+  sale_line_id: text,
+  product_id: text,
+  delta: z.int().refine(mayBeMovementQuantity),
+});
+
+const saleVoidedV1Schema = z.object({
+  ...saleCompletedFields,
+  lines: z.array(discountedSaleLineSchema),
+  authorized_by: text.nullable(),
+  sale_discount: saleDiscountSchema.nullable(),
+  payments: z.array(paymentWithStandaloneTerminalSchema).min(1),
+  refunds: z.array(saleRefundWithStandaloneTerminalSchema).min(1),
+  stock_movements: z.array(returnedStockMovementSchema),
+  deferred_record_cancelled: z.boolean(),
+});
+
 const cashSessionOpenedSchema = z.object({
   opened_by: text,
   opened_at: instant,
@@ -461,6 +479,7 @@ const PAYLOAD_SCHEMAS = {
   "sale_cancelled@4": saleCancelledV4Schema,
   "sale_cancelled@5": saleCancelledV5Schema,
   "sale_cancelled@6": saleCancelledV6Schema,
+  "sale_voided@1": saleVoidedV1Schema,
   "cash_session_opened@1": cashSessionOpenedSchema,
   "cash_session_closed@1": cashSessionClosedSchema,
   "cash_movement_recorded@1": cashMovementRecordedSchema,

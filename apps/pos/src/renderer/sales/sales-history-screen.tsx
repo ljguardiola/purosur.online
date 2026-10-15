@@ -5,10 +5,11 @@ import type {
   SaleHistoryDetailOutcome,
   SalesHistoryOutcome,
   SignInUser,
+  VoidSaleOutcome,
 } from "@purosur/contracts";
 import type { AuthorizablePermissionKey } from "@purosur/domain";
 import { EmptyState, FloatingNotification, ScreenHeader } from "@purosur/ui";
-import { Lock, Printer, TriangleAlert } from "lucide-react";
+import { CircleX, Lock, Printer, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 import type { SalesHistoryQuery } from "../platform/core-client";
 import { ReprintReceiptModal } from "../shell/reprint-receipt-modal";
@@ -21,6 +22,7 @@ import { SalesHistoryRail } from "./sales-history-rail";
 import type { SessionFilter, StateFilter } from "./sales-history-table";
 import { SalesHistoryTable } from "./sales-history-table";
 import { useRefreshSalesHistory, useSalesHistoryQuery } from "./sales-queries";
+import { VoidSaleModal } from "./void-sale-modal";
 
 export type SalesHistoryScreenProps = {
   person: SignedInPerson;
@@ -34,6 +36,11 @@ export type SalesHistoryScreenProps = {
     reason: string,
     authorization: Authorization | undefined,
   ) => Promise<ReprintSaleReceiptOutcome>;
+  voidSale: (
+    saleId: string,
+    pendingRefundsConfirmed: boolean,
+    authorization: Authorization | undefined,
+  ) => Promise<VoidSaleOutcome>;
   loadAuthorizers: (permission: AuthorizablePermissionKey) => Promise<SignInUser[]>;
   onSessionInvalid: () => void;
 };
@@ -48,6 +55,7 @@ export function SalesHistoryScreen({
   salesHistory,
   saleHistoryDetail,
   reprintSaleReceipt,
+  voidSale,
   loadAuthorizers,
   onSessionInvalid,
 }: SalesHistoryScreenProps) {
@@ -58,6 +66,8 @@ export function SalesHistoryScreen({
   });
   const [selectedSaleId, setSelectedSaleId] = useState<string>();
   const [reprinting, setReprinting] = useState<SaleDetail>();
+  const [voiding, setVoiding] = useState<SaleDetail>();
+  const [voided, setVoided] = useState(false);
   const [sent, setSent] = useState<ReceiptCopyShown>();
   const history = useSalesHistoryQuery({ ...choice, read: salesHistory });
   const refreshHistory = useRefreshSalesHistory();
@@ -110,6 +120,7 @@ export function SalesHistoryScreen({
         saleId={selectedSaleId}
         readDetail={saleHistoryDetail}
         onReprint={setReprinting}
+        onVoid={setVoiding}
       />
       {reprinting === undefined ? null : (
         <ReprintReceiptModal
@@ -131,6 +142,38 @@ export function SalesHistoryScreen({
           onClose={() => setReprinting(undefined)}
         />
       )}
+      {voiding === undefined || voiding.voidability.kind !== "voidable" ? null : (
+        <VoidSaleModal
+          sale={voiding}
+          refunds={voiding.voidability.refunds}
+          authorizationRequired={voiding.void_authorization_required}
+          person={person}
+          loadAuthorizers={loadAuthorizers}
+          voidSale={voidSale}
+          onVoided={() => {
+            setVoiding(undefined);
+            setVoided(true);
+            void refreshHistory();
+          }}
+          onRefused={() => void refreshHistory()}
+          onSaleGone={() => {
+            setVoiding(undefined);
+            setSelectedSaleId(undefined);
+            void refreshHistory();
+          }}
+          onSessionInvalid={onSessionInvalid}
+          onClose={() => setVoiding(undefined)}
+        />
+      )}
+      {voided ? (
+        <FloatingNotification
+          tone="success"
+          icon={<CircleX />}
+          title="Venta anulada"
+          description="La mercadería volvió al stock."
+          onDismiss={() => setVoided(false)}
+        />
+      ) : null}
       {sent === undefined ? null : (
         <FloatingNotification
           tone="success"

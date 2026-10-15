@@ -14,6 +14,7 @@ import {
   type FiscalDocumentState,
   invoiceDateOf,
   isCompletionEventOfSale,
+  isFiscalOutcomeUnresolved,
   mayStartAuthorizationCall,
   medianRoundTripMs,
   NUMBER_CONSUMING_STATES,
@@ -668,6 +669,19 @@ describe("SERIES_WAITING_STATES", () => {
   it("keeps a point of sale's series waiting while a document waits on its answer or on an unclear outcome", () => {
     expect(SERIES_WAITING_STATES).toEqual(["REQUESTING", "UNKNOWN"]);
   });
+});
+
+describe("isFiscalOutcomeUnresolved", () => {
+  it.each(["REQUESTING", "UNKNOWN"] as const)("holds a %s document unresolved", (state) => {
+    expect(isFiscalOutcomeUnresolved(state)).toBe(true);
+  });
+
+  it.each(["AUTHORIZED", "REJECTED", "RELEASED", "CONFLICTING"] as const)(
+    "holds a %s document resolved",
+    (state) => {
+      expect(isFiscalOutcomeUnresolved(state)).toBe(false);
+    },
+  );
 });
 
 describe("FiscalDocumentState", () => {

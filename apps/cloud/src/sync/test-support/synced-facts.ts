@@ -154,6 +154,57 @@ export function aStandaloneTerminalCancelledSale(
   };
 }
 
+export type VoidedSale = FactOf<"sale_voided">["sale"];
+
+const VOIDED_AT = new Date("2026-10-06T11:40:00.000Z");
+
+export function aVoidedSaleOf(
+  completed: CompletedSale,
+  overrides: Partial<VoidedSale> = {},
+): VoidedSale {
+  const voidedAt = overrides.voidedAt ?? VOIDED_AT;
+  const refunds = completed.payments.map((payment) => ({
+    id: randomUUID(),
+    paymentId: payment.id,
+    method: payment.method,
+    provider: payment.provider,
+    amount: payment.amount,
+    state: payment.method === "CASH" ? ("APPROVED" as const) : ("PENDING" as const),
+    occurredAt: voidedAt,
+  }));
+  const cashRefund = refunds.find((refund) => refund.method === "CASH");
+  return {
+    id: completed.id,
+    sessionId: completed.sessionId,
+    actorId: completed.actorId,
+    authorizedBy: "4a7c1e9d-3b62-4f05-8d1a-6e2b9c5f3a13",
+    voidedAt,
+    total: completed.total,
+    saleDiscount: completed.saleDiscount,
+    saleDiscountAmount: completed.saleDiscountAmount,
+    lines: completed.lines,
+    payments: completed.payments,
+    refunds,
+    cashMovements: [
+      ...completed.cashMovements,
+      ...(cashRefund
+        ? [
+            {
+              id: randomUUID(),
+              type: "REFUND" as const,
+              amount: cashRefund.amount,
+              actorId: completed.actorId,
+              occurredAt: voidedAt,
+            },
+          ]
+        : []),
+    ],
+    stockMovements: [],
+    deferredRecordCancelled: false,
+    ...overrides,
+  };
+}
+
 export function aCashSessionOpenedFact(
   overrides: Partial<FactOf<"cash_session_opened">["session"]> = {},
 ): SyncedFact {

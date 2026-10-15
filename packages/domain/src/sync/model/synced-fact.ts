@@ -15,6 +15,7 @@ import {
   type SalePrintState,
   type SaleReprint,
   stockMovementsMatchLines,
+  type VoidedSale,
 } from "../../sales/index.js";
 import type { OpeningCountRecordedFact, OpeningCountWithdrawnFact } from "../../stock/index.js";
 import type { InvariantBreak } from "./event-invariant-breaks.js";
@@ -22,6 +23,7 @@ import type { InvariantBreak } from "./event-invariant-breaks.js";
 export type SyncedFact =
   | { kind: "sale_completed"; sale: CompletedSale }
   | { kind: "sale_cancelled"; sale: CancelledSale }
+  | { kind: "sale_voided"; sale: VoidedSale }
   | { kind: "sale_print_state_changed"; printState: SalePrintState }
   | { kind: "reprint_recorded"; reprint: SaleReprint }
   | { kind: "cash_session_opened"; session: CashSessionOpenedFact }
@@ -46,7 +48,11 @@ export interface AggregateKey {
 }
 
 export function dependenciesOf(fact: SyncedFact): AggregateKey[] {
-  if (fact.kind === "sale_completed" || fact.kind === "sale_cancelled") {
+  if (
+    fact.kind === "sale_completed" ||
+    fact.kind === "sale_cancelled" ||
+    fact.kind === "sale_voided"
+  ) {
     return [{ aggregateType: "CashSession", aggregateId: fact.sale.sessionId }];
   }
   if (fact.kind === "opening_count_withdrawn") {
@@ -65,7 +71,22 @@ export function invariantBreaksOf(fact: SyncedFact): InvariantBreak[] {
   ) {
     return ["refunds_do_not_match_payments"];
   }
+  if (fact.kind === "sale_voided") {
+    return voidedSaleBreaks(fact.sale);
+  }
   return [];
+}
+
+function voidedSaleBreaks(sale: VoidedSale): InvariantBreak[] {
+  const breaks: InvariantBreak[] = [];
+  if (!refundsSettleApprovedPayments(sale.payments, sale.refunds)) {
+    breaks.push("refunds_do_not_match_payments");
+  }
+  const sold = sale.stockMovements.map((movement) => ({ ...movement, delta: -movement.delta }));
+  if (!stockMovementsMatchLines(sale.lines, sold)) {
+    breaks.push("stock_movements_do_not_match_lines");
+  }
+  return breaks;
 }
 
 function completedSaleBreaks(sale: CompletedSale): InvariantBreak[] {

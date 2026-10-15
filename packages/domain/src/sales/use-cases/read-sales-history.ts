@@ -46,10 +46,10 @@ export function readSalesHistory(
     session === "open" ? history.salesOfOpenSession(filter) : history.salesOfRegister(filter);
   return {
     rows: found.entries.map(
-      ({ fiscal, ...entry }): SalesHistoryRow => ({
+      ({ fiscal, voided, ...entry }): SalesHistoryRow => ({
         ...entry,
         comprobante: saleComprobanteOf(fiscal),
-        standing: saleStandingOf(fiscal),
+        standing: saleStandingOf({ ...fiscal, voided }),
       }),
     ),
     total: found.total,

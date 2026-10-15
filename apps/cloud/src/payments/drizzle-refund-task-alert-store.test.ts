@@ -5,6 +5,7 @@ import { buildTestDatabase, type TestDatabase } from "../test-support/build-test
 import { DrizzleRefundTaskAlertStore } from "./drizzle-refund-task-alert-store.js";
 import { aPendingRefundOfCancelledSale } from "./test-support/cancelled-sale-refund-fixtures.js";
 import { aPendingLatePaymentRefund } from "./test-support/late-payment-refund-fixtures.js";
+import { aPendingRefundOfVoidedSale } from "./test-support/voided-sale-refund-fixtures.js";
 
 const CANCELLED_AT = new Date("2026-10-07T15:00:00.000Z");
 const HOUR_MS = 60 * 60 * 1000;
@@ -40,6 +41,21 @@ describe("DrizzleRefundTaskAlertStore", () => {
         locationId: refund.locationId,
         method: "TRANSFER",
         amount: refund.amount,
+        openedAt: CANCELLED_AT,
+      },
+    ]);
+  });
+
+  it("locks the pending refund of a voided sale just like a cancelled one's", async () => {
+    const refund = await aPendingRefundOfVoidedSale(db, { voidedAt: CANCELLED_AT });
+
+    expect(await lockRefunds()).toEqual([
+      {
+        refundId: refund.refundId,
+        saleId: refund.saleId,
+        locationId: refund.locationId,
+        method: "TRANSFER",
+        amount: 2_000,
         openedAt: CANCELLED_AT,
       },
     ]);

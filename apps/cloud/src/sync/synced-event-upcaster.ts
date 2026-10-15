@@ -30,6 +30,8 @@ type CancelledSalePayload = SyncedEventPayloads[
   | "sale_cancelled@5"
   | "sale_cancelled@6"];
 
+type VoidedSalePayload = SyncedEventPayloads["sale_voided@1"];
+
 type ManualAdjustmentPayload = NonNullable<
   SyncedEventPayloads["sale_completed@7"]["lines"][number]["manual_adjustment"]
 >;
@@ -58,7 +60,7 @@ function saleDiscount(discount: SaleDiscountPayload): SaleDiscount {
     : { kind: "AMOUNT", amount: discount.value, reason, authorizedBy };
 }
 
-function saleParts(payload: CompletedSalePayload | CancelledSalePayload) {
+function saleParts(payload: CompletedSalePayload | CancelledSalePayload | VoidedSalePayload) {
   const discount = "sale_discount" in payload ? payload.sale_discount : null;
   return {
     saleDiscount: discount === null ? null : saleDiscount(discount),
@@ -102,6 +104,18 @@ function salePayments(payments: readonly SalePayment[]) {
   }));
 }
 
+function saleRefunds(refunds: CancelledSalePayload["refunds"] | VoidedSalePayload["refunds"]) {
+  return refunds.map((refund) => ({
+    id: refund.id,
+    paymentId: refund.parent_id,
+    method: refund.method,
+    provider: refund.provider,
+    amount: refund.amount,
+    state: refund.state,
+    occurredAt: new Date(refund.occurred_at),
+  }));
+}
+
 function cancelledSale(payload: CancelledSalePayload): SyncedFact {
   return {
     kind: "sale_cancelled",
@@ -114,15 +128,31 @@ function cancelledSale(payload: CancelledSalePayload): SyncedFact {
       total: payload.total,
       ...saleParts(payload),
       payments: salePayments(payload.payments),
-      refunds: payload.refunds.map((refund) => ({
-        id: refund.id,
-        paymentId: refund.parent_id,
-        method: refund.method,
-        provider: refund.provider,
-        amount: refund.amount,
-        state: refund.state,
-        occurredAt: new Date(refund.occurred_at),
+      refunds: saleRefunds(payload.refunds),
+    },
+  };
+}
+
+function voidedSale(payload: VoidedSalePayload): SyncedFact {
+  return {
+    kind: "sale_voided",
+    sale: {
+      id: payload.id,
+      sessionId: payload.session_id,
+      actorId: payload.actor_id,
+      authorizedBy: payload.authorized_by,
+      voidedAt: new Date(payload.occurred_at),
+      total: payload.total,
+      ...saleParts(payload),
+      payments: salePayments(payload.payments),
+      refunds: saleRefunds(payload.refunds),
+      stockMovements: payload.stock_movements.map((movement) => ({
+        id: movement.id,
+        saleLineId: movement.sale_line_id,
+        productId: movement.product_id,
+        delta: movement.delta,
       })),
+      deferredRecordCancelled: payload.deferred_record_cancelled,
     },
   };
 }
@@ -240,6 +270,7 @@ const FACT_OF: {
   "sale_cancelled@4": cancelledSale,
   "sale_cancelled@5": cancelledSale,
   "sale_cancelled@6": cancelledSale,
+  "sale_voided@1": voidedSale,
   "cash_session_opened@1": (payload, event) => ({
     kind: "cash_session_opened",
     session: {

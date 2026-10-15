@@ -20,7 +20,6 @@ import type {
   RegisterIdentity,
   SaleLedger,
   SaleLedgerTransaction,
-  SaleRefund,
   SellingSession,
 } from "@purosur/domain/sales/use-cases";
 import {
@@ -32,6 +31,7 @@ import { decideSaleAuthorizationIn } from "../fiscal/sqlite-sale-authorization";
 import { SqliteLocalPaidOrders } from "../payments/sqlite-local-paid-orders";
 import {
   approvePendingMercadoPagoPayment,
+  insertPaymentRefund,
   insertPendingMercadoPagoPayment,
   markQrPaymentReplaced,
   readPendingMercadoPagoPayment,
@@ -149,7 +149,7 @@ export class SqliteSaleLedger implements SaleLedger {
         this.recordCompletedSale(saleId, occurredAt, operationNumber),
       recordCancelledSale: (saleId, occurredAt, authorizedBy) =>
         this.recordCancelledSale(saleId, occurredAt, authorizedBy),
-      recordRefund: (refund) => this.recordRefund(refund),
+      recordRefund: (refund) => insertPaymentRefund(this.database, refund),
       outboxReady: () => this.outboxChainKey !== undefined,
       appendOutboxEvent: (draft) => this.appendOutboxEvent(draft),
       issuerIdentificationInEffect: () => readIssuerIdentificationInEffect(this.database),
@@ -468,23 +468,6 @@ export class SqliteSaleLedger implements SaleLedger {
     if (changes !== 1) {
       throw new Error("the sale is not in progress");
     }
-  }
-
-  private recordRefund(refund: SaleRefund): void {
-    this.database
-      .prepare(
-        `INSERT INTO payment_refunds (id, payment_id, method, provider, amount, state, occurred_at)
-         VALUES (@id, @payment_id, @method, @provider, @amount, @state, @occurred_at)`,
-      )
-      .run({
-        id: refund.id,
-        payment_id: refund.paymentId,
-        method: refund.method,
-        provider: refund.provider,
-        amount: refund.amount,
-        state: refund.state,
-        occurred_at: refund.occurredAt.toISOString(),
-      });
   }
 
   private appendOutboxEvent(draft: OutboxEventDraft): void {

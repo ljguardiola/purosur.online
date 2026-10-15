@@ -18,7 +18,12 @@ export type RefundState = (typeof REFUND_STATES)[number];
 
 export const SALE_CANCELLED_REFUND_ORIGIN = "sale_cancelled";
 export const LATE_PAYMENT_REFUND_ORIGIN = "late_payment";
-export const REFUND_ORIGINS = [SALE_CANCELLED_REFUND_ORIGIN, LATE_PAYMENT_REFUND_ORIGIN] as const;
+export const SALE_VOIDED_REFUND_ORIGIN = "sale_voided";
+export const REFUND_ORIGINS = [
+  SALE_CANCELLED_REFUND_ORIGIN,
+  LATE_PAYMENT_REFUND_ORIGIN,
+  SALE_VOIDED_REFUND_ORIGIN,
+] as const;
 export type RefundOrigin = (typeof REFUND_ORIGINS)[number];
 
 export type PlannedRefundState = (typeof PLANNED_REFUND_STATES)[number];
@@ -31,6 +36,10 @@ export interface PlannedRefund {
   state: PlannedRefundState;
 }
 
+export function plannedRefundState(method: PaymentMethod): PlannedRefundState {
+  return method === "CASH" ? REFUND_DONE_STATE : REFUND_PENDING_STATE;
+}
+
 export function plannedRefunds(payments: readonly RefundablePayment[]): PlannedRefund[] {
   return payments
     .filter((payment) => payment.state === "APPROVED")
@@ -39,7 +48,7 @@ export function plannedRefunds(payments: readonly RefundablePayment[]): PlannedR
       method: payment.method,
       provider: payment.provider,
       amount: payment.amount,
-      state: payment.method === "CASH" ? REFUND_DONE_STATE : REFUND_PENDING_STATE,
+      state: plannedRefundState(payment.method),
     }));
 }
 

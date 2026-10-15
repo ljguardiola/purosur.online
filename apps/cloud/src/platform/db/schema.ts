@@ -550,15 +550,15 @@ export const stockMovements = pgTable(
   (table) => [
     check(
       "stock_movements_kind_check",
-      sql`${table.kind} in ('loss', 'adjustment', 'count', 'sale', 'receipt', 'opening_count', 'opening_count_withdrawal', 'assembly_out', 'assembly_in')`,
+      sql`${table.kind} in ('loss', 'adjustment', 'count', 'sale', 'sale_void', 'receipt', 'opening_count', 'opening_count_withdrawal', 'assembly_out', 'assembly_in')`,
     ),
     check(
       "stock_movements_reason_unless_count_sale_or_receipt_check",
-      sql`(${table.kind} in ('count', 'sale', 'receipt', 'opening_count', 'opening_count_withdrawal', 'assembly_out', 'assembly_in')) = (${table.reason} is null)`,
+      sql`(${table.kind} in ('count', 'sale', 'sale_void', 'receipt', 'opening_count', 'opening_count_withdrawal', 'assembly_out', 'assembly_in')) = (${table.reason} is null)`,
     ),
     check(
       "stock_movements_sale_line_iff_sale_check",
-      sql`(${table.kind} = 'sale') = (${table.saleLineId} is not null)`,
+      sql`(${table.kind} in ('sale', 'sale_void')) = (${table.saleLineId} is not null)`,
     ),
     check(
       "stock_movements_purchase_line_iff_receipt_check",
@@ -1390,6 +1390,8 @@ export const sales = pgTable(
     completedAt: timestamp("completed_at", { withTimezone: true }),
     cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
     cancellationAuthorizedBy: text("cancellation_authorized_by"),
+    voidedAt: timestamp("voided_at", { withTimezone: true }),
+    voidAuthorizedBy: text("void_authorized_by"),
     total: bigint("total", { mode: "number" }).notNull(),
     saleDiscountKind: text("sale_discount_kind"),
     saleDiscountValue: bigint("sale_discount_value", { mode: "number" }),
@@ -1407,7 +1409,7 @@ export const sales = pgTable(
       "sales_printed_only_after_attempted_check",
       sql`${table.printedAt} is null or ${table.printAttemptedAt} is not null`,
     ),
-    check("sales_state_check", sql`${table.state} in ('COMPLETED', 'CANCELLED')`),
+    check("sales_state_check", sql`${table.state} in ('COMPLETED', 'CANCELLED', 'VOIDED')`),
     check(
       "sales_sale_discount_kind_check",
       sql`${table.saleDiscountKind} IN ('PERCENT', 'AMOUNT')`,
@@ -1437,12 +1439,17 @@ export const sales = pgTable(
     ),
     check(
       "sales_state_matches_timestamps_check",
-      sql`(${table.state} = 'COMPLETED' and ${table.completedAt} is not null and ${table.cancelledAt} is null)
-      or (${table.state} = 'CANCELLED' and ${table.cancelledAt} is not null and ${table.completedAt} is null)`,
+      sql`(${table.state} = 'COMPLETED' and ${table.completedAt} is not null and ${table.cancelledAt} is null and ${table.voidedAt} is null)
+      or (${table.state} = 'CANCELLED' and ${table.cancelledAt} is not null and ${table.completedAt} is null and ${table.voidedAt} is null)
+      or (${table.state} = 'VOIDED' and ${table.completedAt} is not null and ${table.voidedAt} is not null and ${table.cancelledAt} is null)`,
     ),
     check(
       "sales_cancellation_authorizer_only_when_cancelled_check",
       sql`${table.cancellationAuthorizedBy} is null or ${table.state} = 'CANCELLED'`,
+    ),
+    check(
+      "sales_void_authorizer_only_when_voided_check",
+      sql`${table.voidAuthorizedBy} is null or ${table.state} = 'VOIDED'`,
     ),
   ],
 );
@@ -1592,11 +1599,11 @@ export const paymentRefunds = pgTable(
     ),
     check(
       "payment_refunds_origin_check",
-      sql`${table.origin} in ('sale_cancelled', 'late_payment')`,
+      sql`${table.origin} in ('sale_cancelled', 'late_payment', 'sale_voided')`,
     ),
     check(
       "payment_refunds_source_check",
-      sql`(${table.origin} = 'late_payment' and ${table.paymentId} is null and ${table.paymentTransactionId} is not null and ${table.originEventId} is null) or (${table.origin} = 'sale_cancelled' and ${table.paymentId} is not null)`,
+      sql`(${table.origin} = 'late_payment' and ${table.paymentId} is null and ${table.paymentTransactionId} is not null and ${table.originEventId} is null) or (${table.origin} in ('sale_cancelled', 'sale_voided') and ${table.paymentId} is not null)`,
     ),
     check(
       "payment_refunds_done_check",

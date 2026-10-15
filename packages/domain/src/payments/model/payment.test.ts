@@ -5,6 +5,7 @@ import {
   hasApprovedPayment,
   holdsApprovedPointPayment,
   isConfirmedByHand,
+  isMercadoPagoMethod,
   MERCADO_PAGO_PAYMENT_METHODS,
   MERCADO_PAGO_PROVIDERS,
   PAYMENT_METHODS,
@@ -188,5 +189,15 @@ describe("isConfirmedByHand", () => {
       expectTypeOf(payment.authorizedBy).toEqualTypeOf<string>();
       expectTypeOf(payment.confirmedAt).toEqualTypeOf<Date>();
     }
+  });
+});
+
+describe("isMercadoPagoMethod", () => {
+  it.each(["QR", "POINT"])("is true for %s", (method) => {
+    expect(isMercadoPagoMethod(method)).toBe(true);
+  });
+
+  it.each(["CASH", "TRANSFER", "STANDALONE_TERMINAL", "qr", ""])("is false for %j", (method) => {
+    expect(isMercadoPagoMethod(method)).toBe(false);
   });
 });

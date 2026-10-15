@@ -13,6 +13,7 @@ export type RegisterOperation =
   | { kind: "open_cash_session" }
   | { kind: "sell" }
   | { kind: "cancel_paid_sale" }
+  | { kind: "void_sale" }
   | { kind: "adjust_sale_line" }
   | { kind: "apply_sale_discount" }
   | { kind: "reprint_receipt" }
@@ -73,6 +74,7 @@ export function registerOperationAccess(
           ? PERMITTED
           : REFUSED;
     case "cancel_paid_sale":
+    case "void_sale":
       return actor.access === undefined
         ? NO_ACCESS
         : holdsPermission(actor.access, VOID_SALE_PERMISSION)
@@ -139,6 +141,7 @@ export function mayAuthorize(
 ): boolean {
   switch (operation.kind) {
     case "cancel_paid_sale":
+    case "void_sale":
       return holdsPermission(authorizer.access, VOID_SALE_PERMISSION);
     case "adjust_sale_line":
       return holdsPermission(authorizer.access, OVERRIDE_LINE_PERMISSION);

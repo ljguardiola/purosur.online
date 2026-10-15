@@ -286,6 +286,85 @@ describe("applyRegisterStockMovements", () => {
     expect(outcome).toEqual({ kind: "invalid_quantity", productId });
     expect(store.snapshot()).toEqual(before);
   });
+  describe("a voided sale's return", () => {
+    function returned(
+      delta: number,
+      productId = "product-bread",
+    ): ApplyRegisterStockMovementsInput["movements"] {
+      return [
+        {
+          id: "register-movement-9",
+          saleLineId: "sale-line-1",
+          productId,
+          kind: "sale_void",
+          delta,
+        },
+      ];
+    }
+
+    it("adds each returned quantity to its product's balance in the sale's branch only", async () => {
+      const store = storeWithProducts();
+
+      const outcome = await apply(store, sale(returned(3000)));
+
+      expect(outcome).toEqual({ kind: "applied" });
+      expect(store.balanceOf(BREAD)).toBe(13_000);
+      expect(store.balanceOf({ productId: "product-bread", locationId: "branch-2" })).toBe(8000);
+    });
+
+    it("records the movement as a void of the sale line, under the id the register gave it", async () => {
+      const store = storeWithProducts();
+
+      await apply(store, sale(returned(3000)));
+
+      expect(store.snapshot().movements).toEqual([
+        {
+          id: "register-movement-9",
+          ...BREAD,
+          saleLineId: "sale-line-1",
+          kind: "sale_void",
+          reason: null,
+          delta: 3000,
+          occurredAt: SOLD_AT,
+          actorId: "cashier-1",
+          supersededByCountId: null,
+        },
+      ]);
+    });
+
+    it("returns the quantity to the lot received most recently", async () => {
+      const store = storeWithProducts();
+      store.seedLot({ ...BREAD, id: "old", expiresOn: "2027-01-01", remaining: 1000 });
+      store.seedLot({
+        ...BREAD,
+        id: "new",
+        expiresOn: "2027-06-01",
+        remaining: 1000,
+        receivedAt: new Date("2026-09-01T12:00:00.000Z"),
+      });
+
+      await apply(store, sale(returned(3000)));
+
+      expect(store.snapshot().allocations).toEqual([
+        { movementId: "register-movement-9", lotId: "new", quantity: 3000 },
+      ]);
+    });
+
+    it.each([
+      ["part of a unit of a product sold by the unit", "product-bread", 1500],
+      ["a return that takes stock away", "product-cheese", -1250],
+      ["a return of nothing", "product-cheese", 0],
+    ])("refuses %s, writing nothing", async (_case, productId, delta) => {
+      const store = storeWithProducts();
+      const before = store.snapshot();
+
+      const outcome = await apply(store, sale(returned(delta, productId)));
+
+      expect(outcome).toEqual({ kind: "invalid_quantity", productId });
+      expect(store.snapshot()).toEqual(before);
+    });
+  });
+
   describe("lot allocation", () => {
     function breadSale(id: string, delta: number): ApplyRegisterStockMovementsInput["movements"] {
       return [{ id, saleLineId: `line-${id}`, productId: "product-bread", kind: "sale", delta }];

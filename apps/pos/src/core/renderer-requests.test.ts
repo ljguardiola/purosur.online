@@ -43,6 +43,7 @@ import type {
   SetReceiptPrinterOutcome,
   SignInLookupOutcome,
   SignInOutcome,
+  VoidSaleOutcome,
   WeighProductOutcome,
 } from "@purosur/contracts";
 import type { AuthorizablePermissionKey } from "@purosur/domain";
@@ -61,6 +62,7 @@ import type {
   PreviewSaleLineAdjustmentRequest,
 } from "./sales/sale-requests";
 import type { SalesHistoryRequest } from "./sales/sales-history-requests";
+import type { VoidSaleRequest } from "./sales/void-sale-requests";
 
 const NOTHING_PENDING = {
   sales_to_print: [],
@@ -256,6 +258,17 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
           ["cancel-paid", request.saleId, request.authorization?.user_id ?? "alone"].join(" "),
         );
         return { kind: "no_open_sale" };
+      },
+      voidSale: async (request: VoidSaleRequest): Promise<VoidSaleOutcome> => {
+        saleChanges.push(
+          [
+            "void",
+            request.saleId,
+            request.pendingRefundsConfirmed ? "confirmed" : "unconfirmed",
+            request.authorization?.user_id ?? "alone",
+          ].join(" "),
+        );
+        return { kind: "not_found" };
       },
       receiptPrintStatus: async (saleId: string): Promise<ReceiptPrintStatusOutcome> => {
         saleChanges.push(["receipt-status", saleId].join(" "));
@@ -2753,6 +2766,19 @@ describe("answerRendererRequest", () => {
         "cancelling a sale with approved payments",
         "cancel-paid s1 u2",
         "cancel-paid-sale-result",
+      ],
+      [
+        "void-sale",
+        {
+          type: "void-sale",
+          sale_id: "s1",
+          pending_refunds_confirmed: true,
+          authorization: { user_id: "u2", pin: "1234" },
+        } as const,
+        "voidSale",
+        "voiding a sale",
+        "void s1 confirmed u2",
+        "void-sale-result",
       ],
       [
         "receipt-print-status",

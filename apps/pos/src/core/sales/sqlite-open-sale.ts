@@ -11,6 +11,7 @@ import { type SaleDiscountColumns, toSaleDiscount } from "./sqlite-sale-discount
 
 interface SaleRow extends SaleDiscountColumns {
   id: string;
+  state: SaleWithLines["state"];
   register_id: string;
   device_id: string;
   session_id: string;
@@ -50,21 +51,29 @@ export function toBenefit(columns: BenefitColumns): DiscountBenefit {
     : { kind: "BUY_N_PAY_M", buyQty: columns.buy_qty as number, payQty: columns.pay_qty as number };
 }
 
+const SALE_COLUMNS = `id, state, register_id, device_id, session_id, actor_id,
+  sale_discount_kind, sale_discount_value, sale_discount_reason, sale_discount_authorized_by`;
+
 export function readOpenSale(
   database: LocalDatabase,
   sessionId: string,
 ): SaleWithLines | undefined {
   const sale = database
     .prepare<[string], SaleRow>(
-      `SELECT id, register_id, device_id, session_id, actor_id,
-              sale_discount_kind, sale_discount_value, sale_discount_reason,
-              sale_discount_authorized_by
-       FROM sales WHERE session_id = ? AND state = 'OPEN'`,
+      `SELECT ${SALE_COLUMNS} FROM sales WHERE session_id = ? AND state = 'OPEN'`,
     )
     .get(sessionId);
-  if (sale === undefined) {
-    return undefined;
-  }
+  return sale === undefined ? undefined : withLines(database, sale);
+}
+
+export function readSale(database: LocalDatabase, saleId: string): SaleWithLines | undefined {
+  const sale = database
+    .prepare<[string], SaleRow>(`SELECT ${SALE_COLUMNS} FROM sales WHERE id = ?`)
+    .get(saleId);
+  return sale === undefined ? undefined : withLines(database, sale);
+}
+
+function withLines(database: LocalDatabase, sale: SaleRow): SaleWithLines {
   const lines = database
     .prepare<[string], LineRow>(
       `SELECT id, product_id, product_name, sale_unit, weight_source, quantity, list_unit_price,
@@ -93,7 +102,7 @@ export function readOpenSale(
     deviceId: sale.device_id,
     sessionId: sale.session_id,
     actorId: sale.actor_id,
-    state: "OPEN",
+    state: sale.state,
     saleDiscount: toSaleDiscount(sale),
     lines: lines.map((line) =>
       toSaleLine(

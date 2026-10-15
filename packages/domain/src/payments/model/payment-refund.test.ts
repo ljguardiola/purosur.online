@@ -12,6 +12,7 @@ import {
   PLANNED_REFUND_STATES,
   type PlannedRefund,
   type PlannedRefundState,
+  plannedRefundState,
   plannedRefunds,
   REFUND_ORIGINS,
   REFUND_STATES,
@@ -19,6 +20,7 @@ import {
   refundAlertKind,
   refundsSettleApprovedPayments,
   SALE_CANCELLED_REFUND_ORIGIN,
+  SALE_VOIDED_REFUND_ORIGIN,
 } from "./payment-refund.js";
 
 const CASH = {
@@ -101,6 +103,19 @@ describe("plannedRefunds", () => {
       ),
     );
   });
+});
+
+describe("plannedRefundState", () => {
+  it("gives cash back on the spot", () => {
+    expect(plannedRefundState("CASH")).toBe("APPROVED");
+  });
+
+  it.each(["TRANSFER", "STANDALONE_TERMINAL", "QR", "POINT"] as const)(
+    "leaves a %s refund pending until a person carries it out",
+    (method) => {
+      expect(plannedRefundState(method)).toBe("PENDING");
+    },
+  );
 });
 
 describe("refundsSettleApprovedPayments", () => {
@@ -196,8 +211,9 @@ describe("PlannedRefundState", () => {
 
 describe("REFUND_ORIGINS", () => {
   it("tells a refund of a cancelled sale from one of a payment that arrived late", () => {
-    expect(REFUND_ORIGINS).toEqual(["sale_cancelled", "late_payment"]);
+    expect(REFUND_ORIGINS).toEqual(["sale_cancelled", "late_payment", "sale_voided"]);
     expect(SALE_CANCELLED_REFUND_ORIGIN).toBe("sale_cancelled");
+    expect(SALE_VOIDED_REFUND_ORIGIN).toBe("sale_voided");
     expect(LATE_PAYMENT_REFUND_ORIGIN).toBe("late_payment");
   });
 });
@@ -218,9 +234,12 @@ describe("isRefundDiscardable", () => {
     expect(isRefundDiscardable("late_payment")).toBe(true);
   });
 
-  it.each(["sale_cancelled", "", "other"])("is false for the origin %j", (origin) => {
-    expect(isRefundDiscardable(origin)).toBe(false);
-  });
+  it.each(["sale_cancelled", "sale_voided", "", "other"])(
+    "is false for the origin %j",
+    (origin) => {
+      expect(isRefundDiscardable(origin)).toBe(false);
+    },
+  );
 });
 
 describe("refundAlertKind", () => {
@@ -231,11 +250,15 @@ describe("refundAlertKind", () => {
   it("is the refund task alert for a cancelled sale", () => {
     expect(refundAlertKind(SALE_CANCELLED_REFUND_ORIGIN)).toBe("refund_task");
   });
+
+  it("is the refund task alert for a voided sale", () => {
+    expect(refundAlertKind(SALE_VOIDED_REFUND_ORIGIN)).toBe("refund_task");
+  });
 });
 
 describe("REFUND_TASK_ORIGINS", () => {
   it("lists every origin whose refund gets the refund task alert, leaving out a payment that arrived late", () => {
-    expect(REFUND_TASK_ORIGINS).toEqual([SALE_CANCELLED_REFUND_ORIGIN]);
+    expect(REFUND_TASK_ORIGINS).toEqual([SALE_CANCELLED_REFUND_ORIGIN, SALE_VOIDED_REFUND_ORIGIN]);
   });
 });
 
@@ -306,6 +329,15 @@ describe("methodsCoveringRefundedSale", () => {
 
   it("names none while the late payment's sale has no payment", () => {
     expect(methodsCoveringRefundedSale(LATE_PAYMENT_REFUND_ORIGIN, [])).toEqual([]);
+  });
+
+  it("names none for the refund of a voided sale, whatever paid it", () => {
+    expect(
+      methodsCoveringRefundedSale(SALE_VOIDED_REFUND_ORIGIN, [
+        { method: "CASH", state: "APPROVED" },
+        { method: "TRANSFER", state: "APPROVED" },
+      ]),
+    ).toEqual([]);
   });
 
   it("names none for the refund of a cancelled sale, whatever paid it", () => {

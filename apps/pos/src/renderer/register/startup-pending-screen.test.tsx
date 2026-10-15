@@ -511,15 +511,18 @@ describe("StartupPendingScreen", () => {
         .not.toBeInTheDocument();
     });
 
-    it("reads the items again when the core no longer finds the sale", async () => {
-      const { screen, loadStartupPending } = await renderScreen({
-        printOriginalReceipt: async () => ({ kind: "not_found" }),
-      });
+    it.each(["not_found", "sale_voided"] as const)(
+      "reads the items again when the core answers %s",
+      async (kind) => {
+        const { screen, loadStartupPending } = await renderScreen({
+          printOriginalReceipt: async () => ({ kind }),
+        });
 
-      await userEvent.click(screen.getByRole("button", { name: /^Imprimir el ticket/ }));
+        await userEvent.click(screen.getByRole("button", { name: /^Imprimir el ticket/ }));
 
-      await expect.poll(() => loadStartupPending.mock.calls.length).toBe(2);
-    });
+        await expect.poll(() => loadStartupPending.mock.calls.length).toBe(2);
+      },
+    );
 
     it.each([
       [

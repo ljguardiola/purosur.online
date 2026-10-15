@@ -133,6 +133,24 @@ export function aCancelledSaleFact(overrides: Partial<SaleCancelled["sale"]> = {
   };
 }
 
+type SaleVoided = Extract<SyncedFact, { kind: "sale_voided" }>;
+
+export function aVoidedSaleFact(overrides: Partial<SaleVoided["sale"]> = {}): SaleVoided {
+  const { cancelledAt, ...cancelled } = aCancelledSaleFact().sale;
+  return {
+    kind: "sale_voided",
+    sale: {
+      ...cancelled,
+      voidedAt: cancelledAt,
+      stockMovements: [
+        { id: "movement-3", saleLineId: "line-1", productId: "product-1", delta: 2000 },
+      ],
+      deferredRecordCancelled: false,
+      ...overrides,
+    },
+  };
+}
+
 export const A_SESSION_OPENED_FACT: SyncedFact = {
   kind: "cash_session_opened",
   session: {
