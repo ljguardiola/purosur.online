@@ -90,6 +90,7 @@ export interface SellingRequestDeps extends SaleRequestDeps {
   paidOrderDiscovery: () => PaidOrderDiscoveryState;
   newSalesStoppedByDisk: () => boolean;
   localDatabaseDamaged: () => boolean;
+  newSalesStoppedByBattery: () => boolean;
 }
 
 export interface OutboxSaleRequestDeps extends SaleRequestDeps {
@@ -120,6 +121,7 @@ function sellingLedger(
   paidOrderDiscovery: () => PaidOrderDiscoveryState,
   newSalesStoppedByDisk: () => boolean,
   localDatabaseDamaged: () => boolean,
+  newSalesStoppedByBattery: () => boolean,
 ): SqliteSaleLedger {
   return new SqliteSaleLedger(
     database,
@@ -128,6 +130,7 @@ function sellingLedger(
     paidOrderDiscovery,
     newSalesStoppedByDisk,
     localDatabaseDamaged,
+    newSalesStoppedByBattery,
   );
 }
 
@@ -278,6 +281,7 @@ export async function scanProductFor(
     paidOrderDiscovery,
     newSalesStoppedByDisk,
     localDatabaseDamaged,
+    newSalesStoppedByBattery,
   }: SellingRequestDeps,
   code: string,
 ): Promise<ScanProductOutcome> {
@@ -289,6 +293,7 @@ export async function scanProductFor(
           paidOrderDiscovery,
           newSalesStoppedByDisk,
           localDatabaseDamaged,
+          newSalesStoppedByBattery,
         ),
         clock: { now },
         ids,
@@ -320,6 +325,7 @@ export async function addSearchedProductFor(
     paidOrderDiscovery,
     newSalesStoppedByDisk,
     localDatabaseDamaged,
+    newSalesStoppedByBattery,
   }: SellingRequestDeps,
   productId: string,
 ): Promise<AddProductOutcome> {
@@ -331,6 +337,7 @@ export async function addSearchedProductFor(
           paidOrderDiscovery,
           newSalesStoppedByDisk,
           localDatabaseDamaged,
+          newSalesStoppedByBattery,
         ),
         clock: { now },
         ids,
@@ -417,6 +424,7 @@ export async function addWeighedProductFor(
     paidOrderDiscovery,
     newSalesStoppedByDisk,
     localDatabaseDamaged,
+    newSalesStoppedByBattery,
   }: SellingRequestDeps,
   productId: string,
   weightThousandths: number,
@@ -429,6 +437,7 @@ export async function addWeighedProductFor(
           paidOrderDiscovery,
           newSalesStoppedByDisk,
           localDatabaseDamaged,
+          newSalesStoppedByBattery,
         ),
         clock: { now },
         ids,
@@ -464,6 +473,7 @@ export async function weighProductFor(
     paidOrderDiscovery,
     newSalesStoppedByDisk,
     localDatabaseDamaged,
+    newSalesStoppedByBattery,
     scale,
   }: SellingRequestDeps & { scale: Scale },
   productId: string,
@@ -476,6 +486,7 @@ export async function weighProductFor(
           paidOrderDiscovery,
           newSalesStoppedByDisk,
           localDatabaseDamaged,
+          newSalesStoppedByBattery,
         ),
         clock: { now },
         ids,
