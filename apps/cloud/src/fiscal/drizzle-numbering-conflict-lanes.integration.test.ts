@@ -33,6 +33,7 @@ let db: PostgresJsDatabase<Record<string, never>>;
 let registerId: string;
 const reconciliationRequests: number[] = [];
 let settled = 0;
+let frozenRequests = 0;
 
 beforeAll(async () => {
   integrationDb = await createIntegrationDatabase("numbering_conflict_lanes");
@@ -84,6 +85,38 @@ async function recordRequest(
   return request.fiscalDocumentId;
 }
 
+const UNCLEAR_NUMBERING_CONFLICT: Partial<typeof fiscalRequests.$inferInsert> = {
+  answerKind: "unclear",
+  unclearCodes: [10016],
+  answeredAt: FROZEN_AT,
+};
+
+async function freeze(pointOfSale: number, countBeforeFreeze: number, numberingLanes = lanes()) {
+  frozenRequests += 1;
+  const fiscalDocumentId = await recordRequest(
+    pointOfSale,
+    900 + frozenRequests,
+    UNCLEAR_NUMBERING_CONFLICT,
+  );
+  await numberingLanes.inPointOfSaleLane(pointOfSale, (lane) =>
+    lane.recordNumberingDiagnosis({
+      fiscalDocumentId,
+      diagnosis: { kind: "collision" },
+      diagnosedAt: NOW,
+      freeze: { countBeforeFreeze, frozenAt: FROZEN_AT },
+    }),
+  );
+  return fiscalDocumentId;
+}
+
+async function diagnosisRowOf(fiscalDocumentId: string) {
+  const [row] = await db
+    .select({ diagnosis: fiscalRequests.diagnosis, diagnosedAt: fiscalRequests.diagnosedAt })
+    .from(fiscalRequests)
+    .where(eq(fiscalRequests.fiscalDocumentId, fiscalDocumentId));
+  return row;
+}
+
 describe("the numbering conflict lane on a real Postgres", () => {
   it("reads an unclear request with the codes it carried and no diagnosis yet", async () => {
     const fiscalDocumentId = await recordRequest(7, 500, {
@@ -110,35 +143,37 @@ describe("the numbering conflict lane on a real Postgres", () => {
   });
 
   it("keeps the diagnosis of a request, with the time it was made", async () => {
-    const fiscalDocumentId = await recordRequest(7, 501, {
-      answerKind: "unclear",
-      unclearCodes: [10016],
-      answeredAt: FROZEN_AT,
-    });
+    const fiscalDocumentId = await recordRequest(7, 501, UNCLEAR_NUMBERING_CONFLICT);
 
     await inLane(7, (lane) =>
-      lane.recordNumberingDiagnosis(fiscalDocumentId, { kind: "collision" }, NOW),
+      lane.recordNumberingDiagnosis({
+        fiscalDocumentId,
+        diagnosis: { kind: "collision" },
+        diagnosedAt: NOW,
+        freeze: null,
+      }),
     );
 
     expect(
       (await inLane(7, (lane) => lane.numberingConflictRequest(fiscalDocumentId)))?.diagnosis,
     ).toEqual({ kind: "collision" });
-    const [row] = await db
-      .select({ diagnosis: fiscalRequests.diagnosis, diagnosedAt: fiscalRequests.diagnosedAt })
-      .from(fiscalRequests)
-      .where(eq(fiscalRequests.fiscalDocumentId, fiscalDocumentId));
-    expect(row).toEqual({ diagnosis: "collision", diagnosedAt: NOW });
+    expect(await diagnosisRowOf(fiscalDocumentId)).toEqual({
+      diagnosis: "collision",
+      diagnosedAt: NOW,
+    });
+    expect(await inLane(7, (lane) => lane.numberingFreeze())).toBeNull();
   });
 
   it("keeps a date-behind diagnosis apart from a collision", async () => {
-    const fiscalDocumentId = await recordRequest(7, 502, {
-      answerKind: "unclear",
-      unclearCodes: [10016],
-      answeredAt: FROZEN_AT,
-    });
+    const fiscalDocumentId = await recordRequest(7, 502, UNCLEAR_NUMBERING_CONFLICT);
 
     await inLane(7, (lane) =>
-      lane.recordNumberingDiagnosis(fiscalDocumentId, { kind: "date_behind" }, NOW),
+      lane.recordNumberingDiagnosis({
+        fiscalDocumentId,
+        diagnosis: { kind: "date_behind" },
+        diagnosedAt: NOW,
+        freeze: null,
+      }),
     );
 
     expect(
@@ -247,9 +282,7 @@ describe("the numbering conflict lane on a real Postgres", () => {
     });
 
     it("holds the count and the time the freeze was taken at, and only for its point of sale", async () => {
-      await inLane(7, (lane) =>
-        lane.freezeNumbering({ countBeforeFreeze: 12, frozenAt: FROZEN_AT }),
-      );
+      await freeze(7, 12);
 
       expect(await inLane(7, (lane) => lane.numberingFreeze())).toEqual({
         countBeforeFreeze: 12,
@@ -260,12 +293,8 @@ describe("the numbering conflict lane on a real Postgres", () => {
     });
 
     it("lifts the freeze when the reconciliation is settled, and only that one", async () => {
-      await inLane(8, (lane) =>
-        lane.freezeNumbering({ countBeforeFreeze: 3, frozenAt: FROZEN_AT }),
-      );
-      await inLane(7, (lane) =>
-        lane.freezeNumbering({ countBeforeFreeze: 3, frozenAt: FROZEN_AT }),
-      );
+      await freeze(8, 3);
+      await freeze(7, 3);
 
       await settle(7, { externalBillings: [], lastAuthorized: 3 });
 
@@ -277,9 +306,7 @@ describe("the numbering conflict lane on a real Postgres", () => {
     it("logs the register's point of sale as changed when the freeze is taken and, once for the count and the lifted freeze together, when it is settled", async () => {
       const last = await lastLoggedChangeSeq(db);
 
-      await inLane(7, (lane) =>
-        lane.freezeNumbering({ countBeforeFreeze: 12, frozenAt: FROZEN_AT }),
-      );
+      await freeze(7, 12);
       await settle(7, { externalBillings: [], lastAuthorized: 30 });
 
       expect(
@@ -294,16 +321,20 @@ describe("the numbering conflict lane on a real Postgres", () => {
       ]);
     });
 
-    it("asks for the reconciliation of its point of sale", async () => {
+    it("records the collision and asks for the reconciliation of its point of sale with the freeze", async () => {
       reconciliationRequests.length = 0;
 
-      await inLane(7, (lane) => lane.requestNumberingReconciliation());
+      const fiscalDocumentId = await freeze(7, 12);
 
       expect(reconciliationRequests).toEqual([7]);
+      expect(await diagnosisRowOf(fiscalDocumentId)).toEqual({
+        diagnosis: "collision",
+        diagnosedAt: NOW,
+      });
+      await settle(7, { externalBillings: [], lastAuthorized: 0 });
     });
 
-    it("asks for no reconciliation when the transaction that asks for it rolls back", async () => {
-      reconciliationRequests.length = 0;
+    it("leaves neither the diagnosis nor the freeze behind when asking for the reconciliation fails", async () => {
       const failing = new DrizzleNumberingConflictLanes(
         postgresDedicatedConnections(sql),
         async () => {
@@ -311,11 +342,17 @@ describe("the numbering conflict lane on a real Postgres", () => {
         },
         () => NOW,
       );
+      const last = await lastLoggedChangeSeq(db);
 
-      await expect(
-        failing.inPointOfSaleLane(7, (lane) => lane.requestNumberingReconciliation()),
-      ).rejects.toThrow("the queue refused");
-      expect(reconciliationRequests).toEqual([]);
+      await expect(freeze(7, 12, failing)).rejects.toThrow("the queue refused");
+
+      const [request] = await db
+        .select({ diagnosis: fiscalRequests.diagnosis })
+        .from(fiscalRequests)
+        .where(eq(fiscalRequests.number, 900 + frozenRequests));
+      expect(request).toEqual({ diagnosis: null });
+      expect(await inLane(7, (lane) => lane.numberingFreeze())).toBeNull();
+      expect(await changesLoggedAfter(db, last)).toEqual([]);
     });
   });
 
@@ -373,9 +410,7 @@ describe("the numbering conflict lane on a real Postgres", () => {
     });
 
     it("leaves the alerts, the count and the freeze as they were when it fails", async () => {
-      await inLane(7, (lane) =>
-        lane.freezeNumbering({ countBeforeFreeze: 12, frozenAt: FROZEN_AT }),
-      );
+      await freeze(7, 12);
       const scopesBefore = await externalBillingScopes();
       const countBefore = await inLane(7, (lane) => lane.taxAuthorityCount());
       const last = await lastLoggedChangeSeq(db);

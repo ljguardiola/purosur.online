@@ -863,7 +863,7 @@ test("names a register's stopped fiscal emission by its fixed title, with what i
   await expect.element(row.getByText(/Seguir vendiendo igual/)).toBeVisible();
 });
 
-test("names a voucher issued outside the system by its fixed title, with its point of sale and its scope", async () => {
+test("names a voucher issued outside the system by its fixed title and description, with its point of sale only in its scope", async () => {
   const services = createServices();
   vi.mocked(services.fetchAlerts).mockResolvedValue(
     ok([
@@ -883,10 +883,9 @@ test("names a voucher issued outside the system by its fixed title, with its poi
 
   const row = screen.getByRole("row", { name: /Facturación externa/ });
   await expect.element(row.getByText("Facturación externa")).toBeVisible();
-  await expect
-    .element(row.getByText("Un comprobante del punto de venta 00003 se emitió fuera del sistema"))
-    .toBeVisible();
+  await expect.element(row.getByText("Un comprobante se emitió fuera del sistema")).toBeVisible();
   await expect.element(row.getByText("Punto de venta 00003 · Factura C · 00000041")).toBeVisible();
+  expect(row.getByText(/punto de venta 00003/i).elements()).toHaveLength(1);
 });
 
 test.each([

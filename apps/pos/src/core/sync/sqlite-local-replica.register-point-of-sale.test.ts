@@ -292,6 +292,51 @@ describe("the register's local copy of its own point of sale", () => {
       ]);
     });
 
+    it("takes a freeze and then an unfreeze redelivered at the same version with the same count", async () => {
+      await save(pointOfSaleChange(1, 12, MAIN_STREET, 1, 40));
+
+      await save(pointOfSaleChange(2, 12, MAIN_STREET, 1, 40, true));
+      expect(savedFreezeAndCount()).toEqual([
+        { numbering_frozen: 1, tax_authority_last_authorized_number: 40 },
+      ]);
+
+      await save(pointOfSaleChange(3, 12, MAIN_STREET, 1, 40, false));
+      expect(savedFreezeAndCount()).toEqual([
+        { numbering_frozen: 0, tax_authority_last_authorized_number: 40 },
+      ]);
+    });
+
+    it.each([
+      ["a lower count", 39],
+      ["no count", null],
+    ])(
+      "takes a freeze redelivered at the same version with %s, keeping the greater count",
+      async (_case, count) => {
+        await save(pointOfSaleChange(1, 12, MAIN_STREET, 1, 40));
+
+        await save(pointOfSaleChange(2, 12, MAIN_STREET, 1, count, true));
+
+        expect(savedFreezeAndCount()).toEqual([
+          { numbering_frozen: 1, tax_authority_last_authorized_number: 40 },
+        ]);
+      },
+    );
+
+    it("changes nothing else of the point of sale when the same version redelivers a freeze", async () => {
+      await save(pointOfSaleChange(1, 12, MAIN_STREET, 1, 40));
+
+      await save(pointOfSaleChange(2, 14, HARBOR, 1, 40, true));
+
+      expect(savedPointsOfSale()).toEqual([
+        {
+          register_id: REGISTER_ID,
+          point_of_sale_number: 12,
+          fiscal_address_id: MAIN_STREET,
+          version: 1,
+        },
+      ]);
+    });
+
     it("keeps the freeze when an older version arrives late", async () => {
       await save(pointOfSaleChange(1, 12, MAIN_STREET, 2, 40, true));
 

@@ -1,11 +1,15 @@
 import { describe, expect, it } from "vitest";
 import {
+  awaitsNumberingDiagnosis,
   decideNumberingReconciliation,
   diagnoseNumberingConflict,
   isNumberingConflict,
+  isNumberingConflictAnswer,
   NUMBERING_CONFLICT_REASK_INTERVAL_MS,
+  type NumberingConflictDiagnosis,
   type NumberingReconciliationDocument,
 } from "./numbering-conflict.js";
+import type { RealTimeAuthorizationAnswer } from "./real-time-authorization.js";
 
 describe("numbering conflict policy", () => {
   it("asks again every 30 seconds, as an unclear outcome does", () => {
@@ -22,6 +26,61 @@ describe("isNumberingConflict", () => {
   it("is false for any other codes or none", () => {
     expect(isNumberingConflict([])).toBe(false);
     expect(isNumberingConflict([10015, 10017, 600])).toBe(false);
+  });
+});
+
+describe("isNumberingConflictAnswer", () => {
+  it("is true for an unclear answer carrying the number-or-date code", () => {
+    expect(isNumberingConflictAnswer({ answer: { kind: "unclear" }, unclearCodes: [10016] })).toBe(
+      true,
+    );
+  });
+
+  it("is false for an unclear answer without the number-or-date code", () => {
+    expect(isNumberingConflictAnswer({ answer: { kind: "unclear" }, unclearCodes: [600] })).toBe(
+      false,
+    );
+  });
+
+  it.each<[string, RealTimeAuthorizationAnswer | null]>([
+    ["no answer", null],
+    ["an answer not attempted", { kind: "not_attempted" }],
+    [
+      "an authorized answer",
+      {
+        kind: "authorized",
+        authorizationCode: "75123456789012",
+        authorizationCodeDueOn: "2026-10-11",
+      },
+    ],
+    ["a rejected answer", { kind: "rejected", codes: [10016], rejectionClass: "content" }],
+  ])("is false for %s, even with the number-or-date code", (_case, answer) => {
+    expect(isNumberingConflictAnswer({ answer, unclearCodes: [10016] })).toBe(false);
+  });
+});
+
+describe("awaitsNumberingDiagnosis", () => {
+  const conflict = { answer: { kind: "unclear" } as const, unclearCodes: [10016] };
+
+  it("awaits a diagnosis for a numbering conflict not yet diagnosed", () => {
+    expect(awaitsNumberingDiagnosis({ ...conflict, diagnosis: null })).toBe(true);
+  });
+
+  it.each<[string, NumberingConflictDiagnosis]>([
+    ["a collision", { kind: "collision" }],
+    ["a date behind", { kind: "date_behind" }],
+  ])("awaits none once diagnosed as %s", (_case, diagnosis) => {
+    expect(awaitsNumberingDiagnosis({ ...conflict, diagnosis })).toBe(false);
+  });
+
+  it("awaits none for an answer that is not a numbering conflict", () => {
+    expect(
+      awaitsNumberingDiagnosis({
+        answer: { kind: "unclear" },
+        unclearCodes: [600],
+        diagnosis: null,
+      }),
+    ).toBe(false);
   });
 });
 

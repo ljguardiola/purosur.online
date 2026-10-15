@@ -232,7 +232,12 @@ describe("GET /changes carrying the register's own point of sale", () => {
       readAt: NOW,
     });
     await lanes.inPointOfSaleLane(7, (lane) =>
-      lane.freezeNumbering({ countBeforeFreeze: 41, frozenAt: NOW }),
+      lane.recordNumberingDiagnosis({
+        fiscalDocumentId: randomUUID(),
+        diagnosis: { kind: "collision" },
+        diagnosedAt: NOW,
+        freeze: { countBeforeFreeze: 41, frozenAt: NOW },
+      }),
     );
 
     expect((await pullAfterSeed(deviceToken)).at(-1)).toEqual({
@@ -271,7 +276,12 @@ describe("GET /changes carrying the register's own point of sale", () => {
       readAt: NOW,
     });
     await lanes.inPointOfSaleLane(7, (lane) =>
-      lane.freezeNumbering({ countBeforeFreeze: 41, frozenAt: NOW }),
+      lane.recordNumberingDiagnosis({
+        fiscalDocumentId: randomUUID(),
+        diagnosis: { kind: "collision" },
+        diagnosedAt: NOW,
+        freeze: { countBeforeFreeze: 41, frozenAt: NOW },
+      }),
     );
 
     await lanes.inPointOfSaleLane(7, (lane) =>

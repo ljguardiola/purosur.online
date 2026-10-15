@@ -252,12 +252,54 @@ describe("diagnoseNumberingConflict", () => {
     expect(store.reconciliationRequests).toEqual([]);
   });
 
-  it("leaves neither the diagnosis nor the freeze behind when asking for the reconciliation fails", async () => {
+  it("records a collision together with its freeze and its reconciliation request in one storage operation, after reading the freeze and the count", async () => {
     const { store, ports } = scenario({ request: { issuedOn: "2026-10-02" } });
-    store.failOn = "requestNumberingReconciliation";
+
+    await diagnose(ports);
+
+    expect(store.operations).toEqual([
+      "enterLane",
+      "numberingConflictRequest",
+      "lastAuthorized",
+      "voucherAt",
+      "numberingFreeze",
+      "taxAuthorityCount",
+      "recordNumberingDiagnosis:collision:freezing",
+      "leaveLane",
+    ]);
+  });
+
+  it("records a collision alone when the point of sale is already frozen", async () => {
+    const { store, ports } = scenario({
+      request: { issuedOn: "2026-10-02" },
+      frozen: { countBeforeFreeze: 37, frozenAt: NOW },
+    });
+
+    await diagnose(ports);
+
+    expect(store.operations.filter((name) => name.startsWith("record"))).toEqual([
+      "recordNumberingDiagnosis:collision",
+    ]);
+  });
+
+  it("records a date behind alone, without reading the freeze", async () => {
+    const { store, ports } = scenario();
+
+    await diagnose(ports);
+
+    expect(store.operations).not.toContain("numberingFreeze");
+    expect(store.operations.filter((name) => name.startsWith("record"))).toEqual([
+      "recordNumberingDiagnosis:date_behind",
+    ]);
+  });
+
+  it("leaves neither the diagnosis, the freeze nor a reconciliation request behind when recording the collision fails", async () => {
+    const { store, ports } = scenario({ request: { issuedOn: "2026-10-02" } });
+    store.failOn = "recordNumberingDiagnosis";
 
     await expect(diagnose(ports)).rejects.toThrow();
     expect(store.diagnosisOf(FISCAL_DOCUMENT_ID)).toBeNull();
     expect(store.freezeOf(12)).toBeUndefined();
+    expect(store.reconciliationRequests).toEqual([]);
   });
 });

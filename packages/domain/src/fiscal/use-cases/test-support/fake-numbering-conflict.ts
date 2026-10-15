@@ -10,6 +10,7 @@ import type {
   NumberingConflictLanes,
   NumberingConflictRequest,
   NumberingConflictRequests,
+  NumberingDiagnosisRecord,
   NumberingFreeze,
 } from "../numbering-conflict-ports.js";
 import type {
@@ -45,7 +46,7 @@ export class FakeNumberingConflictStore
   held = false;
   failOn: string | undefined;
   vanishAfterLookup = false;
-  private state: StoreState = {
+  private readonly state: StoreState = {
     requests: new Map(),
     freezes: new Map(),
     counts: new Map(),
@@ -104,14 +105,9 @@ export class FakeNumberingConflictStore
     work: (lane: NumberingConflictLane) => Promise<TOutcome>,
   ): Promise<TOutcome> {
     this.operations.push("enterLane");
-    const before = structuredClone(this.state);
     this.held = true;
     try {
       return await work(new FakeNumberingConflictLane(this, pointOfSale));
-    } catch (error) {
-      this.state = before;
-      this.operations.push("rollback");
-      throw error;
     } finally {
       this.held = false;
       this.operations.push("leaveLane");
@@ -146,15 +142,21 @@ class FakeNumberingConflictLane implements NumberingConflictLane {
     return this.store.current.requests.get(fiscalDocumentId) ?? null;
   }
 
-  async recordNumberingDiagnosis(
-    fiscalDocumentId: string,
-    diagnosis: NumberingConflictDiagnosis,
-    _diagnosedAt: Date,
-  ): Promise<void> {
-    this.store.record(`recordNumberingDiagnosis:${diagnosis.kind}`);
+  async recordNumberingDiagnosis({
+    fiscalDocumentId,
+    diagnosis,
+    freeze,
+  }: NumberingDiagnosisRecord): Promise<void> {
+    this.store.record(
+      `recordNumberingDiagnosis:${diagnosis.kind}${freeze === null ? "" : ":freezing"}`,
+    );
     const request = this.store.current.requests.get(fiscalDocumentId);
     if (request !== undefined) {
       request.diagnosis = diagnosis;
+    }
+    if (freeze !== null) {
+      this.store.current.freezes.set(this.pointOfSale, freeze);
+      this.store.current.reconciliationRequests.push(this.pointOfSale);
     }
   }
 
@@ -166,16 +168,6 @@ class FakeNumberingConflictLane implements NumberingConflictLane {
   async taxAuthorityCount(): Promise<number> {
     this.store.record("taxAuthorityCount");
     return this.store.current.counts.get(this.pointOfSale) ?? 0;
-  }
-
-  async freezeNumbering(freeze: NumberingFreeze): Promise<void> {
-    this.store.record("freezeNumbering");
-    this.store.current.freezes.set(this.pointOfSale, freeze);
-  }
-
-  async requestNumberingReconciliation(): Promise<void> {
-    this.store.record("requestNumberingReconciliation");
-    this.store.current.reconciliationRequests.push(this.pointOfSale);
   }
 
   async documentsInNumberingRange(range: {
