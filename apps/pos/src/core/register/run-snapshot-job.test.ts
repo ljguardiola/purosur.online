@@ -99,7 +99,11 @@ describe("runSnapshotJob that takes a snapshot", () => {
     });
     expect(result).toEqual({
       kind: "completed",
-      uploads: { kind: "every_pending_tried", tally: { uploaded: 1, refused: 0, failed: 0 } },
+      uploads: {
+        kind: "every_pending_tried",
+        tally: { uploaded: 1, refused: 0, failed: 0 },
+        latestAnnouncedKeyVersion: 2,
+      },
     });
   });
 
@@ -248,7 +252,11 @@ describe("runSnapshotJob that only uploads", () => {
 
     expect(result).toEqual({
       kind: "completed",
-      uploads: { kind: "every_pending_tried", tally: { uploaded: 1, refused: 0, failed: 0 } },
+      uploads: {
+        kind: "every_pending_tried",
+        tally: { uploaded: 1, refused: 0, failed: 0 },
+        latestAnnouncedKeyVersion: 2,
+      },
     });
     expect((await readManifests(snapshotsFolder)).map((entry) => entry.generation_id)).toEqual([
       waiting,

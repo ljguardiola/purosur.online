@@ -84,7 +84,11 @@ describe("the snapshot worker", () => {
   it("runs the job it was given against the cloud it names", async () => {
     finishWith({
       kind: "completed",
-      uploads: { kind: "every_pending_tried", tally: { uploaded: 0, refused: 0, failed: 0 } },
+      uploads: {
+        kind: "every_pending_tried",
+        tally: { uploaded: 0, refused: 0, failed: 0 },
+        latestAnnouncedKeyVersion: undefined,
+      },
     });
 
     deliver(UPLOAD_JOB);
@@ -101,7 +105,11 @@ describe("the snapshot worker", () => {
   it("exits with success once the job completed", async () => {
     finishWith({
       kind: "completed",
-      uploads: { kind: "cloud_unreachable", tally: { uploaded: 0, refused: 0, failed: 1 } },
+      uploads: {
+        kind: "cloud_unreachable",
+        tally: { uploaded: 0, refused: 0, failed: 1 },
+        latestAnnouncedKeyVersion: undefined,
+      },
     });
 
     deliver(UPLOAD_JOB);
