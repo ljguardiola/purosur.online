@@ -462,8 +462,10 @@ async function startWorkerWithAJobFinishingAsItStops(
       createPool: () => pool,
       captureException: vi.fn(),
       runWorker: (options) => {
-        options.events?.on("job:start", ({ worker: jobWorker }) => {
-          workerOfTheJob = jobWorker;
+        options.events?.on("job:start", ({ worker: jobWorker, job }) => {
+          if (job.task_identifier === FINISHING_TASK_IDENTIFIER) {
+            workerOfTheJob = jobWorker;
+          }
         });
         options.events?.on("worker:stop", ({ worker: stoppedWorker }) => {
           if (stoppedWorker !== workerOfTheJob) {
