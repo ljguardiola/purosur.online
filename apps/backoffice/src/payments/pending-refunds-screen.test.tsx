@@ -14,8 +14,10 @@ import {
   noPendingRefunds,
   pendingRefunds,
   pendingRefundsOfEveryCloudRefundStage,
+  pendingRefundsWithConfirmedLatePayment,
   pendingRefundsWithLatePayment,
   pendingRefundsWithLatePaymentOfOtherOrder,
+  pendingRefundsWithLatePointPayment,
   pendingRefundsWithUnconfirmedCloudRefund,
   SECOND_REFUND_ID,
   TRANSFER_REFUND_ID,
@@ -168,14 +170,14 @@ test("lists a cancelled sale's refund and a late QR payment's refund together, e
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("explains under the table that the QR refunds of cancelled sales are sent to Mercado Pago from here and the others are made outside the system and marked as done", async () => {
+test("explains under the table that QR refunds are sent to Mercado Pago from here, only once confirmed, and the others are made outside the system and marked as done", async () => {
   const services = createServices();
   const screen = await loaded(services);
 
   await expect
     .element(
       screen.getByText(
-        "Los de ventas canceladas cobradas con QR se envían a Mercado Pago al confirmarlos acá; los demás se hacen fuera del sistema y acá se marcan como hechos.",
+        "Los reembolsos de pagos con QR se envían a Mercado Pago desde acá; los demás se hacen fuera del sistema y acá se marcan como hechos. Nada se envía a Mercado Pago sin confirmarlo acá.",
       ),
     )
     .toBeVisible();
@@ -440,8 +442,65 @@ test("offers to discard only the refunds the cloud says are discardable", async 
     .element(screen.getByRole("button", { name: "Marcar como hecho el reembolso de $ 2.500,00" }))
     .toBeVisible();
   await expect
-    .element(screen.getByRole("button", { name: "Marcar como hecho el reembolso de $ 1.250,00" }))
+    .element(
+      screen.getByRole("button", { name: "Enviar a Mercado Pago el reembolso de $ 1.250,00" }),
+    )
     .toBeVisible();
+  expect(
+    screen.getByRole("button", { name: "Marcar como hecho el reembolso de $ 1.250,00" }).query(),
+  ).toBeNull();
+});
+
+test("offers a late QR payment's refund to send and to discard, never to mark done, while nobody confirmed it", async () => {
+  const services = createServices();
+  const screen = await loadedWithLatePayment(services);
+
+  await expect
+    .element(
+      screen.getByRole("button", { name: "Enviar a Mercado Pago el reembolso de $ 1.250,00" }),
+    )
+    .toBeVisible();
+  await expect
+    .element(screen.getByRole("button", { name: "Descartar el reembolso de $ 1.250,00" }))
+    .toBeVisible();
+  expect(
+    screen.getByRole("button", { name: "Marcar como hecho el reembolso de $ 1.250,00" }).query(),
+  ).toBeNull();
+  await expect.element(screen.getByText("Sin confirmar")).toBeVisible();
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("offers neither sending nor discarding a late QR payment's refund once it was confirmed, and tells how far it got", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchPendingRefunds).mockResolvedValue({
+    kind: "ok",
+    value: pendingRefundsWithConfirmedLatePayment,
+  });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("$ 1.250,00", { exact: true })).toBeVisible();
+
+  expect(screen.getByRole("button", { name: /1\.250,00/ }).all()).toHaveLength(0);
+  await expect.element(screen.getByText("Enviado a Mercado Pago · en proceso")).toBeVisible();
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("keeps the manual mark as done, and the discard, for a late POINT payment's refund", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchPendingRefunds).mockResolvedValue({
+    kind: "ok",
+    value: pendingRefundsWithLatePointPayment,
+  });
+  const screen = await renderScreen(services);
+
+  await expect
+    .element(screen.getByRole("button", { name: "Marcar como hecho el reembolso de $ 760,00" }))
+    .toBeVisible();
+  await expect
+    .element(screen.getByRole("button", { name: "Descartar el reembolso de $ 760,00" }))
+    .toBeVisible();
+  expect(
+    screen.getByRole("button", { name: "Enviar a Mercado Pago el reembolso de $ 760,00" }).query(),
+  ).toBeNull();
 });
 
 test("discarding a refund asks first, then discards it and the refund leaves the list", async () => {
