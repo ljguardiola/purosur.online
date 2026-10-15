@@ -31,6 +31,7 @@ export type {
   RegisterEnrolledDetail,
   SignInLockoutDetail,
 } from "./model/alert-details.js";
+export { FORTNIGHT_REPORT_PENDING_REASONS } from "./model/alert-details.js";
 export {
   ALERT_ESCALATION_CHECK_INTERVAL_MS,
   ESCALATED_LEVEL,
@@ -65,6 +66,7 @@ export {
 } from "./model/alert-visibility.js";
 export type { FiscalUnknownAlertKey } from "./model/fiscal-unknown-alert.js";
 export { fiscalUnknownAlertKey } from "./model/fiscal-unknown-alert.js";
+export { pointOfSaleFortnightScopeDisplay } from "./model/fortnight-report-alerts.js";
 export {
   acquisitionUrgencyAlertLevel,
   offlineAuthorizationCodeAcquisitionLevel,

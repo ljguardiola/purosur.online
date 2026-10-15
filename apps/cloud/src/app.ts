@@ -71,6 +71,7 @@ import {
   type FiscalAuthorizationRouteOptions,
   registerFiscalAuthorizationRoute,
 } from "./fiscal/fiscal-authorization-route.js";
+import { registerFortnightPresentationsListRoute } from "./fiscal/fortnight-presentations-list-route.js";
 import type { EnqueueOfflineAuthorizationCodeRequest } from "./fiscal/graphile-offline-authorization-code-queue.js";
 import type { EnqueueTaxAuthorityCount } from "./fiscal/graphile-tax-authority-count-queue.js";
 import { registerIssuerIdentificationEditRoute } from "./fiscal/issuer-identification-edit-route.js";
@@ -591,6 +592,7 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
 
       if (options.registersPointsOfSale) {
         registerRegistersPointsOfSaleListRoute(api, { ...options.registersPointsOfSale, now });
+        registerFortnightPresentationsListRoute(api, { ...options.registersPointsOfSale, now });
         registerRegisterPointOfSaleConfigurationRoute(api, {
           ...options.registersPointsOfSale,
           now,

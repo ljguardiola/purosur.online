@@ -22,6 +22,8 @@ const ALERT_KIND_LABELS = {
   fiscal_emission_stopped: "Emisión de facturas detenida",
   outbox_chain_broken: "Cadena de eventos alterada",
   lots_expiring: "Productos por vencer",
+  fortnight_report_pending: "Informe de quincena pendiente",
+  fortnight_report_overdue: "Informe de quincena vencido",
 } satisfies Record<AlertKind, string>;
 
 export function alertKindLabel(kind: string): string {

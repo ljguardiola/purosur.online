@@ -179,6 +179,7 @@ describe("POST /events", () => {
         batteryOnBattery: null,
         batteryOnBatteryMinutes: null,
         batteryReportedAt: null,
+        caughtUpAt: null,
       },
     ]);
   });
