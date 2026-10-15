@@ -258,9 +258,9 @@ const OFFLINE_SERIES = {
   highestSyncedNumber: null,
   clockMark: null,
 };
+const OCCURRED_AT = new Date("2026-10-01T11:59:58.000Z");
 const MORE_THAN_A_MINUTE_AHEAD_OF_NOW = new Date(NOW.getTime() + 61_000);
 const MORE_THAN_A_MINUTE_AHEAD_OF_OCCURRED_AT = new Date(OCCURRED_AT.getTime() + 61_000);
-const OCCURRED_AT = new Date("2026-10-01T11:59:58.000Z");
 const CODE = "71234567890123";
 const OCTOBER_FIRST_FORTNIGHT = { start: "2026-10-01", end: "2026-10-15" };
 
