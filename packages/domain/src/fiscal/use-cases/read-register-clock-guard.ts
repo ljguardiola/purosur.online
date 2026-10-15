@@ -1,13 +1,16 @@
 import { registerOperationAccess } from "../../register/index.js";
 import type { Clock } from "../../shared/index.js";
-import { clockCorrectionPeriodKey, clockLoweringsFor } from "../model/clock-correction.js";
-import type { FiscalDocumentType } from "../model/fiscal-rejection-standing.js";
+import {
+  type ClockMark,
+  clockCorrectionPeriodKey,
+  clockLoweringsFor,
+} from "../model/clock-correction.js";
 import { isBeforeTaxAuthorityLastIssuedDay, isBehindClockMark } from "../model/register-clock.js";
 import type { RegisterClockGuardReader } from "./register-clock-guard-ports.js";
 
 export interface ClockGuardBlock {
   pointOfSale: number;
-  documentType: FiscalDocumentType;
+  documentType: ClockMark["documentType"];
   latestReading: Date | null;
   taxAuthorityLastIssuedOn: string | null;
 }
@@ -32,33 +35,26 @@ export function readRegisterClockGuard(
   const marks = reader.clockMarks();
   const floor = reader.taxAuthorityFloor();
   const floorBehind =
-    floor !== null && isBeforeTaxAuthorityLastIssuedDay(reading, floor.lastIssuedOn);
-  const isFloorOf = (pointOfSale: number, documentType: FiscalDocumentType) =>
-    floor !== null && floor.pointOfSale === pointOfSale && floor.documentType === documentType;
+    floor !== null && isBeforeTaxAuthorityLastIssuedDay(reading, floor.lastIssuedOn) ? floor : null;
+  const isFloorOf = (pointOfSale: number) => floor !== null && floor.pointOfSale === pointOfSale;
 
   const blocks: ClockGuardBlock[] = marks
     .filter(
-      ({ pointOfSale, documentType, reading: mark }) =>
-        isBehindClockMark(reading, mark) || (floorBehind && isFloorOf(pointOfSale, documentType)),
+      ({ pointOfSale, reading: mark }) =>
+        isBehindClockMark(reading, mark) || (floorBehind !== null && isFloorOf(pointOfSale)),
     )
     .map(({ pointOfSale, documentType, reading: latestReading }) => ({
       pointOfSale,
       documentType,
       latestReading,
-      taxAuthorityLastIssuedOn: isFloorOf(pointOfSale, documentType)
-        ? (floor?.lastIssuedOn ?? null)
-        : null,
+      taxAuthorityLastIssuedOn: isFloorOf(pointOfSale) ? (floor?.lastIssuedOn ?? null) : null,
     }));
-  if (
-    floor !== null &&
-    floorBehind &&
-    !blocks.some((b) => isFloorOf(b.pointOfSale, b.documentType))
-  ) {
+  if (floorBehind !== null && !blocks.some(({ pointOfSale }) => isFloorOf(pointOfSale))) {
     blocks.push({
-      pointOfSale: floor.pointOfSale,
-      documentType: floor.documentType,
+      pointOfSale: floorBehind.pointOfSale,
+      documentType: floorBehind.documentType,
       latestReading: null,
-      taxAuthorityLastIssuedOn: floor.lastIssuedOn,
+      taxAuthorityLastIssuedOn: floorBehind.lastIssuedOn,
     });
   }
 

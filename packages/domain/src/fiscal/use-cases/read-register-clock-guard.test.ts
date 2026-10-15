@@ -111,6 +111,37 @@ describe("readRegisterClockGuard", () => {
     ]);
   });
 
+  it("blocks the point of sale of the tax authority's day by its mark too when the mark is not behind", () => {
+    const floor = {
+      pointOfSale: 12,
+      documentType: "factura_c",
+      lastIssuedOn: "2026-10-02",
+    } as const;
+    const mark = { ...REAL_TIME_MARK, reading: ahead(0) };
+
+    expect(read({ floor, marks: [mark] }).blocks).toEqual([
+      {
+        pointOfSale: 12,
+        documentType: "factura_c",
+        latestReading: mark.reading,
+        taxAuthorityLastIssuedOn: "2026-10-02",
+      },
+    ]);
+  });
+
+  it("blocks no other point of sale for the tax authority's day", () => {
+    const floor = {
+      pointOfSale: 12,
+      documentType: "factura_c",
+      lastIssuedOn: "2026-10-02",
+    } as const;
+    const other = { ...OFFLINE_MARK, reading: ahead(0) };
+
+    expect(read({ floor, marks: [other] }).blocks.map(({ pointOfSale }) => pointOfSale)).toEqual([
+      12,
+    ]);
+  });
+
   it.each([
     ["the same day as the reading's", "2026-10-01"],
     ["before the reading's day", "2026-09-30"],
@@ -118,6 +149,17 @@ describe("readRegisterClockGuard", () => {
     const floor = { pointOfSale: 12, documentType: "factura_c", lastIssuedOn } as const;
 
     expect(read({ floor }).blocks).toEqual([]);
+  });
+
+  it("does not block a point of sale holding a mark that is not behind when its tax authority day is not ahead of the reading", () => {
+    const floor = {
+      pointOfSale: 12,
+      documentType: "factura_c",
+      lastIssuedOn: "2026-10-01",
+    } as const;
+    const mark = { ...REAL_TIME_MARK, reading: ahead(0) };
+
+    expect(read({ floor, marks: [mark] }).blocks).toEqual([]);
   });
 
   it("names the tax authority's day on the block of a mark only when the day belongs to that point of sale", () => {
