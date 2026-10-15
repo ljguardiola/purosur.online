@@ -14,5 +14,5 @@ export function isBeforeTaxAuthorityLastIssuedDay(
 }
 
 export function raisedClockMark(mark: Date | null, reading: Date): Date {
-  return mark !== null && mark.getTime() > reading.getTime() ? mark : reading;
+  return mark === null ? reading : new Date(Math.max(mark.getTime(), reading.getTime()));
 }

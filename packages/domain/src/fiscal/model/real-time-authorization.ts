@@ -168,10 +168,7 @@ function offlineRoute(
   document: FacturaC,
   { occurredAt, offlineSeries, offlineAuthorizationCode }: SaleAuthorizationRouteInput,
 ): SaleAuthorizationRoute {
-  if (
-    offlineSeries.pointOfSale !== null &&
-    isBehindClockMark(occurredAt, offlineSeries.clockMark)
-  ) {
+  if (isBehindClockMark(occurredAt, offlineSeries.clockMark)) {
     return deferred("clock_behind");
   }
   const number = nextOfflineNumber(offlineSeries);
