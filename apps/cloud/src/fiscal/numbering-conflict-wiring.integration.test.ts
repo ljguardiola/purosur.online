@@ -2,7 +2,7 @@ import { FACTURA_C_DOCUMENT_TYPE } from "@purosur/domain";
 import { FICTIONAL_CERTIFICATE_CUIT } from "@purosur/domain/fiscal/test-support";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AccessEmailSender } from "../credentials/recovery-email-sender.js";
 import { fiscalRequests, taxAuthorityLastAuthorizedNumbers } from "../platform/db/schema.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
@@ -57,6 +57,10 @@ afterAll(async () => {
   await fakeWsfe.close();
   await sql.end({ timeout: 1 });
   await integrationDb.close();
+});
+
+beforeEach(() => {
+  fakeWsfe.requests.length = 0;
 });
 
 function recoveryEnv() {
