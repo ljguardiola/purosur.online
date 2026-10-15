@@ -281,6 +281,7 @@ export {
 } from "./fiscal/index.js";
 export type {
   ConfirmedByHandMethod,
+  HandConfirmedPayment,
   LatePaymentRefund,
   MercadoPagoChargeInProgress,
   MercadoPagoOrderRefund,

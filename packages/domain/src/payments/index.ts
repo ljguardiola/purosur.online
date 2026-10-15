@@ -1,4 +1,5 @@
 export { cashCharge } from "./model/cash-charge.js";
+export type { HandConfirmedPayment } from "./model/hand-confirmed-payments-reconciliation.js";
 export {
   MERCADO_PAGO_PENDING_CHECK_INTERVAL_MS,
   PAYMENT_NOTIFICATION_LIMIT,
