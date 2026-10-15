@@ -513,15 +513,12 @@ describe("alertDetailSchema", () => {
       "fortnight_report_pending",
       "fortnight_report_overdue",
       "fortnight_report_needs_regularization",
-    ] as const)(
-      "accepts a %s alert that names no register",
-      (kind) => {
-        const { registerName: _omitted, ...detail } = detailOf[kind];
-        const alert = { ...base, kind, detail };
+    ] as const)("accepts a %s alert that names no register", (kind) => {
+      const { registerName: _omitted, ...detail } = detailOf[kind];
+      const alert = { ...base, kind, detail };
 
-        expect(alertDetailSchema.safeParse(alert).data).toEqual(alert);
-      },
-    );
+      expect(alertDetailSchema.safeParse(alert).data).toEqual(alert);
+    });
 
     it.each([
       ["a reason outside the three it can have", { reason: "unknown" }],
