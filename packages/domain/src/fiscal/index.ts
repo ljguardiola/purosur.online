@@ -69,14 +69,21 @@ export type {
   TaxAuthorityRejection,
 } from "./model/fiscal-rejection-standing.js";
 export { FACTURA_C_DOCUMENT_TYPE } from "./model/fiscal-rejection-standing.js";
-export type { FortnightReportState } from "./model/fortnight-report.js";
+export type {
+  FortnightPresentationRefusal,
+  FortnightReportMovement,
+  FortnightReportState,
+} from "./model/fortnight-report.js";
 export {
   fortnightClosesAt,
+  fortnightPresentationRows,
   fortnightReportDeadline,
   fortnightReportStanding,
   isFortnightReportOutstanding,
+  isOfflineDocumentReported,
   owesFortnightReport,
 } from "./model/fortnight-report.js";
+export { generationStampOf } from "./model/generation-stamp.js";
 export {
   ISSUER_IDENTIFICATION_GROSS_INCOME_REGISTRATION_MAX_LENGTH,
   ISSUER_IDENTIFICATION_LEGAL_NAME_MAX_LENGTH,

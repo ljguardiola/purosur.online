@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  fortnightReportNeedsRegularizationAlert,
   fortnightReportNoLongerPendingObservation,
   fortnightReportOverdueAlert,
   fortnightReportPendingObservation,
@@ -52,6 +53,7 @@ describe("pointOfSaleFortnightScopeDisplay", () => {
 describe("fortnightReportPendingReason", () => {
   it.each([
     ["blocked", "blocked"],
+    ["missing_document", "missing_document"],
     ["refused", "refused"],
     ["submitting", "pending"],
     [null, "pending"],
@@ -112,6 +114,17 @@ describe("fortnightReportPendingObservation", () => {
       }),
     ).toMatchObject({ level: "critical", alert: { detail: { reason: "blocked" } } });
   });
+
+  it("raises it to critical while a document is missing from the series, however far the deadline is", () => {
+    expect(
+      fortnightReportPendingObservation({
+        ...PRESENTATION,
+        daysLeft: 6,
+        pressing: false,
+        state: "missing_document",
+      }),
+    ).toMatchObject({ level: "critical", alert: { detail: { reason: "missing_document" } } });
+  });
 });
 
 describe("fortnightReportNoLongerPendingObservation", () => {
@@ -135,6 +148,21 @@ describe("fortnightReportOverdueAlert", () => {
         fortnightStart: "2026-09-01",
         fortnightEnd: "2026-09-15",
         deadline: "2026-09-23",
+      },
+    });
+  });
+});
+
+describe("fortnightReportNeedsRegularizationAlert", () => {
+  it("is the alert of the point of sale's fortnight, naming the register and the fortnight, with no deadline", () => {
+    expect(fortnightReportNeedsRegularizationAlert(PRESENTATION)).toEqual({
+      kind: "fortnight_report_needs_regularization",
+      scope: "4:2026-09-01",
+      detail: {
+        pointOfSaleNumber: 4,
+        registerId: REGISTER_ID,
+        fortnightStart: "2026-09-01",
+        fortnightEnd: "2026-09-15",
       },
     });
   });

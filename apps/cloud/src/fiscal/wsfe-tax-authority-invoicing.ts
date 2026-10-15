@@ -1,6 +1,4 @@
 import {
-  CURRENCY_PESOS,
-  EXCHANGE_RATE_PESOS,
   FACTURA_C_VOUCHER_TYPE,
   FINAL_CONSUMER_DOCUMENT_NUMBER,
   FINAL_CONSUMER_DOCUMENT_TYPE,
@@ -13,9 +11,7 @@ import type {
 } from "@purosur/domain/fiscal/use-cases";
 import type { Client } from "soap";
 import { createWsfeClient, rejectionsOf } from "./wsfe-client.js";
-
-const PRODUCTS = 1;
-const CENTS_PER_PESO = 100;
+import { facturaCDetail } from "./wsfe-factura-c-detail.js";
 
 export interface WsfeTaxAuthorityInvoicingOptions {
   endpoint: string;
@@ -37,17 +33,9 @@ interface SolicitationResult {
   Errors?: unknown;
 }
 
-function yyyymmdd(isoDate: string): string {
-  return isoDate.replaceAll("-", "");
-}
-
 function isoDateOf(compact: unknown): string | undefined {
   const match = typeof compact === "string" ? /^(\d{4})(\d{2})(\d{2})$/.exec(compact) : null;
   return match ? `${match[1]}-${match[2]}-${match[3]}` : undefined;
-}
-
-function pesosOf(cents: number): string {
-  return (cents / CENTS_PER_PESO).toFixed(2);
 }
 
 const NO_ANSWER: SolicitationAnswer = { kind: "no_answer", rejections: [] };
@@ -119,7 +107,6 @@ export class WsfeTaxAuthorityInvoicing implements TaxAuthorityInvoicing {
     try {
       this.client ??= createWsfeClient(this.endpoint);
       const client = await this.client;
-      const amount = pesosOf(total);
       let answer: unknown;
       try {
         [answer] = await client["FECAESolicitarAsync"](
@@ -128,23 +115,15 @@ export class WsfeTaxAuthorityInvoicing implements TaxAuthorityInvoicing {
             FeCAEReq: {
               FeCabReq: { CantReg: 1, PtoVta: pointOfSale, CbteTipo: FACTURA_C_VOUCHER_TYPE },
               FeDetReq: {
-                FECAEDetRequest: {
-                  Concepto: PRODUCTS,
-                  DocTipo: FINAL_CONSUMER_DOCUMENT_TYPE,
-                  DocNro: FINAL_CONSUMER_DOCUMENT_NUMBER,
-                  CbteDesde: number,
-                  CbteHasta: number,
-                  CbteFch: yyyymmdd(issuedOn),
-                  ImpTotal: amount,
-                  ImpTotConc: 0,
-                  ImpNeto: amount,
-                  ImpOpEx: 0,
-                  ImpTrib: 0,
-                  ImpIVA: 0,
-                  MonId: CURRENCY_PESOS,
-                  MonCotiz: EXCHANGE_RATE_PESOS,
-                  CondicionIVAReceptorId: buyerTaxStatusCode,
-                },
+                FECAEDetRequest: facturaCDetail({
+                  number,
+                  issuedOn,
+                  total,
+                  netAmount: total,
+                  buyerDocumentType: FINAL_CONSUMER_DOCUMENT_TYPE,
+                  buyerDocumentNumber: FINAL_CONSUMER_DOCUMENT_NUMBER,
+                  buyerTaxStatusCode,
+                }),
               },
             },
           },

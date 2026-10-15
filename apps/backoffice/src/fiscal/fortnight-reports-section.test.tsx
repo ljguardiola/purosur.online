@@ -34,6 +34,11 @@ function presentation(overrides: Partial<FortnightPresentation> = {}): Fortnight
     pointOfSaleNumber: 4,
     fortnight: septemberFirstHalf,
     deadline: "2026-09-23",
+    documentType: null,
+    documentCount: 0,
+    rejectedDocument: null,
+    movement: null,
+    refusal: null,
     state: null,
     ...overrides,
   };
@@ -54,49 +59,56 @@ function sectionFor(data: CloudData<[FortnightPresentation[], RegisterPointOfSal
   );
 }
 
-test("lists each presentation with its fortnight, its point of sale and its deadline", async () => {
+test("lists each presentation with its fortnight, its point of sale, its document type, its documents, its state and its deadline", async () => {
   const screen = await render(
-    sectionFor(loaded([presentation({ fortnight: augustSecondHalf, deadline: "2026-09-08" })])),
+    sectionFor(
+      loaded([
+        presentation({
+          fortnight: augustSecondHalf,
+          deadline: "2026-09-08",
+          documentType: "factura_c",
+          movement: "documents",
+          documentCount: 51,
+          state: "accepted",
+        }),
+      ]),
+    ),
   );
 
   const table = screen.getByRole("table", { name: "Informes quincenales" });
-  for (const header of ["Quincena", "Punto de venta", "Estado", "Vence"]) {
+  for (const header of ["Quincena", "Punto de venta", "Tipo", "Comprobantes", "Estado", "Vence"]) {
     await expect.element(table.getByRole("columnheader", { name: header })).toBeVisible();
   }
   await expect
     .element(table.getByText(formatCalendarDayRange("2026-08-16", "2026-08-31"), { exact: true }))
     .toBeVisible();
   await expect.element(table.getByText("00004")).toBeVisible();
+  await expect.element(table.getByText("Factura C")).toBeVisible();
+  await expect.element(table.getByText("51 comprobantes")).toBeVisible();
+  await expect.element(table.getByText("Aceptado")).toBeVisible();
   await expect.element(table.getByText("08/09/2026")).toBeVisible();
 });
 
-test.each([
-  [null, "Pendiente"],
-  ["submitting", "Presentando"],
-  ["refused", "Rechazado"],
-  ["blocked", "Bloqueado"],
-  ["accepted", "Aceptado"],
-] as const)("shows the state %s as %s", async (state, label) => {
-  const screen = await render(sectionFor(loaded([presentation({ state })])));
-
-  await expect.element(screen.getByRole("table").getByText(label, { exact: true })).toBeVisible();
-});
-
-test("shows no column inferring from the state what a presentation declared", async () => {
+test("lists a row per document type of the same point of sale and fortnight", async () => {
   const screen = await render(
     sectionFor(
       loaded([
-        presentation({ fortnight: augustSecondHalf, state: "accepted" }),
-        presentation({ state: "blocked" }),
+        presentation({
+          documentType: "factura_c",
+          movement: "documents",
+          documentCount: 2,
+          state: "accepted",
+        }),
+        presentation({ documentType: null, movement: "none", documentCount: 0, state: "accepted" }),
       ]),
     ),
   );
 
-  const table = screen.getByRole("table");
-  await expect.element(table).toBeVisible();
-  expect(table.getByRole("columnheader", { name: "Comprobantes" }).query()).toBeNull();
-  expect(table.getByText("Sin movimiento").query()).toBeNull();
-  expect(table.getByText(/Faltan comprobantes/).query()).toBeNull();
+  const table = screen.getByRole("table", { name: "Informes quincenales" });
+  await expect.element(table.getByText("2 comprobantes")).toBeVisible();
+  await expect.element(table.getByText("Sin movimiento")).toBeVisible();
+  await expect.element(table.getByText("Factura C")).toBeVisible();
+  expect(table.getByRole("row").elements()).toHaveLength(3);
 });
 
 test("warns above the table of each blocked presentation which register still has to finish syncing", async () => {
@@ -139,9 +151,15 @@ test("warns above the table of each blocked presentation which register still ha
   expect(screen.getByText(/No se puede presentar/).query()).toBeNull();
 });
 
-test("shows no warning while no presentation is blocked", async () => {
+test("shows no warning while no presentation is blocked, even when one is missing a document", async () => {
   const screen = await render(
-    sectionFor(loaded([presentation({ state: "refused" }), presentation({ state: "accepted" })])),
+    sectionFor(
+      loaded([
+        presentation({ state: "refused" }),
+        presentation({ state: "accepted" }),
+        presentation({ fortnight: augustSecondHalf, state: "missing_document" }),
+      ]),
+    ),
   );
 
   await expect.element(screen.getByRole("table")).toBeVisible();

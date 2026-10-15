@@ -2,6 +2,7 @@ import { ALERT_CONDITION_EVALUATION_INTERVAL_MS } from "@purosur/domain";
 import {
   detectExpiringLots,
   detectFortnightReportDeadlines,
+  detectFortnightReportRegularizations,
   detectMissingOfflineAuthorizationCodes,
   detectQuietRegisters,
   openOverdueUnclearOutcomeAlerts,
@@ -13,6 +14,7 @@ import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { PoolClient } from "pg";
 import { DrizzleBranchExpiryWindowReader } from "../branch/drizzle-branch-expiry-window-reader.js";
 import { DrizzleBranchHoursReader } from "../branch/drizzle-branch-hours-reader.js";
+import { DrizzleFortnightRegularizationReader } from "../fiscal/drizzle-fortnight-regularization-reader.js";
 import { DrizzleOfflineAuthorizationCodeHoldingReader } from "../fiscal/drizzle-offline-authorization-code-holding-reader.js";
 import { DrizzleOwedFortnightPresentationReader } from "../fiscal/drizzle-owed-fortnight-presentation-reader.js";
 import { DrizzleRefundTaskAlertStore } from "../payments/drizzle-refund-task-alert-store.js";
@@ -27,6 +29,7 @@ import { DrizzleExpiringLotReader } from "../stock/drizzle-expiring-lot-reader.j
 import { DrizzleAlertStore } from "./drizzle-alert-store.js";
 import { DrizzleExpiringLotAlerts } from "./drizzle-expiring-lot-alerts.js";
 import { DrizzleFortnightReportDeadlineAlerts } from "./drizzle-fortnight-report-deadline-alerts.js";
+import { DrizzleFortnightReportRegularizationAlerts } from "./drizzle-fortnight-report-regularization-alerts.js";
 import { DrizzleMissingOfflineAuthorizationCodeAlerts } from "./drizzle-missing-offline-authorization-code-alerts.js";
 import { DrizzleUnclearOutcomeAlertStore } from "./drizzle-unclear-outcome-alert-store.js";
 
@@ -110,6 +113,16 @@ function detectFortnightReportDeadlinesTask<TQueryResult extends PgQueryResultHK
   });
 }
 
+function detectFortnightReportRegularizationsTask<TQueryResult extends PgQueryResultHKT>(
+  db: PgDatabase<TQueryResult>,
+  deps: { now: () => Date },
+): Promise<number> {
+  return detectFortnightReportRegularizations({
+    presentations: new DrizzleFortnightRegularizationReader(db),
+    alerts: new DrizzleFortnightReportRegularizationAlerts(db, deps.now),
+  });
+}
+
 export interface AlertConditionResolutionJobsDeps {
   createDatabase?: (client: PoolClient) => NodePgDatabase<Record<string, never>>;
   resolve?: typeof resolveClearedConditionAlertsTask;
@@ -119,6 +132,7 @@ export interface AlertConditionResolutionJobsDeps {
   openUnclearOutcomeAlerts?: typeof openUnclearOutcomeAlertsTask;
   detectExpiringLots?: typeof detectExpiringLotsTask;
   detectFortnightReportDeadlines?: typeof detectFortnightReportDeadlinesTask;
+  detectFortnightReportRegularizations?: typeof detectFortnightReportRegularizationsTask;
 }
 
 export function alertConditionResolutionJobs(
@@ -135,6 +149,8 @@ export function alertConditionResolutionJobs(
   const doDetectExpiringLots = deps.detectExpiringLots ?? detectExpiringLotsTask;
   const doDetectFortnightReportDeadlines =
     deps.detectFortnightReportDeadlines ?? detectFortnightReportDeadlinesTask;
+  const doDetectFortnightReportRegularizations =
+    deps.detectFortnightReportRegularizations ?? detectFortnightReportRegularizationsTask;
   return {
     taskList: {
       [ALERT_CONDITION_RESOLUTION_TASK_IDENTIFIER]: async (_payload, helpers) => {
@@ -147,6 +163,7 @@ export function alertConditionResolutionJobs(
           await doOpenUnclearOutcomeAlerts(db, { now: options.now });
           await doDetectExpiringLots(db, { now: options.now });
           await doDetectFortnightReportDeadlines(db, { now: options.now });
+          await doDetectFortnightReportRegularizations(db, { now: options.now });
         });
       },
     },
