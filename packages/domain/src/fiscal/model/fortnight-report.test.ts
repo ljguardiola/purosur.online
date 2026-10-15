@@ -2,8 +2,10 @@ import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { shiftCalendarDay } from "../../shared/index.js";
 import {
+  documentTypePresentationState,
   type FortnightReportState,
   fortnightClosesAt,
+  fortnightPresentationRows,
   fortnightReportDeadline,
   fortnightReportStanding,
   fortnightReportStateOfDocumentTypes,
@@ -363,6 +365,127 @@ describe("fortnightReportStateOfDocumentTypes", () => {
 
   it("is submitting while any document type is still awaiting an answer", () => {
     expect(fortnightReportStateOfDocumentTypes(["accepted", "submitting"])).toBe("submitting");
+  });
+});
+
+describe("documentTypePresentationState", () => {
+  it("is the state recorded for the document type", () => {
+    expect(documentTypePresentationState("submitting", "blocked")).toBe("submitting");
+    expect(documentTypePresentationState("accepted", null)).toBe("accepted");
+  });
+
+  it("is blocked, with nothing recorded for the document type, when the fortnight's report is blocked", () => {
+    expect(documentTypePresentationState(null, "blocked")).toBe("blocked");
+  });
+
+  it.each(["submitting", "refused", "accepted", "needs_regularization", null] as const)(
+    "is none, with nothing recorded for the document type, when the fortnight's report is %s",
+    (fortnightState) => {
+      expect(documentTypePresentationState(null, fortnightState)).toBeNull();
+    },
+  );
+});
+
+describe("fortnightPresentationRows", () => {
+  const document = (documentType: string, number: number) => ({ documentType, number });
+
+  it("is one row without a document type when the fortnight issued no documents", () => {
+    expect(
+      fortnightPresentationRows({ state: "accepted", documents: [], documentReports: [] }),
+    ).toEqual([
+      { documentType: null, state: "accepted", documentCount: 0, rejectedDocument: null },
+    ]);
+  });
+
+  it("is one row without a document type while nothing was recorded for a fortnight without documents", () => {
+    expect(fortnightPresentationRows({ state: null, documents: [], documentReports: [] })).toEqual([
+      { documentType: null, state: null, documentCount: 0, rejectedDocument: null },
+    ]);
+  });
+
+  it("is one row without a document type, counting the documents that arrived late, when the fortnight needs regularization", () => {
+    expect(
+      fortnightPresentationRows({
+        state: "needs_regularization",
+        documents: [document("factura_c", 1), document("factura_c", 2), document("nota_c", 1)],
+        documentReports: [{ documentType: "factura_c", state: "accepted", rejectedNumber: null }],
+      }),
+    ).toEqual([
+      {
+        documentType: null,
+        state: "needs_regularization",
+        documentCount: 3,
+        rejectedDocument: null,
+      },
+    ]);
+  });
+
+  it("is one row per document type that had documents, counting them and ordered by document type", () => {
+    expect(
+      fortnightPresentationRows({
+        state: "submitting",
+        documents: [document("nota_c", 4), document("factura_c", 9), document("factura_c", 8)],
+        documentReports: [{ documentType: "factura_c", state: "accepted", rejectedNumber: null }],
+      }),
+    ).toEqual([
+      { documentType: "factura_c", state: "accepted", documentCount: 2, rejectedDocument: null },
+      { documentType: "nota_c", state: null, documentCount: 1, rejectedDocument: null },
+    ]);
+  });
+
+  it("blocks the document types with nothing recorded when the fortnight's report is blocked", () => {
+    expect(
+      fortnightPresentationRows({
+        state: "blocked",
+        documents: [document("factura_c", 1), document("nota_c", 1)],
+        documentReports: [{ documentType: "nota_c", state: "submitting", rejectedNumber: null }],
+      }).map(({ documentType, state }) => [documentType, state]),
+    ).toEqual([
+      ["factura_c", "blocked"],
+      ["nota_c", "submitting"],
+    ]);
+  });
+
+  it("names the document the tax authority rejected and how many of its type come after it", () => {
+    expect(
+      fortnightPresentationRows({
+        state: "refused",
+        documents: [1, 2, 3, 4, 5]
+          .map((number) => document("factura_c", number))
+          .concat(document("nota_c", 9)),
+        documentReports: [{ documentType: "factura_c", state: "refused", rejectedNumber: 2 }],
+      }),
+    ).toEqual([
+      {
+        documentType: "factura_c",
+        state: "refused",
+        documentCount: 5,
+        rejectedDocument: { number: 2, unprocessed: 3 },
+      },
+      { documentType: "nota_c", state: null, documentCount: 1, rejectedDocument: null },
+    ]);
+  });
+
+  it("leaves none unprocessed when the rejected document is the last of its type", () => {
+    const [row] = fortnightPresentationRows({
+      state: "refused",
+      documents: [document("factura_c", 1), document("factura_c", 2)],
+      documentReports: [{ documentType: "factura_c", state: "refused", rejectedNumber: 2 }],
+    });
+
+    expect(row?.rejectedDocument).toEqual({ number: 2, unprocessed: 0 });
+  });
+
+  it("names no rejected document for a refusal that rejected none, nor for a retry after one", () => {
+    const rows = (state: "refused" | "submitting", rejectedNumber: number | null) =>
+      fortnightPresentationRows({
+        state: "submitting",
+        documents: [document("factura_c", 1), document("factura_c", 2)],
+        documentReports: [{ documentType: "factura_c", state, rejectedNumber }],
+      });
+
+    expect(rows("refused", null)[0]?.rejectedDocument).toBeNull();
+    expect(rows("submitting", null)[0]?.rejectedDocument).toBeNull();
   });
 });
 
