@@ -83,7 +83,7 @@ test("says where each generation is kept", async () => {
   await expect.element(screen.getByText("Disco y bucket")).toBeVisible();
   await expect.element(screen.getByText("Solo bucket")).toBeVisible();
   await expect.element(screen.getByText("Solo disco")).toBeVisible();
-  await expect.element(screen.getByText("Ninguno")).toBeVisible();
+  await expect.element(screen.getByText("En ningún lado")).toBeVisible();
 });
 
 test("tells a verified generation from one that failed, and says the failed one does not count for a restore", async () => {
@@ -115,7 +115,7 @@ test("shows how many generations each tier keeps and the rules that bound it", a
 
   await expect.element(screen.getByText("Recientes")).toBeVisible();
   await expect.element(screen.getByText("5 de 6", { exact: true })).toBeVisible();
-  await expect.element(screen.getByText("En el disco y en el bucket")).toBeVisible();
+  await expect.element(screen.getByText("Las 6 más nuevas")).toBeVisible();
   await expect.element(screen.getByText("Por hora")).toBeVisible();
   await expect.element(screen.getByText("24", { exact: true })).toBeVisible();
   await expect.element(screen.getByText("Últimas 24 horas")).toBeVisible();
