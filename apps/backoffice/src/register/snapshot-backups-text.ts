@@ -26,9 +26,18 @@ export function snapshotGenerationDate(instant: string): string {
 
 export function snapshotTierCaptions(rules: SnapshotLifecycleRules) {
   return {
-    hourly: plural(rules.hourly, { one: "Última hora", other: `Últimas ${formatNumber(rules.hourly)} horas` }),
-    daily: plural(rules.daily, { one: "Último día", other: `Últimos ${formatNumber(rules.daily)} días` }),
-    monthly: plural(rules.monthly, { one: "Hasta 1 mes", other: `Hasta ${formatNumber(rules.monthly)} meses` }),
+    hourly: plural(rules.hourly, {
+      one: "Última hora",
+      other: `Últimas ${formatNumber(rules.hourly)} horas`,
+    }),
+    daily: plural(rules.daily, {
+      one: "Último día",
+      other: `Últimos ${formatNumber(rules.daily)} días`,
+    }),
+    monthly: plural(rules.monthly, {
+      one: "Hasta 1 mes",
+      other: `Hasta ${formatNumber(rules.monthly)} meses`,
+    }),
   };
 }
 
