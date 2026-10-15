@@ -17,7 +17,7 @@ import { SalesHistoryScreen } from "../sales-history-screen";
 type Found = Extract<SalesHistoryOutcome, { kind: "found" }>;
 type Row = Found["rows"][number];
 
-export const PERSON: SalesHistoryScreenProps["person"] = {
+const PERSON: SalesHistoryScreenProps["person"] = {
   user_id: "u1",
   first_name: "Tomás",
   abilities: ["view_sales_history", "reprint_receipt"],
@@ -41,7 +41,7 @@ export const DEFERRED_ROW: Row = {
   total: 320_000,
   state: "deferred",
 };
-export const OPEN_ROW: Row = {
+const OPEN_ROW: Row = {
   sale_id: "sale-3",
   occurred_at: "2026-10-09T09:37:00.000-03:00",
   comprobante: { kind: "none" },
@@ -73,7 +73,7 @@ export const DETAIL: SaleDetail = {
   next_copy: { kind: "duplicate", order_number: 1 },
 };
 
-export const AUTHORIZERS: SignInUser[] = [{ id: "u2", first_name: "Grace" }];
+const AUTHORIZERS: SignInUser[] = [{ id: "u2", first_name: "Grace" }];
 
 export type Overrides = Partial<Pick<SalesHistoryScreenProps, "person" | "sessionOpen">> & {
   salesHistory?: (query: SalesHistoryQuery) => Promise<SalesHistoryOutcome>;
