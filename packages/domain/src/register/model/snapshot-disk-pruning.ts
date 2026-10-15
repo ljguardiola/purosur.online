@@ -1,4 +1,7 @@
-import type { LocalSnapshotGeneration } from "./local-snapshot-generation.js";
+import {
+  type LocalSnapshotGeneration,
+  snapshotGenerationsNewestFirst,
+} from "./local-snapshot-generation.js";
 import { diskStanding, RETAINED_SNAPSHOT_GENERATIONS } from "./storage.js";
 
 export interface SnapshotDiskSpace {
@@ -11,12 +14,6 @@ export interface SnapshotDiskPruningPlan {
   removeIfVerified: LocalSnapshotGeneration[];
 }
 
-function newestFirst(a: LocalSnapshotGeneration, b: LocalSnapshotGeneration): number {
-  return (
-    b.createdAt.getTime() - a.createdAt.getTime() || b.generationId.localeCompare(a.generationId)
-  );
-}
-
 function isUploaded(generation: LocalSnapshotGeneration): boolean {
   return generation.uploadedAt !== null;
 }
@@ -25,7 +22,7 @@ export function snapshotDiskPruningPlan(
   generations: readonly LocalSnapshotGeneration[],
   space: SnapshotDiskSpace,
 ): SnapshotDiskPruningPlan {
-  const byNewest = [...generations].sort(newestFirst);
+  const byNewest = snapshotGenerationsNewestFirst(generations);
   const oldest = byNewest.at(-1);
   const prunable = (generation: LocalSnapshotGeneration) =>
     isUploaded(generation) && generation !== oldest;

@@ -49,12 +49,16 @@ export function startSnapshotCycle(deps: SnapshotCycleWiringDeps): SnapshotCycle
   };
   const schedule = createSnapshotCycleSchedule({
     runCycle: async () => {
-      await pruneSnapshotsOnDisk({
-        snapshotsFolder: deps.snapshotsFolder,
-        readStorage: deps.readStorage,
-        readCredentials: deps.readCredentials,
-        cloud: deps.cloud,
-      });
+      try {
+        await pruneSnapshotsOnDisk({
+          snapshotsFolder: deps.snapshotsFolder,
+          readStorage: deps.readStorage,
+          readCredentials: deps.readCredentials,
+          cloud: deps.cloud,
+        });
+      } catch (error) {
+        deps.onFailure(error);
+      }
       return runSnapshotCycle(
         {
           state,
