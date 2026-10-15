@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, expectTypeOf, it, vi } from "vitest";
 import type { StorageReading } from "../sync/storage-telemetry";
 import { startupStorageShortOf } from "./storage-startup-check";
 
@@ -15,30 +15,30 @@ function reading(freeBytes: number, databaseSizeBytes: number): StorageReading {
 }
 
 describe("checking at startup that the disk has the space sales need", () => {
-  it("finds the register short of the free space required for its database", async () => {
-    const short = await startupStorageShortOf({
-      read: async () => reading(5 * GIGABYTE, 500 * MEGABYTE),
+  it("finds the register short of the free space required for its database", () => {
+    const short = startupStorageShortOf({
+      read: () => reading(5 * GIGABYTE, 500 * MEGABYTE),
       onFailure: vi.fn(),
     });
 
     expect(short).toEqual({ requiredFreeBytes: 8 * 500 * MEGABYTE + 2 * GIGABYTE });
   });
 
-  it("finds nothing short when the disk has the free space required", async () => {
-    const short = await startupStorageShortOf({
-      read: async () => reading(50 * GIGABYTE, 500 * MEGABYTE),
+  it("finds nothing short when the disk has the free space required", () => {
+    const short = startupStorageShortOf({
+      read: () => reading(50 * GIGABYTE, 500 * MEGABYTE),
       onFailure: vi.fn(),
     });
 
     expect(short).toBeNull();
   });
 
-  it("finds nothing short, and reports the failure, when the disk cannot be read", async () => {
+  it("finds nothing short, and reports the failure, when the disk cannot be read", () => {
     const failure = new Error("the volume is gone");
     const onFailure = vi.fn();
 
-    const short = await startupStorageShortOf({
-      read: async () => {
+    const short = startupStorageShortOf({
+      read: () => {
         throw failure;
       },
       onFailure,
@@ -46,5 +46,11 @@ describe("checking at startup that the disk has the space sales need", () => {
 
     expect(short).toBeNull();
     expect(onFailure).toHaveBeenCalledWith(failure);
+  });
+
+  it("answers at once, without a promise to wait for", () => {
+    expectTypeOf(startupStorageShortOf).returns.toEqualTypeOf<{
+      requiredFreeBytes: number;
+    } | null>();
   });
 });
