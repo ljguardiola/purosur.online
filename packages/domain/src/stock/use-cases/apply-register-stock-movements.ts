@@ -6,7 +6,7 @@ export interface RegisterStockMovement {
   id: string;
   saleLineId: string;
   productId: string;
-  kind: "sale";
+  kind: "sale" | "sale_void";
   delta: number;
 }
 
@@ -34,7 +34,11 @@ export async function applyRegisterStockMovements(
     }
     const refused = input.movements.find(
       (movement) =>
-        movement.productId === productId && !isMovementQuantity(locked.saleUnit, -movement.delta),
+        movement.productId === productId &&
+        !isMovementQuantity(
+          locked.saleUnit,
+          movement.kind === "sale" ? -movement.delta : movement.delta,
+        ),
     );
     if (refused) {
       return { kind: "invalid_quantity", productId };
