@@ -86,10 +86,56 @@ function verifyJobLines({
   ];
 }
 
+const STATIC_BASE_REF = `\${{ github.event_name == 'push' && github.event.before || github.event.pull_request.base.sha }}`;
+
+const STATIC_MATRIX = [
+  ["types", "pnpm verify:static:types"],
+  ["builds", "pnpm verify:static:builds"],
+  ["automation 1/2", "pnpm verify:static:automation --test-shard=1/2"],
+  ["automation 2/2", "pnpm verify:static:automation --test-shard=2/2"],
+];
+
+function staticJobLines({
+  condition = RUN_CONDITION,
+  jobExtra = [],
+  matrix = STATIC_MATRIX,
+  matrixExtra = [],
+  fetchDepth = "0",
+  run = `\${{ matrix.command }}`,
+  stepExtra = [],
+  baseRef = STATIC_BASE_REF,
+} = {}) {
+  return [
+    "  static:",
+    `    if: ${condition}`,
+    ...jobExtra.map((line) => `    ${line}`),
+    "    runs-on: ubuntu-24.04",
+    "    strategy:",
+    "      matrix:",
+    "        include:",
+    ...matrix.flatMap(([part, command]) => [
+      `          - part: ${part}`,
+      ...(command === null ? [] : [`            command: ${command}`]),
+    ]),
+    ...matrixExtra.map((line) => `        ${line}`),
+    "    steps:",
+    "      - uses: actions/checkout@v7",
+    ...(fetchDepth === null ? [] : ["        with:", `          fetch-depth: ${fetchDepth}`]),
+    "      - run: pnpm install --frozen-lockfile",
+    `      - run: ${run}`,
+    ...stepExtra.map((line) => `        ${line}`),
+    ...(baseRef === null ? [] : ["        env:", `          CHANGE_BASE_REF: ${baseRef}`]),
+  ];
+}
+
 function workflow({
   topExtra = [],
   scope = {},
-  staticRun = "pnpm verify:static",
+  staticRun = `\${{ matrix.command }}`,
+  staticMatrix = STATIC_MATRIX,
+  staticMatrixExtra = [],
+  staticFetchDepth = "0",
+  staticBaseRef = STATIC_BASE_REF,
   shardValues = [1, 2, 3, 4],
   testsRun,
   staticIf = RUN_CONDITION,
@@ -140,14 +186,16 @@ function workflow({
     ...topExtra,
     "jobs:",
     ...(scope === null ? [] : scopeJobLines(scope)),
-    "  static:",
-    `    if: ${staticIf}`,
-    ...staticJobExtra.map((line) => `    ${line}`),
-    "    runs-on: ubuntu-24.04",
-    "    steps:",
-    "      - run: pnpm install --frozen-lockfile",
-    `      - run: ${staticRun}`,
-    ...staticStepExtra.map((line) => `        ${line}`),
+    ...staticJobLines({
+      condition: staticIf,
+      jobExtra: staticJobExtra,
+      matrix: staticMatrix,
+      matrixExtra: staticMatrixExtra,
+      fetchDepth: staticFetchDepth,
+      run: staticRun,
+      stepExtra: staticStepExtra,
+      baseRef: staticBaseRef,
+    }),
     "  tests:",
     `    if: ${testsIf}`,
     ...testsJobExtra.map((line) => `    ${line}`),
@@ -166,11 +214,21 @@ function workflow({
 }
 
 const VERIFY_STATIC_SCRIPT =
-  "tsc --noEmit && tsc --noEmit -p apps/backoffice && tsc --noEmit -p apps/pos && tsc --noEmit -p apps/cloud/tsconfig.test.json && pnpm --filter @purosur/cloud build && pnpm --filter @purosur/backoffice build && node .github/scripts/backoffice-download-budget.mjs && pnpm --filter @purosur/pos build && biome ci . --error-on-warnings && pnpm depcruise && knip && node .github/scripts/react-compiler-check.mjs && node --test .github/scripts/*.test.mjs .github/scripts/test-support/*.test.mjs .claude/hooks/*.test.mjs";
+  "pnpm verify:static:types && pnpm verify:static:builds && pnpm verify:static:automation";
+
+const STATIC_PART_SCRIPTS = {
+  "verify:static:types":
+    "tsc --noEmit && tsc --noEmit -p apps/backoffice && tsc --noEmit -p apps/pos && tsc --noEmit -p apps/cloud/tsconfig.test.json",
+  "verify:static:builds":
+    "pnpm --filter @purosur/cloud build && pnpm --filter @purosur/backoffice build && node .github/scripts/backoffice-download-budget.mjs && pnpm --filter @purosur/pos build && biome ci . --error-on-warnings && pnpm depcruise && knip && node .github/scripts/react-compiler-check.mjs",
+  "verify:static:automation":
+    "node --test .github/scripts/*.test.mjs .github/scripts/test-support/*.test.mjs .claude/hooks/*.test.mjs",
+};
 
 function packageJson({
   verify = "pnpm verify:static && pnpm verify:tests && pnpm verify:visual",
   verifyStatic = VERIFY_STATIC_SCRIPT,
+  staticParts = STATIC_PART_SCRIPTS,
   verifyTests = "vitest run --project='!catalog-visual'",
   verifyVisual = "vitest run --project=catalog-visual",
 } = {}) {
@@ -178,10 +236,15 @@ function packageJson({
     scripts: {
       verify,
       "verify:static": verifyStatic,
+      ...staticParts,
       "verify:tests": verifyTests,
       "verify:visual": verifyVisual,
     },
   });
+}
+
+function withPart(name, script) {
+  return { ...STATIC_PART_SCRIPTS, [name]: script };
 }
 
 function assertSingleViolation(violations, pattern) {
@@ -327,24 +390,166 @@ test("flags a missing static job", () => {
   assert.match(violations[1], /verify job does not need static/);
 });
 
-test("flags a static job that no longer runs verify:static", () => {
+test("flags a static job that no longer runs its matrix's command", () => {
   const violations = findVerifyWorkflowViolations(
     workflow({ staticRun: "pnpm lint" }),
     packageJson(),
   );
 
-  assert.equal(violations.length, 1);
-  assert.match(violations[0], /verify:static/);
+  assertSingleViolation(violations, /static job has no step whose run is exactly `\$\{\{ matrix\.command \}\}`/);
 });
+
+test("passes when the static matrix runs an unsharded automation part", () => {
+  const violations = findVerifyWorkflowViolations(
+    workflow({
+      staticMatrix: [
+        ["types", "pnpm verify:static:types"],
+        ["builds", "pnpm verify:static:builds"],
+        ["automation", "pnpm verify:static:automation"],
+      ],
+    }),
+    packageJson(),
+  );
+
+  assert.deepEqual(violations, []);
+});
+
+test("passes when the static matrix shards the automation part three ways", () => {
+  const violations = findVerifyWorkflowViolations(
+    workflow({
+      staticMatrix: [
+        ["types", "pnpm verify:static:types"],
+        ["builds", "pnpm verify:static:builds"],
+        ["automation 1/3", "pnpm verify:static:automation --test-shard=1/3"],
+        ["automation 2/3", "pnpm verify:static:automation --test-shard=2/3"],
+        ["automation 3/3", "pnpm verify:static:automation --test-shard=3/3"],
+      ],
+    }),
+    packageJson(),
+  );
+
+  assert.deepEqual(violations, []);
+});
+
+for (const [label, matrix, pattern] of [
+  [
+    "leaves out a part of verify:static",
+    STATIC_MATRIX.filter(([part]) => part !== "builds"),
+    /static job runs no `pnpm verify:static:builds`/,
+  ],
+  [
+    "runs a part of verify:static twice",
+    [...STATIC_MATRIX, ["types again", "pnpm verify:static:types"]],
+    /static job runs `pnpm verify:static:types` more than once/,
+  ],
+  [
+    "runs a part both whole and in shards",
+    [...STATIC_MATRIX, ["automation", "pnpm verify:static:automation"]],
+    /static job runs `pnpm verify:static:automation` more than once/,
+  ],
+  [
+    "leaves out a shard of a part",
+    STATIC_MATRIX.filter(([part]) => part !== "automation 2/2"),
+    /static job's shards of `pnpm verify:static:automation` are not a contiguous 1\.\.n range/,
+  ],
+  [
+    "runs shards that skip a number",
+    [
+      ...STATIC_MATRIX.slice(0, 2),
+      ["automation 1/3", "pnpm verify:static:automation --test-shard=1/3"],
+      ["automation 3/3", "pnpm verify:static:automation --test-shard=3/3"],
+    ],
+    /static job's shards of `pnpm verify:static:automation` are not a contiguous 1\.\.n range/,
+  ],
+  [
+    "runs shards that disagree on their count",
+    [
+      ...STATIC_MATRIX.slice(0, 2),
+      ["automation 1/2", "pnpm verify:static:automation --test-shard=1/2"],
+      ["automation 2/3", "pnpm verify:static:automation --test-shard=2/3"],
+    ],
+    /static job's shards of `pnpm verify:static:automation` are not a contiguous 1\.\.n range/,
+  ],
+  [
+    "runs a command that is not a part of verify:static",
+    [...STATIC_MATRIX, ["lint", "pnpm lint"]],
+    /static job runs `pnpm lint`, which is not a part of verify:static/,
+  ],
+  [
+    "has an entry without a command",
+    [...STATIC_MATRIX, ["empty", null]],
+    /static job runs `undefined`, which is not a part of verify:static/,
+  ],
+]) {
+  test(`flags a static matrix that ${label}`, () => {
+    const violations = findVerifyWorkflowViolations(
+      workflow({ staticMatrix: matrix }),
+      packageJson(),
+    );
+
+    assertSingleViolation(violations, pattern);
+  });
+}
+
+test("flags a static matrix that swallows a part's failure", () => {
+  const violations = findVerifyWorkflowViolations(
+    workflow({
+      staticMatrix: [...STATIC_MATRIX.slice(1), ["types", "pnpm verify:static:types || true"]],
+    }),
+    packageJson(),
+  );
+
+  assert.deepEqual(violations, [
+    "verify.yml's static job runs `pnpm verify:static:types || true`, which is not a part of verify:static",
+    "verify.yml's static job runs no `pnpm verify:static:types`",
+  ]);
+});
+
+for (const key of ["exclude", "part"]) {
+  test(`flags a static matrix that sets ${key} beside its include list`, () => {
+    const violations = findVerifyWorkflowViolations(
+      workflow({ staticMatrixExtra: [`${key}:`, "  - types"] }),
+      packageJson(),
+    );
+
+    assertSingleViolation(violations, new RegExp(`static job strategy\\.matrix sets ${key}`));
+  });
+}
+
+for (const [label, options, pattern] of [
+  [
+    "checks out only the latest commit, hiding the history the migration guard and secret scan read",
+    { staticFetchDepth: null },
+    /static job checks out without fetch-depth: 0/,
+  ],
+  [
+    "checks out a shallow history",
+    { staticFetchDepth: "1" },
+    /static job checks out without fetch-depth: 0/,
+  ],
+  [
+    "runs its parts without the change's base",
+    { staticBaseRef: null },
+    /static job's verify:static step's CHANGE_BASE_REF is/,
+  ],
+  [
+    "runs its parts from the wrong base",
+    { staticBaseRef: `\${{ github.sha }}` },
+    /static job's verify:static step's CHANGE_BASE_REF is/,
+  ],
+]) {
+  test(`flags a static job that ${label}`, () => {
+    const violations = findVerifyWorkflowViolations(workflow(options), packageJson());
+
+    assertSingleViolation(violations, pattern);
+  });
+}
 
 test("flags a missing tests job", () => {
   const source = [
     "jobs:",
     ...scopeJobLines(),
-    "  static:",
-    `    if: ${RUN_CONDITION}`,
-    "    steps:",
-    "      - run: pnpm verify:static",
+    ...staticJobLines(),
     "  visual:",
     `    if: ${VISUAL_CONDITION}`,
     "    steps:",
@@ -363,10 +568,7 @@ test("flags a missing visual job", () => {
   const source = [
     "jobs:",
     ...scopeJobLines(),
-    "  static:",
-    `    if: ${RUN_CONDITION}`,
-    "    steps:",
-    "      - run: pnpm verify:static",
+    ...staticJobLines(),
     "  tests:",
     `    if: ${TESTS_CONDITION}`,
     "    strategy:",
@@ -522,11 +724,11 @@ for (const job of ["static", "tests", "visual"]) {
 
 test("flags a static run command whose failure is swallowed", () => {
   const violations = findVerifyWorkflowViolations(
-    workflow({ staticRun: "pnpm verify:static || true" }),
+    workflow({ staticRun: `\${{ matrix.command }} || true` }),
     packageJson(),
   );
 
-  assertSingleViolation(violations, /verify:static/);
+  assertSingleViolation(violations, /static job has no step whose run is exactly/);
 });
 
 test("flags a tests run command whose failure is swallowed", () => {
@@ -687,13 +889,63 @@ test("flags a verify aggregate step whose static result is hardcoded to success"
   assertSingleViolation(violations, /aggregate step's STATIC_RESULT is/);
 });
 
-test("flags a verify:static script that turns the required commands into a shell comment", () => {
+test("flags a verify:static script that turns its parts into a shell comment", () => {
   const violations = findVerifyWorkflowViolations(
     workflow(),
     packageJson({ verifyStatic: `true # && ${VERIFY_STATIC_SCRIPT}` }),
   );
 
+  assert.ok(
+    violations.some((violation) => /"verify:static" script/.test(violation)),
+    violations.join("\n"),
+  );
+});
+
+test("flags a static part script that turns the required commands into a shell comment", () => {
+  const builds = STATIC_PART_SCRIPTS["verify:static:builds"];
+  const violations = findVerifyWorkflowViolations(
+    workflow(),
+    packageJson({ staticParts: withPart("verify:static:builds", `true # && ${builds}`) }),
+  );
+
+  assert.ok(
+    violations.some((violation) => /"verify:static:builds" script/.test(violation)),
+    violations.join("\n"),
+  );
+});
+
+test("flags a verify:static script that runs a check of its own beside its parts", () => {
+  const violations = findVerifyWorkflowViolations(
+    workflow(),
+    packageJson({ verifyStatic: `${VERIFY_STATIC_SCRIPT} && pnpm lint:extra` }),
+  );
+
   assertSingleViolation(violations, /"verify:static" script/);
+});
+
+test("flags a verify:static script that names a part package.json does not define", () => {
+  const { "verify:static:builds": _builds, ...withoutBuilds } = STATIC_PART_SCRIPTS;
+  const violations = findVerifyWorkflowViolations(
+    workflow(),
+    packageJson({ staticParts: withoutBuilds }),
+  );
+
+  assert.ok(
+    violations.some((violation) => /"verify:static:builds" script is "undefined"/.test(violation)),
+    violations.join("\n"),
+  );
+});
+
+test("flags a part verify:static runs that the static matrix leaves out", () => {
+  const violations = findVerifyWorkflowViolations(
+    workflow(),
+    packageJson({
+      verifyStatic: `${VERIFY_STATIC_SCRIPT} && pnpm verify:static:extra`,
+      staticParts: withPart("verify:static:extra", "pnpm lint:extra"),
+    }),
+  );
+
+  assertSingleViolation(violations, /static job runs no `pnpm verify:static:extra`/);
 });
 
 for (const [label, options, pattern] of [
@@ -754,15 +1006,16 @@ for (const [separator, label] of [
   ["\n", "a newline"],
   ["\r", "a carriage return"],
 ]) {
-  test(`flags a verify:static script that hides a command behind ${label}`, () => {
+  test(`flags a static part script that hides a command behind ${label}`, () => {
+    const types = STATIC_PART_SCRIPTS["verify:static:types"];
     const violations = findVerifyWorkflowViolations(
       workflow(),
       packageJson({
-        verifyStatic: `${VERIFY_STATIC_SCRIPT} && pnpm lint:extra${separator}true`,
+        staticParts: withPart("verify:static:types", `${types} && pnpm lint:extra${separator}true`),
       }),
     );
 
-    assertSingleViolation(violations, /"verify:static" script/);
+    assertSingleViolation(violations, /"verify:static:types" script/);
   });
 }
 
@@ -781,29 +1034,49 @@ for (const dropped of [
   "node .github/scripts/react-compiler-check.mjs",
   "node --test .github/scripts/*.test.mjs .github/scripts/test-support/*.test.mjs .claude/hooks/*.test.mjs",
 ]) {
-  test(`flags a verify:static script that no longer runs ${dropped}`, () => {
-    const verifyStatic = VERIFY_STATIC_SCRIPT.split(" && ")
-      .filter((command) => command !== dropped)
-      .join(" && ");
+  test(`flags verify:static parts that no longer run ${dropped}`, () => {
+    const staticParts = Object.fromEntries(
+      Object.entries(STATIC_PART_SCRIPTS).map(([name, script]) => [
+        name,
+        script
+          .split(" && ")
+          .filter((command) => command !== dropped)
+          .join(" && ") || "true",
+      ]),
+    );
 
-    const violations = findVerifyWorkflowViolations(workflow(), packageJson({ verifyStatic }));
+    const violations = findVerifyWorkflowViolations(workflow(), packageJson({ staticParts }));
 
-    assertSingleViolation(violations, /"verify:static" script/);
+    assertSingleViolation(violations, /verify:static parts run no/);
   });
 }
 
-test("flags a verify:static script that swallows a failing check", () => {
+test("flags a static part script that swallows a failing check", () => {
+  const types = STATIC_PART_SCRIPTS["verify:static:types"];
   const violations = findVerifyWorkflowViolations(
     workflow(),
     packageJson({
-      verifyStatic: VERIFY_STATIC_SCRIPT.replace("tsc --noEmit", "tsc --noEmit || true"),
+      staticParts: withPart(
+        "verify:static:types",
+        types.replace("tsc --noEmit", "tsc --noEmit || true"),
+      ),
     }),
   );
 
-  assertSingleViolation(violations, /"verify:static" script/);
+  assertSingleViolation(violations, /"verify:static:types" script/);
 });
 
-test("flags a verify:static script that ends in a command that always succeeds", () => {
+test("flags a static part script that ends in a command that always succeeds", () => {
+  const automation = STATIC_PART_SCRIPTS["verify:static:automation"];
+  const violations = findVerifyWorkflowViolations(
+    workflow(),
+    packageJson({ staticParts: withPart("verify:static:automation", `${automation}; true`) }),
+  );
+
+  assertSingleViolation(violations, /"verify:static:automation" script/);
+});
+
+test("flags a verify:static script whose parts swallow a failing part", () => {
   const violations = findVerifyWorkflowViolations(
     workflow(),
     packageJson({ verifyStatic: `${VERIFY_STATIC_SCRIPT}; true` }),
@@ -812,10 +1085,11 @@ test("flags a verify:static script that ends in a command that always succeeds",
   assertSingleViolation(violations, /"verify:static" script/);
 });
 
-test("accepts a verify:static script that adds another check", () => {
+test("accepts a static part script that adds another check", () => {
+  const builds = STATIC_PART_SCRIPTS["verify:static:builds"];
   const violations = findVerifyWorkflowViolations(
     workflow(),
-    packageJson({ verifyStatic: `${VERIFY_STATIC_SCRIPT} && pnpm lint:extra` }),
+    packageJson({ staticParts: withPart("verify:static:builds", `${builds} && pnpm lint:extra`) }),
   );
 
   assert.deepEqual(violations, []);
