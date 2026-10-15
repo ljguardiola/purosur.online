@@ -133,6 +133,81 @@ test("redirects a typed /registers to Mi cuenta for a user without enroll_regist
   expect(services.registersListScreen.fetchRegisters).not.toHaveBeenCalled();
 });
 
+test("shows the Backups item after Cajas registradoras for a user holding view_backups_and_rotate_key", async () => {
+  const services = createAppServices({
+    fetchSession: vi.fn().mockResolvedValue(
+      openSession({
+        userId: "user-2",
+        displayName: "Grace Villalba",
+        isAdministrator: false,
+        capabilities: ["registers_area", "backups_area"],
+      }),
+    ),
+  });
+  vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
+
+  const links = screen.getByRole("link").elements();
+  const labels = links.map((link) => link.textContent);
+  expect(labels.indexOf("Backups")).toBe(labels.indexOf("Cajas registradoras") + 1);
+});
+
+test("hides the Backups item in the rail for a user without view_backups_and_rotate_key", async () => {
+  const services = createAppServices({
+    fetchSession: vi
+      .fn()
+      .mockResolvedValue(
+        openSession({ userId: "user-2", displayName: "Grace Villalba", isAdministrator: false }),
+      ),
+  });
+  window.history.pushState(null, "", "/help");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByRole("navigation", { name: "Áreas" })).toBeVisible();
+  expect(screen.getByRole("link", { name: "Backups" }).query()).toBeNull();
+});
+
+test("following the sidebar's Backups item opens the backups, with Config and Backups active", async () => {
+  window.history.pushState(null, "", "/account");
+  const services = createAppServices();
+  vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
+  vi.mocked(services.snapshotBackupsScreen.fetchSnapshotBackupRegisters).mockResolvedValue({
+    kind: "ok",
+    value: [],
+  });
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
+
+  await userEvent.click(screen.getByRole("link", { name: "Backups" }));
+
+  await expect.element(screen.getByRole("heading", { name: "Backups", level: 1 })).toBeVisible();
+  expect(window.location.pathname).toBe("/backups");
+  const configItem = screen.getByRole("link", { name: "Config" }).element() as HTMLAnchorElement;
+  expect(configItem.getAttribute("aria-current")).toBe("page");
+  const backupsItem = screen.getByRole("link", { name: "Backups" }).element() as HTMLAnchorElement;
+  expect(backupsItem.getAttribute("aria-current")).toBe("page");
+});
+
+test("redirects a typed /backups to Mi cuenta for a user without view_backups_and_rotate_key, without calling its API", async () => {
+  const services = createAppServices({
+    fetchSession: vi
+      .fn()
+      .mockResolvedValue(
+        openSession({ userId: "user-2", displayName: "Grace Villalba", isAdministrator: false }),
+      ),
+  });
+  vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
+  window.history.pushState(null, "", "/backups");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
+  expect(window.location.pathname).toBe("/account");
+  expect(services.snapshotBackupsScreen.fetchSnapshotBackupRegisters).not.toHaveBeenCalled();
+});
+
 test("shows the Sucursal item in the rail for a user holding configure_branch, linking to its screen", async () => {
   window.history.pushState(null, "", "/account");
   const services = createAppServices({

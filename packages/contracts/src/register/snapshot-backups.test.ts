@@ -1,4 +1,8 @@
-import { SNAPSHOT_FAILURE_REASONS, SNAPSHOT_LIFECYCLE_LIMITS } from "@purosur/domain";
+import {
+  ARGENTINA_TIME_ZONE,
+  SNAPSHOT_FAILURE_REASONS,
+  SNAPSHOT_LIFECYCLE_LIMITS,
+} from "@purosur/domain";
 import { describe, expect, it } from "vitest";
 import {
   snapshotBackupRegistersSchema,
@@ -118,5 +122,13 @@ describe("snapshotKeyRotationSchema", () => {
 
   it("refuses a version of zero", () => {
     expect(snapshotKeyRotationSchema.safeParse({ key_version: 0 }).success).toBe(false);
+  });
+});
+
+describe("snapshotBackupsSchema generations", () => {
+  it("declares the zone a generation's creation is shown in", () => {
+    expect(snapshotBackupsSchema.shape.generations.element.shape.created_at.meta()).toEqual({
+      timeZone: ARGENTINA_TIME_ZONE,
+    });
   });
 });
