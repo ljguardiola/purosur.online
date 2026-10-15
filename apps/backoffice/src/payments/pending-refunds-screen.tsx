@@ -127,9 +127,9 @@ export function PendingRefundsScreen({
       header: "Medio",
       render: (refund: PendingRefund) => {
         const status = refundDeliveryStatus(refund);
-        const description =
-          status ??
-          (refund.provider_order_id === null ? null : `Orden ${refund.provider_order_id}`);
+        const order =
+          refund.provider_order_id === null ? null : `Orden ${refund.provider_order_id}`;
+        const description = [status, order].filter((part) => part !== null).join(" · ") || null;
         return description === null ? (
           paymentMethodLabel(refund.method)
         ) : (
