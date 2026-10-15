@@ -45,14 +45,22 @@ function totalsByMethod(payments: readonly HandConfirmedPayment[]): HandConfirme
   });
 }
 
+function compareNames(a: string | null, b: string | null): number {
+  if (a === null) {
+    return b === null ? 0 : 1;
+  }
+  if (b === null) {
+    return -1;
+  }
+  return compareSpanishText(a, b);
+}
+
 function compareCashiers(a: HandConfirmedCashierTotal, b: HandConfirmedCashierTotal): number {
-  if (a.amount !== b.amount) {
-    return b.amount - a.amount;
-  }
-  if (a.cashierName === null || b.cashierName === null) {
-    return Number(a.cashierName === null) - Number(b.cashierName === null);
-  }
-  return compareSpanishText(a.cashierName, b.cashierName);
+  return (
+    b.amount - a.amount ||
+    compareNames(a.cashierName, b.cashierName) ||
+    compareSpanishText(a.cashierId, b.cashierId)
+  );
 }
 
 function totalsByCashier(payments: readonly HandConfirmedPayment[]): HandConfirmedCashierTotal[] {
