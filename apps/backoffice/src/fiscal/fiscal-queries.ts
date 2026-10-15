@@ -6,6 +6,7 @@ import type {
   BuyerIdentificationThresholds,
   fetchBuyerIdentificationThresholds,
 } from "./buyer-identification-threshold-api";
+import type { ClockCorrection, fetchClockCorrections } from "./clock-corrections-api";
 import type { FiscalAddress, fetchFiscalAddresses } from "./fiscal-addresses-api";
 import type {
   FortnightPresentation,
@@ -22,6 +23,7 @@ export const fiscalKeys = {
   fiscalAddresses: [...fiscalKey, "fiscal-addresses"] as const,
   registerPointsOfSale: [...fiscalKey, "register-points-of-sale"] as const,
   fortnightPresentations: [...fiscalKey, "fortnight-presentations"] as const,
+  clockCorrections: [...fiscalKey, "clock-corrections"] as const,
 };
 
 export function useIssuerIdentificationQuery(params: {
@@ -136,6 +138,19 @@ export function useFortnightPresentationsQuery(params: {
   return useCloudQuery<FortnightPresentation[]>({
     queryKey: fiscalKeys.fortnightPresentations,
     read: params.fetchFortnightPresentations,
+    onSessionEnded: params.onSessionEnded,
+    onForbidden: sendToMyAccount,
+  });
+}
+
+export function useClockCorrectionsQuery(params: {
+  fetchClockCorrections: typeof fetchClockCorrections;
+  onSessionEnded: () => void;
+}) {
+  const sendToMyAccount = useSendToMyAccount();
+  return useCloudQuery<ClockCorrection[]>({
+    queryKey: fiscalKeys.clockCorrections,
+    read: params.fetchClockCorrections,
     onSessionEnded: params.onSessionEnded,
     onForbidden: sendToMyAccount,
   });
