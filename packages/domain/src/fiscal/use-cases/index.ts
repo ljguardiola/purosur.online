@@ -123,6 +123,11 @@ export { decideUnclearRealTimeOutcome } from "./decide-unclear-real-time-outcome
 export type { ShortCodeRandomness } from "./deferred-sale-ports.js";
 export { ShortCodeTaken } from "./deferred-sale-ports.js";
 export type {
+  DiagnoseNumberingConflictInput,
+  DiagnoseNumberingConflictOutcome,
+} from "./diagnose-numbering-conflict.js";
+export { diagnoseNumberingConflict } from "./diagnose-numbering-conflict.js";
+export type {
   EditFiscalAddressInput,
   EditFiscalAddressOutcome,
 } from "./edit-fiscal-address.js";
@@ -196,6 +201,16 @@ export type {
   NewIssuerIdentificationVersion,
 } from "./issuer-identification-store.js";
 export type {
+  DiagnoseNumberingConflictPorts,
+  ExternalBillingOpening,
+  NumberingConflictLane,
+  NumberingConflictLanes,
+  NumberingConflictRequest,
+  NumberingConflictRequests,
+  NumberingFreeze,
+  ReconcileNumberingConflictPorts,
+} from "./numbering-conflict-ports.js";
+export type {
   FortnightAcquisitionOutcome,
   ObtainOfflineAuthorizationCodesOutcome,
 } from "./obtain-offline-authorization-codes.js";
@@ -236,6 +251,11 @@ export type {
   RoundTripSamples,
   WaitingFiscalDocument,
 } from "./real-time-authorization-ports.js";
+export type {
+  ReconcileNumberingConflictInput,
+  ReconcileNumberingConflictOutcome,
+} from "./reconcile-numbering-conflict.js";
+export { reconcileNumberingConflict } from "./reconcile-numbering-conflict.js";
 export type {
   RecordAuthorizedCuitInput,
   RecordAuthorizedCuitOutcome,

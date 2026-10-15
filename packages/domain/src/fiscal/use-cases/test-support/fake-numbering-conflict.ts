@@ -3,6 +3,7 @@ import type {
   NumberingReconciliationDocument,
 } from "../../model/numbering-conflict.js";
 import type { RealTimeAuthorizationAnswer } from "../../model/real-time-authorization.js";
+import type { WsaaTokenSource } from "../fiscal-document-authorization-ports.js";
 import type {
   ExternalBillingOpening,
   NumberingConflictLane,
@@ -11,7 +12,6 @@ import type {
   NumberingConflictRequests,
   NumberingFreeze,
 } from "../numbering-conflict-ports.js";
-import type { WsaaTokenSource } from "../fiscal-document-authorization-ports.js";
 import type {
   LastAuthorizedAnswer,
   TaxAuthorityLastAuthorizedLookup,
@@ -38,7 +38,9 @@ interface StoreState {
   reconciliationRequests: number[];
 }
 
-export class FakeNumberingConflictStore implements NumberingConflictLanes, NumberingConflictRequests {
+export class FakeNumberingConflictStore
+  implements NumberingConflictLanes, NumberingConflictRequests
+{
   readonly operations: string[] = [];
   held = false;
   failOn: string | undefined;

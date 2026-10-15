@@ -30,19 +30,6 @@ export {
   SHORT_CODE_ALPHABET,
 } from "./model/deferred-sale.js";
 export type {
-  NumberingConflictDiagnosis,
-  NumberingConflictFacts,
-  NumberingDocumentSettlement,
-  NumberingReconciliation,
-  NumberingReconciliationDocument,
-  NumberingReconciliationInput,
-} from "./model/numbering-conflict.js";
-export {
-  decideNumberingReconciliation,
-  diagnoseNumberingConflict,
-  isNumberingConflict,
-} from "./model/numbering-conflict.js";
-export type {
   AuthorizedFacturaC,
   FacturaCFiscalBlock,
   OfflineAuthorizedFacturaC,
@@ -99,6 +86,19 @@ export {
   isIssuerIdentificationLegalNameTooLong,
   latestIssuerIdentification,
 } from "./model/issuer-identification.js";
+export type {
+  NumberingConflictDiagnosis,
+  NumberingConflictFacts,
+  NumberingDocumentSettlement,
+  NumberingReconciliation,
+  NumberingReconciliationDocument,
+  NumberingReconciliationInput,
+} from "./model/numbering-conflict.js";
+export {
+  decideNumberingReconciliation,
+  diagnoseNumberingConflict,
+  isNumberingConflict,
+} from "./model/numbering-conflict.js";
 export type { Fortnight } from "./model/offline-authorization-code.js";
 export {
   fortnightAfter,

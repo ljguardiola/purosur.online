@@ -227,17 +227,16 @@ describe("reconcileNumberingConflict", () => {
     expect(store.freezeOf(12)).toBeUndefined();
   });
 
-  it.each([
-    "openExternalBillingAlert:13",
-    "continueNumberingAfter",
-    "liftNumberingFreeze",
-  ])("leaves the alerts, the count and the freeze as they were when %s fails", async (failing) => {
-    const { store, ports } = scenario({ documents: [authorized(11), authorized(14)] });
-    store.failOn = failing;
+  it.each(["openExternalBillingAlert:13", "continueNumberingAfter", "liftNumberingFreeze"])(
+    "leaves the alerts, the count and the freeze as they were when %s fails",
+    async (failing) => {
+      const { store, ports } = scenario({ documents: [authorized(11), authorized(14)] });
+      store.failOn = failing;
 
-    await expect(reconcile(ports)).rejects.toThrow();
-    expect(store.alerts).toEqual([]);
-    expect(store.countOf(12)).toBe(10);
-    expect(store.freezeOf(12)).toEqual(STILL_FROZEN);
-  });
+      await expect(reconcile(ports)).rejects.toThrow();
+      expect(store.alerts).toEqual([]);
+      expect(store.countOf(12)).toBe(10);
+      expect(store.freezeOf(12)).toEqual(STILL_FROZEN);
+    },
+  );
 });

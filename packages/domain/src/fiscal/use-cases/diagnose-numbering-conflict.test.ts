@@ -101,11 +101,30 @@ describe("diagnoseNumberingConflict", () => {
 
   it.each([
     ["no answer", { answer: null, unclearCodes: [] }],
-    ["an authorization", { answer: { kind: "authorized", authorizationCode: "1", authorizationCodeDueOn: "2026-10-11" }, unclearCodes: [] }],
-    ["a rejection", { answer: { kind: "rejected", codes: [10016], rejectionClass: "content" }, unclearCodes: [] }],
-    ["an unclear answer for other codes", { answer: { kind: "unclear" }, unclearCodes: [600, 10000] }],
+    [
+      "an authorization",
+      {
+        answer: {
+          kind: "authorized",
+          authorizationCode: "1",
+          authorizationCodeDueOn: "2026-10-11",
+        },
+        unclearCodes: [],
+      },
+    ],
+    [
+      "a rejection",
+      { answer: { kind: "rejected", codes: [10016], rejectionClass: "content" }, unclearCodes: [] },
+    ],
+    [
+      "an unclear answer for other codes",
+      { answer: { kind: "unclear" }, unclearCodes: [600, 10000] },
+    ],
     ["an unclear answer with no codes", { answer: { kind: "unclear" }, unclearCodes: [] }],
-    ["a request that was not attempted", { answer: { kind: "not_attempted" }, unclearCodes: [10016] }],
+    [
+      "a request that was not attempted",
+      { answer: { kind: "not_attempted" }, unclearCodes: [10016] },
+    ],
   ] as const)("answers not a numbering conflict for %s", async (_case, request) => {
     const { store, taxAuthority, ports } = scenario({ request });
 

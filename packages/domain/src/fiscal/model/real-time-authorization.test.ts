@@ -386,9 +386,10 @@ describe("decideSaleAuthorizationRoute", () => {
   });
 
   it("does not look at a freeze for a register without a point of sale", () => {
-    expect(
-      decide({ series: { ...SERIES, pointOfSale: null, numberingFrozen: true } }),
-    ).toEqual({ kind: "defer", reason: "point_of_sale_missing" });
+    expect(decide({ series: { ...SERIES, pointOfSale: null, numberingFrozen: true } })).toEqual({
+      kind: "defer",
+      reason: "point_of_sale_missing",
+    });
   });
 
   it("defers a sale whose gate failed before looking at a freeze", () => {

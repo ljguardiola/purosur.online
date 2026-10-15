@@ -3,9 +3,9 @@ import {
   type FiscalOnlineSignalEvidence,
   isRegisterFiscallyOnline,
 } from "./fiscal-online-signal.js";
+import { isNumberingConflict } from "./numbering-conflict.js";
 import { type Fortnight, fortnightContaining } from "./offline-authorization-code.js";
 import { type NextOfflineNumberInput, nextOfflineNumber } from "./offline-number-block.js";
-import { isNumberingConflict } from "./numbering-conflict.js";
 import type { FacturaC, PreEmissionGateOutcome } from "./pre-emission-gate.js";
 
 export const REAL_TIME_AUTHORIZATION_TIMEOUT_MS = 5_000;
