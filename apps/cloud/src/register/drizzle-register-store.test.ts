@@ -629,18 +629,18 @@ describe("DrizzleRegisterStore", () => {
       });
       await configureOfflinePointOfSale(db, {
         registerName: "caja-2",
-        realTimePointOfSale: 9,
-        offlinePointOfSale: 10,
+        realTimePointOfSale: 3,
+        offlinePointOfSale: 4,
         now: READ_AT,
       });
-      await seedCounts(7, 9);
+      await seedCounts(7, 3);
       const enqueued: number[] = [];
 
       await storeEnqueueingInto(enqueued).transaction((tx) =>
         tx.requireFreshTaxAuthorityCount(registerId),
       );
 
-      expect(await storedCountPointsOfSale()).toEqual([9, 10]);
+      expect(await storedCountPointsOfSale()).toEqual([3, 4]);
       expect(enqueued.sort()).toEqual([7, 8]);
     });
 
