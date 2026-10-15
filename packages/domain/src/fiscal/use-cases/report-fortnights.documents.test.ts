@@ -21,9 +21,13 @@ function documentsNumbered(...numbers: number[]) {
   return numbers.map((number) => offlineDocument(number));
 }
 
-function setUp(
-  { numbers = [1, 2, 3], now = ON_OCTOBER_3 }: { numbers?: number[]; now?: Date } = {},
-) {
+function setUp({
+  numbers = [1, 2, 3],
+  now = ON_OCTOBER_3,
+}: {
+  numbers?: number[];
+  now?: Date;
+} = {}) {
   const setup = setUpReportFortnights({ now });
   setup.documents.add(POINT_OF_SALE, SEPTEMBER_SECOND_HALF, ...documentsNumbered(...numbers));
   return setup;
@@ -283,9 +287,7 @@ describe("reportFortnights, for a fortnight with offline-authorized documents", 
       const result = await run();
 
       expect(presentationOutcomes(result)[0]?.outcome).toEqual({ kind: "unclear" });
-      expect(reports.documentTypeChanges.map(({ change }) => change.state)).toEqual([
-        "submitting",
-      ]);
+      expect(reports.documentTypeChanges.map(({ change }) => change.state)).toEqual(["submitting"]);
       expect(reports.changes.map(({ change }) => change.state)).toEqual(["submitting"]);
     });
 
@@ -321,7 +323,11 @@ describe("reportFortnights, for a fortnight with offline-authorized documents", 
   describe("when the tax authority rejects a document of the batch", () => {
     it("records the presentation refused with the rejected document, keeping what it accepted before it", async () => {
       const { documentReports, reports, run } = setUp({ numbers: [1, 2, 3, 4, 5] });
-      documentReports.reportAnswer = () => ({ kind: "rejected", number: 3, rejections: REJECTIONS });
+      documentReports.reportAnswer = () => ({
+        kind: "rejected",
+        number: 3,
+        rejections: REJECTIONS,
+      });
 
       const result = await run();
 
@@ -346,7 +352,11 @@ describe("reportFortnights, for a fortnight with offline-authorized documents", 
     it("sends nothing more in that run", async () => {
       const { documentReports, run } = setUp({ numbers: [1, 2, 3, 4, 5] });
       documentReports.limit = 2;
-      documentReports.reportAnswer = () => ({ kind: "rejected", number: 2, rejections: REJECTIONS });
+      documentReports.reportAnswer = () => ({
+        kind: "rejected",
+        number: 2,
+        rejections: REJECTIONS,
+      });
 
       await run();
 
@@ -355,7 +365,11 @@ describe("reportFortnights, for a fortnight with offline-authorized documents", 
 
     it("is not tried again before the retry interval has passed", async () => {
       const { documentReports, run, clock } = setUp();
-      documentReports.reportAnswer = () => ({ kind: "rejected", number: 1, rejections: REJECTIONS });
+      documentReports.reportAnswer = () => ({
+        kind: "rejected",
+        number: 1,
+        rejections: REJECTIONS,
+      });
       await run();
       clock.advanceBy(30 * 60 * 1000);
 
@@ -471,8 +485,7 @@ describe("reportFortnights, for a fortnight with offline-authorized documents", 
     }
 
     it("mark the presentation for manual regularization and send nothing", async () => {
-      const { reports, documentReports, declarations, operations, run } =
-        acceptedWithoutMovement();
+      const { reports, documentReports, declarations, operations, run } = acceptedWithoutMovement();
 
       const result = await run();
 

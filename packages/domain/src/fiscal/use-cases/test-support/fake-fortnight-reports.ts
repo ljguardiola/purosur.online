@@ -90,15 +90,17 @@ class FakeHeldReport implements HeldFortnightReport {
   async recordDocumentType(change: DocumentTypeReportChange): Promise<void> {
     this.store.operations.push(`record ${change.documentType} ${change.state}`);
     this.store.documentTypeChanges.push({ ...this.key, change });
-    this.store.reportedThrough.set(typeKeyOf(this.key, change.documentType), change.reportedThrough);
+    this.store.reportedThrough.set(
+      typeKeyOf(this.key, change.documentType),
+      change.reportedThrough,
+    );
   }
 }
 
 export class FakeFortnightReportStore implements FortnightReportStore {
   readonly operations: string[];
   readonly changes: (FortnightReportKey & { change: FortnightReportChange })[] = [];
-  readonly documentTypeChanges: (FortnightReportKey & { change: DocumentTypeReportChange })[] =
-    [];
+  readonly documentTypeChanges: (FortnightReportKey & { change: DocumentTypeReportChange })[] = [];
   readonly recordedReports = new Map<string, RecordedFortnightReport>();
   readonly reportedThrough = new Map<string, number | null>();
   readonly heldKeys = new Set<string>();
@@ -236,8 +238,9 @@ export class FakeTaxAuthorityOfflineDocumentReports implements TaxAuthorityOffli
   readonly reports: RecordedOfflineDocumentReportCall[] = [];
   readonly held = new Map<string, number>();
   limit = 250;
-  lastReportedAnswer: ((call: OfflineDocumentLastReportedCall) => OfflineDocumentLastReportedAnswer) | null =
-    null;
+  lastReportedAnswer:
+    | ((call: OfflineDocumentLastReportedCall) => OfflineDocumentLastReportedAnswer)
+    | null = null;
   batchLimitAnswer: (() => OfflineDocumentBatchLimitAnswer) | null = null;
   reportAnswer: (call: OfflineDocumentReportCall) => OfflineDocumentReportAnswer = () => ({
     kind: "accepted",

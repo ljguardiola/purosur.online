@@ -352,9 +352,7 @@ describe("fortnightReportStateOfDocumentTypes", () => {
   });
 
   it("is refused while any document type is refused", () => {
-    expect(fortnightReportStateOfDocumentTypes(["accepted", "blocked", "refused"])).toBe(
-      "refused",
-    );
+    expect(fortnightReportStateOfDocumentTypes(["accepted", "blocked", "refused"])).toBe("refused");
   });
 
   it("is blocked while any document type is blocked and none is refused", () => {

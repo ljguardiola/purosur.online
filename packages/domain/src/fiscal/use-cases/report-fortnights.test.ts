@@ -142,7 +142,11 @@ describe("reportFortnights", () => {
       const { reports, operations, run } = setUp();
       reports.seed(
         { pointOfSaleNumber: POINT_OF_SALE, fortnight: SEPTEMBER_SECOND_HALF },
-        { state: "accepted", movement: "none", lastAttemptAt: new Date("2026-10-02T12:00:00.000Z") },
+        {
+          state: "accepted",
+          movement: "none",
+          lastAttemptAt: new Date("2026-10-02T12:00:00.000Z"),
+        },
       );
 
       const result = await run();
@@ -253,9 +257,7 @@ describe("reportFortnights", () => {
       expect(operations.indexOf("tax authority lookUp")).toBeLessThan(
         operations.indexOf("installationsOf"),
       );
-      expect(operations.indexOf("installationsOf")).toBeLessThan(
-        operations.indexOf("documentsOn"),
-      );
+      expect(operations.indexOf("installationsOf")).toBeLessThan(operations.indexOf("documentsOn"));
       expect(operations.indexOf("documentsOn")).toBeLessThan(
         operations.indexOf("tax authority declare"),
       );
