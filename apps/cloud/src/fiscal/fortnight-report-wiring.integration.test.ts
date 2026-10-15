@@ -279,7 +279,7 @@ describe("the fortnight report the server sets up on a real Postgres", () => {
     await sql`delete from register_installations`;
     await sql`insert into fortnight_reports
                 (point_of_sale_number, fortnight_start, fortnight_end, state, movement, recorded_at)
-              values (8, '2026-10-01', '2026-10-15', 'accepted', 'none', ${NOW}::timestamptz)`;
+              values (8, '2026-10-01', '2026-10-15', 'accepted', 'none', ${NOW.toISOString()}::timestamptz)`;
     await insertOfflineFiscalDocument(drizzle(sql), {
       registerId,
       pointOfSale: 8,
