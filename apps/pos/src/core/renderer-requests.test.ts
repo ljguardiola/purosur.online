@@ -25,6 +25,7 @@ import type {
   PreviewSaleDiscountOutcome,
   PreviewSaleLineAdjustmentOutcome,
   PrintOriginalReceiptOutcome,
+  ReadClockGuardOutcome,
   ReadInitialCountOutcome,
   ReadReceiptPrinterOutcome,
   ReadSerialDevicesOutcome,
@@ -365,6 +366,7 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
         return { kind: "weighing" };
       },
       initialCount: undefined,
+      clockGuard: undefined,
       currentSale: async (): Promise<OpenSale | null> => {
         saleLookups.push("read");
         return null;
@@ -1762,6 +1764,30 @@ describe("answerRendererRequest", () => {
     expect(
       await answerRendererRequest(withCount, { type: "read-initial-count", request_id: "r92" }),
     ).toEqual({ type: "read-initial-count-result", request_id: "r92", outcome });
+  });
+
+  it("answers a request about the register's clock guard with the outcome of the core's request", async () => {
+    const outcome: ReadClockGuardOutcome = {
+      kind: "read",
+      reading: "2026-10-01T15:00:00.000Z",
+      blocks: [],
+      may_correct: false,
+      correction_available: false,
+    };
+    const { deps: withGuard } = deps(true, {
+      clockGuard: { read: async () => outcome, correct: async () => ({ kind: "not_behind" }) },
+    });
+
+    expect(
+      await answerRendererRequest(withGuard, { type: "read-clock-guard", request_id: "r93" }),
+    ).toEqual({ type: "read-clock-guard-result", request_id: "r93", outcome });
+    expect(
+      await answerRendererRequest(withGuard, { type: "correct-register-clock", request_id: "r94" }),
+    ).toEqual({
+      type: "correct-register-clock-result",
+      request_id: "r94",
+      outcome: { kind: "not_behind" },
+    });
   });
 
   it("answers the sale in progress", async () => {
