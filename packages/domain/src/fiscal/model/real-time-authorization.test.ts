@@ -524,9 +524,10 @@ describe("decideSaleAuthorizationRoute under a clock behind the register's own m
   });
 
   it("names the clock, not lack of connectivity, when both hold", () => {
-    expect(
-      decide({ series: BEHIND, online: { ...ONLINE, arcaReachable: false } }),
-    ).toMatchObject({ kind: "issue_offline", cause: "clock_behind" });
+    expect(decide({ series: BEHIND, online: { ...ONLINE, arcaReachable: false } })).toMatchObject({
+      kind: "issue_offline",
+      cause: "clock_behind",
+    });
   });
 
   it("names the numbering conflict or the unclear outcome, not the clock, when either holds too", () => {
@@ -609,12 +610,15 @@ describe("decideSaleAuthorizationRoute under a clock behind the offline series' 
   it.each([
     ["an unclear outcome", { ...SERIES, documentUnknown: true }],
     ["a numbering conflict", { ...SERIES, numberingFrozen: true }],
-  ])("defers a sale that would be issued offline for %s as the clock being behind", (_case, series) => {
-    expect(decide({ series, offlineSeries: OFFLINE_BEHIND })).toEqual({
-      kind: "defer",
-      reason: "clock_behind",
-    });
-  });
+  ])(
+    "defers a sale that would be issued offline for %s as the clock being behind",
+    (_case, series) => {
+      expect(decide({ series, offlineSeries: OFFLINE_BEHIND })).toEqual({
+        kind: "defer",
+        reason: "clock_behind",
+      });
+    },
+  );
 
   it("defers a sale whose real-time series is behind too", () => {
     expect(

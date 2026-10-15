@@ -44,15 +44,15 @@ describe("clockLoweringsFor", () => {
 
 describe("clockCorrectionPeriodKey", () => {
   it("is the open cash session while one is open", () => {
-    expect(clockCorrectionPeriodKey({ openSessionId: "session-2", lastClosedSessionId: "s-1" })).toBe(
-      "session-2",
-    );
+    expect(
+      clockCorrectionPeriodKey({ openSessionId: "session-2", lastClosedSessionId: "s-1" }),
+    ).toBe("session-2");
   });
 
   it("is the period after the last closed session while none is open", () => {
-    expect(clockCorrectionPeriodKey({ openSessionId: null, lastClosedSessionId: "session-1" })).toBe(
-      "after session session-1",
-    );
+    expect(
+      clockCorrectionPeriodKey({ openSessionId: null, lastClosedSessionId: "session-1" }),
+    ).toBe("after session session-1");
   });
 
   it("is the period before any session while none was ever opened", () => {
