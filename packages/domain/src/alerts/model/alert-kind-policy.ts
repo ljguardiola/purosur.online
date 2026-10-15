@@ -245,6 +245,14 @@ const ALERT_KIND_POLICIES = {
     deduplicates: true,
     resolvesAfterStableClear: false,
   },
+  clock_corrected: {
+    level: "critical",
+    escalation: null,
+    audience: "all",
+    scopeKind: "register",
+    deduplicates: false,
+    resolvesAfterStableClear: false,
+  },
   fortnight_report_needs_regularization: {
     level: "critical",
     escalation: null,
