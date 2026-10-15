@@ -88,7 +88,6 @@ export {
   REFUND_STATES,
   REFUND_TASK_ORIGINS,
   refundsSettleApprovedPayments,
-  SALE_VOIDED_REFUND_ORIGIN,
 } from "./model/payment-refund.js";
 export type {
   MercadoPagoOrderTransaction,
