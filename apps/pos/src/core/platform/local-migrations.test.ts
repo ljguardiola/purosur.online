@@ -4517,7 +4517,6 @@ describe("the register's local migrations", () => {
       );
       expect(LOCAL_MIGRATIONS.map((migration) => migration.name)).toContain(
         "0055_offline_numbering_floor",
-        "0056_numbering_freeze",
       );
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
