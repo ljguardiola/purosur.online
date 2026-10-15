@@ -301,6 +301,7 @@ describe("the detail of a sale of the history", () => {
         payments: [{ method: "CASH", amount: 3000 }],
         state: "completed",
         voidability: { kind: "not_voidable", refusal: "carries_invoice" },
+        void_authorization_required: true,
         next_copy: { kind: "original" },
       },
     });
@@ -320,6 +321,15 @@ describe("the detail of a sale of the history", () => {
       kind: "voidable",
       refunds: [{ method: "CASH", amount: 3000, state: "APPROVED" }],
     });
+  });
+
+  it("answers that voiding needs no other person's authorization to a person who may void", async () => {
+    addPerson("supervisor", "Grace", ["view_sales_history", "void_sale"]);
+    signedInPerson.set("supervisor");
+
+    const answer = await saleHistoryDetailFor(deps(), "sale-1");
+
+    expect(answer.kind === "found" && answer.detail.void_authorization_required).toBe(false);
   });
 
   it("answers that a sale of a closed session cannot be voided", async () => {
