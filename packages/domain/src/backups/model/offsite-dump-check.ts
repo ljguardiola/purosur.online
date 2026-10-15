@@ -25,20 +25,21 @@ export type ReportedOffsiteDumpCheck =
 
 export type OffsiteDumpCheckResult =
   | { status: "verified"; sizeBytes: number }
-  | { status: "failed"; reason: OffsiteDumpFailureReason };
+  | { status: "failed"; reason: "shrank"; sizeBytes: number }
+  | { status: "failed"; reason: OffsiteDumpReportedFailureReason };
 
 export function classifyOffsiteDumpCheck(
   check: ReportedOffsiteDumpCheck,
-  latestEarlierVerifiedSizeBytes: number | undefined,
+  latestEarlierKnownSizeBytes: number | undefined,
 ): OffsiteDumpCheckResult {
   if (check.outcome === "failed") {
     return { status: "failed", reason: check.reason };
   }
   if (
-    latestEarlierVerifiedSizeBytes !== undefined &&
-    check.sizeBytes * 100 < latestEarlierVerifiedSizeBytes * OFFSITE_DUMP_SHRINK_THRESHOLD_PERCENT
+    latestEarlierKnownSizeBytes !== undefined &&
+    check.sizeBytes * 100 < latestEarlierKnownSizeBytes * OFFSITE_DUMP_SHRINK_THRESHOLD_PERCENT
   ) {
-    return { status: "failed", reason: "shrank" };
+    return { status: "failed", reason: "shrank", sizeBytes: check.sizeBytes };
   }
   return { status: "verified", sizeBytes: check.sizeBytes };
 }

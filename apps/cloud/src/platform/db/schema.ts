@@ -2363,7 +2363,7 @@ export const offsiteDumpChecks = pgTable(
   (table) => [
     check(
       "offsite_dump_checks_result_shape_check",
-      sql`(${table.status} = 'verified' and ${table.sizeBytes} is not null and ${table.failureReason} is null) or (${table.status} = 'failed' and ${table.sizeBytes} is null and ${table.failureReason} is not null)`,
+      sql`(${table.status} = 'verified' and ${table.sizeBytes} is not null and ${table.failureReason} is null) or (${table.status} = 'failed' and ${table.failureReason} = 'shrank' and ${table.sizeBytes} is not null) or (${table.status} = 'failed' and ${table.failureReason} is not null and ${table.failureReason} <> 'shrank' and ${table.sizeBytes} is null)`,
     ),
   ],
 );

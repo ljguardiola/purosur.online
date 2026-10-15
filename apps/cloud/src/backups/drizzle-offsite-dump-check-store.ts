@@ -1,10 +1,10 @@
-import type { OffsiteDumpCheckResult, OffsiteDumpFailureReason } from "@purosur/domain";
+import type { OffsiteDumpCheckResult, OffsiteDumpReportedFailureReason } from "@purosur/domain";
 import type { OffsiteDumpCheckReader } from "@purosur/domain/alerts/use-cases";
 import type {
   OffsiteDumpCheckStore,
   OffsiteDumpCheckStoreTransaction,
 } from "@purosur/domain/backups/use-cases";
-import { and, desc, eq, lt } from "drizzle-orm";
+import { and, desc, eq, isNotNull, lt } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { offsiteDumpChecks } from "../platform/db/schema.js";
 
@@ -31,9 +31,16 @@ async function checkOf<TQueryResult extends PgQueryResultHKT>(
   if (!row) {
     return undefined;
   }
-  return row.status === "verified"
-    ? { status: "verified", sizeBytes: row.sizeBytes as number }
-    : { status: "failed", reason: row.failureReason as OffsiteDumpFailureReason };
+  if (row.status === "verified") {
+    return { status: "verified", sizeBytes: row.sizeBytes as number };
+  }
+  if (row.failureReason === "shrank") {
+    return { status: "failed", reason: "shrank", sizeBytes: row.sizeBytes as number };
+  }
+  return {
+    status: "failed",
+    reason: row.failureReason as OffsiteDumpReportedFailureReason,
+  };
 }
 
 class DrizzleOffsiteDumpCheckStoreTransaction<TQueryResult extends PgQueryResultHKT>
@@ -47,21 +54,22 @@ class DrizzleOffsiteDumpCheckStoreTransaction<TQueryResult extends PgQueryResult
     this.now = now;
   }
 
-  async latestVerifiedSizeBefore(night: string): Promise<number | undefined> {
+  async latestKnownSizeBefore(night: string): Promise<number | undefined> {
     const [row] = await this.tx
       .select({ sizeBytes: offsiteDumpChecks.sizeBytes })
       .from(offsiteDumpChecks)
-      .where(and(eq(offsiteDumpChecks.status, "verified"), lt(offsiteDumpChecks.night, night)))
+      .where(and(isNotNull(offsiteDumpChecks.sizeBytes), lt(offsiteDumpChecks.night, night)))
       .orderBy(desc(offsiteDumpChecks.night))
       .limit(1);
     return row?.sizeBytes ?? undefined;
   }
 
   async recordResult(night: string, result: OffsiteDumpCheckResult): Promise<void> {
-    const recorded =
-      result.status === "verified"
-        ? { status: result.status, sizeBytes: result.sizeBytes, failureReason: null }
-        : { status: result.status, sizeBytes: null, failureReason: result.reason };
+    const recorded = {
+      status: result.status,
+      sizeBytes: "sizeBytes" in result ? result.sizeBytes : null,
+      failureReason: result.status === "failed" ? result.reason : null,
+    };
     const values = { ...recorded, recordedAt: this.now() };
     await this.tx
       .insert(offsiteDumpChecks)

@@ -1,3 +1,4 @@
+import { OFFSITE_DUMP_SHRINK_THRESHOLD_PERCENT } from "../../backups/index.js";
 import type {
   FiscalDocumentType,
   FiscalEmissionStoppedReport,
@@ -240,7 +241,14 @@ export function offsiteDumpUnverifiedObservation({
 }): AlertConditionObservation {
   return {
     holds: true,
-    alert: { kind: "offsite_dump_unverified", scope: environment, detail: { night, reason } },
+    alert: {
+      kind: "offsite_dump_unverified",
+      scope: environment,
+      detail:
+        reason === "shrank"
+          ? { night, reason, shrinkThresholdPercent: OFFSITE_DUMP_SHRINK_THRESHOLD_PERCENT }
+          : { night, reason },
+    },
   };
 }
 

@@ -3598,7 +3598,7 @@
       "checkConstraints": {
         "offsite_dump_checks_result_shape_check": {
           "name": "offsite_dump_checks_result_shape_check",
-          "value": "(\"offsite_dump_checks\".\"status\" = 'verified' and \"offsite_dump_checks\".\"size_bytes\" is not null and \"offsite_dump_checks\".\"failure_reason\" is null) or (\"offsite_dump_checks\".\"status\" = 'failed' and \"offsite_dump_checks\".\"size_bytes\" is null and \"offsite_dump_checks\".\"failure_reason\" is not null)"
+          "value": "(\"offsite_dump_checks\".\"status\" = 'verified' and \"offsite_dump_checks\".\"size_bytes\" is not null and \"offsite_dump_checks\".\"failure_reason\" is null) or (\"offsite_dump_checks\".\"status\" = 'failed' and \"offsite_dump_checks\".\"failure_reason\" = 'shrank' and \"offsite_dump_checks\".\"size_bytes\" is not null) or (\"offsite_dump_checks\".\"status\" = 'failed' and \"offsite_dump_checks\".\"failure_reason\" is not null and \"offsite_dump_checks\".\"failure_reason\" <> 'shrank' and \"offsite_dump_checks\".\"size_bytes\" is null)"
         }
       },
       "isRLSEnabled": false

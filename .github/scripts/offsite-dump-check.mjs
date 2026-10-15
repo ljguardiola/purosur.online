@@ -99,14 +99,31 @@ export function restoreListCommands({ identityPath, postgresImage }) {
   };
 }
 
-function exitCodeOf(child) {
-  return new Promise((resolve) => {
-    child.once("error", () => resolve(127));
-    child.once("close", (code) => resolve(code ?? 1));
+// `docker run` exits 125 when docker itself fails, and 126 or 127 when it cannot invoke or find the
+// command it was given, so none of them is the command's own verdict on the archive.
+const COULD_NOT_RUN_EXIT_CODES = [125, 126, 127];
+
+function exitCodeOf(label, child) {
+  return new Promise((resolve, reject) => {
+    child.once("error", () =>
+      reject(new Error(`${LOG_PREFIX}: the ${label} command could not be started`)),
+    );
+    child.once("close", (code, signal) => {
+      if (code === null) {
+        reject(new Error(`${LOG_PREFIX}: the ${label} command was stopped by ${signal}`));
+      } else if (COULD_NOT_RUN_EXIT_CODES.includes(code)) {
+        reject(new Error(`${LOG_PREFIX}: the ${label} command could not run (exit code ${code})`));
+      } else {
+        resolve(code);
+      }
+    });
   });
 }
 
-/** Feeds the file through `decrypt` into `list`, reporting how each ended. */
+/**
+ * Feeds the file through `decrypt` into `list`, reporting the exit code each command gave as its
+ * own verdict; a command that could not be started or run is an error instead.
+ */
 export async function runPipeline(commands, dumpPath) {
   const decrypt = spawn(commands.decrypt.file, commands.decrypt.args, {
     stdio: ["pipe", "pipe", "inherit"],
@@ -118,7 +135,8 @@ export async function runPipeline(commands, dumpPath) {
   for (const stream of [decrypt.stdin, decrypt.stdout, list.stdin]) {
     ignoreBrokenPipe(stream);
   }
-  const exits = Promise.all([exitCodeOf(decrypt), exitCodeOf(list)]);
+  const exits = Promise.all([exitCodeOf("decrypt", decrypt), exitCodeOf("list", list)]);
+  exits.catch(() => undefined);
   await Promise.allSettled([
     pipeline(createReadStream(dumpPath), decrypt.stdin),
     pipeline(decrypt.stdout, list.stdin),
@@ -293,14 +311,18 @@ export async function runCli({
   }
 }
 
+export function decryptAndListWithComposeImage(readComposeFile) {
+  return ({ identityPath, dumpPath }) => {
+    const postgresImage = readPostgresImage(readComposeFile());
+    return runPipeline(restoreListCommands({ identityPath, postgresImage }), dumpPath);
+  };
+}
+
 if (import.meta.main) {
   runCli({
-    decryptAndList: ({ identityPath, dumpPath }) => {
-      const postgresImage = readPostgresImage(
-        readFileSync(new URL("../../docker-compose.yml", import.meta.url), "utf8"),
-      );
-      return runPipeline(restoreListCommands({ identityPath, postgresImage }), dumpPath);
-    },
+    decryptAndList: decryptAndListWithComposeImage(() =>
+      readFileSync(new URL("../../docker-compose.yml", import.meta.url), "utf8"),
+    ),
   }).then(
     (exitCode) => process.exit(exitCode),
     (error) => {

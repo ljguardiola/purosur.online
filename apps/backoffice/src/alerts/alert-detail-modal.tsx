@@ -13,6 +13,7 @@ import {
   formatDate,
   formatInvoiceNumber,
   formatNumber,
+  formatPercent,
   formatPointOfSaleNumber,
   InlineNotice,
   isLocalAlertKind,
@@ -241,8 +242,13 @@ function arcaCertificateExpiringDescription(
   return `El certificado de ARCA de ${label} vence el ${alertDateTime(new Date(notAfter))}. Conviene cargar uno nuevo antes de esa fecha.`;
 }
 
+type OffsiteDumpUnverifiedDetail = Extract<
+  AlertDetail,
+  { kind: "offsite_dump_unverified" }
+>["detail"];
+
 const OFFSITE_DUMP_UNVERIFIED_REASON_TEXTS: Record<
-  Extract<AlertDetail, { kind: "offsite_dump_unverified" }>["detail"]["reason"],
+  Exclude<OffsiteDumpUnverifiedDetail["reason"], "shrank">,
   string
 > = {
   not_reported: "la verificación diaria no informó su resultado",
@@ -252,14 +258,16 @@ const OFFSITE_DUMP_UNVERIFIED_REASON_TEXTS: Record<
   hash_mismatch: "la huella del archivo no coincide con la del manifiesto",
   decryption_failed: "no se pudo descifrar la copia",
   archive_unreadable: "la copia descifrada no se pudo leer",
-  shrank: "la copia pesa menos de la mitad que la última verificada",
 };
 
-function offsiteDumpUnverifiedDescription({
-  night,
-  reason,
-}: Extract<AlertDetail, { kind: "offsite_dump_unverified" }>["detail"]): string {
-  return `La copia cifrada de la base de datos de la noche del ${formatCalendarDay(night)} no se pudo verificar fuera de la nube: ${OFFSITE_DUMP_UNVERIFIED_REASON_TEXTS[reason]}. Conviene revisar la copia cuanto antes.`;
+function offsiteDumpUnverifiedReasonText(detail: OffsiteDumpUnverifiedDetail): string {
+  return detail.reason === "shrank"
+    ? `la copia pesa menos del ${formatPercent(detail.shrinkThresholdPercent)} de la anterior`
+    : OFFSITE_DUMP_UNVERIFIED_REASON_TEXTS[detail.reason];
+}
+
+function offsiteDumpUnverifiedDescription(detail: OffsiteDumpUnverifiedDetail): string {
+  return `La copia cifrada de la base de datos de la noche del ${formatCalendarDay(detail.night)} no se pudo verificar fuera de la nube: ${offsiteDumpUnverifiedReasonText(detail)}. Conviene revisar la copia cuanto antes.`;
 }
 
 function arcaWsaaTicketHeldDescription(retryIntervalMinutes: number): string {

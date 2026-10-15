@@ -19,7 +19,7 @@ export async function recordOffsiteDumpCheck(
   { night, check }: RecordOffsiteDumpCheckInput,
 ): Promise<RecordOffsiteDumpCheckOutcome> {
   return store.transaction<RecordOffsiteDumpCheckOutcome>(async (tx) => {
-    const result = classifyOffsiteDumpCheck(check, await tx.latestVerifiedSizeBefore(night));
+    const result = classifyOffsiteDumpCheck(check, await tx.latestKnownSizeBefore(night));
     await tx.recordResult(night, result);
     return result.status === "verified"
       ? { kind: "verified", night, sizeBytes: result.sizeBytes }

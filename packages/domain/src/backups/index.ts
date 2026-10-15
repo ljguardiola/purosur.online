@@ -13,5 +13,4 @@ export {
 export {
   dueOffsiteDumpNight,
   isOffsiteDumpNight,
-  offsiteDumpVerificationDeadline,
 } from "./model/offsite-dump-deadline.js";

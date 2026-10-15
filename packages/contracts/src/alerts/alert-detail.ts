@@ -178,10 +178,17 @@ const outboxChainBrokenDetailSchema = z.object({
   deviceId: z.string(),
 });
 
-const offsiteDumpUnverifiedDetailSchema = z.object({
-  night: z.string(),
-  reason: z.enum(OFFSITE_DUMP_UNVERIFIED_REASONS),
-});
+const offsiteDumpUnverifiedDetailSchema = z.discriminatedUnion("reason", [
+  z.object({
+    night: z.string(),
+    reason: z.enum(OFFSITE_DUMP_UNVERIFIED_REASONS).exclude(["shrank"]),
+  }),
+  z.object({
+    night: z.string(),
+    reason: z.literal("shrank"),
+    shrinkThresholdPercent: z.int(),
+  }),
+]);
 
 const lotsExpiringDetailSchema = z.object({
   lotCount: z.int(),

@@ -144,10 +144,9 @@ interface LotsExpiringDetail {
   windowDays: number;
 }
 
-export interface OffsiteDumpUnverifiedDetail {
-  night: string;
-  reason: OffsiteDumpUnverifiedReason;
-}
+export type OffsiteDumpUnverifiedDetail =
+  | { night: string; reason: Exclude<OffsiteDumpUnverifiedReason, "shrank"> }
+  | { night: string; reason: "shrank"; shrinkThresholdPercent: number };
 
 export interface AlertDetails {
   backoffice_passkey_changed: PasskeyChangedDetail;
