@@ -500,6 +500,7 @@ export {
   BATTERY_READ_INTERVAL_MS,
   batteryHealthPercent,
   batteryReportOf,
+  batteryReportStanding,
   batteryStanding,
   CASH_MOVEMENT_DIRECTIONS,
   CASH_MOVEMENT_KINDS,

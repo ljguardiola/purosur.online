@@ -3,6 +3,7 @@ export {
   BATTERY_READ_INTERVAL_MS,
   batteryHealthPercent,
   batteryReportOf,
+  batteryReportStanding,
   batteryStanding,
   CRITICAL_BATTERY_PERCENT,
   isOnBatteryTooLong,

@@ -4,6 +4,11 @@ import {
   type LatestPreEmissionGateOutcome,
 } from "../../fiscal/index.js";
 import {
+  type BatteryReport,
+  batteryReportStanding,
+  type CriticalBatteryAction,
+  criticalBatteryActionShowsCondition,
+  isOnBatteryTooLong,
   isSerialDeviceMissing,
   type SerialDeviceRole,
   type SerialDeviceStanding,
@@ -28,12 +33,20 @@ export const REGISTER_OWN_CONDITIONS = [
   "serial_device_missing",
   "disk_space_low",
   "wal_oversized",
+  "battery_low",
+  "on_battery",
+  "battery_missing",
+  "critical_battery_action_not_shutdown",
 ] as const satisfies readonly (
   | AlertKind
   | "installation_revoked"
   | "serial_device_missing"
   | "disk_space_low"
   | "wal_oversized"
+  | "battery_low"
+  | "on_battery"
+  | "battery_missing"
+  | "critical_battery_action_not_shutdown"
 )[];
 
 export type RegisterOwnCondition = (typeof REGISTER_OWN_CONDITIONS)[number];
@@ -43,7 +56,9 @@ type SalesDeniedCondition = { kind: "sales_denied" } & SalesDenial;
 type DetectedRegisterOwnCondition = {
   [Kind in RegisterOwnCondition]: Kind extends "sales_denied"
     ? SalesDeniedCondition
-    : { kind: Kind };
+    : Kind extends "battery_low"
+      ? { kind: Kind; charge_percent: number }
+      : { kind: Kind };
 }[RegisterOwnCondition];
 
 type HeldRegisterOwnCondition = DetectedRegisterOwnCondition & { level: AlertLevel };
@@ -53,6 +68,10 @@ const LEVELS_OF_CONDITIONS_THAT_ARE_NOT_ALERTS = {
   serial_device_missing: "warning",
   disk_space_low: "warning",
   wal_oversized: "warning",
+  battery_low: "warning",
+  on_battery: "critical",
+  battery_missing: "warning",
+  critical_battery_action_not_shutdown: "warning",
 } as const satisfies Record<Exclude<RegisterOwnCondition, AlertKind>, AlertLevel>;
 
 function levelOf(condition: RegisterOwnCondition): AlertLevel {
@@ -70,6 +89,8 @@ interface RegisterOwnStanding {
   serialDevices: Record<SerialDeviceRole, SerialDeviceStanding> | null;
   storage: StorageStanding;
   localDatabaseDamaged: boolean;
+  battery: BatteryReport | undefined;
+  criticalBatteryAction: CriticalBatteryAction;
 }
 
 export function registerOwnConditions({
@@ -81,9 +102,17 @@ export function registerOwnConditions({
   serialDevices,
   storage,
   localDatabaseDamaged,
+  battery,
+  criticalBatteryAction,
 }: RegisterOwnStanding): HeldRegisterOwnCondition[] {
   const revoked = isInstallationRevoked(salesStop);
-  const denial = salesDenialOf(salesStop, storageSalesStopOf(storage), localDatabaseDamaged);
+  const batteryStanding = batteryReportStanding(battery);
+  const denial = salesDenialOf(
+    salesStop,
+    storageSalesStopOf(storage),
+    localDatabaseDamaged,
+    batteryStanding === "critical",
+  );
   const held: {
     [Kind in RegisterOwnCondition]: Extract<DetectedRegisterOwnCondition, { kind: Kind }> | null;
   } = {
@@ -108,6 +137,15 @@ export function registerOwnConditions({
         ? { kind: "disk_space_low" }
         : null,
     wal_oversized: storage.walOversized ? { kind: "wal_oversized" } : null,
+    battery_low:
+      batteryStanding === "low" && battery?.present === true
+        ? { kind: "battery_low", charge_percent: battery.charge_percent }
+        : null,
+    on_battery: isOnBatteryTooLong(battery) ? { kind: "on_battery" } : null,
+    battery_missing: battery?.present === false ? { kind: "battery_missing" } : null,
+    critical_battery_action_not_shutdown: criticalBatteryActionShowsCondition(criticalBatteryAction)
+      ? { kind: "critical_battery_action_not_shutdown" }
+      : null,
   };
   return REGISTER_OWN_CONDITIONS.flatMap((condition) => {
     const detected = held[condition];

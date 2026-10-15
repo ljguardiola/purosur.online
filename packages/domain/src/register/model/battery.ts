@@ -81,14 +81,24 @@ export function batteryReportOf(
   };
 }
 
-export function batteryStanding(reading: BatteryReading): BatteryStanding {
-  if (reading.kind !== "present" || !reading.onBattery) {
+function standingOf(chargePercent: number, onBattery: boolean): BatteryStanding {
+  if (!onBattery) {
     return "normal";
   }
-  if (reading.chargePercent < CRITICAL_BATTERY_PERCENT) {
+  if (chargePercent < CRITICAL_BATTERY_PERCENT) {
     return "critical";
   }
-  return reading.chargePercent < LOW_BATTERY_PERCENT ? "low" : "normal";
+  return chargePercent < LOW_BATTERY_PERCENT ? "low" : "normal";
+}
+
+export function batteryStanding(reading: BatteryReading): BatteryStanding {
+  return reading.kind === "present"
+    ? standingOf(reading.chargePercent, reading.onBattery)
+    : "normal";
+}
+
+export function batteryReportStanding(report: BatteryReport | undefined): BatteryStanding {
+  return report?.present === true ? standingOf(report.charge_percent, report.on_battery) : "normal";
 }
 
 export function isOnBatteryTooLong(report: BatteryReport | undefined): boolean {
