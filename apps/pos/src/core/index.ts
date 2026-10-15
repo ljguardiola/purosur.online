@@ -41,6 +41,7 @@ import {
   postToCloudWithBearer,
 } from "./platform/cloud-client";
 import { initializeErrorReporting } from "./platform/error-reporting";
+import { createHeldMessages } from "./platform/held-messages";
 import { LOCAL_MIGRATIONS } from "./platform/local-migrations";
 import { createMainRequests } from "./platform/main-requests";
 import { createBatteryWatch } from "./register/battery-watch";
@@ -172,6 +173,8 @@ const recorder: RejectionRecorder = {
 };
 
 const gateFromMain = createMessageGate(mainToCoreMessageSchema, recorder);
+const messagesFromMain = createHeldMessages<Electron.MessageEvent>();
+process.parentPort.on("message", messagesFromMain.receive);
 const gateFromRenderer = createMessageGate(rendererToCoreMessageSchema, recorder);
 
 const mainRequests = createMainRequests({
@@ -1083,7 +1086,7 @@ const rendererConnection = createRendererConnection(
   () => signedInPerson.clear(),
 );
 
-process.parentPort.on("message", (event) => {
+messagesFromMain.deliverTo((event) => {
   const [rendererPort] = event.ports;
   if (rendererPort) {
     rendererConnection.adopt(rendererPort);
