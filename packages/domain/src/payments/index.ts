@@ -67,6 +67,7 @@ export { paymentRecord } from "./model/payment-record.js";
 export type {
   LatePaymentRefund,
   PlannedRefund,
+  PlannedRefundState,
   RefundablePayment,
   RefundOrigin,
   RefundState,

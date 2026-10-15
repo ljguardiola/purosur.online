@@ -126,6 +126,7 @@ export type {
   ReadSaleHistoryDetailOutcome,
   ReadSaleHistoryDetailPorts,
   SaleHistoryDetail,
+  SaleVoidability,
 } from "./read-sale-history-detail.js";
 export { readSaleHistoryDetail } from "./read-sale-history-detail.js";
 export type { ReadSalesByCashierInput, SalesByCashierReport } from "./read-sales-by-cashier.js";
