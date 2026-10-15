@@ -44,6 +44,7 @@ describe("voidRefundPresentation", () => {
   it.each([
     ["TRANSFER", "Transferencia"],
     ["STANDALONE_TERMINAL", "Terminal independiente"],
+    ["QR", "QR de Mercado Pago"],
   ] as const)("leaves a %s refund for a person to make outside the register", (method, name) => {
     expect(voidRefundPresentation({ method, amount: 250_000, state: "PENDING" })).toEqual({
       title: `${name} · $ 2.500,00`,
