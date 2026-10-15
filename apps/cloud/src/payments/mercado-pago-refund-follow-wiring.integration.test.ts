@@ -59,7 +59,7 @@ describe("the Mercado Pago refund follow the server sets up on a real Postgres",
         mercadoPago: new FakeMercadoPagoOrders(),
       },
       () => FOLLOWED_AT,
-      { emailSender: UNUSED_EMAIL_SENDER },
+      { emailSender: UNUSED_EMAIL_SENDER, schedules: false },
     );
     try {
       await recovery.workerUtils.addJob(WATCHDOG_TASK_IDENTIFIER, {});
