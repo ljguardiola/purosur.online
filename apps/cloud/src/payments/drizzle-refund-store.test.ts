@@ -201,6 +201,7 @@ describe("DrizzleRefundStore", () => {
         state: "PENDING",
         origin: "late_payment",
         method: "QR",
+        confirmedAt: null,
       });
     });
 
