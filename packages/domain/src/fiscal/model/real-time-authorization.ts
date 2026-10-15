@@ -90,6 +90,13 @@ export const IN_PROGRESS_FISCAL_DOCUMENT_STATES: readonly FiscalDocumentState[] 
 
 export const OUTCOME_UNKNOWN_FISCAL_DOCUMENT_STATES: readonly FiscalDocumentState[] = ["UNKNOWN"];
 
+export function isFiscalOutcomeUnresolved(state: FiscalDocumentState): boolean {
+  return (
+    IN_PROGRESS_FISCAL_DOCUMENT_STATES.includes(state) ||
+    OUTCOME_UNKNOWN_FISCAL_DOCUMENT_STATES.includes(state)
+  );
+}
+
 export const NUMBER_CONSUMING_STATES: readonly FiscalDocumentState[] = [
   "AUTHORIZED",
   "CONFLICTING",

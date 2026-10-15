@@ -77,6 +77,7 @@ export {
   latePaymentRefundOfUnrecordedOrder,
   methodsCoveringRefundedSale,
   PLANNED_REFUND_STATES,
+  plannedRefundState,
   plannedRefunds,
   REFUND_DISCARDED_STATE,
   REFUND_DONE_STATE,
@@ -85,6 +86,7 @@ export {
   REFUND_STATES,
   REFUND_TASK_ORIGINS,
   refundsSettleApprovedPayments,
+  SALE_VOIDED_REFUND_ORIGIN,
 } from "./model/payment-refund.js";
 export type {
   MercadoPagoOrderTransaction,
