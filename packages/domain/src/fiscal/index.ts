@@ -71,11 +71,14 @@ export type {
 export { FACTURA_C_DOCUMENT_TYPE } from "./model/fiscal-rejection-standing.js";
 export type {
   DocumentTypeReportState,
+  FortnightPresentationRow,
   FortnightReportMovement,
   FortnightReportState,
 } from "./model/fortnight-report.js";
 export {
+  documentTypePresentationState,
   fortnightClosesAt,
+  fortnightPresentationRows,
   fortnightReportDeadline,
   fortnightReportStanding,
   isFortnightReportOutstanding,

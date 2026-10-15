@@ -114,6 +114,60 @@ export function fortnightReportStateOfDocumentTypes(
   return "accepted";
 }
 
+export function documentTypePresentationState(
+  recorded: DocumentTypeReportState | null,
+  fortnightState: FortnightReportState | null,
+): DocumentTypeReportState | null {
+  if (recorded !== null) {
+    return recorded;
+  }
+  return fortnightState === "blocked" ? "blocked" : null;
+}
+
+export interface FortnightPresentationRow<TDocumentType extends string> {
+  documentType: TDocumentType | null;
+  state: FortnightReportState | null;
+  documentCount: number;
+  rejectedDocument: { number: number; unprocessed: number } | null;
+}
+
+export function fortnightPresentationRows<TDocumentType extends string>({
+  state,
+  documents,
+  documentReports,
+}: {
+  state: FortnightReportState | null;
+  documents: { documentType: TDocumentType; number: number }[];
+  documentReports: {
+    documentType: TDocumentType;
+    state: DocumentTypeReportState;
+    rejectedNumber: number | null;
+  }[];
+}): FortnightPresentationRow<TDocumentType>[] {
+  if (state === "needs_regularization" || documents.length === 0) {
+    return [{ documentType: null, state, documentCount: documents.length, rejectedDocument: null }];
+  }
+  return offlineDocumentPresentations(documents).map((presentation) => {
+    const report = documentReports.find(
+      ({ documentType }) => documentType === presentation.documentType,
+    );
+    const rejectedNumber = report?.state === "refused" ? report.rejectedNumber : null;
+    return {
+      documentType: presentation.documentType,
+      state: documentTypePresentationState(report?.state ?? null, state),
+      documentCount: presentation.documents.length,
+      rejectedDocument:
+        rejectedNumber === null
+          ? null
+          : {
+              number: rejectedNumber,
+              unprocessed: presentation.documents.filter(({ number }) => number > rejectedNumber)
+                .length,
+            },
+    };
+  });
+}
+
 export function fortnightReportStanding(
   report: { fortnight: Fortnight; deadline: string; state: FortnightReportState | null },
   today: string,
