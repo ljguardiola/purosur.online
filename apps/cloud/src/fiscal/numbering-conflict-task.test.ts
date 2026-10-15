@@ -1,3 +1,4 @@
+import { NUMBERING_CONFLICT_REASK_INTERVAL_MS } from "@purosur/domain";
 import { FICTIONAL_CERTIFICATE_CUIT } from "@purosur/domain/fiscal/test-support";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -30,6 +31,7 @@ import { WsfeTaxAuthorityVouchers } from "./wsfe-tax-authority-vouchers.js";
 const ANSWERED_AT = new Date("2026-10-06T15:00:02.000Z");
 const NOW = new Date(ANSWERED_AT.getTime() + 61_000);
 const FINGERPRINT = "AB:CD:EF";
+const ASK_AGAIN_AT = new Date(NOW.getTime() + NUMBERING_CONFLICT_REASK_INTERVAL_MS);
 const FROZEN_AT = new Date("2026-10-06T15:00:00.000Z");
 
 let testDatabase: TestDatabase;
@@ -184,15 +186,29 @@ describe("numberingConflictJobs", () => {
       expect(reconciliationsRequested).toEqual([]);
     });
 
-    it("fails the job, for the worker to run it again, while ARCA gives no answer", async () => {
+    it("asks again after the numbering conflict interval while ARCA gives no answer", async () => {
       await issueWsaaToken();
       const registerId = await registerOfPointOfSale();
       const fiscalDocumentId = await recordRequest(registerId, 40, numberingConflict(40));
       server.behave(answersInTurn("fe-comp-ultimo-autorizado-token-error.xml"));
       const { diagnose } = tasksUnderTest();
 
-      await expect(diagnose({ fiscalDocumentId }, buildJobHelpers().helpers)).rejects.toThrow();
+      const { helpers, addJob } = buildJobHelpers();
 
+      await diagnose({ fiscalDocumentId }, helpers);
+
+      expect(addJob.mock.calls).toEqual([
+        [
+          DIAGNOSE_NUMBERING_CONFLICT_TASK_IDENTIFIER,
+          { fiscalDocumentId },
+          {
+            jobKey: `${DIAGNOSE_NUMBERING_CONFLICT_TASK_IDENTIFIER}:${fiscalDocumentId}`,
+            jobKeyMode: "replace",
+            priority: -20,
+            runAt: ASK_AGAIN_AT,
+          },
+        ],
+      ]);
       expect((await storedDiagnosis(fiscalDocumentId))?.diagnosis).toBeNull();
       expect(await freezes()).toEqual([]);
     });
@@ -260,7 +276,7 @@ describe("numberingConflictJobs", () => {
       expect(await freezes()).toEqual([]);
     });
 
-    it("fails the job, for the worker to run it again, while a document in the range is undecided", async () => {
+    it("asks again after the numbering conflict interval while a document in the range is undecided", async () => {
       await issueWsaaToken();
       const registerId = await registerOfPointOfSale();
       await freeze(1);
@@ -272,20 +288,48 @@ describe("numberingConflictJobs", () => {
       server.behave(answersInTurn("fe-comp-ultimo-autorizado-advanced.xml"));
       const { reconcile } = tasksUnderTest();
 
-      await expect(reconcile({ pointOfSale: 7 }, buildJobHelpers().helpers)).rejects.toThrow();
+      const { helpers, addJob } = buildJobHelpers();
 
+      await reconcile({ pointOfSale: 7 }, helpers);
+
+      expect(addJob.mock.calls).toEqual([
+        [
+          RECONCILE_NUMBERING_CONFLICT_TASK_IDENTIFIER,
+          { pointOfSale: 7 },
+          {
+            jobKey: `${RECONCILE_NUMBERING_CONFLICT_TASK_IDENTIFIER}:7`,
+            jobKeyMode: "replace",
+            priority: -20,
+            runAt: ASK_AGAIN_AT,
+          },
+        ],
+      ]);
       expect(await freezes()).toHaveLength(1);
     });
 
-    it("fails the job, for the worker to run it again, while ARCA gives no answer", async () => {
+    it("asks again after the numbering conflict interval while ARCA gives no answer", async () => {
       await issueWsaaToken();
       await registerOfPointOfSale();
       await freeze(1);
       server.behave(answersInTurn("fe-comp-ultimo-autorizado-token-error.xml"));
       const { reconcile } = tasksUnderTest();
 
-      await expect(reconcile({ pointOfSale: 7 }, buildJobHelpers().helpers)).rejects.toThrow();
+      const { helpers, addJob } = buildJobHelpers();
 
+      await reconcile({ pointOfSale: 7 }, helpers);
+
+      expect(addJob.mock.calls).toEqual([
+        [
+          RECONCILE_NUMBERING_CONFLICT_TASK_IDENTIFIER,
+          { pointOfSale: 7 },
+          {
+            jobKey: `${RECONCILE_NUMBERING_CONFLICT_TASK_IDENTIFIER}:7`,
+            jobKeyMode: "replace",
+            priority: -20,
+            runAt: ASK_AGAIN_AT,
+          },
+        ],
+      ]);
       expect(await freezes()).toHaveLength(1);
     });
 

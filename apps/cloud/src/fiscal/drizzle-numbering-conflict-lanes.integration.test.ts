@@ -67,6 +67,13 @@ function inLane<TOutcome>(
   return lanes().inPointOfSaleLane(pointOfSale, work);
 }
 
+function settle(
+  pointOfSale: number,
+  settlement: Parameters<NumberingConflictLane["settleNumberingReconciliation"]>[0],
+) {
+  return inLane(pointOfSale, (lane) => lane.settleNumberingReconciliation(settlement));
+}
+
 async function recordRequest(
   pointOfSale: number,
   number: number,
@@ -251,25 +258,28 @@ describe("the numbering conflict lane on a real Postgres", () => {
       expect(await inLane(8, (lane) => lane.numberingFreeze())).toBeNull();
     });
 
-    it("lifts the freeze and only that one", async () => {
+    it("lifts the freeze when the reconciliation is settled, and only that one", async () => {
       await inLane(8, (lane) =>
         lane.freezeNumbering({ countBeforeFreeze: 3, frozenAt: FROZEN_AT }),
       );
+      await inLane(7, (lane) =>
+        lane.freezeNumbering({ countBeforeFreeze: 3, frozenAt: FROZEN_AT }),
+      );
 
-      await inLane(7, (lane) => lane.liftNumberingFreeze());
+      await settle(7, { externalBillings: [], lastAuthorized: 3 });
 
       expect(await inLane(7, (lane) => lane.numberingFreeze())).toBeNull();
       expect(await inLane(8, (lane) => lane.numberingFreeze())).not.toBeNull();
-      await inLane(8, (lane) => lane.liftNumberingFreeze());
+      await settle(8, { externalBillings: [], lastAuthorized: 3 });
     });
 
-    it("logs the register's point of sale as changed when the freeze is taken and when it is lifted", async () => {
+    it("logs the register's point of sale as changed when the freeze is taken and, once for the count and the lifted freeze together, when it is settled", async () => {
       const last = await lastLoggedChangeSeq(db);
 
       await inLane(7, (lane) =>
         lane.freezeNumbering({ countBeforeFreeze: 12, frozenAt: FROZEN_AT }),
       );
-      await inLane(7, (lane) => lane.liftNumberingFreeze());
+      await settle(7, { externalBillings: [], lastAuthorized: 30 });
 
       expect(
         (await changesLoggedAfter(db, last)).map(({ entity, entityId, op }) => ({
@@ -308,19 +318,32 @@ describe("the numbering conflict lane on a real Postgres", () => {
     });
   });
 
-  describe("the count", () => {
+  describe("settling a reconciliation", () => {
+    const opening = (number: number): ExternalBillingOpening => ({
+      pointOfSale: 7,
+      documentType: FACTURA_C_DOCUMENT_TYPE,
+      number,
+    });
+
+    async function externalBillingScopes() {
+      return (await db.select().from(alerts))
+        .filter((alert) => alert.kind === "external_billing")
+        .map((alert) => alert.scope)
+        .sort();
+    }
+
     it("reads zero before any count is recorded", async () => {
       expect(await inLane(8, (lane) => lane.taxAuthorityCount())).toBe(0);
     });
 
     it("continues the series right after the number, and never lowers a count already held", async () => {
-      await inLane(8, (lane) => lane.continueNumberingAfter(20));
+      await settle(8, { externalBillings: [], lastAuthorized: 20 });
       expect(await inLane(8, (lane) => lane.taxAuthorityCount())).toBe(20);
 
-      await inLane(8, (lane) => lane.continueNumberingAfter(15));
+      await settle(8, { externalBillings: [], lastAuthorized: 15 });
       expect(await inLane(8, (lane) => lane.taxAuthorityCount())).toBe(20);
 
-      await inLane(8, (lane) => lane.continueNumberingAfter(25));
+      await settle(8, { externalBillings: [], lastAuthorized: 25 });
       expect(await inLane(8, (lane) => lane.taxAuthorityCount())).toBe(25);
       const rows = await db.select().from(taxAuthorityLastAuthorizedNumbers);
       expect(rows.filter((row) => row.pointOfSaleNumber === 8)).toEqual([
@@ -328,54 +351,55 @@ describe("the numbering conflict lane on a real Postgres", () => {
       ]);
     });
 
-    it("logs the register's point of sale as changed when the count moves", async () => {
-      const last = await lastLoggedChangeSeq(db);
+    it("opens one alert for each number, once however many times it is settled", async () => {
+      await settle(7, { externalBillings: [opening(31), opening(32)], lastAuthorized: 40 });
+      await settle(7, { externalBillings: [opening(31)], lastAuthorized: 40 });
 
-      await inLane(7, (lane) => lane.continueNumberingAfter(30));
-
-      expect(
-        (await changesLoggedAfter(db, last)).map(({ entity, entityId }) => ({ entity, entityId })),
-      ).toEqual([{ entity: "register_point_of_sale", entityId: registerId }]);
-    });
-  });
-
-  describe("the external billing alert", () => {
-    it("opens one alert for the number, once however many times it is asked", async () => {
-      const opening: ExternalBillingOpening = {
-        pointOfSale: 7,
-        documentType: FACTURA_C_DOCUMENT_TYPE,
-        number: 31,
-      };
-
-      await inLane(7, (lane) => lane.openExternalBillingAlert(opening));
-      await inLane(7, (lane) => lane.openExternalBillingAlert(opening));
-
-      const opened = (await db.select().from(alerts)).filter(
-        (alert) => alert.kind === "external_billing",
+      expect(await externalBillingScopes()).toEqual([
+        `7:${FACTURA_C_DOCUMENT_TYPE}:31`,
+        `7:${FACTURA_C_DOCUMENT_TYPE}:32`,
+      ]);
+      const [alert] = (await db.select().from(alerts)).filter(
+        (row) => row.scope === `7:${FACTURA_C_DOCUMENT_TYPE}:31`,
       );
-      expect(opened).toEqual([
+      expect(alert).toEqual(
         expect.objectContaining({
           kind: "external_billing",
-          scope: `7:${FACTURA_C_DOCUMENT_TYPE}:31`,
           detail: { pointOfSale: 7, documentType: FACTURA_C_DOCUMENT_TYPE, number: 31 },
           resolvedAt: null,
         }),
-      ]);
+      );
     });
 
-    it("opens an alert apiece for different numbers", async () => {
+    it("leaves the alerts, the count and the freeze as they were when it fails", async () => {
       await inLane(7, (lane) =>
-        lane.openExternalBillingAlert({
-          pointOfSale: 7,
-          documentType: FACTURA_C_DOCUMENT_TYPE,
-          number: 32,
-        }),
+        lane.freezeNumbering({ countBeforeFreeze: 12, frozenAt: FROZEN_AT }),
       );
+      const scopesBefore = await externalBillingScopes();
+      const countBefore = await inLane(7, (lane) => lane.taxAuthorityCount());
+      const last = await lastLoggedChangeSeq(db);
+      const admin = postgres(integrationDb.adminDatabaseUrl, { max: 1 });
+      await admin.unsafe(`
+        create function refuse_freeze_lift() returns trigger language plpgsql as $$
+        begin raise exception 'the lift broke'; end; $$`);
+      await admin.unsafe(`
+        create trigger refuse_freeze_lift before delete on numbering_freezes
+        for each row execute function refuse_freeze_lift()`);
+      try {
+        await expect(
+          settle(7, { externalBillings: [opening(51), opening(52)], lastAuthorized: 99 }),
+        ).rejects.toThrow();
+      } finally {
+        await admin.unsafe("drop trigger refuse_freeze_lift on numbering_freezes");
+        await admin.unsafe("drop function refuse_freeze_lift()");
+        await admin.end({ timeout: 1 });
+      }
 
-      const scopes = (await db.select().from(alerts))
-        .filter((alert) => alert.kind === "external_billing")
-        .map((alert) => alert.scope);
-      expect(scopes).toContain(`7:${FACTURA_C_DOCUMENT_TYPE}:32`);
+      expect(await externalBillingScopes()).toEqual(scopesBefore);
+      expect(await inLane(7, (lane) => lane.taxAuthorityCount())).toBe(countBefore);
+      expect(await inLane(7, (lane) => lane.numberingFreeze())).not.toBeNull();
+      expect(await changesLoggedAfter(db, last)).toEqual([]);
+      await settle(7, { externalBillings: [], lastAuthorized: 0 });
     });
   });
 });

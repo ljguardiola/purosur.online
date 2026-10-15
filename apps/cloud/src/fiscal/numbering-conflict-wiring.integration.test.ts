@@ -16,7 +16,10 @@ import {
   FICTIONAL_RECOVERY_REPLY_TO,
   FICTIONAL_RECOVERY_SENDER,
 } from "../test-support/recovery-email.js";
-import { enqueueNumberingDiagnosisJob } from "./graphile-numbering-conflict-queue.js";
+import {
+  enqueueNumberingDiagnosisJob,
+  enqueueNumberingReconciliationJob,
+} from "./graphile-numbering-conflict-queue.js";
 import {
   authorizationRequestRecord,
   insertRegisterWithPointOfSale,
@@ -145,13 +148,16 @@ describe("the numbering conflict work the server sets up on a real Postgres", ()
       expect(await pointOfSaleRow()).toMatchObject({ tax_authority_last_authorized_number: 1 });
 
       fakeWsfe.behave(answers("fe-comp-ultimo-autorizado-advanced.xml"));
+      await recovery.db.transaction((transaction) =>
+        enqueueNumberingReconciliationJob(transaction, 7),
+      );
       await vi.waitFor(
         async () =>
           expect(await pointOfSaleRow()).toMatchObject({
             numbering_frozen: false,
             tax_authority_last_authorized_number: 3,
           }),
-        { timeout: 30_000, interval: 200 },
+        { timeout: 20_000, interval: 100 },
       );
       expect(
         await sql`select scope from alerts where kind = 'external_billing' order by scope`,

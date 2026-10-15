@@ -226,10 +226,14 @@ describe("GET /changes carrying the register's own point of sale", () => {
     });
     const lanes = numberingLanes();
 
-    await lanes.inPointOfSaleLane(7, async (lane) => {
-      await lane.continueNumberingAfter(41);
-      await lane.freezeNumbering({ countBeforeFreeze: 41, frozenAt: NOW });
+    await new DrizzleTaxAuthorityCounts(db).advance({
+      pointOfSale: 7,
+      lastAuthorized: 41,
+      readAt: NOW,
     });
+    await lanes.inPointOfSaleLane(7, (lane) =>
+      lane.freezeNumbering({ countBeforeFreeze: 41, frozenAt: NOW }),
+    );
 
     expect((await pullAfterSeed(deviceToken)).at(-1)).toEqual({
       entity: "register_point_of_sale",
@@ -261,15 +265,18 @@ describe("GET /changes carrying the register's own point of sale", () => {
       actorId: await insertActor(db, locationId),
     });
     const lanes = numberingLanes();
-    await lanes.inPointOfSaleLane(7, async (lane) => {
-      await lane.continueNumberingAfter(41);
-      await lane.freezeNumbering({ countBeforeFreeze: 41, frozenAt: NOW });
+    await new DrizzleTaxAuthorityCounts(db).advance({
+      pointOfSale: 7,
+      lastAuthorized: 41,
+      readAt: NOW,
     });
+    await lanes.inPointOfSaleLane(7, (lane) =>
+      lane.freezeNumbering({ countBeforeFreeze: 41, frozenAt: NOW }),
+    );
 
-    await lanes.inPointOfSaleLane(7, async (lane) => {
-      await lane.continueNumberingAfter(44);
-      await lane.liftNumberingFreeze();
-    });
+    await lanes.inPointOfSaleLane(7, (lane) =>
+      lane.settleNumberingReconciliation({ externalBillings: [], lastAuthorized: 44 }),
+    );
 
     expect((await pullAfterSeed(deviceToken)).at(-1)).toEqual({
       entity: "register_point_of_sale",
