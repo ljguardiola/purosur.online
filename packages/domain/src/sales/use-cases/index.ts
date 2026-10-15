@@ -227,6 +227,18 @@ export type {
 } from "./settle-approved-mercado-pago-payment.js";
 export { settleApprovedMercadoPagoPayment } from "./settle-approved-mercado-pago-payment.js";
 export type {
+  VoidSaleGrant,
+  VoidSaleInput,
+  VoidSaleOutcome,
+  VoidSalePorts,
+} from "./void-sale.js";
+export { voidSale } from "./void-sale.js";
+export type {
+  SaleToVoid,
+  SaleVoidLedger,
+  SaleVoidTransaction,
+} from "./void-sale-ports.js";
+export type {
   WeighProductOnScaleInput,
   WeighProductOnScaleOutcome,
   WeighProductOnScalePorts,
