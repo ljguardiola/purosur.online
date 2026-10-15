@@ -639,6 +639,8 @@ export {
   quarantinedEventsListSchema,
   releaseQuarantinedEventErrorSchema,
 } from "./sync/quarantined-events.js";
+export type { ReadableEventVersions } from "./sync/readable-event-versions.js";
+export { readableEventVersionsSchema } from "./sync/readable-event-versions.js";
 export type {
   RegistersBelowMinimum,
   RegistersBelowMinimumQuery,
@@ -652,6 +654,7 @@ export type {
   SyncedEventPayloads,
 } from "./sync/synced-event-payloads.js";
 export {
+  READABLE_EVENT_VERSIONS,
   syncedEventPayloadKey,
   syncedEventPayloadSchema,
 } from "./sync/synced-event-payloads.js";
