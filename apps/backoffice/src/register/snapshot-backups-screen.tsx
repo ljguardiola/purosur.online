@@ -21,6 +21,7 @@ import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
+import { ChangeSnapshotLifecycleRulesModal } from "./change-snapshot-lifecycle-rules-modal";
 import {
   useRefreshRegisters,
   useSnapshotBackupRegistersQuery,
@@ -33,9 +34,9 @@ import type { SnapshotBackupsScreenServices } from "./snapshot-backups-services"
 import {
   SNAPSHOT_LOCATION_TEXT,
   snapshotGenerationDate,
+  snapshotRecentCaption,
   snapshotTierCaptions,
 } from "./snapshot-backups-text";
-import { SnapshotLifecycleRulesModal } from "./snapshot-lifecycle-rules-modal";
 
 export type SnapshotBackupsScreenProps = {
   filters: SnapshotBackupsFilters;
@@ -163,7 +164,7 @@ export function SnapshotBackupsScreen({
       label: "Recientes",
       count:
         backups && `${formatNumber(backups.tiers.recent)} de ${formatNumber(backups.recentLimit)}`,
-      caption: "En el disco y en el bucket",
+      caption: backups && snapshotRecentCaption(backups.recentLimit),
     },
     {
       label: "Por hora",
@@ -262,7 +263,7 @@ export function SnapshotBackupsScreen({
         )}
       </ScreenLayout>
       {backups === undefined ? null : (
-        <SnapshotLifecycleRulesModal
+        <ChangeSnapshotLifecycleRulesModal
           open={rulesModalOpen}
           rules={backups.rules}
           onClose={() => setRulesModalOpen(false)}

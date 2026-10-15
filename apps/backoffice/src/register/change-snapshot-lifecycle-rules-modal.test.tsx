@@ -4,9 +4,9 @@ import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
 import {
-  SnapshotLifecycleRulesModal,
-  type SnapshotLifecycleRulesModalServices,
-} from "./snapshot-lifecycle-rules-modal";
+  ChangeSnapshotLifecycleRulesModal,
+  type ChangeSnapshotLifecycleRulesModalServices,
+} from "./change-snapshot-lifecycle-rules-modal";
 import {
   createAuthorizationServices,
   grantAuthorization,
@@ -17,8 +17,8 @@ beforeEach(() => {
 });
 
 function createServices(
-  overrides: Partial<SnapshotLifecycleRulesModalServices> = {},
-): SnapshotLifecycleRulesModalServices {
+  overrides: Partial<ChangeSnapshotLifecycleRulesModalServices> = {},
+): ChangeSnapshotLifecycleRulesModalServices {
   return {
     changeSnapshotLifecycleRules: vi.fn(),
     ...createAuthorizationServices(),
@@ -36,11 +36,11 @@ type Handlers = {
   onSessionEnded?: () => void;
 };
 
-function modalFor(services: SnapshotLifecycleRulesModalServices, handlers: Handlers = {}) {
+function modalFor(services: ChangeSnapshotLifecycleRulesModalServices, handlers: Handlers = {}) {
   return (
     <FieldSizeProvider size="backoffice">
       <main>
-        <SnapshotLifecycleRulesModal
+        <ChangeSnapshotLifecycleRulesModal
           open={handlers.open ?? true}
           rules={handlers.rules ?? CURRENT_RULES}
           onClose={handlers.onClose ?? (() => {})}
@@ -53,7 +53,10 @@ function modalFor(services: SnapshotLifecycleRulesModalServices, handlers: Handl
   );
 }
 
-async function renderModal(services: SnapshotLifecycleRulesModalServices, handlers: Handlers = {}) {
+async function renderModal(
+  services: ChangeSnapshotLifecycleRulesModalServices,
+  handlers: Handlers = {},
+) {
   const screen = await render(modalFor(services, handlers));
   const dialog = screen.getByRole("dialog", { name: "Cambiar las reglas" });
   await expect.element(dialog).toBeVisible();

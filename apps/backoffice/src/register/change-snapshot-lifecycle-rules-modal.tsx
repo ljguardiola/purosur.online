@@ -23,30 +23,30 @@ import {
   snapshotLifecycleRulesRequestFrom,
 } from "./snapshot-lifecycle-rules-form";
 
-export type SnapshotLifecycleRulesModalServices = {
+export type ChangeSnapshotLifecycleRulesModalServices = {
   changeSnapshotLifecycleRules: typeof changeSnapshotLifecycleRules;
   fetchSessionAuthorizationOptions: typeof fetchSessionAuthorizationOptions;
   authorizeSession: typeof authorizeSession;
   startAuthentication: typeof startAuthentication;
 };
 
-type SnapshotLifecycleRulesModalProps = {
+type ChangeSnapshotLifecycleRulesModalProps = {
   open: boolean;
   rules: SnapshotLifecycleRules;
   onClose: () => void;
   onChanged: () => void;
   onSessionEnded: () => void;
-  services: SnapshotLifecycleRulesModalServices;
+  services: ChangeSnapshotLifecycleRulesModalServices;
 };
 
-export function SnapshotLifecycleRulesModal({
+export function ChangeSnapshotLifecycleRulesModal({
   open,
   rules,
   onClose,
   onChanged,
   onSessionEnded,
   services,
-}: SnapshotLifecycleRulesModalProps) {
+}: ChangeSnapshotLifecycleRulesModalProps) {
   const {
     changeSnapshotLifecycleRules,
     fetchSessionAuthorizationOptions,

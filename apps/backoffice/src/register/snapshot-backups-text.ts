@@ -32,9 +32,13 @@ export function snapshotTierCaptions(rules: SnapshotLifecycleRules) {
   };
 }
 
+export function snapshotRecentCaption(limit: number): string {
+  return plural(limit, { one: "La más nueva", other: `Las ${limit} más nuevas` });
+}
+
 export const SNAPSHOT_LOCATION_TEXT: Record<SnapshotBackupGeneration["location"], string> = {
   disk_and_bucket: "Disco y bucket",
   bucket: "Solo bucket",
   disk: "Solo disco",
-  nowhere: "Ninguno",
+  nowhere: "En ningún lado",
 };

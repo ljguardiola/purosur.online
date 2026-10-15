@@ -3,6 +3,7 @@ import {
   authorizeSession,
   fetchSessionAuthorizationOptions,
 } from "../platform/session-authorization-api";
+import type { ChangeSnapshotLifecycleRulesModalServices } from "./change-snapshot-lifecycle-rules-modal";
 import type { RotateSnapshotKeyModalServices } from "./rotate-snapshot-key-modal";
 import {
   changeSnapshotLifecycleRules,
@@ -10,12 +11,11 @@ import {
   fetchSnapshotBackups,
   rotateSnapshotKey,
 } from "./snapshot-backups-api";
-import type { SnapshotLifecycleRulesModalServices } from "./snapshot-lifecycle-rules-modal";
 
 export type SnapshotBackupsScreenServices = {
   fetchSnapshotBackupRegisters: typeof fetchSnapshotBackupRegisters;
   fetchSnapshotBackups: typeof fetchSnapshotBackups;
-} & SnapshotLifecycleRulesModalServices &
+} & ChangeSnapshotLifecycleRulesModalServices &
   RotateSnapshotKeyModalServices;
 
 export const defaultSnapshotBackupsScreenServices: SnapshotBackupsScreenServices = {
