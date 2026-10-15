@@ -1,3 +1,4 @@
+import type { OfflineFiscalDocumentIssuedFact } from "../../fiscal/index.js";
 import type { MercadoPagoOrderTransaction } from "../../payments/index.js";
 import type { CompletedSale } from "../../sales/index.js";
 import type { Clock, JsonValue } from "../../shared/index.js";
@@ -52,6 +53,7 @@ export interface EventApplicationTransaction {
     withdrawal: OpeningCountWithdrawnFact,
     event: UnappliedEvent,
   ): Promise<StockApplication>;
+  advanceOfflineNumbering(document: OfflineFiscalDocumentIssuedFact): Promise<void>;
   markApplied(eventId: string, at: Date): Promise<void>;
   recordFailedAttempt(eventId: string, failed: FailedAttempt): Promise<void>;
   lockDeviceQuarantines(deviceId: string): Promise<void>;

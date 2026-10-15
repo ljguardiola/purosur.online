@@ -119,6 +119,9 @@ async function recordFact(
         await applyStock(tx.applySaleStock(fact.sale, fact.sale.stockMovements, event));
       }
       return;
+    case "offline_fiscal_document_issued":
+      await tx.record(fact, event);
+      return tx.advanceOfflineNumbering(fact.document);
     default:
       return tx.record(fact, event);
   }
