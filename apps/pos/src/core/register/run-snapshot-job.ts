@@ -1,6 +1,7 @@
 import { mkdir, rename, rm } from "node:fs/promises";
 import type { SnapshotWorkerJobMessage } from "@purosur/contracts";
 import type { SnapshotCorruptionStage } from "@purosur/domain";
+import type { UploadPendingSnapshotGenerationsOutcome } from "@purosur/domain/register/use-cases";
 import type { CloudClientDeps } from "../platform/cloud-client";
 import { type Durability, nodeDurability } from "./durable-files";
 import { copyAndCheck, SnapshotCopyFailed } from "./snapshot-copy";
@@ -16,7 +17,7 @@ import {
   temporaryObjectPath,
   writeManifest,
 } from "./snapshot-generations-folder";
-import { type UploadSummary, uploadPendingGenerations } from "./snapshot-upload";
+import { uploadPendingGenerations } from "./snapshot-upload";
 
 type TakeJob = Extract<SnapshotWorkerJobMessage, { kind: "take" }>;
 
@@ -27,7 +28,7 @@ export interface SnapshotJobDeps {
 }
 
 export type SnapshotJobResult =
-  | { kind: "completed"; uploads: UploadSummary }
+  | { kind: "completed"; uploads: UploadPendingSnapshotGenerationsOutcome }
   | { kind: "aborted"; stage: SnapshotCorruptionStage };
 
 async function takeSnapshot(

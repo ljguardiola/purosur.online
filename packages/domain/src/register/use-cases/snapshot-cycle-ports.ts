@@ -3,7 +3,6 @@ import type { SnapshotCycleFacts, SnapshotSequences } from "../model/snapshot-cy
 
 export interface SnapshotCycleState {
   lastGeneration(): Promise<SnapshotSequences | undefined>;
-  currentSequences(): Promise<SnapshotSequences>;
   hasPendingUploads(): Promise<boolean>;
   battery(): Promise<BatteryReading>;
   storage(): Promise<SnapshotCycleFacts["storage"]>;

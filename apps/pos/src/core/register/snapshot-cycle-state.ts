@@ -1,16 +1,16 @@
-import type { BatteryReading, BatteryReport, SnapshotSequences } from "@purosur/domain";
+import {
+  type BatteryReading,
+  type BatteryReport,
+  isPendingSnapshotGeneration,
+  lastSnapshotGenerationSequences,
+} from "@purosur/domain";
 import type { SnapshotCycleState } from "@purosur/domain/register/use-cases";
 import type { CloudReachability } from "../sync/cloud-reachability";
 import type { StorageReading } from "../sync/storage-telemetry";
-import {
-  lastGenerationSequences,
-  pendingManifests,
-  readManifests,
-} from "./snapshot-generations-folder";
+import { readGenerations } from "./snapshot-generations-folder";
 
 export interface SnapshotCycleStateDeps {
   snapshotsFolder: string;
-  sequences: () => SnapshotSequences;
   batteryReport: () => BatteryReport | undefined;
   readStorage: () => Promise<StorageReading>;
   cloudReachability: () => CloudReachability;
@@ -27,10 +27,10 @@ function readingOf(report: BatteryReport | undefined): BatteryReading {
 
 export function createSnapshotCycleState(deps: SnapshotCycleStateDeps): SnapshotCycleState {
   return {
-    lastGeneration: async () => lastGenerationSequences(await readManifests(deps.snapshotsFolder)),
-    currentSequences: async () => deps.sequences(),
+    lastGeneration: async () =>
+      lastSnapshotGenerationSequences(await readGenerations(deps.snapshotsFolder)),
     hasPendingUploads: async () =>
-      pendingManifests(await readManifests(deps.snapshotsFolder)).length > 0,
+      (await readGenerations(deps.snapshotsFolder)).some(isPendingSnapshotGeneration),
     battery: async () => readingOf(deps.batteryReport()),
     storage: async () => {
       const reading = await deps.readStorage();

@@ -161,6 +161,7 @@ export type {
 } from "./rotate-device-token.js";
 export { rotateDeviceToken } from "./rotate-device-token.js";
 export type {
+  RunSnapshotCycleInput,
   RunSnapshotCycleOutcome,
   RunSnapshotCyclePorts,
 } from "./run-snapshot-cycle.js";
@@ -199,6 +200,19 @@ export {
   SnapshotGenerationIdTaken,
   SnapshotUploadWindowClosed,
 } from "./snapshot-generations.js";
+export type {
+  LocalSnapshotGenerations,
+  SnapshotCloudStep,
+  SnapshotDeclarationAnswer,
+  SnapshotUploadCloud,
+  SnapshotUploadDestination,
+} from "./snapshot-upload-ports.js";
+export type {
+  SnapshotUploadTally,
+  UploadPendingSnapshotGenerationsOutcome,
+  UploadPendingSnapshotGenerationsPorts,
+} from "./upload-pending-snapshot-generations.js";
+export { uploadPendingSnapshotGenerations } from "./upload-pending-snapshot-generations.js";
 export type {
   SnapshotVerificationSummary,
   VerifySnapshotGenerationsPorts,

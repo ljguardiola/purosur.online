@@ -1,4 +1,8 @@
-import { type SnapshotSkipReason, snapshotCycleDecision } from "../model/snapshot-cycle.js";
+import {
+  type SnapshotSequences,
+  type SnapshotSkipReason,
+  snapshotCycleDecision,
+} from "../model/snapshot-cycle.js";
 import type { IdGenerator } from "./cash-ledger.js";
 import type {
   SnapshotCycleState,
@@ -14,18 +18,19 @@ export interface RunSnapshotCyclePorts {
   log: SnapshotLog;
 }
 
+export interface RunSnapshotCycleInput {
+  current: SnapshotSequences;
+}
+
 export type RunSnapshotCycleOutcome =
   | { kind: "launched"; job: SnapshotWorkerJob }
   | { kind: "launch_unavailable" }
   | { kind: "skipped"; reason: SnapshotSkipReason };
 
-export async function runSnapshotCycle({
-  state,
-  launcher,
-  ids,
-  log,
-}: RunSnapshotCyclePorts): Promise<RunSnapshotCycleOutcome> {
-  const current = await state.currentSequences();
+export async function runSnapshotCycle(
+  { state, launcher, ids, log }: RunSnapshotCyclePorts,
+  { current }: RunSnapshotCycleInput,
+): Promise<RunSnapshotCycleOutcome> {
   const decision = snapshotCycleDecision({
     lastGeneration: await state.lastGeneration(),
     current,

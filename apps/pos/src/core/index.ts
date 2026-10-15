@@ -1128,8 +1128,7 @@ if (localDatabase !== undefined && localDatabasePath !== undefined) {
     newGenerationId: () => uuidV7Ids.next(),
     postToMain: (message) => process.parentPort.postMessage(message),
     scheduleNext: (run, delayMs) => {
-      const timer = setTimeout(run, delayMs);
-      return () => clearTimeout(timer);
+      setTimeout(run, delayMs);
     },
     onFailure: (error) => reportFailure("running the snapshot cycle", error),
   });

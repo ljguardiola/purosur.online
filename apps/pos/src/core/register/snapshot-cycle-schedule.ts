@@ -4,7 +4,7 @@ import type { RunSnapshotCycleOutcome } from "@purosur/domain/register/use-cases
 export interface SnapshotCycleScheduleDeps {
   runCycle: () => Promise<RunSnapshotCycleOutcome>;
   cloudReachable: () => boolean;
-  scheduleNext: (run: () => Promise<void>, delayMs: number) => () => void;
+  scheduleNext: (run: () => Promise<void>, delayMs: number) => void;
   checkpoint: () => void;
   onFailure: (error: unknown) => void;
 }

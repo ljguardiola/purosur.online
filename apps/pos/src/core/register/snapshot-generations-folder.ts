@@ -1,7 +1,11 @@
 import { readdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { type SnapshotManifest, snapshotManifestSchema } from "@purosur/contracts";
-import type { SnapshotSequences } from "@purosur/domain";
+import {
+  type LocalSnapshotGeneration,
+  pendingSnapshotGenerationsNewestFirst,
+} from "@purosur/domain";
+import type { LocalSnapshotGenerations } from "@purosur/domain/register/use-cases";
 import { type Durability, nodeDurability } from "./durable-files";
 
 const MANIFEST_SUFFIX = ".json";
@@ -61,31 +65,74 @@ async function readManifest(folder: string, name: string): Promise<SnapshotManif
   }
 }
 
-function newestFirst(a: SnapshotManifest, b: SnapshotManifest): number {
-  return b.created_at.localeCompare(a.created_at) || b.generation_id.localeCompare(a.generation_id);
-}
-
 export async function readManifests(folder: string): Promise<SnapshotManifest[]> {
   const names = (await namesIn(folder)).filter((name) => name.endsWith(MANIFEST_SUFFIX));
   const manifests = await Promise.all(names.map((name) => readManifest(folder, name)));
-  return manifests
-    .filter((manifest): manifest is SnapshotManifest => manifest !== undefined)
-    .sort(newestFirst);
+  return manifests.filter((manifest): manifest is SnapshotManifest => manifest !== undefined);
 }
 
-export function lastGenerationSequences(
-  manifests: readonly SnapshotManifest[],
-): SnapshotSequences | undefined {
-  const [newest] = manifests;
-  return newest === undefined
-    ? undefined
-    : { lastDeviceSeq: newest.last_device_seq, pullCursor: newest.pull_cursor };
+function dateOrNull(instant: string | null): Date | null {
+  return instant === null ? null : new Date(instant);
 }
 
-export function pendingManifests(manifests: readonly SnapshotManifest[]): SnapshotManifest[] {
-  return manifests.filter(
-    (manifest) => manifest.uploaded_at === null && manifest.refused_at === null,
-  );
+function generationOf(manifest: SnapshotManifest): LocalSnapshotGeneration {
+  return {
+    generationId: manifest.generation_id,
+    createdAt: new Date(manifest.created_at),
+    sequences: { lastDeviceSeq: manifest.last_device_seq, pullCursor: manifest.pull_cursor },
+    keyVersion: manifest.key_version,
+    size: manifest.size,
+    sha256: manifest.sha256,
+    uploadedAt: dateOrNull(manifest.uploaded_at),
+    refusedAt: dateOrNull(manifest.refused_at),
+  };
+}
+
+function manifestOf(generation: LocalSnapshotGeneration): SnapshotManifest {
+  return {
+    generation_id: generation.generationId,
+    created_at: generation.createdAt.toISOString(),
+    last_device_seq: generation.sequences.lastDeviceSeq,
+    pull_cursor: generation.sequences.pullCursor,
+    key_version: generation.keyVersion,
+    size: generation.size,
+    sha256: generation.sha256,
+    uploaded_at: generation.uploadedAt?.toISOString() ?? null,
+    refused_at: generation.refusedAt?.toISOString() ?? null,
+  };
+}
+
+export async function readGenerations(folder: string): Promise<LocalSnapshotGeneration[]> {
+  return (await readManifests(folder)).map(generationOf);
+}
+
+async function objectOf(
+  folder: string,
+  generationId: string,
+): Promise<Uint8Array<ArrayBuffer> | undefined> {
+  try {
+    return new Uint8Array(await readFile(objectPath(folder, generationId)));
+  } catch (error) {
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") {
+      return undefined;
+    }
+    throw error;
+  }
+}
+
+export function folderSnapshotGenerations(
+  folder: string,
+  durability: Durability = nodeDurability,
+): LocalSnapshotGenerations {
+  return {
+    pendingNewestFirst: async () =>
+      pendingSnapshotGenerationsNewestFirst(await readGenerations(folder)),
+    objectOf: (generation) => objectOf(folder, generation.generationId),
+    markUploaded: (generation, at) =>
+      writeManifest(folder, manifestOf({ ...generation, uploadedAt: at }), durability),
+    markRefused: (generation, at) =>
+      writeManifest(folder, manifestOf({ ...generation, refusedAt: at }), durability),
+  };
 }
 
 export async function removeLeftovers(folder: string): Promise<void> {
