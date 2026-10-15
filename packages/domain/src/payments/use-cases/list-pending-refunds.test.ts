@@ -194,13 +194,4 @@ describe("listPendingRefunds", () => {
       lastRefusalReason: "insufficient_balance",
     });
   });
-
-  it("does not list a late-payment refund of a QR payment as one the cloud sends", async () => {
-    const late: FakePendingRefund = { ...TRANSFER_REFUND, method: "QR", origin: "late_payment" };
-    const store = new FakeRefundStore([], [late]);
-
-    const [refund] = await listPendingRefunds({ reader: store, clock }, { locationId: "branch-1" });
-
-    expect(refund).toMatchObject({ sentByCloud: false, deliveryStage: null });
-  });
 });

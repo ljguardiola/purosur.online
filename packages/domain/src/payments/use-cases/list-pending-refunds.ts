@@ -22,7 +22,7 @@ export async function listPendingRefunds(
     const sentByCloud = isRefundSentByCloud(refund);
     return {
       ...refund,
-      discardable: isRefundDiscardable(refund.origin),
+      discardable: isRefundDiscardable(refund),
       sentByCloud,
       deliveryStage: sentByCloud ? mercadoPagoRefundStage(refund) : null,
       secondsPending: Math.max(0, Math.floor((now - refund.occurredAt.getTime()) / 1000)),

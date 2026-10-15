@@ -85,8 +85,12 @@ export function isRefundDiscarded(state: string): boolean {
   return state === REFUND_DISCARDED_STATE;
 }
 
-export function isRefundDiscardable(origin: string): boolean {
+export function isRefundOriginDiscardable(origin: string): boolean {
   return origin === LATE_PAYMENT_REFUND_ORIGIN;
+}
+
+export function isRefundDiscardable(refund: { origin: string; confirmedAt: Date | null }): boolean {
+  return isRefundOriginDiscardable(refund.origin) && refund.confirmedAt === null;
 }
 
 export function refundAlertKind(origin: string): AlertKind {
@@ -94,7 +98,7 @@ export function refundAlertKind(origin: string): AlertKind {
 }
 
 export const DISCARDABLE_REFUND_ALERT_KINDS: readonly AlertKind[] =
-  REFUND_ORIGINS.filter(isRefundDiscardable).map(refundAlertKind);
+  REFUND_ORIGINS.filter(isRefundOriginDiscardable).map(refundAlertKind);
 
 export const REFUND_TASK_ORIGINS: readonly RefundOrigin[] = REFUND_ORIGINS.filter(
   (origin) => refundAlertKind(origin) === "refund_task",

@@ -4,8 +4,13 @@ import {
   isProcessedByMercadoPago,
   progressOfRefundAnswer,
   refundIsBackedByItsCancellation,
+  refundIsBackedByItsLatePayment,
 } from "../model/mercado-pago-refund.js";
-import { isRefundPending, refundAlertKind } from "../model/payment-refund.js";
+import {
+  isRefundPending,
+  LATE_PAYMENT_REFUND_ORIGIN,
+  refundAlertKind,
+} from "../model/payment-refund.js";
 import type {
   MercadoPagoRefundPorts,
   MercadoPagoRefundRecord,
@@ -50,15 +55,25 @@ export async function lockPendingRefund(
   return { kind: "locked", refund };
 }
 
+async function isBackedByItsOrigin(
+  tx: MercadoPagoRefundTransaction,
+  refund: MercadoPagoRefundRecord,
+): Promise<boolean> {
+  if (refund.origin === LATE_PAYMENT_REFUND_ORIGIN) {
+    return refundIsBackedByItsLatePayment(refund, await tx.latePaymentOfRefund(refund.id));
+  }
+  const cancellation =
+    refund.originEventId === null ? null : await tx.cancellationOfEvent(refund.originEventId);
+  return refundIsBackedByItsCancellation(refund, cancellation);
+}
+
 export async function planBackedSending(
   tx: MercadoPagoRefundTransaction,
   { refundKeys, clock }: Pick<MercadoPagoRefundPorts, "refundKeys" | "clock">,
   refund: MercadoPagoRefundRecord,
   confirmation: { confirmedBy: string } | null,
 ): Promise<Stop<BackingRefusal> | Go> {
-  const cancellation =
-    refund.originEventId === null ? null : await tx.cancellationOfEvent(refund.originEventId);
-  if (!refundIsBackedByItsCancellation(refund, cancellation) || refund.orderId === null) {
+  if (!(await isBackedByItsOrigin(tx, refund)) || refund.orderId === null) {
     return { kind: "stop", outcome: { kind: "refund_not_backed" } };
   }
   if (exceedsRefundable(refund.amount, refund.paymentAmount, refund.refundedOfPayment)) {

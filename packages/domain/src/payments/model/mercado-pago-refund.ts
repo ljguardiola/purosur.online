@@ -1,4 +1,5 @@
-import { SALE_CANCELLED_REFUND_ORIGIN } from "./payment-refund.js";
+import { PAID_ORDER_PAYMENT_STATE } from "./paid-order-discovery.js";
+import { LATE_PAYMENT_REFUND_ORIGIN, SALE_CANCELLED_REFUND_ORIGIN } from "./payment-refund.js";
 
 export const MERCADO_PAGO_REFUND_FOLLOW_INTERVAL_MS = 60_000;
 
@@ -7,7 +8,10 @@ export const INSUFFICIENT_BALANCE_REFUSAL = "insufficient_balance";
 const PROCESSED_REFUND_STATUS = "processed";
 
 export function isRefundSentByCloud(refund: { method: string; origin: string }): boolean {
-  return refund.method === "QR" && refund.origin === SALE_CANCELLED_REFUND_ORIGIN;
+  return (
+    refund.method === "QR" &&
+    (refund.origin === SALE_CANCELLED_REFUND_ORIGIN || refund.origin === LATE_PAYMENT_REFUND_ORIGIN)
+  );
 }
 
 export function refundableAmount(paymentAmount: number, refundedOfPayment: number): number {
@@ -32,6 +36,25 @@ export function refundIsBackedByItsCancellation(
     cancellation !== null &&
     cancellation.saleId === refund.saleId
   );
+}
+
+export interface LatePaymentOfRefund {
+  state: string;
+  orderId: string | null;
+  otherOrderId: string | null;
+}
+
+export function refundIsBackedByItsLatePayment(
+  refund: { orderId: string | null },
+  payment: LatePaymentOfRefund | null,
+): boolean {
+  if (payment === null || refund.orderId === null) {
+    return false;
+  }
+  if (payment.otherOrderId !== null) {
+    return payment.otherOrderId === refund.orderId;
+  }
+  return payment.state === PAID_ORDER_PAYMENT_STATE && payment.orderId === refund.orderId;
 }
 
 export type MercadoPagoRefundAnswer =

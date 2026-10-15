@@ -280,6 +280,7 @@ export {
   WSAA_ALREADY_AUTHENTICATED_RETRY_MS,
 } from "./fiscal/index.js";
 export type {
+  LatePaymentOfRefund,
   LatePaymentRefund,
   MercadoPagoChargeInProgress,
   MercadoPagoOrderRefund,
@@ -311,6 +312,7 @@ export {
   isRefundPending,
   isValidOrderAmount,
   isValidPointOrderAmount,
+  LATE_PAYMENT_REFUND_ORIGIN,
   latePaymentRefund,
   latePaymentRefundOfUnrecordedOrder,
   MERCADO_PAGO_ORDER_CHARGE_CHECK_INTERVAL_MS,
