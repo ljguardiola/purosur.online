@@ -277,6 +277,7 @@ describe("GET /reports/hand-confirmed-payments", () => {
         { method: "TRANSFER", count: 1, amount: 4_800 },
         { method: "STANDALONE_TERMINAL", count: 0, amount: 0 },
       ],
+      cashiers: [{ cashier_id: expect.stringMatching(/\S/), count: 1, amount: 4_800 }],
       payments: [
         {
           method: "TRANSFER",

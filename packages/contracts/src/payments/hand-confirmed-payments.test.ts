@@ -5,6 +5,7 @@ import {
 } from "./hand-confirmed-payments.js";
 
 const REGISTER_ID = "4b0d2c1e-7f3a-4e58-9a61-0c5d8e2f1a77";
+const CASHIER_ID = "9a3e7c40-2b1d-4f6a-8c05-5d7e1a3b9c28";
 
 describe("handConfirmedPaymentsQuerySchema", () => {
   it("accepts a query asking for nothing", () => {
@@ -54,7 +55,7 @@ const report = {
   range: { from: "2026-10-05", to: "2026-10-06" },
   totals: { count: 3, amount: 1_900 },
   methods,
-  cashiers: [{ cashier_name: "Ana", count: 3, amount: 1_900, methods }],
+  cashiers: [{ cashier_id: CASHIER_ID, cashier_name: "Ana", count: 3, amount: 1_900, methods }],
   payments: [
     {
       id: "6f1c2b7e-0a4d-4c55-8d21-3b9e5a7c1d02",
@@ -88,7 +89,7 @@ describe("handConfirmedPaymentsSchema", () => {
   it("accepts a payment whose people or sale are unknown", () => {
     const unknown = {
       ...report,
-      cashiers: [{ cashier_name: null, count: 3, amount: 1_900, methods }],
+      cashiers: [{ cashier_id: CASHIER_ID, cashier_name: null, count: 3, amount: 1_900, methods }],
       payments: [
         {
           ...report.payments[0],
@@ -112,14 +113,19 @@ describe("handConfirmedPaymentsSchema", () => {
       { methods: [{ method: "CASH", count: 1, amount: 1 }] },
     ],
     ["a method total without count", { methods: [{ method: "TRANSFER", amount: 1 }] }],
-    ["a cashier without a name field", { cashiers: [{ count: 1, amount: 1, methods }] }],
+    ["a cashier without an id", { cashiers: [{ cashier_name: "Ana", count: 1, amount: 1, methods }] }],
+    [
+      "a cashier with an empty id",
+      { cashiers: [{ cashier_id: "", cashier_name: "Ana", count: 1, amount: 1, methods }] },
+    ],
+    ["a cashier without a name field", { cashiers: [{ cashier_id: CASHIER_ID, count: 1, amount: 1, methods }] }],
     [
       "a cashier count with decimals",
-      { cashiers: [{ cashier_name: "Ana", count: 1.5, amount: 1, methods }] },
+      { cashiers: [{ cashier_id: CASHIER_ID, cashier_name: "Ana", count: 1.5, amount: 1, methods }] },
     ],
     [
       "a cashier amount that is negative",
-      { cashiers: [{ cashier_name: "Ana", count: 1, amount: -1, methods }] },
+      { cashiers: [{ cashier_id: CASHIER_ID, cashier_name: "Ana", count: 1, amount: -1, methods }] },
     ],
     [
       "a payment confirmed at something that is not an instant",
