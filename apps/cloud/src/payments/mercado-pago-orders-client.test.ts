@@ -357,6 +357,10 @@ describe("the Mercado Pago orders client", () => {
     it.each([
       ["a missing identifier", { ...createdOrder(), id: undefined }],
       ["a missing status", { ...createdOrder(), status: undefined }],
+      [
+        "a payment that states no detail",
+        { ...createdOrder(), transactions: { payments: [{ status: "created", amount: "50.00" }] } },
+      ],
       ["an amount paid that is not a decimal number", { ...paidOrder(), total_paid_amount: "x" }],
       ["an amount paid of three decimals", { ...paidOrder(), total_paid_amount: "50.001" }],
       ["a negative amount paid", { ...paidOrder(), total_paid_amount: "-50.00" }],
