@@ -1,5 +1,7 @@
 import type { RegisterStatus } from "@purosur/contracts";
 import {
+  type BatteryReport,
+  type CriticalBatteryAction,
   offersSerialDevicesSetup,
   registerOperationAccess,
   registerOwnConditions,
@@ -23,6 +25,8 @@ export interface RegisterStatusDeps {
   serialDevices: () => SerialDeviceReading;
   storage: () => StorageStanding;
   localDatabaseDamaged: () => boolean;
+  battery: () => BatteryReport | undefined;
+  criticalBatteryAction: () => CriticalBatteryAction;
 }
 
 export async function registerStatusFor({
@@ -33,6 +37,8 @@ export async function registerStatusFor({
   serialDevices,
   storage,
   localDatabaseDamaged,
+  battery,
+  criticalBatteryAction,
 }: RegisterStatusDeps): Promise<RegisterStatus> {
   const reading = serialDevices();
   const standings = {
@@ -49,8 +55,8 @@ export async function registerStatusFor({
       serialDevices: reading.kind === "listed" ? reading.standings : null,
       storage: storage(),
       localDatabaseDamaged: localDatabaseDamaged(),
-      battery: undefined,
-      criticalBatteryAction: { kind: "unreadable" },
+      battery: battery(),
+      criticalBatteryAction: criticalBatteryAction(),
     }),
     cloud: cloud(),
     serial_devices: {
