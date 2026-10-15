@@ -60,6 +60,8 @@ export type {
   AssignOfflineNumberBlockInput,
 } from "./assign-offline-number-block.js";
 export { assignFirstOfflineNumberBlock } from "./assign-offline-number-block.js";
+export type { AssignNextOfflineNumberBlockOutcome } from "./assign-next-offline-number-block.js";
+export { assignNextOfflineNumberBlock } from "./assign-next-offline-number-block.js";
 export type {
   AuthorizeFiscalDocumentInput,
   AuthorizeFiscalDocumentOutcome,

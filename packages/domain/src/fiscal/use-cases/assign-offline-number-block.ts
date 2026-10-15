@@ -1,6 +1,7 @@
 import type { FiscalDocumentType } from "../model/fiscal-rejection-standing.js";
 import {
   firstOfflineNumberBlock,
+  lastUsedOfflineNumber,
   type OfflineNumberBlockRange,
 } from "../model/offline-number-block.js";
 import type { OfflineNumberBlockStore } from "./offline-number-block-store.js";
@@ -28,7 +29,7 @@ export async function assignFirstOfflineNumberBlockLocked(
   store: OfflineNumberBlockStore,
   input: AssignOfflineNumberBlockInput,
 ): Promise<AssignFirstOfflineNumberBlockOutcome> {
-  if (await store.hasOfflineNumberBlock(input.pointOfSaleNumber, input.documentType)) {
+  if (await store.offlineNumberBlockInUse(input.pointOfSaleNumber, input.documentType)) {
     return { kind: "already_has_block" };
   }
   const taxAuthorityLastAuthorized = await store.taxAuthorityLastAuthorized(
@@ -38,7 +39,13 @@ export async function assignFirstOfflineNumberBlockLocked(
     await store.requireTaxAuthorityCount(input.pointOfSaleNumber);
     return { kind: "tax_authority_count_unknown" };
   }
-  const range = firstOfflineNumberBlock(taxAuthorityLastAuthorized);
+  const highestSyncedNumber = await store.highestSyncedOfflineNumber(
+    input.pointOfSaleNumber,
+    input.documentType,
+  );
+  const range = firstOfflineNumberBlock(
+    lastUsedOfflineNumber(taxAuthorityLastAuthorized, highestSyncedNumber),
+  );
   await store.recordOfflineNumberBlock({ ...input, range, status: "in_use" });
   return { kind: "assigned", range };
 }
