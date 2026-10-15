@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { offlineDocument } from "./test-support/fake-fortnight-reports.js";
 import {
   CLAIMED_AT,
+  codeFor,
   KEY,
   ON_OCTOBER_3,
   ON_OCTOBER_20,
@@ -89,7 +90,7 @@ describe("reportFortnights, for a fortnight with offline-authorized documents", 
         { documentType: "factura_c", state: "submitting", at: ON_OCTOBER_3, reportedThrough: 0 },
         { documentType: "factura_c", state: "accepted", at: ON_OCTOBER_3, reportedThrough: 3 },
       ]);
-      expect(reports.changes.map(({ change }) => change)).toEqual([
+      expect(reports.changes.map(({ change }) => change)).toStrictEqual([
         { state: "accepted", at: ON_OCTOBER_3, movement: "documents" },
       ]);
     });
@@ -253,6 +254,18 @@ describe("reportFortnights, for a fortnight with offline-authorized documents", 
       expect(reportedNumbers(documentReports.reports)).toEqual([[1, 2]]);
     });
 
+    it("are not sent again when the tax authority's count reaches only partway into a batch it just accepted", async () => {
+      const { documentReports, run } = setUp({ numbers: [1, 2, 3, 4] });
+      documentReports.limit = 3;
+      const counts = [0, 2];
+      documentReports.lastReportedAnswer = () => ({ kind: "read", number: counts.shift() ?? 2 });
+
+      const result = await run();
+
+      expect(presentationOutcomes(result)[0]?.outcome).toEqual({ kind: "unclear" });
+      expect(reportedNumbers(documentReports.reports)).toEqual([[1, 2, 3]]);
+    });
+
     it("are not assumed when the tax authority does not say what it holds", async () => {
       const { documentReports, reports, run } = setUp();
       documentReports.lastReportedAnswer = () => ({ kind: "no_answer" });
@@ -262,6 +275,7 @@ describe("reportFortnights, for a fortnight with offline-authorized documents", 
       expect(presentationOutcomes(result)[0]?.outcome).toEqual({ kind: "lookup_no_answer" });
       expect(documentReports.reports).toEqual([]);
       expect(reports.documentTypeChanges).toEqual([]);
+      expect(reports.changes).toEqual([]);
     });
 
     it("are not assumed when the tax authority refuses to say what it holds", async () => {
@@ -415,7 +429,9 @@ describe("reportFortnights, for a fortnight with offline-authorized documents", 
       expect(reports.documentTypeChanges.map(({ change }) => change)).toEqual([
         { documentType: "factura_c", state: "blocked", at: ON_OCTOBER_3, reportedThrough: 1 },
       ]);
-      expect(reports.changes.map(({ change }) => change.state)).toEqual(["blocked"]);
+      expect(reports.changes.map(({ change }) => change)).toStrictEqual([
+        { state: "blocked", at: ON_OCTOBER_3 },
+      ]);
     });
 
     it("sends what comes before the missing number and stops there", async () => {
@@ -454,6 +470,25 @@ describe("reportFortnights, for a fortnight with offline-authorized documents", 
         },
       ]);
       expect(reportedNumbers(documentReports.reports)).toEqual([[4, 5]]);
+    });
+
+    it("block the fortnight and are not sent without proof that the register's stream reaches past the close", async () => {
+      const { reports, documents, documentReports, streams, run } = setUp();
+      reports.seed(PRESENTATION, {
+        state: "accepted",
+        movement: "documents",
+        lastAttemptAt: new Date("2026-10-02T12:00:00.000Z"),
+      });
+      reports.seedReportedThrough(PRESENTATION, "factura_c", 3);
+      documents.add(POINT_OF_SALE, SEPTEMBER_SECOND_HALF, ...documentsNumbered(4));
+      streams.installations.set(REGISTER_ID, [reachingInstallation({ latestOccurredAt: null })]);
+
+      const result = await run();
+
+      expect(presentationOutcomes(result)[0]?.outcome).toEqual({ kind: "blocked" });
+      expect(reports.changes.map(({ change }) => change.state)).toEqual(["blocked"]);
+      expect(documentReports.lastReportedCalls).toEqual([]);
+      expect(documentReports.reports).toEqual([]);
     });
 
     it("leave nothing to do while every document is already reported", async () => {
@@ -511,6 +546,27 @@ describe("reportFortnights, for a fortnight with offline-authorized documents", 
       expect(documentReports.lastReportedCalls).toEqual([]);
       expect(documentReports.reports).toEqual([]);
       expect(declarations.declarations).toEqual([]);
+    });
+
+    it("leave the presentation alone when its documents are no longer there under the lock", async () => {
+      const { reports, documents, run } = setUpReportFortnights();
+      reports.seed(PRESENTATION, {
+        state: "accepted",
+        movement: "none",
+        lastAttemptAt: new Date("2026-10-02T12:00:00.000Z"),
+      });
+      const listed = {
+        pointOfSaleNumber: POINT_OF_SALE,
+        registerId: REGISTER_ID,
+        code: codeFor(SEPTEMBER_SECOND_HALF),
+      };
+      reports.acceptedWithUnreportedDocuments = async () => [listed];
+
+      const result = await run();
+
+      expect(documents.of(POINT_OF_SALE, SEPTEMBER_SECOND_HALF)).toEqual([]);
+      expect(presentationOutcomes(result)).toEqual([]);
+      expect(reports.changes).toEqual([]);
     });
 
     it("are left alone once the presentation is marked for manual regularization", async () => {
