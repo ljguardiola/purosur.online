@@ -13,13 +13,17 @@ import {
 } from "@purosur/ui";
 import {
   Ban,
+  BatteryLow,
+  BatteryWarning,
   CloudOff,
   Database,
   HardDrive,
+  Power,
   Receipt,
   ScanBarcode,
   ShieldOff,
   TriangleAlert,
+  Unplug,
 } from "lucide-react";
 import type { CoreData } from "../platform/use-core-query";
 import type { CashSessionState } from "../register/cash-session-state";
@@ -67,6 +71,10 @@ const CONDITION_ICONS: Record<Condition["kind"], Icon> = {
   serial_device_missing: <ScanBarcode />,
   disk_space_low: <HardDrive />,
   wal_oversized: <Database />,
+  battery_low: <BatteryLow />,
+  on_battery: <Unplug />,
+  battery_missing: <BatteryWarning />,
+  critical_battery_action_not_shutdown: <Power />,
 };
 
 function conditionTone(condition: Condition): "error" | "warning" {

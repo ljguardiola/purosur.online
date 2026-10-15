@@ -49,6 +49,8 @@ export async function registerStatusFor({
       serialDevices: reading.kind === "listed" ? reading.standings : null,
       storage: storage(),
       localDatabaseDamaged: localDatabaseDamaged(),
+      battery: undefined,
+      criticalBatteryAction: { kind: "unreadable" },
     }),
     cloud: cloud(),
     serial_devices: {
