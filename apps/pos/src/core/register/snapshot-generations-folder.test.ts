@@ -6,8 +6,8 @@ import type { SnapshotManifest } from "@purosur/contracts";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { Durability } from "./durable-files";
 import {
-  lastGenerationSequences,
-  pendingManifests,
+  folderSnapshotGenerations,
+  objectPath,
   readManifests,
   removeLeftovers,
   writeManifest,
@@ -100,22 +100,6 @@ describe("readManifests", () => {
     expect(await readManifests(join(folder, "missing"))).toEqual([]);
   });
 
-  it("lists the newest generation first", async () => {
-    await writeManifest(folder, OLDER);
-    await writeManifest(folder, NEWER);
-
-    expect(await readManifests(folder)).toEqual([NEWER, OLDER]);
-  });
-
-  it("orders generations created in the same instant by id, the greater first", async () => {
-    const first = manifest({ generation_id: "00000000-0000-4000-8000-00000000000a" });
-    const second = manifest({ generation_id: "00000000-0000-4000-8000-00000000000b" });
-    await writeManifest(folder, first);
-    await writeManifest(folder, second);
-
-    expect(await readManifests(folder)).toEqual([second, first]);
-  });
-
   it("ignores files that are not valid manifests", async () => {
     await writeManifest(folder, NEWER);
     await writeFile(join(folder, "notes.txt"), "hello");
@@ -134,22 +118,87 @@ describe("readManifests", () => {
   });
 });
 
-describe("lastGenerationSequences", () => {
-  it("answers the sequences of the newest generation", () => {
-    expect(lastGenerationSequences([NEWER, OLDER])).toEqual({ lastDeviceSeq: 7, pullCursor: 8 });
+describe("folderSnapshotGenerations", () => {
+  const NOW = new Date("2026-10-15T13:00:00.000Z");
+
+  it("reads the pending generations of the folder, the newest first", async () => {
+    await writeManifest(folder, OLDER);
+    await writeManifest(folder, NEWER);
+    await writeManifest(
+      folder,
+      manifest({
+        generation_id: "00000000-0000-4000-8000-000000000003",
+        refused_at: "2026-10-15T12:40:00.000Z",
+      }),
+    );
+
+    expect(await folderSnapshotGenerations(folder).pendingNewestFirst()).toEqual([
+      {
+        generationId: NEWER.generation_id,
+        createdAt: new Date(NEWER.created_at),
+        sequences: { lastDeviceSeq: 7, pullCursor: 8 },
+        keyVersion: 2,
+        size: 4096,
+        sha256: "ab".repeat(32),
+        uploadedAt: null,
+        refusedAt: null,
+      },
+      expect.objectContaining({ generationId: OLDER.generation_id }),
+    ]);
   });
 
-  it("answers nothing when there is no generation", () => {
-    expect(lastGenerationSequences([])).toBeUndefined();
+  it("reads a generation's encrypted object, and nothing once it is gone", async () => {
+    await writeManifest(folder, NEWER);
+    await writeFile(objectPath(folder, NEWER.generation_id), "encrypted bytes");
+    const generations = folderSnapshotGenerations(folder);
+    const [pending] = await generations.pendingNewestFirst();
+    if (pending === undefined) {
+      throw new Error("expected a pending generation");
+    }
+
+    expect(Buffer.from((await generations.objectOf(pending)) ?? []).toString()).toBe(
+      "encrypted bytes",
+    );
+    await rm(objectPath(folder, NEWER.generation_id));
+    expect(await generations.objectOf(pending)).toBeUndefined();
   });
-});
 
-describe("pendingManifests", () => {
-  it("keeps the generations neither uploaded nor refused, in the order given", () => {
-    const uploaded = manifest({ uploaded_at: "2026-10-15T12:01:00.000Z" });
-    const refused = manifest({ refused_at: "2026-10-15T12:01:00.000Z" });
+  it.each([
+    ["uploaded", "uploaded_at", "markUploaded"],
+    ["refused", "refused_at", "markRefused"],
+  ] as const)("records in its manifest that a generation was %s", async (_settled, field, mark) => {
+    await writeManifest(folder, NEWER);
+    const generations = folderSnapshotGenerations(folder);
+    const [pending] = await generations.pendingNewestFirst();
+    if (pending === undefined) {
+      throw new Error("expected a pending generation");
+    }
 
-    expect(pendingManifests([NEWER, uploaded, refused, OLDER])).toEqual([NEWER, OLDER]);
+    await generations[mark](pending, NOW);
+
+    expect(await readManifests(folder)).toEqual([{ ...NEWER, [field]: NOW.toISOString() }]);
+    expect(await generations.pendingNewestFirst()).toEqual([]);
+  });
+
+  it("flushes the manifest it rewrites", async () => {
+    await writeManifest(folder, NEWER);
+    const flushed: string[] = [];
+    const generations = folderSnapshotGenerations(folder, {
+      file: async (path) => {
+        flushed.push(`file ${path.endsWith(".json.tmp") ? "tmp" : "other"}`);
+      },
+      folder: async () => {
+        flushed.push("folder");
+      },
+    });
+    const [pending] = await generations.pendingNewestFirst();
+    if (pending === undefined) {
+      throw new Error("expected a pending generation");
+    }
+
+    await generations.markUploaded(pending, NOW);
+
+    expect(flushed).toEqual(["file tmp", "folder"]);
   });
 });
 

@@ -3,24 +3,12 @@ import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import { migrationClock } from "../platform/test-support/migration-clock";
 import { openLocalDatabase } from "../platform/test-support/open-local-database";
-import { readOwnRegisterId, readSyncSequences } from "./sqlite-snapshot-source";
+import { readOwnRegisterId } from "./sqlite-snapshot-source";
 
 let database: LocalDatabase;
 
 beforeEach(() => {
   database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS, migrationClock);
-});
-
-describe("readSyncSequences", () => {
-  it("reads zero for a register that has synced nothing", () => {
-    expect(readSyncSequences(database)).toEqual({ lastDeviceSeq: 0, pullCursor: 0 });
-  });
-
-  it("reads the last local sequence and the last applied cloud sequence", () => {
-    database.prepare("UPDATE sync_state SET last_device_seq = 41, pull_cursor = 977").run();
-
-    expect(readSyncSequences(database)).toEqual({ lastDeviceSeq: 41, pullCursor: 977 });
-  });
 });
 
 describe("readOwnRegisterId", () => {

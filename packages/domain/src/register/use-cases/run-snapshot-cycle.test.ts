@@ -12,7 +12,15 @@ function setup() {
   const launcher = new RecordingSnapshotWorkerLauncher();
   const ids = new SequentialIds();
   const log = new RecordingSnapshotLog();
-  return { state, launcher, ids, log, run: () => runSnapshotCycle({ state, launcher, ids, log }) };
+  const input = { current: { lastDeviceSeq: 11, pullCursor: 20 } };
+  return {
+    state,
+    launcher,
+    ids,
+    log,
+    input,
+    run: () => runSnapshotCycle({ state, launcher, ids, log }, input),
+  };
 }
 
 describe("runSnapshotCycle", () => {
@@ -40,8 +48,8 @@ describe("runSnapshotCycle", () => {
   });
 
   it("launches nothing for a register whose sequences have not moved", async () => {
-    const { run, state, launcher, ids } = setup();
-    state.current = { lastDeviceSeq: 10, pullCursor: 20 };
+    const { run, input, launcher, ids } = setup();
+    input.current = { lastDeviceSeq: 10, pullCursor: 20 };
 
     const outcome = await run();
 
@@ -100,8 +108,8 @@ describe("runSnapshotCycle", () => {
   });
 
   it("does not launch an upload while the cloud is unreachable", async () => {
-    const { run, state, launcher } = setup();
-    state.current = { lastDeviceSeq: 10, pullCursor: 20 };
+    const { run, state, input, launcher } = setup();
+    input.current = { lastDeviceSeq: 10, pullCursor: 20 };
     state.pending = true;
     state.reachable = false;
 
@@ -146,17 +154,20 @@ describe("runSnapshotCycle", () => {
   it.each([
     [
       "unchanged",
-      (state: FakeSnapshotCycleState) => (state.current = { lastDeviceSeq: 10, pullCursor: 20 }),
+      ({ input }: ReturnType<typeof setup>) => {
+        input.current = { lastDeviceSeq: 10, pullCursor: 20 };
+      },
     ],
     [
       "battery_low",
-      (state: FakeSnapshotCycleState) => {
+      ({ state }: ReturnType<typeof setup>) => {
         state.batteryReading = { kind: "present", chargePercent: 1, onBattery: true };
       },
     ],
   ] as const)("does not checkpoint the log when it skipped as %s", async (_reason, apply) => {
-    const { run, state, log } = setup();
-    apply(state);
+    const cycle = setup();
+    const { run, log } = cycle;
+    apply(cycle);
 
     await run();
 

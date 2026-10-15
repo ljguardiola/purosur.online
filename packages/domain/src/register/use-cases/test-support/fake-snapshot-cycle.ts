@@ -12,7 +12,6 @@ const GIGABYTE = 1024 * 1024 * 1024;
 
 export class FakeSnapshotCycleState implements SnapshotCycleState {
   last: SnapshotSequences | undefined = { lastDeviceSeq: 10, pullCursor: 20 };
-  current: SnapshotSequences = { lastDeviceSeq: 11, pullCursor: 20 };
   batteryReading: BatteryReading = { kind: "absent" };
   storageReading: SnapshotCycleFacts["storage"] = {
     diskFreeBytes: 100 * GIGABYTE,
@@ -24,10 +23,6 @@ export class FakeSnapshotCycleState implements SnapshotCycleState {
 
   async lastGeneration(): Promise<SnapshotSequences | undefined> {
     return this.last;
-  }
-
-  async currentSequences(): Promise<SnapshotSequences> {
-    return this.current;
   }
 
   async hasPendingUploads(): Promise<boolean> {

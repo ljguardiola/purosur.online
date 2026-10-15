@@ -46,7 +46,6 @@ function stateWith(
 ) {
   return createSnapshotCycleState({
     snapshotsFolder: folder,
-    sequences: () => ({ lastDeviceSeq: 9, pullCursor: 8 }),
     batteryReport: () => options.battery,
     readStorage: async () => STORAGE,
     cloudReachability: () => options.reachability ?? "reachable",
@@ -75,19 +74,6 @@ describe("createSnapshotCycleState", () => {
     expect(await stateWith().lastGeneration()).toEqual({ lastDeviceSeq: 7, pullCursor: 8 });
   });
 
-  it("counts a refused generation as the last one, so the register does not retake it forever", async () => {
-    await writeManifest(
-      folder,
-      manifest("00000000-0000-4000-8000-000000000001", {
-        refused_at: "2026-10-15T12:05:00.000Z",
-        last_device_seq: 7,
-        pull_cursor: 8,
-      }),
-    );
-
-    expect(await stateWith().lastGeneration()).toEqual({ lastDeviceSeq: 7, pullCursor: 8 });
-  });
-
   it("has no uploads pending while every generation was uploaded or refused", async () => {
     await writeManifest(
       folder,
@@ -107,10 +93,6 @@ describe("createSnapshotCycleState", () => {
     await writeManifest(folder, manifest("00000000-0000-4000-8000-000000000001"));
 
     expect(await stateWith().hasPendingUploads()).toBe(true);
-  });
-
-  it("answers the current sequences of the register", async () => {
-    expect(await stateWith().currentSequences()).toEqual({ lastDeviceSeq: 9, pullCursor: 8 });
   });
 
   it("reads the storage the way the cycle wants it", async () => {

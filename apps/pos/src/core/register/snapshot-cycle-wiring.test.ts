@@ -62,7 +62,6 @@ function start(walSizeBytes = 0) {
     postToMain: (message) => posted.push(message),
     scheduleNext: (run, delayMs) => {
       scheduled.push({ run, delayMs });
-      return () => {};
     },
     onFailure: (error) => failures.push(error),
   });

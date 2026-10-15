@@ -12,7 +12,7 @@ const THIRTY_MINUTES = 30 * 60 * 1000;
 
 function setup(options: { reachable?: boolean; outcome?: RunSnapshotCycleOutcome } = {}) {
   const state = { reachable: options.reachable ?? true, outcome: options.outcome ?? LAUNCHED };
-  const scheduled: { run: () => Promise<void>; delayMs: number; cancelled: boolean }[] = [];
+  const scheduled: { run: () => Promise<void>; delayMs: number }[] = [];
   const events: string[] = [];
   const failures: unknown[] = [];
   const behavior = {
@@ -28,11 +28,7 @@ function setup(options: { reachable?: boolean; outcome?: RunSnapshotCycleOutcome
     runCycle: () => behavior.runCycle(),
     cloudReachable: () => state.reachable,
     scheduleNext: (run, delayMs) => {
-      const entry = { run, delayMs, cancelled: false };
-      scheduled.push(entry);
-      return () => {
-        entry.cancelled = true;
-      };
+      scheduled.push({ run, delayMs });
     },
     checkpoint: () => behavior.checkpoint(),
     onFailure: (error) => failures.push(error),
