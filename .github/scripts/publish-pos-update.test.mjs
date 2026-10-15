@@ -7,7 +7,14 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
-import { findInstaller, objectUrl, publishUpdate } from "./publish-pos-update.mjs";
+import {
+  bucketFromEnv,
+  findInstaller,
+  installerSha512,
+  objectUrl,
+  publishUpdate,
+  readPublishedEntry,
+} from "./publish-pos-update.mjs";
 import { forwardBucketFetch } from "./test-support/forward-bucket-fetch.mjs";
 
 const cliPath = fileURLToPath(new URL("./publish-pos-update.mjs", import.meta.url));
@@ -251,6 +258,61 @@ test("refuses a version that is not X.Y.Z before touching the bucket", async () 
   );
 });
 
+test("reads the entry the feed serves, with its version written X.Y.Z", async () => {
+  await withFakeBucket(
+    { stored: { [`${BUCKET_NAME}/register-updates/latest.json`]: entryJson("0.0.41") } },
+    async ({ endpoint, fetch }) => {
+      assert.deepEqual(await readPublishedEntry({ bucket: bucketAt(endpoint), fetch }), {
+        version: "0.0.41",
+        file: "Puro Sur Homologación Setup old.exe",
+        size: 10,
+        sha512: createHash("sha512").update("old").digest("base64"),
+      });
+    },
+  );
+});
+
+test("reads no entry from a feed nothing was published to", async () => {
+  await withFakeBucket({}, async ({ endpoint, fetch }) => {
+    assert.equal(await readPublishedEntry({ bucket: bucketAt(endpoint), fetch }), undefined);
+  });
+});
+
+test("refuses an entry the feed serves that is not a release entry", async () => {
+  await withFakeBucket(
+    { stored: { [`${BUCKET_NAME}/register-updates/latest.json`]: '{"version":"0.0.41"}' } },
+    async ({ endpoint, fetch }) => {
+      await assert.rejects(
+        readPublishedEntry({ bucket: bucketAt(endpoint), fetch }),
+        /not a release entry/,
+      );
+    },
+  );
+});
+
+test("digests the one installer in a directory as the feed entry records it", async () => {
+  await withInstallerDir(async (installerDir) => {
+    assert.equal(await installerSha512(installerDir), sha512OfInstaller);
+  });
+});
+
+test("reads the bucket from the environment, naming each variable missing", () => {
+  const env = {
+    POS_UPDATES_BUCKET_ENDPOINT: BUCKET_ENDPOINT,
+    POS_UPDATES_BUCKET_NAME: BUCKET_NAME,
+    POS_UPDATES_BUCKET_REGION: "auto",
+    POS_UPDATES_BUCKET_ACCESS_KEY_ID: "fictional-access-key-id",
+    POS_UPDATES_BUCKET_SECRET_ACCESS_KEY: SECRET_ACCESS_KEY,
+  };
+
+  assert.deepEqual(bucketFromEnv(env), { bucket: bucketAt(BUCKET_ENDPOINT), missing: [] });
+  assert.deepEqual(
+    bucketFromEnv({ ...env, POS_UPDATES_BUCKET_NAME: "", POS_UPDATES_BUCKET_REGION: undefined })
+      .missing,
+    ["POS_UPDATES_BUCKET_NAME", "POS_UPDATES_BUCKET_REGION"],
+  );
+});
+
 test("addresses an object by the bucket's host name, as the cloud does", () => {
   assert.equal(
     objectUrl(
@@ -352,3 +414,31 @@ test("the CLI exits 1 naming what is missing when run without its inputs", async
   assert.equal(result.status, 1);
   assert.match(result.output, /POS_UPDATES_BUCKET_ENDPOINT/);
 });
+
+test("the CLI with --require-newer publishes into an empty feed", async () => {
+  await withInstallerDir((installerDir) =>
+    withFakeBucket({}, async ({ endpoint, port, puts }) => {
+      const result = await runCli(["--require-newer", installerDir], cliEnv(endpoint, port));
+
+      assert.equal(result.status, 0, result.output);
+      assert.equal(puts.length, 2);
+    }),
+  );
+});
+
+for (const published of ["0.0.57", "0.0.60"]) {
+  test(`the CLI with --require-newer exits 1 uploading nothing when the feed holds ${published}`, async () => {
+    await withInstallerDir((installerDir) =>
+      withFakeBucket(
+        { stored: { [`${BUCKET_NAME}/register-updates/latest.json`]: entryJson(published) } },
+        async ({ endpoint, port, puts }) => {
+          const result = await runCli(["--require-newer", installerDir], cliEnv(endpoint, port));
+
+          assert.equal(result.status, 1);
+          assert.match(result.output, /::error::.*not older/);
+          assert.deepEqual(puts, []);
+        },
+      ),
+    );
+  });
+}

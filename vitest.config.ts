@@ -96,7 +96,11 @@ export default defineConfig({
       {
         test: {
           name: "node",
-          include: ["packages/*/src/**/*.test.ts", "apps/*/src/**/*.test.ts"],
+          include: [
+            "packages/*/src/**/*.test.ts",
+            "apps/*/src/**/*.test.ts",
+            "apps/*/scripts/**/*.test.ts",
+          ],
           exclude: ["apps/cloud/src/**/*.integration.test.ts"],
           environment: "node",
           globalSetup: [r("./apps/cloud/vitest.global-setup.ts")],
