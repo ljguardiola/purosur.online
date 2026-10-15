@@ -10,6 +10,7 @@ import {
   SERIES_WAITING_STATES,
 } from "@purosur/domain";
 import {
+  type ClockMarkRaise,
   decideSaleAuthorization,
   type FiscalDocumentReservation,
   type Fortnight,
@@ -38,6 +39,7 @@ interface HealthCheckRow {
 interface PointOfSaleRow {
   point_of_sale: number;
   tax_authority_count: number | null;
+  tax_authority_last_issued_on: string | null;
   numbering_frozen: number;
 }
 
@@ -45,6 +47,19 @@ interface OfflinePointOfSaleRow {
   point_of_sale_number: number;
   tax_authority_last_authorized_number: number | null;
   highest_synced_offline_number: number | null;
+}
+
+function clockMarkOf(
+  database: LocalDatabase,
+  pointOfSale: number,
+  documentType: string,
+): Date | null {
+  const mark = database
+    .prepare<[number, string], { reading: string }>(
+      "SELECT reading FROM register_clock_marks WHERE point_of_sale = ? AND document_type = ?",
+    )
+    .get(pointOfSale, documentType);
+  return mark === undefined ? null : new Date(mark.reading);
 }
 
 function sqliteSaleAuthorizationTransaction(
@@ -73,6 +88,7 @@ function sqliteSaleAuthorizationTransaction(
         .prepare<[], PointOfSaleRow>(
           `SELECT register_point_of_sale.point_of_sale_number AS point_of_sale,
                   register_point_of_sale.tax_authority_last_authorized_number AS tax_authority_count,
+                  register_point_of_sale.tax_authority_last_authorized_issued_on AS tax_authority_last_issued_on,
                   register_point_of_sale.numbering_frozen
            FROM register_point_of_sale
            JOIN own_register ON own_register.id = register_point_of_sale.register_id
@@ -87,6 +103,8 @@ function sqliteSaleAuthorizationTransaction(
           documentRequesting: false,
           documentUnknown: false,
           numberingFrozen: false,
+          clockMark: null,
+          taxAuthorityLastIssuedOn: null,
         };
       }
       const local = database
@@ -108,6 +126,8 @@ function sqliteSaleAuthorizationTransaction(
         localLastAuthorized: local?.last_authorized ?? null,
         taxAuthorityLastAuthorized: pointOfSale.tax_authority_count,
         numberingFrozen: pointOfSale.numbering_frozen === 1,
+        clockMark: clockMarkOf(database, pointOfSale.point_of_sale, FACTURA_C_DOCUMENT_TYPE),
+        taxAuthorityLastIssuedOn: pointOfSale.tax_authority_last_issued_on,
         documentRequesting:
           waiting !== undefined && IN_PROGRESS_FISCAL_DOCUMENT_STATES.includes(waiting.state),
         documentUnknown:
@@ -129,6 +149,7 @@ function sqliteSaleAuthorizationTransaction(
           localLastUsed: null,
           taxAuthorityLastAuthorized: null,
           highestSyncedNumber: null,
+          clockMark: null,
         };
       }
       const pointOfSale = offlinePointOfSale.point_of_sale_number;
@@ -152,6 +173,7 @@ function sqliteSaleAuthorizationTransaction(
         localLastUsed: lastUsed?.last_number ?? null,
         taxAuthorityLastAuthorized: offlinePointOfSale.tax_authority_last_authorized_number,
         highestSyncedNumber: offlinePointOfSale.highest_synced_offline_number,
+        clockMark: clockMarkOf(database, pointOfSale, FACTURA_C_DOCUMENT_TYPE),
       };
     },
 
@@ -227,6 +249,21 @@ function sqliteSaleAuthorizationTransaction(
           buyer_document_type: document.buyerDocumentType,
           buyer_document_number: document.buyerDocumentNumber,
           cause: document.cause,
+        });
+    },
+
+    raiseClockMark({ pointOfSale, documentType, reading }: ClockMarkRaise): void {
+      database
+        .prepare(
+          `INSERT INTO register_clock_marks (point_of_sale, document_type, reading)
+           VALUES (@point_of_sale, @document_type, @reading)
+           ON CONFLICT (point_of_sale, document_type) DO UPDATE SET reading = excluded.reading
+           WHERE excluded.reading > register_clock_marks.reading`,
+        )
+        .run({
+          point_of_sale: pointOfSale,
+          document_type: documentType,
+          reading: reading.toISOString(),
         });
     },
 
