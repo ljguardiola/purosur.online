@@ -13,6 +13,8 @@ export type FortnightPresentation = {
   documentType: FortnightPresentationBody["document_type"];
   documentCount: number;
   rejectedDocument: FortnightPresentationBody["rejected_document"];
+  movement: FortnightPresentationBody["movement"];
+  refusal: FortnightPresentationBody["refusal"];
   state: FortnightPresentationBody["state"];
 };
 
@@ -27,6 +29,8 @@ function fortnightPresentationFromWire(row: FortnightPresentationBody): Fortnigh
     documentType: row.document_type,
     documentCount: row.document_count,
     rejectedDocument: row.rejected_document,
+    movement: row.movement,
+    refusal: row.refusal,
     state: row.state,
   };
 }

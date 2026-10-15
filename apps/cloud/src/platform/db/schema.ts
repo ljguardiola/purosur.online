@@ -2155,15 +2155,16 @@ export const fortnightReportState = pgEnum("fortnight_report_state", [
   "refused",
   "accepted",
   "needs_regularization",
+  "missing_document",
 ]);
 
 export const fortnightReportMovement = pgEnum("fortnight_report_movement", ["none", "documents"]);
 
 export const documentTypeReportState = pgEnum("document_type_report_state", [
-  "blocked",
   "submitting",
   "refused",
   "accepted",
+  "missing_document",
 ]);
 
 export const fortnightReports = pgTable(

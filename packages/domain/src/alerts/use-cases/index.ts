@@ -70,8 +70,8 @@ export type {
   OwedFortnightPresentationReader,
 } from "./fortnight-report-deadline-ports.js";
 export type {
-  FortnightPresentationNeedingRegularization,
-  FortnightRegularizationReader,
+  FortnightRegularizationCandidate,
+  FortnightRegularizationCandidateReader,
   FortnightReportRegularizationAlerts,
   FortnightReportRegularizationDetectionPorts,
 } from "./fortnight-report-regularization-ports.js";

@@ -49,11 +49,12 @@ export class DrizzleFortnightPresentationReader<TQueryResult extends PgQueryResu
             .from(fortnightDocumentReports)
             .where(inArray(fortnightDocumentReports.pointOfSaleNumber, pointsOfSale));
     return presentations
-      .flatMap(({ owed: { pointOfSaleNumber, registerId, code }, state }) => {
+      .flatMap(({ owed: { pointOfSaleNumber, registerId, code }, state, movement }) => {
         const isOfThisPresentation = (row: { pointOfSale: number; fortnightStart: string }) =>
           row.pointOfSale === pointOfSaleNumber && row.fortnightStart === code.fortnight.start;
         return fortnightPresentationRows({
           state,
+          movement,
           documents: documents.filter(isOfThisPresentation),
           documentReports: documentReports.filter(isOfThisPresentation),
         }).map((row) => ({

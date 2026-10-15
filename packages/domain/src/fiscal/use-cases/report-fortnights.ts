@@ -260,7 +260,7 @@ function documentTypeStateOf(
     case "accepted":
       return "accepted";
     case "gap":
-      return "blocked";
+      return "missing_document";
     case "refused":
     case "rejected":
       return "refused";
@@ -302,7 +302,7 @@ async function presentDocumentType(
     if (pending.kind === "gap") {
       await report.recordDocumentType({
         documentType,
-        state: "blocked",
+        state: "missing_document",
         at: clock.now(),
         reportedThrough: last.number,
       });

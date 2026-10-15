@@ -360,6 +360,10 @@ function fortnightReportWaitingText({
       return [
         `Se puede presentar cuando la caja${registerName === undefined ? "" : ` «${registerName}»`} termine de sincronizar.`,
       ];
+    case "missing_document":
+      return [
+        "Falta un comprobante en la numeración: hay que encontrarlo antes de poder seguir informando.",
+      ];
     case "refused":
       return [
         "ARCA rechazó la presentación. La nube la vuelve a intentar sola; si sigue rechazándola, conviene revisar el punto de venta en ARCA.",
@@ -383,7 +387,7 @@ function fortnightReportParagraphs(
   if (alert.kind === "fortnight_report_needs_regularization") {
     return [
       `Llegaron comprobantes emitidos sin conexión de ${fortnightOfPointOfSale(alert.detail)}, que ya se había informado a ARCA sin movimiento.`,
-      "No hay corrección automática: hay que regularizar la presentación con ARCA a mano y cerrar esta alerta.",
+      "No hay corrección automática: hay que regularizar la presentación con ARCA a mano.",
     ];
   }
   if (alert.kind === "fortnight_report_overdue") {

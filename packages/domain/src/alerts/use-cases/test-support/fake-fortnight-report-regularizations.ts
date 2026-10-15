@@ -1,20 +1,20 @@
 import type { OpenAlertInput } from "../../model/alert-details.js";
 import type {
-  FortnightPresentationNeedingRegularization,
-  FortnightRegularizationReader,
+  FortnightRegularizationCandidate,
+  FortnightRegularizationCandidateReader,
   FortnightReportRegularizationAlerts,
 } from "../fortnight-report-regularization-ports.js";
 
-export class FakeFortnightRegularizationReader implements FortnightRegularizationReader {
-  private readonly presentations: readonly FortnightPresentationNeedingRegularization[];
+export class FakeFortnightRegularizationCandidateReader
+  implements FortnightRegularizationCandidateReader
+{
+  private readonly presentations: readonly FortnightRegularizationCandidate[];
 
-  constructor(presentations: readonly FortnightPresentationNeedingRegularization[]) {
+  constructor(presentations: readonly FortnightRegularizationCandidate[]) {
     this.presentations = structuredClone(presentations);
   }
 
-  async presentationsNeedingRegularization(): Promise<
-    FortnightPresentationNeedingRegularization[]
-  > {
+  async presentationsNeedingRegularization(): Promise<FortnightRegularizationCandidate[]> {
     return structuredClone([...this.presentations]);
   }
 }

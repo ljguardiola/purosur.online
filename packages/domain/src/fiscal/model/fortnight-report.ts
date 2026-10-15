@@ -3,14 +3,20 @@ import type { Fortnight } from "./offline-authorization-code.js";
 
 export type FortnightReportState =
   | "blocked"
+  | "missing_document"
   | "submitting"
   | "refused"
   | "accepted"
   | "needs_regularization";
 
-export type DocumentTypeReportState = Exclude<FortnightReportState, "needs_regularization">;
+export type DocumentTypeReportState = Exclude<
+  FortnightReportState,
+  "blocked" | "needs_regularization"
+>;
 
 export type FortnightReportMovement = "none" | "documents";
+
+export type FortnightPresentationRefusal = "partial" | "whole";
 
 export type UnreportedDocumentsRemedy = "report_the_rest" | "manual_regularization";
 
@@ -106,7 +112,7 @@ export function nextOfflineDocumentBatch<TDocument extends { number: number }>(
 export function fortnightReportStateOfDocumentTypes(
   states: DocumentTypeReportState[],
 ): DocumentTypeReportState {
-  for (const state of ["refused", "blocked", "submitting"] as const) {
+  for (const state of ["refused", "missing_document", "submitting"] as const) {
     if (states.includes(state)) {
       return state;
     }
@@ -117,7 +123,7 @@ export function fortnightReportStateOfDocumentTypes(
 export function documentTypePresentationState(
   recorded: DocumentTypeReportState | null,
   fortnightState: FortnightReportState | null,
-): DocumentTypeReportState | null {
+): FortnightReportState | null {
   if (recorded !== null) {
     return recorded;
   }
@@ -126,17 +132,34 @@ export function documentTypePresentationState(
 
 export interface FortnightPresentationRow<TDocumentType extends string> {
   documentType: TDocumentType | null;
+  movement: FortnightReportMovement | null;
   state: FortnightReportState | null;
+  refusal: FortnightPresentationRefusal | null;
   documentCount: number;
   rejectedDocument: { number: number; unprocessed: number } | null;
 }
 
+function documentTypeRefusal(
+  state: FortnightReportState | null,
+  numbers: number[],
+  rejectedNumber: number | null,
+): FortnightPresentationRefusal | null {
+  if (state !== "refused") {
+    return null;
+  }
+  return rejectedNumber !== null && numbers.some((number) => number < rejectedNumber)
+    ? "partial"
+    : "whole";
+}
+
 export function fortnightPresentationRows<TDocumentType extends string>({
   state,
+  movement,
   documents,
   documentReports,
 }: {
   state: FortnightReportState | null;
+  movement: FortnightReportMovement | null;
   documents: { documentType: TDocumentType; number: number }[];
   documentReports: {
     documentType: TDocumentType;
@@ -145,16 +168,28 @@ export function fortnightPresentationRows<TDocumentType extends string>({
   }[];
 }): FortnightPresentationRow<TDocumentType>[] {
   if (state === "needs_regularization" || documents.length === 0) {
-    return [{ documentType: null, state, documentCount: documents.length, rejectedDocument: null }];
+    return [
+      {
+        documentType: null,
+        movement: state === "needs_regularization" ? "none" : movement,
+        state,
+        refusal: state === "refused" ? "whole" : null,
+        documentCount: documents.length,
+        rejectedDocument: null,
+      },
+    ];
   }
   return offlineDocumentPresentations(documents).map((presentation) => {
     const report = documentReports.find(
       ({ documentType }) => documentType === presentation.documentType,
     );
     const rejectedNumber = report?.state === "refused" ? report.rejectedNumber : null;
+    const numbers = presentation.documents.map(({ number }) => number);
     return {
       documentType: presentation.documentType,
+      movement: "documents",
       state: documentTypePresentationState(report?.state ?? null, state),
+      refusal: documentTypeRefusal(report?.state ?? null, numbers, rejectedNumber),
       documentCount: presentation.documents.length,
       rejectedDocument:
         rejectedNumber === null

@@ -1,5 +1,5 @@
 {
-  "id": "c7231498-fba3-4639-9732-dc2cf17b412a",
+  "id": "286b1eb8-e6d7-4863-9ae2-922b997ccbbe",
   "prevId": "5b0c1365-ae34-4166-b804-e3e1aae2fbde",
   "version": "7",
   "dialect": "postgresql",
@@ -9239,7 +9239,7 @@
     "public.document_type_report_state": {
       "name": "document_type_report_state",
       "schema": "public",
-      "values": ["blocked", "submitting", "refused", "accepted"]
+      "values": ["submitting", "refused", "accepted", "missing_document"]
     },
     "public.fortnight_report_movement": {
       "name": "fortnight_report_movement",
@@ -9249,7 +9249,14 @@
     "public.fortnight_report_state": {
       "name": "fortnight_report_state",
       "schema": "public",
-      "values": ["blocked", "submitting", "refused", "accepted", "needs_regularization"]
+      "values": [
+        "blocked",
+        "submitting",
+        "refused",
+        "accepted",
+        "needs_regularization",
+        "missing_document"
+      ]
     },
     "public.installation_request_endpoint": {
       "name": "installation_request_endpoint",

@@ -165,6 +165,10 @@ export type {
   FortnightPresentationReader,
 } from "./fortnight-presentation-reader.js";
 export type {
+  FortnightPresentationNeedingRegularization,
+  FortnightRegularizationReader,
+} from "./fortnight-regularization-reader.js";
+export type {
   DocumentTypeReportChange,
   FortnightReportChange,
   FortnightReportKey,

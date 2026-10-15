@@ -1,7 +1,7 @@
 import type {
   FortnightPresentationNeedingRegularization,
   FortnightRegularizationReader,
-} from "@purosur/domain/alerts/use-cases";
+} from "@purosur/domain/fiscal/use-cases";
 import { and, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { fortnightReports, pointOfSaleClaims } from "../platform/db/schema.js";

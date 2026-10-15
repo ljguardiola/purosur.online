@@ -28,6 +28,8 @@ function toWire(presentation: BranchFortnightPresentation) {
     document_type: presentation.documentType,
     document_count: presentation.documentCount,
     rejected_document: presentation.rejectedDocument,
+    movement: presentation.movement,
+    refusal: presentation.refusal,
     state: presentation.state,
   };
 }

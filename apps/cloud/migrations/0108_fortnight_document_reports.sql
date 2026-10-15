@@ -1,6 +1,7 @@
-CREATE TYPE "public"."document_type_report_state" AS ENUM('blocked', 'submitting', 'refused', 'accepted');--> statement-breakpoint
+CREATE TYPE "public"."document_type_report_state" AS ENUM('submitting', 'refused', 'accepted', 'missing_document');--> statement-breakpoint
 CREATE TYPE "public"."fortnight_report_movement" AS ENUM('none', 'documents');--> statement-breakpoint
 ALTER TYPE "public"."fortnight_report_state" ADD VALUE 'needs_regularization';--> statement-breakpoint
+ALTER TYPE "public"."fortnight_report_state" ADD VALUE 'missing_document';--> statement-breakpoint
 CREATE TABLE "fortnight_document_reports" (
 	"point_of_sale_number" integer NOT NULL,
 	"fortnight_start" date NOT NULL,

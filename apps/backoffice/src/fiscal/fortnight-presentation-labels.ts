@@ -9,6 +9,7 @@ const STATE_BADGES: Record<
   submitting: { label: "Presentando", tone: "info" },
   refused: { label: "Rechazado", tone: "error" },
   blocked: { label: "Bloqueado", tone: "error" },
+  missing_document: { label: "Falta un comprobante", tone: "error" },
   accepted: { label: "Aceptado", tone: "success" },
   needs_regularization: { label: "A regularizar", tone: "error" },
 };
@@ -17,9 +18,9 @@ const NOT_APPLICABLE = "—";
 
 export function presentationStateBadge({
   state,
-  rejectedDocument,
-}: Pick<FortnightPresentation, "state" | "rejectedDocument">) {
-  if (state === "refused" && rejectedDocument !== null) {
+  refusal,
+}: Pick<FortnightPresentation, "state" | "refusal">) {
+  if (refusal === "partial") {
     return { label: "Rechazado en parte", tone: "error" } as const;
   }
   return STATE_BADGES[state ?? "pending"];
@@ -30,20 +31,20 @@ export function presentationDocumentTypeLabel(documentType: FortnightPresentatio
 }
 
 export function presentationDocumentsLabel({
-  documentType,
+  movement,
   state,
   documentCount,
   rejectedDocument,
-}: Pick<FortnightPresentation, "documentType" | "state" | "documentCount" | "rejectedDocument">) {
-  if (documentType === null) {
-    if (state === "accepted") {
-      return "Sin movimiento";
-    }
-    if (state === "needs_regularization") {
-      return documentCount === 1
-        ? "1 llegó después"
-        : `${formatNumber(documentCount)} llegaron después`;
-    }
+}: Pick<FortnightPresentation, "movement" | "state" | "documentCount" | "rejectedDocument">) {
+  if (state === "needs_regularization") {
+    return documentCount === 1
+      ? "1 llegó después"
+      : `${formatNumber(documentCount)} llegaron después`;
+  }
+  if (movement === "none") {
+    return "Sin movimiento";
+  }
+  if (movement === null) {
     return NOT_APPLICABLE;
   }
   if (rejectedDocument !== null) {

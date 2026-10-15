@@ -15,6 +15,7 @@ import {
 export interface OwedFortnightReportWithState {
   owed: OwedFortnightReport;
   state: RecordedFortnightReport["state"] | null;
+  movement: RecordedFortnightReport["movement"];
 }
 
 export async function owedFortnightReportsWithState<TQueryResult extends PgQueryResultHKT>(
@@ -85,12 +86,13 @@ export async function closedFortnightPresentations<TQueryResult extends PgQueryR
       pointOfSaleNumber: fortnightReports.pointOfSaleNumber,
       fortnightStart: fortnightReports.fortnightStart,
       state: fortnightReports.state,
+      movement: fortnightReports.movement,
     })
     .from(fortnightReports);
-  const stateOf = new Map(
-    recorded.map(({ pointOfSaleNumber, fortnightStart, state }) => [
+  const recordOf = new Map(
+    recorded.map(({ pointOfSaleNumber, fortnightStart, state, movement }) => [
       `${pointOfSaleNumber}:${fortnightStart}`,
-      state,
+      { state, movement },
     ]),
   );
 
@@ -98,13 +100,17 @@ export async function closedFortnightPresentations<TQueryResult extends PgQueryR
     const fortnight = { start: code.fortnightStart, end: code.fortnightEnd };
     return claims
       .filter(({ claimedAt }) => owesFortnightReport({ fortnight, claimedAt }, today))
-      .map(({ pointOfSaleNumber, registerId }) => ({
-        owed: {
-          pointOfSaleNumber,
-          registerId,
-          code: { code: code.code, fortnight, reportDeadline: code.reportDeadline },
-        },
-        state: stateOf.get(`${pointOfSaleNumber}:${fortnight.start}`) ?? null,
-      }));
+      .map(({ pointOfSaleNumber, registerId }) => {
+        const report = recordOf.get(`${pointOfSaleNumber}:${fortnight.start}`);
+        return {
+          owed: {
+            pointOfSaleNumber,
+            registerId,
+            code: { code: code.code, fortnight, reportDeadline: code.reportDeadline },
+          },
+          state: report?.state ?? null,
+          movement: report?.movement ?? null,
+        };
+      });
   });
 }
