@@ -23,7 +23,8 @@ function setup(initial: { standing?: BatteryStanding; openSale?: boolean } = {})
     () =>
       new Promise<unknown>((resolve, reject) => {
         events.push("push started");
-        finishPush = (failure) => (failure === undefined ? resolve({ kind: "succeeded" }) : reject(failure));
+        finishPush = (failure) =>
+          failure === undefined ? resolve({ kind: "succeeded" }) : reject(failure);
       }),
   );
   const quit = vi.fn(() => {

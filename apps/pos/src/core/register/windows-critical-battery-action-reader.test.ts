@@ -7,7 +7,11 @@ function readerPrinting(stdout: string, platform: NodeJS.Platform = "win32") {
     stdout,
   }));
   const onFailure = vi.fn();
-  return { run, onFailure, reader: windowsCriticalBatteryActionReader({ run, platform, onFailure }) };
+  return {
+    run,
+    onFailure,
+    reader: windowsCriticalBatteryActionReader({ run, platform, onFailure }),
+  };
 }
 
 describe("the Windows critical-battery action reader", () => {

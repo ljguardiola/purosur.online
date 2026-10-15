@@ -64,12 +64,12 @@ describe("the register's help", () => {
   });
 
   it("gives the same settings as powercfg commands", () => {
-    expect(titlesFound("powercfg /setdcvalueindex SCHEME_CURRENT SUB_BATTERY BATACTIONCRIT 3")).toEqual(
-      [CRITICAL_BATTERY_TITLE],
-    );
-    expect(titlesFound("powercfg /setdcvalueindex SCHEME_CURRENT SUB_BATTERY BATLEVELCRIT 5")).toEqual(
-      [CRITICAL_BATTERY_TITLE],
-    );
+    expect(
+      titlesFound("powercfg /setdcvalueindex SCHEME_CURRENT SUB_BATTERY BATACTIONCRIT 3"),
+    ).toEqual([CRITICAL_BATTERY_TITLE]);
+    expect(
+      titlesFound("powercfg /setdcvalueindex SCHEME_CURRENT SUB_BATTERY BATLEVELCRIT 5"),
+    ).toEqual([CRITICAL_BATTERY_TITLE]);
     expect(titlesFound("powercfg /setactive SCHEME_CURRENT")).toEqual([CRITICAL_BATTERY_TITLE]);
   });
 

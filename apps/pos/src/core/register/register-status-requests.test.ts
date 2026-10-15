@@ -209,20 +209,23 @@ describe("the register's status", () => {
   });
 
   it("holds the low battery condition, with the charge, while the battery it reads stands as low", async () => {
-    expect((await status("unknown", NO_DEVICES, ROOMY_STORAGE, false, onBattery(15))).conditions).toEqual([
+    expect(
+      (await status("unknown", NO_DEVICES, ROOMY_STORAGE, false, onBattery(15))).conditions,
+    ).toEqual([
       { kind: "battery_low", charge_percent: 15, critical_percent: 10, level: "warning" },
     ]);
   });
 
   it("holds sales_denied for a critically low battery", async () => {
-    expect((await status("unknown", NO_DEVICES, ROOMY_STORAGE, false, onBattery(5))).conditions).toEqual([
-      { kind: "sales_denied", reason: "battery_critical", level: "critical" },
-    ]);
+    expect(
+      (await status("unknown", NO_DEVICES, ROOMY_STORAGE, false, onBattery(5))).conditions,
+    ).toEqual([{ kind: "sales_denied", reason: "battery_critical", level: "critical" }]);
   });
 
   it("holds the on battery condition after more than ten minutes on battery", async () => {
-    const conditions = (await status("unknown", NO_DEVICES, ROOMY_STORAGE, false, onBattery(80, 11)))
-      .conditions;
+    const conditions = (
+      await status("unknown", NO_DEVICES, ROOMY_STORAGE, false, onBattery(80, 11))
+    ).conditions;
 
     expect(conditions.map(({ kind }) => kind)).toEqual(["on_battery"]);
   });
