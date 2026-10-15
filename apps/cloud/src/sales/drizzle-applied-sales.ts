@@ -1,5 +1,10 @@
-import type { ManualAdjustment, SaleDiscount } from "@purosur/domain";
+import {
+  type ManualAdjustment,
+  SALE_VOIDED_REFUND_ORIGIN,
+  type SaleDiscount,
+} from "@purosur/domain";
 import type { SyncedFact } from "@purosur/domain/sync/use-cases";
+import { and, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import {
   cashMovements,
@@ -11,6 +16,7 @@ import {
 import type { AppliedOrigin } from "../register/drizzle-applied-cash-sessions.js";
 
 type AppliedSale = Extract<SyncedFact, { kind: "sale_completed" | "sale_cancelled" }>["sale"];
+type VoidedSale = Extract<SyncedFact, { kind: "sale_voided" }>["sale"];
 
 function manualAdjustmentColumns(adjustment: ManualAdjustment | null) {
   if (adjustment === null) {
@@ -143,4 +149,53 @@ export async function recordAppliedCancelledSale<TQueryResult extends PgQueryRes
     appliedAt,
   });
   await recordSaleParts(tx, sale, sale.authorizedBy, eventId);
+}
+
+export async function recordAppliedVoidedSale<TQueryResult extends PgQueryResultHKT>(
+  tx: PgDatabase<TQueryResult>,
+  { sale }: Extract<SyncedFact, { kind: "sale_voided" }>,
+  eventId: string,
+): Promise<void> {
+  const [voided] = await tx
+    .update(sales)
+    .set({ state: "VOIDED", voidedAt: sale.voidedAt, voidAuthorizedBy: sale.authorizedBy })
+    .where(
+      and(eq(sales.id, sale.id), eq(sales.sessionId, sale.sessionId), eq(sales.state, "COMPLETED")),
+    )
+    .returning({ id: sales.id });
+  if (!voided) {
+    throw new Error(`sale ${sale.id} is not a completed sale of cash session ${sale.sessionId}`);
+  }
+  await tx.insert(paymentRefunds).values(
+    sale.refunds.map((refund) => ({
+      ...refund,
+      saleId: sale.id,
+      paymentTransactionId: null,
+      originEventId: eventId,
+      origin: SALE_VOIDED_REFUND_ORIGIN,
+    })),
+  );
+  await recordVoidedSaleCashMovements(tx, sale);
+}
+
+async function recordVoidedSaleCashMovements<TQueryResult extends PgQueryResultHKT>(
+  tx: PgDatabase<TQueryResult>,
+  sale: VoidedSale,
+): Promise<void> {
+  if (sale.cashMovements.length === 0) {
+    return;
+  }
+  await tx
+    .insert(cashMovements)
+    .values(
+      sale.cashMovements.map((movement) => ({
+        ...movement,
+        sessionId: sale.sessionId,
+        reason: null,
+        refType: "sale",
+        refId: sale.id,
+        authorizedBy: movement.type === "REFUND" ? sale.authorizedBy : null,
+      })),
+    )
+    .onConflictDoNothing({ target: cashMovements.id });
 }

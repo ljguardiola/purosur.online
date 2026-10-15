@@ -334,6 +334,7 @@ export {
   REFUND_STATES,
   REFUND_TASK_ORIGINS,
   SALE_PAYMENT_STATE_HOLDING_PAID_ORDER,
+  SALE_VOIDED_REFUND_ORIGIN,
 } from "./payments/index.js";
 export type {
   AuthorizablePermissionKey,
