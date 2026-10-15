@@ -11,6 +11,9 @@ const presentation = {
   fortnight_start: "2026-09-01",
   fortnight_end: "2026-09-15",
   deadline: "2026-09-23",
+  document_type: "factura_c",
+  document_count: 36,
+  rejected_document: null,
   state: "blocked",
 };
 
@@ -44,9 +47,40 @@ describe("fortnightPresentationListSchema", () => {
     "fortnight_end",
     "deadline",
     "state",
+    "document_type",
+    "document_count",
+    "rejected_document",
   ])("refuses a presentation without its %s", (field) => {
     expect(
       fortnightPresentationListSchema.safeParse([{ ...presentation, [field]: undefined }]).success,
+    ).toBe(false);
+  });
+
+  it("reads a presentation without a document type", () => {
+    const list = [{ ...presentation, document_type: null, document_count: 0 }];
+
+    expect(fortnightPresentationListSchema.parse(list)).toEqual(list);
+  });
+
+  it("reads the document the tax authority rejected and how many were left unprocessed", () => {
+    const list = [
+      { ...presentation, rejected_document: { number: 17, unprocessed: 0 } },
+      { ...presentation, rejected_document: { number: 3, unprocessed: 12 } },
+    ];
+
+    expect(fortnightPresentationListSchema.parse(list)).toEqual(list);
+  });
+
+  it.each([
+    { document_type: "factura_a" },
+    { document_count: -1 },
+    { document_count: 1.5 },
+    { rejected_document: { number: 0, unprocessed: 0 } },
+    { rejected_document: { number: 17, unprocessed: -1 } },
+    { rejected_document: { number: 17 } },
+  ])("refuses the presentation fields %j", (fields) => {
+    expect(
+      fortnightPresentationListSchema.safeParse([{ ...presentation, ...fields }]).success,
     ).toBe(false);
   });
 
