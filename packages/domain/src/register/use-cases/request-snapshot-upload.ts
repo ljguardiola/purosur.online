@@ -34,7 +34,11 @@ type RequestSnapshotUploadRefusal =
   | { kind: "upload_deadline_passed" };
 
 export type RequestSnapshotUploadOutcome =
-  | { kind: "authorized"; authorization: SnapshotUploadAuthorization }
+  | {
+      kind: "authorized";
+      authorization: SnapshotUploadAuthorization;
+      currentKeyVersion: number;
+    }
   | RequestSnapshotUploadRefusal;
 
 export async function requestSnapshotUpload(
@@ -42,7 +46,8 @@ export async function requestSnapshotUpload(
   input: RequestSnapshotUploadInput,
 ): Promise<RequestSnapshotUploadOutcome> {
   const declared = await store.transaction<
-    { kind: "declared"; upload: AuthorizedSnapshotUpload } | RequestSnapshotUploadRefusal
+    | { kind: "declared"; upload: AuthorizedSnapshotUpload; currentKeyVersion: number }
+    | RequestSnapshotUploadRefusal
   >(async (tx) => {
     await tx.lockRegisterSnapshots(input.registerId);
     const keyVersions = await tx.snapshotKeyVersions(input.registerId);
@@ -89,6 +94,7 @@ export async function requestSnapshotUpload(
     }
     return {
       kind: "declared",
+      currentKeyVersion: Math.max(...keyVersions),
       upload: {
         registerId: input.registerId,
         generationId: input.generationId,
@@ -103,7 +109,11 @@ export async function requestSnapshotUpload(
   }
 
   try {
-    return { kind: "authorized", authorization: await uploads.authorizeUpload(declared.upload) };
+    return {
+      kind: "authorized",
+      authorization: await uploads.authorizeUpload(declared.upload),
+      currentKeyVersion: declared.currentKeyVersion,
+    };
   } catch (error) {
     if (error instanceof SnapshotUploadWindowClosed) {
       return { kind: "upload_deadline_passed" };
