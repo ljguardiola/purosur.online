@@ -1117,7 +1117,10 @@ for (const dropped of [
 
     const violations = findVerifyWorkflowViolations(workflow(), packageJson({ staticParts }));
 
-    assertSingleViolation(violations, /verify:static parts run no/);
+    assert.ok(
+      violations.includes(`package.json's verify:static parts run no "${dropped}"`),
+      violations.join("\n"),
+    );
   });
 }
 
