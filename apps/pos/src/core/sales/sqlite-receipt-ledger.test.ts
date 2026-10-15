@@ -102,6 +102,7 @@ describe("a receipt ledger's delivery of a sale", () => {
       printAttemptedAt: null,
       printedAt: null,
       reprintCount: 0,
+      voided: true,
     });
   });
 
@@ -112,6 +113,7 @@ describe("a receipt ledger's delivery of a sale", () => {
       printAttemptedAt: null,
       printedAt: null,
       reprintCount: 0,
+      voided: false,
     });
   });
 
@@ -127,6 +129,7 @@ describe("a receipt ledger's delivery of a sale", () => {
       printAttemptedAt: attemptedAt,
       printedAt: null,
       reprintCount: 0,
+      voided: false,
     });
 
     inTransaction((tx) => {
@@ -152,6 +155,7 @@ describe("a receipt ledger's delivery of a sale", () => {
       printAttemptedAt: attemptedAt,
       printedAt,
       reprintCount: 2,
+      voided: false,
     });
   });
 });

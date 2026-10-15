@@ -1431,6 +1431,7 @@ describe("reprinting a sale's receipt from the history", () => {
     { kind: "busy" },
     { kind: "invalid_reason", max_length: 200 },
     { kind: "printer_not_configured" },
+    { kind: "sale_voided" },
     { kind: "not_found" },
     { kind: "not_signed_in" },
     { kind: "lacks_permission" },
@@ -1484,6 +1485,7 @@ describe("printing a sale's original receipt", () => {
     { kind: "busy" },
     { kind: "already_attempted" },
     { kind: "printer_not_configured" },
+    { kind: "sale_voided" },
     { kind: "not_found" },
     { kind: "not_signed_in" },
     { kind: "lacks_permission" },
@@ -1634,6 +1636,7 @@ describe("asking for the detail of one sale of the history", () => {
       ],
     },
     void_authorization_required: false,
+    reprint: { kind: "available" },
     next_copy: { kind: "duplicate", order_number: 2 },
   };
   const answer = (outcome: unknown) => ({
@@ -1650,6 +1653,7 @@ describe("asking for the detail of one sale of the history", () => {
     },
     { kind: "found", detail: { ...detail, occurred_at: "2026-10-08T09:00:00.000-03:00" } },
     { kind: "found", detail: { ...detail, void_authorization_required: true } },
+    { kind: "found", detail: { ...detail, reprint: { kind: "sale_voided" } } },
     {
       kind: "found",
       detail: {
@@ -1686,6 +1690,8 @@ describe("asking for the detail of one sale of the history", () => {
     { kind: "found", detail: { ...detail, state: "cancelled" } },
     { kind: "found", detail: { ...detail, void_authorization_required: undefined } },
     { kind: "found", detail: { ...detail, void_authorization_required: "yes" } },
+    { kind: "found", detail: { ...detail, reprint: undefined } },
+    { kind: "found", detail: { ...detail, reprint: { kind: "later" } } },
     { kind: "found", detail: { ...detail, voidability: undefined } },
     { kind: "found", detail: { ...detail, voidability: { kind: "voidable" } } },
     {

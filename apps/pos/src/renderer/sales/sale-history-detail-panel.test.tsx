@@ -27,6 +27,7 @@ const FISCAL_SALE: SaleDetail = {
     ],
   },
   void_authorization_required: false,
+  reprint: { kind: "available" },
   next_copy: { kind: "duplicate", order_number: 1 },
 };
 
@@ -230,6 +231,7 @@ describe("SaleHistoryDetailPanel", () => {
           ...FISCAL_SALE,
           state: "voided",
           voidability: { kind: "not_voidable", refusal: "not_completed" },
+          reprint: { kind: "sale_voided" },
         },
       }),
     });
@@ -241,6 +243,20 @@ describe("SaleHistoryDetailPanel", () => {
       .element(screen.getByRole("button", { name: /imprimir|Imprimir/ }))
       .not.toBeInTheDocument();
     await expect.element(screen.getByText("Todavía no se puede anular")).not.toBeInTheDocument();
+  });
+
+  it("offers no printing when the core says the sale's receipt is not printed, and still offers voiding", async () => {
+    const { screen } = await renderPanel({
+      read: async () => ({
+        kind: "found",
+        detail: { ...FISCAL_SALE, reprint: { kind: "sale_voided" } },
+      }),
+    });
+
+    await expect.element(screen.getByRole("button", { name: "Anular venta" })).toBeVisible();
+    await expect
+      .element(screen.getByRole("button", { name: /imprimir|Imprimir/ }))
+      .not.toBeInTheDocument();
   });
 
   it("shows the sale loading, with no print button yet", async () => {

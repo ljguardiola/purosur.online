@@ -329,6 +329,20 @@ describe("ReprintReceiptModal", () => {
       expect(onReprinted).not.toHaveBeenCalled();
     });
 
+    it("says a voided sale's receipt is not printed", async () => {
+      const { screen, onReprinted } = await renderModal({
+        reprintSaleReceipt: async () => ({ kind: "sale_voided" }),
+      });
+      await typeReason(screen, "Otra copia");
+
+      await userEvent.click(screen.getByRole("button", { name: REPRINT }));
+
+      await expect
+        .element(screen.getByRole("alert"))
+        .toHaveTextContent("La venta está anulada: no se reimprime su ticket.");
+      expect(onReprinted).not.toHaveBeenCalled();
+    });
+
     it("tells the screen when the sale is gone", async () => {
       const { screen, onSaleGone } = await renderModal({
         reprintSaleReceipt: async () => ({ kind: "not_found" }),

@@ -302,6 +302,7 @@ describe("the detail of a sale of the history", () => {
         state: "completed",
         voidability: { kind: "not_voidable", refusal: "carries_invoice" },
         void_authorization_required: true,
+        reprint: { kind: "available" },
         next_copy: { kind: "original" },
       },
     });
@@ -365,6 +366,7 @@ describe("the detail of a sale of the history", () => {
     expect(answer.kind === "found" && answer.detail).toMatchObject({
       state: "voided",
       voidability: { kind: "not_voidable", refusal: "not_completed" },
+      reprint: { kind: "sale_voided" },
     });
   });
 
