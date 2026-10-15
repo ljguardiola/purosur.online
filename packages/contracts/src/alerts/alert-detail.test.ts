@@ -520,8 +520,21 @@ describe("alertDetailSchema", () => {
       expect(alertDetailSchema.safeParse(alert).data).toEqual(alert);
     });
 
+    it.each(["blocked", "missing_document", "refused", "pending"])(
+      "accepts a pending fortnight report alert waiting for the reason %s",
+      (reason) => {
+        const alert = {
+          ...base,
+          kind: "fortnight_report_pending",
+          detail: { ...detailOf.fortnight_report_pending, reason },
+        };
+
+        expect(alertDetailSchema.safeParse(alert).data).toEqual(alert);
+      },
+    );
+
     it.each([
-      ["a reason outside the three it can have", { reason: "unknown" }],
+      ["a reason outside the four it can have", { reason: "unknown" }],
       ["days left as text", { daysLeft: "3" }],
       ["fractional days left", { daysLeft: 1.5 }],
       ["a fractional point of sale", { pointOfSaleNumber: 4.5 }],

@@ -702,7 +702,7 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
         fortnightStart: "2026-10-01",
         fortnightEnd: "2026-10-15",
         documentType: "factura_c",
-        state: "blocked",
+        state: "missing_document",
         reportedThrough: 0,
         recordedAt: new Date("2026-10-16T12:00:00.000Z"),
       });

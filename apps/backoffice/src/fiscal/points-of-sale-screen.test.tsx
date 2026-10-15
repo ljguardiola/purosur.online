@@ -365,6 +365,8 @@ test("lists the fortnight reports of each offline point of sale between the regi
         documentType: null,
         documentCount: 0,
         rejectedDocument: null,
+        movement: null,
+        refusal: null,
         state: "blocked",
       },
     ],

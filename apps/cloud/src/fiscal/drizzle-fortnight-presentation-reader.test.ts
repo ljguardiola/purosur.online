@@ -58,10 +58,11 @@ function record(
   pointOfSaleNumber: number,
   fortnight: Fortnight,
   state: "blocked" | "accepted" | "needs_regularization",
+  movement?: "none",
 ) {
   return new DrizzleFortnightReportStore(db).holdReport(
     { pointOfSaleNumber, fortnight },
-    (report) => report.record({ state, at: AT }),
+    (report) => report.record({ state, at: AT, ...(movement === undefined ? {} : { movement }) }),
   );
 }
 
@@ -133,11 +134,24 @@ describe("DrizzleFortnightPresentationReader.branchPresentations", () => {
         fortnight: OCTOBER_FIRST_HALF,
         deadline: "2026-10-20",
         documentType: null,
+        movement: null,
         state: null,
+        refusal: null,
         documentCount: 0,
         rejectedDocument: null,
       },
     ]);
+  });
+
+  it("answers that a fortnight accepted without documents declared no movement", async () => {
+    await seedOfflinePointOfSale(db);
+    await claimedBeforeEveryFortnight(OFFLINE_POINT_OF_SALE);
+    await keepCode(OCTOBER_FIRST_HALF, "36123456789012", "2026-10-20");
+    await record(OFFLINE_POINT_OF_SALE, OCTOBER_FIRST_HALF, "accepted", "none");
+
+    const [presentation] = await presentations("2026-10-16");
+
+    expect(presentation).toMatchObject({ documentType: null, movement: "none", state: "accepted" });
   });
 
   it("caps the deadline at the eighth day after the fortnight closes when the tax authority granted a later one", async () => {
@@ -261,7 +275,7 @@ describe("DrizzleFortnightPresentationReader.branchPresentations", () => {
       ]);
     });
 
-    it("names the rejected document and how many documents after it were left unprocessed", async () => {
+    it("names the rejected document, how many documents after it were left unprocessed and that the refusal was partial", async () => {
       await issueFacturaC(registerId, OCTOBER_FIRST_HALF, [1, 2, 3, 4, 5]);
       await recordFacturaC(OCTOBER_FIRST_HALF, {
         state: "refused",
@@ -273,7 +287,9 @@ describe("DrizzleFortnightPresentationReader.branchPresentations", () => {
 
       expect(presentation).toMatchObject({
         documentType: "factura_c",
+        movement: "documents",
         state: "refused",
+        refusal: "partial",
         documentCount: 5,
         rejectedDocument: { number: 2, unprocessed: 3 },
       });
@@ -292,7 +308,9 @@ describe("DrizzleFortnightPresentationReader.branchPresentations", () => {
           fortnight: OCTOBER_FIRST_HALF,
           deadline: "2026-10-20",
           documentType: null,
+          movement: "none",
           state: "needs_regularization",
+          refusal: null,
           documentCount: 2,
           rejectedDocument: null,
         },

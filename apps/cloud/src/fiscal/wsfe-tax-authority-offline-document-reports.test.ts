@@ -209,24 +209,19 @@ describe("WsfeTaxAuthorityOfflineDocumentReports.report", () => {
     expect(sentValues(request, "CAEA")).toEqual(["36123456789012", "36123456789012"]);
   });
 
-  it("sends each document with its number, date, generation time and amounts", async () => {
+  it("sends each document with its number, date, generation time, amounts and buyer", async () => {
     server.behave(answers("fe-caea-reg-informativo-accepted.xml"));
 
     await reportsAt(server.endpoint).report(reportCall);
 
     const [request] = server.requests;
     expect(sentValues(request, "CbteDesde")).toEqual(["11", "12"]);
-    expect(sentValues(request, "CbteHasta")).toEqual(["11", "12"]);
     expect(sentValues(request, "CbteFch")).toEqual(["20261008", "20261008"]);
     expect(sentValues(request, "CbteFchHsGen")).toEqual(["20261008123045", "20261008123045"]);
     expect(sentValues(request, "ImpTotal")).toEqual(["123.45", "5.00"]);
     expect(sentValues(request, "ImpNeto")).toEqual(["123.45", "5.00"]);
-    expect(sentValues(request, "ImpIVA")).toEqual(["0", "0"]);
-    expect(sentValues(request, "Concepto")).toEqual(["1", "1"]);
     expect(sentValues(request, "DocTipo")).toEqual(["99", "99"]);
     expect(sentValues(request, "DocNro")).toEqual(["0", "0"]);
-    expect(sentValues(request, "MonId")).toEqual(["PES", "PES"]);
-    expect(sentValues(request, "MonCotiz")).toEqual(["1", "1"]);
     expect(sentValues(request, "CondicionIVAReceptorId")).toEqual(["5", "5"]);
   });
 

@@ -25,6 +25,8 @@ const blockedWire = {
   document_type: "factura_c",
   document_count: 36,
   rejected_document: null,
+  movement: "documents",
+  refusal: null,
   state: "blocked",
 };
 
@@ -33,6 +35,7 @@ const pendingWire = {
   point_of_sale_number: 5,
   document_type: null,
   document_count: 0,
+  movement: null,
   state: null,
 };
 
@@ -44,6 +47,8 @@ const blocked: FortnightPresentation = {
   documentType: "factura_c",
   documentCount: 36,
   rejectedDocument: null,
+  movement: "documents",
+  refusal: null,
   state: "blocked",
 };
 
@@ -52,12 +57,14 @@ const pending: FortnightPresentation = {
   pointOfSaleNumber: 5,
   documentType: null,
   documentCount: 0,
+  movement: null,
   state: null,
 };
 
 const partlyRejectedWire = {
   ...blockedWire,
   state: "refused",
+  refusal: "partial",
   rejected_document: { number: 17, unprocessed: 12 },
 };
 
@@ -71,12 +78,30 @@ test("fetchFortnightPresentations returns the branch's presentations with their 
   expect(fetch).toHaveBeenCalledWith("/api/registers/fortnight-presentations");
 });
 
-test("fetchFortnightPresentations reads the rejected document and the documents left unprocessed after it", async () => {
+test("fetchFortnightPresentations reads how a presentation was refused, the rejected document and the documents left unprocessed after it", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(200, [partlyRejectedWire]));
 
   expect(await fetchFortnightPresentations()).toEqual({
     kind: "ok",
-    value: [{ ...blocked, state: "refused", rejectedDocument: { number: 17, unprocessed: 12 } }],
+    value: [
+      {
+        ...blocked,
+        state: "refused",
+        refusal: "partial",
+        rejectedDocument: { number: 17, unprocessed: 12 },
+      },
+    ],
+  });
+});
+
+test("fetchFortnightPresentations reads what a presentation without documents declared", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    jsonResponse(200, [{ ...pendingWire, state: "accepted", movement: "none" }]),
+  );
+
+  expect(await fetchFortnightPresentations()).toEqual({
+    kind: "ok",
+    value: [{ ...pending, state: "accepted", movement: "none" }],
   });
 });
 

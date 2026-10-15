@@ -81,19 +81,22 @@ describe("the fortnight document reports migration applied over a database that 
     await expect(client.query("update fortnight_reports set movement = 'some'")).rejects.toThrow();
   });
 
-  it("accepts a fortnight report that needs regularization", async () => {
-    const client = await migratedDatabase();
+  it.each(["needs_regularization", "missing_document"])(
+    "accepts a fortnight report in the state %s",
+    async (state) => {
+      const client = await migratedDatabase();
 
-    await client.query("update fortnight_reports set state = 'needs_regularization'");
+      await client.query(`update fortnight_reports set state = '${state}'`);
 
-    const { rows } = await client.query("select state from fortnight_reports");
-    expect(rows).toEqual([{ state: "needs_regularization" }]);
-  });
+      const { rows } = await client.query("select state from fortnight_reports");
+      expect(rows).toEqual([{ state }]);
+    },
+  );
 
   it("accepts a document report of each state, with the rejected document", async () => {
     const client = await migratedDatabase();
 
-    for (const state of ["blocked", "submitting", "refused", "accepted"]) {
+    for (const state of ["missing_document", "submitting", "refused", "accepted"]) {
       await client.query("delete from fortnight_document_reports");
       await client.query(insertDocumentReport({ state }));
     }
@@ -111,13 +114,14 @@ describe("the fortnight document reports migration applied over a database that 
     ]);
   });
 
-  it("refuses a document report in a state a presentation never goes through", async () => {
-    const client = await migratedDatabase();
+  it.each(["needs_regularization", "blocked"])(
+    "refuses a document report in the state %s, which a document type never goes through",
+    async (state) => {
+      const client = await migratedDatabase();
 
-    await expect(
-      client.query(insertDocumentReport({ state: "needs_regularization" })),
-    ).rejects.toThrow();
-  });
+      await expect(client.query(insertDocumentReport({ state }))).rejects.toThrow();
+    },
+  );
 
   it("refuses a document report of a document type that is not known", async () => {
     const client = await migratedDatabase();
@@ -137,7 +141,7 @@ describe("the fortnight document reports migration applied over a database that 
     const client = await migratedDatabase();
     await client.query(insertDocumentReport());
 
-    await expect(client.query(insertDocumentReport({ state: "blocked" }))).rejects.toThrow();
+    await expect(client.query(insertDocumentReport({ state: "submitting" }))).rejects.toThrow();
   });
 
   it("refuses a document report of a point of sale nobody claimed", async () => {

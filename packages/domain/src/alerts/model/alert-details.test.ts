@@ -220,12 +220,12 @@ describe("OpenAlertInput of a fortnight report", () => {
         fortnightEnd: string;
         deadline: string;
         daysLeft: number;
-        reason: "blocked" | "refused" | "pending";
+        reason: "blocked" | "missing_document" | "refused" | "pending";
       };
     }>().toExtend<OpenAlertInput>();
   });
 
-  it("refuses a pending alert with a reason outside the three it can have", () => {
+  it("refuses a pending alert with a reason outside the four it can have", () => {
     expectTypeOf<{
       kind: "fortnight_report_pending";
       scope: string;

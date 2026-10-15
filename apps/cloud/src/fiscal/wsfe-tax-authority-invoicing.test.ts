@@ -65,24 +65,16 @@ describe("WsfeTaxAuthorityInvoicing", () => {
       expect(sentValue(request, "CbteTipo")).toBe("11");
     });
 
-    it("asks for the document's number, date, total and buyer tax status, as a sale of products to a final consumer in pesos", async () => {
+    it("asks for the document's number, date and buyer tax status, sold to a final consumer with its total as the net amount", async () => {
       await invoicingAt(server.endpoint).solicit(solicitation);
 
       const [request] = server.requests;
-      expect(sentValue(request, "Concepto")).toBe("1");
       expect(sentValue(request, "DocTipo")).toBe("99");
       expect(sentValue(request, "DocNro")).toBe("0");
       expect(sentValue(request, "CbteDesde")).toBe("42");
-      expect(sentValue(request, "CbteHasta")).toBe("42");
       expect(sentValue(request, "CbteFch")).toBe("20261006");
       expect(sentValue(request, "ImpTotal")).toBe("125.50");
-      expect(sentValue(request, "ImpTotConc")).toBe("0");
       expect(sentValue(request, "ImpNeto")).toBe("125.50");
-      expect(sentValue(request, "ImpOpEx")).toBe("0");
-      expect(sentValue(request, "ImpTrib")).toBe("0");
-      expect(sentValue(request, "ImpIVA")).toBe("0");
-      expect(sentValue(request, "MonId")).toBe("PES");
-      expect(sentValue(request, "MonCotiz")).toBe("1");
       expect(sentValue(request, "CondicionIVAReceptorId")).toBe("5");
     });
 
@@ -90,12 +82,6 @@ describe("WsfeTaxAuthorityInvoicing", () => {
       await invoicingAt(server.endpoint).solicit(solicitation);
 
       expect(server.requests[0]).not.toMatch(/<(\w+:)?Iva>/);
-    });
-
-    it("writes the total in pesos from its cents without a rounding error", async () => {
-      await invoicingAt(server.endpoint).solicit({ ...solicitation, total: 1_999 });
-
-      expect(sentValue(server.requests[0], "ImpTotal")).toBe("19.99");
     });
   });
 

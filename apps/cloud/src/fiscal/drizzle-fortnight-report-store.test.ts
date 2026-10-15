@@ -154,15 +154,18 @@ describe("DrizzleFortnightReportStore.holdReport", () => {
     expect(await newStore().holdReport(KEY, async () => "worked")).toBe("worked");
   });
 
-  it("records a blocked presentation without an attempt time", async () => {
-    await newStore().holdReport(KEY, (report) => report.record({ state: "blocked", at: AT }));
+  it.each(["blocked", "missing_document"] as const)(
+    "records a presentation that is %s without an attempt time",
+    async (state) => {
+      await newStore().holdReport(KEY, (report) => report.record({ state, at: AT }));
 
-    expect(await newStore().holdReport(KEY, (report) => report.recorded())).toEqual({
-      state: "blocked",
-      movement: null,
-      lastAttemptAt: null,
-    });
-  });
+      expect(await newStore().holdReport(KEY, (report) => report.recorded())).toEqual({
+        state,
+        movement: null,
+        lastAttemptAt: null,
+      });
+    },
+  );
 
   it.each(["submitting", "refused", "accepted"] as const)(
     "takes the time of a %s change as the time of the last attempt",
@@ -257,7 +260,7 @@ describe("DrizzleFortnightReportStore document type reports", () => {
     await newStore().holdReport(KEY, (report) =>
       report.recordDocumentType({
         documentType: FACTURA_C,
-        state: "blocked",
+        state: "missing_document",
         at: AT,
         reportedThrough: 4,
       }),
@@ -269,7 +272,7 @@ describe("DrizzleFortnightReportStore document type reports", () => {
         fortnightStart: "2026-10-01",
         fortnightEnd: "2026-10-15",
         documentType: FACTURA_C,
-        state: "blocked",
+        state: "missing_document",
         reportedThrough: 4,
         rejectedNumber: null,
         rejections: null,
@@ -420,15 +423,18 @@ describe("DrizzleFortnightReportStore.acceptedWithUnreportedDocuments", () => {
     expect(await newStore().acceptedWithUnreportedDocuments()).toEqual([]);
   });
 
-  it.each(["blocked", "submitting", "refused", "needs_regularization"] as const)(
-    "lists nothing for a presentation recorded as %s",
-    async (state) => {
-      await document(1);
-      await newStore().holdReport(KEY, (report) =>
-        report.record({ state, at: AT, movement: "documents" }),
-      );
+  it.each([
+    "blocked",
+    "missing_document",
+    "submitting",
+    "refused",
+    "needs_regularization",
+  ] as const)("lists nothing for a presentation recorded as %s", async (state) => {
+    await document(1);
+    await newStore().holdReport(KEY, (report) =>
+      report.record({ state, at: AT, movement: "documents" }),
+    );
 
-      expect(await newStore().acceptedWithUnreportedDocuments()).toEqual([]);
-    },
-  );
+    expect(await newStore().acceptedWithUnreportedDocuments()).toEqual([]);
+  });
 });

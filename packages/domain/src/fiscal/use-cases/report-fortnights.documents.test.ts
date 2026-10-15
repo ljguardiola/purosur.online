@@ -415,7 +415,7 @@ describe("reportFortnights, for a fortnight with offline-authorized documents", 
   });
 
   describe("a document missing from the series", () => {
-    it("blocks the presentation and sends nothing when the next number the tax authority expects is missing", async () => {
+    it("records the presentation as missing a document, not as blocked, and sends nothing when the next number the tax authority expects is missing", async () => {
       const { documentReports, reports, run } = setUp({ numbers: [3, 4] });
       documentReports.hold(POINT_OF_SALE, "factura_c", 1);
 
@@ -427,10 +427,15 @@ describe("reportFortnights, for a fortnight with offline-authorized documents", 
       });
       expect(documentReports.reports).toEqual([]);
       expect(reports.documentTypeChanges.map(({ change }) => change)).toEqual([
-        { documentType: "factura_c", state: "blocked", at: ON_OCTOBER_3, reportedThrough: 1 },
+        {
+          documentType: "factura_c",
+          state: "missing_document",
+          at: ON_OCTOBER_3,
+          reportedThrough: 1,
+        },
       ]);
       expect(reports.changes.map(({ change }) => change)).toStrictEqual([
-        { state: "blocked", at: ON_OCTOBER_3 },
+        { state: "missing_document", at: ON_OCTOBER_3 },
       ]);
     });
 

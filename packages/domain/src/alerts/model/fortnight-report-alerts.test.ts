@@ -53,6 +53,7 @@ describe("pointOfSaleFortnightScopeDisplay", () => {
 describe("fortnightReportPendingReason", () => {
   it.each([
     ["blocked", "blocked"],
+    ["missing_document", "missing_document"],
     ["refused", "refused"],
     ["submitting", "pending"],
     [null, "pending"],
@@ -112,6 +113,17 @@ describe("fortnightReportPendingObservation", () => {
         state: "blocked",
       }),
     ).toMatchObject({ level: "critical", alert: { detail: { reason: "blocked" } } });
+  });
+
+  it("raises it to critical while a document is missing from the series, however far the deadline is", () => {
+    expect(
+      fortnightReportPendingObservation({
+        ...PRESENTATION,
+        daysLeft: 6,
+        pressing: false,
+        state: "missing_document",
+      }),
+    ).toMatchObject({ level: "critical", alert: { detail: { reason: "missing_document" } } });
   });
 });
 

@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { detectFortnightReportRegularizations } from "./detect-fortnight-report-regularizations.js";
-import type { FortnightPresentationNeedingRegularization } from "./fortnight-report-regularization-ports.js";
+import type { FortnightRegularizationCandidate } from "./fortnight-report-regularization-ports.js";
 import {
-  FakeFortnightRegularizationReader,
+  FakeFortnightRegularizationCandidateReader,
   FakeFortnightReportRegularizationAlerts,
 } from "./test-support/fake-fortnight-report-regularizations.js";
 
@@ -10,17 +10,17 @@ const FIRST_HALF = { start: "2026-09-01", end: "2026-09-15" };
 const SECOND_HALF = { start: "2026-09-16", end: "2026-09-30" };
 
 function presentation(
-  overrides: Partial<FortnightPresentationNeedingRegularization> = {},
-): FortnightPresentationNeedingRegularization {
+  overrides: Partial<FortnightRegularizationCandidate> = {},
+): FortnightRegularizationCandidate {
   return { pointOfSaleNumber: 4, registerId: "register-1", fortnight: FIRST_HALF, ...overrides };
 }
 
 function detect(
-  presentations: FortnightPresentationNeedingRegularization[],
+  presentations: FortnightRegularizationCandidate[],
   alerts = new FakeFortnightReportRegularizationAlerts(),
 ) {
   const outcome = detectFortnightReportRegularizations({
-    presentations: new FakeFortnightRegularizationReader(presentations),
+    presentations: new FakeFortnightRegularizationCandidateReader(presentations),
     alerts,
   });
   return { alerts, outcome };

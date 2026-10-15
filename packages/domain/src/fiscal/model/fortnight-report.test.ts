@@ -173,7 +173,7 @@ describe("owesFortnightReport", () => {
 });
 
 describe("isFortnightReportOutstanding", () => {
-  it.each([null, "blocked", "submitting", "refused"] as const)(
+  it.each([null, "blocked", "missing_document", "submitting", "refused"] as const)(
     "is outstanding with the stored state %s",
     (state) => {
       expect(isFortnightReportOutstanding(state)).toBe(true);
@@ -248,6 +248,15 @@ describe("offlineDocumentPresentations", () => {
 
   it("is no presentation at all without documents", () => {
     expect(offlineDocumentPresentations([])).toEqual([]);
+  });
+
+  it("orders the presentations by document type alphabetically, whatever the case of its letters", () => {
+    expect(
+      offlineDocumentPresentations([
+        { documentType: "B", number: 1 },
+        { documentType: "a", number: 1 },
+      ]).map(({ documentType }) => documentType),
+    ).toEqual(["a", "B"]);
   });
 
   it("never mixes document types and keeps every document, for every set of documents", () => {
@@ -354,13 +363,15 @@ describe("fortnightReportStateOfDocumentTypes", () => {
   });
 
   it("is refused while any document type is refused", () => {
-    expect(fortnightReportStateOfDocumentTypes(["accepted", "blocked", "refused"])).toBe("refused");
+    expect(fortnightReportStateOfDocumentTypes(["accepted", "missing_document", "refused"])).toBe(
+      "refused",
+    );
   });
 
-  it("is blocked while any document type is blocked and none is refused", () => {
-    expect(fortnightReportStateOfDocumentTypes(["submitting", "blocked", "accepted"])).toBe(
-      "blocked",
-    );
+  it("is missing a document while any document type misses one from its series and none is refused", () => {
+    expect(
+      fortnightReportStateOfDocumentTypes(["submitting", "missing_document", "accepted"]),
+    ).toBe("missing_document");
   });
 
   it("is submitting while any document type is still awaiting an answer", () => {
@@ -388,48 +399,68 @@ describe("documentTypePresentationState", () => {
 
 describe("fortnightPresentationRows", () => {
   const document = (documentType: string, number: number) => ({ documentType, number });
+  const noRecord = { movement: null, refusal: null, rejectedDocument: null } as const;
 
-  it("is one row without a document type when the fortnight issued no documents", () => {
+  it("is one row without a document type, declaring no movement, when the fortnight issued no documents and was accepted", () => {
     expect(
-      fortnightPresentationRows({ state: "accepted", documents: [], documentReports: [] }),
+      fortnightPresentationRows({
+        state: "accepted",
+        movement: "none",
+        documents: [],
+        documentReports: [],
+      }),
     ).toEqual([
-      { documentType: null, state: "accepted", documentCount: 0, rejectedDocument: null },
+      { ...noRecord, documentType: null, state: "accepted", documentCount: 0, movement: "none" },
     ]);
   });
 
-  it("is one row without a document type while nothing was recorded for a fortnight without documents", () => {
-    expect(fortnightPresentationRows({ state: null, documents: [], documentReports: [] })).toEqual([
-      { documentType: null, state: null, documentCount: 0, rejectedDocument: null },
-    ]);
+  it("is one row without a document type, declaring nothing yet, while nothing was recorded for a fortnight without documents", () => {
+    expect(
+      fortnightPresentationRows({
+        state: null,
+        movement: null,
+        documents: [],
+        documentReports: [],
+      }),
+    ).toEqual([{ ...noRecord, documentType: null, state: null, documentCount: 0 }]);
   });
 
-  it("is one row without a document type, counting the documents that arrived late, when the fortnight needs regularization", () => {
+  it("is one row without a document type, declaring no movement and counting the documents that arrived late, when the fortnight needs regularization", () => {
     expect(
       fortnightPresentationRows({
         state: "needs_regularization",
+        movement: null,
         documents: [document("factura_c", 1), document("factura_c", 2), document("nota_c", 1)],
         documentReports: [{ documentType: "factura_c", state: "accepted", rejectedNumber: null }],
       }),
     ).toEqual([
       {
+        ...noRecord,
         documentType: null,
+        movement: "none",
         state: "needs_regularization",
         documentCount: 3,
-        rejectedDocument: null,
       },
     ]);
   });
 
-  it("is one row per document type that had documents, counting them and ordered by document type", () => {
+  it("is one row per document type that had documents, declaring them, counting them and ordered by document type", () => {
     expect(
       fortnightPresentationRows({
         state: "submitting",
+        movement: null,
         documents: [document("nota_c", 4), document("factura_c", 9), document("factura_c", 8)],
         documentReports: [{ documentType: "factura_c", state: "accepted", rejectedNumber: null }],
       }),
     ).toEqual([
-      { documentType: "factura_c", state: "accepted", documentCount: 2, rejectedDocument: null },
-      { documentType: "nota_c", state: null, documentCount: 1, rejectedDocument: null },
+      {
+        ...noRecord,
+        documentType: "factura_c",
+        movement: "documents",
+        state: "accepted",
+        documentCount: 2,
+      },
+      { ...noRecord, documentType: "nota_c", movement: "documents", state: null, documentCount: 1 },
     ]);
   });
 
@@ -437,6 +468,7 @@ describe("fortnightPresentationRows", () => {
     expect(
       fortnightPresentationRows({
         state: "blocked",
+        movement: null,
         documents: [document("factura_c", 1), document("nota_c", 1)],
         documentReports: [{ documentType: "nota_c", state: "submitting", rejectedNumber: null }],
       }).map(({ documentType, state }) => [documentType, state]),
@@ -450,6 +482,7 @@ describe("fortnightPresentationRows", () => {
     expect(
       fortnightPresentationRows({
         state: "refused",
+        movement: null,
         documents: [1, 2, 3, 4, 5]
           .map((number) => document("factura_c", number))
           .concat(document("nota_c", 9)),
@@ -458,17 +491,20 @@ describe("fortnightPresentationRows", () => {
     ).toEqual([
       {
         documentType: "factura_c",
+        movement: "documents",
         state: "refused",
+        refusal: "partial",
         documentCount: 5,
         rejectedDocument: { number: 2, unprocessed: 3 },
       },
-      { documentType: "nota_c", state: null, documentCount: 1, rejectedDocument: null },
+      { ...noRecord, documentType: "nota_c", movement: "documents", state: null, documentCount: 1 },
     ]);
   });
 
   it("leaves none unprocessed when the rejected document is the last of its type", () => {
     const [row] = fortnightPresentationRows({
       state: "refused",
+      movement: null,
       documents: [document("factura_c", 1), document("factura_c", 2)],
       documentReports: [{ documentType: "factura_c", state: "refused", rejectedNumber: 2 }],
     });
@@ -480,12 +516,78 @@ describe("fortnightPresentationRows", () => {
     const rows = (state: "refused" | "submitting", rejectedNumber: number | null) =>
       fortnightPresentationRows({
         state: "submitting",
+        movement: null,
         documents: [document("factura_c", 1), document("factura_c", 2)],
         documentReports: [{ documentType: "factura_c", state, rejectedNumber }],
       });
 
     expect(rows("refused", null)[0]?.rejectedDocument).toBeNull();
     expect(rows("submitting", null)[0]?.rejectedDocument).toBeNull();
+  });
+
+  describe("how a refusal is meant", () => {
+    const refusalOf = (numbers: number[], rejectedNumber: number | null) =>
+      fortnightPresentationRows({
+        state: "refused",
+        movement: null,
+        documents: numbers.map((number) => document("factura_c", number)),
+        documentReports: [{ documentType: "factura_c", state: "refused", rejectedNumber }],
+      })[0]?.refusal;
+
+    it("is partial when the tax authority rejected a document after accepting an earlier one of the presentation", () => {
+      expect(refusalOf([4, 5, 6], 5)).toBe("partial");
+    });
+
+    it("is whole when the tax authority rejected the presentation's first document", () => {
+      expect(refusalOf([4, 5, 6], 4)).toBe("whole");
+    });
+
+    it("is whole when the presentation's only document was rejected", () => {
+      expect(refusalOf([4], 4)).toBe("whole");
+    });
+
+    it("is whole when the tax authority refused the batch without naming a document", () => {
+      expect(refusalOf([4, 5], null)).toBe("whole");
+    });
+
+    it("is whole for a refused declaration of no movement", () => {
+      expect(
+        fortnightPresentationRows({
+          state: "refused",
+          movement: null,
+          documents: [],
+          documentReports: [],
+        })[0]?.refusal,
+      ).toBe("whole");
+    });
+
+    it.each(["submitting", "accepted", "missing_document"] as const)(
+      "is none for a document type that is %s",
+      (state) => {
+        expect(
+          fortnightPresentationRows({
+            state: "refused",
+            movement: null,
+            documents: [document("factura_c", 4), document("factura_c", 5)],
+            documentReports: [{ documentType: "factura_c", state, rejectedNumber: 5 }],
+          })[0]?.refusal,
+        ).toBeNull();
+      },
+    );
+
+    it.each([null, "blocked", "submitting", "accepted", "needs_regularization"] as const)(
+      "is none for a fortnight without documents whose report is %s",
+      (state) => {
+        expect(
+          fortnightPresentationRows({
+            state,
+            movement: null,
+            documents: [],
+            documentReports: [],
+          })[0]?.refusal,
+        ).toBeNull();
+      },
+    );
   });
 });
 

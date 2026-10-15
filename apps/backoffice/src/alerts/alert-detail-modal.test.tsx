@@ -2001,7 +2001,7 @@ test("tells that invoices issued offline arrived for a fortnight already reporte
   await expect
     .element(
       screen.getByText(
-        "No hay corrección automática: hay que regularizar la presentación con ARCA a mano y cerrar esta alerta.",
+        "No hay corrección automática: hay que regularizar la presentación con ARCA a mano.",
         { exact: true },
       ),
     )
@@ -2050,6 +2050,10 @@ test.each([
 
 test.each([
   ["blocked", "Se puede presentar cuando la caja «Caja 1» termine de sincronizar."],
+  [
+    "missing_document",
+    "Falta un comprobante en la numeración: hay que encontrarlo antes de poder seguir informando.",
+  ],
   [
     "refused",
     "ARCA rechazó la presentación. La nube la vuelve a intentar sola; si sigue rechazándola, conviene revisar el punto de venta en ARCA.",
