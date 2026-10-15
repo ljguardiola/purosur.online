@@ -819,6 +819,38 @@ describe("createCoreClient", () => {
     ]);
   });
 
+  it("asks the core to read the clock guard and resolves with the outcome", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const read = client.readClockGuard();
+    port.answer({
+      type: "read-clock-guard-result",
+      request_id: "request-1",
+      outcome: { kind: "unavailable" },
+    });
+
+    expect(await read).toEqual({ kind: "unavailable" });
+    expect(port.posted).toEqual([{ type: "read-clock-guard", request_id: "request-1" }]);
+  });
+
+  it("asks the core to correct the register's clock and resolves with the outcome", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const corrected = client.correctRegisterClock();
+    port.answer({
+      type: "correct-register-clock-result",
+      request_id: "request-1",
+      outcome: { kind: "not_behind" },
+    });
+
+    expect(await corrected).toEqual({ kind: "not_behind" });
+    expect(port.posted).toEqual([{ type: "correct-register-clock", request_id: "request-1" }]);
+  });
+
   it("asks the core to read the initial count and resolves with the outcome", async () => {
     const client = clientWithSequentialIds();
     const port = new FakePort();

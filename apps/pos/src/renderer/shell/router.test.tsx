@@ -2,6 +2,7 @@ import type {
   CashBalance,
   ListedCashMovement,
   PaymentMethodAvailability,
+  ReadClockGuardOutcome,
   RegisterStatus,
   StartupPending,
 } from "@purosur/contracts";
@@ -264,6 +265,8 @@ function contextWith(
     takeSerialDevicesOffer: async () => false,
     startupPending: async () => NOTHING_PENDING,
     startupPendingGate: startupPendingGate(),
+    readClockGuard: async () => ({ kind: "unavailable" }),
+    correctRegisterClock: async () => ({ kind: "unavailable" }),
     readInitialCount: async () => ({ kind: "read", offered: true, lines: [] }),
     recordInitialCountLine: async () => ({ kind: "unavailable" }),
     withdrawInitialCountLine: async () => ({ kind: "unavailable" }),
@@ -1286,6 +1289,66 @@ describe("the register's router", () => {
     await expect
       .element(screen.getByRole("link", { name: "Balanza y lector" }))
       .not.toBeInTheDocument();
+  });
+
+  describe("the clock guard", () => {
+    const LAGGING: ReadClockGuardOutcome = {
+      kind: "read",
+      reading: "2026-09-15T09:10:00.000Z",
+      blocks: [
+        {
+          point_of_sale: 3,
+          document_type: "factura_c",
+          latest_reading: "2026-09-16T11:31:00.000Z",
+          tax_authority_last_authorized_issued_on: null,
+        },
+      ],
+      may_correct: true,
+      correction_available: true,
+    };
+
+    it("offers correcting the clock on the no-session screen while it lags", async () => {
+      const router = createRegisterRouter(
+        routeTree,
+        { ...contextWith("up", "enrolled", PERSON), readClockGuard: async () => LAGGING },
+        "/",
+      );
+
+      const screen = await render(<RouterProvider router={router} />);
+
+      await expect.element(screen.getByText("El reloj de la caja atrasa")).toBeVisible();
+      await userEvent.click(screen.getByRole("button", { name: "Corregir el reloj" }));
+      await expect
+        .element(screen.getByRole("dialog", { name: "No se pueden emitir comprobantes" }))
+        .toBeVisible();
+    });
+
+    it("shows nothing about the clock on the no-session screen while it does not lag", async () => {
+      const router = routerAt("/", "up", "enrolled", PERSON);
+
+      const screen = await render(<RouterProvider router={router} />);
+
+      await expect.element(screenFor["/"](screen)).toBeVisible();
+      await expect.element(screen.getByText("El reloj de la caja atrasa")).not.toBeInTheDocument();
+    });
+
+    it("shows it among the pending items of the startup screen without keeping the person from selling", async () => {
+      const router = createRegisterRouter(
+        routeTree,
+        {
+          ...contextWith("up", "enrolled", PERSON, undefined, OPEN_SESSION),
+          startupPending: async () => SALE_TO_PRINT_PENDING,
+          startupPendingGate: startupPendingGate(),
+          readClockGuard: async () => LAGGING,
+        },
+        "/startup-pending",
+      );
+
+      const screen = await render(<RouterProvider router={router} />);
+
+      await expect.element(screen.getByText("El reloj de la caja atrasa")).toBeVisible();
+      await expect.element(screen.getByRole("button", { name: "Ir a vender" })).toBeEnabled();
+    });
   });
 
   describe("the startup pending screen", () => {
