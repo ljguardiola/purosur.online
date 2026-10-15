@@ -20,3 +20,6 @@ SELECT id, point_of_sale, document_type, first_number, last_number, status, vers
 DROP TABLE offline_number_blocks;
 
 ALTER TABLE offline_number_blocks_rebuilt RENAME TO offline_number_blocks;
+
+INSERT INTO pulled_table_redeliveries (table_name) VALUES ('register_offline_point_of_sale')
+  ON CONFLICT (table_name) DO UPDATE SET cursor = 0;
