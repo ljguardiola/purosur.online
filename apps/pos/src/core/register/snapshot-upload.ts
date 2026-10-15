@@ -6,6 +6,7 @@ import {
   snapshotUploadAnswerSchema,
 } from "@purosur/contracts";
 import { type CloudClientDeps, postToCloudWithBearer } from "../platform/cloud-client";
+import type { Durability } from "./durable-files";
 import {
   objectPath,
   pendingManifests,
@@ -28,6 +29,7 @@ export interface UploadDeps {
   deviceToken: string;
   cloud: CloudClientDeps;
   now: () => Date;
+  durability?: Durability;
 }
 
 type Step = "uploaded" | "refused" | "failed" | "unreachable";
@@ -44,11 +46,11 @@ async function objectOf(folder: string, generationId: string): Promise<Buffer | 
 }
 
 async function uploadGeneration(
-  { folder, deviceToken, cloud, now }: UploadDeps,
+  { folder, deviceToken, cloud, now, durability }: UploadDeps,
   manifest: SnapshotManifest,
 ): Promise<Step> {
   const settled = (field: "uploaded_at" | "refused_at") =>
-    writeManifest(folder, { ...manifest, [field]: now().toISOString() });
+    writeManifest(folder, { ...manifest, [field]: now().toISOString() }, durability);
 
   const object = await objectOf(folder, manifest.generation_id);
   if (object === undefined) {
