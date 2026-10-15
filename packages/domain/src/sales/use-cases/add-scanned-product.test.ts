@@ -478,9 +478,9 @@ describe("addScannedProduct", () => {
   });
 
   it("names the battery after the damage and before the disk", () => {
-    expect(
-      scan(ledger({ newSalesStoppedByBattery: true, newSalesStoppedByDisk: true })),
-    ).toEqual({ kind: "battery_critical" });
+    expect(scan(ledger({ newSalesStoppedByBattery: true, newSalesStoppedByDisk: true }))).toEqual({
+      kind: "battery_critical",
+    });
     expect(scan(ledger({ newSalesStoppedByBattery: true, localDatabaseDamaged: true }))).toEqual({
       kind: "local_database_damaged",
     });

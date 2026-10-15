@@ -417,9 +417,9 @@ describe("registerOwnConditions for the battery", () => {
   });
 
   it("names a damaged local database over the battery stopping new sales", () => {
-    expect(
-      conditions({ newSalesStoppedByBattery: true, localDatabaseDamaged: true }),
-    ).toEqual([{ kind: "sales_denied", reason: "local_database_damaged", level: "critical" }]);
+    expect(conditions({ newSalesStoppedByBattery: true, localDatabaseDamaged: true })).toEqual([
+      { kind: "sales_denied", reason: "local_database_damaged", level: "critical" },
+    ]);
   });
 
   it("holds on_battery as critical after more than 10 minutes on battery", () => {
