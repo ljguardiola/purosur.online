@@ -245,6 +245,7 @@ function contextWith(
     removeSaleLine: async () => ({ kind: "unavailable" }),
     cancelSale: async () => ({ kind: "unavailable" }),
     cancelPaidSale: async () => ({ kind: "unavailable" }),
+    voidSale: async () => ({ kind: "unavailable" }),
     receiptPrintStatus: async () => ({ kind: "unavailable" }),
     printOriginalReceipt: async () => ({ kind: "unavailable" }),
     convertPaidOrderIntoRefund: async () => ({ kind: "unavailable" }),
