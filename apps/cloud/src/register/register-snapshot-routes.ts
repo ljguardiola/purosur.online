@@ -5,8 +5,11 @@ import {
   snapshotCorruptionBodySchema,
   snapshotUploadAnswerSchema,
   snapshotUploadBodySchema,
+  snapshotVerificationAnswerSchema,
+  snapshotVerificationQuerySchema,
 } from "@purosur/contracts";
 import {
+  answerSnapshotVerification,
   listRestorableSnapshotGenerations,
   recordSnapshotUploaded,
   reportSnapshotCorruption,
@@ -264,6 +267,37 @@ export function registerRegisterSnapshotRoutes<TQueryResult extends PgQueryResul
         } catch (error) {
           await unavailable(reply, error);
         }
+      },
+    );
+
+    scope.get(
+      "/devices/current/snapshots/verified",
+      { config: { access: PUBLIC_ACCESS } },
+      async (request, reply) => {
+        const register = await authenticated(request, reply);
+        if (!register) {
+          return;
+        }
+        if (!options.urls) {
+          await unavailable(reply);
+          return;
+        }
+        const query = await readValidatedBody(
+          reply,
+          snapshotVerificationQuerySchema,
+          request.query,
+        );
+        if (!query) {
+          return;
+        }
+
+        const verified = await answerSnapshotVerification(
+          { store },
+          { registerId: register.registerId, generationIds: query.generation_id },
+        );
+        await reply
+          .code(200)
+          .send(snapshotVerificationAnswerSchema.parse({ verified_generation_ids: verified }));
       },
     );
   });

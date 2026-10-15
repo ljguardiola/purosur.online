@@ -105,6 +105,7 @@ export type {
   SnapshotSkipReason,
 } from "./model/snapshot-cycle.js";
 export { snapshotIntervalMs } from "./model/snapshot-cycle.js";
+export type { SnapshotDiskSpace } from "./model/snapshot-disk-pruning.js";
 export type { SnapshotCorruptionStage } from "./model/snapshot-generation.js";
 export {
   isRetainedSnapshotGeneration,
