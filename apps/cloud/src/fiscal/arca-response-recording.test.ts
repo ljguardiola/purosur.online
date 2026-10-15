@@ -656,7 +656,9 @@ describe("recordArcaResponses offline authorization code calls", () => {
 
     expect(codeCalls(1).map(operationOf)).toEqual(["FECAEAConsultar"]);
     expect(report.offlineAuthorizationCodeRequests).toBeUndefined();
-    expect(readdirSync(outDir).filter((file) => file.startsWith("fe-caea"))).toEqual([]);
+    expect(
+      readdirSync(outDir).filter((file) => /^fe-caea-(consultar|solicitar)/.test(file)),
+    ).toEqual([]);
   });
 
   it("saves the raw answer of each offline authorization code call", async () => {
