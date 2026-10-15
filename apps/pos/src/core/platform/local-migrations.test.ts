@@ -3339,6 +3339,39 @@ describe("the register's local migrations", () => {
     }
   });
 
+  it("declare the offline point of sale for redelivery from its first change over the one received before it held the highest synced offline number, leaving the pull cursor as it is", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.filter(
+        (migration) => migration.name < "0055_offline_numbering_floor",
+      );
+      const before = openLocalDatabase(path, previous, migrationClock);
+      before.exec(
+        `UPDATE sync_state SET pull_cursor = 9, device_id = 'device-a' WHERE id = 1;
+         INSERT INTO register_offline_point_of_sale (register_id, point_of_sale_number, version)
+         VALUES ('r1', 31, 2);
+         UPDATE pulled_table_redeliveries SET cursor = 7
+         WHERE table_name = 'register_offline_point_of_sale';`,
+      );
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+
+      expect(
+        after
+          .prepare("SELECT table_name, cursor FROM pulled_table_redeliveries ORDER BY table_name")
+          .all(),
+      ).toContainEqual({ table_name: "register_offline_point_of_sale", cursor: 0 });
+      expect(after.prepare("SELECT pull_cursor FROM sync_state").all()).toEqual([
+        { pull_cursor: 9 },
+      ]);
+      after.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
   it("refuse a redelivery cursor below zero", () => {
     const database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS, migrationClock);
 
