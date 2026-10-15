@@ -150,7 +150,8 @@ export function SnapshotBackupsScreen({
   const tiers = [
     {
       label: "Recientes",
-      count: backups && ` de `,
+      count:
+        backups && `${formatNumber(backups.tiers.recent)} de ${formatNumber(backups.recentLimit)}`,
       caption: "En el disco y en el bucket",
     },
     {
