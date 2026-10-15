@@ -81,11 +81,11 @@ function orderAnswerSchemaWith<TPaymentDetail extends z.ZodType<string | undefin
 }
 
 const orderAnswerSchema = orderAnswerSchemaWith(z.string());
-const createdOrderAnswerSchema = orderAnswerSchemaWith(z.string().optional());
+const pointCreationAnswerSchema = orderAnswerSchemaWith(z.string().optional());
 
 function parsedOrder(
   body: unknown,
-  schema: typeof orderAnswerSchema | typeof createdOrderAnswerSchema = orderAnswerSchema,
+  schema: typeof orderAnswerSchema | typeof pointCreationAnswerSchema = orderAnswerSchema,
 ) {
   const parsed = schema.safeParse(body);
   if (!parsed.success) {
@@ -209,6 +209,7 @@ export function createMercadoPagoOrdersClient(
   async function createOrder(
     request: { idempotencyKey: string },
     body: Record<string, unknown>,
+    answerSchema: typeof orderAnswerSchema | typeof pointCreationAnswerSchema,
   ): Promise<MercadoPagoOrderCreation> {
     const answer = await call("/v1/orders", {
       method: "POST",
@@ -223,7 +224,7 @@ export function createMercadoPagoOrdersClient(
       return { kind: "unavailable" };
     }
     if (answer.status >= 200 && answer.status < 300) {
-      const order = parsedOrder(answer.body, createdOrderAnswerSchema);
+      const order = parsedOrder(answer.body, answerSchema);
       return order === null ? { kind: "unavailable" } : { kind: "created", ...order };
     }
     if (answer.status === REQUEST_TIMEOUT) {
@@ -240,26 +241,34 @@ export function createMercadoPagoOrdersClient(
 
     createQrOrder(request: MercadoPagoQrOrderRequest): Promise<MercadoPagoOrderCreation> {
       const amount = pesosOfCents(request.amount);
-      return createOrder(request, {
-        type: "qr",
-        total_amount: amount,
-        external_reference: request.externalReference,
-        expiration_time: `PT${request.expiresAfterMinutes}M`,
-        config: { qr: { external_pos_id: options.externalPosId, mode: "static" } },
-        transactions: { payments: [{ amount }] },
-      });
+      return createOrder(
+        request,
+        {
+          type: "qr",
+          total_amount: amount,
+          external_reference: request.externalReference,
+          expiration_time: `PT${request.expiresAfterMinutes}M`,
+          config: { qr: { external_pos_id: options.externalPosId, mode: "static" } },
+          transactions: { payments: [{ amount }] },
+        },
+        orderAnswerSchema,
+      );
     },
 
     async createPointOrder(
       request: MercadoPagoPointOrderRequest,
     ): Promise<MercadoPagoOrderCreation> {
-      return createOrder(request, {
-        type: "point",
-        external_reference: request.externalReference,
-        expiration_time: `PT${request.expiresAfterMinutes}M`,
-        transactions: { payments: [{ amount: pesosOfCents(request.amount) }] },
-        config: { point: { terminal_id: request.terminalId, print_on_terminal: "no_ticket" } },
-      });
+      return createOrder(
+        request,
+        {
+          type: "point",
+          external_reference: request.externalReference,
+          expiration_time: `PT${request.expiresAfterMinutes}M`,
+          transactions: { payments: [{ amount: pesosOfCents(request.amount) }] },
+          config: { point: { terminal_id: request.terminalId, print_on_terminal: "no_ticket" } },
+        },
+        pointCreationAnswerSchema,
+      );
     },
 
     async readOrder(orderId: string): Promise<MercadoPagoOrderReading> {
