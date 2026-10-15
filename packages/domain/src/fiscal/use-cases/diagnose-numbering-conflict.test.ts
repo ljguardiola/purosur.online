@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { NUMBERING_CONFLICT_REASK_INTERVAL_MS } from "../model/numbering-conflict.js";
 import type { TaxAuthorityVoucher } from "../model/unclear-outcome-decision.js";
 import { diagnoseNumberingConflict } from "./diagnose-numbering-conflict.js";
 import type { LastAuthorizedAnswer } from "./tax-authority-count-ports.js";
@@ -13,6 +14,10 @@ import type { VoucherAnswer } from "./unclear-outcome-ports.js";
 
 const FISCAL_DOCUMENT_ID = "fiscal-document-1";
 const NOW = new Date("2026-10-01T12:00:00.000Z");
+const RETRY = {
+  kind: "retry",
+  askAgainAt: new Date(NOW.getTime() + NUMBERING_CONFLICT_REASK_INTERVAL_MS),
+};
 
 const TOKEN = {
   token: "token",
@@ -149,7 +154,7 @@ describe("diagnoseNumberingConflict", () => {
   it("retries without recording anything when no token is valid", async () => {
     const { store, taxAuthority, ports } = scenario({ token: null });
 
-    expect(await diagnose(ports)).toEqual({ kind: "retry" });
+    expect(await diagnose(ports)).toEqual(RETRY);
     expect(taxAuthority.lastAuthorizedAsked).toBe(0);
     expect(store.diagnosisOf(FISCAL_DOCUMENT_ID)).toBeNull();
     expect(store.freezeOf(12)).toBeUndefined();
@@ -158,7 +163,7 @@ describe("diagnoseNumberingConflict", () => {
   it("retries without recording anything when the last authorized number cannot be read", async () => {
     const { store, taxAuthority, ports } = scenario({ lastAuthorized: { kind: "no_answer" } });
 
-    expect(await diagnose(ports)).toEqual({ kind: "retry" });
+    expect(await diagnose(ports)).toEqual(RETRY);
     expect(taxAuthority.vouchersAsked).toEqual([]);
     expect(store.diagnosisOf(FISCAL_DOCUMENT_ID)).toBeNull();
     expect(store.freezeOf(12)).toBeUndefined();
@@ -167,7 +172,7 @@ describe("diagnoseNumberingConflict", () => {
   it("retries without recording anything when the last authorized voucher cannot be read", async () => {
     const { store, taxAuthority, ports } = scenario({ voucher: { kind: "no_answer" } });
 
-    expect(await diagnose(ports)).toEqual({ kind: "retry" });
+    expect(await diagnose(ports)).toEqual(RETRY);
     expect(taxAuthority.vouchersAsked).toEqual([40]);
     expect(store.diagnosisOf(FISCAL_DOCUMENT_ID)).toBeNull();
     expect(store.freezeOf(12)).toBeUndefined();

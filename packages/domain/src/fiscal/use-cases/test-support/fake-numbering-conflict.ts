@@ -188,19 +188,17 @@ class FakeNumberingConflictLane implements NumberingConflictLane {
     );
   }
 
-  async openExternalBillingAlert(alert: ExternalBillingOpening): Promise<void> {
-    this.store.record(`openExternalBillingAlert:${alert.number}`);
-    this.store.current.alerts.push(alert);
-  }
-
-  async continueNumberingAfter(lastAuthorized: number): Promise<void> {
-    this.store.record(`continueNumberingAfter:${lastAuthorized}`);
+  async settleNumberingReconciliation({
+    externalBillings,
+    lastAuthorized,
+  }: {
+    externalBillings: readonly ExternalBillingOpening[];
+    lastAuthorized: number;
+  }): Promise<void> {
+    this.store.record("settleNumberingReconciliation");
+    this.store.current.alerts.push(...externalBillings);
     const held = this.store.current.counts.get(this.pointOfSale) ?? 0;
     this.store.current.counts.set(this.pointOfSale, Math.max(held, lastAuthorized));
-  }
-
-  async liftNumberingFreeze(): Promise<void> {
-    this.store.record("liftNumberingFreeze");
     this.store.current.freezes.delete(this.pointOfSale);
   }
 }

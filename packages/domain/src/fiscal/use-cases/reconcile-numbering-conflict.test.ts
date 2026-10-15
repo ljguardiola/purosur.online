@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
-import type { NumberingReconciliationDocument } from "../model/numbering-conflict.js";
+import {
+  NUMBERING_CONFLICT_REASK_INTERVAL_MS,
+  type NumberingReconciliationDocument,
+} from "../model/numbering-conflict.js";
 import { reconcileNumberingConflict } from "./reconcile-numbering-conflict.js";
 import type { LastAuthorizedAnswer } from "./tax-authority-count-ports.js";
+import { ManualClock } from "./test-support/fake-arca-vitality.js";
 import {
   FakeNumberingConflictStore,
   FakeNumberingTaxAuthority,
@@ -9,6 +13,8 @@ import {
 } from "./test-support/fake-numbering-conflict.js";
 
 const FROZEN_AT = new Date("2026-10-01T10:00:00.000Z");
+const NOW = new Date("2026-10-01T12:00:00.000Z");
+const ASK_AGAIN_AT = new Date(NOW.getTime() + NUMBERING_CONFLICT_REASK_INTERVAL_MS);
 
 const TOKEN = {
   token: "token",
@@ -46,6 +52,7 @@ function scenario({
   const taxAuthority = new FakeNumberingTaxAuthority(store, lastAuthorized);
   const ports = {
     lanes: store,
+    clock: new ManualClock(NOW),
     tokens: new FakeNumberingTokens(token),
     taxAuthority,
   };
@@ -71,7 +78,7 @@ describe("reconcileNumberingConflict", () => {
   it("retries and stays frozen when no token is valid", async () => {
     const { store, taxAuthority, ports } = scenario({ token: null });
 
-    expect(await reconcile(ports)).toEqual({ kind: "retry" });
+    expect(await reconcile(ports)).toEqual({ kind: "retry", askAgainAt: ASK_AGAIN_AT });
     expect(taxAuthority.lastAuthorizedAsked).toBe(0);
     expect(store.freezeOf(12)).toEqual(STILL_FROZEN);
     expect(store.alerts).toEqual([]);
@@ -81,7 +88,7 @@ describe("reconcileNumberingConflict", () => {
   it("retries and stays frozen when the tax authority's last authorized number cannot be read", async () => {
     const { store, ports } = scenario({ lastAuthorized: { kind: "no_answer" } });
 
-    expect(await reconcile(ports)).toEqual({ kind: "retry" });
+    expect(await reconcile(ports)).toEqual({ kind: "retry", askAgainAt: ASK_AGAIN_AT });
     expect(store.freezeOf(12)).toEqual(STILL_FROZEN);
     expect(store.alerts).toEqual([]);
     expect(store.countOf(12)).toBe(10);
@@ -100,7 +107,7 @@ describe("reconcileNumberingConflict", () => {
       documents: [authorized(11), { number: 12, settlement: "undecided" }],
     });
 
-    expect(await reconcile(ports)).toEqual({ kind: "waiting" });
+    expect(await reconcile(ports)).toEqual({ kind: "waiting", askAgainAt: ASK_AGAIN_AT });
     expect(store.freezeOf(12)).toEqual(STILL_FROZEN);
     expect(store.alerts).toEqual([]);
     expect(store.countOf(12)).toBe(10);
@@ -187,23 +194,20 @@ describe("reconcileNumberingConflict", () => {
     expect(await reconcile(ports)).toMatchObject({ kind: "reconciled" });
   });
 
-  it("opens the alerts, then sets the count to continue after the last authorized number, then lifts the freeze", async () => {
+  it("settles once, with an alert for each number without an own document and the last authorized number", async () => {
     const { store, ports } = scenario({ documents: [authorized(11), authorized(14)] });
 
     await reconcile(ports);
 
-    const writes = store.operations.filter(
-      (operation) =>
-        operation.startsWith("openExternalBillingAlert") ||
-        operation.startsWith("continueNumberingAfter") ||
-        operation === "liftNumberingFreeze",
-    );
-    expect(writes).toEqual([
-      "openExternalBillingAlert:12",
-      "openExternalBillingAlert:13",
-      "continueNumberingAfter:14",
-      "liftNumberingFreeze",
+    expect(
+      store.operations.filter((operation) => operation.startsWith("settleNumberingReconciliation")),
+    ).toEqual(["settleNumberingReconciliation"]);
+    expect(store.alerts).toEqual([
+      { pointOfSale: 12, documentType: "factura_c", number: 12 },
+      { pointOfSale: 12, documentType: "factura_c", number: 13 },
     ]);
+    expect(store.countOf(12)).toBe(14);
+    expect(store.freezeOf(12)).toBeUndefined();
   });
 
   it("never lowers a count above the last authorized number", async () => {
@@ -227,16 +231,13 @@ describe("reconcileNumberingConflict", () => {
     expect(store.freezeOf(12)).toBeUndefined();
   });
 
-  it.each(["openExternalBillingAlert:13", "continueNumberingAfter", "liftNumberingFreeze"])(
-    "leaves the alerts, the count and the freeze as they were when %s fails",
-    async (failing) => {
-      const { store, ports } = scenario({ documents: [authorized(11), authorized(14)] });
-      store.failOn = failing;
+  it("leaves the alerts, the count and the freeze as they were when settling fails", async () => {
+    const { store, ports } = scenario({ documents: [authorized(11), authorized(14)] });
+    store.failOn = "settleNumberingReconciliation";
 
-      await expect(reconcile(ports)).rejects.toThrow();
-      expect(store.alerts).toEqual([]);
-      expect(store.countOf(12)).toBe(10);
-      expect(store.freezeOf(12)).toEqual(STILL_FROZEN);
-    },
-  );
+    await expect(reconcile(ports)).rejects.toThrow();
+    expect(store.alerts).toEqual([]);
+    expect(store.countOf(12)).toBe(10);
+    expect(store.freezeOf(12)).toEqual(STILL_FROZEN);
+  });
 });

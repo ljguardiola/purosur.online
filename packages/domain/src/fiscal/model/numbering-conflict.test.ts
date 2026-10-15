@@ -3,8 +3,15 @@ import {
   decideNumberingReconciliation,
   diagnoseNumberingConflict,
   isNumberingConflict,
+  NUMBERING_CONFLICT_REASK_INTERVAL_MS,
   type NumberingReconciliationDocument,
 } from "./numbering-conflict.js";
+
+describe("numbering conflict policy", () => {
+  it("asks again every 30 seconds, as an unclear outcome does", () => {
+    expect(NUMBERING_CONFLICT_REASK_INTERVAL_MS).toBe(30_000);
+  });
+});
 
 describe("isNumberingConflict", () => {
   it("is true when the number-or-date code is among the codes", () => {
