@@ -144,6 +144,9 @@ describe("GET /registers/fortnight-presentations", () => {
         fortnight_start: "2025-12-16",
         fortnight_end: "2025-12-31",
         deadline: "2026-01-08",
+        document_type: null,
+        document_count: 0,
+        rejected_document: null,
         state: "blocked",
       },
     ]);
