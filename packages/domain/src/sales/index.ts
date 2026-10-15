@@ -70,5 +70,6 @@ export type {
   SoldLinesOfGroup,
   SoldTotals,
 } from "./model/sold-lines-report.js";
+export type { VoidedSale } from "./model/voided-sale.js";
 export type { WeightSource } from "./model/weight-source.js";
 export { WEIGHT_SOURCES } from "./model/weight-source.js";
