@@ -119,6 +119,12 @@ export type {
 } from "./record-cash-movement.js";
 export { recordCashMovement } from "./record-cash-movement.js";
 export type {
+  RecordSnapshotCopyFailureInput,
+  RecordSnapshotCopyFailureOutcome,
+  RecordSnapshotCopyFailurePorts,
+} from "./record-snapshot-copy-failure.js";
+export { recordSnapshotCopyFailure } from "./record-snapshot-copy-failure.js";
+export type {
   RecordSnapshotUploadedInput,
   RecordSnapshotUploadedOutcome,
   RecordSnapshotUploadedPorts,
@@ -176,6 +182,11 @@ export type {
   RunSnapshotCyclePorts,
 } from "./run-snapshot-cycle.js";
 export { runSnapshotCycle } from "./run-snapshot-cycle.js";
+export type {
+  SendSnapshotCorruptionReportOutcome,
+  SendSnapshotCorruptionReportPorts,
+} from "./send-snapshot-corruption-report.js";
+export { sendSnapshotCorruptionReport } from "./send-snapshot-corruption-report.js";
 export type { SerialDeviceEnumeration } from "./serial-device-enumeration.js";
 export type {
   SerialDeviceRegistrations,
@@ -187,6 +198,10 @@ export type {
   SetReceiptPrinterAddressPorts,
 } from "./set-receipt-printer-address.js";
 export { setReceiptPrinterAddress } from "./set-receipt-printer-address.js";
+export type {
+  SnapshotCorruptionCloud,
+  SnapshotCorruptionReports,
+} from "./snapshot-corruption-ports.js";
 export type {
   SnapshotCycleState,
   SnapshotLog,

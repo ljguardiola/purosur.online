@@ -1,4 +1,4 @@
-import { dirname, join } from "node:path";
+import { dirname } from "node:path";
 import {
   checkLocalDatabase,
   type LocalDatabaseHealth,
@@ -13,11 +13,7 @@ import {
   type LocalMigration,
   openLocalDatabaseFile,
 } from "../platform/local-database";
-import {
-  DAMAGE_MARKER_FILE,
-  localDatabaseHealth,
-  sqliteIntegrityHolds,
-} from "./sqlite-local-database-health";
+import { localDatabaseHealth, sqliteIntegrityHolds } from "./sqlite-local-database-health";
 
 export type StartedLocalDatabase =
   | { kind: "ready"; database: LocalDatabase; health: LocalDatabaseHealth }
@@ -54,7 +50,7 @@ export async function startLocalDatabase(deps: {
     return opened;
   }
   const health = localDatabaseHealth({
-    markerPath: join(dirname(deps.path), DAMAGE_MARKER_FILE),
+    folder: dirname(deps.path),
     now: deps.now,
     integrityHolds: () => sqliteIntegrityHolds(open()),
   });

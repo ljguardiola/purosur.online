@@ -75,6 +75,7 @@ function deps(
     },
     paidOrderDiscovery: () => "checked",
     newSalesStoppedByDisk: () => false,
+    localDatabaseDamaged: () => false,
     ...overrides,
   };
 }
@@ -379,6 +380,12 @@ describe("scanning a product on the register", () => {
   it("answers that the disk stops new sales when no sale was started", async () => {
     expect(await scanProductFor(deps({ newSalesStoppedByDisk: () => true }), "111")).toEqual({
       kind: "disk_space_short",
+    });
+  });
+
+  it("answers that the local database is damaged when no sale was started", async () => {
+    expect(await scanProductFor(deps({ localDatabaseDamaged: () => true }), "111")).toEqual({
+      kind: "local_database_damaged",
     });
   });
 

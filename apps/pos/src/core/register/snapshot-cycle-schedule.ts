@@ -1,4 +1,4 @@
-import { snapshotIntervalMs } from "@purosur/domain";
+import { type SnapshotCorruptionStage, snapshotIntervalMs } from "@purosur/domain";
 import type { RunSnapshotCycleOutcome } from "@purosur/domain/register/use-cases";
 
 export interface SnapshotCycleScheduleDeps {
@@ -6,12 +6,13 @@ export interface SnapshotCycleScheduleDeps {
   cloudReachable: () => boolean;
   scheduleNext: (run: () => Promise<void>, delayMs: number) => void;
   checkpoint: () => void;
+  recordCopyFailure: (stage: SnapshotCorruptionStage) => Promise<void>;
   onFailure: (error: unknown) => void;
 }
 
 export interface SnapshotCycleSchedule {
   start(): void;
-  workerExited(): void;
+  workerExited(copyFailedStage?: SnapshotCorruptionStage): Promise<void>;
 }
 
 export function createSnapshotCycleSchedule(
@@ -36,12 +37,19 @@ export function createSnapshotCycleSchedule(
 
   return {
     start: scheduleNext,
-    workerExited() {
+    async workerExited(copyFailedStage) {
       workerInFlight = false;
       try {
         deps.checkpoint();
       } catch (error) {
         deps.onFailure(error);
+      }
+      if (copyFailedStage !== undefined) {
+        try {
+          await deps.recordCopyFailure(copyFailedStage);
+        } catch (error) {
+          deps.onFailure(error);
+        }
       }
     },
   };

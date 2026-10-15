@@ -95,6 +95,28 @@ describe("runSnapshotCycle", () => {
     expect(ids.issued).toBe(0);
   });
 
+  it("launches no snapshot while the local database is damaged", async () => {
+    const { run, state, launcher, ids } = setup();
+    state.damaged = true;
+
+    const outcome = await run();
+
+    expect(outcome).toEqual({ kind: "skipped", reason: "database_damaged" });
+    expect(launcher.launched).toEqual([]);
+    expect(ids.issued).toBe(0);
+  });
+
+  it("launches a worker that only uploads while the local database is damaged and generations wait", async () => {
+    const { run, state, launcher } = setup();
+    state.damaged = true;
+    state.pending = true;
+
+    const outcome = await run();
+
+    expect(outcome).toEqual({ kind: "launched", job: { kind: "upload_pending" } });
+    expect(launcher.launched).toEqual([{ kind: "upload_pending" }]);
+  });
+
   it("launches a worker that only uploads when a floor blocks the snapshot and generations wait", async () => {
     const { run, state, launcher, ids } = setup();
     state.batteryReading = { kind: "present", chargePercent: 3, onBattery: true };
