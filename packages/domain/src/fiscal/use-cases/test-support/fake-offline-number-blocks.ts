@@ -4,12 +4,18 @@ import type {
   OfflineNumberBlockStore,
 } from "../offline-number-block-store.js";
 
+export interface LockedOfflineNumberSeries {
+  pointOfSaleNumber: number;
+  documentType: FiscalDocumentType;
+}
+
 export class FakeOfflineNumberBlocks implements OfflineNumberBlockStore {
   readonly blocks: OfflineNumberBlockRecord[];
   readonly operations: string[];
   readonly taxAuthorityCounts: Map<number, number>;
   readonly requiredTaxAuthorityCounts: number[];
   readonly highestSyncedNumbers: Map<number, number>;
+  readonly lockedSeries: LockedOfflineNumberSeries[];
   private readonly beforeRecord: () => void;
 
   constructor(
@@ -19,6 +25,7 @@ export class FakeOfflineNumberBlocks implements OfflineNumberBlockStore {
     taxAuthorityCounts: Map<number, number> = new Map(),
     requiredTaxAuthorityCounts: number[] = [],
     highestSyncedNumbers: Map<number, number> = new Map(),
+    lockedSeries: LockedOfflineNumberSeries[] = [],
   ) {
     this.blocks = blocks;
     this.operations = operations;
@@ -26,6 +33,7 @@ export class FakeOfflineNumberBlocks implements OfflineNumberBlockStore {
     this.taxAuthorityCounts = taxAuthorityCounts;
     this.requiredTaxAuthorityCounts = requiredTaxAuthorityCounts;
     this.highestSyncedNumbers = highestSyncedNumbers;
+    this.lockedSeries = lockedSeries;
   }
 
   async highestSyncedOfflineNumber(
@@ -60,10 +68,11 @@ export class FakeOfflineNumberBlocks implements OfflineNumberBlockStore {
   }
 
   async lockOfflineNumberBlocks(
-    _pointOfSaleNumber: number,
-    _documentType: FiscalDocumentType,
+    pointOfSaleNumber: number,
+    documentType: FiscalDocumentType,
   ): Promise<void> {
     this.operations.push("lockOfflineNumberBlocks");
+    this.lockedSeries.push({ pointOfSaleNumber, documentType });
   }
 
   async offlineNumberBlockInUse(

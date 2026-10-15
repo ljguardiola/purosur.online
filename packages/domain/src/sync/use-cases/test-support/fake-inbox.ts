@@ -165,10 +165,10 @@ export class FakeInbox implements Inbox {
           working.received.push({ deviceId, event: structuredClone(event), receivedAt });
         }
       },
-      advanceOfflineNumbering: async (received, at) => {
+      advanceOfflineNumbering: async (offlineDocuments, at) => {
         this.calls.push("advanceOfflineNumbering");
         working.offlineNumberingAdvancedFor.push(
-          ...received.map((event) => ({ eventId: event.event_id, at })),
+          ...offlineDocuments.map((event) => ({ eventId: event.event_id, at })),
         );
       },
       installationRegister: async (deviceId) => {

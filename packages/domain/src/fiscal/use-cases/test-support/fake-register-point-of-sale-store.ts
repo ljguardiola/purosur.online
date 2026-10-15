@@ -22,7 +22,10 @@ import type {
   RegisterPointOfSaleStoreTransaction,
 } from "../register-point-of-sale-store.js";
 import { PointOfSaleClaimConflict } from "../register-point-of-sale-store.js";
-import { FakeOfflineNumberBlocks } from "./fake-offline-number-blocks.js";
+import {
+  FakeOfflineNumberBlocks,
+  type LockedOfflineNumberSeries,
+} from "./fake-offline-number-blocks.js";
 
 export interface FakeBranchRegister {
   id: string;
@@ -156,6 +159,7 @@ class FakeRegisterOfflinePointOfSaleStoreTransaction
       new Map(state.taxAuthorityCounts),
       state.requiredTaxAuthorityCounts,
       new Map(state.highestSyncedNumbers),
+      store.offlineNumberBlockLocks,
     );
   }
 
@@ -240,6 +244,7 @@ export class FakeRegisterPointOfSaleStore
   failingWrites = new Set<WriteOperation>();
   pointOfSaleClaimConflicts = new Set<number>();
   operationOrder: string[] = [];
+  offlineNumberBlockLocks: LockedOfflineNumberSeries[] = [];
   transactionCount = 0;
 
   seedRegister(register: FakeBranchRegister): void {
