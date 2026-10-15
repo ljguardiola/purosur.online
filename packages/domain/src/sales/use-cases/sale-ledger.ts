@@ -84,6 +84,7 @@ export interface SaleLedgerTransaction {
   installationRevoked(): boolean;
   newSalesStoppedByDisk(): boolean;
   localDatabaseDamaged(): boolean;
+  newSalesStoppedByBattery(): boolean;
   paidOrdersWithoutSale(): PaidOrderResolution[];
   paidOrderDiscovery(): PaidOrderDiscoveryState;
   registerIdentity(): RegisterIdentity | undefined;
