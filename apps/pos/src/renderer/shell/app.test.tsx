@@ -142,6 +142,7 @@ function coreAnswering(
   let savedName: string | null = null;
   const pulledListeners = new Set<() => void>();
   const serialDevicesChangedListeners = new Set<() => void>();
+  const storageStandingChangedListeners = new Set<() => void>();
   const barcodeReadListeners = new Set<(code: string) => void>();
   const core: CoreClient = {
     connect() {},
@@ -446,6 +447,12 @@ function coreAnswering(
         serialDevicesChangedListeners.delete(listener);
       };
     },
+    onStorageStandingChanged(listener) {
+      storageStandingChangedListeners.add(listener);
+      return () => {
+        storageStandingChangedListeners.delete(listener);
+      };
+    },
     onBarcodeRead(listener) {
       barcodeReadListeners.add(listener);
       return () => {
@@ -460,6 +467,11 @@ function coreAnswering(
   }
   function changeSerialDevices() {
     for (const listener of serialDevicesChangedListeners) {
+      listener();
+    }
+  }
+  function changeStorageStanding() {
+    for (const listener of storageStandingChangedListeners) {
       listener();
     }
   }
@@ -481,6 +493,7 @@ function coreAnswering(
     recorded,
     finishPull,
     changeSerialDevices,
+    changeStorageStanding,
     readBarcode,
     usersLoads: () => usersLoads,
   };
@@ -695,6 +708,21 @@ describe("App", () => {
     const readsBefore = statusAsks.length;
 
     changeSerialDevices();
+
+    await expect.poll(() => statusAsks.length).toBeGreaterThan(readsBefore);
+  });
+
+  it("reads the register's status again whenever the storage standing changes", async () => {
+    const { core, statusAsks, changeStorageStanding } = coreAnswering(true);
+    const screen = await render(<App core={core} />);
+    postCoreStatus("up");
+    await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
+    await userEvent.type(screen.getByLabelText("PIN"), "1234");
+    await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
+    await expect.element(screen.getByText("Nube conectada")).toBeVisible();
+    const readsBefore = statusAsks.length;
+
+    changeStorageStanding();
 
     await expect.poll(() => statusAsks.length).toBeGreaterThan(readsBefore);
   });

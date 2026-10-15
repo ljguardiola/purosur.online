@@ -228,6 +228,10 @@ describe("addSearchedProduct", () => {
     expect(add(ledger({ revoked: true }))).toEqual({ kind: "installation_revoked" });
   });
 
+  it("refuses to open a sale while the disk stops new sales", () => {
+    expect(add(ledger({ newSalesStoppedByDisk: true }))).toEqual({ kind: "disk_space_short" });
+  });
+
   it("refuses to open a sale while a paid order without a sale is unresolved", () => {
     expect(add(ledger({ paidOrdersWithoutSale: [{ resolved: false }] }))).toEqual({
       kind: "paid_order_without_sale",

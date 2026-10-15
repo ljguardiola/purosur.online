@@ -74,6 +74,7 @@ function deps(
       },
     },
     paidOrderDiscovery: () => "checked",
+    newSalesStoppedByDisk: () => false,
     ...overrides,
   };
 }
@@ -373,6 +374,12 @@ describe("scanning a product on the register", () => {
       .run();
 
     expect(await scanProductFor(deps(), "111")).toEqual({ kind: "installation_revoked" });
+  });
+
+  it("answers that the disk stops new sales when no sale was started", async () => {
+    expect(await scanProductFor(deps({ newSalesStoppedByDisk: () => true }), "111")).toEqual({
+      kind: "disk_space_short",
+    });
   });
 
   it("answers that this run's paid-order check still waits for the cloud when no sale was started", async () => {

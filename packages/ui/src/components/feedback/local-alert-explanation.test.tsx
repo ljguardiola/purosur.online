@@ -44,6 +44,29 @@ test("explains a register that can't sell because its database is damaged", asyn
   expect(screen.container.textContent).not.toContain("registro de operaciones");
 });
 
+test("explains a register short of disk space at startup, naming the space it needs", async () => {
+  const screen = await render(
+    <LocalAlertExplanation
+      kind="sales_denied"
+      reason="disk_space_short_at_startup"
+      required_free_bytes={13_421_772_800}
+    />,
+  );
+
+  await expect.element(screen.getByText(/necesita 12,5 GB libres/)).toBeVisible();
+  await expect.element(screen.getByText(/Liberar espacio en la notebook/)).toBeVisible();
+});
+
+test("explains a register whose disk is full", async () => {
+  const screen = await render(
+    <LocalAlertExplanation kind="sales_denied" reason="disk_full" disk_free_ratio={0.034} />,
+  );
+
+  await expect
+    .element(screen.getByText(/La venta en curso se puede completar y cobrar/))
+    .toBeVisible();
+});
+
 test("explains a register that isn't syncing", async () => {
   const screen = await render(<LocalAlertExplanation kind="register_silent" />);
 

@@ -260,6 +260,7 @@ export interface CoreClient {
   startupPending(): Promise<StartupPending | "not_permitted">;
   onPulled(listener: () => void): () => void;
   onSerialDevicesChanged(listener: () => void): () => void;
+  onStorageStandingChanged(listener: () => void): () => void;
   onBarcodeRead(listener: (code: string) => void): () => void;
 }
 
@@ -279,6 +280,7 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
   const sent = new Map<string, PendingRequest>();
   const pulledListeners = new Set<() => void>();
   const serialDevicesChangedListeners = new Set<() => void>();
+  const storageStandingChangedListeners = new Set<() => void>();
   const barcodeReadListeners = new Set<(code: string) => void>();
 
   function receive(port: CorePort, data: unknown): void {
@@ -297,6 +299,12 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
     }
     if (answer.data.type === "serial-devices-changed") {
       for (const listener of serialDevicesChangedListeners) {
+        listener();
+      }
+      return;
+    }
+    if (answer.data.type === "storage-standing-changed") {
+      for (const listener of storageStandingChangedListeners) {
         listener();
       }
       return;
@@ -964,6 +972,12 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
       serialDevicesChangedListeners.add(listener);
       return () => {
         serialDevicesChangedListeners.delete(listener);
+      };
+    },
+    onStorageStandingChanged(listener) {
+      storageStandingChangedListeners.add(listener);
+      return () => {
+        storageStandingChangedListeners.delete(listener);
       };
     },
     onBarcodeRead(listener) {

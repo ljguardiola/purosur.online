@@ -2,6 +2,7 @@ interface CoreFailureReportersDeps {
   log: (message: string, error: unknown) => void;
   capture: (error: unknown) => unknown;
   watchFailure: (error: unknown) => Promise<void>;
+  noteStorageFailure: (error: unknown) => void;
 }
 
 interface CoreFailureReporters {
@@ -16,15 +17,18 @@ export function coreFailureReporters(deps: CoreFailureReportersDeps): CoreFailur
       deps.log(`core: ${context} failed`, error);
       deps.capture(error);
       void deps.watchFailure(error);
+      deps.noteStorageFailure(error);
     },
     reportSyncFailure: (error) => {
       deps.log("core: the sync failed", error);
       void deps.watchFailure(error);
+      deps.noteStorageFailure(error);
     },
     reportRedeemedPinFailure: (error) => {
       deps.log("core: the redeemed PIN could not be kept locally", error);
       deps.capture(error);
       void deps.watchFailure(error);
+      deps.noteStorageFailure(error);
     },
   };
 }

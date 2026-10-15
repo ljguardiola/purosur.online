@@ -9,6 +9,7 @@ function recordingReporters() {
     watchFailure: async (error) => {
       events.push(["watched", error]);
     },
+    noteStorageFailure: (error) => events.push(["storage noted", error]),
   });
   return { events, reporters };
 }
@@ -25,6 +26,7 @@ describe("coreFailureReporters", () => {
       ["logged", "core: signing in failed", FAILURE],
       ["captured", FAILURE],
       ["watched", FAILURE],
+      ["storage noted", FAILURE],
     ]);
   });
 
@@ -36,6 +38,7 @@ describe("coreFailureReporters", () => {
     expect(events).toEqual([
       ["logged", "core: the sync failed", FAILURE],
       ["watched", FAILURE],
+      ["storage noted", FAILURE],
     ]);
   });
 
@@ -48,6 +51,7 @@ describe("coreFailureReporters", () => {
       ["logged", "core: the redeemed PIN could not be kept locally", FAILURE],
       ["captured", FAILURE],
       ["watched", FAILURE],
+      ["storage noted", FAILURE],
     ]);
   });
 });

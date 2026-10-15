@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   nodeStorageFileSystem,
   type StorageFileSystem,
+  storageReadingReader,
   storageTelemetryReader,
 } from "./storage-telemetry";
 
@@ -62,6 +63,32 @@ describe("the register's storage telemetry", () => {
     const telemetry = await storageTelemetryReader("/data/register.sqlite", fileSystem)();
 
     expect(telemetry.disk_free_ratio).toBe(1);
+  });
+});
+
+describe("the register's storage reading", () => {
+  it("adds the size of the database file to the log size and the free space", async () => {
+    const fileSystem = fileSystemWith(
+      { "/data/register.sqlite": 4_000_000, "/data/register.sqlite-wal": 8192 },
+      { availableBytes: 25_000, totalBytes: 100_000 },
+    );
+
+    const reading = await storageReadingReader("/data/register.sqlite", fileSystem)();
+
+    expect(reading).toEqual({
+      database_size_bytes: 4_000_000,
+      wal_size_bytes: 8192,
+      disk_free_bytes: 25_000,
+      disk_free_ratio: 0.25,
+    });
+  });
+
+  it("counts a database file that doesn't exist as empty", async () => {
+    const fileSystem = fileSystemWith({}, { availableBytes: 1, totalBytes: 2 });
+
+    const reading = await storageReadingReader("/data/register.sqlite", fileSystem)();
+
+    expect(reading.database_size_bytes).toBe(0);
   });
 });
 

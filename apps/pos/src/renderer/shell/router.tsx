@@ -102,6 +102,7 @@ import {
   registerStatusQueryOptions,
   startupPendingQueryOptions,
   useRegisterNameQuery,
+  useRegisterStatusQuery,
 } from "../register/register-queries";
 import { mayConfigureSerialDevices } from "../register/serial-devices-offer";
 import { SerialDevicesScreen } from "../register/serial-devices-screen";
@@ -614,8 +615,10 @@ const openSessionRoute = createRoute({
       cancelPaidSale,
       authorizers,
       refreshCashSession,
+      registerStatus,
     } = openSessionRoute.useRouteContext();
     const registerName = useRegisterName();
+    const status = useRegisterStatusQuery(registerStatus);
     return (
       <SaleScreen
         sessionId={id}
@@ -639,6 +642,7 @@ const openSessionRoute = createRoute({
         cancelPaidSale={cancelPaidSale}
         loadAuthorizers={authorizers}
         onSessionInvalid={() => void refreshCashSession()}
+        registerStatus={status}
       />
     );
   },

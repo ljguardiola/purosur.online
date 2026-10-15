@@ -3,6 +3,7 @@ import type {
   LatestPreEmissionGateOutcome,
   SalesStopState,
   SerialDevicesReport,
+  StorageSalesStop,
 } from "@purosur/domain";
 import { describe, expect, it } from "vitest";
 import { damagedRegisterTelemetryReader, registerTelemetryReader } from "./register-telemetry";
@@ -26,6 +27,7 @@ function readerStopped(
   stop: SalesStopState,
   latestGate: LatestPreEmissionGateOutcome | undefined = undefined,
   battery: BatteryReport | undefined = undefined,
+  storageStop: StorageSalesStop | undefined = undefined,
 ) {
   return registerTelemetryReader(
     async () => STORAGE,
@@ -33,10 +35,17 @@ function readerStopped(
     () => SERIAL_DEVICES,
     () => latestGate,
     () => battery,
+    () => storageStop,
   );
 }
 
 describe("the register's telemetry", () => {
+  it("reports sales denied for the storage stop the watch reads", async () => {
+    expect(
+      await readerStopped({ stopped: false }, undefined, undefined, { reason: "disk_full" })(),
+    ).toMatchObject({ sales_denied: true, sales_denied_reason: "disk_full" });
+  });
+
   it("reports its storage and that it can sell while it still opens new sales", async () => {
     expect(await readerStopped({ stopped: false })()).toEqual({
       ...STORAGE,
@@ -102,6 +111,7 @@ describe("the register's telemetry", () => {
       () => devices,
       () => undefined,
       () => undefined,
+      () => undefined,
     );
 
     const before = await read();
@@ -136,6 +146,7 @@ describe("the register's telemetry", () => {
       () => SERIAL_DEVICES,
       () => undefined,
       () => battery,
+      () => undefined,
     );
 
     const before = await read();
@@ -152,6 +163,7 @@ describe("the register's telemetry", () => {
       async () => STORAGE,
       () => stop,
       () => SERIAL_DEVICES,
+      () => undefined,
       () => undefined,
       () => undefined,
     );
@@ -171,6 +183,7 @@ describe("the register's telemetry", () => {
       () => ({ stopped: false }),
       () => SERIAL_DEVICES,
       () => latest,
+      () => undefined,
       () => undefined,
     );
 

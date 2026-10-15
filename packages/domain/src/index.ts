@@ -463,6 +463,7 @@ export type {
   CashSessionState,
   ClosedCashSession,
   DetectedSerialDevice,
+  DiskStanding,
   OpenedCashSession,
   ReceiptPrinterAddress,
   RegisterAbility,
@@ -479,6 +480,8 @@ export type {
   SerialDevicesReport,
   SnapshotCorruptionStage,
   SnapshotLifecycleRules,
+  StorageSalesStop,
+  StorageStanding,
   WatchedRegister,
 } from "./register/index.js";
 export {
@@ -494,6 +497,7 @@ export {
   cashMovementDirection,
   cashMovementPermission,
   cashMovementReason,
+  diskStanding,
   ENROLLMENT_CODE_LENGTH,
   enrollmentAttemptWindowStart,
   expectedCash,
@@ -534,7 +538,11 @@ export {
   SNAPSHOT_RETENTION_INTERVAL_MS,
   SNAPSHOT_STATUSES_AWAITING_VERIFICATION,
   SNAPSHOT_VERIFICATION_INTERVAL_MS,
+  STORAGE_READ_INTERVAL_MS,
   serialDeviceStandings,
+  startupDiskVerdict,
+  storageSalesStopOf,
+  walOversized,
 } from "./register/index.js";
 export type {
   DeferredSaleRecord,
@@ -637,6 +645,7 @@ export {
   MAX_CASH_AMOUNT_CENTS,
   SALE_COMPLETED_EVENT_TYPE,
   SALES_DENIED_REASONS,
+  STORAGE_SALES_DENIED_REASONS,
   shiftCalendarDay,
 } from "./shared/index.js";
 export type {

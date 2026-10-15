@@ -47,6 +47,7 @@ export interface FakeSaleLedgerState {
   accesses: Record<string, RoleAccess>;
   identity: RegisterIdentity | undefined;
   revoked: boolean;
+  newSalesStoppedByDisk: boolean;
   paidOrdersWithoutSale: { resolved: boolean }[];
   paidOrderDiscovery: PaidOrderDiscoveryState;
   session: SellingSession | undefined;
@@ -107,6 +108,7 @@ export class FakeSaleLedger implements SaleLedger {
       accesses: {},
       identity: undefined,
       revoked: false,
+      newSalesStoppedByDisk: false,
       paidOrdersWithoutSale: [],
       paidOrderDiscovery: "checked",
       session: undefined,
@@ -147,6 +149,7 @@ export class FakeSaleLedger implements SaleLedger {
         return sale && structuredClone(sale);
       },
       installationRevoked: () => working.revoked,
+      newSalesStoppedByDisk: () => working.newSalesStoppedByDisk,
       paidOrdersWithoutSale: () => structuredClone(working.paidOrdersWithoutSale),
       paidOrderDiscovery: () => working.paidOrderDiscovery,
       registerIdentity: () => working.identity,
