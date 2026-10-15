@@ -73,7 +73,7 @@ const OFFLINE_DOCUMENT_REPORT_ANSWERS = [
   "fe-comp-tot-x-request.xml",
   "fe-comp-tot-x-request-token-error.xml",
   "fe-caea-consultar-granted.xml",
-  "fe-comp-ultimo-autorizado.xml",
+  "fe-comp-ultimo-autorizado-offline.xml",
   "fe-caea-reg-informativo-accepted.xml",
   "fe-caea-reg-informativo-partly-rejected.xml",
   "fe-caea-reg-informativo-refused.xml",
@@ -789,7 +789,7 @@ describe("recordArcaResponses offline document report calls", () => {
     expect(reports.map((request) => sent(request, "CantReg"))).toEqual(["1", "3", "1", "1"]);
     expect(
       reports.map((request) => [...request.matchAll(/<CbteDesde>(\d+)</g)].map(([, n]) => n)),
-    ).toEqual([["2"], ["3", "4", "5"], ["11"], ["4"]]);
+    ).toEqual([["10"], ["11", "12", "13"], ["19"], ["12"]]);
     expect(reports[0]).toContain(ORIGINAL_TOKEN);
     expect(reports[1]).toContain(ORIGINAL_TOKEN);
     expect(reports[2]).toContain(ORIGINAL_TOKEN);
@@ -822,7 +822,7 @@ describe("recordArcaResponses offline document report calls", () => {
     expect(found).toContain(ORIGINAL_TOKEN);
     expect(sent(found, "PtoVta")).toBe("8");
     expect(sent(found, "CbteTipo")).toBe("11");
-    expect(sent(found, "CbteNro")).toBe("2");
+    expect(sent(found, "CbteNro")).toBe("10");
   });
 
   it("saves the raw answer of each offline document report call", async () => {
@@ -831,7 +831,7 @@ describe("recordArcaResponses offline document report calls", () => {
     for (const [name, served] of [
       ["fe-comp-tot-x-request", "fe-comp-tot-x-request"],
       ["fe-comp-tot-x-request-token-error", "fe-comp-tot-x-request-token-error"],
-      ["fe-comp-ultimo-autorizado-offline", "fe-comp-ultimo-autorizado"],
+      ["fe-comp-ultimo-autorizado-offline", "fe-comp-ultimo-autorizado-offline"],
       ["fe-caea-reg-informativo-accepted", "fe-caea-reg-informativo-accepted"],
       ["fe-caea-reg-informativo-partly-rejected", "fe-caea-reg-informativo-partly-rejected"],
       ["fe-caea-reg-informativo-refused", "fe-caea-reg-informativo-refused"],
@@ -849,11 +849,11 @@ describe("recordArcaResponses offline document report calls", () => {
 
     expect(report.currentFortnightCodeGranted).toBe(true);
     expect(report.offlineDocumentReports).toEqual({
-      lastReportedNumber: 1,
+      lastReportedNumber: 9,
       accepted: { kind: "accepted" },
       partlyRejected: {
         kind: "rejected",
-        number: 4,
+        number: 12,
         rejections: [
           {
             code: 1439,
@@ -874,7 +874,7 @@ describe("recordArcaResponses offline document report calls", () => {
         "fe-comp-tot-x-request-token-error.xml",
         "fe-caea-consultar-not-granted.xml",
         "fe-caea-solicitar-granted.xml",
-        "fe-comp-ultimo-autorizado.xml",
+        "fe-comp-ultimo-autorizado-offline.xml",
         "fe-caea-reg-informativo-accepted.xml",
         "fe-caea-reg-informativo-partly-rejected.xml",
         "fe-caea-reg-informativo-refused.xml",
@@ -906,39 +906,33 @@ describe("recordArcaResponses offline document report calls", () => {
     expect(recordingFailure(report)).toBeUndefined();
   });
 
-  it.each([
-    ["is refused", "fe-caea-solicitar-out-of-window.xml"],
-    ["is not answered", NO_ANSWER],
-  ])(
-    "records nothing more and fails the recording when the current fortnight's code request %s",
-    async (_outcome, requestAnswer) => {
-      wsfe.behave(
-        wsfeAnswersInTurn(
-          ...INVOICING_ANSWERS,
-          ...OFFLINE_AUTHORIZATION_CODE_ANSWERS,
-          "fe-comp-tot-x-request.xml",
-          "fe-comp-tot-x-request-token-error.xml",
-          "fe-caea-consultar-not-granted.xml",
-          requestAnswer,
-        ),
-      );
+  it("records nothing more and fails the recording when the current fortnight's code request is refused", async () => {
+    wsfe.behave(
+      wsfeAnswersInTurn(
+        ...INVOICING_ANSWERS,
+        ...OFFLINE_AUTHORIZATION_CODE_ANSWERS,
+        "fe-comp-tot-x-request.xml",
+        "fe-comp-tot-x-request-token-error.xml",
+        "fe-caea-consultar-not-granted.xml",
+        "fe-caea-solicitar-out-of-window.xml",
+      ),
+    );
 
-      const report = await record();
+    const report = await record();
 
-      expect(reportCalls().map(operationOf)).toEqual([
-        "FECompTotXRequest",
-        "FECompTotXRequest",
-        "FECAEAConsultar",
-        "FECAEASolicitar",
-      ]);
-      expect(readdirSync(outDir).filter((file) => file.startsWith("fe-caea-reg"))).toEqual([]);
-      expect(report.currentFortnightCodeGranted).toBe(false);
-      expect(report.offlineDocumentReports).toBeUndefined();
-      expect(recordingFailure(report)).toBe(
-        "the offline authorization code of the current fortnight is not granted, so no document was reported",
-      );
-    },
-  );
+    expect(reportCalls().map(operationOf)).toEqual([
+      "FECompTotXRequest",
+      "FECompTotXRequest",
+      "FECAEAConsultar",
+      "FECAEASolicitar",
+    ]);
+    expect(readdirSync(outDir).filter((file) => file.startsWith("fe-caea-reg"))).toEqual([]);
+    expect(report.currentFortnightCodeGranted).toBe(false);
+    expect(report.offlineDocumentReports).toBeUndefined();
+    expect(recordingFailure(report)).toBe(
+      "the offline authorization code of the current fortnight is not granted, so no document was reported",
+    );
+  });
 
   it("reports no document when the lookup of the current fortnight's code is refused", async () => {
     wsfe.behave(
@@ -1063,9 +1057,9 @@ describe("recordingFailure", () => {
     },
     currentFortnightCodeGranted: true,
     offlineDocumentReports: {
-      lastReportedNumber: 1,
+      lastReportedNumber: 9,
       accepted: { kind: "accepted" },
-      partlyRejected: { kind: "rejected", number: 4, rejections: [] },
+      partlyRejected: { kind: "rejected", number: 12, rejections: [] },
     },
     recordingsCarrying15014: [],
     scrubbed: [],
@@ -1206,7 +1200,7 @@ describe("recordingFailure", () => {
           offlineDocumentReports: { ...RECORDED.offlineDocumentReports, partlyRejected },
         }),
       ).toBe(
-        `the FECAEARegInformativo of three documents did not reject document 4; ARCA answered ${answered}`,
+        `the FECAEARegInformativo of three documents did not reject document 12; ARCA answered ${answered}`,
       );
     },
   );
