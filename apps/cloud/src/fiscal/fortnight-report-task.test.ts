@@ -98,9 +98,10 @@ async function owedFortnight({ syncedPastClose }: { syncedPastClose: boolean }) 
     now: NOW,
     existingRegisterId: registerId,
   });
-  await insertInboxEvent(testDatabase.db, deviceId, {
-    occurredAt: new Date(syncedPastClose ? "2026-10-16T10:00:00.000Z" : "2026-10-15T20:00:00.000Z"),
-  });
+  const occurredAt = new Date(
+    syncedPastClose ? "2026-10-16T10:00:00.000Z" : "2026-10-15T20:00:00.000Z",
+  );
+  await insertInboxEvent(testDatabase.db, deviceId, { occurredAt, appliedAt: occurredAt });
   await issueWsaaToken();
 }
 
