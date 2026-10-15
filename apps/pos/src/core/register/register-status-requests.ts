@@ -22,6 +22,7 @@ export interface RegisterStatusDeps {
   signedInPerson: Pick<SignedInPerson, "userId">;
   serialDevices: () => SerialDeviceReading;
   storage: () => StorageStanding;
+  localDatabaseDamaged: () => boolean;
 }
 
 export async function registerStatusFor({
@@ -31,6 +32,7 @@ export async function registerStatusFor({
   signedInPerson,
   serialDevices,
   storage,
+  localDatabaseDamaged,
 }: RegisterStatusDeps): Promise<RegisterStatus> {
   const reading = serialDevices();
   const standings = {
@@ -46,6 +48,7 @@ export async function registerStatusFor({
       now: now(),
       serialDevices: reading.kind === "listed" ? reading.standings : null,
       storage: storage(),
+      localDatabaseDamaged: localDatabaseDamaged(),
     }),
     cloud: cloud(),
     serial_devices: {

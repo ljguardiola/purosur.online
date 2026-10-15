@@ -144,6 +144,7 @@ const notPermittedOutcome = z.object({ kind: z.literal("not_permitted") });
 const notSignedInOutcome = z.object({ kind: z.literal("not_signed_in") });
 const noOpenSessionOutcome = z.object({ kind: z.literal("no_open_session") });
 const installationRevokedOutcome = z.object({ kind: z.literal("installation_revoked") });
+const localDatabaseDamagedOutcome = z.object({ kind: z.literal("local_database_damaged") });
 const diskSpaceShortOutcome = z.object({ kind: z.literal("disk_space_short") });
 const paidOrderWithoutSaleOutcome = z.object({ kind: z.literal("paid_order_without_sale") });
 const paidOrdersNotCheckedOutcome = z.object({ kind: z.literal("paid_orders_not_checked") });
@@ -167,6 +168,7 @@ export const scanProductOutcomeSchema = z.discriminatedUnion("kind", [
   notSignedInOutcome,
   noOpenSessionOutcome,
   installationRevokedOutcome,
+  localDatabaseDamagedOutcome,
   diskSpaceShortOutcome,
   paidOrderWithoutSaleOutcome,
   paidOrdersNotCheckedOutcome,
@@ -341,6 +343,7 @@ export const addProductOutcomeSchema = z.discriminatedUnion("kind", [
   notSignedInOutcome,
   noOpenSessionOutcome,
   installationRevokedOutcome,
+  localDatabaseDamagedOutcome,
   diskSpaceShortOutcome,
   paidOrderWithoutSaleOutcome,
   paidOrdersNotCheckedOutcome,
@@ -359,6 +362,7 @@ export const addWeighedProductOutcomeSchema = z.discriminatedUnion("kind", [
   notSignedInOutcome,
   noOpenSessionOutcome,
   installationRevokedOutcome,
+  localDatabaseDamagedOutcome,
   diskSpaceShortOutcome,
   paidOrderWithoutSaleOutcome,
   paidOrdersNotCheckedOutcome,
@@ -378,6 +382,7 @@ export const weighProductOutcomeSchema = z.discriminatedUnion("kind", [
   notSignedInOutcome,
   noOpenSessionOutcome,
   installationRevokedOutcome,
+  localDatabaseDamagedOutcome,
   diskSpaceShortOutcome,
   paidOrderWithoutSaleOutcome,
   paidOrdersNotCheckedOutcome,

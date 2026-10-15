@@ -1,10 +1,10 @@
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
-import { dirname } from "node:path";
+import { join } from "node:path";
 import type { LocalDatabaseHealth } from "@purosur/domain/register/use-cases";
 import { isDatabaseDamage } from "../platform/database-damage";
 import type { LocalDatabase } from "../platform/local-database";
 
-export const DAMAGE_MARKER_FILE = "local-database-damaged";
+const DAMAGE_MARKER_FILE = "local-database-damaged";
 
 interface IntegrityRow {
   integrity_check: string;
@@ -23,17 +23,22 @@ export function sqliteIntegrityHolds(database: Pick<LocalDatabase, "pragma">): b
   }
 }
 
+export function localDatabaseDamageIn(folder: string | undefined): () => boolean {
+  return () => folder !== undefined && existsSync(join(folder, DAMAGE_MARKER_FILE));
+}
+
 export function localDatabaseHealth(deps: {
-  markerPath: string;
+  folder: string;
   now: () => Date;
   integrityHolds: () => boolean;
 }): LocalDatabaseHealth {
+  const damaged = localDatabaseDamageIn(deps.folder);
   return {
-    damageRecorded: async () => existsSync(deps.markerPath),
+    damageRecorded: async () => damaged(),
     integrityHolds: async () => deps.integrityHolds(),
     recordDamage: async () => {
-      mkdirSync(dirname(deps.markerPath), { recursive: true });
-      writeFileSync(deps.markerPath, deps.now().toISOString());
+      mkdirSync(deps.folder, { recursive: true });
+      writeFileSync(join(deps.folder, DAMAGE_MARKER_FILE), deps.now().toISOString());
     },
   };
 }

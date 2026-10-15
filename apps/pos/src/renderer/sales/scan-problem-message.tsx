@@ -7,6 +7,7 @@ import { ElevatedNotice } from "@purosur/ui";
 import type { LucideIcon } from "lucide-react";
 import {
   Ban,
+  Database,
   HardDrive,
   Lock,
   PackageX,
@@ -29,6 +30,7 @@ export type ScanProblem =
           | "not_permitted"
           | "installation_revoked"
           | "disk_space_short"
+          | "local_database_damaged"
           | "paid_order_without_sale"
           | "paid_orders_not_checked";
       }
@@ -97,6 +99,12 @@ export function messageFor(problem: ScanProblem): Message {
     case "disk_space_short":
       return {
         icon: HardDrive,
+        title: "No se pueden abrir ventas nuevas",
+        help: "El motivo y qué hacer se muestran arriba de la pantalla.",
+      };
+    case "local_database_damaged":
+      return {
+        icon: Database,
         title: "No se pueden abrir ventas nuevas",
         help: "El motivo y qué hacer se muestran arriba de la pantalla.",
       };

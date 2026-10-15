@@ -28,6 +28,7 @@ function readerStopped(
   latestGate: LatestPreEmissionGateOutcome | undefined = undefined,
   battery: BatteryReport | undefined = undefined,
   storageStop: StorageSalesStop | undefined = undefined,
+  localDatabaseDamaged = false,
 ) {
   return registerTelemetryReader(
     async () => STORAGE,
@@ -36,6 +37,7 @@ function readerStopped(
     () => latestGate,
     () => battery,
     () => storageStop,
+    () => localDatabaseDamaged,
   );
 }
 
@@ -44,6 +46,12 @@ describe("the register's telemetry", () => {
     expect(
       await readerStopped({ stopped: false }, undefined, undefined, { reason: "disk_full" })(),
     ).toMatchObject({ sales_denied: true, sales_denied_reason: "disk_full" });
+  });
+
+  it("reports that it can't sell because its local database is damaged while it keeps running", async () => {
+    expect(
+      await readerStopped({ stopped: false }, undefined, undefined, undefined, true)(),
+    ).toMatchObject({ sales_denied: true, sales_denied_reason: "local_database_damaged" });
   });
 
   it("reports its storage and that it can sell while it still opens new sales", async () => {

@@ -70,6 +70,10 @@ import {
   generatePepper,
   installationReportFrom,
 } from "./register/enrollment";
+import {
+  fileSnapshotCorruptionReports,
+  SNAPSHOT_CORRUPTION_UNREPORTED_FILE,
+} from "./register/file-snapshot-corruption-reports";
 import { type StartedLocalDatabase, startLocalDatabase } from "./register/local-database-startup";
 import { refuseNewerDatabase } from "./register/newer-database-refusal";
 import { readReceiptPrinterFor, setReceiptPrinterFor } from "./register/receipt-printer-requests";
@@ -79,9 +83,11 @@ import { createSerialDeviceWatch, pathOfMatchingDevice } from "./register/serial
 import { serialDevicesReportOf } from "./register/serial-devices-report";
 import { readSerialDevicesFor, registerSerialDevicesFor } from "./register/serial-devices-requests";
 import { listSerialPorts, serialportEnumeration } from "./register/serialport-enumeration";
+import { snapshotCorruptionReportSending } from "./register/snapshot-corruption-report-sending";
 import type { SnapshotCycleSchedule } from "./register/snapshot-cycle-schedule";
 import { startSnapshotCycle } from "./register/snapshot-cycle-wiring";
 import { readOpenSession } from "./register/sqlite-cash-ledger";
+import { localDatabaseDamageIn } from "./register/sqlite-local-database-health";
 import { SqliteSerialDeviceRegistrations } from "./register/sqlite-serial-device-registrations";
 import { startupPendingFor } from "./register/startup-pending-requests";
 import { recoverAtStartup } from "./register/startup-recovery";
@@ -210,6 +216,7 @@ const BARCODE_READER_RETRY_MS = 3_000;
 const localDataFolder = localDataFolderFromCoreArguments(process.argv);
 const localDatabasePath =
   localDataFolder === undefined ? undefined : join(localDataFolder, LOCAL_DATABASE_FILE);
+const localDatabaseDamaged = localDatabaseDamageIn(localDataFolder);
 
 async function startLocalDatabaseFile(): Promise<StartedLocalDatabase | undefined> {
   if (localDatabasePath === undefined) {
@@ -343,6 +350,18 @@ const barcodeReaderWiring = createBarcodeReaderWiring({
   retryMs: BARCODE_READER_RETRY_MS,
 });
 
+const snapshotCorruptionReports =
+  localDataFolder === undefined
+    ? undefined
+    : fileSnapshotCorruptionReports(join(localDataFolder, SNAPSHOT_CORRUPTION_UNREPORTED_FILE));
+
+const sendSnapshotCorruptionReport = snapshotCorruptionReportSending({
+  reports: snapshotCorruptionReports,
+  cloudClient,
+  readDeviceToken: async () => (await mainRequests.readCredentials())?.device_token,
+  reportFailure: (error) => reportFailure("reporting the snapshot corruption to the cloud", error),
+});
+
 // An unreachable cloud is how a register without internet looks, so only an unexpected stop is
 // reported; the next cycle resumes from the cursor and the outbox already saved either way.
 const syncSchedule = createSyncSchedule({
@@ -385,6 +404,7 @@ const syncSchedule = createSyncSchedule({
                       () => batteryWatch.report(),
                     ),
                   }),
+          sendSnapshotCorruptionReport,
           pushOutbox: () =>
             pushToCloud({
               readCredentials: () => mainRequests.readCredentials(),
@@ -405,6 +425,7 @@ const syncSchedule = createSyncSchedule({
                       () => readLatestPreEmissionGateOutcome(localDatabase),
                       () => batteryWatch.report(),
                       storageWatch.stop,
+                      localDatabaseDamaged,
                     ),
               acceptedPush:
                 localDatabase === undefined
@@ -536,6 +557,7 @@ const rendererRequestDeps: RendererRequestDeps = {
             signedInPerson,
             serialDevices: serialDeviceWatch.reading,
             storage: storageWatch.standing,
+            localDatabaseDamaged,
           }),
   registerService: register.service,
   registerName: () => replica?.registerName(),
@@ -778,6 +800,7 @@ const rendererRequestDeps: RendererRequestDeps = {
               ids: uuidV7Ids,
               paidOrderDiscovery: paidOrderDiscovery.state,
               newSalesStoppedByDisk: () => storageWatch?.stop() !== undefined,
+              localDatabaseDamaged,
             },
             code,
           ),
@@ -933,6 +956,7 @@ const rendererRequestDeps: RendererRequestDeps = {
               ids: uuidV7Ids,
               paidOrderDiscovery: paidOrderDiscovery.state,
               newSalesStoppedByDisk: () => storageWatch?.stop() !== undefined,
+              localDatabaseDamaged,
             },
             productId,
           ),
@@ -948,6 +972,7 @@ const rendererRequestDeps: RendererRequestDeps = {
               ids: uuidV7Ids,
               paidOrderDiscovery: paidOrderDiscovery.state,
               newSalesStoppedByDisk: () => storageWatch?.stop() !== undefined,
+              localDatabaseDamaged,
             },
             productId,
             weightThousandths,
@@ -964,6 +989,7 @@ const rendererRequestDeps: RendererRequestDeps = {
               ids: uuidV7Ids,
               paidOrderDiscovery: paidOrderDiscovery.state,
               newSalesStoppedByDisk: () => storageWatch?.stop() !== undefined,
+              localDatabaseDamaged,
               scale: systelScale,
             },
             productId,
@@ -1121,7 +1147,7 @@ messagesFromMain.deliverTo((event) => {
     } else if (message.type === "update-hold-release") {
       updateHold.release();
     } else if (message.type === "snapshot-worker-exited") {
-      snapshotCycle?.workerExited();
+      void snapshotCycle?.workerExited(message.copy_failed_stage);
     } else {
       mainRequests.receive(message);
     }
@@ -1131,7 +1157,12 @@ messagesFromMain.deliverTo((event) => {
 process.parentPort.postMessage({ type: "core-ready" } satisfies CoreReadyMessage);
 void batteryWatch.start();
 void storageWatch?.start();
-if (localDatabase !== undefined && localDatabasePath !== undefined) {
+if (
+  localDatabase !== undefined &&
+  localDatabasePath !== undefined &&
+  snapshotCorruptionReports !== undefined &&
+  startedLocalDatabase?.kind === "ready"
+) {
   snapshotCycle = startSnapshotCycle({
     database: localDatabase,
     databasePath: localDatabasePath,
@@ -1147,6 +1178,10 @@ if (localDatabase !== undefined && localDatabasePath !== undefined) {
     scheduleNext: (run, delayMs) => {
       setTimeout(run, delayMs);
     },
+    localDatabaseDamaged,
+    health: startedLocalDatabase.health,
+    reports: snapshotCorruptionReports,
+    onCopyFailureRecorded: () => rendererConnection.tell(STORAGE_STANDING_CHANGED_NOTICE),
     onFailure: (error) => reportFailure("running the snapshot cycle", error),
   });
 }

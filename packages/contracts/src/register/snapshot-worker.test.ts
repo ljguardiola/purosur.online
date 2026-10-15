@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { snapshotWorkerJobSchema, snapshotWorkerLaunchSchema } from "./snapshot-worker.js";
+import {
+  snapshotWorkerJobSchema,
+  snapshotWorkerLaunchSchema,
+  snapshotWorkerMessageSchema,
+} from "./snapshot-worker.js";
 
 const KEY = Buffer.alloc(32, 7).toString("base64");
 
@@ -107,5 +111,26 @@ describe("snapshotWorkerLaunchSchema", () => {
     const { [field]: _omitted, ...rest } = LAUNCH as Record<string, unknown>;
 
     expect(snapshotWorkerLaunchSchema.safeParse(rest).success).toBe(false);
+  });
+});
+
+describe("snapshotWorkerMessageSchema", () => {
+  it.each(["copy", "integrity_check", "foreign_key_check"])(
+    "reads the message that the copy failed at %s",
+    (stage) => {
+      const message = { type: "snapshot-copy-failed", stage };
+
+      expect(snapshotWorkerMessageSchema.parse(message)).toEqual(message);
+    },
+  );
+
+  it.each([
+    { type: "snapshot-copy-failed", stage: "backup" },
+    { type: "snapshot-copy-failed" },
+    { type: "snapshot-copy-failed", stage: "copy", extra: 1 },
+    { type: "snapshot-finished", stage: "copy" },
+    "snapshot-copy-failed",
+  ])("refuses %j", (message) => {
+    expect(snapshotWorkerMessageSchema.safeParse(message).success).toBe(false);
   });
 });

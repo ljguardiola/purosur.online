@@ -5,9 +5,11 @@ export interface RegisterServicePushDeps {
   service: RegisterService;
   pushOutbox: () => Promise<PushAttempt>;
   reportDamagedDatabase: (() => Promise<PushAttempt>) | undefined;
+  sendSnapshotCorruptionReport: () => Promise<void>;
 }
 
 export async function pushForRegisterService(deps: RegisterServicePushDeps): Promise<PushAttempt> {
+  await deps.sendSnapshotCorruptionReport();
   if (deps.service.kind === "in_service") {
     return deps.pushOutbox();
   }

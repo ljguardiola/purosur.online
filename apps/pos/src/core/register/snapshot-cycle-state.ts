@@ -14,6 +14,7 @@ export interface SnapshotCycleStateDeps {
   batteryReport: () => BatteryReport | undefined;
   readStorage: () => Promise<StorageReading>;
   cloudReachability: () => CloudReachability;
+  localDatabaseDamaged: () => boolean;
 }
 
 function readingOf(report: BatteryReport | undefined): BatteryReading {
@@ -42,5 +43,6 @@ export function createSnapshotCycleState(deps: SnapshotCycleStateDeps): Snapshot
     },
     // A cloud not tried yet is taken as reachable: its first sync decides.
     cloudReachable: async () => deps.cloudReachability() !== "unreachable",
+    localDatabaseDamaged: async () => deps.localDatabaseDamaged(),
   };
 }

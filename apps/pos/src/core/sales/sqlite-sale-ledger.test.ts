@@ -616,6 +616,25 @@ describe("whether the disk stops new sales", () => {
   });
 });
 
+describe("whether the local database is damaged", () => {
+  it("is what the register's database health answers", () => {
+    const damaged = new SqliteSaleLedger(
+      database,
+      new SqliteSignInStore(database),
+      CHAIN_KEY,
+      () => "pending",
+      () => false,
+      () => true,
+    );
+
+    expect(damaged.transaction((tx) => tx.localDatabaseDamaged())).toBe(true);
+  });
+
+  it("is not damaged for a ledger the database health was not given to", () => {
+    expect(ledger.transaction((tx) => tx.localDatabaseDamaged())).toBe(false);
+  });
+});
+
 describe("a paid order without a sale", () => {
   function recordPaidOrder(resolvedAt: string | null): void {
     database

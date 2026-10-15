@@ -33,7 +33,11 @@ afterEach(() => {
   rmSync(folder, { recursive: true, force: true });
 });
 
-function start(walSizeBytes = 0, cloud = new FakeSnapshotCloud()) {
+function start(walSizeBytes = 0, options: { damaged?: boolean; cloud?: FakeSnapshotCloud } = {}) {
+  const cloud = options.cloud ?? new FakeSnapshotCloud();
+  const damage: string[] = [];
+  const reported: string[] = [];
+  const recordedNotices: string[] = [];
   const posted: SnapshotWorkerLaunchRequest[] = [];
   const scheduled: { run: () => Promise<void>; delayMs: number }[] = [];
   const failures: unknown[] = [];
@@ -66,9 +70,25 @@ function start(walSizeBytes = 0, cloud = new FakeSnapshotCloud()) {
     scheduleNext: (run, delayMs) => {
       scheduled.push({ run, delayMs });
     },
+    localDatabaseDamaged: () => options.damaged ?? false,
+    health: {
+      damageRecorded: async () => false,
+      integrityHolds: async () => true,
+      recordDamage: async () => {
+        damage.push("recorded");
+      },
+    },
+    reports: {
+      pending: async () => undefined,
+      record: async (stage) => {
+        reported.push(stage);
+      },
+      settle: async () => undefined,
+    },
+    onCopyFailureRecorded: () => recordedNotices.push("noticed"),
     onFailure: (error) => failures.push(error),
   });
-  return { schedule, posted, scheduled, failures };
+  return { schedule, posted, scheduled, failures, damage, reported, recordedNotices };
 }
 
 async function holdEightUploadedGenerations(snapshotsFolder: string): Promise<string[]> {
@@ -149,12 +169,39 @@ describe("startSnapshotCycle", () => {
     expect(posted).toEqual([]);
   });
 
+  it("records the damage and the report of a copy that failed when its worker exits, then lets the renderer know", async () => {
+    const { schedule, damage, reported, recordedNotices, failures } = start();
+
+    await schedule.workerExited("foreign_key_check");
+
+    expect(failures).toEqual([]);
+    expect(damage).toEqual(["recorded"]);
+    expect(reported).toEqual(["foreign_key_check"]);
+    expect(recordedNotices).toEqual(["noticed"]);
+  });
+
+  it("records nothing when its worker exits with no copy failure", async () => {
+    const { schedule, damage, reported, recordedNotices } = start();
+
+    await schedule.workerExited();
+
+    expect([damage, reported, recordedNotices]).toEqual([[], [], []]);
+  });
+
+  it("asks main for no snapshot while the local database is damaged", async () => {
+    const { scheduled, posted } = start(0, { damaged: true });
+
+    await scheduled[0]?.run();
+
+    expect(posted).toEqual([]);
+  });
+
   it("prunes the generations on disk the cloud verified before it decides the cycle", async () => {
     const snapshotsFolder = join(folder, "snapshots");
     const ids = await holdEightUploadedGenerations(snapshotsFolder);
     const cloud = new FakeSnapshotCloud();
     cloud.onVerified = (asked) => Response.json({ verified_generation_ids: asked });
-    const { scheduled, posted, failures } = start(0, cloud);
+    const { scheduled, posted, failures } = start(0, { cloud });
 
     await scheduled[0]?.run();
 
@@ -172,7 +219,7 @@ describe("startSnapshotCycle", () => {
     writeFileSync(join(unremovable, "held"), "x");
     const cloud = new FakeSnapshotCloud();
     cloud.onVerified = (asked) => Response.json({ verified_generation_ids: asked });
-    const { scheduled, posted, failures } = start(0, cloud);
+    const { scheduled, posted, failures } = start(0, { cloud });
 
     await scheduled[0]?.run();
 

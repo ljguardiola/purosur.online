@@ -19,6 +19,7 @@ function facts(overrides: Partial<SnapshotCycleFacts> = {}): SnapshotCycleFacts 
     storage: { diskFreeBytes: 100 * GIGABYTE, diskFreeRatio: 0.5, walSizeBytes: 0 },
     pendingUploads: false,
     cloudReachable: true,
+    localDatabaseDamaged: false,
     ...overrides,
   };
 }
@@ -61,6 +62,48 @@ describe("snapshotCycleDecision", () => {
     expect(
       snapshotCycleDecision(facts({ current: { lastDeviceSeq: 10, pullCursor: 20 } })),
     ).toEqual({ kind: "skip", reason: "unchanged" });
+  });
+
+  describe("a damaged local database", () => {
+    it("takes no new snapshot even though the sequences moved", () => {
+      expect(snapshotCycleDecision(facts({ localDatabaseDamaged: true }))).toEqual({
+        kind: "skip",
+        reason: "database_damaged",
+      });
+    });
+
+    it("uploads the generations that wait when the cloud is reachable", () => {
+      expect(
+        snapshotCycleDecision(facts({ localDatabaseDamaged: true, pendingUploads: true })),
+      ).toEqual({ kind: "upload_pending" });
+    });
+
+    it("takes no snapshot and uploads nothing when the cloud is unreachable", () => {
+      expect(
+        snapshotCycleDecision(
+          facts({ localDatabaseDamaged: true, pendingUploads: true, cloudReachable: false }),
+        ),
+      ).toEqual({ kind: "skip", reason: "database_damaged" });
+    });
+
+    it("names the damage when the sequences did not move either", () => {
+      expect(
+        snapshotCycleDecision(
+          facts({ localDatabaseDamaged: true, current: { lastDeviceSeq: 10, pullCursor: 20 } }),
+        ),
+      ).toEqual({ kind: "skip", reason: "database_damaged" });
+    });
+
+    it("names the damage over a low battery", () => {
+      expect(
+        snapshotCycleDecision(
+          facts({
+            localDatabaseDamaged: true,
+            battery: { kind: "present", chargePercent: 1, onBattery: true },
+          }),
+        ),
+      ).toEqual({ kind: "skip", reason: "database_damaged" });
+    });
   });
 
   describe("battery", () => {
