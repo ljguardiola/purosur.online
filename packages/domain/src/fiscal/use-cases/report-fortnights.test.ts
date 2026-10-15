@@ -1,107 +1,21 @@
 import { describe, expect, it } from "vitest";
-import type { InstallationStreamReach } from "../../sync/index.js";
 import type { Fortnight } from "../model/offline-authorization-code.js";
-import type { OfflineAuthorizationCode } from "./offline-authorization-code-ports.js";
-import { reportFortnights } from "./report-fortnights.js";
-import { ManualClock } from "./test-support/fake-arca-vitality.js";
+import { offlineDocument } from "./test-support/fake-fortnight-reports.js";
 import {
-  FakeFortnightReportStore,
-  FakeOfflineDocumentsOfFortnight,
-  FakeRegisterEventStreams,
-  FakeTaxAuthorityNoMovementDeclarations,
-} from "./test-support/fake-fortnight-reports.js";
-import {
-  FakeOfflineAuthorizationCodeStore,
-  FakeTaxAuthorityOfflineAuthorizationCodes,
-} from "./test-support/fake-offline-authorization-codes.js";
-
-const TOKEN = {
-  token: "token",
-  sign: "sign",
-  issuedAt: new Date("2026-10-03T08:00:00.000Z"),
-  expiresAt: new Date("2026-10-03T20:00:00.000Z"),
-};
-const SEPTEMBER_SECOND_HALF: Fortnight = { start: "2026-09-16", end: "2026-09-30" };
-const OCTOBER_FIRST_HALF: Fortnight = { start: "2026-10-01", end: "2026-10-15" };
-const ON_OCTOBER_3 = new Date("2026-10-03T15:00:00.000Z");
-const ON_OCTOBER_20 = new Date("2026-10-20T15:00:00.000Z");
-const REGISTER_ID = "register-1";
-const POINT_OF_SALE = 7;
-const CLAIMED_AT = new Date("2026-09-01T12:00:00.000Z");
-
-function codeFor(fortnight: Fortnight): OfflineAuthorizationCode {
-  return { code: `code-${fortnight.start}`, fortnight, reportDeadline: "2026-10-05" };
-}
-
-function reachingInstallation(
-  overrides: Partial<InstallationStreamReach> = {},
-): InstallationStreamReach {
-  return {
-    enrolledAt: new Date("2026-01-01T12:00:00.000Z"),
-    revokedAt: null,
-    latestOccurredAt: new Date("2026-10-02T12:00:00.000Z"),
-    caughtUpAt: null,
-    holdsUnappliedEvents: false,
-    ...overrides,
-  };
-}
-
-function setUp({ now = ON_OCTOBER_3, token = TOKEN as typeof TOKEN | null, keptCode = true } = {}) {
-  const operations: string[] = [];
-  const codeStore = new FakeOfflineAuthorizationCodeStore();
-  const codeAuthority = new FakeTaxAuthorityOfflineAuthorizationCodes(codeStore);
-  if (keptCode) {
-    codeStore.kept.push({
-      code: codeFor(SEPTEMBER_SECOND_HALF),
-      obtainedAt: new Date("2026-09-12T12:00:00.000Z"),
-      obtainedThrough: "requested",
-    });
-  }
-  const reports = new FakeFortnightReportStore(codeStore, operations);
-  reports.pointsOfSale = [
-    { pointOfSaleNumber: POINT_OF_SALE, registerId: REGISTER_ID, claimedAt: CLAIMED_AT },
-  ];
-  const documents = new FakeOfflineDocumentsOfFortnight(operations);
-  const streams = new FakeRegisterEventStreams();
-  streams.installations.set(REGISTER_ID, [reachingInstallation()]);
-  const declarations = new FakeTaxAuthorityNoMovementDeclarations(reports, operations);
-  const clock = new ManualClock(now);
-  const run = () =>
-    reportFortnights({
-      reports,
-      documents,
-      streams,
-      declarations,
-      codeStore,
-      codeAuthority,
-      tokens: { validToken: async () => token },
-      clock,
-    });
-  return {
-    operations,
-    codeStore,
-    codeAuthority,
-    reports,
-    documents,
-    streams,
-    declarations,
-    clock,
-    run,
-  };
-}
-
-const KEY = `${POINT_OF_SALE}:${SEPTEMBER_SECOND_HALF.start}`;
-
-function presentationOutcomes(result: Awaited<ReturnType<typeof reportFortnights>>) {
-  if (result.kind !== "reported") {
-    throw new Error(`expected a reported result, got ${result.kind}`);
-  }
-  return result.presentations.map(({ pointOfSaleNumber, fortnight, outcome }) => ({
-    pointOfSaleNumber,
-    fortnight,
-    outcome,
-  }));
-}
+  CLAIMED_AT,
+  codeFor,
+  KEY,
+  OCTOBER_FIRST_HALF,
+  ON_OCTOBER_3,
+  ON_OCTOBER_20,
+  POINT_OF_SALE,
+  presentationOutcomes,
+  REGISTER_ID,
+  reachingInstallation,
+  SEPTEMBER_SECOND_HALF,
+  setUpReportFortnights as setUp,
+  TOKEN,
+} from "./test-support/report-fortnights.js";
 
 describe("reportFortnights", () => {
   describe("without a valid token", () => {
@@ -126,6 +40,7 @@ describe("reportFortnights", () => {
         {
           pointOfSaleNumber: POINT_OF_SALE,
           fortnight: SEPTEMBER_SECOND_HALF,
+          documentType: null,
           outcome: { kind: "accepted" },
         },
       ]);
@@ -133,11 +48,13 @@ describe("reportFortnights", () => {
         "owedReports",
         `hold ${KEY}`,
         "tax authority lookUp",
-        "countOn",
+        "installationsOf",
+        "documentsOn",
         "record submitting",
         "tax authority declare",
         "record accepted",
         `release ${KEY}`,
+        "acceptedWithUnreportedDocuments",
       ]);
       expect(declarations.declarations).toEqual([
         {
@@ -148,6 +65,18 @@ describe("reportFortnights", () => {
         },
       ]);
       expect(declarations.lookUps[0]?.heldDuringCall).toBe(true);
+    });
+
+    it("records the acceptance as a fortnight without movement", async () => {
+      const { reports, run } = setUp();
+
+      await run();
+
+      expect(reports.changes.at(-1)?.change).toEqual({
+        state: "accepted",
+        at: ON_OCTOBER_3,
+        movement: "none",
+      });
     });
 
     it("stamps each record with the moment it was made", async () => {
@@ -167,19 +96,20 @@ describe("reportFortnights", () => {
       ];
       streams.installations.set("register-2", [reachingInstallation()]);
       streams.installations.set("register-3", [reachingInstallation({ latestOccurredAt: null })]);
-      documents.set(7, SEPTEMBER_SECOND_HALF, 2);
+      documents.add(7, SEPTEMBER_SECOND_HALF, offlineDocument(1), offlineDocument(2));
 
       const result = await run();
 
       expect(
-        presentationOutcomes(result).map(({ pointOfSaleNumber, outcome }) => [
+        presentationOutcomes(result).map(({ pointOfSaleNumber, documentType, outcome }) => [
           pointOfSaleNumber,
+          documentType,
           outcome.kind,
         ]),
       ).toEqual([
-        [7, "has_documents"],
-        [8, "accepted"],
-        [9, "blocked"],
+        [7, "factura_c", "accepted"],
+        [8, null, "accepted"],
+        [9, null, "blocked"],
       ]);
       expect(declarations.declarations.map(({ pointOfSaleNumber }) => pointOfSaleNumber)).toEqual([
         8,
@@ -199,7 +129,7 @@ describe("reportFortnights", () => {
       const { reports, declarations, run } = setUp();
       reports.seed(
         { pointOfSaleNumber: POINT_OF_SALE, fortnight: SEPTEMBER_SECOND_HALF },
-        { state: "blocked", lastAttemptAt: new Date("2026-10-02T12:00:00.000Z") },
+        { state: "blocked", movement: null, lastAttemptAt: new Date("2026-10-02T12:00:00.000Z") },
       );
 
       const result = await run();
@@ -212,13 +142,13 @@ describe("reportFortnights", () => {
       const { reports, operations, run } = setUp();
       reports.seed(
         { pointOfSaleNumber: POINT_OF_SALE, fortnight: SEPTEMBER_SECOND_HALF },
-        { state: "accepted", lastAttemptAt: new Date("2026-10-02T12:00:00.000Z") },
+        { state: "accepted", movement: "none", lastAttemptAt: new Date("2026-10-02T12:00:00.000Z") },
       );
 
       const result = await run();
 
       expect(presentationOutcomes(result)).toEqual([]);
-      expect(operations).toEqual(["owedReports"]);
+      expect(operations).toEqual(["owedReports", "acceptedWithUnreportedDocuments"]);
     });
 
     it("owes nothing for a fortnight that has not closed", async () => {
@@ -252,6 +182,7 @@ describe("reportFortnights", () => {
         "tax authority lookUp",
         "record accepted",
         `release ${KEY}`,
+        "acceptedWithUnreportedDocuments",
       ]);
       expect(declarations.declarations).toEqual([]);
     });
@@ -295,35 +226,52 @@ describe("reportFortnights", () => {
   });
 
   describe("a point of sale with offline-authorized documents in the fortnight", () => {
-    it("is never declared as having had nothing and nothing is recorded", async () => {
-      const { operations, documents, declarations, run } = setUp();
-      documents.set(POINT_OF_SALE, SEPTEMBER_SECOND_HALF, 1);
+    it("is never declared as having had nothing", async () => {
+      const { documents, declarations, reports, run } = setUp();
+      documents.add(POINT_OF_SALE, SEPTEMBER_SECOND_HALF, offlineDocument(1));
 
-      const result = await run();
+      await run();
 
-      expect(presentationOutcomes(result)[0]?.outcome).toEqual({ kind: "has_documents" });
       expect(declarations.declarations).toEqual([]);
-      expect(operations.filter((operation) => operation.startsWith("record"))).toEqual([]);
+      expect(reports.changes.map(({ change }) => change.movement)).not.toContain("none");
     });
 
     it("stays undeclared however late it is", async () => {
       const { documents, declarations, run } = setUp({ now: ON_OCTOBER_20 });
-      documents.set(POINT_OF_SALE, SEPTEMBER_SECOND_HALF, 3);
+      documents.add(POINT_OF_SALE, SEPTEMBER_SECOND_HALF, offlineDocument(1), offlineDocument(2));
 
       await run();
 
       expect(declarations.declarations).toEqual([]);
     });
 
-    it("is counted only after the tax authority was asked whether it holds a declaration", async () => {
-      const { operations, documents, run } = setUp();
-      documents.set(POINT_OF_SALE, SEPTEMBER_SECOND_HALF, 1);
+    it("has its documents read only once the register's stream is proven to reach past the close, so none applied meanwhile is missed", async () => {
+      const { operations, run } = setUp();
 
       await run();
 
       expect(operations.indexOf("tax authority lookUp")).toBeLessThan(
-        operations.indexOf("countOn"),
+        operations.indexOf("installationsOf"),
       );
+      expect(operations.indexOf("installationsOf")).toBeLessThan(
+        operations.indexOf("documentsOn"),
+      );
+      expect(operations.indexOf("documentsOn")).toBeLessThan(
+        operations.indexOf("tax authority declare"),
+      );
+    });
+
+    it("is never declared as having had nothing when a document is applied while its stream is being proven", async () => {
+      const { documents, streams, declarations, run } = setUp();
+      const proveReach = streams.installationsOf.bind(streams);
+      streams.installationsOf = async (registerId) => {
+        documents.add(POINT_OF_SALE, SEPTEMBER_SECOND_HALF, offlineDocument(1));
+        return proveReach(registerId);
+      };
+
+      await run();
+
+      expect(declarations.declarations).toEqual([]);
     });
   });
 
@@ -395,7 +343,7 @@ describe("reportFortnights", () => {
       const { reports, declarations, operations, run } = setUp();
       reports.seed(
         { pointOfSaleNumber: POINT_OF_SALE, fortnight: SEPTEMBER_SECOND_HALF },
-        { state: "refused", lastAttemptAt: new Date("2026-10-03T14:30:00.000Z") },
+        { state: "refused", movement: null, lastAttemptAt: new Date("2026-10-03T14:30:00.000Z") },
       );
 
       const result = await run();
@@ -410,7 +358,7 @@ describe("reportFortnights", () => {
       const { reports, declarations, run } = setUp();
       reports.seed(
         { pointOfSaleNumber: POINT_OF_SALE, fortnight: SEPTEMBER_SECOND_HALF },
-        { state: "refused", lastAttemptAt: new Date("2026-10-03T13:59:00.000Z") },
+        { state: "refused", movement: null, lastAttemptAt: new Date("2026-10-03T13:59:00.000Z") },
       );
 
       const result = await run();
