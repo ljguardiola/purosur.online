@@ -41,7 +41,9 @@ describe("the numbering conflict freeze migration applied over a database that a
   });
 
   it("accepts each diagnosis with the time it was made", async () => {
-    const client = await (await databaseBeforeMigration("_numbering_conflict_freeze")).applyMigration();
+    const client = await (
+      await databaseBeforeMigration("_numbering_conflict_freeze")
+    ).applyMigration();
     const registerId = await aRegister(client);
     await insertRequest(client, registerId, 1);
     await insertRequest(client, registerId, 2);
@@ -58,7 +60,9 @@ describe("the numbering conflict freeze migration applied over a database that a
   });
 
   it("refuses a diagnosis other than the known ones", async () => {
-    const client = await (await databaseBeforeMigration("_numbering_conflict_freeze")).applyMigration();
+    const client = await (
+      await databaseBeforeMigration("_numbering_conflict_freeze")
+    ).applyMigration();
     await insertRequest(client, await aRegister(client), 1);
 
     await expect(
@@ -67,7 +71,9 @@ describe("the numbering conflict freeze migration applied over a database that a
   });
 
   it("refuses a diagnosis without the time it was made, and the time without the diagnosis", async () => {
-    const client = await (await databaseBeforeMigration("_numbering_conflict_freeze")).applyMigration();
+    const client = await (
+      await databaseBeforeMigration("_numbering_conflict_freeze")
+    ).applyMigration();
     await insertRequest(client, await aRegister(client), 1);
 
     await expect(
@@ -77,7 +83,9 @@ describe("the numbering conflict freeze migration applied over a database that a
   });
 
   it("holds one freeze per point of sale", async () => {
-    const client = await (await databaseBeforeMigration("_numbering_conflict_freeze")).applyMigration();
+    const client = await (
+      await databaseBeforeMigration("_numbering_conflict_freeze")
+    ).applyMigration();
     await client.query(
       `insert into numbering_freezes (point_of_sale_number, count_before_freeze, frozen_at)
        values (7, 12, '2026-10-06T15:00:00Z')`,
@@ -92,7 +100,9 @@ describe("the numbering conflict freeze migration applied over a database that a
   });
 
   it("refuses a count before the freeze below zero", async () => {
-    const client = await (await databaseBeforeMigration("_numbering_conflict_freeze")).applyMigration();
+    const client = await (
+      await databaseBeforeMigration("_numbering_conflict_freeze")
+    ).applyMigration();
 
     await expect(
       client.query(

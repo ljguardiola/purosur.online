@@ -2,8 +2,8 @@ import { randomUUID } from "node:crypto";
 import { configureRegisterOfflinePointOfSale } from "@purosur/domain/fiscal/use-cases";
 import type { FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { DrizzleRegisterOfflinePointOfSaleStore } from "../fiscal/drizzle-register-offline-point-of-sale-store.js";
 import { DrizzleNumberingConflictLanes } from "../fiscal/drizzle-numbering-conflict-lanes.js";
+import { DrizzleRegisterOfflinePointOfSaleStore } from "../fiscal/drizzle-register-offline-point-of-sale-store.js";
 import { DrizzleTaxAuthorityCounts } from "../fiscal/drizzle-tax-authority-counts.js";
 import {
   insertAppliedOfflineDocument,
