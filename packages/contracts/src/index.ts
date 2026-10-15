@@ -387,10 +387,12 @@ export {
 export type {
   SnapshotWorkerJobMessage,
   SnapshotWorkerLaunchRequest,
+  SnapshotWorkerMessage,
 } from "./register/snapshot-worker.js";
 export {
   snapshotWorkerJobSchema,
   snapshotWorkerLaunchSchema,
+  snapshotWorkerMessageSchema,
 } from "./register/snapshot-worker.js";
 export type { StartupPending } from "./register/startup-pending.js";
 export type { AverageTicketBody } from "./sales/average-ticket.js";

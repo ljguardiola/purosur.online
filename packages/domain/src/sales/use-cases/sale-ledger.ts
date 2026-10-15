@@ -83,6 +83,7 @@ export interface SaleLedgerTransaction {
   openSale(sessionId: string): SaleWithLines | undefined;
   installationRevoked(): boolean;
   newSalesStoppedByDisk(): boolean;
+  localDatabaseDamaged(): boolean;
   paidOrdersWithoutSale(): PaidOrderResolution[];
   paidOrderDiscovery(): PaidOrderDiscoveryState;
   registerIdentity(): RegisterIdentity | undefined;
