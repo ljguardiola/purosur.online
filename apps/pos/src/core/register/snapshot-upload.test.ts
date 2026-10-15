@@ -59,7 +59,7 @@ describe("cloudSnapshotUploads", () => {
           },
         },
       ]);
-      expect(answer).toEqual({ kind: "accepted", destination: DESTINATION });
+      expect(answer).toEqual({ kind: "accepted", authorization: DESTINATION });
     });
 
     it("answers the code the cloud refused the declaration with", async () => {

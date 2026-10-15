@@ -54,20 +54,9 @@ describe("uploadPendingSnapshotGenerations", () => {
     });
     expect(events).toEqual([
       { kind: "declare", generationId: NEWER_ID },
-      { kind: "put", url: `https://storage.example.test/${NEWER_ID}`, object: "encrypted bytes" },
+      { kind: "put", authorization: `upload of ${NEWER_ID}`, object: "encrypted bytes" },
       { kind: "confirm", generationId: NEWER_ID },
       { kind: "mark_uploaded", generationId: NEWER_ID, at: NOW },
-    ]);
-  });
-
-  it("sends the object with the headers the cloud required", async () => {
-    const { generations, cloud, upload } = setup();
-    generations.hold(NEWER);
-
-    await upload();
-
-    expect(cloud.destinations).toEqual([
-      { url: `https://storage.example.test/${NEWER_ID}`, headers: { "x-key-version": "2" } },
     ]);
   });
 
@@ -188,7 +177,8 @@ describe("uploadPendingSnapshotGenerations", () => {
     const { events, generations, cloud, upload } = setup();
     generations.hold(OLDER);
     generations.hold(NEWER);
-    cloud.onPut = (destination) => (destination.url.endsWith(NEWER_ID) ? "failed" : "done");
+    cloud.onPut = (authorization) =>
+      authorization === `upload of ${NEWER_ID}` ? "failed" : "done";
 
     const outcome = await upload();
 
