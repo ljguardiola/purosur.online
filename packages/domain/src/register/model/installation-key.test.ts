@@ -4,6 +4,7 @@ import {
   hasDistinctKeyVersions,
   INSTALLATION_KEY_BYTES,
   inVersionOrder,
+  isHeldSnapshotKeyOutdated,
   isWellFormedInstallationKey,
   latestKey,
   latestKeyVersion,
@@ -83,6 +84,29 @@ describe("latestKeyVersion", () => {
 
   it("is nothing when no key was generated yet", () => {
     expect(latestKeyVersion([])).toBeUndefined();
+  });
+});
+
+describe("isHeldSnapshotKeyOutdated", () => {
+  it("is outdated when the cloud's current version is above the held one", () => {
+    expect(isHeldSnapshotKeyOutdated(2, 3)).toBe(true);
+  });
+
+  it("is not outdated when the held version is the cloud's current one", () => {
+    expect(isHeldSnapshotKeyOutdated(3, 3)).toBe(false);
+  });
+
+  it("is not outdated when the held version is above the cloud's current one", () => {
+    expect(isHeldSnapshotKeyOutdated(4, 3)).toBe(false);
+  });
+
+  it("is outdated when the register holds no key and the cloud has one", () => {
+    expect(isHeldSnapshotKeyOutdated(undefined, 1)).toBe(true);
+  });
+
+  it("is not outdated when the cloud's current version is unknown", () => {
+    expect(isHeldSnapshotKeyOutdated(2, undefined)).toBe(false);
+    expect(isHeldSnapshotKeyOutdated(undefined, undefined)).toBe(false);
   });
 });
 

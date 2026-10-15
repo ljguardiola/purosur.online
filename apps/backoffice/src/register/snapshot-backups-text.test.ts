@@ -23,6 +23,14 @@ test("captions each tier with how far back the rules keep it", () => {
   });
 });
 
+test("writes each tier's count with Argentine digit grouping", () => {
+  expect(snapshotTierCaptions({ hourly: 1500, daily: 2000, monthly: 1200 })).toEqual({
+    hourly: "Últimas 1.500 horas",
+    daily: "Últimos 2.000 días",
+    monthly: "Hasta 1.200 meses",
+  });
+});
+
 test("captions a tier kept for one unit in the singular", () => {
   expect(snapshotTierCaptions({ hourly: 1, daily: 1, monthly: 1 })).toEqual({
     hourly: "Última hora",
@@ -33,6 +41,10 @@ test("captions a tier kept for one unit in the singular", () => {
 
 test("captions the recent tier with how many of the newest generations it keeps", () => {
   expect(snapshotRecentCaption(6)).toBe("Las 6 más nuevas");
+});
+
+test("writes the recent tier's count with Argentine digit grouping", () => {
+  expect(snapshotRecentCaption(1500)).toBe("Las 1.500 más nuevas");
 });
 
 test("captions a recent tier that keeps one generation in the singular", () => {
