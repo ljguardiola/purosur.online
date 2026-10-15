@@ -195,6 +195,7 @@ const STALE_COLUMNS: [Entity, string, string, string][] = [
     "tax_authority_last_authorized_number",
     "NULL",
   ],
+  ["register_point_of_sale", "register_point_of_sale", "numbering_frozen", "1"],
   [
     "register_offline_point_of_sale",
     "register_offline_point_of_sale",

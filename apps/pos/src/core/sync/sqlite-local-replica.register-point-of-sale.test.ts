@@ -19,6 +19,7 @@ function pointOfSaleChange(
   fiscalAddressId: string,
   version: number,
   taxAuthorityLastAuthorizedNumber: number | null = null,
+  numberingFrozen = false,
 ): RegisterPulledChange {
   const change: SyncChange = {
     change_seq: changeSeq,
@@ -28,6 +29,7 @@ function pointOfSaleChange(
       point_of_sale_number: pointOfSaleNumber,
       fiscal_address_id: fiscalAddressId,
       tax_authority_last_authorized_number: taxAuthorityLastAuthorizedNumber,
+      numbering_frozen: numberingFrozen,
       version,
     },
   };
@@ -53,6 +55,14 @@ function savedCount() {
     )
     .all()
     .map((row) => row.tax_authority_last_authorized_number);
+}
+
+function savedFreezeAndCount() {
+  return database
+    .prepare<[], { numbering_frozen: number; tax_authority_last_authorized_number: number | null }>(
+      "SELECT numbering_frozen, tax_authority_last_authorized_number FROM register_point_of_sale",
+    )
+    .all();
 }
 
 let database: LocalDatabase;
@@ -232,6 +242,64 @@ describe("the register's local copy of its own point of sale", () => {
 
       await save(pointOfSaleChange(4, 12, MAIN_STREET, 4, 44));
       expect(savedCount()).toEqual([44]);
+    });
+  });
+
+  describe("the freeze of the point of sale's numbering", () => {
+    it("is not frozen when the cloud delivers it not frozen", async () => {
+      await save(pointOfSaleChange(1, 12, MAIN_STREET, 1, 40));
+
+      expect(savedFreezeAndCount()).toEqual([
+        { numbering_frozen: 0, tax_authority_last_authorized_number: 40 },
+      ]);
+    });
+
+    it("saves a freeze with the point of sale", async () => {
+      await save(pointOfSaleChange(1, 12, MAIN_STREET, 1, 40, true));
+
+      expect(savedFreezeAndCount()).toEqual([
+        { numbering_frozen: 1, tax_authority_last_authorized_number: 40 },
+      ]);
+    });
+
+    it("saves an unfreeze together with the new count of a newer version", async () => {
+      await save(pointOfSaleChange(1, 12, MAIN_STREET, 1, 40, true));
+
+      await save(pointOfSaleChange(2, 12, MAIN_STREET, 2, 43, false));
+
+      expect(savedFreezeAndCount()).toEqual([
+        { numbering_frozen: 0, tax_authority_last_authorized_number: 43 },
+      ]);
+    });
+
+    it("saves a freeze delivered with a newer version whose count is lower or unknown, keeping the greater count", async () => {
+      await save(pointOfSaleChange(1, 12, MAIN_STREET, 1, 40));
+
+      await save(pointOfSaleChange(2, 12, MAIN_STREET, 2, null, true));
+
+      expect(savedFreezeAndCount()).toEqual([
+        { numbering_frozen: 1, tax_authority_last_authorized_number: 40 },
+      ]);
+    });
+
+    it("takes the freeze redelivered at the same version with a greater count", async () => {
+      await save(pointOfSaleChange(1, 12, MAIN_STREET, 1, 40));
+
+      await save(pointOfSaleChange(2, 12, MAIN_STREET, 1, 43, true));
+
+      expect(savedFreezeAndCount()).toEqual([
+        { numbering_frozen: 1, tax_authority_last_authorized_number: 43 },
+      ]);
+    });
+
+    it("keeps the freeze when an older version arrives late", async () => {
+      await save(pointOfSaleChange(1, 12, MAIN_STREET, 2, 40, true));
+
+      await save(pointOfSaleChange(2, 12, MAIN_STREET, 1, 90, false));
+
+      expect(savedFreezeAndCount()).toEqual([
+        { numbering_frozen: 1, tax_authority_last_authorized_number: 40 },
+      ]);
     });
   });
 });
