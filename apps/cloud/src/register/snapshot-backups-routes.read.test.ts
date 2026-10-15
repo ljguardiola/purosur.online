@@ -170,7 +170,7 @@ describe("GET /snapshot-backups/registers/:registerId", () => {
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({
       rules: { hourly: 12, daily: 14, monthly: 6 },
-      tiers: { recent: 1, hourly: 0, daily: 0, monthly: 0 },
+      tiers: { recent: 1, hourly: 1, daily: 1, monthly: 1 },
       generations: [
         {
           id: SECOND_GENERATION_ID,

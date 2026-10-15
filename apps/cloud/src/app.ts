@@ -148,6 +148,10 @@ import type { RegistersRouteOptions } from "./register/registers-list-route.js";
 import { registerRegistersListRoute } from "./register/registers-list-route.js";
 import { registerReportRegistersRoute } from "./register/report-registers-route.js";
 import {
+  registerSnapshotBackupsRoutes,
+  type SnapshotBackupsRouteOptions,
+} from "./register/snapshot-backups-routes.js";
+import {
   registerSalesReportRoutes,
   type SalesReportRouteOptions,
 } from "./sales/sales-report-routes.js";
@@ -219,6 +223,7 @@ export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = Postgre
   prices?: WithoutClock<PricesRouteOptions<TQueryResult>>;
   discounts?: WithoutClock<DiscountsRouteOptions<TQueryResult>>;
   registers?: WithoutClock<RegistersRouteOptions<TQueryResult>>;
+  snapshotBackups?: WithoutClock<SnapshotBackupsRouteOptions<TQueryResult>>;
   registersPointsOfSale?: WithoutClock<RegistersPointsOfSaleRouteOptions<TQueryResult>>;
   stock?: WithoutClock<StockRouteOptions<TQueryResult>>;
   salesReports?: WithoutClock<SalesReportRouteOptions<TQueryResult>>;
@@ -311,6 +316,7 @@ export function databaseRouteOptions<TQueryResult extends PgQueryResultHKT>(
     prices: backoffice,
     discounts: backoffice,
     registers: backoffice,
+    snapshotBackups: { ...backoffice, keysEncryptionKey: wiring.installationKeysEncryptionKey },
     registersPointsOfSale: wiring.enqueueTaxAuthorityCount
       ? { ...backoffice, enqueueTaxAuthorityCount: wiring.enqueueTaxAuthorityCount }
       : backoffice,
@@ -599,6 +605,10 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
         registerRegisterCoverageRoute(api, { ...options.registers, now });
         registerRegisterEnrollmentCodeRoute(api, { ...options.registers, now });
         registerRegisterPointTerminalRoute(api, { ...options.registers, now });
+      }
+
+      if (options.snapshotBackups) {
+        registerSnapshotBackupsRoutes(api, { ...options.snapshotBackups, now });
       }
 
       if (options.registersPointsOfSale) {

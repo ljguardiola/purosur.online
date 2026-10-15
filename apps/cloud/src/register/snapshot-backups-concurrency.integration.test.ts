@@ -40,7 +40,14 @@ function advancingClock(): () => Date {
   return () => new Date(SESSION_NOON.getTime() + calls++ * 1000);
 }
 
-async function actor(): Promise<string> {
+let seededActor: Promise<string> | undefined;
+
+function actor(): Promise<string> {
+  seededActor ??= seedActor();
+  return seededActor;
+}
+
+async function seedActor(): Promise<string> {
   const session = await openBackofficeSession(db, {
     now: SESSION_NOON,
     locationId: await seededLocationId(db),

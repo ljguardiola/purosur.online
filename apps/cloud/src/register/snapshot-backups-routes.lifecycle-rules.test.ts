@@ -28,7 +28,7 @@ afterEach(async () => {
   await app.close();
 });
 
-function putRules(payload: unknown, headers: Record<string, string> = {}) {
+function putRules(payload: Record<string, unknown>, headers: Record<string, string> = {}) {
   return app.inject({ method: "PUT", url: "/snapshot-backups/lifecycle-rules", headers, payload });
 }
 

@@ -2748,6 +2748,26 @@ describe("the route access inventory", () => {
       },
       {
         method: "GET",
+        url: "/api/snapshot-backups/registers",
+        access: capabilityAccess("backups_area"),
+      },
+      {
+        method: "GET",
+        url: "/api/snapshot-backups/registers/:registerId",
+        access: capabilityAccess("backups_area"),
+      },
+      {
+        method: "PUT",
+        url: "/api/snapshot-backups/lifecycle-rules",
+        access: capabilityAccess("backups_area"),
+      },
+      {
+        method: "POST",
+        url: "/api/snapshot-backups/registers/:registerId/key-rotations",
+        access: capabilityAccess("backups_area"),
+      },
+      {
+        method: "GET",
         url: "/api/registers/points-of-sale",
         access: capabilityAccess("cash_area"),
       },
