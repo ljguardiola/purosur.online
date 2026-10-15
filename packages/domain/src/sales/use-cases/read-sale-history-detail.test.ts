@@ -5,7 +5,7 @@ import {
   type FakeHistorySale,
   FakeRegisterSalesHistory,
 } from "./test-support/fake-register-sales-history.js";
-import { completedSale, FIRST_PRINT_AT, SENT_AT } from "./test-support/receipt-rig.js";
+import { completedSale, FIRST_PRINT_AT, SENT_AT, voidedSale } from "./test-support/receipt-rig.js";
 
 function historySale(
   overrides: Partial<NonNullable<FakeHistorySale["record"]>> = {},
@@ -69,6 +69,7 @@ describe("readSaleHistoryDetail", () => {
         ],
         standing: "completed",
         voidability: { kind: "not_voidable", refusal: "carries_invoice" },
+        reprint: { kind: "available" },
         nextCopy: { kind: "original" },
       },
     });
@@ -119,6 +120,22 @@ describe("readSaleHistoryDetail", () => {
     expect(readSaleHistoryDetail({ history, ledger }, { saleId: "sale-1" })).toEqual({
       kind: "not_found",
     });
+  });
+
+  it("says reprinting is available for a sale that stands", () => {
+    const history = new FakeRegisterSalesHistory([historySale()]);
+    const ledger = new FakeReceiptLedger({ sales: [completedSale()] });
+    const outcome = readSaleHistoryDetail({ history, ledger }, { saleId: "sale-1" });
+
+    expect(outcome.kind === "found" && outcome.detail.reprint).toEqual({ kind: "available" });
+  });
+
+  it("says a voided sale's receipt is not printed", () => {
+    const history = new FakeRegisterSalesHistory([historySale({ voided: true })]);
+    const ledger = new FakeReceiptLedger({ sales: [voidedSale()] });
+    const outcome = readSaleHistoryDetail({ history, ledger }, { saleId: "sale-1" });
+
+    expect(outcome.kind === "found" && outcome.detail.reprint).toEqual({ kind: "sale_voided" });
   });
 
   describe("whether the sale may be voided", () => {
