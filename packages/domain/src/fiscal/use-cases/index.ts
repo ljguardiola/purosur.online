@@ -159,6 +159,7 @@ export type {
   FortnightPresentationReader,
 } from "./fortnight-presentation-reader.js";
 export type {
+  DocumentTypeReportChange,
   FortnightReportChange,
   FortnightReportKey,
   FortnightReportPorts,
@@ -167,11 +168,18 @@ export type {
   NoMovementDeclarationAnswer,
   NoMovementDeclarationCall,
   NoMovementDeclarationLookupAnswer,
+  OfflineDocumentBatchLimitAnswer,
+  OfflineDocumentLastReportedAnswer,
+  OfflineDocumentLastReportedCall,
+  OfflineDocumentOfFortnight,
+  OfflineDocumentReportAnswer,
+  OfflineDocumentReportCall,
   OfflineDocumentsOfFortnight,
   OwedFortnightReport,
   RecordedFortnightReport,
   RegisterEventStreams,
   TaxAuthorityNoMovementDeclarations,
+  TaxAuthorityOfflineDocumentReports,
 } from "./fortnight-report-ports.js";
 export type {
   InterruptedRealTimeAuthorization,
