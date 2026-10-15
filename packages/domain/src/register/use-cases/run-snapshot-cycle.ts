@@ -38,6 +38,7 @@ export async function runSnapshotCycle(
     storage: await state.storage(),
     pendingUploads: await state.hasPendingUploads(),
     cloudReachable: await state.cloudReachable(),
+    localDatabaseDamaged: await state.localDatabaseDamaged(),
   });
   if (decision.kind === "skip") {
     if (decision.reason === "wal_oversized") {

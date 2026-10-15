@@ -82,6 +82,7 @@ export class SqliteSaleLedger implements SaleLedger {
   private readonly outboxChainKey: string | undefined;
   private readonly paidOrderDiscovery: () => PaidOrderDiscoveryState;
   private readonly newSalesStoppedByDisk: () => boolean;
+  private readonly localDatabaseDamaged: () => boolean;
 
   constructor(
     database: LocalDatabase,
@@ -89,12 +90,14 @@ export class SqliteSaleLedger implements SaleLedger {
     outboxChainKey?: string,
     paidOrderDiscovery: () => PaidOrderDiscoveryState = () => "pending",
     newSalesStoppedByDisk: () => boolean = () => false,
+    localDatabaseDamaged: () => boolean = () => false,
   ) {
     this.database = database;
     this.people = people;
     this.outboxChainKey = outboxChainKey;
     this.paidOrderDiscovery = paidOrderDiscovery;
     this.newSalesStoppedByDisk = newSalesStoppedByDisk;
+    this.localDatabaseDamaged = localDatabaseDamaged;
   }
 
   transaction<TOutcome>(work: (tx: SaleLedgerTransaction) => TOutcome): TOutcome {
@@ -108,6 +111,7 @@ export class SqliteSaleLedger implements SaleLedger {
       openSale: (sessionId) => readOpenSale(this.database, sessionId),
       installationRevoked: () => this.installationRevoked(),
       newSalesStoppedByDisk: () => this.newSalesStoppedByDisk(),
+      localDatabaseDamaged: () => this.localDatabaseDamaged(),
       paidOrdersWithoutSale: () =>
         new SqliteLocalPaidOrders({ database: this.database }).paidOrdersWithoutSale(),
       paidOrderDiscovery: () => this.paidOrderDiscovery(),

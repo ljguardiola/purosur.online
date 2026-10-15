@@ -2780,6 +2780,7 @@ describe("the route access inventory", () => {
       },
       { method: "POST", url: "/api/devices/current/snapshot-corruption", access: PUBLIC_ACCESS },
       { method: "GET", url: "/api/devices/current/snapshots", access: PUBLIC_ACCESS },
+      { method: "GET", url: "/api/devices/current/snapshots/verified", access: PUBLIC_ACCESS },
       { method: "POST", url: "/api/pin-code-redemptions", access: PUBLIC_ACCESS },
       { method: "POST", url: "/api/sign-in-lookups", access: PUBLIC_ACCESS },
       { method: "POST", url: "/api/devices/current/tokens", access: PUBLIC_ACCESS },

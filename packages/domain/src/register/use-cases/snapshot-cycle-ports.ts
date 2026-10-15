@@ -7,6 +7,7 @@ export interface SnapshotCycleState {
   battery(): Promise<BatteryReading>;
   storage(): Promise<SnapshotCycleFacts["storage"]>;
   cloudReachable(): Promise<boolean>;
+  localDatabaseDamaged(): Promise<boolean>;
 }
 
 export type SnapshotWorkerJob =

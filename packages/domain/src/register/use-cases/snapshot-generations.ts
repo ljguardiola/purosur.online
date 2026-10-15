@@ -89,6 +89,10 @@ export interface SnapshotStoreTransaction {
   lifecycleRules(): Promise<SnapshotLifecycleRules | undefined>;
   registersWithGenerations(): Promise<string[]>;
   generationsOf(registerId: string): Promise<SnapshotGeneration[]>;
+  generationsAmong(
+    registerId: string,
+    generationIds: readonly string[],
+  ): Promise<SnapshotGeneration[]>;
   markPruned(generationIds: readonly string[]): Promise<void>;
   prunedWithObject(registerId: string): Promise<SnapshotGeneration[]>;
   markObjectDeleted(generationId: string): Promise<void>;

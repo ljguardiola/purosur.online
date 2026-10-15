@@ -31,6 +31,7 @@ function conditions(overrides: Partial<Parameters<typeof registerOwnConditions>[
     now: NOW,
     serialDevices: { scale: MATCHING, reader: MATCHING },
     storage: HEALTHY_STORAGE,
+    localDatabaseDamaged: false,
     ...overrides,
   });
 }
@@ -74,6 +75,12 @@ describe("registerOwnConditions", () => {
   it("holds sales_denied, naming the broken event history as its reason, while sales are stopped because it broke", () => {
     expect(conditions({ salesStop: { stopped: true, reason: "event_history_broken" } })).toEqual([
       { kind: "sales_denied", reason: "event_history_broken", level: "critical" },
+    ]);
+  });
+
+  it("holds sales_denied, naming the damaged local database as its reason, while the register keeps running with a damaged database", () => {
+    expect(conditions({ localDatabaseDamaged: true })).toEqual([
+      { kind: "sales_denied", reason: "local_database_damaged", level: "critical" },
     ]);
   });
 

@@ -21,6 +21,7 @@ export type SaleAdditionRefusal =
   | { kind: "not_permitted" }
   | { kind: "no_open_session" }
   | { kind: "installation_revoked" }
+  | { kind: "local_database_damaged" }
   | { kind: "disk_space_short" }
   | { kind: "paid_order_without_sale" }
   | { kind: "paid_orders_not_checked" }
@@ -58,6 +59,9 @@ export function saleToAddTo(
   }
   if (!existing && tx.installationRevoked()) {
     return { kind: "installation_revoked" };
+  }
+  if (!existing && tx.localDatabaseDamaged()) {
+    return { kind: "local_database_damaged" };
   }
   if (!existing && tx.newSalesStoppedByDisk()) {
     return { kind: "disk_space_short" };

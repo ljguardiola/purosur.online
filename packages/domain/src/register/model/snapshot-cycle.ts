@@ -23,9 +23,15 @@ export interface SnapshotCycleFacts {
   storage: { diskFreeBytes: number; diskFreeRatio: number; walSizeBytes: number };
   pendingUploads: boolean;
   cloudReachable: boolean;
+  localDatabaseDamaged: boolean;
 }
 
-export type SnapshotSkipReason = "unchanged" | "battery_low" | "disk_low" | "wal_oversized";
+export type SnapshotSkipReason =
+  | "unchanged"
+  | "battery_low"
+  | "disk_low"
+  | "wal_oversized"
+  | "database_damaged";
 
 export type SnapshotCycleDecision =
   | { kind: "take" }
@@ -43,7 +49,7 @@ function moved(last: SnapshotSequences | undefined, current: SnapshotSequences):
 function blockingReason({
   battery,
   storage,
-}: SnapshotCycleFacts): Exclude<SnapshotSkipReason, "unchanged"> | undefined {
+}: SnapshotCycleFacts): Exclude<SnapshotSkipReason, "unchanged" | "database_damaged"> | undefined {
   if (battery.kind === "present" && battery.chargePercent < SNAPSHOT_BATTERY_FLOOR_PERCENT) {
     return "battery_low";
   }
@@ -58,8 +64,15 @@ function blockingReason({
   return walOversized(storage.walSizeBytes) ? "wal_oversized" : undefined;
 }
 
+function reasonNotToTake(facts: SnapshotCycleFacts): SnapshotSkipReason | undefined {
+  if (facts.localDatabaseDamaged) {
+    return "database_damaged";
+  }
+  return moved(facts.lastGeneration, facts.current) ? blockingReason(facts) : "unchanged";
+}
+
 export function snapshotCycleDecision(facts: SnapshotCycleFacts): SnapshotCycleDecision {
-  const reason = moved(facts.lastGeneration, facts.current) ? blockingReason(facts) : "unchanged";
+  const reason = reasonNotToTake(facts);
   if (reason === undefined) {
     return { kind: "take" };
   }

@@ -1,5 +1,10 @@
 export type { Clock, OperationAuthority, OperationAuthorization } from "../../shared/index.js";
 export type {
+  AnswerSnapshotVerificationInput,
+  AnswerSnapshotVerificationPorts,
+} from "./answer-snapshot-verification.js";
+export { answerSnapshotVerification } from "./answer-snapshot-verification.js";
+export type {
   ApplySnapshotRetentionPorts,
   SnapshotRetentionSummary,
 } from "./apply-snapshot-retention.js";
@@ -91,6 +96,11 @@ export type {
 } from "./open-cash-session.js";
 export { openCashSession } from "./open-cash-session.js";
 export type {
+  PruneSnapshotGenerationsOnDiskOutcome,
+  PruneSnapshotGenerationsOnDiskPorts,
+} from "./prune-snapshot-generations-on-disk.js";
+export { pruneSnapshotGenerationsOnDisk } from "./prune-snapshot-generations-on-disk.js";
+export type {
   ReadReceiptPrinterAddressOutcome,
   ReadReceiptPrinterAddressPorts,
 } from "./read-receipt-printer-address.js";
@@ -108,6 +118,12 @@ export type {
   RecordCashMovementPorts,
 } from "./record-cash-movement.js";
 export { recordCashMovement } from "./record-cash-movement.js";
+export type {
+  RecordSnapshotCopyFailureInput,
+  RecordSnapshotCopyFailureOutcome,
+  RecordSnapshotCopyFailurePorts,
+} from "./record-snapshot-copy-failure.js";
+export { recordSnapshotCopyFailure } from "./record-snapshot-copy-failure.js";
 export type {
   RecordSnapshotUploadedInput,
   RecordSnapshotUploadedOutcome,
@@ -166,6 +182,11 @@ export type {
   RunSnapshotCyclePorts,
 } from "./run-snapshot-cycle.js";
 export { runSnapshotCycle } from "./run-snapshot-cycle.js";
+export type {
+  SendSnapshotCorruptionReportOutcome,
+  SendSnapshotCorruptionReportPorts,
+} from "./send-snapshot-corruption-report.js";
+export { sendSnapshotCorruptionReport } from "./send-snapshot-corruption-report.js";
 export type { SerialDeviceEnumeration } from "./serial-device-enumeration.js";
 export type {
   SerialDeviceRegistrations,
@@ -178,11 +199,20 @@ export type {
 } from "./set-receipt-printer-address.js";
 export { setReceiptPrinterAddress } from "./set-receipt-printer-address.js";
 export type {
+  SnapshotCorruptionCloud,
+  SnapshotCorruptionReports,
+} from "./snapshot-corruption-ports.js";
+export type {
   SnapshotCycleState,
   SnapshotLog,
   SnapshotWorkerJob,
   SnapshotWorkerLauncher,
 } from "./snapshot-cycle-ports.js";
+export type {
+  SnapshotGenerationsOnDisk,
+  SnapshotVerificationAnswer,
+  SnapshotVerificationCloud,
+} from "./snapshot-disk-pruning-ports.js";
 export type {
   AuthorizedSnapshotUpload,
   NewSnapshotGeneration,
