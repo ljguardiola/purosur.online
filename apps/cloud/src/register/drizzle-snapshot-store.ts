@@ -175,6 +175,24 @@ class DrizzleSnapshotStoreTransaction<TQueryResult extends PgQueryResultHKT>
       .where(eq(registerSnapshotGenerations.registerId, registerId));
   }
 
+  async generationsAmong(
+    registerId: string,
+    generationIds: readonly string[],
+  ): Promise<SnapshotGeneration[]> {
+    if (generationIds.length === 0) {
+      return [];
+    }
+    return this.tx
+      .select(generationColumns)
+      .from(registerSnapshotGenerations)
+      .where(
+        and(
+          eq(registerSnapshotGenerations.registerId, registerId),
+          inArray(registerSnapshotGenerations.id, [...generationIds]),
+        ),
+      );
+  }
+
   async markPruned(generationIds: readonly string[]): Promise<void> {
     await this.tx
       .update(registerSnapshotGenerations)

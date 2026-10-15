@@ -1121,6 +1121,7 @@ if (localDatabase !== undefined && localDatabasePath !== undefined) {
     databasePath: localDatabasePath,
     snapshotsFolder: join(dirname(localDatabasePath), SNAPSHOTS_FOLDER),
     cloudUrl,
+    cloud: cloudClient,
     readCredentials: () => mainRequests.readCredentials(),
     batteryReport: () => batteryWatch.report(),
     cloudReachability: () => cloudReachability,

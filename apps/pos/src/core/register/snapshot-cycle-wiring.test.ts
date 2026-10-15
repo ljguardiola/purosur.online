@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync, statSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { SnapshotWorkerLaunchRequest } from "@purosur/contracts";
@@ -8,6 +8,8 @@ import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import { migrationClock } from "../platform/test-support/migration-clock";
 import { openLocalDatabase } from "../platform/test-support/open-local-database";
 import { startSnapshotCycle } from "./snapshot-cycle-wiring";
+import { objectPath, writeManifest } from "./snapshot-generations-folder";
+import { FakeSnapshotCloud } from "./test-support/fake-snapshot-cloud";
 
 const KEY = Buffer.alloc(32, 3).toString("base64");
 const REGISTER_ID = "7d2f6c5e-1b0a-4f43-9a52-3c7d8e9f0a11";
@@ -31,7 +33,7 @@ afterEach(() => {
   rmSync(folder, { recursive: true, force: true });
 });
 
-function start(walSizeBytes = 0) {
+function start(walSizeBytes = 0, cloud = new FakeSnapshotCloud()) {
   const posted: SnapshotWorkerLaunchRequest[] = [];
   const scheduled: { run: () => Promise<void>; delayMs: number }[] = [];
   const failures: unknown[] = [];
@@ -40,6 +42,7 @@ function start(walSizeBytes = 0) {
     databasePath,
     snapshotsFolder: join(folder, "snapshots"),
     cloudUrl: "https://cloud.example.test",
+    cloud: { cloudUrl: "https://cloud.example.test", fetch: cloud.fetch, sleep: async () => {} },
     readCredentials: async () => ({
       device_id: "device-1",
       device_token: "prefix.secret",
@@ -66,6 +69,27 @@ function start(walSizeBytes = 0) {
     onFailure: (error) => failures.push(error),
   });
   return { schedule, posted, scheduled, failures };
+}
+
+async function holdEightUploadedGenerations(snapshotsFolder: string): Promise<string[]> {
+  mkdirSync(snapshotsFolder);
+  const ids = [1, 2, 3, 4, 5, 6, 7, 8].map(
+    (hour) => `00000000-0000-4000-8000-${String(hour).padStart(12, "0")}`,
+  );
+  for (const [index, generationId] of ids.entries()) {
+    await writeManifest(snapshotsFolder, {
+      generation_id: generationId,
+      created_at: new Date(Date.UTC(2026, 9, 15, index + 1)).toISOString(),
+      last_device_seq: index,
+      pull_cursor: index,
+      key_version: 1,
+      size: 4,
+      sha256: "ab".repeat(32),
+      uploaded_at: "2026-10-15T23:00:00.000Z",
+      refused_at: null,
+    });
+  }
+  return ids;
 }
 
 describe("startSnapshotCycle", () => {
@@ -123,5 +147,36 @@ describe("startSnapshotCycle", () => {
 
     expect(statSync(`${databasePath}-wal`).size).toBe(0);
     expect(posted).toEqual([]);
+  });
+
+  it("prunes the generations on disk the cloud verified before it decides the cycle", async () => {
+    const snapshotsFolder = join(folder, "snapshots");
+    const ids = await holdEightUploadedGenerations(snapshotsFolder);
+    const cloud = new FakeSnapshotCloud();
+    cloud.onVerified = (asked) => Response.json({ verified_generation_ids: asked });
+    const { scheduled, posted, failures } = start(0, cloud);
+
+    await scheduled[0]?.run();
+
+    expect(failures).toEqual([]);
+    expect(readdirSync(snapshotsFolder)).not.toContain(`${ids[1]}.json`);
+    expect(readdirSync(snapshotsFolder)).toHaveLength(7);
+    expect(posted).toMatchObject([{ job: { kind: "take" } }]);
+  });
+
+  it("reports a failed pruning and still decides the cycle", async () => {
+    const snapshotsFolder = join(folder, "snapshots");
+    const ids = await holdEightUploadedGenerations(snapshotsFolder);
+    const unremovable = objectPath(snapshotsFolder, ids[1] ?? "");
+    mkdirSync(unremovable);
+    writeFileSync(join(unremovable, "held"), "x");
+    const cloud = new FakeSnapshotCloud();
+    cloud.onVerified = (asked) => Response.json({ verified_generation_ids: asked });
+    const { scheduled, posted, failures } = start(0, cloud);
+
+    await scheduled[0]?.run();
+
+    expect(failures).toHaveLength(1);
+    expect(posted).toMatchObject([{ job: { kind: "take" } }]);
   });
 });

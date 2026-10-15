@@ -1,7 +1,8 @@
 export type CloudCall =
   | { kind: "declare"; authorization: string | null; body: unknown }
   | { kind: "put"; url: string; headers: Record<string, string>; body: Buffer }
-  | { kind: "uploaded"; generationId: string };
+  | { kind: "uploaded"; generationId: string }
+  | { kind: "verified"; authorization: string | null; generationIds: string[] };
 
 type Answer = Response | "unreachable";
 
@@ -15,6 +16,8 @@ export class FakeSnapshotCloud {
     });
   onPut: (url: string) => Answer = () => new Response(null, { status: 200 });
   onUploaded: (generationId: string) => Answer = () => new Response(null, { status: 204 });
+  onVerified: (generationIds: string[]) => Answer = () =>
+    Response.json({ verified_generation_ids: [] });
   observe: (call: CloudCall) => void | Promise<void> = () => {};
 
   readonly fetch = async (input: string, init: RequestInit): Promise<Response> => {
@@ -36,6 +39,14 @@ export class FakeSnapshotCloud {
       call = { kind: "declare", authorization: headers.get("authorization"), body };
       await this.observe(call);
       answer = this.onDeclare(body);
+    } else if (
+      url.pathname === "/api/devices/current/snapshots/verified" &&
+      init.method === "GET"
+    ) {
+      const generationIds = url.searchParams.getAll("generation_id");
+      call = { kind: "verified", authorization: headers.get("authorization"), generationIds };
+      await this.observe(call);
+      answer = this.onVerified(generationIds);
     } else if (uploaded?.[1] !== undefined && init.method === "POST") {
       call = { kind: "uploaded", generationId: uploaded[1] };
       await this.observe(call);

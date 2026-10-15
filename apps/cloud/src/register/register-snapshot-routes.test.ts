@@ -2,6 +2,7 @@ import {
   cloudErrorSchema,
   restorableSnapshotsSchema,
   snapshotUploadAnswerSchema,
+  snapshotVerificationAnswerSchema,
 } from "@purosur/contracts";
 import type { FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -107,6 +108,7 @@ const ROUTES = [
   ["POST", `/devices/current/snapshots/${GENERATION_ID}/uploaded`, undefined],
   ["POST", "/devices/current/snapshot-corruption", { stage: "copy" }],
   ["GET", "/devices/current/snapshots", undefined],
+  ["GET", `/devices/current/snapshots/verified?generation_id=${GENERATION_ID}`, undefined],
 ] as const;
 
 describe.each(ROUTES)("%s %s", (method, url, payload) => {
@@ -503,5 +505,61 @@ describe("GET /devices/current/snapshots", () => {
 
     expect(response.statusCode).toBe(503);
     expect(reported).toHaveLength(1);
+  });
+});
+
+describe("GET /devices/current/snapshots/verified", () => {
+  const PRUNED_ID = "33333333-3333-4333-8333-333333333333";
+  const UPLOADED_ID = "11111111-1111-4111-8111-111111111111";
+
+  it("answers which of the asked generations the cloud verified, pruned or not", async () => {
+    const installation = await enrolled();
+    await seedGeneration(installation, { status: "verified" });
+    await seedGeneration(installation, { id: PRUNED_ID, status: "verified", pruned: true });
+    await seedGeneration(installation, { id: UPLOADED_ID, status: "uploaded" });
+    await seedGeneration(installation, { id: OTHER_GENERATION_ID, status: "verified" });
+    build();
+
+    const response = await call(
+      "GET",
+      `/devices/current/snapshots/verified?generation_id=${GENERATION_ID}&generation_id=${PRUNED_ID}&generation_id=${UPLOADED_ID}`,
+      { authorization: `Bearer ${installation.deviceToken}` },
+    );
+
+    expect(response.statusCode).toBe(200);
+    const answer = snapshotVerificationAnswerSchema.parse(response.json());
+    expect(answer.verified_generation_ids.sort()).toEqual([GENERATION_ID, PRUNED_ID].sort());
+  });
+
+  it("answers no other register's generation as verified", async () => {
+    const other = await insertEnrolledInstallation(db, { now: NOW, registerName: "Caja 2" });
+    await keyStore(db).transaction((tx) =>
+      tx.recordSnapshotKey(other.registerId, { version: 1, key: "other-key" }),
+    );
+    await seedGeneration(other, { status: "verified" });
+    const { deviceToken } = await enrolled();
+    build();
+
+    const response = await call(
+      "GET",
+      `/devices/current/snapshots/verified?generation_id=${GENERATION_ID}`,
+      { authorization: `Bearer ${deviceToken}` },
+    );
+
+    expect(snapshotVerificationAnswerSchema.parse(response.json())).toEqual({
+      verified_generation_ids: [],
+    });
+  });
+
+  it("refuses a query that asks about no generation", async () => {
+    const { deviceToken } = await enrolled();
+    build();
+
+    const response = await call("GET", "/devices/current/snapshots/verified", {
+      authorization: `Bearer ${deviceToken}`,
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(cloudErrorSchema.parse(response.json()).code).toBe("validation_failed");
   });
 });

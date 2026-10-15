@@ -29,10 +29,16 @@ export function pendingSnapshotGenerationsNewestFirst(
   return generations.filter(isPendingSnapshotGeneration).sort(newestFirst);
 }
 
+export function snapshotGenerationsNewestFirst(
+  generations: readonly LocalSnapshotGeneration[],
+): LocalSnapshotGeneration[] {
+  return [...generations].sort(newestFirst);
+}
+
 export function lastSnapshotGenerationSequences(
   generations: readonly LocalSnapshotGeneration[],
 ): SnapshotSequences | undefined {
-  return [...generations].sort(newestFirst)[0]?.sequences;
+  return snapshotGenerationsNewestFirst(generations)[0]?.sequences;
 }
 
 export function isSettlingSnapshotRefusal(code: string): boolean {
