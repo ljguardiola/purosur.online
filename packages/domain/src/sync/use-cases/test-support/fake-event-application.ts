@@ -24,6 +24,7 @@ export interface FakeEventApplicationState {
   events: FakeStoredEvent[];
   recorded: { fact: SyncedFact; eventId: string }[];
   stockApplied: { eventId: string; saleId: string }[];
+  stockReturned: { eventId: string; saleId: string }[];
   openingCountsApplied: { eventId: string; movementId: string }[];
   openingCountsWithdrawn: { eventId: string; withdrawnMovementId: string }[];
   writeOrder: string[];
@@ -64,6 +65,7 @@ export class FakeEventApplication implements EventApplication {
     events: [],
     recorded: [],
     stockApplied: [],
+    stockReturned: [],
     openingCountsApplied: [],
     openingCountsWithdrawn: [],
     writeOrder: [],
@@ -173,6 +175,15 @@ export class FakeEventApplication implements EventApplication {
           return { kind: "refused", reason: refusal };
         }
         this.state.stockApplied.push({ eventId: event.eventId, saleId: sale.id });
+        return { kind: "applied" };
+      },
+      applySaleVoidStock: async (sale, _movements, event) => {
+        this.state.writeOrder.push("stock return");
+        const refusal = this.refuseStock.get(event.eventId);
+        if (refusal !== undefined) {
+          return { kind: "refused", reason: refusal };
+        }
+        this.state.stockReturned.push({ eventId: event.eventId, saleId: sale.id });
         return { kind: "applied" };
       },
       applyOpeningCount: async (count, event) => {
