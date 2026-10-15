@@ -57,6 +57,18 @@ describe("changeSnapshotLifecycleRules", () => {
     expect(store.operationOrder).toEqual(["lockLifecycleRules"]);
   });
 
+  it.each([
+    ["hours", { ...STORED, hourly: 13 }],
+    ["days", { ...STORED, daily: 15 }],
+    ["months", { ...STORED, monthly: 7 }],
+  ])("changes the rules when only the %s differ", async (_name, rules) => {
+    const store = new FakeSnapshotLifecycleRulesStore();
+    store.seedRules(STORED);
+
+    expect(await change(store, rules)).toEqual({ kind: "changed", rules });
+    expect(store.snapshot().rules).toEqual(rules);
+  });
+
   it("changes nothing when none were stored and the rules equal the defaults", async () => {
     const store = new FakeSnapshotLifecycleRulesStore();
 
