@@ -246,6 +246,7 @@ const SERIES = {
   taxAuthorityLastAuthorized: 38,
   documentRequesting: false,
   documentUnknown: false,
+  numberingFrozen: false,
 };
 const OFFLINE_SERIES = {
   pointOfSale: 7,
@@ -342,6 +343,62 @@ describe("decideSaleAuthorizationRoute", () => {
         offlineAuthorizationCode: null,
       }),
     ).toEqual({ kind: "defer", reason: "document_waiting" });
+  });
+
+  it("issues the sale offline for a numbering conflict even while connectivity, the token and the tax authority work", () => {
+    expect(decide({ series: { ...SERIES, numberingFrozen: true } })).toEqual({
+      kind: "issue_offline",
+      cause: "numbering_conflict",
+      pointOfSale: 7,
+      number: 101,
+      document: DOCUMENT,
+      issuedOn: "2026-10-01",
+      fortnight: OCTOBER_FIRST_FORTNIGHT,
+      offlineAuthorizationCode: CODE,
+    });
+  });
+
+  it("names the numbering conflict when the register is also offline or has an unclear document", () => {
+    expect(
+      decide({
+        online: { ...ONLINE, arcaReachable: false },
+        series: { ...SERIES, numberingFrozen: true, documentUnknown: true },
+      }),
+    ).toMatchObject({ kind: "issue_offline", cause: "numbering_conflict" });
+  });
+
+  it("defers a sale of a frozen point of sale as numbering frozen when the register holds no code", () => {
+    expect(
+      decide({
+        series: { ...SERIES, numberingFrozen: true },
+        offlineAuthorizationCode: null,
+      }),
+    ).toEqual({ kind: "defer", reason: "numbering_frozen" });
+  });
+
+  it("defers a sale of a frozen point of sale as numbering frozen when the register has no offline point of sale", () => {
+    expect(
+      decide({
+        series: { ...SERIES, numberingFrozen: true },
+        offlineSeries: { ...OFFLINE_SERIES, pointOfSale: null },
+      }),
+    ).toEqual({ kind: "defer", reason: "numbering_frozen" });
+  });
+
+  it("does not look at a freeze for a register without a point of sale", () => {
+    expect(decide({ series: { ...SERIES, pointOfSale: null, numberingFrozen: true } })).toEqual({
+      kind: "defer",
+      reason: "point_of_sale_missing",
+    });
+  });
+
+  it("defers a sale whose gate failed before looking at a freeze", () => {
+    expect(
+      decide({
+        gate: { kind: "failed", reason: "legal_name_missing" },
+        series: { ...SERIES, numberingFrozen: true },
+      }),
+    ).toEqual({ kind: "defer", reason: "pre_emission_gate_failed" });
   });
 
   it("defers a sale of a register without a point of sale while it is online, before looking at the series", () => {
@@ -478,6 +535,7 @@ describe("DEFERRAL_REASONS", () => {
       "tax_authority_count_unknown",
       "rejected",
       "unclear_outcome",
+      "numbering_frozen",
     ]);
   });
 });

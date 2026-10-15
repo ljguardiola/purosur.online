@@ -166,6 +166,7 @@ const registerPointOfSaleChangeSchema = z.object({
     point_of_sale_number: pointOfSaleNumberSchema,
     fiscal_address_id: z.string(),
     tax_authority_last_authorized_number: z.int().nonnegative().nullable().default(null),
+    numbering_frozen: z.boolean().default(false),
     version: z.int().positive(),
   }),
 });

@@ -5,7 +5,7 @@ import {
   type SaleUnit,
   type StockMovementKind,
 } from "@purosur/domain";
-import { asc, eq, inArray } from "drizzle-orm";
+import { asc, eq, inArray, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { highestSyncedOfflineNumber as highestSyncedOfflineNumberOf } from "../fiscal/drizzle-highest-synced-offline-number.js";
 import { OFFLINE_AUTHORIZATION_CODE_VERSION } from "../fiscal/offline-authorization-code-version.js";
@@ -17,6 +17,7 @@ import {
   categories,
   discounts,
   issuerIdentificationVersions,
+  numberingFreezes,
   offlineNumberBlocks,
   paymentRefunds,
   priceLists,
@@ -316,6 +317,7 @@ export async function readRegisterPointsOfSale<TQueryResult extends PgQueryResul
       pointOfSaleNumber: registerPointsOfSale.pointOfSaleNumber,
       fiscalAddressId: registerPointsOfSale.fiscalAddressId,
       taxAuthorityLastAuthorizedNumber: taxAuthorityLastAuthorizedNumbers.lastAuthorized,
+      numberingFrozen: sql<boolean>`${numberingFreezes.pointOfSaleNumber} is not null`,
       version: registerPointsOfSale.version,
     })
     .from(registerPointsOfSale)
@@ -325,6 +327,10 @@ export async function readRegisterPointsOfSale<TQueryResult extends PgQueryResul
         taxAuthorityLastAuthorizedNumbers.pointOfSaleNumber,
         registerPointsOfSale.pointOfSaleNumber,
       ),
+    )
+    .leftJoin(
+      numberingFreezes,
+      eq(numberingFreezes.pointOfSaleNumber, registerPointsOfSale.pointOfSaleNumber),
     )
     .where(inArray(registerPointsOfSale.registerId, [...registerIds]))
     .orderBy(asc(registerPointsOfSale.registerId));

@@ -2320,6 +2320,8 @@ export const fiscalRequests = pgTable(
     decidedAt: timestamp("decided_at", { withTimezone: true }),
     adoptedAuthorizationCode: text("adopted_authorization_code"),
     adoptedAuthorizationCodeDueOn: date("adopted_authorization_code_due_on", { mode: "string" }),
+    diagnosis: text("diagnosis"),
+    diagnosedAt: timestamp("diagnosed_at", { withTimezone: true }),
   },
   (table) => [
     index("fiscal_requests_point_of_sale_idx").on(table.pointOfSale),
@@ -2365,6 +2367,18 @@ export const fiscalRequests = pgTable(
     check(
       "fiscal_requests_decision_answer_check",
       sql`${table.decision} is null or coalesce(${table.answerKind} in ('unclear', 'not_attempted'), false)`,
+    ),
+    check(
+      "fiscal_requests_diagnosis_check",
+      sql`${table.diagnosis} in ('date_behind', 'collision')`,
+    ),
+    check(
+      "fiscal_requests_diagnosis_time_check",
+      sql`(${table.diagnosis} is null) = (${table.diagnosedAt} is null)`,
+    ),
+    check(
+      "fiscal_requests_diagnosis_answer_check",
+      sql`${table.diagnosis} is null or coalesce(${table.answerKind} = 'unclear', false)`,
     ),
   ],
 );
@@ -2450,6 +2464,18 @@ export const taxAuthorityLastAuthorizedNumbers = pgTable(
       sql`${table.lastAuthorized} >= 0`,
     ),
   ],
+);
+
+// A row exists while a point of sale's numbering is frozen after a numbering collision; it is
+// removed when the series is reconciled against the tax authority.
+export const numberingFreezes = pgTable(
+  "numbering_freezes",
+  {
+    pointOfSaleNumber: integer("point_of_sale_number").primaryKey(),
+    countBeforeFreeze: integer("count_before_freeze").notNull(),
+    frozenAt: timestamp("frozen_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [check("numbering_freezes_non_negative_check", sql`${table.countBeforeFreeze} >= 0`)],
 );
 
 // A purchase puts the product's price back under review on the branch's price list until a review

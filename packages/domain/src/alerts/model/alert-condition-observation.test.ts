@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { OFFSITE_DUMP_SHRINK_THRESHOLD_PERCENT } from "../../backups/index.js";
 import {
+  externalBillingObservation,
   fiscalDocumentAuthorizedObservation,
   fiscalRejectionAlertObservation,
   fiscalRejectionObservation,
@@ -337,5 +338,29 @@ describe("offsiteDumpVerifiedObservation", () => {
       kind: "offsite_dump_unverified",
       scope: "production",
     });
+  });
+});
+
+describe("externalBillingObservation", () => {
+  it("holds the condition of the number of the point of sale and document type that no sale accounts for", () => {
+    expect(
+      externalBillingObservation({ pointOfSale: 12, documentType: "factura_c", number: 41 }),
+    ).toEqual({
+      holds: true,
+      alert: {
+        kind: "external_billing",
+        scope: "12:factura_c:41",
+        detail: { pointOfSale: 12, documentType: "factura_c", number: 41 },
+      },
+    });
+  });
+
+  it("scopes the condition to each number on its own", () => {
+    expect(
+      externalBillingObservation({ pointOfSale: 12, documentType: "factura_c", number: 42 }),
+    ).toMatchObject({ alert: { scope: "12:factura_c:42" } });
+    expect(
+      externalBillingObservation({ pointOfSale: 3, documentType: "factura_c", number: 41 }),
+    ).toMatchObject({ alert: { scope: "3:factura_c:41" } });
   });
 });

@@ -640,3 +640,46 @@ describe("deciding a sale's authorization when the register holds a code for its
     });
   });
 });
+
+describe("deciding a sale's authorization when the point of sale's numbering is frozen", () => {
+  beforeEach(() => {
+    insertSaleCompletedEvent(database, "sale-1");
+    insertHealthCheck(database);
+    insertPointOfSale(database, 40, POINT_OF_SALE, true);
+  });
+
+  describe("holding a code and a block", () => {
+    beforeEach(() => {
+      insertOfflinePointOfSale(database, OFFLINE_POINT_OF_SALE, 0);
+      insertOfflineNumberBlock(database, "block-1", 1, 1000, OFFLINE_POINT_OF_SALE);
+      insertOfflineAuthorizationCode(database);
+    });
+
+    it("issues the document under the code as a numbering conflict, although the register is online and the count is known", () => {
+      decide();
+
+      expect(offlineDocuments()).toMatchObject([
+        { sale_id: "sale-1", number: 1, cause: "numbering_conflict" },
+      ]);
+      expect(documents()).toEqual([]);
+      expect(routings()).toEqual([]);
+    });
+
+    it("goes back to the real-time series once the numbering is no longer frozen", () => {
+      database.prepare("UPDATE register_point_of_sale SET numbering_frozen = 0").run();
+
+      decide();
+
+      expect(offlineDocuments()).toEqual([]);
+      expect(documents()).toMatchObject([{ sale_id: "sale-1", number: 41, state: "REQUESTING" }]);
+    });
+  });
+
+  it("defers the sale for the frozen numbering when no code is held", () => {
+    decide();
+
+    expect(offlineDocuments()).toEqual([]);
+    expect(documents()).toEqual([]);
+    expect(routings()).toMatchObject([{ sale_id: "sale-1", reason: "numbering_frozen" }]);
+  });
+});

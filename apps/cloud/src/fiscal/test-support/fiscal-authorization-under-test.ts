@@ -75,6 +75,7 @@ export function fiscalAuthorizationRouteUnderTest(): FiscalAuthorizationRouteUnd
       withdrawUnclearOutcome: async (_, fiscalDocumentId) => {
         queuedUnclearOutcomes.delete(fiscalDocumentId);
       },
+      enqueueNumberingDiagnosis: async () => {},
     });
   });
 
