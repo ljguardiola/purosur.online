@@ -236,9 +236,7 @@ async function presentDocuments(
       continue;
     }
     states.push(state);
-    if (rejections === undefined && "rejections" in outcome) {
-      rejections = outcome.rejections;
-    }
+    rejections ??= "rejections" in outcome ? outcome.rejections : undefined;
   }
   if (states.length === 0) {
     return presentations;
@@ -247,10 +245,10 @@ async function presentDocuments(
   const at = ports.clock.now();
   if (state === "accepted") {
     await report.record({ state, at, movement: "documents" });
-  } else if (state === "refused") {
-    await report.record({ state, at, ...(rejections === undefined ? {} : { rejections }) });
-  } else {
+  } else if (rejections === undefined) {
     await report.record({ state, at });
+  } else {
+    await report.record({ state, at, rejections });
   }
   return presentations;
 }
