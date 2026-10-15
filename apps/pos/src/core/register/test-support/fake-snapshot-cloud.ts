@@ -4,10 +4,18 @@ export type CloudCall =
   | { kind: "uploaded"; generationId: string }
   | { kind: "verified"; authorization: string | null; generationIds: string[] };
 
+export interface OnDiskReport {
+  authorization: string | null;
+  generationIds: string[];
+  callsBefore: number;
+}
+
 type Answer = Response | "unreachable";
 
 export class FakeSnapshotCloud {
   calls: CloudCall[] = [];
+  onDiskReports: OnDiskReport[] = [];
+  onOnDisk: () => Answer = () => new Response(null, { status: 204 });
   onDeclare: (body: { generation_id: string }) => Answer = (body) =>
     Response.json({
       upload_url: `https://storage.example.test/objects/${body.generation_id}`,
@@ -52,6 +60,14 @@ export class FakeSnapshotCloud {
       call = { kind: "uploaded", generationId: uploaded[1] };
       await this.observe(call);
       answer = this.onUploaded(uploaded[1]);
+    } else if (url.pathname === "/api/devices/current/snapshots/on-disk" && init.method === "PUT") {
+      const body = JSON.parse(String(init.body)) as { generation_ids: string[] };
+      this.onDiskReports.push({
+        authorization: headers.get("authorization"),
+        generationIds: body.generation_ids,
+        callsBefore: this.calls.length,
+      });
+      return this.onOnDisk();
     } else if (init.method === "PUT") {
       call = {
         kind: "put",

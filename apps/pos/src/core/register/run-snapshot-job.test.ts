@@ -10,7 +10,7 @@ import { runSnapshotJob } from "./run-snapshot-job";
 import { snapshotAssociatedData } from "./snapshot-encryption";
 import { objectPath, readManifests, writeManifest } from "./snapshot-generations-folder";
 import { decryptSnapshotFile } from "./test-support/decrypt-snapshot";
-import { FakeSnapshotCloud } from "./test-support/fake-snapshot-cloud";
+import { cloudRefusal, FakeSnapshotCloud } from "./test-support/fake-snapshot-cloud";
 
 const NOW = new Date("2026-10-15T13:00:00.000Z");
 const KEY = Buffer.alloc(32, 5);
@@ -262,5 +262,83 @@ describe("runSnapshotJob that only uploads", () => {
       waiting,
     ]);
     expect(cloud.calls.map((call) => call.kind)).toEqual(["declare", "put", "uploaded"]);
+  });
+});
+
+describe("runSnapshotJob reporting what the disk holds", () => {
+  const OTHER_ID = "00000000-0000-4000-8000-000000000002";
+
+  async function keepOnDisk(generationId: string, uploadedAt: string | null) {
+    await mkdir(snapshotsFolder, { recursive: true });
+    await writeManifest(snapshotsFolder, {
+      generation_id: generationId,
+      created_at: "2026-10-15T11:00:00.000Z",
+      last_device_seq: 1,
+      pull_cursor: 1,
+      key_version: 2,
+      size: 5,
+      sha256: "ab".repeat(32),
+      uploaded_at: uploadedAt,
+      refused_at: null,
+    });
+    await writeFile(objectPath(snapshotsFolder, generationId), "bytes");
+  }
+
+  it("reports every generation the folder holds, uploaded or not, after the upload pass", async () => {
+    await keepOnDisk(OTHER_ID, NOW.toISOString());
+
+    await run(takeJob());
+
+    expect(cloud.onDiskReports).toEqual([
+      {
+        authorization: "Bearer prefix.secret",
+        generationIds: expect.arrayContaining([GENERATION_ID, OTHER_ID]),
+        callsBefore: 3,
+      },
+    ]);
+    expect(cloud.onDiskReports[0]?.generationIds).toHaveLength(2);
+  });
+
+  it("reports the generations an upload-only job finds in the folder", async () => {
+    await keepOnDisk(OTHER_ID, NOW.toISOString());
+
+    await run(uploadJob());
+
+    expect(cloud.onDiskReports.map((report) => report.generationIds)).toEqual([[OTHER_ID]]);
+  });
+
+  it("reports an empty folder as holding nothing", async () => {
+    await run(uploadJob());
+
+    expect(cloud.onDiskReports.map((report) => report.generationIds)).toEqual([[]]);
+  });
+
+  it.each([
+    ["is unreachable", () => "unreachable" as const],
+    ["refuses it", () => cloudRefusal("device_token_rejected", 401)],
+    ["fails on it", () => new Response(null, { status: 500 })],
+  ])("still completes the job when the cloud %s", async (_name, answer) => {
+    cloud.onOnDisk = answer;
+
+    const result = await run(takeJob());
+
+    expect(result).toMatchObject({
+      kind: "completed",
+      uploads: { kind: "every_pending_tried", tally: { uploaded: 1, refused: 0, failed: 0 } },
+    });
+  });
+
+  it("reports nothing when the cloud could not be reached for the uploads", async () => {
+    cloud.onDeclare = () => "unreachable";
+
+    await run(takeJob());
+
+    expect(cloud.onDiskReports).toEqual([]);
+  });
+
+  it("reports nothing when the copy failed its checks and the run was aborted", async () => {
+    await run(takeJob({ database_path: join(folder, "missing.sqlite") }));
+
+    expect(cloud.onDiskReports).toEqual([]);
   });
 });
