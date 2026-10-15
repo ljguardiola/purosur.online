@@ -80,7 +80,16 @@ function theScheduledMinuteArrives() {
   vi.setSystemTime(scheduledMinute);
 }
 
+async function queuedTasks() {
+  return sql`
+    select t.identifier
+    from graphile_worker._private_jobs j
+    join graphile_worker._private_tasks t on t.id = j.task_id
+  `;
+}
+
 async function setUp(now: () => Date = () => NOW, invoicing?: Invoicing) {
+  expect(await queuedTasks()).toEqual([]);
   const recovery = await setUpRecovery(serverEnvironment(invoicing), now, {
     emailSender: UNUSED_EMAIL_SENDER,
     schedules: false,
@@ -161,6 +170,7 @@ describe("the WSAA token renewal the server sets up on a real Postgres", () => {
       );
     } finally {
       await recovery.close();
+      await sql`delete from graphile_worker._private_jobs`;
     }
   }, 90_000);
 
