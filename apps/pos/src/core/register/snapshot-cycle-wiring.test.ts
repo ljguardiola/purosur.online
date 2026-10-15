@@ -1,4 +1,4 @@
-import { mkdtempSync, readdirSync, rmSync, statSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readdirSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { SnapshotWorkerLaunchRequest } from "@purosur/contracts";
@@ -130,6 +130,7 @@ describe("startSnapshotCycle", () => {
 
   it("prunes the generations on disk the cloud verified before it decides the cycle", async () => {
     const snapshotsFolder = join(folder, "snapshots");
+    mkdirSync(snapshotsFolder);
     const ids = [1, 2, 3, 4, 5, 6, 7, 8].map(
       (hour) => `00000000-0000-4000-8000-${String(hour).padStart(12, "0")}`,
     );
