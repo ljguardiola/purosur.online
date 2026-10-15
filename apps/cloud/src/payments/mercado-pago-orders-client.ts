@@ -57,27 +57,37 @@ const amountSchema = z.string().transform((pesos, context) => {
   return cents;
 });
 
-const orderAnswerSchema = z.object({
-  id: z.string().min(1),
-  status: z.string(),
-  status_detail: z.string(),
-  external_reference: z.string().optional(),
-  total_paid_amount: amountSchema.optional(),
-  transactions: z
-    .object({
-      payments: z.array(
-        z.object({
-          status: z.string(),
-          status_detail: z.string(),
-          paid_amount: amountSchema.optional(),
-        }),
-      ),
-    })
-    .optional(),
-});
+function orderAnswerSchemaWith<TPaymentDetail extends z.ZodType<string | undefined>>(
+  paymentDetailSchema: TPaymentDetail,
+) {
+  return z.object({
+    id: z.string().min(1),
+    status: z.string(),
+    status_detail: z.string(),
+    external_reference: z.string().optional(),
+    total_paid_amount: amountSchema.optional(),
+    transactions: z
+      .object({
+        payments: z.array(
+          z.object({
+            status: z.string(),
+            status_detail: paymentDetailSchema,
+            paid_amount: amountSchema.optional(),
+          }),
+        ),
+      })
+      .optional(),
+  });
+}
 
-function parsedOrder(body: unknown) {
-  const parsed = orderAnswerSchema.safeParse(body);
+const orderAnswerSchema = orderAnswerSchemaWith(z.string());
+const createdOrderAnswerSchema = orderAnswerSchemaWith(z.string().optional());
+
+function parsedOrder(
+  body: unknown,
+  schema: typeof orderAnswerSchema | typeof createdOrderAnswerSchema = orderAnswerSchema,
+) {
+  const parsed = schema.safeParse(body);
   if (!parsed.success) {
     return null;
   }
@@ -91,7 +101,7 @@ function parsedOrder(body: unknown) {
       totalPaidAmount: answer.total_paid_amount ?? null,
       payments: (answer.transactions?.payments ?? []).map((payment) => ({
         status: payment.status,
-        statusDetail: payment.status_detail,
+        statusDetail: payment.status_detail ?? null,
         paidAmount: payment.paid_amount ?? null,
       })),
     },
@@ -213,7 +223,7 @@ export function createMercadoPagoOrdersClient(
       return { kind: "unavailable" };
     }
     if (answer.status >= 200 && answer.status < 300) {
-      const order = parsedOrder(answer.body);
+      const order = parsedOrder(answer.body, createdOrderAnswerSchema);
       return order === null ? { kind: "unavailable" } : { kind: "created", ...order };
     }
     if (answer.status === REQUEST_TIMEOUT) {
