@@ -148,6 +148,16 @@ describe("createSnapshotWorkerLauncher", () => {
     expect(notices).toEqual([{ ...EXITED, copy_failed_stage: "integrity_check" }]);
   });
 
+  it("ends a worker that said its copy failed, since that worker waits to be ended", () => {
+    const { launcher, workers, notices } = setup();
+    launcher.handleCoreMessage(LAUNCH);
+
+    workers[0]?.say({ type: "snapshot-copy-failed", stage: "copy" });
+
+    expect(workers[0]?.killed).toBe(1);
+    expect(notices).toEqual([]);
+  });
+
   it("does not carry the failure of one worker over to the exit of the next", () => {
     const { launcher, workers, notices } = setup();
     launcher.handleCoreMessage(LAUNCH);
@@ -171,6 +181,8 @@ describe("createSnapshotWorkerLauncher", () => {
     launcher.handleCoreMessage(LAUNCH);
 
     workers[0]?.say(message);
+
+    expect(workers[0]?.killed).toBe(0);
     workers[0]?.exit(1);
 
     expect(notices).toEqual([EXITED]);
