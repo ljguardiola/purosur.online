@@ -552,6 +552,7 @@ export const registerCoreToRendererMessageSchema = z.discriminatedUnion("type", 
   }),
   z.object({ type: z.literal("serial-devices-changed") }),
   z.object({ type: z.literal("storage-standing-changed") }),
+  z.object({ type: z.literal("battery-standing-changed") }),
   z.object({ type: z.literal("refused-while-updating"), request_id: requestId }),
 ]);
 export type RegisterCoreToRendererMessage = z.infer<typeof registerCoreToRendererMessageSchema>;
