@@ -2253,7 +2253,7 @@ export const offlineFiscalDocuments = pgTable(
       .notNull()
       .references(() => registers.id),
     pointOfSale: integer("point_of_sale").notNull(),
-    documentType: text("document_type").notNull(),
+    documentType: text("document_type").$type<FiscalDocumentType>().notNull(),
     number: integer("number").notNull(),
     issuedOn: date("issued_on", { mode: "string" }).notNull(),
     generatedAt: timestamp("generated_at", { withTimezone: true }).notNull(),

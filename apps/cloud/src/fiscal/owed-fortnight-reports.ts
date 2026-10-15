@@ -25,6 +25,41 @@ export async function owedFortnightReportsWithState<TQueryResult extends PgQuery
   return presentations.filter(({ state }) => isFortnightReportOutstanding(state));
 }
 
+export async function fortnightReportsOwedAs<TQueryResult extends PgQueryResultHKT>(
+  db: PgDatabase<TQueryResult>,
+  presentations: { pointOfSaleNumber: number; fortnightStart: string }[],
+): Promise<OwedFortnightReport[]> {
+  const starts = new Set(presentations.map(({ fortnightStart }) => fortnightStart));
+  const wanted = new Set(
+    presentations.map(
+      ({ pointOfSaleNumber, fortnightStart }) => `${pointOfSaleNumber}:${fortnightStart}`,
+    ),
+  );
+  const codes = (await db.select().from(caeaCodes)).filter(({ fortnightStart }) =>
+    starts.has(fortnightStart),
+  );
+  const claims = await db
+    .select({
+      pointOfSaleNumber: pointOfSaleClaims.pointOfSaleNumber,
+      registerId: pointOfSaleClaims.registerId,
+    })
+    .from(pointOfSaleClaims)
+    .where(eq(pointOfSaleClaims.mechanism, "offline"));
+  return codes.flatMap((code) =>
+    claims
+      .filter(({ pointOfSaleNumber }) => wanted.has(`${pointOfSaleNumber}:${code.fortnightStart}`))
+      .map(({ pointOfSaleNumber, registerId }) => ({
+        pointOfSaleNumber,
+        registerId,
+        code: {
+          code: code.code,
+          fortnight: { start: code.fortnightStart, end: code.fortnightEnd },
+          reportDeadline: code.reportDeadline,
+        },
+      })),
+  );
+}
+
 export async function closedFortnightPresentations<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   today: string,
