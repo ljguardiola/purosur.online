@@ -128,6 +128,26 @@ describe("reconcileHandConfirmedPayments", () => {
     },
   );
 
+  it("orders cashiers with the same amount and name by their id", () => {
+    const report = reconcileHandConfirmedPayments([
+      aPayment({ id: "a", cashierId: "c-2", cashierName: "Ana", amount: 500 }),
+      aPayment({ id: "b", cashierId: "c-1", cashierName: "Ana", amount: 500 }),
+      aPayment({ id: "c", cashierId: "c-4", cashierName: null, amount: 500 }),
+      aPayment({ id: "d", cashierId: "c-3", cashierName: null, amount: 500 }),
+    ]);
+
+    expect(report.cashiers.map(({ cashierId }) => cashierId)).toEqual(["c-1", "c-2", "c-3", "c-4"]);
+  });
+
+  it("keeps an unknown name last even when its id sorts first", () => {
+    const report = reconcileHandConfirmedPayments([
+      aPayment({ id: "a", cashierId: "z", cashierName: "Ana", amount: 500 }),
+      aPayment({ id: "b", cashierId: "a", cashierName: null, amount: 500 }),
+    ]);
+
+    expect(report.cashiers.map(({ cashierId }) => cashierId)).toEqual(["z", "a"]);
+  });
+
   it("keeps a cashier with an unknown name and groups by the cashier's id", () => {
     const report = reconcileHandConfirmedPayments([
       aPayment({ id: "a", cashierId: "gone", cashierName: null, amount: 700 }),
