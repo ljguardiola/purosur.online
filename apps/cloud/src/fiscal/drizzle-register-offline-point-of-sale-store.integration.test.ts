@@ -183,12 +183,13 @@ describe("the highest offline number synced, on a real Postgres", () => {
     );
   }
 
+  let enrolledDeviceId: string | undefined;
+
   async function installation() {
-    const { deviceId } = await insertEnrolledInstallation(db, {
-      now: NOON,
-      existingRegisterId: registerId,
-    });
-    return { deviceId, registerId };
+    enrolledDeviceId ??= (
+      await insertEnrolledInstallation(db, { now: NOON, existingRegisterId: registerId })
+    ).deviceId;
+    return { deviceId: enrolledDeviceId, registerId };
   }
 
   it("answers nothing for a point of sale no document was synced on", async () => {
