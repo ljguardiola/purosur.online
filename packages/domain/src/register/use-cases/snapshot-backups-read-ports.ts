@@ -7,11 +7,15 @@ export interface SnapshotBackupRegister {
   name: string;
 }
 
+export interface SnapshotBackupGenerationFacts extends SnapshotGeneration {
+  onRegisterDisk: boolean;
+}
+
 export interface SnapshotBackupsReader {
   registersForBackups(): Promise<SnapshotBackupRegister[]>;
   registerExists(registerId: string): Promise<boolean>;
   lifecycleRules(): Promise<SnapshotLifecycleRules | undefined>;
-  generationsOf(registerId: string): Promise<SnapshotGeneration[]>;
+  generationsOf(registerId: string): Promise<SnapshotBackupGenerationFacts[]>;
 }
 
 export interface RegisterSnapshotBackupsPorts {

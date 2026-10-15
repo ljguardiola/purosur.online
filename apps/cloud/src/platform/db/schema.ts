@@ -1205,6 +1205,7 @@ export const registerSnapshotGenerations = pgTable(
     uploadReportedAt: timestamp("upload_reported_at", { withTimezone: true }),
     pruned: boolean("pruned").notNull().default(false),
     objectDeleted: boolean("object_deleted").notNull().default(false),
+    onRegisterDisk: boolean("on_register_disk").notNull().default(false),
   },
   (table) => [
     foreignKey({

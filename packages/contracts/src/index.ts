@@ -391,6 +391,8 @@ export type { SnapshotCorruptionBody } from "./register/snapshot-corruption.js";
 export { snapshotCorruptionBodySchema } from "./register/snapshot-corruption.js";
 export type { SnapshotManifest } from "./register/snapshot-manifest.js";
 export { snapshotManifestSchema } from "./register/snapshot-manifest.js";
+export type { SnapshotsOnDiskBody } from "./register/snapshot-on-disk.js";
+export { snapshotsOnDiskBodySchema } from "./register/snapshot-on-disk.js";
 export type { SnapshotUploadAnswer, SnapshotUploadBody } from "./register/snapshot-upload.js";
 export {
   snapshotUploadAnswerSchema,

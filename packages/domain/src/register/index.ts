@@ -119,6 +119,8 @@ export {
 } from "./model/snapshot-generation.js";
 export type { SnapshotLifecycleRules } from "./model/snapshot-lifecycle-rules.js";
 export { SNAPSHOT_LIFECYCLE_LIMITS } from "./model/snapshot-lifecycle-rules.js";
+export type { SnapshotLocation } from "./model/snapshot-location.js";
+export { SNAPSHOT_LOCATIONS } from "./model/snapshot-location.js";
 export type { DiskStanding, StorageSalesStop, StorageStanding } from "./model/storage.js";
 export {
   diskStanding,

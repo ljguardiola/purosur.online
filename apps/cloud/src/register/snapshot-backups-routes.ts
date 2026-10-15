@@ -98,6 +98,7 @@ export function registerSnapshotBackupsRoutes<TQueryResult extends PgQueryResult
             failure_reason: generation.failureReason,
             key_version: generation.keyVersion,
             counts_for_restore: generation.countsForRestore,
+            location: generation.location,
           })),
         }),
       );

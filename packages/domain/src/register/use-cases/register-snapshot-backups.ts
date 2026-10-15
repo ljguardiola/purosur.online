@@ -4,10 +4,11 @@ import {
   type SnapshotGenerationStatus,
 } from "../model/snapshot-generation.js";
 import {
-  type SnapshotLifecycleRules,
   SNAPSHOT_RECENT_GENERATIONS,
+  type SnapshotLifecycleRules,
   snapshotLifecycleRulesOrDefault,
 } from "../model/snapshot-lifecycle-rules.js";
+import { type SnapshotLocation, snapshotLocation } from "../model/snapshot-location.js";
 import { type SnapshotRetentionTier, snapshotRetentionTiers } from "../model/snapshot-retention.js";
 import type {
   ListSnapshotBackupRegistersPorts,
@@ -23,6 +24,7 @@ export interface SnapshotBackupGeneration {
   failureReason: SnapshotFailureReason | null;
   keyVersion: number;
   countsForRestore: boolean;
+  location: SnapshotLocation;
 }
 
 export type RegisterSnapshotBackupsOutcome =
@@ -74,6 +76,7 @@ export async function registerSnapshotBackups(
         failureReason: generation.failureReason,
         keyVersion: generation.keyVersion,
         countsForRestore: countsForSnapshotRestore(generation),
+        location: snapshotLocation(generation),
       })),
   };
 }

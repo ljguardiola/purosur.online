@@ -3,6 +3,7 @@ import {
   SNAPSHOT_FAILURE_REASONS,
   SNAPSHOT_GENERATION_STATUSES,
   SNAPSHOT_LIFECYCLE_LIMITS,
+  SNAPSHOT_LOCATIONS,
 } from "@purosur/domain";
 import { z } from "zod";
 import { recordIdSchema } from "../shared/index.js";
@@ -36,6 +37,7 @@ const snapshotBackupGenerationSchema = z.object({
   failure_reason: z.enum(SNAPSHOT_FAILURE_REASONS).nullable(),
   key_version: snapshotKeyVersionSchema,
   counts_for_restore: z.boolean(),
+  location: z.enum(SNAPSHOT_LOCATIONS),
 });
 
 export const snapshotBackupsSchema = z.object({

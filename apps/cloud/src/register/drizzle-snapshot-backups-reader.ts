@@ -1,8 +1,8 @@
 import type { SnapshotLifecycleRules } from "@purosur/domain";
 import type {
+  SnapshotBackupGenerationFacts,
   SnapshotBackupRegister,
   SnapshotBackupsReader,
-  SnapshotGeneration,
 } from "@purosur/domain/register/use-cases";
 import { and, asc, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
@@ -47,7 +47,7 @@ export class DrizzleSnapshotBackupsReader<TQueryResult extends PgQueryResultHKT>
     return row;
   }
 
-  generationsOf(registerId: string): Promise<SnapshotGeneration[]> {
+  generationsOf(registerId: string): Promise<SnapshotBackupGenerationFacts[]> {
     return this.db
       .select({
         id: registerSnapshotGenerations.id,
@@ -62,6 +62,7 @@ export class DrizzleSnapshotBackupsReader<TQueryResult extends PgQueryResultHKT>
         uploadReportedAt: registerSnapshotGenerations.uploadReportedAt,
         pruned: registerSnapshotGenerations.pruned,
         objectDeleted: registerSnapshotGenerations.objectDeleted,
+        onRegisterDisk: registerSnapshotGenerations.onRegisterDisk,
       })
       .from(registerSnapshotGenerations)
       .where(

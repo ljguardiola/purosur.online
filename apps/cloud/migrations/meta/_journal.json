@@ -736,6 +736,13 @@
       "when": 1792060232561,
       "tag": "0108_fortnight_document_reports",
       "breakpoints": true
+    },
+    {
+      "idx": 105,
+      "version": "7",
+      "when": 1792081200789,
+      "tag": "0109_snapshot_generations_on_register_disk",
+      "breakpoints": true
     }
   ]
 }

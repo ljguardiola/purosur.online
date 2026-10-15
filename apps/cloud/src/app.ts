@@ -151,6 +151,7 @@ import {
   registerSnapshotBackupsRoutes,
   type SnapshotBackupsRouteOptions,
 } from "./register/snapshot-backups-routes.js";
+import { registerSnapshotOnDiskRoute } from "./register/snapshot-on-disk-route.js";
 import {
   registerSalesReportRoutes,
   type SalesReportRouteOptions,
@@ -652,6 +653,7 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
           reportError: (error) => reportError("the register snapshot backups failed", error),
           now,
         });
+        registerSnapshotOnDiskRoute(api, { ...options.devices, now });
         if (options.fiscalAuthorization) {
           registerFiscalAuthorizationRoute(api, {
             ...options.devices,

@@ -130,6 +130,12 @@ export type {
 } from "./record-snapshot-copy-failure.js";
 export { recordSnapshotCopyFailure } from "./record-snapshot-copy-failure.js";
 export type {
+  RecordSnapshotGenerationsOnDiskInput,
+  RecordSnapshotGenerationsOnDiskOutcome,
+  RecordSnapshotGenerationsOnDiskPorts,
+} from "./record-snapshot-generations-on-disk.js";
+export { recordSnapshotGenerationsOnDisk } from "./record-snapshot-generations-on-disk.js";
+export type {
   RecordSnapshotUploadedInput,
   RecordSnapshotUploadedOutcome,
   RecordSnapshotUploadedPorts,
@@ -219,6 +225,7 @@ export { setReceiptPrinterAddress } from "./set-receipt-printer-address.js";
 export type {
   ListSnapshotBackupRegistersPorts,
   RegisterSnapshotBackupsPorts,
+  SnapshotBackupGenerationFacts,
   SnapshotBackupRegister,
   SnapshotBackupsReader,
 } from "./snapshot-backups-read-ports.js";
@@ -266,6 +273,10 @@ export type {
   SnapshotLifecycleRulesStore,
   SnapshotLifecycleRulesStoreTransaction,
 } from "./snapshot-lifecycle-rules-ports.js";
+export type {
+  SnapshotDiskStore,
+  SnapshotDiskStoreTransaction,
+} from "./snapshot-on-disk-ports.js";
 export type {
   LocalSnapshotGenerations,
   SnapshotCloudStep,
