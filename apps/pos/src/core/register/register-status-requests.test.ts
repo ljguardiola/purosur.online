@@ -102,6 +102,7 @@ function status(
   cloud: CloudReachability = "unknown",
   serialDevices: Record<SerialDeviceRole, SerialDeviceStanding> = NO_DEVICES,
   storage: StorageStanding = ROOMY_STORAGE,
+  localDatabaseDamaged = false,
 ) {
   return registerStatusFor({
     database,
@@ -110,6 +111,7 @@ function status(
     signedInPerson,
     serialDevices: () => ({ kind: "listed", standings: serialDevices, registered: {} }),
     storage: () => storage,
+    localDatabaseDamaged: () => localDatabaseDamaged,
   });
 }
 
@@ -135,6 +137,7 @@ function statusWatchedBy(watch: SerialDeviceWatch) {
     signedInPerson,
     serialDevices: watch.reading,
     storage: () => ROOMY_STORAGE,
+    localDatabaseDamaged: () => false,
   });
 }
 
@@ -193,6 +196,12 @@ describe("the register's status", () => {
 
     expect((await status()).conditions).toEqual([
       { kind: "sales_denied", reason: "event_history_broken", level: "critical" },
+    ]);
+  });
+
+  it("holds sales_denied for a local database found damaged while the register keeps running", async () => {
+    expect((await status("unknown", NO_DEVICES, ROOMY_STORAGE, true)).conditions).toEqual([
+      { kind: "sales_denied", reason: "local_database_damaged", level: "critical" },
     ]);
   });
 

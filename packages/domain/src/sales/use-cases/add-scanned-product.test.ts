@@ -434,6 +434,35 @@ describe("addScannedProduct", () => {
     expect(scan(store).kind).toBe("added");
   });
 
+  it("refuses to open a new sale while the local database is damaged", () => {
+    const store = ledger({ localDatabaseDamaged: true });
+    const before = structuredClone(store.state);
+
+    expect(scan(store)).toEqual({ kind: "local_database_damaged" });
+    nothingRecorded(store, before);
+  });
+
+  it("keeps accepting lines on an open sale while the local database is damaged", () => {
+    const store = ledger({ sales: [OPEN_SALE], localDatabaseDamaged: true });
+
+    expect(scan(store).kind).toBe("added");
+  });
+
+  it("names the damage before the disk and before a paid order without a sale", () => {
+    expect(
+      scan(
+        ledger({
+          localDatabaseDamaged: true,
+          newSalesStoppedByDisk: true,
+          paidOrdersWithoutSale: [{ resolved: false }],
+        }),
+      ),
+    ).toEqual({ kind: "local_database_damaged" });
+    expect(scan(ledger({ revoked: true, localDatabaseDamaged: true }))).toEqual({
+      kind: "installation_revoked",
+    });
+  });
+
   it("checks the disk before a paid order without a sale", () => {
     expect(
       scan(ledger({ newSalesStoppedByDisk: true, paidOrdersWithoutSale: [{ resolved: false }] })),

@@ -135,6 +135,16 @@ export function folderSnapshotGenerations(
   };
 }
 
+export async function removeGeneration(
+  folder: string,
+  generationId: string,
+  durability: Durability = nodeDurability,
+): Promise<void> {
+  await rm(manifestPath(folder, generationId), { force: true });
+  await durability.folder(folder);
+  await rm(objectPath(folder, generationId), { force: true });
+}
+
 export async function removeLeftovers(folder: string): Promise<void> {
   const names = await namesIn(folder);
   const withManifest = new Set(

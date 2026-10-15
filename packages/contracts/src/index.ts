@@ -397,12 +397,23 @@ export {
   snapshotUploadBodySchema,
 } from "./register/snapshot-upload.js";
 export type {
+  SnapshotVerificationAnswerBody,
+  SnapshotVerificationQuery,
+} from "./register/snapshot-verification.js";
+export {
+  SNAPSHOT_VERIFICATION_QUERY_LIMIT,
+  snapshotVerificationAnswerSchema,
+  snapshotVerificationQuerySchema,
+} from "./register/snapshot-verification.js";
+export type {
   SnapshotWorkerJobMessage,
   SnapshotWorkerLaunchRequest,
+  SnapshotWorkerMessage,
 } from "./register/snapshot-worker.js";
 export {
   snapshotWorkerJobSchema,
   snapshotWorkerLaunchSchema,
+  snapshotWorkerMessageSchema,
 } from "./register/snapshot-worker.js";
 export type { StartupPending } from "./register/startup-pending.js";
 export type { AverageTicketBody } from "./sales/average-ticket.js";

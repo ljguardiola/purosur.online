@@ -26,22 +26,24 @@ beforeEach(async () => {
 });
 
 describe("DrizzleOfflineDocumentsOfFortnight", () => {
-  it("counts no document on a point of sale that issued none under the fortnight's code", async () => {
-    expect(await new DrizzleOfflineDocumentsOfFortnight(db).countOn(8, OCTOBER_FIRST_HALF)).toBe(0);
+  it("reads no document of a point of sale that issued none under the fortnight's code", async () => {
+    expect(
+      await new DrizzleOfflineDocumentsOfFortnight(db).documentsOn(8, OCTOBER_FIRST_HALF),
+    ).toEqual([]);
   });
 
-  it("counts the documents the point of sale issued under the fortnight's code, and only those", async () => {
-    await insertOfflineFiscalDocument(db, {
-      registerId,
-      pointOfSale: 8,
-      fortnight: OCTOBER_FIRST_HALF,
-      number: 1,
-    });
+  it("reads what the tax authority is told of each document the point of sale issued under the fortnight's code, and only those", async () => {
     await insertOfflineFiscalDocument(db, {
       registerId,
       pointOfSale: 8,
       fortnight: OCTOBER_FIRST_HALF,
       number: 2,
+    });
+    await insertOfflineFiscalDocument(db, {
+      registerId,
+      pointOfSale: 8,
+      fortnight: OCTOBER_FIRST_HALF,
+      number: 1,
     });
     await insertOfflineFiscalDocument(db, {
       registerId,
@@ -58,7 +60,21 @@ describe("DrizzleOfflineDocumentsOfFortnight", () => {
 
     const documents = new DrizzleOfflineDocumentsOfFortnight(db);
 
-    expect(await documents.countOn(8, OCTOBER_FIRST_HALF)).toBe(2);
-    expect(await documents.countOn(8, OCTOBER_SECOND_HALF)).toBe(1);
+    expect(await documents.documentsOn(8, OCTOBER_FIRST_HALF)).toEqual(
+      [1, 2].map((number) => ({
+        documentType: "factura_c",
+        number,
+        issuedOn: "2026-10-01",
+        generatedAt: new Date("2026-10-01T12:00:00.000Z"),
+        buyerDocumentType: 99,
+        buyerDocumentNumber: 0,
+        buyerTaxStatusCode: 5,
+        total: 10_000,
+        netAmount: 10_000,
+      })),
+    );
+    expect(
+      (await documents.documentsOn(8, OCTOBER_SECOND_HALF)).map(({ number }) => number),
+    ).toEqual([3]);
   });
 });

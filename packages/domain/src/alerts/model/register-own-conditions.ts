@@ -69,6 +69,7 @@ interface RegisterOwnStanding {
   now: Date;
   serialDevices: Record<SerialDeviceRole, SerialDeviceStanding> | null;
   storage: StorageStanding;
+  localDatabaseDamaged: boolean;
 }
 
 export function registerOwnConditions({
@@ -79,9 +80,10 @@ export function registerOwnConditions({
   now,
   serialDevices,
   storage,
+  localDatabaseDamaged,
 }: RegisterOwnStanding): HeldRegisterOwnCondition[] {
   const revoked = isInstallationRevoked(salesStop);
-  const denial = salesDenialOf(salesStop, storageSalesStopOf(storage));
+  const denial = salesDenialOf(salesStop, storageSalesStopOf(storage), localDatabaseDamaged);
   const held: {
     [Kind in RegisterOwnCondition]: Extract<DetectedRegisterOwnCondition, { kind: Kind }> | null;
   } = {

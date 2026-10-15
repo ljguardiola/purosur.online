@@ -22,10 +22,11 @@ export function registerTelemetryReader(
   readLatestPreEmissionGate: () => LatestPreEmissionGateOutcome | undefined,
   readBattery: () => BatteryReport | undefined,
   readStorageStop: () => StorageSalesStop | undefined,
+  readLocalDatabaseDamaged: () => boolean = () => false,
 ): () => Promise<RegisterTelemetry> {
   return async () => ({
     ...(await readStorage()),
-    ...salesDeniedReportOf(readSalesStop(), readStorageStop()),
+    ...salesDeniedReportOf(readSalesStop(), readStorageStop(), readLocalDatabaseDamaged()),
     ...fiscalEmissionStoppedReportOf(readLatestPreEmissionGate()),
     serial_devices: readSerialDevices(),
     ...batteryTelemetryOf(readBattery()),

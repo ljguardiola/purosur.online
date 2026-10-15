@@ -1,12 +1,19 @@
 import type { DeviceCredentials, SnapshotWorkerLaunchRequest } from "@purosur/contracts";
 import type { BatteryReport } from "@purosur/domain";
-import { runSnapshotCycle } from "@purosur/domain/register/use-cases";
+import {
+  type LocalDatabaseHealth,
+  recordSnapshotCopyFailure,
+  runSnapshotCycle,
+  type SnapshotCorruptionReports,
+} from "@purosur/domain/register/use-cases";
+import type { CloudClientDeps } from "../platform/cloud-client";
 import type { LocalDatabase } from "../platform/local-database";
 import type { CloudReachability } from "../sync/cloud-reachability";
 import { sqliteSyncSequences } from "../sync/sqlite-sync-sequences";
 import type { StorageReading } from "../sync/storage-telemetry";
 import { createSnapshotCycleSchedule, type SnapshotCycleSchedule } from "./snapshot-cycle-schedule";
 import { createSnapshotCycleState } from "./snapshot-cycle-state";
+import { pruneSnapshotsOnDisk } from "./snapshot-disk-pruning";
 import { createSnapshotWorkerLaunch } from "./snapshot-worker-launch";
 import { readOwnRegisterId } from "./sqlite-snapshot-source";
 
@@ -15,6 +22,7 @@ export interface SnapshotCycleWiringDeps {
   databasePath: string;
   snapshotsFolder: string;
   cloudUrl: string | undefined;
+  cloud: CloudClientDeps | undefined;
   readCredentials: () => Promise<DeviceCredentials | undefined>;
   batteryReport: () => BatteryReport | undefined;
   cloudReachability: () => CloudReachability;
@@ -22,6 +30,10 @@ export interface SnapshotCycleWiringDeps {
   newGenerationId: () => string;
   postToMain: (message: SnapshotWorkerLaunchRequest) => void;
   scheduleNext: (run: () => Promise<void>, delayMs: number) => void;
+  localDatabaseDamaged: () => boolean;
+  health: LocalDatabaseHealth;
+  reports: SnapshotCorruptionReports;
+  onCopyFailureRecorded: () => void;
   onFailure: (error: unknown) => void;
 }
 
@@ -31,6 +43,7 @@ export function startSnapshotCycle(deps: SnapshotCycleWiringDeps): SnapshotCycle
     batteryReport: deps.batteryReport,
     readStorage: deps.readStorage,
     cloudReachability: deps.cloudReachability,
+    localDatabaseDamaged: deps.localDatabaseDamaged,
   });
   const launcher = createSnapshotWorkerLaunch({
     readCredentials: deps.readCredentials,
@@ -45,8 +58,18 @@ export function startSnapshotCycle(deps: SnapshotCycleWiringDeps): SnapshotCycle
     deps.database.pragma("wal_checkpoint(TRUNCATE)");
   };
   const schedule = createSnapshotCycleSchedule({
-    runCycle: async () =>
-      runSnapshotCycle(
+    runCycle: async () => {
+      try {
+        await pruneSnapshotsOnDisk({
+          snapshotsFolder: deps.snapshotsFolder,
+          readStorage: deps.readStorage,
+          readCredentials: deps.readCredentials,
+          cloud: deps.cloud,
+        });
+      } catch (error) {
+        deps.onFailure(error);
+      }
+      return runSnapshotCycle(
         {
           state,
           launcher,
@@ -54,10 +77,15 @@ export function startSnapshotCycle(deps: SnapshotCycleWiringDeps): SnapshotCycle
           log: { checkpoint: async () => checkpoint() },
         },
         { current: await syncSequences.current() },
-      ),
+      );
+    },
     cloudReachable: () => deps.cloudReachability() !== "unreachable",
     scheduleNext: deps.scheduleNext,
     checkpoint,
+    recordCopyFailure: async (stage) => {
+      await recordSnapshotCopyFailure({ health: deps.health, reports: deps.reports }, { stage });
+      deps.onCopyFailureRecorded();
+    },
     onFailure: deps.onFailure,
   });
   schedule.start();

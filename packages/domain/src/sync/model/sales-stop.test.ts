@@ -94,6 +94,62 @@ describe("salesDenialOf", () => {
   });
 });
 
+describe("salesDenialOf with a damaged local database", () => {
+  const SHORT_AT_STARTUP = {
+    reason: "disk_space_short_at_startup",
+    required_free_bytes: 5_000_000_000,
+  } as const;
+
+  it("denies sales for the damage of a register still opening new sales", () => {
+    expect(salesDenialOf({ stopped: false }, undefined, true)).toEqual({
+      reason: "local_database_damaged",
+    });
+  });
+
+  it("names the damage over a storage stop", () => {
+    expect(salesDenialOf({ stopped: false }, SHORT_AT_STARTUP, true)).toEqual({
+      reason: "local_database_damaged",
+    });
+  });
+
+  it("names a broken event history over the damage", () => {
+    expect(
+      salesDenialOf({ stopped: true, reason: "event_history_broken" }, undefined, true),
+    ).toEqual({ reason: "event_history_broken" });
+  });
+
+  it("denies nothing it can name to a revoked installation, whatever the damage", () => {
+    expect(
+      salesDenialOf({ stopped: true, reason: "installation_revoked" }, undefined, true),
+    ).toBeUndefined();
+  });
+
+  it("names the damage of a stop with no recorded reason", () => {
+    expect(salesDenialOf({ stopped: true, reason: undefined }, undefined, true)).toEqual({
+      reason: "local_database_damaged",
+    });
+  });
+
+  it("denies nothing when the local database is not damaged", () => {
+    expect(salesDenialOf({ stopped: false }, undefined, false)).toBeUndefined();
+  });
+});
+
+describe("salesDeniedReportOf with a damaged local database", () => {
+  it("reports a register whose local database is damaged as unable to sell, and why", () => {
+    expect(salesDeniedReportOf({ stopped: false }, undefined, true)).toEqual({
+      sales_denied: true,
+      sales_denied_reason: "local_database_damaged",
+    });
+  });
+
+  it("reports nothing of a revoked installation, whatever the damage", () => {
+    expect(
+      salesDeniedReportOf({ stopped: true, reason: "installation_revoked" }, undefined, true),
+    ).toEqual({});
+  });
+});
+
 describe("SALES_DENIED_FOR_DAMAGED_LOCAL_DATABASE", () => {
   it("reports that a register whose local database is damaged can't sell, and why", () => {
     expect(SALES_DENIED_FOR_DAMAGED_LOCAL_DATABASE).toEqual({

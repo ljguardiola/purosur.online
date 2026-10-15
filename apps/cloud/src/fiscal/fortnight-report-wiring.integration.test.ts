@@ -77,9 +77,10 @@ afterAll(async () => {
 });
 
 beforeEach(async () => {
-  await sql`delete from fortnight_reports`;
   const admin = postgres(integrationDb.adminDatabaseUrl, { max: 1 });
   try {
+    await admin`delete from fortnight_document_reports`;
+    await admin`delete from fortnight_reports`;
     await admin`delete from offline_fiscal_documents`;
   } finally {
     await admin.end({ timeout: 1 });
@@ -238,22 +239,74 @@ describe("the fortnight report the server sets up on a real Postgres", () => {
     90_000,
   );
 
-  it("never declares a fortnight without movement when the point of sale issued documents under its code", async () => {
+  it("reports the documents the point of sale issued under the code, in the batch ARCA sizes, instead of declaring no movement, and records the fortnight as accepted with movement", async () => {
     await sql`delete from inbox`;
     await sql`delete from register_installations`;
     await syncEventOccurringAt("2026-10-16T10:00:00.000Z");
+    for (const number of [2, 3]) {
+      await insertOfflineFiscalDocument(drizzle(sql), {
+        registerId,
+        pointOfSale: 8,
+        fortnight: OCTOBER_FIRST_HALF,
+        number,
+      });
+    }
+    fakeWsfe.behave(
+      answersInTurn(
+        "fe-caea-sin-movimiento-consultar-not-held.xml",
+        "fe-comp-ultimo-autorizado.xml",
+        "fe-comp-tot-x-request.xml",
+        "fe-caea-reg-informativo-accepted.xml",
+        "fe-comp-ultimo-autorizado-after-batch.xml",
+      ),
+    );
+
+    await reportOnDemand(5);
+
+    expect(fakeWsfe.requests.join("")).not.toContain("FECAEASinMovimientoInformar");
+    const [report] = fakeWsfe.requests.filter((request) =>
+      request.includes("FECAEARegInformativo"),
+    );
+    expect(report?.match(/<CbteDesde>/g)).toHaveLength(2);
+    expect(await sql`select state, movement from fortnight_reports`).toEqual([
+      { state: "accepted", movement: "documents" },
+    ]);
+    expect(
+      await sql`select point_of_sale_number as pos, document_type, state, reported_through from fortnight_document_reports`,
+    ).toEqual([{ pos: 8, document_type: "factura_c", state: "accepted", reported_through: 3 }]);
+  }, 90_000);
+
+  it("marks a fortnight declared without movement as needing regularization when documents sync in afterwards, and sends nothing to ARCA", async () => {
+    await sql`delete from inbox`;
+    await sql`delete from register_installations`;
+    await sql`insert into fortnight_reports
+                (point_of_sale_number, fortnight_start, fortnight_end, state, movement, recorded_at)
+              values (8, '2026-10-01', '2026-10-15', 'accepted', 'none', ${NOW.toISOString()}::timestamptz)`;
     await insertOfflineFiscalDocument(drizzle(sql), {
       registerId,
       pointOfSale: 8,
       fortnight: OCTOBER_FIRST_HALF,
       number: 1,
     });
-    fakeWsfe.behave(answersInTurn("fe-caea-sin-movimiento-consultar-not-held.xml"));
 
-    await reportOnDemandUntilDone();
+    const recovery = await setUpRecovery(recoveryEnv(), () => NOW, {
+      emailSender: UNUSED_EMAIL_SENDER,
+      schedules: false,
+    });
+    try {
+      await recovery.workerUtils.addJob(FORTNIGHT_REPORT_TASK_IDENTIFIER, {});
+      await vi.waitFor(
+        async () => {
+          expect(await sql`select state from fortnight_reports`).toEqual([
+            { state: "needs_regularization" },
+          ]);
+        },
+        { timeout: 20_000, interval: 100 },
+      );
+    } finally {
+      await recovery.close();
+    }
 
-    expect(fakeWsfe.requests).toHaveLength(1);
-    expect(fakeWsfe.requests[0]).toContain("FECAEASinMovimientoConsultar");
-    expect(await sql`select state from fortnight_reports`).toEqual([]);
+    expect(fakeWsfe.requests).toEqual([]);
   }, 90_000);
 });

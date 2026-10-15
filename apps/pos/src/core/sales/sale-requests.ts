@@ -89,6 +89,7 @@ export interface SaleRequestDeps {
 export interface SellingRequestDeps extends SaleRequestDeps {
   paidOrderDiscovery: () => PaidOrderDiscoveryState;
   newSalesStoppedByDisk: () => boolean;
+  localDatabaseDamaged: () => boolean;
 }
 
 export interface OutboxSaleRequestDeps extends SaleRequestDeps {
@@ -118,6 +119,7 @@ function sellingLedger(
   database: LocalDatabase,
   paidOrderDiscovery: () => PaidOrderDiscoveryState,
   newSalesStoppedByDisk: () => boolean,
+  localDatabaseDamaged: () => boolean,
 ): SqliteSaleLedger {
   return new SqliteSaleLedger(
     database,
@@ -125,6 +127,7 @@ function sellingLedger(
     undefined,
     paidOrderDiscovery,
     newSalesStoppedByDisk,
+    localDatabaseDamaged,
   );
 }
 
@@ -267,13 +270,26 @@ function toOpenSale(
 }
 
 export async function scanProductFor(
-  { database, gate, now, ids, paidOrderDiscovery, newSalesStoppedByDisk }: SellingRequestDeps,
+  {
+    database,
+    gate,
+    now,
+    ids,
+    paidOrderDiscovery,
+    newSalesStoppedByDisk,
+    localDatabaseDamaged,
+  }: SellingRequestDeps,
   code: string,
 ): Promise<ScanProductOutcome> {
   const guarded = await asSeller({ database, gate }, (actorId) =>
     addScannedProduct(
       {
-        ledger: sellingLedger(database, paidOrderDiscovery, newSalesStoppedByDisk),
+        ledger: sellingLedger(
+          database,
+          paidOrderDiscovery,
+          newSalesStoppedByDisk,
+          localDatabaseDamaged,
+        ),
         clock: { now },
         ids,
       },
@@ -296,13 +312,26 @@ export async function scanProductFor(
 }
 
 export async function addSearchedProductFor(
-  { database, gate, now, ids, paidOrderDiscovery, newSalesStoppedByDisk }: SellingRequestDeps,
+  {
+    database,
+    gate,
+    now,
+    ids,
+    paidOrderDiscovery,
+    newSalesStoppedByDisk,
+    localDatabaseDamaged,
+  }: SellingRequestDeps,
   productId: string,
 ): Promise<AddProductOutcome> {
   const guarded = await asSeller({ database, gate }, (actorId) =>
     addSearchedProduct(
       {
-        ledger: sellingLedger(database, paidOrderDiscovery, newSalesStoppedByDisk),
+        ledger: sellingLedger(
+          database,
+          paidOrderDiscovery,
+          newSalesStoppedByDisk,
+          localDatabaseDamaged,
+        ),
         clock: { now },
         ids,
       },
@@ -380,14 +409,27 @@ function toDetailOutcome(
 }
 
 export async function addWeighedProductFor(
-  { database, gate, now, ids, paidOrderDiscovery, newSalesStoppedByDisk }: SellingRequestDeps,
+  {
+    database,
+    gate,
+    now,
+    ids,
+    paidOrderDiscovery,
+    newSalesStoppedByDisk,
+    localDatabaseDamaged,
+  }: SellingRequestDeps,
   productId: string,
   weightThousandths: number,
 ): Promise<AddWeighedProductOutcome> {
   const guarded = await asSeller({ database, gate }, (actorId) =>
     addWeighedProduct(
       {
-        ledger: sellingLedger(database, paidOrderDiscovery, newSalesStoppedByDisk),
+        ledger: sellingLedger(
+          database,
+          paidOrderDiscovery,
+          newSalesStoppedByDisk,
+          localDatabaseDamaged,
+        ),
         clock: { now },
         ids,
       },
@@ -421,6 +463,7 @@ export async function weighProductFor(
     ids,
     paidOrderDiscovery,
     newSalesStoppedByDisk,
+    localDatabaseDamaged,
     scale,
   }: SellingRequestDeps & { scale: Scale },
   productId: string,
@@ -428,7 +471,12 @@ export async function weighProductFor(
   const guarded = await asSeller({ database, gate }, (actorId) =>
     weighProductOnScale(
       {
-        ledger: sellingLedger(database, paidOrderDiscovery, newSalesStoppedByDisk),
+        ledger: sellingLedger(
+          database,
+          paidOrderDiscovery,
+          newSalesStoppedByDisk,
+          localDatabaseDamaged,
+        ),
         clock: { now },
         ids,
         scale,

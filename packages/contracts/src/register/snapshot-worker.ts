@@ -1,3 +1,4 @@
+import { SNAPSHOT_CORRUPTION_STAGES } from "@purosur/domain";
 import { z } from "zod";
 import { recordIdSchema } from "../shared/index.js";
 import { versionedKeySchema } from "./installation-keys.js";
@@ -39,3 +40,10 @@ export const snapshotWorkerLaunchSchema = z.object({
 });
 
 export type SnapshotWorkerLaunchRequest = z.output<typeof snapshotWorkerLaunchSchema>;
+
+export const snapshotWorkerMessageSchema = z.strictObject({
+  type: z.literal("snapshot-copy-failed"),
+  stage: z.enum(SNAPSHOT_CORRUPTION_STAGES),
+});
+
+export type SnapshotWorkerMessage = z.output<typeof snapshotWorkerMessageSchema>;

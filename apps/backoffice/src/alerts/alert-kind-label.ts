@@ -25,6 +25,7 @@ const ALERT_KIND_LABELS = {
   offsite_dump_unverified: "Copia de seguridad externa sin verificar",
   fortnight_report_pending: "Informe de quincena pendiente",
   fortnight_report_overdue: "Informe de quincena vencido",
+  fortnight_report_needs_regularization: "Quincena a regularizar",
 } satisfies Record<AlertKind, string>;
 
 export function alertKindLabel(kind: string): string {

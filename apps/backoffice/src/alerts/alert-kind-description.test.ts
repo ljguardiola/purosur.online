@@ -91,3 +91,9 @@ test("describes a fortnight's report not yet presented and one whose deadline wa
     "Venció el plazo para presentar a ARCA el informe de una quincena de un punto de venta",
   );
 });
+
+test("describes a fortnight already reported without movement that later received invoices", () => {
+  expect(alertKindDescription("fortnight_report_needs_regularization")).toBe(
+    "Llegaron comprobantes de una quincena ya informada a ARCA sin movimiento",
+  );
+});

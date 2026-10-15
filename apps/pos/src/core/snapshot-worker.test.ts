@@ -22,6 +22,7 @@ class ProcessExited extends Error {}
 let deliver: (data: unknown) => void;
 let delivering = false;
 let exited: Promise<number>;
+let posted: Promise<unknown>;
 
 beforeEach(async () => {
   vi.resetModules();
@@ -38,6 +39,10 @@ beforeEach(async () => {
     }
     return undefined as never;
   });
+  let resolvePosted: (message: unknown) => void = () => {};
+  posted = new Promise((resolve) => {
+    resolvePosted = resolve;
+  });
   let listener: (event: { data: unknown }) => void = () => {};
   Object.defineProperty(process, "parentPort", {
     configurable: true,
@@ -45,6 +50,7 @@ beforeEach(async () => {
       once: (_event: string, handle: (event: { data: unknown }) => void) => {
         listener = handle;
       },
+      postMessage: resolvePosted,
     },
   });
   deliver = (data) => {
@@ -117,12 +123,13 @@ describe("the snapshot worker", () => {
     expect(await exited).toBe(0);
   });
 
-  it("exits with a failure when the copy failed its checks and the job was aborted", async () => {
+  it("reports a copy that failed its checks to main and stays alive for main to end it", async () => {
     finishWith({ kind: "aborted", stage: "integrity_check" });
 
     deliver(UPLOAD_JOB);
 
-    expect(await exited).toBe(1);
+    expect(await posted).toEqual({ type: "snapshot-copy-failed", stage: "integrity_check" });
+    expect(process.exit).not.toHaveBeenCalled();
   });
 
   it("exits with a failure when the job failed", async () => {
