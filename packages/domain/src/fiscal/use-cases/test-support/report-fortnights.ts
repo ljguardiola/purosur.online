@@ -21,7 +21,6 @@ export const TOKEN = {
   issuedAt: new Date("2026-10-03T08:00:00.000Z"),
   expiresAt: new Date("2026-10-03T20:00:00.000Z"),
 };
-export const SEPTEMBER_FIRST_HALF: Fortnight = { start: "2026-09-01", end: "2026-09-15" };
 export const SEPTEMBER_SECOND_HALF: Fortnight = { start: "2026-09-16", end: "2026-09-30" };
 export const OCTOBER_FIRST_HALF: Fortnight = { start: "2026-10-01", end: "2026-10-15" };
 export const ON_OCTOBER_3 = new Date("2026-10-03T15:00:00.000Z");

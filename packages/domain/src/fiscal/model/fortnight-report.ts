@@ -75,7 +75,7 @@ export function offlineDocumentPresentations<
     byType.set(document.documentType, [...(byType.get(document.documentType) ?? []), document]);
   }
   return [...byType.entries()]
-    .sort(([left], [right]) => (left < right ? -1 : 1))
+    .sort(([left], [right]) => left.localeCompare(right))
     .map(([documentType, presented]) => ({
       documentType,
       documents: presented.sort((left, right) => left.number - right.number),
