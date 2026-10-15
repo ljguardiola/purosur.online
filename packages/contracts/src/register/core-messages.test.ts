@@ -1296,6 +1296,12 @@ describe("register status messages", () => {
     [[{ kind: "fiscal_emission_stopped", level: "critical" }], "unreachable"],
     [[{ kind: "disk_space_low", level: "warning" }], "unreachable"],
     [[{ kind: "wal_oversized", level: "warning" }], "unreachable"],
+    [[{ kind: "battery_low", charge_percent: 15, level: "warning" }], "reachable"],
+    [[{ kind: "battery_low", charge_percent: 0, level: "warning" }], "reachable"],
+    [[{ kind: "on_battery", level: "critical" }], "unreachable"],
+    [[{ kind: "battery_missing", level: "warning" }], "unreachable"],
+    [[{ kind: "critical_battery_action_not_shutdown", level: "warning" }], "unreachable"],
+    [[{ kind: "sales_denied", reason: "battery_critical", level: "critical" }], "reachable"],
     [
       [
         {
@@ -1453,6 +1459,42 @@ describe("register status messages", () => {
             level: "critical",
           },
         ],
+        cloud: "reachable",
+        serial_devices: STANDINGS,
+        serial_devices_setup_offered: false,
+      },
+    ],
+    [
+      "a low battery without its charge",
+      {
+        conditions: [{ kind: "battery_low", level: "warning" }],
+        cloud: "reachable",
+        serial_devices: STANDINGS,
+        serial_devices_setup_offered: false,
+      },
+    ],
+    [
+      "a low battery with a charge above 100",
+      {
+        conditions: [{ kind: "battery_low", charge_percent: 101, level: "warning" }],
+        cloud: "reachable",
+        serial_devices: STANDINGS,
+        serial_devices_setup_offered: false,
+      },
+    ],
+    [
+      "a low battery with a negative charge",
+      {
+        conditions: [{ kind: "battery_low", charge_percent: -1, level: "warning" }],
+        cloud: "reachable",
+        serial_devices: STANDINGS,
+        serial_devices_setup_offered: false,
+      },
+    ],
+    [
+      "a low battery with a fractional charge",
+      {
+        conditions: [{ kind: "battery_low", charge_percent: 15.5, level: "warning" }],
         cloud: "reachable",
         serial_devices: STANDINGS,
         serial_devices_setup_offered: false,
