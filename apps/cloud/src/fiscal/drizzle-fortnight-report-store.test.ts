@@ -1,10 +1,15 @@
 import type { Fortnight } from "@purosur/domain/fiscal/use-cases";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { fortnightReports, pointOfSaleClaims } from "../platform/db/schema.js";
+import {
+  fortnightDocumentReports,
+  fortnightReports,
+  pointOfSaleClaims,
+} from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { DrizzleFortnightReportStore } from "./drizzle-fortnight-report-store.js";
 import { DrizzleOfflineAuthorizationCodeStore } from "./drizzle-offline-authorization-code-store.js";
+import { insertOfflineFiscalDocument } from "./test-support/offline-fiscal-document-fixtures.js";
 import { seedOfflinePointOfSale } from "./test-support/offline-point-of-sale-fixtures.js";
 
 const OCTOBER_FIRST_HALF = { start: "2026-10-01", end: "2026-10-15" };
@@ -154,6 +159,7 @@ describe("DrizzleFortnightReportStore.holdReport", () => {
 
     expect(await newStore().holdReport(KEY, (report) => report.recorded())).toEqual({
       state: "blocked",
+      movement: null,
       lastAttemptAt: null,
     });
   });
@@ -165,6 +171,7 @@ describe("DrizzleFortnightReportStore.holdReport", () => {
 
       expect(await newStore().holdReport(KEY, (report) => report.recorded())).toEqual({
         state,
+        movement: null,
         lastAttemptAt: AT,
       });
     },
@@ -180,6 +187,7 @@ describe("DrizzleFortnightReportStore.holdReport", () => {
 
     expect(await store.holdReport(KEY, (report) => report.recorded())).toEqual({
       state: "blocked",
+      movement: null,
       lastAttemptAt: AT,
     });
   });
@@ -197,6 +205,7 @@ describe("DrizzleFortnightReportStore.holdReport", () => {
         fortnightStart: "2026-10-01",
         fortnightEnd: "2026-10-15",
         state: "refused",
+        movement: null,
         lastAttemptAt: AT,
         rejections,
         recordedAt: AT,
@@ -209,4 +218,217 @@ describe("DrizzleFortnightReportStore.holdReport", () => {
       expect.objectContaining({ state: "accepted", rejections: null, recordedAt: accepted }),
     ]);
   });
+
+  it.each(["none", "documents"] as const)(
+    "recalls the %s movement an accepted change recorded, and forgets it when a later change gives none",
+    async (movement) => {
+      const store = newStore();
+
+      await store.holdReport(KEY, (report) =>
+        report.record({ state: "accepted", at: AT, movement }),
+      );
+      expect(await store.holdReport(KEY, (report) => report.recorded())).toEqual({
+        state: "accepted",
+        movement,
+        lastAttemptAt: AT,
+      });
+
+      await store.holdReport(KEY, (report) =>
+        report.record({ state: "needs_regularization", at: AT }),
+      );
+      expect(await store.holdReport(KEY, (report) => report.recorded())).toEqual({
+        state: "needs_regularization",
+        movement: null,
+        lastAttemptAt: AT,
+      });
+    },
+  );
+});
+
+describe("DrizzleFortnightReportStore document type reports", () => {
+  const FACTURA_C = "factura_c" as const;
+
+  beforeEach(async () => {
+    await seedOfflinePointOfSale(db);
+    await keepCode(OCTOBER_FIRST_HALF, "36123456789012");
+  });
+
+  it("records the progress of a document type with the time of the change", async () => {
+    await newStore().holdReport(KEY, (report) =>
+      report.recordDocumentType({
+        documentType: FACTURA_C,
+        state: "blocked",
+        at: AT,
+        reportedThrough: 4,
+      }),
+    );
+
+    expect(await db.select().from(fortnightDocumentReports)).toEqual([
+      {
+        pointOfSaleNumber: OFFLINE_POINT_OF_SALE,
+        fortnightStart: "2026-10-01",
+        fortnightEnd: "2026-10-15",
+        documentType: FACTURA_C,
+        state: "blocked",
+        reportedThrough: 4,
+        rejectedNumber: null,
+        rejections: null,
+        lastAttemptAt: null,
+        recordedAt: AT,
+      },
+    ]);
+  });
+
+  it.each(["submitting", "refused", "accepted"] as const)(
+    "takes the time of a %s change as the time of the document type's last attempt",
+    async (state) => {
+      await newStore().holdReport(KEY, (report) =>
+        report.recordDocumentType({
+          documentType: FACTURA_C,
+          state,
+          at: AT,
+          reportedThrough: 4,
+        }),
+      );
+
+      expect(await db.select().from(fortnightDocumentReports)).toEqual([
+        expect.objectContaining({ state, lastAttemptAt: AT }),
+      ]);
+    },
+  );
+
+  it("keeps the rejected document and its rejections, and replaces the same document type's row on the next change", async () => {
+    const store = newStore();
+    const rejections = [{ code: 1439, message: "Fictional observation" }];
+    await store.holdReport(KEY, (report) =>
+      report.recordDocumentType({
+        documentType: FACTURA_C,
+        state: "refused",
+        at: AT,
+        reportedThrough: 4,
+        rejectedNumber: 5,
+        rejections,
+      }),
+    );
+    expect(await db.select().from(fortnightDocumentReports)).toEqual([
+      expect.objectContaining({ state: "refused", rejectedNumber: 5, rejections }),
+    ]);
+
+    const later = new Date("2026-10-16T14:00:00.000Z");
+    await store.holdReport(KEY, (report) =>
+      report.recordDocumentType({
+        documentType: FACTURA_C,
+        state: "accepted",
+        at: later,
+        reportedThrough: 9,
+      }),
+    );
+
+    expect(await db.select().from(fortnightDocumentReports)).toEqual([
+      expect.objectContaining({
+        state: "accepted",
+        reportedThrough: 9,
+        rejectedNumber: null,
+        rejections: null,
+        recordedAt: later,
+      }),
+    ]);
+  });
+});
+
+describe("DrizzleFortnightReportStore.acceptedWithUnreportedDocuments", () => {
+  let registerId: string;
+
+  beforeEach(async () => {
+    registerId = await seedOfflinePointOfSale(db);
+    await claimedAt(new Date("2026-09-20T12:00:00.000Z"));
+    await keepCode(OCTOBER_FIRST_HALF, "36123456789012");
+  });
+
+  async function document(number: number) {
+    await insertOfflineFiscalDocument(db, {
+      registerId,
+      pointOfSale: OFFLINE_POINT_OF_SALE,
+      fortnight: OCTOBER_FIRST_HALF,
+      number,
+    });
+  }
+
+  function accept(movement: "none" | "documents" | undefined, reportedThrough?: number) {
+    return newStore().holdReport(KEY, async (report) => {
+      await report.record({
+        state: "accepted",
+        at: AT,
+        ...(movement === undefined ? {} : { movement }),
+      });
+      if (reportedThrough !== undefined) {
+        await report.recordDocumentType({
+          documentType: "factura_c",
+          state: "accepted",
+          at: AT,
+          reportedThrough,
+        });
+      }
+    });
+  }
+
+  it.each(["none", "documents"] as const)(
+    "lists an accepted presentation with %s movement that holds a document its type has not reported, as owed reports are listed",
+    async (movement) => {
+      await document(3);
+      await accept(movement, 2);
+
+      expect(await newStore().acceptedWithUnreportedDocuments()).toEqual([
+        {
+          pointOfSaleNumber: OFFLINE_POINT_OF_SALE,
+          registerId,
+          code: {
+            code: "36123456789012",
+            fortnight: OCTOBER_FIRST_HALF,
+            reportDeadline: "2026-10-20",
+          },
+        },
+      ]);
+    },
+  );
+
+  it("lists an accepted presentation whose document type has no report at all", async () => {
+    await document(1);
+    await accept("none");
+
+    expect(await newStore().acceptedWithUnreportedDocuments()).toHaveLength(1);
+  });
+
+  it("lists nothing when every document is reported through its type's last reported number", async () => {
+    await document(1);
+    await document(2);
+    await accept("documents", 2);
+
+    expect(await newStore().acceptedWithUnreportedDocuments()).toEqual([]);
+  });
+
+  it("lists nothing for an accepted presentation without documents", async () => {
+    await accept("none");
+
+    expect(await newStore().acceptedWithUnreportedDocuments()).toEqual([]);
+  });
+
+  it("lists nothing for an accepted presentation whose movement was never recorded", async () => {
+    await document(1);
+    await accept(undefined);
+
+    expect(await newStore().acceptedWithUnreportedDocuments()).toEqual([]);
+  });
+
+  it.each(["blocked", "submitting", "refused", "needs_regularization"] as const)(
+    "lists nothing for a presentation recorded as %s",
+    async (state) => {
+      await document(1);
+      await newStore().holdReport(KEY, (report) =>
+        report.record({ state, at: AT, movement: "documents" }),
+      );
+
+      expect(await newStore().acceptedWithUnreportedDocuments()).toEqual([]);
+    },
+  );
 });
