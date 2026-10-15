@@ -200,8 +200,9 @@ describe("startRecoveryWorker", () => {
         backofficeOrigin: "https://staging.purosur.online",
         emailSender,
         jobs: [{ taskList: { "other-task": otherTask }, crontab: ["0 * * * * other-task"] }],
+        schedules: false,
       },
-      { runWorker, schedules: false },
+      { runWorker },
     );
 
     const [options] = runWorker.mock.calls[0] as [RunnerOptions];
