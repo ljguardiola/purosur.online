@@ -480,6 +480,14 @@ function Register({ core }: { core: CoreClient }) {
     [core, queryClient],
   );
 
+  useEffect(
+    () =>
+      core.onBatteryStandingChanged(() => {
+        void queryClient.invalidateQueries({ queryKey: registerKeys.status });
+      }),
+    [core, queryClient],
+  );
+
   useEffect(() => {
     router.update({
       ...router.options,
