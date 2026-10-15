@@ -291,7 +291,7 @@ jobs:
           TEST_DURATIONS_FILE: ${{ runner.temp }}/test-durations-out/shard-${{ matrix.shard }}.json
 
       - name: Keep this shard's test durations
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: test-durations-shard-${{ matrix.shard }}
           path: ${{ runner.temp }}/test-durations-out/shard-${{ matrix.shard }}.json
@@ -345,7 +345,7 @@ jobs:
 
       - name: Upload the actual and diff images for a failed comparison
         if: failure()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: catalog-visual-diff
           retention-days: 7

@@ -212,6 +212,14 @@ const ALERT_KIND_POLICIES = {
     deduplicates: true,
     resolvesAfterStableClear: true,
   },
+  offsite_dump_unverified: {
+    level: "critical",
+    escalation: null,
+    audience: "all",
+    scopeKind: "environment",
+    deduplicates: true,
+    resolvesAfterStableClear: true,
+  },
   fortnight_report_pending: {
     level: "warning",
     escalation: null,

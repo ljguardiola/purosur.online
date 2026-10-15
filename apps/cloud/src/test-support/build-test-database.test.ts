@@ -43,6 +43,7 @@ import {
   offlineAuthorizationCodeAcquisitionReports,
   offlineFiscalDocuments,
   offlineNumberBlocks,
+  offsiteDumpChecks,
   passkeyChallenges,
   passkeys,
   paymentNotificationAttempts,
@@ -830,6 +831,12 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
       fortnightStart: "2026-10-16",
       outcomeKind: "no_answer",
       reportedAt: new Date("2026-10-13T15:00:00.000Z"),
+    });
+    await db.insert(offsiteDumpChecks).values({
+      night: "2026-10-13",
+      status: "verified",
+      sizeBytes: 1_000,
+      recordedAt: new Date("2026-10-14T09:00:00.000Z"),
     });
 
     const afterSeeding = await countsByTable(client);

@@ -3,6 +3,7 @@ import {
   type AlertDetails,
   type AlertKind,
   ARGENTINA_TIME_ZONE,
+  OFFSITE_DUMP_UNVERIFIED_REASONS,
 } from "@purosur/domain";
 import { describe, expect, expectTypeOf, it } from "vitest";
 import { type AlertDetail, alertDetailSchema } from "./alert-detail.js";
@@ -213,6 +214,9 @@ describe("alertDetailSchema", () => {
     expectTypeOf<WireDetail<"outbox_chain_broken">>().toEqualTypeOf<
       AlertDetails["outbox_chain_broken"]
     >();
+    expectTypeOf<WireDetail<"offsite_dump_unverified">>().toEqualTypeOf<
+      AlertDetails["offsite_dump_unverified"]
+    >();
     expectTypeOf<Omit<WireDetail<"lots_expiring">, "aboutViewerBranch">>().toEqualTypeOf<
       AlertDetails["lots_expiring"]
     >();
@@ -366,6 +370,7 @@ describe("alertDetailSchema", () => {
       fiscal_emission_stopped: { deviceId: "device-1", reason: "legal_name_missing" },
       outbox_chain_broken: { deviceId: "device-1" },
       lots_expiring: { lotCount: 3, windowDays: 30, aboutViewerBranch: true },
+      offsite_dump_unverified: { night: "2026-10-14", reason: "not_reported" },
       fortnight_report_pending: {
         pointOfSaleNumber: 4,
         registerId: "register-1",
@@ -424,6 +429,47 @@ describe("alertDetailSchema", () => {
         ...base,
         kind: "fiscal_unknown",
         detail: { ...detailOf.fiscal_unknown, ...change },
+      };
+
+      expect(alertDetailSchema.safeParse(alert).success).toBe(false);
+    });
+
+    it.each(OFFSITE_DUMP_UNVERIFIED_REASONS.filter((reason) => reason !== "shrank"))(
+      "accepts an unverified-dump alert naming the night and the reason %s",
+      (reason) => {
+        const alert = {
+          ...base,
+          kind: "offsite_dump_unverified",
+          detail: { night: "2026-10-14", reason },
+        };
+
+        expect(alertDetailSchema.safeParse(alert).data).toEqual(alert);
+      },
+    );
+
+    it("accepts an unverified-dump alert of a shrank dump naming the threshold it fell below", () => {
+      const alert = {
+        ...base,
+        kind: "offsite_dump_unverified",
+        detail: { night: "2026-10-14", reason: "shrank", shrinkThresholdPercent: 50 },
+      };
+
+      expect(alertDetailSchema.safeParse(alert).data).toEqual(alert);
+    });
+
+    it.each([
+      ["an unknown reason", { reason: "disk_full" }],
+      ["a night as a number", { night: 20261014 }],
+      ["a shrank dump without its threshold", { reason: "shrank" }],
+      [
+        "a shrank dump with a fractional threshold",
+        { reason: "shrank", shrinkThresholdPercent: 50.5 },
+      ],
+    ])("refuses an unverified-dump alert with %s", (_case, change) => {
+      const alert = {
+        ...base,
+        kind: "offsite_dump_unverified",
+        detail: { night: "2026-10-14", reason: "not_reported", ...change },
       };
 
       expect(alertDetailSchema.safeParse(alert).success).toBe(false);
