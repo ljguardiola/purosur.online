@@ -160,6 +160,11 @@ export type {
   RotateDeviceTokenOutcome,
 } from "./rotate-device-token.js";
 export { rotateDeviceToken } from "./rotate-device-token.js";
+export type {
+  RunSnapshotCycleOutcome,
+  RunSnapshotCyclePorts,
+} from "./run-snapshot-cycle.js";
+export { runSnapshotCycle } from "./run-snapshot-cycle.js";
 export type { SerialDeviceEnumeration } from "./serial-device-enumeration.js";
 export type {
   SerialDeviceRegistrations,
@@ -171,6 +176,11 @@ export type {
   SetReceiptPrinterAddressPorts,
 } from "./set-receipt-printer-address.js";
 export { setReceiptPrinterAddress } from "./set-receipt-printer-address.js";
+export type {
+  SnapshotCycleState,
+  SnapshotWorkerJob,
+  SnapshotWorkerLauncher,
+} from "./snapshot-cycle-ports.js";
 export type {
   AuthorizedSnapshotUpload,
   NewSnapshotGeneration,

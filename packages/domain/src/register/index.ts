@@ -92,6 +92,12 @@ export {
   SERIAL_DEVICE_ROLES,
   serialDeviceStandings,
 } from "./model/serial-devices.js";
+export type {
+  SnapshotCycleFacts,
+  SnapshotSequences,
+  SnapshotSkipReason,
+} from "./model/snapshot-cycle.js";
+export { snapshotIntervalMs } from "./model/snapshot-cycle.js";
 export type { SnapshotCorruptionStage } from "./model/snapshot-generation.js";
 export {
   isRetainedSnapshotGeneration,
@@ -102,6 +108,7 @@ export {
   SNAPSHOT_RETENTION_INTERVAL_MS,
   SNAPSHOT_STATUSES_AWAITING_VERIFICATION,
   SNAPSHOT_VERIFICATION_INTERVAL_MS,
+  SNAPSHOT_WORKER_TIME_LIMIT_MS,
 } from "./model/snapshot-generation.js";
 export type { SnapshotLifecycleRules } from "./model/snapshot-lifecycle-rules.js";
 export { SNAPSHOT_LIFECYCLE_LIMITS } from "./model/snapshot-lifecycle-rules.js";
