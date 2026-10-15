@@ -572,7 +572,7 @@ describe("voidSale", () => {
   });
 
   describe("a payment that was never approved", () => {
-    const UNAPPROVED_QR = { ...QR_PAYMENT, state: "EXPIRED" } as SalePayment;
+    const UNAPPROVED_QR = { ...QR_PAYMENT, state: "EXPIRED" } as unknown as SalePayment;
 
     it("does not keep the sale from being voided, whatever its method", async () => {
       const store = ledger({ payments: [CASH_PAYMENT, UNAPPROVED_QR] });
