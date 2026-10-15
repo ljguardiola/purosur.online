@@ -316,3 +316,20 @@ export function anOfflineFiscalDocumentFact(
     },
   };
 }
+
+export function aClockCorrectedFact(
+  overrides: Partial<FactOf<"clock_corrected">["correction"]> = {},
+): FactOf<"clock_corrected"> {
+  return {
+    kind: "clock_corrected",
+    correction: {
+      registerId: randomUUID(),
+      pointOfSale: 7,
+      documentType: "factura_c",
+      previousReading: new Date("2026-10-07T12:00:00.000Z"),
+      correctedReading: new Date("2026-10-05T12:00:00.000Z"),
+      actorId: randomUUID(),
+      ...overrides,
+    },
+  };
+}

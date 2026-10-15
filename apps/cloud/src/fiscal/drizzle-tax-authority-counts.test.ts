@@ -45,6 +45,7 @@ describe("DrizzleTaxAuthorityCounts", () => {
     expect(await storedCount(7)).toEqual({
       pointOfSaleNumber: 7,
       lastAuthorized: 41,
+      issuedOn: null,
       readAt: READ_AT,
     });
   });
@@ -67,8 +68,117 @@ describe("DrizzleTaxAuthorityCounts", () => {
     expect(await storedCount(7)).toEqual({
       pointOfSaleNumber: 7,
       lastAuthorized: 44,
+      issuedOn: null,
       readAt: LATER,
     });
+  });
+
+  it("keeps the day the last authorized document was issued on beside its number", async () => {
+    await new DrizzleTaxAuthorityCounts(db).advance({
+      pointOfSale: 7,
+      lastAuthorized: 41,
+      issuedOn: "2026-10-05",
+      readAt: READ_AT,
+    });
+
+    expect(await storedCount(7)).toMatchObject({ lastAuthorized: 41, issuedOn: "2026-10-05" });
+  });
+
+  it("replaces the day with the day of a higher number, known or not", async () => {
+    const counts = new DrizzleTaxAuthorityCounts(db);
+    await counts.advance({
+      pointOfSale: 7,
+      lastAuthorized: 41,
+      issuedOn: "2026-10-05",
+      readAt: READ_AT,
+    });
+
+    await counts.advance({
+      pointOfSale: 7,
+      lastAuthorized: 44,
+      issuedOn: "2026-10-06",
+      readAt: LATER,
+    });
+    expect(await storedCount(7)).toMatchObject({ lastAuthorized: 44, issuedOn: "2026-10-06" });
+
+    await counts.advance({ pointOfSale: 7, lastAuthorized: 45, issuedOn: null, readAt: LATER });
+    expect(await storedCount(7)).toMatchObject({ lastAuthorized: 45, issuedOn: null });
+  });
+
+  it("keeps the day of the highest number when a lower number is recorded afterwards", async () => {
+    const counts = new DrizzleTaxAuthorityCounts(db);
+    await counts.advance({
+      pointOfSale: 7,
+      lastAuthorized: 44,
+      issuedOn: "2026-10-06",
+      readAt: LATER,
+    });
+
+    await counts.advance({
+      pointOfSale: 7,
+      lastAuthorized: 41,
+      issuedOn: "2026-10-05",
+      readAt: READ_AT,
+    });
+
+    expect(await storedCount(7)).toMatchObject({ lastAuthorized: 44, issuedOn: "2026-10-06" });
+  });
+
+  it("keeps a known day when the same number is read again without it", async () => {
+    const counts = new DrizzleTaxAuthorityCounts(db);
+    await counts.advance({
+      pointOfSale: 7,
+      lastAuthorized: 41,
+      issuedOn: "2026-10-05",
+      readAt: READ_AT,
+    });
+
+    await counts.advance({ pointOfSale: 7, lastAuthorized: 41, readAt: LATER });
+
+    expect(await storedCount(7)).toEqual({
+      pointOfSaleNumber: 7,
+      lastAuthorized: 41,
+      issuedOn: "2026-10-05",
+      readAt: LATER,
+    });
+  });
+
+  it("learns the day of a number already stored without one", async () => {
+    const counts = new DrizzleTaxAuthorityCounts(db);
+    await counts.advance({ pointOfSale: 7, lastAuthorized: 41, issuedOn: null, readAt: READ_AT });
+
+    await counts.advance({
+      pointOfSale: 7,
+      lastAuthorized: 41,
+      issuedOn: "2026-10-05",
+      readAt: LATER,
+    });
+
+    expect(await storedCount(7)).toMatchObject({ lastAuthorized: 41, issuedOn: "2026-10-05" });
+  });
+
+  it("logs the point of sale of the register that holds it again when only the day becomes known, so the register pulls it", async () => {
+    const registerId = await insertRegisterWithPointOfSale(db, {
+      pointOfSaleNumber: 7,
+      name: "caja-1",
+    });
+    await new DrizzleTaxAuthorityCounts(db).advance({
+      pointOfSale: 7,
+      lastAuthorized: 41,
+      readAt: READ_AT,
+    });
+    const mark = await lastLoggedChangeSeq(db);
+
+    await new DrizzleTaxAuthorityCounts(db).advance({
+      pointOfSale: 7,
+      lastAuthorized: 41,
+      issuedOn: "2026-10-05",
+      readAt: LATER,
+    });
+
+    expect(await changesLoggedAfter(db, mark)).toMatchObject([
+      { entity: "register_point_of_sale", entityId: registerId, op: "update" },
+    ]);
   });
 
   it("logs a change of the point of sale of the register that holds it, at its current version, so the register pulls it again", async () => {

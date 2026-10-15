@@ -194,6 +194,7 @@ describe("GET /changes carrying the register's own point of sale", () => {
     await new DrizzleTaxAuthorityCounts(db).advance({
       pointOfSale: 7,
       lastAuthorized: 41,
+      issuedOn: "2026-09-28",
       readAt: NOW,
     });
 
@@ -205,7 +206,7 @@ describe("GET /changes carrying the register's own point of sale", () => {
         point_of_sale_number: 7,
         fiscal_address_id: fiscalAddressId,
         tax_authority_last_authorized_number: 41,
-        tax_authority_last_authorized_issued_on: null,
+        tax_authority_last_authorized_issued_on: "2026-09-28",
         numbering_frozen: false,
         version: 1,
       },
@@ -422,6 +423,7 @@ describe("GET /changes carrying the register's own offline point of sale", () =>
     await new DrizzleTaxAuthorityCounts(db).advance({
       pointOfSale: 8,
       lastAuthorized: 41,
+      issuedOn: "2026-09-28",
       readAt: NOW,
     });
 
@@ -434,7 +436,7 @@ describe("GET /changes carrying the register's own offline point of sale", () =>
       row: {
         point_of_sale_number: 8,
         tax_authority_last_authorized_number: 41,
-        tax_authority_last_authorized_issued_on: null,
+        tax_authority_last_authorized_issued_on: "2026-09-28",
         highest_synced_offline_number: null,
         version: 1,
       },
