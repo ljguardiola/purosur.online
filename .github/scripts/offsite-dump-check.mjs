@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process";
 import { createHash, createHmac } from "node:crypto";
-import { createReadStream, createWriteStream, readFileSync } from "node:fs";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { createWriteStream, readFileSync } from "node:fs";
+import { mkdtemp, open, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Readable, Transform } from "node:stream";
@@ -120,28 +120,34 @@ function exitCodeOf(label, child) {
   });
 }
 
-/**
- * Feeds the file through `decrypt` into `list`, reporting the exit code each command gave as its
- * own verdict; a command that could not be started or run is an error instead.
- */
-export async function runPipeline(commands, dumpPath) {
-  const decrypt = spawn(commands.decrypt.file, commands.decrypt.args, {
-    stdio: ["pipe", "pipe", "inherit"],
-  });
-  const list = spawn(commands.list.file, commands.list.args, {
-    stdio: ["pipe", "ignore", "inherit"],
-  });
-  const ignoreBrokenPipe = (stream) => stream?.on("error", () => undefined);
-  for (const stream of [decrypt.stdin, decrypt.stdout, list.stdin]) {
-    ignoreBrokenPipe(stream);
+async function runWithFiles(label, command, input, output) {
+  const stdin = await open(input, "r");
+  try {
+    const stdout = output === undefined ? undefined : await open(output, "w", 0o600);
+    try {
+      const child = spawn(command.file, command.args, {
+        stdio: [stdin.fd, stdout?.fd ?? "ignore", "inherit"],
+      });
+      return await exitCodeOf(label, child);
+    } finally {
+      await stdout?.close();
+    }
+  } finally {
+    await stdin.close();
   }
-  const exits = Promise.all([exitCodeOf("decrypt", decrypt), exitCodeOf("list", list)]);
-  exits.catch(() => undefined);
-  await Promise.allSettled([
-    pipeline(createReadStream(dumpPath), decrypt.stdin),
-    pipeline(decrypt.stdout, list.stdin),
-  ]);
-  const [decryptExitCode, listExitCode] = await exits;
+}
+
+/**
+ * Decrypts the file with `decrypt` into a private file, then lists that file with `list`, reporting
+ * the exit code each command gave as its own verdict; a command that could not be started or run is
+ * an error instead.
+ */
+export async function runPipeline(commands, dumpPath, decryptedPath) {
+  const decryptExitCode = await runWithFiles("decrypt", commands.decrypt, dumpPath, decryptedPath);
+  if (decryptExitCode !== 0) {
+    return { decryptExitCode };
+  }
+  const listExitCode = await runWithFiles("list", commands.list, decryptedPath);
   return { decryptExitCode, listExitCode };
 }
 
@@ -241,9 +247,14 @@ export async function checkOffsiteDump({ env, now, fetchImpl, directory, decrypt
   }
 
   const identityPath = join(directory, "identity");
+  const decryptedPath = join(directory, "dump");
   await writeFile(identityPath, env.OFFSITE_DUMP_AGE_IDENTITY, { mode: 0o600 });
   try {
-    const { decryptExitCode, listExitCode } = await decryptAndList({ identityPath, dumpPath });
+    const { decryptExitCode, listExitCode } = await decryptAndList({
+      identityPath,
+      dumpPath,
+      decryptedPath,
+    });
     if (decryptExitCode !== 0) {
       return failed(night, "decryption_failed");
     }
@@ -252,6 +263,7 @@ export async function checkOffsiteDump({ env, now, fetchImpl, directory, decrypt
     }
   } finally {
     await rm(identityPath, { force: true });
+    await rm(decryptedPath, { force: true });
   }
   return { night, outcome: "passed", sizeBytes: downloaded.sizeBytes };
 }
@@ -312,9 +324,13 @@ export async function runCli({
 }
 
 export function decryptAndListWithComposeImage(readComposeFile) {
-  return ({ identityPath, dumpPath }) => {
+  return ({ identityPath, dumpPath, decryptedPath }) => {
     const postgresImage = readPostgresImage(readComposeFile());
-    return runPipeline(restoreListCommands({ identityPath, postgresImage }), dumpPath);
+    return runPipeline(
+      restoreListCommands({ identityPath, postgresImage }),
+      dumpPath,
+      decryptedPath,
+    );
   };
 }
 
