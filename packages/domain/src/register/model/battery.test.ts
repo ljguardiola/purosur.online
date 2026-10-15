@@ -8,6 +8,8 @@ import {
   batteryReportStanding,
   batteryStanding,
   CRITICAL_BATTERY_PERCENT,
+  CRITICAL_BATTERY_PUSH_LIMIT_MS,
+  CRITICAL_BATTERY_SALE_RECHECK_MS,
   isOnBatteryTooLong,
   LOW_BATTERY_PERCENT,
   nextOnBatterySince,
@@ -152,6 +154,13 @@ describe("battery thresholds", () => {
     expect(LOW_BATTERY_PERCENT).toBe(20);
     expect(CRITICAL_BATTERY_PERCENT).toBe(10);
     expect(ON_BATTERY_CONDITION_MINUTES).toBe(10);
+  });
+});
+
+describe("the clean close at a critical battery", () => {
+  it("gives its last push ten seconds and looks again for an open sale every five", () => {
+    expect(CRITICAL_BATTERY_PUSH_LIMIT_MS).toBe(10_000);
+    expect(CRITICAL_BATTERY_SALE_RECHECK_MS).toBe(5_000);
   });
 });
 
