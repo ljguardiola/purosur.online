@@ -34,6 +34,9 @@ function presentation(overrides: Partial<FortnightPresentation> = {}): Fortnight
     pointOfSaleNumber: 4,
     fortnight: septemberFirstHalf,
     deadline: "2026-09-23",
+    documentType: null,
+    documentCount: 0,
+    rejectedDocument: null,
     state: null,
     ...overrides,
   };
@@ -54,24 +57,55 @@ function sectionFor(data: CloudData<[FortnightPresentation[], RegisterPointOfSal
   );
 }
 
-test("lists each presentation with its fortnight, its point of sale and its deadline", async () => {
+test("lists each presentation with its fortnight, its point of sale, its document type, its documents, its state and its deadline", async () => {
   const screen = await render(
-    sectionFor(loaded([presentation({ fortnight: augustSecondHalf, deadline: "2026-09-08" })])),
+    sectionFor(
+      loaded([
+        presentation({
+          fortnight: augustSecondHalf,
+          deadline: "2026-09-08",
+          documentType: "factura_c",
+          documentCount: 51,
+          state: "accepted",
+        }),
+      ]),
+    ),
   );
 
   const table = screen.getByRole("table", { name: "Informes quincenales" });
-  for (const header of ["Quincena", "Punto de venta", "Estado", "Vence"]) {
+  for (const header of ["Quincena", "Punto de venta", "Tipo", "Comprobantes", "Estado", "Vence"]) {
     await expect.element(table.getByRole("columnheader", { name: header })).toBeVisible();
   }
   await expect
     .element(table.getByText(formatCalendarDayRange("2026-08-16", "2026-08-31"), { exact: true }))
     .toBeVisible();
   await expect.element(table.getByText("00004")).toBeVisible();
+  await expect.element(table.getByText("Factura C")).toBeVisible();
+  await expect.element(table.getByText("51 comprobantes")).toBeVisible();
+  await expect.element(table.getByText("Aceptado")).toBeVisible();
   await expect.element(table.getByText("08/09/2026")).toBeVisible();
+});
+
+test("lists a row per document type of the same point of sale and fortnight", async () => {
+  const screen = await render(
+    sectionFor(
+      loaded([
+        presentation({ documentType: "factura_c", documentCount: 2, state: "accepted" }),
+        presentation({ documentType: null, documentCount: 0, state: "accepted" }),
+      ]),
+    ),
+  );
+
+  const table = screen.getByRole("table", { name: "Informes quincenales" });
+  await expect.element(table.getByText("2 comprobantes")).toBeVisible();
+  await expect.element(table.getByText("Sin movimiento")).toBeVisible();
+  await expect.element(table.getByText("Factura C")).toBeVisible();
+  expect(table.getByRole("row").elements()).toHaveLength(3);
 });
 
 test.each([
   [null, "Pendiente"],
+  ["needs_regularization", "A regularizar"],
   ["submitting", "Presentando"],
   ["refused", "Rechazado"],
   ["blocked", "Bloqueado"],
@@ -82,21 +116,44 @@ test.each([
   await expect.element(screen.getByRole("table").getByText(label, { exact: true })).toBeVisible();
 });
 
-test("shows no column inferring from the state what a presentation declared", async () => {
+test.each([
+  [{ documentType: null, state: "accepted" }, "Sin movimiento"],
+  [{ documentType: null, documentCount: 3, state: "needs_regularization" }, "3 llegaron después"],
+  [{ documentType: null, documentCount: 1, state: "needs_regularization" }, "1 llegó después"],
+  [{ documentType: "factura_c", documentCount: 1, state: "submitting" }, "1 comprobante"],
+  [
+    {
+      documentType: "factura_c",
+      documentCount: 20,
+      state: "refused",
+      rejectedDocument: { number: 5, unprocessed: 12 },
+    },
+    "1 rechazado · 12 sin procesar",
+  ],
+] as const)("describes the documents of a presentation as %#", async (overrides, text) => {
+  const screen = await render(sectionFor(loaded([presentation(overrides)])));
+
+  await expect.element(screen.getByRole("table").getByText(text, { exact: true })).toBeVisible();
+});
+
+test("shows a partly rejected presentation as such, and a plain refusal as rejected", async () => {
   const screen = await render(
     sectionFor(
       loaded([
-        presentation({ fortnight: augustSecondHalf, state: "accepted" }),
-        presentation({ state: "blocked" }),
+        presentation({
+          documentType: "factura_c",
+          documentCount: 20,
+          state: "refused",
+          rejectedDocument: { number: 5, unprocessed: 12 },
+        }),
+        presentation({ fortnight: augustSecondHalf, state: "refused" }),
       ]),
     ),
   );
 
   const table = screen.getByRole("table");
-  await expect.element(table).toBeVisible();
-  expect(table.getByRole("columnheader", { name: "Comprobantes" }).query()).toBeNull();
-  expect(table.getByText("Sin movimiento").query()).toBeNull();
-  expect(table.getByText(/Faltan comprobantes/).query()).toBeNull();
+  await expect.element(table.getByText("Rechazado en parte", { exact: true })).toBeVisible();
+  await expect.element(table.getByText("Rechazado", { exact: true })).toBeVisible();
 });
 
 test("warns above the table of each blocked presentation which register still has to finish syncing", async () => {
