@@ -13,6 +13,7 @@ import {
   taxAuthorityLastAuthorizedNumbers,
   users,
 } from "../platform/db/schema.js";
+import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { buildJobHelpers } from "../test-support/job-helpers.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
@@ -22,6 +23,10 @@ import {
   TAX_AUTHORITY_COUNT_TASK_IDENTIFIER,
   taxAuthorityCountJobs,
 } from "./tax-authority-count-task.js";
+import {
+  insertAppliedOfflineDocument,
+  insertReceivedOfflineDocumentEvent,
+} from "./test-support/synced-offline-documents.js";
 
 const NOW = new Date("2026-10-06T15:00:00.000Z");
 const FINGERPRINT = "AB:CD:EF";
@@ -191,6 +196,52 @@ describe("taxAuthorityCountJobs", () => {
       ]);
       expect(await testDatabase.db.select().from(offlineNumberBlocks)).toMatchObject([
         { pointOfSaleNumber: 8, registerId, firstNumber: 38, lastNumber: 1037, assignedAt: NOW },
+      ]);
+    });
+
+    it("starts right after the highest number synced when that is above the count read, whether the document is recorded or still received", async () => {
+      const registerId = await configureRegisterWithOfflinePointOfSale([]);
+      const { deviceId } = await insertEnrolledInstallation(testDatabase.db, {
+        now: NOW,
+        existingRegisterId: registerId,
+      });
+      await insertAppliedOfflineDocument(testDatabase.db, registerId, {
+        pointOfSale: 8,
+        number: 60,
+      });
+      await insertReceivedOfflineDocumentEvent(
+        testDatabase.db,
+        { deviceId, registerId },
+        { pointOfSale: 8, number: 75 },
+        { quarantinedAt: NOW },
+      );
+      await issueWsaaToken();
+      const taxAuthority = new FakeLastAuthorizedLookup();
+      taxAuthority.answer = { kind: "read", number: 37 };
+      const { task } = taskUnderTest(taxAuthority);
+
+      await task({ pointOfSale: 8 }, buildJobHelpers().helpers);
+
+      expect(await testDatabase.db.select().from(offlineNumberBlocks)).toMatchObject([
+        { pointOfSaleNumber: 8, firstNumber: 76, lastNumber: 1075 },
+      ]);
+    });
+
+    it("starts right after the count read when it is above every number synced", async () => {
+      const registerId = await configureRegisterWithOfflinePointOfSale([]);
+      await insertAppliedOfflineDocument(testDatabase.db, registerId, {
+        pointOfSale: 8,
+        number: 20,
+      });
+      await issueWsaaToken();
+      const taxAuthority = new FakeLastAuthorizedLookup();
+      taxAuthority.answer = { kind: "read", number: 37 };
+      const { task } = taskUnderTest(taxAuthority);
+
+      await task({ pointOfSale: 8 }, buildJobHelpers().helpers);
+
+      expect(await testDatabase.db.select().from(offlineNumberBlocks)).toMatchObject([
+        { pointOfSaleNumber: 8, firstNumber: 38, lastNumber: 1037 },
       ]);
     });
 

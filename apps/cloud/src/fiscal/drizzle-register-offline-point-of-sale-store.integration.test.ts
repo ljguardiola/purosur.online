@@ -4,17 +4,20 @@ import {
   configureRegisterOfflinePointOfSale,
   configureRegisterPointOfSale,
 } from "@purosur/domain/fiscal/use-cases";
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
+  changes,
   fiscalAddresses,
   offlineNumberBlocks,
+  pointOfSaleClaims,
   registers,
   taxAuthorityLastAuthorizedNumbers,
   users,
 } from "../platform/db/schema.js";
+import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
@@ -23,6 +26,10 @@ import { seededLocationId } from "../test-support/seeded-location.js";
 import { DrizzleRegisterOfflinePointOfSaleStore } from "./drizzle-register-offline-point-of-sale-store.js";
 import { DrizzleRegisterPointOfSaleStore } from "./drizzle-register-point-of-sale-store.js";
 import { seedOfflinePointOfSale } from "./test-support/offline-point-of-sale-fixtures.js";
+import {
+  insertAppliedOfflineDocument,
+  insertReceivedOfflineDocumentEvent,
+} from "./test-support/synced-offline-documents.js";
 
 const NOON = new Date("2026-01-05T12:00:00.000Z");
 const OFFLINE_POINT_OF_SALE = 8;
@@ -166,5 +173,181 @@ describe("the offline number blocks on a real Postgres", () => {
     ]);
 
     expect(await blocksOf(41)).toEqual([{ firstNumber: 6, lastNumber: 1005 }]);
+  });
+});
+
+describe("the highest offline number synced, on a real Postgres", () => {
+  async function highestSynced(pointOfSaleNumber: number) {
+    return offlineStore().transaction((tx) =>
+      tx.highestSyncedOfflineNumber(pointOfSaleNumber, "factura_c"),
+    );
+  }
+
+  async function installation() {
+    const { deviceId } = await insertEnrolledInstallation(db, {
+      now: NOON,
+      existingRegisterId: registerId,
+    });
+    return { deviceId, registerId };
+  }
+
+  it("answers nothing for a point of sale no document was synced on", async () => {
+    expect(await highestSynced(61)).toBeNull();
+  });
+
+  it("answers the highest number among the documents applied", async () => {
+    for (const number of [5, 9, 7]) {
+      await insertAppliedOfflineDocument(db, registerId, { pointOfSale: 62, number });
+    }
+
+    expect(await highestSynced(62)).toBe(9);
+  });
+
+  it("counts a document received and not yet applied", async () => {
+    const origin = await installation();
+    await insertAppliedOfflineDocument(db, registerId, { pointOfSale: 63, number: 9 });
+    await insertReceivedOfflineDocumentEvent(db, origin, { pointOfSale: 63, number: 14 });
+
+    expect(await highestSynced(63)).toBe(14);
+  });
+
+  it.each([
+    ["quarantined", { quarantinedAt: NOON }],
+    ["retried later", { attempts: 3, nextAttemptAt: NOON, lastError: "the sale is not applied" }],
+  ])("counts a document received and %s", async (_case, state) => {
+    const origin = await installation();
+    await insertReceivedOfflineDocumentEvent(db, origin, { pointOfSale: 64, number: 21 }, state);
+
+    expect(await highestSynced(64)).toBe(21);
+  });
+
+  it("ignores a received event once it was applied, since its document is then recorded", async () => {
+    const origin = await installation();
+    await insertReceivedOfflineDocumentEvent(
+      db,
+      origin,
+      { pointOfSale: 65, number: 500 },
+      { appliedAt: NOON },
+    );
+
+    expect(await highestSynced(65)).toBeNull();
+  });
+
+  it("answers the same number for a document both recorded and still received", async () => {
+    const origin = await installation();
+    await insertAppliedOfflineDocument(db, registerId, { pointOfSale: 66, number: 30 });
+    await insertReceivedOfflineDocumentEvent(db, origin, { pointOfSale: 66, number: 30 });
+
+    expect(await highestSynced(66)).toBe(30);
+  });
+
+  it("keeps the numbers of one point of sale apart from another's", async () => {
+    const origin = await installation();
+    await insertAppliedOfflineDocument(db, registerId, { pointOfSale: 67, number: 40 });
+    await insertReceivedOfflineDocumentEvent(db, origin, { pointOfSale: 67, number: 41 });
+    await insertAppliedOfflineDocument(db, registerId, { pointOfSale: 68, number: 900 });
+    await insertReceivedOfflineDocumentEvent(db, origin, { pointOfSale: 68, number: 901 });
+
+    expect(await highestSynced(67)).toBe(41);
+  });
+
+  it("ignores an event of another kind and one no schema reads", async () => {
+    const origin = await installation();
+    await insertReceivedOfflineDocumentEvent(db, origin, { pointOfSale: 69, number: 8 });
+    await insertReceivedOfflineDocumentEvent(
+      db,
+      origin,
+      { pointOfSale: 69, number: 99 },
+      { schemaVersion: 999 },
+    );
+    await insertReceivedOfflineDocumentEvent(
+      db,
+      origin,
+      { pointOfSale: 69, number: 98 },
+      { eventType: "sale_completed" },
+    );
+
+    expect(await highestSynced(69)).toBe(8);
+  });
+});
+
+describe("the offline number block in use and its use up, on a real Postgres", () => {
+  async function claimOfflinePointOfSale(pointOfSaleNumber: number) {
+    const [actor] = await db.select({ id: users.id }).from(users);
+    if (!actor) {
+      throw new Error("test setup: the seeded user is missing");
+    }
+    await db
+      .insert(pointOfSaleClaims)
+      .values({ pointOfSaleNumber, registerId, mechanism: "offline", claimedBy: actor.id });
+  }
+
+  function recordBlock(
+    pointOfSaleNumber: number,
+    range: { firstNumber: number; lastNumber: number },
+    status: "in_use" | "used_up",
+  ) {
+    return offlineStore().transaction((tx) =>
+      tx.recordOfflineNumberBlock({
+        pointOfSaleNumber,
+        documentType: "factura_c",
+        registerId,
+        range,
+        status,
+      }),
+    );
+  }
+
+  function inUse(pointOfSaleNumber: number) {
+    return offlineStore().transaction((tx) =>
+      tx.offlineNumberBlockInUse(pointOfSaleNumber, "factura_c"),
+    );
+  }
+
+  it("answers nothing for a point of sale with no block", async () => {
+    expect(await inUse(81)).toBeNull();
+  });
+
+  it("answers the block in use, and not the one used up before it", async () => {
+    await claimOfflinePointOfSale(82);
+    await recordBlock(82, { firstNumber: 1, lastNumber: 1000 }, "used_up");
+    await recordBlock(82, { firstNumber: 1001, lastNumber: 2000 }, "in_use");
+
+    expect(await inUse(82)).toEqual({
+      pointOfSaleNumber: 82,
+      documentType: "factura_c",
+      registerId,
+      range: { firstNumber: 1001, lastNumber: 2000 },
+      status: "in_use",
+    });
+  });
+
+  it("marks the block used up, raising its version and noting the change for its register", async () => {
+    await claimOfflinePointOfSale(83);
+    await recordBlock(83, { firstNumber: 1, lastNumber: 1000 }, "in_use");
+    const block = await inUse(83);
+    if (!block) {
+      throw new Error("test setup: the block in use is missing");
+    }
+
+    await offlineStore().transaction((tx) => tx.markOfflineNumberBlockUsedUp(block));
+
+    const [stored] = await db
+      .select()
+      .from(offlineNumberBlocks)
+      .where(eq(offlineNumberBlocks.pointOfSaleNumber, 83));
+    expect(stored).toMatchObject({ status: "used_up", version: 2, firstNumber: 1 });
+    const logged = await db
+      .select({ version: changes.version, op: changes.op, registerId: changes.registerId })
+      .from(changes)
+      .where(
+        and(eq(changes.entity, "offline_number_block"), eq(changes.entityId, stored?.id ?? "")),
+      )
+      .orderBy(asc(changes.changeSeq));
+    expect(logged).toEqual([
+      { version: 1, op: "insert", registerId },
+      { version: 2, op: "update", registerId },
+    ]);
+    expect(await inUse(83)).toBeNull();
   });
 });
