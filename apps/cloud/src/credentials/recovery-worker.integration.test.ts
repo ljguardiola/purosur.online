@@ -2,7 +2,14 @@ import { randomUUID } from "node:crypto";
 import { RECOVERY_TOKEN_LIFETIME_MS } from "@purosur/domain";
 import { eq } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
-import { type Job, quickAddJob, type RunnerOptions, runTaskListOnce } from "graphile-worker";
+import {
+  type Job,
+  quickAddJob,
+  type RunnerOptions,
+  run,
+  runTaskListOnce,
+  type Worker,
+} from "graphile-worker";
 import pg from "pg";
 import postgres from "postgres";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
@@ -375,5 +382,133 @@ describe("a recovery request first processed after it stopped being current", ()
     }
 
     expect(sent).toEqual([]);
+  });
+});
+
+const FINISHING_TASK_IDENTIFIER = "finishes-when-let-go";
+
+interface StoppingWorker {
+  enqueue: () => Promise<Job>;
+  stopThenLetTheJobFinish: () => Promise<void>;
+}
+
+function poolHandingOutClientsLate(connectionString: string) {
+  const pool = new pg.Pool({ connectionString });
+  const connect = pool.connect.bind(pool) as (...args: unknown[]) => unknown;
+  pool.connect = ((...args: unknown[]) =>
+    args.length > 0
+      ? connect(...args)
+      : new Promise((resolve) => setImmediate(resolve)).then(() =>
+          connect(),
+        )) as typeof pool.connect;
+  const listeningClients = new Set<unknown>();
+  pool.on("connect", (client) => {
+    const query = client.query.bind(client);
+    client.query = ((config: unknown, ...rest: unknown[]) => {
+      const text = typeof config === "string" ? config : (config as { text?: unknown })?.text;
+      if (typeof text === "string" && /^\s*listen\b/i.test(text)) {
+        listeningClients.add(client);
+      }
+      return (query as (...args: unknown[]) => unknown)(config, ...rest);
+    }) as typeof client.query;
+  });
+  const stoppedListening = new Promise<void>((resolve) => {
+    pool.on("release", (_error: unknown, client: unknown) => {
+      if (listeningClients.has(client)) {
+        resolve();
+      }
+    });
+  });
+  return { pool, stoppedListening };
+}
+
+async function startWorkerWithAJobFinishingAsItStops(
+  finish: () => Promise<void>,
+): Promise<StoppingWorker> {
+  const { pool, stoppedListening } = poolHandingOutClientsLate(integrationDb.databaseUrl);
+  let jobStarted!: () => void;
+  const started = new Promise<void>((resolve) => {
+    jobStarted = resolve;
+  });
+  let letGo!: () => void;
+  const letGoOfTheJob = new Promise<void>((resolve) => {
+    letGo = resolve;
+  });
+  let workerOfTheJob: Worker | undefined;
+  let otherWorkersStopped!: () => void;
+  const othersStopped = new Promise<void>((resolve) => {
+    otherWorkersStopped = resolve;
+  });
+  const worker = await startRecoveryWorker(
+    {
+      databaseUrl: integrationDb.databaseUrl,
+      backofficeOrigin: "https://staging.purosur.online",
+      emailSender,
+      now: () => NOW,
+      jobs: [
+        {
+          taskList: {
+            [FINISHING_TASK_IDENTIFIER]: async () => {
+              jobStarted();
+              await letGoOfTheJob;
+              await finish();
+            },
+          },
+          crontab: [],
+        },
+      ],
+    },
+    {
+      createPool: () => pool,
+      captureException: vi.fn(),
+      runWorker: (options) => {
+        options.events?.on("job:start", ({ worker: jobWorker, job }) => {
+          if (job.task_identifier === FINISHING_TASK_IDENTIFIER) {
+            workerOfTheJob = jobWorker;
+          }
+        });
+        options.events?.on("worker:stop", ({ worker: stoppedWorker }) => {
+          if (stoppedWorker !== workerOfTheJob) {
+            otherWorkersStopped();
+          }
+        });
+        return run(options);
+      },
+    },
+  );
+  return {
+    enqueue: () =>
+      quickAddJob({ connectionString: integrationDb.databaseUrl }, FINISHING_TASK_IDENTIFIER, {}),
+    async stopThenLetTheJobFinish() {
+      await started;
+      const stopping = worker.stop();
+      await Promise.all([stoppedListening, othersStopped]);
+      letGo();
+      await stopping;
+    },
+  };
+}
+
+describe("startRecoveryWorker stopped while a job is still running", () => {
+  it("records the completion of the job before it stops, so the job never stays locked in the queue", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const worker = await startWorkerWithAJobFinishingAsItStops(async () => {});
+    const job = await worker.enqueue();
+
+    await worker.stopThenLetTheJobFinish();
+
+    expect(await jobLock(job.id)).toBeUndefined();
+  });
+
+  it("records the failure of the job before it stops, so the job is unlocked for its next attempt", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const worker = await startWorkerWithAJobFinishingAsItStops(async () => {
+      throw new Error("the job failed as the worker stopped");
+    });
+    const job = await worker.enqueue();
+
+    await worker.stopThenLetTheJobFinish();
+
+    expect(await jobLock(job.id)).toEqual({ attempts: 1, lockedAt: null });
   });
 });
