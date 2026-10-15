@@ -102,6 +102,7 @@ export type { RegisterOfflineAuthorizationCodeHolding } from "./model/offline-au
 export { mustHoldOfflineAuthorizationCode } from "./model/offline-authorization-code-holding.js";
 export type { OfflineFiscalDocumentIssuedFact } from "./model/offline-fiscal-document.js";
 export {
+  OFFLINE_FISCAL_DOCUMENT_ISSUED_EVENT_TYPE,
   offlineFiscalDocument,
   offlineFiscalDocumentIssuedEvent,
 } from "./model/offline-fiscal-document.js";

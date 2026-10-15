@@ -55,8 +55,12 @@ export type {
   AssignAwaitedOfflineNumberBlockOutcome,
 } from "./assign-awaited-offline-number-block.js";
 export { assignAwaitedOfflineNumberBlock } from "./assign-awaited-offline-number-block.js";
-export type { AssignNextOfflineNumberBlockOutcome } from "./assign-next-offline-number-block.js";
-export { assignNextOfflineNumberBlock } from "./assign-next-offline-number-block.js";
+export type {
+  AssignNextOfflineNumberBlockInput,
+  AssignNextOfflineNumberBlockOutcome,
+} from "./assign-next-offline-number-block.js";
+export type { AssignNextOfflineNumberBlocksOutcome } from "./assign-next-offline-number-blocks.js";
+export { assignNextOfflineNumberBlocks } from "./assign-next-offline-number-blocks.js";
 export type {
   AssignFirstOfflineNumberBlockOutcome,
   AssignOfflineNumberBlockInput,

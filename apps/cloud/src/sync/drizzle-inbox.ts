@@ -1,11 +1,13 @@
 import {
   type BatteryReport,
-  type FiscalDocumentType,
   type PushedEvent,
   SERIAL_DEVICE_ROLES,
   type SerialDevicesReport,
 } from "@purosur/domain";
-import { assignNextOfflineNumberBlock } from "@purosur/domain/fiscal/use-cases";
+import {
+  type AssignNextOfflineNumberBlockInput,
+  assignNextOfflineNumberBlocks,
+} from "@purosur/domain/fiscal/use-cases";
 import type {
   HeldEvent,
   HeldEventPosition,
@@ -39,11 +41,6 @@ import { type PendingChanges, withPendingChanges } from "./change-log.js";
 import type { EnqueueEventApplication } from "./graphile-event-application-queue.js";
 import { syncedEventUpcaster } from "./synced-event-upcaster.js";
 import { unappliedEventColumns } from "./unapplied-event-columns.js";
-
-interface OfflineSeries {
-  pointOfSaleNumber: number;
-  documentType: FiscalDocumentType;
-}
 
 class DrizzleInboxTransaction<TQueryResult extends PgQueryResultHKT> implements InboxTransaction {
   private readonly tx: PgDatabase<TQueryResult>;
@@ -141,31 +138,25 @@ class DrizzleInboxTransaction<TQueryResult extends PgQueryResultHKT> implements 
     await this.enqueueApplication(this.tx);
   }
 
-  async advanceOfflineNumbering(received: readonly PushedEvent[], at: Date): Promise<void> {
-    if (received.length === 0) {
+  async advanceOfflineNumbering(offlineDocuments: readonly PushedEvent[], at: Date): Promise<void> {
+    if (offlineDocuments.length === 0) {
       return;
     }
-    const documents = await this.tx
+    const received = await this.tx
       .select(unappliedEventColumns)
       .from(inbox)
       .where(
-        and(
-          inArray(
-            inbox.eventId,
-            received.map((event) => event.event_id),
-          ),
-          eq(inbox.eventType, "offline_fiscal_document_issued"),
+        inArray(
+          inbox.eventId,
+          offlineDocuments.map((event) => event.event_id),
         ),
       );
-    const series = new Map<string, OfflineSeries>();
-    for (const event of documents) {
+    const series: AssignNextOfflineNumberBlockInput[] = [];
+    for (const event of received) {
       const decoded = syncedEventUpcaster.decode(event);
       if (decoded.kind === "fact" && decoded.fact.kind === "offline_fiscal_document_issued") {
         const { pointOfSale, documentType } = decoded.fact.document;
-        series.set(`${pointOfSale}:${documentType}`, {
-          pointOfSaleNumber: pointOfSale,
-          documentType,
-        });
+        series.push({ pointOfSaleNumber: pointOfSale, documentType });
       }
     }
     const store = new DrizzleRegisterOfflinePointOfSaleStoreTransaction(
@@ -174,13 +165,7 @@ class DrizzleInboxTransaction<TQueryResult extends PgQueryResultHKT> implements 
       this.pending,
       undefined,
     );
-    const inLockOrder = [...series.values()].sort(
-      (a, b) =>
-        a.pointOfSaleNumber - b.pointOfSaleNumber || a.documentType.localeCompare(b.documentType),
-    );
-    for (const offlineSeries of inLockOrder) {
-      await assignNextOfflineNumberBlock(store, offlineSeries);
-    }
+    await assignNextOfflineNumberBlocks(store, series);
   }
 
   async recordPushReport(deviceId: string, report: PushReport, at: Date): Promise<void> {
