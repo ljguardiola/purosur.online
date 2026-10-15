@@ -1868,6 +1868,12 @@ describe("serial device messages", () => {
     expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
   });
 
+  it("accepts the notice that the register's battery standing changed, which answers no request", () => {
+    const message = { type: "battery-standing-changed" };
+
+    expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
   it.each([["not_registered"], ["matching"], ["not_detected"], ["mismatched"], ["unknown"]])(
     "accepts a status whose scale and reader stand as %s",
     (kind) => {
