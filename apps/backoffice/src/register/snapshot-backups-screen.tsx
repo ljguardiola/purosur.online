@@ -148,10 +148,26 @@ export function SnapshotBackupsScreen({
 
   const captions = backups === undefined ? undefined : snapshotTierCaptions(backups.rules);
   const tiers = [
-    { label: "Recientes", count: backups?.tiers.recent, caption: "En el disco y en el bucket" },
-    { label: "Por hora", count: backups?.tiers.hourly, caption: captions?.hourly },
-    { label: "Diarias", count: backups?.tiers.daily, caption: captions?.daily },
-    { label: "Mensuales", count: backups?.tiers.monthly, caption: captions?.monthly },
+    {
+      label: "Recientes",
+      count: backups && ` de `,
+      caption: "En el disco y en el bucket",
+    },
+    {
+      label: "Por hora",
+      count: backups && formatNumber(backups.tiers.hourly),
+      caption: captions?.hourly,
+    },
+    {
+      label: "Diarias",
+      count: backups && formatNumber(backups.tiers.daily),
+      caption: captions?.daily,
+    },
+    {
+      label: "Mensuales",
+      count: backups && formatNumber(backups.tiers.monthly),
+      caption: captions?.monthly,
+    },
   ];
 
   return (
@@ -213,12 +229,7 @@ export function SnapshotBackupsScreen({
                     {count === undefined || caption === undefined ? (
                       <FigureStat size="heading" label={label} loading />
                     ) : (
-                      <FigureStat
-                        size="heading"
-                        label={label}
-                        value={formatNumber(count)}
-                        detail={caption}
-                      />
+                      <FigureStat size="heading" label={label} value={count} detail={caption} />
                     )}
                   </Card>
                 ))}

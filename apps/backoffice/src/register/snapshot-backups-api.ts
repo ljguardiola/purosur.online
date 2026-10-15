@@ -25,6 +25,7 @@ export type SnapshotBackupGeneration = {
 export type SnapshotBackups = {
   rules: SnapshotLifecycleRules;
   tiers: SnapshotBackupsBody["tiers"];
+  recentLimit: number;
   generations: SnapshotBackupGeneration[];
 };
 
@@ -126,6 +127,7 @@ export function fetchSnapshotBackups(registerId: string): Promise<FetchSnapshotB
       backups && {
         rules: backups.rules,
         tiers: backups.tiers,
+        recentLimit: backups.recent_limit,
         generations: backups.generations.map((generation) => ({
           id: generation.id,
           createdAt: generation.created_at,

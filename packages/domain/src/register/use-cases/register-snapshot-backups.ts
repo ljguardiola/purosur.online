@@ -5,6 +5,7 @@ import {
 } from "../model/snapshot-generation.js";
 import {
   type SnapshotLifecycleRules,
+  SNAPSHOT_RECENT_GENERATIONS,
   snapshotLifecycleRulesOrDefault,
 } from "../model/snapshot-lifecycle-rules.js";
 import { type SnapshotRetentionTier, snapshotRetentionTiers } from "../model/snapshot-retention.js";
@@ -30,6 +31,7 @@ export type RegisterSnapshotBackupsOutcome =
       kind: "listed";
       rules: SnapshotLifecycleRules;
       tiers: Record<SnapshotRetentionTier, number>;
+      recentLimit: number;
       generations: SnapshotBackupGeneration[];
     };
 
@@ -61,6 +63,7 @@ export async function registerSnapshotBackups(
       daily: kept.daily.length,
       monthly: kept.monthly.length,
     },
+    recentLimit: SNAPSHOT_RECENT_GENERATIONS,
     generations: unpruned
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
       .map((generation) => ({

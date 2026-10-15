@@ -46,6 +46,7 @@ export const snapshotBackupsSchema = z.object({
     daily: tierCountSchema,
     monthly: tierCountSchema,
   }),
+  recent_limit: z.number().int().positive(),
   generations: z.array(snapshotBackupGenerationSchema),
 });
 

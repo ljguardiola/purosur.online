@@ -89,6 +89,7 @@ export function registerSnapshotBackupsRoutes<TQueryResult extends PgQueryResult
         snapshotBackupsSchema.parse({
           rules: outcome.rules,
           tiers: outcome.tiers,
+          recent_limit: outcome.recentLimit,
           generations: outcome.generations.map((generation) => ({
             id: generation.id,
             created_at: generation.createdAt.toISOString(),
