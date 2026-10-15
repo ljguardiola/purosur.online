@@ -40,6 +40,7 @@ export const verifiedGeneration: SnapshotBackupGeneration = {
   size: 193_986_560,
   status: "verified",
   countsForRestore: true,
+  location: "disk_and_bucket",
 };
 export const failedGeneration: SnapshotBackupGeneration = {
   id: "generation-2",
@@ -47,6 +48,7 @@ export const failedGeneration: SnapshotBackupGeneration = {
   size: 192_937_984,
   status: "failed",
   countsForRestore: false,
+  location: "bucket",
 };
 export const verifyingGeneration: SnapshotBackupGeneration = {
   id: "generation-3",
@@ -54,6 +56,7 @@ export const verifyingGeneration: SnapshotBackupGeneration = {
   size: 195_035_136,
   status: "uploaded",
   countsForRestore: false,
+  location: "disk_and_bucket",
 };
 export const declaredGeneration: SnapshotBackupGeneration = {
   id: "generation-4",
@@ -61,6 +64,15 @@ export const declaredGeneration: SnapshotBackupGeneration = {
   size: 195_035_136,
   status: "declared",
   countsForRestore: false,
+  location: "disk",
+};
+export const lostGeneration: SnapshotBackupGeneration = {
+  id: "generation-5",
+  createdAt: "2026-09-16T14:55:00.000Z",
+  size: 190_840_832,
+  status: "failed",
+  countsForRestore: false,
+  location: "nowhere",
 };
 
 export const backups: SnapshotBackups = {

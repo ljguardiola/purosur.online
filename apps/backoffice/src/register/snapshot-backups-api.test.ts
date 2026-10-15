@@ -34,6 +34,7 @@ const backupsWire = {
       failure_reason: null,
       key_version: 2,
       counts_for_restore: true,
+      location: "disk_and_bucket",
     },
     {
       id: "1a8fad5b-d9cb-469f-a165-70867728950e",
@@ -43,6 +44,7 @@ const backupsWire = {
       failure_reason: "hash_mismatch",
       key_version: 2,
       counts_for_restore: false,
+      location: "bucket",
     },
   ],
 };
@@ -101,6 +103,7 @@ test("fetchSnapshotBackups reads a register's rules, tiers and generations", asy
           size: 193_986_560,
           status: "verified",
           countsForRestore: true,
+          location: "disk_and_bucket",
         },
         {
           id: "1a8fad5b-d9cb-469f-a165-70867728950e",
@@ -108,6 +111,7 @@ test("fetchSnapshotBackups reads a register's rules, tiers and generations", asy
           size: 192_937_984,
           status: "failed",
           countsForRestore: false,
+          location: "bucket",
         },
       ],
     },

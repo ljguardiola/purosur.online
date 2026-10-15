@@ -11,6 +11,7 @@ import {
   deferred,
   failedGeneration,
   grantAuthorization,
+  lostGeneration,
   renderScreen,
   verifiedGeneration,
   verifyingGeneration,
@@ -53,7 +54,7 @@ test("reads the first register's backups when the URL names none", async () => {
   expect(services.fetchSnapshotBackups).toHaveBeenCalledWith("register-1");
 });
 
-test("shows each generation's date in Argentina, its size and its state, with no column for where it is kept", async () => {
+test("shows each generation's date in Argentina, where it is kept, its size and its state", async () => {
   const services = servicesWithBackups({
     ...backups,
     generations: [verifiedGeneration, failedGeneration],
@@ -62,13 +63,27 @@ test("shows each generation's date in Argentina, its size and its state, with no
   const screen = await renderScreen(services);
 
   await expect.element(screen.getByRole("columnheader", { name: "Generada" })).toBeVisible();
+  await expect.element(screen.getByRole("columnheader", { name: "Dónde" })).toBeVisible();
   await expect.element(screen.getByRole("columnheader", { name: "Tamaño" })).toBeVisible();
   await expect.element(screen.getByRole("columnheader", { name: "Estado" })).toBeVisible();
-  expect(screen.getByRole("columnheader", { name: "Dónde" }).query()).toBeNull();
   await expect.element(screen.getByText("16/09/2026 12:55")).toBeVisible();
   await expect.element(screen.getByText("185 MB")).toBeVisible();
   await expect.element(screen.getByText("16/09/2026 12:45")).toBeVisible();
   await expect.element(screen.getByText("184 MB")).toBeVisible();
+});
+
+test("says where each generation is kept", async () => {
+  const screen = await renderScreen(
+    servicesWithBackups({
+      ...backups,
+      generations: [verifiedGeneration, failedGeneration, declaredGeneration, lostGeneration],
+    }),
+  );
+
+  await expect.element(screen.getByText("Disco y bucket")).toBeVisible();
+  await expect.element(screen.getByText("Solo bucket")).toBeVisible();
+  await expect.element(screen.getByText("Solo disco")).toBeVisible();
+  await expect.element(screen.getByText("Ninguno")).toBeVisible();
 });
 
 test("tells a verified generation from one that failed, and says the failed one does not count for a restore", async () => {
