@@ -250,6 +250,8 @@ describe("DrizzlePointOfSaleLanes", () => {
         decidedAt: null,
         adoptedAuthorizationCode: null,
         adoptedAuthorizationCodeDueOn: null,
+        diagnosis: null,
+        diagnosedAt: null,
       });
     });
 
