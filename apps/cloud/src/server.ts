@@ -67,6 +67,7 @@ import { WsfeTaxAuthorityInvoicing } from "./fiscal/wsfe-tax-authority-invoicing
 import { WsfeTaxAuthorityLastAuthorized } from "./fiscal/wsfe-tax-authority-last-authorized.js";
 import { WsfeTaxAuthorityNoMovementDeclarations } from "./fiscal/wsfe-tax-authority-no-movement-declarations.js";
 import { WsfeTaxAuthorityOfflineAuthorizationCodes } from "./fiscal/wsfe-tax-authority-offline-authorization-codes.js";
+import { WsfeTaxAuthorityOfflineDocumentReports } from "./fiscal/wsfe-tax-authority-offline-document-reports.js";
 import { WsfeTaxAuthorityVouchers } from "./fiscal/wsfe-tax-authority-vouchers.js";
 import { resolveMercadoPagoConfig } from "./payments/mercado-pago-config.js";
 import { createMercadoPagoOrdersClient } from "./payments/mercado-pago-orders-client.js";
@@ -583,6 +584,9 @@ export async function setUpRecovery(
             fortnightReportJobs({
               now,
               declarations: new WsfeTaxAuthorityNoMovementDeclarations(recoveryEnv.arcaInvoicing),
+              documentReports: new WsfeTaxAuthorityOfflineDocumentReports(
+                recoveryEnv.arcaInvoicing,
+              ),
               codeAuthority: new WsfeTaxAuthorityOfflineAuthorizationCodes(
                 recoveryEnv.arcaInvoicing,
               ),
