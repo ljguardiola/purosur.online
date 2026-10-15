@@ -170,6 +170,7 @@ async function expectOutcomeReportedWithoutUnhandledRejection(
       backofficeOrigin: "https://staging.purosur.online",
       emailSender,
       now: () => NOW,
+      schedules: false,
     },
     { createPool: () => dropping.pool, captureException },
   );
@@ -281,6 +282,7 @@ describe("a recovery request whose link was sent but whose completion graphile-w
       backofficeOrigin: "https://staging.purosur.online",
       emailSender: sender,
       now: () => NOW,
+      schedules: false,
     };
     const firstWorker = await startRecoveryWorker(options, {
       createPool: () => dropping.pool,
@@ -366,6 +368,7 @@ describe("a recovery request first processed after it stopped being current", ()
         sendFirstPinCode: async () => {},
       },
       now: () => NOW,
+      schedules: false,
     });
     const requestedAt = new Date(NOW.getTime() - RECOVERY_TOKEN_LIFETIME_MS);
     try {
@@ -445,6 +448,7 @@ async function startWorkerWithAJobFinishingAsItStops(
       backofficeOrigin: "https://staging.purosur.online",
       emailSender,
       now: () => NOW,
+      schedules: false,
       jobs: [
         {
           taskList: {

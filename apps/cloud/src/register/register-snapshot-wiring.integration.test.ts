@@ -101,7 +101,7 @@ describe("the background worker the server sets up with a snapshots bucket on a 
         },
       },
       () => NOW,
-      { emailSender: UNUSED_EMAIL_SENDER },
+      { emailSender: UNUSED_EMAIL_SENDER, schedules: false },
     );
 
     try {

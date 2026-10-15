@@ -70,6 +70,7 @@ describe("the tax authority's count the server sets up on a real Postgres", () =
     `;
     const recovery = await setUpRecovery(recoveryEnv(), () => READ_AT, {
       emailSender: UNUSED_EMAIL_SENDER,
+      schedules: false,
     });
     try {
       await recovery.db.transaction((transaction) => enqueueTaxAuthorityCountJob(transaction, 7));
@@ -93,6 +94,7 @@ describe("the tax authority's count the server sets up on a real Postgres", () =
   it("hands out dedicated connections to the same database", async () => {
     const recovery = await setUpRecovery(recoveryEnv(), () => READ_AT, {
       emailSender: UNUSED_EMAIL_SENDER,
+      schedules: false,
     });
     try {
       const rows = await recovery.connections.withConnection((db) =>

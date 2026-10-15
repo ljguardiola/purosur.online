@@ -67,7 +67,7 @@ async function runCheckOfCertificateExpiringAt(notAfter: Date): Promise<void> {
       arcaVitality: { endpoint: UNREACHABLE_WSFE_ENDPOINT },
     },
     () => NOW,
-    { emailSender: UNUSED_EMAIL_SENDER },
+    { emailSender: UNUSED_EMAIL_SENDER, schedules: false },
   );
   try {
     await recovery.workerUtils.addJob(
