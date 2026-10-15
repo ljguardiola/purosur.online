@@ -1,6 +1,10 @@
 import { type PlannedRefundState, plannedRefundState } from "../../payments/index.js";
 import type { ReceiptCopy } from "../model/receipt-copy.js";
 import {
+  type ReceiptPrintAvailability,
+  receiptPrintAvailability,
+} from "../model/receipt-print-availability.js";
+import {
   type SaleComprobante,
   type SaleStanding,
   saleComprobanteOf,
@@ -42,6 +46,7 @@ export interface SaleHistoryDetail {
   payments: SaleHistoryRecord["payments"];
   standing: SaleStanding;
   voidability: SaleVoidability;
+  reprint: ReceiptPrintAvailability;
   nextCopy: ReceiptCopy;
 }
 
@@ -66,6 +71,7 @@ export function readSaleHistoryDetail(
       comprobante: saleComprobanteOf(fiscal),
       standing: saleStandingOf({ ...fiscal, voided }),
       voidability: saleVoidabilityOf(record),
+      reprint: receiptPrintAvailability({ voided }),
       nextCopy: delivery.nextCopy,
     },
   };
