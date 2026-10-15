@@ -49,6 +49,7 @@ const SERIES: RealTimeSeries = {
   taxAuthorityLastAuthorized: 38,
   documentRequesting: false,
   documentUnknown: false,
+  numberingFrozen: false,
 };
 const OFFLINE_SERIES: OfflineSeries = {
   pointOfSale: 7,
