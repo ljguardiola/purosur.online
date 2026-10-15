@@ -37,6 +37,7 @@ describe("ALERT_KINDS", () => {
       "fortnight_report_pending",
       "fortnight_report_overdue",
       "external_billing",
+      "fortnight_report_needs_regularization",
     ]);
   });
 });

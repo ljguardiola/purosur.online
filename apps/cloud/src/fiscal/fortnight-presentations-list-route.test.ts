@@ -91,7 +91,7 @@ describe("GET /registers/fortnight-presentations", () => {
     expect(response.json()).toMatchObject({ code: "forbidden" });
   });
 
-  it("lists the session's branch presentations with their state and deadline, and none of another branch's", async () => {
+  it("lists the session's branch presentations with their state, how they were refused and their deadline, and none of another branch's", async () => {
     const registerId = await configureOfflinePointOfSale(db, {
       registerName: "caja-1",
       realTimePointOfSale: 7,
@@ -101,7 +101,7 @@ describe("GET /registers/fortnight-presentations", () => {
     await keepDecemberCode(OFFLINE_POINT_OF_SALE);
     await new DrizzleFortnightReportStore(db).holdReport(
       { pointOfSaleNumber: OFFLINE_POINT_OF_SALE, fortnight: DECEMBER_SECOND_HALF },
-      (report) => report.record({ state: "blocked", at: SESSION_NOON }),
+      (report) => report.record({ state: "refused", at: SESSION_NOON }),
     );
     const [otherLocation] = await db.insert(locations).values({}).returning({ id: locations.id });
     const [actor] = await db.select({ id: users.id }).from(users);
@@ -144,7 +144,12 @@ describe("GET /registers/fortnight-presentations", () => {
         fortnight_start: "2025-12-16",
         fortnight_end: "2025-12-31",
         deadline: "2026-01-08",
-        state: "blocked",
+        document_type: null,
+        document_count: 0,
+        rejected_document: null,
+        movement: null,
+        refusal: "whole",
+        state: "refused",
       },
     ]);
   });

@@ -108,3 +108,4 @@ export type {
   RequestAdmissionTransaction,
   ResendPorts,
 } from "./sync-ports.js";
+export type { SyncSequences, SyncSequencesReader } from "./sync-sequences-reader.js";

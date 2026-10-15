@@ -203,12 +203,15 @@ const lotsExpiringDetailSchema = z.object({
   aboutViewerBranch: z.boolean(),
 });
 
-const fortnightReportOverdueDetailSchema = z.object({
+const fortnightReportNeedsRegularizationDetailSchema = z.object({
   pointOfSaleNumber: z.int(),
   registerId: z.string(),
   registerName: z.string().optional(),
   fortnightStart: z.string(),
   fortnightEnd: z.string(),
+});
+
+const fortnightReportOverdueDetailSchema = fortnightReportNeedsRegularizationDetailSchema.extend({
   deadline: z.string(),
 });
 
@@ -359,6 +362,11 @@ const alertDetailKinds = [
     ...alertBase,
     kind: z.literal("external_billing" satisfies AlertKind),
     detail: externalBillingDetailSchema,
+  }),
+  z.object({
+    ...alertBase,
+    kind: z.literal("fortnight_report_needs_regularization" satisfies AlertKind),
+    detail: fortnightReportNeedsRegularizationDetailSchema,
   }),
 ] as const;
 

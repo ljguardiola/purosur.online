@@ -24,6 +24,12 @@ function readAnswerWith(credentials: unknown) {
 }
 
 describe("mainToCoreMessageSchema", () => {
+  it("accepts the notice that a snapshot worker exited", () => {
+    const message = { type: "snapshot-worker-exited" };
+
+    expect(mainToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
   it("accepts a health check", () => {
     expect(mainToCoreMessageSchema.safeParse({ type: "health-check" }).success).toBe(true);
   });

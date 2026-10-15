@@ -2,12 +2,20 @@ import type {
   NoMovementDeclarationAnswer,
   NoMovementDeclarationCall,
   NoMovementDeclarationLookupAnswer,
+  OfflineDocumentReportAnswer,
+  OfflineDocumentReportCall,
   TaxAuthorityNoMovementDeclarations,
   TaxAuthorityOfflineAuthorizationCodes,
+  TaxAuthorityOfflineDocumentReports,
 } from "@purosur/domain/fiscal/use-cases";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { arcaWsaaTokens, fortnightReports, pointOfSaleClaims } from "../platform/db/schema.js";
+import {
+  arcaWsaaTokens,
+  fortnightDocumentReports,
+  fortnightReports,
+  pointOfSaleClaims,
+} from "../platform/db/schema.js";
 import { scheduleOfCrontabLine } from "../platform/test-support/crontab-schedule.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { insertInboxEvent } from "../sync/test-support/inbox-events.js";
@@ -15,6 +23,7 @@ import { buildTestDatabase, type TestDatabase } from "../test-support/build-test
 import { buildJobHelpers } from "../test-support/job-helpers.js";
 import { DrizzleOfflineAuthorizationCodeStore } from "./drizzle-offline-authorization-code-store.js";
 import { FORTNIGHT_REPORT_TASK_IDENTIFIER, fortnightReportJobs } from "./fortnight-report-task.js";
+import { insertOfflineFiscalDocument } from "./test-support/offline-fiscal-document-fixtures.js";
 import { seedOfflinePointOfSale } from "./test-support/offline-point-of-sale-fixtures.js";
 
 const NOW = new Date("2026-10-16T15:00:00.000Z");
@@ -53,6 +62,29 @@ class FakeDeclarations implements TaxAuthorityNoMovementDeclarations {
   }
 }
 
+class FakeDocumentReports implements TaxAuthorityOfflineDocumentReports {
+  readonly reported: OfflineDocumentReportCall[] = [];
+  reportedThrough = 0;
+  reportAnswer: OfflineDocumentReportAnswer | undefined;
+
+  async lastReported() {
+    return { kind: "read" as const, number: this.reportedThrough };
+  }
+
+  async batchLimit() {
+    return { kind: "read" as const, limit: 250 };
+  }
+
+  async report(call: OfflineDocumentReportCall) {
+    this.reported.push(call);
+    if (this.reportAnswer !== undefined) {
+      return this.reportAnswer;
+    }
+    this.reportedThrough = call.documents.at(-1)?.number ?? this.reportedThrough;
+    return { kind: "accepted" as const };
+  }
+}
+
 const unusedCodeAuthority: TaxAuthorityOfflineAuthorizationCodes = {
   async request() {
     return { kind: "no_answer" };
@@ -71,6 +103,17 @@ async function issueWsaaToken() {
     issuedAt: new Date(NOW.getTime() - 60_000),
     expiresAt: new Date(NOW.getTime() + 60 * 60_000),
   });
+}
+
+async function issueDocuments(registerId: string, numbers: number[]) {
+  for (const number of numbers) {
+    await insertOfflineFiscalDocument(testDatabase.db, {
+      registerId,
+      pointOfSale: OFFLINE_POINT_OF_SALE,
+      fortnight: OCTOBER_FIRST_HALF,
+      number,
+    });
+  }
 }
 
 async function owedFortnight({ syncedPastClose }: { syncedPastClose: boolean }) {
@@ -103,13 +146,19 @@ async function owedFortnight({ syncedPastClose }: { syncedPastClose: boolean }) 
   );
   await insertInboxEvent(testDatabase.db, deviceId, { occurredAt, appliedAt: occurredAt });
   await issueWsaaToken();
+  return registerId;
 }
 
-function taskUnderTest(declarations: TaxAuthorityNoMovementDeclarations, report = vi.fn()) {
+function taskUnderTest(
+  declarations: TaxAuthorityNoMovementDeclarations,
+  report = vi.fn(),
+  documentReports: TaxAuthorityOfflineDocumentReports = new FakeDocumentReports(),
+) {
   const jobs = fortnightReportJobs(
     {
       now: () => NOW,
       declarations,
+      documentReports,
       codeAuthority: unusedCodeAuthority,
       certificateFingerprint: FINGERPRINT,
     },
@@ -165,6 +214,58 @@ describe("fortnightReportJobs", () => {
     expect(
       await testDatabase.db.select({ state: fortnightReports.state }).from(fortnightReports),
     ).toEqual([{ state: "blocked" }]);
+  });
+
+  it("reports a closed fortnight's documents through a client borrowed from the worker and records each document type as reported", async () => {
+    const registerId = await owedFortnight({ syncedPastClose: true });
+    await issueDocuments(registerId, [1, 2]);
+    const declarations = new FakeDeclarations();
+    const documentReports = new FakeDocumentReports();
+    const { task } = taskUnderTest(declarations, vi.fn(), documentReports);
+
+    await task({}, buildJobHelpers().helpers);
+
+    expect(declarations.declared).toEqual([]);
+    expect(
+      documentReports.reported.map(({ pointOfSaleNumber, code, documents }) => ({
+        pointOfSaleNumber,
+        code,
+        numbers: documents.map(({ number }) => number),
+      })),
+    ).toEqual([{ pointOfSaleNumber: 8, code: "36123456789012", numbers: [1, 2] }]);
+    expect(
+      await testDatabase.db
+        .select({ state: fortnightReports.state, movement: fortnightReports.movement })
+        .from(fortnightReports),
+    ).toEqual([{ state: "accepted", movement: "documents" }]);
+    expect(
+      await testDatabase.db
+        .select({
+          documentType: fortnightDocumentReports.documentType,
+          state: fortnightDocumentReports.state,
+          reportedThrough: fortnightDocumentReports.reportedThrough,
+        })
+        .from(fortnightDocumentReports),
+    ).toEqual([{ documentType: "factura_c", state: "accepted", reportedThrough: 2 }]);
+  });
+
+  it("marks a fortnight declared without movement as needing regularization when documents sync in afterwards, and reports nothing", async () => {
+    const registerId = await owedFortnight({ syncedPastClose: true });
+    const declarations = new FakeDeclarations();
+    const documentReports = new FakeDocumentReports();
+    const { task } = taskUnderTest(declarations, vi.fn(), documentReports);
+    await task({}, buildJobHelpers().helpers);
+    await issueDocuments(registerId, [1]);
+    declarations.declared.length = 0;
+    declarations.lookedUp.length = 0;
+
+    await task({}, buildJobHelpers().helpers);
+
+    expect(documentReports.reported).toEqual([]);
+    expect(declarations.declared).toEqual([]);
+    expect(
+      await testDatabase.db.select({ state: fortnightReports.state }).from(fortnightReports),
+    ).toEqual([{ state: "needs_regularization" }]);
   });
 
   it("does nothing while there is no valid token to ask with", async () => {
@@ -228,5 +329,86 @@ describe("the log and the error report of a fortnight report run", () => {
     await task({}, helpers);
 
     expect(logs.map(({ level }) => level)).toEqual(["debug"]);
+  });
+
+  it("names the document type of a presentation in its log line", async () => {
+    const registerId = await owedFortnight({ syncedPastClose: true });
+    await issueDocuments(registerId, [1]);
+    const { task } = taskUnderTest(new FakeDeclarations());
+    const { helpers, logs } = buildJobHelpers();
+
+    await task({}, helpers);
+
+    expect(logs).toEqual([
+      {
+        level: "info",
+        message:
+          "fortnight report of point of sale 8 for fortnight 2026-10-01..2026-10-15 (factura_c): accepted",
+      },
+    ]);
+  });
+
+  it("logs a presentation that needs manual regularization at info level without reporting it", async () => {
+    const registerId = await owedFortnight({ syncedPastClose: true });
+    const { task, report } = taskUnderTest(new FakeDeclarations());
+    await task({}, buildJobHelpers().helpers);
+    await issueDocuments(registerId, [1]);
+    const { helpers, logs } = buildJobHelpers();
+
+    await task({}, helpers);
+
+    expect(logs).toEqual([
+      {
+        level: "info",
+        message:
+          "fortnight report of point of sale 8 for fortnight 2026-10-01..2026-10-15: needs_regularization",
+      },
+    ]);
+    expect(report).not.toHaveBeenCalled();
+  });
+
+  it("reports a document the tax authority rejected with its document type, its number and its rejections", async () => {
+    const registerId = await owedFortnight({ syncedPastClose: true });
+    await issueDocuments(registerId, [1, 2]);
+    const documentReports = new FakeDocumentReports();
+    documentReports.reportAnswer = {
+      kind: "rejected",
+      number: 2,
+      rejections: [{ code: 1439, message: "Fictional observation" }],
+    };
+    const { task, report } = taskUnderTest(new FakeDeclarations(), vi.fn(), documentReports);
+
+    await task({}, buildJobHelpers().helpers);
+
+    expect(report).toHaveBeenCalledWith(expect.any(String), expect.any(Error), {
+      context: {
+        pointOfSaleNumber: 8,
+        fortnightStart: "2026-10-01",
+        fortnightEnd: "2026-10-15",
+        documentType: "factura_c",
+        outcome: "rejected",
+        rejectedNumber: 2,
+        rejections: "1439: Fictional observation",
+      },
+    });
+  });
+
+  it("reports a gap in the numbers of a document type with the number the tax authority expects next", async () => {
+    const registerId = await owedFortnight({ syncedPastClose: true });
+    await issueDocuments(registerId, [3, 4]);
+    const { task, report } = taskUnderTest(new FakeDeclarations());
+
+    await task({}, buildJobHelpers().helpers);
+
+    expect(report).toHaveBeenCalledWith(expect.any(String), expect.any(Error), {
+      context: {
+        pointOfSaleNumber: 8,
+        fortnightStart: "2026-10-01",
+        fortnightEnd: "2026-10-15",
+        documentType: "factura_c",
+        outcome: "gap",
+        expectedNumber: 1,
+      },
+    });
   });
 });

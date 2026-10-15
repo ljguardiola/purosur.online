@@ -169,6 +169,7 @@ function alertIcon(kind: string): Icon {
     case "offsite_dump_unverified":
       return <DatabaseBackup />;
     case "fortnight_report_overdue":
+    case "fortnight_report_needs_regularization":
       return <TriangleAlert />;
     default:
       return <Bell />;
@@ -319,7 +320,7 @@ function lotsExpiringDescription({
   return `${summary}.`;
 }
 
-function fortnightReportSubject({
+function fortnightOfPointOfSale({
   pointOfSaleNumber,
   fortnightStart,
   fortnightEnd,
@@ -328,7 +329,15 @@ function fortnightReportSubject({
   fortnightStart: string;
   fortnightEnd: string;
 }): string {
-  return `el informe de la quincena ${formatCalendarDayRange(fortnightStart, fortnightEnd)} del punto de venta ${formatPointOfSaleNumber(pointOfSaleNumber)}`;
+  return `la quincena ${formatCalendarDayRange(fortnightStart, fortnightEnd)} del punto de venta ${formatPointOfSaleNumber(pointOfSaleNumber)}`;
+}
+
+function fortnightReportSubject(presentation: {
+  pointOfSaleNumber: number;
+  fortnightStart: string;
+  fortnightEnd: string;
+}): string {
+  return `el informe de ${fortnightOfPointOfSale(presentation)}`;
 }
 
 function fortnightReportDeadlineText(deadline: string, daysLeft: number): string {
@@ -351,6 +360,10 @@ function fortnightReportWaitingText({
       return [
         `Se puede presentar cuando la caja${registerName === undefined ? "" : ` «${registerName}»`} termine de sincronizar.`,
       ];
+    case "missing_document":
+      return [
+        "Falta un comprobante en la numeración: hay que encontrarlo antes de poder seguir informando.",
+      ];
     case "refused":
       return [
         "ARCA rechazó la presentación. La nube la vuelve a intentar sola; si sigue rechazándola, conviene revisar el punto de venta en ARCA.",
@@ -361,8 +374,22 @@ function fortnightReportWaitingText({
 }
 
 function fortnightReportParagraphs(
-  alert: Extract<AlertDetail, { kind: "fortnight_report_pending" | "fortnight_report_overdue" }>,
+  alert: Extract<
+    AlertDetail,
+    {
+      kind:
+        | "fortnight_report_pending"
+        | "fortnight_report_overdue"
+        | "fortnight_report_needs_regularization";
+    }
+  >,
 ): string[] {
+  if (alert.kind === "fortnight_report_needs_regularization") {
+    return [
+      `Llegaron comprobantes emitidos sin conexión de ${fortnightOfPointOfSale(alert.detail)}, que ya se había informado a ARCA sin movimiento.`,
+      "No hay corrección automática: hay que regularizar la presentación con ARCA a mano.",
+    ];
+  }
   if (alert.kind === "fortnight_report_overdue") {
     return [
       `Venció el ${formatCalendarDay(alert.detail.deadline)} el plazo para presentar a ARCA ${fortnightReportSubject(alert.detail)}.`,
@@ -440,6 +467,7 @@ function alertTitle(alert: AlertDetail): string {
     case "fortnight_report_pending":
     case "fortnight_report_overdue":
     case "external_billing":
+    case "fortnight_report_needs_regularization":
       return alertKindLabel(alert.kind);
   }
 }
@@ -521,6 +549,7 @@ function alertDescription(alert: AlertDetail, catalog: PermissionCatalogWire = [
     case "refund_task":
     case "fortnight_report_pending":
     case "fortnight_report_overdue":
+    case "fortnight_report_needs_regularization":
       return "";
   }
 }
@@ -582,7 +611,11 @@ function AlertDescription({ alert }: { alert: AlertDetail }) {
       </>
     );
   }
-  if (alert.kind === "fortnight_report_pending" || alert.kind === "fortnight_report_overdue") {
+  if (
+    alert.kind === "fortnight_report_pending" ||
+    alert.kind === "fortnight_report_overdue" ||
+    alert.kind === "fortnight_report_needs_regularization"
+  ) {
     return (
       <>
         {fortnightReportParagraphs(alert).map((paragraph) => (

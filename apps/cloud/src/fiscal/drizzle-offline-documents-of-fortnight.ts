@@ -1,5 +1,9 @@
-import type { Fortnight, OfflineDocumentsOfFortnight } from "@purosur/domain/fiscal/use-cases";
-import { and, count, eq } from "drizzle-orm";
+import type {
+  Fortnight,
+  OfflineDocumentOfFortnight,
+  OfflineDocumentsOfFortnight,
+} from "@purosur/domain/fiscal/use-cases";
+import { and, asc, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { offlineFiscalDocuments } from "../platform/db/schema.js";
 
@@ -12,16 +16,29 @@ export class DrizzleOfflineDocumentsOfFortnight<TQueryResult extends PgQueryResu
     this.db = db;
   }
 
-  async countOn(pointOfSaleNumber: number, fortnight: Fortnight): Promise<number> {
-    const [row] = await this.db
-      .select({ documents: count() })
+  async documentsOn(
+    pointOfSaleNumber: number,
+    fortnight: Fortnight,
+  ): Promise<OfflineDocumentOfFortnight[]> {
+    return this.db
+      .select({
+        documentType: offlineFiscalDocuments.documentType,
+        number: offlineFiscalDocuments.number,
+        issuedOn: offlineFiscalDocuments.issuedOn,
+        generatedAt: offlineFiscalDocuments.generatedAt,
+        buyerDocumentType: offlineFiscalDocuments.buyerDocumentType,
+        buyerDocumentNumber: offlineFiscalDocuments.buyerDocumentNumber,
+        buyerTaxStatusCode: offlineFiscalDocuments.buyerTaxStatusCode,
+        total: offlineFiscalDocuments.total,
+        netAmount: offlineFiscalDocuments.netAmount,
+      })
       .from(offlineFiscalDocuments)
       .where(
         and(
           eq(offlineFiscalDocuments.pointOfSale, pointOfSaleNumber),
           eq(offlineFiscalDocuments.fortnightStart, fortnight.start),
         ),
-      );
-    return row?.documents ?? 0;
+      )
+      .orderBy(asc(offlineFiscalDocuments.documentType), asc(offlineFiscalDocuments.number));
   }
 }

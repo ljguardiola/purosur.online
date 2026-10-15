@@ -261,6 +261,24 @@ describe("scrubArcaRecording", () => {
     });
   });
 
+  describe("a voucher looked up by its number", () => {
+    const ORIGINAL_VOUCHER_AUTHORIZATION_CODE = "36987654321098";
+    const voucher =
+      '<FECompConsultarResponse xmlns="http://ar.gov.afip.dif.FEV1/"><FECompConsultarResult><ResultGet>' +
+      "<CbteDesde>2</CbteDesde><ImpTotal>100.00</ImpTotal>" +
+      `<CodAutorizacion>${ORIGINAL_VOUCHER_AUTHORIZATION_CODE}</CodAutorizacion><EmisionTipo>CAEA</EmisionTipo>` +
+      "<FchVto>20261016</FchVto></ResultGet></FECompConsultarResult></FECompConsultarResponse>";
+
+    it("replaces its authorization code with the fictional one, keeping the rest", () => {
+      const { text, replacements } = scrubArcaRecording(voucher);
+
+      expect(text).not.toContain(ORIGINAL_VOUCHER_AUTHORIZATION_CODE);
+      expect(text).toContain(`<CodAutorizacion>${FICTIONAL_AUTHORIZATION_CODE}</CodAutorizacion>`);
+      expect(text).toContain("<EmisionTipo>CAEA</EmisionTipo><FchVto>20261016</FchVto>");
+      expect(replacements).toEqual([{ field: "CodAutorizacion", count: 1 }]);
+    });
+  });
+
   it("writes the fictional certificate CUIT the domain's fictional identities hold", () => {
     expect(FICTIONAL_CERTIFICATE_CUIT_DIGITS).toBe(FICTIONAL_CERTIFICATE_CUIT.replaceAll("-", ""));
   });

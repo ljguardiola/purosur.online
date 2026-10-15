@@ -220,12 +220,12 @@ describe("OpenAlertInput of a fortnight report", () => {
         fortnightEnd: string;
         deadline: string;
         daysLeft: number;
-        reason: "blocked" | "refused" | "pending";
+        reason: "blocked" | "missing_document" | "refused" | "pending";
       };
     }>().toExtend<OpenAlertInput>();
   });
 
-  it("refuses a pending alert with a reason outside the three it can have", () => {
+  it("refuses a pending alert with a reason outside the four it can have", () => {
     expectTypeOf<{
       kind: "fortnight_report_pending";
       scope: string;
@@ -253,6 +253,31 @@ describe("OpenAlertInput of a fortnight report", () => {
         deadline: string;
       };
     }>().toExtend<OpenAlertInput>();
+  });
+
+  it("accepts the point of sale, its register and the fortnight, without a deadline, for an alert that needs regularization", () => {
+    expectTypeOf<{
+      kind: "fortnight_report_needs_regularization";
+      scope: string;
+      detail: {
+        pointOfSaleNumber: number;
+        registerId: string;
+        fortnightStart: string;
+        fortnightEnd: string;
+      };
+    }>().toExtend<OpenAlertInput>();
+  });
+
+  it("refuses an alert that needs regularization without the fortnight's end", () => {
+    expectTypeOf<{
+      kind: "fortnight_report_needs_regularization";
+      scope: string;
+      detail: {
+        pointOfSaleNumber: number;
+        registerId: string;
+        fortnightStart: string;
+      };
+    }>().not.toExtend<OpenAlertInput>();
   });
 
   it("refuses an overdue alert without the deadline", () => {

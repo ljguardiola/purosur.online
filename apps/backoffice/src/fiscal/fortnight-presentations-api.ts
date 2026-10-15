@@ -10,6 +10,11 @@ export type FortnightPresentation = {
   pointOfSaleNumber: number;
   fortnight: { start: string; end: string };
   deadline: string;
+  documentType: FortnightPresentationBody["document_type"];
+  documentCount: number;
+  rejectedDocument: FortnightPresentationBody["rejected_document"];
+  movement: FortnightPresentationBody["movement"];
+  refusal: FortnightPresentationBody["refusal"];
   state: FortnightPresentationBody["state"];
 };
 
@@ -21,6 +26,11 @@ function fortnightPresentationFromWire(row: FortnightPresentationBody): Fortnigh
     pointOfSaleNumber: row.point_of_sale_number,
     fortnight: { start: row.fortnight_start, end: row.fortnight_end },
     deadline: row.deadline,
+    documentType: row.document_type,
+    documentCount: row.document_count,
+    rejectedDocument: row.rejected_document,
+    movement: row.movement,
+    refusal: row.refusal,
     state: row.state,
   };
 }

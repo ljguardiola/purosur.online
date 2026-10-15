@@ -287,29 +287,38 @@ function propertyNamed(objectLiteral, name) {
   )?.initializer;
 }
 
-export function readRegisterCoreRoot(configSource) {
-  const sourceFile = parse(configSource, "electron.vite.config.ts");
-  const input = descendants(sourceFile)
-    .filter(ts.isObjectLiteralExpression)
-    .map((node) => propertyNamed(node, "core"))
-    .find((core) => core !== undefined);
-  const path =
-    input &&
-    (ts.isStringLiteral(input)
-      ? input.text
-      : ts.isCallExpression(input) && ts.isStringLiteral(input.arguments[0])
-        ? input.arguments[0].text
-        : undefined);
-  if (path === undefined) {
-    throw new Error("The register's electron-vite config has no `core` input given as a path");
+function pathOf(input) {
+  if (ts.isStringLiteral(input)) return input.text;
+  if (ts.isCallExpression(input) && ts.isStringLiteral(input.arguments[0])) {
+    return input.arguments[0].text;
   }
-  return `apps/pos/${path}`;
+  return undefined;
+}
+
+export function readRegisterRoots(configSource) {
+  const sourceFile = parse(configSource, "electron.vite.config.ts");
+  const inputs = descendants(sourceFile)
+    .filter(ts.isObjectLiteralExpression)
+    .find((node) => propertyNamed(node, "core") !== undefined);
+  if (inputs === undefined) {
+    throw new Error("The register's electron-vite config has no `core` input");
+  }
+  const roots = inputs.properties.filter(ts.isPropertyAssignment).map((property) => {
+    const path = pathOf(property.initializer);
+    if (path === undefined) {
+      throw new Error(
+        `The register's electron-vite input ${property.name.getText(sourceFile)} is not given as a path`,
+      );
+    }
+    return `apps/pos/${path}`;
+  });
+  return roots.sort();
 }
 
 export function findCompositionRoots(cwd = process.cwd()) {
   const roots = [
     ...readCloudRoots(readFileSync(join(cwd, CLOUD_PACKAGE), "utf8")),
-    readRegisterCoreRoot(readFileSync(join(cwd, REGISTER_BUILD_CONFIG), "utf8")),
+    ...readRegisterRoots(readFileSync(join(cwd, REGISTER_BUILD_CONFIG), "utf8")),
   ];
   for (const root of roots) {
     if (!existsSync(join(cwd, root))) {

@@ -3,7 +3,7 @@ import { z } from "zod";
 
 const installationKeySchema = z.string().refine(isWellFormedInstallationKey);
 
-const versionedKeySchema = z.object({
+export const versionedKeySchema = z.object({
   version: z.number().int().positive(),
   key: installationKeySchema,
 });

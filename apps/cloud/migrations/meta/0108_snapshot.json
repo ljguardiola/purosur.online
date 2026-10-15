@@ -1,5 +1,5 @@
 {
-  "id": "0266aefc-b2fd-4b69-b737-04855138bf44",
+  "id": "286b1eb8-e6d7-4863-9ae2-922b997ccbbe",
   "prevId": "5b0c1365-ae34-4166-b804-e3e1aae2fbde",
   "version": "7",
   "dialect": "postgresql",
@@ -2254,18 +2254,6 @@
           "type": "date",
           "primaryKey": false,
           "notNull": false
-        },
-        "diagnosis": {
-          "name": "diagnosis",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "diagnosed_at": {
-          "name": "diagnosed_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
         }
       },
       "indexes": {
@@ -2339,18 +2327,113 @@
         "fiscal_requests_decision_answer_check": {
           "name": "fiscal_requests_decision_answer_check",
           "value": "\"fiscal_requests\".\"decision\" is null or coalesce(\"fiscal_requests\".\"answer_kind\" in ('unclear', 'not_attempted'), false)"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.fortnight_document_reports": {
+      "name": "fortnight_document_reports",
+      "schema": "",
+      "columns": {
+        "point_of_sale_number": {
+          "name": "point_of_sale_number",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
         },
-        "fiscal_requests_diagnosis_check": {
-          "name": "fiscal_requests_diagnosis_check",
-          "value": "\"fiscal_requests\".\"diagnosis\" in ('date_behind', 'collision')"
+        "fortnight_start": {
+          "name": "fortnight_start",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
         },
-        "fiscal_requests_diagnosis_time_check": {
-          "name": "fiscal_requests_diagnosis_time_check",
-          "value": "(\"fiscal_requests\".\"diagnosis\" is null) = (\"fiscal_requests\".\"diagnosed_at\" is null)"
+        "fortnight_end": {
+          "name": "fortnight_end",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
         },
-        "fiscal_requests_diagnosis_answer_check": {
-          "name": "fiscal_requests_diagnosis_answer_check",
-          "value": "\"fiscal_requests\".\"diagnosis\" is null or coalesce(\"fiscal_requests\".\"answer_kind\" = 'unclear', false)"
+        "document_type": {
+          "name": "document_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "state": {
+          "name": "state",
+          "type": "document_type_report_state",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reported_through": {
+          "name": "reported_through",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "rejected_number": {
+          "name": "rejected_number",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "rejections": {
+          "name": "rejections",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "last_attempt_at": {
+          "name": "last_attempt_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "recorded_at": {
+          "name": "recorded_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "fortnight_document_reports_point_of_sale_number_point_of_sale_claims_point_of_sale_number_fk": {
+          "name": "fortnight_document_reports_point_of_sale_number_point_of_sale_claims_point_of_sale_number_fk",
+          "tableFrom": "fortnight_document_reports",
+          "tableTo": "point_of_sale_claims",
+          "columnsFrom": ["point_of_sale_number"],
+          "columnsTo": ["point_of_sale_number"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "fortnight_document_reports_fortnight_start_caea_codes_fortnight_start_fk": {
+          "name": "fortnight_document_reports_fortnight_start_caea_codes_fortnight_start_fk",
+          "tableFrom": "fortnight_document_reports",
+          "tableTo": "caea_codes",
+          "columnsFrom": ["fortnight_start"],
+          "columnsTo": ["fortnight_start"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "fortnight_document_reports_pkey": {
+          "name": "fortnight_document_reports_pkey",
+          "columns": ["point_of_sale_number", "fortnight_start", "document_type"]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "fortnight_document_reports_fortnight_ends_after_start": {
+          "name": "fortnight_document_reports_fortnight_ends_after_start",
+          "value": "\"fortnight_document_reports\".\"fortnight_end\" > \"fortnight_document_reports\".\"fortnight_start\""
+        },
+        "fortnight_document_reports_document_type_known": {
+          "name": "fortnight_document_reports_document_type_known",
+          "value": "\"fortnight_document_reports\".\"document_type\" in ('factura_c')"
         }
       },
       "isRLSEnabled": false
@@ -2383,6 +2466,13 @@
           "typeSchema": "public",
           "primaryKey": false,
           "notNull": true
+        },
+        "movement": {
+          "name": "movement",
+          "type": "fortnight_report_movement",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
         },
         "last_attempt_at": {
           "name": "last_attempt_at",
@@ -3364,42 +3454,6 @@
         "lots_technical_has_no_expiry_or_purchase_date_check": {
           "name": "lots_technical_has_no_expiry_or_purchase_date_check",
           "value": "not \"lots\".\"technical\" or (\"lots\".\"expires_on\" is null and \"lots\".\"purchased_on\" is null)"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.numbering_freezes": {
-      "name": "numbering_freezes",
-      "schema": "",
-      "columns": {
-        "point_of_sale_number": {
-          "name": "point_of_sale_number",
-          "type": "integer",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "count_before_freeze": {
-          "name": "count_before_freeze",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "frozen_at": {
-          "name": "frozen_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "numbering_freezes_non_negative_check": {
-          "name": "numbering_freezes_non_negative_check",
-          "value": "\"numbering_freezes\".\"count_before_freeze\" >= 0"
         }
       },
       "isRLSEnabled": false
@@ -9182,10 +9236,27 @@
       "schema": "public",
       "values": ["insert", "update", "delete"]
     },
+    "public.document_type_report_state": {
+      "name": "document_type_report_state",
+      "schema": "public",
+      "values": ["submitting", "refused", "accepted", "missing_document"]
+    },
+    "public.fortnight_report_movement": {
+      "name": "fortnight_report_movement",
+      "schema": "public",
+      "values": ["none", "documents"]
+    },
     "public.fortnight_report_state": {
       "name": "fortnight_report_state",
       "schema": "public",
-      "values": ["blocked", "submitting", "refused", "accepted"]
+      "values": [
+        "blocked",
+        "submitting",
+        "refused",
+        "accepted",
+        "needs_regularization",
+        "missing_document"
+      ]
     },
     "public.installation_request_endpoint": {
       "name": "installation_request_endpoint",

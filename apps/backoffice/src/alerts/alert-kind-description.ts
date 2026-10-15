@@ -30,6 +30,8 @@ const ALERT_KIND_DESCRIPTIONS = {
   fortnight_report_overdue:
     "Venció el plazo para presentar a ARCA el informe de una quincena de un punto de venta",
   external_billing: "Un comprobante se emitió fuera del sistema",
+  fortnight_report_needs_regularization:
+    "Llegaron comprobantes de una quincena ya informada a ARCA sin movimiento",
 } satisfies Record<AlertKind, string>;
 
 export const DESCRIBED_ALERT_KINDS: readonly string[] = Object.keys(ALERT_KIND_DESCRIPTIONS);

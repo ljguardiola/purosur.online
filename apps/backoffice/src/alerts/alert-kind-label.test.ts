@@ -44,3 +44,7 @@ test("names the notice and the missed deadline of a fortnight's report", () => {
   expect(alertKindLabel("fortnight_report_pending")).toBe("Informe de quincena pendiente");
   expect(alertKindLabel("fortnight_report_overdue")).toBe("Informe de quincena vencido");
 });
+
+test("names the alert of a fortnight reported without movement that later received invoices", () => {
+  expect(alertKindLabel("fortnight_report_needs_regularization")).toBe("Quincena a regularizar");
+});

@@ -97,3 +97,9 @@ test("describes a voucher issued outside the system", () => {
     "Un comprobante se emitió fuera del sistema",
   );
 });
+
+test("describes a fortnight already reported without movement that later received invoices", () => {
+  expect(alertKindDescription("fortnight_report_needs_regularization")).toBe(
+    "Llegaron comprobantes de una quincena ya informada a ARCA sin movimiento",
+  );
+});

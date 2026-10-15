@@ -75,6 +75,11 @@ export function scrubArcaRecording(raw: string): ScrubbedRecording {
     /(<CAEA>)\d{14}(<\/CAEA>)/g,
     (_all, open = "", close = "") => `${open}${FICTIONAL_OFFLINE_AUTHORIZATION_CODE}${close}`,
   );
+  apply(
+    "CodAutorizacion",
+    /(<CodAutorizacion>)\d{14}(<\/CodAutorizacion>)/g,
+    (_all, open = "", close = "") => `${open}${FICTIONAL_AUTHORIZATION_CODE}${close}`,
+  );
   apply("CUIT", CUIT_PATTERN, (_all, dash = "") =>
     dash ? FICTIONAL_CERTIFICATE_CUIT_DASHED : FICTIONAL_CERTIFICATE_CUIT_DIGITS,
   );

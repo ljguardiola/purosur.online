@@ -11,7 +11,11 @@ import {
 import { FileText, TriangleAlert } from "lucide-react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import type { CloudData } from "../platform/use-cloud-query";
-import { presentationStateBadge } from "./fortnight-presentation-labels";
+import {
+  presentationDocumentsLabel,
+  presentationDocumentTypeLabel,
+  presentationStateBadge,
+} from "./fortnight-presentation-labels";
 import type { FortnightPresentation } from "./fortnight-presentations-api";
 import type { RegisterPointOfSale } from "./register-points-of-sale-api";
 
@@ -21,6 +25,10 @@ type FortnightReportsSectionProps = {
 
 const NO_PRESENTATIONS: FortnightPresentation[] = [];
 const UNKNOWN_REGISTER = "Una caja";
+
+function presentationKey(item: FortnightPresentation) {
+  return `${item.pointOfSaleNumber}:${item.fortnight.start}:${item.documentType ?? "none"}`;
+}
 
 export function FortnightReportsSection({ data }: FortnightReportsSectionProps) {
   const [presentations, registers] = data.status === "loaded" ? data.value : [NO_PRESENTATIONS, []];
@@ -40,10 +48,20 @@ export function FortnightReportsSection({ data }: FortnightReportsSectionProps) 
       render: (item: FortnightPresentation) => formatPointOfSaleNumber(item.pointOfSaleNumber),
     }),
     dataColumn({
+      id: "documentType",
+      header: "Tipo",
+      render: (item: FortnightPresentation) => presentationDocumentTypeLabel(item.documentType),
+    }),
+    dataColumn({
+      id: "documents",
+      header: "Comprobantes",
+      render: (item: FortnightPresentation) => presentationDocumentsLabel(item),
+    }),
+    dataColumn({
       id: "state",
       header: "Estado",
       render: (item: FortnightPresentation) => {
-        const { label, tone } = presentationStateBadge(item.state);
+        const { label, tone } = presentationStateBadge(item);
         return <StatusIndicator tone={tone}>{label}</StatusIndicator>;
       },
     }),
@@ -59,7 +77,7 @@ export function FortnightReportsSection({ data }: FortnightReportsSectionProps) 
   ] as const;
   const table = useTableModel({
     items: presentations,
-    id: (item) => `${item.pointOfSaleNumber}:${item.fortnight.start}`,
+    id: presentationKey,
     columns,
   });
   const blocked = presentations.filter(({ state }) => state === "blocked");
@@ -68,7 +86,7 @@ export function FortnightReportsSection({ data }: FortnightReportsSectionProps) 
     <section className="flex flex-col gap-3">
       {blocked.map((item) => (
         <InlineNotice
-          key={`${item.pointOfSaleNumber}:${item.fortnight.start}`}
+          key={presentationKey(item)}
           tone="error"
           icon={<TriangleAlert />}
           title={`${registerNameOf(item.registerId)} todavía no terminó de sincronizar`}

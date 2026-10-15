@@ -546,8 +546,15 @@ describe("GET /alerts/:id for a point of sale's fortnight report", () => {
     return register.id;
   }
 
+  function withoutDeadline<T extends { deadline: string }>({ deadline: _omitted, ...rest }: T) {
+    return rest;
+  }
+
   async function insertFortnightReportAlert(
-    kind: "fortnight_report_pending" | "fortnight_report_overdue",
+    kind:
+      | "fortnight_report_pending"
+      | "fortnight_report_overdue"
+      | "fortnight_report_needs_regularization",
     registerId: string,
   ) {
     const [alert] = await db
@@ -560,7 +567,9 @@ describe("GET /alerts/:id for a point of sale's fortnight report", () => {
         detail:
           kind === "fortnight_report_pending"
             ? { ...presentation, registerId, daysLeft: 3, reason: "blocked" }
-            : { ...presentation, registerId },
+            : kind === "fortnight_report_overdue"
+              ? { ...presentation, registerId }
+              : withoutDeadline({ ...presentation, registerId }),
         openedAt: NOON,
       })
       .returning({ id: alerts.id });
@@ -607,6 +616,25 @@ describe("GET /alerts/:id for a point of sale's fortnight report", () => {
       closing: "by_hand",
       detail: { ...presentation, registerId, registerName: "Caja 2" },
     });
+  });
+
+  it("names the register of an alert that needs regularization, which only a person closes", async () => {
+    const registerId = await insertRegister("Caja 3");
+    const alertId = await insertFortnightReportAlert(
+      "fortnight_report_needs_regularization",
+      registerId,
+    );
+
+    const response = await getAlert(await viewerSession(), alertId);
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      kind: "fortnight_report_needs_regularization",
+      scopeDisplay: "4:2026-09-01:2026-09-15",
+      closing: "by_hand",
+      detail: { ...withoutDeadline({ ...presentation, registerId }), registerName: "Caja 3" },
+    });
+    expect(response.json().detail).not.toHaveProperty("deadline");
   });
 
   it("names no register when the detail's register no longer exists", async () => {
