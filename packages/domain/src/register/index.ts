@@ -38,6 +38,14 @@ export type {
   CashSessionClosedFact,
   CashSessionOpenedFact,
 } from "./model/cash-session-facts.js";
+export type {
+  CriticalBatteryAction,
+  CriticalBatteryActionKind,
+} from "./model/critical-battery-action.js";
+export {
+  CRITICAL_BATTERY_ACTIONS,
+  criticalBatteryActionShowsCondition,
+} from "./model/critical-battery-action.js";
 export { isDeviceTokenRotationDue } from "./model/device-token.js";
 export { enrollmentAttemptWindowStart } from "./model/enrollment-attempt-limit.js";
 export {
