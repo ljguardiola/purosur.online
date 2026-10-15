@@ -1,11 +1,12 @@
+import { cloudError } from "@purosur/contracts";
 import { describe, expect, it } from "vitest";
 import type { CloudResponse } from "../platform/cloud-client";
 import { cloudSnapshotCorruption } from "./cloud-snapshot-corruption";
 
-function setup(answer: CloudResponse, token: string | undefined = "prefix.secret") {
+function setup(answer: CloudResponse, token: string | null = "prefix.secret") {
   const posts: { path: string; bearerToken: string; body: unknown }[] = [];
   const cloud = cloudSnapshotCorruption({
-    readDeviceToken: async () => token,
+    readDeviceToken: async () => token ?? undefined,
     post: async (path, bearerToken, body) => {
       posts.push({ path, bearerToken, body });
       return answer;
@@ -33,13 +34,13 @@ describe("cloudSnapshotCorruption", () => {
   });
 
   it("reports a refusal of the cloud as failed", async () => {
-    const error = { code: "internal_error", message: "no" } as const;
+    const error = cloudError("internal_error", "no");
 
     expect(await setup({ kind: "error", error }).cloud.report("copy")).toBe("failed");
   });
 
   it("sends nothing and fails while the register holds no device token", async () => {
-    const { cloud, posts } = setup({ kind: "ok", body: undefined }, undefined);
+    const { cloud, posts } = setup({ kind: "ok", body: undefined }, null);
 
     expect(await cloud.report("copy")).toBe("failed");
     expect(posts).toEqual([]);

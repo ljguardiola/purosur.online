@@ -1,5 +1,6 @@
 import { execFile } from "node:child_process";
 import { randomUUID } from "node:crypto";
+import { existsSync } from "node:fs";
 import { hostname, release, version } from "node:os";
 import { dirname, join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
@@ -10,6 +11,7 @@ import {
   REGISTER_UPDATE_HOLD_LIMIT_MS,
   STORAGE_READ_INTERVAL_MS,
 } from "@purosur/domain";
+import { sendSnapshotCorruptionReport as sendSnapshotCorruptionReportTo } from "@purosur/domain/register/use-cases";
 import * as Sentry from "@sentry/electron/utility";
 import { net } from "electron";
 import {
@@ -61,6 +63,7 @@ import {
   openCashSessionFor,
   sessionOpenSaleFor,
 } from "./register/cash-session-requests";
+import { cloudSnapshotCorruption } from "./register/cloud-snapshot-corruption";
 import { coreFailureReporters } from "./register/core-failure-reporters";
 import { rotateDeviceToken } from "./register/device-token-rotation";
 import { startDeviceTokenRotationSchedule } from "./register/device-token-rotation-schedule";
@@ -70,6 +73,10 @@ import {
   generatePepper,
   installationReportFrom,
 } from "./register/enrollment";
+import {
+  fileSnapshotCorruptionReports,
+  SNAPSHOT_CORRUPTION_UNREPORTED_FILE,
+} from "./register/file-snapshot-corruption-reports";
 import { type StartedLocalDatabase, startLocalDatabase } from "./register/local-database-startup";
 import { refuseNewerDatabase } from "./register/newer-database-refusal";
 import { readReceiptPrinterFor, setReceiptPrinterFor } from "./register/receipt-printer-requests";
@@ -82,6 +89,7 @@ import { listSerialPorts, serialportEnumeration } from "./register/serialport-en
 import type { SnapshotCycleSchedule } from "./register/snapshot-cycle-schedule";
 import { startSnapshotCycle } from "./register/snapshot-cycle-wiring";
 import { readOpenSession } from "./register/sqlite-cash-ledger";
+import { DAMAGE_MARKER_FILE } from "./register/sqlite-local-database-health";
 import { SqliteSerialDeviceRegistrations } from "./register/sqlite-serial-device-registrations";
 import { startupPendingFor } from "./register/startup-pending-requests";
 import { recoverAtStartup } from "./register/startup-recovery";
@@ -209,6 +217,9 @@ const BARCODE_READER_RETRY_MS = 3_000;
 const localDataFolder = localDataFolderFromCoreArguments(process.argv);
 const localDatabasePath =
   localDataFolder === undefined ? undefined : join(localDataFolder, LOCAL_DATABASE_FILE);
+const damageMarkerPath =
+  localDataFolder === undefined ? undefined : join(localDataFolder, DAMAGE_MARKER_FILE);
+const localDatabaseDamaged = () => damageMarkerPath !== undefined && existsSync(damageMarkerPath);
 
 async function startLocalDatabaseFile(): Promise<StartedLocalDatabase | undefined> {
   if (localDatabasePath === undefined) {
@@ -342,6 +353,29 @@ const barcodeReaderWiring = createBarcodeReaderWiring({
   retryMs: BARCODE_READER_RETRY_MS,
 });
 
+const snapshotCorruptionReports =
+  localDataFolder === undefined
+    ? undefined
+    : fileSnapshotCorruptionReports(join(localDataFolder, SNAPSHOT_CORRUPTION_UNREPORTED_FILE));
+
+async function sendSnapshotCorruptionReport(): Promise<void> {
+  if (snapshotCorruptionReports === undefined || cloudClient === undefined) {
+    return;
+  }
+  const client = cloudClient;
+  try {
+    await sendSnapshotCorruptionReportTo({
+      reports: snapshotCorruptionReports,
+      cloud: cloudSnapshotCorruption({
+        readDeviceToken: async () => (await mainRequests.readCredentials())?.device_token,
+        post: (path, bearerToken, body) => postToCloudWithBearer(client, path, bearerToken, body),
+      }),
+    });
+  } catch (error) {
+    reportFailure("reporting the snapshot corruption to the cloud", error);
+  }
+}
+
 // An unreachable cloud is how a register without internet looks, so only an unexpected stop is
 // reported; the next cycle resumes from the cursor and the outbox already saved either way.
 const syncSchedule = createSyncSchedule({
@@ -384,6 +418,7 @@ const syncSchedule = createSyncSchedule({
                       () => batteryWatch.report(),
                     ),
                   }),
+          sendSnapshotCorruptionReport,
           pushOutbox: () =>
             pushToCloud({
               readCredentials: () => mainRequests.readCredentials(),
@@ -404,6 +439,7 @@ const syncSchedule = createSyncSchedule({
                       () => readLatestPreEmissionGateOutcome(localDatabase),
                       () => batteryWatch.report(),
                       storageWatch.stop,
+                      localDatabaseDamaged,
                     ),
               acceptedPush:
                 localDatabase === undefined
@@ -535,6 +571,7 @@ const rendererRequestDeps: RendererRequestDeps = {
             signedInPerson,
             serialDevices: serialDeviceWatch.reading,
             storage: storageWatch.standing,
+            localDatabaseDamaged,
           }),
   registerService: register.service,
   registerName: () => replica?.registerName(),
@@ -777,6 +814,7 @@ const rendererRequestDeps: RendererRequestDeps = {
               ids: uuidV7Ids,
               paidOrderDiscovery: paidOrderDiscovery.state,
               newSalesStoppedByDisk: () => storageWatch?.stop() !== undefined,
+              localDatabaseDamaged,
             },
             code,
           ),
@@ -917,6 +955,7 @@ const rendererRequestDeps: RendererRequestDeps = {
               ids: uuidV7Ids,
               paidOrderDiscovery: paidOrderDiscovery.state,
               newSalesStoppedByDisk: () => storageWatch?.stop() !== undefined,
+              localDatabaseDamaged,
             },
             productId,
           ),
@@ -932,6 +971,7 @@ const rendererRequestDeps: RendererRequestDeps = {
               ids: uuidV7Ids,
               paidOrderDiscovery: paidOrderDiscovery.state,
               newSalesStoppedByDisk: () => storageWatch?.stop() !== undefined,
+              localDatabaseDamaged,
             },
             productId,
             weightThousandths,
@@ -948,6 +988,7 @@ const rendererRequestDeps: RendererRequestDeps = {
               ids: uuidV7Ids,
               paidOrderDiscovery: paidOrderDiscovery.state,
               newSalesStoppedByDisk: () => storageWatch?.stop() !== undefined,
+              localDatabaseDamaged,
               scale: systelScale,
             },
             productId,
@@ -1105,7 +1146,7 @@ messagesFromMain.deliverTo((event) => {
     } else if (message.type === "update-hold-release") {
       updateHold.release();
     } else if (message.type === "snapshot-worker-exited") {
-      snapshotCycle?.workerExited();
+      void snapshotCycle?.workerExited(message.copy_failed_stage);
     } else {
       mainRequests.receive(message);
     }
@@ -1115,7 +1156,12 @@ messagesFromMain.deliverTo((event) => {
 process.parentPort.postMessage({ type: "core-ready" } satisfies CoreReadyMessage);
 void batteryWatch.start();
 void storageWatch?.start();
-if (localDatabase !== undefined && localDatabasePath !== undefined) {
+if (
+  localDatabase !== undefined &&
+  localDatabasePath !== undefined &&
+  snapshotCorruptionReports !== undefined &&
+  startedLocalDatabase?.kind === "ready"
+) {
   snapshotCycle = startSnapshotCycle({
     database: localDatabase,
     databasePath: localDatabasePath,
@@ -1130,6 +1176,10 @@ if (localDatabase !== undefined && localDatabasePath !== undefined) {
     scheduleNext: (run, delayMs) => {
       setTimeout(run, delayMs);
     },
+    localDatabaseDamaged,
+    health: startedLocalDatabase.health,
+    reports: snapshotCorruptionReports,
+    onCopyFailureRecorded: () => rendererConnection.tell(STORAGE_STANDING_CHANGED_NOTICE),
     onFailure: (error) => reportFailure("running the snapshot cycle", error),
   });
 }
