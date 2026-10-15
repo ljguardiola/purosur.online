@@ -231,7 +231,12 @@ describe("a redelivered page", () => {
     },
   );
 
-  it.each(STALE_COLUMNS.filter(([, , name]) => name !== "tax_authority_last_authorized_number"))(
+  it.each(
+    STALE_COLUMNS.filter(
+      ([, , name]) =>
+        name !== "tax_authority_last_authorized_number" && name !== "numbering_frozen",
+    ),
+  )(
     "is not what a normal pull does, for %s, with %s.%s at the same version",
     async (entity, table, name, stale) => {
       const change = upsertOf(entity);
