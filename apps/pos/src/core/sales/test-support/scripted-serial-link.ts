@@ -1,4 +1,4 @@
-import type { SerialLink } from "../open-serial-link.js";
+import type { SerialLink } from "../serial-link/open-serial-link.js";
 
 export class ScriptedSerialLink implements SerialLink {
   readonly written: number[][] = [];

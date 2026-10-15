@@ -177,6 +177,10 @@ import { registerQuarantinedEventReleaseRoute } from "./sync/quarantined-event-r
 import type { QuarantinedEventsRouteOptions } from "./sync/quarantined-events-list-route.js";
 import { registerQuarantinedEventsListRoute } from "./sync/quarantined-events-list-route.js";
 import {
+  type ReadableEventVersionsRouteOptions,
+  registerReadableEventVersionsRoute,
+} from "./sync/readable-event-versions-route.js";
+import {
   type RegistersBelowMinimumRouteOptions,
   registerRegistersBelowMinimumRoute,
 } from "./sync/registers-below-minimum-route.js";
@@ -216,6 +220,7 @@ export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = Postgre
   alerts?: WithoutClock<AlertsRouteOptions<TQueryResult>>;
   quarantinedEvents?: WithoutClock<QuarantinedEventsRouteOptions<TQueryResult>>;
   registersBelowMinimum?: RegistersBelowMinimumRouteOptions<TQueryResult>;
+  readableEventVersions?: ReadableEventVersionsRouteOptions;
   offsiteDumpChecks?: WithoutClock<RecordOffsiteDumpCheckRouteOptions<TQueryResult>>;
   prices?: WithoutClock<PricesRouteOptions<TQueryResult>>;
   discounts?: WithoutClock<DiscountsRouteOptions<TQueryResult>>;
@@ -308,6 +313,7 @@ export function databaseRouteOptions<TQueryResult extends PgQueryResultHKT>(
     alerts: backoffice,
     quarantinedEvents: backoffice,
     registersBelowMinimum: { db, releaseCheckToken: wiring.releaseCheckToken },
+    readableEventVersions: { releaseCheckToken: wiring.releaseCheckToken },
     offsiteDumpChecks: { db, offsiteDumpCheckToken: wiring.offsiteDumpCheckToken },
     prices: backoffice,
     discounts: backoffice,
@@ -549,6 +555,10 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
 
       if (options.registersBelowMinimum) {
         registerRegistersBelowMinimumRoute(api, options.registersBelowMinimum);
+      }
+
+      if (options.readableEventVersions) {
+        registerReadableEventVersionsRoute(api, options.readableEventVersions);
       }
 
       if (options.offsiteDumpChecks) {

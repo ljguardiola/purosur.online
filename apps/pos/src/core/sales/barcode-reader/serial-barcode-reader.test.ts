@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
+import { ManualTimers } from "../test-support/manual-timers.js";
+import { ScriptedSerialLink } from "../test-support/scripted-serial-link.js";
 import { createSerialBarcodeReader } from "./serial-barcode-reader.js";
-import { ManualTimers } from "./test-support/manual-timers.js";
-import { ScriptedSerialLink } from "./test-support/scripted-serial-link.js";
 
 const RETRY_MS = 5000;
 const CARRIAGE_RETURN = 0x0d;
