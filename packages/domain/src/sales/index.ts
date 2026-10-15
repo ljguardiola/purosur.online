@@ -58,6 +58,8 @@ export {
 export type { ListPrice, SoldProduct } from "./model/sale-line.js";
 export { mayBeSaleLineQuantity, saleTotal } from "./model/sale-line.js";
 export { UNPRINTED_SALE_STANDINGS } from "./model/sale-print-standing.js";
+export type { SaleVoidFacts, SaleVoidRefusal } from "./model/sale-void.js";
+export { SALE_VOID_REFUSALS, saleVoidRefusal } from "./model/sale-void.js";
 export type { SalesOfCashier, SoldByCashier } from "./model/sales-by-cashier.js";
 export type { SalesOfDay, SalesReportTotals } from "./model/sales-report.js";
 export { SALES_REPORT_SALE_STATE } from "./model/sales-report.js";
