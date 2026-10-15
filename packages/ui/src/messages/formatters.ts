@@ -18,6 +18,20 @@ export function formatPercent(percent: number): string {
   return `${formatNumber(percent)} %`;
 }
 
+const BYTES_PER_MEGABYTE = 1024 * 1024;
+const BYTES_PER_GIGABYTE = 1024 * BYTES_PER_MEGABYTE;
+
+function roundedUpToTenth(value: number): number {
+  return Math.ceil(Math.round(value * 100_000) / 10_000) / 10;
+}
+
+export function formatBytes(bytes: number): string {
+  if (bytes >= BYTES_PER_GIGABYTE) {
+    return `${formatNumber(roundedUpToTenth(bytes / BYTES_PER_GIGABYTE))} GB`;
+  }
+  return `${formatNumber(Math.ceil(bytes / BYTES_PER_MEGABYTE))} MB`;
+}
+
 export function formatCents(cents: number): string {
   return `$ ${formatAmountInput(cents)}`;
 }

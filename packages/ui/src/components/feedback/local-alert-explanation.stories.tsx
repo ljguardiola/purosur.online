@@ -48,3 +48,23 @@ export const FiscalEmissionStopped: Story = {
 export const LatePaymentRefundOfSecondOrder: Story = {
   args: { kind: "late_payment_refund", providerOrderId: "ORD01JZ8K3M4N5P6Q7R8S9T0V" },
 };
+
+export const SalesDeniedShortOfDiskAtStartup: Story = {
+  args: {
+    kind: "sales_denied",
+    reason: "disk_space_short_at_startup",
+    required_free_bytes: 13_421_772_800,
+  },
+};
+
+export const SalesDeniedDiskFull: Story = {
+  args: { kind: "sales_denied", reason: "disk_full", disk_free_ratio: 0.034 },
+};
+
+export const DiskSpaceLow: Story = {
+  args: { kind: "disk_space_low" },
+};
+
+export const WalOversized: Story = {
+  args: { kind: "wal_oversized" },
+};

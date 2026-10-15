@@ -269,6 +269,10 @@ describe("addWeighedProduct", () => {
     expect(weigh(ledger({ revoked: true }))).toEqual({ kind: "installation_revoked" });
   });
 
+  it("refuses to open a new sale while the disk stops new sales", () => {
+    expect(weigh(ledger({ newSalesStoppedByDisk: true }))).toEqual({ kind: "disk_space_short" });
+  });
+
   it("adds to the open sale even when the installation was revoked", () => {
     expect(weigh(ledger({ revoked: true, sales: [OPEN_SALE] })).kind).toBe("added");
   });

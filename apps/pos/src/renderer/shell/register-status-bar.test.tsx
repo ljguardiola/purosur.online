@@ -263,6 +263,23 @@ describe("RegisterStatusBar", () => {
     [{ kind: "fiscal_emission_stopped", level: "critical" }, "error-soft", "lucide-receipt"],
     [{ kind: "register_silent", level: "critical" }, "error-soft", "lucide-cloud-off"],
     [{ kind: "serial_device_missing", level: "warning" }, "warning-soft", "lucide-scan-barcode"],
+    [{ kind: "disk_space_low", level: "warning" }, "warning-soft", "lucide-hard-drive"],
+    [{ kind: "wal_oversized", level: "warning" }, "warning-soft", "lucide-database"],
+    [
+      { kind: "sales_denied", reason: "disk_full", disk_free_ratio: 0.03, level: "critical" },
+      "error-soft",
+      "lucide-ban",
+    ],
+    [
+      {
+        kind: "sales_denied",
+        reason: "disk_space_short_at_startup",
+        required_free_bytes: 3_000_000_000,
+        level: "critical",
+      },
+      "error-soft",
+      "lucide-ban",
+    ],
   ])(
     "shows the notice of %j with the %s border of its level and the %s icon",
     async (condition, border, icon) => {

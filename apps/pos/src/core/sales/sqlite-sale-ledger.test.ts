@@ -598,6 +598,24 @@ describe("this run's paid-order check", () => {
   });
 });
 
+describe("whether the disk stops new sales", () => {
+  it("is what the register's storage answers", () => {
+    const stopped = new SqliteSaleLedger(
+      database,
+      new SqliteSignInStore(database),
+      CHAIN_KEY,
+      () => "pending",
+      () => true,
+    );
+
+    expect(stopped.transaction((tx) => tx.newSalesStoppedByDisk())).toBe(true);
+  });
+
+  it("does not stop new sales for a ledger the storage was not given to", () => {
+    expect(ledger.transaction((tx) => tx.newSalesStoppedByDisk())).toBe(false);
+  });
+});
+
 describe("a paid order without a sale", () => {
   function recordPaidOrder(resolvedAt: string | null): void {
     database

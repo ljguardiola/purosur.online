@@ -105,6 +105,14 @@ export {
 } from "./model/snapshot-generation.js";
 export type { SnapshotLifecycleRules } from "./model/snapshot-lifecycle-rules.js";
 export { SNAPSHOT_LIFECYCLE_LIMITS } from "./model/snapshot-lifecycle-rules.js";
+export type { DiskStanding, StorageSalesStop, StorageStanding } from "./model/storage.js";
+export {
+  diskStanding,
+  STORAGE_READ_INTERVAL_MS,
+  startupDiskVerdict,
+  storageSalesStopOf,
+  walOversized,
+} from "./model/storage.js";
 export {
   isSafeMomentToUpdate,
   REGISTER_UPDATE_HOLD_LIMIT_MS,

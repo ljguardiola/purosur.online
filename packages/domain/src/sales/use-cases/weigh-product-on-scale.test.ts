@@ -235,7 +235,7 @@ describe("weighProductOnScale", () => {
     expect(outcome.kind).toBe("added");
   });
 
-  it("checks the permission, the session, the payments, the revocation and the identity before the product", async () => {
+  it("checks the permission, the session, the payments, the revocation, the disk and the identity before the product", async () => {
     expect(await weigh(ledger({ session: undefined }), STABLE_1250, "unknown", "stranger")).toEqual(
       { kind: "not_permitted" },
     );
@@ -248,6 +248,13 @@ describe("weighProductOnScale", () => {
     expect(
       await weigh(ledger({ revoked: true, identity: undefined }), STABLE_1250, "unknown"),
     ).toEqual({ kind: "installation_revoked" });
+    expect(
+      await weigh(
+        ledger({ newSalesStoppedByDisk: true, identity: undefined }),
+        STABLE_1250,
+        "unknown",
+      ),
+    ).toEqual({ kind: "disk_space_short" });
     expect(await weigh(ledger({ identity: undefined }), STABLE_1250, "unknown")).toEqual({
       kind: "unavailable",
     });

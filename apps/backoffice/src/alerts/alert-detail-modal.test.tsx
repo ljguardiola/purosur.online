@@ -1243,6 +1243,41 @@ test("tells a register that can't sell in plain language: what it is, what it me
   await expect.element(screen.getByText("Caja 1", { exact: true })).toBeVisible();
 });
 
+test.each([
+  [
+    "disk_space_short_at_startup",
+    "Esta caja no habilita las ventas porque necesita más espacio libre en el disco de la notebook del que tiene.",
+    "Liberar espacio en la notebook, borrando archivos que no sean de la caja, y reiniciar la caja.",
+  ],
+  [
+    "disk_full",
+    "La venta en curso se puede completar y cobrar. Para volver a vender hay que liberar espacio en la notebook.",
+    "Cobrar la venta en curso y liberar espacio en la notebook, borrando archivos que no sean de la caja. Cuando haya lugar, la caja vuelve a abrir ventas sola. Si no se puede, avisar al Administrador.",
+  ],
+] as const)(
+  "tells a register that can't sell for lack of disk space, whose reason is %s, what it means and what to do",
+  async (reason, meaning, whatToDo) => {
+    const services = createServices();
+    vi.mocked(services.fetchAlert).mockResolvedValue(
+      ok(
+        baseDetail({
+          kind: "sales_denied",
+          level: "critical",
+          audience: "local",
+          scope: "register-1",
+          scopeDisplay: "Caja 1",
+          detail: { deviceId: "device-1", reason },
+        }),
+      ),
+    );
+
+    const screen = await renderModal(services);
+
+    await expect.element(screen.getByText(meaning)).toBeVisible();
+    await expect.element(screen.getByText(whatToDo)).toBeVisible();
+  },
+);
+
 test("tells a register with a damaged database how to get it selling again", async () => {
   const services = createServices();
   vi.mocked(services.fetchAlert).mockResolvedValue(

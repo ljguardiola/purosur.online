@@ -11,7 +11,16 @@ import {
   StatusIndicator,
   StatusIndicatorButton,
 } from "@purosur/ui";
-import { Ban, CloudOff, Receipt, ScanBarcode, ShieldOff, TriangleAlert } from "lucide-react";
+import {
+  Ban,
+  CloudOff,
+  Database,
+  HardDrive,
+  Receipt,
+  ScanBarcode,
+  ShieldOff,
+  TriangleAlert,
+} from "lucide-react";
 import type { CoreData } from "../platform/use-core-query";
 import type { CashSessionState } from "../register/cash-session-state";
 import type { SerialDeviceRole } from "../register/serial-device-standing";
@@ -56,6 +65,8 @@ const CONDITION_ICONS: Record<Condition["kind"], Icon> = {
   fiscal_emission_stopped: <Receipt />,
   register_silent: <CloudOff />,
   serial_device_missing: <ScanBarcode />,
+  disk_space_low: <HardDrive />,
+  wal_oversized: <Database />,
 };
 
 function conditionTone(condition: Condition): "error" | "warning" {

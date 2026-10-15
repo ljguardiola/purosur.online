@@ -5,7 +5,11 @@ import { join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import { promisify } from "node:util";
 import { type CoreReadyMessage, mainToCoreMessageSchema } from "@purosur/contracts";
-import { BATTERY_READ_INTERVAL_MS, REGISTER_UPDATE_HOLD_LIMIT_MS } from "@purosur/domain";
+import {
+  BATTERY_READ_INTERVAL_MS,
+  REGISTER_UPDATE_HOLD_LIMIT_MS,
+  STORAGE_READ_INTERVAL_MS,
+} from "@purosur/domain";
 import * as Sentry from "@sentry/electron/utility";
 import { net } from "electron";
 import {
@@ -37,6 +41,7 @@ import {
   postToCloudWithBearer,
 } from "./platform/cloud-client";
 import { initializeErrorReporting } from "./platform/error-reporting";
+import { createHeldMessages } from "./platform/held-messages";
 import { LOCAL_MIGRATIONS } from "./platform/local-migrations";
 import { createMainRequests } from "./platform/main-requests";
 import { createBatteryWatch } from "./register/battery-watch";
@@ -78,6 +83,7 @@ import { readOpenSession } from "./register/sqlite-cash-ledger";
 import { SqliteSerialDeviceRegistrations } from "./register/sqlite-serial-device-registrations";
 import { startupPendingFor } from "./register/startup-pending-requests";
 import { recoverAtStartup } from "./register/startup-recovery";
+import { createStorageWatch } from "./register/storage-watch";
 import { createUpdateHold, gateRendererRequest } from "./register/update-hold";
 import { uuidV7Ids } from "./register/uuid-v7-ids";
 import { windowsBatteryReader } from "./register/windows-battery-reader";
@@ -141,7 +147,11 @@ import { SqliteAcceptedPushLog } from "./sync/sqlite-accepted-push-log";
 import { SqliteLocalInstallation, salesStopOf } from "./sync/sqlite-local-installation";
 import { SqliteLocalOutbox } from "./sync/sqlite-local-outbox";
 import { SqliteLocalReplica } from "./sync/sqlite-local-replica";
-import { nodeStorageFileSystem, storageTelemetryReader } from "./sync/storage-telemetry";
+import {
+  nodeStorageFileSystem,
+  storageReadingReader,
+  storageTelemetryReader,
+} from "./sync/storage-telemetry";
 import { runSyncCycle } from "./sync/sync-cycle";
 import { createSyncSchedule } from "./sync/sync-schedule";
 
@@ -163,6 +173,8 @@ const recorder: RejectionRecorder = {
 };
 
 const gateFromMain = createMessageGate(mainToCoreMessageSchema, recorder);
+const messagesFromMain = createHeldMessages<Electron.MessageEvent>();
+process.parentPort.on("message", messagesFromMain.receive);
 const gateFromRenderer = createMessageGate(rendererToCoreMessageSchema, recorder);
 
 const mainRequests = createMainRequests({
@@ -185,6 +197,9 @@ const SYNC_INTERVAL_MS = 30_000;
 const SYNC_FAILURE_BACKOFF = { baseMs: 2000, maxMs: 60_000 };
 const PULLED_NOTICE: CoreToRendererMessage = { type: "pulled" };
 const SERIAL_DEVICES_CHANGED_NOTICE: CoreToRendererMessage = { type: "serial-devices-changed" };
+const STORAGE_STANDING_CHANGED_NOTICE: CoreToRendererMessage = {
+  type: "storage-standing-changed",
+};
 const SERIAL_DEVICE_CHECK_INTERVAL_MS = 3_000;
 const BARCODE_READER_RETRY_MS = 3_000;
 
@@ -258,6 +273,7 @@ const { reportFailure, reportSyncFailure, reportRedeemedPinFailure } = coreFailu
   log: console.error,
   capture: Sentry.captureException,
   watchFailure: register.watchFailure,
+  noteStorageFailure: (error) => storageWatch?.noteFailure(error),
 });
 
 const serialDeviceEnumeration = serialportEnumeration({
@@ -292,6 +308,23 @@ const batteryWatch = createBatteryWatch({
   clock: { now },
   onFailure: (error) => reportFailure("reading the battery", error),
 });
+
+const storageWatch =
+  localDatabase === undefined
+    ? undefined
+    : createStorageWatch({
+        read: storageReadingReader(localDatabase.name, nodeStorageFileSystem),
+        intervalMs: STORAGE_READ_INTERVAL_MS,
+        scheduleNext: (run, delayMs) => {
+          const timer = setTimeout(run, delayMs);
+          return () => clearTimeout(timer);
+        },
+        onChange: () => rendererConnection.tell(STORAGE_STANDING_CHANGED_NOTICE),
+        onFailure: (error) => reportFailure("watching the storage", error),
+        onStartupFailure: (error) =>
+          reportFailure("checking the free disk space at startup", error),
+      });
+await storageWatch?.checkAtStartup();
 
 const systelScale = createSystelScale({
   path: () => serialDeviceWatch && pathOfMatchingDevice(serialDeviceWatch.reading(), "scale"),
@@ -357,7 +390,9 @@ const syncSchedule = createSyncSchedule({
               post,
               appVersion: appVersionFromCoreArguments(process.argv),
               readTelemetry:
-                localDatabase === undefined || serialDeviceWatch === undefined
+                localDatabase === undefined ||
+                serialDeviceWatch === undefined ||
+                storageWatch === undefined
                   ? undefined
                   : registerTelemetryReader(
                       storageTelemetryReader(localDatabase.name, nodeStorageFileSystem),
@@ -365,6 +400,7 @@ const syncSchedule = createSyncSchedule({
                       () => serialDevicesReportOf(serialDeviceWatch.reading()),
                       () => readLatestPreEmissionGateOutcome(localDatabase),
                       () => batteryWatch.report(),
+                      storageWatch.stop,
                     ),
               acceptedPush:
                 localDatabase === undefined
@@ -486,7 +522,7 @@ await startupRecovery.authorizationsSettled;
 const rendererRequestDeps: RendererRequestDeps = {
   credentialsPresent: () => mainRequests.credentialsPresent(),
   registerStatus:
-    localDatabase === undefined || serialDeviceWatch === undefined
+    localDatabase === undefined || serialDeviceWatch === undefined || storageWatch === undefined
       ? undefined
       : () =>
           registerStatusFor({
@@ -495,6 +531,7 @@ const rendererRequestDeps: RendererRequestDeps = {
             now,
             signedInPerson,
             serialDevices: serialDeviceWatch.reading,
+            storage: storageWatch.standing,
           }),
   registerService: register.service,
   registerName: () => replica?.registerName(),
@@ -736,6 +773,7 @@ const rendererRequestDeps: RendererRequestDeps = {
               now,
               ids: uuidV7Ids,
               paidOrderDiscovery: paidOrderDiscovery.state,
+              newSalesStoppedByDisk: () => storageWatch?.stop() !== undefined,
             },
             code,
           ),
@@ -875,6 +913,7 @@ const rendererRequestDeps: RendererRequestDeps = {
               now,
               ids: uuidV7Ids,
               paidOrderDiscovery: paidOrderDiscovery.state,
+              newSalesStoppedByDisk: () => storageWatch?.stop() !== undefined,
             },
             productId,
           ),
@@ -889,6 +928,7 @@ const rendererRequestDeps: RendererRequestDeps = {
               now,
               ids: uuidV7Ids,
               paidOrderDiscovery: paidOrderDiscovery.state,
+              newSalesStoppedByDisk: () => storageWatch?.stop() !== undefined,
             },
             productId,
             weightThousandths,
@@ -904,6 +944,7 @@ const rendererRequestDeps: RendererRequestDeps = {
               now,
               ids: uuidV7Ids,
               paidOrderDiscovery: paidOrderDiscovery.state,
+              newSalesStoppedByDisk: () => storageWatch?.stop() !== undefined,
               scale: systelScale,
             },
             productId,
@@ -1045,7 +1086,7 @@ const rendererConnection = createRendererConnection(
   () => signedInPerson.clear(),
 );
 
-process.parentPort.on("message", (event) => {
+messagesFromMain.deliverTo((event) => {
   const [rendererPort] = event.ports;
   if (rendererPort) {
     rendererConnection.adopt(rendererPort);
@@ -1066,4 +1107,5 @@ process.parentPort.on("message", (event) => {
 
 process.parentPort.postMessage({ type: "core-ready" } satisfies CoreReadyMessage);
 void batteryWatch.start();
+void storageWatch?.start();
 void barcodeReaderWiring.startWatch();
