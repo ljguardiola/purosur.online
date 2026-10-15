@@ -24,6 +24,7 @@ export const handConfirmedPaymentsSchema = z.object({
   methods: z.array(methodTotal),
   cashiers: z.array(
     z.object({
+      cashier_id: z.string().min(1),
       cashier_name: z.string().nullable(),
       count,
       amount: cents,

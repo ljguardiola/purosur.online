@@ -102,6 +102,7 @@ export function registerPaymentsReportRoutes<TQueryResult extends PgQueryResultH
           totals: report.totals,
           methods: methods(report.methods),
           cashiers: report.cashiers.map((cashier) => ({
+            cashier_id: cashier.cashierId,
             cashier_name: cashier.cashierName,
             count: cashier.count,
             amount: cashier.amount,
