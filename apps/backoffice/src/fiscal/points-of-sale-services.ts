@@ -11,6 +11,7 @@ import {
   editFiscalAddress,
   fetchFiscalAddresses,
 } from "./fiscal-addresses-api";
+import { fetchFortnightPresentations } from "./fortnight-presentations-api";
 import type { NewFiscalAddressModalServices } from "./new-fiscal-address-modal";
 import {
   configureRegisterOfflinePointOfSale,
@@ -24,11 +25,13 @@ export type PointsOfSaleScreenServices = EditRegisterPointOfSaleModalServices &
   EditFiscalAddressModalServices & {
     fetchRegisterPointsOfSale: typeof fetchRegisterPointsOfSale;
     fetchFiscalAddresses: typeof fetchFiscalAddresses;
+    fetchFortnightPresentations: typeof fetchFortnightPresentations;
   };
 
 export const defaultPointsOfSaleScreenServices: PointsOfSaleScreenServices = {
   fetchRegisterPointsOfSale,
   fetchFiscalAddresses,
+  fetchFortnightPresentations,
   configureRegisterPointOfSale,
   configureRegisterOfflinePointOfSale,
   createFiscalAddress,

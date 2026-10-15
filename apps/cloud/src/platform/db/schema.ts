@@ -16,6 +16,7 @@ import {
   SNAPSHOT_FAILURE_REASONS,
   SNAPSHOT_GENERATION_STATUSES,
   SNAPSHOT_LIFECYCLE_LIMITS,
+  type TaxAuthorityRejection,
 } from "@purosur/domain";
 import { sql } from "drizzle-orm";
 import {
@@ -1266,6 +1267,7 @@ export const deviceState = pgTable("device_state", {
   lastPushedAt: timestamp("last_pushed_at", { withTimezone: true }),
   lastAcceptedPushAt: timestamp("last_accepted_push_at", { withTimezone: true }),
   reportsEveryCycleSince: timestamp("reports_every_cycle_since", { withTimezone: true }),
+  caughtUpAt: timestamp("caught_up_at", { withTimezone: true }),
   walSizeBytes: bigint("wal_size_bytes", { mode: "number" }),
   diskFreeBytes: bigint("disk_free_bytes", { mode: "number" }),
   diskFreeRatio: doublePrecision("disk_free_ratio"),
@@ -2141,6 +2143,40 @@ export const caeaCodes = pgTable(
   (table) => [
     check(
       "caea_codes_fortnight_ends_after_start",
+      sql`${table.fortnightEnd} > ${table.fortnightStart}`,
+    ),
+  ],
+);
+
+export const fortnightReportState = pgEnum("fortnight_report_state", [
+  "blocked",
+  "submitting",
+  "refused",
+  "accepted",
+]);
+
+export const fortnightReports = pgTable(
+  "fortnight_reports",
+  {
+    pointOfSaleNumber: integer("point_of_sale_number")
+      .notNull()
+      .references(() => pointOfSaleClaims.pointOfSaleNumber),
+    fortnightStart: date("fortnight_start", { mode: "string" })
+      .notNull()
+      .references(() => caeaCodes.fortnightStart),
+    fortnightEnd: date("fortnight_end", { mode: "string" }).notNull(),
+    state: fortnightReportState("state").notNull(),
+    lastAttemptAt: timestamp("last_attempt_at", { withTimezone: true }),
+    rejections: jsonb("rejections").$type<TaxAuthorityRejection[]>(),
+    recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    primaryKey({
+      name: "fortnight_reports_pkey",
+      columns: [table.pointOfSaleNumber, table.fortnightStart],
+    }),
+    check(
+      "fortnight_reports_fortnight_ends_after_start",
       sql`${table.fortnightEnd} > ${table.fortnightStart}`,
     ),
   ],

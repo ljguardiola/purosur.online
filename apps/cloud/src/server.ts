@@ -43,6 +43,7 @@ import {
   enqueueBuyerTaxStatusFetch,
 } from "./fiscal/buyer-tax-status-fetch-task.js";
 import { DrizzleIssuerIdentificationStore } from "./fiscal/drizzle-issuer-identification-store.js";
+import { fortnightReportJobs } from "./fiscal/fortnight-report-task.js";
 import { enqueueOfflineAuthorizationCodeRequest } from "./fiscal/graphile-offline-authorization-code-queue.js";
 import {
   enqueueMissingTaxAuthorityCounts,
@@ -63,6 +64,7 @@ import { WsfeArcaVitalityService, wsfeEndpointOf } from "./fiscal/wsfe-arca-vita
 import { WsfeBuyerTaxStatusSource } from "./fiscal/wsfe-buyer-tax-status-source.js";
 import { WsfeTaxAuthorityInvoicing } from "./fiscal/wsfe-tax-authority-invoicing.js";
 import { WsfeTaxAuthorityLastAuthorized } from "./fiscal/wsfe-tax-authority-last-authorized.js";
+import { WsfeTaxAuthorityNoMovementDeclarations } from "./fiscal/wsfe-tax-authority-no-movement-declarations.js";
 import { WsfeTaxAuthorityOfflineAuthorizationCodes } from "./fiscal/wsfe-tax-authority-offline-authorization-codes.js";
 import { WsfeTaxAuthorityVouchers } from "./fiscal/wsfe-tax-authority-vouchers.js";
 import { resolveMercadoPagoConfig } from "./payments/mercado-pago-config.js";
@@ -568,6 +570,14 @@ export async function setUpRecovery(
             offlineAuthorizationCodeJobs({
               now,
               taxAuthority: new WsfeTaxAuthorityOfflineAuthorizationCodes(
+                recoveryEnv.arcaInvoicing,
+              ),
+              certificateFingerprint: recoveryEnv.arcaInvoicing.certificateFingerprint,
+            }),
+            fortnightReportJobs({
+              now,
+              declarations: new WsfeTaxAuthorityNoMovementDeclarations(recoveryEnv.arcaInvoicing),
+              codeAuthority: new WsfeTaxAuthorityOfflineAuthorizationCodes(
                 recoveryEnv.arcaInvoicing,
               ),
               certificateFingerprint: recoveryEnv.arcaInvoicing.certificateFingerprint,

@@ -1,0 +1,85 @@
+import { afterEach, beforeEach, expect, test, vi } from "vitest";
+import {
+  type FortnightPresentation,
+  fetchFortnightPresentations,
+} from "./fortnight-presentations-api";
+
+function jsonResponse(status: number, body?: unknown): Response {
+  return new Response(body === undefined ? null : JSON.stringify(body), { status });
+}
+
+beforeEach(() => {
+  vi.stubGlobal("fetch", vi.fn());
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
+const blockedWire = {
+  register_id: "3f0d1a52-0f7e-4a53-9f4c-2a7d2f1c9b10",
+  point_of_sale_number: 4,
+  fortnight_start: "2026-09-01",
+  fortnight_end: "2026-09-15",
+  deadline: "2026-09-23",
+  state: "blocked",
+};
+
+const pendingWire = { ...blockedWire, point_of_sale_number: 5, state: null };
+
+const blocked: FortnightPresentation = {
+  registerId: "3f0d1a52-0f7e-4a53-9f4c-2a7d2f1c9b10",
+  pointOfSaleNumber: 4,
+  fortnight: { start: "2026-09-01", end: "2026-09-15" },
+  deadline: "2026-09-23",
+  state: "blocked",
+};
+
+const pending: FortnightPresentation = { ...blocked, pointOfSaleNumber: 5, state: null };
+
+test("fetchFortnightPresentations returns the branch's presentations with their state and deadline", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, [blockedWire, pendingWire]));
+
+  expect(await fetchFortnightPresentations()).toEqual({
+    kind: "ok",
+    value: [blocked, pending],
+  });
+  expect(fetch).toHaveBeenCalledWith("/api/registers/fortnight-presentations");
+});
+
+test.each([
+  ["a body that is not a list", blockedWire],
+  ["a row missing a field", [{ ...blockedWire, deadline: undefined }]],
+  ["a state the cloud does not define", [{ ...blockedWire, state: "paused" }]],
+])("fetchFortnightPresentations returns failed on 200 with %s", async (_name, body) => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, body));
+
+  expect(await fetchFortnightPresentations()).toEqual({ kind: "failed" });
+});
+
+test.each([
+  [401, { kind: "unauthenticated" }],
+  [403, { kind: "forbidden" }],
+  [500, { kind: "failed" }],
+])("fetchFortnightPresentations maps %s", async (status, outcome) => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(status));
+
+  expect(await fetchFortnightPresentations()).toEqual(outcome);
+});
+
+test("fetchFortnightPresentations returns rate_limited with the Retry-After header on 429", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    new Response(null, { status: 429, headers: { "Retry-After": "45" } }),
+  );
+
+  expect(await fetchFortnightPresentations()).toEqual({
+    kind: "rate_limited",
+    retryAfterSeconds: 45,
+  });
+});
+
+test("fetchFortnightPresentations returns failed when the network call throws", async () => {
+  vi.mocked(fetch).mockRejectedValue(new Error("offline"));
+
+  expect(await fetchFortnightPresentations()).toEqual({ kind: "failed" });
+});

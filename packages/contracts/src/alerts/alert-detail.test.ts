@@ -217,6 +217,15 @@ describe("alertDetailSchema", () => {
       AlertDetails["lots_expiring"]
     >();
     expectTypeOf<WireDetail<"lots_expiring">["aboutViewerBranch"]>().toBeBoolean();
+    expectTypeOf<Omit<WireDetail<"fortnight_report_pending">, "registerName">>().toEqualTypeOf<
+      AlertDetails["fortnight_report_pending"]
+    >();
+    expectTypeOf<Omit<WireDetail<"fortnight_report_overdue">, "registerName">>().toEqualTypeOf<
+      AlertDetails["fortnight_report_overdue"]
+    >();
+    expectTypeOf<WireDetail<"fortnight_report_pending">["registerName"]>().toEqualTypeOf<
+      string | undefined
+    >();
     expectTypeOf<WireDetail<"fiscal_emission_stopped">>().toEqualTypeOf<
       AlertDetails["fiscal_emission_stopped"]
     >();
@@ -357,6 +366,24 @@ describe("alertDetailSchema", () => {
       fiscal_emission_stopped: { deviceId: "device-1", reason: "legal_name_missing" },
       outbox_chain_broken: { deviceId: "device-1" },
       lots_expiring: { lotCount: 3, windowDays: 30, aboutViewerBranch: true },
+      fortnight_report_pending: {
+        pointOfSaleNumber: 4,
+        registerId: "register-1",
+        registerName: "Caja 1",
+        fortnightStart: "2026-09-01",
+        fortnightEnd: "2026-09-15",
+        deadline: "2026-09-23",
+        daysLeft: 3,
+        reason: "blocked",
+      },
+      fortnight_report_overdue: {
+        pointOfSaleNumber: 4,
+        registerId: "register-1",
+        registerName: "Caja 1",
+        fortnightStart: "2026-09-01",
+        fortnightEnd: "2026-09-15",
+        deadline: "2026-09-23",
+      },
       fiscal_unknown: {
         fiscalDocumentId: "document-1",
         saleId: "sale-1",
@@ -375,7 +402,9 @@ describe("alertDetailSchema", () => {
 
     const requiredFields = ALERT_KINDS.flatMap((kind) =>
       Object.keys(detailOf[kind])
-        .filter((field) => field !== "actorName" && field !== "sourceAddress")
+        .filter(
+          (field) => field !== "actorName" && field !== "sourceAddress" && field !== "registerName",
+        )
         .map((field) => [kind, field] as const),
     );
     it.each(requiredFields)("requires %s's %s", (kind, field) => {
@@ -419,6 +448,31 @@ describe("alertDetailSchema", () => {
         ...base,
         kind: "lots_expiring",
         detail: { lotCount: 3, windowDays: 30, aboutViewerBranch: true, ...change },
+      };
+
+      expect(alertDetailSchema.safeParse(alert).success).toBe(false);
+    });
+
+    it.each(["fortnight_report_pending", "fortnight_report_overdue"] as const)(
+      "accepts a %s alert that names no register",
+      (kind) => {
+        const { registerName: _omitted, ...detail } = detailOf[kind];
+        const alert = { ...base, kind, detail };
+
+        expect(alertDetailSchema.safeParse(alert).data).toEqual(alert);
+      },
+    );
+
+    it.each([
+      ["a reason outside the three it can have", { reason: "unknown" }],
+      ["days left as text", { daysLeft: "3" }],
+      ["fractional days left", { daysLeft: 1.5 }],
+      ["a fractional point of sale", { pointOfSaleNumber: 4.5 }],
+    ])("refuses a pending fortnight report alert with %s", (_case, change) => {
+      const alert = {
+        ...base,
+        kind: "fortnight_report_pending",
+        detail: { ...detailOf.fortnight_report_pending, ...change },
       };
 
       expect(alertDetailSchema.safeParse(alert).success).toBe(false);

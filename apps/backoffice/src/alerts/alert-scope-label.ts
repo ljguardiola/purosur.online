@@ -1,4 +1,5 @@
 import type { AlertScopeKind } from "@purosur/domain";
+import { formatCalendarDayRange, formatPointOfSaleNumber } from "@purosur/ui";
 
 const ARCA_ENVIRONMENT_LABELS: ReadonlyMap<string, string> = new Map([
   ["production", "Producción"],
@@ -15,6 +16,13 @@ function fiscalDocumentScopeLabel(scopeDisplay: string): string {
   return label === undefined ? scopeDisplay : `Punto de venta ${pointOfSale} · ${label}`;
 }
 
+function pointOfSaleFortnightScopeLabel(scopeDisplay: string): string {
+  const [pointOfSale = "", start = "", end = ""] = scopeDisplay.split(":");
+  return /^\d+$/.test(pointOfSale) && start !== "" && end !== ""
+    ? `Punto de venta ${formatPointOfSaleNumber(Number(pointOfSale))} · ${formatCalendarDayRange(start, end)}`
+    : scopeDisplay;
+}
+
 export function alertScopeLabel(scopeKind: string | null, scopeDisplay: string): string {
   if (scopeKind === ("pointOfSaleDocumentType" satisfies AlertScopeKind)) {
     return fiscalDocumentScopeLabel(scopeDisplay);
@@ -27,6 +35,9 @@ export function alertScopeLabel(scopeKind: string | null, scopeDisplay: string):
   }
   if (scopeKind === ("branch" satisfies AlertScopeKind)) {
     return "Sucursal";
+  }
+  if (scopeKind === ("pointOfSaleFortnight" satisfies AlertScopeKind)) {
+    return pointOfSaleFortnightScopeLabel(scopeDisplay);
   }
   return scopeKind === ("environment" satisfies AlertScopeKind)
     ? (ARCA_ENVIRONMENT_LABELS.get(scopeDisplay) ?? scopeDisplay)

@@ -1,3 +1,4 @@
+import { formatCalendarDayRange } from "@purosur/ui";
 import { expect, test } from "vitest";
 import { alertScopeLabel } from "./alert-scope-label";
 
@@ -47,4 +48,17 @@ test("shows an ARCA environment that shares its name with a member every object 
 
 test("names the branch of an alert instead of showing its id", () => {
   expect(alertScopeLabel("branch", "3f2b8c1e-5d4a-4b7e-9c10-a1b2c3d4e5f6")).toBe("Sucursal");
+});
+
+test("names the point of sale and the fortnight of a fortnight's report", () => {
+  expect(alertScopeLabel("pointOfSaleFortnight", "4:2026-09-01:2026-09-15")).toBe(
+    `Punto de venta 00004 · ${formatCalendarDayRange("2026-09-01", "2026-09-15")}`,
+  );
+});
+
+test("shows the scope of a fortnight's report it cannot read as it comes", () => {
+  expect(alertScopeLabel("pointOfSaleFortnight", "4:2026-09-01")).toBe("4:2026-09-01");
+  expect(alertScopeLabel("pointOfSaleFortnight", "x:2026-09-01:2026-09-15")).toBe(
+    "x:2026-09-01:2026-09-15",
+  );
 });

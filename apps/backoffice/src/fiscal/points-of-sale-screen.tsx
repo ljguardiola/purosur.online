@@ -10,10 +10,12 @@ import { EditRegisterPointOfSaleModal } from "./edit-register-point-of-sale-moda
 import { FiscalAddressesSection } from "./fiscal-addresses-section";
 import {
   useFiscalAddressesQuery,
+  useFortnightPresentationsQuery,
   useRegisterPointsOfSaleQuery,
   useReloadFiscalAddresses,
   useReloadRegisterPointsOfSale,
 } from "./fiscal-queries";
+import { FortnightReportsSection } from "./fortnight-reports-section";
 import { NewFiscalAddressModal } from "./new-fiscal-address-modal";
 import type { PointsOfSaleScreenServices } from "./points-of-sale-services";
 import { RegisterPointOfSaleSection } from "./register-point-of-sale-section";
@@ -26,9 +28,13 @@ export type PointsOfSaleScreenProps = {
 type ScreenNotice = { id: number; title: string; description: string };
 
 export function PointsOfSaleScreen({ onSessionEnded, services }: PointsOfSaleScreenProps) {
-  const { fetchRegisterPointsOfSale, fetchFiscalAddresses } = services;
+  const { fetchRegisterPointsOfSale, fetchFiscalAddresses, fetchFortnightPresentations } = services;
   const registers = useRegisterPointsOfSaleQuery({ fetchRegisterPointsOfSale, onSessionEnded });
   const fiscalAddresses = useFiscalAddressesQuery({ fetchFiscalAddresses, onSessionEnded });
+  const presentations = useFortnightPresentationsQuery({
+    fetchFortnightPresentations,
+    onSessionEnded,
+  });
   const reloadRegisters = useReloadRegisterPointsOfSale({ fetchRegisterPointsOfSale });
   const reloadFiscalAddresses = useReloadFiscalAddresses({ fetchFiscalAddresses });
   const [editingRegister, setEditingRegister] = useState<{
@@ -73,6 +79,7 @@ export function PointsOfSaleScreen({ onSessionEnded, services }: PointsOfSaleScr
           data={registersWithAddresses}
           onEdit={({ registerId }, mechanism) => setEditingRegister({ registerId, mechanism })}
         />
+        <FortnightReportsSection data={combineCloudData(presentations, registers)} />
         <FiscalAddressesSection
           data={fiscalAddresses}
           onEdit={({ id }) => setEditingFiscalAddressId(id)}
