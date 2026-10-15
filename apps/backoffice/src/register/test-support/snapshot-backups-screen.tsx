@@ -65,7 +65,8 @@ export const declaredGeneration: SnapshotBackupGeneration = {
 
 export const backups: SnapshotBackups = {
   rules: { hourly: 24, daily: 30, monthly: 12 },
-  tiers: { recent: 6, hourly: 24, daily: 30, monthly: 2 },
+  tiers: { recent: 5, hourly: 24, daily: 30, monthly: 2 },
+  recentLimit: 6,
   generations: [verifiedGeneration, failedGeneration],
 };
 

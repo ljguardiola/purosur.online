@@ -24,6 +24,7 @@ const GENERATION = {
 const BACKUPS = {
   rules: { hourly: 24, daily: 30, monthly: 12 },
   tiers: { recent: 6, hourly: 10, daily: 8, monthly: 3 },
+  recent_limit: 6,
   generations: [GENERATION],
 };
 
@@ -81,6 +82,20 @@ describe("snapshotBackupsSchema", () => {
     ["a missing tier", { recent: 1, hourly: 0, daily: 0 }],
   ])("refuses tier counts with %s", (_name, tiers) => {
     expect(snapshotBackupsSchema.safeParse({ ...BACKUPS, tiers }).success).toBe(false);
+  });
+
+  it.each([
+    ["zero", 0],
+    ["a negative number", -1],
+    ["a fractional number", 1.5],
+    ["a string", "6"],
+  ])("refuses a recent limit of %s", (_name, recent_limit) => {
+    expect(snapshotBackupsSchema.safeParse({ ...BACKUPS, recent_limit }).success).toBe(false);
+  });
+
+  it("refuses a body without the recent limit", () => {
+    const { recent_limit: _omitted, ...withoutLimit } = BACKUPS;
+    expect(snapshotBackupsSchema.safeParse(withoutLimit).success).toBe(false);
   });
 });
 

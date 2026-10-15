@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_SNAPSHOT_LIFECYCLE_RULES } from "../model/snapshot-lifecycle-rules.js";
+import {
+  DEFAULT_SNAPSHOT_LIFECYCLE_RULES,
+  SNAPSHOT_RECENT_GENERATIONS,
+} from "../model/snapshot-lifecycle-rules.js";
 import {
   listSnapshotBackupRegisters,
   registerSnapshotBackups,
@@ -44,6 +47,13 @@ describe("registerSnapshotBackups", () => {
     expect(await backupsOf(setup())).toMatchObject({
       kind: "listed",
       rules: DEFAULT_SNAPSHOT_LIFECYCLE_RULES,
+    });
+  });
+
+  it("answers how many recent generations are kept", async () => {
+    expect(await backupsOf(setup())).toMatchObject({
+      kind: "listed",
+      recentLimit: SNAPSHOT_RECENT_GENERATIONS,
     });
   });
 

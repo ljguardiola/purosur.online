@@ -24,6 +24,7 @@ afterEach(() => {
 const backupsWire = {
   rules: { hourly: 24, daily: 30, monthly: 12 },
   tiers: { recent: 2, hourly: 1, daily: 0, monthly: 0 },
+  recent_limit: 6,
   generations: [
     {
       id: "0f8fad5b-d9cb-469f-a165-70867728950e",
@@ -92,6 +93,7 @@ test("fetchSnapshotBackups reads a register's rules, tiers and generations", asy
     value: {
       rules: { hourly: 24, daily: 30, monthly: 12 },
       tiers: { recent: 2, hourly: 1, daily: 0, monthly: 0 },
+      recentLimit: 6,
       generations: [
         {
           id: "0f8fad5b-d9cb-469f-a165-70867728950e",

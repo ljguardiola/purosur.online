@@ -99,7 +99,7 @@ test("shows how many generations each tier keeps and the rules that bound it", a
   const screen = await renderScreen(servicesWithBackups());
 
   await expect.element(screen.getByText("Recientes")).toBeVisible();
-  await expect.element(screen.getByText("6", { exact: true })).toBeVisible();
+  await expect.element(screen.getByText("5 de 6", { exact: true })).toBeVisible();
   await expect.element(screen.getByText("En el disco y en el bucket")).toBeVisible();
   await expect.element(screen.getByText("Por hora")).toBeVisible();
   await expect.element(screen.getByText("24", { exact: true })).toBeVisible();
@@ -177,6 +177,7 @@ test("shows an empty table for a register that has not generated any backup yet"
     servicesWithBackups({
       rules: backups.rules,
       tiers: { recent: 0, hourly: 0, daily: 0, monthly: 0 },
+      recentLimit: 6,
       generations: [],
     }),
   );

@@ -135,6 +135,7 @@ describe("GET /snapshot-backups/registers/:registerId", () => {
     expect(response.json()).toEqual({
       rules: { hourly: 24, daily: 30, monthly: 12 },
       tiers: { recent: 0, hourly: 0, daily: 0, monthly: 0 },
+      recent_limit: 6,
       generations: [],
     });
   });
@@ -171,6 +172,7 @@ describe("GET /snapshot-backups/registers/:registerId", () => {
     expect(response.json()).toEqual({
       rules: { hourly: 12, daily: 14, monthly: 6 },
       tiers: { recent: 1, hourly: 1, daily: 1, monthly: 1 },
+      recent_limit: 6,
       generations: [
         {
           id: SECOND_GENERATION_ID,
