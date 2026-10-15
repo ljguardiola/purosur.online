@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { OFFSITE_DUMP_SHRINK_THRESHOLD_PERCENT } from "../../backups/index.js";
 import {
+  clockCorrectedObservation,
   externalBillingObservation,
   fiscalDocumentAuthorizedObservation,
   fiscalRejectionAlertObservation,
@@ -362,5 +363,35 @@ describe("externalBillingObservation", () => {
     expect(
       externalBillingObservation({ pointOfSale: 3, documentType: "factura_c", number: 41 }),
     ).toMatchObject({ alert: { scope: "3:factura_c:41" } });
+  });
+});
+
+describe("clockCorrectedObservation", () => {
+  const correction = {
+    registerId: "register-1",
+    locationId: "location-1",
+    pointOfSale: 12,
+    documentType: "factura_c",
+    previousReading: "2026-10-03T12:00:00.000Z",
+    correctedReading: "2026-10-01T12:00:00.000Z",
+    actorId: "user-1",
+  } as const;
+
+  it("holds the condition of the register's clock correction, in its branch, naming the point of sale, both readings and who did it", () => {
+    expect(clockCorrectedObservation(correction)).toEqual({
+      holds: true,
+      alert: {
+        kind: "clock_corrected",
+        scope: "register-1",
+        locationId: "location-1",
+        detail: {
+          pointOfSale: 12,
+          documentType: "factura_c",
+          previousReading: "2026-10-03T12:00:00.000Z",
+          correctedReading: "2026-10-01T12:00:00.000Z",
+          actorId: "user-1",
+        },
+      },
+    });
   });
 });
