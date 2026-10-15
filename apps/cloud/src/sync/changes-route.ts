@@ -140,6 +140,7 @@ function toChangeWire(change: PulledCloudChange): ChangesPage["changes"][number]
           point_of_sale_number: change.row.pointOfSaleNumber,
           fiscal_address_id: change.row.fiscalAddressId,
           tax_authority_last_authorized_number: change.row.taxAuthorityLastAuthorizedNumber,
+          numbering_frozen: change.row.numberingFrozen,
           version: change.row.version,
         },
       };
