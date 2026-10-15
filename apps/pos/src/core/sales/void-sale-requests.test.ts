@@ -59,6 +59,7 @@ function deps(
     },
     paidOrderDiscovery: () => "checked",
     newSalesStoppedByDisk: () => false,
+    localDatabaseDamaged: () => false,
     ...overrides,
   };
 }
