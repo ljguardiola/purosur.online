@@ -14,7 +14,7 @@ export async function insertClockCorrection<TQueryResult extends PgQueryResultHK
     actorId,
     correctedAt,
     pointOfSale = 7,
-    previousReading = new Date("2026-10-07T12:00:00.000Z"),
+    previousReading = new Date("2026-10-20T12:00:00.000Z"),
     alertClosed = false,
   }: {
     registerId: string;
