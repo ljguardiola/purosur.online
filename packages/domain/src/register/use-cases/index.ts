@@ -205,7 +205,6 @@ export type {
   SnapshotCloudStep,
   SnapshotDeclarationAnswer,
   SnapshotUploadCloud,
-  SnapshotUploadDestination,
 } from "./snapshot-upload-ports.js";
 export type {
   SnapshotUploadTally,

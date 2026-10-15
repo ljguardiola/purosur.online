@@ -18,10 +18,15 @@ export interface UploadDeps {
   durability?: Durability;
 }
 
+interface SnapshotUploadDestination {
+  url: string;
+  headers: Record<string, string>;
+}
+
 export function cloudSnapshotUploads(
   cloud: CloudClientDeps,
   deviceToken: string,
-): SnapshotUploadCloud {
+): SnapshotUploadCloud<SnapshotUploadDestination> {
   return {
     async declare(generation) {
       const declaration: SnapshotUploadBody = {
@@ -46,17 +51,17 @@ export function cloudSnapshotUploads(
       return answer.success
         ? {
             kind: "accepted",
-            destination: { url: answer.data.upload_url, headers: answer.data.required_headers },
+            authorization: { url: answer.data.upload_url, headers: answer.data.required_headers },
           }
         : { kind: "failed" };
     },
 
-    async putObject(destination, object) {
+    async putObject(authorization, object) {
       let stored: Response;
       try {
-        stored = await cloud.fetch(destination.url, {
+        stored = await cloud.fetch(authorization.url, {
           method: "PUT",
-          headers: destination.headers,
+          headers: authorization.headers,
           body: object,
         });
       } catch {

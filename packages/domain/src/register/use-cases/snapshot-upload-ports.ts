@@ -7,23 +7,18 @@ export interface LocalSnapshotGenerations {
   markRefused(generation: LocalSnapshotGeneration, at: Date): Promise<void>;
 }
 
-export interface SnapshotUploadDestination {
-  url: string;
-  headers: Record<string, string>;
-}
-
-export type SnapshotDeclarationAnswer =
-  | { kind: "accepted"; destination: SnapshotUploadDestination }
+export type SnapshotDeclarationAnswer<Authorization> =
+  | { kind: "accepted"; authorization: Authorization }
   | { kind: "refused"; code: string }
   | { kind: "failed" }
   | { kind: "unreachable" };
 
 export type SnapshotCloudStep = "done" | "failed" | "unreachable";
 
-export interface SnapshotUploadCloud {
-  declare(generation: LocalSnapshotGeneration): Promise<SnapshotDeclarationAnswer>;
+export interface SnapshotUploadCloud<Authorization> {
+  declare(generation: LocalSnapshotGeneration): Promise<SnapshotDeclarationAnswer<Authorization>>;
   putObject(
-    destination: SnapshotUploadDestination,
+    authorization: Authorization,
     object: Uint8Array<ArrayBuffer>,
   ): Promise<SnapshotCloudStep>;
   confirmUploaded(generation: LocalSnapshotGeneration): Promise<SnapshotCloudStep>;

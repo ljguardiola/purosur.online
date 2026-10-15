@@ -5,9 +5,9 @@ import {
 } from "../model/local-snapshot-generation.js";
 import type { LocalSnapshotGenerations, SnapshotUploadCloud } from "./snapshot-upload-ports.js";
 
-export interface UploadPendingSnapshotGenerationsPorts {
+export interface UploadPendingSnapshotGenerationsPorts<Authorization> {
   generations: LocalSnapshotGenerations;
-  cloud: SnapshotUploadCloud;
+  cloud: SnapshotUploadCloud<Authorization>;
   clock: Clock;
 }
 
@@ -23,8 +23,8 @@ export type UploadPendingSnapshotGenerationsOutcome =
 
 type GenerationUpload = keyof SnapshotUploadTally | "unreachable";
 
-async function uploadGeneration(
-  { generations, cloud, clock }: UploadPendingSnapshotGenerationsPorts,
+async function uploadGeneration<Authorization>(
+  { generations, cloud, clock }: UploadPendingSnapshotGenerationsPorts<Authorization>,
   generation: LocalSnapshotGeneration,
 ): Promise<GenerationUpload> {
   const object = await generations.objectOf(generation);
@@ -43,7 +43,7 @@ async function uploadGeneration(
   if (declared.kind !== "accepted") {
     return declared.kind;
   }
-  const stored = await cloud.putObject(declared.destination, object);
+  const stored = await cloud.putObject(declared.authorization, object);
   if (stored !== "done") {
     return stored;
   }
@@ -55,8 +55,8 @@ async function uploadGeneration(
   return "uploaded";
 }
 
-export async function uploadPendingSnapshotGenerations(
-  ports: UploadPendingSnapshotGenerationsPorts,
+export async function uploadPendingSnapshotGenerations<Authorization>(
+  ports: UploadPendingSnapshotGenerationsPorts<Authorization>,
 ): Promise<UploadPendingSnapshotGenerationsOutcome> {
   const tally: SnapshotUploadTally = { uploaded: 0, refused: 0, failed: 0 };
   for (const generation of await ports.generations.pendingNewestFirst()) {
