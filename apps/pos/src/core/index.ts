@@ -1,6 +1,5 @@
 import { execFile } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { existsSync } from "node:fs";
 import { hostname, release, version } from "node:os";
 import { dirname, join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
@@ -11,7 +10,6 @@ import {
   REGISTER_UPDATE_HOLD_LIMIT_MS,
   STORAGE_READ_INTERVAL_MS,
 } from "@purosur/domain";
-import { sendSnapshotCorruptionReport as sendSnapshotCorruptionReportTo } from "@purosur/domain/register/use-cases";
 import * as Sentry from "@sentry/electron/utility";
 import { net } from "electron";
 import {
@@ -63,7 +61,6 @@ import {
   openCashSessionFor,
   sessionOpenSaleFor,
 } from "./register/cash-session-requests";
-import { cloudSnapshotCorruption } from "./register/cloud-snapshot-corruption";
 import { coreFailureReporters } from "./register/core-failure-reporters";
 import { rotateDeviceToken } from "./register/device-token-rotation";
 import { startDeviceTokenRotationSchedule } from "./register/device-token-rotation-schedule";
@@ -86,10 +83,11 @@ import { createSerialDeviceWatch, pathOfMatchingDevice } from "./register/serial
 import { serialDevicesReportOf } from "./register/serial-devices-report";
 import { readSerialDevicesFor, registerSerialDevicesFor } from "./register/serial-devices-requests";
 import { listSerialPorts, serialportEnumeration } from "./register/serialport-enumeration";
+import { snapshotCorruptionReportSending } from "./register/snapshot-corruption-report-sending";
 import type { SnapshotCycleSchedule } from "./register/snapshot-cycle-schedule";
 import { startSnapshotCycle } from "./register/snapshot-cycle-wiring";
 import { readOpenSession } from "./register/sqlite-cash-ledger";
-import { DAMAGE_MARKER_FILE } from "./register/sqlite-local-database-health";
+import { localDatabaseDamageIn } from "./register/sqlite-local-database-health";
 import { SqliteSerialDeviceRegistrations } from "./register/sqlite-serial-device-registrations";
 import { startupPendingFor } from "./register/startup-pending-requests";
 import { recoverAtStartup } from "./register/startup-recovery";
@@ -217,9 +215,7 @@ const BARCODE_READER_RETRY_MS = 3_000;
 const localDataFolder = localDataFolderFromCoreArguments(process.argv);
 const localDatabasePath =
   localDataFolder === undefined ? undefined : join(localDataFolder, LOCAL_DATABASE_FILE);
-const damageMarkerPath =
-  localDataFolder === undefined ? undefined : join(localDataFolder, DAMAGE_MARKER_FILE);
-const localDatabaseDamaged = () => damageMarkerPath !== undefined && existsSync(damageMarkerPath);
+const localDatabaseDamaged = localDatabaseDamageIn(localDataFolder);
 
 async function startLocalDatabaseFile(): Promise<StartedLocalDatabase | undefined> {
   if (localDatabasePath === undefined) {
@@ -358,23 +354,12 @@ const snapshotCorruptionReports =
     ? undefined
     : fileSnapshotCorruptionReports(join(localDataFolder, SNAPSHOT_CORRUPTION_UNREPORTED_FILE));
 
-async function sendSnapshotCorruptionReport(): Promise<void> {
-  if (snapshotCorruptionReports === undefined || cloudClient === undefined) {
-    return;
-  }
-  const client = cloudClient;
-  try {
-    await sendSnapshotCorruptionReportTo({
-      reports: snapshotCorruptionReports,
-      cloud: cloudSnapshotCorruption({
-        readDeviceToken: async () => (await mainRequests.readCredentials())?.device_token,
-        post: (path, bearerToken, body) => postToCloudWithBearer(client, path, bearerToken, body),
-      }),
-    });
-  } catch (error) {
-    reportFailure("reporting the snapshot corruption to the cloud", error);
-  }
-}
+const sendSnapshotCorruptionReport = snapshotCorruptionReportSending({
+  reports: snapshotCorruptionReports,
+  cloudClient,
+  readDeviceToken: async () => (await mainRequests.readCredentials())?.device_token,
+  reportFailure: (error) => reportFailure("reporting the snapshot corruption to the cloud", error),
+});
 
 // An unreachable cloud is how a register without internet looks, so only an unexpected stop is
 // reported; the next cycle resumes from the cursor and the outbox already saved either way.

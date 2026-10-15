@@ -76,7 +76,11 @@ export function createSnapshotWorkerLauncher(
     running = worker;
     let copyFailedStage: string | undefined;
     worker.on("message", (message) => {
-      copyFailedStage = readSnapshotCopyFailure(message) ?? copyFailedStage;
+      const stage = readSnapshotCopyFailure(message);
+      if (stage !== undefined) {
+        copyFailedStage = stage;
+        worker.kill();
+      }
     });
     const cancelTimer = deps.startTimer(() => {
       if (running === worker) {

@@ -2,7 +2,7 @@ import { setTimeout as sleep } from "node:timers/promises";
 import { snapshotWorkerJobSchema } from "@purosur/contracts";
 import { net } from "electron";
 import { runSnapshotJob } from "./register/run-snapshot-job";
-import { snapshotWorkerMessageOf } from "./register/snapshot-worker-message";
+import { endSnapshotWorker } from "./register/snapshot-worker-message";
 
 process.parentPort.once("message", (event) => {
   const job = snapshotWorkerJobSchema.safeParse(event.data);
@@ -26,11 +26,10 @@ process.parentPort.once("message", (event) => {
       } else {
         console.info("snapshot worker: finished", result.uploads);
       }
-      const message = snapshotWorkerMessageOf(result);
-      if (message !== undefined) {
-        process.parentPort.postMessage(message);
-      }
-      process.exit(result.kind === "aborted" ? 1 : 0);
+      endSnapshotWorker(result, {
+        post: (message) => process.parentPort.postMessage(message),
+        exit: (code) => process.exit(code),
+      });
     },
     (error: unknown) => {
       console.error("snapshot worker: failed", error);
