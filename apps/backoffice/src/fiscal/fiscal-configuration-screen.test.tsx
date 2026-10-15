@@ -438,7 +438,7 @@ test("has no accessibility violations once loaded", async () => {
   await expectNoAccessibilityViolations(document.body);
 });
 
-test("shows the buyer-identification threshold in effect today under the issuer identification", async () => {
+test("shows the buyer-identification threshold in effect today under the issuer identification, and the clock corrections after it", async () => {
   const services = createServices();
   vi.mocked(services.fetchIssuerIdentification).mockResolvedValue({ kind: "ok", value: complete });
   vi.mocked(services.fetchBuyerIdentificationThresholds).mockResolvedValue({
@@ -452,6 +452,7 @@ test("shows the buyer-identification threshold in effect today under the issuer 
   expect(headings.map((heading) => heading.textContent)).toEqual([
     "Identificación del emisor",
     "Umbral de identificación del comprador",
+    "Correcciones de reloj",
   ]);
   await expect.element(screen.getByText("$ 10.000.000,00")).toBeVisible();
 });
