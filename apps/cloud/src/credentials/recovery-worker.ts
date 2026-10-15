@@ -36,6 +36,8 @@ export interface StartRecoveryWorkerOptions {
   emailSender: AccessEmailSender;
   now: () => Date;
   jobs?: readonly BackgroundJobs[];
+  /** Only a wiring test turns these off, so graphile-worker's wall-clock crontab never adds a run the test did not ask for. */
+  schedules?: boolean;
 }
 
 export interface StartRecoveryWorkerDeps extends ReportErrorDeps {
@@ -95,11 +97,15 @@ export async function startRecoveryWorker(
     pgPool: pool as Pool,
     concurrency: WORKER_CONCURRENCY,
     logger: loggerReportingFatalErrors(deps),
-    // graphile-worker 0.18's RunnerOptions takes this crontab string in place of a crontab file.
-    crontab: [
-      RECOVERY_REJECTED_ATTEMPT_FLUSH_CRONTAB_LINE,
-      ...jobs.flatMap((job) => job.crontab),
-    ].join("\n"),
+    ...(options.schedules === false
+      ? { parsedCronItems: [] }
+      : {
+          // graphile-worker 0.18's RunnerOptions takes this crontab string in place of a crontab file.
+          crontab: [
+            RECOVERY_REJECTED_ATTEMPT_FLUSH_CRONTAB_LINE,
+            ...jobs.flatMap((job) => job.crontab),
+          ].join("\n"),
+        }),
     events,
     taskList: {
       ...Object.assign({}, ...jobs.map((job) => job.taskList)),
