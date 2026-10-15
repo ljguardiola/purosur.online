@@ -1,5 +1,5 @@
 import type { FiscalDocumentState } from "../../fiscal/index.js";
-import type { SalePayment } from "../../payments/index.js";
+import type { PaymentTransaction } from "../../payments/index.js";
 import type { CashMovement } from "../../register/index.js";
 import type { OutboxEventDraft } from "../../shared/index.js";
 import type { SaleWithLines } from "../model/sale.js";
@@ -9,7 +9,7 @@ import type { SaleCashMovement, SaleRefund, SaleStockMovement } from "./sale-led
 export interface SaleToVoid {
   sale: SaleWithLines;
   inOpenSession: boolean;
-  payments: SalePayment[];
+  payments: (PaymentTransaction & { occurredAt: Date })[];
   fiscalDocumentStates: FiscalDocumentState[];
   deferredRecord: DeferredSaleRecord | null;
   stockMovements: SaleStockMovement[];
