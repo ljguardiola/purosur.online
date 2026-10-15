@@ -2533,14 +2533,14 @@ describe("the route access inventory", () => {
         access: RELEASE_CHECK_ACCESS,
       },
       {
-        method: "POST",
-        url: "/api/backups/offsite-dump-checks",
-        access: OFFSITE_DUMP_CHECK_ACCESS,
-      },
-      {
         method: "GET",
         url: "/api/sync/readable-event-versions",
         access: RELEASE_CHECK_ACCESS,
+      },
+      {
+        method: "POST",
+        url: "/api/backups/offsite-dump-checks",
+        access: OFFSITE_DUMP_CHECK_ACCESS,
       },
       {
         method: "GET",
