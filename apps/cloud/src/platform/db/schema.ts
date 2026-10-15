@@ -6,6 +6,7 @@ import {
   DEFAULT_UNREVIEWED_PRICE_ALERT_DAYS,
   type EventQuarantine,
   FACTURA_C_DOCUMENT_TYPE,
+  type FiscalDocumentType,
   type JsonValue,
   OFFLINE_AUTHORIZATION_CAUSES,
   OFFLINE_NUMBER_BLOCK_STATUSES,
@@ -2156,6 +2157,15 @@ export const fortnightReportState = pgEnum("fortnight_report_state", [
   "needs_regularization",
 ]);
 
+export const fortnightReportMovement = pgEnum("fortnight_report_movement", ["none", "documents"]);
+
+export const documentTypeReportState = pgEnum("document_type_report_state", [
+  "blocked",
+  "submitting",
+  "refused",
+  "accepted",
+]);
+
 export const fortnightReports = pgTable(
   "fortnight_reports",
   {
@@ -2167,6 +2177,7 @@ export const fortnightReports = pgTable(
       .references(() => caeaCodes.fortnightStart),
     fortnightEnd: date("fortnight_end", { mode: "string" }).notNull(),
     state: fortnightReportState("state").notNull(),
+    movement: fortnightReportMovement("movement"),
     lastAttemptAt: timestamp("last_attempt_at", { withTimezone: true }),
     rejections: jsonb("rejections").$type<TaxAuthorityRejection[]>(),
     recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull(),
@@ -2179,6 +2190,40 @@ export const fortnightReports = pgTable(
     check(
       "fortnight_reports_fortnight_ends_after_start",
       sql`${table.fortnightEnd} > ${table.fortnightStart}`,
+    ),
+  ],
+);
+
+export const fortnightDocumentReports = pgTable(
+  "fortnight_document_reports",
+  {
+    pointOfSaleNumber: integer("point_of_sale_number")
+      .notNull()
+      .references(() => pointOfSaleClaims.pointOfSaleNumber),
+    fortnightStart: date("fortnight_start", { mode: "string" })
+      .notNull()
+      .references(() => caeaCodes.fortnightStart),
+    fortnightEnd: date("fortnight_end", { mode: "string" }).notNull(),
+    documentType: text("document_type").$type<FiscalDocumentType>().notNull(),
+    state: documentTypeReportState("state").notNull(),
+    reportedThrough: integer("reported_through").notNull(),
+    rejectedNumber: integer("rejected_number"),
+    rejections: jsonb("rejections").$type<TaxAuthorityRejection[]>(),
+    lastAttemptAt: timestamp("last_attempt_at", { withTimezone: true }),
+    recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    primaryKey({
+      name: "fortnight_document_reports_pkey",
+      columns: [table.pointOfSaleNumber, table.fortnightStart, table.documentType],
+    }),
+    check(
+      "fortnight_document_reports_fortnight_ends_after_start",
+      sql`${table.fortnightEnd} > ${table.fortnightStart}`,
+    ),
+    check(
+      "fortnight_document_reports_document_type_known",
+      sql`${table.documentType} in (${sql.raw(`'${FACTURA_C_DOCUMENT_TYPE}'`)})`,
     ),
   ],
 );
