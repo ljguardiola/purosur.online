@@ -49,6 +49,11 @@ import {
 } from "./fiscal/buyer-tax-status-fetch-task.js";
 import { DrizzleIssuerIdentificationStore } from "./fiscal/drizzle-issuer-identification-store.js";
 import { fortnightReportJobs } from "./fiscal/fortnight-report-task.js";
+import {
+  enqueueMissingNumberingConflicts,
+  enqueueNumberingDiagnosisJob,
+  enqueueNumberingReconciliationJob,
+} from "./fiscal/graphile-numbering-conflict-queue.js";
 import { enqueueOfflineAuthorizationCodeRequest } from "./fiscal/graphile-offline-authorization-code-queue.js";
 import {
   enqueueMissingTaxAuthorityCounts,
@@ -59,6 +64,7 @@ import {
   enqueueUnclearOutcomeJob,
   withdrawUnclearOutcomeJob,
 } from "./fiscal/graphile-unclear-outcome-queue.js";
+import { numberingConflictJobs } from "./fiscal/numbering-conflict-task.js";
 import { offlineAuthorizationCodeJobs } from "./fiscal/offline-authorization-code-task.js";
 import { resumeWorkWaitingOnWsaaToken } from "./fiscal/resume-work-waiting-on-wsaa-token.js";
 import { taxAuthorityCountJobs } from "./fiscal/tax-authority-count-task.js";
@@ -579,6 +585,15 @@ export async function setUpRecovery(
               connections,
               enqueueUnclearOutcome: enqueueUnclearOutcomeJob,
             }),
+            numberingConflictJobs({
+              now,
+              vouchers: new WsfeTaxAuthorityVouchers(recoveryEnv.arcaInvoicing),
+              taxAuthority: new WsfeTaxAuthorityLastAuthorized(recoveryEnv.arcaInvoicing),
+              certificateFingerprint: recoveryEnv.arcaInvoicing.certificateFingerprint,
+              db,
+              connections,
+              enqueueNumberingReconciliation: enqueueNumberingReconciliationJob,
+            }),
             offlineAuthorizationCodeJobs({
               now,
               taxAuthority: new WsfeTaxAuthorityOfflineAuthorizationCodes(
@@ -631,6 +646,7 @@ export interface StartServerDeps {
   ) => Promise<unknown>;
   enqueueMissingTaxAuthorityCounts?: (db: RecoveryInfrastructure["db"]) => Promise<unknown>;
   enqueueMissingUnclearOutcomes?: (db: RecoveryInfrastructure["db"]) => Promise<unknown>;
+  enqueueMissingNumberingConflicts?: (db: RecoveryInfrastructure["db"]) => Promise<unknown>;
   now?: () => Date;
   arcaEndpoints: (environment: string) => ArcaEndpoints;
   recordAuthorizedCuit?: (
@@ -664,6 +680,8 @@ export async function startServer(env: ServerEnv, deps: StartServerDeps): Promis
     deps.enqueueMissingTaxAuthorityCounts ?? enqueueMissingTaxAuthorityCounts;
   const doEnqueueMissingUnclearOutcomes =
     deps.enqueueMissingUnclearOutcomes ?? enqueueMissingUnclearOutcomes;
+  const doEnqueueMissingNumberingConflicts =
+    deps.enqueueMissingNumberingConflicts ?? enqueueMissingNumberingConflicts;
   const doRecordAuthorizedCuit =
     deps.recordAuthorizedCuit ??
     ((db: RecoveryInfrastructure["db"], authorizedCuit: string) =>
@@ -778,6 +796,7 @@ export async function startServer(env: ServerEnv, deps: StartServerDeps): Promis
             certificateFingerprint: invoicing.certificateFingerprint,
             enqueueUnclearOutcome: enqueueUnclearOutcomeJob,
             withdrawUnclearOutcome: withdrawUnclearOutcomeJob,
+            enqueueNumberingDiagnosis: enqueueNumberingDiagnosisJob,
           },
         }
       : {}),
@@ -792,6 +811,7 @@ export async function startServer(env: ServerEnv, deps: StartServerDeps): Promis
     if (invoicing) {
       await doEnqueueMissingTaxAuthorityCounts(database.recovery.db);
       await doEnqueueMissingUnclearOutcomes(database.recovery.db);
+      await doEnqueueMissingNumberingConflicts(database.recovery.db);
     }
   }
   await app.listen({ port: resolvePort(env), host: "0.0.0.0" });

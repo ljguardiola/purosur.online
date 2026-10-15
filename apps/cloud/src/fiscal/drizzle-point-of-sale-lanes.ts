@@ -1,4 +1,8 @@
-import { awaitsUnclearOutcomeDecision, fiscalRejectionAlertObservation } from "@purosur/domain";
+import {
+  awaitsUnclearOutcomeDecision,
+  fiscalRejectionAlertObservation,
+  isNumberingConflict,
+} from "@purosur/domain";
 import {
   type AuthorizationRequestRecord,
   FiscalDocumentAlreadyRecorded,
@@ -21,6 +25,7 @@ import {
 import type { DedicatedConnections } from "../platform/dedicated-connections.js";
 import { PendingChanges } from "../sync/change-log.js";
 import { DrizzleTaxAuthorityCounts } from "./drizzle-tax-authority-counts.js";
+import type { EnqueueNumberingDiagnosis } from "./enqueue-numbering-conflict.js";
 import type {
   EnqueueUnclearOutcome,
   SqlExecutor,
@@ -36,15 +41,18 @@ class DrizzlePointOfSaleLane<TQueryResult extends PgQueryResultHKT> implements P
   private readonly db: PgDatabase<TQueryResult>;
   private readonly enqueueUnclearOutcome: EnqueueUnclearOutcome;
   private readonly withdrawUnclearOutcome: WithdrawUnclearOutcome;
+  private readonly enqueueNumberingDiagnosis: EnqueueNumberingDiagnosis;
 
   constructor(
     db: PgDatabase<TQueryResult>,
     enqueueUnclearOutcome: EnqueueUnclearOutcome,
     withdrawUnclearOutcome: WithdrawUnclearOutcome,
+    enqueueNumberingDiagnosis: EnqueueNumberingDiagnosis,
   ) {
     this.db = db;
     this.enqueueUnclearOutcome = enqueueUnclearOutcome;
     this.withdrawUnclearOutcome = withdrawUnclearOutcome;
+    this.enqueueNumberingDiagnosis = enqueueNumberingDiagnosis;
   }
 
   private async scheduleUnclearOutcome(
@@ -52,11 +60,15 @@ class DrizzlePointOfSaleLane<TQueryResult extends PgQueryResultHKT> implements P
     fiscalDocumentId: string,
     answer: RealTimeAuthorizationAnswer,
     answeredAt: Date,
+    unclearCodes: readonly number[],
   ): Promise<void> {
     if (awaitsUnclearOutcomeDecision(answer)) {
       await this.enqueueUnclearOutcome(transaction, fiscalDocumentId, answeredAt);
     } else {
       await this.withdrawUnclearOutcome(transaction, fiscalDocumentId);
+    }
+    if (answer.kind === "unclear" && isNumberingConflict(unclearCodes)) {
+      await this.enqueueNumberingDiagnosis(transaction, fiscalDocumentId);
     }
   }
 
@@ -125,7 +137,7 @@ class DrizzlePointOfSaleLane<TQueryResult extends PgQueryResultHKT> implements P
         .update(fiscalRequests)
         .set({ ...answerColumnsOf(answer, unclearCodes), answeredAt })
         .where(eq(fiscalRequests.fiscalDocumentId, fiscalDocumentId));
-      await this.scheduleUnclearOutcome(tx, fiscalDocumentId, answer, answeredAt);
+      await this.scheduleUnclearOutcome(tx, fiscalDocumentId, answer, answeredAt, unclearCodes);
     });
   }
 
@@ -161,7 +173,7 @@ class DrizzlePointOfSaleLane<TQueryResult extends PgQueryResultHKT> implements P
         await new DrizzleTaxAuthorityCounts(tx, pending).advance(taxAuthorityCount);
         await pending.log(tx);
       }
-      await this.scheduleUnclearOutcome(tx, fiscalDocumentId, answer, answeredAt);
+      await this.scheduleUnclearOutcome(tx, fiscalDocumentId, answer, answeredAt, unclearCodes);
     });
   }
 }
@@ -172,15 +184,18 @@ export class DrizzlePointOfSaleLanes<TQueryResult extends PgQueryResultHKT>
   private readonly connections: DedicatedConnections<TQueryResult>;
   private readonly enqueueUnclearOutcome: EnqueueUnclearOutcome;
   private readonly withdrawUnclearOutcome: WithdrawUnclearOutcome;
+  private readonly enqueueNumberingDiagnosis: EnqueueNumberingDiagnosis;
 
   constructor(
     connections: DedicatedConnections<TQueryResult>,
     enqueueUnclearOutcome: EnqueueUnclearOutcome,
     withdrawUnclearOutcome: WithdrawUnclearOutcome,
+    enqueueNumberingDiagnosis: EnqueueNumberingDiagnosis,
   ) {
     this.connections = connections;
     this.enqueueUnclearOutcome = enqueueUnclearOutcome;
     this.withdrawUnclearOutcome = withdrawUnclearOutcome;
+    this.enqueueNumberingDiagnosis = enqueueNumberingDiagnosis;
   }
 
   inPointOfSaleLane<TOutcome>(
@@ -188,7 +203,14 @@ export class DrizzlePointOfSaleLanes<TQueryResult extends PgQueryResultHKT>
     work: (lane: PointOfSaleLane) => Promise<TOutcome>,
   ): Promise<TOutcome> {
     return withPointOfSaleLaneLock(this.connections, pointOfSale, (db) =>
-      work(new DrizzlePointOfSaleLane(db, this.enqueueUnclearOutcome, this.withdrawUnclearOutcome)),
+      work(
+        new DrizzlePointOfSaleLane(
+          db,
+          this.enqueueUnclearOutcome,
+          this.withdrawUnclearOutcome,
+          this.enqueueNumberingDiagnosis,
+        ),
+      ),
     );
   }
 }

@@ -235,6 +235,7 @@ export {
   isIssuerIdentificationActivityStartDate,
   isIssuerIdentificationGrossIncomeRegistrationTooLong,
   isIssuerIdentificationLegalNameTooLong,
+  isNumberingConflict,
   isPointOfSaleNumber,
   isSameFiscalAddressName,
   isSecondHalfOfMonth,
