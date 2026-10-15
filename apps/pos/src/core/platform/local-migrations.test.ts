@@ -4456,4 +4456,90 @@ describe("the register's local migrations", () => {
       rmSync(folder, { recursive: true, force: true });
     }
   });
+
+  it("let an offline point of sale hold the highest number synced and an offline block be used up, keeping what a register already holds", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.filter(
+        (migration) => migration.name < "0055_offline_numbering_floor",
+      );
+      expect(LOCAL_MIGRATIONS.map((migration) => migration.name)).toContain(
+        "0055_offline_numbering_floor",
+      );
+      const before = openLocalDatabase(path, previous, migrationClock);
+      before.exec(
+        `INSERT INTO register_offline_point_of_sale (register_id, point_of_sale_number, tax_authority_last_authorized_number, version)
+         VALUES ('r1', 31, 1000, 2);
+         INSERT INTO offline_number_blocks (id, point_of_sale, document_type, first_number, last_number, status, version)
+         VALUES ('b1', 31, 'factura_c', 1001, 2000, 'in_use', 3);`,
+      );
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+
+      expect(
+        after
+          .prepare(
+            "SELECT register_id, point_of_sale_number, tax_authority_last_authorized_number, highest_synced_offline_number, version FROM register_offline_point_of_sale",
+          )
+          .all(),
+      ).toEqual([
+        {
+          register_id: "r1",
+          point_of_sale_number: 31,
+          tax_authority_last_authorized_number: 1000,
+          highest_synced_offline_number: null,
+          version: 2,
+        },
+      ]);
+      expect(
+        after
+          .prepare(
+            "SELECT id, point_of_sale, document_type, first_number, last_number, status, version FROM offline_number_blocks",
+          )
+          .all(),
+      ).toEqual([
+        {
+          id: "b1",
+          point_of_sale: 31,
+          document_type: "factura_c",
+          first_number: 1001,
+          last_number: 2000,
+          status: "in_use",
+          version: 3,
+        },
+      ]);
+      const setHighest = (value: number) =>
+        after
+          .prepare("UPDATE register_offline_point_of_sale SET highest_synced_offline_number = ?")
+          .run(value);
+      expect(() => setHighest(1500)).not.toThrow();
+      expect(() => setHighest(-1)).toThrow(/CHECK/);
+      const insertBlock = after.prepare(
+        `INSERT INTO offline_number_blocks (
+           id, point_of_sale, document_type, first_number, last_number, status, version
+         ) VALUES (@id, @point_of_sale, @document_type, @first_number, @last_number, @status, 1)`,
+      );
+      const block = {
+        id: "b2",
+        point_of_sale: 31,
+        document_type: "factura_c",
+        first_number: 2001,
+        last_number: 3000,
+        status: "used_up",
+      };
+      expect(() => insertBlock.run({ ...block, id: "b0", status: "closed" })).toThrow(/CHECK/);
+      expect(() => insertBlock.run({ ...block, id: "b0", point_of_sale: 0 })).toThrow(/CHECK/);
+      expect(() => insertBlock.run({ ...block, id: "b0", document_type: "FACTURA_C" })).toThrow(
+        /CHECK/,
+      );
+      expect(() => insertBlock.run({ ...block, id: "b0", last_number: 2000 })).toThrow(/CHECK/);
+      expect(() => insertBlock.run(block)).not.toThrow();
+      expect(() => insertBlock.run({ ...block, id: "b3", last_number: 4000 })).toThrow(/UNIQUE/);
+      after.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
 });
