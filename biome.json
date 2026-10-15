@@ -159,7 +159,7 @@
                       "DeviceCredentialsAnswer",
                       "DeviceCredentialsRequest",
                       "RegisterUpdateAnswer",
-                      "SnapshotWorkerLaunchRequest",
+                      "MainToCoreMessage",
                       "UpdateSafeMomentAnswer"
                     ]
                   }

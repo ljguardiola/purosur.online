@@ -37,6 +37,7 @@ import {
   spawnDetachedInstaller,
   updateFetch,
 } from "./register-update-adapters";
+import { createSnapshotWorkerLauncher } from "./snapshot-worker-launcher";
 import { reportStartFailure } from "./start-failure";
 import { createSafeMomentAsker } from "./update-safe-moment-asker";
 import { showWhenReadyAndReviveRenderer } from "./window-lifecycle";
@@ -51,6 +52,7 @@ function keepDataInChannelFolder(settings: ChannelSettings): void {
 // electron-vite's output layout: the core is a second main-side entry next to index.js; preload
 // and renderer each get their own directory.
 const CORE_ENTRY = join(import.meta.dirname, "core.js");
+const SNAPSHOT_WORKER_ENTRY = join(import.meta.dirname, "snapshot-worker.js");
 const PRELOAD_ENTRY = join(import.meta.dirname, "../preload/index.cjs");
 const RENDERER_ENTRY = join(import.meta.dirname, "../renderer/index.html");
 
@@ -209,6 +211,21 @@ function startRegister(settings: ChannelSettings): void {
       },
     });
 
+    const snapshotWorkerLauncher = createSnapshotWorkerLauncher({
+      fork: () => {
+        const child = utilityProcess.fork(SNAPSHOT_WORKER_ENTRY, [], {
+          stdio: ["ignore", "pipe", "pipe"],
+        });
+        forwardCoreOutput(child, process.stdout, process.stderr);
+        return child;
+      },
+      startTimer: (run, delayMs) => {
+        const id = setTimeout(run, delayMs);
+        return () => clearTimeout(id);
+      },
+      notifyCore: (notice) => currentCoreProcess?.postMessage(notice),
+    });
+
     const supervisor = createCoreSupervisor({
       fork: (): SupervisedProcess => {
         const child = utilityProcess.fork(CORE_ENTRY, coreArguments, {
@@ -217,6 +234,7 @@ function startRegister(settings: ChannelSettings): void {
         forwardCoreOutput(child, process.stdout, process.stderr);
         child.on("message", (message) => {
           safeMomentAsker.handleCoreMessage(message);
+          snapshotWorkerLauncher.handleCoreMessage(message);
           const request = readDeviceCredentialsRequest(message);
           if (request !== undefined) {
             child.postMessage(answerCoreCredentialsRequest(deviceCredentials, request));
@@ -263,7 +281,10 @@ function startRegister(settings: ChannelSettings): void {
     supervisor.start();
     // Stopping first keeps the core's quit-triggered exit from being taken for a crash and
     // relaunched while the window is going away.
-    app.on("before-quit", () => supervisor.stop());
+    app.on("before-quit", () => {
+      supervisor.stop();
+      snapshotWorkerLauncher.stop();
+    });
 
     createRegisterUpdater({
       isPackaged: app.isPackaged,
