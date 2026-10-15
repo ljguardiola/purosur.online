@@ -1965,6 +1965,58 @@ function overdueReportAlert(
   });
 }
 
+function regularizationReportAlert(
+  detail: Partial<
+    Extract<AlertDetail, { kind: "fortnight_report_needs_regularization" }>["detail"]
+  > = {},
+) {
+  const { deadline: _omitted, ...presentation } = REPORT_PRESENTATION;
+  return baseDetail({
+    kind: "fortnight_report_needs_regularization",
+    level: "critical",
+    audience: "all",
+    scope: "4:2026-09-01",
+    scopeDisplay: "4:2026-09-01:2026-09-15",
+    scopeKind: "pointOfSaleFortnight",
+    closing: "by_hand",
+    detail: { ...presentation, ...detail },
+  });
+}
+
+test("tells that invoices issued offline arrived for a fortnight already reported without movement, that nothing corrects it by itself and that a person closes the alert by hand", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(ok(regularizationReportAlert()));
+
+  const screen = await renderModal(services);
+
+  await expect.element(screen.getByText("Quincena a regularizar", { exact: true })).toBeVisible();
+  await expect
+    .element(
+      screen.getByText(
+        `Llegaron comprobantes emitidos sin conexión de la quincena ${REPORT_FORTNIGHT} del punto de venta 00004, que ya se había informado a ARCA sin movimiento.`,
+        { exact: true },
+      ),
+    )
+    .toBeVisible();
+  await expect
+    .element(
+      screen.getByText(
+        "No hay corrección automática: hay que regularizar la presentación con ARCA a mano y cerrar esta alerta.",
+        { exact: true },
+      ),
+    )
+    .toBeVisible();
+  expect(screen.getByText(/Venció/).query()).toBeNull();
+  await expect
+    .element(screen.getByText("No se cierra sola: se cierra a mano después de revisarla."))
+    .toBeVisible();
+  await expect.element(screen.getByText("Crítica")).toBeVisible();
+  await expect
+    .element(screen.getByText(`Punto de venta 00004 · ${REPORT_FORTNIGHT}`, { exact: true }))
+    .toBeVisible();
+  await expectNoAccessibilityViolations(document.body);
+});
+
 test.each([
   [3, `Vence el ${REPORT_DEADLINE}. Quedan 3 días.`],
   [1, `Vence el ${REPORT_DEADLINE}. Queda 1 día.`],
