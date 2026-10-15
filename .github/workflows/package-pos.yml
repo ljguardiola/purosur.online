@@ -14,6 +14,7 @@ on:
       - .github/scripts/same-app-code.mjs
       - .github/scripts/app-code-hash.mjs
       - .github/scripts/publish-pos-update.mjs
+      - .github/scripts/register-candidate.mjs
   push:
     branches: [main]
     paths:
@@ -28,6 +29,7 @@ on:
       - .github/scripts/same-app-code.mjs
       - .github/scripts/app-code-hash.mjs
       - .github/scripts/publish-pos-update.mjs
+      - .github/scripts/register-candidate.mjs
 
 # On `pull_request`, a new push supersedes the run still going for its previous push. Runs on main
 # get a group of their own per commit, so they are never cancelled or replaced.
@@ -44,10 +46,10 @@ jobs:
     timeout-minutes: 12
     # Every run builds both channels' installers, so a change that breaks either one fails before
     # it merges. Only a merge to main runs under the staging environment, which admits nothing but
-    # main, and keeps its staging installer. The job builds the app code once and packages both
-    # channels from it, but only the pack:staging step below reads the staging environment's Sentry
-    # DSN and cloud URL — pack:production never receives them. The production installer that
-    # ships comes from the tag-bound release workflow.
+    # main, and keeps both installers. The job builds the app code once and packages both channels
+    # from it. The staging Sentry DSN is read only by the pack:staging step, from the staging
+    # environment; the production DSN and cloud are repository variables a push to main reads, as
+    # that is where the production installer that ships is built.
     environment: ${{ github.event_name == 'push' && 'staging' || '' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -75,8 +77,8 @@ jobs:
       - run: pnpm --filter @purosur/pos pack:production
         env:
           POS_VERSION: 0.0.${{ github.run_number }}
-          POS_SENTRY_DSN: ""
-          POS_CLOUD_URL: ""
+          POS_SENTRY_DSN: ${{ github.event_name == 'push' && vars.POS_PRODUCTION_SENTRY_DSN || '' }}
+          POS_CLOUD_URL: ${{ github.event_name == 'push' && vars.POS_PRODUCTION_CLOUD_URL || '' }}
 
       # The DSN reaches only the job running under the staging environment (a push to main), which
       # is also the only run that keeps the staging installer.
@@ -99,6 +101,15 @@ jobs:
           name: pos-staging-installer
           retention-days: 7
           path: apps/pos/release/staging/*.exe
+          if-no-files-found: error
+
+      - name: Upload the production installer
+        if: github.event_name == 'push'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: pos-production-installer
+          retention-days: 1
+          path: apps/pos/release/production/*.exe
           if-no-files-found: error
 
       - name: Upload the production app.asar
@@ -191,9 +202,11 @@ jobs:
           package-build/app.asar
           independent-build/app.asar
 
+  # The staging feed only ever serves an installer whose candidate this same attempt stored, so the
+  # installer validated in staging is the one stored beside the production installer it promotes.
   publish-staging-update:
     name: publish the staging installer to the update feed
-    needs: [package, independent-build-agrees]
+    needs: [package, independent-build-agrees, store-candidate]
     if: github.event_name == 'push'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -235,3 +248,85 @@ jobs:
           POS_UPDATES_BUCKET_REGION: ${{ vars.POS_UPDATES_BUCKET_REGION }}
           POS_UPDATES_BUCKET_ACCESS_KEY_ID: ${{ secrets.POS_UPDATES_BUCKET_ACCESS_KEY_ID }}
           POS_UPDATES_BUCKET_SECRET_ACCESS_KEY: ${{ secrets.POS_UPDATES_BUCKET_SECRET_ACCESS_KEY }}
+
+  store-candidate:
+    name: store the production installer as a release candidate
+    needs: [package, independent-build-agrees]
+    if: github.event_name == 'push'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: pos-production-installer
+          path: candidate/installer
+
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: pos-staging-installer
+          path: candidate/staging-installer
+
+      - name: Record the commit, the installer version and the staging installer's digest
+        env:
+          TARGET_SHA: ${{ github.sha }}
+          POS_VERSION: 0.0.${{ github.run_number }}
+          MANIFEST_FILE: candidate/candidate.json
+          STAGING_INSTALLER_DIR: candidate/staging-installer
+        run: node .github/scripts/register-candidate.mjs write-manifest
+
+      - name: Name the candidate image
+        id: candidate
+        env:
+          INSTALLER_VERSION: 0.0.${{ github.run_number }}
+        run: node .github/scripts/register-candidate.mjs run-of-version
+
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: oras-project/setup-oras@005458ad77f1c8facd38a094e4af2e69e5607ff4 # v2.0.2
+
+      # A re-run of a merge run keeps its run number but builds new installers; the candidate
+      # stored first stays the only one that number names.
+      - name: Refuse to replace a candidate already stored
+        env:
+          CANDIDATE_IMAGE: ${{ steps.candidate.outputs.image }}
+        run: |
+          if fetched=$(oras manifest fetch --descriptor "$CANDIDATE_IMAGE" 2>&1); then
+            echo "::error::$CANDIDATE_IMAGE already holds a candidate"
+            exit 1
+          fi
+          if ! grep -q "not found" <<< "$fetched"; then
+            echo "$fetched" >&2
+            exit 1
+          fi
+
+      - name: Push the candidate
+        working-directory: candidate
+        env:
+          CANDIDATE_IMAGE: ${{ steps.candidate.outputs.image }}
+          TARGET_SHA: ${{ github.sha }}
+        run: >-
+          oras push "$CANDIDATE_IMAGE"
+          --artifact-type application/vnd.purosur.pos-candidate.v1
+          --annotation "org.opencontainers.image.source=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY"
+          --annotation "org.opencontainers.image.revision=$TARGET_SHA"
+          candidate.json installer/*.exe staging-installer/*.exe

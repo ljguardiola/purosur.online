@@ -85,3 +85,39 @@ export function eventVersionsBuiltBy(program: ts.Program, sourceDir: string): Bu
 
   return { versions: [...versions].sort(), unreadable };
 }
+
+export function registerCoreProgram(repoRoot: string): ts.Program {
+  const registerDir = path.join(repoRoot, "apps", "pos");
+  const config = ts.getParsedCommandLineOfConfigFile(
+    path.join(registerDir, "tsconfig.json"),
+    undefined,
+    {
+      ...ts.sys,
+      onUnRecoverableConfigFileDiagnostic: (diagnostic) => {
+        throw new Error(ts.flattenDiagnosticMessageText(diagnostic.messageText, "\n"));
+      },
+    },
+  );
+  if (!config) {
+    throw new Error("apps/pos/tsconfig.json could not be read");
+  }
+  return ts.createProgram([path.join(registerDir, "src", "core", "index.ts")], config.options);
+}
+
+export function emittedEventVersions(repoRoot: string): string[] {
+  const { versions, unreadable } = eventVersionsBuiltBy(registerCoreProgram(repoRoot), repoRoot);
+  if (unreadable.length > 0) {
+    throw new Error(
+      ["Event versions that cannot be read from the source:", ...unreadable].join("\n"),
+    );
+  }
+  return versions.map((version) => version.replace(" v", "@")).sort();
+}
+
+if (import.meta.main) {
+  const repoRoot = process.argv[2];
+  if (repoRoot === undefined) {
+    throw new Error("usage: register-event-versions.ts <repository root>");
+  }
+  process.stdout.write(`${JSON.stringify(emittedEventVersions(path.resolve(repoRoot)))}\n`);
+}

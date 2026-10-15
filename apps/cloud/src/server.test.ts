@@ -878,6 +878,9 @@ describe("startServer", () => {
         db: fakeRecovery.db,
         releaseCheckToken: "release-check-token",
       },
+      readableEventVersions: {
+        releaseCheckToken: "release-check-token",
+      },
       offsiteDumpChecks: {
         db: fakeRecovery.db,
         offsiteDumpCheckToken: "offsite-dump-check-token",
