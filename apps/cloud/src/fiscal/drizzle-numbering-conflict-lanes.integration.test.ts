@@ -256,6 +256,7 @@ describe("the numbering conflict lane on a real Postgres", () => {
         frozenAt: FROZEN_AT,
       });
       expect(await inLane(8, (lane) => lane.numberingFreeze())).toBeNull();
+      await settle(7, { externalBillings: [], lastAuthorized: 0 });
     });
 
     it("lifts the freeze when the reconciliation is settled, and only that one", async () => {
@@ -333,7 +334,7 @@ describe("the numbering conflict lane on a real Postgres", () => {
     }
 
     it("reads zero before any count is recorded", async () => {
-      expect(await inLane(8, (lane) => lane.taxAuthorityCount())).toBe(0);
+      expect(await inLane(9, (lane) => lane.taxAuthorityCount())).toBe(0);
     });
 
     it("continues the series right after the number, and never lowers a count already held", async () => {
