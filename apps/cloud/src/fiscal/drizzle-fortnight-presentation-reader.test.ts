@@ -295,6 +295,19 @@ describe("DrizzleFortnightPresentationReader.branchPresentations", () => {
       });
     });
 
+    it("answers that a refusal was partial when the tax authority refused a batch whole after accepting an earlier one", async () => {
+      await issueFacturaC(registerId, OCTOBER_FIRST_HALF, [1, 2, 3]);
+      await recordFacturaC(OCTOBER_FIRST_HALF, { state: "refused", reportedThrough: 2 });
+
+      const [presentation] = await presentations("2026-10-16");
+
+      expect(presentation).toMatchObject({
+        state: "refused",
+        refusal: "partial",
+        rejectedDocument: null,
+      });
+    });
+
     it("answers one row without a document type, counting the documents, for a fortnight that needs regularization", async () => {
       await issueFacturaC(registerId, OCTOBER_FIRST_HALF, [1, 2]);
       await record(OFFLINE_POINT_OF_SALE, OCTOBER_FIRST_HALF, "needs_regularization");

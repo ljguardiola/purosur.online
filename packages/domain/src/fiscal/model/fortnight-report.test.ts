@@ -431,7 +431,14 @@ describe("fortnightPresentationRows", () => {
         state: "needs_regularization",
         movement: null,
         documents: [document("factura_c", 1), document("factura_c", 2), document("nota_c", 1)],
-        documentReports: [{ documentType: "factura_c", state: "accepted", rejectedNumber: null }],
+        documentReports: [
+          {
+            documentType: "factura_c",
+            state: "accepted",
+            reportedThrough: 2,
+            rejectedNumber: null,
+          },
+        ],
       }),
     ).toEqual([
       {
@@ -450,7 +457,14 @@ describe("fortnightPresentationRows", () => {
         state: "submitting",
         movement: null,
         documents: [document("nota_c", 4), document("factura_c", 9), document("factura_c", 8)],
-        documentReports: [{ documentType: "factura_c", state: "accepted", rejectedNumber: null }],
+        documentReports: [
+          {
+            documentType: "factura_c",
+            state: "accepted",
+            reportedThrough: 9,
+            rejectedNumber: null,
+          },
+        ],
       }),
     ).toEqual([
       {
@@ -470,7 +484,9 @@ describe("fortnightPresentationRows", () => {
         state: "blocked",
         movement: null,
         documents: [document("factura_c", 1), document("nota_c", 1)],
-        documentReports: [{ documentType: "nota_c", state: "submitting", rejectedNumber: null }],
+        documentReports: [
+          { documentType: "nota_c", state: "submitting", reportedThrough: 0, rejectedNumber: null },
+        ],
       }).map(({ documentType, state }) => [documentType, state]),
     ).toEqual([
       ["factura_c", "blocked"],
@@ -486,7 +502,9 @@ describe("fortnightPresentationRows", () => {
         documents: [1, 2, 3, 4, 5]
           .map((number) => document("factura_c", number))
           .concat(document("nota_c", 9)),
-        documentReports: [{ documentType: "factura_c", state: "refused", rejectedNumber: 2 }],
+        documentReports: [
+          { documentType: "factura_c", state: "refused", reportedThrough: 1, rejectedNumber: 2 },
+        ],
       }),
     ).toEqual([
       {
@@ -506,7 +524,9 @@ describe("fortnightPresentationRows", () => {
       state: "refused",
       movement: null,
       documents: [document("factura_c", 1), document("factura_c", 2)],
-      documentReports: [{ documentType: "factura_c", state: "refused", rejectedNumber: 2 }],
+      documentReports: [
+        { documentType: "factura_c", state: "refused", reportedThrough: 1, rejectedNumber: 2 },
+      ],
     });
 
     expect(row?.rejectedDocument).toEqual({ number: 2, unprocessed: 0 });
@@ -518,7 +538,7 @@ describe("fortnightPresentationRows", () => {
         state: "submitting",
         movement: null,
         documents: [document("factura_c", 1), document("factura_c", 2)],
-        documentReports: [{ documentType: "factura_c", state, rejectedNumber }],
+        documentReports: [{ documentType: "factura_c", state, reportedThrough: 0, rejectedNumber }],
       });
 
     expect(rows("refused", null)[0]?.rejectedDocument).toBeNull();
@@ -526,28 +546,35 @@ describe("fortnightPresentationRows", () => {
   });
 
   describe("how a refusal is meant", () => {
-    const refusalOf = (numbers: number[], rejectedNumber: number | null) =>
+    const refusalOf = (
+      numbers: number[],
+      answer: { reportedThrough: number; rejectedNumber: number | null },
+    ) =>
       fortnightPresentationRows({
         state: "refused",
         movement: null,
         documents: numbers.map((number) => document("factura_c", number)),
-        documentReports: [{ documentType: "factura_c", state: "refused", rejectedNumber }],
+        documentReports: [{ documentType: "factura_c", state: "refused", ...answer }],
       })[0]?.refusal;
 
     it("is partial when the tax authority rejected a document after accepting an earlier one of the presentation", () => {
-      expect(refusalOf([4, 5, 6], 5)).toBe("partial");
+      expect(refusalOf([4, 5, 6], { reportedThrough: 4, rejectedNumber: 5 })).toBe("partial");
+    });
+
+    it("is partial when the tax authority refused a batch whole after accepting an earlier batch of the presentation", () => {
+      expect(refusalOf([1, 2, 3], { reportedThrough: 2, rejectedNumber: null })).toBe("partial");
     });
 
     it("is whole when the tax authority rejected the presentation's first document", () => {
-      expect(refusalOf([4, 5, 6], 4)).toBe("whole");
+      expect(refusalOf([4, 5, 6], { reportedThrough: 3, rejectedNumber: 4 })).toBe("whole");
     });
 
     it("is whole when the presentation's only document was rejected", () => {
-      expect(refusalOf([4], 4)).toBe("whole");
+      expect(refusalOf([4], { reportedThrough: 3, rejectedNumber: 4 })).toBe("whole");
     });
 
-    it("is whole when the tax authority refused the batch without naming a document", () => {
-      expect(refusalOf([4, 5], null)).toBe("whole");
+    it("is whole when the tax authority refused the presentation's first batch without naming a document", () => {
+      expect(refusalOf([4, 5], { reportedThrough: 3, rejectedNumber: null })).toBe("whole");
     });
 
     it("is whole for a refused declaration of no movement", () => {
@@ -569,7 +596,9 @@ describe("fortnightPresentationRows", () => {
             state: "refused",
             movement: null,
             documents: [document("factura_c", 4), document("factura_c", 5)],
-            documentReports: [{ documentType: "factura_c", state, rejectedNumber: 5 }],
+            documentReports: [
+              { documentType: "factura_c", state, reportedThrough: 4, rejectedNumber: 5 },
+            ],
           })[0]?.refusal,
         ).toBeNull();
       },
