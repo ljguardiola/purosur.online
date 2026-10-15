@@ -157,6 +157,19 @@ test("removes the identity file once the check is over", async () => {
   await assert.rejects(stat(identityPath), { code: "ENOENT" });
 });
 
+test("removes the decrypted dump once the check is over", async () => {
+  let decryptedPath;
+  await check(HEALTHY, {
+    decryptAndList: async (paths) => {
+      decryptedPath = paths.decryptedPath;
+      await writeFile(decryptedPath, "decrypted-archive");
+      return { decryptExitCode: 0, listExitCode: 0 };
+    },
+  });
+
+  await assert.rejects(stat(decryptedPath), { code: "ENOENT" });
+});
+
 test("removes the identity file even when the check fails", async () => {
   let identityPath;
   await check(HEALTHY, {
@@ -230,6 +243,40 @@ test("fails with decryption_failed when age cannot decrypt it", async () => {
 test("fails with archive_unreadable when it decrypts but pg_restore cannot list it", async () => {
   const { result } = await check(HEALTHY, {
     decryptAndList: async () => ({ decryptExitCode: 0, listExitCode: 1 }),
+  });
+
+  assert.deepEqual(result, { night: NIGHT, outcome: "failed", reason: "archive_unreadable" });
+});
+
+const LARGE_DUMP = Buffer.alloc(8 * 1024 * 1024, 7);
+const LARGE = {
+  objects: {
+    [DUMP_KEY]: LARGE_DUMP,
+    [MANIFEST_KEY]: JSON.stringify({
+      night: NIGHT,
+      sizeBytes: LARGE_DUMP.length,
+      sha256: createHash("sha256").update(LARGE_DUMP).digest("hex"),
+    }),
+  },
+};
+const node = (script) => ({ file: process.execPath, args: ["-e", script] });
+const echo = node("process.stdin.pipe(process.stdout)");
+const listingExitsAfterFirstChunk = (exitCode) =>
+  node(`process.stdin.once('data',()=>process.exit(${exitCode}))`);
+
+test("passes a dump larger than a pipe holds when pg_restore stops reading once it listed it", async () => {
+  const { result } = await check(LARGE, {
+    decryptAndList: ({ dumpPath, decryptedPath }) =>
+      runPipeline({ decrypt: echo, list: listingExitsAfterFirstChunk(0) }, dumpPath, decryptedPath),
+  });
+
+  assert.deepEqual(result, { night: NIGHT, outcome: "passed", sizeBytes: LARGE_DUMP.length });
+});
+
+test("fails with archive_unreadable when pg_restore gives up early on a large dump", async () => {
+  const { result } = await check(LARGE, {
+    decryptAndList: ({ dumpPath, decryptedPath }) =>
+      runPipeline({ decrypt: echo, list: listingExitsAfterFirstChunk(1) }, dumpPath, decryptedPath),
   });
 
   assert.deepEqual(result, { night: NIGHT, outcome: "failed", reason: "archive_unreadable" });
@@ -324,13 +371,14 @@ test("names every missing variable and does nothing else", async () => {
 
 test("reports nothing and exits non-zero when age cannot be started", async () => {
   const { exitCode, network, logs } = await cli(HEALTHY, {
-    decryptAndList: ({ dumpPath }) =>
+    decryptAndList: ({ dumpPath, decryptedPath }) =>
       runPipeline(
         {
           decrypt: { file: "/nonexistent/offsite-dump-check/age", args: [] },
-          list: { file: process.execPath, args: ["-e", "process.stdin.resume()"] },
+          list: node("process.stdin.resume()"),
         },
         dumpPath,
+        decryptedPath,
       ),
   });
 
@@ -429,22 +477,39 @@ test("lists the archive with the pinned image's pg_restore, reading it from stan
   });
 });
 
-test("runs decrypt into list over a file and reports each exit code", async () => {
+test("decrypts the file into a private file, lists that one and reports each exit code", async () => {
   await withDirectory(async (directory) => {
-    const dumpPath = join(directory, "dump");
-    await import("node:fs/promises").then(({ writeFile }) => writeFile(dumpPath, "payload"));
-    const node = (script) => ({ file: process.execPath, args: ["-e", script] });
-    const echo = "process.stdin.pipe(process.stdout)";
-    const count =
-      "let n=0;process.stdin.on('data',c=>n+=c.length).on('end',()=>process.exit(n===7?0:5))";
+    const dumpPath = join(directory, "dump.age");
+    const decryptedPath = join(directory, "dump");
+    await writeFile(dumpPath, "payload");
+    const listsPrivateFileOfSevenBytes = node(
+      "const {fstatSync}=require('node:fs');const {mode,size}=fstatSync(0);process.exit((mode&0o777)===0o600&&size===7?0:5)",
+    );
 
-    assert.deepEqual(await runPipeline({ decrypt: node(echo), list: node(count) }, dumpPath), {
-      decryptExitCode: 0,
-      listExitCode: 0,
-    });
     assert.deepEqual(
-      await runPipeline({ decrypt: node("process.exit(2)"), list: node(count) }, dumpPath),
-      { decryptExitCode: 2, listExitCode: 5 },
+      await runPipeline(
+        { decrypt: echo, list: listsPrivateFileOfSevenBytes },
+        dumpPath,
+        decryptedPath,
+      ),
+      { decryptExitCode: 0, listExitCode: 0 },
+    );
+    assert.equal(await readFile(decryptedPath, "utf8"), "payload");
+  });
+});
+
+test("does not list what it could not decrypt", async () => {
+  await withDirectory(async (directory) => {
+    const dumpPath = join(directory, "dump.age");
+    await writeFile(dumpPath, "payload");
+
+    assert.deepEqual(
+      await runPipeline(
+        { decrypt: node("process.exit(2)"), list: node("process.exit(5)") },
+        dumpPath,
+        join(directory, "dump"),
+      ),
+      { decryptExitCode: 2 },
     );
   });
 });
@@ -453,15 +518,15 @@ test("fails instead of reporting an exit code when a command cannot be started",
   await withDirectory(async (directory) => {
     const dumpPath = join(directory, "dump");
     await writeFile(dumpPath, "payload");
+    const decryptedPath = join(directory, "dump.decrypted");
     const missing = { file: join(directory, "no-such-command"), args: [] };
-    const drain = { file: process.execPath, args: ["-e", "process.stdin.resume()"] };
 
     await assert.rejects(
-      runPipeline({ decrypt: missing, list: drain }, dumpPath),
+      runPipeline({ decrypt: missing, list: echo }, dumpPath, decryptedPath),
       /the decrypt command could not be started/,
     );
     await assert.rejects(
-      runPipeline({ decrypt: drain, list: missing }, dumpPath),
+      runPipeline({ decrypt: echo, list: missing }, dumpPath, decryptedPath),
       /the list command could not be started/,
     );
   });
@@ -471,19 +536,16 @@ test("fails instead of reporting an exit code when docker could not run the comm
   await withDirectory(async (directory) => {
     const dumpPath = join(directory, "dump");
     await writeFile(dumpPath, "payload");
-    const echo = { file: process.execPath, args: ["-e", "process.stdin.pipe(process.stdout)"] };
 
     for (const exitCode of [125, 126, 127]) {
       await assert.rejects(
         runPipeline(
           {
             decrypt: echo,
-            list: {
-              file: process.execPath,
-              args: ["-e", `process.stdin.resume().on('end',()=>process.exit(${exitCode}))`],
-            },
+            list: node(`process.stdin.resume().on('end',()=>process.exit(${exitCode}))`),
           },
           dumpPath,
+          join(directory, "dump.decrypted"),
         ),
         new RegExp(`the list command could not run \\(exit code ${exitCode}\\)`),
       );
