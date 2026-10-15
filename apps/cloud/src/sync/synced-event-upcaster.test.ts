@@ -825,8 +825,8 @@ describe("decoding the events the registers pushed", () => {
       };
       const returnedStock = {
         id: "01a1122a-0309-7000-8000-00000000bbb1",
-        sale_line_id: sharedLines[0]?.id,
-        product_id: sharedLines[0]?.product_id,
+        sale_line_id: saleLine.id,
+        product_id: saleLine.product_id,
         delta: 2000,
       };
       const voided = (change: Record<string, unknown> = {}) =>
