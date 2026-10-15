@@ -21,13 +21,12 @@ export class FakeOffsiteDumpCheckStore implements OffsiteDumpCheckStore {
   ): Promise<TOutcome> {
     const working = new Map(this.results);
     const tx: OffsiteDumpCheckStoreTransaction = {
-      latestVerifiedSizeBefore: async (night) => {
-        const earlier = [...working.entries()]
-          .filter(
-            ([recordedNight, result]) => recordedNight < night && result.status === "verified",
-          )
-          .sort(([a], [b]) => (a < b ? 1 : -1))[0];
-        return earlier?.[1].status === "verified" ? earlier[1].sizeBytes : undefined;
+      latestKnownSizeBefore: async (night) => {
+        const sizes = [...working.entries()]
+          .filter(([recordedNight]) => recordedNight < night)
+          .sort(([a], [b]) => (a < b ? 1 : -1))
+          .flatMap(([, result]) => ("sizeBytes" in result ? [result.sizeBytes] : []));
+        return sizes[0];
       },
       recordResult: async (night, result) => {
         if (this.failNextRecording) {

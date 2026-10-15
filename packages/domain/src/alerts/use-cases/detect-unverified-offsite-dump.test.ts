@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import type { OffsiteDumpCheckResult } from "../../backups/index.js";
+import {
+  OFFSITE_DUMP_SHRINK_THRESHOLD_PERCENT,
+  type OffsiteDumpCheckResult,
+} from "../../backups/index.js";
 import { detectUnverifiedOffsiteDump } from "./detect-unverified-offsite-dump.js";
 import { FixedClock } from "./test-support/fake-alert-store.js";
 import {
@@ -44,7 +47,7 @@ describe("detectUnverifiedOffsiteDump", () => {
 
   it("opens the alert with the reason of the failed check of the due night", async () => {
     const { alerts, outcome } = detect({
-      "2026-10-14": { status: "failed", reason: "shrank" },
+      "2026-10-14": { status: "failed", reason: "shrank", sizeBytes: 400 },
     });
 
     await expect(outcome).resolves.toEqual({
@@ -58,7 +61,11 @@ describe("detectUnverifiedOffsiteDump", () => {
         alert: {
           kind: "offsite_dump_unverified",
           scope: "production",
-          detail: { night: "2026-10-14", reason: "shrank" },
+          detail: {
+            night: "2026-10-14",
+            reason: "shrank",
+            shrinkThresholdPercent: OFFSITE_DUMP_SHRINK_THRESHOLD_PERCENT,
+          },
         },
       },
     ]);

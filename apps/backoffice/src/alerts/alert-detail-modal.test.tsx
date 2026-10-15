@@ -1,5 +1,5 @@
 import type { AlertDetail, PermissionCatalogWire } from "@purosur/contracts";
-import { formatCalendarDay, formatCalendarDayRange } from "@purosur/ui";
+import { formatCalendarDay, formatCalendarDayRange, formatPercent } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { act } from "react";
 import { beforeEach, expect, test, vi } from "vitest";
@@ -1819,7 +1819,7 @@ test("does not link the alert of lots nearing their expiry to the expiring lots 
 });
 
 function offsiteDumpUnverifiedAlert(
-  reason: Extract<AlertDetail, { kind: "offsite_dump_unverified" }>["detail"]["reason"],
+  detail: Extract<AlertDetail, { kind: "offsite_dump_unverified" }>["detail"],
 ) {
   return baseDetail({
     kind: "offsite_dump_unverified",
@@ -1828,7 +1828,7 @@ function offsiteDumpUnverifiedAlert(
     scopeDisplay: "production",
     scopeKind: "environment",
     closing: "by_itself",
-    detail: { night: "2026-10-14", reason },
+    detail,
   });
 }
 
@@ -1840,12 +1840,13 @@ test.each([
   ["hash_mismatch", "la huella del archivo no coincide con la del manifiesto"],
   ["decryption_failed", "no se pudo descifrar la copia"],
   ["archive_unreadable", "la copia descifrada no se pudo leer"],
-  ["shrank", "la copia pesa menos de la mitad que la última verificada"],
 ] as const)(
   "tells which night's offsite dump could not be verified and why (%s)",
   async (reason, reasonText) => {
     const services = createServices();
-    vi.mocked(services.fetchAlert).mockResolvedValue(ok(offsiteDumpUnverifiedAlert(reason)));
+    vi.mocked(services.fetchAlert).mockResolvedValue(
+      ok(offsiteDumpUnverifiedAlert({ night: "2026-10-14", reason })),
+    );
 
     const screen = await renderModal(services);
 
@@ -1863,3 +1864,26 @@ test.each([
     await expect.element(screen.getByText("Producción", { exact: true })).toBeVisible();
   },
 );
+
+test("tells the threshold below which an offsite dump counts as shrank, as the alert states it", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(
+    ok(
+      offsiteDumpUnverifiedAlert({
+        night: "2026-10-14",
+        reason: "shrank",
+        shrinkThresholdPercent: 35,
+      }),
+    ),
+  );
+
+  const screen = await renderModal(services);
+
+  await expect
+    .element(
+      screen.getByText(
+        `La copia cifrada de la base de datos de la noche del ${formatCalendarDay("2026-10-14")} no se pudo verificar fuera de la nube: la copia pesa menos del ${formatPercent(35)} de la anterior. Conviene revisar la copia cuanto antes.`,
+      ),
+    )
+    .toBeVisible();
+});

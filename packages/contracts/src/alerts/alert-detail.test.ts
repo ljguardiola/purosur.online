@@ -405,7 +405,7 @@ describe("alertDetailSchema", () => {
       expect(alertDetailSchema.safeParse(alert).success).toBe(false);
     });
 
-    it.each(OFFSITE_DUMP_UNVERIFIED_REASONS)(
+    it.each(OFFSITE_DUMP_UNVERIFIED_REASONS.filter((reason) => reason !== "shrank"))(
       "accepts an unverified-dump alert naming the night and the reason %s",
       (reason) => {
         const alert = {
@@ -418,9 +418,24 @@ describe("alertDetailSchema", () => {
       },
     );
 
+    it("accepts an unverified-dump alert of a shrank dump naming the threshold it fell below", () => {
+      const alert = {
+        ...base,
+        kind: "offsite_dump_unverified",
+        detail: { night: "2026-10-14", reason: "shrank", shrinkThresholdPercent: 50 },
+      };
+
+      expect(alertDetailSchema.safeParse(alert).data).toEqual(alert);
+    });
+
     it.each([
       ["an unknown reason", { reason: "disk_full" }],
       ["a night as a number", { night: 20261014 }],
+      ["a shrank dump without its threshold", { reason: "shrank" }],
+      [
+        "a shrank dump with a fractional threshold",
+        { reason: "shrank", shrinkThresholdPercent: 50.5 },
+      ],
     ])("refuses an unverified-dump alert with %s", (_case, change) => {
       const alert = {
         ...base,

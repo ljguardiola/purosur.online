@@ -30,7 +30,7 @@ describe("classifyOffsiteDumpCheck", () => {
     );
   });
 
-  it("verifies a passed check with no earlier verified night", () => {
+  it("verifies a passed check with no earlier night of known size", () => {
     expect(classifyOffsiteDumpCheck({ outcome: "passed", sizeBytes: 1 }, undefined)).toEqual({
       status: "verified",
       sizeBytes: 1,
@@ -48,10 +48,11 @@ describe("classifyOffsiteDumpCheck", () => {
     });
   });
 
-  it("fails as shrank a dump below half the earlier size", () => {
+  it("fails as shrank a dump below half the earlier size, keeping its size", () => {
     expect(classifyOffsiteDumpCheck({ outcome: "passed", sizeBytes: 499 }, 1_000)).toEqual({
       status: "failed",
       reason: "shrank",
+      sizeBytes: 499,
     });
   });
 
@@ -59,6 +60,7 @@ describe("classifyOffsiteDumpCheck", () => {
     expect(classifyOffsiteDumpCheck({ outcome: "passed", sizeBytes: 500 }, 1_001)).toEqual({
       status: "failed",
       reason: "shrank",
+      sizeBytes: 500,
     });
     expect(classifyOffsiteDumpCheck({ outcome: "passed", sizeBytes: 501 }, 1_001)).toEqual({
       status: "verified",

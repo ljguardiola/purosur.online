@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   OFFSITE_DUMP_MAX_OBJECT_BYTES,
   type OffsiteDumpDeps,
@@ -168,11 +168,16 @@ describe("offsiteDumpCommand", () => {
   });
 
   it("takes the night from the clock in UTC, not from the local calendar", async () => {
-    const run = harness({ now: new Date("2026-10-14T23:59:59.000Z") });
+    vi.stubEnv("TZ", "America/Argentina/Buenos_Aires");
+    try {
+      const run = harness({ now: new Date("2026-10-15T01:00:00.000Z") });
 
-    await offsiteDumpCommand(ENV, run.deps);
+      await offsiteDumpCommand(ENV, run.deps);
 
-    expect(run.requests[0]?.url).toContain("/offsite-dumps/2026-10-14.dump.age");
+      expect(run.requests[0]?.url).toContain("/offsite-dumps/2026-10-15.dump.age");
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 
   it("signs each upload with the create-only credential for the bucket's region", async () => {

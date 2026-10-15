@@ -1,12 +1,13 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
-import { mkdtemp, readFile, rm, stat } from "node:fs/promises";
+import { mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import {
   checkOffsiteDump,
+  decryptAndListWithComposeImage,
   readPostgresImage,
   restoreListCommands,
   runCli,
@@ -106,10 +107,22 @@ test("passes a night whose dump is there, the size and hash the manifest states,
   assert.deepEqual(result, { night: NIGHT, outcome: "passed", sizeBytes: DUMP.length });
 });
 
-test("checks the night of the UTC calendar day it runs", async () => {
-  const { network } = await check(HEALTHY, { now: () => new Date("2026-10-14T23:30:00.000Z") });
+test("checks the night of the UTC calendar day it runs, not of the local one", async () => {
+  const originalTimeZone = process.env.TZ;
+  process.env.TZ = "America/Argentina/Buenos_Aires";
+  try {
+    const { network } = await check(HEALTHY, {
+      now: () => new Date("2026-10-15T01:00:00.000Z"),
+    });
 
-  assert.ok(network.requests.some((request) => request.url === bucketUrl(MANIFEST_KEY)));
+    assert.equal(network.requests[0].url, bucketUrl("offsite-dumps/2026-10-15.manifest.json"));
+  } finally {
+    if (originalTimeZone === undefined) {
+      delete process.env.TZ;
+    } else {
+      process.env.TZ = originalTimeZone;
+    }
+  }
 });
 
 test("reads the bucket with the read credential, signed for its region", async () => {
@@ -309,6 +322,45 @@ test("names every missing variable and does nothing else", async () => {
   assert.match(logs, /OFFSITE_DUMP_AGE_IDENTITY, OFFSITE_DUMP_CHECK_TOKEN are not set/);
 });
 
+test("reports nothing and exits non-zero when age cannot be started", async () => {
+  const { exitCode, network, logs } = await cli(HEALTHY, {
+    decryptAndList: ({ dumpPath }) =>
+      runPipeline(
+        {
+          decrypt: { file: "/nonexistent/offsite-dump-check/age", args: [] },
+          list: { file: process.execPath, args: ["-e", "process.stdin.resume()"] },
+        },
+        dumpPath,
+      ),
+  });
+
+  assert.equal(exitCode, 1);
+  assert.deepEqual(reports(network.requests), []);
+  assert.match(logs, /could not be started/);
+});
+
+test("reports the night that fails before decryption even when the compose file names no Postgres image", async () => {
+  const { exitCode, network } = await cli(
+    { objects: { [DUMP_KEY]: DUMP } },
+    { decryptAndList: decryptAndListWithComposeImage(() => "services: {}") },
+  );
+
+  assert.equal(exitCode, 1);
+  assert.deepEqual(reports(network.requests), [
+    { night: NIGHT, outcome: "failed", reason: "manifest_missing" },
+  ]);
+});
+
+test("reports nothing for a night it must decrypt when the compose file names no Postgres image", async () => {
+  const { exitCode, network, logs } = await cli(HEALTHY, {
+    decryptAndList: decryptAndListWithComposeImage(() => "services: {}"),
+  });
+
+  assert.equal(exitCode, 1);
+  assert.deepEqual(reports(network.requests), []);
+  assert.match(logs, /no Postgres image/);
+});
+
 test("never logs the identity, a key or the token", async () => {
   const { logs } = await cli({ objects: { [MANIFEST_KEY]: 403 } });
   const failed = await cli({ ...HEALTHY, reportStatus: 401 });
@@ -324,7 +376,6 @@ test("never logs the identity, a key or the token", async () => {
   }
 });
 
-// AWS's own worked example of a signed GET with a Range header (Signature Version 4, S3).
 test("signs a request the way Signature Version 4 specifies", () => {
   const headers = signedGet({
     url: "https://examplebucket.s3.amazonaws.com/test.txt",
@@ -395,5 +446,47 @@ test("runs decrypt into list over a file and reports each exit code", async () =
       await runPipeline({ decrypt: node("process.exit(2)"), list: node(count) }, dumpPath),
       { decryptExitCode: 2, listExitCode: 5 },
     );
+  });
+});
+
+test("fails instead of reporting an exit code when a command cannot be started", async () => {
+  await withDirectory(async (directory) => {
+    const dumpPath = join(directory, "dump");
+    await writeFile(dumpPath, "payload");
+    const missing = { file: join(directory, "no-such-command"), args: [] };
+    const drain = { file: process.execPath, args: ["-e", "process.stdin.resume()"] };
+
+    await assert.rejects(
+      runPipeline({ decrypt: missing, list: drain }, dumpPath),
+      /the decrypt command could not be started/,
+    );
+    await assert.rejects(
+      runPipeline({ decrypt: drain, list: missing }, dumpPath),
+      /the list command could not be started/,
+    );
+  });
+});
+
+test("fails instead of reporting an exit code when docker could not run the command it was given", async () => {
+  await withDirectory(async (directory) => {
+    const dumpPath = join(directory, "dump");
+    await writeFile(dumpPath, "payload");
+    const echo = { file: process.execPath, args: ["-e", "process.stdin.pipe(process.stdout)"] };
+
+    for (const exitCode of [125, 126, 127]) {
+      await assert.rejects(
+        runPipeline(
+          {
+            decrypt: echo,
+            list: {
+              file: process.execPath,
+              args: ["-e", `process.stdin.resume().on('end',()=>process.exit(${exitCode}))`],
+            },
+          },
+          dumpPath,
+        ),
+        new RegExp(`the list command could not run \\(exit code ${exitCode}\\)`),
+      );
+    }
   });
 });

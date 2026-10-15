@@ -3,7 +3,7 @@ import { recordOffsiteDumpCheck } from "./record-offsite-dump-check.js";
 import { FakeOffsiteDumpCheckStore } from "./test-support/fake-offsite-dump-check-store.js";
 
 describe("recordOffsiteDumpCheck", () => {
-  it("records a passed check with no earlier verified night as verified with its size", async () => {
+  it("records a passed check with no earlier night of known size as verified with its size", async () => {
     const store = new FakeOffsiteDumpCheckStore();
 
     const outcome = await recordOffsiteDumpCheck(
@@ -29,7 +29,7 @@ describe("recordOffsiteDumpCheck", () => {
     });
   });
 
-  it("fails a passed check that shrank below half the latest earlier verified night", async () => {
+  it("fails a passed check that shrank below half the latest earlier night, recording its size", async () => {
     const store = new FakeOffsiteDumpCheckStore({
       "2026-10-13": { status: "verified", sizeBytes: 1_000 },
     });
@@ -40,10 +40,28 @@ describe("recordOffsiteDumpCheck", () => {
     );
 
     expect(outcome).toEqual({ kind: "failed", night: "2026-10-14", reason: "shrank" });
-    expect(store.snapshot()["2026-10-14"]).toEqual({ status: "failed", reason: "shrank" });
+    expect(store.snapshot()["2026-10-14"]).toEqual({
+      status: "failed",
+      reason: "shrank",
+      sizeBytes: 499,
+    });
   });
 
-  it("compares with the latest earlier verified night, skipping failed nights and ignoring later ones", async () => {
+  it("compares the night after a shrank one with the shrank night's size, so a dump that stays smaller is verified", async () => {
+    const store = new FakeOffsiteDumpCheckStore({
+      "2026-10-12": { status: "verified", sizeBytes: 1_000 },
+      "2026-10-13": { status: "failed", reason: "shrank", sizeBytes: 400 },
+    });
+
+    const outcome = await recordOffsiteDumpCheck(
+      { store },
+      { night: "2026-10-14", check: { outcome: "passed", sizeBytes: 400 } },
+    );
+
+    expect(outcome).toEqual({ kind: "verified", night: "2026-10-14", sizeBytes: 400 });
+  });
+
+  it("compares with the latest earlier night of known size, skipping nights that failed before their size was known and ignoring later ones", async () => {
     const store = new FakeOffsiteDumpCheckStore({
       "2026-10-10": { status: "verified", sizeBytes: 100_000 },
       "2026-10-12": { status: "verified", sizeBytes: 1_000 },

@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  dueOffsiteDumpNight,
-  isOffsiteDumpNight,
-  offsiteDumpVerificationDeadline,
-} from "./offsite-dump-deadline.js";
+import { dueOffsiteDumpNight, isOffsiteDumpNight } from "./offsite-dump-deadline.js";
 
 describe("isOffsiteDumpNight", () => {
   it.each(["2026-10-14", "2028-02-29"])("accepts the calendar day %s", (night) => {
@@ -16,14 +12,6 @@ describe("isOffsiteDumpNight", () => {
       expect(isOffsiteDumpNight(night)).toBe(false);
     },
   );
-});
-
-describe("offsiteDumpVerificationDeadline", () => {
-  it("is 15:00 UTC of the night's own date", () => {
-    expect(offsiteDumpVerificationDeadline("2026-10-14")).toEqual(
-      new Date("2026-10-14T15:00:00.000Z"),
-    );
-  });
 });
 
 describe("dueOffsiteDumpNight", () => {

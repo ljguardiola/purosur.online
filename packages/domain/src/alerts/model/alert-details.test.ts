@@ -31,8 +31,24 @@ describe("OpenAlertInput", () => {
     expectTypeOf<{
       kind: "offsite_dump_unverified";
       scope: string;
-      detail: { night: string; reason: "not_reported" | "shrank" | "hash_mismatch" };
+      detail: { night: string; reason: "not_reported" | "hash_mismatch" };
     }>().toExtend<OpenAlertInput>();
+  });
+
+  it("accepts the threshold the dump fell below for an unverified-dump alert of a shrank dump", () => {
+    expectTypeOf<{
+      kind: "offsite_dump_unverified";
+      scope: string;
+      detail: { night: string; reason: "shrank"; shrinkThresholdPercent: number };
+    }>().toExtend<OpenAlertInput>();
+  });
+
+  it("refuses an unverified-dump alert of a shrank dump without the threshold it fell below", () => {
+    expectTypeOf<{
+      kind: "offsite_dump_unverified";
+      scope: string;
+      detail: { night: string; reason: "shrank" };
+    }>().not.toExtend<OpenAlertInput>();
   });
 
   it("refuses an unverified-dump alert with a reason the check cannot give", () => {

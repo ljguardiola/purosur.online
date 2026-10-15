@@ -67,6 +67,18 @@ describe("DrizzleOffsiteDumpCheckStore", () => {
     });
   });
 
+  it("reads back a shrank result recorded for a night with the dump's size", async () => {
+    await store.transaction((tx) =>
+      tx.recordResult("2026-09-09", { status: "failed", reason: "shrank", sizeBytes: 400 }),
+    );
+
+    expect(await store.offsiteDumpCheckOf("2026-09-09")).toEqual({
+      status: "failed",
+      reason: "shrank",
+      sizeBytes: 400,
+    });
+  });
+
   it("reads nothing for a night nobody reported", async () => {
     expect(await store.offsiteDumpCheckOf("2026-09-03")).toBeUndefined();
   });
@@ -91,21 +103,32 @@ describe("DrizzleOffsiteDumpCheckStore", () => {
     expect(rows).toHaveLength(1);
   });
 
-  it("answers the size of the latest verified night before a night, ignoring failed and later nights", async () => {
+  it("answers the size of the latest night of known size before a night, ignoring nights of unknown size and later nights", async () => {
     await store.transaction(async (tx) => {
       await tx.recordResult("2026-08-10", { status: "verified", sizeBytes: 100 });
       await tx.recordResult("2026-08-11", { status: "verified", sizeBytes: 110 });
-      await tx.recordResult("2026-08-12", { status: "failed", reason: "shrank" });
+      await tx.recordResult("2026-08-12", { status: "failed", reason: "hash_mismatch" });
       await tx.recordResult("2026-08-14", { status: "verified", sizeBytes: 140 });
     });
 
-    const size = await store.transaction((tx) => tx.latestVerifiedSizeBefore("2026-08-13"));
+    const size = await store.transaction((tx) => tx.latestKnownSizeBefore("2026-08-13"));
 
     expect(size).toBe(110);
   });
 
-  it("answers no size when no verified night comes before", async () => {
-    const size = await store.transaction((tx) => tx.latestVerifiedSizeBefore("2020-01-01"));
+  it("answers the size of a shrank night as the latest known size", async () => {
+    await store.transaction(async (tx) => {
+      await tx.recordResult("2026-07-10", { status: "verified", sizeBytes: 1_000 });
+      await tx.recordResult("2026-07-11", { status: "failed", reason: "shrank", sizeBytes: 400 });
+    });
+
+    const size = await store.transaction((tx) => tx.latestKnownSizeBefore("2026-07-12"));
+
+    expect(size).toBe(400);
+  });
+
+  it("answers no size when no night of known size comes before", async () => {
+    const size = await store.transaction((tx) => tx.latestKnownSizeBefore("2020-01-01"));
 
     expect(size).toBeUndefined();
   });
@@ -134,6 +157,30 @@ describe("DrizzleOffsiteDumpCheckStore", () => {
     const error = await db
       .insert(offsiteDumpChecks)
       .values({ night: "2026-09-07", status: "failed", recordedAt: NOW })
+      .catch((cause: unknown) => cause);
+
+    expect(constraintViolatedBy(error, "offsite_dump_checks_result_shape_check")).toBe(true);
+  });
+
+  it("refuses a shrank row without the dump's size", async () => {
+    const error = await db
+      .insert(offsiteDumpChecks)
+      .values({ night: "2026-09-10", status: "failed", failureReason: "shrank", recordedAt: NOW })
+      .catch((cause: unknown) => cause);
+
+    expect(constraintViolatedBy(error, "offsite_dump_checks_result_shape_check")).toBe(true);
+  });
+
+  it("refuses a size on a row that failed before the dump's size was known", async () => {
+    const error = await db
+      .insert(offsiteDumpChecks)
+      .values({
+        night: "2026-09-11",
+        status: "failed",
+        failureReason: "hash_mismatch",
+        sizeBytes: 10,
+        recordedAt: NOW,
+      })
       .catch((cause: unknown) => cause);
 
     expect(constraintViolatedBy(error, "offsite_dump_checks_result_shape_check")).toBe(true);
