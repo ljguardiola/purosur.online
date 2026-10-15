@@ -26,6 +26,7 @@ import {
   useTableModel,
 } from "@purosur/ui";
 import { ArrowRight, CheckCheck, Printer, TriangleAlert, Undo2 } from "lucide-react";
+import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import type { CoreData } from "../platform/use-core-query";
 import { OpenSessionRail } from "../shell/open-session-rail";
@@ -87,6 +88,7 @@ export type StartupPendingScreenProps = {
     paymentTransactionId: string,
   ) => Promise<ConvertPaidOrderIntoRefundOutcome>;
   loadAuthorizers: (permission: AuthorizablePermissionKey) => Promise<SignInUser[]>;
+  clockGuard?: ReactNode | undefined;
   onGoSelling: () => void;
   onNothingLeft: () => void;
   onSessionInvalid: () => void;
@@ -299,6 +301,7 @@ export function StartupPendingScreen({
   reprintSaleReceipt,
   convertPaidOrderIntoRefund,
   loadAuthorizers,
+  clockGuard,
   onGoSelling,
   onNothingLeft,
   onSessionInvalid,
@@ -400,6 +403,7 @@ export function StartupPendingScreen({
           title="Hay cosas para resolver"
           description="La caja se cerró sin terminar algunas operaciones. Esto es lo que quedó."
         />
+        {clockGuard}
         <PendingTable
           data={pending}
           printingSaleIds={printingSaleIds}

@@ -148,7 +148,9 @@ describe("ClockGuardOffer", () => {
     await userEvent.click(screen.getByRole("button", { name: "La hora de la caja es correcta" }));
 
     const dialog = screen.getByRole("dialog", { name: "No se pueden emitir comprobantes" });
-    await expect.element(dialog.getByText("La hora de la caja ya no está atrasada")).toBeVisible();
+    await expect
+      .element(dialog.getByText("La hora de la caja ya no está atrasada").first())
+      .toBeVisible();
     await vi.waitFor(() => expect(readClockGuard).toHaveBeenCalledTimes(2));
   });
 

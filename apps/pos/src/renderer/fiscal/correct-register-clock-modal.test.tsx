@@ -239,7 +239,7 @@ describe("CorrectRegisterClockModal", () => {
 
     await userEvent.click(confirmButton(dialog));
     await expect
-      .element(dialog.getByText("No se pudo confirmar la hora. Probá de nuevo."))
+      .element(dialog.getByText("No se pudo confirmar la hora. Probá de nuevo.").first())
       .toBeVisible();
     await userEvent.click(confirmButton(dialog));
 
@@ -256,7 +256,7 @@ describe("CorrectRegisterClockModal", () => {
     await userEvent.click(confirmButton(dialog));
 
     await expect
-      .element(dialog.getByText("No se pudo confirmar la hora. Probá de nuevo."))
+      .element(dialog.getByText("No se pudo confirmar la hora. Probá de nuevo.").first())
       .toBeVisible();
   });
 
