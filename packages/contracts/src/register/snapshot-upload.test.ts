@@ -71,9 +71,9 @@ describe("snapshotUploadAnswerSchema", () => {
     ["zero", 0],
     ["fractional", 1.5],
   ])("refuses a current key version that is %s", (_name, current_key_version) => {
-    expect(
-      snapshotUploadAnswerSchema.safeParse({ ...ANSWER, current_key_version }).success,
-    ).toBe(false);
+    expect(snapshotUploadAnswerSchema.safeParse({ ...ANSWER, current_key_version }).success).toBe(
+      false,
+    );
   });
 
   it("refuses an expiry that is not an instant", () => {

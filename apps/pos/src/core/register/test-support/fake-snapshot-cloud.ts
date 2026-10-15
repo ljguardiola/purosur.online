@@ -12,6 +12,7 @@ export class FakeSnapshotCloud {
       upload_url: `https://storage.example.test/objects/${body.generation_id}`,
       required_headers: { "x-amz-meta-key-version": "2" },
       expires_at: "2026-10-15T12:15:00.000Z",
+      current_key_version: 2,
     });
   onPut: (url: string) => Answer = () => new Response(null, { status: 200 });
   onUploaded: (generationId: string) => Answer = () => new Response(null, { status: 204 });
