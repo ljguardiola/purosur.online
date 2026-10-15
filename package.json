@@ -36,7 +36,7 @@
     "@biomejs/biome": "^2.5.15",
     "@rolldown/plugin-babel": "^0.2.4",
     "@secretlint/node": "^13.0.6",
-    "@secretlint/secretlint-rule-pattern": "^13.0.6",
+    "@secretlint/secretlint-rule-pattern": "^13.0.7",
     "@secretlint/secretlint-rule-preset-recommend": "^13.0.6",
     "@stryker-mutator/core": "10.0.0",
     "@stryker-mutator/typescript-checker": "10.0.0",
