@@ -31,6 +31,7 @@ import {
   Bell,
   CalendarClock,
   Check,
+  Clock,
   CloudDownload,
   CloudOff,
   DatabaseBackup,
@@ -171,6 +172,8 @@ function alertIcon(kind: string): Icon {
     case "fortnight_report_overdue":
     case "fortnight_report_needs_regularization":
       return <TriangleAlert />;
+    case "clock_corrected":
+      return <Clock />;
     default:
       return <Bell />;
   }
@@ -468,6 +471,7 @@ function alertTitle(alert: AlertDetail): string {
     case "fortnight_report_overdue":
     case "external_billing":
     case "fortnight_report_needs_regularization":
+    case "clock_corrected":
       return alertKindLabel(alert.kind);
   }
 }
@@ -551,6 +555,8 @@ function alertDescription(alert: AlertDetail, catalog: PermissionCatalogWire = [
     case "fortnight_report_overdue":
     case "fortnight_report_needs_regularization":
       return "";
+    case "clock_corrected":
+      return alertKindDescription(alert.kind);
   }
 }
 
@@ -595,6 +601,29 @@ function closingNote(alert: AlertDetail): string | null {
     : CLOSING_NOTES[alert.closing];
 }
 
+function ClockCorrectionRows({
+  detail,
+}: {
+  detail: Extract<AlertDetail, { kind: "clock_corrected" }>["detail"];
+}) {
+  const rows = [
+    ["Punto de venta", formatPointOfSaleNumber(detail.pointOfSale)],
+    ["Lectura anterior", alertDateTime(new Date(detail.previousReading))],
+    ["Lectura nueva", alertDateTime(new Date(detail.correctedReading))],
+    ...(detail.actorName === undefined ? [] : [["Corrigió", detail.actorName]]),
+  ] as const;
+  return (
+    <div className="flex flex-col gap-1 rounded-lg border border-border p-3 text-detail">
+      {rows.map(([label, value]) => (
+        <div key={label} className="flex justify-between gap-2">
+          <span className="text-text-subtle">{label}</span>
+          <span>{value}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function AlertDescription({ alert }: { alert: AlertDetail }) {
   if (alert.kind === "fiscal_rejected") {
     return (
@@ -634,6 +663,14 @@ function AlertDescription({ alert }: { alert: AlertDetail }) {
           Revisar esos productos en el local y avisar para venderlos, bajarlos de precio o
           retirarlos antes de que venzan.
         </p>
+      </>
+    );
+  }
+  if (alert.kind === "clock_corrected") {
+    return (
+      <>
+        <p className="text-text text-body">{alertDescription(alert)}</p>
+        <ClockCorrectionRows detail={alert.detail} />
       </>
     );
   }
