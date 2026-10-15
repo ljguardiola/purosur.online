@@ -91,6 +91,59 @@ test("words a register whose disk is full without the space left when none is gi
   });
 });
 
+test("gives a register on a critically low battery its title, what it means and what to do", () => {
+  expect(localAlertText({ kind: "sales_denied", reason: "battery_critical" })).toEqual({
+    title: "No se pueden abrir ventas nuevas: queda poca batería",
+    meaning:
+      "La venta en curso se puede completar y cobrar. Después la caja envía lo pendiente y se cierra sola.",
+    whatToDo: "Conectar la notebook a la corriente para seguir vendiendo.",
+  });
+});
+
+test("gives a notebook running low on battery its title, the charge left and the charge that stops new sales", () => {
+  expect(localAlertText({ kind: "battery_low", charge_percent: 15, critical_percent: 10 })).toEqual(
+    {
+      title: "La notebook está sin enchufar",
+      meaning: "Queda 15 % de batería. Por debajo del 10 % no se abren ventas nuevas.",
+      whatToDo: "Conectar la notebook a la corriente.",
+    },
+  );
+  expect(localAlertTitle("battery_low")).toBe("La notebook está sin enchufar");
+});
+
+test("gives a register that has run on battery for a while its title, what it means and what to do", () => {
+  expect(localAlertText({ kind: "on_battery" })).toEqual({
+    title: "Caja funcionando a batería",
+    meaning:
+      "La notebook lleva más de 10 minutos sin corriente eléctrica, funcionando solo con la batería.",
+    whatToDo:
+      "Revisar si volvió la luz y, de poder, conectar la notebook a la corriente. Si no volvió, seguir atendiendo con normalidad; el Administrador ya fue avisado.",
+  });
+  expect(localAlertTitle("on_battery")).toBe("Caja funcionando a batería");
+});
+
+test("gives a notebook that reports no battery its title, what it means and what to do", () => {
+  expect(localAlertText({ kind: "battery_missing" })).toEqual({
+    title: "Batería no detectada",
+    meaning: "La notebook no informa tener batería conectada.",
+    whatToDo:
+      "Seguir vendiendo con normalidad. El Administrador ya fue avisado y se encarga de revisar el equipo.",
+  });
+  expect(localAlertTitle("battery_missing")).toBe("Batería no detectada");
+});
+
+test("gives a notebook whose Windows does not shut down at critical battery its title, what it means and what to do", () => {
+  expect(localAlertText({ kind: "critical_battery_action_not_shutdown" })).toEqual({
+    title: "Windows no apaga la notebook con batería crítica",
+    meaning:
+      "Si se corta la luz y la batería se agota, la notebook puede apagarse de golpe en lugar de cerrarse en orden.",
+    whatToDo: "Avisar al Administrador. La ayuda de la caja explica cómo configurarlo.",
+  });
+  expect(localAlertTitle("critical_battery_action_not_shutdown")).toBe(
+    "Windows no apaga la notebook con batería crítica",
+  );
+});
+
 test("gives a register whose disk is running low its title, what it means and what to do", () => {
   expect(localAlertText({ kind: "disk_space_low" })).toEqual({
     title: "Queda poco espacio en el disco",
@@ -208,6 +261,16 @@ test("asks for the reason of a register that can't sell, and for none of the oth
     reason: "disk_space_short_at_startup";
     required_free_bytes: number;
   }>().toExtend<LocalAlertSubject>();
+  expectTypeOf<{
+    kind: "sales_denied";
+    reason: "battery_critical";
+  }>().toExtend<LocalAlertSubject>();
+  expectTypeOf<{ kind: "battery_low" }>().not.toExtend<LocalAlertSubject>();
+  expectTypeOf<{
+    kind: "battery_low";
+    charge_percent: number;
+    critical_percent: number;
+  }>().toExtend<LocalAlertSubject>();
   expectTypeOf<{ kind: "register_silent" }>().toExtend<LocalAlertSubject>();
   expectTypeOf<{
     kind: "register_silent";
@@ -225,6 +288,10 @@ test("knows the kinds that have a fixed text", () => {
   expect(isLocalAlertKind("fiscal_emission_stopped")).toBe(true);
   expect(isLocalAlertKind("disk_space_low")).toBe(true);
   expect(isLocalAlertKind("wal_oversized")).toBe(true);
+  expect(isLocalAlertKind("battery_low")).toBe(true);
+  expect(isLocalAlertKind("on_battery")).toBe(true);
+  expect(isLocalAlertKind("battery_missing")).toBe(true);
+  expect(isLocalAlertKind("critical_battery_action_not_shutdown")).toBe(true);
 });
 
 test("does not know a kind that has none, nor a member every object has", () => {
@@ -243,5 +310,9 @@ test("names exactly the kinds that have a fixed text", () => {
     | "fiscal_emission_stopped"
     | "disk_space_low"
     | "wal_oversized"
+    | "battery_low"
+    | "on_battery"
+    | "battery_missing"
+    | "critical_battery_action_not_shutdown"
   >();
 });

@@ -68,3 +68,23 @@ export const DiskSpaceLow: Story = {
 export const WalOversized: Story = {
   args: { kind: "wal_oversized" },
 };
+
+export const SalesDeniedBatteryCritical: Story = {
+  args: { kind: "sales_denied", reason: "battery_critical" },
+};
+
+export const BatteryLow: Story = {
+  args: { kind: "battery_low", charge_percent: 15, critical_percent: 10 },
+};
+
+export const OnBattery: Story = {
+  args: { kind: "on_battery" },
+};
+
+export const BatteryMissing: Story = {
+  args: { kind: "battery_missing" },
+};
+
+export const CriticalBatteryActionNotShutdown: Story = {
+  args: { kind: "critical_battery_action_not_shutdown" },
+};
