@@ -103,6 +103,7 @@ export async function saleHistoryDetailFor(
       state: detail.standing,
       voidability: detail.voidability,
       void_authorization_required: voidNeedsAuthorization,
+      reprint: detail.reprint,
       next_copy:
         detail.nextCopy.kind === "original"
           ? detail.nextCopy

@@ -81,6 +81,10 @@ const saleHistoryDetailSchema = z.object({
   state: saleStateSchema,
   voidability: saleVoidabilitySchema,
   void_authorization_required: z.boolean(),
+  reprint: z.discriminatedUnion("kind", [
+    z.object({ kind: z.literal("available") }),
+    z.object({ kind: z.literal("sale_voided") }),
+  ]),
   next_copy: receiptCopySchema,
 });
 

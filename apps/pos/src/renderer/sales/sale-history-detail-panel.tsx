@@ -61,28 +61,36 @@ function SaleFooter({ sale, onReprint, onVoid }: { sale: SaleDetail } & SaleActi
   const { voidability } = sale;
   const notice =
     voidability.kind === "voidable" ? undefined : voidRefusalNotice(voidability.refusal);
+  const offersVoid = voidability.kind === "voidable" || notice !== undefined;
+  if (sale.reprint.kind !== "available" && !offersVoid) {
+    return null;
+  }
   return (
     <div className="flex flex-col gap-3">
-      <Button
-        variant="secondary"
-        size="large"
-        fullWidth
-        icon={<Printer />}
-        onPress={() => onReprint(sale)}
-      >
-        {receiptCopyPresentation(sale.next_copy).printButton}
-      </Button>
-      <Button
-        variant="secondary"
-        size="large"
-        fullWidth
-        icon={<CircleX />}
-        disabled={voidability.kind !== "voidable"}
-        onPress={() => onVoid(sale)}
-      >
-        Anular venta
-      </Button>
-      {sale.void_authorization_required ? (
+      {sale.reprint.kind === "available" ? (
+        <Button
+          variant="secondary"
+          size="large"
+          fullWidth
+          icon={<Printer />}
+          onPress={() => onReprint(sale)}
+        >
+          {receiptCopyPresentation(sale.next_copy).printButton}
+        </Button>
+      ) : null}
+      {offersVoid ? (
+        <Button
+          variant="secondary"
+          size="large"
+          fullWidth
+          icon={<CircleX />}
+          disabled={voidability.kind !== "voidable"}
+          onPress={() => onVoid(sale)}
+        >
+          Anular venta
+        </Button>
+      ) : null}
+      {sale.void_authorization_required && offersVoid ? (
         <p className="text-detail text-text-subtle">
           Sin permiso para anular, se pide el PIN de alguien que lo tenga.
         </p>
@@ -110,11 +118,7 @@ function Sale({ sale, onReprint, onVoid }: { sale: SaleDetail } & SaleActions) {
   return (
     <SidePanel
       label="Detalle de la venta"
-      footer={
-        sale.state === "voided" ? undefined : (
-          <SaleFooter sale={sale} onReprint={onReprint} onVoid={onVoid} />
-        )
-      }
+      footer={<SaleFooter sale={sale} onReprint={onReprint} onVoid={onVoid} />}
     >
       <FigureStat
         label={`VENTA DE LAS ${formatClockTime(sale.occurred_at)}`}
