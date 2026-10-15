@@ -102,6 +102,7 @@ export function RotateSnapshotKeyModal({
         width="confirmation"
         tone="warning"
         icon={<RefreshCw />}
+        context={target?.name ?? ""}
         title="Rotar la clave de cifrado"
         closable
         footer={
@@ -135,7 +136,7 @@ export function RotateSnapshotKeyModal({
               tone="warning"
               icon={<TriangleAlert />}
               title="Esta caja todavía no tiene una clave"
-              description="No hay nada para rotar hasta que genere su primer backup."
+              description="La caja recibe su clave cuando se da de alta en una computadora."
             />
           )}
           {notice?.kind === "attemptFailed" && (
@@ -155,7 +156,7 @@ export function RotateSnapshotKeyModal({
             />
           )}
           <p className="text-body text-text">
-            {`Vas a rotar la clave de cifrado de ${target?.name ?? ""}. Solo los backups que se generen desde ahora usan la clave nueva. Los que ya existen se siguen pudiendo leer.`}
+            {`Solo los backups que se generen desde ahora usan la clave nueva. Los que ya existen se siguen pudiendo leer.`}
           </p>
         </div>
       </Modal>
