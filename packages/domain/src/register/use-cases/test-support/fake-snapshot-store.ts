@@ -147,6 +147,19 @@ class FakeSnapshotStoreTransaction implements SnapshotStoreTransaction {
       .map((generation) => structuredClone(generation));
   }
 
+  async generationsAmong(
+    registerId: string,
+    generationIds: readonly string[],
+  ): Promise<SnapshotGeneration[]> {
+    this.store.operationOrder.push("generationsAmong");
+    return this.state.generations
+      .filter(
+        (generation) =>
+          generation.registerId === registerId && generationIds.includes(generation.id),
+      )
+      .map((generation) => structuredClone(generation));
+  }
+
   async markPruned(generationIds: readonly string[]): Promise<void> {
     this.beforeWrite("markPruned");
     for (const id of generationIds) {
