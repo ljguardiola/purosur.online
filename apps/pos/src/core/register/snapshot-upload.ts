@@ -34,9 +34,12 @@ export interface UploadDeps {
 
 type Step = "uploaded" | "refused" | "failed" | "unreachable";
 
-async function objectOf(folder: string, generationId: string): Promise<Buffer | undefined> {
+async function objectOf(
+  folder: string,
+  generationId: string,
+): Promise<Uint8Array<ArrayBuffer> | undefined> {
   try {
-    return await readFile(objectPath(folder, generationId));
+    return new Uint8Array(await readFile(objectPath(folder, generationId)));
   } catch (error) {
     if (error instanceof Error && "code" in error && error.code === "ENOENT") {
       return undefined;
