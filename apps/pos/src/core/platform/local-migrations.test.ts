@@ -898,6 +898,7 @@ describe("the register's local migrations", () => {
         "0052_paid_orders_without_sale",
         "0053_price_and_discount_lookups",
         "0054_assembly_movements",
+        "0055_offline_numbering_floor",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -979,6 +980,7 @@ describe("the register's local migrations", () => {
         "0052_paid_orders_without_sale",
         "0053_price_and_discount_lookups",
         "0054_assembly_movements",
+        "0055_offline_numbering_floor",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1055,6 +1057,7 @@ describe("the register's local migrations", () => {
         "0052_paid_orders_without_sale",
         "0053_price_and_discount_lookups",
         "0054_assembly_movements",
+        "0055_offline_numbering_floor",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1130,6 +1133,7 @@ describe("the register's local migrations", () => {
         "0052_paid_orders_without_sale",
         "0053_price_and_discount_lookups",
         "0054_assembly_movements",
+        "0055_offline_numbering_floor",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1234,6 +1238,7 @@ describe("the register's local migrations", () => {
         "0052_paid_orders_without_sale",
         "0053_price_and_discount_lookups",
         "0054_assembly_movements",
+        "0055_offline_numbering_floor",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1328,6 +1333,7 @@ describe("the register's local migrations", () => {
         "0052_paid_orders_without_sale",
         "0053_price_and_discount_lookups",
         "0054_assembly_movements",
+        "0055_offline_numbering_floor",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1426,6 +1432,7 @@ describe("the register's local migrations", () => {
         "0052_paid_orders_without_sale",
         "0053_price_and_discount_lookups",
         "0054_assembly_movements",
+        "0055_offline_numbering_floor",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1507,6 +1514,7 @@ describe("the register's local migrations", () => {
         "0052_paid_orders_without_sale",
         "0053_price_and_discount_lookups",
         "0054_assembly_movements",
+        "0055_offline_numbering_floor",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1580,6 +1588,7 @@ describe("the register's local migrations", () => {
         "0052_paid_orders_without_sale",
         "0053_price_and_discount_lookups",
         "0054_assembly_movements",
+        "0055_offline_numbering_floor",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
