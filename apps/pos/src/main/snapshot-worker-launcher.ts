@@ -27,7 +27,7 @@ export function readSnapshotWorkerLaunch(message: unknown): SnapshotWorkerLaunch
   return { timeLimitMs, job };
 }
 
-export function readSnapshotCopyFailure(message: unknown): string | undefined {
+function readSnapshotCopyFailure(message: unknown): string | undefined {
   if (typeof message !== "object" || message === null) {
     return undefined;
   }
@@ -35,7 +35,7 @@ export function readSnapshotCopyFailure(message: unknown): string | undefined {
   return type === "snapshot-copy-failed" && typeof stage === "string" ? stage : undefined;
 }
 
-export interface SnapshotWorkerExitedNotice {
+interface SnapshotWorkerExitedNotice {
   type: "snapshot-worker-exited";
   copy_failed_stage?: string;
 }
