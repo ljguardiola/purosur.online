@@ -13,13 +13,13 @@ export interface HandConfirmedPayment {
   saleOperationNumber: number | null;
 }
 
-export interface HandConfirmedMethodTotal {
+interface HandConfirmedMethodTotal {
   method: ConfirmedByHandMethod;
   count: number;
   amount: number;
 }
 
-export interface HandConfirmedCashierTotal {
+interface HandConfirmedCashierTotal {
   cashierId: string;
   cashierName: string | null;
   count: number;
