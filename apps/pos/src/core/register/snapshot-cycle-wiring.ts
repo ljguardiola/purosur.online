@@ -40,13 +40,20 @@ export function startSnapshotCycle(deps: SnapshotCycleWiringDeps): SnapshotCycle
     snapshotsFolder: deps.snapshotsFolder,
     postToMain: deps.postToMain,
   });
+  const checkpoint = () => {
+    deps.database.pragma("wal_checkpoint(TRUNCATE)");
+  };
   const schedule = createSnapshotCycleSchedule({
-    runCycle: () => runSnapshotCycle({ state, launcher, ids: { next: deps.newGenerationId } }),
+    runCycle: () =>
+      runSnapshotCycle({
+        state,
+        launcher,
+        ids: { next: deps.newGenerationId },
+        log: { checkpoint: async () => checkpoint() },
+      }),
     cloudReachable: () => deps.cloudReachability() !== "unreachable",
     scheduleNext: deps.scheduleNext,
-    checkpoint: () => {
-      deps.database.pragma("wal_checkpoint(TRUNCATE)");
-    },
+    checkpoint,
     onFailure: deps.onFailure,
   });
   schedule.start();

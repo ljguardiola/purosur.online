@@ -178,6 +178,7 @@ export type {
 export { setReceiptPrinterAddress } from "./set-receipt-printer-address.js";
 export type {
   SnapshotCycleState,
+  SnapshotLog,
   SnapshotWorkerJob,
   SnapshotWorkerLauncher,
 } from "./snapshot-cycle-ports.js";

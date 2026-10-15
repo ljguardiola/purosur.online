@@ -2,6 +2,7 @@ import { type SnapshotSkipReason, snapshotCycleDecision } from "../model/snapsho
 import type { IdGenerator } from "./cash-ledger.js";
 import type {
   SnapshotCycleState,
+  SnapshotLog,
   SnapshotWorkerJob,
   SnapshotWorkerLauncher,
 } from "./snapshot-cycle-ports.js";
@@ -10,6 +11,7 @@ export interface RunSnapshotCyclePorts {
   state: SnapshotCycleState;
   launcher: SnapshotWorkerLauncher;
   ids: IdGenerator;
+  log: SnapshotLog;
 }
 
 export type RunSnapshotCycleOutcome =
@@ -21,6 +23,7 @@ export async function runSnapshotCycle({
   state,
   launcher,
   ids,
+  log,
 }: RunSnapshotCyclePorts): Promise<RunSnapshotCycleOutcome> {
   const current = await state.currentSequences();
   const decision = snapshotCycleDecision({
@@ -32,6 +35,9 @@ export async function runSnapshotCycle({
     cloudReachable: await state.cloudReachable(),
   });
   if (decision.kind === "skip") {
+    if (decision.reason === "wal_oversized") {
+      await log.checkpoint();
+    }
     return { kind: "skipped", reason: decision.reason };
   }
   const job: SnapshotWorkerJob =

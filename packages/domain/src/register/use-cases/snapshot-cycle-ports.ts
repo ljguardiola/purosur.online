@@ -17,3 +17,7 @@ export type SnapshotWorkerJob =
 export interface SnapshotWorkerLauncher {
   launch(job: SnapshotWorkerJob): Promise<boolean>;
 }
+
+export interface SnapshotLog {
+  checkpoint(): Promise<void>;
+}
