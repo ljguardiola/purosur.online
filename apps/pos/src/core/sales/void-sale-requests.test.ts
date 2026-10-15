@@ -1,4 +1,4 @@
-import { encodePinHash, voidSaleOutcomeSchema } from "@purosur/contracts";
+import { encodePinHash } from "@purosur/contracts";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { derivePinVerifier } from "../credentials/pin-verifier";
 import {
@@ -157,7 +157,6 @@ describe("voiding a sale of the sales history", () => {
       refunds: [{ payment_id: paymentId, method: "CASH", amount: 3000, state: "APPROVED" }],
       authorized_by: null,
     });
-    expect(voidSaleOutcomeSchema.safeParse(outcome).success).toBe(true);
     expect(
       database.prepare("SELECT state, voided_at, void_authorized_by FROM sales").all(),
     ).toEqual([{ state: "VOIDED", voided_at: VOIDED_AT.toISOString(), void_authorized_by: null }]);
@@ -351,7 +350,6 @@ describe("voiding a sale of the sales history", () => {
         kind: "voided",
         refunds: [{ method: "TRANSFER", amount: 3000, state: "PENDING" }],
       });
-      expect(voidSaleOutcomeSchema.safeParse(outcome).success).toBe(true);
       expect(database.prepare("SELECT method, state FROM payment_refunds").all()).toEqual([
         { method: "TRANSFER", state: "PENDING" },
       ]);

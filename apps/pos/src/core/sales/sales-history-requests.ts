@@ -1,9 +1,10 @@
 import type { SaleHistoryDetailOutcome, SalesHistoryOutcome } from "@purosur/contracts";
-import type { SaleComprobante } from "@purosur/domain";
+import { registerOperationAccess, type SaleComprobante } from "@purosur/domain";
 import { readSaleHistoryDetail, readSalesHistory } from "@purosur/domain/sales/use-cases";
 import { inArgentinaTime } from "../platform/argentina-time";
 import type { LocalDatabase } from "../platform/local-database";
 import type { ActionGate } from "../sessions/action-gate";
+import { SqliteSignInStore } from "../sessions/sqlite-sign-in-store";
 import { SqliteReceiptLedger } from "./sqlite-receipt-ledger";
 import { SqliteRegisterSalesHistory } from "./sqlite-register-sales-history";
 
@@ -63,22 +64,31 @@ export async function saleHistoryDetailFor(
   { database, gate }: SalesHistoryRequestDeps,
   saleId: string,
 ): Promise<SaleHistoryDetailOutcome> {
-  const guarded = await gate.run({ kind: "view_sales_history" }, async () =>
-    readSaleHistoryDetail(
+  const guarded = await gate.run({ kind: "view_sales_history" }, async ({ signedInUserId }) => ({
+    outcome: readSaleHistoryDetail(
       {
         history: new SqliteRegisterSalesHistory(database),
         ledger: new SqliteReceiptLedger(database),
       },
       { saleId },
     ),
-  );
+    voidNeedsAuthorization:
+      registerOperationAccess(
+        { kind: "void_sale" },
+        {
+          id: signedInUserId,
+          access: new SqliteSignInStore(database).activePerson(signedInUserId)?.access,
+        },
+      ).kind === "needs_authorization",
+  }));
   if (guarded.kind !== "performed") {
     return guarded;
   }
-  if (guarded.result.kind === "not_found") {
-    return guarded.result;
+  const { outcome, voidNeedsAuthorization } = guarded.result;
+  if (outcome.kind === "not_found") {
+    return outcome;
   }
-  const { detail } = guarded.result;
+  const { detail } = outcome;
   return {
     kind: "found",
     detail: {
@@ -92,6 +102,7 @@ export async function saleHistoryDetailFor(
       payments: detail.payments,
       state: detail.standing,
       voidability: detail.voidability,
+      void_authorization_required: voidNeedsAuthorization,
       next_copy:
         detail.nextCopy.kind === "original"
           ? detail.nextCopy

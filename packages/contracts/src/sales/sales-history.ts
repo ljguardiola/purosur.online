@@ -80,6 +80,7 @@ const saleHistoryDetailSchema = z.object({
   payments: z.array(z.object({ method: z.enum(PAYMENT_METHODS), amount: z.int() })),
   state: saleStateSchema,
   voidability: saleVoidabilitySchema,
+  void_authorization_required: z.boolean(),
   next_copy: receiptCopySchema,
 });
 

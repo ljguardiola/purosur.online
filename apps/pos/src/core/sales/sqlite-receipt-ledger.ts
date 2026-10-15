@@ -120,7 +120,7 @@ export class SqliteReceiptLedger implements ReceiptLedger {
       .prepare<[string], DeliveryRow>(
         `SELECT print_attempted_at, printed_at,
                 (SELECT count(*) FROM sale_reprints WHERE sale_reprints.sale_id = sales.id) AS reprint_count
-         FROM sales WHERE id = ? AND state = 'COMPLETED'`,
+         FROM sales WHERE id = ? AND state IN ('COMPLETED', 'VOIDED')`,
       )
       .get(saleId);
     return row === undefined
