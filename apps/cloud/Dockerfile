@@ -26,6 +26,9 @@ ARG APP_VERSION
 ENV APP_VERSION=$APP_VERSION
 ENV NODE_ENV=production
 WORKDIR /app
+# The nightly offsite dump (dist/dump-offsite.js) runs pg_dump piped into age from this same image.
+# pg_dump must be at least the server's major version: 18 is the newest this Alpine release ships.
+RUN apk add --no-cache postgresql18-client age
 COPY --from=build /deploy/cloud ./
 # dist/server.js serves the backoffice from ../public when BACKOFFICE_STATIC_DIR is unset.
 COPY --from=build-backoffice /repo/apps/backoffice/dist ./public

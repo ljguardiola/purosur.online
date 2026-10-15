@@ -33,6 +33,7 @@ describe("ALERT_KINDS", () => {
       "fiscal_emission_stopped",
       "outbox_chain_broken",
       "lots_expiring",
+      "offsite_dump_unverified",
       "fortnight_report_pending",
       "fortnight_report_overdue",
     ]);

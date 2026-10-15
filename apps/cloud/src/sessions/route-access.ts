@@ -30,6 +30,7 @@ export type RouteAccess =
   | { level: "open_session_peek" }
   | { level: "session_cookie" }
   | { level: "release_check" }
+  | { level: "offsite_dump_check" }
   | { level: "capability"; capability: Capability }
   | { level: "record"; recordParam: string; grants: RecordGrants };
 
@@ -43,6 +44,7 @@ export const OPEN_SESSION_ACCESS: RouteAccess = { level: "open_session" };
 export const OPEN_SESSION_PEEK_ACCESS: RouteAccess = { level: "open_session_peek" };
 export const SESSION_COOKIE_ACCESS: RouteAccess = { level: "session_cookie" };
 export const RELEASE_CHECK_ACCESS: RouteAccess = { level: "release_check" };
+export const OFFSITE_DUMP_CHECK_ACCESS: RouteAccess = { level: "offsite_dump_check" };
 
 export function capabilityAccess(capability: Capability): RouteAccess {
   return { level: "capability", capability };
@@ -82,6 +84,7 @@ declare module "fastify" {
     access?: RouteAccess;
     sessionSource?: RouteSessionSource;
     releaseCheckToken?: string | undefined;
+    offsiteDumpCheckToken?: string | undefined;
   }
 
   interface FastifyInstance {
@@ -137,6 +140,7 @@ function isAccessGranted(
   switch (access.level) {
     case "public":
     case "release_check":
+    case "offsite_dump_check":
     case "open_session":
     case "open_session_peek":
     case "session_cookie":
@@ -158,12 +162,17 @@ const RELEASE_CHECK_REJECTED_RESPONSE = {
   message: "the release-check token is missing or not accepted",
 } as const;
 
+const OFFSITE_DUMP_CHECK_REJECTED_RESPONSE = {
+  code: "unauthenticated",
+  message: "the offsite-dump-check token is missing or not accepted",
+} as const;
+
 function bearerTokenOf(authorization: string | undefined): string | undefined {
   const match = /^Bearer (.+)$/.exec(authorization ?? "");
   return match?.[1];
 }
 
-function releaseCheckTokenMatches(expected: string | undefined, authorization: string | undefined) {
+function bearerTokenMatches(expected: string | undefined, authorization: string | undefined) {
   const received = bearerTokenOf(authorization);
   if (!expected || received === undefined) {
     return false;
@@ -187,10 +196,12 @@ async function enforceDeclaredAccess(
   if (access.level === "public") {
     return undefined;
   }
-  if (access.level === "release_check") {
+  if (access.level === "release_check" || access.level === "offsite_dump_check") {
+    const { releaseCheckToken, offsiteDumpCheckToken } = request.routeOptions.config;
+    const releaseCheck = access.level === "release_check";
     if (
-      releaseCheckTokenMatches(
-        request.routeOptions.config.releaseCheckToken,
+      bearerTokenMatches(
+        releaseCheck ? releaseCheckToken : offsiteDumpCheckToken,
         request.headers.authorization,
       )
     ) {
@@ -199,7 +210,7 @@ async function enforceDeclaredAccess(
     await reply
       .code(401)
       .header("WWW-Authenticate", "Bearer")
-      .send(RELEASE_CHECK_REJECTED_RESPONSE);
+      .send(releaseCheck ? RELEASE_CHECK_REJECTED_RESPONSE : OFFSITE_DUMP_CHECK_REJECTED_RESPONSE);
     return reply;
   }
   if (!sessionSource) {
@@ -272,6 +283,7 @@ export function registerRouteAccess(app: FastifyInstance): void {
       access &&
       access.level !== "public" &&
       access.level !== "release_check" &&
+      access.level !== "offsite_dump_check" &&
       !routeOptions.config?.sessionSource
     ) {
       throw new Error(

@@ -17,6 +17,17 @@ const REQUIRED_ENV: Record<string, string> = {
   ARCA_PRIVATE_KEY: "arca-private-key-pem",
 };
 
+const OFFSITE_DUMP_ENV: Record<string, string> = {
+  OFFSITE_DUMP_DATABASE_PASSWORD: "offsite dump/password",
+  OFFSITE_DUMP_AGE_RECIPIENT: "age1fictionalrecipient",
+  OFFSITE_DUMP_BUCKET_ENDPOINT: "https://s3.us-west-004.example-storage.test",
+  OFFSITE_DUMP_BUCKET_NAME: "dump-vault",
+  OFFSITE_DUMP_BUCKET_REGION: "us-west-004",
+  OFFSITE_DUMP_BUCKET_ACCESS_KEY_ID: "fictional-upload-key-id",
+  OFFSITE_DUMP_BUCKET_SECRET_ACCESS_KEY: "fictional-upload-secret",
+  OFFSITE_DUMP_CHECK_TOKEN: "offsite-dump-check-token",
+};
+
 beforeEach(() => {
   for (const [name, value] of Object.entries(REQUIRED_ENV)) {
     vi.stubEnv(name, value);
@@ -57,6 +68,136 @@ describe("the project's resources", () => {
       "Schema Migrations",
       "Cloud Server",
     ]);
+  });
+});
+
+describe("the offsite dump", () => {
+  beforeEach(() => {
+    vi.stubEnv("RELEASE_CHECK_TOKEN", "release-check-token");
+    for (const [name, value] of Object.entries(OFFSITE_DUMP_ENV)) {
+      vi.stubEnv(name, value);
+    }
+  });
+
+  describe("in production", () => {
+    it("adds the Offsite Dump service after the Cloud Server", async () => {
+      const names = ((await compile("production")).resources ?? [])
+        .flat()
+        .map((resource) => resource.name);
+
+      expect(names).toEqual([
+        "Database",
+        "Media Storage",
+        "Register Updates",
+        "Register Snapshots",
+        "Schema Migrations",
+        "Cloud Server",
+        "Offsite Dump",
+      ]);
+    });
+
+    it("runs the dump once a night at 06:00 UTC and never restarts or serves", async () => {
+      const dump = findService(await compile("production"), "Offsite Dump");
+
+      expect(dump.deploy?.startCommand).toBe("node dist/dump-offsite.js");
+      expect(dump.deploy?.cronSchedule).toBe("0 6 * * *");
+      expect(dump.deploy?.restartPolicyType).toBe("NEVER");
+      expect(dump.deploy?.healthcheckPath).toBeUndefined();
+      expect(dump.networking?.customDomains).toBeUndefined();
+    });
+
+    it("runs from the same image as the Cloud Server", async () => {
+      const definition = await compile("production");
+
+      expect(findService(definition, "Offsite Dump").source).toEqual(
+        findService(definition, "Cloud Server").source,
+      );
+    });
+
+    it("connects as the offsite_dump role, with a password a URL can carry", async () => {
+      const dump = findService(await compile("production"), "Offsite Dump");
+
+      expect(dump.variables?.["OFFSITE_DUMP_DATABASE_URL"]).toEqual({
+        type: "literal",
+        value: `postgresql://offsite_dump:offsite%20dump%2Fpassword@\${{Database.PGHOST}}:\${{Database.PGPORT}}/\${{Database.PGDATABASE}}`,
+      });
+    });
+
+    it.each([
+      "OFFSITE_DUMP_AGE_RECIPIENT",
+      "OFFSITE_DUMP_BUCKET_ENDPOINT",
+      "OFFSITE_DUMP_BUCKET_NAME",
+      "OFFSITE_DUMP_BUCKET_REGION",
+      "OFFSITE_DUMP_BUCKET_ACCESS_KEY_ID",
+      "OFFSITE_DUMP_BUCKET_SECRET_ACCESS_KEY",
+    ])("carries %s from the deploying environment", async (name) => {
+      const dump = findService(await compile("production"), "Offsite Dump");
+
+      expect(dump.variables?.[name]).toEqual({ type: "literal", value: OFFSITE_DUMP_ENV[name] });
+    });
+
+    it("holds no other credential: neither the admin database one nor the age identity", async () => {
+      const dump = findService(await compile("production"), "Offsite Dump");
+
+      expect(Object.keys(dump.variables ?? {}).sort()).toEqual([
+        "OFFSITE_DUMP_AGE_RECIPIENT",
+        "OFFSITE_DUMP_BUCKET_ACCESS_KEY_ID",
+        "OFFSITE_DUMP_BUCKET_ENDPOINT",
+        "OFFSITE_DUMP_BUCKET_NAME",
+        "OFFSITE_DUMP_BUCKET_REGION",
+        "OFFSITE_DUMP_BUCKET_SECRET_ACCESS_KEY",
+        "OFFSITE_DUMP_DATABASE_URL",
+      ]);
+    });
+
+    it("gives the Schema Migrations service the password that lets offsite_dump log in", async () => {
+      const migrate = findService(await compile("production"), "Schema Migrations");
+
+      expect(migrate.variables?.["OFFSITE_DUMP_DATABASE_PASSWORD"]).toEqual({
+        type: "literal",
+        value: "offsite dump/password",
+      });
+    });
+
+    it("gives the Cloud Server the token the daily check reports with", async () => {
+      const cloud = findService(await compile("production"), "Cloud Server");
+
+      expect(cloud.variables?.["OFFSITE_DUMP_CHECK_TOKEN"]).toEqual({
+        type: "literal",
+        value: "offsite-dump-check-token",
+      });
+    });
+
+    it.each(Object.keys(OFFSITE_DUMP_ENV))("does not compile without %s", async (name) => {
+      vi.stubEnv(name, "");
+
+      await expect(compile("production")).rejects.toThrow(
+        `missing required environment variable ${name}`,
+      );
+    });
+  });
+
+  describe("in staging", () => {
+    it("is not deployed, and compiles without any of its variables", async () => {
+      for (const name of Object.keys(OFFSITE_DUMP_ENV)) {
+        vi.stubEnv(name, "");
+      }
+
+      const definition = await compile("staging");
+
+      expect((definition.resources ?? []).flat().map((resource) => resource.name)).not.toContain(
+        "Offsite Dump",
+      );
+    });
+
+    it("gives no service any of its variables even when the environment holds them", async () => {
+      const definition = await compile("staging");
+
+      for (const name of ["Schema Migrations", "Cloud Server"]) {
+        const variables = Object.keys(findService(definition, name).variables ?? {});
+        expect(variables.filter((variable) => variable.startsWith("OFFSITE_DUMP"))).toEqual([]);
+      }
+    });
   });
 });
 
@@ -178,6 +319,9 @@ describe("the Cloud Server service's environment", () => {
   describe("in production", () => {
     beforeEach(() => {
       vi.stubEnv("RELEASE_CHECK_TOKEN", "release-check-token");
+      for (const [name, value] of Object.entries(OFFSITE_DUMP_ENV)) {
+        vi.stubEnv(name, value);
+      }
     });
 
     it("serves the backoffice from the production domain", async () => {

@@ -13,6 +13,7 @@ import {
   formatDate,
   formatInvoiceNumber,
   formatNumber,
+  formatPercent,
   formatPointOfSaleNumber,
   InlineNotice,
   isLocalAlertKind,
@@ -32,6 +33,7 @@ import {
   Check,
   CloudDownload,
   CloudOff,
+  DatabaseBackup,
   KeyRound,
   Laptop,
   LifeBuoy,
@@ -164,6 +166,8 @@ function alertIcon(kind: string): Icon {
     case "lots_expiring":
     case "fortnight_report_pending":
       return <CalendarClock />;
+    case "offsite_dump_unverified":
+      return <DatabaseBackup />;
     case "fortnight_report_overdue":
       return <TriangleAlert />;
     default:
@@ -239,6 +243,34 @@ function arcaCertificateExpiringDescription(
 ): string {
   const label = alertScopeLabel(scopeKind, environment).toLocaleLowerCase("es-AR");
   return `El certificado de ARCA de ${label} vence el ${alertDateTime(new Date(notAfter))}. Conviene cargar uno nuevo antes de esa fecha.`;
+}
+
+type OffsiteDumpUnverifiedDetail = Extract<
+  AlertDetail,
+  { kind: "offsite_dump_unverified" }
+>["detail"];
+
+const OFFSITE_DUMP_UNVERIFIED_REASON_TEXTS: Record<
+  Exclude<OffsiteDumpUnverifiedDetail["reason"], "shrank">,
+  string
+> = {
+  not_reported: "la verificación diaria no informó su resultado",
+  object_missing: "el archivo de la copia no está en el almacenamiento externo",
+  manifest_missing: "falta el manifiesto que acompaña a la copia",
+  size_mismatch: "el tamaño del archivo no coincide con el del manifiesto",
+  hash_mismatch: "la huella del archivo no coincide con la del manifiesto",
+  decryption_failed: "no se pudo descifrar la copia",
+  archive_unreadable: "la copia descifrada no se pudo leer",
+};
+
+function offsiteDumpUnverifiedReasonText(detail: OffsiteDumpUnverifiedDetail): string {
+  return detail.reason === "shrank"
+    ? `la copia pesa menos del ${formatPercent(detail.shrinkThresholdPercent)} de la anterior`
+    : OFFSITE_DUMP_UNVERIFIED_REASON_TEXTS[detail.reason];
+}
+
+function offsiteDumpUnverifiedDescription(detail: OffsiteDumpUnverifiedDetail): string {
+  return `La copia cifrada de la base de datos de la noche del ${formatCalendarDay(detail.night)} no se pudo verificar fuera de la nube: ${offsiteDumpUnverifiedReasonText(detail)}. Conviene revisar la copia cuanto antes.`;
 }
 
 function arcaWsaaTicketHeldDescription(retryIntervalMinutes: number): string {
@@ -396,6 +428,7 @@ function alertTitle(alert: AlertDetail): string {
     case "refund_task":
       return "Reembolso pendiente de confirmar";
     case "lots_expiring":
+    case "offsite_dump_unverified":
     case "fortnight_report_pending":
     case "fortnight_report_overdue":
       return alertKindLabel(alert.kind);
@@ -421,6 +454,9 @@ function alertDescription(alert: AlertDetail, catalog: PermissionCatalogWire = [
   }
   if (alert.kind === "lots_expiring") {
     return lotsExpiringDescription(alert.detail);
+  }
+  if (alert.kind === "offsite_dump_unverified") {
+    return offsiteDumpUnverifiedDescription(alert.detail);
   }
   const targetName = alert.scopeDisplay;
   if (targetName === null) {

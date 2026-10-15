@@ -17,6 +17,7 @@ import { buildTestDatabase, type TestDatabase } from "../test-support/build-test
 import { seededLocationId } from "../test-support/seeded-location.js";
 import {
   capabilityAccess,
+  OFFSITE_DUMP_CHECK_ACCESS,
   OPEN_SESSION_ACCESS,
   OPEN_SESSION_PEEK_ACCESS,
   openSessionOf,
@@ -34,6 +35,7 @@ import { generateSessionId, hashSessionId } from "./session-id.js";
 const NOON = new Date("2026-01-05T12:00:00.000Z");
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
 const RELEASE_CHECK_TOKEN = "release-check-token-for-tests";
+const OFFSITE_DUMP_CHECK_TOKEN = "offsite-dump-check-token-for-tests";
 
 let testDatabase: TestDatabase;
 let db: TestDatabase["db"];
@@ -113,6 +115,21 @@ beforeEach(async () => {
   app.get(
     "/test-only/release-check-without-token",
     { config: { access: RELEASE_CHECK_ACCESS, releaseCheckToken: undefined } },
+    answer,
+  );
+  app.get(
+    "/test-only/offsite-dump-check",
+    {
+      config: {
+        access: OFFSITE_DUMP_CHECK_ACCESS,
+        offsiteDumpCheckToken: OFFSITE_DUMP_CHECK_TOKEN,
+      },
+    },
+    answer,
+  );
+  app.get(
+    "/test-only/offsite-dump-check-without-token",
+    { config: { access: OFFSITE_DUMP_CHECK_ACCESS, offsiteDumpCheckToken: undefined } },
     answer,
   );
   app.get("/test-only/undeclared", answer);
@@ -564,6 +581,82 @@ describe("the declared access, enforced before every handler", () => {
 
     expect(responses.map((response) => response.statusCode)).toEqual([401, 401, 401]);
     expect(handlerRuns).toBe(0);
+  });
+
+  it("grants an offsite-dump-check route to its configured bearer token, with no session", async () => {
+    const response = await callRoute("/test-only/offsite-dump-check", undefined, {
+      authorization: `Bearer ${OFFSITE_DUMP_CHECK_TOKEN}`,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(handlerRuns).toBe(1);
+  });
+
+  it("refuses an offsite-dump-check route without its token, with the release-check token, or with a session, with 401 unauthenticated and a Bearer challenge", async () => {
+    const userId = await insertUser(await seededAdministratorRoleId(), "admin@example.com");
+    const administratorSessionId = await insertSession(userId);
+
+    const responses = [
+      await callRoute("/test-only/offsite-dump-check"),
+      await callRoute("/test-only/offsite-dump-check", administratorSessionId),
+      await callRoute("/test-only/offsite-dump-check", undefined, {
+        authorization: `Bearer ${RELEASE_CHECK_TOKEN}`,
+      }),
+      await callRoute("/test-only/offsite-dump-check", undefined, {
+        authorization: OFFSITE_DUMP_CHECK_TOKEN,
+      }),
+    ];
+
+    for (const response of responses) {
+      expect(response.statusCode).toBe(401);
+      expect(response.headers["www-authenticate"]).toBe("Bearer");
+      expect(response.json()).toMatchObject({ code: "unauthenticated" });
+    }
+    expect(handlerRuns).toBe(0);
+  });
+
+  it("refuses the offsite-dump-check token on a release-check route", async () => {
+    const response = await callRoute("/test-only/release-check", undefined, {
+      authorization: `Bearer ${OFFSITE_DUMP_CHECK_TOKEN}`,
+    });
+
+    expect(response.statusCode).toBe(401);
+    expect(handlerRuns).toBe(0);
+  });
+
+  it("refuses every request to an offsite-dump-check route whose token is not configured", async () => {
+    const responses = [
+      await callRoute("/test-only/offsite-dump-check-without-token"),
+      await callRoute("/test-only/offsite-dump-check-without-token", undefined, {
+        authorization: "Bearer ",
+      }),
+      await callRoute("/test-only/offsite-dump-check-without-token", undefined, {
+        authorization: `Bearer ${OFFSITE_DUMP_CHECK_TOKEN}`,
+      }),
+    ];
+
+    expect(responses.map((response) => response.statusCode)).toEqual([401, 401, 401]);
+    expect(handlerRuns).toBe(0);
+  });
+
+  it("registers an offsite-dump-check route without a session source", async () => {
+    const bareApp = Fastify();
+    registerRouteAccess(bareApp);
+
+    expect(() =>
+      bareApp.get(
+        "/offsite-dump-check",
+        {
+          config: {
+            access: OFFSITE_DUMP_CHECK_ACCESS,
+            offsiteDumpCheckToken: OFFSITE_DUMP_CHECK_TOKEN,
+          },
+        },
+        async () => "ok",
+      ),
+    ).not.toThrow();
+
+    await bareApp.close();
   });
 
   it("registers a release-check route without a session source", async () => {

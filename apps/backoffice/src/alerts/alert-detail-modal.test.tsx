@@ -1,5 +1,5 @@
 import type { AlertDetail, PermissionCatalogWire } from "@purosur/contracts";
-import { formatCalendarDay, formatCalendarDayRange } from "@purosur/ui";
+import { formatCalendarDay, formatCalendarDayRange, formatPercent } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { act } from "react";
 import { beforeEach, expect, test, vi } from "vitest";
@@ -1851,6 +1851,76 @@ test("does not link the alert of lots nearing their expiry to the expiring lots 
 
   await expect.element(screen.getByText("Productos por vencer", { exact: true })).toBeVisible();
   expect(screen.getByRole("link", { name: "Ver vencimientos" }).query()).toBeNull();
+});
+
+function offsiteDumpUnverifiedAlert(
+  detail: Extract<AlertDetail, { kind: "offsite_dump_unverified" }>["detail"],
+) {
+  return baseDetail({
+    kind: "offsite_dump_unverified",
+    level: "critical",
+    scope: "production",
+    scopeDisplay: "production",
+    scopeKind: "environment",
+    closing: "by_itself",
+    detail,
+  });
+}
+
+test.each([
+  ["not_reported", "la verificación diaria no informó su resultado"],
+  ["object_missing", "el archivo de la copia no está en el almacenamiento externo"],
+  ["manifest_missing", "falta el manifiesto que acompaña a la copia"],
+  ["size_mismatch", "el tamaño del archivo no coincide con el del manifiesto"],
+  ["hash_mismatch", "la huella del archivo no coincide con la del manifiesto"],
+  ["decryption_failed", "no se pudo descifrar la copia"],
+  ["archive_unreadable", "la copia descifrada no se pudo leer"],
+] as const)(
+  "tells which night's offsite dump could not be verified and why (%s)",
+  async (reason, reasonText) => {
+    const services = createServices();
+    vi.mocked(services.fetchAlert).mockResolvedValue(
+      ok(offsiteDumpUnverifiedAlert({ night: "2026-10-14", reason })),
+    );
+
+    const screen = await renderModal(services);
+
+    await expect
+      .element(screen.getByText("Copia de seguridad externa sin verificar", { exact: true }))
+      .toBeVisible();
+    await expect
+      .element(
+        screen.getByText(
+          `La copia cifrada de la base de datos de la noche del ${formatCalendarDay("2026-10-14")} no se pudo verificar fuera de la nube: ${reasonText}. Conviene revisar la copia cuanto antes.`,
+        ),
+      )
+      .toBeVisible();
+    await expect.element(screen.getByText("Crítica")).toBeVisible();
+    await expect.element(screen.getByText("Producción", { exact: true })).toBeVisible();
+  },
+);
+
+test("tells the threshold below which an offsite dump counts as shrank, as the alert states it", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(
+    ok(
+      offsiteDumpUnverifiedAlert({
+        night: "2026-10-14",
+        reason: "shrank",
+        shrinkThresholdPercent: 35,
+      }),
+    ),
+  );
+
+  const screen = await renderModal(services);
+
+  await expect
+    .element(
+      screen.getByText(
+        `La copia cifrada de la base de datos de la noche del ${formatCalendarDay("2026-10-14")} no se pudo verificar fuera de la nube: la copia pesa menos del ${formatPercent(35)} de la anterior. Conviene revisar la copia cuanto antes.`,
+      ),
+    )
+    .toBeVisible();
 });
 
 const REPORT_PRESENTATION = {

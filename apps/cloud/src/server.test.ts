@@ -767,6 +767,7 @@ describe("startServer", () => {
       BACKOFFICE_ORIGIN: "https://staging.purosur.online",
       EDGE_ORIGIN_SECRET: "edge-secret",
       RELEASE_CHECK_TOKEN: "release-check-token",
+      OFFSITE_DUMP_CHECK_TOKEN: "offsite-dump-check-token",
       ARCA_CERTIFICATE: VALID_ARCA_CERTIFICATE,
       ARCA_ENVIRONMENT: "homologation",
       DEVICE_TOKEN_ROTATION_KEY: ROTATION_KEY,
@@ -796,6 +797,7 @@ describe("startServer", () => {
           notAfter: VALID_ARCA_CERTIFICATE_NOT_AFTER,
         },
         arcaVitality: { endpoint: "https://wswhomo.afip.gov.ar/wsfev1/service.asmx" },
+        offsiteDumpCheck: { environment: "homologation" },
       },
       now,
     );
@@ -874,6 +876,10 @@ describe("startServer", () => {
         db: fakeRecovery.db,
         releaseCheckToken: "release-check-token",
       },
+      offsiteDumpChecks: {
+        db: fakeRecovery.db,
+        offsiteDumpCheckToken: "offsite-dump-check-token",
+      },
       prices: {
         db: fakeRecovery.db,
         backofficeOrigin: fakeRecovery.backofficeOrigin,
@@ -926,6 +932,71 @@ describe("startServer", () => {
 
     await fakeApp.close();
     expect(close).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("startServer checking the offsite dump", () => {
+  const env = {
+    DATABASE_URL: "postgres://user:pass@db/purosur",
+    RESEND_API_KEY: "re_test_key",
+    RECOVERY_EMAIL_FROM: FICTIONAL_RECOVERY_SENDER,
+    RECOVERY_EMAIL_REPLY_TO: FICTIONAL_RECOVERY_REPLY_TO,
+    BACKOFFICE_ORIGIN: "https://staging.purosur.online",
+    EDGE_ORIGIN_SECRET: "edge-secret",
+    ARCA_CERTIFICATE: VALID_ARCA_CERTIFICATE,
+    ARCA_ENVIRONMENT: "homologation",
+    DEVICE_TOKEN_ROTATION_KEY: ROTATION_KEY,
+    INSTALLATION_KEYS_ENCRYPTION_KEY: KEYS_ENCRYPTION_KEY,
+  };
+
+  async function start(extraEnv: Record<string, string>) {
+    const buildApp = vi.fn().mockReturnValue(appListeningBy(vi.fn().mockResolvedValue(undefined)));
+    const setUpRecovery = vi.fn().mockResolvedValue({
+      db: {},
+      jobQueue: { enqueueRecoveryRequest: vi.fn() },
+      backofficeOrigin: "https://staging.purosur.online",
+      worker: { stop: vi.fn() },
+      workerUtils: { addJob: vi.fn() },
+      close: vi.fn(),
+    });
+    await startServer(
+      { ...env, ...extraEnv },
+      {
+        arcaEndpoints: arcaEndpointsOf,
+        initSentry: vi.fn(),
+        buildApp,
+        setUpRecovery,
+        recordAuthorizedCuit: vi.fn().mockResolvedValue(undefined),
+        enqueueMissingTaxAuthorityCounts: vi.fn().mockResolvedValue(undefined),
+        enqueueMissingUnclearOutcomes: vi.fn().mockResolvedValue(undefined),
+      },
+    );
+    return { buildApp, setUpRecovery };
+  }
+
+  it("sets up the detection for the certificate's environment when the token is configured", async () => {
+    const { setUpRecovery } = await start({ OFFSITE_DUMP_CHECK_TOKEN: "offsite-token" });
+
+    expect(setUpRecovery).toHaveBeenCalledWith(
+      expect.objectContaining({ offsiteDumpCheck: { environment: "homologation" } }),
+      expect.any(Function),
+    );
+  });
+
+  it("sets up no detection without the token, so no alert is ever raised there", async () => {
+    const { setUpRecovery } = await start({});
+
+    const [recoveryEnv] = setUpRecovery.mock.calls[0] as [Record<string, unknown>];
+    expect(recoveryEnv).not.toHaveProperty("offsiteDumpCheck");
+  });
+
+  it("gives the report route no token when it is not configured", async () => {
+    const { buildApp } = await start({});
+
+    const [options] = buildApp.mock.calls[0] as [
+      { offsiteDumpChecks: { offsiteDumpCheckToken?: string } },
+    ];
+    expect(options.offsiteDumpChecks.offsiteDumpCheckToken).toBeUndefined();
   });
 });
 

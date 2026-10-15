@@ -33,6 +33,12 @@ test("names the alert of lots nearing their expiry", () => {
   expect(alertKindLabel("lots_expiring")).toBe("Productos por vencer");
 });
 
+test("names the alert of an offsite dump that could not be verified", () => {
+  expect(alertKindLabel("offsite_dump_unverified")).toBe(
+    "Copia de seguridad externa sin verificar",
+  );
+});
+
 test("names the notice and the missed deadline of a fortnight's report", () => {
   expect(alertKindLabel("fortnight_report_pending")).toBe("Informe de quincena pendiente");
   expect(alertKindLabel("fortnight_report_overdue")).toBe("Informe de quincena vencido");

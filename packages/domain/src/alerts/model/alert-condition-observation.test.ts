@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { OFFSITE_DUMP_SHRINK_THRESHOLD_PERCENT } from "../../backups/index.js";
 import {
   fiscalDocumentAuthorizedObservation,
   fiscalRejectionAlertObservation,
@@ -7,6 +8,8 @@ import {
   lotsNoLongerExpiringObservation,
   offlineAuthorizationCodeHeldObservation,
   offlineAuthorizationCodeMissingObservation,
+  offsiteDumpUnverifiedObservation,
+  offsiteDumpVerifiedObservation,
   quietRegisterObservation,
   registerFiscalEmissionObservation,
   registerSalesDeniedObservation,
@@ -283,6 +286,56 @@ describe("lotsNoLongerExpiringObservation", () => {
       holds: false,
       kind: "lots_expiring",
       scope: "location-1",
+    });
+  });
+});
+
+describe("offsiteDumpUnverifiedObservation", () => {
+  it("holds the unverified-dump condition of the environment, naming the night and why it is unverified", () => {
+    expect(
+      offsiteDumpUnverifiedObservation({
+        environment: "production",
+        night: "2026-10-14",
+        reason: "not_reported",
+      }),
+    ).toEqual({
+      holds: true,
+      alert: {
+        kind: "offsite_dump_unverified",
+        scope: "production",
+        detail: { night: "2026-10-14", reason: "not_reported" },
+      },
+    });
+  });
+
+  it("names the threshold the dump fell below when it shrank", () => {
+    expect(
+      offsiteDumpUnverifiedObservation({
+        environment: "production",
+        night: "2026-10-14",
+        reason: "shrank",
+      }),
+    ).toEqual({
+      holds: true,
+      alert: {
+        kind: "offsite_dump_unverified",
+        scope: "production",
+        detail: {
+          night: "2026-10-14",
+          reason: "shrank",
+          shrinkThresholdPercent: OFFSITE_DUMP_SHRINK_THRESHOLD_PERCENT,
+        },
+      },
+    });
+  });
+});
+
+describe("offsiteDumpVerifiedObservation", () => {
+  it("clears the unverified-dump condition of the environment", () => {
+    expect(offsiteDumpVerifiedObservation("production")).toEqual({
+      holds: false,
+      kind: "offsite_dump_unverified",
+      scope: "production",
     });
   });
 });

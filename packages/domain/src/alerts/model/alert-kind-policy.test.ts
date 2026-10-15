@@ -59,6 +59,7 @@ describe("alertKindPolicy", () => {
     ["event_invariant_violated", "warning", afterOpening, "all", "event", true],
     ["outbox_chain_broken", "warning", afterOpening, "all", "syncDevice", false],
     ["lots_expiring", "informational", null, "local", "branch", true],
+    ["offsite_dump_unverified", "critical", null, "all", "environment", true],
     ["fortnight_report_pending", "warning", null, "all", "pointOfSaleFortnight", true],
     ["fortnight_report_overdue", "critical", null, "all", "pointOfSaleFortnight", true],
     ["update_required", "critical", null, "all", "register", true],
@@ -115,6 +116,7 @@ describe("alertKindPolicy", () => {
       "offline_authorization_code_missing",
       "fiscal_emission_stopped",
       "lots_expiring",
+      "offsite_dump_unverified",
       "fortnight_report_pending",
     ]);
   });
@@ -154,6 +156,7 @@ describe("alertClosing", () => {
       fiscal_emission_stopped: "by_itself",
       outbox_chain_broken: "by_hand",
       lots_expiring: "by_itself",
+      offsite_dump_unverified: "by_itself",
       fortnight_report_pending: "by_itself",
       fortnight_report_overdue: "by_hand",
     });
@@ -216,6 +219,7 @@ describe("alertKindsWithScope", () => {
     expect(alertKindsWithScope("environment")).toEqual([
       "arca_certificate_expiring",
       "arca_wsaa_ticket_held",
+      "offsite_dump_unverified",
     ]);
     expect(alertKindsWithScope("registerFortnight")).toEqual([
       "offline_authorization_code_missing",
