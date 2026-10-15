@@ -1,8 +1,10 @@
 import {
   isConfirmedByHand,
+  type PaymentTransaction,
   type PendingMercadoPagoSalePayment,
   type SalePayment,
 } from "@purosur/domain";
+import type { SaleRefund } from "@purosur/domain/sales/use-cases";
 import type { LocalDatabase } from "../platform/local-database";
 
 interface PaymentRow {
@@ -15,7 +17,7 @@ interface PaymentRow {
   tendered: number | null;
   authorized_by: string | null;
   confirmed_at: string | null;
-  state: SalePayment["state"];
+  state: PaymentTransaction["state"];
   occurred_at: string;
 }
 
@@ -30,13 +32,65 @@ export function readSalePayments(database: LocalDatabase, saleId: string): SaleP
     .map(toPayment);
 }
 
-function toPayment(row: PaymentRow): SalePayment {
+export function readRecordedPayments(
+  database: LocalDatabase,
+  saleId: string,
+): (PaymentTransaction & { occurredAt: Date })[] {
+  return database
+    .prepare<[string], PaymentRow>(
+      `SELECT id, sale_id, kind, method, provider, amount, tendered, authorized_by, confirmed_at, state,
+              occurred_at
+       FROM payment_transactions WHERE sale_id = ? ORDER BY rowid`,
+    )
+    .all(saleId)
+    .map((row) =>
+      row.method === "QR" || row.method === "POINT"
+        ? toMercadoPagoPayment(row, row.method)
+        : toPayment(row),
+    );
+}
+
+function toMercadoPagoPayment(
+  row: PaymentRow,
+  method: "QR" | "POINT",
+): PaymentTransaction & { occurredAt: Date } {
   const common = {
     id: row.id,
     saleId: row.sale_id,
     kind: row.kind,
     amount: row.amount,
     state: row.state,
+    occurredAt: new Date(row.occurred_at),
+  };
+  return method === "QR"
+    ? { ...common, method, provider: "MERCADOPAGO_QR" }
+    : { ...common, method, provider: "MERCADOPAGO_POINT" };
+}
+
+export function insertPaymentRefund(database: LocalDatabase, refund: SaleRefund): void {
+  database
+    .prepare(
+      `INSERT INTO payment_refunds (id, payment_id, method, provider, amount, state, occurred_at)
+       VALUES (@id, @payment_id, @method, @provider, @amount, @state, @occurred_at)`,
+    )
+    .run({
+      id: refund.id,
+      payment_id: refund.paymentId,
+      method: refund.method,
+      provider: refund.provider,
+      amount: refund.amount,
+      state: refund.state,
+      occurred_at: refund.occurredAt.toISOString(),
+    });
+}
+
+function toPayment(row: PaymentRow): SalePayment {
+  const common = {
+    id: row.id,
+    saleId: row.sale_id,
+    kind: row.kind,
+    amount: row.amount,
+    state: "APPROVED" as const,
     occurredAt: new Date(row.occurred_at),
   };
   if (row.method === "QR") {

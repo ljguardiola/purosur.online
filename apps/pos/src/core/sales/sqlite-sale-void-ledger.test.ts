@@ -39,8 +39,8 @@ const ids = {
   },
 };
 
-function voidLedger(chainKey: string | undefined = CHAIN_KEY): SqliteSaleVoidLedger {
-  return new SqliteSaleVoidLedger(database, chainKey);
+function voidLedger(chainKey: string | null = CHAIN_KEY): SqliteSaleVoidLedger {
+  return new SqliteSaleVoidLedger(database, chainKey ?? undefined);
 }
 
 function sellTwo(): string {
@@ -421,7 +421,7 @@ describe("voiding a sale", () => {
 
     const outcome = await voidSale(
       {
-        ledger: voidLedger(undefined),
+        ledger: voidLedger(null),
         clock: { now: () => VOIDED_AT },
         ids,
         authority: {
