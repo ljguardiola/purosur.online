@@ -11,6 +11,7 @@ export type {
 export type { StockCorrection } from "./model/product-valuation.js";
 export { STOCK_CORRECTIONS } from "./model/product-valuation.js";
 export { PRODUCTS_A_RECIPE_MAY_USE } from "./model/recipe.js";
+export { saleVoidStockMovements } from "./model/sale-void-stock-movements.js";
 export { soldStockDelta } from "./model/sold-stock-delta.js";
 export { isListedInStockBalances } from "./model/stock-balance.js";
 export { countResult, expectedBalance, mayBeCountedTogether } from "./model/stock-count.js";

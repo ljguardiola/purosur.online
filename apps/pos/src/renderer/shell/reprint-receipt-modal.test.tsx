@@ -25,6 +25,9 @@ const SALE: Sale = {
   line_count: 8,
   payments: [{ method: "CASH", amount: 5_070_000 }],
   state: "completed",
+  voidability: { kind: "not_voidable", refusal: "carries_invoice" },
+  void_authorization_required: false,
+  reprint: { kind: "available" },
   next_copy: { kind: "duplicate", order_number: 1 },
 };
 
@@ -324,6 +327,20 @@ describe("ReprintReceiptModal", () => {
       await expect
         .element(screen.getByRole("alert"))
         .toHaveTextContent("La impresora no está configurada.");
+      expect(onReprinted).not.toHaveBeenCalled();
+    });
+
+    it("says a voided sale's receipt is not printed", async () => {
+      const { screen, onReprinted } = await renderModal({
+        reprintSaleReceipt: async () => ({ kind: "sale_voided" }),
+      });
+      await typeReason(screen, "Otra copia");
+
+      await userEvent.click(screen.getByRole("button", { name: REPRINT }));
+
+      await expect
+        .element(screen.getByRole("alert"))
+        .toHaveTextContent("La venta está anulada: no se reimprime su ticket.");
       expect(onReprinted).not.toHaveBeenCalled();
     });
 

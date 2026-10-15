@@ -18,6 +18,7 @@ import {
   NOT_PERMITTED,
   receiptRig,
   SENT_AT,
+  voidedSale,
 } from "./test-support/receipt-rig.js";
 
 const ISSUER_IDENTITY = {
@@ -469,6 +470,18 @@ describe("printSaleReceipt", () => {
 
       expect(outcome).toEqual({ kind: "not_found" });
       expect(rig.printer.sent).toEqual([]);
+      expect(rig.ledger.state.outbox).toEqual([]);
+    });
+
+    it("answers sale_voided and records and sends nothing for a voided sale", async () => {
+      const rig = receiptRig([voidedSale()]);
+
+      const outcome = await printSaleReceipt(rig.ports, { saleId: "sale-1" }, rig.watch);
+
+      expect(outcome).toEqual({ kind: "sale_voided" });
+      expect(rig.printer.sent).toEqual([]);
+      expect(rig.ledger.state.sales[0]?.printAttemptedAt).toBeNull();
+      expect(rig.ledger.state.sales[0]?.stored).toBeUndefined();
       expect(rig.ledger.state.outbox).toEqual([]);
     });
 

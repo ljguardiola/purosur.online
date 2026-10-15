@@ -40,7 +40,9 @@ export class FakeRegisterSalesHistory implements RegisterSalesHistory {
 
   private pageOf(sales: FakeHistorySale[], { standing, offset, limit }: SalesHistoryFilter) {
     const matching = sales.filter(
-      ({ entry }) => standing === undefined || saleStandingOf(entry.fiscal) === standing,
+      ({ entry }) =>
+        standing === undefined ||
+        saleStandingOf({ ...entry.fiscal, voided: entry.voided }) === standing,
     );
     return {
       entries: matching.slice(offset, offset + limit).map(({ entry }) => entry),

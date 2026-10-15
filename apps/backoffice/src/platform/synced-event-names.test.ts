@@ -10,6 +10,11 @@ describe("the Spanish names of synced events", () => {
     expect(syncedEventTypeName("cash_session_closed")).toBe("cierre de caja");
   });
 
+  test("names a voided sale apart from a cancelled one", () => {
+    expect(syncedEventTypeName("sale_voided")).toBe("venta anulada");
+    expect(syncedEventTypeName("sale_cancelled")).toBe("venta cancelada");
+  });
+
   test("names the replacement of a QR payment", () => {
     expect(syncedEventTypeName("qr_payment_replaced")).toBe("reemplazo de pago QR");
   });

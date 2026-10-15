@@ -37,6 +37,7 @@ import {
   scanProductFor,
 } from "../../sales/sale-requests";
 import { ControllableReceiptPrinter } from "../../sales/test-support/controllable-receipt-printer";
+import { voidSaleFor } from "../../sales/void-sale-requests";
 import { createActionGate } from "../../sessions/action-gate";
 import { createSignedInPerson } from "../../sessions/signed-in-person";
 import { SqliteSignInStore } from "../../sessions/sqlite-sign-in-store";
@@ -650,6 +651,24 @@ export async function withRegisterSession<TResult>(
       saleId: receiptScan.sale.id,
       nextStep,
     });
+    nextStep();
+    const toVoid = await scanProductFor(deps(), "7790001000028");
+    if (toVoid.kind !== "added") {
+      throw new Error(`The register session's "scan a product to void" ended as "${toVoid.kind}"`);
+    }
+    nextStep();
+    const voidCharge = await chargeSaleInCashFor(deps(), {
+      saleId: toVoid.sale.id,
+      tendered: 2400,
+    });
+    expectOutcome("charge the sale to void", voidCharge.kind, "completed");
+    nextStep();
+    const voided = await voidSaleFor(deps(), {
+      saleId: toVoid.sale.id,
+      pendingRefundsConfirmed: false,
+      authorization: { user_id: GRACE, pin: PIN },
+    });
+    expectOutcome("void the sale authorized by PIN", voided.kind, "voided");
     holdOfflineAuthorization(database);
     nextStep();
     const offlineScan = await scanProductFor(deps(), "7790001000028");

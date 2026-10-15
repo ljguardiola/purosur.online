@@ -37,10 +37,11 @@ function reasonDetail(
   if (refund.origin === "late_payment") {
     return `El QR de la venta del ${saleMoment} se pagó después de cobrarla ${coveringWords(refund.covered_by)}`;
   }
-  const cancelled = `La venta del ${saleMoment} se canceló`;
+  const voided = refund.origin === "sale_voided";
+  const ended = `La venta del ${saleMoment} se ${voided ? "anuló" : "canceló"}`;
   return refund.cancelled_by === null || refund.cancelled_by_name === null
-    ? cancelled
-    : `${cancelled} · la canceló ${refund.cancelled_by_name}`;
+    ? ended
+    : `${ended} · la ${voided ? "anuló" : "canceló"} ${refund.cancelled_by_name}`;
 }
 
 export function refundReason(

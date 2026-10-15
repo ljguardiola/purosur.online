@@ -10,6 +10,7 @@ import { buildTestDatabase, type TestDatabase } from "../test-support/build-test
 import { DrizzlePendingRefundsReader } from "./drizzle-pending-refunds-reader.js";
 import { aPendingLatePaymentRefund } from "./test-support/late-payment-refund-fixtures.js";
 import { aPendingQrRefundOfCancelledSale } from "./test-support/qr-refund-fixtures.js";
+import { aPendingRefundOfVoidedSale } from "./test-support/voided-sale-refund-fixtures.js";
 
 const NOW = new Date("2026-10-07T15:00:00.000Z");
 
@@ -68,6 +69,27 @@ describe("DrizzlePendingRefundsReader.pendingRefunds", () => {
         sentAt: null,
         lastRefusalReason: null,
       },
+    ]);
+  });
+
+  it("lists the pending refund of a voided sale dated when the sale was voided, with its register and who rang it up", async () => {
+    const voidedAt = new Date("2026-10-07T14:00:00.000Z");
+    const refund = await aPendingRefundOfVoidedSale(db, { voidedAt, registerName: "Caja 3" });
+
+    const pending = await reader().pendingRefunds(refund.locationId);
+
+    expect(pending).toEqual([
+      expect.objectContaining({
+        id: refund.refundId,
+        saleId: refund.saleId,
+        registerName: "Caja 3",
+        method: "TRANSFER",
+        origin: "sale_voided",
+        amount: 2_000,
+        occurredAt: voidedAt,
+        saleOccurredAt: voidedAt,
+        coveredBy: [],
+      }),
     ]);
   });
 

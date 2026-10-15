@@ -58,6 +58,7 @@ import type {
   SignInOutcome,
   SignInUser,
   StartMercadoPagoChargeOutcome,
+  VoidSaleOutcome,
   WeighCountedProductOutcome,
   WeighProductOutcome,
   WithdrawInitialCountLineOutcome,
@@ -233,6 +234,11 @@ export interface RouterContext {
     saleId: string,
     authorization: Authorization | undefined,
   ) => Promise<CancelPaidSaleOutcome>;
+  voidSale: (
+    saleId: string,
+    pendingRefundsConfirmed: boolean,
+    authorization: Authorization | undefined,
+  ) => Promise<VoidSaleOutcome>;
   receiptPrintStatus: (saleId: string) => Promise<ReceiptPrintStatusOutcome>;
   printOriginalReceipt: (saleId: string) => Promise<PrintOriginalReceiptOutcome>;
   convertPaidOrderIntoRefund: (
@@ -767,6 +773,7 @@ const historyRoute = createRoute({
       salesHistory,
       saleHistoryDetail,
       reprintSaleReceipt,
+      voidSale,
       authorizers,
       refreshCashSession,
     } = historyRoute.useRouteContext();
@@ -780,6 +787,7 @@ const historyRoute = createRoute({
         salesHistory={salesHistory}
         saleHistoryDetail={saleHistoryDetail}
         reprintSaleReceipt={reprintSaleReceipt}
+        voidSale={voidSale}
         loadAuthorizers={authorizers}
         onSessionInvalid={() => void refreshCashSession()}
       />
@@ -1109,6 +1117,7 @@ export function createAppRouter(
     | "removeSaleLine"
     | "cancelSale"
     | "cancelPaidSale"
+    | "voidSale"
     | "receiptPrintStatus"
     | "printOriginalReceipt"
     | "convertPaidOrderIntoRefund"

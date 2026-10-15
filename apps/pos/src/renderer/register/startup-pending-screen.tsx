@@ -336,6 +336,7 @@ export function StartupPendingScreen({
         break;
       case "already_attempted":
       case "not_found":
+      case "sale_voided":
         void refreshPending();
         break;
       case "not_signed_in":

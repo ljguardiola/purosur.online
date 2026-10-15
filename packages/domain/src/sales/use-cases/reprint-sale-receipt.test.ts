@@ -11,6 +11,7 @@ import {
   NOT_PERMITTED,
   receiptRig,
   SENT_AT,
+  voidedSale,
 } from "./test-support/receipt-rig.js";
 
 const INPUT = { saleId: "sale-1", reason: "el cliente la perdió" };
@@ -208,6 +209,16 @@ describe("reprintSaleReceipt", () => {
 
     expect(await reprintSaleReceipt(rig.ports, INPUT, rig.watch)).toEqual({ kind: "not_found" });
     expect(rig.printer.sent).toEqual([]);
+  });
+
+  it("answers sale_voided and records and sends nothing for a voided sale", async () => {
+    const rig = receiptRig([voidedSale({ printAttemptedAt: FIRST_PRINT_AT })]);
+
+    expect(await reprintSaleReceipt(rig.ports, INPUT, rig.watch)).toEqual({ kind: "sale_voided" });
+    expect(rig.printer.sent).toEqual([]);
+    expect(rig.ledger.state.sales[0]?.reprints).toEqual([]);
+    expect(rig.ledger.state.sales[0]?.stored).toBeUndefined();
+    expect(rig.ledger.state.outbox).toEqual([]);
   });
 
   it("answers printer_not_configured and records and sends nothing when no printer is configured", async () => {

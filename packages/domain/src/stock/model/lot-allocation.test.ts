@@ -24,7 +24,7 @@ function target(lotId: string) {
 }
 
 describe("allocatesToLots", () => {
-  it.each(["sale", "loss", "adjustment", "assembly_out"] as const)(
+  it.each(["sale", "sale_void", "loss", "adjustment", "assembly_out"] as const)(
     "allocates a %s by the lots rule",
     (kind) => {
       expect(allocatesToLots(kind)).toBe(true);

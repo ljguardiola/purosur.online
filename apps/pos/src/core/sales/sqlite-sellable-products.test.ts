@@ -44,10 +44,16 @@ function addBarcode(productId: string, code: string, active = true, position = 1
 function addSale(id: string, state: string, productIds: string[], registerId = "register-1"): void {
   database
     .prepare(
-      `INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at)
-       VALUES (?, ?, 'device-1', 'session-1', 'u1', ?, ?)`,
+      `INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at, voided_at)
+       VALUES (?, ?, 'device-1', 'session-1', 'u1', ?, ?, ?)`,
     )
-    .run(id, registerId, state, state === "OPEN" ? null : "2026-09-30T09:00:00.000Z");
+    .run(
+      id,
+      registerId,
+      state,
+      state === "OPEN" ? null : "2026-09-30T09:00:00.000Z",
+      state === "VOIDED" ? "2026-09-30T09:05:00.000Z" : null,
+    );
   productIds.forEach((productId, index) => {
     database
       .prepare(

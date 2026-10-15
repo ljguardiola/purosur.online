@@ -1,5 +1,5 @@
 import type { MercadoPagoOrderTransaction } from "../../payments/index.js";
-import type { CompletedSale } from "../../sales/index.js";
+import type { CompletedSale, VoidedSale } from "../../sales/index.js";
 import type { Clock, JsonValue } from "../../shared/index.js";
 import type { OpeningCountRecordedFact, OpeningCountWithdrawnFact } from "../../stock/index.js";
 import type { EventInvariantBreaks } from "../model/event-invariant-breaks.js";
@@ -42,6 +42,11 @@ export interface EventApplicationTransaction {
   applySaleStock(
     sale: CompletedSale,
     movements: NonNullable<CompletedSale["stockMovements"]>,
+    event: UnappliedEvent,
+  ): Promise<StockApplication>;
+  applySaleVoidStock(
+    sale: VoidedSale,
+    movements: VoidedSale["stockMovements"],
     event: UnappliedEvent,
   ): Promise<StockApplication>;
   applyOpeningCount(

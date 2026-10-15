@@ -52,6 +52,7 @@ import type {
   SignInOutcome,
   SignInUser,
   StartMercadoPagoChargeOutcome,
+  VoidSaleOutcome,
   WeighProductOutcome,
 } from "@purosur/contracts";
 import type { AuthorizablePermissionKey, RegisterService } from "@purosur/domain";
@@ -73,6 +74,7 @@ import type {
   PreviewSaleLineAdjustmentRequest,
 } from "./sales/sale-requests";
 import type { SalesHistoryRequest } from "./sales/sales-history-requests";
+import type { VoidSaleRequest } from "./sales/void-sale-requests";
 import {
   answerInitialCountRequest,
   type InitialCountRequests,
@@ -165,6 +167,7 @@ export interface RendererRequestDeps {
   removeSaleLine: ((lineId: string) => Promise<RemoveSaleLineOutcome>) | undefined;
   cancelSale: (() => Promise<CancelSaleOutcome>) | undefined;
   cancelPaidSale: ((request: CancelPaidSaleRequest) => Promise<CancelPaidSaleOutcome>) | undefined;
+  voidSale: ((request: VoidSaleRequest) => Promise<VoidSaleOutcome>) | undefined;
   receiptPrintStatus: ((saleId: string) => Promise<ReceiptPrintStatusOutcome>) | undefined;
   printOriginalReceipt: ((saleId: string) => Promise<PrintOriginalReceiptOutcome>) | undefined;
   reprintSaleReceipt:
@@ -864,6 +867,24 @@ export async function answerRendererRequest(
           cancelPaidSale &&
             (() =>
               cancelPaidSale({ saleId: message.sale_id, authorization: message.authorization })),
+        ),
+      };
+    }
+    case "void-sale": {
+      const { voidSale } = deps;
+      return {
+        type: "void-sale-result",
+        request_id: message.request_id,
+        outcome: await attemptSaleChange(
+          deps,
+          "voiding a sale",
+          voidSale &&
+            (() =>
+              voidSale({
+                saleId: message.sale_id,
+                pendingRefundsConfirmed: message.pending_refunds_confirmed,
+                authorization: message.authorization,
+              })),
         ),
       };
     }
