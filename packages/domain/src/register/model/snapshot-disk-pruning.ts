@@ -38,9 +38,7 @@ export function snapshotDiskPruningPlan(
   }
   const newestUploaded = byNewest.find(isUploaded);
   return {
-    remove: byNewest.filter(
-      (generation) => prunable(generation) && generation !== newestUploaded,
-    ),
+    remove: byNewest.filter((generation) => prunable(generation) && generation !== newestUploaded),
     removeIfVerified: [],
   };
 }

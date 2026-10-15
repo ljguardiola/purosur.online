@@ -31,7 +31,8 @@ function setup(hours: readonly number[]) {
   disk.hold(...hours.map((hour) => generation(hour)));
   const cloud = new FakeSnapshotVerificationCloud();
   const prune = () => pruneSnapshotGenerationsOnDisk({ disk, cloud });
-  const heldHours = () => disk.held.map((held) => held.createdAt.getUTCHours()).sort((a, b) => a - b);
+  const heldHours = () =>
+    disk.held.map((held) => held.createdAt.getUTCHours()).sort((a, b) => a - b);
   return { disk, cloud, prune, heldHours };
 }
 
