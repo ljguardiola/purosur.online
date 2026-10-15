@@ -1,5 +1,7 @@
 import {
   argentinaInstant,
+  type BatteryReport,
+  type CriticalBatteryAction,
   type DetectedSerialDevice,
   type RegisteredSerialDevices,
   type SerialDeviceRole,
@@ -103,6 +105,8 @@ function status(
   serialDevices: Record<SerialDeviceRole, SerialDeviceStanding> = NO_DEVICES,
   storage: StorageStanding = ROOMY_STORAGE,
   localDatabaseDamaged = false,
+  battery: BatteryReport | undefined = undefined,
+  criticalBatteryAction: CriticalBatteryAction = { kind: "unreadable" },
 ) {
   return registerStatusFor({
     database,
@@ -112,7 +116,18 @@ function status(
     serialDevices: () => ({ kind: "listed", standings: serialDevices, registered: {} }),
     storage: () => storage,
     localDatabaseDamaged: () => localDatabaseDamaged,
+    battery: () => battery,
+    criticalBatteryAction: () => criticalBatteryAction,
   });
+}
+
+function onBattery(chargePercent: number, minutes = 0): BatteryReport {
+  return {
+    present: true,
+    charge_percent: chargePercent,
+    on_battery: true,
+    on_battery_minutes: minutes,
+  };
 }
 
 function watchListingWith(
@@ -138,6 +153,8 @@ function statusWatchedBy(watch: SerialDeviceWatch) {
     serialDevices: watch.reading,
     storage: () => ROOMY_STORAGE,
     localDatabaseDamaged: () => false,
+    battery: () => undefined,
+    criticalBatteryAction: () => ({ kind: "unreadable" }),
   });
 }
 
@@ -189,6 +206,46 @@ describe("the register's status", () => {
       serial_devices: { scale: "not_registered", reader: "not_registered" },
       serial_devices_setup_offered: false,
     });
+  });
+
+  it("holds the low battery condition, with the charge, while the battery it reads stands as low", async () => {
+    expect((await status("unknown", NO_DEVICES, ROOMY_STORAGE, false, onBattery(15))).conditions).toEqual([
+      { kind: "battery_low", charge_percent: 15, critical_percent: 10, level: "warning" },
+    ]);
+  });
+
+  it("holds sales_denied for a critically low battery", async () => {
+    expect((await status("unknown", NO_DEVICES, ROOMY_STORAGE, false, onBattery(5))).conditions).toEqual([
+      { kind: "sales_denied", reason: "battery_critical", level: "critical" },
+    ]);
+  });
+
+  it("holds the on battery condition after more than ten minutes on battery", async () => {
+    const conditions = (await status("unknown", NO_DEVICES, ROOMY_STORAGE, false, onBattery(80, 11)))
+      .conditions;
+
+    expect(conditions.map(({ kind }) => kind)).toEqual(["on_battery"]);
+  });
+
+  it("holds the missing battery condition for a register that reports no battery", async () => {
+    const conditions = (
+      await status("unknown", NO_DEVICES, ROOMY_STORAGE, false, { present: false })
+    ).conditions;
+
+    expect(conditions.map(({ kind }) => kind)).toEqual(["battery_missing"]);
+  });
+
+  it("holds the critical-battery action condition unless Windows is set to shut down", async () => {
+    const held = async (criticalBatteryAction: CriticalBatteryAction) =>
+      (
+        await status("unknown", NO_DEVICES, ROOMY_STORAGE, false, undefined, criticalBatteryAction)
+      ).conditions.map(({ kind }) => kind);
+
+    expect(await held({ kind: "read", action: "sleep" })).toEqual([
+      "critical_battery_action_not_shutdown",
+    ]);
+    expect(await held({ kind: "read", action: "shut_down" })).toEqual([]);
+    expect(await held({ kind: "unreadable" })).toEqual([]);
   });
 
   it("holds sales_denied once the register stopped opening new sales because its event history broke", async () => {
