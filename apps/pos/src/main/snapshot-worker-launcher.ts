@@ -35,9 +35,23 @@ function readSnapshotCopyFailure(message: unknown): string | undefined {
   return type === "snapshot-copy-failed" && typeof stage === "string" ? stage : undefined;
 }
 
+function readAnnouncedKeyVersion(message: unknown): number | undefined {
+  if (typeof message !== "object" || message === null) {
+    return undefined;
+  }
+  const { type, version } = message as Record<string, unknown>;
+  return type === "snapshot-key-version-announced" &&
+    typeof version === "number" &&
+    Number.isInteger(version) &&
+    version > 0
+    ? version
+    : undefined;
+}
+
 interface SnapshotWorkerExitedNotice {
   type: "snapshot-worker-exited";
   copy_failed_stage?: string;
+  latest_announced_key_version?: number;
 }
 
 export interface SnapshotWorkerProcess extends CoreProcessOutput {
@@ -75,10 +89,17 @@ export function createSnapshotWorkerLauncher(
     }
     running = worker;
     let copyFailedStage: string | undefined;
+    let announcedKeyVersion: number | undefined;
     worker.on("message", (message) => {
       const stage = readSnapshotCopyFailure(message);
       if (stage !== undefined) {
         copyFailedStage = stage;
+        worker.kill();
+        return;
+      }
+      const version = readAnnouncedKeyVersion(message);
+      if (version !== undefined) {
+        announcedKeyVersion = version;
         worker.kill();
       }
     });
@@ -92,9 +113,13 @@ export function createSnapshotWorkerLauncher(
       if (running === worker) {
         running = undefined;
       }
-      deps.notifyCore(
-        copyFailedStage === undefined ? EXITED : { ...EXITED, copy_failed_stage: copyFailedStage },
-      );
+      deps.notifyCore({
+        ...EXITED,
+        ...(copyFailedStage === undefined ? {} : { copy_failed_stage: copyFailedStage }),
+        ...(announcedKeyVersion === undefined
+          ? {}
+          : { latest_announced_key_version: announcedKeyVersion }),
+      });
     });
     worker.postMessage(job);
   }
