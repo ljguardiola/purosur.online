@@ -159,6 +159,7 @@ describe("synced event payloads", () => {
       "sale_completed@7",
       "sale_completed@8",
       "sale_print_state_changed@1",
+      "sale_voided@1",
     ]);
   });
 
