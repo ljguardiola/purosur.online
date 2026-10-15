@@ -96,6 +96,14 @@ describe("the register's compiled app code", { timeout: 0 }, () => {
   });
 });
 
+describe("the register's main-side entries", { timeout: 0 }, () => {
+  it("include the snapshot worker beside the main entry and the core", () => {
+    const entries = readdirSync(join(plainBuild(), "main"));
+
+    expect(entries).toEqual(expect.arrayContaining(["index.js", "core.js", "snapshot-worker.js"]));
+  });
+});
+
 const BUILDER_CONFIG = join(APP_DIR, "electron-builder.config.mjs");
 
 function loadBuilderConfig(overrides: Record<string, string>): Record<string, unknown> {
