@@ -601,6 +601,79 @@ describe("cancelling a sale with approved payments", () => {
   });
 });
 
+describe("voiding a completed sale", () => {
+  const voidSale = {
+    type: "void-sale",
+    request_id: REQUEST_ID,
+    sale_id: "s1",
+    pending_refunds_confirmed: false,
+  };
+
+  it("accepts the voiding of a sale", () => {
+    expect(salesRendererToCoreMessageSchema.parse(voidSale)).toEqual(voidSale);
+  });
+
+  it("accepts the voiding with the pending refunds confirmed", () => {
+    const confirmed = { ...voidSale, pending_refunds_confirmed: true };
+
+    expect(salesRendererToCoreMessageSchema.parse(confirmed)).toEqual(confirmed);
+  });
+
+  it("accepts the voiding authorized with another person's PIN", () => {
+    const authorized = { ...voidSale, authorization: { user_id: "u2", pin: "1234" } };
+
+    expect(salesRendererToCoreMessageSchema.parse(authorized)).toEqual(authorized);
+  });
+
+  it.each([["request_id"], ["sale_id"], ["pending_refunds_confirmed"]])(
+    "rejects a voiding without its %s",
+    (field) => {
+      const message = Object.fromEntries(Object.entries(voidSale).filter(([key]) => key !== field));
+
+      expect(salesRendererToCoreMessageSchema.safeParse(message).success).toBe(false);
+    },
+  );
+
+  it.each([
+    ["confirmation that is not a boolean", { pending_refunds_confirmed: "yes" }],
+    ["an authorization missing the PIN", { authorization: { user_id: "u2" } }],
+  ])("rejects a voiding with %s", (_case, change) => {
+    expect(salesRendererToCoreMessageSchema.safeParse({ ...voidSale, ...change }).success).toBe(
+      false,
+    );
+  });
+
+  it("does not take who is voiding from the message", () => {
+    expect(salesRendererToCoreMessageSchema.parse({ ...voidSale, user_id: "u9" })).toEqual(
+      voidSale,
+    );
+  });
+
+  it("accepts the answer to the voiding", () => {
+    const message = {
+      type: "void-sale-result",
+      request_id: REQUEST_ID,
+      outcome: {
+        kind: "voided",
+        refunds: [{ payment_id: "p1", method: "CASH", amount: 1000, state: "APPROVED" }],
+        authorized_by: null,
+      },
+    };
+
+    expect(salesCoreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("rejects an answer with an outcome it does not know", () => {
+    expect(
+      salesCoreToRendererMessageSchema.safeParse({
+        type: "void-sale-result",
+        request_id: REQUEST_ID,
+        outcome: { kind: "somewhere_else" },
+      }).success,
+    ).toBe(false);
+  });
+});
+
 describe("adjusting a sale line", () => {
   const adjust = {
     type: "adjust-sale-line",
@@ -1450,14 +1523,16 @@ describe("asking for the register's sales history", () => {
     expect(salesRendererToCoreMessageSchema.safeParse({ ...ask, session }).success).toBe(true);
   });
 
-  it.each(["all", "completed", "in_progress", "deferred"])("accepts the state %s", (state) => {
-    expect(salesRendererToCoreMessageSchema.safeParse({ ...ask, state }).success).toBe(true);
-  });
+  it.each(["all", "completed", "in_progress", "deferred", "voided"])(
+    "accepts the state %s",
+    (state) => {
+      expect(salesRendererToCoreMessageSchema.safeParse({ ...ask, state }).success).toBe(true);
+    },
+  );
 
   it.each([
     { session: "closed" },
     { state: "cancelled" },
-    { state: "voided" },
     { page: 0 },
     { page: -1 },
     { page: 1.5 },
@@ -1499,6 +1574,7 @@ describe("asking for the register's sales history", () => {
       rows: [{ ...row, comprobante: { kind: "deferred_non_fiscal" }, state: "deferred" }],
     },
     { ...found, rows: [{ ...row, comprobante: { kind: "none" }, state: "in_progress" }] },
+    { ...found, rows: [{ ...row, comprobante: { kind: "none" }, state: "voided" }] },
     { ...found, rows: [{ ...row, operation_number: null }] },
     { ...found, rows: [{ ...row, occurred_at: "2026-10-08T09:00:00.000-03:00" }] },
     { kind: "not_signed_in" },
@@ -1512,7 +1588,7 @@ describe("asking for the register's sales history", () => {
     { ...found, page_size: 0 },
     { ...found, total: -1 },
     { kind: "found", rows: [row], total: 1 },
-    { ...found, rows: [{ ...row, state: "voided" }] },
+    { ...found, rows: [{ ...row, state: "cancelled" }] },
     { ...found, rows: [{ ...row, payment_methods: ["CARD"] }] },
     { ...found, rows: [{ ...row, comprobante: { kind: "fiscal", document_type: "factura_c" } }] },
     { ...found, rows: [{ ...row, comprobante: { kind: "other" } }] },
@@ -1550,6 +1626,13 @@ describe("asking for the detail of one sale of the history", () => {
       { method: "TRANSFER", amount: 2500 },
     ],
     state: "deferred",
+    voidability: {
+      kind: "voidable",
+      refunds: [
+        { method: "CASH", amount: 5000, state: "APPROVED" },
+        { method: "TRANSFER", amount: 2500, state: "PENDING" },
+      ],
+    },
     next_copy: { kind: "duplicate", order_number: 2 },
   };
   const answer = (outcome: unknown) => ({
@@ -1565,6 +1648,25 @@ describe("asking for the detail of one sale of the history", () => {
       detail: { ...detail, operation_number: null, next_copy: { kind: "original" } },
     },
     { kind: "found", detail: { ...detail, occurred_at: "2026-10-08T09:00:00.000-03:00" } },
+    {
+      kind: "found",
+      detail: {
+        ...detail,
+        state: "voided",
+        voidability: { kind: "not_voidable", refusal: "not_completed" },
+      },
+    },
+    ...[
+      "not_completed",
+      "session_closed",
+      "invoice_in_flight",
+      "carries_invoice",
+      "mercado_pago_payment",
+    ].map((refusal) => ({
+      kind: "found",
+      detail: { ...detail, voidability: { kind: "not_voidable", refusal } },
+    })),
+    { kind: "found", detail: { ...detail, voidability: { kind: "voidable", refunds: [] } } },
     { kind: "not_found" },
     { kind: "not_signed_in" },
     { kind: "lacks_permission" },
@@ -1579,7 +1681,45 @@ describe("asking for the detail of one sale of the history", () => {
     { kind: "found", detail: { ...detail, payments: [{ method: "CARD", amount: 1 }] } },
     { kind: "found", detail: { ...detail, next_copy: { kind: "reprint" } } },
     { kind: "found", detail: { ...detail, served_by_first_name: undefined } },
-    { kind: "found", detail: { ...detail, state: "voided" } },
+    { kind: "found", detail: { ...detail, state: "cancelled" } },
+    { kind: "found", detail: { ...detail, voidability: undefined } },
+    { kind: "found", detail: { ...detail, voidability: { kind: "voidable" } } },
+    {
+      kind: "found",
+      detail: {
+        ...detail,
+        voidability: {
+          kind: "voidable",
+          refunds: [{ method: "CARD", amount: 1, state: "PENDING" }],
+        },
+      },
+    },
+    {
+      kind: "found",
+      detail: {
+        ...detail,
+        voidability: {
+          kind: "voidable",
+          refunds: [{ method: "CASH", amount: 1, state: "DISCARDED" }],
+        },
+      },
+    },
+    {
+      kind: "found",
+      detail: {
+        ...detail,
+        voidability: {
+          kind: "voidable",
+          refunds: [{ method: "CASH", amount: -1, state: "APPROVED" }],
+        },
+      },
+    },
+    { kind: "found", detail: { ...detail, voidability: { kind: "not_voidable" } } },
+    {
+      kind: "found",
+      detail: { ...detail, voidability: { kind: "not_voidable", refusal: "tired" } },
+    },
+    { kind: "found", detail: { ...detail, voidability: { kind: "maybe" } } },
     { kind: "found", detail: { ...detail, occurred_at: "yesterday" } },
   ])("rejects the answer %j", (outcome) => {
     expect(salesCoreToRendererMessageSchema.safeParse(answer(outcome)).success).toBe(false);

@@ -186,6 +186,7 @@ describe("synced event payloads", () => {
     ["an unknown event type", "sale_opened", 1],
     ["a sale_completed version nobody emitted", "sale_completed", 9],
     ["a sale_cancelled version nobody emitted", "sale_cancelled", 7],
+    ["a sale_voided version nobody emitted", "sale_voided", 2],
     ["version zero", "sale_completed", 0],
     ["a cash_session_opened version nobody emitted", "cash_session_opened", 2],
     ["a cash_session_closed version nobody emitted", "cash_session_closed", 2],
@@ -1608,6 +1609,271 @@ describe("synced event payloads", () => {
 
       expect(accepts("sale_completed", 2, { ...sale(), payments: [cash] })).toBe(false);
     });
+  });
+});
+
+const VOIDED_SALE_V1: Payload = {
+  id: "sale-1",
+  register_id: "register-1",
+  device_id: "device-1",
+  session_id: "session-1",
+  actor_id: "cashier",
+  authorized_by: null,
+  occurred_at: "2026-10-07T15:30:00.000Z",
+  total: 6750,
+  sale_discount: null,
+  lines: [
+    {
+      id: "line-1",
+      product_id: "yerba",
+      product_name: "Yerba 1 kg",
+      weight_source: null,
+      manual_adjustment: null,
+      quantity: 3,
+      list_unit_price: 2500,
+      price_list_id: "list-1",
+      promotion_id: "ten",
+      discount_amount: 750,
+      promotions: [
+        { discount_id: "ten", kind: "PERCENT_OFF", percent: 10, buy_qty: null, pay_qty: null },
+      ],
+      sale_discount_share: 0,
+      line_total: 6750,
+    },
+  ],
+  payments: [{ ...CASH_PAYMENT_V2, amount: 1200, tendered: 1200 }],
+  refunds: [
+    {
+      id: "refund-1",
+      kind: "REFUND",
+      parent_id: "pay-1",
+      method: "CASH",
+      provider: "NONE",
+      amount: 1200,
+      state: "APPROVED",
+      occurred_at: "2026-10-07T15:30:00.000Z",
+    },
+  ],
+  cash_movements: [
+    {
+      id: "movement-1",
+      type: "SALE",
+      amount: 1200,
+      ref_type: "sale",
+      ref_id: "sale-1",
+      actor_id: "cashier",
+      occurred_at: "2026-10-07T15:10:00.000Z",
+    },
+    {
+      id: "movement-2",
+      type: "REFUND",
+      amount: 1200,
+      ref_type: "sale",
+      ref_id: "sale-1",
+      actor_id: "cashier",
+      occurred_at: "2026-10-07T15:30:00.000Z",
+    },
+  ],
+  stock_movements: [{ id: "stock-2", sale_line_id: "line-1", product_id: "yerba", delta: 3000 }],
+  deferred_record_cancelled: true,
+};
+
+describe("sale_voided v1", () => {
+  const voided = (): Payload => structuredClone(VOIDED_SALE_V1);
+  const TRANSFER_PAYMENT = {
+    id: "pay-2",
+    kind: "SALE",
+    method: "TRANSFER",
+    provider: "NONE",
+    amount: 2000,
+    tendered: null,
+    state: "APPROVED",
+    occurred_at: "2026-10-07T15:10:00.000Z",
+    authorized_by: "cashier",
+    confirmed_at: "2026-10-07T15:10:00.000Z",
+  };
+  const TRANSFER_REFUND = {
+    id: "refund-2",
+    kind: "REFUND",
+    parent_id: "pay-2",
+    method: "TRANSFER",
+    provider: "NONE",
+    amount: 2000,
+    state: "PENDING",
+    occurred_at: "2026-10-07T15:30:00.000Z",
+  };
+  const TERMINAL_PAYMENT = {
+    ...TRANSFER_PAYMENT,
+    id: "pay-3",
+    method: "STANDALONE_TERMINAL",
+    provider: "EXTERNAL_TERMINAL",
+  };
+  const TERMINAL_REFUND = {
+    ...TRANSFER_REFUND,
+    id: "refund-3",
+    parent_id: "pay-3",
+    method: "STANDALONE_TERMINAL",
+    provider: "EXTERNAL_TERMINAL",
+  };
+
+  it("has a schema at its first version only", () => {
+    expect(syncedEventPayloadKey("sale_voided", 1)).toBe("sale_voided@1");
+    expect(syncedEventPayloadKey("sale_voided", 0)).toBeUndefined();
+  });
+
+  it("is described by a payload with the sale, its payments, refunds, cash movements and returned stock", () => {
+    expect(accepts("sale_voided", 1, voided())).toBe(true);
+  });
+
+  it("accepts a sale voided with another person's authorization", () => {
+    expect(accepts("sale_voided", 1, { ...voided(), authorized_by: "supervisor" })).toBe(true);
+  });
+
+  it("accepts a sale that cancelled no deferred record", () => {
+    expect(accepts("sale_voided", 1, { ...voided(), deferred_record_cancelled: false })).toBe(true);
+  });
+
+  it("accepts the pending refunds of a transfer and of the standalone terminal", () => {
+    expect(
+      accepts("sale_voided", 1, {
+        ...voided(),
+        payments: [TRANSFER_PAYMENT, TERMINAL_PAYMENT],
+        refunds: [TRANSFER_REFUND, TERMINAL_REFUND],
+      }),
+    ).toBe(true);
+  });
+
+  it("accepts a sale with a discount on its total", () => {
+    expect(
+      accepts("sale_voided", 1, {
+        ...voided(),
+        sale_discount: {
+          kind: "PERCENT",
+          value: 10,
+          amount: 675,
+          reason: "Rotura",
+          authorized_by: null,
+        },
+      }),
+    ).toBe(true);
+  });
+
+  it("refuses a payload without any one of its fields", () => {
+    const payload = voided();
+
+    const accepted = Object.keys(payload).filter((key) => {
+      const { [key]: _removed, ...rest } = payload;
+      return accepts("sale_voided", 1, rest);
+    });
+
+    expect(accepted).toEqual([]);
+  });
+
+  it("refuses a payload with any one of its fields of the wrong type", () => {
+    const payload = voided();
+
+    const accepted = Object.keys(payload).filter((key) =>
+      accepts("sale_voided", 1, { ...payload, [key]: { unexpected: true } }),
+    );
+
+    expect(accepted).toEqual([]);
+  });
+
+  it("refuses a payload that is not an object", () => {
+    expect(accepts("sale_voided", 1, null)).toBe(false);
+    expect(accepts("sale_voided", 1, [])).toBe(false);
+  });
+
+  it("refuses a sale with no payment or no refund", () => {
+    expect(accepts("sale_voided", 1, { ...voided(), payments: [] })).toBe(false);
+    expect(accepts("sale_voided", 1, { ...voided(), refunds: [] })).toBe(false);
+  });
+
+  it.each([
+    ["Mercado Pago QR", "QR", "MERCADOPAGO_QR"],
+    ["Mercado Pago Point", "POINT", "MERCADOPAGO_POINT"],
+  ])("refuses a sale paid through %s, which is not voided yet", (_name, method, provider) => {
+    const payment = { ...TRANSFER_PAYMENT, method, provider };
+    const refund = { ...TRANSFER_REFUND, method, provider };
+
+    expect(accepts("sale_voided", 1, { ...voided(), payments: [payment], refunds: [refund] })).toBe(
+      false,
+    );
+  });
+
+  it("refuses a cash refund that is pending and a transfer refund that is already done", () => {
+    const cash = (voided()["refunds"] as Payload[])[0] as Payload;
+
+    expect(
+      accepts("sale_voided", 1, { ...voided(), refunds: [{ ...cash, state: "PENDING" }] }),
+    ).toBe(false);
+    expect(
+      accepts("sale_voided", 1, {
+        ...voided(),
+        payments: [TRANSFER_PAYMENT],
+        refunds: [{ ...TRANSFER_REFUND, state: "APPROVED" }],
+      }),
+    ).toBe(false);
+  });
+
+  it.each([
+    ["a negative delta, which would take stock out", -3000],
+    ["a zero delta", 0],
+    ["a fractional delta", 1.5],
+    ["a delta over the stock limit", 2_147_483_648],
+  ])("refuses a returned stock movement with %s", (_case, delta) => {
+    expect(
+      accepts("sale_voided", 1, {
+        ...voided(),
+        stock_movements: [{ id: "stock-2", sale_line_id: "line-1", product_id: "yerba", delta }],
+      }),
+    ).toBe(false);
+  });
+
+  it("accepts the highest stock a movement may return", () => {
+    expect(
+      accepts("sale_voided", 1, {
+        ...voided(),
+        stock_movements: [
+          { id: "stock-2", sale_line_id: "line-1", product_id: "yerba", delta: 2_147_483_647 },
+        ],
+      }),
+    ).toBe(true);
+  });
+
+  it("refuses a deferred record flag that is not a boolean", () => {
+    expect(accepts("sale_voided", 1, { ...voided(), deferred_record_cancelled: "yes" })).toBe(
+      false,
+    );
+  });
+
+  it("refuses a total that is negative or fractional", () => {
+    expect(accepts("sale_voided", 1, { ...voided(), total: -1 })).toBe(false);
+    expect(accepts("sale_voided", 1, { ...voided(), total: 10.5 })).toBe(false);
+  });
+
+  it("refuses a date that is not ISO", () => {
+    expect(accepts("sale_voided", 1, { ...voided(), occurred_at: "later" })).toBe(false);
+  });
+
+  it("refuses an authorizer that is not text", () => {
+    expect(accepts("sale_voided", 1, { ...voided(), authorized_by: 7 })).toBe(false);
+  });
+
+  it("refuses a line with a quantity of zero", () => {
+    const line = (voided()["lines"] as Payload[])[0] as Payload;
+
+    expect(accepts("sale_voided", 1, { ...voided(), lines: [{ ...line, quantity: 0 }] })).toBe(
+      false,
+    );
+  });
+
+  it("refuses a cash movement of a type no sale records", () => {
+    const [sale] = voided()["cash_movements"] as Payload[];
+
+    expect(
+      accepts("sale_voided", 1, { ...voided(), cash_movements: [{ ...sale, type: "TIP" }] }),
+    ).toBe(false);
   });
 });
 
