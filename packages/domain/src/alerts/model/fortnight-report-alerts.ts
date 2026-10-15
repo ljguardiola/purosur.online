@@ -30,7 +30,9 @@ export function pointOfSaleFortnightScopeDisplay(scope: string): string {
 export function fortnightReportPendingReason(
   state: FortnightReportState | null,
 ): FortnightReportPendingReason {
-  return state === "blocked" || state === "refused" ? state : "pending";
+  return state === "blocked" || state === "missing_document" || state === "refused"
+    ? state
+    : "pending";
 }
 
 function presentationDetail({
@@ -61,7 +63,8 @@ export function fortnightReportPendingObservation({
   const reason = fortnightReportPendingReason(state);
   return {
     holds: true,
-    level: pressing || reason === "blocked" ? "critical" : "warning",
+    level:
+      pressing || reason === "blocked" || reason === "missing_document" ? "critical" : "warning",
     alert: {
       kind: "fortnight_report_pending",
       scope: pointOfSaleFortnightScope(
@@ -77,6 +80,23 @@ export function fortnightReportNoLongerPendingObservation(
   scope: string,
 ): AlertConditionObservation {
   return { holds: false, kind: "fortnight_report_pending", scope };
+}
+
+export function fortnightReportNeedsRegularizationAlert({
+  pointOfSaleNumber,
+  registerId,
+  fortnight,
+}: Omit<FortnightReportPresentation, "deadline">): OpenAlertInput {
+  return {
+    kind: "fortnight_report_needs_regularization",
+    scope: pointOfSaleFortnightScope(pointOfSaleNumber, fortnight.start),
+    detail: {
+      pointOfSaleNumber,
+      registerId,
+      fortnightStart: fortnight.start,
+      fortnightEnd: fortnight.end,
+    },
+  };
 }
 
 export function fortnightReportOverdueAlert(

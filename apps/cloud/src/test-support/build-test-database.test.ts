@@ -30,6 +30,7 @@ import {
   discounts,
   fiscalAddresses,
   fiscalRequests,
+  fortnightDocumentReports,
   fortnightReports,
   freightPurchases,
   freights,
@@ -694,6 +695,15 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
         fortnightStart: "2026-10-01",
         fortnightEnd: "2026-10-15",
         state: "blocked",
+        recordedAt: new Date("2026-10-16T12:00:00.000Z"),
+      });
+      await tx.insert(fortnightDocumentReports).values({
+        pointOfSaleNumber: 4,
+        fortnightStart: "2026-10-01",
+        fortnightEnd: "2026-10-15",
+        documentType: "factura_c",
+        state: "missing_document",
+        reportedThrough: 0,
         recordedAt: new Date("2026-10-16T12:00:00.000Z"),
       });
     });

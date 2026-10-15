@@ -2,13 +2,20 @@ import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { shiftCalendarDay } from "../../shared/index.js";
 import {
+  documentTypePresentationState,
   type FortnightReportState,
   fortnightClosesAt,
+  fortnightPresentationRows,
   fortnightReportDeadline,
   fortnightReportStanding,
+  fortnightReportStateOfDocumentTypes,
   isFortnightReportOutstanding,
   isFortnightReportRetryDue,
+  isOfflineDocumentReported,
+  nextOfflineDocumentBatch,
+  offlineDocumentPresentations,
   owesFortnightReport,
+  remedyForUnreportedDocuments,
 } from "./fortnight-report.js";
 import { fortnightContaining } from "./offline-authorization-code.js";
 
@@ -71,6 +78,15 @@ describe("fortnightReportStanding", () => {
   it("is not due once accepted, before or after its deadline", () => {
     expect(fortnightReportStanding(report("accepted"), "2026-09-20")).toEqual({ kind: "not_due" });
     expect(fortnightReportStanding(report("accepted"), "2026-10-20")).toEqual({ kind: "not_due" });
+  });
+
+  it("is not due once marked for manual regularization, before or after its deadline", () => {
+    expect(fortnightReportStanding(report("needs_regularization"), "2026-09-20")).toEqual({
+      kind: "not_due",
+    });
+    expect(fortnightReportStanding(report("needs_regularization"), "2026-10-20")).toEqual({
+      kind: "not_due",
+    });
   });
 
   it("is pending with the days left to its deadline from the day after the fortnight closes", () => {
@@ -157,7 +173,7 @@ describe("owesFortnightReport", () => {
 });
 
 describe("isFortnightReportOutstanding", () => {
-  it.each([null, "blocked", "submitting", "refused"] as const)(
+  it.each([null, "blocked", "missing_document", "submitting", "refused"] as const)(
     "is outstanding with the stored state %s",
     (state) => {
       expect(isFortnightReportOutstanding(state)).toBe(true);
@@ -166,6 +182,441 @@ describe("isFortnightReportOutstanding", () => {
 
   it("is no longer outstanding once accepted", () => {
     expect(isFortnightReportOutstanding("accepted")).toBe(false);
+  });
+
+  it("is no longer outstanding once marked for manual regularization", () => {
+    expect(isFortnightReportOutstanding("needs_regularization")).toBe(false);
+  });
+});
+
+describe("remedyForUnreportedDocuments", () => {
+  it("reports the rest of a fortnight already accepted with documents", () => {
+    expect(remedyForUnreportedDocuments("documents")).toBe("report_the_rest");
+  });
+
+  it("leaves a fortnight already accepted as having no movement to manual regularization", () => {
+    expect(remedyForUnreportedDocuments("none")).toBe("manual_regularization");
+  });
+});
+
+describe("isOfflineDocumentReported", () => {
+  it("is reported up to the last number its presentation reported, that number included", () => {
+    expect(isOfflineDocumentReported(41, 42)).toBe(true);
+    expect(isOfflineDocumentReported(42, 42)).toBe(true);
+  });
+
+  it("is not reported past that number", () => {
+    expect(isOfflineDocumentReported(43, 42)).toBe(false);
+  });
+
+  it("is not reported while its presentation reported nothing", () => {
+    expect(isOfflineDocumentReported(1, null)).toBe(false);
+  });
+});
+
+describe("offlineDocumentPresentations", () => {
+  it("is one presentation per document type, each with its documents in number order", () => {
+    const documents = [
+      { documentType: "nota_de_credito_c", number: 4 },
+      { documentType: "factura_c", number: 12 },
+      { documentType: "nota_de_debito_c", number: 1 },
+      { documentType: "factura_c", number: 11 },
+      { documentType: "nota_de_credito_c", number: 3 },
+    ];
+
+    expect(offlineDocumentPresentations(documents)).toEqual([
+      {
+        documentType: "factura_c",
+        documents: [
+          { documentType: "factura_c", number: 11 },
+          { documentType: "factura_c", number: 12 },
+        ],
+      },
+      {
+        documentType: "nota_de_credito_c",
+        documents: [
+          { documentType: "nota_de_credito_c", number: 3 },
+          { documentType: "nota_de_credito_c", number: 4 },
+        ],
+      },
+      {
+        documentType: "nota_de_debito_c",
+        documents: [{ documentType: "nota_de_debito_c", number: 1 }],
+      },
+    ]);
+  });
+
+  it("is no presentation at all without documents", () => {
+    expect(offlineDocumentPresentations([])).toEqual([]);
+  });
+
+  it("orders the presentations by document type alphabetically, whatever the case of its letters", () => {
+    expect(
+      offlineDocumentPresentations([
+        { documentType: "B", number: 1 },
+        { documentType: "a", number: 1 },
+      ]).map(({ documentType }) => documentType),
+    ).toEqual(["a", "B"]);
+  });
+
+  it("never mixes document types and keeps every document, for every set of documents", () => {
+    fc.assert(
+      fc.property(
+        fc.uniqueArray(
+          fc.record({
+            documentType: fc.constantFrom("factura_c", "nota_de_credito_c", "nota_de_debito_c"),
+            number: fc.integer({ min: 1, max: 99_999_999 }),
+          }),
+          { selector: ({ documentType, number }) => `${documentType}:${number}` },
+        ),
+        (documents) => {
+          const presentations = offlineDocumentPresentations(documents);
+          for (const { documentType, documents: presented } of presentations) {
+            expect(presented.every((document) => document.documentType === documentType)).toBe(
+              true,
+            );
+            expect(presented.map(({ number }) => number)).toEqual(
+              presented.map(({ number }) => number).sort((left, right) => left - right),
+            );
+          }
+          expect(new Set(presentations.map(({ documentType }) => documentType)).size).toBe(
+            presentations.length,
+          );
+          expect(presentations.flatMap(({ documents: presented }) => presented)).toHaveLength(
+            documents.length,
+          );
+        },
+      ),
+    );
+  });
+});
+
+describe("nextOfflineDocumentBatch", () => {
+  const numbered = (...numbers: number[]) => numbers.map((number) => ({ number }));
+
+  it("is every document past the last one the tax authority holds, up to the batch limit", () => {
+    expect(nextOfflineDocumentBatch(numbered(41, 42, 43, 44, 45), 41, 3)).toEqual({
+      kind: "batch",
+      documents: numbered(42, 43, 44),
+    });
+  });
+
+  it("is the whole rest when it fits the batch limit", () => {
+    expect(nextOfflineDocumentBatch(numbered(1, 2), 0, 250)).toEqual({
+      kind: "batch",
+      documents: numbered(1, 2),
+    });
+  });
+
+  it("is nothing left once the tax authority holds every document", () => {
+    expect(nextOfflineDocumentBatch(numbered(41, 42), 42, 3)).toEqual({ kind: "all_reported" });
+    expect(nextOfflineDocumentBatch(numbered(41, 42), 50, 3)).toEqual({ kind: "all_reported" });
+  });
+
+  it("is a gap when the next document the tax authority expects is missing", () => {
+    expect(nextOfflineDocumentBatch(numbered(44, 45), 41, 3)).toEqual({
+      kind: "gap",
+      expectedNumber: 42,
+    });
+  });
+
+  it("stops before a missing number inside the documents", () => {
+    expect(nextOfflineDocumentBatch(numbered(42, 43, 45, 46), 41, 10)).toEqual({
+      kind: "batch",
+      documents: numbered(42, 43),
+    });
+  });
+
+  it("is a contiguous run starting right after the tax authority's last number and never longer than the limit, for every set of documents", () => {
+    fc.assert(
+      fc.property(
+        fc.uniqueArray(fc.integer({ min: 1, max: 300 })),
+        fc.integer({ min: 0, max: 300 }),
+        fc.integer({ min: 1, max: 50 }),
+        (numbers, lastReported, limit) => {
+          const documents = numbered(...[...numbers].sort((left, right) => left - right));
+          const batch = nextOfflineDocumentBatch(documents, lastReported, limit);
+          const pending = numbers.filter((number) => number > lastReported);
+          if (pending.length === 0) {
+            expect(batch).toEqual({ kind: "all_reported" });
+          } else if (!pending.includes(lastReported + 1)) {
+            expect(batch).toEqual({ kind: "gap", expectedNumber: lastReported + 1 });
+          } else {
+            if (batch.kind !== "batch") {
+              throw new Error(`expected a batch, got ${batch.kind}`);
+            }
+            expect(batch.documents.length).toBeGreaterThan(0);
+            expect(batch.documents.length).toBeLessThanOrEqual(limit);
+            batch.documents.forEach(({ number }, index) => {
+              expect(number).toBe(lastReported + 1 + index);
+            });
+          }
+        },
+      ),
+    );
+  });
+});
+
+describe("fortnightReportStateOfDocumentTypes", () => {
+  it("is accepted once every document type is accepted", () => {
+    expect(fortnightReportStateOfDocumentTypes(["accepted", "accepted"])).toBe("accepted");
+  });
+
+  it("is refused while any document type is refused", () => {
+    expect(fortnightReportStateOfDocumentTypes(["accepted", "missing_document", "refused"])).toBe(
+      "refused",
+    );
+  });
+
+  it("is missing a document while any document type misses one from its series and none is refused", () => {
+    expect(
+      fortnightReportStateOfDocumentTypes(["submitting", "missing_document", "accepted"]),
+    ).toBe("missing_document");
+  });
+
+  it("is submitting while any document type is still awaiting an answer", () => {
+    expect(fortnightReportStateOfDocumentTypes(["accepted", "submitting"])).toBe("submitting");
+  });
+});
+
+describe("documentTypePresentationState", () => {
+  it("is the state recorded for the document type", () => {
+    expect(documentTypePresentationState("submitting", "blocked")).toBe("submitting");
+    expect(documentTypePresentationState("accepted", null)).toBe("accepted");
+  });
+
+  it("is blocked, with nothing recorded for the document type, when the fortnight's report is blocked", () => {
+    expect(documentTypePresentationState(null, "blocked")).toBe("blocked");
+  });
+
+  it.each(["submitting", "refused", "accepted", "needs_regularization", null] as const)(
+    "is none, with nothing recorded for the document type, when the fortnight's report is %s",
+    (fortnightState) => {
+      expect(documentTypePresentationState(null, fortnightState)).toBeNull();
+    },
+  );
+});
+
+describe("fortnightPresentationRows", () => {
+  const document = (documentType: string, number: number) => ({ documentType, number });
+  const noRecord = { movement: null, refusal: null, rejectedDocument: null } as const;
+
+  it("is one row without a document type, declaring no movement, when the fortnight issued no documents and was accepted", () => {
+    expect(
+      fortnightPresentationRows({
+        state: "accepted",
+        movement: "none",
+        documents: [],
+        documentReports: [],
+      }),
+    ).toEqual([
+      { ...noRecord, documentType: null, state: "accepted", documentCount: 0, movement: "none" },
+    ]);
+  });
+
+  it("is one row without a document type, declaring nothing yet, while nothing was recorded for a fortnight without documents", () => {
+    expect(
+      fortnightPresentationRows({
+        state: null,
+        movement: null,
+        documents: [],
+        documentReports: [],
+      }),
+    ).toEqual([{ ...noRecord, documentType: null, state: null, documentCount: 0 }]);
+  });
+
+  it("is one row without a document type, declaring no movement and counting the documents that arrived late, when the fortnight needs regularization", () => {
+    expect(
+      fortnightPresentationRows({
+        state: "needs_regularization",
+        movement: null,
+        documents: [document("factura_c", 1), document("factura_c", 2), document("nota_c", 1)],
+        documentReports: [
+          {
+            documentType: "factura_c",
+            state: "accepted",
+            reportedThrough: 2,
+            rejectedNumber: null,
+          },
+        ],
+      }),
+    ).toEqual([
+      {
+        ...noRecord,
+        documentType: null,
+        movement: "none",
+        state: "needs_regularization",
+        documentCount: 3,
+      },
+    ]);
+  });
+
+  it("is one row per document type that had documents, declaring them, counting them and ordered by document type", () => {
+    expect(
+      fortnightPresentationRows({
+        state: "submitting",
+        movement: null,
+        documents: [document("nota_c", 4), document("factura_c", 9), document("factura_c", 8)],
+        documentReports: [
+          {
+            documentType: "factura_c",
+            state: "accepted",
+            reportedThrough: 9,
+            rejectedNumber: null,
+          },
+        ],
+      }),
+    ).toEqual([
+      {
+        ...noRecord,
+        documentType: "factura_c",
+        movement: "documents",
+        state: "accepted",
+        documentCount: 2,
+      },
+      { ...noRecord, documentType: "nota_c", movement: "documents", state: null, documentCount: 1 },
+    ]);
+  });
+
+  it("blocks the document types with nothing recorded when the fortnight's report is blocked", () => {
+    expect(
+      fortnightPresentationRows({
+        state: "blocked",
+        movement: null,
+        documents: [document("factura_c", 1), document("nota_c", 1)],
+        documentReports: [
+          { documentType: "nota_c", state: "submitting", reportedThrough: 0, rejectedNumber: null },
+        ],
+      }).map(({ documentType, state }) => [documentType, state]),
+    ).toEqual([
+      ["factura_c", "blocked"],
+      ["nota_c", "submitting"],
+    ]);
+  });
+
+  it("names the document the tax authority rejected and how many of its type come after it", () => {
+    expect(
+      fortnightPresentationRows({
+        state: "refused",
+        movement: null,
+        documents: [1, 2, 3, 4, 5]
+          .map((number) => document("factura_c", number))
+          .concat(document("nota_c", 9)),
+        documentReports: [
+          { documentType: "factura_c", state: "refused", reportedThrough: 1, rejectedNumber: 2 },
+        ],
+      }),
+    ).toEqual([
+      {
+        documentType: "factura_c",
+        movement: "documents",
+        state: "refused",
+        refusal: "partial",
+        documentCount: 5,
+        rejectedDocument: { number: 2, unprocessed: 3 },
+      },
+      { ...noRecord, documentType: "nota_c", movement: "documents", state: null, documentCount: 1 },
+    ]);
+  });
+
+  it("leaves none unprocessed when the rejected document is the last of its type", () => {
+    const [row] = fortnightPresentationRows({
+      state: "refused",
+      movement: null,
+      documents: [document("factura_c", 1), document("factura_c", 2)],
+      documentReports: [
+        { documentType: "factura_c", state: "refused", reportedThrough: 1, rejectedNumber: 2 },
+      ],
+    });
+
+    expect(row?.rejectedDocument).toEqual({ number: 2, unprocessed: 0 });
+  });
+
+  it("names no rejected document for a refusal that rejected none, nor for a retry after one", () => {
+    const rows = (state: "refused" | "submitting", rejectedNumber: number | null) =>
+      fortnightPresentationRows({
+        state: "submitting",
+        movement: null,
+        documents: [document("factura_c", 1), document("factura_c", 2)],
+        documentReports: [{ documentType: "factura_c", state, reportedThrough: 0, rejectedNumber }],
+      });
+
+    expect(rows("refused", null)[0]?.rejectedDocument).toBeNull();
+    expect(rows("submitting", null)[0]?.rejectedDocument).toBeNull();
+  });
+
+  describe("how a refusal is meant", () => {
+    const refusalOf = (
+      numbers: number[],
+      answer: { reportedThrough: number; rejectedNumber: number | null },
+    ) =>
+      fortnightPresentationRows({
+        state: "refused",
+        movement: null,
+        documents: numbers.map((number) => document("factura_c", number)),
+        documentReports: [{ documentType: "factura_c", state: "refused", ...answer }],
+      })[0]?.refusal;
+
+    it("is partial when the tax authority rejected a document after accepting an earlier one of the presentation", () => {
+      expect(refusalOf([4, 5, 6], { reportedThrough: 4, rejectedNumber: 5 })).toBe("partial");
+    });
+
+    it("is partial when the tax authority refused a batch whole after accepting an earlier batch of the presentation", () => {
+      expect(refusalOf([1, 2, 3], { reportedThrough: 2, rejectedNumber: null })).toBe("partial");
+    });
+
+    it("is whole when the tax authority rejected the presentation's first document", () => {
+      expect(refusalOf([4, 5, 6], { reportedThrough: 3, rejectedNumber: 4 })).toBe("whole");
+    });
+
+    it("is whole when the presentation's only document was rejected", () => {
+      expect(refusalOf([4], { reportedThrough: 3, rejectedNumber: 4 })).toBe("whole");
+    });
+
+    it("is whole when the tax authority refused the presentation's first batch without naming a document", () => {
+      expect(refusalOf([4, 5], { reportedThrough: 3, rejectedNumber: null })).toBe("whole");
+    });
+
+    it("is whole for a refused declaration of no movement", () => {
+      expect(
+        fortnightPresentationRows({
+          state: "refused",
+          movement: null,
+          documents: [],
+          documentReports: [],
+        })[0]?.refusal,
+      ).toBe("whole");
+    });
+
+    it.each(["submitting", "accepted", "missing_document"] as const)(
+      "is none for a document type that is %s",
+      (state) => {
+        expect(
+          fortnightPresentationRows({
+            state: "refused",
+            movement: null,
+            documents: [document("factura_c", 4), document("factura_c", 5)],
+            documentReports: [
+              { documentType: "factura_c", state, reportedThrough: 4, rejectedNumber: 5 },
+            ],
+          })[0]?.refusal,
+        ).toBeNull();
+      },
+    );
+
+    it.each([null, "blocked", "submitting", "accepted", "needs_regularization"] as const)(
+      "is none for a fortnight without documents whose report is %s",
+      (state) => {
+        expect(
+          fortnightPresentationRows({
+            state,
+            movement: null,
+            documents: [],
+            documentReports: [],
+          })[0]?.refusal,
+        ).toBeNull();
+      },
+    );
   });
 });
 

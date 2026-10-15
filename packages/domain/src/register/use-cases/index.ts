@@ -1,5 +1,10 @@
 export type { Clock, OperationAuthority, OperationAuthorization } from "../../shared/index.js";
 export type {
+  AnswerSnapshotVerificationInput,
+  AnswerSnapshotVerificationPorts,
+} from "./answer-snapshot-verification.js";
+export { answerSnapshotVerification } from "./answer-snapshot-verification.js";
+export type {
   ApplySnapshotRetentionPorts,
   SnapshotRetentionSummary,
 } from "./apply-snapshot-retention.js";
@@ -90,6 +95,11 @@ export type {
   OpenCashSessionPorts,
 } from "./open-cash-session.js";
 export { openCashSession } from "./open-cash-session.js";
+export type {
+  PruneSnapshotGenerationsOnDiskOutcome,
+  PruneSnapshotGenerationsOnDiskPorts,
+} from "./prune-snapshot-generations-on-disk.js";
+export { pruneSnapshotGenerationsOnDisk } from "./prune-snapshot-generations-on-disk.js";
 export type {
   ReadReceiptPrinterAddressOutcome,
   ReadReceiptPrinterAddressPorts,
@@ -198,6 +208,11 @@ export type {
   SnapshotWorkerJob,
   SnapshotWorkerLauncher,
 } from "./snapshot-cycle-ports.js";
+export type {
+  SnapshotGenerationsOnDisk,
+  SnapshotVerificationAnswer,
+  SnapshotVerificationCloud,
+} from "./snapshot-disk-pruning-ports.js";
 export type {
   AuthorizedSnapshotUpload,
   NewSnapshotGeneration,

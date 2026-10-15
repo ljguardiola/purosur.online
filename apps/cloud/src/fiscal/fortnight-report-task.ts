@@ -4,6 +4,7 @@ import {
   reportFortnights,
   type TaxAuthorityNoMovementDeclarations,
   type TaxAuthorityOfflineAuthorizationCodes,
+  type TaxAuthorityOfflineDocumentReports,
 } from "@purosur/domain/fiscal/use-cases";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { JobHelpers } from "graphile-worker";
@@ -29,6 +30,7 @@ const FORTNIGHT_REPORT_INTERVAL_MS = 10 * 60 * 1000;
 export interface FortnightReportInput {
   now: () => Date;
   declarations: TaxAuthorityNoMovementDeclarations;
+  documentReports: TaxAuthorityOfflineDocumentReports;
   codeAuthority: TaxAuthorityOfflineAuthorizationCodes;
   certificateFingerprint: string;
 }
@@ -41,14 +43,51 @@ export interface FortnightReportJobsDeps {
 function describePresentation({
   pointOfSaleNumber,
   fortnight,
+  documentType,
   outcome,
 }: FortnightPresentation): string {
-  const line = `fortnight report of point of sale ${pointOfSaleNumber} for fortnight ${fortnight.start}..${fortnight.end}: ${outcome.kind}`;
+  const ofDocumentType = documentType === null ? "" : ` (${documentType})`;
+  const line = `fortnight report of point of sale ${pointOfSaleNumber} for fortnight ${fortnight.start}..${fortnight.end}${ofDocumentType}: ${outcome.kind}`;
   return "rejections" in outcome ? `${line} (${rejectionsText(outcome.rejections)})` : line;
 }
 
+function problemOf({ outcome }: FortnightPresentation): {
+  summary: string;
+  details: Record<string, number | string>;
+} | null {
+  switch (outcome.kind) {
+    case "refused":
+    case "lookup_refused":
+      return {
+        summary: "fiscal: a fortnight report was refused by the tax authority",
+        details: { rejections: rejectionsText(outcome.rejections) },
+      };
+    case "rejected":
+      return {
+        summary: "fiscal: the tax authority rejected an offline document of a fortnight report",
+        details: {
+          rejectedNumber: outcome.number,
+          rejections: rejectionsText(outcome.rejections),
+        },
+      };
+    case "gap":
+      return {
+        summary: "fiscal: the offline documents of a fortnight report skip a number",
+        details: { expectedNumber: outcome.expectedNumber },
+      };
+    default:
+      return null;
+  }
+}
+
 export function fortnightReportJobs(
-  { now, declarations, codeAuthority, certificateFingerprint }: FortnightReportInput,
+  {
+    now,
+    declarations,
+    documentReports,
+    codeAuthority,
+    certificateFingerprint,
+  }: FortnightReportInput,
   deps: FortnightReportJobsDeps = {},
 ): BackgroundJobs {
   const doCreateDatabase = deps.createDatabase ?? databaseOfClient;
@@ -60,6 +99,7 @@ export function fortnightReportJobs(
       documents: new DrizzleOfflineDocumentsOfFortnight(db),
       streams: new DrizzleRegisterEventStreams(db),
       declarations,
+      documentReports,
       codeStore: new DrizzleOfflineAuthorizationCodeStore(db),
       codeAuthority,
       tokens: new DrizzleWsaaTokenSource(db, { now }, WSFE_SERVICE, certificateFingerprint),
@@ -79,17 +119,18 @@ export function fortnightReportJobs(
         continue;
       }
       logger.info(line);
-      if (
-        presentation.outcome.kind === "refused" ||
-        presentation.outcome.kind === "lookup_refused"
-      ) {
-        report("fiscal: a fortnight report was refused by the tax authority", new Error(line), {
+      const problem = problemOf(presentation);
+      if (problem !== null) {
+        report(problem.summary, new Error(line), {
           context: {
             pointOfSaleNumber: presentation.pointOfSaleNumber,
             fortnightStart: presentation.fortnight.start,
             fortnightEnd: presentation.fortnight.end,
+            ...(presentation.documentType === null
+              ? {}
+              : { documentType: presentation.documentType }),
             outcome: presentation.outcome.kind,
-            rejections: rejectionsText(presentation.outcome.rejections),
+            ...problem.details,
           },
         });
       }

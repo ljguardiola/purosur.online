@@ -278,6 +278,23 @@ describe("DrizzleSnapshotStore", () => {
     );
   });
 
+  it("reads only the asked generations of the register", async () => {
+    const first = await registerWithKeys("Caja 1");
+    const second = await registerWithKeys("Caja 2");
+    const THIRD = "11111111-1111-4111-8111-111111111111";
+    await declare(first);
+    await declare(first, { id: THIRD });
+    await declare(second, { id: SECOND });
+
+    const among = await store().transaction((tx) =>
+      tx.generationsAmong(first.registerId, [FIRST, SECOND]),
+    );
+    const none = await store().transaction((tx) => tx.generationsAmong(first.registerId, []));
+
+    expect(among.map((generation) => generation.id)).toEqual([FIRST]);
+    expect(none).toEqual([]);
+  });
+
   it("marks generations as pruned and keeps their objects listed until they are deleted", async () => {
     const installation = await registerWithKeys();
     await declare(installation);

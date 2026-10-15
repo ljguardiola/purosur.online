@@ -385,6 +385,15 @@ export {
   snapshotUploadBodySchema,
 } from "./register/snapshot-upload.js";
 export type {
+  SnapshotVerificationAnswerBody,
+  SnapshotVerificationQuery,
+} from "./register/snapshot-verification.js";
+export {
+  SNAPSHOT_VERIFICATION_QUERY_LIMIT,
+  snapshotVerificationAnswerSchema,
+  snapshotVerificationQuerySchema,
+} from "./register/snapshot-verification.js";
+export type {
   SnapshotWorkerJobMessage,
   SnapshotWorkerLaunchRequest,
   SnapshotWorkerMessage,
