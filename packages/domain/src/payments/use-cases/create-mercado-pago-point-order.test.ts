@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { confirmMercadoPagoOrderNotification } from "./confirm-mercado-pago-order-notification.js";
 import { createMercadoPagoPointOrder } from "./create-mercado-pago-point-order.js";
 import {
   mercadoPagoOrderWorld,
@@ -209,6 +210,67 @@ describe("createMercadoPagoPointOrder", () => {
       creationOutcomeUnknown: true,
     });
   });
+
+  it("keeps the payment pending, awaiting the earlier attempt's order, when a retry finds an order already queued on the terminal", async () => {
+    const { lanes, mercadoPago, ports } = mercadoPagoOrderWorld({
+      pointCreation: { kind: "queued_order_on_terminal" },
+    });
+    lanes.seed(storedPointTransaction({ amount: AMOUNT, creationOutcomeUnknown: true }));
+
+    const outcome = await createMercadoPagoPointOrder(ports, INPUT);
+
+    const expected = storedPointTransaction({
+      amount: AMOUNT,
+      creationOutcomeUnknown: true,
+      expiresAt: new Date("2026-10-09T12:05:10.000Z"),
+    });
+    expect(outcome).toEqual({ kind: "recorded", transaction: expected });
+    expect(lanes.transactions.get(TRANSACTION_ID)).toEqual(expected);
+    expect(lanes.operations).not.toContain("recordCreationCreatedNothing");
+    expect(mercadoPago.readOrders).toEqual([]);
+  });
+
+  it("ties the order queued on the terminal to the payment once Mercado Pago notifies it under the payment's reference", async () => {
+    const { lanes, mercadoPago, ports, notificationPorts } = mercadoPagoOrderWorld({
+      pointCreation: { kind: "queued_order_on_terminal" },
+    });
+    lanes.seed(storedPointTransaction({ amount: AMOUNT, creationOutcomeUnknown: true }));
+    await createMercadoPagoPointOrder(ports, INPUT);
+    mercadoPago.reading = {
+      kind: "read",
+      result: { ...paidOrderResult(AMOUNT), externalReference: TRANSACTION_ID },
+    };
+
+    await confirmMercadoPagoOrderNotification(notificationPorts, { providerOrderId: "order-9" });
+
+    expect(lanes.transactions.get(TRANSACTION_ID)).toMatchObject({
+      providerOrderId: "order-9",
+      state: "APPROVED",
+    });
+  });
+
+  it.each([
+    ["the first attempt", null],
+    ["a retry after an attempt that created nothing", false],
+  ])(
+    "refuses the order, recording that nothing was created, when %s finds another order queued on the terminal",
+    async (_attempt, creationOutcomeUnknown) => {
+      const { lanes, ports } = mercadoPagoOrderWorld({
+        pointCreation: { kind: "queued_order_on_terminal" },
+      });
+      if (creationOutcomeUnknown !== null) {
+        lanes.seed(storedPointTransaction({ amount: AMOUNT, creationOutcomeUnknown }));
+      }
+
+      const outcome = await createMercadoPagoPointOrder(ports, INPUT);
+
+      expect(outcome).toEqual({ kind: "provider_refused" });
+      expect(lanes.transactions.get(TRANSACTION_ID)).toMatchObject({
+        state: "PENDING",
+        creationOutcomeUnknown: false,
+      });
+    },
+  );
 
   it("answers unavailable when Mercado Pago asks to try again later", async () => {
     const { ports } = mercadoPagoOrderWorld({ pointCreation: { kind: "throttled" } });
