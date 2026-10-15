@@ -142,12 +142,12 @@ export interface FortnightPresentationRow<TDocumentType extends string> {
 function documentTypeRefusal(
   state: FortnightReportState | null,
   numbers: number[],
-  rejectedNumber: number | null,
+  reportedThrough: number | null,
 ): FortnightPresentationRefusal | null {
   if (state !== "refused") {
     return null;
   }
-  return rejectedNumber !== null && numbers.some((number) => number < rejectedNumber)
+  return numbers.some((number) => isOfflineDocumentReported(number, reportedThrough))
     ? "partial"
     : "whole";
 }
@@ -164,6 +164,7 @@ export function fortnightPresentationRows<TDocumentType extends string>({
   documentReports: {
     documentType: TDocumentType;
     state: DocumentTypeReportState;
+    reportedThrough: number;
     rejectedNumber: number | null;
   }[];
 }): FortnightPresentationRow<TDocumentType>[] {
@@ -189,7 +190,7 @@ export function fortnightPresentationRows<TDocumentType extends string>({
       documentType: presentation.documentType,
       movement: "documents",
       state: documentTypePresentationState(report?.state ?? null, state),
-      refusal: documentTypeRefusal(report?.state ?? null, numbers, rejectedNumber),
+      refusal: documentTypeRefusal(report?.state ?? null, numbers, report?.reportedThrough ?? null),
       documentCount: presentation.documents.length,
       rejectedDocument:
         rejectedNumber === null

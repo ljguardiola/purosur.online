@@ -44,6 +44,7 @@ export class DrizzleFortnightPresentationReader<TQueryResult extends PgQueryResu
               fortnightStart: fortnightDocumentReports.fortnightStart,
               documentType: fortnightDocumentReports.documentType,
               state: fortnightDocumentReports.state,
+              reportedThrough: fortnightDocumentReports.reportedThrough,
               rejectedNumber: fortnightDocumentReports.rejectedNumber,
             })
             .from(fortnightDocumentReports)
