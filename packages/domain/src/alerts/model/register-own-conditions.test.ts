@@ -387,13 +387,13 @@ describe("registerOwnConditions", () => {
 describe("registerOwnConditions for the battery", () => {
   it("holds battery_low as a warning with the charge while on battery below 20 percent", () => {
     expect(conditions({ battery: onBatteryAt(15) })).toEqual([
-      { kind: "battery_low", charge_percent: 15, level: "warning" },
+      { kind: "battery_low", charge_percent: 15, critical_percent: 10, level: "warning" },
     ]);
   });
 
   it("holds battery_low at 10 percent and not at 20", () => {
     expect(conditions({ battery: onBatteryAt(10) })).toEqual([
-      { kind: "battery_low", charge_percent: 10, level: "warning" },
+      { kind: "battery_low", charge_percent: 10, critical_percent: 10, level: "warning" },
     ]);
     expect(conditions({ battery: onBatteryAt(20) })).toEqual([]);
   });
@@ -456,7 +456,7 @@ describe("registerOwnConditions for the battery", () => {
       }),
     ).toEqual([
       { kind: "wal_oversized", level: "warning" },
-      { kind: "battery_low", charge_percent: 15, level: "warning" },
+      { kind: "battery_low", charge_percent: 15, critical_percent: 10, level: "warning" },
       { kind: "on_battery", level: "critical" },
       { kind: "critical_battery_action_not_shutdown", level: "warning" },
     ]);

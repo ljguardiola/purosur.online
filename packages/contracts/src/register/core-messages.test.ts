@@ -1296,8 +1296,14 @@ describe("register status messages", () => {
     [[{ kind: "fiscal_emission_stopped", level: "critical" }], "unreachable"],
     [[{ kind: "disk_space_low", level: "warning" }], "unreachable"],
     [[{ kind: "wal_oversized", level: "warning" }], "unreachable"],
-    [[{ kind: "battery_low", charge_percent: 15, level: "warning" }], "reachable"],
-    [[{ kind: "battery_low", charge_percent: 0, level: "warning" }], "reachable"],
+    [
+      [{ kind: "battery_low", charge_percent: 15, critical_percent: 10, level: "warning" }],
+      "reachable",
+    ],
+    [
+      [{ kind: "battery_low", charge_percent: 0, critical_percent: 10, level: "warning" }],
+      "reachable",
+    ],
     [[{ kind: "on_battery", level: "critical" }], "unreachable"],
     [[{ kind: "battery_missing", level: "warning" }], "unreachable"],
     [[{ kind: "critical_battery_action_not_shutdown", level: "warning" }], "unreachable"],
@@ -1476,7 +1482,9 @@ describe("register status messages", () => {
     [
       "a low battery with a charge above 100",
       {
-        conditions: [{ kind: "battery_low", charge_percent: 101, level: "warning" }],
+        conditions: [
+          { kind: "battery_low", charge_percent: 101, critical_percent: 10, level: "warning" },
+        ],
         cloud: "reachable",
         serial_devices: STANDINGS,
         serial_devices_setup_offered: false,
@@ -1485,7 +1493,9 @@ describe("register status messages", () => {
     [
       "a low battery with a negative charge",
       {
-        conditions: [{ kind: "battery_low", charge_percent: -1, level: "warning" }],
+        conditions: [
+          { kind: "battery_low", charge_percent: -1, critical_percent: 10, level: "warning" },
+        ],
         cloud: "reachable",
         serial_devices: STANDINGS,
         serial_devices_setup_offered: false,
@@ -1494,7 +1504,40 @@ describe("register status messages", () => {
     [
       "a low battery with a fractional charge",
       {
-        conditions: [{ kind: "battery_low", charge_percent: 15.5, level: "warning" }],
+        conditions: [
+          { kind: "battery_low", charge_percent: 15.5, critical_percent: 10, level: "warning" },
+        ],
+        cloud: "reachable",
+        serial_devices: STANDINGS,
+        serial_devices_setup_offered: false,
+      },
+    ],
+    [
+      "a low battery without the critical threshold",
+      {
+        conditions: [{ kind: "battery_low", charge_percent: 15, level: "warning" }],
+        cloud: "reachable",
+        serial_devices: STANDINGS,
+        serial_devices_setup_offered: false,
+      },
+    ],
+    [
+      "a low battery with a fractional critical threshold",
+      {
+        conditions: [
+          { kind: "battery_low", charge_percent: 15, critical_percent: 9.5, level: "warning" },
+        ],
+        cloud: "reachable",
+        serial_devices: STANDINGS,
+        serial_devices_setup_offered: false,
+      },
+    ],
+    [
+      "a low battery with a critical threshold above 100",
+      {
+        conditions: [
+          { kind: "battery_low", charge_percent: 15, critical_percent: 101, level: "warning" },
+        ],
         cloud: "reachable",
         serial_devices: STANDINGS,
         serial_devices_setup_offered: false,
