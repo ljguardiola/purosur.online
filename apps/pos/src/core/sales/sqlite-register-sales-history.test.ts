@@ -51,10 +51,19 @@ function addSale({
 }: SaleSeed): void {
   database
     .prepare(
-      `INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at, operation_number)
-       VALUES (?, ?, 'device-1', ?, ?, ?, ?, ?)`,
+      `INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at, operation_number, voided_at)
+       VALUES (?, ?, 'device-1', ?, ?, ?, ?, ?, ?)`,
     )
-    .run(id, register, session, actor, state, occurredAt, operationNumber);
+    .run(
+      id,
+      register,
+      session,
+      actor,
+      state,
+      occurredAt,
+      operationNumber,
+      state === "VOIDED" ? occurredAt : null,
+    );
   lines.forEach((lineTotal, index) => {
     database
       .prepare(

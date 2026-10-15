@@ -694,10 +694,16 @@ describe("the register's local migrations", () => {
     ) {
       database
         .prepare(
-          `INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at)
-           VALUES (?, 'r1', 'device-a', ?, 'u1', ?, ?)`,
+          `INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at, voided_at)
+           VALUES (?, 'r1', 'device-a', ?, 'u1', ?, ?, ?)`,
         )
-        .run(id, sessionId, state, state === "OPEN" ? null : "2026-09-30T12:00:00.000Z");
+        .run(
+          id,
+          sessionId,
+          state,
+          state === "OPEN" ? null : "2026-09-30T12:00:00.000Z",
+          state === "VOIDED" ? "2026-09-30T12:10:00.000Z" : null,
+        );
     }
 
     function withSession() {
@@ -898,6 +904,7 @@ describe("the register's local migrations", () => {
         "0052_paid_orders_without_sale",
         "0053_price_and_discount_lookups",
         "0054_assembly_movements",
+        "0055_voided_sales",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -979,6 +986,7 @@ describe("the register's local migrations", () => {
         "0052_paid_orders_without_sale",
         "0053_price_and_discount_lookups",
         "0054_assembly_movements",
+        "0055_voided_sales",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1055,6 +1063,7 @@ describe("the register's local migrations", () => {
         "0052_paid_orders_without_sale",
         "0053_price_and_discount_lookups",
         "0054_assembly_movements",
+        "0055_voided_sales",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1130,6 +1139,7 @@ describe("the register's local migrations", () => {
         "0052_paid_orders_without_sale",
         "0053_price_and_discount_lookups",
         "0054_assembly_movements",
+        "0055_voided_sales",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1234,6 +1244,7 @@ describe("the register's local migrations", () => {
         "0052_paid_orders_without_sale",
         "0053_price_and_discount_lookups",
         "0054_assembly_movements",
+        "0055_voided_sales",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1328,6 +1339,7 @@ describe("the register's local migrations", () => {
         "0052_paid_orders_without_sale",
         "0053_price_and_discount_lookups",
         "0054_assembly_movements",
+        "0055_voided_sales",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1426,6 +1438,7 @@ describe("the register's local migrations", () => {
         "0052_paid_orders_without_sale",
         "0053_price_and_discount_lookups",
         "0054_assembly_movements",
+        "0055_voided_sales",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1507,6 +1520,7 @@ describe("the register's local migrations", () => {
         "0052_paid_orders_without_sale",
         "0053_price_and_discount_lookups",
         "0054_assembly_movements",
+        "0055_voided_sales",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1580,6 +1594,7 @@ describe("the register's local migrations", () => {
         "0052_paid_orders_without_sale",
         "0053_price_and_discount_lookups",
         "0054_assembly_movements",
+        "0055_voided_sales",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
