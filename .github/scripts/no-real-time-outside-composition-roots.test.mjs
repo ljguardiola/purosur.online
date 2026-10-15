@@ -11,7 +11,7 @@ import {
   findScannedFiles,
   isScannedPath,
   readCloudRoots,
-  readRegisterCoreRoot,
+  readRegisterRoots,
 } from "./no-real-time-outside-composition-roots.mjs";
 
 function flaggedLines(source) {
@@ -192,7 +192,7 @@ test("reads cloud composition roots from the entry points the package scripts ru
   ]);
 });
 
-test("reads the register core's composition root from the main build's core input", () => {
+test("reads every entry of the register's main build as a composition root", () => {
   const config = `
     export default defineConfig({
       main: {
@@ -201,6 +201,7 @@ test("reads the register core's composition root from the main build's core inpu
             input: {
               index: r("src/main/index.ts"),
               core: r("src/core/index.ts"),
+              "snapshot-worker": r("src/core/snapshot-worker.ts"),
             },
           },
         },
@@ -208,19 +209,23 @@ test("reads the register core's composition root from the main build's core inpu
     });
   `;
 
-  assert.equal(readRegisterCoreRoot(config), "apps/pos/src/core/index.ts");
+  assert.deepEqual(readRegisterRoots(config), [
+    "apps/pos/src/core/index.ts",
+    "apps/pos/src/core/snapshot-worker.ts",
+    "apps/pos/src/main/index.ts",
+  ]);
 });
 
 test("fails when the register's electron-vite config has no core input", () => {
   const config = `export default defineConfig({ main: { build: { rollupOptions: { input: { index: r("src/main/index.ts") } } } } });`;
 
-  assert.throws(() => readRegisterCoreRoot(config), /core/);
+  assert.throws(() => readRegisterRoots(config), /core/);
 });
 
-test("fails when the register's core input is not a path", () => {
-  const config = `export default defineConfig({ main: { build: { rollupOptions: { input: { core: entry } } } } });`;
+test("fails when an input of the register's main build is not a path", () => {
+  const config = `export default defineConfig({ main: { build: { rollupOptions: { input: { core: r("src/core/index.ts"), worker: entry } } } } });`;
 
-  assert.throws(() => readRegisterCoreRoot(config), /core/);
+  assert.throws(() => readRegisterRoots(config), /worker/);
 });
 
 test("fails when the cloud's package scripts run no entry point", () => {
@@ -327,7 +332,11 @@ test("fails loudly when a derived composition root does not exist", () => {
 
 test("no production source outside the composition roots reads real time", () => {
   const roots = findCompositionRoots();
-  for (const sentinel of ["apps/cloud/src/server.ts", "apps/pos/src/core/index.ts"]) {
+  for (const sentinel of [
+    "apps/cloud/src/server.ts",
+    "apps/pos/src/core/index.ts",
+    "apps/pos/src/core/snapshot-worker.ts",
+  ]) {
     assert.ok(roots.includes(sentinel), `expected the roots to include ${sentinel}`);
   }
   const files = findScannedFiles();

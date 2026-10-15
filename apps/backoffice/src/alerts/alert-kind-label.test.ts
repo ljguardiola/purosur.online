@@ -18,6 +18,7 @@ test("names a kind of the catalog by its title", () => {
   expect(alertKindLabel("fiscal_unknown")).toBe("Resultado fiscal incierto");
   expect(alertKindLabel("fiscal_emission_stopped")).toBe("Emisión de facturas detenida");
   expect(alertKindLabel("outbox_chain_broken")).toBe("Cadena de eventos alterada");
+  expect(alertKindLabel("external_billing")).toBe("Facturación externa");
 });
 
 test("names a kind this app does not know yet, such as one a later cloud adds, by the kind itself", () => {
@@ -31,4 +32,19 @@ test("names a kind that shares its name with a member every object has by the ki
 
 test("names the alert of lots nearing their expiry", () => {
   expect(alertKindLabel("lots_expiring")).toBe("Productos por vencer");
+});
+
+test("names the alert of an offsite dump that could not be verified", () => {
+  expect(alertKindLabel("offsite_dump_unverified")).toBe(
+    "Copia de seguridad externa sin verificar",
+  );
+});
+
+test("names the notice and the missed deadline of a fortnight's report", () => {
+  expect(alertKindLabel("fortnight_report_pending")).toBe("Informe de quincena pendiente");
+  expect(alertKindLabel("fortnight_report_overdue")).toBe("Informe de quincena vencido");
+});
+
+test("names the alert of a fortnight reported without movement that later received invoices", () => {
+  expect(alertKindLabel("fortnight_report_needs_regularization")).toBe("Quincena a regularizar");
 });

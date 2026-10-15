@@ -23,6 +23,7 @@ function sale(
       paymentMethods: ["CASH"],
       total: 1000 * number,
       fiscal: NO_DOCUMENT,
+      voided: false,
       ...overrides,
     },
   };
@@ -150,5 +151,34 @@ describe("readSalesHistory", () => {
 
     expect(page.rows.map(({ saleId }) => saleId)).toEqual(["sale-2"]);
     expect(page.total).toBe(1);
+  });
+
+  it("shows a voided sale as voided, without a comprobante", () => {
+    const history = new FakeRegisterSalesHistory([sale(1, { voided: true })]);
+
+    const { rows } = readSalesHistory(
+      { history },
+      { session: "all", standing: undefined, page: 1 },
+    );
+
+    expect(rows.map(({ comprobante, standing }) => [comprobante.kind, standing])).toEqual([
+      ["none", "voided"],
+    ]);
+  });
+
+  it("asks only for the voided sales when asked for them, in the open session too", () => {
+    const history = new FakeRegisterSalesHistory([sale(1), sale(2, { voided: true })]);
+
+    const page = readSalesHistory({ history }, { session: "open", standing: "voided", page: 1 });
+
+    expect(page.rows.map(({ saleId }) => saleId)).toEqual(["sale-2"]);
+  });
+
+  it("leaves a voided sale out of the completed ones", () => {
+    const history = new FakeRegisterSalesHistory([sale(1), sale(2, { voided: true })]);
+
+    const page = readSalesHistory({ history }, { session: "all", standing: "completed", page: 1 });
+
+    expect(page.rows.map(({ saleId }) => saleId)).toEqual(["sale-1"]);
   });
 });

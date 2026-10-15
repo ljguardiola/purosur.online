@@ -1,4 +1,5 @@
 import type { ChargeRefusal } from "../../fiscal/index.js";
+import { paidOrdersSellingRefusal } from "../../payments/index.js";
 import { discountAppliesOn } from "../../pricing/index.js";
 import type { Clock } from "../../shared/index.js";
 import { argentinaCalendarDay } from "../../shared/index.js";
@@ -20,6 +21,10 @@ export type SaleAdditionRefusal =
   | { kind: "not_permitted" }
   | { kind: "no_open_session" }
   | { kind: "installation_revoked" }
+  | { kind: "local_database_damaged" }
+  | { kind: "disk_space_short" }
+  | { kind: "paid_order_without_sale" }
+  | { kind: "paid_orders_not_checked" }
   | { kind: "unavailable" }
   | { kind: "sale_has_payments" };
 
@@ -54,6 +59,19 @@ export function saleToAddTo(
   }
   if (!existing && tx.installationRevoked()) {
     return { kind: "installation_revoked" };
+  }
+  if (!existing && tx.localDatabaseDamaged()) {
+    return { kind: "local_database_damaged" };
+  }
+  if (!existing && tx.newSalesStoppedByDisk()) {
+    return { kind: "disk_space_short" };
+  }
+  const paidOrdersRefusal = paidOrdersSellingRefusal(tx.paidOrdersWithoutSale(), {
+    openSale: !!existing,
+    discovery: tx.paidOrderDiscovery(),
+  });
+  if (paidOrdersRefusal !== undefined) {
+    return { kind: paidOrdersRefusal };
   }
   const target = existing ?? tx.registerIdentity();
   if (!target) {

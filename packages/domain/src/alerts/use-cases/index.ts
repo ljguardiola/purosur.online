@@ -47,9 +47,13 @@ export type {
 } from "./close-alert.js";
 export { closeAlert } from "./close-alert.js";
 export { detectExpiringLots } from "./detect-expiring-lots.js";
+export { detectFortnightReportDeadlines } from "./detect-fortnight-report-deadlines.js";
+export { detectFortnightReportRegularizations } from "./detect-fortnight-report-regularizations.js";
 export { detectMissingOfflineAuthorizationCodes } from "./detect-missing-offline-authorization-codes.js";
 export type { QuietRegisterDetectionPorts } from "./detect-quiet-registers.js";
 export { detectQuietRegisters } from "./detect-quiet-registers.js";
+export type { DetectUnverifiedOffsiteDumpOutcome } from "./detect-unverified-offsite-dump.js";
+export { detectUnverifiedOffsiteDump } from "./detect-unverified-offsite-dump.js";
 export { escalateOverdueAlerts } from "./escalate-overdue-alerts.js";
 export type {
   BranchExpiringLotReader,
@@ -59,6 +63,18 @@ export type {
   ExpiringLotCandidate,
   ExpiringLotDetectionPorts,
 } from "./expiring-lot-alert-ports.js";
+export type {
+  FortnightReportDeadlineAlerts,
+  FortnightReportDeadlineDetectionPorts,
+  OwedFortnightPresentation,
+  OwedFortnightPresentationReader,
+} from "./fortnight-report-deadline-ports.js";
+export type {
+  FortnightRegularizationCandidate,
+  FortnightRegularizationCandidateReader,
+  FortnightReportRegularizationAlerts,
+  FortnightReportRegularizationDetectionPorts,
+} from "./fortnight-report-regularization-ports.js";
 export type {
   MissingOfflineAuthorizationCodeAlerts,
   MissingOfflineAuthorizationCodeDetectionPorts,
@@ -81,4 +97,9 @@ export type {
   UnclearOutcomeAlertStore,
   UnclearOutcomeAlertTransaction,
 } from "./unclear-outcome-alert-ports.js";
+export type {
+  OffsiteDumpAlerts,
+  OffsiteDumpCheckReader,
+  UnverifiedOffsiteDumpDetectionPorts,
+} from "./unverified-offsite-dump-ports.js";
 export type { WatchedRegisterReader } from "./watched-register-reader.js";

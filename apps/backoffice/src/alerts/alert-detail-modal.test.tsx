@@ -1,5 +1,5 @@
 import type { AlertDetail, PermissionCatalogWire } from "@purosur/contracts";
-import { formatCalendarDay, formatCalendarDayRange } from "@purosur/ui";
+import { formatCalendarDay, formatCalendarDayRange, formatPercent } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { act } from "react";
 import { beforeEach, expect, test, vi } from "vitest";
@@ -1243,6 +1243,41 @@ test("tells a register that can't sell in plain language: what it is, what it me
   await expect.element(screen.getByText("Caja 1", { exact: true })).toBeVisible();
 });
 
+test.each([
+  [
+    "disk_space_short_at_startup",
+    "Esta caja no habilita las ventas porque necesita más espacio libre en el disco de la notebook del que tiene.",
+    "Liberar espacio en la notebook, borrando archivos que no sean de la caja, y reiniciar la caja.",
+  ],
+  [
+    "disk_full",
+    "La venta en curso se puede completar y cobrar. Para volver a vender hay que liberar espacio en la notebook.",
+    "Cobrar la venta en curso y liberar espacio en la notebook, borrando archivos que no sean de la caja. Cuando haya lugar, la caja vuelve a abrir ventas sola. Si no se puede, avisar al Administrador.",
+  ],
+] as const)(
+  "tells a register that can't sell for lack of disk space, whose reason is %s, what it means and what to do",
+  async (reason, meaning, whatToDo) => {
+    const services = createServices();
+    vi.mocked(services.fetchAlert).mockResolvedValue(
+      ok(
+        baseDetail({
+          kind: "sales_denied",
+          level: "critical",
+          audience: "local",
+          scope: "register-1",
+          scopeDisplay: "Caja 1",
+          detail: { deviceId: "device-1", reason },
+        }),
+      ),
+    );
+
+    const screen = await renderModal(services);
+
+    await expect.element(screen.getByText(meaning)).toBeVisible();
+    await expect.element(screen.getByText(whatToDo)).toBeVisible();
+  },
+);
+
 test("tells a register with a damaged database how to get it selling again", async () => {
   const services = createServices();
   vi.mocked(services.fetchAlert).mockResolvedValue(
@@ -1703,6 +1738,47 @@ test("tells a document ARCA left without a clear answer: its number, since when,
   expect(screen.getByText(/fiscal-document-1/).query()).toBeNull();
 });
 
+test("tells that ARCA authorized a voucher no sale of the register justifies: its number, that it needs a review and that no credit note is issued, closing by hand", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(
+    ok(
+      baseDetail({
+        kind: "external_billing",
+        level: "critical",
+        audience: "all",
+        scope: "3:factura_c:41",
+        scopeDisplay: "3:factura_c:41",
+        scopeKind: "pointOfSaleDocumentNumber",
+        closing: "by_hand",
+        detail: { pointOfSale: 3, documentType: "factura_c", number: 41 },
+      }),
+    ),
+  );
+
+  const screen = await renderModal(services, { access: accessWith("close_alerts_manually") });
+
+  await expect.element(screen.getByText("Facturación externa", { exact: true })).toBeVisible();
+  await expect
+    .element(
+      screen.getByText(
+        "ARCA tiene autorizado el comprobante 00003-00000041 de este punto de venta y ninguna venta de la caja lo justifica. Revisar quién lo emitió fuera del sistema. No se emite ninguna nota de crédito automática.",
+        { exact: true },
+      ),
+    )
+    .toBeVisible();
+  await expect
+    .element(screen.getByText("Punto de venta 00003 · Factura C · 00000041", { exact: true }))
+    .toBeVisible();
+  await expect
+    .element(
+      screen.getByText("No se cierra sola: se cierra a mano después de revisar el comprobante.", {
+        exact: true,
+      }),
+    )
+    .toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Cerrar la alerta" })).toBeEnabled();
+});
+
 test("tells that an alert for quarantined events resolves by itself and still offers closing it by hand", async () => {
   const services = createServices();
   vi.mocked(services.fetchAlert).mockResolvedValue(ok(quarantinedEventAlert));
@@ -1816,4 +1892,291 @@ test("does not link the alert of lots nearing their expiry to the expiring lots 
 
   await expect.element(screen.getByText("Productos por vencer", { exact: true })).toBeVisible();
   expect(screen.getByRole("link", { name: "Ver vencimientos" }).query()).toBeNull();
+});
+
+function offsiteDumpUnverifiedAlert(
+  detail: Extract<AlertDetail, { kind: "offsite_dump_unverified" }>["detail"],
+) {
+  return baseDetail({
+    kind: "offsite_dump_unverified",
+    level: "critical",
+    scope: "production",
+    scopeDisplay: "production",
+    scopeKind: "environment",
+    closing: "by_itself",
+    detail,
+  });
+}
+
+test.each([
+  ["not_reported", "la verificación diaria no informó su resultado"],
+  ["object_missing", "el archivo de la copia no está en el almacenamiento externo"],
+  ["manifest_missing", "falta el manifiesto que acompaña a la copia"],
+  ["size_mismatch", "el tamaño del archivo no coincide con el del manifiesto"],
+  ["hash_mismatch", "la huella del archivo no coincide con la del manifiesto"],
+  ["decryption_failed", "no se pudo descifrar la copia"],
+  ["archive_unreadable", "la copia descifrada no se pudo leer"],
+] as const)(
+  "tells which night's offsite dump could not be verified and why (%s)",
+  async (reason, reasonText) => {
+    const services = createServices();
+    vi.mocked(services.fetchAlert).mockResolvedValue(
+      ok(offsiteDumpUnverifiedAlert({ night: "2026-10-14", reason })),
+    );
+
+    const screen = await renderModal(services);
+
+    await expect
+      .element(screen.getByText("Copia de seguridad externa sin verificar", { exact: true }))
+      .toBeVisible();
+    await expect
+      .element(
+        screen.getByText(
+          `La copia cifrada de la base de datos de la noche del ${formatCalendarDay("2026-10-14")} no se pudo verificar fuera de la nube: ${reasonText}. Conviene revisar la copia cuanto antes.`,
+        ),
+      )
+      .toBeVisible();
+    await expect.element(screen.getByText("Crítica")).toBeVisible();
+    await expect.element(screen.getByText("Producción", { exact: true })).toBeVisible();
+  },
+);
+
+test("tells the threshold below which an offsite dump counts as shrank, as the alert states it", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(
+    ok(
+      offsiteDumpUnverifiedAlert({
+        night: "2026-10-14",
+        reason: "shrank",
+        shrinkThresholdPercent: 35,
+      }),
+    ),
+  );
+
+  const screen = await renderModal(services);
+
+  await expect
+    .element(
+      screen.getByText(
+        `La copia cifrada de la base de datos de la noche del ${formatCalendarDay("2026-10-14")} no se pudo verificar fuera de la nube: la copia pesa menos del ${formatPercent(35)} de la anterior. Conviene revisar la copia cuanto antes.`,
+      ),
+    )
+    .toBeVisible();
+});
+
+const REPORT_PRESENTATION = {
+  pointOfSaleNumber: 4,
+  registerId: "register-1",
+  registerName: "Caja 1",
+  fortnightStart: "2026-09-01",
+  fortnightEnd: "2026-09-15",
+  deadline: "2026-09-23",
+};
+const REPORT_FORTNIGHT = formatCalendarDayRange("2026-09-01", "2026-09-15");
+const REPORT_DEADLINE = formatCalendarDay("2026-09-23");
+
+function pendingReportAlert(
+  detail: Partial<Extract<AlertDetail, { kind: "fortnight_report_pending" }>["detail"]>,
+  level: AlertDetail["level"] = "warning",
+) {
+  return baseDetail({
+    kind: "fortnight_report_pending",
+    level,
+    audience: "all",
+    scope: "4:2026-09-01",
+    scopeDisplay: "4:2026-09-01:2026-09-15",
+    scopeKind: "pointOfSaleFortnight",
+    closing: "by_itself",
+    detail: { ...REPORT_PRESENTATION, daysLeft: 3, reason: "pending", ...detail },
+  });
+}
+
+function overdueReportAlert(
+  detail: Partial<Extract<AlertDetail, { kind: "fortnight_report_overdue" }>["detail"]> = {},
+) {
+  return baseDetail({
+    kind: "fortnight_report_overdue",
+    level: "critical",
+    audience: "all",
+    scope: "4:2026-09-01",
+    scopeDisplay: "4:2026-09-01:2026-09-15",
+    scopeKind: "pointOfSaleFortnight",
+    closing: "by_hand",
+    detail: { ...REPORT_PRESENTATION, ...detail },
+  });
+}
+
+function regularizationReportAlert(
+  detail: Partial<
+    Extract<AlertDetail, { kind: "fortnight_report_needs_regularization" }>["detail"]
+  > = {},
+) {
+  const { deadline: _omitted, ...presentation } = REPORT_PRESENTATION;
+  return baseDetail({
+    kind: "fortnight_report_needs_regularization",
+    level: "critical",
+    audience: "all",
+    scope: "4:2026-09-01",
+    scopeDisplay: "4:2026-09-01:2026-09-15",
+    scopeKind: "pointOfSaleFortnight",
+    closing: "by_hand",
+    detail: { ...presentation, ...detail },
+  });
+}
+
+test("tells that invoices issued offline arrived for a fortnight already reported without movement, that nothing corrects it by itself and that a person closes the alert by hand", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(ok(regularizationReportAlert()));
+
+  const screen = await renderModal(services);
+
+  await expect.element(screen.getByText("Quincena a regularizar", { exact: true })).toBeVisible();
+  await expect
+    .element(
+      screen.getByText(
+        `Llegaron comprobantes emitidos sin conexión de la quincena ${REPORT_FORTNIGHT} del punto de venta 00004, que ya se había informado a ARCA sin movimiento.`,
+        { exact: true },
+      ),
+    )
+    .toBeVisible();
+  await expect
+    .element(
+      screen.getByText(
+        "No hay corrección automática: hay que regularizar la presentación con ARCA a mano.",
+        { exact: true },
+      ),
+    )
+    .toBeVisible();
+  expect(screen.getByText(/Venció/).query()).toBeNull();
+  await expect
+    .element(screen.getByText("No se cierra sola: se cierra a mano después de revisarla."))
+    .toBeVisible();
+  await expect.element(screen.getByText("Crítica")).toBeVisible();
+  await expect
+    .element(screen.getByText(`Punto de venta 00004 · ${REPORT_FORTNIGHT}`, { exact: true }))
+    .toBeVisible();
+  await expectNoAccessibilityViolations(document.body);
+});
+
+test.each([
+  [3, `Vence el ${REPORT_DEADLINE}. Quedan 3 días.`],
+  [1, `Vence el ${REPORT_DEADLINE}. Queda 1 día.`],
+  [0, `Vence hoy, ${REPORT_DEADLINE}.`],
+] as const)(
+  "tells which fortnight's report of which point of sale is pending and what is left of its deadline (%i days left)",
+  async (daysLeft, deadlineText) => {
+    const services = createServices();
+    vi.mocked(services.fetchAlert).mockResolvedValue(ok(pendingReportAlert({ daysLeft })));
+
+    const screen = await renderModal(services);
+
+    await expect
+      .element(screen.getByText("Informe de quincena pendiente", { exact: true }))
+      .toBeVisible();
+    await expect
+      .element(
+        screen.getByText(
+          `Falta presentar a ARCA el informe de la quincena ${REPORT_FORTNIGHT} del punto de venta 00004.`,
+          { exact: true },
+        ),
+      )
+      .toBeVisible();
+    await expect.element(screen.getByText(deadlineText, { exact: true })).toBeVisible();
+    await expect.element(screen.getByText("Advertencia")).toBeVisible();
+    await expect
+      .element(screen.getByText(`Punto de venta 00004 · ${REPORT_FORTNIGHT}`, { exact: true }))
+      .toBeVisible();
+  },
+);
+
+test.each([
+  ["blocked", "Se puede presentar cuando la caja «Caja 1» termine de sincronizar."],
+  [
+    "missing_document",
+    "Falta un comprobante en la numeración: hay que encontrarlo antes de poder seguir informando.",
+  ],
+  [
+    "refused",
+    "ARCA rechazó la presentación. La nube la vuelve a intentar sola; si sigue rechazándola, conviene revisar el punto de venta en ARCA.",
+  ],
+] as const)("tells what a pending report waits for when it is %s", async (reason, text) => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(ok(pendingReportAlert({ reason })));
+
+  const screen = await renderModal(services);
+
+  await expect.element(screen.getByText(text, { exact: true })).toBeVisible();
+  await expectNoAccessibilityViolations(document.body);
+});
+
+test("promises nothing about how a pending report with no recorded attempt will be presented", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(ok(pendingReportAlert({ reason: "pending" })));
+
+  const screen = await renderModal(services);
+
+  await expect
+    .element(screen.getByText(`Vence el ${REPORT_DEADLINE}. Quedan 3 días.`))
+    .toBeVisible();
+  expect(screen.getByText(/present(ará|a) sol/).query()).toBeNull();
+  expect(screen.getByText(/Se puede presentar/).query()).toBeNull();
+});
+
+test("tells a blocked report waits for its register to finish syncing even when the register's name is unknown", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(
+    ok(pendingReportAlert({ reason: "blocked", registerName: undefined })),
+  );
+
+  const screen = await renderModal(services);
+
+  await expect
+    .element(
+      screen.getByText("Se puede presentar cuando la caja termine de sincronizar.", {
+        exact: true,
+      }),
+    )
+    .toBeVisible();
+});
+
+test("tells that a pending report closes by itself once it is presented", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(ok(pendingReportAlert({})));
+
+  const screen = await renderModal(services);
+
+  await expect.element(screen.getByText("Informe de quincena pendiente")).toBeVisible();
+  expect(screen.getByText(/No se cierra sola/).query()).toBeNull();
+});
+
+test("tells the deadline of a fortnight's report was missed, that it is to be put in order with ARCA and that a person closes the alert by hand", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(ok(overdueReportAlert()));
+
+  const screen = await renderModal(services);
+
+  await expect
+    .element(screen.getByText("Informe de quincena vencido", { exact: true }))
+    .toBeVisible();
+  await expect
+    .element(
+      screen.getByText(
+        `Venció el ${REPORT_DEADLINE} el plazo para presentar a ARCA el informe de la quincena ${REPORT_FORTNIGHT} del punto de venta 00004.`,
+        { exact: true },
+      ),
+    )
+    .toBeVisible();
+  await expect
+    .element(
+      screen.getByText("Conviene regularizar la situación del punto de venta con ARCA.", {
+        exact: true,
+      }),
+    )
+    .toBeVisible();
+  expect(screen.getByText(/Se sigue intentando/).query()).toBeNull();
+  await expect
+    .element(screen.getByText("No se cierra sola: se cierra a mano después de revisarla."))
+    .toBeVisible();
+  await expect.element(screen.getByText("Crítica")).toBeVisible();
+  await expectNoAccessibilityViolations(document.body);
 });

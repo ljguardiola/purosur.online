@@ -40,6 +40,14 @@ function Harness({
   );
 }
 
+test("asks for a keyboard with the decimal comma for the amount", async () => {
+  const screen = await render(<Harness />);
+
+  await expect
+    .element(screen.getByRole("textbox", { name: /^Monto/ }))
+    .toHaveAttribute("inputmode", "decimal");
+});
+
 test("shows the fields and each purchase that may be linked with its day, receipt and value", async () => {
   const screen = await render(<Harness />);
 

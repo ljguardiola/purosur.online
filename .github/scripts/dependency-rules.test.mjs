@@ -665,7 +665,7 @@ test("renderer-no-node-builtins flags a Node builtin and allows importing packag
 });
 
 test("register-no-cloud-use-cases flags reaching each cloud-only concept's use case and allows reaching a register use case", async (t) => {
-  assert.deepEqual(CLOUD_ONLY_CONCEPTS, ["purchasing", "alerts", "catalog", "pricing"]);
+  assert.deepEqual(CLOUD_ONLY_CONCEPTS, ["purchasing", "alerts", "catalog", "pricing", "backups"]);
   const cloudOnlyConcepts = CLOUD_ONLY_CONCEPTS;
   const files = {
     "apps/pos/src/main/index.ts": importEach(

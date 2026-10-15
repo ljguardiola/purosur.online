@@ -7,7 +7,6 @@ import {
 import {
   type MercadoPagoOrderCreation,
   type MercadoPagoOrderPorts,
-  type MercadoPagoOrders,
   PaymentTransactionAlreadyRecorded,
 } from "./mercado-pago-order-ports.js";
 import { recordExpiryWithoutOrder } from "./record-expiry-without-order.js";
@@ -34,12 +33,14 @@ type MercadoPagoOrderAttempt<TNotCreated extends { kind: string }> =
 export interface MercadoPagoOrderKind<
   TRefusal extends { kind: string },
   TNotCreated extends { kind: string },
+  TPorts extends MercadoPagoOrderPorts = MercadoPagoOrderPorts,
 > {
   identity: MercadoPagoOrderIdentity;
   lifetimeMinutes: number;
   refuseAmount(amount: number): TRefusal | null;
   create(
-    mercadoPago: MercadoPagoOrders,
+    ports: TPorts,
+    registerId: string,
     request: {
       idempotencyKey: string;
       externalReference: string;
@@ -64,11 +65,13 @@ export type CreateMercadoPagoOrderOutcome<
 export async function createMercadoPagoOrder<
   TRefusal extends { kind: string },
   TNotCreated extends { kind: string },
+  TPorts extends MercadoPagoOrderPorts,
 >(
-  { lanes, mercadoPago, clock }: MercadoPagoOrderPorts,
+  ports: TPorts,
   { registerId, paymentTransactionId, saleId, amount }: CreateMercadoPagoOrderInput,
-  kind: MercadoPagoOrderKind<TRefusal, TNotCreated>,
+  kind: MercadoPagoOrderKind<TRefusal, TNotCreated, TPorts>,
 ): Promise<CreateMercadoPagoOrderOutcome<TRefusal, TNotCreated>> {
+  const { lanes, mercadoPago, clock } = ports;
   const refusal = kind.refuseAmount(amount);
   if (refusal !== null) {
     return refusal;
@@ -142,7 +145,7 @@ export async function createMercadoPagoOrder<
           transaction = { ...transaction, expiresAt };
         }
 
-        const attempt = await kind.create(mercadoPago, {
+        const attempt = await kind.create(ports, registerId, {
           idempotencyKey: paymentTransactionId,
           externalReference: paymentTransactionId,
           amount,
@@ -156,12 +159,19 @@ export async function createMercadoPagoOrder<
           return attempt.outcome;
         }
         const creation = attempt;
-        if (creation.kind === "refused" || creation.kind === "throttled") {
+        if (creation.kind === "queued_order_on_terminal" && earlierAttemptMayHaveCreatedOrder) {
+          return { kind: "recorded", transaction };
+        }
+        if (
+          creation.kind === "refused" ||
+          creation.kind === "queued_order_on_terminal" ||
+          creation.kind === "throttled"
+        ) {
           if (!earlierAttemptMayHaveCreatedOrder) {
             await lane.recordCreationCreatedNothing(paymentTransactionId);
           }
           return {
-            kind: creation.kind === "refused" ? "provider_refused" : "provider_unavailable",
+            kind: creation.kind === "throttled" ? "provider_unavailable" : "provider_refused",
           };
         }
         if (creation.kind === "unavailable") {

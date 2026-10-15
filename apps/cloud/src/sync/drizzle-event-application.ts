@@ -19,6 +19,7 @@ import { and, asc, eq, isNull, min, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { openEventInvariantAlert } from "../alerts/event-invariant-alert.js";
 import { openQuarantinedEventAlert } from "../alerts/quarantined-event-alert.js";
+import { recordAppliedOfflineFiscalDocument } from "../fiscal/drizzle-applied-offline-fiscal-documents.js";
 import { recordAppliedQrPaymentReplacement } from "../payments/drizzle-applied-qr-payment-replacement.js";
 import { providerTransactionOfPayment } from "../payments/drizzle-provider-transactions.js";
 import { describeDatabaseFailure, errorCode } from "../platform/db/describe-database-failure.js";
@@ -33,10 +34,15 @@ import {
   recordAppliedPrintState,
   recordAppliedReprint,
 } from "../sales/drizzle-applied-sale-receipts.js";
-import { recordAppliedCancelledSale, recordAppliedSale } from "../sales/drizzle-applied-sales.js";
+import {
+  recordAppliedCancelledSale,
+  recordAppliedSale,
+  recordAppliedVoidedSale,
+} from "../sales/drizzle-applied-sales.js";
 import { DrizzleStockStoreTransaction } from "../stock/drizzle-stock-store.js";
 import { type PendingChanges, withPendingChanges } from "./change-log.js";
 import { lockDeviceQuarantines } from "./lock-device-quarantines.js";
+import { unappliedEventColumns } from "./unapplied-event-columns.js";
 
 type OpeningCountRecordedFact = Extract<SyncedFact, { kind: "opening_count_recorded" }>["count"];
 type OpeningCountWithdrawnFact = Extract<
@@ -44,6 +50,7 @@ type OpeningCountWithdrawnFact = Extract<
   { kind: "opening_count_withdrawn" }
 >["withdrawal"];
 type CompletedSale = Extract<SyncedFact, { kind: "sale_completed" }>["sale"];
+type VoidedSale = Extract<SyncedFact, { kind: "sale_voided" }>["sale"];
 
 type Transaction<TQueryResult extends PgQueryResultHKT> = Parameters<
   Parameters<PgDatabase<TQueryResult>["transaction"]>[0]
@@ -73,22 +80,7 @@ class DrizzleEventApplicationTransaction<TQueryResult extends PgQueryResultHKT>
 
   async unappliedEventsOf({ aggregateType, aggregateId }: AggregateKey): Promise<UnappliedEvent[]> {
     return this.tx
-      .select({
-        eventId: inbox.eventId,
-        deviceId: inbox.deviceId,
-        deviceSeq: inbox.deviceSeq,
-        aggregateType: inbox.aggregateType,
-        aggregateId: inbox.aggregateId,
-        eventType: inbox.eventType,
-        schemaVersion: inbox.schemaVersion,
-        payload: inbox.payload,
-        occurredAt: inbox.occurredAt,
-        receivedAt: inbox.receivedAt,
-        actorId: inbox.actorId,
-        attempts: inbox.attempts,
-        quarantinedAt: inbox.quarantinedAt,
-        nextAttemptAt: inbox.nextAttemptAt,
-      })
+      .select(unappliedEventColumns)
       .from(inbox)
       .where(
         and(
@@ -138,12 +130,21 @@ class DrizzleEventApplicationTransaction<TQueryResult extends PgQueryResultHKT>
           event.eventId,
           this.now(),
         );
+      case "sale_voided":
+        return recordAppliedVoidedSale(this.tx, await this.originOf(event), fact, event.eventId);
       case "sale_print_state_changed":
         return recordAppliedPrintState(this.tx, await this.originOf(event), fact);
       case "reprint_recorded":
         return recordAppliedReprint(this.tx, await this.originOf(event), fact);
       case "qr_payment_replaced":
         return recordAppliedQrPaymentReplacement(
+          this.tx,
+          await this.originOf(event),
+          fact,
+          this.now(),
+        );
+      case "offline_fiscal_document_issued":
+        return recordAppliedOfflineFiscalDocument(
           this.tx,
           await this.originOf(event),
           fact,
@@ -234,6 +235,34 @@ class DrizzleEventApplicationTransaction<TQueryResult extends PgQueryResultHKT>
         return {
           kind: "refused",
           reason: `a sale moved a quantity of product ${outcome.productId} it can't be sold in`,
+        };
+    }
+  }
+
+  async applySaleVoidStock(
+    sale: VoidedSale,
+    movements: VoidedSale["stockMovements"],
+    event: UnappliedEvent,
+  ): Promise<StockApplication> {
+    const { locationId } = await this.originOf(event);
+    const outcome = await applyRegisterStockMovements(
+      new DrizzleStockStoreTransaction(this.tx, this.pending),
+      {
+        locationId,
+        occurredAt: sale.voidedAt,
+        actorId: sale.actorId,
+        movements: movements.map((movement) => ({ ...movement, kind: "sale_void" })),
+      },
+    );
+    switch (outcome.kind) {
+      case "applied":
+        return { kind: "applied" };
+      case "not_found":
+        return { kind: "refused", reason: `product ${outcome.productId} is not in the catalog` };
+      case "invalid_quantity":
+        return {
+          kind: "refused",
+          reason: `a voided sale returned a quantity of product ${outcome.productId} it can't be sold in`,
         };
     }
   }

@@ -13,7 +13,7 @@
     "pack:staging": "cross-env POS_CHANNEL=staging electron-builder --config electron-builder.config.mjs --win",
     "test:e2e": "vitest run --config vitest.e2e.config.ts",
     "test:packaged": "vitest run --config vitest.packaged.config.ts",
-    "generate:receipt-logo": "node scripts/generate-receipt-logo.ts > src/core/sales/receipt-logo.ts"
+    "generate:receipt-logo": "node scripts/generate-receipt-logo.ts > src/core/sales/receipt-printer/receipt-logo.ts"
   },
   "devDependencies": {
     "@internationalized/date": "^3.12.4",
@@ -43,7 +43,7 @@
     "playwright": "^1.63.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
-    "uuid": "^14.0.2",
+    "uuid": "^14.0.3",
     "vite": "^7.3.6",
     "vitest-browser-react": "^2.3.0",
     "zod": "^4.6.5"

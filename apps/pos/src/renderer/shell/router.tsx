@@ -18,6 +18,7 @@ import type {
   ChargeSaleOnStandaloneTerminalOutcome,
   CloseCashSessionOutcome,
   CloseLockedCashSessionOutcome,
+  ConvertPaidOrderIntoRefundOutcome,
   CoreStatusMessage,
   CurrentSaleAnswer,
   EnrollmentOutcome,
@@ -57,6 +58,7 @@ import type {
   SignInOutcome,
   SignInUser,
   StartMercadoPagoChargeOutcome,
+  VoidSaleOutcome,
   WeighCountedProductOutcome,
   WeighProductOutcome,
   WithdrawInitialCountLineOutcome,
@@ -71,6 +73,7 @@ import {
   createRouter,
   Outlet,
   redirect,
+  useRouter,
 } from "@tanstack/react-router";
 import { pinPolicyQueryOptions } from "../credentials/credentials-queries";
 import { FirstSignInCodeStep } from "../credentials/first-sign-in-code-step";
@@ -100,6 +103,7 @@ import {
   registerStatusQueryOptions,
   startupPendingQueryOptions,
   useRegisterNameQuery,
+  useRegisterStatusQuery,
 } from "../register/register-queries";
 import { mayConfigureSerialDevices } from "../register/serial-devices-offer";
 import { SerialDevicesScreen } from "../register/serial-devices-screen";
@@ -230,8 +234,16 @@ export interface RouterContext {
     saleId: string,
     authorization: Authorization | undefined,
   ) => Promise<CancelPaidSaleOutcome>;
+  voidSale: (
+    saleId: string,
+    pendingRefundsConfirmed: boolean,
+    authorization: Authorization | undefined,
+  ) => Promise<VoidSaleOutcome>;
   receiptPrintStatus: (saleId: string) => Promise<ReceiptPrintStatusOutcome>;
   printOriginalReceipt: (saleId: string) => Promise<PrintOriginalReceiptOutcome>;
+  convertPaidOrderIntoRefund: (
+    paymentTransactionId: string,
+  ) => Promise<ConvertPaidOrderIntoRefundOutcome>;
   reprintSaleReceipt: (
     saleId: string,
     reason: string,
@@ -609,8 +621,10 @@ const openSessionRoute = createRoute({
       cancelPaidSale,
       authorizers,
       refreshCashSession,
+      registerStatus,
     } = openSessionRoute.useRouteContext();
     const registerName = useRegisterName();
+    const status = useRegisterStatusQuery(registerStatus);
     return (
       <SaleScreen
         sessionId={id}
@@ -634,6 +648,7 @@ const openSessionRoute = createRoute({
         cancelPaidSale={cancelPaidSale}
         loadAuthorizers={authorizers}
         onSessionInvalid={() => void refreshCashSession()}
+        registerStatus={status}
       />
     );
   },
@@ -642,9 +657,15 @@ const openSessionRoute = createRoute({
 const startupPendingRoute = createRoute({
   getParentRoute: () => statusBarRoute,
   path: "/startup-pending",
-  beforeLoad: ({ context }) => {
+  beforeLoad: async ({ context }) => {
     const { id, openedAt, openedBy, person } = requireOpenSession(context);
-    if (context.startupPendingGate.dismissed()) {
+    const landsOnStartupPending = await context.startupPendingGate.lands(() =>
+      context.queryClient.fetchQuery({
+        ...startupPendingQueryOptions(context.startupPending),
+        staleTime: 0,
+      }),
+    );
+    if (!landsOnStartupPending) {
       throw redirect({ to: "/session" });
     }
     return { id, openedAt, openedBy, person };
@@ -661,11 +682,13 @@ const startupPendingRoute = createRoute({
       cashBalance,
       printOriginalReceipt,
       reprintSaleReceipt,
+      convertPaidOrderIntoRefund,
       authorizers,
       refreshCashSession,
     } = startupPendingRoute.useRouteContext();
     const registerName = useRegisterName();
     const navigate = startupPendingRoute.useNavigate();
+    const router = useRouter();
     return (
       <StartupPendingScreen
         sessionId={id}
@@ -678,11 +701,13 @@ const startupPendingRoute = createRoute({
         loadCashBalance={cashBalance}
         printOriginalReceipt={printOriginalReceipt}
         reprintSaleReceipt={reprintSaleReceipt}
+        convertPaidOrderIntoRefund={convertPaidOrderIntoRefund}
         loadAuthorizers={authorizers}
         onGoSelling={() => {
           startupPendingGate.dismiss();
           void navigate({ to: "/session" });
         }}
+        onNothingLeft={() => void router.invalidate()}
         onSessionInvalid={() => void refreshCashSession()}
       />
     );
@@ -748,6 +773,7 @@ const historyRoute = createRoute({
       salesHistory,
       saleHistoryDetail,
       reprintSaleReceipt,
+      voidSale,
       authorizers,
       refreshCashSession,
     } = historyRoute.useRouteContext();
@@ -761,6 +787,7 @@ const historyRoute = createRoute({
         salesHistory={salesHistory}
         saleHistoryDetail={saleHistoryDetail}
         reprintSaleReceipt={reprintSaleReceipt}
+        voidSale={voidSale}
         loadAuthorizers={authorizers}
         onSessionInvalid={() => void refreshCashSession()}
       />
@@ -1090,8 +1117,10 @@ export function createAppRouter(
     | "removeSaleLine"
     | "cancelSale"
     | "cancelPaidSale"
+    | "voidSale"
     | "receiptPrintStatus"
     | "printOriginalReceipt"
+    | "convertPaidOrderIntoRefund"
     | "reprintSaleReceipt"
     | "salesHistory"
     | "saleHistoryDetail"

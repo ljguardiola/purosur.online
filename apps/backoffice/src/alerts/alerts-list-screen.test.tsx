@@ -863,6 +863,31 @@ test("names a register's stopped fiscal emission by its fixed title, with what i
   await expect.element(row.getByText(/Seguir vendiendo igual/)).toBeVisible();
 });
 
+test("names a voucher issued outside the system by its fixed title and description, with its point of sale only in its scope", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlerts).mockResolvedValue(
+    ok([
+      {
+        ...passkeyAlert,
+        kind: "external_billing",
+        level: "critical",
+        audience: "all",
+        scope: "3:factura_c:41",
+        scopeDisplay: "3:factura_c:41",
+        scopeKind: "pointOfSaleDocumentNumber",
+      },
+    ]),
+  );
+
+  const screen = await renderScreen(services);
+
+  const row = screen.getByRole("row", { name: /Facturación externa/ });
+  await expect.element(row.getByText("Facturación externa")).toBeVisible();
+  await expect.element(row.getByText("Un comprobante se emitió fuera del sistema")).toBeVisible();
+  await expect.element(row.getByText("Punto de venta 00003 · Factura C · 00000041")).toBeVisible();
+  expect(row.getByText(/punto de venta 00003/i).elements()).toHaveLength(1);
+});
+
 test.each([
   [
     "event_history_broken",
@@ -873,6 +898,16 @@ test.each([
     "local_database_damaged",
     /su base de datos está dañada/,
     /Restaurar la base de datos de la caja desde su copia de respaldo/,
+  ],
+  [
+    "disk_space_short_at_startup",
+    /necesita más espacio libre en el disco de la notebook del que tiene/,
+    /Liberar espacio en la notebook, borrando archivos que no sean de la caja, y reiniciar la caja/,
+  ],
+  [
+    "disk_full",
+    /La venta en curso se puede completar y cobrar/,
+    /Cobrar la venta en curso y liberar espacio en la notebook/,
   ],
 ] as const)(
   "tells why a register can't sell in its row when the reason is %s",

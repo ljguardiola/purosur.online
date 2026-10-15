@@ -159,6 +159,11 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
       fetchRecipes: vi.fn().mockReturnValue(new Promise(() => {})),
       saveRecipe: vi.fn(),
     },
+    assemblyBatchesScreen: {
+      fetchAssemblyBatches: vi.fn().mockReturnValue(new Promise(() => {})),
+      fetchAssemblyBatchPreview: vi.fn(),
+      registerAssemblyBatch: vi.fn(),
+    },
     purchasesListScreen: {
       fetchPurchases: vi.fn().mockReturnValue(new Promise(() => {})),
     },
@@ -185,6 +190,9 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
     },
     salesByCashierScreen: {
       fetchSalesByCashier: vi.fn().mockReturnValue(new Promise(() => {})),
+    },
+    averageTicketScreen: {
+      fetchAverageTicket: vi.fn().mockReturnValue(new Promise(() => {})),
     },
     salesByPaymentMethodScreen: {
       fetchSalesByPaymentMethod: vi.fn().mockReturnValue(new Promise(() => {})),
@@ -222,6 +230,7 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
       fetchRegisters: vi.fn().mockReturnValue(new Promise(() => {})),
       fetchRegisterCoverage: vi.fn().mockReturnValue(new Promise(() => {})),
       createRegister: vi.fn(),
+      assignPointTerminal: vi.fn(),
       emitEnrollmentCode: vi.fn(),
       fetchSessionAuthorizationOptions: vi.fn(),
       authorizeSession: vi.fn(),
@@ -243,6 +252,7 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
     pointsOfSaleScreen: {
       fetchRegisterPointsOfSale: vi.fn().mockReturnValue(new Promise(() => {})),
       fetchFiscalAddresses: vi.fn().mockReturnValue(new Promise(() => {})),
+      fetchFortnightPresentations: vi.fn().mockReturnValue(new Promise(() => {})),
       configureRegisterPointOfSale: vi.fn(),
       configureRegisterOfflinePointOfSale: vi.fn(),
       createFiscalAddress: vi.fn(),

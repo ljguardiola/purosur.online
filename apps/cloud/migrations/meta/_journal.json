@@ -680,6 +680,76 @@
       "when": 1791979205076,
       "tag": "0100_freights",
       "breakpoints": true
+    },
+    {
+      "idx": 97,
+      "version": "7",
+      "when": 1791982149291,
+      "tag": "0101_offline_fiscal_documents",
+      "breakpoints": true
+    },
+    {
+      "idx": 98,
+      "version": "7",
+      "when": 1792003523910,
+      "tag": "0102_register_snapshot_generations",
+      "breakpoints": true
+    },
+    {
+      "idx": 99,
+      "version": "7",
+      "when": 1792007629613,
+      "tag": "0103_register_point_terminals",
+      "breakpoints": true
+    },
+    {
+      "idx": 100,
+      "version": "7",
+      "when": 1792010204957,
+      "tag": "0104_assembly_batches",
+      "breakpoints": true
+    },
+    {
+      "idx": 101,
+      "version": "7",
+      "when": 1792020020420,
+      "tag": "0105_fortnight_reports",
+      "breakpoints": true
+    },
+    {
+      "idx": 102,
+      "version": "7",
+      "when": 1792026611253,
+      "tag": "0106_offsite_dump_checks",
+      "breakpoints": true
+    },
+    {
+      "idx": 103,
+      "version": "7",
+      "when": 1792036042602,
+      "tag": "0107_offline_number_blocks_used_up",
+      "breakpoints": true
+    },
+    {
+      "idx": 104,
+      "version": "7",
+      "when": 1792060232561,
+      "tag": "0108_fortnight_document_reports",
+      "breakpoints": true
+    },
+    {
+      "idx": 105,
+      "version": "7",
+      "when": 1792077096405,
+      "tag": "0109_numbering_conflict_freeze",
+      "breakpoints": true
+    },
+    {
+      "idx": 106,
+      "version": "7",
+      "when": 1792087184000,
+      "tag": "0110_voided_sales",
+      "breakpoints": true
     }
   ]
 }

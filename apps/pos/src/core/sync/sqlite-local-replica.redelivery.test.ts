@@ -195,6 +195,7 @@ const STALE_COLUMNS: [Entity, string, string, string][] = [
     "tax_authority_last_authorized_number",
     "NULL",
   ],
+  ["register_point_of_sale", "register_point_of_sale", "numbering_frozen", "1"],
   [
     "register_offline_point_of_sale",
     "register_offline_point_of_sale",
@@ -230,7 +231,12 @@ describe("a redelivered page", () => {
     },
   );
 
-  it.each(STALE_COLUMNS.filter(([, , name]) => name !== "tax_authority_last_authorized_number"))(
+  it.each(
+    STALE_COLUMNS.filter(
+      ([, , name]) =>
+        name !== "tax_authority_last_authorized_number" && name !== "numbering_frozen",
+    ),
+  )(
     "is not what a normal pull does, for %s, with %s.%s at the same version",
     async (entity, table, name, stale) => {
       const change = upsertOf(entity);
@@ -424,5 +430,36 @@ describe("what a register owns, kept by a redelivered page", () => {
 
     await redeliver(entity, withRow(change, { tax_authority_last_authorized_number: 15 }));
     expect(column(table, "tax_authority_last_authorized_number")).toBe(15);
+  });
+
+  it("brings in the highest synced offline number of the offline point of sale and never takes it back", async () => {
+    const change = upsertOf("register_offline_point_of_sale");
+    const highestSynced = () =>
+      column("register_offline_point_of_sale", "highest_synced_offline_number");
+    await savePulledChanges(replica, withRow(change, { highest_synced_offline_number: null }));
+
+    await redeliver(
+      "register_offline_point_of_sale",
+      withRow(change, { highest_synced_offline_number: 12 }),
+    );
+    expect(highestSynced()).toBe(12);
+
+    await redeliver(
+      "register_offline_point_of_sale",
+      withRow(change, { highest_synced_offline_number: null }),
+    );
+    expect(highestSynced()).toBe(12);
+
+    await redeliver(
+      "register_offline_point_of_sale",
+      withRow(change, { highest_synced_offline_number: 9 }),
+    );
+    expect(highestSynced()).toBe(12);
+
+    await redeliver(
+      "register_offline_point_of_sale",
+      withRow(change, { highest_synced_offline_number: 15 }),
+    );
+    expect(highestSynced()).toBe(15);
   });
 });

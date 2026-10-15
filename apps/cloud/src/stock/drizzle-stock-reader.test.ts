@@ -2,6 +2,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { lotAllocations } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { DrizzleStockReader } from "./drizzle-stock-reader.js";
+import { insertAssemblyBatch } from "./test-support/assembly-batch-fixtures.js";
 import {
   insertInitialCountLot,
   insertPurchasedLot,
@@ -332,6 +333,7 @@ describe("DrizzleStockReader.stockLevels", () => {
         costIncomplete: false,
         cost: { totalCents: 5_000, quantity: 1_000 },
         initialCount: false,
+        assemblyBatch: null,
       },
     ]);
   });
@@ -353,6 +355,7 @@ describe("DrizzleStockReader.stockLevels", () => {
         costIncomplete: true,
         cost: null,
         initialCount: false,
+        assemblyBatch: null,
       },
     ]);
   });
@@ -390,6 +393,7 @@ describe("DrizzleStockReader.stockLevels", () => {
           costIncomplete: true,
           cost: null,
           initialCount: true,
+          assemblyBatch: null,
         },
         {
           id: withdrawn.lotId,
@@ -400,9 +404,40 @@ describe("DrizzleStockReader.stockLevels", () => {
           costIncomplete: false,
           cost: { totalCents: 800, quantity: 1_000 },
           initialCount: true,
+          assemblyBatch: null,
         },
       ]),
     );
+  });
+
+  it("answers the lot of an assembled batch with the moment the batch was assembled and the cost it was made at", async () => {
+    const { actorId, locationId } = await seededActor();
+    const { productId } = await insertProduct(db, { name: "Mix" });
+    const assembledAt = new Date("2026-05-04T13:00:00.000Z");
+    const { lotId } = await insertAssemblyBatch(db, {
+      productId,
+      locationId,
+      actorId,
+      assembledAt,
+      expiresOn: "2027-01-15",
+      cost: { totalCents: 50_200, quantity: 14_000 },
+    });
+
+    const [level] = await new DrizzleStockReader(db).stockLevels(locationId);
+
+    expect(level?.lots).toEqual([
+      {
+        id: lotId,
+        lotNumber: null,
+        expiresOn: "2027-01-15",
+        purchase: null,
+        remaining: 14_000,
+        costIncomplete: false,
+        cost: { totalCents: 50_200, quantity: 14_000 },
+        initialCount: false,
+        assemblyBatch: { assembledAt },
+      },
+    ]);
   });
 
   it("leaves out the lots with nothing remaining and those of other locations, keeping each product's own", async () => {

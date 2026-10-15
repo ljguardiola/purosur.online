@@ -41,6 +41,7 @@ import { hashSecretCode } from "./platform/secret-code.js";
 import { insertEnrolledInstallation } from "./register/test-support/enrolled-installation.js";
 import {
   capabilityAccess,
+  OFFSITE_DUMP_CHECK_ACCESS,
   OPEN_SESSION_ACCESS,
   OPEN_SESSION_PEEK_ACCESS,
   PUBLIC_ACCESS,
@@ -1505,6 +1506,7 @@ describe("wiring the sales report routes", () => {
     { method: "GET", url: "/api/reports/sales-by-day" },
     { method: "GET", url: "/api/reports/sales-by-product-and-category" },
     { method: "GET", url: "/api/reports/sales-by-cashier" },
+    { method: "GET", url: "/api/reports/average-ticket" },
   ] as const;
 
   async function statusCodes(app: ReturnType<typeof buildApp>): Promise<number[]> {
@@ -1617,6 +1619,9 @@ describe("wiring the stock routes", () => {
     { method: "POST", url: "/api/inventory-adjustments" },
     { method: "GET", url: "/api/recipes" },
     { method: "PUT", url: "/api/recipes/00000000-0000-0000-0000-000000000000" },
+    { method: "GET", url: "/api/assembly-batches" },
+    { method: "GET", url: "/api/assembly-batches/preview" },
+    { method: "POST", url: "/api/assembly-batches" },
   ] as const;
 
   const formerStockRequests = [
@@ -1740,6 +1745,7 @@ describe("wiring the registers routes", () => {
 describe("wiring the register point of sale routes", () => {
   it.each([
     ["GET", "/api/registers/points-of-sale"],
+    ["GET", "/api/registers/fortnight-presentations"],
     ["PUT", "/api/registers/00000000-0000-0000-0000-000000000000/point-of-sale"],
     ["PUT", "/api/registers/00000000-0000-0000-0000-000000000000/offline-point-of-sale"],
   ])("%s %s: answers according to the registersPointsOfSale option", async (method, url) => {
@@ -1899,6 +1905,7 @@ describe("wiring the unclear outcome route", () => {
       certificateFingerprint: "AA:BB",
       enqueueUnclearOutcome: async () => {},
       withdrawUnclearOutcome: async () => {},
+      enqueueNumberingDiagnosis: async () => {},
     };
   }
 
@@ -2526,6 +2533,11 @@ describe("the route access inventory", () => {
         access: RELEASE_CHECK_ACCESS,
       },
       {
+        method: "POST",
+        url: "/api/backups/offsite-dump-checks",
+        access: OFFSITE_DUMP_CHECK_ACCESS,
+      },
+      {
         method: "GET",
         url: "/api/sync/readable-event-versions",
         access: RELEASE_CHECK_ACCESS,
@@ -2589,6 +2601,21 @@ describe("the route access inventory", () => {
         method: "PUT",
         url: "/api/recipes/:productId",
         access: capabilityAccess("recipes"),
+      },
+      {
+        method: "GET",
+        url: "/api/assembly-batches",
+        access: capabilityAccess("batches"),
+      },
+      {
+        method: "GET",
+        url: "/api/assembly-batches/preview",
+        access: capabilityAccess("batches"),
+      },
+      {
+        method: "POST",
+        url: "/api/assembly-batches",
+        access: capabilityAccess("batches"),
       },
       {
         method: "GET",
@@ -2662,6 +2689,11 @@ describe("the route access inventory", () => {
       },
       {
         method: "GET",
+        url: "/api/reports/average-ticket",
+        access: capabilityAccess("reports_area"),
+      },
+      {
+        method: "GET",
         url: "/api/reports/sales-by-payment-method",
         access: capabilityAccess("reports_area"),
       },
@@ -2716,8 +2748,18 @@ describe("the route access inventory", () => {
         access: capabilityAccess("registers_area"),
       },
       {
+        method: "PUT",
+        url: "/api/registers/:id/point-terminal",
+        access: capabilityAccess("cash_area"),
+      },
+      {
         method: "GET",
         url: "/api/registers/points-of-sale",
+        access: capabilityAccess("cash_area"),
+      },
+      {
+        method: "GET",
+        url: "/api/registers/fortnight-presentations",
         access: capabilityAccess("cash_area"),
       },
       {
@@ -2735,6 +2777,15 @@ describe("the route access inventory", () => {
       { method: "GET", url: "/api/changes", access: PUBLIC_ACCESS },
       { method: "POST", url: "/api/events", access: PUBLIC_ACCESS },
       { method: "GET", url: "/api/register/update", access: PUBLIC_ACCESS },
+      { method: "POST", url: "/api/devices/current/snapshots", access: PUBLIC_ACCESS },
+      {
+        method: "POST",
+        url: "/api/devices/current/snapshots/:generationId/uploaded",
+        access: PUBLIC_ACCESS,
+      },
+      { method: "POST", url: "/api/devices/current/snapshot-corruption", access: PUBLIC_ACCESS },
+      { method: "GET", url: "/api/devices/current/snapshots", access: PUBLIC_ACCESS },
+      { method: "GET", url: "/api/devices/current/snapshots/verified", access: PUBLIC_ACCESS },
       { method: "POST", url: "/api/pin-code-redemptions", access: PUBLIC_ACCESS },
       { method: "POST", url: "/api/sign-in-lookups", access: PUBLIC_ACCESS },
       { method: "POST", url: "/api/devices/current/tokens", access: PUBLIC_ACCESS },

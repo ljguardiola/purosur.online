@@ -35,6 +35,16 @@ describe("scopeDisplay", () => {
     ).toBe("Caja 1");
   });
 
+  it.each([
+    "fortnight_report_pending",
+    "fortnight_report_overdue",
+    "fortnight_report_needs_regularization",
+  ] as const)("adds the day the fortnight ends to the scope of %s", (kind) => {
+    expect(scopeDisplay({ kind, scope: "4:2026-09-01", resolvedAt: null }, new Map())).toBe(
+      "4:2026-09-01:2026-09-15",
+    );
+  });
+
   it("falls back to the register's id when a register-and-fortnight scope's register isn't in the map", () => {
     expect(
       scopeDisplay(

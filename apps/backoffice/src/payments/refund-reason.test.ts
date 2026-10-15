@@ -78,3 +78,18 @@ test("tells a cancelled sale alone when nobody is recorded as its canceller", ()
     "La venta del 16/09 09:37 se canceló",
   );
 });
+
+const voidedSale: typeof latePayment = { ...cancelledSale, origin: "sale_voided" };
+
+test("tells a voided sale and who voided it", () => {
+  expect(refundReason(voidedSale)).toEqual({
+    title: "Anulación de venta",
+    detail: "La venta del 16/09 09:37 se anuló · la anuló Lucía Pérez",
+  });
+});
+
+test("tells a voided sale alone when nobody known is recorded as its voider", () => {
+  expect(refundReason({ ...voidedSale, cancelled_by_name: null }).detail).toBe(
+    "La venta del 16/09 09:37 se anuló",
+  );
+});

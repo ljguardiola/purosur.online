@@ -32,6 +32,8 @@ export {
 export type {
   AuthorizedFacturaC,
   FacturaCFiscalBlock,
+  OfflineAuthorizedFacturaC,
+  OfflineFacturaCFiscalBlock,
 } from "./model/factura-c-fiscal-block.js";
 export {
   AUTHORIZATION_CODE_TYPE_CAE,
@@ -41,6 +43,7 @@ export {
   FINAL_CONSUMER_DOCUMENT_NUMBER,
   FINAL_CONSUMER_DOCUMENT_TYPE,
   facturaCFiscalBlock,
+  offlineFacturaCFiscalBlock,
   TAX_AUTHORITY_QR_URL,
 } from "./model/factura-c-fiscal-block.js";
 export {
@@ -66,6 +69,21 @@ export type {
   TaxAuthorityRejection,
 } from "./model/fiscal-rejection-standing.js";
 export { FACTURA_C_DOCUMENT_TYPE } from "./model/fiscal-rejection-standing.js";
+export type {
+  FortnightPresentationRefusal,
+  FortnightReportMovement,
+  FortnightReportState,
+} from "./model/fortnight-report.js";
+export {
+  fortnightClosesAt,
+  fortnightPresentationRows,
+  fortnightReportDeadline,
+  fortnightReportStanding,
+  isFortnightReportOutstanding,
+  isOfflineDocumentReported,
+  owesFortnightReport,
+} from "./model/fortnight-report.js";
+export { generationStampOf } from "./model/generation-stamp.js";
 export {
   ISSUER_IDENTIFICATION_GROSS_INCOME_REGISTRATION_MAX_LENGTH,
   ISSUER_IDENTIFICATION_LEGAL_NAME_MAX_LENGTH,
@@ -75,6 +93,11 @@ export {
   isIssuerIdentificationLegalNameTooLong,
   latestIssuerIdentification,
 } from "./model/issuer-identification.js";
+export {
+  awaitsNumberingDiagnosis,
+  isNumberingConflictAnswer,
+  NUMBERING_CONFLICT_REASK_INTERVAL_MS,
+} from "./model/numbering-conflict.js";
 export type { Fortnight } from "./model/offline-authorization-code.js";
 export {
   fortnightAfter,
@@ -89,6 +112,12 @@ export type { OfflineAuthorizationCodeAcquisitionUrgency } from "./model/offline
 export { offlineAuthorizationCodeAcquisitionUrgency } from "./model/offline-authorization-code-acquisition-urgency.js";
 export type { RegisterOfflineAuthorizationCodeHolding } from "./model/offline-authorization-code-holding.js";
 export { mustHoldOfflineAuthorizationCode } from "./model/offline-authorization-code-holding.js";
+export type { OfflineFiscalDocumentIssuedFact } from "./model/offline-fiscal-document.js";
+export {
+  OFFLINE_FISCAL_DOCUMENT_ISSUED_EVENT_TYPE,
+  offlineFiscalDocument,
+  offlineFiscalDocumentIssuedEvent,
+} from "./model/offline-fiscal-document.js";
 export type {
   OfflineNumberBlockRange,
   OfflineNumberBlockStatus,
@@ -112,6 +141,7 @@ export { preEmissionGateFailedEvent } from "./model/pre-emission-gate-failed-eve
 export type {
   DeferralReason,
   FiscalDocumentState,
+  OfflineAuthorizationCause,
   RealTimeAuthorizationAnswer,
   RealTimeAuthorizationResolution,
   RejectionClass,
@@ -120,7 +150,9 @@ export {
   DEFERRAL_REASONS,
   IN_PROGRESS_FISCAL_DOCUMENT_STATES,
   invoiceDateOf,
+  isFiscalOutcomeUnresolved,
   NUMBER_CONSUMING_STATES,
+  OFFLINE_AUTHORIZATION_CAUSES,
   REAL_TIME_AUTHORIZATION_TIMEOUT_MS,
   REJECTION_CLASSES,
   SERIES_WAITING_STATES,

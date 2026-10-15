@@ -18,6 +18,7 @@ function createServices(
   return {
     fetchRegisterPointsOfSale: vi.fn().mockResolvedValue({ kind: "ok", value: [] }),
     fetchFiscalAddresses: vi.fn().mockResolvedValue({ kind: "ok", value: [] }),
+    fetchFortnightPresentations: vi.fn().mockResolvedValue({ kind: "ok", value: [] }),
     configureRegisterPointOfSale: vi.fn(),
     configureRegisterOfflinePointOfSale: vi.fn(),
     createFiscalAddress: vi.fn(),
@@ -101,7 +102,7 @@ test("shows each register with its point of sale padded to five digits and its f
   const screen = await renderScreen(serving([configuredRegister], [depot, shop]));
 
   await expect.element(screen.getByRole("heading", { name: "Caja 1", level: 2 })).toBeVisible();
-  await expect.element(screen.getByText("Punto de venta", { exact: true })).toBeVisible();
+  await expect.element(screen.getByText("Punto de venta", { exact: true }).first()).toBeVisible();
   await expect.element(screen.getByText("00012")).toBeVisible();
   await expect.element(screen.getByText("Punto de venta CAEA", { exact: true })).toBeVisible();
   await expect.element(screen.getByText("00013")).toBeVisible();
@@ -151,7 +152,7 @@ test("shows a load failure for the registers, and Reintentar loads them again", 
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("No pudimos abrir los puntos de venta")).toBeVisible();
 
-  await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+  await userEvent.click(screen.getByRole("button", { name: "Reintentar" }).first());
 
   await expect.element(screen.getByText("00012")).toBeVisible();
 });
@@ -349,4 +350,51 @@ test("has no accessibility violations with registers and fiscal addresses shown"
   await expect.element(screen.getByText("00012")).toBeVisible();
 
   await expectNoAccessibilityViolations(document.body);
+});
+
+test("lists the fortnight reports of each offline point of sale between the registers and the fiscal addresses, naming the register a blocked one waits for", async () => {
+  const services = serving([configuredRegister], [depot]);
+  services.fetchFortnightPresentations = vi.fn().mockResolvedValue({
+    kind: "ok",
+    value: [
+      {
+        registerId: configuredRegister.registerId,
+        pointOfSaleNumber: 13,
+        fortnight: { start: "2026-09-01", end: "2026-09-15" },
+        deadline: "2026-09-23",
+        documentType: null,
+        documentCount: 0,
+        rejectedDocument: null,
+        movement: null,
+        refusal: null,
+        state: "blocked",
+      },
+    ],
+  });
+
+  const screen = await renderScreen(services);
+
+  const reports = screen.getByRole("table", { name: "Informes quincenales" });
+  await expect.element(reports.getByText("Bloqueado")).toBeVisible();
+  await expect
+    .element(screen.getByText("Caja 1 todavía no terminó de sincronizar", { exact: true }))
+    .toBeVisible();
+  const text = document.body.textContent ?? "";
+  expect(text.indexOf("Caja 1")).toBeLessThan(text.indexOf("Quincena"));
+  expect(text.indexOf("Quincena")).toBeLessThan(text.indexOf("Domicilios fiscales"));
+});
+
+test("keeps the registers on screen when the fortnight reports fail to load, and Reintentar loads them again", async () => {
+  const services = serving([configuredRegister], [depot]);
+  services.fetchFortnightPresentations = vi
+    .fn()
+    .mockResolvedValueOnce({ kind: "failed" })
+    .mockResolvedValueOnce({ kind: "ok", value: [] });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("No pudimos abrir los informes quincenales")).toBeVisible();
+  await expect.element(screen.getByText("00012")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+
+  await expect.element(screen.getByText("Todavía no hay informes quincenales")).toBeVisible();
 });

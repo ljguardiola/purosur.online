@@ -4,6 +4,10 @@ import {
   SERIAL_DEVICE_ROLES,
   type SerialDevicesReport,
 } from "@purosur/domain";
+import {
+  type AssignNextOfflineNumberBlockInput,
+  assignNextOfflineNumberBlocks,
+} from "@purosur/domain/fiscal/use-cases";
 import type {
   HeldEvent,
   HeldEventPosition,
@@ -22,6 +26,7 @@ import {
   observeRegisterSynced,
   observeRegisterVersionStanding,
 } from "../alerts/register-standing-alerts.js";
+import { DrizzleRegisterOfflinePointOfSaleStoreTransaction } from "../fiscal/drizzle-register-offline-point-of-sale-store.js";
 import {
   deviceState,
   inbox,
@@ -32,21 +37,27 @@ import {
 } from "../platform/db/schema.js";
 import type { InstallationKeyCipher } from "../register/installation-key-cipher.js";
 import { readOutboxChainKey } from "../register/outbox-chain-key.js";
+import { type PendingChanges, withPendingChanges } from "./change-log.js";
 import type { EnqueueEventApplication } from "./graphile-event-application-queue.js";
+import { syncedEventUpcaster } from "./synced-event-upcaster.js";
+import { unappliedEventColumns } from "./unapplied-event-columns.js";
 
 class DrizzleInboxTransaction<TQueryResult extends PgQueryResultHKT> implements InboxTransaction {
   private readonly tx: PgDatabase<TQueryResult>;
   private readonly cipher: InstallationKeyCipher;
   private readonly enqueueApplication: EnqueueEventApplication;
+  private readonly pending: PendingChanges;
 
   constructor(
     tx: PgDatabase<TQueryResult>,
     cipher: InstallationKeyCipher,
     enqueueApplication: EnqueueEventApplication,
+    pending: PendingChanges,
   ) {
     this.tx = tx;
     this.cipher = cipher;
     this.enqueueApplication = enqueueApplication;
+    this.pending = pending;
   }
 
   async lockDevice(deviceId: string): Promise<void> {
@@ -125,6 +136,36 @@ class DrizzleInboxTransaction<TQueryResult extends PgQueryResultHKT> implements 
       })),
     );
     await this.enqueueApplication(this.tx);
+  }
+
+  async advanceOfflineNumbering(offlineDocuments: readonly PushedEvent[], at: Date): Promise<void> {
+    if (offlineDocuments.length === 0) {
+      return;
+    }
+    const received = await this.tx
+      .select(unappliedEventColumns)
+      .from(inbox)
+      .where(
+        inArray(
+          inbox.eventId,
+          offlineDocuments.map((event) => event.event_id),
+        ),
+      );
+    const series: AssignNextOfflineNumberBlockInput[] = [];
+    for (const event of received) {
+      const decoded = syncedEventUpcaster.decode(event);
+      if (decoded.kind === "fact" && decoded.fact.kind === "offline_fiscal_document_issued") {
+        const { pointOfSale, documentType } = decoded.fact.document;
+        series.push({ pointOfSaleNumber: pointOfSale, documentType });
+      }
+    }
+    const store = new DrizzleRegisterOfflinePointOfSaleStoreTransaction(
+      this.tx,
+      () => at,
+      this.pending,
+      undefined,
+    );
+    await assignNextOfflineNumberBlocks(store, series);
   }
 
   async recordPushReport(deviceId: string, report: PushReport, at: Date): Promise<void> {
@@ -215,6 +256,13 @@ class DrizzleInboxTransaction<TQueryResult extends PgQueryResultHKT> implements 
       .where(and(eq(deviceState.deviceId, deviceId), isNull(deviceState.reportsEveryCycleSince)));
   }
 
+  async recordCaughtUp(deviceId: string, at: Date): Promise<void> {
+    await this.tx
+      .update(deviceState)
+      .set({ caughtUpAt: at })
+      .where(eq(deviceState.deviceId, deviceId));
+  }
+
   outboxChainKey(deviceId: string): Promise<string | undefined> {
     return readOutboxChainKey(this.tx, this.cipher, deviceId);
   }
@@ -289,8 +337,8 @@ export class DrizzleInbox<TQueryResult extends PgQueryResultHKT> implements Inbo
   // does not block the foreign keys of what it stores, so a second push reads the inbox only once
   // the first one committed and cannot insert the same seq twice.
   transaction<TOutcome>(work: (tx: InboxTransaction) => Promise<TOutcome>): Promise<TOutcome> {
-    return this.db.transaction((tx) =>
-      work(new DrizzleInboxTransaction(tx, this.cipher, this.enqueueApplication)),
+    return withPendingChanges(this.db, undefined, (tx, pending) =>
+      work(new DrizzleInboxTransaction(tx, this.cipher, this.enqueueApplication, pending)),
     );
   }
 }

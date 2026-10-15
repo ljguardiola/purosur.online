@@ -29,6 +29,7 @@ import { DrizzleRequestAdmission } from "../sync/drizzle-request-admission.js";
 import { clearAuthorizationAnswerToWire } from "./clear-authorization-answer-wire.js";
 import { DrizzlePointOfSaleLanes } from "./drizzle-point-of-sale-lanes.js";
 import { DrizzleWsaaTokenSource } from "./drizzle-wsaa-token-source.js";
+import type { EnqueueNumberingDiagnosis } from "./enqueue-numbering-conflict.js";
 import type { EnqueueUnclearOutcome, WithdrawUnclearOutcome } from "./enqueue-unclear-outcome.js";
 import { WSFE_SERVICE } from "./wsaa-token-renewal-task.js";
 
@@ -39,6 +40,7 @@ export type FiscalAuthorizationRouteOptions<TQueryResult extends PgQueryResultHK
     certificateFingerprint: string;
     enqueueUnclearOutcome: EnqueueUnclearOutcome;
     withdrawUnclearOutcome: WithdrawUnclearOutcome;
+    enqueueNumberingDiagnosis: EnqueueNumberingDiagnosis;
     report?: typeof reportError;
   };
 
@@ -93,6 +95,7 @@ export function registerFiscalAuthorizationRoute<TQueryResult extends PgQueryRes
       options.connections,
       options.enqueueUnclearOutcome,
       options.withdrawUnclearOutcome,
+      options.enqueueNumberingDiagnosis,
     ),
     clock,
     tokens: new DrizzleWsaaTokenSource(

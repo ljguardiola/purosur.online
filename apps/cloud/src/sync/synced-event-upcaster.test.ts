@@ -803,6 +803,128 @@ describe("decoding the events the registers pushed", () => {
       });
     });
 
+    describe("a voided sale", () => {
+      const transfer = {
+        ...salePayment,
+        id: "01a1122a-0305-7189-87d0-9a1b2c3d4e60",
+        method: "TRANSFER",
+        provider: "NONE",
+        amount: 2000,
+        tendered: null,
+        authorized_by: USER,
+        confirmed_at: "2026-10-06T11:20:00.000Z",
+      };
+      const transferRefund = {
+        ...refund,
+        id: "01a1122a-0308-7000-8000-00000000aaa4",
+        parent_id: transfer.id,
+        method: "TRANSFER",
+        amount: 2000,
+        state: "PENDING",
+        occurred_at: "2026-10-06T11:40:00.000Z",
+      };
+      const returnedStock = {
+        id: "01a1122a-0309-7000-8000-00000000bbb1",
+        sale_line_id: saleLine.id,
+        product_id: saleLine.product_id,
+        delta: 2000,
+      };
+      const voided = (change: Record<string, unknown> = {}) =>
+        pushed({
+          event_type: "sale_voided",
+          schema_version: 1,
+          occurred_at: "2026-10-06T11:40:00.000Z",
+          payload: {
+            ...saleFields,
+            occurred_at: "2026-10-06T11:40:00.000Z",
+            lines: sharedLines,
+            sale_discount: saleDiscount,
+            authorized_by: "6f0c2a1e-3b54-4d7a-9c10-5e8a7b2d4f09",
+            payments: [payment],
+            refunds: [{ ...refund, occurred_at: "2026-10-06T11:40:00.000Z" }],
+            stock_movements: [returnedStock],
+            deferred_record_cancelled: false,
+            ...change,
+          },
+        });
+
+      it("is read as the sale voided, who authorized it and when, with its discount", () => {
+        expect(upcaster.decode(unappliedEventOf(voided()))).toMatchObject({
+          kind: "fact",
+          fact: {
+            kind: "sale_voided",
+            sale: {
+              id: SALE,
+              sessionId: SESSION,
+              actorId: USER,
+              authorizedBy: "6f0c2a1e-3b54-4d7a-9c10-5e8a7b2d4f09",
+              voidedAt: new Date("2026-10-06T11:40:00.000Z"),
+              total: 4800,
+              deferredRecordCancelled: false,
+              ...decodedDiscount,
+            },
+          },
+        });
+      });
+
+      it("is read with its payments, its refunds and its cash movements", () => {
+        const decoded = upcaster.decode(
+          unappliedEventOf(
+            voided({
+              payments: [payment, transfer],
+              refunds: [refund, transferRefund],
+              cash_movements: [saleCashMovement],
+            }),
+          ),
+        );
+
+        expect(decoded).toMatchObject({
+          fact: {
+            sale: {
+              payments: [
+                { id: payment.id, method: "CASH", state: "APPROVED" },
+                { id: transfer.id, method: "TRANSFER", authorizedBy: USER },
+              ],
+              refunds: [
+                { id: refund.id, paymentId: payment.id, method: "CASH", state: "APPROVED" },
+                {
+                  id: transferRefund.id,
+                  paymentId: transfer.id,
+                  method: "TRANSFER",
+                  amount: 2000,
+                  state: "PENDING",
+                  occurredAt: new Date("2026-10-06T11:40:00.000Z"),
+                },
+              ],
+              cashMovements: [decodedMovement],
+            },
+          },
+        });
+      });
+
+      it("is read with the stock it returns and whether it cancelled a deferred record", () => {
+        const decoded = upcaster.decode(
+          unappliedEventOf(voided({ deferred_record_cancelled: true })),
+        );
+
+        expect(decoded).toMatchObject({
+          fact: {
+            sale: {
+              deferredRecordCancelled: true,
+              stockMovements: [
+                {
+                  id: returnedStock.id,
+                  saleLineId: returnedStock.sale_line_id,
+                  productId: returnedStock.product_id,
+                  delta: 2000,
+                },
+              ],
+            },
+          },
+        });
+      });
+    });
+
     it("reads a version 4 cancelled sale with its discount and each line's share of it", () => {
       expect(upcaster.decode(unappliedEventOf(cancelled()))).toMatchObject({
         kind: "fact",
@@ -1369,6 +1491,64 @@ describe("decoding the events the registers pushed", () => {
           saleId: SALE,
           reason: "issuer_identification_missing",
           evaluatedAt: new Date("2026-10-06T11:20:00.000Z"),
+        },
+      },
+    });
+  });
+
+  it("reads the document issued under a pre-obtained code", () => {
+    const decoded = upcaster.decode(
+      unappliedEventOf(
+        pushed({
+          event_type: "offline_fiscal_document_issued",
+          schema_version: 1,
+          payload: {
+            fiscal_document_id: "01a1122a-0305-7189-87d0-8256a353fd41",
+            sale_id: SALE,
+            register_id: "01a1122a-0305-7189-87d0-8256a353fd42",
+            point_of_sale: 7,
+            document_type: "factura_c",
+            number: 12,
+            issued_on: "2026-10-06",
+            generated_at: "2026-10-06T11:20:00.000Z",
+            generation_stamp: "20261006082000",
+            offline_authorization_code: "21403471111111",
+            fortnight_start: "2026-10-01",
+            fortnight_end: "2026-10-15",
+            buyer_document_type: 99,
+            buyer_document_number: 0,
+            buyer_tax_status_code: 5,
+            total: 4800,
+            net_amount: 4800,
+            cause: "unclear_outcome",
+          },
+        }),
+      ),
+    );
+
+    expect(decoded).toEqual({
+      kind: "fact",
+      fact: {
+        kind: "offline_fiscal_document_issued",
+        document: {
+          fiscalDocumentId: "01a1122a-0305-7189-87d0-8256a353fd41",
+          saleId: SALE,
+          registerId: "01a1122a-0305-7189-87d0-8256a353fd42",
+          pointOfSale: 7,
+          documentType: "factura_c",
+          number: 12,
+          issuedOn: "2026-10-06",
+          generatedAt: new Date("2026-10-06T11:20:00.000Z"),
+          generationStamp: "20261006082000",
+          offlineAuthorizationCode: "21403471111111",
+          fortnightStart: "2026-10-01",
+          fortnightEnd: "2026-10-15",
+          buyerDocumentType: 99,
+          buyerDocumentNumber: 0,
+          buyerTaxStatusCode: 5,
+          total: 4800,
+          netAmount: 4800,
+          cause: "unclear_outcome",
         },
       },
     });

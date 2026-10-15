@@ -81,7 +81,7 @@ describe("the buyer tax-status fetch the server sets up on a real Postgres", () 
         },
       },
       () => FETCHED_AT,
-      { emailSender: UNUSED_EMAIL_SENDER },
+      { emailSender: UNUSED_EMAIL_SENDER, schedules: false },
     );
     try {
       await enqueueBuyerTaxStatusFetch(recovery.workerUtils);

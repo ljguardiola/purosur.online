@@ -28,6 +28,7 @@ export interface NewStockMovement extends ProductStockKey {
   id?: string;
   saleLineId?: string;
   purchaseLineId?: string;
+  assemblyBatchId?: string;
   kind: StockMovementKind;
   reason: RecordedLossReason | AdjustmentReason | null;
   delta: number;

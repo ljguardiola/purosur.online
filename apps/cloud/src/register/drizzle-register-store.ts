@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { enrollmentAttemptWindowStart } from "@purosur/domain";
+import { enrollmentAttemptWindowStart, isRetainedSnapshotGeneration } from "@purosur/domain";
 import type {
   EnrollmentAlert,
   EnrollmentAttemptKey,
@@ -24,7 +24,9 @@ import {
   registerEnrollmentAttempts,
   registerEnrollmentCodes,
   registerInstallations,
+  registerOfflinePointsOfSale,
   registerPointsOfSale,
+  registerSnapshotGenerations,
   registerSnapshotKeys,
   taxAuthorityLastAuthorizedNumbers,
 } from "../platform/db/schema.js";
@@ -292,11 +294,24 @@ class DrizzleRegisterStoreTransaction<TQueryResult extends PgQueryResultHKT>
     };
     return {
       snapshotKeys: await versionsOf(registerSnapshotKeys, snapshotKeyPurpose),
+      retainedSnapshotKeyVersions: await this.retainedSnapshotKeyVersions(registerId),
       contingencyTicketKeys: await versionsOf(
         registerContingencyTicketKeys,
         contingencyTicketKeyPurpose,
       ),
     };
+  }
+
+  private async retainedSnapshotKeyVersions(registerId: string): Promise<number[]> {
+    const kinds = await this.tx
+      .selectDistinct({
+        keyVersion: registerSnapshotGenerations.keyVersion,
+        status: registerSnapshotGenerations.status,
+        pruned: registerSnapshotGenerations.pruned,
+      })
+      .from(registerSnapshotGenerations)
+      .where(eq(registerSnapshotGenerations.registerId, registerId));
+    return [...new Set(kinds.filter(isRetainedSnapshotGeneration).map((kind) => kind.keyVersion))];
   }
 
   async recordSnapshotKey(registerId: string, key: VersionedKey): Promise<void> {
@@ -326,17 +341,23 @@ class DrizzleRegisterStoreTransaction<TQueryResult extends PgQueryResultHKT>
     if (this.enqueueTaxAuthorityCount === undefined) {
       return;
     }
-    const [held] = await this.tx
+    const [realTime] = await this.tx
       .select({ pointOfSale: registerPointsOfSale.pointOfSaleNumber })
       .from(registerPointsOfSale)
       .where(eq(registerPointsOfSale.registerId, registerId));
-    if (held === undefined) {
-      return;
+    const [offline] = await this.tx
+      .select({ pointOfSale: registerOfflinePointsOfSale.pointOfSaleNumber })
+      .from(registerOfflinePointsOfSale)
+      .where(eq(registerOfflinePointsOfSale.registerId, registerId));
+    for (const held of [realTime, offline]) {
+      if (held === undefined) {
+        continue;
+      }
+      await this.tx
+        .delete(taxAuthorityLastAuthorizedNumbers)
+        .where(eq(taxAuthorityLastAuthorizedNumbers.pointOfSaleNumber, held.pointOfSale));
+      await this.enqueueTaxAuthorityCount(this.tx, held.pointOfSale);
     }
-    await this.tx
-      .delete(taxAuthorityLastAuthorizedNumbers)
-      .where(eq(taxAuthorityLastAuthorizedNumbers.pointOfSaleNumber, held.pointOfSale));
-    await this.enqueueTaxAuthorityCount(this.tx, held.pointOfSale);
   }
 
   async openEnrollmentAlert(alert: EnrollmentAlert): Promise<void> {

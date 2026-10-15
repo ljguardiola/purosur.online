@@ -12,11 +12,13 @@ export type AlertScopeKind =
   | "environment"
   | "event"
   | "pointOfSaleDocumentType"
+  | "pointOfSaleDocumentNumber"
   | "registerFortnight"
   | "refund"
   | "fiscalDocument"
   | "syncDevice"
-  | "branch";
+  | "branch"
+  | "pointOfSaleFortnight";
 
 type AlertEscalationRule =
   | { kind: "afterOpening"; delayMs: number }
@@ -210,6 +212,46 @@ const ALERT_KIND_POLICIES = {
     scopeKind: "branch",
     deduplicates: true,
     resolvesAfterStableClear: true,
+  },
+  offsite_dump_unverified: {
+    level: "critical",
+    escalation: null,
+    audience: "all",
+    scopeKind: "environment",
+    deduplicates: true,
+    resolvesAfterStableClear: true,
+  },
+  fortnight_report_pending: {
+    level: "warning",
+    escalation: null,
+    audience: "all",
+    scopeKind: "pointOfSaleFortnight",
+    deduplicates: true,
+    resolvesAfterStableClear: true,
+  },
+  fortnight_report_overdue: {
+    level: "critical",
+    escalation: null,
+    audience: "all",
+    scopeKind: "pointOfSaleFortnight",
+    deduplicates: true,
+    resolvesAfterStableClear: false,
+  },
+  external_billing: {
+    level: "critical",
+    escalation: null,
+    audience: "all",
+    scopeKind: "pointOfSaleDocumentNumber",
+    deduplicates: true,
+    resolvesAfterStableClear: false,
+  },
+  fortnight_report_needs_regularization: {
+    level: "critical",
+    escalation: null,
+    audience: "all",
+    scopeKind: "pointOfSaleFortnight",
+    deduplicates: true,
+    resolvesAfterStableClear: false,
   },
 } as const satisfies Record<AlertKind, AlertKindPolicy>;
 

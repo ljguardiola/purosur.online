@@ -26,6 +26,18 @@ export {
 } from "./model/mercado-pago-refund.js";
 export { nonCashCharge } from "./model/non-cash-charge.js";
 export type {
+  PaidOrderDiscoveryState,
+  PaidOrderResolution,
+} from "./model/paid-order-discovery.js";
+export {
+  PAID_ORDER_DISCOVERY_STATES,
+  PAID_ORDER_PAYMENT_STATE,
+  PAID_ORDER_REPLACED,
+  paidOrdersSellingRefusal,
+  paidOrderWithoutSaleBlocksSelling,
+  SALE_PAYMENT_STATE_HOLDING_PAID_ORDER,
+} from "./model/paid-order-discovery.js";
+export type {
   ConfirmedByHandMethod,
   MercadoPagoPaymentMethod,
   PaymentMethod,
@@ -36,6 +48,7 @@ export {
   hasApprovedPayment,
   holdsApprovedPointPayment,
   isConfirmedByHand,
+  isMercadoPagoMethod,
   MERCADO_PAGO_PAYMENT_METHODS,
   MERCADO_PAGO_PROVIDERS,
   PAYMENT_METHODS,
@@ -54,6 +67,7 @@ export { paymentRecord } from "./model/payment-record.js";
 export type {
   LatePaymentRefund,
   PlannedRefund,
+  PlannedRefundState,
   RefundablePayment,
   RefundOrigin,
   RefundState,
@@ -65,6 +79,7 @@ export {
   latePaymentRefundOfUnrecordedOrder,
   methodsCoveringRefundedSale,
   PLANNED_REFUND_STATES,
+  plannedRefundState,
   plannedRefunds,
   REFUND_DISCARDED_STATE,
   REFUND_DONE_STATE,
@@ -73,6 +88,7 @@ export {
   REFUND_STATES,
   REFUND_TASK_ORIGINS,
   refundsSettleApprovedPayments,
+  SALE_VOIDED_REFUND_ORIGIN,
 } from "./model/payment-refund.js";
 export type {
   MercadoPagoOrderTransaction,
@@ -90,5 +106,6 @@ export {
   PAYMENT_TRANSACTION_STATES,
   PENDING_PAYMENT_TRANSACTION_STATE,
 } from "./model/payment-transaction.js";
+export { isPointTerminalId } from "./model/point-terminal-id.js";
 export type { SaleBalance } from "./model/sale-balance.js";
 export { approvedPaymentsCoverTotal, saleBalance } from "./model/sale-balance.js";

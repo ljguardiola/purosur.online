@@ -28,22 +28,27 @@ export async function applyStockMovement(
   };
 }
 
+export interface AppliedLotAllocation {
+  lotId: string;
+  quantity: number;
+}
+
 export async function recordStockMovement(
   tx: StockStoreTransaction,
   movement: NewStockMovement,
   allocation?: readonly PlannedLotAllocation[],
-): Promise<{ movementId: string; balance: number | null }> {
+): Promise<{ movementId: string; balance: number | null; allocations: AppliedLotAllocation[] }> {
   const movementId = await tx.recordMovement(movement);
   if (!movesBalance(movement)) {
-    return { movementId, balance: null };
+    return { movementId, balance: null, allocations: [] };
   }
   const balance = await tx.addToBalance(movement, movement.delta);
-  if (allocatesToLots(movement.kind)) {
-    const planned =
-      allocation ?? movementAllocations(await tx.productLots(movement), movement.delta);
-    await allocateToLots(tx, movement, movementId, planned);
+  if (!allocatesToLots(movement.kind)) {
+    return { movementId, balance, allocations: [] };
   }
-  return { movementId, balance };
+  const planned = allocation ?? movementAllocations(await tx.productLots(movement), movement.delta);
+  const allocations = await allocateToLots(tx, movement, movementId, planned);
+  return { movementId, balance, allocations };
 }
 
 export async function allocateToLots(
@@ -51,9 +56,12 @@ export async function allocateToLots(
   key: ProductStockKey,
   movementId: string,
   planned: readonly PlannedLotAllocation[],
-): Promise<void> {
+): Promise<AppliedLotAllocation[]> {
+  const applied: AppliedLotAllocation[] = [];
   for (const { target, quantity } of planned) {
     const lotId = target.kind === "lot" ? target.lotId : await tx.openTechnicalLot(key);
     await tx.allocateToLot({ movementId, lotId, quantity });
+    applied.push({ lotId, quantity });
   }
+  return applied;
 }

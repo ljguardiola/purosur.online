@@ -101,6 +101,12 @@ function addCompletedSale(saleId: string): void {
   );
 }
 
+function voidSale(saleId: string): void {
+  database
+    .prepare("UPDATE sales SET state = 'VOIDED', voided_at = ? WHERE id = ?")
+    .run(COMPLETED_AT, saleId);
+}
+
 function deliveryOf(saleId: string): unknown {
   return database
     .prepare("SELECT print_attempted_at, printed_at FROM sales WHERE id = ?")
@@ -462,6 +468,18 @@ describe("reprinting a sale's receipt from the history", () => {
     });
   });
 
+  it("answers sale_voided and prints and records nothing for a voided sale", async () => {
+    signedInPerson.set("supervisor");
+    voidSale("sale-1");
+
+    expect(await reprintSaleReceiptFor(deps(), { saleId: "sale-1", reason: REASON })).toEqual({
+      kind: "sale_voided",
+    });
+    expect(printer.waiting).toHaveLength(0);
+    expect(reprints()).toEqual([]);
+    expect(deliveryOf("sale-1")).toEqual({ print_attempted_at: null, printed_at: null });
+  });
+
   it("answers unavailable when the outbox is not ready", async () => {
     signedInPerson.set("supervisor");
 
@@ -542,6 +560,14 @@ describe("printing a sale's original receipt", () => {
 
   it("answers not_found for a sale that is not completed", async () => {
     expect(await printOriginalReceiptFor(deps(), "missing")).toEqual({ kind: "not_found" });
+  });
+
+  it("answers sale_voided and prints and records nothing for a voided sale", async () => {
+    voidSale("sale-1");
+
+    expect(await printOriginalReceiptFor(deps(), "sale-1")).toEqual({ kind: "sale_voided" });
+    expect(printer.waiting).toHaveLength(0);
+    expect(deliveryOf("sale-1")).toEqual({ print_attempted_at: null, printed_at: null });
   });
 
   it("answers unavailable when the outbox is not ready", async () => {

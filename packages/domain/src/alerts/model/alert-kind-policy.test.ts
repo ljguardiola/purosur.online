@@ -59,6 +59,18 @@ describe("alertKindPolicy", () => {
     ["event_invariant_violated", "warning", afterOpening, "all", "event", true],
     ["outbox_chain_broken", "warning", afterOpening, "all", "syncDevice", false],
     ["lots_expiring", "informational", null, "local", "branch", true],
+    ["offsite_dump_unverified", "critical", null, "all", "environment", true],
+    ["fortnight_report_pending", "warning", null, "all", "pointOfSaleFortnight", true],
+    ["fortnight_report_overdue", "critical", null, "all", "pointOfSaleFortnight", true],
+    ["external_billing", "critical", null, "all", "pointOfSaleDocumentNumber", true],
+    [
+      "fortnight_report_needs_regularization",
+      "critical",
+      null,
+      "all",
+      "pointOfSaleFortnight",
+      true,
+    ],
     ["update_required", "critical", null, "all", "register", true],
     ["register_silent", "critical", null, "local", "register", true],
     ["sales_denied", "critical", null, "local", "register", true],
@@ -113,6 +125,8 @@ describe("alertKindPolicy", () => {
       "offline_authorization_code_missing",
       "fiscal_emission_stopped",
       "lots_expiring",
+      "offsite_dump_unverified",
+      "fortnight_report_pending",
     ]);
   });
 
@@ -151,6 +165,11 @@ describe("alertClosing", () => {
       fiscal_emission_stopped: "by_itself",
       outbox_chain_broken: "by_hand",
       lots_expiring: "by_itself",
+      offsite_dump_unverified: "by_itself",
+      fortnight_report_pending: "by_itself",
+      fortnight_report_overdue: "by_hand",
+      external_billing: "by_hand",
+      fortnight_report_needs_regularization: "by_hand",
     });
   });
 
@@ -211,16 +230,23 @@ describe("alertKindsWithScope", () => {
     expect(alertKindsWithScope("environment")).toEqual([
       "arca_certificate_expiring",
       "arca_wsaa_ticket_held",
+      "offsite_dump_unverified",
     ]);
     expect(alertKindsWithScope("registerFortnight")).toEqual([
       "offline_authorization_code_missing",
     ]);
     expect(alertKindsWithScope("refund")).toEqual(["late_payment_refund", "refund_task"]);
+    expect(alertKindsWithScope("pointOfSaleDocumentNumber")).toEqual(["external_billing"]);
     expect(alertKindsWithScope("fiscalDocument")).toEqual(["fiscal_unknown"]);
     expect(alertKindsWithScope("syncDevice")).toEqual([
       "events_quarantined",
       "outbox_chain_broken",
     ]);
     expect(alertKindsWithScope("branch")).toEqual(["lots_expiring"]);
+    expect(alertKindsWithScope("pointOfSaleFortnight")).toEqual([
+      "fortnight_report_pending",
+      "fortnight_report_overdue",
+      "fortnight_report_needs_regularization",
+    ]);
   });
 });

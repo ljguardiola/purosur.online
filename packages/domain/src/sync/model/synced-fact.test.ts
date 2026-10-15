@@ -10,6 +10,7 @@ import {
   AN_OPENING_COUNT_WITHDRAWN_FACT,
   aCancelledSaleFact,
   aCompletedSaleFact,
+  aVoidedSaleFact,
 } from "./test-support/synced-facts.js";
 
 describe("what a synced fact needs applied before it", () => {
@@ -21,6 +22,12 @@ describe("what a synced fact needs applied before it", () => {
 
   it("is the cash session a cancelled sale was made in", () => {
     expect(dependenciesOf(aCancelledSaleFact({ sessionId: "session-9" }))).toEqual([
+      { aggregateType: "CashSession", aggregateId: "session-9" },
+    ]);
+  });
+
+  it("is the cash session a voided sale was made in", () => {
+    expect(dependenciesOf(aVoidedSaleFact({ sessionId: "session-9" }))).toEqual([
       { aggregateType: "CashSession", aggregateId: "session-9" },
     ]);
   });
@@ -117,6 +124,59 @@ describe("what a synced fact breaks that only its own history shows", () => {
 
     expect(invariantBreaksOf(aCancelledSaleFact({ refunds }))).toEqual([
       "refunds_do_not_match_payments",
+    ]);
+  });
+
+  it("is nothing for a voided sale whose refunds settle its payments and whose stock returned what its lines sold", () => {
+    expect(invariantBreaksOf(aVoidedSaleFact())).toEqual([]);
+  });
+
+  it("is that the refunds do not match the payments for a voided sale missing a refund", () => {
+    expect(invariantBreaksOf(aVoidedSaleFact({ refunds: [] }))).toEqual([
+      "refunds_do_not_match_payments",
+    ]);
+  });
+
+  it("is that the stock movements do not match the lines for a voided sale returning nothing", () => {
+    expect(invariantBreaksOf(aVoidedSaleFact({ stockMovements: [] }))).toEqual([
+      "stock_movements_do_not_match_lines",
+    ]);
+  });
+
+  it("is that the stock movements do not match the lines for a voided sale returning another quantity", () => {
+    const stockMovements = [
+      { id: "movement-3", saleLineId: "line-1", productId: "product-1", delta: 1000 },
+    ];
+
+    expect(invariantBreaksOf(aVoidedSaleFact({ stockMovements }))).toEqual([
+      "stock_movements_do_not_match_lines",
+    ]);
+  });
+
+  it("is that the stock movements do not match the lines for a voided sale taking stock out again", () => {
+    const stockMovements = [
+      { id: "movement-3", saleLineId: "line-1", productId: "product-1", delta: -2000 },
+    ];
+
+    expect(invariantBreaksOf(aVoidedSaleFact({ stockMovements }))).toEqual([
+      "stock_movements_do_not_match_lines",
+    ]);
+  });
+
+  it("is that the stock movements do not match the lines for a voided sale returning another product", () => {
+    const stockMovements = [
+      { id: "movement-3", saleLineId: "line-1", productId: "product-2", delta: 2000 },
+    ];
+
+    expect(invariantBreaksOf(aVoidedSaleFact({ stockMovements }))).toEqual([
+      "stock_movements_do_not_match_lines",
+    ]);
+  });
+
+  it("is every break a voided sale has", () => {
+    expect(invariantBreaksOf(aVoidedSaleFact({ refunds: [], stockMovements: [] }))).toEqual([
+      "refunds_do_not_match_payments",
+      "stock_movements_do_not_match_lines",
     ]);
   });
 

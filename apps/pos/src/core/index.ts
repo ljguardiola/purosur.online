@@ -1,11 +1,15 @@
 import { execFile } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { hostname, release, version } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import { promisify } from "node:util";
 import { type CoreReadyMessage, mainToCoreMessageSchema } from "@purosur/contracts";
-import { BATTERY_READ_INTERVAL_MS, REGISTER_UPDATE_HOLD_LIMIT_MS } from "@purosur/domain";
+import {
+  BATTERY_READ_INTERVAL_MS,
+  REGISTER_UPDATE_HOLD_LIMIT_MS,
+  STORAGE_READ_INTERVAL_MS,
+} from "@purosur/domain";
 import * as Sentry from "@sentry/electron/utility";
 import { net } from "electron";
 import {
@@ -28,6 +32,7 @@ import { readLatestPreEmissionGateOutcome } from "./fiscal/sqlite-pre-emission-g
 import { createMessageGate, type RejectionRecorder, summarizeRejection } from "./message-gate";
 import { createInterruptedChargesWiring } from "./payments/interrupted-charges-wiring";
 import { createMercadoPagoCharging } from "./payments/mercado-pago-charge-wiring";
+import { createPaidOrderDiscoveryWiring } from "./payments/paid-order-discovery-wiring";
 import { paymentMethodAvailabilityFor } from "./payments/payment-method-availability-requests";
 import {
   type CloudClientDeps,
@@ -36,6 +41,7 @@ import {
   postToCloudWithBearer,
 } from "./platform/cloud-client";
 import { initializeErrorReporting } from "./platform/error-reporting";
+import { createHeldMessages } from "./platform/held-messages";
 import { LOCAL_MIGRATIONS } from "./platform/local-migrations";
 import { createMainRequests } from "./platform/main-requests";
 import { createBatteryWatch } from "./register/battery-watch";
@@ -64,6 +70,10 @@ import {
   generatePepper,
   installationReportFrom,
 } from "./register/enrollment";
+import {
+  fileSnapshotCorruptionReports,
+  SNAPSHOT_CORRUPTION_UNREPORTED_FILE,
+} from "./register/file-snapshot-corruption-reports";
 import { type StartedLocalDatabase, startLocalDatabase } from "./register/local-database-startup";
 import { refuseNewerDatabase } from "./register/newer-database-refusal";
 import { readReceiptPrinterFor, setReceiptPrinterFor } from "./register/receipt-printer-requests";
@@ -73,10 +83,15 @@ import { createSerialDeviceWatch, pathOfMatchingDevice } from "./register/serial
 import { serialDevicesReportOf } from "./register/serial-devices-report";
 import { readSerialDevicesFor, registerSerialDevicesFor } from "./register/serial-devices-requests";
 import { listSerialPorts, serialportEnumeration } from "./register/serialport-enumeration";
+import { snapshotCorruptionReportSending } from "./register/snapshot-corruption-report-sending";
+import type { SnapshotCycleSchedule } from "./register/snapshot-cycle-schedule";
+import { startSnapshotCycle } from "./register/snapshot-cycle-wiring";
 import { readOpenSession } from "./register/sqlite-cash-ledger";
+import { localDatabaseDamageIn } from "./register/sqlite-local-database-health";
 import { SqliteSerialDeviceRegistrations } from "./register/sqlite-serial-device-registrations";
 import { startupPendingFor } from "./register/startup-pending-requests";
 import { recoverAtStartup } from "./register/startup-recovery";
+import { createStorageWatch } from "./register/storage-watch";
 import { createUpdateHold, gateRendererRequest } from "./register/update-hold";
 import { uuidV7Ids } from "./register/uuid-v7-ids";
 import { windowsBatteryReader } from "./register/windows-battery-reader";
@@ -84,7 +99,6 @@ import { createRendererConnection } from "./renderer-connection";
 import { type CoreToRendererMessage, rendererToCoreMessageSchema } from "./renderer-messages";
 import { answerRendererRequest, type RendererRequestDeps } from "./renderer-requests";
 import { createBarcodeReaderWiring } from "./sales/barcode-reader-wiring";
-import { openSerialLink } from "./sales/open-serial-link";
 import { createReceiptPrinting } from "./sales/receipt-printing-wiring";
 import {
   addSearchedProductFor,
@@ -109,8 +123,10 @@ import {
   weighProductFor,
 } from "./sales/sale-requests";
 import { saleHistoryDetailFor, salesHistoryFor } from "./sales/sales-history-requests";
+import { createSystelScale } from "./sales/scale/systel-scale";
+import { openSerialLink } from "./sales/serial-link/open-serial-link";
 import { anySaleIsOpen } from "./sales/sqlite-open-sale-presence";
-import { createSystelScale } from "./sales/systel-scale";
+import { voidSaleFor } from "./sales/void-sale-requests";
 import { createActionGate } from "./sessions/action-gate";
 import { authorizersOf } from "./sessions/authorizers";
 import { hashPin } from "./sessions/pin-hash";
@@ -140,7 +156,11 @@ import { SqliteAcceptedPushLog } from "./sync/sqlite-accepted-push-log";
 import { SqliteLocalInstallation, salesStopOf } from "./sync/sqlite-local-installation";
 import { SqliteLocalOutbox } from "./sync/sqlite-local-outbox";
 import { SqliteLocalReplica } from "./sync/sqlite-local-replica";
-import { nodeStorageFileSystem, storageTelemetryReader } from "./sync/storage-telemetry";
+import {
+  nodeStorageFileSystem,
+  storageReadingReader,
+  storageTelemetryReader,
+} from "./sync/storage-telemetry";
 import { runSyncCycle } from "./sync/sync-cycle";
 import { createSyncSchedule } from "./sync/sync-schedule";
 
@@ -162,6 +182,8 @@ const recorder: RejectionRecorder = {
 };
 
 const gateFromMain = createMessageGate(mainToCoreMessageSchema, recorder);
+const messagesFromMain = createHeldMessages<Electron.MessageEvent>();
+process.parentPort.on("message", messagesFromMain.receive);
 const gateFromRenderer = createMessageGate(rendererToCoreMessageSchema, recorder);
 
 const mainRequests = createMainRequests({
@@ -180,16 +202,21 @@ const cloudClient: CloudClientDeps | undefined =
 
 const now = () => new Date();
 const LOCAL_DATABASE_FILE = "register.sqlite";
+const SNAPSHOTS_FOLDER = "snapshots";
 const SYNC_INTERVAL_MS = 30_000;
 const SYNC_FAILURE_BACKOFF = { baseMs: 2000, maxMs: 60_000 };
 const PULLED_NOTICE: CoreToRendererMessage = { type: "pulled" };
 const SERIAL_DEVICES_CHANGED_NOTICE: CoreToRendererMessage = { type: "serial-devices-changed" };
+const STORAGE_STANDING_CHANGED_NOTICE: CoreToRendererMessage = {
+  type: "storage-standing-changed",
+};
 const SERIAL_DEVICE_CHECK_INTERVAL_MS = 3_000;
 const BARCODE_READER_RETRY_MS = 3_000;
 
 const localDataFolder = localDataFolderFromCoreArguments(process.argv);
 const localDatabasePath =
   localDataFolder === undefined ? undefined : join(localDataFolder, LOCAL_DATABASE_FILE);
+const localDatabaseDamaged = localDatabaseDamageIn(localDataFolder);
 
 async function startLocalDatabaseFile(): Promise<StartedLocalDatabase | undefined> {
   if (localDatabasePath === undefined) {
@@ -257,6 +284,7 @@ const { reportFailure, reportSyncFailure, reportRedeemedPinFailure } = coreFailu
   log: console.error,
   capture: Sentry.captureException,
   watchFailure: register.watchFailure,
+  noteStorageFailure: (error) => storageWatch?.noteFailure(error),
 });
 
 const serialDeviceEnumeration = serialportEnumeration({
@@ -292,6 +320,23 @@ const batteryWatch = createBatteryWatch({
   onFailure: (error) => reportFailure("reading the battery", error),
 });
 
+const storageWatch =
+  localDatabase === undefined
+    ? undefined
+    : createStorageWatch({
+        read: storageReadingReader(localDatabase.name, nodeStorageFileSystem),
+        intervalMs: STORAGE_READ_INTERVAL_MS,
+        scheduleNext: (run, delayMs) => {
+          const timer = setTimeout(run, delayMs);
+          return () => clearTimeout(timer);
+        },
+        onChange: () => rendererConnection.tell(STORAGE_STANDING_CHANGED_NOTICE),
+        onFailure: (error) => reportFailure("watching the storage", error),
+        onStartupFailure: (error) =>
+          reportFailure("checking the free disk space at startup", error),
+      });
+await storageWatch?.checkAtStartup();
+
 const systelScale = createSystelScale({
   path: () => serialDeviceWatch && pathOfMatchingDevice(serialDeviceWatch.reading(), "scale"),
   openLink: openSerialLink,
@@ -303,6 +348,18 @@ const barcodeReaderWiring = createBarcodeReaderWiring({
   tell: (message) => rendererConnection.tell(message),
   reportFailure,
   retryMs: BARCODE_READER_RETRY_MS,
+});
+
+const snapshotCorruptionReports =
+  localDataFolder === undefined
+    ? undefined
+    : fileSnapshotCorruptionReports(join(localDataFolder, SNAPSHOT_CORRUPTION_UNREPORTED_FILE));
+
+const sendSnapshotCorruptionReport = snapshotCorruptionReportSending({
+  reports: snapshotCorruptionReports,
+  cloudClient,
+  readDeviceToken: async () => (await mainRequests.readCredentials())?.device_token,
+  reportFailure: (error) => reportFailure("reporting the snapshot corruption to the cloud", error),
 });
 
 // An unreachable cloud is how a register without internet looks, so only an unexpected stop is
@@ -347,6 +404,7 @@ const syncSchedule = createSyncSchedule({
                       () => batteryWatch.report(),
                     ),
                   }),
+          sendSnapshotCorruptionReport,
           pushOutbox: () =>
             pushToCloud({
               readCredentials: () => mainRequests.readCredentials(),
@@ -356,7 +414,9 @@ const syncSchedule = createSyncSchedule({
               post,
               appVersion: appVersionFromCoreArguments(process.argv),
               readTelemetry:
-                localDatabase === undefined || serialDeviceWatch === undefined
+                localDatabase === undefined ||
+                serialDeviceWatch === undefined ||
+                storageWatch === undefined
                   ? undefined
                   : registerTelemetryReader(
                       storageTelemetryReader(localDatabase.name, nodeStorageFileSystem),
@@ -364,6 +424,8 @@ const syncSchedule = createSyncSchedule({
                       () => serialDevicesReportOf(serialDeviceWatch.reading()),
                       () => readLatestPreEmissionGateOutcome(localDatabase),
                       () => batteryWatch.report(),
+                      storageWatch.stop,
+                      localDatabaseDamaged,
                     ),
               acceptedPush:
                 localDatabase === undefined
@@ -411,6 +473,7 @@ const syncSchedule = createSyncSchedule({
   afterEachSync: () => {
     rendererConnection.tell(PULLED_NOTICE);
     interruptedCharges.afterEachSync();
+    paidOrderDiscovery.afterEachSync();
   },
 });
 
@@ -452,6 +515,18 @@ const interruptedCharges = createInterruptedChargesWiring({
   reportFailure,
 });
 
+const paidOrderDiscovery = createPaidOrderDiscoveryWiring({
+  database: localDatabase,
+  gate: actionGate,
+  printing: receiptPrinting,
+  cloudClient,
+  readDeviceToken,
+  readOutboxChainKey: async () => (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
+  now,
+  ids: uuidV7Ids,
+  reportFailure,
+});
+
 const startupRecovery = recoverAtStartup({
   settleInterruptedAuthorizations: () =>
     settleInterruptedAuthorizations({
@@ -463,6 +538,7 @@ const startupRecovery = recoverAtStartup({
       shortCodes: cryptoShortCodes,
     }),
   followInterruptedCharges: interruptedCharges.followAtStartup,
+  discoverPaidOrders: paidOrderDiscovery.discoverAtStartup,
   startSync: () => syncSchedule.start(),
   reportFailure,
 });
@@ -471,7 +547,7 @@ await startupRecovery.authorizationsSettled;
 const rendererRequestDeps: RendererRequestDeps = {
   credentialsPresent: () => mainRequests.credentialsPresent(),
   registerStatus:
-    localDatabase === undefined || serialDeviceWatch === undefined
+    localDatabase === undefined || serialDeviceWatch === undefined || storageWatch === undefined
       ? undefined
       : () =>
           registerStatusFor({
@@ -480,6 +556,8 @@ const rendererRequestDeps: RendererRequestDeps = {
             now,
             signedInPerson,
             serialDevices: serialDeviceWatch.reading,
+            storage: storageWatch.standing,
+            localDatabaseDamaged,
           }),
   registerService: register.service,
   registerName: () => replica?.registerName(),
@@ -679,7 +757,12 @@ const rendererRequestDeps: RendererRequestDeps = {
   startupPending:
     localDatabase === undefined || actionGate === undefined
       ? undefined
-      : () => startupPendingFor({ database: localDatabase, gate: actionGate }),
+      : () =>
+          startupPendingFor({
+            database: localDatabase,
+            gate: actionGate,
+            paidOrderDiscovery: paidOrderDiscovery.state,
+          }),
   cashSession:
     localDatabase === undefined
       ? undefined
@@ -709,7 +792,18 @@ const rendererRequestDeps: RendererRequestDeps = {
     localDatabase === undefined || actionGate === undefined
       ? undefined
       : (code) =>
-          scanProductFor({ database: localDatabase, gate: actionGate, now, ids: uuidV7Ids }, code),
+          scanProductFor(
+            {
+              database: localDatabase,
+              gate: actionGate,
+              now,
+              ids: uuidV7Ids,
+              paidOrderDiscovery: paidOrderDiscovery.state,
+              newSalesStoppedByDisk: () => storageWatch?.stop() !== undefined,
+              localDatabaseDamaged,
+            },
+            code,
+          ),
   changeLineQuantity:
     localDatabase === undefined || actionGate === undefined
       ? undefined
@@ -762,6 +856,21 @@ const rendererRequestDeps: RendererRequestDeps = {
       ? undefined
       : async (request) =>
           cancelPaidSaleFor(
+            {
+              database: localDatabase,
+              gate: actionGate,
+              readOutboxChainKey: async () =>
+                (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
+              now,
+              ids: uuidV7Ids,
+            },
+            request,
+          ),
+  voidSale:
+    localDatabase === undefined || actionGate === undefined
+      ? undefined
+      : async (request) =>
+          voidSaleFor(
             {
               database: localDatabase,
               gate: actionGate,
@@ -830,6 +939,7 @@ const rendererRequestDeps: RendererRequestDeps = {
             cloud: () => cloudReachability,
           }),
   abandonMercadoPagoCharge: mercadoPagoCharging.abandon,
+  convertPaidOrderIntoRefund: paidOrderDiscovery.convertIntoRefund,
   searchProducts:
     localDatabase === undefined || actionGate === undefined
       ? undefined
@@ -839,7 +949,15 @@ const rendererRequestDeps: RendererRequestDeps = {
       ? undefined
       : (productId) =>
           addSearchedProductFor(
-            { database: localDatabase, gate: actionGate, now, ids: uuidV7Ids },
+            {
+              database: localDatabase,
+              gate: actionGate,
+              now,
+              ids: uuidV7Ids,
+              paidOrderDiscovery: paidOrderDiscovery.state,
+              newSalesStoppedByDisk: () => storageWatch?.stop() !== undefined,
+              localDatabaseDamaged,
+            },
             productId,
           ),
   addWeighedProduct:
@@ -847,7 +965,15 @@ const rendererRequestDeps: RendererRequestDeps = {
       ? undefined
       : (productId, weightThousandths) =>
           addWeighedProductFor(
-            { database: localDatabase, gate: actionGate, now, ids: uuidV7Ids },
+            {
+              database: localDatabase,
+              gate: actionGate,
+              now,
+              ids: uuidV7Ids,
+              paidOrderDiscovery: paidOrderDiscovery.state,
+              newSalesStoppedByDisk: () => storageWatch?.stop() !== undefined,
+              localDatabaseDamaged,
+            },
             productId,
             weightThousandths,
           ),
@@ -856,7 +982,16 @@ const rendererRequestDeps: RendererRequestDeps = {
       ? undefined
       : (productId) =>
           weighProductFor(
-            { database: localDatabase, gate: actionGate, now, ids: uuidV7Ids, scale: systelScale },
+            {
+              database: localDatabase,
+              gate: actionGate,
+              now,
+              ids: uuidV7Ids,
+              paidOrderDiscovery: paidOrderDiscovery.state,
+              newSalesStoppedByDisk: () => storageWatch?.stop() !== undefined,
+              localDatabaseDamaged,
+              scale: systelScale,
+            },
             productId,
           ),
   initialCount:
@@ -996,7 +1131,9 @@ const rendererConnection = createRendererConnection(
   () => signedInPerson.clear(),
 );
 
-process.parentPort.on("message", (event) => {
+let snapshotCycle: SnapshotCycleSchedule | undefined;
+
+messagesFromMain.deliverTo((event) => {
   const [rendererPort] = event.ports;
   if (rendererPort) {
     rendererConnection.adopt(rendererPort);
@@ -1009,6 +1146,8 @@ process.parentPort.on("message", (event) => {
         .then((answer) => process.parentPort.postMessage(answer));
     } else if (message.type === "update-hold-release") {
       updateHold.release();
+    } else if (message.type === "snapshot-worker-exited") {
+      void snapshotCycle?.workerExited(message.copy_failed_stage);
     } else {
       mainRequests.receive(message);
     }
@@ -1017,4 +1156,33 @@ process.parentPort.on("message", (event) => {
 
 process.parentPort.postMessage({ type: "core-ready" } satisfies CoreReadyMessage);
 void batteryWatch.start();
+void storageWatch?.start();
+if (
+  localDatabase !== undefined &&
+  localDatabasePath !== undefined &&
+  snapshotCorruptionReports !== undefined &&
+  startedLocalDatabase?.kind === "ready"
+) {
+  snapshotCycle = startSnapshotCycle({
+    database: localDatabase,
+    databasePath: localDatabasePath,
+    snapshotsFolder: join(dirname(localDatabasePath), SNAPSHOTS_FOLDER),
+    cloudUrl,
+    cloud: cloudClient,
+    readCredentials: () => mainRequests.readCredentials(),
+    batteryReport: () => batteryWatch.report(),
+    cloudReachability: () => cloudReachability,
+    readStorage: storageReadingReader(localDatabasePath, nodeStorageFileSystem),
+    newGenerationId: () => uuidV7Ids.next(),
+    postToMain: (message) => process.parentPort.postMessage(message),
+    scheduleNext: (run, delayMs) => {
+      setTimeout(run, delayMs);
+    },
+    localDatabaseDamaged,
+    health: startedLocalDatabase.health,
+    reports: snapshotCorruptionReports,
+    onCopyFailureRecorded: () => rendererConnection.tell(STORAGE_STANDING_CHANGED_NOTICE),
+    onFailure: (error) => reportFailure("running the snapshot cycle", error),
+  });
+}
 void barcodeReaderWiring.startWatch();

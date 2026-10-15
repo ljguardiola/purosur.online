@@ -4,6 +4,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { lots } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { DrizzleLotCostStore } from "./drizzle-lot-cost-store.js";
+import { insertAssemblyBatch } from "./test-support/assembly-batch-fixtures.js";
 import {
   insertInitialCountLot,
   insertPurchasedLot,
@@ -50,6 +51,12 @@ describe("DrizzleLotCostStore.lockLot", () => {
     });
     const purchased = await insertPurchasedLot(db, { productId, locationId, actorId });
     const technical = await insertTechnicalLot(db, { productId, locationId, remaining: 0 });
+    const assembled = await insertAssemblyBatch(db, {
+      productId,
+      locationId,
+      actorId,
+      assembledAt: new Date("2026-05-04T13:00:00.000Z"),
+    });
     const store = new DrizzleLotCostStore(db);
 
     const locked = await store.transaction(async (tx) => ({
@@ -57,6 +64,7 @@ describe("DrizzleLotCostStore.lockLot", () => {
       withdrawn: await tx.lockLot(locationId, withdrawn.lotId),
       purchased: await tx.lockLot(locationId, purchased),
       technical: await tx.lockLot(locationId, technical),
+      assembled: await tx.lockLot(locationId, assembled.lotId),
     }));
 
     expect(locked).toEqual({
@@ -64,6 +72,7 @@ describe("DrizzleLotCostStore.lockLot", () => {
       withdrawn: { origin: "initial_count", withdrawn: true, remaining: -250 },
       purchased: { origin: "purchase", withdrawn: false, remaining: 10_000 },
       technical: { origin: "technical", withdrawn: false, remaining: 0 },
+      assembled: { origin: "assembly_batch", withdrawn: false, remaining: 14_000 },
     });
   });
 

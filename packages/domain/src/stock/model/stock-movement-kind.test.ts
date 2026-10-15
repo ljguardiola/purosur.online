@@ -16,15 +16,18 @@ describe("MANUAL_STOCK_MOVEMENT_KINDS", () => {
 });
 
 describe("STOCK_MOVEMENT_KINDS", () => {
-  it("lists every movement a balance moves by: the ones recorded by hand, counts, sales, receipts and the initial count's lines and their withdrawals", () => {
+  it("lists every movement a balance moves by: the ones recorded by hand, counts, sales, the return of a voided sale's merchandise, receipts, the initial count's lines and their withdrawals, and the two sides of an assembled batch", () => {
     expect(STOCK_MOVEMENT_KINDS).toEqual([
       "loss",
       "adjustment",
       "count",
       "sale",
+      "sale_void",
       "receipt",
       "opening_count",
       "opening_count_withdrawal",
+      "assembly_out",
+      "assembly_in",
     ]);
     expectTypeOf<(typeof STOCK_MOVEMENT_KINDS)[number]>().toEqualTypeOf<StockMovementKind>();
   });
@@ -38,6 +41,13 @@ describe("MANUAL_STOCK_MOVEMENT_KINDS and the initial count", () => {
       "loss",
       "adjustment",
     ]);
+  });
+});
+
+describe("MANUAL_STOCK_MOVEMENT_KINDS and the assembled batch", () => {
+  it("never offers a batch's movements to be recorded by hand", () => {
+    expect(MANUAL_STOCK_MOVEMENT_KINDS).not.toContain("assembly_out");
+    expect(MANUAL_STOCK_MOVEMENT_KINDS).not.toContain("assembly_in");
   });
 });
 

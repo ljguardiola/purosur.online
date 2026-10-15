@@ -1,8 +1,16 @@
 diff --git a/dist/worker.js b/dist/worker.js
-index 2a623960bbd688e9bc64a0ff642cfd67eb16e2fe..5b2df321f0c7320e64ddcdc11b4dd811e823c03c 100644
+index 2a623960bbd688e9bc64a0ff642cfd67eb16e2fe..95f8c8edd7eda505d2ce2e295d9b9d7c234cf875 100644
 --- a/dist/worker.js
 +++ b/dist/worker.js
-@@ -266,6 +266,8 @@ export function makeNewWorker(workerShared, params) {
+@@ -259,13 +259,15 @@ export function makeNewWorker(workerShared, params) {
+                     String(err) ||
+                     "Non error or error without message thrown.";
+                 logger.error(`Failed task ${job.id} (${job.task_identifier}, ${duration.toFixed(2)}ms, attempt ${job.attempts} of ${job.max_attempts}) with error '${message}'${stack ? `:\n  ${String(stack).replace(/\n/g, "\n  ").trim()}` : ""}`, { failure: true, job, error: err, duration });
+-                failJob({
++                await failJob({
+                     job,
+                     message,
+                     // "Batch jobs": copy through only the unsuccessful parts of the payload
                      replacementPayload: batchJobFailedPayloads.length > 0
                          ? batchJobFailedPayloads
                          : undefined,
@@ -16,7 +24,7 @@ index 2a623960bbd688e9bc64a0ff642cfd67eb16e2fe..5b2df321f0c7320e64ddcdc11b4dd811
                          : ""}) with success`, { job, duration, success: true });
                  }
 -                completeJob(job);
-+                completeJob(job)?.then(null, (e) => {
++                await completeJob(job)?.then(null, (e) => {
 +                    logger.error(`Failed to record the completion of job '${job.id}' (${job.task_identifier}): ${coerceError(e).message}`, { fatalError: e, job });
 +                });
              }

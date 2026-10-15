@@ -7,6 +7,7 @@ import {
   isAuthorizablePermissionKey,
   REGISTER_OWN_CONDITIONS,
   SALES_DENIED_REASONS,
+  STORAGE_SALES_DENIED_REASONS,
 } from "@purosur/domain";
 import { z } from "zod";
 import {
@@ -327,12 +328,28 @@ const SERIAL_DEVICE_STANDING_KINDS = [
   "unknown",
 ] as const;
 
-const registerOwnConditionSchema = z.discriminatedUnion("kind", [
-  z.object({
+const salesDeniedConditionSchema = z.discriminatedUnion("reason", [
+  z.strictObject({
     kind: z.literal("sales_denied"),
-    reason: z.enum(SALES_DENIED_REASONS),
+    reason: z.enum(SALES_DENIED_REASONS).exclude([...STORAGE_SALES_DENIED_REASONS]),
     level: z.enum(ALERT_LEVELS),
   }),
+  z.strictObject({
+    kind: z.literal("sales_denied"),
+    reason: z.literal("disk_space_short_at_startup"),
+    required_free_bytes: z.int().nonnegative(),
+    level: z.enum(ALERT_LEVELS),
+  }),
+  z.strictObject({
+    kind: z.literal("sales_denied"),
+    reason: z.literal("disk_full"),
+    disk_free_ratio: z.number().min(0).max(1).optional(),
+    level: z.enum(ALERT_LEVELS),
+  }),
+]);
+
+const registerOwnConditionSchema = z.discriminatedUnion("kind", [
+  salesDeniedConditionSchema,
   z.object({
     kind: z.enum(REGISTER_OWN_CONDITIONS).exclude(["sales_denied"]),
     level: z.enum(ALERT_LEVELS),
@@ -528,6 +545,7 @@ export const registerCoreToRendererMessageSchema = z.discriminatedUnion("type", 
     outcome: registerSerialDevicesOutcomeSchema,
   }),
   z.object({ type: z.literal("serial-devices-changed") }),
+  z.object({ type: z.literal("storage-standing-changed") }),
   z.object({ type: z.literal("refused-while-updating"), request_id: requestId }),
 ]);
 export type RegisterCoreToRendererMessage = z.infer<typeof registerCoreToRendererMessageSchema>;

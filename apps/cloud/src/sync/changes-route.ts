@@ -140,8 +140,16 @@ function toChangeWire(change: PulledCloudChange): ChangesPage["changes"][number]
           point_of_sale_number: change.row.pointOfSaleNumber,
           fiscal_address_id: change.row.fiscalAddressId,
           tax_authority_last_authorized_number: change.row.taxAuthorityLastAuthorizedNumber,
+          numbering_frozen: change.row.numberingFrozen,
           version: change.row.version,
         },
+      };
+    case "register_point_terminal":
+      return {
+        change_seq,
+        entity: change.entity,
+        entity_id,
+        row: { assigned: change.row.assigned, version: change.row.version },
       };
     case "register_offline_point_of_sale":
       return {
@@ -151,6 +159,7 @@ function toChangeWire(change: PulledCloudChange): ChangesPage["changes"][number]
         row: {
           point_of_sale_number: change.row.pointOfSaleNumber,
           tax_authority_last_authorized_number: change.row.taxAuthorityLastAuthorizedNumber,
+          highest_synced_offline_number: change.row.highestSyncedOfflineNumber,
           version: change.row.version,
         },
       };

@@ -1,4 +1,4 @@
-import { decodePc850 } from "../pc850";
+import { decodePc850 } from "../receipt-printer/pc850";
 
 const ESC = 0x1b;
 const GS = 0x1d;

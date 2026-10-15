@@ -6,7 +6,7 @@ import {
 
 export const SALES_HISTORY_PAGE_SIZE = 50;
 
-export const SALE_STANDINGS = ["completed", "in_progress", "deferred"] as const;
+export const SALE_STANDINGS = ["completed", "in_progress", "deferred", "voided"] as const;
 
 export type SaleStanding = (typeof SALE_STANDINGS)[number];
 
@@ -45,32 +45,43 @@ export type SaleComprobante =
   | { kind: "none" };
 
 interface SaleStandingFacts {
+  voided: boolean;
   deferred: boolean;
   documentBeingRequested: boolean;
 }
 
-export type SaleStandingDefinition = Pick<SaleStandingFacts, "deferred"> &
-  Partial<Pick<SaleStandingFacts, "documentBeingRequested">>;
+export type SaleStandingDefinition = Pick<SaleStandingFacts, "voided"> &
+  Partial<Pick<SaleStandingFacts, "deferred" | "documentBeingRequested">>;
 
 export const SALE_STANDING_DEFINITIONS = {
-  deferred: { deferred: true },
-  in_progress: { deferred: false, documentBeingRequested: true },
+  voided: { voided: true },
+  deferred: { voided: false, deferred: true },
+  in_progress: { voided: false, deferred: false, documentBeingRequested: true },
 } as const satisfies Record<Exclude<SaleStanding, "completed">, SaleStandingDefinition>;
 
 function isDefinedBy(definition: SaleStandingDefinition, facts: SaleStandingFacts): boolean {
   return (
-    definition.deferred === facts.deferred &&
+    definition.voided === facts.voided &&
+    (definition.deferred === undefined || definition.deferred === facts.deferred) &&
     (definition.documentBeingRequested === undefined ||
       definition.documentBeingRequested === facts.documentBeingRequested)
   );
 }
 
-export function saleStandingOf({ deferred, fiscalDocument }: SaleFiscalFacts): SaleStanding {
+export function saleStandingOf({
+  voided,
+  deferred,
+  fiscalDocument,
+}: SaleFiscalFacts & { voided: boolean }): SaleStanding {
   const facts: SaleStandingFacts = {
+    voided,
     deferred,
     documentBeingRequested:
       fiscalDocument !== null && IN_PROGRESS_FISCAL_DOCUMENT_STATES.includes(fiscalDocument.state),
   };
+  if (isDefinedBy(SALE_STANDING_DEFINITIONS.voided, facts)) {
+    return "voided";
+  }
   if (isDefinedBy(SALE_STANDING_DEFINITIONS.deferred, facts)) {
     return "deferred";
   }

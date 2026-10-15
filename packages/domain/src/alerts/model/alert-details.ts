@@ -6,6 +6,7 @@ import type {
 } from "../../fiscal/index.js";
 import type { SalesDeniedReason } from "../../shared/index.js";
 import type { AlertKind } from "./alert-catalog.js";
+import type { OffsiteDumpUnverifiedReason } from "./offsite-dump-unverified-reason.js";
 
 export type PasskeyChangedDetail =
   | { action: "registered" | "removed"; passkeyName: string; actorId: string; via: "self" }
@@ -101,6 +102,12 @@ interface FiscalRejectedDetail {
   rejections: TaxAuthorityRejection[];
 }
 
+interface ExternalBillingDetail {
+  pointOfSale: number;
+  documentType: FiscalDocumentType;
+  number: number;
+}
+
 interface OfflineAuthorizationCodeMissingDetail {
   deviceId: string;
   fortnightStart: string;
@@ -143,6 +150,35 @@ interface LotsExpiringDetail {
   windowDays: number;
 }
 
+export type OffsiteDumpUnverifiedDetail =
+  | { night: string; reason: Exclude<OffsiteDumpUnverifiedReason, "shrank"> }
+  | { night: string; reason: "shrank"; shrinkThresholdPercent: number };
+
+export const FORTNIGHT_REPORT_PENDING_REASONS = [
+  "blocked",
+  "missing_document",
+  "refused",
+  "pending",
+] as const;
+
+export type FortnightReportPendingReason = (typeof FORTNIGHT_REPORT_PENDING_REASONS)[number];
+
+interface FortnightReportNeedsRegularizationDetail {
+  pointOfSaleNumber: number;
+  registerId: string;
+  fortnightStart: string;
+  fortnightEnd: string;
+}
+
+interface FortnightReportOverdueDetail extends FortnightReportNeedsRegularizationDetail {
+  deadline: string;
+}
+
+interface FortnightReportPendingDetail extends FortnightReportOverdueDetail {
+  daysLeft: number;
+  reason: FortnightReportPendingReason;
+}
+
 export interface AlertDetails {
   backoffice_passkey_changed: PasskeyChangedDetail;
   backoffice_recovery_requested: RecoveryRequestedDetail;
@@ -165,6 +201,11 @@ export interface AlertDetails {
   fiscal_emission_stopped: FiscalEmissionStoppedDetail;
   outbox_chain_broken: OutboxChainBrokenDetail;
   lots_expiring: LotsExpiringDetail;
+  offsite_dump_unverified: OffsiteDumpUnverifiedDetail;
+  fortnight_report_pending: FortnightReportPendingDetail;
+  fortnight_report_overdue: FortnightReportOverdueDetail;
+  external_billing: ExternalBillingDetail;
+  fortnight_report_needs_regularization: FortnightReportNeedsRegularizationDetail;
 }
 
 export type OpenAlertInput = {

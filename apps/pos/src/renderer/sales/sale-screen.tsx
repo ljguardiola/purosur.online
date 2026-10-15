@@ -14,6 +14,7 @@ import type {
   OpenSale,
   PreviewSaleDiscountOutcome,
   PreviewSaleLineAdjustmentOutcome,
+  RegisterStatus,
   RemoveSaleLineOutcome,
   SaleDiscountRequest,
   ScanProductOutcome,
@@ -24,18 +25,21 @@ import type {
 import type { AuthorizablePermissionKey } from "@purosur/domain";
 import {
   EmptyState,
+  InlineNotice,
   LoadFailure,
   LoadingPlaceholder,
+  localAlertText,
   ScreenHeader,
   SearchField,
 } from "@purosur/ui";
 import { useNavigate } from "@tanstack/react-router";
-import { ScanBarcode, TriangleAlert } from "lucide-react";
+import { Ban, ScanBarcode, TriangleAlert } from "lucide-react";
 import type { FormEvent, KeyboardEvent } from "react";
 import { useEffect, useId, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import type { SearchResults } from "../platform/product-search-results";
 import { ProductSearchResults, searchOptionId } from "../platform/product-search-results";
+import type { CoreData } from "../platform/use-core-query";
 import type { ScaleWeighing } from "../platform/use-scale-weighing";
 import { useBarcodeReadings } from "../shell/barcode-readings";
 import { OpenSessionRail } from "../shell/open-session-rail";
@@ -109,6 +113,7 @@ export type SaleScreenProps = {
   ) => Promise<CancelPaidSaleOutcome>;
   loadAuthorizers: (permission: AuthorizablePermissionKey) => Promise<SignInUser[]>;
   onSessionInvalid: () => void;
+  registerStatus: CoreData<RegisterStatus>;
 };
 
 type SaleEditOutcome =
@@ -201,10 +206,17 @@ export function SaleScreen({
   cancelPaidSale,
   loadAuthorizers,
   onSessionInvalid,
+  registerStatus,
 }: SaleScreenProps) {
   const navigate = useNavigate();
   const field = useRef<HTMLFormElement>(null);
   const current = useCurrentSaleQuery({ sessionId, userId: person.user_id, read: currentSale });
+  const diskFull =
+    registerStatus.status === "loaded"
+      ? registerStatus.value.conditions.find(
+          (condition) => condition.kind === "sales_denied" && condition.reason === "disk_full",
+        )
+      : undefined;
   const takeSale = useTakeSale(sessionId, person.user_id);
   const resetCurrentSale = useResetCurrentSale(sessionId, person.user_id);
   const readCurrentSale = useReadCurrentSale(sessionId, person.user_id, currentSale);
@@ -324,6 +336,10 @@ export function SaleScreen({
       case "line_quantity_limit":
       case "not_permitted":
       case "installation_revoked":
+      case "disk_space_short":
+      case "local_database_damaged":
+      case "paid_order_without_sale":
+      case "paid_orders_not_checked":
         refuse(submitted, outcome);
         break;
       case "weight_needed":
@@ -644,6 +660,14 @@ export function SaleScreen({
       />
       <main className="flex min-w-0 flex-1 flex-col gap-4 pt-6 pr-6 pb-6 pl-8">
         <ScreenHeader eyebrow={registerName ?? undefined} title="Venta en curso" />
+        {diskFull === undefined ? null : (
+          <InlineNotice
+            tone={diskFull.level === "critical" ? "error" : "warning"}
+            icon={<Ban />}
+            title={localAlertText(diskFull).title}
+            description={localAlertText(diskFull).meaning}
+          />
+        )}
         <form
           ref={field}
           noValidate

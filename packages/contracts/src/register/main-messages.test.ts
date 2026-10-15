@@ -24,6 +24,30 @@ function readAnswerWith(credentials: unknown) {
 }
 
 describe("mainToCoreMessageSchema", () => {
+  it("accepts the notice that a snapshot worker exited", () => {
+    const message = { type: "snapshot-worker-exited" };
+
+    expect(mainToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each(["copy", "integrity_check", "foreign_key_check"])(
+    "accepts the notice that a snapshot worker exited after its copy failed at %s",
+    (stage) => {
+      const message = { type: "snapshot-worker-exited", copy_failed_stage: stage };
+
+      expect(mainToCoreMessageSchema.parse(message)).toEqual(message);
+    },
+  );
+
+  it("refuses a copy failure at a stage that does not exist", () => {
+    expect(
+      mainToCoreMessageSchema.safeParse({
+        type: "snapshot-worker-exited",
+        copy_failed_stage: "backup",
+      }).success,
+    ).toBe(false);
+  });
+
   it("accepts a health check", () => {
     expect(mainToCoreMessageSchema.safeParse({ type: "health-check" }).success).toBe(true);
   });

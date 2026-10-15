@@ -213,7 +213,29 @@ describe("weighProductOnScale", () => {
     expect(await weigh(ledger(), reading, "queso", "stranger")).toEqual({ kind: "not_permitted" });
   });
 
-  it("checks the permission, the session, the payments, the revocation and the identity before the product", async () => {
+  it("refuses to open a sale while a paid order without a sale is unresolved", async () => {
+    expect(
+      await weigh(ledger({ paidOrdersWithoutSale: [{ resolved: false }] }), STABLE_1250, "queso"),
+    ).toEqual({ kind: "paid_order_without_sale" });
+  });
+
+  it("refuses to open a sale while this run's paid-order check waits for the cloud", async () => {
+    expect(await weigh(ledger({ paidOrderDiscovery: "pending" }), STABLE_1250, "queso")).toEqual({
+      kind: "paid_orders_not_checked",
+    });
+  });
+
+  it("weighs onto the open sale while a paid order without a sale is unresolved", async () => {
+    const outcome = await weigh(
+      ledger({ sales: [OPEN_SALE], paidOrdersWithoutSale: [{ resolved: false }] }),
+      STABLE_1250,
+      "queso",
+    );
+
+    expect(outcome.kind).toBe("added");
+  });
+
+  it("checks the permission, the session, the payments, the revocation, the disk and the identity before the product", async () => {
     expect(await weigh(ledger({ session: undefined }), STABLE_1250, "unknown", "stranger")).toEqual(
       { kind: "not_permitted" },
     );
@@ -226,6 +248,13 @@ describe("weighProductOnScale", () => {
     expect(
       await weigh(ledger({ revoked: true, identity: undefined }), STABLE_1250, "unknown"),
     ).toEqual({ kind: "installation_revoked" });
+    expect(
+      await weigh(
+        ledger({ newSalesStoppedByDisk: true, identity: undefined }),
+        STABLE_1250,
+        "unknown",
+      ),
+    ).toEqual({ kind: "disk_space_short" });
     expect(await weigh(ledger({ identity: undefined }), STABLE_1250, "unknown")).toEqual({
       kind: "unavailable",
     });

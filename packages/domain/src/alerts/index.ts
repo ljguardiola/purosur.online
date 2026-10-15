@@ -7,6 +7,7 @@ export {
   isAlertLevel,
 } from "./model/alert-catalog.js";
 export {
+  externalBillingObservation,
   fiscalRejectionAlertObservation,
   offlineAuthorizationCodeHeldObservation,
   offlineAuthorizationCodeMissingObservation,
@@ -25,12 +26,14 @@ export type {
   AlertRoleSummary,
   ArcaCertificateExpiringDetail,
   EmailChangedDetail,
+  OffsiteDumpUnverifiedDetail,
   OpenAlertInput,
   PasskeyChangedDetail,
   RecoveryRequestedDetail,
   RegisterEnrolledDetail,
   SignInLockoutDetail,
 } from "./model/alert-details.js";
+export { FORTNIGHT_REPORT_PENDING_REASONS } from "./model/alert-details.js";
 export {
   ALERT_ESCALATION_CHECK_INTERVAL_MS,
   ESCALATED_LEVEL,
@@ -65,10 +68,13 @@ export {
 } from "./model/alert-visibility.js";
 export type { FiscalUnknownAlertKey } from "./model/fiscal-unknown-alert.js";
 export { fiscalUnknownAlertKey } from "./model/fiscal-unknown-alert.js";
+export { pointOfSaleFortnightScopeDisplay } from "./model/fortnight-report-alerts.js";
 export {
   acquisitionUrgencyAlertLevel,
   offlineAuthorizationCodeAcquisitionLevel,
 } from "./model/offline-authorization-code-acquisition.js";
+export type { OffsiteDumpUnverifiedReason } from "./model/offsite-dump-unverified-reason.js";
+export { OFFSITE_DUMP_UNVERIFIED_REASONS } from "./model/offsite-dump-unverified-reason.js";
 export { isOpenAlert } from "./model/open-alert-state.js";
 export { refundTaskAlertIsDue, refundTaskAlertLevel } from "./model/refund-task-alert.js";
 export {

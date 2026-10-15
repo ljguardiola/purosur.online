@@ -3,6 +3,8 @@ import {
   type AlertKind,
   ARGENTINA_TIME_ZONE,
   FACTURA_C_DOCUMENT_TYPE,
+  FORTNIGHT_REPORT_PENDING_REASONS,
+  OFFSITE_DUMP_UNVERIFIED_REASONS,
   PRE_EMISSION_GATE_FAILURE_REASONS,
   REJECTION_CLASSES,
   SALES_DENIED_REASONS,
@@ -146,6 +148,12 @@ const fiscalRejectedDetailSchema = z.object({
   rejections: z.array(z.object({ code: z.int(), message: z.string() })),
 });
 
+const externalBillingDetailSchema = z.object({
+  pointOfSale: z.int(),
+  documentType: z.literal(FACTURA_C_DOCUMENT_TYPE),
+  number: z.int(),
+});
+
 const latePaymentRefundDetailSchema = z.object({
   saleId: z.string(),
   amount: z.int(),
@@ -177,10 +185,39 @@ const outboxChainBrokenDetailSchema = z.object({
   deviceId: z.string(),
 });
 
+const offsiteDumpUnverifiedDetailSchema = z.discriminatedUnion("reason", [
+  z.object({
+    night: z.string(),
+    reason: z.enum(OFFSITE_DUMP_UNVERIFIED_REASONS).exclude(["shrank"]),
+  }),
+  z.object({
+    night: z.string(),
+    reason: z.literal("shrank"),
+    shrinkThresholdPercent: z.int(),
+  }),
+]);
+
 const lotsExpiringDetailSchema = z.object({
   lotCount: z.int(),
   windowDays: z.int(),
   aboutViewerBranch: z.boolean(),
+});
+
+const fortnightReportNeedsRegularizationDetailSchema = z.object({
+  pointOfSaleNumber: z.int(),
+  registerId: z.string(),
+  registerName: z.string().optional(),
+  fortnightStart: z.string(),
+  fortnightEnd: z.string(),
+});
+
+const fortnightReportOverdueDetailSchema = fortnightReportNeedsRegularizationDetailSchema.extend({
+  deadline: z.string(),
+});
+
+const fortnightReportPendingDetailSchema = fortnightReportOverdueDetailSchema.extend({
+  daysLeft: z.int(),
+  reason: z.enum(FORTNIGHT_REPORT_PENDING_REASONS),
 });
 
 const ALERT_INSTANT = { timeZone: ARGENTINA_TIME_ZONE };
@@ -305,6 +342,31 @@ const alertDetailKinds = [
     ...alertBase,
     kind: z.literal("lots_expiring" satisfies AlertKind),
     detail: lotsExpiringDetailSchema,
+  }),
+  z.object({
+    ...alertBase,
+    kind: z.literal("offsite_dump_unverified" satisfies AlertKind),
+    detail: offsiteDumpUnverifiedDetailSchema,
+  }),
+  z.object({
+    ...alertBase,
+    kind: z.literal("fortnight_report_pending" satisfies AlertKind),
+    detail: fortnightReportPendingDetailSchema,
+  }),
+  z.object({
+    ...alertBase,
+    kind: z.literal("fortnight_report_overdue" satisfies AlertKind),
+    detail: fortnightReportOverdueDetailSchema,
+  }),
+  z.object({
+    ...alertBase,
+    kind: z.literal("external_billing" satisfies AlertKind),
+    detail: externalBillingDetailSchema,
+  }),
+  z.object({
+    ...alertBase,
+    kind: z.literal("fortnight_report_needs_regularization" satisfies AlertKind),
+    detail: fortnightReportNeedsRegularizationDetailSchema,
   }),
 ] as const;
 

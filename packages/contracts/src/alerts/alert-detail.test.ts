@@ -3,6 +3,7 @@ import {
   type AlertDetails,
   type AlertKind,
   ARGENTINA_TIME_ZONE,
+  OFFSITE_DUMP_UNVERIFIED_REASONS,
 } from "@purosur/domain";
 import { describe, expect, expectTypeOf, it } from "vitest";
 import { type AlertDetail, alertDetailSchema } from "./alert-detail.js";
@@ -205,6 +206,9 @@ describe("alertDetailSchema", () => {
     expectTypeOf<WireDetail<"register_silent">>().toEqualTypeOf<AlertDetails["register_silent"]>();
     expectTypeOf<WireDetail<"sales_denied">>().toEqualTypeOf<AlertDetails["sales_denied"]>();
     expectTypeOf<WireDetail<"fiscal_rejected">>().toEqualTypeOf<AlertDetails["fiscal_rejected"]>();
+    expectTypeOf<WireDetail<"external_billing">>().toEqualTypeOf<
+      AlertDetails["external_billing"]
+    >();
     expectTypeOf<WireDetail<"late_payment_refund">>().toEqualTypeOf<
       AlertDetails["late_payment_refund"]
     >();
@@ -213,10 +217,25 @@ describe("alertDetailSchema", () => {
     expectTypeOf<WireDetail<"outbox_chain_broken">>().toEqualTypeOf<
       AlertDetails["outbox_chain_broken"]
     >();
+    expectTypeOf<WireDetail<"offsite_dump_unverified">>().toEqualTypeOf<
+      AlertDetails["offsite_dump_unverified"]
+    >();
     expectTypeOf<Omit<WireDetail<"lots_expiring">, "aboutViewerBranch">>().toEqualTypeOf<
       AlertDetails["lots_expiring"]
     >();
     expectTypeOf<WireDetail<"lots_expiring">["aboutViewerBranch"]>().toBeBoolean();
+    expectTypeOf<Omit<WireDetail<"fortnight_report_pending">, "registerName">>().toEqualTypeOf<
+      AlertDetails["fortnight_report_pending"]
+    >();
+    expectTypeOf<Omit<WireDetail<"fortnight_report_overdue">, "registerName">>().toEqualTypeOf<
+      AlertDetails["fortnight_report_overdue"]
+    >();
+    expectTypeOf<
+      Omit<WireDetail<"fortnight_report_needs_regularization">, "registerName">
+    >().toEqualTypeOf<AlertDetails["fortnight_report_needs_regularization"]>();
+    expectTypeOf<WireDetail<"fortnight_report_pending">["registerName"]>().toEqualTypeOf<
+      string | undefined
+    >();
     expectTypeOf<WireDetail<"fiscal_emission_stopped">>().toEqualTypeOf<
       AlertDetails["fiscal_emission_stopped"]
     >();
@@ -357,6 +376,33 @@ describe("alertDetailSchema", () => {
       fiscal_emission_stopped: { deviceId: "device-1", reason: "legal_name_missing" },
       outbox_chain_broken: { deviceId: "device-1" },
       lots_expiring: { lotCount: 3, windowDays: 30, aboutViewerBranch: true },
+      offsite_dump_unverified: { night: "2026-10-14", reason: "not_reported" },
+      fortnight_report_pending: {
+        pointOfSaleNumber: 4,
+        registerId: "register-1",
+        registerName: "Caja 1",
+        fortnightStart: "2026-09-01",
+        fortnightEnd: "2026-09-15",
+        deadline: "2026-09-23",
+        daysLeft: 3,
+        reason: "blocked",
+      },
+      fortnight_report_overdue: {
+        pointOfSaleNumber: 4,
+        registerId: "register-1",
+        registerName: "Caja 1",
+        fortnightStart: "2026-09-01",
+        fortnightEnd: "2026-09-15",
+        deadline: "2026-09-23",
+      },
+      external_billing: { pointOfSale: 12, documentType: "factura_c", number: 41 },
+      fortnight_report_needs_regularization: {
+        pointOfSaleNumber: 4,
+        registerId: "register-1",
+        registerName: "Caja 1",
+        fortnightStart: "2026-09-01",
+        fortnightEnd: "2026-09-15",
+      },
       fiscal_unknown: {
         fiscalDocumentId: "document-1",
         saleId: "sale-1",
@@ -375,7 +421,9 @@ describe("alertDetailSchema", () => {
 
     const requiredFields = ALERT_KINDS.flatMap((kind) =>
       Object.keys(detailOf[kind])
-        .filter((field) => field !== "actorName" && field !== "sourceAddress")
+        .filter(
+          (field) => field !== "actorName" && field !== "sourceAddress" && field !== "registerName",
+        )
         .map((field) => [kind, field] as const),
     );
     it.each(requiredFields)("requires %s's %s", (kind, field) => {
@@ -400,6 +448,47 @@ describe("alertDetailSchema", () => {
       expect(alertDetailSchema.safeParse(alert).success).toBe(false);
     });
 
+    it.each(OFFSITE_DUMP_UNVERIFIED_REASONS.filter((reason) => reason !== "shrank"))(
+      "accepts an unverified-dump alert naming the night and the reason %s",
+      (reason) => {
+        const alert = {
+          ...base,
+          kind: "offsite_dump_unverified",
+          detail: { night: "2026-10-14", reason },
+        };
+
+        expect(alertDetailSchema.safeParse(alert).data).toEqual(alert);
+      },
+    );
+
+    it("accepts an unverified-dump alert of a shrank dump naming the threshold it fell below", () => {
+      const alert = {
+        ...base,
+        kind: "offsite_dump_unverified",
+        detail: { night: "2026-10-14", reason: "shrank", shrinkThresholdPercent: 50 },
+      };
+
+      expect(alertDetailSchema.safeParse(alert).data).toEqual(alert);
+    });
+
+    it.each([
+      ["an unknown reason", { reason: "disk_full" }],
+      ["a night as a number", { night: 20261014 }],
+      ["a shrank dump without its threshold", { reason: "shrank" }],
+      [
+        "a shrank dump with a fractional threshold",
+        { reason: "shrank", shrinkThresholdPercent: 50.5 },
+      ],
+    ])("refuses an unverified-dump alert with %s", (_case, change) => {
+      const alert = {
+        ...base,
+        kind: "offsite_dump_unverified",
+        detail: { night: "2026-10-14", reason: "not_reported", ...change },
+      };
+
+      expect(alertDetailSchema.safeParse(alert).success).toBe(false);
+    });
+
     it("accepts a lots-expiring alert with the count of lots, the window in days and whether it is about the viewer's branch", () => {
       const alert = {
         ...base,
@@ -419,6 +508,45 @@ describe("alertDetailSchema", () => {
         ...base,
         kind: "lots_expiring",
         detail: { lotCount: 3, windowDays: 30, aboutViewerBranch: true, ...change },
+      };
+
+      expect(alertDetailSchema.safeParse(alert).success).toBe(false);
+    });
+
+    it.each([
+      "fortnight_report_pending",
+      "fortnight_report_overdue",
+      "fortnight_report_needs_regularization",
+    ] as const)("accepts a %s alert that names no register", (kind) => {
+      const { registerName: _omitted, ...detail } = detailOf[kind];
+      const alert = { ...base, kind, detail };
+
+      expect(alertDetailSchema.safeParse(alert).data).toEqual(alert);
+    });
+
+    it.each(["blocked", "missing_document", "refused", "pending"])(
+      "accepts a pending fortnight report alert waiting for the reason %s",
+      (reason) => {
+        const alert = {
+          ...base,
+          kind: "fortnight_report_pending",
+          detail: { ...detailOf.fortnight_report_pending, reason },
+        };
+
+        expect(alertDetailSchema.safeParse(alert).data).toEqual(alert);
+      },
+    );
+
+    it.each([
+      ["a reason outside the four it can have", { reason: "unknown" }],
+      ["days left as text", { daysLeft: "3" }],
+      ["fractional days left", { daysLeft: 1.5 }],
+      ["a fractional point of sale", { pointOfSaleNumber: 4.5 }],
+    ])("refuses a pending fortnight report alert with %s", (_case, change) => {
+      const alert = {
+        ...base,
+        kind: "fortnight_report_pending",
+        detail: { ...detailOf.fortnight_report_pending, ...change },
       };
 
       expect(alertDetailSchema.safeParse(alert).success).toBe(false);
@@ -474,6 +602,20 @@ describe("alertDetailSchema", () => {
         ...base,
         kind: "fiscal_rejected",
         detail: { ...detailOf.fiscal_rejected, ...change },
+      };
+
+      expect(alertDetailSchema.safeParse(alert).success).toBe(false);
+    });
+
+    it.each([
+      ["a document type the domain does not know", { documentType: "factura_a" }],
+      ["a fractional number", { number: 41.5 }],
+      ["a number as text", { number: "41" }],
+    ])("refuses an external billing alert with %s", (_case, change) => {
+      const alert = {
+        ...base,
+        kind: "external_billing",
+        detail: { ...detailOf.external_billing, ...change },
       };
 
       expect(alertDetailSchema.safeParse(alert).success).toBe(false);

@@ -1,12 +1,15 @@
 import {
   type BuyerIdentificationThreshold,
+  DISCOUNT_TARGET_KINDS,
   type DiscountBenefit,
   type DiscountTargetKind,
   discountsTargeting,
+  discountTargetKeys,
   isConfirmedByHand,
   newestPrice,
   nextOperationNumber,
   type OutboxEventDraft,
+  type PaidOrderDiscoveryState,
   type Sale,
   type SaleDiscount,
   type SaleLine,
@@ -17,7 +20,6 @@ import type {
   RegisterIdentity,
   SaleLedger,
   SaleLedgerTransaction,
-  SaleRefund,
   SellingSession,
 } from "@purosur/domain/sales/use-cases";
 import {
@@ -26,8 +28,10 @@ import {
   readIssuerIdentificationInEffect,
 } from "../fiscal/sqlite-pre-emission-gate";
 import { decideSaleAuthorizationIn } from "../fiscal/sqlite-sale-authorization";
+import { SqliteLocalPaidOrders } from "../payments/sqlite-local-paid-orders";
 import {
   approvePendingMercadoPagoPayment,
+  insertPaymentRefund,
   insertPendingMercadoPagoPayment,
   markQrPaymentReplaced,
   readPendingMercadoPagoPayment,
@@ -76,15 +80,24 @@ export class SqliteSaleLedger implements SaleLedger {
   private readonly database: LocalDatabase;
   private readonly people: Pick<SignInStore, "activePerson">;
   private readonly outboxChainKey: string | undefined;
+  private readonly paidOrderDiscovery: () => PaidOrderDiscoveryState;
+  private readonly newSalesStoppedByDisk: () => boolean;
+  private readonly localDatabaseDamaged: () => boolean;
 
   constructor(
     database: LocalDatabase,
     people: Pick<SignInStore, "activePerson">,
     outboxChainKey?: string,
+    paidOrderDiscovery: () => PaidOrderDiscoveryState = () => "pending",
+    newSalesStoppedByDisk: () => boolean = () => false,
+    localDatabaseDamaged: () => boolean = () => false,
   ) {
     this.database = database;
     this.people = people;
     this.outboxChainKey = outboxChainKey;
+    this.paidOrderDiscovery = paidOrderDiscovery;
+    this.newSalesStoppedByDisk = newSalesStoppedByDisk;
+    this.localDatabaseDamaged = localDatabaseDamaged;
   }
 
   transaction<TOutcome>(work: (tx: SaleLedgerTransaction) => TOutcome): TOutcome {
@@ -97,6 +110,11 @@ export class SqliteSaleLedger implements SaleLedger {
       openSession: () => this.openSession(),
       openSale: (sessionId) => readOpenSale(this.database, sessionId),
       installationRevoked: () => this.installationRevoked(),
+      newSalesStoppedByDisk: () => this.newSalesStoppedByDisk(),
+      localDatabaseDamaged: () => this.localDatabaseDamaged(),
+      paidOrdersWithoutSale: () =>
+        new SqliteLocalPaidOrders({ database: this.database }).paidOrdersWithoutSale(),
+      paidOrderDiscovery: () => this.paidOrderDiscovery(),
       registerIdentity: () => this.registerIdentity(),
       activeProductByBarcode: (code) => readActiveProductByBarcode(this.database, code),
       activeProductById: (productId) => readActiveProductById(this.database, productId),
@@ -131,13 +149,16 @@ export class SqliteSaleLedger implements SaleLedger {
         this.recordCompletedSale(saleId, occurredAt, operationNumber),
       recordCancelledSale: (saleId, occurredAt, authorizedBy) =>
         this.recordCancelledSale(saleId, occurredAt, authorizedBy),
-      recordRefund: (refund) => this.recordRefund(refund),
+      recordRefund: (refund) => insertPaymentRefund(this.database, refund),
       outboxReady: () => this.outboxChainKey !== undefined,
       appendOutboxEvent: (draft) => this.appendOutboxEvent(draft),
       issuerIdentificationInEffect: () => readIssuerIdentificationInEffect(this.database),
       buyerTaxStatusSetInEffect: () => readBuyerTaxStatusSetInEffect(this.database),
       recordPreEmissionGate: (recorded) => insertPreEmissionGateOutcome(this.database, recorded),
-      decideSaleAuthorization: (decision) => decideSaleAuthorizationIn(this.database, decision),
+      decideSaleAuthorization: (decision) =>
+        decideSaleAuthorizationIn(this.database, decision, (draft) =>
+          this.appendOutboxEvent(draft),
+        ),
     };
   }
 
@@ -186,10 +207,15 @@ export class SqliteSaleLedger implements SaleLedger {
 
   private currentPrice(productId: string): { priceListId: string; unitPrice: number } | undefined {
     const candidates = this.database
-      .prepare<[string], PriceRow>(
-        "SELECT id, price_list_id, unit_price, valid_from FROM prices WHERE product_id = ? AND removed = 0",
+      .prepare<[string, string], PriceRow>(
+        `SELECT id, price_list_id, unit_price, valid_from
+         FROM prices
+         WHERE product_id = ? AND removed = 0
+           AND valid_from = (
+             SELECT max(valid_from) FROM prices WHERE product_id = ? AND removed = 0
+           )`,
       )
-      .all(productId)
+      .all(productId, productId)
       .map((row) => ({
         id: row.id,
         priceListId: row.price_list_id,
@@ -213,36 +239,58 @@ export class SqliteSaleLedger implements SaleLedger {
       )
       .all(productId)
       .map((row) => ({ tagId: row.tag_id, active: row.active === 1 }));
-    const categories = this.database
-      .prepare<[], { id: string; parent_id: string | null }>("SELECT id, parent_id FROM categories")
-      .all()
+    const categories = this.categoryChain(product.category_id);
+    const targeted = { id: productId, categoryId: product.category_id, tags };
+    const keys = discountTargetKeys(targeted, categories);
+    const candidates = this.discountsAimedAt(keys).map((row) => ({
+      target: { kind: row.target_kind, id: row.target_id },
+      promotion: {
+        id: row.id,
+        name: row.name,
+        benefit: toBenefit(row),
+        active: row.active === 1,
+        validFrom: row.valid_from,
+        validTo: row.valid_to,
+        weekdays: JSON.parse(row.weekdays) as number[],
+      },
+    }));
+    return discountsTargeting(candidates, targeted, categories).map(({ promotion }) => promotion);
+  }
+
+  private categoryChain(categoryId: string): { id: string; parentId: string | null }[] {
+    return this.database
+      .prepare<[string], { id: string; parent_id: string | null }>(
+        `WITH RECURSIVE chain (id, parent_id) AS (
+           SELECT id, parent_id FROM categories WHERE id = ?
+           UNION
+           SELECT categories.id, categories.parent_id
+           FROM categories JOIN chain ON categories.id = chain.parent_id
+         )
+         SELECT id, parent_id FROM chain`,
+      )
+      .all(categoryId)
       .map((row) => ({ id: row.id, parentId: row.parent_id }));
-    const candidates = this.database
-      .prepare<[], CandidatePromotionRow>(
+  }
+
+  private discountsAimedAt(
+    keys: Record<DiscountTargetKind, ReadonlySet<string>>,
+  ): CandidatePromotionRow[] {
+    const aimed = DISCOUNT_TARGET_KINDS.map((kind) => ({ kind, ids: [...keys[kind]] })).filter(
+      ({ ids }) => ids.length > 0,
+    );
+    const conditions = aimed.map(
+      ({ ids }) => `(target_kind = ? AND target_id IN (${ids.map(() => "?").join(", ")}))`,
+    );
+    const parameters = aimed.flatMap(({ kind, ids }) => [kind, ...ids]);
+    return this.database
+      .prepare<string[], CandidatePromotionRow>(
         `SELECT id, name, kind, percent, buy_qty, pay_qty, active, valid_from, valid_to, weekdays,
                 target_kind, target_id
          FROM discounts
-         WHERE removed = 0
+         WHERE removed = 0 AND (${conditions.join(" OR ")})
          ORDER BY id`,
       )
-      .all()
-      .map((row) => ({
-        target: { kind: row.target_kind, id: row.target_id },
-        promotion: {
-          id: row.id,
-          name: row.name,
-          benefit: toBenefit(row),
-          active: row.active === 1,
-          validFrom: row.valid_from,
-          validTo: row.valid_to,
-          weekdays: JSON.parse(row.weekdays) as number[],
-        },
-      }));
-    return discountsTargeting(
-      candidates,
-      { id: productId, categoryId: product.category_id, tags },
-      categories,
-    ).map(({ promotion }) => promotion);
+      .all(...parameters);
   }
 
   private recordOpenedSale(sale: Sale): void {
@@ -420,23 +468,6 @@ export class SqliteSaleLedger implements SaleLedger {
     if (changes !== 1) {
       throw new Error("the sale is not in progress");
     }
-  }
-
-  private recordRefund(refund: SaleRefund): void {
-    this.database
-      .prepare(
-        `INSERT INTO payment_refunds (id, payment_id, method, provider, amount, state, occurred_at)
-         VALUES (@id, @payment_id, @method, @provider, @amount, @state, @occurred_at)`,
-      )
-      .run({
-        id: refund.id,
-        payment_id: refund.paymentId,
-        method: refund.method,
-        provider: refund.provider,
-        amount: refund.amount,
-        state: refund.state,
-        occurred_at: refund.occurredAt.toISOString(),
-      });
   }
 
   private appendOutboxEvent(draft: OutboxEventDraft): void {

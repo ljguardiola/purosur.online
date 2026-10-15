@@ -7,6 +7,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { escalateAlertsTask } from "../alerts/alert-escalation-task.js";
 import { openAlert } from "../alerts/open-alert.js";
 import { insertRegisterWithPointOfSale } from "../fiscal/test-support/authorization-request-fixtures.js";
+import { configureOfflinePointOfSale } from "../fiscal/test-support/offline-point-of-sale-fixtures.js";
 import {
   alerts,
   registerContingencyTicketKeys,
@@ -287,6 +288,7 @@ describe("DrizzleRegisterStore", () => {
     const held = await adapterStore().transaction((tx) => tx.lockRegisterKeys(registerId));
     expect(held).toEqual({
       snapshotKeys: outcome.keys.snapshotKeyVersions,
+      retainedSnapshotKeyVersions: [],
       contingencyTicketKeys: [outcome.keys.contingencyTicketKey],
     });
     const outboxChainKey = await adapterStore().transaction((tx) =>
@@ -330,7 +332,11 @@ describe("DrizzleRegisterStore", () => {
 
     const held = await adapterStore().transaction((tx) => tx.lockRegisterKeys(registerId));
 
-    expect(held).toEqual({ snapshotKeys: [], contingencyTicketKeys: [] });
+    expect(held).toEqual({
+      snapshotKeys: [],
+      retainedSnapshotKeyVersions: [],
+      contingencyTicketKeys: [],
+    });
   });
 
   it("refuses to open a key copied from one row to another", async () => {
@@ -612,6 +618,30 @@ describe("DrizzleRegisterStore", () => {
 
       expect(await storedCountPointsOfSale()).toEqual([8]);
       expect(enqueued).toEqual([7]);
+    });
+
+    it("deletes the count of the register's offline point of sale too, leaves the others, and enqueues the read of each", async () => {
+      const registerId = await configureOfflinePointOfSale(db, {
+        registerName: "caja-1",
+        realTimePointOfSale: 7,
+        offlinePointOfSale: 8,
+        now: READ_AT,
+      });
+      await configureOfflinePointOfSale(db, {
+        registerName: "caja-2",
+        realTimePointOfSale: 3,
+        offlinePointOfSale: 4,
+        now: READ_AT,
+      });
+      await seedCounts(7, 3);
+      const enqueued: number[] = [];
+
+      await storeEnqueueingInto(enqueued).transaction((tx) =>
+        tx.requireFreshTaxAuthorityCount(registerId),
+      );
+
+      expect(await storedCountPointsOfSale()).toEqual([3, 4]);
+      expect(enqueued.sort()).toEqual([7, 8]);
     });
 
     it("does nothing for a register with no point of sale", async () => {

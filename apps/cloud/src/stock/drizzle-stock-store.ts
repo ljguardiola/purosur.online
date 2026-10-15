@@ -43,8 +43,8 @@ function balanceOf(key: ProductStockKey) {
 export class DrizzleStockStoreTransaction<TQueryResult extends PgQueryResultHKT>
   implements StockStoreTransaction
 {
-  private readonly tx: PgDatabase<TQueryResult>;
-  private readonly pending: PendingChanges;
+  protected readonly tx: PgDatabase<TQueryResult>;
+  protected readonly pending: PendingChanges;
 
   constructor(tx: PgDatabase<TQueryResult>, pending: PendingChanges) {
     this.tx = tx;

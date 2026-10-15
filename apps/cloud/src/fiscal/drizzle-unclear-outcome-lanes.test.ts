@@ -48,6 +48,7 @@ beforeAll(async () => {
     connections,
     async () => {},
     async () => {},
+    async () => {},
   );
 });
 
@@ -191,6 +192,8 @@ describe("DrizzleUnclearOutcomeLanes", () => {
         decidedAt: DECIDED_AT,
         adoptedAuthorizationCode: null,
         adoptedAuthorizationCodeDueOn: null,
+        diagnosis: null,
+        diagnosedAt: null,
       });
     });
 

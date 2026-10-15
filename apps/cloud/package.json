@@ -13,6 +13,7 @@
     "build": "tsc -b tsconfig.json",
     "start": "node dist/server.js",
     "migrate": "node dist/migrate.js",
+    "dump:offsite": "node dist/dump-offsite.js",
     "wait-for-ready": "node dist/wait-for-ready.js",
     "create-first-administrator": "node dist/create-first-administrator.js",
     "load-sample-data": "node dist/load-sample-data.js",
@@ -21,7 +22,7 @@
     "record:arca-responses": "node dist/record-arca-responses.js"
   },
   "dependencies": {
-    "@fastify/static": "^10.1.4",
+    "@fastify/static": "^10.1.6",
     "@purosur/contracts": "workspace:*",
     "@purosur/domain": "workspace:*",
     "@sentry/node": "^11.4.0",

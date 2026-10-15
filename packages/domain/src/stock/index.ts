@@ -3,7 +3,7 @@ export { INITIAL_COUNT_COST_FILTERS } from "./model/initial-count.js";
 export { canExpireWithStock, expiryWindowEnd } from "./model/lot-expiry.js";
 export { isReferenceUnitCost } from "./model/lot-reference-cost.js";
 export type { LotCost } from "./model/lot-value.js";
-export { isLotInStock, knownLotCost } from "./model/lot-value.js";
+export { isLotCostIncomplete, isLotInStock, knownLotCost } from "./model/lot-value.js";
 export type {
   OpeningCountRecordedFact,
   OpeningCountWithdrawnFact,
@@ -11,6 +11,7 @@ export type {
 export type { StockCorrection } from "./model/product-valuation.js";
 export { STOCK_CORRECTIONS } from "./model/product-valuation.js";
 export { PRODUCTS_A_RECIPE_MAY_USE } from "./model/recipe.js";
+export { saleVoidStockMovements } from "./model/sale-void-stock-movements.js";
 export { soldStockDelta } from "./model/sold-stock-delta.js";
 export { isListedInStockBalances } from "./model/stock-balance.js";
 export { countResult, expectedBalance, mayBeCountedTogether } from "./model/stock-count.js";
@@ -50,4 +51,4 @@ export {
   STOCK_QUANTITY_PER_UNIT,
 } from "./model/stock-quantity.js";
 export type { PurchaseReceipt } from "./model/stock-receipt.js";
-export { unitCostCents } from "./model/unit-cost.js";
+export { lotUnitCostCents, unitCostCents } from "./model/unit-cost.js";

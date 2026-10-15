@@ -76,3 +76,30 @@ test("describes a branch with lots already expired or nearing their expiry date"
     "Hay lotes de productos vencidos o por llegar a su fecha de vencimiento.",
   );
 });
+
+test("describes an offsite dump of a night that could not be verified", () => {
+  expect(alertKindDescription("offsite_dump_unverified")).toBe(
+    "La copia cifrada de la base de datos de una noche no se pudo verificar fuera de la nube.",
+  );
+});
+
+test("describes a fortnight's report not yet presented and one whose deadline was missed", () => {
+  expect(alertKindDescription("fortnight_report_pending")).toBe(
+    "Falta presentar a ARCA el informe de una quincena de un punto de venta",
+  );
+  expect(alertKindDescription("fortnight_report_overdue")).toBe(
+    "Venció el plazo para presentar a ARCA el informe de una quincena de un punto de venta",
+  );
+});
+
+test("describes a voucher issued outside the system", () => {
+  expect(alertKindDescription("external_billing")).toBe(
+    "Un comprobante se emitió fuera del sistema",
+  );
+});
+
+test("describes a fortnight already reported without movement that later received invoices", () => {
+  expect(alertKindDescription("fortnight_report_needs_regularization")).toBe(
+    "Llegaron comprobantes de una quincena ya informada a ARCA sin movimiento",
+  );
+});

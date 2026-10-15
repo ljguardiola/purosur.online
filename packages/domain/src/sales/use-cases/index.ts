@@ -116,10 +116,17 @@ export type {
 export { printSaleReceipt } from "./print-sale-receipt.js";
 export type { ProductSalesReportReader, SoldLinesQuery } from "./product-sales-report-reader.js";
 export type {
+  AverageTicketReport,
+  ReadAverageTicketInput,
+  TicketOfPeriod,
+} from "./read-average-ticket.js";
+export { readAverageTicket } from "./read-average-ticket.js";
+export type {
   ReadSaleHistoryDetailInput,
   ReadSaleHistoryDetailOutcome,
   ReadSaleHistoryDetailPorts,
   SaleHistoryDetail,
+  SaleVoidability,
 } from "./read-sale-history-detail.js";
 export { readSaleHistoryDetail } from "./read-sale-history-detail.js";
 export type { ReadSalesByCashierInput, SalesByCashierReport } from "./read-sales-by-cashier.js";
@@ -220,6 +227,18 @@ export type {
   SettleApprovedMercadoPagoPaymentOutcome,
 } from "./settle-approved-mercado-pago-payment.js";
 export { settleApprovedMercadoPagoPayment } from "./settle-approved-mercado-pago-payment.js";
+export type {
+  VoidSaleGrant,
+  VoidSaleInput,
+  VoidSaleOutcome,
+  VoidSalePorts,
+} from "./void-sale.js";
+export { voidSale } from "./void-sale.js";
+export type {
+  SaleToVoid,
+  SaleVoidLedger,
+  SaleVoidTransaction,
+} from "./void-sale-ports.js";
 export type {
   WeighProductOnScaleInput,
   WeighProductOnScaleOutcome,

@@ -1,4 +1,10 @@
-import { FACTURA_C_DOCUMENT_TYPE, PAYMENT_METHODS, SALE_STANDINGS } from "@purosur/domain";
+import {
+  FACTURA_C_DOCUMENT_TYPE,
+  PAYMENT_METHODS,
+  PLANNED_REFUND_STATES,
+  SALE_STANDINGS,
+  SALE_VOID_REFUSALS,
+} from "@purosur/domain";
 import { z } from "zod";
 
 export const receiptCopySchema = z.discriminatedUnion("kind", [
@@ -49,6 +55,20 @@ export const salesHistoryOutcomeSchema = z.discriminatedUnion("kind", [
 ]);
 export type SalesHistoryOutcome = z.infer<typeof salesHistoryOutcomeSchema>;
 
+const saleVoidabilitySchema = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.literal("voidable"),
+    refunds: z.array(
+      z.object({
+        method: z.enum(PAYMENT_METHODS),
+        amount: z.int().nonnegative(),
+        state: z.enum(PLANNED_REFUND_STATES),
+      }),
+    ),
+  }),
+  z.object({ kind: z.literal("not_voidable"), refusal: z.enum(SALE_VOID_REFUSALS) }),
+]);
+
 const saleHistoryDetailSchema = z.object({
   sale_id: z.string(),
   occurred_at: z.iso.datetime({ offset: true }),
@@ -59,6 +79,12 @@ const saleHistoryDetailSchema = z.object({
   line_count: z.int().nonnegative(),
   payments: z.array(z.object({ method: z.enum(PAYMENT_METHODS), amount: z.int() })),
   state: saleStateSchema,
+  voidability: saleVoidabilitySchema,
+  void_authorization_required: z.boolean(),
+  reprint: z.discriminatedUnion("kind", [
+    z.object({ kind: z.literal("available") }),
+    z.object({ kind: z.literal("sale_voided") }),
+  ]),
   next_copy: receiptCopySchema,
 });
 

@@ -8,6 +8,7 @@ import {
   mayBeOverriddenUnitPrice,
   mayBeSaleLineQuantity,
   SALE_UNITS,
+  SALE_VOID_REFUSALS,
   SEARCH_RESULT_LIMIT,
   WEIGHT_SOURCES,
 } from "@purosur/domain";
@@ -143,6 +144,10 @@ const notPermittedOutcome = z.object({ kind: z.literal("not_permitted") });
 const notSignedInOutcome = z.object({ kind: z.literal("not_signed_in") });
 const noOpenSessionOutcome = z.object({ kind: z.literal("no_open_session") });
 const installationRevokedOutcome = z.object({ kind: z.literal("installation_revoked") });
+const localDatabaseDamagedOutcome = z.object({ kind: z.literal("local_database_damaged") });
+const diskSpaceShortOutcome = z.object({ kind: z.literal("disk_space_short") });
+const paidOrderWithoutSaleOutcome = z.object({ kind: z.literal("paid_order_without_sale") });
+const paidOrdersNotCheckedOutcome = z.object({ kind: z.literal("paid_orders_not_checked") });
 const unavailableOutcome = z.object({ kind: z.literal("unavailable") });
 const saleHasPaymentsOutcome = z.object({ kind: z.literal("sale_has_payments") });
 export const qrChargeInProgressOutcome = z.object({
@@ -163,6 +168,10 @@ export const scanProductOutcomeSchema = z.discriminatedUnion("kind", [
   notSignedInOutcome,
   noOpenSessionOutcome,
   installationRevokedOutcome,
+  localDatabaseDamagedOutcome,
+  diskSpaceShortOutcome,
+  paidOrderWithoutSaleOutcome,
+  paidOrdersNotCheckedOutcome,
   unavailableOutcome,
 ]);
 export type ScanProductOutcome = z.infer<typeof scanProductOutcomeSchema>;
@@ -309,6 +318,20 @@ export const cancelPaidSaleOutcomeSchema = z.discriminatedUnion("kind", [
 ]);
 export type CancelPaidSaleOutcome = z.infer<typeof cancelPaidSaleOutcomeSchema>;
 
+export const voidSaleOutcomeSchema = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.literal("voided"),
+    refunds: z.array(plannedRefundSchema),
+    authorized_by: authorizedBySchema.nullable(),
+  }),
+  z.object({ kind: z.literal("not_found") }),
+  z.object({ kind: z.enum(SALE_VOID_REFUSALS) }),
+  z.object({ kind: z.literal("pending_refunds_unconfirmed") }),
+  notSignedInOutcome,
+  ...authorizationRefusalSchema.options,
+]);
+export type VoidSaleOutcome = z.infer<typeof voidSaleOutcomeSchema>;
+
 export const addProductOutcomeSchema = z.discriminatedUnion("kind", [
   addedOutcome,
   z.object({ kind: z.literal("product_unavailable") }),
@@ -320,6 +343,10 @@ export const addProductOutcomeSchema = z.discriminatedUnion("kind", [
   notSignedInOutcome,
   noOpenSessionOutcome,
   installationRevokedOutcome,
+  localDatabaseDamagedOutcome,
+  diskSpaceShortOutcome,
+  paidOrderWithoutSaleOutcome,
+  paidOrdersNotCheckedOutcome,
   unavailableOutcome,
 ]);
 export type AddProductOutcome = z.infer<typeof addProductOutcomeSchema>;
@@ -335,6 +362,10 @@ export const addWeighedProductOutcomeSchema = z.discriminatedUnion("kind", [
   notSignedInOutcome,
   noOpenSessionOutcome,
   installationRevokedOutcome,
+  localDatabaseDamagedOutcome,
+  diskSpaceShortOutcome,
+  paidOrderWithoutSaleOutcome,
+  paidOrdersNotCheckedOutcome,
   unavailableOutcome,
 ]);
 export type AddWeighedProductOutcome = z.infer<typeof addWeighedProductOutcomeSchema>;
@@ -351,6 +382,10 @@ export const weighProductOutcomeSchema = z.discriminatedUnion("kind", [
   notSignedInOutcome,
   noOpenSessionOutcome,
   installationRevokedOutcome,
+  localDatabaseDamagedOutcome,
+  diskSpaceShortOutcome,
+  paidOrderWithoutSaleOutcome,
+  paidOrdersNotCheckedOutcome,
   unavailableOutcome,
 ]);
 export type WeighProductOutcome = z.infer<typeof weighProductOutcomeSchema>;

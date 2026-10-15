@@ -17,9 +17,12 @@ export const STOCK_MOVEMENT_KINDS = [
   ...MANUAL_STOCK_MOVEMENT_KINDS,
   "count",
   "sale",
+  "sale_void",
   "receipt",
   "opening_count",
   "opening_count_withdrawal",
+  "assembly_out",
+  "assembly_in",
 ] as const;
 
 export type StockMovementKind = (typeof STOCK_MOVEMENT_KINDS)[number];

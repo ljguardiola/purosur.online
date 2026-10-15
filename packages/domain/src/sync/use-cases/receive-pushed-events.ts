@@ -1,3 +1,4 @@
+import { OFFLINE_FISCAL_DOCUMENT_ISSUED_EVENT_TYPE } from "../../fiscal/index.js";
 import { canonicalOutboxEvent } from "../../shared/index.js";
 import { highestContiguousSeq } from "../model/contiguous-seq.js";
 import type { PushedEvent, RegisterTelemetry } from "../model/push-batch.js";
@@ -94,10 +95,15 @@ export async function receivePushedEvents(
     }
 
     await tx.receive(deviceId, toReceive, now);
+    await tx.advanceOfflineNumbering(
+      toReceive.filter((event) => event.event_type === OFFLINE_FISCAL_DOCUMENT_ISSUED_EVENT_TYPE),
+      now,
+    );
     await tx.recordAcceptedPush(deviceId, now);
     await tx.recordRegisterSynced(registerId, now);
     if (events.length === 0) {
       await tx.recordReportsEveryCycle(deviceId, now);
+      await tx.recordCaughtUp(deviceId, now);
     }
     return keptInService({
       kind: "received",

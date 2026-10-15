@@ -122,6 +122,9 @@ describe("CashCountScreen", () => {
     await expect.element(screen.getByText("$", { exact: true })).toBeVisible();
     await expect.element(screen.getByText("Caja 1", { exact: true })).toBeVisible();
     await expectNoAccessibilityViolations(screen.container);
+    await expect
+      .element(screen.getByRole("textbox", { name: "Efectivo contado" }))
+      .toHaveAttribute("inputmode", "decimal");
   });
 
   it("shows the cash the register expects beside the count", async () => {

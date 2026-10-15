@@ -3,6 +3,9 @@ import {
   type FiscalOnlineSignalEvidence,
   isRegisterFiscallyOnline,
 } from "./fiscal-online-signal.js";
+import { isNumberingConflict } from "./numbering-conflict.js";
+import { type Fortnight, fortnightContaining } from "./offline-authorization-code.js";
+import { type NextOfflineNumberInput, nextOfflineNumber } from "./offline-number-block.js";
 import type { FacturaC, PreEmissionGateOutcome } from "./pre-emission-gate.js";
 
 export const REAL_TIME_AUTHORIZATION_TIMEOUT_MS = 5_000;
@@ -70,6 +73,7 @@ export const DEFERRAL_REASONS = [
   "tax_authority_count_unknown",
   "rejected",
   "unclear_outcome",
+  "numbering_frozen",
 ] as const;
 
 export type DeferralReason = (typeof DEFERRAL_REASONS)[number];
@@ -88,6 +92,13 @@ export const IN_PROGRESS_FISCAL_DOCUMENT_STATES: readonly FiscalDocumentState[] 
 
 export const OUTCOME_UNKNOWN_FISCAL_DOCUMENT_STATES: readonly FiscalDocumentState[] = ["UNKNOWN"];
 
+export function isFiscalOutcomeUnresolved(state: FiscalDocumentState): boolean {
+  return (
+    IN_PROGRESS_FISCAL_DOCUMENT_STATES.includes(state) ||
+    OUTCOME_UNKNOWN_FISCAL_DOCUMENT_STATES.includes(state)
+  );
+}
+
 export const NUMBER_CONSUMING_STATES: readonly FiscalDocumentState[] = [
   "AUTHORIZED",
   "CONFLICTING",
@@ -97,40 +108,102 @@ export interface RealTimeSeries {
   pointOfSale: number | null;
   localLastAuthorized: number | null;
   taxAuthorityLastAuthorized: number | null;
-  documentWaiting: boolean;
+  documentRequesting: boolean;
+  documentUnknown: boolean;
+  numberingFrozen: boolean;
 }
 
-export interface RealTimeAuthorizationDecisionInput {
+export interface OfflineSeries extends NextOfflineNumberInput {
+  pointOfSale: number | null;
+}
+
+export const OFFLINE_AUTHORIZATION_CAUSES = [
+  "no_connectivity",
+  "unclear_outcome",
+  "numbering_conflict",
+] as const;
+
+export type OfflineAuthorizationCause = (typeof OFFLINE_AUTHORIZATION_CAUSES)[number];
+
+const DEFERRAL_REASON_OF_CAUSE: Record<OfflineAuthorizationCause, DeferralReason> = {
+  no_connectivity: "fiscally_offline",
+  unclear_outcome: "document_waiting",
+  numbering_conflict: "numbering_frozen",
+};
+
+export interface SaleAuthorizationRouteInput {
   gate: PreEmissionGateOutcome;
   online: FiscalOnlineSignalEvidence;
   now: Date;
+  occurredAt: Date;
   series: RealTimeSeries;
+  offlineSeries: OfflineSeries;
+  offlineAuthorizationCode: string | null;
 }
 
-export type RealTimeAuthorizationDecision =
+export type SaleAuthorizationRoute =
   | { kind: "reserve"; pointOfSale: number; number: number; document: FacturaC }
+  | {
+      kind: "issue_offline";
+      cause: OfflineAuthorizationCause;
+      pointOfSale: number;
+      number: number;
+      document: FacturaC;
+      issuedOn: string;
+      fortnight: Fortnight;
+      offlineAuthorizationCode: string;
+    }
   | { kind: "defer"; reason: DeferralReason };
 
-function deferred(reason: DeferralReason): RealTimeAuthorizationDecision {
+function deferred(reason: DeferralReason): SaleAuthorizationRoute {
   return { kind: "defer", reason };
 }
 
-export function decideRealTimeAuthorization({
-  gate,
-  online,
-  now,
-  series,
-}: RealTimeAuthorizationDecisionInput): RealTimeAuthorizationDecision {
+export function invoiceOwnFortnight(occurredAt: Date): Fortnight {
+  return fortnightContaining(invoiceDateOf(occurredAt));
+}
+
+function offlineRoute(
+  cause: OfflineAuthorizationCause,
+  document: FacturaC,
+  { occurredAt, offlineSeries, offlineAuthorizationCode }: SaleAuthorizationRouteInput,
+): SaleAuthorizationRoute {
+  const number = nextOfflineNumber(offlineSeries);
+  if (offlineSeries.pointOfSale === null || offlineAuthorizationCode === null || number === null) {
+    return deferred(DEFERRAL_REASON_OF_CAUSE[cause]);
+  }
+  return {
+    kind: "issue_offline",
+    cause,
+    pointOfSale: offlineSeries.pointOfSale,
+    number,
+    document,
+    issuedOn: invoiceDateOf(occurredAt),
+    fortnight: invoiceOwnFortnight(occurredAt),
+    offlineAuthorizationCode,
+  };
+}
+
+export function decideSaleAuthorizationRoute(
+  input: SaleAuthorizationRouteInput,
+): SaleAuthorizationRoute {
+  const { gate, online, now, series } = input;
   if (gate.kind === "failed") {
     return deferred("pre_emission_gate_failed");
   }
+  if (series.pointOfSale !== null && series.numberingFrozen) {
+    return offlineRoute("numbering_conflict", gate.document, input);
+  }
+  if (series.pointOfSale !== null && series.documentUnknown) {
+    return offlineRoute("unclear_outcome", gate.document, input);
+  }
   if (!isRegisterFiscallyOnline(online, now)) {
-    return deferred("fiscally_offline");
+    return offlineRoute("no_connectivity", gate.document, input);
   }
   if (series.pointOfSale === null) {
     return deferred("point_of_sale_missing");
   }
-  if (series.documentWaiting) {
+  if (series.documentRequesting) {
     return deferred("document_waiting");
   }
   const number = nextInvoiceNumber(series);
@@ -150,8 +223,6 @@ export type RealTimeAuthorizationAnswer =
   | { kind: "not_attempted" }
   | { kind: "unclear" };
 
-const NUMBER_OR_DATE_OUT_OF_ORDER_CODE = 10016;
-
 const INTERNAL_ERROR_CODES: ReadonlySet<number> = new Set([500, 501, 502, 600, 602]);
 
 const STANDING_REJECTION_CODES: ReadonlySet<number> = new Set([10000, 10005, 1005, 601]);
@@ -168,7 +239,7 @@ export function taxAuthorityRejectionAnswer(
   codes: readonly number[],
   standingCodes: ReadonlySet<number> = STANDING_REJECTION_CODES,
 ): RealTimeAuthorizationAnswer {
-  if (codes.includes(NUMBER_OR_DATE_OUT_OF_ORDER_CODE) || hasInternalErrorCode(codes)) {
+  if (isNumberingConflict(codes) || hasInternalErrorCode(codes)) {
     return { kind: "unclear" };
   }
   return {

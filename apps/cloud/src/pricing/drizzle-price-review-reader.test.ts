@@ -15,6 +15,7 @@ import { seededLocationId } from "../test-support/seeded-location.js";
 import { seededPriceListId } from "../test-support/seeded-price-list.js";
 import { DrizzlePriceReviewReader } from "./drizzle-price-review-reader.js";
 import { insertPriceReviewPostponement } from "./test-support/price-review-postponements.js";
+import { rowsReadFrom } from "./test-support/rows-read-from.js";
 
 const NOON = new Date("2026-01-05T12:00:00.000Z");
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -595,5 +596,74 @@ describe("DrizzlePriceReviewReader's product filter", () => {
     await insertProduct("Arroz", categoryId);
 
     expect(ids(await pricesUnderReview({ productIds: [] }))).toEqual([]);
+  });
+});
+
+describe("DrizzlePriceReviewReader's price history", () => {
+  async function read() {
+    const { result, rows } = await rowsReadFrom(testDatabase.client, "prices", async (logged) =>
+      new DrizzlePriceReviewReader(logged).pricesUnderReview({
+        locationId: await seededLocationId(db),
+        now: NOON,
+        review: "all",
+      }),
+    );
+    return { result, rows };
+  }
+
+  it("reads only the newest price of each product out of a long history", async () => {
+    const priceListId = await seededPriceListId(db);
+    const categoryId = await insertCategory("Almacén");
+    const rice = await insertProduct("Arroz", categoryId);
+    const beans = await insertProduct("Porotos", categoryId);
+    for (let day = 1; day <= 8; day += 1) {
+      await insertPrice(rice, priceListId, 100 + day, new Date(NOON.getTime() - day * DAY_MS));
+    }
+    await insertPrice(beans, priceListId, 700, new Date(NOON.getTime() - 3 * DAY_MS));
+    await insertPrice(beans, priceListId, 800, NOON);
+
+    const { result, rows } = await read();
+
+    expect(result.products.map((product) => product.currentPrice?.unitPrice)).toEqual([101, 800]);
+    expect(rows).toBe(2);
+  });
+
+  it("reads every price of a product that starts at its newest moment and takes the one with the greater id", async () => {
+    const priceListId = await seededPriceListId(db);
+    const productId = await insertProduct("Arroz", await insertCategory("Almacén"));
+    await insertPrice(productId, priceListId, 1000, NOON, LESSER_PRICE_ID);
+    await insertPrice(productId, priceListId, 2000, NOON, GREATER_PRICE_ID);
+    await insertPrice(productId, priceListId, 500, new Date(NOON.getTime() - DAY_MS));
+
+    const { result, rows } = await read();
+
+    expect(result.products[0]?.currentPrice).toMatchObject({
+      id: GREATER_PRICE_ID,
+      unitPrice: 2000,
+    });
+    expect(rows).toBe(2);
+  });
+
+  it("reads none of the prices of an inactive product or of another price list", async () => {
+    const priceListId = await seededPriceListId(db);
+    const [otherPriceList] = await db
+      .insert(priceLists)
+      .values({ name: "Lista mayorista" })
+      .returning({ id: priceLists.id });
+    if (!otherPriceList) {
+      throw new Error("test setup: seeding the other price list returned no row");
+    }
+    const categoryId = await insertCategory("Almacén");
+    const active = await insertProduct("Arroz", categoryId);
+    const inactive = await insertProduct("Porotos", categoryId);
+    await db.update(products).set({ active: false }).where(eq(products.id, inactive));
+    await insertPrice(active, priceListId, 100, new Date(NOON.getTime() - DAY_MS));
+    await insertPrice(active, otherPriceList.id, 900, NOON);
+    await insertPrice(inactive, priceListId, 300, NOON);
+
+    const { result, rows } = await read();
+
+    expect(result.products.map((product) => product.currentPrice?.unitPrice)).toEqual([100]);
+    expect(rows).toBe(1);
   });
 });

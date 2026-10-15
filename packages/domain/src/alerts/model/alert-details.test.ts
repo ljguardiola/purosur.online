@@ -27,6 +27,38 @@ describe("OpenAlertInput", () => {
     }>().not.toExtend<OpenAlertInput>();
   });
 
+  it("accepts the night and the reason it is unverified for an unverified-dump alert", () => {
+    expectTypeOf<{
+      kind: "offsite_dump_unverified";
+      scope: string;
+      detail: { night: string; reason: "not_reported" | "hash_mismatch" };
+    }>().toExtend<OpenAlertInput>();
+  });
+
+  it("accepts the threshold the dump fell below for an unverified-dump alert of a shrank dump", () => {
+    expectTypeOf<{
+      kind: "offsite_dump_unverified";
+      scope: string;
+      detail: { night: string; reason: "shrank"; shrinkThresholdPercent: number };
+    }>().toExtend<OpenAlertInput>();
+  });
+
+  it("refuses an unverified-dump alert of a shrank dump without the threshold it fell below", () => {
+    expectTypeOf<{
+      kind: "offsite_dump_unverified";
+      scope: string;
+      detail: { night: string; reason: "shrank" };
+    }>().not.toExtend<OpenAlertInput>();
+  });
+
+  it("refuses an unverified-dump alert with a reason the check cannot give", () => {
+    expectTypeOf<{
+      kind: "offsite_dump_unverified";
+      scope: string;
+      detail: { night: string; reason: "disk_full" };
+    }>().not.toExtend<OpenAlertInput>();
+  });
+
   it("accepts the expiry of the certificate for an expiring-certificate alert", () => {
     expectTypeOf<{
       kind: "arca_certificate_expiring";
@@ -172,6 +204,110 @@ describe("OpenAlertInput", () => {
       kind: "user_access_increased";
       scope: string;
       detail: { cause: "role_assigned"; actorId: string };
+    }>().not.toExtend<OpenAlertInput>();
+  });
+});
+
+describe("OpenAlertInput of a fortnight report", () => {
+  it("accepts the point of sale, its register, the fortnight, the deadline, the days left and the reason for a pending alert", () => {
+    expectTypeOf<{
+      kind: "fortnight_report_pending";
+      scope: string;
+      detail: {
+        pointOfSaleNumber: number;
+        registerId: string;
+        fortnightStart: string;
+        fortnightEnd: string;
+        deadline: string;
+        daysLeft: number;
+        reason: "blocked" | "missing_document" | "refused" | "pending";
+      };
+    }>().toExtend<OpenAlertInput>();
+  });
+
+  it("refuses a pending alert with a reason outside the four it can have", () => {
+    expectTypeOf<{
+      kind: "fortnight_report_pending";
+      scope: string;
+      detail: {
+        pointOfSaleNumber: number;
+        registerId: string;
+        fortnightStart: string;
+        fortnightEnd: string;
+        deadline: string;
+        daysLeft: number;
+        reason: "unknown";
+      };
+    }>().not.toExtend<OpenAlertInput>();
+  });
+
+  it("accepts the point of sale, its register, the fortnight and the deadline for an overdue alert", () => {
+    expectTypeOf<{
+      kind: "fortnight_report_overdue";
+      scope: string;
+      detail: {
+        pointOfSaleNumber: number;
+        registerId: string;
+        fortnightStart: string;
+        fortnightEnd: string;
+        deadline: string;
+      };
+    }>().toExtend<OpenAlertInput>();
+  });
+
+  it("accepts the point of sale, its register and the fortnight, without a deadline, for an alert that needs regularization", () => {
+    expectTypeOf<{
+      kind: "fortnight_report_needs_regularization";
+      scope: string;
+      detail: {
+        pointOfSaleNumber: number;
+        registerId: string;
+        fortnightStart: string;
+        fortnightEnd: string;
+      };
+    }>().toExtend<OpenAlertInput>();
+  });
+
+  it("refuses an alert that needs regularization without the fortnight's end", () => {
+    expectTypeOf<{
+      kind: "fortnight_report_needs_regularization";
+      scope: string;
+      detail: {
+        pointOfSaleNumber: number;
+        registerId: string;
+        fortnightStart: string;
+      };
+    }>().not.toExtend<OpenAlertInput>();
+  });
+
+  it("refuses an overdue alert without the deadline", () => {
+    expectTypeOf<{
+      kind: "fortnight_report_overdue";
+      scope: string;
+      detail: {
+        pointOfSaleNumber: number;
+        registerId: string;
+        fortnightStart: string;
+        fortnightEnd: string;
+      };
+    }>().not.toExtend<OpenAlertInput>();
+  });
+});
+
+describe("an external billing alert", () => {
+  it("accepts the point of sale, the document type and the number", () => {
+    expectTypeOf<{
+      kind: "external_billing";
+      scope: string;
+      detail: { pointOfSale: number; documentType: "factura_c"; number: number };
+    }>().toExtend<OpenAlertInput>();
+  });
+
+  it("refuses one without its number", () => {
+    expectTypeOf<{
+      kind: "external_billing";
+      scope: string;
+      detail: { pointOfSale: number; documentType: "factura_c" };
     }>().not.toExtend<OpenAlertInput>();
   });
 });

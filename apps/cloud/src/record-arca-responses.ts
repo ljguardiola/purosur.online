@@ -28,6 +28,9 @@ if (import.meta.main) {
             `record-arca-responses: ${file}: ${replaced.join(", ") || "nothing replaced"}`,
           );
         }
+        console.log(
+          `record-arca-responses: recordings carrying observation 15014: ${report.recordingsCarrying15014.join(", ") || "none"}`,
+        );
         const failure = recordingFailure(report);
         if (failure !== undefined) {
           console.error(`record-arca-responses: ${failure}`);

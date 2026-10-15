@@ -20,6 +20,7 @@ export interface FakeBranchRegister {
   locationId: string;
   name: string;
   pointOfSaleNumber?: number;
+  pointTerminal?: { terminalId: string | null; version: number };
 }
 
 export interface FakeRegisterInstallation extends RegisterInstallationRecord {
@@ -161,6 +162,7 @@ export class FakeBranchRegisterStore implements BranchRegisterStore, BranchRegis
               }
             : null,
           pointOfSaleNumber: register.pointOfSaleNumber ?? null,
+          pointTerminal: register.pointTerminal ?? { terminalId: null, version: 0 },
           installations: this.state.installations
             .filter((row) => row.registerId === register.id)
             .map(({ hostname, windowsVersion, enrolledAt, revokedAt }) => ({

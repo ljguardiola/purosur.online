@@ -42,6 +42,7 @@ export class DrizzlePendingRefundsReader<TQueryResult extends PgQueryResultHKT>
         amount: paymentRefunds.amount,
         occurredAt: paymentRefunds.occurredAt,
         saleCancelledAt: sales.cancelledAt,
+        saleVoidedAt: sales.voidedAt,
         saleCompletedAt: sales.completedAt,
         transactionCreatedAt: paymentTransactions.createdAt,
         cancelledBy: sales.actorId,
@@ -71,7 +72,14 @@ export class DrizzlePendingRefundsReader<TQueryResult extends PgQueryResultHKT>
       .orderBy(asc(paymentRefunds.occurredAt), asc(paymentRefunds.id));
     const payments = await this.paymentsOfSales(rows.map((row) => row.saleId));
     return rows.map(
-      ({ origin, saleCancelledAt, saleCompletedAt, transactionCreatedAt, ...row }) => {
+      ({
+        origin,
+        saleCancelledAt,
+        saleVoidedAt,
+        saleCompletedAt,
+        transactionCreatedAt,
+        ...row
+      }) => {
         if (!isRefundOrigin(origin)) {
           throw new Error(`refund ${row.id} has an origin outside the catalog: ${origin}`);
         }
@@ -79,7 +87,8 @@ export class DrizzlePendingRefundsReader<TQueryResult extends PgQueryResultHKT>
           origin,
           payments.filter((payment) => payment.saleId === row.saleId),
         );
-        const saleOccurredAt = saleCancelledAt ?? saleCompletedAt ?? transactionCreatedAt;
+        const saleOccurredAt =
+          saleCancelledAt ?? saleVoidedAt ?? saleCompletedAt ?? transactionCreatedAt;
         if (!saleOccurredAt) {
           throw new Error(`refund ${row.id} has no sale or payment transaction to date it by`);
         }

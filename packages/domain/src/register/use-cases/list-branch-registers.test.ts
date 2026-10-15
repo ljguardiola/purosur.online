@@ -69,6 +69,7 @@ describe("listBranchRegisters", () => {
         name: "Caja 2",
         pendingCode: null,
         pointOfSaleNumber: null,
+        pointTerminal: { terminalId: null, version: 0 },
         installation: { kind: "not_enrolled" },
       },
       {
@@ -76,6 +77,7 @@ describe("listBranchRegisters", () => {
         name: "Caja 1",
         pendingCode: null,
         pointOfSaleNumber: null,
+        pointTerminal: { terminalId: null, version: 0 },
         installation: { kind: "not_enrolled" },
       },
     ]);
@@ -187,6 +189,26 @@ describe("listBranchRegisters", () => {
     const [caja1] = await listCaja1(storeWithCaja1());
 
     expect(caja1?.pointOfSaleNumber).toBeNull();
+  });
+
+  it("reports the Point terminal a register is assigned with the version of its assignment", async () => {
+    const store = new FakeBranchRegisterStore();
+    store.seedRegister({
+      id: "register-1",
+      locationId: BRANCH,
+      name: "Caja 1",
+      pointTerminal: { terminalId: "PAX_A910__SMARTPOS1", version: 2 },
+    });
+
+    const [caja1] = await listCaja1(store);
+
+    expect(caja1?.pointTerminal).toEqual({ terminalId: "PAX_A910__SMARTPOS1", version: 2 });
+  });
+
+  it("reports no terminal at version 0 for a register never assigned one", async () => {
+    const [caja1] = await listCaja1(storeWithCaja1());
+
+    expect(caja1?.pointTerminal).toEqual({ terminalId: null, version: 0 });
   });
 
   it("reports the state the register's installations give it", async () => {

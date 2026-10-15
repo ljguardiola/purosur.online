@@ -3,7 +3,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import Database from "better-sqlite3";
 import { afterEach, describe, expect, it } from "vitest";
-import { localDatabaseHealth, sqliteIntegrityHolds } from "./sqlite-local-database-health";
+import {
+  localDatabaseDamageIn,
+  localDatabaseHealth,
+  sqliteIntegrityHolds,
+} from "./sqlite-local-database-health";
 
 const folders: string[] = [];
 
@@ -74,12 +78,12 @@ describe("sqliteIntegrityHolds", () => {
 describe("localDatabaseHealth", () => {
   const NOW = new Date("2026-10-06T09:30:00.000Z");
 
-  function health(markerPath: string, integrityHolds = () => true) {
-    return localDatabaseHealth({ markerPath, now: () => NOW, integrityHolds });
+  function health(dataFolder: string, integrityHolds = () => true) {
+    return localDatabaseHealth({ folder: dataFolder, now: () => NOW, integrityHolds });
   }
 
   it("has no damage recorded until it is recorded", async () => {
-    const subject = health(join(folder(), "local-database-damaged"));
+    const subject = health(folder());
 
     expect(await subject.damageRecorded()).toBe(false);
 
@@ -89,33 +93,56 @@ describe("localDatabaseHealth", () => {
   });
 
   it("keeps the recorded damage for the next start", async () => {
-    const markerPath = join(folder(), "local-database-damaged");
+    const dataFolder = folder();
 
-    await health(markerPath).recordDamage();
+    await health(dataFolder).recordDamage();
 
-    expect(await health(markerPath).damageRecorded()).toBe(true);
+    expect(await health(dataFolder).damageRecorded()).toBe(true);
   });
 
   it("dates the recorded damage with its clock", async () => {
-    const markerPath = join(folder(), "local-database-damaged");
+    const dataFolder = folder();
 
-    await health(markerPath).recordDamage();
+    await health(dataFolder).recordDamage();
 
-    expect(readFileSync(markerPath, "utf8")).toBe("2026-10-06T09:30:00.000Z");
+    expect(readFileSync(join(dataFolder, "local-database-damaged"), "utf8")).toBe(
+      "2026-10-06T09:30:00.000Z",
+    );
   });
 
   it("creates the folder of the recorded damage when it is missing", async () => {
-    const markerPath = join(folder(), "data", "local-database-damaged");
+    const dataFolder = join(folder(), "data");
 
-    await health(markerPath).recordDamage();
+    await health(dataFolder).recordDamage();
 
-    expect(await health(markerPath).damageRecorded()).toBe(true);
+    expect(await health(dataFolder).damageRecorded()).toBe(true);
   });
 
   it("answers whether the integrity holds as the given check does", async () => {
-    const markerPath = join(folder(), "local-database-damaged");
+    const dataFolder = folder();
 
-    expect(await health(markerPath, () => true).integrityHolds()).toBe(true);
-    expect(await health(markerPath, () => false).integrityHolds()).toBe(false);
+    expect(await health(dataFolder, () => true).integrityHolds()).toBe(true);
+    expect(await health(dataFolder, () => false).integrityHolds()).toBe(false);
+  });
+});
+
+describe("localDatabaseDamageIn", () => {
+  it("answers at once the damage the health of the same folder recorded", async () => {
+    const dataFolder = folder();
+    const damaged = localDatabaseDamageIn(dataFolder);
+
+    expect(damaged()).toBe(false);
+
+    await localDatabaseHealth({
+      folder: dataFolder,
+      now: () => new Date(),
+      integrityHolds: () => true,
+    }).recordDamage();
+
+    expect(damaged()).toBe(true);
+  });
+
+  it("answers no damage when the register has no local data folder", () => {
+    expect(localDatabaseDamageIn(undefined)()).toBe(false);
   });
 });

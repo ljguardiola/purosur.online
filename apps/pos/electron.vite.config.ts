@@ -46,6 +46,7 @@ export default defineConfig({
           index: r("src/main/index.ts"),
           // Emitted next to index.js, so main finds it with a plain relative path.
           core: r("src/core/index.ts"),
+          "snapshot-worker": r("src/core/snapshot-worker.ts"),
         },
       },
     },

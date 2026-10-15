@@ -2,7 +2,10 @@ import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import {
   firstOfflineNumberBlock,
+  isOfflineNumberBlockUsedUp,
+  lastUsedOfflineNumber,
   nextOfflineNumber,
+  nextOfflineNumberBlock,
   OFFLINE_NUMBER_BLOCK_SIZE,
   OFFLINE_NUMBER_BLOCK_STATUSES,
   type OfflineNumberBlockRange,
@@ -20,8 +23,8 @@ describe("offline number blocks", () => {
     expect(OFFLINE_NUMBER_BLOCK_SIZE).toBe(1000);
   });
 
-  it("start in use", () => {
-    expect(OFFLINE_NUMBER_BLOCK_STATUSES).toEqual(["in_use"]);
+  it("are in use until their numbers are used up", () => {
+    expect(OFFLINE_NUMBER_BLOCK_STATUSES).toEqual(["in_use", "used_up"]);
   });
 });
 
@@ -30,8 +33,43 @@ describe("firstOfflineNumberBlock", () => {
     [0, { firstNumber: 1, lastNumber: 1000 }],
     [37, { firstNumber: 38, lastNumber: 1037 }],
     [1000, { firstNumber: 1001, lastNumber: 2000 }],
-  ])("starts right after the %i numbers the tax authority has authorized", (authorized, block) => {
-    expect(firstOfflineNumberBlock(authorized)).toEqual(block);
+  ])("starts right after the last used number %i", (lastUsed, block) => {
+    expect(firstOfflineNumberBlock(lastUsed)).toEqual(block);
+  });
+});
+
+describe("lastUsedOfflineNumber", () => {
+  it.each([
+    [40, null, 40],
+    [40, 25, 40],
+    [40, 75, 75],
+    [0, 0, 0],
+    [0, 3, 3],
+  ])("of a count of %i and a highest synced number of %s is %i", (count, synced, expected) => {
+    expect(lastUsedOfflineNumber(count, synced)).toBe(expected);
+  });
+});
+
+describe("nextOfflineNumberBlock", () => {
+  it("continues right after the current block", () => {
+    expect(nextOfflineNumberBlock({ firstNumber: 38, lastNumber: 1037 })).toEqual({
+      firstNumber: 1038,
+      lastNumber: 2037,
+    });
+  });
+});
+
+describe("isOfflineNumberBlockUsedUp", () => {
+  const block = { firstNumber: 1, lastNumber: 1000 };
+
+  it.each([
+    [null, false],
+    [0, false],
+    [999, false],
+    [1000, true],
+    [1500, true],
+  ])("is decided for a highest synced number of %s", (synced, expected) => {
+    expect(isOfflineNumberBlockUsedUp(block, synced)).toBe(expected);
   });
 });
 
@@ -42,11 +80,13 @@ describe("nextOfflineNumber", () => {
     localLastUsed: number | null,
     taxAuthorityLastAuthorized: number | null = 0,
     held: readonly OfflineNumberBlockRange[] = blocks,
+    highestSyncedNumber: number | null = null,
   ): number | null {
     return nextOfflineNumber({
       blocksInAssignmentOrder: held,
       localLastUsed,
       taxAuthorityLastAuthorized,
+      highestSyncedNumber,
     });
   }
 
@@ -98,6 +138,23 @@ describe("nextOfflineNumber", () => {
 
   it("continues after the local number when it is above the tax authority's", () => {
     expect(next(41, 10)).toBe(42);
+  });
+
+  it("continues after the highest synced number when it is above the count and the local one", () => {
+    expect(next(10, 41, blocks, 90)).toBe(91);
+    expect(next(null, 0, blocks, 90)).toBe(91);
+  });
+
+  it("ignores a highest synced number below the count and the local one", () => {
+    expect(next(60, 41, blocks, 30)).toBe(61);
+  });
+
+  it("is nothing while the count is unknown, whatever was synced", () => {
+    expect(next(null, null, blocks, 90)).toBeNull();
+  });
+
+  it("is nothing when the synced numbers already use every block", () => {
+    expect(next(null, 0, blocks, 2000)).toBeNull();
   });
 
   it("is nothing when the tax authority already holds every number of every block", () => {

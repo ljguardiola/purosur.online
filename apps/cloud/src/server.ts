@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { isValidCuit } from "@purosur/domain";
 import { recordAuthorizedCuit } from "@purosur/domain/fiscal/use-cases";
 import type { MercadoPagoOrders } from "@purosur/domain/payments/use-cases";
+import type { SnapshotObjects } from "@purosur/domain/register/use-cases";
 import * as Sentry from "@sentry/node";
 import {
   drizzle,
@@ -21,6 +22,7 @@ import {
   arcaCertificateExpiryJobs,
   enqueueArcaCertificateExpiryCheck,
 } from "./alerts/arca-certificate-expiry-task.js";
+import { unverifiedOffsiteDumpJobs } from "./alerts/unverified-offsite-dump-task.js";
 import {
   type BackofficeErrorReporting,
   type BuildAppOptions,
@@ -31,7 +33,11 @@ import { createGraphileRecoveryJobQueue } from "./credentials/graphile-recovery-
 import { reportPoolErrors } from "./credentials/pool-connection-error-handler.js";
 import type { AccessEmailSender } from "./credentials/recovery-email-sender.js";
 import type { RecoveryJobQueue } from "./credentials/recovery-job-queue.js";
-import { type RecoveryWorkerHandle, startRecoveryWorker } from "./credentials/recovery-worker.js";
+import {
+  type RecoveryWorkerHandle,
+  type StartRecoveryWorkerOptions,
+  startRecoveryWorker,
+} from "./credentials/recovery-worker.js";
 import {
   type RecoveryEmailSenderEnv,
   selectRecoveryEmailSender,
@@ -42,6 +48,12 @@ import {
   enqueueBuyerTaxStatusFetch,
 } from "./fiscal/buyer-tax-status-fetch-task.js";
 import { DrizzleIssuerIdentificationStore } from "./fiscal/drizzle-issuer-identification-store.js";
+import { fortnightReportJobs } from "./fiscal/fortnight-report-task.js";
+import {
+  enqueueMissingNumberingConflicts,
+  enqueueNumberingDiagnosisJob,
+  enqueueNumberingReconciliationJob,
+} from "./fiscal/graphile-numbering-conflict-queue.js";
 import { enqueueOfflineAuthorizationCodeRequest } from "./fiscal/graphile-offline-authorization-code-queue.js";
 import {
   enqueueMissingTaxAuthorityCounts,
@@ -52,6 +64,7 @@ import {
   enqueueUnclearOutcomeJob,
   withdrawUnclearOutcomeJob,
 } from "./fiscal/graphile-unclear-outcome-queue.js";
+import { numberingConflictJobs } from "./fiscal/numbering-conflict-task.js";
 import { offlineAuthorizationCodeJobs } from "./fiscal/offline-authorization-code-task.js";
 import { resumeWorkWaitingOnWsaaToken } from "./fiscal/resume-work-waiting-on-wsaa-token.js";
 import { taxAuthorityCountJobs } from "./fiscal/tax-authority-count-task.js";
@@ -62,7 +75,9 @@ import { WsfeArcaVitalityService, wsfeEndpointOf } from "./fiscal/wsfe-arca-vita
 import { WsfeBuyerTaxStatusSource } from "./fiscal/wsfe-buyer-tax-status-source.js";
 import { WsfeTaxAuthorityInvoicing } from "./fiscal/wsfe-tax-authority-invoicing.js";
 import { WsfeTaxAuthorityLastAuthorized } from "./fiscal/wsfe-tax-authority-last-authorized.js";
+import { WsfeTaxAuthorityNoMovementDeclarations } from "./fiscal/wsfe-tax-authority-no-movement-declarations.js";
 import { WsfeTaxAuthorityOfflineAuthorizationCodes } from "./fiscal/wsfe-tax-authority-offline-authorization-codes.js";
+import { WsfeTaxAuthorityOfflineDocumentReports } from "./fiscal/wsfe-tax-authority-offline-document-reports.js";
 import { WsfeTaxAuthorityVouchers } from "./fiscal/wsfe-tax-authority-vouchers.js";
 import { resolveMercadoPagoConfig } from "./payments/mercado-pago-config.js";
 import { createMercadoPagoOrdersClient } from "./payments/mercado-pago-orders-client.js";
@@ -76,6 +91,9 @@ import { normalizePemNewlines } from "./platform/pem-newlines.js";
 import { runShutdownSteps } from "./platform/run-shutdown-steps.js";
 import { initSentry } from "./platform/sentry.js";
 import { BucketRegisterReleases } from "./register/bucket-register-releases.js";
+import { BucketRegisterSnapshots } from "./register/bucket-register-snapshots.js";
+import { registerSnapshotJobs } from "./register/register-snapshot-jobs.js";
+import { resolveRegisterSnapshotsBucketConfig } from "./register/register-snapshots-bucket-config.js";
 import { resolveRegisterUpdatesBucketConfig } from "./register/register-updates-bucket-config.js";
 import { applySyncedEventsJobs } from "./sync/apply-synced-events-task.js";
 
@@ -96,6 +114,7 @@ export interface ServerEnv {
   RECOVERY_EMAIL_TRANSPORT?: string | undefined;
   EDGE_ORIGIN_SECRET?: string | undefined;
   RELEASE_CHECK_TOKEN?: string | undefined;
+  OFFSITE_DUMP_CHECK_TOKEN?: string | undefined;
   /** PEM text of the ARCA X.509 certificate authorizing this business at the tax authority. */
   ARCA_CERTIFICATE?: string | undefined;
   /** The ARCA environment the certificate belongs to: `homologation` or `production`. */
@@ -107,13 +126,16 @@ export interface ServerEnv {
   MERCADOPAGO_QR_EXTERNAL_POS_ID?: string | undefined;
   /** The secret Mercado Pago signs its notifications with, from its developer panel. */
   MERCADOPAGO_WEBHOOK_SECRET?: string | undefined;
-  /** The identifier of the store's integrated Point terminal at Mercado Pago. */
-  MERCADOPAGO_POINT_TERMINAL_ID?: string | undefined;
   REGISTER_UPDATES_BUCKET_ENDPOINT?: string | undefined;
   REGISTER_UPDATES_BUCKET_NAME?: string | undefined;
   REGISTER_UPDATES_BUCKET_REGION?: string | undefined;
   REGISTER_UPDATES_BUCKET_ACCESS_KEY_ID?: string | undefined;
   REGISTER_UPDATES_BUCKET_SECRET_ACCESS_KEY?: string | undefined;
+  REGISTER_SNAPSHOTS_BUCKET_ENDPOINT?: string | undefined;
+  REGISTER_SNAPSHOTS_BUCKET_NAME?: string | undefined;
+  REGISTER_SNAPSHOTS_BUCKET_REGION?: string | undefined;
+  REGISTER_SNAPSHOTS_BUCKET_ACCESS_KEY_ID?: string | undefined;
+  REGISTER_SNAPSHOTS_BUCKET_SECRET_ACCESS_KEY?: string | undefined;
 }
 
 const DEFAULT_PORT = 3000;
@@ -376,6 +398,7 @@ export function resolveRecoveryEnv(env: ServerEnv): RecoveryEnv | undefined {
 export interface SetUpRecoveryEnv extends RecoveryEnv {
   arcaCertificate: { environment: string; notAfter: Date };
   arcaVitality: { endpoint: string };
+  offsiteDumpCheck?: { environment: string };
   arcaWsaa?: {
     endpoint: string;
     certificatePem: string;
@@ -385,6 +408,7 @@ export interface SetUpRecoveryEnv extends RecoveryEnv {
   arcaBuyerTaxStatus?: { endpoint: string; cuit: string; certificateFingerprint: string };
   arcaInvoicing?: { endpoint: string; cuit: string; certificateFingerprint: string };
   mercadoPago?: MercadoPagoOrders;
+  registerSnapshotObjects?: SnapshotObjects;
 }
 
 function wsaaRenewalInput(
@@ -460,6 +484,7 @@ export interface SetUpRecoveryDeps {
   emailSender?: AccessEmailSender;
   /** Lets a test give the job-queue pool a `pg.Pool` with no idle reaper, so it doesn't race pg-pool's own idle timeout. */
   createJobQueuePool?: CreateRecoveryJobQueuePoolDeps["createPool"];
+  schedules?: StartRecoveryWorkerOptions["schedules"];
 }
 
 /**
@@ -486,10 +511,14 @@ export async function setUpRecovery(
     backofficeOrigin: recoveryEnv.backofficeOrigin,
     emailSender,
     now,
+    ...(deps.schedules === undefined ? {} : { schedules: deps.schedules }),
     jobs: [
       alertEscalationJobs({ now }),
       alertConditionResolutionJobs({ now }),
       arcaCertificateExpiryJobs({ now, ...recoveryEnv.arcaCertificate }),
+      ...(recoveryEnv.offsiteDumpCheck
+        ? [unverifiedOffsiteDumpJobs({ now, ...recoveryEnv.offsiteDumpCheck })]
+        : []),
       arcaVitalityJobs({
         now,
         vitality: new WsfeArcaVitalityService({
@@ -501,6 +530,9 @@ export async function setUpRecovery(
         }),
       }),
       applySyncedEventsJobs({ now }),
+      ...(recoveryEnv.registerSnapshotObjects
+        ? [registerSnapshotJobs({ now, objects: recoveryEnv.registerSnapshotObjects })]
+        : []),
       ...(recoveryEnv.mercadoPago
         ? [
             mercadoPagoPendingCheckJobs({
@@ -554,9 +586,29 @@ export async function setUpRecovery(
               connections,
               enqueueUnclearOutcome: enqueueUnclearOutcomeJob,
             }),
+            numberingConflictJobs({
+              now,
+              vouchers: new WsfeTaxAuthorityVouchers(recoveryEnv.arcaInvoicing),
+              taxAuthority: new WsfeTaxAuthorityLastAuthorized(recoveryEnv.arcaInvoicing),
+              certificateFingerprint: recoveryEnv.arcaInvoicing.certificateFingerprint,
+              db,
+              connections,
+              enqueueNumberingReconciliation: enqueueNumberingReconciliationJob,
+            }),
             offlineAuthorizationCodeJobs({
               now,
               taxAuthority: new WsfeTaxAuthorityOfflineAuthorizationCodes(
+                recoveryEnv.arcaInvoicing,
+              ),
+              certificateFingerprint: recoveryEnv.arcaInvoicing.certificateFingerprint,
+            }),
+            fortnightReportJobs({
+              now,
+              declarations: new WsfeTaxAuthorityNoMovementDeclarations(recoveryEnv.arcaInvoicing),
+              documentReports: new WsfeTaxAuthorityOfflineDocumentReports(
+                recoveryEnv.arcaInvoicing,
+              ),
+              codeAuthority: new WsfeTaxAuthorityOfflineAuthorizationCodes(
                 recoveryEnv.arcaInvoicing,
               ),
               certificateFingerprint: recoveryEnv.arcaInvoicing.certificateFingerprint,
@@ -598,6 +650,7 @@ export interface StartServerDeps {
   ) => Promise<unknown>;
   enqueueMissingTaxAuthorityCounts?: (db: RecoveryInfrastructure["db"]) => Promise<unknown>;
   enqueueMissingUnclearOutcomes?: (db: RecoveryInfrastructure["db"]) => Promise<unknown>;
+  enqueueMissingNumberingConflicts?: (db: RecoveryInfrastructure["db"]) => Promise<unknown>;
   now?: () => Date;
   arcaEndpoints: (environment: string) => ArcaEndpoints;
   recordAuthorizedCuit?: (
@@ -631,6 +684,8 @@ export async function startServer(env: ServerEnv, deps: StartServerDeps): Promis
     deps.enqueueMissingTaxAuthorityCounts ?? enqueueMissingTaxAuthorityCounts;
   const doEnqueueMissingUnclearOutcomes =
     deps.enqueueMissingUnclearOutcomes ?? enqueueMissingUnclearOutcomes;
+  const doEnqueueMissingNumberingConflicts =
+    deps.enqueueMissingNumberingConflicts ?? enqueueMissingNumberingConflicts;
   const doRecordAuthorizedCuit =
     deps.recordAuthorizedCuit ??
     ((db: RecoveryInfrastructure["db"], authorizedCuit: string) =>
@@ -648,6 +703,10 @@ export async function startServer(env: ServerEnv, deps: StartServerDeps): Promis
   const registerReleases =
     registerUpdatesBucketConfig &&
     new BucketRegisterReleases(registerUpdatesBucketConfig, { fetch, now });
+  const registerSnapshotsBucketConfig = resolveRegisterSnapshotsBucketConfig(env);
+  const registerSnapshots =
+    registerSnapshotsBucketConfig &&
+    new BucketRegisterSnapshots(registerSnapshotsBucketConfig, { fetch, now });
   const configuration = recoveryEnv
     ? {
         authorizedCuit: requireAuthorizedCuit(env),
@@ -661,8 +720,12 @@ export async function startServer(env: ServerEnv, deps: StartServerDeps): Promis
             notAfter: requireCertificateNotAfter(env),
           },
           arcaVitality: { endpoint: arcaEndpoints(requireArcaEnvironment(env)).wsfe },
+          ...(env.OFFSITE_DUMP_CHECK_TOKEN
+            ? { offsiteDumpCheck: { environment: requireArcaEnvironment(env) } }
+            : {}),
           ...resolveArcaSigning(env, arcaEndpoints),
           ...(mercadoPago ? { mercadoPago } : {}),
+          ...(registerSnapshots ? { registerSnapshotObjects: registerSnapshots } : {}),
         },
       }
     : undefined;
@@ -690,6 +753,7 @@ export async function startServer(env: ServerEnv, deps: StartServerDeps): Promis
           deviceTokenRotationKey: database.deviceTokenRotationKey,
           installationKeysEncryptionKey: database.installationKeysEncryptionKey,
           releaseCheckToken: env.RELEASE_CHECK_TOKEN,
+          offsiteDumpCheckToken: env.OFFSITE_DUMP_CHECK_TOKEN,
           ...(invoicing ? { enqueueTaxAuthorityCount: enqueueTaxAuthorityCountJob } : {}),
           ...(mercadoPago
             ? {
@@ -706,6 +770,7 @@ export async function startServer(env: ServerEnv, deps: StartServerDeps): Promis
           },
         }
       : {}),
+    ...(registerSnapshots ? { registerSnapshotUrls: registerSnapshots } : {}),
     ...(database && invoicing
       ? {
           enqueueOfflineAuthorizationCodeRequest,
@@ -735,6 +800,7 @@ export async function startServer(env: ServerEnv, deps: StartServerDeps): Promis
             certificateFingerprint: invoicing.certificateFingerprint,
             enqueueUnclearOutcome: enqueueUnclearOutcomeJob,
             withdrawUnclearOutcome: withdrawUnclearOutcomeJob,
+            enqueueNumberingDiagnosis: enqueueNumberingDiagnosisJob,
           },
         }
       : {}),
@@ -749,6 +815,7 @@ export async function startServer(env: ServerEnv, deps: StartServerDeps): Promis
     if (invoicing) {
       await doEnqueueMissingTaxAuthorityCounts(database.recovery.db);
       await doEnqueueMissingUnclearOutcomes(database.recovery.db);
+      await doEnqueueMissingNumberingConflicts(database.recovery.db);
     }
   }
   await app.listen({ port: resolvePort(env), host: "0.0.0.0" });

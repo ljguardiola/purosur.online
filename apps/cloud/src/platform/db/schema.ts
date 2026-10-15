@@ -6,10 +6,18 @@ import {
   DEFAULT_UNREVIEWED_PRICE_ALERT_DAYS,
   type EventQuarantine,
   FACTURA_C_DOCUMENT_TYPE,
+  type FiscalDocumentType,
   type JsonValue,
+  OFFLINE_AUTHORIZATION_CAUSES,
   OFFLINE_NUMBER_BLOCK_STATUSES,
+  type OfflineAuthorizationCause,
   POINT_OF_SALE_NUMBER_MAX,
   RECEIPT_TYPES,
+  SNAPSHOT_CORRUPTION_STAGES,
+  SNAPSHOT_FAILURE_REASONS,
+  SNAPSHOT_GENERATION_STATUSES,
+  SNAPSHOT_LIFECYCLE_LIMITS,
+  type TaxAuthorityRejection,
 } from "@purosur/domain";
 import { sql } from "drizzle-orm";
 import {
@@ -465,6 +473,52 @@ export const priceReviews = pgTable(
   ],
 );
 
+// A batch of an assembled product: what was actually used of each component and the output
+// actually obtained, in thousandths of each product's sale unit. Its movements and its lot point back
+// to it.
+export const assemblyBatches = pgTable(
+  "assembly_batches",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    productId: uuid("product_id")
+      .notNull()
+      .references(() => products.id),
+    locationId: uuid("location_id")
+      .notNull()
+      .references(() => locations.id),
+    assembledAt: timestamp("assembled_at", { withTimezone: true }).notNull(),
+    outputQty: bigint("output_qty", { mode: "number" }).notNull(),
+    actorId: uuid("actor_id")
+      .notNull()
+      .references(() => users.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    check("assembly_batches_output_qty_check", sql`${table.outputQty} > 0`),
+    index("assembly_batches_location_id_assembled_at_idx").on(table.locationId, table.assembledAt),
+  ],
+);
+
+export const assemblyBatchLines = pgTable(
+  "assembly_batch_lines",
+  {
+    batchId: uuid("batch_id")
+      .notNull()
+      .references(() => assemblyBatches.id),
+    componentProductId: uuid("component_product_id")
+      .notNull()
+      .references(() => products.id),
+    quantity: bigint("quantity", { mode: "number" }).notNull(),
+  },
+  (table) => [
+    primaryKey({
+      name: "assembly_batch_lines_pkey",
+      columns: [table.batchId, table.componentProductId],
+    }),
+    check("assembly_batch_lines_quantity_check", sql`${table.quantity} >= 0`),
+  ],
+);
+
 // Append-only like prices: a quantity is in thousandths of the product's sale unit, and a movement
 // dated at or before a later-registered count keeps superseded_by_count_id set from its insert on,
 // never changing the balance.
@@ -482,6 +536,7 @@ export const stockMovements = pgTable(
     reason: text("reason"),
     saleLineId: uuid("sale_line_id").references(() => saleLines.id),
     purchaseLineId: uuid("purchase_line_id").references(() => purchaseLines.id),
+    assemblyBatchId: uuid("assembly_batch_id").references(() => assemblyBatches.id),
     delta: bigint("delta", { mode: "number" }).notNull(),
     occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull(),
     recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull().defaultNow(),
@@ -495,19 +550,23 @@ export const stockMovements = pgTable(
   (table) => [
     check(
       "stock_movements_kind_check",
-      sql`${table.kind} in ('loss', 'adjustment', 'count', 'sale', 'receipt', 'opening_count', 'opening_count_withdrawal')`,
+      sql`${table.kind} in ('loss', 'adjustment', 'count', 'sale', 'sale_void', 'receipt', 'opening_count', 'opening_count_withdrawal', 'assembly_out', 'assembly_in')`,
     ),
     check(
       "stock_movements_reason_unless_count_sale_or_receipt_check",
-      sql`(${table.kind} in ('count', 'sale', 'receipt', 'opening_count', 'opening_count_withdrawal')) = (${table.reason} is null)`,
+      sql`(${table.kind} in ('count', 'sale', 'sale_void', 'receipt', 'opening_count', 'opening_count_withdrawal', 'assembly_out', 'assembly_in')) = (${table.reason} is null)`,
     ),
     check(
       "stock_movements_sale_line_iff_sale_check",
-      sql`(${table.kind} = 'sale') = (${table.saleLineId} is not null)`,
+      sql`(${table.kind} in ('sale', 'sale_void')) = (${table.saleLineId} is not null)`,
     ),
     check(
       "stock_movements_purchase_line_iff_receipt_check",
       sql`(${table.kind} = 'receipt') = (${table.purchaseLineId} is not null)`,
+    ),
+    check(
+      "stock_movements_assembly_batch_iff_assembly_check",
+      sql`(${table.kind} in ('assembly_out', 'assembly_in')) = (${table.assemblyBatchId} is not null)`,
     ),
     index("stock_movements_product_id_location_id_occurred_at_idx").on(
       table.productId,
@@ -721,7 +780,8 @@ export const purchaseLines = pgTable(
 
 // The stock a purchase line brought in, with the line's exact cost pair; a product's technical lot
 // instead gathers what was consumed before any purchase, with no cost, and an initial-count lot is
-// the stock counted when the branch began, born from its opening count movement with no cost.
+// the stock counted when the branch began, born from its opening count movement with no cost, and a
+// batch's lot is the output of an assembled batch with the cost of what was consumed to make it.
 export const lots = pgTable(
   "lots",
   {
@@ -734,6 +794,7 @@ export const lots = pgTable(
       .references(() => locations.id),
     purchaseLineId: uuid("purchase_line_id").references(() => purchaseLines.id),
     originMovementId: uuid("origin_movement_id").references(() => stockMovements.id),
+    assemblyBatchId: uuid("assembly_batch_id").references(() => assemblyBatches.id),
     withdrawn: boolean("withdrawn").notNull().default(false),
     lotNumber: text("lot_number"),
     expiresOn: date("expires_on", { mode: "string" }),
@@ -749,10 +810,11 @@ export const lots = pgTable(
   (table) => [
     unique("lots_purchase_line_id_key").on(table.purchaseLineId),
     unique("lots_origin_movement_id_key").on(table.originMovementId),
+    unique("lots_assembly_batch_id_key").on(table.assemblyBatchId),
     check("lots_cost_quantity_check", sql`${table.costQuantity} > 0`),
     check(
       "lots_exactly_one_origin_check",
-      sql`${table.technical}::int + (${table.purchaseLineId} is not null)::int + (${table.originMovementId} is not null)::int = 1`,
+      sql`${table.technical}::int + (${table.purchaseLineId} is not null)::int + (${table.originMovementId} is not null)::int + (${table.assemblyBatchId} is not null)::int = 1`,
     ),
     check(
       "lots_withdrawn_only_if_initial_count_check",
@@ -961,6 +1023,18 @@ export const registerPointsOfSale = pgTable(
   ],
 );
 
+export const registerPointTerminals = pgTable(
+  "register_point_terminals",
+  {
+    registerId: uuid("register_id")
+      .primaryKey()
+      .references(() => registers.id),
+    terminalId: text("terminal_id"),
+    version: integer("version").notNull(),
+  },
+  (table) => [uniqueIndex("register_point_terminals_terminal_id_key").on(table.terminalId)],
+);
+
 // The offline point of sale operates from its register's real-time point of sale's fiscal address,
 // which is why it carries none and why a register can't have one before the other.
 export const registerOfflinePointsOfSale = pgTable(
@@ -1100,6 +1174,89 @@ export const registerContingencyTicketKeys = registerKeyVersions(
   "register_contingency_ticket_keys",
 );
 
+export const snapshotGenerationStatus = pgEnum(
+  "snapshot_generation_status",
+  SNAPSHOT_GENERATION_STATUSES,
+);
+
+export const snapshotFailureReason = pgEnum("snapshot_failure_reason", SNAPSHOT_FAILURE_REASONS);
+
+export const snapshotCorruptionStage = pgEnum(
+  "snapshot_corruption_stage",
+  SNAPSHOT_CORRUPTION_STAGES,
+);
+
+export const registerSnapshotGenerations = pgTable(
+  "register_snapshot_generations",
+  {
+    id: uuid("id").primaryKey(),
+    registerId: uuid("register_id")
+      .notNull()
+      .references(() => registers.id),
+    deviceId: uuid("device_id")
+      .notNull()
+      .references(() => registerInstallations.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
+    size: bigint("size", { mode: "number" }).notNull(),
+    sha256: text("sha256").notNull(),
+    keyVersion: integer("key_version").notNull(),
+    status: snapshotGenerationStatus("status").notNull().default("declared"),
+    failureReason: snapshotFailureReason("failure_reason"),
+    uploadReportedAt: timestamp("upload_reported_at", { withTimezone: true }),
+    pruned: boolean("pruned").notNull().default(false),
+    objectDeleted: boolean("object_deleted").notNull().default(false),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.registerId, table.keyVersion],
+      foreignColumns: [registerSnapshotKeys.registerId, registerSnapshotKeys.version],
+    }),
+    index("register_snapshot_generations_register_id_created_at_idx").on(
+      table.registerId,
+      table.createdAt,
+    ),
+    check("register_snapshot_generations_size_check", sql`${table.size} > 0`),
+    check("register_snapshot_generations_sha256_check", sql`${table.sha256} ~ '^[0-9a-f]{64}$'`),
+    check(
+      "register_snapshot_generations_failure_reason_check",
+      sql`(${table.status} = 'failed') = (${table.failureReason} is not null)`,
+    ),
+  ],
+);
+
+export const registerSnapshotRetentionFreezes = pgTable("register_snapshot_retention_freezes", {
+  registerId: uuid("register_id")
+    .primaryKey()
+    .references(() => registers.id),
+  stage: snapshotCorruptionStage("stage").notNull(),
+  frozenAt: timestamp("frozen_at", { withTimezone: true }).notNull(),
+});
+
+export const registerSnapshotLifecycleRules = pgTable(
+  "register_snapshot_lifecycle_rules",
+  {
+    singleton: boolean("singleton").primaryKey().notNull().default(true),
+    hourly: integer("hourly").notNull(),
+    daily: integer("daily").notNull(),
+    monthly: integer("monthly").notNull(),
+  },
+  (table) => [
+    check("register_snapshot_lifecycle_rules_singleton_check", sql`${table.singleton}`),
+    check(
+      "register_snapshot_lifecycle_rules_hourly_check",
+      sql`${table.hourly} between ${sql.raw(String(SNAPSHOT_LIFECYCLE_LIMITS.hourly.min))} and ${sql.raw(String(SNAPSHOT_LIFECYCLE_LIMITS.hourly.max))}`,
+    ),
+    check(
+      "register_snapshot_lifecycle_rules_daily_check",
+      sql`${table.daily} between ${sql.raw(String(SNAPSHOT_LIFECYCLE_LIMITS.daily.min))} and ${sql.raw(String(SNAPSHOT_LIFECYCLE_LIMITS.daily.max))}`,
+    ),
+    check(
+      "register_snapshot_lifecycle_rules_monthly_check",
+      sql`${table.monthly} between ${sql.raw(String(SNAPSHOT_LIFECYCLE_LIMITS.monthly.min))} and ${sql.raw(String(SNAPSHOT_LIFECYCLE_LIMITS.monthly.max))}`,
+    ),
+  ],
+);
+
 export const deviceState = pgTable("device_state", {
   deviceId: uuid("device_id")
     .primaryKey()
@@ -1111,6 +1268,7 @@ export const deviceState = pgTable("device_state", {
   lastPushedAt: timestamp("last_pushed_at", { withTimezone: true }),
   lastAcceptedPushAt: timestamp("last_accepted_push_at", { withTimezone: true }),
   reportsEveryCycleSince: timestamp("reports_every_cycle_since", { withTimezone: true }),
+  caughtUpAt: timestamp("caught_up_at", { withTimezone: true }),
   walSizeBytes: bigint("wal_size_bytes", { mode: "number" }),
   diskFreeBytes: bigint("disk_free_bytes", { mode: "number" }),
   diskFreeRatio: doublePrecision("disk_free_ratio"),
@@ -1232,6 +1390,8 @@ export const sales = pgTable(
     completedAt: timestamp("completed_at", { withTimezone: true }),
     cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
     cancellationAuthorizedBy: text("cancellation_authorized_by"),
+    voidedAt: timestamp("voided_at", { withTimezone: true }),
+    voidAuthorizedBy: text("void_authorized_by"),
     total: bigint("total", { mode: "number" }).notNull(),
     saleDiscountKind: text("sale_discount_kind"),
     saleDiscountValue: bigint("sale_discount_value", { mode: "number" }),
@@ -1249,7 +1409,7 @@ export const sales = pgTable(
       "sales_printed_only_after_attempted_check",
       sql`${table.printedAt} is null or ${table.printAttemptedAt} is not null`,
     ),
-    check("sales_state_check", sql`${table.state} in ('COMPLETED', 'CANCELLED')`),
+    check("sales_state_check", sql`${table.state} in ('COMPLETED', 'CANCELLED', 'VOIDED')`),
     check(
       "sales_sale_discount_kind_check",
       sql`${table.saleDiscountKind} IN ('PERCENT', 'AMOUNT')`,
@@ -1279,12 +1439,17 @@ export const sales = pgTable(
     ),
     check(
       "sales_state_matches_timestamps_check",
-      sql`(${table.state} = 'COMPLETED' and ${table.completedAt} is not null and ${table.cancelledAt} is null)
-      or (${table.state} = 'CANCELLED' and ${table.cancelledAt} is not null and ${table.completedAt} is null)`,
+      sql`(${table.state} = 'COMPLETED' and ${table.completedAt} is not null and ${table.cancelledAt} is null and ${table.voidedAt} is null)
+      or (${table.state} = 'CANCELLED' and ${table.cancelledAt} is not null and ${table.completedAt} is null and ${table.voidedAt} is null)
+      or (${table.state} = 'VOIDED' and ${table.completedAt} is not null and ${table.voidedAt} is not null and ${table.cancelledAt} is null)`,
     ),
     check(
       "sales_cancellation_authorizer_only_when_cancelled_check",
       sql`${table.cancellationAuthorizedBy} is null or ${table.state} = 'CANCELLED'`,
+    ),
+    check(
+      "sales_void_authorizer_only_when_voided_check",
+      sql`${table.voidAuthorizedBy} is null or ${table.state} = 'VOIDED'`,
     ),
   ],
 );
@@ -1434,11 +1599,11 @@ export const paymentRefunds = pgTable(
     ),
     check(
       "payment_refunds_origin_check",
-      sql`${table.origin} in ('sale_cancelled', 'late_payment')`,
+      sql`${table.origin} in ('sale_cancelled', 'late_payment', 'sale_voided')`,
     ),
     check(
       "payment_refunds_source_check",
-      sql`(${table.origin} = 'late_payment' and ${table.paymentId} is null and ${table.paymentTransactionId} is not null and ${table.originEventId} is null) or (${table.origin} = 'sale_cancelled' and ${table.paymentId} is not null)`,
+      sql`(${table.origin} = 'late_payment' and ${table.paymentId} is null and ${table.paymentTransactionId} is not null and ${table.originEventId} is null) or (${table.origin} in ('sale_cancelled', 'sale_voided') and ${table.paymentId} is not null)`,
     ),
     check(
       "payment_refunds_done_check",
@@ -1991,6 +2156,86 @@ export const caeaCodes = pgTable(
   ],
 );
 
+export const fortnightReportState = pgEnum("fortnight_report_state", [
+  "blocked",
+  "submitting",
+  "refused",
+  "accepted",
+  "needs_regularization",
+  "missing_document",
+]);
+
+export const fortnightReportMovement = pgEnum("fortnight_report_movement", ["none", "documents"]);
+
+export const documentTypeReportState = pgEnum("document_type_report_state", [
+  "submitting",
+  "refused",
+  "accepted",
+  "missing_document",
+]);
+
+export const fortnightReports = pgTable(
+  "fortnight_reports",
+  {
+    pointOfSaleNumber: integer("point_of_sale_number")
+      .notNull()
+      .references(() => pointOfSaleClaims.pointOfSaleNumber),
+    fortnightStart: date("fortnight_start", { mode: "string" })
+      .notNull()
+      .references(() => caeaCodes.fortnightStart),
+    fortnightEnd: date("fortnight_end", { mode: "string" }).notNull(),
+    state: fortnightReportState("state").notNull(),
+    movement: fortnightReportMovement("movement"),
+    lastAttemptAt: timestamp("last_attempt_at", { withTimezone: true }),
+    rejections: jsonb("rejections").$type<TaxAuthorityRejection[]>(),
+    recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    primaryKey({
+      name: "fortnight_reports_pkey",
+      columns: [table.pointOfSaleNumber, table.fortnightStart],
+    }),
+    check(
+      "fortnight_reports_fortnight_ends_after_start",
+      sql`${table.fortnightEnd} > ${table.fortnightStart}`,
+    ),
+  ],
+);
+
+export const fortnightDocumentReports = pgTable(
+  "fortnight_document_reports",
+  {
+    pointOfSaleNumber: integer("point_of_sale_number")
+      .notNull()
+      .references(() => pointOfSaleClaims.pointOfSaleNumber),
+    fortnightStart: date("fortnight_start", { mode: "string" })
+      .notNull()
+      .references(() => caeaCodes.fortnightStart),
+    fortnightEnd: date("fortnight_end", { mode: "string" }).notNull(),
+    documentType: text("document_type").$type<FiscalDocumentType>().notNull(),
+    state: documentTypeReportState("state").notNull(),
+    reportedThrough: integer("reported_through").notNull(),
+    rejectedNumber: integer("rejected_number"),
+    rejections: jsonb("rejections").$type<TaxAuthorityRejection[]>(),
+    lastAttemptAt: timestamp("last_attempt_at", { withTimezone: true }),
+    recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    primaryKey({
+      name: "fortnight_document_reports_pkey",
+      columns: [table.pointOfSaleNumber, table.fortnightStart, table.documentType],
+    }),
+    check(
+      "fortnight_document_reports_fortnight_ends_after_start",
+      sql`${table.fortnightEnd} > ${table.fortnightStart}`,
+    ),
+    check(
+      "fortnight_document_reports_document_type_known",
+      sql`${table.documentType} in (${sql.raw(`'${FACTURA_C_DOCUMENT_TYPE}'`)})`,
+    ),
+  ],
+);
+
 export const offlineAuthorizationCodeAcquisitionReports = pgTable(
   "offline_authorization_code_acquisition_reports",
   {
@@ -2003,6 +2248,53 @@ export const offlineAuthorizationCodeAcquisitionReports = pgTable(
       name: "offline_authorization_code_acquisition_reports_pk",
       columns: [table.fortnightStart, table.outcomeKind],
     }),
+  ],
+);
+
+// Permanent: a document issued under a pre-obtained code is never changed or deleted.
+export const offlineFiscalDocuments = pgTable(
+  "offline_fiscal_documents",
+  {
+    id: uuid("id").primaryKey(),
+    saleId: uuid("sale_id").notNull().unique(),
+    registerId: uuid("register_id")
+      .notNull()
+      .references(() => registers.id),
+    pointOfSale: integer("point_of_sale").notNull(),
+    documentType: text("document_type").$type<FiscalDocumentType>().notNull(),
+    number: integer("number").notNull(),
+    issuedOn: date("issued_on", { mode: "string" }).notNull(),
+    generatedAt: timestamp("generated_at", { withTimezone: true }).notNull(),
+    generationStamp: text("generation_stamp").notNull(),
+    offlineAuthorizationCode: text("offline_authorization_code").notNull(),
+    fortnightStart: date("fortnight_start", { mode: "string" }).notNull(),
+    fortnightEnd: date("fortnight_end", { mode: "string" }).notNull(),
+    buyerDocumentType: integer("buyer_document_type").notNull(),
+    buyerDocumentNumber: bigint("buyer_document_number", { mode: "number" }).notNull(),
+    buyerTaxStatusCode: integer("buyer_tax_status_code").notNull(),
+    total: bigint("total", { mode: "number" }).notNull(),
+    netAmount: bigint("net_amount", { mode: "number" }).notNull(),
+    cause: text("cause").$type<OfflineAuthorizationCause>().notNull(),
+    recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    unique("offline_fiscal_documents_number_key").on(
+      table.pointOfSale,
+      table.documentType,
+      table.number,
+    ),
+    check(
+      "offline_fiscal_documents_document_type_known",
+      sql`${table.documentType} in (${sql.raw(`'${FACTURA_C_DOCUMENT_TYPE}'`)})`,
+    ),
+    check(
+      "offline_fiscal_documents_cause_known",
+      sql`${table.cause} in (${sql.raw(OFFLINE_AUTHORIZATION_CAUSES.map((cause) => `'${cause}'`).join(", "))})`,
+    ),
+    check(
+      "offline_fiscal_documents_generation_stamp_shape",
+      sql`${table.generationStamp} ~ '^[0-9]{14}$'`,
+    ),
   ],
 );
 
@@ -2035,6 +2327,8 @@ export const fiscalRequests = pgTable(
     decidedAt: timestamp("decided_at", { withTimezone: true }),
     adoptedAuthorizationCode: text("adopted_authorization_code"),
     adoptedAuthorizationCodeDueOn: date("adopted_authorization_code_due_on", { mode: "string" }),
+    diagnosis: text("diagnosis"),
+    diagnosedAt: timestamp("diagnosed_at", { withTimezone: true }),
   },
   (table) => [
     index("fiscal_requests_point_of_sale_idx").on(table.pointOfSale),
@@ -2080,6 +2374,18 @@ export const fiscalRequests = pgTable(
     check(
       "fiscal_requests_decision_answer_check",
       sql`${table.decision} is null or coalesce(${table.answerKind} in ('unclear', 'not_attempted'), false)`,
+    ),
+    check(
+      "fiscal_requests_diagnosis_check",
+      sql`${table.diagnosis} in ('date_behind', 'collision')`,
+    ),
+    check(
+      "fiscal_requests_diagnosis_time_check",
+      sql`(${table.diagnosis} is null) = (${table.diagnosedAt} is null)`,
+    ),
+    check(
+      "fiscal_requests_diagnosis_answer_check",
+      sql`${table.diagnosis} is null or coalesce(${table.answerKind} = 'unclear', false)`,
     ),
   ],
 );
@@ -2167,6 +2473,18 @@ export const taxAuthorityLastAuthorizedNumbers = pgTable(
   ],
 );
 
+// A row exists while a point of sale's numbering is frozen after a numbering collision; it is
+// removed when the series is reconciled against the tax authority.
+export const numberingFreezes = pgTable(
+  "numbering_freezes",
+  {
+    pointOfSaleNumber: integer("point_of_sale_number").primaryKey(),
+    countBeforeFreeze: integer("count_before_freeze").notNull(),
+    frozenAt: timestamp("frozen_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [check("numbering_freezes_non_negative_check", sql`${table.countBeforeFreeze} >= 0`)],
+);
+
 // A purchase puts the product's price back under review on the branch's price list until a review
 // resolves it. Rows are only opened and then resolved, never rewritten or removed.
 export const priceReviewPostponements = pgTable(
@@ -2200,5 +2518,22 @@ export const priceReviewPostponements = pgTable(
     index("price_review_postponements_open_idx")
       .on(table.productId, table.priceListId)
       .where(sql`${table.resolvedByReviewId} is null`),
+  ],
+);
+
+export const offsiteDumpChecks = pgTable(
+  "offsite_dump_checks",
+  {
+    night: date("night", { mode: "string" }).primaryKey(),
+    status: text("status").notNull(),
+    sizeBytes: bigint("size_bytes", { mode: "number" }),
+    failureReason: text("failure_reason"),
+    recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    check(
+      "offsite_dump_checks_result_shape_check",
+      sql`(${table.status} = 'verified' and ${table.sizeBytes} is not null and ${table.failureReason} is null) or (${table.status} = 'failed' and ${table.failureReason} = 'shrank' and ${table.sizeBytes} is not null) or (${table.status} = 'failed' and ${table.failureReason} is not null and ${table.failureReason} <> 'shrank' and ${table.sizeBytes} is null)`,
+    ),
   ],
 );

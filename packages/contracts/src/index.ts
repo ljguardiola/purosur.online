@@ -4,6 +4,12 @@ export type { AlertListPage, AlertSummary } from "./alerts/alert-summary.js";
 export { alertListPageSchema, alertSummarySchema } from "./alerts/alert-summary.js";
 export type { AlertsOverview } from "./alerts/alerts-overview.js";
 export { alertsOverviewSchema } from "./alerts/alerts-overview.js";
+export type { OffsiteDumpCheckRecorded } from "./backups/offsite-dump-check-recorded.js";
+export { offsiteDumpCheckRecordedSchema } from "./backups/offsite-dump-check-recorded.js";
+export type { OffsiteDumpCheckReport } from "./backups/offsite-dump-check-report.js";
+export { offsiteDumpCheckReportSchema } from "./backups/offsite-dump-check-report.js";
+export type { OffsiteDumpManifest } from "./backups/offsite-dump-manifest.js";
+export { offsiteDumpManifestSchema } from "./backups/offsite-dump-manifest.js";
 export type { BranchSettingsEditBody } from "./branch/branch-settings-edit.js";
 export { branchSettingsEditBodySchema } from "./branch/branch-settings-edit.js";
 export type { BrandCreationBody } from "./catalog/brand-creation.js";
@@ -104,6 +110,11 @@ export type { FiscalAddressCreationBody } from "./fiscal/fiscal-address-creation
 export { fiscalAddressCreationBodySchema } from "./fiscal/fiscal-address-creation.js";
 export type { FiscalAddressEditBody } from "./fiscal/fiscal-address-edit.js";
 export { fiscalAddressEditBodySchema } from "./fiscal/fiscal-address-edit.js";
+export type { FortnightPresentationBody } from "./fiscal/fortnight-presentation.js";
+export {
+  fortnightPresentationListSchema,
+  fortnightPresentationSchema,
+} from "./fiscal/fortnight-presentation.js";
 export type { IssuerIdentificationEditBody } from "./fiscal/issuer-identification-edit.js";
 export { issuerIdentificationEditBodySchema } from "./fiscal/issuer-identification-edit.js";
 export type { OfflinePointOfSaleConfigurationBody } from "./fiscal/offline-point-of-sale-configuration.js";
@@ -139,6 +150,7 @@ export {
 } from "./fiscal/unclear-outcome-question.js";
 export type {
   AbandonMercadoPagoChargeOutcome,
+  ConvertPaidOrderIntoRefundOutcome,
   FollowMercadoPagoChargeOutcome,
   PaymentsCoreToRendererMessage,
   PaymentsRendererToCoreMessage,
@@ -161,6 +173,16 @@ export {
   mercadoPagoOrderRequestSchema,
   mercadoPagoPaymentSchema,
 } from "./payments/mercado-pago-order.js";
+export type {
+  ApprovedOrdersOfRegisterBody,
+  LatePaymentRefundOpeningBody,
+  LatePaymentRefundRefusalDetail,
+} from "./payments/paid-orders-of-register.js";
+export {
+  approvedOrdersOfRegisterSchema,
+  latePaymentRefundOpeningSchema,
+  latePaymentRefundRefusalDetailSchema,
+} from "./payments/paid-orders-of-register.js";
 export type { PaymentMethodAvailability } from "./payments/payment-method-availability.js";
 export { paymentMethodAvailabilitySchema } from "./payments/payment-method-availability.js";
 export type {
@@ -175,6 +197,14 @@ export {
   markedRefundDoneSchema,
   pendingRefundsSchema,
 } from "./payments/pending-refunds.js";
+export type {
+  PointTerminalAssignmentAnswer,
+  PointTerminalAssignmentBody,
+} from "./payments/point-terminal-assignment.js";
+export {
+  pointTerminalAssignmentBodySchema,
+  pointTerminalAssignmentSchema,
+} from "./payments/point-terminal-assignment.js";
 export type { SalesByPaymentMethodBody } from "./payments/sales-by-payment-method.js";
 export { salesByPaymentMethodSchema } from "./payments/sales-by-payment-method.js";
 export type { PermissionCatalogWire } from "./permissions/permission-catalog.js";
@@ -343,7 +373,39 @@ export {
 } from "./register/register-update.js";
 export type { ReportRegisterListBody } from "./register/report-register-list.js";
 export { reportRegisterListSchema } from "./register/report-register-list.js";
+export type { RestorableSnapshots } from "./register/restorable-snapshots.js";
+export { restorableSnapshotsSchema } from "./register/restorable-snapshots.js";
+export type { SnapshotCorruptionBody } from "./register/snapshot-corruption.js";
+export { snapshotCorruptionBodySchema } from "./register/snapshot-corruption.js";
+export type { SnapshotManifest } from "./register/snapshot-manifest.js";
+export { snapshotManifestSchema } from "./register/snapshot-manifest.js";
+export type { SnapshotUploadAnswer, SnapshotUploadBody } from "./register/snapshot-upload.js";
+export {
+  snapshotUploadAnswerSchema,
+  snapshotUploadBodySchema,
+} from "./register/snapshot-upload.js";
+export type {
+  SnapshotVerificationAnswerBody,
+  SnapshotVerificationQuery,
+} from "./register/snapshot-verification.js";
+export {
+  SNAPSHOT_VERIFICATION_QUERY_LIMIT,
+  snapshotVerificationAnswerSchema,
+  snapshotVerificationQuerySchema,
+} from "./register/snapshot-verification.js";
+export type {
+  SnapshotWorkerJobMessage,
+  SnapshotWorkerLaunchRequest,
+  SnapshotWorkerMessage,
+} from "./register/snapshot-worker.js";
+export {
+  snapshotWorkerJobSchema,
+  snapshotWorkerLaunchSchema,
+  snapshotWorkerMessageSchema,
+} from "./register/snapshot-worker.js";
 export type { StartupPending } from "./register/startup-pending.js";
+export type { AverageTicketBody } from "./sales/average-ticket.js";
+export { averageTicketSchema } from "./sales/average-ticket.js";
 export type {
   CancelLockedSaleOutcome,
   PrintOriginalReceiptOutcome,
@@ -388,6 +450,7 @@ export type {
   SaleDiscountRequest,
   ScanProductOutcome,
   SearchProductsOutcome,
+  VoidSaleOutcome,
   WeighProductOutcome,
 } from "./sales/sale.js";
 export type { SalesByCashierBody } from "./sales/sales-by-cashier.js";
@@ -462,6 +525,24 @@ export {
   withoutEchoedQueryValues,
   withoutQueryParameters,
 } from "./shared/index.js";
+export type {
+  AssemblyBatch,
+  AssemblyBatchList,
+  AssemblyBatchPreview,
+  AssemblyBatchRefusal,
+  AssemblyBatchResult,
+} from "./stock/assembly-batch-answers.js";
+export {
+  assemblyBatchListSchema,
+  assemblyBatchPreviewSchema,
+  assemblyBatchRefusalSchema,
+  assemblyBatchResultSchema,
+} from "./stock/assembly-batch-answers.js";
+export type { AssemblyBatchBody, AssemblyBatchPreviewQuery } from "./stock/assembly-batch-body.js";
+export {
+  assemblyBatchBodySchema,
+  assemblyBatchPreviewQuerySchema,
+} from "./stock/assembly-batch-body.js";
 export type {
   ExpiredLotDiscardResult,
   ExpiringLot,

@@ -3,6 +3,7 @@ import {
   offersSerialDevicesSetup,
   registerOperationAccess,
   registerOwnConditions,
+  type StorageStanding,
 } from "@purosur/domain";
 import { readLatestPreEmissionGateOutcome } from "../fiscal/sqlite-pre-emission-gate";
 import type { LocalDatabase } from "../platform/local-database";
@@ -20,6 +21,8 @@ export interface RegisterStatusDeps {
   now: () => Date;
   signedInPerson: Pick<SignedInPerson, "userId">;
   serialDevices: () => SerialDeviceReading;
+  storage: () => StorageStanding;
+  localDatabaseDamaged: () => boolean;
 }
 
 export async function registerStatusFor({
@@ -28,6 +31,8 @@ export async function registerStatusFor({
   now,
   signedInPerson,
   serialDevices,
+  storage,
+  localDatabaseDamaged,
 }: RegisterStatusDeps): Promise<RegisterStatus> {
   const reading = serialDevices();
   const standings = {
@@ -42,6 +47,8 @@ export async function registerStatusFor({
       hours: new SqliteLocalReplica(database).ownBranchHours(),
       now: now(),
       serialDevices: reading.kind === "listed" ? reading.standings : null,
+      storage: storage(),
+      localDatabaseDamaged: localDatabaseDamaged(),
     }),
     cloud: cloud(),
     serial_devices: {

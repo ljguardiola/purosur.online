@@ -18,6 +18,7 @@ import type {
   ChargeSaleOnStandaloneTerminalOutcome,
   CloseCashSessionOutcome,
   CloseLockedCashSessionOutcome,
+  ConvertPaidOrderIntoRefundOutcome,
   CurrentSaleAnswer,
   EnrollmentOutcome,
   FirstPinCodeRequestOutcome,
@@ -51,6 +52,7 @@ import type {
   SignInOutcome,
   SignInUser,
   StartMercadoPagoChargeOutcome,
+  VoidSaleOutcome,
   WeighProductOutcome,
 } from "@purosur/contracts";
 import type { AuthorizablePermissionKey, RegisterService } from "@purosur/domain";
@@ -72,6 +74,7 @@ import type {
   PreviewSaleLineAdjustmentRequest,
 } from "./sales/sale-requests";
 import type { SalesHistoryRequest } from "./sales/sales-history-requests";
+import type { VoidSaleRequest } from "./sales/void-sale-requests";
 import {
   answerInitialCountRequest,
   type InitialCountRequests,
@@ -125,6 +128,9 @@ export interface RendererRequestDeps {
   abandonMercadoPagoCharge:
     | ((request: { paymentTransactionId: string }) => Promise<AbandonMercadoPagoChargeOutcome>)
     | undefined;
+  convertPaidOrderIntoRefund:
+    | ((request: { paymentTransactionId: string }) => Promise<ConvertPaidOrderIntoRefundOutcome>)
+    | undefined;
   searchProducts: ((query: string) => Promise<SearchProductsOutcome>) | undefined;
   addProduct: ((productId: string) => Promise<AddProductOutcome>) | undefined;
   addWeighedProduct:
@@ -161,6 +167,7 @@ export interface RendererRequestDeps {
   removeSaleLine: ((lineId: string) => Promise<RemoveSaleLineOutcome>) | undefined;
   cancelSale: (() => Promise<CancelSaleOutcome>) | undefined;
   cancelPaidSale: ((request: CancelPaidSaleRequest) => Promise<CancelPaidSaleOutcome>) | undefined;
+  voidSale: ((request: VoidSaleRequest) => Promise<VoidSaleOutcome>) | undefined;
   receiptPrintStatus: ((saleId: string) => Promise<ReceiptPrintStatusOutcome>) | undefined;
   printOriginalReceipt: ((saleId: string) => Promise<PrintOriginalReceiptOutcome>) | undefined;
   reprintSaleReceipt:
@@ -526,6 +533,18 @@ async function attemptAbandonMercadoPagoCharge(
   }
 }
 
+async function attemptConvertPaidOrderIntoRefund(
+  deps: RendererRequestDeps,
+  request: { paymentTransactionId: string },
+): Promise<ConvertPaidOrderIntoRefundOutcome> {
+  try {
+    return (await deps.convertPaidOrderIntoRefund?.(request)) ?? { kind: "unavailable" };
+  } catch (error) {
+    deps.reportFailure("converting a paid order into a refund", error);
+    return { kind: "unavailable" };
+  }
+}
+
 async function attemptChargeSaleByTransfer(
   deps: RendererRequestDeps,
   request: ChargeSaleByTransferRequest,
@@ -851,6 +870,24 @@ export async function answerRendererRequest(
         ),
       };
     }
+    case "void-sale": {
+      const { voidSale } = deps;
+      return {
+        type: "void-sale-result",
+        request_id: message.request_id,
+        outcome: await attemptSaleChange(
+          deps,
+          "voiding a sale",
+          voidSale &&
+            (() =>
+              voidSale({
+                saleId: message.sale_id,
+                pendingRefundsConfirmed: message.pending_refunds_confirmed,
+                authorization: message.authorization,
+              })),
+        ),
+      };
+    }
     case "receipt-print-status": {
       const { receiptPrintStatus } = deps;
       return {
@@ -1013,6 +1050,14 @@ export async function answerRendererRequest(
         type: "abandon-mercado-pago-charge-result",
         request_id: message.request_id,
         outcome: await attemptAbandonMercadoPagoCharge(deps, {
+          paymentTransactionId: message.payment_transaction_id,
+        }),
+      };
+    case "convert-paid-order-into-refund":
+      return {
+        type: "convert-paid-order-into-refund-result",
+        request_id: message.request_id,
+        outcome: await attemptConvertPaidOrderIntoRefund(deps, {
           paymentTransactionId: message.payment_transaction_id,
         }),
       };

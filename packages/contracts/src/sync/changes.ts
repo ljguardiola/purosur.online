@@ -166,6 +166,16 @@ const registerPointOfSaleChangeSchema = z.object({
     point_of_sale_number: pointOfSaleNumberSchema,
     fiscal_address_id: z.string(),
     tax_authority_last_authorized_number: z.int().nonnegative().nullable().default(null),
+    numbering_frozen: z.boolean().default(false),
+    version: z.int().positive(),
+  }),
+});
+
+const registerPointTerminalChangeSchema = z.object({
+  ...pulledChangeShape,
+  entity: z.literal("register_point_terminal"),
+  row: z.object({
+    assigned: z.boolean(),
     version: z.int().positive(),
   }),
 });
@@ -176,6 +186,7 @@ const registerOfflinePointOfSaleChangeSchema = z.object({
   row: z.object({
     point_of_sale_number: pointOfSaleNumberSchema,
     tax_authority_last_authorized_number: z.int().nonnegative().nullable().default(null),
+    highest_synced_offline_number: z.int().nonnegative().nullable().default(null),
     version: z.int().positive(),
   }),
 });
@@ -289,6 +300,7 @@ export const changesPageSchema = z.object({
         issuerIdentificationChangeSchema,
         buyerIdentificationThresholdChangeSchema,
         registerPointOfSaleChangeSchema,
+        registerPointTerminalChangeSchema,
         registerOfflinePointOfSaleChangeSchema,
         offlineAuthorizationCodeChangeSchema,
         offlineNumberBlockChangeSchema,

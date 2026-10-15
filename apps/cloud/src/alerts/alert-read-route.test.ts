@@ -528,3 +528,124 @@ describe("GET /alerts/:id for the refund of a late payment", () => {
     });
   });
 });
+
+describe("GET /alerts/:id for a point of sale's fortnight report", () => {
+  const presentation = {
+    pointOfSaleNumber: 4,
+    fortnightStart: "2026-09-01",
+    fortnightEnd: "2026-09-15",
+    deadline: "2026-09-23",
+  };
+
+  async function insertRegister(name: string): Promise<string> {
+    const [register] = await db
+      .insert(registers)
+      .values({ locationId: ownLocationId, name })
+      .returning({ id: registers.id });
+    if (!register) throw new Error("test setup: inserting the register returned no row");
+    return register.id;
+  }
+
+  function withoutDeadline<T extends { deadline: string }>({ deadline: _omitted, ...rest }: T) {
+    return rest;
+  }
+
+  async function insertFortnightReportAlert(
+    kind:
+      | "fortnight_report_pending"
+      | "fortnight_report_overdue"
+      | "fortnight_report_needs_regularization",
+    registerId: string,
+  ) {
+    const [alert] = await db
+      .insert(alerts)
+      .values({
+        kind,
+        scope: "4:2026-09-01",
+        level: kind === "fortnight_report_pending" ? "warning" : "critical",
+        audience: "all",
+        detail:
+          kind === "fortnight_report_pending"
+            ? { ...presentation, registerId, daysLeft: 3, reason: "blocked" }
+            : kind === "fortnight_report_overdue"
+              ? { ...presentation, registerId }
+              : withoutDeadline({ ...presentation, registerId }),
+        openedAt: NOON,
+      })
+      .returning({ id: alerts.id });
+    if (!alert) throw new Error("test setup: inserting the alert returned no row");
+    return alert.id;
+  }
+
+  async function viewerSession(): Promise<string> {
+    const viewerRoleId = await insertRole("supervisor", ["view_all_alerts"]);
+    return insertSession(await insertUserWithRole("Grace", viewerRoleId));
+  }
+
+  it("names the register of the point of sale in the detail and shows the fortnight in the scope, which a notice closes by itself", async () => {
+    const registerId = await insertRegister("Caja 1");
+    const alertId = await insertFortnightReportAlert("fortnight_report_pending", registerId);
+
+    const response = await getAlert(await viewerSession(), alertId);
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      kind: "fortnight_report_pending",
+      scopeDisplay: "4:2026-09-01:2026-09-15",
+      scopeKind: "pointOfSaleFortnight",
+      closing: "by_itself",
+      detail: {
+        ...presentation,
+        registerId,
+        registerName: "Caja 1",
+        daysLeft: 3,
+        reason: "blocked",
+      },
+    });
+  });
+
+  it("names the register of an overdue alert, which only a person closes", async () => {
+    const registerId = await insertRegister("Caja 2");
+    const alertId = await insertFortnightReportAlert("fortnight_report_overdue", registerId);
+
+    const response = await getAlert(await viewerSession(), alertId);
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      kind: "fortnight_report_overdue",
+      closing: "by_hand",
+      detail: { ...presentation, registerId, registerName: "Caja 2" },
+    });
+  });
+
+  it("names the register of an alert that needs regularization, which only a person closes", async () => {
+    const registerId = await insertRegister("Caja 3");
+    const alertId = await insertFortnightReportAlert(
+      "fortnight_report_needs_regularization",
+      registerId,
+    );
+
+    const response = await getAlert(await viewerSession(), alertId);
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      kind: "fortnight_report_needs_regularization",
+      scopeDisplay: "4:2026-09-01:2026-09-15",
+      closing: "by_hand",
+      detail: { ...withoutDeadline({ ...presentation, registerId }), registerName: "Caja 3" },
+    });
+    expect(response.json().detail).not.toHaveProperty("deadline");
+  });
+
+  it("names no register when the detail's register no longer exists", async () => {
+    const alertId = await insertFortnightReportAlert(
+      "fortnight_report_overdue",
+      "3f2b8c1e-5d4a-4b7e-9c10-a1b2c3d4e5f6",
+    );
+
+    const response = await getAlert(await viewerSession(), alertId);
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().detail).not.toHaveProperty("registerName");
+  });
+});

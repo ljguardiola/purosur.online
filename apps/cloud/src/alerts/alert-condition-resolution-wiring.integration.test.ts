@@ -3,6 +3,7 @@ import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import type { AccessEmailSender } from "../credentials/recovery-email-sender.js";
+import { DrizzleOfflineAuthorizationCodeStore } from "../fiscal/drizzle-offline-authorization-code-store.js";
 import { UNREACHABLE_WSFE_ENDPOINT } from "../fiscal/test-support/fake-wsfe-server.js";
 import { configureOfflinePointOfSale } from "../fiscal/test-support/offline-point-of-sale-fixtures.js";
 import {
@@ -85,7 +86,7 @@ describe("the background worker the server sets up on a real Postgres", () => {
         arcaVitality: { endpoint: UNREACHABLE_WSFE_ENDPOINT },
       },
       () => NOW,
-      { emailSender: UNUSED_EMAIL_SENDER },
+      { emailSender: UNUSED_EMAIL_SENDER, schedules: false },
     );
 
     try {
@@ -132,7 +133,7 @@ describe("the background worker the server sets up on a real Postgres", () => {
         arcaVitality: { endpoint: UNREACHABLE_WSFE_ENDPOINT },
       },
       () => NOW,
-      { emailSender: UNUSED_EMAIL_SENDER },
+      { emailSender: UNUSED_EMAIL_SENDER, schedules: false },
     );
 
     try {
@@ -178,7 +179,7 @@ describe("the background worker the server sets up on a real Postgres", () => {
         arcaVitality: { endpoint: UNREACHABLE_WSFE_ENDPOINT },
       },
       () => NOW,
-      { emailSender: UNUSED_EMAIL_SENDER },
+      { emailSender: UNUSED_EMAIL_SENDER, schedules: false },
     );
 
     try {
@@ -252,7 +253,7 @@ describe("the background worker the server sets up on a real Postgres", () => {
         arcaVitality: { endpoint: UNREACHABLE_WSFE_ENDPOINT },
       },
       () => currentTime,
-      { emailSender: UNUSED_EMAIL_SENDER },
+      { emailSender: UNUSED_EMAIL_SENDER, schedules: false },
     );
 
     try {
@@ -289,6 +290,95 @@ describe("the background worker the server sets up on a real Postgres", () => {
         async () => {
           const [row] = await db.select().from(alerts).where(eq(alerts.scope, location.id));
           expect(row?.resolvedAt).toEqual(currentTime);
+        },
+        { timeout: 20_000, interval: 100 },
+      );
+    } finally {
+      await recovery.close();
+    }
+  }, 90_000);
+
+  it("keeps the notice of an owed fortnight report open with the days left, then replaces it by a permanent overdue alert once the deadline is missed", async () => {
+    const registerId = await configureOfflinePointOfSale(db, {
+      registerName: "Caja de quincenas",
+      realTimePointOfSale: 5,
+      offlinePointOfSale: 6,
+      now: NOW,
+    });
+    const admin = postgres(integrationDb.adminDatabaseUrl, { max: 1 });
+    try {
+      await admin`update point_of_sale_claims set claimed_at = ${"2019-12-10T12:00:00.000Z"}::timestamptz where point_of_sale_number = 6`;
+    } finally {
+      await admin.end({ timeout: 1 });
+    }
+    const fortnight = { start: "2019-12-16", end: "2019-12-31" };
+    await new DrizzleOfflineAuthorizationCodeStore(db).holdAcquisition(fortnight, (acquisition) =>
+      acquisition.keep({
+        code: { code: "36123456789099", fortnight, reportDeadline: "2020-01-20" },
+        obtainedAt: new Date("2019-12-10T12:00:00.000Z"),
+        obtainedThrough: "requested",
+      }),
+    );
+    let currentTime = NOW;
+    const recovery = await setUpRecovery(
+      {
+        databaseUrl: integrationDb.databaseUrl,
+        emailSender: { transport: "log" },
+        emailFrom: FICTIONAL_RECOVERY_SENDER,
+        emailReplyTo: FICTIONAL_RECOVERY_REPLY_TO,
+        backofficeOrigin: "https://staging.purosur.online",
+        arcaCertificate: { environment: "production", notAfter: new Date("2126-09-01T19:42:17Z") },
+        arcaVitality: { endpoint: UNREACHABLE_WSFE_ENDPOINT },
+      },
+      () => currentTime,
+      { emailSender: UNUSED_EMAIL_SENDER, schedules: false },
+    );
+    const scope = "6:2019-12-16";
+    const presentation = {
+      pointOfSaleNumber: 6,
+      registerId,
+      fortnightStart: "2019-12-16",
+      fortnightEnd: "2019-12-31",
+      deadline: "2020-01-08",
+    };
+
+    try {
+      await sql`select graphile_worker.add_job('alert-condition-resolution')`;
+      await vi.waitFor(
+        async () => {
+          const rows = await db.select().from(alerts).where(eq(alerts.scope, scope));
+          expect(rows).toMatchObject([
+            {
+              kind: "fortnight_report_pending",
+              level: "warning",
+              audience: "all",
+              resolvedAt: null,
+              conditionClearedAt: null,
+              detail: { ...presentation, daysLeft: 3, reason: "pending" },
+            },
+          ]);
+        },
+        { timeout: 20_000, interval: 100 },
+      );
+
+      currentTime = new Date("2020-01-09T12:00:00.000Z");
+      await sql`select graphile_worker.add_job('alert-condition-resolution')`;
+      await vi.waitFor(
+        async () => {
+          const rows = await db.select().from(alerts).where(eq(alerts.scope, scope));
+          expect(rows.map(({ kind }) => kind).sort()).toEqual([
+            "fortnight_report_overdue",
+            "fortnight_report_pending",
+          ]);
+          expect(rows.find(({ kind }) => kind === "fortnight_report_overdue")).toMatchObject({
+            level: "critical",
+            audience: "all",
+            resolvedAt: null,
+            detail: presentation,
+          });
+          expect(
+            rows.find(({ kind }) => kind === "fortnight_report_pending")?.conditionClearedAt,
+          ).toEqual(currentTime);
         },
         { timeout: 20_000, interval: 100 },
       );

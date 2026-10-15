@@ -22,6 +22,7 @@ import {
 } from "../purchasing/routes";
 import { registersListRoute } from "../register/routes";
 import {
+  averageTicketRoute,
   reportsIndexRoute,
   salesByCashierRoute,
   salesByDayRoute,
@@ -29,6 +30,7 @@ import {
 } from "../sales/routes";
 import { signInRoute } from "../sessions/routes";
 import {
+  assemblyBatchesRoute,
   expiringLotsRoute,
   initialInventoryRoute,
   recipesListRoute,
@@ -86,6 +88,7 @@ const routeTree = rootRoute.addChildren([
       expiringLotsRoute,
       freightsListRoute,
       recipesListRoute,
+      assemblyBatchesRoute,
       initialInventoryRoute,
     ]),
     cashAndFiscalAreaRoute.addChildren([
@@ -99,6 +102,7 @@ const routeTree = rootRoute.addChildren([
       salesByPaymentMethodRoute,
       salesByProductAndCategoryRoute,
       salesByCashierRoute,
+      averageTicketRoute,
     ]),
     settingsAreaRoute.addChildren([
       myAccountRoute,

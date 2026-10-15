@@ -1,3 +1,4 @@
+import { OFFSITE_DUMP_SHRINK_THRESHOLD_PERCENT } from "../../backups/index.js";
 import type {
   FiscalDocumentType,
   FiscalEmissionStoppedReport,
@@ -7,6 +8,7 @@ import type {
 import type { SalesDeniedReport } from "../../shared/index.js";
 import type { AlertKind, AlertLevel } from "./alert-catalog.js";
 import type { OpenAlertInput } from "./alert-details.js";
+import type { OffsiteDumpUnverifiedReason } from "./offsite-dump-unverified-reason.js";
 import { registerFortnightScope } from "./register-fortnight-scope.js";
 
 export type AlertConditionObservation =
@@ -154,6 +156,25 @@ export function fiscalRejectionObservation({
   };
 }
 
+export function externalBillingObservation({
+  pointOfSale,
+  documentType,
+  number,
+}: {
+  pointOfSale: number;
+  documentType: FiscalDocumentType;
+  number: number;
+}): AlertConditionObservation {
+  return {
+    holds: true,
+    alert: {
+      kind: "external_billing",
+      scope: [pointOfSale, documentType, number].join(":"),
+      detail: { pointOfSale, documentType, number },
+    },
+  };
+}
+
 export function fiscalDocumentAuthorizedObservation({
   pointOfSale,
   documentType,
@@ -226,4 +247,30 @@ export function lotsExpiringObservation({
 
 export function lotsNoLongerExpiringObservation(scope: string): AlertConditionObservation {
   return { holds: false, kind: "lots_expiring", scope };
+}
+
+export function offsiteDumpUnverifiedObservation({
+  environment,
+  night,
+  reason,
+}: {
+  environment: string;
+  night: string;
+  reason: OffsiteDumpUnverifiedReason;
+}): AlertConditionObservation {
+  return {
+    holds: true,
+    alert: {
+      kind: "offsite_dump_unverified",
+      scope: environment,
+      detail:
+        reason === "shrank"
+          ? { night, reason, shrinkThresholdPercent: OFFSITE_DUMP_SHRINK_THRESHOLD_PERCENT }
+          : { night, reason },
+    },
+  };
+}
+
+export function offsiteDumpVerifiedObservation(environment: string): AlertConditionObservation {
+  return { holds: false, kind: "offsite_dump_unverified", scope: environment };
 }

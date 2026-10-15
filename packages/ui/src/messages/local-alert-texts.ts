@@ -1,3 +1,5 @@
+import { formatBytes, formatPercent } from "./formatters";
+
 export interface LocalAlertText {
   title: string;
   meaning: string;
@@ -6,7 +8,7 @@ export interface LocalAlertText {
 
 const SALES_DENIED_TITLE = "La caja no puede vender";
 
-const SALES_DENIED_TEXTS = {
+const FIXED_SALES_DENIED_TEXTS = {
   event_history_broken: {
     title: SALES_DENIED_TITLE,
     meaning:
@@ -22,7 +24,36 @@ const SALES_DENIED_TEXTS = {
   },
 } satisfies Record<string, LocalAlertText>;
 
-type LocalSalesDeniedReason = keyof typeof SALES_DENIED_TEXTS;
+type FixedSalesDeniedReason = keyof typeof FIXED_SALES_DENIED_TEXTS;
+
+function freeSpaceLeftPercent(ratio: number): number {
+  return Math.round(ratio * 1000) / 10;
+}
+
+function diskSalesDeniedText(subject: DiskSalesDeniedSubject): LocalAlertText {
+  if (subject.reason === "disk_space_short_at_startup") {
+    return {
+      title: "La caja no puede vender: falta espacio en el disco",
+      meaning:
+        subject.required_free_bytes === undefined
+          ? "Esta caja no habilita las ventas porque necesita más espacio libre en el disco de la notebook del que tiene."
+          : `Esta caja no habilita las ventas porque necesita ${formatBytes(subject.required_free_bytes)} libres en el disco de la notebook y tiene menos.`,
+      whatToDo:
+        "Liberar espacio en la notebook, borrando archivos que no sean de la caja, y reiniciar la caja.",
+    };
+  }
+  return {
+    title: `No se pueden abrir ventas nuevas: ${
+      subject.disk_free_ratio === undefined
+        ? "el disco está casi lleno"
+        : `queda ${formatPercent(freeSpaceLeftPercent(subject.disk_free_ratio))} de disco`
+    }`,
+    meaning:
+      "La venta en curso se puede completar y cobrar. Para volver a vender hay que liberar espacio en la notebook.",
+    whatToDo:
+      "Cobrar la venta en curso y liberar espacio en la notebook, borrando archivos que no sean de la caja. Cuando haya lugar, la caja vuelve a abrir ventas sola. Si no se puede, avisar al Administrador.",
+  };
+}
 
 const FIXED_LOCAL_ALERT_TEXTS = {
   register_silent: {
@@ -45,6 +76,20 @@ const FIXED_LOCAL_ALERT_TEXTS = {
       "La balanza o el lector de códigos dejaron de responder en esta caja, o el conectado no es el registrado.",
     whatToDo:
       "Revisar que esté conectado y encendido. Mientras tanto, tipear el peso a mano y buscar los productos por nombre. Si el problema sigue, avisar al Administrador.",
+  },
+  disk_space_low: {
+    title: "Queda poco espacio en el disco",
+    meaning:
+      "El disco de la notebook se está llenando. Se puede seguir vendiendo, pero si se llena la caja deja de abrir ventas nuevas.",
+    whatToDo:
+      "Liberar espacio en la notebook antes de que se llene, borrando archivos que no sean de la caja.",
+  },
+  wal_oversized: {
+    title: "El registro de cambios de la caja creció de más",
+    meaning:
+      "El archivo donde la caja anota sus cambios antes de guardarlos definitivamente creció más de lo normal.",
+    whatToDo:
+      "Se puede seguir vendiendo. Si no baja solo en un rato, reiniciar la caja y avisar al Administrador.",
   },
   late_payment_refund: {
     title: "Reembolso pendiente por un pago tardío",
@@ -69,8 +114,17 @@ const FIXED_LOCAL_ALERT_TEXTS = {
 
 export type LocalAlertKind = keyof typeof FIXED_LOCAL_ALERT_TEXTS | "sales_denied";
 
+type DiskSalesDeniedSubject =
+  | {
+      kind: "sales_denied";
+      reason: "disk_space_short_at_startup";
+      required_free_bytes?: number | undefined;
+    }
+  | { kind: "sales_denied"; reason: "disk_full"; disk_free_ratio?: number | undefined };
+
 export type LocalAlertSubject =
-  | { kind: "sales_denied"; reason: LocalSalesDeniedReason }
+  | { kind: "sales_denied"; reason: FixedSalesDeniedReason }
+  | DiskSalesDeniedSubject
   | { kind: "late_payment_refund"; providerOrderId: string | null; reason?: undefined }
   | { kind: Exclude<LocalAlertKind, "sales_denied" | "late_payment_refund">; reason?: undefined };
 
@@ -94,7 +148,9 @@ function secondPaidOrderText(providerOrderId: string): LocalAlertText {
 
 export function localAlertText(subject: LocalAlertSubject): LocalAlertText {
   if (subject.kind === "sales_denied") {
-    return SALES_DENIED_TEXTS[subject.reason];
+    return subject.reason === "disk_space_short_at_startup" || subject.reason === "disk_full"
+      ? diskSalesDeniedText(subject)
+      : FIXED_SALES_DENIED_TEXTS[subject.reason];
   }
   if (subject.kind === "late_payment_refund" && subject.providerOrderId !== null) {
     return secondPaidOrderText(subject.providerOrderId);

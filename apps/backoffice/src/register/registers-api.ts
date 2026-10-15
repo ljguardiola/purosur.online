@@ -1,4 +1,6 @@
 import {
+  type PointTerminalAssignmentBody,
+  pointTerminalAssignmentSchema,
   type RegisterCreationBody,
   type RegisterSummaryBody,
   registerCoverageSchema,
@@ -28,6 +30,8 @@ export type RegisterSummary = {
   name: string;
   pendingCode: PendingEnrollmentCode | null;
   pointOfSaleNumber: number | null;
+  pointTerminalId: string | null;
+  pointTerminalVersion: number;
   installation: RegisterInstallation | null;
 };
 
@@ -52,6 +56,17 @@ export type CreateRegisterOutcome =
   | { kind: "forbidden" }
   | { kind: "unauthenticated" }
   | { kind: "authorization_required" }
+  | { kind: "rate_limited"; retryAfterSeconds: number }
+  | { kind: "failed" };
+
+export type AssignPointTerminalOutcome =
+  | { kind: "ok" }
+  | { kind: "validation_failed"; field: string }
+  | { kind: "point_terminal_taken" }
+  | { kind: "stale_version" }
+  | { kind: "not_found" }
+  | { kind: "forbidden" }
+  | { kind: "unauthenticated" }
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "failed" };
 
@@ -101,11 +116,13 @@ function registerFromWire(row: RegisterSummaryBody): RegisterSummary {
         }
       : null,
     pointOfSaleNumber: row.point_of_sale_number,
+    pointTerminalId: row.point_terminal_id,
+    pointTerminalVersion: row.point_terminal_version,
     installation: installationFromWire(row.installation),
   };
 }
 
-// Every register action is gated by the shared passkey-authorization window: a 401 here means
+// Creating a register and emitting its code are gated by the shared passkey-authorization window: a 401 here means
 // either the session ended or that window has lapsed, never a rejected assertion.
 type GatedActionErrorOutcome =
   | { kind: "unauthenticated" }
@@ -219,4 +236,50 @@ export async function emitEnrollmentCode(id: string): Promise<EmitEnrollmentCode
     return { kind: "not_found" };
   }
   return gatedActionErrorOutcome(response);
+}
+
+export async function assignPointTerminal(
+  registerId: string,
+  body: PointTerminalAssignmentBody,
+): Promise<AssignPointTerminalOutcome> {
+  let response: Response;
+  try {
+    response = await fetch(`/api/registers/${registerId}/point-terminal`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  } catch {
+    return { kind: "failed" };
+  }
+  if (response.ok) {
+    const parsed = pointTerminalAssignmentSchema.safeParse(
+      await response.json().catch(() => undefined),
+    );
+    return parsed.success ? { kind: "ok" } : { kind: "failed" };
+  }
+  if (response.status === 400) {
+    const field = await readValidationFailedField(response);
+    return field === undefined ? { kind: "failed" } : { kind: "validation_failed", field };
+  }
+  if (response.status === 404) {
+    return { kind: "not_found" };
+  }
+  if (response.status === 409) {
+    const code = ((await response.json().catch(() => undefined)) as { code?: string } | undefined)
+      ?.code;
+    return code === "point_terminal_taken" || code === "stale_version"
+      ? { kind: code }
+      : { kind: "failed" };
+  }
+  if (response.status === 401) {
+    return { kind: "unauthenticated" };
+  }
+  if (response.status === 403) {
+    return { kind: "forbidden" };
+  }
+  if (response.status === 429) {
+    return rateLimitOutcome(response);
+  }
+  return { kind: "failed" };
 }

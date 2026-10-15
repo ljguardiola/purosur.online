@@ -72,6 +72,7 @@ function recoveryEnv() {
 async function acquireOnDemand() {
   const recovery = await setUpRecovery(recoveryEnv(), () => NOW, {
     emailSender: UNUSED_EMAIL_SENDER,
+    schedules: false,
   });
   try {
     await recovery.workerUtils.addJob(OFFLINE_AUTHORIZATION_CODE_TASK_IDENTIFIER, {});

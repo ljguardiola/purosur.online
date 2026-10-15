@@ -569,6 +569,17 @@ describe("the register's local copy of what it pulls", () => {
     expect(replica.priceList(PRICE_LIST_ID)).toEqual({ name: "Nueva", version: 3 });
   });
 
+  it.each([
+    ["2026-09-29T12:00:00Z", "2026-09-29T12:00:00.000Z"],
+    ["2026-09-29T12:00:00.5Z", "2026-09-29T12:00:00.500Z"],
+    ["2026-09-29T12:00:00.0006Z", "2026-09-29T12:00:00.000Z"],
+    ["2026-09-29T12:00:00.1228Z", "2026-09-29T12:00:00.122Z"],
+  ])("stores a price starting at %s as the instant %s", async (sent, stored) => {
+    await save(priceChange(1, priceRow({ valid_from: sent })));
+
+    expect(replica.price(PRICE_ID)).toMatchObject({ valid_from: stored });
+  });
+
   it("keeps a price as it first arrived when the same price is delivered again", async () => {
     await save(priceChange(1, priceRow({ unit_price: 999 })));
 

@@ -105,14 +105,22 @@ function upsertOf(entity: PulledEntity, changeSeq: number): SyncChange {
           point_of_sale_number: 12,
           fiscal_address_id: OTHER_ID,
           tax_authority_last_authorized_number: 4,
+          numbering_frozen: false,
           version: 1,
         },
       };
+    case "register_point_terminal":
+      return { ...base, entity, row: { assigned: true, version: 1 } };
     case "register_offline_point_of_sale":
       return {
         ...base,
         entity,
-        row: { point_of_sale_number: 31, tax_authority_last_authorized_number: 4, version: 1 },
+        row: {
+          point_of_sale_number: 31,
+          tax_authority_last_authorized_number: 4,
+          highest_synced_offline_number: null,
+          version: 1,
+        },
       };
     case "discount":
       return {

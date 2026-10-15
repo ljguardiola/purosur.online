@@ -89,6 +89,7 @@ describe("the unclear outcome decisions the server sets up on a real Postgres", 
     });
     const recovery = await setUpRecovery(recoveryEnv(), () => NOW, {
       emailSender: UNUSED_EMAIL_SENDER,
+      schedules: false,
     });
     try {
       await recovery.db.transaction((transaction) =>

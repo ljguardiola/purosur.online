@@ -596,6 +596,28 @@ describe("createCoreClient", () => {
     ]);
   });
 
+  it("asks the core to convert a paid order without a sale into a refund and resolves with the outcome", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const outcome = client.convertPaidOrderIntoRefund("019a0000-0000-7000-8000-0000000000a1");
+    port.answer({
+      type: "convert-paid-order-into-refund-result",
+      request_id: "request-1",
+      outcome: { kind: "converted" },
+    });
+
+    expect(await outcome).toEqual({ kind: "converted" });
+    expect(port.posted).toEqual([
+      {
+        type: "convert-paid-order-into-refund",
+        request_id: "request-1",
+        payment_transaction_id: "019a0000-0000-7000-8000-0000000000a1",
+      },
+    ]);
+  });
+
   it("asks the core how a Mercado Pago QR charge is going and resolves with the outcome", async () => {
     const client = clientWithSequentialIds();
     const port = new FakePort();
@@ -1136,6 +1158,62 @@ describe("createCoreClient", () => {
     ]);
   });
 
+  it("asks the core to void a sale, confirming the pending refunds and naming who authorizes", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+    const authorization = { user_id: "u2", pin: "1234" };
+
+    const voided = client.voidSale("sale-1", true, authorization);
+    port.answer({
+      type: "void-sale-result",
+      request_id: "request-1",
+      outcome: {
+        kind: "voided",
+        refunds: [],
+        authorized_by: { user_id: "u2", first_name: "Grace" },
+      },
+    });
+
+    expect(await voided).toEqual({
+      kind: "voided",
+      refunds: [],
+      authorized_by: { user_id: "u2", first_name: "Grace" },
+    });
+    expect(port.posted).toEqual([
+      {
+        type: "void-sale",
+        request_id: "request-1",
+        sale_id: "sale-1",
+        pending_refunds_confirmed: true,
+        authorization,
+      },
+    ]);
+  });
+
+  it("asks the core to void a sale without an authorization when none is given", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const voided = client.voidSale("sale-1", false, undefined);
+    port.answer({
+      type: "void-sale-result",
+      request_id: "request-1",
+      outcome: { kind: "session_closed" },
+    });
+
+    expect(await voided).toEqual({ kind: "session_closed" });
+    expect(port.posted).toEqual([
+      {
+        type: "void-sale",
+        request_id: "request-1",
+        sale_id: "sale-1",
+        pending_refunds_confirmed: false,
+      },
+    ]);
+  });
+
   it.each([
     { kind: "results", products: [], more: true },
     { kind: "no_open_session" },
@@ -1546,6 +1624,10 @@ describe("createCoreClient", () => {
       ],
       unknown_fiscal_documents: [],
       pending_payments: [],
+      paid_orders_without_sale: [],
+      paid_order_discovery: "checked",
+      selling_blocked: false,
+      may_go_selling: true,
     };
 
     const asked = client.startupPending();
@@ -1972,6 +2054,43 @@ describe("createCoreClient", () => {
 
     expect(first).toBe(1);
     expect(second).toBe(2);
+  });
+
+  it("tells each listener every time the storage standing changes, until it stops listening", () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+    let first = 0;
+    let second = 0;
+    const stopFirst = client.onStorageStandingChanged(() => {
+      first += 1;
+    });
+    client.onStorageStandingChanged(() => {
+      second += 1;
+    });
+
+    port.answer({ type: "storage-standing-changed" });
+    stopFirst();
+    port.answer({ type: "storage-standing-changed" });
+
+    expect(first).toBe(1);
+    expect(second).toBe(2);
+  });
+
+  it("does not take a storage standing change for the answer to a pending request", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const devices = client.readSerialDevices();
+    port.answer({ type: "storage-standing-changed" });
+    port.answer({
+      type: "read-serial-devices-result",
+      request_id: "request-1",
+      outcome: { kind: "unavailable" },
+    });
+
+    expect(await devices).toEqual({ kind: "unavailable" });
   });
 
   it("hands each listener every code the barcode reader reads, until it stops listening", () => {

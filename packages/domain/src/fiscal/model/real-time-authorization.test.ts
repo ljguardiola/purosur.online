@@ -10,14 +10,16 @@ import {
   AUTHORIZATION_CALL_MARGIN_MS,
   authorizationCallDeadline,
   DEFERRAL_REASONS,
-  decideRealTimeAuthorization,
+  decideSaleAuthorizationRoute,
   type FiscalDocumentState,
   invoiceDateOf,
   isCompletionEventOfSale,
+  isFiscalOutcomeUnresolved,
   mayStartAuthorizationCall,
   medianRoundTripMs,
   NUMBER_CONSUMING_STATES,
   nextInvoiceNumber,
+  OFFLINE_AUTHORIZATION_CAUSES,
   REAL_TIME_AUTHORIZATION_TIMEOUT_MS,
   ROUND_TRIP_SAMPLE_SIZE,
   realTimeAuthorizationResolution,
@@ -243,34 +245,51 @@ const SERIES = {
   pointOfSale: 12,
   localLastAuthorized: 40,
   taxAuthorityLastAuthorized: 38,
-  documentWaiting: false,
+  documentRequesting: false,
+  documentUnknown: false,
+  numberingFrozen: false,
 };
+const OFFLINE_SERIES = {
+  pointOfSale: 7,
+  blocksInAssignmentOrder: [{ firstNumber: 101, lastNumber: 1100 }],
+  localLastUsed: null,
+  taxAuthorityLastAuthorized: 100,
+  highestSyncedNumber: null,
+};
+const OCCURRED_AT = new Date("2026-10-01T11:59:58.000Z");
+const CODE = "71234567890123";
+const OCTOBER_FIRST_FORTNIGHT = { start: "2026-10-01", end: "2026-10-15" };
 
-describe("decideRealTimeAuthorization", () => {
+function decide(changes: Partial<Parameters<typeof decideSaleAuthorizationRoute>[0]> = {}) {
+  return decideSaleAuthorizationRoute({
+    gate: PASSED,
+    online: ONLINE,
+    now: NOW,
+    occurredAt: OCCURRED_AT,
+    series: SERIES,
+    offlineSeries: OFFLINE_SERIES,
+    offlineAuthorizationCode: CODE,
+    ...changes,
+  });
+}
+
+describe("decideSaleAuthorizationRoute", () => {
   it("reserves the next number of the point of sale for the sale's document", () => {
-    expect(
-      decideRealTimeAuthorization({ gate: PASSED, online: ONLINE, now: NOW, series: SERIES }),
-    ).toEqual({ kind: "reserve", pointOfSale: 12, number: 41, document: DOCUMENT });
+    expect(decide()).toEqual({ kind: "reserve", pointOfSale: 12, number: 41, document: DOCUMENT });
   });
 
   it("follows the tax authority's count when the register authorized nothing yet", () => {
     expect(
-      decideRealTimeAuthorization({
-        gate: PASSED,
-        online: ONLINE,
-        now: NOW,
-        series: { ...SERIES, localLastAuthorized: null, taxAuthorityLastAuthorized: 500 },
-      }),
+      decide({ series: { ...SERIES, localLastAuthorized: null, taxAuthorityLastAuthorized: 500 } }),
     ).toMatchObject({ kind: "reserve", number: 501 });
   });
 
   it("defers a sale whose pre-emission gate failed, even when everything else is missing too", () => {
     expect(
-      decideRealTimeAuthorization({
+      decide({
         gate: { kind: "failed", reason: "legal_name_missing" },
         online: { ...ONLINE, tokenValid: false },
-        now: NOW,
-        series: { ...SERIES, pointOfSale: null, documentWaiting: true },
+        series: { ...SERIES, pointOfSale: null, documentUnknown: true },
       }),
     ).toEqual({ kind: "defer", reason: "pre_emission_gate_failed" });
   });
@@ -279,62 +298,212 @@ describe("decideRealTimeAuthorization", () => {
     ["the last health check is too old", { ...ONLINE, lastHealthCheckOkAt: null }],
     ["the token is not valid", { ...ONLINE, tokenValid: false }],
     ["the tax authority is not reachable", { ...ONLINE, arcaReachable: false }],
-  ])("defers a sale when %s", (_case, online) => {
-    expect(decideRealTimeAuthorization({ gate: PASSED, online, now: NOW, series: SERIES })).toEqual(
-      {
-        kind: "defer",
-        reason: "fiscally_offline",
-      },
-    );
+  ])("issues the sale offline for lack of connectivity when %s", (_case, online) => {
+    expect(decide({ online })).toEqual({
+      kind: "issue_offline",
+      cause: "no_connectivity",
+      pointOfSale: 7,
+      number: 101,
+      document: DOCUMENT,
+      issuedOn: "2026-10-01",
+      fortnight: OCTOBER_FIRST_FORTNIGHT,
+      offlineAuthorizationCode: CODE,
+    });
   });
 
   it("judges the online evidence at the moment of the decision", () => {
-    expect(
-      decideRealTimeAuthorization({
-        gate: PASSED,
-        online: ONLINE,
-        now: new Date(NOW.getTime() + 20_000),
-        series: SERIES,
-      }),
-    ).toEqual({ kind: "defer", reason: "fiscally_offline" });
+    expect(decide({ now: new Date(NOW.getTime() + 20_000) })).toMatchObject({
+      kind: "issue_offline",
+      cause: "no_connectivity",
+    });
   });
 
-  it("defers a sale of a register without a point of sale, before looking at the series", () => {
+  it("issues the sale offline for an unclear outcome even while everything else works", () => {
+    expect(decide({ series: { ...SERIES, documentUnknown: true } })).toMatchObject({
+      kind: "issue_offline",
+      cause: "unclear_outcome",
+      pointOfSale: 7,
+      number: 101,
+    });
+  });
+
+  it("names the unclear outcome, not lack of connectivity, when both hold", () => {
     expect(
-      decideRealTimeAuthorization({
-        gate: PASSED,
-        online: ONLINE,
-        now: NOW,
+      decide({
+        online: { ...ONLINE, arcaReachable: false },
+        series: { ...SERIES, documentUnknown: true },
+      }),
+    ).toMatchObject({ kind: "issue_offline", cause: "unclear_outcome" });
+  });
+
+  it("defers a sale suspended by an unclear outcome as waiting on that document when the register is also offline and holds no code", () => {
+    expect(
+      decide({
+        online: { ...ONLINE, arcaReachable: false },
+        series: { ...SERIES, documentUnknown: true },
+        offlineAuthorizationCode: null,
+      }),
+    ).toEqual({ kind: "defer", reason: "document_waiting" });
+  });
+
+  it("issues the sale offline for a numbering conflict even while connectivity, the token and the tax authority work", () => {
+    expect(decide({ series: { ...SERIES, numberingFrozen: true } })).toEqual({
+      kind: "issue_offline",
+      cause: "numbering_conflict",
+      pointOfSale: 7,
+      number: 101,
+      document: DOCUMENT,
+      issuedOn: "2026-10-01",
+      fortnight: OCTOBER_FIRST_FORTNIGHT,
+      offlineAuthorizationCode: CODE,
+    });
+  });
+
+  it("names the numbering conflict when the register is also offline or has an unclear document", () => {
+    expect(
+      decide({
+        online: { ...ONLINE, arcaReachable: false },
+        series: { ...SERIES, numberingFrozen: true, documentUnknown: true },
+      }),
+    ).toMatchObject({ kind: "issue_offline", cause: "numbering_conflict" });
+  });
+
+  it("defers a sale of a frozen point of sale as numbering frozen when the register holds no code", () => {
+    expect(
+      decide({
+        series: { ...SERIES, numberingFrozen: true },
+        offlineAuthorizationCode: null,
+      }),
+    ).toEqual({ kind: "defer", reason: "numbering_frozen" });
+  });
+
+  it("defers a sale of a frozen point of sale as numbering frozen when the register has no offline point of sale", () => {
+    expect(
+      decide({
+        series: { ...SERIES, numberingFrozen: true },
+        offlineSeries: { ...OFFLINE_SERIES, pointOfSale: null },
+      }),
+    ).toEqual({ kind: "defer", reason: "numbering_frozen" });
+  });
+
+  it("does not look at a freeze for a register without a point of sale", () => {
+    expect(decide({ series: { ...SERIES, pointOfSale: null, numberingFrozen: true } })).toEqual({
+      kind: "defer",
+      reason: "point_of_sale_missing",
+    });
+  });
+
+  it("defers a sale whose gate failed before looking at a freeze", () => {
+    expect(
+      decide({
+        gate: { kind: "failed", reason: "legal_name_missing" },
+        series: { ...SERIES, numberingFrozen: true },
+      }),
+    ).toEqual({ kind: "defer", reason: "pre_emission_gate_failed" });
+  });
+
+  it("defers a sale of a register without a point of sale while it is online, before looking at the series", () => {
+    expect(
+      decide({
         series: {
           ...SERIES,
           pointOfSale: null,
-          documentWaiting: true,
+          documentUnknown: true,
           taxAuthorityLastAuthorized: null,
         },
       }),
     ).toEqual({ kind: "defer", reason: "point_of_sale_missing" });
   });
 
-  it("defers a sale while a document of the series waits for an answer, before looking at the count", () => {
+  it("defers a sale while a document of the series waits for its answer, before looking at the count", () => {
     expect(
-      decideRealTimeAuthorization({
-        gate: PASSED,
-        online: ONLINE,
-        now: NOW,
-        series: { ...SERIES, documentWaiting: true, taxAuthorityLastAuthorized: null },
+      decide({
+        series: { ...SERIES, documentRequesting: true, taxAuthorityLastAuthorized: null },
       }),
     ).toEqual({ kind: "defer", reason: "document_waiting" });
   });
 
   it("defers a sale until the register knows the tax authority's count", () => {
+    expect(decide({ series: { ...SERIES, taxAuthorityLastAuthorized: null } })).toEqual({
+      kind: "defer",
+      reason: "tax_authority_count_unknown",
+    });
+  });
+
+  it("takes the code and the fortnight of the sale's own date, not of the moment of the decision", () => {
+    const lateSaleDecidedNextFortnight = {
+      occurredAt: new Date("2026-10-16T02:59:59.000Z"),
+      now: new Date("2026-10-16T03:00:01.000Z"),
+      online: { ...ONLINE, lastHealthCheckOkAt: null },
+    };
+
+    expect(decide(lateSaleDecidedNextFortnight)).toMatchObject({
+      kind: "issue_offline",
+      issuedOn: "2026-10-15",
+      fortnight: { start: "2026-10-01", end: "2026-10-15" },
+    });
+  });
+
+  it("numbers from the offline block, after the tax authority's count and the register's last number", () => {
     expect(
-      decideRealTimeAuthorization({
-        gate: PASSED,
-        online: ONLINE,
-        now: NOW,
-        series: { ...SERIES, taxAuthorityLastAuthorized: null },
+      decide({
+        online: { ...ONLINE, tokenValid: false },
+        offlineSeries: { ...OFFLINE_SERIES, localLastUsed: 130, taxAuthorityLastAuthorized: 120 },
       }),
-    ).toEqual({ kind: "defer", reason: "tax_authority_count_unknown" });
+    ).toMatchObject({ number: 131 });
+  });
+
+  it.each([
+    ["no connectivity", { ...ONLINE, tokenValid: false }, SERIES, "fiscally_offline"],
+    ["an unclear outcome", ONLINE, { ...SERIES, documentUnknown: true }, "document_waiting"],
+  ])(
+    "defers a sale offline for %s when the register has no offline point of sale",
+    (_case, online, series, reason) => {
+      expect(
+        decide({ online, series, offlineSeries: { ...OFFLINE_SERIES, pointOfSale: null } }),
+      ).toEqual({ kind: "defer", reason });
+    },
+  );
+
+  it.each([
+    ["no connectivity", { ...ONLINE, tokenValid: false }, SERIES, "fiscally_offline"],
+    ["an unclear outcome", ONLINE, { ...SERIES, documentUnknown: true }, "document_waiting"],
+  ])(
+    "defers a sale offline for %s when no code covers its date",
+    (_case, online, series, reason) => {
+      expect(decide({ online, series, offlineAuthorizationCode: null })).toEqual({
+        kind: "defer",
+        reason,
+      });
+    },
+  );
+
+  it.each([
+    ["the block is exhausted", { ...OFFLINE_SERIES, localLastUsed: 1100 }],
+    [
+      "the tax authority's count reached the end of the block",
+      { ...OFFLINE_SERIES, taxAuthorityLastAuthorized: 1100 },
+    ],
+    [
+      "the tax authority's count is unknown",
+      { ...OFFLINE_SERIES, taxAuthorityLastAuthorized: null },
+    ],
+    ["the register holds no block", { ...OFFLINE_SERIES, blocksInAssignmentOrder: [] }],
+  ])("defers a sale offline when %s", (_case, offlineSeries) => {
+    expect(decide({ online: { ...ONLINE, tokenValid: false }, offlineSeries })).toEqual({
+      kind: "defer",
+      reason: "fiscally_offline",
+    });
+  });
+});
+
+describe("OFFLINE_AUTHORIZATION_CAUSES", () => {
+  it("names the causes a document under a pre-obtained code records", () => {
+    expect(OFFLINE_AUTHORIZATION_CAUSES).toEqual([
+      "no_connectivity",
+      "unclear_outcome",
+      "numbering_conflict",
+    ]);
   });
 });
 
@@ -342,6 +511,19 @@ describe("SERIES_WAITING_STATES", () => {
   it("keeps a point of sale's series waiting while a document waits on its answer or on an unclear outcome", () => {
     expect(SERIES_WAITING_STATES).toEqual(["REQUESTING", "UNKNOWN"]);
   });
+});
+
+describe("isFiscalOutcomeUnresolved", () => {
+  it.each(["REQUESTING", "UNKNOWN"] as const)("holds a %s document unresolved", (state) => {
+    expect(isFiscalOutcomeUnresolved(state)).toBe(true);
+  });
+
+  it.each(["AUTHORIZED", "REJECTED", "RELEASED", "CONFLICTING"] as const)(
+    "holds a %s document resolved",
+    (state) => {
+      expect(isFiscalOutcomeUnresolved(state)).toBe(false);
+    },
+  );
 });
 
 describe("FiscalDocumentState", () => {
@@ -367,6 +549,7 @@ describe("DEFERRAL_REASONS", () => {
       "tax_authority_count_unknown",
       "rejected",
       "unclear_outcome",
+      "numbering_frozen",
     ]);
   });
 });

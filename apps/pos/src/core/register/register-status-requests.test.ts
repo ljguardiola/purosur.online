@@ -4,6 +4,7 @@ import {
   type RegisteredSerialDevices,
   type SerialDeviceRole,
   type SerialDeviceStanding,
+  type StorageStanding,
 } from "@purosur/domain";
 import {
   FICTIONAL_CUIT,
@@ -90,9 +91,18 @@ const NO_DEVICES: Record<SerialDeviceRole, SerialDeviceStanding> = {
   reader: { kind: "not_registered" },
 };
 
+const ROOMY_STORAGE: StorageStanding = {
+  startupShortOf: null,
+  diskStanding: "enough",
+  diskFreeRatio: 0.5,
+  walOversized: false,
+};
+
 function status(
   cloud: CloudReachability = "unknown",
   serialDevices: Record<SerialDeviceRole, SerialDeviceStanding> = NO_DEVICES,
+  storage: StorageStanding = ROOMY_STORAGE,
+  localDatabaseDamaged = false,
 ) {
   return registerStatusFor({
     database,
@@ -100,6 +110,8 @@ function status(
     now: () => NOW,
     signedInPerson,
     serialDevices: () => ({ kind: "listed", standings: serialDevices, registered: {} }),
+    storage: () => storage,
+    localDatabaseDamaged: () => localDatabaseDamaged,
   });
 }
 
@@ -124,6 +136,8 @@ function statusWatchedBy(watch: SerialDeviceWatch) {
     now: () => NOW,
     signedInPerson,
     serialDevices: watch.reading,
+    storage: () => ROOMY_STORAGE,
+    localDatabaseDamaged: () => false,
   });
 }
 
@@ -182,6 +196,12 @@ describe("the register's status", () => {
 
     expect((await status()).conditions).toEqual([
       { kind: "sales_denied", reason: "event_history_broken", level: "critical" },
+    ]);
+  });
+
+  it("holds sales_denied for a local database found damaged while the register keeps running", async () => {
+    expect((await status("unknown", NO_DEVICES, ROOMY_STORAGE, true)).conditions).toEqual([
+      { kind: "sales_denied", reason: "local_database_damaged", level: "critical" },
     ]);
   });
 
@@ -388,5 +408,19 @@ describe("whether the register offers the serial devices setup", () => {
         })
       ).serial_devices_setup_offered,
     ).toBe(false);
+  });
+});
+
+describe("the register's storage conditions on its status", () => {
+  it("holds the conditions of the storage standing the watch reads", async () => {
+    const { conditions } = await status("unknown", NO_DEVICES, {
+      ...ROOMY_STORAGE,
+      diskStanding: "full",
+      diskFreeRatio: 0.03,
+    });
+
+    expect(conditions).toEqual([
+      { kind: "sales_denied", reason: "disk_full", disk_free_ratio: 0.03, level: "critical" },
+    ]);
   });
 });

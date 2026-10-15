@@ -17,7 +17,13 @@ export interface PlannedLotAllocation {
 }
 
 export function allocatesToLots(kind: StockMovementKind): boolean {
-  return kind === "sale" || kind === "loss" || kind === "adjustment";
+  return (
+    kind === "sale" ||
+    kind === "sale_void" ||
+    kind === "loss" ||
+    kind === "adjustment" ||
+    kind === "assembly_out"
+  );
 }
 
 function compareNullsLast(a: string | null, b: string | null): number {

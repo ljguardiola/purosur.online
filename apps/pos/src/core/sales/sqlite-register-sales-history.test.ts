@@ -18,10 +18,11 @@ interface SaleSeed {
   lines?: number[];
   payments?: { method: "CASH" | "TRANSFER" | "QR"; amount: number }[];
   fiscal?: { state: FiscalDocumentState; pointOfSale?: number; number?: number };
-  deferred?: boolean | "satisfied";
+  deferred?: boolean | "satisfied" | "cancelled";
+  offlineDocument?: { pointOfSale: number; number: number };
 }
 
-const DECIDED_STANDINGS = ["completed", "in_progress", "deferred"] as const;
+const DECIDED_STANDINGS = ["completed", "in_progress", "deferred", "voided"] as const;
 
 let database: LocalDatabase;
 let history: SqliteRegisterSalesHistory;
@@ -46,13 +47,23 @@ function addSale({
   payments,
   fiscal,
   deferred = false,
+  offlineDocument,
 }: SaleSeed): void {
   database
     .prepare(
-      `INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at, operation_number)
-       VALUES (?, ?, 'device-1', ?, ?, ?, ?, ?)`,
+      `INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at, operation_number, voided_at)
+       VALUES (?, ?, 'device-1', ?, ?, ?, ?, ?, ?)`,
     )
-    .run(id, register, session, actor, state, occurredAt, operationNumber);
+    .run(
+      id,
+      register,
+      session,
+      actor,
+      state,
+      occurredAt,
+      operationNumber,
+      state === "VOIDED" ? occurredAt : null,
+    );
   lines.forEach((lineTotal, index) => {
     database
       .prepare(
@@ -108,6 +119,20 @@ function addSale({
         fiscal.state === "REQUESTING" ? null : "2026-10-08T12:00:01.000Z",
       );
   }
+  if (offlineDocument !== undefined) {
+    database
+      .prepare(
+        `INSERT INTO offline_fiscal_documents (
+           id, sale_id, point_of_sale, document_type, number, issued_on, generated_at, generation_stamp,
+           offline_authorization_code, fortnight_start, fortnight_end, document,
+           buyer_document_type, buyer_document_number, cause
+         ) VALUES (
+           ?, ?, ?, 'factura_c', ?, '2026-10-08', '2026-10-08T12:00:00.000Z', '20261008090000',
+           '36251478963214', '2026-10-01', '2026-10-15', '{}', 99, 0, 'no_connectivity'
+         )`,
+      )
+      .run(`offline-doc-${id}`, id, offlineDocument.pointOfSale, offlineDocument.number);
+  }
   if (deferred) {
     database
       .prepare(
@@ -115,6 +140,13 @@ function addSale({
          VALUES (?, ?, '2026-10-08T12:00:00.000Z', 3000, 'fiscally_offline', ?, '2026-10-08T12:00:00.000Z')`,
       )
       .run(`deferred-${id}`, id, uniqueShortCode());
+  }
+  if (deferred === "cancelled") {
+    database
+      .prepare(
+        "UPDATE deferred_sales SET cancelled_at = '2026-10-08T12:01:00.000Z' WHERE sale_id = ?",
+      )
+      .run(id);
   }
   if (deferred === "satisfied") {
     database
@@ -179,7 +211,7 @@ describe("SqliteRegisterSalesHistory", () => {
       expect(second.total).toBe(7);
     });
 
-    it("lists only the completed sales of this register", () => {
+    it("lists only the completed and voided sales of this register", () => {
       openSession("other-session", "r2");
       addSale({ id: "mine" });
       addSale({ id: "in-progress-cart", state: "OPEN", occurredAt: null, lines: [], payments: [] });
@@ -189,8 +221,8 @@ describe("SqliteRegisterSalesHistory", () => {
 
       const page = all();
 
-      expect(idsOf(page)).toEqual(["mine"]);
-      expect(page.total).toBe(1);
+      expect(idsOf(page)).toEqual(["voided", "mine"]);
+      expect(page.total).toBe(2);
     });
 
     it("lists the sales of the open session only, or of every session of the register", () => {
@@ -236,6 +268,7 @@ describe("SqliteRegisterSalesHistory", () => {
           paymentMethods: ["CASH", "TRANSFER"],
           total: 4000,
           fiscal: { deferred: false, fiscalDocument: null },
+          voided: false,
         },
       ]);
     });
@@ -300,6 +333,32 @@ describe("SqliteRegisterSalesHistory", () => {
           number: 1204,
         },
       });
+    });
+
+    it("shows the document issued under a pre-obtained code as its fiscal document", () => {
+      addSale({ id: "sale-1", offlineDocument: { pointOfSale: 8, number: 412 } });
+
+      expect(all().entries[0]?.fiscal).toEqual({
+        deferred: false,
+        fiscalDocument: {
+          state: "AUTHORIZED",
+          documentType: "factura_c",
+          pointOfSale: 8,
+          number: 412,
+        },
+      });
+    });
+
+    it("shows a voided sale as voided", () => {
+      addSale({ id: "sale-1", state: "VOIDED" });
+
+      expect(all().entries[0]?.voided).toBe(true);
+    });
+
+    it("shows a deferred sale whose record was cancelled as no longer deferred", () => {
+      addSale({ id: "sale-1", state: "VOIDED", deferred: "cancelled" });
+
+      expect(all().entries[0]?.fiscal).toEqual({ deferred: false, fiscalDocument: null });
     });
 
     it("shows that a sale was deferred", () => {
@@ -377,10 +436,29 @@ describe("SqliteRegisterSalesHistory", () => {
         fiscal: { state: "UNKNOWN", pointOfSale: 4 },
         deferred: true,
       });
+      addSale({
+        id: "voided-unbilled",
+        occurredAt: "2026-10-08T10:06:00.000Z",
+        state: "VOIDED",
+        deferred: "cancelled",
+      });
+      addSale({
+        id: "voided-authorized",
+        occurredAt: "2026-10-08T10:07:00.000Z",
+        state: "VOIDED",
+        fiscal: { state: "AUTHORIZED" },
+      });
     });
 
     it("lists every standing when none is asked", () => {
-      expect(all().total).toBe(6);
+      expect(all().total).toBe(8);
+    });
+
+    it("lists the voided sales, whatever their fiscal facts", () => {
+      const page = all("voided");
+
+      expect(idsOf(page)).toEqual(["voided-authorized", "voided-unbilled"]);
+      expect(page.total).toBe(2);
     });
 
     it("lists the completed sales", () => {
@@ -423,7 +501,9 @@ describe("SqliteRegisterSalesHistory", () => {
       "lists under %s exactly the sales the domain gives that standing",
       (standing) => {
         const expected = all()
-          .entries.filter(({ fiscal }) => saleStandingOf(fiscal) === standing)
+          .entries.filter(
+            ({ fiscal, voided }) => saleStandingOf({ ...fiscal, voided }) === standing,
+          )
           .map(({ saleId }) => saleId);
 
         expect(idsOf(all(standing))).toEqual(expected);
@@ -485,6 +565,8 @@ describe("SqliteRegisterSalesHistory", () => {
             number: 1204,
           },
         },
+        voided: false,
+        inOpenSession: true,
       });
     });
 
@@ -494,13 +576,19 @@ describe("SqliteRegisterSalesHistory", () => {
       expect(history.saleOfRegister("sale-1")?.payments).toEqual([{ method: "QR", amount: 3070 }]);
     });
 
-    it("finds a sale of a closed session", () => {
+    it("finds a sale of a closed session, outside the open session", () => {
       addSale({ id: "old", session: "old-session" });
 
-      expect(history.saleOfRegister("old")?.saleId).toBe("old");
+      expect(history.saleOfRegister("old")).toMatchObject({ saleId: "old", inOpenSession: false });
     });
 
-    it("does not find a sale that does not exist, is not completed or belongs to another register", () => {
+    it("finds a voided sale and says so", () => {
+      addSale({ id: "gone", state: "VOIDED" });
+
+      expect(history.saleOfRegister("gone")).toMatchObject({ saleId: "gone", voided: true });
+    });
+
+    it("does not find a sale that does not exist, was cancelled or belongs to another register", () => {
       openSession("other-session", "r2");
       addSale({ id: "cancelled", state: "CANCELLED" });
       addSale({ id: "another-registers", session: "other-session", register: "r2" });

@@ -24,11 +24,14 @@ function target(lotId: string) {
 }
 
 describe("allocatesToLots", () => {
-  it.each(["sale", "loss", "adjustment"] as const)("allocates a %s by the lots rule", (kind) => {
-    expect(allocatesToLots(kind)).toBe(true);
-  });
+  it.each(["sale", "sale_void", "loss", "adjustment", "assembly_out"] as const)(
+    "allocates a %s by the lots rule",
+    (kind) => {
+      expect(allocatesToLots(kind)).toBe(true);
+    },
+  );
 
-  it.each(["count", "receipt"] as const)("leaves a %s to its own rule", (kind) => {
+  it.each(["count", "receipt", "assembly_in"] as const)("leaves a %s to its own rule", (kind) => {
     expect(allocatesToLots(kind)).toBe(false);
   });
 });

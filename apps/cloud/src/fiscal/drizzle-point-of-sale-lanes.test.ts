@@ -33,6 +33,7 @@ let testDatabase: TestDatabase;
 let db: TestDatabase["db"];
 let lanes: DrizzlePointOfSaleLanes<PgliteQueryResultHKT>;
 let queuedUnclearOutcomes: Map<string, Date | undefined>;
+let queuedDiagnoses: Set<string>;
 let enqueueFailure: Error | undefined;
 
 beforeAll(async () => {
@@ -48,6 +49,9 @@ beforeAll(async () => {
     },
     async (_, id) => {
       queuedUnclearOutcomes.delete(id);
+    },
+    async (_, id) => {
+      queuedDiagnoses.add(id);
     },
   );
 });
@@ -71,6 +75,7 @@ afterAll(async () => {
 beforeEach(async () => {
   await testDatabase.clear();
   queuedUnclearOutcomes = new Map();
+  queuedDiagnoses = new Set();
   enqueueFailure = undefined;
 });
 
@@ -250,6 +255,8 @@ describe("DrizzlePointOfSaleLanes", () => {
         decidedAt: null,
         adoptedAuthorizationCode: null,
         adoptedAuthorizationCodeDueOn: null,
+        diagnosis: null,
+        diagnosedAt: null,
       });
     });
 
@@ -897,6 +904,105 @@ describe("DrizzlePointOfSaleLanes", () => {
         ),
       ).rejects.toThrow("the queue is down");
 
+      expect(await recordedAnswerKind(fiscalDocumentId)).toEqual({
+        answerKind: null,
+        answeredAt: null,
+      });
+    });
+  });
+
+  describe("the numbering conflicts the cloud diagnoses afterwards", () => {
+    async function recordRequest(number: number) {
+      const registerId = await insertRegisterWithPointOfSale(db, {
+        pointOfSaleNumber: 7,
+        name: `caja-${number}`,
+      });
+      const request = authorizationRequestRecord(registerId, { number });
+      await lanes.inPointOfSaleLane(7, (lane) => lane.recordRequest(request));
+      return request.fiscalDocumentId;
+    }
+
+    it("enqueues the diagnosis of a document the tax authority left unclear with the numbering conflict code", async () => {
+      const fiscalDocumentId = await recordRequest(1);
+
+      await lanes.inPointOfSaleLane(7, (lane) =>
+        lane.recordTaxAuthorityAnswer(
+          fiscalDocumentId,
+          { kind: "unclear" },
+          ANSWERED_AT,
+          null,
+          null,
+          [10016],
+        ),
+      );
+
+      expect(queuedDiagnoses).toEqual(new Set([fiscalDocumentId]));
+    });
+
+    it("enqueues the diagnosis of a plainly recorded unclear answer with the numbering conflict code", async () => {
+      const fiscalDocumentId = await recordRequest(1);
+
+      await lanes.inPointOfSaleLane(7, (lane) =>
+        lane.recordAnswer(fiscalDocumentId, { kind: "unclear" }, ANSWERED_AT, [10016, 10015]),
+      );
+
+      expect(queuedDiagnoses).toEqual(new Set([fiscalDocumentId]));
+    });
+
+    it("enqueues no diagnosis for an unclear answer without that code", async () => {
+      const fiscalDocumentId = await recordRequest(1);
+
+      await lanes.inPointOfSaleLane(7, (lane) =>
+        lane.recordTaxAuthorityAnswer(
+          fiscalDocumentId,
+          { kind: "unclear" },
+          ANSWERED_AT,
+          null,
+          null,
+          [10015],
+        ),
+      );
+
+      expect(queuedDiagnoses).toEqual(new Set());
+    });
+
+    it("enqueues no diagnosis for an answer that is not unclear", async () => {
+      const fiscalDocumentId = await recordRequest(1);
+
+      await lanes.inPointOfSaleLane(7, (lane) =>
+        lane.recordTaxAuthorityAnswer(fiscalDocumentId, AUTHORIZED, ANSWERED_AT, null, null, []),
+      );
+
+      expect(queuedDiagnoses).toEqual(new Set());
+    });
+
+    it("keeps the answer unrecorded when enqueueing the diagnosis fails", async () => {
+      const fiscalDocumentId = await recordRequest(1);
+      let failDiagnosis = false;
+      const failing = new DrizzlePointOfSaleLanes(
+        { withConnection: (work) => work(db) },
+        async () => {},
+        async () => {},
+        async () => {
+          failDiagnosis = true;
+          throw new Error("the queue is down");
+        },
+      );
+
+      await expect(
+        failing.inPointOfSaleLane(7, (lane) =>
+          lane.recordTaxAuthorityAnswer(
+            fiscalDocumentId,
+            { kind: "unclear" },
+            ANSWERED_AT,
+            null,
+            null,
+            [10016],
+          ),
+        ),
+      ).rejects.toThrow("the queue is down");
+
+      expect(failDiagnosis).toBe(true);
       expect(await recordedAnswerKind(fiscalDocumentId)).toEqual({
         answerKind: null,
         answeredAt: null,

@@ -7,6 +7,7 @@ import {
   argentinaCalendarDay,
   DISCARDABLE_REFUND_ALERT_KINDS,
   hasFortnightStarted,
+  isAlertKind,
   isAlertOfViewerBranch,
   isOpenAlert,
 } from "@purosur/domain";
@@ -39,6 +40,20 @@ function detailWithActorName(
   const actorId = alertActorId(detail);
   const actorName = actorId === undefined ? undefined : namesById.get(actorId);
   return actorName === undefined ? detail : { ...detail, actorName };
+}
+
+function detailWithRegisterName(
+  alert: Pick<AlertDetailView, "kind">,
+  detail: Record<string, unknown>,
+  namesById: ReadonlyMap<string, string>,
+): Record<string, unknown> {
+  const { registerId } = detail;
+  const registerName = typeof registerId === "string" ? namesById.get(registerId) : undefined;
+  return isAlertKind(alert.kind) &&
+    alertKindPolicy(alert.kind).scopeKind === "pointOfSaleFortnight" &&
+    registerName !== undefined
+    ? { ...detail, registerName }
+    : detail;
 }
 
 function detailWithFortnightStarted(
@@ -115,7 +130,11 @@ export function toAlertDetailBody(
       alert,
       detailWithFortnightStarted(
         alert,
-        detailWithActorName(detailWithoutSourceAddressHash(alert), namesById),
+        detailWithRegisterName(
+          alert,
+          detailWithActorName(detailWithoutSourceAddressHash(alert), namesById),
+          namesById,
+        ),
         argentinaCalendarDay(now),
       ),
       viewer,

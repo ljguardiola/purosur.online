@@ -37,6 +37,7 @@ interface DeliveryRow {
   print_attempted_at: string | null;
   printed_at: string | null;
   reprint_count: number;
+  voided: number;
 }
 
 interface SaleRow extends SaleDiscountColumns {
@@ -119,8 +120,9 @@ export class SqliteReceiptLedger implements ReceiptLedger {
     const row = this.database
       .prepare<[string], DeliveryRow>(
         `SELECT print_attempted_at, printed_at,
-                (SELECT count(*) FROM sale_reprints WHERE sale_reprints.sale_id = sales.id) AS reprint_count
-         FROM sales WHERE id = ? AND state = 'COMPLETED'`,
+                (SELECT count(*) FROM sale_reprints WHERE sale_reprints.sale_id = sales.id) AS reprint_count,
+                (state = 'VOIDED') AS voided
+         FROM sales WHERE id = ? AND state IN ('COMPLETED', 'VOIDED')`,
       )
       .get(saleId);
     return row === undefined
@@ -130,6 +132,7 @@ export class SqliteReceiptLedger implements ReceiptLedger {
             row.print_attempted_at === null ? null : new Date(row.print_attempted_at),
           printedAt: row.printed_at === null ? null : new Date(row.printed_at),
           reprintCount: row.reprint_count,
+          voided: row.voided === 1,
         };
   }
 

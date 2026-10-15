@@ -122,4 +122,32 @@ describe("SalesHistoryTable", () => {
 
     expect(retry).toHaveBeenCalledOnce();
   });
+
+  it("offers the states a sale can be in, with the voided ones between completed and in progress", async () => {
+    const { screen } = await renderTable();
+
+    await userEvent.click(screen.getByRole("button", { name: "Estado: Todos" }));
+
+    const options = Array.from(document.querySelectorAll("[role=option]")).map(
+      (option) => option.textContent,
+    );
+    expect(options).toEqual(["Todos", "Completada", "Anulada", "En trámite", "Diferida"]);
+  });
+
+  it("asks for the voided sales when that state is chosen", async () => {
+    const { screen, onStateChange } = await renderTable();
+
+    await userEvent.click(screen.getByRole("button", { name: "Estado: Todos" }));
+    await userEvent.click(screen.getByRole("option", { name: "Anulada" }));
+
+    expect(onStateChange).toHaveBeenCalledExactlyOnceWith("voided");
+  });
+
+  it("marks a voided sale as voided", async () => {
+    const { screen } = await renderTable({ history: loaded([{ ...ROW, state: "voided" }]) });
+
+    await expect
+      .element(screen.getByRole("table", { name: "Ventas" }).getByText("Anulada"))
+      .toBeVisible();
+  });
 });

@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 
 const CONCEPTS = [
   "alerts",
+  "backups",
   "branch",
   "catalog",
   "fiscal",
@@ -27,6 +28,7 @@ const ENTRY_POINTS = [
   "check-arca-test-environment.ts",
   "clear-sample-data.ts",
   "create-first-administrator.ts",
+  "dump-offsite.ts",
   "load-sample-data.ts",
   "migrate.ts",
   "record-arca-responses.ts",

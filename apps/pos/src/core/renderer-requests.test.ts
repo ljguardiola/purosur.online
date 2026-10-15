@@ -43,6 +43,7 @@ import type {
   SetReceiptPrinterOutcome,
   SignInLookupOutcome,
   SignInOutcome,
+  VoidSaleOutcome,
   WeighProductOutcome,
 } from "@purosur/contracts";
 import type { AuthorizablePermissionKey } from "@purosur/domain";
@@ -61,11 +62,16 @@ import type {
   PreviewSaleLineAdjustmentRequest,
 } from "./sales/sale-requests";
 import type { SalesHistoryRequest } from "./sales/sales-history-requests";
+import type { VoidSaleRequest } from "./sales/void-sale-requests";
 
 const NOTHING_PENDING = {
   sales_to_print: [],
   unknown_fiscal_documents: [],
   pending_payments: [],
+  paid_orders_without_sale: [],
+  paid_order_discovery: "checked" as const,
+  selling_blocked: false,
+  may_go_selling: true,
 };
 
 function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
@@ -253,6 +259,17 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
         );
         return { kind: "no_open_sale" };
       },
+      voidSale: async (request: VoidSaleRequest): Promise<VoidSaleOutcome> => {
+        saleChanges.push(
+          [
+            "void",
+            request.saleId,
+            request.pendingRefundsConfirmed ? "confirmed" : "unconfirmed",
+            request.authorization?.user_id ?? "alone",
+          ].join(" "),
+        );
+        return { kind: "not_found" };
+      },
       receiptPrintStatus: async (saleId: string): Promise<ReceiptPrintStatusOutcome> => {
         saleChanges.push(["receipt-status", saleId].join(" "));
         return { kind: "not_found" };
@@ -327,6 +344,7 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
       followMercadoPagoCharge: undefined,
       paymentMethodAvailability: undefined,
       abandonMercadoPagoCharge: undefined,
+      convertPaidOrderIntoRefund: undefined,
       searchProducts: async (query: string): Promise<SearchProductsOutcome> => {
         searches.push(query);
         return { kind: "results", products: [], more: false };
@@ -1425,6 +1443,52 @@ describe("answerRendererRequest", () => {
     expect(await answerRendererRequest(deps(true).deps, message)).toEqual(unavailable);
   });
 
+  it("converts a paid order without a sale into a refund and answers the outcome", async () => {
+    const requests: { paymentTransactionId: string }[] = [];
+    const { deps: withConversion } = deps(true, {
+      convertPaidOrderIntoRefund: async (request) => {
+        requests.push(request);
+        return { kind: "converted" };
+      },
+    });
+
+    expect(
+      await answerRendererRequest(withConversion, {
+        type: "convert-paid-order-into-refund",
+        request_id: "r70",
+        payment_transaction_id: "qr-1",
+      }),
+    ).toEqual({
+      type: "convert-paid-order-into-refund-result",
+      request_id: "r70",
+      outcome: { kind: "converted" },
+    });
+    expect(requests).toEqual([{ paymentTransactionId: "qr-1" }]);
+  });
+
+  it("answers that converting a paid order is unavailable when it fails or the register cannot, and reports why", async () => {
+    const error = new Error("database is locked");
+    const failing = deps(true, {
+      convertPaidOrderIntoRefund: async () => {
+        throw error;
+      },
+    });
+    const message = {
+      type: "convert-paid-order-into-refund",
+      request_id: "r71",
+      payment_transaction_id: "qr-1",
+    } as const;
+    const unavailable = {
+      type: "convert-paid-order-into-refund-result",
+      request_id: "r71",
+      outcome: { kind: "unavailable" },
+    };
+
+    expect(await answerRendererRequest(failing.deps, message)).toEqual(unavailable);
+    expect(failing.failures).toEqual([{ context: "converting a paid order into a refund", error }]);
+    expect(await answerRendererRequest(deps(true).deps, message)).toEqual(unavailable);
+  });
+
   it("answers that a QR charge is unavailable when it fails, and reports why", async () => {
     const error = new Error("database is locked");
     const failing = deps(true, {
@@ -2370,6 +2434,10 @@ describe("answerRendererRequest", () => {
       ],
       unknown_fiscal_documents: [],
       pending_payments: [],
+      paid_orders_without_sale: [],
+      paid_order_discovery: "checked" as const,
+      selling_blocked: false,
+      may_go_selling: true,
     };
 
     expect(
@@ -2698,6 +2766,19 @@ describe("answerRendererRequest", () => {
         "cancelling a sale with approved payments",
         "cancel-paid s1 u2",
         "cancel-paid-sale-result",
+      ],
+      [
+        "void-sale",
+        {
+          type: "void-sale",
+          sale_id: "s1",
+          pending_refunds_confirmed: true,
+          authorization: { user_id: "u2", pin: "1234" },
+        } as const,
+        "voidSale",
+        "voiding a sale",
+        "void s1 confirmed u2",
+        "void-sale-result",
       ],
       [
         "receipt-print-status",

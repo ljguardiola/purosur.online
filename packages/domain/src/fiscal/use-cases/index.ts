@@ -6,8 +6,11 @@ export type {
   TaxAuthorityRejection,
 } from "../model/fiscal-rejection-standing.js";
 export type { Fortnight } from "../model/offline-authorization-code.js";
+export type { OfflineFiscalDocument } from "../model/offline-fiscal-document.js";
 export type {
   DeferralReason,
+  OfflineAuthorizationCause,
+  OfflineSeries,
   RealTimeAuthorizationAnswer,
   RealTimeAuthorizationResolution,
   RealTimeSeries,
@@ -52,6 +55,12 @@ export type {
   AssignAwaitedOfflineNumberBlockOutcome,
 } from "./assign-awaited-offline-number-block.js";
 export { assignAwaitedOfflineNumberBlock } from "./assign-awaited-offline-number-block.js";
+export type {
+  AssignNextOfflineNumberBlockInput,
+  AssignNextOfflineNumberBlockOutcome,
+} from "./assign-next-offline-number-block.js";
+export type { AssignNextOfflineNumberBlocksOutcome } from "./assign-next-offline-number-blocks.js";
+export { assignNextOfflineNumberBlocks } from "./assign-next-offline-number-blocks.js";
 export type {
   AssignFirstOfflineNumberBlockOutcome,
   AssignOfflineNumberBlockInput,
@@ -114,6 +123,11 @@ export { decideUnclearRealTimeOutcome } from "./decide-unclear-real-time-outcome
 export type { ShortCodeRandomness } from "./deferred-sale-ports.js";
 export { ShortCodeTaken } from "./deferred-sale-ports.js";
 export type {
+  DiagnoseNumberingConflictInput,
+  DiagnoseNumberingConflictOutcome,
+} from "./diagnose-numbering-conflict.js";
+export { diagnoseNumberingConflict } from "./diagnose-numbering-conflict.js";
+export type {
   EditFiscalAddressInput,
   EditFiscalAddressOutcome,
 } from "./edit-fiscal-address.js";
@@ -152,6 +166,37 @@ export type {
 } from "./fiscal-document-authorization-ports.js";
 export { FiscalDocumentAlreadyRecorded } from "./fiscal-document-authorization-ports.js";
 export type {
+  BranchFortnightPresentation,
+  FortnightPresentationReader,
+} from "./fortnight-presentation-reader.js";
+export type {
+  FortnightPresentationNeedingRegularization,
+  FortnightRegularizationReader,
+} from "./fortnight-regularization-reader.js";
+export type {
+  DocumentTypeReportChange,
+  FortnightReportChange,
+  FortnightReportKey,
+  FortnightReportPorts,
+  FortnightReportStore,
+  HeldFortnightReport,
+  NoMovementDeclarationAnswer,
+  NoMovementDeclarationCall,
+  NoMovementDeclarationLookupAnswer,
+  OfflineDocumentBatchLimitAnswer,
+  OfflineDocumentLastReportedAnswer,
+  OfflineDocumentLastReportedCall,
+  OfflineDocumentOfFortnight,
+  OfflineDocumentReportAnswer,
+  OfflineDocumentReportCall,
+  OfflineDocumentsOfFortnight,
+  OwedFortnightReport,
+  RecordedFortnightReport,
+  RegisterEventStreams,
+  TaxAuthorityNoMovementDeclarations,
+  TaxAuthorityOfflineDocumentReports,
+} from "./fortnight-report-ports.js";
+export type {
   InterruptedRealTimeAuthorization,
   InterruptedRealTimeAuthorizationPorts,
   InterruptedRealTimeAuthorizations,
@@ -167,6 +212,17 @@ export type {
   IssuerIdentificationStoreTransaction,
   NewIssuerIdentificationVersion,
 } from "./issuer-identification-store.js";
+export type {
+  DiagnoseNumberingConflictPorts,
+  ExternalBillingOpening,
+  NumberingConflictLane,
+  NumberingConflictLanes,
+  NumberingConflictRequest,
+  NumberingConflictRequests,
+  NumberingDiagnosisRecord,
+  NumberingFreeze,
+  ReconcileNumberingConflictPorts,
+} from "./numbering-conflict-ports.js";
 export type {
   FortnightAcquisitionOutcome,
   ObtainOfflineAuthorizationCodesOutcome,
@@ -208,6 +264,11 @@ export type {
   RoundTripSamples,
   WaitingFiscalDocument,
 } from "./real-time-authorization-ports.js";
+export type {
+  ReconcileNumberingConflictInput,
+  ReconcileNumberingConflictOutcome,
+} from "./reconcile-numbering-conflict.js";
+export { reconcileNumberingConflict } from "./reconcile-numbering-conflict.js";
 export type {
   RecordAuthorizedCuitInput,
   RecordAuthorizedCuitOutcome,
@@ -258,6 +319,12 @@ export type {
   RenewWsaaTokenOutcome,
 } from "./renew-wsaa-token.js";
 export { renewWsaaToken } from "./renew-wsaa-token.js";
+export type {
+  FortnightPresentation,
+  FortnightPresentationOutcome,
+  ReportFortnightsOutcome,
+} from "./report-fortnights.js";
+export { reportFortnights } from "./report-fortnights.js";
 export { reportOfflineAuthorizationCodeAcquisitionFailures } from "./report-offline-authorization-code-acquisition-failures.js";
 export type {
   AcquisitionFailureNotice,
@@ -276,6 +343,7 @@ export type {
   FiscalDocumentReservation,
   IdGenerator,
   SaleAuthorizationTransaction,
+  SaleOrigin,
 } from "./sale-authorization-ports.js";
 export type { SettleInterruptedRealTimeAuthorizationsOutcome } from "./settle-interrupted-real-time-authorizations.js";
 export { settleInterruptedRealTimeAuthorizations } from "./settle-interrupted-real-time-authorizations.js";

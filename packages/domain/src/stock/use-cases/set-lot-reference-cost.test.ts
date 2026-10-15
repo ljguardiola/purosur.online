@@ -71,7 +71,7 @@ describe("setLotReferenceCost", () => {
     expect(store.lots[0]).toMatchObject({ cost: null, costIncomplete: true });
   });
 
-  it.each(["purchase", "technical"] as const)(
+  it.each(["purchase", "technical", "assembly_batch"] as const)(
     "refuses a %s lot, whose cost does not come from the initial count",
     async (origin) => {
       const store = new FakeLotCostStore([

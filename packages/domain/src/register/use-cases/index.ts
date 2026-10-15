@@ -1,5 +1,15 @@
 export type { Clock, OperationAuthority, OperationAuthorization } from "../../shared/index.js";
 export type {
+  AnswerSnapshotVerificationInput,
+  AnswerSnapshotVerificationPorts,
+} from "./answer-snapshot-verification.js";
+export { answerSnapshotVerification } from "./answer-snapshot-verification.js";
+export type {
+  ApplySnapshotRetentionPorts,
+  SnapshotRetentionSummary,
+} from "./apply-snapshot-retention.js";
+export { applySnapshotRetention } from "./apply-snapshot-retention.js";
+export type {
   AuthenticateInstallationInput,
   AuthenticateInstallationOutcome,
 } from "./authenticate-installation.js";
@@ -69,6 +79,11 @@ export type {
 } from "./list-branch-registers.js";
 export { listBranchRegisters } from "./list-branch-registers.js";
 export type {
+  ListRestorableSnapshotGenerationsPorts,
+  RestorableSnapshotGeneration,
+} from "./list-restorable-snapshot-generations.js";
+export { listRestorableSnapshotGenerations } from "./list-restorable-snapshot-generations.js";
+export type {
   LocalDatabaseHealth,
   LocalDatabaseHealthPorts,
 } from "./local-database-health.js";
@@ -80,6 +95,11 @@ export type {
   OpenCashSessionPorts,
 } from "./open-cash-session.js";
 export { openCashSession } from "./open-cash-session.js";
+export type {
+  PruneSnapshotGenerationsOnDiskOutcome,
+  PruneSnapshotGenerationsOnDiskPorts,
+} from "./prune-snapshot-generations-on-disk.js";
+export { pruneSnapshotGenerationsOnDisk } from "./prune-snapshot-generations-on-disk.js";
 export type {
   ReadReceiptPrinterAddressOutcome,
   ReadReceiptPrinterAddressPorts,
@@ -98,6 +118,18 @@ export type {
   RecordCashMovementPorts,
 } from "./record-cash-movement.js";
 export { recordCashMovement } from "./record-cash-movement.js";
+export type {
+  RecordSnapshotCopyFailureInput,
+  RecordSnapshotCopyFailureOutcome,
+  RecordSnapshotCopyFailurePorts,
+} from "./record-snapshot-copy-failure.js";
+export { recordSnapshotCopyFailure } from "./record-snapshot-copy-failure.js";
+export type {
+  RecordSnapshotUploadedInput,
+  RecordSnapshotUploadedOutcome,
+  RecordSnapshotUploadedPorts,
+} from "./record-snapshot-uploaded.js";
+export { recordSnapshotUploaded } from "./record-snapshot-uploaded.js";
 export type {
   RegisterSerialDevicesInput,
   RegisterSerialDevicesOutcome,
@@ -129,10 +161,32 @@ export type {
 } from "./register-store.js";
 export { reportLocalDatabaseDamage } from "./report-local-database-damage.js";
 export type {
+  ReportSnapshotCorruptionInput,
+  ReportSnapshotCorruptionPorts,
+} from "./report-snapshot-corruption.js";
+export { reportSnapshotCorruption } from "./report-snapshot-corruption.js";
+export type {
+  RequestSnapshotUploadInput,
+  RequestSnapshotUploadOutcome,
+  RequestSnapshotUploadPorts,
+} from "./request-snapshot-upload.js";
+export { requestSnapshotUpload } from "./request-snapshot-upload.js";
+export type {
   RotateDeviceTokenInput,
   RotateDeviceTokenOutcome,
 } from "./rotate-device-token.js";
 export { rotateDeviceToken } from "./rotate-device-token.js";
+export type {
+  RunSnapshotCycleInput,
+  RunSnapshotCycleOutcome,
+  RunSnapshotCyclePorts,
+} from "./run-snapshot-cycle.js";
+export { runSnapshotCycle } from "./run-snapshot-cycle.js";
+export type {
+  SendSnapshotCorruptionReportOutcome,
+  SendSnapshotCorruptionReportPorts,
+} from "./send-snapshot-corruption-report.js";
+export { sendSnapshotCorruptionReport } from "./send-snapshot-corruption-report.js";
 export type { SerialDeviceEnumeration } from "./serial-device-enumeration.js";
 export type {
   SerialDeviceRegistrations,
@@ -144,3 +198,52 @@ export type {
   SetReceiptPrinterAddressPorts,
 } from "./set-receipt-printer-address.js";
 export { setReceiptPrinterAddress } from "./set-receipt-printer-address.js";
+export type {
+  SnapshotCorruptionCloud,
+  SnapshotCorruptionReports,
+} from "./snapshot-corruption-ports.js";
+export type {
+  SnapshotCycleState,
+  SnapshotLog,
+  SnapshotWorkerJob,
+  SnapshotWorkerLauncher,
+} from "./snapshot-cycle-ports.js";
+export type {
+  SnapshotGenerationsOnDisk,
+  SnapshotVerificationAnswer,
+  SnapshotVerificationCloud,
+} from "./snapshot-disk-pruning-ports.js";
+export type {
+  AuthorizedSnapshotUpload,
+  NewSnapshotGeneration,
+  RegisterSnapshotLanes,
+  SnapshotGeneration,
+  SnapshotObjectContent,
+  SnapshotObjects,
+  SnapshotSettlement,
+  SnapshotStore,
+  SnapshotStoreTransaction,
+  SnapshotUploadAuthorization,
+  SnapshotUploads,
+} from "./snapshot-generations.js";
+export {
+  SnapshotGenerationIdTaken,
+  SnapshotUploadWindowClosed,
+} from "./snapshot-generations.js";
+export type {
+  LocalSnapshotGenerations,
+  SnapshotCloudStep,
+  SnapshotDeclarationAnswer,
+  SnapshotUploadCloud,
+} from "./snapshot-upload-ports.js";
+export type {
+  SnapshotUploadTally,
+  UploadPendingSnapshotGenerationsOutcome,
+  UploadPendingSnapshotGenerationsPorts,
+} from "./upload-pending-snapshot-generations.js";
+export { uploadPendingSnapshotGenerations } from "./upload-pending-snapshot-generations.js";
+export type {
+  SnapshotVerificationSummary,
+  VerifySnapshotGenerationsPorts,
+} from "./verify-snapshot-generations.js";
+export { verifySnapshotGenerations } from "./verify-snapshot-generations.js";

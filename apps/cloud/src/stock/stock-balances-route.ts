@@ -30,7 +30,21 @@ export function registerStockBalancesRoute<TQueryResult extends PgQueryResultHKT
     async (request, reply) => {
       const { locationId } = openSessionOf(request);
       const balances = await readStockBalances({ stockList: reader }, { locationId });
-      await reply.code(200).send(stockBalanceListSchema.parse(balances));
+      await reply.code(200).send(
+        stockBalanceListSchema.parse({
+          ...balances,
+          products: balances.products.map((product) => ({
+            ...product,
+            lots: product.lots.map((lot) => ({
+              ...lot,
+              origin:
+                lot.origin.kind === "assembly_batch"
+                  ? { ...lot.origin, assembledAt: lot.origin.assembledAt.toISOString() }
+                  : lot.origin,
+            })),
+          })),
+        }),
+      );
     },
   );
 }

@@ -10,6 +10,11 @@ describe("the Spanish names of synced events", () => {
     expect(syncedEventTypeName("cash_session_closed")).toBe("cierre de caja");
   });
 
+  test("names a voided sale apart from a cancelled one", () => {
+    expect(syncedEventTypeName("sale_voided")).toBe("venta anulada");
+    expect(syncedEventTypeName("sale_cancelled")).toBe("venta cancelada");
+  });
+
   test("names the replacement of a QR payment", () => {
     expect(syncedEventTypeName("qr_payment_replaced")).toBe("reemplazo de pago QR");
   });
@@ -19,6 +24,10 @@ describe("the Spanish names of synced events", () => {
     expect(syncedEventTypeName("opening_count_withdrawn")).toBe(
       "línea del inventario inicial quitada",
     );
+  });
+
+  test("names a factura issued under a pre-obtained code", () => {
+    expect(syncedEventTypeName("offline_fiscal_document_issued")).toBe("factura emitida con CAEA");
   });
 
   test("has no name for an unknown event type", () => {

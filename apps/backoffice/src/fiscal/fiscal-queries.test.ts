@@ -32,3 +32,12 @@ test("invalidating the fiscal key marks the fiscal addresses and the registers' 
   expect(client.getQueryState(fiscalKeys.fiscalAddresses)?.isInvalidated).toBe(true);
   expect(client.getQueryState(fiscalKeys.registerPointsOfSale)?.isInvalidated).toBe(true);
 });
+
+test("invalidating the fiscal key marks the fortnight presentations stale too", async () => {
+  const client = new QueryClient();
+  client.setQueryData(fiscalKeys.fortnightPresentations, []);
+
+  await client.invalidateQueries({ queryKey: fiscalKey, refetchType: "none" });
+
+  expect(client.getQueryState(fiscalKeys.fortnightPresentations)?.isInvalidated).toBe(true);
+});

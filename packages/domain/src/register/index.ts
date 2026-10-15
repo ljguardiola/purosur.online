@@ -46,11 +46,18 @@ export {
   hasDistinctKeyVersions,
   INSTALLATION_KEY_BYTES,
   isWellFormedInstallationKey,
+  latestKey,
 } from "./model/installation-key.js";
 export {
   INSTALLATION_REPORT_MAX_LENGTH,
   isInstallationReportTooLong,
 } from "./model/installation-report.js";
+export type { LocalSnapshotGeneration } from "./model/local-snapshot-generation.js";
+export {
+  isPendingSnapshotGeneration,
+  lastSnapshotGenerationSequences,
+  pendingSnapshotGenerationsNewestFirst,
+} from "./model/local-snapshot-generation.js";
 export { nextOperationNumber } from "./model/operation-number.js";
 export type { ReceiptPrinterAddress } from "./model/receipt-printer-address.js";
 export { isLockedToAnother } from "./model/register-lock.js";
@@ -92,6 +99,34 @@ export {
   SERIAL_DEVICE_ROLES,
   serialDeviceStandings,
 } from "./model/serial-devices.js";
+export type {
+  SnapshotCycleFacts,
+  SnapshotSequences,
+  SnapshotSkipReason,
+} from "./model/snapshot-cycle.js";
+export { snapshotIntervalMs } from "./model/snapshot-cycle.js";
+export type { SnapshotCorruptionStage } from "./model/snapshot-generation.js";
+export {
+  isRetainedSnapshotGeneration,
+  SNAPSHOT_CORRUPTION_STAGES,
+  SNAPSHOT_DOWNLOAD_URL_LIFETIME_MS,
+  SNAPSHOT_FAILURE_REASONS,
+  SNAPSHOT_GENERATION_STATUSES,
+  SNAPSHOT_RETENTION_INTERVAL_MS,
+  SNAPSHOT_STATUSES_AWAITING_VERIFICATION,
+  SNAPSHOT_VERIFICATION_INTERVAL_MS,
+  SNAPSHOT_WORKER_TIME_LIMIT_MS,
+} from "./model/snapshot-generation.js";
+export type { SnapshotLifecycleRules } from "./model/snapshot-lifecycle-rules.js";
+export { SNAPSHOT_LIFECYCLE_LIMITS } from "./model/snapshot-lifecycle-rules.js";
+export type { DiskStanding, StorageSalesStop, StorageStanding } from "./model/storage.js";
+export {
+  diskStanding,
+  STORAGE_READ_INTERVAL_MS,
+  startupDiskVerdict,
+  storageSalesStopOf,
+  walOversized,
+} from "./model/storage.js";
 export {
   isSafeMomentToUpdate,
   REGISTER_UPDATE_HOLD_LIMIT_MS,

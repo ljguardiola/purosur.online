@@ -18,6 +18,7 @@ import type {
   ChargeSaleOnStandaloneTerminalOutcome,
   CloseCashSessionOutcome,
   CloseLockedCashSessionOutcome,
+  ConvertPaidOrderIntoRefundOutcome,
   CredentialsCoreToRendererMessage,
   CredentialsRendererToCoreMessage,
   CurrentSaleAnswer,
@@ -72,6 +73,7 @@ import type {
   StockCoreToRendererMessage,
   StockRendererToCoreMessage,
   SyncCoreToRendererMessage,
+  VoidSaleOutcome,
   WeighCountedProductOutcome,
   WeighProductOutcome,
   WithdrawInitialCountLineOutcome,
@@ -214,6 +216,11 @@ export interface CoreClient {
     saleId: string,
     authorization: Authorization | undefined,
   ): Promise<CancelPaidSaleOutcome>;
+  voidSale(
+    saleId: string,
+    pendingRefundsConfirmed: boolean,
+    authorization: Authorization | undefined,
+  ): Promise<VoidSaleOutcome>;
   receiptPrintStatus(saleId: string): Promise<ReceiptPrintStatusOutcome>;
   printOriginalReceipt(saleId: string): Promise<PrintOriginalReceiptOutcome>;
   reprintSaleReceipt(
@@ -242,6 +249,9 @@ export interface CoreClient {
   ): Promise<StartMercadoPagoChargeOutcome>;
   followMercadoPagoCharge(paymentTransactionId: string): Promise<FollowMercadoPagoChargeOutcome>;
   abandonMercadoPagoCharge(paymentTransactionId: string): Promise<AbandonMercadoPagoChargeOutcome>;
+  convertPaidOrderIntoRefund(
+    paymentTransactionId: string,
+  ): Promise<ConvertPaidOrderIntoRefundOutcome>;
   closeCashSession(sessionId: string, countedCash: number): Promise<CloseCashSessionOutcome>;
   closeLockedCashSession(
     sessionId: string,
@@ -256,6 +266,7 @@ export interface CoreClient {
   startupPending(): Promise<StartupPending | "not_permitted">;
   onPulled(listener: () => void): () => void;
   onSerialDevicesChanged(listener: () => void): () => void;
+  onStorageStandingChanged(listener: () => void): () => void;
   onBarcodeRead(listener: (code: string) => void): () => void;
 }
 
@@ -275,6 +286,7 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
   const sent = new Map<string, PendingRequest>();
   const pulledListeners = new Set<() => void>();
   const serialDevicesChangedListeners = new Set<() => void>();
+  const storageStandingChangedListeners = new Set<() => void>();
   const barcodeReadListeners = new Set<(code: string) => void>();
 
   function receive(port: CorePort, data: unknown): void {
@@ -293,6 +305,12 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
     }
     if (answer.data.type === "serial-devices-changed") {
       for (const listener of serialDevicesChangedListeners) {
+        listener();
+      }
+      return;
+    }
+    if (answer.data.type === "storage-standing-changed") {
+      for (const listener of storageStandingChangedListeners) {
         listener();
       }
       return;
@@ -625,6 +643,18 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
         (answer) => (answer.type === "cancel-paid-sale-result" ? answer.outcome : undefined),
       );
     },
+    voidSale(saleId, pendingRefundsConfirmed, authorization) {
+      return ask(
+        {
+          type: "void-sale",
+          request_id: deps.newRequestId(),
+          sale_id: saleId,
+          pending_refunds_confirmed: pendingRefundsConfirmed,
+          ...(authorization === undefined ? {} : { authorization }),
+        },
+        (answer) => (answer.type === "void-sale-result" ? answer.outcome : undefined),
+      );
+    },
     receiptPrintStatus(saleId) {
       return ask(
         { type: "receipt-print-status", request_id: deps.newRequestId(), sale_id: saleId },
@@ -855,6 +885,17 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
           answer.type === "abandon-mercado-pago-charge-result" ? answer.outcome : undefined,
       );
     },
+    convertPaidOrderIntoRefund(paymentTransactionId) {
+      return ask(
+        {
+          type: "convert-paid-order-into-refund",
+          request_id: deps.newRequestId(),
+          payment_transaction_id: paymentTransactionId,
+        },
+        (answer) =>
+          answer.type === "convert-paid-order-into-refund-result" ? answer.outcome : undefined,
+      );
+    },
     closeCashSession(sessionId, countedCash) {
       return ask(
         {
@@ -949,6 +990,12 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
       serialDevicesChangedListeners.add(listener);
       return () => {
         serialDevicesChangedListeners.delete(listener);
+      };
+    },
+    onStorageStandingChanged(listener) {
+      storageStandingChangedListeners.add(listener);
+      return () => {
+        storageStandingChangedListeners.delete(listener);
       };
     },
     onBarcodeRead(listener) {

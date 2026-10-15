@@ -11,6 +11,10 @@ import { registerAlertReadRoute } from "./alerts/alert-read-route.js";
 import type { AlertsRouteOptions } from "./alerts/alerts-list-route.js";
 import { registerAlertsListRoute } from "./alerts/alerts-list-route.js";
 import { registerAlertsOverviewRoute } from "./alerts/alerts-overview-route.js";
+import {
+  type RecordOffsiteDumpCheckRouteOptions,
+  registerRecordOffsiteDumpCheckRoute,
+} from "./backups/record-offsite-dump-check-route.js";
 import { registerBranchSettingsEditRoute } from "./branch/branch-settings-edit-route.js";
 import type { BranchSettingsRouteOptions } from "./branch/branch-settings-read-route.js";
 import { registerBranchSettingsReadRoute } from "./branch/branch-settings-read-route.js";
@@ -71,6 +75,7 @@ import {
   type FiscalAuthorizationRouteOptions,
   registerFiscalAuthorizationRoute,
 } from "./fiscal/fiscal-authorization-route.js";
+import { registerFortnightPresentationsListRoute } from "./fiscal/fortnight-presentations-list-route.js";
 import type { EnqueueOfflineAuthorizationCodeRequest } from "./fiscal/graphile-offline-authorization-code-queue.js";
 import type { EnqueueTaxAuthorityCount } from "./fiscal/graphile-tax-authority-count-queue.js";
 import { registerIssuerIdentificationEditRoute } from "./fiscal/issuer-identification-edit-route.js";
@@ -89,11 +94,13 @@ import {
   type MercadoPagoOrderRoutesOptions,
   registerMercadoPagoOrderRoutes,
 } from "./payments/mercado-pago-order-routes.js";
+import { registerPaidOrdersOfRegisterRoutes } from "./payments/paid-orders-of-register-routes.js";
 import {
   type PaymentsReportRouteOptions,
   registerPaymentsReportRoutes,
 } from "./payments/payments-report-routes.js";
 import { type RefundRouteOptions, registerRefundRoutes } from "./payments/refund-routes.js";
+import { registerRegisterPointTerminalRoute } from "./payments/register-point-terminal-route.js";
 import { registerPermissionCatalogRoute } from "./permissions/permission-catalog-route.js";
 import { registerRoleCreationRoutes } from "./permissions/role-creation-route.js";
 import { registerRoleEditRoutes } from "./permissions/role-edit-route.js";
@@ -128,6 +135,10 @@ import {
 import { registerRegisterCoverageRoute } from "./register/register-coverage-route.js";
 import { registerRegisterCreationRoute } from "./register/register-creation-route.js";
 import { registerRegisterEnrollmentCodeRoute } from "./register/register-enrollment-code-route.js";
+import {
+  type RegisterSnapshotUrls,
+  registerRegisterSnapshotRoutes,
+} from "./register/register-snapshot-routes.js";
 import { registerRegisterSyncStatusRoute } from "./register/register-sync-status-route.js";
 import {
   type RegisterUpdateFeed,
@@ -149,6 +160,7 @@ import { registerSessionReadRoute } from "./sessions/session-read-route.js";
 import { registerSessionSignOutRoute } from "./sessions/session-sign-out-route.js";
 import { registerSessionStatusRoute } from "./sessions/session-status-route.js";
 import { registerSignInLookupRoute } from "./sessions/sign-in-lookup-route.js";
+import { registerAssemblyBatchesRoutes } from "./stock/assembly-batches-routes.js";
 import { registerExpiringLotsRoutes } from "./stock/expiring-lots-route.js";
 import { registerInitialInventoryLotsRoutes } from "./stock/initial-inventory-lots-route.js";
 import { registerRecipesRoutes } from "./stock/recipes-routes.js";
@@ -208,6 +220,7 @@ export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = Postgre
   quarantinedEvents?: WithoutClock<QuarantinedEventsRouteOptions<TQueryResult>>;
   registersBelowMinimum?: RegistersBelowMinimumRouteOptions<TQueryResult>;
   readableEventVersions?: ReadableEventVersionsRouteOptions;
+  offsiteDumpChecks?: WithoutClock<RecordOffsiteDumpCheckRouteOptions<TQueryResult>>;
   prices?: WithoutClock<PricesRouteOptions<TQueryResult>>;
   discounts?: WithoutClock<DiscountsRouteOptions<TQueryResult>>;
   registers?: WithoutClock<RegistersRouteOptions<TQueryResult>>;
@@ -227,6 +240,7 @@ export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = Postgre
   >;
   mercadoPagoNotifications?: WithoutClock<MercadoPagoNotificationRoutesOptions<TQueryResult>>;
   registerUpdateFeed?: RegisterUpdateFeed;
+  registerSnapshotUrls?: RegisterSnapshotUrls;
   health?: WithoutClock<HealthArcaOptions<TQueryResult>>;
   firstPinCodes?: WithoutClock<FirstPinCodeRouteOptions<TQueryResult>>;
 }
@@ -246,6 +260,7 @@ type DatabaseRouteOptions<TQueryResult extends PgQueryResultHKT> = Required<
     | "mercadoPagoOrders"
     | "mercadoPagoNotifications"
     | "registerUpdateFeed"
+    | "registerSnapshotUrls"
   >
 >;
 
@@ -266,6 +281,7 @@ interface DatabaseWiring<TQueryResult extends PgQueryResultHKT> {
   enqueueTaxAuthorityCount?: EnqueueTaxAuthorityCount;
   refundSending?: NonNullable<RefundRouteOptions<TQueryResult>["sending"]>;
   releaseCheckToken?: string | undefined;
+  offsiteDumpCheckToken?: string | undefined;
 }
 
 export function databaseRouteOptions<TQueryResult extends PgQueryResultHKT>(
@@ -297,6 +313,7 @@ export function databaseRouteOptions<TQueryResult extends PgQueryResultHKT>(
     quarantinedEvents: backoffice,
     registersBelowMinimum: { db, releaseCheckToken: wiring.releaseCheckToken },
     readableEventVersions: { releaseCheckToken: wiring.releaseCheckToken },
+    offsiteDumpChecks: { db, offsiteDumpCheckToken: wiring.offsiteDumpCheckToken },
     prices: backoffice,
     discounts: backoffice,
     registers: backoffice,
@@ -543,6 +560,10 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
         registerReadableEventVersionsRoute(api, options.readableEventVersions);
       }
 
+      if (options.offsiteDumpChecks) {
+        registerRecordOffsiteDumpCheckRoute(api, { ...options.offsiteDumpChecks, now });
+      }
+
       if (options.prices) {
         registerPricesListRoute(api, { ...options.prices, now });
         registerPriceMarginRoute(api, { ...options.prices, now });
@@ -561,6 +582,7 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
         registerStockBalancesRoute(api, { ...options.stock, now });
         registerStockProductsRoute(api, { ...options.stock, now });
         registerRecipesRoutes(api, { ...options.stock, now });
+        registerAssemblyBatchesRoutes(api, { ...options.stock, now });
         registerStockCountsRoutes(api, { ...options.stock, now });
         registerInitialInventoryLotsRoutes(api, { ...options.stock, now });
         registerStockMovementsRoutes(api, { ...options.stock, now });
@@ -586,10 +608,12 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
         registerRegisterCreationRoute(api, { ...options.registers, now });
         registerRegisterCoverageRoute(api, { ...options.registers, now });
         registerRegisterEnrollmentCodeRoute(api, { ...options.registers, now });
+        registerRegisterPointTerminalRoute(api, { ...options.registers, now });
       }
 
       if (options.registersPointsOfSale) {
         registerRegistersPointsOfSaleListRoute(api, { ...options.registersPointsOfSale, now });
+        registerFortnightPresentationsListRoute(api, { ...options.registersPointsOfSale, now });
         registerRegisterPointOfSaleConfigurationRoute(api, {
           ...options.registersPointsOfSale,
           now,
@@ -622,6 +646,12 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
           reportError: (error) => reportError("the register update feed failed", error),
           now,
         });
+        registerRegisterSnapshotRoutes(api, {
+          ...options.devices,
+          ...(options.registerSnapshotUrls && { urls: options.registerSnapshotUrls }),
+          reportError: (error) => reportError("the register snapshot backups failed", error),
+          now,
+        });
         if (options.fiscalAuthorization) {
           registerFiscalAuthorizationRoute(api, {
             ...options.devices,
@@ -638,6 +668,11 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
           registerMercadoPagoOrderRoutes(api, {
             ...options.devices,
             ...options.mercadoPagoOrders,
+            now,
+          });
+          registerPaidOrdersOfRegisterRoutes(api, {
+            ...options.devices,
+            connections: options.mercadoPagoOrders.connections,
             now,
           });
         }

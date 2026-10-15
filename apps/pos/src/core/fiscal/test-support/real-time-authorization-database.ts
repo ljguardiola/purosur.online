@@ -20,6 +20,8 @@ import {
 
 export const POINT_OF_SALE = 12;
 
+export const OFFLINE_POINT_OF_SALE = 31;
+
 export const FACTURA_C: FacturaC = {
   invoiceClass: "C",
   total: 12_500,
@@ -71,14 +73,16 @@ export function insertPointOfSale(
   database: LocalDatabase,
   taxAuthorityLastAuthorized: number | null,
   pointOfSale = POINT_OF_SALE,
+  numberingFrozen = false,
 ): void {
   database
     .prepare(
       `INSERT INTO register_point_of_sale (
-         register_id, point_of_sale_number, fiscal_address_id, tax_authority_last_authorized_number, version
-       ) VALUES ('register-1', ?, 'address-1', ?, 1)`,
+         register_id, point_of_sale_number, fiscal_address_id, tax_authority_last_authorized_number,
+         numbering_frozen, version
+       ) VALUES ('register-1', ?, 'address-1', ?, ?, 1)`,
     )
-    .run(pointOfSale, taxAuthorityLastAuthorized);
+    .run(pointOfSale, taxAuthorityLastAuthorized, numberingFrozen ? 1 : 0);
 }
 
 export interface HealthCheckRow {
@@ -174,6 +178,66 @@ export function insertOfflineNumberBlock(
        ) VALUES (?, ?, 'factura_c', ?, ?, 'in_use', 1)`,
     )
     .run(id, pointOfSale, firstNumber, lastNumber);
+}
+
+export const OFFLINE_CODE = "36251478963214";
+
+export function insertOfflineAuthorizationCode(
+  database: LocalDatabase,
+  {
+    code = OFFLINE_CODE,
+    fortnightStart = "2026-09-16",
+    fortnightEnd = "2026-09-30",
+  }: { code?: string; fortnightStart?: string; fortnightEnd?: string } = {},
+): void {
+  database
+    .prepare(
+      `INSERT INTO offline_authorization_codes (
+         fortnight_start, fortnight_end, code, report_deadline, version
+       ) VALUES (?, ?, ?, '2026-10-10', 1)`,
+    )
+    .run(fortnightStart, fortnightEnd, code);
+}
+
+export interface OfflineFiscalDocumentRow {
+  id: string;
+  saleId: string;
+  pointOfSale: number;
+  number: number;
+  cause: "no_connectivity" | "unclear_outcome" | "numbering_conflict";
+}
+
+export function insertOfflineFiscalDocument(
+  database: LocalDatabase,
+  {
+    id = "offline-doc-1",
+    saleId = "sale-1",
+    pointOfSale = OFFLINE_POINT_OF_SALE,
+    number = 1,
+    cause = "no_connectivity",
+  }: Partial<OfflineFiscalDocumentRow> = {},
+): void {
+  database
+    .prepare(
+      `INSERT INTO offline_fiscal_documents (
+         id, sale_id, point_of_sale, document_type, number, issued_on, generated_at, generation_stamp,
+         offline_authorization_code, fortnight_start, fortnight_end, document,
+         buyer_document_type, buyer_document_number, cause
+       ) VALUES (
+         @id, @sale_id, @point_of_sale, 'factura_c', @number, '2026-09-30',
+         '2026-09-30T12:05:00.000Z', '20260930090500', @code, '2026-09-16', '2026-09-30', @document,
+         99, 0, @cause
+       )`,
+    )
+    .run({
+      id,
+      sale_id: saleId,
+      point_of_sale: pointOfSale,
+      number,
+      code: OFFLINE_CODE,
+      document: JSON.stringify(FACTURA_C),
+      cause,
+    });
 }
 
 export const SALE_COMPLETED_AT = new Date("2026-09-30T12:05:00.000Z");

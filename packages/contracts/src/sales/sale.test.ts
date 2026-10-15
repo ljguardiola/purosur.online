@@ -21,6 +21,7 @@ import {
   saleSchema,
   scanProductOutcomeSchema,
   searchProductsOutcomeSchema,
+  voidSaleOutcomeSchema,
   weighProductOutcomeSchema,
 } from "./sale.js";
 
@@ -371,6 +372,10 @@ describe("scanProductOutcomeSchema", () => {
     { kind: "not_signed_in" },
     { kind: "no_open_session" },
     { kind: "installation_revoked" },
+    { kind: "disk_space_short" },
+    { kind: "local_database_damaged" },
+    { kind: "paid_order_without_sale" },
+    { kind: "paid_orders_not_checked" },
     { kind: "sale_has_payments" },
     { kind: "unavailable" },
   ])("accepts the outcome $kind", (outcome) => {
@@ -456,6 +461,10 @@ describe("addWeighedProductOutcomeSchema", () => {
     { kind: "not_signed_in" },
     { kind: "no_open_session" },
     { kind: "installation_revoked" },
+    { kind: "disk_space_short" },
+    { kind: "local_database_damaged" },
+    { kind: "paid_order_without_sale" },
+    { kind: "paid_orders_not_checked" },
     { kind: "unavailable" },
   ])("accepts the outcome $kind", (outcome) => {
     expect(addWeighedProductOutcomeSchema.parse(outcome)).toEqual(outcome);
@@ -486,6 +495,10 @@ describe("weighProductOutcomeSchema", () => {
     { kind: "not_signed_in" },
     { kind: "no_open_session" },
     { kind: "installation_revoked" },
+    { kind: "disk_space_short" },
+    { kind: "local_database_damaged" },
+    { kind: "paid_order_without_sale" },
+    { kind: "paid_orders_not_checked" },
     { kind: "unavailable" },
   ])("accepts the outcome $kind", (outcome) => {
     expect(weighProductOutcomeSchema.parse(outcome)).toEqual(outcome);
@@ -588,6 +601,50 @@ describe("cancelPaidSaleOutcomeSchema", () => {
     {},
   ])("rejects the outcome %j", (outcome) => {
     expect(cancelPaidSaleOutcomeSchema.safeParse(outcome).success).toBe(false);
+  });
+});
+
+describe("voidSaleOutcomeSchema", () => {
+  const voided = {
+    kind: "voided",
+    refunds: [{ payment_id: "p2", method: "TRANSFER", amount: 500, state: "PENDING" }],
+    authorized_by: { user_id: "u2", first_name: "Ana" },
+  };
+
+  it.each([
+    voided,
+    { ...voided, authorized_by: null },
+    { ...voided, refunds: [] },
+    { kind: "not_found" },
+    { kind: "not_completed" },
+    { kind: "session_closed" },
+    { kind: "invoice_in_flight" },
+    { kind: "carries_invoice" },
+    { kind: "mercado_pago_payment" },
+    { kind: "pending_refunds_unconfirmed" },
+    { kind: "not_signed_in" },
+    { kind: "lacks_permission" },
+    { kind: "unavailable" },
+    { kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 2 },
+    { kind: "locked", consecutive_failures: PIN_SIGN_IN_LOCKOUT_FAILURES },
+  ])("accepts the outcome $kind", (outcome) => {
+    expect(voidSaleOutcomeSchema.parse(outcome)).toEqual(outcome);
+  });
+
+  it.each([
+    { kind: "voided", refunds: [] },
+    { kind: "voided", authorized_by: null },
+    {
+      ...voided,
+      refunds: [{ payment_id: "p2", method: "CARD", amount: 500, state: "PENDING" }],
+    },
+    { kind: "cancelled", refunds: [], authorized_by: null },
+    { kind: "no_open_sale" },
+    { kind: "not_permitted" },
+    { kind: "somewhere_else" },
+    {},
+  ])("rejects the outcome %j", (outcome) => {
+    expect(voidSaleOutcomeSchema.safeParse(outcome).success).toBe(false);
   });
 });
 
@@ -1070,6 +1127,10 @@ describe("addProductOutcomeSchema", () => {
     { kind: "not_signed_in" },
     { kind: "no_open_session" },
     { kind: "installation_revoked" },
+    { kind: "disk_space_short" },
+    { kind: "local_database_damaged" },
+    { kind: "paid_order_without_sale" },
+    { kind: "paid_orders_not_checked" },
     { kind: "sale_has_payments" },
     { kind: "unavailable" },
   ])("accepts the outcome $kind", (outcome) => {

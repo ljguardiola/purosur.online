@@ -116,6 +116,7 @@ function coreAnswering(
     startMercadoPagoCharge?: CoreClient["startMercadoPagoCharge"];
     followMercadoPagoCharge?: CoreClient["followMercadoPagoCharge"];
     abandonMercadoPagoCharge?: CoreClient["abandonMercadoPagoCharge"];
+    convertPaidOrderIntoRefund?: CoreClient["convertPaidOrderIntoRefund"];
     searchProducts?: CoreClient["searchProducts"];
     addProduct?: CoreClient["addProduct"];
     addWeighedProduct?: CoreClient["addWeighedProduct"];
@@ -141,6 +142,7 @@ function coreAnswering(
   let savedName: string | null = null;
   const pulledListeners = new Set<() => void>();
   const serialDevicesChangedListeners = new Set<() => void>();
+  const storageStandingChangedListeners = new Set<() => void>();
   const barcodeReadListeners = new Set<(code: string) => void>();
   const core: CoreClient = {
     connect() {},
@@ -290,6 +292,9 @@ function coreAnswering(
     async cancelPaidSale() {
       return { kind: "unavailable" };
     },
+    async voidSale() {
+      return { kind: "unavailable" };
+    },
     async receiptPrintStatus(saleId) {
       return sales.receiptPrintStatus === undefined
         ? { kind: "found", next_copy: { kind: "original" }, printed: true, standing: "printed" }
@@ -383,6 +388,11 @@ function coreAnswering(
         ? { kind: "unavailable" }
         : sales.abandonMercadoPagoCharge(paymentTransactionId);
     },
+    async convertPaidOrderIntoRefund(paymentTransactionId) {
+      return sales.convertPaidOrderIntoRefund === undefined
+        ? { kind: "unavailable" }
+        : sales.convertPaidOrderIntoRefund(paymentTransactionId);
+    },
     async closeCashSession(sessionId, countedCash) {
       closed.push([sessionId, countedCash]);
       return cashDrawer.closeCashSession === undefined
@@ -411,7 +421,15 @@ function coreAnswering(
     },
     async startupPending() {
       return cashDrawer.startupPending === undefined
-        ? { sales_to_print: [], unknown_fiscal_documents: [], pending_payments: [] }
+        ? {
+            sales_to_print: [],
+            unknown_fiscal_documents: [],
+            pending_payments: [],
+            paid_orders_without_sale: [],
+            paid_order_discovery: "checked",
+            selling_blocked: false,
+            may_go_selling: true,
+          }
         : cashDrawer.startupPending();
     },
     async cashBalance() {
@@ -432,6 +450,12 @@ function coreAnswering(
         serialDevicesChangedListeners.delete(listener);
       };
     },
+    onStorageStandingChanged(listener) {
+      storageStandingChangedListeners.add(listener);
+      return () => {
+        storageStandingChangedListeners.delete(listener);
+      };
+    },
     onBarcodeRead(listener) {
       barcodeReadListeners.add(listener);
       return () => {
@@ -446,6 +470,11 @@ function coreAnswering(
   }
   function changeSerialDevices() {
     for (const listener of serialDevicesChangedListeners) {
+      listener();
+    }
+  }
+  function changeStorageStanding() {
+    for (const listener of storageStandingChangedListeners) {
       listener();
     }
   }
@@ -467,6 +496,7 @@ function coreAnswering(
     recorded,
     finishPull,
     changeSerialDevices,
+    changeStorageStanding,
     readBarcode,
     usersLoads: () => usersLoads,
   };
@@ -681,6 +711,21 @@ describe("App", () => {
     const readsBefore = statusAsks.length;
 
     changeSerialDevices();
+
+    await expect.poll(() => statusAsks.length).toBeGreaterThan(readsBefore);
+  });
+
+  it("reads the register's status again whenever the storage standing changes", async () => {
+    const { core, statusAsks, changeStorageStanding } = coreAnswering(true);
+    const screen = await render(<App core={core} />);
+    postCoreStatus("up");
+    await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
+    await userEvent.type(screen.getByLabelText("PIN"), "1234");
+    await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
+    await expect.element(screen.getByText("Nube conectada")).toBeVisible();
+    const readsBefore = statusAsks.length;
+
+    changeStorageStanding();
 
     await expect.poll(() => statusAsks.length).toBeGreaterThan(readsBefore);
   });
@@ -1474,6 +1519,29 @@ describe("App", () => {
       ],
       unknown_fiscal_documents: [],
       pending_payments: [],
+      paid_orders_without_sale: [],
+      paid_order_discovery: "checked",
+      selling_blocked: false,
+      may_go_selling: true,
+    };
+
+    const PENDING_NOTHING: typeof PENDING = {
+      ...PENDING,
+      sales_to_print: [],
+    };
+    const BLOCKING_PENDING: typeof PENDING = {
+      ...PENDING_NOTHING,
+      paid_orders_without_sale: [
+        {
+          payment_transaction_id: "tx-1",
+          sale_id: "sale-7",
+          method: "QR",
+          amount: 80_000,
+          created_at: "2026-09-30T15:30:00.000-03:00",
+        },
+      ],
+      selling_blocked: true,
+      may_go_selling: false,
     };
 
     function lockedUntilResumed() {
@@ -1500,6 +1568,42 @@ describe("App", () => {
         .toBeVisible();
       await expect.element(screen.getByText("Venta sin ticket")).toBeVisible();
       await userEvent.click(screen.getByRole("button", { name: "Ir a vender" }));
+      await expect.element(screen.getByRole("heading", { name: SESSION_TITLE })).toBeVisible();
+    });
+
+    it("passes a paid order without a sale to refund through the core and then goes on to the sale by itself", async () => {
+      let pending = BLOCKING_PENDING;
+      const convertPaidOrderIntoRefund = vi.fn<CoreClient["convertPaidOrderIntoRefund"]>(
+        async () => {
+          pending = PENDING_NOTHING;
+          return { kind: "converted" };
+        },
+      );
+      const { core } = coreAnswering(
+        true,
+        { kind: "enrolled" },
+        GRACE_SIGNED_IN,
+        { cashSession: lockedUntilResumed(), startupPending: async () => pending },
+        { convertPaidOrderIntoRefund },
+      );
+      const screen = await render(<App core={core} />);
+      postCoreStatus("up");
+      await expect.element(screen.getByRole("heading", { name: LOCKED_TITLE })).toBeVisible();
+      await resumeLockedRegister(screen);
+      await expect
+        .element(screen.getByRole("button", { name: "Ir a vender" }))
+        .toHaveAttribute("aria-disabled", "true");
+
+      await userEvent.click(
+        screen.getByRole("button", { name: "Pasar a reembolso el cobro de las 15:30" }),
+      );
+      await userEvent.click(
+        screen
+          .getByRole("dialog", { name: "¿Pasar el cobro a reembolso?" })
+          .getByRole("button", { name: "Pasar a reembolso" }),
+      );
+
+      expect(convertPaidOrderIntoRefund).toHaveBeenCalledExactlyOnceWith("tx-1");
       await expect.element(screen.getByRole("heading", { name: SESSION_TITLE })).toBeVisible();
     });
 

@@ -7,6 +7,7 @@ import { FICTIONAL_CERTIFICATE_CUIT } from "@purosur/domain/fiscal/test-support"
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterEach, describe, expect, expectTypeOf, it, vi } from "vitest";
 import { type BuildAppOptions, buildApp as buildRealApp } from "./app.js";
+import { enqueueNumberingDiagnosisJob } from "./fiscal/graphile-numbering-conflict-queue.js";
 import { enqueueOfflineAuthorizationCodeRequest } from "./fiscal/graphile-offline-authorization-code-queue.js";
 import { enqueueTaxAuthorityCountJob } from "./fiscal/graphile-tax-authority-count-queue.js";
 import {
@@ -498,6 +499,41 @@ describe("startServer", () => {
     expect(downloadUrl.searchParams.get("X-Amz-Credential")).toMatch(/^fictional-key-id\//);
   });
 
+  it("gives the app the register snapshot URLs presigned for the configured snapshots bucket", async () => {
+    const buildApp = vi.fn().mockReturnValue(appListeningBy(vi.fn().mockResolvedValue(undefined)));
+
+    await startServer(
+      {
+        EDGE_ORIGIN_SECRET: "edge-secret",
+        REGISTER_SNAPSHOTS_BUCKET_ENDPOINT: "https://storage.example.com",
+        REGISTER_SNAPSHOTS_BUCKET_NAME: "register-backups",
+        REGISTER_SNAPSHOTS_BUCKET_REGION: "auto",
+        REGISTER_SNAPSHOTS_BUCKET_ACCESS_KEY_ID: "fictional-key-id",
+        REGISTER_SNAPSHOTS_BUCKET_SECRET_ACCESS_KEY: "fictional-secret",
+      },
+      { arcaEndpoints: unreachableArcaEndpoints, initSentry: vi.fn(), buildApp, now },
+    );
+
+    const [options] = buildApp.mock.calls[0] ?? [];
+    const downloadUrl = new URL(await options.registerSnapshotUrls.downloadUrl("reg-1", "gen-1"));
+    expect(`${downloadUrl.origin}${downloadUrl.pathname}`).toBe(
+      "https://register-backups.storage.example.com/snapshots/reg-1/gen-1",
+    );
+    expect(downloadUrl.searchParams.get("X-Amz-Credential")).toMatch(/^fictional-key-id\//);
+  });
+
+  it("gives the app no register snapshot URLs when no snapshots bucket is configured", async () => {
+    const buildApp = vi.fn().mockReturnValue(appListeningBy(vi.fn().mockResolvedValue(undefined)));
+
+    await startServer(
+      { EDGE_ORIGIN_SECRET: "edge-secret" },
+      { arcaEndpoints: unreachableArcaEndpoints, initSentry: vi.fn(), buildApp, now },
+    );
+
+    const [options] = buildApp.mock.calls[0] ?? [];
+    expect(options).not.toHaveProperty("registerSnapshotUrls");
+  });
+
   it("refuses to start with a backoffice DSN and no environment to tell its reports apart by", async () => {
     const buildApp = vi.fn();
 
@@ -732,6 +768,7 @@ describe("startServer", () => {
       BACKOFFICE_ORIGIN: "https://staging.purosur.online",
       EDGE_ORIGIN_SECRET: "edge-secret",
       RELEASE_CHECK_TOKEN: "release-check-token",
+      OFFSITE_DUMP_CHECK_TOKEN: "offsite-dump-check-token",
       ARCA_CERTIFICATE: VALID_ARCA_CERTIFICATE,
       ARCA_ENVIRONMENT: "homologation",
       DEVICE_TOKEN_ROTATION_KEY: ROTATION_KEY,
@@ -746,6 +783,7 @@ describe("startServer", () => {
       recordAuthorizedCuit: vi.fn().mockResolvedValue(undefined),
       enqueueMissingTaxAuthorityCounts: vi.fn().mockResolvedValue(undefined),
       enqueueMissingUnclearOutcomes: vi.fn().mockResolvedValue(undefined),
+      enqueueMissingNumberingConflicts: vi.fn().mockResolvedValue(undefined),
       now,
     });
 
@@ -761,6 +799,7 @@ describe("startServer", () => {
           notAfter: VALID_ARCA_CERTIFICATE_NOT_AFTER,
         },
         arcaVitality: { endpoint: "https://wswhomo.afip.gov.ar/wsfev1/service.asmx" },
+        offsiteDumpCheck: { environment: "homologation" },
       },
       now,
     );
@@ -842,6 +881,10 @@ describe("startServer", () => {
       readableEventVersions: {
         releaseCheckToken: "release-check-token",
       },
+      offsiteDumpChecks: {
+        db: fakeRecovery.db,
+        offsiteDumpCheckToken: "offsite-dump-check-token",
+      },
       prices: {
         db: fakeRecovery.db,
         backofficeOrigin: fakeRecovery.backofficeOrigin,
@@ -894,6 +937,72 @@ describe("startServer", () => {
 
     await fakeApp.close();
     expect(close).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("startServer checking the offsite dump", () => {
+  const env = {
+    DATABASE_URL: "postgres://user:pass@db/purosur",
+    RESEND_API_KEY: "re_test_key",
+    RECOVERY_EMAIL_FROM: FICTIONAL_RECOVERY_SENDER,
+    RECOVERY_EMAIL_REPLY_TO: FICTIONAL_RECOVERY_REPLY_TO,
+    BACKOFFICE_ORIGIN: "https://staging.purosur.online",
+    EDGE_ORIGIN_SECRET: "edge-secret",
+    ARCA_CERTIFICATE: VALID_ARCA_CERTIFICATE,
+    ARCA_ENVIRONMENT: "homologation",
+    DEVICE_TOKEN_ROTATION_KEY: ROTATION_KEY,
+    INSTALLATION_KEYS_ENCRYPTION_KEY: KEYS_ENCRYPTION_KEY,
+  };
+
+  async function start(extraEnv: Record<string, string>) {
+    const buildApp = vi.fn().mockReturnValue(appListeningBy(vi.fn().mockResolvedValue(undefined)));
+    const setUpRecovery = vi.fn().mockResolvedValue({
+      db: {},
+      jobQueue: { enqueueRecoveryRequest: vi.fn() },
+      backofficeOrigin: "https://staging.purosur.online",
+      worker: { stop: vi.fn() },
+      workerUtils: { addJob: vi.fn() },
+      close: vi.fn(),
+    });
+    await startServer(
+      { ...env, ...extraEnv },
+      {
+        arcaEndpoints: arcaEndpointsOf,
+        initSentry: vi.fn(),
+        buildApp,
+        setUpRecovery,
+        recordAuthorizedCuit: vi.fn().mockResolvedValue(undefined),
+        enqueueMissingTaxAuthorityCounts: vi.fn().mockResolvedValue(undefined),
+        enqueueMissingUnclearOutcomes: vi.fn().mockResolvedValue(undefined),
+        enqueueMissingNumberingConflicts: vi.fn().mockResolvedValue(undefined),
+      },
+    );
+    return { buildApp, setUpRecovery };
+  }
+
+  it("sets up the detection for the certificate's environment when the token is configured", async () => {
+    const { setUpRecovery } = await start({ OFFSITE_DUMP_CHECK_TOKEN: "offsite-token" });
+
+    expect(setUpRecovery).toHaveBeenCalledWith(
+      expect.objectContaining({ offsiteDumpCheck: { environment: "homologation" } }),
+      expect.any(Function),
+    );
+  });
+
+  it("sets up no detection without the token, so no alert is ever raised there", async () => {
+    const { setUpRecovery } = await start({});
+
+    const [recoveryEnv] = setUpRecovery.mock.calls[0] as [Record<string, unknown>];
+    expect(recoveryEnv).not.toHaveProperty("offsiteDumpCheck");
+  });
+
+  it("gives the report route no token when it is not configured", async () => {
+    const { buildApp } = await start({});
+
+    const [options] = buildApp.mock.calls[0] as [
+      { offsiteDumpChecks: { offsiteDumpCheckToken?: string } },
+    ];
+    expect(options.offsiteDumpChecks.offsiteDumpCheckToken).toBeUndefined();
   });
 });
 
@@ -1002,6 +1111,7 @@ describe("startServer checking the certificate's expiry", () => {
       recordAuthorizedCuit: vi.fn().mockResolvedValue(undefined),
       enqueueMissingTaxAuthorityCounts: vi.fn().mockResolvedValue(undefined),
       enqueueMissingUnclearOutcomes: vi.fn().mockResolvedValue(undefined),
+      enqueueMissingNumberingConflicts: vi.fn().mockResolvedValue(undefined),
       enqueueArcaCertificateExpiryCheck,
     });
 
@@ -1073,6 +1183,7 @@ describe("startServer with the ARCA private key", () => {
       recordAuthorizedCuit: vi.fn().mockResolvedValue(undefined),
       enqueueMissingTaxAuthorityCounts: vi.fn().mockResolvedValue(undefined),
       enqueueMissingUnclearOutcomes: vi.fn().mockResolvedValue(undefined),
+      enqueueMissingNumberingConflicts: vi.fn().mockResolvedValue(undefined),
     });
     return { started, setUpRecovery };
   }
@@ -1262,6 +1373,7 @@ describe("startServer fetching the buyer tax-status values", () => {
       recordAuthorizedCuit: vi.fn().mockResolvedValue(undefined),
       enqueueMissingTaxAuthorityCounts: vi.fn().mockResolvedValue(undefined),
       enqueueMissingUnclearOutcomes: vi.fn().mockResolvedValue(undefined),
+      enqueueMissingNumberingConflicts: vi.fn().mockResolvedValue(undefined),
       enqueueBuyerTaxStatusFetch,
     });
     return { started, steps, recovery, setUpRecovery, enqueueBuyerTaxStatusFetch };
@@ -1351,6 +1463,9 @@ describe("startServer authorizing sales in real time", () => {
     const enqueueMissingUnclearOutcomes = vi.fn(async () => {
       steps.push("enqueueMissingUnclearOutcomes");
     });
+    const enqueueMissingNumberingConflicts = vi.fn(async () => {
+      steps.push("enqueueMissingNumberingConflicts");
+    });
     const started = startServer(startEnv, {
       arcaEndpoints: arcaEndpointsOf,
       initSentry: vi.fn(),
@@ -1360,6 +1475,7 @@ describe("startServer authorizing sales in real time", () => {
       enqueueBuyerTaxStatusFetch: vi.fn().mockResolvedValue(undefined),
       enqueueMissingTaxAuthorityCounts,
       enqueueMissingUnclearOutcomes,
+      enqueueMissingNumberingConflicts,
     });
     return {
       started,
@@ -1369,6 +1485,7 @@ describe("startServer authorizing sales in real time", () => {
       buildApp,
       enqueueMissingTaxAuthorityCounts,
       enqueueMissingUnclearOutcomes,
+      enqueueMissingNumberingConflicts,
     };
   }
 
@@ -1409,6 +1526,7 @@ describe("startServer authorizing sales in real time", () => {
       certificateFingerprint: credentials.fingerprint,
       enqueueUnclearOutcome: enqueueUnclearOutcomeJob,
       withdrawUnclearOutcome: withdrawUnclearOutcomeJob,
+      enqueueNumberingDiagnosis: enqueueNumberingDiagnosisJob,
     });
   });
 
@@ -1462,6 +1580,7 @@ describe("startServer authorizing sales in real time", () => {
     expect(steps).toEqual([
       "enqueueMissingTaxAuthorityCounts",
       "enqueueMissingUnclearOutcomes",
+      "enqueueMissingNumberingConflicts",
       "listen",
     ]);
   });
@@ -1474,6 +1593,16 @@ describe("startServer authorizing sales in real time", () => {
     await started;
 
     expect(enqueueMissingUnclearOutcomes).toHaveBeenCalledWith(recovery.db);
+  });
+
+  it("asks again for the numbering conflict work still owed before it starts listening", async () => {
+    const { started, recovery, enqueueMissingNumberingConflicts } = start({
+      ...env,
+      ARCA_PRIVATE_KEY: credentials.privateKeyPem,
+    });
+    await started;
+
+    expect(enqueueMissingNumberingConflicts).toHaveBeenCalledWith(recovery.db);
   });
 
   it("wires none of it without the key, as no WSAA token is ever renewed to ask with", async () => {
@@ -1535,6 +1664,7 @@ describe("startServer creating Mercado Pago QR orders", () => {
       enqueueBuyerTaxStatusFetch: vi.fn().mockResolvedValue(undefined),
       enqueueMissingTaxAuthorityCounts: vi.fn().mockResolvedValue(undefined),
       enqueueMissingUnclearOutcomes: vi.fn().mockResolvedValue(undefined),
+      enqueueMissingNumberingConflicts: vi.fn().mockResolvedValue(undefined),
     });
     return { started, buildApp, recovery, setUp };
   }
@@ -1676,6 +1806,7 @@ describe("startServer with the real app", () => {
         recordAuthorizedCuit: vi.fn().mockResolvedValue(undefined),
         enqueueMissingTaxAuthorityCounts: vi.fn().mockResolvedValue(undefined),
         enqueueMissingUnclearOutcomes: vi.fn().mockResolvedValue(undefined),
+        enqueueMissingNumberingConflicts: vi.fn().mockResolvedValue(undefined),
       },
     );
 
@@ -1935,6 +2066,7 @@ describe("startServer ARCA endpoints", () => {
         recordAuthorizedCuit: vi.fn().mockResolvedValue(undefined),
         enqueueMissingTaxAuthorityCounts: vi.fn().mockResolvedValue(undefined),
         enqueueMissingUnclearOutcomes: vi.fn().mockResolvedValue(undefined),
+        enqueueMissingNumberingConflicts: vi.fn().mockResolvedValue(undefined),
         arcaEndpoints,
       },
     );

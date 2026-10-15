@@ -32,6 +32,7 @@ import {
   scanProductOutcomeSchema,
   searchProductsOutcomeSchema,
   shownLineQuantitySchema,
+  voidSaleOutcomeSchema,
   weighProductOutcomeSchema,
 } from "./sale.js";
 import {
@@ -111,6 +112,14 @@ const cancelPaidSaleMessageSchema = z.object({
   type: z.literal("cancel-paid-sale"),
   request_id: requestId,
   sale_id: z.string(),
+  authorization: authorizationSchema.optional(),
+});
+
+const voidSaleMessageSchema = z.object({
+  type: z.literal("void-sale"),
+  request_id: requestId,
+  sale_id: z.string(),
+  pending_refunds_confirmed: z.boolean(),
   authorization: authorizationSchema.optional(),
 });
 
@@ -224,6 +233,7 @@ export const salesRendererToCoreMessageSchema = z.discriminatedUnion("type", [
   removeSaleLineMessageSchema,
   cancelSaleMessageSchema,
   cancelPaidSaleMessageSchema,
+  voidSaleMessageSchema,
   searchProductsMessageSchema,
   addProductMessageSchema,
   addWeighedProductMessageSchema,
@@ -282,6 +292,7 @@ const printOriginalReceiptOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("busy") }),
   z.object({ kind: z.literal("already_attempted") }),
   z.object({ kind: z.literal("printer_not_configured") }),
+  z.object({ kind: z.literal("sale_voided") }),
   z.object({ kind: z.literal("not_found") }),
   z.object({ kind: z.literal("not_signed_in") }),
   z.object({ kind: z.literal("lacks_permission") }),
@@ -294,6 +305,7 @@ const reprintSaleReceiptOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("busy") }),
   z.object({ kind: z.literal("invalid_reason"), max_length: z.number() }),
   z.object({ kind: z.literal("printer_not_configured") }),
+  z.object({ kind: z.literal("sale_voided") }),
   z.object({ kind: z.literal("not_found") }),
   z.object({ kind: z.literal("not_signed_in") }),
   ...authorizationRefusalSchema.options,
@@ -351,6 +363,11 @@ export const salesCoreToRendererMessageSchema = z.discriminatedUnion("type", [
     type: z.literal("cancel-paid-sale-result"),
     request_id: requestId,
     outcome: cancelPaidSaleOutcomeSchema,
+  }),
+  z.object({
+    type: z.literal("void-sale-result"),
+    request_id: requestId,
+    outcome: voidSaleOutcomeSchema,
   }),
   z.object({
     type: z.literal("search-products-result"),

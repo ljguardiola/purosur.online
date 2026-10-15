@@ -103,8 +103,14 @@ const REQUIRED_VERIFY_STATIC_COMMANDS = [
   "pnpm depcruise",
   "knip",
   "node .github/scripts/react-compiler-check.mjs",
-  "node --test .github/scripts/*.test.mjs .github/scripts/test-support/*.test.mjs .claude/hooks/*.test.mjs",
+  `node --test --test-shard=\${TEST_SHARD:-1/1} .github/scripts/*.test.mjs .github/scripts/test-support/*.test.mjs .claude/hooks/*.test.mjs`,
 ];
+const STATIC_PART_COMMAND = /^pnpm (verify:static:[a-z][a-z0-9-]*)$/;
+const STATIC_SHARD = /^([1-9][0-9]*)\/([1-9][0-9]*)$/;
+const STATIC_SHARD_OPTION = `--test-shard=\${TEST_SHARD:-1/1}`;
+const EXPECTED_STATIC_RUN = `\${{ matrix.command }}`;
+const EXPECTED_STATIC_TEST_SHARD = `\${{ matrix.shard }}`;
+const EXPECTED_STATIC_BASE_REF = `\${{ github.event_name == 'push' && github.event.before || github.event.pull_request.base.sha }}`;
 const EXPECTED_RUN_CONDITION = `\${{ !cancelled() && (github.event_name != 'pull_request' || needs.scope.result != 'success' || needs.scope.outputs.docs_only != 'true') }}`;
 const EXPECTED_TESTS_CONDITION = `\${{ !cancelled() && (github.event_name != 'pull_request' || needs.scope.result != 'success' || needs.scope.outputs.tests_needed != 'false') }}`;
 const EXPECTED_VISUAL_CONDITION = `\${{ !cancelled() && needs.scope.outputs.catalog_changed != 'false' }}`;
@@ -342,16 +348,134 @@ function verifyJobViolations(doc, job) {
   return violations;
 }
 
-function composesEveryCommand(script, requiredCommands) {
-  if (typeof script !== "string") return false;
+function plainCommands(script) {
+  if (typeof script !== "string") return null;
   const commands = script.split("&&").map((command) => command.trim());
   const everyCommandPropagatesFailure = commands.every(
     (command) => command !== "" && !/[|;&`#\n\r]|\$\(/.test(command),
   );
+  return everyCommandPropagatesFailure ? commands : null;
+}
+
+function staticPartNames(script) {
+  const names = plainCommands(script)?.map((command) => command.match(STATIC_PART_COMMAND)?.[1]);
+  return names?.every(Boolean) ? names : null;
+}
+
+function staticPartsViolations(scripts, partNames) {
+  const violations = [];
+  const commands = [];
+  for (const name of partNames) {
+    const partCommands = plainCommands(scripts?.[name]);
+    if (partCommands === null) {
+      violations.push(
+        `package.json's "${name}" script is "${scripts?.[name]}", expected plain commands joined by &&`,
+      );
+    } else {
+      commands.push(...partCommands);
+    }
+  }
+  if (violations.length > 0) return violations;
+  for (const required of REQUIRED_VERIFY_STATIC_COMMANDS) {
+    if (!commands.includes(required)) {
+      violations.push(`package.json's verify:static parts run no "${required}"`);
+    }
+  }
+  return violations;
+}
+
+function isContiguousStaticShards(shards) {
+  const parsed = shards.map((shard) => String(shard).match(STATIC_SHARD));
   return (
-    everyCommandPropagatesFailure &&
-    requiredCommands.every((required) => commands.includes(required))
+    parsed.every((match) => match !== null && Number(match[2]) === shards.length) &&
+    isContiguousShardRange(parsed.map((match) => Number(match[1])))
   );
+}
+
+function staticMatrixViolations(doc, job, scripts, partNames) {
+  const violations = [];
+  const matrix = matrixNode(doc, job);
+  const keys = isMap(matrix)
+    ? matrix.items.map((pair) => String(resolveScalar(doc, pair.key)))
+    : [];
+  for (const key of keys.filter((key) => key !== "include")) {
+    violations.push(`verify.yml's static job strategy.matrix sets ${key}`);
+  }
+  if (partNames === null) return violations;
+
+  const includeNode = resolveNode(doc, mapGet(doc, matrix, "include"));
+  const entries = isSeq(includeNode)
+    ? includeNode.items.map((item) => {
+        const entry = resolveNode(doc, item);
+        return {
+          command: resolveScalar(doc, mapGet(doc, entry, "command")),
+          shard: mapHas(doc, entry, "shard")
+            ? resolveScalar(doc, mapGet(doc, entry, "shard"))
+            : null,
+        };
+      })
+    : [];
+  const runs = new Map(partNames.map((name) => [`pnpm ${name}`, { name, whole: 0, shards: [] }]));
+  for (const { command, shard } of entries) {
+    const run = runs.get(command);
+    if (run === undefined) {
+      violations.push(
+        `verify.yml's static job runs \`${command}\`, which is not a part of verify:static`,
+      );
+    } else if (shard === null) {
+      run.whole += 1;
+    } else {
+      run.shards.push(shard);
+    }
+  }
+  for (const [command, { name, whole, shards }] of runs) {
+    if (whole + shards.length === 0) {
+      violations.push(`verify.yml's static job runs no \`${command}\``);
+    } else if (whole > 1 || (whole === 1 && shards.length > 0)) {
+      violations.push(`verify.yml's static job runs \`${command}\` more than once`);
+    } else if (shards.length > 0 && !isContiguousStaticShards(shards)) {
+      violations.push(
+        `verify.yml's static job's shards of \`${command}\` are not a contiguous 1..n range covering every shard once`,
+      );
+    } else if (shards.length > 0 && !String(scripts?.[name]).includes(STATIC_SHARD_OPTION)) {
+      violations.push(
+        `verify.yml's static job runs \`${command}\` in shards, but its script does not pass ${STATIC_SHARD_OPTION}`,
+      );
+    }
+  }
+  const step = stepRunningExactly(doc, job, EXPECTED_STATIC_RUN);
+  if (step !== undefined && entries.some(({ shard }) => shard !== null)) {
+    const testShard = resolveScalar(doc, mapGet(doc, mapGet(doc, step, "env"), "TEST_SHARD"));
+    if (testShard !== EXPECTED_STATIC_TEST_SHARD) {
+      violations.push(
+        `verify.yml's static job's verify:static step's TEST_SHARD is \`${testShard}\`, expected \`${EXPECTED_STATIC_TEST_SHARD}\``,
+      );
+    }
+  }
+  return violations;
+}
+
+// The migration guard and the secret scan among the automation tests read the change's history
+// from its base.
+function staticHistoryViolations(doc, job) {
+  const violations = [];
+  const checkout = steps(doc, job).find((step) =>
+    String(resolveScalar(doc, mapGet(doc, step, "uses")) ?? "").startsWith("actions/checkout@"),
+  );
+  const fetchDepth = resolveScalar(doc, mapGet(doc, mapGet(doc, checkout, "with"), "fetch-depth"));
+  if (fetchDepth !== 0) {
+    violations.push("verify.yml's static job checks out without fetch-depth: 0");
+  }
+  const step = stepRunningExactly(doc, job, EXPECTED_STATIC_RUN);
+  if (step !== undefined) {
+    const baseRef = resolveScalar(doc, mapGet(doc, mapGet(doc, step, "env"), "CHANGE_BASE_REF"));
+    if (baseRef !== EXPECTED_STATIC_BASE_REF) {
+      violations.push(
+        `verify.yml's static job's verify:static step's CHANGE_BASE_REF is \`${baseRef}\`, expected \`${EXPECTED_STATIC_BASE_REF}\``,
+      );
+    }
+  }
+  return violations;
 }
 
 export function findVerifyWorkflowViolations(workflowSource, packageJsonSource) {
@@ -373,18 +497,17 @@ export function findVerifyWorkflowViolations(workflowSource, packageJsonSource) 
     violations.push(...scopeJobViolations(doc, scopeJob));
   }
 
+  const scripts = JSON.parse(packageJsonSource).scripts;
+  const staticParts = staticPartNames(scripts?.["verify:static"]);
+
   const staticJob = jobNode(doc, "static");
   if (staticJob === undefined) {
     violations.push("verify.yml has no static job");
   } else {
     violations.push(
-      ...runnerJobViolations(
-        doc,
-        "static",
-        staticJob,
-        "pnpm verify:static",
-        EXPECTED_RUN_CONDITION,
-      ),
+      ...runnerJobViolations(doc, "static", staticJob, EXPECTED_STATIC_RUN, EXPECTED_RUN_CONDITION),
+      ...staticMatrixViolations(doc, staticJob, scripts, staticParts),
+      ...staticHistoryViolations(doc, staticJob),
     );
   }
 
@@ -437,16 +560,17 @@ export function findVerifyWorkflowViolations(workflowSource, packageJsonSource) 
     violations.push(...verifyJobViolations(doc, verifyJob));
   }
 
-  const scripts = JSON.parse(packageJsonSource).scripts;
   if (scripts?.verify !== EXPECTED_VERIFY_SCRIPT) {
     violations.push(
       `package.json's "verify" script is "${scripts?.verify}", expected the exact composition "${EXPECTED_VERIFY_SCRIPT}"`,
     );
   }
-  if (!composesEveryCommand(scripts?.["verify:static"], REQUIRED_VERIFY_STATIC_COMMANDS)) {
+  if (staticParts === null) {
     violations.push(
-      `package.json's "verify:static" script is "${scripts?.["verify:static"]}", expected plain commands joined by && that include ${REQUIRED_VERIFY_STATIC_COMMANDS.map((command) => `"${command}"`).join(", ")}`,
+      `package.json's "verify:static" script is "${scripts?.["verify:static"]}", expected its parts as \`pnpm verify:static:<part>\` commands joined by &&`,
     );
+  } else {
+    violations.push(...staticPartsViolations(scripts, staticParts));
   }
   if (scripts?.["verify:tests"] !== EXPECTED_VERIFY_TESTS_SCRIPT) {
     violations.push(

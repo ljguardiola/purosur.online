@@ -13,6 +13,7 @@ import {
   formatDate,
   formatInvoiceNumber,
   formatNumber,
+  formatPercent,
   formatPointOfSaleNumber,
   InlineNotice,
   isLocalAlertKind,
@@ -32,6 +33,7 @@ import {
   Check,
   CloudDownload,
   CloudOff,
+  DatabaseBackup,
   KeyRound,
   Laptop,
   LifeBuoy,
@@ -162,7 +164,13 @@ function alertIcon(kind: string): Icon {
     case "offline_authorization_code_missing":
       return <CloudDownload />;
     case "lots_expiring":
+    case "fortnight_report_pending":
       return <CalendarClock />;
+    case "offsite_dump_unverified":
+      return <DatabaseBackup />;
+    case "fortnight_report_overdue":
+    case "fortnight_report_needs_regularization":
+      return <TriangleAlert />;
     default:
       return <Bell />;
   }
@@ -238,6 +246,34 @@ function arcaCertificateExpiringDescription(
   return `El certificado de ARCA de ${label} vence el ${alertDateTime(new Date(notAfter))}. Conviene cargar uno nuevo antes de esa fecha.`;
 }
 
+type OffsiteDumpUnverifiedDetail = Extract<
+  AlertDetail,
+  { kind: "offsite_dump_unverified" }
+>["detail"];
+
+const OFFSITE_DUMP_UNVERIFIED_REASON_TEXTS: Record<
+  Exclude<OffsiteDumpUnverifiedDetail["reason"], "shrank">,
+  string
+> = {
+  not_reported: "la verificación diaria no informó su resultado",
+  object_missing: "el archivo de la copia no está en el almacenamiento externo",
+  manifest_missing: "falta el manifiesto que acompaña a la copia",
+  size_mismatch: "el tamaño del archivo no coincide con el del manifiesto",
+  hash_mismatch: "la huella del archivo no coincide con la del manifiesto",
+  decryption_failed: "no se pudo descifrar la copia",
+  archive_unreadable: "la copia descifrada no se pudo leer",
+};
+
+function offsiteDumpUnverifiedReasonText(detail: OffsiteDumpUnverifiedDetail): string {
+  return detail.reason === "shrank"
+    ? `la copia pesa menos del ${formatPercent(detail.shrinkThresholdPercent)} de la anterior`
+    : OFFSITE_DUMP_UNVERIFIED_REASON_TEXTS[detail.reason];
+}
+
+function offsiteDumpUnverifiedDescription(detail: OffsiteDumpUnverifiedDetail): string {
+  return `La copia cifrada de la base de datos de la noche del ${formatCalendarDay(detail.night)} no se pudo verificar fuera de la nube: ${offsiteDumpUnverifiedReasonText(detail)}. Conviene revisar la copia cuanto antes.`;
+}
+
 function arcaWsaaTicketHeldDescription(retryIntervalMinutes: number): string {
   const interval = plural(retryIntervalMinutes, {
     one: "cada minuto",
@@ -284,6 +320,89 @@ function lotsExpiringDescription({
   return `${summary}.`;
 }
 
+function fortnightOfPointOfSale({
+  pointOfSaleNumber,
+  fortnightStart,
+  fortnightEnd,
+}: {
+  pointOfSaleNumber: number;
+  fortnightStart: string;
+  fortnightEnd: string;
+}): string {
+  return `la quincena ${formatCalendarDayRange(fortnightStart, fortnightEnd)} del punto de venta ${formatPointOfSaleNumber(pointOfSaleNumber)}`;
+}
+
+function fortnightReportSubject(presentation: {
+  pointOfSaleNumber: number;
+  fortnightStart: string;
+  fortnightEnd: string;
+}): string {
+  return `el informe de ${fortnightOfPointOfSale(presentation)}`;
+}
+
+function fortnightReportDeadlineText(deadline: string, daysLeft: number): string {
+  if (daysLeft === 0) {
+    return `Vence hoy, ${formatCalendarDay(deadline)}.`;
+  }
+  const left = plural(daysLeft, {
+    one: "Queda 1 día.",
+    other: `Quedan ${formatNumber(daysLeft)} días.`,
+  });
+  return `Vence el ${formatCalendarDay(deadline)}. ${left}`;
+}
+
+function fortnightReportWaitingText({
+  reason,
+  registerName,
+}: Extract<AlertDetail, { kind: "fortnight_report_pending" }>["detail"]): string[] {
+  switch (reason) {
+    case "blocked":
+      return [
+        `Se puede presentar cuando la caja${registerName === undefined ? "" : ` «${registerName}»`} termine de sincronizar.`,
+      ];
+    case "missing_document":
+      return [
+        "Falta un comprobante en la numeración: hay que encontrarlo antes de poder seguir informando.",
+      ];
+    case "refused":
+      return [
+        "ARCA rechazó la presentación. La nube la vuelve a intentar sola; si sigue rechazándola, conviene revisar el punto de venta en ARCA.",
+      ];
+    case "pending":
+      return [];
+  }
+}
+
+function fortnightReportParagraphs(
+  alert: Extract<
+    AlertDetail,
+    {
+      kind:
+        | "fortnight_report_pending"
+        | "fortnight_report_overdue"
+        | "fortnight_report_needs_regularization";
+    }
+  >,
+): string[] {
+  if (alert.kind === "fortnight_report_needs_regularization") {
+    return [
+      `Llegaron comprobantes emitidos sin conexión de ${fortnightOfPointOfSale(alert.detail)}, que ya se había informado a ARCA sin movimiento.`,
+      "No hay corrección automática: hay que regularizar la presentación con ARCA a mano.",
+    ];
+  }
+  if (alert.kind === "fortnight_report_overdue") {
+    return [
+      `Venció el ${formatCalendarDay(alert.detail.deadline)} el plazo para presentar a ARCA ${fortnightReportSubject(alert.detail)}.`,
+      "Conviene regularizar la situación del punto de venta con ARCA.",
+    ];
+  }
+  return [
+    `Falta presentar a ARCA ${fortnightReportSubject(alert.detail)}.`,
+    fortnightReportDeadlineText(alert.detail.deadline, alert.detail.daysLeft),
+    ...fortnightReportWaitingText(alert.detail),
+  ];
+}
+
 function fiscalUnknownDescription({
   pointOfSale,
   number,
@@ -291,6 +410,14 @@ function fiscalUnknownDescription({
 }: Extract<AlertDetail, { kind: "fiscal_unknown" }>["detail"]): string {
   const document = `${formatPointOfSaleNumber(pointOfSale)}-${formatInvoiceNumber(number)}`;
   return `Comprobante ${document}, desde el ${alertDateTime(new Date(unclearSince))}. Mientras no se resuelva, ese punto de venta no pide CAE y las ventas de la caja quedan diferidas.`;
+}
+
+function externalBillingDescription({
+  pointOfSale,
+  number,
+}: Extract<AlertDetail, { kind: "external_billing" }>["detail"]): string {
+  const document = `${formatPointOfSaleNumber(pointOfSale)}-${formatInvoiceNumber(number)}`;
+  return `ARCA tiene autorizado el comprobante ${document} de este punto de venta y ninguna venta de la caja lo justifica. Revisar quién lo emitió fuera del sistema. No se emite ninguna nota de crédito automática.`;
 }
 
 function alertTitle(alert: AlertDetail): string {
@@ -336,6 +463,11 @@ function alertTitle(alert: AlertDetail): string {
     case "refund_task":
       return "Reembolso pendiente de confirmar";
     case "lots_expiring":
+    case "offsite_dump_unverified":
+    case "fortnight_report_pending":
+    case "fortnight_report_overdue":
+    case "external_billing":
+    case "fortnight_report_needs_regularization":
       return alertKindLabel(alert.kind);
   }
 }
@@ -359,6 +491,9 @@ function alertDescription(alert: AlertDetail, catalog: PermissionCatalogWire = [
   }
   if (alert.kind === "lots_expiring") {
     return lotsExpiringDescription(alert.detail);
+  }
+  if (alert.kind === "offsite_dump_unverified") {
+    return offsiteDumpUnverifiedDescription(alert.detail);
   }
   const targetName = alert.scopeDisplay;
   if (targetName === null) {
@@ -401,6 +536,8 @@ function alertDescription(alert: AlertDetail, catalog: PermissionCatalogWire = [
       return offlineAuthorizationCodeMissingDescription(alert);
     case "fiscal_unknown":
       return fiscalUnknownDescription(alert.detail);
+    case "external_billing":
+      return externalBillingDescription(alert.detail);
     case "outbox_chain_broken":
       return `La caja «${targetName}» envió eventos que no coinciden con su cadena: alguno se alteró, se quitó o se reordenó en el disco de la caja. La nube rechazó el envío y dio de baja la instalación.`;
     case "fiscal_rejected":
@@ -410,6 +547,9 @@ function alertDescription(alert: AlertDetail, catalog: PermissionCatalogWire = [
     case "fiscal_emission_stopped":
     case "late_payment_refund":
     case "refund_task":
+    case "fortnight_report_pending":
+    case "fortnight_report_overdue":
+    case "fortnight_report_needs_regularization":
       return "";
   }
 }
@@ -449,6 +589,12 @@ const CLOSING_NOTES: Record<AlertDetail["closing"], string | null> = {
   by_hand: "No se cierra sola: se cierra a mano después de revisarla.",
 };
 
+function closingNote(alert: AlertDetail): string | null {
+  return alert.kind === "external_billing" && alert.closing === "by_hand"
+    ? "No se cierra sola: se cierra a mano después de revisar el comprobante."
+    : CLOSING_NOTES[alert.closing];
+}
+
 function AlertDescription({ alert }: { alert: AlertDetail }) {
   if (alert.kind === "fiscal_rejected") {
     return (
@@ -462,6 +608,21 @@ function AlertDescription({ alert }: { alert: AlertDetail }) {
             <li key={code}>{`${code}: ${message}`}</li>
           ))}
         </ul>
+      </>
+    );
+  }
+  if (
+    alert.kind === "fortnight_report_pending" ||
+    alert.kind === "fortnight_report_overdue" ||
+    alert.kind === "fortnight_report_needs_regularization"
+  ) {
+    return (
+      <>
+        {fortnightReportParagraphs(alert).map((paragraph) => (
+          <p key={paragraph} className="text-text text-body">
+            {paragraph}
+          </p>
+        ))}
       </>
     );
   }
@@ -703,8 +864,8 @@ function OpenAlertDetailModal({
                 ))}
               </div>
             </div>
-            {alert.open && CLOSING_NOTES[alert.closing] !== null ? (
-              <p className="text-text-subtle text-detail">{CLOSING_NOTES[alert.closing]}</p>
+            {alert.open && closingNote(alert) !== null ? (
+              <p className="text-text-subtle text-detail">{closingNote(alert)}</p>
             ) : null}
           </>
         ) : null}

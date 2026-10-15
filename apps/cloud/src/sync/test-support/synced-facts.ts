@@ -154,6 +154,57 @@ export function aStandaloneTerminalCancelledSale(
   };
 }
 
+export type VoidedSale = FactOf<"sale_voided">["sale"];
+
+const VOIDED_AT = new Date("2026-10-06T11:40:00.000Z");
+
+export function aVoidedSaleOf(
+  completed: CompletedSale,
+  overrides: Partial<VoidedSale> = {},
+): VoidedSale {
+  const voidedAt = overrides.voidedAt ?? VOIDED_AT;
+  const refunds = completed.payments.map((payment) => ({
+    id: randomUUID(),
+    paymentId: payment.id,
+    method: payment.method,
+    provider: payment.provider,
+    amount: payment.amount,
+    state: payment.method === "CASH" ? ("APPROVED" as const) : ("PENDING" as const),
+    occurredAt: voidedAt,
+  }));
+  const cashRefund = refunds.find((refund) => refund.method === "CASH");
+  return {
+    id: completed.id,
+    sessionId: completed.sessionId,
+    actorId: completed.actorId,
+    authorizedBy: "4a7c1e9d-3b62-4f05-8d1a-6e2b9c5f3a13",
+    voidedAt,
+    total: completed.total,
+    saleDiscount: completed.saleDiscount,
+    saleDiscountAmount: completed.saleDiscountAmount,
+    lines: completed.lines,
+    payments: completed.payments,
+    refunds,
+    cashMovements: [
+      ...completed.cashMovements,
+      ...(cashRefund
+        ? [
+            {
+              id: randomUUID(),
+              type: "REFUND" as const,
+              amount: cashRefund.amount,
+              actorId: completed.actorId,
+              occurredAt: voidedAt,
+            },
+          ]
+        : []),
+    ],
+    stockMovements: [],
+    deferredRecordCancelled: false,
+    ...overrides,
+  };
+}
+
 export function aCashSessionOpenedFact(
   overrides: Partial<FactOf<"cash_session_opened">["session"]> = {},
 ): SyncedFact {
@@ -232,6 +283,35 @@ export function aReprintFact(
       authorizedBy: null,
       reason: { kind: "retry" },
       occurredAt: new Date("2026-10-06T11:30:00.000Z"),
+      ...overrides,
+    },
+  };
+}
+
+export function anOfflineFiscalDocumentFact(
+  overrides: Partial<FactOf<"offline_fiscal_document_issued">["document"]> = {},
+): FactOf<"offline_fiscal_document_issued"> {
+  return {
+    kind: "offline_fiscal_document_issued",
+    document: {
+      fiscalDocumentId: randomUUID(),
+      saleId: randomUUID(),
+      registerId: randomUUID(),
+      pointOfSale: 7,
+      documentType: "factura_c",
+      number: 12,
+      issuedOn: "2026-10-06",
+      generatedAt: new Date("2026-10-06T11:20:00.000Z"),
+      generationStamp: "20261006082000",
+      offlineAuthorizationCode: "21403471111111",
+      fortnightStart: "2026-10-01",
+      fortnightEnd: "2026-10-15",
+      buyerDocumentType: 99,
+      buyerDocumentNumber: 0,
+      buyerTaxStatusCode: 5,
+      total: 4800,
+      netAmount: 4800,
+      cause: "no_connectivity",
       ...overrides,
     },
   };

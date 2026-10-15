@@ -1,11 +1,13 @@
-import type {
-  FiscalDocumentType,
-  NetContentUnit,
-  SaleUnit,
-  StockMovementKind,
+import {
+  FACTURA_C_DOCUMENT_TYPE,
+  type FiscalDocumentType,
+  type NetContentUnit,
+  type SaleUnit,
+  type StockMovementKind,
 } from "@purosur/domain";
-import { asc, eq, inArray } from "drizzle-orm";
+import { asc, eq, inArray, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import { highestSyncedOfflineNumber as highestSyncedOfflineNumberOf } from "../fiscal/drizzle-highest-synced-offline-number.js";
 import { OFFLINE_AUTHORIZATION_CODE_VERSION } from "../fiscal/offline-authorization-code-version.js";
 import {
   branchFirstCashSessions,
@@ -15,6 +17,7 @@ import {
   categories,
   discounts,
   issuerIdentificationVersions,
+  numberingFreezes,
   offlineNumberBlocks,
   paymentRefunds,
   priceLists,
@@ -24,6 +27,7 @@ import {
   productTags,
   registerOfflinePointsOfSale,
   registerPointsOfSale,
+  registerPointTerminals,
   registers,
   rolePermissions,
   roles,
@@ -52,6 +56,7 @@ import type {
   RefundCompletionRow,
   RegisterOfflinePointOfSaleRow,
   RegisterPointOfSaleRow,
+  RegisterPointTerminalRow,
   RegisterRow,
   RoleRow,
   StockMovementRow,
@@ -312,6 +317,7 @@ export async function readRegisterPointsOfSale<TQueryResult extends PgQueryResul
       pointOfSaleNumber: registerPointsOfSale.pointOfSaleNumber,
       fiscalAddressId: registerPointsOfSale.fiscalAddressId,
       taxAuthorityLastAuthorizedNumber: taxAuthorityLastAuthorizedNumbers.lastAuthorized,
+      numberingFrozen: sql<boolean>`${numberingFreezes.pointOfSaleNumber} is not null`,
       version: registerPointsOfSale.version,
     })
     .from(registerPointsOfSale)
@@ -322,9 +328,37 @@ export async function readRegisterPointsOfSale<TQueryResult extends PgQueryResul
         registerPointsOfSale.pointOfSaleNumber,
       ),
     )
+    .leftJoin(
+      numberingFreezes,
+      eq(numberingFreezes.pointOfSaleNumber, registerPointsOfSale.pointOfSaleNumber),
+    )
     .where(inArray(registerPointsOfSale.registerId, [...registerIds]))
     .orderBy(asc(registerPointsOfSale.registerId));
   return new Map(rows.map(({ registerId, ...row }) => [registerId, row]));
+}
+
+export async function readRegisterPointTerminals<TQueryResult extends PgQueryResultHKT>(
+  tx: PgDatabase<TQueryResult>,
+  registerIds: readonly string[],
+): Promise<Map<string, RegisterPointTerminalRow>> {
+  if (registerIds.length === 0) {
+    return new Map();
+  }
+  const rows = await tx
+    .select({
+      registerId: registerPointTerminals.registerId,
+      terminalId: registerPointTerminals.terminalId,
+      version: registerPointTerminals.version,
+    })
+    .from(registerPointTerminals)
+    .where(inArray(registerPointTerminals.registerId, [...registerIds]))
+    .orderBy(asc(registerPointTerminals.registerId));
+  return new Map(
+    rows.map(({ registerId, terminalId, version }) => [
+      registerId,
+      { assigned: terminalId !== null, version },
+    ]),
+  );
 }
 
 export async function readRegisterOfflinePointsOfSale<TQueryResult extends PgQueryResultHKT>(
@@ -351,7 +385,17 @@ export async function readRegisterOfflinePointsOfSale<TQueryResult extends PgQue
     )
     .where(inArray(registerOfflinePointsOfSale.registerId, [...registerIds]))
     .orderBy(asc(registerOfflinePointsOfSale.registerId));
-  return new Map(rows.map(({ registerId, ...row }) => [registerId, row]));
+  const withHighestSynced = await Promise.all(
+    rows.map(async ({ registerId, ...row }) => {
+      const highestSyncedOfflineNumber = await highestSyncedOfflineNumberOf(
+        tx,
+        row.pointOfSaleNumber,
+        FACTURA_C_DOCUMENT_TYPE,
+      );
+      return [registerId, { ...row, highestSyncedOfflineNumber }] as const;
+    }),
+  );
+  return new Map(withHighestSynced);
 }
 
 export async function readOfflineAuthorizationCodes<TQueryResult extends PgQueryResultHKT>(

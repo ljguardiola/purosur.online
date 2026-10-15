@@ -4,6 +4,7 @@ import { Boxes, ChartColumn, Home, LifeBuoy, Package, Settings, Wallet } from "l
 import type { ReactNode } from "react";
 import { AccountFooter } from "./account-footer";
 import {
+  canManageBatches,
   canManageFreights,
   canManageProductsAndCategories,
   canManagePurchasePackagings,
@@ -64,7 +65,9 @@ export function AreaLayout({ area, sectionColumnLabel, sectionColumn, children }
                   ? "/freights"
                   : canManageRecipes(session)
                     ? "/recipes"
-                    : "/initial-inventory";
+                    : canManageBatches(session)
+                      ? "/assembly-batches"
+                      : "/initial-inventory";
   const cashTarget = canSeeCashArea(session) ? "/points-of-sale" : "/pending-refunds";
   const stockTargetShown = Boolean(matchRoute({ to: stockTarget }));
   return (
