@@ -291,6 +291,7 @@ describe("the fortnight report the server sets up on a real Postgres", () => {
 
     const recovery = await setUpRecovery(recoveryEnv(), () => NOW, {
       emailSender: UNUSED_EMAIL_SENDER,
+      schedules: false,
     });
     try {
       await recovery.workerUtils.addJob(FORTNIGHT_REPORT_TASK_IDENTIFIER, {});
