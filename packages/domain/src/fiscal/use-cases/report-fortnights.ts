@@ -124,7 +124,7 @@ async function presentFortnight(
   owed: OwedFortnightReport,
   report: HeldFortnightReport,
 ): Promise<FortnightPresentation[]> {
-  const { documents, streams, declarations, clock } = ports;
+  const { documents, declarations, clock } = ports;
   const { pointOfSaleNumber, registerId, code } = owed;
   const presentation = (outcome: FortnightPresentationOutcome) => [
     fortnightPresentation(owed, outcome),
