@@ -1,5 +1,5 @@
 import Database from "better-sqlite3";
-import { describe, expect, expectTypeOf, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { StorageReading } from "../sync/storage-telemetry";
 import { createStorageWatch, type StorageWatch } from "./storage-watch";
 
@@ -25,15 +25,13 @@ function setup(options: { first?: StorageReading | Error } = {}) {
   const onChange = vi.fn();
   const onFailure = vi.fn();
   const onStartupFailure = vi.fn();
-  const readNow = () => {
-    if (world.reading instanceof Error) {
-      throw world.reading;
-    }
-    return world.reading;
-  };
   const watch = createStorageWatch({
-    read: async () => readNow(),
-    readAtStartup: readNow,
+    read: async () => {
+      if (world.reading instanceof Error) {
+        throw world.reading;
+      }
+      return world.reading;
+    },
     intervalMs: INTERVAL_MS,
     scheduleNext: (run, delayMs) => {
       const entry = { run, delayMs, cancelled: false };
@@ -115,15 +113,11 @@ describe("watching the register's storage", () => {
     expect(watch.stop()).toBeUndefined();
   });
 
-  it("checks the disk at startup without a promise to wait for", () => {
-    expectTypeOf<StorageWatch["checkAtStartup"]>().returns.toEqualTypeOf<void>();
-  });
-
   it("stops new sales for the whole session when the check at startup finds the disk short of space", async () => {
     const { watch, advance } = setup({ first: SHORT_FOR_STARTUP });
     const required = 8 * PLENTY.database_size_bytes + 2 * GIGABYTE;
 
-    watch.checkAtStartup();
+    await watch.checkAtStartup();
     await watch.start();
     await advance(PLENTY);
 
@@ -134,23 +128,20 @@ describe("watching the register's storage", () => {
     expect(watch.standing().startupShortOf).toEqual({ requiredFreeBytes: required });
   });
 
-  it("reports a failed check at startup through its own reporter and holds no shortage", () => {
+  it("reports a failed check at startup through its own reporter and holds no shortage", async () => {
     const failure = new Error("the volume is gone");
     const { watch, onStartupFailure, onFailure } = setup({ first: failure });
 
-    watch.checkAtStartup();
+    await watch.checkAtStartup();
 
     expect(onStartupFailure).toHaveBeenCalledWith(failure);
     expect(onFailure).not.toHaveBeenCalled();
     expect(watch.standing().startupShortOf).toBeNull();
   });
 
-  it("takes a full disk its own check at startup reports back to it", () => {
+  it("takes a full disk its own check at startup reports back to it", async () => {
     const watch: StorageWatch = createStorageWatch({
       read: async () => {
-        throw DISK_FULL_ERROR;
-      },
-      readAtStartup: () => {
         throw DISK_FULL_ERROR;
       },
       intervalMs: INTERVAL_MS,
@@ -159,7 +150,7 @@ describe("watching the register's storage", () => {
       onStartupFailure: (error) => watch.noteFailure(error),
     });
 
-    watch.checkAtStartup();
+    await watch.checkAtStartup();
 
     expect(watch.standing().diskStanding).toBe("full");
   });
