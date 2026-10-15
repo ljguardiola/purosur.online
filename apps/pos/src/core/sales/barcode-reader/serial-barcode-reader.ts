@@ -1,5 +1,5 @@
+import type { SerialLink } from "../serial-link/open-serial-link.js";
 import { createBarcodeReaderLines } from "./barcode-reader-lines.js";
-import type { SerialLink } from "./open-serial-link.js";
 
 interface ReaderTimers {
   after(delayMs: number, run: () => void): () => void;
