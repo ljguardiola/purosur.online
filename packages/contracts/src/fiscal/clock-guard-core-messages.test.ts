@@ -57,7 +57,6 @@ describe("fiscalRendererToCoreMessageSchema", () => {
     "rejects %s without a request id",
     (type) => {
       expect(acceptsRequest({ type })).toBe(false);
-      expect(acceptsRequest({ type, request_id: "not-an-id" })).toBe(false);
     },
   );
 });

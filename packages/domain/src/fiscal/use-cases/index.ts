@@ -124,6 +124,16 @@ export type {
 } from "./correct-register-clock.js";
 export { correctRegisterClock } from "./correct-register-clock.js";
 export type {
+  ClockGuardBlock,
+  ReadRegisterClockGuardPorts,
+  RegisterClockGuardState,
+} from "./read-register-clock-guard.js";
+export { readRegisterClockGuard } from "./read-register-clock-guard.js";
+export type {
+  RegisterClockGuardReader,
+  TaxAuthorityFloor,
+} from "./register-clock-guard-ports.js";
+export type {
   CreateFiscalAddressInput,
   CreateFiscalAddressOutcome,
 } from "./create-fiscal-address.js";

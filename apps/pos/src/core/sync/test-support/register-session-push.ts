@@ -6,12 +6,12 @@ import {
 } from "@purosur/domain/fiscal/test-support";
 import type { MercadoPagoChargeOrders } from "@purosur/domain/payments/use-cases";
 import { derivePinVerifier } from "../../credentials/pin-verifier";
+import { correctRegisterClockFor } from "../../fiscal/clock-correction-requests";
 import {
   abandonMercadoPagoChargeFor,
   followMercadoPagoChargeFor,
   startMercadoPagoChargeFor,
 } from "../../payments/mercado-pago-charge-requests";
-import { correctRegisterClockFor } from "../../fiscal/clock-correction-requests";
 import type { LocalDatabase } from "../../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../../platform/local-migrations";
 import { migrationClock } from "../../platform/test-support/migration-clock";

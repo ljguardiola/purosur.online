@@ -56,6 +56,7 @@ import type {
   WeighProductOutcome,
 } from "@purosur/contracts";
 import type { AuthorizablePermissionKey, RegisterService } from "@purosur/domain";
+import { answerClockGuardRequest, type ClockGuardRequests } from "./fiscal/clock-guard-answers";
 import { isDatabaseDamage } from "./platform/database-damage";
 import type { CashMovementRequest } from "./register/cash-movement-requests";
 import type { WireSerialDevices } from "./register/serial-devices-requests";
@@ -138,6 +139,7 @@ export interface RendererRequestDeps {
     | undefined;
   weighProduct: ((productId: string) => Promise<WeighProductOutcome>) | undefined;
   initialCount: InitialCountRequests | undefined;
+  clockGuard: ClockGuardRequests | undefined;
   currentSale: (() => Promise<CurrentSaleAnswer>) | undefined;
   cashCharge: ((request: ChargeSaleInCashRequest) => Promise<CashChargeAnswer>) | undefined;
   changeLineQuantity:
@@ -1111,6 +1113,9 @@ export async function answerRendererRequest(
     case "search-countable-products":
     case "weigh-counted-product":
       return answerInitialCountRequest(deps, message);
+    case "read-clock-guard":
+    case "correct-register-clock":
+      return answerClockGuardRequest(deps, message);
     case "sale-request": {
       const sale = await readCurrentSale(deps);
       if (sale === "not_permitted") {

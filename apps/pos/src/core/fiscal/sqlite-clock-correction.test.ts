@@ -21,8 +21,8 @@ const people = {
 
 let database: LocalDatabase;
 
-function ledger(chainKey: string | undefined = CHAIN_KEY) {
-  return new SqliteClockCorrectionLedger(database, people, chainKey);
+function ledger() {
+  return new SqliteClockCorrectionLedger(database, people, CHAIN_KEY);
 }
 
 function reader() {
@@ -274,7 +274,7 @@ describe("lowering a clock mark and recording the correction", () => {
 
   it("refuses to append an event while the register has no outbox chain key", () => {
     expect(() =>
-      ledger(undefined).transaction((tx) =>
+      new SqliteClockCorrectionLedger(database, people, undefined).transaction((tx) =>
         tx.appendOutboxEvent({
           event_id: "event-1",
           aggregate_type: "CashRegister",

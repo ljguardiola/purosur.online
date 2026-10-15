@@ -106,6 +106,16 @@ export type { BuyerIdentificationThresholdRecordBody } from "./fiscal/buyer-iden
 export { buyerIdentificationThresholdRecordBodySchema } from "./fiscal/buyer-identification-threshold-record.js";
 export type { ClockCorrectionBody } from "./fiscal/clock-correction.js";
 export { clockCorrectionListSchema, clockCorrectionSchema } from "./fiscal/clock-correction.js";
+export type {
+  CorrectRegisterClockOutcome,
+  FiscalCoreToRendererMessage,
+  FiscalRendererToCoreMessage,
+  ReadClockGuardOutcome,
+} from "./fiscal/clock-guard-core-messages.js";
+export {
+  fiscalCoreToRendererMessageSchema,
+  fiscalRendererToCoreMessageSchema,
+} from "./fiscal/clock-guard-core-messages.js";
 export type { FiscalAddressBody } from "./fiscal/fiscal-address.js";
 export { fiscalAddressListSchema, fiscalAddressSchema } from "./fiscal/fiscal-address.js";
 export type { FiscalAddressCreationBody } from "./fiscal/fiscal-address-creation.js";

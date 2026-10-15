@@ -22,6 +22,7 @@ import { requestFirstPinCode } from "./credentials/first-pin-code-request";
 import { checkPinCodeRedemption, redeemPinCode } from "./credentials/pin-code-redemption";
 import { pinPolicy } from "./credentials/pin-policy";
 import { applyRedeemedPin } from "./credentials/redeemed-pin";
+import { createClockGuardRequests } from "./fiscal/clock-guard-answers";
 import { cryptoShortCodes } from "./fiscal/crypto-short-codes";
 import {
   createRealTimeAuthorization,
@@ -1005,6 +1006,18 @@ const rendererRequestDeps: RendererRequestDeps = {
           now,
           ids: uuidV7Ids,
           scale: systelScale,
+        }),
+  clockGuard:
+    localDatabase === undefined || actionGate === undefined
+      ? undefined
+      : createClockGuardRequests({
+          database: localDatabase,
+          gate: actionGate,
+          signedInPerson,
+          readOutboxChainKey: async () =>
+            (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
+          now,
+          ids: uuidV7Ids,
         }),
   currentSale:
     localDatabase === undefined || actionGate === undefined

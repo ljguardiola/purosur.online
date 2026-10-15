@@ -22,7 +22,7 @@ const OFFLINE_MARK: ClockMark = {
   reading: ahead(120_000),
 };
 
-function read(state: Partial<FakeRegisterClockGuardState>, userId: string | undefined = "ana") {
+function readAs(userId: string | undefined, state: Partial<FakeRegisterClockGuardState> = {}) {
   return readRegisterClockGuard(
     {
       reader: fakeRegisterClockGuardReader({
@@ -33,6 +33,10 @@ function read(state: Partial<FakeRegisterClockGuardState>, userId: string | unde
     },
     { userId },
   );
+}
+
+function read(state: Partial<FakeRegisterClockGuardState>) {
+  return readAs("ana", state);
 }
 
 describe("readRegisterClockGuard", () => {
@@ -147,7 +151,7 @@ describe("readRegisterClockGuard", () => {
 
   describe("who may correct", () => {
     it("is a person holding the permission to correct the register's clock", () => {
-      expect(read({}, "ana").mayCorrect).toBe(true);
+      expect(readAs("ana").mayCorrect).toBe(true);
     });
 
     it.each([
@@ -155,7 +159,7 @@ describe("readRegisterClockGuard", () => {
       ["a person the register does not know", "nadie"],
       ["no one signed in", undefined],
     ])("is not %s", (_case, userId) => {
-      expect(read({}, userId).mayCorrect).toBe(false);
+      expect(readAs(userId).mayCorrect).toBe(false);
     });
   });
 
