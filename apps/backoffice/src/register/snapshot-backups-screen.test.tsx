@@ -370,7 +370,7 @@ test("Rotar la clave de cifrado opens the modal naming the register being shown"
   expect(services.rotateSnapshotKey).not.toHaveBeenCalled();
 });
 
-test("rotating the key closes the modal and says which version the register uses now", async () => {
+test("rotating the key closes the modal and says which version the register's next generations use", async () => {
   const services = servicesWithBackups();
   vi.mocked(services.rotateSnapshotKey).mockResolvedValue({ kind: "ok", value: { keyVersion: 3 } });
   const screen = await renderScreen(services);
@@ -385,7 +385,11 @@ test("rotating the key closes the modal and says which version the register uses
 
   await expect.element(screen.getByText("Clave rotada")).toBeVisible();
   await expect
-    .element(screen.getByText("Caja 1 ahora cifra con la versión 3 de su clave."))
+    .element(
+      screen.getByText(
+        "Las próximas generaciones de Caja 1 se cifran con la versión 3 de su clave.",
+      ),
+    )
     .toBeVisible();
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
   expect(services.rotateSnapshotKey).toHaveBeenCalledWith("register-1");

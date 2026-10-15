@@ -6,6 +6,7 @@ import {
   inVersionOrder,
   isWellFormedInstallationKey,
   latestKey,
+  latestKeyVersion,
 } from "./installation-key.js";
 
 const base64Of = (bytes: Uint8Array): string => Buffer.from(bytes).toString("base64");
@@ -72,6 +73,16 @@ describe("latestKey", () => {
 
   it("is nothing when no key was generated yet", () => {
     expect(latestKey([])).toBeUndefined();
+  });
+});
+
+describe("latestKeyVersion", () => {
+  it("is the highest of the versions, whatever the order they come in", () => {
+    expect(latestKeyVersion([2, 3, 1])).toBe(3);
+  });
+
+  it("is nothing when no key was generated yet", () => {
+    expect(latestKeyVersion([])).toBeUndefined();
   });
 });
 

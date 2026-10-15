@@ -31,6 +31,7 @@ describe("endSnapshotWorker", () => {
         tally: { uploaded: 1, refused: 0, failed: 0 },
         latestAnnouncedKeyVersion: undefined,
       },
+      latestAnnouncedKeyVersion: undefined,
     });
 
     expect(posted).toEqual([]);
@@ -47,10 +48,26 @@ describe("endSnapshotWorker", () => {
           tally: { uploaded: 0, refused: 0, failed: 1 },
           latestAnnouncedKeyVersion: 3,
         },
+        latestAnnouncedKeyVersion: 3,
       });
 
       expect(posted).toEqual([{ type: "snapshot-key-version-announced", version: 3 }]);
       expect(exits).toEqual([]);
     },
   );
+
+  it("tells main the key version the job learned before taking a snapshot, even when no upload announced one", () => {
+    const { posted, exits } = end({
+      kind: "completed",
+      uploads: {
+        kind: "every_pending_tried",
+        tally: { uploaded: 0, refused: 0, failed: 0 },
+        latestAnnouncedKeyVersion: undefined,
+      },
+      latestAnnouncedKeyVersion: 3,
+    });
+
+    expect(posted).toEqual([{ type: "snapshot-key-version-announced", version: 3 }]);
+    expect(exits).toEqual([]);
+  });
 });

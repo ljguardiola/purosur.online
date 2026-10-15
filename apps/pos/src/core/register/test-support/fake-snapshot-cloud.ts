@@ -10,11 +10,18 @@ export interface OnDiskReport {
   callsBefore: number;
 }
 
+export interface KeyVersionAsk {
+  authorization: string | null;
+  callsBefore: number;
+}
+
 type Answer = Response | "unreachable";
 
 export class FakeSnapshotCloud {
   calls: CloudCall[] = [];
   onDiskReports: OnDiskReport[] = [];
+  keyVersionAsks: KeyVersionAsk[] = [];
+  onKeyVersion: () => Answer = () => Response.json({ current_key_version: 2 });
   onOnDisk: () => Answer = () => new Response(null, { status: 204 });
   onDeclare: (body: { generation_id: string }) => Answer = (body) =>
     Response.json({
@@ -60,6 +67,15 @@ export class FakeSnapshotCloud {
       call = { kind: "uploaded", generationId: uploaded[1] };
       await this.observe(call);
       answer = this.onUploaded(uploaded[1]);
+    } else if (
+      url.pathname === "/api/devices/current/snapshot-key-version" &&
+      init.method === "GET"
+    ) {
+      this.keyVersionAsks.push({
+        authorization: headers.get("authorization"),
+        callsBefore: this.calls.length,
+      });
+      return this.onKeyVersion();
     } else if (url.pathname === "/api/devices/current/snapshots/on-disk" && init.method === "PUT") {
       const body = JSON.parse(String(init.body)) as { generation_ids: string[] };
       this.onDiskReports.push({

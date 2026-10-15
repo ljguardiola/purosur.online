@@ -104,6 +104,7 @@ describe("runSnapshotJob that takes a snapshot", () => {
         tally: { uploaded: 1, refused: 0, failed: 0 },
         latestAnnouncedKeyVersion: 2,
       },
+      latestAnnouncedKeyVersion: 2,
     });
   });
 
@@ -202,6 +203,7 @@ describe("runSnapshotJob that takes a snapshot", () => {
     expect(result).toEqual({
       kind: "completed",
       uploads: { kind: "cloud_unreachable", tally: { uploaded: 0, refused: 0, failed: 1 } },
+      latestAnnouncedKeyVersion: 2,
     });
     expect(await readManifests(snapshotsFolder)).toMatchObject([
       { generation_id: GENERATION_ID, uploaded_at: null },
@@ -231,6 +233,96 @@ describe("runSnapshotJob that takes a snapshot", () => {
   });
 });
 
+describe("runSnapshotJob that takes a snapshot after a rotation of the key", () => {
+  const WAITING_ID = "00000000-0000-4000-8000-000000000001";
+
+  async function keepWaiting() {
+    await mkdir(snapshotsFolder, { recursive: true });
+    await writeManifest(snapshotsFolder, {
+      generation_id: WAITING_ID,
+      created_at: "2026-10-15T11:00:00.000Z",
+      last_device_seq: 1,
+      pull_cursor: 1,
+      key_version: 2,
+      size: 5,
+      sha256: "ab".repeat(32),
+      uploaded_at: null,
+      refused_at: null,
+    });
+    await writeFile(objectPath(snapshotsFolder, WAITING_ID), "bytes");
+  }
+
+  it("asks the cloud for the register's current key version before anything else", async () => {
+    await run(takeJob());
+
+    expect(cloud.keyVersionAsks).toEqual([
+      { authorization: "Bearer prefix.secret", callsBefore: 0 },
+    ]);
+  });
+
+  it("takes no generation with a key older than the current one, announcing the current version", async () => {
+    cloud.onKeyVersion = () => Response.json({ current_key_version: 3 });
+
+    const result = await run(takeJob());
+
+    expect(await readdir(snapshotsFolder)).toEqual([]);
+    expect(cloud.calls).toEqual([]);
+    expect(result).toEqual({
+      kind: "completed",
+      uploads: {
+        kind: "every_pending_tried",
+        tally: { uploaded: 0, refused: 0, failed: 0 },
+        latestAnnouncedKeyVersion: undefined,
+      },
+      latestAnnouncedKeyVersion: 3,
+    });
+  });
+
+  it("still uploads the generations already waiting when it takes none", async () => {
+    cloud.onKeyVersion = () => Response.json({ current_key_version: 3 });
+    await keepWaiting();
+
+    const result = await run(takeJob());
+
+    expect((await readManifests(snapshotsFolder)).map((entry) => entry.generation_id)).toEqual([
+      WAITING_ID,
+    ]);
+    expect(cloud.calls.map((call) => call.kind)).toEqual(["declare", "put", "uploaded"]);
+    expect(result).toMatchObject({
+      kind: "completed",
+      uploads: { tally: { uploaded: 1, refused: 0, failed: 0 } },
+      latestAnnouncedKeyVersion: 3,
+    });
+  });
+
+  it("takes the generation with the key it holds when the cloud cannot answer the current one", async () => {
+    cloud.onKeyVersion = () => "unreachable";
+
+    const result = await run(takeJob());
+
+    expect(await readManifests(snapshotsFolder)).toMatchObject([
+      { generation_id: GENERATION_ID, key_version: 2 },
+    ]);
+    expect(result).toMatchObject({ kind: "completed", latestAnnouncedKeyVersion: 2 });
+  });
+
+  it("takes the generation when the key it holds is the current one", async () => {
+    cloud.onKeyVersion = () => Response.json({ current_key_version: 2 });
+
+    await run(takeJob());
+
+    expect(await readManifests(snapshotsFolder)).toMatchObject([
+      { generation_id: GENERATION_ID, key_version: 2 },
+    ]);
+  });
+
+  it("does not ask for the current key version in a job that only uploads", async () => {
+    await run(uploadJob());
+
+    expect(cloud.keyVersionAsks).toEqual([]);
+  });
+});
+
 describe("runSnapshotJob that only uploads", () => {
   it("uploads the generations waiting and takes no new snapshot", async () => {
     const waiting = "00000000-0000-4000-8000-000000000001";
@@ -257,6 +349,7 @@ describe("runSnapshotJob that only uploads", () => {
         tally: { uploaded: 1, refused: 0, failed: 0 },
         latestAnnouncedKeyVersion: 2,
       },
+      latestAnnouncedKeyVersion: 2,
     });
     expect((await readManifests(snapshotsFolder)).map((entry) => entry.generation_id)).toEqual([
       waiting,

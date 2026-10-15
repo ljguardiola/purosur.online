@@ -95,6 +95,7 @@ describe("the snapshot worker", () => {
         tally: { uploaded: 0, refused: 0, failed: 0 },
         latestAnnouncedKeyVersion: undefined,
       },
+      latestAnnouncedKeyVersion: undefined,
     });
 
     deliver(UPLOAD_JOB);
@@ -116,6 +117,7 @@ describe("the snapshot worker", () => {
         tally: { uploaded: 0, refused: 0, failed: 1 },
         latestAnnouncedKeyVersion: undefined,
       },
+      latestAnnouncedKeyVersion: undefined,
     });
 
     deliver(UPLOAD_JOB);
