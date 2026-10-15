@@ -33,7 +33,11 @@ import { createGraphileRecoveryJobQueue } from "./credentials/graphile-recovery-
 import { reportPoolErrors } from "./credentials/pool-connection-error-handler.js";
 import type { AccessEmailSender } from "./credentials/recovery-email-sender.js";
 import type { RecoveryJobQueue } from "./credentials/recovery-job-queue.js";
-import { type RecoveryWorkerHandle, startRecoveryWorker } from "./credentials/recovery-worker.js";
+import {
+  type RecoveryWorkerHandle,
+  type StartRecoveryWorkerOptions,
+  startRecoveryWorker,
+} from "./credentials/recovery-worker.js";
 import {
   type RecoveryEmailSenderEnv,
   selectRecoveryEmailSender,
@@ -473,6 +477,7 @@ export interface SetUpRecoveryDeps {
   emailSender?: AccessEmailSender;
   /** Lets a test give the job-queue pool a `pg.Pool` with no idle reaper, so it doesn't race pg-pool's own idle timeout. */
   createJobQueuePool?: CreateRecoveryJobQueuePoolDeps["createPool"];
+  schedules?: StartRecoveryWorkerOptions["schedules"];
 }
 
 /**
@@ -499,6 +504,7 @@ export async function setUpRecovery(
     backofficeOrigin: recoveryEnv.backofficeOrigin,
     emailSender,
     now,
+    ...(deps.schedules === undefined ? {} : { schedules: deps.schedules }),
     jobs: [
       alertEscalationJobs({ now }),
       alertConditionResolutionJobs({ now }),

@@ -107,6 +107,7 @@ function recoveryEnv() {
 async function reportOnDemand(expectedRequests: number) {
   const recovery = await setUpRecovery(recoveryEnv(), () => NOW, {
     emailSender: UNUSED_EMAIL_SENDER,
+    schedules: false,
   });
   try {
     await recovery.workerUtils.addJob(FORTNIGHT_REPORT_TASK_IDENTIFIER, {});
@@ -125,6 +126,7 @@ async function reportOnDemand(expectedRequests: number) {
 async function reportOnDemandUntilDone() {
   const recovery = await setUpRecovery(recoveryEnv(), () => NOW, {
     emailSender: UNUSED_EMAIL_SENDER,
+    schedules: false,
   });
   try {
     await recovery.workerUtils.addJob(FORTNIGHT_REPORT_TASK_IDENTIFIER, {});

@@ -173,6 +173,7 @@ async function startRealServer(
           recovery = await setUpRecovery(recoveryEnv, now, {
             emailSender,
             createJobQueuePool,
+            schedules: false,
           });
           return recovery;
         },

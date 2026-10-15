@@ -77,7 +77,7 @@ function setUp(mercadoPago: FakeMercadoPagoOrders) {
       mercadoPago,
     },
     () => CHECKED_AT,
-    { emailSender: UNUSED_EMAIL_SENDER },
+    { emailSender: UNUSED_EMAIL_SENDER, schedules: false },
   );
 }
 
