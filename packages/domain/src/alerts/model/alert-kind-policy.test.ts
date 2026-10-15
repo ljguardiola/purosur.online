@@ -60,6 +60,8 @@ describe("alertKindPolicy", () => {
     ["outbox_chain_broken", "warning", afterOpening, "all", "syncDevice", false],
     ["lots_expiring", "informational", null, "local", "branch", true],
     ["offsite_dump_unverified", "critical", null, "all", "environment", true],
+    ["fortnight_report_pending", "warning", null, "all", "pointOfSaleFortnight", true],
+    ["fortnight_report_overdue", "critical", null, "all", "pointOfSaleFortnight", true],
     ["update_required", "critical", null, "all", "register", true],
     ["register_silent", "critical", null, "local", "register", true],
     ["sales_denied", "critical", null, "local", "register", true],
@@ -115,6 +117,7 @@ describe("alertKindPolicy", () => {
       "fiscal_emission_stopped",
       "lots_expiring",
       "offsite_dump_unverified",
+      "fortnight_report_pending",
     ]);
   });
 
@@ -154,6 +157,8 @@ describe("alertClosing", () => {
       outbox_chain_broken: "by_hand",
       lots_expiring: "by_itself",
       offsite_dump_unverified: "by_itself",
+      fortnight_report_pending: "by_itself",
+      fortnight_report_overdue: "by_hand",
     });
   });
 
@@ -226,5 +231,9 @@ describe("alertKindsWithScope", () => {
       "outbox_chain_broken",
     ]);
     expect(alertKindsWithScope("branch")).toEqual(["lots_expiring"]);
+    expect(alertKindsWithScope("pointOfSaleFortnight")).toEqual([
+      "fortnight_report_pending",
+      "fortnight_report_overdue",
+    ]);
   });
 });

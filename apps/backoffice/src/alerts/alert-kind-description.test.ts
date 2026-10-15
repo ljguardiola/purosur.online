@@ -82,3 +82,12 @@ test("describes an offsite dump of a night that could not be verified", () => {
     "La copia cifrada de la base de datos de una noche no se pudo verificar fuera de la nube.",
   );
 });
+
+test("describes a fortnight's report not yet presented and one whose deadline was missed", () => {
+  expect(alertKindDescription("fortnight_report_pending")).toBe(
+    "Falta presentar a ARCA el informe de una quincena de un punto de venta",
+  );
+  expect(alertKindDescription("fortnight_report_overdue")).toBe(
+    "Venció el plazo para presentar a ARCA el informe de una quincena de un punto de venta",
+  );
+});

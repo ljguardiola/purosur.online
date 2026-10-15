@@ -1,6 +1,7 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import type { DiscountBenefit } from "@purosur/domain";
 import {
   FICTIONAL_CUIT,
   FICTIONAL_GROSS_INCOME_REGISTRATION,
@@ -41,6 +42,15 @@ import { SqliteReceiptLedger } from "./sqlite-receipt-ledger";
 import { SqliteSaleLedger } from "./sqlite-sale-ledger";
 import { printoutOf } from "./test-support/escpos-printout";
 import { ReceiptPrintObserver } from "./test-support/receipt-print-watch";
+import {
+  addBarcode,
+  addCategory,
+  addDiscount,
+  addPrice,
+  addProduct,
+  addProductTag,
+  promotionIdsTargeting,
+} from "./test-support/sqlite-sale-ledger";
 
 const NOW = new Date("2026-09-30T12:00:00.000Z");
 const CHAIN_KEY = Buffer.from("0123456789abcdef0123456789abcdef").toString("base64");
@@ -94,130 +104,6 @@ function openSession(): void {
     .run();
 }
 
-interface ProductOptions {
-  id?: string;
-  name?: string;
-  unit?: string;
-  categoryId?: string;
-  active?: boolean;
-  removed?: boolean;
-}
-
-function addProduct(code: string | undefined, options: ProductOptions = {}): string {
-  const id = options.id ?? "p1";
-  database
-    .prepare(
-      `INSERT INTO products (id, name, category_id, sale_unit, active, version, removed)
-       VALUES (?, ?, ?, ?, ?, 1, ?)`,
-    )
-    .run(
-      id,
-      options.name ?? "Yerba",
-      options.categoryId ?? "c",
-      options.unit ?? "UNIT",
-      options.active === false ? 0 : 1,
-      options.removed ? 1 : 0,
-    );
-  if (code !== undefined) {
-    addBarcode(id, code);
-  }
-  return id;
-}
-
-function addBarcode(productId: string, code: string, active = true, position = 1): void {
-  database
-    .prepare(
-      "INSERT INTO product_barcodes (product_id, position, code, active) VALUES (?, ?, ?, ?)",
-    )
-    .run(productId, position, code, active ? 1 : 0);
-}
-
-function addPrice(
-  productId: string,
-  validFrom: string,
-  unitPrice: number,
-  options: { id?: string; version?: number; removed?: boolean; priceListId?: string } = {},
-): void {
-  database
-    .prepare(
-      `INSERT INTO prices (id, product_id, price_list_id, unit_price, valid_from, version, removed)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    )
-    .run(
-      options.id ?? `price-${productId}-${validFrom}-${unitPrice}`,
-      productId,
-      options.priceListId ?? "list-1",
-      unitPrice,
-      validFrom,
-      options.version ?? 1,
-      options.removed ? 1 : 0,
-    );
-}
-
-function addCategory(id: string, parentId: string | null = null): void {
-  database
-    .prepare("INSERT INTO categories (id, name, parent_id, version) VALUES (?, ?, ?, 1)")
-    .run(id, id, parentId);
-}
-
-function addProductTag(productId: string, tagId: string, active = true): void {
-  database
-    .prepare("INSERT INTO product_tags (product_id, tag_id, active) VALUES (?, ?, ?)")
-    .run(productId, tagId, active ? 1 : 0);
-}
-
-type Benefit =
-  | { kind: "PERCENT_OFF"; percent: number }
-  | { kind: "BUY_N_PAY_M"; buyQty: number; payQty: number };
-
-interface DiscountOptions {
-  name?: string;
-  active?: boolean;
-  removed?: boolean;
-  validFrom?: string;
-  validTo?: string;
-  weekdays?: number[];
-}
-
-function addDiscount(
-  id: string,
-  target: { kind: "PRODUCT" | "CATEGORY" | "TAG"; id: string },
-  benefit: Benefit,
-  options: DiscountOptions = {},
-): void {
-  database
-    .prepare(
-      `INSERT INTO discounts (
-         id, name, kind, percent, buy_qty, pay_qty, target_kind, target_id, valid_from, valid_to,
-         weekdays, active, version, removed
-       ) VALUES (
-         @id, @name, @kind, @percent, @buy_qty, @pay_qty, @target_kind, @target_id, @valid_from,
-         @valid_to, @weekdays, @active, 1, @removed
-       )`,
-    )
-    .run({
-      id,
-      name: options.name ?? "Promo",
-      kind: benefit.kind,
-      percent: benefit.kind === "PERCENT_OFF" ? benefit.percent : null,
-      buy_qty: benefit.kind === "BUY_N_PAY_M" ? benefit.buyQty : null,
-      pay_qty: benefit.kind === "BUY_N_PAY_M" ? benefit.payQty : null,
-      target_kind: target.kind,
-      target_id: target.id,
-      valid_from: options.validFrom ?? "2026-09-01",
-      valid_to: options.validTo ?? "2026-12-31",
-      weekdays: JSON.stringify(options.weekdays ?? []),
-      active: options.active === false ? 0 : 1,
-      removed: options.removed ? 1 : 0,
-    });
-}
-
-function promotionIdsTargeting(productId: string): string[] {
-  return ledger
-    .transaction((tx) => tx.promotionsTargeting(productId))
-    .map((promotion) => promotion.id);
-}
-
 function saveThreshold(id: string, amount: number, validFrom: string, revision = 0): void {
   database
     .prepare(
@@ -252,8 +138,8 @@ describe("scanning a barcode", () => {
   beforeEach(readySeller);
 
   it("finds the active product that holds the exact code", () => {
-    addProduct("7791234567890");
-    addPrice("p1", "2026-09-01T00:00:00.000Z", 1500);
+    addProduct(database, "7791234567890");
+    addPrice(database, "p1", "2026-09-01T00:00:00.000Z", 1500);
 
     const outcome = scan("7791234567890");
 
@@ -269,17 +155,17 @@ describe("scanning a barcode", () => {
     ["a code that is only part of the barcode", "779123456789"],
     ["a code with another case", "abc-1"],
   ])("does not find the product by %s", (_case, code) => {
-    addProduct("7791234567890");
-    addBarcode("p1", "ABC-1", true, 2);
-    addPrice("p1", "2026-09-01T00:00:00.000Z", 1500);
+    addProduct(database, "7791234567890");
+    addBarcode(database, "p1", "ABC-1", true, 2);
+    addPrice(database, "p1", "2026-09-01T00:00:00.000Z", 1500);
 
     expect(scan(code)).toEqual({ kind: "unknown_code" });
   });
 
   it("finds a product by any of its barcodes", () => {
-    addProduct("111");
-    addBarcode("p1", "222", true, 2);
-    addPrice("p1", "2026-09-01T00:00:00.000Z", 1500);
+    addProduct(database, "111");
+    addBarcode(database, "p1", "222", true, 2);
+    addPrice(database, "p1", "2026-09-01T00:00:00.000Z", 1500);
 
     expect(scan("222")).toMatchObject({ kind: "added" });
   });
@@ -289,16 +175,16 @@ describe("scanning a barcode", () => {
     ["a removed product", { removed: true }, true],
     ["an inactive barcode", {}, false],
   ])("does not find %s", (_case, options, barcodeActive) => {
-    addProduct(undefined, options);
-    addBarcode("p1", "111", barcodeActive);
-    addPrice("p1", "2026-09-01T00:00:00.000Z", 1500);
+    addProduct(database, undefined, options);
+    addBarcode(database, "p1", "111", barcodeActive);
+    addPrice(database, "p1", "2026-09-01T00:00:00.000Z", 1500);
 
     expect(scan("111")).toEqual({ kind: "unknown_code" });
   });
 
   it("asks for the weight of a product sold by weight without adding it", () => {
-    addProduct("111", { unit: "KG", name: "Queso" });
-    addPrice("p1", "2026-09-01T00:00:00.000Z", 1500);
+    addProduct(database, "111", { unit: "KG", name: "Queso" });
+    addPrice(database, "p1", "2026-09-01T00:00:00.000Z", 1500);
 
     expect(scan("111")).toEqual({
       kind: "weight_needed",
@@ -319,8 +205,8 @@ function weigh(productId: string, weightThousandths: number) {
 describe("a line sold by weight", () => {
   beforeEach(() => {
     readySeller();
-    addProduct("111", { unit: "KG", name: "Queso" });
-    addPrice("p1", "2026-09-01T00:00:00.000Z", 9000);
+    addProduct(database, "111", { unit: "KG", name: "Queso" });
+    addPrice(database, "p1", "2026-09-01T00:00:00.000Z", 9000);
   });
 
   it("is stored with its weight in thousandths of a kilogram, its unit and where the weight came from", () => {
@@ -390,7 +276,12 @@ describe("a line sold by weight", () => {
   });
 
   it("keeps the line's unit and source when its promotions are read back", () => {
-    addDiscount("d1", { kind: "PRODUCT", id: "p1" }, { kind: "PERCENT_OFF", percent: 10 });
+    addDiscount(
+      database,
+      "d1",
+      { kind: "PRODUCT", id: "p1" },
+      { kind: "PERCENT_OFF", percent: 10 },
+    );
     weigh("p1", 1000);
 
     const outcome = currentSale({ ledger, clock: { now: () => NOW } }, { actorId: "u1" });
@@ -407,7 +298,7 @@ describe("a line sold by weight", () => {
 describe("the price a scan takes", () => {
   beforeEach(() => {
     readySeller();
-    addProduct("111");
+    addProduct(database, "111");
   });
 
   function scannedPrice() {
@@ -416,45 +307,45 @@ describe("the price a scan takes", () => {
   }
 
   it("is the newest synced one, ignoring the older ones", () => {
-    addPrice("p1", "2026-08-01T00:00:00.000Z", 1000);
-    addPrice("p1", "2026-09-15T00:00:00.000Z", 1200);
+    addPrice(database, "p1", "2026-08-01T00:00:00.000Z", 1000);
+    addPrice(database, "p1", "2026-09-15T00:00:00.000Z", 1200);
 
     expect(scannedPrice()).toMatchObject({ listUnitPrice: 1200, priceListId: "list-1" });
   });
 
   it("is the newest synced one even while the register's clock lags behind its start", () => {
-    addPrice("p1", "2026-09-15T00:00:00.000Z", 1200);
-    addPrice("p1", "2026-09-30T12:03:00.000Z", 1800);
+    addPrice(database, "p1", "2026-09-15T00:00:00.000Z", 1200);
+    addPrice(database, "p1", "2026-09-30T12:03:00.000Z", 1800);
 
     expect(scannedPrice()).toMatchObject({ listUnitPrice: 1800 });
   });
 
   it("ignores a removed price", () => {
-    addPrice("p1", "2026-08-01T00:00:00.000Z", 1000);
-    addPrice("p1", "2026-09-15T00:00:00.000Z", 1200, { removed: true });
+    addPrice(database, "p1", "2026-08-01T00:00:00.000Z", 1000);
+    addPrice(database, "p1", "2026-09-15T00:00:00.000Z", 1200, { removed: true });
 
     expect(scannedPrice()).toMatchObject({ listUnitPrice: 1000 });
   });
 
   it("ignores the prices of other products", () => {
-    addProduct("222", { id: "p2", name: "Azucar" });
-    addPrice("p2", "2026-09-15T00:00:00.000Z", 9999);
+    addProduct(database, "222", { id: "p2", name: "Azucar" });
+    addPrice(database, "p2", "2026-09-15T00:00:00.000Z", 9999);
 
     expect(scannedPrice()).toEqual({ kind: "no_price", productName: "Yerba" });
   });
 
   it("is the only synced one even while the register's clock lags behind its start", () => {
-    addPrice("p1", "2026-09-30T12:03:00.000Z", 1800);
+    addPrice(database, "p1", "2026-09-30T12:03:00.000Z", 1800);
 
     expect(scannedPrice()).toMatchObject({ listUnitPrice: 1800 });
   });
 
   it("is the one with the greater id when two start at the same moment, whatever their versions", () => {
-    addPrice("p1", "2026-09-15T00:00:00.000Z", 1100, {
+    addPrice(database, "p1", "2026-09-15T00:00:00.000Z", 1100, {
       id: "00000000-0000-4000-8000-000000000001",
       version: 3,
     });
-    addPrice("p1", "2026-09-15T00:00:00.000Z", 1250, {
+    addPrice(database, "p1", "2026-09-15T00:00:00.000Z", 1250, {
       id: "00000000-0000-4000-8000-000000000002",
       version: 1,
     });
@@ -466,11 +357,11 @@ describe("the price a scan takes", () => {
 describe("the sale being built", () => {
   beforeEach(() => {
     readySeller();
-    addProduct("111");
-    addProduct("222", { id: "p2", name: "Azucar" });
-    addProduct("333", { id: "p3", name: "Fideos" });
+    addProduct(database, "111");
+    addProduct(database, "222", { id: "p2", name: "Azucar" });
+    addProduct(database, "333", { id: "p3", name: "Fideos" });
     for (const id of ["p1", "p2", "p3"]) {
-      addPrice(id, "2026-09-01T00:00:00.000Z", 1000);
+      addPrice(database, id, "2026-09-01T00:00:00.000Z", 1000);
     }
   });
 
@@ -637,8 +528,8 @@ describe("the sale after the register restarts", () => {
         () => "checked",
       );
       readySeller();
-      addProduct("111");
-      addPrice("p1", "2026-09-01T00:00:00.000Z", 1000);
+      addProduct(database, "111");
+      addPrice(database, "p1", "2026-09-01T00:00:00.000Z", 1000);
       scan("111");
       scan("111");
       database.close();
@@ -764,8 +655,8 @@ describe("the buyer-identification thresholds", () => {
 describe("charging an open sale in cash", () => {
   beforeEach(() => {
     readySeller();
-    addProduct("111");
-    addPrice("p1", "2026-09-01T00:00:00.000Z", 1500);
+    addProduct(database, "111");
+    addPrice(database, "p1", "2026-09-01T00:00:00.000Z", 1500);
     database
       .prepare(
         `INSERT INTO issuer_identification_versions (
@@ -1243,8 +1134,8 @@ describe("charging an open sale in cash", () => {
 describe("charging a sale with a line sold by weight", () => {
   beforeEach(() => {
     readySeller();
-    addProduct("111", { unit: "KG", name: "Queso" });
-    addPrice("p1", "2026-09-01T00:00:00.000Z", 9000);
+    addProduct(database, "111", { unit: "KG", name: "Queso" });
+    addPrice(database, "p1", "2026-09-01T00:00:00.000Z", 9000);
     database
       .prepare(
         `INSERT INTO issuer_identification_versions (
@@ -1286,8 +1177,8 @@ describe("charging a sale with a line sold by weight", () => {
 describe("paying an open sale across several payments", () => {
   beforeEach(() => {
     readySeller();
-    addProduct("111");
-    addPrice("p1", "2026-09-01T00:00:00.000Z", 1500);
+    addProduct(database, "111");
+    addPrice(database, "p1", "2026-09-01T00:00:00.000Z", 1500);
     database
       .prepare(
         `INSERT INTO issuer_identification_versions (
@@ -1462,45 +1353,45 @@ function rowsPerTable(): Record<string, number> {
 }
 
 describe("the promotions that target a product", () => {
-  const tenPercent: Benefit = { kind: "PERCENT_OFF", percent: 10 };
+  const tenPercent: DiscountBenefit = { kind: "PERCENT_OFF", percent: 10 };
 
   beforeEach(() => {
-    addCategory("root");
-    addCategory("middle", "root");
-    addCategory("c", "middle");
-    addProduct("111");
+    addCategory(database, "root");
+    addCategory(database, "middle", "root");
+    addCategory(database, "c", "middle");
+    addProduct(database, "111");
   });
 
   it("are the ones aimed at the product itself", () => {
-    addDiscount("d1", { kind: "PRODUCT", id: "p1" }, tenPercent);
+    addDiscount(database, "d1", { kind: "PRODUCT", id: "p1" }, tenPercent);
 
-    expect(promotionIdsTargeting("p1")).toEqual(["d1"]);
+    expect(promotionIdsTargeting(ledger, "p1")).toEqual(["d1"]);
   });
 
   it("are the ones aimed at its category and at every category above it", () => {
-    addDiscount("own", { kind: "CATEGORY", id: "c" }, tenPercent);
-    addDiscount("parent", { kind: "CATEGORY", id: "middle" }, tenPercent);
-    addDiscount("grandparent", { kind: "CATEGORY", id: "root" }, tenPercent);
+    addDiscount(database, "own", { kind: "CATEGORY", id: "c" }, tenPercent);
+    addDiscount(database, "parent", { kind: "CATEGORY", id: "middle" }, tenPercent);
+    addDiscount(database, "grandparent", { kind: "CATEGORY", id: "root" }, tenPercent);
 
-    expect(promotionIdsTargeting("p1")).toEqual(["grandparent", "own", "parent"]);
+    expect(promotionIdsTargeting(ledger, "p1")).toEqual(["grandparent", "own", "parent"]);
   });
 
   it("do not include the ones aimed at a category below or beside its own", () => {
-    addCategory("child", "c");
-    addCategory("sibling", "middle");
-    addDiscount("below", { kind: "CATEGORY", id: "child" }, tenPercent);
-    addDiscount("beside", { kind: "CATEGORY", id: "sibling" }, tenPercent);
+    addCategory(database, "child", "c");
+    addCategory(database, "sibling", "middle");
+    addDiscount(database, "below", { kind: "CATEGORY", id: "child" }, tenPercent);
+    addDiscount(database, "beside", { kind: "CATEGORY", id: "sibling" }, tenPercent);
 
-    expect(promotionIdsTargeting("p1")).toEqual([]);
+    expect(promotionIdsTargeting(ledger, "p1")).toEqual([]);
   });
 
   it("are the ones aimed at its active tags, and not at an inactive one", () => {
-    addProductTag("p1", "on");
-    addProductTag("p1", "off", false);
-    addDiscount("active-tag", { kind: "TAG", id: "on" }, tenPercent);
-    addDiscount("inactive-tag", { kind: "TAG", id: "off" }, tenPercent);
+    addProductTag(database, "p1", "on");
+    addProductTag(database, "p1", "off", false);
+    addDiscount(database, "active-tag", { kind: "TAG", id: "on" }, tenPercent);
+    addDiscount(database, "inactive-tag", { kind: "TAG", id: "off" }, tenPercent);
 
-    expect(promotionIdsTargeting("p1")).toEqual(["active-tag"]);
+    expect(promotionIdsTargeting(ledger, "p1")).toEqual(["active-tag"]);
   });
 
   it("still include the ones aimed at a tag the product carries after that tag is deactivated", () => {
@@ -1509,22 +1400,23 @@ describe("the promotions that target a product", () => {
         "INSERT INTO tags (id, name, active, version) VALUES ('gluten-free', 'Sin TACC', 0, 2)",
       )
       .run();
-    addProductTag("p1", "gluten-free");
-    addDiscount("deactivated-tag", { kind: "TAG", id: "gluten-free" }, tenPercent);
+    addProductTag(database, "p1", "gluten-free");
+    addDiscount(database, "deactivated-tag", { kind: "TAG", id: "gluten-free" }, tenPercent);
 
-    expect(promotionIdsTargeting("p1")).toEqual(["deactivated-tag"]);
+    expect(promotionIdsTargeting(ledger, "p1")).toEqual(["deactivated-tag"]);
   });
 
   it("leave out a removed promotion and one aimed at another product", () => {
-    addProduct("222", { id: "p2", name: "Azucar" });
-    addDiscount("removed", { kind: "PRODUCT", id: "p1" }, tenPercent, { removed: true });
-    addDiscount("other", { kind: "PRODUCT", id: "p2" }, tenPercent);
+    addProduct(database, "222", { id: "p2", name: "Azucar" });
+    addDiscount(database, "removed", { kind: "PRODUCT", id: "p1" }, tenPercent, { removed: true });
+    addDiscount(database, "other", { kind: "PRODUCT", id: "p2" }, tenPercent);
 
-    expect(promotionIdsTargeting("p1")).toEqual([]);
+    expect(promotionIdsTargeting(ledger, "p1")).toEqual([]);
   });
 
   it("carry their benefit and schedule whatever the day, leaving validity to the domain", () => {
     addDiscount(
+      database,
       "percent",
       { kind: "PRODUCT", id: "p1" },
       { kind: "PERCENT_OFF", percent: 15 },
@@ -1537,6 +1429,7 @@ describe("the promotions that target a product", () => {
       },
     );
     addDiscount(
+      database,
       "buy",
       { kind: "PRODUCT", id: "p1" },
       { kind: "BUY_N_PAY_M", buyQty: 3, payQty: 2 },
@@ -1569,15 +1462,17 @@ describe("the promotions that target a product", () => {
 describe("a line's promotions", () => {
   beforeEach(() => {
     readySeller();
-    addProduct("111");
-    addPrice("p1", "2026-09-01T00:00:00.000Z", 1000);
+    addProduct(database, "111");
+    addPrice(database, "p1", "2026-09-01T00:00:00.000Z", 1000);
     addDiscount(
+      database,
       "ten",
       { kind: "PRODUCT", id: "p1" },
       { kind: "PERCENT_OFF", percent: 10 },
       { name: "Diez por ciento" },
     );
     addDiscount(
+      database,
       "three-for-two",
       { kind: "PRODUCT", id: "p1" },
       { kind: "BUY_N_PAY_M", buyQty: 3, payQty: 2 },
@@ -1608,7 +1503,12 @@ describe("a line's promotions", () => {
   it("keep the frozen set when the catalog changes their promotions afterwards", () => {
     scan("111");
     database.prepare("UPDATE discounts SET removed = 1 WHERE id = 'ten'").run();
-    addDiscount("late", { kind: "PRODUCT", id: "p1" }, { kind: "PERCENT_OFF", percent: 50 });
+    addDiscount(
+      database,
+      "late",
+      { kind: "PRODUCT", id: "p1" },
+      { kind: "PERCENT_OFF", percent: 50 },
+    );
 
     scan("111");
     const outcome = currentSale({ ledger, clock: { now: () => NOW } }, { actorId: "u1" });
@@ -1655,8 +1555,8 @@ describe("a line's promotions", () => {
   });
 
   it("are not stored for a product nothing targets", () => {
-    addProduct("222", { id: "p2", name: "Azucar" });
-    addPrice("p2", "2026-09-01T00:00:00.000Z", 500);
+    addProduct(database, "222", { id: "p2", name: "Azucar" });
+    addPrice(database, "p2", "2026-09-01T00:00:00.000Z", 500);
 
     scan("222");
 
@@ -1674,11 +1574,16 @@ describe("the lines of the sale being changed", () => {
 
   beforeEach(() => {
     readySeller();
-    addProduct("111");
-    addProduct("222", { id: "p2", name: "Azucar" });
-    addPrice("p1", "2026-09-01T00:00:00.000Z", 1000);
-    addPrice("p2", "2026-09-01T00:00:00.000Z", 500);
-    addDiscount("ten", { kind: "PRODUCT", id: "p1" }, { kind: "PERCENT_OFF", percent: 10 });
+    addProduct(database, "111");
+    addProduct(database, "222", { id: "p2", name: "Azucar" });
+    addPrice(database, "p1", "2026-09-01T00:00:00.000Z", 1000);
+    addPrice(database, "p2", "2026-09-01T00:00:00.000Z", 500);
+    addDiscount(
+      database,
+      "ten",
+      { kind: "PRODUCT", id: "p1" },
+      { kind: "PERCENT_OFF", percent: 10 },
+    );
   });
 
   function lineIdOf(productId: string): string {
@@ -1926,8 +1831,8 @@ describe("the lines of the sale being changed", () => {
 describe("cancelling an open sale with approved payments", () => {
   beforeEach(() => {
     readySeller();
-    addProduct("111");
-    addPrice("p1", "2026-09-01T00:00:00.000Z", 1500);
+    addProduct(database, "111");
+    addPrice(database, "p1", "2026-09-01T00:00:00.000Z", 1500);
     database
       .prepare(
         `INSERT INTO issuer_identification_versions (

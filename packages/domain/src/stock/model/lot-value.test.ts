@@ -1,6 +1,12 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { isLotInStock, knownLotCost, lotsValueSummary, lotValueCents } from "./lot-value.js";
+import {
+  isLotCostIncomplete,
+  isLotInStock,
+  knownLotCost,
+  lotsValueSummary,
+  lotValueCents,
+} from "./lot-value.js";
 
 const cost = { totalCents: 5_000, quantity: 1_000 };
 
@@ -15,6 +21,20 @@ describe("knownLotCost", () => {
 
   it("is none for a lot flagged incomplete even when it holds a cost", () => {
     expect(knownLotCost({ cost, costIncomplete: true })).toBeNull();
+  });
+});
+
+describe("isLotCostIncomplete", () => {
+  it("is not for a lot whose cost is complete", () => {
+    expect(isLotCostIncomplete({ technical: false, costIncomplete: false })).toBe(false);
+  });
+
+  it("is for a lot flagged incomplete", () => {
+    expect(isLotCostIncomplete({ technical: false, costIncomplete: true })).toBe(true);
+  });
+
+  it("is for a technical lot, which never has a known cost", () => {
+    expect(isLotCostIncomplete({ technical: true, costIncomplete: false })).toBe(true);
   });
 });
 

@@ -75,6 +75,7 @@ import {
   type FiscalAuthorizationRouteOptions,
   registerFiscalAuthorizationRoute,
 } from "./fiscal/fiscal-authorization-route.js";
+import { registerFortnightPresentationsListRoute } from "./fiscal/fortnight-presentations-list-route.js";
 import type { EnqueueOfflineAuthorizationCodeRequest } from "./fiscal/graphile-offline-authorization-code-queue.js";
 import type { EnqueueTaxAuthorityCount } from "./fiscal/graphile-tax-authority-count-queue.js";
 import { registerIssuerIdentificationEditRoute } from "./fiscal/issuer-identification-edit-route.js";
@@ -159,6 +160,7 @@ import { registerSessionReadRoute } from "./sessions/session-read-route.js";
 import { registerSessionSignOutRoute } from "./sessions/session-sign-out-route.js";
 import { registerSessionStatusRoute } from "./sessions/session-status-route.js";
 import { registerSignInLookupRoute } from "./sessions/sign-in-lookup-route.js";
+import { registerAssemblyBatchesRoutes } from "./stock/assembly-batches-routes.js";
 import { registerExpiringLotsRoutes } from "./stock/expiring-lots-route.js";
 import { registerInitialInventoryLotsRoutes } from "./stock/initial-inventory-lots-route.js";
 import { registerRecipesRoutes } from "./stock/recipes-routes.js";
@@ -570,6 +572,7 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
         registerStockBalancesRoute(api, { ...options.stock, now });
         registerStockProductsRoute(api, { ...options.stock, now });
         registerRecipesRoutes(api, { ...options.stock, now });
+        registerAssemblyBatchesRoutes(api, { ...options.stock, now });
         registerStockCountsRoutes(api, { ...options.stock, now });
         registerInitialInventoryLotsRoutes(api, { ...options.stock, now });
         registerStockMovementsRoutes(api, { ...options.stock, now });
@@ -600,6 +603,7 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
 
       if (options.registersPointsOfSale) {
         registerRegistersPointsOfSaleListRoute(api, { ...options.registersPointsOfSale, now });
+        registerFortnightPresentationsListRoute(api, { ...options.registersPointsOfSale, now });
         registerRegisterPointOfSaleConfigurationRoute(api, {
           ...options.registersPointsOfSale,
           now,

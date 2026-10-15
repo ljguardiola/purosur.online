@@ -207,3 +207,64 @@ describe("OpenAlertInput", () => {
     }>().not.toExtend<OpenAlertInput>();
   });
 });
+
+describe("OpenAlertInput of a fortnight report", () => {
+  it("accepts the point of sale, its register, the fortnight, the deadline, the days left and the reason for a pending alert", () => {
+    expectTypeOf<{
+      kind: "fortnight_report_pending";
+      scope: string;
+      detail: {
+        pointOfSaleNumber: number;
+        registerId: string;
+        fortnightStart: string;
+        fortnightEnd: string;
+        deadline: string;
+        daysLeft: number;
+        reason: "blocked" | "refused" | "pending";
+      };
+    }>().toExtend<OpenAlertInput>();
+  });
+
+  it("refuses a pending alert with a reason outside the three it can have", () => {
+    expectTypeOf<{
+      kind: "fortnight_report_pending";
+      scope: string;
+      detail: {
+        pointOfSaleNumber: number;
+        registerId: string;
+        fortnightStart: string;
+        fortnightEnd: string;
+        deadline: string;
+        daysLeft: number;
+        reason: "unknown";
+      };
+    }>().not.toExtend<OpenAlertInput>();
+  });
+
+  it("accepts the point of sale, its register, the fortnight and the deadline for an overdue alert", () => {
+    expectTypeOf<{
+      kind: "fortnight_report_overdue";
+      scope: string;
+      detail: {
+        pointOfSaleNumber: number;
+        registerId: string;
+        fortnightStart: string;
+        fortnightEnd: string;
+        deadline: string;
+      };
+    }>().toExtend<OpenAlertInput>();
+  });
+
+  it("refuses an overdue alert without the deadline", () => {
+    expectTypeOf<{
+      kind: "fortnight_report_overdue";
+      scope: string;
+      detail: {
+        pointOfSaleNumber: number;
+        registerId: string;
+        fortnightStart: string;
+        fortnightEnd: string;
+      };
+    }>().not.toExtend<OpenAlertInput>();
+  });
+});

@@ -25,6 +25,10 @@ const ALERT_KIND_DESCRIPTIONS = {
   lots_expiring: "Hay lotes de productos vencidos o por llegar a su fecha de vencimiento.",
   offsite_dump_unverified:
     "La copia cifrada de la base de datos de una noche no se pudo verificar fuera de la nube.",
+  fortnight_report_pending:
+    "Falta presentar a ARCA el informe de una quincena de un punto de venta",
+  fortnight_report_overdue:
+    "Venció el plazo para presentar a ARCA el informe de una quincena de un punto de venta",
 } satisfies Record<AlertKind, string>;
 
 export const DESCRIBED_ALERT_KINDS: readonly string[] = Object.keys(ALERT_KIND_DESCRIPTIONS);

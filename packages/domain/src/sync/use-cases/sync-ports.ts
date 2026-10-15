@@ -148,6 +148,8 @@ export interface InboxTransaction {
   recordAcceptedPush(deviceId: string, at: Date): Promise<void>;
   // Keeps the moment of the first push of no events; a later one changes nothing.
   recordReportsEveryCycle(deviceId: string, at: Date): Promise<void>;
+  // Keeps the latest moment a push of no events was accepted: everything the installation held had been received by then.
+  recordCaughtUp(deviceId: string, at: Date): Promise<void>;
   outboxChainKey(deviceId: string): Promise<string | undefined>;
   receivedChainLink(deviceId: string, deviceSeq: number): Promise<string | undefined>;
   setAsideRefusedPush(

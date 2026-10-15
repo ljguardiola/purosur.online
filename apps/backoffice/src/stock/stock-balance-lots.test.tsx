@@ -106,3 +106,25 @@ test("shows an initial count lot with no cost as Sin costo", async () => {
     "——Inventario inicial24 uSin costo—",
   );
 });
+
+test("shows a lot of an assembled batch as the batch of the day it was assembled", async () => {
+  const assembled = {
+    ...honey,
+    lots: [
+      {
+        id: "lot-batch",
+        lotNumber: null,
+        expiresOn: "2026-11-02",
+        technical: false,
+        remaining: 4_950,
+        valueCents: 4_906_440,
+        unitCostCents: 991_200,
+        origin: { kind: "assembly_batch" as const, assembledAt: "2026-09-15T13:30:00.000Z" },
+      },
+    ],
+  };
+  const screen = await renderLots(assembled);
+
+  const lot = screen.getByRole("table", { name: "Lotes de Miel pura de abeja 1 kg" });
+  expect(lot.getByRole("row").nth(1).element().textContent).toContain("Tanda del 15/09/2026");
+});

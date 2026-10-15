@@ -1619,6 +1619,9 @@ describe("wiring the stock routes", () => {
     { method: "POST", url: "/api/inventory-adjustments" },
     { method: "GET", url: "/api/recipes" },
     { method: "PUT", url: "/api/recipes/00000000-0000-0000-0000-000000000000" },
+    { method: "GET", url: "/api/assembly-batches" },
+    { method: "GET", url: "/api/assembly-batches/preview" },
+    { method: "POST", url: "/api/assembly-batches" },
   ] as const;
 
   const formerStockRequests = [
@@ -1742,6 +1745,7 @@ describe("wiring the registers routes", () => {
 describe("wiring the register point of sale routes", () => {
   it.each([
     ["GET", "/api/registers/points-of-sale"],
+    ["GET", "/api/registers/fortnight-presentations"],
     ["PUT", "/api/registers/00000000-0000-0000-0000-000000000000/point-of-sale"],
     ["PUT", "/api/registers/00000000-0000-0000-0000-000000000000/offline-point-of-sale"],
   ])("%s %s: answers according to the registersPointsOfSale option", async (method, url) => {
@@ -2594,6 +2598,21 @@ describe("the route access inventory", () => {
       },
       {
         method: "GET",
+        url: "/api/assembly-batches",
+        access: capabilityAccess("batches"),
+      },
+      {
+        method: "GET",
+        url: "/api/assembly-batches/preview",
+        access: capabilityAccess("batches"),
+      },
+      {
+        method: "POST",
+        url: "/api/assembly-batches",
+        access: capabilityAccess("batches"),
+      },
+      {
+        method: "GET",
         url: "/api/inventory-counts",
         access: capabilityAccess("stock_counts"),
       },
@@ -2730,6 +2749,11 @@ describe("the route access inventory", () => {
       {
         method: "GET",
         url: "/api/registers/points-of-sale",
+        access: capabilityAccess("cash_area"),
+      },
+      {
+        method: "GET",
+        url: "/api/registers/fortnight-presentations",
         access: capabilityAccess("cash_area"),
       },
       {

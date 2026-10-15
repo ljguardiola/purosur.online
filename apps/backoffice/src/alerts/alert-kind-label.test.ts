@@ -38,3 +38,8 @@ test("names the alert of an offsite dump that could not be verified", () => {
     "Copia de seguridad externa sin verificar",
   );
 });
+
+test("names the notice and the missed deadline of a fortnight's report", () => {
+  expect(alertKindLabel("fortnight_report_pending")).toBe("Informe de quincena pendiente");
+  expect(alertKindLabel("fortnight_report_overdue")).toBe("Informe de quincena vencido");
+});

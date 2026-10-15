@@ -7,6 +7,10 @@ import type {
   fetchBuyerIdentificationThresholds,
 } from "./buyer-identification-threshold-api";
 import type { FiscalAddress, fetchFiscalAddresses } from "./fiscal-addresses-api";
+import type {
+  FortnightPresentation,
+  fetchFortnightPresentations,
+} from "./fortnight-presentations-api";
 import type { fetchIssuerIdentification, IssuerIdentification } from "./issuer-identification-api";
 import type { fetchRegisterPointsOfSale, RegisterPointOfSale } from "./register-points-of-sale-api";
 
@@ -17,6 +21,7 @@ export const fiscalKeys = {
   buyerIdentificationThresholds: [...fiscalKey, "buyer-identification-thresholds"] as const,
   fiscalAddresses: [...fiscalKey, "fiscal-addresses"] as const,
   registerPointsOfSale: [...fiscalKey, "register-points-of-sale"] as const,
+  fortnightPresentations: [...fiscalKey, "fortnight-presentations"] as const,
 };
 
 export function useIssuerIdentificationQuery(params: {
@@ -121,4 +126,17 @@ export function useReloadRegisterPointsOfSale(params: {
       read: params.fetchRegisterPointsOfSale,
     });
   };
+}
+
+export function useFortnightPresentationsQuery(params: {
+  fetchFortnightPresentations: typeof fetchFortnightPresentations;
+  onSessionEnded: () => void;
+}) {
+  const sendToMyAccount = useSendToMyAccount();
+  return useCloudQuery<FortnightPresentation[]>({
+    queryKey: fiscalKeys.fortnightPresentations,
+    read: params.fetchFortnightPresentations,
+    onSessionEnded: params.onSessionEnded,
+    onForbidden: sendToMyAccount,
+  });
 }

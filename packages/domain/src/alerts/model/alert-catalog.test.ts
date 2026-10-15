@@ -10,7 +10,7 @@ import {
 } from "./alert-catalog.js";
 
 describe("ALERT_KINDS", () => {
-  it("lists exactly the security-fact kinds a backoffice account, a register enrollment, the application of synced events, the ARCA certificate or a register's version, silence or inability to sell or the tax authority's rejection of a document, or a branch's lots nearing expiry can raise", () => {
+  it("lists exactly the security-fact kinds a backoffice account, a register enrollment, the application of synced events, the ARCA certificate or a register's version, silence or inability to sell or the tax authority's rejection of a document, a branch's lots nearing expiry, or a point of sale's fortnight report can raise", () => {
     expect(ALERT_KINDS).toEqual([
       "backoffice_passkey_changed",
       "backoffice_recovery_requested",
@@ -34,6 +34,8 @@ describe("ALERT_KINDS", () => {
       "outbox_chain_broken",
       "lots_expiring",
       "offsite_dump_unverified",
+      "fortnight_report_pending",
+      "fortnight_report_overdue",
     ]);
   });
 });

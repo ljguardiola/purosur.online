@@ -148,6 +148,23 @@ export type OffsiteDumpUnverifiedDetail =
   | { night: string; reason: Exclude<OffsiteDumpUnverifiedReason, "shrank"> }
   | { night: string; reason: "shrank"; shrinkThresholdPercent: number };
 
+export const FORTNIGHT_REPORT_PENDING_REASONS = ["blocked", "refused", "pending"] as const;
+
+export type FortnightReportPendingReason = (typeof FORTNIGHT_REPORT_PENDING_REASONS)[number];
+
+interface FortnightReportOverdueDetail {
+  pointOfSaleNumber: number;
+  registerId: string;
+  fortnightStart: string;
+  fortnightEnd: string;
+  deadline: string;
+}
+
+interface FortnightReportPendingDetail extends FortnightReportOverdueDetail {
+  daysLeft: number;
+  reason: FortnightReportPendingReason;
+}
+
 export interface AlertDetails {
   backoffice_passkey_changed: PasskeyChangedDetail;
   backoffice_recovery_requested: RecoveryRequestedDetail;
@@ -171,6 +188,8 @@ export interface AlertDetails {
   outbox_chain_broken: OutboxChainBrokenDetail;
   lots_expiring: LotsExpiringDetail;
   offsite_dump_unverified: OffsiteDumpUnverifiedDetail;
+  fortnight_report_pending: FortnightReportPendingDetail;
+  fortnight_report_overdue: FortnightReportOverdueDetail;
 }
 
 export type OpenAlertInput = {

@@ -38,6 +38,7 @@ export interface FakeInboxState {
   syncedRegisters: { registerId: string; at: Date }[];
   acceptedPushes: { deviceId: string; at: Date }[];
   everyCycleReports: { deviceId: string; at: Date }[];
+  caughtUps: { deviceId: string; at: Date }[];
   refusedPushes: { deviceId: string; events: readonly PushedEvent[]; refusedAt: Date }[];
   brokenChainRevocations: { deviceId: string; revokedAt: Date }[];
 }
@@ -51,6 +52,7 @@ export class FakeInbox implements Inbox {
     syncedRegisters: [],
     acceptedPushes: [],
     everyCycleReports: [],
+    caughtUps: [],
     refusedPushes: [],
     brokenChainRevocations: [],
   };
@@ -187,6 +189,10 @@ export class FakeInbox implements Inbox {
       recordReportsEveryCycle: async (deviceId, at) => {
         this.calls.push(`recordReportsEveryCycle ${deviceId}`);
         working.everyCycleReports.push({ deviceId, at });
+      },
+      recordCaughtUp: async (deviceId, at) => {
+        this.calls.push(`recordCaughtUp ${deviceId}`);
+        working.caughtUps.push({ deviceId, at });
       },
       recordPushReport: async (deviceId, report, at) => {
         this.calls.push(`recordPushReport ${deviceId}`);

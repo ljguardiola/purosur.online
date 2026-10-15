@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { lotOfOpeningCount, lotOfPurchaseLine } from "./lot.js";
+import { lotOfAssemblyBatch, lotOfOpeningCount, lotOfPurchaseLine } from "./lot.js";
 
 const LINE = {
   id: "purchase-line-1",
@@ -57,5 +57,38 @@ describe("lotOfOpeningCount", () => {
 
   it("leaves the expiry empty when the product counted has none", () => {
     expect(lotOfOpeningCount({ ...COUNT, expiresOn: null })).toMatchObject({ expiresOn: null });
+  });
+});
+
+describe("lotOfAssemblyBatch", () => {
+  const BATCH = {
+    batchId: "batch-1",
+    productId: "mix",
+    locationId: "branch-1",
+    output: 4_000,
+    costTotalCents: 3_500,
+    costQuantity: 4_000,
+    costIncomplete: false,
+    expiresOn: "2027-01-15",
+  };
+
+  it("holds the output received, the cost pair and the expiry of the batch, with the batch as its origin", () => {
+    expect(lotOfAssemblyBatch(BATCH)).toEqual({
+      productId: "mix",
+      locationId: "branch-1",
+      assemblyBatchId: "batch-1",
+      quantityReceived: 4_000,
+      costTotalCents: 3_500,
+      costQuantity: 4_000,
+      costIncomplete: false,
+      expiresOn: "2027-01-15",
+    });
+  });
+
+  it("carries an incomplete cost and an empty expiry", () => {
+    expect(lotOfAssemblyBatch({ ...BATCH, costIncomplete: true, expiresOn: null })).toMatchObject({
+      costIncomplete: true,
+      expiresOn: null,
+    });
   });
 });

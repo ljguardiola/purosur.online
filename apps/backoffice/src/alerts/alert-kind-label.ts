@@ -23,6 +23,8 @@ const ALERT_KIND_LABELS = {
   outbox_chain_broken: "Cadena de eventos alterada",
   lots_expiring: "Productos por vencer",
   offsite_dump_unverified: "Copia de seguridad externa sin verificar",
+  fortnight_report_pending: "Informe de quincena pendiente",
+  fortnight_report_overdue: "Informe de quincena vencido",
 } satisfies Record<AlertKind, string>;
 
 export function alertKindLabel(kind: string): string {

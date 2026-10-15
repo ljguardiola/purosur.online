@@ -32,7 +32,7 @@ export type {
   ProductTagLink,
   TargetedProduct,
 } from "./model/discount-targeting.js";
-export { discountsTargeting } from "./model/discount-targeting.js";
+export { discountsTargeting, discountTargetKeys } from "./model/discount-targeting.js";
 export { isDiscountWindowOrdered } from "./model/discount-validity.js";
 export { isValidDiscountWeekdays } from "./model/discount-weekdays.js";
 export type { SoldQuantity } from "./model/discounted-amount.js";

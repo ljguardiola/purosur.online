@@ -1,4 +1,6 @@
 import type {
+  AssemblyBatchList,
+  AssemblyBatchPreview,
   ExpiringLotList,
   InitialInventoryLotList,
   InitialInventoryLotsQuery,
@@ -14,6 +16,11 @@ import type {
 import { useQueryClient } from "@tanstack/react-query";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { useCloudQuery } from "../platform/use-cloud-query";
+import type {
+  AssemblyBatchPreviewRequest,
+  fetchAssemblyBatches,
+  fetchAssemblyBatchPreview,
+} from "./assembly-batches-api";
 import type { fetchRecipes } from "./recipes-api";
 import type {
   fetchExpectedBalance,
@@ -33,6 +40,11 @@ export const stockKeys = {
   products: [...stockKey, "products"] as const,
   expiringLots: [...stockKey, "expiring-lots"] as const,
   recipes: [...stockKey, "recipes"] as const,
+  assemblyBatches: (days: StockPeriodDays) => [...stockKey, "assembly-batches", days] as const,
+  assemblyBatchProposal: ({ productId, size }: AssemblyBatchPreviewRequest) =>
+    [...stockKey, "assembly-batch-proposal", productId, size] as const,
+  assemblyBatchLot: ({ productId, size, used, output }: AssemblyBatchPreviewRequest) =>
+    [...stockKey, "assembly-batch-lot", productId, size, used ?? [], output ?? null] as const,
   counts: (days: StockPeriodDays) => [...stockKey, "counts", days] as const,
   movements: (days: StockPeriodDays) => [...stockKey, "movements", days] as const,
   movementReasons: [...stockKey, "movement-reasons"] as const,
@@ -161,6 +173,62 @@ export function useRecipesQuery(params: ReadParams & { fetchRecipes: typeof fetc
   return useCloudQuery<RecipeList>({
     queryKey: stockKeys.recipes,
     read: params.fetchRecipes,
+    onSessionEnded: params.onSessionEnded,
+    onForbidden: sendToMyAccount,
+  });
+}
+
+export function useAssemblyBatchesQuery(
+  params: ReadParams & {
+    days: StockPeriodDays;
+    fetchAssemblyBatches: typeof fetchAssemblyBatches;
+  },
+) {
+  const sendToMyAccount = useSendToMyAccount();
+  return useCloudQuery<AssemblyBatchList>({
+    queryKey: stockKeys.assemblyBatches(params.days),
+    keepPreviousData: true,
+    read: () => params.fetchAssemblyBatches(params.days),
+    onSessionEnded: params.onSessionEnded,
+    onForbidden: sendToMyAccount,
+  });
+}
+
+export function useAssemblyBatchProposalQuery(
+  params: ReadParams & {
+    request: AssemblyBatchPreviewRequest | undefined;
+    fetchAssemblyBatchPreview: typeof fetchAssemblyBatchPreview;
+  },
+) {
+  const sendToMyAccount = useSendToMyAccount();
+  const { request } = params;
+  return useCloudQuery<AssemblyBatchPreview>({
+    queryKey: stockKeys.assemblyBatchProposal(request ?? { productId: "", size: 0 }),
+    enabled: request !== undefined,
+    read: () =>
+      request === undefined
+        ? Promise.resolve({ kind: "failed" })
+        : params.fetchAssemblyBatchPreview(request),
+    onSessionEnded: params.onSessionEnded,
+    onForbidden: sendToMyAccount,
+  });
+}
+
+export function useAssemblyBatchLotQuery(
+  params: ReadParams & {
+    request: AssemblyBatchPreviewRequest | undefined;
+    fetchAssemblyBatchPreview: typeof fetchAssemblyBatchPreview;
+  },
+) {
+  const sendToMyAccount = useSendToMyAccount();
+  const { request } = params;
+  return useCloudQuery<AssemblyBatchPreview>({
+    queryKey: stockKeys.assemblyBatchLot(request ?? { productId: "", size: 0 }),
+    enabled: request !== undefined,
+    read: () =>
+      request === undefined
+        ? Promise.resolve({ kind: "failed" })
+        : params.fetchAssemblyBatchPreview(request),
     onSessionEnded: params.onSessionEnded,
     onForbidden: sendToMyAccount,
   });

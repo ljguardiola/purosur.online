@@ -47,6 +47,7 @@ export type {
 } from "./close-alert.js";
 export { closeAlert } from "./close-alert.js";
 export { detectExpiringLots } from "./detect-expiring-lots.js";
+export { detectFortnightReportDeadlines } from "./detect-fortnight-report-deadlines.js";
 export { detectMissingOfflineAuthorizationCodes } from "./detect-missing-offline-authorization-codes.js";
 export type { QuietRegisterDetectionPorts } from "./detect-quiet-registers.js";
 export { detectQuietRegisters } from "./detect-quiet-registers.js";
@@ -61,6 +62,12 @@ export type {
   ExpiringLotCandidate,
   ExpiringLotDetectionPorts,
 } from "./expiring-lot-alert-ports.js";
+export type {
+  FortnightReportDeadlineAlerts,
+  FortnightReportDeadlineDetectionPorts,
+  OwedFortnightPresentation,
+  OwedFortnightPresentationReader,
+} from "./fortnight-report-deadline-ports.js";
 export type {
   MissingOfflineAuthorizationCodeAlerts,
   MissingOfflineAuthorizationCodeDetectionPorts,

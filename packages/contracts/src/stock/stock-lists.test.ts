@@ -203,6 +203,30 @@ describe("stockBalanceSchema", () => {
     ).toEqual({ ...balance, lots: [initialCountLot, typedLot] });
   });
 
+  it("accepts the lot of an assembled batch with the moment it was assembled", () => {
+    const batchLot = {
+      id: "lot-5",
+      lotNumber: null,
+      expiresOn: "2027-01-15",
+      technical: false,
+      remaining: 14_000,
+      valueCents: 50_200,
+      unitCostCents: 3_586,
+      origin: { kind: "assembly_batch", assembledAt: "2026-05-04T13:00:00.000Z" },
+    };
+
+    expect(stockBalanceSchema.safeParse({ ...balance, lots: [batchLot] }).data).toEqual({
+      ...balance,
+      lots: [batchLot],
+    });
+    expect(
+      stockBalanceSchema.safeParse({
+        ...balance,
+        lots: [{ ...batchLot, origin: { kind: "assembly_batch", assembledAt: "yesterday" } }],
+      }).success,
+    ).toBe(false);
+  });
+
   it.each([
     ["remaining", 0.5],
     ["valueCents", 1.5],

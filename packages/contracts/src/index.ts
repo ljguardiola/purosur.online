@@ -110,6 +110,11 @@ export type { FiscalAddressCreationBody } from "./fiscal/fiscal-address-creation
 export { fiscalAddressCreationBodySchema } from "./fiscal/fiscal-address-creation.js";
 export type { FiscalAddressEditBody } from "./fiscal/fiscal-address-edit.js";
 export { fiscalAddressEditBodySchema } from "./fiscal/fiscal-address-edit.js";
+export type { FortnightPresentationBody } from "./fiscal/fortnight-presentation.js";
+export {
+  fortnightPresentationListSchema,
+  fortnightPresentationSchema,
+} from "./fiscal/fortnight-presentation.js";
 export type { IssuerIdentificationEditBody } from "./fiscal/issuer-identification-edit.js";
 export { issuerIdentificationEditBodySchema } from "./fiscal/issuer-identification-edit.js";
 export type { OfflinePointOfSaleConfigurationBody } from "./fiscal/offline-point-of-sale-configuration.js";
@@ -498,6 +503,24 @@ export {
   withoutEchoedQueryValues,
   withoutQueryParameters,
 } from "./shared/index.js";
+export type {
+  AssemblyBatch,
+  AssemblyBatchList,
+  AssemblyBatchPreview,
+  AssemblyBatchRefusal,
+  AssemblyBatchResult,
+} from "./stock/assembly-batch-answers.js";
+export {
+  assemblyBatchListSchema,
+  assemblyBatchPreviewSchema,
+  assemblyBatchRefusalSchema,
+  assemblyBatchResultSchema,
+} from "./stock/assembly-batch-answers.js";
+export type { AssemblyBatchBody, AssemblyBatchPreviewQuery } from "./stock/assembly-batch-body.js";
+export {
+  assemblyBatchBodySchema,
+  assemblyBatchPreviewQuerySchema,
+} from "./stock/assembly-batch-body.js";
 export type {
   ExpiredLotDiscardResult,
   ExpiringLot,

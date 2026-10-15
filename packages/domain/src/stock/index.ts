@@ -3,7 +3,7 @@ export { INITIAL_COUNT_COST_FILTERS } from "./model/initial-count.js";
 export { canExpireWithStock, expiryWindowEnd } from "./model/lot-expiry.js";
 export { isReferenceUnitCost } from "./model/lot-reference-cost.js";
 export type { LotCost } from "./model/lot-value.js";
-export { isLotInStock, knownLotCost } from "./model/lot-value.js";
+export { isLotCostIncomplete, isLotInStock, knownLotCost } from "./model/lot-value.js";
 export type {
   OpeningCountRecordedFact,
   OpeningCountWithdrawnFact,
@@ -50,4 +50,4 @@ export {
   STOCK_QUANTITY_PER_UNIT,
 } from "./model/stock-quantity.js";
 export type { PurchaseReceipt } from "./model/stock-receipt.js";
-export { unitCostCents } from "./model/unit-cost.js";
+export { lotUnitCostCents, unitCostCents } from "./model/unit-cost.js";
