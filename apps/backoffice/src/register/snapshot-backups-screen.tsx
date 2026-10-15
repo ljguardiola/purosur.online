@@ -30,7 +30,11 @@ import { RotateSnapshotKeyModal } from "./rotate-snapshot-key-modal";
 import type { SnapshotBackupsFilters } from "./routes";
 import type { SnapshotBackupGeneration, SnapshotBackupRegister } from "./snapshot-backups-api";
 import type { SnapshotBackupsScreenServices } from "./snapshot-backups-services";
-import { snapshotGenerationDate, snapshotTierCaptions } from "./snapshot-backups-text";
+import {
+  SNAPSHOT_LOCATION_TEXT,
+  snapshotGenerationDate,
+  snapshotTierCaptions,
+} from "./snapshot-backups-text";
 import { SnapshotLifecycleRulesModal } from "./snapshot-lifecycle-rules-modal";
 
 export type SnapshotBackupsScreenProps = {
@@ -110,6 +114,13 @@ export function SnapshotBackupsScreen({
         <span className="font-semibold text-body text-text">
           {snapshotGenerationDate(generation.createdAt)}
         </span>
+      ),
+    }),
+    dataColumn({
+      id: "location",
+      header: "Dónde",
+      render: (generation: SnapshotBackupGeneration) => (
+        <span className="text-detail text-text">{SNAPSHOT_LOCATION_TEXT[generation.location]}</span>
       ),
     }),
     dataColumn({

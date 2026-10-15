@@ -20,6 +20,7 @@ export type SnapshotBackupGeneration = {
   size: number;
   status: SnapshotBackupsBody["generations"][number]["status"];
   countsForRestore: boolean;
+  location: SnapshotBackupsBody["generations"][number]["location"];
 };
 
 export type SnapshotBackups = {
@@ -134,6 +135,7 @@ export function fetchSnapshotBackups(registerId: string): Promise<FetchSnapshotB
           size: generation.size,
           status: generation.status,
           countsForRestore: generation.counts_for_restore,
+          location: generation.location,
         })),
       }
     );

@@ -1,7 +1,7 @@
 import { snapshotBackupsSchema } from "@purosur/contracts";
 import { formatDate, plural } from "@purosur/ui";
 import { schemaText } from "../platform/schema-text";
-import type { SnapshotLifecycleRules } from "./snapshot-backups-api";
+import type { SnapshotBackupGeneration, SnapshotLifecycleRules } from "./snapshot-backups-api";
 
 const GENERATION_TIME_ZONE = schemaText(
   snapshotBackupsSchema.shape.generations.element.shape.created_at.meta()?.["timeZone"],
@@ -31,3 +31,10 @@ export function snapshotTierCaptions(rules: SnapshotLifecycleRules) {
     monthly: plural(rules.monthly, { one: "Hasta 1 mes", other: `Hasta ${rules.monthly} meses` }),
   };
 }
+
+export const SNAPSHOT_LOCATION_TEXT: Record<SnapshotBackupGeneration["location"], string> = {
+  disk_and_bucket: "Disco y bucket",
+  bucket: "Solo bucket",
+  disk: "Solo disco",
+  nowhere: "Ninguno",
+};
