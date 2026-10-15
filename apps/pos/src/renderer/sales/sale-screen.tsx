@@ -217,6 +217,13 @@ export function SaleScreen({
           (condition) => condition.kind === "sales_denied" && condition.reason === "disk_full",
         )
       : undefined;
+  const batteryCritical =
+    registerStatus.status === "loaded"
+      ? registerStatus.value.conditions.find(
+          (condition) =>
+            condition.kind === "sales_denied" && condition.reason === "battery_critical",
+        )
+      : undefined;
   const takeSale = useTakeSale(sessionId, person.user_id);
   const resetCurrentSale = useResetCurrentSale(sessionId, person.user_id);
   const readCurrentSale = useReadCurrentSale(sessionId, person.user_id, currentSale);
@@ -338,6 +345,7 @@ export function SaleScreen({
       case "installation_revoked":
       case "disk_space_short":
       case "local_database_damaged":
+      case "battery_critical":
       case "paid_order_without_sale":
       case "paid_orders_not_checked":
         refuse(submitted, outcome);
@@ -666,6 +674,14 @@ export function SaleScreen({
             icon={<Ban />}
             title={localAlertText(diskFull).title}
             description={localAlertText(diskFull).meaning}
+          />
+        )}
+        {batteryCritical === undefined ? null : (
+          <InlineNotice
+            tone="error"
+            icon={<Ban />}
+            title={localAlertText(batteryCritical).title}
+            description={localAlertText(batteryCritical).meaning}
           />
         )}
         <form
