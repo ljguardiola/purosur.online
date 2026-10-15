@@ -305,6 +305,7 @@ describe("alertConditionResolutionJobs", () => {
         openUnclearOutcomeAlerts: vi.fn().mockResolvedValue(0),
         detectExpiringLots,
         detectFortnightReportDeadlines,
+        detectFortnightReportRegularizations: vi.fn().mockResolvedValue(0),
       },
     );
     const task = jobs.taskList[ALERT_CONDITION_RESOLUTION_TASK_IDENTIFIER];
