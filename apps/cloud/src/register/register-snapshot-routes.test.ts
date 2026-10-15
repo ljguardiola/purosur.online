@@ -200,6 +200,20 @@ describe("POST /devices/current/snapshots", () => {
     ]);
   });
 
+  it("records the declared generation as held on the register's disk", async () => {
+    const installation = await enrolled();
+    build();
+
+    await call("POST", "/devices/current/snapshots", {
+      authorization: `Bearer ${installation.deviceToken}`,
+      payload: BODY,
+    });
+
+    expect(await db.select().from(registerSnapshotGenerations)).toMatchObject([
+      { id: GENERATION_ID, onRegisterDisk: true },
+    ]);
+  });
+
   it("authorizes the same declaration again with the same answer", async () => {
     const { deviceToken } = await enrolled();
     build();

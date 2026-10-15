@@ -148,6 +148,7 @@ describe("GET /snapshot-backups/registers/:registerId", () => {
       createdAt: new Date("2026-01-05T10:00:00.000Z"),
       keyVersion: 1,
       size: 4096,
+      onRegisterDisk: true,
     });
     await insertGeneration(db, register, {
       id: SECOND_GENERATION_ID,
@@ -182,6 +183,7 @@ describe("GET /snapshot-backups/registers/:registerId", () => {
           failure_reason: "hash_mismatch",
           key_version: 2,
           counts_for_restore: false,
+          location: "bucket",
         },
         {
           id: FIRST_GENERATION_ID,
@@ -191,6 +193,7 @@ describe("GET /snapshot-backups/registers/:registerId", () => {
           failure_reason: null,
           key_version: 1,
           counts_for_restore: true,
+          location: "disk_and_bucket",
         },
       ],
     });

@@ -1,5 +1,5 @@
-import Fastify, { type FastifyInstance } from "fastify";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import Fastify, { type FastifyInstance } from "fastify";
 import { registerSnapshotGenerations } from "../../platform/db/schema.js";
 import {
   BACKOFFICE_ORIGIN,
@@ -75,6 +75,7 @@ export async function insertGeneration<TQueryResult extends PgQueryResultHKT>(
     keyVersion?: number;
     pruned?: boolean;
     size?: number;
+    onRegisterDisk?: boolean;
   },
 ): Promise<void> {
   await db.insert(registerSnapshotGenerations).values({
@@ -88,5 +89,6 @@ export async function insertGeneration<TQueryResult extends PgQueryResultHKT>(
     status: options.status ?? "verified",
     failureReason: options.failureReason ?? null,
     pruned: options.pruned ?? false,
+    onRegisterDisk: options.onRegisterDisk ?? false,
   });
 }
