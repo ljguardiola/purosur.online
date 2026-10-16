@@ -10,20 +10,22 @@ import {
 
 const NOW = new Date("2026-10-07T12:00:00.000Z");
 
-const OPENED_SESSION = aStoredEvent({
-  eventId: "opened",
-  aggregateType: "CashSession",
-  aggregateId: "session-1",
-  eventType: "cash_session_opened",
-  schemaVersion: 1,
-  appliedAt: new Date("2026-10-07T09:00:00.000Z"),
-});
+const openedSession = () =>
+  aStoredEvent({
+    eventId: "opened",
+    aggregateType: "CashSession",
+    aggregateId: "session-1",
+    eventType: "cash_session_opened",
+    schemaVersion: 1,
+    appliedAt: new Date("2026-10-07T09:00:00.000Z"),
+  });
 
-const VOID_EVENT = aStoredEvent({
-  eventId: "void-event",
-  eventType: "sale_voided",
-  schemaVersion: 2,
-});
+const voidEvent = () =>
+  aStoredEvent({
+    eventId: "void-event",
+    eventType: "sale_voided",
+    schemaVersion: 2,
+  });
 
 type VoidedSale = ReturnType<typeof aVoidedSaleFact>;
 type Refund = VoidedSale["sale"]["refunds"][number];
@@ -73,7 +75,7 @@ describe("applying a voided sale with Mercado Pago refunds", () => {
   ])(
     "asks for the refunds to be followed at once when a %s refund is recorded",
     async (_method, mercadoPago) => {
-      const application = new FakeEventApplication([OPENED_SESSION, VOID_EVENT]);
+      const application = new FakeEventApplication([openedSession(), voidEvent()]);
 
       await apply(application, [CASH, mercadoPago]);
 
@@ -83,7 +85,7 @@ describe("applying a voided sale with Mercado Pago refunds", () => {
   );
 
   it("asks once for a sale with several Mercado Pago refunds", async () => {
-    const application = new FakeEventApplication([OPENED_SESSION, VOID_EVENT]);
+    const application = new FakeEventApplication([openedSession(), voidEvent()]);
 
     await apply(application, [QR, POINT]);
 
@@ -91,7 +93,7 @@ describe("applying a voided sale with Mercado Pago refunds", () => {
   });
 
   it("asks for nothing when the voided sale has no Mercado Pago refund", async () => {
-    const application = new FakeEventApplication([OPENED_SESSION, VOID_EVENT]);
+    const application = new FakeEventApplication([openedSession(), voidEvent()]);
 
     await apply(application, [CASH, TRANSFER]);
 
@@ -99,7 +101,7 @@ describe("applying a voided sale with Mercado Pago refunds", () => {
   });
 
   it("asks for nothing when the voiding is not applied", async () => {
-    const application = new FakeEventApplication([OPENED_SESSION, VOID_EVENT]);
+    const application = new FakeEventApplication([openedSession(), voidEvent()]);
     application.refuseStock.set("void-event", "product product-1 is not in the catalog");
 
     await apply(application, [QR]);
@@ -108,7 +110,7 @@ describe("applying a voided sale with Mercado Pago refunds", () => {
   });
 
   it("asks only once when the voiding is applied again", async () => {
-    const application = new FakeEventApplication([OPENED_SESSION, VOID_EVENT]);
+    const application = new FakeEventApplication([openedSession(), voidEvent()]);
 
     await apply(application, [QR]);
     await apply(application, [QR]);
