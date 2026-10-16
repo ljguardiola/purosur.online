@@ -385,7 +385,7 @@ describe("the numbering conflict lane on a real Postgres", () => {
       expect(await inLane(8, (lane) => lane.taxAuthorityCount())).toBe(25);
       const rows = await db.select().from(taxAuthorityLastAuthorizedNumbers);
       expect(rows.filter((row) => row.pointOfSaleNumber === 8)).toEqual([
-        { pointOfSaleNumber: 8, lastAuthorized: 25, readAt: NOW },
+        { pointOfSaleNumber: 8, lastAuthorized: 25, issuedOn: null, readAt: NOW },
       ]);
     });
 

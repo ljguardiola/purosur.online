@@ -84,7 +84,7 @@ describe("DrizzleTaxAuthorityCounts", () => {
     expect(await storedCount(7)).toMatchObject({ lastAuthorized: 41, issuedOn: "2026-10-05" });
   });
 
-  it("replaces the day with the day of a higher number, known or not", async () => {
+  it("replaces the day with the known day of a higher number, and keeps the day it holds when the higher number's is unknown", async () => {
     const counts = new DrizzleTaxAuthorityCounts(db);
     await counts.advance({
       pointOfSale: 7,
@@ -102,7 +102,7 @@ describe("DrizzleTaxAuthorityCounts", () => {
     expect(await storedCount(7)).toMatchObject({ lastAuthorized: 44, issuedOn: "2026-10-06" });
 
     await counts.advance({ pointOfSale: 7, lastAuthorized: 45, issuedOn: null, readAt: LATER });
-    expect(await storedCount(7)).toMatchObject({ lastAuthorized: 45, issuedOn: null });
+    expect(await storedCount(7)).toMatchObject({ lastAuthorized: 45, issuedOn: "2026-10-06" });
   });
 
   it("keeps the day of the highest number when a lower number is recorded afterwards", async () => {
