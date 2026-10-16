@@ -6,7 +6,13 @@ import type {
 import { and, asc, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { removeUserPin } from "../credentials/remove-user-pin.js";
-import { auditLog, registers, userPins, users } from "../platform/db/schema.js";
+import {
+  auditLog,
+  registerEnrollmentCodes,
+  registers,
+  userPins,
+  users,
+} from "../platform/db/schema.js";
 import { type PendingChanges, withPendingChanges } from "../sync/change-log.js";
 import {
   DrizzleInstallationRevocation,
@@ -30,15 +36,23 @@ class DrizzleLostRegisterRevocationTransaction<TQueryResult extends PgQueryResul
     this.pending = pending;
   }
 
-  // NO KEY UPDATE leaves the foreign-key check of an enrollment redeeming this register's code free
-  // to proceed, instead of deadlocking.
+  // An enrollment only key-shares the register row, so NO KEY UPDATE never waits for it; its
+  // enrollment code row, which the enrollment locks first, is what serializes the two.
   async lockBranchRegister(branchId: string, registerId: string): Promise<boolean> {
     const [register] = await this.tx
       .select({ id: registers.id })
       .from(registers)
       .where(and(eq(registers.id, registerId), eq(registers.locationId, branchId)))
       .for("no key update");
-    return register !== undefined;
+    if (register === undefined) {
+      return false;
+    }
+    await this.tx
+      .select({ registerId: registerEnrollmentCodes.registerId })
+      .from(registerEnrollmentCodes)
+      .where(eq(registerEnrollmentCodes.registerId, registerId))
+      .for("update");
+    return true;
   }
 
   async requirePinResetOfBranchUsers(branchId: string, actorId: string): Promise<void> {

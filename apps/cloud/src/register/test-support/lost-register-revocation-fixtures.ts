@@ -1,6 +1,13 @@
 import { revokeLostRegister } from "@purosur/domain/register/use-cases";
+import { eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { locations, userPins, users } from "../../platform/db/schema.js";
+import {
+  locations,
+  registerContingencyTicketKeys,
+  registerSnapshotKeys,
+  userPins,
+  users,
+} from "../../platform/db/schema.js";
 import { TEST_INSTALLATION_KEYS_ENCRYPTION_KEY } from "../../test-support/installation-keys-encryption-key.js";
 import { DrizzleLostRegisterRevocationStore } from "../drizzle-lost-register-revocation-store.js";
 import { generateInstallationKey } from "../installation-key.js";
@@ -57,6 +64,27 @@ export async function insertFirstKeys<TQueryResult extends PgQueryResultHKT>(
     await tx.recordContingencyTicketKey(registerId, { version: 1, key: contingencyTicketKey });
   });
   return { snapshotKey, contingencyTicketKey };
+}
+
+export async function keyVersionsOf<TQueryResult extends PgQueryResultHKT>(
+  db: PgDatabase<TQueryResult>,
+  registerId: string,
+): Promise<{ snapshot: number[]; contingencyTicket: number[] }> {
+  const versions = async (
+    table: typeof registerSnapshotKeys | typeof registerContingencyTicketKeys,
+  ) =>
+    (
+      await db
+        .select({ version: table.version })
+        .from(table)
+        .where(eq(table.registerId, registerId))
+    )
+      .map(({ version }) => version)
+      .sort();
+  return {
+    snapshot: await versions(registerSnapshotKeys),
+    contingencyTicket: await versions(registerContingencyTicketKeys),
+  };
 }
 
 export function revokeRegister<TQueryResult extends PgQueryResultHKT>(

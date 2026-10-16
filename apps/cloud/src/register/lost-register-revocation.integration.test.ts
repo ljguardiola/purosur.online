@@ -21,8 +21,15 @@ import {
 } from "../test-support/queued-behind-held-lock.js";
 import { insertEnrolledInstallation } from "./test-support/enrolled-installation.js";
 import {
+  type EnrollmentAttempt,
+  enrollNewInstallation,
+  installationsOf,
+  issueEnrollmentCode,
+} from "./test-support/enrollment-attempt.js";
+import {
   insertFirstKeys,
   insertUserWithPin,
+  keyVersionsOf,
   REVOKED_AT,
   revokeRegister,
 } from "./test-support/lost-register-revocation-fixtures.js";
@@ -45,6 +52,15 @@ afterAll(async () => {
   await integrationDb.close();
 });
 
+const REPLACING_ENROLLMENT: EnrollmentAttempt = {
+  code: "R6NZ8MWF3SUV7PAG",
+  sourceAddress: "203.0.113.9",
+};
+const LATE_ENROLLMENT: EnrollmentAttempt = {
+  code: "S7PA9NXG4TVW8QBH",
+  sourceAddress: "203.0.113.10",
+};
+
 async function seedRegister(registerName: string) {
   const installation = await insertEnrolledInstallation(db, {
     now: REVOKED_AT,
@@ -59,6 +75,58 @@ async function seedRegister(registerName: string) {
 }
 
 describe("revoking a lost register on a real Postgres", () => {
+  it("revokes the installation an enrollment is replacing it with when the enrollment commits first", async () => {
+    const { registerId, locationId, actorId } = await seedRegister("Caja en reemplazo");
+    await issueEnrollmentCode(db, registerId, REPLACING_ENROLLMENT, REVOKED_AT);
+
+    const [enrollment, revocation] = await runQueuedBehindHeldLock(
+      sql,
+      (holder) =>
+        holder`select register_id from register_enrollment_codes where register_id = ${registerId} for update`,
+      () => enrollNewInstallation(db, REPLACING_ENROLLMENT, REVOKED_AT),
+      () => revokeRegister(db, { branchId: locationId, registerId, actorId }),
+    );
+
+    expect(enrollment.kind).toBe("enrolled");
+    if (enrollment.kind !== "enrolled") {
+      throw new Error(`expected an enrollment, got ${enrollment.kind}`);
+    }
+    expect(revocation).toMatchObject({ kind: "revoked", deviceId: enrollment.deviceId });
+    expect(await installationsOf(db, registerId)).toEqual([
+      { hostname: "CAJA-MOSTRADOR", revokedAt: REVOKED_AT, revocationReason: "replaced" },
+      { hostname: "CAJA-NUEVA", revokedAt: REVOKED_AT, revocationReason: "lost_or_stolen" },
+    ]);
+    expect(await keyVersionsOf(db, registerId)).toEqual({
+      snapshot: [1, 2],
+      contingencyTicket: [1, 2],
+    });
+    expect(
+      await db.select({ detail: alerts.detail }).from(alerts).where(eq(alerts.scope, registerId)),
+    ).toContainEqual({
+      detail: expect.objectContaining({ change: "revoked", hostname: "CAJA-NUEVA" }),
+    });
+  });
+
+  it("lets an enrollment that started after the revocation complete, leaving its new installation in service", async () => {
+    const { registerId, locationId, actorId } = await seedRegister("Caja que se enrola");
+    await issueEnrollmentCode(db, registerId, LATE_ENROLLMENT, REVOKED_AT);
+
+    const [revocation, enrollment] = await runQueuedBehindHeldLock(
+      sql,
+      (holder) =>
+        holder`select register_id from register_enrollment_codes where register_id = ${registerId} for update`,
+      () => revokeRegister(db, { branchId: locationId, registerId, actorId }),
+      () => enrollNewInstallation(db, LATE_ENROLLMENT, REVOKED_AT),
+    );
+
+    expect(revocation).toMatchObject({ kind: "revoked" });
+    expect(enrollment.kind).toBe("enrolled");
+    expect(await installationsOf(db, registerId)).toEqual([
+      { hostname: "CAJA-MOSTRADOR", revokedAt: REVOKED_AT, revocationReason: "lost_or_stolen" },
+      { hostname: "CAJA-NUEVA", revokedAt: null, revocationReason: null },
+    ]);
+  });
+
   it("lets only one of two concurrent revocations revoke it, the other finding no active installation", async () => {
     const { registerId, locationId, actorId } = await seedRegister("Caja concurrente");
 
