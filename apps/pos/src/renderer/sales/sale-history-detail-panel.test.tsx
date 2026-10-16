@@ -193,10 +193,6 @@ describe("SaleHistoryDetailPanel", () => {
       "carries_invoice",
       "La caja todavía no anula una venta con factura. Se tramita como devolución.",
     ],
-    [
-      "mercado_pago_payment",
-      "La caja todavía no anula una venta con un pago de Mercado Pago. Se tramita como devolución.",
-    ],
   ] as const)(
     "locks voiding and says why only in its tooltip when the sale cannot be voided: %s",
     async (refusal, reason) => {

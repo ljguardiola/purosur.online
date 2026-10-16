@@ -144,6 +144,27 @@ describe("VoidSaleModal", () => {
     expect(send).toHaveBeenCalledExactlyOnceWith("sale-1", true, undefined);
   });
 
+  it("leaves a Mercado Pago refund pending for the cloud to send once the person confirms it", async () => {
+    const { screen, send } = await renderModal({
+      refunds: [CASH_REFUND, { method: "QR", amount: 90_000, state: "PENDING" }],
+    });
+
+    await expect.element(screen.getByText("QR de Mercado Pago · $ 900,00")).toBeVisible();
+    await expect
+      .element(
+        screen.getByText(
+          "Queda un reembolso pendiente que la nube envía a Mercado Pago al confirmarlo.",
+        ),
+      )
+      .toBeVisible();
+    await expect.element(screen.getByRole("button", { name: VOID })).toBeDisabled();
+
+    await userEvent.click(screen.getByText("Confirmo"));
+    await userEvent.click(screen.getByRole("button", { name: VOID }));
+
+    expect(send).toHaveBeenCalledExactlyOnceWith("sale-1", true, undefined);
+  });
+
   it("asks to confirm every pending refund before voiding", async () => {
     const { screen, send } = await renderModal({
       refunds: [
@@ -332,10 +353,6 @@ describe("VoidSaleModal", () => {
       [
         "carries_invoice",
         "La caja todavía no anula una venta con factura. Se tramita como devolución.",
-      ],
-      [
-        "mercado_pago_payment",
-        "La caja todavía no anula una venta con un pago de Mercado Pago. Se tramita como devolución.",
       ],
       ["not_completed", "La venta ya no se puede anular."],
     ] as const)(

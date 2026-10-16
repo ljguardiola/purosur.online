@@ -20,12 +20,6 @@ describe("voidRefusalReason", () => {
     );
   });
 
-  it("says the register does not void a sale paid through Mercado Pago yet", () => {
-    expect(voidRefusalReason("mercado_pago_payment")).toBe(
-      "La caja todavía no anula una venta con un pago de Mercado Pago. Se tramita como devolución.",
-    );
-  });
-
   it("has no reason for a sale that is already voided", () => {
     expect(voidRefusalReason("not_completed")).toBeUndefined();
   });
@@ -44,7 +38,6 @@ describe("voidRefundPresentation", () => {
   it.each([
     ["TRANSFER", "Transferencia"],
     ["STANDALONE_TERMINAL", "Terminal independiente"],
-    ["QR", "QR de Mercado Pago"],
   ] as const)("leaves a %s refund for a person to make outside the register", (method, name) => {
     expect(voidRefundPresentation({ method, amount: 250_000, state: "PENDING" })).toEqual({
       title: `${name} · $ 2.500,00`,
@@ -53,4 +46,20 @@ describe("voidRefundPresentation", () => {
       pending: true,
     });
   });
+
+  it.each([
+    ["QR", "QR de Mercado Pago"],
+    ["POINT", "Point integrada"],
+  ] as const)(
+    "leaves a %s refund for the cloud to send to Mercado Pago once confirmed",
+    (method, name) => {
+      expect(voidRefundPresentation({ method, amount: 250_000, state: "PENDING" })).toEqual({
+        title: `${name} · $ 2.500,00`,
+        description:
+          "Queda un reembolso pendiente que la nube envía a Mercado Pago al confirmarlo.",
+        chip: { label: "Pendiente", tone: "info" },
+        pending: true,
+      });
+    },
+  );
 });
