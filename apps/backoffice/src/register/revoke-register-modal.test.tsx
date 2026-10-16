@@ -1,8 +1,9 @@
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
+import { useState } from "react";
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
-import type { RegisterSummary } from "./registers-api";
+import type { RegisterSummary, RevokeRegisterOutcome } from "./registers-api";
 import type { RegistersListScreenServices } from "./registers-list-services";
 import { RevokeRegisterModal } from "./revoke-register-modal";
 import {
@@ -48,6 +49,61 @@ async function renderModal(services: RegistersListScreenServices, handlers: Hand
 }
 
 type Dialog = Awaited<ReturnType<typeof renderModal>>["dialog"];
+
+function ReopenableModal({ services }: { services: RegistersListScreenServices }) {
+  const [target, setTarget] = useState<RegisterSummary | null>(enrolledRegister);
+  return (
+    <main>
+      <button type="button" onClick={() => setTarget(enrolledRegister)}>
+        Revocar Caja 3
+      </button>
+      <RevokeRegisterModal
+        target={target}
+        onClose={() => setTarget(null)}
+        onRevoked={() => {}}
+        onOutdated={() => {}}
+        onSessionEnded={() => {}}
+        services={services}
+      />
+    </main>
+  );
+}
+
+async function renderReopenableModal(services: RegistersListScreenServices) {
+  const element = <ReopenableModal services={services} />;
+  const screen = await render(element);
+  // Rerendering drives React's async `act()`, which flushes the already-resolved answer's
+  // continuation before returning.
+  return Object.assign(screen, { settle: () => screen.rerender(element) });
+}
+
+type ReopenableScreen = Awaited<ReturnType<typeof renderReopenableModal>>;
+
+function pendingRevocation(services: RegistersListScreenServices) {
+  let resolveRevocation: (outcome: RevokeRegisterOutcome) => void = () => {};
+  vi.mocked(services.revokeRegister).mockReturnValue(
+    new Promise((resolve) => {
+      resolveRevocation = resolve;
+    }),
+  );
+  return (outcome: RevokeRegisterOutcome) => resolveRevocation(outcome);
+}
+
+async function closeModal(screen: ReopenableScreen) {
+  await userEvent.click(
+    screen
+      .getByRole("dialog", { name: "Revocar por pérdida o robo" })
+      .getByRole("button", { name: "Cerrar" }),
+  );
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+}
+
+async function reopenModal(screen: ReopenableScreen) {
+  await userEvent.click(screen.getByRole("button", { name: "Revocar Caja 3" }));
+  const dialog = screen.getByRole("dialog", { name: "Revocar por pérdida o robo" });
+  await expect.element(dialog).toBeVisible();
+  return dialog;
+}
 
 async function confirm(dialog: Dialog) {
   await userEvent.click(dialog.getByRole("button", { name: "Revocar la caja" }));
@@ -214,6 +270,35 @@ test("shows the attempt-failed notice", async () => {
 
   await expect.element(dialog.getByText("No se pudo revocar la caja")).toBeVisible();
   await expect.element(dialog.getByText("Probá de nuevo.")).toBeVisible();
+});
+
+test("ignores a failure that arrives after the modal was closed, once it opens again", async () => {
+  const services = createServices();
+  const resolveRevocation = pendingRevocation(services);
+  const screen = await renderReopenableModal(services);
+  await confirm(screen.getByRole("dialog", { name: "Revocar por pérdida o robo" }));
+  await closeModal(screen);
+
+  resolveRevocation({ kind: "failed" });
+  await screen.settle();
+  const dialog = await reopenModal(screen);
+
+  expect(dialog.getByText("Probá de nuevo.").query()).toBeNull();
+});
+
+test("ignores a failure from an earlier opening that arrives after the modal opened again", async () => {
+  const services = createServices();
+  const resolveRevocation = pendingRevocation(services);
+  const screen = await renderReopenableModal(services);
+  await confirm(screen.getByRole("dialog", { name: "Revocar por pérdida o robo" }));
+  await closeModal(screen);
+  const dialog = await reopenModal(screen);
+
+  resolveRevocation({ kind: "failed" });
+  await screen.settle();
+
+  expect(dialog.getByText("Probá de nuevo.").query()).toBeNull();
+  await expect.element(dialog.getByRole("button", { name: "Revocar la caja" })).toBeEnabled();
 });
 
 test("navigates to Mi cuenta when the revocation comes back forbidden", async () => {

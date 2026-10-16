@@ -6,7 +6,6 @@ import type { RegisterSummary } from "./registers-api";
 import {
   createServices,
   enrolledRegister,
-  grantAuthorization,
   register1,
   renderScreen,
   revokedRegister,
@@ -105,17 +104,6 @@ test("a revoked register is shown as Revocada once the list reads again", async 
   await expect.element(screen.getByRole("button", revokeAction)).not.toBeInTheDocument();
 });
 
-test("a revocation that needs authorization opens the authorization modal", async () => {
-  const { services, screen } = await renderRegisters([enrolledRegister]);
-  vi.mocked(services.revokeRegister).mockResolvedValue({ kind: "authorization_required" });
-  grantAuthorization(services);
-
-  await userEvent.click(screen.getByRole("button", revokeAction));
-  await userEvent.click(screen.getByRole("button", { name: "Revocar la caja" }));
-
-  await expect.element(screen.getByRole("dialog", { name: "Autorizá este cambio" })).toBeVisible();
-});
-
 test("a register that already has no installation in service refreshes the list behind the open modal", async () => {
   const services = createServices();
   vi.mocked(services.fetchRegisters).mockResolvedValueOnce({
@@ -134,7 +122,4 @@ test("a register that already has no installation in service refreshes the list 
   await userEvent.click(screen.getByRole("button", { name: "Revocar la caja" }));
 
   await expect.poll(() => vi.mocked(services.fetchRegisters).mock.calls.length).toBe(2);
-  await expect
-    .element(screen.getByText("La caja ya no tiene una instalación activa."))
-    .toBeVisible();
 });

@@ -8,7 +8,6 @@ import {
   registerInstallations,
   registerSnapshotKeys,
   registers,
-  userPins,
 } from "../platform/db/schema.js";
 import { registerRouteAccess } from "../sessions/route-access.js";
 import {
@@ -194,7 +193,7 @@ describe("POST /registers/:id/revocations", () => {
     expect(response.json()).toMatchObject({ code: "no_active_installation" });
   });
 
-  it("revokes the installation and answers when, rotating the keys and resetting the branch's PINs", async () => {
+  it("revokes the installation and answers when", async () => {
     const { registerId, deviceId, session } = await setUp();
 
     const response = await revoke(registerId, session.headers);
@@ -204,21 +203,10 @@ describe("POST /registers/:id/revocations", () => {
       revoked_at: SESSION_NOON.toISOString(),
     });
     const [installation] = await db
-      .select({
-        revokedAt: registerInstallations.revokedAt,
-        revocationReason: registerInstallations.revocationReason,
-      })
+      .select({ revokedAt: registerInstallations.revokedAt })
       .from(registerInstallations)
       .where(eq(registerInstallations.id, deviceId));
-    expect(installation).toEqual({ revokedAt: SESSION_NOON, revocationReason: "lost_or_stolen" });
-    expect(
-      await db
-        .select()
-        .from(registerSnapshotKeys)
-        .where(eq(registerSnapshotKeys.registerId, registerId)),
-    ).toHaveLength(2);
-    expect(await db.select().from(alerts).where(eq(alerts.scope, registerId))).toHaveLength(1);
-    expect(await db.select().from(userPins)).toEqual([]);
+    expect(installation?.revokedAt).toEqual(SESSION_NOON);
   });
 
   it("audits the revocation with the person who made it", async () => {

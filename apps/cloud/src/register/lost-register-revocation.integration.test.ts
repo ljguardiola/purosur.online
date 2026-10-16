@@ -9,12 +9,16 @@ import {
   registerInstallations,
   registerSnapshotKeys,
   userPins,
+  users,
 } from "../platform/db/schema.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
 } from "../test-support/integration-database.js";
-import { runQueuedBehindHeldLock } from "../test-support/queued-behind-held-lock.js";
+import {
+  runQueuedBehindHeldLock,
+  waitForLockWaiters,
+} from "../test-support/queued-behind-held-lock.js";
 import { insertEnrolledInstallation } from "./test-support/enrolled-installation.js";
 import {
   insertFirstKeys,
@@ -83,6 +87,39 @@ describe("revoking a lost register on a real Postgres", () => {
       ).length,
     ).toBe(2);
     expect(await db.select().from(alerts).where(eq(alerts.scope, registerId))).toHaveLength(1);
+  });
+
+  it("waits for a PIN operation holding a branch user, which removes that PIN first, instead of deadlocking with it", async () => {
+    const { registerId, locationId, actorId } = await seedRegister("Caja con PIN en curso");
+    const userVersion = async () => {
+      const [user] = await db
+        .select({ version: users.version })
+        .from(users)
+        .where(eq(users.id, actorId));
+      return user?.version;
+    };
+    const versionBefore = await userVersion();
+    const pinOperation = await sql.reserve();
+    let revocation: ReturnType<typeof revokeRegister> | undefined;
+    let settled: Promise<unknown> = Promise.resolve();
+    try {
+      await pinOperation`begin`;
+      await pinOperation`select id from users where id = ${actorId} for no key update`;
+      revocation = revokeRegister(db, { branchId: locationId, registerId, actorId });
+      settled = Promise.allSettled([revocation]);
+      await waitForLockWaiters(sql, 1);
+      await pinOperation`delete from user_pins where user_id = ${actorId}`;
+      await pinOperation`update users set version = version + 1 where id = ${actorId}`;
+      await pinOperation`commit`;
+    } finally {
+      await pinOperation`rollback`;
+      pinOperation.release();
+      await settled;
+    }
+
+    expect((await revocation)?.kind).toBe("revoked");
+    expect(await db.select().from(userPins).where(eq(userPins.userId, actorId))).toEqual([]);
+    expect(await userVersion()).toBe((versionBefore ?? 0) + 1);
   });
 
   it("commits nothing when a step fails: the installation, the keys, the PINs and the alert stay as they were", async () => {
