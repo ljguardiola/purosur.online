@@ -1,8 +1,5 @@
-import { FACTURA_C_DOCUMENT_TYPE } from "@purosur/domain";
-import type {
-  ExternalBillingOpening,
-  NumberingConflictLane,
-} from "@purosur/domain/fiscal/use-cases";
+import { FACTURA_C_DOCUMENT_TYPE, FACTURA_C_VOUCHER_TYPE } from "@purosur/domain";
+import type { NumberingConflictLane } from "@purosur/domain/fiscal/use-cases";
 import { eq } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
@@ -10,6 +7,8 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   alerts,
   fiscalRequests,
+  fiscalTasks,
+  orphanCreditNotes,
   taxAuthorityLastAuthorizedNumbers,
 } from "../platform/db/schema.js";
 import { postgresDedicatedConnections } from "../platform/dedicated-connections.js";
@@ -23,6 +22,10 @@ import {
   authorizationRequestRecord,
   insertRegisterWithPointOfSale,
 } from "./test-support/authorization-request-fixtures.js";
+import {
+  creditNoteRegularization,
+  externalInvoicingRegularization,
+} from "./test-support/orphan-regularization-fixtures.js";
 
 const NOW = new Date("2026-10-06T15:05:00.000Z");
 const FROZEN_AT = new Date("2026-10-06T15:00:00.000Z");
@@ -32,6 +35,7 @@ let sql: ReturnType<typeof postgres>;
 let db: PostgresJsDatabase<Record<string, never>>;
 let registerId: string;
 const reconciliationRequests: number[] = [];
+const creditNotesEnqueued: string[] = [];
 let settled = 0;
 let frozenRequests = 0;
 
@@ -56,6 +60,9 @@ function lanes() {
     postgresDedicatedConnections(sql),
     async (_, pointOfSale) => {
       reconciliationRequests.push(pointOfSale);
+    },
+    async (_, creditNoteId) => {
+      creditNotesEnqueued.push(creditNoteId);
     },
     () => NOW,
   );
@@ -289,25 +296,25 @@ describe("the numbering conflict lane on a real Postgres", () => {
         frozenAt: FROZEN_AT,
       });
       expect(await inLane(8, (lane) => lane.numberingFreeze())).toBeNull();
-      await settle(7, { externalBillings: [], lastAuthorized: 0 });
+      await settle(7, { regularizations: [], lastAuthorized: 0 });
     });
 
     it("lifts the freeze when the reconciliation is settled, and only that one", async () => {
       await freeze(8, 3);
       await freeze(7, 3);
 
-      await settle(7, { externalBillings: [], lastAuthorized: 3 });
+      await settle(7, { regularizations: [], lastAuthorized: 3 });
 
       expect(await inLane(7, (lane) => lane.numberingFreeze())).toBeNull();
       expect(await inLane(8, (lane) => lane.numberingFreeze())).not.toBeNull();
-      await settle(8, { externalBillings: [], lastAuthorized: 3 });
+      await settle(8, { regularizations: [], lastAuthorized: 3 });
     });
 
     it("logs the register's point of sale as changed when the freeze is taken and, once for the count and the lifted freeze together, when it is settled", async () => {
       const last = await lastLoggedChangeSeq(db);
 
       await freeze(7, 12);
-      await settle(7, { externalBillings: [], lastAuthorized: 30 });
+      await settle(7, { regularizations: [], lastAuthorized: 30 });
 
       expect(
         (await changesLoggedAfter(db, last)).map(({ entity, entityId, op }) => ({
@@ -331,7 +338,7 @@ describe("the numbering conflict lane on a real Postgres", () => {
         diagnosis: "collision",
         diagnosedAt: NOW,
       });
-      await settle(7, { externalBillings: [], lastAuthorized: 0 });
+      await settle(7, { regularizations: [], lastAuthorized: 0 });
     });
 
     it("leaves neither the diagnosis nor the freeze behind when asking for the reconciliation fails", async () => {
@@ -340,6 +347,7 @@ describe("the numbering conflict lane on a real Postgres", () => {
         async () => {
           throw new Error("the queue refused");
         },
+        async () => {},
         () => NOW,
       );
       const last = await lastLoggedChangeSeq(db);
@@ -357,11 +365,7 @@ describe("the numbering conflict lane on a real Postgres", () => {
   });
 
   describe("settling a reconciliation", () => {
-    const opening = (number: number): ExternalBillingOpening => ({
-      pointOfSale: 7,
-      documentType: FACTURA_C_DOCUMENT_TYPE,
-      number,
-    });
+    const opening = (number: number) => externalInvoicingRegularization({ pointOfSale: 7, number });
 
     async function externalBillingScopes() {
       return (await db.select().from(alerts))
@@ -375,13 +379,13 @@ describe("the numbering conflict lane on a real Postgres", () => {
     });
 
     it("continues the series right after the number, and never lowers a count already held", async () => {
-      await settle(8, { externalBillings: [], lastAuthorized: 20 });
+      await settle(8, { regularizations: [], lastAuthorized: 20 });
       expect(await inLane(8, (lane) => lane.taxAuthorityCount())).toBe(20);
 
-      await settle(8, { externalBillings: [], lastAuthorized: 15 });
+      await settle(8, { regularizations: [], lastAuthorized: 15 });
       expect(await inLane(8, (lane) => lane.taxAuthorityCount())).toBe(20);
 
-      await settle(8, { externalBillings: [], lastAuthorized: 25 });
+      await settle(8, { regularizations: [], lastAuthorized: 25 });
       expect(await inLane(8, (lane) => lane.taxAuthorityCount())).toBe(25);
       const rows = await db.select().from(taxAuthorityLastAuthorizedNumbers);
       expect(rows.filter((row) => row.pointOfSaleNumber === 8)).toEqual([
@@ -390,8 +394,8 @@ describe("the numbering conflict lane on a real Postgres", () => {
     });
 
     it("opens one alert for each number, once however many times it is settled", async () => {
-      await settle(7, { externalBillings: [opening(31), opening(32)], lastAuthorized: 40 });
-      await settle(7, { externalBillings: [opening(31)], lastAuthorized: 40 });
+      await settle(7, { regularizations: [opening(31), opening(32)], lastAuthorized: 40 });
+      await settle(7, { regularizations: [opening(31)], lastAuthorized: 40 });
 
       expect(await externalBillingScopes()).toEqual([
         `7:${FACTURA_C_DOCUMENT_TYPE}:31`,
@@ -423,7 +427,7 @@ describe("the numbering conflict lane on a real Postgres", () => {
         for each row execute function refuse_freeze_lift()`);
       try {
         await expect(
-          settle(7, { externalBillings: [opening(51), opening(52)], lastAuthorized: 99 }),
+          settle(7, { regularizations: [opening(51), opening(52)], lastAuthorized: 99 }),
         ).rejects.toThrow();
       } finally {
         await admin.unsafe("drop trigger refuse_freeze_lift on numbering_freezes");
@@ -435,7 +439,161 @@ describe("the numbering conflict lane on a real Postgres", () => {
       expect(await inLane(7, (lane) => lane.taxAuthorityCount())).toBe(countBefore);
       expect(await inLane(7, (lane) => lane.numberingFreeze())).not.toBeNull();
       expect(await changesLoggedAfter(db, last)).toEqual([]);
-      await settle(7, { externalBillings: [], lastAuthorized: 0 });
+      await settle(7, { regularizations: [], lastAuthorized: 0 });
+    });
+  });
+
+  describe("the local requests at an authorization's number", () => {
+    const standingOf = (pointOfSale: number, number: number) =>
+      inLane(pointOfSale, (lane) => lane.requestsAtNumber({ pointOfSale, number }));
+
+    it("are none for a number no request holds", async () => {
+      expect(await standingOf(7, 3_000)).toEqual({ kind: "requests", requests: [] });
+    });
+
+    it("are the request at the number, with its document and no answer while it has none", async () => {
+      const request = authorizationRequestRecord(registerId, { pointOfSale: 7, number: 3_001 });
+      await db.insert(fiscalRequests).values(request);
+
+      expect(await standingOf(7, 3_001)).toEqual({
+        kind: "requests",
+        requests: [
+          {
+            fiscalDocumentId: request.fiscalDocumentId,
+            saleId: request.saleId,
+            issuedOn: request.issuedOn,
+            total: request.total,
+            buyerTaxStatusCode: request.buyerTaxStatusCode,
+            answer: null,
+          },
+        ],
+      });
+    });
+
+    it("lead to the other request of the sale with its authorization", async () => {
+      const orphan = authorizationRequestRecord(registerId, { pointOfSale: 7, number: 3_002 });
+      await db.insert(fiscalRequests).values(orphan);
+      await db.insert(fiscalRequests).values({
+        ...authorizationRequestRecord(registerId, {
+          pointOfSale: 7,
+          number: 3_003,
+          saleId: orphan.saleId,
+        }),
+        answerKind: "authorized",
+        authorizationCode: "75123456789012",
+        authorizationCodeDueOn: "2026-10-16",
+        answeredAt: FROZEN_AT,
+      });
+
+      expect(
+        await inLane(7, (lane) =>
+          lane.otherDocumentsOfSale(orphan.saleId, orphan.fiscalDocumentId),
+        ),
+      ).toEqual([
+        {
+          kind: "real_time",
+          voucher: { voucherType: FACTURA_C_VOUCHER_TYPE, pointOfSale: 7, number: 3_003 },
+          outcome: {
+            answer: {
+              kind: "authorized",
+              authorizationCode: "75123456789012",
+              authorizationCodeDueOn: "2026-10-16",
+            },
+            decision: null,
+          },
+        },
+      ]);
+    });
+
+    it("is regularized once a credit note was requested for the orphan", async () => {
+      await db
+        .insert(fiscalRequests)
+        .values(authorizationRequestRecord(registerId, { pointOfSale: 7, number: 3_004 }));
+      await settle(7, {
+        regularizations: [
+          creditNoteRegularization({
+            pointOfSale: 7,
+            associatedVoucher: { voucherType: 11, pointOfSale: 7, number: 3_004 },
+          }),
+        ],
+        lastAuthorized: 0,
+      });
+
+      expect(await standingOf(7, 3_004)).toEqual({ kind: "already_regularized" });
+    });
+
+    it("is regularized once a task for a person was opened for the orphan", async () => {
+      await settle(7, {
+        regularizations: [externalInvoicingRegularization({ pointOfSale: 7, number: 3_005 })],
+        lastAuthorized: 0,
+      });
+
+      expect(await standingOf(7, 3_005)).toEqual({ kind: "already_regularized" });
+    });
+  });
+
+  describe("settling a reconciliation with credit notes", () => {
+    it("keeps each credit note request and asks for it to be issued, together with the count and the lifted freeze", async () => {
+      creditNotesEnqueued.length = 0;
+      await freeze(8, 3);
+      const regularization = creditNoteRegularization({
+        pointOfSale: 8,
+        associatedVoucher: { voucherType: 11, pointOfSale: 8, number: 4_000 },
+      });
+
+      await settle(8, { regularizations: [regularization], lastAuthorized: 4_001 });
+
+      expect(
+        (await db.select().from(orphanCreditNotes)).filter((row) => row.pointOfSale === 8),
+      ).toMatchObject([{ id: regularization.creditNoteId, associatedNumber: 4_000 }]);
+      expect(creditNotesEnqueued).toEqual([regularization.creditNoteId]);
+      expect(await inLane(8, (lane) => lane.taxAuthorityCount())).toBe(4_001);
+      expect(await inLane(8, (lane) => lane.numberingFreeze())).toBeNull();
+    });
+
+    it("keeps no credit note and keeps the freeze when the settlement fails", async () => {
+      await freeze(7, 12);
+      const regularization = creditNoteRegularization({
+        pointOfSale: 7,
+        associatedVoucher: { voucherType: 11, pointOfSale: 7, number: 4_100 },
+      });
+      const admin = postgres(integrationDb.adminDatabaseUrl, { max: 1 });
+      await admin.unsafe(`
+        create function refuse_freeze_lift() returns trigger language plpgsql as $$
+        begin raise exception 'the lift broke'; end; $$`);
+      await admin.unsafe(`
+        create trigger refuse_freeze_lift before delete on numbering_freezes
+        for each row execute function refuse_freeze_lift()`);
+      try {
+        await expect(
+          settle(7, { regularizations: [regularization], lastAuthorized: 4_101 }),
+        ).rejects.toThrow();
+      } finally {
+        await admin.unsafe("drop trigger refuse_freeze_lift on numbering_freezes");
+        await admin.unsafe("drop function refuse_freeze_lift()");
+        await admin.end({ timeout: 1 });
+      }
+
+      expect(
+        (await db.select().from(orphanCreditNotes)).filter((row) => row.associatedNumber === 4_100),
+      ).toEqual([]);
+      expect(await inLane(7, (lane) => lane.numberingFreeze())).not.toBeNull();
+      await settle(7, { regularizations: [], lastAuthorized: 0 });
+    });
+
+    it("keeps one task per voucher when the same voucher is settled again", async () => {
+      await settle(7, {
+        regularizations: [externalInvoicingRegularization({ pointOfSale: 7, number: 4_200 })],
+        lastAuthorized: 0,
+      });
+      await settle(7, {
+        regularizations: [externalInvoicingRegularization({ pointOfSale: 7, number: 4_200 })],
+        lastAuthorized: 0,
+      });
+
+      expect(
+        (await db.select().from(fiscalTasks)).filter((row) => row.number === 4_200),
+      ).toHaveLength(1);
     });
   });
 });

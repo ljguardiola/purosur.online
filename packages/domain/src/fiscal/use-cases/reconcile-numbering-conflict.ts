@@ -1,22 +1,33 @@
-import { FACTURA_C_DOCUMENT_TYPE } from "../model/fiscal-rejection-standing.js";
+import { FACTURA_C_VOUCHER_TYPE } from "../model/factura-c-fiscal-block.js";
 import {
   decideNumberingReconciliation,
   NUMBERING_CONFLICT_REASK_INTERVAL_MS,
 } from "../model/numbering-conflict.js";
+import {
+  decideOrphanAuthorization,
+  type OrphanRegularization,
+  orphanRegularization,
+} from "../model/orphan-authorization.js";
 import type { ReconcileNumberingConflictPorts } from "./numbering-conflict-ports.js";
+import { localStandingBehindVoucher } from "./orphan-local-standing.js";
 
 export interface ReconcileNumberingConflictInput {
   pointOfSale: number;
 }
 
 export type ReconcileNumberingConflictOutcome =
-  | { kind: "reconciled"; lastAuthorized: number; alertedNumbers: number[] }
+  | {
+      kind: "reconciled";
+      lastAuthorized: number;
+      alertedNumbers: number[];
+      creditNotedNumbers: number[];
+    }
   | { kind: "waiting"; askAgainAt: Date }
   | { kind: "retry"; askAgainAt: Date }
   | { kind: "not_frozen" };
 
 export async function reconcileNumberingConflict(
-  { lanes, clock, tokens, taxAuthority }: ReconcileNumberingConflictPorts,
+  { lanes, clock, ids, tokens, vouchers, taxAuthority }: ReconcileNumberingConflictPorts,
   { pointOfSale }: ReconcileNumberingConflictInput,
 ): Promise<ReconcileNumberingConflictOutcome> {
   return lanes.inPointOfSaleLane<ReconcileNumberingConflictOutcome>(pointOfSale, async (lane) => {
@@ -30,7 +41,11 @@ export async function reconcileNumberingConflict(
     if (token === null) {
       return { kind: "retry", askAgainAt: askAgainAt() };
     }
-    const lastAuthorized = await taxAuthority.lastAuthorized({ token, pointOfSale });
+    const lastAuthorized = await taxAuthority.lastAuthorized({
+      token,
+      pointOfSale,
+      voucherType: FACTURA_C_VOUCHER_TYPE,
+    });
     if (lastAuthorized.kind === "no_answer") {
       return { kind: "retry", askAgainAt: askAgainAt() };
     }
@@ -47,18 +62,42 @@ export async function reconcileNumberingConflict(
       return { kind: "waiting", askAgainAt: askAgainAt() };
     }
 
-    await lane.settleNumberingReconciliation({
-      externalBillings: reconciliation.numbersWithoutOwnDocument.map((number) => ({
+    const regularizations: OrphanRegularization[] = [];
+    for (const number of reconciliation.numbersWithoutOwnDocument) {
+      const answer = await vouchers.voucherAt({
+        token,
         pointOfSale,
-        documentType: FACTURA_C_DOCUMENT_TYPE,
+        voucherType: FACTURA_C_VOUCHER_TYPE,
         number,
-      })),
+      });
+      if (answer.kind !== "found") {
+        return { kind: answer.kind === "none" ? "waiting" : "retry", askAgainAt: askAgainAt() };
+      }
+      const regularization = orphanRegularization(
+        decideOrphanAuthorization({
+          evidence: { kind: "confirmed", pointOfSale, number, voucher: answer.voucher },
+          local: await localStandingBehindVoucher(lane, { pointOfSale, number }, answer.voucher),
+        }),
+        { creditNoteId: ids.next(), now: clock.now() },
+      );
+      if (regularization !== null) {
+        regularizations.push(regularization);
+      }
+    }
+
+    await lane.settleNumberingReconciliation({
+      regularizations,
       lastAuthorized: reconciliation.lastAuthorized,
     });
     return {
       kind: "reconciled",
       lastAuthorized: reconciliation.lastAuthorized,
-      alertedNumbers: reconciliation.numbersWithoutOwnDocument,
+      alertedNumbers: regularizations.flatMap((regularization) =>
+        regularization.kind === "external_invoicing" ? [regularization.externalBilling.number] : [],
+      ),
+      creditNotedNumbers: regularizations.flatMap((regularization) =>
+        regularization.kind === "credit_note" ? [regularization.associatedVoucher.number] : [],
+      ),
     };
   });
 }

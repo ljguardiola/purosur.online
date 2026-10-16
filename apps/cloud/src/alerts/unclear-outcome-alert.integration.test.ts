@@ -59,8 +59,13 @@ function decide(fiscalDocumentId: string, now: Date) {
   return decideUnclearRealTimeOutcome(
     {
       requests: new DrizzleUnclearOutcomeRequests(db),
-      lanes: new DrizzleUnclearOutcomeLanes(postgresDedicatedConnections(sql), async () => {}),
+      lanes: new DrizzleUnclearOutcomeLanes(
+        postgresDedicatedConnections(sql),
+        async () => {},
+        async () => {},
+      ),
       clock: { now: () => now },
+      ids: { next: () => crypto.randomUUID() },
       tokens: { validToken: unavailable },
       vouchers: { voucherAt: unavailable },
       taxAuthority: { lastAuthorized: unavailable },

@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { isPointOfSaleNumber } from "@purosur/domain";
 import {
   diagnoseNumberingConflict,
@@ -12,6 +13,7 @@ import { DrizzleNumberingConflictLanes } from "./drizzle-numbering-conflict-lane
 import { DrizzleUnclearOutcomeRequests } from "./drizzle-unclear-outcome-lanes.js";
 import { DrizzleWsaaTokenSource } from "./drizzle-wsaa-token-source.js";
 import type { EnqueueNumberingReconciliation } from "./enqueue-numbering-conflict.js";
+import type { EnqueueOrphanCreditNote } from "./enqueue-orphan-credit-note.js";
 import { UNCLEAR_OUTCOME_PRIORITY } from "./unclear-outcome-task.js";
 import { WSFE_SERVICE } from "./wsaa-token-renewal-task.js";
 
@@ -36,6 +38,7 @@ export interface NumberingConflictInput<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
   connections: DedicatedConnections<TQueryResult>;
   enqueueNumberingReconciliation: EnqueueNumberingReconciliation;
+  enqueueOrphanCreditNote: EnqueueOrphanCreditNote;
 }
 
 function fiscalDocumentIdOf(payload: unknown): string {
@@ -68,12 +71,20 @@ export function numberingConflictJobs<TQueryResult extends PgQueryResultHKT>({
   db,
   connections,
   enqueueNumberingReconciliation,
+  enqueueOrphanCreditNote,
 }: NumberingConflictInput<TQueryResult>): BackgroundJobs {
   const clock = { now };
   const ports = {
-    lanes: new DrizzleNumberingConflictLanes(connections, enqueueNumberingReconciliation, now),
+    lanes: new DrizzleNumberingConflictLanes(
+      connections,
+      enqueueNumberingReconciliation,
+      enqueueOrphanCreditNote,
+      now,
+    ),
     clock,
+    ids: { next: () => randomUUID() },
     tokens: new DrizzleWsaaTokenSource(db, clock, WSFE_SERVICE, certificateFingerprint),
+    vouchers,
     taxAuthority,
   };
   return {
@@ -81,7 +92,7 @@ export function numberingConflictJobs<TQueryResult extends PgQueryResultHKT>({
       [DIAGNOSE_NUMBERING_CONFLICT_TASK_IDENTIFIER]: async (payload, helpers) => {
         const fiscalDocumentId = fiscalDocumentIdOf(payload);
         const outcome = await diagnoseNumberingConflict(
-          { ...ports, requests: new DrizzleUnclearOutcomeRequests(db), vouchers },
+          { ...ports, requests: new DrizzleUnclearOutcomeRequests(db) },
           { fiscalDocumentId },
         );
         if (outcome.kind === "retry") {

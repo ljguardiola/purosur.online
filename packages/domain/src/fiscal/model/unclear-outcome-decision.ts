@@ -129,6 +129,7 @@ export interface DecideUnclearOutcomeInput {
   now: Date;
   document: UnclearDocument;
   evidence: TaxAuthorityEvidence;
+  voucherType?: number;
 }
 
 export function unclearOutcomeSettlesAt(abandonedAt: Date): Date {
@@ -142,11 +143,12 @@ export function hasUnclearOutcomeSettled(abandonedAt: Date, now: Date): boolean 
 export function voucherMatchesDocument(
   voucher: TaxAuthorityVoucher,
   document: Omit<UnclearDocument, "number">,
+  voucherType: number = FACTURA_C_VOUCHER_TYPE,
 ): boolean {
   return (
     voucher.issuedOn === document.issuedOn &&
     voucher.total === document.total &&
-    voucher.documentType === FACTURA_C_VOUCHER_TYPE &&
+    voucher.documentType === voucherType &&
     voucher.receiverDocumentType === FINAL_CONSUMER_DOCUMENT_TYPE &&
     voucher.receiverDocumentNumber === FINAL_CONSUMER_DOCUMENT_NUMBER &&
     voucher.receiverTaxStatusCode === document.buyerTaxStatusCode
@@ -158,12 +160,13 @@ export function decideUnclearOutcome({
   now,
   document,
   evidence,
+  voucherType = FACTURA_C_VOUCHER_TYPE,
 }: DecideUnclearOutcomeInput): UnclearOutcomeVerdict {
   if (!hasUnclearOutcomeSettled(abandonedAt, now)) {
     return { kind: "pending", askAgainAt: unclearOutcomeSettlesAt(abandonedAt) };
   }
   if (evidence.kind === "voucher") {
-    return voucherMatchesDocument(evidence.voucher, document)
+    return voucherMatchesDocument(evidence.voucher, document, voucherType)
       ? {
           kind: "adopted",
           authorizationCode: evidence.voucher.authorizationCode,

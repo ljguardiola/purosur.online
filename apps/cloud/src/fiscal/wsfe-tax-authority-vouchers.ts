@@ -1,4 +1,3 @@
-import { FACTURA_C_VOUCHER_TYPE } from "@purosur/domain";
 import type {
   TaxAuthorityVoucherLookup,
   VoucherAnswer,
@@ -102,10 +101,12 @@ export class WsfeTaxAuthorityVouchers implements TaxAuthorityVoucherLookup {
   async voucherAt({
     token: { token, sign },
     pointOfSale,
+    voucherType,
     number,
   }: {
     token: WsaaToken;
     pointOfSale: number;
+    voucherType: number;
     number: number;
   }): Promise<VoucherAnswer> {
     try {
@@ -117,7 +118,7 @@ export class WsfeTaxAuthorityVouchers implements TaxAuthorityVoucherLookup {
           {
             Auth: { Token: token, Sign: sign, Cuit: this.cuitDigits },
             FeCompConsReq: {
-              CbteTipo: FACTURA_C_VOUCHER_TYPE,
+              CbteTipo: voucherType,
               CbteNro: number,
               PtoVta: pointOfSale,
             },

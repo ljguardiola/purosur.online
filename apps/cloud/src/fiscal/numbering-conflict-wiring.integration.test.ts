@@ -25,7 +25,6 @@ import {
   insertRegisterWithPointOfSale,
 } from "./test-support/authorization-request-fixtures.js";
 import {
-  answers,
   answersInTurn,
   type FakeWsfeServer,
   startFakeWsfeServer,
@@ -147,7 +146,10 @@ describe("the numbering conflict work the server sets up on a real Postgres", ()
       );
       expect(await pointOfSaleRow()).toMatchObject({ tax_authority_last_authorized_number: 1 });
 
-      fakeWsfe.behave(answers("fe-comp-ultimo-autorizado-advanced.xml"));
+      fakeWsfe.requests.length = 0;
+      fakeWsfe.behave(
+        answersInTurn("fe-comp-ultimo-autorizado-advanced.xml", "fe-comp-consultar-found.xml"),
+      );
       await recovery.db.transaction((transaction) =>
         enqueueNumberingReconciliationJob(transaction, 7),
       );
@@ -165,11 +167,85 @@ describe("the numbering conflict work the server sets up on a real Postgres", ()
         { scope: `7:${FACTURA_C_DOCUMENT_TYPE}:2` },
         { scope: `7:${FACTURA_C_DOCUMENT_TYPE}:3` },
       ]);
+      expect(await sql`select kind, number from fiscal_tasks order by number`).toEqual([
+        { kind: "external_invoicing", number: 2 },
+        { kind: "external_invoicing", number: 3 },
+      ]);
     } finally {
       await app.close();
       await recovery.close();
     }
   }, 90_000);
+
+  it.each([
+    ["holds no voucher at the numbers", 9, "fe-comp-consultar-not-found.xml"],
+    ["gives no answer about the numbers", 10, "fe-comp-consultar-token-error.xml"],
+  ])(
+    "alerts nothing, opens no task and keeps the point of sale frozen while ARCA %s",
+    async (_case, pointOfSale, file) => {
+      const { registerId } = await registerHoldingPointOfSale(pointOfSale, 1);
+      const fiscalDocumentId = await leftUnclearByNumbering(
+        registerId,
+        pointOfSale,
+        40,
+        "2126-01-01",
+      );
+      fakeWsfe.behave(
+        answersInTurn("fe-comp-ultimo-autorizado.xml", "fe-comp-consultar-found.xml"),
+      );
+      const recovery = await setUpRecovery(recoveryEnv(), () => NOW, {
+        emailSender: UNUSED_EMAIL_SENDER,
+        schedules: false,
+      });
+      try {
+        await recovery.db.transaction((transaction) =>
+          enqueueNumberingDiagnosisJob(transaction, fiscalDocumentId),
+        );
+        await vi.waitFor(
+          async () =>
+            expect(
+              await sql`select 1 from numbering_freezes where point_of_sale_number = ${pointOfSale}`,
+            ).toHaveLength(1),
+          {
+            timeout: 20_000,
+            interval: 100,
+          },
+        );
+
+        fakeWsfe.requests.length = 0;
+        fakeWsfe.behave(answersInTurn("fe-comp-ultimo-autorizado-advanced.xml", file));
+        await recovery.db.transaction((transaction) =>
+          enqueueNumberingReconciliationJob(transaction, pointOfSale),
+        );
+        await vi.waitFor(
+          async () => {
+            expect(
+              fakeWsfe.requests.filter((request) => request.includes("FECompConsultar")),
+            ).not.toEqual([]);
+            expect(
+              await sql`select 1 from graphile_worker._private_jobs
+                where key = ${`reconcile-numbering-conflict:${pointOfSale}`} and run_at > ${NOW.toISOString()}::timestamptz
+                and last_error is null`,
+            ).toHaveLength(1);
+          },
+          { timeout: 20_000, interval: 100 },
+        );
+
+        expect(
+          await sql`select 1 from numbering_freezes where point_of_sale_number = ${pointOfSale}`,
+        ).toHaveLength(1);
+        expect(
+          await sql`select 1 from alerts where kind = 'external_billing' and scope like ${`${pointOfSale}:%`}`,
+        ).toEqual([]);
+        expect(await sql`select 1 from fiscal_tasks where point_of_sale = ${pointOfSale}`).toEqual(
+          [],
+        );
+      } finally {
+        await recovery.close();
+      }
+    },
+    90_000,
+  );
 
   it("leaves the point of sale unfrozen when the document is only a date behind", async () => {
     const { registerId, deviceToken } = await registerHoldingPointOfSale(8, 1);
@@ -197,7 +273,7 @@ describe("the numbering conflict work the server sets up on a real Postgres", ()
       expect(last !== undefined && "row" in last ? last.row : undefined).toMatchObject({
         numbering_frozen: false,
       });
-      expect(await sql`select 1 from numbering_freezes`).toEqual([]);
+      expect(await sql`select 1 from numbering_freezes where point_of_sale_number = 8`).toEqual([]);
     } finally {
       await app.close();
       await recovery.close();

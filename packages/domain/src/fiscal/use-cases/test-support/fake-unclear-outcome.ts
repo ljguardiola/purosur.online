@@ -1,3 +1,4 @@
+import type { OrphanRegularization, SaleDocument } from "../../model/orphan-authorization.js";
 import type { RealTimeAuthorizationAnswer } from "../../model/real-time-authorization.js";
 import type {
   RecordedRequestOutcome,
@@ -29,6 +30,9 @@ export class FakeUnclearOutcomeStore implements UnclearOutcomeLanes, UnclearOutc
     fiscalDocumentId: string;
     clearedAt: Date;
   }[] = [];
+  readonly saleDocuments = new Map<string, SaleDocument[]>();
+  readonly regularizations: (OrphanRegularization | null)[] = [];
+  readonly otherVoucherAsks: { saleId: string; fiscalDocumentId: string }[] = [];
   vanishAfterLookup = false;
   recordingFailure: Error | undefined;
 
@@ -92,6 +96,7 @@ class FakeUnclearOutcomeLane implements UnclearOutcomeLane {
     const answeredAt = this.store.answeredAt.get(fiscalDocumentId);
     return {
       fiscalDocumentId,
+      saleId: request.saleId,
       pointOfSale: request.pointOfSale,
       number: request.number,
       issuedOn: request.issuedOn,
@@ -116,16 +121,24 @@ class FakeUnclearOutcomeLane implements UnclearOutcomeLane {
     decision: UnclearOutcomeDecision,
     decidedAt: Date,
     clearedWarning: UnclearOutcomeWarningClearance,
+    regularization: OrphanRegularization | null,
   ): Promise<void> {
     this.store.documents.operations.push(
       `recordDecision:${decision.kind}@${decidedAt.toISOString()}`,
     );
     this.store.decisions.set(fiscalDocumentId, { decision, decidedAt: new Date(decidedAt) });
+    this.store.regularizations.push(regularization);
     this.store.clearedWarnings.push({
       decision: decision.kind,
       fiscalDocumentId: clearedWarning.fiscalDocumentId,
       clearedAt: new Date(clearedWarning.clearedAt),
     });
+  }
+
+  async otherDocumentsOfSale(saleId: string, fiscalDocumentId: string): Promise<SaleDocument[]> {
+    this.store.otherVoucherAsks.push({ saleId, fiscalDocumentId });
+    this.store.documents.operations.push("otherDocumentsOfSale");
+    return this.store.saleDocuments.get(saleId) ?? [];
   }
 
   async registerOwnsPointOfSale(registerId: string, pointOfSale: number): Promise<boolean> {
@@ -167,7 +180,12 @@ class FakeUnclearOutcomeLane implements UnclearOutcomeLane {
 }
 
 export class FakeTaxAuthorityVouchers implements TaxAuthorityVoucherLookup {
-  readonly lookups: { token: WsaaToken; pointOfSale: number; number: number }[] = [];
+  readonly lookups: {
+    token: WsaaToken;
+    pointOfSale: number;
+    voucherType: number;
+    number: number;
+  }[] = [];
   heldLaneDuringLookup: boolean | undefined;
   private readonly answer: VoucherAnswer;
   private readonly documents: FakePointOfSaleLanes;
@@ -180,6 +198,7 @@ export class FakeTaxAuthorityVouchers implements TaxAuthorityVoucherLookup {
   async voucherAt(lookup: {
     token: WsaaToken;
     pointOfSale: number;
+    voucherType: number;
     number: number;
   }): Promise<VoucherAnswer> {
     this.documents.operations.push("voucherAt");

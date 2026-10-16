@@ -3,6 +3,7 @@ import { join } from "node:path";
 import {
   argentinaCalendarDay,
   FACTURA_C_DOCUMENT_TYPE,
+  FACTURA_C_VOUCHER_TYPE,
   FINAL_CONSUMER_DOCUMENT_NUMBER,
   FINAL_CONSUMER_DOCUMENT_TYPE,
   fortnightAfter,
@@ -310,7 +311,11 @@ export async function recordArcaResponses(
         cuit: options.cuit,
         onRawResponse: lastAuthorizedCall.onRawResponse,
         ...timeout,
-      }).lastAuthorized({ token: first.token, pointOfSale: options.pointOfSale });
+      }).lastAuthorized({
+        token: first.token,
+        pointOfSale: options.pointOfSale,
+        voucherType: FACTURA_C_VOUCHER_TYPE,
+      });
       invoicingRecordings.push(["fe-comp-ultimo-autorizado", lastAuthorizedCall.raw()]);
 
       if (lastAuthorized.kind === "read") {
@@ -571,6 +576,7 @@ async function recordOfflineDocumentReports(
     new WsfeTaxAuthorityVouchers({ ...connection, onRawResponse }).voucherAt({
       token,
       pointOfSale: offlinePointOfSale,
+      voucherType: FACTURA_C_VOUCHER_TYPE,
       number: number + 1,
     }),
   );

@@ -71,6 +71,8 @@ export type {
   TaxAuthorityRejection,
 } from "./model/fiscal-rejection-standing.js";
 export { FACTURA_C_DOCUMENT_TYPE } from "./model/fiscal-rejection-standing.js";
+export type { FiscalTaskDocumentType } from "./model/fiscal-task.js";
+export { CREDIT_NOTE_C_DOCUMENT_TYPE } from "./model/fiscal-task.js";
 export type {
   FortnightPresentationRefusal,
   FortnightReportMovement,
@@ -128,6 +130,7 @@ export {
   nextOfflineNumber,
   OFFLINE_NUMBER_BLOCK_STATUSES,
 } from "./model/offline-number-block.js";
+export { CREDIT_NOTE_C_VOUCHER_TYPE } from "./model/orphan-credit-note.js";
 export {
   isPointOfSaleNumber,
   POINT_OF_SALE_NUMBER_MAX,

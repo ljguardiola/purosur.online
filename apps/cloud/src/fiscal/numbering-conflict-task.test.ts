@@ -6,7 +6,9 @@ import {
   alerts,
   arcaWsaaTokens,
   fiscalRequests,
+  fiscalTasks,
   numberingFreezes,
+  orphanCreditNotes,
   taxAuthorityLastAuthorizedNumbers,
 } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
@@ -37,6 +39,7 @@ const FROZEN_AT = new Date("2026-10-06T15:00:00.000Z");
 let testDatabase: TestDatabase;
 let server: FakeWsfeServer;
 let reconciliationsRequested: number[];
+let creditNotesRequested: string[];
 
 beforeAll(async () => {
   testDatabase = await buildTestDatabase();
@@ -52,6 +55,7 @@ beforeEach(async () => {
   await testDatabase.clear();
   server.requests.length = 0;
   reconciliationsRequested = [];
+  creditNotesRequested = [];
 });
 
 function tasksUnderTest() {
@@ -72,6 +76,9 @@ function tasksUnderTest() {
     connections: { withConnection: (work) => work(testDatabase.db) },
     enqueueNumberingReconciliation: async (_, pointOfSale) => {
       reconciliationsRequested.push(pointOfSale);
+    },
+    enqueueOrphanCreditNote: async (_, creditNoteId) => {
+      creditNotesRequested.push(creditNoteId);
     },
   });
   const diagnose = jobs.taskList[DIAGNOSE_NUMBERING_CONFLICT_TASK_IDENTIFIER];
@@ -253,7 +260,7 @@ describe("numberingConflictJobs", () => {
       });
     }
 
-    it("opens an alert for each number ARCA authorized without an own document, continues the series after the last keeping the day it knew, and lifts the freeze", async () => {
+    it("opens an alert and a task for each number ARCA confirms it authorized without an own document, continues the series after the last keeping the day it knew, and lifts the freeze", async () => {
       await issueWsaaToken();
       const registerId = await registerOfPointOfSale();
       await freeze(1);
@@ -263,19 +270,120 @@ describe("numberingConflictJobs", () => {
         authorizationCodeDueOn: "2026-10-16",
         answeredAt: ANSWERED_AT,
       });
-      server.behave(answersInTurn("fe-comp-ultimo-autorizado-advanced.xml"));
+      server.behave(
+        answersInTurn("fe-comp-ultimo-autorizado-advanced.xml", "fe-comp-consultar-found.xml"),
+      );
       const { reconcile } = tasksUnderTest();
 
       await reconcile({ pointOfSale: 7 }, buildJobHelpers().helpers);
 
+      expect(server.requests[1]).toContain("FECompConsultar");
       expect(
         (await testDatabase.db.select().from(alerts))
           .filter((alert) => alert.kind === "external_billing")
           .map((alert) => alert.detail),
       ).toEqual([{ pointOfSale: 7, documentType: "factura_c", number: 3 }]);
+      expect(await testDatabase.db.select().from(fiscalTasks)).toMatchObject([
+        {
+          kind: "external_invoicing",
+          pointOfSale: 7,
+          documentType: "factura_c",
+          number: 3,
+          state: "open",
+          reason: { issuedOn: "2026-10-06", total: 1500, authorizationCode: "74123456789012" },
+        },
+      ]);
       expect(await testDatabase.db.select().from(taxAuthorityLastAuthorizedNumbers)).toEqual([
         { pointOfSaleNumber: 7, lastAuthorized: 3, issuedOn: "2026-10-05", readAt: NOW },
       ]);
+      expect(await freezes()).toEqual([]);
+    });
+
+    it.each([
+      ["ARCA holds no voucher at the number", "fe-comp-consultar-not-found.xml"],
+      ["ARCA gives no answer about the number", "fe-comp-consultar-token-error.xml"],
+    ])(
+      "opens no alert and no task, keeps the freeze and asks again when %s",
+      async (_case, file) => {
+        await issueWsaaToken();
+        const registerId = await registerOfPointOfSale();
+        await freeze(1);
+        await recordRequest(registerId, 2, {
+          answerKind: "authorized",
+          authorizationCode: "74123456789012",
+          authorizationCodeDueOn: "2026-10-16",
+          answeredAt: ANSWERED_AT,
+        });
+        server.behave(answersInTurn("fe-comp-ultimo-autorizado-advanced.xml", file));
+        const { reconcile } = tasksUnderTest();
+        const { helpers, addJob } = buildJobHelpers();
+
+        await reconcile({ pointOfSale: 7 }, helpers);
+
+        expect(
+          (await testDatabase.db.select().from(alerts)).filter(
+            (alert) => alert.kind === "external_billing",
+          ),
+        ).toEqual([]);
+        expect(await testDatabase.db.select().from(fiscalTasks)).toEqual([]);
+        expect(await freezes()).toHaveLength(1);
+        expect(addJob).toHaveBeenCalledTimes(1);
+      },
+    );
+
+    it("requests a credit note for a released request ARCA authorized after all whose sale holds another authorized voucher, and lifts the freeze", async () => {
+      await issueWsaaToken();
+      const registerId = await registerOfPointOfSale();
+      await freeze(1);
+      await recordRequest(registerId, 2, {
+        answerKind: "authorized",
+        authorizationCode: "74123456789012",
+        authorizationCodeDueOn: "2026-10-16",
+        answeredAt: ANSWERED_AT,
+      });
+      const saleId = crypto.randomUUID();
+      await recordRequest(registerId, 3, { saleId });
+      await testDatabase.db
+        .update(fiscalRequests)
+        .set({
+          answerKind: "unclear",
+          unclearCodes: [],
+          answeredAt: ANSWERED_AT,
+          decision: "released",
+          decidedAt: ANSWERED_AT,
+        })
+        .where(eq(fiscalRequests.number, 3));
+      await recordRequest(registerId, 9, {
+        saleId,
+        answerKind: "authorized",
+        authorizationCode: "74123456789013",
+        authorizationCodeDueOn: "2026-10-16",
+        answeredAt: ANSWERED_AT,
+      });
+      server.behave(
+        answersInTurn("fe-comp-ultimo-autorizado-advanced.xml", "fe-comp-consultar-found.xml"),
+      );
+      const { reconcile } = tasksUnderTest();
+
+      await reconcile({ pointOfSale: 7 }, buildJobHelpers().helpers);
+
+      const creditNotes = await testDatabase.db.select().from(orphanCreditNotes);
+      expect(creditNotes).toMatchObject([
+        {
+          saleId,
+          pointOfSale: 7,
+          associatedVoucherType: 11,
+          associatedNumber: 3,
+          keptVoucherType: 11,
+          keptPointOfSale: 7,
+          keptNumber: 9,
+          total: 1500,
+          receiverTaxStatusCode: 5,
+          number: null,
+        },
+      ]);
+      expect(creditNotesRequested).toEqual([creditNotes[0]?.id]);
+      expect(await testDatabase.db.select().from(fiscalTasks)).toEqual([]);
       expect(await freezes()).toEqual([]);
     });
 

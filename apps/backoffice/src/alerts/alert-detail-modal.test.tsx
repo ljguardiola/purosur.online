@@ -1814,6 +1814,40 @@ test("tells that ARCA authorized a voucher no sale of the register justifies: it
   await expect.element(screen.getByRole("button", { name: "Cerrar la alerta" })).toBeEnabled();
 });
 
+test("tells that ARCA authorized a credit note C no credit note of the system justifies: its class and number and that it needs a review", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(
+    ok(
+      baseDetail({
+        kind: "external_billing",
+        level: "critical",
+        audience: "all",
+        scope: "12:credit_note_c:3",
+        scopeDisplay: "12:credit_note_c:3",
+        scopeKind: "pointOfSaleDocumentNumber",
+        closing: "by_hand",
+        detail: { pointOfSale: 12, documentType: "credit_note_c", number: 3 },
+      }),
+    ),
+  );
+
+  const screen = await renderModal(services, { access: accessWith("close_alerts_manually") });
+
+  await expect
+    .element(
+      screen.getByText(
+        "ARCA tiene autorizada la nota de crédito C 00012-00000003 de este punto de venta y ninguna nota de crédito emitida por el sistema la justifica. Revisar quién la emitió fuera del sistema.",
+        { exact: true },
+      ),
+    )
+    .toBeVisible();
+  await expect
+    .element(
+      screen.getByText("Punto de venta 00012 · Nota de crédito C · 00000003", { exact: true }),
+    )
+    .toBeVisible();
+});
+
 test("tells which register's clock was confirmed as correct, for which point of sale, between which readings and by whom", async () => {
   const services = createServices();
   vi.mocked(services.fetchAlert).mockResolvedValue(

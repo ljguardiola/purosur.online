@@ -178,6 +178,15 @@ describe("diagnoseNumberingConflict", () => {
     expect(store.freezeOf(12)).toBeUndefined();
   });
 
+  it("asks the tax authority about factura C vouchers", async () => {
+    const { taxAuthority, ports } = scenario();
+
+    await diagnose(ports);
+
+    expect(taxAuthority.lastAuthorizedTypesAsked).toEqual([11]);
+    expect(taxAuthority.voucherTypesAsked).toEqual([11]);
+  });
+
   it("reads the tax authority inside the point of sale's lane", async () => {
     const { store, taxAuthority, ports } = scenario();
 

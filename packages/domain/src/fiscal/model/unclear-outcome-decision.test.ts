@@ -392,3 +392,29 @@ describe("unclearOutcomeSince", () => {
     ).toBeNull();
   });
 });
+
+describe("a voucher type other than factura C", () => {
+  const CREDIT_NOTE_VOUCHER = { ...MATCHING_VOUCHER, documentType: 13 };
+
+  it("matches a voucher of that type and refuses one of another", () => {
+    expect(voucherMatchesDocument(CREDIT_NOTE_VOUCHER, DOCUMENT, 13)).toBe(true);
+    expect(voucherMatchesDocument(MATCHING_VOUCHER, DOCUMENT, 13)).toBe(false);
+    expect(voucherMatchesDocument(CREDIT_NOTE_VOUCHER, DOCUMENT)).toBe(false);
+  });
+
+  it("adopts a voucher of that type when deciding", () => {
+    expect(
+      decideUnclearOutcome({
+        abandonedAt: ABANDONED_AT,
+        now: SETTLED_AT,
+        document: DOCUMENT,
+        evidence: { kind: "voucher", voucher: CREDIT_NOTE_VOUCHER },
+        voucherType: 13,
+      }),
+    ).toEqual({
+      kind: "adopted",
+      authorizationCode: "75123456789012",
+      authorizationCodeDueOn: "2026-10-11",
+    });
+  });
+});
