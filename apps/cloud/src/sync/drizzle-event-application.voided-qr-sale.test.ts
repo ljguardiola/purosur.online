@@ -88,13 +88,13 @@ describe("applying a pushed voiding of a sale paid by Mercado Pago", () => {
     },
   );
 
-  it("records the refund as confirmed by the person who authorized the voiding", async () => {
+  it("records the refund as confirmed by the cashier even when another person authorized the voiding", async () => {
     await pushVoidedSale("QR", SUPERVISOR);
 
     await applyEverything();
 
     expect(await system.db.select().from(paymentRefunds)).toEqual([
-      expect.objectContaining({ confirmedBy: SUPERVISOR, confirmedAt: new Date(VOIDED_AT) }),
+      expect.objectContaining({ confirmedBy: CASHIER, confirmedAt: new Date(VOIDED_AT) }),
     ]);
   });
 
