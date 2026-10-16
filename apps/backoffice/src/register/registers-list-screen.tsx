@@ -350,10 +350,7 @@ export function RegistersListScreen({
       <RevokeRegisterModal
         target={revokeTarget}
         onClose={() => setRevokeTarget(null)}
-        onRevoked={() => {
-          setRevokeTarget(null);
-          void refreshRegisters();
-        }}
+        onRevoked={() => void refreshRegisters()}
         onOutdated={() => void refreshRegisters()}
         onSessionEnded={onSessionEnded}
         services={services}

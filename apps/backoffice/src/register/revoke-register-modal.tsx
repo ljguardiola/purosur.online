@@ -94,6 +94,9 @@ export function RevokeRegisterModal({
       return;
     }
     if (outcome.kind === "ok") {
+      if (sameOpening) {
+        onClose();
+      }
       onRevoked();
     } else if (outcome.kind === "unauthenticated") {
       onSessionEnded();
