@@ -1,12 +1,5 @@
 import type { CorrectRegisterClockOutcome } from "@purosur/contracts";
-import {
-  Button,
-  formatDayAndTime,
-  HighlightedNotice,
-  InlineNotice,
-  Modal,
-  SummaryRowGroup,
-} from "@purosur/ui";
+import { Button, formatDayAndTime, InlineNotice, Modal, SummaryRowGroup } from "@purosur/ui";
 import { ArrowLeft, Check, Clock, Info, TriangleAlert } from "lucide-react";
 import { useRef, useState } from "react";
 import { lastDocumentOf, modalEyebrow } from "./clock-guard-text";
@@ -139,14 +132,13 @@ export function CorrectRegisterClockModal({
           <li>Si la hora de la caja es la correcta, confirmalo acá abajo.</li>
         </ol>
         {used ? (
-          <HighlightedNotice
+          <InlineNotice
             tone="warning"
             icon={<TriangleAlert />}
             title={`Ya se confirmó la hora ${period}`}
-            description="Si la hora sigue mal, corregila en Windows."
           />
         ) : (
-          <HighlightedNotice
+          <InlineNotice
             tone="info"
             icon={<Info />}
             title={
@@ -154,7 +146,6 @@ export function CorrectRegisterClockModal({
                 ? "Se puede confirmar una sola vez por sesión de caja"
                 : "Se puede confirmar una sola vez hasta la próxima apertura de caja"
             }
-            description="Si la hora vuelve a atrasar, corregila en Windows."
           />
         )}
         {refusal === undefined ? null : (

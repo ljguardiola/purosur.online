@@ -53,7 +53,7 @@ export function ClockGuardOffer({
           correctRegisterClock={correctRegisterClock}
           onCorrected={() => {
             setCorrecting(undefined);
-            void refresh().then(() => setConfirmed(true));
+            void refresh().then((refreshed) => setConfirmed(refreshed?.blocks.length === 0));
           }}
           onRefused={() => void refresh()}
           onSessionInvalid={onSessionInvalid}
@@ -65,11 +65,7 @@ export function ClockGuardOffer({
           tone="success"
           icon={<Check />}
           title="La hora de la caja quedó confirmada"
-          description={
-            guard.status === "loaded" && guard.value.blocks.length === 0
-              ? "Las facturas se emiten de nuevo."
-              : "Todavía no se emiten facturas."
-          }
+          description="Las facturas se emiten de nuevo."
           onDismiss={() => setConfirmed(false)}
         />
       ) : null}

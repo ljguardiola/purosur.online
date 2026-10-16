@@ -23,7 +23,10 @@ export function useClockGuardQuery(
   });
 }
 
-export function useRefreshClockGuard(): () => Promise<void> {
+export function useRefreshClockGuard(): () => Promise<ShownClockGuard | undefined> {
   const queryClient = useQueryClient();
-  return () => queryClient.invalidateQueries({ queryKey: fiscalKeys.clockGuard });
+  return async () => {
+    await queryClient.invalidateQueries({ queryKey: fiscalKeys.clockGuard });
+    return queryClient.getQueryData<ShownClockGuard>(fiscalKeys.clockGuard);
+  };
 }
