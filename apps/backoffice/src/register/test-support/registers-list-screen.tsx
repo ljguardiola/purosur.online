@@ -18,6 +18,7 @@ export function createServices(
     assignPointTerminal: vi.fn(),
     emitEnrollmentCode: vi.fn(),
     revokeRegister: vi.fn(),
+    revokeEveryInstallation: vi.fn(),
     fetchSessionAuthorizationOptions: vi.fn(),
     authorizeSession: vi.fn(),
     startAuthentication: vi.fn(),
