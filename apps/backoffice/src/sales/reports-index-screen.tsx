@@ -1,6 +1,6 @@
 import { LinkListCard, LinkListRow } from "@purosur/ui";
 import { createLink } from "@tanstack/react-router";
-import { Banknote, ShoppingBag } from "lucide-react";
+import { ShoppingBag, Wallet } from "lucide-react";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTopBar } from "../shell/screen-top-bar";
 
@@ -19,7 +19,7 @@ export function ReportsIndexScreen() {
         <ReportRow to="/reports/sales-by-cashier" label="Ventas por cajero" />
         <ReportRow to="/reports/average-ticket" label="Ticket promedio" />
       </LinkListCard>
-      <LinkListCard title="Caja" icon={<Banknote />}>
+      <LinkListCard title="Caja" icon={<Wallet />}>
         <ReportRow to="/reports/hand-confirmed-payments" label="Pagos confirmados a mano" />
       </LinkListCard>
     </ScreenLayout>

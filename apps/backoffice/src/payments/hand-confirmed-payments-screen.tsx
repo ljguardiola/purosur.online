@@ -11,7 +11,7 @@ import {
   TableCellText,
   useTableModel,
 } from "@purosur/ui";
-import { Banknote } from "lucide-react";
+import { Wallet } from "lucide-react";
 import { useId } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { paymentMethodLabel } from "../platform/payment-method-label";
@@ -244,7 +244,7 @@ export function HandConfirmedPaymentsScreen({
           table={cashiersTable}
           {...cloudTableState(data, "los pagos confirmados a mano por cajero")}
           empty={{
-            icon: <Banknote />,
+            icon: <Wallet />,
             title: "No hay pagos por cajero en este período",
             variant: filtered ? "filtered" : "blank",
           }}
@@ -259,7 +259,7 @@ export function HandConfirmedPaymentsScreen({
           table={paymentsTable}
           {...cloudTableState(data, "los pagos confirmados a mano")}
           empty={{
-            icon: <Banknote />,
+            icon: <Wallet />,
             title: "No hay pagos confirmados a mano en este período",
             variant: filtered ? "filtered" : "blank",
           }}

@@ -1,5 +1,5 @@
 import { createRoute, Outlet, useMatchRoute } from "@tanstack/react-router";
-import { Banknote, ChartColumn, List, Package, Receipt, Users, Wallet } from "lucide-react";
+import { ChartColumn, List, Package, Receipt, Users, Wallet } from "lucide-react";
 import { AreaLayout, SectionLink } from "./area-layout";
 import { signedInRoute } from "./signed-in-route";
 
@@ -60,7 +60,7 @@ function ReportsArea() {
               <SectionLink
                 to="/reports/hand-confirmed-payments"
                 label="Pagos confirmados a mano"
-                icon={<Banknote />}
+                icon={<Wallet />}
                 search={handConfirmedPaymentsShown ? true : {}}
                 active={handConfirmedPaymentsShown}
               />
