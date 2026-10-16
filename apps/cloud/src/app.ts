@@ -138,6 +138,10 @@ import { registerRegisterCoverageRoute } from "./register/register-coverage-rout
 import { registerRegisterCreationRoute } from "./register/register-creation-route.js";
 import { registerRegisterEnrollmentCodeRoute } from "./register/register-enrollment-code-route.js";
 import {
+  type RegisterRevocationRouteOptions,
+  registerRegisterRevocationRoute,
+} from "./register/register-revocation-route.js";
+import {
   type RegisterSnapshotUrls,
   registerRegisterSnapshotRoutes,
 } from "./register/register-snapshot-routes.js";
@@ -234,6 +238,7 @@ export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = Postgre
   discounts?: WithoutClock<DiscountsRouteOptions<TQueryResult>>;
   registers?: WithoutClock<RegistersRouteOptions<TQueryResult>>;
   snapshotBackups?: WithoutClock<SnapshotBackupsRouteOptions<TQueryResult>>;
+  registerRevocations?: WithoutClock<RegisterRevocationRouteOptions<TQueryResult>>;
   registersPointsOfSale?: WithoutClock<RegistersPointsOfSaleRouteOptions<TQueryResult>>;
   stock?: WithoutClock<StockRouteOptions<TQueryResult>>;
   salesReports?: WithoutClock<SalesReportRouteOptions<TQueryResult>>;
@@ -328,6 +333,10 @@ export function databaseRouteOptions<TQueryResult extends PgQueryResultHKT>(
     discounts: backoffice,
     registers: backoffice,
     snapshotBackups: { ...backoffice, keysEncryptionKey: wiring.installationKeysEncryptionKey },
+    registerRevocations: {
+      ...backoffice,
+      keysEncryptionKey: wiring.installationKeysEncryptionKey,
+    },
     registersPointsOfSale: wiring.enqueueTaxAuthorityCount
       ? { ...backoffice, enqueueTaxAuthorityCount: wiring.enqueueTaxAuthorityCount }
       : backoffice,
@@ -626,6 +635,10 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
 
       if (options.snapshotBackups) {
         registerSnapshotBackupsRoutes(api, { ...options.snapshotBackups, now });
+      }
+
+      if (options.registerRevocations) {
+        registerRegisterRevocationRoute(api, { ...options.registerRevocations, now });
       }
 
       if (options.registersPointsOfSale) {
