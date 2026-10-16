@@ -36,8 +36,7 @@ export class DrizzleTaxAuthorityCounts<TQueryResult extends PgQueryResultHKT>
           set: {
             lastAuthorized: sql`greatest(${taxAuthorityLastAuthorizedNumbers.lastAuthorized}, excluded.last_authorized)`,
             issuedOn: sql`case
-              when excluded.last_authorized > ${taxAuthorityLastAuthorizedNumbers.lastAuthorized} then excluded.issued_on
-              when excluded.last_authorized = ${taxAuthorityLastAuthorizedNumbers.lastAuthorized} then coalesce(excluded.issued_on, ${taxAuthorityLastAuthorizedNumbers.issuedOn})
+              when excluded.last_authorized >= ${taxAuthorityLastAuthorizedNumbers.lastAuthorized} then coalesce(excluded.issued_on, ${taxAuthorityLastAuthorizedNumbers.issuedOn})
               else ${taxAuthorityLastAuthorizedNumbers.issuedOn}
             end`,
             readAt,
