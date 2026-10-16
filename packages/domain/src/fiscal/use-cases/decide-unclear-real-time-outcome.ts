@@ -53,10 +53,7 @@ async function regularizationOf(
   verdict: UnclearOutcomeDecision,
   evidence: TaxAuthorityEvidence,
 ): Promise<OrphanRegularization | null> {
-  if (
-    evidence.kind !== "voucher" ||
-    (verdict.kind !== "adopted" && verdict.kind !== "conflicting")
-  ) {
+  if (evidence.kind !== "voucher") {
     return null;
   }
   const { pointOfSale, number, saleId, fiscalDocumentId } = request;
