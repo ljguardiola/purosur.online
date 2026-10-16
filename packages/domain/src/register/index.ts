@@ -45,8 +45,10 @@ export { cashBreakdown, expectedCash } from "./model/expected-cash.js";
 export {
   hasDistinctKeyVersions,
   INSTALLATION_KEY_BYTES,
+  isHeldSnapshotKeyOutdated,
   isWellFormedInstallationKey,
   latestKey,
+  latestKeyVersion,
 } from "./model/installation-key.js";
 export {
   INSTALLATION_REPORT_MAX_LENGTH,
@@ -119,6 +121,8 @@ export {
 } from "./model/snapshot-generation.js";
 export type { SnapshotLifecycleRules } from "./model/snapshot-lifecycle-rules.js";
 export { SNAPSHOT_LIFECYCLE_LIMITS } from "./model/snapshot-lifecycle-rules.js";
+export type { SnapshotLocation } from "./model/snapshot-location.js";
+export { SNAPSHOT_LOCATIONS } from "./model/snapshot-location.js";
 export type { DiskStanding, StorageSalesStop, StorageStanding } from "./model/storage.js";
 export {
   diskStanding,

@@ -39,6 +39,21 @@ describe("mainToCoreMessageSchema", () => {
     },
   );
 
+  it("accepts the notice that a snapshot worker exited after the cloud announced a key version", () => {
+    const message = { type: "snapshot-worker-exited", latest_announced_key_version: 3 };
+
+    expect(mainToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each([0, -1, 1.5, "3"])("refuses an announced key version of %j", (version) => {
+    expect(
+      mainToCoreMessageSchema.safeParse({
+        type: "snapshot-worker-exited",
+        latest_announced_key_version: version,
+      }).success,
+    ).toBe(false);
+  });
+
   it("refuses a copy failure at a stage that does not exist", () => {
     expect(
       mainToCoreMessageSchema.safeParse({

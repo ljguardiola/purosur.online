@@ -124,7 +124,17 @@ describe("snapshotWorkerMessageSchema", () => {
     },
   );
 
+  it("reads the message that the cloud announced a key version", () => {
+    const message = { type: "snapshot-key-version-announced", version: 3 };
+
+    expect(snapshotWorkerMessageSchema.parse(message)).toEqual(message);
+  });
+
   it.each([
+    { type: "snapshot-key-version-announced" },
+    { type: "snapshot-key-version-announced", version: 0 },
+    { type: "snapshot-key-version-announced", version: 1.5 },
+    { type: "snapshot-key-version-announced", version: 3, extra: 1 },
     { type: "snapshot-copy-failed", stage: "backup" },
     { type: "snapshot-copy-failed" },
     { type: "snapshot-copy-failed", stage: "copy", extra: 1 },

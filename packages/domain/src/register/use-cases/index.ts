@@ -41,6 +41,11 @@ export type {
   OpenSale,
   RegisterIdentity,
 } from "./cash-ledger.js";
+export type {
+  ChangeSnapshotLifecycleRulesInput,
+  ChangeSnapshotLifecycleRulesOutcome,
+} from "./change-snapshot-lifecycle-rules.js";
+export { changeSnapshotLifecycleRules } from "./change-snapshot-lifecycle-rules.js";
 export { checkLocalDatabase } from "./check-local-database.js";
 export type {
   CloseCashSessionGrant,
@@ -51,6 +56,12 @@ export type {
 export { closeCashSession } from "./close-cash-session.js";
 export type { CreateRegisterInput, CreateRegisterOutcome } from "./create-register.js";
 export { createRegister } from "./create-register.js";
+export type {
+  CurrentSnapshotKeyVersionInput,
+  CurrentSnapshotKeyVersionOutcome,
+  CurrentSnapshotKeyVersionPorts,
+} from "./current-snapshot-key-version.js";
+export { currentSnapshotKeyVersion } from "./current-snapshot-key-version.js";
 export type {
   EmitEnrollmentCodeInput,
   EmitEnrollmentCodeOutcome,
@@ -125,6 +136,12 @@ export type {
 } from "./record-snapshot-copy-failure.js";
 export { recordSnapshotCopyFailure } from "./record-snapshot-copy-failure.js";
 export type {
+  RecordSnapshotGenerationsOnDiskInput,
+  RecordSnapshotGenerationsOnDiskOutcome,
+  RecordSnapshotGenerationsOnDiskPorts,
+} from "./record-snapshot-generations-on-disk.js";
+export { recordSnapshotGenerationsOnDisk } from "./record-snapshot-generations-on-disk.js";
+export type {
   RecordSnapshotUploadedInput,
   RecordSnapshotUploadedOutcome,
   RecordSnapshotUploadedPorts,
@@ -136,6 +153,14 @@ export type {
   RegisterSerialDevicesPorts,
 } from "./register-serial-devices.js";
 export { registerSerialDevices } from "./register-serial-devices.js";
+export type {
+  RegisterSnapshotBackupsOutcome,
+  SnapshotBackupGeneration,
+} from "./register-snapshot-backups.js";
+export {
+  listSnapshotBackupRegisters,
+  registerSnapshotBackups,
+} from "./register-snapshot-backups.js";
 export type {
   DeviceTokenIssuer,
   DeviceTokenRotationPorts,
@@ -177,6 +202,11 @@ export type {
 } from "./rotate-device-token.js";
 export { rotateDeviceToken } from "./rotate-device-token.js";
 export type {
+  RotateRegisterSnapshotKeyInput,
+  RotateRegisterSnapshotKeyOutcome,
+} from "./rotate-register-snapshot-key.js";
+export { rotateRegisterSnapshotKey } from "./rotate-register-snapshot-key.js";
+export type {
   RunSnapshotCycleInput,
   RunSnapshotCycleOutcome,
   RunSnapshotCyclePorts,
@@ -198,6 +228,13 @@ export type {
   SetReceiptPrinterAddressPorts,
 } from "./set-receipt-printer-address.js";
 export { setReceiptPrinterAddress } from "./set-receipt-printer-address.js";
+export type {
+  ListSnapshotBackupRegistersPorts,
+  RegisterSnapshotBackupsPorts,
+  SnapshotBackupGenerationFacts,
+  SnapshotBackupRegister,
+  SnapshotBackupsReader,
+} from "./snapshot-backups-read-ports.js";
 export type {
   SnapshotCorruptionCloud,
   SnapshotCorruptionReports,
@@ -230,6 +267,22 @@ export {
   SnapshotGenerationIdTaken,
   SnapshotUploadWindowClosed,
 } from "./snapshot-generations.js";
+export type {
+  RotateRegisterSnapshotKeyPorts,
+  SnapshotKeyRotation,
+  SnapshotKeyRotationStore,
+  SnapshotKeyRotationStoreTransaction,
+} from "./snapshot-key-rotation-ports.js";
+export type {
+  ChangeSnapshotLifecycleRulesPorts,
+  SnapshotLifecycleRulesChange,
+  SnapshotLifecycleRulesStore,
+  SnapshotLifecycleRulesStoreTransaction,
+} from "./snapshot-lifecycle-rules-ports.js";
+export type {
+  SnapshotDiskStore,
+  SnapshotDiskStoreTransaction,
+} from "./snapshot-on-disk-ports.js";
 export type {
   LocalSnapshotGenerations,
   SnapshotCloudStep,

@@ -4,6 +4,7 @@ import {
   getFromCloud,
   postToCloud,
   postToCloudWithBearer,
+  putToCloudWithBearer,
 } from "./cloud-client";
 
 const CLOUD_URL = "https://staging.purosur.online";
@@ -363,6 +364,34 @@ describe("a call that asks for a time limit and a single attempt", () => {
 
     expect(
       await postToCloudWithBearer(deps, "/api/fiscal/authorize", "t", {}, SINGLE_ATTEMPT),
+    ).toEqual({ kind: "unreachable" });
+  });
+});
+
+describe("putToCloudWithBearer", () => {
+  it("puts the body as JSON to the path with the token as a bearer credential", async () => {
+    const { deps, requests } = clientAnswering(new Response(null, { status: 204 }));
+
+    const response = await putToCloudWithBearer(
+      deps,
+      "/api/devices/current/snapshots/on-disk",
+      "prefix.secret",
+      { generation_ids: ["g1"] },
+    );
+
+    expect(response).toEqual({ kind: "ok", body: undefined });
+    expect(requests[0]?.url).toBe(`${CLOUD_URL}/api/devices/current/snapshots/on-disk`);
+    expect(requests[0]?.method).toBe("PUT");
+    expect(requests[0]?.headers.get("authorization")).toBe("Bearer prefix.secret");
+    expect(requests[0]?.headers.get("content-type")).toBe("application/json");
+    expect(await requests[0]?.json()).toEqual({ generation_ids: ["g1"] });
+  });
+
+  it("answers an unreachable cloud as unreachable", async () => {
+    const { deps } = clientAnswering(new TypeError("fetch failed"));
+
+    expect(
+      await putToCloudWithBearer(deps, "/api/devices/current/snapshots/on-disk", "t", {}),
     ).toEqual({ kind: "unreachable" });
   });
 });

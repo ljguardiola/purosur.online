@@ -1,5 +1,5 @@
 {
-  "id": "dabfcb61-c2e5-4e49-99b9-4dda964e0a70",
+  "id": "41386527-211b-43cd-a43e-0f8184aac22b",
   "prevId": "a9dae76a-fa01-475c-aa4a-0db44643e615",
   "version": "7",
   "dialect": "postgresql",
@@ -1718,138 +1718,6 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.clock_corrections": {
-      "name": "clock_corrections",
-      "schema": "",
-      "columns": {
-        "event_id": {
-          "name": "event_id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "register_id": {
-          "name": "register_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "point_of_sale": {
-          "name": "point_of_sale",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "document_type": {
-          "name": "document_type",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "previous_reading": {
-          "name": "previous_reading",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "corrected_reading": {
-          "name": "corrected_reading",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "actor_id": {
-          "name": "actor_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "corrected_at": {
-          "name": "corrected_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "alert_id": {
-          "name": "alert_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "recorded_at": {
-          "name": "recorded_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {
-        "clock_corrections_register_corrected_at_idx": {
-          "name": "clock_corrections_register_corrected_at_idx",
-          "columns": [
-            {
-              "expression": "register_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "corrected_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "clock_corrections_register_id_registers_id_fk": {
-          "name": "clock_corrections_register_id_registers_id_fk",
-          "tableFrom": "clock_corrections",
-          "tableTo": "registers",
-          "columnsFrom": ["register_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "clock_corrections_actor_id_users_id_fk": {
-          "name": "clock_corrections_actor_id_users_id_fk",
-          "tableFrom": "clock_corrections",
-          "tableTo": "users",
-          "columnsFrom": ["actor_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "clock_corrections_alert_id_alerts_id_fk": {
-          "name": "clock_corrections_alert_id_alerts_id_fk",
-          "tableFrom": "clock_corrections",
-          "tableTo": "alerts",
-          "columnsFrom": ["alert_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "clock_corrections_document_type_known": {
-          "name": "clock_corrections_document_type_known",
-          "value": "\"clock_corrections\".\"document_type\" in ('factura_c')"
-        },
-        "clock_corrections_lowers_the_reading": {
-          "name": "clock_corrections_lowers_the_reading",
-          "value": "\"clock_corrections\".\"corrected_reading\" < \"clock_corrections\".\"previous_reading\""
-        }
-      },
       "isRLSEnabled": false
     },
     "public.device_state": {
@@ -7115,6 +6983,13 @@
           "primaryKey": false,
           "notNull": true,
           "default": false
+        },
+        "on_register_disk": {
+          "name": "on_register_disk",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
         }
       },
       "indexes": {
@@ -9071,12 +8946,6 @@
           "type": "integer",
           "primaryKey": false,
           "notNull": true
-        },
-        "issued_on": {
-          "name": "issued_on",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": false
         },
         "read_at": {
           "name": "read_at",

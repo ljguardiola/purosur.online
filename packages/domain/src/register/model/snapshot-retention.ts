@@ -42,6 +42,48 @@ function newestOfEachBucket(
   return [...kept.values()];
 }
 
+const SNAPSHOT_RETENTION_TIERS = ["recent", "hourly", "daily", "monthly"] as const;
+
+export type SnapshotRetentionTier = (typeof SNAPSHOT_RETENTION_TIERS)[number];
+
+export type SnapshotRetentionTiers = Record<SnapshotRetentionTier, string[]>;
+
+export function snapshotRetentionTiers(
+  generations: readonly RetainableSnapshotGeneration[],
+  rules: SnapshotLifecycleRules,
+  now: Date,
+): SnapshotRetentionTiers {
+  const byNewest = generations
+    .filter((generation) => generation.status === "verified")
+    .sort(newestFirst);
+
+  const currentHour = hourOf(now);
+  const today = argentinaCalendarDay(now);
+  const keptDays = new Set(
+    Array.from({ length: rules.daily }, (_, back) => shiftCalendarDay(today, -back)),
+  );
+  const currentMonth = monthOf(today);
+
+  return {
+    recent: byNewest.slice(0, SNAPSHOT_RECENT_GENERATIONS).map((generation) => generation.id),
+    hourly: newestOfEachBucket(
+      byNewest,
+      (generation) => hourOf(generation.createdAt),
+      (hour) => typeof hour === "number" && hour > currentHour - rules.hourly,
+    ),
+    daily: newestOfEachBucket(
+      byNewest,
+      (generation) => argentinaCalendarDay(generation.createdAt),
+      (day) => keptDays.has(String(day)),
+    ),
+    monthly: newestOfEachBucket(
+      byNewest,
+      (generation) => monthOf(argentinaCalendarDay(generation.createdAt)),
+      (month) => typeof month === "number" && month > currentMonth - rules.monthly,
+    ),
+  };
+}
+
 export function snapshotGenerationsToPrune(
   generations: readonly RetainableSnapshotGeneration[],
   rules: SnapshotLifecycleRules,
@@ -51,34 +93,8 @@ export function snapshotGenerationsToPrune(
   if (retentionFrozen) {
     return [];
   }
-  const verified = generations.filter((generation) => generation.status === "verified");
-  const byNewest = [...verified].sort(newestFirst);
-
-  const currentHour = hourOf(now);
-  const today = argentinaCalendarDay(now);
-  const keptDays = new Set(
-    Array.from({ length: rules.daily }, (_, back) => shiftCalendarDay(today, -back)),
-  );
-  const currentMonth = monthOf(today);
-
-  const kept = new Set<string>([
-    ...byNewest.slice(0, SNAPSHOT_RECENT_GENERATIONS).map((generation) => generation.id),
-    ...newestOfEachBucket(
-      byNewest,
-      (generation) => hourOf(generation.createdAt),
-      (hour) => typeof hour === "number" && hour > currentHour - rules.hourly,
-    ),
-    ...newestOfEachBucket(
-      byNewest,
-      (generation) => argentinaCalendarDay(generation.createdAt),
-      (day) => keptDays.has(String(day)),
-    ),
-    ...newestOfEachBucket(
-      byNewest,
-      (generation) => monthOf(argentinaCalendarDay(generation.createdAt)),
-      (month) => typeof month === "number" && month > currentMonth - rules.monthly,
-    ),
-  ]);
+  const tiers = snapshotRetentionTiers(generations, rules, now);
+  const kept = new Set<string>(SNAPSHOT_RETENTION_TIERS.flatMap((tier) => tiers[tier]));
 
   return generations
     .filter(

@@ -59,7 +59,34 @@ describe("cloudSnapshotUploads", () => {
           },
         },
       ]);
-      expect(answer).toEqual({ kind: "accepted", authorization: DESTINATION });
+      expect(answer).toEqual({
+        kind: "accepted",
+        authorization: DESTINATION,
+        currentKeyVersion: 2,
+      });
+    });
+
+    it("carries the key version the cloud announced as the register's current one", async () => {
+      cloud.onDeclare = () =>
+        Response.json({
+          upload_url: DESTINATION.url,
+          required_headers: DESTINATION.headers,
+          expires_at: "2026-10-15T12:15:00.000Z",
+          current_key_version: 5,
+        });
+
+      expect(await uploads().declare(GENERATION)).toMatchObject({ currentKeyVersion: 5 });
+    });
+
+    it("fails the declaration when the answer announces no key version", async () => {
+      cloud.onDeclare = () =>
+        Response.json({
+          upload_url: DESTINATION.url,
+          required_headers: DESTINATION.headers,
+          expires_at: "2026-10-15T12:15:00.000Z",
+        });
+
+      expect(await uploads().declare(GENERATION)).toEqual({ kind: "failed" });
     });
 
     it("answers the code the cloud refused the declaration with", async () => {
@@ -166,6 +193,7 @@ describe("uploadPendingGenerations", () => {
     expect(outcome).toEqual({
       kind: "every_pending_tried",
       tally: { uploaded: 1, refused: 0, failed: 0 },
+      latestAnnouncedKeyVersion: 2,
     });
     expect(cloud.calls.map((call) => call.kind)).toEqual(["declare", "put", "uploaded"]);
     expect(await readManifests(folder)).toEqual([{ ...manifest, uploaded_at: NOW.toISOString() }]);

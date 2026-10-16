@@ -1,5 +1,5 @@
 import type { Clock } from "../../shared/index.js";
-import { DEFAULT_SNAPSHOT_LIFECYCLE_RULES } from "../model/snapshot-lifecycle-rules.js";
+import { snapshotLifecycleRulesOrDefault } from "../model/snapshot-lifecycle-rules.js";
 import { snapshotGenerationsToPrune } from "../model/snapshot-retention.js";
 import type {
   RegisterSnapshotLanes,
@@ -36,7 +36,7 @@ async function retainRegisterSnapshots(
     if (await tx.retentionFrozen(registerId)) {
       return undefined;
     }
-    const rules = (await tx.lifecycleRules()) ?? DEFAULT_SNAPSHOT_LIFECYCLE_RULES;
+    const rules = snapshotLifecycleRulesOrDefault(await tx.lifecycleRules());
     const generations = (await tx.generationsOf(registerId)).filter(
       (generation) => !generation.pruned,
     );

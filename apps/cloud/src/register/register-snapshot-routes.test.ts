@@ -154,6 +154,22 @@ describe.each(ROUTES)("%s %s", (method, url, payload) => {
 });
 
 describe("POST /devices/current/snapshots", () => {
+  it("announces the register's latest key version when the declaration used an older one", async () => {
+    const installation = await enrolled();
+    await keyStore(db).transaction((tx) =>
+      tx.recordSnapshotKey(installation.registerId, { version: 2, key: "key-2" }),
+    );
+    build();
+
+    const response = await call("POST", "/devices/current/snapshots", {
+      authorization: `Bearer ${installation.deviceToken}`,
+      payload: BODY,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(snapshotUploadAnswerSchema.parse(response.json()).current_key_version).toBe(2);
+  });
+
   it("authorizes the upload, recording the generation as declared at the cloud's time", async () => {
     const installation = await enrolled();
     build();
@@ -168,6 +184,7 @@ describe("POST /devices/current/snapshots", () => {
       upload_url: `https://bucket.example.test/snapshots/${installation.registerId}/${GENERATION_ID}?sig=up`,
       required_headers: { "x-amz-meta-key-version": "1" },
       expires_at: "2026-10-14T15:15:00.000Z",
+      current_key_version: 1,
     });
     expect(await db.select().from(registerSnapshotGenerations)).toMatchObject([
       {
@@ -180,6 +197,20 @@ describe("POST /devices/current/snapshots", () => {
         keyVersion: 1,
         status: "declared",
       },
+    ]);
+  });
+
+  it("records the declared generation as held on the register's disk", async () => {
+    const installation = await enrolled();
+    build();
+
+    await call("POST", "/devices/current/snapshots", {
+      authorization: `Bearer ${installation.deviceToken}`,
+      payload: BODY,
+    });
+
+    expect(await db.select().from(registerSnapshotGenerations)).toMatchObject([
+      { id: GENERATION_ID, onRegisterDisk: true },
     ]);
   });
 
