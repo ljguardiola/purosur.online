@@ -1,3 +1,10 @@
+import {
+  CREDIT_NOTE_C_VOUCHER_TYPE,
+  creditNoteIssueDate,
+  mayTakeCreditNoteNumber,
+  nextCreditNoteNumber,
+  settleUnclearCreditNote,
+} from "../model/credit-note.js";
 import type { TaxAuthorityRejection } from "../model/fiscal-rejection-standing.js";
 import {
   CREDIT_NOTE_C_DOCUMENT_TYPE,
@@ -5,31 +12,24 @@ import {
   externalInvoicingTask,
 } from "../model/fiscal-task.js";
 import {
-  CREDIT_NOTE_C_VOUCHER_TYPE,
-  creditNoteIssueDate,
-  mayTakeCreditNoteNumber,
-  nextCreditNoteNumber,
-  settleUnclearCreditNote,
-} from "../model/orphan-credit-note.js";
-import {
   hasUnclearOutcomeSettled,
   UNCLEAR_OUTCOME_REASK_INTERVAL_MS,
   unclearOutcomeSettlesAt,
 } from "../model/unclear-outcome-decision.js";
 import { solicitationAnswerOf, solicitationRejections } from "./authorize-fiscal-document.js";
-import type { SolicitationAnswer } from "./fiscal-document-authorization-ports.js";
 import {
+  type CreditNoteLane,
   CreditNoteNumberTaken,
-  type IssueOrphanCreditNotePorts,
-  type OrphanCreditNoteLane,
-} from "./orphan-credit-note-ports.js";
+  type IssueCreditNotePorts,
+} from "./credit-note-ports.js";
+import type { SolicitationAnswer } from "./fiscal-document-authorization-ports.js";
 import { taxAuthorityEvidenceOf } from "./tax-authority-evidence.js";
 
-export interface IssueOrphanCreditNoteInput {
+export interface IssueCreditNoteInput {
   creditNoteId: string;
 }
 
-export type IssueOrphanCreditNoteOutcome =
+export type IssueCreditNoteOutcome =
   | {
       kind: "authorized";
       number: number;
@@ -43,18 +43,18 @@ export type IssueOrphanCreditNoteOutcome =
   | { kind: "retry"; askAgainAt: Date }
   | { kind: "not_found" };
 
-export async function issueOrphanCreditNote(
-  ports: IssueOrphanCreditNotePorts,
-  { creditNoteId }: IssueOrphanCreditNoteInput,
-): Promise<IssueOrphanCreditNoteOutcome> {
+export async function issueCreditNote(
+  ports: IssueCreditNotePorts,
+  { creditNoteId }: IssueCreditNoteInput,
+): Promise<IssueCreditNoteOutcome> {
   const { requests, lanes, clock, tokens, taxAuthority, creditNotes } = ports;
   const pointOfSale = await requests.pointOfSaleOf(creditNoteId);
   if (pointOfSale === null) {
     return { kind: "not_found" };
   }
 
-  return lanes.inPointOfSaleLane<IssueOrphanCreditNoteOutcome>(pointOfSale, async (lane) => {
-    const creditNote = await lane.orphanCreditNote(creditNoteId);
+  return lanes.inPointOfSaleLane<IssueCreditNoteOutcome>(pointOfSale, async (lane) => {
+    const creditNote = await lane.creditNote(creditNoteId);
     if (creditNote === null) {
       return { kind: "not_found" };
     }
@@ -66,7 +66,7 @@ export async function issueOrphanCreditNote(
       return { kind: "already_rejected" };
     }
 
-    const retryLater = (): IssueOrphanCreditNoteOutcome => ({
+    const retryLater = (): IssueCreditNoteOutcome => ({
       kind: "retry",
       askAgainAt: new Date(clock.now().getTime() + UNCLEAR_OUTCOME_REASK_INTERVAL_MS),
     });
@@ -181,7 +181,7 @@ export async function issueOrphanCreditNote(
 }
 
 async function recordAnswer(
-  lane: OrphanCreditNoteLane,
+  lane: CreditNoteLane,
   {
     creditNoteId,
     pointOfSale,
@@ -195,7 +195,7 @@ async function recordAnswer(
     solicitation: SolicitationAnswer;
     answeredAt: Date;
   },
-): Promise<IssueOrphanCreditNoteOutcome> {
+): Promise<IssueCreditNoteOutcome> {
   const answer = solicitationAnswerOf(solicitation);
   if (answer.kind === "authorized") {
     const { authorizationCode, authorizationCodeDueOn } = answer;

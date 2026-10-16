@@ -20,6 +20,7 @@ export {
 export type { ClockCorrectedFact, ClockCorrectionAlertState } from "./model/clock-correction.js";
 export { CLOCK_CORRECTED_EVENT_TYPE, clockCorrectedEvent } from "./model/clock-correction.js";
 export { selectConsumerBuyerTaxStatus } from "./model/consumer-buyer-tax-status.js";
+export { CREDIT_NOTE_C_VOUCHER_TYPE } from "./model/credit-note.js";
 export { isValidCuit } from "./model/cuit.js";
 export type {
   DeferredSale,
@@ -130,7 +131,6 @@ export {
   nextOfflineNumber,
   OFFLINE_NUMBER_BLOCK_STATUSES,
 } from "./model/offline-number-block.js";
-export { CREDIT_NOTE_C_VOUCHER_TYPE } from "./model/orphan-credit-note.js";
 export {
   isPointOfSaleNumber,
   POINT_OF_SALE_NUMBER_MAX,

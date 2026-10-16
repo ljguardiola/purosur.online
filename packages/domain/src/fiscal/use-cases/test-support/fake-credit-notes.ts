@@ -2,21 +2,21 @@ import type { TaxAuthorityRejection } from "../../model/fiscal-rejection-standin
 import type { FiscalTask } from "../../model/fiscal-task.js";
 import type { ExternalInvoicingRegularization } from "../../model/orphan-authorization.js";
 import type {
+  CreditNote,
+  CreditNoteAuthorizationRecord,
+  CreditNoteLane,
+  CreditNoteLanes,
+  CreditNoteRejectionRecord,
+  CreditNoteRequestRecord,
+  CreditNoteRequests,
+  CreditNoteSolicitation,
+  CreditNoteStanding,
+  TaxAuthorityCreditNoteInvoicing,
+} from "../credit-note-ports.js";
+import type {
   SolicitationAnswer,
   WsaaTokenSource,
 } from "../fiscal-document-authorization-ports.js";
-import type {
-  CreditNoteAuthorizationRecord,
-  CreditNoteRejectionRecord,
-  CreditNoteRequestRecord,
-  CreditNoteSolicitation,
-  CreditNoteStanding,
-  OrphanCreditNote,
-  OrphanCreditNoteLane,
-  OrphanCreditNoteLanes,
-  OrphanCreditNoteRequests,
-  TaxAuthorityCreditNoteInvoicing,
-} from "../orphan-credit-note-ports.js";
 import type {
   LastAuthorizedAnswer,
   TaxAuthorityLastAuthorizedLookup,
@@ -24,9 +24,9 @@ import type {
 import type { TaxAuthorityVoucherLookup, VoucherAnswer } from "../unclear-outcome-ports.js";
 import type { WsaaToken } from "../wsaa-token-ports.js";
 
-export class FakeOrphanCreditNoteStore implements OrphanCreditNoteLanes, OrphanCreditNoteRequests {
+export class FakeCreditNoteStore implements CreditNoteLanes, CreditNoteRequests {
   readonly operations: string[] = [];
-  readonly creditNotes = new Map<string, OrphanCreditNote>();
+  readonly creditNotes = new Map<string, CreditNote>();
   readonly requests: CreditNoteRequestRecord[] = [];
   readonly authorizations: CreditNoteAuthorizationRecord[] = [];
   readonly rejections: { rejections: readonly TaxAuthorityRejection[]; rejectedAt: Date }[] = [];
@@ -40,7 +40,7 @@ export class FakeOrphanCreditNoteStore implements OrphanCreditNoteLanes, OrphanC
   vanishAfterLookup = false;
   requestFailure: Error | undefined;
 
-  seed(creditNote: OrphanCreditNote) {
+  seed(creditNote: CreditNote) {
     this.creditNotes.set(creditNote.creditNoteId, creditNote);
   }
 
@@ -58,13 +58,13 @@ export class FakeOrphanCreditNoteStore implements OrphanCreditNoteLanes, OrphanC
 
   async inPointOfSaleLane<TOutcome>(
     pointOfSale: number,
-    work: (lane: OrphanCreditNoteLane) => Promise<TOutcome>,
+    work: (lane: CreditNoteLane) => Promise<TOutcome>,
   ): Promise<TOutcome> {
     this.operations.push("enterLane");
     this.lanesEntered.push(pointOfSale);
     this.held = true;
     try {
-      return await work(new FakeOrphanCreditNoteLane(this, pointOfSale));
+      return await work(new FakeCreditNoteLane(this, pointOfSale));
     } finally {
       this.held = false;
       this.operations.push("leaveLane");
@@ -72,17 +72,17 @@ export class FakeOrphanCreditNoteStore implements OrphanCreditNoteLanes, OrphanC
   }
 }
 
-class FakeOrphanCreditNoteLane implements OrphanCreditNoteLane {
-  private readonly store: FakeOrphanCreditNoteStore;
+class FakeCreditNoteLane implements CreditNoteLane {
+  private readonly store: FakeCreditNoteStore;
   private readonly pointOfSale: number;
 
-  constructor(store: FakeOrphanCreditNoteStore, pointOfSale: number) {
+  constructor(store: FakeCreditNoteStore, pointOfSale: number) {
     this.store = store;
     this.pointOfSale = pointOfSale;
   }
 
-  async orphanCreditNote(creditNoteId: string): Promise<OrphanCreditNote | null> {
-    this.store.operations.push("orphanCreditNote");
+  async creditNote(creditNoteId: string): Promise<CreditNote | null> {
+    this.store.operations.push("creditNote");
     const creditNote = this.store.creditNotes.get(creditNoteId);
     return creditNote === undefined ? null : structuredClone(creditNote);
   }
@@ -142,7 +142,7 @@ class FakeOrphanCreditNoteLane implements OrphanCreditNoteLane {
     this.update(creditNoteId, { kind: "not_requested" });
   }
 
-  private update(creditNoteId: string, standing: OrphanCreditNote["standing"]) {
+  private update(creditNoteId: string, standing: CreditNote["standing"]) {
     const creditNote = this.store.creditNotes.get(creditNoteId);
     if (creditNote !== undefined) {
       this.store.creditNotes.set(creditNoteId, { ...creditNote, standing });
@@ -151,10 +151,10 @@ class FakeOrphanCreditNoteLane implements OrphanCreditNoteLane {
 }
 
 export class FakeCreditNoteTokens implements WsaaTokenSource {
-  private readonly store: FakeOrphanCreditNoteStore;
+  private readonly store: FakeCreditNoteStore;
   private readonly token: WsaaToken | null;
 
-  constructor(store: FakeOrphanCreditNoteStore, token: WsaaToken | null) {
+  constructor(store: FakeCreditNoteStore, token: WsaaToken | null) {
     this.store = store;
     this.token = token;
   }
@@ -170,12 +170,12 @@ export class FakeCreditNoteTaxAuthority
 {
   readonly voucherLookups: { pointOfSale: number; voucherType: number; number: number }[] = [];
   readonly lastAuthorizedLookups: { pointOfSale: number; voucherType: number }[] = [];
-  private readonly store: FakeOrphanCreditNoteStore;
+  private readonly store: FakeCreditNoteStore;
   private readonly voucherAnswer: VoucherAnswer;
   private readonly lastAuthorizedAnswer: LastAuthorizedAnswer;
 
   constructor(
-    store: FakeOrphanCreditNoteStore,
+    store: FakeCreditNoteStore,
     voucherAnswer: VoucherAnswer,
     lastAuthorizedAnswer: LastAuthorizedAnswer,
   ) {
@@ -215,10 +215,10 @@ export class FakeCreditNoteInvoicing implements TaxAuthorityCreditNoteInvoicing 
   readonly solicitations: CreditNoteSolicitation[] = [];
   requestsRecordedDuringSolicit: number | undefined;
   heldLaneDuringSolicit: boolean | undefined;
-  private readonly store: FakeOrphanCreditNoteStore;
+  private readonly store: FakeCreditNoteStore;
   private readonly answer: SolicitationAnswer;
 
-  constructor(store: FakeOrphanCreditNoteStore, answer: SolicitationAnswer) {
+  constructor(store: FakeCreditNoteStore, answer: SolicitationAnswer) {
     this.store = store;
     this.answer = answer;
   }

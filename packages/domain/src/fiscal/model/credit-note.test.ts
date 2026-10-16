@@ -5,7 +5,7 @@ import {
   mayTakeCreditNoteNumber,
   nextCreditNoteNumber,
   settleUnclearCreditNote,
-} from "./orphan-credit-note.js";
+} from "./credit-note.js";
 import {
   type TaxAuthorityVoucher,
   UNCLEAR_OUTCOME_REASK_INTERVAL_MS,

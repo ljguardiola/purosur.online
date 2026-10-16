@@ -4,21 +4,21 @@ import {
   UNCLEAR_OUTCOME_REASK_INTERVAL_MS,
   UNCLEAR_OUTCOME_SETTLING_DELAY_MS,
 } from "../model/unclear-outcome-decision.js";
-import type { SolicitationAnswer } from "./fiscal-document-authorization-ports.js";
-import { issueOrphanCreditNote } from "./issue-orphan-credit-note.js";
 import {
+  type CreditNote,
   CreditNoteNumberTaken,
   type CreditNoteStanding,
-  type OrphanCreditNote,
-} from "./orphan-credit-note-ports.js";
+} from "./credit-note-ports.js";
+import type { SolicitationAnswer } from "./fiscal-document-authorization-ports.js";
+import { issueCreditNote } from "./issue-credit-note.js";
 import type { LastAuthorizedAnswer } from "./tax-authority-count-ports.js";
 import { ManualClock } from "./test-support/fake-arca-vitality.js";
 import {
   FakeCreditNoteInvoicing,
+  FakeCreditNoteStore,
   FakeCreditNoteTaxAuthority,
   FakeCreditNoteTokens,
-  FakeOrphanCreditNoteStore,
-} from "./test-support/fake-orphan-credit-notes.js";
+} from "./test-support/fake-credit-notes.js";
 import type { VoucherAnswer } from "./unclear-outcome-ports.js";
 
 const CREDIT_NOTE_ID = "credit-note-1";
@@ -70,8 +70,8 @@ function scenario({
   now = NOW,
   others = [],
 }: Scenario = {}) {
-  const store = new FakeOrphanCreditNoteStore();
-  const creditNote: OrphanCreditNote = {
+  const store = new FakeCreditNoteStore();
+  const creditNote: CreditNote = {
     creditNoteId: CREDIT_NOTE_ID,
     pointOfSale: 12,
     associatedVoucher: { voucherType: 11, pointOfSale: 12, number: 41 },
@@ -105,10 +105,10 @@ function scenario({
 }
 
 function issue(ports: ReturnType<typeof scenario>["ports"], creditNoteId = CREDIT_NOTE_ID) {
-  return issueOrphanCreditNote(ports, { creditNoteId });
+  return issueCreditNote(ports, { creditNoteId });
 }
 
-describe("issueOrphanCreditNote", () => {
+describe("issueCreditNote", () => {
   it("reports a credit note the cloud has no record of, without taking a lane", async () => {
     const { store, ports } = scenario();
 
@@ -130,7 +130,7 @@ describe("issueOrphanCreditNote", () => {
     const { store, taxAuthority, creditNotes, ports } = scenario({ standing });
 
     expect(await issue(ports)).toEqual({ kind });
-    expect(store.operations).toEqual(["enterLane", "orphanCreditNote", "leaveLane"]);
+    expect(store.operations).toEqual(["enterLane", "creditNote", "leaveLane"]);
     expect(taxAuthority.voucherLookups).toEqual([]);
     expect(creditNotes.solicitations).toEqual([]);
   });
@@ -172,7 +172,7 @@ describe("issueOrphanCreditNote", () => {
 
       expect(store.operations).toEqual([
         "enterLane",
-        "orphanCreditNote",
+        "creditNote",
         "validToken",
         "otherCreditNoteStandings",
         "lastAuthorized",
@@ -384,7 +384,7 @@ describe("issueOrphanCreditNote", () => {
       expect(await issue(ports)).toMatchObject({ kind: "authorized", number: 42 });
       expect(store.operations).toEqual([
         "enterLane",
-        "orphanCreditNote",
+        "creditNote",
         "validToken",
         "voucherAt",
         "lastAuthorized",

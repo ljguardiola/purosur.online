@@ -24,7 +24,7 @@ export type CreditNoteStanding =
 
 export class CreditNoteNumberTaken extends Error {}
 
-export interface OrphanCreditNote {
+export interface CreditNote {
   creditNoteId: string;
   pointOfSale: number;
   associatedVoucher: VoucherReference;
@@ -54,8 +54,8 @@ export interface CreditNoteRejectionRecord {
   task: FiscalTask;
 }
 
-export interface OrphanCreditNoteLane {
-  orphanCreditNote(creditNoteId: string): Promise<OrphanCreditNote | null>;
+export interface CreditNoteLane {
+  creditNote(creditNoteId: string): Promise<CreditNote | null>;
   otherCreditNoteStandings(creditNoteId: string): Promise<CreditNoteStanding[]>;
   /**
    * Raises CreditNoteNumberTaken when another credit note of the point of sale already holds the
@@ -78,14 +78,14 @@ export interface OrphanCreditNoteLane {
   ): Promise<void>;
 }
 
-export interface OrphanCreditNoteLanes {
+export interface CreditNoteLanes {
   inPointOfSaleLane<TOutcome>(
     pointOfSale: number,
-    work: (lane: OrphanCreditNoteLane) => Promise<TOutcome>,
+    work: (lane: CreditNoteLane) => Promise<TOutcome>,
   ): Promise<TOutcome>;
 }
 
-export interface OrphanCreditNoteRequests {
+export interface CreditNoteRequests {
   pointOfSaleOf(creditNoteId: string): Promise<number | null>;
 }
 
@@ -103,9 +103,9 @@ export interface TaxAuthorityCreditNoteInvoicing {
   solicit(solicitation: CreditNoteSolicitation): Promise<SolicitationAnswer>;
 }
 
-export interface IssueOrphanCreditNotePorts {
-  requests: OrphanCreditNoteRequests;
-  lanes: OrphanCreditNoteLanes;
+export interface IssueCreditNotePorts {
+  requests: CreditNoteRequests;
+  lanes: CreditNoteLanes;
   clock: Clock;
   tokens: WsaaTokenSource;
   vouchers: TaxAuthorityVoucherLookup;

@@ -143,6 +143,20 @@ export type {
   CreateFiscalAddressOutcome,
 } from "./create-fiscal-address.js";
 export { createFiscalAddress } from "./create-fiscal-address.js";
+export type {
+  CreditNote,
+  CreditNoteAuthorizationRecord,
+  CreditNoteLane,
+  CreditNoteLanes,
+  CreditNoteRejectionRecord,
+  CreditNoteRequestRecord,
+  CreditNoteRequests,
+  CreditNoteSolicitation,
+  CreditNoteStanding,
+  IssueCreditNotePorts,
+  TaxAuthorityCreditNoteInvoicing,
+} from "./credit-note-ports.js";
+export { CreditNoteNumberTaken } from "./credit-note-ports.js";
 export type { CurrentFortnightCodeStanding } from "./current-fortnight-code-after-obtaining.js";
 export { currentFortnightCodeAfterObtaining } from "./current-fortnight-code-after-obtaining.js";
 export type {
@@ -238,10 +252,10 @@ export type {
   InterruptedRealTimeAuthorizationsTransaction,
 } from "./interrupted-real-time-authorization-ports.js";
 export type {
-  IssueOrphanCreditNoteInput,
-  IssueOrphanCreditNoteOutcome,
-} from "./issue-orphan-credit-note.js";
-export { issueOrphanCreditNote } from "./issue-orphan-credit-note.js";
+  IssueCreditNoteInput,
+  IssueCreditNoteOutcome,
+} from "./issue-credit-note.js";
+export { issueCreditNote } from "./issue-credit-note.js";
 export type {
   AuthorizedIssuerIdentification,
   EditableIssuerIdentification,
@@ -290,20 +304,6 @@ export type {
   OrphanStandingReader,
   RegularizeOrphanAuthorizationPorts,
 } from "./orphan-authorization-ports.js";
-export type {
-  CreditNoteAuthorizationRecord,
-  CreditNoteRejectionRecord,
-  CreditNoteRequestRecord,
-  CreditNoteSolicitation,
-  CreditNoteStanding,
-  IssueOrphanCreditNotePorts,
-  OrphanCreditNote,
-  OrphanCreditNoteLane,
-  OrphanCreditNoteLanes,
-  OrphanCreditNoteRequests,
-  TaxAuthorityCreditNoteInvoicing,
-} from "./orphan-credit-note-ports.js";
-export { CreditNoteNumberTaken } from "./orphan-credit-note-ports.js";
 export type {
   ArcaOnlineStatus,
   ReadArcaOnlineStatusInput,
