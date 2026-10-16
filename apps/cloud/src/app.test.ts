@@ -2782,11 +2782,6 @@ describe("the route access inventory", () => {
         access: capabilityAccess("registers_area"),
       },
       {
-        method: "POST",
-        url: "/api/registers/:id/revocations",
-        access: capabilityAccess("revoke_installations"),
-      },
-      {
         method: "PUT",
         url: "/api/registers/:id/point-terminal",
         access: capabilityAccess("cash_area"),
@@ -2810,6 +2805,11 @@ describe("the route access inventory", () => {
         method: "POST",
         url: "/api/snapshot-backups/registers/:registerId/key-rotations",
         access: capabilityAccess("backups_area"),
+      },
+      {
+        method: "POST",
+        url: "/api/registers/:id/revocations",
+        access: capabilityAccess("revoke_installations"),
       },
       {
         method: "GET",
