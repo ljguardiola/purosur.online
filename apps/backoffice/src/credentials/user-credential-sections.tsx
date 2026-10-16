@@ -1,4 +1,5 @@
 import {
+  Button,
   EmptyState,
   IconButton,
   LoadFailure,
@@ -12,6 +13,7 @@ import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { useRefreshCredentials, useUserPasskeysQuery } from "./credentials-queries";
 import type { Passkey } from "./passkey-list";
 import { passkeyRowDetail } from "./passkey-row-detail";
+import { RemoveEveryUserPasskeyModal } from "./remove-every-user-passkey-modal";
 import { RemoveUserPasskeyModal } from "./remove-user-passkey-modal";
 import {
   defaultUserCredentialSectionsServices,
@@ -62,6 +64,7 @@ function UserPasskeysSection({
 }: UserCredentialSectionsProps & { services: UserCredentialSectionsServices }) {
   const refreshCredentials = useRefreshCredentials();
   const [removeTarget, setRemoveTarget] = useState<Passkey | null>(null);
+  const [removeEveryOpen, setRemoveEveryOpen] = useState(false);
   const passkeys = useUserPasskeysQuery({
     userId,
     fetchUserPasskeys: services.fetchUserPasskeys,
@@ -74,6 +77,18 @@ function UserPasskeysSection({
       <div className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4">
         <div className="flex items-center gap-3">
           <h2 className="flex-1 text-subheading text-text-accent">Passkeys</h2>
+          {user?.mayRemovePasskey === true &&
+            passkeys.status === "loaded" &&
+            passkeys.value.passkeys.length > 0 && (
+              <Button
+                variant="text"
+                destructive
+                size="small"
+                onPress={() => setRemoveEveryOpen(true)}
+              >
+                Dar de baja todas
+              </Button>
+            )}
         </div>
         {passkeys.status === "loading" && <LoadingPlaceholder variant="list" items={2} />}
         {passkeys.status === "failed" && (
@@ -114,6 +129,22 @@ function UserPasskeysSection({
             </ul>
           ))}
       </div>
+      {user ? (
+        <RemoveEveryUserPasskeyModal
+          open={removeEveryOpen}
+          userId={userId}
+          userName={user.firstName}
+          passkeyCount={passkeys.status === "loaded" ? passkeys.value.passkeys.length : 0}
+          onClose={() => setRemoveEveryOpen(false)}
+          onRemoved={() => {
+            setRemoveEveryOpen(false);
+            void refreshCredentials();
+            onUserOutdated();
+          }}
+          onSessionEnded={onSessionEnded}
+          services={services}
+        />
+      ) : null}
       {user ? (
         <RemoveUserPasskeyModal
           target={removeTarget}
