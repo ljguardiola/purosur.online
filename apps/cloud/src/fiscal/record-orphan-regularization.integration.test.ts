@@ -1,9 +1,5 @@
 import { FACTURA_C_VOUCHER_TYPE } from "@purosur/domain";
-import {
-  type OrphanRegularization,
-  type OrphanRegularizationLane,
-  regularizeOrphanAuthorization,
-} from "@purosur/domain/fiscal/use-cases";
+import type { NumberingConflictLane, OrphanRegularization } from "@purosur/domain/fiscal/use-cases";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -13,7 +9,8 @@ import {
   createIntegrationDatabase,
   type IntegrationDatabase,
 } from "../test-support/integration-database.js";
-import { DrizzleOrphanRegularizationLanes } from "./drizzle-orphan-regularization-lanes.js";
+import { DrizzleNumberingConflictLanes } from "./drizzle-numbering-conflict-lanes.js";
+import { DrizzleUnclearOutcomeLanes } from "./drizzle-unclear-outcome-lanes.js";
 import { recordOrphanRegularization } from "./record-orphan-regularization.js";
 import {
   authorizationRequestRecord,
@@ -39,7 +36,7 @@ function nextNumber(): number {
 }
 
 beforeAll(async () => {
-  integrationDb = await createIntegrationDatabase("orphan_regularization_lanes");
+  integrationDb = await createIntegrationDatabase("record_orphan_regularization");
   sql = postgres(integrationDb.databaseUrl, { max: 8 });
   db = drizzle(sql);
   for (const pointOfSale of [7, 9, 11, 13, 15, 17, 19, 21]) {
@@ -66,22 +63,41 @@ function registerOf(pointOfSale: number): string {
   return registerId;
 }
 
+type OrphanLane = NumberingConflictLane & {
+  recordOrphanRegularization(regularization: OrphanRegularization): Promise<void>;
+};
+
 function lanes(
   enqueueOrphanCreditNote = async (_: unknown, creditNoteId: string) => {
     enqueued.push(creditNoteId);
   },
 ) {
-  return new DrizzleOrphanRegularizationLanes(
+  const numberingLanes = new DrizzleNumberingConflictLanes(
     postgresDedicatedConnections(sql),
+    async () => {},
     enqueueOrphanCreditNote,
     () => OPENED_AT,
   );
+  return {
+    inPointOfSaleLane: <TOutcome>(
+      pointOfSale: number,
+      work: (lane: OrphanLane) => Promise<TOutcome>,
+    ) =>
+      numberingLanes.inPointOfSaleLane(pointOfSale, (lane) =>
+        work(
+          Object.assign(Object.create(lane) as NumberingConflictLane, {
+            recordOrphanRegularization: (regularization: OrphanRegularization) =>
+              lane.settleNumberingReconciliation({
+                regularizations: [regularization],
+                lastAuthorized: 0,
+              }),
+          }),
+        ),
+      ),
+  };
 }
 
-function inLane<TOutcome>(
-  pointOfSale: number,
-  work: (lane: OrphanRegularizationLane) => Promise<TOutcome>,
-) {
+function inLane<TOutcome>(pointOfSale: number, work: (lane: OrphanLane) => Promise<TOutcome>) {
   return lanes().inPointOfSaleLane(pointOfSale, work);
 }
 
@@ -95,7 +111,7 @@ async function recordedRequest(
   return request;
 }
 
-describe("the orphan regularization lane on a real Postgres", () => {
+describe("recording the regularization of an orphan authorization on a real Postgres", () => {
   describe("the local standing of an authorization", () => {
     it("holds no local sale for a number nothing local stands behind", async () => {
       expect(
@@ -353,6 +369,50 @@ describe("the orphan regularization lane on a real Postgres", () => {
       expect(enqueued).toEqual([rows[0]?.id]);
     });
 
+    it("keeps one credit note when a decision and a reconciliation detect the same orphan at once", async () => {
+      enqueued.length = 0;
+      const request = await recordedRequest(19, 85, {
+        answerKind: "unclear",
+        unclearCodes: [],
+        answeredAt: OPENED_AT,
+      });
+      const orphan = { voucherType: 11, pointOfSale: 19, number: 85 };
+      const unclearLanes = new DrizzleUnclearOutcomeLanes(
+        postgresDedicatedConnections(sql),
+        async () => {},
+        async (_, creditNoteId) => {
+          enqueued.push(creditNoteId);
+        },
+      );
+
+      await Promise.all([
+        unclearLanes.inPointOfSaleLane(19, (lane) =>
+          lane.recordDecision(
+            request.fiscalDocumentId,
+            {
+              kind: "adopted",
+              authorizationCode: "74123456789012",
+              authorizationCodeDueOn: "2026-10-16",
+            },
+            OPENED_AT,
+            { fiscalDocumentId: request.fiscalDocumentId, clearedAt: OPENED_AT },
+            creditNoteRegularization({ pointOfSale: 19, associatedVoucher: orphan }),
+          ),
+        ),
+        inLane(19, (lane) =>
+          lane.recordOrphanRegularization(
+            creditNoteRegularization({ pointOfSale: 19, associatedVoucher: orphan }),
+          ),
+        ),
+      ]);
+
+      const rows = (await db.select().from(orphanCreditNotes)).filter(
+        (row) => row.pointOfSale === 19 && row.associatedNumber === 85,
+      );
+      expect(rows).toHaveLength(1);
+      expect(enqueued).toEqual([rows[0]?.id]);
+    });
+
     it("keeps one credit note when two transactions record the same orphan without any lane between them", async () => {
       enqueued.length = 0;
       const orphan = { voucherType: 11, pointOfSale: 21, number: 90 };
@@ -476,64 +536,6 @@ describe("the orphan regularization lane on a real Postgres", () => {
       expect(
         (await db.select().from(alerts)).filter((row) => row.scope === "9:factura_c:103"),
       ).toEqual([]);
-    });
-  });
-
-  describe("regularizing an orphan authorization", () => {
-    it("keeps one credit note when the orphan is regularized twice at once", async () => {
-      enqueued.length = 0;
-      const orphan = await recordedRequest(9, 200);
-      await recordedRequest(9, 201, {
-        saleId: orphan.saleId,
-        answerKind: "authorized",
-        authorizationCode: "75123456789012",
-        authorizationCodeDueOn: "2026-10-16",
-        answeredAt: OPENED_AT,
-      });
-      const ports = {
-        lanes: lanes(),
-        clock: { now: () => OPENED_AT },
-        ids: { next: () => crypto.randomUUID() },
-        tokens: {
-          validToken: async () => ({
-            token: "t",
-            sign: "s",
-            issuedAt: OPENED_AT,
-            expiresAt: new Date(OPENED_AT.getTime() + 60_000),
-          }),
-        },
-        vouchers: {
-          voucherAt: async () => ({
-            kind: "found" as const,
-            voucher: {
-              issuedOn: "2026-10-05",
-              total: 1500,
-              documentType: 11,
-              receiverDocumentType: 99,
-              receiverDocumentNumber: 0,
-              receiverTaxStatusCode: 5,
-              authorizationCode: "74123456789012",
-              authorizationCodeDueOn: "2026-10-15",
-            },
-          }),
-        },
-      };
-
-      const outcomes = await Promise.all([
-        regularizeOrphanAuthorization(ports, { pointOfSale: 9, number: 200 }),
-        regularizeOrphanAuthorization(ports, { pointOfSale: 9, number: 200 }),
-      ]);
-
-      expect(outcomes.map(({ kind }) => kind).sort()).toEqual([
-        "nothing_to_regularize",
-        "regularized",
-      ]);
-      expect(
-        (await db.select().from(orphanCreditNotes)).filter(
-          (row) => row.pointOfSale === 9 && row.associatedNumber === 200,
-        ),
-      ).toHaveLength(1);
-      expect(enqueued).toHaveLength(1);
     });
   });
 });
