@@ -63,3 +63,19 @@ test("lists the average ticket report as a link to it", async () => {
     .element(screen.getByRole("link", { name: "Ticket promedio" }))
     .toHaveAttribute("href", "/reports/average-ticket");
 });
+
+test("groups the cash reports in a card titled Caja", async () => {
+  const screen = await renderScreen();
+
+  const cash = screen.getByRole("region", { name: "Caja" });
+  await expect.element(cash).toBeVisible();
+  expect(cash.getByRole("link").elements()).toHaveLength(1);
+});
+
+test("lists the payments confirmed by hand report as a link to it", async () => {
+  const screen = await renderScreen();
+
+  await expect
+    .element(screen.getByRole("link", { name: "Pagos confirmados a mano" }))
+    .toHaveAttribute("href", "/reports/hand-confirmed-payments");
+});

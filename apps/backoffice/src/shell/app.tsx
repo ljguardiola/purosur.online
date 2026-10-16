@@ -17,6 +17,7 @@ import type { UserCredentialSectionsServices } from "../credentials/user-credent
 import type { FiscalConfigurationScreenServices } from "../fiscal/fiscal-configuration-services";
 import type { PointsOfSaleScreenServices } from "../fiscal/points-of-sale-services";
 import type { BackofficeHelpCatalog } from "../help/help-catalog";
+import type { HandConfirmedPaymentsScreenServices } from "../payments/hand-confirmed-payments-services";
 import type { PendingRefundsScreenServices } from "../payments/pending-refunds-services";
 import type { SalesByPaymentMethodScreenServices } from "../payments/sales-by-payment-method-services";
 import type { RolesListScreenServices } from "../permissions/roles-list-services";
@@ -89,6 +90,7 @@ export type AppServices = {
   salesByCashierScreen: SalesByCashierScreenServices;
   averageTicketScreen: AverageTicketScreenServices;
   salesByPaymentMethodScreen: SalesByPaymentMethodScreenServices;
+  handConfirmedPaymentsScreen: HandConfirmedPaymentsScreenServices;
   reportFiltersRegisterFilter: ComponentType<ReportRegisterFilterProps>;
   reportRegisterFilter: ReportRegisterFilterServices;
   pendingRefundsScreen: PendingRefundsScreenServices;

@@ -1,6 +1,7 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
 import {
   APPROVED_PAYMENT_STATE,
+  CONFIRMED_BY_HAND_METHODS,
   cancellableWithoutAuthorization,
   hasApprovedPayment,
   holdsApprovedPointPayment,
@@ -170,6 +171,12 @@ describe("a standalone terminal payment of a sale", () => {
 
   it("carries no tendered amount", () => {
     expectTypeOf<StandalonePayment & { tendered: number }>().not.toExtend<SalePayment>();
+  });
+});
+
+describe("CONFIRMED_BY_HAND_METHODS", () => {
+  it("lists the methods whose payment a person confirms by hand, in report order", () => {
+    expect(CONFIRMED_BY_HAND_METHODS).toEqual(["TRANSFER", "STANDALONE_TERMINAL"]);
   });
 });
 
