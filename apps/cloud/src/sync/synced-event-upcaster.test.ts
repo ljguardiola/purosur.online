@@ -829,10 +829,10 @@ describe("decoding the events the registers pushed", () => {
         product_id: saleLine.product_id,
         delta: 2000,
       };
-      const voided = (change: Record<string, unknown> = {}) =>
+      const voided = (change: Record<string, unknown> = {}, version = 1) =>
         pushed({
           event_type: "sale_voided",
-          schema_version: 1,
+          schema_version: version,
           occurred_at: "2026-10-06T11:40:00.000Z",
           payload: {
             ...saleFields,
@@ -864,6 +864,50 @@ describe("decoding the events the registers pushed", () => {
               ...decodedDiscount,
             },
           },
+        });
+      });
+
+      it.each([
+        ["QR", "MERCADOPAGO_QR"],
+        ["POINT", "MERCADOPAGO_POINT"],
+      ])("reads a version 2 voided sale with its %s payment and pending refund", (method, provider) => {
+        const mercadoPago = {
+          ...salePayment,
+          method,
+          provider,
+          tendered: null,
+          authorized_by: null,
+          confirmed_at: null,
+        };
+        const pending = {
+          ...refund,
+          parent_id: mercadoPago.id,
+          method,
+          provider,
+          state: "PENDING",
+          occurred_at: "2026-10-06T11:40:00.000Z",
+        };
+
+        const decoded = upcaster.decode(
+          unappliedEventOf(voided({ payments: [mercadoPago], refunds: [pending] }, 2)),
+        );
+
+        expect(decoded).toMatchObject({
+          kind: "fact",
+          fact: {
+            kind: "sale_voided",
+            sale: {
+              payments: [{ method, provider }],
+              refunds: [{ paymentId: mercadoPago.id, method, provider, state: "PENDING" }],
+            },
+          },
+        });
+      });
+
+      it("still reads a version 1 voided sale", () => {
+        expect(upcaster.decode(unappliedEventOf(voided()))).toMatchObject({
+          kind: "fact",
+          fact: { kind: "sale_voided" },
         });
       });
 
