@@ -115,7 +115,16 @@ class FakeCreditNoteLane implements CreditNoteLane {
   async recordCreditNoteAuthorized(record: CreditNoteAuthorizationRecord): Promise<void> {
     this.store.operations.push("recordCreditNoteAuthorized");
     this.store.authorizations.push(record);
-    this.update(record.creditNoteId, { kind: "authorized" });
+    const standing = this.store.creditNotes.get(record.creditNoteId)?.standing;
+    if (standing?.kind === "requested") {
+      this.update(record.creditNoteId, {
+        kind: "authorized",
+        number: standing.number,
+        issuedOn: standing.issuedOn,
+        authorizationCode: record.authorizationCode,
+        authorizationCodeDueOn: record.authorizationCodeDueOn,
+      });
+    }
   }
 
   async recordCreditNoteRejected(record: CreditNoteRejectionRecord): Promise<void> {

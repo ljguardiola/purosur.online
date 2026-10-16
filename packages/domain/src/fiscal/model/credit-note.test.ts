@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   CREDIT_NOTE_C_VOUCHER_TYPE,
+  CREDIT_NOTE_REASONS,
   creditNoteIssueDate,
   mayTakeCreditNoteNumber,
   nextCreditNoteNumber,
@@ -132,5 +133,11 @@ describe("settleUnclearCreditNote", () => {
       kind: "pending",
       askAgainAt: SETTLED_AT,
     });
+  });
+});
+
+describe("CREDIT_NOTE_REASONS", () => {
+  it("lists why a credit note is issued: an authorization no sale accounts for, or a voided sale", () => {
+    expect(CREDIT_NOTE_REASONS).toEqual(["orphan", "sale_void"]);
   });
 });
