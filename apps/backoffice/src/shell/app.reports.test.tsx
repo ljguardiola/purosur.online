@@ -167,9 +167,9 @@ test("keeps the method of the payments confirmed by hand report in the address",
   await userEvent.click(screen.getByRole("option", { name: "Transferencia" }));
 
   await expect.poll(() => window.location.search).toBe("?method=TRANSFER");
-  expect(services.handConfirmedPaymentsScreen.fetchHandConfirmedPayments).toHaveBeenLastCalledWith(
-    { method: "TRANSFER" },
-  );
+  expect(services.handConfirmedPaymentsScreen.fetchHandConfirmedPayments).toHaveBeenLastCalledWith({
+    method: "TRANSFER",
+  });
 });
 
 test("opens the sales by product and category report from the list and reads it from the cloud", async () => {
