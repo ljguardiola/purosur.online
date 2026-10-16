@@ -319,6 +319,42 @@ describe("voiding a sale", () => {
     ).toEqual({ total: 0 });
   });
 
+  it.each([
+    ["QR", "MERCADOPAGO_QR"],
+    ["POINT", "MERCADOPAGO_POINT"],
+  ])(
+    "leaves the refund of a Mercado Pago %s payment pending on its provider and in the event",
+    async (method, provider) => {
+      const saleId = sellTwo();
+      payCash(saleId, 3000);
+      database
+        .prepare(
+          `INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, state, occurred_at, wait_ends_at)
+         VALUES ('mp-1', ?, 'SALE', ?, ?, 500, 'APPROVED', ?, ?)`,
+        )
+        .run(saleId, method, provider, NOW.toISOString(), NOW.toISOString());
+
+      await voidIt(saleId, { confirmed: true });
+
+      expect(
+        database
+          .prepare(
+            "SELECT payment_id, method, provider, amount, state FROM payment_refunds WHERE payment_id = 'mp-1'",
+          )
+          .all(),
+      ).toEqual([{ payment_id: "mp-1", method, provider, amount: 500, state: "PENDING" }]);
+      const event = database
+        .prepare("SELECT schema_version, payload FROM outbox WHERE event_type = 'sale_voided'")
+        .get() as { schema_version: number; payload: string };
+      expect(event.schema_version).toBe(2);
+      expect(JSON.parse(event.payload).refunds).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ parent_id: "mp-1", method, provider, state: "PENDING" }),
+        ]),
+      );
+    },
+  );
+
   it("gives back to the shelf, line by line, what the sale took out", async () => {
     const saleId = sellTwo();
     payCash(saleId, 3000);
