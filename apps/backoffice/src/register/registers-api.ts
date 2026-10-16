@@ -6,6 +6,7 @@ import {
   registerCoverageSchema,
   registerEnrollmentCodeSchema,
   registerListSchema,
+  registerRevocationSchema,
   registerSyncStatusListSchema,
 } from "@purosur/contracts";
 import type { PermissionKey } from "@purosur/domain";
@@ -81,6 +82,16 @@ export type EmitEnrollmentCodeOutcome =
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "failed" };
 
+export type RevokeRegisterOutcome =
+  | { kind: "ok"; value: { revokedAt: string } }
+  | { kind: "not_found" }
+  | { kind: "no_active_installation" }
+  | { kind: "forbidden" }
+  | { kind: "unauthenticated" }
+  | { kind: "authorization_required" }
+  | { kind: "rate_limited"; retryAfterSeconds: number }
+  | { kind: "failed" };
+
 function postJson(path: string, body?: unknown): Promise<Response> {
   return fetch(path, {
     method: "POST",
@@ -122,7 +133,7 @@ function registerFromWire(row: RegisterSummaryBody): RegisterSummary {
   };
 }
 
-// Creating a register and emitting its code are gated by the shared passkey-authorization window: a 401 here means
+// Creating a register, emitting its code and revoking it are gated by the shared passkey-authorization window: a 401 here means
 // either the session ended or that window has lapsed, never a rejected assertion.
 type GatedActionErrorOutcome =
   | { kind: "unauthenticated" }
@@ -234,6 +245,30 @@ export async function emitEnrollmentCode(id: string): Promise<EmitEnrollmentCode
   }
   if (response.status === 404) {
     return { kind: "not_found" };
+  }
+  return gatedActionErrorOutcome(response);
+}
+
+export async function revokeRegister(id: string): Promise<RevokeRegisterOutcome> {
+  let response: Response;
+  try {
+    response = await postJson(`/api/registers/${id}/revocations`);
+  } catch {
+    return { kind: "failed" };
+  }
+  if (response.ok) {
+    const parsed = registerRevocationSchema.safeParse(await response.json().catch(() => undefined));
+    return parsed.success
+      ? { kind: "ok", value: { revokedAt: parsed.data.revoked_at } }
+      : { kind: "failed" };
+  }
+  if (response.status === 404) {
+    return { kind: "not_found" };
+  }
+  if (response.status === 409) {
+    const code = ((await response.json().catch(() => undefined)) as { code?: string } | undefined)
+      ?.code;
+    return code === "no_active_installation" ? { kind: code } : { kind: "failed" };
   }
   return gatedActionErrorOutcome(response);
 }

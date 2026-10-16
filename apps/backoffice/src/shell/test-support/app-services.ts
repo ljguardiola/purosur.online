@@ -241,6 +241,7 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
       createRegister: vi.fn(),
       assignPointTerminal: vi.fn(),
       emitEnrollmentCode: vi.fn(),
+      revokeRegister: vi.fn(),
       fetchSessionAuthorizationOptions: vi.fn(),
       authorizeSession: vi.fn(),
       startAuthentication: vi.fn(),

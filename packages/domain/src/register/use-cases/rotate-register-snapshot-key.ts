@@ -1,4 +1,4 @@
-import { latestKey } from "../model/installation-key.js";
+import { latestKey, nextKeyVersion } from "../model/installation-key.js";
 import type { RotateRegisterSnapshotKeyPorts } from "./snapshot-key-rotation-ports.js";
 
 export interface RotateRegisterSnapshotKeyInput {
@@ -24,7 +24,7 @@ export async function rotateRegisterSnapshotKey(
     if (latest === undefined) {
       return { kind: "no_key_yet" };
     }
-    const keyVersion = latest.version + 1;
+    const keyVersion = nextKeyVersion(held);
     await tx.recordSnapshotKey(registerId, { version: keyVersion, key: keys.generate() });
     await tx.recordSnapshotKeyRotation({
       registerId,

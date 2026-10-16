@@ -31,6 +31,11 @@ export function latestKeyVersion(versions: readonly number[]): number | undefine
   return versions.length === 0 ? undefined : Math.max(...versions);
 }
 
+export function nextKeyVersion(keys: readonly VersionedKey[]): number {
+  const latest = latestKey(keys);
+  return latest === undefined ? FIRST_KEY_VERSION : latest.version + 1;
+}
+
 export function isHeldSnapshotKeyOutdated(
   heldVersion: number | undefined,
   currentVersion: number | undefined,

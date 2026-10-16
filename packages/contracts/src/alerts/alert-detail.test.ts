@@ -338,6 +338,7 @@ describe("alertDetailSchema", () => {
       },
       user_access_increased: { cause: "created_as_administrator", actorId: "a", actorName: "Ada" },
       register_enrolled: {
+        change: "enrolled",
         deviceId: "device-1",
         hostname: "CAJA",
         windowsVersion: "11",
@@ -767,6 +768,35 @@ describe("alertDetailSchema", () => {
         alertDetailSchema.safeParse({ ...base, kind: "backoffice_sign_in_lockout", detail })
           .success,
       ).toBe(false);
+    });
+
+    it("accepts the revocation of a register's installation", () => {
+      const detail = {
+        change: "revoked",
+        deviceId: "device-1",
+        hostname: "CAJA",
+        windowsVersion: "11",
+      };
+
+      expect(
+        alertDetailSchema.safeParse({ ...base, kind: "register_enrolled", detail }).success,
+      ).toBe(true);
+    });
+
+    it("refuses a register installation change that does not say which change it is", () => {
+      const { change: _change, ...detail } = detailOf.register_enrolled;
+
+      expect(
+        alertDetailSchema.safeParse({ ...base, kind: "register_enrolled", detail }).success,
+      ).toBe(false);
+    });
+
+    it("drops the enrollment's replaced flag from a revocation", () => {
+      const detail = { ...detailOf.register_enrolled, change: "revoked" };
+
+      expect(
+        alertDetailSchema.safeParse({ ...base, kind: "register_enrolled", detail }).data?.detail,
+      ).not.toHaveProperty("replacedInstallation");
     });
 
     it("refuses a register enrollment that does not say whether it replaced one", () => {

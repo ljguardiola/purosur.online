@@ -378,6 +378,8 @@ export type { RegisterCreationBody } from "./register/register-creation.js";
 export { registerCreationBodySchema } from "./register/register-creation.js";
 export type { RegisterEnrollmentCodeBody } from "./register/register-enrollment-code.js";
 export { registerEnrollmentCodeSchema } from "./register/register-enrollment-code.js";
+export type { RegisterRevocationBody } from "./register/register-revocation.js";
+export { registerRevocationSchema } from "./register/register-revocation.js";
 export type { RegisterSummaryBody } from "./register/register-summary.js";
 export { registerListSchema, registerSummarySchema } from "./register/register-summary.js";
 export type { RegisterSyncStatusWire } from "./register/register-sync-status.js";

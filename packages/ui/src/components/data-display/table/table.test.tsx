@@ -779,6 +779,57 @@ test("renders two IconButtons at their own 38x38px with an 8px gap, right-aligne
   expect(rowHeight).toBeLessThan(57);
 });
 
+test("renders three IconButtons at their own 38x38px with 8px gaps in a 170px actions column", async () => {
+  const actionColumns = [
+    dataColumn({ id: "name", header: "Producto", render: (p: Product) => p.name }),
+    actionsColumn({
+      id: "actions",
+      header: "Actions",
+      actions: [
+        (_p: Product) => ({ icon: <Pencil />, "aria-label": "Edit", onPress: () => {} }),
+        (_p: Product) => ({ icon: <Trash2 />, "aria-label": "Delete", onPress: () => {} }),
+        (_p: Product) => ({ icon: <Pencil />, "aria-label": "Copy", onPress: () => {} }),
+      ],
+    }),
+  ] as const;
+  const screen = await render(<TestTable {...commonProps} columns={actionColumns} />);
+  const header = screen.getByRole("columnheader", { name: "Actions" }).element() as HTMLElement;
+
+  const threeActionColumnWidthPx = 148 + 6 + 16;
+  expect(getComputedStyle(header).width).toBe(`${threeActionColumnWidthPx}px`);
+
+  const rects = ["Edit", "Delete", "Copy"].map((name) =>
+    screen.getByRole("button", { name }).nth(0).element().getBoundingClientRect(),
+  );
+  for (const rect of rects) {
+    expect(rect.width).toBeGreaterThan(37);
+    expect(rect.width).toBeLessThan(39);
+  }
+  expect((rects[1] as DOMRect).left - (rects[0] as DOMRect).right).toBeGreaterThan(7);
+  expect((rects[1] as DOMRect).left - (rects[0] as DOMRect).right).toBeLessThan(9);
+  expect((rects[2] as DOMRect).left - (rects[1] as DOMRect).right).toBeGreaterThan(7);
+  expect((rects[2] as DOMRect).left - (rects[1] as DOMRect).right).toBeLessThan(9);
+});
+
+test("shows three placeholder squares in an actions column of three while loading is initial", async () => {
+  const actionColumns = [
+    dataColumn({ id: "name", header: "Producto", render: (p: Product) => p.name }),
+    actionsColumn({
+      id: "actions",
+      header: "Actions",
+      actions: [(_p: Product) => undefined, (_p: Product) => undefined, (_p: Product) => undefined],
+    }),
+  ] as const;
+  const screen = await render(
+    <TestTable {...commonProps} columns={actionColumns} loading="initial" />,
+  );
+
+  const lastCell = screen.container.querySelector(
+    'tbody[aria-hidden="true"] tr td:last-child',
+  ) as HTMLElement;
+  expect((lastCell.firstElementChild as HTMLElement).children).toHaveLength(3);
+});
+
 test("keeps focus on the action button when its own label changes with the item's state", async () => {
   type ToggleItem = { id: string; active: boolean };
   const toggleColumns = [

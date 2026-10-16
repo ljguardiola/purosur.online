@@ -888,6 +888,7 @@ test("shows a register's enrollment, telling that the installation it had before
         scope: "register-1",
         scopeDisplay: "Caja 1",
         detail: {
+          change: "enrolled",
           deviceId: "device-1",
           hostname: "CAJA-MOSTRADOR",
           windowsVersion: "Windows 11 Pro 10.0.26100",
@@ -909,6 +910,36 @@ test("shows a register's enrollment, telling that the installation it had before
     .toBeVisible();
 });
 
+test("shows the revocation of a register's installation", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(
+    ok(
+      baseDetail({
+        kind: "register_enrolled",
+        scope: "register-1",
+        scopeDisplay: "Caja 1",
+        detail: {
+          change: "revoked",
+          deviceId: "device-1",
+          hostname: "CAJA-MOSTRADOR",
+          windowsVersion: "Windows 11 Pro 10.0.26100",
+        },
+      }),
+    ),
+  );
+
+  const screen = await renderModal(services);
+
+  await expect.element(screen.getByText("Se revocó la instalación de una caja")).toBeVisible();
+  await expect
+    .element(
+      screen.getByText(
+        "Se revocó por pérdida o robo la instalación de la caja «Caja 1», que estaba en el equipo «CAJA-MOSTRADOR» (Windows 11 Pro 10.0.26100). Los usuarios de la sucursal deben cambiar su PIN.",
+      ),
+    )
+    .toBeVisible();
+});
+
 test("describes a register that had no installation before without a replaced one", async () => {
   const services = createServices();
   vi.mocked(services.fetchAlert).mockResolvedValue(
@@ -917,6 +948,7 @@ test("describes a register that had no installation before without a replaced on
         kind: "register_enrolled",
         scopeDisplay: "Caja 1",
         detail: {
+          change: "enrolled",
           deviceId: "device-1",
           hostname: "CAJA-MOSTRADOR",
           windowsVersion: "11",

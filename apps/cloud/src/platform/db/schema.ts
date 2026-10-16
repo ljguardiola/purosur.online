@@ -1119,6 +1119,7 @@ export const offlineNumberBlocks = pgTable(
 export const installationRevocationReason = pgEnum("installation_revocation_reason", [
   "replaced",
   "outbox_chain_broken",
+  "lost_or_stolen",
 ]);
 
 export const registerInstallations = pgTable(

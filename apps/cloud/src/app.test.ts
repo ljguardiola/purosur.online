@@ -1769,6 +1769,29 @@ describe("wiring the register point of sale routes", () => {
   });
 });
 
+describe("wiring the register revocation route", () => {
+  it("answers POST /api/registers/:id/revocations according to the registerRevocations option", async () => {
+    const unwired = buildApp({ now: () => APP_CLOCK, version: "abc1234" });
+    const wired = buildApp({
+      now: () => APP_CLOCK,
+      version: "abc1234",
+      registerRevocations: {
+        db: testDatabase.db,
+        backofficeOrigin: "https://staging.purosur.online",
+        keysEncryptionKey: TEST_INSTALLATION_KEYS_ENCRYPTION_KEY,
+      },
+    });
+    const request = {
+      method: "POST",
+      url: "/api/registers/00000000-0000-0000-0000-000000000000/revocations",
+      headers: { origin: "https://staging.purosur.online" },
+    } as const;
+
+    expect((await unwired.inject(request)).statusCode).toBe(404);
+    expect((await wired.inject(request)).statusCode).toBe(401);
+  });
+});
+
 describe("wiring the device enrollment route", () => {
   it("does not register POST /api/devices when no devices option is given", async () => {
     const app = buildApp({ now: () => APP_CLOCK, version: "abc1234" });
@@ -2782,6 +2805,11 @@ describe("the route access inventory", () => {
         method: "POST",
         url: "/api/snapshot-backups/registers/:registerId/key-rotations",
         access: capabilityAccess("backups_area"),
+      },
+      {
+        method: "POST",
+        url: "/api/registers/:id/revocations",
+        access: capabilityAccess("revoke_installations"),
       },
       {
         method: "GET",

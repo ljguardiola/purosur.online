@@ -6,7 +6,7 @@ const ALERT_KIND_LABELS = {
   user_email_changed: "Correo",
   backoffice_sign_in_lockout: "Bloqueo de ingreso",
   user_access_increased: "Acceso ampliado",
-  register_enrolled: "Alta de caja",
+  register_enrolled: "Cambio de instalación de caja",
   events_quarantined: "Cuarentena de eventos",
   event_invariant_violated: "Inconsistencia en un evento",
   arca_certificate_expiring: "Certificado de ARCA por vencer",

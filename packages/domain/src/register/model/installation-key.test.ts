@@ -1,6 +1,7 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import {
+  FIRST_KEY_VERSION,
   hasDistinctKeyVersions,
   INSTALLATION_KEY_BYTES,
   inVersionOrder,
@@ -8,6 +9,7 @@ import {
   isWellFormedInstallationKey,
   latestKey,
   latestKeyVersion,
+  nextKeyVersion,
 } from "./installation-key.js";
 
 const base64Of = (bytes: Uint8Array): string => Buffer.from(bytes).toString("base64");
@@ -146,5 +148,21 @@ describe("hasDistinctKeyVersions", () => {
         { version: 1, key: "third" },
       ]),
     ).toBe(false);
+  });
+});
+
+describe("nextKeyVersion", () => {
+  it("starts at the first version when no key is held", () => {
+    expect(nextKeyVersion([])).toBe(FIRST_KEY_VERSION);
+  });
+
+  it("follows the latest version, whatever order the keys are listed in", () => {
+    expect(
+      nextKeyVersion([
+        { version: 3, key: "third" },
+        { version: 1, key: "first" },
+        { version: 2, key: "second" },
+      ]),
+    ).toBe(4);
   });
 });

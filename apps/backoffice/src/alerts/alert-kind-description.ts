@@ -6,7 +6,7 @@ const ALERT_KIND_DESCRIPTIONS = {
   user_email_changed: "Se cambió una dirección de correo",
   backoffice_sign_in_lockout: "Demasiados intentos fallidos de ingreso",
   user_access_increased: "Se amplió el acceso de un usuario",
-  register_enrolled: "Se dio de alta una caja",
+  register_enrolled: "Se dio de alta o se revocó una instalación de caja",
   events_quarantined: "Eventos de una caja en cuarentena",
   event_invariant_violated: "Evento aplicado con una inconsistencia",
   arca_certificate_expiring: "El certificado de ARCA está por vencer",
