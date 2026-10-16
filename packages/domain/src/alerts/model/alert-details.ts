@@ -1,5 +1,6 @@
 import type {
   FiscalDocumentType,
+  FiscalTaskDocumentType,
   PreEmissionGateFailureReason,
   RejectionClass,
   TaxAuthorityRejection,
@@ -104,7 +105,7 @@ interface FiscalRejectedDetail {
 
 interface ExternalBillingDetail {
   pointOfSale: number;
-  documentType: FiscalDocumentType;
+  documentType: FiscalTaskDocumentType;
   number: number;
 }
 

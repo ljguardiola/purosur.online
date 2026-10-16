@@ -4,6 +4,7 @@ import {
   type ExternalInvoicingVoucher,
   externalInvoicingTask,
   type FiscalTask,
+  type FiscalTaskDocumentType,
 } from "./fiscal-task.js";
 import type { TaxAuthorityVoucher } from "./unclear-outcome-decision.js";
 
@@ -90,7 +91,7 @@ export function decideOrphanAuthorization({
 
 export interface ExternalBilling {
   pointOfSale: number;
-  documentType: FiscalDocumentType;
+  documentType: FiscalTaskDocumentType;
   number: number;
 }
 

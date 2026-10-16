@@ -1,7 +1,7 @@
 import type { Clock } from "../../shared/index.js";
 import type { TaxAuthorityRejection } from "../model/fiscal-rejection-standing.js";
 import type { FiscalTask } from "../model/fiscal-task.js";
-import type { VoucherReference } from "../model/orphan-authorization.js";
+import type { OrphanRegularization, VoucherReference } from "../model/orphan-authorization.js";
 import type { SolicitationAnswer, WsaaTokenSource } from "./fiscal-document-authorization-ports.js";
 import type { TaxAuthorityLastAuthorizedLookup } from "./tax-authority-count-ports.js";
 import type { TaxAuthorityVoucherLookup } from "./unclear-outcome-ports.js";
@@ -58,7 +58,13 @@ export interface OrphanCreditNoteLane {
    */
   recordCreditNoteRejected(rejection: CreditNoteRejectionRecord): Promise<void>;
   recordCreditNoteUnclear(creditNoteId: string, answeredAt: Date): Promise<void>;
-  releaseCreditNoteRequest(creditNoteId: string): Promise<void>;
+  /**
+   * Frees the credit note's request and, given a regularization, records it, all or nothing.
+   */
+  releaseCreditNoteRequest(
+    creditNoteId: string,
+    regularization: OrphanRegularization | null,
+  ): Promise<void>;
 }
 
 export interface OrphanCreditNoteLanes {

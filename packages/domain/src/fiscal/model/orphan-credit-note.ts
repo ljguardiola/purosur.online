@@ -1,4 +1,5 @@
 import { argentinaCalendarDay } from "../../shared/index.js";
+import type { ExternalInvoicingVoucher } from "./fiscal-task.js";
 import { decideUnclearOutcome, type TaxAuthorityEvidence } from "./unclear-outcome-decision.js";
 
 export const CREDIT_NOTE_C_VOUCHER_TYPE = 13;
@@ -20,7 +21,7 @@ export interface UnclearCreditNote {
 
 export type UnclearCreditNoteSettlement =
   | { kind: "adopted"; authorizationCode: string; authorizationCodeDueOn: string }
-  | { kind: "released" }
+  | { kind: "released"; foreignVoucher: ExternalInvoicingVoucher | null }
   | { kind: "pending"; askAgainAt: Date };
 
 export function settleUnclearCreditNote({
@@ -41,5 +42,18 @@ export function settleUnclearCreditNote({
     evidence,
     voucherType: CREDIT_NOTE_C_VOUCHER_TYPE,
   });
-  return verdict.kind === "conflicting" ? { kind: "released" } : verdict;
+  if (verdict.kind === "conflicting" || verdict.kind === "released") {
+    return {
+      kind: "released",
+      foreignVoucher:
+        evidence.kind === "voucher"
+          ? {
+              issuedOn: evidence.voucher.issuedOn,
+              total: evidence.voucher.total,
+              authorizationCode: evidence.voucher.authorizationCode,
+            }
+          : null,
+    };
+  }
+  return verdict;
 }

@@ -2,6 +2,7 @@ import {
   ALERT_CLOSINGS,
   type AlertKind,
   ARGENTINA_TIME_ZONE,
+  CREDIT_NOTE_C_DOCUMENT_TYPE,
   FACTURA_C_DOCUMENT_TYPE,
   FORTNIGHT_REPORT_PENDING_REASONS,
   OFFSITE_DUMP_UNVERIFIED_REASONS,
@@ -150,7 +151,7 @@ const fiscalRejectedDetailSchema = z.object({
 
 const externalBillingDetailSchema = z.object({
   pointOfSale: z.int(),
-  documentType: z.literal(FACTURA_C_DOCUMENT_TYPE),
+  documentType: z.enum([FACTURA_C_DOCUMENT_TYPE, CREDIT_NOTE_C_DOCUMENT_TYPE]),
   number: z.int(),
 });
 

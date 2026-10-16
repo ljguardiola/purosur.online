@@ -36,7 +36,7 @@ export function externalInvoicingTask(
     voucher,
   }: {
     pointOfSale: number;
-    documentType: FiscalDocumentType;
+    documentType: FiscalTaskDocumentType;
     number: number;
     voucher: ExternalInvoicingVoucher;
   },

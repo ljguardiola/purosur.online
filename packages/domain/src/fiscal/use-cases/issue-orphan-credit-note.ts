@@ -1,5 +1,9 @@
 import type { TaxAuthorityRejection } from "../model/fiscal-rejection-standing.js";
-import { creditNoteRejectedTask } from "../model/fiscal-task.js";
+import {
+  CREDIT_NOTE_C_DOCUMENT_TYPE,
+  creditNoteRejectedTask,
+  externalInvoicingTask,
+} from "../model/fiscal-task.js";
 import {
   CREDIT_NOTE_C_VOUCHER_TYPE,
   creditNoteIssueDate,
@@ -107,7 +111,28 @@ export async function issueOrphanCreditNote(
           authorizationCodeDueOn,
         };
       }
-      await lane.releaseCreditNoteRequest(creditNoteId);
+      await lane.releaseCreditNoteRequest(
+        creditNoteId,
+        settlement.foreignVoucher === null
+          ? null
+          : {
+              kind: "external_invoicing",
+              externalBilling: {
+                pointOfSale,
+                documentType: CREDIT_NOTE_C_DOCUMENT_TYPE,
+                number: standing.number,
+              },
+              task: externalInvoicingTask(
+                {
+                  pointOfSale,
+                  documentType: CREDIT_NOTE_C_DOCUMENT_TYPE,
+                  number: standing.number,
+                  voucher: settlement.foreignVoucher,
+                },
+                clock.now(),
+              ),
+            },
+      );
     }
 
     const lastAuthorized = await taxAuthority.lastAuthorized({
