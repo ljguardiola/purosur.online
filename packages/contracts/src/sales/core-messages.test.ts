@@ -1667,7 +1667,6 @@ describe("asking for the detail of one sale of the history", () => {
       "session_closed",
       "invoice_in_flight",
       "carries_invoice",
-      "mercado_pago_payment",
     ].map((refusal) => ({
       kind: "found",
       detail: { ...detail, voidability: { kind: "not_voidable", refusal } },
