@@ -130,6 +130,13 @@ export const unconfirmedCloudRefund: PendingRefund = {
   delivery_stage: "unconfirmed",
 };
 
+export const unconfirmedPointRefundOfCancelledSale: PendingRefund = {
+  ...unconfirmedCloudRefund,
+  id: "55555555-5555-4555-8555-555555555556",
+  method: "POINT",
+  amount: 540_000,
+};
+
 export const confirmedUnsentCloudRefund: PendingRefund = {
   ...unconfirmedCloudRefund,
   delivery_stage: "confirmed",
@@ -154,6 +161,10 @@ export const refusedCloudRefund: PendingRefund = {
 
 export const pendingRefundsWithUnconfirmedCloudRefund: PendingRefundsBody = {
   refunds: [transferRefund, unconfirmedCloudRefund],
+};
+
+export const pendingRefundsWithUnconfirmedPointRefund: PendingRefundsBody = {
+  refunds: [transferRefund, unconfirmedPointRefundOfCancelledSale],
 };
 
 export const pendingRefundsOfEveryCloudRefundStage: PendingRefundsBody = {
