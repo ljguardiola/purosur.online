@@ -1,5 +1,11 @@
 import { FACTURA_C_VOUCHER_TYPE } from "../model/factura-c-fiscal-block.js";
 import {
+  decideOrphanAuthorization,
+  type LocalStanding,
+  type OrphanRegularization,
+  orphanRegularization,
+} from "../model/orphan-authorization.js";
+import {
   awaitsUnclearOutcomeDecision,
   decideUnclearOutcome,
   hasUnclearOutcomeSettled,
@@ -7,7 +13,12 @@ import {
   type UnclearOutcomeDecision,
   unclearOutcomeSettlesAt,
 } from "../model/unclear-outcome-decision.js";
-import type { DecideUnclearRealTimeOutcomePorts, UnclearRequest } from "./unclear-outcome-ports.js";
+import { taxAuthorityEvidenceOf } from "./tax-authority-evidence.js";
+import type {
+  DecideUnclearRealTimeOutcomePorts,
+  UnclearOutcomeLane,
+  UnclearRequest,
+} from "./unclear-outcome-ports.js";
 
 export interface DecideUnclearRealTimeOutcomeInput {
   fiscalDocumentId: string;
@@ -21,34 +32,49 @@ export type DecideUnclearRealTimeOutcomeOutcome =
   | { kind: "not_found" };
 
 async function evidenceOf(
-  { tokens, vouchers, taxAuthority }: DecideUnclearRealTimeOutcomePorts,
+  ports: DecideUnclearRealTimeOutcomePorts,
   { pointOfSale, number }: UnclearRequest,
 ): Promise<TaxAuthorityEvidence> {
-  const token = await tokens.validToken();
+  const token = await ports.tokens.validToken();
   if (token === null) {
     return { kind: "no_answer" };
   }
-  const voucher = await vouchers.voucherAt({
-    token,
+  return taxAuthorityEvidenceOf(ports, token, {
     pointOfSale,
     voucherType: FACTURA_C_VOUCHER_TYPE,
     number,
   });
-  if (voucher.kind === "found") {
-    return { kind: "voucher", voucher: voucher.voucher };
+}
+
+async function regularizationOf(
+  { ids, clock }: DecideUnclearRealTimeOutcomePorts,
+  lane: UnclearOutcomeLane,
+  request: UnclearRequest,
+  verdict: UnclearOutcomeDecision,
+  evidence: TaxAuthorityEvidence,
+): Promise<OrphanRegularization | null> {
+  if (
+    evidence.kind !== "voucher" ||
+    (verdict.kind !== "adopted" && verdict.kind !== "conflicting")
+  ) {
+    return null;
   }
-  if (voucher.kind === "no_answer") {
-    return { kind: "no_answer" };
-  }
-  const lastAuthorized = await taxAuthority.lastAuthorized({
-    token,
-    pointOfSale,
-    voucherType: FACTURA_C_VOUCHER_TYPE,
-  });
-  return {
-    kind: "no_voucher",
-    lastAuthorized: lastAuthorized.kind === "read" ? lastAuthorized.number : null,
-  };
+  const { pointOfSale, number, saleId, fiscalDocumentId } = request;
+  const local: LocalStanding =
+    verdict.kind === "conflicting"
+      ? { kind: "no_local_sale" }
+      : {
+          kind: "local_sale",
+          saleId,
+          otherAuthorizedVoucher: await lane.otherAuthorizedVoucherOfSale(saleId, fiscalDocumentId),
+        };
+  return orphanRegularization(
+    decideOrphanAuthorization({
+      evidence: { kind: "confirmed", pointOfSale, number, voucher: evidence.voucher },
+      local,
+    }),
+    { creditNoteId: ids.next(), now: clock.now() },
+  );
 }
 
 export async function decideUnclearRealTimeOutcome(
@@ -84,10 +110,13 @@ export async function decideUnclearRealTimeOutcome(
       abandonedAt = now;
     } else if (request.progress.answer.kind === "not_attempted") {
       const decision: UnclearOutcomeDecision = { kind: "released" };
-      await lane.recordDecision(fiscalDocumentId, decision, now, {
+      await lane.recordDecision(
         fiscalDocumentId,
-        clearedAt: now,
-      });
+        decision,
+        now,
+        { fiscalDocumentId, clearedAt: now },
+        null,
+      );
       return { kind: "decided", decision };
     } else {
       abandonedAt = request.progress.answeredAt;
@@ -97,16 +126,18 @@ export async function decideUnclearRealTimeOutcome(
       return { kind: "pending", askAgainAt: unclearOutcomeSettlesAt(abandonedAt) };
     }
 
-    const verdict = decideUnclearOutcome({
-      abandonedAt,
-      now,
-      document: request,
-      evidence: await evidenceOf(ports, request),
-    });
+    const evidence = await evidenceOf(ports, request);
+    const verdict = decideUnclearOutcome({ abandonedAt, now, document: request, evidence });
     if (verdict.kind === "pending") {
       return verdict;
     }
-    await lane.recordDecision(fiscalDocumentId, verdict, now, { fiscalDocumentId, clearedAt: now });
+    await lane.recordDecision(
+      fiscalDocumentId,
+      verdict,
+      now,
+      { fiscalDocumentId, clearedAt: now },
+      await regularizationOf(ports, lane, request, verdict, evidence),
+    );
     return { kind: "decided", decision: verdict };
   });
 }

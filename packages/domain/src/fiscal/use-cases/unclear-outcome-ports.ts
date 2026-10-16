@@ -1,4 +1,5 @@
 import type { Clock } from "../../shared/index.js";
+import type { OrphanRegularization, VoucherReference } from "../model/orphan-authorization.js";
 import type { RealTimeAuthorizationAnswer } from "../model/real-time-authorization.js";
 import type {
   RecordedRequestOutcome,
@@ -10,6 +11,7 @@ import type {
   FiscalDocumentData,
   WsaaTokenSource,
 } from "./fiscal-document-authorization-ports.js";
+import type { IdGenerator } from "./sale-authorization-ports.js";
 import type { TaxAuthorityLastAuthorizedLookup } from "./tax-authority-count-ports.js";
 import type { WsaaToken } from "./wsaa-token-ports.js";
 
@@ -19,6 +21,7 @@ export type UnclearRequestProgress =
 
 export interface UnclearRequest extends FiscalDocumentData {
   fiscalDocumentId: string;
+  saleId: string;
   progress: UnclearRequestProgress;
   decision: UnclearOutcomeDecision | null;
 }
@@ -38,7 +41,12 @@ export interface UnclearOutcomeLane {
     decision: UnclearOutcomeDecision,
     decidedAt: Date,
     clearedWarning: UnclearOutcomeWarningClearance,
+    regularization: OrphanRegularization | null,
   ): Promise<void>;
+  otherAuthorizedVoucherOfSale(
+    saleId: string,
+    fiscalDocumentId: string,
+  ): Promise<VoucherReference | null>;
   registerOwnsPointOfSale(registerId: string, pointOfSale: number): Promise<boolean>;
   recordedRequest(
     registerId: string,
@@ -76,6 +84,7 @@ export interface DecideUnclearRealTimeOutcomePorts {
   requests: UnclearOutcomeRequests;
   lanes: UnclearOutcomeLanes;
   clock: Clock;
+  ids: IdGenerator;
   tokens: WsaaTokenSource;
   vouchers: TaxAuthorityVoucherLookup;
   taxAuthority: TaxAuthorityLastAuthorizedLookup;

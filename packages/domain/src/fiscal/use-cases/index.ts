@@ -10,8 +10,20 @@ export type {
   RejectionStandingChange,
   TaxAuthorityRejection,
 } from "../model/fiscal-rejection-standing.js";
+export type {
+  FiscalTask,
+  FiscalTaskDocumentType,
+  FiscalTaskKind,
+} from "../model/fiscal-task.js";
 export type { Fortnight } from "../model/offline-authorization-code.js";
 export type { OfflineFiscalDocument } from "../model/offline-fiscal-document.js";
+export type {
+  CreditNoteDecision,
+  ExternalBilling,
+  LocalStanding,
+  OrphanRegularization,
+  VoucherReference,
+} from "../model/orphan-authorization.js";
 export type {
   DeferralReason,
   OfflineAuthorizationCause,
@@ -223,6 +235,11 @@ export type {
   InterruptedRealTimeAuthorizationsTransaction,
 } from "./interrupted-real-time-authorization-ports.js";
 export type {
+  IssueOrphanCreditNoteInput,
+  IssueOrphanCreditNoteOutcome,
+} from "./issue-orphan-credit-note.js";
+export { issueOrphanCreditNote } from "./issue-orphan-credit-note.js";
+export type {
   AuthorizedIssuerIdentification,
   EditableIssuerIdentification,
   IssuerIdentification,
@@ -234,7 +251,6 @@ export type {
 } from "./issuer-identification-store.js";
 export type {
   DiagnoseNumberingConflictPorts,
-  ExternalBillingOpening,
   NumberingConflictLane,
   NumberingConflictLanes,
   NumberingConflictRequest,
@@ -264,6 +280,26 @@ export type {
   OfflineNumberBlockRecord,
   OfflineNumberBlockStore,
 } from "./offline-number-block-store.js";
+export type {
+  AuthorizationNumber,
+  OrphanRegularizationLane,
+  OrphanRegularizationLanes,
+  OrphanStandingReader,
+  RegularizeOrphanAuthorizationPorts,
+} from "./orphan-authorization-ports.js";
+export type {
+  CreditNoteAuthorizationRecord,
+  CreditNoteRejectionRecord,
+  CreditNoteRequestRecord,
+  CreditNoteSolicitation,
+  CreditNoteStanding,
+  IssueOrphanCreditNotePorts,
+  OrphanCreditNote,
+  OrphanCreditNoteLane,
+  OrphanCreditNoteLanes,
+  OrphanCreditNoteRequests,
+  TaxAuthorityCreditNoteInvoicing,
+} from "./orphan-credit-note-ports.js";
 export type {
   ArcaOnlineStatus,
   ReadArcaOnlineStatusInput,
@@ -344,6 +380,11 @@ export type {
   RegisterPointOfSaleStoreTransaction,
 } from "./register-point-of-sale-store.js";
 export { PointOfSaleClaimConflict } from "./register-point-of-sale-store.js";
+export type {
+  RegularizeOrphanAuthorizationInput,
+  RegularizeOrphanAuthorizationOutcome,
+} from "./regularize-orphan-authorization.js";
+export { regularizeOrphanAuthorization } from "./regularize-orphan-authorization.js";
 export type {
   RenewWsaaTokenInput,
   RenewWsaaTokenOutcome,
