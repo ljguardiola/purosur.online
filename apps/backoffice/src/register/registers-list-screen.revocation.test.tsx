@@ -2,7 +2,7 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { accessWith } from "../shell/test-support/backoffice-access";
-import type { RegisterSummary } from "./registers-api";
+import type { RegisterSummary, RevokeRegisterOutcome } from "./registers-api";
 import {
   createServices,
   enrolledRegister,
@@ -122,4 +122,38 @@ test("a register that already has no installation in service refreshes the list 
   await userEvent.click(screen.getByRole("button", { name: "Revocar la caja" }));
 
   await expect.poll(() => vi.mocked(services.fetchRegisters).mock.calls.length).toBe(2);
+});
+
+test("a success that arrives after its modal was closed refreshes the list and leaves another register's revocation open", async () => {
+  const otherRegister: RegisterSummary = {
+    ...enrolledRegister,
+    id: "register-5",
+    name: "Caja 5",
+    installation: enrolledRegister.installation && {
+      ...enrolledRegister.installation,
+      hostname: "CAJA-ENTRADA",
+    },
+  };
+  const { services, screen } = await renderRegisters([enrolledRegister, otherRegister]);
+  const answers: ((outcome: RevokeRegisterOutcome) => void)[] = [];
+  vi.mocked(services.revokeRegister).mockImplementation(
+    () => new Promise((resolve) => answers.push(resolve)),
+  );
+  const dialog = screen.getByRole("dialog", { name: "Revocar por pérdida o robo" });
+  await userEvent.click(screen.getByRole("button", revokeAction));
+  await userEvent.click(dialog.getByRole("button", { name: "Revocar la caja" }));
+  await userEvent.click(dialog.getByRole("button", { name: "Cerrar" }));
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+  await userEvent.click(
+    screen.getByRole("button", { name: "Revocar por pérdida o robo la caja Caja 5" }),
+  );
+  await userEvent.click(dialog.getByRole("button", { name: "Revocar la caja" }));
+  await expect.poll(() => answers.length).toBe(2);
+
+  answers[0]?.({ kind: "ok", value: { revokedAt: "2026-08-04T02:00:00.000Z" } });
+  await expect.poll(() => vi.mocked(services.fetchRegisters).mock.calls.length).toBe(2);
+  answers[1]?.({ kind: "failed" });
+
+  await expect.element(dialog.getByText("Caja 5 · CAJA-ENTRADA")).toBeVisible();
+  await expect.element(dialog.getByText("Probá de nuevo.")).toBeVisible();
 });

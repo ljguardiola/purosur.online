@@ -170,6 +170,20 @@ test("revokes the register and reports it revoked", async () => {
   expect(services.revokeRegister).toHaveBeenCalledWith("register-3");
 });
 
+test("closes itself once the revocation succeeds", async () => {
+  const services = createServices();
+  vi.mocked(services.revokeRegister).mockResolvedValue({
+    kind: "ok",
+    value: { revokedAt: "2026-09-25T12:15:00.000Z" },
+  });
+  const onClose = vi.fn();
+  const { dialog } = await renderModal(services, { onClose });
+
+  await confirm(dialog);
+
+  await expect.poll(() => onClose.mock.calls.length).toBe(1);
+});
+
 test("cancelling reports it closed without revoking", async () => {
   const services = createServices();
   const onClose = vi.fn();
@@ -308,6 +322,22 @@ test("ignores a failure from an earlier opening that arrives after the modal ope
 
   expect(dialog.getByText("Probá de nuevo.").query()).toBeNull();
   await expect.element(dialog.getByRole("button", { name: "Revocar la caja" })).toBeEnabled();
+});
+
+test("leaves the modal open when a success from an earlier opening arrives after it opened again", async () => {
+  const services = createServices();
+  const resolveRevocation = pendingRevocation(services);
+  const onRevoked = vi.fn();
+  const screen = await renderReopenableModal(services, { onRevoked });
+  await confirm(screen.getByRole("dialog", { name: "Revocar por pérdida o robo" }));
+  await closeModal(screen);
+  const dialog = await reopenModal(screen);
+
+  resolveRevocation({ kind: "ok", value: { revokedAt: "2026-09-25T12:15:00.000Z" } });
+  await screen.settle();
+
+  await expect.poll(() => onRevoked.mock.calls.length).toBe(1);
+  await expect.element(dialog).toBeVisible();
 });
 
 async function answerAfterClosing(
