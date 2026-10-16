@@ -163,7 +163,15 @@ describe("voiding a sale of the sales history", () => {
 
     expect(outcome).toEqual({
       kind: "voided",
-      refunds: [{ payment_id: paymentId, method: "CASH", amount: 3000, state: "APPROVED" }],
+      refunds: [
+        {
+          payment_id: paymentId,
+          method: "CASH",
+          amount: 3000,
+          state: "APPROVED",
+          sent_by_cloud: false,
+        },
+      ],
       authorized_by: null,
     });
     expect(

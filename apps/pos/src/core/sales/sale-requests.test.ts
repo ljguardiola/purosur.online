@@ -981,11 +981,13 @@ describe("the sale in progress", () => {
     expect(await currentSaleFor(deps())).toMatchObject({
       lines_lock: "approved_payment",
       cancel_refusal: null,
-      refunds_on_cancel: [{ payment_id: "qr-1", method: "QR", amount: 1000, state: "PENDING" }],
+      refunds_on_cancel: [
+        { payment_id: "qr-1", method: "QR", amount: 1000, state: "PENDING", sent_by_cloud: true },
+      ],
     });
   });
 
-  it("says that an approved payment on the integrated terminal refuses the cancellation", async () => {
+  it("says that an approved payment on the integrated terminal leaves a pending refund the cloud sends on cancelling", async () => {
     const saleId = await sellTwoForPayments();
     database
       .prepare(
@@ -995,8 +997,16 @@ describe("the sale in progress", () => {
 
     expect(await currentSaleFor(deps())).toMatchObject({
       lines_lock: "approved_payment",
-      cancel_refusal: "holds_point_payment",
-      refunds_on_cancel: [],
+      cancel_refusal: null,
+      refunds_on_cancel: [
+        {
+          payment_id: "point-1",
+          method: "POINT",
+          amount: 1000,
+          state: "PENDING",
+          sent_by_cloud: true,
+        },
+      ],
     });
   });
 
@@ -1011,7 +1021,13 @@ describe("the sale in progress", () => {
       lines_lock: "approved_payment",
       cancel_refusal: null,
       refunds_on_cancel: [
-        { payment_id: payment?.id, method: "STANDALONE_TERMINAL", amount: 1000, state: "PENDING" },
+        {
+          payment_id: payment?.id,
+          method: "STANDALONE_TERMINAL",
+          amount: 1000,
+          state: "PENDING",
+          sent_by_cloud: false,
+        },
       ],
     });
   });
@@ -1028,8 +1044,20 @@ describe("the sale in progress", () => {
 
     expect(await currentSaleFor(deps())).toMatchObject({
       refunds_on_cancel: [
-        { payment_id: paymentIds[0], method: "CASH", amount: 1000, state: "APPROVED" },
-        { payment_id: paymentIds[1], method: "TRANSFER", amount: 500, state: "PENDING" },
+        {
+          payment_id: paymentIds[0],
+          method: "CASH",
+          amount: 1000,
+          state: "APPROVED",
+          sent_by_cloud: false,
+        },
+        {
+          payment_id: paymentIds[1],
+          method: "TRANSFER",
+          amount: 500,
+          state: "PENDING",
+          sent_by_cloud: false,
+        },
       ],
     });
   });
@@ -2953,7 +2981,15 @@ describe("cancelling the open sale of a locked register", () => {
 
     expect(await cancelLockedSaleFor(lockedDeps(), { saleId, closer: CLOSER })).toEqual({
       kind: "cancelled",
-      refunds: [{ payment_id: payment?.id, method: "CASH", amount: 1000, state: "APPROVED" }],
+      refunds: [
+        {
+          payment_id: payment?.id,
+          method: "CASH",
+          amount: 1000,
+          state: "APPROVED",
+          sent_by_cloud: false,
+        },
+      ],
     });
 
     expect(saleStates()).toEqual([{ state: "CANCELLED" }]);
@@ -3160,7 +3196,15 @@ describe("cancelling the sale in progress after a payment was approved", () => {
 
     expect(await cancelPaidSaleFor(withPins(), { saleId })).toEqual({
       kind: "cancelled",
-      refunds: [{ payment_id: payment?.id, method: "CASH", amount: 1000, state: "APPROVED" }],
+      refunds: [
+        {
+          payment_id: payment?.id,
+          method: "CASH",
+          amount: 1000,
+          state: "APPROVED",
+          sent_by_cloud: false,
+        },
+      ],
       authorized_by: null,
     });
     expect(saleStates()).toEqual([{ state: "CANCELLED" }]);
@@ -3186,7 +3230,13 @@ describe("cancelling the sale in progress after a payment was approved", () => {
     expect(await cancelPaidSaleFor(withPins(), { saleId })).toEqual({
       kind: "cancelled",
       refunds: [
-        { payment_id: payment?.id, method: "STANDALONE_TERMINAL", amount: 1000, state: "PENDING" },
+        {
+          payment_id: payment?.id,
+          method: "STANDALONE_TERMINAL",
+          amount: 1000,
+          state: "PENDING",
+          sent_by_cloud: false,
+        },
       ],
       authorized_by: null,
     });
@@ -3205,7 +3255,7 @@ describe("cancelling the sale in progress after a payment was approved", () => {
       [],
     );
     expect(database.prepare("SELECT event_type, schema_version FROM outbox").all()).toEqual([
-      { event_type: "sale_cancelled", schema_version: 6 },
+      { event_type: "sale_cancelled", schema_version: 7 },
     ]);
   });
 
@@ -3222,7 +3272,9 @@ describe("cancelling the sale in progress after a payment was approved", () => {
 
     expect(await cancelPaidSaleFor(withPins(), { saleId })).toEqual({
       kind: "cancelled",
-      refunds: [{ payment_id: "qr-1", method: "QR", amount: 1000, state: "PENDING" }],
+      refunds: [
+        { payment_id: "qr-1", method: "QR", amount: 1000, state: "PENDING", sent_by_cloud: true },
+      ],
       authorized_by: null,
     });
     expect(saleStates()).toEqual([{ state: "CANCELLED" }]);
@@ -3233,11 +3285,11 @@ describe("cancelling the sale in progress after a payment was approved", () => {
       [],
     );
     expect(database.prepare("SELECT event_type, schema_version FROM outbox").all()).toEqual([
-      { event_type: "sale_cancelled", schema_version: 6 },
+      { event_type: "sale_cancelled", schema_version: 7 },
     ]);
   });
 
-  it("refuses it, writing nothing, while it holds an approved payment on the integrated terminal", async () => {
+  it("cancels it while it holds an approved payment on the integrated terminal, leaving its refund pending for the cloud to send, with no cash movement, and telling the cloud", async () => {
     addPersonWithPin("u2", "Grace", ["sell_and_charge", "void_sale"]);
     database.prepare("UPDATE cash_sessions SET opened_by = 'u2'").run();
     signedInPerson.set("u2");
@@ -3249,12 +3301,28 @@ describe("cancelling the sale in progress after a payment was approved", () => {
       .run(saleId, NOW.toISOString(), NOW.toISOString());
 
     expect(await cancelPaidSaleFor(withPins(), { saleId })).toEqual({
-      kind: "holds_point_payment",
+      kind: "cancelled",
+      refunds: [
+        {
+          payment_id: "point-1",
+          method: "POINT",
+          amount: 1000,
+          state: "PENDING",
+          sent_by_cloud: true,
+        },
+      ],
+      authorized_by: null,
     });
-    expect(saleStates()).toEqual([{ state: "OPEN" }]);
-    expect(database.prepare("SELECT count(*) AS total FROM payment_refunds").get()).toEqual({
-      total: 0,
-    });
+    expect(saleStates()).toEqual([{ state: "CANCELLED" }]);
+    expect(
+      database.prepare("SELECT method, provider, amount, state FROM payment_refunds").all(),
+    ).toEqual([{ method: "POINT", provider: "MERCADOPAGO_POINT", amount: 1000, state: "PENDING" }]);
+    expect(database.prepare("SELECT id FROM cash_movements WHERE type = 'REFUND'").all()).toEqual(
+      [],
+    );
+    expect(database.prepare("SELECT event_type, schema_version FROM outbox").all()).toEqual([
+      { event_type: "sale_cancelled", schema_version: 7 },
+    ]);
   });
 
   it("cancels it with the PIN of a person who holds the permission, naming who authorized it", async () => {
