@@ -39,7 +39,7 @@ export async function revokeLostRegister(
       version: contingencyTicketKeyVersion,
       key: keys.generate(),
     });
-    await tx.requirePinResetOfBranchUsers(branchId);
+    await tx.requirePinResetOfBranchUsers(branchId, actorId);
     await tx.openRevocationAlert({ registerId, ...revoked });
     await tx.recordLostRegisterRevocation({
       registerId,

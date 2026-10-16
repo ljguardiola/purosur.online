@@ -127,7 +127,7 @@ class DrizzleLostRegisterRevocationTransaction<TQueryResult extends PgQueryResul
     });
   }
 
-  async requirePinResetOfBranchUsers(branchId: string): Promise<void> {
+  async requirePinResetOfBranchUsers(branchId: string, actorId: string): Promise<void> {
     const holders = await this.tx
       .select({ userId: userPins.userId, locationId: users.locationId })
       .from(userPins)
@@ -139,7 +139,7 @@ class DrizzleLostRegisterRevocationTransaction<TQueryResult extends PgQueryResul
         await this.tx.insert(auditLog).values({
           entity: "user",
           entityId: userId,
-          actorId: null,
+          actorId,
           newValue: { pin_reset_required_by: "register_revocation" },
           at: this.now(),
         });

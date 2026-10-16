@@ -40,7 +40,7 @@ export interface LostRegisterRevocationStoreTransaction {
   lockRegisterKeys(registerId: string): Promise<LostRegisterKeys>;
   recordSnapshotKey(registerId: string, key: VersionedKey): Promise<void>;
   recordContingencyTicketKey(registerId: string, key: VersionedKey): Promise<void>;
-  requirePinResetOfBranchUsers(branchId: string): Promise<void>;
+  requirePinResetOfBranchUsers(branchId: string, actorId: string): Promise<void>;
   openRevocationAlert(alert: LostRegisterRevocationAlert): Promise<void>;
   recordLostRegisterRevocation(revocation: LostRegisterRevocation): Promise<void>;
 }
