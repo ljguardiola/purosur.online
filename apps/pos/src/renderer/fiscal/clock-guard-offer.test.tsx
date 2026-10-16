@@ -115,7 +115,9 @@ describe("ClockGuardOffer", () => {
 
     await expect
       .element(
-        screen.getByText("Ya se confirmó la hora desde que se cerró la última sesión de caja"),
+        screen
+          .getByText("Ya se confirmó la hora desde que se cerró la última sesión de caja")
+          .first(),
       )
       .toBeVisible();
   });
@@ -151,7 +153,9 @@ describe("ClockGuardOffer", () => {
     await expect.element(dialog.getByText("15/09/2026 · 09:10")).toBeVisible();
     await expect
       .element(
-        dialog.getByText("Se puede confirmar una sola vez hasta la próxima apertura de caja"),
+        dialog
+          .getByText("Se puede confirmar una sola vez hasta la próxima apertura de caja")
+          .first(),
       )
       .toBeVisible();
   });
@@ -175,7 +179,7 @@ describe("ClockGuardOffer", () => {
     expect(readClockGuard).toHaveBeenCalledTimes(2);
   });
 
-  it("does not tell invoices are issued again when the clock guard still blocks after the clock is confirmed", async () => {
+  it("shows no confirmation notification when the clock guard still blocks after the clock is confirmed", async () => {
     const { screen, readClockGuard } = await renderOffer([
       BLOCKED,
       {
@@ -195,12 +199,15 @@ describe("ClockGuardOffer", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "La hora de la caja es correcta" }));
 
-    await expect.element(screen.getByText("La hora de la caja quedó confirmada")).toBeVisible();
-    expect(readClockGuard).toHaveBeenCalledTimes(2);
-    await expect.element(screen.getByText("Todavía no se emiten facturas.")).toBeVisible();
     await expect
-      .element(screen.getByText("Las facturas se emiten de nuevo."))
+      .element(screen.getByRole("dialog", { name: "No se pueden emitir comprobantes" }))
       .not.toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("button", { name: "Corregir el reloj" }))
+      .not.toBeInTheDocument();
+    expect(readClockGuard).toHaveBeenCalledTimes(2);
+    await expect.element(screen.getByText("El reloj de la caja atrasa")).toBeVisible();
+    expect(screen.getByText("La hora de la caja quedó confirmada").query()).toBeNull();
   });
 
   it("keeps the correction open with the refusal and reads the clock guard again when the clock is no longer behind", async () => {

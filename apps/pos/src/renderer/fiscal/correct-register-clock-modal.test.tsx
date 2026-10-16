@@ -95,11 +95,11 @@ describe("CorrectRegisterClockModal", () => {
       .element(dialog.getByText("Si la hora de la caja es la correcta, confirmalo acá abajo."))
       .toBeVisible();
     await expect
-      .element(dialog.getByText("Se puede confirmar una sola vez por sesión de caja"))
+      .element(dialog.getByText("Se puede confirmar una sola vez por sesión de caja").first())
       .toBeVisible();
     await expect
       .element(dialog.getByText("Si la hora vuelve a atrasar, corregila en Windows."))
-      .toBeVisible();
+      .not.toBeInTheDocument();
     await expect.element(confirmButton(dialog)).toBeEnabled();
     await expectNoAccessibilityViolations(screen.container);
   });
@@ -109,7 +109,9 @@ describe("CorrectRegisterClockModal", () => {
 
     await expect
       .element(
-        dialog.getByText("Se puede confirmar una sola vez hasta la próxima apertura de caja"),
+        dialog
+          .getByText("Se puede confirmar una sola vez hasta la próxima apertura de caja")
+          .first(),
       )
       .toBeVisible();
   });
@@ -138,8 +140,11 @@ describe("CorrectRegisterClockModal", () => {
     });
 
     await expect
-      .element(dialog.getByText("Ya se confirmó la hora en esta sesión de caja"))
+      .element(dialog.getByText("Ya se confirmó la hora en esta sesión de caja").first())
       .toBeVisible();
+    await expect
+      .element(dialog.getByText("Si la hora sigue mal, corregila en Windows."))
+      .not.toBeInTheDocument();
     await expect.element(confirmButton(dialog)).toBeDisabled();
     expect(correct).not.toHaveBeenCalled();
   });
@@ -148,7 +153,7 @@ describe("CorrectRegisterClockModal", () => {
     const { dialog } = await renderModal({ guard: { ...GUARD, correction: "not_behind" } });
 
     await expect
-      .element(dialog.getByText("Se puede confirmar una sola vez por sesión de caja"))
+      .element(dialog.getByText("Se puede confirmar una sola vez por sesión de caja").first())
       .toBeVisible();
     await expect
       .element(dialog.getByText("Ya se confirmó la hora en esta sesión de caja"))
@@ -159,7 +164,7 @@ describe("CorrectRegisterClockModal", () => {
     const { dialog } = await renderModal();
 
     await expect
-      .element(dialog.getByText("Se puede confirmar una sola vez por sesión de caja"))
+      .element(dialog.getByText("Se puede confirmar una sola vez por sesión de caja").first())
       .toBeVisible();
     await expect
       .element(dialog.getByText("Le avisa al Administrador quién lo confirmó."))
@@ -174,7 +179,9 @@ describe("CorrectRegisterClockModal", () => {
 
     await expect
       .element(
-        dialog.getByText("Ya se confirmó la hora desde que se cerró la última sesión de caja"),
+        dialog
+          .getByText("Ya se confirmó la hora desde que se cerró la última sesión de caja")
+          .first(),
       )
       .toBeVisible();
   });
