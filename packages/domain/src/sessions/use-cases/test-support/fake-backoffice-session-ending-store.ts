@@ -10,7 +10,7 @@ export interface FakeBackofficeSession {
   revokedAt: Date | null;
 }
 
-export interface FakeSessionEndedAudit {
+interface FakeSessionEndedAudit {
   actorId: string;
   session: EndedSession;
   at: Date;

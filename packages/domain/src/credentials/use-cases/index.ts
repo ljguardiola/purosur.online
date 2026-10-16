@@ -212,17 +212,17 @@ export type {
   RejectedAttemptWindow,
 } from "./rejected-attempt-flush-store.js";
 export type {
-  RemoveOwnPasskeyInput,
-  RemoveOwnPasskeyOutcome,
-  RemoveOwnPasskeyPorts,
-} from "./remove-own-passkey.js";
-export { removeOwnPasskey } from "./remove-own-passkey.js";
-export type {
   RemoveEveryUserPasskeyInput,
   RemoveEveryUserPasskeyOutcome,
   RemoveEveryUserPasskeyPorts,
 } from "./remove-every-user-passkey.js";
 export { removeEveryUserPasskey } from "./remove-every-user-passkey.js";
+export type {
+  RemoveOwnPasskeyInput,
+  RemoveOwnPasskeyOutcome,
+  RemoveOwnPasskeyPorts,
+} from "./remove-own-passkey.js";
+export { removeOwnPasskey } from "./remove-own-passkey.js";
 export type {
   RemoveUserPasskeyInput,
   RemoveUserPasskeyOutcome,

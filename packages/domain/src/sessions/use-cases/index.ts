@@ -6,15 +6,15 @@ export type {
 } from "./admit-sign-in-attempt.js";
 export { admitSignInAttempt } from "./admit-sign-in-attempt.js";
 export type {
-  BackofficeSessionEndingStore,
-  BackofficeSessionEndingStoreTransaction,
-  EndedSession,
-} from "./backoffice-session-ending-store.js";
-export type {
   AuthorizeRegisterOperationInput,
   AuthorizeRegisterOperationOutcome,
 } from "./authorize-register-operation.js";
 export { authorizeRegisterOperation } from "./authorize-register-operation.js";
+export type {
+  BackofficeSessionEndingStore,
+  BackofficeSessionEndingStoreTransaction,
+  EndedSession,
+} from "./backoffice-session-ending-store.js";
 export type { CheckPinInput, CheckPinOutcome, PinRefusal } from "./check-pin.js";
 export { checkPin } from "./check-pin.js";
 export type {
