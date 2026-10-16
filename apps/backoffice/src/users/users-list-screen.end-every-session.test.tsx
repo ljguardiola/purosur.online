@@ -14,9 +14,11 @@ test("offers to end every session below the table to someone who manages users",
 });
 
 test("does not offer to end every session to someone who only reads users", async () => {
-  const screen = await renderUsersList(createUsersListServices(), {
-    access: accessWith("users_area"),
-  });
+  const screen = await renderUsersList(
+    createUsersListServices(),
+    () => {},
+    accessWith("users_area"),
+  );
 
   await expect.element(screen.getByRole("table", { name: "Usuarios" })).toBeVisible();
   expect(screen.getByRole("region", { name: "Cerrar sesiones" }).query()).toBeNull();
@@ -24,7 +26,7 @@ test("does not offer to end every session to someone who only reads users", asyn
 
 test("hands the section the screen's way to end the session", async () => {
   const onSessionEnded = vi.fn();
-  const screen = await renderUsersList(createUsersListServices(), { onSessionEnded });
+  const screen = await renderUsersList(createUsersListServices(), onSessionEnded);
 
   await userEvent.click(screen.getByRole("button", { name: "Terminar la sesión" }));
 

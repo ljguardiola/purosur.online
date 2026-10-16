@@ -345,24 +345,40 @@ test("does not offer to remove every passkey to someone who may not remove them"
   expect(screen.getByRole("button", { name: "Dar de baja todas" }).query()).toBeNull();
 });
 
-test("does not offer to remove every passkey of an account with none, nor while they load or fail to load", async () => {
-  const empty = await renderSections(createServices());
-  await expect.element(empty.getByText("No tiene ninguna passkey registrada.")).toBeVisible();
-  expect(empty.getByRole("button", { name: "Dar de baja todas" }).query()).toBeNull();
-  await empty.unmount();
+test("does not offer to remove every passkey before the cloud answers for the user", async () => {
+  const services = createServices({
+    fetchUserPasskeys: vi.fn().mockResolvedValue({ kind: "ok", value: [notebook] }),
+  });
 
-  const loading = await renderSections(
+  const screen = await renderSections(services, { user: undefined, dataStatus: "loading" });
+
+  await expect.element(screen.getByText("Notebook del local")).toBeVisible();
+  expect(screen.getByRole("button", { name: "Dar de baja todas" }).query()).toBeNull();
+});
+
+test("disables Dar de baja todas while the passkeys load", async () => {
+  const screen = await renderSections(
     createServices({ fetchUserPasskeys: vi.fn().mockReturnValue(new Promise(() => {})) }),
   );
-  await expect.element(loading.getByRole("status")).toHaveTextContent("Cargando…");
-  expect(loading.getByRole("button", { name: "Dar de baja todas" }).query()).toBeNull();
-  await loading.unmount();
 
-  const failed = await renderSections(
+  await expect.element(screen.getByRole("status")).toHaveTextContent("Cargando…");
+  await expect.element(screen.getByRole("button", { name: "Dar de baja todas" })).toBeDisabled();
+});
+
+test("disables Dar de baja todas after the passkeys fail to load", async () => {
+  const screen = await renderSections(
     createServices({ fetchUserPasskeys: vi.fn().mockResolvedValue({ kind: "failed" }) }),
   );
-  await expect.element(failed.getByText("No pudimos abrir las passkeys")).toBeVisible();
-  expect(failed.getByRole("button", { name: "Dar de baja todas" }).query()).toBeNull();
+
+  await expect.element(screen.getByText("No pudimos abrir las passkeys")).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Dar de baja todas" })).toBeDisabled();
+});
+
+test("disables Dar de baja todas for an account without passkeys", async () => {
+  const screen = await renderSections(createServices());
+
+  await expect.element(screen.getByText("No tiene ninguna passkey registrada.")).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Dar de baja todas" })).toBeDisabled();
 });
 
 test("opens the confirmation for the whole account, naming how many passkeys it has", async () => {

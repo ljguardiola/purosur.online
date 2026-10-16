@@ -46,11 +46,7 @@ test("asks whether to close every session, the person's own included", async () 
     .element(dialog.getByRole("heading", { name: "¿Cerrar todas las sesiones?" }))
     .toBeVisible();
   await expect
-    .element(
-      dialog.getByText(
-        "Se cierran todas las sesiones abiertas del backoffice, también la tuya. Cada persona, vos incluido, vuelve a entrar con su passkey.",
-      ),
-    )
+    .element(dialog.getByText("También se cierra la tuya, y volvés a la pantalla de ingreso."))
     .toBeVisible();
 });
 

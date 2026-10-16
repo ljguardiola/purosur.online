@@ -2,11 +2,14 @@ import type {
   BackofficeSessionEndingStore,
   BackofficeSessionEndingStoreTransaction,
   EndedSession,
+  UnrevokedSession,
 } from "../backoffice-session-ending-store.js";
 
 export interface FakeBackofficeSession {
   id: string;
   userId: string;
+  createdAt: Date;
+  lastSeenAt: Date;
   revokedAt: Date | null;
 }
 
@@ -21,8 +24,6 @@ export interface FakeBackofficeSessionEndingState {
   audits: FakeSessionEndedAudit[];
 }
 
-type FailableOperation = "endEveryOpenSession" | "recordSessionEnded";
-
 class FakeTransaction implements BackofficeSessionEndingStoreTransaction {
   private readonly store: FakeBackofficeSessionEndingStore;
 
@@ -30,20 +31,24 @@ class FakeTransaction implements BackofficeSessionEndingStoreTransaction {
     this.store = store;
   }
 
-  async endEveryOpenSession(at: Date): Promise<EndedSession[]> {
-    this.store.beforeOperation("endEveryOpenSession");
-    const ended: EndedSession[] = [];
+  async lockUnrevokedSessions(): Promise<UnrevokedSession[]> {
+    return this.store.current.sessions
+      .filter((session) => session.revokedAt === null)
+      .map(({ id, userId, createdAt, lastSeenAt }) => ({ id, userId, createdAt, lastSeenAt }));
+  }
+
+  async endSessions(sessionIds: string[], at: Date): Promise<void> {
     for (const session of this.store.current.sessions) {
-      if (session.revokedAt === null) {
+      if (sessionIds.includes(session.id)) {
         session.revokedAt = at;
-        ended.push({ id: session.id, userId: session.userId });
       }
     }
-    return ended;
   }
 
   async recordSessionEnded(actorId: string, session: EndedSession, at: Date): Promise<void> {
-    this.store.beforeOperation("recordSessionEnded");
+    if (this.store.failingWrites.has("recordSessionEnded")) {
+      throw new Error("recordSessionEnded failed");
+    }
     this.store.current.audits.push({ actorId, session: structuredClone(session), at });
   }
 }
@@ -51,8 +56,7 @@ class FakeTransaction implements BackofficeSessionEndingStoreTransaction {
 export class FakeBackofficeSessionEndingStore implements BackofficeSessionEndingStore {
   private state: FakeBackofficeSessionEndingState = { sessions: [], audits: [] };
 
-  failingWrites = new Set<FailableOperation>();
-  operationOrder: string[] = [];
+  failingWrites = new Set<"recordSessionEnded">();
 
   get current(): FakeBackofficeSessionEndingState {
     return this.state;
@@ -64,13 +68,6 @@ export class FakeBackofficeSessionEndingStore implements BackofficeSessionEnding
 
   snapshot(): FakeBackofficeSessionEndingState {
     return structuredClone(this.state);
-  }
-
-  beforeOperation(operation: FailableOperation): void {
-    this.operationOrder.push(operation);
-    if (this.failingWrites.has(operation)) {
-      throw new Error(`${operation} failed`);
-    }
   }
 
   async transaction<TOutcome>(

@@ -15,7 +15,7 @@ test("offers to close every session in a callout for a suspected compromise", as
   await expect
     .element(
       screen.getByText(
-        "Cierra todas las sesiones abiertas del backoffice, también la tuya. Cada persona vuelve a entrar con su passkey.",
+        "Cierra todas las sesiones abiertas del backoffice. Cada persona vuelve a entrar con su passkey.",
       ),
     )
     .toBeVisible();

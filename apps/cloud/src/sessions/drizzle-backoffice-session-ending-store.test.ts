@@ -5,9 +5,10 @@ import { buildTestDatabase, type TestDatabase } from "../test-support/build-test
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { DrizzleBackofficeSessionEndingStore } from "./drizzle-backoffice-session-ending-store.js";
 
-const CREATED_AT = new Date("2026-10-01T08:00:00.000Z");
+const CREATED_AT = new Date("2026-10-01T11:30:00.000Z");
+const LAST_SEEN_AT = new Date("2026-10-01T11:55:00.000Z");
+const EARLIER = new Date("2026-10-01T11:40:00.000Z");
 const AT = new Date("2026-10-01T12:00:00.000Z");
-const EARLIER = new Date("2026-10-01T09:00:00.000Z");
 
 let testDatabase: TestDatabase;
 let db: TestDatabase["db"];
@@ -39,7 +40,7 @@ beforeEach(async () => {
   anaId = await insertUser("Ana", "ana@example.test");
   betoId = await insertUser("Beto", "beto@example.test");
   await db.insert(sessions).values([
-    { userId: anaId, sessionIdHash: "ana-open", createdAt: CREATED_AT, lastSeenAt: CREATED_AT },
+    { userId: anaId, sessionIdHash: "ana-open", createdAt: CREATED_AT, lastSeenAt: LAST_SEEN_AT },
     {
       userId: anaId,
       sessionIdHash: "ana-revoked",
@@ -68,28 +69,44 @@ function storedSessions() {
 }
 
 describe("DrizzleBackofficeSessionEndingStore", () => {
-  it("revokes every open session of every user and answers exactly those", async () => {
-    const ended = await endingStore().transaction((tx) => tx.endEveryOpenSession(AT));
-
+  it("answers every session not yet revoked, with what decides whether it expired", async () => {
     const stored = await storedSessions();
-    expect(stored.map(({ hash, revokedAt }) => ({ hash, revokedAt }))).toEqual([
-      { hash: "ana-open", revokedAt: AT },
-      { hash: "ana-revoked", revokedAt: EARLIER },
-      { hash: "beto-open", revokedAt: AT },
-    ]);
-    const openOnes = stored.filter((session) => session.hash !== "ana-revoked");
-    expect(ended).toHaveLength(2);
-    expect(ended).toEqual(
-      expect.arrayContaining(openOnes.map(({ id, userId }) => ({ id, userId }))),
+    const idOf = (hash: string) => stored.find((session) => session.hash === hash)?.id;
+
+    const unrevoked = await endingStore().transaction((tx) => tx.lockUnrevokedSessions());
+
+    expect(unrevoked).toHaveLength(2);
+    expect(unrevoked).toEqual(
+      expect.arrayContaining([
+        { id: idOf("ana-open"), userId: anaId, createdAt: CREATED_AT, lastSeenAt: LAST_SEEN_AT },
+        { id: idOf("beto-open"), userId: betoId, createdAt: CREATED_AT, lastSeenAt: CREATED_AT },
+      ]),
     );
   });
 
-  it("answers nothing when every session is already revoked", async () => {
-    await endingStore().transaction((tx) => tx.endEveryOpenSession(EARLIER));
+  it("revokes exactly the sessions it is given, at the moment given", async () => {
+    const [anaOpen] = (await storedSessions()).filter((session) => session.hash === "ana-open");
+    if (!anaOpen) {
+      throw new Error("test setup: no open session of Ana stored");
+    }
 
-    const ended = await endingStore().transaction((tx) => tx.endEveryOpenSession(AT));
+    await endingStore().transaction((tx) => tx.endSessions([anaOpen.id], AT));
 
-    expect(ended).toEqual([]);
+    expect((await storedSessions()).map(({ hash, revokedAt }) => ({ hash, revokedAt }))).toEqual([
+      { hash: "ana-open", revokedAt: AT },
+      { hash: "ana-revoked", revokedAt: EARLIER },
+      { hash: "beto-open", revokedAt: null },
+    ]);
+  });
+
+  it("revokes nothing when it is given no session", async () => {
+    await endingStore().transaction((tx) => tx.endSessions([], AT));
+
+    expect((await storedSessions()).map(({ hash, revokedAt }) => ({ hash, revokedAt }))).toEqual([
+      { hash: "ana-open", revokedAt: null },
+      { hash: "ana-revoked", revokedAt: EARLIER },
+      { hash: "beto-open", revokedAt: null },
+    ]);
   });
 
   it("audits an ended session with the actor, its user and the moment it ended", async () => {
@@ -115,9 +132,11 @@ describe("DrizzleBackofficeSessionEndingStore", () => {
   });
 
   it("rolls back the revocation when the work fails", async () => {
+    const sessionIds = (await storedSessions()).map((session) => session.id);
+
     await expect(
       endingStore().transaction(async (tx) => {
-        await tx.endEveryOpenSession(AT);
+        await tx.endSessions(sessionIds, AT);
         throw new Error("work failed");
       }),
     ).rejects.toThrow("work failed");
