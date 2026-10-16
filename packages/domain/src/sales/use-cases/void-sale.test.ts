@@ -281,7 +281,7 @@ describe("voidSale", () => {
           aggregate_type: "Sale",
           aggregate_id: "sale-1",
           event_type: "sale_voided",
-          schema_version: 1,
+          schema_version: 2,
           payload: {
             id: "sale-1",
             register_id: "register-1",
@@ -611,7 +611,7 @@ describe("voidSale", () => {
         expect(store.state.movements).toEqual([SALE_MOVEMENT, ANOTHER_SALE_MOVEMENT]);
         expect(store.state.refunds).toEqual([
           {
-            id: "id-3",
+            id: "id-1",
             saleId: "sale-1",
             paymentId: payment.id,
             method,

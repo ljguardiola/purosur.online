@@ -87,7 +87,6 @@ function saleVoidabilityOf({
     state: voided ? "VOIDED" : "COMPLETED",
     inOpenSession,
     fiscalDocumentStates: fiscal.fiscalDocument === null ? [] : [fiscal.fiscalDocument.state],
-    approvedPaymentMethods: payments.map(({ method }) => method),
   });
   if (refusal !== null) {
     return { kind: "not_voidable", refusal };
