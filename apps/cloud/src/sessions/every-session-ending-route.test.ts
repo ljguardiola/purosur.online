@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { auditLog, sessions } from "../platform/db/schema.js";
+import { auditLog, roles, sessions, userRoles } from "../platform/db/schema.js";
 import {
   BACKOFFICE_ORIGIN,
   openBackofficeSession,
@@ -52,6 +52,22 @@ async function openSession(email: string, permissionKeys: string[]) {
   return openBackofficeSession(db, { now: SESSION_NOON, locationId, permissionKeys, email });
 }
 
+async function openAdministratorSession(email: string) {
+  const session = await openSession(email, []);
+  const [administratorRole] = await db
+    .select({ id: roles.id })
+    .from(roles)
+    .where(eq(roles.isAdministrator, true));
+  if (!administratorRole) {
+    throw new Error("test setup: no Administrator role seeded");
+  }
+  await db
+    .update(userRoles)
+    .set({ roleId: administratorRole.id })
+    .where(eq(userRoles.userId, session.userId));
+  return session;
+}
+
 describe("DELETE /sessions", () => {
   it("returns 401 unauthenticated when no cookie was sent", async () => {
     const response = await endEverySession({ origin: BACKOFFICE_ORIGIN });
@@ -61,7 +77,7 @@ describe("DELETE /sessions", () => {
   });
 
   it("rejects an Origin that is not the backoffice's own", async () => {
-    const administrator = await openSession("ada@example.com", ["manage_users"]);
+    const administrator = await openAdministratorSession("ada@example.com");
 
     const response = await endEverySession({
       ...administrator.headers,
@@ -74,7 +90,7 @@ describe("DELETE /sessions", () => {
 
   it("rejects a user without manage_users with 403 forbidden and ends no session", async () => {
     const cashier = await openSession("cashier@example.com", ["sell_and_charge"]);
-    const administrator = await openSession("ada@example.com", ["manage_users"]);
+    const administrator = await openAdministratorSession("ada@example.com");
 
     const response = await endEverySession(cashier.headers);
 
@@ -87,7 +103,7 @@ describe("DELETE /sessions", () => {
   });
 
   it("ends every open session, the caller's included, so the next request of each is refused", async () => {
-    const administrator = await openSession("ada@example.com", ["manage_users"]);
+    const administrator = await openAdministratorSession("ada@example.com");
     const cashier = await openSession("cashier@example.com", ["sell_and_charge"]);
     expect((await readSession(cashier.headers)).statusCode).toBe(200);
 
@@ -107,7 +123,7 @@ describe("DELETE /sessions", () => {
   });
 
   it("audits each ended session with the caller as actor", async () => {
-    const administrator = await openSession("ada@example.com", ["manage_users"]);
+    const administrator = await openAdministratorSession("ada@example.com");
     await openSession("cashier@example.com", ["sell_and_charge"]);
 
     await endEverySession(administrator.headers);
@@ -123,7 +139,7 @@ describe("DELETE /sessions", () => {
   });
 
   it("clears the caller's session cookie", async () => {
-    const administrator = await openSession("ada@example.com", ["manage_users"]);
+    const administrator = await openAdministratorSession("ada@example.com");
 
     const response = await endEverySession(administrator.headers);
 
