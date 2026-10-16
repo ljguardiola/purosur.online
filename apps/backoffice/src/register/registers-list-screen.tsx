@@ -9,12 +9,16 @@ import {
   Tag,
   useTableModel,
 } from "@purosur/ui";
-import { CreditCard, KeySquare, Laptop, Plus } from "lucide-react";
+import { Ban, CreditCard, KeySquare, Laptop, Plus } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useAuthorization } from "../platform/authorization-modal";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
-import { type BackofficeAccess, canAssignPointTerminal } from "../shell/backoffice-access";
+import {
+  type BackofficeAccess,
+  canAssignPointTerminal,
+  canRevokeInstallations,
+} from "../shell/backoffice-access";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
 import { AssignPointTerminalModal } from "./assign-point-terminal-modal";
@@ -39,6 +43,7 @@ import type {
   RegisterSummary,
 } from "./registers-api";
 import type { RegistersListScreenServices } from "./registers-list-services";
+import { RevokeRegisterModal } from "./revoke-register-modal";
 
 export type RegistersListScreenProps = {
   access: BackofficeAccess;
@@ -81,6 +86,7 @@ export function RegistersListScreen({
   const reloadRegister = useReloadRegister({ fetchRegisters });
   const [newModalOpen, setNewModalOpen] = useState(false);
   const [terminalTarget, setTerminalTarget] = useState<RegisterSummary | null>(null);
+  const [revokeTarget, setRevokeTarget] = useState<RegisterSummary | null>(null);
   const [emission, setEmission] = useState<EmissionState>({ kind: "closed" });
   const { run: runEmission, modal: emissionAuthModal } =
     useAuthorization<EmitEnrollmentCodeOutcome>({
@@ -163,11 +169,32 @@ export function RegistersListScreen({
     "aria-label": `Emitir código de alta para ${item.name}`,
     onPress: () => void handleEmitClick(item),
   });
+  const revokeAction = (item: RegisterSummary) =>
+    item.installation?.state === "enrolled"
+      ? {
+          icon: <Ban />,
+          "aria-label": `Revocar por pérdida o robo la caja ${item.name}`,
+          onPress: () => setRevokeTarget(item),
+        }
+      : undefined;
   const assignTerminalAction = (item: RegisterSummary) => ({
     icon: <CreditCard />,
     "aria-label": `Asignar terminal Point a ${item.name}`,
     onPress: () => setTerminalTarget(item),
   });
+
+  const mayRevoke = canRevokeInstallations(access);
+  const mayAssignTerminal = canAssignPointTerminal(access);
+  const rowActions = (() => {
+    if (mayRevoke) {
+      return mayAssignTerminal
+        ? ([revokeAction, emitAction, assignTerminalAction] as const)
+        : ([revokeAction, emitAction] as const);
+    }
+    return mayAssignTerminal
+      ? ([emitAction, assignTerminalAction] as const)
+      : ([emitAction] as const);
+  })();
 
   const columns = [
     dataColumn({
@@ -247,7 +274,7 @@ export function RegistersListScreen({
     actionsColumn({
       id: "actions",
       header: "Acciones",
-      actions: canAssignPointTerminal(access) ? [emitAction, assignTerminalAction] : [emitAction],
+      actions: rowActions,
     }),
   ] as const;
 
@@ -319,6 +346,17 @@ export function RegistersListScreen({
         onClose={closeEmission}
         onDone={closeEmission}
         onRetry={(register) => void handleEmitClick(register)}
+      />
+      <RevokeRegisterModal
+        target={revokeTarget}
+        onClose={() => setRevokeTarget(null)}
+        onRevoked={() => {
+          setRevokeTarget(null);
+          void refreshRegisters();
+        }}
+        onOutdated={() => void refreshRegisters()}
+        onSessionEnded={onSessionEnded}
+        services={services}
       />
       {emissionAuthModal}
     </>
