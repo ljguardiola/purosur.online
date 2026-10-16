@@ -1,5 +1,5 @@
-import { enrollInstallation, rotateRegisterSnapshotKey } from "@purosur/domain/register/use-cases";
-import { asc, eq } from "drizzle-orm";
+import { rotateRegisterSnapshotKey } from "@purosur/domain/register/use-cases";
+import { eq } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -7,11 +7,8 @@ import {
   alerts,
   auditLog,
   registerContingencyTicketKeys,
-  registerEnrollmentCodes,
-  registerInstallations,
   registerSnapshotKeys,
 } from "../platform/db/schema.js";
-import { hashSecretCode } from "../platform/secret-code.js";
 import { TEST_INSTALLATION_KEYS_ENCRYPTION_KEY } from "../test-support/installation-keys-encryption-key.js";
 import {
   createIntegrationDatabase,
@@ -21,17 +18,20 @@ import {
   runQueuedBehindHeldLock,
   waitForLockWaiters,
 } from "../test-support/queued-behind-held-lock.js";
-import { issueDeviceToken } from "./device-token.js";
 import { DrizzleSnapshotKeyRotationStore } from "./drizzle-snapshot-key-rotation-store.js";
 import { generateInstallationKey } from "./installation-key.js";
 import { installationKeyCipher } from "./installation-key-cipher.js";
-import { registerEnrollmentCodeMatches } from "./register-enrollment-code.js";
+import {
+  type EnrollmentAttempt,
+  enrollNewInstallation,
+  installationsOf,
+  issueEnrollmentCode,
+} from "./test-support/enrollment-attempt.js";
 import {
   revokeEveryRegister,
   seedActor,
   seedRegisterWithKeys,
 } from "./test-support/every-installation-revocation-fixtures.js";
-import { keyStore } from "./test-support/key-store.js";
 import { REVOKED_AT, revokeRegister } from "./test-support/lost-register-revocation-fixtures.js";
 
 let integrationDb: IntegrationDatabase;
@@ -52,11 +52,6 @@ afterAll(async () => {
   await integrationDb.close();
 });
 
-interface EnrollmentAttempt {
-  code: string;
-  sourceAddress: string;
-}
-
 const REPLACING_ENROLLMENT: EnrollmentAttempt = {
   code: "P4NX7KWE2QRT6MZD",
   sourceAddress: "203.0.113.7",
@@ -65,46 +60,6 @@ const LATE_ENROLLMENT: EnrollmentAttempt = {
   code: "Q5MY6LXD3RST7NAE",
   sourceAddress: "203.0.113.8",
 };
-
-async function issueEnrollmentCode(registerId: string, { code }: EnrollmentAttempt) {
-  await db.insert(registerEnrollmentCodes).values({
-    registerId,
-    codeLookup: code.slice(0, 4),
-    codeHash: hashSecretCode(code),
-    issuedAt: REVOKED_AT,
-    expiresAt: new Date(REVOKED_AT.getTime() + 15 * 60 * 1000),
-  });
-}
-
-function enrollNewInstallation({ code, sourceAddress }: EnrollmentAttempt) {
-  return enrollInstallation(
-    {
-      store: keyStore(db),
-      clock: { now: () => REVOKED_AT },
-      tokens: { issue: issueDeviceToken },
-      codes: { matches: registerEnrollmentCodeMatches },
-      keys: { generate: generateInstallationKey },
-    },
-    {
-      code,
-      sourceAddress,
-      hostname: "CAJA-NUEVA",
-      windowsVersion: "Windows 11 Pro 10.0.26100",
-    },
-  );
-}
-
-async function installationsOf(registerId: string) {
-  return db
-    .select({
-      hostname: registerInstallations.hostname,
-      revokedAt: registerInstallations.revokedAt,
-      revocationReason: registerInstallations.revocationReason,
-    })
-    .from(registerInstallations)
-    .where(eq(registerInstallations.registerId, registerId))
-    .orderBy(asc(registerInstallations.enrolledAt));
-}
 
 async function keyVersionsOf(registerId: string) {
   const versions = async (
@@ -128,19 +83,19 @@ describe("revoking every installation on a real Postgres", () => {
   it("revokes the installation an enrollment is replacing it with when the enrollment commits first", async () => {
     const actorId = await seedActor(db);
     const { registerId } = await seedRegisterWithKeys(db, { registerName: "Caja en reemplazo" });
-    await issueEnrollmentCode(registerId, REPLACING_ENROLLMENT);
+    await issueEnrollmentCode(db, registerId, REPLACING_ENROLLMENT, REVOKED_AT);
 
     const [enrollment, revocation] = await runQueuedBehindHeldLock(
       sql,
       (holder) =>
         holder`select register_id from register_enrollment_codes where register_id = ${registerId} for update`,
-      () => enrollNewInstallation(REPLACING_ENROLLMENT),
+      () => enrollNewInstallation(db, REPLACING_ENROLLMENT, REVOKED_AT),
       () => revokeEveryRegister(db, { actorId }),
     );
 
     expect(enrollment.kind).toBe("enrolled");
     expect(revocation).toMatchObject({ kind: "revoked" });
-    expect(await installationsOf(registerId)).toEqual([
+    expect(await installationsOf(db, registerId)).toEqual([
       { hostname: "CAJA-MOSTRADOR", revokedAt: REVOKED_AT, revocationReason: "replaced" },
       { hostname: "CAJA-NUEVA", revokedAt: REVOKED_AT, revocationReason: "suspected_compromise" },
     ]);
@@ -153,19 +108,19 @@ describe("revoking every installation on a real Postgres", () => {
   it("lets an enrollment that started after the revocation complete, leaving its new installation in service", async () => {
     const actorId = await seedActor(db);
     const { registerId } = await seedRegisterWithKeys(db, { registerName: "Caja que se enrola" });
-    await issueEnrollmentCode(registerId, LATE_ENROLLMENT);
+    await issueEnrollmentCode(db, registerId, LATE_ENROLLMENT, REVOKED_AT);
 
     const [revocation, enrollment] = await runQueuedBehindHeldLock(
       sql,
       (holder) =>
         holder`select register_id from register_enrollment_codes where register_id = ${registerId} for update`,
       () => revokeEveryRegister(db, { actorId }),
-      () => enrollNewInstallation(LATE_ENROLLMENT),
+      () => enrollNewInstallation(db, LATE_ENROLLMENT, REVOKED_AT),
     );
 
     expect(revocation).toMatchObject({ kind: "revoked" });
     expect(enrollment.kind).toBe("enrolled");
-    expect(await installationsOf(registerId)).toEqual([
+    expect(await installationsOf(db, registerId)).toEqual([
       {
         hostname: "CAJA-MOSTRADOR",
         revokedAt: REVOKED_AT,
@@ -202,10 +157,10 @@ describe("revoking every installation on a real Postgres", () => {
     const revokedRegisterIds = every.registers.map(({ registerId }) => registerId);
     expect(revokedRegisterIds).toContain(other.registerId);
     expect(revokedRegisterIds).not.toContain(raced.registerId);
-    expect(await installationsOf(raced.registerId)).toEqual([
+    expect(await installationsOf(db, raced.registerId)).toEqual([
       expect.objectContaining({ revocationReason: "lost_or_stolen" }),
     ]);
-    expect(await installationsOf(other.registerId)).toEqual([
+    expect(await installationsOf(db, other.registerId)).toEqual([
       expect.objectContaining({ revocationReason: "suspected_compromise" }),
     ]);
     expect(await keyVersionsOf(raced.registerId)).toEqual({
@@ -319,7 +274,7 @@ describe("revoking every installation on a real Postgres", () => {
     }
 
     expect((await revocation)?.kind).toBe("revoked");
-    expect(await installationsOf(registerId)).toEqual([
+    expect(await installationsOf(db, registerId)).toEqual([
       expect.objectContaining({ revocationReason: "suspected_compromise" }),
     ]);
   });
@@ -348,7 +303,7 @@ describe("revoking every installation on a real Postgres", () => {
     await expect(revokeEveryRegister(db, { actorId })).rejects.toThrow();
 
     for (const { registerId } of [first, second]) {
-      expect(await installationsOf(registerId)).toEqual([
+      expect(await installationsOf(db, registerId)).toEqual([
         { hostname: "CAJA-MOSTRADOR", revokedAt: null, revocationReason: null },
       ]);
       expect(await keyVersionsOf(registerId)).toEqual({
