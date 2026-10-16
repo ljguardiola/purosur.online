@@ -29,6 +29,7 @@ import {
 import {
   insertFirstKeys,
   insertUserWithPin,
+  keyVersionsOf,
   REVOKED_AT,
   revokeRegister,
 } from "./test-support/lost-register-revocation-fixtures.js";
@@ -59,24 +60,6 @@ const LATE_ENROLLMENT: EnrollmentAttempt = {
   code: "S7PA9NXG4TVW8QBH",
   sourceAddress: "203.0.113.10",
 };
-
-async function keyVersionsOf(registerId: string) {
-  const versions = async (
-    table: typeof registerSnapshotKeys | typeof registerContingencyTicketKeys,
-  ) =>
-    (
-      await db
-        .select({ version: table.version })
-        .from(table)
-        .where(eq(table.registerId, registerId))
-    )
-      .map(({ version }) => version)
-      .sort();
-  return {
-    snapshot: await versions(registerSnapshotKeys),
-    contingencyTicket: await versions(registerContingencyTicketKeys),
-  };
-}
 
 async function seedRegister(registerName: string) {
   const installation = await insertEnrolledInstallation(db, {
@@ -113,7 +96,7 @@ describe("revoking a lost register on a real Postgres", () => {
       { hostname: "CAJA-MOSTRADOR", revokedAt: REVOKED_AT, revocationReason: "replaced" },
       { hostname: "CAJA-NUEVA", revokedAt: REVOKED_AT, revocationReason: "lost_or_stolen" },
     ]);
-    expect(await keyVersionsOf(registerId)).toEqual({
+    expect(await keyVersionsOf(db, registerId)).toEqual({
       snapshot: [1, 2],
       contingencyTicket: [1, 2],
     });
