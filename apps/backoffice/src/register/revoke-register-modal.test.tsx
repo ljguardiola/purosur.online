@@ -50,7 +50,13 @@ async function renderModal(services: RegistersListScreenServices, handlers: Hand
 
 type Dialog = Awaited<ReturnType<typeof renderModal>>["dialog"];
 
-function ReopenableModal({ services }: { services: RegistersListScreenServices }) {
+function ReopenableModal({
+  services,
+  handlers,
+}: {
+  services: RegistersListScreenServices;
+  handlers: Omit<Handlers, "target" | "onClose">;
+}) {
   const [target, setTarget] = useState<RegisterSummary | null>(enrolledRegister);
   return (
     <main>
@@ -60,17 +66,20 @@ function ReopenableModal({ services }: { services: RegistersListScreenServices }
       <RevokeRegisterModal
         target={target}
         onClose={() => setTarget(null)}
-        onRevoked={() => {}}
-        onOutdated={() => {}}
-        onSessionEnded={() => {}}
+        onRevoked={handlers.onRevoked ?? (() => {})}
+        onOutdated={handlers.onOutdated ?? (() => {})}
+        onSessionEnded={handlers.onSessionEnded ?? (() => {})}
         services={services}
       />
     </main>
   );
 }
 
-async function renderReopenableModal(services: RegistersListScreenServices) {
-  const element = <ReopenableModal services={services} />;
+async function renderReopenableModal(
+  services: RegistersListScreenServices,
+  handlers: Omit<Handlers, "target" | "onClose"> = {},
+) {
+  const element = <ReopenableModal services={services} handlers={handlers} />;
   const screen = await render(element);
   // Rerendering drives React's async `act()`, which flushes the already-resolved answer's
   // continuation before returning.
@@ -299,6 +308,60 @@ test("ignores a failure from an earlier opening that arrives after the modal ope
 
   expect(dialog.getByText("Probá de nuevo.").query()).toBeNull();
   await expect.element(dialog.getByRole("button", { name: "Revocar la caja" })).toBeEnabled();
+});
+
+async function answerAfterClosing(
+  outcome: RevokeRegisterOutcome,
+  handlers: Omit<Handlers, "target" | "onClose">,
+) {
+  const services = createServices();
+  const resolveRevocation = pendingRevocation(services);
+  const screen = await renderReopenableModal(services, handlers);
+  await confirm(screen.getByRole("dialog", { name: "Revocar por pérdida o robo" }));
+  await closeModal(screen);
+
+  resolveRevocation(outcome);
+  await screen.settle();
+}
+
+test("reports the register revoked when the success arrives after the modal was closed", async () => {
+  const onRevoked = vi.fn();
+
+  await answerAfterClosing({ kind: "ok" }, { onRevoked });
+
+  await expect.poll(() => onRevoked.mock.calls.length).toBe(1);
+});
+
+test("ends the session when no open session is found after the modal was closed", async () => {
+  const onSessionEnded = vi.fn();
+
+  await answerAfterClosing({ kind: "unauthenticated" }, { onSessionEnded });
+
+  await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
+});
+
+test("reports the list outdated when the register is not found after the modal was closed", async () => {
+  const onOutdated = vi.fn();
+
+  await answerAfterClosing({ kind: "not_found" }, { onOutdated });
+
+  await expect.poll(() => onOutdated.mock.calls.length).toBe(1);
+});
+
+test("reports the list outdated when no active installation is found after the modal was closed", async () => {
+  const onOutdated = vi.fn();
+
+  await answerAfterClosing({ kind: "no_active_installation" }, { onOutdated });
+
+  await expect.poll(() => onOutdated.mock.calls.length).toBe(1);
+});
+
+test("navigates to Mi cuenta when the revocation comes back forbidden after the modal was closed", async () => {
+  window.history.pushState(null, "", "/registers");
+
+  await answerAfterClosing({ kind: "forbidden" }, {});
+
+  await expect.poll(() => window.location.pathname).toBe("/account");
 });
 
 test("navigates to Mi cuenta when the revocation comes back forbidden", async () => {
