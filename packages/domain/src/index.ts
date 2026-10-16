@@ -213,6 +213,7 @@ export {
   awaitsUnclearOutcomeDecision,
   CLOCK_CORRECTED_EVENT_TYPE,
   CREDIT_NOTE_C_DOCUMENT_TYPE,
+  CREDIT_NOTE_C_VOUCHER_TYPE,
   CURRENCY_PESOS,
   chargeRefusal,
   clockCorrectedEvent,

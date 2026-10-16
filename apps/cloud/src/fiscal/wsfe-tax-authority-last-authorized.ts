@@ -1,4 +1,3 @@
-import { FACTURA_C_VOUCHER_TYPE } from "@purosur/domain";
 import type {
   LastAuthorizedAnswer,
   TaxAuthorityLastAuthorizedLookup,
@@ -56,9 +55,11 @@ export class WsfeTaxAuthorityLastAuthorized implements TaxAuthorityLastAuthorize
   async lastAuthorized({
     token: { token, sign },
     pointOfSale,
+    voucherType,
   }: {
     token: WsaaToken;
     pointOfSale: number;
+    voucherType: number;
   }): Promise<LastAuthorizedAnswer> {
     try {
       this.client ??= createWsfeClient(this.endpoint);
@@ -69,7 +70,7 @@ export class WsfeTaxAuthorityLastAuthorized implements TaxAuthorityLastAuthorize
           {
             Auth: { Token: token, Sign: sign, Cuit: this.cuitDigits },
             PtoVta: pointOfSale,
-            CbteTipo: FACTURA_C_VOUCHER_TYPE,
+            CbteTipo: voucherType,
           },
           { timeout: this.timeoutMs },
         );
