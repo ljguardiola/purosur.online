@@ -420,6 +420,18 @@ export type {
 } from "./request-sale-void-credit-note.js";
 export { requestSaleVoidCreditNote } from "./request-sale-void-credit-note.js";
 export type {
+  RequestedCreditNote,
+  RequestVoidCreditNotesOutcome,
+} from "./request-void-credit-notes.js";
+export { requestVoidCreditNotes } from "./request-void-credit-notes.js";
+export type {
+  CloudCreditNoteCall,
+  CloudCreditNotes,
+  PendingCreditNote,
+  RegisterVoidCreditNotes,
+  RequestVoidCreditNotesPorts,
+} from "./request-void-credit-notes-ports.js";
+export type {
   FiscalDocumentReservation,
   IdGenerator,
   SaleAuthorizationTransaction,
