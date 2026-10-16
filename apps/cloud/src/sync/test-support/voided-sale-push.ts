@@ -27,8 +27,8 @@ function paymentOf(paymentId: string, method: PaymentMethodOfPush) {
     tendered: null,
     state: "APPROVED",
     occurred_at: COMPLETED_AT,
-    authorized_by: null,
-    confirmed_at: null,
+    authorized_by: method === "TRANSFER" ? SUPERVISOR : null,
+    confirmed_at: method === "TRANSFER" ? COMPLETED_AT : null,
   };
 }
 
@@ -63,7 +63,7 @@ export async function pushSaleThenItsVoiding<TQueryResult extends PgQueryResultH
   });
   await insertInboxEvent(db, options.deviceId, {
     aggregateId: options.saleId,
-    schemaVersion: 5,
+    schemaVersion: 8,
     payload: {
       id: options.saleId,
       operation_number: 1,
@@ -73,6 +73,7 @@ export async function pushSaleThenItsVoiding<TQueryResult extends PgQueryResultH
       actor_id: CASHIER,
       occurred_at: COMPLETED_AT,
       total: AMOUNT,
+      sale_discount: null,
       lines: [],
       cash_movements: [],
       stock_movements: [],

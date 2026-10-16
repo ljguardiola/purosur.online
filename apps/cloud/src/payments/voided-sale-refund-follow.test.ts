@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { applyPendingEvents } from "@purosur/domain/sync/use-cases";
 import { describe, expect, it } from "vitest";
-import { paymentRefunds, paymentTransactions, salePayments } from "../platform/db/schema.js";
+import { paymentRefunds, paymentTransactions } from "../platform/db/schema.js";
 import { syncedEventUpcaster } from "../sync/synced-event-upcaster.js";
 import { eventApplicationUnderTest } from "../sync/test-support/drizzle-event-application.js";
 import { AMOUNT, pushSaleThenItsVoiding } from "../sync/test-support/voided-sale-push.js";
@@ -95,7 +95,21 @@ describe("a pushed voiding of a sale paid by Mercado Pago", () => {
   it("asks Mercado Pago for nothing while the refund is held for more than the payment holds", async () => {
     await pushedVoidOfSalePaidBy("QR");
     await applyEverything();
-    await system.db.update(salePayments).set({ amount: AMOUNT - 1 });
+    const [voidedRefund] = await system.db.select().from(paymentRefunds);
+    if (!voidedRefund?.paymentId) {
+      throw new Error("test setup: the voiding recorded no refund of a payment");
+    }
+    await system.db.insert(paymentRefunds).values({
+      id: randomUUID(),
+      saleId: voidedRefund.saleId,
+      paymentId: voidedRefund.paymentId,
+      origin: "sale_voided",
+      method: "QR",
+      provider: "MERCADOPAGO_QR",
+      amount: 1,
+      state: "PENDING",
+      occurredAt: new Date("2026-10-06T11:40:00.000Z"),
+    });
     const mercadoPago = new FakeMercadoPagoOrders();
 
     await followRefunds(mercadoPago);
