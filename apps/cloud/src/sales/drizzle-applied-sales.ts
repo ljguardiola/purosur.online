@@ -185,7 +185,7 @@ export async function recordAppliedVoidedSale<TQueryResult extends PgQueryResult
         paymentTransactionId: sentByCloud ? refund.paymentId : null,
         originEventId: eventId,
         origin: SALE_VOIDED_REFUND_ORIGIN,
-        confirmedBy: sentByCloud ? (sale.authorizedBy ?? sale.actorId) : null,
+        confirmedBy: sentByCloud ? sale.actorId : null,
         confirmedAt: sentByCloud ? sale.voidedAt : null,
       };
     }),
