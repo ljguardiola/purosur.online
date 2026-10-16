@@ -195,7 +195,6 @@ describe("confirmMercadoPagoRefund", () => {
 
     it.each([
       ["a late POINT payment refund", { origin: "late_payment", method: "POINT" }],
-      ["a refund of a voided sale", { origin: "sale_voided" }],
       ["a refund of another method", { method: "TRANSFER" }],
       ["a refund that names no payment transaction", { paymentTransactionId: null }],
     ])("answers that %s is not confirmable", async (_case, change) => {
@@ -209,6 +208,19 @@ describe("confirmMercadoPagoRefund", () => {
       const world = refundWorld([aSentRefund({ state: "APPROVED" })]);
 
       expect(await refusedWith(world)).toEqual({ kind: "already_done" });
+    });
+
+    it("answers that a refund of a voided sale, confirmed by its cashier, is confirmed", async () => {
+      const world = refundWorld([
+        aQrRefundOfCancelledSale({
+          origin: "sale_voided",
+          confirmedBy: "cashier",
+          confirmedAt: new Date("2026-10-13T14:00:00.000Z"),
+        }),
+      ]);
+
+      expect(await refusedWith(world)).toEqual({ kind: "already_confirmed" });
+      expect(world.mercadoPago.refundRequests).toEqual([]);
     });
 
     it("answers that a refund already confirmed is confirmed, whoever confirmed it", async () => {
