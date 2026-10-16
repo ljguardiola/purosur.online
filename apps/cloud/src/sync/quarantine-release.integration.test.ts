@@ -84,7 +84,11 @@ function release(input: { eventId: string; locationId: string; releasedBy: strin
 function applyEvents() {
   return applyPendingEvents(
     {
-      eventApplication: new DrizzleEventApplication(db, () => NOW),
+      eventApplication: new DrizzleEventApplication(
+        db,
+        () => NOW,
+        async () => {},
+      ),
       upcaster: syncedEventUpcaster,
       clock: { now: () => NOW },
       quarantineNotices: { quarantined: () => {} },

@@ -1,6 +1,6 @@
 import {
   type ManualAdjustment,
-  SALE_VOIDED_REFUND_ORIGIN,
+  recordedRefundOfVoidedSale,
   type SaleDiscount,
 } from "@purosur/domain";
 import type { SyncedFact } from "@purosur/domain/sync/use-cases";
@@ -174,11 +174,9 @@ export async function recordAppliedVoidedSale<TQueryResult extends PgQueryResult
   }
   await tx.insert(paymentRefunds).values(
     sale.refunds.map((refund) => ({
-      ...refund,
+      ...recordedRefundOfVoidedSale(refund, sale),
       saleId: sale.id,
-      paymentTransactionId: null,
       originEventId: eventId,
-      origin: SALE_VOIDED_REFUND_ORIGIN,
     })),
   );
   await recordVoidedSaleCashMovements(tx, sale);

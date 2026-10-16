@@ -25,6 +25,7 @@ export interface FakeEventApplicationState {
   recorded: { fact: SyncedFact; eventId: string }[];
   stockApplied: { eventId: string; saleId: string }[];
   stockReturned: { eventId: string; saleId: string }[];
+  refundFollowRequests: string[];
   openingCountsApplied: { eventId: string; movementId: string }[];
   openingCountsWithdrawn: { eventId: string; withdrawnMovementId: string }[];
   writeOrder: string[];
@@ -66,6 +67,7 @@ export class FakeEventApplication implements EventApplication {
     recorded: [],
     stockApplied: [],
     stockReturned: [],
+    refundFollowRequests: [],
     openingCountsApplied: [],
     openingCountsWithdrawn: [],
     writeOrder: [],
@@ -185,6 +187,10 @@ export class FakeEventApplication implements EventApplication {
         }
         this.state.stockReturned.push({ eventId: event.eventId, saleId: sale.id });
         return { kind: "applied" };
+      },
+      requestMercadoPagoRefundFollow: async () => {
+        this.state.writeOrder.push("refund follow");
+        this.state.refundFollowRequests.push("requested");
       },
       applyOpeningCount: async (count, event) => {
         this.state.writeOrder.push("opening count");

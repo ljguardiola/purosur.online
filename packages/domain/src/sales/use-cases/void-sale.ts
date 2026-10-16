@@ -72,7 +72,6 @@ export async function voidSale<Grant extends VoidSaleGrant, Refusal>(
       state: sale.state,
       inOpenSession,
       fiscalDocumentStates,
-      approvedPaymentMethods: payments.map(({ method }) => method),
     });
     if (refusal !== null) {
       return { kind: refusal };
@@ -171,7 +170,7 @@ function saleVoidedEvent(
     aggregate_type: "Sale",
     aggregate_id: sale.id,
     event_type: "sale_voided",
-    schema_version: 1,
+    schema_version: 2,
     payload: {
       id: sale.id,
       register_id: sale.registerId,

@@ -194,4 +194,37 @@ describe("listPendingRefunds", () => {
       lastRefusalReason: "insufficient_balance",
     });
   });
+
+  it.each([["QR"], ["POINT"]])(
+    "lists a refund of a voided sale paid by %s as one the cloud sends, already confirmed and on its way",
+    async (method) => {
+      const voided: FakePendingRefund = {
+        ...TRANSFER_REFUND,
+        method,
+        origin: "sale_voided",
+        confirmedAt: new Date("2026-10-07T15:30:00.000Z"),
+      };
+      const store = new FakeRefundStore([], [voided]);
+
+      const [refund] = await listPendingRefunds(
+        { reader: store, clock },
+        { locationId: "branch-1" },
+      );
+
+      expect(refund).toMatchObject({
+        origin: "sale_voided",
+        discardable: false,
+        sentByCloud: true,
+        deliveryStage: "confirmed",
+      });
+    },
+  );
+
+  it("lists a refund of a voided sale paid by transfer as one carried out by hand", async () => {
+    const store = new FakeRefundStore([], [{ ...TRANSFER_REFUND, origin: "sale_voided" }]);
+
+    const [refund] = await listPendingRefunds({ reader: store, clock }, { locationId: "branch-1" });
+
+    expect(refund).toMatchObject({ sentByCloud: false, deliveryStage: null });
+  });
 });

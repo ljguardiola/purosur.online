@@ -29,7 +29,8 @@ export interface MercadoPagoRefundReference {
   lastRefusalReason: string | null;
 }
 
-export interface OriginCancellation {
+export interface AppliedCorrection {
+  origin: string;
   saleId: string;
 }
 
@@ -38,7 +39,7 @@ export interface MercadoPagoRefundTransaction extends RefundStoreTransaction {
     refundId: string,
     locationId: string,
   ): Promise<MercadoPagoRefundRecord | undefined>;
-  cancellationOfEvent(originEventId: string): Promise<OriginCancellation | null>;
+  appliedCorrectionOfEvent(originEventId: string): Promise<AppliedCorrection | null>;
   recordRefundConfirmed(
     refundId: string,
     confirmedBy: string,

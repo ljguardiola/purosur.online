@@ -22,8 +22,8 @@ const FISCAL_SALE: SaleDetail = {
   voidability: {
     kind: "voidable",
     refunds: [
-      { method: "TRANSFER", amount: 3_070_000, state: "PENDING" },
-      { method: "CASH", amount: 2_000_000, state: "APPROVED" },
+      { method: "TRANSFER", amount: 3_070_000, state: "PENDING", sent_by_cloud: false },
+      { method: "CASH", amount: 2_000_000, state: "APPROVED", sent_by_cloud: false },
     ],
   },
   void_authorization_required: false,
@@ -192,10 +192,6 @@ describe("SaleHistoryDetailPanel", () => {
     [
       "carries_invoice",
       "La caja todavía no anula una venta con factura. Se tramita como devolución.",
-    ],
-    [
-      "mercado_pago_payment",
-      "La caja todavía no anula una venta con un pago de Mercado Pago. Se tramita como devolución.",
     ],
   ] as const)(
     "locks voiding and says why only in its tooltip when the sale cannot be voided: %s",

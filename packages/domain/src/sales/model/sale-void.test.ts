@@ -1,12 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { PAYMENT_METHODS } from "../../payments/index.js";
 import { SALE_VOID_REFUSALS, type SaleVoidFacts, saleVoidRefusal } from "./sale-void.js";
 
 const VOIDABLE: SaleVoidFacts = {
   state: "COMPLETED",
   inOpenSession: true,
   fiscalDocumentStates: [],
-  approvedPaymentMethods: ["CASH"],
 };
 
 function facts(changes: Partial<SaleVoidFacts>): SaleVoidFacts {
@@ -20,31 +18,19 @@ describe("SALE_VOID_REFUSALS", () => {
       "session_closed",
       "invoice_in_flight",
       "carries_invoice",
-      "mercado_pago_payment",
     ]);
   });
 });
 
 describe("saleVoidRefusal", () => {
-  it("lets a completed sale of the open session paid in cash be voided", () => {
+  it("lets a completed sale of the open session be voided", () => {
     expect(saleVoidRefusal(VOIDABLE)).toBeNull();
   });
-
-  it.each(["TRANSFER", "STANDALONE_TERMINAL"] as const)(
-    "lets a sale paid by %s be voided",
-    (method) => {
-      expect(saleVoidRefusal(facts({ approvedPaymentMethods: [method] }))).toBeNull();
-    },
-  );
 
   it("lets a sale be voided whose invoice request was rejected, released or in conflict", () => {
     expect(
       saleVoidRefusal(facts({ fiscalDocumentStates: ["REJECTED", "RELEASED", "CONFLICTING"] })),
     ).toBeNull();
-  });
-
-  it("lets a sale with no payment be voided", () => {
-    expect(saleVoidRefusal(facts({ approvedPaymentMethods: [] }))).toBeNull();
   });
 
   it.each(["OPEN", "VOIDED", "CANCELLED"] as const)(
@@ -77,18 +63,6 @@ describe("saleVoidRefusal", () => {
     );
   });
 
-  it.each(["QR", "POINT"] as const)("refuses a sale with an approved %s payment", (method) => {
-    expect(saleVoidRefusal(facts({ approvedPaymentMethods: ["CASH", method] }))).toBe(
-      "mercado_pago_payment",
-    );
-  });
-
-  it("accepts every payment method but Mercado Pago's", () => {
-    const others = PAYMENT_METHODS.filter((method) => method !== "QR" && method !== "POINT");
-
-    expect(saleVoidRefusal(facts({ approvedPaymentMethods: others }))).toBeNull();
-  });
-
   it("answers not completed before a closed session", () => {
     expect(saleVoidRefusal(facts({ state: "VOIDED", inOpenSession: false }))).toBe("not_completed");
   });
@@ -103,13 +77,5 @@ describe("saleVoidRefusal", () => {
     expect(saleVoidRefusal(facts({ fiscalDocumentStates: ["AUTHORIZED", "REQUESTING"] }))).toBe(
       "invoice_in_flight",
     );
-  });
-
-  it("answers an invoice carried before a Mercado Pago payment", () => {
-    expect(
-      saleVoidRefusal(
-        facts({ fiscalDocumentStates: ["AUTHORIZED"], approvedPaymentMethods: ["QR"] }),
-      ),
-    ).toBe("carries_invoice");
   });
 });

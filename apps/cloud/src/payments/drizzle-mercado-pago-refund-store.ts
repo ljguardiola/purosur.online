@@ -1,10 +1,15 @@
-import { PLANNED_REFUND_STATES, REFUND_PENDING_STATE } from "@purosur/domain";
+import {
+  PLANNED_REFUND_STATES,
+  REFUND_PENDING_STATE,
+  SALE_CANCELLED_REFUND_ORIGIN,
+  SALE_VOIDED_REFUND_ORIGIN,
+} from "@purosur/domain";
 import type {
+  AppliedCorrection,
   MercadoPagoRefundRecord,
   MercadoPagoRefundReference,
   MercadoPagoRefundStore,
   MercadoPagoRefundTransaction,
-  OriginCancellation,
 } from "@purosur/domain/payments/use-cases";
 import { and, eq, inArray, isNotNull, ne, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
@@ -21,6 +26,7 @@ import { withPendingChanges } from "../sync/change-log.js";
 import { DrizzleRefundStoreTransaction } from "./drizzle-refund-store.js";
 
 const SALE_CANCELLED_EVENT = "sale_cancelled";
+const SALE_VOIDED_EVENT = "sale_voided";
 
 class DrizzleMercadoPagoRefundTransaction<TQueryResult extends PgQueryResultHKT>
   extends DrizzleRefundStoreTransaction<TQueryResult>
@@ -121,18 +127,27 @@ class DrizzleMercadoPagoRefundTransaction<TQueryResult extends PgQueryResultHKT>
     return Number(others?.amount ?? 0);
   }
 
-  async cancellationOfEvent(originEventId: string): Promise<OriginCancellation | null> {
+  async appliedCorrectionOfEvent(originEventId: string): Promise<AppliedCorrection | null> {
     const [event] = await this.tx
-      .select({ saleId: inbox.aggregateId })
+      .select({ saleId: inbox.aggregateId, eventType: inbox.eventType })
       .from(inbox)
       .where(
         and(
           eq(inbox.eventId, originEventId),
-          eq(inbox.eventType, SALE_CANCELLED_EVENT),
+          inArray(inbox.eventType, [SALE_CANCELLED_EVENT, SALE_VOIDED_EVENT]),
           isNotNull(inbox.appliedAt),
         ),
       );
-    return event ? { saleId: event.saleId } : null;
+    if (!event) {
+      return null;
+    }
+    return {
+      origin:
+        event.eventType === SALE_VOIDED_EVENT
+          ? SALE_VOIDED_REFUND_ORIGIN
+          : SALE_CANCELLED_REFUND_ORIGIN,
+      saleId: event.saleId,
+    };
   }
 
   async recordRefundConfirmed(

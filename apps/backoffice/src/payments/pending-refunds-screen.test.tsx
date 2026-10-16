@@ -14,6 +14,7 @@ import {
   noPendingRefunds,
   pendingRefunds,
   pendingRefundsOfEveryCloudRefundStage,
+  pendingRefundsOfVoidedSalePaidThroughMercadoPago,
   pendingRefundsWithConfirmedLatePayment,
   pendingRefundsWithLatePayment,
   pendingRefundsWithLatePaymentOfOtherOrder,
@@ -602,6 +603,34 @@ test("tells how far each QR refund the cloud sends got and offers sending only t
   expect(rows[2]).toContain("Enviado a Mercado Pago · en proceso");
   expect(screen.getByRole("button", { name: /^Enviar a Mercado Pago/ }).all()).toHaveLength(1);
   expect(screen.getByRole("button", { name: /^Marcar como hecho/ }).all()).toHaveLength(0);
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("tells a voided sale's Mercado Pago refunds by their origin and how far they got, offering no action on them", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchPendingRefunds).mockResolvedValue({
+    kind: "ok",
+    value: pendingRefundsOfVoidedSalePaidThroughMercadoPago,
+  });
+  const screen = await renderScreen(services);
+  await expect.poll(() => screen.getByRole("row").all().length).toBe(4);
+
+  const rows = screen
+    .getByRole("row")
+    .all()
+    .slice(1)
+    .map((row) => row.element().textContent ?? "");
+  expect(rows[1]).toContain("Anulación de venta");
+  expect(rows[1]).toContain("Confirmado · se envía al reconectar");
+  expect(rows[2]).toContain("Anulación de venta");
+  expect(rows[2]).toContain("Enviado a Mercado Pago · en proceso");
+  expect(screen.getByRole("button", { name: /^Enviar a Mercado Pago/ }).all()).toHaveLength(0);
+  expect(
+    screen.getByRole("button", { name: "Marcar como hecho el reembolso de $ 3.400,00" }).query(),
+  ).toBeNull();
+  expect(
+    screen.getByRole("button", { name: "Marcar como hecho el reembolso de $ 1.200,00" }).query(),
+  ).toBeNull();
   await expectNoAccessibilityViolations(screen.container);
 });
 

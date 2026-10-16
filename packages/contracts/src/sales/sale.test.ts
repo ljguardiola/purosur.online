@@ -623,7 +623,6 @@ describe("voidSaleOutcomeSchema", () => {
     { kind: "session_closed" },
     { kind: "invoice_in_flight" },
     { kind: "carries_invoice" },
-    { kind: "mercado_pago_payment" },
     { kind: "pending_refunds_unconfirmed" },
     { kind: "not_signed_in" },
     { kind: "lacks_permission" },
@@ -645,6 +644,7 @@ describe("voidSaleOutcomeSchema", () => {
     { kind: "no_open_sale" },
     { kind: "not_permitted" },
     { kind: "somewhere_else" },
+    { kind: "mercado_pago_payment" },
     {},
   ])("rejects the outcome %j", (outcome) => {
     expect(voidSaleOutcomeSchema.safeParse(outcome).success).toBe(false);

@@ -908,6 +908,7 @@ describe("the register's local migrations", () => {
         "0056_numbering_freeze",
         "0057_voided_sales",
         "0058_register_clock_guard",
+        "0059_point_refunds",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -993,6 +994,7 @@ describe("the register's local migrations", () => {
         "0056_numbering_freeze",
         "0057_voided_sales",
         "0058_register_clock_guard",
+        "0059_point_refunds",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1073,6 +1075,7 @@ describe("the register's local migrations", () => {
         "0056_numbering_freeze",
         "0057_voided_sales",
         "0058_register_clock_guard",
+        "0059_point_refunds",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1152,6 +1155,7 @@ describe("the register's local migrations", () => {
         "0056_numbering_freeze",
         "0057_voided_sales",
         "0058_register_clock_guard",
+        "0059_point_refunds",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1260,6 +1264,7 @@ describe("the register's local migrations", () => {
         "0056_numbering_freeze",
         "0057_voided_sales",
         "0058_register_clock_guard",
+        "0059_point_refunds",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1358,6 +1363,7 @@ describe("the register's local migrations", () => {
         "0056_numbering_freeze",
         "0057_voided_sales",
         "0058_register_clock_guard",
+        "0059_point_refunds",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1460,6 +1466,7 @@ describe("the register's local migrations", () => {
         "0056_numbering_freeze",
         "0057_voided_sales",
         "0058_register_clock_guard",
+        "0059_point_refunds",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1545,6 +1552,7 @@ describe("the register's local migrations", () => {
         "0056_numbering_freeze",
         "0057_voided_sales",
         "0058_register_clock_guard",
+        "0059_point_refunds",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1622,6 +1630,7 @@ describe("the register's local migrations", () => {
         "0056_numbering_freeze",
         "0057_voided_sales",
         "0058_register_clock_guard",
+        "0059_point_refunds",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -3238,6 +3247,105 @@ describe("the register's local migrations", () => {
           .prepare(
             `INSERT INTO payment_refunds (id, payment_id, method, provider, amount, state, occurred_at)
              VALUES ('orphan', 'missing', 'QR', 'MERCADOPAGO_QR', 700, 'PENDING', '2026-10-09T12:30:00.000Z')`,
+          )
+          .run(),
+      ).toThrow(/FOREIGN KEY/);
+      expect(
+        after
+          .prepare("SELECT name FROM sqlite_schema WHERE name = 'payment_refunds_by_payment'")
+          .all(),
+      ).toEqual([{ name: "payment_refunds_by_payment" }]);
+      expect(after.pragma("foreign_key_check")).toEqual([]);
+      after.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
+  it("let a refund be pending on Mercado Pago Point, keeping the refunds a register already holds", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.filter(
+        (migration) => migration.name < "0059_point_refunds",
+      );
+      expect(LOCAL_MIGRATIONS.map((migration) => migration.name)).toContain("0059_point_refunds");
+      const before = openLocalDatabase(path, previous, migrationClock);
+      before.exec(
+        `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
+         VALUES ('s1', 'r1', 'device-a', 'u1', '2026-10-09T12:00:00.000Z', 0, 'OPEN');
+         INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at)
+         VALUES ('done', 'r1', 'device-a', 's1', 'u1', 'COMPLETED', '2026-10-09T12:05:00.000Z');
+         INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, tendered, authorized_by, confirmed_at, state, occurred_at, wait_ends_at)
+         VALUES ('pay-cash', 'done', 'SALE', 'CASH', 'NONE', 1000, 1500, NULL, NULL, 'APPROVED', '2026-10-09T12:05:00.000Z', NULL),
+                ('pay-qr', 'done', 'SALE', 'QR', 'MERCADOPAGO_QR', 700, NULL, NULL, NULL, 'APPROVED', '2026-10-09T12:10:00.000Z', '2026-10-09T12:13:00.000Z'),
+                ('pay-point', 'done', 'SALE', 'POINT', 'MERCADOPAGO_POINT', 800, NULL, NULL, NULL, 'APPROVED', '2026-10-09T12:11:00.000Z', '2026-10-09T12:14:00.000Z');
+         INSERT INTO payment_refunds (id, payment_id, method, provider, amount, state, occurred_at)
+         VALUES ('refund-cash', 'pay-cash', 'CASH', 'NONE', 1000, 'APPROVED', '2026-10-09T12:20:00.000Z'),
+                ('refund-qr', 'pay-qr', 'QR', 'MERCADOPAGO_QR', 700, 'PENDING', '2026-10-09T12:20:00.000Z');`,
+      );
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+
+      expect(
+        after
+          .prepare(
+            "SELECT id, payment_id, method, provider, state FROM payment_refunds ORDER BY id",
+          )
+          .all(),
+      ).toEqual([
+        {
+          id: "refund-cash",
+          payment_id: "pay-cash",
+          method: "CASH",
+          provider: "NONE",
+          state: "APPROVED",
+        },
+        {
+          id: "refund-qr",
+          payment_id: "pay-qr",
+          method: "QR",
+          provider: "MERCADOPAGO_QR",
+          state: "PENDING",
+        },
+      ]);
+      const insertRefund = after.prepare(
+        `INSERT INTO payment_refunds (id, payment_id, method, provider, amount, state, occurred_at)
+         VALUES (@id, 'pay-point', @method, @provider, 800, @state, '2026-10-09T12:30:00.000Z')`,
+      );
+      const point = { method: "POINT", provider: "MERCADOPAGO_POINT", state: "PENDING" };
+      insertRefund.run({ ...point, id: "refund-point" });
+      expect(
+        after
+          .prepare("SELECT method, provider, state FROM payment_refunds WHERE id = 'refund-point'")
+          .get(),
+      ).toEqual(point);
+      expect(() => insertRefund.run({ ...point, id: "already-done", state: "APPROVED" })).toThrow(
+        /CHECK/,
+      );
+      expect(() => insertRefund.run({ ...point, id: "no-provider", provider: "NONE" })).toThrow(
+        /CHECK/,
+      );
+      expect(() =>
+        insertRefund.run({ ...point, id: "qr-provider", provider: "MERCADOPAGO_QR" }),
+      ).toThrow(/CHECK/);
+      expect(() =>
+        insertRefund.run({
+          ...point,
+          id: "qr-on-point",
+          method: "QR",
+          provider: "MERCADOPAGO_POINT",
+        }),
+      ).toThrow(/CHECK/);
+      expect(() => insertRefund.run({ ...point, id: "cash-on-point", method: "CASH" })).toThrow(
+        /CHECK/,
+      );
+      expect(() =>
+        after
+          .prepare(
+            `INSERT INTO payment_refunds (id, payment_id, method, provider, amount, state, occurred_at)
+             VALUES ('orphan', 'missing', 'POINT', 'MERCADOPAGO_POINT', 800, 'PENDING', '2026-10-09T12:30:00.000Z')`,
           )
           .run(),
       ).toThrow(/FOREIGN KEY/);
