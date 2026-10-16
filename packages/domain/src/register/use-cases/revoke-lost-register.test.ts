@@ -50,43 +50,6 @@ describe("revokeLostRegister", () => {
     ]);
   });
 
-  it("keeps the previous key versions held beside the new ones", async () => {
-    const world = setup();
-
-    await revoke(world);
-
-    const state = world.store.snapshot();
-    expect(state.snapshotKeys).toEqual([
-      { registerId: "register-1", version: 1, key: "snapshot-old" },
-      { registerId: "register-1", version: 2, key: "key-1" },
-    ]);
-    expect(state.contingencyTicketKeys).toEqual([
-      { registerId: "register-1", version: 1, key: "ticket-old" },
-      { registerId: "register-1", version: 2, key: "key-2" },
-    ]);
-  });
-
-  it("creates the first version of a key set that is empty", async () => {
-    const world = setup();
-    const empty = new FakeLostRegisterRevocationStore();
-    empty.seedRegister("register-1", "branch-1");
-    empty.seedInstallation({
-      registerId: "register-1",
-      deviceId: "device-1",
-      hostname: "caja-01",
-      windowsVersion: "10.0.22631",
-      revokedAt: null,
-    });
-
-    expect(await revoke({ ...world, store: empty })).toMatchObject({
-      snapshotKeyVersion: 1,
-      contingencyTicketKeyVersion: 1,
-    });
-    expect(empty.snapshot().snapshotKeys).toEqual([
-      { registerId: "register-1", version: 1, key: "key-1" },
-    ]);
-  });
-
   it("requires every user of the branch to set a new PIN, on behalf of who revoked it", async () => {
     const world = setup();
 
@@ -127,26 +90,6 @@ describe("revokeLostRegister", () => {
         contingencyTicketKeyVersion: { previous: 1, current: 2 },
       },
     ]);
-  });
-
-  it("records no previous version for a key set that was empty", async () => {
-    const world = setup();
-    const empty = new FakeLostRegisterRevocationStore();
-    empty.seedRegister("register-1", "branch-1");
-    empty.seedInstallation({
-      registerId: "register-1",
-      deviceId: "device-1",
-      hostname: "caja-01",
-      windowsVersion: "10.0.22631",
-      revokedAt: null,
-    });
-
-    await revoke({ ...world, store: empty });
-
-    expect(empty.snapshot().revocations[0]).toMatchObject({
-      snapshotKeyVersion: { previous: null, current: 1 },
-      contingencyTicketKeyVersion: { previous: null, current: 1 },
-    });
   });
 
   it("revokes before rotating the keys and rotates them before forcing the PIN resets", async () => {

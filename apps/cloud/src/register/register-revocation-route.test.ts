@@ -1,5 +1,5 @@
-import { registerRevocationSchema } from "@purosur/contracts";
-import { eq } from "drizzle-orm";
+import { everyInstallationRevocationSchema, registerRevocationSchema } from "@purosur/contracts";
+import { eq, isNull } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
@@ -19,6 +19,7 @@ import { buildTestDatabase, type TestDatabase } from "../test-support/build-test
 import { TEST_INSTALLATION_KEYS_ENCRYPTION_KEY } from "../test-support/installation-keys-encryption-key.js";
 import { registerRegisterRevocationRoute } from "./register-revocation-route.js";
 import { insertEnrolledInstallation } from "./test-support/enrolled-installation.js";
+import { seedRegisterWithKeys } from "./test-support/every-installation-revocation-fixtures.js";
 import {
   insertFirstKeys,
   insertOtherLocation,
@@ -226,5 +227,128 @@ describe("POST /registers/:id/revocations", () => {
         revocation_reason: "lost_or_stolen",
       },
     });
+  });
+});
+
+describe("POST /registers/revocations", () => {
+  async function setUpEveryBranch(
+    options: { permissionKeys?: string[]; passkeyAuthorized?: boolean; revoked?: boolean } = {},
+  ) {
+    const first = await seedRegisterWithKeys(db, {
+      registerName: "Caja 1",
+      ...(options.revoked ? { revoked: true } : {}),
+    });
+    const second = await seedRegisterWithKeys(db, {
+      registerName: "Caja 2",
+      inOtherBranch: true,
+      ...(options.revoked ? { revoked: true } : {}),
+    });
+    const session = await openBackofficeSession(db, {
+      now: SESSION_NOON,
+      locationId: first.locationId,
+      permissionKeys: options.permissionKeys ?? [REVOKE_PERMISSION],
+      passkeyAuthorized: options.passkeyAuthorized ?? true,
+    });
+    return { first, second, session };
+  }
+
+  function revokeEvery(headers: Record<string, string>) {
+    return app.inject({ method: "POST", url: "/registers/revocations", headers });
+  }
+
+  async function activeInstallations() {
+    return (
+      await db
+        .select({ id: registerInstallations.id })
+        .from(registerInstallations)
+        .where(isNull(registerInstallations.revokedAt))
+    ).length;
+  }
+
+  it("answers 401 unauthenticated without a session", async () => {
+    const response = await revokeEvery({ origin: BACKOFFICE_ORIGIN });
+
+    expect(response.statusCode).toBe(401);
+    expect(response.json()).toMatchObject({ code: "unauthenticated" });
+  });
+
+  it("rejects an Origin that is not the backoffice's own, revoking nothing", async () => {
+    const { session } = await setUpEveryBranch();
+
+    const response = await revokeEvery({ ...session.headers, origin: "https://attacker.example" });
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toMatchObject({ code: "origin_rejected" });
+    expect(await activeInstallations()).toBe(2);
+  });
+
+  it("answers 403 forbidden to a user without the revoke_register_devices permission, revoking nothing", async () => {
+    const { session } = await setUpEveryBranch({ permissionKeys: ["sell_and_charge"] });
+
+    const response = await revokeEvery(session.headers);
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toMatchObject({ code: "forbidden" });
+    expect(await activeInstallations()).toBe(2);
+  });
+
+  it("answers 401 authorization_required without a recent passkey authorization, revoking nothing", async () => {
+    const { session } = await setUpEveryBranch({ passkeyAuthorized: false });
+
+    const response = await revokeEvery(session.headers);
+
+    expect(response.statusCode).toBe(401);
+    expect(response.json()).toMatchObject({ code: "authorization_required" });
+    expect(await activeInstallations()).toBe(2);
+    expect(await db.select().from(alerts)).toEqual([]);
+    expect(await db.select().from(registerSnapshotKeys)).toHaveLength(2);
+  });
+
+  it("revokes the installations of registers of every branch and answers when and how many", async () => {
+    const { session } = await setUpEveryBranch();
+
+    const response = await revokeEvery(session.headers);
+
+    expect(response.statusCode).toBe(200);
+    expect(everyInstallationRevocationSchema.parse(response.json())).toEqual({
+      revoked_at: SESSION_NOON.toISOString(),
+      revoked_registers: 2,
+    });
+    expect(await activeInstallations()).toBe(0);
+    expect(await db.select().from(alerts)).toHaveLength(2);
+    expect(await db.select().from(registerSnapshotKeys)).toHaveLength(4);
+  });
+
+  it("answers 409 no_active_installation when no register has an installation in service", async () => {
+    const { session } = await setUpEveryBranch({ revoked: true });
+
+    const response = await revokeEvery(session.headers);
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toEqual({
+      code: "no_active_installation",
+      message: "no register has an installation in service to revoke",
+    });
+  });
+
+  it("audits each revocation with the person who made it", async () => {
+    const { first, second, session } = await setUpEveryBranch();
+
+    await revokeEvery(session.headers);
+
+    for (const { registerId, deviceId } of [first, second]) {
+      const [row] = await db
+        .select({ actorId: auditLog.actorId, newValue: auditLog.newValue })
+        .from(auditLog)
+        .where(eq(auditLog.entityId, deviceId));
+      expect(row).toEqual({
+        actorId: session.userId,
+        newValue: {
+          register_id: registerId,
+          revoked_at: SESSION_NOON.toISOString(),
+          revocation_reason: "suspected_compromise",
+        },
+      });
+    }
   });
 });

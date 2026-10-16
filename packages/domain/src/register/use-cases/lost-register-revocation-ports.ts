@@ -1,26 +1,9 @@
 import type { Clock } from "../../shared/index.js";
-import type { VersionedKey } from "../model/installation-key.js";
+import type {
+  InstallationRevocationTransaction,
+  KeyVersionChange,
+} from "./installation-revocation-ports.js";
 import type { InstallationKeyGenerator } from "./register-store.js";
-
-export interface RevokedInstallation {
-  deviceId: string;
-  hostname: string;
-  windowsVersion: string;
-}
-
-export interface LostRegisterKeys {
-  snapshotKeys: VersionedKey[];
-  contingencyTicketKeys: VersionedKey[];
-}
-
-export interface LostRegisterRevocationAlert extends RevokedInstallation {
-  registerId: string;
-}
-
-export interface KeyVersionChange {
-  previous: number | null;
-  current: number;
-}
 
 export interface LostRegisterRevocation {
   registerId: string;
@@ -31,17 +14,9 @@ export interface LostRegisterRevocation {
   contingencyTicketKeyVersion: KeyVersionChange;
 }
 
-export interface LostRegisterRevocationStoreTransaction {
+export interface LostRegisterRevocationStoreTransaction extends InstallationRevocationTransaction {
   lockBranchRegister(branchId: string, registerId: string): Promise<boolean>;
-  revokeActiveInstallation(
-    registerId: string,
-    revokedAt: Date,
-  ): Promise<RevokedInstallation | null>;
-  lockRegisterKeys(registerId: string): Promise<LostRegisterKeys>;
-  recordSnapshotKey(registerId: string, key: VersionedKey): Promise<void>;
-  recordContingencyTicketKey(registerId: string, key: VersionedKey): Promise<void>;
   requirePinResetOfBranchUsers(branchId: string, actorId: string): Promise<void>;
-  openRevocationAlert(alert: LostRegisterRevocationAlert): Promise<void>;
   recordLostRegisterRevocation(revocation: LostRegisterRevocation): Promise<void>;
 }
 

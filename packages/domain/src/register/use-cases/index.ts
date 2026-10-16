@@ -74,6 +74,12 @@ export type {
 } from "./enroll-installation.js";
 export { enrollInstallation } from "./enroll-installation.js";
 export type {
+  EveryInstallationRevocationRecord,
+  EveryInstallationRevocationStore,
+  EveryInstallationRevocationStoreTransaction,
+  RevokeEveryInstallationPorts,
+} from "./every-installation-revocation-ports.js";
+export type {
   FindRegisterUpdateInput,
   FindRegisterUpdatePorts,
   RegisterRelease,
@@ -82,6 +88,13 @@ export type {
 } from "./find-register-update.js";
 export { findRegisterUpdate } from "./find-register-update.js";
 export type { InstallationKeys } from "./installation-keys.js";
+export type {
+  HeldRegisterKeys,
+  InstallationRevocationAlert,
+  InstallationRevocationTransaction,
+  KeyVersionChange,
+  RevokedInstallation,
+} from "./installation-revocation-ports.js";
 export type {
   BranchRegisterSummary,
   ListBranchRegistersInput,
@@ -100,13 +113,9 @@ export type {
 } from "./local-database-health.js";
 export type { LocalDatabaseMigrations } from "./local-database-migrations.js";
 export type {
-  KeyVersionChange,
-  LostRegisterKeys,
   LostRegisterRevocation,
-  LostRegisterRevocationAlert,
   LostRegisterRevocationStore,
   LostRegisterRevocationStoreTransaction,
-  RevokedInstallation,
   RevokeLostRegisterPorts,
 } from "./lost-register-revocation-ports.js";
 export type {
@@ -206,6 +215,12 @@ export type {
   RequestSnapshotUploadPorts,
 } from "./request-snapshot-upload.js";
 export { requestSnapshotUpload } from "./request-snapshot-upload.js";
+export type {
+  RevokedRegister,
+  RevokeEveryInstallationInput,
+  RevokeEveryInstallationOutcome,
+} from "./revoke-every-installation.js";
+export { revokeEveryInstallation } from "./revoke-every-installation.js";
 export type {
   RevokeLostRegisterInput,
   RevokeLostRegisterOutcome,

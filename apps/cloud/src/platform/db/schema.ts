@@ -1121,6 +1121,7 @@ export const installationRevocationReason = pgEnum("installation_revocation_reas
   "replaced",
   "outbox_chain_broken",
   "lost_or_stolen",
+  "suspected_compromise",
 ]);
 
 export const registerInstallations = pgTable(

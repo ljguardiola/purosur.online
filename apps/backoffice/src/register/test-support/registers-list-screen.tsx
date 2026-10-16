@@ -18,6 +18,7 @@ export function createServices(
     assignPointTerminal: vi.fn(),
     emitEnrollmentCode: vi.fn(),
     revokeRegister: vi.fn(),
+    revokeEveryInstallation: vi.fn(),
     fetchSessionAuthorizationOptions: vi.fn(),
     authorizeSession: vi.fn(),
     startAuthentication: vi.fn(),
@@ -110,4 +111,11 @@ export function renderScreen(
       <RefreshRegisters />
     </main>,
   );
+}
+
+export async function renderRegisters(registers: RegisterSummary[], access?: BackofficeAccess) {
+  const services = createServices();
+  vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: registers });
+  const screen = await renderScreen(services, undefined, access);
+  return { services, screen };
 }

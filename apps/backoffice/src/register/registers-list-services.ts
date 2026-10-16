@@ -11,8 +11,10 @@ import {
   emitEnrollmentCode,
   fetchRegisterCoverage,
   fetchRegisters,
+  revokeEveryInstallation,
   revokeRegister,
 } from "./registers-api";
+import type { RevokeEveryInstallationModalServices } from "./revoke-every-installation-modal";
 import type { RevokeRegisterModalServices } from "./revoke-register-modal";
 
 export type RegistersListScreenServices = {
@@ -24,7 +26,8 @@ export type RegistersListScreenServices = {
   startAuthentication: typeof startAuthentication;
 } & NewRegisterModalServices &
   AssignPointTerminalModalServices &
-  RevokeRegisterModalServices;
+  RevokeRegisterModalServices &
+  RevokeEveryInstallationModalServices;
 
 export const defaultRegistersListScreenServices: RegistersListScreenServices = {
   fetchRegisters,
@@ -33,6 +36,7 @@ export const defaultRegistersListScreenServices: RegistersListScreenServices = {
   assignPointTerminal,
   emitEnrollmentCode,
   revokeRegister,
+  revokeEveryInstallation,
   fetchSessionAuthorizationOptions,
   authorizeSession,
   startAuthentication,

@@ -1,11 +1,13 @@
 import type { VersionedKey } from "../../model/installation-key.js";
 import type {
-  LostRegisterKeys,
+  HeldRegisterKeys,
+  InstallationRevocationAlert,
+  RevokedInstallation,
+} from "../installation-revocation-ports.js";
+import type {
   LostRegisterRevocation,
-  LostRegisterRevocationAlert,
   LostRegisterRevocationStore,
   LostRegisterRevocationStoreTransaction,
-  RevokedInstallation,
 } from "../lost-register-revocation-ports.js";
 
 export interface FakeLostRegisterInstallation extends RevokedInstallation {
@@ -22,7 +24,7 @@ interface FakeLostRegisterState {
   snapshotKeys: FakeKey[];
   contingencyTicketKeys: FakeKey[];
   branchesWithPinResetRequired: { branchId: string; actorId: string }[];
-  alerts: LostRegisterRevocationAlert[];
+  alerts: InstallationRevocationAlert[];
   revocations: LostRegisterRevocation[];
 }
 
@@ -64,7 +66,7 @@ class FakeLostRegisterRevocationTransaction implements LostRegisterRevocationSto
     return { deviceId, hostname, windowsVersion };
   }
 
-  async lockRegisterKeys(registerId: string): Promise<LostRegisterKeys> {
+  async lockRegisterKeys(registerId: string): Promise<HeldRegisterKeys> {
     this.store.operationOrder.push("lockRegisterKeys");
     const ofRegister = (keys: FakeKey[]): VersionedKey[] =>
       keys
@@ -91,7 +93,7 @@ class FakeLostRegisterRevocationTransaction implements LostRegisterRevocationSto
     this.state.branchesWithPinResetRequired.push({ branchId, actorId });
   }
 
-  async openRevocationAlert(alert: LostRegisterRevocationAlert): Promise<void> {
+  async openRevocationAlert(alert: InstallationRevocationAlert): Promise<void> {
     this.beforeWrite("openRevocationAlert");
     this.state.alerts.push(structuredClone(alert));
   }

@@ -7,6 +7,7 @@ import {
   createServices,
   enrolledRegister,
   register1,
+  renderRegisters,
   renderScreen,
   revokedRegister,
 } from "./test-support/registers-list-screen";
@@ -16,16 +17,6 @@ beforeEach(() => {
 });
 
 const revokeAction = { name: "Revocar por pérdida o robo la caja Caja 3" };
-
-async function renderRegisters(
-  registers: RegisterSummary[],
-  access?: Parameters<typeof renderScreen>[2],
-) {
-  const services = createServices();
-  vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: registers });
-  const screen = await renderScreen(services, undefined, access);
-  return { services, screen };
-}
 
 test("offers revoking to a person who may, only for a register with an installation in service", async () => {
   const { screen } = await renderRegisters([register1, enrolledRegister, revokedRegister]);
