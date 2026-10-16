@@ -1,4 +1,7 @@
-import type { HandConfirmedPaymentsQuery } from "@purosur/contracts";
+import {
+  type HandConfirmedPaymentsQuery,
+  handConfirmedPaymentMethodSchema,
+} from "@purosur/contracts";
 import { z } from "zod";
 import {
   reportFiltersFields,
@@ -9,7 +12,10 @@ import {
 export const handConfirmedPaymentsFilters = z
   .object({
     ...reportFiltersFields,
-    method: z.enum(["ALL", "TRANSFER", "STANDALONE_TERMINAL"]).default("ALL").catch("ALL"),
+    method: z
+      .enum(["ALL", ...handConfirmedPaymentMethodSchema.options])
+      .default("ALL")
+      .catch("ALL"),
   })
   .transform(withoutRefusedPeriod);
 

@@ -8,7 +8,6 @@ export interface HandConfirmedPayment {
   confirmedAt: Date;
   cashierId: string;
   cashierName: string | null;
-  confirmedById: string;
   confirmedByName: string | null;
   saleOperationNumber: number | null;
 }

@@ -1,25 +1,16 @@
-import {
-  ARGENTINA_TIME_ZONE,
-  CONFIRMED_BY_HAND_METHODS,
-  isCalendarDay,
-  isReportPeriodAsked,
-} from "@purosur/domain";
+import { ARGENTINA_TIME_ZONE, CONFIRMED_BY_HAND_METHODS, isCalendarDay } from "@purosur/domain";
 import { z } from "zod";
-import { recordIdSchema } from "../shared/index.js";
+import { recordIdSchema, reportQuerySchema } from "../shared/index.js";
 
 const calendarDay = z.string().refine(isCalendarDay);
 const count = z.int().nonnegative();
 const cents = z.int().nonnegative();
-const method = z.enum(CONFIRMED_BY_HAND_METHODS);
+export const handConfirmedPaymentMethodSchema = z.enum(CONFIRMED_BY_HAND_METHODS);
+const method = handConfirmedPaymentMethodSchema;
 
-export const handConfirmedPaymentsQuerySchema = z
-  .object({
-    from: z.string().optional(),
-    to: z.string().optional(),
-    register_id: recordIdSchema().optional(),
-    method: method.optional(),
-  })
-  .refine(({ from, to }) => isReportPeriodAsked({ from, to }));
+export const handConfirmedPaymentsQuerySchema = reportQuerySchema.and(
+  z.object({ method: method.optional() }),
+);
 
 const methodTotal = z.object({ method, count, amount: cents });
 

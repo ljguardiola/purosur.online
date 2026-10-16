@@ -1,7 +1,11 @@
-import type { HandConfirmedPaymentsBody } from "@purosur/contracts";
+import {
+  type HandConfirmedPaymentsBody,
+  handConfirmedPaymentMethodSchema,
+} from "@purosur/contracts";
 import {
   Card,
   dataColumn,
+  EmptyState,
   FigureStat,
   formatCents,
   formatNumber,
@@ -47,8 +51,10 @@ const NO_NAME = "—";
 
 const METHOD_OPTIONS = [
   { value: "ALL", label: "Todos" },
-  { value: "TRANSFER", label: paymentMethodLabel("TRANSFER") },
-  { value: "STANDALONE_TERMINAL", label: paymentMethodLabel("STANDALONE_TERMINAL") },
+  ...handConfirmedPaymentMethodSchema.options.map((method) => ({
+    value: method,
+    label: paymentMethodLabel(method),
+  })),
 ] as const;
 
 function totalOf(methods: readonly MethodTotal[], method: MethodTotal["method"]) {
@@ -170,6 +176,7 @@ export function HandConfirmedPaymentsScreen({
   });
   const transfers = shown ? totalOf(shown.methods, "TRANSFER") : undefined;
   const standaloneTerminal = shown ? totalOf(shown.methods, "STANDALONE_TERMINAL") : undefined;
+  const noPayments = data.status === "loaded" && data.value.payments.length === 0;
 
   return (
     <ScreenLayout
@@ -235,36 +242,36 @@ export function HandConfirmedPaymentsScreen({
           )}
         </div>
       )}
-      <section aria-labelledby={cashiersHeadingId} className="flex flex-col gap-3">
-        <h2 id={cashiersHeadingId} className="text-subheading text-text">
-          Por cajero
-        </h2>
-        <Table
-          aria-label="Pagos confirmados a mano por cajero"
-          table={cashiersTable}
-          {...cloudTableState(data, "los pagos confirmados a mano por cajero")}
-          empty={{
-            icon: <Wallet />,
-            title: "No hay pagos por cajero en este período",
-            variant: filtered ? "filtered" : "blank",
-          }}
+      {noPayments ? (
+        <EmptyState
+          icon={<Wallet />}
+          title="No hay pagos confirmados a mano en este período"
+          variant={filtered ? "filtered" : "blank"}
         />
-      </section>
-      <section aria-labelledby={paymentsHeadingId} className="flex flex-col gap-3">
-        <h2 id={paymentsHeadingId} className="text-subheading text-text">
-          Detalle de pagos
-        </h2>
-        <Table
-          aria-label="Pagos confirmados a mano"
-          table={paymentsTable}
-          {...cloudTableState(data, "los pagos confirmados a mano")}
-          empty={{
-            icon: <Wallet />,
-            title: "No hay pagos confirmados a mano en este período",
-            variant: filtered ? "filtered" : "blank",
-          }}
-        />
-      </section>
+      ) : (
+        <>
+          <section aria-labelledby={cashiersHeadingId} className="flex flex-col gap-3">
+            <h2 id={cashiersHeadingId} className="text-subheading text-text">
+              Por cajero
+            </h2>
+            <Table
+              aria-label="Pagos confirmados a mano por cajero"
+              table={cashiersTable}
+              {...cloudTableState(data, "los pagos confirmados a mano por cajero")}
+            />
+          </section>
+          <section aria-labelledby={paymentsHeadingId} className="flex flex-col gap-3">
+            <h2 id={paymentsHeadingId} className="text-subheading text-text">
+              Detalle de pagos
+            </h2>
+            <Table
+              aria-label="Pagos confirmados a mano"
+              table={paymentsTable}
+              {...cloudTableState(data, "los pagos confirmados a mano")}
+            />
+          </section>
+        </>
+      )}
     </ScreenLayout>
   );
 }

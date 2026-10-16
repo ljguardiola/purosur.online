@@ -166,6 +166,7 @@ export type {
   HandConfirmedPaymentsQuery,
 } from "./payments/hand-confirmed-payments.js";
 export {
+  handConfirmedPaymentMethodSchema,
   handConfirmedPaymentsQuerySchema,
   handConfirmedPaymentsSchema,
 } from "./payments/hand-confirmed-payments.js";

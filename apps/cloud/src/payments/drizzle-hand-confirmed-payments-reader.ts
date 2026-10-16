@@ -72,7 +72,6 @@ export class DrizzleHandConfirmedPaymentsReader<TQueryResult extends PgQueryResu
         confirmedAt: row.confirmedAt,
         cashierId: row.cashierId,
         cashierName: row.cashierName,
-        confirmedById: row.authorizedBy,
         confirmedByName: row.confirmedByName,
         saleOperationNumber: row.saleOperationNumber,
       };
