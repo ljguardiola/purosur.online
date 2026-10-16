@@ -38,10 +38,9 @@ export function voidRefundPresentation(refund: VoidRefund): {
   }
   return {
     title,
-    description:
-      refund.method === "QR" || refund.method === "POINT"
-        ? "Queda un reembolso pendiente que la nube envía a Mercado Pago al confirmarlo."
-        : "Queda un reembolso pendiente: una persona lo hace por fuera de la caja.",
+    description: refund.sent_by_cloud
+      ? "Queda un reembolso pendiente que la nube envía a Mercado Pago al confirmarlo."
+      : "Queda un reembolso pendiente: una persona lo hace por fuera de la caja.",
     chip: { label: "Pendiente", tone: "info" },
     pending: true,
   };
