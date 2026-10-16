@@ -1,8 +1,13 @@
 import { mkdir, rename, rm } from "node:fs/promises";
 import type { SnapshotWorkerJobMessage } from "@purosur/contracts";
-import type { SnapshotCorruptionStage } from "@purosur/domain";
+import {
+  isHeldSnapshotKeyOutdated,
+  latestKeyVersion,
+  type SnapshotCorruptionStage,
+} from "@purosur/domain";
 import type { UploadPendingSnapshotGenerationsOutcome } from "@purosur/domain/register/use-cases";
 import type { CloudClientDeps } from "../platform/cloud-client";
+import { cloudCurrentSnapshotKeyVersion } from "./current-snapshot-key-version";
 import { type Durability, nodeDurability } from "./durable-files";
 import { copyAndCheck, SnapshotCopyFailed } from "./snapshot-copy";
 import {
@@ -17,6 +22,7 @@ import {
   temporaryObjectPath,
   writeManifest,
 } from "./snapshot-generations-folder";
+import { reportGenerationsOnDisk } from "./snapshot-on-disk-report";
 import { uploadPendingGenerations } from "./snapshot-upload";
 
 type TakeJob = Extract<SnapshotWorkerJobMessage, { kind: "take" }>;
@@ -28,7 +34,11 @@ export interface SnapshotJobDeps {
 }
 
 export type SnapshotJobResult =
-  | { kind: "completed"; uploads: UploadPendingSnapshotGenerationsOutcome }
+  | {
+      kind: "completed";
+      uploads: UploadPendingSnapshotGenerationsOutcome;
+      latestAnnouncedKeyVersion: number | undefined;
+    }
   | { kind: "aborted"; stage: SnapshotCorruptionStage };
 
 async function takeSnapshot(
@@ -82,14 +92,18 @@ export async function runSnapshotJob(
 ): Promise<SnapshotJobResult> {
   await mkdir(job.snapshots_folder, { recursive: true });
   await removeLeftovers(job.snapshots_folder);
+  let currentKeyVersion: number | undefined;
   if (job.kind === "take") {
-    try {
-      await takeSnapshot(job, deps);
-    } catch (error) {
-      if (error instanceof SnapshotCopyFailed) {
-        return { kind: "aborted", stage: error.stage };
+    currentKeyVersion = await cloudCurrentSnapshotKeyVersion(deps.cloud, job.device_token);
+    if (!isHeldSnapshotKeyOutdated(job.key.version, currentKeyVersion)) {
+      try {
+        await takeSnapshot(job, deps);
+      } catch (error) {
+        if (error instanceof SnapshotCopyFailed) {
+          return { kind: "aborted", stage: error.stage };
+        }
+        throw error;
       }
-      throw error;
     }
   }
   const uploads = await uploadPendingGenerations({
@@ -99,5 +113,20 @@ export async function runSnapshotJob(
     now: deps.now,
     ...(deps.durability === undefined ? {} : { durability: deps.durability }),
   });
-  return { kind: "completed", uploads };
+  if (uploads.kind === "every_pending_tried") {
+    await reportGenerationsOnDisk({
+      folder: job.snapshots_folder,
+      deviceToken: job.device_token,
+      cloud: deps.cloud,
+    });
+  }
+  return {
+    kind: "completed",
+    uploads,
+    latestAnnouncedKeyVersion: latestKeyVersion(
+      [currentKeyVersion, uploads.latestAnnouncedKeyVersion].filter(
+        (version) => version !== undefined,
+      ),
+    ),
+  };
 }

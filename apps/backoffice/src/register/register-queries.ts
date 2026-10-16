@@ -12,6 +12,12 @@ import type {
   RegisterSyncStatus,
 } from "./registers-api";
 import type { fetchReportRegisters } from "./report-registers-api";
+import type {
+  fetchSnapshotBackupRegisters,
+  fetchSnapshotBackups,
+  SnapshotBackupRegister,
+  SnapshotBackups,
+} from "./snapshot-backups-api";
 
 export const registerKey = ["register"] as const;
 
@@ -20,6 +26,9 @@ export const registerKeys = {
   coverage: [...registerKey, "coverage"] as const,
   syncStatus: [...registerKey, "sync-status"] as const,
   reportRegisters: [...registerKey, "report-registers"] as const,
+  snapshotBackupRegisters: [...registerKey, "snapshot-backup-registers"] as const,
+  snapshotBackups: (registerId: string) =>
+    [...registerKey, "snapshot-backups", registerId] as const,
 };
 
 export function useRegistersQuery(params: {
@@ -69,6 +78,35 @@ export function useReportRegistersQuery(params: {
   return useCloudQuery<ReportRegisterListBody>({
     queryKey: registerKeys.reportRegisters,
     read: params.fetchReportRegisters,
+    onSessionEnded: params.onSessionEnded,
+    onForbidden: sendToMyAccount,
+  });
+}
+
+export function useSnapshotBackupRegistersQuery(params: {
+  fetchSnapshotBackupRegisters: typeof fetchSnapshotBackupRegisters;
+  onSessionEnded: () => void;
+}) {
+  const sendToMyAccount = useSendToMyAccount();
+  return useCloudQuery<SnapshotBackupRegister[]>({
+    queryKey: registerKeys.snapshotBackupRegisters,
+    read: params.fetchSnapshotBackupRegisters,
+    onSessionEnded: params.onSessionEnded,
+    onForbidden: sendToMyAccount,
+  });
+}
+
+export function useSnapshotBackupsQuery(params: {
+  registerId: string | undefined;
+  fetchSnapshotBackups: typeof fetchSnapshotBackups;
+  onSessionEnded: () => void;
+}) {
+  const sendToMyAccount = useSendToMyAccount();
+  const { registerId, fetchSnapshotBackups } = params;
+  return useCloudQuery<SnapshotBackups>({
+    queryKey: registerKeys.snapshotBackups(registerId ?? ""),
+    read: () => fetchSnapshotBackups(registerId ?? ""),
+    enabled: registerId !== undefined,
     onSessionEnded: params.onSessionEnded,
     onForbidden: sendToMyAccount,
   });

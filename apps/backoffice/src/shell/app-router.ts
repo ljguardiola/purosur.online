@@ -24,7 +24,7 @@ import {
   purchasesListRoute,
   suppliersListRoute,
 } from "../purchasing/routes";
-import { registersListRoute } from "../register/routes";
+import { registersListRoute, snapshotBackupsRoute } from "../register/routes";
 import {
   averageTicketRoute,
   reportsIndexRoute,
@@ -115,6 +115,7 @@ const routeTree = rootRoute.addChildren([
       userDetailRoute,
       rolesListRoute,
       registersListRoute,
+      snapshotBackupsRoute,
       branchSettingsRoute,
       quarantinedEventsRoute,
     ]),

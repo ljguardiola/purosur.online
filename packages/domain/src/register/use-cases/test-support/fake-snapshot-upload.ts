@@ -67,7 +67,11 @@ export class FakeLocalSnapshotGenerations implements LocalSnapshotGenerations {
 export class FakeSnapshotUploadCloud implements SnapshotUploadCloud<string> {
   onDeclare: (generation: LocalSnapshotGeneration) => SnapshotDeclarationAnswer<string> = (
     generation,
-  ) => ({ kind: "accepted", authorization: `upload of ${generation.generationId}` });
+  ) => ({
+    kind: "accepted",
+    authorization: `upload of ${generation.generationId}`,
+    currentKeyVersion: generation.keyVersion,
+  });
   onPut: (authorization: string) => SnapshotCloudStep = () => "done";
   onConfirm: (generation: LocalSnapshotGeneration) => SnapshotCloudStep = () => "done";
 

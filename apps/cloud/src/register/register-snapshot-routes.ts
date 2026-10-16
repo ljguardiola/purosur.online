@@ -168,6 +168,7 @@ export function registerRegisterSnapshotRoutes<TQueryResult extends PgQueryResul
             upload_url: authorization.url,
             required_headers: authorization.requiredHeaders,
             expires_at: authorization.expiresAt.toISOString(),
+            current_key_version: outcome.currentKeyVersion,
           }),
         );
       },

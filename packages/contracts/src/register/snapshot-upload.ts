@@ -20,6 +20,7 @@ export const snapshotUploadAnswerSchema = z.object({
   upload_url: z.url({ protocol: /^https$/ }),
   required_headers: z.record(z.string(), z.string()),
   expires_at: z.iso.datetime(),
+  current_key_version: snapshotKeyVersionSchema,
 });
 
 export type SnapshotUploadAnswer = z.output<typeof snapshotUploadAnswerSchema>;
