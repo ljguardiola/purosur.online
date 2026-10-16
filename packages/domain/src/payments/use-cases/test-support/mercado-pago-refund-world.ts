@@ -41,6 +41,12 @@ export function aQrRefundOfCancelledSale(
   };
 }
 
+export function aPointRefundOfCancelledSale(
+  overrides: Partial<FakeMercadoPagoStoredRefund> = {},
+): FakeMercadoPagoStoredRefund {
+  return aQrRefundOfCancelledSale({ method: "POINT", ...overrides });
+}
+
 export function aRefundOfVoidedSale(
   method: "QR" | "POINT",
   overrides: Partial<FakeMercadoPagoStoredRefund> = {},

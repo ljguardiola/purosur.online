@@ -97,6 +97,24 @@ describe("listPendingRefunds", () => {
     expect(refund).toMatchObject({ discardable: false, sentByCloud: true, deliveryStage: "sent" });
   });
 
+  it.each([
+    ["unconfirmed", null, null, "unconfirmed"],
+    ["sent", new Date("2026-10-07T16:00:00.000Z"), new Date("2026-10-07T16:00:02.000Z"), "sent"],
+  ])(
+    "lists a %s Point refund of a cancelled sale as one the cloud sends",
+    async (_case, confirmedAt, sentAt, stage) => {
+      const point: FakePendingRefund = { ...TRANSFER_REFUND, method: "POINT", confirmedAt, sentAt };
+      const store = new FakeRefundStore([], [point]);
+
+      const [refund] = await listPendingRefunds(
+        { reader: store, clock },
+        { locationId: "branch-1" },
+      );
+
+      expect(refund).toMatchObject({ sentByCloud: true, deliveryStage: stage });
+    },
+  );
+
   it("lists a late POINT payment refund as one carried out by hand, discardable", async () => {
     const late: FakePendingRefund = { ...TRANSFER_REFUND, method: "POINT", origin: "late_payment" };
     const store = new FakeRefundStore([], [late]);

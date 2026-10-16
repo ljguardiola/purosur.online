@@ -2411,7 +2411,9 @@ describe("answerRendererRequest", () => {
       paid: 1000,
       cancellable: false,
       cancel_refusal: null,
-      refunds_on_cancel: [{ payment_id: "p1", method: "CASH", amount: 1000, state: "APPROVED" }],
+      refunds_on_cancel: [
+        { payment_id: "p1", method: "CASH", amount: 1000, state: "APPROVED", sent_by_cloud: false },
+      ],
     };
 
     expect(

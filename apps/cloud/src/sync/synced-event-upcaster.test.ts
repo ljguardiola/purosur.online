@@ -803,6 +803,46 @@ describe("decoding the events the registers pushed", () => {
       });
     });
 
+    it("reads a version 7 cancelled sale with its Point payment and pending Point refund", () => {
+      const point = {
+        ...salePayment,
+        method: "POINT",
+        provider: "MERCADOPAGO_POINT",
+        tendered: null,
+        authorized_by: null,
+        confirmed_at: null,
+      };
+      const pending = {
+        ...refund,
+        parent_id: point.id,
+        method: "POINT",
+        provider: "MERCADOPAGO_POINT",
+        state: "PENDING",
+      };
+
+      const decoded = upcaster.decode(
+        unappliedEventOf(cancelled({ payments: [point], refunds: [pending] }, 7)),
+      );
+
+      expect(decoded).toMatchObject({
+        kind: "fact",
+        fact: {
+          kind: "sale_cancelled",
+          sale: {
+            payments: [{ method: "POINT", provider: "MERCADOPAGO_POINT" }],
+            refunds: [
+              {
+                paymentId: point.id,
+                method: "POINT",
+                provider: "MERCADOPAGO_POINT",
+                state: "PENDING",
+              },
+            ],
+          },
+        },
+      });
+    });
+
     describe("a voided sale", () => {
       const transfer = {
         ...salePayment,

@@ -321,6 +321,7 @@ export {
   isLateApproval,
   isPointTerminalId,
   isRefundPending,
+  isRefundSentByCloud,
   isValidOrderAmount,
   isValidPointOrderAmount,
   latePaymentRefund,

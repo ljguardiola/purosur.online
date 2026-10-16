@@ -71,11 +71,19 @@ const SALE_IN_A_QR_WAIT: SessionOpenSale = {
   cancellable: false,
   cancel_refusal: "mercado_pago_charge_in_progress",
 };
+const POINT_REFUND = {
+  payment_id: "p2",
+  method: "POINT",
+  amount: 1_000_000,
+  state: "PENDING",
+  sent_by_cloud: true,
+} as const;
 const SALE_WITH_POINT_PAYMENT: SessionOpenSale = {
   ...CANCELLABLE_SALE,
   paid: 1_000_000,
   cancellable: false,
-  cancel_refusal: "holds_point_payment",
+  cancel_refusal: null,
+  refunds_on_cancel: [POINT_REFUND],
 };
 const PART_PAID_SALE: SessionOpenSale = {
   id: "sale-2",
@@ -83,7 +91,15 @@ const PART_PAID_SALE: SessionOpenSale = {
   paid: 1_000_000,
   cancellable: false,
   cancel_refusal: null,
-  refunds_on_cancel: [{ payment_id: "p1", method: "CASH", amount: 1_000_000, state: "APPROVED" }],
+  refunds_on_cancel: [
+    {
+      payment_id: "p1",
+      method: "CASH",
+      amount: 1_000_000,
+      state: "APPROVED",
+      sent_by_cloud: false,
+    },
+  ],
 };
 const OPEN_SALE_NOTICE = "Hay una venta abierta de $ 34.340,00";
 const CANCEL_FAILED_NOTICE = "No se pudo cancelar la venta. Probá de nuevo.";
@@ -300,6 +316,51 @@ describe("LockedCashCount", () => {
     await expect.poll(() => close).toHaveBeenCalledWith(4_580_000);
   });
 
+  it("offers to cancel a sale paid on the integrated terminal, showing its pending refund and who sends it", async () => {
+    const { screen, cancelSale } = await renderStep({
+      loadOpenSale: async () => SALE_WITH_POINT_PAYMENT,
+    });
+
+    await screen.getByRole("button", { name: "Cancelar la venta" }).click();
+
+    const dialog = screen.getByRole("dialog", { name: "¿Cancelar la venta?" });
+    await expect
+      .element(dialog.getByText("Reembolso pendiente del pago con la terminal por $ 10.000,00"))
+      .toBeVisible();
+    await expect
+      .element(
+        dialog.getByText(
+          "La nube lo envía a Mercado Pago cuando alguien lo confirma en el backoffice.",
+        ),
+      )
+      .toBeVisible();
+    expect(cancelSale).not.toHaveBeenCalled();
+  });
+
+  it("cancels a sale paid on the integrated terminal, showing its pending refund once done and letting the closer close the register", async () => {
+    const cancelSale = vi.fn<CancelSale>(async () => ({
+      kind: "cancelled",
+      refunds: [POINT_REFUND],
+    }));
+    const { screen, close } = await renderStep({
+      cancelSale,
+      loadOpenSale: async () => SALE_WITH_POINT_PAYMENT,
+    });
+    await screen.getByRole("button", { name: "Cancelar la venta" }).click();
+
+    await screen.getByRole("dialog").getByRole("button", { name: "Cancelar la venta" }).click();
+
+    const cancelled = screen.getByRole("dialog", { name: "Venta cancelada" });
+    await expect
+      .element(cancelled.getByText("Reembolso pendiente del pago con la terminal por $ 10.000,00"))
+      .toBeVisible();
+    await expect.element(screen.getByText(OPEN_SALE_NOTICE)).not.toBeInTheDocument();
+    expect(cancelSale).toHaveBeenCalledWith(SALE_WITH_POINT_PAYMENT.id);
+    await cancelled.getByRole("button", { name: "Listo" }).click();
+    await closeWith(screen, "45.800,00");
+    await expect.poll(() => close).toHaveBeenCalledWith(4_580_000);
+  });
+
   it("keeps the part-paid sale when the closer may not cancel it", async () => {
     const { screen, cancelSale } = await renderStep({
       cancelSale: vi.fn<CancelSale>(async () => ({ kind: "not_permitted" })),
@@ -487,11 +548,6 @@ describe("LockedCashCount", () => {
       { kind: "mercado_pago_charge_in_progress" },
       "Hay un cobro con Mercado Pago en curso. Esperá a que termine para cancelar la venta.",
     ],
-    [
-      "the sale holds an integrated terminal payment",
-      { kind: "holds_point_payment" },
-      "La venta tiene un pago con la terminal de Mercado Pago: todavía no se puede anular desde la caja.",
-    ],
   ])("keeps the open sale and says why when %s", async (_case, outcome, notice) => {
     const { screen, refused } = await withOpenSale({ cancelSale: async () => outcome });
     await screen.getByRole("button", { name: "Cancelar la venta" }).click();
@@ -503,32 +559,26 @@ describe("LockedCashCount", () => {
     expect(refused).toEqual([]);
   });
 
-  it.each<[string, SessionOpenSale, string]>([
-    [
-      "a QR charge is still waiting",
-      SALE_IN_A_QR_WAIT,
-      "Hay un cobro con Mercado Pago en curso. Esperá a que termine para cancelar la venta.",
-    ],
-    [
-      "the sale holds an integrated terminal payment",
-      SALE_WITH_POINT_PAYMENT,
-      "La venta tiene un pago con la terminal de Mercado Pago: todavía no se puede anular desde la caja.",
-    ],
-  ])(
-    "says why the core still refuses to cancel when %s, opening no cancel modal",
-    async (_case, sale, notice) => {
-      const loadOpenSale = vi.fn<LoadOpenSale>(async () => sale);
-      const { screen, cancelSale } = await renderStep({ loadOpenSale });
-      await expect.element(screen.getByText(OPEN_SALE_NOTICE)).toBeVisible();
+  it("says why the core still refuses to cancel while a QR charge is waiting, opening no cancel modal", async () => {
+    const loadOpenSale = vi.fn<LoadOpenSale>(async () => SALE_IN_A_QR_WAIT);
+    const { screen, cancelSale } = await renderStep({ loadOpenSale });
+    await expect.element(screen.getByText(OPEN_SALE_NOTICE)).toBeVisible();
 
-      await screen.getByRole("button", { name: "Cancelar la venta" }).click();
+    await screen.getByRole("button", { name: "Cancelar la venta" }).click();
 
-      await expect.element(screen.getByText(notice).first()).toBeVisible();
-      await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
-      expect(loadOpenSale).toHaveBeenCalledTimes(2);
-      expect(cancelSale).not.toHaveBeenCalled();
-    },
-  );
+    await expect
+      .element(
+        screen
+          .getByText(
+            "Hay un cobro con Mercado Pago en curso. Esperá a que termine para cancelar la venta.",
+          )
+          .first(),
+      )
+      .toBeVisible();
+    await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
+    expect(loadOpenSale).toHaveBeenCalledTimes(2);
+    expect(cancelSale).not.toHaveBeenCalled();
+  });
 
   it("asks the core before refusing to cancel, and asks to confirm when the core no longer refuses", async () => {
     const loadOpenSale = vi

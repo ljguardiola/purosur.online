@@ -20,6 +20,7 @@ import {
   pendingRefundsWithLatePaymentOfOtherOrder,
   pendingRefundsWithLatePointPayment,
   pendingRefundsWithUnconfirmedCloudRefund,
+  pendingRefundsWithUnconfirmedPointRefund,
   SECOND_REFUND_ID,
   TRANSFER_REFUND_ID,
 } from "./test-support/refund-fixtures";
@@ -171,14 +172,14 @@ test("lists a cancelled sale's refund and a late QR payment's refund together, e
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("explains under the table that QR refunds of cancelled sales and late payments are sent to Mercado Pago from here, only once confirmed, and the others are made outside the system and marked as done", async () => {
+test("explains under the table that QR and Point refunds of cancelled sales, and QR ones of late payments, are sent to Mercado Pago from here, only once confirmed, and the others are made outside the system and marked as done", async () => {
   const services = createServices();
   const screen = await loaded(services);
 
   await expect
     .element(
       screen.getByText(
-        "Los reembolsos de pagos con QR de ventas canceladas y de aprobaciones tardías se envían a Mercado Pago desde acá; los demás se hacen fuera del sistema y acá se marcan como hechos. Nada se envía a Mercado Pago sin confirmarlo acá.",
+        "Los reembolsos de pagos con QR o Point de ventas canceladas, y con QR de aprobaciones tardías, se envían a Mercado Pago desde acá; los demás se hacen fuera del sistema y acá se marcan como hechos. Nada se envía a Mercado Pago sin confirmarlo acá.",
       ),
     )
     .toBeVisible();
@@ -483,6 +484,30 @@ test("offers neither sending nor discarding a late QR payment's refund once it w
   expect(screen.getByRole("button", { name: /1\.250,00/ }).all()).toHaveLength(0);
   await expect.element(screen.getByText("Enviado a Mercado Pago · en proceso")).toBeVisible();
   await expectNoAccessibilityViolations(screen.container);
+});
+
+test("offers to send to Mercado Pago, and never to mark as done, the Point refund of a cancelled sale", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchPendingRefunds).mockResolvedValue({
+    kind: "ok",
+    value: pendingRefundsWithUnconfirmedPointRefund,
+  });
+  const screen = await renderScreen(services);
+
+  await expect
+    .element(
+      screen.getByRole("button", { name: "Enviar a Mercado Pago el reembolso de $ 5.400,00" }),
+    )
+    .toBeVisible();
+  expect(
+    screen.getByRole("button", { name: "Marcar como hecho el reembolso de $ 5.400,00" }).query(),
+  ).toBeNull();
+  expect(
+    screen.getByRole("button", { name: "Descartar el reembolso de $ 5.400,00" }).query(),
+  ).toBeNull();
+  await expect
+    .element(screen.getByRole("button", { name: "Marcar como hecho el reembolso de $ 2.500,00" }))
+    .toBeVisible();
 });
 
 test("keeps the manual mark as done, and the discard, for a late POINT payment's refund", async () => {

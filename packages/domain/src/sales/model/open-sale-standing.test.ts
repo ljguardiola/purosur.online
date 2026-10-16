@@ -185,13 +185,28 @@ describe("openSaleStanding", () => {
     });
   });
 
-  it("refuses the cancellation of a sale holding an approved integrated terminal payment, planning no refund", () => {
+  it("plans a pending refund for an approved integrated terminal payment, beside the cash one", () => {
     expect(openSaleStanding(5900, [CASH_PAYMENT, POINT_PAYMENT], [], NOW)).toEqual({
       balance: { paid: 4000, pending: 1900 },
       linesLock: "approved_payment",
       cancellable: false,
-      cancelRefusal: "holds_point_payment",
-      refundsOnCancel: [],
+      cancelRefusal: null,
+      refundsOnCancel: [
+        {
+          paymentId: CASH_PAYMENT.id,
+          method: "CASH",
+          provider: CASH_PAYMENT.provider,
+          amount: CASH_PAYMENT.amount,
+          state: "APPROVED",
+        },
+        {
+          paymentId: POINT_PAYMENT.id,
+          method: "POINT",
+          provider: POINT_PAYMENT.provider,
+          amount: POINT_PAYMENT.amount,
+          state: "PENDING",
+        },
+      ],
       mercadoPagoChargeInProgress: null,
     });
   });
@@ -225,8 +240,8 @@ describe("openSaleStanding", () => {
   it("answers exactly one way to cancel: without authorization, refused, or refunding the payments", () => {
     const payment = fc.record({
       id: fc.string(),
-      method: fc.constantFrom("CASH", "TRANSFER", "QR"),
-      provider: fc.constantFrom("NONE", "MERCADOPAGO_QR"),
+      method: fc.constantFrom("CASH", "TRANSFER", "QR", "POINT"),
+      provider: fc.constantFrom("NONE", "MERCADOPAGO_QR", "MERCADOPAGO_POINT"),
       amount: fc.integer({ min: 1, max: 100_000 }),
       state: fc.constantFrom("APPROVED", "REJECTED", "PENDING"),
     });
@@ -246,7 +261,7 @@ describe("openSaleStanding", () => {
         ];
 
         expect(ways.filter(Boolean)).toHaveLength(1);
-        expect(standing.cancelRefusal).toBe(saleCancelRefusal(payments, pending, NOW));
+        expect(standing.cancelRefusal).toBe(saleCancelRefusal(pending, NOW));
         expect(standing.linesLock).toBe(saleLinesLock(payments, pending, NOW));
       }),
     );
@@ -279,39 +294,15 @@ describe("saleLinesLock", () => {
 
 describe("saleCancelRefusal", () => {
   it.each([
-    ["nothing is paid nor in its wait", [], [], null],
-    ["a cash payment is approved", [CASH_PAYMENT], [], null],
-    ["a QR payment was rejected", [{ ...QR_PAYMENT, state: "REJECTED" }], [], null],
-    ["a QR charge's wait is over", [], [QR_CHARGE_PAST_ITS_WAIT], null],
-    ["a QR charge is in its wait", [], [QR_CHARGE_IN_ITS_WAIT], "mercado_pago_charge_in_progress"],
+    ["nothing is in its wait", [], null],
+    ["a QR charge's wait is over", [QR_CHARGE_PAST_ITS_WAIT], null],
+    ["a QR charge is in its wait", [QR_CHARGE_IN_ITS_WAIT], "mercado_pago_charge_in_progress"],
     [
       "a terminal charge is past its wait",
-      [],
       [POINT_CHARGE_PAST_ITS_WAIT],
       "mercado_pago_charge_in_progress",
     ],
-    ["a QR payment is approved", [QR_PAYMENT], [], null],
-    ["a terminal payment is approved", [POINT_PAYMENT], [], "holds_point_payment"],
-    ["a standalone terminal payment is approved", [STANDALONE_TERMINAL_PAYMENT], [], null],
-    [
-      "a standalone terminal payment and a terminal payment are approved",
-      [STANDALONE_TERMINAL_PAYMENT, POINT_PAYMENT],
-      [],
-      "holds_point_payment",
-    ],
-    [
-      "a standalone terminal payment is approved and a QR charge is in its wait",
-      [STANDALONE_TERMINAL_PAYMENT],
-      [QR_CHARGE_IN_ITS_WAIT],
-      "mercado_pago_charge_in_progress",
-    ],
-    [
-      "a QR payment is approved and another QR charge is in its wait",
-      [QR_PAYMENT],
-      [QR_CHARGE_IN_ITS_WAIT],
-      "mercado_pago_charge_in_progress",
-    ],
-  ] as const)("answers why cancelling is refused when %s", (_case, payments, pending, refusal) => {
-    expect(saleCancelRefusal(payments, pending, NOW)).toBe(refusal);
+  ] as const)("answers why cancelling is refused when %s", (_case, pending, refusal) => {
+    expect(saleCancelRefusal(pending, NOW)).toBe(refusal);
   });
 });

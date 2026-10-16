@@ -3,6 +3,7 @@ import { confirm } from "./test-support/confirm-mercado-pago-refund.js";
 import {
   aConfirmedRefund,
   aPaymentTransaction,
+  aPointRefundOfCancelledSale,
   aQrRefundOfCancelledSale,
   aSentRefund,
   NOW,
@@ -27,6 +28,17 @@ describe("confirmMercadoPagoRefund", () => {
         }),
       ]);
       expect(world.store.resolvedAlerts).toEqual([]);
+    });
+
+    it("confirms and sends the refund of a cancelled sale paid on the Point terminal", async () => {
+      const world = refundWorld([aPointRefundOfCancelledSale()]);
+
+      const outcome = await confirm(world);
+
+      expect(outcome).toEqual({ kind: "sent", refundId: "refund-1" });
+      expect(world.mercadoPago.refundRequests).toEqual([
+        { orderId: "ORD-1", idempotencyKey: "refund-key-1" },
+      ]);
     });
 
     it("asks Mercado Pago to refund the order of the payment, once, with the attempt's key", async () => {

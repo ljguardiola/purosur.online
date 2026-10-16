@@ -22,12 +22,14 @@ const CASH_REFUND: OpenSale["refunds_on_cancel"][number] = {
   method: "CASH",
   amount: 100_000,
   state: "APPROVED",
+  sent_by_cloud: false,
 };
 const TRANSFER_REFUND: OpenSale["refunds_on_cancel"][number] = {
   payment_id: "p2",
   method: "TRANSFER",
   amount: 250_000,
   state: "PENDING",
+  sent_by_cloud: false,
 };
 const CASH_LINE = "Devolver $ 1.000,00 en efectivo";
 const TRANSFER_LINE = "Reembolso pendiente de la transferencia por $ 2.500,00";
@@ -125,7 +127,9 @@ describe("CancelPaidSaleModal", () => {
 
   it("adds no note of its own under a pending QR refund, whose line already says how it is handled", async () => {
     const { screen } = await renderModal({
-      refunds: [{ payment_id: "p9", method: "QR", amount: 70_000, state: "PENDING" }],
+      refunds: [
+        { payment_id: "p9", method: "QR", amount: 70_000, state: "PENDING", sent_by_cloud: true },
+      ],
     });
 
     await expect
@@ -333,11 +337,6 @@ describe("CancelPaidSaleModal", () => {
         "a QR charge is still waiting",
         { kind: "mercado_pago_charge_in_progress" },
         "Hay un cobro con Mercado Pago en curso. Esperá a que termine para cancelar la venta.",
-      ],
-      [
-        "the sale holds an integrated terminal payment",
-        { kind: "holds_point_payment" },
-        "La venta tiene un pago con la terminal de Mercado Pago: todavía no se puede anular desde la caja.",
       ],
     ])("keeps the modal open and says why when %s", async (_case, outcome, notice) => {
       const { screen, onCancelled } = await renderModal({

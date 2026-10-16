@@ -29,7 +29,7 @@ describe("isRefundSentByCloud", () => {
     ["TRANSFER", "sale_voided", false],
     ["CASH", "sale_voided", false],
     ["POINT", "late_payment", false],
-    ["POINT", "sale_cancelled", false],
+    ["POINT", "sale_cancelled", true],
     ["TRANSFER", "sale_cancelled", false],
     ["CASH", "sale_cancelled", false],
   ])("answers %s of origin %s: %s", (method, origin, sent) => {
@@ -53,7 +53,9 @@ describe("isRefundInCloudHands", () => {
     ["QR", "sale_cancelled", "unconfirmed", null, false],
     ["QR", "sale_voided", "unconfirmed", null, false],
     ["TRANSFER", "sale_voided", "confirmed", null, false],
-    ["POINT", "sale_cancelled", "confirmed", null, false],
+    ["POINT", "sale_cancelled", "confirmed", null, true],
+    ["POINT", "sale_cancelled", "confirmed", INSUFFICIENT_BALANCE_REFUSAL, true],
+    ["POINT", "sale_cancelled", "unconfirmed", null, false],
   ])(
     "answers a %s refund of origin %s, %s, last refused for %s: %s",
     (method, origin, confirmation, lastRefusalReason, inHands) => {

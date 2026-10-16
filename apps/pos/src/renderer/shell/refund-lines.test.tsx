@@ -10,7 +10,13 @@ const BACKOFFICE_NOTE =
 
 describe("RefundLines", () => {
   it("says to give back a cash refund in cash", async () => {
-    const refund: Refund = { payment_id: "p1", method: "CASH", amount: 100_000, state: "APPROVED" };
+    const refund: Refund = {
+      payment_id: "p1",
+      method: "CASH",
+      amount: 100_000,
+      state: "APPROVED",
+      sent_by_cloud: false,
+    };
 
     const screen = await render(<RefundLines refunds={[refund]} />);
 
@@ -25,6 +31,7 @@ describe("RefundLines", () => {
       method: "TRANSFER",
       amount: 250_000,
       state: "PENDING",
+      sent_by_cloud: false,
     };
 
     const screen = await render(<RefundLines refunds={[refund]} />);
@@ -39,7 +46,13 @@ describe("RefundLines", () => {
   });
 
   it("says a QR payment's refund stays pending", async () => {
-    const refund: Refund = { payment_id: "p4", method: "QR", amount: 90_000, state: "PENDING" };
+    const refund: Refund = {
+      payment_id: "p4",
+      method: "QR",
+      amount: 90_000,
+      state: "PENDING",
+      sent_by_cloud: true,
+    };
 
     const screen = await render(<RefundLines refunds={[refund]} />);
 
@@ -56,6 +69,7 @@ describe("RefundLines", () => {
       method: "STANDALONE_TERMINAL",
       amount: 90_000,
       state: "PENDING",
+      sent_by_cloud: false,
     };
 
     const screen = await render(<RefundLines refunds={[refund]} />);
@@ -78,6 +92,7 @@ describe("RefundLines", () => {
       method: "STANDALONE_TERMINAL",
       amount: 90_000,
       state: "PENDING",
+      sent_by_cloud: false,
     };
 
     const screen = await render(<RefundLines refunds={[refund]} />);
@@ -93,7 +108,13 @@ describe("RefundLines", () => {
   });
 
   it("explains under a pending QR refund that the cloud sends it to Mercado Pago once a person confirms it", async () => {
-    const refund: Refund = { payment_id: "p9", method: "QR", amount: 70_000, state: "PENDING" };
+    const refund: Refund = {
+      payment_id: "p9",
+      method: "QR",
+      amount: 70_000,
+      state: "PENDING",
+      sent_by_cloud: true,
+    };
 
     const screen = await render(<RefundLines refunds={[refund]} />);
 
@@ -107,10 +128,81 @@ describe("RefundLines", () => {
       .toBeVisible();
   });
 
+  it("explains under a pending terminal refund that the cloud sends it to Mercado Pago once a person confirms it", async () => {
+    const refund: Refund = {
+      payment_id: "p5",
+      method: "POINT",
+      amount: 90_000,
+      state: "PENDING",
+      sent_by_cloud: true,
+    };
+
+    const screen = await render(<RefundLines refunds={[refund]} />);
+
+    await expect
+      .element(
+        screen.getByText(
+          "La nube lo envía a Mercado Pago cuando alguien lo confirma en el backoffice.",
+          { exact: true },
+        ),
+      )
+      .toBeVisible();
+  });
+
+  it("adds no backoffice note when the only pending refund is a terminal one the cloud sends", async () => {
+    const refund: Refund = {
+      payment_id: "p5",
+      method: "POINT",
+      amount: 90_000,
+      state: "PENDING",
+      sent_by_cloud: true,
+    };
+
+    const screen = await render(<RefundLines refunds={[refund]} />);
+
+    await expect
+      .element(screen.getByText("Reembolso pendiente del pago con la terminal por $ 900,00"))
+      .toBeVisible();
+    await expect.element(screen.getByText(BACKOFFICE_NOTE)).not.toBeInTheDocument();
+  });
+
+  it("explains a pending refund by whether the cloud sends it, not by its payment's means", async () => {
+    const refund: Refund = {
+      payment_id: "p9",
+      method: "QR",
+      amount: 70_000,
+      state: "PENDING",
+      sent_by_cloud: false,
+    };
+
+    const screen = await render(<RefundLines refunds={[refund]} />);
+
+    await expect
+      .element(
+        screen.getByText(
+          "La nube lo envía a Mercado Pago cuando alguien lo confirma en el backoffice.",
+        ),
+      )
+      .not.toBeInTheDocument();
+    await expect.element(screen.getByText(BACKOFFICE_NOTE, { exact: true })).toBeVisible();
+  });
+
   it("notes once, after the list, that pending refunds the register does not make are handled in the backoffice", async () => {
     const refunds: Refund[] = [
-      { payment_id: "p2", method: "TRANSFER", amount: 250_000, state: "PENDING" },
-      { payment_id: "p5", method: "POINT", amount: 90_000, state: "PENDING" },
+      {
+        payment_id: "p2",
+        method: "TRANSFER",
+        amount: 250_000,
+        state: "PENDING",
+        sent_by_cloud: false,
+      },
+      {
+        payment_id: "p7",
+        method: "STANDALONE_TERMINAL",
+        amount: 90_000,
+        state: "PENDING",
+        sent_by_cloud: false,
+      },
     ];
 
     const screen = await render(<RefundLines refunds={refunds} />);
@@ -131,6 +223,7 @@ describe("RefundLines", () => {
       method: "STANDALONE_TERMINAL",
       amount: 90_000,
       state: "PENDING",
+      sent_by_cloud: false,
     };
 
     const screen = await render(<RefundLines refunds={[refund]} />);
@@ -139,7 +232,13 @@ describe("RefundLines", () => {
   });
 
   it("adds no backoffice note when the only pending refund is a QR one, whose line already says how it is handled", async () => {
-    const refund: Refund = { payment_id: "p9", method: "QR", amount: 70_000, state: "PENDING" };
+    const refund: Refund = {
+      payment_id: "p9",
+      method: "QR",
+      amount: 70_000,
+      state: "PENDING",
+      sent_by_cloud: true,
+    };
 
     const screen = await render(<RefundLines refunds={[refund]} />);
 
@@ -153,8 +252,14 @@ describe("RefundLines", () => {
 
   it("notes once that a pending refund is handled in the backoffice beside a pending QR refund's own line", async () => {
     const refunds: Refund[] = [
-      { payment_id: "p9", method: "QR", amount: 70_000, state: "PENDING" },
-      { payment_id: "p2", method: "TRANSFER", amount: 250_000, state: "PENDING" },
+      { payment_id: "p9", method: "QR", amount: 70_000, state: "PENDING", sent_by_cloud: true },
+      {
+        payment_id: "p2",
+        method: "TRANSFER",
+        amount: 250_000,
+        state: "PENDING",
+        sent_by_cloud: false,
+      },
     ];
 
     const screen = await render(<RefundLines refunds={refunds} />);
@@ -177,6 +282,7 @@ describe("RefundLines", () => {
       method: "TRANSFER",
       amount: 250_000,
       state: "APPROVED",
+      sent_by_cloud: false,
     };
 
     const screen = await render(<RefundLines refunds={[refund]} />);
@@ -193,6 +299,7 @@ describe("RefundLines", () => {
       method: "STANDALONE_TERMINAL",
       amount: 90_000,
       state: "APPROVED",
+      sent_by_cloud: false,
     };
 
     const screen = await render(<RefundLines refunds={[refund]} />);
@@ -203,7 +310,13 @@ describe("RefundLines", () => {
   });
 
   it("says a terminal payment's refund stays pending", async () => {
-    const refund: Refund = { payment_id: "p5", method: "POINT", amount: 90_000, state: "PENDING" };
+    const refund: Refund = {
+      payment_id: "p5",
+      method: "POINT",
+      amount: 90_000,
+      state: "PENDING",
+      sent_by_cloud: true,
+    };
 
     const screen = await render(<RefundLines refunds={[refund]} />);
 
@@ -217,7 +330,13 @@ describe("RefundLines", () => {
   });
 
   it("says a terminal payment's refund given back now goes back by the terminal", async () => {
-    const refund: Refund = { payment_id: "p6", method: "POINT", amount: 90_000, state: "APPROVED" };
+    const refund: Refund = {
+      payment_id: "p6",
+      method: "POINT",
+      amount: 90_000,
+      state: "APPROVED",
+      sent_by_cloud: false,
+    };
 
     const screen = await render(<RefundLines refunds={[refund]} />);
 
@@ -234,6 +353,7 @@ describe("RefundLines", () => {
       method: "TRANSFER",
       amount: 250_000,
       state: "APPROVED",
+      sent_by_cloud: false,
     };
 
     const screen = await render(<RefundLines refunds={[refund]} />);
@@ -244,7 +364,13 @@ describe("RefundLines", () => {
   });
 
   it("says a pending refund stays pending whatever its payment's means", async () => {
-    const refund: Refund = { payment_id: "p4", method: "CASH", amount: 100_000, state: "PENDING" };
+    const refund: Refund = {
+      payment_id: "p4",
+      method: "CASH",
+      amount: 100_000,
+      state: "PENDING",
+      sent_by_cloud: false,
+    };
 
     const screen = await render(<RefundLines refunds={[refund]} />);
 
@@ -259,8 +385,14 @@ describe("RefundLines", () => {
 
   it("lists one line per payment", async () => {
     const refunds: Refund[] = [
-      { payment_id: "p1", method: "CASH", amount: 100_000, state: "APPROVED" },
-      { payment_id: "p2", method: "CASH", amount: 50_000, state: "APPROVED" },
+      {
+        payment_id: "p1",
+        method: "CASH",
+        amount: 100_000,
+        state: "APPROVED",
+        sent_by_cloud: false,
+      },
+      { payment_id: "p2", method: "CASH", amount: 50_000, state: "APPROVED", sent_by_cloud: false },
     ];
 
     const screen = await render(<RefundLines refunds={refunds} />);

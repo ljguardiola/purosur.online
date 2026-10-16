@@ -4,7 +4,6 @@ import {
   CONFIRMED_BY_HAND_METHODS,
   cancellableWithoutAuthorization,
   hasApprovedPayment,
-  holdsApprovedPointPayment,
   isConfirmedByHand,
   isMercadoPagoMethod,
   MERCADO_PAGO_PAYMENT_METHODS,
@@ -55,29 +54,6 @@ describe("hasApprovedPayment", () => {
 
   it("is false when no payment is approved", () => {
     expect(hasApprovedPayment([{ state: "DECLINED" }])).toBe(false);
-  });
-});
-
-describe("holdsApprovedPointPayment", () => {
-  const QR = { state: "APPROVED", method: "QR" } as const;
-  const POINT = { state: "APPROVED", method: "POINT" } as const;
-
-  it("is false for a sale without payments", () => {
-    expect(holdsApprovedPointPayment([])).toBe(false);
-  });
-
-  it("is true when an approved payment of several is on the integrated terminal", () => {
-    expect(holdsApprovedPointPayment([APPROVED, POINT])).toBe(true);
-  });
-
-  it("is false when only payments of other methods are approved, a QR payment included", () => {
-    expect(holdsApprovedPointPayment([APPROVED, { ...APPROVED, method: "TRANSFER" }, QR])).toBe(
-      false,
-    );
-  });
-
-  it("is false when the integrated terminal payment is not approved", () => {
-    expect(holdsApprovedPointPayment([{ ...POINT, state: "PENDING" }])).toBe(false);
   });
 });
 

@@ -12,8 +12,6 @@ import { useAuthorization } from "../shell/use-authorization";
 const FAILED_MESSAGE = "No se pudo cancelar la venta. Probá de nuevo.";
 const QR_CHARGE_IN_PROGRESS_MESSAGE =
   "Hay un cobro con Mercado Pago en curso. Esperá a que termine para cancelar la venta.";
-const HOLDS_POINT_PAYMENT_MESSAGE =
-  "La venta tiene un pago con la terminal de Mercado Pago: todavía no se puede anular desde la caja.";
 const AUTHORIZING = "cancelar una venta con pagos";
 
 export type CancelPaidSaleModalProps = {
@@ -100,9 +98,6 @@ export function CancelPaidSaleModal({
         break;
       case "mercado_pago_charge_in_progress":
         setNotice(QR_CHARGE_IN_PROGRESS_MESSAGE);
-        break;
-      case "holds_point_payment":
-        setNotice(HOLDS_POINT_PAYMENT_MESSAGE);
         break;
       case "unavailable":
         setNotice(FAILED_MESSAGE);

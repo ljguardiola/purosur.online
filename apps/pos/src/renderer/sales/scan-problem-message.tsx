@@ -49,8 +49,7 @@ export type ScanProblem =
   | { kind: "remove_failed" }
   | { kind: "cancel_failed" }
   | { kind: "has_approved_payment" }
-  | { kind: "mercado_pago_charge_in_progress" }
-  | { kind: "holds_point_payment" };
+  | { kind: "mercado_pago_charge_in_progress" };
 
 type Message = { icon: LucideIcon; title: string; help: string };
 
@@ -193,12 +192,6 @@ export function messageFor(problem: ScanProblem): Message {
         icon: Ban,
         title: "Hay un cobro con Mercado Pago en curso",
         help: "Esperá a que termine para cancelar la venta.",
-      };
-    case "holds_point_payment":
-      return {
-        icon: Ban,
-        title: "No se puede cancelar la venta",
-        help: "La venta tiene un pago con la terminal de Mercado Pago: todavía no se puede anular desde la caja.",
       };
     case "search_failed":
       return {

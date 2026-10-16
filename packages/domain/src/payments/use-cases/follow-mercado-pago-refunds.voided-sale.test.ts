@@ -117,7 +117,7 @@ describe.each(["QR", "POINT"] as const)(
 );
 
 describe("followMercadoPagoRefunds of a cancelled sale paid by Point", () => {
-  it("sends nothing, the refund stays manual", async () => {
+  it("sends the refund a person confirmed, once, to the order of the payment", async () => {
     const world = voidedSaleRefundWorld([
       aRefundOfVoidedSale("POINT", { origin: "sale_cancelled" }),
     ]);
@@ -125,7 +125,9 @@ describe("followMercadoPagoRefunds of a cancelled sale paid by Point", () => {
 
     const outcome = await followMercadoPagoRefunds(world.ports);
 
-    expect(outcome).toEqual({ kind: "followed", followed: 0, done: 0, unavailable: 0 });
-    expect(world.mercadoPago.refundRequests).toEqual([]);
+    expect(outcome).toEqual({ kind: "followed", followed: 1, done: 0, unavailable: 0 });
+    expect(world.mercadoPago.refundRequests).toEqual([
+      { orderId: "ORD-1", idempotencyKey: "refund-key-1" },
+    ]);
   });
 });

@@ -884,11 +884,13 @@ describe("the open sale of the session", () => {
       paid: 2000,
       cancellable: false,
       cancel_refusal: null,
-      refunds_on_cancel: [{ payment_id: "qr-1", method: "QR", amount: 2000, state: "PENDING" }],
+      refunds_on_cancel: [
+        { payment_id: "qr-1", method: "QR", amount: 2000, state: "PENDING", sent_by_cloud: true },
+      ],
     });
   });
 
-  it("tells that a sale holding an approved integrated terminal payment cannot be cancelled at the register", async () => {
+  it("tells that a sale holding an approved integrated terminal payment is cancelled leaving a pending refund the cloud sends", async () => {
     addOpenSale(await openAs("u1", 5000), 3500);
     database
       .prepare(
@@ -899,8 +901,16 @@ describe("the open sale of the session", () => {
     expect(sessionOpenSaleFor(database, NOW)).toMatchObject({
       paid: 2000,
       cancellable: false,
-      cancel_refusal: "holds_point_payment",
-      refunds_on_cancel: [],
+      cancel_refusal: null,
+      refunds_on_cancel: [
+        {
+          payment_id: "point-1",
+          method: "POINT",
+          amount: 2000,
+          state: "PENDING",
+          sent_by_cloud: true,
+        },
+      ],
     });
   });
 
@@ -966,8 +976,20 @@ describe("the open sale of the session", () => {
       cancellable: false,
       cancel_refusal: null,
       refunds_on_cancel: [
-        { payment_id: "payment-1", method: "CASH", amount: 1000, state: "APPROVED" },
-        { payment_id: "payment-2", method: "TRANSFER", amount: 1500, state: "PENDING" },
+        {
+          payment_id: "payment-1",
+          method: "CASH",
+          amount: 1000,
+          state: "APPROVED",
+          sent_by_cloud: false,
+        },
+        {
+          payment_id: "payment-2",
+          method: "TRANSFER",
+          amount: 1500,
+          state: "PENDING",
+          sent_by_cloud: false,
+        },
       ],
     });
   });

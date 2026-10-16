@@ -8,7 +8,7 @@ import { buildTestDatabase, type TestDatabase } from "../test-support/build-test
 import { DrizzleMercadoPagoRefundStore } from "./drizzle-mercado-pago-refund-store.js";
 import { ORDER_ID } from "./test-support/fake-mercado-pago-orders.js";
 import { aPendingLatePaymentRefund } from "./test-support/late-payment-refund-fixtures.js";
-import { aPendingQrRefundOfCancelledSale } from "./test-support/qr-refund-fixtures.js";
+import { aPendingQrRefundOfCancelledSale } from "./test-support/mercado-pago-refund-fixtures.js";
 
 const NOW = new Date("2026-10-13T15:00:00.000Z");
 const LATER = new Date("2026-10-13T15:30:00.000Z");

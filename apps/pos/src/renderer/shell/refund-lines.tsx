@@ -29,7 +29,7 @@ function refundLine(refund: Refund): string {
 const STANDALONE_TERMINAL_REFUND_EXPLANATION =
   "Lo devuelve una persona desde la terminal independiente o la app de Mercado Pago, nunca en efectivo.";
 
-const QR_REFUND_EXPLANATION =
+const SENT_BY_CLOUD_REFUND_EXPLANATION =
   "La nube lo envía a Mercado Pago cuando alguien lo confirma en el backoffice.";
 
 const BACKOFFICE_REFUND_NOTE =
@@ -39,18 +39,14 @@ function pendingRefundExplanation(refund: Refund): string | null {
   if (refund.state !== "PENDING") {
     return null;
   }
-  switch (refund.method) {
-    case "STANDALONE_TERMINAL":
-      return STANDALONE_TERMINAL_REFUND_EXPLANATION;
-    case "QR":
-      return QR_REFUND_EXPLANATION;
-    default:
-      return null;
+  if (refund.sent_by_cloud) {
+    return SENT_BY_CLOUD_REFUND_EXPLANATION;
   }
+  return refund.method === "STANDALONE_TERMINAL" ? STANDALONE_TERMINAL_REFUND_EXPLANATION : null;
 }
 
 function needsBackofficeNote(refunds: readonly Refund[]): boolean {
-  return refunds.some((refund) => refund.state === "PENDING" && refund.method !== "QR");
+  return refunds.some((refund) => refund.state === "PENDING" && !refund.sent_by_cloud);
 }
 
 export function RefundLines({ refunds }: { refunds: readonly Refund[] }) {

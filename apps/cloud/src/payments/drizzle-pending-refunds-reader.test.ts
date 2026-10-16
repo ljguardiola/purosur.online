@@ -9,7 +9,7 @@ import { aTransferCancelledSale } from "../sync/test-support/synced-facts.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { DrizzlePendingRefundsReader } from "./drizzle-pending-refunds-reader.js";
 import { aPendingLatePaymentRefund } from "./test-support/late-payment-refund-fixtures.js";
-import { aPendingQrRefundOfCancelledSale } from "./test-support/qr-refund-fixtures.js";
+import { aPendingQrRefundOfCancelledSale } from "./test-support/mercado-pago-refund-fixtures.js";
 import { aPendingRefundOfVoidedSale } from "./test-support/voided-sale-refund-fixtures.js";
 
 const NOW = new Date("2026-10-07T15:00:00.000Z");
