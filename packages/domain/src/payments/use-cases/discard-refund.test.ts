@@ -66,6 +66,14 @@ describe("discardRefund", () => {
     expect(store.operationOrder).toEqual(["lockRefund"]);
   });
 
+  it("answers that the refund of a cancelled sale already done is not discardable", async () => {
+    const store = new FakeRefundStore([
+      { ...LATE_PAYMENT, origin: "sale_cancelled", state: "APPROVED" },
+    ]);
+
+    expect(await discard(store)).toEqual({ kind: "not_discardable" });
+  });
+
   describe("once a person confirmed the refund", () => {
     const confirmedAt = new Date("2026-10-08T13:00:00.000Z");
 

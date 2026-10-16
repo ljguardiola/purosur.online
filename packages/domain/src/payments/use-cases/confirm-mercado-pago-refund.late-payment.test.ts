@@ -1,19 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { confirmMercadoPagoRefund } from "./confirm-mercado-pago-refund.js";
+import { confirm } from "./test-support/confirm-mercado-pago-refund.js";
 import {
-  anApprovedLatePayment,
+  aPaymentTransaction,
   aQrRefundOfLatePayment,
   NOW,
   refundWorld,
 } from "./test-support/mercado-pago-refund-world.js";
-
-function confirm(world: ReturnType<typeof refundWorld>) {
-  return confirmMercadoPagoRefund(world.ports, {
-    refundId: "refund-1",
-    locationId: "branch-1",
-    actorId: "manager",
-  });
-}
 
 describe("confirmMercadoPagoRefund of a late QR payment", () => {
   it("asks Mercado Pago to refund the order the payment arrived on, once, with the attempt's key, and records it as sent", async () => {
@@ -43,7 +35,6 @@ describe("confirmMercadoPagoRefund of a late QR payment", () => {
     expect(world.lanes.operations).toEqual([
       "enterLane",
       "lockMercadoPagoRefund",
-      "latePaymentOfRefund",
       "recordRefundConfirmed",
       "refundOrder",
       "lockMercadoPagoRefund",
@@ -86,12 +77,12 @@ describe("confirmMercadoPagoRefund of a late QR payment", () => {
 
   it("refunds the paid order the cloud recorded when the payment arrived on another order than the one it created", async () => {
     const world = refundWorld([
-      aQrRefundOfLatePayment({ orderId: "ORD-2", amount: 1800, paymentAmount: 1800 }),
+      aQrRefundOfLatePayment({
+        ownOrderId: "ORD-2",
+        amount: 1800,
+        paymentTransaction: aPaymentTransaction({ state: "EXPIRED", amount: 5000 }),
+      }),
     ]);
-    world.store.latePayments.set(
-      "refund-1",
-      anApprovedLatePayment({ state: "EXPIRED", orderId: "ORD-1", otherOrderId: "ORD-2" }),
-    );
 
     const outcome = await confirm(world);
 
@@ -113,29 +104,35 @@ describe("confirmMercadoPagoRefund of a late QR payment", () => {
     it.each(["PENDING", "DECLINED", "CANCELLED", "EXPIRED"])(
       "answers that a refund whose payment the cloud holds as %s is not backed",
       async (state) => {
-        const world = refundWorld([aQrRefundOfLatePayment()]);
-        world.store.latePayments.set("refund-1", anApprovedLatePayment({ state }));
+        const world = refundWorld([
+          aQrRefundOfLatePayment({ paymentTransaction: aPaymentTransaction({ state }) }),
+        ]);
 
         expect(await refusedWith(world)).toEqual({ kind: "refund_not_backed" });
       },
     );
 
     it("answers that a refund whose payment the cloud does not hold is not backed", async () => {
-      const world = refundWorld([aQrRefundOfLatePayment()]);
-      world.store.latePayments.clear();
+      const world = refundWorld([aQrRefundOfLatePayment({ paymentTransaction: null })]);
 
       expect(await refusedWith(world)).toEqual({ kind: "refund_not_backed" });
     });
 
     it("answers that a refund is not backed by a cancelling event a register claims", async () => {
-      const world = refundWorld([aQrRefundOfLatePayment({ originEventId: "event-1" })]);
-      world.store.latePayments.set("refund-1", anApprovedLatePayment({ state: "EXPIRED" }));
+      const world = refundWorld([
+        aQrRefundOfLatePayment({
+          originEventId: "event-1",
+          paymentTransaction: aPaymentTransaction({ state: "EXPIRED" }),
+        }),
+      ]);
 
       expect(await refusedWith(world)).toEqual({ kind: "refund_not_backed" });
     });
 
     it("answers that a refund of a payment with no Mercado Pago order is not backed", async () => {
-      const world = refundWorld([aQrRefundOfLatePayment({ orderId: null })]);
+      const world = refundWorld([
+        aQrRefundOfLatePayment({ paymentTransaction: aPaymentTransaction({ orderId: null }) }),
+      ]);
 
       expect(await refusedWith(world)).toEqual({ kind: "refund_not_backed" });
     });
@@ -147,7 +144,11 @@ describe("confirmMercadoPagoRefund of a late QR payment", () => {
     });
 
     it("answers that a refund of a payment already refunded in part exceeds what is refundable", async () => {
-      const world = refundWorld([aQrRefundOfLatePayment({ refundedOfPayment: 1 })]);
+      const world = refundWorld([
+        aQrRefundOfLatePayment({
+          refundedOfPaymentTransactionByOrder: [{ orderId: null, amount: 1 }],
+        }),
+      ]);
 
       expect(await refusedWith(world)).toEqual({ kind: "exceeds_refundable" });
     });

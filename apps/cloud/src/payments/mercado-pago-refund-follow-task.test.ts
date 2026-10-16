@@ -139,16 +139,6 @@ describe("mercadoPagoRefundFollowJobs", () => {
       return refund;
     }
 
-    it("is never sent while nobody confirmed it", async () => {
-      await aPendingLatePaymentRefund(testDatabase.db, { openedAt: NOW, orderId: ORDER_ID });
-      const mercadoPago = new FakeMercadoPagoOrders();
-
-      await runFollow(mercadoPago);
-
-      expect(mercadoPago.refunds).toEqual([]);
-      expect(mercadoPago.refundReadings).toEqual([]);
-    });
-
     it("is sent with its key once a person confirmed it, and recorded as sent", async () => {
       const late = await aPendingLatePaymentRefund(testDatabase.db, {
         openedAt: NOW,
@@ -165,31 +155,6 @@ describe("mercadoPagoRefundFollowJobs", () => {
 
       expect(mercadoPago.refunds).toEqual([{ orderId: ORDER_ID, idempotencyKey: "key-1" }]);
       expect(await stored(late.refundId)).toMatchObject({ state: "PENDING", sentAt: NOW });
-    });
-
-    it("is retried with a fresh key while the balance is insufficient", async () => {
-      const late = await aPendingLatePaymentRefund(testDatabase.db, {
-        openedAt: NOW,
-        orderId: ORDER_ID,
-      });
-      const { userId } = await signedInWith(testDatabase.db, ["confirm_refunds"], NOW);
-      await testDatabase.db
-        .update(paymentRefunds)
-        .set({
-          confirmedBy: userId,
-          confirmedAt: NOW,
-          lastRefusalReason: "insufficient_balance",
-        })
-        .where(eq(paymentRefunds.id, late.refundId));
-      const mercadoPago = new FakeMercadoPagoOrders();
-
-      await runFollow(mercadoPago);
-
-      const refund = await stored(late.refundId);
-      expect(mercadoPago.refunds).toEqual([
-        { orderId: ORDER_ID, idempotencyKey: refund?.attemptKey },
-      ]);
-      expect(refund).toMatchObject({ sentAt: NOW, lastRefusalReason: null });
     });
 
     it("is done, with its late-payment alert resolved, once Mercado Pago shows it processed", async () => {

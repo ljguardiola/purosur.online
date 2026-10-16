@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { followMercadoPagoRefunds } from "./follow-mercado-pago-refunds.js";
 import {
-  anApprovedLatePayment,
+  aPaymentTransaction,
   aQrRefundOfLatePayment,
   NOW,
   refundWorld,
@@ -70,8 +70,12 @@ describe("followMercadoPagoRefunds of a late QR payment", () => {
   });
 
   it("sends nothing for a confirmed late refund whose payment the cloud no longer holds as approved", async () => {
-    const world = refundWorld([aQrRefundOfLatePayment(CONFIRMED)]);
-    world.store.latePayments.set("refund-1", anApprovedLatePayment({ state: "EXPIRED" }));
+    const world = refundWorld([
+      aQrRefundOfLatePayment({
+        ...CONFIRMED,
+        paymentTransaction: aPaymentTransaction({ state: "EXPIRED" }),
+      }),
+    ]);
 
     await followMercadoPagoRefunds(world.ports);
 

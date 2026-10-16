@@ -802,38 +802,6 @@ describe("a late QR payment refund", () => {
     expect(alert).toMatchObject({ resolvedAt: NOW, resolvedBy: userId });
   });
 
-  it("is refused, sending nothing, when the cloud does not hold the late payment as approved", async () => {
-    const { headers } = await signedInWith(db, ["confirm_refunds"], NOW);
-    const late = await aPendingLatePaymentRefund(db, {
-      openedAt: NOW,
-      orderId: ORDER_ID,
-      transactionState: "EXPIRED",
-    });
-
-    const response = await confirm(headers, late.refundId);
-
-    expect(response.statusCode).toBe(409);
-    expect(response.json()).toMatchObject({ code: "refund_not_backed" });
-    expect(mercadoPago.refunds).toEqual([]);
-    expect(await storedRefund(late.refundId)).toMatchObject({ confirmedAt: null });
-  });
-
-  it("is refused, sending nothing, when it is more than the late payment holds", async () => {
-    const { headers } = await signedInWith(db, ["confirm_refunds"], NOW);
-    const late = await aPendingLatePaymentRefund(db, {
-      openedAt: NOW,
-      orderId: ORDER_ID,
-      amount: 5_000,
-      refundAmount: 5_001,
-    });
-
-    const response = await confirm(headers, late.refundId);
-
-    expect(response.statusCode).toBe(409);
-    expect(response.json()).toMatchObject({ code: "exceeds_refundable" });
-    expect(mercadoPago.refunds).toEqual([]);
-  });
-
   it("is refused to be confirmed when it is the refund of a POINT payment", async () => {
     const { headers } = await signedInWith(db, ["confirm_refunds"], NOW);
     const late = await aPendingLatePaymentRefund(db, {

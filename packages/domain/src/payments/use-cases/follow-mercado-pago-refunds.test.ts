@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { followMercadoPagoRefunds } from "./follow-mercado-pago-refunds.js";
 import {
   aConfirmedRefund,
+  aPaymentTransaction,
   aQrRefundOfCancelledSale,
   aSentRefund,
   NOW,
@@ -151,7 +152,7 @@ describe("followMercadoPagoRefunds", () => {
   });
 
   it("sends nothing for a refund that now exceeds what the payment still holds", async () => {
-    const world = refundWorld([aConfirmedRefund({ refundedOfPayment: 100 })]);
+    const world = refundWorld([aConfirmedRefund({ refundedOfSalePayment: 100 })]);
 
     await followMercadoPagoRefunds(world.ports);
 
@@ -165,7 +166,7 @@ describe("followMercadoPagoRefunds", () => {
         id: "refund-2",
         saleId: "sale-2",
         paymentTransactionId: "transaction-2",
-        orderId: "ORD-2",
+        paymentTransaction: aPaymentTransaction({ orderId: "ORD-2" }),
         originEventId: "event-2",
       }),
     ]);

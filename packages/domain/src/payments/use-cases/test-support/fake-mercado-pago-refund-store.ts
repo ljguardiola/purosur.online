@@ -1,5 +1,4 @@
 import type { AlertKind } from "../../../alerts/index.js";
-import type { LatePaymentOfRefund } from "../../model/mercado-pago-refund.js";
 import type {
   MercadoPagoRefundRecord,
   MercadoPagoRefundReference,
@@ -78,11 +77,6 @@ class FakeMercadoPagoRefundTransaction implements MercadoPagoRefundTransaction {
     return saleId === undefined ? null : { saleId };
   }
 
-  async latePaymentOfRefund(refundId: string): Promise<LatePaymentOfRefund | null> {
-    this.store.log.push("latePaymentOfRefund");
-    return this.store.latePayments.get(refundId) ?? null;
-  }
-
   async recordRefundConfirmed(
     refundId: string,
     confirmedBy: string,
@@ -136,7 +130,6 @@ class FakeMercadoPagoRefundTransaction implements MercadoPagoRefundTransaction {
 export class FakeMercadoPagoRefundStore implements MercadoPagoRefundStore {
   refunds: FakeMercadoPagoStoredRefund[];
   readonly cancellations = new Map<string, string>();
-  readonly latePayments = new Map<string, LatePaymentOfRefund>();
   readonly log: string[];
   resolvedAlerts: ResolvedRefundAlert[] = [];
   readonly refusals: { refundId: string; reason: string; refusedAt: Date }[] = [];
