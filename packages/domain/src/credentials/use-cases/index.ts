@@ -218,6 +218,12 @@ export type {
 } from "./remove-own-passkey.js";
 export { removeOwnPasskey } from "./remove-own-passkey.js";
 export type {
+  RemoveEveryUserPasskeyInput,
+  RemoveEveryUserPasskeyOutcome,
+  RemoveEveryUserPasskeyPorts,
+} from "./remove-every-user-passkey.js";
+export { removeEveryUserPasskey } from "./remove-every-user-passkey.js";
+export type {
   RemoveUserPasskeyInput,
   RemoveUserPasskeyOutcome,
   RemoveUserPasskeyPorts,
