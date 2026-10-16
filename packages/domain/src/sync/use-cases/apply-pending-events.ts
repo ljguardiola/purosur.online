@@ -1,4 +1,8 @@
-import { mercadoPagoPaymentIsBacked } from "../../payments/index.js";
+import {
+  isRefundSentByCloud,
+  mercadoPagoPaymentIsBacked,
+  SALE_VOIDED_REFUND_ORIGIN,
+} from "../../payments/index.js";
 import type { CompletedSale } from "../../sales/index.js";
 import { afterFailedAttempt } from "../model/event-application-retry.js";
 import type { EventQuarantineReason } from "../model/event-quarantine.js";
@@ -121,7 +125,15 @@ async function recordFact(
       return;
     case "sale_voided":
       await tx.record(fact, event);
-      return applyStock(tx.applySaleVoidStock(fact.sale, fact.sale.stockMovements, event));
+      await applyStock(tx.applySaleVoidStock(fact.sale, fact.sale.stockMovements, event));
+      if (
+        fact.sale.refunds.some(({ method }) =>
+          isRefundSentByCloud({ method, origin: SALE_VOIDED_REFUND_ORIGIN }),
+        )
+      ) {
+        await tx.requestMercadoPagoRefundFollow();
+      }
+      return;
     default:
       return tx.record(fact, event);
   }
