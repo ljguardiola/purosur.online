@@ -1,3 +1,4 @@
+import { FACTURA_C_VOUCHER_TYPE } from "../model/factura-c-fiscal-block.js";
 import {
   diagnoseNumberingConflict as diagnose,
   isNumberingConflictAnswer,
@@ -50,7 +51,11 @@ export async function diagnoseNumberingConflict(
     if (token === null) {
       return retry();
     }
-    const lastAuthorized = await taxAuthority.lastAuthorized({ token, pointOfSale });
+    const lastAuthorized = await taxAuthority.lastAuthorized({
+      token,
+      pointOfSale,
+      voucherType: FACTURA_C_VOUCHER_TYPE,
+    });
     if (lastAuthorized.kind === "no_answer") {
       return retry();
     }
@@ -59,6 +64,7 @@ export async function diagnoseNumberingConflict(
       const voucher = await vouchers.voucherAt({
         token,
         pointOfSale,
+        voucherType: FACTURA_C_VOUCHER_TYPE,
         number: lastAuthorized.number,
       });
       if (voucher.kind === "no_answer") {

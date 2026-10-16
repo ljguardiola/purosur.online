@@ -1,3 +1,4 @@
+import { FACTURA_C_VOUCHER_TYPE } from "../model/factura-c-fiscal-block.js";
 import type { TaxAuthorityCountPorts } from "./tax-authority-count-ports.js";
 
 export interface RecordTaxAuthorityLastAuthorizedInput {
@@ -17,13 +18,22 @@ export async function recordTaxAuthorityLastAuthorized(
   if (token === null) {
     return { kind: "no_token" };
   }
-  const answer = await taxAuthority.lastAuthorized({ token, pointOfSale });
+  const answer = await taxAuthority.lastAuthorized({
+    token,
+    pointOfSale,
+    voucherType: FACTURA_C_VOUCHER_TYPE,
+  });
   if (answer.kind === "no_answer") {
     return { kind: "no_answer" };
   }
   let issuedOn: string | null = null;
   if (answer.number > 0) {
-    const voucher = await vouchers.voucherAt({ token, pointOfSale, number: answer.number });
+    const voucher = await vouchers.voucherAt({
+      token,
+      pointOfSale,
+      voucherType: FACTURA_C_VOUCHER_TYPE,
+      number: answer.number,
+    });
     issuedOn = voucher.kind === "found" ? voucher.voucher.issuedOn : null;
   }
   await counts.advance({

@@ -67,6 +67,7 @@ export interface TaxAuthorityVoucherLookup {
   voucherAt(lookup: {
     token: WsaaToken;
     pointOfSale: number;
+    voucherType: number;
     number: number;
   }): Promise<VoucherAnswer>;
 }

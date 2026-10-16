@@ -1,3 +1,4 @@
+import { FACTURA_C_VOUCHER_TYPE } from "../model/factura-c-fiscal-block.js";
 import { FACTURA_C_DOCUMENT_TYPE } from "../model/fiscal-rejection-standing.js";
 import {
   decideNumberingReconciliation,
@@ -30,7 +31,11 @@ export async function reconcileNumberingConflict(
     if (token === null) {
       return { kind: "retry", askAgainAt: askAgainAt() };
     }
-    const lastAuthorized = await taxAuthority.lastAuthorized({ token, pointOfSale });
+    const lastAuthorized = await taxAuthority.lastAuthorized({
+      token,
+      pointOfSale,
+      voucherType: FACTURA_C_VOUCHER_TYPE,
+    });
     if (lastAuthorized.kind === "no_answer") {
       return { kind: "retry", askAgainAt: askAgainAt() };
     }

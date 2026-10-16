@@ -1,3 +1,4 @@
+import { FACTURA_C_VOUCHER_TYPE } from "../model/factura-c-fiscal-block.js";
 import {
   awaitsUnclearOutcomeDecision,
   decideUnclearOutcome,
@@ -27,14 +28,23 @@ async function evidenceOf(
   if (token === null) {
     return { kind: "no_answer" };
   }
-  const voucher = await vouchers.voucherAt({ token, pointOfSale, number });
+  const voucher = await vouchers.voucherAt({
+    token,
+    pointOfSale,
+    voucherType: FACTURA_C_VOUCHER_TYPE,
+    number,
+  });
   if (voucher.kind === "found") {
     return { kind: "voucher", voucher: voucher.voucher };
   }
   if (voucher.kind === "no_answer") {
     return { kind: "no_answer" };
   }
-  const lastAuthorized = await taxAuthority.lastAuthorized({ token, pointOfSale });
+  const lastAuthorized = await taxAuthority.lastAuthorized({
+    token,
+    pointOfSale,
+    voucherType: FACTURA_C_VOUCHER_TYPE,
+  });
   return {
     kind: "no_voucher",
     lastAuthorized: lastAuthorized.kind === "read" ? lastAuthorized.number : null,
