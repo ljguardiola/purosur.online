@@ -2296,7 +2296,11 @@ describe("the route access inventory", () => {
         url: "/api/users/:id/passkeys/:passkeyId",
         access: capabilityAccess("manage_users"),
       },
-      { method: "DELETE", url: "/api/users/:id/passkeys", access: capabilityAccess("manage_users") },
+      {
+        method: "DELETE",
+        url: "/api/users/:id/passkeys",
+        access: capabilityAccess("manage_users"),
+      },
       {
         method: "PUT",
         url: "/api/users/:id/deactivation",
