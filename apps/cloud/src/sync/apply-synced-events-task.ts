@@ -2,6 +2,7 @@ import { type ApplyPendingEventsOutcome, applyPendingEvents } from "@purosur/dom
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { PoolClient } from "pg";
+import { enqueueMercadoPagoRefundFollowJob } from "../payments/graphile-mercado-pago-refund-follow-queue.js";
 import { type BackgroundJobs, databaseOfClient } from "../platform/background-jobs.js";
 import { reportError } from "../platform/error-reporting.js";
 import { DrizzleEventApplication } from "./drizzle-event-application.js";
@@ -20,7 +21,11 @@ export function applySyncedEventsTask<TQueryResult extends PgQueryResultHKT>(
 ): Promise<ApplyPendingEventsOutcome> {
   return applyPendingEvents(
     {
-      eventApplication: new DrizzleEventApplication(db, deps.now),
+      eventApplication: new DrizzleEventApplication(
+        db,
+        deps.now,
+        enqueueMercadoPagoRefundFollowJob,
+      ),
       upcaster: syncedEventUpcaster,
       clock: { now: deps.now },
       quarantineNotices: reportedQuarantines(deps.report ?? reportError),

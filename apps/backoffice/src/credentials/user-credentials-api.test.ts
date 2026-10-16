@@ -1,5 +1,10 @@
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
-import { emitUserPinCode, fetchUserPasskeys, removeUserPasskey } from "./user-credentials-api";
+import {
+  emitUserPinCode,
+  fetchUserPasskeys,
+  removeEveryUserPasskey,
+  removeUserPasskey,
+} from "./user-credentials-api";
 
 function jsonResponse(status: number, body?: unknown, headers?: Record<string, string>): Response {
   return new Response(
@@ -236,4 +241,62 @@ test("emitUserPinCode reports failed on any other status or a network failure", 
 
   vi.mocked(fetch).mockRejectedValue(new TypeError("network down"));
   await expect(emitUserPinCode("user-2")).resolves.toEqual({ kind: "failed" });
+});
+
+test("removeEveryUserPasskey deletes the user's passkeys with no body and returns ok on 200", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200));
+
+  await expect(removeEveryUserPasskey("user-2")).resolves.toEqual({ kind: "ok" });
+  expect(fetch).toHaveBeenCalledWith("/api/users/user-2/passkeys", { method: "DELETE" });
+});
+
+test("removeEveryUserPasskey reports not_found on 404", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(404, { code: "user_not_found" }));
+
+  await expect(removeEveryUserPasskey("missing")).resolves.toEqual({ kind: "not_found" });
+});
+
+test("removeEveryUserPasskey reports own_account on 403 with that code and forbidden otherwise", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(403, { code: "own_account" }));
+  await expect(removeEveryUserPasskey("user-1")).resolves.toEqual({ kind: "own_account" });
+
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(403, { code: "forbidden" }));
+  await expect(removeEveryUserPasskey("user-2")).resolves.toEqual({ kind: "forbidden" });
+});
+
+test("removeEveryUserPasskey reports no_passkeys on 409 with that code and failed otherwise", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code: "no_passkeys" }));
+  await expect(removeEveryUserPasskey("user-2")).resolves.toEqual({ kind: "no_passkeys" });
+
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code: "other" }));
+  await expect(removeEveryUserPasskey("user-2")).resolves.toEqual({ kind: "failed" });
+});
+
+test("removeEveryUserPasskey reports authorization_required and unauthenticated on 401", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(401, { code: "authorization_required" }));
+  await expect(removeEveryUserPasskey("user-2")).resolves.toEqual({
+    kind: "authorization_required",
+  });
+
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(401, { code: "unauthenticated" }));
+  await expect(removeEveryUserPasskey("user-2")).resolves.toEqual({ kind: "unauthenticated" });
+});
+
+test("removeEveryUserPasskey reports rate_limited with the Retry-After seconds on 429", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    jsonResponse(429, { code: "rate_limited" }, { "Retry-After": "40" }),
+  );
+
+  await expect(removeEveryUserPasskey("user-2")).resolves.toEqual({
+    kind: "rate_limited",
+    retryAfterSeconds: 40,
+  });
+});
+
+test("removeEveryUserPasskey reports failed on any other status or a network failure", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(500));
+  await expect(removeEveryUserPasskey("user-2")).resolves.toEqual({ kind: "failed" });
+
+  vi.mocked(fetch).mockRejectedValue(new TypeError("network down"));
+  await expect(removeEveryUserPasskey("user-2")).resolves.toEqual({ kind: "failed" });
 });

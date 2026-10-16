@@ -61,6 +61,7 @@ import { registerSessionAuthenticationOptionsRoute } from "./credentials/session
 import { registerSessionAuthorizationRoutes } from "./credentials/session-authorization-route.js";
 import { registerUserPasskeyRemovalRoutes } from "./credentials/user-passkey-removal-route.js";
 import { registerUserPasskeysListRoute } from "./credentials/user-passkeys-list-route.js";
+import { registerUserPasskeysRemovalRoute } from "./credentials/user-passkeys-removal-route.js";
 import { registerUserPinCodeRoutes } from "./credentials/user-pin-code-route.js";
 import { voidOutstandingRecoveryTokens } from "./credentials/void-outstanding-recovery-tokens.js";
 import { arcaOnlineStatusOf } from "./fiscal/arca-online-status.js";
@@ -140,6 +141,10 @@ import { registerRegisterCoverageRoute } from "./register/register-coverage-rout
 import { registerRegisterCreationRoute } from "./register/register-creation-route.js";
 import { registerRegisterEnrollmentCodeRoute } from "./register/register-enrollment-code-route.js";
 import {
+  type RegisterRevocationRouteOptions,
+  registerRegisterRevocationRoute,
+} from "./register/register-revocation-route.js";
+import {
   type RegisterSnapshotUrls,
   registerRegisterSnapshotRoutes,
 } from "./register/register-snapshot-routes.js";
@@ -161,6 +166,7 @@ import {
   registerSalesReportRoutes,
   type SalesReportRouteOptions,
 } from "./sales/sales-report-routes.js";
+import { registerEverySessionEndingRoute } from "./sessions/every-session-ending-route.js";
 import {
   declarePluginRoutesAccess,
   PUBLIC_ACCESS,
@@ -235,6 +241,7 @@ export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = Postgre
   discounts?: WithoutClock<DiscountsRouteOptions<TQueryResult>>;
   registers?: WithoutClock<RegistersRouteOptions<TQueryResult>>;
   snapshotBackups?: WithoutClock<SnapshotBackupsRouteOptions<TQueryResult>>;
+  registerRevocations?: WithoutClock<RegisterRevocationRouteOptions<TQueryResult>>;
   registersPointsOfSale?: WithoutClock<RegistersPointsOfSaleRouteOptions<TQueryResult>>;
   stock?: WithoutClock<StockRouteOptions<TQueryResult>>;
   salesReports?: WithoutClock<SalesReportRouteOptions<TQueryResult>>;
@@ -332,6 +339,10 @@ export function databaseRouteOptions<TQueryResult extends PgQueryResultHKT>(
     discounts: backoffice,
     registers: backoffice,
     snapshotBackups: { ...backoffice, keysEncryptionKey: wiring.installationKeysEncryptionKey },
+    registerRevocations: {
+      ...backoffice,
+      keysEncryptionKey: wiring.installationKeysEncryptionKey,
+    },
     registersPointsOfSale: wiring.enqueueTaxAuthorityCount
       ? { ...backoffice, enqueueTaxAuthorityCount: wiring.enqueueTaxAuthorityCount }
       : backoffice,
@@ -452,6 +463,7 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
         registerSessionReadRoute(api, { ...options.session, now });
         registerSessionStatusRoute(api, { ...options.session, now });
         registerSessionSignOutRoute(api, { ...options.session, now });
+        registerEverySessionEndingRoute(api, { ...options.session, now });
         registerSessionAuthorizationRoutes(api, { ...options.session, now });
       }
 
@@ -468,6 +480,7 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
         registerUserEditRoutes(api, { ...options.users, now, voidOutstandingRecoveryTokens });
         registerUserPasskeysListRoute(api, { ...options.users, now });
         registerUserPasskeyRemovalRoutes(api, { ...options.users, now });
+        registerUserPasskeysRemovalRoute(api, { ...options.users, now });
         registerUserDeactivationRoutes(api, {
           ...options.users,
           now,
@@ -628,6 +641,10 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
 
       if (options.snapshotBackups) {
         registerSnapshotBackupsRoutes(api, { ...options.snapshotBackups, now });
+      }
+
+      if (options.registerRevocations) {
+        registerRegisterRevocationRoute(api, { ...options.registerRevocations, now });
       }
 
       if (options.registersPointsOfSale) {

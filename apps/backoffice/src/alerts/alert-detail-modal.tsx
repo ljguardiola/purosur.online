@@ -229,15 +229,17 @@ function accessIncreaseDescription(
   }
 }
 
-function registerEnrollmentDescription(
-  {
-    hostname,
-    windowsVersion,
-    replacedInstallation,
-  }: { hostname: string; windowsVersion: string; replacedInstallation: boolean },
+function registerInstallationChangeDescription(
+  detail: Extract<AlertDetail, { kind: "register_enrolled" }>["detail"],
   registerName: string,
 ): string {
-  const replaced = replacedInstallation ? " La instalación que tenía antes dejó de funcionar." : "";
+  const { hostname, windowsVersion } = detail;
+  if (detail.change === "revoked") {
+    return `Se revocó por pérdida o robo la instalación de la caja «${registerName}», que estaba en el equipo «${hostname}» (${windowsVersion}). Los usuarios de la sucursal deben cambiar su PIN.`;
+  }
+  const replaced = detail.replacedInstallation
+    ? " La instalación que tenía antes dejó de funcionar."
+    : "";
   return `La caja «${registerName}» se dio de alta en el equipo «${hostname}» (${windowsVersion}).${replaced} Si no se reconoce esta alta, conviene revisarla desde Cajas registradoras.`;
 }
 
@@ -443,7 +445,9 @@ function alertTitle(alert: AlertDetail): string {
     case "user_access_increased":
       return "Se amplió el acceso de un usuario";
     case "register_enrolled":
-      return "Se dio de alta una caja";
+      return alert.detail.change === "revoked"
+        ? "Se revocó la instalación de una caja"
+        : "Se dio de alta una caja";
     case "events_quarantined":
       return "Eventos de una caja en cuarentena";
     case "event_invariant_violated":
@@ -530,7 +534,7 @@ function alertDescription(alert: AlertDetail, catalog: PermissionCatalogWire = [
     case "user_access_increased":
       return accessIncreaseDescription(alert.detail, targetName, catalog);
     case "register_enrolled":
-      return registerEnrollmentDescription(alert.detail, targetName);
+      return registerInstallationChangeDescription(alert.detail, targetName);
     case "arca_certificate_expiring":
       return arcaCertificateExpiringDescription(alert.detail.notAfter, alert.scopeKind, targetName);
     case "arca_wsaa_ticket_held":

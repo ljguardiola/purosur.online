@@ -7,13 +7,15 @@ import {
   INSUFFICIENT_BALANCE_REFUSAL,
   isAwaitingMercadoPago,
   isProcessedByMercadoPago,
+  isRefundInCloudHands,
   isRefundSentByCloud,
   MERCADO_PAGO_REFUND_STAGES,
   mercadoPagoRefundStage,
   orderToRefund,
   progressOfRefundAnswer,
+  recordedRefundOfVoidedSale,
   refundableAmount,
-  refundIsBackedByItsCancellation,
+  refundIsBackedByItsCorrection,
   refundIsBackedByItsLatePayment,
 } from "./mercado-pago-refund.js";
 
@@ -21,7 +23,11 @@ describe("isRefundSentByCloud", () => {
   it.each([
     ["QR", "sale_cancelled", true],
     ["QR", "late_payment", true],
-    ["QR", "sale_voided", false],
+    ["QR", "manual", false],
+    ["QR", "sale_voided", true],
+    ["POINT", "sale_voided", true],
+    ["TRANSFER", "sale_voided", false],
+    ["CASH", "sale_voided", false],
     ["POINT", "late_payment", false],
     ["POINT", "sale_cancelled", false],
     ["TRANSFER", "sale_cancelled", false],
@@ -29,6 +35,71 @@ describe("isRefundSentByCloud", () => {
   ])("answers %s of origin %s: %s", (method, origin, sent) => {
     expect(isRefundSentByCloud({ method, origin })).toBe(sent);
   });
+});
+
+describe("isRefundInCloudHands", () => {
+  const CONFIRMED_AT = new Date("2026-10-07T10:05:00.000Z");
+
+  it.each([
+    ["QR", "sale_voided", "confirmed", null, true],
+    ["POINT", "sale_voided", "confirmed", null, true],
+    ["QR", "sale_cancelled", "confirmed", null, true],
+    ["QR", "sale_voided", "confirmed", INSUFFICIENT_BALANCE_REFUSAL, true],
+    ["POINT", "sale_voided", "confirmed", INSUFFICIENT_BALANCE_REFUSAL, true],
+    ["QR", "sale_cancelled", "confirmed", INSUFFICIENT_BALANCE_REFUSAL, true],
+    ["QR", "sale_voided", "confirmed", "rejected_by_bank", false],
+    ["POINT", "sale_voided", "confirmed", "rejected_by_bank", false],
+    ["QR", "sale_cancelled", "confirmed", "rejected_by_bank", false],
+    ["QR", "sale_cancelled", "unconfirmed", null, false],
+    ["QR", "sale_voided", "unconfirmed", null, false],
+    ["TRANSFER", "sale_voided", "confirmed", null, false],
+    ["POINT", "sale_cancelled", "confirmed", null, false],
+  ])(
+    "answers a %s refund of origin %s, %s, last refused for %s: %s",
+    (method, origin, confirmation, lastRefusalReason, inHands) => {
+      const confirmedAt = confirmation === "confirmed" ? CONFIRMED_AT : null;
+      expect(isRefundInCloudHands({ method, origin, confirmedAt, lastRefusalReason })).toBe(
+        inHands,
+      );
+    },
+  );
+});
+
+describe("recordedRefundOfVoidedSale", () => {
+  const voiding = { actorId: "cashier-1", voidedAt: new Date("2026-10-07T10:05:00.000Z") };
+  const refund = (method: string) => ({
+    id: "refund-1",
+    paymentId: "payment-1",
+    method,
+    amount: 1000,
+    state: "PENDING",
+  });
+
+  it.each(["QR", "POINT"])(
+    "records a %s refund confirmed by the cashier who voided the sale, when it was voided, on the payment it refunds",
+    (method) => {
+      expect(recordedRefundOfVoidedSale(refund(method), voiding)).toEqual({
+        ...refund(method),
+        origin: "sale_voided",
+        paymentTransactionId: "payment-1",
+        confirmedBy: "cashier-1",
+        confirmedAt: voiding.voidedAt,
+      });
+    },
+  );
+
+  it.each(["CASH", "TRANSFER", "STANDALONE_TERMINAL"])(
+    "records a %s refund unconfirmed and on no payment transaction",
+    (method) => {
+      expect(recordedRefundOfVoidedSale(refund(method), voiding)).toEqual({
+        ...refund(method),
+        origin: "sale_voided",
+        paymentTransactionId: null,
+        confirmedBy: null,
+        confirmedAt: null,
+      });
+    },
+  );
 });
 
 describe("refundableAmount", () => {
@@ -67,31 +138,55 @@ describe("exceedsRefundable", () => {
   });
 });
 
-describe("refundIsBackedByItsCancellation", () => {
-  const refund = { saleId: "sale-1", originEventId: "event-1", orderId: "ORD1" };
+describe("refundIsBackedByItsCorrection", () => {
+  const refund = {
+    saleId: "sale-1",
+    origin: "sale_cancelled",
+    originEventId: "event-1",
+    orderId: "ORD1",
+  };
+  const cancellation = { origin: "sale_cancelled", saleId: "sale-1" };
 
   it("is backed when the event it came from cancelled the sale it refunds", () => {
-    expect(refundIsBackedByItsCancellation(refund, { saleId: "sale-1" })).toBe(true);
+    expect(refundIsBackedByItsCorrection(refund, cancellation)).toBe(true);
   });
 
-  it("is not backed when the event cancelled another sale", () => {
-    expect(refundIsBackedByItsCancellation(refund, { saleId: "sale-2" })).toBe(false);
+  it("is backed when the event it came from voided the sale it refunds", () => {
+    expect(
+      refundIsBackedByItsCorrection(
+        { ...refund, origin: "sale_voided" },
+        { origin: "sale_voided", saleId: "sale-1" },
+      ),
+    ).toBe(true);
   });
 
-  it("is not backed when the cloud holds no cancelling event for it", () => {
-    expect(refundIsBackedByItsCancellation(refund, null)).toBe(false);
+  it("is not backed when the event corrected another sale", () => {
+    expect(refundIsBackedByItsCorrection(refund, { ...cancellation, saleId: "sale-2" })).toBe(
+      false,
+    );
+  });
+
+  it("is not backed when the event is another kind of correction than the one the refund names", () => {
+    expect(refundIsBackedByItsCorrection(refund, { origin: "sale_voided", saleId: "sale-1" })).toBe(
+      false,
+    );
+    expect(refundIsBackedByItsCorrection({ ...refund, origin: "sale_voided" }, cancellation)).toBe(
+      false,
+    );
+  });
+
+  it("is not backed when the cloud holds no correcting event for it", () => {
+    expect(refundIsBackedByItsCorrection(refund, null)).toBe(false);
   });
 
   it("is not backed when the refund names no event", () => {
-    expect(
-      refundIsBackedByItsCancellation({ ...refund, originEventId: null }, { saleId: "sale-1" }),
-    ).toBe(false);
+    expect(refundIsBackedByItsCorrection({ ...refund, originEventId: null }, cancellation)).toBe(
+      false,
+    );
   });
 
   it("is not backed when the payment has no Mercado Pago order to refund", () => {
-    expect(
-      refundIsBackedByItsCancellation({ ...refund, orderId: null }, { saleId: "sale-1" }),
-    ).toBe(false);
+    expect(refundIsBackedByItsCorrection({ ...refund, orderId: null }, cancellation)).toBe(false);
   });
 });
 

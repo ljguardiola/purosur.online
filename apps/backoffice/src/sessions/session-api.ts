@@ -31,6 +31,13 @@ export type SessionStatusOutcome =
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "failed" };
 
+export type EndEverySessionOutcome =
+  | { kind: "ok" }
+  | { kind: "unauthenticated" }
+  | { kind: "forbidden" }
+  | { kind: "rate_limited"; retryAfterSeconds: number }
+  | { kind: "failed" };
+
 export type AuthenticationOptionsOutcome =
   | { kind: "ok"; value: PublicKeyCredentialRequestOptionsJSON }
   | { kind: "failed" };
@@ -163,6 +170,28 @@ export async function signOut(): Promise<SignOutOutcome> {
   }
   if (response.ok || response.status === 401) {
     return { kind: "ok" };
+  }
+  if (response.status === 429) {
+    return rateLimitOutcome(response);
+  }
+  return { kind: "failed" };
+}
+
+export async function endEverySession(): Promise<EndEverySessionOutcome> {
+  let response: Response;
+  try {
+    response = await fetch("/api/sessions", { method: "DELETE" });
+  } catch {
+    return { kind: "failed" };
+  }
+  if (response.ok) {
+    return { kind: "ok" };
+  }
+  if (response.status === 401) {
+    return { kind: "unauthenticated" };
+  }
+  if (response.status === 403) {
+    return { kind: "forbidden" };
   }
   if (response.status === 429) {
     return rateLimitOutcome(response);

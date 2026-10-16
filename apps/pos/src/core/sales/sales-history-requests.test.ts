@@ -320,7 +320,7 @@ describe("the detail of a sale of the history", () => {
 
     expect(answer.kind === "found" && answer.detail.voidability).toEqual({
       kind: "voidable",
-      refunds: [{ method: "CASH", amount: 3000, state: "APPROVED" }],
+      refunds: [{ method: "CASH", amount: 3000, state: "APPROVED", sent_by_cloud: false }],
     });
   });
 

@@ -355,6 +355,18 @@ const saleRefundWithQrSchema = z.discriminatedUnion("method", [
   qrRefundSchema,
 ]);
 
+const pointRefundSchema = z.object({
+  ...saleRefundFields,
+  method: z.literal("POINT"),
+  provider: z.literal("MERCADOPAGO_POINT"),
+  state: z.literal("PENDING"),
+});
+
+const saleRefundWithMercadoPagoSchema = z.discriminatedUnion("method", [
+  ...saleRefundWithQrSchema.options,
+  pointRefundSchema,
+]);
+
 const paymentWithQrAndStandaloneTerminalSchema = z.discriminatedUnion("method", [
   cashPaymentSchema,
   transferPaymentSchema,
@@ -383,6 +395,11 @@ const saleVoidedV1Schema = z.object({
   refunds: z.array(saleRefundWithStandaloneTerminalSchema).min(1),
   stock_movements: z.array(returnedStockMovementSchema),
   deferred_record_cancelled: z.boolean(),
+});
+
+const saleVoidedV2Schema = saleVoidedV1Schema.extend({
+  payments: z.array(paymentWithMercadoPagoSchema).min(1),
+  refunds: z.array(saleRefundWithMercadoPagoSchema).min(1),
 });
 
 const cashSessionOpenedSchema = z.object({
@@ -480,6 +497,7 @@ const PAYLOAD_SCHEMAS = {
   "sale_cancelled@5": saleCancelledV5Schema,
   "sale_cancelled@6": saleCancelledV6Schema,
   "sale_voided@1": saleVoidedV1Schema,
+  "sale_voided@2": saleVoidedV2Schema,
   "cash_session_opened@1": cashSessionOpenedSchema,
   "cash_session_closed@1": cashSessionClosedSchema,
   "cash_movement_recorded@1": cashMovementRecordedSchema,

@@ -10,6 +10,12 @@ export type {
   AuthorizeRegisterOperationOutcome,
 } from "./authorize-register-operation.js";
 export { authorizeRegisterOperation } from "./authorize-register-operation.js";
+export type {
+  BackofficeSessionEndingStore,
+  BackofficeSessionEndingStoreTransaction,
+  EndedSession,
+  UnrevokedSession,
+} from "./backoffice-session-ending-store.js";
 export type { CheckPinInput, CheckPinOutcome, PinRefusal } from "./check-pin.js";
 export { checkPin } from "./check-pin.js";
 export type {
@@ -17,6 +23,12 @@ export type {
   ConfirmRejectedSignInAttemptPorts,
 } from "./confirm-rejected-sign-in-attempt.js";
 export { confirmRejectedSignInAttempt } from "./confirm-rejected-sign-in-attempt.js";
+export type {
+  EndEveryBackofficeSessionInput,
+  EndEveryBackofficeSessionOutcome,
+  EndEveryBackofficeSessionPorts,
+} from "./end-every-backoffice-session.js";
+export { endEveryBackofficeSession } from "./end-every-backoffice-session.js";
 export type {
   EndExpiredSessionInput,
   EndExpiredSessionOutcome,

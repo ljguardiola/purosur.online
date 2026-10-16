@@ -358,24 +358,42 @@ describe("DrizzleMercadoPagoRefundStore", () => {
     });
   });
 
-  describe("cancellationOfEvent", () => {
+  describe("appliedCorrectionOfEvent", () => {
     it("gives the sale an applied cancelling event cancelled", async () => {
       const pending = await aPendingQrRefundOfCancelledSale(db, { cancelledAt: NOW });
 
       expect(
-        await store().transaction((tx) => tx.cancellationOfEvent(pending.originEventId)),
-      ).toEqual({ saleId: pending.saleId });
+        await store().transaction((tx) => tx.appliedCorrectionOfEvent(pending.originEventId)),
+      ).toEqual({ origin: "sale_cancelled", saleId: pending.saleId });
+    });
+
+    it("gives the sale an applied voiding event voided", async () => {
+      const pending = await aPendingQrRefundOfCancelledSale(db, {
+        cancelledAt: NOW,
+        cancellingEvent: false,
+      });
+      await insertInboxEvent(db, pending.deviceId, {
+        eventId: pending.originEventId,
+        aggregateId: pending.saleId,
+        eventType: "sale_voided",
+        schemaVersion: 2,
+        appliedAt: NOW,
+      });
+
+      expect(
+        await store().transaction((tx) => tx.appliedCorrectionOfEvent(pending.originEventId)),
+      ).toEqual({ origin: "sale_voided", saleId: pending.saleId });
     });
 
     it("gives nothing for an event the cloud does not hold", async () => {
       await aPendingQrRefundOfCancelledSale(db, { cancelledAt: NOW });
 
       expect(
-        await store().transaction((tx) => tx.cancellationOfEvent(crypto.randomUUID())),
+        await store().transaction((tx) => tx.appliedCorrectionOfEvent(crypto.randomUUID())),
       ).toBeNull();
     });
 
-    it("gives nothing for an event that is not a cancellation", async () => {
+    it("gives nothing for an event that is not a correction", async () => {
       const pending = await aPendingQrRefundOfCancelledSale(db, {
         cancelledAt: NOW,
         cancellingEvent: false,
@@ -388,26 +406,32 @@ describe("DrizzleMercadoPagoRefundStore", () => {
       });
 
       expect(
-        await store().transaction((tx) => tx.cancellationOfEvent(pending.originEventId)),
+        await store().transaction((tx) => tx.appliedCorrectionOfEvent(pending.originEventId)),
       ).toBeNull();
     });
 
-    it("gives nothing for a cancelling event the cloud has not applied", async () => {
-      const pending = await aPendingQrRefundOfCancelledSale(db, {
-        cancelledAt: NOW,
-        cancellingEvent: false,
-      });
-      await insertInboxEvent(db, pending.deviceId, {
-        eventId: pending.originEventId,
-        aggregateId: pending.saleId,
-        eventType: "sale_cancelled",
-        schemaVersion: 6,
-      });
+    it.each([
+      ["sale_cancelled", 6],
+      ["sale_voided", 2],
+    ])(
+      "gives nothing for a %s event the cloud has not applied",
+      async (eventType, schemaVersion) => {
+        const pending = await aPendingQrRefundOfCancelledSale(db, {
+          cancelledAt: NOW,
+          cancellingEvent: false,
+        });
+        await insertInboxEvent(db, pending.deviceId, {
+          eventId: pending.originEventId,
+          aggregateId: pending.saleId,
+          eventType,
+          schemaVersion,
+        });
 
-      expect(
-        await store().transaction((tx) => tx.cancellationOfEvent(pending.originEventId)),
-      ).toBeNull();
-    });
+        expect(
+          await store().transaction((tx) => tx.appliedCorrectionOfEvent(pending.originEventId)),
+        ).toBeNull();
+      },
+    );
   });
 
   describe("recording the progress", () => {

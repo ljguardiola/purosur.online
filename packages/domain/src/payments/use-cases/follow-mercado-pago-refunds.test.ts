@@ -143,7 +143,7 @@ describe("followMercadoPagoRefunds", () => {
 
   it("sends nothing for a confirmed refund whose cancellation the cloud no longer holds", async () => {
     const world = refundWorld([aConfirmedRefund()]);
-    world.store.cancellations.clear();
+    world.store.appliedCorrections.clear();
 
     const outcome = await followMercadoPagoRefunds(world.ports);
 
@@ -170,7 +170,7 @@ describe("followMercadoPagoRefunds", () => {
         originEventId: "event-2",
       }),
     ]);
-    world.store.cancellations.set("event-2", "sale-2");
+    world.store.appliedCorrections.set("event-2", { origin: "sale_cancelled", saleId: "sale-2" });
 
     const outcome = await followMercadoPagoRefunds(world.ports);
 

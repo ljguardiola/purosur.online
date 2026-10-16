@@ -35,14 +35,7 @@ class FakeRefundTaskAlertTransaction implements RefundTaskAlertTransaction {
     this.store.operationOrder.push("lockRefunds");
     return this.store.refunds
       .filter((refund) => !refund.hasOpenRefundTaskAlert)
-      .map(({ refundId, saleId, locationId, method, amount, openedAt }) => ({
-        refundId,
-        saleId,
-        locationId,
-        method,
-        amount,
-        openedAt,
-      }));
+      .map(({ hasOpenRefundTaskAlert: _hasOpenRefundTaskAlert, ...refund }) => refund);
   }
 
   async openRefundTaskAlert(

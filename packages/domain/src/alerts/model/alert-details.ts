@@ -52,12 +52,15 @@ export type AccessIncreasedDetail =
       actorId: string;
     };
 
-export interface RegisterEnrolledDetail {
-  deviceId: string;
-  hostname: string;
-  windowsVersion: string;
-  replacedInstallation: boolean;
-}
+export type RegisterEnrolledDetail =
+  | {
+      change: "enrolled";
+      deviceId: string;
+      hostname: string;
+      windowsVersion: string;
+      replacedInstallation: boolean;
+    }
+  | { change: "revoked"; deviceId: string; hostname: string; windowsVersion: string };
 
 interface EventsQuarantinedDetail {
   deviceId: string;

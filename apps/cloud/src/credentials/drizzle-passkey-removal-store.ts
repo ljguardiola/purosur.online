@@ -37,6 +37,15 @@ class DrizzlePasskeyRemovalStoreTransaction<TQueryResult extends PgQueryResultHK
     return found;
   }
 
+  async lockUserPasskeys(userId: string): Promise<RemovedPasskey[]> {
+    return this.tx
+      .select({ id: passkeys.id, name: passkeys.name })
+      .from(passkeys)
+      .where(eq(passkeys.userId, userId))
+      .orderBy(passkeys.createdAt, passkeys.id)
+      .for("update");
+  }
+
   async deletePasskey(passkeyId: string): Promise<void> {
     await this.tx.delete(passkeys).where(eq(passkeys.id, passkeyId));
   }

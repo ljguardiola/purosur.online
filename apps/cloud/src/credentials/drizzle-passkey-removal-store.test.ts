@@ -101,6 +101,27 @@ describe("DrizzlePasskeyRemovalStore", () => {
     expect(found).toBeUndefined();
   });
 
+  it("locks and answers every passkey of the user and none of another user's", async () => {
+    const secondPasskeyId = await insertPasskey(userId, "credential-2");
+    await insertPasskey(otherUserId, "credential-3");
+
+    const locked = await removalStore().transaction((tx) => tx.lockUserPasskeys(userId));
+
+    expect(locked).toHaveLength(2);
+    expect(locked).toEqual(
+      expect.arrayContaining([
+        { id: passkeyId, name: "Llave" },
+        { id: secondPasskeyId, name: "Llave" },
+      ]),
+    );
+  });
+
+  it("locks nothing for a user without passkeys", async () => {
+    const locked = await removalStore().transaction((tx) => tx.lockUserPasskeys(otherUserId));
+
+    expect(locked).toEqual([]);
+  });
+
   it("deletes the passkey", async () => {
     await removalStore().transaction((tx) => tx.deletePasskey(passkeyId));
 

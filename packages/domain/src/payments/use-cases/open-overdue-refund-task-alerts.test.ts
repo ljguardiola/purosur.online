@@ -13,9 +13,12 @@ const REFUND: FakeRefundOfSale = {
   refundId: "refund-1",
   saleId: "sale-1",
   locationId: "branch-1",
+  origin: "sale_cancelled",
   method: "TRANSFER",
   amount: 12400,
   openedAt: REFUND_OPENED,
+  confirmedAt: null,
+  lastRefusalReason: null,
   hasOpenRefundTaskAlert: false,
 };
 
@@ -84,6 +87,82 @@ describe("openOverdueRefundTaskAlerts", () => {
 
     expect(outcome).toEqual({ kind: "opened", refundIds: ["refund-1", "refund-3"] });
     expect(store.opened.map((alert) => alert.locationId)).toEqual(["branch-1", "branch-2"]);
+  });
+
+  it.each([
+    ["QR", "sale_voided"],
+    ["POINT", "sale_voided"],
+    ["QR", "sale_cancelled"],
+  ])(
+    "opens none for a %s refund of origin %s already confirmed, which the cloud sends",
+    async (method, origin) => {
+      const store = new FakeRefundTaskAlertStore([
+        { ...REFUND, method, origin, confirmedAt: REFUND_OPENED },
+      ]);
+
+      expect(await evaluate(store, hoursAfterOpening(72))).toEqual({
+        kind: "opened",
+        refundIds: [],
+      });
+      expect(store.opened).toEqual([]);
+    },
+  );
+
+  it.each([
+    ["QR", "sale_voided"],
+    ["POINT", "sale_voided"],
+    ["QR", "sale_cancelled"],
+  ])(
+    "opens none for a %s refund of origin %s already confirmed, waiting for Mercado Pago's balance",
+    async (method, origin) => {
+      const store = new FakeRefundTaskAlertStore([
+        {
+          ...REFUND,
+          method,
+          origin,
+          confirmedAt: REFUND_OPENED,
+          lastRefusalReason: "insufficient_balance",
+        },
+      ]);
+
+      expect(await evaluate(store, hoursAfterOpening(72))).toEqual({
+        kind: "opened",
+        refundIds: [],
+      });
+    },
+  );
+
+  it.each([
+    ["QR", "sale_voided"],
+    ["POINT", "sale_voided"],
+    ["QR", "sale_cancelled"],
+  ])(
+    "opens one for a %s refund of origin %s already confirmed that Mercado Pago refused for good",
+    async (method, origin) => {
+      const store = new FakeRefundTaskAlertStore([
+        {
+          ...REFUND,
+          method,
+          origin,
+          confirmedAt: REFUND_OPENED,
+          lastRefusalReason: "rejected_by_bank",
+        },
+      ]);
+
+      expect(await evaluate(store, hoursAfterOpening(72))).toEqual({
+        kind: "opened",
+        refundIds: ["refund-1"],
+      });
+    },
+  );
+
+  it("opens one for a QR refund of a cancelled sale its cashier has not confirmed", async () => {
+    const store = new FakeRefundTaskAlertStore([{ ...REFUND, method: "QR" }]);
+
+    expect(await evaluate(store, hoursAfterOpening(24))).toEqual({
+      kind: "opened",
+      refundIds: ["refund-1"],
+    });
   });
 
   it("locks the refunds before opening any alert, all in one transaction", async () => {

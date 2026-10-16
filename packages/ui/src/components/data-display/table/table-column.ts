@@ -15,7 +15,9 @@ export function columnAlign<T extends RowData>(column: TableColumnOf<T>): TableC
   return column.columnDef.meta?.align ?? "start";
 }
 
-export function columnActionCount<T extends RowData>(column: TableColumnOf<T>): 1 | 2 | undefined {
+export function columnActionCount<T extends RowData>(
+  column: TableColumnOf<T>,
+): 1 | 2 | 3 | undefined {
   return column.columnDef.meta?.actionCount;
 }
 

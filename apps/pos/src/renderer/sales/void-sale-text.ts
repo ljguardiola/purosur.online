@@ -16,8 +16,6 @@ export function voidRefusalReason(refusal: VoidRefusal): string | undefined {
       return "La factura se está pidiendo a ARCA. Vas a poder anular cuando termine el trámite.";
     case "carries_invoice":
       return "La caja todavía no anula una venta con factura. Se tramita como devolución.";
-    case "mercado_pago_payment":
-      return "La caja todavía no anula una venta con un pago de Mercado Pago. Se tramita como devolución.";
     case "not_completed":
       return undefined;
   }
@@ -40,7 +38,9 @@ export function voidRefundPresentation(refund: VoidRefund): {
   }
   return {
     title,
-    description: "Queda un reembolso pendiente: una persona lo hace por fuera de la caja.",
+    description: refund.sent_by_cloud
+      ? "Queda un reembolso pendiente que la nube envía a Mercado Pago al confirmarlo."
+      : "Queda un reembolso pendiente: una persona lo hace por fuera de la caja.",
     chip: { label: "Pendiente", tone: "info" },
     pending: true,
   };

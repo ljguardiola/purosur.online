@@ -1,0 +1,1 @@
+ALTER TYPE "public"."installation_revocation_reason" ADD VALUE 'lost_or_stolen';

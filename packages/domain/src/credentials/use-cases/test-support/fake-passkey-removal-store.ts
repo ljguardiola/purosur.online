@@ -25,6 +25,7 @@ export interface FakePasskeyRemovalState {
 
 type FailableOperation =
   | "findRemovablePasskey"
+  | "lockUserPasskeys"
   | "deletePasskey"
   | "revokeSessions"
   | "recordOwnPasskeyRemoved"
@@ -51,6 +52,13 @@ class FakePasskeyRemovalStoreTransaction implements PasskeyRemovalStoreTransacti
       (candidate) => candidate.id === passkeyId && candidate.userId === userId,
     );
     return held && { id: held.id, name: held.name };
+  }
+
+  async lockUserPasskeys(userId: string): Promise<RemovedPasskey[]> {
+    this.store.beforeOperation("lockUserPasskeys");
+    return this.state.passkeys
+      .filter((held) => held.userId === userId)
+      .map((held) => ({ id: held.id, name: held.name }));
   }
 
   async deletePasskey(passkeyId: string): Promise<void> {

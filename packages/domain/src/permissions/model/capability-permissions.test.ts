@@ -21,6 +21,7 @@ const CAPABILITIES_GRANTED_BY: readonly [PermissionKey, readonly Capability[]][]
   ["view_all_alerts", ["alerts_area"]],
   ["dismiss_alerts_manually", ["close_alerts_manually"]],
   ["enroll_register_devices", ["registers_area"]],
+  ["revoke_register_devices", ["revoke_installations"]],
   ["release_quarantined_events", ["quarantined_events"]],
   ["manage_suppliers", ["suppliers", "stock_area"]],
   ["manage_purchase_presentations", ["purchase_packagings", "stock_area"]],
@@ -96,6 +97,26 @@ describe("the reports_area capability", () => {
           permissionKeys: PERMISSION_KEYS.filter((key) => key !== "view_reports"),
         },
         "reports_area",
+      ),
+    ).toBe(false);
+  });
+});
+
+describe("the revoke_installations capability", () => {
+  it("is granted to whoever may revoke register devices and to no one else", () => {
+    expect(
+      grantsCapability(
+        { isAdministrator: false, permissionKeys: ["revoke_register_devices"] },
+        "revoke_installations",
+      ),
+    ).toBe(true);
+    expect(
+      grantsCapability(
+        {
+          isAdministrator: false,
+          permissionKeys: PERMISSION_KEYS.filter((key) => key !== "revoke_register_devices"),
+        },
+        "revoke_installations",
       ),
     ).toBe(false);
   });
