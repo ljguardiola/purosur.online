@@ -124,7 +124,7 @@ export async function removeUserPasskey(
 export async function removeEveryUserPasskey(id: string): Promise<RemoveEveryUserPasskeyOutcome> {
   let response: Response;
   try {
-    response = await fetch(`/api/users//passkeys`, { method: "DELETE" });
+    response = await fetch(`/api/users/${id}/passkeys`, { method: "DELETE" });
   } catch {
     return { kind: "failed" };
   }
