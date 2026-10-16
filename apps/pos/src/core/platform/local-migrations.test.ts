@@ -3275,7 +3275,7 @@ describe("the register's local migrations", () => {
         `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
          VALUES ('s1', 'r1', 'device-a', 'u1', '2026-10-09T12:00:00.000Z', 0, 'OPEN');
          INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at)
-         VALUES ('done', 'r1', 'device-a', 's1', 'u1', 'VOIDED', '2026-10-09T12:05:00.000Z');
+         VALUES ('done', 'r1', 'device-a', 's1', 'u1', 'COMPLETED', '2026-10-09T12:05:00.000Z');
          INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, tendered, authorized_by, confirmed_at, state, occurred_at, wait_ends_at)
          VALUES ('pay-cash', 'done', 'SALE', 'CASH', 'NONE', 1000, 1500, NULL, NULL, 'APPROVED', '2026-10-09T12:05:00.000Z', NULL),
                 ('pay-qr', 'done', 'SALE', 'QR', 'MERCADOPAGO_QR', 700, NULL, NULL, NULL, 'APPROVED', '2026-10-09T12:10:00.000Z', '2026-10-09T12:13:00.000Z'),
