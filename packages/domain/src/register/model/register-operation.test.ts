@@ -395,6 +395,41 @@ describe("registerOperationAccess", () => {
     });
   });
 
+  describe("for correcting the register's clock", () => {
+    const operation: RegisterOperation = { kind: "correct_register_clock" };
+
+    it("permits a person who holds correct_register_clock", () => {
+      expect(
+        registerOperationAccess(operation, {
+          id: "ana",
+          access: holding("correct_register_clock"),
+        }),
+      ).toEqual({ kind: "permitted" });
+    });
+
+    it("permits an Administrator", () => {
+      expect(registerOperationAccess(operation, { id: "ana", access: ADMINISTRATOR })).toEqual({
+        kind: "permitted",
+      });
+    });
+
+    it("refuses, with nobody able to authorize it, a person who does not hold it", () => {
+      expect(
+        registerOperationAccess(operation, { id: "ana", access: holding("sell_and_charge") }),
+      ).toEqual({ kind: "refused" });
+    });
+
+    it("answers that a person with no access has none", () => {
+      expect(registerOperationAccess(operation, { id: "ana", access: undefined })).toEqual({
+        kind: "no_access",
+      });
+    });
+
+    it("refuses when nobody is signed in", () => {
+      expect(registerOperationAccess(operation, undefined)).toEqual({ kind: "refused" });
+    });
+  });
+
   describe("for closing the open cash session", () => {
     const operation: RegisterOperation = { kind: "close_cash_session", session: SESSION };
 
@@ -595,6 +630,7 @@ describe("mayAuthorize", () => {
     { kind: "sell" },
     { kind: "configure_receipt_printer" },
     { kind: "configure_serial_devices" },
+    { kind: "correct_register_clock" },
     { kind: "close_cash_session", session: SESSION },
   ])("lets nobody authorize $kind for someone else", (operation) => {
     expect(mayAuthorize(operation, { id: "bruno", access: ADMINISTRATOR })).toBe(false);

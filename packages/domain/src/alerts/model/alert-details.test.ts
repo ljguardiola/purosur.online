@@ -294,6 +294,35 @@ describe("OpenAlertInput of a fortnight report", () => {
   });
 });
 
+describe("a clock corrected alert", () => {
+  it("accepts the point of sale, the document type, both readings and who corrected the clock", () => {
+    expectTypeOf<{
+      kind: "clock_corrected";
+      scope: string;
+      detail: {
+        pointOfSale: number;
+        documentType: "factura_c";
+        previousReading: string;
+        correctedReading: string;
+        actorId: string;
+      };
+    }>().toExtend<OpenAlertInput>();
+  });
+
+  it("refuses one without who corrected the clock", () => {
+    expectTypeOf<{
+      kind: "clock_corrected";
+      scope: string;
+      detail: {
+        pointOfSale: number;
+        documentType: "factura_c";
+        previousReading: string;
+        correctedReading: string;
+      };
+    }>().not.toExtend<OpenAlertInput>();
+  });
+});
+
 describe("an external billing alert", () => {
   it("accepts the point of sale, the document type and the number", () => {
     expectTypeOf<{

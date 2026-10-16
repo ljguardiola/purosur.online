@@ -206,6 +206,10 @@ describe("alertDetailSchema", () => {
     expectTypeOf<WireDetail<"register_silent">>().toEqualTypeOf<AlertDetails["register_silent"]>();
     expectTypeOf<WireDetail<"sales_denied">>().toEqualTypeOf<AlertDetails["sales_denied"]>();
     expectTypeOf<WireDetail<"fiscal_rejected">>().toEqualTypeOf<AlertDetails["fiscal_rejected"]>();
+    expectTypeOf<WireDetail<"clock_corrected">>().toExtend<
+      AlertDetails["clock_corrected"] & Named
+    >();
+    expectTypeOf<AlertDetails["clock_corrected"]>().toExtend<WireDetail<"clock_corrected">>();
     expectTypeOf<WireDetail<"external_billing">>().toEqualTypeOf<
       AlertDetails["external_billing"]
     >();
@@ -396,6 +400,14 @@ describe("alertDetailSchema", () => {
         deadline: "2026-09-23",
       },
       external_billing: { pointOfSale: 12, documentType: "factura_c", number: 41 },
+      clock_corrected: {
+        pointOfSale: 12,
+        documentType: "factura_c",
+        previousReading: "2026-10-03T12:00:00.000Z",
+        correctedReading: "2026-10-01T12:00:00.000Z",
+        actorId: "user-1",
+        actorName: "Ada",
+      },
       fortnight_report_needs_regularization: {
         pointOfSaleNumber: 4,
         registerId: "register-1",
@@ -605,6 +617,28 @@ describe("alertDetailSchema", () => {
       };
 
       expect(alertDetailSchema.safeParse(alert).success).toBe(false);
+    });
+
+    it.each([
+      ["a document type the domain does not know", { documentType: "factura_a" }],
+      ["a fractional point of sale", { pointOfSale: 1.5 }],
+      ["a previous reading as a number", { previousReading: 1 }],
+      ["a corrected reading as a number", { correctedReading: 1 }],
+    ])("refuses a clock corrected alert with %s", (_case, change) => {
+      const alert = {
+        ...base,
+        kind: "clock_corrected",
+        detail: { ...detailOf.clock_corrected, ...change },
+      };
+
+      expect(alertDetailSchema.safeParse(alert).success).toBe(false);
+    });
+
+    it("accepts a clock corrected alert that names nobody", () => {
+      const { actorName: _omitted, ...detail } = detailOf.clock_corrected;
+      const alert = { ...base, kind: "clock_corrected", detail };
+
+      expect(alertDetailSchema.safeParse(alert).data).toEqual(alert);
     });
 
     it.each([

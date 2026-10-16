@@ -20,6 +20,7 @@ function pointOfSaleChange(
   version: number,
   taxAuthorityLastAuthorizedNumber: number | null = null,
   numberingFrozen = false,
+  taxAuthorityLastAuthorizedIssuedOn: string | null = null,
 ): RegisterPulledChange {
   const change: SyncChange = {
     change_seq: changeSeq,
@@ -29,6 +30,7 @@ function pointOfSaleChange(
       point_of_sale_number: pointOfSaleNumber,
       fiscal_address_id: fiscalAddressId,
       tax_authority_last_authorized_number: taxAuthorityLastAuthorizedNumber,
+      tax_authority_last_authorized_issued_on: taxAuthorityLastAuthorizedIssuedOn,
       numbering_frozen: numberingFrozen,
       version,
     },
@@ -63,6 +65,15 @@ function savedFreezeAndCount() {
       "SELECT numbering_frozen, tax_authority_last_authorized_number FROM register_point_of_sale",
     )
     .all();
+}
+
+function savedDay() {
+  return database
+    .prepare<[], { tax_authority_last_authorized_issued_on: string | null }>(
+      "SELECT tax_authority_last_authorized_issued_on FROM register_point_of_sale",
+    )
+    .all()
+    .map((row) => row.tax_authority_last_authorized_issued_on);
 }
 
 let database: LocalDatabase;
@@ -346,5 +357,99 @@ describe("the register's local copy of its own point of sale", () => {
         { numbering_frozen: 1, tax_authority_last_authorized_number: 40 },
       ]);
     });
+  });
+
+  describe("the day of the tax authority's last authorized document", () => {
+    const withDay = (
+      changeSeq: number,
+      version: number,
+      count: number | null,
+      day: string | null,
+      pointOfSale = 12,
+    ) => pointOfSaleChange(changeSeq, pointOfSale, MAIN_STREET, version, count, false, day);
+
+    it("holds none until the cloud delivers it", async () => {
+      await save(pointOfSaleChange(1, 12, MAIN_STREET, 1, 40));
+
+      expect(savedDay()).toEqual([null]);
+    });
+
+    it("saves it with the point of sale", async () => {
+      await save(withDay(1, 1, 40, "2026-10-14"));
+
+      expect(savedDay()).toEqual(["2026-10-14"]);
+    });
+
+    it("takes it when the cloud redelivers the same version and count with the day now known", async () => {
+      await save(withDay(1, 1, 40, null));
+
+      await save(withDay(2, 1, 40, "2026-10-14"));
+
+      expect(savedDay()).toEqual(["2026-10-14"]);
+    });
+
+    it("takes the day that travels with a greater count redelivered at the same version", async () => {
+      await save(withDay(1, 1, 40, "2026-10-14"));
+
+      await save(withDay(2, 1, 43, "2026-10-15"));
+
+      expect(savedDay()).toEqual(["2026-10-15"]);
+    });
+
+    it.each([
+      ["an earlier day with the same count", 40, "2026-10-13"],
+      ["no day with the same count", 40, null],
+      ["a later day with a lower count", 39, "2026-10-16"],
+      ["a later day with no count", null, "2026-10-16"],
+    ])("never regresses it with %s redelivered at the same version", async (_case, count, day) => {
+      await save(withDay(1, 1, 40, "2026-10-14"));
+
+      await save(withDay(2, 1, count, day));
+
+      expect(savedDay()).toEqual(["2026-10-14"]);
+    });
+
+    it("takes a later day of the same count redelivered at the same version", async () => {
+      await save(withDay(1, 1, 40, "2026-10-14"));
+
+      await save(withDay(2, 1, 40, "2026-10-15"));
+
+      expect(savedDay()).toEqual(["2026-10-15"]);
+    });
+
+    it("ignores the day of an older version", async () => {
+      await save(withDay(1, 2, 40, "2026-10-14"));
+
+      await save(withDay(2, 1, 90, "2026-10-20"));
+
+      expect(savedDay()).toEqual(["2026-10-14"]);
+    });
+
+    it("takes the day of a newer version of another point of sale, even when it is earlier or unknown", async () => {
+      await save(withDay(1, 1, 40, "2026-10-14"));
+
+      await save(withDay(2, 2, 5, "2026-10-01", 14));
+      expect(savedDay()).toEqual(["2026-10-01"]);
+
+      await save(withDay(3, 3, 5, null, 15));
+      expect(savedDay()).toEqual([null]);
+    });
+
+    it.each([
+      ["an earlier day with a greater count", 41, "2026-10-13", "2026-10-14"],
+      ["no day with a greater count", 41, null, "2026-10-14"],
+      ["a later day with a lower count", 39, "2026-10-16", "2026-10-14"],
+      ["a later day with no count", null, "2026-10-16", "2026-10-14"],
+      ["a later day with a greater count", 41, "2026-10-16", "2026-10-16"],
+    ])(
+      "keeps the day that travels with the highest count of the same point of sale when a newer version carries %s",
+      async (_case, count, day, expected) => {
+        await save(withDay(1, 1, 40, "2026-10-14"));
+
+        await save(withDay(2, 2, count, day));
+
+        expect(savedDay()).toEqual([expected]);
+      },
+    );
   });
 });

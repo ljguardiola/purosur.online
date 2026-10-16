@@ -254,6 +254,12 @@ function coreAnswering(
     async weighProduct() {
       return { kind: "scale_unavailable" };
     },
+    async readClockGuard() {
+      return { kind: "unavailable" };
+    },
+    async correctRegisterClock() {
+      return { kind: "unavailable" };
+    },
     async readInitialCount() {
       return { kind: "unavailable" };
     },

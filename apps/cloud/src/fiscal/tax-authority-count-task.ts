@@ -3,6 +3,7 @@ import {
   assignAwaitedOfflineNumberBlock,
   recordTaxAuthorityLastAuthorized,
   type TaxAuthorityLastAuthorizedLookup,
+  type TaxAuthorityVoucherLookup,
 } from "@purosur/domain/fiscal/use-cases";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { PoolClient } from "pg";
@@ -17,6 +18,7 @@ export const TAX_AUTHORITY_COUNT_TASK_IDENTIFIER = "tax-authority-last-authorize
 export interface TaxAuthorityCountInput {
   now: () => Date;
   taxAuthority: TaxAuthorityLastAuthorizedLookup;
+  vouchers: TaxAuthorityVoucherLookup;
   certificateFingerprint: string;
 }
 
@@ -36,7 +38,7 @@ function pointOfSaleOf(payload: unknown): number {
 }
 
 export function taxAuthorityCountJobs(
-  { now, taxAuthority, certificateFingerprint }: TaxAuthorityCountInput,
+  { now, taxAuthority, vouchers, certificateFingerprint }: TaxAuthorityCountInput,
   deps: TaxAuthorityCountJobsDeps = {},
 ): BackgroundJobs {
   const doCreateDatabase = deps.createDatabase ?? databaseOfClient;
@@ -50,6 +52,7 @@ export function taxAuthorityCountJobs(
             {
               tokens: new DrizzleWsaaTokenSource(db, { now }, WSFE_SERVICE, certificateFingerprint),
               taxAuthority,
+              vouchers,
               counts: new DrizzleTaxAuthorityCounts(db),
               clock: { now },
             },

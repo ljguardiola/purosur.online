@@ -25,6 +25,7 @@ const ALERT_KIND_LIST = [
   "fortnight_report_overdue",
   "external_billing",
   "fortnight_report_needs_regularization",
+  "clock_corrected",
 ] as const;
 
 export type AlertKind = (typeof ALERT_KIND_LIST)[number];

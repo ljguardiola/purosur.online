@@ -48,3 +48,7 @@ test("names the notice and the missed deadline of a fortnight's report", () => {
 test("names the alert of a fortnight reported without movement that later received invoices", () => {
   expect(alertKindLabel("fortnight_report_needs_regularization")).toBe("Quincena a regularizar");
 });
+
+test("names the alert of a register's clock corrected from the register", () => {
+  expect(alertKindLabel("clock_corrected")).toBe("Reloj de la caja corregido");
+});

@@ -428,6 +428,8 @@ function Register({ core }: { core: CoreClient }) {
     takeSerialDevicesOffer,
     startupPending: () => core.startupPending(),
     startupPendingGate,
+    readClockGuard: () => core.readClockGuard(),
+    correctRegisterClock: () => core.correctRegisterClock(),
     readInitialCount: () => core.readInitialCount(),
     recordInitialCountLine: (productId: string, counted: number, expiresOn: string | null) =>
       core.recordInitialCountLine(productId, counted, expiresOn),

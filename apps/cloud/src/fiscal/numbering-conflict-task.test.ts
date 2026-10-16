@@ -245,12 +245,15 @@ describe("numberingConflictJobs", () => {
       await testDatabase.db
         .insert(numberingFreezes)
         .values({ pointOfSaleNumber: 7, countBeforeFreeze, frozenAt: FROZEN_AT });
-      await testDatabase.db
-        .insert(taxAuthorityLastAuthorizedNumbers)
-        .values({ pointOfSaleNumber: 7, lastAuthorized: countBeforeFreeze, readAt: FROZEN_AT });
+      await testDatabase.db.insert(taxAuthorityLastAuthorizedNumbers).values({
+        pointOfSaleNumber: 7,
+        lastAuthorized: countBeforeFreeze,
+        issuedOn: "2026-10-05",
+        readAt: FROZEN_AT,
+      });
     }
 
-    it("opens an alert for each number ARCA authorized without an own document, continues the series after the last and lifts the freeze", async () => {
+    it("opens an alert for each number ARCA authorized without an own document, continues the series after the last keeping the day it knew, and lifts the freeze", async () => {
       await issueWsaaToken();
       const registerId = await registerOfPointOfSale();
       await freeze(1);
@@ -271,7 +274,7 @@ describe("numberingConflictJobs", () => {
           .map((alert) => alert.detail),
       ).toEqual([{ pointOfSale: 7, documentType: "factura_c", number: 3 }]);
       expect(await testDatabase.db.select().from(taxAuthorityLastAuthorizedNumbers)).toEqual([
-        { pointOfSaleNumber: 7, lastAuthorized: 3, readAt: NOW },
+        { pointOfSaleNumber: 7, lastAuthorized: 3, issuedOn: "2026-10-05", readAt: NOW },
       ]);
       expect(await freezes()).toEqual([]);
     });

@@ -214,6 +214,7 @@ export function registerPointOfSaleChange(pointOfSale: {
       point_of_sale_number: pointOfSale.number,
       fiscal_address_id: "fiscal-address-1",
       tax_authority_last_authorized_number: pointOfSale.taxAuthorityLastAuthorizedNumber,
+      tax_authority_last_authorized_issued_on: null,
       numbering_frozen: false,
       version: 1,
     },

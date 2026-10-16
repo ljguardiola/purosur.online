@@ -248,6 +248,8 @@ const SERIES = {
   documentRequesting: false,
   documentUnknown: false,
   numberingFrozen: false,
+  clockMark: null,
+  taxAuthorityLastIssuedOn: null,
 };
 const OFFLINE_SERIES = {
   pointOfSale: 7,
@@ -255,8 +257,11 @@ const OFFLINE_SERIES = {
   localLastUsed: null,
   taxAuthorityLastAuthorized: 100,
   highestSyncedNumber: null,
+  clockMark: null,
 };
 const OCCURRED_AT = new Date("2026-10-01T11:59:58.000Z");
+const MORE_THAN_A_MINUTE_AHEAD_OF_NOW = new Date(NOW.getTime() + 61_000);
+const MORE_THAN_A_MINUTE_AHEAD_OF_OCCURRED_AT = new Date(OCCURRED_AT.getTime() + 61_000);
 const CODE = "71234567890123";
 const OCTOBER_FIRST_FORTNIGHT = { start: "2026-10-01", end: "2026-10-15" };
 
@@ -497,6 +502,156 @@ describe("decideSaleAuthorizationRoute", () => {
   });
 });
 
+describe("decideSaleAuthorizationRoute under a clock behind the register's own mark", () => {
+  const BEHIND = { ...SERIES, clockMark: MORE_THAN_A_MINUTE_AHEAD_OF_NOW };
+
+  it("defers the sale as the clock being behind, even while connectivity, the token, the tax authority and a code at hand all work", () => {
+    expect(decide({ series: BEHIND })).toEqual({ kind: "defer", reason: "clock_behind" });
+  });
+
+  it("reserves the number when the mark is no more than a minute ahead", () => {
+    expect(
+      decide({ series: { ...SERIES, clockMark: new Date(NOW.getTime() + 60_000) } }),
+    ).toMatchObject({ kind: "reserve" });
+  });
+
+  it("names the clock, not lack of connectivity, when both hold", () => {
+    expect(decide({ series: BEHIND, online: { ...ONLINE, arcaReachable: false } })).toEqual({
+      kind: "defer",
+      reason: "clock_behind",
+    });
+  });
+
+  it("names the numbering conflict or the unclear outcome, not the clock, when either holds too", () => {
+    expect(decide({ series: { ...BEHIND, numberingFrozen: true } })).toMatchObject({
+      cause: "numbering_conflict",
+    });
+    expect(decide({ series: { ...BEHIND, documentUnknown: true } })).toMatchObject({
+      cause: "unclear_outcome",
+    });
+  });
+
+  it("defers a sale whose gate failed before looking at the clock", () => {
+    expect(
+      decide({ gate: { kind: "failed", reason: "legal_name_missing" }, series: BEHIND }),
+    ).toEqual({ kind: "defer", reason: "pre_emission_gate_failed" });
+  });
+
+  it("does not look at the clock for a register without a point of sale", () => {
+    expect(decide({ series: { ...BEHIND, pointOfSale: null } })).toEqual({
+      kind: "defer",
+      reason: "point_of_sale_missing",
+    });
+  });
+
+  it("defers the sale as the clock being behind when the register holds no code", () => {
+    expect(decide({ series: BEHIND, offlineAuthorizationCode: null })).toEqual({
+      kind: "defer",
+      reason: "clock_behind",
+    });
+  });
+
+  it("defers the sale as the clock being behind when the register has no offline point of sale", () => {
+    expect(
+      decide({ series: BEHIND, offlineSeries: { ...OFFLINE_SERIES, pointOfSale: null } }),
+    ).toEqual({ kind: "defer", reason: "clock_behind" });
+  });
+});
+
+describe("decideSaleAuthorizationRoute under a clock behind the tax authority's last authorized document", () => {
+  it("defers the sale as the clock being behind when the reading's day is before the day the tax authority last authorized on", () => {
+    expect(decide({ series: { ...SERIES, taxAuthorityLastIssuedOn: "2026-10-02" } })).toEqual({
+      kind: "defer",
+      reason: "clock_behind",
+    });
+  });
+
+  it("reserves the number when the reading's day is that day or a later one", () => {
+    expect(decide({ series: { ...SERIES, taxAuthorityLastIssuedOn: "2026-10-01" } })).toMatchObject(
+      { kind: "reserve" },
+    );
+    expect(decide({ series: { ...SERIES, taxAuthorityLastIssuedOn: "2026-09-30" } })).toMatchObject(
+      { kind: "reserve" },
+    );
+  });
+
+  it("judges the day of the moment of the decision, not of the sale", () => {
+    expect(
+      decide({
+        series: { ...SERIES, taxAuthorityLastIssuedOn: "2026-10-01" },
+        now: new Date("2026-10-01T02:59:59.000Z"),
+        occurredAt: new Date("2026-10-01T12:00:00.000Z"),
+      }),
+    ).toEqual({ kind: "defer", reason: "clock_behind" });
+  });
+});
+
+describe("decideSaleAuthorizationRoute under a clock behind the offline series' own mark", () => {
+  const OFFLINE_BEHIND = {
+    ...OFFLINE_SERIES,
+    clockMark: MORE_THAN_A_MINUTE_AHEAD_OF_OCCURRED_AT,
+  };
+  const OFFLINE = { ...ONLINE, tokenValid: false };
+
+  it("defers a sale that would be issued offline as the clock being behind", () => {
+    expect(decide({ online: OFFLINE, offlineSeries: OFFLINE_BEHIND })).toEqual({
+      kind: "defer",
+      reason: "clock_behind",
+    });
+  });
+
+  it.each([
+    ["an unclear outcome", { ...SERIES, documentUnknown: true }],
+    ["a numbering conflict", { ...SERIES, numberingFrozen: true }],
+  ])(
+    "defers a sale that would be issued offline for %s as the clock being behind",
+    (_case, series) => {
+      expect(decide({ series, offlineSeries: OFFLINE_BEHIND })).toEqual({
+        kind: "defer",
+        reason: "clock_behind",
+      });
+    },
+  );
+
+  it("defers a sale whose real-time series is behind too", () => {
+    expect(
+      decide({
+        series: { ...SERIES, clockMark: MORE_THAN_A_MINUTE_AHEAD_OF_NOW },
+        offlineSeries: OFFLINE_BEHIND,
+      }),
+    ).toEqual({ kind: "defer", reason: "clock_behind" });
+  });
+
+  it("defers as the clock being behind even while the register holds no offline point of sale", () => {
+    expect(
+      decide({ online: OFFLINE, offlineSeries: { ...OFFLINE_BEHIND, pointOfSale: null } }),
+    ).toEqual({ kind: "defer", reason: "clock_behind" });
+  });
+
+  it("issues the sale offline when the mark is no more than a minute ahead of the sale", () => {
+    expect(
+      decide({
+        online: OFFLINE,
+        offlineSeries: { ...OFFLINE_SERIES, clockMark: new Date(OCCURRED_AT.getTime() + 60_000) },
+      }),
+    ).toMatchObject({ kind: "issue_offline", cause: "no_connectivity" });
+  });
+
+  it("leaves the real-time series alone", () => {
+    expect(decide({ offlineSeries: OFFLINE_BEHIND })).toMatchObject({ kind: "reserve" });
+  });
+
+  it("judges the offline series by the sale's own time, not by the time of the decision", () => {
+    expect(
+      decide({
+        online: OFFLINE,
+        offlineSeries: { ...OFFLINE_SERIES, clockMark: MORE_THAN_A_MINUTE_AHEAD_OF_OCCURRED_AT },
+        now: new Date(OCCURRED_AT.getTime() + 600_000),
+      }),
+    ).toEqual({ kind: "defer", reason: "clock_behind" });
+  });
+});
+
 describe("OFFLINE_AUTHORIZATION_CAUSES", () => {
   it("names the causes a document under a pre-obtained code records", () => {
     expect(OFFLINE_AUTHORIZATION_CAUSES).toEqual([
@@ -550,6 +705,7 @@ describe("DEFERRAL_REASONS", () => {
       "rejected",
       "unclear_outcome",
       "numbering_frozen",
+      "clock_behind",
     ]);
   });
 });

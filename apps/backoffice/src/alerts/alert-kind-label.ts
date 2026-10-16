@@ -27,6 +27,7 @@ const ALERT_KIND_LABELS = {
   fortnight_report_overdue: "Informe de quincena vencido",
   external_billing: "Facturación externa",
   fortnight_report_needs_regularization: "Quincena a regularizar",
+  clock_corrected: "Reloj de la caja corregido",
 } satisfies Record<AlertKind, string>;
 
 export function alertKindLabel(kind: string): string {

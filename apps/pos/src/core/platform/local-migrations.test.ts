@@ -907,6 +907,7 @@ describe("the register's local migrations", () => {
         "0055_offline_numbering_floor",
         "0056_numbering_freeze",
         "0057_voided_sales",
+        "0058_register_clock_guard",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -991,6 +992,7 @@ describe("the register's local migrations", () => {
         "0055_offline_numbering_floor",
         "0056_numbering_freeze",
         "0057_voided_sales",
+        "0058_register_clock_guard",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1070,6 +1072,7 @@ describe("the register's local migrations", () => {
         "0055_offline_numbering_floor",
         "0056_numbering_freeze",
         "0057_voided_sales",
+        "0058_register_clock_guard",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1148,6 +1151,7 @@ describe("the register's local migrations", () => {
         "0055_offline_numbering_floor",
         "0056_numbering_freeze",
         "0057_voided_sales",
+        "0058_register_clock_guard",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1255,6 +1259,7 @@ describe("the register's local migrations", () => {
         "0055_offline_numbering_floor",
         "0056_numbering_freeze",
         "0057_voided_sales",
+        "0058_register_clock_guard",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1352,6 +1357,7 @@ describe("the register's local migrations", () => {
         "0055_offline_numbering_floor",
         "0056_numbering_freeze",
         "0057_voided_sales",
+        "0058_register_clock_guard",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1453,6 +1459,7 @@ describe("the register's local migrations", () => {
         "0055_offline_numbering_floor",
         "0056_numbering_freeze",
         "0057_voided_sales",
+        "0058_register_clock_guard",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1537,6 +1544,7 @@ describe("the register's local migrations", () => {
         "0055_offline_numbering_floor",
         "0056_numbering_freeze",
         "0057_voided_sales",
+        "0058_register_clock_guard",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1613,6 +1621,7 @@ describe("the register's local migrations", () => {
         "0055_offline_numbering_floor",
         "0056_numbering_freeze",
         "0057_voided_sales",
+        "0058_register_clock_guard",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -4935,5 +4944,226 @@ describe("the register's local migrations", () => {
     } finally {
       rmSync(folder, { recursive: true, force: true });
     }
+  });
+
+  it("let a sale be deferred for a clock behind its mark and hold the clock marks, their corrections and the tax authority's last authorized day, keeping the points of sale and deferred sales a register already holds", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.filter(
+        (migration) => migration.name < "0058_register_clock_guard",
+      );
+      expect(LOCAL_MIGRATIONS.map((migration) => migration.name)).toContain(
+        "0058_register_clock_guard",
+      );
+      const before = openLocalDatabase(path, previous, migrationClock);
+      before.exec(
+        `INSERT INTO register_point_of_sale (register_id, point_of_sale_number, fiscal_address_id, tax_authority_last_authorized_number, version)
+         VALUES ('r1', 12, 'address-1', 40, 3);
+         INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
+         VALUES ('s1', 'r1', 'device-a', 'u1', '2026-10-09T12:00:00.000Z', 0, 'OPEN');
+         INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at)
+         VALUES
+           ('sale-1', 'r1', 'device-a', 's1', 'u1', 'COMPLETED', '2026-10-09T12:05:00.000Z'),
+           ('sale-2', 'r1', 'device-a', 's1', 'u1', 'COMPLETED', '2026-10-09T12:06:00.000Z');
+         INSERT INTO deferred_sales (
+           id, sale_id, occurred_at, total, reason, short_code, routed_at, cancelled_at
+         ) VALUES
+           ('d1', 'sale-1', '2026-10-09T12:05:00.000Z', 1500, 'fiscally_offline', '7KQ4M2P9',
+            '2026-10-09T12:05:01.000Z', NULL),
+           ('d2', 'sale-2', '2026-10-09T12:06:00.000Z', 2550, 'rejected', 'R3XW8H5N',
+            '2026-10-09T12:06:06.000Z', '2026-10-09T12:30:00.000Z');
+         INSERT INTO offline_fiscal_documents (
+           id, sale_id, point_of_sale, document_type, number, issued_on, generated_at, generation_stamp,
+           offline_authorization_code, fortnight_start, fortnight_end, document, buyer_document_type,
+           buyer_document_number, cause
+         ) VALUES (
+           'offline-1', 'sale-1', 31, 'factura_c', 7, '2026-10-09', '2026-10-09T12:05:00.000Z',
+           '20261009090500', '75123456789012', '2026-10-01', '2026-10-15', '{}', 99, 0, 'no_connectivity'
+         );`,
+      );
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+      expect(
+        after.prepare("SELECT id, sale_id, number, cause FROM offline_fiscal_documents").all(),
+      ).toEqual([{ id: "offline-1", sale_id: "sale-1", number: 7, cause: "no_connectivity" }]);
+      const issueOffline = (cause: string) =>
+        after
+          .prepare(
+            `INSERT INTO offline_fiscal_documents (
+               id, sale_id, point_of_sale, document_type, number, issued_on, generated_at, generation_stamp,
+               offline_authorization_code, fortnight_start, fortnight_end, document, buyer_document_type,
+               buyer_document_number, cause
+             ) VALUES (
+               'offline-2', 'sale-2', 31, 'factura_c', 8, '2026-10-09', '2026-10-09T12:06:00.000Z',
+               '20261009090600', '75123456789012', '2026-10-01', '2026-10-15', '{}', 99, 0, ?
+             )`,
+          )
+          .run(cause);
+      expect(() => issueOffline("forgotten")).toThrow(/CHECK/);
+      expect(() => issueOffline("clock_behind")).toThrow(/CHECK/);
+
+      expect(
+        after
+          .prepare(
+            `SELECT point_of_sale_number, tax_authority_last_authorized_number,
+                    tax_authority_last_authorized_issued_on, version
+             FROM register_point_of_sale`,
+          )
+          .all(),
+      ).toEqual([
+        {
+          point_of_sale_number: 12,
+          tax_authority_last_authorized_number: 40,
+          tax_authority_last_authorized_issued_on: null,
+          version: 3,
+        },
+      ]);
+      expect(
+        after
+          .prepare(
+            "SELECT id, sale_id, reason, short_code, cancelled_at FROM deferred_sales ORDER BY id",
+          )
+          .all(),
+      ).toEqual([
+        {
+          id: "d1",
+          sale_id: "sale-1",
+          reason: "fiscally_offline",
+          short_code: "7KQ4M2P9",
+          cancelled_at: null,
+        },
+        {
+          id: "d2",
+          sale_id: "sale-2",
+          reason: "rejected",
+          short_code: "R3XW8H5N",
+          cancelled_at: "2026-10-09T12:30:00.000Z",
+        },
+      ]);
+      expect(after.pragma("foreign_key_check")).toEqual([]);
+      expect(
+        after
+          .prepare(
+            "SELECT cursor FROM pulled_table_redeliveries WHERE table_name = 'register_point_of_sale'",
+          )
+          .all(),
+      ).toEqual([{ cursor: 0 }]);
+
+      const defer = (reason: string) =>
+        after.prepare("DELETE FROM deferred_sales WHERE id = 'd1'").run() &&
+        after
+          .prepare(
+            `INSERT INTO deferred_sales (id, sale_id, occurred_at, total, reason, short_code, routed_at)
+             VALUES ('x1', 'sale-1', '2026-10-09T12:05:00.000Z', 1500, ?, '7KQ4M2P9',
+                     '2026-10-09T12:05:01.000Z')`,
+          )
+          .run(reason);
+      expect(() => defer("forgotten")).toThrow(/CHECK/);
+      expect(() => defer("clock_behind")).not.toThrow();
+      expect(() =>
+        after
+          .prepare(
+            "UPDATE deferred_sales SET cancelled_at = '2026-10-09T12:40:00.000Z', satisfied_at = '2026-10-09T12:41:00.000Z', satisfied_by_fiscal_document_id = 'doc-x' WHERE id = 'x1'",
+          )
+          .run(),
+      ).toThrow(/an authorized fiscal document of its own sale/);
+      expect(() =>
+        after
+          .prepare(
+            "UPDATE deferred_sales SET satisfied_at = '2026-10-09T12:41:00.000Z' WHERE id = 'x1'",
+          )
+          .run(),
+      ).toThrow(/CHECK/);
+      after.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
+  describe("the register's clock marks and corrections", () => {
+    const insertMark = (database: ReturnType<typeof openLocalDatabase>, values: object) =>
+      database
+        .prepare(
+          `INSERT INTO register_clock_marks (point_of_sale, document_type, reading)
+           VALUES (@point_of_sale, @document_type, @reading)`,
+        )
+        .run(values);
+    const mark = {
+      point_of_sale: 12,
+      document_type: "factura_c",
+      reading: "2026-10-09T12:05:00.000Z",
+    };
+
+    it("hold one mark per point of sale and document type", () => {
+      const database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS, migrationClock);
+
+      expect(() => insertMark(database, { ...mark, point_of_sale: 0 })).toThrow(/CHECK/);
+      expect(() => insertMark(database, { ...mark, document_type: "factura_a" })).toThrow(/CHECK/);
+      expect(() => insertMark(database, { ...mark, reading: null })).toThrow(/NOT NULL/);
+      expect(() => insertMark(database, mark)).not.toThrow();
+      expect(() => insertMark(database, mark)).toThrow(/UNIQUE|PRIMARY KEY/);
+      expect(() => insertMark(database, { ...mark, point_of_sale: 31 })).not.toThrow();
+      database.close();
+    });
+
+    it("record each lowering of a mark with who made it and in which period, only as a lowering", () => {
+      const database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS, migrationClock);
+      const record = database.prepare(
+        `INSERT INTO clock_corrections (
+           period, register_id, actor_id, point_of_sale, document_type, previous_reading, corrected_reading
+         ) VALUES (@period, 'r1', 'u1', @point_of_sale, @document_type, @previous_reading, @corrected_reading)`,
+      );
+      const correction = {
+        period: "s1",
+        point_of_sale: 12,
+        document_type: "factura_c",
+        previous_reading: "2026-10-09T12:05:00.000Z",
+        corrected_reading: "2026-10-09T11:00:00.000Z",
+      };
+
+      expect(() => record.run({ ...correction, point_of_sale: 0 })).toThrow(/CHECK/);
+      expect(() => record.run({ ...correction, document_type: "factura_a" })).toThrow(/CHECK/);
+      expect(() =>
+        record.run({ ...correction, corrected_reading: "2026-10-09T12:05:00.000Z" }),
+      ).toThrow(/CHECK/);
+      expect(() => record.run({ ...correction, period: null })).toThrow(/NOT NULL/);
+      expect(() => record.run(correction)).not.toThrow();
+      expect(() => record.run({ ...correction, point_of_sale: 31 })).not.toThrow();
+      expect(
+        database
+          .prepare("SELECT period, point_of_sale FROM clock_corrections ORDER BY point_of_sale")
+          .all(),
+      ).toEqual([
+        { period: "s1", point_of_sale: 12 },
+        { period: "s1", point_of_sale: 31 },
+      ]);
+      database.close();
+    });
+
+    it("hold the tax authority's last authorized day of the point of sale, none until it is pulled", () => {
+      const database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS, migrationClock);
+      database.exec(
+        `INSERT INTO register_point_of_sale (register_id, point_of_sale_number, fiscal_address_id, version)
+         VALUES ('r1', 12, 'address-1', 1)`,
+      );
+
+      expect(
+        database
+          .prepare(
+            "SELECT tax_authority_last_authorized_issued_on AS day FROM register_point_of_sale",
+          )
+          .all(),
+      ).toEqual([{ day: null }]);
+      expect(() =>
+        database
+          .prepare(
+            "UPDATE register_point_of_sale SET tax_authority_last_authorized_issued_on = '2026-10-09'",
+          )
+          .run(),
+      ).not.toThrow();
+      database.close();
+    });
   });
 });

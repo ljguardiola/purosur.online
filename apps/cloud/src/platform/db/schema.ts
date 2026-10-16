@@ -2299,6 +2299,39 @@ export const offlineFiscalDocuments = pgTable(
   ],
 );
 
+export const clockCorrections = pgTable(
+  "clock_corrections",
+  {
+    eventId: uuid("event_id").primaryKey(),
+    registerId: uuid("register_id")
+      .notNull()
+      .references(() => registers.id),
+    pointOfSale: integer("point_of_sale").notNull(),
+    documentType: text("document_type").$type<FiscalDocumentType>().notNull(),
+    previousReading: timestamp("previous_reading", { withTimezone: true }).notNull(),
+    correctedReading: timestamp("corrected_reading", { withTimezone: true }).notNull(),
+    actorId: uuid("actor_id")
+      .notNull()
+      .references(() => users.id),
+    correctedAt: timestamp("corrected_at", { withTimezone: true }).notNull(),
+    alertId: uuid("alert_id")
+      .notNull()
+      .references(() => alerts.id),
+    recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    index("clock_corrections_register_corrected_at_idx").on(table.registerId, table.correctedAt),
+    check(
+      "clock_corrections_document_type_known",
+      sql`${table.documentType} in (${sql.raw(`'${FACTURA_C_DOCUMENT_TYPE}'`)})`,
+    ),
+    check(
+      "clock_corrections_lowers_the_reading",
+      sql`${table.correctedReading} < ${table.previousReading}`,
+    ),
+  ],
+);
+
 // The request is kept, with the sale event it carries, before the tax authority is called, and the
 // answer is added to the same row. A row without an answer is a call that may still be in flight.
 export const fiscalRequests = pgTable(
@@ -2464,6 +2497,7 @@ export const taxAuthorityLastAuthorizedNumbers = pgTable(
   {
     pointOfSaleNumber: integer("point_of_sale_number").primaryKey(),
     lastAuthorized: integer("last_authorized").notNull(),
+    issuedOn: date("issued_on", { mode: "string" }),
     readAt: timestamp("read_at", { withTimezone: true }).notNull(),
   },
   (table) => [

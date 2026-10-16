@@ -30,6 +30,10 @@ describe("the Spanish names of synced events", () => {
     expect(syncedEventTypeName("offline_fiscal_document_issued")).toBe("factura emitida con CAEA");
   });
 
+  test("names the correction of a register's clock", () => {
+    expect(syncedEventTypeName("clock_corrected")).toBe("corrección de reloj");
+  });
+
   test("has no name for an unknown event type", () => {
     expect(syncedEventTypeName("something_new")).toBeUndefined();
   });

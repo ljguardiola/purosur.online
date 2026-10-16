@@ -197,6 +197,18 @@ export const A_GATE_FAILED_FACT: SyncedFact = {
   },
 };
 
+export const A_CLOCK_CORRECTED_FACT: SyncedFact = {
+  kind: "clock_corrected",
+  correction: {
+    registerId: "register-1",
+    pointOfSale: 12,
+    documentType: "factura_c",
+    previousReading: new Date("2026-10-07T12:00:00.000Z"),
+    correctedReading: new Date("2026-10-05T12:00:00.000Z"),
+    actorId: "cashier-1",
+  },
+};
+
 export const AN_OPENING_COUNT_RECORDED_FACT: SyncedFact = {
   kind: "opening_count_recorded",
   count: {
