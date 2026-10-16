@@ -21,6 +21,7 @@ describe("isRefundSentByCloud", () => {
   it.each([
     ["QR", "sale_cancelled", true],
     ["QR", "late_payment", true],
+    ["QR", "manual", false],
     ["QR", "sale_voided", true],
     ["POINT", "sale_voided", true],
     ["TRANSFER", "sale_voided", false],
