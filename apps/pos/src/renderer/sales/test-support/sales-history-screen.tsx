@@ -67,7 +67,7 @@ export const DETAIL: SaleDetail = {
   state: "completed",
   voidability: {
     kind: "voidable",
-    refunds: [{ method: "CASH", amount: 5_070_000, state: "APPROVED" }],
+    refunds: [{ method: "CASH", amount: 5_070_000, state: "APPROVED", sent_by_cloud: false }],
   },
   void_authorization_required: false,
   reprint: { kind: "available" },

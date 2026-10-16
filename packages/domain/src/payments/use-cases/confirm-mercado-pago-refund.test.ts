@@ -47,7 +47,7 @@ describe("confirmMercadoPagoRefund", () => {
       expect(world.lanes.operations).toEqual([
         "enterLane",
         "lockMercadoPagoRefund",
-        "cancellationOfEvent",
+        "appliedCorrectionOfEvent",
         "recordRefundConfirmed",
         "refundOrder",
         "lockMercadoPagoRefund",
@@ -195,7 +195,6 @@ describe("confirmMercadoPagoRefund", () => {
 
     it.each([
       ["a late POINT payment refund", { origin: "late_payment", method: "POINT" }],
-      ["a refund of a voided sale", { origin: "sale_voided" }],
       ["a refund of another method", { method: "TRANSFER" }],
       ["a refund that names no payment transaction", { paymentTransactionId: null }],
     ])("answers that %s is not confirmable", async (_case, change) => {
@@ -211,6 +210,19 @@ describe("confirmMercadoPagoRefund", () => {
       expect(await refusedWith(world)).toEqual({ kind: "already_done" });
     });
 
+    it("answers that a refund of a voided sale, confirmed by its cashier, is confirmed", async () => {
+      const world = refundWorld([
+        aQrRefundOfCancelledSale({
+          origin: "sale_voided",
+          confirmedBy: "cashier",
+          confirmedAt: new Date("2026-10-13T14:00:00.000Z"),
+        }),
+      ]);
+
+      expect(await refusedWith(world)).toEqual({ kind: "already_confirmed" });
+      expect(world.mercadoPago.refundRequests).toEqual([]);
+    });
+
     it("answers that a refund already confirmed is confirmed, whoever confirmed it", async () => {
       const world = refundWorld([aConfirmedRefund()]);
 
@@ -219,14 +231,14 @@ describe("confirmMercadoPagoRefund", () => {
 
     it("answers that a refund not backed by a cancelling event the cloud holds is not backed", async () => {
       const world = refundWorld();
-      world.store.cancellations.clear();
+      world.store.appliedCorrections.clear();
 
       expect(await refusedWith(world)).toEqual({ kind: "refund_not_backed" });
     });
 
     it("answers that a refund whose event cancelled another sale is not backed", async () => {
       const world = refundWorld();
-      world.store.cancellations.set("event-1", "sale-2");
+      world.store.appliedCorrections.set("event-1", { origin: "sale_cancelled", saleId: "sale-2" });
 
       expect(await refusedWith(world)).toEqual({ kind: "refund_not_backed" });
     });

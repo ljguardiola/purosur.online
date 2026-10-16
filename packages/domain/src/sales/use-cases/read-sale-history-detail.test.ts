@@ -162,9 +162,9 @@ describe("readSaleHistoryDetail", () => {
       ).toEqual({
         kind: "voidable",
         refunds: [
-          { method: "CASH", amount: 5000, state: "APPROVED" },
-          { method: "TRANSFER", amount: 1500, state: "PENDING" },
-          { method: "STANDALONE_TERMINAL", amount: 1000, state: "PENDING" },
+          { method: "CASH", amount: 5000, state: "APPROVED", sentByCloud: false },
+          { method: "TRANSFER", amount: 1500, state: "PENDING", sentByCloud: false },
+          { method: "STANDALONE_TERMINAL", amount: 1000, state: "PENDING", sentByCloud: false },
         ],
       });
     });
@@ -199,13 +199,22 @@ describe("readSaleHistoryDetail", () => {
       });
     });
 
-    it("says why a sale paid through Mercado Pago cannot be voided", () => {
+    it("shows a sale paid through Mercado Pago as voidable, its refund pending", () => {
       expect(
         voidability({
           fiscal: NO_INVOICE,
-          payments: [{ method: "QR", amount: 7500 }],
+          payments: [
+            { method: "QR", amount: 7500 },
+            { method: "POINT", amount: 1200 },
+          ],
         }),
-      ).toEqual({ kind: "not_voidable", refusal: "mercado_pago_payment" });
+      ).toEqual({
+        kind: "voidable",
+        refunds: [
+          { method: "QR", amount: 7500, state: "PENDING", sentByCloud: true },
+          { method: "POINT", amount: 1200, state: "PENDING", sentByCloud: true },
+        ],
+      });
     });
 
     it("says a voided sale is not a completed one", () => {

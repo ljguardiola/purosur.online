@@ -119,7 +119,11 @@ async function applyReplacement(
     },
     { deviceId },
   );
-  await new DrizzleEventApplication(db, () => NOW).transaction((tx) => tx.record(fact, event));
+  await new DrizzleEventApplication(
+    db,
+    () => NOW,
+    async () => {},
+  ).transaction((tx) => tx.record(fact, event));
 }
 
 async function tasksAndAlertsOf(paymentTransactionId: string) {

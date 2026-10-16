@@ -23,7 +23,11 @@ export async function applyCompletedSale<TQueryResult extends PgQueryResultHKT>(
   },
 ): Promise<string> {
   const { deviceId, completedAt, total, overrides, inOpenSession } = sale;
-  const application = new DrizzleEventApplication(db, () => completedAt);
+  const application = new DrizzleEventApplication(
+    db,
+    () => completedAt,
+    async () => {},
+  );
   const sessionId = inOpenSession ?? randomUUID();
   const completed = aCompletedSale({
     sessionId,
@@ -74,7 +78,11 @@ export async function applyCancelledSale<TQueryResult extends PgQueryResultHKT>(
   },
 ): Promise<CancelledSale> {
   const { deviceId, cancelledAt, total, overrides } = sale;
-  const application = new DrizzleEventApplication(db, () => cancelledAt);
+  const application = new DrizzleEventApplication(
+    db,
+    () => cancelledAt,
+    async () => {},
+  );
   const sessionId = randomUUID();
   const cancelled = aCancelledSale({ cancelledAt, total, lines: [], ...overrides, sessionId });
   const eventOf = (aggregateType: string, aggregateId: string, eventType: string) =>
@@ -116,7 +124,11 @@ export async function applyVoidedSale<TQueryResult extends PgQueryResultHKT>(
   },
 ): Promise<VoidedSale> {
   const { deviceId, completedAt, voidedAt, completed: overrides } = sale;
-  const application = new DrizzleEventApplication(db, () => voidedAt);
+  const application = new DrizzleEventApplication(
+    db,
+    () => voidedAt,
+    async () => {},
+  );
   const sessionId = randomUUID();
   const completed = aCompletedSale({
     sessionId,

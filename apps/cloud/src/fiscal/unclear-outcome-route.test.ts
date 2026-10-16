@@ -48,6 +48,7 @@ beforeEach(async () => {
     enqueueUnclearOutcome: async (_, fiscalDocumentId) => {
       enqueuedUnclearOutcomes.push(fiscalDocumentId);
     },
+    enqueueOrphanCreditNote: async () => {},
   });
 });
 

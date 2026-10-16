@@ -363,19 +363,57 @@ describe("voiding a sale of the sales history", () => {
       expect(saleStates()).toEqual([{ state: "COMPLETED" }]);
     });
 
-    it("refuses a sale with an approved Mercado Pago payment, changing nothing", async () => {
-      const saleId = await soldInCash();
-      database
-        .prepare(
-          `INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, state, occurred_at, wait_ends_at)
-           VALUES ('qr-1', ?, 'SALE', 'QR', 'MERCADOPAGO_QR', 500, 'APPROVED', ?, ?)`,
-        )
-        .run(saleId, NOW.toISOString(), NOW.toISOString());
+    describe.each([
+      ["QR", "MERCADOPAGO_QR"],
+      ["POINT", "MERCADOPAGO_POINT"],
+    ])("a sale with an approved Mercado Pago %s payment", (method, provider) => {
+      async function soldInCashAndThrough(): Promise<string> {
+        const saleId = await soldInCash();
+        database
+          .prepare(
+            `INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, state, occurred_at, wait_ends_at)
+             VALUES ('mp-1', ?, 'SALE', ?, ?, 500, 'APPROVED', ?, ?)`,
+          )
+          .run(saleId, method, provider, NOW.toISOString(), NOW.toISOString());
+        return saleId;
+      }
 
-      expect(await voidSaleFor(voidDeps(), request(saleId, { authorization }))).toEqual({
-        kind: "mercado_pago_payment",
+      it("asks the pending refund to be confirmed before voiding, changing nothing", async () => {
+        const saleId = await soldInCashAndThrough();
+
+        expect(await voidSaleFor(voidDeps(), request(saleId, { authorization }))).toEqual({
+          kind: "pending_refunds_unconfirmed",
+        });
+        expect(saleStates()).toEqual([{ state: "COMPLETED" }]);
+        expect(database.prepare("SELECT id FROM payment_refunds").all()).toEqual([]);
       });
-      expect(saleStates()).toEqual([{ state: "COMPLETED" }]);
+
+      it("voids it once confirmed, refunding the cash on the spot and leaving the Mercado Pago refund pending", async () => {
+        const saleId = await soldInCashAndThrough();
+
+        const outcome = await voidSaleFor(
+          voidDeps(),
+          request(saleId, { authorization, pendingRefundsConfirmed: true }),
+        );
+
+        expect(outcome).toMatchObject({
+          kind: "voided",
+          refunds: [
+            { method: "CASH", state: "APPROVED" },
+            { method, amount: 500, state: "PENDING" },
+          ],
+        });
+        expect(saleStates()).toEqual([{ state: "VOIDED" }]);
+        expect(
+          database
+            .prepare(
+              "SELECT payment_id, method, provider, state FROM payment_refunds ORDER BY method",
+            )
+            .all(),
+        ).toEqual(
+          expect.arrayContaining([{ payment_id: "mp-1", method, provider, state: "PENDING" }]),
+        );
+      });
     });
 
     it("asks the pending refunds to be confirmed before voiding a sale paid by transfer", async () => {

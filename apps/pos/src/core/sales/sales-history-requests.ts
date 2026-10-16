@@ -1,6 +1,13 @@
 import type { SaleHistoryDetailOutcome, SalesHistoryOutcome } from "@purosur/contracts";
+
+type SaleHistoryDetail = Extract<SaleHistoryDetailOutcome, { kind: "found" }>["detail"];
+
 import { registerOperationAccess, type SaleComprobante } from "@purosur/domain";
-import { readSaleHistoryDetail, readSalesHistory } from "@purosur/domain/sales/use-cases";
+import {
+  readSaleHistoryDetail,
+  readSalesHistory,
+  type SaleVoidability,
+} from "@purosur/domain/sales/use-cases";
 import { inArgentinaTime } from "../platform/argentina-time";
 import type { LocalDatabase } from "../platform/local-database";
 import type { ActionGate } from "../sessions/action-gate";
@@ -28,6 +35,18 @@ function toWireComprobante(comprobante: SaleComprobante) {
         number: comprobante.number,
       }
     : comprobante;
+}
+
+function toWireVoidability(voidability: SaleVoidability): SaleHistoryDetail["voidability"] {
+  return voidability.kind === "voidable"
+    ? {
+        kind: "voidable",
+        refunds: voidability.refunds.map(({ sentByCloud, ...refund }) => ({
+          ...refund,
+          sent_by_cloud: sentByCloud,
+        })),
+      }
+    : voidability;
 }
 
 export async function salesHistoryFor(
@@ -101,7 +120,7 @@ export async function saleHistoryDetailFor(
       line_count: detail.lineCount,
       payments: detail.payments,
       state: detail.standing,
-      voidability: detail.voidability,
+      voidability: toWireVoidability(detail.voidability),
       void_authorization_required: voidNeedsAuthorization,
       reprint: detail.reprint,
       next_copy:

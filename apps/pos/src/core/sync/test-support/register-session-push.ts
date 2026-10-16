@@ -676,6 +676,46 @@ export async function withRegisterSession<TResult>(
       authorization: { user_id: GRACE, pin: PIN },
     });
     expectOutcome("void the sale authorized by PIN", voided.kind, "voided");
+    nextStep();
+    const toVoidOnQr = await scanProductFor(deps(), "7790001000028");
+    if (toVoidOnQr.kind !== "added") {
+      throw new Error(
+        `The register session's "scan a product to void paid by QR" ended as "${toVoidOnQr.kind}"`,
+      );
+    }
+    nextStep();
+    const voidQrDeposit = await startMercadoPagoChargeFor(
+      { ...deps(), orders: APPROVED_QR_ORDERS },
+      { saleId: toVoidOnQr.sale.id, method: "QR", amount: 700 },
+    );
+    if (voidQrDeposit.kind !== "order_shown") {
+      throw new Error(
+        `The register session's "start the QR deposit to void" ended as "${voidQrDeposit.kind}"`,
+      );
+    }
+    nextStep();
+    const approvedVoidQr = await followMercadoPagoChargeFor(
+      { ...deps(), orders: APPROVED_QR_ORDERS },
+      { paymentTransactionId: voidQrDeposit.payment_transaction_id },
+    );
+    expectOutcome(
+      "follow the QR deposit to void until it is approved",
+      approvedVoidQr.kind,
+      "partially_paid",
+    );
+    nextStep();
+    const voidQrCharge = await chargeSaleInCashFor(deps(), {
+      saleId: toVoidOnQr.sale.id,
+      tendered: toVoidOnQr.sale.total,
+    });
+    expectOutcome("charge the rest of the sale paid by QR to void", voidQrCharge.kind, "completed");
+    nextStep();
+    const voidedOnQr = await voidSaleFor(deps(), {
+      saleId: toVoidOnQr.sale.id,
+      pendingRefundsConfirmed: true,
+      authorization: { user_id: GRACE, pin: PIN },
+    });
+    expectOutcome("void the sale paid by QR authorized by PIN", voidedOnQr.kind, "voided");
     holdOfflineAuthorization(database);
     nextStep();
     const offlineScan = await scanProductFor(deps(), "7790001000028");

@@ -10,71 +10,15 @@ import type {
   TaxAuthorityInvoicing,
 } from "@purosur/domain/fiscal/use-cases";
 import type { Client } from "soap";
-import { createWsfeClient, rejectionsOf } from "./wsfe-client.js";
+import { createWsfeClient } from "./wsfe-client.js";
 import { facturaCDetail } from "./wsfe-factura-c-detail.js";
+import { NO_ANSWER, solicitationAnswerOf } from "./wsfe-solicitation-answer.js";
 
 export interface WsfeTaxAuthorityInvoicingOptions {
   endpoint: string;
   cuit: string;
   timeoutMs?: number;
   onRawResponse?: (raw: string) => void;
-}
-
-interface DetailResponse {
-  Resultado?: unknown;
-  CAE?: unknown;
-  CAEFchVto?: unknown;
-  Observaciones?: unknown;
-}
-
-interface SolicitationResult {
-  FeCabResp?: { Resultado?: unknown };
-  FeDetResp?: { FECAEDetResponse?: DetailResponse | DetailResponse[] };
-  Errors?: unknown;
-}
-
-function isoDateOf(compact: unknown): string | undefined {
-  const match = typeof compact === "string" ? /^(\d{4})(\d{2})(\d{2})$/.exec(compact) : null;
-  return match ? `${match[1]}-${match[2]}-${match[3]}` : undefined;
-}
-
-const NO_ANSWER: SolicitationAnswer = { kind: "no_answer", rejections: [] };
-
-function answerOf(answer: unknown): SolicitationAnswer {
-  const result = (answer as { FECAESolicitarResult?: SolicitationResult })?.FECAESolicitarResult;
-  if (result === undefined) {
-    return NO_ANSWER;
-  }
-  const listed = result.FeDetResp?.FECAEDetResponse;
-  const details = Array.isArray(listed) ? listed : listed === undefined ? [] : [listed];
-  const [detail] = details;
-
-  const dueOn = isoDateOf(detail?.CAEFchVto);
-  if (
-    result.FeCabResp?.Resultado === "A" &&
-    detail?.Resultado === "A" &&
-    typeof detail.CAE === "string" &&
-    detail.CAE !== "" &&
-    dueOn !== undefined
-  ) {
-    return { kind: "authorized", authorizationCode: detail.CAE, authorizationCodeDueOn: dueOn };
-  }
-
-  const rejections = [
-    ...details.flatMap(({ Observaciones }) => rejectionsOf(Observaciones, "Obs")),
-    ...rejectionsOf(result.Errors, "Err"),
-  ];
-  if (rejections.length === 0) {
-    return NO_ANSWER;
-  }
-  if (result.FeCabResp?.Resultado === "R" || detail?.Resultado === "R") {
-    return { kind: "rejected", rejections };
-  }
-  const withoutResult =
-    result.FeCabResp?.Resultado === undefined && detail?.Resultado === undefined;
-  return withoutResult
-    ? { kind: "refused_without_result", rejections }
-    : { kind: "no_answer", rejections };
 }
 
 export class WsfeTaxAuthorityInvoicing implements TaxAuthorityInvoicing {
@@ -134,7 +78,7 @@ export class WsfeTaxAuthorityInvoicing implements TaxAuthorityInvoicing {
           this.onRawResponse?.(client.lastResponse);
         }
       }
-      return answerOf(answer);
+      return solicitationAnswerOf(answer);
     } catch {
       return NO_ANSWER;
     }

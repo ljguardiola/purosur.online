@@ -775,7 +775,14 @@
     {
       "idx": 110,
       "version": "7",
-      "when": 1792142000453,
+      "when": 1792141857707,
+      "tag": "0115_orphan_authorizations",
+      "breakpoints": true
+    },
+    {
+      "idx": 111,
+      "version": "7",
+      "when": 1792151721093,
       "tag": "0116_suspected_compromise_revocation",
       "breakpoints": true
     }

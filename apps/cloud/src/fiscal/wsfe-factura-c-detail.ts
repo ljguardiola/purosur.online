@@ -48,3 +48,20 @@ export function facturaCDetail({
     CondicionIVAReceptorId: buyerTaxStatusCode,
   };
 }
+
+export interface CreditNoteCDetailSource extends FacturaCDetailSource {
+  associatedVoucher: { voucherType: number; pointOfSale: number; number: number };
+}
+
+export function creditNoteCDetail({ associatedVoucher, ...source }: CreditNoteCDetailSource) {
+  return {
+    ...facturaCDetail(source),
+    CbtesAsoc: {
+      CbteAsoc: {
+        Tipo: associatedVoucher.voucherType,
+        PtoVta: associatedVoucher.pointOfSale,
+        Nro: associatedVoucher.number,
+      },
+    },
+  };
+}

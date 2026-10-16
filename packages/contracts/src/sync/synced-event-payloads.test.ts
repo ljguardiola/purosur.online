@@ -166,6 +166,7 @@ describe("synced event payloads", () => {
       "sale_completed@8",
       "sale_print_state_changed@1",
       "sale_voided@1",
+      "sale_voided@2",
     ]);
   });
 
@@ -193,7 +194,7 @@ describe("synced event payloads", () => {
     ["an unknown event type", "sale_opened", 1],
     ["a sale_completed version nobody emitted", "sale_completed", 9],
     ["a sale_cancelled version nobody emitted", "sale_cancelled", 7],
-    ["a sale_voided version nobody emitted", "sale_voided", 2],
+    ["a sale_voided version nobody emitted", "sale_voided", 3],
     ["version zero", "sale_completed", 0],
     ["a cash_session_opened version nobody emitted", "cash_session_opened", 2],
     ["a cash_session_closed version nobody emitted", "cash_session_closed", 2],
@@ -1761,7 +1762,7 @@ describe("sale_voided v1", () => {
     provider: "EXTERNAL_TERMINAL",
   };
 
-  it("has a schema at its first version only", () => {
+  it("keeps its schema at its first version", () => {
     expect(syncedEventPayloadKey("sale_voided", 1)).toBe("sale_voided@1");
     expect(syncedEventPayloadKey("sale_voided", 0)).toBeUndefined();
   });
@@ -1919,6 +1920,108 @@ describe("sale_voided v1", () => {
     expect(
       accepts("sale_voided", 1, { ...voided(), cash_movements: [{ ...sale, type: "TIP" }] }),
     ).toBe(false);
+  });
+});
+
+describe("sale_voided v2", () => {
+  const voided = (): Payload => structuredClone(VOIDED_SALE_V1);
+  const QR_PAYMENT = {
+    id: "pay-2",
+    kind: "SALE",
+    method: "QR",
+    provider: "MERCADOPAGO_QR",
+    amount: 2000,
+    tendered: null,
+    state: "APPROVED",
+    occurred_at: "2026-10-07T15:10:00.000Z",
+    authorized_by: null,
+    confirmed_at: null,
+  };
+  const QR_REFUND = {
+    id: "refund-2",
+    kind: "REFUND",
+    parent_id: "pay-2",
+    method: "QR",
+    provider: "MERCADOPAGO_QR",
+    amount: 2000,
+    state: "PENDING",
+    occurred_at: "2026-10-07T15:30:00.000Z",
+  };
+  const POINT_PAYMENT = {
+    ...QR_PAYMENT,
+    id: "pay-3",
+    method: "POINT",
+    provider: "MERCADOPAGO_POINT",
+  };
+  const POINT_REFUND = {
+    ...QR_REFUND,
+    id: "refund-3",
+    parent_id: "pay-3",
+    method: "POINT",
+    provider: "MERCADOPAGO_POINT",
+  };
+
+  it("has a schema at its second version", () => {
+    expect(syncedEventPayloadKey("sale_voided", 2)).toBe("sale_voided@2");
+  });
+
+  it("accepts a sale paid in cash, as the first version does", () => {
+    expect(accepts("sale_voided", 2, voided())).toBe(true);
+  });
+
+  it("describes a sale paid in cash and through Mercado Pago QR and Point, with their pending refunds", () => {
+    const [cashPayment] = voided()["payments"] as Payload[];
+    const [cashRefund] = voided()["refunds"] as Payload[];
+
+    expect(
+      accepts("sale_voided", 2, {
+        ...voided(),
+        payments: [cashPayment, QR_PAYMENT, POINT_PAYMENT],
+        refunds: [cashRefund, QR_REFUND, POINT_REFUND],
+      }),
+    ).toBe(true);
+  });
+
+  it("still refuses a Mercado Pago refund that is already done", () => {
+    expect(
+      accepts("sale_voided", 2, {
+        ...voided(),
+        payments: [QR_PAYMENT],
+        refunds: [{ ...QR_REFUND, state: "APPROVED" }],
+      }),
+    ).toBe(false);
+  });
+
+  it.each([
+    ["a QR refund of Point's provider", { ...QR_REFUND, provider: "MERCADOPAGO_POINT" }],
+    ["a Point refund of QR's provider", { ...POINT_REFUND, provider: "MERCADOPAGO_QR" }],
+    ["a Point refund with no provider", { ...POINT_REFUND, provider: "NONE" }],
+  ])("refuses %s", (_case, refund) => {
+    expect(accepts("sale_voided", 2, { ...voided(), refunds: [refund] })).toBe(false);
+  });
+
+  it("refuses a Point payment of QR's provider", () => {
+    const payment = { ...POINT_PAYMENT, provider: "MERCADOPAGO_QR" };
+
+    expect(
+      accepts("sale_voided", 2, { ...voided(), payments: [payment], refunds: [POINT_REFUND] }),
+    ).toBe(false);
+  });
+
+  it("refuses the payload without any one of its fields", () => {
+    const payload = voided();
+
+    const accepted = Object.keys(payload).filter((key) => {
+      const { [key]: _removed, ...rest } = payload;
+      return accepts("sale_voided", 2, rest);
+    });
+
+    expect(accepted).toEqual([]);
+  });
+
+  it("refuses a voided sale without payments or without refunds", () => {
+    expect(accepts("sale_voided", 2, { ...voided(), payments: [] })).toBe(false);
+    expect(accepts("sale_voided", 2, { ...voided(), refunds: [] })).toBe(false);
   });
 });
 

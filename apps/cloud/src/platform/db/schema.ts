@@ -1,6 +1,7 @@
 import {
   ALERT_AUDIENCES,
   ALERT_LEVELS,
+  CREDIT_NOTE_C_DOCUMENT_TYPE,
   DEFAULT_EXPIRING_LOT_ALERT_DAYS,
   DEFAULT_GOOD_CONDITION_RETURN_DAYS,
   DEFAULT_UNREVIEWED_PRICE_ALERT_DAYS,
@@ -2520,6 +2521,119 @@ export const numberingFreezes = pgTable(
     frozenAt: timestamp("frozen_at", { withTimezone: true }).notNull(),
   },
   (table) => [check("numbering_freezes_non_negative_check", sql`${table.countBeforeFreeze} >= 0`)],
+);
+
+// A task for a person: an authorization the tax authority holds that this system did not issue, or
+// a credit note it rejected. One per voucher held outside the register and one per rejected credit
+// note, so detecting either again opens nothing new; credit notes rejected at the same number each
+// keep their own. The register is the one that holds the point of sale when the task is opened.
+export const fiscalTasks = pgTable(
+  "fiscal_tasks",
+  {
+    id: uuid("id").primaryKey(),
+    kind: text("kind").notNull(),
+    registerId: uuid("register_id")
+      .notNull()
+      .references(() => registers.id),
+    pointOfSale: integer("point_of_sale").notNull(),
+    documentType: text("document_type").notNull(),
+    number: integer("number").notNull(),
+    creditNoteId: uuid("credit_note_id").references(() => orphanCreditNotes.id),
+    reason: jsonb("reason").$type<JsonValue>().notNull(),
+    state: text("state").notNull().default("open"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
+    closedAt: timestamp("closed_at", { withTimezone: true }),
+  },
+  (table) => [
+    uniqueIndex("fiscal_tasks_voucher_key")
+      .on(table.pointOfSale, table.documentType, table.number)
+      .where(sql`${table.kind} = 'external_invoicing'`),
+    uniqueIndex("fiscal_tasks_credit_note_key").on(table.creditNoteId),
+    check(
+      "fiscal_tasks_kind_check",
+      sql`${table.kind} in ('external_invoicing', 'credit_note_rejected')`,
+    ),
+    check(
+      "fiscal_tasks_credit_note_check",
+      sql`(${table.kind} = 'credit_note_rejected') = (${table.creditNoteId} is not null)`,
+    ),
+    check(
+      "fiscal_tasks_document_type_check",
+      sql`${table.documentType} in (${sql.raw(`'${FACTURA_C_DOCUMENT_TYPE}', '${CREDIT_NOTE_C_DOCUMENT_TYPE}'`)})`,
+    ),
+    check("fiscal_tasks_state_check", sql`${table.state} in ('open', 'closed')`),
+    check(
+      "fiscal_tasks_closed_time_check",
+      sql`(${table.state} = 'closed') = (${table.closedAt} is not null)`,
+    ),
+  ],
+);
+
+// The credit note that cancels an authorization no sale accounts for. The row is the request to
+// issue it: it exists from the moment the orphan is detected, gets its number when the tax
+// authority is first asked, and keeps the answer. A number is held by one request at a time.
+export const orphanCreditNotes = pgTable(
+  "orphan_credit_notes",
+  {
+    id: uuid("id").primaryKey(),
+    registerId: uuid("register_id")
+      .notNull()
+      .references(() => registers.id),
+    saleId: uuid("sale_id").notNull(),
+    pointOfSale: integer("point_of_sale").notNull(),
+    associatedVoucherType: integer("associated_voucher_type").notNull(),
+    associatedNumber: integer("associated_number").notNull(),
+    keptVoucherType: integer("kept_voucher_type").notNull(),
+    keptPointOfSale: integer("kept_point_of_sale").notNull(),
+    keptNumber: integer("kept_number").notNull(),
+    total: bigint("total", { mode: "number" }).notNull(),
+    receiverTaxStatusCode: integer("receiver_tax_status_code").notNull(),
+    number: integer("number"),
+    issuedOn: date("issued_on", { mode: "string" }),
+    requestedAt: timestamp("requested_at", { withTimezone: true }),
+    answerKind: text("answer_kind"),
+    answeredAt: timestamp("answered_at", { withTimezone: true }),
+    authorizationCode: text("authorization_code"),
+    authorizationCodeDueOn: date("authorization_code_due_on", { mode: "string" }),
+    rejections: jsonb("rejections").$type<JsonValue>(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    uniqueIndex("orphan_credit_notes_orphan_key").on(
+      table.pointOfSale,
+      table.associatedVoucherType,
+      table.associatedNumber,
+    ),
+    uniqueIndex("orphan_credit_notes_number_key")
+      .on(table.pointOfSale, table.number)
+      .where(sql`${table.number} is not null and ${table.answerKind} is distinct from 'rejected'`),
+    check(
+      "orphan_credit_notes_request_check",
+      sql`(${table.number} is null) = (${table.issuedOn} is null)
+        and (${table.number} is null) = (${table.requestedAt} is null)`,
+    ),
+    check(
+      "orphan_credit_notes_answer_kind_check",
+      sql`${table.answerKind} in ('authorized', 'rejected', 'unclear')`,
+    ),
+    check(
+      "orphan_credit_notes_answer_request_check",
+      sql`${table.answerKind} is null or ${table.number} is not null`,
+    ),
+    check(
+      "orphan_credit_notes_answer_time_check",
+      sql`(${table.answerKind} is null) = (${table.answeredAt} is null)`,
+    ),
+    check(
+      "orphan_credit_notes_authorization_check",
+      sql`coalesce(${table.answerKind} = 'authorized', false) = (${table.authorizationCode} is not null)
+        and (${table.authorizationCode} is null) = (${table.authorizationCodeDueOn} is null)`,
+    ),
+    check(
+      "orphan_credit_notes_rejection_check",
+      sql`coalesce(${table.answerKind} = 'rejected', false) = (${table.rejections} is not null)`,
+    ),
+  ],
 );
 
 // A purchase puts the product's price back under review on the branch's price list until a review

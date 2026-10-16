@@ -1,5 +1,10 @@
 import { PAID_ORDER_PAYMENT_STATE } from "./paid-order-discovery.js";
-import { LATE_PAYMENT_REFUND_ORIGIN, SALE_CANCELLED_REFUND_ORIGIN } from "./payment-refund.js";
+import { isMercadoPagoMethod } from "./payment.js";
+import {
+  LATE_PAYMENT_REFUND_ORIGIN,
+  SALE_CANCELLED_REFUND_ORIGIN,
+  SALE_VOIDED_REFUND_ORIGIN,
+} from "./payment-refund.js";
 
 export const MERCADO_PAGO_REFUND_FOLLOW_INTERVAL_MS = 60_000;
 
@@ -8,10 +13,46 @@ export const INSUFFICIENT_BALANCE_REFUSAL = "insufficient_balance";
 const PROCESSED_REFUND_STATUS = "processed";
 
 export function isRefundSentByCloud(refund: { method: string; origin: string }): boolean {
+  if (refund.origin === SALE_VOIDED_REFUND_ORIGIN) {
+    return isMercadoPagoMethod(refund.method);
+  }
   return (
     refund.method === "QR" &&
     (refund.origin === SALE_CANCELLED_REFUND_ORIGIN || refund.origin === LATE_PAYMENT_REFUND_ORIGIN)
   );
+}
+
+export function isRefundInCloudHands(refund: {
+  method: string;
+  origin: string;
+  confirmedAt: Date | null;
+  lastRefusalReason: string | null;
+}): boolean {
+  return isRefundSentByCloud(refund) && isAwaitingMercadoPago(refund);
+}
+
+export interface RecordedRefundOfVoidedSale {
+  origin: typeof SALE_VOIDED_REFUND_ORIGIN;
+  paymentTransactionId: string | null;
+  confirmedBy: string | null;
+  confirmedAt: Date | null;
+}
+
+export function recordedRefundOfVoidedSale<Refund extends { paymentId: string; method: string }>(
+  refund: Refund,
+  voiding: { actorId: string; voidedAt: Date },
+): Refund & RecordedRefundOfVoidedSale {
+  const sentByCloud = isRefundSentByCloud({
+    method: refund.method,
+    origin: SALE_VOIDED_REFUND_ORIGIN,
+  });
+  return {
+    ...refund,
+    origin: SALE_VOIDED_REFUND_ORIGIN,
+    paymentTransactionId: sentByCloud ? refund.paymentId : null,
+    confirmedBy: sentByCloud ? voiding.actorId : null,
+    confirmedAt: sentByCloud ? voiding.voidedAt : null,
+  };
 }
 
 export function refundableAmount(paymentAmount: number, refundedOfPayment: number): number {
@@ -26,15 +67,16 @@ export function exceedsRefundable(
   return amount > refundableAmount(paymentAmount, refundedOfPayment);
 }
 
-export function refundIsBackedByItsCancellation(
-  refund: { saleId: string; originEventId: string | null; orderId: string | null },
-  cancellation: { saleId: string } | null,
+export function refundIsBackedByItsCorrection(
+  refund: { saleId: string; origin: string; originEventId: string | null; orderId: string | null },
+  correction: { origin: string; saleId: string } | null,
 ): boolean {
   return (
     refund.originEventId !== null &&
     refund.orderId !== null &&
-    cancellation !== null &&
-    cancellation.saleId === refund.saleId
+    correction !== null &&
+    correction.origin === refund.origin &&
+    correction.saleId === refund.saleId
   );
 }
 

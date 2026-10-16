@@ -2,10 +2,14 @@ import type {
   NumberingConflictDiagnosis,
   NumberingReconciliationDocument,
 } from "../../model/numbering-conflict.js";
+import type {
+  OrphanRegularization,
+  RequestsAtNumber,
+  SaleDocument,
+} from "../../model/orphan-authorization.js";
 import type { RealTimeAuthorizationAnswer } from "../../model/real-time-authorization.js";
 import type { WsaaTokenSource } from "../fiscal-document-authorization-ports.js";
 import type {
-  ExternalBillingOpening,
   NumberingConflictLane,
   NumberingConflictLanes,
   NumberingConflictRequest,
@@ -35,7 +39,9 @@ interface StoreState {
   freezes: Map<number, NumberingFreeze>;
   counts: Map<number, number>;
   documents: Map<number, NumberingReconciliationDocument[]>;
-  alerts: ExternalBillingOpening[];
+  requestsAtNumber: Map<string, RequestsAtNumber>;
+  saleDocuments: Map<string, SaleDocument[]>;
+  regularizations: OrphanRegularization[];
   reconciliationRequests: number[];
 }
 
@@ -51,7 +57,9 @@ export class FakeNumberingConflictStore
     freezes: new Map(),
     counts: new Map(),
     documents: new Map(),
-    alerts: [],
+    requestsAtNumber: new Map(),
+    saleDocuments: new Map(),
+    regularizations: [],
     reconciliationRequests: [],
   };
 
@@ -72,6 +80,14 @@ export class FakeNumberingConflictStore
     this.state.documents.set(pointOfSale, documents);
   }
 
+  seedRequestsAtNumber(pointOfSale: number, number: number, requests: RequestsAtNumber) {
+    this.state.requestsAtNumber.set(`${pointOfSale}/${number}`, requests);
+  }
+
+  seedSaleDocuments(saleId: string, documents: SaleDocument[]) {
+    this.state.saleDocuments.set(saleId, documents);
+  }
+
   freezeOf(pointOfSale: number): NumberingFreeze | undefined {
     return this.state.freezes.get(pointOfSale);
   }
@@ -84,8 +100,24 @@ export class FakeNumberingConflictStore
     return this.state.requests.get(fiscalDocumentId)?.diagnosis;
   }
 
-  get alerts(): readonly ExternalBillingOpening[] {
-    return this.state.alerts;
+  get regularizations(): readonly OrphanRegularization[] {
+    return this.state.regularizations;
+  }
+
+  get alerts() {
+    return this.state.regularizations.flatMap((regularization) =>
+      regularization.kind === "external_invoicing" ? [regularization.externalBilling] : [],
+    );
+  }
+
+  get tasks() {
+    return this.state.regularizations.flatMap((regularization) =>
+      regularization.kind === "external_invoicing" ? [regularization.task] : [],
+    );
+  }
+
+  get creditNotes() {
+    return this.state.regularizations.filter(({ kind }) => kind === "credit_note");
   }
 
   get reconciliationRequests(): readonly number[] {
@@ -180,15 +212,36 @@ class FakeNumberingConflictLane implements NumberingConflictLane {
     );
   }
 
+  async requestsAtNumber({
+    pointOfSale,
+    number,
+  }: {
+    pointOfSale: number;
+    number: number;
+  }): Promise<RequestsAtNumber> {
+    this.store.record("requestsAtNumber");
+    return (
+      this.store.current.requestsAtNumber.get(`${pointOfSale}/${number}`) ?? {
+        kind: "requests",
+        requests: [],
+      }
+    );
+  }
+
+  async otherDocumentsOfSale(saleId: string, _fiscalDocumentId: string): Promise<SaleDocument[]> {
+    this.store.record("otherDocumentsOfSale");
+    return this.store.current.saleDocuments.get(saleId) ?? [];
+  }
+
   async settleNumberingReconciliation({
-    externalBillings,
+    regularizations,
     lastAuthorized,
   }: {
-    externalBillings: readonly ExternalBillingOpening[];
+    regularizations: readonly OrphanRegularization[];
     lastAuthorized: number;
   }): Promise<void> {
     this.store.record("settleNumberingReconciliation");
-    this.store.current.alerts.push(...externalBillings);
+    this.store.current.regularizations.push(...regularizations);
     const held = this.store.current.counts.get(this.pointOfSale) ?? 0;
     this.store.current.counts.set(this.pointOfSale, Math.max(held, lastAuthorized));
     this.store.current.freezes.delete(this.pointOfSale);
@@ -211,33 +264,39 @@ export class FakeNumberingTaxAuthority
   implements TaxAuthorityLastAuthorizedLookup, TaxAuthorityVoucherLookup
 {
   readonly vouchersAsked: number[] = [];
+  readonly voucherTypesAsked: number[] = [];
+  readonly lastAuthorizedTypesAsked: number[] = [];
   lastAuthorizedAsked = 0;
   heldLaneDuringLookups: boolean[] = [];
   private readonly store: FakeNumberingConflictStore;
   private readonly lastAuthorizedAnswer: LastAuthorizedAnswer;
-  private readonly voucherAnswer: VoucherAnswer;
+  private readonly voucherAnswer: VoucherAnswer | ((number: number) => VoucherAnswer);
 
   constructor(
     store: FakeNumberingConflictStore,
     lastAuthorizedAnswer: LastAuthorizedAnswer,
-    voucherAnswer: VoucherAnswer = { kind: "none" },
+    voucherAnswer: VoucherAnswer | ((number: number) => VoucherAnswer) = { kind: "none" },
   ) {
     this.store = store;
     this.lastAuthorizedAnswer = lastAuthorizedAnswer;
     this.voucherAnswer = voucherAnswer;
   }
 
-  async lastAuthorized(): Promise<LastAuthorizedAnswer> {
+  async lastAuthorized(lookup: { voucherType: number }): Promise<LastAuthorizedAnswer> {
+    this.lastAuthorizedTypesAsked.push(lookup.voucherType);
     this.store.operations.push("lastAuthorized");
     this.lastAuthorizedAsked += 1;
     this.heldLaneDuringLookups.push(this.store.held);
     return this.lastAuthorizedAnswer;
   }
 
-  async voucherAt(lookup: { number: number }): Promise<VoucherAnswer> {
+  async voucherAt(lookup: { number: number; voucherType: number }): Promise<VoucherAnswer> {
+    this.voucherTypesAsked.push(lookup.voucherType);
     this.store.operations.push("voucherAt");
     this.vouchersAsked.push(lookup.number);
     this.heldLaneDuringLookups.push(this.store.held);
-    return this.voucherAnswer;
+    return typeof this.voucherAnswer === "function"
+      ? this.voucherAnswer(lookup.number)
+      : this.voucherAnswer;
   }
 }

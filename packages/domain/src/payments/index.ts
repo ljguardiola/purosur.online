@@ -22,8 +22,10 @@ export type {
   MercadoPagoRefundAnswer,
 } from "./model/mercado-pago-refund.js";
 export {
+  isRefundSentByCloud,
   MERCADO_PAGO_REFUND_FOLLOW_INTERVAL_MS,
   MERCADO_PAGO_REFUND_STAGES,
+  recordedRefundOfVoidedSale,
 } from "./model/mercado-pago-refund.js";
 export { nonCashCharge } from "./model/non-cash-charge.js";
 export type {
@@ -50,7 +52,6 @@ export {
   hasApprovedPayment,
   holdsApprovedPointPayment,
   isConfirmedByHand,
-  isMercadoPagoMethod,
   MERCADO_PAGO_PAYMENT_METHODS,
   MERCADO_PAGO_PROVIDERS,
   PAYMENT_METHODS,
@@ -90,6 +91,7 @@ export {
   REFUND_STATES,
   REFUND_TASK_ORIGINS,
   refundsSettleApprovedPayments,
+  SALE_CANCELLED_REFUND_ORIGIN,
   SALE_VOIDED_REFUND_ORIGIN,
 } from "./model/payment-refund.js";
 export type {

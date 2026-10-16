@@ -87,7 +87,10 @@ import { registerRegisterOfflinePointOfSaleConfigurationRoute } from "./fiscal/r
 import { registerRegisterPointOfSaleConfigurationRoute } from "./fiscal/register-point-of-sale-configuration-route.js";
 import type { RegistersPointsOfSaleRouteOptions } from "./fiscal/registers-points-of-sale-list-route.js";
 import { registerRegistersPointsOfSaleListRoute } from "./fiscal/registers-points-of-sale-list-route.js";
-import { registerUnclearOutcomeRoute } from "./fiscal/unclear-outcome-route.js";
+import {
+  registerUnclearOutcomeRoute,
+  type UnclearOutcomeRouteOptions,
+} from "./fiscal/unclear-outcome-route.js";
 import {
   type MercadoPagoNotificationRoutesOptions,
   registerMercadoPagoNotificationRoutes,
@@ -248,7 +251,10 @@ export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = Postgre
   enqueueOfflineAuthorizationCodeRequest?: EnqueueOfflineAuthorizationCodeRequest;
   enqueueTaxAuthorityCountOnEnrollment?: EnqueueTaxAuthorityCount;
   fiscalAuthorization?: WithoutClock<
-    Omit<FiscalAuthorizationRouteOptions<TQueryResult>, keyof DeviceTokensOptions<TQueryResult>>
+    Omit<
+      FiscalAuthorizationRouteOptions<TQueryResult> & UnclearOutcomeRouteOptions<TQueryResult>,
+      keyof DeviceTokensOptions<TQueryResult>
+    >
   >;
   mercadoPagoOrders?: WithoutClock<
     Omit<MercadoPagoOrderRoutesOptions<TQueryResult>, keyof DeviceTokensOptions<TQueryResult>>

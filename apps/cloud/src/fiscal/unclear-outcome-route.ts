@@ -25,12 +25,14 @@ import { PUBLIC_ACCESS } from "../sessions/route-access.js";
 import { DrizzleRequestAdmission } from "../sync/drizzle-request-admission.js";
 import { clearAuthorizationAnswerToWire } from "./clear-authorization-answer-wire.js";
 import { DrizzleUnclearOutcomeLanes } from "./drizzle-unclear-outcome-lanes.js";
+import type { EnqueueOrphanCreditNote } from "./enqueue-orphan-credit-note.js";
 import type { EnqueueUnclearOutcome } from "./enqueue-unclear-outcome.js";
 
 export type UnclearOutcomeRouteOptions<TQueryResult extends PgQueryResultHKT> =
   DeviceTokensOptions<TQueryResult> & {
     connections: DedicatedConnections<TQueryResult>;
     enqueueUnclearOutcome: EnqueueUnclearOutcome;
+    enqueueOrphanCreditNote: EnqueueOrphanCreditNote;
   };
 
 const DEVICE_TOKEN_REJECTED = cloudError(
@@ -90,7 +92,11 @@ export function registerUnclearOutcomeRoute<TQueryResult extends PgQueryResultHK
   const tokenPorts = installationTokenPorts(options);
   const clock = { now: options.now };
   const ports = {
-    lanes: new DrizzleUnclearOutcomeLanes(options.connections, options.enqueueUnclearOutcome),
+    lanes: new DrizzleUnclearOutcomeLanes(
+      options.connections,
+      options.enqueueUnclearOutcome,
+      options.enqueueOrphanCreditNote,
+    ),
     clock,
   };
   const admission = { admission: new DrizzleRequestAdmission(options.db), clock };

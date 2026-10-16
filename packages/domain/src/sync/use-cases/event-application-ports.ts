@@ -39,6 +39,7 @@ export interface EventApplicationTransaction {
   aggregateApplied(key: AggregateKey): Promise<boolean>;
   providerTransactionOfPayment(paymentId: string): Promise<ProviderTransactionOfPayment | null>;
   record(fact: SyncedFact, event: UnappliedEvent): Promise<void>;
+  requestMercadoPagoRefundFollow(): Promise<void>;
   applySaleStock(
     sale: CompletedSale,
     movements: NonNullable<CompletedSale["stockMovements"]>,

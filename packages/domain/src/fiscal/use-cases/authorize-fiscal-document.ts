@@ -44,7 +44,7 @@ export type AuthorizeFiscalDocumentOutcome =
   | { kind: "fiscal_document_not_owned" }
   | { kind: "sale_event_mismatch" };
 
-function answerOf(answer: SolicitationAnswer): RealTimeAuthorizationAnswer {
+export function solicitationAnswerOf(answer: SolicitationAnswer): RealTimeAuthorizationAnswer {
   switch (answer.kind) {
     case "authorized":
       return answer;
@@ -57,7 +57,9 @@ function answerOf(answer: SolicitationAnswer): RealTimeAuthorizationAnswer {
   }
 }
 
-function rejectionsOf(solicitation: SolicitationAnswer): readonly TaxAuthorityRejection[] {
+export function solicitationRejections(
+  solicitation: SolicitationAnswer,
+): readonly TaxAuthorityRejection[] {
   return solicitation.kind === "authorized" ? [] : solicitation.rejections;
 }
 
@@ -65,7 +67,9 @@ function unclearCodesOf(
   solicitation: SolicitationAnswer,
   answer: RealTimeAuthorizationAnswer,
 ): readonly number[] {
-  return answer.kind === "unclear" ? rejectionsOf(solicitation).map(({ code }) => code) : [];
+  return answer.kind === "unclear"
+    ? solicitationRejections(solicitation).map(({ code }) => code)
+    : [];
 }
 
 function taxAuthorityGaveAnswer(
@@ -141,14 +145,14 @@ export async function authorizeFiscalDocument(
         buyerTaxStatusCode: request.buyerTaxStatusCode,
       });
       const answeredAt = clock.now();
-      const answer = answerOf(solicitation);
+      const answer = solicitationAnswerOf(solicitation);
       const taxAuthorityCodes = unclearCodesOf(solicitation, answer);
       if (taxAuthorityGaveAnswer(solicitation, answer)) {
         await lane.recordTaxAuthorityAnswer(
           request.fiscalDocumentId,
           answer,
           answeredAt,
-          rejectionStandingChange(answer, rejectionsOf(solicitation), {
+          rejectionStandingChange(answer, solicitationRejections(solicitation), {
             pointOfSale: request.pointOfSale,
             documentType: FACTURA_C_DOCUMENT_TYPE,
             fiscalDocumentId: request.fiscalDocumentId,

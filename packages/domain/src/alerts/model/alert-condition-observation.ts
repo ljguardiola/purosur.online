@@ -2,6 +2,7 @@ import { OFFSITE_DUMP_SHRINK_THRESHOLD_PERCENT } from "../../backups/index.js";
 import type {
   FiscalDocumentType,
   FiscalEmissionStoppedReport,
+  FiscalTaskDocumentType,
   Fortnight,
   RejectionStandingChange,
 } from "../../fiscal/index.js";
@@ -176,7 +177,7 @@ export function externalBillingObservation({
   number,
 }: {
   pointOfSale: number;
-  documentType: FiscalDocumentType;
+  documentType: FiscalTaskDocumentType;
   number: number;
 }): AlertConditionObservation {
   return {

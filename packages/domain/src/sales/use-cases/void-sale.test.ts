@@ -281,7 +281,7 @@ describe("voidSale", () => {
           aggregate_type: "Sale",
           aggregate_id: "sale-1",
           event_type: "sale_voided",
-          schema_version: 1,
+          schema_version: 2,
           payload: {
             id: "sale-1",
             register_id: "register-1",
@@ -580,6 +580,82 @@ describe("voidSale", () => {
     });
   });
 
+  describe("a sale paid through Mercado Pago", () => {
+    it.each([
+      ["QR", QR_PAYMENT],
+      ["POINT", POINT_PAYMENT],
+    ] as const)(
+      "refuses to void a %s sale until the cashier confirms the pending refund",
+      async (_method, payment) => {
+        const store = ledger({ payments: [payment] });
+        const before = structuredClone(store.state);
+
+        const outcome = await void_(store, { pendingRefundsConfirmed: false });
+
+        expect(outcome).toEqual({ kind: "pending_refunds_unconfirmed" });
+        expect(store.state).toEqual(before);
+      },
+    );
+
+    it.each([
+      ["QR", QR_PAYMENT],
+      ["POINT", POINT_PAYMENT],
+    ] as const)(
+      "voids a %s sale leaving its refund pending with its provider",
+      async (method, payment) => {
+        const store = ledger({ payments: [payment] });
+
+        const outcome = await void_(store, { pendingRefundsConfirmed: true });
+
+        expect(outcome).toMatchObject({ kind: "voided" });
+        expect(store.state.movements).toEqual([SALE_MOVEMENT, ANOTHER_SALE_MOVEMENT]);
+        expect(store.state.refunds).toEqual([
+          {
+            id: "id-1",
+            saleId: "sale-1",
+            paymentId: payment.id,
+            method,
+            provider: payment.provider,
+            amount: 900,
+            state: "PENDING",
+            occurredAt: NOW,
+          },
+        ]);
+      },
+    );
+
+    it("still gives the cash of a mixed sale back on the spot", async () => {
+      const store = ledger({ payments: [CASH_PAYMENT, QR_PAYMENT] });
+
+      await void_(store, { pendingRefundsConfirmed: true });
+
+      expect(store.state.refunds.map(({ method, state }) => [method, state])).toEqual([
+        ["CASH", "APPROVED"],
+        ["QR", "PENDING"],
+      ]);
+      expect(store.state.movements).toEqual([
+        SALE_MOVEMENT,
+        ANOTHER_SALE_MOVEMENT,
+        REFUND_MOVEMENT,
+      ]);
+    });
+
+    it("emits the voiding as version 2 of the event, with the pending refund", async () => {
+      const store = ledger({ payments: [QR_PAYMENT] });
+
+      await void_(store, { pendingRefundsConfirmed: true });
+
+      expect(store.state.outbox[0]).toMatchObject({
+        event_type: "sale_voided",
+        schema_version: 2,
+        payload: {
+          payments: [{ method: "QR", provider: "MERCADOPAGO_QR" }],
+          refunds: [{ method: "QR", provider: "MERCADOPAGO_QR", state: "PENDING" }],
+        },
+      });
+    });
+  });
+
   describe("what keeps a sale from being voided", () => {
     const REFUSED_CASES: [SaleVoidRefusal, Partial<FakeSaleVoidLedgerState>][] = [
       ["not_completed", { sales: [{ ...COMPLETED_SALE, state: "VOIDED" }] }],
@@ -590,8 +666,6 @@ describe("voidSale", () => {
       ["invoice_in_flight", { fiscalDocuments: fiscalDocument("REQUESTING") }],
       ["invoice_in_flight", { fiscalDocuments: fiscalDocument("UNKNOWN") }],
       ["carries_invoice", { fiscalDocuments: fiscalDocument("AUTHORIZED") }],
-      ["mercado_pago_payment", { payments: [CASH_PAYMENT, QR_PAYMENT] }],
-      ["mercado_pago_payment", { payments: [CASH_PAYMENT, POINT_PAYMENT] }],
     ];
 
     it.each(REFUSED_CASES)("refuses with %s and changes nothing", async (refusal, changes) => {

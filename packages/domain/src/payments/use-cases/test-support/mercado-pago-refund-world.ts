@@ -41,6 +41,19 @@ export function aQrRefundOfCancelledSale(
   };
 }
 
+export function aRefundOfVoidedSale(
+  method: "QR" | "POINT",
+  overrides: Partial<FakeMercadoPagoStoredRefund> = {},
+): FakeMercadoPagoStoredRefund {
+  return aQrRefundOfCancelledSale({
+    origin: "sale_voided",
+    method,
+    confirmedBy: "cashier",
+    confirmedAt: CONFIRMED_AT,
+    ...overrides,
+  });
+}
+
 export function aQrRefundOfLatePayment(
   overrides: Partial<FakeMercadoPagoStoredRefund> = {},
 ): FakeMercadoPagoStoredRefund {
@@ -73,7 +86,7 @@ export function aSentRefund(
 export function refundWorld(refunds: FakeMercadoPagoStoredRefund[] = [aQrRefundOfCancelledSale()]) {
   const lanes = new FakePaymentTransactionLanes();
   const store = new FakeMercadoPagoRefundStore(refunds, lanes.operations);
-  store.cancellations.set("event-1", "sale-1");
+  store.appliedCorrections.set("event-1", { origin: "sale_cancelled", saleId: "sale-1" });
   const mercadoPago = new FakeMercadoPagoOrders(lanes, {
     creation: { kind: "unavailable" },
     pointCreation: { kind: "unavailable" },
@@ -88,4 +101,10 @@ export function refundWorld(refunds: FakeMercadoPagoStoredRefund[] = [aQrRefundO
     clock: new FixedClock(NOW),
   };
   return { ports, store, lanes, mercadoPago, refundKeys };
+}
+
+export function voidedSaleRefundWorld(refunds: FakeMercadoPagoStoredRefund[]) {
+  const world = refundWorld(refunds);
+  world.store.appliedCorrections.set("event-1", { origin: "sale_voided", saleId: "sale-1" });
+  return world;
 }

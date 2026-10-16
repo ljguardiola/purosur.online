@@ -56,6 +56,10 @@ import {
 } from "./fiscal/graphile-numbering-conflict-queue.js";
 import { enqueueOfflineAuthorizationCodeRequest } from "./fiscal/graphile-offline-authorization-code-queue.js";
 import {
+  enqueueMissingOrphanCreditNotes,
+  enqueueOrphanCreditNoteJob,
+} from "./fiscal/graphile-orphan-credit-note-queue.js";
+import {
   enqueueMissingTaxAuthorityCounts,
   enqueueTaxAuthorityCountJob,
 } from "./fiscal/graphile-tax-authority-count-queue.js";
@@ -66,6 +70,7 @@ import {
 } from "./fiscal/graphile-unclear-outcome-queue.js";
 import { numberingConflictJobs } from "./fiscal/numbering-conflict-task.js";
 import { offlineAuthorizationCodeJobs } from "./fiscal/offline-authorization-code-task.js";
+import { orphanCreditNoteJobs } from "./fiscal/orphan-credit-note-task.js";
 import { resumeWorkWaitingOnWsaaToken } from "./fiscal/resume-work-waiting-on-wsaa-token.js";
 import { taxAuthorityCountJobs } from "./fiscal/tax-authority-count-task.js";
 import { unclearOutcomeJobs } from "./fiscal/unclear-outcome-task.js";
@@ -73,6 +78,7 @@ import { ArcaWsaaAuthentication, wsaaEndpointOf } from "./fiscal/wsaa-authentica
 import { wsaaTokenRenewalJobs } from "./fiscal/wsaa-token-renewal-task.js";
 import { WsfeArcaVitalityService, wsfeEndpointOf } from "./fiscal/wsfe-arca-vitality-service.js";
 import { WsfeBuyerTaxStatusSource } from "./fiscal/wsfe-buyer-tax-status-source.js";
+import { WsfeTaxAuthorityCreditNotes } from "./fiscal/wsfe-tax-authority-credit-notes.js";
 import { WsfeTaxAuthorityInvoicing } from "./fiscal/wsfe-tax-authority-invoicing.js";
 import { WsfeTaxAuthorityLastAuthorized } from "./fiscal/wsfe-tax-authority-last-authorized.js";
 import { WsfeTaxAuthorityNoMovementDeclarations } from "./fiscal/wsfe-tax-authority-no-movement-declarations.js";
@@ -586,6 +592,16 @@ export async function setUpRecovery(
               db,
               connections,
               enqueueUnclearOutcome: enqueueUnclearOutcomeJob,
+              enqueueOrphanCreditNote: enqueueOrphanCreditNoteJob,
+            }),
+            orphanCreditNoteJobs({
+              now,
+              vouchers: new WsfeTaxAuthorityVouchers(recoveryEnv.arcaInvoicing),
+              taxAuthority: new WsfeTaxAuthorityLastAuthorized(recoveryEnv.arcaInvoicing),
+              creditNotes: new WsfeTaxAuthorityCreditNotes(recoveryEnv.arcaInvoicing),
+              certificateFingerprint: recoveryEnv.arcaInvoicing.certificateFingerprint,
+              db,
+              connections,
             }),
             numberingConflictJobs({
               now,
@@ -595,6 +611,7 @@ export async function setUpRecovery(
               db,
               connections,
               enqueueNumberingReconciliation: enqueueNumberingReconciliationJob,
+              enqueueOrphanCreditNote: enqueueOrphanCreditNoteJob,
             }),
             offlineAuthorizationCodeJobs({
               now,
@@ -652,6 +669,7 @@ export interface StartServerDeps {
   enqueueMissingTaxAuthorityCounts?: (db: RecoveryInfrastructure["db"]) => Promise<unknown>;
   enqueueMissingUnclearOutcomes?: (db: RecoveryInfrastructure["db"]) => Promise<unknown>;
   enqueueMissingNumberingConflicts?: (db: RecoveryInfrastructure["db"]) => Promise<unknown>;
+  enqueueMissingOrphanCreditNotes?: (db: RecoveryInfrastructure["db"]) => Promise<unknown>;
   now?: () => Date;
   arcaEndpoints: (environment: string) => ArcaEndpoints;
   recordAuthorizedCuit?: (
@@ -687,6 +705,8 @@ export async function startServer(env: ServerEnv, deps: StartServerDeps): Promis
     deps.enqueueMissingUnclearOutcomes ?? enqueueMissingUnclearOutcomes;
   const doEnqueueMissingNumberingConflicts =
     deps.enqueueMissingNumberingConflicts ?? enqueueMissingNumberingConflicts;
+  const doEnqueueMissingOrphanCreditNotes =
+    deps.enqueueMissingOrphanCreditNotes ?? enqueueMissingOrphanCreditNotes;
   const doRecordAuthorizedCuit =
     deps.recordAuthorizedCuit ??
     ((db: RecoveryInfrastructure["db"], authorizedCuit: string) =>
@@ -802,6 +822,7 @@ export async function startServer(env: ServerEnv, deps: StartServerDeps): Promis
             enqueueUnclearOutcome: enqueueUnclearOutcomeJob,
             withdrawUnclearOutcome: withdrawUnclearOutcomeJob,
             enqueueNumberingDiagnosis: enqueueNumberingDiagnosisJob,
+            enqueueOrphanCreditNote: enqueueOrphanCreditNoteJob,
           },
         }
       : {}),
@@ -817,6 +838,7 @@ export async function startServer(env: ServerEnv, deps: StartServerDeps): Promis
       await doEnqueueMissingTaxAuthorityCounts(database.recovery.db);
       await doEnqueueMissingUnclearOutcomes(database.recovery.db);
       await doEnqueueMissingNumberingConflicts(database.recovery.db);
+      await doEnqueueMissingOrphanCreditNotes(database.recovery.db);
     }
   }
   await app.listen({ port: resolvePort(env), host: "0.0.0.0" });
