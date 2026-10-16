@@ -33,10 +33,16 @@ export function revokeEveryRegister<TQueryResult extends PgQueryResultHKT>(
   );
 }
 
+let actorCount = 0;
+
 export async function seedActor<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
 ): Promise<string> {
-  return insertUserWithPin(db, { firstName: "Ada", locationId: await seededLocationId(db) });
+  actorCount += 1;
+  return insertUserWithPin(db, {
+    firstName: `Ada${actorCount}`,
+    locationId: await seededLocationId(db),
+  });
 }
 
 export interface SeededRegister extends EnrolledInstallation {
