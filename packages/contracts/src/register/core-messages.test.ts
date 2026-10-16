@@ -584,8 +584,20 @@ describe("the open sale of the cash session", () => {
     ).toBe(false);
   });
 
-  const cashRefund = { payment_id: "p1", method: "CASH", amount: 1200, state: "APPROVED" };
-  const transferRefund = { payment_id: "p2", method: "TRANSFER", amount: 2000, state: "PENDING" };
+  const cashRefund = {
+    payment_id: "p1",
+    method: "CASH",
+    amount: 1200,
+    state: "APPROVED",
+    sent_by_cloud: false,
+  };
+  const transferRefund = {
+    payment_id: "p2",
+    method: "TRANSFER",
+    amount: 2000,
+    state: "PENDING",
+    sent_by_cloud: false,
+  };
   const openSale = {
     id: "sale-1",
     total: 3_434_000,
@@ -599,7 +611,6 @@ describe("the open sale of the cash session", () => {
     openSale,
     { ...openSale, total: 0, cancellable: false },
     { ...openSale, cancellable: false, cancel_refusal: "mercado_pago_charge_in_progress" },
-    { ...openSale, paid: 3200, cancellable: false, cancel_refusal: "holds_point_payment" },
     { ...openSale, paid: 3200, refunds_on_cancel: [cashRefund, transferRefund] },
     null,
   ])("accepts the open sale answered: %j", (sale) => {

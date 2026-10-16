@@ -716,6 +716,43 @@ export async function withRegisterSession<TResult>(
       authorization: { user_id: GRACE, pin: PIN },
     });
     expectOutcome("void the sale paid by QR authorized by PIN", voidedOnQr.kind, "voided");
+    nextStep();
+    const onPoint = await scanProductFor(deps(), "7790001000028");
+    if (onPoint.kind !== "added") {
+      throw new Error(
+        `The register session's "scan a product to pay part on the terminal" ended as "${onPoint.kind}"`,
+      );
+    }
+    nextStep();
+    const pointDeposit = await startMercadoPagoChargeFor(
+      { ...deps(), orders: APPROVED_QR_ORDERS },
+      { saleId: onPoint.sale.id, method: "POINT", amount: 1500 },
+    );
+    if (pointDeposit.kind !== "order_shown") {
+      throw new Error(
+        `The register session's "start the terminal deposit" ended as "${pointDeposit.kind}"`,
+      );
+    }
+    nextStep();
+    const approvedPoint = await followMercadoPagoChargeFor(
+      { ...deps(), orders: APPROVED_QR_ORDERS },
+      { paymentTransactionId: pointDeposit.payment_transaction_id },
+    );
+    expectOutcome(
+      "follow the terminal deposit until it is approved",
+      approvedPoint.kind,
+      "partially_paid",
+    );
+    nextStep();
+    const cancelledOnPoint = await cancelPaidSaleFor(deps(), {
+      saleId: onPoint.sale.id,
+      authorization: { user_id: GRACE, pin: PIN },
+    });
+    expectOutcome(
+      "cancel the sale paid on the terminal authorized by PIN",
+      cancelledOnPoint.kind,
+      "cancelled",
+    );
     holdOfflineAuthorization(database);
     nextStep();
     const offlineScan = await scanProductFor(deps(), "7790001000028");

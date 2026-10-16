@@ -99,12 +99,18 @@ describe("saleSchema", () => {
     },
   );
 
-  it.each([null, "mercado_pago_charge_in_progress", "holds_point_payment"] as const)(
+  it.each([null, "mercado_pago_charge_in_progress"] as const)(
     "accepts a sale whose cancellation is refused by %s",
     (cancel_refusal) => {
       expect(saleSchema.parse({ ...sale, cancel_refusal }).cancel_refusal).toBe(cancel_refusal);
     },
   );
+
+  it("refuses a sale whose cancellation is refused for holding a terminal payment, which is now cancelled", () => {
+    expect(saleSchema.safeParse({ ...sale, cancel_refusal: "holds_point_payment" }).success).toBe(
+      false,
+    );
+  });
 
   it.each(["QR", "POINT"] as const)(
     "accepts a sale with a %s charge in progress, named to be followed",
@@ -543,8 +549,20 @@ describe("removeSaleLineOutcomeSchema", () => {
 });
 
 describe("what cancelling a sale with approved payments refunds", () => {
-  const cashRefund = { payment_id: "p1", method: "CASH", amount: 1000, state: "APPROVED" };
-  const transferRefund = { payment_id: "p2", method: "TRANSFER", amount: 500, state: "PENDING" };
+  const cashRefund = {
+    payment_id: "p1",
+    method: "CASH",
+    amount: 1000,
+    state: "APPROVED",
+    sent_by_cloud: false,
+  };
+  const transferRefund = {
+    payment_id: "p2",
+    method: "TRANSFER",
+    amount: 500,
+    state: "PENDING",
+    sent_by_cloud: false,
+  };
 
   it("accepts a refund of each method", () => {
     const refunding = { ...sale, refunds_on_cancel: [cashRefund, transferRefund] };
@@ -568,7 +586,9 @@ describe("what cancelling a sale with approved payments refunds", () => {
 describe("cancelPaidSaleOutcomeSchema", () => {
   const cancelled = {
     kind: "cancelled",
-    refunds: [{ payment_id: "p2", method: "TRANSFER", amount: 500, state: "PENDING" }],
+    refunds: [
+      { payment_id: "p2", method: "TRANSFER", amount: 500, state: "PENDING", sent_by_cloud: false },
+    ],
     authorized_by: { user_id: "u2", first_name: "Ana" },
   };
 
@@ -585,9 +605,14 @@ describe("cancelPaidSaleOutcomeSchema", () => {
     { kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 2 },
     { kind: "locked", consecutive_failures: PIN_SIGN_IN_LOCKOUT_FAILURES },
     { kind: "mercado_pago_charge_in_progress" },
-    { kind: "holds_point_payment" },
   ])("accepts the outcome $kind", (outcome) => {
     expect(cancelPaidSaleOutcomeSchema.parse(outcome)).toEqual(outcome);
+  });
+
+  it("refuses the outcome of a sale holding a terminal payment, which is now cancelled", () => {
+    expect(cancelPaidSaleOutcomeSchema.safeParse({ kind: "holds_point_payment" }).success).toBe(
+      false,
+    );
   });
 
   it.each([
@@ -595,7 +620,9 @@ describe("cancelPaidSaleOutcomeSchema", () => {
     { kind: "cancelled", authorized_by: null },
     {
       ...cancelled,
-      refunds: [{ payment_id: "p2", method: "CARD", amount: 500, state: "PENDING" }],
+      refunds: [
+        { payment_id: "p2", method: "CARD", amount: 500, state: "PENDING", sent_by_cloud: false },
+      ],
     },
     { kind: "has_approved_payment" },
     { kind: "holds_standalone_terminal_payment" },
@@ -610,7 +637,9 @@ describe("cancelPaidSaleOutcomeSchema", () => {
 describe("voidSaleOutcomeSchema", () => {
   const voided = {
     kind: "voided",
-    refunds: [{ payment_id: "p2", method: "TRANSFER", amount: 500, state: "PENDING" }],
+    refunds: [
+      { payment_id: "p2", method: "TRANSFER", amount: 500, state: "PENDING", sent_by_cloud: false },
+    ],
     authorized_by: { user_id: "u2", first_name: "Ana" },
   };
 
@@ -638,7 +667,9 @@ describe("voidSaleOutcomeSchema", () => {
     { kind: "voided", authorized_by: null },
     {
       ...voided,
-      refunds: [{ payment_id: "p2", method: "CARD", amount: 500, state: "PENDING" }],
+      refunds: [
+        { payment_id: "p2", method: "CARD", amount: 500, state: "PENDING", sent_by_cloud: false },
+      ],
     },
     { kind: "cancelled", refunds: [], authorized_by: null },
     { kind: "no_open_sale" },

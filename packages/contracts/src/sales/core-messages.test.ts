@@ -46,8 +46,14 @@ describe("cancelling the open sale of a locked register", () => {
     {
       kind: "cancelled",
       refunds: [
-        { payment_id: "p1", method: "CASH", amount: 1200, state: "APPROVED" },
-        { payment_id: "p2", method: "TRANSFER", amount: 2000, state: "PENDING" },
+        { payment_id: "p1", method: "CASH", amount: 1200, state: "APPROVED", sent_by_cloud: false },
+        {
+          payment_id: "p2",
+          method: "TRANSFER",
+          amount: 2000,
+          state: "PENDING",
+          sent_by_cloud: false,
+        },
       ],
     },
     { kind: "not_permitted" },
@@ -59,7 +65,6 @@ describe("cancelling the open sale of a locked register", () => {
     { kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 2 },
     { kind: "rate_limited", retry_after_seconds: 1, attempts_left: 2 },
     { kind: "mercado_pago_charge_in_progress" },
-    { kind: "holds_point_payment" },
   ])("accepts the result $kind", (outcome) => {
     const message = { type: "cancel-locked-sale-result", request_id: REQUEST_ID, outcome };
 
@@ -76,7 +81,9 @@ describe("cancelling the open sale of a locked register", () => {
     { kind: "cancelled" },
     {
       kind: "cancelled",
-      refunds: [{ payment_id: "p1", method: "CASH", amount: 1, state: "DONE" }],
+      refunds: [
+        { payment_id: "p1", method: "CASH", amount: 1, state: "DONE", sent_by_cloud: false },
+      ],
     },
   ])("rejects a result it does not know: %j", (outcome) => {
     const message = { type: "cancel-locked-sale-result", request_id: REQUEST_ID, outcome };
@@ -582,7 +589,15 @@ describe("cancelling a sale with approved payments", () => {
       request_id: REQUEST_ID,
       outcome: {
         kind: "cancelled",
-        refunds: [{ payment_id: "p1", method: "CASH", amount: 1000, state: "APPROVED" }],
+        refunds: [
+          {
+            payment_id: "p1",
+            method: "CASH",
+            amount: 1000,
+            state: "APPROVED",
+            sent_by_cloud: false,
+          },
+        ],
         authorized_by: null,
       },
     };
@@ -655,7 +670,15 @@ describe("voiding a completed sale", () => {
       request_id: REQUEST_ID,
       outcome: {
         kind: "voided",
-        refunds: [{ payment_id: "p1", method: "CASH", amount: 1000, state: "APPROVED" }],
+        refunds: [
+          {
+            payment_id: "p1",
+            method: "CASH",
+            amount: 1000,
+            state: "APPROVED",
+            sent_by_cloud: false,
+          },
+        ],
         authorized_by: null,
       },
     };

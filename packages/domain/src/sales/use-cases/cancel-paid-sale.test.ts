@@ -288,7 +288,7 @@ describe("cancelPaidSale", () => {
           aggregate_type: "Sale",
           aggregate_id: "sale-1",
           event_type: "sale_cancelled",
-          schema_version: 6,
+          schema_version: 7,
           payload: {
             id: "sale-1",
             register_id: "register-1",
@@ -557,7 +557,7 @@ describe("cancelPaidSale", () => {
       expect(store.state.movements.filter(({ type }) => type === "REFUND")).toEqual([]);
     });
 
-    it("tells the cloud with a version 6 event carrying the payment and its pending refund", async () => {
+    it("tells the cloud with a version 7 event carrying the payment and its pending refund", async () => {
       const store = ledger({ payments: [STANDALONE_TERMINAL_PAYMENT] });
 
       await cancel(store);
@@ -565,7 +565,7 @@ describe("cancelPaidSale", () => {
       const [event] = store.state.outbox;
       expect(event).toMatchObject({
         event_type: "sale_cancelled",
-        schema_version: 6,
+        schema_version: 7,
         payload: {
           payments: [{ id: "payment-5", method: "STANDALONE_TERMINAL", state: "APPROVED" }],
           refunds: [
@@ -619,7 +619,7 @@ describe("cancelPaidSale", () => {
       },
     );
 
-    it("tells the cloud with a version 6 event carrying the QR payment and its pending refund", async () => {
+    it("tells the cloud with a version 7 event carrying the QR payment and its pending refund", async () => {
       const store = ledger({ payments: [QR_PAYMENT] });
 
       await cancel(store);
@@ -627,7 +627,7 @@ describe("cancelPaidSale", () => {
       const [event] = store.state.outbox;
       expect(event).toMatchObject({
         event_type: "sale_cancelled",
-        schema_version: 6,
+        schema_version: 7,
         payload: {
           payments: [{ id: "payment-3", method: "QR", provider: "MERCADOPAGO_QR" }],
           refunds: [
@@ -644,13 +644,14 @@ describe("cancelPaidSale", () => {
     });
   });
 
-  describe("what it refuses", () => {
+  describe("a sale partly paid on the integrated card terminal", () => {
     it.each(["sale", "locked_register"] as const)(
-      "refuses a sale holding an approved integrated terminal payment from the %s, leaving everything as it was",
+      "cancels it from the %s, leaving the terminal payment's refund pending with no cash movement",
       async (from) => {
-        const payment = POINT_PAYMENT;
-        const store = ledger({ payments: [CASH_PAYMENT, payment] });
-        const before = structuredClone(store.state);
+        const store = ledger({
+          accesses: { cashier: CASHIER, closer: VOIDER },
+          payments: [CASH_PAYMENT, POINT_PAYMENT],
+        });
 
         const outcome = await cancel(
           store,
@@ -659,11 +660,53 @@ describe("cancelPaidSale", () => {
           from,
         );
 
-        expect(outcome).toEqual({ kind: "holds_point_payment" });
-        expect(store.state).toEqual(before);
+        expect(outcome).toMatchObject({
+          kind: "cancelled",
+          refunds: [
+            CASH_REFUND,
+            {
+              id: "id-3",
+              saleId: "sale-1",
+              paymentId: "payment-4",
+              method: "POINT",
+              provider: "MERCADOPAGO_POINT",
+              amount: 900,
+              state: "PENDING",
+              occurredAt: NOW,
+            },
+          ],
+        });
+        expect(store.state.refunds).toHaveLength(2);
+        expect(store.state.movements.filter(({ type }) => type === "REFUND")).toHaveLength(1);
       },
     );
 
+    it("tells the cloud with a version 7 event carrying the terminal payment and its pending refund", async () => {
+      const store = ledger({ payments: [POINT_PAYMENT] });
+
+      await cancel(store);
+
+      const [event] = store.state.outbox;
+      expect(event).toMatchObject({
+        event_type: "sale_cancelled",
+        schema_version: 7,
+        payload: {
+          payments: [{ id: "payment-4", method: "POINT", provider: "MERCADOPAGO_POINT" }],
+          refunds: [
+            {
+              parent_id: "payment-4",
+              method: "POINT",
+              provider: "MERCADOPAGO_POINT",
+              amount: 900,
+              state: "PENDING",
+            },
+          ],
+        },
+      });
+    });
+  });
+
+  describe("what it refuses", () => {
     it("returns the refusal of the authority without reading any data", async () => {
       const store = ledger();
       const before = structuredClone(store.state);
