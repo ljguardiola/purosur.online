@@ -1,24 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { confirmMercadoPagoRefund } from "./confirm-mercado-pago-refund.js";
+import { confirm } from "./test-support/confirm-mercado-pago-refund.js";
 import {
   aConfirmedRefund,
+  aPaymentTransaction,
   aQrRefundOfCancelledSale,
   aSentRefund,
   NOW,
   refundWorld,
 } from "./test-support/mercado-pago-refund-world.js";
-
-function confirm(
-  world: ReturnType<typeof refundWorld>,
-  input: { refundId?: string; locationId?: string } = {},
-) {
-  return confirmMercadoPagoRefund(world.ports, {
-    refundId: "refund-1",
-    locationId: "branch-1",
-    actorId: "manager",
-    ...input,
-  });
-}
 
 describe("confirmMercadoPagoRefund", () => {
   describe("when Mercado Pago takes the refund and leaves it in process", () => {
@@ -205,7 +194,8 @@ describe("confirmMercadoPagoRefund", () => {
     });
 
     it.each([
-      ["a late-payment refund", { origin: "late_payment" }],
+      ["a late POINT payment refund", { origin: "late_payment", method: "POINT" }],
+      ["a refund of a voided sale", { origin: "sale_voided" }],
       ["a refund of another method", { method: "TRANSFER" }],
       ["a refund that names no payment transaction", { paymentTransactionId: null }],
     ])("answers that %s is not confirmable", async (_case, change) => {
@@ -248,13 +238,15 @@ describe("confirmMercadoPagoRefund", () => {
     });
 
     it("answers that a refund of a payment with no Mercado Pago order is not backed", async () => {
-      const world = refundWorld([aQrRefundOfCancelledSale({ orderId: null })]);
+      const world = refundWorld([
+        aQrRefundOfCancelledSale({ paymentTransaction: aPaymentTransaction({ orderId: null }) }),
+      ]);
 
       expect(await refusedWith(world)).toEqual({ kind: "refund_not_backed" });
     });
 
     it("answers that a refund over what the payment still holds exceeds what is refundable", async () => {
-      const world = refundWorld([aQrRefundOfCancelledSale({ refundedOfPayment: 1 })]);
+      const world = refundWorld([aQrRefundOfCancelledSale({ refundedOfSalePayment: 1 })]);
 
       expect(await refusedWith(world)).toEqual({ kind: "exceeds_refundable" });
     });

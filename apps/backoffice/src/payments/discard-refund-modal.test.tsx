@@ -81,6 +81,10 @@ test("cancel closes the question without calling the cloud", async () => {
 test.each([
   ["already_done", "Ya estaba marcado como hecho"],
   ["already_discarded", "Ya estaba descartado"],
+  [
+    "already_confirmed",
+    "Ese reembolso ya se confirmó y se envía a Mercado Pago; ya no se puede descartar.",
+  ],
   ["not_discardable", "Este reembolso no se puede descartar"],
   ["not_found", "Este reembolso ya no existe"],
 ] as const)("tells %s, and updating the list reports it", async (kind, message) => {

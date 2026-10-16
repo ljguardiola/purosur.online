@@ -1,3 +1,4 @@
+import type { RefundedPaymentTransaction } from "../../model/mercado-pago-refund.js";
 import type { MercadoPagoRefundPorts } from "../mercado-pago-refund-ports.js";
 import { FakeMercadoPagoOrders } from "./fake-mercado-pago-orders.js";
 import { FakeMercadoPagoRefundKeys } from "./fake-mercado-pago-refund-keys.js";
@@ -23,10 +24,12 @@ export function aQrRefundOfCancelledSale(
     origin: "sale_cancelled",
     method: "QR",
     amount: 2450,
-    paymentAmount: 2450,
-    refundedOfPayment: 0,
+    ownOrderId: null,
+    salePaymentAmount: 2450,
+    refundedOfSalePayment: 0,
+    paymentTransaction: aPaymentTransaction(),
+    refundedOfPaymentTransactionByOrder: [],
     paymentTransactionId: "transaction-1",
-    orderId: "ORD-1",
     originEventId: "event-1",
     confirmedBy: null,
     confirmedAt: null,
@@ -36,6 +39,18 @@ export function aQrRefundOfCancelledSale(
     lastRefusalReason: null,
     ...overrides,
   };
+}
+
+export function aQrRefundOfLatePayment(
+  overrides: Partial<FakeMercadoPagoStoredRefund> = {},
+): FakeMercadoPagoStoredRefund {
+  return aQrRefundOfCancelledSale({ origin: "late_payment", originEventId: null, ...overrides });
+}
+
+export function aPaymentTransaction(
+  overrides: Partial<RefundedPaymentTransaction> = {},
+): RefundedPaymentTransaction {
+  return { orderId: "ORD-1", amount: 2450, state: "APPROVED", ...overrides };
 }
 
 export function aConfirmedRefund(

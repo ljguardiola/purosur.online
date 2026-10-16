@@ -40,7 +40,13 @@ class FakeRefundStoreTransaction implements RefundStoreTransaction {
       (stored) => stored.id === refundId && stored.locationId === locationId,
     );
     return (
-      refund && { id: refund.id, state: refund.state, origin: refund.origin, method: refund.method }
+      refund && {
+        id: refund.id,
+        state: refund.state,
+        origin: refund.origin,
+        method: refund.method,
+        confirmedAt: refund.confirmedAt,
+      }
     );
   }
 
