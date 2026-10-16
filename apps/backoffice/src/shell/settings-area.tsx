@@ -1,7 +1,8 @@
 import { createRoute, Outlet, useMatchRoute } from "@tanstack/react-router";
-import { Laptop, PackageX, Shield, Store, Users } from "lucide-react";
+import { HardDriveDownload, Laptop, PackageX, Shield, Store, Users } from "lucide-react";
 import { AreaLayout, SectionLink } from "./area-layout";
 import {
+  canSeeBackupsArea,
   canSeeBranchArea,
   canSeeQuarantinedEvents,
   canSeeRegistersArea,
@@ -67,6 +68,16 @@ function SettingsArea() {
                   label="Cajas registradoras"
                   icon={<Laptop />}
                   active={Boolean(matchRoute({ to: "/registers" }))}
+                />
+              </li>
+            )}
+            {canSeeBackupsArea(session) && (
+              <li>
+                <SectionLink
+                  to="/backups"
+                  label="Backups"
+                  icon={<HardDriveDownload />}
+                  active={Boolean(matchRoute({ to: "/backups" }))}
                 />
               </li>
             )}

@@ -181,6 +181,7 @@ export type { NoticeTone, Tone } from "./components/shared/tone";
 export type { Locale, PluralForms } from "./messages/formatters";
 export {
   formatAmountInput,
+  formatBytes,
   formatCalendarDay,
   formatCalendarDayNumeric,
   formatCalendarDayRange,

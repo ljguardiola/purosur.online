@@ -51,6 +51,7 @@ describe("uploadPendingSnapshotGenerations", () => {
     expect(outcome).toEqual({
       kind: "every_pending_tried",
       tally: { uploaded: 1, refused: 0, failed: 0 },
+      latestAnnouncedKeyVersion: 2,
     });
     expect(events).toEqual([
       { kind: "declare", generationId: NEWER_ID },
@@ -72,6 +73,55 @@ describe("uploadPendingSnapshotGenerations", () => {
       { kind: "declare", generationId: OLDER_ID },
     ]);
     expect(outcome).toMatchObject({ tally: { uploaded: 2 } });
+  });
+
+  describe("announced key version", () => {
+    function announcing(versions: Record<string, number>) {
+      const harness = setup();
+      harness.generations.hold(OLDER);
+      harness.generations.hold(NEWER);
+      const accept = harness.cloud.onDeclare;
+      harness.cloud.onDeclare = (declared) => {
+        const answer = accept(declared);
+        const announced = versions[declared.generationId];
+        return answer.kind === "accepted" && announced !== undefined
+          ? { ...answer, currentKeyVersion: announced }
+          : answer;
+      };
+      return harness;
+    }
+
+    it.each([
+      ["the newest generation's", { [NEWER_ID]: 5, [OLDER_ID]: 3 }],
+      ["the oldest generation's", { [NEWER_ID]: 3, [OLDER_ID]: 5 }],
+    ])(
+      "answers the highest version the cloud announced, when it is %s answer",
+      async (_name, versions) => {
+        const { upload } = announcing(versions);
+
+        expect(await upload()).toMatchObject({ latestAnnouncedKeyVersion: 5 });
+      },
+    );
+
+    it("answers the version announced before the cloud became unreachable", async () => {
+      const { cloud, upload } = announcing({ [NEWER_ID]: 4 });
+      const announce = cloud.onDeclare;
+      cloud.onDeclare = (declared) =>
+        declared.generationId === OLDER_ID ? { kind: "unreachable" } : announce(declared);
+
+      expect(await upload()).toMatchObject({
+        kind: "cloud_unreachable",
+        latestAnnouncedKeyVersion: 4,
+      });
+    });
+
+    it("answers none when the cloud accepted no declaration", async () => {
+      const { generations, cloud, upload } = setup();
+      generations.hold(NEWER);
+      cloud.onDeclare = () => ({ kind: "failed" });
+
+      expect((await upload()).latestAnnouncedKeyVersion).toBeUndefined();
+    });
   });
 
   it("leaves alone a generation already uploaded or refused", async () => {
@@ -103,6 +153,7 @@ describe("uploadPendingSnapshotGenerations", () => {
       expect(outcome).toEqual({
         kind: "every_pending_tried",
         tally: { uploaded: 1, refused: 1, failed: 0 },
+        latestAnnouncedKeyVersion: 2,
       });
       expect(generations.find(NEWER_ID)).toMatchObject({ refusedAt: NOW, uploadedAt: null });
       expect(generations.find(OLDER_ID)).toMatchObject({ uploadedAt: NOW });
@@ -124,6 +175,7 @@ describe("uploadPendingSnapshotGenerations", () => {
     expect(outcome).toEqual({
       kind: "every_pending_tried",
       tally: { uploaded: 1, refused: 0, failed: 1 },
+      latestAnnouncedKeyVersion: 2,
     });
     expect(generations.find(NEWER_ID)).toMatchObject({ refusedAt: null, uploadedAt: null });
   });
@@ -141,6 +193,7 @@ describe("uploadPendingSnapshotGenerations", () => {
     expect(outcome).toEqual({
       kind: "every_pending_tried",
       tally: { uploaded: 1, refused: 0, failed: 1 },
+      latestAnnouncedKeyVersion: 2,
     });
     expect(generations.find(NEWER_ID)).toMatchObject({ refusedAt: null, uploadedAt: null });
   });
@@ -186,6 +239,7 @@ describe("uploadPendingSnapshotGenerations", () => {
     expect(outcome).toEqual({
       kind: "every_pending_tried",
       tally: { uploaded: 1, refused: 0, failed: 1 },
+      latestAnnouncedKeyVersion: 2,
     });
     expect(generations.find(NEWER_ID)).toMatchObject({ uploadedAt: null, refusedAt: null });
   });
@@ -202,6 +256,7 @@ describe("uploadPendingSnapshotGenerations", () => {
     expect(outcome).toEqual({
       kind: "cloud_unreachable",
       tally: { uploaded: 0, refused: 0, failed: 1 },
+      latestAnnouncedKeyVersion: 2,
     });
   });
 
@@ -216,6 +271,7 @@ describe("uploadPendingSnapshotGenerations", () => {
     expect(outcome).toEqual({
       kind: "every_pending_tried",
       tally: { uploaded: 1, refused: 0, failed: 1 },
+      latestAnnouncedKeyVersion: 2,
     });
     expect(generations.find(NEWER_ID)).toMatchObject({ uploadedAt: null });
   });
@@ -232,6 +288,7 @@ describe("uploadPendingSnapshotGenerations", () => {
     expect(outcome).toEqual({
       kind: "cloud_unreachable",
       tally: { uploaded: 0, refused: 0, failed: 1 },
+      latestAnnouncedKeyVersion: 2,
     });
     expect(generations.find(NEWER_ID)).toMatchObject({ uploadedAt: null });
   });

@@ -158,6 +158,45 @@ describe("createSnapshotWorkerLauncher", () => {
     expect(notices).toEqual([]);
   });
 
+  it("tells the core the key version the worker said the cloud announced, and ends that worker", () => {
+    const { launcher, workers, notices } = setup();
+    launcher.handleCoreMessage(LAUNCH);
+
+    workers[0]?.say({ type: "snapshot-key-version-announced", version: 4 });
+
+    expect(workers[0]?.killed).toBe(1);
+    workers[0]?.exit(null);
+    expect(notices).toEqual([{ ...EXITED, latest_announced_key_version: 4 }]);
+  });
+
+  it("does not carry the announced version of one worker over to the exit of the next", () => {
+    const { launcher, workers, notices } = setup();
+    launcher.handleCoreMessage(LAUNCH);
+    workers[0]?.say({ type: "snapshot-key-version-announced", version: 4 });
+    workers[0]?.exit(null);
+    launcher.handleCoreMessage(LAUNCH);
+
+    workers[1]?.exit(0);
+
+    expect(notices).toEqual([{ ...EXITED, latest_announced_key_version: 4 }, EXITED]);
+  });
+
+  it.each([
+    ["no version", { type: "snapshot-key-version-announced" }],
+    ["a version that is not a number", { type: "snapshot-key-version-announced", version: "4" }],
+    ["a version of zero", { type: "snapshot-key-version-announced", version: 0 }],
+    ["a fractional version", { type: "snapshot-key-version-announced", version: 1.5 }],
+  ])("ignores a key version message with %s", (_name, message) => {
+    const { launcher, workers, notices } = setup();
+    launcher.handleCoreMessage(LAUNCH);
+
+    workers[0]?.say(message);
+
+    expect(workers[0]?.killed).toBe(0);
+    workers[0]?.exit(1);
+    expect(notices).toEqual([EXITED]);
+  });
+
   it("does not carry the failure of one worker over to the exit of the next", () => {
     const { launcher, workers, notices } = setup();
     launcher.handleCoreMessage(LAUNCH);

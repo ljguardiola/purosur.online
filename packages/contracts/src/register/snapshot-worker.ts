@@ -41,9 +41,17 @@ export const snapshotWorkerLaunchSchema = z.object({
 
 export type SnapshotWorkerLaunchRequest = z.output<typeof snapshotWorkerLaunchSchema>;
 
-export const snapshotWorkerMessageSchema = z.strictObject({
-  type: z.literal("snapshot-copy-failed"),
-  stage: z.enum(SNAPSHOT_CORRUPTION_STAGES),
-});
+export const announcedKeyVersionSchema = z.number().int().positive();
+
+export const snapshotWorkerMessageSchema = z.discriminatedUnion("type", [
+  z.strictObject({
+    type: z.literal("snapshot-copy-failed"),
+    stage: z.enum(SNAPSHOT_CORRUPTION_STAGES),
+  }),
+  z.strictObject({
+    type: z.literal("snapshot-key-version-announced"),
+    version: announcedKeyVersionSchema,
+  }),
+]);
 
 export type SnapshotWorkerMessage = z.output<typeof snapshotWorkerMessageSchema>;

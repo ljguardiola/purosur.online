@@ -4,6 +4,7 @@ import { DEFAULT_SNAPSHOT_LIFECYCLE_RULES } from "./snapshot-lifecycle-rules.js"
 import {
   type RetainableSnapshotGeneration,
   snapshotGenerationsToPrune,
+  snapshotRetentionTiers,
 } from "./snapshot-retention.js";
 
 const NOW = new Date("2026-10-14T15:30:00.000Z");
@@ -164,6 +165,143 @@ describe("snapshotGenerationsToPrune", () => {
           expect(snapshotGenerationsToPrune(generations, rules, NOW, false)).not.toContain(
             newest.id,
           );
+        },
+      ),
+    );
+  });
+});
+
+describe("snapshotRetentionTiers", () => {
+  const ONE_HOUR_RULES = { hourly: 1, daily: 1, monthly: 1 };
+
+  it("keeps nothing in any tier when there are no generations", () => {
+    expect(snapshotRetentionTiers([], DEFAULT_SNAPSHOT_LIFECYCLE_RULES, NOW)).toEqual({
+      recent: [],
+      hourly: [],
+      daily: [],
+      monthly: [],
+    });
+  });
+
+  it("keeps the 6 newest verified generations as recent, newest first", () => {
+    const generations = Array.from({ length: 8 }, (_, index) =>
+      verified(`g${index}`, minutesBefore(index)),
+    );
+    expect(snapshotRetentionTiers(generations, ONE_HOUR_RULES, NOW).recent).toEqual([
+      "g0",
+      "g1",
+      "g2",
+      "g3",
+      "g4",
+      "g5",
+    ]);
+  });
+
+  it("breaks a tie between generations created at the same instant by the larger id", () => {
+    const generations = Array.from({ length: 7 }, (_, index) =>
+      verified(`g${index}`, minutesBefore(0)),
+    );
+    expect(snapshotRetentionTiers(generations, ONE_HOUR_RULES, NOW).recent).toEqual([
+      "g6",
+      "g5",
+      "g4",
+      "g3",
+      "g2",
+      "g1",
+    ]);
+  });
+
+  it("ignores generations that are not verified", () => {
+    const generations: RetainableSnapshotGeneration[] = [
+      { id: "declared", createdAt: minutesBefore(1), status: "declared" },
+      { id: "uploaded", createdAt: minutesBefore(1), status: "uploaded" },
+      { id: "failed", createdAt: minutesBefore(1), status: "failed" },
+      verified("ok", minutesBefore(2)),
+    ];
+    expect(snapshotRetentionTiers(generations, DEFAULT_SNAPSHOT_LIFECYCLE_RULES, NOW)).toEqual({
+      recent: ["ok"],
+      hourly: ["ok"],
+      daily: ["ok"],
+      monthly: ["ok"],
+    });
+  });
+
+  it("keeps the newest verified generation of each of the configured hours", () => {
+    const generations = [
+      ...newest6(),
+      verified("two-hours-newest", minutesBefore(130)),
+      verified("two-hours-older", minutesBefore(140)),
+      verified("three-hours", minutesBefore(180)),
+      verified("four-hours", minutesBefore(250)),
+    ];
+    expect(
+      snapshotRetentionTiers(generations, { hourly: 4, daily: 1, monthly: 1 }, NOW).hourly,
+    ).toEqual(["recent0", "two-hours-newest", "three-hours"]);
+  });
+
+  it("keeps the newest verified generation of each of the configured days", () => {
+    const generations = [
+      ...newest6(),
+      verified("yesterday-newest", new Date(NOW.getTime() - DAY_MS)),
+      verified("yesterday-older", new Date(NOW.getTime() - DAY_MS - HOUR_MS)),
+      verified("two-days", new Date(NOW.getTime() - 2 * DAY_MS)),
+      verified("three-days", new Date(NOW.getTime() - 3 * DAY_MS)),
+    ];
+    expect(
+      snapshotRetentionTiers(generations, { hourly: 1, daily: 3, monthly: 1 }, NOW).daily,
+    ).toEqual(["recent0", "yesterday-newest", "two-days"]);
+  });
+
+  it("keeps the newest verified generation of each of the configured months", () => {
+    const generations = [
+      ...newest6(),
+      verified("september-newest", new Date("2026-09-20T12:00:00.000Z")),
+      verified("september-older", new Date("2026-09-02T12:00:00.000Z")),
+      verified("august", new Date("2026-08-15T12:00:00.000Z")),
+    ];
+    expect(
+      snapshotRetentionTiers(generations, { hourly: 1, daily: 1, monthly: 2 }, NOW).monthly,
+    ).toEqual(["recent0", "september-newest"]);
+  });
+
+  it("lets a generation belong to several tiers", () => {
+    const tiers = snapshotRetentionTiers(
+      [verified("only", minutesBefore(5))],
+      DEFAULT_SNAPSHOT_LIFECYCLE_RULES,
+      NOW,
+    );
+    expect([tiers.recent, tiers.hourly, tiers.daily, tiers.monthly]).toEqual([
+      ["only"],
+      ["only"],
+      ["only"],
+      ["only"],
+    ]);
+  });
+
+  it("keeps in some tier exactly the verified generations pruning leaves", () => {
+    fc.assert(
+      fc.property(
+        fc.array(fc.integer({ min: 0, max: 400 * 24 * 60 }), { minLength: 1, maxLength: 40 }),
+        fc.record({
+          hourly: fc.integer({ min: 1, max: 72 }),
+          daily: fc.integer({ min: 1, max: 90 }),
+          monthly: fc.integer({ min: 1, max: 24 }),
+        }),
+        (agesInMinutes, rules) => {
+          const generations = agesInMinutes.map((age, index) =>
+            verified(`g${index}`, minutesBefore(age)),
+          );
+          const tiers = snapshotRetentionTiers(generations, rules, NOW);
+          const kept = new Set([
+            ...tiers.recent,
+            ...tiers.hourly,
+            ...tiers.daily,
+            ...tiers.monthly,
+          ]);
+          const prunedIds = snapshotGenerationsToPrune(generations, rules, NOW, false);
+          expect(
+            generations.map((generation) => generation.id).filter((id) => !kept.has(id)),
+          ).toEqual(prunedIds);
         },
       ),
     );

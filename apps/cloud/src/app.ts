@@ -148,6 +148,12 @@ import type { RegistersRouteOptions } from "./register/registers-list-route.js";
 import { registerRegistersListRoute } from "./register/registers-list-route.js";
 import { registerReportRegistersRoute } from "./register/report-registers-route.js";
 import {
+  registerSnapshotBackupsRoutes,
+  type SnapshotBackupsRouteOptions,
+} from "./register/snapshot-backups-routes.js";
+import { registerSnapshotKeyVersionRoute } from "./register/snapshot-key-version-route.js";
+import { registerSnapshotOnDiskRoute } from "./register/snapshot-on-disk-route.js";
+import {
   registerSalesReportRoutes,
   type SalesReportRouteOptions,
 } from "./sales/sales-report-routes.js";
@@ -224,6 +230,7 @@ export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = Postgre
   prices?: WithoutClock<PricesRouteOptions<TQueryResult>>;
   discounts?: WithoutClock<DiscountsRouteOptions<TQueryResult>>;
   registers?: WithoutClock<RegistersRouteOptions<TQueryResult>>;
+  snapshotBackups?: WithoutClock<SnapshotBackupsRouteOptions<TQueryResult>>;
   registersPointsOfSale?: WithoutClock<RegistersPointsOfSaleRouteOptions<TQueryResult>>;
   stock?: WithoutClock<StockRouteOptions<TQueryResult>>;
   salesReports?: WithoutClock<SalesReportRouteOptions<TQueryResult>>;
@@ -317,6 +324,7 @@ export function databaseRouteOptions<TQueryResult extends PgQueryResultHKT>(
     prices: backoffice,
     discounts: backoffice,
     registers: backoffice,
+    snapshotBackups: { ...backoffice, keysEncryptionKey: wiring.installationKeysEncryptionKey },
     registersPointsOfSale: wiring.enqueueTaxAuthorityCount
       ? { ...backoffice, enqueueTaxAuthorityCount: wiring.enqueueTaxAuthorityCount }
       : backoffice,
@@ -611,6 +619,10 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
         registerRegisterPointTerminalRoute(api, { ...options.registers, now });
       }
 
+      if (options.snapshotBackups) {
+        registerSnapshotBackupsRoutes(api, { ...options.snapshotBackups, now });
+      }
+
       if (options.registersPointsOfSale) {
         registerRegistersPointsOfSaleListRoute(api, { ...options.registersPointsOfSale, now });
         registerFortnightPresentationsListRoute(api, { ...options.registersPointsOfSale, now });
@@ -652,6 +664,8 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
           reportError: (error) => reportError("the register snapshot backups failed", error),
           now,
         });
+        registerSnapshotOnDiskRoute(api, { ...options.devices, now });
+        registerSnapshotKeyVersionRoute(api, { ...options.devices, now });
         if (options.fiscalAuthorization) {
           registerFiscalAuthorizationRoute(api, {
             ...options.devices,

@@ -14,7 +14,7 @@ export interface DeviceTokenRotationDeps {
   now: () => Date;
 }
 
-type DeviceTokenRotationOutcome =
+export type DeviceTokenRotationOutcome =
   | { kind: "rotated" }
   | { kind: "not_due" }
   | { kind: "not_enrolled" }
@@ -34,12 +34,13 @@ function isDue(credentials: DeviceCredentials, now: Date): boolean {
 
 export async function rotateDeviceToken(
   deps: DeviceTokenRotationDeps,
+  { force = false }: { force?: boolean } = {},
 ): Promise<DeviceTokenRotationOutcome> {
   const credentials = await deps.readCredentials();
   if (credentials === undefined) {
     return { kind: "not_enrolled" };
   }
-  if (!isDue(credentials, deps.now())) {
+  if (!force && !isDue(credentials, deps.now())) {
     return { kind: "not_due" };
   }
 
@@ -65,4 +66,38 @@ export async function rotateDeviceToken(
     keys: installationKeysFrom(rotation.data),
   });
   return replacement === "replaced" ? { kind: "rotated" } : { kind: replacement };
+}
+
+export interface DeviceTokenRotation {
+  rotateWhenDue: () => Promise<DeviceTokenRotationOutcome>;
+  refreshInstallationKeysNow: () => Promise<DeviceTokenRotationOutcome>;
+}
+
+export function createDeviceTokenRotation(deps: DeviceTokenRotationDeps): DeviceTokenRotation {
+  let running: { forced: boolean; done: Promise<DeviceTokenRotationOutcome> } | undefined;
+
+  function start(forced: boolean): Promise<DeviceTokenRotationOutcome> {
+    const done = rotateDeviceToken(deps, { force: forced }).finally(() => {
+      if (running?.done === done) {
+        running = undefined;
+      }
+    });
+    running = { forced, done };
+    return done;
+  }
+
+  async function refreshInstallationKeysNow(): Promise<DeviceTokenRotationOutcome> {
+    while (running !== undefined && !running.forced) {
+      const outcome = await running.done.catch(() => undefined);
+      if (outcome?.kind === "rotated") {
+        return outcome;
+      }
+    }
+    return running?.done ?? start(true);
+  }
+
+  return {
+    rotateWhenDue: () => running?.done ?? start(false),
+    refreshInstallationKeysNow,
+  };
 }

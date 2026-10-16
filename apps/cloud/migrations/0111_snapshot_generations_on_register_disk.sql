@@ -1,0 +1,1 @@
+ALTER TABLE "register_snapshot_generations" ADD COLUMN "on_register_disk" boolean DEFAULT false NOT NULL;
