@@ -13,13 +13,13 @@ export const INSUFFICIENT_BALANCE_REFUSAL = "insufficient_balance";
 const PROCESSED_REFUND_STATUS = "processed";
 
 export function isRefundSentByCloud(refund: { method: string; origin: string }): boolean {
-  if (refund.origin === SALE_VOIDED_REFUND_ORIGIN) {
+  if (
+    refund.origin === SALE_VOIDED_REFUND_ORIGIN ||
+    refund.origin === SALE_CANCELLED_REFUND_ORIGIN
+  ) {
     return isMercadoPagoMethod(refund.method);
   }
-  return (
-    refund.method === "QR" &&
-    (refund.origin === SALE_CANCELLED_REFUND_ORIGIN || refund.origin === LATE_PAYMENT_REFUND_ORIGIN)
-  );
+  return refund.method === "QR" && refund.origin === LATE_PAYMENT_REFUND_ORIGIN;
 }
 
 export function isRefundInCloudHands(refund: {
