@@ -415,11 +415,24 @@ export type {
 } from "./request-real-time-authorization.js";
 export { requestRealTimeAuthorization } from "./request-real-time-authorization.js";
 export type {
+  RequestSaleVoidCreditNoteInput,
+  RequestSaleVoidCreditNoteOutcome,
+} from "./request-sale-void-credit-note.js";
+export { requestSaleVoidCreditNote } from "./request-sale-void-credit-note.js";
+export type {
   FiscalDocumentReservation,
   IdGenerator,
   SaleAuthorizationTransaction,
   SaleOrigin,
 } from "./sale-authorization-ports.js";
+export type {
+  RecordedCreditNote,
+  RequestSaleVoidCreditNotePorts,
+  SaleVoidCreditNoteLane,
+  SaleVoidCreditNoteLanes,
+  SaleVoidCreditNoteRecord,
+} from "./sale-void-credit-note-ports.js";
+export { VoucherAlreadyCredited } from "./sale-void-credit-note-ports.js";
 export type { SettleInterruptedRealTimeAuthorizationsOutcome } from "./settle-interrupted-real-time-authorizations.js";
 export { settleInterruptedRealTimeAuthorizations } from "./settle-interrupted-real-time-authorizations.js";
 export type {
