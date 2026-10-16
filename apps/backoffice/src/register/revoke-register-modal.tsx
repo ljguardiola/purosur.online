@@ -1,7 +1,7 @@
 import { Button, InlineNotice, Modal } from "@purosur/ui";
 import type { startAuthentication } from "@simplewebauthn/browser";
 import { Ban, Key, ShieldX, TriangleAlert, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAuthorization } from "../platform/authorization-modal";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
@@ -65,16 +65,25 @@ export function RevokeRegisterModal({
     services: { fetchSessionAuthorizationOptions, authorizeSession, startAuthentication },
   });
 
+  const open = target !== null;
+  const openingRef = useRef(0);
+
   useEffect(() => {
-    if (target === null) {
+    openingRef.current += 1;
+    if (open) {
       setNotice(null);
+      setRevoking(false);
     }
-  }, [target]);
+  }, [open]);
 
   async function revoke(register: RegisterSummary) {
     setNotice(null);
     setRevoking(true);
+    const opening = openingRef.current;
     const outcome = await run(() => revokeRegister(register.id));
+    if (opening !== openingRef.current) {
+      return;
+    }
     setRevoking(false);
     if (outcome.kind === "cancelled") {
       return;
@@ -101,7 +110,7 @@ export function RevokeRegisterModal({
   return (
     <>
       <Modal
-        open={target !== null}
+        open={open}
         onOpenChange={(open) => {
           if (!open) {
             onClose();

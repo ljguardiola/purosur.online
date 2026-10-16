@@ -128,6 +128,12 @@ class DrizzleLostRegisterRevocationTransaction<TQueryResult extends PgQueryResul
   }
 
   async requirePinResetOfBranchUsers(branchId: string, actorId: string): Promise<void> {
+    await this.tx
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.locationId, branchId))
+      .orderBy(asc(users.id))
+      .for("no key update");
     const holders = await this.tx
       .select({ userId: userPins.userId, locationId: users.locationId })
       .from(userPins)
