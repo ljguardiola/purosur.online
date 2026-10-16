@@ -19,7 +19,7 @@ export async function requestVoidCreditNotes({
   clock,
 }: RequestVoidCreditNotesPorts): Promise<RequestVoidCreditNotesOutcome> {
   const pending = await creditNotes.inProgress();
-  const pointOfSale = pending.length === 0 ? null : await creditNotes.realTimePointOfSale();
+  const pointOfSale = await creditNotes.realTimePointOfSale();
   const answers: RequestedCreditNote[] = [];
   for (const { creditNoteId, saleEvent } of pending) {
     const answer =
