@@ -1,4 +1,4 @@
-import { formatBytes, formatPercent } from "./formatters";
+import { formatBytes, formatNumber, formatPercent } from "./formatters";
 
 export interface LocalAlertText {
   title: string;
@@ -8,7 +8,9 @@ export interface LocalAlertText {
 
 const SALES_DENIED_TITLE = "La caja no puede vender";
 
-const BATTERY_LOW_TITLE = "La notebook está sin enchufar";
+const BATTERY_LOW_TITLE = "Queda poca batería";
+
+const ON_BATTERY_TITLE = "Caja funcionando a batería";
 
 const FIXED_SALES_DENIED_TEXTS = {
   event_history_broken: {
@@ -43,6 +45,15 @@ function batteryLowText(subject: BatteryLowSubject): LocalAlertText {
     title: BATTERY_LOW_TITLE,
     meaning: `Queda ${formatPercent(subject.charge_percent)} de batería. Por debajo del ${formatPercent(subject.critical_percent)} no se abren ventas nuevas.`,
     whatToDo: "Conectar la notebook a la corriente.",
+  };
+}
+
+function onBatteryText(subject: OnBatterySubject): LocalAlertText {
+  return {
+    title: ON_BATTERY_TITLE,
+    meaning: `La notebook lleva más de ${formatNumber(subject.threshold_minutes)} minutos sin corriente eléctrica, funcionando solo con la batería.`,
+    whatToDo:
+      "Revisar si volvió la luz y, de poder, conectar la notebook a la corriente. Si no volvió, seguir atendiendo con normalidad y avisarle al Administrador.",
   };
 }
 
@@ -107,18 +118,11 @@ const FIXED_LOCAL_ALERT_TEXTS = {
     whatToDo:
       "Se puede seguir vendiendo. Si no baja solo en un rato, reiniciar la caja y avisar al Administrador.",
   },
-  on_battery: {
-    title: "Caja funcionando a batería",
-    meaning:
-      "La notebook lleva más de 10 minutos sin corriente eléctrica, funcionando solo con la batería.",
-    whatToDo:
-      "Revisar si volvió la luz y, de poder, conectar la notebook a la corriente. Si no volvió, seguir atendiendo con normalidad; el Administrador ya fue avisado.",
-  },
   battery_missing: {
     title: "Batería no detectada",
     meaning: "La notebook no informa tener batería conectada.",
     whatToDo:
-      "Seguir vendiendo con normalidad. El Administrador ya fue avisado y se encarga de revisar el equipo.",
+      "Seguir vendiendo con normalidad y avisarle al Administrador para que revise el equipo.",
   },
   critical_battery_action_not_shutdown: {
     title: "Windows no apaga la notebook con batería crítica",
@@ -147,12 +151,22 @@ const FIXED_LOCAL_ALERT_TEXTS = {
   },
 } satisfies Record<string, LocalAlertText>;
 
-export type LocalAlertKind = keyof typeof FIXED_LOCAL_ALERT_TEXTS | "sales_denied" | "battery_low";
+export type LocalAlertKind =
+  | keyof typeof FIXED_LOCAL_ALERT_TEXTS
+  | "sales_denied"
+  | "battery_low"
+  | "on_battery";
 
 interface BatteryLowSubject {
   kind: "battery_low";
   charge_percent: number;
   critical_percent: number;
+  reason?: undefined;
+}
+
+interface OnBatterySubject {
+  kind: "on_battery";
+  threshold_minutes: number;
   reason?: undefined;
 }
 
@@ -169,8 +183,12 @@ export type LocalAlertSubject =
   | DiskSalesDeniedSubject
   | { kind: "late_payment_refund"; providerOrderId: string | null; reason?: undefined }
   | BatteryLowSubject
+  | OnBatterySubject
   | {
-      kind: Exclude<LocalAlertKind, "sales_denied" | "late_payment_refund" | "battery_low">;
+      kind: Exclude<
+        LocalAlertKind,
+        "sales_denied" | "late_payment_refund" | "battery_low" | "on_battery"
+      >;
       reason?: undefined;
     };
 
@@ -178,6 +196,7 @@ export function isLocalAlertKind(value: string): value is LocalAlertKind {
   return (
     value === "sales_denied" ||
     value === "battery_low" ||
+    value === "on_battery" ||
     Object.hasOwn(FIXED_LOCAL_ALERT_TEXTS, value)
   );
 }
@@ -189,7 +208,10 @@ export function localAlertTitle(kind: string): string | undefined {
   if (kind === "sales_denied") {
     return SALES_DENIED_TITLE;
   }
-  return kind === "battery_low" ? BATTERY_LOW_TITLE : FIXED_LOCAL_ALERT_TEXTS[kind].title;
+  if (kind === "battery_low") {
+    return BATTERY_LOW_TITLE;
+  }
+  return kind === "on_battery" ? ON_BATTERY_TITLE : FIXED_LOCAL_ALERT_TEXTS[kind].title;
 }
 
 function secondPaidOrderText(providerOrderId: string): LocalAlertText {
@@ -207,6 +229,9 @@ export function localAlertText(subject: LocalAlertSubject): LocalAlertText {
   }
   if (subject.kind === "battery_low") {
     return batteryLowText(subject);
+  }
+  if (subject.kind === "on_battery") {
+    return onBatteryText(subject);
   }
   if (subject.kind === "late_payment_refund" && subject.providerOrderId !== null) {
     return secondPaidOrderText(subject.providerOrderId);

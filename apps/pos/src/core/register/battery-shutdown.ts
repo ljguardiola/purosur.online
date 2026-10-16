@@ -1,7 +1,7 @@
-import type { BatteryStanding } from "@purosur/domain";
+import { type BatteryReport, type BatteryStanding, batteryReportStanding } from "@purosur/domain";
 
 export interface BatteryShutdownDeps {
-  standing: () => BatteryStanding;
+  report: () => BatteryReport | undefined;
   hasOpenSale: () => boolean;
   push: () => Promise<unknown>;
   schedule: (run: () => void, delayMs: number) => () => void;
@@ -21,6 +21,15 @@ type Phase = "idle" | "waiting_for_sale" | "closing";
 export function createBatteryShutdown(deps: BatteryShutdownDeps): BatteryShutdown {
   let phase: Phase = "idle";
   let cancelRecheck: (() => void) | undefined;
+  let lastKnownStanding: BatteryStanding = "normal";
+
+  function standing(): BatteryStanding {
+    const report = deps.report();
+    if (report !== undefined) {
+      lastKnownStanding = batteryReportStanding(report);
+    }
+    return lastKnownStanding;
+  }
 
   function stopRechecking(): void {
     cancelRecheck?.();
@@ -51,7 +60,7 @@ export function createBatteryShutdown(deps: BatteryShutdownDeps): BatteryShutdow
       return;
     }
     stopRechecking();
-    if (deps.standing() !== "critical") {
+    if (standing() !== "critical") {
       phase = "idle";
       return;
     }

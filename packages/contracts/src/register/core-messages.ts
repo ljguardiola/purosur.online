@@ -356,8 +356,13 @@ const registerOwnConditionSchema = z.discriminatedUnion("kind", [
     critical_percent: z.int().min(0).max(100),
     level: z.enum(ALERT_LEVELS),
   }),
+  z.strictObject({
+    kind: z.literal("on_battery"),
+    threshold_minutes: z.int().positive(),
+    level: z.enum(ALERT_LEVELS),
+  }),
   z.object({
-    kind: z.enum(REGISTER_OWN_CONDITIONS).exclude(["sales_denied", "battery_low"]),
+    kind: z.enum(REGISTER_OWN_CONDITIONS).exclude(["sales_denied", "battery_low", "on_battery"]),
     level: z.enum(ALERT_LEVELS),
   }),
 ]);

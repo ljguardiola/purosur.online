@@ -1,8 +1,8 @@
 import type { BatteryReading, BatteryReport } from "@purosur/domain";
 import {
+  batteryConditionsOf,
   batteryReportOf,
   batteryReportStanding,
-  isOnBatteryTooLong,
   nextOnBatterySince,
 } from "@purosur/domain";
 import type { BatteryReader } from "./battery-reader";
@@ -22,9 +22,7 @@ export interface BatteryWatch {
 }
 
 function conditionsKey(report: BatteryReport | undefined): string {
-  const standing = batteryReportStanding(report);
-  const chargeShown = standing === "low" && report?.present === true ? report.charge_percent : "";
-  return [standing, chargeShown, isOnBatteryTooLong(report), report?.present === false].join("|");
+  return JSON.stringify([batteryReportStanding(report), batteryConditionsOf(report)]);
 }
 
 export function createBatteryWatch(deps: BatteryWatchDeps): BatteryWatch {

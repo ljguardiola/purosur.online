@@ -1,6 +1,6 @@
 export const CRITICAL_BATTERY_ACTIONS = ["do_nothing", "sleep", "hibernate", "shut_down"] as const;
 
-export type CriticalBatteryActionKind = (typeof CRITICAL_BATTERY_ACTIONS)[number];
+type CriticalBatteryActionKind = (typeof CRITICAL_BATTERY_ACTIONS)[number];
 
 export type CriticalBatteryAction =
   | { kind: "unreadable" }

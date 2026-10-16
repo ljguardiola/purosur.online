@@ -11,6 +11,7 @@ import {
   criticalBatteryActionShowsCondition,
   isOnBatteryTooLong,
   isSerialDeviceMissing,
+  ON_BATTERY_CONDITION_MINUTES,
   type SerialDeviceRole,
   type SerialDeviceStanding,
   type StorageStanding,
@@ -59,8 +60,35 @@ type DetectedRegisterOwnCondition = {
     ? SalesDeniedCondition
     : Kind extends "battery_low"
       ? { kind: Kind; charge_percent: number; critical_percent: number }
-      : { kind: Kind };
+      : Kind extends "on_battery"
+        ? { kind: Kind; threshold_minutes: number }
+        : { kind: Kind };
 }[RegisterOwnCondition];
+
+type BatteryCondition = "battery_low" | "on_battery" | "battery_missing";
+
+type HeldConditions<Kind extends RegisterOwnCondition> = {
+  [Held in Kind]: Extract<DetectedRegisterOwnCondition, { kind: Held }> | null;
+};
+
+export function batteryConditionsOf(
+  battery: BatteryReport | undefined,
+): HeldConditions<BatteryCondition> {
+  return {
+    battery_low:
+      batteryReportStanding(battery) === "low" && battery?.present === true
+        ? {
+            kind: "battery_low",
+            charge_percent: battery.charge_percent,
+            critical_percent: CRITICAL_BATTERY_PERCENT,
+          }
+        : null,
+    on_battery: isOnBatteryTooLong(battery)
+      ? { kind: "on_battery", threshold_minutes: ON_BATTERY_CONDITION_MINUTES }
+      : null,
+    battery_missing: battery?.present === false ? { kind: "battery_missing" } : null,
+  };
+}
 
 type HeldRegisterOwnCondition = DetectedRegisterOwnCondition & { level: AlertLevel };
 
@@ -109,16 +137,13 @@ export function registerOwnConditions({
   criticalBatteryAction,
 }: RegisterOwnStanding): HeldRegisterOwnCondition[] {
   const revoked = isInstallationRevoked(salesStop);
-  const batteryStanding = batteryReportStanding(battery);
   const denial = salesDenialOf(
     salesStop,
     storageSalesStopOf(storage),
     localDatabaseDamaged,
     newSalesStoppedByBattery,
   );
-  const held: {
-    [Kind in RegisterOwnCondition]: Extract<DetectedRegisterOwnCondition, { kind: Kind }> | null;
-  } = {
+  const held: HeldConditions<RegisterOwnCondition> = {
     installation_revoked: revoked ? { kind: "installation_revoked" } : null,
     sales_denied: denial === undefined ? null : { kind: "sales_denied", ...denial },
     fiscal_emission_stopped:
@@ -140,16 +165,7 @@ export function registerOwnConditions({
         ? { kind: "disk_space_low" }
         : null,
     wal_oversized: storage.walOversized ? { kind: "wal_oversized" } : null,
-    battery_low:
-      batteryStanding === "low" && battery?.present === true
-        ? {
-            kind: "battery_low",
-            charge_percent: battery.charge_percent,
-            critical_percent: CRITICAL_BATTERY_PERCENT,
-          }
-        : null,
-    on_battery: isOnBatteryTooLong(battery) ? { kind: "on_battery" } : null,
-    battery_missing: battery?.present === false ? { kind: "battery_missing" } : null,
+    ...batteryConditionsOf(battery),
     critical_battery_action_not_shutdown: criticalBatteryActionShowsCondition(criticalBatteryAction)
       ? { kind: "critical_battery_action_not_shutdown" }
       : null,

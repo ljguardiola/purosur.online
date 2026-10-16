@@ -4,12 +4,10 @@ export {
   batteryHealthPercent,
   batteryReportOf,
   batteryReportStanding,
-  batteryStanding,
   CRITICAL_BATTERY_PERCENT,
   CRITICAL_BATTERY_PUSH_LIMIT_MS,
   CRITICAL_BATTERY_SALE_RECHECK_MS,
   isOnBatteryTooLong,
-  LOW_BATTERY_PERCENT,
   nextOnBatterySince,
   ON_BATTERY_CONDITION_MINUTES,
 } from "./model/battery.js";
@@ -41,10 +39,7 @@ export type {
   CashSessionClosedFact,
   CashSessionOpenedFact,
 } from "./model/cash-session-facts.js";
-export type {
-  CriticalBatteryAction,
-  CriticalBatteryActionKind,
-} from "./model/critical-battery-action.js";
+export type { CriticalBatteryAction } from "./model/critical-battery-action.js";
 export {
   CRITICAL_BATTERY_ACTIONS,
   criticalBatteryActionShowsCondition,

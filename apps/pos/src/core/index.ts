@@ -11,7 +11,6 @@ import {
 } from "@purosur/contracts";
 import {
   BATTERY_READ_INTERVAL_MS,
-  batteryReportStanding,
   CRITICAL_BATTERY_PUSH_LIMIT_MS,
   CRITICAL_BATTERY_SALE_RECHECK_MS,
   type CriticalBatteryAction,
@@ -444,7 +443,7 @@ async function pushOutboxToCloud() {
 const anySaleOpen = () => localDatabase !== undefined && anySaleIsOpen(localDatabase);
 
 const batteryShutdown = createBatteryShutdown({
-  standing: () => batteryReportStanding(batteryWatch.report()),
+  report: () => batteryWatch.report(),
   hasOpenSale: anySaleOpen,
   push: pushOutboxToCloud,
   schedule: (run, delayMs) => {

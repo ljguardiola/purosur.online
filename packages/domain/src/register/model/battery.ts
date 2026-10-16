@@ -109,6 +109,6 @@ export function isOnBatteryTooLong(report: BatteryReport | undefined): boolean {
   return (
     report?.present === true &&
     report.on_battery &&
-    report.on_battery_minutes > ON_BATTERY_CONDITION_MINUTES
+    report.on_battery_minutes >= ON_BATTERY_CONDITION_MINUTES
   );
 }
