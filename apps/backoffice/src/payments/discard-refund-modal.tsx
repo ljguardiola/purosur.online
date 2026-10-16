@@ -25,6 +25,7 @@ type DiscardNotice =
   | { kind: "rateLimited"; retryAfterSeconds: number }
   | { kind: "alreadyDone" }
   | { kind: "alreadyDiscarded" }
+  | { kind: "alreadyConfirmed" }
   | { kind: "notDiscardable" }
   | { kind: "notFound" };
 
@@ -159,6 +160,13 @@ export function DiscardRefundModal({
         {notice?.kind === "alreadyDiscarded" && (
           <InlineNotice tone="error" icon={<TriangleAlert />} title="Ya estaba descartado" />
         )}
+        {notice?.kind === "alreadyConfirmed" && (
+          <InlineNotice
+            tone="error"
+            icon={<TriangleAlert />}
+            title="Ese reembolso ya se confirmó y se envía a Mercado Pago; ya no se puede descartar."
+          />
+        )}
         {notice?.kind === "notDiscardable" && (
           <InlineNotice
             tone="error"
@@ -185,6 +193,7 @@ export function DiscardRefundModal({
 const STALE_NOTICE_KINDS = {
   already_done: "alreadyDone",
   already_discarded: "alreadyDiscarded",
+  already_confirmed: "alreadyConfirmed",
   not_discardable: "notDiscardable",
   not_found: "notFound",
 } as const;

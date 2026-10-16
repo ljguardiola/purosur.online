@@ -8,6 +8,7 @@ export interface LockedRefund {
   state: string;
   origin: string;
   method: string;
+  confirmedAt: Date | null;
 }
 
 export interface PendingRefundRecord {

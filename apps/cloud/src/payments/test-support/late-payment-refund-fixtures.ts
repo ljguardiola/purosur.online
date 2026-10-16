@@ -1,9 +1,9 @@
-import type { PaymentMethod } from "@purosur/domain";
+import type { PaymentMethod, PaymentTransactionState } from "@purosur/domain";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { alerts, paymentRefunds, paymentTransactions } from "../../platform/db/schema.js";
 import { insertEnrolledInstallation } from "../../register/test-support/enrolled-installation.js";
 import { applyCompletedSale } from "../../sales/test-support/applied-sales.js";
-import { pendingTransaction } from "./payment-transaction-fixtures.js";
+import { pendingPointTransaction, pendingTransaction } from "./payment-transaction-fixtures.js";
 
 export async function aPendingLatePaymentRefund<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
@@ -12,18 +12,37 @@ export async function aPendingLatePaymentRefund<TQueryResult extends PgQueryResu
     registerName = "Caja 1",
     coveredBy = [],
     providerOrderId = null,
+    method = "QR",
+    orderId = null,
+    amount,
+    refundAmount,
+    transactionState = "APPROVED",
   }: {
     openedAt: Date;
     registerName?: string;
     coveredBy?: PaymentMethod[];
     providerOrderId?: string | null;
+    method?: "QR" | "POINT";
+    orderId?: string | null;
+    amount?: number;
+    refundAmount?: number;
+    transactionState?: PaymentTransactionState;
   },
 ) {
   const { deviceId, locationId, registerId } = await insertEnrolledInstallation(db, {
     now: openedAt,
     registerName,
   });
-  const transaction = pendingTransaction(registerId, { state: "APPROVED", replaced: true });
+  const overrides = {
+    state: transactionState,
+    replaced: true,
+    providerOrderId: orderId,
+    ...(amount === undefined ? {} : { amount }),
+  };
+  const transaction =
+    method === "POINT"
+      ? pendingPointTransaction(registerId, overrides)
+      : pendingTransaction(registerId, overrides);
   await db.insert(paymentTransactions).values(transaction);
   if (coveredBy.length > 0) {
     await applyCompletedSale(db, {
@@ -55,7 +74,7 @@ export async function aPendingLatePaymentRefund<TQueryResult extends PgQueryResu
     providerOrderId,
     method: transaction.method,
     provider: transaction.provider,
-    amount: transaction.amount,
+    amount: refundAmount ?? transaction.amount,
     state: "PENDING",
     occurredAt: openedAt,
   });
@@ -67,7 +86,11 @@ export async function aPendingLatePaymentRefund<TQueryResult extends PgQueryResu
       level: "warning",
       audience: "local",
       locationId,
-      detail: { saleId: transaction.saleId, amount: transaction.amount, providerOrderId },
+      detail: {
+        saleId: transaction.saleId,
+        amount: refundAmount ?? transaction.amount,
+        providerOrderId,
+      },
       openedAt,
     })
     .returning({ id: alerts.id });
@@ -77,7 +100,8 @@ export async function aPendingLatePaymentRefund<TQueryResult extends PgQueryResu
   return {
     refundId,
     saleId: transaction.saleId,
-    amount: transaction.amount,
+    amount: refundAmount ?? transaction.amount,
+    transactionId: transaction.id,
     saleOccurredAt: transaction.createdAt,
     locationId,
     registerId,

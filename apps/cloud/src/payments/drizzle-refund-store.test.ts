@@ -56,7 +56,20 @@ describe("DrizzleRefundStore", () => {
       state: "PENDING",
       origin: "sale_cancelled",
       method: "TRANSFER",
+      confirmedAt: null,
     });
+  });
+
+  it("tells when a person confirmed the refund", async () => {
+    const { refundId, locationId } = await aPendingLatePaymentRefund(db, { openedAt: NOW });
+    await db
+      .update(paymentRefunds)
+      .set({ confirmedBy: "manager", confirmedAt: NOW })
+      .where(eq(paymentRefunds.id, refundId));
+
+    const locked = await store().transaction((tx) => tx.lockRefund(refundId, locationId));
+
+    expect(locked).toMatchObject({ origin: "late_payment", confirmedAt: NOW });
   });
 
   it("finds no refund that belongs to another branch, nor one that does not exist", async () => {
@@ -188,6 +201,7 @@ describe("DrizzleRefundStore", () => {
         state: "PENDING",
         origin: "late_payment",
         method: "QR",
+        confirmedAt: null,
       });
     });
 

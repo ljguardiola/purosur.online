@@ -1,11 +1,19 @@
 import {
+  alreadyRefundedOfPayment,
+  amountHeldByRefundedPayment,
   exceedsRefundable,
   INSUFFICIENT_BALANCE_REFUSAL,
   isProcessedByMercadoPago,
+  orderToRefund,
   progressOfRefundAnswer,
   refundIsBackedByItsCancellation,
+  refundIsBackedByItsLatePayment,
 } from "../model/mercado-pago-refund.js";
-import { isRefundPending, refundAlertKind } from "../model/payment-refund.js";
+import {
+  isRefundPending,
+  LATE_PAYMENT_REFUND_ORIGIN,
+  refundAlertKind,
+} from "../model/payment-refund.js";
 import type {
   MercadoPagoRefundPorts,
   MercadoPagoRefundRecord,
@@ -50,25 +58,43 @@ export async function lockPendingRefund(
   return { kind: "locked", refund };
 }
 
+async function isBackedByItsOrigin(
+  tx: MercadoPagoRefundTransaction,
+  refund: MercadoPagoRefundRecord,
+  orderId: string | null,
+): Promise<boolean> {
+  if (refund.origin === LATE_PAYMENT_REFUND_ORIGIN) {
+    return refundIsBackedByItsLatePayment(refund);
+  }
+  const cancellation =
+    refund.originEventId === null ? null : await tx.cancellationOfEvent(refund.originEventId);
+  return refundIsBackedByItsCancellation({ ...refund, orderId }, cancellation);
+}
+
 export async function planBackedSending(
   tx: MercadoPagoRefundTransaction,
   { refundKeys, clock }: Pick<MercadoPagoRefundPorts, "refundKeys" | "clock">,
   refund: MercadoPagoRefundRecord,
   confirmation: { confirmedBy: string } | null,
 ): Promise<Stop<BackingRefusal> | Go> {
-  const cancellation =
-    refund.originEventId === null ? null : await tx.cancellationOfEvent(refund.originEventId);
-  if (!refundIsBackedByItsCancellation(refund, cancellation) || refund.orderId === null) {
+  const orderId = orderToRefund(refund);
+  if (!(await isBackedByItsOrigin(tx, refund, orderId)) || orderId === null) {
     return { kind: "stop", outcome: { kind: "refund_not_backed" } };
   }
-  if (exceedsRefundable(refund.amount, refund.paymentAmount, refund.refundedOfPayment)) {
+  if (
+    exceedsRefundable(
+      refund.amount,
+      amountHeldByRefundedPayment(refund),
+      alreadyRefundedOfPayment(refund),
+    )
+  ) {
     return { kind: "stop", outcome: { kind: "exceeds_refundable" } };
   }
   const confirmedBy = confirmation?.confirmedBy ?? refund.confirmedBy;
   if (confirmedBy === null) {
     throw new Error(`refund ${refund.id} is sent without a person's confirmation`);
   }
-  const located = { ...refund, orderId: refund.orderId, confirmedBy };
+  const located = { ...refund, orderId, confirmedBy };
   if (confirmation !== null) {
     const attemptKey = refundKeys.newRefundKey();
     await tx.recordRefundConfirmed(refund.id, confirmedBy, clock.now(), attemptKey);

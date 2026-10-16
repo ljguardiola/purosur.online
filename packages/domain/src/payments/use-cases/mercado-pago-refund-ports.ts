@@ -1,19 +1,15 @@
 import type { Clock } from "../../shared/index.js";
+import type { RefundedPaymentFacts } from "../model/mercado-pago-refund.js";
 import type { MercadoPagoOrders, PaymentTransactionLanes } from "./mercado-pago-order-ports.js";
 import type { RefundStoreTransaction } from "./refund-store.js";
 
-export interface MercadoPagoRefundRecord {
+export interface MercadoPagoRefundRecord extends RefundedPaymentFacts {
   id: string;
   locationId: string;
   saleId: string;
   state: string;
-  origin: string;
   method: string;
-  amount: number;
-  paymentAmount: number;
-  refundedOfPayment: number;
   paymentTransactionId: string | null;
-  orderId: string | null;
   originEventId: string | null;
   confirmedBy: string | null;
   confirmedAt: Date | null;
