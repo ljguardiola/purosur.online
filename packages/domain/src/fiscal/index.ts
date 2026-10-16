@@ -17,6 +17,8 @@ export {
   isValidBuyerTaxStatusSet,
   latestBuyerTaxStatusSet,
 } from "./model/buyer-tax-status-set.js";
+export type { ClockCorrectedFact, ClockCorrectionAlertState } from "./model/clock-correction.js";
+export { CLOCK_CORRECTED_EVENT_TYPE, clockCorrectedEvent } from "./model/clock-correction.js";
 export { selectConsumerBuyerTaxStatus } from "./model/consumer-buyer-tax-status.js";
 export { isValidCuit } from "./model/cuit.js";
 export type {
@@ -157,6 +159,7 @@ export {
   REJECTION_CLASSES,
   SERIES_WAITING_STATES,
 } from "./model/real-time-authorization.js";
+export { REGISTER_CLOCK_TOLERANCE_MS } from "./model/register-clock.js";
 export {
   awaitsUnclearOutcomeDecision,
   UNCLEAR_ANSWER_KINDS,

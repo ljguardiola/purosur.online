@@ -317,6 +317,7 @@ export async function readRegisterPointsOfSale<TQueryResult extends PgQueryResul
       pointOfSaleNumber: registerPointsOfSale.pointOfSaleNumber,
       fiscalAddressId: registerPointsOfSale.fiscalAddressId,
       taxAuthorityLastAuthorizedNumber: taxAuthorityLastAuthorizedNumbers.lastAuthorized,
+      taxAuthorityLastAuthorizedIssuedOn: taxAuthorityLastAuthorizedNumbers.issuedOn,
       numberingFrozen: sql<boolean>`${numberingFreezes.pointOfSaleNumber} is not null`,
       version: registerPointsOfSale.version,
     })

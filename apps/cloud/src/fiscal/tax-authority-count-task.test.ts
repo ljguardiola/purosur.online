@@ -3,6 +3,7 @@ import {
   configureRegisterPointOfSale,
   type LastAuthorizedAnswer,
   type TaxAuthorityLastAuthorizedLookup,
+  type TaxAuthorityVoucherLookup,
 } from "@purosur/domain/fiscal/use-cases";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
@@ -62,9 +63,19 @@ async function issueWsaaToken() {
   });
 }
 
-function taskUnderTest(taxAuthority: TaxAuthorityLastAuthorizedLookup) {
+const NO_VOUCHER: TaxAuthorityVoucherLookup = { voucherAt: async () => ({ kind: "none" }) };
+
+function taskUnderTest(
+  taxAuthority: TaxAuthorityLastAuthorizedLookup,
+  vouchers: TaxAuthorityVoucherLookup = NO_VOUCHER,
+) {
   const jobs = taxAuthorityCountJobs(
-    { now: () => NOW, taxAuthority, certificateFingerprint: FINGERPRINT },
+    {
+      now: () => NOW,
+      taxAuthority,
+      vouchers,
+      certificateFingerprint: FINGERPRINT,
+    },
     { createDatabase: () => testDatabase.db },
   );
   const task = jobs.taskList[TAX_AUTHORITY_COUNT_TASK_IDENTIFIER];
@@ -124,10 +135,24 @@ describe("taxAuthorityCountJobs", () => {
     expect(jobs.crontab).toEqual([]);
   });
 
-  it("reads the last authorized number of the payload's point of sale and keeps it", async () => {
+  it("reads the last authorized number of the payload's point of sale and keeps it with its day", async () => {
     await issueWsaaToken();
     const taxAuthority = new FakeLastAuthorizedLookup();
-    const { task } = taskUnderTest(taxAuthority);
+    const { task } = taskUnderTest(taxAuthority, {
+      voucherAt: async () => ({
+        kind: "found",
+        voucher: {
+          issuedOn: "2026-10-05",
+          total: 12_500,
+          documentType: 11,
+          receiverDocumentType: 99,
+          receiverDocumentNumber: 0,
+          receiverTaxStatusCode: 5,
+          authorizationCode: "71234567890123",
+          authorizationCodeDueOn: "2026-10-15",
+        },
+      }),
+    });
     const { helpers, borrowClient } = buildJobHelpers();
 
     await task({ pointOfSale: 7 }, helpers);
@@ -135,7 +160,7 @@ describe("taxAuthorityCountJobs", () => {
     expect(taxAuthority.lookups).toEqual([7]);
     expect(borrowClient).toHaveBeenCalledTimes(1);
     expect(await storedCounts()).toEqual([
-      { pointOfSaleNumber: 7, lastAuthorized: 41, readAt: NOW },
+      { pointOfSaleNumber: 7, lastAuthorized: 41, readAt: NOW, issuedOn: "2026-10-05" },
     ]);
   });
 
@@ -188,7 +213,7 @@ describe("taxAuthorityCountJobs", () => {
       await task({ pointOfSale: 8 }, buildJobHelpers().helpers);
 
       expect(await storedCounts()).toEqual([
-        { pointOfSaleNumber: 8, lastAuthorized: 37, readAt: NOW },
+        { pointOfSaleNumber: 8, lastAuthorized: 37, readAt: NOW, issuedOn: null },
       ]);
       expect(await testDatabase.db.select().from(offlineNumberBlocks)).toMatchObject([
         { pointOfSaleNumber: 8, registerId, firstNumber: 38, lastNumber: 1037, assignedAt: NOW },

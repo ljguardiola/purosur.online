@@ -234,6 +234,28 @@ describe("cancelPaidSale", () => {
       expect(store.state.payments).toEqual([CASH_PAYMENT]);
     });
 
+    it("completes in full even when the register's clock reads a day before the sale was paid", async () => {
+      const store = ledger();
+      const behind = new Date(PAID_AT.getTime() - 24 * 60 * 60 * 1000);
+
+      const outcome = await cancelPaidSale(
+        {
+          ledger: store,
+          clock: new FixedClock(behind),
+          ids: new SequentialIds(),
+          authority: granting(OWN_GRANT),
+        },
+        { saleId: "sale-1", from: "sale" },
+      );
+
+      expect(outcome).toEqual({
+        kind: "cancelled",
+        refunds: [{ ...CASH_REFUND, occurredAt: behind }],
+        grant: OWN_GRANT,
+      });
+      expect(store.state.sales).toEqual([{ ...OPEN_SALE, state: "CANCELLED", occurredAt: behind }]);
+    });
+
     it("does everything in one transaction", async () => {
       const store = ledger();
 

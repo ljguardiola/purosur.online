@@ -9,6 +9,7 @@ import type { AuthorizablePermissionKey } from "@purosur/domain";
 import { Button, ScreenHeader } from "@purosur/ui";
 import { useNavigate } from "@tanstack/react-router";
 import { Lock, Plus } from "lucide-react";
+import type { ReactNode } from "react";
 import { useState } from "react";
 import type { CashMovementInput } from "../platform/core-client";
 import { OpenSessionRail } from "../shell/open-session-rail";
@@ -29,6 +30,7 @@ export type CashScreenProps = {
   loadCashMovementKinds: () => Promise<RecordableCashMovementKinds | null | "unavailable">;
   loadAuthorizers: (permission: AuthorizablePermissionKey) => Promise<SignInUser[]>;
   recordCashMovement: (input: CashMovementInput) => Promise<RecordCashMovementOutcome>;
+  clockGuard?: ReactNode | undefined;
 };
 
 export function CashScreen({
@@ -42,6 +44,7 @@ export function CashScreen({
   loadCashMovementKinds,
   loadAuthorizers,
   recordCashMovement,
+  clockGuard,
 }: CashScreenProps) {
   const navigate = useNavigate();
   const balance = useCashBalanceQuery(sessionId, loadCashBalance);
@@ -58,6 +61,7 @@ export function CashScreen({
       />
       <main className="flex flex-1 flex-col gap-6 p-8">
         <ScreenHeader eyebrow={registerName ?? undefined} title="Movimientos de efectivo" />
+        {clockGuard}
         <CashMovementsTable state={movements} />
       </main>
       <ExpectedCashPanel eyebrow="EFECTIVO ESPERADO AHORA" balance={balance}>

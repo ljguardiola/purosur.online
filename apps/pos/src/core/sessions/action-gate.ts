@@ -18,6 +18,7 @@ type SignedInOperation = OperationOf<
   | "configure_receipt_printer"
   | "configure_serial_devices"
   | "record_initial_inventory"
+  | "correct_register_clock"
 >;
 type AuthorizableOperation = OperationOf<
   | "record_cash_movement"

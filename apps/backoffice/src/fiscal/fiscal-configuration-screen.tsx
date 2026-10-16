@@ -5,10 +5,12 @@ import { formatDisplayDate } from "../platform/display-date";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
 import { BuyerIdentificationThresholdSection } from "./buyer-identification-threshold-section";
+import { ClockCorrectionsSection } from "./clock-corrections-section";
 import { EditIssuerIdentificationModal } from "./edit-issuer-identification-modal";
 import type { FiscalConfigurationScreenServices } from "./fiscal-configuration-services";
 import {
   useBuyerIdentificationThresholdsQuery,
+  useClockCorrectionsQuery,
   useIssuerIdentificationQuery,
   useReloadBuyerIdentificationThresholds,
   useReloadIssuerIdentification,
@@ -29,7 +31,8 @@ export function FiscalConfigurationScreen({
   services,
   now,
 }: FiscalConfigurationScreenProps) {
-  const { fetchIssuerIdentification, fetchBuyerIdentificationThresholds } = services;
+  const { fetchIssuerIdentification, fetchBuyerIdentificationThresholds, fetchClockCorrections } =
+    services;
   const clock = now ?? (() => new Date());
   const data = useIssuerIdentificationQuery({ fetchIssuerIdentification, onSessionEnded });
   const reload = useReloadIssuerIdentification({ fetchIssuerIdentification });
@@ -40,6 +43,7 @@ export function FiscalConfigurationScreen({
   const reloadThresholds = useReloadBuyerIdentificationThresholds({
     fetchBuyerIdentificationThresholds,
   });
+  const clockCorrections = useClockCorrectionsQuery({ fetchClockCorrections, onSessionEnded });
   const [editing, setEditing] = useState(false);
   const [recording, setRecording] = useState(false);
   const [notice, setNotice] = useState<ScreenNotice | null>(null);
@@ -68,6 +72,7 @@ export function FiscalConfigurationScreen({
           data={thresholds}
           onRecord={() => setRecording(true)}
         />
+        <ClockCorrectionsSection data={clockCorrections} />
         <EditIssuerIdentificationModal
           target={editing ? issuerIdentification : null}
           onClose={() => setEditing(false)}

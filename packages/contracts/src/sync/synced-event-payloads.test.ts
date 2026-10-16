@@ -1,4 +1,5 @@
 import {
+  clockCorrectedEvent,
   MAX_STOCK_QUANTITY,
   MAX_UNIT_PRICE_CENTS,
   offlineFiscalDocument,
@@ -142,6 +143,7 @@ describe("synced event payloads", () => {
       "cash_movement_recorded@1",
       "cash_session_closed@1",
       "cash_session_opened@1",
+      "clock_corrected@1",
       "fiscal_gate_failed@1",
       "offline_fiscal_document_issued@1",
       "opening_count_recorded@1",
@@ -428,6 +430,44 @@ describe("synced event payloads", () => {
         expect(accepts("offline_fiscal_document_issued", 1, offline({ cause }))).toBe(true);
       },
     );
+  });
+
+  describe("clock_corrected v1", () => {
+    const { payload: corrected } = clockCorrectedEvent({
+      eventId: "event-1",
+      registerId: "register-1",
+      actorId: "user-1",
+      lowering: {
+        pointOfSale: 12,
+        documentType: "factura_c",
+        previousReading: new Date("2026-10-03T12:00:00.000Z"),
+        correctedReading: new Date("2026-10-01T12:00:00.000Z"),
+      },
+    });
+    const clock = (change: Payload = {}) => ({ ...(corrected as Payload), ...change });
+
+    it("has a schema for version 1 only", () => {
+      expect(syncedEventPayloadKey("clock_corrected", 1)).toBe("clock_corrected@1");
+      expect(syncedEventPayloadKey("clock_corrected", 2)).toBeUndefined();
+    });
+
+    it("describes the event the domain drafts for a lowered mark", () => {
+      expect(accepts("clock_corrected", 1, clock())).toBe(true);
+    });
+
+    it.each(Object.keys(corrected))("refuses a payload without its %s", (field) => {
+      const { [field]: _removed, ...rest } = clock();
+      expect(accepts("clock_corrected", 1, rest)).toBe(false);
+    });
+
+    it.each([
+      ["a point of sale the tax authority does not allow", { point_of_sale: 0 }],
+      ["a document type other than factura C", { document_type: "factura_a" }],
+      ["a previous reading that is not an instant", { previous_reading: "yesterday" }],
+      ["a corrected reading that is not an instant", { corrected_reading: 1 }],
+    ])("refuses %s", (_case, change) => {
+      expect(accepts("clock_corrected", 1, clock(change))).toBe(false);
+    });
   });
 
   describe("qr_payment_replaced v1", () => {

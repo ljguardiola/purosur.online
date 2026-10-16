@@ -257,6 +257,7 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
       saveIssuerIdentification: vi.fn(),
       fetchBuyerIdentificationThresholds: vi.fn().mockReturnValue(new Promise(() => {})),
       recordBuyerIdentificationThreshold: vi.fn(),
+      fetchClockCorrections: vi.fn().mockReturnValue(new Promise(() => {})),
       fetchSessionAuthorizationOptions: vi.fn(),
       authorizeSession: vi.fn(),
       startAuthentication: vi.fn(),

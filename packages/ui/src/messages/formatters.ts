@@ -75,14 +75,30 @@ export function formatDate(value: Date | number, options?: Intl.DateTimeFormatOp
 
 const WRITTEN_OFFSET = /(Z|[+-]\d{2}:\d{2})$/;
 
-export function formatClockTime(instant: string): string {
+function writtenTimeZone(instant: string): string | undefined {
   const offset = WRITTEN_OFFSET.exec(instant)?.[1];
+  return offset === "Z" ? "UTC" : offset;
+}
+
+export function formatClockTime(instant: string): string {
   return formatDate(new Date(instant), {
     hour: "2-digit",
     minute: "2-digit",
     hourCycle: "h23",
-    timeZone: offset === "Z" ? "UTC" : offset,
+    timeZone: writtenTimeZone(instant),
   });
+}
+
+export function formatDayAndTime(instant: string, timeZone = writtenTimeZone(instant)): string {
+  const moment = new Date(instant);
+  const day = formatDate(moment, { day: "2-digit", month: "2-digit", year: "numeric", timeZone });
+  const time = formatDate(moment, {
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+    timeZone,
+  });
+  return `${day} · ${time}`;
 }
 
 export function formatCountdown(seconds: number): string {

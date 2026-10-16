@@ -1,5 +1,10 @@
 export type { Clock } from "../../shared/index.js";
 export type { ArcaReachabilityEvidence } from "../model/arca-reachability.js";
+export type {
+  CashSessionStanding,
+  ClockLowering,
+  ClockMark,
+} from "../model/clock-correction.js";
 export type { FiscalOnlineSignalEvidence } from "../model/fiscal-online-signal.js";
 export type {
   RejectionStandingChange,
@@ -94,6 +99,15 @@ export type {
 export type { CheckArcaVitalityOutcome } from "./check-arca-vitality.js";
 export { checkArcaVitality } from "./check-arca-vitality.js";
 export type {
+  ClockCorrectionLedger,
+  ClockCorrectionRecord,
+  ClockCorrectionTransaction,
+} from "./clock-correction-ports.js";
+export type {
+  BranchClockCorrection,
+  ClockCorrectionReader,
+} from "./clock-correction-reader.js";
+export type {
   ConfigureRegisterOfflinePointOfSaleInput,
   ConfigureRegisterOfflinePointOfSaleOutcome,
 } from "./configure-register-offline-point-of-sale.js";
@@ -103,6 +117,12 @@ export type {
   ConfigureRegisterPointOfSaleOutcome,
 } from "./configure-register-point-of-sale.js";
 export { configureRegisterPointOfSale } from "./configure-register-point-of-sale.js";
+export type {
+  CorrectRegisterClockGrant,
+  CorrectRegisterClockOutcome,
+  CorrectRegisterClockPorts,
+} from "./correct-register-clock.js";
+export { correctRegisterClock } from "./correct-register-clock.js";
 export type {
   CreateFiscalAddressInput,
   CreateFiscalAddressOutcome,
@@ -250,6 +270,12 @@ export type {
 } from "./read-arca-online-status.js";
 export { readArcaOnlineStatus } from "./read-arca-online-status.js";
 export type {
+  ClockGuardBlock,
+  ReadRegisterClockGuardPorts,
+  RegisterClockGuardState,
+} from "./read-register-clock-guard.js";
+export { readRegisterClockGuard } from "./read-register-clock-guard.js";
+export type {
   CompletedSaleFiscalDocument,
   CompletedSaleFiscalDocuments,
 } from "./read-unknown-fiscal-documents.js";
@@ -291,6 +317,10 @@ export type {
   RecordTaxAuthorityLastAuthorizedOutcome,
 } from "./record-tax-authority-last-authorized.js";
 export { recordTaxAuthorityLastAuthorized } from "./record-tax-authority-last-authorized.js";
+export type {
+  RegisterClockGuardReader,
+  TaxAuthorityFloor,
+} from "./register-clock-guard-ports.js";
 export type {
   RegisterHealthCheck,
   RegisterHealthCheckPorts,

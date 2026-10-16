@@ -575,6 +575,7 @@ export async function setUpRecovery(
             taxAuthorityCountJobs({
               now,
               taxAuthority: new WsfeTaxAuthorityLastAuthorized(recoveryEnv.arcaInvoicing),
+              vouchers: new WsfeTaxAuthorityVouchers(recoveryEnv.arcaInvoicing),
               certificateFingerprint: recoveryEnv.arcaInvoicing.certificateFingerprint,
             }),
             unclearOutcomeJobs({

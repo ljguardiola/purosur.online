@@ -1554,6 +1554,40 @@ describe("decoding the events the registers pushed", () => {
     });
   });
 
+  it("reads the correction of a register's clock mark", () => {
+    const decoded = upcaster.decode(
+      unappliedEventOf(
+        pushed({
+          aggregate_type: "CashRegister",
+          aggregate_id: "01a1122a-0305-7189-87d0-8256a353fd42",
+          event_type: "clock_corrected",
+          schema_version: 1,
+          payload: {
+            point_of_sale: 12,
+            document_type: "factura_c",
+            previous_reading: "2026-10-08T11:20:00.000Z",
+            corrected_reading: "2026-10-06T11:20:00.000Z",
+          },
+        }),
+      ),
+    );
+
+    expect(decoded).toEqual({
+      kind: "fact",
+      fact: {
+        kind: "clock_corrected",
+        correction: {
+          registerId: "01a1122a-0305-7189-87d0-8256a353fd42",
+          pointOfSale: 12,
+          documentType: "factura_c",
+          previousReading: new Date("2026-10-08T11:20:00.000Z"),
+          correctedReading: new Date("2026-10-06T11:20:00.000Z"),
+          actorId: USER,
+        },
+      },
+    });
+  });
+
   it("reads the replacement of a pending QR payment", () => {
     const decoded = upcaster.decode(
       unappliedEventOf(

@@ -1782,6 +1782,54 @@ test("tells that ARCA authorized a voucher no sale of the register justifies: it
   await expect.element(screen.getByRole("button", { name: "Cerrar la alerta" })).toBeEnabled();
 });
 
+test("tells which register's clock was confirmed as correct, for which point of sale, between which readings and by whom", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(
+    ok(
+      baseDetail({
+        kind: "clock_corrected",
+        level: "critical",
+        audience: "all",
+        scope: "register-1",
+        scopeDisplay: "Caja 1",
+        scopeKind: "register",
+        closing: "by_hand",
+        detail: {
+          pointOfSale: 3,
+          documentType: "factura_c",
+          previousReading: "2026-09-16T14:31:00.000Z",
+          correctedReading: "2026-09-15T15:10:00.000Z",
+          actorId: "user-2",
+          actorName: "Lucía",
+        },
+      }),
+    ),
+  );
+
+  const screen = await renderModal(services);
+
+  await expect
+    .element(screen.getByText("Reloj de la caja corregido", { exact: true }))
+    .toBeVisible();
+  await expect
+    .element(
+      screen.getByText(
+        "Alguien confirmó desde la caja que su hora era correcta y bajó la marca de la guarda de reloj. Los comprobantes emitidos entre la lectura anterior y la nueva llevan fechas imposibles y van a regularización manual.",
+        { exact: true },
+      ),
+    )
+    .toBeVisible();
+  await expect.element(screen.getByText("Caja 1", { exact: true })).toBeVisible();
+  await expect.element(screen.getByText("00003", { exact: true })).toBeVisible();
+  await expect.element(screen.getByText("Lectura anterior", { exact: true })).toBeVisible();
+  await expect.element(screen.getByText("16/09/2026 · 11:31", { exact: true })).toBeVisible();
+  await expect.element(screen.getByText("Lectura nueva", { exact: true })).toBeVisible();
+  await expect.element(screen.getByText("15/09/2026 · 12:10", { exact: true })).toBeVisible();
+  await expect.element(screen.getByText("Corrigió", { exact: true })).toBeVisible();
+  await expect.element(screen.getByText("Lucía", { exact: true })).toBeVisible();
+  await expectNoAccessibilityViolations(document.body);
+});
+
 test("tells that an alert for quarantined events resolves by itself and still offers closing it by hand", async () => {
   const services = createServices();
   vi.mocked(services.fetchAlert).mockResolvedValue(ok(quarantinedEventAlert));

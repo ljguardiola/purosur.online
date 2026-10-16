@@ -7,7 +7,7 @@ import type {
 } from "../../fiscal/index.js";
 import type { SalesDeniedReport } from "../../shared/index.js";
 import type { AlertKind, AlertLevel } from "./alert-catalog.js";
-import type { OpenAlertInput } from "./alert-details.js";
+import type { AlertDetails, OpenAlertInput } from "./alert-details.js";
 import type { OffsiteDumpUnverifiedReason } from "./offsite-dump-unverified-reason.js";
 import { registerFortnightScope } from "./register-fortnight-scope.js";
 
@@ -153,6 +153,20 @@ export function fiscalRejectionObservation({
         rejections: [...rejections],
       },
     },
+  };
+}
+
+export function clockCorrectedObservation({
+  registerId,
+  locationId,
+  ...detail
+}: {
+  registerId: string;
+  locationId: string;
+} & AlertDetails["clock_corrected"]): AlertConditionObservation {
+  return {
+    holds: true,
+    alert: { kind: "clock_corrected", scope: registerId, locationId, detail },
   };
 }
 

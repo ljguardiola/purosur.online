@@ -1,6 +1,8 @@
 import {
   type CredentialsCoreToRendererMessage,
   credentialsRendererToCoreMessageSchema,
+  type FiscalCoreToRendererMessage,
+  fiscalRendererToCoreMessageSchema,
   type PaymentsCoreToRendererMessage,
   paymentsRendererToCoreMessageSchema,
   type RegisterCoreToRendererMessage,
@@ -22,6 +24,7 @@ export const rendererToCoreMessageSchema = z.discriminatedUnion("type", [
   salesRendererToCoreMessageSchema,
   paymentsRendererToCoreMessageSchema,
   stockRendererToCoreMessageSchema,
+  fiscalRendererToCoreMessageSchema,
 ]);
 export type RendererToCoreMessage = z.infer<typeof rendererToCoreMessageSchema>;
 
@@ -31,5 +34,6 @@ export type CoreToRendererMessage =
   | RegisterCoreToRendererMessage
   | SalesCoreToRendererMessage
   | StockCoreToRendererMessage
+  | FiscalCoreToRendererMessage
   | PaymentsCoreToRendererMessage
   | SyncCoreToRendererMessage;

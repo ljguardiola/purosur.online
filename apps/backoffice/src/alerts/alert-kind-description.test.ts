@@ -103,3 +103,9 @@ test("describes a fortnight already reported without movement that later receive
     "Llegaron comprobantes de una quincena ya informada a ARCA sin movimiento",
   );
 });
+
+test("describes a register's clock confirmed as correct, which lowers the clock guard's mark", () => {
+  expect(alertKindDescription("clock_corrected")).toBe(
+    "Alguien confirmó desde la caja que su hora era correcta y bajó la marca de la guarda de reloj. Los comprobantes emitidos entre la lectura anterior y la nueva llevan fechas imposibles y van a regularización manual.",
+  );
+});
