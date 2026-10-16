@@ -342,12 +342,13 @@ describe("DELETE /users/:id/passkeys", () => {
       locationId: await seededLocationId(db),
     });
     const rawSessionId = await insertSession(administratorId);
+    const auditsBefore = await db.select().from(auditLog);
 
     const response = await removeEveryPasskey(withoutPasskeysId, rawSessionId);
 
     expect(response.statusCode).toBe(409);
     expect(response.json()).toMatchObject({ code: "no_passkeys" });
-    expect(await db.select().from(auditLog)).toEqual([]);
+    expect(await db.select().from(auditLog)).toEqual(auditsBefore);
   });
 
   it("removes every passkey of the chosen account and no other account's", async () => {
