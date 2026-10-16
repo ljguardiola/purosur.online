@@ -38,7 +38,7 @@ export interface CreditNoteDecision {
   receiverTaxStatusCode: number;
 }
 
-export interface ExternalInvoicingDecision {
+interface ExternalInvoicingDecision {
   kind: "external_invoicing";
   pointOfSale: number;
   documentType: FiscalDocumentType;
