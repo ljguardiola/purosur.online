@@ -48,7 +48,7 @@ const replacedRevocationReason = "replaced";
 
 export const snapshotKeyPurpose = (registerId: string, version: number) =>
   `snapshot_key:${registerId}:${version}`;
-const contingencyTicketKeyPurpose = (registerId: string, version: number) =>
+export const contingencyTicketKeyPurpose = (registerId: string, version: number) =>
   `contingency_ticket_key:${registerId}:${version}`;
 
 export async function lockRegisterKeysOf<TQueryResult extends PgQueryResultHKT>(
