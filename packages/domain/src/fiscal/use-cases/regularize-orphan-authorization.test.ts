@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import type { LocalStanding } from "../model/orphan-authorization.js";
+import type {
+  LocalRequestAtNumber,
+  RequestsAtNumber,
+  SaleDocument,
+} from "../model/orphan-authorization.js";
 import {
   type TaxAuthorityVoucher,
   UNCLEAR_OUTCOME_REASK_INTERVAL_MS,
@@ -38,26 +42,43 @@ const VOUCHER: TaxAuthorityVoucher = {
   authorizationCodeDueOn: "2026-10-11",
 };
 
-const WITH_OTHER_VOUCHER: LocalStanding = {
-  kind: "local_sale",
+const SALE_REQUEST: LocalRequestAtNumber = {
+  fiscalDocumentId: "document-1",
   saleId: "sale-1",
-  otherAuthorizedVoucher: { voucherType: 11, pointOfSale: 13, number: 7 },
+  issuedOn: VOUCHER.issuedOn,
+  total: VOUCHER.total,
+  buyerTaxStatusCode: VOUCHER.receiverTaxStatusCode,
+  answer: { kind: "unclear" },
 };
+
+const requestsAt = (...requests: LocalRequestAtNumber[]): RequestsAtNumber => ({
+  kind: "requests",
+  requests,
+});
+
+const KEPT_DOCUMENTS: SaleDocument[] = [
+  { kind: "offline", voucher: { voucherType: 11, pointOfSale: 13, number: 7 } },
+];
 
 interface Scenario {
   token?: typeof TOKEN | null;
   voucher?: VoucherAnswer;
-  standing?: LocalStanding;
+  standing?: RequestsAtNumber;
+  saleDocuments?: SaleDocument[];
 }
 
 function scenario({
   token = TOKEN,
   voucher = { kind: "found", voucher: VOUCHER },
   standing,
+  saleDocuments,
 }: Scenario = {}) {
   const store = new FakeOrphanRegularizationStore();
   if (standing !== undefined) {
-    store.seedStanding({ pointOfSale: 12, number: 41 }, standing);
+    store.seedRequestsAtNumber({ pointOfSale: 12, number: 41 }, standing);
+  }
+  if (saleDocuments !== undefined) {
+    store.seedSaleDocuments("sale-1", saleDocuments);
   }
   const vouchers = new FakeOrphanRegularizationVouchers(store, voucher);
   const ports = {
@@ -76,7 +97,10 @@ function regularize(ports: ReturnType<typeof scenario>["ports"]) {
 
 describe("regularizeOrphanAuthorization", () => {
   it("corrects with a credit note an authorization of a sale that has another authorized voucher", async () => {
-    const { store, ports } = scenario({ standing: WITH_OTHER_VOUCHER });
+    const { store, ports } = scenario({
+      standing: requestsAt(SALE_REQUEST),
+      saleDocuments: KEPT_DOCUMENTS,
+    });
 
     const outcome = await regularize(ports);
 
@@ -116,11 +140,30 @@ describe("regularizeOrphanAuthorization", () => {
     expect(store.regularizations).toEqual([regularization]);
   });
 
-  it.each<[string, LocalStanding]>([
+  it.each<[string, LocalRequestAtNumber]>([
+    ["has other content than the local request there", { ...SALE_REQUEST, total: 1 }],
     [
-      "the only voucher of its sale",
-      { kind: "local_sale", saleId: "sale-1", otherAuthorizedVoucher: null },
+      "matches a local request the tax authority rejected",
+      { ...SALE_REQUEST, answer: { kind: "rejected", codes: [10016], rejectionClass: "content" } },
     ],
+  ])(
+    "opens an alert and a task, never a credit note, for a voucher that %s, without reading that sale",
+    async (_case, request) => {
+      const { store, ports } = scenario({
+        standing: requestsAt(request),
+        saleDocuments: KEPT_DOCUMENTS,
+      });
+
+      expect(await regularize(ports)).toMatchObject({
+        kind: "regularized",
+        regularization: { kind: "external_invoicing" },
+      });
+      expect(store.operations).not.toContain("otherDocumentsOfSale");
+    },
+  );
+
+  it.each<[string, RequestsAtNumber]>([
+    ["the only voucher of its sale", requestsAt(SALE_REQUEST)],
     ["already regularized", { kind: "already_regularized" }],
   ])("regularizes nothing for an authorization that is %s", async (_case, standing) => {
     const { store, ports } = scenario({ standing });
@@ -133,7 +176,7 @@ describe("regularizeOrphanAuthorization", () => {
     const { store, ports } = scenario({ voucher: { kind: "none" } });
 
     expect(await regularize(ports)).toEqual({ kind: "not_confirmed" });
-    expect(store.operations).not.toContain("localStandingOfAuthorization");
+    expect(store.operations).not.toContain("requestsAtNumber");
     expect(store.regularizations).toEqual([]);
   });
 
@@ -151,17 +194,22 @@ describe("regularizeOrphanAuthorization", () => {
   });
 
   it("confirms the factura C at the point of sale and number inside the point of sale's lane, then reads the sales and records, in that order", async () => {
-    const { store, vouchers, ports } = scenario({ standing: WITH_OTHER_VOUCHER });
+    const { store, vouchers, ports } = scenario({
+      standing: requestsAt(SALE_REQUEST),
+      saleDocuments: KEPT_DOCUMENTS,
+    });
 
     await regularize(ports);
 
     expect(vouchers.lookups).toEqual([{ pointOfSale: 12, voucherType: 11, number: 41 }]);
     expect(vouchers.heldLane).toBe(true);
+    expect(store.saleDocumentAsks).toEqual([{ saleId: "sale-1", fiscalDocumentId: "document-1" }]);
     expect(store.operations).toEqual([
       "enterLane",
       "validToken",
       "voucherAt",
-      "localStandingOfAuthorization",
+      "requestsAtNumber",
+      "otherDocumentsOfSale",
       "recordOrphanRegularization",
       "leaveLane",
     ]);

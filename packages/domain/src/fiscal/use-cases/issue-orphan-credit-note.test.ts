@@ -6,7 +6,11 @@ import {
 } from "../model/unclear-outcome-decision.js";
 import type { SolicitationAnswer } from "./fiscal-document-authorization-ports.js";
 import { issueOrphanCreditNote } from "./issue-orphan-credit-note.js";
-import type { CreditNoteStanding, OrphanCreditNote } from "./orphan-credit-note-ports.js";
+import {
+  CreditNoteNumberTaken,
+  type CreditNoteStanding,
+  type OrphanCreditNote,
+} from "./orphan-credit-note-ports.js";
 import type { LastAuthorizedAnswer } from "./tax-authority-count-ports.js";
 import { ManualClock } from "./test-support/fake-arca-vitality.js";
 import {
@@ -54,6 +58,7 @@ interface Scenario {
   voucher?: VoucherAnswer;
   answer?: SolicitationAnswer;
   now?: Date;
+  others?: { pointOfSale: number; standing: CreditNoteStanding }[];
 }
 
 function scenario({
@@ -63,6 +68,7 @@ function scenario({
   voucher = { kind: "none" },
   answer = AUTHORIZED_ANSWER,
   now = NOW,
+  others = [],
 }: Scenario = {}) {
   const store = new FakeOrphanCreditNoteStore();
   const creditNote: OrphanCreditNote = {
@@ -74,6 +80,15 @@ function scenario({
     standing,
   };
   store.seed(creditNote);
+  others.forEach(({ pointOfSale, standing: otherStanding }, index) => {
+    store.seed({
+      ...creditNote,
+      creditNoteId: `credit-note-other-${index}`,
+      pointOfSale,
+      associatedVoucher: { voucherType: 11, pointOfSale, number: 100 + index },
+      standing: otherStanding,
+    });
+  });
   const taxAuthority = new FakeCreditNoteTaxAuthority(store, voucher, lastAuthorized);
   const creditNotes = new FakeCreditNoteInvoicing(store, answer);
   const clock = new ManualClock(now);
@@ -159,6 +174,7 @@ describe("issueOrphanCreditNote", () => {
         "enterLane",
         "orphanCreditNote",
         "validToken",
+        "otherCreditNoteStandings",
         "lastAuthorized",
         "recordCreditNoteRequest",
         "solicit",
@@ -204,6 +220,64 @@ describe("issueOrphanCreditNote", () => {
       });
       expect(store.requests).toEqual([]);
       expect(creditNotes.solicitations).toEqual([]);
+    });
+  });
+
+  describe("another credit note of the point of sale awaiting its answer", () => {
+    const OTHER_REQUESTED: CreditNoteStanding = {
+      kind: "requested",
+      number: 42,
+      issuedOn: ISSUE_DAY,
+      requestedAt: REQUESTED_AT,
+      unclearAnsweredAt: REQUESTED_AT,
+    };
+
+    it("takes no number while another credit note of the point of sale awaits its answer, asking again later", async () => {
+      const { store, taxAuthority, creditNotes, ports } = scenario({
+        others: [{ pointOfSale: 12, standing: OTHER_REQUESTED }],
+      });
+
+      expect(await issue(ports)).toEqual({
+        kind: "retry",
+        askAgainAt: new Date(NOW.getTime() + UNCLEAR_OUTCOME_REASK_INTERVAL_MS),
+      });
+      expect(taxAuthority.lastAuthorizedLookups).toEqual([]);
+      expect(store.requests).toEqual([]);
+      expect(creditNotes.solicitations).toEqual([]);
+    });
+
+    it.each<[string, { pointOfSale: number; standing: CreditNoteStanding }]>([
+      ["authorized", { pointOfSale: 12, standing: { kind: "authorized" } }],
+      ["rejected", { pointOfSale: 12, standing: { kind: "rejected" } }],
+      ["not yet requested", { pointOfSale: 12, standing: { kind: "not_requested" } }],
+      [
+        "awaiting its answer on another point of sale",
+        { pointOfSale: 13, standing: OTHER_REQUESTED },
+      ],
+    ])("numbers the credit note when the other one is %s", async (_case, other) => {
+      const { creditNotes, ports } = scenario({ others: [other] });
+
+      expect(await issue(ports)).toMatchObject({ kind: "authorized", number: 42 });
+      expect(creditNotes.solicitations).toHaveLength(1);
+    });
+
+    it("asks again later, calling the tax authority for nothing, when its number was taken meanwhile", async () => {
+      const { store, creditNotes, ports } = scenario();
+      store.requestFailure = new CreditNoteNumberTaken();
+
+      expect(await issue(ports)).toEqual({
+        kind: "retry",
+        askAgainAt: new Date(NOW.getTime() + UNCLEAR_OUTCOME_REASK_INTERVAL_MS),
+      });
+      expect(creditNotes.solicitations).toEqual([]);
+      expect(store.standingOf(CREDIT_NOTE_ID)).toEqual({ kind: "not_requested" });
+    });
+
+    it("lets any other failure to record the request through", async () => {
+      const { store, ports } = scenario();
+      store.requestFailure = new Error("storage down");
+
+      await expect(issue(ports)).rejects.toThrow("storage down");
     });
   });
 
@@ -321,6 +395,7 @@ describe("issueOrphanCreditNote", () => {
         "voucherAt",
         "lastAuthorized",
         "releaseCreditNoteRequest",
+        "otherCreditNoteStandings",
         "lastAuthorized",
         "recordCreditNoteRequest",
         "solicit",
@@ -328,6 +403,23 @@ describe("issueOrphanCreditNote", () => {
         "leaveLane",
       ]);
       expect(creditNotes.solicitations).toHaveLength(1);
+    });
+
+    it("releases its own number but takes no new one while another credit note of the point of sale awaits its answer", async () => {
+      const { store, creditNotes, ports } = scenario({
+        standing: REQUESTED,
+        now: SETTLED_AT,
+        lastAuthorized: { kind: "read", number: 41 },
+        others: [{ pointOfSale: 12, standing: { ...REQUESTED, number: 43 } }],
+      });
+
+      expect(await issue(ports)).toEqual({
+        kind: "retry",
+        askAgainAt: new Date(SETTLED_AT.getTime() + UNCLEAR_OUTCOME_REASK_INTERVAL_MS),
+      });
+      expect(store.releases).toEqual([{ creditNoteId: CREDIT_NOTE_ID, regularization: null }]);
+      expect(store.requests).toEqual([]);
+      expect(creditNotes.solicitations).toEqual([]);
     });
 
     it("renumbers after a different voucher took the number", async () => {

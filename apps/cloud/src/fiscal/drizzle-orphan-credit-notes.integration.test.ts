@@ -1,7 +1,8 @@
-import type {
-  FiscalTask,
-  OrphanCreditNoteLane,
-  TaxAuthorityRejection,
+import {
+  CreditNoteNumberTaken,
+  type FiscalTask,
+  type OrphanCreditNoteLane,
+  type TaxAuthorityRejection,
 } from "@purosur/domain/fiscal/use-cases";
 import { eq } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
@@ -44,21 +45,24 @@ afterAll(async () => {
   await integrationDb.close();
 });
 
-function inLane<TOutcome>(work: (lane: OrphanCreditNoteLane) => Promise<TOutcome>) {
+function inLane<TOutcome>(
+  work: (lane: OrphanCreditNoteLane) => Promise<TOutcome>,
+  pointOfSale = 7,
+) {
   return new DrizzleOrphanCreditNoteLanes(postgresDedicatedConnections(sql)).inPointOfSaleLane(
-    7,
+    pointOfSale,
     work,
   );
 }
 
-async function aCreditNote(): Promise<string> {
+async function aCreditNote(pointOfSale = 7): Promise<string> {
   seeded += 1;
   const id = crypto.randomUUID();
   await db.insert(orphanCreditNotes).values({
     id,
     registerId,
     saleId: crypto.randomUUID(),
-    pointOfSale: 7,
+    pointOfSale,
     associatedVoucherType: 11,
     associatedNumber: 100 + seeded,
     keptVoucherType: 11,
@@ -297,6 +301,121 @@ describe("the orphan credit note lanes on a real Postgres", () => {
       expect((await inLane((lane) => lane.orphanCreditNote(id)))?.standing).toMatchObject({
         kind: "requested",
       });
+    });
+  });
+
+  describe("holding a number", () => {
+    const request = (lane: OrphanCreditNoteLane, creditNoteId: string, number: number) =>
+      lane.recordCreditNoteRequest({
+        creditNoteId,
+        number,
+        issuedOn: "2026-10-07",
+        requestedAt: REQUESTED_AT,
+      });
+
+    it("leaves the number of a rejected credit note to the next one, since the tax authority did not take it", async () => {
+      const rejected = await aCreditNote();
+      const next = await aCreditNote();
+      const rejections = [{ code: 10015, message: "invalid receiver" }];
+      await inLane(async (lane) => {
+        await request(lane, rejected, 30);
+        await lane.recordCreditNoteRejected({
+          creditNoteId: rejected,
+          rejections,
+          rejectedAt: ANSWERED_AT,
+          task: rejectedTask(rejected, 30, rejections),
+        });
+        await request(lane, next, 30);
+      });
+
+      expect((await inLane((lane) => lane.orphanCreditNote(next)))?.standing).toMatchObject({
+        kind: "requested",
+        number: 30,
+      });
+      expect(await rowOf(rejected)).toMatchObject({ answerKind: "rejected", number: 30 });
+    });
+
+    it.each<[string, (lane: OrphanCreditNoteLane, creditNoteId: string) => Promise<void>]>([
+      ["awaits its answer", async () => {}],
+      [
+        "was left unclear",
+        (lane, creditNoteId) => lane.recordCreditNoteUnclear(creditNoteId, ANSWERED_AT),
+      ],
+      [
+        "was authorized",
+        (lane, creditNoteId) =>
+          lane.recordCreditNoteAuthorized({
+            creditNoteId,
+            authorizationCode: "75123456789099",
+            authorizationCodeDueOn: "2026-10-17",
+            authorizedAt: ANSWERED_AT,
+          }),
+      ],
+    ])(
+      "refuses as taken a number another credit note of the point of sale holds that %s",
+      async (_case, answer) => {
+        seeded += 1;
+        const number = 1_000 + seeded;
+        const holder = await aCreditNote();
+        const next = await aCreditNote();
+        await inLane(async (lane) => {
+          await request(lane, holder, number);
+          await answer(lane, holder);
+        });
+
+        await expect(inLane((lane) => request(lane, next, number))).rejects.toBeInstanceOf(
+          CreditNoteNumberTaken,
+        );
+        expect((await inLane((lane) => lane.orphanCreditNote(next)))?.standing).toEqual({
+          kind: "not_requested",
+        });
+      },
+    );
+
+    it("lets another point of sale hold the same number", async () => {
+      const here = await aCreditNote();
+      const there = await aCreditNote(8);
+      await inLane((lane) => request(lane, here, 40));
+
+      await inLane((lane) => request(lane, there, 40), 8);
+
+      expect((await inLane((lane) => lane.orphanCreditNote(there), 8))?.standing).toMatchObject({
+        kind: "requested",
+        number: 40,
+      });
+    });
+  });
+
+  describe("the other credit notes of the point of sale", () => {
+    it("are the standings of every other credit note of the lane's point of sale", async () => {
+      const asked = await aCreditNote(9);
+      const requested = await aCreditNote(9);
+      await aCreditNote(9);
+      await aCreditNote(10);
+      await inLane(async (lane) => {
+        await lane.recordCreditNoteRequest({
+          creditNoteId: requested,
+          number: 3,
+          issuedOn: "2026-10-07",
+          requestedAt: REQUESTED_AT,
+        });
+      }, 9);
+
+      const standings = await inLane((lane) => lane.otherCreditNoteStandings(asked), 9);
+
+      expect(standings).toHaveLength(2);
+      expect(standings).toEqual(
+        expect.arrayContaining([
+          { kind: "not_requested" },
+          {
+            kind: "requested",
+            number: 3,
+            issuedOn: "2026-10-07",
+            requestedAt: REQUESTED_AT,
+            unclearAnsweredAt: null,
+          },
+        ]),
+      );
     });
   });
 

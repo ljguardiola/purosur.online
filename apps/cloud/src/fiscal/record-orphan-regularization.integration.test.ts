@@ -112,139 +112,57 @@ async function recordedRequest(
 }
 
 describe("recording the regularization of an orphan authorization on a real Postgres", () => {
-  describe("the local standing of an authorization", () => {
-    it("holds no local sale for a number nothing local stands behind", async () => {
-      expect(
-        await inLane(9, (lane) => lane.localStandingOfAuthorization({ pointOfSale: 9, number: 1 })),
-      ).toEqual({ kind: "no_local_sale" });
+  describe("the local requests at an authorization's number", () => {
+    const requestsAt = (pointOfSale: number, number: number) =>
+      inLane(pointOfSale, (lane) => lane.requestsAtNumber({ pointOfSale, number }));
+
+    it("are none for a number nothing local stands behind", async () => {
+      expect(await requestsAt(9, 1)).toEqual({ kind: "requests", requests: [] });
     });
 
-    it("holds the sale of the request at the number, with no other authorized voucher when it has none", async () => {
-      const request = await recordedRequest(9, 20);
+    it("are each request at the number, with its document and what the tax authority answered it", async () => {
+      const unanswered = await recordedRequest(9, 20);
+      const rejected = await recordedRequest(9, 20, {
+        issuedOn: "2026-10-07",
+        total: 2_500,
+        buyerTaxStatusCode: 6,
+        receivedAt: new Date(unanswered.receivedAt.getTime() + 1_000),
+        answerKind: "rejected",
+        rejectionCodes: [10016],
+        rejectionClass: "content",
+        answeredAt: OPENED_AT,
+      });
 
-      expect(
-        await inLane(9, (lane) =>
-          lane.localStandingOfAuthorization({ pointOfSale: 9, number: 20 }),
-        ),
-      ).toEqual({ kind: "local_sale", saleId: request.saleId, otherAuthorizedVoucher: null });
+      expect(await requestsAt(9, 20)).toEqual({
+        kind: "requests",
+        requests: [
+          {
+            fiscalDocumentId: unanswered.fiscalDocumentId,
+            saleId: unanswered.saleId,
+            issuedOn: unanswered.issuedOn,
+            total: unanswered.total,
+            buyerTaxStatusCode: unanswered.buyerTaxStatusCode,
+            answer: null,
+          },
+          {
+            fiscalDocumentId: rejected.fiscalDocumentId,
+            saleId: rejected.saleId,
+            issuedOn: "2026-10-07",
+            total: 2_500,
+            buyerTaxStatusCode: 6,
+            answer: { kind: "rejected", codes: [10016], rejectionClass: "content" },
+          },
+        ],
+      });
     });
 
-    it("does not take a request of another point of sale at the same number", async () => {
+    it("do not take a request of another point of sale at the same number", async () => {
       await recordedRequest(11, 21);
 
-      expect(
-        await inLane(9, (lane) =>
-          lane.localStandingOfAuthorization({ pointOfSale: 9, number: 21 }),
-        ),
-      ).toEqual({ kind: "no_local_sale" });
+      expect(await requestsAt(9, 21)).toEqual({ kind: "requests", requests: [] });
     });
 
-    it("names the voucher of the offline point of sale that the same sale holds", async () => {
-      const request = await recordedRequest(9, 22);
-      await insertOfflineFiscalDocument(db, {
-        registerId: registerOf(9),
-        pointOfSale: 31,
-        fortnight: { start: "2026-10-01", end: "2026-10-15" },
-        number: 5,
-        saleId: request.saleId,
-      });
-
-      expect(
-        await inLane(9, (lane) =>
-          lane.localStandingOfAuthorization({ pointOfSale: 9, number: 22 }),
-        ),
-      ).toEqual({
-        kind: "local_sale",
-        saleId: request.saleId,
-        otherAuthorizedVoucher: { voucherType: FACTURA_C_VOUCHER_TYPE, pointOfSale: 31, number: 5 },
-      });
-    });
-
-    it.each<[string, Partial<typeof fiscalRequests.$inferInsert>]>([
-      [
-        "authorized",
-        {
-          answerKind: "authorized",
-          authorizationCode: "75123456789012",
-          authorizationCodeDueOn: "2026-10-16",
-          answeredAt: OPENED_AT,
-        },
-      ],
-      [
-        "adopted after being left unclear",
-        {
-          answerKind: "unclear",
-          unclearCodes: [],
-          answeredAt: OPENED_AT,
-          decision: "adopted",
-          decidedAt: OPENED_AT,
-          adoptedAuthorizationCode: "75123456789012",
-          adoptedAuthorizationCodeDueOn: "2026-10-16",
-        },
-      ],
-    ])("names the other request of the same sale that is %s", async (_case, columns) => {
-      const number = nextNumber();
-      const orphan = await recordedRequest(9, number);
-      await recordedRequest(9, number + 1, { saleId: orphan.saleId, ...columns });
-
-      expect(
-        await inLane(9, (lane) => lane.localStandingOfAuthorization({ pointOfSale: 9, number })),
-      ).toEqual({
-        kind: "local_sale",
-        saleId: orphan.saleId,
-        otherAuthorizedVoucher: {
-          voucherType: FACTURA_C_VOUCHER_TYPE,
-          pointOfSale: 9,
-          number: number + 1,
-        },
-      });
-    });
-
-    it.each<[string, Partial<typeof fiscalRequests.$inferInsert>]>([
-      [
-        "rejected",
-        {
-          answerKind: "rejected",
-          rejectionCodes: [10015],
-          rejectionClass: "content",
-          answeredAt: OPENED_AT,
-        },
-      ],
-      ["unclear", { answerKind: "unclear", unclearCodes: [], answeredAt: OPENED_AT }],
-      [
-        "released",
-        {
-          answerKind: "unclear",
-          unclearCodes: [],
-          answeredAt: OPENED_AT,
-          decision: "released",
-          decidedAt: OPENED_AT,
-        },
-      ],
-      [
-        "conflicting",
-        {
-          answerKind: "unclear",
-          unclearCodes: [],
-          answeredAt: OPENED_AT,
-          decision: "conflicting",
-          decidedAt: OPENED_AT,
-        },
-      ],
-    ])(
-      "does not take another request of the same sale that is %s as authorized",
-      async (_case, columns) => {
-        const number = nextNumber();
-        const orphan = await recordedRequest(9, number);
-        await recordedRequest(9, number + 1, { saleId: orphan.saleId, ...columns });
-
-        expect(
-          await inLane(9, (lane) => lane.localStandingOfAuthorization({ pointOfSale: 9, number })),
-        ).toMatchObject({ kind: "local_sale", otherAuthorizedVoucher: null });
-      },
-    );
-
-    it("is regularized once a credit note was requested for the orphan", async () => {
+    it("are regularized once a credit note was requested for the orphan", async () => {
       await recordedRequest(11, 30);
       await inLane(11, (lane) =>
         lane.recordOrphanRegularization(
@@ -255,25 +173,55 @@ describe("recording the regularization of an orphan authorization on a real Post
         ),
       );
 
-      expect(
-        await inLane(11, (lane) =>
-          lane.localStandingOfAuthorization({ pointOfSale: 11, number: 30 }),
-        ),
-      ).toEqual({ kind: "already_regularized" });
+      expect(await requestsAt(11, 30)).toEqual({ kind: "already_regularized" });
     });
 
-    it("is regularized once a task for a person was opened for the orphan", async () => {
+    it("are regularized once a task for a person was opened for the orphan", async () => {
       await inLane(11, (lane) =>
         lane.recordOrphanRegularization(
           externalInvoicingRegularization({ pointOfSale: 11, number: 31 }),
         ),
       );
 
+      expect(await requestsAt(11, 31)).toEqual({ kind: "already_regularized" });
+    });
+  });
+
+  describe("the other documents of the sale behind a request", () => {
+    it("are the sale's offline document and its other requests, with what was recorded of each", async () => {
+      const number = nextNumber();
+      const orphan = await recordedRequest(9, number);
+      await insertOfflineFiscalDocument(db, {
+        registerId: registerOf(9),
+        pointOfSale: 31,
+        fortnight: { start: "2026-10-01", end: "2026-10-15" },
+        number: 5,
+        saleId: orphan.saleId,
+      });
+      await recordedRequest(9, number + 1, {
+        saleId: orphan.saleId,
+        answerKind: "unclear",
+        unclearCodes: [],
+        answeredAt: OPENED_AT,
+        decision: "released",
+        decidedAt: OPENED_AT,
+      });
+
       expect(
-        await inLane(11, (lane) =>
-          lane.localStandingOfAuthorization({ pointOfSale: 11, number: 31 }),
+        await inLane(9, (lane) =>
+          lane.otherDocumentsOfSale(orphan.saleId, orphan.fiscalDocumentId),
         ),
-      ).toEqual({ kind: "already_regularized" });
+      ).toEqual([
+        {
+          kind: "offline",
+          voucher: { voucherType: FACTURA_C_VOUCHER_TYPE, pointOfSale: 31, number: 5 },
+        },
+        {
+          kind: "real_time",
+          voucher: { voucherType: FACTURA_C_VOUCHER_TYPE, pointOfSale: 9, number: number + 1 },
+          outcome: { answer: { kind: "unclear" }, decision: { kind: "released" } },
+        },
+      ]);
     });
   });
 

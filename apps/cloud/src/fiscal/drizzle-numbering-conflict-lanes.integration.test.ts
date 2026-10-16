@@ -443,26 +443,34 @@ describe("the numbering conflict lane on a real Postgres", () => {
     });
   });
 
-  describe("the local standing of an authorization", () => {
+  describe("the local requests at an authorization's number", () => {
     const standingOf = (pointOfSale: number, number: number) =>
-      inLane(pointOfSale, (lane) => lane.localStandingOfAuthorization({ pointOfSale, number }));
+      inLane(pointOfSale, (lane) => lane.requestsAtNumber({ pointOfSale, number }));
 
-    it("holds no local sale for a number no request holds", async () => {
-      expect(await standingOf(7, 3_000)).toEqual({ kind: "no_local_sale" });
+    it("are none for a number no request holds", async () => {
+      expect(await standingOf(7, 3_000)).toEqual({ kind: "requests", requests: [] });
     });
 
-    it("holds the sale of the request at the number, with no other authorized voucher when it has none", async () => {
+    it("are the request at the number, with its document and no answer while it has none", async () => {
       const request = authorizationRequestRecord(registerId, { pointOfSale: 7, number: 3_001 });
       await db.insert(fiscalRequests).values(request);
 
       expect(await standingOf(7, 3_001)).toEqual({
-        kind: "local_sale",
-        saleId: request.saleId,
-        otherAuthorizedVoucher: null,
+        kind: "requests",
+        requests: [
+          {
+            fiscalDocumentId: request.fiscalDocumentId,
+            saleId: request.saleId,
+            issuedOn: request.issuedOn,
+            total: request.total,
+            buyerTaxStatusCode: request.buyerTaxStatusCode,
+            answer: null,
+          },
+        ],
       });
     });
 
-    it("names the other request of the sale that was authorized", async () => {
+    it("lead to the other request of the sale with its authorization", async () => {
       const orphan = authorizationRequestRecord(registerId, { pointOfSale: 7, number: 3_002 });
       await db.insert(fiscalRequests).values(orphan);
       await db.insert(fiscalRequests).values({
@@ -477,15 +485,24 @@ describe("the numbering conflict lane on a real Postgres", () => {
         answeredAt: FROZEN_AT,
       });
 
-      expect(await standingOf(7, 3_002)).toEqual({
-        kind: "local_sale",
-        saleId: orphan.saleId,
-        otherAuthorizedVoucher: {
-          voucherType: FACTURA_C_VOUCHER_TYPE,
-          pointOfSale: 7,
-          number: 3_003,
+      expect(
+        await inLane(7, (lane) =>
+          lane.otherDocumentsOfSale(orphan.saleId, orphan.fiscalDocumentId),
+        ),
+      ).toEqual([
+        {
+          kind: "real_time",
+          voucher: { voucherType: FACTURA_C_VOUCHER_TYPE, pointOfSale: 7, number: 3_003 },
+          outcome: {
+            answer: {
+              kind: "authorized",
+              authorizationCode: "75123456789012",
+              authorizationCodeDueOn: "2026-10-16",
+            },
+            decision: null,
+          },
         },
-      });
+      ]);
     });
 
     it("is regularized once a credit note was requested for the orphan", async () => {

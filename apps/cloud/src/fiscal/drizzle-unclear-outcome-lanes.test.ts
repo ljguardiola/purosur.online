@@ -320,27 +320,20 @@ describe("DrizzleUnclearOutcomeLanes", () => {
     });
   });
 
-  describe("another authorized voucher of the sale", () => {
-    const authorized = {
-      answerKind: "authorized",
-      authorizationCode: "75123456789012",
-      authorizationCodeDueOn: "2026-10-16",
-      answeredAt: ANSWERED_AT,
-    } as const;
-
-    async function otherAuthorizedVoucherOf(saleId: string, fiscalDocumentId: string) {
+  describe("the other documents of the sale", () => {
+    async function otherDocumentsOf(saleId: string, fiscalDocumentId: string) {
       return unclearLanes.inPointOfSaleLane(7, (lane) =>
-        lane.otherAuthorizedVoucherOfSale(saleId, fiscalDocumentId),
+        lane.otherDocumentsOfSale(saleId, fiscalDocumentId),
       );
     }
 
-    it("is none when the sale holds no other voucher", async () => {
+    it("are none when the sale holds no other document", async () => {
       const request = await recordedRequest(42, { kind: "unclear" });
 
-      expect(await otherAuthorizedVoucherOf(request.saleId, request.fiscalDocumentId)).toBeNull();
+      expect(await otherDocumentsOf(request.saleId, request.fiscalDocumentId)).toEqual([]);
     });
 
-    it("is the voucher of the offline point of sale the sale was issued under", async () => {
+    it("are the offline document of the sale first, then each other request of the sale by number with what was recorded of it", async () => {
       const request = await recordedRequest(42, { kind: "unclear" });
       await insertOfflineFiscalDocument(db, {
         registerId: request.registerId,
@@ -349,37 +342,15 @@ describe("DrizzleUnclearOutcomeLanes", () => {
         number: 5,
         saleId: request.saleId,
       });
-
-      expect(await otherAuthorizedVoucherOf(request.saleId, request.fiscalDocumentId)).toEqual({
-        voucherType: 11,
-        pointOfSale: 31,
-        number: 5,
-      });
-    });
-
-    it("is the voucher of another request of the sale that was authorized", async () => {
-      const request = await recordedRequest(42, { kind: "unclear" });
-      const other = authorizationRequestRecord(request.registerId, {
-        saleId: request.saleId,
-        number: 43,
-      });
-      await db.insert(fiscalRequests).values({ ...other, ...authorized });
-
-      expect(await otherAuthorizedVoucherOf(request.saleId, request.fiscalDocumentId)).toEqual({
-        voucherType: 11,
-        pointOfSale: 7,
-        number: 43,
-      });
-    });
-
-    it("is the voucher of another request of the sale whose unclear outcome was adopted", async () => {
-      const request = await recordedRequest(42, { kind: "unclear" });
-      const other = authorizationRequestRecord(request.registerId, {
-        saleId: request.saleId,
-        number: 44,
+      await db.insert(fiscalRequests).values({
+        ...authorizationRequestRecord(request.registerId, { saleId: request.saleId, number: 46 }),
+        answerKind: "rejected",
+        rejectionCodes: [10015],
+        rejectionClass: "content",
+        answeredAt: ANSWERED_AT,
       });
       await db.insert(fiscalRequests).values({
-        ...other,
+        ...authorizationRequestRecord(request.registerId, { saleId: request.saleId, number: 44 }),
         answerKind: "unclear",
         unclearCodes: [],
         answeredAt: ANSWERED_AT,
@@ -388,39 +359,73 @@ describe("DrizzleUnclearOutcomeLanes", () => {
         adoptedAuthorizationCode: "75123456789013",
         adoptedAuthorizationCodeDueOn: "2026-10-16",
       });
-
-      expect(await otherAuthorizedVoucherOf(request.saleId, request.fiscalDocumentId)).toEqual({
-        voucherType: 11,
-        pointOfSale: 7,
-        number: 44,
+      await db.insert(fiscalRequests).values({
+        ...authorizationRequestRecord(request.registerId, { saleId: request.saleId, number: 43 }),
+        answerKind: "authorized",
+        authorizationCode: "75123456789012",
+        authorizationCodeDueOn: "2026-10-16",
+        answeredAt: ANSWERED_AT,
       });
+
+      expect(await otherDocumentsOf(request.saleId, request.fiscalDocumentId)).toEqual([
+        { kind: "offline", voucher: { voucherType: 11, pointOfSale: 31, number: 5 } },
+        {
+          kind: "real_time",
+          voucher: { voucherType: 11, pointOfSale: 7, number: 43 },
+          outcome: {
+            answer: {
+              kind: "authorized",
+              authorizationCode: "75123456789012",
+              authorizationCodeDueOn: "2026-10-16",
+            },
+            decision: null,
+          },
+        },
+        {
+          kind: "real_time",
+          voucher: { voucherType: 11, pointOfSale: 7, number: 44 },
+          outcome: {
+            answer: { kind: "unclear" },
+            decision: {
+              kind: "adopted",
+              authorizationCode: "75123456789013",
+              authorizationCodeDueOn: "2026-10-16",
+            },
+          },
+        },
+        {
+          kind: "real_time",
+          voucher: { voucherType: 11, pointOfSale: 7, number: 46 },
+          outcome: {
+            answer: { kind: "rejected", codes: [10015], rejectionClass: "content" },
+            decision: null,
+          },
+        },
+      ]);
     });
 
-    it("never names the request it is asked about, even when that one is authorized", async () => {
+    it("never hold the request they are asked about, nor a document of another sale", async () => {
       const request = await recordedRequest(42, {
         kind: "authorized",
         authorizationCode: "74123456789012",
         authorizationCodeDueOn: "2026-10-16",
       });
-
-      expect(await otherAuthorizedVoucherOf(request.saleId, request.fiscalDocumentId)).toBeNull();
-    });
-
-    it("does not take a request of another sale, nor one of the sale that was not authorized", async () => {
-      const request = await recordedRequest(42, { kind: "unclear" });
       await db.insert(fiscalRequests).values({
         ...authorizationRequestRecord(request.registerId, { number: 45 }),
-        ...authorized,
-      });
-      await db.insert(fiscalRequests).values({
-        ...authorizationRequestRecord(request.registerId, { saleId: request.saleId, number: 46 }),
-        answerKind: "rejected",
-        rejectionCodes: [10015],
-        rejectionClass: "content",
+        answerKind: "authorized",
+        authorizationCode: "75123456789012",
+        authorizationCodeDueOn: "2026-10-16",
         answeredAt: ANSWERED_AT,
       });
+      await insertOfflineFiscalDocument(db, {
+        registerId: request.registerId,
+        pointOfSale: 31,
+        fortnight: { start: "2026-10-01", end: "2026-10-15" },
+        number: 6,
+        saleId: crypto.randomUUID(),
+      });
 
-      expect(await otherAuthorizedVoucherOf(request.saleId, request.fiscalDocumentId)).toBeNull();
+      expect(await otherDocumentsOf(request.saleId, request.fiscalDocumentId)).toEqual([]);
     });
   });
 

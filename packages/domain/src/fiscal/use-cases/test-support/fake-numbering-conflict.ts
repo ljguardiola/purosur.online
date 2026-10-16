@@ -2,7 +2,11 @@ import type {
   NumberingConflictDiagnosis,
   NumberingReconciliationDocument,
 } from "../../model/numbering-conflict.js";
-import type { LocalStanding, OrphanRegularization } from "../../model/orphan-authorization.js";
+import type {
+  OrphanRegularization,
+  RequestsAtNumber,
+  SaleDocument,
+} from "../../model/orphan-authorization.js";
 import type { RealTimeAuthorizationAnswer } from "../../model/real-time-authorization.js";
 import type { WsaaTokenSource } from "../fiscal-document-authorization-ports.js";
 import type {
@@ -35,7 +39,8 @@ interface StoreState {
   freezes: Map<number, NumberingFreeze>;
   counts: Map<number, number>;
   documents: Map<number, NumberingReconciliationDocument[]>;
-  standings: Map<string, LocalStanding>;
+  requestsAtNumber: Map<string, RequestsAtNumber>;
+  saleDocuments: Map<string, SaleDocument[]>;
   regularizations: OrphanRegularization[];
   reconciliationRequests: number[];
 }
@@ -52,7 +57,8 @@ export class FakeNumberingConflictStore
     freezes: new Map(),
     counts: new Map(),
     documents: new Map(),
-    standings: new Map(),
+    requestsAtNumber: new Map(),
+    saleDocuments: new Map(),
     regularizations: [],
     reconciliationRequests: [],
   };
@@ -74,8 +80,12 @@ export class FakeNumberingConflictStore
     this.state.documents.set(pointOfSale, documents);
   }
 
-  seedStanding(pointOfSale: number, number: number, standing: LocalStanding) {
-    this.state.standings.set(`${pointOfSale}/${number}`, standing);
+  seedRequestsAtNumber(pointOfSale: number, number: number, requests: RequestsAtNumber) {
+    this.state.requestsAtNumber.set(`${pointOfSale}/${number}`, requests);
+  }
+
+  seedSaleDocuments(saleId: string, documents: SaleDocument[]) {
+    this.state.saleDocuments.set(saleId, documents);
   }
 
   freezeOf(pointOfSale: number): NumberingFreeze | undefined {
@@ -202,17 +212,25 @@ class FakeNumberingConflictLane implements NumberingConflictLane {
     );
   }
 
-  async localStandingOfAuthorization({
+  async requestsAtNumber({
     pointOfSale,
     number,
   }: {
     pointOfSale: number;
     number: number;
-  }): Promise<LocalStanding> {
-    this.store.record("localStandingOfAuthorization");
+  }): Promise<RequestsAtNumber> {
+    this.store.record("requestsAtNumber");
     return (
-      this.store.current.standings.get(`${pointOfSale}/${number}`) ?? { kind: "no_local_sale" }
+      this.store.current.requestsAtNumber.get(`${pointOfSale}/${number}`) ?? {
+        kind: "requests",
+        requests: [],
+      }
     );
+  }
+
+  async otherDocumentsOfSale(saleId: string, _fiscalDocumentId: string): Promise<SaleDocument[]> {
+    this.store.record("otherDocumentsOfSale");
+    return this.store.current.saleDocuments.get(saleId) ?? [];
   }
 
   async settleNumberingReconciliation({

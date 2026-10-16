@@ -10,6 +10,7 @@ import type {
   CreditNoteRejectionRecord,
   CreditNoteRequestRecord,
   CreditNoteSolicitation,
+  CreditNoteStanding,
   OrphanCreditNote,
   OrphanCreditNoteLane,
   OrphanCreditNoteLanes,
@@ -37,6 +38,7 @@ export class FakeOrphanCreditNoteStore implements OrphanCreditNoteLanes, OrphanC
   readonly lanesEntered: number[] = [];
   held = false;
   vanishAfterLookup = false;
+  requestFailure: Error | undefined;
 
   seed(creditNote: OrphanCreditNote) {
     this.creditNotes.set(creditNote.creditNoteId, creditNote);
@@ -62,7 +64,7 @@ export class FakeOrphanCreditNoteStore implements OrphanCreditNoteLanes, OrphanC
     this.lanesEntered.push(pointOfSale);
     this.held = true;
     try {
-      return await work(new FakeOrphanCreditNoteLane(this));
+      return await work(new FakeOrphanCreditNoteLane(this, pointOfSale));
     } finally {
       this.held = false;
       this.operations.push("leaveLane");
@@ -72,9 +74,11 @@ export class FakeOrphanCreditNoteStore implements OrphanCreditNoteLanes, OrphanC
 
 class FakeOrphanCreditNoteLane implements OrphanCreditNoteLane {
   private readonly store: FakeOrphanCreditNoteStore;
+  private readonly pointOfSale: number;
 
-  constructor(store: FakeOrphanCreditNoteStore) {
+  constructor(store: FakeOrphanCreditNoteStore, pointOfSale: number) {
     this.store = store;
+    this.pointOfSale = pointOfSale;
   }
 
   async orphanCreditNote(creditNoteId: string): Promise<OrphanCreditNote | null> {
@@ -83,8 +87,21 @@ class FakeOrphanCreditNoteLane implements OrphanCreditNoteLane {
     return creditNote === undefined ? null : structuredClone(creditNote);
   }
 
+  async otherCreditNoteStandings(creditNoteId: string): Promise<CreditNoteStanding[]> {
+    this.store.operations.push("otherCreditNoteStandings");
+    return [...this.store.creditNotes.values()]
+      .filter(
+        (creditNote) =>
+          creditNote.creditNoteId !== creditNoteId && creditNote.pointOfSale === this.pointOfSale,
+      )
+      .map(({ standing }) => structuredClone(standing));
+  }
+
   async recordCreditNoteRequest(record: CreditNoteRequestRecord): Promise<void> {
     this.store.operations.push("recordCreditNoteRequest");
+    if (this.store.requestFailure !== undefined) {
+      throw this.store.requestFailure;
+    }
     this.store.requests.push(record);
     this.update(record.creditNoteId, {
       kind: "requested",

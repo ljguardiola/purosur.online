@@ -1,4 +1,4 @@
-import type { OrphanRegularization, VoucherReference } from "../../model/orphan-authorization.js";
+import type { OrphanRegularization, SaleDocument } from "../../model/orphan-authorization.js";
 import type { RealTimeAuthorizationAnswer } from "../../model/real-time-authorization.js";
 import type {
   RecordedRequestOutcome,
@@ -30,7 +30,7 @@ export class FakeUnclearOutcomeStore implements UnclearOutcomeLanes, UnclearOutc
     fiscalDocumentId: string;
     clearedAt: Date;
   }[] = [];
-  readonly otherVouchers = new Map<string, VoucherReference>();
+  readonly saleDocuments = new Map<string, SaleDocument[]>();
   readonly regularizations: (OrphanRegularization | null)[] = [];
   readonly otherVoucherAsks: { saleId: string; fiscalDocumentId: string }[] = [];
   vanishAfterLookup = false;
@@ -135,13 +135,10 @@ class FakeUnclearOutcomeLane implements UnclearOutcomeLane {
     });
   }
 
-  async otherAuthorizedVoucherOfSale(
-    saleId: string,
-    fiscalDocumentId: string,
-  ): Promise<VoucherReference | null> {
+  async otherDocumentsOfSale(saleId: string, fiscalDocumentId: string): Promise<SaleDocument[]> {
     this.store.otherVoucherAsks.push({ saleId, fiscalDocumentId });
-    this.store.documents.operations.push("otherAuthorizedVoucherOfSale");
-    return this.store.otherVouchers.get(saleId) ?? null;
+    this.store.documents.operations.push("otherDocumentsOfSale");
+    return this.store.saleDocuments.get(saleId) ?? [];
   }
 
   async registerOwnsPointOfSale(registerId: string, pointOfSale: number): Promise<boolean> {

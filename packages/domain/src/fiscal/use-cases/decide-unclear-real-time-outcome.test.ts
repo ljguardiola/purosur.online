@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { PushedEvent } from "../../sync/index.js";
-import type { VoucherReference } from "../model/orphan-authorization.js";
+import type { SaleDocument, VoucherReference } from "../model/orphan-authorization.js";
 import type { RealTimeAuthorizationAnswer } from "../model/real-time-authorization.js";
 import {
   type TaxAuthorityVoucher,
@@ -80,7 +80,7 @@ interface Scenario {
   token?: typeof TOKEN | null;
   voucher?: VoucherAnswer;
   lastAuthorized?: LastAuthorizedAnswer;
-  otherVoucher?: VoucherReference;
+  otherDocuments?: SaleDocument[];
 }
 
 function scenario({
@@ -91,13 +91,13 @@ function scenario({
   token = TOKEN,
   voucher = { kind: "none" },
   lastAuthorized = { kind: "read", number: 40 },
-  otherVoucher,
+  otherDocuments,
 }: Scenario = {}) {
   const documents = new FakePointOfSaleLanes([[12, "register-1"]]);
   const store = new FakeUnclearOutcomeStore(documents);
   store.seed(REQUEST, answer, answer === null ? null : answeredAt, decision);
-  if (otherVoucher !== undefined) {
-    store.otherVouchers.set(REQUEST.saleId, otherVoucher);
+  if (otherDocuments !== undefined) {
+    store.saleDocuments.set(REQUEST.saleId, otherDocuments);
   }
   const clock = new ManualClock(now);
   const vouchers = new FakeTaxAuthorityVouchers(documents, voucher);
@@ -359,11 +359,12 @@ describe("decideUnclearRealTimeOutcome", () => {
 
   describe("an authorization no other voucher of the sale accounts for", () => {
     const KEPT_VOUCHER: VoucherReference = { voucherType: 11, pointOfSale: 13, number: 7 };
+    const KEPT_DOCUMENTS: SaleDocument[] = [{ kind: "offline", voucher: KEPT_VOUCHER }];
 
     it("corrects an adopted authorization with a credit note when the sale has another authorized voucher", async () => {
       const { ports, documents, store } = scenario({
         voucher: { kind: "found", voucher: MATCHING_VOUCHER },
-        otherVoucher: KEPT_VOUCHER,
+        otherDocuments: KEPT_DOCUMENTS,
       });
 
       await decide(ports);
@@ -387,10 +388,27 @@ describe("decideUnclearRealTimeOutcome", () => {
         "enterLane",
         "unclearRequest",
         "voucherAt",
-        "otherAuthorizedVoucherOfSale",
+        "otherDocumentsOfSale",
         "recordDecision:adopted@2026-10-01T12:01:00.000Z",
         "leaveLane",
       ]);
+    });
+
+    it("regularizes nothing when no other document of the sale is authorized", async () => {
+      const { ports, store } = scenario({
+        voucher: { kind: "found", voucher: MATCHING_VOUCHER },
+        otherDocuments: [
+          {
+            kind: "real_time",
+            voucher: { voucherType: 11, pointOfSale: 12, number: 42 },
+            outcome: { answer: { kind: "unclear" }, decision: { kind: "released" } },
+          },
+        ],
+      });
+
+      await decide(ports);
+
+      expect(store.regularizations).toEqual([null]);
     });
 
     it("regularizes nothing when the adopted authorization is the only voucher of its sale", async () => {
@@ -404,7 +422,7 @@ describe("decideUnclearRealTimeOutcome", () => {
     it("reports a voucher with other content at the number as invoicing outside the register, without reading the sale", async () => {
       const { ports, store } = scenario({
         voucher: { kind: "found", voucher: { ...MATCHING_VOUCHER, total: 1 } },
-        otherVoucher: KEPT_VOUCHER,
+        otherDocuments: KEPT_DOCUMENTS,
       });
 
       await decide(ports);
@@ -428,7 +446,7 @@ describe("decideUnclearRealTimeOutcome", () => {
     });
 
     it("regularizes nothing when the number is released, and reads nothing of the sale", async () => {
-      const { ports, store } = scenario({ otherVoucher: KEPT_VOUCHER });
+      const { ports, store } = scenario({ otherDocuments: KEPT_DOCUMENTS });
 
       await decide(ports);
 

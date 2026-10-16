@@ -331,7 +331,7 @@ describe("numberingConflictJobs", () => {
       },
     );
 
-    it("requests a credit note for a number ARCA authorized that a sale also holds another authorized voucher for, and lifts the freeze", async () => {
+    it("requests a credit note for a released request ARCA authorized after all whose sale holds another authorized voucher, and lifts the freeze", async () => {
       await issueWsaaToken();
       const registerId = await registerOfPointOfSale();
       await freeze(1);
@@ -346,10 +346,11 @@ describe("numberingConflictJobs", () => {
       await testDatabase.db
         .update(fiscalRequests)
         .set({
-          answerKind: "rejected",
-          rejectionCodes: [10015],
-          rejectionClass: "content",
+          answerKind: "unclear",
+          unclearCodes: [],
           answeredAt: ANSWERED_AT,
+          decision: "released",
+          decidedAt: ANSWERED_AT,
         })
         .where(eq(fiscalRequests.number, 3));
       await recordRequest(registerId, 9, {

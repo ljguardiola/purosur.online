@@ -218,14 +218,18 @@ describe("the numbering conflict work the server sets up on a real Postgres", ()
           enqueueNumberingReconciliationJob(transaction, pointOfSale),
         );
         await vi.waitFor(
-          async () =>
+          async () => {
+            expect(
+              fakeWsfe.requests.filter((request) => request.includes("FECompConsultar")),
+            ).not.toEqual([]);
             expect(
               await sql`select 1 from graphile_worker._private_jobs
-                where key = ${`reconcile-numbering-conflict:${pointOfSale}`} and run_at > ${NOW.toISOString()}::timestamptz`,
-            ).toHaveLength(1),
+                where key = ${`reconcile-numbering-conflict:${pointOfSale}`} and run_at > ${NOW.toISOString()}::timestamptz
+                and last_error is null`,
+            ).toHaveLength(1);
+          },
           { timeout: 20_000, interval: 100 },
         );
-        expect(fakeWsfe.requests.length).toBeGreaterThanOrEqual(2);
 
         expect(
           await sql`select 1 from numbering_freezes where point_of_sale_number = ${pointOfSale}`,

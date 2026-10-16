@@ -3,7 +3,11 @@ import {
   NUMBERING_CONFLICT_REASK_INTERVAL_MS,
   type NumberingReconciliationDocument,
 } from "../model/numbering-conflict.js";
-import type { LocalStanding } from "../model/orphan-authorization.js";
+import type {
+  LocalRequestAtNumber,
+  RequestsAtNumber,
+  SaleDocument,
+} from "../model/orphan-authorization.js";
 import type { TaxAuthorityVoucher } from "../model/unclear-outcome-decision.js";
 import { reconcileNumberingConflict } from "./reconcile-numbering-conflict.js";
 import type { LastAuthorizedAnswer } from "./tax-authority-count-ports.js";
@@ -50,7 +54,8 @@ interface Scenario {
   documents?: NumberingReconciliationDocument[];
   count?: number;
   voucher?: VoucherAnswer | ((number: number) => VoucherAnswer);
-  standings?: [number, LocalStanding][];
+  standings?: [number, RequestsAtNumber][];
+  saleDocuments?: [string, SaleDocument[]][];
 }
 
 function scenario({
@@ -61,6 +66,7 @@ function scenario({
   count = 10,
   voucher = { kind: "found", voucher: VOUCHER },
   standings = [],
+  saleDocuments = [],
 }: Scenario = {}) {
   const store = new FakeNumberingConflictStore();
   store.seedCount(12, count);
@@ -68,8 +74,11 @@ function scenario({
   if (frozen) {
     store.seedFreeze(12, { countBeforeFreeze: 10, frozenAt: FROZEN_AT });
   }
-  for (const [number, standing] of standings) {
-    store.seedStanding(12, number, standing);
+  for (const [number, requests] of standings) {
+    store.seedRequestsAtNumber(12, number, requests);
+  }
+  for (const [saleId, documents] of saleDocuments) {
+    store.seedSaleDocuments(saleId, documents);
   }
   const taxAuthority = new FakeNumberingTaxAuthority(store, lastAuthorized, voucher);
   const ports = {
@@ -268,11 +277,22 @@ describe("reconcileNumberingConflict", () => {
   });
 
   describe("confirming each authorization without an own document", () => {
-    const FAR_AWAY: LocalStanding = {
-      kind: "local_sale",
+    const SALE_9_REQUEST: LocalRequestAtNumber = {
+      fiscalDocumentId: "document-9",
       saleId: "sale-9",
-      otherAuthorizedVoucher: { voucherType: 11, pointOfSale: 13, number: 7 },
+      issuedOn: VOUCHER.issuedOn,
+      total: VOUCHER.total,
+      buyerTaxStatusCode: VOUCHER.receiverTaxStatusCode,
+      answer: { kind: "unclear" },
     };
+    const requestsAt = (...requests: LocalRequestAtNumber[]): RequestsAtNumber => ({
+      kind: "requests",
+      requests,
+    });
+    const KEPT_VOUCHER = { voucherType: 11, pointOfSale: 13, number: 7 };
+    const SALE_9_KEPT: [string, SaleDocument[]][] = [
+      ["sale-9", [{ kind: "offline", voucher: KEPT_VOUCHER }]],
+    ];
     const gaps = { documents: [authorized(11), authorized(14)] };
 
     it("asks the tax authority for the factura C of each number without an own document, in the lane", async () => {
@@ -330,7 +350,8 @@ describe("reconcileNumberingConflict", () => {
     it("corrects with a credit note, and raises no alert, a confirmed authorization of a sale that has another authorized voucher", async () => {
       const { store, ports } = scenario({
         documents: [authorized(11), authorized(12), authorized(14)],
-        standings: [[13, FAR_AWAY]],
+        standings: [[13, requestsAt(SALE_9_REQUEST)]],
+        saleDocuments: SALE_9_KEPT,
       });
 
       expect(await reconcile(ports)).toEqual({
@@ -354,11 +375,83 @@ describe("reconcileNumberingConflict", () => {
       ]);
     });
 
-    it.each<[string, LocalStanding]>([
+    it.each<[string, LocalRequestAtNumber]>([
+      ["has other content than the local request there", { ...SALE_9_REQUEST, total: 1 }],
       [
-        "the only voucher of its sale",
-        { kind: "local_sale", saleId: "sale-9", otherAuthorizedVoucher: null },
+        "matches a local request the tax authority rejected",
+        {
+          ...SALE_9_REQUEST,
+          answer: { kind: "rejected", codes: [10016], rejectionClass: "content" },
+        },
       ],
+    ])(
+      "opens an alert and a task, never a credit note, for a voucher that %s, even when that sale has another authorized voucher",
+      async (_case, request) => {
+        const { store, ports } = scenario({
+          documents: [authorized(11), authorized(12), authorized(14)],
+          standings: [[13, requestsAt(request)]],
+          saleDocuments: SALE_9_KEPT,
+        });
+
+        expect(await reconcile(ports)).toEqual({
+          kind: "reconciled",
+          lastAuthorized: 14,
+          alertedNumbers: [13],
+          creditNotedNumbers: [],
+        });
+        expect(store.creditNotes).toEqual([]);
+        expect(store.tasks).toHaveLength(1);
+        expect(store.freezeOf(12)).toBeUndefined();
+      },
+    );
+
+    it("opens an alert and a task for a voucher at the number of a rejected request whose sale has no other voucher", async () => {
+      const { store, ports } = scenario({
+        documents: [authorized(11), authorized(12), authorized(14)],
+        standings: [
+          [
+            13,
+            requestsAt({
+              ...SALE_9_REQUEST,
+              answer: { kind: "rejected", codes: [10016], rejectionClass: "content" },
+            }),
+          ],
+        ],
+      });
+
+      expect(await reconcile(ports)).toEqual({
+        kind: "reconciled",
+        lastAuthorized: 14,
+        alertedNumbers: [13],
+        creditNotedNumbers: [],
+      });
+      expect(store.alerts).toEqual([{ pointOfSale: 12, documentType: "factura_c", number: 13 }]);
+    });
+
+    it("corrects with a credit note the voucher of the matching request among several at the number", async () => {
+      const { store, ports } = scenario({
+        documents: [authorized(11), authorized(12), authorized(14)],
+        standings: [
+          [
+            13,
+            requestsAt(
+              { ...SALE_9_REQUEST, fiscalDocumentId: "document-8", saleId: "sale-8", total: 1 },
+              SALE_9_REQUEST,
+            ),
+          ],
+        ],
+        saleDocuments: [...SALE_9_KEPT, ["sale-8", [{ kind: "offline", voucher: KEPT_VOUCHER }]]],
+      });
+
+      expect(await reconcile(ports)).toMatchObject({
+        creditNotedNumbers: [13],
+        alertedNumbers: [],
+      });
+      expect(store.creditNotes).toMatchObject([{ saleId: "sale-9" }]);
+    });
+
+    it.each<[string, RequestsAtNumber]>([
+      ["the only voucher of its sale", requestsAt(SALE_9_REQUEST)],
       ["already regularized", { kind: "already_regularized" }],
     ])(
       "regularizes nothing for an authorization that is %s, and still lifts the freeze",
