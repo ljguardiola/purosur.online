@@ -42,7 +42,7 @@ export async function pushSaleThenItsVoiding<TQueryResult extends PgQueryResultH
     method: PaymentMethodOfPush;
     authorizedBy?: string;
   },
-): Promise<{ voidEventId: string }> {
+): Promise<void> {
   const sessionId = randomUUID();
   const registerId = randomUUID();
   await db
@@ -80,7 +80,7 @@ export async function pushSaleThenItsVoiding<TQueryResult extends PgQueryResultH
       payments: [paymentOf(options.paymentId, options.method)],
     },
   });
-  const voidEventId = await insertInboxEvent(db, options.deviceId, {
+  await insertInboxEvent(db, options.deviceId, {
     aggregateId: options.saleId,
     eventType: "sale_voided",
     schemaVersion: 2,
@@ -114,5 +114,4 @@ export async function pushSaleThenItsVoiding<TQueryResult extends PgQueryResultH
       deferred_record_cancelled: false,
     },
   });
-  return { voidEventId };
 }

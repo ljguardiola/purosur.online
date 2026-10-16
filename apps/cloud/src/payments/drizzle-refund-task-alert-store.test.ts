@@ -39,9 +39,11 @@ describe("DrizzleRefundTaskAlertStore", () => {
         refundId: refund.refundId,
         saleId: refund.saleId,
         locationId: refund.locationId,
+        origin: "sale_cancelled",
         method: "TRANSFER",
         amount: refund.amount,
         openedAt: CANCELLED_AT,
+        confirmedAt: null,
       },
     ]);
   });
@@ -54,10 +56,24 @@ describe("DrizzleRefundTaskAlertStore", () => {
         refundId: refund.refundId,
         saleId: refund.saleId,
         locationId: refund.locationId,
+        origin: "sale_voided",
         method: "TRANSFER",
         amount: 2_000,
         openedAt: CANCELLED_AT,
+        confirmedAt: null,
       },
+    ]);
+  });
+
+  it("locks a confirmed refund with when it was confirmed", async () => {
+    const refund = await aPendingRefundOfVoidedSale(db, { voidedAt: CANCELLED_AT });
+    await db
+      .update(paymentRefunds)
+      .set({ confirmedBy: "cashier-1", confirmedAt: CANCELLED_AT })
+      .where(eq(paymentRefunds.id, refund.refundId));
+
+    expect(await lockRefunds()).toEqual([
+      expect.objectContaining({ refundId: refund.refundId, confirmedAt: CANCELLED_AT }),
     ]);
   });
 

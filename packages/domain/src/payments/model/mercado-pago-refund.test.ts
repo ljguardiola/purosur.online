@@ -7,11 +7,13 @@ import {
   INSUFFICIENT_BALANCE_REFUSAL,
   isAwaitingMercadoPago,
   isProcessedByMercadoPago,
+  isRefundInCloudHands,
   isRefundSentByCloud,
   MERCADO_PAGO_REFUND_STAGES,
   mercadoPagoRefundStage,
   orderToRefund,
   progressOfRefundAnswer,
+  recordedRefundOfVoidedSale,
   refundableAmount,
   refundIsBackedByItsCorrection,
   refundIsBackedByItsLatePayment,
@@ -33,6 +35,60 @@ describe("isRefundSentByCloud", () => {
   ])("answers %s of origin %s: %s", (method, origin, sent) => {
     expect(isRefundSentByCloud({ method, origin })).toBe(sent);
   });
+});
+
+describe("isRefundInCloudHands", () => {
+  const CONFIRMED_AT = new Date("2026-10-07T10:05:00.000Z");
+
+  it.each([
+    ["QR", "sale_voided", "confirmed", true],
+    ["POINT", "sale_voided", "confirmed", true],
+    ["QR", "sale_cancelled", "confirmed", true],
+    ["QR", "sale_cancelled", "unconfirmed", false],
+    ["QR", "sale_voided", "unconfirmed", false],
+    ["TRANSFER", "sale_voided", "confirmed", false],
+    ["POINT", "sale_cancelled", "confirmed", false],
+  ])("answers a %s refund of origin %s, %s: %s", (method, origin, confirmation, inHands) => {
+    const confirmedAt = confirmation === "confirmed" ? CONFIRMED_AT : null;
+    expect(isRefundInCloudHands({ method, origin, confirmedAt })).toBe(inHands);
+  });
+});
+
+describe("recordedRefundOfVoidedSale", () => {
+  const voiding = { actorId: "cashier-1", voidedAt: new Date("2026-10-07T10:05:00.000Z") };
+  const refund = (method: string) => ({
+    id: "refund-1",
+    paymentId: "payment-1",
+    method,
+    amount: 1000,
+    state: "PENDING",
+  });
+
+  it.each(["QR", "POINT"])(
+    "records a %s refund confirmed by the cashier who voided the sale, when it was voided, on the payment it refunds",
+    (method) => {
+      expect(recordedRefundOfVoidedSale(refund(method), voiding)).toEqual({
+        ...refund(method),
+        origin: "sale_voided",
+        paymentTransactionId: "payment-1",
+        confirmedBy: "cashier-1",
+        confirmedAt: voiding.voidedAt,
+      });
+    },
+  );
+
+  it.each(["CASH", "TRANSFER", "STANDALONE_TERMINAL"])(
+    "records a %s refund unconfirmed and on no payment transaction",
+    (method) => {
+      expect(recordedRefundOfVoidedSale(refund(method), voiding)).toEqual({
+        ...refund(method),
+        origin: "sale_voided",
+        paymentTransactionId: null,
+        confirmedBy: null,
+        confirmedAt: null,
+      });
+    },
+  );
 });
 
 describe("refundableAmount", () => {
