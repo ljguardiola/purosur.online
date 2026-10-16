@@ -23,6 +23,7 @@ import { recordAppliedClockCorrection } from "../fiscal/drizzle-applied-clock-co
 import { recordAppliedOfflineFiscalDocument } from "../fiscal/drizzle-applied-offline-fiscal-documents.js";
 import { recordAppliedQrPaymentReplacement } from "../payments/drizzle-applied-qr-payment-replacement.js";
 import { providerTransactionOfPayment } from "../payments/drizzle-provider-transactions.js";
+import type { EnqueueMercadoPagoRefundFollow } from "../payments/enqueue-mercado-pago-refund-follow.js";
 import { describeDatabaseFailure, errorCode } from "../platform/db/describe-database-failure.js";
 import { inbox, registerInstallations, registers } from "../platform/db/schema.js";
 import {
@@ -63,11 +64,22 @@ class DrizzleEventApplicationTransaction<TQueryResult extends PgQueryResultHKT>
   private readonly tx: Transaction<TQueryResult>;
   private readonly now: () => Date;
   private readonly pending: PendingChanges;
+  private readonly enqueueRefundFollow: EnqueueMercadoPagoRefundFollow;
 
-  constructor(tx: Transaction<TQueryResult>, now: () => Date, pending: PendingChanges) {
+  constructor(
+    tx: Transaction<TQueryResult>,
+    now: () => Date,
+    pending: PendingChanges,
+    enqueueRefundFollow: EnqueueMercadoPagoRefundFollow,
+  ) {
     this.tx = tx;
     this.now = now;
     this.pending = pending;
+    this.enqueueRefundFollow = enqueueRefundFollow;
+  }
+
+  requestMercadoPagoRefundFollow(): Promise<void> {
+    return this.enqueueRefundFollow(this.tx);
   }
 
   async lockAggregate({ aggregateType, aggregateId }: AggregateKey): Promise<boolean> {
@@ -322,10 +334,16 @@ export class DrizzleEventApplication<TQueryResult extends PgQueryResultHKT>
 {
   private readonly db: PgDatabase<TQueryResult>;
   private readonly now: () => Date;
+  private readonly enqueueRefundFollow: EnqueueMercadoPagoRefundFollow;
 
-  constructor(db: PgDatabase<TQueryResult>, now: () => Date) {
+  constructor(
+    db: PgDatabase<TQueryResult>,
+    now: () => Date,
+    enqueueRefundFollow: EnqueueMercadoPagoRefundFollow,
+  ) {
     this.db = db;
     this.now = now;
+    this.enqueueRefundFollow = enqueueRefundFollow;
   }
 
   async pendingAggregates(): Promise<AggregateKey[]> {
@@ -349,7 +367,7 @@ export class DrizzleEventApplication<TQueryResult extends PgQueryResultHKT>
 
   transaction<T>(work: (tx: EventApplicationTransaction) => Promise<T>): Promise<T> {
     return withPendingChanges(this.db, undefined, (tx, pending) =>
-      work(new DrizzleEventApplicationTransaction(tx, this.now, pending)),
+      work(new DrizzleEventApplicationTransaction(tx, this.now, pending, this.enqueueRefundFollow)),
     );
   }
 }

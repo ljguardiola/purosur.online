@@ -1,4 +1,5 @@
 import {
+  isRefundSentByCloud,
   type ManualAdjustment,
   SALE_VOIDED_REFUND_ORIGIN,
   type SaleDiscount,
@@ -173,13 +174,21 @@ export async function recordAppliedVoidedSale<TQueryResult extends PgQueryResult
     throw new Error(`sale ${sale.id} is not a completed sale of cash session ${sale.sessionId}`);
   }
   await tx.insert(paymentRefunds).values(
-    sale.refunds.map((refund) => ({
-      ...refund,
-      saleId: sale.id,
-      paymentTransactionId: null,
-      originEventId: eventId,
-      origin: SALE_VOIDED_REFUND_ORIGIN,
-    })),
+    sale.refunds.map((refund) => {
+      const sentByCloud = isRefundSentByCloud({
+        method: refund.method,
+        origin: SALE_VOIDED_REFUND_ORIGIN,
+      });
+      return {
+        ...refund,
+        saleId: sale.id,
+        paymentTransactionId: sentByCloud ? refund.paymentId : null,
+        originEventId: eventId,
+        origin: SALE_VOIDED_REFUND_ORIGIN,
+        confirmedBy: sentByCloud ? (sale.authorizedBy ?? sale.actorId) : null,
+        confirmedAt: sentByCloud ? sale.voidedAt : null,
+      };
+    }),
   );
   await recordVoidedSaleCashMovements(tx, sale);
 }

@@ -318,6 +318,7 @@ export {
   isLateApproval,
   isPointTerminalId,
   isRefundPending,
+  isRefundSentByCloud,
   isValidOrderAmount,
   isValidPointOrderAmount,
   latePaymentRefund,
@@ -351,6 +352,7 @@ export {
   REFUND_PENDING_STATE,
   REFUND_STATES,
   REFUND_TASK_ORIGINS,
+  SALE_CANCELLED_REFUND_ORIGIN,
   SALE_PAYMENT_STATE_HOLDING_PAID_ORDER,
   SALE_VOIDED_REFUND_ORIGIN,
 } from "./payments/index.js";
