@@ -6,6 +6,7 @@ import {
   SALE_VOID_REFUSALS,
 } from "@purosur/domain";
 import { z } from "zod";
+import { saleCreditNoteSchema } from "./sale-credit-note.js";
 
 export const receiptCopySchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("original") }),
@@ -82,6 +83,7 @@ const saleHistoryDetailSchema = z.object({
   state: saleStateSchema,
   voidability: saleVoidabilitySchema,
   void_authorization_required: z.boolean(),
+  credit_note: saleCreditNoteSchema.nullable(),
   reprint: z.discriminatedUnion("kind", [
     z.object({ kind: z.literal("available") }),
     z.object({ kind: z.literal("sale_voided") }),

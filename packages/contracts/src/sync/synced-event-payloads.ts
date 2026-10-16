@@ -3,6 +3,7 @@ import {
   CASH_MOVEMENT_TYPES,
   cashMovementReason,
   FACTURA_C_DOCUMENT_TYPE,
+  FACTURA_C_VOUCHER_TYPE,
   isCalendarDay,
   isValidCashAmount,
   isValidCashMovementAmount,
@@ -407,6 +408,21 @@ const saleVoidedV2Schema = saleVoidedV1Schema.extend({
   refunds: z.array(saleRefundWithMercadoPagoSchema).min(1),
 });
 
+const voidCreditNoteSchema = z.object({
+  id: text,
+  total: z.int().positive(),
+  receiver_tax_status_code: z.int(),
+  corrects: z.object({
+    voucher_type: z.literal(FACTURA_C_VOUCHER_TYPE),
+    point_of_sale: pointOfSaleNumberSchema,
+    number: z.int().positive(),
+  }),
+});
+
+const saleVoidedV3Schema = saleVoidedV2Schema.extend({
+  credit_note: voidCreditNoteSchema.nullable(),
+});
+
 const cashSessionOpenedSchema = z.object({
   opened_by: text,
   opened_at: instant,
@@ -504,6 +520,7 @@ const PAYLOAD_SCHEMAS = {
   "sale_cancelled@7": saleCancelledV7Schema,
   "sale_voided@1": saleVoidedV1Schema,
   "sale_voided@2": saleVoidedV2Schema,
+  "sale_voided@3": saleVoidedV3Schema,
   "cash_session_opened@1": cashSessionOpenedSchema,
   "cash_session_closed@1": cashSessionClosedSchema,
   "cash_movement_recorded@1": cashMovementRecordedSchema,
