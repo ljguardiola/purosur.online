@@ -2,42 +2,19 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { useEffect } from "react";
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
-import type { BackofficeAccess } from "../shell/backoffice-access";
 import { ADMINISTRATOR_ACCESS, accessWith } from "../shell/test-support/backoffice-access";
 import { render } from "../shell/test-support/render-with-router";
-import { type UsersListFilters, usersListFilters } from "./routes";
+import { usersListFilters } from "./routes";
+import {
+  createUsersListServices,
+  EndEverySessionSectionStub,
+  renderUsersList,
+  usersListScreenElement,
+} from "./test-support/users-list-screen";
 import type { BranchUser } from "./users-api";
 import { UsersListScreen } from "./users-list-screen";
 import type { UsersListScreenServices } from "./users-list-services";
 import { useRefreshUsers } from "./users-queries";
-
-function createServices(overrides: Partial<UsersListScreenServices> = {}): UsersListScreenServices {
-  const services: UsersListScreenServices = {
-    fetchUsers: vi.fn(),
-    fetchRoles: vi.fn(),
-    createUser: vi.fn(),
-    fetchSessionAuthorizationOptions: vi.fn(),
-    authorizeSession: vi.fn(),
-    startAuthentication: vi.fn(),
-    ...overrides,
-  };
-  if (!overrides.fetchRoles) {
-    vi.mocked(services.fetchRoles).mockResolvedValue({
-      kind: "ok",
-      value: [
-        {
-          id: "00000000-0000-4000-8000-000000000001",
-          isAdministrator: true,
-          name: null,
-          permissionKeys: [],
-          userCount: 1,
-          mayEdit: false,
-        },
-      ],
-    });
-  }
-  return services;
-}
 
 const administrator: BranchUser = {
   id: "user-1",
@@ -134,40 +111,11 @@ function deferred<T>() {
   return { promise, resolve };
 }
 
-function screenElement(
-  services: UsersListScreenServices,
-  onSessionEnded: () => void = () => {},
-  access: BackofficeAccess = ADMINISTRATOR_ACCESS,
-  {
-    filters = usersListFilters.parse({}),
-    onFiltersChange = () => {},
-  }: {
-    filters?: UsersListFilters;
-    onFiltersChange?: (filters: UsersListFilters) => void;
-  } = {},
-) {
-  return (
-    <main>
-      <UsersListScreen
-        services={services}
-        onSessionEnded={onSessionEnded}
-        access={access}
-        filters={filters}
-        onFiltersChange={onFiltersChange}
-      />
-    </main>
-  );
-}
-
-function renderScreen(...args: Parameters<typeof screenElement>) {
-  return render(screenElement(...args));
-}
-
 test("shows the breadcrumb, heading, each user's role, and the user count", async () => {
-  const services = createServices();
+  const services = createUsersListServices();
   vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator, martina] });
 
-  const screen = await renderScreen(services);
+  const screen = await renderUsersList(services);
 
   await expect.element(screen.getByText("Configuración")).toBeVisible();
   await expect.element(screen.getByRole("heading", { name: "Usuarios", level: 1 })).toBeVisible();
@@ -179,13 +127,13 @@ test("shows the breadcrumb, heading, each user's role, and the user count", asyn
 });
 
 test("shows each user's passkey count as plain text, with the plural, singular and none forms", async () => {
-  const services = createServices();
+  const services = createUsersListServices();
   vi.mocked(services.fetchUsers).mockResolvedValue({
     kind: "ok",
     value: [administrator, martina, tomas],
   });
 
-  const screen = await renderScreen(services);
+  const screen = await renderUsersList(services);
 
   await expect.element(screen.getByText("Passkeys")).toBeVisible();
   await expect.element(screen.getByText("2 registradas")).toBeVisible();
@@ -194,13 +142,13 @@ test("shows each user's passkey count as plain text, with the plural, singular a
 });
 
 test("shows no passkey helper line: a single passkey is a normal state and nothing knows who only uses the register", async () => {
-  const services = createServices();
+  const services = createUsersListServices();
   vi.mocked(services.fetchUsers).mockResolvedValue({
     kind: "ok",
     value: [administrator, martina, tomas],
   });
 
-  const screen = await renderScreen(services);
+  const screen = await renderUsersList(services);
   await expect.element(screen.getByText("1 registrada")).toBeVisible();
 
   expect(screen.getByText("Conviene agregar otra").query()).toBeNull();
@@ -209,9 +157,9 @@ test("shows no passkey helper line: a single passkey is a normal state and nothi
 
 test("the row action navigates to that user's detail screen", async () => {
   window.history.pushState(null, "", "/users");
-  const services = createServices();
+  const services = createUsersListServices();
   vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator, martina] });
-  const screen = await renderScreen(services);
+  const screen = await renderUsersList(services);
   await expect.element(screen.getByText("2 usuarios")).toBeVisible();
 
   await userEvent.click(screen.getByRole("button", { name: "Editar a Martina Gómez" }));
@@ -220,9 +168,9 @@ test("the row action navigates to that user's detail screen", async () => {
 });
 
 test("shows a load error with a retry action when the users fail to load", async () => {
-  const services = createServices();
+  const services = createUsersListServices();
   vi.mocked(services.fetchUsers).mockResolvedValueOnce({ kind: "failed" });
-  const screen = await renderScreen(services);
+  const screen = await renderUsersList(services);
 
   await expect.element(screen.getByText("No pudimos abrir los usuarios")).toBeVisible();
 
@@ -233,11 +181,11 @@ test("shows a load error with a retry action when the users fail to load", async
 });
 
 test("shows a load error when the roles fail to load, and Reintentar reads again the roles that failed", async () => {
-  const services = createServices({
+  const services = createUsersListServices({
     fetchRoles: vi.fn().mockResolvedValueOnce({ kind: "failed" }),
   });
   vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator] });
-  const screen = await renderScreen(services);
+  const screen = await renderUsersList(services);
 
   await expect.element(screen.getByText("No pudimos abrir los usuarios")).toBeVisible();
 
@@ -263,11 +211,11 @@ test("shows a load error when the roles fail to load, and Reintentar reads again
 });
 
 test("shows the rate-limited notice with a retry action when the roles request is rate limited", async () => {
-  const services = createServices({
+  const services = createUsersListServices({
     fetchRoles: vi.fn().mockResolvedValue({ kind: "rate_limited", retryAfterSeconds: 120 }),
   });
   vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator] });
-  const screen = await renderScreen(services);
+  const screen = await renderUsersList(services);
 
   await expect.element(screen.getByText("Demasiadas solicitudes")).toBeVisible();
   await expect.element(screen.getByText("Se puede volver a intentar en 2 minutos.")).toBeVisible();
@@ -276,31 +224,31 @@ test("shows the rate-limited notice with a retry action when the roles request i
 
 test("navigates to Mi cuenta when the roles request comes back forbidden", async () => {
   window.history.pushState(null, "", "/users");
-  const services = createServices({
+  const services = createUsersListServices({
     fetchRoles: vi.fn().mockResolvedValue({ kind: "forbidden" }),
   });
   vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator] });
 
-  await renderScreen(services);
+  await renderUsersList(services);
 
   await expect.poll(() => window.location.pathname).toBe("/account");
 });
 
 test("ends the session when the users request finds no open session", async () => {
-  const services = createServices();
+  const services = createUsersListServices();
   vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "unauthenticated" });
   const onSessionEnded = vi.fn();
 
-  await renderScreen(services, onSessionEnded);
+  await renderUsersList(services, onSessionEnded);
 
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
 });
 
 test("shows the users table loading while the users are on their way", async () => {
-  const services = createServices();
+  const services = createUsersListServices();
   vi.mocked(services.fetchUsers).mockReturnValue(new Promise(() => {}));
 
-  const screen = await renderScreen(services);
+  const screen = await renderUsersList(services);
 
   await expect
     .element(screen.getByRole("table", { name: "Usuarios" }))
@@ -308,19 +256,19 @@ test("shows the users table loading while the users are on their way", async () 
 });
 
 test("shows an empty state when there are no users yet", async () => {
-  const services = createServices();
+  const services = createUsersListServices();
   vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [] });
 
-  const screen = await renderScreen(services);
+  const screen = await renderUsersList(services);
 
   await expect.element(screen.getByText("Todavía no hay usuarios")).toBeVisible();
   await expect.element(screen.getByText("0 usuarios")).not.toBeInTheDocument();
 });
 
 test("shows a filtered empty state when the Estado filter hides every user", async () => {
-  const services = createServices();
+  const services = createUsersListServices();
   vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator] });
-  const screen = await renderScreen(services);
+  const screen = await renderUsersList(services);
   await expect.element(screen.getByText("1 usuario")).toBeVisible();
 
   await userEvent.click(screen.getByRole("button", { name: /^Estado/ }));
@@ -332,12 +280,12 @@ test("shows a filtered empty state when the Estado filter hides every user", asy
 });
 
 test("retrying a failed load starts again from the loading placeholder", async () => {
-  const services = createServices();
+  const services = createUsersListServices();
   const retry = deferred<Awaited<ReturnType<typeof services.fetchUsers>>>();
   vi.mocked(services.fetchUsers)
     .mockResolvedValueOnce({ kind: "failed" })
     .mockReturnValueOnce(retry.promise);
-  const screen = await renderScreen(services);
+  const screen = await renderUsersList(services);
   await expect.element(screen.getByText("No pudimos abrir los usuarios")).toBeVisible();
 
   await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
@@ -351,10 +299,10 @@ test("retrying a failed load starts again from the loading placeholder", async (
 });
 
 test("Nuevo usuario is disabled while the list loads and after it fails to load", async () => {
-  const services = createServices();
+  const services = createUsersListServices();
   const firstLoad = deferred<Awaited<ReturnType<typeof services.fetchUsers>>>();
   vi.mocked(services.fetchUsers).mockReturnValueOnce(firstLoad.promise);
-  const screen = await renderScreen(services);
+  const screen = await renderUsersList(services);
 
   await expect.element(screen.getByRole("button", { name: "Nuevo usuario" })).toBeDisabled();
 
@@ -364,13 +312,13 @@ test("Nuevo usuario is disabled while the list loads and after it fails to load"
 });
 
 test("creating a user reads users and roles again from the server, keeping the shown rows and Nuevo usuario available while it does", async () => {
-  const services = createServices();
+  const services = createUsersListServices();
   const refresh = deferred<Awaited<ReturnType<typeof services.fetchUsers>>>();
   vi.mocked(services.fetchUsers)
     .mockResolvedValueOnce({ kind: "ok", value: [administrator] })
     .mockReturnValueOnce(refresh.promise);
   vi.mocked(services.createUser).mockResolvedValue({ kind: "ok" });
-  const screen = await renderScreen(services);
+  const screen = await renderUsersList(services);
   await expect.element(screen.getByText("1 usuario")).toBeVisible();
   const dialog = await openNewUserModal(screen);
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Martina Gómez");
@@ -390,15 +338,15 @@ test("creating a user reads users and roles again from the server, keeping the s
   expect(services.fetchRoles).toHaveBeenCalledTimes(2);
 });
 
-async function openNewUserModal(screen: Awaited<ReturnType<typeof renderScreen>>) {
+async function openNewUserModal(screen: Awaited<ReturnType<typeof renderUsersList>>) {
   await userEvent.click(screen.getByRole("button", { name: "Nuevo usuario" }));
   return screen.getByRole("dialog");
 }
 
 test("opens the create modal preselecting the only role, and cancel closes it without calling the API", async () => {
-  const services = createServices();
+  const services = createUsersListServices();
   vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator] });
-  const screen = await renderScreen(services);
+  const screen = await renderUsersList(services);
   await expect.element(screen.getByText("1 usuario")).toBeVisible();
 
   const dialog = await openNewUserModal(screen);
@@ -414,9 +362,9 @@ test("opens the create modal preselecting the only role, and cancel closes it wi
 });
 
 test("shows no helper line under Correo in the create modal", async () => {
-  const services = createServices();
+  const services = createUsersListServices();
   vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator] });
-  const screen = await renderScreen(services);
+  const screen = await renderUsersList(services);
   await expect.element(screen.getByText("1 usuario")).toBeVisible();
 
   const dialog = await openNewUserModal(screen);
@@ -427,7 +375,7 @@ test("shows no helper line under Correo in the create modal", async () => {
 });
 
 test("offers a role held by no users yet in the create-user selector", async () => {
-  const services = createServices({
+  const services = createUsersListServices({
     fetchRoles: vi.fn().mockResolvedValue({
       kind: "ok",
       value: [
@@ -451,7 +399,7 @@ test("offers a role held by no users yet in the create-user selector", async () 
     }),
   });
   vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator] });
-  const screen = await renderScreen(services);
+  const screen = await renderUsersList(services);
   await expect.element(screen.getByText("1 usuario")).toBeVisible();
 
   const dialog = await openNewUserModal(screen);
@@ -461,9 +409,9 @@ test("offers a role held by no users yet in the create-user selector", async () 
 });
 
 test("creates a user directly, without the authorization modal, when the session already has one", async () => {
-  const services = createServices();
+  const services = createUsersListServices();
   vi.mocked(services.fetchUsers).mockResolvedValueOnce({ kind: "ok", value: [administrator] });
-  const screen = await renderScreen(services);
+  const screen = await renderUsersList(services);
   await expect.element(screen.getByText("1 usuario")).toBeVisible();
   const dialog = await openNewUserModal(screen);
 
@@ -489,9 +437,9 @@ test("creates a user directly, without the authorization modal, when the session
 });
 
 test("opens the authorization modal on authorization_required, then authorizes and retries the creation", async () => {
-  const services = createServices();
+  const services = createUsersListServices();
   vi.mocked(services.fetchUsers).mockResolvedValueOnce({ kind: "ok", value: [administrator] });
-  const screen = await renderScreen(services);
+  const screen = await renderUsersList(services);
   await expect.element(screen.getByText("1 usuario")).toBeVisible();
   const dialog = await openNewUserModal(screen);
 
@@ -523,9 +471,9 @@ test("opens the authorization modal on authorization_required, then authorizes a
 });
 
 test("cancelling the authorization modal keeps the create-user form open with its values, with no error", async () => {
-  const services = createServices();
+  const services = createUsersListServices();
   vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator] });
-  const screen = await renderScreen(services);
+  const screen = await renderUsersList(services);
   await expect.element(screen.getByText("1 usuario")).toBeVisible();
   const dialog = await openNewUserModal(screen);
   vi.mocked(services.createUser).mockResolvedValue({ kind: "authorization_required" });
@@ -550,9 +498,9 @@ test("cancelling the authorization modal keeps the create-user form open with it
 });
 
 test("requires name and email before submitting, without calling the API", async () => {
-  const services = createServices();
+  const services = createUsersListServices();
   vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator] });
-  const screen = await renderScreen(services);
+  const screen = await renderUsersList(services);
   await expect.element(screen.getByText("1 usuario")).toBeVisible();
   const dialog = await openNewUserModal(screen);
 
@@ -571,9 +519,9 @@ test("requires name and email before submitting, without calling the API", async
 });
 
 test("shows email_taken on Correo and keeps the modal open", async () => {
-  const services = createServices();
+  const services = createUsersListServices();
   vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator] });
-  const screen = await renderScreen(services);
+  const screen = await renderUsersList(services);
   await expect.element(screen.getByText("1 usuario")).toBeVisible();
   const dialog = await openNewUserModal(screen);
   vi.mocked(services.createUser).mockResolvedValue({ kind: "email_taken" });
@@ -587,9 +535,9 @@ test("shows email_taken on Correo and keeps the modal open", async () => {
 });
 
 test("shows a server validation_failed error on the named field", async () => {
-  const services = createServices();
+  const services = createUsersListServices();
   vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator] });
-  const screen = await renderScreen(services);
+  const screen = await renderUsersList(services);
   await expect.element(screen.getByText("1 usuario")).toBeVisible();
   const dialog = await openNewUserModal(screen);
   vi.mocked(services.createUser).mockResolvedValue({ kind: "validation_failed", field: "email" });
@@ -602,9 +550,9 @@ test("shows a server validation_failed error on the named field", async () => {
 });
 
 test("rejects an email longer than any address can be, without calling the API", async () => {
-  const services = createServices();
+  const services = createUsersListServices();
   vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator] });
-  const screen = await renderScreen(services);
+  const screen = await renderUsersList(services);
   await expect.element(screen.getByText("1 usuario")).toBeVisible();
   const dialog = await openNewUserModal(screen);
 
@@ -620,9 +568,9 @@ test("rejects an email longer than any address can be, without calling the API",
 });
 
 test("shows a server validation_failed error for the name on Nombre", async () => {
-  const services = createServices();
+  const services = createUsersListServices();
   vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator] });
-  const screen = await renderScreen(services);
+  const screen = await renderUsersList(services);
   await expect.element(screen.getByText("1 usuario")).toBeVisible();
   const dialog = await openNewUserModal(screen);
   vi.mocked(services.createUser).mockResolvedValue({
@@ -639,9 +587,9 @@ test("shows a server validation_failed error for the name on Nombre", async () =
 });
 
 test("shows the generic failure notice when the cloud refuses a field the form does not have", async () => {
-  const services = createServices();
+  const services = createUsersListServices();
   vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator] });
-  const screen = await renderScreen(services);
+  const screen = await renderUsersList(services);
   await expect.element(screen.getByText("1 usuario")).toBeVisible();
   const dialog = await openNewUserModal(screen);
   vi.mocked(services.createUser).mockResolvedValue({ kind: "validation_failed", field: "other" });
@@ -654,9 +602,9 @@ test("shows the generic failure notice when the cloud refuses a field the form d
 });
 
 test("shows a server validation_failed error for the role on Rol", async () => {
-  const services = createServices();
+  const services = createUsersListServices();
   vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator] });
-  const screen = await renderScreen(services);
+  const screen = await renderUsersList(services);
   await expect.element(screen.getByText("1 usuario")).toBeVisible();
   const dialog = await openNewUserModal(screen);
   vi.mocked(services.createUser).mockResolvedValue({ kind: "validation_failed", field: "role_id" });
@@ -672,25 +620,15 @@ test("shows a server validation_failed error for the role on Rol", async () => {
 });
 
 test("keeps the loaded list and an open create modal when the parent re-renders with a new onSessionEnded", async () => {
-  const services = createServices();
+  const services = createUsersListServices();
   vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator] });
-  const screen = await renderScreen(services, () => {});
+  const screen = await renderUsersList(services, () => {});
   await expect.element(screen.getByText("1 usuario")).toBeVisible();
   const dialog = await openNewUserModal(screen);
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Martina Gómez");
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Correo/ }), "martina@example.com");
 
-  await screen.rerender(
-    <main>
-      <UsersListScreen
-        services={services}
-        onSessionEnded={() => {}}
-        access={ADMINISTRATOR_ACCESS}
-        filters={usersListFilters.parse({})}
-        onFiltersChange={() => {}}
-      />
-    </main>,
-  );
+  await screen.rerender(usersListScreenElement(services, () => {}));
 
   await expect.element(dialog.getByRole("button", { name: /^Administrador Rol/ })).toBeVisible();
   expect(services.fetchUsers).toHaveBeenCalledTimes(1);
@@ -713,7 +651,7 @@ function RefreshProbe({ onReady }: { onReady: (refresh: () => Promise<void>) => 
 }
 
 test("a refresh of the roles in the background does not overwrite what is typed in the create modal", async () => {
-  const services = createServices();
+  const services = createUsersListServices();
   const administratorRole = {
     id: "00000000-0000-4000-8000-000000000001",
     isAdministrator: true,
@@ -756,6 +694,7 @@ test("a refresh of the roles in the background does not overwrite what is typed 
         access={ADMINISTRATOR_ACCESS}
         filters={usersListFilters.parse({})}
         onFiltersChange={() => {}}
+        endEverySessionSection={EndEverySessionSectionStub}
       />
     </main>,
   );
@@ -776,9 +715,9 @@ test("a refresh of the roles in the background does not overwrite what is typed 
 });
 
 test("shows an error inside the authorization modal, not calling createUser again, when the browser cancels the passkey ceremony", async () => {
-  const services = createServices();
+  const services = createUsersListServices();
   vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator] });
-  const screen = await renderScreen(services);
+  const screen = await renderUsersList(services);
   await expect.element(screen.getByText("1 usuario")).toBeVisible();
   const dialog = await openNewUserModal(screen);
   vi.mocked(services.createUser).mockResolvedValue({ kind: "authorization_required" });
@@ -799,9 +738,9 @@ test("shows an error inside the authorization modal, not calling createUser agai
 });
 
 test("shows a notice when the chosen role is no longer valid", async () => {
-  const services = createServices();
+  const services = createUsersListServices();
   vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator] });
-  const screen = await renderScreen(services);
+  const screen = await renderUsersList(services);
   await expect.element(screen.getByText("1 usuario")).toBeVisible();
   const dialog = await openNewUserModal(screen);
   vi.mocked(services.createUser).mockResolvedValue({ kind: "unknown_role" });
@@ -814,10 +753,10 @@ test("shows a notice when the chosen role is no longer valid", async () => {
 });
 
 test("ends the session when creating the user finds the session already ended", async () => {
-  const services = createServices();
+  const services = createUsersListServices();
   vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator] });
   const onSessionEnded = vi.fn();
-  const screen = await renderScreen(services, onSessionEnded);
+  const screen = await renderUsersList(services, onSessionEnded);
   await expect.element(screen.getByText("1 usuario")).toBeVisible();
   const dialog = await openNewUserModal(screen);
   vi.mocked(services.createUser).mockResolvedValue({ kind: "unauthenticated" });
@@ -830,10 +769,10 @@ test("ends the session when creating the user finds the session already ended", 
 });
 
 test("ends the session when authorizing finds the session already ended", async () => {
-  const services = createServices();
+  const services = createUsersListServices();
   vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator] });
   const onSessionEnded = vi.fn();
-  const screen = await renderScreen(services, onSessionEnded);
+  const screen = await renderUsersList(services, onSessionEnded);
   await expect.element(screen.getByText("1 usuario")).toBeVisible();
   const dialog = await openNewUserModal(screen);
   vi.mocked(services.createUser).mockResolvedValue({ kind: "authorization_required" });
@@ -852,9 +791,9 @@ test("ends the session when authorizing finds the session already ended", async 
 
 test("navigates to Mi cuenta, without the authorization modal, when creating the user comes back forbidden", async () => {
   window.history.pushState(null, "", "/users");
-  const services = createServices();
+  const services = createUsersListServices();
   vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator] });
-  const screen = await renderScreen(services);
+  const screen = await renderUsersList(services);
   await expect.element(screen.getByText("1 usuario")).toBeVisible();
   const dialog = await openNewUserModal(screen);
   vi.mocked(services.createUser).mockResolvedValue({ kind: "forbidden" });
@@ -869,9 +808,9 @@ test("navigates to Mi cuenta, without the authorization modal, when creating the
 
 test("navigates to Mi cuenta when creating the user retried after the authorization comes back forbidden", async () => {
   window.history.pushState(null, "", "/users");
-  const services = createServices();
+  const services = createUsersListServices();
   vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator] });
-  const screen = await renderScreen(services);
+  const screen = await renderUsersList(services);
   await expect.element(screen.getByText("1 usuario")).toBeVisible();
   const dialog = await openNewUserModal(screen);
   vi.mocked(services.createUser).mockResolvedValueOnce({ kind: "authorization_required" });
@@ -891,9 +830,9 @@ test("navigates to Mi cuenta when creating the user retried after the authorizat
 });
 
 test("has no accessibility violations once loaded, and with the create modal open", async () => {
-  const services = createServices();
+  const services = createUsersListServices();
   vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator] });
-  const screen = await renderScreen(services);
+  const screen = await renderUsersList(services);
   await expect.element(screen.getByText("1 usuario")).toBeVisible();
   await expectNoAccessibilityViolations(document.body);
 
@@ -903,12 +842,12 @@ test("has no accessibility violations once loaded, and with the create modal ope
 
 test("hides Nuevo usuario for a non-Administrator holding only deactivate_users", async () => {
   window.history.pushState(null, "", "/users");
-  const services = createServices({
+  const services = createUsersListServices({
     fetchRoles: vi.fn().mockResolvedValue({ kind: "forbidden" }),
   });
   vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator, tomas] });
 
-  const screen = await renderScreen(
+  const screen = await renderUsersList(
     services,
     () => {},
     accessWith("users_area", "deactivate_users"),
@@ -922,12 +861,12 @@ test("hides Nuevo usuario for a non-Administrator holding only deactivate_users"
 
 test("offers a view action, not an edit one, to reach a user's detail for a non-Administrator holding only deactivate_users", async () => {
   window.history.pushState(null, "", "/users");
-  const services = createServices({
+  const services = createUsersListServices({
     fetchRoles: vi.fn().mockResolvedValue({ kind: "forbidden" }),
   });
   vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [tomas] });
 
-  const screen = await renderScreen(
+  const screen = await renderUsersList(
     services,
     () => {},
     accessWith("users_area", "deactivate_users"),
@@ -939,22 +878,22 @@ test("offers a view action, not an edit one, to reach a user's detail for a non-
 });
 
 test("shows an Inactivo tag on a deactivated user's row and none on an active one, for an Administrator", async () => {
-  const services = createServices();
+  const services = createUsersListServices();
   vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator, sofia] });
 
-  const screen = await renderScreen(services);
+  const screen = await renderUsersList(services);
 
   await expect.element(screen.getByText("2 usuarios")).toBeVisible();
   await expect.element(screen.getByText("Inactivo")).toBeVisible();
 });
 
 test("the Estado filter narrows the list to active or inactive users", async () => {
-  const services = createServices();
+  const services = createUsersListServices();
   vi.mocked(services.fetchUsers).mockResolvedValue({
     kind: "ok",
     value: [administrator, sofia],
   });
-  const screen = await renderScreen(services);
+  const screen = await renderUsersList(services);
   await expect.element(screen.getByText("2 usuarios")).toBeVisible();
 
   await userEvent.click(screen.getByRole("button", { name: /^Estado/ }));
@@ -971,12 +910,12 @@ test("the Estado filter narrows the list to active or inactive users", async () 
 });
 
 test("hides the Estado filter and column for a non-Administrator without reactivate_users", async () => {
-  const services = createServices({
+  const services = createUsersListServices({
     fetchRoles: vi.fn().mockResolvedValue({ kind: "forbidden" }),
   });
   vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [tomas] });
 
-  const screen = await renderScreen(
+  const screen = await renderUsersList(
     services,
     () => {},
     accessWith("users_area", "deactivate_users"),
@@ -988,12 +927,12 @@ test("hides the Estado filter and column for a non-Administrator without reactiv
 
 test("lets a reactivate-only holder open the list and reach an inactive user's detail, never reading the roles", async () => {
   window.history.pushState(null, "", "/users");
-  const services = createServices({
+  const services = createUsersListServices({
     fetchRoles: vi.fn().mockResolvedValue({ kind: "forbidden" }),
   });
   vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator, sofia] });
 
-  const screen = await renderScreen(services, () => {}, REACTIVATE_USERS_ACCESS);
+  const screen = await renderUsersList(services, () => {}, REACTIVATE_USERS_ACCESS);
 
   await expect.element(screen.getByText("Sofía Díaz")).toBeVisible();
   await expect.element(screen.getByText("Inactivo")).toBeVisible();
@@ -1005,9 +944,9 @@ test("lets a reactivate-only holder open the list and reach an inactive user's d
 });
 
 test("on a duplicate deactivated email, shows the reactivation notice and a Reactivar button, disabling Crear el usuario", async () => {
-  const services = createServices();
+  const services = createUsersListServices();
   vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator] });
-  const screen = await renderScreen(services);
+  const screen = await renderUsersList(services);
   await expect.element(screen.getByText("1 usuario")).toBeVisible();
   const dialog = await openNewUserModal(screen);
   vi.mocked(services.createUser).mockResolvedValue({
@@ -1030,9 +969,9 @@ test("on a duplicate deactivated email, shows the reactivation notice and a Reac
 });
 
 test("editing Correo after a duplicate-deactivated conflict clears the notice and re-enables Crear el usuario", async () => {
-  const services = createServices();
+  const services = createUsersListServices();
   vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator] });
-  const screen = await renderScreen(services);
+  const screen = await renderUsersList(services);
   await expect.element(screen.getByText("1 usuario")).toBeVisible();
   const dialog = await openNewUserModal(screen);
   vi.mocked(services.createUser).mockResolvedValue({
@@ -1060,9 +999,9 @@ test("editing Correo after a duplicate-deactivated conflict clears the notice an
 
 test("Reactivar a X in the create modal closes it and navigates to that user's detail", async () => {
   window.history.pushState(null, "", "/users");
-  const services = createServices();
+  const services = createUsersListServices();
   vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator] });
-  const screen = await renderScreen(services);
+  const screen = await renderUsersList(services);
   await expect.element(screen.getByText("1 usuario")).toBeVisible();
   const dialog = await openNewUserModal(screen);
   vi.mocked(services.createUser).mockResolvedValue({
@@ -1081,10 +1020,10 @@ test("Reactivar a X in the create modal closes it and navigates to that user's d
 });
 
 test("opens on the state it is given", async () => {
-  const services = createServices();
+  const services = createUsersListServices();
   vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator, sofia] });
 
-  const screen = await renderScreen(services, () => {}, ADMINISTRATOR_ACCESS, {
+  const screen = await renderUsersList(services, () => {}, ADMINISTRATOR_ACCESS, {
     filters: { state: "inactive" },
   });
 
@@ -1094,10 +1033,12 @@ test("opens on the state it is given", async () => {
 });
 
 test("reports every change to its state filter, so it can be kept for a reload", async () => {
-  const services = createServices();
+  const services = createUsersListServices();
   vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator, sofia] });
   const onFiltersChange = vi.fn();
-  const screen = await renderScreen(services, () => {}, ADMINISTRATOR_ACCESS, { onFiltersChange });
+  const screen = await renderUsersList(services, () => {}, ADMINISTRATOR_ACCESS, {
+    onFiltersChange,
+  });
   await expect.element(screen.getByText("2 usuarios")).toBeVisible();
 
   await userEvent.click(screen.getByRole("button", { name: /^Estado/ }));
@@ -1107,11 +1048,11 @@ test("reports every change to its state filter, so it can be kept for a reload",
 });
 
 test("does not report its filters again when the route hands it a new callback", async () => {
-  const services = createServices();
+  const services = createUsersListServices();
   vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator, sofia] });
   const onFiltersChange = vi.fn();
   const filters = usersListFilters.parse({});
-  const screen = await renderScreen(services, () => {}, ADMINISTRATOR_ACCESS, {
+  const screen = await renderUsersList(services, () => {}, ADMINISTRATOR_ACCESS, {
     filters,
     onFiltersChange,
   });
@@ -1121,7 +1062,7 @@ test("does not report its filters again when the route hands it a new callback",
   await expect.poll(() => onFiltersChange.mock.calls.length).toBe(1);
 
   await screen.rerender(
-    screenElement(services, () => {}, ADMINISTRATOR_ACCESS, {
+    usersListScreenElement(services, () => {}, ADMINISTRATOR_ACCESS, {
       filters,
       onFiltersChange: (reported) => onFiltersChange(reported),
     }),
@@ -1131,10 +1072,10 @@ test("does not report its filters again when the route hands it a new callback",
 });
 
 test("offers the administrator's list, with Nuevo usuario and Editar, to whoever holds manage_users", async () => {
-  const services = createServices();
+  const services = createUsersListServices();
   vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator, martina] });
 
-  const screen = await renderScreen(services, () => {}, accessWith("manage_users"));
+  const screen = await renderUsersList(services, () => {}, accessWith("manage_users"));
 
   await expect.element(screen.getByRole("button", { name: "Nuevo usuario" })).toBeVisible();
   await expect
@@ -1143,13 +1084,13 @@ test("offers the administrator's list, with Nuevo usuario and Editar, to whoever
 });
 
 test("offers the reader's list, without Nuevo usuario, to whoever lacks manage_users, whatever else they hold", async () => {
-  const services = createServices();
+  const services = createUsersListServices();
   vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator, martina] });
   const everythingButManageUsers = ADMINISTRATOR_ACCESS.capabilities.filter(
     (capability) => capability !== "manage_users",
   );
 
-  const screen = await renderScreen(services, () => {}, accessWith(...everythingButManageUsers));
+  const screen = await renderUsersList(services, () => {}, accessWith(...everythingButManageUsers));
 
   await expect.element(screen.getByRole("button", { name: "Ver a Martina Gómez" })).toBeVisible();
   expect(screen.getByRole("button", { name: "Nuevo usuario" }).query()).toBeNull();

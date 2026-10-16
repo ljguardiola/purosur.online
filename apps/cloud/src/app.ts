@@ -61,6 +61,7 @@ import { registerSessionAuthenticationOptionsRoute } from "./credentials/session
 import { registerSessionAuthorizationRoutes } from "./credentials/session-authorization-route.js";
 import { registerUserPasskeyRemovalRoutes } from "./credentials/user-passkey-removal-route.js";
 import { registerUserPasskeysListRoute } from "./credentials/user-passkeys-list-route.js";
+import { registerUserPasskeysRemovalRoute } from "./credentials/user-passkeys-removal-route.js";
 import { registerUserPinCodeRoutes } from "./credentials/user-pin-code-route.js";
 import { voidOutstandingRecoveryTokens } from "./credentials/void-outstanding-recovery-tokens.js";
 import { arcaOnlineStatusOf } from "./fiscal/arca-online-status.js";
@@ -158,6 +159,7 @@ import {
   registerSalesReportRoutes,
   type SalesReportRouteOptions,
 } from "./sales/sales-report-routes.js";
+import { registerEverySessionEndingRoute } from "./sessions/every-session-ending-route.js";
 import {
   declarePluginRoutesAccess,
   PUBLIC_ACCESS,
@@ -446,6 +448,7 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
         registerSessionReadRoute(api, { ...options.session, now });
         registerSessionStatusRoute(api, { ...options.session, now });
         registerSessionSignOutRoute(api, { ...options.session, now });
+        registerEverySessionEndingRoute(api, { ...options.session, now });
         registerSessionAuthorizationRoutes(api, { ...options.session, now });
       }
 
@@ -462,6 +465,7 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
         registerUserEditRoutes(api, { ...options.users, now, voidOutstandingRecoveryTokens });
         registerUserPasskeysListRoute(api, { ...options.users, now });
         registerUserPasskeyRemovalRoutes(api, { ...options.users, now });
+        registerUserPasskeysRemovalRoute(api, { ...options.users, now });
         registerUserDeactivationRoutes(api, {
           ...options.users,
           now,

@@ -212,6 +212,12 @@ export type {
   RejectedAttemptWindow,
 } from "./rejected-attempt-flush-store.js";
 export type {
+  RemoveEveryUserPasskeyInput,
+  RemoveEveryUserPasskeyOutcome,
+  RemoveEveryUserPasskeyPorts,
+} from "./remove-every-user-passkey.js";
+export { removeEveryUserPasskey } from "./remove-every-user-passkey.js";
+export type {
   RemoveOwnPasskeyInput,
   RemoveOwnPasskeyOutcome,
   RemoveOwnPasskeyPorts,

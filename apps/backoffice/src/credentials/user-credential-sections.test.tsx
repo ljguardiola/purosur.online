@@ -5,6 +5,7 @@ import {
   createServices,
   lucia,
   notebook,
+  openRemoveEveryModal,
   openRemoveModal,
   phone,
   renderSections,
@@ -321,4 +322,97 @@ test("disables Reiniciar el PIN after the screen's data fails to load", async ()
   });
 
   await expect.element(screen.getByRole("button", { name: "Reiniciar el PIN" })).toBeDisabled();
+});
+
+test("offers to remove every passkey of an account that has some, for someone who may remove them", async () => {
+  const services = createServices({
+    fetchUserPasskeys: vi.fn().mockResolvedValue({ kind: "ok", value: [notebook, phone] }),
+  });
+
+  const screen = await renderSections(services);
+
+  await expect.element(screen.getByRole("button", { name: "Dar de baja todas" })).toBeVisible();
+});
+
+test("does not offer to remove every passkey to someone who may not remove them", async () => {
+  const services = createServices({
+    fetchUserPasskeys: vi.fn().mockResolvedValue({ kind: "ok", value: [notebook] }),
+  });
+
+  const screen = await renderSections(services, { user: { ...lucia, mayRemovePasskey: false } });
+
+  await expect.element(screen.getByText("Notebook del local")).toBeVisible();
+  expect(screen.getByRole("button", { name: "Dar de baja todas" }).query()).toBeNull();
+});
+
+test("does not offer to remove every passkey before the cloud answers for the user", async () => {
+  const services = createServices({
+    fetchUserPasskeys: vi.fn().mockResolvedValue({ kind: "ok", value: [notebook] }),
+  });
+
+  const screen = await renderSections(services, { user: undefined, dataStatus: "loading" });
+
+  await expect.element(screen.getByText("Notebook del local")).toBeVisible();
+  expect(screen.getByRole("button", { name: "Dar de baja todas" }).query()).toBeNull();
+});
+
+test("disables Dar de baja todas while the passkeys load", async () => {
+  const screen = await renderSections(
+    createServices({ fetchUserPasskeys: vi.fn().mockReturnValue(new Promise(() => {})) }),
+  );
+
+  await expect.element(screen.getByRole("status")).toHaveTextContent("Cargando…");
+  await expect.element(screen.getByRole("button", { name: "Dar de baja todas" })).toBeDisabled();
+});
+
+test("disables Dar de baja todas after the passkeys fail to load", async () => {
+  const screen = await renderSections(
+    createServices({ fetchUserPasskeys: vi.fn().mockResolvedValue({ kind: "failed" }) }),
+  );
+
+  await expect.element(screen.getByText("No pudimos abrir las passkeys")).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Dar de baja todas" })).toBeDisabled();
+});
+
+test("disables Dar de baja todas for an account without passkeys", async () => {
+  const screen = await renderSections(createServices());
+
+  await expect.element(screen.getByText("No tiene ninguna passkey registrada.")).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Dar de baja todas" })).toBeDisabled();
+});
+
+test("opens the confirmation for the whole account, naming how many passkeys it has", async () => {
+  const services = createServices({
+    fetchUserPasskeys: vi.fn().mockResolvedValue({ kind: "ok", value: [notebook, phone] }),
+  });
+  const screen = await renderSections(services);
+  await expect.element(screen.getByText("Notebook del local")).toBeVisible();
+
+  const dialog = await openRemoveEveryModal(screen);
+
+  await expect.element(dialog.getByText(/^Sus 2 passkeys dejan de servir/)).toBeVisible();
+  expect(services.removeEveryUserPasskey).not.toHaveBeenCalled();
+});
+
+test("after removing every passkey, closes the confirmation, reads the passkeys again and marks the user outdated", async () => {
+  const services = createServices({
+    fetchUserPasskeys: vi.fn().mockResolvedValueOnce({ kind: "ok", value: [notebook, phone] }),
+  });
+  vi.mocked(services.fetchUserPasskeys).mockResolvedValueOnce({ kind: "ok", value: [] });
+  vi.mocked(services.removeEveryUserPasskey).mockResolvedValue({ kind: "ok" });
+  const onUserOutdated = vi.fn();
+  const screen = await renderSections(services, { onUserOutdated });
+  await expect.element(screen.getByText("Notebook del local")).toBeVisible();
+
+  const dialog = await openRemoveEveryModal(screen);
+  await userEvent.click(dialog.getByRole("button", { name: "Dar de baja todas" }));
+
+  await expect.element(screen.getByText("No tiene ninguna passkey registrada.")).toBeVisible();
+  expect(services.removeEveryUserPasskey).toHaveBeenCalledWith("user-1");
+  expect(onUserOutdated).toHaveBeenCalledTimes(1);
+  await expect
+    .poll(() =>
+      screen.getByRole("dialog", { name: "¿Dar de baja todas las passkeys de Lucía?" }).query(),
+    )
+    .toBeNull();
 });
