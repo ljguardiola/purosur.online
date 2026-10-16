@@ -72,6 +72,7 @@ describe("alertKindPolicy", () => {
       true,
     ],
     ["update_required", "critical", null, "all", "register", true],
+    ["clock_corrected", "critical", null, "all", "register", false],
     ["register_silent", "critical", null, "local", "register", true],
     ["sales_denied", "critical", null, "local", "register", true],
     ["fiscal_emission_stopped", "critical", null, "local", "register", true],
@@ -170,6 +171,7 @@ describe("alertClosing", () => {
       fortnight_report_overdue: "by_hand",
       external_billing: "by_hand",
       fortnight_report_needs_regularization: "by_hand",
+      clock_corrected: "by_hand",
     });
   });
 
@@ -224,6 +226,7 @@ describe("alertKindsWithScope", () => {
       "register_silent",
       "sales_denied",
       "fiscal_emission_stopped",
+      "clock_corrected",
     ]);
     expect(alertKindsWithScope("event")).toEqual(["event_invariant_violated"]);
     expect(alertKindsWithScope("pointOfSaleDocumentType")).toEqual(["fiscal_rejected"]);

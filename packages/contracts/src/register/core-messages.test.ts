@@ -1297,6 +1297,18 @@ describe("register status messages", () => {
     [[{ kind: "disk_space_low", level: "warning" }], "unreachable"],
     [[{ kind: "wal_oversized", level: "warning" }], "unreachable"],
     [
+      [{ kind: "battery_low", charge_percent: 15, critical_percent: 10, level: "warning" }],
+      "reachable",
+    ],
+    [
+      [{ kind: "battery_low", charge_percent: 0, critical_percent: 10, level: "warning" }],
+      "reachable",
+    ],
+    [[{ kind: "on_battery", threshold_minutes: 10, level: "critical" }], "unreachable"],
+    [[{ kind: "battery_missing", level: "warning" }], "unreachable"],
+    [[{ kind: "critical_battery_action_not_shutdown", level: "warning" }], "unreachable"],
+    [[{ kind: "sales_denied", reason: "battery_critical", level: "critical" }], "reachable"],
+    [
       [
         {
           kind: "sales_denied",
@@ -1452,6 +1464,106 @@ describe("register status messages", () => {
             disk_free_ratio: 0.03,
             level: "critical",
           },
+        ],
+        cloud: "reachable",
+        serial_devices: STANDINGS,
+        serial_devices_setup_offered: false,
+      },
+    ],
+    [
+      "a register on battery without the minutes the condition takes",
+      {
+        conditions: [{ kind: "on_battery", level: "critical" }],
+        cloud: "reachable",
+        serial_devices: STANDINGS,
+        serial_devices_setup_offered: false,
+      },
+    ],
+    [
+      "a register on battery for a fraction of a minute",
+      {
+        conditions: [{ kind: "on_battery", threshold_minutes: 9.5, level: "critical" }],
+        cloud: "reachable",
+        serial_devices: STANDINGS,
+        serial_devices_setup_offered: false,
+      },
+    ],
+    [
+      "a register on battery for no minutes",
+      {
+        conditions: [{ kind: "on_battery", threshold_minutes: 0, level: "critical" }],
+        cloud: "reachable",
+        serial_devices: STANDINGS,
+        serial_devices_setup_offered: false,
+      },
+    ],
+    [
+      "a low battery without its charge",
+      {
+        conditions: [{ kind: "battery_low", level: "warning" }],
+        cloud: "reachable",
+        serial_devices: STANDINGS,
+        serial_devices_setup_offered: false,
+      },
+    ],
+    [
+      "a low battery with a charge above 100",
+      {
+        conditions: [
+          { kind: "battery_low", charge_percent: 101, critical_percent: 10, level: "warning" },
+        ],
+        cloud: "reachable",
+        serial_devices: STANDINGS,
+        serial_devices_setup_offered: false,
+      },
+    ],
+    [
+      "a low battery with a negative charge",
+      {
+        conditions: [
+          { kind: "battery_low", charge_percent: -1, critical_percent: 10, level: "warning" },
+        ],
+        cloud: "reachable",
+        serial_devices: STANDINGS,
+        serial_devices_setup_offered: false,
+      },
+    ],
+    [
+      "a low battery with a fractional charge",
+      {
+        conditions: [
+          { kind: "battery_low", charge_percent: 15.5, critical_percent: 10, level: "warning" },
+        ],
+        cloud: "reachable",
+        serial_devices: STANDINGS,
+        serial_devices_setup_offered: false,
+      },
+    ],
+    [
+      "a low battery without the critical threshold",
+      {
+        conditions: [{ kind: "battery_low", charge_percent: 15, level: "warning" }],
+        cloud: "reachable",
+        serial_devices: STANDINGS,
+        serial_devices_setup_offered: false,
+      },
+    ],
+    [
+      "a low battery with a fractional critical threshold",
+      {
+        conditions: [
+          { kind: "battery_low", charge_percent: 15, critical_percent: 9.5, level: "warning" },
+        ],
+        cloud: "reachable",
+        serial_devices: STANDINGS,
+        serial_devices_setup_offered: false,
+      },
+    ],
+    [
+      "a low battery with a critical threshold above 100",
+      {
+        conditions: [
+          { kind: "battery_low", charge_percent: 15, critical_percent: 101, level: "warning" },
         ],
         cloud: "reachable",
         serial_devices: STANDINGS,
@@ -1779,6 +1891,12 @@ describe("serial device messages", () => {
 
   it("accepts the notice that the register's storage standing changed, which answers no request", () => {
     const message = { type: "storage-standing-changed" };
+
+    expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("accepts the notice that the register's battery standing changed, which answers no request", () => {
+    const message = { type: "battery-standing-changed" };
 
     expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
   });

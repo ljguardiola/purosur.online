@@ -4,6 +4,7 @@ import type {
   RecordCashMovementOutcome,
 } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
+import type { ReactNode } from "react";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import type { SignedInPerson } from "../shell/signed-in-person";
@@ -55,6 +56,7 @@ async function renderScreen(
     loadCashBalance?: () => Promise<CashBalance | null | "unavailable">;
     loadCashMovements?: () => Promise<ListedCashMovement[] | null | "unavailable">;
     recordCashMovement?: () => Promise<RecordCashMovementOutcome>;
+    clockGuard?: ReactNode;
   } = {},
 ) {
   await page.viewport(1280, 720);
@@ -77,6 +79,7 @@ async function renderScreen(
       recordCashMovement={
         props.recordCashMovement ?? (async () => ({ kind: "recorded", authorized_by: null }))
       }
+      clockGuard={props.clockGuard}
     />,
   );
 }
@@ -90,6 +93,15 @@ describe("CashScreen", () => {
       .toBeVisible();
     await expect.element(screen.getByText("Caja 1", { exact: true })).toBeVisible();
     await expectNoAccessibilityViolations(screen.container);
+  });
+
+  it("shows what it is given for the clock guard together with the movements", async () => {
+    const screen = await renderScreen({ clockGuard: <p>Aviso del reloj</p> });
+
+    await expect.element(screen.getByText("Aviso del reloj")).toBeVisible();
+    await expect
+      .element(screen.getByRole("table", { name: "Movimientos de la sesión" }))
+      .toBeVisible();
   });
 
   it("marks Caja as the current item of the rail, next to Venta", async () => {

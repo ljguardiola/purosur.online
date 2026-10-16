@@ -107,6 +107,8 @@ function buildFailingRouter(shouldThrow: () => boolean) {
       takeSerialDevicesOffer: async () => false,
       startupPending: async () => "not_permitted",
       startupPendingGate: startupPendingGate(),
+      readClockGuard: async () => ({ kind: "unavailable" }),
+      correctRegisterClock: async () => ({ kind: "unavailable" }),
       readInitialCount: async () => ({ kind: "unavailable" }),
       recordInitialCountLine: async () => ({ kind: "unavailable" }),
       withdrawInitialCountLine: async () => ({ kind: "unavailable" }),

@@ -6,6 +6,7 @@ import {
 } from "@purosur/domain/fiscal/test-support";
 import type { MercadoPagoChargeOrders } from "@purosur/domain/payments/use-cases";
 import { derivePinVerifier } from "../../credentials/pin-verifier";
+import { correctRegisterClockFor } from "../../fiscal/clock-correction-requests";
 import {
   abandonMercadoPagoChargeFor,
   followMercadoPagoChargeFor,
@@ -106,6 +107,7 @@ function seed(database: ReturnType<typeof openLocalDatabase>): void {
         "record_cash_expense",
         "withdraw_cash",
         "void_sale",
+        "correct_register_clock",
         "reprint_receipt",
         "override_line_price_or_discount",
         "apply_total_discount",
@@ -292,6 +294,9 @@ export async function withRegisterSession<TResult>(
       current = new Date(START + ticks * STEP_MS);
       ticks += 1;
     };
+    const rewindClock = (ms: number) => {
+      current = new Date(current.getTime() - ms);
+    };
 
     const signedInPerson = createSignedInPerson();
     signedInPerson.set(ADA);
@@ -307,9 +312,11 @@ export async function withRegisterSession<TResult>(
       readOutboxChainKey: async () => OUTBOX_CHAIN_KEY,
       now,
       ids: uuidV7Ids,
+      signedInPerson,
       paidOrderDiscovery: () => "checked" as const,
       newSalesStoppedByDisk: () => false,
       localDatabaseDamaged: () => false,
+      newSalesStoppedByBattery: () => false,
     });
 
     for (const [step, request] of [
@@ -686,6 +693,16 @@ export async function withRegisterSession<TResult>(
       "charge a sale invoiced under the pre-obtained code",
       offlineTransfer.kind,
       "completed",
+    );
+    nextStep();
+    rewindClock(10 * 60_000);
+    signedInPerson.set(GRACE);
+    const clockCorrected = await correctRegisterClockFor(deps());
+    signedInPerson.set(ADA);
+    expectOutcome(
+      "correct a register clock read behind its mark",
+      clockCorrected.kind,
+      "corrected",
     );
     nextStep();
     const closed = await closeCashSessionFor(deps(), {

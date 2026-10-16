@@ -18,12 +18,14 @@ export type SalesStopState =
 export type SalesDenial =
   | { reason: "event_history_broken" }
   | { reason: "local_database_damaged" }
+  | { reason: "battery_critical" }
   | StorageSalesStop;
 
 export function salesDenialOf(
   state: SalesStopState,
   storageStop: StorageSalesStop | undefined,
   localDatabaseDamaged = false,
+  batteryCritical = false,
 ): SalesDenial | undefined {
   if (state.stopped && state.reason === "event_history_broken") {
     return { reason: "event_history_broken" };
@@ -34,6 +36,9 @@ export function salesDenialOf(
   if (localDatabaseDamaged) {
     return { reason: "local_database_damaged" };
   }
+  if (batteryCritical) {
+    return { reason: "battery_critical" };
+  }
   return state.stopped ? undefined : storageStop;
 }
 
@@ -41,8 +46,9 @@ export function salesDeniedReportOf(
   state: SalesStopState,
   storageStop?: StorageSalesStop,
   localDatabaseDamaged = false,
+  batteryCritical = false,
 ): SalesDeniedReport {
-  const denial = salesDenialOf(state, storageStop, localDatabaseDamaged);
+  const denial = salesDenialOf(state, storageStop, localDatabaseDamaged, batteryCritical);
   if (denial !== undefined) {
     return { sales_denied: true, sales_denied_reason: denial.reason };
   }

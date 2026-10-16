@@ -1,4 +1,5 @@
 import type { OutboxEventDraft } from "../../shared/index.js";
+import type { ClockMark } from "../model/clock-correction.js";
 import type { DeferredSale } from "../model/deferred-sale.js";
 import type { FiscalOnlineSignalEvidence } from "../model/fiscal-online-signal.js";
 import type { Fortnight } from "../model/offline-authorization-code.js";
@@ -33,6 +34,7 @@ export interface SaleAuthorizationTransaction {
   originOfSale(saleId: string): SaleOrigin;
   reserveFiscalDocument(reservation: FiscalDocumentReservation): void;
   issueOfflineFiscalDocument(document: OfflineFiscalDocument): void;
+  recordClockMark(mark: ClockMark): void;
   appendOutboxEvent(event: OutboxEventDraft): void;
   routeSaleToDeferred(deferred: DeferredSale): void;
 }

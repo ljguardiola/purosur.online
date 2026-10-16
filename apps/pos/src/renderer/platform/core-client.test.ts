@@ -819,6 +819,38 @@ describe("createCoreClient", () => {
     ]);
   });
 
+  it("asks the core to read the clock guard and resolves with the outcome", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const read = client.readClockGuard();
+    port.answer({
+      type: "read-clock-guard-result",
+      request_id: "request-1",
+      outcome: { kind: "unavailable" },
+    });
+
+    expect(await read).toEqual({ kind: "unavailable" });
+    expect(port.posted).toEqual([{ type: "read-clock-guard", request_id: "request-1" }]);
+  });
+
+  it("asks the core to correct the register's clock and resolves with the outcome", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const corrected = client.correctRegisterClock();
+    port.answer({
+      type: "correct-register-clock-result",
+      request_id: "request-1",
+      outcome: { kind: "not_behind" },
+    });
+
+    expect(await corrected).toEqual({ kind: "not_behind" });
+    expect(port.posted).toEqual([{ type: "correct-register-clock", request_id: "request-1" }]);
+  });
+
   it("asks the core to read the initial count and resolves with the outcome", async () => {
     const client = clientWithSequentialIds();
     const port = new FakePort();
@@ -2075,6 +2107,43 @@ describe("createCoreClient", () => {
 
     expect(first).toBe(1);
     expect(second).toBe(2);
+  });
+
+  it("tells each listener every time the battery standing changes, until it stops listening", () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+    let first = 0;
+    let second = 0;
+    const stopFirst = client.onBatteryStandingChanged(() => {
+      first += 1;
+    });
+    client.onBatteryStandingChanged(() => {
+      second += 1;
+    });
+
+    port.answer({ type: "battery-standing-changed" });
+    stopFirst();
+    port.answer({ type: "battery-standing-changed" });
+
+    expect(first).toBe(1);
+    expect(second).toBe(2);
+  });
+
+  it("does not take a battery standing change for the answer to a pending request", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const devices = client.readSerialDevices();
+    port.answer({ type: "battery-standing-changed" });
+    port.answer({
+      type: "read-serial-devices-result",
+      request_id: "request-1",
+      outcome: { kind: "unavailable" },
+    });
+
+    expect(await devices).toEqual({ kind: "unavailable" });
   });
 
   it("does not take a storage standing change for the answer to a pending request", async () => {

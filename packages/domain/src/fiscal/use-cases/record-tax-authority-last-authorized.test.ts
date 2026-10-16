@@ -5,10 +5,25 @@ import { ManualClock } from "./test-support/fake-arca-vitality.js";
 import {
   FakeLastAuthorizedLookup,
   FakeTaxAuthorityCounts,
+  FakeVoucherLookup,
 } from "./test-support/fake-tax-authority-count.js";
+import type { VoucherAnswer } from "./unclear-outcome-ports.js";
 
 const NOW = new Date("2026-10-01T12:00:00.000Z");
 const EARLIER = new Date("2026-09-30T12:00:00.000Z");
+const VOUCHER: VoucherAnswer = {
+  kind: "found",
+  voucher: {
+    issuedOn: "2026-09-30",
+    total: 12_500,
+    documentType: 11,
+    receiverDocumentType: 99,
+    receiverDocumentNumber: 0,
+    receiverTaxStatusCode: 5,
+    authorizationCode: "71234567890123",
+    authorizationCodeDueOn: "2026-10-10",
+  },
+};
 const TOKEN = {
   token: "token",
   sign: "sign",
@@ -20,23 +35,27 @@ function record({
   token = TOKEN,
   answer = { kind: "read", number: 38 },
   stored = [],
+  voucher = VOUCHER,
 }: {
   token?: typeof TOKEN | null;
   answer?: LastAuthorizedAnswer;
   stored?: LastAuthorizedCount[];
+  voucher?: VoucherAnswer;
 } = {}) {
   const taxAuthority = new FakeLastAuthorizedLookup(answer);
+  const vouchers = new FakeVoucherLookup(voucher);
   const counts = new FakeTaxAuthorityCounts(stored);
   const outcome = recordTaxAuthorityLastAuthorized(
     {
       tokens: { validToken: async () => token },
       taxAuthority,
+      vouchers,
       counts,
       clock: new ManualClock(NOW),
     },
     { pointOfSale: 12 },
   );
-  return { taxAuthority, counts, outcome };
+  return { taxAuthority, vouchers, counts, outcome };
 }
 
 describe("recordTaxAuthorityLastAuthorized", () => {
@@ -45,14 +64,44 @@ describe("recordTaxAuthorityLastAuthorized", () => {
 
     await expect(outcome).resolves.toEqual({ kind: "recorded" });
     expect(taxAuthority.lookups).toEqual([{ token: TOKEN, pointOfSale: 12 }]);
-    expect(counts.stored).toEqual([{ pointOfSale: 12, lastAuthorized: 38, readAt: NOW }]);
+    expect(counts.stored).toEqual([
+      { pointOfSale: 12, lastAuthorized: 38, issuedOn: "2026-09-30", readAt: NOW },
+    ]);
   });
 
-  it("records a point of sale that never authorized anything as zero", async () => {
-    const { counts, outcome } = record({ answer: { kind: "read", number: 0 } });
+  it("asks the tax authority for the voucher of the last authorized number and records the day it was issued on", async () => {
+    const { vouchers, counts, outcome } = record();
 
     await expect(outcome).resolves.toEqual({ kind: "recorded" });
-    expect(counts.stored).toEqual([{ pointOfSale: 12, lastAuthorized: 0, readAt: NOW }]);
+    expect(vouchers.lookups).toEqual([{ token: TOKEN, pointOfSale: 12, number: 38 }]);
+    expect(counts.stored).toEqual([
+      { pointOfSale: 12, lastAuthorized: 38, issuedOn: "2026-09-30", readAt: NOW },
+    ]);
+  });
+
+  it.each([
+    ["has no voucher for it", { kind: "none" }],
+    ["gives no answer about it", { kind: "no_answer" }],
+  ] satisfies [string, VoucherAnswer][])(
+    "records the number with no day when the tax authority %s",
+    async (_case, voucher) => {
+      const { counts, outcome } = record({ voucher });
+
+      await expect(outcome).resolves.toEqual({ kind: "recorded" });
+      expect(counts.stored).toEqual([
+        { pointOfSale: 12, lastAuthorized: 38, issuedOn: null, readAt: NOW },
+      ]);
+    },
+  );
+
+  it("records a point of sale that never authorized anything as zero, asking for no voucher", async () => {
+    const { vouchers, counts, outcome } = record({ answer: { kind: "read", number: 0 } });
+
+    await expect(outcome).resolves.toEqual({ kind: "recorded" });
+    expect(vouchers.lookups).toEqual([]);
+    expect(counts.stored).toEqual([
+      { pointOfSale: 12, lastAuthorized: 0, issuedOn: null, readAt: NOW },
+    ]);
   });
 
   it("advances the point of sale's last authorized count with a higher number read", async () => {
@@ -61,7 +110,9 @@ describe("recordTaxAuthorityLastAuthorized", () => {
     });
 
     await expect(outcome).resolves.toEqual({ kind: "recorded" });
-    expect(counts.stored).toEqual([{ pointOfSale: 12, lastAuthorized: 38, readAt: NOW }]);
+    expect(counts.stored).toEqual([
+      { pointOfSale: 12, lastAuthorized: 38, issuedOn: "2026-09-30", readAt: NOW },
+    ]);
   });
 
   it("never moves the point of sale's last authorized count back when the number read is lower", async () => {
@@ -70,7 +121,9 @@ describe("recordTaxAuthorityLastAuthorized", () => {
     });
 
     await expect(outcome).resolves.toEqual({ kind: "recorded" });
-    expect(counts.stored).toEqual([{ pointOfSale: 12, lastAuthorized: 44, readAt: NOW }]);
+    expect(counts.stored).toEqual([
+      { pointOfSale: 12, lastAuthorized: 44, issuedOn: "2026-09-30", readAt: NOW },
+    ]);
   });
 
   it("leaves the count of another point of sale as it was", async () => {
@@ -78,7 +131,10 @@ describe("recordTaxAuthorityLastAuthorized", () => {
     const { counts, outcome } = record({ stored: [other] });
 
     await expect(outcome).resolves.toEqual({ kind: "recorded" });
-    expect(counts.stored).toEqual([other, { pointOfSale: 12, lastAuthorized: 38, readAt: NOW }]);
+    expect(counts.stored).toEqual([
+      other,
+      { pointOfSale: 12, lastAuthorized: 38, issuedOn: "2026-09-30", readAt: NOW },
+    ]);
   });
 
   it("asks and records nothing without a valid token", async () => {
@@ -90,9 +146,10 @@ describe("recordTaxAuthorityLastAuthorized", () => {
   });
 
   it("records nothing when the tax authority gives no answer", async () => {
-    const { counts, outcome } = record({ answer: { kind: "no_answer" } });
+    const { vouchers, counts, outcome } = record({ answer: { kind: "no_answer" } });
 
     await expect(outcome).resolves.toEqual({ kind: "no_answer" });
+    expect(vouchers.lookups).toEqual([]);
     expect(counts.stored).toEqual([]);
   });
 });

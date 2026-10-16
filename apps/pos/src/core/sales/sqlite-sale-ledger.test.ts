@@ -635,6 +635,26 @@ describe("whether the local database is damaged", () => {
   });
 });
 
+describe("whether the battery stops new sales", () => {
+  it("is what the register's battery answers", () => {
+    const stopped = new SqliteSaleLedger(
+      database,
+      new SqliteSignInStore(database),
+      CHAIN_KEY,
+      () => "pending",
+      () => false,
+      () => false,
+      () => true,
+    );
+
+    expect(stopped.transaction((tx) => tx.newSalesStoppedByBattery())).toBe(true);
+  });
+
+  it("does not stop new sales for a ledger the battery was not given to", () => {
+    expect(ledger.transaction((tx) => tx.newSalesStoppedByBattery())).toBe(false);
+  });
+});
+
 describe("a paid order without a sale", () => {
   function recordPaidOrder(resolvedAt: string | null): void {
     database

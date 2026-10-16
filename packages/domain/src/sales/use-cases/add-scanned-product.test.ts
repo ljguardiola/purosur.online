@@ -463,6 +463,32 @@ describe("addScannedProduct", () => {
     });
   });
 
+  it("refuses to open a new sale while the battery stops new sales", () => {
+    const store = ledger({ newSalesStoppedByBattery: true });
+    const before = structuredClone(store.state);
+
+    expect(scan(store)).toEqual({ kind: "battery_critical" });
+    nothingRecorded(store, before);
+  });
+
+  it("keeps accepting lines on an open sale while the battery stops new sales", () => {
+    const store = ledger({ sales: [OPEN_SALE], newSalesStoppedByBattery: true });
+
+    expect(scan(store).kind).toBe("added");
+  });
+
+  it("names the battery after the damage and before the disk", () => {
+    expect(scan(ledger({ newSalesStoppedByBattery: true, newSalesStoppedByDisk: true }))).toEqual({
+      kind: "battery_critical",
+    });
+    expect(scan(ledger({ newSalesStoppedByBattery: true, localDatabaseDamaged: true }))).toEqual({
+      kind: "local_database_damaged",
+    });
+    expect(scan(ledger({ revoked: true, newSalesStoppedByBattery: true }))).toEqual({
+      kind: "installation_revoked",
+    });
+  });
+
   it("checks the disk before a paid order without a sale", () => {
     expect(
       scan(ledger({ newSalesStoppedByDisk: true, paidOrdersWithoutSale: [{ resolved: false }] })),

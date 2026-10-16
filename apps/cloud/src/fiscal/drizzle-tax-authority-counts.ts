@@ -21,15 +21,24 @@ export class DrizzleTaxAuthorityCounts<TQueryResult extends PgQueryResultHKT>
 
   // The count travels with the point of sale of the register, real-time or offline, so the row
   // of the register that holds the number is logged as changed for it to pull it again.
-  async advance({ pointOfSale, lastAuthorized, readAt }: LastAuthorizedCount): Promise<void> {
+  async advance({
+    pointOfSale,
+    lastAuthorized,
+    issuedOn = null,
+    readAt,
+  }: LastAuthorizedCount): Promise<void> {
     await withPendingChanges(this.db, this.pending, async (tx, pending) => {
       await tx
         .insert(taxAuthorityLastAuthorizedNumbers)
-        .values({ pointOfSaleNumber: pointOfSale, lastAuthorized, readAt })
+        .values({ pointOfSaleNumber: pointOfSale, lastAuthorized, issuedOn, readAt })
         .onConflictDoUpdate({
           target: taxAuthorityLastAuthorizedNumbers.pointOfSaleNumber,
           set: {
             lastAuthorized: sql`greatest(${taxAuthorityLastAuthorizedNumbers.lastAuthorized}, excluded.last_authorized)`,
+            issuedOn: sql`case
+              when excluded.last_authorized >= ${taxAuthorityLastAuthorizedNumbers.lastAuthorized} then coalesce(excluded.issued_on, ${taxAuthorityLastAuthorizedNumbers.issuedOn})
+              else ${taxAuthorityLastAuthorizedNumbers.issuedOn}
+            end`,
             readAt,
           },
         });

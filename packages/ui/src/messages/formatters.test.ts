@@ -10,6 +10,7 @@ import {
   formatClockTime,
   formatCountdown,
   formatDate,
+  formatDayAndTime,
   formatInvoiceNumber,
   formatMonthAndYear,
   formatMonthName,
@@ -276,6 +277,18 @@ describe("formatTimeAgoInHours", () => {
     [100 * HOUR, "hace 100 horas"],
   ])("writes %i seconds as %s", (seconds, text) => {
     expect(formatTimeAgoInHours(seconds)).toBe(text);
+  });
+});
+
+describe("formatDayAndTime", () => {
+  it("writes the day and the time of the clock the instant is written in", () => {
+    expect(formatDayAndTime("2026-09-16T22:31:00.000-03:00")).toBe("16/09/2026 · 22:31");
+  });
+
+  it("writes the day and the time of an instant in the time zone it is given", () => {
+    expect(formatDayAndTime("2026-10-05T01:30:00.000Z", "America/Argentina/Buenos_Aires")).toBe(
+      "04/10/2026 · 22:30",
+    );
   });
 });
 

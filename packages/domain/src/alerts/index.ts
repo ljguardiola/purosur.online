@@ -7,6 +7,7 @@ export {
   isAlertLevel,
 } from "./model/alert-catalog.js";
 export {
+  clockCorrectedObservation,
   externalBillingObservation,
   fiscalRejectionAlertObservation,
   offlineAuthorizationCodeHeldObservation,
@@ -83,6 +84,7 @@ export {
 } from "./model/register-fortnight-scope.js";
 export type { RegisterOwnCondition } from "./model/register-own-conditions.js";
 export {
+  batteryConditionsOf,
   REGISTER_OWN_CONDITIONS,
   registerOwnConditions,
 } from "./model/register-own-conditions.js";

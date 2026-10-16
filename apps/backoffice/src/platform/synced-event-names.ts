@@ -18,6 +18,7 @@ const EVENT_TYPE_NAMES: Readonly<Record<SyncedEventType, string>> = {
   qr_payment_replaced: "reemplazo de pago QR",
   opening_count_recorded: "línea del inventario inicial",
   opening_count_withdrawn: "línea del inventario inicial quitada",
+  clock_corrected: "corrección de reloj",
 };
 
 function isSyncedEventType(eventType: string): eventType is SyncedEventType {

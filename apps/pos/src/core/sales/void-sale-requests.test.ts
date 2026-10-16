@@ -1,10 +1,17 @@
 import { encodePinHash } from "@purosur/contracts";
+import {
+  FICTIONAL_CUIT,
+  FICTIONAL_GROSS_INCOME_REGISTRATION,
+  FICTIONAL_LEGAL_NAME,
+} from "@purosur/domain/fiscal/test-support";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { derivePinVerifier } from "../credentials/pin-verifier";
 import {
   insertFiscalDocument,
+  insertHealthCheck,
   insertOfflineFiscalDocument,
   insertOfflinePointOfSale,
+  insertPointOfSale,
 } from "../fiscal/test-support/real-time-authorization-database";
 import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
@@ -60,6 +67,7 @@ function deps(
     paidOrderDiscovery: () => "checked",
     newSalesStoppedByDisk: () => false,
     localDatabaseDamaged: () => false,
+    newSalesStoppedByBattery: () => false,
     ...overrides,
   };
 }
@@ -182,6 +190,48 @@ describe("voiding a sale of the sales history", () => {
     expect(database.prepare("SELECT cancelled_at FROM deferred_sales").all()).toEqual([
       { cancelled_at: VOIDED_AT.toISOString() },
     ]);
+  });
+
+  it("voids in full a sale deferred because the register's clock reads behind its mark", async () => {
+    addPerson("u3", "Linus", ["sell_and_charge", "void_sale"]);
+    database.exec("UPDATE cash_sessions SET opened_by = 'u3'");
+    signedInPerson.set("u3");
+    insertHealthCheck(database, { checkedAt: "2026-09-30T11:59:58.000Z" });
+    insertPointOfSale(database, 40);
+    database
+      .prepare(
+        `INSERT INTO issuer_identification_versions (
+           version, legal_name, gross_income_registration, activity_start_date, authorized_cuit, tax_status
+         ) VALUES (1, ?, ?, '2020-01-15', ?, 'Monotributo')`,
+      )
+      .run(FICTIONAL_LEGAL_NAME, FICTIONAL_GROSS_INCOME_REGISTRATION, FICTIONAL_CUIT);
+    database
+      .prepare(
+        "INSERT INTO buyer_tax_status_sets (params_version, set_id, options) VALUES (1, 'set-1', ?)",
+      )
+      .run(JSON.stringify([{ code: 5, description: "Consumidor Final", invoice_class: "A/M/C" }]));
+    database.exec(
+      `INSERT INTO register_clock_marks (point_of_sale, document_type, reading)
+       VALUES (12, 'factura_c', '2026-09-30T12:10:00.000Z')`,
+    );
+    const saleId = await soldInCash();
+    expect(database.prepare("SELECT reason FROM deferred_sales").all()).toEqual([
+      { reason: "clock_behind" },
+    ]);
+
+    const outcome = await voidSaleFor(voidDeps(), request(saleId));
+
+    expect(outcome).toMatchObject({ kind: "voided" });
+    expect(database.prepare("SELECT state FROM sales").all()).toEqual([{ state: "VOIDED" }]);
+    expect(database.prepare("SELECT quantity FROM stock_balances").all()).toEqual([
+      { quantity: 0 },
+    ]);
+    expect(database.prepare("SELECT cancelled_at FROM deferred_sales").all()).toEqual([
+      { cancelled_at: VOIDED_AT.toISOString() },
+    ]);
+    expect(
+      database.prepare("SELECT amount FROM cash_movements WHERE type = 'REFUND'").all(),
+    ).toEqual([{ amount: 3000 }]);
   });
 
   it("tells the cloud, naming who authorized, with the PIN of a person who holds the permission", async () => {

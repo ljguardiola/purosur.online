@@ -1,4 +1,5 @@
 import type {
+  ClockCorrectedFact,
   OfflineFiscalDocumentIssuedFact,
   PreEmissionGateFailureReason,
 } from "../../fiscal/index.js";
@@ -38,7 +39,8 @@ export type SyncedFact =
       kind: "fiscal_gate_failed";
       gateFailure: { saleId: string; reason: PreEmissionGateFailureReason; evaluatedAt: Date };
     }
-  | { kind: "offline_fiscal_document_issued"; document: OfflineFiscalDocumentIssuedFact };
+  | { kind: "offline_fiscal_document_issued"; document: OfflineFiscalDocumentIssuedFact }
+  | { kind: "clock_corrected"; correction: ClockCorrectedFact };
 
 export interface AggregateKey {
   aggregateType: string;

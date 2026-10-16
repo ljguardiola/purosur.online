@@ -20,6 +20,7 @@ import type {
   CloseLockedCashSessionOutcome,
   ConvertPaidOrderIntoRefundOutcome,
   CoreStatusMessage,
+  CorrectRegisterClockOutcome,
   CurrentSaleAnswer,
   EnrollmentOutcome,
   FindCountableProductOutcome,
@@ -35,6 +36,7 @@ import type {
   PreviewSaleDiscountOutcome,
   PreviewSaleLineAdjustmentOutcome,
   PrintOriginalReceiptOutcome,
+  ReadClockGuardOutcome,
   ReadInitialCountOutcome,
   ReadReceiptPrinterOutcome,
   ReadSerialDevicesOutcome,
@@ -79,6 +81,7 @@ import { pinPolicyQueryOptions } from "../credentials/credentials-queries";
 import { FirstSignInCodeStep } from "../credentials/first-sign-in-code-step";
 import { FirstSignInNoPin } from "../credentials/first-sign-in-no-pin";
 import { PinCodeRedemptionScreen } from "../credentials/pin-code-redemption-screen";
+import { ClockGuardOffer } from "../fiscal/clock-guard-offer";
 import { HelpScreen } from "../help/help-screen";
 import { help } from "../help/register-help";
 import type {
@@ -260,6 +263,8 @@ export interface RouterContext {
   takeSerialDevicesOffer: (readStatus: () => Promise<RegisterStatus>) => Promise<boolean>;
   startupPending: () => Promise<StartupPendingAnswer>;
   startupPendingGate: StartupPendingGate;
+  readClockGuard: () => Promise<ReadClockGuardOutcome>;
+  correctRegisterClock: () => Promise<CorrectRegisterClockOutcome>;
   readInitialCount: () => Promise<ReadInitialCountOutcome>;
   recordInitialCountLine: (
     productId: string,
@@ -428,14 +433,33 @@ const signedInRoute = createRoute({
     return { person };
   },
   component: function SignedInRoute() {
-    const { person, signOut, openCashSession, readInitialCount } = signedInRoute.useRouteContext();
+    const {
+      person,
+      signOut,
+      openCashSession,
+      readInitialCount,
+      readClockGuard,
+      correctRegisterClock,
+      refreshCashSession,
+    } = signedInRoute.useRouteContext();
     const registerName = useRegisterName();
     return (
       <NoSessionScreen
         person={person}
         registerName={registerName}
         signOut={signOut}
-        offers={<InitialCountOffer person={person} readInitialCount={readInitialCount} />}
+        offers={
+          <>
+            <ClockGuardOffer
+              registerName={registerName}
+              cashSessionOpen={false}
+              readClockGuard={readClockGuard}
+              correctRegisterClock={correctRegisterClock}
+              onSessionInvalid={() => void refreshCashSession()}
+            />
+            <InitialCountOffer person={person} readInitialCount={readInitialCount} />
+          </>
+        }
         openCashSession={openCashSession}
       />
     );
@@ -684,6 +708,8 @@ const startupPendingRoute = createRoute({
       reprintSaleReceipt,
       convertPaidOrderIntoRefund,
       authorizers,
+      readClockGuard,
+      correctRegisterClock,
       refreshCashSession,
     } = startupPendingRoute.useRouteContext();
     const registerName = useRegisterName();
@@ -703,6 +729,15 @@ const startupPendingRoute = createRoute({
         reprintSaleReceipt={reprintSaleReceipt}
         convertPaidOrderIntoRefund={convertPaidOrderIntoRefund}
         loadAuthorizers={authorizers}
+        clockGuard={
+          <ClockGuardOffer
+            registerName={registerName}
+            cashSessionOpen
+            readClockGuard={readClockGuard}
+            correctRegisterClock={correctRegisterClock}
+            onSessionInvalid={() => void refreshCashSession()}
+          />
+        }
         onGoSelling={() => {
           startupPendingGate.dismiss();
           void navigate({ to: "/session" });
@@ -813,6 +848,9 @@ const cashRoute = createRoute({
       cashMovementKinds,
       authorizers,
       recordCashMovement,
+      readClockGuard,
+      correctRegisterClock,
+      refreshCashSession,
     } = cashRoute.useRouteContext();
     const registerName = useRegisterName();
     return (
@@ -827,6 +865,15 @@ const cashRoute = createRoute({
         loadCashMovementKinds={cashMovementKinds}
         loadAuthorizers={authorizers}
         recordCashMovement={recordCashMovement}
+        clockGuard={
+          <ClockGuardOffer
+            registerName={registerName}
+            cashSessionOpen
+            readClockGuard={readClockGuard}
+            correctRegisterClock={correctRegisterClock}
+            onSessionInvalid={() => void refreshCashSession()}
+          />
+        }
       />
     );
   },
@@ -1131,6 +1178,8 @@ export function createAppRouter(
     | "takeSerialDevicesOffer"
     | "startupPending"
     | "startupPendingGate"
+    | "readClockGuard"
+    | "correctRegisterClock"
     | "readInitialCount"
     | "recordInitialCountLine"
     | "withdrawInitialCountLine"

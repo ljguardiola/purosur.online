@@ -39,6 +39,7 @@ function createServices(
       .fn()
       .mockResolvedValue({ kind: "ok", value: thresholds() }),
     recordBuyerIdentificationThreshold: vi.fn(),
+    fetchClockCorrections: vi.fn().mockResolvedValue({ kind: "ok", value: [] }),
     fetchSessionAuthorizationOptions: vi.fn(),
     authorizeSession: vi.fn(),
     startAuthentication: vi.fn(),
@@ -437,7 +438,7 @@ test("has no accessibility violations once loaded", async () => {
   await expectNoAccessibilityViolations(document.body);
 });
 
-test("shows the buyer-identification threshold in effect today under the issuer identification", async () => {
+test("shows the buyer-identification threshold in effect today under the issuer identification, and the clock corrections after it", async () => {
   const services = createServices();
   vi.mocked(services.fetchIssuerIdentification).mockResolvedValue({ kind: "ok", value: complete });
   vi.mocked(services.fetchBuyerIdentificationThresholds).mockResolvedValue({
@@ -451,6 +452,7 @@ test("shows the buyer-identification threshold in effect today under the issuer 
   expect(headings.map((heading) => heading.textContent)).toEqual([
     "Identificación del emisor",
     "Umbral de identificación del comprador",
+    "Correcciones de reloj",
   ]);
   await expect.element(screen.getByText("$ 10.000.000,00")).toBeVisible();
 });
@@ -627,4 +629,58 @@ test("a refresh of the fiscal data reads the thresholds again without hiding the
     value: thresholds({ inEffect: { ...inEffect, amount: 2_000_000_000 } }),
   });
   await expect.element(screen.getByText("$ 20.000.000,00")).toBeVisible();
+});
+
+test("lists the clock corrections it reads under their own heading", async () => {
+  const services = createServices({
+    fetchClockCorrections: vi.fn().mockResolvedValue({
+      kind: "ok",
+      value: [
+        {
+          id: "correction-1",
+          correctedAt: "2026-10-05T12:00:00.000Z",
+          registerId: "register-1",
+          registerName: "Caja 1",
+          pointOfSaleNumber: 4,
+          actorFirstName: "Ada",
+          previousReading: "2026-10-07T14:31:00.000Z",
+          correctedReading: "2026-10-05T12:00:00.000Z",
+          alertState: "open",
+        },
+      ],
+    }),
+  });
+
+  vi.mocked(services.fetchIssuerIdentification).mockResolvedValue({ kind: "ok", value: complete });
+
+  const screen = await renderScreen(services);
+
+  await expect
+    .element(screen.getByRole("heading", { name: "Correcciones de reloj", level: 2 }))
+    .toBeVisible();
+  await expect.element(screen.getByText("Corrigió Ada", { exact: true })).toBeVisible();
+});
+
+test("sends to Mi cuenta when reading the clock corrections comes back forbidden", async () => {
+  window.history.pushState(null, "", "/fiscal-settings");
+  const services = createServices({
+    fetchClockCorrections: vi.fn().mockResolvedValue({ kind: "forbidden" }),
+  });
+  vi.mocked(services.fetchIssuerIdentification).mockResolvedValue({ kind: "ok", value: complete });
+
+  await renderScreen(services);
+
+  await expect.poll(() => window.location.pathname).toBe("/account");
+});
+
+test("ends the session when reading the clock corrections finds it closed", async () => {
+  const services = createServices({
+    fetchClockCorrections: vi.fn().mockResolvedValue({ kind: "unauthenticated" }),
+  });
+  vi.mocked(services.fetchIssuerIdentification).mockResolvedValue({ kind: "ok", value: complete });
+  const onSessionEnded = vi.fn();
+
+  await renderScreen(services, onSessionEnded);
+
+  await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
 });

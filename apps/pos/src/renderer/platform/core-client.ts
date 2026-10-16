@@ -19,12 +19,15 @@ import type {
   CloseCashSessionOutcome,
   CloseLockedCashSessionOutcome,
   ConvertPaidOrderIntoRefundOutcome,
+  CorrectRegisterClockOutcome,
   CredentialsCoreToRendererMessage,
   CredentialsRendererToCoreMessage,
   CurrentSaleAnswer,
   EnrollmentOutcome,
   FindCountableProductOutcome,
   FirstPinCodeRequestOutcome,
+  FiscalCoreToRendererMessage,
+  FiscalRendererToCoreMessage,
   FollowMercadoPagoChargeOutcome,
   IdentifyLockedCloserOutcome,
   ListedCashMovement,
@@ -39,6 +42,7 @@ import type {
   PreviewSaleDiscountOutcome,
   PreviewSaleLineAdjustmentOutcome,
   PrintOriginalReceiptOutcome,
+  ReadClockGuardOutcome,
   ReadInitialCountOutcome,
   ReadReceiptPrinterOutcome,
   ReadSerialDevicesOutcome,
@@ -80,6 +84,7 @@ import type {
 } from "@purosur/contracts";
 import {
   credentialsCoreToRendererMessageSchema,
+  fiscalCoreToRendererMessageSchema,
   paymentsCoreToRendererMessageSchema,
   registerCoreToRendererMessageSchema,
   salesCoreToRendererMessageSchema,
@@ -97,6 +102,7 @@ const coreToRendererMessageSchema = z.discriminatedUnion("type", [
   salesCoreToRendererMessageSchema,
   paymentsCoreToRendererMessageSchema,
   stockCoreToRendererMessageSchema,
+  fiscalCoreToRendererMessageSchema,
   syncCoreToRendererMessageSchema,
 ]);
 
@@ -107,6 +113,7 @@ type CoreToRendererMessage =
   | SalesCoreToRendererMessage
   | PaymentsCoreToRendererMessage
   | StockCoreToRendererMessage
+  | FiscalCoreToRendererMessage
   | SyncCoreToRendererMessage;
 
 type RendererToCoreMessage =
@@ -115,7 +122,8 @@ type RendererToCoreMessage =
   | RegisterRendererToCoreMessage
   | SalesRendererToCoreMessage
   | PaymentsRendererToCoreMessage
-  | StockRendererToCoreMessage;
+  | StockRendererToCoreMessage
+  | FiscalRendererToCoreMessage;
 
 export interface CorePort {
   postMessage(message: unknown): void;
@@ -173,6 +181,8 @@ export interface CoreClient {
     weightThousandths: number,
   ): Promise<AddWeighedProductOutcome>;
   weighProduct(productId: string): Promise<WeighProductOutcome>;
+  readClockGuard(): Promise<ReadClockGuardOutcome>;
+  correctRegisterClock(): Promise<CorrectRegisterClockOutcome>;
   readInitialCount(): Promise<ReadInitialCountOutcome>;
   recordInitialCountLine(
     productId: string,
@@ -267,6 +277,7 @@ export interface CoreClient {
   onPulled(listener: () => void): () => void;
   onSerialDevicesChanged(listener: () => void): () => void;
   onStorageStandingChanged(listener: () => void): () => void;
+  onBatteryStandingChanged(listener: () => void): () => void;
   onBarcodeRead(listener: (code: string) => void): () => void;
 }
 
@@ -287,6 +298,7 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
   const pulledListeners = new Set<() => void>();
   const serialDevicesChangedListeners = new Set<() => void>();
   const storageStandingChangedListeners = new Set<() => void>();
+  const batteryStandingChangedListeners = new Set<() => void>();
   const barcodeReadListeners = new Set<(code: string) => void>();
 
   function receive(port: CorePort, data: unknown): void {
@@ -311,6 +323,12 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
     }
     if (answer.data.type === "storage-standing-changed") {
       for (const listener of storageStandingChangedListeners) {
+        listener();
+      }
+      return;
+    }
+    if (answer.data.type === "battery-standing-changed") {
+      for (const listener of batteryStandingChangedListeners) {
         listener();
       }
       return;
@@ -741,6 +759,16 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
         (answer) => (answer.type === "weigh-product-result" ? answer.outcome : undefined),
       );
     },
+    readClockGuard() {
+      return ask({ type: "read-clock-guard", request_id: deps.newRequestId() }, (answer) =>
+        answer.type === "read-clock-guard-result" ? answer.outcome : undefined,
+      );
+    },
+    correctRegisterClock() {
+      return ask({ type: "correct-register-clock", request_id: deps.newRequestId() }, (answer) =>
+        answer.type === "correct-register-clock-result" ? answer.outcome : undefined,
+      );
+    },
     readInitialCount() {
       return ask({ type: "read-initial-count", request_id: deps.newRequestId() }, (answer) =>
         answer.type === "read-initial-count-result" ? answer.outcome : undefined,
@@ -996,6 +1024,12 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
       storageStandingChangedListeners.add(listener);
       return () => {
         storageStandingChangedListeners.delete(listener);
+      };
+    },
+    onBatteryStandingChanged(listener) {
+      batteryStandingChangedListeners.add(listener);
+      return () => {
+        batteryStandingChangedListeners.delete(listener);
       };
     },
     onBarcodeRead(listener) {

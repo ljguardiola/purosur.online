@@ -26,6 +26,7 @@ import {
   cashSessions,
   categories,
   changes,
+  clockCorrections,
   deviceState,
   discounts,
   fiscalAddresses,
@@ -671,6 +672,18 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
       total: 10_000,
       netAmount: 10_000,
       cause: "no_connectivity",
+      recordedAt: new Date("2026-01-05T12:00:00.000Z"),
+    });
+    await db.insert(clockCorrections).values({
+      eventId: "00000000-0000-4000-8000-000000000105",
+      registerId: register.id,
+      pointOfSale: 7,
+      documentType: "factura_c",
+      previousReading: new Date("2026-01-07T12:00:00.000Z"),
+      correctedReading: new Date("2026-01-05T12:00:00.000Z"),
+      actorId: user.id,
+      correctedAt: new Date("2026-01-05T12:00:00.000Z"),
+      alertId: alert.id,
       recordedAt: new Date("2026-01-05T12:00:00.000Z"),
     });
     await db.transaction(async (tx) => {

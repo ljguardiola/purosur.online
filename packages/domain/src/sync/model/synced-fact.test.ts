@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { dependenciesOf, invariantBreaksOf } from "./synced-fact.js";
 import {
   A_CASH_MOVEMENT_FACT,
+  A_CLOCK_CORRECTED_FACT,
   A_GATE_FAILED_FACT,
   A_SESSION_CLOSED_FACT,
   A_SESSION_OPENED_FACT,
@@ -40,6 +41,7 @@ describe("what a synced fact needs applied before it", () => {
 
   it("is nothing for a failed fiscal gate", () => {
     expect(dependenciesOf(A_GATE_FAILED_FACT)).toEqual([]);
+    expect(dependenciesOf(A_CLOCK_CORRECTED_FACT)).toEqual([]);
   });
 
   it("is nothing for a line of the initial count", () => {
@@ -185,6 +187,7 @@ describe("what a synced fact breaks that only its own history shows", () => {
     expect(invariantBreaksOf(A_SESSION_CLOSED_FACT)).toEqual([]);
     expect(invariantBreaksOf(A_CASH_MOVEMENT_FACT)).toEqual([]);
     expect(invariantBreaksOf(A_GATE_FAILED_FACT)).toEqual([]);
+    expect(invariantBreaksOf(A_CLOCK_CORRECTED_FACT)).toEqual([]);
   });
 
   it("never flags a sale whose lines' frozen prices differ from any price list, since the fact holds no current price to compare", () => {

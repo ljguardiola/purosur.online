@@ -7,6 +7,7 @@ import type {
   StartupPending,
 } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
+import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { deferred } from "../platform/test-support/deferred";
@@ -130,6 +131,7 @@ type Overrides = {
     paymentTransactionId: string,
   ) => Promise<ConvertPaidOrderIntoRefundOutcome>;
   registerName?: string | null;
+  clockGuard?: ReactNode;
 };
 
 async function renderScreen(overrides: Overrides = {}) {
@@ -173,6 +175,7 @@ async function renderScreen(overrides: Overrides = {}) {
       reprintSaleReceipt={reprintSaleReceipt}
       convertPaidOrderIntoRefund={convertPaidOrderIntoRefund}
       loadAuthorizers={async () => []}
+      clockGuard={overrides.clockGuard}
       onGoSelling={onGoSelling}
       onNothingLeft={onNothingLeft}
       onSessionInvalid={onSessionInvalid}
@@ -195,6 +198,13 @@ afterEach(() => {
 });
 
 describe("StartupPendingScreen", () => {
+  it("shows what it is given for the clock guard among the pending items, and still lets the person go selling", async () => {
+    const { screen } = await renderScreen({ clockGuard: <p>Aviso del reloj</p> });
+
+    await expect.element(screen.getByText("Aviso del reloj")).toBeVisible();
+    await expectGoSellingOpen(screen);
+  });
+
   it("is headed Hay cosas para resolver, naming the register before starting", async () => {
     const { screen } = await renderScreen();
 

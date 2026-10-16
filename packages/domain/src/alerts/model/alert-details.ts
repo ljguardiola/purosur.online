@@ -108,6 +108,14 @@ interface ExternalBillingDetail {
   number: number;
 }
 
+interface ClockCorrectedDetail {
+  pointOfSale: number;
+  documentType: FiscalDocumentType;
+  previousReading: string;
+  correctedReading: string;
+  actorId: string;
+}
+
 interface OfflineAuthorizationCodeMissingDetail {
   deviceId: string;
   fortnightStart: string;
@@ -206,6 +214,7 @@ export interface AlertDetails {
   fortnight_report_overdue: FortnightReportOverdueDetail;
   external_billing: ExternalBillingDetail;
   fortnight_report_needs_regularization: FortnightReportNeedsRegularizationDetail;
+  clock_corrected: ClockCorrectedDetail;
 }
 
 export type OpenAlertInput = {

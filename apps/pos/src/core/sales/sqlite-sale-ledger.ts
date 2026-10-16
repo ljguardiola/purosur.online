@@ -83,6 +83,7 @@ export class SqliteSaleLedger implements SaleLedger {
   private readonly paidOrderDiscovery: () => PaidOrderDiscoveryState;
   private readonly newSalesStoppedByDisk: () => boolean;
   private readonly localDatabaseDamaged: () => boolean;
+  private readonly newSalesStoppedByBattery: () => boolean;
 
   constructor(
     database: LocalDatabase,
@@ -91,6 +92,7 @@ export class SqliteSaleLedger implements SaleLedger {
     paidOrderDiscovery: () => PaidOrderDiscoveryState = () => "pending",
     newSalesStoppedByDisk: () => boolean = () => false,
     localDatabaseDamaged: () => boolean = () => false,
+    newSalesStoppedByBattery: () => boolean = () => false,
   ) {
     this.database = database;
     this.people = people;
@@ -98,6 +100,7 @@ export class SqliteSaleLedger implements SaleLedger {
     this.paidOrderDiscovery = paidOrderDiscovery;
     this.newSalesStoppedByDisk = newSalesStoppedByDisk;
     this.localDatabaseDamaged = localDatabaseDamaged;
+    this.newSalesStoppedByBattery = newSalesStoppedByBattery;
   }
 
   transaction<TOutcome>(work: (tx: SaleLedgerTransaction) => TOutcome): TOutcome {
@@ -112,6 +115,7 @@ export class SqliteSaleLedger implements SaleLedger {
       installationRevoked: () => this.installationRevoked(),
       newSalesStoppedByDisk: () => this.newSalesStoppedByDisk(),
       localDatabaseDamaged: () => this.localDatabaseDamaged(),
+      newSalesStoppedByBattery: () => this.newSalesStoppedByBattery(),
       paidOrdersWithoutSale: () =>
         new SqliteLocalPaidOrders({ database: this.database }).paidOrdersWithoutSale(),
       paidOrderDiscovery: () => this.paidOrderDiscovery(),

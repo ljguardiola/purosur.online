@@ -32,6 +32,8 @@ const ALERT_KIND_DESCRIPTIONS = {
   external_billing: "Un comprobante se emitió fuera del sistema",
   fortnight_report_needs_regularization:
     "Llegaron comprobantes de una quincena ya informada a ARCA sin movimiento",
+  clock_corrected:
+    "Alguien confirmó desde la caja que su hora era correcta y bajó la marca de la guarda de reloj. Los comprobantes emitidos entre la lectura anterior y la nueva llevan fechas imposibles y van a regularización manual.",
 } satisfies Record<AlertKind, string>;
 
 export const DESCRIBED_ALERT_KINDS: readonly string[] = Object.keys(ALERT_KIND_DESCRIPTIONS);

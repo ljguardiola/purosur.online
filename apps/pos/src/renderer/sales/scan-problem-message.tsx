@@ -7,6 +7,7 @@ import { ElevatedNotice } from "@purosur/ui";
 import type { LucideIcon } from "lucide-react";
 import {
   Ban,
+  BatteryLow,
   Database,
   HardDrive,
   Lock,
@@ -31,6 +32,7 @@ export type ScanProblem =
           | "installation_revoked"
           | "disk_space_short"
           | "local_database_damaged"
+          | "battery_critical"
           | "paid_order_without_sale"
           | "paid_orders_not_checked";
       }
@@ -105,6 +107,12 @@ export function messageFor(problem: ScanProblem): Message {
     case "local_database_damaged":
       return {
         icon: Database,
+        title: "No se pueden abrir ventas nuevas",
+        help: "El motivo y qué hacer se muestran arriba de la pantalla.",
+      };
+    case "battery_critical":
+      return {
+        icon: BatteryLow,
         title: "No se pueden abrir ventas nuevas",
         help: "El motivo y qué hacer se muestran arriba de la pantalla.",
       };

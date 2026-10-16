@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  SNAPSHOT_BATTERY_FLOOR_PERCENT,
   SNAPSHOT_INTERVAL_OFFLINE_MS,
   SNAPSHOT_INTERVAL_ONLINE_MS,
   type SnapshotCycleFacts,
@@ -108,7 +107,6 @@ describe("snapshotCycleDecision", () => {
 
   describe("battery", () => {
     it("refuses a new snapshot below the floor", () => {
-      expect(SNAPSHOT_BATTERY_FLOOR_PERCENT).toBe(20);
       expect(
         snapshotCycleDecision(
           facts({ battery: { kind: "present", chargePercent: 19, onBattery: true } }),
@@ -124,12 +122,12 @@ describe("snapshotCycleDecision", () => {
       ).toEqual({ kind: "take" });
     });
 
-    it("refuses below the floor even while plugged in", () => {
+    it("takes a new snapshot below the floor while plugged in", () => {
       expect(
         snapshotCycleDecision(
           facts({ battery: { kind: "present", chargePercent: 5, onBattery: false } }),
         ),
-      ).toEqual({ kind: "skip", reason: "battery_low" });
+      ).toEqual({ kind: "take" });
     });
 
     it("does not block when the battery cannot be read", () => {

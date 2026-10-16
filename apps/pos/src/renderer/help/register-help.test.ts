@@ -23,13 +23,16 @@ const PAYMENTS_TITLES = [...POINT_TERMINAL_TITLES, STANDALONE_TERMINAL_TITLE];
 
 const STARTUP_PENDING_TITLE = "Cosas para resolver al empezar";
 
+const CRITICAL_BATTERY_TITLE = "Apagar la notebook con batería crítica";
+
 describe("the register's help", () => {
-  it("starts with the sections on adding products to a sale and on cancelling it, followed by charging on the integrated Point terminal and on the standalone one, and ends with what the register left pending when it starts", () => {
+  it("starts with the sections on adding products to a sale and on cancelling it, followed by charging on the integrated Point terminal and on the standalone one and by shutting the notebook down at a critical battery, and ends with what the register left pending when it starts", () => {
     expect(titles).toEqual([
       "Agregar un producto escaneándolo",
       "Agregar un producto buscándolo por nombre",
       "Cancelar una venta",
       ...PAYMENTS_TITLES,
+      CRITICAL_BATTERY_TITLE,
       STARTUP_PENDING_TITLE,
     ]);
   });
@@ -40,6 +43,41 @@ describe("the register's help", () => {
     );
 
     expect(startupPending && help.categories[startupPending.category].label).toBe("Caja");
+  });
+
+  it("files the section on shutting the notebook down at a critical battery under Caja", () => {
+    const article = Object.values(help.articles).find(
+      (candidate) => candidate.title === CRITICAL_BATTERY_TITLE,
+    );
+
+    expect(article && help.categories[article.category].label).toBe("Caja");
+  });
+
+  it("walks through Windows' power options to set the critical battery action to shut down and the critical level below the ten percent where the register closes", () => {
+    expect(titlesFound("Opciones de energía")).toEqual([CRITICAL_BATTERY_TITLE]);
+    expect(titlesFound("Cambiar la configuración avanzada de energía")).toEqual([
+      CRITICAL_BATTERY_TITLE,
+    ]);
+    expect(titlesFound("Acción de batería crítica")).toEqual([CRITICAL_BATTERY_TITLE]);
+    expect(titlesFound("Nivel de batería crítica")).toEqual([CRITICAL_BATTERY_TITLE]);
+    expect(titlesFound("por debajo del 10 %")).toEqual([CRITICAL_BATTERY_TITLE]);
+  });
+
+  it("gives the same settings as powercfg commands", () => {
+    expect(
+      titlesFound("powercfg /setdcvalueindex SCHEME_CURRENT SUB_BATTERY BATACTIONCRIT 3"),
+    ).toEqual([CRITICAL_BATTERY_TITLE]);
+    expect(
+      titlesFound("powercfg /setdcvalueindex SCHEME_CURRENT SUB_BATTERY BATLEVELCRIT 5"),
+    ).toEqual([CRITICAL_BATTERY_TITLE]);
+    expect(titlesFound("powercfg /setactive SCHEME_CURRENT")).toEqual([CRITICAL_BATTERY_TITLE]);
+  });
+
+  it("says it leaves the sleep settings alone and that the register's bar warns while Windows is not set to shut down", () => {
+    expect(titlesFound("no cambia la suspensión")).toEqual([CRITICAL_BATTERY_TITLE]);
+    expect(titlesFound("Windows no apaga la notebook con batería crítica")).toEqual([
+      CRITICAL_BATTERY_TITLE,
+    ]);
   });
 
   it("explains that a ticket that may have come out is reprinted only as a duplicate, and that nothing on the list stops selling but a paid order without a sale and the check for paid orders while it runs", () => {

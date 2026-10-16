@@ -12,9 +12,26 @@ function keepingHighest(table: string, column: string): string {
          ELSE excluded.${column} END`;
 }
 
+const COUNT = "tax_authority_last_authorized_number";
+const DAY = "tax_authority_last_authorized_issued_on";
+
+function latestDay(table: string): string {
+  return `CASE
+         WHEN excluded.point_of_sale_number = ${table}.point_of_sale_number
+           AND ${table}.${COUNT} IS NOT NULL
+           AND (excluded.${COUNT} IS NULL OR excluded.${COUNT} < ${table}.${COUNT})
+         THEN ${table}.${DAY}
+         WHEN excluded.point_of_sale_number = ${table}.point_of_sale_number
+           AND ${table}.${DAY} IS NOT NULL
+           AND (excluded.${DAY} IS NULL OR excluded.${DAY} < ${table}.${DAY})
+         THEN ${table}.${DAY}
+         ELSE excluded.${DAY} END`;
+}
+
 function redeliveredPointOfSale(table: string, fiscalAddress: boolean): string {
   const keptNumbers = [
-    keepingHighest(table, "tax_authority_last_authorized_number"),
+    keepingHighest(table, COUNT),
+    ...(fiscalAddress ? [`${DAY} = ${latestDay(table)}`] : []),
     ...(fiscalAddress ? [] : [keepingHighest(table, "highest_synced_offline_number")]),
   ];
   return `ON CONFLICT (register_id) DO UPDATE SET
@@ -56,6 +73,24 @@ export function prepareRegisterPageWrites(database: LocalDatabase, mode: PageWri
              OR excluded.tax_authority_last_authorized_number < register_point_of_sale.tax_authority_last_authorized_number)
          THEN register_point_of_sale.tax_authority_last_authorized_number
          ELSE excluded.tax_authority_last_authorized_number END,
+       ${DAY} = CASE
+         WHEN excluded.version = register_point_of_sale.version THEN
+           CASE
+             WHEN excluded.${COUNT} IS NOT NULL
+               AND (register_point_of_sale.${COUNT} IS NULL
+                 OR excluded.${COUNT} > register_point_of_sale.${COUNT})
+             THEN CASE
+               WHEN register_point_of_sale.${DAY} IS NOT NULL
+                 AND (excluded.${DAY} IS NULL OR excluded.${DAY} < register_point_of_sale.${DAY})
+               THEN register_point_of_sale.${DAY}
+               ELSE excluded.${DAY} END
+             WHEN excluded.${COUNT} = register_point_of_sale.${COUNT}
+               AND excluded.${DAY} IS NOT NULL
+               AND (register_point_of_sale.${DAY} IS NULL
+                 OR excluded.${DAY} > register_point_of_sale.${DAY})
+             THEN excluded.${DAY}
+             ELSE register_point_of_sale.${DAY} END
+         ELSE ${latestDay("register_point_of_sale")} END,
        numbering_frozen = excluded.numbering_frozen,
        version = excluded.version
      WHERE excluded.version > register_point_of_sale.version
@@ -64,15 +99,20 @@ export function prepareRegisterPageWrites(database: LocalDatabase, mode: PageWri
          AND (register_point_of_sale.tax_authority_last_authorized_number IS NULL
            OR excluded.tax_authority_last_authorized_number > register_point_of_sale.tax_authority_last_authorized_number))
        OR (excluded.version = register_point_of_sale.version
+         AND excluded.${COUNT} = register_point_of_sale.${COUNT}
+         AND excluded.${DAY} IS NOT NULL
+         AND (register_point_of_sale.${DAY} IS NULL
+           OR excluded.${DAY} > register_point_of_sale.${DAY}))
+       OR (excluded.version = register_point_of_sale.version
          AND excluded.numbering_frozen <> register_point_of_sale.numbering_frozen)`
       : redeliveredPointOfSale("register_point_of_sale", true);
   const savePointOfSale = database.prepare(
     `INSERT INTO register_point_of_sale (
        register_id, point_of_sale_number, fiscal_address_id, tax_authority_last_authorized_number,
-       numbering_frozen, version
+       tax_authority_last_authorized_issued_on, numbering_frozen, version
      ) VALUES (
        @register_id, @point_of_sale_number, @fiscal_address_id, @tax_authority_last_authorized_number,
-       @numbering_frozen, @version
+       @tax_authority_last_authorized_issued_on, @numbering_frozen, @version
      )
      ${savePointOfSaleConflict}`,
   );
@@ -136,7 +176,13 @@ export function prepareRegisterPageWrites(database: LocalDatabase, mode: PageWri
       entity_id,
       row,
     }: Extract<SyncChange, { entity: "register_offline_point_of_sale" }>): void {
-      saveOfflinePointOfSale.run({ register_id: entity_id, ...row });
+      saveOfflinePointOfSale.run({
+        register_id: entity_id,
+        point_of_sale_number: row.point_of_sale_number,
+        tax_authority_last_authorized_number: row.tax_authority_last_authorized_number,
+        highest_synced_offline_number: row.highest_synced_offline_number,
+        version: row.version,
+      });
     },
 
     removal({ entity_id, version }: RemovalOf<"register">): void {

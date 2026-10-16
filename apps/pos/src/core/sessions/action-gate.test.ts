@@ -131,6 +131,19 @@ describe("running an operation for the signed-in person", () => {
     expect(refused.performed).toEqual([]);
   });
 
+  it("corrects the register's clock for a person holding its permission, and refuses others", async () => {
+    const corrector = {
+      u1: { isAdministrator: false, permissionKeys: ["correct_register_clock"] },
+    };
+
+    const permitted = sell(deps({ accessOf: corrector }), { kind: "correct_register_clock" });
+    const refused = sell(deps(), { kind: "correct_register_clock" });
+
+    expect(await permitted.outcome).toEqual({ kind: "performed", result: "sold" });
+    expect(await refused.outcome).toEqual({ kind: "lacks_permission" });
+    expect(refused.performed).toEqual([]);
+  });
+
   it("refuses the operation of a signed-in person the domain refuses", async () => {
     const { outcome, performed } = sell(
       deps({ accessOf: { u1: { isAdministrator: false, permissionKeys: [] } } }),
@@ -168,6 +181,7 @@ describe("running an operation for the signed-in person", () => {
     expectTypeOf<{ kind: "sell" }>().toExtend<RunnableOperation>();
     expectTypeOf<{ kind: "open_cash_session" }>().toExtend<RunnableOperation>();
     expectTypeOf<{ kind: "record_initial_inventory" }>().toExtend<RunnableOperation>();
+    expectTypeOf<{ kind: "correct_register_clock" }>().toExtend<RunnableOperation>();
     expectTypeOf<{
       kind: "close_cash_session";
       session: { openedBy: string };
