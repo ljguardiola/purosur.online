@@ -81,10 +81,15 @@ export function RevokeRegisterModal({
     setRevoking(true);
     const opening = openingRef.current;
     const outcome = await run(() => revokeRegister(register.id));
-    if (opening !== openingRef.current) {
-      return;
+    const sameOpening = opening === openingRef.current;
+    const showNotice = (shown: Notice) => {
+      if (sameOpening) {
+        setNotice(shown);
+      }
+    };
+    if (sameOpening) {
+      setRevoking(false);
     }
-    setRevoking(false);
     if (outcome.kind === "cancelled") {
       return;
     }
@@ -95,15 +100,15 @@ export function RevokeRegisterModal({
     } else if (outcome.kind === "forbidden") {
       sendToMyAccount();
     } else if (outcome.kind === "not_found") {
-      setNotice({ kind: "notFound" });
+      showNotice({ kind: "notFound" });
       onOutdated();
     } else if (outcome.kind === "no_active_installation") {
-      setNotice({ kind: "noActiveInstallation" });
+      showNotice({ kind: "noActiveInstallation" });
       onOutdated();
     } else if (outcome.kind === "rate_limited") {
-      setNotice({ kind: "rateLimited", retryAfterSeconds: outcome.retryAfterSeconds });
+      showNotice({ kind: "rateLimited", retryAfterSeconds: outcome.retryAfterSeconds });
     } else {
-      setNotice({ kind: "attemptFailed" });
+      showNotice({ kind: "attemptFailed" });
     }
   }
 
