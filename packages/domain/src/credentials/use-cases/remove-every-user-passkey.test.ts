@@ -63,7 +63,13 @@ describe("removeEveryUserPasskey", () => {
       { actorId: "admin-1", userId: "u-1", passkey: { id: "p-2", name: "Teléfono" } },
     ]);
     expect(store.current.alerts).toEqual([
-      { userId: "u-1", passkeyName: "Llave", actorId: "admin-1", via: "administrator", openedAt: AT },
+      {
+        userId: "u-1",
+        passkeyName: "Llave",
+        actorId: "admin-1",
+        via: "administrator",
+        openedAt: AT,
+      },
       {
         userId: "u-1",
         passkeyName: "Teléfono",
