@@ -771,6 +771,13 @@
       "when": 1792130592522,
       "tag": "0114_lost_register_revocation",
       "breakpoints": true
+    },
+    {
+      "idx": 110,
+      "version": "7",
+      "when": 1792142000453,
+      "tag": "0116_suspected_compromise_revocation",
+      "breakpoints": true
     }
   ]
 }
