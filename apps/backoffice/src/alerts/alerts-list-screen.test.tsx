@@ -957,7 +957,7 @@ test("summarizes the refund owed for a late QR payment by its amount, under its 
 
   const row = screen.getByRole("row", { name: /Reembolso pendiente por un pago tardío/ });
   await expect
-    .element(row.getByText("QR de Mercado Pago de $ 12.400,00 sin marcar como hecho"))
+    .element(row.getByText("QR de Mercado Pago de $ 12.400,00 por reembolsar"))
     .toBeVisible();
   await expect.element(row.getByText("Tarea de reembolso")).toBeVisible();
   expect(row.getByText(/3f2b8c1e/).query()).toBeNull();
@@ -986,7 +986,7 @@ test("summarizes a closed refund alert for a late QR payment by its amount alone
   await expect
     .element(row.getByText("QR de Mercado Pago de $ 12.400,00", { exact: true }))
     .toBeVisible();
-  expect(row.getByText(/sin marcar como hecho/).query()).toBeNull();
+  expect(row.getByText(/por reembolsar/).query()).toBeNull();
 });
 
 test("summarizes the refund of a cancelled sale left pending by its method and amount, under its title and what to do", async () => {

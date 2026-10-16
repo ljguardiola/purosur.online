@@ -300,6 +300,23 @@ describe("POST /refunds/:id/completion, a QR refund of a cancelled sale", () => 
   });
 });
 
+describe("POST /refunds/:id/completion, a late QR payment refund", () => {
+  it("answers 409 and leaves the refund pending, because the cloud sends it to Mercado Pago", async () => {
+    const { headers } = await signedInWith(db, ["confirm_refunds"], NOW);
+    const late = await aPendingLatePaymentRefund(db, { openedAt: NOW, orderId: ORDER_ID });
+
+    const response = await markDone(headers, late.refundId);
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({ code: "refund_sent_by_cloud" });
+    const [refund] = await db
+      .select()
+      .from(paymentRefunds)
+      .where(eq(paymentRefunds.id, late.refundId));
+    expect(refund).toMatchObject({ state: "PENDING" });
+  });
+});
+
 describe("POST /refunds/:id/completion", () => {
   it("marks the pending refund as done by the person of the session", async () => {
     const { headers, userId } = await signedInWith(db, ["confirm_refunds"], NOW);
@@ -334,7 +351,7 @@ describe("POST /refunds/:id/completion", () => {
 
   it("resolves the alert of a late-payment refund when it is marked as done", async () => {
     const { headers, userId } = await signedInWith(db, ["confirm_refunds"], NOW);
-    const late = await aPendingLatePaymentRefund(db, { openedAt: NOW });
+    const late = await aPendingLatePaymentRefund(db, { openedAt: NOW, method: "POINT" });
 
     const response = await markDone(headers, late.refundId);
 
@@ -674,7 +691,7 @@ describe("POST /refunds/:id/discard", () => {
 
   it("answers 409 to a refund that was already marked as done", async () => {
     const { headers } = await signedInWith(db, ["confirm_refunds"], NOW);
-    const late = await aPendingLatePaymentRefund(db, { openedAt: NOW });
+    const late = await aPendingLatePaymentRefund(db, { openedAt: NOW, method: "POINT" });
     await markDone(headers, late.refundId);
 
     const response = await discard(headers, late.refundId);
@@ -722,5 +739,105 @@ describe("POST /refunds/:id/discard", () => {
 
     expect(response.statusCode).toBe(400);
     expect(response.json()).toMatchObject({ code: "validation_failed" });
+  });
+});
+
+describe("a late QR payment refund", () => {
+  async function storedRefund(refundId: string) {
+    const [refund] = await db.select().from(paymentRefunds).where(eq(paymentRefunds.id, refundId));
+    return refund;
+  }
+
+  it("is listed as one the cloud sends, unconfirmed and discardable, then as confirmed and no longer discardable", async () => {
+    const { headers } = await signedInWith(db, ["confirm_refunds"], NOW);
+    const late = await aPendingLatePaymentRefund(db, { openedAt: NOW, orderId: ORDER_ID });
+    const listed = async () =>
+      pendingRefundsSchema
+        .parse((await pendingRefunds(headers)).json())
+        .refunds.map(({ sent_by_cloud, delivery_stage, discardable }) => ({
+          sent_by_cloud,
+          delivery_stage,
+          discardable,
+        }));
+
+    expect(await listed()).toEqual([
+      { sent_by_cloud: true, delivery_stage: "unconfirmed", discardable: true },
+    ]);
+
+    await confirm(headers, late.refundId);
+
+    expect(await listed()).toEqual([
+      { sent_by_cloud: true, delivery_stage: "sent", discardable: false },
+    ]);
+  });
+
+  it("is confirmed on behalf of the person of the session, and Mercado Pago is asked to refund the order the payment arrived on", async () => {
+    const { headers, userId } = await signedInWith(db, ["confirm_refunds"], NOW);
+    const late = await aPendingLatePaymentRefund(db, { openedAt: NOW, orderId: ORDER_ID });
+
+    const response = await confirm(headers, late.refundId);
+
+    expect(response.statusCode).toBe(200);
+    expect(confirmedRefundSchema.parse(response.json())).toEqual({
+      refund_id: late.refundId,
+      outcome: "sent",
+    });
+    const refund = await storedRefund(late.refundId);
+    expect(refund).toMatchObject({ state: "PENDING", confirmedBy: userId, confirmedAt: NOW });
+    expect(mercadoPago.refunds).toEqual([
+      { orderId: ORDER_ID, idempotencyKey: refund?.attemptKey },
+    ]);
+  });
+
+  it("is done, with its alert resolved, when Mercado Pago already processed it", async () => {
+    const { headers, userId } = await signedInWith(db, ["confirm_refunds"], NOW);
+    const late = await aPendingLatePaymentRefund(db, { openedAt: NOW, orderId: ORDER_ID });
+    mercadoPago.refund = { kind: "refunded", providerRefundId: "REF-1", processed: true };
+
+    const response = await confirm(headers, late.refundId);
+
+    expect(confirmedRefundSchema.parse(response.json())).toMatchObject({ outcome: "done" });
+    expect(await storedRefund(late.refundId)).toMatchObject({ state: "APPROVED", doneBy: userId });
+    const [alert] = await db.select().from(alerts).where(eq(alerts.id, late.alertId));
+    expect(alert).toMatchObject({ resolvedAt: NOW, resolvedBy: userId });
+  });
+
+  it("is refused to be confirmed when it is the refund of a POINT payment", async () => {
+    const { headers } = await signedInWith(db, ["confirm_refunds"], NOW);
+    const late = await aPendingLatePaymentRefund(db, {
+      openedAt: NOW,
+      orderId: ORDER_ID,
+      method: "POINT",
+    });
+
+    const response = await confirm(headers, late.refundId);
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({ code: "refund_not_confirmable" });
+  });
+
+  it("is discarded while no person confirmed it", async () => {
+    const { headers } = await signedInWith(db, ["confirm_refunds"], NOW);
+    const late = await aPendingLatePaymentRefund(db, { openedAt: NOW, orderId: ORDER_ID });
+
+    const response = await discard(headers, late.refundId);
+
+    expect(response.statusCode).toBe(200);
+    expect(await storedRefund(late.refundId)).toMatchObject({ state: "DISCARDED" });
+    expect(mercadoPago.refunds).toEqual([]);
+  });
+
+  it("answers 409 refund_already_confirmed to a discard once a person confirmed it, leaving it as it was", async () => {
+    const { headers } = await signedInWith(db, ["confirm_refunds"], NOW);
+    const late = await aPendingLatePaymentRefund(db, { openedAt: NOW, orderId: ORDER_ID });
+    await confirm(headers, late.refundId);
+
+    const response = await discard(headers, late.refundId);
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({ code: "refund_already_confirmed" });
+    expect(await storedRefund(late.refundId)).toMatchObject({ state: "PENDING" });
+    const [alert] = await db.select().from(alerts).where(eq(alerts.id, late.alertId));
+    expect(alert?.resolvedAt).toBeNull();
   });
 });

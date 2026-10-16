@@ -48,6 +48,12 @@ const REFUND_NOT_DISCARDABLE_RESPONSE = {
   message: "only the refund of a late payment can be discarded",
 } as const;
 
+const REFUND_ALREADY_CONFIRMED_RESPONSE = {
+  code: "refund_already_confirmed",
+  message:
+    "this refund was already confirmed and is sent to Mercado Pago, so it cannot be discarded",
+} as const;
+
 const ALREADY_DISCARDED_RESPONSE = {
   code: "already_discarded",
   message: "this refund was already discarded",
@@ -60,7 +66,7 @@ const REFUND_SENT_BY_CLOUD_RESPONSE = {
 
 const REFUND_NOT_CONFIRMABLE_RESPONSE = {
   code: "refund_not_confirmable",
-  message: "only the refund of a QR payment of a cancelled sale can be confirmed",
+  message: "only the refund of a QR payment, of a cancelled sale or paid late, can be confirmed",
 } as const;
 
 const ALREADY_CONFIRMED_RESPONSE = {
@@ -70,7 +76,7 @@ const ALREADY_CONFIRMED_RESPONSE = {
 
 const REFUND_NOT_BACKED_RESPONSE = {
   code: "refund_not_backed",
-  message: "the cancellation that justifies this refund is not recorded",
+  message: "what justifies this refund is not recorded",
 } as const;
 
 const EXCEEDS_REFUNDABLE_RESPONSE = {
@@ -278,6 +284,10 @@ export function registerRefundRoutes<TQueryResult extends PgQueryResultHKT>(
       }
       if (outcome.kind === "already_discarded") {
         await reply.code(409).send(ALREADY_DISCARDED_RESPONSE);
+        return;
+      }
+      if (outcome.kind === "already_confirmed") {
+        await reply.code(409).send(REFUND_ALREADY_CONFIRMED_RESPONSE);
         return;
       }
       await reply.code(200).send(

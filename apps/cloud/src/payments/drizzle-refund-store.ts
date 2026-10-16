@@ -51,6 +51,7 @@ export class DrizzleRefundStoreTransaction<TQueryResult extends PgQueryResultHKT
         state: paymentRefunds.state,
         origin: paymentRefunds.origin,
         method: paymentRefunds.method,
+        confirmedAt: paymentRefunds.confirmedAt,
       })
       .from(paymentRefunds)
       .leftJoin(salePayments, eq(salePayments.id, paymentRefunds.paymentId))

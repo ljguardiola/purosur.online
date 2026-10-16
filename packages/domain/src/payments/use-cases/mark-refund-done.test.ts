@@ -13,8 +13,10 @@ const PENDING: FakeStoredRefund = {
   state: "PENDING",
   origin: "sale_cancelled",
   method: "TRANSFER",
+  confirmedAt: null,
 };
-const LATE_PAYMENT: FakeStoredRefund = { ...PENDING, origin: "late_payment", method: "QR" };
+const LATE_PAYMENT: FakeStoredRefund = { ...PENDING, origin: "late_payment", method: "POINT" };
+const LATE_QR_PAYMENT: FakeStoredRefund = { ...LATE_PAYMENT, method: "QR" };
 const QR_OF_CANCELLED_SALE: FakeStoredRefund = { ...PENDING, method: "QR" };
 
 function mark(store: FakeRefundStore, input: { refundId?: string; locationId?: string } = {}) {
@@ -73,6 +75,21 @@ describe("markRefundDone", () => {
     expect(store.refunds).toEqual([done]);
     expect(store.operationOrder).toEqual(["lockRefund"]);
   });
+
+  it.each([
+    ["unconfirmed", null],
+    ["confirmed", new Date("2026-10-08T13:00:00.000Z")],
+  ])(
+    "refuses to mark a %s late QR payment refund done by hand, writing nothing",
+    async (_case, confirmedAt) => {
+      const refund: FakeStoredRefund = { ...LATE_QR_PAYMENT, confirmedAt };
+      const store = new FakeRefundStore([{ ...refund }]);
+
+      expect(await mark(store)).toEqual({ kind: "sent_by_cloud" });
+      expect(store.refunds).toEqual([refund]);
+      expect(store.resolvedAlerts).toEqual([]);
+    },
+  );
 
   it("resolves the alert of a late-payment refund, in the same transaction, when it is marked done", async () => {
     const store = new FakeRefundStore([{ ...LATE_PAYMENT }]);

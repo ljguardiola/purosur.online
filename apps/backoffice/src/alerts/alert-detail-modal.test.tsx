@@ -1591,9 +1591,12 @@ test("tells a refund owed for a QR payment that arrived late: what it means, wha
     .toBeVisible();
   await expect
     .element(
-      screen.getByText("Se cierra cuando su reembolso se marca como hecho o se descarta.", {
-        exact: true,
-      }),
+      screen.getByText(
+        "Se cierra cuando su reembolso se marca como hecho, se descarta o Mercado Pago lo acredita.",
+        {
+          exact: true,
+        },
+      ),
     )
     .toBeVisible();
   expect(screen.getByText(/No se cierra sola/).query()).toBeNull();
@@ -1609,7 +1612,7 @@ test("tells a refund owed for a QR payment that arrived late: what it means, wha
   await expect
     .element(
       screen.getByText(
-        "Si ese reembolso ya se hizo desde Mercado Pago, marcarlo como hecho; si todavía no se hizo, hacerlo cuanto antes por el mismo medio, o descartarlo si no corresponde. El Administrador ya fue avisado.",
+        "Si es de un pago con QR, confirmarlo en Reembolsos pendientes para que la nube lo envíe a Mercado Pago; si es de otro medio y ya se hizo desde Mercado Pago, marcarlo como hecho, y si todavía no se hizo, hacerlo cuanto antes. Si no corresponde reembolsarlo, descartarlo. El Administrador ya fue avisado.",
         { exact: true },
       ),
     )

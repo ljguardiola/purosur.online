@@ -587,7 +587,8 @@ const REJECTION_CLASS_LABELS = {
 
 const CLOSING_NOTES: Record<AlertDetail["closing"], string | null> = {
   by_itself: null,
-  with_its_refund: "Se cierra cuando su reembolso se marca como hecho o se descarta.",
+  with_its_refund:
+    "Se cierra cuando su reembolso se marca como hecho, se descarta o Mercado Pago lo acredita.",
   when_its_refund_is_done:
     "Se cierra cuando su reembolso se marca como hecho o Mercado Pago lo acredita.",
   when_its_document_is_resolved: "Se cierra sola cuando se resuelve el comprobante.",

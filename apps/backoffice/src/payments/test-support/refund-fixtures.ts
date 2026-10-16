@@ -63,9 +63,26 @@ export const latePaymentRefund: PendingRefundsBody["refunds"][number] = {
   provider_order_id: null,
   cancelled_by: null,
   cancelled_by_name: null,
+  sent_by_cloud: true,
+  delivery_stage: "unconfirmed",
+  last_refusal_reason: null,
+};
+
+const LATE_POINT_PAYMENT_REFUND_ID = "98989898-9898-4989-8989-989898989898";
+
+const latePointPaymentRefund: PendingRefundsBody["refunds"][number] = {
+  ...latePaymentRefund,
+  id: LATE_POINT_PAYMENT_REFUND_ID,
+  method: "POINT",
+  amount: 76_000,
   sent_by_cloud: false,
   delivery_stage: null,
-  last_refusal_reason: null,
+};
+
+const confirmedLatePaymentRefund: PendingRefundsBody["refunds"][number] = {
+  ...latePaymentRefund,
+  discardable: false,
+  delivery_stage: "sent",
 };
 
 const OTHER_ORDER_REFUND_ID = "77777777-7777-4777-8777-777777777777";
@@ -84,6 +101,14 @@ export const noPendingRefunds: PendingRefundsBody = { refunds: [] };
 
 export const pendingRefundsWithLatePayment: PendingRefundsBody = {
   refunds: [transferRefund, latePaymentRefund],
+};
+
+export const pendingRefundsWithLatePointPayment: PendingRefundsBody = {
+  refunds: [transferRefund, latePointPaymentRefund],
+};
+
+export const pendingRefundsWithConfirmedLatePayment: PendingRefundsBody = {
+  refunds: [transferRefund, confirmedLatePaymentRefund],
 };
 
 export const pendingRefundsWithLatePaymentOfOtherOrder: PendingRefundsBody = {

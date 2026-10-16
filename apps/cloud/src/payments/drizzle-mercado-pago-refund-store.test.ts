@@ -135,10 +135,12 @@ describe("DrizzleMercadoPagoRefundStore", () => {
         origin: "sale_cancelled",
         method: "QR",
         amount: 2_450,
-        paymentAmount: 2_450,
-        refundedOfPayment: 0,
+        ownOrderId: null,
+        salePaymentAmount: 2_450,
+        refundedOfSalePayment: 0,
+        paymentTransaction: { orderId: ORDER_ID, amount: 2_450, state: "APPROVED" },
+        refundedOfPaymentTransactionByOrder: [],
         paymentTransactionId: pending.transactionId,
-        orderId: ORDER_ID,
         originEventId: pending.originEventId,
         confirmedBy: null,
         confirmedAt: null,
@@ -182,7 +184,7 @@ describe("DrizzleMercadoPagoRefundStore", () => {
         tx.lockMercadoPagoRefund(pending.refundId, pending.locationId),
       );
 
-      expect(locked?.refundedOfPayment).toBe(300);
+      expect(locked?.refundedOfSalePayment).toBe(300);
     });
 
     it("has no order for a payment whose transaction never got one", async () => {
@@ -195,7 +197,24 @@ describe("DrizzleMercadoPagoRefundStore", () => {
         tx.lockMercadoPagoRefund(pending.refundId, pending.locationId),
       );
 
-      expect(locked?.orderId).toBeNull();
+      expect(locked?.paymentTransaction?.orderId).toBeNull();
+    });
+
+    it("has no payment transaction for a refund that names none", async () => {
+      const pending = await aPendingQrRefundOfCancelledSale(db, { cancelledAt: NOW });
+      await db
+        .update(paymentRefunds)
+        .set({ paymentTransactionId: null })
+        .where(eq(paymentRefunds.id, pending.refundId));
+
+      const locked = await store().transaction((tx) =>
+        tx.lockMercadoPagoRefund(pending.refundId, pending.locationId),
+      );
+
+      expect(locked).toMatchObject({
+        paymentTransaction: null,
+        refundedOfPaymentTransactionByOrder: [],
+      });
     });
 
     it("finds no refund of another branch", async () => {
@@ -207,6 +226,135 @@ describe("DrizzleMercadoPagoRefundStore", () => {
       );
 
       expect(locked).toBeUndefined();
+    });
+  });
+
+  describe("a late QR payment refund", () => {
+    it("is listed among the confirmed pending refunds, with its branch and payment transaction", async () => {
+      const late = await aPendingLatePaymentRefund(db, { openedAt: NOW, orderId: ORDER_ID });
+      await db
+        .update(paymentRefunds)
+        .set({ confirmedBy: "manager", confirmedAt: NOW })
+        .where(eq(paymentRefunds.id, late.refundId));
+
+      expect(await store().confirmedPendingRefunds()).toEqual([
+        {
+          refundId: late.refundId,
+          locationId: late.locationId,
+          method: "QR",
+          origin: "late_payment",
+          paymentTransactionId: late.transactionId,
+          confirmedAt: NOW,
+          lastRefusalReason: null,
+        },
+      ]);
+    });
+
+    it("is locked with the order, the amount and the state of the payment that arrived late, and nothing refunded of it yet", async () => {
+      const late = await aPendingLatePaymentRefund(db, { openedAt: NOW, orderId: ORDER_ID });
+
+      const locked = await store().transaction((tx) =>
+        tx.lockMercadoPagoRefund(late.refundId, late.locationId),
+      );
+
+      expect(locked).toEqual({
+        id: late.refundId,
+        locationId: late.locationId,
+        saleId: late.saleId,
+        state: "PENDING",
+        origin: "late_payment",
+        method: "QR",
+        amount: late.amount,
+        ownOrderId: null,
+        salePaymentAmount: null,
+        refundedOfSalePayment: 0,
+        paymentTransaction: { orderId: ORDER_ID, amount: late.amount, state: "APPROVED" },
+        refundedOfPaymentTransactionByOrder: [],
+        paymentTransactionId: late.transactionId,
+        originEventId: null,
+        confirmedBy: null,
+        confirmedAt: null,
+        sentAt: null,
+        providerRefundId: null,
+        attemptKey: null,
+        lastRefusalReason: null,
+      });
+    });
+
+    it("is locked with the other order and the paid amount recorded on it, beside its payment transaction, when the payment arrived on an order the cloud did not create", async () => {
+      const late = await aPendingLatePaymentRefund(db, {
+        openedAt: NOW,
+        orderId: ORDER_ID,
+        providerOrderId: "ORD-OTHER",
+        amount: 5_000,
+        refundAmount: 1_800,
+      });
+
+      const locked = await store().transaction((tx) =>
+        tx.lockMercadoPagoRefund(late.refundId, late.locationId),
+      );
+
+      expect(locked).toMatchObject({
+        ownOrderId: "ORD-OTHER",
+        amount: 1_800,
+        paymentTransaction: { orderId: ORDER_ID, amount: 5_000, state: "APPROVED" },
+      });
+    });
+
+    it("gives the state the cloud holds the payment transaction in, whatever it is", async () => {
+      const late = await aPendingLatePaymentRefund(db, {
+        openedAt: NOW,
+        orderId: ORDER_ID,
+        transactionState: "EXPIRED",
+      });
+
+      const locked = await store().transaction((tx) =>
+        tx.lockMercadoPagoRefund(late.refundId, late.locationId),
+      );
+
+      expect(locked?.paymentTransaction?.state).toBe("EXPIRED");
+    });
+
+    it("gives what the other pending or done refunds of its payment transaction hold, by the order each refunds, never its own nor a discarded one", async () => {
+      const late = await aPendingLatePaymentRefund(db, { openedAt: NOW, orderId: ORDER_ID });
+      const [own] = await db
+        .select()
+        .from(paymentRefunds)
+        .where(eq(paymentRefunds.id, late.refundId));
+      if (!own) {
+        throw new Error("test setup: the refund is not stored");
+      }
+      const another = (providerOrderId: string | null, state: string, amount: number) =>
+        db.insert(paymentRefunds).values({
+          ...own,
+          id: crypto.randomUUID(),
+          providerOrderId,
+          state,
+          amount,
+          ...(state === "APPROVED" ? { doneBy: "manager", doneAt: NOW } : {}),
+          ...(state === "DISCARDED" ? { discardedBy: "manager", discardedAt: NOW } : {}),
+        });
+      await another("ORD-A", "PENDING", 700);
+      await another("ORD-B", "APPROVED", 50);
+      await another("ORD-C", "DISCARDED", 400);
+
+      const locked = await store().transaction((tx) =>
+        tx.lockMercadoPagoRefund(late.refundId, late.locationId),
+      );
+
+      expect(locked?.refundedOfPaymentTransactionByOrder).toEqual([
+        { orderId: "ORD-A", amount: 700 },
+        { orderId: "ORD-B", amount: 50 },
+      ]);
+    });
+
+    it("finds no late refund of another branch", async () => {
+      const late = await aPendingLatePaymentRefund(db, { openedAt: NOW, orderId: ORDER_ID });
+      const otherLocationId = await insertLocation(db);
+
+      expect(
+        await store().transaction((tx) => tx.lockMercadoPagoRefund(late.refundId, otherLocationId)),
+      ).toBeUndefined();
     });
   });
 
