@@ -6,7 +6,7 @@ import {
   isProcessedByMercadoPago,
   orderToRefund,
   progressOfRefundAnswer,
-  refundIsBackedByItsCancellation,
+  refundIsBackedByItsCorrection,
   refundIsBackedByItsLatePayment,
 } from "../model/mercado-pago-refund.js";
 import {
@@ -66,9 +66,9 @@ async function isBackedByItsOrigin(
   if (refund.origin === LATE_PAYMENT_REFUND_ORIGIN) {
     return refundIsBackedByItsLatePayment(refund);
   }
-  const cancellation =
-    refund.originEventId === null ? null : await tx.cancellationOfEvent(refund.originEventId);
-  return refundIsBackedByItsCancellation({ ...refund, orderId }, cancellation);
+  const correction =
+    refund.originEventId === null ? null : await tx.appliedCorrectionOfEvent(refund.originEventId);
+  return refundIsBackedByItsCorrection({ ...refund, orderId }, correction);
 }
 
 export async function planBackedSending(

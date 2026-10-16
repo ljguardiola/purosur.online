@@ -1,10 +1,10 @@
 import type { AlertKind } from "../../../alerts/index.js";
 import type {
+  AppliedCorrection,
   MercadoPagoRefundRecord,
   MercadoPagoRefundReference,
   MercadoPagoRefundStore,
   MercadoPagoRefundTransaction,
-  AppliedCorrection,
 } from "../mercado-pago-refund-ports.js";
 import type { LockedRefund } from "../refund-store.js";
 import type { ResolvedRefundAlert } from "./fake-refund-store.js";

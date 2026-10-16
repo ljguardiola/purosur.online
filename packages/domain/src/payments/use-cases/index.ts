@@ -135,13 +135,13 @@ export type {
 } from "./mercado-pago-order-ports.js";
 export { PaymentTransactionAlreadyRecorded } from "./mercado-pago-order-ports.js";
 export type {
+  AppliedCorrection,
   MercadoPagoRefundKeys,
   MercadoPagoRefundPorts,
   MercadoPagoRefundRecord,
   MercadoPagoRefundReference,
   MercadoPagoRefundStore,
   MercadoPagoRefundTransaction,
-  OriginCancellation,
 } from "./mercado-pago-refund-ports.js";
 export type {
   OpenOverdueRefundTaskAlertsOutcome,
