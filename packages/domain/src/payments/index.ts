@@ -50,7 +50,6 @@ export {
   hasApprovedPayment,
   holdsApprovedPointPayment,
   isConfirmedByHand,
-  isMercadoPagoMethod,
   MERCADO_PAGO_PAYMENT_METHODS,
   MERCADO_PAGO_PROVIDERS,
   PAYMENT_METHODS,
