@@ -5,17 +5,11 @@ import type {
   PinCodeStoreTransaction,
   PinCodeTarget,
 } from "@purosur/domain/credentials/use-cases";
-import { and, eq, gt, isNull, sql } from "drizzle-orm";
+import { and, eq, gt, isNull } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import {
-  auditLog,
-  roles,
-  userPinCodes,
-  userPins,
-  userRoles,
-  users,
-} from "../platform/db/schema.js";
+import { auditLog, roles, userPinCodes, userRoles, users } from "../platform/db/schema.js";
 import { type PendingChanges, withPendingChanges } from "../sync/change-log.js";
+import { removeUserPin } from "./remove-user-pin.js";
 
 type Transaction<TQueryResult extends PgQueryResultHKT> = Parameters<
   Parameters<PgDatabase<TQueryResult>["transaction"]>[0]
@@ -74,29 +68,7 @@ class DrizzlePinCodeStoreTransaction<TQueryResult extends PgQueryResultHKT>
   }
 
   async removePin(userId: string): Promise<void> {
-    const removed = await this.tx
-      .delete(userPins)
-      .where(eq(userPins.userId, userId))
-      .returning({ userId: userPins.userId });
-    if (removed.length === 0) {
-      return;
-    }
-    // The register learns a PIN is gone only through a newer version of the user.
-    const [user] = await this.tx
-      .update(users)
-      .set({ version: sql`${users.version} + 1` })
-      .where(eq(users.id, userId))
-      .returning({ version: users.version });
-    if (!user) {
-      throw new Error("a removed PIN had no user");
-    }
-    this.pending.note({
-      entity: "user",
-      entityId: userId,
-      version: user.version,
-      op: "update",
-      locationId: this.locationId,
-    });
+    await removeUserPin(this.tx, this.pending, this.locationId, userId);
   }
 
   async recordPinCode(pinCode: NewPinCode): Promise<void> {
