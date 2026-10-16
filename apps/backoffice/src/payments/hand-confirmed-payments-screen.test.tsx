@@ -132,15 +132,14 @@ test("names a cashier the cloud could not identify", async () => {
 
 test("shows two cashiers of unknown name as two rows", async () => {
   const services = createServices();
-  const [ana, unknown] = weekHandConfirmedReport.cashiers;
   vi.mocked(services.fetchHandConfirmedPayments).mockResolvedValue({
     kind: "ok",
     value: {
       ...weekHandConfirmedReport,
-      cashiers: [
-        { ...ana, cashier_name: null },
-        { ...unknown, cashier_name: null },
-      ],
+      cashiers: weekHandConfirmedReport.cashiers.map((cashier) => ({
+        ...cashier,
+        cashier_name: null,
+      })),
     },
   });
 
