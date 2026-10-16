@@ -37,6 +37,7 @@ import type { AverageTicketScreenServices } from "../sales/average-ticket-servic
 import type { SalesByCashierScreenServices } from "../sales/sales-by-cashier-services";
 import type { SalesByDayScreenServices } from "../sales/sales-by-day-services";
 import type { SalesByProductAndCategoryScreenServices } from "../sales/sales-by-product-and-category-services";
+import type { EndEverySessionSectionServices } from "../sessions/end-every-session-section-services";
 import { checkSessionStatus, fetchSession, type SessionOutcome } from "../sessions/session-api";
 import type { SignInScreenServices } from "../sessions/sign-in-services";
 import type { AssemblyBatchesScreenServices } from "../stock/assembly-batches-services";
@@ -49,6 +50,7 @@ import type { StockMovementsScreenServices } from "../stock/stock-movements-serv
 import type { QuarantinedEventsScreenServices } from "../sync/quarantined-events-services";
 import type { UserCredentialSectionsProps } from "../users/user-detail-screen";
 import type { UserDetailScreenServices } from "../users/user-detail-services";
+import type { UsersListEndEverySessionSectionProps } from "../users/users-list-screen";
 import type { UsersListScreenServices } from "../users/users-list-services";
 import { type AccountFooterServices, defaultAccountFooterServices } from "./account-footer";
 import { createAppRouter } from "./app-router";
@@ -73,6 +75,8 @@ export type AppServices = {
   myAccountScreen: MyAccountScreenServices;
   usersListScreen: UsersListScreenServices;
   userDetailScreen: UserDetailScreenServices;
+  usersListEndEverySessionSection: ComponentType<UsersListEndEverySessionSectionProps>;
+  endEverySessionSection: EndEverySessionSectionServices;
   userDetailCredentialSections: ComponentType<UserCredentialSectionsProps>;
   userCredentialSections: UserCredentialSectionsServices;
   rolesListScreen: RolesListScreenServices;
@@ -121,6 +125,7 @@ type ShellServiceName =
   | "fetchSession"
   | "checkSessionStatus"
   | "userDetailCredentialSections"
+  | "usersListEndEverySessionSection"
   | "stockTopBarAlertsCount"
   | "reportFiltersRegisterFilter"
   | "accountFooter"
@@ -132,6 +137,10 @@ export type RouteServices = Pick<AppServices, ShellServiceName> &
 const defaultRouteServices: RouteServices = {
   fetchSession,
   checkSessionStatus,
+  usersListEndEverySessionSection: lazyScreen(
+    () => import("../sessions/end-every-session-section"),
+    "EndEverySessionSection",
+  ),
   userDetailCredentialSections: lazyScreen(
     () => import("../credentials/user-credential-sections"),
     "UserCredentialSections",

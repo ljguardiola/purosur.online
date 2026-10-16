@@ -3,8 +3,8 @@ import { authenticationResponse } from "../platform/test-support/webauthn-respon
 import {
   authenticate,
   checkSessionStatus,
-  fetchAuthenticationOptions,
   endEverySession,
+  fetchAuthenticationOptions,
   fetchSession,
   signOut,
 } from "./session-api";

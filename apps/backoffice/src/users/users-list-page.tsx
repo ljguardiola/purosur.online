@@ -17,6 +17,7 @@ export function UsersListPage(): ReactElement {
       onFiltersChange={(next) => void navigate({ search: next, replace: true })}
       access={session}
       onSessionEnded={sessionActions.sessionEnded}
+      endEverySessionSection={services.usersListEndEverySessionSection}
       services={services.usersListScreen ?? defaultUsersListScreenServices}
     />
   );

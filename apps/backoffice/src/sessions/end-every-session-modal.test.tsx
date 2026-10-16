@@ -1,10 +1,7 @@
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
-import {
-  EndEverySessionModal,
-  type EndEverySessionModalServices,
-} from "./end-every-session-modal";
+import { EndEverySessionModal, type EndEverySessionModalServices } from "./end-every-session-modal";
 
 function createServices(
   overrides: Partial<EndEverySessionModalServices> = {},

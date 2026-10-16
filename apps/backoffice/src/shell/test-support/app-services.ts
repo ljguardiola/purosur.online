@@ -3,6 +3,7 @@ import { AlertsOpenCountLink } from "../../alerts/alerts-open-count-link";
 import { UserCredentialSections } from "../../credentials/user-credential-sections";
 import { permissionCatalogFixture } from "../../platform/test-support/permission-catalog";
 import { ReportRegisterFilter } from "../../register/report-register-filter";
+import { EndEverySessionSection } from "../../sessions/end-every-session-section";
 import { openSession } from "../../sessions/test-support/open-session";
 import type { AppServices } from "../app";
 
@@ -219,6 +220,10 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
       fetchSessionAuthorizationOptions: vi.fn(),
       authorizeSession: vi.fn(),
       startAuthentication: vi.fn(),
+    },
+    usersListEndEverySessionSection: EndEverySessionSection,
+    endEverySessionSection: {
+      endEverySession: vi.fn(),
     },
     userDetailCredentialSections: UserCredentialSections,
     userCredentialSections: {

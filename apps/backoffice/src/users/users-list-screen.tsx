@@ -5,6 +5,7 @@ import {
   dataColumn,
   InlineNotice,
   ListFilter,
+  LoadingPlaceholder,
   Modal,
   plural,
   Table,
@@ -28,7 +29,7 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { useEffect, useEffectEvent, useState } from "react";
+import { type ComponentType, Suspense, useEffect, useEffectEvent, useState } from "react";
 import { useAuthorization } from "../platform/authorization-modal";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { combineCloudData } from "../platform/combine-cloud-data";
@@ -60,7 +61,12 @@ export type UsersListScreenProps = {
   onFiltersChange: (filters: UsersListFilters) => void;
   access: BackofficeAccess;
   onSessionEnded: () => void;
+  endEverySessionSection: ComponentType<UsersListEndEverySessionSectionProps>;
   services: UsersListScreenServices;
+};
+
+export type UsersListEndEverySessionSectionProps = {
+  onSessionEnded: () => void;
 };
 
 const NO_USERS: BranchUser[] = [];
@@ -318,6 +324,7 @@ function UsersListView({
   onFiltersChange,
   access,
   onSessionEnded,
+  endEverySessionSection: EndEverySessionSection,
   services,
   data,
   users,
@@ -469,6 +476,11 @@ function UsersListView({
             )
           }
         />
+        {canManageUsers(access) ? (
+          <Suspense fallback={<LoadingPlaceholder variant="card" lines={2} />}>
+            <EndEverySessionSection onSessionEnded={onSessionEnded} />
+          </Suspense>
+        ) : null}
       </ScreenLayout>
       <NewUserModal
         open={modalOpen}

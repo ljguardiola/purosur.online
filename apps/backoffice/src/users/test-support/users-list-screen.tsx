@@ -1,12 +1,9 @@
 import { vi } from "vitest";
+import type { BackofficeAccess } from "../../shell/backoffice-access";
 import { ADMINISTRATOR_ACCESS } from "../../shell/test-support/backoffice-access";
 import { render } from "../../shell/test-support/render-with-router";
-import type { BackofficeAccess } from "../../shell/backoffice-access";
 import { usersListFilters } from "../routes";
-import {
-  UsersListScreen,
-  type UsersListEndEverySessionSectionProps,
-} from "../users-list-screen";
+import { type UsersListEndEverySessionSectionProps, UsersListScreen } from "../users-list-screen";
 import type { UsersListScreenServices } from "../users-list-services";
 
 export function EndEverySessionSectionStub({
