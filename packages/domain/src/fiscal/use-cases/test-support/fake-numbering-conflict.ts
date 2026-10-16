@@ -2,10 +2,10 @@ import type {
   NumberingConflictDiagnosis,
   NumberingReconciliationDocument,
 } from "../../model/numbering-conflict.js";
+import type { LocalStanding, OrphanRegularization } from "../../model/orphan-authorization.js";
 import type { RealTimeAuthorizationAnswer } from "../../model/real-time-authorization.js";
 import type { WsaaTokenSource } from "../fiscal-document-authorization-ports.js";
 import type {
-  ExternalBillingOpening,
   NumberingConflictLane,
   NumberingConflictLanes,
   NumberingConflictRequest,
@@ -35,7 +35,8 @@ interface StoreState {
   freezes: Map<number, NumberingFreeze>;
   counts: Map<number, number>;
   documents: Map<number, NumberingReconciliationDocument[]>;
-  alerts: ExternalBillingOpening[];
+  standings: Map<string, LocalStanding>;
+  regularizations: OrphanRegularization[];
   reconciliationRequests: number[];
 }
 
@@ -51,7 +52,8 @@ export class FakeNumberingConflictStore
     freezes: new Map(),
     counts: new Map(),
     documents: new Map(),
-    alerts: [],
+    standings: new Map(),
+    regularizations: [],
     reconciliationRequests: [],
   };
 
@@ -72,6 +74,10 @@ export class FakeNumberingConflictStore
     this.state.documents.set(pointOfSale, documents);
   }
 
+  seedStanding(pointOfSale: number, number: number, standing: LocalStanding) {
+    this.state.standings.set(`${pointOfSale}/${number}`, standing);
+  }
+
   freezeOf(pointOfSale: number): NumberingFreeze | undefined {
     return this.state.freezes.get(pointOfSale);
   }
@@ -84,8 +90,24 @@ export class FakeNumberingConflictStore
     return this.state.requests.get(fiscalDocumentId)?.diagnosis;
   }
 
-  get alerts(): readonly ExternalBillingOpening[] {
-    return this.state.alerts;
+  get regularizations(): readonly OrphanRegularization[] {
+    return this.state.regularizations;
+  }
+
+  get alerts() {
+    return this.state.regularizations.flatMap((regularization) =>
+      regularization.kind === "external_invoicing" ? [regularization.externalBilling] : [],
+    );
+  }
+
+  get tasks() {
+    return this.state.regularizations.flatMap((regularization) =>
+      regularization.kind === "external_invoicing" ? [regularization.task] : [],
+    );
+  }
+
+  get creditNotes() {
+    return this.state.regularizations.filter(({ kind }) => kind === "credit_note");
   }
 
   get reconciliationRequests(): readonly number[] {
@@ -180,15 +202,28 @@ class FakeNumberingConflictLane implements NumberingConflictLane {
     );
   }
 
+  async localStandingOfAuthorization({
+    pointOfSale,
+    number,
+  }: {
+    pointOfSale: number;
+    number: number;
+  }): Promise<LocalStanding> {
+    this.store.record("localStandingOfAuthorization");
+    return (
+      this.store.current.standings.get(`${pointOfSale}/${number}`) ?? { kind: "no_local_sale" }
+    );
+  }
+
   async settleNumberingReconciliation({
-    externalBillings,
+    regularizations,
     lastAuthorized,
   }: {
-    externalBillings: readonly ExternalBillingOpening[];
+    regularizations: readonly OrphanRegularization[];
     lastAuthorized: number;
   }): Promise<void> {
     this.store.record("settleNumberingReconciliation");
-    this.store.current.alerts.push(...externalBillings);
+    this.store.current.regularizations.push(...regularizations);
     const held = this.store.current.counts.get(this.pointOfSale) ?? 0;
     this.store.current.counts.set(this.pointOfSale, Math.max(held, lastAuthorized));
     this.store.current.freezes.delete(this.pointOfSale);
@@ -217,12 +252,12 @@ export class FakeNumberingTaxAuthority
   heldLaneDuringLookups: boolean[] = [];
   private readonly store: FakeNumberingConflictStore;
   private readonly lastAuthorizedAnswer: LastAuthorizedAnswer;
-  private readonly voucherAnswer: VoucherAnswer;
+  private readonly voucherAnswer: VoucherAnswer | ((number: number) => VoucherAnswer);
 
   constructor(
     store: FakeNumberingConflictStore,
     lastAuthorizedAnswer: LastAuthorizedAnswer,
-    voucherAnswer: VoucherAnswer = { kind: "none" },
+    voucherAnswer: VoucherAnswer | ((number: number) => VoucherAnswer) = { kind: "none" },
   ) {
     this.store = store;
     this.lastAuthorizedAnswer = lastAuthorizedAnswer;
@@ -242,6 +277,8 @@ export class FakeNumberingTaxAuthority
     this.store.operations.push("voucherAt");
     this.vouchersAsked.push(lookup.number);
     this.heldLaneDuringLookups.push(this.store.held);
-    return this.voucherAnswer;
+    return typeof this.voucherAnswer === "function"
+      ? this.voucherAnswer(lookup.number)
+      : this.voucherAnswer;
   }
 }

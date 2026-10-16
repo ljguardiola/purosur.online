@@ -1,3 +1,4 @@
+import type { OrphanRegularization, VoucherReference } from "../../model/orphan-authorization.js";
 import type { RealTimeAuthorizationAnswer } from "../../model/real-time-authorization.js";
 import type {
   RecordedRequestOutcome,
@@ -29,6 +30,9 @@ export class FakeUnclearOutcomeStore implements UnclearOutcomeLanes, UnclearOutc
     fiscalDocumentId: string;
     clearedAt: Date;
   }[] = [];
+  readonly otherVouchers = new Map<string, VoucherReference>();
+  readonly regularizations: (OrphanRegularization | null)[] = [];
+  readonly otherVoucherAsks: { saleId: string; fiscalDocumentId: string }[] = [];
   vanishAfterLookup = false;
   recordingFailure: Error | undefined;
 
@@ -92,6 +96,7 @@ class FakeUnclearOutcomeLane implements UnclearOutcomeLane {
     const answeredAt = this.store.answeredAt.get(fiscalDocumentId);
     return {
       fiscalDocumentId,
+      saleId: request.saleId,
       pointOfSale: request.pointOfSale,
       number: request.number,
       issuedOn: request.issuedOn,
@@ -116,16 +121,27 @@ class FakeUnclearOutcomeLane implements UnclearOutcomeLane {
     decision: UnclearOutcomeDecision,
     decidedAt: Date,
     clearedWarning: UnclearOutcomeWarningClearance,
+    regularization: OrphanRegularization | null,
   ): Promise<void> {
     this.store.documents.operations.push(
       `recordDecision:${decision.kind}@${decidedAt.toISOString()}`,
     );
     this.store.decisions.set(fiscalDocumentId, { decision, decidedAt: new Date(decidedAt) });
+    this.store.regularizations.push(regularization);
     this.store.clearedWarnings.push({
       decision: decision.kind,
       fiscalDocumentId: clearedWarning.fiscalDocumentId,
       clearedAt: new Date(clearedWarning.clearedAt),
     });
+  }
+
+  async otherAuthorizedVoucherOfSale(
+    saleId: string,
+    fiscalDocumentId: string,
+  ): Promise<VoucherReference | null> {
+    this.store.otherVoucherAsks.push({ saleId, fiscalDocumentId });
+    this.store.documents.operations.push("otherAuthorizedVoucherOfSale");
+    return this.store.otherVouchers.get(saleId) ?? null;
   }
 
   async registerOwnsPointOfSale(registerId: string, pointOfSale: number): Promise<boolean> {
