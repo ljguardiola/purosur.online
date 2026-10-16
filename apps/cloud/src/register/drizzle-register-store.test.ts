@@ -470,6 +470,7 @@ describe("DrizzleRegisterStore", () => {
         audience: "all",
         locationId: null,
         detail: {
+          change: "enrolled",
           deviceId: outcome.deviceId,
           hostname: "CAJA-MOSTRADOR",
           windowsVersion: "Windows 11 Pro 10.0.26100",
@@ -521,6 +522,7 @@ describe("DrizzleRegisterStore", () => {
       scope: registerId,
       level: "warning",
       detail: {
+        change: "enrolled",
         deviceId: second.deviceId,
         hostname: "CAJA-MOSTRADOR",
         windowsVersion: "Windows 11 Pro 10.0.26100",

@@ -744,8 +744,10 @@ test("names an alert for a register's enrollment by its kind and what happened",
   const screen = await renderScreen(services);
 
   const row = screen.getByRole("row", { name: /Caja 1/ });
-  await expect.element(row.getByText("Alta de caja")).toBeVisible();
-  await expect.element(row.getByText("Se dio de alta una caja")).toBeVisible();
+  await expect.element(row.getByText("Cambio de instalación de caja")).toBeVisible();
+  await expect
+    .element(row.getByText("Se dio de alta o se revocó una instalación de caja"))
+    .toBeVisible();
 });
 
 test("names an alert for quarantined events by its kind and what happened", async () => {

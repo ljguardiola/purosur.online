@@ -228,6 +228,7 @@ describe("openAlert", () => {
       kind: "register_enrolled",
       scope: "register-1",
       detail: {
+        change: "enrolled",
         deviceId: "device-1",
         hostname: "CAJA-1",
         windowsVersion: "Windows 11",

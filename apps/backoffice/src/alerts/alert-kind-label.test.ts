@@ -8,6 +8,7 @@ test("names a kind of the catalog by its title", () => {
   expect(alertKindLabel("arca_wsaa_ticket_held")).toBe(
     "ARCA conserva un ticket de acceso anterior",
   );
+  expect(alertKindLabel("register_enrolled")).toBe("Cambio de instalación de caja");
   expect(alertKindLabel("update_required")).toBe("Versión de caja no aceptada");
   expect(alertKindLabel("register_silent")).toBe("Caja sin sincronizar");
   expect(alertKindLabel("sales_denied")).toBe("Caja sin poder vender");
