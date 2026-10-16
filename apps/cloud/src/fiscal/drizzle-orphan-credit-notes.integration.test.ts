@@ -270,10 +270,64 @@ describe("the orphan credit note lanes on a real Postgres", () => {
         registerId,
         pointOfSale: 7,
         documentType: "credit_note_c",
-        reason: { creditNoteId: id, rejections },
+        creditNoteId: id,
+        reason: { rejections },
         state: "open",
         createdAt: ANSWERED_AT,
       });
+    });
+
+    it("opens a task for each credit note rejected at the same number, naming its own credit note", async () => {
+      const first = await aCreditNote();
+      const second = await aCreditNote();
+      for (const creditNoteId of [first, second]) {
+        await inLane(async (lane) => {
+          await lane.recordCreditNoteRequest({
+            creditNoteId,
+            number: 40,
+            issuedOn: "2026-10-07",
+            requestedAt: REQUESTED_AT,
+          });
+          await lane.recordCreditNoteRejected({
+            creditNoteId,
+            rejections,
+            rejectedAt: ANSWERED_AT,
+            task: rejectedTask(creditNoteId, 40, rejections),
+          });
+        });
+      }
+
+      expect(
+        (await db.select().from(fiscalTasks))
+          .filter((row) => row.kind === "credit_note_rejected" && row.number === 40)
+          .map((row) => row.creditNoteId)
+          .sort(),
+      ).toEqual([first, second].sort());
+    });
+
+    it("opens one task when the same rejection is recorded again", async () => {
+      const id = await aCreditNote();
+      await inLane((lane) =>
+        lane.recordCreditNoteRequest({
+          creditNoteId: id,
+          number: 41,
+          issuedOn: "2026-10-07",
+          requestedAt: REQUESTED_AT,
+        }),
+      );
+      const rejection = {
+        creditNoteId: id,
+        rejections,
+        rejectedAt: ANSWERED_AT,
+        task: rejectedTask(id, 41, rejections),
+      };
+
+      await inLane((lane) => lane.recordCreditNoteRejected(rejection));
+      await inLane((lane) => lane.recordCreditNoteRejected(rejection));
+
+      expect(
+        (await db.select().from(fiscalTasks)).filter((row) => row.creditNoteId === id),
+      ).toHaveLength(1);
     });
 
     it("is not held when the task cannot be opened", async () => {

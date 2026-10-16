@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   CREDIT_NOTE_C_VOUCHER_TYPE,
   creditNoteIssueDate,
+  mayTakeCreditNoteNumber,
   nextCreditNoteNumber,
   settleUnclearCreditNote,
 } from "./orphan-credit-note.js";
@@ -39,6 +40,23 @@ describe("credit note C", () => {
   it("is dated with the Argentine calendar day it is issued", () => {
     expect(creditNoteIssueDate(new Date("2026-10-03T01:30:00.000Z"))).toBe("2026-10-02");
     expect(creditNoteIssueDate(new Date("2026-10-03T03:00:00.000Z"))).toBe("2026-10-03");
+  });
+});
+
+describe("mayTakeCreditNoteNumber", () => {
+  it("lets a credit note take a number when the point of sale has no other credit note", () => {
+    expect(mayTakeCreditNoteNumber([])).toBe(true);
+  });
+
+  it.each(["not_requested", "authorized", "rejected"])(
+    "lets a credit note take a number beside another one %s",
+    (kind) => {
+      expect(mayTakeCreditNoteNumber([{ kind: "authorized" }, { kind }])).toBe(true);
+    },
+  );
+
+  it("takes no number while another credit note of the point of sale awaits its answer", () => {
+    expect(mayTakeCreditNoteNumber([{ kind: "authorized" }, { kind: "requested" }])).toBe(false);
   });
 });
 

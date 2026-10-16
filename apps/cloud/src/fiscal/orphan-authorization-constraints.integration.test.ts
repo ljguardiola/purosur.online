@@ -76,6 +76,12 @@ function insertCreditNote(overrides: Partial<typeof orphanCreditNotes.$inferInse
   });
 }
 
+async function aCreditNoteId(): Promise<string> {
+  const id = crypto.randomUUID();
+  await insertCreditNote({ id });
+  return id;
+}
+
 function requested(): Partial<typeof orphanCreditNotes.$inferInsert> {
   seeded += 1;
   return { number: 10_000 + seeded, issuedOn: "2026-10-07", requestedAt: CREATED_AT };
@@ -114,8 +120,59 @@ describe("the fiscal tasks table's constraints on a real Postgres", () => {
     await insertTask({ number: 5_001, documentType: "credit_note_c" });
 
     await expect(
-      insertTask({ number: 5_001, documentType: "credit_note_c", kind: "credit_note_rejected" }),
+      insertTask({
+        number: 5_001,
+        documentType: "credit_note_c",
+        kind: "credit_note_rejected",
+        creditNoteId: await aCreditNoteId(),
+      }),
     ).resolves.toBeDefined();
+  });
+
+  it("keeps a rejected credit note task for each credit note rejected at the same voucher", async () => {
+    const rejectedAt = (creditNoteId: string) =>
+      insertTask({
+        number: 5_002,
+        documentType: "credit_note_c",
+        kind: "credit_note_rejected",
+        creditNoteId,
+      });
+    await rejectedAt(await aCreditNoteId());
+
+    await expect(rejectedAt(await aCreditNoteId())).resolves.toBeDefined();
+  });
+
+  it("rejects a second rejected credit note task for the same credit note", async () => {
+    const creditNoteId = await aCreditNoteId();
+    await insertTask({ documentType: "credit_note_c", kind: "credit_note_rejected", creditNoteId });
+
+    await expect(
+      insertTask({ documentType: "credit_note_c", kind: "credit_note_rejected", creditNoteId }),
+    ).rejects.toSatisfy((error) => constraintViolatedBy(error, "fiscal_tasks_credit_note_key"));
+  });
+
+  it("rejects a rejected credit note task naming no credit note", async () => {
+    await expect(
+      insertTask({ documentType: "credit_note_c", kind: "credit_note_rejected" }),
+    ).rejects.toSatisfy((error) => constraintViolatedBy(error, "fiscal_tasks_credit_note_check"));
+  });
+
+  it("rejects an invoicing outside the register task naming a credit note", async () => {
+    await expect(insertTask({ creditNoteId: await aCreditNoteId() })).rejects.toSatisfy((error) =>
+      constraintViolatedBy(error, "fiscal_tasks_credit_note_check"),
+    );
+  });
+
+  it("rejects a task naming a credit note that does not exist", async () => {
+    await expect(
+      insertTask({
+        documentType: "credit_note_c",
+        kind: "credit_note_rejected",
+        creditNoteId: crypto.randomUUID(),
+      }),
+    ).rejects.toSatisfy((error) =>
+      constraintViolatedBy(error, "fiscal_tasks_credit_note_id_orphan_credit_notes_id_fk"),
+    );
   });
 });
 

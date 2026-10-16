@@ -246,16 +246,10 @@ describe("issueOrphanCreditNote", () => {
       expect(creditNotes.solicitations).toEqual([]);
     });
 
-    it.each<[string, { pointOfSale: number; standing: CreditNoteStanding }]>([
-      ["authorized", { pointOfSale: 12, standing: { kind: "authorized" } }],
-      ["rejected", { pointOfSale: 12, standing: { kind: "rejected" } }],
-      ["not yet requested", { pointOfSale: 12, standing: { kind: "not_requested" } }],
-      [
-        "awaiting its answer on another point of sale",
-        { pointOfSale: 13, standing: OTHER_REQUESTED },
-      ],
-    ])("numbers the credit note when the other one is %s", async (_case, other) => {
-      const { creditNotes, ports } = scenario({ others: [other] });
+    it("numbers the credit note when the other one awaits its answer on another point of sale", async () => {
+      const { creditNotes, ports } = scenario({
+        others: [{ pointOfSale: 13, standing: OTHER_REQUESTED }],
+      });
 
       expect(await issue(ports)).toMatchObject({ kind: "authorized", number: 42 });
       expect(creditNotes.solicitations).toHaveLength(1);

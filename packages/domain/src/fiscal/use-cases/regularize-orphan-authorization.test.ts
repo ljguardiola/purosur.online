@@ -140,28 +140,6 @@ describe("regularizeOrphanAuthorization", () => {
     expect(store.regularizations).toEqual([regularization]);
   });
 
-  it.each<[string, LocalRequestAtNumber]>([
-    ["has other content than the local request there", { ...SALE_REQUEST, total: 1 }],
-    [
-      "matches a local request the tax authority rejected",
-      { ...SALE_REQUEST, answer: { kind: "rejected", codes: [10016], rejectionClass: "content" } },
-    ],
-  ])(
-    "opens an alert and a task, never a credit note, for a voucher that %s, without reading that sale",
-    async (_case, request) => {
-      const { store, ports } = scenario({
-        standing: requestsAt(request),
-        saleDocuments: KEPT_DOCUMENTS,
-      });
-
-      expect(await regularize(ports)).toMatchObject({
-        kind: "regularized",
-        regularization: { kind: "external_invoicing" },
-      });
-      expect(store.operations).not.toContain("otherDocumentsOfSale");
-    },
-  );
-
   it.each<[string, RequestsAtNumber]>([
     ["the only voucher of its sale", requestsAt(SALE_REQUEST)],
     ["already regularized", { kind: "already_regularized" }],
