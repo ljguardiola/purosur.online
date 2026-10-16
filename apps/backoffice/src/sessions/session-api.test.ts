@@ -4,6 +4,7 @@ import {
   authenticate,
   checkSessionStatus,
   fetchAuthenticationOptions,
+  endEverySession,
   fetchSession,
   signOut,
 } from "./session-api";
@@ -275,4 +276,35 @@ test("signOut reports rate_limited with the Retry-After seconds on 429, leaving 
   );
 
   await expect(signOut()).resolves.toEqual({ kind: "rate_limited", retryAfterSeconds: 300 });
+});
+
+test("endEverySession deletes every session with no body and reports that they were ended", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200));
+
+  await expect(endEverySession()).resolves.toEqual({ kind: "ok" });
+  expect(fetch).toHaveBeenCalledWith("/api/sessions", { method: "DELETE" });
+});
+
+test("endEverySession reports unauthenticated on 401 and forbidden on 403", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(401, { code: "unauthenticated" }));
+  await expect(endEverySession()).resolves.toEqual({ kind: "unauthenticated" });
+
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(403, { code: "forbidden" }));
+  await expect(endEverySession()).resolves.toEqual({ kind: "forbidden" });
+});
+
+test("endEverySession reports rate_limited with the Retry-After seconds on 429", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    jsonResponse(429, { code: "rate_limited" }, { "Retry-After": "30" }),
+  );
+
+  await expect(endEverySession()).resolves.toEqual({ kind: "rate_limited", retryAfterSeconds: 30 });
+});
+
+test("endEverySession reports failed on any other status or a network failure", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(500));
+  await expect(endEverySession()).resolves.toEqual({ kind: "failed" });
+
+  vi.mocked(fetch).mockRejectedValue(new TypeError("down"));
+  await expect(endEverySession()).resolves.toEqual({ kind: "failed" });
 });
