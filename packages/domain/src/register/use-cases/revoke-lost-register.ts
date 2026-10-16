@@ -1,5 +1,5 @@
-import { latestKey, nextKeyVersion } from "../model/installation-key.js";
 import type { RevokeLostRegisterPorts } from "./lost-register-revocation-ports.js";
+import { revokeInstallationAndRotateKeys } from "./revoke-installation-and-rotate-keys.js";
 
 export interface RevokeLostRegisterInput {
   branchId: string;
@@ -27,40 +27,27 @@ export async function revokeLostRegister(
       return { kind: "register_not_found" };
     }
     const revokedAt = clock.now();
-    const revoked = await tx.revokeActiveInstallation(registerId, revokedAt);
+    const revoked = await revokeInstallationAndRotateKeys(tx, keys, registerId, revokedAt);
     if (revoked === null) {
       return { kind: "no_active_installation" };
     }
-    const held = await tx.lockRegisterKeys(registerId);
-    const snapshotKeyVersion = nextKeyVersion(held.snapshotKeys);
-    const contingencyTicketKeyVersion = nextKeyVersion(held.contingencyTicketKeys);
-    await tx.recordSnapshotKey(registerId, { version: snapshotKeyVersion, key: keys.generate() });
-    await tx.recordContingencyTicketKey(registerId, {
-      version: contingencyTicketKeyVersion,
-      key: keys.generate(),
-    });
+    const { installation, snapshotKeyVersion, contingencyTicketKeyVersion } = revoked;
     await tx.requirePinResetOfBranchUsers(branchId, actorId);
-    await tx.openRevocationAlert({ registerId, ...revoked });
+    await tx.openRevocationAlert({ registerId, ...installation });
     await tx.recordLostRegisterRevocation({
       registerId,
-      deviceId: revoked.deviceId,
+      deviceId: installation.deviceId,
       revokedAt,
       actorId,
-      snapshotKeyVersion: {
-        previous: latestKey(held.snapshotKeys)?.version ?? null,
-        current: snapshotKeyVersion,
-      },
-      contingencyTicketKeyVersion: {
-        previous: latestKey(held.contingencyTicketKeys)?.version ?? null,
-        current: contingencyTicketKeyVersion,
-      },
+      snapshotKeyVersion,
+      contingencyTicketKeyVersion,
     });
     return {
       kind: "revoked",
-      deviceId: revoked.deviceId,
+      deviceId: installation.deviceId,
       revokedAt,
-      snapshotKeyVersion,
-      contingencyTicketKeyVersion,
+      snapshotKeyVersion: snapshotKeyVersion.current,
+      contingencyTicketKeyVersion: contingencyTicketKeyVersion.current,
     };
   });
 }

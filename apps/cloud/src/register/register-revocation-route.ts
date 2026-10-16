@@ -1,5 +1,5 @@
-import { registerRevocationSchema } from "@purosur/contracts";
-import { revokeLostRegister } from "@purosur/domain/register/use-cases";
+import { everyInstallationRevocationSchema, registerRevocationSchema } from "@purosur/contracts";
+import { revokeEveryInstallation, revokeLostRegister } from "@purosur/domain/register/use-cases";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { requirePasskeyAuthorization } from "../credentials/passkey-authorization-guard.js";
@@ -11,6 +11,7 @@ import {
   registerRouteAccess,
   routeSessionSource,
 } from "../sessions/route-access.js";
+import { DrizzleEveryInstallationRevocationStore } from "./drizzle-every-installation-revocation-store.js";
 import { DrizzleLostRegisterRevocationStore } from "./drizzle-lost-register-revocation-store.js";
 import { generateInstallationKey } from "./installation-key.js";
 import { installationKeyCipher } from "./installation-key-cipher.js";
@@ -32,6 +33,11 @@ const NO_ACTIVE_INSTALLATION_RESPONSE = {
   message: "the register has no installation in service to revoke",
 } as const;
 
+const NO_INSTALLATION_IN_SERVICE_RESPONSE = {
+  code: "no_active_installation",
+  message: "no register has an installation in service to revoke",
+} as const;
+
 export function registerRegisterRevocationRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: RegisterRevocationRouteOptions<TQueryResult>,
@@ -40,6 +46,11 @@ export function registerRegisterRevocationRoute<TQueryResult extends PgQueryResu
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
   const store = new DrizzleLostRegisterRevocationStore(
+    options.db,
+    installationKeyCipher(options.keysEncryptionKey),
+    now,
+  );
+  const everyInstallationStore = new DrizzleEveryInstallationRevocationStore(
     options.db,
     installationKeyCipher(options.keysEncryptionKey),
     now,
@@ -79,6 +90,45 @@ export function registerRegisterRevocationRoute<TQueryResult extends PgQueryResu
           await reply
             .code(200)
             .send(registerRevocationSchema.parse({ revoked_at: outcome.revokedAt.toISOString() }));
+          return;
+      }
+    },
+  );
+
+  app.post(
+    "/registers/revocations",
+    {
+      preHandler: backofficeOriginGuard(options.backofficeOrigin),
+      config: { access: capabilityAccess("revoke_installations"), sessionSource },
+    },
+    async (request, reply) => {
+      const attemptedAt = now();
+      const openSession = openSessionOf(request);
+
+      if (!(await requirePasskeyAuthorization(openSession, reply, attemptedAt))) {
+        return;
+      }
+
+      const outcome = await revokeEveryInstallation(
+        {
+          store: everyInstallationStore,
+          clock: { now: () => attemptedAt },
+          keys: { generate: generateInstallationKey },
+        },
+        { actorId: openSession.userId },
+      );
+
+      switch (outcome.kind) {
+        case "nothing_to_revoke":
+          await reply.code(409).send(NO_INSTALLATION_IN_SERVICE_RESPONSE);
+          return;
+        case "revoked":
+          await reply.code(200).send(
+            everyInstallationRevocationSchema.parse({
+              revoked_at: outcome.revokedAt.toISOString(),
+              revoked_registers: outcome.registers.length,
+            }),
+          );
           return;
       }
     },

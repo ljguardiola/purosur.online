@@ -7,6 +7,7 @@ import {
   fetchRegisterSyncStatus,
   fetchRegisters,
   type RegisterSummary,
+  revokeEveryInstallation,
   revokeRegister,
 } from "./registers-api";
 
@@ -447,6 +448,89 @@ test("revokeRegister returns failed when the request throws", async () => {
   vi.mocked(fetch).mockRejectedValue(new Error("network down"));
 
   expect(await revokeRegister("register-2")).toEqual({ kind: "failed" });
+});
+
+test("revokeEveryInstallation posts to the revocations route and returns when and how many registers were revoked on 200", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    jsonResponse(200, { revoked_at: "2026-09-25T12:15:00.000Z", revoked_registers: 3 }),
+  );
+
+  const outcome = await revokeEveryInstallation();
+
+  expect(outcome).toEqual({
+    kind: "ok",
+    value: { revokedAt: "2026-09-25T12:15:00.000Z", revokedRegisters: 3 },
+  });
+  expect(fetch).toHaveBeenCalledWith("/api/registers/revocations", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({}),
+  });
+});
+
+test.each([
+  ["without a revocation time", { revoked_registers: 3 }],
+  ["without a count", { revoked_at: "2026-09-25T12:15:00.000Z" }],
+  ["with a zero count", { revoked_at: "2026-09-25T12:15:00.000Z", revoked_registers: 0 }],
+  ["with a numeric revocation time", { revoked_at: 1, revoked_registers: 3 }],
+])("revokeEveryInstallation returns failed on a 200 %s", async (_name, body) => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, body));
+
+  expect(await revokeEveryInstallation()).toEqual({ kind: "failed" });
+});
+
+test("revokeEveryInstallation returns failed on a 200 that is not JSON", async () => {
+  vi.mocked(fetch).mockResolvedValue(new Response("not json", { status: 200 }));
+
+  expect(await revokeEveryInstallation()).toEqual({ kind: "failed" });
+});
+
+test("revokeEveryInstallation returns no_active_installation on a 409 carrying that code", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code: "no_active_installation" }));
+
+  expect(await revokeEveryInstallation()).toEqual({ kind: "no_active_installation" });
+});
+
+test("revokeEveryInstallation returns failed on a 409 carrying another code", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code: "other" }));
+
+  expect(await revokeEveryInstallation()).toEqual({ kind: "failed" });
+});
+
+test("revokeEveryInstallation returns unauthenticated on a plain 401", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(401));
+
+  expect(await revokeEveryInstallation()).toEqual({ kind: "unauthenticated" });
+});
+
+test("revokeEveryInstallation returns authorization_required on a 401 carrying that code", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(401, { code: "authorization_required" }));
+
+  expect(await revokeEveryInstallation()).toEqual({ kind: "authorization_required" });
+});
+
+test("revokeEveryInstallation returns forbidden on 403", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(403));
+
+  expect(await revokeEveryInstallation()).toEqual({ kind: "forbidden" });
+});
+
+test("revokeEveryInstallation returns rate_limited with the Retry-After header on 429", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(429, undefined, { "Retry-After": "20" }));
+
+  expect(await revokeEveryInstallation()).toEqual({ kind: "rate_limited", retryAfterSeconds: 20 });
+});
+
+test("revokeEveryInstallation returns failed on a server error", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(500));
+
+  expect(await revokeEveryInstallation()).toEqual({ kind: "failed" });
+});
+
+test("revokeEveryInstallation returns failed when the request throws", async () => {
+  vi.mocked(fetch).mockRejectedValue(new Error("network down"));
+
+  expect(await revokeEveryInstallation()).toEqual({ kind: "failed" });
 });
 
 test("fetchRegisterCoverage lists the permissions nobody active at the branch holds", async () => {

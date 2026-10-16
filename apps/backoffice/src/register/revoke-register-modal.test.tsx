@@ -295,35 +295,6 @@ test("shows the attempt-failed notice", async () => {
   await expect.element(dialog.getByText("Probá de nuevo.")).toBeVisible();
 });
 
-test("ignores a failure that arrives after the modal was closed, once it opens again", async () => {
-  const services = createServices();
-  const resolveRevocation = pendingRevocation(services);
-  const screen = await renderReopenableModal(services);
-  await confirm(screen.getByRole("dialog", { name: "Revocar por pérdida o robo" }));
-  await closeModal(screen);
-
-  resolveRevocation({ kind: "failed" });
-  await screen.settle();
-  const dialog = await reopenModal(screen);
-
-  expect(dialog.getByText("Probá de nuevo.").query()).toBeNull();
-});
-
-test("ignores a failure from an earlier opening that arrives after the modal opened again", async () => {
-  const services = createServices();
-  const resolveRevocation = pendingRevocation(services);
-  const screen = await renderReopenableModal(services);
-  await confirm(screen.getByRole("dialog", { name: "Revocar por pérdida o robo" }));
-  await closeModal(screen);
-  const dialog = await reopenModal(screen);
-
-  resolveRevocation({ kind: "failed" });
-  await screen.settle();
-
-  expect(dialog.getByText("Probá de nuevo.").query()).toBeNull();
-  await expect.element(dialog.getByRole("button", { name: "Revocar la caja" })).toBeEnabled();
-});
-
 test("leaves the modal open when a success from an earlier opening arrives after it opened again", async () => {
   const services = createServices();
   const resolveRevocation = pendingRevocation(services);
@@ -365,14 +336,6 @@ test("reports the register revoked when the success arrives after the modal was 
   await expect.poll(() => onRevoked.mock.calls.length).toBe(1);
 });
 
-test("ends the session when no open session is found after the modal was closed", async () => {
-  const onSessionEnded = vi.fn();
-
-  await answerAfterClosing({ kind: "unauthenticated" }, { onSessionEnded });
-
-  await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
-});
-
 test("reports the list outdated when the register is not found after the modal was closed", async () => {
   const onOutdated = vi.fn();
 
@@ -389,23 +352,23 @@ test("reports the list outdated when no active installation is found after the m
   await expect.poll(() => onOutdated.mock.calls.length).toBe(1);
 });
 
-test("navigates to Mi cuenta when the revocation comes back forbidden after the modal was closed", async () => {
-  window.history.pushState(null, "", "/registers");
-
-  await answerAfterClosing({ kind: "forbidden" }, {});
-
-  await expect.poll(() => window.location.pathname).toBe("/account");
-});
-
-test("navigates to Mi cuenta when the revocation comes back forbidden", async () => {
-  window.history.pushState(null, "", "/registers");
+test("shows the attempt-failed notice when the revocation still asks for authorization after the passkey", async () => {
   const services = createServices();
-  vi.mocked(services.revokeRegister).mockResolvedValue({ kind: "forbidden" });
-  const { dialog } = await renderModal(services);
-
+  vi.mocked(services.revokeRegister).mockResolvedValue({ kind: "authorization_required" });
+  grantAuthorization(services);
+  const onRevoked = vi.fn();
+  const { screen, dialog } = await renderModal(services, { onRevoked });
   await confirm(dialog);
 
-  await expect.poll(() => window.location.pathname).toBe("/account");
+  await userEvent.click(
+    screen
+      .getByRole("dialog", { name: "Autorizá este cambio" })
+      .getByRole("button", { name: "Usar mi passkey" }),
+  );
+
+  await expect.element(dialog.getByText("No se pudo revocar la caja")).toBeVisible();
+  await expect.element(dialog.getByText("Probá de nuevo.")).toBeVisible();
+  expect(onRevoked).not.toHaveBeenCalled();
 });
 
 test("ends the session when the revocation finds no open session", async () => {

@@ -1,15 +1,13 @@
 import { Button, InlineNotice, Modal } from "@purosur/ui";
 import type { startAuthentication } from "@simplewebauthn/browser";
 import { Ban, Key, ShieldX, TriangleAlert, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
-import { useAuthorization } from "../platform/authorization-modal";
 import { retryAfterDetail } from "../platform/retry-after-detail";
-import { useSendToMyAccount } from "../platform/send-to-my-account";
 import type {
   authorizeSession,
   fetchSessionAuthorizationOptions,
 } from "../platform/session-authorization-api";
 import type { RegisterSummary, RevokeRegisterOutcome, revokeRegister } from "./registers-api";
+import { useRevocationAttempt } from "./use-revocation-attempt";
 
 export type RevokeRegisterModalServices = {
   revokeRegister: typeof revokeRegister;
@@ -26,12 +24,6 @@ type RevokeRegisterModalProps = {
   onSessionEnded: () => void;
   services: RevokeRegisterModalServices;
 };
-
-type Notice =
-  | { kind: "notFound" }
-  | { kind: "noActiveInstallation" }
-  | { kind: "attemptFailed" }
-  | { kind: "rateLimited"; retryAfterSeconds: number };
 
 function contextOf(register: RegisterSummary | null): string {
   if (register === null) {
@@ -56,63 +48,35 @@ export function RevokeRegisterModal({
     authorizeSession,
     startAuthentication,
   } = services;
-  const sendToMyAccount = useSendToMyAccount();
-  const [notice, setNotice] = useState<Notice | null>(null);
-  const [revoking, setRevoking] = useState(false);
-  const { run, modal } = useAuthorization<RevokeRegisterOutcome>({
+  const open = target !== null;
+  const { attempt, revoking, notice, modal } = useRevocationAttempt<
+    RevokeRegisterOutcome,
+    "notFound" | "noActiveInstallation"
+  >({
+    open,
     actionName: "Revocar por pérdida o robo",
     onSessionEnded,
     services: { fetchSessionAuthorizationOptions, authorizeSession, startAuthentication },
   });
 
-  const open = target !== null;
-  const openingRef = useRef(0);
-
-  useEffect(() => {
-    openingRef.current += 1;
-    if (open) {
-      setNotice(null);
-      setRevoking(false);
-    }
-  }, [open]);
-
-  async function revoke(register: RegisterSummary) {
-    setNotice(null);
-    setRevoking(true);
-    const opening = openingRef.current;
-    const outcome = await run(() => revokeRegister(register.id));
-    const sameOpening = opening === openingRef.current;
-    const showNotice = (shown: Notice) => {
-      if (sameOpening) {
-        setNotice(shown);
-      }
-    };
-    if (sameOpening) {
-      setRevoking(false);
-    }
-    if (outcome.kind === "cancelled") {
-      return;
-    }
-    if (outcome.kind === "ok") {
-      if (sameOpening) {
-        onClose();
-      }
-      onRevoked();
-    } else if (outcome.kind === "unauthenticated") {
-      onSessionEnded();
-    } else if (outcome.kind === "forbidden") {
-      sendToMyAccount();
-    } else if (outcome.kind === "not_found") {
-      showNotice({ kind: "notFound" });
-      onOutdated();
-    } else if (outcome.kind === "no_active_installation") {
-      showNotice({ kind: "noActiveInstallation" });
-      onOutdated();
-    } else if (outcome.kind === "rate_limited") {
-      showNotice({ kind: "rateLimited", retryAfterSeconds: outcome.retryAfterSeconds });
-    } else {
-      showNotice({ kind: "attemptFailed" });
-    }
+  function revoke(register: RegisterSummary) {
+    return attempt(
+      () => revokeRegister(register.id),
+      (outcome, opening) => {
+        if (outcome.kind === "ok") {
+          if (opening.current) {
+            onClose();
+          }
+          onRevoked();
+        } else if (outcome.kind === "not_found") {
+          opening.showNotice("notFound");
+          onOutdated();
+        } else if (outcome.kind === "no_active_installation") {
+          opening.showNotice("noActiveInstallation");
+          onOutdated();
+        }
+      },
+    );
   }
 
   return (
