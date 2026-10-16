@@ -2600,7 +2600,7 @@ export const orphanCreditNotes = pgTable(
     ),
     uniqueIndex("orphan_credit_notes_number_key")
       .on(table.pointOfSale, table.number)
-      .where(sql`${table.number} is not null`),
+      .where(sql`${table.number} is not null and ${table.answerKind} is distinct from 'rejected'`),
     check(
       "orphan_credit_notes_request_check",
       sql`(${table.number} is null) = (${table.issuedOn} is null)

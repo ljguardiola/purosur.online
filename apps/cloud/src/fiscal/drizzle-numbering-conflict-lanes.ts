@@ -1,12 +1,13 @@
 import type {
   AuthorizationNumber,
-  LocalStanding,
   NumberingConflictLane,
   NumberingConflictLanes,
   NumberingConflictRequest,
   NumberingDiagnosisRecord,
   NumberingFreeze,
   OrphanRegularization,
+  RequestsAtNumber,
+  SaleDocument,
 } from "@purosur/domain/fiscal/use-cases";
 import { and, asc, eq, gt, lte } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
@@ -23,7 +24,7 @@ import type { EnqueueOrphanCreditNote } from "./enqueue-orphan-credit-note.js";
 import { answerOf } from "./fiscal-request-answer.js";
 import { diagnosisOf } from "./fiscal-request-diagnosis.js";
 import { notePointOfSaleHolderChanged } from "./note-point-of-sale-holder-changed.js";
-import { localStandingOfAuthorization } from "./orphan-local-standing.js";
+import { otherDocumentsOfSale, requestsAtNumber } from "./orphan-local-standing.js";
 import { withPointOfSaleLaneLock } from "./point-of-sale-lane-lock.js";
 import { recordOrphanRegularization } from "./record-orphan-regularization.js";
 
@@ -78,8 +79,12 @@ class DrizzleNumberingConflictLane<TQueryResult extends PgQueryResultHKT>
     this.now = now;
   }
 
-  localStandingOfAuthorization(authorization: AuthorizationNumber): Promise<LocalStanding> {
-    return localStandingOfAuthorization(this.db, authorization);
+  requestsAtNumber(authorization: AuthorizationNumber): Promise<RequestsAtNumber> {
+    return requestsAtNumber(this.db, authorization);
+  }
+
+  otherDocumentsOfSale(saleId: string, fiscalDocumentId: string): Promise<SaleDocument[]> {
+    return otherDocumentsOfSale(this.db, saleId, fiscalDocumentId);
   }
 
   async numberingConflictRequest(

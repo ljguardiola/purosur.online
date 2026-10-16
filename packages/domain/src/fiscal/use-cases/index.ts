@@ -21,8 +21,10 @@ export type {
   CreditNoteDecision,
   ExternalBilling,
   ExternalInvoicingRegularization,
-  LocalStanding,
+  LocalRequestAtNumber,
   OrphanRegularization,
+  RequestsAtNumber,
+  SaleDocument,
   VoucherReference,
 } from "../model/orphan-authorization.js";
 export type {
@@ -301,6 +303,7 @@ export type {
   OrphanCreditNoteRequests,
   TaxAuthorityCreditNoteInvoicing,
 } from "./orphan-credit-note-ports.js";
+export { CreditNoteNumberTaken } from "./orphan-credit-note-ports.js";
 export type {
   ArcaOnlineStatus,
   ReadArcaOnlineStatusInput,

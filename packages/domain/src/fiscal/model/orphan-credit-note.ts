@@ -12,6 +12,10 @@ export function nextCreditNoteNumber(lastAuthorized: number): number {
   return lastAuthorized + 1;
 }
 
+export function mayTakeCreditNoteNumber(otherCreditNotes: readonly { kind: string }[]): boolean {
+  return otherCreditNotes.every(({ kind }) => kind !== "requested");
+}
+
 export interface UnclearCreditNote {
   number: number;
   issuedOn: string;

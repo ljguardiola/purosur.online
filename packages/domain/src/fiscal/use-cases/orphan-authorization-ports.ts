@@ -1,5 +1,9 @@
 import type { Clock } from "../../shared/index.js";
-import type { LocalStanding, OrphanRegularization } from "../model/orphan-authorization.js";
+import type {
+  OrphanRegularization,
+  RequestsAtNumber,
+  SaleDocument,
+} from "../model/orphan-authorization.js";
 import type { WsaaTokenSource } from "./fiscal-document-authorization-ports.js";
 import type { IdGenerator } from "./sale-authorization-ports.js";
 import type { TaxAuthorityVoucherLookup } from "./unclear-outcome-ports.js";
@@ -10,7 +14,8 @@ export interface AuthorizationNumber {
 }
 
 export interface OrphanStandingReader {
-  localStandingOfAuthorization(authorization: AuthorizationNumber): Promise<LocalStanding>;
+  requestsAtNumber(authorization: AuthorizationNumber): Promise<RequestsAtNumber>;
+  otherDocumentsOfSale(saleId: string, fiscalDocumentId: string): Promise<SaleDocument[]>;
 }
 
 export interface OrphanRegularizationLane extends OrphanStandingReader {

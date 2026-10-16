@@ -1,4 +1,7 @@
-import type { RealTimeAuthorizationAnswer } from "@purosur/domain/fiscal/use-cases";
+import type {
+  RealTimeAuthorizationAnswer,
+  UnclearOutcomeDecision,
+} from "@purosur/domain/fiscal/use-cases";
 import type { fiscalRequests } from "../platform/db/schema.js";
 
 export type RecordedAnswerColumns = Pick<
@@ -28,6 +31,28 @@ export function answerOf(row: RecordedAnswerColumns): RealTimeAuthorizationAnswe
       return { kind: "not_attempted" };
     case "unclear":
       return { kind: "unclear" };
+    default:
+      return null;
+  }
+}
+
+export type RecordedDecisionColumns = Pick<
+  typeof fiscalRequests.$inferSelect,
+  "decision" | "adoptedAuthorizationCode" | "adoptedAuthorizationCodeDueOn"
+>;
+
+export function decisionOf(row: RecordedDecisionColumns): UnclearOutcomeDecision | null {
+  switch (row.decision) {
+    case "released":
+      return { kind: "released" };
+    case "adopted":
+      return {
+        kind: "adopted",
+        authorizationCode: row.adoptedAuthorizationCode ?? "",
+        authorizationCodeDueOn: row.adoptedAuthorizationCodeDueOn ?? "",
+      };
+    case "conflicting":
+      return { kind: "conflicting" };
     default:
       return null;
   }

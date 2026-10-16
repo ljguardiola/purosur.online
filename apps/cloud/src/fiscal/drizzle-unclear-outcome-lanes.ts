@@ -3,13 +3,13 @@ import {
   FiscalDocumentAlreadyRecorded,
   type OrphanRegularization,
   type RecordedRequestOutcome,
+  type SaleDocument,
   type UnclearOutcomeDecision,
   type UnclearOutcomeLane,
   type UnclearOutcomeLanes,
   type UnclearOutcomeRequests,
   type UnclearOutcomeWarningClearance,
   type UnclearRequest,
-  type VoucherReference,
 } from "@purosur/domain/fiscal/use-cases";
 import { and, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
@@ -19,35 +19,13 @@ import { fiscalRequests, registerPointsOfSale } from "../platform/db/schema.js";
 import type { DedicatedConnections } from "../platform/dedicated-connections.js";
 import type { EnqueueOrphanCreditNote } from "./enqueue-orphan-credit-note.js";
 import type { EnqueueUnclearOutcome } from "./enqueue-unclear-outcome.js";
-import { answerOf } from "./fiscal-request-answer.js";
-import { otherAuthorizedVoucherOfSale } from "./orphan-local-standing.js";
+import { answerOf, decisionOf } from "./fiscal-request-answer.js";
+import { otherDocumentsOfSale } from "./orphan-local-standing.js";
 import { withPointOfSaleLaneLock } from "./point-of-sale-lane-lock.js";
 import { recordOrphanRegularization } from "./record-orphan-regularization.js";
 
 const UNIQUE_VIOLATION = "23505";
 const FISCAL_REQUESTS_PRIMARY_KEY = "fiscal_requests_pkey";
-
-type DecisionColumns = Pick<
-  typeof fiscalRequests.$inferSelect,
-  "decision" | "adoptedAuthorizationCode" | "adoptedAuthorizationCodeDueOn"
->;
-
-function decisionOf(row: DecisionColumns): UnclearOutcomeDecision | null {
-  switch (row.decision) {
-    case "released":
-      return { kind: "released" };
-    case "adopted":
-      return {
-        kind: "adopted",
-        authorizationCode: row.adoptedAuthorizationCode ?? "",
-        authorizationCodeDueOn: row.adoptedAuthorizationCodeDueOn ?? "",
-      };
-    case "conflicting":
-      return { kind: "conflicting" };
-    default:
-      return null;
-  }
-}
 
 function decisionColumnsOf(decision: UnclearOutcomeDecision) {
   return {
@@ -133,11 +111,8 @@ class DrizzleUnclearOutcomeLane<TQueryResult extends PgQueryResultHKT>
     });
   }
 
-  otherAuthorizedVoucherOfSale(
-    saleId: string,
-    fiscalDocumentId: string,
-  ): Promise<VoucherReference | null> {
-    return otherAuthorizedVoucherOfSale(this.db, saleId, fiscalDocumentId);
+  otherDocumentsOfSale(saleId: string, fiscalDocumentId: string): Promise<SaleDocument[]> {
+    return otherDocumentsOfSale(this.db, saleId, fiscalDocumentId);
   }
 
   async registerOwnsPointOfSale(registerId: string, pointOfSale: number): Promise<boolean> {

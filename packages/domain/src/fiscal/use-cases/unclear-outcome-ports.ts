@@ -1,5 +1,5 @@
 import type { Clock } from "../../shared/index.js";
-import type { OrphanRegularization, VoucherReference } from "../model/orphan-authorization.js";
+import type { OrphanRegularization, SaleDocument } from "../model/orphan-authorization.js";
 import type { RealTimeAuthorizationAnswer } from "../model/real-time-authorization.js";
 import type {
   RecordedRequestOutcome,
@@ -43,10 +43,7 @@ export interface UnclearOutcomeLane {
     clearedWarning: UnclearOutcomeWarningClearance,
     regularization: OrphanRegularization | null,
   ): Promise<void>;
-  otherAuthorizedVoucherOfSale(
-    saleId: string,
-    fiscalDocumentId: string,
-  ): Promise<VoucherReference | null>;
+  otherDocumentsOfSale(saleId: string, fiscalDocumentId: string): Promise<SaleDocument[]>;
   registerOwnsPointOfSale(registerId: string, pointOfSale: number): Promise<boolean>;
   recordedRequest(
     registerId: string,

@@ -50,4 +50,4 @@ ALTER TABLE "fiscal_tasks" ADD CONSTRAINT "fiscal_tasks_register_id_registers_id
 ALTER TABLE "orphan_credit_notes" ADD CONSTRAINT "orphan_credit_notes_register_id_registers_id_fk" FOREIGN KEY ("register_id") REFERENCES "public"."registers"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 CREATE UNIQUE INDEX "fiscal_tasks_voucher_key" ON "fiscal_tasks" USING btree ("kind","point_of_sale","document_type","number");--> statement-breakpoint
 CREATE UNIQUE INDEX "orphan_credit_notes_orphan_key" ON "orphan_credit_notes" USING btree ("point_of_sale","associated_voucher_type","associated_number");--> statement-breakpoint
-CREATE UNIQUE INDEX "orphan_credit_notes_number_key" ON "orphan_credit_notes" USING btree ("point_of_sale","number") WHERE "orphan_credit_notes"."number" is not null;
+CREATE UNIQUE INDEX "orphan_credit_notes_number_key" ON "orphan_credit_notes" USING btree ("point_of_sale","number") WHERE "orphan_credit_notes"."number" is not null and "orphan_credit_notes"."answer_kind" is distinct from 'rejected';

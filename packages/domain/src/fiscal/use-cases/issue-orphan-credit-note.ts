@@ -7,6 +7,7 @@ import {
 import {
   CREDIT_NOTE_C_VOUCHER_TYPE,
   creditNoteIssueDate,
+  mayTakeCreditNoteNumber,
   nextCreditNoteNumber,
   settleUnclearCreditNote,
 } from "../model/orphan-credit-note.js";
@@ -17,9 +18,10 @@ import {
 } from "../model/unclear-outcome-decision.js";
 import { solicitationAnswerOf, solicitationRejections } from "./authorize-fiscal-document.js";
 import type { SolicitationAnswer } from "./fiscal-document-authorization-ports.js";
-import type {
-  IssueOrphanCreditNotePorts,
-  OrphanCreditNoteLane,
+import {
+  CreditNoteNumberTaken,
+  type IssueOrphanCreditNotePorts,
+  type OrphanCreditNoteLane,
 } from "./orphan-credit-note-ports.js";
 import { taxAuthorityEvidenceOf } from "./tax-authority-evidence.js";
 
@@ -135,6 +137,9 @@ export async function issueOrphanCreditNote(
       );
     }
 
+    if (!mayTakeCreditNoteNumber(await lane.otherCreditNoteStandings(creditNoteId))) {
+      return retryLater();
+    }
     const lastAuthorized = await taxAuthority.lastAuthorized({
       token,
       pointOfSale,
@@ -147,7 +152,14 @@ export async function issueOrphanCreditNote(
     const requestedAt = clock.now();
     const number = nextCreditNoteNumber(lastAuthorized.number);
     const issuedOn = creditNoteIssueDate(requestedAt);
-    await lane.recordCreditNoteRequest({ creditNoteId, number, issuedOn, requestedAt });
+    try {
+      await lane.recordCreditNoteRequest({ creditNoteId, number, issuedOn, requestedAt });
+    } catch (error) {
+      if (error instanceof CreditNoteNumberTaken) {
+        return retryLater();
+      }
+      throw error;
+    }
 
     const solicitation = await creditNotes.solicit({
       token,

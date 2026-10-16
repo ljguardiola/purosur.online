@@ -1,5 +1,6 @@
 import { FACTURA_C_VOUCHER_TYPE } from "../model/factura-c-fiscal-block.js";
 import {
+  authorizedVoucherAmong,
   decideOrphanAuthorization,
   type LocalStanding,
   type OrphanRegularization,
@@ -63,7 +64,9 @@ async function regularizationOf(
       : {
           kind: "local_sale",
           saleId,
-          otherAuthorizedVoucher: await lane.otherAuthorizedVoucherOfSale(saleId, fiscalDocumentId),
+          otherAuthorizedVoucher: authorizedVoucherAmong(
+            await lane.otherDocumentsOfSale(saleId, fiscalDocumentId),
+          ),
         };
   return orphanRegularization(
     decideOrphanAuthorization({

@@ -6,7 +6,15 @@ import {
   type FiscalTask,
   type FiscalTaskDocumentType,
 } from "./fiscal-task.js";
-import type { TaxAuthorityVoucher } from "./unclear-outcome-decision.js";
+import type { RealTimeAuthorizationAnswer } from "./real-time-authorization.js";
+import {
+  outcomeToldToAskingRegister,
+  type RecordedRequestOutcome,
+  type TaxAuthorityVoucher,
+  type UnclearDocument,
+  unclearDocumentSettlement,
+  voucherMatchesDocument,
+} from "./unclear-outcome-decision.js";
 
 export interface VoucherReference {
   voucherType: number;
@@ -22,6 +30,45 @@ export type OrphanEvidence =
       voucher: TaxAuthorityVoucher;
     }
   | { kind: "not_confirmed" };
+
+export interface LocalRequestAtNumber extends Omit<UnclearDocument, "number"> {
+  fiscalDocumentId: string;
+  saleId: string;
+  answer: RealTimeAuthorizationAnswer | null;
+}
+
+export type RequestsAtNumber =
+  | { kind: "requests"; requests: readonly LocalRequestAtNumber[] }
+  | { kind: "already_regularized" };
+
+export type SaleDocument =
+  | { kind: "offline"; voucher: VoucherReference }
+  | { kind: "real_time"; voucher: VoucherReference; outcome: RecordedRequestOutcome };
+
+export function requestBehindVoucher(
+  voucher: TaxAuthorityVoucher,
+  requests: readonly LocalRequestAtNumber[],
+): LocalRequestAtNumber | null {
+  return (
+    requests.find(
+      (request) => request.answer?.kind !== "rejected" && voucherMatchesDocument(voucher, request),
+    ) ?? null
+  );
+}
+
+function isAuthorizedDocument(document: SaleDocument): boolean {
+  if (document.kind === "offline") {
+    return true;
+  }
+  const told = outcomeToldToAskingRegister(document.outcome);
+  return told.kind !== "pending" && unclearDocumentSettlement(told).state === "AUTHORIZED";
+}
+
+export function authorizedVoucherAmong(
+  documents: readonly SaleDocument[],
+): VoucherReference | null {
+  return documents.find(isAuthorizedDocument)?.voucher ?? null;
+}
 
 export type LocalStanding =
   | { kind: "no_local_sale" }

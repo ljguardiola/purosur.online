@@ -9,6 +9,7 @@ import {
   orphanRegularization,
 } from "../model/orphan-authorization.js";
 import type { ReconcileNumberingConflictPorts } from "./numbering-conflict-ports.js";
+import { localStandingBehindVoucher } from "./orphan-local-standing.js";
 
 export interface ReconcileNumberingConflictInput {
   pointOfSale: number;
@@ -75,7 +76,7 @@ export async function reconcileNumberingConflict(
       const regularization = orphanRegularization(
         decideOrphanAuthorization({
           evidence: { kind: "confirmed", pointOfSale, number, voucher: answer.voucher },
-          local: await lane.localStandingOfAuthorization({ pointOfSale, number }),
+          local: await localStandingBehindVoucher(lane, { pointOfSale, number }, answer.voucher),
         }),
         { creditNoteId: ids.next(), now: clock.now() },
       );

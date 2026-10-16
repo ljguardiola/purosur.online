@@ -22,6 +22,8 @@ export type CreditNoteStanding =
   | { kind: "authorized" }
   | { kind: "rejected" };
 
+export class CreditNoteNumberTaken extends Error {}
+
 export interface OrphanCreditNote {
   creditNoteId: string;
   pointOfSale: number;
@@ -54,6 +56,11 @@ export interface CreditNoteRejectionRecord {
 
 export interface OrphanCreditNoteLane {
   orphanCreditNote(creditNoteId: string): Promise<OrphanCreditNote | null>;
+  otherCreditNoteStandings(creditNoteId: string): Promise<CreditNoteStanding[]>;
+  /**
+   * Raises CreditNoteNumberTaken when another credit note of the point of sale already holds the
+   * number.
+   */
   recordCreditNoteRequest(request: CreditNoteRequestRecord): Promise<void>;
   recordCreditNoteAuthorized(authorization: CreditNoteAuthorizationRecord): Promise<void>;
   /**

@@ -1,20 +1,25 @@
-import type {
-  CreditNoteAuthorizationRecord,
-  CreditNoteRejectionRecord,
-  CreditNoteRequestRecord,
-  CreditNoteStanding,
-  ExternalInvoicingRegularization,
-  OrphanCreditNote,
-  OrphanCreditNoteLane,
-  OrphanCreditNoteLanes,
-  OrphanCreditNoteRequests,
+import {
+  type CreditNoteAuthorizationRecord,
+  CreditNoteNumberTaken,
+  type CreditNoteRejectionRecord,
+  type CreditNoteRequestRecord,
+  type CreditNoteStanding,
+  type ExternalInvoicingRegularization,
+  type OrphanCreditNote,
+  type OrphanCreditNoteLane,
+  type OrphanCreditNoteLanes,
+  type OrphanCreditNoteRequests,
 } from "@purosur/domain/fiscal/use-cases";
-import { eq } from "drizzle-orm";
+import { and, eq, ne } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import { postgresErrorChain } from "../platform/db/postgres-error-chain.js";
 import { orphanCreditNotes } from "../platform/db/schema.js";
 import type { DedicatedConnections } from "../platform/dedicated-connections.js";
 import { withPointOfSaleLaneLock } from "./point-of-sale-lane-lock.js";
 import { insertFiscalTask, recordExternalInvoicing } from "./record-orphan-regularization.js";
+
+const UNIQUE_VIOLATION = "23505";
+const CREDIT_NOTE_NUMBER_KEY = "orphan_credit_notes_number_key";
 
 type CreditNoteRow = typeof orphanCreditNotes.$inferSelect;
 
@@ -52,9 +57,11 @@ class DrizzleOrphanCreditNoteLane<TQueryResult extends PgQueryResultHKT>
   implements OrphanCreditNoteLane
 {
   private readonly db: PgDatabase<TQueryResult>;
+  private readonly pointOfSale: number;
 
-  constructor(db: PgDatabase<TQueryResult>) {
+  constructor(db: PgDatabase<TQueryResult>, pointOfSale: number) {
     this.db = db;
+    this.pointOfSale = pointOfSale;
   }
 
   async orphanCreditNote(creditNoteId: string): Promise<OrphanCreditNote | null> {
@@ -79,16 +86,42 @@ class DrizzleOrphanCreditNoteLane<TQueryResult extends PgQueryResultHKT>
     };
   }
 
+  async otherCreditNoteStandings(creditNoteId: string): Promise<CreditNoteStanding[]> {
+    const rows = await this.db
+      .select()
+      .from(orphanCreditNotes)
+      .where(
+        and(
+          eq(orphanCreditNotes.pointOfSale, this.pointOfSale),
+          ne(orphanCreditNotes.id, creditNoteId),
+        ),
+      );
+    return rows.map(standingOf);
+  }
+
   async recordCreditNoteRequest({
     creditNoteId,
     number,
     issuedOn,
     requestedAt,
   }: CreditNoteRequestRecord): Promise<void> {
-    await this.db
-      .update(orphanCreditNotes)
-      .set({ ...NO_REQUEST, number, issuedOn, requestedAt })
-      .where(eq(orphanCreditNotes.id, creditNoteId));
+    await this.db.transaction(async (tx) => {
+      try {
+        await tx
+          .update(orphanCreditNotes)
+          .set({ ...NO_REQUEST, number, issuedOn, requestedAt })
+          .where(eq(orphanCreditNotes.id, creditNoteId));
+      } catch (error) {
+        if (
+          postgresErrorChain(error).some(
+            (link) => link.code === UNIQUE_VIOLATION && link.constraint === CREDIT_NOTE_NUMBER_KEY,
+          )
+        ) {
+          throw new CreditNoteNumberTaken();
+        }
+        throw error;
+      }
+    });
   }
 
   async recordCreditNoteAuthorized({
@@ -168,7 +201,7 @@ export class DrizzleOrphanCreditNoteLanes<TQueryResult extends PgQueryResultHKT>
     work: (lane: OrphanCreditNoteLane) => Promise<TOutcome>,
   ): Promise<TOutcome> {
     return withPointOfSaleLaneLock(this.connections, pointOfSale, (db) =>
-      work(new DrizzleOrphanCreditNoteLane(db)),
+      work(new DrizzleOrphanCreditNoteLane(db, pointOfSale)),
     );
   }
 }

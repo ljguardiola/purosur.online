@@ -9,6 +9,7 @@ import type {
   AuthorizationNumber,
   RegularizeOrphanAuthorizationPorts,
 } from "./orphan-authorization-ports.js";
+import { localStandingBehindVoucher } from "./orphan-local-standing.js";
 
 export type RegularizeOrphanAuthorizationInput = AuthorizationNumber;
 
@@ -48,7 +49,7 @@ export async function regularizeOrphanAuthorization(
 
       const decision = decideOrphanAuthorization({
         evidence: { kind: "confirmed", pointOfSale, number, voucher: answer.voucher },
-        local: await lane.localStandingOfAuthorization({ pointOfSale, number }),
+        local: await localStandingBehindVoucher(lane, { pointOfSale, number }, answer.voucher),
       });
       const regularization = orphanRegularization(decision, {
         creditNoteId: ids.next(),
