@@ -23,7 +23,7 @@ test("offers to close every session in a callout for a suspected compromise", as
     .element(screen.getByRole("button", { name: "Cerrar todas las sesiones" }))
     .toBeVisible();
   expect(screen.getByRole("dialog").query()).toBeNull();
-  await expectNoAccessibilityViolations(screen.container);
+  await expectNoAccessibilityViolations(document.body);
 });
 
 test("opens the confirmation without ending any session yet", async () => {
