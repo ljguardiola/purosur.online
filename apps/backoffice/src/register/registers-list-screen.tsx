@@ -3,6 +3,7 @@ import {
   Button,
   dataColumn,
   FloatingNotification,
+  formatNumber,
   formatPointOfSaleNumber,
   plural,
   Table,
@@ -372,6 +373,7 @@ export function RegistersListScreen({
           setRevokedNotice({ id: revokedNoticeCount, registers: revokedRegisters });
           setRevokedNoticeCount(revokedNoticeCount + 1);
         }}
+        onOutdated={() => void refreshRegisters()}
         onSessionEnded={onSessionEnded}
         services={services}
       />
@@ -383,7 +385,7 @@ export function RegistersListScreen({
           title="Instalaciones revocadas"
           description={plural(revokedNotice.registers, {
             one: "Se revocó 1 caja.",
-            other: `Se revocaron ${revokedNotice.registers} cajas.`,
+            other: `Se revocaron ${formatNumber(revokedNotice.registers)} cajas.`,
           })}
           onDismiss={() => setRevokedNotice(null)}
         />

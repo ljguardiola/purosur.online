@@ -24,11 +24,6 @@ class DrizzleEveryInstallationRevocationTransaction<TQueryResult extends PgQuery
     super(tx, cipher, now, "suspected_compromise");
   }
 
-  // Registers come first and enrollment codes second, both in id order, because an enrollment
-  // locks the codes it redeems in register order and then reaches its register only through a
-  // foreign key check, which NO KEY UPDATE leaves free. Holding every code until the end makes an
-  // enrollment either finish before the revocation reads the register's installation or start
-  // after it.
   async lockEveryRegister(): Promise<string[]> {
     const rows = await this.tx
       .select({ id: registers.id })

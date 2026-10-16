@@ -20,6 +20,7 @@ type RevokeEveryInstallationModalProps = {
   open: boolean;
   onClose: () => void;
   onRevoked: (revocation: { revokedRegisters: number }) => void;
+  onOutdated: () => void;
   onSessionEnded: () => void;
   services: RevokeEveryInstallationModalServices;
 };
@@ -28,6 +29,7 @@ export function RevokeEveryInstallationModal({
   open,
   onClose,
   onRevoked,
+  onOutdated,
   onSessionEnded,
   services,
 }: RevokeEveryInstallationModalProps) {
@@ -56,6 +58,7 @@ export function RevokeEveryInstallationModal({
         onRevoked({ revokedRegisters: outcome.value.revokedRegisters });
       } else if (outcome.kind === "no_active_installation") {
         opening.showNotice("noActiveInstallation");
+        onOutdated();
       }
     });
   }

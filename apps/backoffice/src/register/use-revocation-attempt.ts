@@ -23,12 +23,18 @@ type SharedOutcome =
   | { kind: "unauthenticated" }
   | { kind: "forbidden" }
   | { kind: "rate_limited"; retryAfterSeconds: number }
+  | { kind: "authorization_required" }
   | { kind: "failed" };
 
 function isSharedOutcome(outcome: { kind: string }): outcome is SharedOutcome {
-  return ["cancelled", "unauthenticated", "forbidden", "rate_limited", "failed"].includes(
-    outcome.kind,
-  );
+  return [
+    "cancelled",
+    "unauthenticated",
+    "forbidden",
+    "rate_limited",
+    "authorization_required",
+    "failed",
+  ].includes(outcome.kind);
 }
 
 type Opening<Specific extends string> = {
@@ -90,7 +96,7 @@ export function useRevocationAttempt<Outcome extends { kind: string }, Specific 
       sendToMyAccount();
     } else if (outcome.kind === "rate_limited") {
       showNotice({ kind: "rateLimited", retryAfterSeconds: outcome.retryAfterSeconds });
-    } else if (outcome.kind === "failed") {
+    } else if (outcome.kind !== "cancelled") {
       showNotice({ kind: "attemptFailed" });
     }
   }
