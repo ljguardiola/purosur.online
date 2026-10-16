@@ -123,7 +123,6 @@ export function VoidSaleModal({
       case "session_closed":
       case "invoice_in_flight":
       case "carries_invoice":
-      case "mercado_pago_payment":
         setRefusalReason(voidRefusalReason(outcome.kind) ?? NOT_COMPLETED_REASON);
         onRefused();
         break;
