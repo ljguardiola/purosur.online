@@ -74,6 +74,12 @@ export type {
 } from "./enroll-installation.js";
 export { enrollInstallation } from "./enroll-installation.js";
 export type {
+  EveryInstallationRevocationRecord,
+  EveryInstallationRevocationStore,
+  EveryInstallationRevocationStoreTransaction,
+  RevokeEveryInstallationPorts,
+} from "./every-installation-revocation-ports.js";
+export type {
   FindRegisterUpdateInput,
   FindRegisterUpdatePorts,
   RegisterRelease,
@@ -209,6 +215,12 @@ export type {
   RequestSnapshotUploadPorts,
 } from "./request-snapshot-upload.js";
 export { requestSnapshotUpload } from "./request-snapshot-upload.js";
+export type {
+  RevokedRegister,
+  RevokeEveryInstallationInput,
+  RevokeEveryInstallationOutcome,
+} from "./revoke-every-installation.js";
+export { revokeEveryInstallation } from "./revoke-every-installation.js";
 export type {
   RevokeLostRegisterInput,
   RevokeLostRegisterOutcome,
