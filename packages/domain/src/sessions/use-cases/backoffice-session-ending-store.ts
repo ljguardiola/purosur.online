@@ -1,7 +1,11 @@
+import type { SessionActivity } from "../model/session-expiry.js";
+
 export interface EndedSession {
   id: string;
   userId: string;
 }
+
+export interface UnrevokedSession extends EndedSession, SessionActivity {}
 
 export interface BackofficeSessionEndingStore {
   transaction<TOutcome>(
@@ -10,6 +14,7 @@ export interface BackofficeSessionEndingStore {
 }
 
 export interface BackofficeSessionEndingStoreTransaction {
-  endEveryOpenSession(at: Date): Promise<EndedSession[]>;
+  lockUnrevokedSessions(): Promise<UnrevokedSession[]>;
+  endSessions(sessionIds: string[], at: Date): Promise<void>;
   recordSessionEnded(actorId: string, session: EndedSession, at: Date): Promise<void>;
 }

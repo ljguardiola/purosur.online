@@ -1,3 +1,4 @@
+import { isSessionExpired } from "../model/session-expiry.js";
 import type { BackofficeSessionEndingStore } from "./backoffice-session-ending-store.js";
 
 export interface EndEveryBackofficeSessionPorts {
@@ -16,9 +17,15 @@ export async function endEveryBackofficeSession(
   input: EndEveryBackofficeSessionInput,
 ): Promise<EndEveryBackofficeSessionOutcome> {
   return store.transaction<EndEveryBackofficeSessionOutcome>(async (tx) => {
-    const ended = await tx.endEveryOpenSession(input.at);
-    for (const session of ended) {
-      await tx.recordSessionEnded(input.actorId, session, input.at);
+    const open = (await tx.lockUnrevokedSessions()).filter(
+      (session) => !isSessionExpired(session, input.at),
+    );
+    await tx.endSessions(
+      open.map((session) => session.id),
+      input.at,
+    );
+    for (const { id, userId } of open) {
+      await tx.recordSessionEnded(input.actorId, { id, userId }, input.at);
     }
     return { kind: "ended" };
   });

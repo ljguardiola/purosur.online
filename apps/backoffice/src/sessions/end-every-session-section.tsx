@@ -22,7 +22,7 @@ export function EndEverySessionSection({ onSessionEnded }: EndEverySessionSectio
         tone="error"
         icon={<ShieldAlert />}
         title="Ante una sospecha de compromiso"
-        description="Cierra todas las sesiones abiertas del backoffice, también la tuya. Cada persona vuelve a entrar con su passkey."
+        description="Cierra todas las sesiones abiertas del backoffice. Cada persona vuelve a entrar con su passkey."
         actions={
           <Button
             variant="primary"

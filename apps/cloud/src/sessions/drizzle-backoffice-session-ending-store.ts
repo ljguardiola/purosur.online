@@ -2,8 +2,9 @@ import type {
   BackofficeSessionEndingStore,
   BackofficeSessionEndingStoreTransaction,
   EndedSession,
+  UnrevokedSession,
 } from "@purosur/domain/sessions/use-cases";
-import { isNull } from "drizzle-orm";
+import { inArray, isNull } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { auditLog, sessions } from "../platform/db/schema.js";
 
@@ -20,12 +21,21 @@ class DrizzleBackofficeSessionEndingStoreTransaction<TQueryResult extends PgQuer
     this.tx = tx;
   }
 
-  endEveryOpenSession(at: Date): Promise<EndedSession[]> {
+  lockUnrevokedSessions(): Promise<UnrevokedSession[]> {
     return this.tx
-      .update(sessions)
-      .set({ revokedAt: at })
+      .select({
+        id: sessions.id,
+        userId: sessions.userId,
+        createdAt: sessions.createdAt,
+        lastSeenAt: sessions.lastSeenAt,
+      })
+      .from(sessions)
       .where(isNull(sessions.revokedAt))
-      .returning({ id: sessions.id, userId: sessions.userId });
+      .for("update");
+  }
+
+  async endSessions(sessionIds: string[], at: Date): Promise<void> {
+    await this.tx.update(sessions).set({ revokedAt: at }).where(inArray(sessions.id, sessionIds));
   }
 
   async recordSessionEnded(actorId: string, session: EndedSession, at: Date): Promise<void> {

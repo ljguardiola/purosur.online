@@ -95,8 +95,7 @@ export function EndEverySessionModal({
     >
       <div className="flex flex-col gap-4">
         <p className="text-body text-text">
-          Se cierran todas las sesiones abiertas del backoffice, también la tuya. Cada persona, vos
-          incluido, vuelve a entrar con su passkey.
+          También se cierra la tuya, y volvés a la pantalla de ingreso.
         </p>
         {notice?.kind === "failed" && (
           <InlineNotice

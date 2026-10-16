@@ -77,18 +77,18 @@ function UserPasskeysSection({
       <div className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4">
         <div className="flex items-center gap-3">
           <h2 className="flex-1 text-subheading text-text-accent">Passkeys</h2>
-          {user?.mayRemovePasskey === true &&
-            passkeys.status === "loaded" &&
-            passkeys.value.passkeys.length > 0 && (
-              <Button
-                variant="text"
-                destructive
-                size="small"
-                onPress={() => setRemoveEveryOpen(true)}
-              >
-                Dar de baja todas
-              </Button>
-            )}
+          {user?.mayRemovePasskey === true && (
+            <Button
+              variant="text"
+              destructive
+              size="small"
+              dataStatus={passkeys.status}
+              disabled={passkeys.status === "loaded" && passkeys.value.passkeys.length === 0}
+              onPress={() => setRemoveEveryOpen(true)}
+            >
+              Dar de baja todas
+            </Button>
+          )}
         </div>
         {passkeys.status === "loading" && <LoadingPlaceholder variant="list" items={2} />}
         {passkeys.status === "failed" && (

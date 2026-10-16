@@ -14,6 +14,7 @@ export type {
   BackofficeSessionEndingStore,
   BackofficeSessionEndingStoreTransaction,
   EndedSession,
+  UnrevokedSession,
 } from "./backoffice-session-ending-store.js";
 export type { CheckPinInput, CheckPinOutcome, PinRefusal } from "./check-pin.js";
 export { checkPin } from "./check-pin.js";
