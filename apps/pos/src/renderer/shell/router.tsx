@@ -848,6 +848,9 @@ const cashRoute = createRoute({
       cashMovementKinds,
       authorizers,
       recordCashMovement,
+      readClockGuard,
+      correctRegisterClock,
+      refreshCashSession,
     } = cashRoute.useRouteContext();
     const registerName = useRegisterName();
     return (
@@ -862,6 +865,15 @@ const cashRoute = createRoute({
         loadCashMovementKinds={cashMovementKinds}
         loadAuthorizers={authorizers}
         recordCashMovement={recordCashMovement}
+        clockGuard={
+          <ClockGuardOffer
+            registerName={registerName}
+            cashSessionOpen
+            readClockGuard={readClockGuard}
+            correctRegisterClock={correctRegisterClock}
+            onSessionInvalid={() => void refreshCashSession()}
+          />
+        }
       />
     );
   },

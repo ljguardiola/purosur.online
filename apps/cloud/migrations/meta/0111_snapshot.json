@@ -3838,7 +3838,7 @@
         },
         "offline_fiscal_documents_cause_known": {
           "name": "offline_fiscal_documents_cause_known",
-          "value": "\"offline_fiscal_documents\".\"cause\" in ('no_connectivity', 'unclear_outcome', 'numbering_conflict', 'clock_behind')"
+          "value": "\"offline_fiscal_documents\".\"cause\" in ('no_connectivity', 'unclear_outcome', 'numbering_conflict')"
         },
         "offline_fiscal_documents_generation_stamp_shape": {
           "name": "offline_fiscal_documents_generation_stamp_shape",

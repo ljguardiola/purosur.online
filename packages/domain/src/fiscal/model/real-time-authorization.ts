@@ -126,7 +126,6 @@ export const OFFLINE_AUTHORIZATION_CAUSES = [
   "no_connectivity",
   "unclear_outcome",
   "numbering_conflict",
-  "clock_behind",
 ] as const;
 
 export type OfflineAuthorizationCause = (typeof OFFLINE_AUTHORIZATION_CAUSES)[number];
@@ -135,7 +134,6 @@ const DEFERRAL_REASON_OF_CAUSE: Record<OfflineAuthorizationCause, DeferralReason
   no_connectivity: "fiscally_offline",
   unclear_outcome: "document_waiting",
   numbering_conflict: "numbering_frozen",
-  clock_behind: "clock_behind",
 };
 
 export interface SaleAuthorizationRouteInput {
@@ -212,7 +210,7 @@ export function decideSaleAuthorizationRoute(
     (isBehindClockMark(now, series.clockMark) ||
       isBeforeTaxAuthorityLastIssuedDay(now, series.taxAuthorityLastIssuedOn))
   ) {
-    return offlineRoute("clock_behind", gate.document, input);
+    return deferred("clock_behind");
   }
   if (!isRegisterFiscallyOnline(online, now)) {
     return offlineRoute("no_connectivity", gate.document, input);
