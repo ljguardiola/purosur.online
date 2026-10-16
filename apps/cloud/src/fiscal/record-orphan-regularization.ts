@@ -27,10 +27,7 @@ async function registerHoldingPointOfSale<TQueryResult extends PgQueryResultHKT>
 function reasonOf(task: FiscalTask): JsonValue {
   return task.kind === "external_invoicing"
     ? { ...task.voucher }
-    : {
-        creditNoteId: task.creditNoteId,
-        rejections: task.rejections.map((rejection) => ({ ...rejection })),
-      };
+    : { rejections: task.rejections.map((rejection) => ({ ...rejection })) };
 }
 
 export async function insertFiscalTask<TQueryResult extends PgQueryResultHKT>(
@@ -47,6 +44,7 @@ export async function insertFiscalTask<TQueryResult extends PgQueryResultHKT>(
       pointOfSale: task.pointOfSale,
       documentType: task.documentType,
       number: task.number,
+      creditNoteId: task.kind === "credit_note_rejected" ? task.creditNoteId : null,
       reason: reasonOf(task),
       state: task.state,
       createdAt: task.createdAt,

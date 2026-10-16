@@ -2523,8 +2523,9 @@ export const numberingFreezes = pgTable(
 );
 
 // A task for a person: an authorization the tax authority holds that this system did not issue, or
-// a credit note it rejected. One per kind and voucher, so detecting the same voucher again opens
-// nothing new. The register is the one that holds the point of sale when the task is opened.
+// a credit note it rejected. One per voucher held outside the register and one per rejected credit
+// note, so detecting either again opens nothing new; credit notes rejected at the same number each
+// keep their own. The register is the one that holds the point of sale when the task is opened.
 export const fiscalTasks = pgTable(
   "fiscal_tasks",
   {
@@ -2536,21 +2537,24 @@ export const fiscalTasks = pgTable(
     pointOfSale: integer("point_of_sale").notNull(),
     documentType: text("document_type").notNull(),
     number: integer("number").notNull(),
+    creditNoteId: uuid("credit_note_id").references(() => orphanCreditNotes.id),
     reason: jsonb("reason").$type<JsonValue>().notNull(),
     state: text("state").notNull().default("open"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
     closedAt: timestamp("closed_at", { withTimezone: true }),
   },
   (table) => [
-    uniqueIndex("fiscal_tasks_voucher_key").on(
-      table.kind,
-      table.pointOfSale,
-      table.documentType,
-      table.number,
-    ),
+    uniqueIndex("fiscal_tasks_voucher_key")
+      .on(table.pointOfSale, table.documentType, table.number)
+      .where(sql`${table.kind} = 'external_invoicing'`),
+    uniqueIndex("fiscal_tasks_credit_note_key").on(table.creditNoteId),
     check(
       "fiscal_tasks_kind_check",
       sql`${table.kind} in ('external_invoicing', 'credit_note_rejected')`,
+    ),
+    check(
+      "fiscal_tasks_credit_note_check",
+      sql`(${table.kind} = 'credit_note_rejected') = (${table.creditNoteId} is not null)`,
     ),
     check(
       "fiscal_tasks_document_type_check",

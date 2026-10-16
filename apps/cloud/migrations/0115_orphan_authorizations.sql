@@ -5,11 +5,13 @@ CREATE TABLE "fiscal_tasks" (
 	"point_of_sale" integer NOT NULL,
 	"document_type" text NOT NULL,
 	"number" integer NOT NULL,
+	"credit_note_id" uuid,
 	"reason" jsonb NOT NULL,
 	"state" text DEFAULT 'open' NOT NULL,
 	"created_at" timestamp with time zone NOT NULL,
 	"closed_at" timestamp with time zone,
 	CONSTRAINT "fiscal_tasks_kind_check" CHECK ("fiscal_tasks"."kind" in ('external_invoicing', 'credit_note_rejected')),
+	CONSTRAINT "fiscal_tasks_credit_note_check" CHECK (("fiscal_tasks"."kind" = 'credit_note_rejected') = ("fiscal_tasks"."credit_note_id" is not null)),
 	CONSTRAINT "fiscal_tasks_document_type_check" CHECK ("fiscal_tasks"."document_type" in ('factura_c', 'credit_note_c')),
 	CONSTRAINT "fiscal_tasks_state_check" CHECK ("fiscal_tasks"."state" in ('open', 'closed')),
 	CONSTRAINT "fiscal_tasks_closed_time_check" CHECK (("fiscal_tasks"."state" = 'closed') = ("fiscal_tasks"."closed_at" is not null))
@@ -47,7 +49,9 @@ CREATE TABLE "orphan_credit_notes" (
 );
 --> statement-breakpoint
 ALTER TABLE "fiscal_tasks" ADD CONSTRAINT "fiscal_tasks_register_id_registers_id_fk" FOREIGN KEY ("register_id") REFERENCES "public"."registers"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "fiscal_tasks" ADD CONSTRAINT "fiscal_tasks_credit_note_id_orphan_credit_notes_id_fk" FOREIGN KEY ("credit_note_id") REFERENCES "public"."orphan_credit_notes"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "orphan_credit_notes" ADD CONSTRAINT "orphan_credit_notes_register_id_registers_id_fk" FOREIGN KEY ("register_id") REFERENCES "public"."registers"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-CREATE UNIQUE INDEX "fiscal_tasks_voucher_key" ON "fiscal_tasks" USING btree ("kind","point_of_sale","document_type","number");--> statement-breakpoint
+CREATE UNIQUE INDEX "fiscal_tasks_voucher_key" ON "fiscal_tasks" USING btree ("point_of_sale","document_type","number") WHERE "fiscal_tasks"."kind" = 'external_invoicing';--> statement-breakpoint
+CREATE UNIQUE INDEX "fiscal_tasks_credit_note_key" ON "fiscal_tasks" USING btree ("credit_note_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "orphan_credit_notes_orphan_key" ON "orphan_credit_notes" USING btree ("point_of_sale","associated_voucher_type","associated_number");--> statement-breakpoint
 CREATE UNIQUE INDEX "orphan_credit_notes_number_key" ON "orphan_credit_notes" USING btree ("point_of_sale","number") WHERE "orphan_credit_notes"."number" is not null and "orphan_credit_notes"."answer_kind" is distinct from 'rejected';

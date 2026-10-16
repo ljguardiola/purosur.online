@@ -420,9 +420,13 @@ function fiscalUnknownDescription({
 
 function externalBillingDescription({
   pointOfSale,
+  documentType,
   number,
 }: Extract<AlertDetail, { kind: "external_billing" }>["detail"]): string {
   const document = `${formatPointOfSaleNumber(pointOfSale)}-${formatInvoiceNumber(number)}`;
+  if (documentType === "credit_note_c") {
+    return `ARCA tiene autorizada la nota de crédito C ${document} de este punto de venta y ninguna nota de crédito emitida por el sistema la justifica. Revisar quién la emitió fuera del sistema.`;
+  }
   return `ARCA tiene autorizado el comprobante ${document} de este punto de venta y ninguna venta de la caja lo justifica. Revisar quién lo emitió fuera del sistema. No se emite ninguna nota de crédito automática.`;
 }
 

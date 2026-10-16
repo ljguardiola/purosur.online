@@ -1,5 +1,5 @@
 {
-  "id": "680362d6-1f06-432b-abff-978163ac7325",
+  "id": "e24b5dac-332f-4dfa-bc1b-d73288a11b21",
   "prevId": "838dd0ba-2e64-4d70-a4e5-9d321843e1dd",
   "version": "7",
   "dialect": "postgresql",
@@ -2527,6 +2527,12 @@
           "primaryKey": false,
           "notNull": true
         },
+        "credit_note_id": {
+          "name": "credit_note_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
         "reason": {
           "name": "reason",
           "type": "jsonb",
@@ -2558,12 +2564,6 @@
           "name": "fiscal_tasks_voucher_key",
           "columns": [
             {
-              "expression": "kind",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
               "expression": "point_of_sale",
               "isExpression": false,
               "asc": true,
@@ -2577,6 +2577,22 @@
             },
             {
               "expression": "number",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"fiscal_tasks\".\"kind\" = 'external_invoicing'",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "fiscal_tasks_credit_note_key": {
+          "name": "fiscal_tasks_credit_note_key",
+          "columns": [
+            {
+              "expression": "credit_note_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -2597,6 +2613,15 @@
           "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
+        },
+        "fiscal_tasks_credit_note_id_orphan_credit_notes_id_fk": {
+          "name": "fiscal_tasks_credit_note_id_orphan_credit_notes_id_fk",
+          "tableFrom": "fiscal_tasks",
+          "tableTo": "orphan_credit_notes",
+          "columnsFrom": ["credit_note_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -2606,6 +2631,10 @@
         "fiscal_tasks_kind_check": {
           "name": "fiscal_tasks_kind_check",
           "value": "\"fiscal_tasks\".\"kind\" in ('external_invoicing', 'credit_note_rejected')"
+        },
+        "fiscal_tasks_credit_note_check": {
+          "name": "fiscal_tasks_credit_note_check",
+          "value": "(\"fiscal_tasks\".\"kind\" = 'credit_note_rejected') = (\"fiscal_tasks\".\"credit_note_id\" is not null)"
         },
         "fiscal_tasks_document_type_check": {
           "name": "fiscal_tasks_document_type_check",
