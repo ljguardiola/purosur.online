@@ -5,7 +5,7 @@ import { insertEnrolledInstallation } from "../../register/test-support/enrolled
 import { applyCancelledSale } from "../../sales/test-support/applied-sales.js";
 import { insertInboxEvent } from "../../sync/test-support/inbox-events.js";
 import { ORDER_ID } from "./fake-mercado-pago-orders.js";
-import { pendingTransaction } from "./payment-transaction-fixtures.js";
+import { pendingPointTransaction, pendingTransaction } from "./payment-transaction-fixtures.js";
 
 export interface PendingQrRefund {
   refundId: string;
@@ -18,36 +18,53 @@ export interface PendingQrRefund {
   amount: number;
 }
 
-export async function aPendingQrRefundOfCancelledSale<TQueryResult extends PgQueryResultHKT>(
+interface PendingRefundOptions {
+  cancelledAt: Date;
+  amount?: number;
+  orderId?: string | null;
+  cancellingEvent?: boolean;
+  registerName?: string;
+}
+
+export function aPendingQrRefundOfCancelledSale<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
+  options: PendingRefundOptions,
+): Promise<PendingQrRefund> {
+  return aPendingMercadoPagoRefundOfCancelledSale(db, "QR", options);
+}
+
+export function aPendingPointRefundOfCancelledSale<TQueryResult extends PgQueryResultHKT>(
+  db: PgDatabase<TQueryResult>,
+  options: PendingRefundOptions,
+): Promise<PendingQrRefund> {
+  return aPendingMercadoPagoRefundOfCancelledSale(db, "POINT", options);
+}
+
+async function aPendingMercadoPagoRefundOfCancelledSale<TQueryResult extends PgQueryResultHKT>(
+  db: PgDatabase<TQueryResult>,
+  method: "QR" | "POINT",
   {
     cancelledAt,
     amount = 2_450,
     orderId = ORDER_ID,
     cancellingEvent = true,
     registerName = "Caja 1",
-  }: {
-    cancelledAt: Date;
-    amount?: number;
-    orderId?: string | null;
-    cancellingEvent?: boolean;
-    registerName?: string;
-  },
+  }: PendingRefundOptions,
 ): Promise<PendingQrRefund> {
   const { deviceId, locationId, registerId } = await insertEnrolledInstallation(db, {
     now: cancelledAt,
     registerName,
   });
-  const transaction = pendingTransaction(registerId, {
-    state: "APPROVED",
-    amount,
-    providerOrderId: orderId,
-  });
+  const backing = { state: "APPROVED", amount, providerOrderId: orderId } as const;
+  const transaction =
+    method === "QR"
+      ? pendingTransaction(registerId, backing)
+      : pendingPointTransaction(registerId, backing);
   await db.insert(paymentTransactions).values(transaction);
   const payment = {
     id: transaction.id,
-    method: "QR" as const,
-    provider: "MERCADOPAGO_QR" as const,
+    method,
+    provider: transaction.provider,
     amount,
     tendered: null,
     state: "APPROVED" as const,
@@ -66,8 +83,8 @@ export async function aPendingQrRefundOfCancelledSale<TQueryResult extends PgQue
         {
           id: crypto.randomUUID(),
           paymentId: payment.id,
-          method: "QR",
-          provider: "MERCADOPAGO_QR",
+          method,
+          provider: transaction.provider,
           amount,
           state: "PENDING",
           occurredAt: cancelledAt,
@@ -94,7 +111,7 @@ export async function aPendingQrRefundOfCancelledSale<TQueryResult extends PgQue
       aggregateType: "Sale",
       aggregateId: cancelled.id,
       eventType: "sale_cancelled",
-      schemaVersion: 6,
+      schemaVersion: method === "QR" ? 6 : 7,
       appliedAt: cancelledAt,
     });
   }

@@ -11,7 +11,10 @@ import {
 } from "./mercado-pago-refund-follow-task.js";
 import { FakeMercadoPagoOrders, NOW, ORDER_ID } from "./test-support/fake-mercado-pago-orders.js";
 import { aPendingLatePaymentRefund } from "./test-support/late-payment-refund-fixtures.js";
-import { aPendingQrRefundOfCancelledSale } from "./test-support/qr-refund-fixtures.js";
+import {
+  aPendingPointRefundOfCancelledSale,
+  aPendingQrRefundOfCancelledSale,
+} from "./test-support/qr-refund-fixtures.js";
 
 const NEXT_FOLLOW_AT = new Date(NOW.getTime() + 60_000);
 
@@ -108,6 +111,105 @@ describe("mercadoPagoRefundFollowJobs", () => {
       .from(paymentRefunds)
       .where(eq(paymentRefunds.id, pending.refundId));
     expect(refund).toMatchObject({ state: "APPROVED", doneBy: userId, doneAt: NOW });
+  });
+
+  describe("a Point refund of a cancelled sale", () => {
+    async function confirmedBy(
+      refundId: string,
+      values: Partial<typeof paymentRefunds.$inferInsert>,
+    ) {
+      const { userId } = await signedInWith(testDatabase.db, ["confirm_refunds"], NOW);
+      await testDatabase.db
+        .update(paymentRefunds)
+        .set({ confirmedBy: userId, confirmedAt: NOW, attemptKey: "key-1", ...values })
+        .where(eq(paymentRefunds.id, refundId));
+      return userId;
+    }
+
+    async function runFollow(mercadoPago: FakeMercadoPagoOrders) {
+      await taskOf(jobsOf(mercadoPago), MERCADO_PAGO_REFUND_FOLLOW_TASK_IDENTIFIER)(
+        {},
+        buildJobHelpers().helpers,
+      );
+    }
+
+    async function stored(refundId: string) {
+      const [refund] = await testDatabase.db
+        .select()
+        .from(paymentRefunds)
+        .where(eq(paymentRefunds.id, refundId));
+      return refund;
+    }
+
+    it("is never sent while nobody confirmed it", async () => {
+      await aPendingPointRefundOfCancelledSale(testDatabase.db, { cancelledAt: NOW });
+      const mercadoPago = new FakeMercadoPagoOrders();
+
+      await runFollow(mercadoPago);
+
+      expect(mercadoPago.refunds).toEqual([]);
+      expect(mercadoPago.refundReadings).toEqual([]);
+    });
+
+    it("is sent with its key once a person confirmed it, and recorded as sent", async () => {
+      const pending = await aPendingPointRefundOfCancelledSale(testDatabase.db, {
+        cancelledAt: NOW,
+      });
+      await confirmedBy(pending.refundId, {});
+      const mercadoPago = new FakeMercadoPagoOrders();
+
+      await runFollow(mercadoPago);
+
+      expect(mercadoPago.refunds).toEqual([{ orderId: ORDER_ID, idempotencyKey: "key-1" }]);
+      expect(await stored(pending.refundId)).toMatchObject({ state: "PENDING", sentAt: NOW });
+    });
+
+    it("is done by whoever confirmed it once a later read shows Mercado Pago processed it", async () => {
+      const pending = await aPendingPointRefundOfCancelledSale(testDatabase.db, {
+        cancelledAt: NOW,
+      });
+      const userId = await confirmedBy(pending.refundId, {
+        sentAt: NOW,
+        providerRefundId: "REF-1",
+      });
+      const mercadoPago = new FakeMercadoPagoOrders();
+      mercadoPago.orderRefunds = { kind: "read", refunds: [{ id: "REF-1", status: "processed" }] };
+
+      await runFollow(mercadoPago);
+
+      expect(await stored(pending.refundId)).toMatchObject({
+        state: "APPROVED",
+        doneBy: userId,
+        doneAt: NOW,
+      });
+    });
+
+    it("stays pending with its reason while Mercado Pago lacks the balance, and is tried again", async () => {
+      const pending = await aPendingPointRefundOfCancelledSale(testDatabase.db, {
+        cancelledAt: NOW,
+      });
+      await confirmedBy(pending.refundId, {});
+      const mercadoPago = new FakeMercadoPagoOrders();
+      mercadoPago.refund = { kind: "insufficient_balance" };
+
+      await runFollow(mercadoPago);
+
+      expect(await stored(pending.refundId)).toMatchObject({
+        state: "PENDING",
+        lastRefusalReason: "insufficient_balance",
+        sentAt: null,
+      });
+      mercadoPago.refund = { kind: "refunded", providerRefundId: "REF-2", processed: false };
+
+      await runFollow(mercadoPago);
+
+      expect(mercadoPago.refunds).toHaveLength(2);
+      expect(await stored(pending.refundId)).toMatchObject({
+        state: "PENDING",
+        sentAt: NOW,
+        providerRefundId: "REF-2",
+      });
+    });
   });
 
   it("never sends a refund nobody confirmed", async () => {

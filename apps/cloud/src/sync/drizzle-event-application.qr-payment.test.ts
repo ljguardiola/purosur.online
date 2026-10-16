@@ -2,7 +2,10 @@ import { randomUUID } from "node:crypto";
 import { applyPendingEvents } from "@purosur/domain/sync/use-cases";
 import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
-import { pendingTransaction } from "../payments/test-support/payment-transaction-fixtures.js";
+import {
+  pendingPointTransaction,
+  pendingTransaction,
+} from "../payments/test-support/payment-transaction-fixtures.js";
 import {
   alerts,
   inbox,
@@ -90,12 +93,13 @@ async function pushSaleCancelled(options: {
   saleId: string;
   paymentId: string;
   amount: number;
+  method?: "QR" | "POINT";
 }): Promise<string> {
   const sessionId = await openSession(options);
   return insertInboxEvent(system.db, options.deviceId, {
     aggregateId: options.saleId,
     eventType: "sale_cancelled",
-    schemaVersion: 6,
+    schemaVersion: options.method === "POINT" ? 7 : 6,
     payload: {
       id: options.saleId,
       register_id: randomUUID(),
@@ -112,8 +116,8 @@ async function pushSaleCancelled(options: {
         {
           id: options.paymentId,
           kind: "SALE",
-          method: "QR",
-          provider: "MERCADOPAGO_QR",
+          method: options.method ?? "QR",
+          provider: options.method === "POINT" ? "MERCADOPAGO_POINT" : "MERCADOPAGO_QR",
           amount: options.amount,
           tendered: null,
           state: "APPROVED",
@@ -127,8 +131,8 @@ async function pushSaleCancelled(options: {
           id: randomUUID(),
           kind: "REFUND",
           parent_id: options.paymentId,
-          method: "QR",
-          provider: "MERCADOPAGO_QR",
+          method: options.method ?? "QR",
+          provider: options.method === "POINT" ? "MERCADOPAGO_POINT" : "MERCADOPAGO_QR",
           amount: options.amount,
           state: "PENDING",
           occurred_at: OCCURRED_AT,
@@ -195,6 +199,46 @@ describe("applying a pushed sale paid by Mercado Pago QR", () => {
     });
     const [event] = await system.db.select().from(inbox).where(eq(inbox.eventId, eventId));
     expect(event?.appliedAt).not.toBeNull();
+  });
+
+  it("applies the cancellation of a sale paid on the Point terminal, leaving its refund pending, unconfirmed, on the provider's transaction", async () => {
+    const { deviceId, locationId, registerId } = await system.enrollInstallation();
+    const saleId = randomUUID();
+    const backing = pendingPointTransaction(registerId, {
+      id: randomUUID(),
+      saleId,
+      amount: AMOUNT,
+      state: "APPROVED",
+    });
+    await system.db.insert(paymentTransactions).values(backing);
+    const eventId = await pushSaleCancelled({
+      deviceId,
+      locationId,
+      saleId,
+      paymentId: backing.id,
+      amount: AMOUNT,
+      method: "POINT",
+    });
+
+    const outcome = await applyPending();
+
+    expect(outcome).toMatchObject({ kind: "processed", applied: 2, retried: 0 });
+    const [refund] = await system.db.select().from(paymentRefunds);
+    expect(refund).toMatchObject({
+      saleId,
+      paymentId: backing.id,
+      paymentTransactionId: backing.id,
+      originEventId: eventId,
+      origin: "sale_cancelled",
+      method: "POINT",
+      provider: "MERCADOPAGO_POINT",
+      amount: AMOUNT,
+      state: "PENDING",
+      confirmedBy: null,
+      confirmedAt: null,
+      sentAt: null,
+    });
+    expect(system.refundFollowRequests).toBe(0);
   });
 
   it.each([
