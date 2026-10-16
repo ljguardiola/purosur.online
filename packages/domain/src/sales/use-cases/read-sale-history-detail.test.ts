@@ -162,9 +162,9 @@ describe("readSaleHistoryDetail", () => {
       ).toEqual({
         kind: "voidable",
         refunds: [
-          { method: "CASH", amount: 5000, state: "APPROVED" },
-          { method: "TRANSFER", amount: 1500, state: "PENDING" },
-          { method: "STANDALONE_TERMINAL", amount: 1000, state: "PENDING" },
+          { method: "CASH", amount: 5000, state: "APPROVED", sentByCloud: false },
+          { method: "TRANSFER", amount: 1500, state: "PENDING", sentByCloud: false },
+          { method: "STANDALONE_TERMINAL", amount: 1000, state: "PENDING", sentByCloud: false },
         ],
       });
     });
@@ -211,8 +211,8 @@ describe("readSaleHistoryDetail", () => {
       ).toEqual({
         kind: "voidable",
         refunds: [
-          { method: "QR", amount: 7500, state: "PENDING" },
-          { method: "POINT", amount: 1200, state: "PENDING" },
+          { method: "QR", amount: 7500, state: "PENDING", sentByCloud: true },
+          { method: "POINT", amount: 1200, state: "PENDING", sentByCloud: true },
         ],
       });
     });

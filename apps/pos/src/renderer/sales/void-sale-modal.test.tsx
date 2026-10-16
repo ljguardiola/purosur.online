@@ -29,8 +29,18 @@ const SALE: SaleDetail = {
   reprint: { kind: "available" },
   next_copy: { kind: "original" },
 };
-const CASH_REFUND: VoidRefund = { method: "CASH", amount: 5_070_000, state: "APPROVED" };
-const TRANSFER_REFUND: VoidRefund = { method: "TRANSFER", amount: 250_000, state: "PENDING" };
+const CASH_REFUND: VoidRefund = {
+  method: "CASH",
+  amount: 5_070_000,
+  state: "APPROVED",
+  sent_by_cloud: false,
+};
+const TRANSFER_REFUND: VoidRefund = {
+  method: "TRANSFER",
+  amount: 250_000,
+  state: "PENDING",
+  sent_by_cloud: false,
+};
 const VOID = "Anular la venta";
 
 type Props = {
@@ -146,7 +156,10 @@ describe("VoidSaleModal", () => {
 
   it("leaves a Mercado Pago refund pending for the cloud to send once the person confirms it", async () => {
     const { screen, send } = await renderModal({
-      refunds: [CASH_REFUND, { method: "QR", amount: 90_000, state: "PENDING" }],
+      refunds: [
+        CASH_REFUND,
+        { method: "QR", amount: 90_000, state: "PENDING", sent_by_cloud: true },
+      ],
     });
 
     await expect.element(screen.getByText("QR de Mercado Pago · $ 900,00")).toBeVisible();
@@ -169,7 +182,7 @@ describe("VoidSaleModal", () => {
     const { screen, send } = await renderModal({
       refunds: [
         TRANSFER_REFUND,
-        { method: "STANDALONE_TERMINAL", amount: 90_000, state: "PENDING" },
+        { method: "STANDALONE_TERMINAL", amount: 90_000, state: "PENDING", sent_by_cloud: false },
       ],
     });
     const [first, second] = screen.getByText("Confirmo").elements();

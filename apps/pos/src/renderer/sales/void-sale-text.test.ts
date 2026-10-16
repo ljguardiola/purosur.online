@@ -27,7 +27,14 @@ describe("voidRefusalReason", () => {
 
 describe("voidRefundPresentation", () => {
   it("gives cash back on the spot", () => {
-    expect(voidRefundPresentation({ method: "CASH", amount: 100_000, state: "APPROVED" })).toEqual({
+    expect(
+      voidRefundPresentation({
+        method: "CASH",
+        amount: 100_000,
+        state: "APPROVED",
+        sent_by_cloud: false,
+      }),
+    ).toEqual({
       title: "Efectivo · $ 1.000,00",
       description: "Lo devolvés en efectivo en el momento.",
       chip: { label: "En el acto", tone: "success" },
@@ -39,7 +46,9 @@ describe("voidRefundPresentation", () => {
     ["TRANSFER", "Transferencia"],
     ["STANDALONE_TERMINAL", "Terminal independiente"],
   ] as const)("leaves a %s refund for a person to make outside the register", (method, name) => {
-    expect(voidRefundPresentation({ method, amount: 250_000, state: "PENDING" })).toEqual({
+    expect(
+      voidRefundPresentation({ method, amount: 250_000, state: "PENDING", sent_by_cloud: false }),
+    ).toEqual({
       title: `${name} · $ 2.500,00`,
       description: "Queda un reembolso pendiente: una persona lo hace por fuera de la caja.",
       chip: { label: "Pendiente", tone: "info" },
@@ -53,7 +62,9 @@ describe("voidRefundPresentation", () => {
   ] as const)(
     "leaves a %s refund for the cloud to send to Mercado Pago once confirmed",
     (method, name) => {
-      expect(voidRefundPresentation({ method, amount: 250_000, state: "PENDING" })).toEqual({
+      expect(
+        voidRefundPresentation({ method, amount: 250_000, state: "PENDING", sent_by_cloud: true }),
+      ).toEqual({
         title: `${name} · $ 2.500,00`,
         description:
           "Queda un reembolso pendiente que la nube envía a Mercado Pago al confirmarlo.",
@@ -62,4 +73,15 @@ describe("voidRefundPresentation", () => {
       });
     },
   );
+
+  it("follows what the core says about who sends the refund, not the payment method", () => {
+    expect(
+      voidRefundPresentation({
+        method: "QR",
+        amount: 1_000,
+        state: "PENDING",
+        sent_by_cloud: false,
+      }).description,
+    ).toBe("Queda un reembolso pendiente: una persona lo hace por fuera de la caja.");
+  });
 });
