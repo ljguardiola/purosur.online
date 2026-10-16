@@ -93,6 +93,7 @@ describe("openOverdueRefundTaskAlerts", () => {
     ["QR", "sale_voided"],
     ["POINT", "sale_voided"],
     ["QR", "sale_cancelled"],
+    ["POINT", "sale_cancelled"],
   ])(
     "opens none for a %s refund of origin %s already confirmed, which the cloud sends",
     async (method, origin) => {
@@ -112,6 +113,7 @@ describe("openOverdueRefundTaskAlerts", () => {
     ["QR", "sale_voided"],
     ["POINT", "sale_voided"],
     ["QR", "sale_cancelled"],
+    ["POINT", "sale_cancelled"],
   ])(
     "opens none for a %s refund of origin %s already confirmed, waiting for Mercado Pago's balance",
     async (method, origin) => {
@@ -136,6 +138,7 @@ describe("openOverdueRefundTaskAlerts", () => {
     ["QR", "sale_voided"],
     ["POINT", "sale_voided"],
     ["QR", "sale_cancelled"],
+    ["POINT", "sale_cancelled"],
   ])(
     "opens one for a %s refund of origin %s already confirmed that Mercado Pago refused for good",
     async (method, origin) => {

@@ -22,6 +22,17 @@ describe("followMercadoPagoRefunds", () => {
     expect(world.lanes.lanesEntered).toEqual([]);
   });
 
+  it("follows a confirmed refund of a cancelled sale paid on the Point terminal", async () => {
+    const world = refundWorld([aConfirmedRefund({ method: "POINT" })]);
+
+    const outcome = await followMercadoPagoRefunds(world.ports);
+
+    expect(outcome).toEqual({ kind: "followed", followed: 1, done: 0, unavailable: 0 });
+    expect(world.mercadoPago.refundRequests).toEqual([
+      { orderId: "ORD-1", idempotencyKey: "refund-key-0" },
+    ]);
+  });
+
   it("sends again, with the same key, a confirmed refund Mercado Pago could not be reached for", async () => {
     const world = refundWorld([aConfirmedRefund()]);
 
