@@ -20,6 +20,7 @@ export type { OfflineFiscalDocument } from "../model/offline-fiscal-document.js"
 export type {
   CreditNoteDecision,
   ExternalBilling,
+  ExternalInvoicingRegularization,
   LocalStanding,
   OrphanRegularization,
   VoucherReference,

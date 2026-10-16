@@ -1,6 +1,6 @@
 import type { TaxAuthorityRejection } from "../../model/fiscal-rejection-standing.js";
 import type { FiscalTask } from "../../model/fiscal-task.js";
-import type { OrphanRegularization } from "../../model/orphan-authorization.js";
+import type { ExternalInvoicingRegularization } from "../../model/orphan-authorization.js";
 import type {
   SolicitationAnswer,
   WsaaTokenSource,
@@ -32,7 +32,7 @@ export class FakeOrphanCreditNoteStore implements OrphanCreditNoteLanes, OrphanC
   readonly tasks: FiscalTask[] = [];
   readonly releases: {
     creditNoteId: string;
-    regularization: OrphanRegularization | null;
+    regularization: ExternalInvoicingRegularization | null;
   }[] = [];
   readonly lanesEntered: number[] = [];
   held = false;
@@ -118,7 +118,7 @@ class FakeOrphanCreditNoteLane implements OrphanCreditNoteLane {
 
   async releaseCreditNoteRequest(
     creditNoteId: string,
-    regularization: OrphanRegularization | null,
+    regularization: ExternalInvoicingRegularization | null,
   ): Promise<void> {
     this.store.operations.push("releaseCreditNoteRequest");
     this.store.releases.push({ creditNoteId, regularization });

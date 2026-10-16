@@ -134,6 +134,7 @@ describe("DrizzleUnclearOutcomeLanes", () => {
 
       expect(found).toEqual({
         fiscalDocumentId: request.fiscalDocumentId,
+        saleId: request.saleId,
         pointOfSale: 7,
         number: 42,
         issuedOn: "2026-10-06",
@@ -316,18 +317,6 @@ describe("DrizzleUnclearOutcomeLanes", () => {
           ),
         ),
       ).rejects.toThrow();
-    });
-  });
-
-  describe("the sale of a request", () => {
-    it("is read with the request", async () => {
-      const request = await recordedRequest(42, { kind: "unclear" });
-
-      const found = await unclearLanes.inPointOfSaleLane(7, (lane) =>
-        lane.unclearRequest(request.fiscalDocumentId),
-      );
-
-      expect(found?.saleId).toBe(request.saleId);
     });
   });
 

@@ -1,6 +1,7 @@
 import {
   type AbandonedRequestRecord,
   FiscalDocumentAlreadyRecorded,
+  type OrphanRegularization,
   type RecordedRequestOutcome,
   type UnclearOutcomeDecision,
   type UnclearOutcomeLane,
@@ -8,6 +9,7 @@ import {
   type UnclearOutcomeRequests,
   type UnclearOutcomeWarningClearance,
   type UnclearRequest,
+  type VoucherReference,
 } from "@purosur/domain/fiscal/use-cases";
 import { and, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
@@ -15,9 +17,12 @@ import { resolveUnclearOutcomeAlert } from "../alerts/resolve-unclear-outcome-al
 import { postgresErrorChain } from "../platform/db/postgres-error-chain.js";
 import { fiscalRequests, registerPointsOfSale } from "../platform/db/schema.js";
 import type { DedicatedConnections } from "../platform/dedicated-connections.js";
+import type { EnqueueOrphanCreditNote } from "./enqueue-orphan-credit-note.js";
 import type { EnqueueUnclearOutcome } from "./enqueue-unclear-outcome.js";
 import { answerOf } from "./fiscal-request-answer.js";
+import { otherAuthorizedVoucherOfSale } from "./orphan-local-standing.js";
 import { withPointOfSaleLaneLock } from "./point-of-sale-lane-lock.js";
+import { recordOrphanRegularization } from "./record-orphan-regularization.js";
 
 const UNIQUE_VIOLATION = "23505";
 const FISCAL_REQUESTS_PRIMARY_KEY = "fiscal_requests_pkey";
@@ -58,10 +63,16 @@ class DrizzleUnclearOutcomeLane<TQueryResult extends PgQueryResultHKT>
 {
   private readonly db: PgDatabase<TQueryResult>;
   private readonly enqueueUnclearOutcome: EnqueueUnclearOutcome;
+  private readonly enqueueOrphanCreditNote: EnqueueOrphanCreditNote;
 
-  constructor(db: PgDatabase<TQueryResult>, enqueueUnclearOutcome: EnqueueUnclearOutcome) {
+  constructor(
+    db: PgDatabase<TQueryResult>,
+    enqueueUnclearOutcome: EnqueueUnclearOutcome,
+    enqueueOrphanCreditNote: EnqueueOrphanCreditNote,
+  ) {
     this.db = db;
     this.enqueueUnclearOutcome = enqueueUnclearOutcome;
+    this.enqueueOrphanCreditNote = enqueueOrphanCreditNote;
   }
 
   async unclearRequest(fiscalDocumentId: string): Promise<UnclearRequest | null> {
@@ -75,6 +86,7 @@ class DrizzleUnclearOutcomeLane<TQueryResult extends PgQueryResultHKT>
     const answer = answerOf(row);
     return {
       fiscalDocumentId,
+      saleId: row.saleId,
       pointOfSale: row.pointOfSale,
       number: row.number,
       issuedOn: row.issuedOn,
@@ -100,6 +112,7 @@ class DrizzleUnclearOutcomeLane<TQueryResult extends PgQueryResultHKT>
     decision: UnclearOutcomeDecision,
     decidedAt: Date,
     clearedWarning: UnclearOutcomeWarningClearance,
+    regularization: OrphanRegularization | null,
   ): Promise<void> {
     await this.db.transaction(async (tx) => {
       await tx
@@ -111,7 +124,20 @@ class DrizzleUnclearOutcomeLane<TQueryResult extends PgQueryResultHKT>
         clearedWarning.fiscalDocumentId,
         clearedWarning.clearedAt,
       );
+      if (regularization !== null) {
+        await recordOrphanRegularization(tx, regularization, {
+          at: decidedAt,
+          enqueueOrphanCreditNote: this.enqueueOrphanCreditNote,
+        });
+      }
     });
+  }
+
+  otherAuthorizedVoucherOfSale(
+    saleId: string,
+    fiscalDocumentId: string,
+  ): Promise<VoucherReference | null> {
+    return otherAuthorizedVoucherOfSale(this.db, saleId, fiscalDocumentId);
   }
 
   async registerOwnsPointOfSale(registerId: string, pointOfSale: number): Promise<boolean> {
@@ -184,13 +210,16 @@ export class DrizzleUnclearOutcomeLanes<TQueryResult extends PgQueryResultHKT>
 {
   private readonly connections: DedicatedConnections<TQueryResult>;
   private readonly enqueueUnclearOutcome: EnqueueUnclearOutcome;
+  private readonly enqueueOrphanCreditNote: EnqueueOrphanCreditNote;
 
   constructor(
     connections: DedicatedConnections<TQueryResult>,
     enqueueUnclearOutcome: EnqueueUnclearOutcome,
+    enqueueOrphanCreditNote: EnqueueOrphanCreditNote,
   ) {
     this.connections = connections;
     this.enqueueUnclearOutcome = enqueueUnclearOutcome;
+    this.enqueueOrphanCreditNote = enqueueOrphanCreditNote;
   }
 
   inPointOfSaleLane<TOutcome>(
@@ -198,7 +227,9 @@ export class DrizzleUnclearOutcomeLanes<TQueryResult extends PgQueryResultHKT>
     work: (lane: UnclearOutcomeLane) => Promise<TOutcome>,
   ): Promise<TOutcome> {
     return withPointOfSaleLaneLock(this.connections, pointOfSale, (db) =>
-      work(new DrizzleUnclearOutcomeLane(db, this.enqueueUnclearOutcome)),
+      work(
+        new DrizzleUnclearOutcomeLane(db, this.enqueueUnclearOutcome, this.enqueueOrphanCreditNote),
+      ),
     );
   }
 }

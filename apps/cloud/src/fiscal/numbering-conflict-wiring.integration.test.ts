@@ -146,6 +146,7 @@ describe("the numbering conflict work the server sets up on a real Postgres", ()
       );
       expect(await pointOfSaleRow()).toMatchObject({ tax_authority_last_authorized_number: 1 });
 
+      fakeWsfe.requests.length = 0;
       fakeWsfe.behave(
         answersInTurn("fe-comp-ultimo-autorizado-advanced.xml", "fe-comp-consultar-found.xml"),
       );
@@ -177,13 +178,18 @@ describe("the numbering conflict work the server sets up on a real Postgres", ()
   }, 90_000);
 
   it.each([
-    ["holds no voucher at the numbers", "fe-comp-consultar-not-found.xml"],
-    ["gives no answer about the numbers", "fe-comp-consultar-token-error.xml"],
+    ["holds no voucher at the numbers", 9, "fe-comp-consultar-not-found.xml"],
+    ["gives no answer about the numbers", 10, "fe-comp-consultar-token-error.xml"],
   ])(
     "alerts nothing, opens no task and keeps the point of sale frozen while ARCA %s",
-    async (_case, file) => {
-      const { registerId } = await registerHoldingPointOfSale(9, 1);
-      const fiscalDocumentId = await leftUnclearByNumbering(registerId, 9, 40, "2126-01-01");
+    async (_case, pointOfSale, file) => {
+      const { registerId } = await registerHoldingPointOfSale(pointOfSale, 1);
+      const fiscalDocumentId = await leftUnclearByNumbering(
+        registerId,
+        pointOfSale,
+        40,
+        "2126-01-01",
+      );
       fakeWsfe.behave(
         answersInTurn("fe-comp-ultimo-autorizado.xml", "fe-comp-consultar-found.xml"),
       );
@@ -198,7 +204,7 @@ describe("the numbering conflict work the server sets up on a real Postgres", ()
         await vi.waitFor(
           async () =>
             expect(
-              await sql`select 1 from numbering_freezes where point_of_sale_number = 9`,
+              await sql`select 1 from numbering_freezes where point_of_sale_number = ${pointOfSale}`,
             ).toHaveLength(1),
           {
             timeout: 20_000,
@@ -209,25 +215,27 @@ describe("the numbering conflict work the server sets up on a real Postgres", ()
         fakeWsfe.requests.length = 0;
         fakeWsfe.behave(answersInTurn("fe-comp-ultimo-autorizado-advanced.xml", file));
         await recovery.db.transaction((transaction) =>
-          enqueueNumberingReconciliationJob(transaction, 9),
+          enqueueNumberingReconciliationJob(transaction, pointOfSale),
         );
         await vi.waitFor(
           async () =>
             expect(
               await sql`select 1 from graphile_worker._private_jobs
-                where key = 'reconcile-numbering-conflict:9' and run_at > ${NOW}`,
+                where key = ${`reconcile-numbering-conflict:${pointOfSale}`} and run_at > ${NOW.toISOString()}::timestamptz`,
             ).toHaveLength(1),
           { timeout: 20_000, interval: 100 },
         );
         expect(fakeWsfe.requests.length).toBeGreaterThanOrEqual(2);
 
         expect(
-          await sql`select 1 from numbering_freezes where point_of_sale_number = 9`,
+          await sql`select 1 from numbering_freezes where point_of_sale_number = ${pointOfSale}`,
         ).toHaveLength(1);
         expect(
-          await sql`select 1 from alerts where kind = 'external_billing' and scope like '9:%'`,
+          await sql`select 1 from alerts where kind = 'external_billing' and scope like ${`${pointOfSale}:%`}`,
         ).toEqual([]);
-        expect(await sql`select 1 from fiscal_tasks where point_of_sale = 9`).toEqual([]);
+        expect(await sql`select 1 from fiscal_tasks where point_of_sale = ${pointOfSale}`).toEqual(
+          [],
+        );
       } finally {
         await recovery.close();
       }
@@ -261,7 +269,7 @@ describe("the numbering conflict work the server sets up on a real Postgres", ()
       expect(last !== undefined && "row" in last ? last.row : undefined).toMatchObject({
         numbering_frozen: false,
       });
-      expect(await sql`select 1 from numbering_freezes`).toEqual([]);
+      expect(await sql`select 1 from numbering_freezes where point_of_sale_number = 8`).toEqual([]);
     } finally {
       await app.close();
       await recovery.close();

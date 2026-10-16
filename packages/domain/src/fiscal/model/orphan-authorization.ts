@@ -95,9 +95,15 @@ export interface ExternalBilling {
   number: number;
 }
 
+export type ExternalInvoicingRegularization = {
+  kind: "external_invoicing";
+  externalBilling: ExternalBilling;
+  task: FiscalTask;
+};
+
 export type OrphanRegularization =
   | (CreditNoteDecision & { creditNoteId: string })
-  | { kind: "external_invoicing"; externalBilling: ExternalBilling; task: FiscalTask };
+  | ExternalInvoicingRegularization;
 
 export function orphanRegularization(
   decision: OrphanAuthorizationDecision,

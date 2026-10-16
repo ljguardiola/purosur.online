@@ -31,6 +31,12 @@ let sql: ReturnType<typeof postgres>;
 let db: PostgresJsDatabase<Record<string, never>>;
 const registers = new Map<number, string>();
 const enqueued: string[] = [];
+let sequence = 1_000;
+
+function nextNumber(): number {
+  sequence += 2;
+  return sequence;
+}
 
 beforeAll(async () => {
   integrationDb = await createIntegrationDatabase("orphan_regularization_lanes");
@@ -138,7 +144,7 @@ describe("the orphan regularization lane on a real Postgres", () => {
       });
     });
 
-    it.each([
+    it.each<[string, Partial<typeof fiscalRequests.$inferInsert>]>([
       [
         "authorized",
         {
@@ -160,22 +166,25 @@ describe("the orphan regularization lane on a real Postgres", () => {
           adoptedAuthorizationCodeDueOn: "2026-10-16",
         },
       ],
-    ] as const)("names the other request of the same sale that is %s", async (_case, columns) => {
-      const orphan = await recordedRequest(9, 23);
-      await recordedRequest(9, 24, { saleId: orphan.saleId, ...columns });
+    ])("names the other request of the same sale that is %s", async (_case, columns) => {
+      const number = nextNumber();
+      const orphan = await recordedRequest(9, number);
+      await recordedRequest(9, number + 1, { saleId: orphan.saleId, ...columns });
 
       expect(
-        await inLane(9, (lane) =>
-          lane.localStandingOfAuthorization({ pointOfSale: 9, number: 23 }),
-        ),
+        await inLane(9, (lane) => lane.localStandingOfAuthorization({ pointOfSale: 9, number })),
       ).toEqual({
         kind: "local_sale",
         saleId: orphan.saleId,
-        otherAuthorizedVoucher: { voucherType: FACTURA_C_VOUCHER_TYPE, pointOfSale: 9, number: 24 },
+        otherAuthorizedVoucher: {
+          voucherType: FACTURA_C_VOUCHER_TYPE,
+          pointOfSale: 9,
+          number: number + 1,
+        },
       });
     });
 
-    it.each([
+    it.each<[string, Partial<typeof fiscalRequests.$inferInsert>]>([
       [
         "rejected",
         {
@@ -206,16 +215,15 @@ describe("the orphan regularization lane on a real Postgres", () => {
           decidedAt: OPENED_AT,
         },
       ],
-    ] as const)(
+    ])(
       "does not take another request of the same sale that is %s as authorized",
       async (_case, columns) => {
-        const orphan = await recordedRequest(9, 25);
-        await recordedRequest(9, 26, { saleId: orphan.saleId, ...columns });
+        const number = nextNumber();
+        const orphan = await recordedRequest(9, number);
+        await recordedRequest(9, number + 1, { saleId: orphan.saleId, ...columns });
 
         expect(
-          await inLane(9, (lane) =>
-            lane.localStandingOfAuthorization({ pointOfSale: 9, number: 25 }),
-          ),
+          await inLane(9, (lane) => lane.localStandingOfAuthorization({ pointOfSale: 9, number })),
         ).toMatchObject({ kind: "local_sale", otherAuthorizedVoucher: null });
       },
     );
