@@ -130,7 +130,7 @@ export const unconfirmedCloudRefund: PendingRefund = {
   delivery_stage: "unconfirmed",
 };
 
-export const unconfirmedPointRefundOfCancelledSale: PendingRefund = {
+const unconfirmedPointRefundOfCancelledSale: PendingRefund = {
   ...unconfirmedCloudRefund,
   id: "55555555-5555-4555-8555-555555555556",
   method: "POINT",
