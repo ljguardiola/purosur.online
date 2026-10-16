@@ -15,6 +15,17 @@ export type RemoveUserPasskeyOutcome =
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "failed" };
 
+export type RemoveEveryUserPasskeyOutcome =
+  | { kind: "ok" }
+  | { kind: "not_found" }
+  | { kind: "own_account" }
+  | { kind: "no_passkeys" }
+  | { kind: "authorization_required" }
+  | { kind: "forbidden" }
+  | { kind: "unauthenticated" }
+  | { kind: "rate_limited"; retryAfterSeconds: number }
+  | { kind: "failed" };
+
 export type EmitUserPinCodeOutcome =
   | { kind: "ok"; value: { code: string; expiresAt: string } }
   | { kind: "not_found" }
@@ -106,6 +117,29 @@ export async function removeUserPasskey(
   }
   if (response.status === 403) {
     return forbiddenOrOwnAccount(response);
+  }
+  return gatedActionErrorOutcome(response);
+}
+
+export async function removeEveryUserPasskey(id: string): Promise<RemoveEveryUserPasskeyOutcome> {
+  let response: Response;
+  try {
+    response = await fetch(`/api/users//passkeys`, { method: "DELETE" });
+  } catch {
+    return { kind: "failed" };
+  }
+  if (response.ok) {
+    return { kind: "ok" };
+  }
+  if (response.status === 404) {
+    return { kind: "not_found" };
+  }
+  if (response.status === 403) {
+    return forbiddenOrOwnAccount(response);
+  }
+  if (response.status === 409) {
+    const body = (await response.json().catch(() => undefined)) as { code?: string } | undefined;
+    return body?.code === "no_passkeys" ? { kind: "no_passkeys" } : { kind: "failed" };
   }
   return gatedActionErrorOutcome(response);
 }
