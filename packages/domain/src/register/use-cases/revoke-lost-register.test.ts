@@ -87,12 +87,14 @@ describe("revokeLostRegister", () => {
     ]);
   });
 
-  it("requires every user of the branch to set a new PIN", async () => {
+  it("requires every user of the branch to set a new PIN, on behalf of who revoked it", async () => {
     const world = setup();
 
     await revoke(world);
 
-    expect(world.store.snapshot().branchesWithPinResetRequired).toEqual(["branch-1"]);
+    expect(world.store.snapshot().branchesWithPinResetRequired).toEqual([
+      { branchId: "branch-1", actorId: "actor-1" },
+    ]);
   });
 
   it("opens an alert naming the revoked device", async () => {

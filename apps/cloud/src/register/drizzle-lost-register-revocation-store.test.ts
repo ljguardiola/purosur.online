@@ -217,7 +217,7 @@ describe("DrizzleLostRegisterRevocationStore", () => {
     ]);
   });
 
-  it("audits each PIN reset with its cause, only for users who had a PIN", async () => {
+  it("audits each PIN reset with its cause and the actor, only for users who had a PIN", async () => {
     const { registerId, locationId, actorId } = await setUp();
     const cashier = await insertUserWithPin(db, { firstName: "Bea", locationId });
     await insertUserWithPin(db, { firstName: "Caro", locationId, withPin: false });
@@ -225,7 +225,12 @@ describe("DrizzleLostRegisterRevocationStore", () => {
     await revokeRegister(db, { branchId: locationId, registerId, actorId });
 
     const rows = await db
-      .select({ entityId: auditLog.entityId, newValue: auditLog.newValue, at: auditLog.at })
+      .select({
+        entityId: auditLog.entityId,
+        actorId: auditLog.actorId,
+        newValue: auditLog.newValue,
+        at: auditLog.at,
+      })
       .from(auditLog)
       .where(eq(auditLog.entity, "user"));
     expect(rows).toHaveLength(2);
@@ -233,11 +238,13 @@ describe("DrizzleLostRegisterRevocationStore", () => {
       expect.arrayContaining([
         {
           entityId: cashier,
+          actorId,
           newValue: { pin_reset_required_by: "register_revocation" },
           at: REVOKED_AT,
         },
         {
           entityId: actorId,
+          actorId,
           newValue: { pin_reset_required_by: "register_revocation" },
           at: REVOKED_AT,
         },

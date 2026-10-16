@@ -21,7 +21,7 @@ interface FakeLostRegisterState {
   installations: FakeLostRegisterInstallation[];
   snapshotKeys: FakeKey[];
   contingencyTicketKeys: FakeKey[];
-  branchesWithPinResetRequired: string[];
+  branchesWithPinResetRequired: { branchId: string; actorId: string }[];
   alerts: LostRegisterRevocationAlert[];
   revocations: LostRegisterRevocation[];
 }
@@ -86,9 +86,9 @@ class FakeLostRegisterRevocationTransaction implements LostRegisterRevocationSto
     this.state.contingencyTicketKeys.push({ registerId, ...key });
   }
 
-  async requirePinResetOfBranchUsers(branchId: string): Promise<void> {
+  async requirePinResetOfBranchUsers(branchId: string, actorId: string): Promise<void> {
     this.beforeWrite("requirePinResetOfBranchUsers");
-    this.state.branchesWithPinResetRequired.push(branchId);
+    this.state.branchesWithPinResetRequired.push({ branchId, actorId });
   }
 
   async openRevocationAlert(alert: LostRegisterRevocationAlert): Promise<void> {
