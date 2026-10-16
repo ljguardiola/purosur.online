@@ -6,6 +6,7 @@ import type { BackofficeAccess } from "../shell/backoffice-access";
 import { ADMINISTRATOR_ACCESS, accessWith } from "../shell/test-support/backoffice-access";
 import { render } from "../shell/test-support/render-with-router";
 import { type UsersListFilters, usersListFilters } from "./routes";
+import { EndEverySessionSectionStub } from "./test-support/users-list-screen";
 import type { BranchUser } from "./users-api";
 import { UsersListScreen } from "./users-list-screen";
 import type { UsersListScreenServices } from "./users-list-services";
@@ -154,6 +155,7 @@ function screenElement(
         access={access}
         filters={filters}
         onFiltersChange={onFiltersChange}
+        endEverySessionSection={EndEverySessionSectionStub}
       />
     </main>
   );
@@ -688,6 +690,7 @@ test("keeps the loaded list and an open create modal when the parent re-renders 
         access={ADMINISTRATOR_ACCESS}
         filters={usersListFilters.parse({})}
         onFiltersChange={() => {}}
+        endEverySessionSection={EndEverySessionSectionStub}
       />
     </main>,
   );
@@ -756,6 +759,7 @@ test("a refresh of the roles in the background does not overwrite what is typed 
         access={ADMINISTRATOR_ACCESS}
         filters={usersListFilters.parse({})}
         onFiltersChange={() => {}}
+        endEverySessionSection={EndEverySessionSectionStub}
       />
     </main>,
   );
