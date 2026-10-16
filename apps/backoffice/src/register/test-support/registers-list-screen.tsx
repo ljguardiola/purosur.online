@@ -112,3 +112,10 @@ export function renderScreen(
     </main>,
   );
 }
+
+export async function renderRegisters(registers: RegisterSummary[], access?: BackofficeAccess) {
+  const services = createServices();
+  vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: registers });
+  const screen = await renderScreen(services, undefined, access);
+  return { services, screen };
+}

@@ -21,6 +21,7 @@ type Handlers = {
   open?: boolean;
   onClose?: () => void;
   onRevoked?: (revocation: { revokedRegisters: number }) => void;
+  onOutdated?: () => void;
   onSessionEnded?: () => void;
 };
 
@@ -31,6 +32,7 @@ function modalFor(services: RegistersListScreenServices, handlers: Handlers = {}
         open={handlers.open ?? true}
         onClose={handlers.onClose ?? (() => {})}
         onRevoked={handlers.onRevoked ?? (() => {})}
+        onOutdated={handlers.onOutdated ?? (() => {})}
         onSessionEnded={handlers.onSessionEnded ?? (() => {})}
         services={services}
       />
@@ -49,10 +51,12 @@ type Dialog = Awaited<ReturnType<typeof renderModal>>["dialog"];
 
 function ClosableModal({
   services,
-  onRevoked,
+  onRevoked = () => {},
+  onOutdated = () => {},
 }: {
   services: RegistersListScreenServices;
-  onRevoked: () => void;
+  onRevoked?: () => void;
+  onOutdated?: () => void;
 }) {
   const [open, setOpen] = useState(true);
   return (
@@ -64,6 +68,7 @@ function ClosableModal({
         open={open}
         onClose={() => setOpen(false)}
         onRevoked={onRevoked}
+        onOutdated={onOutdated}
         onSessionEnded={() => {}}
         services={services}
       />
@@ -180,18 +185,20 @@ test("cancelling the authorization leaves the modal open and revokes nothing", a
   expect(onRevoked).not.toHaveBeenCalled();
 });
 
-test("explains that no register has an installation in service to revoke", async () => {
+test("explains that no register has an installation in service to revoke and reports the list outdated", async () => {
   const services = createServices();
   vi.mocked(services.revokeEveryInstallation).mockResolvedValue({
     kind: "no_active_installation",
   });
-  const { dialog } = await renderModal(services);
+  const onOutdated = vi.fn();
+  const { dialog } = await renderModal(services, { onOutdated });
 
   await confirm(dialog);
 
   await expect
     .element(dialog.getByText("Ninguna caja tiene una instalación vigente para revocar."))
     .toBeVisible();
+  expect(onOutdated).toHaveBeenCalledTimes(1);
 });
 
 test("shows the rate-limited notice", async () => {
@@ -219,15 +226,25 @@ test("shows the attempt-failed notice", async () => {
   await expect.element(dialog.getByText("Probá de nuevo.")).toBeVisible();
 });
 
-test("navigates to Mi cuenta when the revocation comes back forbidden", async () => {
-  window.history.pushState(null, "", "/registers");
+test("shows the attempt-failed notice when the revocation still asks for authorization after the passkey", async () => {
   const services = createServices();
-  vi.mocked(services.revokeEveryInstallation).mockResolvedValue({ kind: "forbidden" });
-  const { dialog } = await renderModal(services);
-
+  vi.mocked(services.revokeEveryInstallation).mockResolvedValue({
+    kind: "authorization_required",
+  });
+  grantAuthorization(services);
+  const onRevoked = vi.fn();
+  const { screen, dialog } = await renderModal(services, { onRevoked });
   await confirm(dialog);
 
-  await expect.poll(() => window.location.pathname).toBe("/account");
+  await userEvent.click(
+    screen
+      .getByRole("dialog", { name: "Autorizá este cambio" })
+      .getByRole("button", { name: "Usar mi passkey" }),
+  );
+
+  await expect.element(dialog.getByText("No se pudieron revocar las instalaciones")).toBeVisible();
+  await expect.element(dialog.getByText("Probá de nuevo.")).toBeVisible();
+  expect(onRevoked).not.toHaveBeenCalled();
 });
 
 test("ends the session when the revocation finds no open session", async () => {
@@ -261,4 +278,26 @@ test("reports the registers revoked when the success arrives after the modal was
   await screen.rerender(element);
 
   await expect.poll(() => onRevoked.mock.calls.length).toBe(1);
+});
+
+test("reports the list outdated when no installation in service is found after the modal was closed", async () => {
+  const services = createServices();
+  let answer: (outcome: RevokeEveryInstallationOutcome) => void = () => {};
+  vi.mocked(services.revokeEveryInstallation).mockReturnValue(
+    new Promise((resolve) => {
+      answer = resolve;
+    }),
+  );
+  const onOutdated = vi.fn();
+  const element = <ClosableModal services={services} onOutdated={onOutdated} />;
+  const screen = await render(element);
+  const dialog = screen.getByRole("dialog", { name: "Revocar todas las instalaciones" });
+  await confirm(dialog);
+  await userEvent.click(dialog.getByRole("button", { name: "Cerrar" }));
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+
+  answer({ kind: "no_active_installation" });
+  await screen.rerender(element);
+
+  await expect.poll(() => onOutdated.mock.calls.length).toBe(1);
 });

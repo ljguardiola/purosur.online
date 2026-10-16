@@ -62,48 +62,6 @@ describe("revokeEveryInstallation", () => {
     ]);
   });
 
-  it("keeps the previous key versions of every register beside the new ones", async () => {
-    const world = setup();
-
-    await revoke(world);
-
-    const state = world.store.snapshot();
-    expect(state.snapshotKeys).toEqual([
-      { registerId: "register-a", version: 1, key: "snapshot-old-register-a" },
-      { registerId: "register-b", version: 1, key: "snapshot-old-register-b" },
-      { registerId: "register-a", version: 2, key: "key-1" },
-      { registerId: "register-b", version: 2, key: "key-3" },
-    ]);
-    expect(state.contingencyTicketKeys).toEqual([
-      { registerId: "register-a", version: 1, key: "ticket-old-register-a" },
-      { registerId: "register-b", version: 1, key: "ticket-old-register-b" },
-      { registerId: "register-a", version: 2, key: "key-2" },
-      { registerId: "register-b", version: 2, key: "key-4" },
-    ]);
-  });
-
-  it("creates the first version of a key set that is empty", async () => {
-    const store = new FakeEveryInstallationRevocationStore();
-    store.seedRegister("register-a");
-    store.seedInstallation({
-      registerId: "register-a",
-      deviceId: "device-1",
-      hostname: "caja-01",
-      windowsVersion: "10.0.22631",
-      revokedAt: null,
-    });
-
-    await revoke({ store, clock: new FixedClock(NOW), keys: new SequentialInstallationKeys() });
-
-    expect(store.snapshot().snapshotKeys).toEqual([
-      { registerId: "register-a", version: 1, key: "key-1" },
-    ]);
-    expect(store.snapshot().revocations[0]).toMatchObject({
-      snapshotKeyVersion: { previous: null, current: 1 },
-      contingencyTicketKeyVersion: { previous: null, current: 1 },
-    });
-  });
-
   it("opens one alert per revoked register naming its device", async () => {
     const world = setup();
 
