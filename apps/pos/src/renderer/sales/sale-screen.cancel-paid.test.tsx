@@ -8,6 +8,7 @@ const CASH_REFUND = {
   method: "CASH",
   amount: 100_000,
   state: "APPROVED",
+  sent_by_cloud: false,
 } as const;
 const PAID_SALE: OpenSale = {
   ...SALE_OF_YERBA,
@@ -22,6 +23,7 @@ const STANDALONE_TERMINAL_REFUND = {
   method: "STANDALONE_TERMINAL",
   amount: 90_000,
   state: "PENDING",
+  sent_by_cloud: false,
 } as const;
 const SALE_WITH_STANDALONE_TERMINAL_PAYMENT: OpenSale = {
   ...PAID_SALE,
@@ -33,11 +35,24 @@ const QR_REFUND = {
   method: "QR",
   amount: 70_000,
   state: "PENDING",
+  sent_by_cloud: true,
 } as const;
 const SALE_WITH_QR_PAYMENT: OpenSale = {
   ...PAID_SALE,
   paid: 70_000,
   refunds_on_cancel: [QR_REFUND],
+};
+const POINT_REFUND = {
+  payment_id: "p4",
+  method: "POINT",
+  amount: 60_000,
+  state: "PENDING",
+  sent_by_cloud: true,
+} as const;
+const SALE_WITH_POINT_PAYMENT: OpenSale = {
+  ...PAID_SALE,
+  paid: 60_000,
+  refunds_on_cancel: [POINT_REFUND],
 };
 const CANCELLED: CancelPaidSaleOutcome = {
   kind: "cancelled",
@@ -217,5 +232,54 @@ describe("SaleScreen cancelling a sale with an approved Mercado Pago QR payment"
       )
       .toBeVisible();
     expect(cancelPaidSale).not.toHaveBeenCalled();
+  });
+});
+
+describe("SaleScreen cancelling a sale with an approved integrated terminal payment", () => {
+  it("offers to cancel it, showing its pending refund and who sends it", async () => {
+    const cancelPaidSale = vi.fn(async (): Promise<CancelPaidSaleOutcome> => CANCELLED);
+    const { screen } = await renderScreen({
+      currentSale: async () => SALE_WITH_POINT_PAYMENT,
+      cancelPaidSale,
+    });
+
+    await screen.getByRole("button", { name: "Cancelar venta" }).click();
+
+    const dialog = screen.getByRole("dialog", { name: "¿Cancelar la venta?" });
+    await expect
+      .element(dialog.getByText("Reembolso pendiente del pago con la terminal por $ 600,00"))
+      .toBeVisible();
+    await expect
+      .element(
+        dialog.getByText(
+          "La nube lo envía a Mercado Pago cuando alguien lo confirma en el backoffice.",
+        ),
+      )
+      .toBeVisible();
+    expect(cancelPaidSale).not.toHaveBeenCalled();
+  });
+
+  it("cancels it and shows the pending refund once cancelled", async () => {
+    const cancelPaidSale = vi.fn(
+      async (): Promise<CancelPaidSaleOutcome> => ({
+        kind: "cancelled",
+        refunds: [POINT_REFUND],
+        authorized_by: null,
+      }),
+    );
+    const { screen } = await renderScreen({
+      currentSale: readingFirst(SALE_WITH_POINT_PAYMENT, null),
+      cancelPaidSale,
+    });
+    await expect.element(screen.getByText("Yerba mate 1 kg")).toBeVisible();
+    await screen.getByRole("button", { name: "Cancelar venta" }).click();
+
+    await screen.getByRole("button", { name: "Cancelar la venta" }).click();
+
+    expect(cancelPaidSale).toHaveBeenCalledExactlyOnceWith("sale-1", undefined);
+    const cancelled = screen.getByRole("dialog", { name: "Venta cancelada" });
+    await expect
+      .element(cancelled.getByText("Reembolso pendiente del pago con la terminal por $ 600,00"))
+      .toBeVisible();
   });
 });

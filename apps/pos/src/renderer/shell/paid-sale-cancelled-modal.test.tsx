@@ -10,12 +10,14 @@ const CASH_REFUND: OpenSale["refunds_on_cancel"][number] = {
   method: "CASH",
   amount: 100_000,
   state: "APPROVED",
+  sent_by_cloud: false,
 };
 const TRANSFER_REFUND: OpenSale["refunds_on_cancel"][number] = {
   payment_id: "p2",
   method: "TRANSFER",
   amount: 250_000,
   state: "PENDING",
+  sent_by_cloud: false,
 };
 
 async function renderModal(refunds: OpenSale["refunds_on_cancel"]) {

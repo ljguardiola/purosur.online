@@ -3137,6 +3137,7 @@ describe("App", () => {
           method: "CASH",
           amount: 100_000,
           state: "APPROVED",
+          sent_by_cloud: false,
         } as const;
         let cancelled = false;
         const { screen } = await cancelFromLocked({

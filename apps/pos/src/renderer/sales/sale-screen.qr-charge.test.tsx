@@ -21,7 +21,7 @@ const SALE_WITH_POINT_PAYMENT: OpenSale = {
   paid: 100_000,
   pending: 376_000,
   lines_lock: "approved_payment",
-  cancel_refusal: "holds_point_payment",
+  cancel_refusal: null,
 };
 
 describe("SaleScreen while a QR charge of the sale is in its wait", () => {
@@ -102,28 +102,5 @@ describe("SaleScreen with an approved integrated terminal payment", () => {
     const { field } = await renderScreen({ currentSale: async () => SALE_WITH_POINT_PAYMENT });
 
     await expect.element(field).toHaveAccessibleDescription(APPROVED_PAYMENT_LOCK);
-  });
-
-  it("keeps offering to cancel and says it cannot be voided from the register, as the core still answers", async () => {
-    const currentSale = answering(SALE_WITH_POINT_PAYMENT);
-    const cancelSale = vi.fn();
-    const cancelPaidSale = vi.fn();
-    const { screen } = await renderScreen({ currentSale, cancelSale, cancelPaidSale });
-    await expect.element(screen.getByRole("button", { name: "Cancelar venta" })).toBeEnabled();
-
-    await screen.getByRole("button", { name: "Cancelar venta" }).click();
-
-    await expect.element(screen.getByText("No se puede cancelar la venta")).toBeVisible();
-    await expect
-      .element(
-        screen.getByText(
-          "La venta tiene un pago con la terminal de Mercado Pago: todavía no se puede anular desde la caja.",
-        ),
-      )
-      .toBeVisible();
-    await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
-    expect(currentSale).toHaveBeenCalledTimes(2);
-    expect(cancelSale).not.toHaveBeenCalled();
-    expect(cancelPaidSale).not.toHaveBeenCalled();
   });
 });
