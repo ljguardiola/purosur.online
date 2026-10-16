@@ -1662,15 +1662,12 @@ describe("asking for the detail of one sale of the history", () => {
         voidability: { kind: "not_voidable", refusal: "not_completed" },
       },
     },
-    ...[
-      "not_completed",
-      "session_closed",
-      "invoice_in_flight",
-      "carries_invoice",
-    ].map((refusal) => ({
-      kind: "found",
-      detail: { ...detail, voidability: { kind: "not_voidable", refusal } },
-    })),
+    ...["not_completed", "session_closed", "invoice_in_flight", "carries_invoice"].map(
+      (refusal) => ({
+        kind: "found",
+        detail: { ...detail, voidability: { kind: "not_voidable", refusal } },
+      }),
+    ),
     { kind: "found", detail: { ...detail, voidability: { kind: "voidable", refunds: [] } } },
     { kind: "not_found" },
     { kind: "not_signed_in" },
