@@ -5,6 +5,7 @@ import { cashAndFiscalAreaRoute } from "../shell/cash-and-fiscal-area";
 import { lazyScreen } from "../shell/lazy-screen";
 import { reportsAreaRoute } from "../shell/reports-area";
 import { refuseWithout } from "../shell/signed-in-route";
+import { handConfirmedPaymentsFilters } from "./hand-confirmed-payments-filters";
 import { salesByPaymentMethodFilters } from "./sales-by-payment-method-filters";
 
 export const ALL_REGISTERS = "all";
@@ -31,4 +32,16 @@ export const salesByPaymentMethodRoute = createRoute({
   validateSearch: salesByPaymentMethodFilters,
   search: { middlewares: [stripSearchParams(salesByPaymentMethodFilters.parse({}))] },
   component: lazyScreen(() => import("./sales-by-payment-method-page"), "SalesByPaymentMethodPage"),
+});
+
+export const handConfirmedPaymentsRoute = createRoute({
+  getParentRoute: () => reportsAreaRoute,
+  path: "reports/hand-confirmed-payments",
+  beforeLoad: ({ context: { session } }) => refuseWithout(session, canSeeReports),
+  validateSearch: handConfirmedPaymentsFilters,
+  search: { middlewares: [stripSearchParams(handConfirmedPaymentsFilters.parse({}))] },
+  component: lazyScreen(
+    () => import("./hand-confirmed-payments-page"),
+    "HandConfirmedPaymentsPage",
+  ),
 });

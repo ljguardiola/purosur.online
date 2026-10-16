@@ -1,6 +1,8 @@
 import {
   ARGENTINA_TIME_ZONE,
-  CONFIRMED_BY_HAND_METHODS, isCalendarDay, isReportPeriodAsked,
+  CONFIRMED_BY_HAND_METHODS,
+  isCalendarDay,
+  isReportPeriodAsked,
 } from "@purosur/domain";
 import { z } from "zod";
 import { recordIdSchema } from "../shared/index.js";
