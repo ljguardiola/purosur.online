@@ -5,7 +5,7 @@ import {
 import { eq } from "drizzle-orm";
 import type { PgliteQueryResultHKT } from "drizzle-orm/pglite";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { alerts, fiscalRequests } from "../platform/db/schema.js";
+import { alerts, fiscalRequests, fiscalTasks, orphanCreditNotes } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { DrizzlePointOfSaleLanes } from "./drizzle-point-of-sale-lanes.js";
 import {
@@ -17,6 +17,8 @@ import {
   insertRegisterWithPointOfSale,
   RECEIVED_AT,
 } from "./test-support/authorization-request-fixtures.js";
+import { insertOfflineFiscalDocument } from "./test-support/offline-fiscal-document-fixtures.js";
+import { externalInvoicingRegularization } from "./test-support/orphan-regularization-fixtures.js";
 import { anUnclearDocument } from "./test-support/unclear-document-fixtures.js";
 
 const ANSWERED_AT = new Date("2026-10-06T15:00:02.000Z");
@@ -31,18 +33,29 @@ let authorizationLanes: DrizzlePointOfSaleLanes<PgliteQueryResultHKT>;
 let enqueued: string[];
 let enqueuedAt: Date[];
 let enqueueFailure: Error | undefined;
+let creditNotesEnqueued: string[];
+let creditNoteEnqueueFailure: Error | undefined;
 
 beforeAll(async () => {
   testDatabase = await buildTestDatabase();
   db = testDatabase.db;
   const connections = { withConnection: <T>(work: (db_: typeof db) => Promise<T>) => work(db) };
-  unclearLanes = new DrizzleUnclearOutcomeLanes(connections, async (_, id, runAt) => {
-    if (enqueueFailure) {
-      throw enqueueFailure;
-    }
-    enqueued.push(id);
-    enqueuedAt.push(runAt);
-  });
+  unclearLanes = new DrizzleUnclearOutcomeLanes(
+    connections,
+    async (_, id, runAt) => {
+      if (enqueueFailure) {
+        throw enqueueFailure;
+      }
+      enqueued.push(id);
+      enqueuedAt.push(runAt);
+    },
+    async (_, creditNoteId) => {
+      if (creditNoteEnqueueFailure) {
+        throw creditNoteEnqueueFailure;
+      }
+      creditNotesEnqueued.push(creditNoteId);
+    },
+  );
   requests = new DrizzleUnclearOutcomeRequests(db);
   authorizationLanes = new DrizzlePointOfSaleLanes(
     connections,
@@ -61,6 +74,8 @@ beforeEach(async () => {
   enqueued = [];
   enqueuedAt = [];
   enqueueFailure = undefined;
+  creditNotesEnqueued = [];
+  creditNoteEnqueueFailure = undefined;
 });
 
 async function recordedRequest(number = 42, answer?: RealTimeAuthorizationAnswer) {
@@ -181,10 +196,16 @@ describe("DrizzleUnclearOutcomeLanes", () => {
       const request = await recordedRequest(42, { kind: "unclear" });
 
       await unclearLanes.inPointOfSaleLane(7, (lane) =>
-        lane.recordDecision(request.fiscalDocumentId, { kind: "released" }, DECIDED_AT, {
-          fiscalDocumentId: request.fiscalDocumentId,
-          clearedAt: DECIDED_AT,
-        }),
+        lane.recordDecision(
+          request.fiscalDocumentId,
+          { kind: "released" },
+          DECIDED_AT,
+          {
+            fiscalDocumentId: request.fiscalDocumentId,
+            clearedAt: DECIDED_AT,
+          },
+          null,
+        ),
       );
 
       expect(await storedRow(request.fiscalDocumentId)).toMatchObject({
@@ -210,6 +231,7 @@ describe("DrizzleUnclearOutcomeLanes", () => {
           },
           DECIDED_AT,
           { fiscalDocumentId: request.fiscalDocumentId, clearedAt: DECIDED_AT },
+          null,
         ),
       );
 
@@ -225,10 +247,16 @@ describe("DrizzleUnclearOutcomeLanes", () => {
       const request = await recordedRequest(42, { kind: "unclear" });
 
       await unclearLanes.inPointOfSaleLane(7, (lane) =>
-        lane.recordDecision(request.fiscalDocumentId, { kind: "conflicting" }, DECIDED_AT, {
-          fiscalDocumentId: request.fiscalDocumentId,
-          clearedAt: DECIDED_AT,
-        }),
+        lane.recordDecision(
+          request.fiscalDocumentId,
+          { kind: "conflicting" },
+          DECIDED_AT,
+          {
+            fiscalDocumentId: request.fiscalDocumentId,
+            clearedAt: DECIDED_AT,
+          },
+          null,
+        ),
       );
 
       expect(await storedRow(request.fiscalDocumentId)).toMatchObject({
@@ -251,10 +279,16 @@ describe("DrizzleUnclearOutcomeLanes", () => {
       const request = await recordedRequest(42, { kind: "unclear" });
 
       const found = await unclearLanes.inPointOfSaleLane(7, async (lane) => {
-        await lane.recordDecision(request.fiscalDocumentId, decision, DECIDED_AT, {
-          fiscalDocumentId: request.fiscalDocumentId,
-          clearedAt: DECIDED_AT,
-        });
+        await lane.recordDecision(
+          request.fiscalDocumentId,
+          decision,
+          DECIDED_AT,
+          {
+            fiscalDocumentId: request.fiscalDocumentId,
+            clearedAt: DECIDED_AT,
+          },
+          null,
+        );
         return lane.unclearRequest(request.fiscalDocumentId);
       });
 
@@ -270,12 +304,239 @@ describe("DrizzleUnclearOutcomeLanes", () => {
 
       await expect(
         unclearLanes.inPointOfSaleLane(7, (lane) =>
-          lane.recordDecision(request.fiscalDocumentId, { kind: "released" }, DECIDED_AT, {
-            fiscalDocumentId: request.fiscalDocumentId,
-            clearedAt: DECIDED_AT,
-          }),
+          lane.recordDecision(
+            request.fiscalDocumentId,
+            { kind: "released" },
+            DECIDED_AT,
+            {
+              fiscalDocumentId: request.fiscalDocumentId,
+              clearedAt: DECIDED_AT,
+            },
+            null,
+          ),
         ),
       ).rejects.toThrow();
+    });
+  });
+
+  describe("the sale of a request", () => {
+    it("is read with the request", async () => {
+      const request = await recordedRequest(42, { kind: "unclear" });
+
+      const found = await unclearLanes.inPointOfSaleLane(7, (lane) =>
+        lane.unclearRequest(request.fiscalDocumentId),
+      );
+
+      expect(found?.saleId).toBe(request.saleId);
+    });
+  });
+
+  describe("another authorized voucher of the sale", () => {
+    const authorized = {
+      answerKind: "authorized",
+      authorizationCode: "75123456789012",
+      authorizationCodeDueOn: "2026-10-16",
+      answeredAt: ANSWERED_AT,
+    } as const;
+
+    async function otherAuthorizedVoucherOf(saleId: string, fiscalDocumentId: string) {
+      return unclearLanes.inPointOfSaleLane(7, (lane) =>
+        lane.otherAuthorizedVoucherOfSale(saleId, fiscalDocumentId),
+      );
+    }
+
+    it("is none when the sale holds no other voucher", async () => {
+      const request = await recordedRequest(42, { kind: "unclear" });
+
+      expect(await otherAuthorizedVoucherOf(request.saleId, request.fiscalDocumentId)).toBeNull();
+    });
+
+    it("is the voucher of the offline point of sale the sale was issued under", async () => {
+      const request = await recordedRequest(42, { kind: "unclear" });
+      await insertOfflineFiscalDocument(db, {
+        registerId: request.registerId,
+        pointOfSale: 31,
+        fortnight: { start: "2026-10-01", end: "2026-10-15" },
+        number: 5,
+        saleId: request.saleId,
+      });
+
+      expect(await otherAuthorizedVoucherOf(request.saleId, request.fiscalDocumentId)).toEqual({
+        voucherType: 11,
+        pointOfSale: 31,
+        number: 5,
+      });
+    });
+
+    it("is the voucher of another request of the sale that was authorized", async () => {
+      const request = await recordedRequest(42, { kind: "unclear" });
+      const other = authorizationRequestRecord(request.registerId, {
+        saleId: request.saleId,
+        number: 43,
+      });
+      await db.insert(fiscalRequests).values({ ...other, ...authorized });
+
+      expect(await otherAuthorizedVoucherOf(request.saleId, request.fiscalDocumentId)).toEqual({
+        voucherType: 11,
+        pointOfSale: 7,
+        number: 43,
+      });
+    });
+
+    it("is the voucher of another request of the sale whose unclear outcome was adopted", async () => {
+      const request = await recordedRequest(42, { kind: "unclear" });
+      const other = authorizationRequestRecord(request.registerId, {
+        saleId: request.saleId,
+        number: 44,
+      });
+      await db.insert(fiscalRequests).values({
+        ...other,
+        answerKind: "unclear",
+        unclearCodes: [],
+        answeredAt: ANSWERED_AT,
+        decision: "adopted",
+        decidedAt: DECIDED_AT,
+        adoptedAuthorizationCode: "75123456789013",
+        adoptedAuthorizationCodeDueOn: "2026-10-16",
+      });
+
+      expect(await otherAuthorizedVoucherOf(request.saleId, request.fiscalDocumentId)).toEqual({
+        voucherType: 11,
+        pointOfSale: 7,
+        number: 44,
+      });
+    });
+
+    it("never names the request it is asked about, even when that one is authorized", async () => {
+      const request = await recordedRequest(42, {
+        kind: "authorized",
+        authorizationCode: "74123456789012",
+        authorizationCodeDueOn: "2026-10-16",
+      });
+
+      expect(await otherAuthorizedVoucherOf(request.saleId, request.fiscalDocumentId)).toBeNull();
+    });
+
+    it("does not take a request of another sale, nor one of the sale that was not authorized", async () => {
+      const request = await recordedRequest(42, { kind: "unclear" });
+      await db.insert(fiscalRequests).values({
+        ...authorizationRequestRecord(request.registerId, { number: 45 }),
+        ...authorized,
+      });
+      await db.insert(fiscalRequests).values({
+        ...authorizationRequestRecord(request.registerId, { saleId: request.saleId, number: 46 }),
+        answerKind: "rejected",
+        rejectionCodes: [10015],
+        rejectionClass: "content",
+        answeredAt: ANSWERED_AT,
+      });
+
+      expect(await otherAuthorizedVoucherOf(request.saleId, request.fiscalDocumentId)).toBeNull();
+    });
+  });
+
+  describe("recording a decision together with the regularization of an orphan authorization", () => {
+    const credit = (saleId: string, number: number) => ({
+      kind: "credit_note" as const,
+      creditNoteId: crypto.randomUUID(),
+      saleId,
+      pointOfSale: 7,
+      associatedVoucher: { voucherType: 11, pointOfSale: 7, number },
+      keptVoucher: { voucherType: 11, pointOfSale: 31, number: 5 },
+      total: 1500,
+      receiverTaxStatusCode: 5,
+    });
+    const adopted = {
+      kind: "adopted" as const,
+      authorizationCode: "74123456789012",
+      authorizationCodeDueOn: "2026-10-16",
+    };
+
+    it("keeps the credit note request with the decision and asks for it to be issued", async () => {
+      const request = await recordedRequest(42, { kind: "unclear" });
+      const regularization = credit(request.saleId, 42);
+
+      await unclearLanes.inPointOfSaleLane(7, (lane) =>
+        lane.recordDecision(
+          request.fiscalDocumentId,
+          adopted,
+          DECIDED_AT,
+          { fiscalDocumentId: request.fiscalDocumentId, clearedAt: DECIDED_AT },
+          regularization,
+        ),
+      );
+
+      expect(await storedRow(request.fiscalDocumentId)).toMatchObject({ decision: "adopted" });
+      expect(
+        (await db.select().from(orphanCreditNotes)).map(({ id, saleId, associatedNumber }) => ({
+          id,
+          saleId,
+          associatedNumber,
+        })),
+      ).toEqual([
+        { id: regularization.creditNoteId, saleId: request.saleId, associatedNumber: 42 },
+      ]);
+      expect(creditNotesEnqueued).toEqual([regularization.creditNoteId]);
+    });
+
+    it("opens the alert and the task for invoicing outside the register with the decision", async () => {
+      const request = await recordedRequest(42, { kind: "unclear" });
+
+      await unclearLanes.inPointOfSaleLane(7, (lane) =>
+        lane.recordDecision(
+          request.fiscalDocumentId,
+          { kind: "conflicting" },
+          DECIDED_AT,
+          { fiscalDocumentId: request.fiscalDocumentId, clearedAt: DECIDED_AT },
+          externalInvoicingRegularization({ pointOfSale: 7, number: 42 }),
+        ),
+      );
+
+      expect(await storedRow(request.fiscalDocumentId)).toMatchObject({ decision: "conflicting" });
+      expect(
+        (await db.select().from(fiscalTasks)).map(({ kind, number }) => ({ kind, number })),
+      ).toEqual([{ kind: "external_invoicing", number: 42 }]);
+      expect(
+        (await db.select().from(alerts)).filter((alert) => alert.kind === "external_billing"),
+      ).toHaveLength(1);
+    });
+
+    it("records neither the decision nor the credit note when asking for the credit note fails", async () => {
+      const request = await recordedRequest(42, { kind: "unclear" });
+      creditNoteEnqueueFailure = new Error("the queue refused");
+
+      await expect(
+        unclearLanes.inPointOfSaleLane(7, (lane) =>
+          lane.recordDecision(
+            request.fiscalDocumentId,
+            adopted,
+            DECIDED_AT,
+            { fiscalDocumentId: request.fiscalDocumentId, clearedAt: DECIDED_AT },
+            credit(request.saleId, 42),
+          ),
+        ),
+      ).rejects.toThrow("the queue refused");
+
+      expect(await storedRow(request.fiscalDocumentId)).toMatchObject({ decision: null });
+      expect(await db.select().from(orphanCreditNotes)).toEqual([]);
+    });
+
+    it("records no regularization for a decision that carries none", async () => {
+      const request = await recordedRequest(42, { kind: "unclear" });
+
+      await unclearLanes.inPointOfSaleLane(7, (lane) =>
+        lane.recordDecision(
+          request.fiscalDocumentId,
+          adopted,
+          DECIDED_AT,
+          { fiscalDocumentId: request.fiscalDocumentId, clearedAt: DECIDED_AT },
+          null,
+        ),
+      );
+
+      expect(await db.select().from(orphanCreditNotes)).toEqual([]);
+      expect(await db.select().from(fiscalTasks)).toEqual([]);
+      expect(creditNotesEnqueued).toEqual([]);
     });
   });
 
@@ -293,10 +554,16 @@ describe("DrizzleUnclearOutcomeLanes", () => {
       const clearedAt = new Date(DECIDED_AT.getTime() + 5_000);
 
       await unclearLanes.inPointOfSaleLane(document.pointOfSale, (lane) =>
-        lane.recordDecision(document.fiscalDocumentId, { kind: "released" }, DECIDED_AT, {
-          fiscalDocumentId: document.fiscalDocumentId,
-          clearedAt,
-        }),
+        lane.recordDecision(
+          document.fiscalDocumentId,
+          { kind: "released" },
+          DECIDED_AT,
+          {
+            fiscalDocumentId: document.fiscalDocumentId,
+            clearedAt,
+          },
+          null,
+        ),
       );
 
       const [alert] = await db
@@ -349,10 +616,16 @@ describe("DrizzleUnclearOutcomeLanes", () => {
 
       const recorded = await unclearLanes.inPointOfSaleLane(7, async (lane) => {
         const before = await lane.recordedRequest(request.registerId, request.fiscalDocumentId);
-        await lane.recordDecision(request.fiscalDocumentId, { kind: "released" }, DECIDED_AT, {
-          fiscalDocumentId: request.fiscalDocumentId,
-          clearedAt: DECIDED_AT,
-        });
+        await lane.recordDecision(
+          request.fiscalDocumentId,
+          { kind: "released" },
+          DECIDED_AT,
+          {
+            fiscalDocumentId: request.fiscalDocumentId,
+            clearedAt: DECIDED_AT,
+          },
+          null,
+        );
         const after = await lane.recordedRequest(request.registerId, request.fiscalDocumentId);
         return [before, after];
       });

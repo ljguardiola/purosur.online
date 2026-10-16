@@ -66,7 +66,11 @@ class HeldTaxAuthority implements TaxAuthorityInvoicing {
 }
 
 function unclearLanes() {
-  return new DrizzleUnclearOutcomeLanes(postgresDedicatedConnections(sql), async () => {});
+  return new DrizzleUnclearOutcomeLanes(
+    postgresDedicatedConnections(sql),
+    async () => {},
+    async () => {},
+  );
 }
 
 function authorizationPorts(taxAuthority: TaxAuthorityInvoicing): AuthorizeFiscalDocumentPorts {

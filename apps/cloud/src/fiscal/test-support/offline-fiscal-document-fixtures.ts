@@ -10,11 +10,18 @@ export async function insertOfflineFiscalDocument<TQueryResult extends PgQueryRe
     pointOfSale,
     fortnight,
     number,
-  }: { registerId: string; pointOfSale: number; fortnight: Fortnight; number: number },
+    saleId = randomUUID(),
+  }: {
+    registerId: string;
+    pointOfSale: number;
+    fortnight: Fortnight;
+    number: number;
+    saleId?: string;
+  },
 ): Promise<void> {
   await db.insert(offlineFiscalDocuments).values({
     id: randomUUID(),
-    saleId: randomUUID(),
+    saleId,
     registerId,
     pointOfSale,
     documentType: "factura_c",

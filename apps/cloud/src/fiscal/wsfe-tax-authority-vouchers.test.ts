@@ -17,6 +17,7 @@ const lookup = {
     expiresAt: new Date("2026-10-01T18:00:00.000Z"),
   },
   pointOfSale: 7,
+  voucherType: 11,
   number: 42,
 };
 
@@ -78,6 +79,12 @@ describe("WsfeTaxAuthorityVouchers", () => {
     expect(sentValue(request, "PtoVta")).toBe("7");
     expect(sentValue(request, "CbteTipo")).toBe("11");
     expect(sentValue(request, "CbteNro")).toBe("42");
+  });
+
+  it("asks for the voucher type it is given", async () => {
+    await vouchersAt(server.endpoint).voucherAt({ ...lookup, voucherType: 13 });
+
+    expect(sentValue(server.requests[0], "CbteTipo")).toBe("13");
   });
 
   it("answers none when ARCA holds no data for the number", async () => {

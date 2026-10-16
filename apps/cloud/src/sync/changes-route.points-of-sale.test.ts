@@ -50,6 +50,7 @@ function numberingLanes() {
   return new DrizzleNumberingConflictLanes(
     { withConnection: (work) => work(db) },
     async () => {},
+    async () => {},
     () => NOW,
   );
 }
@@ -291,7 +292,7 @@ describe("GET /changes carrying the register's own point of sale", () => {
     );
 
     await lanes.inPointOfSaleLane(7, (lane) =>
-      lane.settleNumberingReconciliation({ externalBillings: [], lastAuthorized: 44 }),
+      lane.settleNumberingReconciliation({ regularizations: [], lastAuthorized: 44 }),
     );
 
     expect((await pullAfterSeed(deviceToken)).at(-1)).toEqual({
