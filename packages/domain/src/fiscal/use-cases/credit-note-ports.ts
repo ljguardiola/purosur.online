@@ -1,4 +1,5 @@
 import type { Clock } from "../../shared/index.js";
+import type { CreditNoteReason } from "../model/credit-note.js";
 import type { TaxAuthorityRejection } from "../model/fiscal-rejection-standing.js";
 import type { FiscalTask } from "../model/fiscal-task.js";
 import type {
@@ -19,7 +20,13 @@ export type CreditNoteStanding =
       requestedAt: Date;
       unclearAnsweredAt: Date | null;
     }
-  | { kind: "authorized" }
+  | {
+      kind: "authorized";
+      number: number;
+      issuedOn: string;
+      authorizationCode: string;
+      authorizationCodeDueOn: string;
+    }
   | { kind: "rejected" };
 
 export class CreditNoteNumberTaken extends Error {}
@@ -30,6 +37,7 @@ export interface CreditNote {
   associatedVoucher: VoucherReference;
   total: number;
   receiverTaxStatusCode: number;
+  reason: CreditNoteReason;
   standing: CreditNoteStanding;
 }
 

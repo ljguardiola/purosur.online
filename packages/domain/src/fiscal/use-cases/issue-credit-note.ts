@@ -11,6 +11,7 @@ import {
   creditNoteRejectedTask,
   externalInvoicingTask,
 } from "../model/fiscal-task.js";
+import type { CreditNoteAnswer } from "../model/sale-void-credit-note.js";
 import {
   hasUnclearOutcomeSettled,
   UNCLEAR_OUTCOME_REASK_INTERVAL_MS,
@@ -29,16 +30,19 @@ export interface IssueCreditNoteInput {
   creditNoteId: string;
 }
 
+interface AuthorizedCreditNote {
+  pointOfSale: number;
+  number: number;
+  issuedOn: string;
+  authorizationCode: string;
+  authorizationCodeDueOn: string;
+}
+
 export type IssueCreditNoteOutcome =
-  | {
-      kind: "authorized";
-      number: number;
-      authorizationCode: string;
-      authorizationCodeDueOn: string;
-    }
-  | { kind: "adopted"; number: number; authorizationCode: string; authorizationCodeDueOn: string }
+  | ({ kind: "authorized" } & AuthorizedCreditNote)
+  | ({ kind: "adopted" } & AuthorizedCreditNote)
   | { kind: "rejected"; rejections: readonly TaxAuthorityRejection[] }
-  | { kind: "already_authorized" }
+  | ({ kind: "already_authorized" } & AuthorizedCreditNote)
   | { kind: "already_rejected" }
   | { kind: "retry"; askAgainAt: Date }
   | { kind: "not_found" };
@@ -60,7 +64,8 @@ export async function issueCreditNote(
     }
     const { standing } = creditNote;
     if (standing.kind === "authorized") {
-      return { kind: "already_authorized" };
+      const { kind: _kind, ...authorized } = standing;
+      return { kind: "already_authorized", pointOfSale, ...authorized };
     }
     if (standing.kind === "rejected") {
       return { kind: "already_rejected" };
@@ -108,7 +113,9 @@ export async function issueCreditNote(
         });
         return {
           kind: "adopted",
+          pointOfSale,
           number: standing.number,
+          issuedOn: standing.issuedOn,
           authorizationCode,
           authorizationCodeDueOn,
         };
@@ -174,6 +181,7 @@ export async function issueCreditNote(
       creditNoteId,
       pointOfSale,
       number,
+      issuedOn,
       solicitation,
       answeredAt: clock.now(),
     });
@@ -186,12 +194,14 @@ async function recordAnswer(
     creditNoteId,
     pointOfSale,
     number,
+    issuedOn,
     solicitation,
     answeredAt,
   }: {
     creditNoteId: string;
     pointOfSale: number;
     number: number;
+    issuedOn: string;
     solicitation: SolicitationAnswer;
     answeredAt: Date;
   },
@@ -205,7 +215,14 @@ async function recordAnswer(
       authorizationCodeDueOn,
       authorizedAt: answeredAt,
     });
-    return { kind: "authorized", number, authorizationCode, authorizationCodeDueOn };
+    return {
+      kind: "authorized",
+      pointOfSale,
+      number,
+      issuedOn,
+      authorizationCode,
+      authorizationCodeDueOn,
+    };
   }
   if (answer.kind === "rejected") {
     const rejections = solicitationRejections(solicitation);
@@ -219,4 +236,22 @@ async function recordAnswer(
   }
   await lane.recordCreditNoteUnclear(creditNoteId, answeredAt);
   return { kind: "retry", askAgainAt: unclearOutcomeSettlesAt(answeredAt) };
+}
+
+export function creditNoteAnswerOf(outcome: IssueCreditNoteOutcome): CreditNoteAnswer | null {
+  switch (outcome.kind) {
+    case "authorized":
+    case "adopted":
+    case "already_authorized": {
+      const { kind: _kind, ...authorized } = outcome;
+      return { kind: "authorized", ...authorized };
+    }
+    case "rejected":
+    case "already_rejected":
+      return { kind: "rejected" };
+    case "retry":
+      return { kind: "in_progress" };
+    case "not_found":
+      return null;
+  }
 }

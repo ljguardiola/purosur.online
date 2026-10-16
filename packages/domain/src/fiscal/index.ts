@@ -20,7 +20,8 @@ export {
 export type { ClockCorrectedFact, ClockCorrectionAlertState } from "./model/clock-correction.js";
 export { CLOCK_CORRECTED_EVENT_TYPE, clockCorrectedEvent } from "./model/clock-correction.js";
 export { selectConsumerBuyerTaxStatus } from "./model/consumer-buyer-tax-status.js";
-export { CREDIT_NOTE_C_VOUCHER_TYPE } from "./model/credit-note.js";
+export type { CreditNoteReason } from "./model/credit-note.js";
+export { CREDIT_NOTE_C_VOUCHER_TYPE, CREDIT_NOTE_REASONS } from "./model/credit-note.js";
 export { isValidCuit } from "./model/cuit.js";
 export type {
   DeferredSale,

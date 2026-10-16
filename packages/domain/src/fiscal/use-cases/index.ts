@@ -255,7 +255,7 @@ export type {
   IssueCreditNoteInput,
   IssueCreditNoteOutcome,
 } from "./issue-credit-note.js";
-export { issueCreditNote } from "./issue-credit-note.js";
+export { creditNoteAnswerOf, issueCreditNote } from "./issue-credit-note.js";
 export type {
   AuthorizedIssuerIdentification,
   EditableIssuerIdentification,

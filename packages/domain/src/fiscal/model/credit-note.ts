@@ -4,6 +4,10 @@ import { decideUnclearOutcome, type TaxAuthorityEvidence } from "./unclear-outco
 
 export const CREDIT_NOTE_C_VOUCHER_TYPE = 13;
 
+export const CREDIT_NOTE_REASONS = ["orphan", "sale_void"] as const;
+
+export type CreditNoteReason = (typeof CREDIT_NOTE_REASONS)[number];
+
 export function creditNoteIssueDate(issuedAt: Date): string {
   return argentinaCalendarDay(issuedAt);
 }
