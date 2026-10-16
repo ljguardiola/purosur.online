@@ -1,4 +1,5 @@
 import {
+  everyInstallationRevocationSchema,
   type PointTerminalAssignmentBody,
   pointTerminalAssignmentSchema,
   type RegisterCreationBody,
@@ -91,6 +92,11 @@ export type RevokeRegisterOutcome =
   | { kind: "authorization_required" }
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "failed" };
+
+export type RevokeEveryInstallationOutcome =
+  | { kind: "ok"; value: { revokedAt: string; revokedRegisters: number } }
+  | { kind: "no_active_installation" }
+  | GatedActionErrorOutcome;
 
 function postJson(path: string, body?: unknown): Promise<Response> {
   return fetch(path, {
@@ -264,6 +270,35 @@ export async function revokeRegister(id: string): Promise<RevokeRegisterOutcome>
   }
   if (response.status === 404) {
     return { kind: "not_found" };
+  }
+  if (response.status === 409) {
+    const code = ((await response.json().catch(() => undefined)) as { code?: string } | undefined)
+      ?.code;
+    return code === "no_active_installation" ? { kind: code } : { kind: "failed" };
+  }
+  return gatedActionErrorOutcome(response);
+}
+
+export async function revokeEveryInstallation(): Promise<RevokeEveryInstallationOutcome> {
+  let response: Response;
+  try {
+    response = await postJson("/api/registers/revocations");
+  } catch {
+    return { kind: "failed" };
+  }
+  if (response.ok) {
+    const parsed = everyInstallationRevocationSchema.safeParse(
+      await response.json().catch(() => undefined),
+    );
+    return parsed.success
+      ? {
+          kind: "ok",
+          value: {
+            revokedAt: parsed.data.revoked_at,
+            revokedRegisters: parsed.data.revoked_registers,
+          },
+        }
+      : { kind: "failed" };
   }
   if (response.status === 409) {
     const code = ((await response.json().catch(() => undefined)) as { code?: string } | undefined)

@@ -2,6 +2,7 @@ import {
   actionsColumn,
   Button,
   dataColumn,
+  FloatingNotification,
   formatPointOfSaleNumber,
   plural,
   Table,
@@ -9,7 +10,7 @@ import {
   Tag,
   useTableModel,
 } from "@purosur/ui";
-import { Ban, CreditCard, KeySquare, Laptop, Plus } from "lucide-react";
+import { Ban, Check, CreditCard, KeySquare, Laptop, Plus } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useAuthorization } from "../platform/authorization-modal";
 import { cloudTableState } from "../platform/cloud-table-state";
@@ -43,6 +44,8 @@ import type {
   RegisterSummary,
 } from "./registers-api";
 import type { RegistersListScreenServices } from "./registers-list-services";
+import { RevokeEveryInstallationCallout } from "./revoke-every-installation-callout";
+import { RevokeEveryInstallationModal } from "./revoke-every-installation-modal";
 import { RevokeRegisterModal } from "./revoke-register-modal";
 
 export type RegistersListScreenProps = {
@@ -87,6 +90,11 @@ export function RegistersListScreen({
   const [newModalOpen, setNewModalOpen] = useState(false);
   const [terminalTarget, setTerminalTarget] = useState<RegisterSummary | null>(null);
   const [revokeTarget, setRevokeTarget] = useState<RegisterSummary | null>(null);
+  const [revokeEveryOpen, setRevokeEveryOpen] = useState(false);
+  const [revokedNotice, setRevokedNotice] = useState<{ id: number; registers: number } | null>(
+    null,
+  );
+  const [revokedNoticeCount, setRevokedNoticeCount] = useState(0);
   const [emission, setEmission] = useState<EmissionState>({ kind: "closed" });
   const { run: runEmission, modal: emissionAuthModal } =
     useAuthorization<EmitEnrollmentCodeOutcome>({
@@ -318,6 +326,7 @@ export function RegistersListScreen({
             )
           }
         />
+        {mayRevoke && <RevokeEveryInstallationCallout onRevoke={() => setRevokeEveryOpen(true)} />}
         <RegisterCoverageNotice coverage={coverage} />
       </ScreenLayout>
       <NewRegisterModal
@@ -355,6 +364,30 @@ export function RegistersListScreen({
         onSessionEnded={onSessionEnded}
         services={services}
       />
+      <RevokeEveryInstallationModal
+        open={revokeEveryOpen}
+        onClose={() => setRevokeEveryOpen(false)}
+        onRevoked={({ revokedRegisters }) => {
+          void refreshRegisters();
+          setRevokedNotice({ id: revokedNoticeCount, registers: revokedRegisters });
+          setRevokedNoticeCount(revokedNoticeCount + 1);
+        }}
+        onSessionEnded={onSessionEnded}
+        services={services}
+      />
+      {revokedNotice === null ? null : (
+        <FloatingNotification
+          key={revokedNotice.id}
+          tone="success"
+          icon={<Check />}
+          title="Instalaciones revocadas"
+          description={plural(revokedNotice.registers, {
+            one: "Se revocó 1 caja.",
+            other: `Se revocaron ${revokedNotice.registers} cajas.`,
+          })}
+          onDismiss={() => setRevokedNotice(null)}
+        />
+      )}
       {emissionAuthModal}
     </>
   );
