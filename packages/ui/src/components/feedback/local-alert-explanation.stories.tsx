@@ -78,7 +78,7 @@ export const BatteryLow: Story = {
 };
 
 export const OnBattery: Story = {
-  args: { kind: "on_battery" },
+  args: { kind: "on_battery", threshold_minutes: 10 },
 };
 
 export const BatteryMissing: Story = {

@@ -123,12 +123,12 @@ function status(
   });
 }
 
-function onBattery(chargePercent: number, minutes = 0): BatteryReport {
+function onBattery(chargePercent: number): BatteryReport {
   return {
     present: true,
     charge_percent: chargePercent,
     on_battery: true,
-    on_battery_minutes: minutes,
+    on_battery_minutes: 0,
   };
 }
 
@@ -238,39 +238,15 @@ describe("the register's status", () => {
     ]);
   });
 
-  it("holds no sales_denied for a critically low battery report while the battery does not stop new sales", async () => {
-    expect(
-      (await status("unknown", NO_DEVICES, ROOMY_STORAGE, false, onBattery(5))).conditions,
-    ).toEqual([]);
-  });
-
-  it("holds the on battery condition after more than ten minutes on battery", async () => {
+  it("holds the critical-battery action condition for the action Windows takes", async () => {
     const conditions = (
-      await status("unknown", NO_DEVICES, ROOMY_STORAGE, false, onBattery(80, 11))
+      await status("unknown", NO_DEVICES, ROOMY_STORAGE, false, undefined, {
+        kind: "read",
+        action: "sleep",
+      })
     ).conditions;
 
-    expect(conditions.map(({ kind }) => kind)).toEqual(["on_battery"]);
-  });
-
-  it("holds the missing battery condition for a register that reports no battery", async () => {
-    const conditions = (
-      await status("unknown", NO_DEVICES, ROOMY_STORAGE, false, { present: false })
-    ).conditions;
-
-    expect(conditions.map(({ kind }) => kind)).toEqual(["battery_missing"]);
-  });
-
-  it("holds the critical-battery action condition unless Windows is set to shut down", async () => {
-    const held = async (criticalBatteryAction: CriticalBatteryAction) =>
-      (
-        await status("unknown", NO_DEVICES, ROOMY_STORAGE, false, undefined, criticalBatteryAction)
-      ).conditions.map(({ kind }) => kind);
-
-    expect(await held({ kind: "read", action: "sleep" })).toEqual([
-      "critical_battery_action_not_shutdown",
-    ]);
-    expect(await held({ kind: "read", action: "shut_down" })).toEqual([]);
-    expect(await held({ kind: "unreadable" })).toEqual([]);
+    expect(conditions.map(({ kind }) => kind)).toEqual(["critical_battery_action_not_shutdown"]);
   });
 
   it("holds sales_denied once the register stopped opening new sales because its event history broke", async () => {

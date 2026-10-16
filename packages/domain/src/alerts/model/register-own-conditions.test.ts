@@ -3,7 +3,11 @@ import type { BatteryReport, SerialDeviceStanding, StorageStanding } from "../..
 import { argentinaInstant } from "../../shared/index.js";
 import { ALERT_KINDS, isAlertKind } from "./alert-catalog.js";
 import { alertKindPolicy } from "./alert-kind-policy.js";
-import { REGISTER_OWN_CONDITIONS, registerOwnConditions } from "./register-own-conditions.js";
+import {
+  batteryConditionsOf,
+  REGISTER_OWN_CONDITIONS,
+  registerOwnConditions,
+} from "./register-own-conditions.js";
 
 const MINUTE_MS = 60 * 1000;
 const HOURS = [{ dayOfWeek: 1, opensAt: "09:00", closesAt: "18:00" }];
@@ -422,14 +426,14 @@ describe("registerOwnConditions for the battery", () => {
     ]);
   });
 
-  it("holds on_battery as critical after more than 10 minutes on battery", () => {
-    expect(conditions({ battery: onBatteryAt(80, 11) })).toEqual([
-      { kind: "on_battery", level: "critical" },
+  it("holds on_battery as critical, with the minutes it takes, from 10 whole minutes on battery", () => {
+    expect(conditions({ battery: onBatteryAt(80, 10) })).toEqual([
+      { kind: "on_battery", threshold_minutes: 10, level: "critical" },
     ]);
   });
 
-  it("does not hold on_battery at 10 minutes or on mains power", () => {
-    expect(conditions({ battery: onBatteryAt(80, 10) })).toEqual([]);
+  it("does not hold on_battery before 10 whole minutes or on mains power", () => {
+    expect(conditions({ battery: onBatteryAt(80, 9) })).toEqual([]);
     expect(conditions({ battery: onMainsAt(80) })).toEqual([]);
   });
 
@@ -465,8 +469,30 @@ describe("registerOwnConditions for the battery", () => {
     ).toEqual([
       { kind: "wal_oversized", level: "warning" },
       { kind: "battery_low", charge_percent: 15, critical_percent: 10, level: "warning" },
-      { kind: "on_battery", level: "critical" },
+      { kind: "on_battery", threshold_minutes: 10, level: "critical" },
       { kind: "critical_battery_action_not_shutdown", level: "warning" },
     ]);
+  });
+});
+
+describe("batteryConditionsOf", () => {
+  it("names the battery conditions a report holds, with what each one shows", () => {
+    expect(batteryConditionsOf(onBatteryAt(15, 30))).toEqual({
+      battery_low: { kind: "battery_low", charge_percent: 15, critical_percent: 10 },
+      on_battery: { kind: "on_battery", threshold_minutes: 10 },
+      battery_missing: null,
+    });
+    expect(batteryConditionsOf({ present: false })).toEqual({
+      battery_low: null,
+      on_battery: null,
+      battery_missing: { kind: "battery_missing" },
+    });
+  });
+
+  it("names none for a battery that cannot be read or a register on mains power", () => {
+    const none = { battery_low: null, on_battery: null, battery_missing: null };
+
+    expect(batteryConditionsOf(undefined)).toEqual(none);
+    expect(batteryConditionsOf(onMainsAt(3))).toEqual(none);
   });
 });

@@ -103,21 +103,21 @@ test("gives a register on a critically low battery its title, what it means and 
 test("gives a notebook running low on battery its title, the charge left and the charge that stops new sales", () => {
   expect(localAlertText({ kind: "battery_low", charge_percent: 15, critical_percent: 10 })).toEqual(
     {
-      title: "La notebook está sin enchufar",
+      title: "Queda poca batería",
       meaning: "Queda 15 % de batería. Por debajo del 10 % no se abren ventas nuevas.",
       whatToDo: "Conectar la notebook a la corriente.",
     },
   );
-  expect(localAlertTitle("battery_low")).toBe("La notebook está sin enchufar");
+  expect(localAlertTitle("battery_low")).toBe("Queda poca batería");
 });
 
-test("gives a register that has run on battery for a while its title, what it means and what to do", () => {
-  expect(localAlertText({ kind: "on_battery" })).toEqual({
+test("gives a register that has run on battery for a while its title, the minutes it has been on battery and what to do", () => {
+  expect(localAlertText({ kind: "on_battery", threshold_minutes: 15 })).toEqual({
     title: "Caja funcionando a batería",
     meaning:
-      "La notebook lleva más de 10 minutos sin corriente eléctrica, funcionando solo con la batería.",
+      "La notebook lleva más de 15 minutos sin corriente eléctrica, funcionando solo con la batería.",
     whatToDo:
-      "Revisar si volvió la luz y, de poder, conectar la notebook a la corriente. Si no volvió, seguir atendiendo con normalidad; el Administrador ya fue avisado.",
+      "Revisar si volvió la luz y, de poder, conectar la notebook a la corriente. Si no volvió, seguir atendiendo con normalidad y avisarle al Administrador.",
   });
   expect(localAlertTitle("on_battery")).toBe("Caja funcionando a batería");
 });
@@ -127,7 +127,7 @@ test("gives a notebook that reports no battery its title, what it means and what
     title: "Batería no detectada",
     meaning: "La notebook no informa tener batería conectada.",
     whatToDo:
-      "Seguir vendiendo con normalidad. El Administrador ya fue avisado y se encarga de revisar el equipo.",
+      "Seguir vendiendo con normalidad y avisarle al Administrador para que revise el equipo.",
   });
   expect(localAlertTitle("battery_missing")).toBe("Batería no detectada");
 });
@@ -271,6 +271,8 @@ test("asks for the reason of a register that can't sell, and for none of the oth
     charge_percent: number;
     critical_percent: number;
   }>().toExtend<LocalAlertSubject>();
+  expectTypeOf<{ kind: "on_battery" }>().not.toExtend<LocalAlertSubject>();
+  expectTypeOf<{ kind: "on_battery"; threshold_minutes: number }>().toExtend<LocalAlertSubject>();
   expectTypeOf<{ kind: "register_silent" }>().toExtend<LocalAlertSubject>();
   expectTypeOf<{
     kind: "register_silent";

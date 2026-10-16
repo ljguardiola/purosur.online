@@ -249,11 +249,11 @@ describe("watching the register's battery", () => {
       expect(onChange).toHaveBeenCalledTimes(1);
     });
 
-    it("says so when the register has been on battery for more than ten minutes, and when it goes back to mains power", async () => {
+    it("says so once the register has been on battery for ten whole minutes, and when it goes back to mains power", async () => {
       const { watch, advance, onChange } = setup(ON_BATTERY);
       await watch.start();
 
-      await advance(10);
+      await advance(9.5);
       expect(onChange).not.toHaveBeenCalled();
       await advance(1);
       expect(onChange).toHaveBeenCalledTimes(1);

@@ -1,9 +1,18 @@
-import type { BatteryStanding } from "@purosur/domain";
+import type { BatteryReport, BatteryStanding } from "@purosur/domain";
 import { describe, expect, it, vi } from "vitest";
 import { createBatteryShutdown } from "./battery-shutdown";
 
 const PUSH_LIMIT_MS = 10_000;
 const RECHECK_MS = 5_000;
+
+type Read = BatteryStanding | "unreadable";
+
+const REPORT_OF: Record<Read, BatteryReport | undefined> = {
+  normal: { present: true, charge_percent: 80, on_battery: false, on_battery_minutes: 0 },
+  low: { present: true, charge_percent: 15, on_battery: true, on_battery_minutes: 0 },
+  critical: { present: true, charge_percent: 5, on_battery: true, on_battery_minutes: 0 },
+  unreadable: undefined,
+};
 
 interface Timer {
   run: () => void;
@@ -11,9 +20,9 @@ interface Timer {
   cancelled: boolean;
 }
 
-function setup(initial: { standing?: BatteryStanding; openSale?: boolean } = {}) {
-  const world = {
-    standing: initial.standing ?? "normal",
+function setup(initial: { read?: Read; openSale?: boolean } = {}) {
+  const world: { read: Read; openSale: boolean } = {
+    read: initial.read ?? "normal",
     openSale: initial.openSale ?? false,
   };
   const timers: Timer[] = [];
@@ -32,7 +41,7 @@ function setup(initial: { standing?: BatteryStanding; openSale?: boolean } = {})
   });
   const onFailure = vi.fn();
   const shutdown = createBatteryShutdown({
-    standing: () => world.standing,
+    report: () => REPORT_OF[world.read],
     hasOpenSale: () => world.openSale,
     push,
     schedule: (run, delayMs) => {
@@ -71,8 +80,8 @@ function setup(initial: { standing?: BatteryStanding; openSale?: boolean } = {})
       finishPush(outcome);
       await settle();
     },
-    changeTo: async (standing: BatteryStanding) => {
-      world.standing = standing;
+    changeTo: async (read: Read) => {
+      world.read = read;
       shutdown.evaluate();
       await settle();
     },
@@ -248,5 +257,40 @@ describe("closing the register cleanly at a critical battery", () => {
     await changeTo("critical");
 
     expect(push).toHaveBeenCalledTimes(1);
+  });
+
+  it("does nothing when the battery cannot be read before it ever stood as critical", async () => {
+    const { shutdown, push, changeTo } = setup();
+
+    await changeTo("unreadable");
+
+    expect(shutdown.newSalesStoppedByBattery()).toBe(false);
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it("keeps refusing new sales and waiting for the open sale when a read fails, then closes once the sale does", async () => {
+    const { shutdown, push, pending, fire, world, changeTo } = setup({ openSale: true });
+    await changeTo("critical");
+
+    await changeTo("unreadable");
+
+    expect(shutdown.newSalesStoppedByBattery()).toBe(true);
+    expect(pending(RECHECK_MS)).toHaveLength(1);
+
+    world.openSale = false;
+    await fire(RECHECK_MS);
+
+    expect(push).toHaveBeenCalledTimes(1);
+  });
+
+  it("lifts the refusal when a read after a failed one finds the charge recovered", async () => {
+    const { shutdown, push, changeTo } = setup({ openSale: true });
+    await changeTo("critical");
+    await changeTo("unreadable");
+
+    await changeTo("low");
+
+    expect(shutdown.newSalesStoppedByBattery()).toBe(false);
+    expect(push).not.toHaveBeenCalled();
   });
 });

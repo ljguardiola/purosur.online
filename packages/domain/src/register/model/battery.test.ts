@@ -206,8 +206,17 @@ describe("isOnBatteryTooLong", () => {
     expect(isOnBatteryTooLong(report(true, 11))).toBe(true);
   });
 
-  it("is false at 10 minutes or less", () => {
-    expect(isOnBatteryTooLong(report(true, 10))).toBe(false);
+  it("is true once the whole minutes on battery reach 10, so 10 minutes and 30 seconds count", () => {
+    const tenAndAHalfMinutesLater = new Date(at(0).getTime() + 10 * 60_000 + 30_000);
+
+    expect(isOnBatteryTooLong(batteryReportOf(onBattery, at(0), tenAndAHalfMinutesLater))).toBe(
+      true,
+    );
+    expect(isOnBatteryTooLong(report(true, 10))).toBe(true);
+  });
+
+  it("is false before 10 whole minutes on battery", () => {
+    expect(isOnBatteryTooLong(report(true, 9))).toBe(false);
     expect(isOnBatteryTooLong(report(true, 0))).toBe(false);
   });
 

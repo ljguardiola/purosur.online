@@ -1304,7 +1304,7 @@ describe("register status messages", () => {
       [{ kind: "battery_low", charge_percent: 0, critical_percent: 10, level: "warning" }],
       "reachable",
     ],
-    [[{ kind: "on_battery", level: "critical" }], "unreachable"],
+    [[{ kind: "on_battery", threshold_minutes: 10, level: "critical" }], "unreachable"],
     [[{ kind: "battery_missing", level: "warning" }], "unreachable"],
     [[{ kind: "critical_battery_action_not_shutdown", level: "warning" }], "unreachable"],
     [[{ kind: "sales_denied", reason: "battery_critical", level: "critical" }], "reachable"],
@@ -1465,6 +1465,33 @@ describe("register status messages", () => {
             level: "critical",
           },
         ],
+        cloud: "reachable",
+        serial_devices: STANDINGS,
+        serial_devices_setup_offered: false,
+      },
+    ],
+    [
+      "a register on battery without the minutes the condition takes",
+      {
+        conditions: [{ kind: "on_battery", level: "critical" }],
+        cloud: "reachable",
+        serial_devices: STANDINGS,
+        serial_devices_setup_offered: false,
+      },
+    ],
+    [
+      "a register on battery for a fraction of a minute",
+      {
+        conditions: [{ kind: "on_battery", threshold_minutes: 9.5, level: "critical" }],
+        cloud: "reachable",
+        serial_devices: STANDINGS,
+        serial_devices_setup_offered: false,
+      },
+    ],
+    [
+      "a register on battery for no minutes",
+      {
+        conditions: [{ kind: "on_battery", threshold_minutes: 0, level: "critical" }],
         cloud: "reachable",
         serial_devices: STANDINGS,
         serial_devices_setup_offered: false,
