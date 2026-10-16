@@ -2812,6 +2812,11 @@ describe("the route access inventory", () => {
         access: capabilityAccess("revoke_installations"),
       },
       {
+        method: "POST",
+        url: "/api/registers/revocations",
+        access: capabilityAccess("revoke_installations"),
+      },
+      {
         method: "GET",
         url: "/api/registers/points-of-sale",
         access: capabilityAccess("cash_area"),
