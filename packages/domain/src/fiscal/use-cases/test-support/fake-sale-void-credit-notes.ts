@@ -17,6 +17,7 @@ export class FakeSaleVoidCreditNoteStore implements SaleVoidCreditNoteLanes {
   readonly lanesEntered: number[] = [];
   readonly recorded = new Map<string, RecordedCreditNote>();
   readonly records: SaleVoidCreditNoteRecord[] = [];
+  recordFailure: Error | undefined;
   private readonly registers: Map<string, FakeRegisterPointsOfSale>;
 
   constructor(registers: Iterable<[string, FakeRegisterPointsOfSale]>) {
@@ -75,6 +76,9 @@ class FakeSaleVoidCreditNoteLane implements SaleVoidCreditNoteLane {
 
   async recordSaleVoidCreditNote(record: SaleVoidCreditNoteRecord): Promise<void> {
     this.store.operations.push("recordSaleVoidCreditNote");
+    if (this.store.recordFailure !== undefined) {
+      throw this.store.recordFailure;
+    }
     const { voucherType, pointOfSale, number } = record.correctedVoucher;
     const alreadyCredited = [...this.store.recorded.values()].some(
       ({ creditNote: { associatedVoucher } }) =>

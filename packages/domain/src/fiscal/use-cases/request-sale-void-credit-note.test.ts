@@ -208,6 +208,14 @@ describe("requestSaleVoidCreditNote", () => {
     });
   });
 
+  it("lets a failure of the storage through, recording nothing", async () => {
+    const { store, run } = request();
+    store.recordFailure = new Error("the storage is down");
+
+    await expect(run()).rejects.toThrow("the storage is down");
+    expect(store.records).toEqual([]);
+  });
+
   describe("what keeps a credit note from being recorded", () => {
     it.each([
       ["an event of another type", { event_type: "sale_completed" }],
