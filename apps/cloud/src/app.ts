@@ -157,6 +157,7 @@ import {
   registerSalesReportRoutes,
   type SalesReportRouteOptions,
 } from "./sales/sales-report-routes.js";
+import { registerEverySessionEndingRoute } from "./sessions/every-session-ending-route.js";
 import {
   declarePluginRoutesAccess,
   PUBLIC_ACCESS,
@@ -445,6 +446,7 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
         registerSessionReadRoute(api, { ...options.session, now });
         registerSessionStatusRoute(api, { ...options.session, now });
         registerSessionSignOutRoute(api, { ...options.session, now });
+        registerEverySessionEndingRoute(api, { ...options.session, now });
         registerSessionAuthorizationRoutes(api, { ...options.session, now });
       }
 
