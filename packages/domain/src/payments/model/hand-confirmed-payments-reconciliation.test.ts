@@ -14,7 +14,6 @@ function aPayment(overrides: Partial<HandConfirmedPayment> = {}): HandConfirmedP
     confirmedAt: new Date("2026-10-06T14:00:00.000Z"),
     cashierId: "cashier-1",
     cashierName: "Ana",
-    confirmedById: "supervisor-1",
     confirmedByName: "Beto",
     saleOperationNumber: 7,
     ...overrides,
@@ -32,7 +31,6 @@ const paymentArbitrary = fc.record({
   }),
   cashierId: fc.constantFrom("cashier-1", "cashier-2", "cashier-3"),
   cashierName: fc.constantFrom("Ana", "Bruno", null),
-  confirmedById: fc.constantFrom("supervisor-1", "supervisor-2"),
   confirmedByName: fc.constantFrom("Carla", null),
   saleOperationNumber: fc.option(fc.integer({ min: 1, max: 9_999 }), { nil: null }),
 });

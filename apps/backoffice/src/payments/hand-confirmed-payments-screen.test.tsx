@@ -96,12 +96,9 @@ test("shows the count and the amount of the payments, and of each method, from t
 
   await expect.element(screen.getByRole("heading", { name: PAYMENTS, level: 1 })).toBeVisible();
   await expect.element(screen.getByText("Reportes · Caja", { exact: true })).toBeVisible();
-  await expect.element(screen.getByText("Pagos", { exact: true }).first()).toBeVisible();
-  await expect.element(screen.getByText("3", { exact: true })).toBeVisible();
-  await expect.element(screen.getByText("$ 1.900,00")).toBeVisible();
-  await expect.element(screen.getByText("Transferencias", { exact: true }).first()).toBeVisible();
-  await expect.element(screen.getByText("$ 1.500,00")).toBeVisible();
-  await expect.element(screen.getByText("$ 400,00").first()).toBeVisible();
+  await expect.element(screen.getByText(/^Pagos\$ 1\.900,003$/)).toBeVisible();
+  await expect.element(screen.getByText(/^Transferencias\$ 1\.500,002$/)).toBeVisible();
+  await expect.element(screen.getByText(/^Terminal independiente\$ 400,001$/)).toBeVisible();
   await expectNoAccessibilityViolations(screen.container);
 });
 
@@ -291,12 +288,10 @@ test("says there are no payments confirmed by hand in the period when there are 
   const screen = await renderScreen(services);
 
   await expect
-    .element(paymentsTable(screen).getByText("No hay pagos confirmados a mano en este período"))
+    .element(screen.getByText("No hay pagos confirmados a mano en este período"))
     .toBeVisible();
-  await expect.element(screen.getByText("$ 0,00").first()).toBeVisible();
-  await expect
-    .element(cashiersTable(screen).getByText("No hay pagos por cajero en este período"))
-    .toBeVisible();
+  await expect.element(screen.getByText(/^Pagos\$ 0,000$/)).toBeVisible();
+  expect(screen.getByRole("table").query()).toBeNull();
 });
 
 test.each([
@@ -316,7 +311,7 @@ test.each([
     });
 
     await expect
-      .element(paymentsTable(screen).getByText("No hay pagos confirmados a mano en este período"))
+      .element(screen.getByText("No hay pagos confirmados a mano en este período"))
       .toBeVisible();
   },
 );

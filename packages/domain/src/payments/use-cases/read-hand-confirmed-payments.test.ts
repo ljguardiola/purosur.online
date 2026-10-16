@@ -15,7 +15,6 @@ function aPayment(overrides: Partial<HandConfirmedPayment> = {}): HandConfirmedP
     confirmedAt: new Date("2026-10-06T14:00:00.000Z"),
     cashierId: "cashier-1",
     cashierName: "Ana",
-    confirmedById: "supervisor-1",
     confirmedByName: "Beto",
     saleOperationNumber: 7,
     ...overrides,

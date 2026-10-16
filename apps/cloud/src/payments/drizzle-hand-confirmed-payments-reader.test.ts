@@ -124,7 +124,6 @@ describe("DrizzleHandConfirmedPaymentsReader.handConfirmedPayments", () => {
         confirmedAt: MOMENT,
         cashierId,
         cashierName: "Ana",
-        confirmedById: confirmerId,
         confirmedByName: "Beto",
         saleOperationNumber: 42,
       },
@@ -144,7 +143,6 @@ describe("DrizzleHandConfirmedPaymentsReader.handConfirmedPayments", () => {
       method: "STANDALONE_TERMINAL",
       cashierId: strangerId,
       cashierName: null,
-      confirmedById: strangerId,
       confirmedByName: null,
       saleOperationNumber: null,
     });
