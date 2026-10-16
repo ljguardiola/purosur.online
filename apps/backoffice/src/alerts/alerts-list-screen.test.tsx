@@ -1123,6 +1123,31 @@ test("describes a refund alert for a late QR payment by its kind when the cloud 
     .toBeVisible();
 });
 
+test.each([
+  [
+    "battery_low",
+    "Queda poca batería",
+    /batería\. Por debajo del|Conectar la notebook a la corriente/,
+  ],
+  ["on_battery", "Caja funcionando a batería", /sin corriente eléctrica|Revisar si volvió la luz/],
+] as const)(
+  "gives a local %s alert its title alone, without the register's explanation it has no figures for",
+  async (kind, title, registerExplanation) => {
+    const services = createServices();
+    vi.mocked(services.fetchAlerts).mockResolvedValue(
+      ok([
+        { ...passkeyAlert, kind, audience: "local", scopeDisplay: "Caja 1", scopeKind: "register" },
+      ]),
+    );
+
+    const screen = await renderScreen(services);
+
+    const row = screen.getByRole("row", { name: /Caja 1/ });
+    await expect.element(row.getByText(title, { exact: true })).toBeVisible();
+    expect(row.getByText(registerExplanation).query()).toBeNull();
+  },
+);
+
 test("searches a quiet register's alert by its fixed title", async () => {
   const services = createServices();
   vi.mocked(services.fetchAlerts).mockResolvedValue(ok([passkeyAlert]));
