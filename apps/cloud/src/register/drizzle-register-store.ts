@@ -46,10 +46,19 @@ function attemptKeyCondition(key: EnrollmentAttemptKey) {
 
 const replacedRevocationReason = "replaced";
 
-const snapshotKeyPurpose = (registerId: string, version: number) =>
+export const snapshotKeyPurpose = (registerId: string, version: number) =>
   `snapshot_key:${registerId}:${version}`;
 const contingencyTicketKeyPurpose = (registerId: string, version: number) =>
   `contingency_ticket_key:${registerId}:${version}`;
+
+export async function lockRegisterKeysOf<TQueryResult extends PgQueryResultHKT>(
+  tx: Transaction<TQueryResult>,
+  registerId: string,
+): Promise<void> {
+  await tx.execute(
+    sql`select pg_advisory_xact_lock(hashtextextended(${`register_keys:${registerId}`}, 0))`,
+  );
+}
 
 class DrizzleRegisterStoreTransaction<TQueryResult extends PgQueryResultHKT>
   implements RegisterStoreTransaction
@@ -276,9 +285,7 @@ class DrizzleRegisterStoreTransaction<TQueryResult extends PgQueryResultHKT>
   // A register has no key row to lock before its first key, and locking its registers row would
   // take the register before its enrollment code, the reverse of what code emission does.
   async lockRegisterKeys(registerId: string): Promise<RegisterKeys> {
-    await this.tx.execute(
-      sql`select pg_advisory_xact_lock(hashtextextended(${`register_keys:${registerId}`}, 0))`,
-    );
+    await lockRegisterKeysOf(this.tx, registerId);
     const versionsOf = async (
       table: typeof registerSnapshotKeys,
       purpose: (registerId: string, version: number) => string,

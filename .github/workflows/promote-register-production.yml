@@ -1,0 +1,270 @@
+name: Promote register to production
+
+# Dispatched only against a register release tag: the production environment admits no other ref,
+# and every job also refuses any other ref. A tag created by hand is dispatched the same way and
+# gets every check.
+on:
+  workflow_dispatch:
+    inputs:
+      hardware_test:
+        description: >-
+          The hands-on test with the real devices on the store's notebook, using the homologation
+          build: the date, who ran it and what they saw. Required when the release changes a
+          printer, scale or barcode reader adapter.
+        required: false
+        type: string
+        default: ""
+
+concurrency:
+  group: promote-register-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  resolve:
+    name: resolve the validated candidate behind the tag
+    if: startsWith(github.ref, 'refs/tags/pos-v')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      actions: read
+      contents: read
+      packages: read
+    outputs:
+      sha: ${{ steps.commit.outputs.sha }}
+      version: ${{ steps.manifest.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Resolve the commit the tag points at
+        id: commit
+        run: echo "sha=$(git rev-parse "$GITHUB_REF^{commit}")" >> "$GITHUB_OUTPUT"
+
+      - name: List the register's packaging runs on main
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: >-
+          gh run list --workflow package-pos.yml --branch main --event push --status success
+          --limit 1000 --json number,headSha,headBranch,event,conclusion
+          > "$RUNNER_TEMP/runs.json"
+
+      - name: Find the run that packaged that commit
+        id: candidate
+        env:
+          TARGET_SHA: ${{ steps.commit.outputs.sha }}
+          RUNS_FILE: ${{ runner.temp }}/runs.json
+        run: node .github/scripts/register-candidate.mjs run-of-commit
+
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: oras-project/setup-oras@005458ad77f1c8facd38a094e4af2e69e5607ff4 # v2.0.2
+
+      - name: Pull the candidate
+        env:
+          CANDIDATE_IMAGE: ${{ steps.candidate.outputs.image }}
+        run: oras pull "$CANDIDATE_IMAGE" --output "$RUNNER_TEMP/candidate"
+
+      - name: Read what the candidate records
+        id: manifest
+        env:
+          MANIFEST_FILE: ${{ runner.temp }}/candidate/candidate.json
+          EXPECTED_SHA: ${{ steps.commit.outputs.sha }}
+        run: node .github/scripts/register-candidate.mjs read-manifest
+
+      - name: Extract the app code inside the production installer
+        id: production-app-code
+        env:
+          INSTALLER_DIR: ${{ runner.temp }}/candidate/installer
+          OUTPUT_DIR: ${{ runner.temp }}/extracted/production
+        run: node .github/scripts/installer-app-code.mjs
+
+      - name: Extract the app code inside the validated staging installer
+        id: staging-app-code
+        env:
+          INSTALLER_DIR: ${{ runner.temp }}/candidate/staging-installer
+          OUTPUT_DIR: ${{ runner.temp }}/extracted/staging
+        run: node .github/scripts/installer-app-code.mjs
+
+      - name: Compare the app code inside the two installers
+        env:
+          PRODUCTION_APP_ASAR: ${{ steps.production-app-code.outputs.app_asar }}
+          STAGING_APP_ASAR: ${{ steps.staging-app-code.outputs.app_asar }}
+        run: node .github/scripts/same-app-code.mjs "$PRODUCTION_APP_ASAR" "$STAGING_APP_ASAR"
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: register-candidate
+          retention-days: 1
+          path: ${{ runner.temp }}/candidate/installer/*.exe
+          if-no-files-found: error
+
+  event-formats:
+    name: production reads every event format the register emits
+    needs: [resolve]
+    if: startsWith(github.ref, 'refs/tags/pos-v')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment: production
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: List the event versions the register at the tag emits
+        run: node apps/pos/scripts/register-event-versions.ts "$GITHUB_WORKSPACE" > "$RUNNER_TEMP/emitted-event-versions.json"
+
+      - name: Compare the emitted event versions with the ones production reads
+        env:
+          PRODUCTION_ORIGIN: https://purosur.online
+          RELEASE_CHECK_TOKEN: ${{ secrets.RELEASE_CHECK_TOKEN }}
+          EMITTED_EVENT_VERSIONS_FILE: ${{ runner.temp }}/emitted-event-versions.json
+        run: node .github/scripts/readable-event-versions-check.mjs
+
+  # The production environment gives the job read access to the production feed, whose register is
+  # the one the store runs, so the hardware adapters are compared with that register's commit.
+  hardware-test:
+    name: hardware adapter changes have a recorded hands-on test
+    needs: [resolve]
+    if: startsWith(github.ref, 'refs/tags/pos-v')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment: production
+    permissions:
+      contents: write
+      packages: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: oras-project/setup-oras@005458ad77f1c8facd38a094e4af2e69e5607ff4 # v2.0.2
+
+      - name: Find the hardware adapters changed since the register production serves
+        id: hardware
+        env:
+          TARGET_SHA: ${{ needs.resolve.outputs.sha }}
+          POS_UPDATES_BUCKET_NAME: ${{ vars.POS_UPDATES_BUCKET_NAME }}
+          POS_UPDATES_BUCKET_ENDPOINT: ${{ vars.POS_UPDATES_BUCKET_ENDPOINT }}
+          POS_UPDATES_BUCKET_REGION: ${{ vars.POS_UPDATES_BUCKET_REGION }}
+          POS_UPDATES_BUCKET_ACCESS_KEY_ID: ${{ secrets.POS_UPDATES_BUCKET_ACCESS_KEY_ID }}
+          POS_UPDATES_BUCKET_SECRET_ACCESS_KEY: ${{ secrets.POS_UPDATES_BUCKET_SECRET_ACCESS_KEY }}
+        run: node .github/scripts/hardware-adapter-changes.mjs
+
+      - name: Read the release notes
+        if: steps.hardware.outputs.devices != '' || inputs.hardware_test != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: gh release view "$RELEASE_TAG" --json body --jq .body > "$RUNNER_TEMP/release-body.md"
+
+      - name: Write the devices to test and the hardware test into the release notes
+        if: steps.hardware.outputs.devices != '' || inputs.hardware_test != ''
+        env:
+          RELEASE_BODY_FILE: ${{ runner.temp }}/release-body.md
+          DEVICES: ${{ steps.hardware.outputs.devices }}
+          HARDWARE_TEST: ${{ inputs.hardware_test }}
+        run: node .github/scripts/register-candidate.mjs hardware-test-notes
+
+      - name: Update the release
+        if: steps.hardware.outputs.devices != '' || inputs.hardware_test != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: gh release edit "$RELEASE_TAG" --notes-file "$RUNNER_TEMP/release-body.md"
+
+      - name: Require the hardware test a hardware adapter change needs
+        env:
+          DEVICES: ${{ steps.hardware.outputs.devices }}
+          HARDWARE_TEST: ${{ inputs.hardware_test }}
+        run: node .github/scripts/hardware-adapter-changes.mjs gate
+
+  publish:
+    name: publish the validated production installer to the update feed
+    needs: [resolve, event-formats, hardware-test]
+    if: startsWith(github.ref, 'refs/tags/pos-v')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment: production
+    permissions:
+      contents: read
+    # Two promotions never write the feed at once, and a later one waits for the earlier one
+    # instead of cancelling it halfway through an upload.
+    concurrency:
+      group: pos-production-update-feed
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: register-candidate
+          path: production-installer
+
+      - name: Publish the installer, then the feed entry that points at it
+        run: node .github/scripts/publish-pos-update.mjs --require-newer production-installer
+        env:
+          POS_VERSION: ${{ needs.resolve.outputs.version }}
+          POS_UPDATES_BUCKET_NAME: ${{ vars.POS_UPDATES_BUCKET_NAME }}
+          POS_UPDATES_BUCKET_ENDPOINT: ${{ vars.POS_UPDATES_BUCKET_ENDPOINT }}
+          POS_UPDATES_BUCKET_REGION: ${{ vars.POS_UPDATES_BUCKET_REGION }}
+          POS_UPDATES_BUCKET_ACCESS_KEY_ID: ${{ secrets.POS_UPDATES_BUCKET_ACCESS_KEY_ID }}
+          POS_UPDATES_BUCKET_SECRET_ACCESS_KEY: ${{ secrets.POS_UPDATES_BUCKET_SECRET_ACCESS_KEY }}

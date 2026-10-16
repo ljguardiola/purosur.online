@@ -36,6 +36,7 @@ const CAPABILITIES_GRANTED_BY: readonly [PermissionKey, readonly Capability[]][]
   ["manage_expiration_dates", ["stock_expiries", "stock_area"]],
   ["view_reports", ["reports_area"]],
   ["confirm_refunds", ["refunds_area"]],
+  ["view_backups_and_rotate_key", ["backups_area"]],
 ];
 
 function inCapabilityOrder(capabilities: readonly Capability[]): Capability[] {

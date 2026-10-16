@@ -26,7 +26,7 @@ type Transaction<TQueryResult extends PgQueryResultHKT> = Parameters<
   Parameters<PgDatabase<TQueryResult>["transaction"]>[0]
 >[0];
 
-function registerSnapshotsLockKey(registerId: string) {
+export function registerSnapshotsLockKey(registerId: string) {
   return sql`hashtextextended(${`register_snapshots:${registerId}`}, 0)`;
 }
 
@@ -87,7 +87,7 @@ class DrizzleSnapshotStoreTransaction<TQueryResult extends PgQueryResultHKT>
   async recordDeclaredGeneration(generation: NewSnapshotGeneration): Promise<void> {
     const recorded = await this.tx
       .insert(registerSnapshotGenerations)
-      .values(generation)
+      .values({ ...generation, onRegisterDisk: true })
       .onConflictDoNothing({ target: registerSnapshotGenerations.id })
       .returning({ id: registerSnapshotGenerations.id });
     if (recorded.length === 0) {

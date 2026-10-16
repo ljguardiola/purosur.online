@@ -375,10 +375,26 @@ export type { ReportRegisterListBody } from "./register/report-register-list.js"
 export { reportRegisterListSchema } from "./register/report-register-list.js";
 export type { RestorableSnapshots } from "./register/restorable-snapshots.js";
 export { restorableSnapshotsSchema } from "./register/restorable-snapshots.js";
+export type {
+  SnapshotBackupRegisters,
+  SnapshotBackups,
+  SnapshotKeyRotation,
+  SnapshotLifecycleRulesBody,
+} from "./register/snapshot-backups.js";
+export {
+  snapshotBackupRegistersSchema,
+  snapshotBackupsSchema,
+  snapshotKeyRotationSchema,
+  snapshotLifecycleRulesSchema,
+} from "./register/snapshot-backups.js";
 export type { SnapshotCorruptionBody } from "./register/snapshot-corruption.js";
 export { snapshotCorruptionBodySchema } from "./register/snapshot-corruption.js";
+export type { CurrentSnapshotKeyVersionAnswer } from "./register/snapshot-key-version.js";
+export { currentSnapshotKeyVersionAnswerSchema } from "./register/snapshot-key-version.js";
 export type { SnapshotManifest } from "./register/snapshot-manifest.js";
 export { snapshotManifestSchema } from "./register/snapshot-manifest.js";
+export type { SnapshotsOnDiskBody } from "./register/snapshot-on-disk.js";
+export { snapshotsOnDiskBodySchema } from "./register/snapshot-on-disk.js";
 export type { SnapshotUploadAnswer, SnapshotUploadBody } from "./register/snapshot-upload.js";
 export {
   snapshotUploadAnswerSchema,
@@ -639,6 +655,8 @@ export {
   quarantinedEventsListSchema,
   releaseQuarantinedEventErrorSchema,
 } from "./sync/quarantined-events.js";
+export type { ReadableEventVersions } from "./sync/readable-event-versions.js";
+export { readableEventVersionsSchema } from "./sync/readable-event-versions.js";
 export type {
   RegistersBelowMinimum,
   RegistersBelowMinimumQuery,
@@ -652,6 +670,7 @@ export type {
   SyncedEventPayloads,
 } from "./sync/synced-event-payloads.js";
 export {
+  READABLE_EVENT_VERSIONS,
   syncedEventPayloadKey,
   syncedEventPayloadSchema,
 } from "./sync/synced-event-payloads.js";

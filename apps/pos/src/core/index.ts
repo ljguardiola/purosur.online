@@ -44,6 +44,7 @@ import { initializeErrorReporting } from "./platform/error-reporting";
 import { createHeldMessages } from "./platform/held-messages";
 import { LOCAL_MIGRATIONS } from "./platform/local-migrations";
 import { createMainRequests } from "./platform/main-requests";
+import { refreshKeysWhenAnnounced } from "./register/announced-key-refresh";
 import { createBatteryWatch } from "./register/battery-watch";
 import {
   cashMovementKindsFor,
@@ -62,7 +63,7 @@ import {
   sessionOpenSaleFor,
 } from "./register/cash-session-requests";
 import { coreFailureReporters } from "./register/core-failure-reporters";
-import { rotateDeviceToken } from "./register/device-token-rotation";
+import { createDeviceTokenRotation } from "./register/device-token-rotation";
 import { startDeviceTokenRotationSchedule } from "./register/device-token-rotation-schedule";
 import {
   checkEnrollmentCode,
@@ -99,7 +100,6 @@ import { createRendererConnection } from "./renderer-connection";
 import { type CoreToRendererMessage, rendererToCoreMessageSchema } from "./renderer-messages";
 import { answerRendererRequest, type RendererRequestDeps } from "./renderer-requests";
 import { createBarcodeReaderWiring } from "./sales/barcode-reader-wiring";
-import { openSerialLink } from "./sales/open-serial-link";
 import { createReceiptPrinting } from "./sales/receipt-printing-wiring";
 import {
   addSearchedProductFor,
@@ -124,8 +124,9 @@ import {
   weighProductFor,
 } from "./sales/sale-requests";
 import { saleHistoryDetailFor, salesHistoryFor } from "./sales/sales-history-requests";
+import { createSystelScale } from "./sales/scale/systel-scale";
+import { openSerialLink } from "./sales/serial-link/open-serial-link";
 import { anySaleIsOpen } from "./sales/sqlite-open-sale-presence";
-import { createSystelScale } from "./sales/systel-scale";
 import { voidSaleFor } from "./sales/void-sale-requests";
 import { createActionGate } from "./sessions/action-gate";
 import { authorizersOf } from "./sessions/authorizers";
@@ -1086,16 +1087,20 @@ startRegisterHealthChecks({
   reportFailure: (error) => reportFailure("the register health check", error),
 });
 
-if (cloudClient !== undefined) {
-  startDeviceTokenRotationSchedule({
-    rotate: () =>
-      rotateDeviceToken({
+const deviceTokenRotation =
+  cloudClient === undefined
+    ? undefined
+    : createDeviceTokenRotation({
         readCredentials: () => mainRequests.readCredentials(),
         postToCloud: (path, bearerToken) => postToCloudWithBearer(cloudClient, path, bearerToken),
         replaceCredentials: (expectedDeviceToken, credentials) =>
           mainRequests.replaceCredentials(expectedDeviceToken, credentials),
         now,
-      }),
+      });
+
+if (deviceTokenRotation !== undefined) {
+  startDeviceTokenRotationSchedule({
+    rotate: deviceTokenRotation.rotateWhenDue,
     schedule: (run, delayMs) => {
       const id = setTimeout(run, delayMs);
       return () => clearTimeout(id);
@@ -1148,6 +1153,12 @@ messagesFromMain.deliverTo((event) => {
       updateHold.release();
     } else if (message.type === "snapshot-worker-exited") {
       void snapshotCycle?.workerExited(message.copy_failed_stage);
+      if (deviceTokenRotation !== undefined) {
+        refreshKeysWhenAnnounced(message.latest_announced_key_version, {
+          readCredentials: () => mainRequests.readCredentials(),
+          refreshInstallationKeysNow: deviceTokenRotation.refreshInstallationKeysNow,
+        }).catch((error: unknown) => reportFailure("refreshing the installation keys", error));
+      }
     } else {
       mainRequests.receive(message);
     }

@@ -71,6 +71,10 @@ export function canSeeRegistersArea(access: BackofficeAccess): boolean {
   return grants(access, "registers_area");
 }
 
+export function canSeeBackupsArea(access: BackofficeAccess): boolean {
+  return grants(access, "backups_area");
+}
+
 export function canSeeStockBalances(access: BackofficeAccess): boolean {
   return grants(access, "stock_balances");
 }

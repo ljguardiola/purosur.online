@@ -1,7 +1,11 @@
 import type { DeviceCredentials } from "@purosur/contracts";
 import { describe, expect, it } from "vitest";
 import type { CloudResponse } from "../platform/cloud-client";
-import { type DeviceTokenRotationDeps, rotateDeviceToken } from "./device-token-rotation";
+import {
+  createDeviceTokenRotation,
+  type DeviceTokenRotationDeps,
+  rotateDeviceToken,
+} from "./device-token-rotation";
 
 const RECEIVED_AT = new Date("2026-09-28T12:00:00.000Z");
 const DUE_AT = new Date("2026-09-29T12:00:00.000Z");
@@ -182,5 +186,137 @@ describe("rotateDeviceToken", () => {
 
     expect(await rotateDeviceToken(deps)).toEqual({ kind: "superseded" });
     expect(storedCredentials).toEqual([]);
+  });
+});
+
+describe("rotateDeviceToken, forced", () => {
+  it("rotates a token that is only a minute old", async () => {
+    const { deps, posted, storedCredentials } = rotationWith({ now: BEFORE_DUE });
+
+    expect(await rotateDeviceToken(deps, { force: true })).toEqual({ kind: "rotated" });
+    expect(posted).toHaveLength(1);
+    expect(storedCredentials[0]?.keys).toEqual(CURRENT_KEYS);
+  });
+
+  it("does nothing when the register isn't enrolled", async () => {
+    const { deps, posted } = rotationWith({ credentials: undefined });
+
+    expect(await rotateDeviceToken(deps, { force: true })).toEqual({ kind: "not_enrolled" });
+    expect(posted).toEqual([]);
+  });
+});
+
+describe("createDeviceTokenRotation", () => {
+  function gated(options: Parameters<typeof rotationWith>[0]) {
+    const harness = rotationWith(options);
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const read = harness.deps.readCredentials;
+    const deps: DeviceTokenRotationDeps = {
+      ...harness.deps,
+      readCredentials: async () => {
+        await gate;
+        return read();
+      },
+    };
+    return { ...harness, rotation: createDeviceTokenRotation(deps), release };
+  }
+
+  it("rotates when due and leaves a fresh token alone, as a scheduled check does", async () => {
+    const due = gated({ now: DUE_AT });
+    due.release();
+    expect(await due.rotation.rotateWhenDue()).toEqual({ kind: "rotated" });
+
+    const fresh = gated({ now: BEFORE_DUE });
+    fresh.release();
+    expect(await fresh.rotation.rotateWhenDue()).toEqual({ kind: "not_due" });
+  });
+
+  it("refreshes the installation keys now, whatever the token's age", async () => {
+    const { rotation, release, posted } = gated({ now: BEFORE_DUE });
+    release();
+
+    expect(await rotation.refreshInstallationKeysNow()).toEqual({ kind: "rotated" });
+    expect(posted).toHaveLength(1);
+  });
+
+  it("lets a scheduled check that starts while a rotation runs share it", async () => {
+    const { rotation, release, posted } = gated({ now: DUE_AT });
+
+    const first = rotation.rotateWhenDue();
+    const second = rotation.rotateWhenDue();
+    release();
+
+    expect(await Promise.all([first, second])).toEqual([{ kind: "rotated" }, { kind: "rotated" }]);
+    expect(posted).toHaveLength(1);
+  });
+
+  it("lets two refreshes that start together share one rotation", async () => {
+    const { rotation, release, posted } = gated({ now: BEFORE_DUE });
+
+    const first = rotation.refreshInstallationKeysNow();
+    const second = rotation.refreshInstallationKeysNow();
+    release();
+
+    expect(await Promise.all([first, second])).toEqual([{ kind: "rotated" }, { kind: "rotated" }]);
+    expect(posted).toHaveLength(1);
+  });
+
+  it("answers a refresh with the rotation a scheduled check is already running, without rotating twice", async () => {
+    const { rotation, release, posted } = gated({ now: DUE_AT });
+
+    const scheduled = rotation.rotateWhenDue();
+    const refresh = rotation.refreshInstallationKeysNow();
+    release();
+
+    expect(await Promise.all([scheduled, refresh])).toEqual([
+      { kind: "rotated" },
+      { kind: "rotated" },
+    ]);
+    expect(posted).toHaveLength(1);
+  });
+
+  it("rotates for a refresh once a scheduled check that found nothing due has finished", async () => {
+    const { rotation, release, posted } = gated({ now: BEFORE_DUE });
+
+    const scheduled = rotation.rotateWhenDue();
+    const refresh = rotation.refreshInstallationKeysNow();
+    release();
+
+    expect(await Promise.all([scheduled, refresh])).toEqual([
+      { kind: "not_due" },
+      { kind: "rotated" },
+    ]);
+    expect(posted).toHaveLength(1);
+  });
+
+  it("starts a new rotation once the previous one has finished", async () => {
+    const { rotation, release, posted } = gated({ now: DUE_AT });
+    release();
+
+    await rotation.rotateWhenDue();
+    await rotation.rotateWhenDue();
+
+    expect(posted).toHaveLength(2);
+  });
+
+  it("rotates again after a rotation that threw", async () => {
+    const harness = rotationWith({ now: DUE_AT });
+    let failing = true;
+    const rotation = createDeviceTokenRotation({
+      ...harness.deps,
+      readCredentials: async () => {
+        if (failing) {
+          failing = false;
+          throw new Error("credentials unreadable");
+        }
+        return CREDENTIALS;
+      },
+    });
+
+    await expect(rotation.rotateWhenDue()).rejects.toThrow("credentials unreadable");
+    expect(await rotation.rotateWhenDue()).toEqual({ kind: "rotated" });
   });
 });

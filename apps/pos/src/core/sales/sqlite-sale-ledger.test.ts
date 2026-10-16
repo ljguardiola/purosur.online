@@ -37,7 +37,7 @@ import { openLocalDatabase } from "../platform/test-support/open-local-database"
 import { cashBalanceFor } from "../register/cash-session-requests";
 import { SqliteCashLedger } from "../register/sqlite-cash-ledger";
 import { SqliteSignInStore } from "../sessions/sqlite-sign-in-store";
-import { escPosReceiptTemplate } from "./escpos-receipt-template";
+import { escPosReceiptTemplate } from "./receipt-printer/escpos-receipt-template";
 import { SqliteReceiptLedger } from "./sqlite-receipt-ledger";
 import { SqliteSaleLedger } from "./sqlite-sale-ledger";
 import { printoutOf } from "./test-support/escpos-printout";

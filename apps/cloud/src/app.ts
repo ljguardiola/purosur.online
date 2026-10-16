@@ -148,6 +148,12 @@ import type { RegistersRouteOptions } from "./register/registers-list-route.js";
 import { registerRegistersListRoute } from "./register/registers-list-route.js";
 import { registerReportRegistersRoute } from "./register/report-registers-route.js";
 import {
+  registerSnapshotBackupsRoutes,
+  type SnapshotBackupsRouteOptions,
+} from "./register/snapshot-backups-routes.js";
+import { registerSnapshotKeyVersionRoute } from "./register/snapshot-key-version-route.js";
+import { registerSnapshotOnDiskRoute } from "./register/snapshot-on-disk-route.js";
+import {
   registerSalesReportRoutes,
   type SalesReportRouteOptions,
 } from "./sales/sales-report-routes.js";
@@ -175,6 +181,10 @@ import { registerEventsRoute } from "./sync/events-route.js";
 import { registerQuarantinedEventReleaseRoute } from "./sync/quarantined-event-release-route.js";
 import type { QuarantinedEventsRouteOptions } from "./sync/quarantined-events-list-route.js";
 import { registerQuarantinedEventsListRoute } from "./sync/quarantined-events-list-route.js";
+import {
+  type ReadableEventVersionsRouteOptions,
+  registerReadableEventVersionsRoute,
+} from "./sync/readable-event-versions-route.js";
 import {
   type RegistersBelowMinimumRouteOptions,
   registerRegistersBelowMinimumRoute,
@@ -215,10 +225,12 @@ export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = Postgre
   alerts?: WithoutClock<AlertsRouteOptions<TQueryResult>>;
   quarantinedEvents?: WithoutClock<QuarantinedEventsRouteOptions<TQueryResult>>;
   registersBelowMinimum?: RegistersBelowMinimumRouteOptions<TQueryResult>;
+  readableEventVersions?: ReadableEventVersionsRouteOptions;
   offsiteDumpChecks?: WithoutClock<RecordOffsiteDumpCheckRouteOptions<TQueryResult>>;
   prices?: WithoutClock<PricesRouteOptions<TQueryResult>>;
   discounts?: WithoutClock<DiscountsRouteOptions<TQueryResult>>;
   registers?: WithoutClock<RegistersRouteOptions<TQueryResult>>;
+  snapshotBackups?: WithoutClock<SnapshotBackupsRouteOptions<TQueryResult>>;
   registersPointsOfSale?: WithoutClock<RegistersPointsOfSaleRouteOptions<TQueryResult>>;
   stock?: WithoutClock<StockRouteOptions<TQueryResult>>;
   salesReports?: WithoutClock<SalesReportRouteOptions<TQueryResult>>;
@@ -307,10 +319,12 @@ export function databaseRouteOptions<TQueryResult extends PgQueryResultHKT>(
     alerts: backoffice,
     quarantinedEvents: backoffice,
     registersBelowMinimum: { db, releaseCheckToken: wiring.releaseCheckToken },
+    readableEventVersions: { releaseCheckToken: wiring.releaseCheckToken },
     offsiteDumpChecks: { db, offsiteDumpCheckToken: wiring.offsiteDumpCheckToken },
     prices: backoffice,
     discounts: backoffice,
     registers: backoffice,
+    snapshotBackups: { ...backoffice, keysEncryptionKey: wiring.installationKeysEncryptionKey },
     registersPointsOfSale: wiring.enqueueTaxAuthorityCount
       ? { ...backoffice, enqueueTaxAuthorityCount: wiring.enqueueTaxAuthorityCount }
       : backoffice,
@@ -550,6 +564,10 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
         registerRegistersBelowMinimumRoute(api, options.registersBelowMinimum);
       }
 
+      if (options.readableEventVersions) {
+        registerReadableEventVersionsRoute(api, options.readableEventVersions);
+      }
+
       if (options.offsiteDumpChecks) {
         registerRecordOffsiteDumpCheckRoute(api, { ...options.offsiteDumpChecks, now });
       }
@@ -601,6 +619,10 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
         registerRegisterPointTerminalRoute(api, { ...options.registers, now });
       }
 
+      if (options.snapshotBackups) {
+        registerSnapshotBackupsRoutes(api, { ...options.snapshotBackups, now });
+      }
+
       if (options.registersPointsOfSale) {
         registerRegistersPointsOfSaleListRoute(api, { ...options.registersPointsOfSale, now });
         registerFortnightPresentationsListRoute(api, { ...options.registersPointsOfSale, now });
@@ -642,6 +664,8 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
           reportError: (error) => reportError("the register snapshot backups failed", error),
           now,
         });
+        registerSnapshotOnDiskRoute(api, { ...options.devices, now });
+        registerSnapshotKeyVersionRoute(api, { ...options.devices, now });
         if (options.fiscalAuthorization) {
           registerFiscalAuthorizationRoute(api, {
             ...options.devices,

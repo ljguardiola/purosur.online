@@ -142,3 +142,22 @@ export function postToCloudWithBearer(
     options,
   );
 }
+
+export function putToCloudWithBearer(
+  deps: CloudClientDeps,
+  path: string,
+  bearerToken: string,
+  body: unknown,
+  options?: CloudCallOptions,
+): Promise<CloudResponse> {
+  return requestWithRetries(
+    deps,
+    path,
+    {
+      method: "PUT",
+      headers: { authorization: `Bearer ${bearerToken}`, "content-type": "application/json" },
+      body: JSON.stringify(body),
+    },
+    options,
+  );
+}

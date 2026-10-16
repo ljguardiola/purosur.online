@@ -92,7 +92,17 @@ describe("requestSnapshotUpload", () => {
         requiredHeaders: { "x-amz-meta-key-version": "2" },
         expiresAt: new Date("2026-10-14T15:15:00.000Z"),
       },
+      currentKeyVersion: 2,
     });
+  });
+
+  it("announces the register's latest key version whichever version the declaration used", async () => {
+    const store = new FakeSnapshotStore();
+    store.seedKeyVersions("register-1", 3, 1, 2);
+
+    const outcome = await request(store, { keyVersion: 1 });
+
+    expect(outcome).toMatchObject({ kind: "authorized", currentKeyVersion: 3 });
   });
 
   it("refuses a key version the register does not hold, recording nothing", async () => {

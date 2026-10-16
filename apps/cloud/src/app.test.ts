@@ -2533,6 +2533,11 @@ describe("the route access inventory", () => {
         access: RELEASE_CHECK_ACCESS,
       },
       {
+        method: "GET",
+        url: "/api/sync/readable-event-versions",
+        access: RELEASE_CHECK_ACCESS,
+      },
+      {
         method: "POST",
         url: "/api/backups/offsite-dump-checks",
         access: OFFSITE_DUMP_CHECK_ACCESS,
@@ -2749,6 +2754,26 @@ describe("the route access inventory", () => {
       },
       {
         method: "GET",
+        url: "/api/snapshot-backups/registers",
+        access: capabilityAccess("backups_area"),
+      },
+      {
+        method: "GET",
+        url: "/api/snapshot-backups/registers/:registerId",
+        access: capabilityAccess("backups_area"),
+      },
+      {
+        method: "PUT",
+        url: "/api/snapshot-backups/lifecycle-rules",
+        access: capabilityAccess("backups_area"),
+      },
+      {
+        method: "POST",
+        url: "/api/snapshot-backups/registers/:registerId/key-rotations",
+        access: capabilityAccess("backups_area"),
+      },
+      {
+        method: "GET",
         url: "/api/registers/points-of-sale",
         access: capabilityAccess("cash_area"),
       },
@@ -2781,6 +2806,12 @@ describe("the route access inventory", () => {
       { method: "POST", url: "/api/devices/current/snapshot-corruption", access: PUBLIC_ACCESS },
       { method: "GET", url: "/api/devices/current/snapshots", access: PUBLIC_ACCESS },
       { method: "GET", url: "/api/devices/current/snapshots/verified", access: PUBLIC_ACCESS },
+      { method: "PUT", url: "/api/devices/current/snapshots/on-disk", access: PUBLIC_ACCESS },
+      {
+        method: "GET",
+        url: "/api/devices/current/snapshot-key-version",
+        access: PUBLIC_ACCESS,
+      },
       { method: "POST", url: "/api/pin-code-redemptions", access: PUBLIC_ACCESS },
       { method: "POST", url: "/api/sign-in-lookups", access: PUBLIC_ACCESS },
       { method: "POST", url: "/api/devices/current/tokens", access: PUBLIC_ACCESS },

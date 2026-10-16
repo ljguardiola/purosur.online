@@ -878,6 +878,9 @@ describe("startServer", () => {
         db: fakeRecovery.db,
         releaseCheckToken: "release-check-token",
       },
+      readableEventVersions: {
+        releaseCheckToken: "release-check-token",
+      },
       offsiteDumpChecks: {
         db: fakeRecovery.db,
         offsiteDumpCheckToken: "offsite-dump-check-token",
@@ -893,6 +896,11 @@ describe("startServer", () => {
       registers: {
         db: fakeRecovery.db,
         backofficeOrigin: fakeRecovery.backofficeOrigin,
+      },
+      snapshotBackups: {
+        db: fakeRecovery.db,
+        backofficeOrigin: fakeRecovery.backofficeOrigin,
+        keysEncryptionKey: KEYS_ENCRYPTION_KEY_BYTES,
       },
       stock: {
         db: fakeRecovery.db,

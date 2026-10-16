@@ -1,7 +1,10 @@
 import type { SalesCoreToRendererMessage } from "@purosur/contracts";
 import { pathOfMatchingDevice, type SerialDeviceWatch } from "../register/serial-device-watch";
-import type { SerialLink } from "./open-serial-link";
-import { createSerialBarcodeReader, type SerialBarcodeReaderDeps } from "./serial-barcode-reader";
+import {
+  createSerialBarcodeReader,
+  type SerialBarcodeReaderDeps,
+} from "./barcode-reader/serial-barcode-reader";
+import type { SerialLink } from "./serial-link/open-serial-link";
 
 export interface BarcodeReaderWiringDeps {
   watch: Pick<SerialDeviceWatch, "start" | "reading"> | undefined;

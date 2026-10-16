@@ -16,6 +16,17 @@ const BUCKET_VARIABLES = {
   secretAccessKey: "POS_UPDATES_BUCKET_SECRET_ACCESS_KEY",
 };
 
+const CONTRACTS_MODULE = "../../packages/contracts/src/register/register-update.ts";
+
+export function bucketFromEnv(env) {
+  return {
+    bucket: Object.fromEntries(
+      Object.entries(BUCKET_VARIABLES).map(([field, name]) => [field, env[name]]),
+    ),
+    missing: Object.values(BUCKET_VARIABLES).filter((name) => !env[name]),
+  };
+}
+
 export async function findInstaller(directory) {
   const installers = (await readdir(directory)).filter((name) => name.endsWith(".exe"));
   if (installers.length !== 1) {
@@ -40,6 +51,10 @@ function digestsOf(path) {
         resolve({ size, sha256: sha256.digest("hex"), sha512: sha512.digest("base64") }),
       );
   });
+}
+
+export async function installerSha512(directory) {
+  return (await digestsOf(await findInstaller(directory))).sha512;
 }
 
 export function objectUrl(bucket, key) {
@@ -67,6 +82,27 @@ async function readEntry(send, bucket, schema) {
   return parsed.data;
 }
 
+function signedSend(bucket, fetchRequest) {
+  const client = new AwsClient({
+    accessKeyId: bucket.accessKeyId,
+    secretAccessKey: bucket.secretAccessKey,
+    region: bucket.region,
+    service: "s3",
+    retries: 0,
+  });
+  return async (url, init) => fetchRequest(await client.sign(url, init));
+}
+
+export async function readPublishedEntry({ bucket, fetch: fetchRequest = fetch }) {
+  const { registerReleaseEntrySchema, registerVersionText } = await import(CONTRACTS_MODULE);
+  const entry = await readEntry(
+    signedSend(bucket, fetchRequest),
+    bucket,
+    registerReleaseEntrySchema,
+  );
+  return entry && { ...entry, version: registerVersionText(entry.version) };
+}
+
 async function putObject(send, bucket, key, { body, contentType, contentLength, sha256 }) {
   const response = await send(objectUrl(bucket, key), {
     method: "PUT",
@@ -89,8 +125,8 @@ export async function publishUpdate({
   bucket,
   fetch: fetchRequest = fetch,
 }) {
-  const { registerReleaseEntrySchema, registerVersionSchema } = await import(
-    "../../packages/contracts/src/register/register-update.ts"
+  const { registerReleaseEntrySchema, registerVersionSchema, registerVersionText } = await import(
+    CONTRACTS_MODULE
   );
   const { isNewerRegisterVersion } = await import(
     "../../packages/domain/src/register/model/register-version.ts"
@@ -103,15 +139,7 @@ export async function publishUpdate({
   const installerPath = await findInstaller(installerDir);
   const file = installerPath.slice(installerDir.length).replace(/^[\\/]+/, "");
 
-  const client = new AwsClient({
-    accessKeyId: bucket.accessKeyId,
-    secretAccessKey: bucket.secretAccessKey,
-    region: bucket.region,
-    service: "s3",
-    retries: 0,
-  });
-
-  const send = async (url, init) => fetchRequest(await client.sign(url, init));
+  const send = signedSend(bucket, fetchRequest);
 
   const published = await readEntry(send, bucket, registerReleaseEntrySchema);
   if (published && !isNewerRegisterVersion(published.version, parsedVersion.data)) {
@@ -148,15 +176,13 @@ export async function publishUpdate({
   return { published: true, reason: `published ${versionText}` };
 }
 
-function registerVersionText({ major, minor, patch }) {
-  return [major, minor, patch].join(".");
-}
-
 async function main() {
-  const installerDir = process.argv[2];
+  const requireNewer = process.argv[2] === "--require-newer";
+  const installerDir = process.argv[requireNewer ? 3 : 2];
+  const { bucket, missing: missingBucket } = bucketFromEnv(process.env);
   const missing = [
     ...(installerDir ? [] : ["the installer directory argument"]),
-    ...Object.values(BUCKET_VARIABLES).filter((name) => !process.env[name]),
+    ...missingBucket,
     ...(process.env.POS_VERSION ? [] : ["POS_VERSION"]),
   ];
   if (missing.length > 0) {
@@ -165,18 +191,20 @@ async function main() {
     return;
   }
 
-  const bucket = Object.fromEntries(
-    Object.entries(BUCKET_VARIABLES).map(([field, name]) => [field, process.env[name]]),
-  );
   try {
     const result = await publishUpdate({
       installerDir,
       version: process.env.POS_VERSION,
       bucket,
     });
-    console.log(
-      result.published ? `publish-pos-update: ${result.reason}` : `::notice::${result.reason}`,
-    );
+    if (result.published) {
+      console.log(`publish-pos-update: ${result.reason}`);
+    } else if (requireNewer) {
+      console.error(`::error::${result.reason}`);
+      process.exitCode = 1;
+    } else {
+      console.log(`::notice::${result.reason}`);
+    }
   } catch (error) {
     console.error(`::error::${error.message}`);
     process.exitCode = 1;
