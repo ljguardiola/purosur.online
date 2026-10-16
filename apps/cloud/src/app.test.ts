@@ -2263,6 +2263,7 @@ describe("the route access inventory", () => {
       { method: "GET", url: "/api/sessions/current", access: OPEN_SESSION_ACCESS },
       { method: "GET", url: "/api/sessions/current/expiration", access: OPEN_SESSION_PEEK_ACCESS },
       { method: "DELETE", url: "/api/sessions/current", access: SESSION_COOKIE_ACCESS },
+      { method: "DELETE", url: "/api/sessions", access: capabilityAccess("manage_users") },
       {
         method: "POST",
         url: "/api/sessions/current/authorization-challenges",
@@ -2295,6 +2296,7 @@ describe("the route access inventory", () => {
         url: "/api/users/:id/passkeys/:passkeyId",
         access: capabilityAccess("manage_users"),
       },
+      { method: "DELETE", url: "/api/users/:id/passkeys", access: capabilityAccess("manage_users") },
       {
         method: "PUT",
         url: "/api/users/:id/deactivation",
