@@ -40,7 +40,6 @@ export type CancelPaidSaleOutcome<Grant extends CancelPaidSaleGrant> =
   | SellingSessionRefusal
   | { kind: "no_open_sale" }
   | { kind: "mercado_pago_charge_in_progress" }
-  | { kind: "holds_point_payment" }
   | { kind: "unavailable" }
   | { kind: "cancelled"; refunds: SaleRefund[]; grant: Grant };
 
@@ -68,7 +67,7 @@ export async function cancelPaidSale<Grant extends CancelPaidSaleGrant, Refusal>
     const pendingMercadoPagoPayments = tx.pendingMercadoPagoPaymentsOf(sale.id);
     const now = clock.now();
     const payments = tx.salePayments(sale.id);
-    const refusal = saleCancelRefusal(payments, pendingMercadoPagoPayments, now);
+    const refusal = saleCancelRefusal(pendingMercadoPagoPayments, now);
     if (refusal !== null) {
       return { kind: refusal };
     }
@@ -157,7 +156,7 @@ function saleCancelledEvent(
     aggregate_type: "Sale",
     aggregate_id: sale.id,
     event_type: "sale_cancelled",
-    schema_version: 6,
+    schema_version: 7,
     payload: {
       id: sale.id,
       register_id: sale.registerId,

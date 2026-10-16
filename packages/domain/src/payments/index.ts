@@ -50,7 +50,6 @@ export {
   CONFIRMED_BY_HAND_METHODS,
   cancellableWithoutAuthorization,
   hasApprovedPayment,
-  holdsApprovedPointPayment,
   isConfirmedByHand,
   MERCADO_PAGO_PAYMENT_METHODS,
   MERCADO_PAGO_PROVIDERS,

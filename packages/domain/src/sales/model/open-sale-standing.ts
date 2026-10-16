@@ -2,7 +2,6 @@ import {
   aMercadoPagoChargeInProgress,
   cancellableWithoutAuthorization,
   hasApprovedPayment,
-  holdsApprovedPointPayment,
   type MercadoPagoChargeInProgress,
   type MercadoPagoPaymentMethod,
   mercadoPagoChargeInProgress,
@@ -15,7 +14,7 @@ import {
 
 export type SaleLinesLock = "approved_payment" | "mercado_pago_charge_in_progress";
 
-export type SaleCancelRefusal = "mercado_pago_charge_in_progress" | "holds_point_payment";
+export type SaleCancelRefusal = "mercado_pago_charge_in_progress";
 
 export interface OpenSaleStanding {
   balance: SaleBalance;
@@ -40,14 +39,12 @@ export function saleLinesLock(
 }
 
 export function saleCancelRefusal(
-  payments: readonly { state: string; method: string }[],
   pendingMercadoPagoPayments: readonly { method: string; waitEndsAt: Date }[],
   now: Date,
 ): SaleCancelRefusal | null {
-  if (aMercadoPagoChargeInProgress(pendingMercadoPagoPayments, now)) {
-    return "mercado_pago_charge_in_progress";
-  }
-  return holdsApprovedPointPayment(payments) ? "holds_point_payment" : null;
+  return aMercadoPagoChargeInProgress(pendingMercadoPagoPayments, now)
+    ? "mercado_pago_charge_in_progress"
+    : null;
 }
 
 export function openSaleStanding(
@@ -62,7 +59,7 @@ export function openSaleStanding(
   }[],
   now: Date,
 ): OpenSaleStanding {
-  const cancelRefusal = saleCancelRefusal(payments, pendingMercadoPagoPayments, now);
+  const cancelRefusal = saleCancelRefusal(pendingMercadoPagoPayments, now);
   return {
     balance: saleBalance(total, payments),
     linesLock: saleLinesLock(payments, pendingMercadoPagoPayments, now),

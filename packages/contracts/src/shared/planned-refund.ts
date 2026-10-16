@@ -6,4 +6,5 @@ export const plannedRefundSchema = z.object({
   method: z.enum(PAYMENT_METHODS),
   amount: z.int().nonnegative(),
   state: z.enum(PLANNED_REFUND_STATES),
+  sent_by_cloud: z.boolean(),
 });

@@ -28,7 +28,8 @@ type CancelledSalePayload = SyncedEventPayloads[
   | "sale_cancelled@3"
   | "sale_cancelled@4"
   | "sale_cancelled@5"
-  | "sale_cancelled@6"];
+  | "sale_cancelled@6"
+  | "sale_cancelled@7"];
 
 type VoidedSalePayload = SyncedEventPayloads["sale_voided@1" | "sale_voided@2"];
 
@@ -270,6 +271,7 @@ const FACT_OF: {
   "sale_cancelled@4": cancelledSale,
   "sale_cancelled@5": cancelledSale,
   "sale_cancelled@6": cancelledSale,
+  "sale_cancelled@7": cancelledSale,
   "sale_voided@1": voidedSale,
   "sale_voided@2": voidedSale,
   "cash_session_opened@1": (payload, event) => ({
