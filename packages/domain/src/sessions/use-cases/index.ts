@@ -6,6 +6,11 @@ export type {
 } from "./admit-sign-in-attempt.js";
 export { admitSignInAttempt } from "./admit-sign-in-attempt.js";
 export type {
+  BackofficeSessionEndingStore,
+  BackofficeSessionEndingStoreTransaction,
+  EndedSession,
+} from "./backoffice-session-ending-store.js";
+export type {
   AuthorizeRegisterOperationInput,
   AuthorizeRegisterOperationOutcome,
 } from "./authorize-register-operation.js";
@@ -17,6 +22,12 @@ export type {
   ConfirmRejectedSignInAttemptPorts,
 } from "./confirm-rejected-sign-in-attempt.js";
 export { confirmRejectedSignInAttempt } from "./confirm-rejected-sign-in-attempt.js";
+export type {
+  EndEveryBackofficeSessionInput,
+  EndEveryBackofficeSessionOutcome,
+  EndEveryBackofficeSessionPorts,
+} from "./end-every-backoffice-session.js";
+export { endEveryBackofficeSession } from "./end-every-backoffice-session.js";
 export type {
   EndExpiredSessionInput,
   EndExpiredSessionOutcome,
