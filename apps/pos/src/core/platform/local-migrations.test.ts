@@ -5002,8 +5002,7 @@ describe("the register's local migrations", () => {
           )
           .run(cause);
       expect(() => issueOffline("forgotten")).toThrow(/CHECK/);
-      expect(() => issueOffline("clock_behind")).not.toThrow();
-      expect(() => issueOffline("no_connectivity")).toThrow(/UNIQUE/);
+      expect(() => issueOffline("clock_behind")).toThrow(/CHECK/);
 
       expect(
         after

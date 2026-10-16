@@ -162,20 +162,6 @@ describe("decideSaleAuthorization", () => {
     ]);
   });
 
-  it("issues offline, naming the clock, when the real-time series' mark is more than a minute ahead of the decision", () => {
-    const { tx, outcome } = decide({
-      series: { ...SERIES, clockMark: new Date(DECIDED_AT.getTime() + 61_000) },
-    });
-
-    expect(outcome).toEqual({
-      kind: "issued_offline",
-      fiscalDocumentId: "id-1",
-      cause: "clock_behind",
-    });
-    expect(tx.reservations).toEqual([]);
-    expect(tx.offlineDocuments).toMatchObject([{ pointOfSale: 7, number: 121 }]);
-  });
-
   it("reserves nothing and raises no mark for a sale routed to the deferred flow", () => {
     const { tx } = decide({ series: { ...SERIES, pointOfSale: null } });
 
@@ -209,11 +195,8 @@ describe("decideSaleAuthorization", () => {
       "fiscally_offline",
     ],
     [
-      "the register's clock is behind its own mark and the real-time series cannot be used",
-      {
-        series: { ...SERIES, clockMark: new Date(DECIDED_AT.getTime() + 61_000) },
-        heldCodes: [],
-      },
+      "the register's clock is behind its own mark, even with a code at hand for the sale's date",
+      { series: { ...SERIES, clockMark: new Date(DECIDED_AT.getTime() + 61_000) } },
       "clock_behind",
     ],
     [

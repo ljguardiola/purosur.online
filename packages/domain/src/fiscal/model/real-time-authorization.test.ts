@@ -504,18 +504,9 @@ describe("decideSaleAuthorizationRoute", () => {
 
 describe("decideSaleAuthorizationRoute under a clock behind the register's own mark", () => {
   const BEHIND = { ...SERIES, clockMark: MORE_THAN_A_MINUTE_AHEAD_OF_NOW };
-  const ISSUED_OFFLINE = {
-    kind: "issue_offline",
-    pointOfSale: 7,
-    number: 101,
-    document: DOCUMENT,
-    issuedOn: "2026-10-01",
-    fortnight: OCTOBER_FIRST_FORTNIGHT,
-    offlineAuthorizationCode: CODE,
-  };
 
-  it("issues the sale offline for the clock, even while connectivity, the token and the tax authority work", () => {
-    expect(decide({ series: BEHIND })).toEqual({ ...ISSUED_OFFLINE, cause: "clock_behind" });
+  it("defers the sale as the clock being behind, even while connectivity, the token, the tax authority and a code at hand all work", () => {
+    expect(decide({ series: BEHIND })).toEqual({ kind: "defer", reason: "clock_behind" });
   });
 
   it("reserves the number when the mark is no more than a minute ahead", () => {
@@ -525,9 +516,9 @@ describe("decideSaleAuthorizationRoute under a clock behind the register's own m
   });
 
   it("names the clock, not lack of connectivity, when both hold", () => {
-    expect(decide({ series: BEHIND, online: { ...ONLINE, arcaReachable: false } })).toMatchObject({
-      kind: "issue_offline",
-      cause: "clock_behind",
+    expect(decide({ series: BEHIND, online: { ...ONLINE, arcaReachable: false } })).toEqual({
+      kind: "defer",
+      reason: "clock_behind",
     });
   });
 
@@ -568,10 +559,11 @@ describe("decideSaleAuthorizationRoute under a clock behind the register's own m
 });
 
 describe("decideSaleAuthorizationRoute under a clock behind the tax authority's last authorized document", () => {
-  it("issues the sale offline when the reading's day is before the day the tax authority last authorized on", () => {
-    expect(decide({ series: { ...SERIES, taxAuthorityLastIssuedOn: "2026-10-02" } })).toMatchObject(
-      { kind: "issue_offline", cause: "clock_behind" },
-    );
+  it("defers the sale as the clock being behind when the reading's day is before the day the tax authority last authorized on", () => {
+    expect(decide({ series: { ...SERIES, taxAuthorityLastIssuedOn: "2026-10-02" } })).toEqual({
+      kind: "defer",
+      reason: "clock_behind",
+    });
   });
 
   it("reserves the number when the reading's day is that day or a later one", () => {
@@ -590,7 +582,7 @@ describe("decideSaleAuthorizationRoute under a clock behind the tax authority's 
         now: new Date("2026-10-01T02:59:59.000Z"),
         occurredAt: new Date("2026-10-01T12:00:00.000Z"),
       }),
-    ).toMatchObject({ kind: "issue_offline", cause: "clock_behind" });
+    ).toEqual({ kind: "defer", reason: "clock_behind" });
   });
 });
 
@@ -666,7 +658,6 @@ describe("OFFLINE_AUTHORIZATION_CAUSES", () => {
       "no_connectivity",
       "unclear_outcome",
       "numbering_conflict",
-      "clock_behind",
     ]);
   });
 });

@@ -202,7 +202,7 @@ describe("correctRegisterClock", () => {
       offlineAuthorizationCode: "71234567890123",
     });
 
-    expect(route).toMatchObject({ kind: "issue_offline", cause: "clock_behind" });
+    expect(route).toEqual({ kind: "defer", reason: "clock_behind" });
   });
 
   it.each([

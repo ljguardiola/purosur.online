@@ -809,21 +809,17 @@ describe("deciding a sale's authorization against the register's clock marks", (
       setClockMark(POINT_OF_SALE, "2026-09-30T12:07:00.000Z");
     });
 
-    it("issues the document under the code as a clock_behind cause and raises the offline series' mark to the sale's instant", () => {
+    it("defers the sale as clock_behind, issuing nothing under the code and raising no mark", () => {
       decide();
 
       expect(documents()).toEqual([]);
-      expect(offlineDocuments()).toMatchObject([{ number: 1, cause: "clock_behind" }]);
+      expect(offlineDocuments()).toEqual([]);
+      expect(routings()).toMatchObject([{ sale_id: "sale-1", reason: "clock_behind" }]);
       expect(clockMarks()).toEqual([
         {
           point_of_sale: POINT_OF_SALE,
           document_type: "factura_c",
           reading: "2026-09-30T12:07:00.000Z",
-        },
-        {
-          point_of_sale: OFFLINE_POINT_OF_SALE,
-          document_type: "factura_c",
-          reading: SALE_COMPLETED_AT.toISOString(),
         },
       ]);
     });

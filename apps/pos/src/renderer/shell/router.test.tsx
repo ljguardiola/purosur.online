@@ -1349,6 +1349,39 @@ describe("the register's router", () => {
       await expect.element(screen.getByText("El reloj de la caja atrasa")).toBeVisible();
       await expect.element(screen.getByRole("button", { name: "Ir a vender" })).toBeEnabled();
     });
+    it("offers correcting the clock on the cash movements screen while a session is open and it lags", async () => {
+      const router = createRegisterRouter(
+        routeTree,
+        {
+          ...contextWith("up", "enrolled", PERSON, undefined, OPEN_SESSION),
+          readClockGuard: async () => LAGGING,
+        },
+        "/cash",
+      );
+
+      const screen = await render(<RouterProvider router={router} />);
+
+      await expect.element(screen.getByText("El reloj de la caja atrasa")).toBeVisible();
+      await userEvent.click(screen.getByRole("button", { name: "Corregir el reloj" }));
+      await expect
+        .element(screen.getByRole("dialog", { name: "No se pueden emitir comprobantes" }))
+        .toBeVisible();
+    });
+
+    it("shows nothing about the clock on the cash movements screen while it does not lag", async () => {
+      const router = createRegisterRouter(
+        routeTree,
+        contextWith("up", "enrolled", PERSON, undefined, OPEN_SESSION),
+        "/cash",
+      );
+
+      const screen = await render(<RouterProvider router={router} />);
+
+      await expect
+        .element(screen.getByRole("heading", { name: "Movimientos de efectivo", exact: true }))
+        .toBeVisible();
+      await expect.element(screen.getByText("El reloj de la caja atrasa")).not.toBeInTheDocument();
+    });
   });
 
   describe("the startup pending screen", () => {
