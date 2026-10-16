@@ -18,6 +18,7 @@ const REFUND: FakeRefundOfSale = {
   amount: 12400,
   openedAt: REFUND_OPENED,
   confirmedAt: null,
+  lastRefusalReason: null,
   hasOpenRefundTaskAlert: false,
 };
 
@@ -104,6 +105,54 @@ describe("openOverdueRefundTaskAlerts", () => {
         refundIds: [],
       });
       expect(store.opened).toEqual([]);
+    },
+  );
+
+  it.each([
+    ["QR", "sale_voided"],
+    ["POINT", "sale_voided"],
+    ["QR", "sale_cancelled"],
+  ])(
+    "opens none for a %s refund of origin %s already confirmed, waiting for Mercado Pago's balance",
+    async (method, origin) => {
+      const store = new FakeRefundTaskAlertStore([
+        {
+          ...REFUND,
+          method,
+          origin,
+          confirmedAt: REFUND_OPENED,
+          lastRefusalReason: "insufficient_balance",
+        },
+      ]);
+
+      expect(await evaluate(store, hoursAfterOpening(72))).toEqual({
+        kind: "opened",
+        refundIds: [],
+      });
+    },
+  );
+
+  it.each([
+    ["QR", "sale_voided"],
+    ["POINT", "sale_voided"],
+    ["QR", "sale_cancelled"],
+  ])(
+    "opens one for a %s refund of origin %s already confirmed that Mercado Pago refused for good",
+    async (method, origin) => {
+      const store = new FakeRefundTaskAlertStore([
+        {
+          ...REFUND,
+          method,
+          origin,
+          confirmedAt: REFUND_OPENED,
+          lastRefusalReason: "rejected_by_bank",
+        },
+      ]);
+
+      expect(await evaluate(store, hoursAfterOpening(72))).toEqual({
+        kind: "opened",
+        refundIds: ["refund-1"],
+      });
     },
   );
 

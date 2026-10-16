@@ -44,6 +44,7 @@ describe("DrizzleRefundTaskAlertStore", () => {
         amount: refund.amount,
         openedAt: CANCELLED_AT,
         confirmedAt: null,
+        lastRefusalReason: null,
       },
     ]);
   });
@@ -61,6 +62,7 @@ describe("DrizzleRefundTaskAlertStore", () => {
         amount: 2_000,
         openedAt: CANCELLED_AT,
         confirmedAt: null,
+        lastRefusalReason: null,
       },
     ]);
   });
@@ -74,6 +76,22 @@ describe("DrizzleRefundTaskAlertStore", () => {
 
     expect(await lockRefunds()).toEqual([
       expect.objectContaining({ refundId: refund.refundId, confirmedAt: CANCELLED_AT }),
+    ]);
+  });
+
+  it("locks a refund Mercado Pago refused with the reason it gave", async () => {
+    const refund = await aPendingRefundOfVoidedSale(db, { voidedAt: CANCELLED_AT });
+    await db
+      .update(paymentRefunds)
+      .set({
+        confirmedBy: "cashier-1",
+        confirmedAt: CANCELLED_AT,
+        lastRefusalReason: "rejected_by_bank",
+      })
+      .where(eq(paymentRefunds.id, refund.refundId));
+
+    expect(await lockRefunds()).toEqual([
+      expect.objectContaining({ refundId: refund.refundId, lastRefusalReason: "rejected_by_bank" }),
     ]);
   });
 

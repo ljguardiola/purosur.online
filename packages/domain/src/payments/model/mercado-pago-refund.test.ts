@@ -41,17 +41,28 @@ describe("isRefundInCloudHands", () => {
   const CONFIRMED_AT = new Date("2026-10-07T10:05:00.000Z");
 
   it.each([
-    ["QR", "sale_voided", "confirmed", true],
-    ["POINT", "sale_voided", "confirmed", true],
-    ["QR", "sale_cancelled", "confirmed", true],
-    ["QR", "sale_cancelled", "unconfirmed", false],
-    ["QR", "sale_voided", "unconfirmed", false],
-    ["TRANSFER", "sale_voided", "confirmed", false],
-    ["POINT", "sale_cancelled", "confirmed", false],
-  ])("answers a %s refund of origin %s, %s: %s", (method, origin, confirmation, inHands) => {
-    const confirmedAt = confirmation === "confirmed" ? CONFIRMED_AT : null;
-    expect(isRefundInCloudHands({ method, origin, confirmedAt })).toBe(inHands);
-  });
+    ["QR", "sale_voided", "confirmed", null, true],
+    ["POINT", "sale_voided", "confirmed", null, true],
+    ["QR", "sale_cancelled", "confirmed", null, true],
+    ["QR", "sale_voided", "confirmed", INSUFFICIENT_BALANCE_REFUSAL, true],
+    ["POINT", "sale_voided", "confirmed", INSUFFICIENT_BALANCE_REFUSAL, true],
+    ["QR", "sale_cancelled", "confirmed", INSUFFICIENT_BALANCE_REFUSAL, true],
+    ["QR", "sale_voided", "confirmed", "rejected_by_bank", false],
+    ["POINT", "sale_voided", "confirmed", "rejected_by_bank", false],
+    ["QR", "sale_cancelled", "confirmed", "rejected_by_bank", false],
+    ["QR", "sale_cancelled", "unconfirmed", null, false],
+    ["QR", "sale_voided", "unconfirmed", null, false],
+    ["TRANSFER", "sale_voided", "confirmed", null, false],
+    ["POINT", "sale_cancelled", "confirmed", null, false],
+  ])(
+    "answers a %s refund of origin %s, %s, last refused for %s: %s",
+    (method, origin, confirmation, lastRefusalReason, inHands) => {
+      const confirmedAt = confirmation === "confirmed" ? CONFIRMED_AT : null;
+      expect(isRefundInCloudHands({ method, origin, confirmedAt, lastRefusalReason })).toBe(
+        inHands,
+      );
+    },
+  );
 });
 
 describe("recordedRefundOfVoidedSale", () => {
