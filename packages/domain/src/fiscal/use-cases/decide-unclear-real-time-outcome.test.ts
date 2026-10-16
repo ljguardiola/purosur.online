@@ -226,8 +226,12 @@ describe("decideUnclearRealTimeOutcome", () => {
       "recordDecision:released@2026-10-01T12:01:00.000Z",
       "leaveLane",
     ]);
-    expect(vouchers.lookups).toEqual([{ token: TOKEN, pointOfSale: 12, number: 41 }]);
-    expect(lastAuthorizedLookup.lookups).toEqual([{ token: TOKEN, pointOfSale: 12 }]);
+    expect(vouchers.lookups).toEqual([
+      { token: TOKEN, pointOfSale: 12, voucherType: 11, number: 41 },
+    ]);
+    expect(lastAuthorizedLookup.lookups).toEqual([
+      { token: TOKEN, pointOfSale: 12, voucherType: 11 },
+    ]);
     expect(store.decisions.get(FISCAL_DOCUMENT_ID)?.decision).toEqual({ kind: "released" });
   });
 

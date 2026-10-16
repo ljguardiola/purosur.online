@@ -211,6 +211,8 @@ export class FakeNumberingTaxAuthority
   implements TaxAuthorityLastAuthorizedLookup, TaxAuthorityVoucherLookup
 {
   readonly vouchersAsked: number[] = [];
+  readonly voucherTypesAsked: number[] = [];
+  readonly lastAuthorizedTypesAsked: number[] = [];
   lastAuthorizedAsked = 0;
   heldLaneDuringLookups: boolean[] = [];
   private readonly store: FakeNumberingConflictStore;
@@ -227,14 +229,16 @@ export class FakeNumberingTaxAuthority
     this.voucherAnswer = voucherAnswer;
   }
 
-  async lastAuthorized(): Promise<LastAuthorizedAnswer> {
+  async lastAuthorized(lookup: { voucherType: number }): Promise<LastAuthorizedAnswer> {
+    this.lastAuthorizedTypesAsked.push(lookup.voucherType);
     this.store.operations.push("lastAuthorized");
     this.lastAuthorizedAsked += 1;
     this.heldLaneDuringLookups.push(this.store.held);
     return this.lastAuthorizedAnswer;
   }
 
-  async voucherAt(lookup: { number: number }): Promise<VoucherAnswer> {
+  async voucherAt(lookup: { number: number; voucherType: number }): Promise<VoucherAnswer> {
+    this.voucherTypesAsked.push(lookup.voucherType);
     this.store.operations.push("voucherAt");
     this.vouchersAsked.push(lookup.number);
     this.heldLaneDuringLookups.push(this.store.held);

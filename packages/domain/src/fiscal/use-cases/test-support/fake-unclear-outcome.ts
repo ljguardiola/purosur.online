@@ -167,7 +167,12 @@ class FakeUnclearOutcomeLane implements UnclearOutcomeLane {
 }
 
 export class FakeTaxAuthorityVouchers implements TaxAuthorityVoucherLookup {
-  readonly lookups: { token: WsaaToken; pointOfSale: number; number: number }[] = [];
+  readonly lookups: {
+    token: WsaaToken;
+    pointOfSale: number;
+    voucherType: number;
+    number: number;
+  }[] = [];
   heldLaneDuringLookup: boolean | undefined;
   private readonly answer: VoucherAnswer;
   private readonly documents: FakePointOfSaleLanes;
@@ -180,6 +185,7 @@ export class FakeTaxAuthorityVouchers implements TaxAuthorityVoucherLookup {
   async voucherAt(lookup: {
     token: WsaaToken;
     pointOfSale: number;
+    voucherType: number;
     number: number;
   }): Promise<VoucherAnswer> {
     this.documents.operations.push("voucherAt");
