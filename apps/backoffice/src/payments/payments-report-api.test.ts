@@ -1,7 +1,10 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { FRONT_REGISTER_ID } from "../shell/test-support/report-fixtures";
 import { fetchHandConfirmedPayments, fetchSalesByPaymentMethod } from "./payments-report-api";
-import { weekHandConfirmedReport, weekPaymentsReport } from "./test-support/payments-report-fixtures";
+import {
+  weekHandConfirmedReport,
+  weekPaymentsReport,
+} from "./test-support/payments-report-fixtures";
 
 beforeEach(() => {
   vi.stubGlobal("fetch", vi.fn());

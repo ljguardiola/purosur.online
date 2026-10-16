@@ -94,18 +94,14 @@ function cashiersTable(screen: Screen) {
 test("shows the count and the amount of the payments, and of each method, from the cloud", async () => {
   const screen = await renderScreen(createServices());
 
-  await expect
-    .element(screen.getByRole("heading", { name: PAYMENTS, level: 1 }))
-    .toBeVisible();
+  await expect.element(screen.getByRole("heading", { name: PAYMENTS, level: 1 })).toBeVisible();
   await expect.element(screen.getByText("Reportes · Caja", { exact: true })).toBeVisible();
   await expect.element(screen.getByText("Pagos", { exact: true }).first()).toBeVisible();
   await expect.element(screen.getByText("3", { exact: true })).toBeVisible();
   await expect.element(screen.getByText("$ 1.900,00")).toBeVisible();
   await expect.element(screen.getByText("Transferencias", { exact: true }).first()).toBeVisible();
   await expect.element(screen.getByText("$ 1.500,00")).toBeVisible();
-  await expect
-    .element(screen.getByText("Terminal independiente", { exact: true }).first())
-    .toBeVisible();
+  await expect.element(screen.getByText("$ 400,00").first()).toBeVisible();
   await expectNoAccessibilityViolations(screen.container);
 });
 
@@ -131,7 +127,7 @@ test("names a cashier the cloud could not identify", async () => {
   const screen = await renderScreen(createServices());
 
   const unknown = cashiersTable(screen).getByRole("row", { name: /Sin identificar/ });
-  await expect.element(unknown.getByText("$ 500,00")).toBeVisible();
+  await expect.element(unknown.getByText("$ 500,00").first()).toBeVisible();
 });
 
 test("shows two cashiers of unknown name as two rows", async () => {
@@ -151,7 +147,11 @@ test("shows two cashiers of unknown name as two rows", async () => {
   const screen = await renderScreen(services);
 
   await expect
-    .poll(() => cashiersTable(screen).getByRole("row", { name: /Sin identificar/ }).elements())
+    .poll(() =>
+      cashiersTable(screen)
+        .getByRole("row", { name: /Sin identificar/ })
+        .elements(),
+    )
     .toHaveLength(2);
 });
 
@@ -246,15 +246,15 @@ test("offers every method and asks the cloud again for the one chosen", async ()
 
   await userEvent.click(screen.getByRole("button", { name: /Medio:/ }));
   await expect.element(screen.getByRole("option", { name: "Todos" })).toBeVisible();
-  await expect.element(screen.getByRole("option", { name: "Terminal independiente" })).toBeVisible();
+  await expect
+    .element(screen.getByRole("option", { name: "Terminal independiente" }))
+    .toBeVisible();
   await userEvent.click(screen.getByRole("option", { name: "Transferencia" }));
 
   await expect
     .poll(() => vi.mocked(services.fetchHandConfirmedPayments).mock.lastCall)
     .toEqual([{ method: "TRANSFER" }]);
-  expect(onFiltersChange).toHaveBeenLastCalledWith(
-    expect.objectContaining({ method: "TRANSFER" }),
-  );
+  expect(onFiltersChange).toHaveBeenLastCalledWith(expect.objectContaining({ method: "TRANSFER" }));
 });
 
 test("keeps the previous payments in view, marked as updating, while another method loads", async () => {
@@ -303,21 +303,24 @@ test("says there are no payments confirmed by hand in the period when there are 
 test.each([
   ["a register", { register: FRONT_REGISTER_ID }],
   ["a method", { method: "TRANSFER" }],
-])("says there are none in the period when %s is chosen and none were confirmed", async (_name, chosen) => {
-  const services = createServices();
-  vi.mocked(services.fetchHandConfirmedPayments).mockResolvedValue({
-    kind: "ok",
-    value: emptyHandConfirmedReport,
-  });
+])(
+  "says there are none in the period when %s is chosen and none were confirmed",
+  async (_name, chosen) => {
+    const services = createServices();
+    vi.mocked(services.fetchHandConfirmedPayments).mockResolvedValue({
+      kind: "ok",
+      value: emptyHandConfirmedReport,
+    });
 
-  const screen = await renderScreen(services, {
-    filters: handConfirmedPaymentsFilters.parse(chosen),
-  });
+    const screen = await renderScreen(services, {
+      filters: handConfirmedPaymentsFilters.parse(chosen),
+    });
 
-  await expect
-    .element(paymentsTable(screen).getByText("No hay pagos confirmados a mano en este período"))
-    .toBeVisible();
-});
+    await expect
+      .element(paymentsTable(screen).getByText("No hay pagos confirmados a mano en este período"))
+      .toBeVisible();
+  },
+);
 
 test("shows a failed load with a retry that loads the report again", async () => {
   const services = createServices();

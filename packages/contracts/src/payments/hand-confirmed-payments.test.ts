@@ -120,19 +120,29 @@ describe("handConfirmedPaymentsSchema", () => {
       { methods: [{ method: "CASH", count: 1, amount: 1 }] },
     ],
     ["a method total without count", { methods: [{ method: "TRANSFER", amount: 1 }] }],
-    ["a cashier without an id", { cashiers: [{ cashier_name: "Ana", count: 1, amount: 1, methods }] }],
+    [
+      "a cashier without an id",
+      { cashiers: [{ cashier_name: "Ana", count: 1, amount: 1, methods }] },
+    ],
     [
       "a cashier with an empty id",
       { cashiers: [{ cashier_id: "", cashier_name: "Ana", count: 1, amount: 1, methods }] },
     ],
-    ["a cashier without a name field", { cashiers: [{ cashier_id: CASHIER_ID, count: 1, amount: 1, methods }] }],
+    [
+      "a cashier without a name field",
+      { cashiers: [{ cashier_id: CASHIER_ID, count: 1, amount: 1, methods }] },
+    ],
     [
       "a cashier count with decimals",
-      { cashiers: [{ cashier_id: CASHIER_ID, cashier_name: "Ana", count: 1.5, amount: 1, methods }] },
+      {
+        cashiers: [{ cashier_id: CASHIER_ID, cashier_name: "Ana", count: 1.5, amount: 1, methods }],
+      },
     ],
     [
       "a cashier amount that is negative",
-      { cashiers: [{ cashier_id: CASHIER_ID, cashier_name: "Ana", count: 1, amount: -1, methods }] },
+      {
+        cashiers: [{ cashier_id: CASHIER_ID, cashier_name: "Ana", count: 1, amount: -1, methods }],
+      },
     ],
     [
       "a payment confirmed at something that is not an instant",
