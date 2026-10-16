@@ -285,6 +285,8 @@ export {
   WSAA_ALREADY_AUTHENTICATED_RETRY_MS,
 } from "./fiscal/index.js";
 export type {
+  ConfirmedByHandMethod,
+  HandConfirmedPayment,
   LatePaymentRefund,
   MercadoPagoChargeInProgress,
   MercadoPagoOrderRefund,
@@ -307,6 +309,7 @@ export type {
 } from "./payments/index.js";
 export {
   APPROVED_PAYMENT_STATE,
+  CONFIRMED_BY_HAND_METHODS,
   cancellableWithoutAuthorization,
   cashCharge,
   DISCARDABLE_REFUND_ALERT_KINDS,

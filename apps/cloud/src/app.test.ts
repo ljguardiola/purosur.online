@@ -2699,6 +2699,11 @@ describe("the route access inventory", () => {
       },
       {
         method: "GET",
+        url: "/api/reports/hand-confirmed-payments",
+        access: capabilityAccess("reports_area"),
+      },
+      {
+        method: "GET",
         url: "/api/refunds/pending",
         access: capabilityAccess("refunds_area"),
       },

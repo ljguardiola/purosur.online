@@ -173,6 +173,15 @@ export {
   paymentsRendererToCoreMessageSchema,
   startMercadoPagoChargeMessageSchema,
 } from "./payments/core-messages.js";
+export { handConfirmedPaymentMethodSchema } from "./payments/hand-confirmed-payment-method.js";
+export type {
+  HandConfirmedPaymentsBody,
+  HandConfirmedPaymentsQuery,
+} from "./payments/hand-confirmed-payments.js";
+export {
+  handConfirmedPaymentsQuerySchema,
+  handConfirmedPaymentsSchema,
+} from "./payments/hand-confirmed-payments.js";
 export type {
   MercadoPagoCancellationBody,
   MercadoPagoCancellationRequestBody,

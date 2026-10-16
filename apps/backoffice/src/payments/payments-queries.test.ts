@@ -31,3 +31,25 @@ test("each range and register has its own sales by payment method key", () => {
 
   expect(new Set(keys.map((key) => JSON.stringify(key))).size).toBe(keys.length);
 });
+
+test("each range, register and method has its own hand-confirmed payments key", () => {
+  const keys = [
+    paymentsKeys.handConfirmedPayments({}),
+    paymentsKeys.handConfirmedPayments({ from: "2026-10-01", to: "2026-10-07" }),
+    paymentsKeys.handConfirmedPayments({ from: "2026-10-01", to: "2026-10-08" }),
+    paymentsKeys.handConfirmedPayments({ register_id: FRONT_REGISTER_ID }),
+    paymentsKeys.handConfirmedPayments({ method: "TRANSFER" }),
+    paymentsKeys.handConfirmedPayments({ method: "STANDALONE_TERMINAL" }),
+  ];
+
+  expect(new Set(keys.map((key) => JSON.stringify(key))).size).toBe(keys.length);
+});
+
+test("invalidating the payments key marks the hand-confirmed payments stale", async () => {
+  const client = new QueryClient();
+  client.setQueryData(paymentsKeys.handConfirmedPayments({}), []);
+
+  await client.invalidateQueries({ queryKey: paymentsKey, refetchType: "none" });
+
+  expect(client.getQueryState(paymentsKeys.handConfirmedPayments({}))?.isInvalidated).toBe(true);
+});
