@@ -1,6 +1,8 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import {
+  alreadyRefundedOfPayment,
+  amountHeldByRefundedPayment,
   exceedsRefundable,
   INSUFFICIENT_BALANCE_REFUSAL,
   isAwaitingMercadoPago,
@@ -8,15 +10,19 @@ import {
   isRefundSentByCloud,
   MERCADO_PAGO_REFUND_STAGES,
   mercadoPagoRefundStage,
+  orderToRefund,
   progressOfRefundAnswer,
   refundableAmount,
   refundIsBackedByItsCancellation,
+  refundIsBackedByItsLatePayment,
 } from "./mercado-pago-refund.js";
 
 describe("isRefundSentByCloud", () => {
   it.each([
     ["QR", "sale_cancelled", true],
-    ["QR", "late_payment", false],
+    ["QR", "late_payment", true],
+    ["QR", "sale_voided", false],
+    ["POINT", "late_payment", false],
     ["POINT", "sale_cancelled", false],
     ["TRANSFER", "sale_cancelled", false],
     ["CASH", "sale_cancelled", false],
@@ -204,5 +210,139 @@ describe("mercadoPagoRefundStage", () => {
       "waiting_for_balance",
       "refused",
     ]);
+  });
+});
+
+describe("refundIsBackedByItsLatePayment", () => {
+  const approved = { orderId: "ORD-1", amount: 2450, state: "APPROVED" };
+  const ofItsPayment = { ownOrderId: null, paymentTransaction: approved };
+
+  it("is backed when the cloud holds the payment of its order as approved", () => {
+    expect(refundIsBackedByItsLatePayment(ofItsPayment)).toBe(true);
+  });
+
+  it.each(["PENDING", "DECLINED", "CANCELLED", "EXPIRED"])(
+    "is not backed when the cloud holds the payment as %s",
+    (state) => {
+      expect(
+        refundIsBackedByItsLatePayment({
+          ...ofItsPayment,
+          paymentTransaction: { ...approved, state },
+        }),
+      ).toBe(false);
+    },
+  );
+
+  it("is not backed when the payment has no order", () => {
+    expect(
+      refundIsBackedByItsLatePayment({
+        ...ofItsPayment,
+        paymentTransaction: { ...approved, orderId: null },
+      }),
+    ).toBe(false);
+  });
+
+  it("is not backed when the cloud holds no payment for it", () => {
+    expect(refundIsBackedByItsLatePayment({ ownOrderId: null, paymentTransaction: null })).toBe(
+      false,
+    );
+  });
+
+  describe("when the paid order is another than the payment's own", () => {
+    const expired = { ...approved, state: "EXPIRED" };
+
+    it("is backed by the paid order the cloud recorded on it, whatever the payment's state", () => {
+      expect(
+        refundIsBackedByItsLatePayment({ ownOrderId: "ORD-2", paymentTransaction: expired }),
+      ).toBe(true);
+    });
+
+    it("is not backed when the cloud holds no payment for it", () => {
+      expect(
+        refundIsBackedByItsLatePayment({ ownOrderId: "ORD-2", paymentTransaction: null }),
+      ).toBe(false);
+    });
+  });
+});
+
+describe("orderToRefund", () => {
+  const transaction = { orderId: "ORD-1", amount: 2450, state: "APPROVED" };
+
+  it("is the order recorded on the refund itself when it has one", () => {
+    expect(orderToRefund({ ownOrderId: "ORD-2", paymentTransaction: transaction })).toBe("ORD-2");
+  });
+
+  it("is the order of its payment transaction otherwise", () => {
+    expect(orderToRefund({ ownOrderId: null, paymentTransaction: transaction })).toBe("ORD-1");
+  });
+
+  it("is none when neither the refund nor its payment transaction has an order", () => {
+    expect(
+      orderToRefund({ ownOrderId: null, paymentTransaction: { ...transaction, orderId: null } }),
+    ).toBeNull();
+    expect(orderToRefund({ ownOrderId: null, paymentTransaction: null })).toBeNull();
+  });
+});
+
+describe("what the refunded payment holds", () => {
+  const transaction = { orderId: "ORD-1", amount: 5000, state: "APPROVED" };
+  const ofCancelledSale = {
+    origin: "sale_cancelled",
+    amount: 1000,
+    ownOrderId: null,
+    salePaymentAmount: 2450,
+    refundedOfSalePayment: 300,
+    paymentTransaction: transaction,
+    refundedOfPaymentTransactionByOrder: [
+      { orderId: null, amount: 700 },
+      { orderId: "ORD-2", amount: 400 },
+    ],
+  };
+  const ofLatePayment = { ...ofCancelledSale, origin: "late_payment" };
+  const ofUnrecordedOrder = { ...ofLatePayment, ownOrderId: "ORD-2" };
+
+  describe("amountHeldByRefundedPayment", () => {
+    it("is the sale payment's amount for the refund of a sale", () => {
+      expect(amountHeldByRefundedPayment(ofCancelledSale)).toBe(2450);
+    });
+
+    it("is nothing for the refund of a sale whose payment the cloud does not hold", () => {
+      expect(amountHeldByRefundedPayment({ ...ofCancelledSale, salePaymentAmount: null })).toBe(0);
+    });
+
+    it("is the payment transaction's amount for the refund of a late payment of its own order", () => {
+      expect(amountHeldByRefundedPayment(ofLatePayment)).toBe(5000);
+    });
+
+    it("is the refund's own amount for the refund of a late payment on an order the cloud did not create", () => {
+      expect(amountHeldByRefundedPayment(ofUnrecordedOrder)).toBe(1000);
+    });
+
+    it("is nothing for the refund of a late payment whose transaction the cloud does not hold", () => {
+      expect(amountHeldByRefundedPayment({ ...ofLatePayment, paymentTransaction: null })).toBe(0);
+    });
+  });
+
+  describe("alreadyRefundedOfPayment", () => {
+    it("counts the other refunds of the same sale payment for the refund of a sale", () => {
+      expect(alreadyRefundedOfPayment(ofCancelledSale)).toBe(300);
+    });
+
+    it("counts only the other refunds of the transaction's own order for a late payment of it", () => {
+      expect(alreadyRefundedOfPayment(ofLatePayment)).toBe(700);
+    });
+
+    it("counts only the other refunds of the same order for a late payment on an order the cloud did not create", () => {
+      expect(alreadyRefundedOfPayment(ofUnrecordedOrder)).toBe(400);
+    });
+
+    it("counts nothing for a late payment whose order no other refund names", () => {
+      expect(
+        alreadyRefundedOfPayment({
+          ...ofLatePayment,
+          refundedOfPaymentTransactionByOrder: [{ orderId: "ORD-2", amount: 400 }],
+        }),
+      ).toBe(0);
+    });
   });
 });

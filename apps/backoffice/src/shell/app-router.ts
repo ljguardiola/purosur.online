@@ -10,7 +10,11 @@ import {
 import { accountRecoveryRoute, myAccountRoute, registerPasskeyRoute } from "../credentials/routes";
 import { fiscalConfigurationRoute, pointsOfSaleRoute } from "../fiscal/routes";
 import { helpArticleRoute, helpCategoryRoute, helpHomeRoute } from "../help/routes";
-import { pendingRefundsRoute, salesByPaymentMethodRoute } from "../payments/routes";
+import {
+  handConfirmedPaymentsRoute,
+  pendingRefundsRoute,
+  salesByPaymentMethodRoute,
+} from "../payments/routes";
 import { rolesListRoute } from "../permissions/routes";
 import { discountsListRoute, pricesListRoute } from "../pricing/routes";
 import {
@@ -20,7 +24,7 @@ import {
   purchasesListRoute,
   suppliersListRoute,
 } from "../purchasing/routes";
-import { registersListRoute } from "../register/routes";
+import { registersListRoute, snapshotBackupsRoute } from "../register/routes";
 import {
   averageTicketRoute,
   reportsIndexRoute,
@@ -100,6 +104,7 @@ const routeTree = rootRoute.addChildren([
       reportsIndexRoute,
       salesByDayRoute,
       salesByPaymentMethodRoute,
+      handConfirmedPaymentsRoute,
       salesByProductAndCategoryRoute,
       salesByCashierRoute,
       averageTicketRoute,
@@ -110,6 +115,7 @@ const routeTree = rootRoute.addChildren([
       userDetailRoute,
       rolesListRoute,
       registersListRoute,
+      snapshotBackupsRoute,
       branchSettingsRoute,
       quarantinedEventsRoute,
     ]),

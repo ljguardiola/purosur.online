@@ -1,9 +1,9 @@
 import type { Clock } from "../../shared/index.js";
 import {
-  isRefundDiscardable,
   isRefundDiscarded,
   isRefundPending,
   refundAlertKind,
+  refundDiscardRefusal,
 } from "../model/payment-refund.js";
 import type { RefundStore } from "./refund-store.js";
 
@@ -23,6 +23,7 @@ export type DiscardRefundOutcome =
   | { kind: "not_discardable" }
   | { kind: "already_done" }
   | { kind: "already_discarded" }
+  | { kind: "already_confirmed" }
   | { kind: "discarded"; refundId: string; discardedAt: Date };
 
 export async function discardRefund(
@@ -34,14 +35,18 @@ export async function discardRefund(
     if (!refund) {
       return { kind: "not_found" };
     }
-    if (!isRefundDiscardable(refund.origin)) {
-      return { kind: "not_discardable" };
+    const refusal = refundDiscardRefusal(refund);
+    if (refusal === "not_discardable") {
+      return { kind: refusal };
     }
     if (isRefundDiscarded(refund.state)) {
       return { kind: "already_discarded" };
     }
     if (!isRefundPending(refund.state)) {
       return { kind: "already_done" };
+    }
+    if (refusal !== null) {
+      return { kind: refusal };
     }
     const discardedAt = clock.now();
     await tx.recordRefundDiscarded(refund.id, actorId, discardedAt);

@@ -10,7 +10,7 @@ import { runSnapshotJob } from "./run-snapshot-job";
 import { snapshotAssociatedData } from "./snapshot-encryption";
 import { objectPath, readManifests, writeManifest } from "./snapshot-generations-folder";
 import { decryptSnapshotFile } from "./test-support/decrypt-snapshot";
-import { FakeSnapshotCloud } from "./test-support/fake-snapshot-cloud";
+import { cloudRefusal, FakeSnapshotCloud } from "./test-support/fake-snapshot-cloud";
 
 const NOW = new Date("2026-10-15T13:00:00.000Z");
 const KEY = Buffer.alloc(32, 5);
@@ -99,7 +99,12 @@ describe("runSnapshotJob that takes a snapshot", () => {
     });
     expect(result).toEqual({
       kind: "completed",
-      uploads: { kind: "every_pending_tried", tally: { uploaded: 1, refused: 0, failed: 0 } },
+      uploads: {
+        kind: "every_pending_tried",
+        tally: { uploaded: 1, refused: 0, failed: 0 },
+        latestAnnouncedKeyVersion: 2,
+      },
+      latestAnnouncedKeyVersion: 2,
     });
   });
 
@@ -198,6 +203,7 @@ describe("runSnapshotJob that takes a snapshot", () => {
     expect(result).toEqual({
       kind: "completed",
       uploads: { kind: "cloud_unreachable", tally: { uploaded: 0, refused: 0, failed: 1 } },
+      latestAnnouncedKeyVersion: 2,
     });
     expect(await readManifests(snapshotsFolder)).toMatchObject([
       { generation_id: GENERATION_ID, uploaded_at: null },
@@ -227,6 +233,96 @@ describe("runSnapshotJob that takes a snapshot", () => {
   });
 });
 
+describe("runSnapshotJob that takes a snapshot after a rotation of the key", () => {
+  const WAITING_ID = "00000000-0000-4000-8000-000000000001";
+
+  async function keepWaiting() {
+    await mkdir(snapshotsFolder, { recursive: true });
+    await writeManifest(snapshotsFolder, {
+      generation_id: WAITING_ID,
+      created_at: "2026-10-15T11:00:00.000Z",
+      last_device_seq: 1,
+      pull_cursor: 1,
+      key_version: 2,
+      size: 5,
+      sha256: "ab".repeat(32),
+      uploaded_at: null,
+      refused_at: null,
+    });
+    await writeFile(objectPath(snapshotsFolder, WAITING_ID), "bytes");
+  }
+
+  it("asks the cloud for the register's current key version before anything else", async () => {
+    await run(takeJob());
+
+    expect(cloud.keyVersionAsks).toEqual([
+      { authorization: "Bearer prefix.secret", callsBefore: 0 },
+    ]);
+  });
+
+  it("takes no generation with a key older than the current one, announcing the current version", async () => {
+    cloud.onKeyVersion = () => Response.json({ current_key_version: 3 });
+
+    const result = await run(takeJob());
+
+    expect(await readdir(snapshotsFolder)).toEqual([]);
+    expect(cloud.calls).toEqual([]);
+    expect(result).toEqual({
+      kind: "completed",
+      uploads: {
+        kind: "every_pending_tried",
+        tally: { uploaded: 0, refused: 0, failed: 0 },
+        latestAnnouncedKeyVersion: undefined,
+      },
+      latestAnnouncedKeyVersion: 3,
+    });
+  });
+
+  it("still uploads the generations already waiting when it takes none", async () => {
+    cloud.onKeyVersion = () => Response.json({ current_key_version: 3 });
+    await keepWaiting();
+
+    const result = await run(takeJob());
+
+    expect((await readManifests(snapshotsFolder)).map((entry) => entry.generation_id)).toEqual([
+      WAITING_ID,
+    ]);
+    expect(cloud.calls.map((call) => call.kind)).toEqual(["declare", "put", "uploaded"]);
+    expect(result).toMatchObject({
+      kind: "completed",
+      uploads: { tally: { uploaded: 1, refused: 0, failed: 0 } },
+      latestAnnouncedKeyVersion: 3,
+    });
+  });
+
+  it("takes the generation with the key it holds when the cloud cannot answer the current one", async () => {
+    cloud.onKeyVersion = () => "unreachable";
+
+    const result = await run(takeJob());
+
+    expect(await readManifests(snapshotsFolder)).toMatchObject([
+      { generation_id: GENERATION_ID, key_version: 2 },
+    ]);
+    expect(result).toMatchObject({ kind: "completed", latestAnnouncedKeyVersion: 2 });
+  });
+
+  it("takes the generation when the key it holds is the current one", async () => {
+    cloud.onKeyVersion = () => Response.json({ current_key_version: 2 });
+
+    await run(takeJob());
+
+    expect(await readManifests(snapshotsFolder)).toMatchObject([
+      { generation_id: GENERATION_ID, key_version: 2 },
+    ]);
+  });
+
+  it("does not ask for the current key version in a job that only uploads", async () => {
+    await run(uploadJob());
+
+    expect(cloud.keyVersionAsks).toEqual([]);
+  });
+});
+
 describe("runSnapshotJob that only uploads", () => {
   it("uploads the generations waiting and takes no new snapshot", async () => {
     const waiting = "00000000-0000-4000-8000-000000000001";
@@ -248,11 +344,94 @@ describe("runSnapshotJob that only uploads", () => {
 
     expect(result).toEqual({
       kind: "completed",
-      uploads: { kind: "every_pending_tried", tally: { uploaded: 1, refused: 0, failed: 0 } },
+      uploads: {
+        kind: "every_pending_tried",
+        tally: { uploaded: 1, refused: 0, failed: 0 },
+        latestAnnouncedKeyVersion: 2,
+      },
+      latestAnnouncedKeyVersion: 2,
     });
     expect((await readManifests(snapshotsFolder)).map((entry) => entry.generation_id)).toEqual([
       waiting,
     ]);
     expect(cloud.calls.map((call) => call.kind)).toEqual(["declare", "put", "uploaded"]);
+  });
+});
+
+describe("runSnapshotJob reporting what the disk holds", () => {
+  const OTHER_ID = "00000000-0000-4000-8000-000000000002";
+
+  async function keepOnDisk(generationId: string, uploadedAt: string | null) {
+    await mkdir(snapshotsFolder, { recursive: true });
+    await writeManifest(snapshotsFolder, {
+      generation_id: generationId,
+      created_at: "2026-10-15T11:00:00.000Z",
+      last_device_seq: 1,
+      pull_cursor: 1,
+      key_version: 2,
+      size: 5,
+      sha256: "ab".repeat(32),
+      uploaded_at: uploadedAt,
+      refused_at: null,
+    });
+    await writeFile(objectPath(snapshotsFolder, generationId), "bytes");
+  }
+
+  it("reports every generation the folder holds, uploaded or not, after the upload pass", async () => {
+    await keepOnDisk(OTHER_ID, NOW.toISOString());
+
+    await run(takeJob());
+
+    expect(cloud.onDiskReports).toEqual([
+      {
+        authorization: "Bearer prefix.secret",
+        generationIds: expect.arrayContaining([GENERATION_ID, OTHER_ID]),
+        callsBefore: 3,
+      },
+    ]);
+    expect(cloud.onDiskReports[0]?.generationIds).toHaveLength(2);
+  });
+
+  it("reports the generations an upload-only job finds in the folder", async () => {
+    await keepOnDisk(OTHER_ID, NOW.toISOString());
+
+    await run(uploadJob());
+
+    expect(cloud.onDiskReports.map((report) => report.generationIds)).toEqual([[OTHER_ID]]);
+  });
+
+  it("reports an empty folder as holding nothing", async () => {
+    await run(uploadJob());
+
+    expect(cloud.onDiskReports.map((report) => report.generationIds)).toEqual([[]]);
+  });
+
+  it.each([
+    ["is unreachable", () => "unreachable" as const],
+    ["refuses it", () => cloudRefusal("device_token_rejected", 401)],
+    ["fails on it", () => new Response(null, { status: 500 })],
+  ])("still completes the job when the cloud %s", async (_name, answer) => {
+    cloud.onOnDisk = answer;
+
+    const result = await run(takeJob());
+
+    expect(result).toMatchObject({
+      kind: "completed",
+      uploads: { kind: "every_pending_tried", tally: { uploaded: 1, refused: 0, failed: 0 } },
+    });
+  });
+
+  it("reports nothing when the cloud could not be reached for the uploads", async () => {
+    cloud.onDeclare = () => "unreachable";
+
+    await run(takeJob());
+
+    expect(cloud.onDiskReports).toEqual([]);
+  });
+
+  it("reports nothing when the copy failed its checks and the run was aborted", async () => {
+    await run(takeJob({ database_path: join(folder, "missing.sqlite") }));
+
+    expect(cloud.onDiskReports).toEqual([]);
   });
 });

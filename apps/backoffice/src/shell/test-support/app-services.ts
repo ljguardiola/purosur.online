@@ -197,6 +197,9 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
     salesByPaymentMethodScreen: {
       fetchSalesByPaymentMethod: vi.fn().mockReturnValue(new Promise(() => {})),
     },
+    handConfirmedPaymentsScreen: {
+      fetchHandConfirmedPayments: vi.fn().mockReturnValue(new Promise(() => {})),
+    },
     reportFiltersRegisterFilter: ReportRegisterFilter,
     reportRegisterFilter: {
       fetchReportRegisters: vi.fn().mockReturnValue(new Promise(() => {})),
@@ -232,6 +235,15 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
       createRegister: vi.fn(),
       assignPointTerminal: vi.fn(),
       emitEnrollmentCode: vi.fn(),
+      fetchSessionAuthorizationOptions: vi.fn(),
+      authorizeSession: vi.fn(),
+      startAuthentication: vi.fn(),
+    },
+    snapshotBackupsScreen: {
+      fetchSnapshotBackupRegisters: vi.fn().mockReturnValue(new Promise(() => {})),
+      fetchSnapshotBackups: vi.fn().mockReturnValue(new Promise(() => {})),
+      changeSnapshotLifecycleRules: vi.fn(),
+      rotateSnapshotKey: vi.fn(),
       fetchSessionAuthorizationOptions: vi.fn(),
       authorizeSession: vi.fn(),
       startAuthentication: vi.fn(),

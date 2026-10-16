@@ -13,6 +13,9 @@ function ReportsArea() {
   const matchRoute = useMatchRoute();
   const salesByDayShown = Boolean(matchRoute({ to: "/reports/sales-by-day" }));
   const salesByPaymentMethodShown = Boolean(matchRoute({ to: "/reports/sales-by-payment-method" }));
+  const handConfirmedPaymentsShown = Boolean(
+    matchRoute({ to: "/reports/hand-confirmed-payments" }),
+  );
   const salesByProductAndCategoryShown = Boolean(
     matchRoute({ to: "/reports/sales-by-product-and-category" }),
   );
@@ -51,6 +54,15 @@ function ReportsArea() {
                 icon={<Wallet />}
                 search={salesByPaymentMethodShown ? true : {}}
                 active={salesByPaymentMethodShown}
+              />
+            </li>
+            <li>
+              <SectionLink
+                to="/reports/hand-confirmed-payments"
+                label="Pagos confirmados a mano"
+                icon={<Wallet />}
+                search={handConfirmedPaymentsShown ? true : {}}
+                active={handConfirmedPaymentsShown}
               />
             </li>
             <li>

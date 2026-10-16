@@ -127,9 +127,9 @@ export function PendingRefundsScreen({
       header: "Medio",
       render: (refund: PendingRefund) => {
         const status = refundDeliveryStatus(refund);
-        const description =
-          status ??
-          (refund.provider_order_id === null ? null : `Orden ${refund.provider_order_id}`);
+        const order =
+          refund.provider_order_id === null ? null : `Orden ${refund.provider_order_id}`;
+        const description = [status, order].filter((part) => part !== null).join(" · ") || null;
         return description === null ? (
           paymentMethodLabel(refund.method)
         ) : (
@@ -211,8 +211,9 @@ export function PendingRefundsScreen({
           }}
           footer={
             <p className="text-text-subtle text-detail">
-              Los de ventas canceladas cobradas con QR se envían a Mercado Pago al confirmarlos acá;
-              los demás se hacen fuera del sistema y acá se marcan como hechos.
+              Los reembolsos de pagos con QR de ventas canceladas y de aprobaciones tardías se
+              envían a Mercado Pago desde acá; los demás se hacen fuera del sistema y acá se marcan
+              como hechos. Nada se envía a Mercado Pago sin confirmarlo acá.
             </p>
           }
         />

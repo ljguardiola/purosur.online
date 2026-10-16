@@ -78,6 +78,10 @@ export { followMercadoPagoCharge } from "./follow-mercado-pago-charge.js";
 export type { FollowMercadoPagoRefundsOutcome } from "./follow-mercado-pago-refunds.js";
 export { followMercadoPagoRefunds } from "./follow-mercado-pago-refunds.js";
 export type {
+  HandConfirmedPaymentsQuery,
+  HandConfirmedPaymentsReader,
+} from "./hand-confirmed-payments-reader.js";
+export type {
   ListPendingRefundsInput,
   ListPendingRefundsPorts,
 } from "./list-pending-refunds.js";
@@ -188,6 +192,11 @@ export type {
   ReadApprovedOrdersOfRegisterPorts,
 } from "./read-approved-orders-of-register.js";
 export { readApprovedOrdersOfRegister } from "./read-approved-orders-of-register.js";
+export type {
+  HandConfirmedPaymentsReport,
+  ReadHandConfirmedPaymentsInput,
+} from "./read-hand-confirmed-payments.js";
+export { readHandConfirmedPayments } from "./read-hand-confirmed-payments.js";
 export type {
   ReadMercadoPagoOrderPaymentInput,
   ReadMercadoPagoOrderPaymentOutcome,

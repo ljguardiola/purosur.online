@@ -100,7 +100,7 @@ function alertScopeCell(alert: AlertSummary, scopeDisplay: string): string {
 function alertRowDescription(alert: AlertSummary): string {
   if (alert.kind === "late_payment_refund" && alert.refundAmount !== null) {
     const payment = `QR de Mercado Pago de ${formatCents(alert.refundAmount)}`;
-    return alert.resolvedAt === null ? `${payment} sin marcar como hecho` : payment;
+    return alert.resolvedAt === null ? `${payment} por reembolsar` : payment;
   }
   if (alert.kind === "refund_task" && alert.resolvedAt !== null) {
     return "Reembolso de una venta anulada";

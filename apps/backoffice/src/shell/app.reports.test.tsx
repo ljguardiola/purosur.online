@@ -2,7 +2,10 @@ import type { Capability } from "@purosur/domain";
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
-import { weekPaymentsReport } from "../payments/test-support/payments-report-fixtures";
+import {
+  weekHandConfirmedReport,
+  weekPaymentsReport,
+} from "../payments/test-support/payments-report-fixtures";
 import {
   averageTicketReport,
   cashierSalesReport,
@@ -23,6 +26,7 @@ opensOnlyScreens([
   "/reports",
   "/reports/sales-by-day",
   "/reports/sales-by-payment-method",
+  "/reports/hand-confirmed-payments",
   "/reports/sales-by-product-and-category",
   "/reports/sales-by-cashier",
   "/reports/average-ticket",
@@ -49,6 +53,10 @@ function reportsServices(capabilities: Capability[]) {
   vi.mocked(services.salesByPaymentMethodScreen.fetchSalesByPaymentMethod).mockResolvedValue({
     kind: "ok",
     value: weekPaymentsReport,
+  });
+  vi.mocked(services.handConfirmedPaymentsScreen.fetchHandConfirmedPayments).mockResolvedValue({
+    kind: "ok",
+    value: weekHandConfirmedReport,
   });
   vi.mocked(
     services.salesByProductAndCategoryScreen.fetchSalesByProductAndCategory,
@@ -84,6 +92,9 @@ test("opens the list of reports from the rail's Reportes item", async () => {
     .toBeVisible();
   await expect
     .element(sections.getByRole("link", { name: "Ventas por medio de pago" }))
+    .toBeVisible();
+  await expect
+    .element(sections.getByRole("link", { name: "Pagos confirmados a mano" }))
     .toBeVisible();
   await expect
     .element(sections.getByRole("link", { name: "Ventas por producto y por categoría" }))
@@ -126,6 +137,39 @@ test("opens the sales by payment method report from the list and reads it from t
   await expect.element(screen.getByText("Efectivo")).toBeVisible();
   expect(services.salesByPaymentMethodScreen.fetchSalesByPaymentMethod).toHaveBeenCalledWith({});
   expect(document.title).toBe("Ventas por medio de pago · Puro Sur");
+});
+
+test("opens the payments confirmed by hand report from the list and reads it from the cloud", async () => {
+  const services = reportsServices(["reports_area"]);
+  window.history.pushState(null, "", "/reports");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await userEvent.click(
+    screen.getByRole("main").getByRole("link", { name: "Pagos confirmados a mano" }),
+  );
+
+  await expect
+    .element(screen.getByRole("heading", { name: "Pagos confirmados a mano", level: 1 }))
+    .toBeVisible();
+  expect(window.location.pathname).toBe("/reports/hand-confirmed-payments");
+  await expect.element(screen.getByText("Operación 000007")).toBeVisible();
+  expect(services.handConfirmedPaymentsScreen.fetchHandConfirmedPayments).toHaveBeenCalledWith({});
+  expect(document.title).toBe("Pagos confirmados a mano · Puro Sur");
+});
+
+test("keeps the method of the payments confirmed by hand report in the address", async () => {
+  const services = reportsServices(["reports_area"]);
+  window.history.pushState(null, "", "/reports/hand-confirmed-payments");
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await expect.element(screen.getByText("Operación 000007")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: /Medio:/ }));
+  await userEvent.click(screen.getByRole("option", { name: "Transferencia" }));
+
+  await expect.poll(() => window.location.search).toBe("?method=TRANSFER");
+  expect(services.handConfirmedPaymentsScreen.fetchHandConfirmedPayments).toHaveBeenLastCalledWith({
+    method: "TRANSFER",
+  });
 });
 
 test("opens the sales by product and category report from the list and reads it from the cloud", async () => {
@@ -384,6 +428,7 @@ test.each([
   "/reports",
   "/reports/sales-by-day",
   "/reports/sales-by-payment-method",
+  "/reports/hand-confirmed-payments",
   "/reports/sales-by-product-and-category",
   "/reports/sales-by-cashier",
   "/reports/average-ticket",
@@ -396,6 +441,7 @@ test.each([
   await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
   expect(services.salesByDayScreen.fetchSalesReport).not.toHaveBeenCalled();
   expect(services.salesByPaymentMethodScreen.fetchSalesByPaymentMethod).not.toHaveBeenCalled();
+  expect(services.handConfirmedPaymentsScreen.fetchHandConfirmedPayments).not.toHaveBeenCalled();
   expect(
     services.salesByProductAndCategoryScreen.fetchSalesByProductAndCategory,
   ).not.toHaveBeenCalled();

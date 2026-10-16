@@ -1,8 +1,14 @@
-import type { PendingRefundsBody, ReportQuery, SalesByPaymentMethodBody } from "@purosur/contracts";
+import type {
+  HandConfirmedPaymentsBody,
+  HandConfirmedPaymentsQuery,
+  PendingRefundsBody,
+  ReportQuery,
+  SalesByPaymentMethodBody,
+} from "@purosur/contracts";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { useCloudQuery } from "../platform/use-cloud-query";
-import type { fetchSalesByPaymentMethod } from "./payments-report-api";
+import type { fetchHandConfirmedPayments, fetchSalesByPaymentMethod } from "./payments-report-api";
 import type { fetchPendingRefunds } from "./refunds-api";
 
 export const paymentsKey = ["payments"] as const;
@@ -16,6 +22,15 @@ export const paymentsKeys = {
       query.from ?? "",
       query.to ?? "",
       query.register_id ?? "",
+    ] as const,
+  handConfirmedPayments: (query: HandConfirmedPaymentsQuery) =>
+    [
+      ...paymentsKey,
+      "hand-confirmed-payments",
+      query.from ?? "",
+      query.to ?? "",
+      query.register_id ?? "",
+      query.method ?? "",
     ] as const,
 };
 
@@ -42,6 +57,21 @@ export function useSalesByPaymentMethodQuery(params: {
     queryKey: paymentsKeys.salesByPaymentMethod(params.query),
     keepPreviousData: true,
     read: () => params.fetchSalesByPaymentMethod(params.query),
+    onSessionEnded: params.onSessionEnded,
+    onForbidden: sendToMyAccount,
+  });
+}
+
+export function useHandConfirmedPaymentsQuery(params: {
+  query: HandConfirmedPaymentsQuery;
+  fetchHandConfirmedPayments: typeof fetchHandConfirmedPayments;
+  onSessionEnded: () => void;
+}) {
+  const sendToMyAccount = useSendToMyAccount();
+  return useCloudQuery<HandConfirmedPaymentsBody>({
+    queryKey: paymentsKeys.handConfirmedPayments(params.query),
+    keepPreviousData: true,
+    read: () => params.fetchHandConfirmedPayments(params.query),
     onSessionEnded: params.onSessionEnded,
     onForbidden: sendToMyAccount,
   });

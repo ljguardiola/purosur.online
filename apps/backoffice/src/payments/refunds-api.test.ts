@@ -131,6 +131,7 @@ describe("discardRefund", () => {
     [409, { code: "refund_not_discardable" }, { kind: "not_discardable" }],
     [409, { code: "already_done" }, { kind: "already_done" }],
     [409, { code: "already_discarded" }, { kind: "already_discarded" }],
+    [409, { code: "refund_already_confirmed" }, { kind: "already_confirmed" }],
     [409, { code: "something_else" }, { kind: "failed" }],
     [409, undefined, { kind: "failed" }],
     [401, undefined, { kind: "unauthenticated" }],

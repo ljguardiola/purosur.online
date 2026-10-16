@@ -42,9 +42,12 @@ class DrizzleMercadoPagoRefundTransaction<TQueryResult extends PgQueryResultHKT>
         origin: paymentRefunds.origin,
         method: paymentRefunds.method,
         amount: paymentRefunds.amount,
-        paymentAmount: salePayments.amount,
+        ownOrderId: paymentRefunds.providerOrderId,
+        salePaymentAmount: salePayments.amount,
+        transactionOrderId: paymentTransactions.providerOrderId,
+        transactionAmount: paymentTransactions.amount,
+        transactionState: paymentTransactions.state,
         paymentTransactionId: paymentRefunds.paymentTransactionId,
-        orderId: paymentTransactions.providerOrderId,
         originEventId: paymentRefunds.originEventId,
         confirmedBy: paymentRefunds.confirmedBy,
         confirmedAt: paymentRefunds.confirmedAt,
@@ -54,7 +57,7 @@ class DrizzleMercadoPagoRefundTransaction<TQueryResult extends PgQueryResultHKT>
         lastRefusalReason: paymentRefunds.lastRefusalReason,
       })
       .from(paymentRefunds)
-      .innerJoin(salePayments, eq(salePayments.id, paymentRefunds.paymentId))
+      .leftJoin(salePayments, eq(salePayments.id, paymentRefunds.paymentId))
       .leftJoin(
         paymentTransactions,
         eq(paymentTransactions.id, paymentRefunds.paymentTransactionId),
@@ -63,12 +66,42 @@ class DrizzleMercadoPagoRefundTransaction<TQueryResult extends PgQueryResultHKT>
     if (!row) {
       return undefined;
     }
-    const { paymentId, ...refund } = row;
+    const { paymentId, transactionOrderId, transactionAmount, transactionState, ...refund } = row;
     return {
       ...refund,
       locationId,
-      refundedOfPayment: await this.refundedOfPayment(refundId, paymentId),
+      refundedOfSalePayment: await this.refundedOfPayment(refundId, paymentId),
+      paymentTransaction:
+        transactionAmount === null || transactionState === null
+          ? null
+          : { orderId: transactionOrderId, amount: transactionAmount, state: transactionState },
+      refundedOfPaymentTransactionByOrder:
+        refund.paymentTransactionId === null
+          ? []
+          : await this.refundedOfTransactionByOrder(refundId, refund.paymentTransactionId),
     };
+  }
+
+  private async refundedOfTransactionByOrder(
+    refundId: string,
+    paymentTransactionId: string,
+  ): Promise<{ orderId: string | null; amount: number }[]> {
+    const rows = await this.tx
+      .select({
+        orderId: paymentRefunds.providerOrderId,
+        amount: sql<string>`sum(${paymentRefunds.amount})`,
+      })
+      .from(paymentRefunds)
+      .where(
+        and(
+          eq(paymentRefunds.paymentTransactionId, paymentTransactionId),
+          ne(paymentRefunds.id, refundId),
+          inArray(paymentRefunds.state, PLANNED_REFUND_STATES),
+        ),
+      )
+      .groupBy(paymentRefunds.providerOrderId)
+      .orderBy(paymentRefunds.providerOrderId);
+    return rows.map((row) => ({ orderId: row.orderId, amount: Number(row.amount) }));
   }
 
   private async refundedOfPayment(refundId: string, paymentId: string | null): Promise<number> {

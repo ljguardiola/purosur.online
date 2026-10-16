@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  countsForSnapshotRestore,
   isAwaitingSnapshotVerification,
   isPastSnapshotUploadDeadline,
   isRetainedSnapshotGeneration,
@@ -129,4 +130,19 @@ describe("snapshot generation", () => {
       ),
     ).toEqual([...SNAPSHOT_STATUSES_RETAINED]);
   });
+});
+
+describe("countsForSnapshotRestore", () => {
+  it.each([
+    ["verified", false, true],
+    ["verified", true, false],
+    ["declared", false, false],
+    ["uploaded", false, false],
+    ["failed", false, false],
+  ] as const)(
+    "judges a %s generation, pruned: %s, usable by a restore: %s",
+    (status, pruned, usable) => {
+      expect(countsForSnapshotRestore({ status, pruned })).toBe(usable);
+    },
+  );
 });
