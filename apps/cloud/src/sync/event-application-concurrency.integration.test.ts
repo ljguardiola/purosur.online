@@ -35,7 +35,11 @@ afterAll(async () => {
 function applier() {
   return applyPendingEvents(
     {
-      eventApplication: new DrizzleEventApplication(db, () => NOW),
+      eventApplication: new DrizzleEventApplication(
+        db,
+        () => NOW,
+        async () => {},
+      ),
       upcaster: syncedEventUpcaster,
       clock: { now: () => NOW },
       quarantineNotices: { quarantined: () => {} },
