@@ -65,7 +65,10 @@ export {
   fiscalEmissionStopReasonOf,
 } from "./model/fiscal-emission-stop.js";
 export type { FiscalOnlineSignalEvidence } from "./model/fiscal-online-signal.js";
-export { REGISTER_HEALTH_CHECK_INTERVAL_MS } from "./model/fiscal-online-signal.js";
+export {
+  isRegisterFiscallyOnline,
+  REGISTER_HEALTH_CHECK_INTERVAL_MS,
+} from "./model/fiscal-online-signal.js";
 export type {
   FiscalDocumentType,
   RejectionStandingChange,
@@ -131,6 +134,7 @@ export {
   nextOfflineNumber,
   OFFLINE_NUMBER_BLOCK_STATUSES,
 } from "./model/offline-number-block.js";
+export type { VoucherReference } from "./model/orphan-authorization.js";
 export {
   isPointOfSaleNumber,
   POINT_OF_SALE_NUMBER_MAX,
@@ -163,6 +167,16 @@ export {
   SERIES_WAITING_STATES,
 } from "./model/real-time-authorization.js";
 export { REGISTER_CLOCK_TOLERANCE_MS } from "./model/register-clock.js";
+export type {
+  CorrectedInvoice,
+  SaleInvoice,
+  SaleVoidCreditNote,
+} from "./model/sale-void-credit-note.js";
+export {
+  invoiceToCorrect,
+  saleVoidCreditNoteOfEvent,
+  saleVoidCreditNotePayload,
+} from "./model/sale-void-credit-note.js";
 export {
   awaitsUnclearOutcomeDecision,
   UNCLEAR_ANSWER_KINDS,
