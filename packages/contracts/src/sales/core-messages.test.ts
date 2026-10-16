@@ -1660,6 +1660,7 @@ describe("asking for the detail of one sale of the history", () => {
       ],
     },
     void_authorization_required: false,
+    credit_note: null,
     reprint: { kind: "available" },
     next_copy: { kind: "duplicate", order_number: 2 },
   };
@@ -1686,13 +1687,30 @@ describe("asking for the detail of one sale of the history", () => {
         voidability: { kind: "not_voidable", refusal: "not_completed" },
       },
     },
-    ...["not_completed", "session_closed", "invoice_in_flight", "carries_invoice"].map(
+    ...["not_completed", "session_closed", "invoice_in_flight", "invoice_needs_connection"].map(
       (refusal) => ({
         kind: "found",
         detail: { ...detail, voidability: { kind: "not_voidable", refusal } },
       }),
     ),
     { kind: "found", detail: { ...detail, voidability: { kind: "voidable", refunds: [] } } },
+    {
+      kind: "found",
+      detail: {
+        ...detail,
+        state: "voided",
+        credit_note: {
+          kind: "authorized",
+          point_of_sale: 3,
+          number: 41,
+          issued_on: "2026-10-07",
+          authorization_code: "75123456789099",
+          authorization_code_due_on: "2026-10-17",
+        },
+      },
+    },
+    { kind: "found", detail: { ...detail, state: "voided", credit_note: { kind: "in_progress" } } },
+    { kind: "found", detail: { ...detail, state: "voided", credit_note: { kind: "rejected" } } },
     { kind: "not_found" },
     { kind: "not_signed_in" },
     { kind: "lacks_permission" },
@@ -1713,6 +1731,13 @@ describe("asking for the detail of one sale of the history", () => {
     { kind: "found", detail: { ...detail, reprint: undefined } },
     { kind: "found", detail: { ...detail, reprint: { kind: "later" } } },
     { kind: "found", detail: { ...detail, voidability: undefined } },
+    {
+      kind: "found",
+      detail: { ...detail, voidability: { kind: "not_voidable", refusal: "carries_invoice" } },
+    },
+    { kind: "found", detail: { ...detail, credit_note: undefined } },
+    { kind: "found", detail: { ...detail, credit_note: { kind: "issued" } } },
+    { kind: "found", detail: { ...detail, credit_note: { kind: "authorized", number: 41 } } },
     { kind: "found", detail: { ...detail, voidability: { kind: "voidable" } } },
     {
       kind: "found",

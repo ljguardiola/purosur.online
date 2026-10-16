@@ -168,6 +168,7 @@ describe("synced event payloads", () => {
       "sale_print_state_changed@1",
       "sale_voided@1",
       "sale_voided@2",
+      "sale_voided@3",
     ]);
   });
 
@@ -195,7 +196,7 @@ describe("synced event payloads", () => {
     ["an unknown event type", "sale_opened", 1],
     ["a sale_completed version nobody emitted", "sale_completed", 9],
     ["a sale_cancelled version nobody emitted", "sale_cancelled", 8],
-    ["a sale_voided version nobody emitted", "sale_voided", 3],
+    ["a sale_voided version nobody emitted", "sale_voided", 4],
     ["version zero", "sale_completed", 0],
     ["a cash_session_opened version nobody emitted", "cash_session_opened", 2],
     ["a cash_session_closed version nobody emitted", "cash_session_closed", 2],
@@ -2100,6 +2101,109 @@ describe("sale_voided v2", () => {
   it("refuses a voided sale without payments or without refunds", () => {
     expect(accepts("sale_voided", 2, { ...voided(), payments: [] })).toBe(false);
     expect(accepts("sale_voided", 2, { ...voided(), refunds: [] })).toBe(false);
+  });
+});
+
+describe("sale_voided v3", () => {
+  const CREDIT_NOTE = {
+    id: "credit-note-1",
+    total: 6750,
+    receiver_tax_status_code: 5,
+    corrects: { voucher_type: 11, point_of_sale: 3, number: 1204 },
+  };
+  const voided = (creditNote: unknown = null): Payload => ({
+    ...structuredClone(VOIDED_SALE_V1),
+    credit_note: creditNote,
+  });
+
+  it("has a schema at its third version", () => {
+    expect(syncedEventPayloadKey("sale_voided", 3)).toBe("sale_voided@3");
+  });
+
+  it("describes a void that asks for no credit note", () => {
+    expect(accepts("sale_voided", 3, voided())).toBe(true);
+  });
+
+  it("describes the credit note of a voided sale that carried an invoice", () => {
+    expect(accepts("sale_voided", 3, voided(CREDIT_NOTE))).toBe(true);
+  });
+
+  it("keeps the previous versions' payloads for v1 and v2, which carry no credit note", () => {
+    expect(accepts("sale_voided", 1, structuredClone(VOIDED_SALE_V1))).toBe(true);
+    expect(accepts("sale_voided", 2, structuredClone(VOIDED_SALE_V1))).toBe(true);
+  });
+
+  it("describes a sale paid through Mercado Pago, as the second version does", () => {
+    const [cashPayment] = voided()["payments"] as Payload[];
+    const [cashRefund] = voided()["refunds"] as Payload[];
+    const payment = {
+      ...cashPayment,
+      id: "pay-2",
+      method: "QR",
+      provider: "MERCADOPAGO_QR",
+      tendered: null,
+      authorized_by: null,
+      confirmed_at: null,
+    };
+    const refund = {
+      ...cashRefund,
+      id: "refund-2",
+      parent_id: "pay-2",
+      method: "QR",
+      provider: "MERCADOPAGO_QR",
+      state: "PENDING",
+    };
+
+    expect(accepts("sale_voided", 3, { ...voided(), payments: [payment], refunds: [refund] })).toBe(
+      true,
+    );
+  });
+
+  it("refuses the payload without any one of its fields", () => {
+    const payload = voided(CREDIT_NOTE);
+
+    const accepted = Object.keys(payload).filter((key) => {
+      const { [key]: _removed, ...rest } = payload;
+      return accepts("sale_voided", 3, rest);
+    });
+
+    expect(accepted).toEqual([]);
+  });
+
+  it("refuses a credit note without any one of its fields", () => {
+    const accepted = Object.keys(CREDIT_NOTE).filter((key) => {
+      const { [key]: _removed, ...rest } = CREDIT_NOTE;
+      return accepts("sale_voided", 3, voided(rest));
+    });
+
+    expect(accepted).toEqual([]);
+  });
+
+  it.each([
+    ["a credit note without an id", { ...CREDIT_NOTE, id: "" }],
+    ["a credit note of nothing", { ...CREDIT_NOTE, total: 0 }],
+    ["a negative total", { ...CREDIT_NOTE, total: -1 }],
+    ["a fractional total", { ...CREDIT_NOTE, total: 10.5 }],
+    ["a receiver status that is not an integer", { ...CREDIT_NOTE, receiver_tax_status_code: 5.5 }],
+    [
+      "a corrected voucher without a number",
+      { ...CREDIT_NOTE, corrects: { ...CREDIT_NOTE.corrects, number: 0 } },
+    ],
+    [
+      "a corrected voucher without a point of sale",
+      { ...CREDIT_NOTE, corrects: { ...CREDIT_NOTE.corrects, point_of_sale: 0 } },
+    ],
+    [
+      "a corrected voucher of another kind than a factura C",
+      { ...CREDIT_NOTE, corrects: { ...CREDIT_NOTE.corrects, voucher_type: 13 } },
+    ],
+    ["no corrected voucher", { ...CREDIT_NOTE, corrects: null }],
+  ])("refuses %s", (_case, creditNote) => {
+    expect(accepts("sale_voided", 3, voided(creditNote))).toBe(false);
+  });
+
+  it("refuses a credit note that is not an object", () => {
+    expect(accepts("sale_voided", 3, voided("credit-note-1"))).toBe(false);
   });
 });
 
