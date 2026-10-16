@@ -94,12 +94,21 @@ const accessIncreasedDetailSchema = z.discriminatedUnion("cause", [
   }),
 ]);
 
-const registerEnrolledDetailSchema = z.object({
-  deviceId: z.string(),
-  hostname: z.string(),
-  windowsVersion: z.string(),
-  replacedInstallation: z.boolean(),
-});
+const registerEnrolledDetailSchema = z.discriminatedUnion("change", [
+  z.object({
+    change: z.literal("enrolled"),
+    deviceId: z.string(),
+    hostname: z.string(),
+    windowsVersion: z.string(),
+    replacedInstallation: z.boolean(),
+  }),
+  z.object({
+    change: z.literal("revoked"),
+    deviceId: z.string(),
+    hostname: z.string(),
+    windowsVersion: z.string(),
+  }),
+]);
 
 const eventsQuarantinedDetailSchema = z.object({
   deviceId: z.string(),

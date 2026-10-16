@@ -374,6 +374,7 @@ class DrizzleRegisterStoreTransaction<TQueryResult extends PgQueryResultHKT>
         kind: "register_enrolled",
         scope: alert.registerId,
         detail: {
+          change: "enrolled",
           deviceId: alert.deviceId,
           hostname: alert.hostname,
           windowsVersion: alert.windowsVersion,
