@@ -681,6 +681,7 @@ describe("voiding a completed sale", () => {
           },
         ],
         authorized_by: null,
+        credit_note: { kind: "in_progress" },
       },
     };
 

@@ -168,7 +168,6 @@ describe("synced event payloads", () => {
       "sale_print_state_changed@1",
       "sale_voided@1",
       "sale_voided@2",
-      "sale_voided@3",
     ]);
   });
 
@@ -2172,7 +2171,7 @@ describe("sale_voided v3", () => {
 
   it("refuses a credit note without any one of its fields", () => {
     const accepted = Object.keys(CREDIT_NOTE).filter((key) => {
-      const { [key]: _removed, ...rest } = CREDIT_NOTE;
+      const { [key]: _removed, ...rest } = structuredClone(CREDIT_NOTE) as Payload;
       return accepts("sale_voided", 3, voided(rest));
     });
 
