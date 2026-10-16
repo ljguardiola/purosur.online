@@ -1,10 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { revokeLostRegister } from "./revoke-lost-register.js";
 import { FakeLostRegisterRevocationStore } from "./test-support/fake-lost-register-revocation-store.js";
-import {
-  FixedClock,
-  SequentialInstallationKeys,
-} from "./test-support/fake-register-store.js";
+import { FixedClock, SequentialInstallationKeys } from "./test-support/fake-register-store.js";
 
 const NOW = new Date("2026-03-10T15:30:00.000Z");
 
@@ -205,7 +202,10 @@ describe("revokeLostRegister", () => {
       expect(state.branchesWithPinResetRequired).toEqual([]);
       expect(state.alerts).toEqual([]);
       expect(state.revocations).toEqual([]);
-      expect(world.store.operationOrder).toEqual(["lockBranchRegister", "revokeActiveInstallation"]);
+      expect(world.store.operationOrder).toEqual([
+        "lockBranchRegister",
+        "revokeActiveInstallation",
+      ]);
     });
   });
 

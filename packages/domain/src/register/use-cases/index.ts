@@ -100,6 +100,16 @@ export type {
 } from "./local-database-health.js";
 export type { LocalDatabaseMigrations } from "./local-database-migrations.js";
 export type {
+  KeyVersionChange,
+  LostRegisterKeys,
+  LostRegisterRevocation,
+  LostRegisterRevocationAlert,
+  LostRegisterRevocationStore,
+  LostRegisterRevocationStoreTransaction,
+  RevokedInstallation,
+  RevokeLostRegisterPorts,
+} from "./lost-register-revocation-ports.js";
+export type {
   OpenCashSessionGrant,
   OpenCashSessionInput,
   OpenCashSessionOutcome,
@@ -196,6 +206,11 @@ export type {
   RequestSnapshotUploadPorts,
 } from "./request-snapshot-upload.js";
 export { requestSnapshotUpload } from "./request-snapshot-upload.js";
+export type {
+  RevokeLostRegisterInput,
+  RevokeLostRegisterOutcome,
+} from "./revoke-lost-register.js";
+export { revokeLostRegister } from "./revoke-lost-register.js";
 export type {
   RotateDeviceTokenInput,
   RotateDeviceTokenOutcome,
