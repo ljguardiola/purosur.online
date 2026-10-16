@@ -1,0 +1,239 @@
+import { expectNoAccessibilityViolations } from "@purosur/ui/test";
+import { beforeEach, expect, test, vi } from "vitest";
+import { userEvent } from "vitest/browser";
+import { render } from "../shell/test-support/render-with-router";
+import type { RegisterSummary } from "./registers-api";
+import type { RevokeRegisterModalServices } from "./revoke-register-modal";
+import { RevokeRegisterModal } from "./revoke-register-modal";
+import {
+  createServices as createScreenServices,
+  enrolledRegister,
+  grantAuthorization,
+} from "./test-support/registers-list-screen";
+
+beforeEach(() => {
+  window.history.pushState(null, "", "/");
+});
+
+function createServices(): RevokeRegisterModalServices {
+  return createScreenServices();
+}
+
+type Handlers = {
+  target?: RegisterSummary | null;
+  onClose?: () => void;
+  onRevoked?: () => void;
+  onOutdated?: () => void;
+  onSessionEnded?: () => void;
+};
+
+function modalFor(services: RevokeRegisterModalServices, handlers: Handlers = {}) {
+  return (
+    <main>
+      <RevokeRegisterModal
+        target={handlers.target === undefined ? enrolledRegister : handlers.target}
+        onClose={handlers.onClose ?? (() => {})}
+        onRevoked={handlers.onRevoked ?? (() => {})}
+        onOutdated={handlers.onOutdated ?? (() => {})}
+        onSessionEnded={handlers.onSessionEnded ?? (() => {})}
+        services={services}
+      />
+    </main>
+  );
+}
+
+async function renderModal(services: RevokeRegisterModalServices, handlers: Handlers = {}) {
+  const screen = await render(modalFor(services, handlers));
+  const dialog = screen.getByRole("dialog", { name: "Revocar por pérdida o robo" });
+  await expect.element(dialog).toBeVisible();
+  return { screen, dialog };
+}
+
+type Dialog = Awaited<ReturnType<typeof renderModal>>["dialog"];
+
+async function confirm(dialog: Dialog) {
+  await userEvent.click(dialog.getByRole("button", { name: "Revocar la caja" }));
+}
+
+test("names the register and its machine, and explains what revoking does", async () => {
+  const { dialog } = await renderModal(createServices());
+
+  await expect.element(dialog.getByText("Caja 3 · CAJA-MOSTRADOR", { exact: true })).toBeVisible();
+  await expect
+    .element(
+      dialog.getByText(
+        "La notebook deja de poder sincronizar en el momento. Se cambian las claves de sus backups y de sus tickets de respaldo, así que lo que tenga guardado no sirve para leer datos nuevos.",
+      ),
+    )
+    .toBeVisible();
+  await expect
+    .element(
+      dialog.getByText("Todas las personas de esta sucursal van a tener que elegir un PIN nuevo."),
+    )
+    .toBeVisible();
+  await expect
+    .element(
+      dialog.getByText("Para volver a usar la caja hay que darla de alta de nuevo con un código."),
+    )
+    .toBeVisible();
+});
+
+test("has no accessibility violations", async () => {
+  const { dialog } = await renderModal(createServices());
+
+  await expectNoAccessibilityViolations(dialog.element());
+});
+
+test("is closed without a register to revoke", async () => {
+  const screen = await render(modalFor(createServices(), { target: null }));
+
+  expect(screen.getByRole("dialog").query()).toBeNull();
+});
+
+test("revokes the register and reports it revoked", async () => {
+  const services = createServices();
+  vi.mocked(services.revokeRegister).mockResolvedValue({
+    kind: "ok",
+    value: { revokedAt: "2026-09-25T12:15:00.000Z" },
+  });
+  const onRevoked = vi.fn();
+  const { dialog } = await renderModal(services, { onRevoked });
+
+  await confirm(dialog);
+
+  await expect.poll(() => onRevoked.mock.calls.length).toBe(1);
+  expect(services.revokeRegister).toHaveBeenCalledWith("register-3");
+});
+
+test("cancelling reports it closed without revoking", async () => {
+  const services = createServices();
+  const onClose = vi.fn();
+  const { dialog } = await renderModal(services, { onClose });
+
+  await userEvent.click(dialog.getByRole("button", { name: "Cancelar" }));
+
+  expect(onClose).toHaveBeenCalledTimes(1);
+  expect(services.revokeRegister).not.toHaveBeenCalled();
+});
+
+test("opens the authorization modal on authorization_required, then authorizes and retries", async () => {
+  const services = createServices();
+  vi.mocked(services.revokeRegister).mockResolvedValueOnce({ kind: "authorization_required" });
+  vi.mocked(services.revokeRegister).mockResolvedValueOnce({
+    kind: "ok",
+    value: { revokedAt: "2026-09-25T12:15:00.000Z" },
+  });
+  grantAuthorization(services);
+  const onRevoked = vi.fn();
+  const { screen, dialog } = await renderModal(services, { onRevoked });
+
+  await confirm(dialog);
+  const authDialog = screen.getByRole("dialog", { name: "Autorizá este cambio" });
+  await expect.element(authDialog).toBeVisible();
+  await expect
+    .element(
+      authDialog.getByText(
+        "Revocar por pérdida o robo necesita tu autorización. Confirmala con tu passkey.",
+      ),
+    )
+    .toBeVisible();
+  await userEvent.click(authDialog.getByRole("button", { name: "Usar mi passkey" }));
+
+  await expect.poll(() => vi.mocked(services.revokeRegister).mock.calls.length).toBe(2);
+  await expect.poll(() => onRevoked.mock.calls.length).toBe(1);
+});
+
+test("cancelling the authorization leaves the modal open and reports nothing revoked", async () => {
+  const services = createServices();
+  vi.mocked(services.revokeRegister).mockResolvedValue({ kind: "authorization_required" });
+  const onRevoked = vi.fn();
+  const { screen, dialog } = await renderModal(services, { onRevoked });
+
+  await confirm(dialog);
+  await userEvent.click(
+    screen
+      .getByRole("dialog", { name: "Autorizá este cambio" })
+      .getByRole("button", { name: "Cancelar" }),
+  );
+
+  await expect
+    .poll(() => screen.getByRole("dialog", { name: "Autorizá este cambio" }).query())
+    .toBeNull();
+  await expect.element(dialog).toBeVisible();
+  expect(onRevoked).not.toHaveBeenCalled();
+});
+
+test("explains that a register without an active installation has nothing to revoke", async () => {
+  const services = createServices();
+  vi.mocked(services.revokeRegister).mockResolvedValue({ kind: "no_active_installation" });
+  const onOutdated = vi.fn();
+  const { dialog } = await renderModal(services, { onOutdated });
+
+  await confirm(dialog);
+
+  await expect.element(dialog.getByText("No se pudo revocar la caja")).toBeVisible();
+  await expect
+    .element(dialog.getByText("La caja ya no tiene una instalación activa."))
+    .toBeVisible();
+  expect(onOutdated).toHaveBeenCalledTimes(1);
+});
+
+test("explains that the register no longer exists", async () => {
+  const services = createServices();
+  vi.mocked(services.revokeRegister).mockResolvedValue({ kind: "not_found" });
+  const onOutdated = vi.fn();
+  const { dialog } = await renderModal(services, { onOutdated });
+
+  await confirm(dialog);
+
+  await expect.element(dialog.getByText("No se pudo revocar la caja")).toBeVisible();
+  await expect.element(dialog.getByText("No se encontró la caja.")).toBeVisible();
+  expect(onOutdated).toHaveBeenCalledTimes(1);
+});
+
+test("shows the rate-limited notice", async () => {
+  const services = createServices();
+  vi.mocked(services.revokeRegister).mockResolvedValue({
+    kind: "rate_limited",
+    retryAfterSeconds: 120,
+  });
+  const { dialog } = await renderModal(services);
+
+  await confirm(dialog);
+
+  await expect.element(dialog.getByText("Demasiadas solicitudes")).toBeVisible();
+  await expect.element(dialog.getByText("Se puede volver a intentar en 2 minutos.")).toBeVisible();
+});
+
+test("shows the attempt-failed notice", async () => {
+  const services = createServices();
+  vi.mocked(services.revokeRegister).mockResolvedValue({ kind: "failed" });
+  const { dialog } = await renderModal(services);
+
+  await confirm(dialog);
+
+  await expect.element(dialog.getByText("No se pudo revocar la caja")).toBeVisible();
+  await expect.element(dialog.getByText("Probá de nuevo.")).toBeVisible();
+});
+
+test("navigates to Mi cuenta when the revocation comes back forbidden", async () => {
+  window.history.pushState(null, "", "/registers");
+  const services = createServices();
+  vi.mocked(services.revokeRegister).mockResolvedValue({ kind: "forbidden" });
+  const { dialog } = await renderModal(services);
+
+  await confirm(dialog);
+
+  await expect.poll(() => window.location.pathname).toBe("/account");
+});
+
+test("ends the session when the revocation finds no open session", async () => {
+  const services = createServices();
+  vi.mocked(services.revokeRegister).mockResolvedValue({ kind: "unauthenticated" });
+  const onSessionEnded = vi.fn();
+  const { dialog } = await renderModal(services, { onSessionEnded });
+
+  await confirm(dialog);
+
+  await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
+});
