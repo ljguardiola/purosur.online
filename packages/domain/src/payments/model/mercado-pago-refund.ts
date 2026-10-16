@@ -38,23 +38,61 @@ export function refundIsBackedByItsCancellation(
   );
 }
 
-export interface LatePaymentOfRefund {
-  state: string;
+export interface RefundedPaymentTransaction {
   orderId: string | null;
-  otherOrderId: string | null;
+  amount: number;
+  state: string;
 }
 
-export function refundIsBackedByItsLatePayment(
-  refund: { orderId: string | null },
-  payment: LatePaymentOfRefund | null,
-): boolean {
-  if (payment === null || refund.orderId === null) {
+interface RefundedOfOrder {
+  orderId: string | null;
+  amount: number;
+}
+
+export interface RefundedPaymentFacts {
+  origin: string;
+  amount: number;
+  ownOrderId: string | null;
+  salePaymentAmount: number | null;
+  refundedOfSalePayment: number;
+  paymentTransaction: RefundedPaymentTransaction | null;
+  refundedOfPaymentTransactionByOrder: readonly RefundedOfOrder[];
+}
+
+type RefundOrderFacts = Pick<RefundedPaymentFacts, "ownOrderId" | "paymentTransaction">;
+
+export function orderToRefund(refund: RefundOrderFacts): string | null {
+  return refund.ownOrderId ?? refund.paymentTransaction?.orderId ?? null;
+}
+
+export function refundIsBackedByItsLatePayment(refund: RefundOrderFacts): boolean {
+  const transaction = refund.paymentTransaction;
+  if (transaction === null) {
     return false;
   }
-  if (payment.otherOrderId !== null) {
-    return payment.otherOrderId === refund.orderId;
+  if (refund.ownOrderId !== null) {
+    return true;
   }
-  return payment.state === PAID_ORDER_PAYMENT_STATE && payment.orderId === refund.orderId;
+  return transaction.state === PAID_ORDER_PAYMENT_STATE && transaction.orderId !== null;
+}
+
+export function amountHeldByRefundedPayment(refund: RefundedPaymentFacts): number {
+  if (refund.origin !== LATE_PAYMENT_REFUND_ORIGIN) {
+    return refund.salePaymentAmount ?? 0;
+  }
+  if (refund.ownOrderId !== null) {
+    return refund.amount;
+  }
+  return refund.paymentTransaction?.amount ?? 0;
+}
+
+export function alreadyRefundedOfPayment(refund: RefundedPaymentFacts): number {
+  if (refund.origin !== LATE_PAYMENT_REFUND_ORIGIN) {
+    return refund.refundedOfSalePayment;
+  }
+  return refund.refundedOfPaymentTransactionByOrder
+    .filter((refunded) => refunded.orderId === refund.ownOrderId)
+    .reduce((sum, refunded) => sum + refunded.amount, 0);
 }
 
 export type MercadoPagoRefundAnswer =

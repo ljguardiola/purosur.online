@@ -1,9 +1,4 @@
-import {
-  LATE_PAYMENT_REFUND_ORIGIN,
-  type LatePaymentOfRefund,
-  PLANNED_REFUND_STATES,
-  REFUND_PENDING_STATE,
-} from "@purosur/domain";
+import { PLANNED_REFUND_STATES, REFUND_PENDING_STATE } from "@purosur/domain";
 import type {
   MercadoPagoRefundRecord,
   MercadoPagoRefundReference,
@@ -47,11 +42,12 @@ class DrizzleMercadoPagoRefundTransaction<TQueryResult extends PgQueryResultHKT>
         origin: paymentRefunds.origin,
         method: paymentRefunds.method,
         amount: paymentRefunds.amount,
+        ownOrderId: paymentRefunds.providerOrderId,
         salePaymentAmount: salePayments.amount,
-        transactionAmount: paymentTransactions.amount,
-        paymentTransactionId: paymentRefunds.paymentTransactionId,
-        refundOrderId: paymentRefunds.providerOrderId,
         transactionOrderId: paymentTransactions.providerOrderId,
+        transactionAmount: paymentTransactions.amount,
+        transactionState: paymentTransactions.state,
+        paymentTransactionId: paymentRefunds.paymentTransactionId,
         originEventId: paymentRefunds.originEventId,
         confirmedBy: paymentRefunds.confirmedBy,
         confirmedAt: paymentRefunds.confirmedAt,
@@ -70,69 +66,42 @@ class DrizzleMercadoPagoRefundTransaction<TQueryResult extends PgQueryResultHKT>
     if (!row) {
       return undefined;
     }
-    const {
-      paymentId,
-      salePaymentAmount,
-      transactionAmount,
-      refundOrderId,
-      transactionOrderId,
-      ...refund
-    } = row;
-    const late = refund.origin === LATE_PAYMENT_REFUND_ORIGIN;
-    const paymentAmount = late
-      ? refundOrderId === null
-        ? transactionAmount
-        : refund.amount
-      : salePaymentAmount;
+    const { paymentId, transactionOrderId, transactionAmount, transactionState, ...refund } = row;
     return {
       ...refund,
       locationId,
-      paymentAmount: paymentAmount ?? 0,
-      orderId: refundOrderId ?? transactionOrderId,
-      refundedOfPayment: late
-        ? await this.refundedOfLatePayment(refundId, refund.paymentTransactionId, refundOrderId)
-        : await this.refundedOfPayment(refundId, paymentId),
+      refundedOfSalePayment: await this.refundedOfPayment(refundId, paymentId),
+      paymentTransaction:
+        transactionAmount === null || transactionState === null
+          ? null
+          : { orderId: transactionOrderId, amount: transactionAmount, state: transactionState },
+      refundedOfPaymentTransactionByOrder:
+        refund.paymentTransactionId === null
+          ? []
+          : await this.refundedOfTransactionByOrder(refundId, refund.paymentTransactionId),
     };
   }
 
-  async latePaymentOfRefund(refundId: string): Promise<LatePaymentOfRefund | null> {
-    const [row] = await this.tx
-      .select({
-        state: paymentTransactions.state,
-        orderId: paymentTransactions.providerOrderId,
-        otherOrderId: paymentRefunds.providerOrderId,
-      })
-      .from(paymentRefunds)
-      .innerJoin(
-        paymentTransactions,
-        eq(paymentTransactions.id, paymentRefunds.paymentTransactionId),
-      )
-      .where(
-        and(eq(paymentRefunds.id, refundId), eq(paymentRefunds.origin, LATE_PAYMENT_REFUND_ORIGIN)),
-      );
-    return row ?? null;
-  }
-
-  private async refundedOfLatePayment(
+  private async refundedOfTransactionByOrder(
     refundId: string,
-    paymentTransactionId: string | null,
-    providerOrderId: string | null,
-  ): Promise<number> {
-    if (paymentTransactionId === null) {
-      return 0;
-    }
-    const [others] = await this.tx
-      .select({ amount: sql<string>`coalesce(sum(${paymentRefunds.amount}), 0)` })
+    paymentTransactionId: string,
+  ): Promise<{ orderId: string | null; amount: number }[]> {
+    const rows = await this.tx
+      .select({
+        orderId: paymentRefunds.providerOrderId,
+        amount: sql<string>`sum(${paymentRefunds.amount})`,
+      })
       .from(paymentRefunds)
       .where(
         and(
           eq(paymentRefunds.paymentTransactionId, paymentTransactionId),
-          sql`${paymentRefunds.providerOrderId} is not distinct from ${providerOrderId}::text`,
           ne(paymentRefunds.id, refundId),
           inArray(paymentRefunds.state, PLANNED_REFUND_STATES),
         ),
-      );
-    return Number(others?.amount ?? 0);
+      )
+      .groupBy(paymentRefunds.providerOrderId)
+      .orderBy(paymentRefunds.providerOrderId);
+    return rows.map((row) => ({ orderId: row.orderId, amount: Number(row.amount) }));
   }
 
   private async refundedOfPayment(refundId: string, paymentId: string | null): Promise<number> {

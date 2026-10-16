@@ -17,7 +17,6 @@ export {
   MERCADO_PAGO_POINT_ORDER_EXPIRY_MINUTES,
 } from "./model/mercado-pago-point-order.js";
 export type {
-  LatePaymentOfRefund,
   MercadoPagoOrderRefund,
   MercadoPagoRefundAnswer,
 } from "./model/mercado-pago-refund.js";
@@ -76,7 +75,6 @@ export type {
 export {
   DISCARDABLE_REFUND_ALERT_KINDS,
   isRefundPending,
-  LATE_PAYMENT_REFUND_ORIGIN,
   latePaymentRefund,
   latePaymentRefundOfUnrecordedOrder,
   methodsCoveringRefundedSale,

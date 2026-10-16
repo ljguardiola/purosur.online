@@ -211,9 +211,9 @@ export function PendingRefundsScreen({
           }}
           footer={
             <p className="text-text-subtle text-detail">
-              Los reembolsos de pagos con QR se envían a Mercado Pago desde acá; los demás se hacen
-              fuera del sistema y acá se marcan como hechos. Nada se envía a Mercado Pago sin
-              confirmarlo acá.
+              Los reembolsos de pagos con QR de ventas canceladas y de aprobaciones tardías se
+              envían a Mercado Pago desde acá; los demás se hacen fuera del sistema y acá se marcan
+              como hechos. Nada se envía a Mercado Pago sin confirmarlo acá.
             </p>
           }
         />
