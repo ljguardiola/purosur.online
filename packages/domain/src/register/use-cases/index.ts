@@ -83,6 +83,13 @@ export type {
 export { findRegisterUpdate } from "./find-register-update.js";
 export type { InstallationKeys } from "./installation-keys.js";
 export type {
+  HeldRegisterKeys,
+  InstallationRevocationAlert,
+  InstallationRevocationTransaction,
+  KeyVersionChange,
+  RevokedInstallation,
+} from "./installation-revocation-ports.js";
+export type {
   BranchRegisterSummary,
   ListBranchRegistersInput,
   ListBranchRegistersPorts,
@@ -100,13 +107,9 @@ export type {
 } from "./local-database-health.js";
 export type { LocalDatabaseMigrations } from "./local-database-migrations.js";
 export type {
-  KeyVersionChange,
-  LostRegisterKeys,
   LostRegisterRevocation,
-  LostRegisterRevocationAlert,
   LostRegisterRevocationStore,
   LostRegisterRevocationStoreTransaction,
-  RevokedInstallation,
   RevokeLostRegisterPorts,
 } from "./lost-register-revocation-ports.js";
 export type {
