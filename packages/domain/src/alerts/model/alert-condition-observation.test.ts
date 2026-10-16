@@ -356,6 +356,19 @@ describe("externalBillingObservation", () => {
     });
   });
 
+  it("holds the condition of a credit note number that no credit note of the register accounts for", () => {
+    expect(
+      externalBillingObservation({ pointOfSale: 12, documentType: "credit_note_c", number: 3 }),
+    ).toEqual({
+      holds: true,
+      alert: {
+        kind: "external_billing",
+        scope: "12:credit_note_c:3",
+        detail: { pointOfSale: 12, documentType: "credit_note_c", number: 3 },
+      },
+    });
+  });
+
   it("scopes the condition to each number on its own", () => {
     expect(
       externalBillingObservation({ pointOfSale: 12, documentType: "factura_c", number: 42 }),

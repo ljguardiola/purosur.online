@@ -655,6 +655,16 @@ describe("alertDetailSchema", () => {
       expect(alertDetailSchema.safeParse(alert).success).toBe(false);
     });
 
+    it("accepts an external billing alert about a credit note C", () => {
+      const alert = {
+        ...base,
+        kind: "external_billing",
+        detail: { ...detailOf.external_billing, documentType: "credit_note_c" },
+      };
+
+      expect(alertDetailSchema.safeParse(alert).data).toEqual(alert);
+    });
+
     it("refuses a silent register with no last accepted push", () => {
       const alert = {
         ...base,

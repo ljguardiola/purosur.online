@@ -343,6 +343,48 @@ describe("issueOrphanCreditNote", () => {
       expect(creditNotes.solicitations[0]?.number).toBe(43);
     });
 
+    it("records the voucher it did not issue as invoicing outside the register, together with the release of its number", async () => {
+      const { store, ports } = scenario({
+        standing: REQUESTED,
+        now: SETTLED_AT,
+        voucher: { kind: "found", voucher: { ...CREDIT_NOTE_VOUCHER, total: 1 } },
+        lastAuthorized: { kind: "read", number: 42 },
+      });
+
+      await issue(ports);
+
+      expect(store.releases).toEqual([
+        {
+          creditNoteId: CREDIT_NOTE_ID,
+          regularization: {
+            kind: "external_invoicing",
+            externalBilling: { pointOfSale: 12, documentType: "credit_note_c", number: 42 },
+            task: {
+              kind: "external_invoicing",
+              state: "open",
+              pointOfSale: 12,
+              documentType: "credit_note_c",
+              number: 42,
+              voucher: { issuedOn: ISSUE_DAY, total: 1, authorizationCode: "75123456789055" },
+              createdAt: SETTLED_AT,
+            },
+          },
+        },
+      ]);
+    });
+
+    it("records no invoicing outside the register when the number is released with no voucher at it", async () => {
+      const { store, ports } = scenario({
+        standing: REQUESTED,
+        now: SETTLED_AT,
+        lastAuthorized: { kind: "read", number: 41 },
+      });
+
+      await issue(ports);
+
+      expect(store.releases).toEqual([{ creditNoteId: CREDIT_NOTE_ID, regularization: null }]);
+    });
+
     it("asks again later when the tax authority has reached the number but shows no credit note there", async () => {
       const { store, creditNotes, ports } = scenario({
         standing: REQUESTED,

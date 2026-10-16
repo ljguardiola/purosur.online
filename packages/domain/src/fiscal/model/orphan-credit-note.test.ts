@@ -64,18 +64,33 @@ describe("settleUnclearCreditNote", () => {
 
   it("does not adopt a factura C found at the number", () => {
     expect(settle({ kind: "voucher", voucher: { ...MATCHING_VOUCHER, documentType: 11 } })).toEqual(
-      { kind: "released" },
+      {
+        kind: "released",
+        foreignVoucher: {
+          issuedOn: "2026-10-02",
+          total: 12_500,
+          authorizationCode: "75123456789099",
+        },
+      },
     );
   });
 
-  it("releases the number when the voucher at it is not the credit note", () => {
+  it("releases the number, naming the voucher, when the voucher at it is not the credit note", () => {
     expect(settle({ kind: "voucher", voucher: { ...MATCHING_VOUCHER, total: 99 } })).toEqual({
       kind: "released",
+      foreignVoucher: {
+        issuedOn: "2026-10-02",
+        total: 99,
+        authorizationCode: "75123456789099",
+      },
     });
   });
 
   it("releases the request when the tax authority has not reached its number", () => {
-    expect(settle({ kind: "no_voucher", lastAuthorized: 2 })).toEqual({ kind: "released" });
+    expect(settle({ kind: "no_voucher", lastAuthorized: 2 })).toEqual({
+      kind: "released",
+      foreignVoucher: null,
+    });
   });
 
   it("asks again later when the tax authority has reached the number but shows no voucher there", () => {
