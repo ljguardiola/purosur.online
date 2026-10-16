@@ -57,7 +57,9 @@ describe("decideOrphanAuthorization", () => {
   });
 
   it("reports a confirmed authorization with no local sale behind it as invoicing outside the register", () => {
-    expect(decideOrphanAuthorization({ evidence: CONFIRMED, local: { kind: "no_local_sale" } })).toEqual({
+    expect(
+      decideOrphanAuthorization({ evidence: CONFIRMED, local: { kind: "no_local_sale" } }),
+    ).toEqual({
       kind: "external_invoicing",
       pointOfSale: 12,
       documentType: "factura_c",
@@ -128,6 +130,8 @@ describe("orphanRegularization", () => {
   });
 
   it("regularizes nothing when the decision is none", () => {
-    expect(orphanRegularization({ kind: "none" }, { creditNoteId: "credit-note-1", now: NOW })).toBeNull();
+    expect(
+      orphanRegularization({ kind: "none" }, { creditNoteId: "credit-note-1", now: NOW }),
+    ).toBeNull();
   });
 });

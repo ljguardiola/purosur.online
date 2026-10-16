@@ -46,7 +46,13 @@ describe("settleUnclearCreditNote", () => {
   const settle = (
     evidence: Parameters<typeof settleUnclearCreditNote>[0]["evidence"],
     now: Date = SETTLED_AT,
-  ) => settleUnclearCreditNote({ unclearSince: UNCLEAR_SINCE, now, creditNote: CREDIT_NOTE, evidence });
+  ) =>
+    settleUnclearCreditNote({
+      unclearSince: UNCLEAR_SINCE,
+      now,
+      creditNote: CREDIT_NOTE,
+      evidence,
+    });
 
   it("adopts the credit note voucher the tax authority holds at the requested number", () => {
     expect(settle({ kind: "voucher", voucher: MATCHING_VOUCHER })).toEqual({
@@ -57,9 +63,9 @@ describe("settleUnclearCreditNote", () => {
   });
 
   it("does not adopt a factura C found at the number", () => {
-    expect(
-      settle({ kind: "voucher", voucher: { ...MATCHING_VOUCHER, documentType: 11 } }),
-    ).toEqual({ kind: "released" });
+    expect(settle({ kind: "voucher", voucher: { ...MATCHING_VOUCHER, documentType: 11 } })).toEqual(
+      { kind: "released" },
+    );
   });
 
   it("releases the number when the voucher at it is not the credit note", () => {
