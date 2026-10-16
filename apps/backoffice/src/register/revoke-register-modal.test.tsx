@@ -357,7 +357,10 @@ async function answerAfterClosing(
 test("reports the register revoked when the success arrives after the modal was closed", async () => {
   const onRevoked = vi.fn();
 
-  await answerAfterClosing({ kind: "ok" }, { onRevoked });
+  await answerAfterClosing(
+    { kind: "ok", value: { revokedAt: "2026-09-25T12:15:00.000Z" } },
+    { onRevoked },
+  );
 
   await expect.poll(() => onRevoked.mock.calls.length).toBe(1);
 });
