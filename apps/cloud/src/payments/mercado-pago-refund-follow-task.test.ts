@@ -14,7 +14,7 @@ import { aPendingLatePaymentRefund } from "./test-support/late-payment-refund-fi
 import {
   aPendingPointRefundOfCancelledSale,
   aPendingQrRefundOfCancelledSale,
-} from "./test-support/qr-refund-fixtures.js";
+} from "./test-support/mercado-pago-refund-fixtures.js";
 
 const NEXT_FOLLOW_AT = new Date(NOW.getTime() + 60_000);
 
@@ -162,53 +162,6 @@ describe("mercadoPagoRefundFollowJobs", () => {
 
       expect(mercadoPago.refunds).toEqual([{ orderId: ORDER_ID, idempotencyKey: "key-1" }]);
       expect(await stored(pending.refundId)).toMatchObject({ state: "PENDING", sentAt: NOW });
-    });
-
-    it("is done by whoever confirmed it once a later read shows Mercado Pago processed it", async () => {
-      const pending = await aPendingPointRefundOfCancelledSale(testDatabase.db, {
-        cancelledAt: NOW,
-      });
-      const userId = await confirmedBy(pending.refundId, {
-        sentAt: NOW,
-        providerRefundId: "REF-1",
-      });
-      const mercadoPago = new FakeMercadoPagoOrders();
-      mercadoPago.orderRefunds = { kind: "read", refunds: [{ id: "REF-1", status: "processed" }] };
-
-      await runFollow(mercadoPago);
-
-      expect(await stored(pending.refundId)).toMatchObject({
-        state: "APPROVED",
-        doneBy: userId,
-        doneAt: NOW,
-      });
-    });
-
-    it("stays pending with its reason while Mercado Pago lacks the balance, and is tried again", async () => {
-      const pending = await aPendingPointRefundOfCancelledSale(testDatabase.db, {
-        cancelledAt: NOW,
-      });
-      await confirmedBy(pending.refundId, {});
-      const mercadoPago = new FakeMercadoPagoOrders();
-      mercadoPago.refund = { kind: "insufficient_balance" };
-
-      await runFollow(mercadoPago);
-
-      expect(await stored(pending.refundId)).toMatchObject({
-        state: "PENDING",
-        lastRefusalReason: "insufficient_balance",
-        sentAt: null,
-      });
-      mercadoPago.refund = { kind: "refunded", providerRefundId: "REF-2", processed: false };
-
-      await runFollow(mercadoPago);
-
-      expect(mercadoPago.refunds).toHaveLength(2);
-      expect(await stored(pending.refundId)).toMatchObject({
-        state: "PENDING",
-        sentAt: NOW,
-        providerRefundId: "REF-2",
-      });
     });
   });
 

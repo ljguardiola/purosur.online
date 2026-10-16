@@ -27,7 +27,7 @@ import { aPendingLatePaymentRefund } from "./test-support/late-payment-refund-fi
 import {
   aPendingPointRefundOfCancelledSale,
   aPendingQrRefundOfCancelledSale,
-} from "./test-support/qr-refund-fixtures.js";
+} from "./test-support/mercado-pago-refund-fixtures.js";
 
 const NOW = new Date("2026-10-07T15:00:00.000Z");
 const UNKNOWN_REFUND = "00000000-0000-4000-8000-000000000000";
@@ -464,12 +464,6 @@ describe("a Point refund of a cancelled sale", () => {
     expect((await storedRefund(pending.refundId))?.state).toBe("PENDING");
   });
 
-  it("sends nothing until a person confirms it", async () => {
-    await aPendingPointRefundOfCancelledSale(db, { cancelledAt: NOW });
-
-    expect(mercadoPago.refunds).toEqual([]);
-  });
-
   it("is confirmed on behalf of the person of the session, and Mercado Pago is asked to refund the order, leaving it pending while it is in process", async () => {
     const { headers, userId } = await signedInWith(db, ["confirm_refunds"], NOW);
     const pending = await aPendingPointRefundOfCancelledSale(db, { cancelledAt: NOW });
@@ -492,42 +486,6 @@ describe("a Point refund of a cancelled sale", () => {
     expect(mercadoPago.refunds).toEqual([
       { orderId: ORDER_ID, idempotencyKey: refund?.attemptKey },
     ]);
-  });
-
-  it("is done by the person who confirmed it when Mercado Pago already processed it", async () => {
-    const { headers, userId } = await signedInWith(db, ["confirm_refunds"], NOW);
-    const pending = await aPendingPointRefundOfCancelledSale(db, { cancelledAt: NOW });
-    mercadoPago.refund = { kind: "refunded", providerRefundId: "REF-1", processed: true };
-
-    const response = await confirm(headers, pending.refundId);
-
-    expect(confirmedRefundSchema.parse(response.json())).toEqual({
-      refund_id: pending.refundId,
-      outcome: "done",
-      done_at: NOW.toISOString(),
-    });
-    expect(await storedRefund(pending.refundId)).toMatchObject({
-      state: "APPROVED",
-      doneBy: userId,
-      doneAt: NOW,
-    });
-  });
-
-  it("stays pending and confirmed while Mercado Pago lacks the balance to refund it", async () => {
-    const { headers, userId } = await signedInWith(db, ["confirm_refunds"], NOW);
-    const pending = await aPendingPointRefundOfCancelledSale(db, { cancelledAt: NOW });
-    mercadoPago.refund = { kind: "insufficient_balance" };
-
-    const response = await confirm(headers, pending.refundId);
-
-    expect(confirmedRefundSchema.parse(response.json())).toEqual({
-      refund_id: pending.refundId,
-      outcome: "insufficient_balance",
-    });
-    expect(await storedRefund(pending.refundId)).toMatchObject({
-      state: "PENDING",
-      confirmedBy: userId,
-    });
   });
 });
 

@@ -172,14 +172,14 @@ test("lists a cancelled sale's refund and a late QR payment's refund together, e
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("explains under the table that QR and Point refunds of cancelled or voided sales, and QR ones of late payments, are sent to Mercado Pago from here, only once confirmed, and the others are made outside the system and marked as done", async () => {
+test("explains under the table that QR and Point refunds of cancelled sales, and QR ones of late payments, are sent to Mercado Pago from here, only once confirmed, and the others are made outside the system and marked as done", async () => {
   const services = createServices();
   const screen = await loaded(services);
 
   await expect
     .element(
       screen.getByText(
-        "Los reembolsos de pagos con QR o Point de ventas canceladas o anuladas, y con QR de aprobaciones tardías, se envían a Mercado Pago desde acá; los demás se hacen fuera del sistema y acá se marcan como hechos. Nada se envía a Mercado Pago sin confirmarlo acá.",
+        "Los reembolsos de pagos con QR o Point de ventas canceladas, y con QR de aprobaciones tardías, se envían a Mercado Pago desde acá; los demás se hacen fuera del sistema y acá se marcan como hechos. Nada se envía a Mercado Pago sin confirmarlo acá.",
       ),
     )
     .toBeVisible();

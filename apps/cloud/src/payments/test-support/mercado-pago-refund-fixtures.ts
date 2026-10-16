@@ -7,7 +7,7 @@ import { insertInboxEvent } from "../../sync/test-support/inbox-events.js";
 import { ORDER_ID } from "./fake-mercado-pago-orders.js";
 import { pendingPointTransaction, pendingTransaction } from "./payment-transaction-fixtures.js";
 
-export interface PendingQrRefund {
+export interface PendingMercadoPagoRefund {
   refundId: string;
   saleId: string;
   deviceId: string;
@@ -29,14 +29,14 @@ interface PendingRefundOptions {
 export function aPendingQrRefundOfCancelledSale<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   options: PendingRefundOptions,
-): Promise<PendingQrRefund> {
+): Promise<PendingMercadoPagoRefund> {
   return aPendingMercadoPagoRefundOfCancelledSale(db, "QR", options);
 }
 
 export function aPendingPointRefundOfCancelledSale<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   options: PendingRefundOptions,
-): Promise<PendingQrRefund> {
+): Promise<PendingMercadoPagoRefund> {
   return aPendingMercadoPagoRefundOfCancelledSale(db, "POINT", options);
 }
 
@@ -50,7 +50,7 @@ async function aPendingMercadoPagoRefundOfCancelledSale<TQueryResult extends PgQ
     cancellingEvent = true,
     registerName = "Caja 1",
   }: PendingRefundOptions,
-): Promise<PendingQrRefund> {
+): Promise<PendingMercadoPagoRefund> {
   const { deviceId, locationId, registerId } = await insertEnrolledInstallation(db, {
     now: cancelledAt,
     registerName,

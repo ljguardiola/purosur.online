@@ -78,6 +78,7 @@ describe("cancelling the open sale of a locked register", () => {
     { kind: "has_approved_payment" },
     { kind: "holds_standalone_terminal_payment" },
     { kind: "holds_mercado_pago_payment" },
+    { kind: "holds_point_payment" },
     { kind: "cancelled" },
     {
       kind: "cancelled",

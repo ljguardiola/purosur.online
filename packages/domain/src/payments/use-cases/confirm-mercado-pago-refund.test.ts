@@ -3,6 +3,7 @@ import { confirm } from "./test-support/confirm-mercado-pago-refund.js";
 import {
   aConfirmedRefund,
   aPaymentTransaction,
+  aPointRefundOfCancelledSale,
   aQrRefundOfCancelledSale,
   aSentRefund,
   NOW,
@@ -30,7 +31,7 @@ describe("confirmMercadoPagoRefund", () => {
     });
 
     it("confirms and sends the refund of a cancelled sale paid on the Point terminal", async () => {
-      const world = refundWorld([aQrRefundOfCancelledSale({ method: "POINT" })]);
+      const world = refundWorld([aPointRefundOfCancelledSale()]);
 
       const outcome = await confirm(world);
 
