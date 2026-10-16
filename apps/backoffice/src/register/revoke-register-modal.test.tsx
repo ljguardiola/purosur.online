@@ -3,7 +3,7 @@ import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
 import type { RegisterSummary } from "./registers-api";
-import type { RevokeRegisterModalServices } from "./revoke-register-modal";
+import type { RegistersListScreenServices } from "./registers-list-services";
 import { RevokeRegisterModal } from "./revoke-register-modal";
 import {
   createServices as createScreenServices,
@@ -15,9 +15,7 @@ beforeEach(() => {
   window.history.pushState(null, "", "/");
 });
 
-function createServices(): RevokeRegisterModalServices {
-  return createScreenServices();
-}
+const createServices = createScreenServices;
 
 type Handlers = {
   target?: RegisterSummary | null;
@@ -27,7 +25,7 @@ type Handlers = {
   onSessionEnded?: () => void;
 };
 
-function modalFor(services: RevokeRegisterModalServices, handlers: Handlers = {}) {
+function modalFor(services: RegistersListScreenServices, handlers: Handlers = {}) {
   return (
     <main>
       <RevokeRegisterModal
@@ -42,7 +40,7 @@ function modalFor(services: RevokeRegisterModalServices, handlers: Handlers = {}
   );
 }
 
-async function renderModal(services: RevokeRegisterModalServices, handlers: Handlers = {}) {
+async function renderModal(services: RegistersListScreenServices, handlers: Handlers = {}) {
   const screen = await render(modalFor(services, handlers));
   const dialog = screen.getByRole("dialog", { name: "Revocar por pérdida o robo" });
   await expect.element(dialog).toBeVisible();
@@ -73,7 +71,9 @@ test("names the register and its machine, and explains what revoking does", asyn
     .toBeVisible();
   await expect
     .element(
-      dialog.getByText("Para volver a usar la caja hay que darla de alta de nuevo con un código."),
+      dialog
+        .getByText("Para volver a usar la caja hay que darla de alta de nuevo con un código.")
+        .first(),
     )
     .toBeVisible();
 });
