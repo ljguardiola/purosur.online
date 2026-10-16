@@ -1,6 +1,8 @@
 import {
+  isRefundSentByCloud,
   type ManualAdjustment,
   recordedRefundOfVoidedSale,
+  SALE_CANCELLED_REFUND_ORIGIN,
   type SaleDiscount,
 } from "@purosur/domain";
 import type { SyncedFact } from "@purosur/domain/sync/use-cases";
@@ -85,7 +87,12 @@ async function recordSaleParts<TQueryResult extends PgQueryResultHKT>(
       sale.refunds.map((refund) => ({
         ...refund,
         saleId: sale.id,
-        paymentTransactionId: refund.method === "QR" ? refund.paymentId : null,
+        paymentTransactionId: isRefundSentByCloud({
+          method: refund.method,
+          origin: SALE_CANCELLED_REFUND_ORIGIN,
+        })
+          ? refund.paymentId
+          : null,
         originEventId,
       })),
     );
