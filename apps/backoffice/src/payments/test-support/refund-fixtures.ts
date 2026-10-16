@@ -165,3 +165,22 @@ export const pendingRefundsOfEveryCloudRefundStage: PendingRefundsBody = {
     { ...refusedCloudRefund, id: "66666666-6666-4666-8666-666666666664" },
   ],
 };
+
+export const pendingRefundsOfVoidedSalePaidThroughMercadoPago: PendingRefundsBody = {
+  refunds: [
+    transferRefund,
+    {
+      ...confirmedUnsentCloudRefund,
+      id: "66666666-6666-4666-8666-666666666671",
+      origin: "sale_voided",
+      method: "QR",
+    },
+    {
+      ...sentCloudRefund,
+      id: "66666666-6666-4666-8666-666666666672",
+      origin: "sale_voided",
+      method: "POINT",
+      amount: 120_000,
+    },
+  ],
+};
