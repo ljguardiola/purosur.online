@@ -10,6 +10,10 @@ export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
 
 export type MercadoPagoPaymentMethod = (typeof MERCADO_PAGO_PAYMENT_METHODS)[number];
 
+export function isMercadoPagoMethod(method: string): boolean {
+  return (MERCADO_PAGO_PAYMENT_METHODS as readonly string[]).includes(method);
+}
+
 export const APPROVED_PAYMENT_STATE = "APPROVED" satisfies PaymentTransactionState;
 
 export const CONFIRMED_BY_HAND_METHODS = ["TRANSFER", "STANDALONE_TERMINAL"] as const;

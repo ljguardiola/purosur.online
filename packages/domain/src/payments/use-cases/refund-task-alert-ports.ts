@@ -4,9 +4,11 @@ export interface PendingRefundOfCancelledSale {
   refundId: string;
   saleId: string;
   locationId: string;
+  origin: string;
   method: string;
   amount: number;
   openedAt: Date;
+  confirmedAt: Date | null;
 }
 
 export interface RefundTaskAlertTransaction {

@@ -1,4 +1,5 @@
 import { PAID_ORDER_PAYMENT_STATE } from "./paid-order-discovery.js";
+import { isMercadoPagoMethod } from "./payment.js";
 import {
   LATE_PAYMENT_REFUND_ORIGIN,
   SALE_CANCELLED_REFUND_ORIGIN,
@@ -13,12 +14,44 @@ const PROCESSED_REFUND_STATUS = "processed";
 
 export function isRefundSentByCloud(refund: { method: string; origin: string }): boolean {
   if (refund.origin === SALE_VOIDED_REFUND_ORIGIN) {
-    return refund.method === "QR" || refund.method === "POINT";
+    return isMercadoPagoMethod(refund.method);
   }
   return (
     refund.method === "QR" &&
     (refund.origin === SALE_CANCELLED_REFUND_ORIGIN || refund.origin === LATE_PAYMENT_REFUND_ORIGIN)
   );
+}
+
+export function isRefundInCloudHands(refund: {
+  method: string;
+  origin: string;
+  confirmedAt: Date | null;
+}): boolean {
+  return refund.confirmedAt !== null && isRefundSentByCloud(refund);
+}
+
+export interface RecordedRefundOfVoidedSale {
+  origin: typeof SALE_VOIDED_REFUND_ORIGIN;
+  paymentTransactionId: string | null;
+  confirmedBy: string | null;
+  confirmedAt: Date | null;
+}
+
+export function recordedRefundOfVoidedSale<Refund extends { paymentId: string; method: string }>(
+  refund: Refund,
+  voiding: { actorId: string; voidedAt: Date },
+): Refund & RecordedRefundOfVoidedSale {
+  const sentByCloud = isRefundSentByCloud({
+    method: refund.method,
+    origin: SALE_VOIDED_REFUND_ORIGIN,
+  });
+  return {
+    ...refund,
+    origin: SALE_VOIDED_REFUND_ORIGIN,
+    paymentTransactionId: sentByCloud ? refund.paymentId : null,
+    confirmedBy: sentByCloud ? voiding.actorId : null,
+    confirmedAt: sentByCloud ? voiding.voidedAt : null,
+  };
 }
 
 export function refundableAmount(paymentAmount: number, refundedOfPayment: number): number {

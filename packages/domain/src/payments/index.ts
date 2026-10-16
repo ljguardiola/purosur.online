@@ -25,6 +25,7 @@ export {
   isRefundSentByCloud,
   MERCADO_PAGO_REFUND_FOLLOW_INTERVAL_MS,
   MERCADO_PAGO_REFUND_STAGES,
+  recordedRefundOfVoidedSale,
 } from "./model/mercado-pago-refund.js";
 export { nonCashCharge } from "./model/non-cash-charge.js";
 export type {

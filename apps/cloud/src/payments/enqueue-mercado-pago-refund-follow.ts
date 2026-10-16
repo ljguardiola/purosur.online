@@ -1,3 +1,7 @@
-import type { SqlExecutor } from "../fiscal/enqueue-unclear-outcome.js";
+import type { SQL } from "drizzle-orm";
+
+interface SqlExecutor {
+  execute(query: SQL): PromiseLike<unknown>;
+}
 
 export type EnqueueMercadoPagoRefundFollow = (transaction: SqlExecutor) => Promise<void>;
