@@ -169,6 +169,7 @@ export {
 export { REGISTER_CLOCK_TOLERANCE_MS } from "./model/register-clock.js";
 export type {
   CorrectedInvoice,
+  CreditNoteAnswer,
   SaleInvoice,
   SaleVoidCreditNote,
 } from "./model/sale-void-credit-note.js";

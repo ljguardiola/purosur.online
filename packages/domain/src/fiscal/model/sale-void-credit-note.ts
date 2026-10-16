@@ -24,6 +24,18 @@ export interface SaleVoidCreditNote {
   correctedVoucher: VoucherReference;
 }
 
+export type CreditNoteAnswer =
+  | {
+      kind: "authorized";
+      pointOfSale: number;
+      number: number;
+      issuedOn: string;
+      authorizationCode: string;
+      authorizationCodeDueOn: string;
+    }
+  | { kind: "rejected" }
+  | { kind: "in_progress" };
+
 function isAuthorized({ state }: SaleInvoice): boolean {
   return state === "AUTHORIZED";
 }
