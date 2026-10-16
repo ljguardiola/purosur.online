@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { PushedEvent } from "../../sync/index.js";
+import type { SaleDocument, VoucherReference } from "../model/orphan-authorization.js";
 import type { RealTimeAuthorizationAnswer } from "../model/real-time-authorization.js";
 import {
   type TaxAuthorityVoucher,
@@ -14,6 +15,7 @@ import {
   FakePointOfSaleLanes,
   FakeWsaaTokenSource,
 } from "./test-support/fake-fiscal-document-authorization.js";
+import { SequentialIds } from "./test-support/fake-sale-authorization.js";
 import { FakeLastAuthorizedLookup } from "./test-support/fake-tax-authority-count.js";
 import {
   FakeTaxAuthorityVouchers,
@@ -78,6 +80,7 @@ interface Scenario {
   token?: typeof TOKEN | null;
   voucher?: VoucherAnswer;
   lastAuthorized?: LastAuthorizedAnswer;
+  otherDocuments?: SaleDocument[];
 }
 
 function scenario({
@@ -88,10 +91,14 @@ function scenario({
   token = TOKEN,
   voucher = { kind: "none" },
   lastAuthorized = { kind: "read", number: 40 },
+  otherDocuments,
 }: Scenario = {}) {
   const documents = new FakePointOfSaleLanes([[12, "register-1"]]);
   const store = new FakeUnclearOutcomeStore(documents);
   store.seed(REQUEST, answer, answer === null ? null : answeredAt, decision);
+  if (otherDocuments !== undefined) {
+    store.saleDocuments.set(REQUEST.saleId, otherDocuments);
+  }
   const clock = new ManualClock(now);
   const vouchers = new FakeTaxAuthorityVouchers(documents, voucher);
   const lastAuthorizedLookup = new FakeLastAuthorizedLookup(lastAuthorized);
@@ -99,6 +106,7 @@ function scenario({
     requests: store,
     lanes: store,
     clock,
+    ids: new SequentialIds(),
     tokens: new FakeWsaaTokenSource(documents, token),
     vouchers,
     taxAuthority: lastAuthorizedLookup,
@@ -226,8 +234,12 @@ describe("decideUnclearRealTimeOutcome", () => {
       "recordDecision:released@2026-10-01T12:01:00.000Z",
       "leaveLane",
     ]);
-    expect(vouchers.lookups).toEqual([{ token: TOKEN, pointOfSale: 12, number: 41 }]);
-    expect(lastAuthorizedLookup.lookups).toEqual([{ token: TOKEN, pointOfSale: 12 }]);
+    expect(vouchers.lookups).toEqual([
+      { token: TOKEN, pointOfSale: 12, voucherType: 11, number: 41 },
+    ]);
+    expect(lastAuthorizedLookup.lookups).toEqual([
+      { token: TOKEN, pointOfSale: 12, voucherType: 11 },
+    ]);
     expect(store.decisions.get(FISCAL_DOCUMENT_ID)?.decision).toEqual({ kind: "released" });
   });
 
@@ -343,5 +355,111 @@ describe("decideUnclearRealTimeOutcome", () => {
     await decide(ports);
 
     expect(lastAuthorizedLookup.lookups).toEqual([]);
+  });
+
+  describe("an authorization no other voucher of the sale accounts for", () => {
+    const KEPT_VOUCHER: VoucherReference = { voucherType: 11, pointOfSale: 13, number: 7 };
+    const KEPT_DOCUMENTS: SaleDocument[] = [{ kind: "offline", voucher: KEPT_VOUCHER }];
+
+    it("corrects an adopted authorization with a credit note when the sale has another authorized voucher", async () => {
+      const { ports, documents, store } = scenario({
+        voucher: { kind: "found", voucher: MATCHING_VOUCHER },
+        otherDocuments: KEPT_DOCUMENTS,
+      });
+
+      await decide(ports);
+
+      expect(store.regularizations).toEqual([
+        {
+          kind: "credit_note",
+          creditNoteId: "id-1",
+          saleId: "sale-1",
+          pointOfSale: 12,
+          associatedVoucher: { voucherType: 11, pointOfSale: 12, number: 41 },
+          keptVoucher: KEPT_VOUCHER,
+          total: 12_500,
+          receiverTaxStatusCode: 5,
+        },
+      ]);
+      expect(store.otherVoucherAsks).toEqual([
+        { saleId: "sale-1", fiscalDocumentId: FISCAL_DOCUMENT_ID },
+      ]);
+      expect(documents.operations.filter((op) => op !== "validToken")).toEqual([
+        "enterLane",
+        "unclearRequest",
+        "voucherAt",
+        "otherDocumentsOfSale",
+        "recordDecision:adopted@2026-10-01T12:01:00.000Z",
+        "leaveLane",
+      ]);
+    });
+
+    it("regularizes nothing when no other document of the sale is authorized", async () => {
+      const { ports, store } = scenario({
+        voucher: { kind: "found", voucher: MATCHING_VOUCHER },
+        otherDocuments: [
+          {
+            kind: "real_time",
+            voucher: { voucherType: 11, pointOfSale: 12, number: 42 },
+            outcome: { answer: { kind: "unclear" }, decision: { kind: "released" } },
+          },
+        ],
+      });
+
+      await decide(ports);
+
+      expect(store.regularizations).toEqual([null]);
+    });
+
+    it("regularizes nothing when the adopted authorization is the only voucher of its sale", async () => {
+      const { ports, store } = scenario({ voucher: { kind: "found", voucher: MATCHING_VOUCHER } });
+
+      await decide(ports);
+
+      expect(store.regularizations).toEqual([null]);
+    });
+
+    it("reports a voucher with other content at the number as invoicing outside the register, without reading the sale", async () => {
+      const { ports, store } = scenario({
+        voucher: { kind: "found", voucher: { ...MATCHING_VOUCHER, total: 1 } },
+        otherDocuments: KEPT_DOCUMENTS,
+      });
+
+      await decide(ports);
+
+      expect(store.regularizations).toEqual([
+        {
+          kind: "external_invoicing",
+          externalBilling: { pointOfSale: 12, documentType: "factura_c", number: 41 },
+          task: {
+            kind: "external_invoicing",
+            state: "open",
+            pointOfSale: 12,
+            documentType: "factura_c",
+            number: 41,
+            voucher: { issuedOn: "2026-10-01", total: 1, authorizationCode: "75123456789012" },
+            createdAt: SETTLED_AT,
+          },
+        },
+      ]);
+      expect(store.otherVoucherAsks).toEqual([]);
+    });
+
+    it("regularizes nothing when the number is released, and reads nothing of the sale", async () => {
+      const { ports, store } = scenario({ otherDocuments: KEPT_DOCUMENTS });
+
+      await decide(ports);
+
+      expect(store.regularizations).toEqual([null]);
+      expect(store.otherVoucherAsks).toEqual([]);
+    });
+
+    it("regularizes nothing for a request released as not attempted", async () => {
+      const { ports, store } = scenario({ answer: { kind: "not_attempted" } });
+
+      await decide(ports);
+
+      expect(store.regularizations).toEqual([null]);
+    });
   });
 });

@@ -8,28 +8,38 @@ import type { TaxAuthorityVoucherLookup, VoucherAnswer } from "../unclear-outcom
 import type { WsaaToken } from "../wsaa-token-ports.js";
 
 export class FakeLastAuthorizedLookup implements TaxAuthorityLastAuthorizedLookup {
-  readonly lookups: { token: WsaaToken; pointOfSale: number }[] = [];
+  readonly lookups: { token: WsaaToken; pointOfSale: number; voucherType: number }[] = [];
   private readonly answer: LastAuthorizedAnswer;
 
   constructor(answer: LastAuthorizedAnswer) {
     this.answer = answer;
   }
 
-  async lastAuthorized(lookup: { token: WsaaToken; pointOfSale: number }) {
+  async lastAuthorized(lookup: { token: WsaaToken; pointOfSale: number; voucherType: number }) {
     this.lookups.push(lookup);
     return this.answer;
   }
 }
 
 export class FakeVoucherLookup implements TaxAuthorityVoucherLookup {
-  readonly lookups: { token: WsaaToken; pointOfSale: number; number: number }[] = [];
+  readonly lookups: {
+    token: WsaaToken;
+    pointOfSale: number;
+    voucherType: number;
+    number: number;
+  }[] = [];
   private readonly answer: VoucherAnswer;
 
   constructor(answer: VoucherAnswer) {
     this.answer = answer;
   }
 
-  async voucherAt(lookup: { token: WsaaToken; pointOfSale: number; number: number }) {
+  async voucherAt(lookup: {
+    token: WsaaToken;
+    pointOfSale: number;
+    voucherType: number;
+    number: number;
+  }) {
     this.lookups.push(lookup);
     return this.answer;
   }

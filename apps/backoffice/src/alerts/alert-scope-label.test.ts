@@ -69,6 +69,12 @@ test("names the point of sale, the invoice class and the number of a voucher iss
   );
 });
 
+test("names the point of sale, the credit note class and the number of a credit note issued outside the system", () => {
+  expect(alertScopeLabel("pointOfSaleDocumentNumber", "12:credit_note_c:3")).toBe(
+    "Punto de venta 00012 · Nota de crédito C · 00000003",
+  );
+});
+
 test.each(["3:factura_z:41", "3:factura_c", "x:factura_c:41", "3:factura_c:x"])(
   "shows the scope %j of a voucher issued outside the system that it cannot read as it comes",
   (scopeDisplay) => {

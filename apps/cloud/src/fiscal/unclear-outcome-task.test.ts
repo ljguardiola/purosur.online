@@ -1,7 +1,13 @@
 import { FICTIONAL_CERTIFICATE_CUIT } from "@purosur/domain/fiscal/test-support";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { arcaWsaaTokens, fiscalRequests } from "../platform/db/schema.js";
+import {
+  alerts,
+  arcaWsaaTokens,
+  fiscalRequests,
+  fiscalTasks,
+  orphanCreditNotes,
+} from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { buildJobHelpers } from "../test-support/job-helpers.js";
 import {
@@ -13,6 +19,7 @@ import {
   type FakeWsfeServer,
   startFakeWsfeServer,
 } from "./test-support/fake-wsfe-server.js";
+import { insertOfflineFiscalDocument } from "./test-support/offline-fiscal-document-fixtures.js";
 import { UNCLEAR_OUTCOME_TASK_IDENTIFIER, unclearOutcomeJobs } from "./unclear-outcome-task.js";
 import { WsfeTaxAuthorityLastAuthorized } from "./wsfe-tax-authority-last-authorized.js";
 import { WsfeTaxAuthorityVouchers } from "./wsfe-tax-authority-vouchers.js";
@@ -24,6 +31,7 @@ const FINGERPRINT = "AB:CD:EF";
 let testDatabase: TestDatabase;
 let server: FakeWsfeServer;
 let now: Date;
+let creditNotesRequested: string[];
 
 beforeAll(async () => {
   testDatabase = await buildTestDatabase();
@@ -39,6 +47,7 @@ beforeEach(async () => {
   await testDatabase.clear();
   server.requests.length = 0;
   now = SETTLED_NOW;
+  creditNotesRequested = [];
 });
 
 function taskUnderTest() {
@@ -58,6 +67,9 @@ function taskUnderTest() {
     db: testDatabase.db,
     connections: { withConnection: (work) => work(testDatabase.db) },
     enqueueUnclearOutcome: async () => {},
+    enqueueOrphanCreditNote: async (_, creditNoteId) => {
+      creditNotesRequested.push(creditNoteId);
+    },
   });
   const task = jobs.taskList[UNCLEAR_OUTCOME_TASK_IDENTIFIER];
   if (!task) {
@@ -132,6 +144,89 @@ describe("unclearOutcomeJobs", () => {
       decidedAt: SETTLED_NOW,
     });
     expect(addJob).not.toHaveBeenCalled();
+  });
+
+  describe("a document ARCA authorized although another voucher of its sale stands", () => {
+    async function withOfflineVoucher(fiscalDocumentId: string) {
+      const row = await storedRow(fiscalDocumentId);
+      if (!row) {
+        throw new Error("test setup: the request was not recorded");
+      }
+      await insertOfflineFiscalDocument(testDatabase.db, {
+        registerId: row.registerId,
+        pointOfSale: 31,
+        fortnight: { start: "2026-10-01", end: "2026-10-15" },
+        number: 5,
+        saleId: row.saleId,
+      });
+      return row;
+    }
+
+    it("adopts it and requests one credit note for the authorization, keeping the other voucher", async () => {
+      await issueWsaaToken();
+      const fiscalDocumentId = await unclearRequest();
+      const { saleId } = await withOfflineVoucher(fiscalDocumentId);
+      server.behave(answersInTurn("fe-comp-consultar-found.xml"));
+      const { task } = taskUnderTest();
+
+      await task({ fiscalDocumentId }, buildJobHelpers().helpers);
+
+      expect(await storedRow(fiscalDocumentId)).toMatchObject({ decision: "adopted" });
+      const creditNotes = await testDatabase.db.select().from(orphanCreditNotes);
+      expect(creditNotes).toMatchObject([
+        {
+          saleId,
+          pointOfSale: 7,
+          associatedVoucherType: 11,
+          associatedNumber: 42,
+          keptVoucherType: 11,
+          keptPointOfSale: 31,
+          keptNumber: 5,
+          total: 1500,
+          receiverTaxStatusCode: 5,
+        },
+      ]);
+      expect(creditNotesRequested).toEqual([creditNotes[0]?.id]);
+    });
+
+    it("requests no credit note when the authorization is the only voucher of its sale", async () => {
+      await issueWsaaToken();
+      const fiscalDocumentId = await unclearRequest();
+      server.behave(answersInTurn("fe-comp-consultar-found.xml"));
+      const { task } = taskUnderTest();
+
+      await task({ fiscalDocumentId }, buildJobHelpers().helpers);
+
+      expect(await storedRow(fiscalDocumentId)).toMatchObject({ decision: "adopted" });
+      expect(await testDatabase.db.select().from(orphanCreditNotes)).toEqual([]);
+      expect(creditNotesRequested).toEqual([]);
+    });
+  });
+
+  it("marks the authorization as invoicing outside the register, with an alert and a task, when the voucher at the number is not the document's", async () => {
+    await issueWsaaToken();
+    const fiscalDocumentId = await unclearRequest({ total: 999 });
+    server.behave(answersInTurn("fe-comp-consultar-found.xml"));
+    const { task } = taskUnderTest();
+
+    await task({ fiscalDocumentId }, buildJobHelpers().helpers);
+
+    expect(await storedRow(fiscalDocumentId)).toMatchObject({ decision: "conflicting" });
+    expect(await testDatabase.db.select().from(fiscalTasks)).toMatchObject([
+      {
+        kind: "external_invoicing",
+        pointOfSale: 7,
+        documentType: "factura_c",
+        number: 42,
+        reason: { issuedOn: "2026-10-06", total: 1500, authorizationCode: "74123456789012" },
+      },
+    ]);
+    expect(
+      (await testDatabase.db.select().from(alerts)).filter(
+        (alert) => alert.kind === "external_billing",
+      ),
+    ).toMatchObject([{ scope: "7:factura_c:42" }]);
+    expect(await testDatabase.db.select().from(orphanCreditNotes)).toEqual([]);
   });
 
   it("asks again with the document's key and top priority at the time a pending decision names", async () => {

@@ -8,6 +8,7 @@ const ARCA_ENVIRONMENT_LABELS: ReadonlyMap<string, string> = new Map([
 
 const FISCAL_DOCUMENT_TYPE_LABELS: ReadonlyMap<string, string> = new Map([
   ["factura_c", "Factura C"],
+  ["credit_note_c", "Nota de crédito C"],
 ]);
 
 function fiscalDocumentScopeLabel(scopeDisplay: string): string {

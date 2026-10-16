@@ -1,15 +1,16 @@
-import { externalBillingObservation } from "@purosur/domain";
 import type {
-  ExternalBillingOpening,
+  AuthorizationNumber,
   NumberingConflictLane,
   NumberingConflictLanes,
   NumberingConflictRequest,
   NumberingDiagnosisRecord,
   NumberingFreeze,
+  OrphanRegularization,
+  RequestsAtNumber,
+  SaleDocument,
 } from "@purosur/domain/fiscal/use-cases";
 import { and, asc, eq, gt, lte } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { openAlert } from "../alerts/open-alert.js";
 import {
   fiscalRequests,
   numberingFreezes,
@@ -19,10 +20,13 @@ import type { DedicatedConnections } from "../platform/dedicated-connections.js"
 import { withPendingChanges } from "../sync/change-log.js";
 import { DrizzleTaxAuthorityCounts } from "./drizzle-tax-authority-counts.js";
 import type { EnqueueNumberingReconciliation } from "./enqueue-numbering-conflict.js";
+import type { EnqueueOrphanCreditNote } from "./enqueue-orphan-credit-note.js";
 import { answerOf } from "./fiscal-request-answer.js";
 import { diagnosisOf } from "./fiscal-request-diagnosis.js";
 import { notePointOfSaleHolderChanged } from "./note-point-of-sale-holder-changed.js";
+import { otherDocumentsOfSale, requestsAtNumber } from "./orphan-local-standing.js";
 import { withPointOfSaleLaneLock } from "./point-of-sale-lane-lock.js";
+import { recordOrphanRegularization } from "./record-orphan-regularization.js";
 
 type NumberingReconciliationDocument = Awaited<
   ReturnType<NumberingConflictLane["documentsInNumberingRange"]>
@@ -58,18 +62,29 @@ class DrizzleNumberingConflictLane<TQueryResult extends PgQueryResultHKT>
   private readonly db: PgDatabase<TQueryResult>;
   private readonly pointOfSale: number;
   private readonly enqueueReconciliation: EnqueueNumberingReconciliation;
+  private readonly enqueueOrphanCreditNote: EnqueueOrphanCreditNote;
   private readonly now: () => Date;
 
   constructor(
     db: PgDatabase<TQueryResult>,
     pointOfSale: number,
     enqueueReconciliation: EnqueueNumberingReconciliation,
+    enqueueOrphanCreditNote: EnqueueOrphanCreditNote,
     now: () => Date,
   ) {
     this.db = db;
     this.pointOfSale = pointOfSale;
     this.enqueueReconciliation = enqueueReconciliation;
+    this.enqueueOrphanCreditNote = enqueueOrphanCreditNote;
     this.now = now;
+  }
+
+  requestsAtNumber(authorization: AuthorizationNumber): Promise<RequestsAtNumber> {
+    return requestsAtNumber(this.db, authorization);
+  }
+
+  otherDocumentsOfSale(saleId: string, fiscalDocumentId: string): Promise<SaleDocument[]> {
+    return otherDocumentsOfSale(this.db, saleId, fiscalDocumentId);
   }
 
   async numberingConflictRequest(
@@ -157,18 +172,18 @@ class DrizzleNumberingConflictLane<TQueryResult extends PgQueryResultHKT>
   }
 
   async settleNumberingReconciliation({
-    externalBillings,
+    regularizations,
     lastAuthorized,
   }: {
-    externalBillings: readonly ExternalBillingOpening[];
+    regularizations: readonly OrphanRegularization[];
     lastAuthorized: number;
   }): Promise<void> {
     await withPendingChanges(this.db, undefined, async (tx, pending) => {
-      for (const billing of externalBillings) {
-        const observation = externalBillingObservation(billing);
-        if (observation.holds) {
-          await openAlert(tx, observation.alert, { now: this.now });
-        }
+      for (const regularization of regularizations) {
+        await recordOrphanRegularization(tx, regularization, {
+          at: this.now(),
+          enqueueOrphanCreditNote: this.enqueueOrphanCreditNote,
+        });
       }
       await new DrizzleTaxAuthorityCounts(tx, pending).advance({
         pointOfSale: this.pointOfSale,
@@ -187,15 +202,18 @@ export class DrizzleNumberingConflictLanes<TQueryResult extends PgQueryResultHKT
 {
   private readonly connections: DedicatedConnections<TQueryResult>;
   private readonly enqueueReconciliation: EnqueueNumberingReconciliation;
+  private readonly enqueueOrphanCreditNote: EnqueueOrphanCreditNote;
   private readonly now: () => Date;
 
   constructor(
     connections: DedicatedConnections<TQueryResult>,
     enqueueReconciliation: EnqueueNumberingReconciliation,
+    enqueueOrphanCreditNote: EnqueueOrphanCreditNote,
     now: () => Date,
   ) {
     this.connections = connections;
     this.enqueueReconciliation = enqueueReconciliation;
+    this.enqueueOrphanCreditNote = enqueueOrphanCreditNote;
     this.now = now;
   }
 
@@ -204,7 +222,15 @@ export class DrizzleNumberingConflictLanes<TQueryResult extends PgQueryResultHKT
     work: (lane: NumberingConflictLane) => Promise<TOutcome>,
   ): Promise<TOutcome> {
     return withPointOfSaleLaneLock(this.connections, pointOfSale, (db) =>
-      work(new DrizzleNumberingConflictLane(db, pointOfSale, this.enqueueReconciliation, this.now)),
+      work(
+        new DrizzleNumberingConflictLane(
+          db,
+          pointOfSale,
+          this.enqueueReconciliation,
+          this.enqueueOrphanCreditNote,
+          this.now,
+        ),
+      ),
     );
   }
 }

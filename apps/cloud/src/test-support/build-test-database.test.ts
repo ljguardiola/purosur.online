@@ -31,6 +31,7 @@ import {
   discounts,
   fiscalAddresses,
   fiscalRequests,
+  fiscalTasks,
   fortnightDocumentReports,
   fortnightReports,
   freightPurchases,
@@ -47,6 +48,7 @@ import {
   offlineFiscalDocuments,
   offlineNumberBlocks,
   offsiteDumpChecks,
+  orphanCreditNotes,
   passkeyChallenges,
   passkeys,
   paymentNotificationAttempts,
@@ -652,6 +654,30 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
       saleEvent: { event_type: "sale_completed" },
       receivedAt: new Date("2026-01-05T12:00:00.000Z"),
       notAfter: new Date("2026-01-05T12:00:04.000Z"),
+    });
+    await db.insert(fiscalTasks).values({
+      id: "00000000-0000-4000-8000-000000000106",
+      kind: "external_invoicing",
+      registerId: register.id,
+      pointOfSale: 7,
+      documentType: "factura_c",
+      number: 44,
+      reason: { issuedOn: "2026-01-05", total: 10_000, authorizationCode: "75123456789012" },
+      createdAt: new Date("2026-01-05T12:00:00.000Z"),
+    });
+    await db.insert(orphanCreditNotes).values({
+      id: "00000000-0000-4000-8000-000000000107",
+      registerId: register.id,
+      saleId: "00000000-0000-4000-8000-000000000102",
+      pointOfSale: 7,
+      associatedVoucherType: 11,
+      associatedNumber: 44,
+      keptVoucherType: 11,
+      keptPointOfSale: 7,
+      keptNumber: 42,
+      total: 10_000,
+      receiverTaxStatusCode: 5,
+      createdAt: new Date("2026-01-05T12:00:00.000Z"),
     });
     await db.insert(offlineFiscalDocuments).values({
       id: "00000000-0000-4000-8000-000000000103",

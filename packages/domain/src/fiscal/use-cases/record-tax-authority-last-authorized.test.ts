@@ -63,7 +63,7 @@ describe("recordTaxAuthorityLastAuthorized", () => {
     const { taxAuthority, counts, outcome } = record();
 
     await expect(outcome).resolves.toEqual({ kind: "recorded" });
-    expect(taxAuthority.lookups).toEqual([{ token: TOKEN, pointOfSale: 12 }]);
+    expect(taxAuthority.lookups).toEqual([{ token: TOKEN, pointOfSale: 12, voucherType: 11 }]);
     expect(counts.stored).toEqual([
       { pointOfSale: 12, lastAuthorized: 38, issuedOn: "2026-09-30", readAt: NOW },
     ]);
@@ -73,7 +73,9 @@ describe("recordTaxAuthorityLastAuthorized", () => {
     const { vouchers, counts, outcome } = record();
 
     await expect(outcome).resolves.toEqual({ kind: "recorded" });
-    expect(vouchers.lookups).toEqual([{ token: TOKEN, pointOfSale: 12, number: 38 }]);
+    expect(vouchers.lookups).toEqual([
+      { token: TOKEN, pointOfSale: 12, voucherType: 11, number: 38 },
+    ]);
     expect(counts.stored).toEqual([
       { pointOfSale: 12, lastAuthorized: 38, issuedOn: "2026-09-30", readAt: NOW },
     ]);

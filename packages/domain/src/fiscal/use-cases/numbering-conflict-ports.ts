@@ -1,11 +1,13 @@
 import type { Clock } from "../../shared/index.js";
-import type { FiscalDocumentType } from "../model/fiscal-rejection-standing.js";
 import type {
   NumberingConflictDiagnosis,
   NumberingReconciliationDocument,
 } from "../model/numbering-conflict.js";
+import type { OrphanRegularization } from "../model/orphan-authorization.js";
 import type { RealTimeAuthorizationAnswer } from "../model/real-time-authorization.js";
 import type { WsaaTokenSource } from "./fiscal-document-authorization-ports.js";
+import type { OrphanStandingReader } from "./orphan-authorization-ports.js";
+import type { IdGenerator } from "./sale-authorization-ports.js";
 import type { TaxAuthorityLastAuthorizedLookup } from "./tax-authority-count-ports.js";
 import type { TaxAuthorityVoucherLookup } from "./unclear-outcome-ports.js";
 
@@ -30,13 +32,7 @@ export interface NumberingDiagnosisRecord {
   freeze: NumberingFreeze | null;
 }
 
-export interface ExternalBillingOpening {
-  pointOfSale: number;
-  documentType: FiscalDocumentType;
-  number: number;
-}
-
-export interface NumberingConflictLane {
+export interface NumberingConflictLane extends OrphanStandingReader {
   numberingConflictRequest(fiscalDocumentId: string): Promise<NumberingConflictRequest | null>;
   /**
    * Records the diagnosis and, given a freeze, takes it and requests the point of sale's
@@ -50,12 +46,12 @@ export interface NumberingConflictLane {
     through: number;
   }): Promise<NumberingReconciliationDocument[]>;
   /**
-   * Opens an alert for each external billing, sets the count so the series continues right after
-   * the last authorized number (never lowering a count already held) and lifts the freeze, all or
-   * nothing.
+   * Records each regularization (a credit note request, or an alert with its task for a person),
+   * sets the count so the series continues right after the last authorized number (never lowering
+   * a count already held) and lifts the freeze, all or nothing.
    */
   settleNumberingReconciliation(settlement: {
-    externalBillings: readonly ExternalBillingOpening[];
+    regularizations: readonly OrphanRegularization[];
     lastAuthorized: number;
   }): Promise<void>;
 }
@@ -83,6 +79,8 @@ export interface DiagnoseNumberingConflictPorts {
 export interface ReconcileNumberingConflictPorts {
   lanes: NumberingConflictLanes;
   clock: Clock;
+  ids: IdGenerator;
   tokens: WsaaTokenSource;
+  vouchers: TaxAuthorityVoucherLookup;
   taxAuthority: TaxAuthorityLastAuthorizedLookup;
 }
