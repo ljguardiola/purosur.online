@@ -67,6 +67,34 @@ test("explains a register whose disk is full", async () => {
     .toBeVisible();
 });
 
+test("explains a register on a critically low battery", async () => {
+  const screen = await render(
+    <LocalAlertExplanation kind="sales_denied" reason="battery_critical" />,
+  );
+
+  await expect
+    .element(screen.getByText(/Después la caja envía lo pendiente y se cierra sola/))
+    .toBeVisible();
+  await expect
+    .element(screen.getByText("Conectar la notebook a la corriente para seguir vendiendo."))
+    .toBeVisible();
+});
+
+test("explains a notebook running low on battery, naming the charge left and the one that stops new sales", async () => {
+  const screen = await render(
+    <LocalAlertExplanation kind="battery_low" charge_percent={15} critical_percent={10} />,
+  );
+
+  await expect
+    .element(
+      screen.getByText("Queda 15 % de batería. Por debajo del 10 % no se abren ventas nuevas."),
+    )
+    .toBeVisible();
+  await expect
+    .element(screen.getByText("Conectar la notebook a la corriente.", { exact: true }))
+    .toBeVisible();
+});
+
 test("explains a register that isn't syncing", async () => {
   const screen = await render(<LocalAlertExplanation kind="register_silent" />);
 

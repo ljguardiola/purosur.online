@@ -1,9 +1,15 @@
-export type { BatteryReading, BatteryReport } from "./model/battery.js";
+export type { BatteryReading, BatteryReport, BatteryStanding } from "./model/battery.js";
 export {
   BATTERY_READ_INTERVAL_MS,
   batteryHealthPercent,
   batteryReportOf,
+  batteryReportStanding,
+  CRITICAL_BATTERY_PERCENT,
+  CRITICAL_BATTERY_PUSH_LIMIT_MS,
+  CRITICAL_BATTERY_SALE_RECHECK_MS,
+  isOnBatteryTooLong,
   nextOnBatterySince,
+  ON_BATTERY_CONDITION_MINUTES,
 } from "./model/battery.js";
 export { cashCountDifference } from "./model/cash-count.js";
 export type { CashMovementDirection } from "./model/cash-movement-direction.js";
@@ -33,6 +39,11 @@ export type {
   CashSessionClosedFact,
   CashSessionOpenedFact,
 } from "./model/cash-session-facts.js";
+export type { CriticalBatteryAction } from "./model/critical-battery-action.js";
+export {
+  CRITICAL_BATTERY_ACTIONS,
+  criticalBatteryActionShowsCondition,
+} from "./model/critical-battery-action.js";
 export { isDeviceTokenRotationDue } from "./model/device-token.js";
 export { enrollmentAttemptWindowStart } from "./model/enrollment-attempt-limit.js";
 export {

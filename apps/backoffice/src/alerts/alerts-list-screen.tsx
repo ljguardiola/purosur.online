@@ -76,7 +76,9 @@ function localSubjectOf(alert: AlertSummary): LocalAlertSubject | undefined {
   if (
     alert.audience !== "local" ||
     !isLocalAlertKind(alert.kind) ||
-    alert.kind === "late_payment_refund"
+    alert.kind === "late_payment_refund" ||
+    alert.kind === "battery_low" ||
+    alert.kind === "on_battery"
   ) {
     return undefined;
   }

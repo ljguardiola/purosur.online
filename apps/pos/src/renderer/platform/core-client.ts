@@ -277,6 +277,7 @@ export interface CoreClient {
   onPulled(listener: () => void): () => void;
   onSerialDevicesChanged(listener: () => void): () => void;
   onStorageStandingChanged(listener: () => void): () => void;
+  onBatteryStandingChanged(listener: () => void): () => void;
   onBarcodeRead(listener: (code: string) => void): () => void;
 }
 
@@ -297,6 +298,7 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
   const pulledListeners = new Set<() => void>();
   const serialDevicesChangedListeners = new Set<() => void>();
   const storageStandingChangedListeners = new Set<() => void>();
+  const batteryStandingChangedListeners = new Set<() => void>();
   const barcodeReadListeners = new Set<(code: string) => void>();
 
   function receive(port: CorePort, data: unknown): void {
@@ -321,6 +323,12 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
     }
     if (answer.data.type === "storage-standing-changed") {
       for (const listener of storageStandingChangedListeners) {
+        listener();
+      }
+      return;
+    }
+    if (answer.data.type === "battery-standing-changed") {
+      for (const listener of batteryStandingChangedListeners) {
         listener();
       }
       return;
@@ -1016,6 +1024,12 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
       storageStandingChangedListeners.add(listener);
       return () => {
         storageStandingChangedListeners.delete(listener);
+      };
+    },
+    onBatteryStandingChanged(listener) {
+      batteryStandingChangedListeners.add(listener);
+      return () => {
+        batteryStandingChangedListeners.delete(listener);
       };
     },
     onBarcodeRead(listener) {

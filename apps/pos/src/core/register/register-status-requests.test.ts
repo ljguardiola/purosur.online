@@ -1,5 +1,7 @@
 import {
   argentinaInstant,
+  type BatteryReport,
+  type CriticalBatteryAction,
   type DetectedSerialDevice,
   type RegisteredSerialDevices,
   type SerialDeviceRole,
@@ -103,6 +105,9 @@ function status(
   serialDevices: Record<SerialDeviceRole, SerialDeviceStanding> = NO_DEVICES,
   storage: StorageStanding = ROOMY_STORAGE,
   localDatabaseDamaged = false,
+  battery: BatteryReport | undefined = undefined,
+  criticalBatteryAction: CriticalBatteryAction = { kind: "unreadable" },
+  newSalesStoppedByBattery = false,
 ) {
   return registerStatusFor({
     database,
@@ -112,7 +117,19 @@ function status(
     serialDevices: () => ({ kind: "listed", standings: serialDevices, registered: {} }),
     storage: () => storage,
     localDatabaseDamaged: () => localDatabaseDamaged,
+    battery: () => battery,
+    newSalesStoppedByBattery: () => newSalesStoppedByBattery,
+    criticalBatteryAction: () => criticalBatteryAction,
   });
+}
+
+function onBattery(chargePercent: number): BatteryReport {
+  return {
+    present: true,
+    charge_percent: chargePercent,
+    on_battery: true,
+    on_battery_minutes: 0,
+  };
 }
 
 function watchListingWith(
@@ -138,6 +155,9 @@ function statusWatchedBy(watch: SerialDeviceWatch) {
     serialDevices: watch.reading,
     storage: () => ROOMY_STORAGE,
     localDatabaseDamaged: () => false,
+    battery: () => undefined,
+    newSalesStoppedByBattery: () => false,
+    criticalBatteryAction: () => ({ kind: "unreadable" }),
   });
 }
 
@@ -189,6 +209,44 @@ describe("the register's status", () => {
       serial_devices: { scale: "not_registered", reader: "not_registered" },
       serial_devices_setup_offered: false,
     });
+  });
+
+  it("holds the low battery condition, with the charge, while the battery it reads stands as low", async () => {
+    expect(
+      (await status("unknown", NO_DEVICES, ROOMY_STORAGE, false, onBattery(15))).conditions,
+    ).toEqual([
+      { kind: "battery_low", charge_percent: 15, critical_percent: 10, level: "warning" },
+    ]);
+  });
+
+  it("holds sales_denied while the battery stops new sales", async () => {
+    expect(
+      (
+        await status(
+          "unknown",
+          NO_DEVICES,
+          ROOMY_STORAGE,
+          false,
+          onBattery(15),
+          { kind: "unreadable" },
+          true,
+        )
+      ).conditions,
+    ).toEqual([
+      { kind: "sales_denied", reason: "battery_critical", level: "critical" },
+      { kind: "battery_low", charge_percent: 15, critical_percent: 10, level: "warning" },
+    ]);
+  });
+
+  it("holds the critical-battery action condition for the action Windows takes", async () => {
+    const conditions = (
+      await status("unknown", NO_DEVICES, ROOMY_STORAGE, false, undefined, {
+        kind: "read",
+        action: "sleep",
+      })
+    ).conditions;
+
+    expect(conditions.map(({ kind }) => kind)).toEqual(["critical_battery_action_not_shutdown"]);
   });
 
   it("holds sales_denied once the register stopped opening new sales because its event history broke", async () => {

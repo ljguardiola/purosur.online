@@ -22,6 +22,7 @@ export type SaleAdditionRefusal =
   | { kind: "no_open_session" }
   | { kind: "installation_revoked" }
   | { kind: "local_database_damaged" }
+  | { kind: "battery_critical" }
   | { kind: "disk_space_short" }
   | { kind: "paid_order_without_sale" }
   | { kind: "paid_orders_not_checked" }
@@ -62,6 +63,9 @@ export function saleToAddTo(
   }
   if (!existing && tx.localDatabaseDamaged()) {
     return { kind: "local_database_damaged" };
+  }
+  if (!existing && tx.newSalesStoppedByBattery()) {
+    return { kind: "battery_critical" };
   }
   if (!existing && tx.newSalesStoppedByDisk()) {
     return { kind: "disk_space_short" };

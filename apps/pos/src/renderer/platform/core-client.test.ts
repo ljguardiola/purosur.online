@@ -2109,6 +2109,43 @@ describe("createCoreClient", () => {
     expect(second).toBe(2);
   });
 
+  it("tells each listener every time the battery standing changes, until it stops listening", () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+    let first = 0;
+    let second = 0;
+    const stopFirst = client.onBatteryStandingChanged(() => {
+      first += 1;
+    });
+    client.onBatteryStandingChanged(() => {
+      second += 1;
+    });
+
+    port.answer({ type: "battery-standing-changed" });
+    stopFirst();
+    port.answer({ type: "battery-standing-changed" });
+
+    expect(first).toBe(1);
+    expect(second).toBe(2);
+  });
+
+  it("does not take a battery standing change for the answer to a pending request", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const devices = client.readSerialDevices();
+    port.answer({ type: "battery-standing-changed" });
+    port.answer({
+      type: "read-serial-devices-result",
+      request_id: "request-1",
+      outcome: { kind: "unavailable" },
+    });
+
+    expect(await devices).toEqual({ kind: "unavailable" });
+  });
+
   it("does not take a storage standing change for the answer to a pending request", async () => {
     const client = clientWithSequentialIds();
     const port = new FakePort();

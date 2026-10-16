@@ -350,8 +350,19 @@ const salesDeniedConditionSchema = z.discriminatedUnion("reason", [
 
 const registerOwnConditionSchema = z.discriminatedUnion("kind", [
   salesDeniedConditionSchema,
+  z.strictObject({
+    kind: z.literal("battery_low"),
+    charge_percent: z.int().min(0).max(100),
+    critical_percent: z.int().min(0).max(100),
+    level: z.enum(ALERT_LEVELS),
+  }),
+  z.strictObject({
+    kind: z.literal("on_battery"),
+    threshold_minutes: z.int().positive(),
+    level: z.enum(ALERT_LEVELS),
+  }),
   z.object({
-    kind: z.enum(REGISTER_OWN_CONDITIONS).exclude(["sales_denied"]),
+    kind: z.enum(REGISTER_OWN_CONDITIONS).exclude(["sales_denied", "battery_low", "on_battery"]),
     level: z.enum(ALERT_LEVELS),
   }),
 ]);
@@ -546,6 +557,7 @@ export const registerCoreToRendererMessageSchema = z.discriminatedUnion("type", 
   }),
   z.object({ type: z.literal("serial-devices-changed") }),
   z.object({ type: z.literal("storage-standing-changed") }),
+  z.object({ type: z.literal("battery-standing-changed") }),
   z.object({ type: z.literal("refused-while-updating"), request_id: requestId }),
 ]);
 export type RegisterCoreToRendererMessage = z.infer<typeof registerCoreToRendererMessageSchema>;

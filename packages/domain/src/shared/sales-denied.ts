@@ -5,6 +5,7 @@ export type StorageSalesDeniedReason = (typeof STORAGE_SALES_DENIED_REASONS)[num
 export const SALES_DENIED_REASONS = [
   "event_history_broken",
   "local_database_damaged",
+  "battery_critical",
   ...STORAGE_SALES_DENIED_REASONS,
 ] as const;
 

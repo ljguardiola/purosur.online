@@ -369,6 +369,7 @@ export type {
   DeviceCredentialsAnswer,
   DeviceCredentialsRequest,
   MainToCoreMessage,
+  QuitRegisterMessage,
   UpdateSafeMomentAnswer,
 } from "./register/main-messages.js";
 export { coreStatusMessageSchema, mainToCoreMessageSchema } from "./register/main-messages.js";

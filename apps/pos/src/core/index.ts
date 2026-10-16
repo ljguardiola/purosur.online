@@ -4,9 +4,16 @@ import { hostname, release, version } from "node:os";
 import { dirname, join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import { promisify } from "node:util";
-import { type CoreReadyMessage, mainToCoreMessageSchema } from "@purosur/contracts";
+import {
+  type CoreReadyMessage,
+  mainToCoreMessageSchema,
+  type QuitRegisterMessage,
+} from "@purosur/contracts";
 import {
   BATTERY_READ_INTERVAL_MS,
+  CRITICAL_BATTERY_PUSH_LIMIT_MS,
+  CRITICAL_BATTERY_SALE_RECHECK_MS,
+  type CriticalBatteryAction,
   REGISTER_UPDATE_HOLD_LIMIT_MS,
   STORAGE_READ_INTERVAL_MS,
 } from "@purosur/domain";
@@ -46,6 +53,7 @@ import { createHeldMessages } from "./platform/held-messages";
 import { LOCAL_MIGRATIONS } from "./platform/local-migrations";
 import { createMainRequests } from "./platform/main-requests";
 import { refreshKeysWhenAnnounced } from "./register/announced-key-refresh";
+import { createBatteryShutdown } from "./register/battery-shutdown";
 import { createBatteryWatch } from "./register/battery-watch";
 import {
   cashMovementKindsFor,
@@ -97,6 +105,7 @@ import { createStorageWatch } from "./register/storage-watch";
 import { createUpdateHold, gateRendererRequest } from "./register/update-hold";
 import { uuidV7Ids } from "./register/uuid-v7-ids";
 import { windowsBatteryReader } from "./register/windows-battery-reader";
+import { windowsCriticalBatteryActionReader } from "./register/windows-critical-battery-action-reader";
 import { createRendererConnection } from "./renderer-connection";
 import { type CoreToRendererMessage, rendererToCoreMessageSchema } from "./renderer-messages";
 import { answerRendererRequest, type RendererRequestDeps } from "./renderer-requests";
@@ -212,6 +221,10 @@ const SERIAL_DEVICES_CHANGED_NOTICE: CoreToRendererMessage = { type: "serial-dev
 const STORAGE_STANDING_CHANGED_NOTICE: CoreToRendererMessage = {
   type: "storage-standing-changed",
 };
+const BATTERY_STANDING_CHANGED_NOTICE: CoreToRendererMessage = {
+  type: "battery-standing-changed",
+};
+const QUIT_REGISTER_MESSAGE: QuitRegisterMessage = { type: "quit-register" };
 const SERIAL_DEVICE_CHECK_INTERVAL_MS = 3_000;
 const BARCODE_READER_RETRY_MS = 3_000;
 
@@ -319,8 +332,14 @@ const batteryWatch = createBatteryWatch({
     return () => clearTimeout(timer);
   },
   clock: { now },
+  onChange: () => {
+    rendererConnection.tell(BATTERY_STANDING_CHANGED_NOTICE);
+    batteryShutdown.evaluate();
+  },
   onFailure: (error) => reportFailure("reading the battery", error),
 });
+
+let criticalBatteryAction: CriticalBatteryAction = { kind: "unreadable" };
 
 const storageWatch =
   localDatabase === undefined
@@ -364,6 +383,81 @@ const sendSnapshotCorruptionReport = snapshotCorruptionReportSending({
   reportFailure: (error) => reportFailure("reporting the snapshot corruption to the cloud", error),
 });
 
+async function pushOutboxToCloud() {
+  const post =
+    cloudClient === undefined
+      ? undefined
+      : (path: string, bearerToken: string, body: unknown) =>
+          postToCloudWithBearer(cloudClient, path, bearerToken, body);
+  const attempt = await pushForRegisterService({
+    service: register.service,
+    reportDamagedDatabase:
+      localDatabasePath === undefined
+        ? undefined
+        : () =>
+            pushDamagedRegisterReport({
+              readCredentials: () => mainRequests.readCredentials(),
+              post,
+              appVersion: appVersionFromCoreArguments(process.argv),
+              readTelemetry: damagedRegisterTelemetryReader(
+                storageTelemetryReader(localDatabasePath, nodeStorageFileSystem),
+                () => batteryWatch.report(),
+              ),
+            }),
+    sendSnapshotCorruptionReport,
+    pushOutbox: () =>
+      pushToCloud({
+        readCredentials: () => mainRequests.readCredentials(),
+        outbox: localOutbox,
+        installation: localInstallation,
+        adoptDevice: (device) => replica?.adoptDevice(device),
+        post,
+        appVersion: appVersionFromCoreArguments(process.argv),
+        readTelemetry:
+          localDatabase === undefined ||
+          serialDeviceWatch === undefined ||
+          storageWatch === undefined
+            ? undefined
+            : registerTelemetryReader(
+                storageTelemetryReader(localDatabase.name, nodeStorageFileSystem),
+                () => salesStopOf(localDatabase),
+                () => serialDevicesReportOf(serialDeviceWatch.reading()),
+                () => readLatestPreEmissionGateOutcome(localDatabase),
+                () => batteryWatch.report(),
+                storageWatch.stop,
+                localDatabaseDamaged,
+                batteryShutdown.newSalesStoppedByBattery,
+              ),
+        acceptedPush:
+          localDatabase === undefined
+            ? undefined
+            : { log: new SqliteAcceptedPushLog(localDatabase), clock: { now } },
+      }),
+  });
+  cloudReachability = nextCloudReachability(cloudReachability, attempt);
+  const warning = pushWarningOf(attempt);
+  if (warning !== undefined) {
+    console.warn(warning, attempt);
+  }
+  return pushResultOf(attempt);
+}
+
+const anySaleOpen = () => localDatabase !== undefined && anySaleIsOpen(localDatabase);
+
+const batteryShutdown = createBatteryShutdown({
+  report: () => batteryWatch.report(),
+  hasOpenSale: anySaleOpen,
+  push: pushOutboxToCloud,
+  schedule: (run, delayMs) => {
+    const timer = setTimeout(run, delayMs);
+    return () => clearTimeout(timer);
+  },
+  quit: () => process.parentPort.postMessage(QUIT_REGISTER_MESSAGE),
+  pushLimitMs: CRITICAL_BATTERY_PUSH_LIMIT_MS,
+  saleRecheckMs: CRITICAL_BATTERY_SALE_RECHECK_MS,
+  onFailure: (error) => reportFailure("the push before closing for a critical battery", error),
+});
+
 // An unreachable cloud is how a register without internet looks, so only an unexpected stop is
 // reported; the next cycle resumes from the cursor and the outbox already saved either way.
 const syncSchedule = createSyncSchedule({
@@ -385,63 +479,7 @@ const syncSchedule = createSyncSchedule({
         }
         return installationCheckResultOf(attempt);
       },
-      push: async () => {
-        const post =
-          cloudClient === undefined
-            ? undefined
-            : (path: string, bearerToken: string, body: unknown) =>
-                postToCloudWithBearer(cloudClient, path, bearerToken, body);
-        const attempt = await pushForRegisterService({
-          service: register.service,
-          reportDamagedDatabase:
-            localDatabasePath === undefined
-              ? undefined
-              : () =>
-                  pushDamagedRegisterReport({
-                    readCredentials: () => mainRequests.readCredentials(),
-                    post,
-                    appVersion: appVersionFromCoreArguments(process.argv),
-                    readTelemetry: damagedRegisterTelemetryReader(
-                      storageTelemetryReader(localDatabasePath, nodeStorageFileSystem),
-                      () => batteryWatch.report(),
-                    ),
-                  }),
-          sendSnapshotCorruptionReport,
-          pushOutbox: () =>
-            pushToCloud({
-              readCredentials: () => mainRequests.readCredentials(),
-              outbox: localOutbox,
-              installation: localInstallation,
-              adoptDevice: (device) => replica?.adoptDevice(device),
-              post,
-              appVersion: appVersionFromCoreArguments(process.argv),
-              readTelemetry:
-                localDatabase === undefined ||
-                serialDeviceWatch === undefined ||
-                storageWatch === undefined
-                  ? undefined
-                  : registerTelemetryReader(
-                      storageTelemetryReader(localDatabase.name, nodeStorageFileSystem),
-                      () => salesStopOf(localDatabase),
-                      () => serialDevicesReportOf(serialDeviceWatch.reading()),
-                      () => readLatestPreEmissionGateOutcome(localDatabase),
-                      () => batteryWatch.report(),
-                      storageWatch.stop,
-                      localDatabaseDamaged,
-                    ),
-              acceptedPush:
-                localDatabase === undefined
-                  ? undefined
-                  : { log: new SqliteAcceptedPushLog(localDatabase), clock: { now } },
-            }),
-        });
-        cloudReachability = nextCloudReachability(cloudReachability, attempt);
-        const warning = pushWarningOf(attempt);
-        if (warning !== undefined) {
-          console.warn(warning, attempt);
-        }
-        return pushResultOf(attempt);
-      },
+      push: pushOutboxToCloud,
       prune: async () => {
         await pruneLocalOutbox({ outbox: localOutbox, now });
       },
@@ -560,6 +598,9 @@ const rendererRequestDeps: RendererRequestDeps = {
             serialDevices: serialDeviceWatch.reading,
             storage: storageWatch.standing,
             localDatabaseDamaged,
+            battery: () => batteryWatch.report(),
+            newSalesStoppedByBattery: batteryShutdown.newSalesStoppedByBattery,
+            criticalBatteryAction: () => criticalBatteryAction,
           }),
   registerService: register.service,
   registerName: () => replica?.registerName(),
@@ -803,6 +844,7 @@ const rendererRequestDeps: RendererRequestDeps = {
               paidOrderDiscovery: paidOrderDiscovery.state,
               newSalesStoppedByDisk: () => storageWatch?.stop() !== undefined,
               localDatabaseDamaged,
+              newSalesStoppedByBattery: batteryShutdown.newSalesStoppedByBattery,
             },
             code,
           ),
@@ -959,6 +1001,7 @@ const rendererRequestDeps: RendererRequestDeps = {
               paidOrderDiscovery: paidOrderDiscovery.state,
               newSalesStoppedByDisk: () => storageWatch?.stop() !== undefined,
               localDatabaseDamaged,
+              newSalesStoppedByBattery: batteryShutdown.newSalesStoppedByBattery,
             },
             productId,
           ),
@@ -975,6 +1018,7 @@ const rendererRequestDeps: RendererRequestDeps = {
               paidOrderDiscovery: paidOrderDiscovery.state,
               newSalesStoppedByDisk: () => storageWatch?.stop() !== undefined,
               localDatabaseDamaged,
+              newSalesStoppedByBattery: batteryShutdown.newSalesStoppedByBattery,
             },
             productId,
             weightThousandths,
@@ -992,6 +1036,7 @@ const rendererRequestDeps: RendererRequestDeps = {
               paidOrderDiscovery: paidOrderDiscovery.state,
               newSalesStoppedByDisk: () => storageWatch?.stop() !== undefined,
               localDatabaseDamaged,
+              newSalesStoppedByBattery: batteryShutdown.newSalesStoppedByBattery,
               scale: systelScale,
             },
             productId,
@@ -1122,7 +1167,7 @@ if (deviceTokenRotation !== undefined) {
 }
 
 const updateHold = createUpdateHold({
-  hasOpenSale: () => localDatabase !== undefined && anySaleIsOpen(localDatabase),
+  hasOpenSale: anySaleOpen,
   schedule: (run, delayMs) => {
     const timer = setTimeout(run, delayMs);
     return () => clearTimeout(timer);
@@ -1180,6 +1225,16 @@ messagesFromMain.deliverTo((event) => {
 
 process.parentPort.postMessage({ type: "core-ready" } satisfies CoreReadyMessage);
 void batteryWatch.start();
+void windowsCriticalBatteryActionReader({
+  run: promisify(execFile),
+  platform: process.platform,
+  onFailure: (error) => reportFailure("reading Windows' critical-battery action", error),
+})
+  .read()
+  .then((action) => {
+    criticalBatteryAction = action;
+    rendererConnection.tell(BATTERY_STANDING_CHANGED_NOTICE);
+  });
 void storageWatch?.start();
 if (
   localDatabase !== undefined &&

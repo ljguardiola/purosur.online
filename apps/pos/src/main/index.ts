@@ -30,6 +30,7 @@ import { readDeviceCredentialsRequest } from "./device-credentials-messages";
 import { initializeErrorReporting } from "./error-reporting";
 import { localDataFolderFor } from "./local-data-folder";
 import { denyDisallowedNavigation, denyWindowOpen } from "./navigation-guard";
+import { handleRegisterQuit } from "./register-quit";
 import { createRegisterUpdater } from "./register-update";
 import {
   pendingUpdateFiles,
@@ -235,6 +236,7 @@ function startRegister(settings: ChannelSettings): void {
         child.on("message", (message) => {
           safeMomentAsker.handleCoreMessage(message);
           snapshotWorkerLauncher.handleCoreMessage(message);
+          handleRegisterQuit(message, () => app.quit());
           const request = readDeviceCredentialsRequest(message);
           if (request !== undefined) {
             child.postMessage(answerCoreCredentialsRequest(deviceCredentials, request));

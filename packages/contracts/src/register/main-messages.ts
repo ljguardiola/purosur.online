@@ -105,6 +105,10 @@ export interface CoreReadyMessage {
   type: "core-ready";
 }
 
+export interface QuitRegisterMessage {
+  type: "quit-register";
+}
+
 export interface CoreRefusedMessage {
   type: "core-refused";
   reason: "newer_database";

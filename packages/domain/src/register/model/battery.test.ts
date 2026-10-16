@@ -5,7 +5,15 @@ import {
   type BatteryReading,
   batteryHealthPercent,
   batteryReportOf,
+  batteryReportStanding,
+  batteryStanding,
+  CRITICAL_BATTERY_PERCENT,
+  CRITICAL_BATTERY_PUSH_LIMIT_MS,
+  CRITICAL_BATTERY_SALE_RECHECK_MS,
+  isOnBatteryTooLong,
+  LOW_BATTERY_PERCENT,
   nextOnBatterySince,
+  ON_BATTERY_CONDITION_MINUTES,
 } from "./battery.js";
 
 const onBattery: BatteryReading = { kind: "present", chargePercent: 80, onBattery: true };
@@ -138,5 +146,118 @@ describe("batteryReportOf", () => {
         );
       }),
     );
+  });
+});
+
+describe("battery thresholds", () => {
+  it("are 20 and 10 percent of charge and 10 minutes on battery", () => {
+    expect(LOW_BATTERY_PERCENT).toBe(20);
+    expect(CRITICAL_BATTERY_PERCENT).toBe(10);
+    expect(ON_BATTERY_CONDITION_MINUTES).toBe(10);
+  });
+});
+
+describe("the clean close at a critical battery", () => {
+  it("gives its last push ten seconds and looks again for an open sale every five", () => {
+    expect(CRITICAL_BATTERY_PUSH_LIMIT_MS).toBe(10_000);
+    expect(CRITICAL_BATTERY_SALE_RECHECK_MS).toBe(5_000);
+  });
+});
+
+describe("batteryStanding", () => {
+  const reading = (chargePercent: number, onBatteryNow: boolean): BatteryReading => ({
+    kind: "present",
+    chargePercent,
+    onBattery: onBatteryNow,
+  });
+
+  it("is low on battery below 20 percent and normal from 20 up", () => {
+    expect(batteryStanding(reading(19, true))).toBe("low");
+    expect(batteryStanding(reading(10, true))).toBe("low");
+    expect(batteryStanding(reading(20, true))).toBe("normal");
+  });
+
+  it("is critical on battery below 10 percent", () => {
+    expect(batteryStanding(reading(9, true))).toBe("critical");
+    expect(batteryStanding(reading(0, true))).toBe("critical");
+  });
+
+  it("is normal on mains power at any charge", () => {
+    expect(batteryStanding(reading(0, false))).toBe("normal");
+    expect(batteryStanding(reading(9, false))).toBe("normal");
+    expect(batteryStanding(reading(15, false))).toBe("normal");
+  });
+
+  it("is normal when there is no battery or it cannot be read", () => {
+    expect(batteryStanding({ kind: "absent" })).toBe("normal");
+    expect(batteryStanding({ kind: "unreadable" })).toBe("normal");
+  });
+});
+
+describe("isOnBatteryTooLong", () => {
+  const report = (onBatteryNow: boolean, minutes: number) => ({
+    present: true as const,
+    charge_percent: 80,
+    on_battery: onBatteryNow,
+    on_battery_minutes: minutes,
+  });
+
+  it("is true on battery for more than 10 minutes", () => {
+    expect(isOnBatteryTooLong(report(true, 11))).toBe(true);
+  });
+
+  it("is true once the whole minutes on battery reach 10, so 10 minutes and 30 seconds count", () => {
+    const tenAndAHalfMinutesLater = new Date(at(0).getTime() + 10 * 60_000 + 30_000);
+
+    expect(isOnBatteryTooLong(batteryReportOf(onBattery, at(0), tenAndAHalfMinutesLater))).toBe(
+      true,
+    );
+    expect(isOnBatteryTooLong(report(true, 10))).toBe(true);
+  });
+
+  it("is false before 10 whole minutes on battery", () => {
+    expect(isOnBatteryTooLong(report(true, 9))).toBe(false);
+    expect(isOnBatteryTooLong(report(true, 0))).toBe(false);
+  });
+
+  it("is false on mains power", () => {
+    expect(isOnBatteryTooLong(report(false, 30))).toBe(false);
+  });
+
+  it("is false with no battery or no report", () => {
+    expect(isOnBatteryTooLong({ present: false })).toBe(false);
+    expect(isOnBatteryTooLong(undefined)).toBe(false);
+  });
+});
+
+describe("batteryReportStanding", () => {
+  const report = (chargePercent: number, onBatteryNow: boolean) => ({
+    present: true as const,
+    charge_percent: chargePercent,
+    on_battery: onBatteryNow,
+    on_battery_minutes: 0,
+  });
+
+  it("applies the thresholds of a reading to a report", () => {
+    fc.assert(
+      fc.property(fc.integer({ min: 0, max: 100 }), fc.boolean(), (charge, onBatteryNow) => {
+        const reading: BatteryReading = {
+          kind: "present",
+          chargePercent: charge,
+          onBattery: onBatteryNow,
+        };
+        return batteryReportStanding(report(charge, onBatteryNow)) === batteryStanding(reading);
+      }),
+    );
+  });
+
+  it("is low or critical on battery below the thresholds", () => {
+    expect(batteryReportStanding(report(19, true))).toBe("low");
+    expect(batteryReportStanding(report(9, true))).toBe("critical");
+  });
+
+  it("is normal with no battery or no report", () => {
+    expect(batteryReportStanding({ present: false })).toBe("normal");
+    expect(batteryReportStanding(undefined)).toBe("normal");
   });
 });
