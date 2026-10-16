@@ -36,6 +36,7 @@ class DrizzleRefundTaskAlertTransaction<TQueryResult extends PgQueryResultHKT>
         amount: paymentRefunds.amount,
         openedAt: paymentRefunds.occurredAt,
         confirmedAt: paymentRefunds.confirmedAt,
+        lastRefusalReason: paymentRefunds.lastRefusalReason,
       })
       .from(paymentRefunds)
       .innerJoin(sales, eq(sales.id, paymentRefunds.saleId))

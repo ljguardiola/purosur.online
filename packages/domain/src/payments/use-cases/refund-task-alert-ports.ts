@@ -9,6 +9,7 @@ export interface PendingRefundOfCancelledSale {
   amount: number;
   openedAt: Date;
   confirmedAt: Date | null;
+  lastRefusalReason: string | null;
 }
 
 export interface RefundTaskAlertTransaction {

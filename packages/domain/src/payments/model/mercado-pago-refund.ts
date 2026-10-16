@@ -26,8 +26,9 @@ export function isRefundInCloudHands(refund: {
   method: string;
   origin: string;
   confirmedAt: Date | null;
+  lastRefusalReason: string | null;
 }): boolean {
-  return refund.confirmedAt !== null && isRefundSentByCloud(refund);
+  return isRefundSentByCloud(refund) && isAwaitingMercadoPago(refund);
 }
 
 export interface RecordedRefundOfVoidedSale {
