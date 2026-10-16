@@ -764,6 +764,13 @@
       "when": 1792111015400,
       "tag": "0112_clock_corrections",
       "breakpoints": true
+    },
+    {
+      "idx": 109,
+      "version": "7",
+      "when": 1792130592522,
+      "tag": "0114_lost_register_revocation",
+      "breakpoints": true
     }
   ]
 }
