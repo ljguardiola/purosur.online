@@ -13,7 +13,7 @@ import {
   orderToRefund,
   progressOfRefundAnswer,
   refundableAmount,
-  refundIsBackedByItsCancellation,
+  refundIsBackedByItsCorrection,
   refundIsBackedByItsLatePayment,
 } from "./mercado-pago-refund.js";
 
@@ -21,7 +21,10 @@ describe("isRefundSentByCloud", () => {
   it.each([
     ["QR", "sale_cancelled", true],
     ["QR", "late_payment", true],
-    ["QR", "sale_voided", false],
+    ["QR", "sale_voided", true],
+    ["POINT", "sale_voided", true],
+    ["TRANSFER", "sale_voided", false],
+    ["CASH", "sale_voided", false],
     ["POINT", "late_payment", false],
     ["POINT", "sale_cancelled", false],
     ["TRANSFER", "sale_cancelled", false],
@@ -67,31 +70,55 @@ describe("exceedsRefundable", () => {
   });
 });
 
-describe("refundIsBackedByItsCancellation", () => {
-  const refund = { saleId: "sale-1", originEventId: "event-1", orderId: "ORD1" };
+describe("refundIsBackedByItsCorrection", () => {
+  const refund = {
+    saleId: "sale-1",
+    origin: "sale_cancelled",
+    originEventId: "event-1",
+    orderId: "ORD1",
+  };
+  const cancellation = { origin: "sale_cancelled", saleId: "sale-1" };
 
   it("is backed when the event it came from cancelled the sale it refunds", () => {
-    expect(refundIsBackedByItsCancellation(refund, { saleId: "sale-1" })).toBe(true);
+    expect(refundIsBackedByItsCorrection(refund, cancellation)).toBe(true);
   });
 
-  it("is not backed when the event cancelled another sale", () => {
-    expect(refundIsBackedByItsCancellation(refund, { saleId: "sale-2" })).toBe(false);
+  it("is backed when the event it came from voided the sale it refunds", () => {
+    expect(
+      refundIsBackedByItsCorrection(
+        { ...refund, origin: "sale_voided" },
+        { origin: "sale_voided", saleId: "sale-1" },
+      ),
+    ).toBe(true);
   });
 
-  it("is not backed when the cloud holds no cancelling event for it", () => {
-    expect(refundIsBackedByItsCancellation(refund, null)).toBe(false);
+  it("is not backed when the event corrected another sale", () => {
+    expect(refundIsBackedByItsCorrection(refund, { ...cancellation, saleId: "sale-2" })).toBe(
+      false,
+    );
+  });
+
+  it("is not backed when the event is another kind of correction than the one the refund names", () => {
+    expect(refundIsBackedByItsCorrection(refund, { origin: "sale_voided", saleId: "sale-1" })).toBe(
+      false,
+    );
+    expect(refundIsBackedByItsCorrection({ ...refund, origin: "sale_voided" }, cancellation)).toBe(
+      false,
+    );
+  });
+
+  it("is not backed when the cloud holds no correcting event for it", () => {
+    expect(refundIsBackedByItsCorrection(refund, null)).toBe(false);
   });
 
   it("is not backed when the refund names no event", () => {
-    expect(
-      refundIsBackedByItsCancellation({ ...refund, originEventId: null }, { saleId: "sale-1" }),
-    ).toBe(false);
+    expect(refundIsBackedByItsCorrection({ ...refund, originEventId: null }, cancellation)).toBe(
+      false,
+    );
   });
 
   it("is not backed when the payment has no Mercado Pago order to refund", () => {
-    expect(
-      refundIsBackedByItsCancellation({ ...refund, orderId: null }, { saleId: "sale-1" }),
-    ).toBe(false);
+    expect(refundIsBackedByItsCorrection({ ...refund, orderId: null }, cancellation)).toBe(false);
   });
 });
 

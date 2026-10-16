@@ -47,7 +47,7 @@ describe("confirmMercadoPagoRefund", () => {
       expect(world.lanes.operations).toEqual([
         "enterLane",
         "lockMercadoPagoRefund",
-        "cancellationOfEvent",
+        "appliedCorrectionOfEvent",
         "recordRefundConfirmed",
         "refundOrder",
         "lockMercadoPagoRefund",
@@ -219,14 +219,14 @@ describe("confirmMercadoPagoRefund", () => {
 
     it("answers that a refund not backed by a cancelling event the cloud holds is not backed", async () => {
       const world = refundWorld();
-      world.store.cancellations.clear();
+      world.store.appliedCorrections.clear();
 
       expect(await refusedWith(world)).toEqual({ kind: "refund_not_backed" });
     });
 
     it("answers that a refund whose event cancelled another sale is not backed", async () => {
       const world = refundWorld();
-      world.store.cancellations.set("event-1", "sale-2");
+      world.store.appliedCorrections.set("event-1", { origin: "sale_cancelled", saleId: "sale-2" });
 
       expect(await refusedWith(world)).toEqual({ kind: "refund_not_backed" });
     });

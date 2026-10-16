@@ -4,7 +4,7 @@ import type {
   MercadoPagoRefundReference,
   MercadoPagoRefundStore,
   MercadoPagoRefundTransaction,
-  OriginCancellation,
+  AppliedCorrection,
 } from "../mercado-pago-refund-ports.js";
 import type { LockedRefund } from "../refund-store.js";
 import type { ResolvedRefundAlert } from "./fake-refund-store.js";
@@ -71,10 +71,9 @@ class FakeMercadoPagoRefundTransaction implements MercadoPagoRefundTransaction {
     return refund && structuredClone(refund);
   }
 
-  async cancellationOfEvent(originEventId: string): Promise<OriginCancellation | null> {
-    this.store.log.push("cancellationOfEvent");
-    const saleId = this.store.cancellations.get(originEventId);
-    return saleId === undefined ? null : { saleId };
+  async appliedCorrectionOfEvent(originEventId: string): Promise<AppliedCorrection | null> {
+    this.store.log.push("appliedCorrectionOfEvent");
+    return this.store.appliedCorrections.get(originEventId) ?? null;
   }
 
   async recordRefundConfirmed(
@@ -129,7 +128,7 @@ class FakeMercadoPagoRefundTransaction implements MercadoPagoRefundTransaction {
 
 export class FakeMercadoPagoRefundStore implements MercadoPagoRefundStore {
   refunds: FakeMercadoPagoStoredRefund[];
-  readonly cancellations = new Map<string, string>();
+  readonly appliedCorrections = new Map<string, AppliedCorrection>();
   readonly log: string[];
   resolvedAlerts: ResolvedRefundAlert[] = [];
   readonly refusals: { refundId: string; reason: string; refusedAt: Date }[] = [];
