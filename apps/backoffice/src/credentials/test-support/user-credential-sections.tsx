@@ -44,6 +44,7 @@ export function createServices(
   return {
     fetchUserPasskeys: vi.fn().mockResolvedValue({ kind: "ok", value: [] }),
     removeUserPasskey: vi.fn(),
+    removeEveryUserPasskey: vi.fn(),
     emitUserPinCode: vi.fn(),
     fetchSessionAuthorizationOptions: vi.fn(),
     authorizeSession: vi.fn(),
@@ -117,4 +118,9 @@ export type SectionsScreen = Awaited<ReturnType<typeof renderSections>>;
 export async function openRemoveModal(screen: SectionsScreen, name: string) {
   await userEvent.click(screen.getByRole("button", { name: `Dar de baja la passkey «${name}»` }));
   return screen.getByRole("dialog", { name: "¿Dar de baja la passkey de Lucía?" });
+}
+
+export async function openRemoveEveryModal(screen: SectionsScreen) {
+  await userEvent.click(screen.getByRole("button", { name: "Dar de baja todas" }));
+  return screen.getByRole("dialog", { name: "¿Dar de baja todas las passkeys de Lucía?" });
 }

@@ -229,6 +229,7 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
     userCredentialSections: {
       fetchUserPasskeys: vi.fn().mockReturnValue(new Promise(() => {})),
       removeUserPasskey: vi.fn(),
+      removeEveryUserPasskey: vi.fn(),
       emitUserPinCode: vi.fn(),
       fetchSessionAuthorizationOptions: vi.fn(),
       authorizeSession: vi.fn(),
