@@ -78,6 +78,7 @@ describe("DrizzleFortnightReportStore.owedReports", () => {
 
   it("owes nothing for the real-time point of sale", async () => {
     await seedOfflinePointOfSale(db);
+    await claimedAt(new Date("2026-09-20T12:00:00.000Z"));
     await keepCode(OCTOBER_FIRST_HALF, "36123456789012");
 
     expect(
