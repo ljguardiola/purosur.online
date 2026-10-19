@@ -25,6 +25,12 @@ import {
   localDataFolderFromCoreArguments,
   sentryEnvironmentFromCoreArguments,
 } from "../shared/channel";
+import { adoptStagedSnapshot, STAGED_DATABASE_FILE } from "./backups/adopt-restored-snapshot";
+import { handleRestoreOutcome } from "./backups/restore-outcome";
+import { createRestoreLaunch } from "./backups/restore-launch";
+import { storingEnrollmentCredentials } from "./backups/restore-on-enrollment";
+import { restorePendingIn } from "./backups/restore-pending";
+import { syncUnlessRestorePending } from "./backups/restore-sync-hold";
 import { requestFirstPinCode } from "./credentials/first-pin-code-request";
 import { checkPinCodeRedemption, redeemPinCode } from "./credentials/pin-code-redemption";
 import { pinPolicy } from "./credentials/pin-policy";
@@ -164,6 +170,7 @@ import { pushForRegisterService } from "./sync/push-for-register-service";
 import { pushResultOf, pushToCloud, pushWarningOf } from "./sync/push-to-cloud";
 import { damagedRegisterTelemetryReader, registerTelemetryReader } from "./sync/register-telemetry";
 import { SqliteAcceptedPushLog } from "./sync/sqlite-accepted-push-log";
+import { installationHeld } from "./sync/sqlite-installation-presence";
 import { SqliteLocalInstallation, salesStopOf } from "./sync/sqlite-local-installation";
 import { SqliteLocalOutbox } from "./sync/sqlite-local-outbox";
 import { SqliteLocalReplica } from "./sync/sqlite-local-replica";
@@ -232,6 +239,16 @@ const localDataFolder = localDataFolderFromCoreArguments(process.argv);
 const localDatabasePath =
   localDataFolder === undefined ? undefined : join(localDataFolder, LOCAL_DATABASE_FILE);
 const localDatabaseDamaged = localDatabaseDamageIn(localDataFolder);
+const restorePending = restorePendingIn(localDataFolder);
+const launchRestore =
+  localDataFolder === undefined
+    ? undefined
+    : createRestoreLaunch({
+        readCredentials: () => mainRequests.readCredentials(),
+        cloudUrl,
+        stagedDatabasePath: join(localDataFolder, STAGED_DATABASE_FILE),
+        postToMain: (message) => process.parentPort.postMessage(message),
+      });
 
 async function startLocalDatabaseFile(): Promise<StartedLocalDatabase | undefined> {
   if (localDatabasePath === undefined) {
@@ -261,6 +278,18 @@ async function startLocalDatabaseFile(): Promise<StartedLocalDatabase | undefine
     Sentry.captureException(error);
     return undefined;
   }
+}
+
+if (localDataFolder !== undefined) {
+  await adoptStagedSnapshot({
+    folder: localDataFolder,
+    pending: restorePending,
+    migrations: LOCAL_MIGRATIONS,
+    now,
+  }).catch((error: unknown) => {
+    console.error("core: the restored snapshot could not be adopted", error);
+    Sentry.captureException(error);
+  });
 }
 
 const startedLocalDatabase = await startLocalDatabaseFile();
@@ -461,7 +490,7 @@ const batteryShutdown = createBatteryShutdown({
 // An unreachable cloud is how a register without internet looks, so only an unexpected stop is
 // reported; the next cycle resumes from the cursor and the outbox already saved either way.
 const syncSchedule = createSyncSchedule({
-  syncOnce: () =>
+  syncOnce: syncUnlessRestorePending(restorePending.isPending, () =>
     runSyncCycle({
       checkInstallation: async () => {
         const attempt = await checkInstallation({
@@ -502,6 +531,7 @@ const syncSchedule = createSyncSchedule({
       onPushFailure: (error) => reportFailure("the push", error),
       onPruneFailure: (error) => reportFailure("the outbox pruning", error),
     }),
+  ),
   intervalMs: SYNC_INTERVAL_MS,
   failureBackoff: SYNC_FAILURE_BACKOFF,
   random: Math.random,
@@ -605,6 +635,7 @@ const rendererRequestDeps: RendererRequestDeps = {
   registerService: register.service,
   registerName: () => replica?.registerName(),
   enroll: async (typedCode: string) => {
+    const freshDatabase = localDatabase !== undefined && !installationHeld(localDatabase);
     const outcome = await enroll(
       {
         postToCloud:
@@ -614,12 +645,19 @@ const rendererRequestDeps: RendererRequestDeps = {
         installationReport: () => installationReportFrom({ hostname, version, release }),
         canStoreCredentials: () => mainRequests.canStoreCredentials(),
         generatePepper,
-        storeCredentials: (credentials) => mainRequests.storeCredentials(credentials),
+        storeCredentials: storingEnrollmentCredentials({
+          store: (credentials) => mainRequests.storeCredentials(credentials),
+          pending: restorePending,
+          freshDatabase,
+        }),
         now,
       },
       typedCode,
     );
     if (outcome.kind === "enrolled") {
+      if (freshDatabase) {
+        void launchRestore?.();
+      }
       syncSchedule.syncNow();
     }
     return outcome;
@@ -1211,6 +1249,17 @@ messagesFromMain.deliverTo((event) => {
       updateHold.release();
     } else if (message.type === "snapshot-worker-exited") {
       void snapshotCycle?.workerExited(message.copy_failed_stage);
+      handleRestoreOutcome(message.restore_outcome, {
+        pending: restorePending,
+        restartCore: () => process.exit(0),
+        resumeSync: () => syncSchedule.syncNow(),
+        reportNoUsableGeneration: () => {
+          console.error(
+            "core: no snapshot generation could be restored, so the restore stays pending",
+          );
+          Sentry.captureMessage("core: no snapshot generation could be restored", "error");
+        },
+      });
       if (deviceTokenRotation !== undefined) {
         refreshKeysWhenAnnounced(message.latest_announced_key_version, {
           readCredentials: () => mainRequests.readCredentials(),
@@ -1224,6 +1273,9 @@ messagesFromMain.deliverTo((event) => {
 });
 
 process.parentPort.postMessage({ type: "core-ready" } satisfies CoreReadyMessage);
+if (restorePending.isPending()) {
+  void launchRestore?.();
+}
 void batteryWatch.start();
 void windowsCriticalBatteryActionReader({
   run: promisify(execFile),
@@ -1258,6 +1310,7 @@ if (
       setTimeout(run, delayMs);
     },
     localDatabaseDamaged,
+    restorePending: restorePending.isPending,
     health: startedLocalDatabase.health,
     reports: snapshotCorruptionReports,
     onCopyFailureRecorded: () => rendererConnection.tell(STORAGE_STANDING_CHANGED_NOTICE),
