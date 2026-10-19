@@ -9,7 +9,7 @@ import type {
   StoredCompromiseResponse,
 } from "../compromise-response-store.js";
 
-export type FakeCompromiseResponseAudit =
+type FakeCompromiseResponseAudit =
   | { kind: "started"; responseId: string; actorId: string; at: Date }
   | { kind: "step_done"; responseId: string; step: string; actorId: string; at: Date }
   | { kind: "item_done"; responseId: string; item: string; actorId: string; at: Date };

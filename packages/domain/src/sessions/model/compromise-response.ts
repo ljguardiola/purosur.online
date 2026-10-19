@@ -30,7 +30,7 @@ export const EXTERNAL_SECRET_ITEMS = [
 
 export type ExternalSecretItem = (typeof EXTERNAL_SECRET_ITEMS)[number];
 
-export const NOTIFY_ITEM = "notify";
+const NOTIFY_ITEM = "notify";
 
 export const COMPROMISE_RESPONSE_ITEMS = [...EXTERNAL_SECRET_ITEMS, NOTIFY_ITEM] as const;
 
