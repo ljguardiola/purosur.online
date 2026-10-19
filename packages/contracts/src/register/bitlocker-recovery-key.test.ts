@@ -53,6 +53,18 @@ describe("bitlockerRecoveryKeyLoadBodySchema", () => {
     },
   );
 
+  it("tells which field was refused and why", () => {
+    const result = bitlockerRecoveryKeyLoadBodySchema.safeParse({
+      recovery_key: "1",
+      key_identifier: "xyz",
+    });
+
+    expect(result.error?.issues.map(({ path, message }) => [path[0], message])).toEqual([
+      ["recovery_key", "recovery_key must be eight blocks of six digits separated by hyphens"],
+      ["key_identifier", "key_identifier must be eight uppercase hexadecimal digits"],
+    ]);
+  });
+
   it("does not repeat the refused key in its issues", () => {
     const refused = "000011-000022-000033-000044-000055-000066-000077-000089";
 
