@@ -191,6 +191,7 @@ export type {
   FiscalOnlineSignalEvidence,
   FiscalTaskDocumentType,
   FortnightPresentationRefusal,
+  FortnightPresentationState,
   FortnightReportMovement,
   FortnightReportState,
   IssuerIdentificationInEffect,

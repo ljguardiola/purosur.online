@@ -75,6 +75,7 @@ export type { FiscalTaskDocumentType } from "./model/fiscal-task.js";
 export { CREDIT_NOTE_C_DOCUMENT_TYPE } from "./model/fiscal-task.js";
 export type {
   FortnightPresentationRefusal,
+  FortnightPresentationState,
   FortnightReportMovement,
   FortnightReportState,
 } from "./model/fortnight-report.js";
