@@ -173,6 +173,23 @@ describe("the answer to a credit note", () => {
     });
   });
 
+  it("records that the invoice already had a credit note, with nothing else", async () => {
+    voidSaleWithCreditNote("sale-1", "note-1");
+
+    await creditNotes.recordAnswer("note-1", { kind: "already_credited" }, ANSWERED_AT);
+
+    expect(storedNote("note-1")).toEqual({
+      state: "ALREADY_CREDITED",
+      point_of_sale: null,
+      number: null,
+      issued_on: null,
+      authorization_code: null,
+      authorization_code_due_on: null,
+      answered_at: ANSWERED_AT.toISOString(),
+    });
+    await expect(creditNotes.inProgress()).resolves.toEqual([]);
+  });
+
   it("is recorded only once", async () => {
     voidSaleWithCreditNote("sale-1", "note-1");
     await creditNotes.recordAnswer("note-1", { kind: "rejected" }, ANSWERED_AT);

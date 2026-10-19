@@ -116,16 +116,19 @@ describe("asking the cloud to issue the credit note of a voided sale", () => {
     await expect(creditNotes.request(CALL)).resolves.toBeNull();
   });
 
-  it.each([
-    "validation_failed",
-    "not_found",
-    "conflict",
-    "rate_limited",
-    "device_token_rejected",
-  ] as const)("gives no answer when the cloud refuses with %s", async (code) => {
-    const { creditNotes } = cloud(refused(code));
+  it.each(["validation_failed", "not_found", "rate_limited", "device_token_rejected"] as const)(
+    "gives no answer when the cloud refuses with %s",
+    async (code) => {
+      const { creditNotes } = cloud(refused(code));
 
-    await expect(creditNotes.request(CALL)).resolves.toBeNull();
+      await expect(creditNotes.request(CALL)).resolves.toBeNull();
+    },
+  );
+
+  it("answers already credited when the cloud refuses because the invoice has a credit note", async () => {
+    const { creditNotes } = cloud(refused("conflict"));
+
+    await expect(creditNotes.request(CALL)).resolves.toEqual({ kind: "already_credited" });
   });
 
   it("gives no answer to a body it does not understand", async () => {

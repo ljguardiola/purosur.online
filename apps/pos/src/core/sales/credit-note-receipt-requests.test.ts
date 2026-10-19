@@ -146,7 +146,7 @@ describe("printing the credit note of a voided sale from its history", () => {
     await expect(printCreditNoteFor(deps(), "missing")).resolves.toEqual({ kind: "not_found" });
   });
 
-  it.each(["IN_PROGRESS", "REJECTED"])(
+  it.each(["IN_PROGRESS", "REJECTED", "ALREADY_CREDITED"])(
     "answers not_found while the credit note is %s: there is nothing to print",
     async (state) => {
       database.exec("DELETE FROM sale_void_credit_notes");
@@ -157,7 +157,7 @@ describe("printing the credit note of a voided sale from its history", () => {
         issued_on: null,
         authorization_code: null,
         authorization_code_due_on: null,
-        answered_at: state === "REJECTED" ? "2026-09-30T15:40:05.000Z" : null,
+        answered_at: state === "IN_PROGRESS" ? null : "2026-09-30T15:40:05.000Z",
       });
 
       await expect(printCreditNoteFor(deps(), "sale-1")).resolves.toEqual({ kind: "not_found" });

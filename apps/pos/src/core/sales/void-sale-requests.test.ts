@@ -485,6 +485,22 @@ describe("voiding a sale of the sales history", () => {
         expect(printedCreditNotes).toEqual([]);
       });
 
+      it("answers that the invoice already had a credit note, printing nothing and asking no more", async () => {
+        const saleId = await invoicedSale();
+        creditNoteAnswer = { kind: "already_credited" };
+
+        const outcome = await voidSaleFor(voidDeps(), request(saleId, { authorization }));
+
+        expect(outcome).toMatchObject({
+          kind: "voided",
+          credit_note: { kind: "already_credited" },
+        });
+        expect(database.prepare("SELECT state FROM sale_void_credit_notes").all()).toEqual([
+          { state: "ALREADY_CREDITED" },
+        ]);
+        expect(printedCreditNotes).toEqual([]);
+      });
+
       it("answers the credit note rejected, printing nothing, when the tax authority rejected it", async () => {
         const saleId = await invoicedSale();
         creditNoteAnswer = { kind: "rejected" };

@@ -5293,7 +5293,8 @@ describe("the register's local migrations", () => {
        VALUES ('sale-1', 'r1', 'device-a', 's1', 'u1', 'COMPLETED', '2026-10-09T12:05:00.000Z'),
               ('sale-2', 'r1', 'device-a', 's1', 'u1', 'COMPLETED', '2026-10-09T12:06:00.000Z'),
               ('sale-3', 'r1', 'device-a', 's1', 'u1', 'COMPLETED', '2026-10-09T12:07:00.000Z'),
-              ('sale-4', 'r1', 'device-a', 's1', 'u1', 'COMPLETED', '2026-10-09T12:08:00.000Z');`,
+              ('sale-4', 'r1', 'device-a', 's1', 'u1', 'COMPLETED', '2026-10-09T12:08:00.000Z'),
+              ('sale-5', 'r1', 'device-a', 's1', 'u1', 'COMPLETED', '2026-10-09T12:09:00.000Z');`,
     );
     const insert = database.prepare(
       `INSERT INTO sale_void_credit_notes (
@@ -5362,6 +5363,26 @@ describe("the register's local migrations", () => {
     ).not.toThrow();
     expect(() =>
       insert.run({ ...inProgress, id: "note-11", sale_id: "sale-3", state: "VOIDED" }),
+    ).toThrow(/CHECK/);
+    expect(() =>
+      insert.run({
+        ...inProgress,
+        id: "note-12",
+        sale_id: "sale-5",
+        state: "ALREADY_CREDITED",
+        answered_at: "2026-10-09T12:31:00.000Z",
+      }),
+    ).not.toThrow();
+    expect(() =>
+      insert.run({ ...inProgress, id: "note-13", sale_id: "sale-3", state: "ALREADY_CREDITED" }),
+    ).toThrow(/CHECK/);
+    expect(() =>
+      insert.run({
+        ...authorized,
+        id: "note-14",
+        sale_id: "sale-3",
+        state: "ALREADY_CREDITED",
+      }),
     ).toThrow(/CHECK/);
     database.close();
   });

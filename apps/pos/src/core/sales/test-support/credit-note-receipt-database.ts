@@ -2,6 +2,7 @@ import type { LocalDatabase } from "../../platform/local-database";
 
 const SOLD_AT = "2026-09-30T15:05:00.000Z";
 export const VOIDED_AT = "2026-09-30T15:40:00.000Z";
+export const ANSWERED_AT = "2026-09-30T15:40:05.000Z";
 
 export function insertVoidedSale(database: LocalDatabase): void {
   database.exec(
@@ -61,7 +62,7 @@ export function insertCreditNote(
       issued_on: "2026-09-30",
       authorization_code: "71234567890999",
       authorization_code_due_on: "2026-10-10",
-      answered_at: "2026-09-30T15:40:05.000Z",
+      answered_at: ANSWERED_AT,
       ...answer,
     });
 }

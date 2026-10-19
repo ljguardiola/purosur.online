@@ -660,6 +660,16 @@ describe("SqliteRegisterSalesHistory", () => {
       });
     });
 
+    it("shows that the invoice of a voided sale already had a credit note", () => {
+      addSale({ id: "gone", state: "VOIDED" });
+      addCreditNote("gone", {
+        state: "ALREADY_CREDITED",
+        answered_at: "2026-10-08T12:31:00.000Z",
+      });
+
+      expect(history.saleOfRegister("gone")?.creditNote).toEqual({ kind: "already_credited" });
+    });
+
     it("shows the rejection of the credit note of a voided sale", () => {
       addSale({ id: "gone", state: "VOIDED" });
       addCreditNote("gone", { state: "REJECTED", answered_at: "2026-10-08T12:31:00.000Z" });

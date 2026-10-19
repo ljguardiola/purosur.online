@@ -11,9 +11,9 @@ import { migrationClock } from "../platform/test-support/migration-clock";
 import { openLocalDatabase } from "../platform/test-support/open-local-database";
 import { readCreditNoteReceipt } from "./sqlite-credit-note-receipt";
 import {
+  ANSWERED_AT,
   insertCreditNote,
   insertVoidedSale,
-  VOIDED_AT,
 } from "./test-support/credit-note-receipt-database";
 
 let database: LocalDatabase;
@@ -49,6 +49,18 @@ describe("the receipt of the credit note of a voided sale", () => {
       },
     ],
     [
+      "already credited",
+      {
+        state: "ALREADY_CREDITED",
+        point_of_sale: null,
+        number: null,
+        issued_on: null,
+        authorization_code: null,
+        authorization_code_due_on: null,
+        answered_at: ANSWERED_AT,
+      },
+    ],
+    [
       "rejected",
       {
         state: "REJECTED",
@@ -77,7 +89,7 @@ describe("the receipt of the credit note of a voided sale", () => {
         instagramHandle: "@puro.sur",
       },
       operation: {
-        occurredAt: new Date(VOIDED_AT),
+        occurredAt: new Date(ANSWERED_AT),
         servedByFirstName: "Ada",
         operationNumber: 482,
       },

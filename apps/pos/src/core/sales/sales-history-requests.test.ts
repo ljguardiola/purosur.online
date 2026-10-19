@@ -466,6 +466,16 @@ describe("the detail of a sale of the history", () => {
       });
     });
 
+    it("answers that the invoice already had a credit note", async () => {
+      addCreditNote({ state: "ALREADY_CREDITED", answered_at: "2026-10-08T10:00:05.000Z" });
+
+      const answer = await saleHistoryDetailFor(deps(), "gone");
+
+      expect(answer.kind === "found" && answer.detail.credit_note).toEqual({
+        kind: "already_credited",
+      });
+    });
+
     it("answers its rejection", async () => {
       addCreditNote({ state: "REJECTED", answered_at: "2026-10-08T10:00:05.000Z" });
 

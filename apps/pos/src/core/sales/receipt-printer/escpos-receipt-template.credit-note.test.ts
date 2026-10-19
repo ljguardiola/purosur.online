@@ -178,7 +178,7 @@ describe("the ESC/POS credit note of a voided sale", () => {
     expect(textLines.some((line) => line.startsWith(name))).toBe(true);
   });
 
-  it("dates the voucher with the day the tax authority issued it and the hour of the void", () => {
+  it("dates the voucher with the day the tax authority issued it and the hour the credit note was issued", () => {
     const { textLines } = printed(
       creditNote({
         issuedOn: "2026-10-03",
