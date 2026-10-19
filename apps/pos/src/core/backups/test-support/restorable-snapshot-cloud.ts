@@ -61,7 +61,7 @@ export function downloadUrlOf(generationId: string): string {
   return `https://storage.example.test/objects/${generationId}`;
 }
 
-export function listedGeneration(snapshot: EncryptedSnapshot) {
+function listedGeneration(snapshot: EncryptedSnapshot) {
   return {
     generation_id: snapshot.generationId,
     created_at: snapshot.createdAt,
