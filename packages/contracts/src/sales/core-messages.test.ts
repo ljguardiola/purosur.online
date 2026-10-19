@@ -1533,6 +1533,45 @@ describe("printing a sale's original receipt", () => {
   });
 });
 
+describe("printing the credit note of a voided sale", () => {
+  const print = { type: "print-credit-note", request_id: REQUEST_ID, sale_id: "sale-1" };
+
+  it("accepts a request naming the sale", () => {
+    expect(salesRendererToCoreMessageSchema.parse(print)).toEqual(print);
+  });
+
+  it.each(["request_id", "sale_id"])("rejects a request missing its %s", (field) => {
+    const message = Object.fromEntries(Object.entries(print).filter(([key]) => key !== field));
+
+    expect(salesRendererToCoreMessageSchema.safeParse(message).success).toBe(false);
+  });
+
+  it.each([
+    { kind: "started" },
+    { kind: "busy" },
+    { kind: "printer_not_configured" },
+    { kind: "not_found" },
+    { kind: "not_signed_in" },
+    { kind: "lacks_permission" },
+    { kind: "unavailable" },
+  ])("accepts the result $kind", (outcome) => {
+    const message = { type: "print-credit-note-result", request_id: REQUEST_ID, outcome };
+
+    expect(salesCoreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each([
+    { kind: "started", copy: { kind: "original" } },
+    { kind: "sale_voided" },
+    { kind: "already_attempted" },
+    { kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 2 },
+  ])("rejects the result %j", (outcome) => {
+    const message = { type: "print-credit-note-result", request_id: REQUEST_ID, outcome };
+
+    expect(salesCoreToRendererMessageSchema.safeParse(message).success).toBe(false);
+  });
+});
+
 describe("asking for the register's sales history", () => {
   const ask = {
     type: "sales-history",
