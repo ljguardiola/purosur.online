@@ -41,6 +41,7 @@ import type {
   PinPolicy,
   PreviewSaleDiscountOutcome,
   PreviewSaleLineAdjustmentOutcome,
+  PrintCreditNoteOutcome,
   PrintOriginalReceiptOutcome,
   ReadClockGuardOutcome,
   ReadInitialCountOutcome,
@@ -233,6 +234,7 @@ export interface CoreClient {
   ): Promise<VoidSaleOutcome>;
   receiptPrintStatus(saleId: string): Promise<ReceiptPrintStatusOutcome>;
   printOriginalReceipt(saleId: string): Promise<PrintOriginalReceiptOutcome>;
+  printCreditNote(saleId: string): Promise<PrintCreditNoteOutcome>;
   reprintSaleReceipt(
     saleId: string,
     reason: string,
@@ -683,6 +685,12 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
       return ask(
         { type: "print-original-receipt", request_id: deps.newRequestId(), sale_id: saleId },
         (answer) => (answer.type === "print-original-receipt-result" ? answer.outcome : undefined),
+      );
+    },
+    printCreditNote(saleId) {
+      return ask(
+        { type: "print-credit-note", request_id: deps.newRequestId(), sale_id: saleId },
+        (answer) => (answer.type === "print-credit-note-result" ? answer.outcome : undefined),
       );
     },
     reprintSaleReceipt(saleId, reason, authorization) {

@@ -1,4 +1,9 @@
-import type { Authorization, SignInUser, VoidSaleOutcome } from "@purosur/contracts";
+import type {
+  Authorization,
+  SaleCreditNote,
+  SignInUser,
+  VoidSaleOutcome,
+} from "@purosur/contracts";
 import type { AuthorizablePermissionKey } from "@purosur/domain";
 import {
   Button,
@@ -12,7 +17,7 @@ import {
   SummaryRowGroup,
   Tag,
 } from "@purosur/ui";
-import { ArrowLeft, CircleX, TriangleAlert } from "lucide-react";
+import { ArrowLeft, CircleX, PackageCheck, ReceiptText, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 import { AuthorizationSection } from "../shell/authorization-section";
 import type { SaleDetail } from "../shell/sale-receipt-text";
@@ -40,7 +45,7 @@ export type VoidSaleModalProps = {
     pendingRefundsConfirmed: boolean,
     authorization: Authorization | undefined,
   ) => Promise<VoidSaleOutcome>;
-  onVoided: () => void;
+  onVoided: (creditNote: SaleCreditNote | null) => void;
   onRefused: () => void;
   onSaleGone: () => void;
   onSessionInvalid: () => void;
@@ -78,6 +83,7 @@ export function VoidSaleModal({
   const pending = shown.flatMap((refund) => (refund.pending ? [refund.position] : []));
   const allConfirmed = pending.every((position) => confirmed.includes(position));
   const comprobante = comprobantePresentation(sale.comprobante);
+  const invoiced = sale.comprobante.kind === "fiscal";
 
   async function confirm() {
     if (submitting || refusalReason !== undefined || !allConfirmed || !authorization.ready) {
@@ -96,7 +102,7 @@ export function VoidSaleModal({
     switch (outcome.kind) {
       case "voided":
         authorization.performed();
-        onVoided();
+        onVoided(outcome.credit_note);
         break;
       case "not_found":
         onSaleGone();
@@ -122,7 +128,7 @@ export function VoidSaleModal({
       case "not_completed":
       case "session_closed":
       case "invoice_in_flight":
-      case "carries_invoice":
+      case "invoice_needs_connection":
         setRefusalReason(voidRefusalReason(outcome.kind) ?? NOT_COMPLETED_REASON);
         onRefused();
         break;
@@ -166,7 +172,7 @@ export function VoidSaleModal({
             {...(refusalReason === undefined ? {} : { disabledReason: refusalReason })}
             onPress={() => void confirm()}
           >
-            Anular la venta
+            {invoiced ? "Anular y emitir nota de crédito" : "Anular la venta"}
           </Button>
         </>
       }
@@ -178,6 +184,9 @@ export function VoidSaleModal({
             ...(comprobante === undefined
               ? []
               : [{ label: "Comprobante", value: comprobante.name }]),
+            ...(comprobante === undefined || !invoiced
+              ? []
+              : [{ label: "Número", value: comprobante.detail }]),
             ...(sale.operation_number === null
               ? []
               : [{ label: "Operación", value: formatOperationNumber(sale.operation_number) }]),
@@ -213,9 +222,17 @@ export function VoidSaleModal({
             ))}
           </ul>
         </div>
-        <ul className="flex flex-col gap-1 text-body text-text">
-          <li>No se emite nota de crédito: la venta todavía no tenía factura.</li>
-          <li>La mercadería vuelve al stock.</li>
+        <ul className="flex flex-col gap-2 text-body text-text">
+          <li className="flex items-center gap-2">
+            <ReceiptText aria-hidden />
+            {invoiced
+              ? `Se emite e imprime la nota de crédito C por ${formatCents(sale.total)}.`
+              : "No se emite nota de crédito: la venta todavía no tenía factura."}
+          </li>
+          <li className="flex items-center gap-2">
+            <PackageCheck aria-hidden />
+            La mercadería vuelve al stock.
+          </li>
         </ul>
         <AuthorizationSection
           authorization={authorization}
