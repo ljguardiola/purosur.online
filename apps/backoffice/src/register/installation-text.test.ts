@@ -12,11 +12,24 @@ test("tells when an enrolled register enrolled and on which Windows version", ()
       hostname: "CAJA-MOSTRADOR",
       windowsVersion: "Windows 11 Pro 10.0.26100",
       enrolledAt: "2026-08-01T15:00:00.000Z",
+      bitlockerKeyLoaded: false,
     }),
   ).toEqual({
     primary: "Dada de alta el 01/08/2026",
     secondary: "Windows 11 Pro 10.0.26100",
   });
+});
+
+test("tells that an enrolled register has its BitLocker recovery key loaded", () => {
+  expect(
+    installationLines({
+      state: "enrolled",
+      hostname: "CAJA-MOSTRADOR",
+      windowsVersion: "Windows 11",
+      enrolledAt: "2026-08-01T15:00:00.000Z",
+      bitlockerKeyLoaded: true,
+    })?.secondary,
+  ).toBe("Windows 11 · BitLocker activo");
 });
 
 test("tells when a revoked installation was revoked and which machine it ran on", () => {
@@ -50,6 +63,7 @@ test("dates an installation's instants in Argentina's time zone", () => {
       hostname: "CAJA-MOSTRADOR",
       windowsVersion: "Windows 11 Pro 10.0.26100",
       enrolledAt: "2026-08-02T02:59:00.000Z",
+      bitlockerKeyLoaded: false,
     })?.primary,
   ).toBe("Dada de alta el 01/08/2026");
 });

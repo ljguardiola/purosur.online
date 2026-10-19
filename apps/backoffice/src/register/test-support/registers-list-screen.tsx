@@ -19,6 +19,8 @@ export function createServices(
     emitEnrollmentCode: vi.fn(),
     revokeRegister: vi.fn(),
     revokeEveryInstallation: vi.fn(),
+    loadBitlockerRecoveryKey: vi.fn(),
+    consultBitlockerRecoveryKey: vi.fn(),
     fetchSessionAuthorizationOptions: vi.fn(),
     authorizeSession: vi.fn(),
     startAuthentication: vi.fn(),
@@ -56,6 +58,19 @@ export const enrolledRegister: RegisterSummary = {
     hostname: "CAJA-MOSTRADOR",
     windowsVersion: "Windows 11 Pro 10.0.26100",
     enrolledAt: "2026-08-02T01:30:00.000Z",
+    bitlockerKeyLoaded: false,
+  },
+};
+export const registerWithBitlockerKey: RegisterSummary = {
+  ...enrolledRegister,
+  id: "register-5",
+  name: "Caja 5",
+  installation: {
+    state: "enrolled",
+    hostname: "NOTEBOOK-MOSTRADOR",
+    windowsVersion: "Windows 11",
+    enrolledAt: "2026-08-02T01:30:00.000Z",
+    bitlockerKeyLoaded: true,
   },
 };
 export const revokedRegister: RegisterSummary = {
