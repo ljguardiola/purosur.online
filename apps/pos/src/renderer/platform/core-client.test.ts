@@ -1204,6 +1204,7 @@ describe("createCoreClient", () => {
         kind: "voided",
         refunds: [],
         authorized_by: { user_id: "u2", first_name: "Grace" },
+        credit_note: null,
       },
     });
 
@@ -1211,6 +1212,7 @@ describe("createCoreClient", () => {
       kind: "voided",
       refunds: [],
       authorized_by: { user_id: "u2", first_name: "Grace" },
+      credit_note: null,
     });
     expect(port.posted).toEqual([
       {
