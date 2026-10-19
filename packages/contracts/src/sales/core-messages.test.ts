@@ -1561,7 +1561,6 @@ describe("printing the credit note of a voided sale", () => {
   });
 
   it.each([
-    { kind: "started", copy: { kind: "original" } },
     { kind: "sale_voided" },
     { kind: "already_attempted" },
     { kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 2 },

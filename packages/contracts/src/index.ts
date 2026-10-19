@@ -462,6 +462,7 @@ export type { AverageTicketBody } from "./sales/average-ticket.js";
 export { averageTicketSchema } from "./sales/average-ticket.js";
 export type {
   CancelLockedSaleOutcome,
+  PrintCreditNoteOutcome,
   PrintOriginalReceiptOutcome,
   ReceiptPrintStatusOutcome,
   ReprintSaleReceiptOutcome,
