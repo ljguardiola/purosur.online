@@ -20,6 +20,7 @@ import { encodePc850 } from "./pc850";
 import { RECEIPT_LOGO } from "./receipt-logo";
 
 type InvoiceBlock = Extract<NonNullable<ReceiptContent["fiscal"]>, { invoiceClass: "C" }>;
+type SaleTotals = Pick<ReceiptContent["totals"], "subtotal" | "saleDiscount" | "total">;
 type OfflineInvoiceBlock = Extract<InvoiceBlock, { fortnight: unknown }>;
 
 const TEMPLATE_VERSION = "1";
@@ -217,11 +218,11 @@ function notAnInvoice(out: Output, block: DeferredSaleDocumentBlock): void {
   out.lines([RULE]);
 }
 
-function voucherType(out: Output, block: InvoiceBlock): void {
+function voucherType(out: Output, block: InvoiceBlock, title: string): void {
   const code = String(block.voucherTypeCode).padStart(VOUCHER_CODE_DIGITS, "0");
   const buyer = block.buyerTaxStatusDescription.toLocaleLowerCase("es-AR");
   out.lines([RULE]);
-  out.bold(centered(`FACTURA ${block.invoiceClass}`));
+  out.bold(centered(`${title} ${block.invoiceClass}`));
   out.small(centered(`Cód. ${code}  ·  A ${buyer}`, SMALL_COLUMNS));
 }
 
@@ -312,7 +313,10 @@ function saleLine(line: ReceiptContent["lines"][number]): string[] {
   ];
 }
 
-function sale(out: Output, { lines, totals }: Pick<ReceiptContent, "lines" | "totals">): void {
+function saleLines(
+  out: Output,
+  { lines, totals }: Pick<ReceiptContent, "lines"> & { totals: SaleTotals },
+): void {
   out.bold(row("PRODUCTO", "IMPORTE"));
   out.lines([
     ...lines.flatMap(saleLine),
@@ -324,6 +328,9 @@ function sale(out: Output, { lines, totals }: Pick<ReceiptContent, "lines" | "to
     RULE,
   ]);
   out.bold(row("TOTAL", formatCents(totals.total)));
+}
+
+function salePayments(out: Output, { totals }: Pick<ReceiptContent, "totals">): void {
   out.lines([
     RULE,
     ...totals.payments.flatMap(({ method, amount }) =>
@@ -407,14 +414,15 @@ function render(content: ReceiptContent): StoredReceipt {
   logo(head);
   branch(head, content.header);
   if (invoice !== null) {
-    voucherType(head, invoice);
+    voucherType(head, invoice, "FACTURA");
   }
   const body = new Output();
   operation(body, content.operation, invoice);
   if (invoice !== null) {
     issuer(body, invoice);
   }
-  sale(body, content);
+  saleLines(body, content);
+  salePayments(body, content);
   if (invoice !== null) {
     authorization(body, invoice);
   }
