@@ -1373,6 +1373,64 @@ test("tells a register whose fiscal emission is stopped in plain language, with 
   await expect.element(screen.getByText("Caja 1", { exact: true })).toBeVisible();
 });
 
+test("tells a register whose clock is off in plain language and that the alert closes by itself", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(
+    ok(
+      baseDetail({
+        kind: "clock_drift",
+        level: "critical",
+        audience: "local",
+        scope: "register-1",
+        scopeDisplay: "Caja 1",
+        detail: { deviceId: "device-1" },
+      }),
+    ),
+  );
+
+  const screen = await renderModal(services);
+
+  await expect
+    .element(screen.getByText("Reloj de la caja desajustado", { exact: true }))
+    .toBeVisible();
+  await expect
+    .element(
+      screen.getByText(
+        "La hora de esta caja está corrida más de un minuto respecto de la hora real, y los comprobantes salen con la hora de la caja.",
+      ),
+    )
+    .toBeVisible();
+  await expect.element(screen.getByText(/Seguir vendiendo con normalidad/)).toBeVisible();
+  await expect.element(screen.getByText("Caja 1", { exact: true })).toBeVisible();
+  expect(screen.getByText(/No se cierra sola/).query()).toBeNull();
+});
+
+test("names a register whose clock is off by what happened when the alert is not for the Local audience", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(
+    ok(
+      baseDetail({
+        kind: "clock_drift",
+        level: "critical",
+        audience: "all",
+        scope: "register-1",
+        scopeDisplay: "Caja 1",
+        detail: { deviceId: "device-1" },
+      }),
+    ),
+  );
+
+  const screen = await renderModal(services);
+
+  await expect
+    .element(
+      screen.getByText("La hora de una caja difiere en más de un minuto de la hora real", {
+        exact: true,
+      }),
+    )
+    .toBeVisible();
+});
+
 test("names a register whose fiscal emission is stopped by what happened when the alert is not for the Local audience", async () => {
   const services = createServices();
   vi.mocked(services.fetchAlert).mockResolvedValue(

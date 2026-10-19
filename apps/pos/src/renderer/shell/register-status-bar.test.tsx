@@ -190,6 +190,18 @@ describe("RegisterStatusBar", () => {
       .toBeVisible();
   });
 
+  it("tells a clock that is off in the panel, and that selling goes on", async () => {
+    const screen = await renderBar({
+      status: loaded({ conditions: [{ kind: "clock_drift", level: "critical" }] }),
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: "1 aviso" }));
+
+    await expect.element(screen.getByText("Reloj de la caja desajustado")).toBeVisible();
+    await expect.element(screen.getByText(/está corrida más de un minuto/)).toBeVisible();
+    await expect.element(screen.getByText(/Seguir vendiendo con normalidad/)).toBeVisible();
+  });
+
   it("lists every condition in the panel, in the order the core gave them", async () => {
     const screen = await renderBar({
       status: loaded({
@@ -261,6 +273,7 @@ describe("RegisterStatusBar", () => {
     ],
     [{ kind: "installation_revoked", level: "critical" }, "error-soft", "lucide-shield-off"],
     [{ kind: "fiscal_emission_stopped", level: "critical" }, "error-soft", "lucide-receipt"],
+    [{ kind: "clock_drift", level: "critical" }, "error-soft", "lucide-clock"],
     [{ kind: "register_silent", level: "critical" }, "error-soft", "lucide-cloud-off"],
     [{ kind: "serial_device_missing", level: "warning" }, "warning-soft", "lucide-scan-barcode"],
     [{ kind: "disk_space_low", level: "warning" }, "warning-soft", "lucide-hard-drive"],
