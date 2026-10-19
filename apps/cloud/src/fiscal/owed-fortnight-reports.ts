@@ -10,12 +10,14 @@ import {
   fortnightReports,
   pointOfSaleClaims,
   registers,
+  taxAuthorityOwedPresentations,
 } from "../platform/db/schema.js";
 
 export interface OwedFortnightReportWithState {
   owed: OwedFortnightReport;
   state: RecordedFortnightReport["state"] | null;
   movement: RecordedFortnightReport["movement"];
+  listed: boolean;
 }
 
 export async function owedFortnightReportsWithState<TQueryResult extends PgQueryResultHKT>(
@@ -23,7 +25,7 @@ export async function owedFortnightReportsWithState<TQueryResult extends PgQuery
   today: string,
 ): Promise<OwedFortnightReportWithState[]> {
   const presentations = await closedFortnightPresentations(db, today);
-  return presentations.filter(({ state }) => isFortnightReportOutstanding(state));
+  return presentations.filter(({ state, listed }) => listed || isFortnightReportOutstanding(state));
 }
 
 export async function fortnightReportsOwedAs<TQueryResult extends PgQueryResultHKT>(
@@ -89,6 +91,16 @@ export async function closedFortnightPresentations<TQueryResult extends PgQueryR
       movement: fortnightReports.movement,
     })
     .from(fortnightReports);
+  const listed = new Set(
+    (
+      await db
+        .select({
+          pointOfSaleNumber: taxAuthorityOwedPresentations.pointOfSaleNumber,
+          fortnightStart: taxAuthorityOwedPresentations.fortnightStart,
+        })
+        .from(taxAuthorityOwedPresentations)
+    ).map(({ pointOfSaleNumber, fortnightStart }) => `${pointOfSaleNumber}:${fortnightStart}`),
+  );
   const recordOf = new Map(
     recorded.map(({ pointOfSaleNumber, fortnightStart, state, movement }) => [
       `${pointOfSaleNumber}:${fortnightStart}`,
@@ -99,8 +111,14 @@ export async function closedFortnightPresentations<TQueryResult extends PgQueryR
   return codes.flatMap((code) => {
     const fortnight = { start: code.fortnightStart, end: code.fortnightEnd };
     return claims
-      .filter(({ claimedAt }) => owesFortnightReport({ fortnight, claimedAt }, today))
-      .map(({ pointOfSaleNumber, registerId }) => {
+      .map((claim) => ({
+        ...claim,
+        listed: listed.has(`${claim.pointOfSaleNumber}:${fortnight.start}`),
+      }))
+      .filter(({ claimedAt, listed: isListed }) =>
+        owesFortnightReport({ fortnight, claimedAt, listed: isListed }, today),
+      )
+      .map(({ pointOfSaleNumber, registerId, listed: isListed }) => {
         const report = recordOf.get(`${pointOfSaleNumber}:${fortnight.start}`);
         return {
           owed: {
@@ -110,6 +128,7 @@ export async function closedFortnightPresentations<TQueryResult extends PgQueryR
           },
           state: report?.state ?? null,
           movement: report?.movement ?? null,
+          listed: isListed,
         };
       });
   });
