@@ -55,7 +55,7 @@ function taskUnderTest() {
   });
   const task = jobs.taskList[CREDIT_NOTE_TASK_IDENTIFIER];
   if (!task) {
-    throw new Error("test setup: expected the registered orphan credit note task");
+    throw new Error("test setup: expected the registered credit note task");
   }
   return { jobs, task };
 }
@@ -83,6 +83,8 @@ async function aCreditNote(columns: Partial<typeof creditNotes.$inferInsert> = {
     saleId: crypto.randomUUID(),
     pointOfSale: 7,
     associatedVoucherType: 11,
+    associatedPointOfSale: 7,
+    reason: "orphan",
     associatedNumber: 42,
     keptVoucherType: 11,
     keptPointOfSale: 31,
@@ -110,7 +112,7 @@ function sentValue(request: string | undefined, element: string): string | undef
 }
 
 describe("creditNoteJobs", () => {
-  it("registers the task that issues an orphan credit note and schedules nothing, since it runs when a credit note is requested", () => {
+  it("registers the task that issues an credit note and schedules nothing, since it runs when a credit note is requested", () => {
     const { jobs } = taskUnderTest();
 
     expect(Object.keys(jobs.taskList)).toEqual([CREDIT_NOTE_TASK_IDENTIFIER]);

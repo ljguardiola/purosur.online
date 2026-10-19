@@ -176,6 +176,25 @@ describe("recording the regularization of an orphan authorization on a real Post
       expect(await requestsAt(11, 30)).toEqual({ kind: "already_regularized" });
     });
 
+    it("are regularized once a credit note of a voided sale corrects the voucher, whichever point of sale issues it", async () => {
+      await recordedRequest(9, 32);
+      await db.insert(creditNotes).values({
+        id: crypto.randomUUID(),
+        registerId: registerOf(11),
+        saleId: crypto.randomUUID(),
+        pointOfSale: 11,
+        reason: "sale_void",
+        associatedVoucherType: 11,
+        associatedPointOfSale: 9,
+        associatedNumber: 32,
+        total: 12_500,
+        receiverTaxStatusCode: 5,
+        createdAt: OPENED_AT,
+      });
+
+      expect(await requestsAt(9, 32)).toEqual({ kind: "already_regularized" });
+    });
+
     it("are regularized once a task for a person was opened for the orphan", async () => {
       await inLane(11, (lane) =>
         lane.recordOrphanRegularization(
@@ -243,6 +262,8 @@ describe("recording the regularization of an orphan authorization on a real Post
           registerId: registerOf(13),
           saleId: regularization.saleId,
           pointOfSale: 13,
+          associatedPointOfSale: 13,
+          reason: "orphan",
           associatedVoucherType: 11,
           associatedNumber: 50,
           keptVoucherType: 11,

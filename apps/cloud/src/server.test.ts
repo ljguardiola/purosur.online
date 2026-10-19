@@ -1628,7 +1628,7 @@ describe("startServer authorizing sales in real time", () => {
     expect(enqueueMissingNumberingConflicts).toHaveBeenCalledWith(recovery.db);
   });
 
-  it("asks again for every orphan credit note still to be issued before it starts listening", async () => {
+  it("asks again for every credit note still to be issued before it starts listening", async () => {
     const { started, recovery, enqueueMissingCreditNotes } = start({
       ...env,
       ARCA_PRIVATE_KEY: credentials.privateKeyPem,

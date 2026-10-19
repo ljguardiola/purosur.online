@@ -671,6 +671,8 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
       saleId: "00000000-0000-4000-8000-000000000102",
       pointOfSale: 7,
       associatedVoucherType: 11,
+      associatedPointOfSale: 7,
+      reason: "orphan",
       associatedNumber: 44,
       keptVoucherType: 11,
       keptPointOfSale: 7,

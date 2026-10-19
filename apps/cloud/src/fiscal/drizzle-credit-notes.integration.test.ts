@@ -31,7 +31,7 @@ let registerId: string;
 let seeded = 0;
 
 beforeAll(async () => {
-  integrationDb = await createIntegrationDatabase("orphan_credit_notes");
+  integrationDb = await createIntegrationDatabase("credit_notes");
   sql = postgres(integrationDb.databaseUrl, { max: 4 });
   db = drizzle(sql);
   registerId = await insertRegisterWithPointOfSale(db, { pointOfSaleNumber: 7, name: "caja-1" });
@@ -58,6 +58,8 @@ async function aCreditNote(pointOfSale = 7): Promise<string> {
     saleId: crypto.randomUUID(),
     pointOfSale,
     associatedVoucherType: 11,
+    associatedPointOfSale: pointOfSale,
+    reason: "orphan",
     associatedNumber: 100 + seeded,
     keptVoucherType: 11,
     keptPointOfSale: 31,
@@ -108,7 +110,7 @@ async function refusingTaskInserts<T>(work: () => Promise<T>): Promise<void> {
   }
 }
 
-describe("the orphan credit note lanes on a real Postgres", () => {
+describe("the credit note lanes on a real Postgres", () => {
   it("answers the point of sale of a credit note, and none for one it does not hold", async () => {
     const id = await aCreditNote();
     const requests = new DrizzleCreditNoteRequests(db);
@@ -130,6 +132,7 @@ describe("the orphan credit note lanes on a real Postgres", () => {
       associatedVoucher: { voucherType: 11, pointOfSale: 7, number: 100 + seeded },
       total: 12_500,
       receiverTaxStatusCode: 5,
+      reason: "orphan",
       standing: { kind: "not_requested" },
     });
   });
@@ -193,6 +196,10 @@ describe("the orphan credit note lanes on a real Postgres", () => {
 
     expect((await inLane((lane) => lane.creditNote(id)))?.standing).toEqual({
       kind: "authorized",
+      number: 7,
+      issuedOn: "2026-10-07",
+      authorizationCode: "74123456789055",
+      authorizationCodeDueOn: "2026-10-17",
     });
     expect(await rowOf(id)).toMatchObject({
       number: 7,
@@ -223,6 +230,30 @@ describe("the orphan credit note lanes on a real Postgres", () => {
 
     expect((await inLane((lane) => lane.creditNote(id)))?.standing).toEqual({
       kind: "authorized",
+      number: 8,
+      issuedOn: "2026-10-07",
+      authorizationCode: "74123456789056",
+      authorizationCodeDueOn: "2026-10-17",
+    });
+  });
+
+  it("reads the reason of a credit note and the point of sale of the voucher it corrects", async () => {
+    const id = await aCreditNote();
+    await db
+      .update(creditNotes)
+      .set({
+        reason: "sale_void",
+        associatedPointOfSale: 31,
+        keptVoucherType: null,
+        keptPointOfSale: null,
+        keptNumber: null,
+      })
+      .where(eq(creditNotes.id, id));
+
+    expect(await inLane((lane) => lane.creditNote(id))).toMatchObject({
+      pointOfSale: 7,
+      reason: "sale_void",
+      associatedVoucher: { voucherType: 11, pointOfSale: 31 },
     });
   });
 

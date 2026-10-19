@@ -17,7 +17,7 @@ let sql: ReturnType<typeof postgres>;
 let db: PostgresJsDatabase<Record<string, never>>;
 
 beforeEach(async () => {
-  integrationDb = await createIntegrationDatabase("orphan_credit_note_queue");
+  integrationDb = await createIntegrationDatabase("credit_note_queue");
   sql = postgres(integrationDb.databaseUrl, { max: 4 });
   db = drizzle(sql);
 }, 60_000);
@@ -48,6 +48,8 @@ async function creditNoteRow(
     saleId: crypto.randomUUID(),
     pointOfSale: 7,
     associatedVoucherType: 11,
+    associatedPointOfSale: 7,
+    reason: "orphan",
     associatedNumber: number,
     keptVoucherType: 11,
     keptPointOfSale: 31,
@@ -60,7 +62,7 @@ async function creditNoteRow(
   return id;
 }
 
-describe("the orphan credit note jobs on a real Postgres", () => {
+describe("the credit note jobs on a real Postgres", () => {
   it("enqueues the issuing of a credit note with its key and a priority above every other job", async () => {
     const creditNoteId = crypto.randomUUID();
 
