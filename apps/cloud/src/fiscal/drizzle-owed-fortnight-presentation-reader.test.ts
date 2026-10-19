@@ -6,6 +6,7 @@ import { buildTestDatabase, type TestDatabase } from "../test-support/build-test
 import { DrizzleFortnightReportStore } from "./drizzle-fortnight-report-store.js";
 import { DrizzleOfflineAuthorizationCodeStore } from "./drizzle-offline-authorization-code-store.js";
 import { DrizzleOwedFortnightPresentationReader } from "./drizzle-owed-fortnight-presentation-reader.js";
+import { DrizzleOwedPresentationList } from "./drizzle-owed-presentation-list.js";
 import { seedOfflinePointOfSale } from "./test-support/offline-point-of-sale-fixtures.js";
 
 const OCTOBER_FIRST_HALF = { start: "2026-10-01", end: "2026-10-15" };
@@ -53,6 +54,10 @@ function record(fortnight: Fortnight, state: "blocked" | "refused" | "accepted")
     { pointOfSaleNumber: OFFLINE_POINT_OF_SALE, fortnight },
     (report) => report.record({ state, at: AT }),
   );
+}
+
+function listedAsOwed(pointOfSaleNumber: number, fortnight: Fortnight) {
+  return new DrizzleOwedPresentationList(db).replace([{ pointOfSaleNumber, fortnight }], AT);
 }
 
 function reader() {
@@ -112,5 +117,55 @@ describe("DrizzleOwedFortnightPresentationReader.owedPresentations", () => {
     await keepCode(OCTOBER_FIRST_HALF, "36123456789012", "2026-10-20");
 
     expect(await reader().owedPresentations("2026-10-15")).toEqual([]);
+  });
+});
+
+describe("DrizzleOwedFortnightPresentationReader.owedPresentations for the presentations the tax authority lists as owed", () => {
+  it("answers a listed presentation recorded as accepted as owed again, with no state", async () => {
+    const registerId = await seedOfflinePointOfSale(db);
+    await claimedBeforeEveryFortnight();
+    await keepCode(OCTOBER_FIRST_HALF, "36123456789012", "2026-10-20");
+    await record(OCTOBER_FIRST_HALF, "accepted");
+    await listedAsOwed(OFFLINE_POINT_OF_SALE, OCTOBER_FIRST_HALF);
+
+    expect(await reader().owedPresentations("2026-11-01")).toEqual([
+      {
+        pointOfSaleNumber: OFFLINE_POINT_OF_SALE,
+        registerId,
+        fortnight: OCTOBER_FIRST_HALF,
+        taxAuthorityDeadline: "2026-10-20",
+        state: null,
+      },
+    ]);
+  });
+
+  it("answers a listed presentation recorded in another state with that state", async () => {
+    await seedOfflinePointOfSale(db);
+    await claimedBeforeEveryFortnight();
+    await keepCode(OCTOBER_FIRST_HALF, "36123456789012", "2026-10-20");
+    await record(OCTOBER_FIRST_HALF, "refused");
+    await listedAsOwed(OFFLINE_POINT_OF_SALE, OCTOBER_FIRST_HALF);
+
+    const owed = await reader().owedPresentations("2026-11-01");
+
+    expect(owed.map(({ state }) => state)).toEqual(["refused"]);
+  });
+
+  it("answers nothing for a listed presentation whose code is not kept yet", async () => {
+    await seedOfflinePointOfSale(db);
+    await claimedBeforeEveryFortnight();
+    await listedAsOwed(OFFLINE_POINT_OF_SALE, OCTOBER_FIRST_HALF);
+
+    expect(await reader().owedPresentations("2026-11-01")).toEqual([]);
+  });
+
+  it("answers nothing for a presentation listed for a point of sale the system does not own", async () => {
+    await seedOfflinePointOfSale(db);
+    await claimedBeforeEveryFortnight();
+    await keepCode(OCTOBER_FIRST_HALF, "36123456789012", "2026-10-20");
+    await record(OCTOBER_FIRST_HALF, "accepted");
+    await listedAsOwed(9, OCTOBER_FIRST_HALF);
+
+    expect(await reader().owedPresentations("2026-11-01")).toEqual([]);
   });
 });
