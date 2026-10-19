@@ -18,6 +18,11 @@ import {
   fortnightContaining,
   isSameFortnight,
 } from "../model/offline-authorization-code.js";
+import {
+  type ListedOwedPresentation,
+  listsOwedPresentation,
+  splitOwedPresentations,
+} from "../model/owed-presentation-list.js";
 import type {
   FortnightReportPorts,
   HeldFortnightReport,
@@ -61,23 +66,55 @@ export async function reportFortnights(
   }
   const today = argentinaCalendarDay(ports.clock.now());
   await recoverLastClosedFortnightCode(ports, token, today);
+  await recoverListedFortnightCodes(ports, token);
+  const listed = await ports.owedPresentations.listed();
 
   const presentations: FortnightPresentation[] = [];
+  const withDocumentsPresented = new Set<string>();
   for (const owed of await ports.reports.owedReports(today)) {
-    presentations.push(
-      ...(await ports.reports.holdReport(keyOf(owed), (report) =>
-        presentFortnight(ports, token, owed, report),
-      )),
+    const owedPresentations = await ports.reports.holdReport(keyOf(owed), (report) =>
+      presentFortnight(ports, token, listed, owed, report),
     );
+    if (owedPresentations.some(({ documentType }) => documentType !== null)) {
+      withDocumentsPresented.add(presentationKey(owed));
+    }
+    presentations.push(...owedPresentations);
   }
   for (const accepted of await ports.reports.acceptedWithUnreportedDocuments()) {
+    if (withDocumentsPresented.has(presentationKey(accepted))) {
+      continue;
+    }
     presentations.push(
       ...(await ports.reports.holdReport(keyOf(accepted), (report) =>
-        presentUnreportedDocuments(ports, token, accepted, report),
+        presentUnreportedDocuments(ports, token, listed, accepted, report),
       )),
     );
   }
   return { kind: "reported", presentations };
+}
+
+function presentationKey({ pointOfSaleNumber, code }: OwedFortnightReport): string {
+  return `${pointOfSaleNumber}:${code.fortnight.start}`;
+}
+
+async function recordListOf(
+  { owedPresentations, clock }: FortnightReportPorts,
+  answer: { owedPresentations?: ListedOwedPresentation[] },
+): Promise<void> {
+  if (answer.owedPresentations !== undefined) {
+    await owedPresentations.replace(answer.owedPresentations, clock.now());
+  }
+}
+
+async function resolveWhenListed(
+  { owedPresentations, clock }: FortnightReportPorts,
+  listed: ListedOwedPresentation[],
+  owed: OwedFortnightReport,
+): Promise<void> {
+  const key = keyOf(owed);
+  if (listsOwedPresentation(listed, key)) {
+    await owedPresentations.resolve(key, clock.now());
+  }
 }
 
 function keyOf({ pointOfSaleNumber, code }: OwedFortnightReport) {
@@ -92,7 +129,7 @@ function fortnightPresentation(
 }
 
 async function recoverLastClosedFortnightCode(
-  { codeStore, codeAuthority, clock }: FortnightReportPorts,
+  ports: FortnightReportPorts,
   token: WsaaToken,
   today: string,
 ): Promise<void> {
@@ -100,14 +137,38 @@ async function recoverLastClosedFortnightCode(
   if (today > shiftCalendarDay(fortnight.end, DAYS_TO_RECOVER_AFTER_CLOSE)) {
     return;
   }
-  if (!(await codeStore.hasOfflinePointOfSale())) {
+  if (!(await ports.codeStore.hasOfflinePointOfSale())) {
     return;
   }
+  await recoverFortnightCode(ports, token, fortnight);
+}
+
+async function recoverListedFortnightCodes(
+  ports: FortnightReportPorts,
+  token: WsaaToken,
+): Promise<void> {
+  const { owned } = splitOwedPresentations(
+    await ports.owedPresentations.listed(),
+    await ports.codeStore.offlinePointsOfSale(),
+  );
+  const fortnights = new Map(owned.map(({ fortnight }) => [fortnight.start, fortnight]));
+  for (const fortnight of fortnights.values()) {
+    await recoverFortnightCode(ports, token, fortnight);
+  }
+}
+
+async function recoverFortnightCode(
+  ports: FortnightReportPorts,
+  token: WsaaToken,
+  fortnight: Fortnight,
+): Promise<void> {
+  const { codeStore, codeAuthority, clock } = ports;
   await codeStore.holdAcquisition(fortnight, async (acquisition) => {
     if (await acquisition.isHeld()) {
       return;
     }
     const answer = await codeAuthority.lookUp({ token, fortnight });
+    await recordListOf(ports, answer);
     if (answer.kind === "granted" && isSameFortnight(answer.code.fortnight, fortnight)) {
       await acquisition.keep({
         code: answer.code,
@@ -121,6 +182,7 @@ async function recoverLastClosedFortnightCode(
 async function presentFortnight(
   ports: FortnightReportPorts,
   token: WsaaToken,
+  listed: ListedOwedPresentation[],
   owed: OwedFortnightReport,
   report: HeldFortnightReport,
 ): Promise<FortnightPresentation[]> {
@@ -142,6 +204,7 @@ async function presentFortnight(
   const held = await declarations.lookUp(call);
   if (held.kind === "held") {
     await report.record({ state: "accepted", at: clock.now(), movement: "none" });
+    await resolveWhenListed(ports, listed, owed);
     return presentation({ kind: "already_declared" });
   }
   if (held.kind === "refused") {
@@ -158,7 +221,7 @@ async function presentFortnight(
 
   const issued = await documents.documentsOn(pointOfSaleNumber, code.fortnight);
   if (issued.length > 0) {
-    return presentDocuments(ports, token, owed, report, issued);
+    return presentDocuments(ports, token, listed, owed, report, issued);
   }
 
   await report.record({ state: "submitting", at: clock.now() });
@@ -166,6 +229,7 @@ async function presentFortnight(
   switch (answer.kind) {
     case "accepted":
       await report.record({ state: "accepted", at: clock.now(), movement: "none" });
+      await resolveWhenListed(ports, listed, owed);
       return presentation({ kind: "accepted" });
     case "refused":
       await report.record({
@@ -193,6 +257,7 @@ async function reachesPastClose(
 async function presentUnreportedDocuments(
   ports: FortnightReportPorts,
   token: WsaaToken,
+  listed: ListedOwedPresentation[],
   accepted: OwedFortnightReport,
   report: HeldFortnightReport,
 ): Promise<FortnightPresentation[]> {
@@ -215,12 +280,13 @@ async function presentUnreportedDocuments(
     await report.record({ state: "blocked", at: ports.clock.now() });
     return [fortnightPresentation(accepted, { kind: "blocked" })];
   }
-  return presentDocuments(ports, token, accepted, report, issued);
+  return presentDocuments(ports, token, listed, accepted, report, issued);
 }
 
 async function presentDocuments(
   ports: FortnightReportPorts,
   token: WsaaToken,
+  listed: ListedOwedPresentation[],
   owed: OwedFortnightReport,
   report: HeldFortnightReport,
   issued: OfflineDocumentOfFortnight[],
@@ -245,6 +311,9 @@ async function presentDocuments(
   const at = ports.clock.now();
   if (state === "accepted") {
     await report.record({ state, at, movement: "documents" });
+    if (states.length === presentations.length) {
+      await resolveWhenListed(ports, listed, owed);
+    }
   } else if (rejections === undefined) {
     await report.record({ state, at });
   } else {
@@ -272,13 +341,14 @@ function documentTypeStateOf(
 }
 
 async function presentDocumentType(
-  { documentReports, clock }: FortnightReportPorts,
+  ports: FortnightReportPorts,
   token: WsaaToken,
   { pointOfSaleNumber, code }: OwedFortnightReport,
   report: HeldFortnightReport,
   documentType: FiscalDocumentType,
   documents: OfflineDocumentOfFortnight[],
 ): Promise<FortnightPresentationOutcome> {
+  const { documentReports, clock } = ports;
   let acceptedThrough = 0;
   for (;;) {
     const last = await documentReports.lastReported({ token, pointOfSaleNumber, documentType });
@@ -331,6 +401,7 @@ async function presentDocumentType(
       code: code.code,
       documents: batch.documents,
     });
+    await recordListOf(ports, answer);
     switch (answer.kind) {
       case "accepted":
         acceptedThrough = batch.documents.at(-1)?.number ?? last.number;
