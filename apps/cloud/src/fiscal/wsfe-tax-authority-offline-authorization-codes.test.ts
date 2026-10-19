@@ -97,6 +97,25 @@ describe("WsfeTaxAuthorityOfflineAuthorizationCodes.request", () => {
     expect(sentValue(server.requests[0], "Orden")).toBe("2");
   });
 
+  it("lists the presentations ARCA says the business owes when it refuses with observation 15014", async () => {
+    server.behave(answers("fe-caea-solicitar-owed-presentations.xml"));
+
+    expect(await codesAt(server.endpoint).request(call)).toEqual({
+      kind: "refused",
+      rejections: [{ code: 15014, message: expect.stringContaining("202609;1;4|202608;2;9") }],
+      owedPresentations: [
+        { pointOfSaleNumber: 4, fortnight: { start: "2026-09-01", end: "2026-09-15" } },
+        { pointOfSaleNumber: 9, fortnight: { start: "2026-08-16", end: "2026-08-31" } },
+      ],
+    });
+  });
+
+  it("lists no owed presentations when ARCA's refusal names none", async () => {
+    server.behave(answers("fe-caea-solicitar-out-of-window.xml"));
+
+    expect(await codesAt(server.endpoint).request(call)).not.toHaveProperty("owedPresentations");
+  });
+
   it("answers already granted when ARCA refuses because the fortnight's code was granted", async () => {
     server.behave(answers("fe-caea-solicitar-already-granted.xml"));
 
@@ -137,6 +156,25 @@ describe("WsfeTaxAuthorityOfflineAuthorizationCodes.lookUp", () => {
       kind: "granted",
       code: GRANTED_CODE,
     });
+  });
+
+  it("lists the presentations ARCA says the business owes alongside the granted code", async () => {
+    server.behave(answers("fe-caea-consultar-owed-presentations.xml"));
+
+    expect(await codesAt(server.endpoint).lookUp(call)).toEqual({
+      kind: "granted",
+      code: GRANTED_CODE,
+      owedPresentations: [
+        { pointOfSaleNumber: 4, fortnight: { start: "2026-09-01", end: "2026-09-15" } },
+        { pointOfSaleNumber: 9, fortnight: { start: "2026-08-16", end: "2026-08-31" } },
+      ],
+    });
+  });
+
+  it("lists no owed presentations when the granted answer carries none", async () => {
+    server.behave(answers("fe-caea-consultar-granted.xml"));
+
+    expect(await codesAt(server.endpoint).lookUp(call)).not.toHaveProperty("owedPresentations");
   });
 
   it("looks the fortnight up by its month and half, authenticated with the token and the certificate's CUIT", async () => {
