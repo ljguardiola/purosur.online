@@ -53,3 +53,9 @@ test("names the alert of a fortnight reported without movement that later receiv
 test("names the alert of a register's clock corrected from the register", () => {
   expect(alertKindLabel("clock_corrected")).toBe("Reloj de la caja corregido");
 });
+
+test("names the alert of a presentation ARCA lists as owed for a point of sale this system does not run", () => {
+  expect(alertKindLabel("fortnight_report_owed_elsewhere")).toBe(
+    "Presentación adeudada en otro sistema",
+  );
+});
