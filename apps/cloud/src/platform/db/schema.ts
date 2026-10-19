@@ -2538,7 +2538,7 @@ export const fiscalTasks = pgTable(
     pointOfSale: integer("point_of_sale").notNull(),
     documentType: text("document_type").notNull(),
     number: integer("number").notNull(),
-    creditNoteId: uuid("credit_note_id").references(() => orphanCreditNotes.id),
+    creditNoteId: uuid("credit_note_id").references(() => creditNotes.id),
     reason: jsonb("reason").$type<JsonValue>().notNull(),
     state: text("state").notNull().default("open"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
@@ -2572,7 +2572,7 @@ export const fiscalTasks = pgTable(
 // The credit note that cancels an authorization no sale accounts for. The row is the request to
 // issue it: it exists from the moment the orphan is detected, gets its number when the tax
 // authority is first asked, and keeps the answer. A number is held by one request at a time.
-export const orphanCreditNotes = pgTable(
+export const creditNotes = pgTable(
   "orphan_credit_notes",
   {
     id: uuid("id").primaryKey(),

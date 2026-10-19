@@ -1,5 +1,5 @@
 import {
-  issueOrphanCreditNote,
+  issueCreditNote,
   type TaxAuthorityCreditNoteInvoicing,
   type TaxAuthorityLastAuthorizedLookup,
   type TaxAuthorityVoucherLookup,
@@ -7,23 +7,20 @@ import {
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { BackgroundJobs } from "../platform/background-jobs.js";
 import type { DedicatedConnections } from "../platform/dedicated-connections.js";
-import {
-  DrizzleOrphanCreditNoteLanes,
-  DrizzleOrphanCreditNoteRequests,
-} from "./drizzle-orphan-credit-notes.js";
+import { DrizzleCreditNoteLanes, DrizzleCreditNoteRequests } from "./drizzle-credit-notes.js";
 import { DrizzleWsaaTokenSource } from "./drizzle-wsaa-token-source.js";
 import { UNCLEAR_OUTCOME_PRIORITY } from "./unclear-outcome-task.js";
 import { WSFE_SERVICE } from "./wsaa-token-renewal-task.js";
 
-export const ORPHAN_CREDIT_NOTE_TASK_IDENTIFIER = "issue-orphan-credit-note";
+export const CREDIT_NOTE_TASK_IDENTIFIER = "issue-credit-note";
 
-export const ORPHAN_CREDIT_NOTE_PRIORITY = UNCLEAR_OUTCOME_PRIORITY;
+export const CREDIT_NOTE_PRIORITY = UNCLEAR_OUTCOME_PRIORITY;
 
-export function orphanCreditNoteJobKey(creditNoteId: string): string {
-  return `${ORPHAN_CREDIT_NOTE_TASK_IDENTIFIER}:${creditNoteId}`;
+export function creditNoteJobKey(creditNoteId: string): string {
+  return `${CREDIT_NOTE_TASK_IDENTIFIER}:${creditNoteId}`;
 }
 
-export interface OrphanCreditNoteInput<TQueryResult extends PgQueryResultHKT> {
+export interface CreditNoteInput<TQueryResult extends PgQueryResultHKT> {
   now: () => Date;
   vouchers: TaxAuthorityVoucherLookup;
   taxAuthority: TaxAuthorityLastAuthorizedLookup;
@@ -44,7 +41,7 @@ function creditNoteIdOf(payload: unknown): string {
   return creditNoteId;
 }
 
-export function orphanCreditNoteJobs<TQueryResult extends PgQueryResultHKT>({
+export function creditNoteJobs<TQueryResult extends PgQueryResultHKT>({
   now,
   vouchers,
   taxAuthority,
@@ -52,11 +49,11 @@ export function orphanCreditNoteJobs<TQueryResult extends PgQueryResultHKT>({
   certificateFingerprint,
   db,
   connections,
-}: OrphanCreditNoteInput<TQueryResult>): BackgroundJobs {
+}: CreditNoteInput<TQueryResult>): BackgroundJobs {
   const clock = { now };
   const ports = {
-    requests: new DrizzleOrphanCreditNoteRequests(db),
-    lanes: new DrizzleOrphanCreditNoteLanes(connections),
+    requests: new DrizzleCreditNoteRequests(db),
+    lanes: new DrizzleCreditNoteLanes(connections),
     clock,
     tokens: new DrizzleWsaaTokenSource(db, clock, WSFE_SERVICE, certificateFingerprint),
     vouchers,
@@ -65,17 +62,17 @@ export function orphanCreditNoteJobs<TQueryResult extends PgQueryResultHKT>({
   };
   return {
     taskList: {
-      [ORPHAN_CREDIT_NOTE_TASK_IDENTIFIER]: async (payload, helpers) => {
+      [CREDIT_NOTE_TASK_IDENTIFIER]: async (payload, helpers) => {
         const creditNoteId = creditNoteIdOf(payload);
-        const outcome = await issueOrphanCreditNote(ports, { creditNoteId });
+        const outcome = await issueCreditNote(ports, { creditNoteId });
         if (outcome.kind === "retry") {
           await helpers.addJob(
-            ORPHAN_CREDIT_NOTE_TASK_IDENTIFIER,
+            CREDIT_NOTE_TASK_IDENTIFIER,
             { creditNoteId },
             {
-              jobKey: orphanCreditNoteJobKey(creditNoteId),
+              jobKey: creditNoteJobKey(creditNoteId),
               jobKeyMode: "replace",
-              priority: ORPHAN_CREDIT_NOTE_PRIORITY,
+              priority: CREDIT_NOTE_PRIORITY,
               runAt: outcome.askAgainAt,
             },
           );

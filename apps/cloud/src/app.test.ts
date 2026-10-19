@@ -1929,7 +1929,7 @@ describe("wiring the unclear outcome route", () => {
       enqueueUnclearOutcome: async () => {},
       withdrawUnclearOutcome: async () => {},
       enqueueNumberingDiagnosis: async () => {},
-      enqueueOrphanCreditNote: async () => {},
+      enqueueCreditNote: async () => {},
     };
   }
 

@@ -3,7 +3,7 @@ import type { NumberingConflictLane, OrphanRegularization } from "@purosur/domai
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { alerts, fiscalRequests, fiscalTasks, orphanCreditNotes } from "../platform/db/schema.js";
+import { alerts, creditNotes, fiscalRequests, fiscalTasks } from "../platform/db/schema.js";
 import { postgresDedicatedConnections } from "../platform/dedicated-connections.js";
 import {
   createIntegrationDatabase,
@@ -68,14 +68,14 @@ type OrphanLane = NumberingConflictLane & {
 };
 
 function lanes(
-  enqueueOrphanCreditNote = async (_: unknown, creditNoteId: string) => {
+  enqueueCreditNote = async (_: unknown, creditNoteId: string) => {
     enqueued.push(creditNoteId);
   },
 ) {
   const numberingLanes = new DrizzleNumberingConflictLanes(
     postgresDedicatedConnections(sql),
     async () => {},
-    enqueueOrphanCreditNote,
+    enqueueCreditNote,
     () => OPENED_AT,
   );
   return {
@@ -236,7 +236,7 @@ describe("recording the regularization of an orphan authorization on a real Post
 
       await inLane(13, (lane) => lane.recordOrphanRegularization(regularization));
 
-      const rows = await db.select().from(orphanCreditNotes);
+      const rows = await db.select().from(creditNotes);
       expect(rows.filter((row) => row.pointOfSale === 13)).toEqual([
         {
           id: regularization.creditNoteId,
@@ -273,7 +273,7 @@ describe("recording the regularization of an orphan authorization on a real Post
       await inLane(15, (lane) => lane.recordOrphanRegularization(first));
       await inLane(15, (lane) => lane.recordOrphanRegularization(again));
 
-      const rows = await db.select().from(orphanCreditNotes);
+      const rows = await db.select().from(creditNotes);
       expect(rows.filter((row) => row.pointOfSale === 15).map((row) => row.id)).toEqual([
         first.creditNoteId,
       ]);
@@ -293,7 +293,7 @@ describe("recording the regularization of an orphan authorization on a real Post
         failing.inPointOfSaleLane(17, (lane) => lane.recordOrphanRegularization(regularization)),
       ).rejects.toThrow("the queue refused");
 
-      const rows = await db.select().from(orphanCreditNotes);
+      const rows = await db.select().from(creditNotes);
       expect(rows.filter((row) => row.pointOfSale === 17)).toEqual([]);
     });
 
@@ -310,9 +310,7 @@ describe("recording the regularization of an orphan authorization on a real Post
         ),
       );
 
-      const rows = (await db.select().from(orphanCreditNotes)).filter(
-        (row) => row.pointOfSale === 19,
-      );
+      const rows = (await db.select().from(creditNotes)).filter((row) => row.pointOfSale === 19);
       expect(rows).toHaveLength(1);
       expect(enqueued).toEqual([rows[0]?.id]);
     });
@@ -354,7 +352,7 @@ describe("recording the regularization of an orphan authorization on a real Post
         ),
       ]);
 
-      const rows = (await db.select().from(orphanCreditNotes)).filter(
+      const rows = (await db.select().from(creditNotes)).filter(
         (row) => row.pointOfSale === 19 && row.associatedNumber === 85,
       );
       expect(rows).toHaveLength(1);
@@ -368,7 +366,7 @@ describe("recording the regularization of an orphan authorization on a real Post
         db.transaction((tx) =>
           recordOrphanRegularization(tx, regularization, {
             at: OPENED_AT,
-            enqueueOrphanCreditNote: async (_, creditNoteId) => {
+            enqueueCreditNote: async (_, creditNoteId) => {
               enqueued.push(creditNoteId);
             },
           }),
@@ -379,9 +377,7 @@ describe("recording the regularization of an orphan authorization on a real Post
         record(creditNoteRegularization({ pointOfSale: 21, associatedVoucher: orphan })),
       ]);
 
-      const rows = (await db.select().from(orphanCreditNotes)).filter(
-        (row) => row.pointOfSale === 21,
-      );
+      const rows = (await db.select().from(creditNotes)).filter((row) => row.pointOfSale === 21);
       expect(rows).toHaveLength(1);
       expect(enqueued).toHaveLength(1);
     });

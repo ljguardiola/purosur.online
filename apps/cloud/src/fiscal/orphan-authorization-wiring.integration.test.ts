@@ -201,7 +201,7 @@ describe("the orphan authorizations the server sets up on a real Postgres", () =
       expect(
         await sql`select 1 from graphile_worker._private_jobs j
           join graphile_worker._private_tasks t on t.id = j.task_id
-          where t.identifier = 'issue-orphan-credit-note'`,
+          where t.identifier = 'issue-credit-note'`,
       ).toEqual([]);
     });
 

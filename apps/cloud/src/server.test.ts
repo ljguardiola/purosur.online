@@ -7,9 +7,9 @@ import { FICTIONAL_CERTIFICATE_CUIT } from "@purosur/domain/fiscal/test-support"
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterEach, describe, expect, expectTypeOf, it, vi } from "vitest";
 import { type BuildAppOptions, buildApp as buildRealApp } from "./app.js";
+import { enqueueCreditNoteJob } from "./fiscal/graphile-credit-note-queue.js";
 import { enqueueNumberingDiagnosisJob } from "./fiscal/graphile-numbering-conflict-queue.js";
 import { enqueueOfflineAuthorizationCodeRequest } from "./fiscal/graphile-offline-authorization-code-queue.js";
-import { enqueueOrphanCreditNoteJob } from "./fiscal/graphile-orphan-credit-note-queue.js";
 import { enqueueTaxAuthorityCountJob } from "./fiscal/graphile-tax-authority-count-queue.js";
 import {
   enqueueUnclearOutcomeJob,
@@ -785,7 +785,7 @@ describe("startServer", () => {
       enqueueMissingTaxAuthorityCounts: vi.fn().mockResolvedValue(undefined),
       enqueueMissingUnclearOutcomes: vi.fn().mockResolvedValue(undefined),
       enqueueMissingNumberingConflicts: vi.fn().mockResolvedValue(undefined),
-      enqueueMissingOrphanCreditNotes: vi.fn().mockResolvedValue(undefined),
+      enqueueMissingCreditNotes: vi.fn().mockResolvedValue(undefined),
       now,
     });
 
@@ -987,7 +987,7 @@ describe("startServer checking the offsite dump", () => {
         enqueueMissingTaxAuthorityCounts: vi.fn().mockResolvedValue(undefined),
         enqueueMissingUnclearOutcomes: vi.fn().mockResolvedValue(undefined),
         enqueueMissingNumberingConflicts: vi.fn().mockResolvedValue(undefined),
-        enqueueMissingOrphanCreditNotes: vi.fn().mockResolvedValue(undefined),
+        enqueueMissingCreditNotes: vi.fn().mockResolvedValue(undefined),
       },
     );
     return { buildApp, setUpRecovery };
@@ -1125,7 +1125,7 @@ describe("startServer checking the certificate's expiry", () => {
       enqueueMissingTaxAuthorityCounts: vi.fn().mockResolvedValue(undefined),
       enqueueMissingUnclearOutcomes: vi.fn().mockResolvedValue(undefined),
       enqueueMissingNumberingConflicts: vi.fn().mockResolvedValue(undefined),
-      enqueueMissingOrphanCreditNotes: vi.fn().mockResolvedValue(undefined),
+      enqueueMissingCreditNotes: vi.fn().mockResolvedValue(undefined),
       enqueueArcaCertificateExpiryCheck,
     });
 
@@ -1198,7 +1198,7 @@ describe("startServer with the ARCA private key", () => {
       enqueueMissingTaxAuthorityCounts: vi.fn().mockResolvedValue(undefined),
       enqueueMissingUnclearOutcomes: vi.fn().mockResolvedValue(undefined),
       enqueueMissingNumberingConflicts: vi.fn().mockResolvedValue(undefined),
-      enqueueMissingOrphanCreditNotes: vi.fn().mockResolvedValue(undefined),
+      enqueueMissingCreditNotes: vi.fn().mockResolvedValue(undefined),
     });
     return { started, setUpRecovery };
   }
@@ -1389,7 +1389,7 @@ describe("startServer fetching the buyer tax-status values", () => {
       enqueueMissingTaxAuthorityCounts: vi.fn().mockResolvedValue(undefined),
       enqueueMissingUnclearOutcomes: vi.fn().mockResolvedValue(undefined),
       enqueueMissingNumberingConflicts: vi.fn().mockResolvedValue(undefined),
-      enqueueMissingOrphanCreditNotes: vi.fn().mockResolvedValue(undefined),
+      enqueueMissingCreditNotes: vi.fn().mockResolvedValue(undefined),
       enqueueBuyerTaxStatusFetch,
     });
     return { started, steps, recovery, setUpRecovery, enqueueBuyerTaxStatusFetch };
@@ -1482,8 +1482,8 @@ describe("startServer authorizing sales in real time", () => {
     const enqueueMissingNumberingConflicts = vi.fn(async () => {
       steps.push("enqueueMissingNumberingConflicts");
     });
-    const enqueueMissingOrphanCreditNotes = vi.fn(async () => {
-      steps.push("enqueueMissingOrphanCreditNotes");
+    const enqueueMissingCreditNotes = vi.fn(async () => {
+      steps.push("enqueueMissingCreditNotes");
     });
     const started = startServer(startEnv, {
       arcaEndpoints: arcaEndpointsOf,
@@ -1495,7 +1495,7 @@ describe("startServer authorizing sales in real time", () => {
       enqueueMissingTaxAuthorityCounts,
       enqueueMissingUnclearOutcomes,
       enqueueMissingNumberingConflicts,
-      enqueueMissingOrphanCreditNotes,
+      enqueueMissingCreditNotes,
     });
     return {
       started,
@@ -1506,7 +1506,7 @@ describe("startServer authorizing sales in real time", () => {
       enqueueMissingTaxAuthorityCounts,
       enqueueMissingUnclearOutcomes,
       enqueueMissingNumberingConflicts,
-      enqueueMissingOrphanCreditNotes,
+      enqueueMissingCreditNotes,
     };
   }
 
@@ -1548,7 +1548,7 @@ describe("startServer authorizing sales in real time", () => {
       enqueueUnclearOutcome: enqueueUnclearOutcomeJob,
       withdrawUnclearOutcome: withdrawUnclearOutcomeJob,
       enqueueNumberingDiagnosis: enqueueNumberingDiagnosisJob,
-      enqueueOrphanCreditNote: enqueueOrphanCreditNoteJob,
+      enqueueCreditNote: enqueueCreditNoteJob,
     });
   });
 
@@ -1603,7 +1603,7 @@ describe("startServer authorizing sales in real time", () => {
       "enqueueMissingTaxAuthorityCounts",
       "enqueueMissingUnclearOutcomes",
       "enqueueMissingNumberingConflicts",
-      "enqueueMissingOrphanCreditNotes",
+      "enqueueMissingCreditNotes",
       "listen",
     ]);
   });
@@ -1629,13 +1629,13 @@ describe("startServer authorizing sales in real time", () => {
   });
 
   it("asks again for every orphan credit note still to be issued before it starts listening", async () => {
-    const { started, recovery, enqueueMissingOrphanCreditNotes } = start({
+    const { started, recovery, enqueueMissingCreditNotes } = start({
       ...env,
       ARCA_PRIVATE_KEY: credentials.privateKeyPem,
     });
     await started;
 
-    expect(enqueueMissingOrphanCreditNotes).toHaveBeenCalledWith(recovery.db);
+    expect(enqueueMissingCreditNotes).toHaveBeenCalledWith(recovery.db);
   });
 
   it("wires none of it without the key, as no WSAA token is ever renewed to ask with", async () => {
@@ -1698,7 +1698,7 @@ describe("startServer creating Mercado Pago QR orders", () => {
       enqueueMissingTaxAuthorityCounts: vi.fn().mockResolvedValue(undefined),
       enqueueMissingUnclearOutcomes: vi.fn().mockResolvedValue(undefined),
       enqueueMissingNumberingConflicts: vi.fn().mockResolvedValue(undefined),
-      enqueueMissingOrphanCreditNotes: vi.fn().mockResolvedValue(undefined),
+      enqueueMissingCreditNotes: vi.fn().mockResolvedValue(undefined),
     });
     return { started, buildApp, recovery, setUp };
   }
@@ -1841,7 +1841,7 @@ describe("startServer with the real app", () => {
         enqueueMissingTaxAuthorityCounts: vi.fn().mockResolvedValue(undefined),
         enqueueMissingUnclearOutcomes: vi.fn().mockResolvedValue(undefined),
         enqueueMissingNumberingConflicts: vi.fn().mockResolvedValue(undefined),
-        enqueueMissingOrphanCreditNotes: vi.fn().mockResolvedValue(undefined),
+        enqueueMissingCreditNotes: vi.fn().mockResolvedValue(undefined),
       },
     );
 
@@ -2102,7 +2102,7 @@ describe("startServer ARCA endpoints", () => {
         enqueueMissingTaxAuthorityCounts: vi.fn().mockResolvedValue(undefined),
         enqueueMissingUnclearOutcomes: vi.fn().mockResolvedValue(undefined),
         enqueueMissingNumberingConflicts: vi.fn().mockResolvedValue(undefined),
-        enqueueMissingOrphanCreditNotes: vi.fn().mockResolvedValue(undefined),
+        enqueueMissingCreditNotes: vi.fn().mockResolvedValue(undefined),
         arcaEndpoints,
       },
     );

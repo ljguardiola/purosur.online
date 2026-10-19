@@ -1,7 +1,7 @@
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { fiscalTasks, orphanCreditNotes } from "../platform/db/schema.js";
+import { creditNotes, fiscalTasks } from "../platform/db/schema.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
@@ -57,9 +57,9 @@ function insertTask(overrides: Partial<typeof fiscalTasks.$inferInsert>) {
   });
 }
 
-function insertCreditNote(overrides: Partial<typeof orphanCreditNotes.$inferInsert>) {
+function insertCreditNote(overrides: Partial<typeof creditNotes.$inferInsert>) {
   seeded += 1;
-  return db.insert(orphanCreditNotes).values({
+  return db.insert(creditNotes).values({
     id: crypto.randomUUID(),
     registerId,
     saleId: crypto.randomUUID(),
@@ -82,7 +82,7 @@ async function aCreditNoteId(): Promise<string> {
   return id;
 }
 
-function requested(): Partial<typeof orphanCreditNotes.$inferInsert> {
+function requested(): Partial<typeof creditNotes.$inferInsert> {
   seeded += 1;
   return { number: 10_000 + seeded, issuedOn: "2026-10-07", requestedAt: CREATED_AT };
 }

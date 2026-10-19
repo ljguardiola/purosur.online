@@ -27,6 +27,7 @@ import {
   categories,
   changes,
   clockCorrections,
+  creditNotes,
   deviceState,
   discounts,
   fiscalAddresses,
@@ -48,7 +49,6 @@ import {
   offlineFiscalDocuments,
   offlineNumberBlocks,
   offsiteDumpChecks,
-  orphanCreditNotes,
   passkeyChallenges,
   passkeys,
   paymentNotificationAttempts,
@@ -665,7 +665,7 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
       reason: { issuedOn: "2026-01-05", total: 10_000, authorizationCode: "75123456789012" },
       createdAt: new Date("2026-01-05T12:00:00.000Z"),
     });
-    await db.insert(orphanCreditNotes).values({
+    await db.insert(creditNotes).values({
       id: "00000000-0000-4000-8000-000000000107",
       registerId: register.id,
       saleId: "00000000-0000-4000-8000-000000000102",
