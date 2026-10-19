@@ -4,6 +4,7 @@ import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { compromiseResponses } from "../platform/db/schema.js";
 import { openBackofficeSession, SESSION_NOON } from "../test-support/backoffice-session.js";
+import { TEST_INSTALLATION_KEYS_ENCRYPTION_KEY } from "../test-support/installation-keys-encryption-key.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
@@ -44,7 +45,12 @@ describe("two Administrators starting the runbook at once on a real Postgres", (
     const outcomes = await Promise.all(
       [first, second].map((actorId) =>
         startCompromiseResponse(
-          { store: new DrizzleCompromiseResponseStore(db) },
+          {
+            store: new DrizzleCompromiseResponseStore(db, {
+              keysEncryptionKey: TEST_INSTALLATION_KEYS_ENCRYPTION_KEY,
+              now: () => SESSION_NOON,
+            }),
+          },
           { actorId, at: SESSION_NOON },
         ),
       ),

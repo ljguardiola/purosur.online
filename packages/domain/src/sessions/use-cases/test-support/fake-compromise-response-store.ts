@@ -1,11 +1,15 @@
 import type {
   CompromiseResponseAction,
   CompromiseResponseItem,
+  PasskeyRemovalRefusal,
+  PasskeyRemovalResult,
 } from "../../model/compromise-response.js";
 import type {
+  AccountPasskeyRemoval,
   CompromiseResponseStore,
   CompromiseResponseStoreTransaction,
   CompromiseResponses,
+  InstallationRevocationResult,
   StoredCompromiseResponse,
 } from "../compromise-response-store.js";
 
@@ -17,9 +21,18 @@ type FakeCompromiseResponseAudit =
 export interface FakeCompromiseResponseState {
   responses: StoredCompromiseResponse[];
   audits: FakeCompromiseResponseAudit[];
+  accountsWithPasskeys: string[];
+  effects: string[];
 }
 
-type FailableWrite = "startResponse" | "recordStepDone" | "recordItemDone";
+type FailableWrite =
+  | "startResponse"
+  | "recordStepDone"
+  | "recordItemDone"
+  | "revokeEveryInstallation"
+  | "removeEveryPasskeyOf"
+  | "endEveryBackofficeSession"
+  | "requirePinResetOfEveryUser";
 
 class FakeCompromiseResponseStoreTransaction implements CompromiseResponseStoreTransaction {
   private readonly store: FakeCompromiseResponseStore;
@@ -66,12 +79,58 @@ class FakeCompromiseResponseStoreTransaction implements CompromiseResponseStoreT
     this.store.responseById(responseId).completions.push({ key: item, at });
     this.store.current.audits.push({ kind: "item_done", responseId, item, actorId, at });
   }
+
+  async revokeEveryInstallation(actorId: string, at: Date): Promise<InstallationRevocationResult> {
+    this.store.current.effects.push(`revokeEveryInstallation:${actorId}:${at.toISOString()}`);
+    this.store.failIfAsked("revokeEveryInstallation");
+    return this.store.installationRevocation;
+  }
+
+  async removeEveryPasskeyOf(removal: AccountPasskeyRemoval): Promise<PasskeyRemovalResult> {
+    this.store.passkeyRemovalRequests.push(structuredClone(removal));
+    if (this.store.passkeyRemovalRefusal !== null) {
+      return this.store.passkeyRemovalRefusal;
+    }
+    const { accountsWithPasskeys, effects } = this.store.current;
+    if (!accountsWithPasskeys.includes(removal.accountId)) {
+      return "no_passkeys";
+    }
+    this.store.current.accountsWithPasskeys = accountsWithPasskeys.filter(
+      (account) => account !== removal.accountId,
+    );
+    effects.push(`removeEveryPasskeyOf:${removal.accountId}:${removal.administratorId}`);
+    this.store.failIfAsked("removeEveryPasskeyOf");
+    return "removed";
+  }
+
+  async endEveryBackofficeSession(actorId: string, at: Date): Promise<void> {
+    this.store.current.effects.push(`endEveryBackofficeSession:${actorId}:${at.toISOString()}`);
+    this.store.failIfAsked("endEveryBackofficeSession");
+  }
+
+  async requirePinResetOfEveryUser(actorId: string, at: Date): Promise<void> {
+    this.store.current.effects.push(`requirePinResetOfEveryUser:${actorId}:${at.toISOString()}`);
+    this.store.failIfAsked("requirePinResetOfEveryUser");
+  }
 }
 
 export class FakeCompromiseResponseStore implements CompromiseResponseStore, CompromiseResponses {
-  private state: FakeCompromiseResponseState = { responses: [], audits: [] };
+  private state: FakeCompromiseResponseState = {
+    responses: [],
+    audits: [],
+    accountsWithPasskeys: [],
+    effects: [],
+  };
+
+  private turn: Promise<unknown> = Promise.resolve();
 
   failingWrites = new Set<FailableWrite>();
+
+  installationRevocation: InstallationRevocationResult = "revoked";
+
+  passkeyRemovalRefusal: PasskeyRemovalRefusal | null = null;
+
+  readonly passkeyRemovalRequests: AccountPasskeyRemoval[] = [];
 
   get current(): FakeCompromiseResponseState {
     return this.state;
@@ -79,6 +138,10 @@ export class FakeCompromiseResponseStore implements CompromiseResponseStore, Com
 
   seedResponse(response: StoredCompromiseResponse): void {
     this.state.responses.push(structuredClone(response));
+  }
+
+  seedAccountWithPasskeys(accountId: string): void {
+    this.state.accountsWithPasskeys.push(accountId);
   }
 
   snapshot(): FakeCompromiseResponseState {
@@ -103,7 +166,15 @@ export class FakeCompromiseResponseStore implements CompromiseResponseStore, Com
     return structuredClone(this.state.responses.at(-1) ?? null);
   }
 
-  async transaction<TOutcome>(
+  transaction<TOutcome>(
+    work: (tx: CompromiseResponseStoreTransaction) => Promise<TOutcome>,
+  ): Promise<TOutcome> {
+    const outcome = this.turn.then(() => this.runRolledBackOnFailure(work));
+    this.turn = outcome.catch(() => undefined);
+    return outcome;
+  }
+
+  private async runRolledBackOnFailure<TOutcome>(
     work: (tx: CompromiseResponseStoreTransaction) => Promise<TOutcome>,
   ): Promise<TOutcome> {
     const before = structuredClone(this.state);

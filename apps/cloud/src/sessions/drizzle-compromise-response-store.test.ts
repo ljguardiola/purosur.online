@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { auditLog, compromiseResponseCompletions, users } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
+import { TEST_INSTALLATION_KEYS_ENCRYPTION_KEY } from "../test-support/installation-keys-encryption-key.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { DrizzleCompromiseResponseStore } from "./drizzle-compromise-response-store.js";
 
@@ -36,7 +37,10 @@ beforeEach(async () => {
 });
 
 function store() {
-  return new DrizzleCompromiseResponseStore(db);
+  return new DrizzleCompromiseResponseStore(db, {
+    keysEncryptionKey: TEST_INSTALLATION_KEYS_ENCRYPTION_KEY,
+    now: () => STARTED_AT,
+  });
 }
 
 describe("DrizzleCompromiseResponseStore", () => {
