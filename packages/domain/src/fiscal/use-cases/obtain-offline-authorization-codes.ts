@@ -5,6 +5,7 @@ import {
   fortnightsWithinRequestWindowOn,
   isSameFortnight,
 } from "../model/offline-authorization-code.js";
+import type { WithOwedPresentations } from "../model/owed-presentation-list.js";
 import type {
   OfflineAuthorizationCode,
   OfflineAuthorizationCodeAcquisition,
@@ -48,7 +49,7 @@ export async function obtainOfflineAuthorizationCodes(
 }
 
 async function obtainFortnightCode(
-  { tokens, taxAuthority, clock }: OfflineAuthorizationCodePorts,
+  { tokens, taxAuthority, owedPresentations, clock }: OfflineAuthorizationCodePorts,
   fortnight: Fortnight,
   acquisition: OfflineAuthorizationCodeAcquisition,
 ): Promise<FortnightAcquisitionOutcome> {
@@ -71,7 +72,14 @@ async function obtainFortnightCode(
     return true;
   };
 
+  const recordList = async (answer: WithOwedPresentations<object>): Promise<void> => {
+    if (answer.owedPresentations !== undefined) {
+      await owedPresentations.replace(answer.owedPresentations, clock.now());
+    }
+  };
+
   const answer = await taxAuthority.request({ token, fortnight });
+  await recordList(answer);
   switch (answer.kind) {
     case "granted":
       return (await keep(answer.code, "requested"))
@@ -79,6 +87,7 @@ async function obtainFortnightCode(
         : { kind: "unexpected_fortnight" };
     case "already_granted": {
       const lookup = await taxAuthority.lookUp({ token, fortnight });
+      await recordList(lookup);
       if (lookup.kind !== "granted") {
         return { kind: "not_recovered" };
       }

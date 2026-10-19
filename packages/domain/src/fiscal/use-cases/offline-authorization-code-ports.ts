@@ -3,6 +3,7 @@ import type { TaxAuthorityRejection } from "../model/fiscal-rejection-standing.j
 import type { Fortnight } from "../model/offline-authorization-code.js";
 import type { WithOwedPresentations } from "../model/owed-presentation-list.js";
 import type { WsaaTokenSource } from "./fiscal-document-authorization-ports.js";
+import type { OwedPresentationList } from "./owed-presentation-list-ports.js";
 import type { WsaaToken } from "./wsaa-token-ports.js";
 
 export interface OfflineAuthorizationCode {
@@ -61,5 +62,6 @@ export interface OfflineAuthorizationCodePorts {
   store: OfflineAuthorizationCodeStore;
   tokens: WsaaTokenSource;
   taxAuthority: TaxAuthorityOfflineAuthorizationCodes;
+  owedPresentations: OwedPresentationList;
   clock: Clock;
 }
