@@ -34,7 +34,9 @@ how a new one is judged.
   path where it asks for every form (a recorder that drives one flow while
   the register also sends a BUY_N_PAY_M promotion), a stand-in the test
   builds instead of the app's own code (a client with its own integration),
-  or a field each reported item must carry that no step's output produces.
+  a field each reported item must carry that no step's output produces, or a
+  section it shows to everyone gated behind a narrower permission than the
+  screen's route.
 - A visible difference in a technical issue that the definition of done does
   not accept.
 - A path-scoped rule file whose `paths:` miss where its rule applies: a file
@@ -47,26 +49,48 @@ how a new one is judged.
 - A check over the source that misses a route ordinary code takes to what it
   refuses (a re-export of the library's namespace, a parameter default, a
   JSX attribute or spread, a callback handed by name, a value cast with
-  `as`), or refuses correct code that reads alike (another binding of the
+  `as`), refuses correct code that reads alike (another binding of the
   same library, a key read back through a library-typed property, a folder
-  outside the concepts treated as one).
-- A decision made from state that changed after it was read: an answer
-  computed from the session before the operation changed it (`may_edit:
-  true` to an Administrator who just left the role), a check made before the
-  lock and never again under it, a second-submit guard that reads only the
-  rendered `submitting`, so two quick presses both send.
-- A failure path that loses what the failure says: a handler that replaces
-  the error it caught, so its kind never reaches what reacts to it; a message
-  template whose value renders empty; an outcome whose only feedback is a
-  re-read that keeps the cached record when the re-read fails.
-- A reading of outside data that changes what passes: a stricter shape in
-  place of the reader it replaced, so stored data that reader accepted gets
-  another outcome; a non-strict schema that drops the keys a comparison is
-  meant to catch; a plain-object lookup of a received code that answers for
-  `constructor`.
-- A key wider or narrower than what it identifies: an alert deduplicated by
-  a scope wider than what it flags, a recorded child row checked only by its
-  foreign key, so it may name a parent of another record.
+  outside the concepts treated as one), tells the author a fix it refuses
+  again (a renumbering hint that sorts before the last migration), or is
+  narrowed while its own test still expects the removed cases to pass.
+- A decision made from state other than the one it means, or out of order
+  with it: an answer computed from the session before the operation changed
+  it (`may_edit: true` to an Administrator who just left the role), a check
+  made before the lock and never again under it, rows locked in the opposite
+  order of another operation that touches them (a PIN deleted before its
+  user is updated while issuing a PIN locks the user first), a second-submit
+  guard that reads only the rendered `submitting`, a deadline the record
+  carries that the answer ignores, a past record rebuilt from today's
+  reference data instead of what it froze (a receipt reading a sold line's
+  unit from the current catalog), or a baseline taken from a stand-in for
+  what is deployed (the newest release tag).
+- A failure path that loses what the failure says, or leaves a record no
+  later step moves on: a handler that replaces the error it caught; a message
+  template whose value renders empty or a stand-in default; a failure
+  answered as an empty result; an outside call whose outcome is unknown (a
+  timeout) recorded as one that did nothing, so the order it may have created
+  is never asked for; a follow-up enqueued only on the path that succeeds; a
+  housekeeping step or one item's error that stops the work it serves; an
+  event emitter given no `error` listener, so a failed write is an uncaught
+  exception instead of the operation's rejection.
+- A value one side of a boundary produces or accepts that the other side
+  refuses or reads otherwise: a stricter shape in place of the reader it
+  replaced, so stored data that reader accepted gets another outcome; a
+  non-strict schema that drops the keys a comparison is meant to catch; a
+  plain-object lookup of a received code that answers for `constructor`; a
+  stored value read back through a narrower type than it was written with; a
+  limit two layers apply in different units, so an input between them gets
+  an error instead of the refusal; a device status read as ready unless a
+  known-bad bit is set.
+- A key, guard or bound wider or narrower than what it identifies: an alert
+  deduplicated by a scope wider than what it flags; a recorded child row
+  checked only by its foreign key, so it may name a parent of another
+  record; a "latest" record picked by wall-clock time, so a clock set back
+  hides the newest; a "more than N minutes" check on minutes already
+  floored; a union tested by listing its members, so a new value takes the
+  default branch; a second way into an action that checks less than the
+  first.
 
 ### Structure
 
@@ -76,21 +100,32 @@ how a new one is judged.
 - A piece placed for the wrong set of users: in `platform/` or `shell/` while
   one concept uses it, in one concept's folder while others import it from
   there, or copied into a second concept instead of moved.
-- An aspect test file (`<name>.<aspect>.test.ts`) that copies the main test
-  file's setup instead of sharing it through `test-support/<name>.ts`.
+- A test helper or case placed where it does not belong: an aspect test file
+  (`<name>.<aspect>.test.ts`) or a second test of the concept copying setup
+  instead of sharing it through `test-support/`, or a case added under a
+  `describe` or aspect file named for another case (a Point refund test in
+  the QR payment aspect file).
 
 ### Business rules and boundaries
 
-- A screen deriving what the cloud or the core already answers: an action
+- A screen out of step with what the cloud or the core answers: an action
   hidden from a row's flag (`isAdministrator`) while the cloud decides it
   with a domain predicate (`isRoleEditable`), a refund's state read from its
-  method instead of its `state`, or a text naming one field from another
-  field's value.
+  method instead of its `state`, a text naming one field from another
+  field's value, or an action offered to everyone who reaches the screen
+  while its route requires another permission.
 - A screen deciding about its own form through a contracts shape other than
   the one it validates the form with, or using a request shape's parse only
   as a yes/no while it sends a body built separately.
 - A read of another concept declared as a port of the concept that needs it
   instead of a read port of its own concept.
+- A business outcome decided outside the predicate that owns it: an answer
+  about what an operation allows computed by another predicate than the
+  operation applies, an adapter turning what a port records into another
+  concept's outcome, or a scope the model declares applied only where a list
+  offers its options while the use case that writes accepts any (packagings
+  offered for active products while creating one accepts a deactivated
+  product).
 
 ### Screens
 
@@ -98,8 +133,22 @@ how a new one is judged.
   covers, such as a panel total as `Eyebrow` plus a `text-display` figure
   where `FigureStat` exists.
 - A screen standing in for an answer it does not have: an action the cloud
-  answers for shown disabled from a defaulted flag while the record loads, or
-  a URL filter rewritten as not offered because its options failed to load.
+  answers for shown disabled from a defaulted flag while the record loads, a
+  URL filter rewritten as not offered because its options failed to load, or
+  an item shown as being checked, with a busy indicator, while the only
+  attempt already failed.
+- A query out of step with what changes it: a value left stale by an
+  operation that changes it (a register status no charge outcome
+  invalidates), a refusal saying the list is out of date while nothing reads
+  it again, a key invalidated beside one that already contains it, or a
+  re-read that calls the loader and writes the cache, so a failed read shows
+  no failure.
+- A modal handling an answer that arrives after it closed: a stale notice on
+  its next opening, a late success whose list refresh is dropped, or a late
+  callback resetting a later opening.
+- A guard out of step with what it guards: every route to a screen refused
+  while the core refuses only one action, or a person sent back to the
+  screen they are leaving.
 
 ### User-facing text
 
@@ -109,8 +158,74 @@ how a new one is judged.
 - A locked control left plainly disabled: its tooltip dropped while a
   refusal shows elsewhere, so the control itself no longer says why it is
   locked.
+- A text saying more or other than what happened or what the domain does: a
+  success notice naming every role while only some saved, a pending state
+  stated on rows whose record is closed, a cause the answer does not carry
+  ("La tarjeta no se aprobó" for a decline that may be a QR payment), or a
+  consequence nothing produces ("El Administrador ya fue avisado" for a
+  condition no alert reports).
+- A text that names what the app does not show or have: a help step telling
+  the person to press "Reimprimir como duplicado" on an icon-only button, or
+  a refusal sending the cashier to a returns screen the register lacks.
+- Texts shown together that repeat or contradict each other: a refusal
+  beside a standing notice saying the same, or "Seguir vendiendo igual" in
+  the status bar that says "La caja no puede vender".
+
+### Comments
+
+- A name or comment the change made untrue: a variable kept as
+  `refreshSales` after it was rebound to a hook that refreshes only
+  payments, a test still titled for a setup or a set of values it no longer
+  has ("rejects a status outside starting, down and up" after `updating`
+  became valid), or a comment naming the folder a moved file left.
 
 ### Commit order
+
+- A code commit whose behavior change reads as no change: a branch added or
+  removed, a parameter type widened, a default value changed, so an input
+  gets a new outcome no earlier test commit states.
+- A commit holding more than its kind: a test commit that also moves a
+  production file whose importer changes only later, or a commit presented
+  as configuration that also deletes files other code still imports, so the
+  repository does not type-check at it.
+- A test commit whose test fails on its own setup rather than on the
+  behavior, so the test that states the behavior arrives only with the code
+  commit that fixes the setup.
+
+### Testing and migrations
+
+- A case tested above the level that owns it: an app part asserting a
+  `packages/ui` piece's behavior beyond the props it wires, a route test
+  repeating an adapter's integration case, a screen test repeating what a
+  modal's or a helper's own test owns.
+- A rule with no test at its own level: a domain predicate proven only
+  through use cases, a shared helper tested only through its callers, or a
+  query hook only through its screen.
+- A test that does not control the timing or the processes it depends on: a
+  baseline taken while the app it started may still be working, a wait ended
+  only by events a broken run may never raise, a short client timeout in a
+  shared helper that answered cases meet only in real time, or a cleanup
+  that ends a hung process with a signal it handles as the same quit that
+  hung.
+- A test removed while nothing else verifies its rule: a case deleted with
+  the code it covered while the replacing code applies the same rule (an
+  adapter's ordering case dropped while the new adapter keeps the same
+  `ORDER BY`).
+- A migration that leaves data or rights other than the schema means: a
+  backfill that guesses what old rows cannot prove (every recovery link
+  marked sent while some failed and await a retry), a column for a shown
+  value added with no backfill from what the database already records, or a
+  table the schema calls append-only left writable by `cloud_app`.
+
+### Data
+
+- A fixture recorded from a real service that keeps an identity its scrubber
+  does not name, such as an `O=` legal name when only `CN=` is replaced.
+- Sample or seeded data in a state the running system never produces: an
+  alert scoped to a record its detector does not watch, so the next run
+  closes it, or a lifetime its producer never writes for those days.
+
+## Commit order
 
 - A code commit whose behavior change reads as no change: a branch added or
   removed, a parameter type widened, a default value changed, so an input
