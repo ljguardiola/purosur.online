@@ -31,6 +31,7 @@ import {
   canSeeStockBalances,
   canSeeStockMovements,
   canSeeUsersArea,
+  canUseBitlockerRecoveryKey,
 } from "./backoffice-access";
 import {
   ADMINISTRATOR_ACCESS,
@@ -51,6 +52,7 @@ test.each([
   ["canCloseAlertsManually", "close_alerts_manually", canCloseAlertsManually],
   ["canSeeRegistersArea", "registers_area", canSeeRegistersArea],
   ["canRevokeInstallations", "revoke_installations", canRevokeInstallations],
+  ["canUseBitlockerRecoveryKey", "bitlocker_recovery_key", canUseBitlockerRecoveryKey],
   ["canSeeBackupsArea", "backups_area", canSeeBackupsArea],
   ["canSeeStockBalances", "stock_balances", canSeeStockBalances],
   ["canPerformStockCounts", "stock_counts", canPerformStockCounts],
