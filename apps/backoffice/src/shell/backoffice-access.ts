@@ -75,6 +75,10 @@ export function canRevokeInstallations(access: BackofficeAccess): boolean {
   return grants(access, "revoke_installations");
 }
 
+export function canUseBitlockerRecoveryKey(access: BackofficeAccess): boolean {
+  return grants(access, "bitlocker_recovery_key");
+}
+
 export function canSeeBackupsArea(access: BackofficeAccess): boolean {
   return grants(access, "backups_area");
 }
