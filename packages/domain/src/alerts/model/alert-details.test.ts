@@ -280,6 +280,26 @@ describe("OpenAlertInput of a fortnight report", () => {
     }>().not.toExtend<OpenAlertInput>();
   });
 
+  it("accepts the point of sale and the fortnight, naming no register, for an alert of a presentation owed elsewhere", () => {
+    expectTypeOf<{
+      kind: "fortnight_report_owed_elsewhere";
+      scope: string;
+      detail: {
+        pointOfSaleNumber: number;
+        fortnightStart: string;
+        fortnightEnd: string;
+      };
+    }>().toExtend<OpenAlertInput>();
+  });
+
+  it("refuses an alert of a presentation owed elsewhere without the point of sale", () => {
+    expectTypeOf<{
+      kind: "fortnight_report_owed_elsewhere";
+      scope: string;
+      detail: { fortnightStart: string; fortnightEnd: string };
+    }>().not.toExtend<OpenAlertInput>();
+  });
+
   it("refuses an overdue alert without the deadline", () => {
     expectTypeOf<{
       kind: "fortnight_report_overdue";
