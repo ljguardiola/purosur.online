@@ -29,6 +29,7 @@ const SALE: Sale = {
   void_authorization_required: false,
   reprint: { kind: "available" },
   next_copy: { kind: "duplicate", order_number: 1 },
+  credit_note: null,
 };
 
 const WITH_PERMISSION: SignedInPerson = {

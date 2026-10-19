@@ -74,6 +74,7 @@ describe("creditNotePrintNotice", () => {
     expect(creditNotePrintNotice("started")).toEqual({
       tone: "success",
       title: "La nota de crédito sale en cuanto la impresora esté lista",
+      description: "Sale como nota de crédito C.",
     });
   });
 
@@ -83,14 +84,18 @@ describe("creditNotePrintNotice", () => {
       "Todavía puede salir una impresión de esta venta",
       "Esperá a que termine antes de imprimir la nota de crédito.",
     ],
-    ["printer_not_configured", "La impresora no está configurada", undefined],
-    ["lacks_permission", "No tenés permiso para imprimir la nota de crédito", undefined],
+    [
+      "printer_not_configured",
+      "La impresora no está configurada",
+      "Configurala para imprimir la nota de crédito.",
+    ],
+    [
+      "lacks_permission",
+      "No tenés permiso para imprimir la nota de crédito",
+      "Pedile a alguien con permiso que la imprima.",
+    ],
     ["unavailable", "No se pudo imprimir la nota de crédito", "Probá de nuevo."],
   ] as const)("refuses %s", (kind, title, description) => {
-    expect(creditNotePrintNotice(kind)).toEqual({
-      tone: "error",
-      title,
-      ...(description === undefined ? {} : { description }),
-    });
+    expect(creditNotePrintNotice(kind)).toEqual({ tone: "error", title, description });
   });
 });
