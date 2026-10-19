@@ -131,7 +131,7 @@ describe("actionsColumn", () => {
       Accepts<Column, { id: "actions"; header: string; actions: [] }>
     >().toEqualTypeOf<false>();
     expectTypeOf<
-      Accepts<Column, { id: "actions"; header: string; actions: [Edit, Edit, Edit, Edit] }>
+      Accepts<Column, { id: "actions"; header: string; actions: [Edit, Edit, Edit, Edit, Edit] }>
     >().toEqualTypeOf<false>();
     expectTypeOf<Accepts<Column, { id: "actions"; actions: [Edit] }>>().toEqualTypeOf<false>();
   });
