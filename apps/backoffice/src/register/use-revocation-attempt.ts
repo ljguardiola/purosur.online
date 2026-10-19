@@ -46,11 +46,13 @@ export function useRevocationAttempt<Outcome extends { kind: string }, Specific 
   open,
   actionName,
   onSessionEnded,
+  onCancelled,
   services,
 }: {
   open: boolean;
   actionName: string;
   onSessionEnded: () => void;
+  onCancelled?: () => void;
   services: RevocationAttemptServices;
 }) {
   const sendToMyAccount = useSendToMyAccount();
@@ -96,7 +98,9 @@ export function useRevocationAttempt<Outcome extends { kind: string }, Specific 
       sendToMyAccount();
     } else if (outcome.kind === "rate_limited") {
       showNotice({ kind: "rateLimited", retryAfterSeconds: outcome.retryAfterSeconds });
-    } else if (outcome.kind !== "cancelled") {
+    } else if (outcome.kind === "cancelled") {
+      onCancelled?.();
+    } else {
       showNotice({ kind: "attemptFailed" });
     }
   }
