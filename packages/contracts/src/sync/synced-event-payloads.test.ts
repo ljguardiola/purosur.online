@@ -168,6 +168,7 @@ describe("synced event payloads", () => {
       "sale_print_state_changed@1",
       "sale_voided@1",
       "sale_voided@2",
+      "sale_voided@3",
     ]);
   });
 
