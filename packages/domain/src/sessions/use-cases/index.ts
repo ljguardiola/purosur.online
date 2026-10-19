@@ -91,6 +91,7 @@ export type {
 } from "./record-sign-in-lockout.js";
 export { recordSignInLockout } from "./record-sign-in-lockout.js";
 export type {
+  CompromiseResponseStepRequest,
   RunCompromiseResponseStepInput,
   RunCompromiseResponseStepOutcome,
   RunCompromiseResponseStepPorts,

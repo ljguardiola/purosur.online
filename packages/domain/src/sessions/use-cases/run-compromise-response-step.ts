@@ -13,11 +13,15 @@ export interface RunCompromiseResponseStepPorts {
   actions: CompromiseResponseActions;
 }
 
-export type RunCompromiseResponseStepInput = { actorId: string; at: Date } & (
+export type CompromiseResponseStepRequest =
   | { step: "revoke_every_installation" }
   | { step: "end_sessions_and_remove_passkeys"; accountId: string }
-  | { step: "force_pin_resets" }
-);
+  | { step: "force_pin_resets" };
+
+export type RunCompromiseResponseStepInput = {
+  actorId: string;
+  at: Date;
+} & CompromiseResponseStepRequest;
 
 export type RunCompromiseResponseStepOutcome =
   | { kind: "no_running_response" }
