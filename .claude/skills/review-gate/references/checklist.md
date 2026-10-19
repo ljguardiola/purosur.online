@@ -57,8 +57,9 @@ how a new one is judged.
 - A failure path out of step with what failed: a handler that replaces the
   error it caught, so its kind never reaches what reacts to it; an outside
   call whose outcome is unknown (a timeout) recorded as one that did nothing;
-  or one item's error that stops a sweep over many (or a housekeeping step's
-  failure that stops the work it serves).
+  or a failure whose effect reaches past or stops short of the work it
+  failed (one item's error halting a sweep over many, a follow-up enqueued
+  only on the path that succeeds, so half-done work waits for nothing).
 - A value one side of a boundary produces or accepts that the other side
   refuses or reads otherwise: a stricter shape in place of the reader it
   replaced, a plain-object lookup of a received code that answers for
