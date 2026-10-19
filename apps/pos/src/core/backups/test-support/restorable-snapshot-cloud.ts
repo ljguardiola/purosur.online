@@ -90,10 +90,7 @@ export class FakeRestorableCloud {
         throw new TypeError("fetch failed");
       }
       if (this.listing === "refused") {
-        return Response.json(
-          { code: "unauthorized", message: "no", details: [] },
-          { status: 401 },
-        );
+        return Response.json({ code: "unauthorized", message: "no", details: [] }, { status: 401 });
       }
       return Response.json({
         register_id: REGISTER_ID,

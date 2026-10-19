@@ -30,12 +30,17 @@ function restorableFrom(cloud: FakeRestorableCloud) {
 describe("the generations the cloud lists for a restore", () => {
   it("asks with the installation's token and names each generation for the restore", async () => {
     const cloud = new FakeRestorableCloud();
-    cloud.snapshots = [snapshot("0f8fad5b-d9cb-469f-a165-70867728950e", "2026-10-15T12:00:00.000Z")];
+    cloud.snapshots = [
+      snapshot("0f8fad5b-d9cb-469f-a165-70867728950e", "2026-10-15T12:00:00.000Z"),
+    ];
 
     const answer = await restorableFrom(cloud).generations.list();
 
     expect(cloud.requests).toEqual([
-      { url: `${CLOUD_URL}/api/devices/current/snapshots`, authorization: `Bearer ${DEVICE_TOKEN}` },
+      {
+        url: `${CLOUD_URL}/api/devices/current/snapshots`,
+        authorization: `Bearer ${DEVICE_TOKEN}`,
+      },
     ]);
     expect(answer).toEqual({
       kind: "listed",
@@ -60,7 +65,9 @@ describe("the generations the cloud lists for a restore", () => {
 
   it("remembers where each listed generation is downloaded from", async () => {
     const cloud = new FakeRestorableCloud();
-    cloud.snapshots = [snapshot("0f8fad5b-d9cb-469f-a165-70867728950e", "2026-10-15T12:00:00.000Z")];
+    cloud.snapshots = [
+      snapshot("0f8fad5b-d9cb-469f-a165-70867728950e", "2026-10-15T12:00:00.000Z"),
+    ];
     const restorable = restorableFrom(cloud);
     await restorable.generations.list();
 
@@ -70,12 +77,15 @@ describe("the generations the cloud lists for a restore", () => {
     expect(restorable.downloadUrlOf("00000000-0000-4000-8000-000000000000")).toBeUndefined();
   });
 
-  it.each(["unreachable", "refused"] as const)("is unreachable when the cloud is %s", async (listing) => {
-    const cloud = new FakeRestorableCloud();
-    cloud.listing = listing;
+  it.each(["unreachable", "refused"] as const)(
+    "is unreachable when the cloud is %s",
+    async (listing) => {
+      const cloud = new FakeRestorableCloud();
+      cloud.listing = listing;
 
-    expect(await restorableFrom(cloud).generations.list()).toEqual({ kind: "unreachable" });
-  });
+      expect(await restorableFrom(cloud).generations.list()).toEqual({ kind: "unreachable" });
+    },
+  );
 
   it("is unreachable when the cloud answers something it cannot read", async () => {
     const unreadable = createCloudRestorableGenerations({

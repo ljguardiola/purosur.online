@@ -13,10 +13,7 @@ import {
   FakeRestorableCloud,
   sha256Of,
 } from "./test-support/restorable-snapshot-cloud";
-import {
-  brokenForeignKeySqliteBytes,
-  validSqliteBytes,
-} from "./test-support/sqlite-fixtures";
+import { brokenForeignKeySqliteBytes, validSqliteBytes } from "./test-support/sqlite-fixtures";
 
 const GENERATION_ID = "0f8fad5b-d9cb-469f-a165-70867728950e";
 const KEY = Buffer.alloc(32, 5);
@@ -41,7 +38,10 @@ afterEach(async () => {
 
 async function stage(
   snapshot: EncryptedSnapshot,
-  options: { keys?: { version: number; key: Buffer }[]; generation?: Partial<{ sha256: string; size: number }> } = {},
+  options: {
+    keys?: { version: number; key: Buffer }[];
+    generation?: Partial<{ sha256: string; size: number }>;
+  } = {},
 ) {
   cloud.snapshots = [snapshot];
   const durability: Durability = {
@@ -89,7 +89,7 @@ describe("staging a snapshot generation", () => {
     expect(answer).toEqual({ kind: "staged" });
     expect(await readFile(stagedPath)).toEqual(database);
     expect(await leftInFolder()).toEqual(["register.restored.sqlite"]);
-    expect(flushed).toEqual([`file ${stagedPath}`, `folder ${folder}`]);
+    expect(flushed).toEqual([`file ${stagedPath}.partial`, `folder ${folder}`]);
   });
 
   it("decrypts with the key of the version the generation was encrypted with", async () => {

@@ -101,10 +101,15 @@ describe("adopting a staged snapshot", () => {
       live
         .prepare("SELECT device_id, pull_cursor, last_device_seq, last_chain_hmac FROM sync_state")
         .get(),
-    ).toEqual({ device_id: NEW_DEVICE, pull_cursor: 77, last_device_seq: 0, last_chain_hmac: null });
-    expect(live.prepare("SELECT device_id, last_acknowledged_seq FROM register_predecessor").all()).toEqual([
-      { device_id: OLD_DEVICE, last_acknowledged_seq: 4 },
-    ]);
+    ).toEqual({
+      device_id: NEW_DEVICE,
+      pull_cursor: 77,
+      last_device_seq: 0,
+      last_chain_hmac: null,
+    });
+    expect(
+      live.prepare("SELECT device_id, last_acknowledged_seq FROM register_predecessor").all(),
+    ).toEqual([{ device_id: OLD_DEVICE, last_acknowledged_seq: 4 }]);
     expect(live.prepare("SELECT COUNT(*) AS total FROM outbox").get()).toEqual({ total: 0 });
     expect(live.prepare("SELECT COUNT(*) AS total FROM pin_verifiers").get()).toEqual({ total: 0 });
     live.close();
@@ -199,7 +204,11 @@ describe("adopting a staged snapshot", () => {
 
   it("migrates a snapshot taken by an older version of the register", async () => {
     const older = LOCAL_MIGRATIONS.slice(0, 30);
-    const staged = openLocalDatabase(join(folder, "register.restored.sqlite"), older, migrationClock);
+    const staged = openLocalDatabase(
+      join(folder, "register.restored.sqlite"),
+      older,
+      migrationClock,
+    );
     staged.exec(`UPDATE sync_state SET device_id = '${OLD_DEVICE}', pull_cursor = 5`);
     staged.close();
     restorePendingIn(folder).begin(NEW_DEVICE);

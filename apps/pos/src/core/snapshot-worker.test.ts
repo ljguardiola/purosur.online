@@ -187,10 +187,9 @@ describe("the snapshot worker", () => {
     deliver(RESTORE_JOB);
     await posted;
 
-    expect(console.error).toHaveBeenCalledWith(
-      "snapshot worker: no generation could be restored",
-      [{ generationId: "g1", stage: "hash_mismatch" }],
-    );
+    expect(console.error).toHaveBeenCalledWith("snapshot worker: no generation could be restored", [
+      { generationId: "g1", stage: "hash_mismatch" },
+    ]);
   });
 
   it("exits with a failure when the restore job failed", async () => {

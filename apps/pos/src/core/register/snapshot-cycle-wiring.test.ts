@@ -33,7 +33,10 @@ afterEach(() => {
   rmSync(folder, { recursive: true, force: true });
 });
 
-function start(walSizeBytes = 0, options: { damaged?: boolean; restorePending?: boolean; cloud?: FakeSnapshotCloud } = {}) {
+function start(
+  walSizeBytes = 0,
+  options: { damaged?: boolean; restorePending?: boolean; cloud?: FakeSnapshotCloud } = {},
+) {
   const cloud = options.cloud ?? new FakeSnapshotCloud();
   const damage: string[] = [];
   const reported: string[] = [];
