@@ -1,6 +1,6 @@
 import type { Clock } from "../../shared/index.js";
 import { isRefundSentByCloud, mercadoPagoRefundStage } from "../model/mercado-pago-refund.js";
-import { isRefundDiscardable } from "../model/payment-refund.js";
+import { isRefundDiscardable } from "../model/refund-discard.js";
 import type { PendingRefund, PendingRefundsReader } from "./refund-store.js";
 
 export interface ListPendingRefundsPorts {

@@ -38,6 +38,17 @@ export interface RecordedRefundOfVoidedSale {
   confirmedAt: Date | null;
 }
 
+export function isRefundRefusedForGood(refund: {
+  method: string;
+  origin: string;
+  confirmedAt: Date | null;
+  lastRefusalReason: string | null;
+}): boolean {
+  return (
+    isRefundSentByCloud(refund) && mercadoPagoRefundStage({ ...refund, sentAt: null }) === "refused"
+  );
+}
+
 export function recordedRefundOfVoidedSale<Refund extends { paymentId: string; method: string }>(
   refund: Refund,
   voiding: { actorId: string; voidedAt: Date },
