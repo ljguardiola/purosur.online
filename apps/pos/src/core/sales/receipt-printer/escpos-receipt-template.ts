@@ -1,5 +1,6 @@
 import {
   ARGENTINA_TIME_ZONE,
+  type CreditNoteCFiscalBlock,
   type DeferredSaleDocumentBlock,
   type ReceiptContent,
   type ReceiptCopy,
@@ -49,6 +50,14 @@ const VOUCHER_CODE_DIGITS = 3;
 const LOGO_TOP_MARGIN_DOTS = 24;
 const LOGO_BOTTOM_MARGIN_DOTS = 16;
 const SHORT_CODE_GROUP_LENGTH = 4;
+
+const REFUND_NAMES = {
+  CASH: "Reintegro en efectivo",
+  TRANSFER: "Reintegro por transferencia",
+  QR: "Reintegro por QR de Mercado Pago",
+  POINT: "Reintegro por Point integrada",
+  STANDALONE_TERMINAL: "Reintegro por terminal independiente",
+} as const;
 
 const PAYMENT_NAMES = {
   CASH: "Efectivo",
@@ -226,17 +235,26 @@ function voucherType(out: Output, block: InvoiceBlock, title: string): void {
   out.small(centered(`Cód. ${code}  ·  A ${buyer}`, SMALL_COLUMNS));
 }
 
+interface CorrectedInvoice {
+  issuedOn: string;
+  corrects: CreditNoteCFiscalBlock["corrects"];
+}
+
 function operation(
   out: Output,
   { occurredAt, servedByFirstName, operationNumber }: ReceiptContent["operation"],
   block: InvoiceBlock | null,
+  creditNote?: CorrectedInvoice,
 ): void {
-  const date = formatDate(occurredAt, {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    timeZone: ARGENTINA_TIME_ZONE,
-  });
+  const date =
+    creditNote === undefined
+      ? formatDate(occurredAt, {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+          timeZone: ARGENTINA_TIME_ZONE,
+        })
+      : calendarDay(creditNote.issuedOn);
   const time = formatDate(occurredAt, {
     hour: "2-digit",
     minute: "2-digit",
@@ -256,6 +274,12 @@ function operation(
       `Operación ${formatOperationNumber(operationNumber)}`,
       `Atendió ${servedByFirstName.trim().split(/\s+/)[0]}`,
     ),
+    ...(creditNote === undefined
+      ? []
+      : row(
+          "Asociada a Factura C",
+          `${formatPointOfSaleNumber(creditNote.corrects.pointOfSale)}-${formatInvoiceNumber(creditNote.corrects.number)}`,
+        )),
     RULE,
   ]);
 }
@@ -394,6 +418,43 @@ function closing(out: Output): void {
   out.command(ESC, 0x64, FEED_LINES);
   out.command(GS, 0x56, 1);
 }
+
+export interface CreditNoteReceiptContent {
+  header: ReceiptContent["header"];
+  operation: ReceiptContent["operation"];
+  issuedOn: string;
+  lines: ReceiptContent["lines"];
+  totals: SaleTotals;
+  refunds: { method: keyof typeof REFUND_NAMES; amount: number }[];
+  fiscal: CreditNoteCFiscalBlock;
+}
+
+function refunds(out: Output, content: CreditNoteReceiptContent["refunds"]): void {
+  out.lines([
+    RULE,
+    ...content.flatMap(({ method, amount }) => row(REFUND_NAMES[method], formatCents(amount))),
+  ]);
+}
+
+function renderCreditNote(content: CreditNoteReceiptContent): Uint8Array {
+  const out = new Output();
+  initialization(out);
+  logo(out);
+  branch(out, content.header);
+  voucherType(out, content.fiscal, "NOTA DE CRÉDITO");
+  operation(out, content.operation, content.fiscal, {
+    issuedOn: content.issuedOn,
+    corrects: content.fiscal.corrects,
+  });
+  issuer(out, content.fiscal);
+  saleLines(out, content);
+  refunds(out, content.refunds);
+  authorization(out, content.fiscal);
+  closing(out);
+  return out.bytes();
+}
+
+export const escPosCreditNoteTemplate = { render: renderCreditNote };
 
 const DUPLICATE_LEGENDS: Record<string, (orderNumber: number) => Uint8Array> = {
   [TEMPLATE_VERSION]: (orderNumber) => {
