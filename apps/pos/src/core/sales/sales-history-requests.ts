@@ -2,7 +2,11 @@ import type { SaleHistoryDetailOutcome, SalesHistoryOutcome } from "@purosur/con
 
 type SaleHistoryDetail = Extract<SaleHistoryDetailOutcome, { kind: "found" }>["detail"];
 
-import { registerOperationAccess, type SaleComprobante } from "@purosur/domain";
+import {
+  type CreditNoteAnswer,
+  registerOperationAccess,
+  type SaleComprobante,
+} from "@purosur/domain";
 import {
   readSaleHistoryDetail,
   readSalesHistory,
@@ -18,6 +22,7 @@ import { SqliteRegisterSalesHistory } from "./sqlite-register-sales-history";
 export interface SalesHistoryRequestDeps {
   database: LocalDatabase;
   gate: ActionGate;
+  now: () => Date;
 }
 
 export interface SalesHistoryRequest {
@@ -47,6 +52,19 @@ function toWireVoidability(voidability: SaleVoidability): SaleHistoryDetail["voi
         })),
       }
     : voidability;
+}
+
+function toWireCreditNote(creditNote: CreditNoteAnswer | null): SaleHistoryDetail["credit_note"] {
+  return creditNote?.kind === "authorized"
+    ? {
+        kind: "authorized",
+        point_of_sale: creditNote.pointOfSale,
+        number: creditNote.number,
+        issued_on: creditNote.issuedOn,
+        authorization_code: creditNote.authorizationCode,
+        authorization_code_due_on: creditNote.authorizationCodeDueOn,
+      }
+    : creditNote;
 }
 
 export async function salesHistoryFor(
@@ -80,7 +98,7 @@ export async function salesHistoryFor(
 }
 
 export async function saleHistoryDetailFor(
-  { database, gate }: SalesHistoryRequestDeps,
+  { database, gate, now }: SalesHistoryRequestDeps,
   saleId: string,
 ): Promise<SaleHistoryDetailOutcome> {
   const guarded = await gate.run({ kind: "view_sales_history" }, async ({ signedInUserId }) => ({
@@ -88,6 +106,7 @@ export async function saleHistoryDetailFor(
       {
         history: new SqliteRegisterSalesHistory(database),
         ledger: new SqliteReceiptLedger(database),
+        clock: { now },
       },
       { saleId },
     ),
@@ -122,6 +141,7 @@ export async function saleHistoryDetailFor(
       state: detail.standing,
       voidability: toWireVoidability(detail.voidability),
       void_authorization_required: voidNeedsAuthorization,
+      credit_note: toWireCreditNote(detail.creditNote),
       reprint: detail.reprint,
       next_copy:
         detail.nextCopy.kind === "original"

@@ -1076,11 +1076,12 @@ const rendererRequestDeps: RendererRequestDeps = {
   salesHistory:
     localDatabase === undefined || actionGate === undefined
       ? undefined
-      : (request) => salesHistoryFor({ database: localDatabase, gate: actionGate }, request),
+      : (request) => salesHistoryFor({ database: localDatabase, gate: actionGate, now }, request),
   saleHistoryDetail:
     localDatabase === undefined || actionGate === undefined
       ? undefined
-      : (saleId) => saleHistoryDetailFor({ database: localDatabase, gate: actionGate }, saleId),
+      : (saleId) =>
+          saleHistoryDetailFor({ database: localDatabase, gate: actionGate, now }, saleId),
   readReceiptPrinter:
     localDatabase === undefined || actionGate === undefined
       ? undefined
