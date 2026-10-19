@@ -1,5 +1,6 @@
 import {
   type BatteryReport,
+  clockDriftReportOf,
   fiscalEmissionStoppedReportOf,
   type LatestPreEmissionGateOutcome,
   type RegisterTelemetry,
@@ -24,6 +25,7 @@ export function registerTelemetryReader(
   readStorageStop: () => StorageSalesStop | undefined,
   readLocalDatabaseDamaged: () => boolean = () => false,
   readBatteryCritical: () => boolean = () => false,
+  readClockOffsetMs: () => number | null = () => null,
 ): () => Promise<RegisterTelemetry> {
   return async () => ({
     ...(await readStorage()),
@@ -34,6 +36,7 @@ export function registerTelemetryReader(
       readBatteryCritical(),
     ),
     ...fiscalEmissionStoppedReportOf(readLatestPreEmissionGate()),
+    ...clockDriftReportOf(readClockOffsetMs()),
     serial_devices: readSerialDevices(),
     ...batteryTelemetryOf(readBattery()),
   });

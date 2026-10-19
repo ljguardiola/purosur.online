@@ -9,6 +9,7 @@ import {
   CRITICAL_BATTERY_PERCENT,
   type CriticalBatteryAction,
   criticalBatteryActionShowsCondition,
+  isClockDrifted,
   isOnBatteryTooLong,
   isSerialDeviceMissing,
   ON_BATTERY_CONDITION_MINUTES,
@@ -31,6 +32,7 @@ export const REGISTER_OWN_CONDITIONS = [
   "installation_revoked",
   "sales_denied",
   "fiscal_emission_stopped",
+  "clock_drift",
   "register_silent",
   "serial_device_missing",
   "disk_space_low",
@@ -121,6 +123,7 @@ interface RegisterOwnStanding {
   battery: BatteryReport | undefined;
   newSalesStoppedByBattery: boolean;
   criticalBatteryAction: CriticalBatteryAction;
+  clockOffsetMs: number | null;
 }
 
 export function registerOwnConditions({
@@ -135,6 +138,7 @@ export function registerOwnConditions({
   battery,
   newSalesStoppedByBattery,
   criticalBatteryAction,
+  clockOffsetMs,
 }: RegisterOwnStanding): HeldRegisterOwnCondition[] {
   const revoked = isInstallationRevoked(salesStop);
   const denial = salesDenialOf(
@@ -150,6 +154,8 @@ export function registerOwnConditions({
       !salesStop.stopped && fiscalEmissionStopReasonOf(latestPreEmissionGate) !== undefined
         ? { kind: "fiscal_emission_stopped" }
         : null,
+    clock_drift:
+      clockOffsetMs !== null && isClockDrifted(clockOffsetMs) ? { kind: "clock_drift" } : null,
     register_silent:
       !revoked &&
       lastAcceptedPushAt !== null &&

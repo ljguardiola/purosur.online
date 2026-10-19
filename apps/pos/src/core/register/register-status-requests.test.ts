@@ -15,6 +15,7 @@ import {
 } from "@purosur/domain/fiscal/test-support";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { insertPreEmissionGateOutcome } from "../fiscal/sqlite-pre-emission-gate";
+import { SqliteRegisterHealthChecks } from "../fiscal/sqlite-register-health-checks";
 import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import { migrationClock } from "../platform/test-support/migration-clock";
@@ -277,6 +278,25 @@ describe("the register's status", () => {
     recordGateOutcome("sale-2", 5, true);
 
     expect((await status()).conditions).toEqual([]);
+  });
+
+  async function recordClockOffset(second: number, clockOffsetMs: number | null): Promise<void> {
+    await new SqliteRegisterHealthChecks(database).recordHealthCheck(
+      {
+        checkedAt: new Date(NOW.getTime() + second * 1000),
+        roundTripMs: 100,
+        tokenValid: true,
+        arcaReachable: true,
+        clockOffsetMs,
+      },
+      12,
+    );
+  }
+
+  it("holds clock_drift while the latest health check measured a drifted clock", async () => {
+    await recordClockOffset(1, 75_000);
+
+    expect((await status()).conditions).toEqual([{ kind: "clock_drift", level: "critical" }]);
   });
 
   it("holds only installation_revoked once the cloud revoked the installation, with the cloud unreachable", async () => {
