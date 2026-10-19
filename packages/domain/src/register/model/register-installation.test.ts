@@ -38,9 +38,10 @@ describe("registerInstallationState", () => {
       bitlockerKeyLoaded: true,
     });
 
-    expect(
-      registerInstallationState([installation({ bitlockerKeyLoaded: true })]),
-    ).toMatchObject({ kind: "enrolled", bitlockerKeyLoaded: true });
+    expect(registerInstallationState([installation({ bitlockerKeyLoaded: true })])).toMatchObject({
+      kind: "enrolled",
+      bitlockerKeyLoaded: true,
+    });
     expect(registerInstallationState([replacedWithKey, installation()])).toMatchObject({
       kind: "enrolled",
       bitlockerKeyLoaded: false,

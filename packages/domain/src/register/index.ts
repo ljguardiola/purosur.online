@@ -11,6 +11,10 @@ export {
   nextOnBatterySince,
   ON_BATTERY_CONDITION_MINUTES,
 } from "./model/battery.js";
+export {
+  isBitlockerKeyIdentifier,
+  isBitlockerRecoveryKey,
+} from "./model/bitlocker-recovery-key.js";
 export { cashCountDifference } from "./model/cash-count.js";
 export type { CashMovementDirection } from "./model/cash-movement-direction.js";
 export {

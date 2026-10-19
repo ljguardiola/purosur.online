@@ -15,6 +15,15 @@ export type {
 } from "./authenticate-installation.js";
 export { authenticateInstallation } from "./authenticate-installation.js";
 export type {
+  BitlockerRecoveryKeyConsultation,
+  BitlockerRecoveryKeyLoad,
+  BitlockerRecoveryKeyPorts,
+  BitlockerRecoveryKeyStore,
+  BitlockerRecoveryKeyStoreTransaction,
+  HeldBitlockerRecoveryKey,
+  NewBitlockerRecoveryKey,
+} from "./bitlocker-recovery-key-ports.js";
+export type {
   BranchRegister,
   BranchRegisterStore,
   BranchRegisterStoreTransaction,
@@ -54,6 +63,11 @@ export type {
   CloseCashSessionPorts,
 } from "./close-cash-session.js";
 export { closeCashSession } from "./close-cash-session.js";
+export type {
+  ConsultBitlockerRecoveryKeyInput,
+  ConsultBitlockerRecoveryKeyOutcome,
+} from "./consult-bitlocker-recovery-key.js";
+export { consultBitlockerRecoveryKey } from "./consult-bitlocker-recovery-key.js";
 export type { CreateRegisterInput, CreateRegisterOutcome } from "./create-register.js";
 export { createRegister } from "./create-register.js";
 export type {
@@ -107,6 +121,11 @@ export type {
   RestorableSnapshotGeneration,
 } from "./list-restorable-snapshot-generations.js";
 export { listRestorableSnapshotGenerations } from "./list-restorable-snapshot-generations.js";
+export type {
+  LoadBitlockerRecoveryKeyInput,
+  LoadBitlockerRecoveryKeyOutcome,
+} from "./load-bitlocker-recovery-key.js";
+export { loadBitlockerRecoveryKey } from "./load-bitlocker-recovery-key.js";
 export type {
   LocalDatabaseHealth,
   LocalDatabaseHealthPorts,
