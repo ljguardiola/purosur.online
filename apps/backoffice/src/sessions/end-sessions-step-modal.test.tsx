@@ -4,19 +4,25 @@ import { userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
 import type { CompromiseResponse } from "./compromise-response-api";
 import { EndSessionsStepModal } from "./end-sessions-step-modal";
-import { ACCOUNT_ID, runbook } from "./test-support/compromise-response";
+import { ACCOUNT_ID, account, runbook } from "./test-support/compromise-response";
 import { createServices, grantAuthorization } from "./test-support/compromise-response-screen";
 
 beforeEach(() => {
   window.history.pushState(null, "", "/");
 });
 
-const ana = { id: ACCOUNT_ID, firstName: "Ana Pérez", email: "ana@example.com" };
-const beto = {
+const ana = account({ id: ACCOUNT_ID, firstName: "Ana Pérez", email: "ana@example.com" });
+const beto = account({
   id: "0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d",
   firstName: "Beto Ruiz",
   email: "beto@example.com",
-};
+});
+const carla = account({
+  id: "1b2c3d4e-5f60-4a7b-8c9d-0e1f2a3b4c5d",
+  firstName: "Carla Gómez",
+  email: "carla@example.com",
+  mayRemovePasskey: false,
+});
 
 type Handlers = {
   open?: boolean;
@@ -28,7 +34,7 @@ type Handlers = {
 
 function servicesWithAccounts() {
   return createServices({
-    fetchAccounts: vi.fn().mockResolvedValue({ kind: "ok", value: [ana, beto] }),
+    fetchUsers: vi.fn().mockResolvedValue({ kind: "ok", value: [ana, beto, carla] }),
   });
 }
 
@@ -91,10 +97,10 @@ test("does not read the accounts while it is closed", async () => {
     </main>,
   );
 
-  expect(services.fetchAccounts).not.toHaveBeenCalled();
+  expect(services.fetchUsers).not.toHaveBeenCalled();
 });
 
-test("offers every account to choose from", async () => {
+test("offers only the accounts whose passkeys the cloud answers may be removed", async () => {
   const rendered = await renderModal(servicesWithAccounts());
 
   await userEvent.click(rendered.dialog.getByRole("button", { name: /Cuenta sospechada/ }));
@@ -105,20 +111,24 @@ test("offers every account to choose from", async () => {
   await expect
     .element(rendered.screen.getByRole("option", { name: "Beto Ruiz · beto@example.com" }))
     .toBeVisible();
+  expect(
+    rendered.screen.getByRole("option", { name: "Carla Gómez · carla@example.com" }).query(),
+  ).toBeNull();
 });
 
 test("shows a loading state while the accounts load and disables the confirmation", async () => {
   const services = createServices({
-    fetchAccounts: vi.fn().mockReturnValue(new Promise(() => {})),
+    fetchUsers: vi.fn().mockReturnValue(new Promise(() => {})),
   });
   const { dialog } = await renderModal(services);
 
+  await expect.element(dialog.getByRole("status")).toHaveTextContent("Cargando…");
   await expect.element(dialog.getByRole("button", { name: "Cerrar y dar de baja" })).toBeDisabled();
 });
 
 test("offers to read the accounts again when they fail to load", async () => {
   const services = createServices({
-    fetchAccounts: vi
+    fetchUsers: vi
       .fn()
       .mockResolvedValueOnce({ kind: "failed" })
       .mockResolvedValueOnce({ kind: "ok", value: [ana] }),
@@ -128,7 +138,7 @@ test("offers to read the accounts again when they fail to load", async () => {
   await expect.element(rendered.dialog.getByText("No pudimos abrir las cuentas")).toBeVisible();
   await userEvent.click(rendered.dialog.getByRole("button", { name: "Reintentar" }));
 
-  await expect.poll(() => vi.mocked(services.fetchAccounts).mock.calls.length).toBe(2);
+  await expect.poll(() => vi.mocked(services.fetchUsers).mock.calls.length).toBe(2);
   await expect
     .element(rendered.dialog.getByRole("button", { name: /Cuenta sospechada/ }))
     .toBeVisible();

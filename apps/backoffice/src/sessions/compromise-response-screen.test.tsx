@@ -1,7 +1,7 @@
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
-import { ACCOUNT_ID, runbook } from "./test-support/compromise-response";
+import { ACCOUNT_ID, account, runbook } from "./test-support/compromise-response";
 import {
   createServices,
   grantAuthorization,
@@ -36,6 +36,7 @@ test("shows a loading placeholder while the runbook loads", async () => {
   await expect
     .element(screen.getByRole("heading", { name: "Respuesta ante un compromiso", level: 1 }))
     .toBeVisible();
+  await expect.element(screen.getByRole("status")).toHaveTextContent("Cargando…");
   expect(screen.getByRole("button", { name: "Comenzar" }).query()).toBeNull();
 });
 
@@ -188,9 +189,9 @@ test("revokes every installation from its modal and reads the runbook again", as
 
 test("ends the session after ending the sessions and removing the passkeys of the chosen account", async () => {
   const services = servicesWith(runbook(["revoke_every_installation"]));
-  vi.mocked(services.fetchAccounts).mockResolvedValue({
+  vi.mocked(services.fetchUsers).mockResolvedValue({
     kind: "ok",
-    value: [{ id: ACCOUNT_ID, firstName: "Ana Pérez", email: "ana@example.com" }],
+    value: [account({ id: ACCOUNT_ID, firstName: "Ana Pérez", email: "ana@example.com" })],
   });
   vi.mocked(services.endSessionsAndRemovePasskeys).mockResolvedValue({
     kind: "ok",

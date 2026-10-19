@@ -263,7 +263,7 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
       revokeEveryInstallation: vi.fn(),
       forcePinResets: vi.fn(),
       endSessionsAndRemovePasskeys: vi.fn(),
-      fetchAccounts: vi.fn().mockReturnValue(new Promise(() => {})),
+      fetchUsers: vi.fn().mockReturnValue(new Promise(() => {})),
       fetchSessionAuthorizationOptions: vi.fn(),
       authorizeSession: vi.fn(),
       startAuthentication: vi.fn(),

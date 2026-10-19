@@ -1,9 +1,9 @@
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import type { BranchUser } from "../platform/branch-users-api";
 import { render } from "../shell/test-support/render-with-router";
 import { DeactivateUserModal, type DeactivateUserModalServices } from "./deactivate-user-modal";
-import type { BranchUser } from "./users-api";
 
 function createServices(
   overrides: Partial<DeactivateUserModalServices> = {},

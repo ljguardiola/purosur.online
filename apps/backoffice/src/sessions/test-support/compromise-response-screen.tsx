@@ -13,7 +13,7 @@ export function createServices(
     revokeEveryInstallation: vi.fn(),
     forcePinResets: vi.fn(),
     endSessionsAndRemovePasskeys: vi.fn(),
-    fetchAccounts: vi.fn().mockResolvedValue({ kind: "ok", value: [] }),
+    fetchUsers: vi.fn().mockResolvedValue({ kind: "ok", value: [] }),
     fetchSessionAuthorizationOptions: vi.fn(),
     authorizeSession: vi.fn(),
     startAuthentication: vi.fn(),

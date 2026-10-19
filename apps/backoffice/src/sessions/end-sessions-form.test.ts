@@ -7,7 +7,7 @@ import {
   REQUEST_FIELDS,
   requestFrom,
 } from "./end-sessions-form";
-import { ACCOUNT_ID } from "./test-support/compromise-response";
+import { ACCOUNT_ID, account } from "./test-support/compromise-response";
 
 test("builds the request from the chosen account", () => {
   expect(requestFrom({ accountId: ACCOUNT_ID })).toEqual({ account_id: ACCOUNT_ID });
@@ -33,13 +33,40 @@ test("lands a problem with the request's account on the account field with a mes
 test("offers each account by name and email", () => {
   expect(
     accountOptions([
-      { id: ACCOUNT_ID, firstName: "Ana Pérez", email: "ana@example.com" },
-      { id: "b", firstName: "Beto Ruiz", email: "beto@example.com" },
+      account({ id: ACCOUNT_ID, firstName: "Ana Pérez", email: "ana@example.com" }),
+      account({ id: "b", firstName: "Beto Ruiz", email: "beto@example.com" }),
     ]),
   ).toEqual([
     { value: ACCOUNT_ID, label: "Ana Pérez · ana@example.com" },
     { value: "b", label: "Beto Ruiz · beto@example.com" },
   ]);
+});
+
+test("offers only the accounts whose passkeys the cloud answers may be removed", () => {
+  expect(
+    accountOptions([
+      account({ id: ACCOUNT_ID, firstName: "Ana Pérez", email: "ana@example.com" }),
+      account({
+        id: "b",
+        firstName: "Beto Ruiz",
+        email: "beto@example.com",
+        mayRemovePasskey: false,
+      }),
+    ]),
+  ).toEqual([{ value: ACCOUNT_ID, label: "Ana Pérez · ana@example.com" }]);
+});
+
+test("offers nothing when no account's passkeys may be removed", () => {
+  expect(
+    accountOptions([
+      account({
+        id: ACCOUNT_ID,
+        firstName: "Ana Pérez",
+        email: "ana@example.com",
+        mayRemovePasskey: false,
+      }),
+    ]),
+  ).toBeUndefined();
 });
 
 test("offers nothing when there is no account", () => {

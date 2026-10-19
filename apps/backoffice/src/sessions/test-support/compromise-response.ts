@@ -1,4 +1,5 @@
 import type { CompromiseResponseBody } from "@purosur/contracts";
+import type { BranchUser } from "../../platform/branch-users-api";
 import type { CompromiseResponse } from "../compromise-response-api";
 
 type Step = CompromiseResponse["steps"][number]["step"];
@@ -40,6 +41,23 @@ const ITEM_STEPS: Record<Item, Step> = {
 const DONE_AT = "2026-10-01T15:30:00.000Z";
 
 export const ACCOUNT_ID = "6f1d2b3c-4a5e-4f60-8a71-92b3c4d5e6f7";
+
+export function account(
+  user: Pick<BranchUser, "id" | "firstName" | "email"> & Partial<BranchUser>,
+): BranchUser {
+  return {
+    version: 1,
+    role: { id: "role-cashier", isAdministrator: false, name: "Cajero" },
+    passkeyCount: 1,
+    isLastActiveAdministrator: false,
+    mayEmitPinCode: true,
+    mayEdit: true,
+    mayDeactivate: true,
+    mayReactivate: false,
+    mayRemovePasskey: true,
+    ...user,
+  };
+}
 
 export function runbookBody(
   doneSteps: readonly Step[] = [],
