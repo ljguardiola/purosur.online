@@ -519,6 +519,15 @@ export { salesReportSchema } from "./sales/sales-report.js";
 export type { SalesReportGroupBody } from "./sales/sales-report-group.js";
 export { salesReportGroupSchema } from "./sales/sales-report-group.js";
 export type {
+  CompromiseResponseBody,
+  CompromiseResponseSessionsAndPasskeysBody,
+} from "./sessions/compromise-response.js";
+export {
+  compromiseResponseItemSchema,
+  compromiseResponseSchema,
+  compromiseResponseSessionsAndPasskeysBodySchema,
+} from "./sessions/compromise-response.js";
+export type {
   SessionsCoreToRendererMessage,
   SessionsRendererToCoreMessage,
   SignInLookupOutcome,
