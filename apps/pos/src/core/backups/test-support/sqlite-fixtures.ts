@@ -24,6 +24,7 @@ export function validSqliteBytes(): Buffer {
 
 export function brokenForeignKeySqliteBytes(): Buffer {
   return sqliteFileBytes((database) => {
+    database.pragma("foreign_keys = OFF");
     database.exec(`
       CREATE TABLE parents (id INTEGER PRIMARY KEY);
       CREATE TABLE children (id INTEGER PRIMARY KEY, parent_id INTEGER REFERENCES parents(id));
