@@ -1,5 +1,6 @@
 import {
   type CreditNoteAnswer,
+  type PushedEvent,
   SALE_VOIDED_EVENT_TYPE,
   type SaleVoidCreditNote,
 } from "@purosur/domain";
@@ -115,16 +116,10 @@ interface InProgressRow {
   corrected_voucher_type: number;
   corrected_point_of_sale: number;
   corrected_number: number;
-  event_id: string;
-  device_seq: number;
-  aggregate_type: string;
-  aggregate_id: string;
-  event_type: string;
-  schema_version: number;
+}
+
+interface SaleEventRow extends Omit<PushedEvent, "payload"> {
   payload: string;
-  occurred_at: string;
-  actor_id: string;
-  chain_hmac: string;
 }
 
 export class SqliteVoidCreditNotes implements RegisterVoidCreditNotes {
@@ -136,42 +131,45 @@ export class SqliteVoidCreditNotes implements RegisterVoidCreditNotes {
 
   async inProgress(): Promise<PendingCreditNote[]> {
     return this.database
-      .prepare<[string], InProgressRow>(
-        `SELECT credit_note.id, credit_note.sale_id, credit_note.total,
-                credit_note.receiver_tax_status_code, credit_note.corrected_voucher_type,
-                credit_note.corrected_point_of_sale, credit_note.corrected_number,
-                outbox.event_id, outbox.device_seq, outbox.aggregate_type, outbox.aggregate_id,
-                outbox.event_type, outbox.schema_version, outbox.payload, outbox.occurred_at,
-                outbox.actor_id, outbox.chain_hmac
-         FROM sale_void_credit_notes AS credit_note
-         JOIN outbox ON outbox.aggregate_id = credit_note.sale_id AND outbox.event_type = ?
-         WHERE credit_note.state = 'IN_PROGRESS'
-         ORDER BY credit_note.recorded_at, credit_note.id`,
+      .prepare<[], InProgressRow>(
+        `SELECT id, sale_id, total, receiver_tax_status_code, corrected_voucher_type,
+                corrected_point_of_sale, corrected_number
+         FROM sale_void_credit_notes
+         WHERE state = 'IN_PROGRESS'
+         ORDER BY recorded_at, id`,
       )
-      .all(SALE_VOIDED_EVENT_TYPE)
-      .map((row) => ({
-        creditNoteId: row.id,
-        saleId: row.sale_id,
-        total: row.total,
-        receiverTaxStatusCode: row.receiver_tax_status_code,
-        correctedVoucher: {
-          voucherType: row.corrected_voucher_type,
-          pointOfSale: row.corrected_point_of_sale,
-          number: row.corrected_number,
-        },
-        saleEvent: {
-          event_id: row.event_id,
-          device_seq: row.device_seq,
-          aggregate_type: row.aggregate_type,
-          aggregate_id: row.aggregate_id,
-          event_type: row.event_type,
-          schema_version: row.schema_version,
-          payload: JSON.parse(row.payload),
-          occurred_at: row.occurred_at,
-          actor_id: row.actor_id,
-          chain_hmac: row.chain_hmac,
-        },
-      }));
+      .all()
+      .flatMap((row) => {
+        const saleEvent = this.saleVoidedEvent(row.sale_id);
+        return saleEvent === null
+          ? []
+          : [
+              {
+                creditNoteId: row.id,
+                saleId: row.sale_id,
+                total: row.total,
+                receiverTaxStatusCode: row.receiver_tax_status_code,
+                correctedVoucher: {
+                  voucherType: row.corrected_voucher_type,
+                  pointOfSale: row.corrected_point_of_sale,
+                  number: row.corrected_number,
+                },
+                saleEvent,
+              },
+            ];
+      });
+  }
+
+  private saleVoidedEvent(saleId: string): PushedEvent | null {
+    const row = this.database
+      .prepare<[string, string], SaleEventRow>(
+        `SELECT event_id, device_seq, aggregate_type, aggregate_id, event_type, schema_version,
+                payload, occurred_at, actor_id, chain_hmac
+           FROM outbox
+          WHERE event_type = ? AND aggregate_id = ?`,
+      )
+      .get(SALE_VOIDED_EVENT_TYPE, saleId);
+    return row === undefined ? null : { ...row, payload: JSON.parse(row.payload) };
   }
 
   async realTimePointOfSale(): Promise<number | null> {
