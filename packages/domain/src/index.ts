@@ -50,6 +50,7 @@ export {
   FORTNIGHT_REPORT_PENDING_REASONS,
   fiscalRejectionAlertObservation,
   fiscalUnknownAlertKey,
+  invoiceAlreadyCreditedObservation,
   isAlertKind,
   isAlertLevel,
   isAlertOfViewerBranch,

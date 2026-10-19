@@ -10,6 +10,7 @@ export {
   clockCorrectedObservation,
   externalBillingObservation,
   fiscalRejectionAlertObservation,
+  invoiceAlreadyCreditedObservation,
   offlineAuthorizationCodeHeldObservation,
   offlineAuthorizationCodeMissingObservation,
   registerFiscalEmissionObservation,

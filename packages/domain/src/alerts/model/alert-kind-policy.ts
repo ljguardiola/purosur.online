@@ -253,6 +253,14 @@ const ALERT_KIND_POLICIES = {
     deduplicates: false,
     resolvesAfterStableClear: false,
   },
+  invoice_already_credited: {
+    level: "critical",
+    escalation: null,
+    audience: "all",
+    scopeKind: "pointOfSaleDocumentNumber",
+    deduplicates: true,
+    resolvesAfterStableClear: false,
+  },
   fortnight_report_needs_regularization: {
     level: "critical",
     escalation: null,
