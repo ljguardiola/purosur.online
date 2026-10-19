@@ -823,6 +823,14 @@ export async function startServer(env: ServerEnv, deps: StartServerDeps): Promis
             enqueueNumberingDiagnosis: enqueueNumberingDiagnosisJob,
             enqueueCreditNote: enqueueCreditNoteJob,
           },
+          creditNotes: {
+            connections: database.recovery.connections,
+            vouchers: new WsfeTaxAuthorityVouchers(invoicing),
+            taxAuthority: new WsfeTaxAuthorityLastAuthorized(invoicing),
+            creditNotes: new WsfeTaxAuthorityCreditNotes(invoicing),
+            certificateFingerprint: invoicing.certificateFingerprint,
+            enqueueCreditNote: enqueueCreditNoteJob,
+          },
         }
       : {}),
   });

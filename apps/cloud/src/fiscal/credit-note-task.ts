@@ -1,4 +1,5 @@
 import {
+  type IssueCreditNotePorts,
   issueCreditNote,
   type TaxAuthorityCreditNoteInvoicing,
   type TaxAuthorityLastAuthorizedLookup,
@@ -41,7 +42,7 @@ function creditNoteIdOf(payload: unknown): string {
   return creditNoteId;
 }
 
-export function creditNoteJobs<TQueryResult extends PgQueryResultHKT>({
+export function creditNoteIssuancePorts<TQueryResult extends PgQueryResultHKT>({
   now,
   vouchers,
   taxAuthority,
@@ -49,9 +50,9 @@ export function creditNoteJobs<TQueryResult extends PgQueryResultHKT>({
   certificateFingerprint,
   db,
   connections,
-}: CreditNoteInput<TQueryResult>): BackgroundJobs {
+}: CreditNoteInput<TQueryResult>): IssueCreditNotePorts {
   const clock = { now };
-  const ports = {
+  return {
     requests: new DrizzleCreditNoteRequests(db),
     lanes: new DrizzleCreditNoteLanes(connections),
     clock,
@@ -60,6 +61,12 @@ export function creditNoteJobs<TQueryResult extends PgQueryResultHKT>({
     taxAuthority,
     creditNotes,
   };
+}
+
+export function creditNoteJobs<TQueryResult extends PgQueryResultHKT>(
+  input: CreditNoteInput<TQueryResult>,
+): BackgroundJobs {
+  const ports = creditNoteIssuancePorts(input);
   return {
     taskList: {
       [CREDIT_NOTE_TASK_IDENTIFIER]: async (payload, helpers) => {
