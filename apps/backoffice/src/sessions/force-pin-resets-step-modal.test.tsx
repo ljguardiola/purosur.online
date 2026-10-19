@@ -2,6 +2,7 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
+import type { CompromiseResponse } from "./compromise-response-api";
 import { ForcePinResetsStepModal } from "./force-pin-resets-step-modal";
 import { runbook } from "./test-support/compromise-response";
 import { createServices, grantAuthorization } from "./test-support/compromise-response-screen";
@@ -13,15 +14,12 @@ beforeEach(() => {
 type Handlers = {
   open?: boolean;
   onClose?: () => void;
-  onDone?: (runbook: ReturnType<typeof runbook>) => void;
+  onDone?: (runbook: CompromiseResponse) => void;
   onOutdated?: () => void;
   onSessionEnded?: () => void;
 };
 
-async function renderModal(
-  services: ReturnType<typeof createServices>,
-  handlers: Handlers = {},
-) {
+async function renderModal(services: ReturnType<typeof createServices>, handlers: Handlers = {}) {
   const screen = await render(
     <main>
       <ForcePinResetsStepModal
@@ -119,21 +117,20 @@ test("asks for the passkey when the cloud requires a fresh authorization, then r
   await expect.poll(() => onDone.mock.calls).toEqual([[updated]]);
 });
 
-test.each([
-  "no_running_response",
-  "out_of_order",
-  "already_done",
-] as const)("explains a %s refusal and reports the runbook outdated", async (kind) => {
-  const services = createServices();
-  vi.mocked(services.forcePinResets).mockResolvedValue({ kind });
-  const onOutdated = vi.fn();
-  const { dialog } = await renderModal(services, { onOutdated });
+test.each(["no_running_response", "out_of_order", "already_done"] as const)(
+  "explains a %s refusal and reports the runbook outdated",
+  async (kind) => {
+    const services = createServices();
+    vi.mocked(services.forcePinResets).mockResolvedValue({ kind });
+    const onOutdated = vi.fn();
+    const { dialog } = await renderModal(services, { onOutdated });
 
-  await confirm(dialog);
+    await confirm(dialog);
 
-  await expect.element(dialog.getByText("El instructivo cambió")).toBeVisible();
-  expect(onOutdated).toHaveBeenCalledTimes(1);
-});
+    await expect.element(dialog.getByText("El instructivo cambió")).toBeVisible();
+    expect(onOutdated).toHaveBeenCalledTimes(1);
+  },
+);
 
 test("shows the rate-limited notice", async () => {
   const services = createServices();

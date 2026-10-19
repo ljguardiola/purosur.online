@@ -1,6 +1,12 @@
 import { compromiseResponseSessionsAndPasskeysBodySchema } from "@purosur/contracts";
 import { expect, test } from "vitest";
-import { accountOptions, EMPTY_VALUES, MESSAGES, REQUEST_FIELDS, requestFrom } from "./end-sessions-form";
+import {
+  accountOptions,
+  EMPTY_VALUES,
+  MESSAGES,
+  REQUEST_FIELDS,
+  requestFrom,
+} from "./end-sessions-form";
 import { ACCOUNT_ID } from "./test-support/compromise-response";
 
 test("builds the request from the chosen account", () => {
@@ -8,7 +14,9 @@ test("builds the request from the chosen account", () => {
 });
 
 test("an empty form does not satisfy the request's shape, and a chosen account does", () => {
-  const empty = compromiseResponseSessionsAndPasskeysBodySchema.safeParse(requestFrom(EMPTY_VALUES));
+  const empty = compromiseResponseSessionsAndPasskeysBodySchema.safeParse(
+    requestFrom(EMPTY_VALUES),
+  );
   const chosen = compromiseResponseSessionsAndPasskeysBodySchema.safeParse(
     requestFrom({ accountId: ACCOUNT_ID }),
   );

@@ -36,9 +36,7 @@ test("marks an available step as available", async () => {
 test("marks a step that is neither done nor available as blocked until the previous one is done", async () => {
   const screen = await renderCard({ done: false, doneAt: null, available: false });
 
-  await expect
-    .element(screen.getByText("Bloqueado hasta completar el anterior"))
-    .toBeVisible();
+  await expect.element(screen.getByText("Bloqueado hasta completar el anterior")).toBeVisible();
 });
 
 test("marks a done step with the day and time it was done", async () => {

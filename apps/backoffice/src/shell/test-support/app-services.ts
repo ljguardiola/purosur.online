@@ -256,6 +256,18 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
       authorizeSession: vi.fn(),
       startAuthentication: vi.fn(),
     },
+    compromiseResponseScreen: {
+      fetchCompromiseResponse: vi.fn().mockReturnValue(new Promise(() => {})),
+      startCompromiseResponse: vi.fn(),
+      markItemDone: vi.fn(),
+      revokeEveryInstallation: vi.fn(),
+      forcePinResets: vi.fn(),
+      endSessionsAndRemovePasskeys: vi.fn(),
+      fetchAccounts: vi.fn().mockReturnValue(new Promise(() => {})),
+      fetchSessionAuthorizationOptions: vi.fn(),
+      authorizeSession: vi.fn(),
+      startAuthentication: vi.fn(),
+    },
     branchSettingsScreen: {
       fetchBranchSettings: vi.fn().mockReturnValue(new Promise(() => {})),
       saveBranchSettings: vi.fn(),

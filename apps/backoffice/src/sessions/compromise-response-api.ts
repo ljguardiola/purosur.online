@@ -38,7 +38,9 @@ type CommonFailure =
 
 export type FetchCompromiseResponseOutcome = CloudReadOutcome<CompromiseResponse | null>;
 
-export type StartCompromiseResponseOutcome = { kind: "ok"; value: CompromiseResponse } | CommonFailure;
+export type StartCompromiseResponseOutcome =
+  | { kind: "ok"; value: CompromiseResponse }
+  | CommonFailure;
 
 export type StepOutcome =
   | { kind: "ok"; value: CompromiseResponse }
@@ -57,6 +59,10 @@ const REFUSALS: readonly RunbookRefusal[] = ["no_running_response", "out_of_orde
 
 function refusalOf(code: string | undefined): RunbookRefusal | undefined {
   return REFUSALS.find((refusal) => refusal === code);
+}
+
+export function isRunbookRefusal(kind: string): kind is RunbookRefusal {
+  return refusalOf(kind) !== undefined;
 }
 
 function runbookFromWire(body: CompromiseResponseBody): CompromiseResponse {

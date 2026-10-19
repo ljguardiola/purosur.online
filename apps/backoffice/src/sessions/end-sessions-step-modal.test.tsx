@@ -2,6 +2,7 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
+import type { CompromiseResponse } from "./compromise-response-api";
 import { EndSessionsStepModal } from "./end-sessions-step-modal";
 import { ACCOUNT_ID, runbook } from "./test-support/compromise-response";
 import { createServices, grantAuthorization } from "./test-support/compromise-response-screen";
@@ -11,12 +12,16 @@ beforeEach(() => {
 });
 
 const ana = { id: ACCOUNT_ID, firstName: "Ana Pérez", email: "ana@example.com" };
-const beto = { id: "0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d", firstName: "Beto Ruiz", email: "beto@example.com" };
+const beto = {
+  id: "0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d",
+  firstName: "Beto Ruiz",
+  email: "beto@example.com",
+};
 
 type Handlers = {
   open?: boolean;
   onClose?: () => void;
-  onDone?: (runbook: ReturnType<typeof runbook>) => void;
+  onDone?: (runbook: CompromiseResponse) => void;
   onOutdated?: () => void;
   onSessionEnded?: () => void;
 };
@@ -40,7 +45,9 @@ async function renderModal(services: ReturnType<typeof createServices>, handlers
       />
     </main>,
   );
-  const dialog = screen.getByRole("dialog", { name: "Cerrar las sesiones y dar de baja las passkeys" });
+  const dialog = screen.getByRole("dialog", {
+    name: "Cerrar las sesiones y dar de baja las passkeys",
+  });
   await expect.element(dialog).toBeVisible();
   return { screen, dialog };
 }
@@ -101,7 +108,9 @@ test("offers every account to choose from", async () => {
 });
 
 test("shows a loading state while the accounts load and disables the confirmation", async () => {
-  const services = createServices({ fetchAccounts: vi.fn().mockReturnValue(new Promise(() => {})) });
+  const services = createServices({
+    fetchAccounts: vi.fn().mockReturnValue(new Promise(() => {})),
+  });
   const { dialog } = await renderModal(services);
 
   await expect.element(dialog.getByRole("button", { name: "Cerrar y dar de baja" })).toBeDisabled();
@@ -138,7 +147,10 @@ test("asks to choose an account when none was chosen, without running the step",
 test("runs the step for the chosen account and hands the updated runbook over", async () => {
   const services = servicesWithAccounts();
   const updated = runbook(["revoke_every_installation", "end_sessions_and_remove_passkeys"]);
-  vi.mocked(services.endSessionsAndRemovePasskeys).mockResolvedValue({ kind: "ok", value: updated });
+  vi.mocked(services.endSessionsAndRemovePasskeys).mockResolvedValue({
+    kind: "ok",
+    value: updated,
+  });
   const onDone = vi.fn();
   const rendered = await renderModal(services, { onDone });
 
@@ -155,7 +167,10 @@ test("asks for the passkey when the cloud requires a fresh authorization, then r
   vi.mocked(services.endSessionsAndRemovePasskeys).mockResolvedValueOnce({
     kind: "authorization_required",
   });
-  vi.mocked(services.endSessionsAndRemovePasskeys).mockResolvedValueOnce({ kind: "ok", value: updated });
+  vi.mocked(services.endSessionsAndRemovePasskeys).mockResolvedValueOnce({
+    kind: "ok",
+    value: updated,
+  });
   grantAuthorization(services);
   const onDone = vi.fn();
   const rendered = await renderModal(services, { onDone });
@@ -193,22 +208,21 @@ test("explains that it cannot be the caller's own account", async () => {
   await expect.element(rendered.dialog.getByText("No podés elegir tu propia cuenta")).toBeVisible();
 });
 
-test.each([
-  "no_running_response",
-  "out_of_order",
-  "already_done",
-] as const)("explains a %s refusal and reports the runbook outdated", async (kind) => {
-  const services = servicesWithAccounts();
-  vi.mocked(services.endSessionsAndRemovePasskeys).mockResolvedValue({ kind });
-  const onOutdated = vi.fn();
-  const rendered = await renderModal(services, { onOutdated });
-  await chooseAccount(rendered, "Ana Pérez · ana@example.com");
+test.each(["no_running_response", "out_of_order", "already_done"] as const)(
+  "explains a %s refusal and reports the runbook outdated",
+  async (kind) => {
+    const services = servicesWithAccounts();
+    vi.mocked(services.endSessionsAndRemovePasskeys).mockResolvedValue({ kind });
+    const onOutdated = vi.fn();
+    const rendered = await renderModal(services, { onOutdated });
+    await chooseAccount(rendered, "Ana Pérez · ana@example.com");
 
-  await confirm(rendered);
+    await confirm(rendered);
 
-  await expect.element(rendered.dialog.getByText("El instructivo cambió")).toBeVisible();
-  expect(onOutdated).toHaveBeenCalledTimes(1);
-});
+    await expect.element(rendered.dialog.getByText("El instructivo cambió")).toBeVisible();
+    expect(onOutdated).toHaveBeenCalledTimes(1);
+  },
+);
 
 test("shows the attempt-failed notice", async () => {
   const services = servicesWithAccounts();

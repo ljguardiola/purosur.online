@@ -33,7 +33,9 @@ test("shows a loading placeholder while the runbook loads", async () => {
 
   const screen = await renderScreen(services);
 
-  await expect.element(screen.getByRole("heading", { name: "Respuesta ante un compromiso", level: 1 })).toBeVisible();
+  await expect
+    .element(screen.getByRole("heading", { name: "Respuesta ante un compromiso", level: 1 }))
+    .toBeVisible();
   expect(screen.getByRole("button", { name: "Comenzar" }).query()).toBeNull();
 });
 
@@ -44,7 +46,9 @@ test("offers to read the runbook again when it fails to load", async () => {
     .mockResolvedValueOnce({ kind: "ok", value: runbook() });
   const screen = await renderScreen(services);
 
-  await expect.element(screen.getByText("No pudimos abrir la respuesta ante un compromiso")).toBeVisible();
+  await expect
+    .element(screen.getByText("No pudimos abrir la respuesta ante un compromiso"))
+    .toBeVisible();
   await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
 
   await expect.element(screen.getByRole("heading", { name: STEP_TITLES[0] ?? "" })).toBeVisible();
@@ -105,7 +109,9 @@ test("shows the six steps in order, only the first one available", async () => {
   const screen = await renderScreen(servicesWith(runbook()));
 
   const headings = screen.getByRole("heading", { level: 2 });
-  await expect.poll(() => headings.elements().map((heading) => heading.textContent)).toEqual(STEP_TITLES);
+  await expect
+    .poll(() => headings.elements().map((heading) => heading.textContent))
+    .toEqual(STEP_TITLES);
   await expect.element(screen.getByText("Disponible")).toBeVisible();
   expect(screen.getByText("Bloqueado hasta completar el anterior").elements()).toHaveLength(5);
 });
@@ -142,9 +148,13 @@ test("offers to start another runbook once the running one is completed", async 
 test("disables the actions of a step that is not available", async () => {
   const screen = await renderScreen(servicesWith(runbook()));
 
-  await expect.element(screen.getByRole("button", { name: "Revocar todas las instalaciones" })).toBeEnabled();
+  await expect
+    .element(screen.getByRole("button", { name: "Revocar todas las instalaciones" }))
+    .toBeEnabled();
   await expect.element(screen.getByRole("button", { name: "Elegir la cuenta" })).toBeDisabled();
-  await expect.element(screen.getByRole("button", { name: "Forzar el reinicio de PIN" })).toBeDisabled();
+  await expect
+    .element(screen.getByRole("button", { name: "Forzar el reinicio de PIN" }))
+    .toBeDisabled();
 });
 
 test("points to the registers list from the last step", async () => {
@@ -353,7 +363,10 @@ test("explains a failed marking and leaves the item pending", async () => {
 
 test("shows the wait when marking an item is rate limited", async () => {
   const services = servicesAtRotation();
-  vi.mocked(services.markItemDone).mockResolvedValue({ kind: "rate_limited", retryAfterSeconds: 120 });
+  vi.mocked(services.markItemDone).mockResolvedValue({
+    kind: "rate_limited",
+    retryAfterSeconds: 120,
+  });
   const screen = await renderScreen(services);
 
   await userEvent.click(

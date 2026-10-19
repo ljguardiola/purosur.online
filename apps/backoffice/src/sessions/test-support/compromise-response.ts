@@ -46,7 +46,13 @@ export function runbookBody(
   doneItems: readonly Item[] = [],
   completed = false,
 ): CompromiseResponseBody {
-  const isDone = (step: Step) => doneSteps.includes(step) || (step === "rotate_external_secrets" && ITEMS.filter((item) => ITEM_STEPS[item] === step).every((item) => doneItems.includes(item))) || (step === "notify" && doneItems.includes("notify"));
+  const isDone = (step: Step) =>
+    doneSteps.includes(step) ||
+    (step === "rotate_external_secrets" &&
+      ITEMS.filter((item) => ITEM_STEPS[item] === step).every((item) =>
+        doneItems.includes(item),
+      )) ||
+    (step === "notify" && doneItems.includes("notify"));
   return {
     id: "d3b07384-d9a1-4c3e-9f1a-0b1c2d3e4f50",
     started_at: "2026-10-01T14:00:00.000Z",

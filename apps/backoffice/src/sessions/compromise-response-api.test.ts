@@ -131,17 +131,16 @@ test("markItemDone posts to the item's own path and answers the runbook", async 
   expect(outcome).toEqual({ kind: "ok", value: runbook([], ["claude_api_key"]) });
 });
 
-test.each([
-  "no_running_response",
-  "out_of_order",
-  "already_done",
-] as const)("a step reports the runbook's %s refusal by name", async (code) => {
-  vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code }));
+test.each(["no_running_response", "out_of_order", "already_done"] as const)(
+  "a step reports the runbook's %s refusal by name",
+  async (code) => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code }));
 
-  expect(await forcePinResets()).toEqual({ kind: code });
-  vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code }));
-  expect(await markItemDone("notify")).toEqual({ kind: code });
-});
+    expect(await forcePinResets()).toEqual({ kind: code });
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code }));
+    expect(await markItemDone("notify")).toEqual({ kind: code });
+  },
+);
 
 test("a step fails on a 409 with a code it does not know", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code: "other" }));

@@ -1,5 +1,5 @@
-import type { ComponentProps } from "react";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
+import type { ComponentProps } from "react";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
@@ -11,9 +11,7 @@ const secrets = runbook([], ["claude_api_key"]).items.filter(
 );
 const notify = runbook().items.filter((item) => item.step === "notify");
 
-function renderChecklist(
-  props: Partial<ComponentProps<typeof CompromiseResponseChecklist>> = {},
-) {
+function renderChecklist(props: Partial<ComponentProps<typeof CompromiseResponseChecklist>> = {}) {
   return render(
     <main>
       <CompromiseResponseChecklist
