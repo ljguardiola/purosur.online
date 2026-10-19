@@ -12,6 +12,7 @@ import {
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   insertFiscalDocument,
+  insertHealthCheck,
   insertOfflineFiscalDocument,
   insertOfflinePointOfSale,
 } from "../fiscal/test-support/real-time-authorization-database";
@@ -145,7 +146,7 @@ describe("the sale to void", () => {
       sale: { id: saleId, state: "COMPLETED", sessionId: "session-1" },
       inOpenSession: true,
       payments: [{ method: "CASH", amount: 3000, state: "APPROVED", occurredAt: NOW }],
-      fiscalDocumentStates: [],
+      fiscalDocuments: [],
       deferredRecord: { satisfied: false },
     });
     expect(found?.sale.lines).toHaveLength(1);
@@ -204,13 +205,15 @@ describe("the sale to void", () => {
     ]);
   });
 
-  it("names the state of the fiscal document the sale requested", () => {
+  it("names the state, number and buyer of the invoice the sale requested", () => {
     const saleId = sellTwo();
     payCash(saleId, 3000);
     database.exec("DELETE FROM deferred_sales");
-    insertFiscalDocument(database, { saleId, state: "UNKNOWN" });
+    insertFiscalDocument(database, { saleId, state: "UNKNOWN", pointOfSale: 12, number: 41 });
 
-    expect(toVoid(saleId)?.fiscalDocumentStates).toEqual(["UNKNOWN"]);
+    expect(toVoid(saleId)?.fiscalDocuments).toEqual([
+      { origin: "real_time", state: "UNKNOWN", pointOfSale: 12, number: 41, buyerTaxStatusCode: 5 },
+    ]);
     expect(toVoid(saleId)?.deferredRecord).toBeNull();
   });
 
@@ -218,9 +221,11 @@ describe("the sale to void", () => {
     const saleId = sellTwo();
     payCash(saleId, 3000);
     insertOfflinePointOfSale(database);
-    insertOfflineFiscalDocument(database, { saleId });
+    insertOfflineFiscalDocument(database, { saleId, pointOfSale: 31, number: 8 });
 
-    expect(toVoid(saleId)?.fiscalDocumentStates).toEqual(["AUTHORIZED"]);
+    expect(toVoid(saleId)?.fiscalDocuments).toEqual([
+      { origin: "offline", state: "AUTHORIZED", pointOfSale: 31, number: 8, buyerTaxStatusCode: 5 },
+    ]);
   });
 
   it("carries a sale that is not completed as it is", () => {
@@ -235,6 +240,127 @@ describe("the sale to void", () => {
     await voidIt(saleId);
 
     expect(toVoid(saleId)).toMatchObject({ sale: { state: "VOIDED" }, deferredRecord: null });
+  });
+});
+
+describe("the evidence that the register is fiscally online", () => {
+  it("is that of the latest health check", () => {
+    insertHealthCheck(database, { checkedAt: "2026-09-30T12:00:00.000Z" });
+    insertHealthCheck(database, {
+      checkedAt: "2026-09-30T12:00:05.000Z",
+      tokenValid: false,
+      arcaReachable: true,
+    });
+
+    expect(voidLedger().transaction((tx) => tx.fiscalOnlineEvidence())).toEqual({
+      lastHealthCheckOkAt: new Date("2026-09-30T12:00:05.000Z"),
+      tokenValid: false,
+      arcaReachable: true,
+    });
+  });
+
+  it("is none while the register never checked its health", () => {
+    expect(voidLedger().transaction((tx) => tx.fiscalOnlineEvidence())).toEqual({
+      lastHealthCheckOkAt: null,
+      tokenValid: false,
+      arcaReachable: false,
+    });
+  });
+});
+
+describe("the credit note of a voided sale", () => {
+  const CREDIT_NOTE = {
+    creditNoteId: "note-1",
+    total: 3000,
+    receiverTaxStatusCode: 5,
+    correctedVoucher: { voucherType: 11, pointOfSale: 12, number: 41 },
+  };
+
+  function recordCreditNote(saleId: string, creditNoteId = "note-1") {
+    voidLedger().transaction((tx) => {
+      tx.recordVoidedSale(saleId, VOIDED_AT, undefined);
+      tx.recordPendingCreditNote({ ...CREDIT_NOTE, creditNoteId, saleId });
+    });
+  }
+
+  it("is recorded in progress, with the voucher it corrects, when the sale is voided", () => {
+    const saleId = sellTwo();
+    payCash(saleId, 3000);
+
+    recordCreditNote(saleId);
+
+    expect(
+      database
+        .prepare(
+          `SELECT id, sale_id, total, receiver_tax_status_code, corrected_voucher_type,
+                  corrected_point_of_sale, corrected_number, state, recorded_at, answered_at
+           FROM sale_void_credit_notes`,
+        )
+        .all(),
+    ).toEqual([
+      {
+        id: "note-1",
+        sale_id: saleId,
+        total: 3000,
+        receiver_tax_status_code: 5,
+        corrected_voucher_type: 11,
+        corrected_point_of_sale: 12,
+        corrected_number: 41,
+        state: "IN_PROGRESS",
+        recorded_at: VOIDED_AT.toISOString(),
+        answered_at: null,
+      },
+    ]);
+  });
+
+  it("is recorded once per sale", () => {
+    const saleId = sellTwo();
+    payCash(saleId, 3000);
+    recordCreditNote(saleId);
+
+    expect(() =>
+      voidLedger().transaction((tx) =>
+        tx.recordPendingCreditNote({ ...CREDIT_NOTE, creditNoteId: "note-2", saleId }),
+      ),
+    ).toThrow(/UNIQUE/);
+  });
+
+  it("is left out when the void is rolled back", async () => {
+    const saleId = sellTwo();
+    payCash(saleId, 3000);
+    insertFiscalDocument(database, { saleId, state: "AUTHORIZED" });
+    insertHealthCheck(database, { checkedAt: VOIDED_AT.toISOString() });
+    database.exec(
+      `CREATE TRIGGER refuse_voided_events BEFORE INSERT ON outbox
+       WHEN NEW.event_type = 'sale_voided'
+       BEGIN SELECT RAISE(ABORT, 'outbox refused'); END`,
+    );
+
+    await expect(voidIt(saleId)).rejects.toThrow("outbox refused");
+
+    expect(database.prepare("SELECT count(*) AS total FROM sale_void_credit_notes").get()).toEqual({
+      total: 0,
+    });
+  });
+
+  it("is recorded with the void of an invoiced sale, beside its event", async () => {
+    const saleId = sellTwo();
+    payCash(saleId, 3000);
+    insertFiscalDocument(database, { saleId, state: "AUTHORIZED", pointOfSale: 12, number: 41 });
+    insertHealthCheck(database, { checkedAt: VOIDED_AT.toISOString() });
+
+    const outcome = await voidIt(saleId);
+
+    expect(outcome).toMatchObject({ kind: "voided", creditNote: { saleId } });
+    expect(
+      database
+        .prepare(
+          "SELECT sale_id, corrected_point_of_sale, corrected_number, state FROM sale_void_credit_notes",
+        )
+        .all(),
+    ).toEqual([
+      { sale_id: saleId, corrected_point_of_sale: 12, corrected_number: 41, state: "IN_PROGRESS" },
+    ]);
   });
 });
 
