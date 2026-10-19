@@ -7,6 +7,7 @@ import {
   type Fortnight,
   type RejectionStandingChange,
 } from "../../fiscal/index.js";
+import type { ClockDriftReport } from "../../register/index.js";
 import type { SalesDeniedReport } from "../../shared/index.js";
 import type { AlertKind, AlertLevel } from "./alert-catalog.js";
 import type { AlertDetails, OpenAlertInput } from "./alert-details.js";
@@ -124,6 +125,31 @@ export function registerFiscalEmissionObservation({
       locationId,
       detail: { deviceId, reason: report.fiscal_emission_stopped_reason },
     },
+  };
+}
+
+interface RegisterClockDriftStanding {
+  registerId: string;
+  deviceId: string;
+  locationId: string;
+  report: ClockDriftReport;
+}
+
+export function registerClockDriftObservation({
+  registerId,
+  deviceId,
+  locationId,
+  report,
+}: RegisterClockDriftStanding): AlertConditionObservation | undefined {
+  if (report.clock_drift === undefined) {
+    return undefined;
+  }
+  if (!report.clock_drift) {
+    return { holds: false, kind: "clock_drift", scope: registerId };
+  }
+  return {
+    holds: true,
+    alert: { kind: "clock_drift", scope: registerId, locationId, detail: { deviceId } },
   };
 }
 

@@ -13,6 +13,7 @@ export {
   invoiceAlreadyCreditedObservation,
   offlineAuthorizationCodeHeldObservation,
   offlineAuthorizationCodeMissingObservation,
+  registerClockDriftObservation,
   registerFiscalEmissionObservation,
   registerSalesDeniedObservation,
   registerSyncedObservation,

@@ -36,6 +36,7 @@ const ALERT_KIND_DESCRIPTIONS = {
     "Se anuló una venta cuya factura ya tenía una nota de crédito, por lo que no se emitió otra",
   clock_corrected:
     "Alguien confirmó desde la caja que su hora era correcta y bajó la marca de la guarda de reloj. Los comprobantes emitidos entre la lectura anterior y la nueva llevan fechas imposibles y van a regularización manual.",
+  clock_drift: "La hora de una caja difiere en más de un minuto de la hora real",
 } satisfies Record<AlertKind, string>;
 
 export const DESCRIBED_ALERT_KINDS: readonly string[] = Object.keys(ALERT_KIND_DESCRIPTIONS);

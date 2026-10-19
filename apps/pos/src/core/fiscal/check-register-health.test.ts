@@ -35,10 +35,16 @@ function health(
   return { gets, recorded, outcome };
 }
 
-function ok(arca: unknown): CloudResponse {
+function ok(arca: unknown, serverTime?: string): CloudResponse {
   return {
     kind: "ok",
-    body: { status: "ok", version: "abc1234", installation: { revoked: false }, arca },
+    body: {
+      status: "ok",
+      version: "abc1234",
+      installation: { revoked: false },
+      arca,
+      ...(serverTime !== undefined && { server_time: serverTime }),
+    },
   };
 }
 
@@ -68,8 +74,17 @@ describe("checking the register's health against the cloud", () => {
         roundTripMs: ROUND_TRIP_MS,
         tokenValid: true,
         arcaReachable: true,
+        clockOffsetMs: null,
       },
     ]);
+  });
+
+  it("records the register's clock offset against the cloud's, measured at the middle of the round trip", async () => {
+    const serverTime = new Date(START.getTime() + ROUND_TRIP_MS / 2 + 90_000).toISOString();
+    const { recorded, outcome } = health(ok(ARCA, serverTime));
+
+    await outcome;
+    expect(recorded).toMatchObject([{ clockOffsetMs: 90_000 }]);
   });
 
   it.each([

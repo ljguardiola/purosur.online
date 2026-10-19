@@ -117,3 +117,9 @@ test("describes a register's clock confirmed as correct, which lowers the clock 
     "Alguien confirmó desde la caja que su hora era correcta y bajó la marca de la guarda de reloj. Los comprobantes emitidos entre la lectura anterior y la nueva llevan fechas imposibles y van a regularización manual.",
   );
 });
+
+test("describes a register whose clock differs from the real time by more than a minute", () => {
+  expect(alertKindDescription("clock_drift")).toBe(
+    "La hora de una caja difiere en más de un minuto de la hora real",
+  );
+});

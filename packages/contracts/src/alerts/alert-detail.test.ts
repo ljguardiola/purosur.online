@@ -221,6 +221,7 @@ describe("alertDetailSchema", () => {
     >();
     expectTypeOf<WireDetail<"refund_task">>().toEqualTypeOf<AlertDetails["refund_task"]>();
     expectTypeOf<WireDetail<"fiscal_unknown">>().toEqualTypeOf<AlertDetails["fiscal_unknown"]>();
+    expectTypeOf<WireDetail<"clock_drift">>().toEqualTypeOf<AlertDetails["clock_drift"]>();
     expectTypeOf<WireDetail<"outbox_chain_broken">>().toEqualTypeOf<
       AlertDetails["outbox_chain_broken"]
     >();
@@ -382,6 +383,7 @@ describe("alertDetailSchema", () => {
         refundOpenedAt: "2026-10-05T12:00:00.000Z",
       },
       fiscal_emission_stopped: { deviceId: "device-1", reason: "legal_name_missing" },
+      clock_drift: { deviceId: "device-1" },
       outbox_chain_broken: { deviceId: "device-1" },
       lots_expiring: { lotCount: 3, windowDays: 30, aboutViewerBranch: true },
       offsite_dump_unverified: { night: "2026-10-14", reason: "not_reported" },

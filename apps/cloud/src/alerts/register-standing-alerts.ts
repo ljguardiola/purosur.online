@@ -1,4 +1,5 @@
 import {
+  registerClockDriftObservation,
   registerFiscalEmissionObservation,
   registerSalesDeniedObservation,
   registerSyncedObservation,
@@ -36,5 +37,9 @@ export async function observeRegisterStops<TQueryResult extends PgQueryResultHKT
   const fiscalEmission = registerFiscalEmissionObservation(stops);
   if (fiscalEmission !== undefined) {
     await observeAlertCondition(tx, fiscalEmission, { now: () => at });
+  }
+  const clockDrift = registerClockDriftObservation(stops);
+  if (clockDrift !== undefined) {
+    await observeAlertCondition(tx, clockDrift, { now: () => at });
   }
 }

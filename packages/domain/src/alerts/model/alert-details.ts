@@ -159,6 +159,10 @@ interface FiscalEmissionStoppedDetail {
   reason: PreEmissionGateFailureReason;
 }
 
+interface ClockDriftDetail {
+  deviceId: string;
+}
+
 interface OutboxChainBrokenDetail {
   deviceId: string;
 }
@@ -217,6 +221,7 @@ export interface AlertDetails {
   refund_task: RefundTaskDetail;
   fiscal_unknown: FiscalUnknownDetail;
   fiscal_emission_stopped: FiscalEmissionStoppedDetail;
+  clock_drift: ClockDriftDetail;
   outbox_chain_broken: OutboxChainBrokenDetail;
   lots_expiring: LotsExpiringDetail;
   offsite_dump_unverified: OffsiteDumpUnverifiedDetail;

@@ -206,6 +206,10 @@ const fiscalEmissionStoppedDetailSchema = z.object({
   reason: z.enum(PRE_EMISSION_GATE_FAILURE_REASONS),
 });
 
+const clockDriftDetailSchema = z.object({
+  deviceId: z.string(),
+});
+
 const outboxChainBrokenDetailSchema = z.object({
   deviceId: z.string(),
 });
@@ -357,6 +361,11 @@ const alertDetailKinds = [
     ...alertBase,
     kind: z.literal("fiscal_emission_stopped" satisfies AlertKind),
     detail: fiscalEmissionStoppedDetailSchema,
+  }),
+  z.object({
+    ...alertBase,
+    kind: z.literal("clock_drift" satisfies AlertKind),
+    detail: clockDriftDetailSchema,
   }),
   z.object({
     ...alertBase,
