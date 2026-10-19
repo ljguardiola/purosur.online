@@ -6,7 +6,7 @@ CREATE TABLE sale_void_credit_notes (
   corrected_voucher_type INTEGER NOT NULL,
   corrected_point_of_sale INTEGER NOT NULL CHECK (corrected_point_of_sale BETWEEN 1 AND 99999),
   corrected_number INTEGER NOT NULL CHECK (corrected_number > 0),
-  state TEXT NOT NULL CHECK (state IN ('IN_PROGRESS', 'AUTHORIZED', 'REJECTED')),
+  state TEXT NOT NULL CHECK (state IN ('IN_PROGRESS', 'AUTHORIZED', 'REJECTED', 'ALREADY_CREDITED')),
   point_of_sale INTEGER CHECK (point_of_sale BETWEEN 1 AND 99999),
   number INTEGER CHECK (number > 0),
   issued_on TEXT,

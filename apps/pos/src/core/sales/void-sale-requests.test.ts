@@ -1,5 +1,5 @@
 import { encodePinHash } from "@purosur/contracts";
-import type { CreditNoteAnswer } from "@purosur/domain";
+import type { VoidCreditNoteStanding } from "@purosur/domain";
 import {
   FICTIONAL_CUIT,
   FICTIONAL_GROSS_INCOME_REGISTRATION,
@@ -74,7 +74,7 @@ function deps(
   };
 }
 
-const AUTHORIZED_CREDIT_NOTE: CreditNoteAnswer = {
+const AUTHORIZED_CREDIT_NOTE: VoidCreditNoteStanding = {
   kind: "authorized",
   pointOfSale: 12,
   number: 7,
@@ -84,7 +84,7 @@ const AUTHORIZED_CREDIT_NOTE: CreditNoteAnswer = {
 };
 
 let creditNoteCalls: CloudCreditNoteCall[];
-let creditNoteAnswer: CreditNoteAnswer | null;
+let creditNoteAnswer: VoidCreditNoteStanding | null;
 let printedCreditNotes: string[];
 let reportedFailures: unknown[];
 

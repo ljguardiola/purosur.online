@@ -1,9 +1,9 @@
 import type { SaleCreditNote } from "@purosur/contracts";
-import type { CreditNoteAnswer } from "@purosur/domain";
+import type { VoidCreditNoteStanding } from "@purosur/domain";
 
-export function toWireCreditNote(creditNote: CreditNoteAnswer): SaleCreditNote;
-export function toWireCreditNote(creditNote: CreditNoteAnswer | null): SaleCreditNote | null;
-export function toWireCreditNote(creditNote: CreditNoteAnswer | null): SaleCreditNote | null {
+export function toWireCreditNote(creditNote: VoidCreditNoteStanding): SaleCreditNote;
+export function toWireCreditNote(creditNote: VoidCreditNoteStanding | null): SaleCreditNote | null;
+export function toWireCreditNote(creditNote: VoidCreditNoteStanding | null): SaleCreditNote | null {
   return creditNote?.kind === "authorized"
     ? {
         kind: "authorized",

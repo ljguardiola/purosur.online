@@ -1,5 +1,5 @@
 import type { Authorization, AuthorizedBy, VoidSaleOutcome } from "@purosur/contracts";
-import type { CreditNoteAnswer } from "@purosur/domain";
+import type { VoidCreditNoteStanding } from "@purosur/domain";
 import {
   type CloudCreditNotes,
   type PendingCreditNote,
@@ -46,7 +46,7 @@ type VoidSaleRefusal = Extract<
   }
 >;
 
-const IN_PROGRESS: CreditNoteAnswer = { kind: "in_progress" };
+const IN_PROGRESS: VoidCreditNoteStanding = { kind: "in_progress" };
 
 const NO_ANSWER_FROM_CLOUD: CloudCreditNotes = { request: async () => null };
 
@@ -66,7 +66,7 @@ async function answerOfCreditNote(
   { database, now, creditNotes, printCreditNote, reportFailure }: VoidSaleRequestDeps,
   saleId: string,
   creditNoteId: string,
-): Promise<CreditNoteAnswer> {
+): Promise<VoidCreditNoteStanding> {
   try {
     const { answers } = await requestVoidCreditNotes({
       creditNotes: onlyCreditNote(new SqliteVoidCreditNotes(database), creditNoteId),

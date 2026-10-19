@@ -2,7 +2,7 @@ import {
   type SaleVoidCreditNoteRequestBody,
   saleVoidCreditNoteResponseSchema,
 } from "@purosur/contracts";
-import type { CreditNoteAnswer } from "@purosur/domain";
+import type { VoidCreditNoteStanding } from "@purosur/domain";
 import type {
   CloudCreditNoteCall,
   CloudCreditNotes as CloudCreditNotesPort,
@@ -20,7 +20,10 @@ export interface CloudCreditNotesDeps {
   ) => Promise<CloudResponse>;
 }
 
-function answerOf(response: CloudResponse): CreditNoteAnswer | null {
+function answerOf(response: CloudResponse): VoidCreditNoteStanding | null {
+  if (response.kind === "error" && response.error.code === "conflict") {
+    return { kind: "already_credited" };
+  }
   if (response.kind !== "ok") {
     return null;
   }
@@ -56,7 +59,7 @@ export class CloudCreditNotes implements CloudCreditNotesPort {
     creditNoteId,
     pointOfSale,
     saleEvent,
-  }: CloudCreditNoteCall): Promise<CreditNoteAnswer | null> {
+  }: CloudCreditNoteCall): Promise<VoidCreditNoteStanding | null> {
     const deviceToken = await this.deps.readDeviceToken();
     if (deviceToken === undefined) {
       return null;
