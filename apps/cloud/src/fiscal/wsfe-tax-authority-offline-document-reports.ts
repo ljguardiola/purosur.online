@@ -11,6 +11,7 @@ import type {
 import type { Client } from "soap";
 import { createWsfeClient, rejectionsOf } from "./wsfe-client.js";
 import { facturaCDetail } from "./wsfe-factura-c-detail.js";
+import { owedPresentationsOf } from "./wsfe-owed-presentations.js";
 
 const OFFLINE_DOCUMENT_REPORT_TIMEOUT_MS = 30_000;
 const NO_ANSWER = { kind: "no_answer" } as const;
@@ -124,23 +125,29 @@ export class WsfeTaxAuthorityOfflineDocumentReports implements TaxAuthorityOffli
       return NO_ANSWER;
     }
     const refusals = rejectionsOf(result.Errors, "Err");
-    if (refusals.length > 0) {
-      return { kind: "refused", rejections: refusals };
-    }
     const listed = result.FeDetResp?.FECAEADetResponse;
     const details = Array.isArray(listed) ? listed : listed === undefined ? [] : [listed];
+    const owedPresentations = owedPresentationsOf([
+      ...refusals,
+      ...details.flatMap(({ Observaciones }) => rejectionsOf(Observaciones, "Obs")),
+    ]);
+    const listing = owedPresentations.length > 0 ? { owedPresentations } : {};
+    if (refusals.length > 0) {
+      return { kind: "refused", rejections: refusals, ...listing };
+    }
     if (details.length === 0) {
       return NO_ANSWER;
     }
     const rejected = details.find(({ Resultado }) => Resultado !== "A");
     if (rejected === undefined) {
-      return { kind: "accepted" };
+      return { kind: "accepted", ...listing };
     }
     return typeof rejected.CbteDesde === "number"
       ? {
           kind: "rejected",
           number: rejected.CbteDesde,
           rejections: rejectionsOf(rejected.Observaciones, "Obs"),
+          ...listing,
         }
       : NO_ANSWER;
   }

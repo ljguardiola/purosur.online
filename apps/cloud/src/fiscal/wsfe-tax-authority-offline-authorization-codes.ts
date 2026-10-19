@@ -1,6 +1,7 @@
 import { isSecondHalfOfMonth } from "@purosur/domain";
 import type {
   Fortnight,
+  ListedOwedPresentation,
   OfflineAuthorizationCode,
   OfflineAuthorizationCodeCall,
   OfflineAuthorizationCodeLookupAnswer,
@@ -10,6 +11,7 @@ import type {
 } from "@purosur/domain/fiscal/use-cases";
 import type { Client } from "soap";
 import { createWsfeClient, rejectionsOf } from "./wsfe-client.js";
+import { owedPresentationsOf } from "./wsfe-owed-presentations.js";
 
 const OFFLINE_AUTHORIZATION_CODE_TIMEOUT_MS = 30_000;
 const ALREADY_GRANTED_CODE = 15_008;
@@ -28,14 +30,16 @@ interface CodeResult {
     FchVigDesde?: unknown;
     FchVigHasta?: unknown;
     FchTopeInf?: unknown;
+    Observaciones?: unknown;
   };
   Errors?: unknown;
 }
 
-type Read =
+type Read = (
   | { kind: "granted"; code: OfflineAuthorizationCode }
   | { kind: "refused"; rejections: TaxAuthorityRejection[] }
-  | { kind: "no_answer" };
+  | { kind: "no_answer" }
+) & { owedPresentations?: ListedOwedPresentation[] };
 
 function isoDateOf(compact: unknown): string | undefined {
   return typeof compact === "string" && /^\d{8}$/.test(compact)
@@ -48,8 +52,13 @@ function readOf(result: CodeResult | undefined): Read {
     return { kind: "no_answer" };
   }
   const rejections = rejectionsOf(result.Errors, "Err");
+  const owedPresentations = owedPresentationsOf([
+    ...rejections,
+    ...rejectionsOf(result.ResultGet?.Observaciones, "Obs"),
+  ]);
+  const listing = owedPresentations.length > 0 ? { owedPresentations } : {};
   if (rejections.length > 0) {
-    return { kind: "refused", rejections };
+    return { kind: "refused", rejections, ...listing };
   }
   const granted = result.ResultGet;
   const start = isoDateOf(granted?.FchVigDesde);
@@ -62,11 +71,12 @@ function readOf(result: CodeResult | undefined): Read {
     end === undefined ||
     reportDeadline === undefined
   ) {
-    return { kind: "no_answer" };
+    return { kind: "no_answer", ...listing };
   }
   return {
     kind: "granted",
     code: { code: granted.CAEA, fortnight: { start, end }, reportDeadline },
+    ...listing,
   };
 }
 
