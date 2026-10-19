@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   actionStepRefusal,
+  COMPROMISE_RESPONSE_ACTION_STEPS,
   COMPROMISE_RESPONSE_ITEMS,
   COMPROMISE_RESPONSE_STEPS,
   type CompromiseResponseCompletion,
@@ -41,6 +42,10 @@ describe("the compromise-response runbook", () => {
       "notify",
       "re_enroll_registers",
     ]);
+  });
+
+  it("runs the first three steps through actions of the product", () => {
+    expect(COMPROMISE_RESPONSE_ACTION_STEPS).toEqual(COMPROMISE_RESPONSE_STEPS.slice(0, 3));
   });
 
   it("rotates each external secret as its own checklist item and notifies with one more", () => {
