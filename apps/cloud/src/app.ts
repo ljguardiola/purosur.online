@@ -130,6 +130,10 @@ import { registerPackagingsRoutes } from "./purchasing/packagings-routes.js";
 import { registerPurchasesRoutes } from "./purchasing/purchases-routes.js";
 import type { PurchasingRouteOptions } from "./purchasing/purchasing-route-options.js";
 import { registerSuppliersRoutes } from "./purchasing/suppliers-routes.js";
+import {
+  type BitlockerRecoveryKeyRouteOptions,
+  registerBitlockerRecoveryKeyRoute,
+} from "./register/bitlocker-recovery-key-route.js";
 import { authenticateDevice } from "./register/device-authentication.js";
 import { registerDeviceEnrollmentRoute } from "./register/device-enrollment-route.js";
 import { registerDeviceTokenRotationRoute } from "./register/device-token-rotation-route.js";
@@ -242,6 +246,7 @@ export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = Postgre
   registers?: WithoutClock<RegistersRouteOptions<TQueryResult>>;
   snapshotBackups?: WithoutClock<SnapshotBackupsRouteOptions<TQueryResult>>;
   registerRevocations?: WithoutClock<RegisterRevocationRouteOptions<TQueryResult>>;
+  bitlockerRecoveryKeys?: WithoutClock<BitlockerRecoveryKeyRouteOptions<TQueryResult>>;
   registersPointsOfSale?: WithoutClock<RegistersPointsOfSaleRouteOptions<TQueryResult>>;
   stock?: WithoutClock<StockRouteOptions<TQueryResult>>;
   salesReports?: WithoutClock<SalesReportRouteOptions<TQueryResult>>;
@@ -340,6 +345,10 @@ export function databaseRouteOptions<TQueryResult extends PgQueryResultHKT>(
     registers: backoffice,
     snapshotBackups: { ...backoffice, keysEncryptionKey: wiring.installationKeysEncryptionKey },
     registerRevocations: {
+      ...backoffice,
+      keysEncryptionKey: wiring.installationKeysEncryptionKey,
+    },
+    bitlockerRecoveryKeys: {
       ...backoffice,
       keysEncryptionKey: wiring.installationKeysEncryptionKey,
     },
@@ -645,6 +654,10 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
 
       if (options.registerRevocations) {
         registerRegisterRevocationRoute(api, { ...options.registerRevocations, now });
+      }
+
+      if (options.bitlockerRecoveryKeys) {
+        registerBitlockerRecoveryKeyRoute(api, { ...options.bitlockerRecoveryKeys, now });
       }
 
       if (options.registersPointsOfSale) {
