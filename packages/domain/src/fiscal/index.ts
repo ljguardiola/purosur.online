@@ -34,7 +34,9 @@ export {
   SHORT_CODE_ALPHABET,
 } from "./model/deferred-sale.js";
 export type {
+  AuthorizedCreditNoteC,
   AuthorizedFacturaC,
+  CreditNoteCFiscalBlock,
   FacturaCFiscalBlock,
   OfflineAuthorizedFacturaC,
   OfflineFacturaCFiscalBlock,
@@ -42,6 +44,7 @@ export type {
 export {
   AUTHORIZATION_CODE_TYPE_CAE,
   CURRENCY_PESOS,
+  creditNoteCFiscalBlock,
   EXCHANGE_RATE_PESOS,
   FACTURA_C_VOUCHER_TYPE,
   FINAL_CONSUMER_DOCUMENT_NUMBER,

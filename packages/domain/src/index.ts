@@ -174,12 +174,14 @@ export {
   recoveryRateLimitWindowStart,
 } from "./credentials/index.js";
 export type {
+  AuthorizedCreditNoteC,
   AuthorizedFacturaC,
   BuyerIdentificationThreshold,
   BuyerTaxStatusOption,
   ChargeRefusal,
   ClockCorrectionAlertState,
   CreditNoteAnswer,
+  CreditNoteCFiscalBlock,
   CreditNoteReason,
   DeferralReason,
   DeferredSale,
@@ -223,6 +225,7 @@ export {
   CURRENCY_PESOS,
   chargeRefusal,
   clockCorrectedEvent,
+  creditNoteCFiscalBlock,
   DEFERRAL_REASONS,
   EXCHANGE_RATE_PESOS,
   earliestThresholdStartDay,
