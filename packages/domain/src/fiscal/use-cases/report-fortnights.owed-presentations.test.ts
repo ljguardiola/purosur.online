@@ -8,6 +8,7 @@ import {
   POINT_OF_SALE,
   presentationOutcomes,
   REGISTER_ID,
+  reachingInstallation,
   SEPTEMBER_SECOND_HALF,
   setUpReportFortnights,
   TOKEN,
@@ -51,12 +52,16 @@ function freshDatabase() {
   setup.reports.pointsOfSale = [
     { pointOfSaleNumber: POINT_OF_SALE, registerId: REGISTER_ID, claimedAt: CLAIMED_AFTER_CLOSE },
   ];
-  setup.owedPresentations.entries = [LISTED_ELSEWHERE];
+  setup.owedPresentations.entries = [LISTED_FIRST_HALF];
   setup.codeAuthority.lookUpAnswer = (fortnight) =>
     fortnight.start === SEPTEMBER_FIRST_HALF.start
       ? { kind: "granted", code: codeFor(SEPTEMBER_FIRST_HALF) }
       : { kind: "no_answer" };
   return setup;
+}
+
+function staleInstallation() {
+  return reachingInstallation({ latestOccurredAt: new Date("2026-08-29T12:00:00.000Z") });
 }
 
 function documentsNumbered(...numbers: number[]) {
@@ -284,7 +289,7 @@ describe("reportFortnights, with the tax authority's list of owed presentations"
       "stays owed when the register's stream is unproven, whatever the %s documents the tax authority holds",
       async (heldNumber) => {
         const setup = freshDatabase();
-        setup.streams.installations.set(REGISTER_ID, []);
+        setup.streams.installations.set(REGISTER_ID, [staleInstallation()]);
         setup.documentReports.hold(POINT_OF_SALE, "factura_c", heldNumber);
 
         const result = await setup.run();
@@ -343,7 +348,7 @@ describe("reportFortnights, with the tax authority's list of owed presentations"
 
     it("stays owed when the register's stream is unproven", async () => {
       const setup = listedWithDocuments();
-      setup.streams.installations.set(REGISTER_ID, []);
+      setup.streams.installations.set(REGISTER_ID, [staleInstallation()]);
       setup.documentReports.hold(POINT_OF_SALE, "factura_c", 3);
 
       await setup.run();
