@@ -10,6 +10,7 @@ import {
   FakeOfflineAuthorizationCodeStore,
   FakeTaxAuthorityOfflineAuthorizationCodes,
 } from "./test-support/fake-offline-authorization-codes.js";
+import { FakeOwedPresentationList } from "./test-support/fake-owed-presentation-list.js";
 
 const TOKEN = {
   token: "token",
@@ -35,17 +36,71 @@ function setUp({ now = ON_OCTOBER_10, token = TOKEN as typeof TOKEN | null } = {
   const taxAuthority = new FakeTaxAuthorityOfflineAuthorizationCodes(store);
   taxAuthority.requestAnswer = (fortnight) => ({ kind: "granted", code: codeFor(fortnight) });
   const clock = new ManualClock(now);
+  const owedPresentations = new FakeOwedPresentationList();
   const obtain = () =>
     obtainOfflineAuthorizationCodes({
       store,
       tokens: { validToken: async () => token },
       taxAuthority,
+      owedPresentations,
       clock,
     });
-  return { store, taxAuthority, clock, obtain };
+  return { store, taxAuthority, owedPresentations, clock, obtain };
 }
 
+const OWED = [{ pointOfSaleNumber: 4, fortnight: { start: "2026-09-16", end: "2026-09-30" } }];
+
 describe("obtainOfflineAuthorizationCodes", () => {
+  describe("the tax authority's list of owed presentations", () => {
+    it("records the list a code request answers with, at the moment it was answered", async () => {
+      const { taxAuthority, owedPresentations, obtain } = setUp();
+      taxAuthority.requestAnswer = (fortnight) => ({
+        kind: "granted",
+        code: codeFor(fortnight),
+        owedPresentations: OWED,
+      });
+
+      await obtain();
+
+      expect(owedPresentations.replacements).toEqual([{ list: OWED, at: ON_OCTOBER_10 }]);
+    });
+
+    it("records the list of a request the tax authority refuses", async () => {
+      const { taxAuthority, owedPresentations, obtain } = setUp();
+      taxAuthority.requestAnswer = () => ({
+        kind: "refused",
+        rejections: [{ code: 15014, message: "owes presentations" }],
+        owedPresentations: OWED,
+      });
+
+      await obtain();
+
+      expect(owedPresentations.replacements).toEqual([{ list: OWED, at: ON_OCTOBER_10 }]);
+    });
+
+    it("records the list a lookup of an already granted code answers with", async () => {
+      const { taxAuthority, owedPresentations, obtain } = setUp();
+      taxAuthority.requestAnswer = () => ({ kind: "already_granted" });
+      taxAuthority.lookUpAnswer = (fortnight) => ({
+        kind: "granted",
+        code: codeFor(fortnight),
+        owedPresentations: OWED,
+      });
+
+      await obtain();
+
+      expect(owedPresentations.replacements).toEqual([{ list: OWED, at: ON_OCTOBER_10 }]);
+    });
+
+    it("records nothing when no answer carries a list", async () => {
+      const { owedPresentations, obtain } = setUp();
+
+      await obtain();
+
+      expect(owedPresentations.replacements).toEqual([]);
+    });
+  });
+
   it("requests nothing while no offline point of sale is configured", async () => {
     const { store, taxAuthority, obtain } = setUp();
     store.offlinePointOfSaleConfigured = false;
