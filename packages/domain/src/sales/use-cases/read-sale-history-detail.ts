@@ -1,4 +1,4 @@
-import { type CreditNoteAnswer, isRegisterFiscallyOnline } from "../../fiscal/index.js";
+import { isRegisterFiscallyOnline, type VoidCreditNoteStanding } from "../../fiscal/index.js";
 import {
   isRefundSentByCloud,
   type PlannedRefundState,
@@ -55,7 +55,7 @@ export interface SaleHistoryDetail {
   payments: SaleHistoryRecord["payments"];
   standing: SaleStanding;
   voidability: SaleVoidability;
-  creditNote: CreditNoteAnswer | null;
+  creditNote: VoidCreditNoteStanding | null;
   reprint: ReceiptPrintAvailability;
   nextCopy: ReceiptCopy;
 }

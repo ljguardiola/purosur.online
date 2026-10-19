@@ -211,6 +211,7 @@ export type {
   SaleInvoice,
   SaleVoidCreditNote,
   TaxAuthorityRejection,
+  VoidCreditNoteStanding,
   VoucherReference,
 } from "./fiscal/index.js";
 export {

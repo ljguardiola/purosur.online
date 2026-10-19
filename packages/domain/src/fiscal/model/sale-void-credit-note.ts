@@ -36,6 +36,8 @@ export type CreditNoteAnswer =
   | { kind: "rejected" }
   | { kind: "in_progress" };
 
+export type VoidCreditNoteStanding = CreditNoteAnswer | { kind: "already_credited" };
+
 function isAuthorized({ state }: SaleInvoice): boolean {
   return state === "AUTHORIZED";
 }

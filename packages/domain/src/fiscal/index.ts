@@ -176,6 +176,7 @@ export type {
   CreditNoteAnswer,
   SaleInvoice,
   SaleVoidCreditNote,
+  VoidCreditNoteStanding,
 } from "./model/sale-void-credit-note.js";
 export {
   invoiceToCorrect,

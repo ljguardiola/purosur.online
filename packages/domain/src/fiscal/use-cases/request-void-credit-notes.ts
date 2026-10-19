@@ -1,9 +1,9 @@
-import type { CreditNoteAnswer } from "../model/sale-void-credit-note.js";
+import type { CreditNoteAnswer, VoidCreditNoteStanding } from "../model/sale-void-credit-note.js";
 import type { RequestVoidCreditNotesPorts } from "./request-void-credit-notes-ports.js";
 
 export interface RequestedCreditNote {
   creditNoteId: string;
-  answer: CreditNoteAnswer;
+  answer: VoidCreditNoteStanding;
 }
 
 export interface RequestVoidCreditNotesOutcome {

@@ -1,4 +1,4 @@
-import type { CreditNoteAnswer } from "../../model/sale-void-credit-note.js";
+import type { VoidCreditNoteStanding } from "../../model/sale-void-credit-note.js";
 import type {
   CloudCreditNoteCall,
   CloudCreditNotes,
@@ -6,10 +6,10 @@ import type {
   RegisterVoidCreditNotes,
 } from "../request-void-credit-notes-ports.js";
 
-export type CloudReply = CreditNoteAnswer | null;
+export type CloudReply = VoidCreditNoteStanding | null;
 
 export class FakeRegisterVoidCreditNotes implements RegisterVoidCreditNotes {
-  readonly answered = new Map<string, { answer: CreditNoteAnswer; answeredAt: Date }>();
+  readonly answered = new Map<string, { answer: VoidCreditNoteStanding; answeredAt: Date }>();
   private readonly pending: PendingCreditNote[];
   private readonly pointOfSale: number | null;
 
@@ -30,7 +30,7 @@ export class FakeRegisterVoidCreditNotes implements RegisterVoidCreditNotes {
 
   async recordAnswer(
     creditNoteId: string,
-    answer: Exclude<CreditNoteAnswer, { kind: "in_progress" }>,
+    answer: Exclude<VoidCreditNoteStanding, { kind: "in_progress" }>,
     answeredAt: Date,
   ): Promise<void> {
     this.answered.set(creditNoteId, { answer, answeredAt });
