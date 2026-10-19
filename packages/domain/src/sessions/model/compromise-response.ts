@@ -155,6 +155,10 @@ export function itemStates(
   });
 }
 
-export function passkeyRemovalSettlesAccount(result: PasskeyRemovalResult): boolean {
+export type PasskeyRemovalRefusal = Exclude<PasskeyRemovalResult, "no_passkeys" | "removed">;
+
+export function passkeyRemovalSettlesAccount(
+  result: PasskeyRemovalResult,
+): result is Exclude<PasskeyRemovalResult, PasskeyRemovalRefusal> {
   return result === "removed" || result === "no_passkeys";
 }

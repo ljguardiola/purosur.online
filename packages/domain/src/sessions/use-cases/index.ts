@@ -18,6 +18,14 @@ export type {
 } from "./backoffice-session-ending-store.js";
 export type { CheckPinInput, CheckPinOutcome, PinRefusal } from "./check-pin.js";
 export { checkPin } from "./check-pin.js";
+export type { CompromiseResponseActions } from "./compromise-response-actions.js";
+export type {
+  CompromiseResponses,
+  CompromiseResponseStore,
+  CompromiseResponseStoreTransaction,
+  StoredCompromiseResponse,
+} from "./compromise-response-store.js";
+export type { CompromiseResponseView } from "./compromise-response-view.js";
 export type {
   ConfirmedSignInRejection,
   ConfirmRejectedSignInAttemptPorts,
@@ -53,6 +61,12 @@ export type {
 } from "./look-up-sign-in.js";
 export { lookUpSignIn } from "./look-up-sign-in.js";
 export type {
+  MarkCompromiseResponseItemDoneInput,
+  MarkCompromiseResponseItemDoneOutcome,
+  MarkCompromiseResponseItemDonePorts,
+} from "./mark-compromise-response-item-done.js";
+export { markCompromiseResponseItemDone } from "./mark-compromise-response-item-done.js";
+export type {
   PinCheckPorts,
   PinHolder,
   PinMatcher,
@@ -60,6 +74,11 @@ export type {
   PinSignInFailures,
   PinSignInStore,
 } from "./pin-sign-in-store.js";
+export type {
+  ReadCurrentCompromiseResponseOutcome,
+  ReadCurrentCompromiseResponsePorts,
+} from "./read-current-compromise-response.js";
+export { readCurrentCompromiseResponse } from "./read-current-compromise-response.js";
 export type {
   RecordSessionActivityInput,
   RecordSessionActivityOutcome,
@@ -71,6 +90,12 @@ export type {
   RecordSignInLockoutPorts,
 } from "./record-sign-in-lockout.js";
 export { recordSignInLockout } from "./record-sign-in-lockout.js";
+export type {
+  RunCompromiseResponseStepInput,
+  RunCompromiseResponseStepOutcome,
+  RunCompromiseResponseStepPorts,
+} from "./run-compromise-response-step.js";
+export { runCompromiseResponseStep } from "./run-compromise-response-step.js";
 export type { SessionStore } from "./session-store.js";
 export type { OpenSession, Sessions, StoredSession } from "./sessions.js";
 export type {
@@ -92,6 +117,12 @@ export type {
   SignInLookupStore,
   SignInLookupStoreTransaction,
 } from "./sign-in-lookup-store.js";
+export type {
+  StartCompromiseResponseInput,
+  StartCompromiseResponseOutcome,
+  StartCompromiseResponsePorts,
+} from "./start-compromise-response.js";
+export { startCompromiseResponse } from "./start-compromise-response.js";
 export type { SignOutInput, SignOutOutcome, SignOutPorts } from "./sign-out.js";
 export { signOut } from "./sign-out.js";
 export type { TrippedSignInLockout } from "./trip-sign-in-lockout.js";

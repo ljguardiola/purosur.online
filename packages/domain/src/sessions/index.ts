@@ -1,3 +1,20 @@
+export type {
+  CompromiseResponseAction,
+  CompromiseResponseCompletion,
+  CompromiseResponseItem,
+  CompromiseResponseItemState,
+  CompromiseResponseRefusal,
+  CompromiseResponseStep,
+  CompromiseResponseStepState,
+  ExternalSecretItem,
+  PasskeyRemovalRefusal,
+  PasskeyRemovalResult,
+} from "./model/compromise-response.js";
+export {
+  COMPROMISE_RESPONSE_ITEMS,
+  COMPROMISE_RESPONSE_STEPS,
+  EXTERNAL_SECRET_ITEMS,
+} from "./model/compromise-response.js";
 export {
   BACKOFFICE_REQUEST_WINDOW_MS,
   BACKOFFICE_SESSION_REQUEST_LIMIT,
