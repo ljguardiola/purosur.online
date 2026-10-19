@@ -126,6 +126,23 @@ describe("the credit note jobs on a real Postgres", () => {
       expect((await pendingJobs()).map((job) => job.priority)).toEqual([-20, -20, -20]);
     });
 
+    it("enqueues the credit notes of voided sales as it does the orphan ones", async () => {
+      const registerId = await insertRegisterWithPointOfSale(db, {
+        pointOfSaleNumber: 7,
+        name: "caja-1",
+      });
+      const voided = await creditNoteRow(registerId, 1, {
+        reason: "sale_void",
+        keptVoucherType: null,
+        keptPointOfSale: null,
+        keptNumber: null,
+      });
+
+      await enqueueMissingCreditNotes(db);
+
+      expect((await pendingJobs()).map((job) => job.payload.creditNoteId)).toEqual([voided]);
+    });
+
     it("enqueues nothing for a credit note that was authorized or rejected", async () => {
       const registerId = await insertRegisterWithPointOfSale(db, {
         pointOfSaleNumber: 7,
