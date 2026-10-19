@@ -650,6 +650,7 @@ export {
   openSaleStanding,
   PENDING_DEFERRED_SALE_RECORD,
   RECEIPT_REPRINT_REASON_MAX_LENGTH,
+  receiptContent,
   receiptPrintStanding,
   receiptReprintReason,
   SALE_STANDING_DEFINITIONS,
