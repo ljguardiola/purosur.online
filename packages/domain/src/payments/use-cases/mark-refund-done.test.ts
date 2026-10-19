@@ -12,7 +12,8 @@ const PENDING: FakeStoredRefund = {
   locationId: "branch-1",
   state: "PENDING",
   origin: "sale_cancelled",
-  method: "TRANSFER",
+  confirmedAt: null,
+  lastRefusalReason: null,
   confirmedAt: null,
 };
 const LATE_PAYMENT: FakeStoredRefund = { ...PENDING, origin: "late_payment", method: "POINT" };
