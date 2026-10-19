@@ -73,6 +73,7 @@ describe("alertKindPolicy", () => {
     ],
     ["update_required", "critical", null, "all", "register", true],
     ["clock_corrected", "critical", null, "all", "register", false],
+    ["invoice_already_credited", "critical", null, "all", "pointOfSaleDocumentNumber", true],
     ["register_silent", "critical", null, "local", "register", true],
     ["sales_denied", "critical", null, "local", "register", true],
     ["fiscal_emission_stopped", "critical", null, "local", "register", true],
@@ -172,6 +173,7 @@ describe("alertClosing", () => {
       external_billing: "by_hand",
       fortnight_report_needs_regularization: "by_hand",
       clock_corrected: "by_hand",
+      invoice_already_credited: "by_hand",
     });
   });
 
@@ -239,7 +241,10 @@ describe("alertKindsWithScope", () => {
       "offline_authorization_code_missing",
     ]);
     expect(alertKindsWithScope("refund")).toEqual(["late_payment_refund", "refund_task"]);
-    expect(alertKindsWithScope("pointOfSaleDocumentNumber")).toEqual(["external_billing"]);
+    expect(alertKindsWithScope("pointOfSaleDocumentNumber")).toEqual([
+      "external_billing",
+      "invoice_already_credited",
+    ]);
     expect(alertKindsWithScope("fiscalDocument")).toEqual(["fiscal_unknown"]);
     expect(alertKindsWithScope("syncDevice")).toEqual([
       "events_quarantined",
