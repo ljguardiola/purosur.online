@@ -6,6 +6,7 @@ import type {
   authorizeSession,
   fetchSessionAuthorizationOptions,
 } from "../platform/session-authorization-api";
+import { registerModalContext } from "./register-modal-context";
 import type { RegisterSummary, RevokeRegisterOutcome, revokeRegister } from "./registers-api";
 import { useRevocationAttempt } from "./use-revocation-attempt";
 
@@ -24,15 +25,6 @@ type RevokeRegisterModalProps = {
   onSessionEnded: () => void;
   services: RevokeRegisterModalServices;
 };
-
-function contextOf(register: RegisterSummary | null): string {
-  if (register === null) {
-    return "";
-  }
-  return register.installation === null
-    ? register.name
-    : `${register.name} · ${register.installation.hostname}`;
-}
 
 export function RevokeRegisterModal({
   target,
@@ -91,7 +83,7 @@ export function RevokeRegisterModal({
         width="confirmation"
         tone="error"
         icon={<Ban />}
-        context={contextOf(target)}
+        context={registerModalContext(target)}
         title="Revocar por pérdida o robo"
         closable
         footer={
