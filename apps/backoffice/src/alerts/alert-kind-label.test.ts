@@ -53,3 +53,7 @@ test("names the alert of a fortnight reported without movement that later receiv
 test("names the alert of a register's clock corrected from the register", () => {
   expect(alertKindLabel("clock_corrected")).toBe("Reloj de la caja corregido");
 });
+
+test("names the alert of a register whose clock is off from the real time", () => {
+  expect(alertKindLabel("clock_drift")).toBe("Reloj de la caja desajustado");
+});

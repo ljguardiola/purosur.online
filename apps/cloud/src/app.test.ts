@@ -94,7 +94,11 @@ describe("GET /api/health", () => {
     const response = await app.inject({ method: "GET", url: "/api/health" });
 
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toEqual({ status: "ok", version: "abc1234" });
+    expect(response.json()).toEqual({
+      status: "ok",
+      version: "abc1234",
+      server_time: APP_CLOCK.toISOString(),
+    });
   });
 
   it("reaches the enrolled installations when the device routes are wired", async () => {
@@ -386,7 +390,11 @@ describe("the edge origin guard", () => {
     const response = await app.inject({ method: "GET", url: "/api/health?probe=1" });
 
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toEqual({ status: "ok", version: "abc1234" });
+    expect(response.json()).toEqual({
+      status: "ok",
+      version: "abc1234",
+      server_time: APP_CLOCK.toISOString(),
+    });
   });
 
   // `inject()` resolves dot segments before routing, which a real socket does not, so these
@@ -436,7 +444,11 @@ describe("the edge origin guard", () => {
       const response = await getRawPath("/api/health");
 
       expect(response.statusCode).toBe(200);
-      expect(JSON.parse(response.body)).toEqual({ status: "ok", version: "abc1234" });
+      expect(JSON.parse(response.body)).toEqual({
+        status: "ok",
+        version: "abc1234",
+        server_time: APP_CLOCK.toISOString(),
+      });
     });
 
     it.each(["/api/./health", "/api/x/../health", "/api/%2e%2e/health", "/api/health/"])(
@@ -661,7 +673,11 @@ describe("serving the backoffice's static build", () => {
     const response = await app.inject({ method: "GET", url: "/api/health" });
 
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toEqual({ status: "ok", version: "abc1234" });
+    expect(response.json()).toEqual({
+      status: "ok",
+      version: "abc1234",
+      server_time: APP_CLOCK.toISOString(),
+    });
   });
 
   it.each([

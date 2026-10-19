@@ -127,6 +127,15 @@ describe("OpenAlertInput", () => {
     }>().toExtend<OpenAlertInput>();
   });
 
+  it("accepts the device for a clock-drift alert", () => {
+    expectTypeOf<{
+      kind: "clock_drift";
+      scope: string;
+      locationId: string;
+      detail: { deviceId: string };
+    }>().toExtend<OpenAlertInput>();
+  });
+
   it("refuses a fiscal-emission-stopped alert with a reason the pre-emission check does not fail for", () => {
     expectTypeOf<{
       kind: "fiscal_emission_stopped";

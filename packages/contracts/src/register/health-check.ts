@@ -3,6 +3,7 @@ import { z } from "zod";
 export const healthCheckSchema = z.object({
   status: z.literal("ok"),
   version: z.string(),
+  server_time: z.iso.datetime().optional(),
   installation: z.object({ revoked: z.boolean() }).optional(),
   arca: z
     .object({

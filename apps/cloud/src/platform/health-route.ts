@@ -9,6 +9,7 @@ import { sendRateLimited } from "./rate-limited-response.js";
 
 export interface HealthRouteOptions {
   version: string;
+  now: () => Date;
   arcaOnlineStatus?: () => Promise<ArcaOnlineStatus>;
   authenticateDevice?: (authorization: string | undefined) => Promise<DeviceAuthentication>;
   admitRequest?: (deviceId: string) => Promise<AdmitInstallationRequestOutcome>;
@@ -54,6 +55,7 @@ export function registerHealthRoute(app: FastifyInstance, options: HealthRouteOp
         healthCheckSchema.parse({
           status: "ok",
           version: options.version,
+          server_time: options.now().toISOString(),
           ...(authentication.kind === "installation" && {
             installation: { revoked: authentication.installation.revoked },
           }),

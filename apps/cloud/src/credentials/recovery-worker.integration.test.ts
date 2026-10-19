@@ -405,12 +405,17 @@ function poolHandingOutClientsLate(connectionString: string) {
           connect(),
         )) as typeof pool.connect;
   const listeningClients = new Set<unknown>();
+  let startedListening!: () => void;
+  const listening = new Promise<void>((resolve) => {
+    startedListening = resolve;
+  });
   pool.on("connect", (client) => {
     const query = client.query.bind(client);
     client.query = ((config: unknown, ...rest: unknown[]) => {
       const text = typeof config === "string" ? config : (config as { text?: unknown })?.text;
       if (typeof text === "string" && /^\s*listen\b/i.test(text)) {
         listeningClients.add(client);
+        startedListening();
       }
       return (query as (...args: unknown[]) => unknown)(config, ...rest);
     }) as typeof client.query;
@@ -422,13 +427,15 @@ function poolHandingOutClientsLate(connectionString: string) {
       }
     });
   });
-  return { pool, stoppedListening };
+  return { pool, listening, stoppedListening };
 }
 
 async function startWorkerWithAJobFinishingAsItStops(
   finish: () => Promise<void>,
 ): Promise<StoppingWorker> {
-  const { pool, stoppedListening } = poolHandingOutClientsLate(integrationDb.databaseUrl);
+  const { pool, listening, stoppedListening } = poolHandingOutClientsLate(
+    integrationDb.databaseUrl,
+  );
   let jobStarted!: () => void;
   const started = new Promise<void>((resolve) => {
     jobStarted = resolve;
@@ -481,8 +488,14 @@ async function startWorkerWithAJobFinishingAsItStops(
     },
   );
   return {
-    enqueue: () =>
-      quickAddJob({ connectionString: integrationDb.databaseUrl }, FINISHING_TASK_IDENTIFIER, {}),
+    async enqueue() {
+      await listening;
+      return quickAddJob(
+        { connectionString: integrationDb.databaseUrl },
+        FINISHING_TASK_IDENTIFIER,
+        {},
+      );
+    },
     async stopThenLetTheJobFinish() {
       await started;
       const stopping = worker.stop();

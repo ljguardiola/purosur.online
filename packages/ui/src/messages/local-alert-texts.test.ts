@@ -233,6 +233,17 @@ test("gives a register whose fiscal emission is stopped its title, what it means
   expect(localAlertTitle("fiscal_emission_stopped")).toBe("Emisión de facturas detenida");
 });
 
+test("gives a register whose clock is off its title, what it means and what to do, without promising a block", () => {
+  expect(localAlertText({ kind: "clock_drift" })).toEqual({
+    title: "Reloj de la caja desajustado",
+    meaning:
+      "La hora de esta caja está corrida más de un minuto respecto de la hora real, y los comprobantes salen con la hora de la caja.",
+    whatToDo:
+      "Seguir vendiendo con normalidad. Corregir la fecha y hora de Windows o avisar al Administrador, que ya fue notificado.",
+  });
+  expect(localAlertTitle("clock_drift")).toBe("Reloj de la caja desajustado");
+});
+
 test("gives no title to a kind that has none, nor to one this app does not know yet", () => {
   expect(localAlertTitle("update_required")).toBeUndefined();
   expect(localAlertTitle("register_battery_low")).toBeUndefined();
@@ -288,6 +299,7 @@ test("knows the kinds that have a fixed text", () => {
   expect(isLocalAlertKind("late_payment_refund")).toBe(true);
   expect(isLocalAlertKind("refund_task")).toBe(true);
   expect(isLocalAlertKind("fiscal_emission_stopped")).toBe(true);
+  expect(isLocalAlertKind("clock_drift")).toBe(true);
   expect(isLocalAlertKind("disk_space_low")).toBe(true);
   expect(isLocalAlertKind("wal_oversized")).toBe(true);
   expect(isLocalAlertKind("battery_low")).toBe(true);
@@ -310,6 +322,7 @@ test("names exactly the kinds that have a fixed text", () => {
     | "late_payment_refund"
     | "refund_task"
     | "fiscal_emission_stopped"
+    | "clock_drift"
     | "disk_space_low"
     | "wal_oversized"
     | "battery_low"

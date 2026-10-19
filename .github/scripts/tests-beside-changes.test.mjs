@@ -6,6 +6,7 @@ import {
   changedFilesSince,
   MIGRATION_TESTS,
   projectsOfSpecifications,
+  ROUTE_INVENTORY_TEST,
   runChangedTests,
   runCommand,
   runProjectsInTurn,
@@ -220,6 +221,64 @@ test("names only test files of the repository as the tests that apply the migrat
     assert.match(testFile, /\.test\.ts$/);
     assert.ok(statSync(`${root}${testFile}`).isFile(), `${testFile} is missing`);
   }
+});
+
+const CLOUD_ROUTE_INVENTORY_TEST = "apps/cloud/src/app.test.ts";
+const TEST_FILES_WITH_ROUTE_INVENTORY_TEST = [...TEST_FILES, CLOUD_ROUTE_INVENTORY_TEST];
+
+test("runs the cloud's route inventory test when a cloud route file is added, changed or removed", () => {
+  for (const routeFile of [
+    "apps/cloud/src/catalog/brand-merge-route.ts",
+    "apps/cloud/src/payments/refund-routes.ts",
+  ]) {
+    assert.deepEqual(
+      testsToRun({
+        testFiles: TEST_FILES_WITH_ROUTE_INVENTORY_TEST,
+        changedFiles: [routeFile],
+        requestedFiles: [],
+      }),
+      [CLOUD_ROUTE_INVENTORY_TEST],
+    );
+  }
+});
+
+test("runs no route inventory test when only cloud files that register no route change", () => {
+  assert.deepEqual(
+    testsToRun({
+      testFiles: TEST_FILES_WITH_ROUTE_INVENTORY_TEST,
+      changedFiles: [
+        "apps/cloud/src/catalog/drizzle-catalog-store.ts",
+        "apps/cloud/src/sessions/route-access.ts",
+        "apps/cloud/src/purchasing/purchasing-route-options.ts",
+        "apps/cloud/src/payments/refund-routes.test.ts",
+        "apps/cloud/src/payments/test-support/refund-routes.ts",
+        "apps/backoffice/src/shell/products-route.ts",
+      ],
+      requestedFiles: [],
+    }),
+    ["apps/cloud/src/catalog/drizzle-catalog-store.integration.test.ts"],
+  );
+});
+
+test("refuses a route inventory test that is no longer a test file", () => {
+  assert.throws(
+    () =>
+      testsToRun({
+        testFiles: TEST_FILES,
+        changedFiles: ["apps/cloud/src/payments/refund-routes.ts"],
+        requestedFiles: [],
+      }),
+    /apps\/cloud\/src\/app\.test\.ts is not a test file/,
+  );
+});
+
+test("names a test file of the repository as the cloud's route inventory test", () => {
+  const root = fileURLToPath(new URL("../../", import.meta.url));
+  assert.equal(ROUTE_INVENTORY_TEST, CLOUD_ROUTE_INVENTORY_TEST);
+  assert.ok(
+    statSync(`${root}${ROUTE_INVENTORY_TEST}`).isFile(),
+    `${ROUTE_INVENTORY_TEST} is missing`,
+  );
 });
 
 test("runs each project's files in a run of their own, one project after another", async () => {

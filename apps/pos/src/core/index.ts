@@ -43,6 +43,7 @@ import {
   startRegisterHealthChecks,
 } from "./fiscal/real-time-authorization-wiring";
 import { readLatestPreEmissionGateOutcome } from "./fiscal/sqlite-pre-emission-gate";
+import { readLatestClockOffsetMs } from "./fiscal/sqlite-register-health-checks";
 import { createMessageGate, type RejectionRecorder, summarizeRejection } from "./message-gate";
 import { createInterruptedChargesWiring } from "./payments/interrupted-charges-wiring";
 import { createMercadoPagoCharging } from "./payments/mercado-pago-charge-wiring";
@@ -456,6 +457,7 @@ async function pushOutboxToCloud() {
                 storageWatch.stop,
                 localDatabaseDamaged,
                 batteryShutdown.newSalesStoppedByBattery,
+                () => readLatestClockOffsetMs(localDatabase),
               ),
         acceptedPush:
           localDatabase === undefined

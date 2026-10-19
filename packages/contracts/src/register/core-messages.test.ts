@@ -1305,6 +1305,7 @@ describe("register status messages", () => {
     [[{ kind: "installation_revoked", level: "critical" }], "unreachable"],
     [[{ kind: "serial_device_missing", level: "warning" }], "reachable"],
     [[{ kind: "fiscal_emission_stopped", level: "critical" }], "unreachable"],
+    [[{ kind: "clock_drift", level: "critical" }], "reachable"],
     [[{ kind: "disk_space_low", level: "warning" }], "unreachable"],
     [[{ kind: "wal_oversized", level: "warning" }], "unreachable"],
     [
