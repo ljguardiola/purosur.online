@@ -14,5 +14,3 @@ export {
   dueOffsiteDumpNight,
   isOffsiteDumpNight,
 } from "./model/offsite-dump-deadline.js";
-export type { SnapshotRestoreFailureStage } from "./model/snapshot-restore-failure.js";
-export { SNAPSHOT_RESTORE_FAILURE_STAGES } from "./model/snapshot-restore-failure.js";
