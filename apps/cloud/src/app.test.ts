@@ -1792,6 +1792,29 @@ describe("wiring the register revocation route", () => {
   });
 });
 
+describe("wiring the BitLocker recovery key routes", () => {
+  it("answers POST /api/registers/:id/bitlocker-recovery-key/consultations according to the bitlockerRecoveryKeys option", async () => {
+    const unwired = buildApp({ now: () => APP_CLOCK, version: "abc1234" });
+    const wired = buildApp({
+      now: () => APP_CLOCK,
+      version: "abc1234",
+      bitlockerRecoveryKeys: {
+        db: testDatabase.db,
+        backofficeOrigin: "https://staging.purosur.online",
+        keysEncryptionKey: TEST_INSTALLATION_KEYS_ENCRYPTION_KEY,
+      },
+    });
+    const request = {
+      method: "POST",
+      url: "/api/registers/00000000-0000-0000-0000-000000000000/bitlocker-recovery-key/consultations",
+      headers: { origin: "https://staging.purosur.online" },
+    } as const;
+
+    expect((await unwired.inject(request)).statusCode).toBe(404);
+    expect((await wired.inject(request)).statusCode).toBe(401);
+  });
+});
+
 describe("wiring the device enrollment route", () => {
   it("does not register POST /api/devices when no devices option is given", async () => {
     const app = buildApp({ now: () => APP_CLOCK, version: "abc1234" });
@@ -2816,6 +2839,16 @@ describe("the route access inventory", () => {
         method: "POST",
         url: "/api/registers/revocations",
         access: capabilityAccess("revoke_installations"),
+      },
+      {
+        method: "POST",
+        url: "/api/registers/:id/bitlocker-recovery-key",
+        access: capabilityAccess("bitlocker_recovery_key"),
+      },
+      {
+        method: "POST",
+        url: "/api/registers/:id/bitlocker-recovery-key/consultations",
+        access: capabilityAccess("bitlocker_recovery_key"),
       },
       {
         method: "GET",
