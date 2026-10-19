@@ -1,19 +1,20 @@
 import { recordRegisterHealthCheck } from "@purosur/domain/fiscal/use-cases";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { LocalDatabase } from "../platform/local-database";
-import { SqliteRegisterHealthChecks } from "./sqlite-register-health-checks";
+import { readLatestClockOffsetMs, SqliteRegisterHealthChecks } from "./sqlite-register-health-checks";
 import { SqliteRoundTripSamples } from "./sqlite-round-trip-samples";
 import { openFiscalDatabase } from "./test-support/real-time-authorization-database";
 
 let database: LocalDatabase;
 let healthChecks: SqliteRegisterHealthChecks;
 
-function checkAt(second: number, roundTripMs: number) {
+function checkAt(second: number, roundTripMs: number, clockOffsetMs: number | null = null) {
   return {
     checkedAt: new Date(Date.UTC(2026, 8, 30, 12, 0, second)),
     roundTripMs,
     tokenValid: true,
     arcaReachable: false,
+    clockOffsetMs,
   };
 }
 
@@ -33,7 +34,7 @@ describe("the register's health checks", () => {
     expect(
       database
         .prepare(
-          "SELECT checked_at, round_trip_ms, token_valid, arca_reachable FROM register_health_checks",
+          "SELECT checked_at, round_trip_ms, token_valid, arca_reachable, clock_offset_ms FROM register_health_checks",
         )
         .all(),
     ).toEqual([
@@ -42,7 +43,16 @@ describe("the register's health checks", () => {
         round_trip_ms: 120,
         token_valid: 1,
         arca_reachable: 0,
+        clock_offset_ms: null,
       },
+    ]);
+  });
+
+  it("stores the clock offset a check measured", async () => {
+    await healthChecks.recordHealthCheck(checkAt(5, 120, -75_000), 12);
+
+    expect(database.prepare("SELECT clock_offset_ms FROM register_health_checks").all()).toEqual([
+      { clock_offset_ms: -75_000 },
     ]);
   });
 
@@ -78,5 +88,25 @@ describe("the round trips of the latest health checks", () => {
     await healthChecks.recordHealthCheck(checkAt(3, 200), 12);
 
     await expect(new SqliteRoundTripSamples(database).recent()).resolves.toEqual([300, 100, 200]);
+  });
+});
+
+describe("the latest clock offset measured", () => {
+  it("is none before any check", () => {
+    expect(readLatestClockOffsetMs(database)).toBeNull();
+  });
+
+  it("is the offset of the latest check", async () => {
+    await healthChecks.recordHealthCheck(checkAt(1, 100, 90_000), 12);
+    await healthChecks.recordHealthCheck(checkAt(2, 100, -5_000), 12);
+
+    expect(readLatestClockOffsetMs(database)).toBe(-5_000);
+  });
+
+  it("is none when the latest check measured none, even after one that did", async () => {
+    await healthChecks.recordHealthCheck(checkAt(1, 100, 90_000), 12);
+    await healthChecks.recordHealthCheck(checkAt(2, 100, null), 12);
+
+    expect(readLatestClockOffsetMs(database)).toBeNull();
   });
 });

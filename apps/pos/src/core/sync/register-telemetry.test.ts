@@ -212,6 +212,46 @@ describe("the register's telemetry", () => {
   });
 });
 
+describe("the register's clock drift telemetry", () => {
+  function readerOfClockOffset(readClockOffsetMs: () => number | null) {
+    return registerTelemetryReader(
+      async () => STORAGE,
+      () => ({ stopped: false }),
+      () => SERIAL_DEVICES,
+      () => undefined,
+      () => undefined,
+      () => undefined,
+      () => false,
+      () => false,
+      readClockOffsetMs,
+    );
+  }
+
+  it("reports a clock drifted past the tolerance", async () => {
+    expect(await readerOfClockOffset(() => 61_000)()).toMatchObject({ clock_drift: true });
+  });
+
+  it("reports a clock back within the tolerance", async () => {
+    expect(await readerOfClockOffset(() => 3_000)()).toMatchObject({ clock_drift: false });
+  });
+
+  it("reports nothing about the clock before an offset was measured", async () => {
+    expect(await readerOfClockOffset(() => null)()).not.toHaveProperty("clock_drift");
+  });
+
+  it("reads the latest offset each time it reports", async () => {
+    let offset: number | null = 0;
+    const read = readerOfClockOffset(() => offset);
+
+    const before = await read();
+    offset = -120_000;
+    const after = await read();
+
+    expect(before).toMatchObject({ clock_drift: false });
+    expect(after).toMatchObject({ clock_drift: true });
+  });
+});
+
 describe("the telemetry of a register whose local database is damaged", () => {
   it("reports its storage, that it can't sell and that its local database is damaged", async () => {
     const read = damagedRegisterTelemetryReader(
@@ -226,6 +266,7 @@ describe("the telemetry of a register whose local database is damaged", () => {
     });
     expect(await read()).not.toHaveProperty("serial_devices");
     expect(await read()).not.toHaveProperty("fiscal_emission_stopped");
+    expect(await read()).not.toHaveProperty("clock_drift");
     expect(await read()).not.toHaveProperty("battery");
   });
 
