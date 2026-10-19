@@ -17,6 +17,7 @@ export type {
   PasskeyRemovalResult,
 } from "./model/compromise-response.js";
 export {
+  COMPROMISE_RESPONSE_ACTION_STEPS,
   COMPROMISE_RESPONSE_ITEMS,
   COMPROMISE_RESPONSE_STEPS,
   EXTERNAL_SECRET_ITEMS,

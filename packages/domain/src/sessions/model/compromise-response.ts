@@ -9,10 +9,13 @@ export const COMPROMISE_RESPONSE_STEPS = [
 
 export type CompromiseResponseStep = (typeof COMPROMISE_RESPONSE_STEPS)[number];
 
-export type CompromiseResponseAction = Extract<
-  CompromiseResponseStep,
-  "revoke_every_installation" | "end_sessions_and_remove_passkeys" | "force_pin_resets"
->;
+export const COMPROMISE_RESPONSE_ACTION_STEPS = [
+  "revoke_every_installation",
+  "end_sessions_and_remove_passkeys",
+  "force_pin_resets",
+] as const;
+
+export type CompromiseResponseAction = (typeof COMPROMISE_RESPONSE_ACTION_STEPS)[number];
 
 export const EXTERNAL_SECRET_ITEMS = [
   "mercado_pago_webhook_secret",
