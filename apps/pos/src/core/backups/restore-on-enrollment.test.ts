@@ -1,7 +1,7 @@
 import type { DeviceCredentials } from "@purosur/contracts";
 import { describe, expect, it } from "vitest";
-import type { RestorePending } from "./restore-pending";
 import { storingEnrollmentCredentials } from "./restore-on-enrollment";
+import type { RestorePending } from "./restore-pending";
 
 const CREDENTIALS: DeviceCredentials = {
   device_id: "device-new",

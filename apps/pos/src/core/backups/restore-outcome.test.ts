@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { RestorePending } from "./restore-pending";
 import { handleRestoreOutcome } from "./restore-outcome";
+import type { RestorePending } from "./restore-pending";
 
 function setup() {
   const calls: string[] = [];

@@ -19,7 +19,9 @@ const CREDENTIALS: DeviceCredentials = {
   },
 };
 
-function setup(overrides: { credentials?: DeviceCredentials | undefined; cloudUrl?: string } = {}) {
+function setup(
+  overrides: { credentials?: DeviceCredentials | undefined; cloudUrl?: string | undefined } = {},
+) {
   const posted: SnapshotWorkerLaunchRequest[] = [];
   const launch = createRestoreLaunch({
     readCredentials: async () => ("credentials" in overrides ? overrides.credentials : CREDENTIALS),

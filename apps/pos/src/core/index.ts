@@ -26,9 +26,9 @@ import {
   sentryEnvironmentFromCoreArguments,
 } from "../shared/channel";
 import { adoptStagedSnapshot, STAGED_DATABASE_FILE } from "./backups/adopt-restored-snapshot";
-import { handleRestoreOutcome } from "./backups/restore-outcome";
 import { createRestoreLaunch } from "./backups/restore-launch";
 import { storingEnrollmentCredentials } from "./backups/restore-on-enrollment";
+import { handleRestoreOutcome } from "./backups/restore-outcome";
 import { restorePendingIn } from "./backups/restore-pending";
 import { syncUnlessRestorePending } from "./backups/restore-sync-hold";
 import { requestFirstPinCode } from "./credentials/first-pin-code-request";
