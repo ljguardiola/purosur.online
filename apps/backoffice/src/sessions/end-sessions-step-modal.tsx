@@ -10,7 +10,7 @@ import type {
   endSessionsAndRemovePasskeys,
 } from "./compromise-response-api";
 import { isRunbookRefusal } from "./compromise-response-api";
-import { useAccountsQuery } from "./compromise-response-queries";
+import { useAccountsQuery } from "./sessions-queries";
 import {
   accountOptions,
   EMPTY_VALUES,

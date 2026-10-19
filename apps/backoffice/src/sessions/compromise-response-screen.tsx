@@ -24,7 +24,7 @@ import { CompromiseResponseChecklist, itemLabel } from "./compromise-response-ch
 import {
   useCompromiseResponseQuery,
   useReloadCompromiseResponse,
-} from "./compromise-response-queries";
+} from "./sessions-queries";
 import type { CompromiseResponseScreenServices } from "./compromise-response-services";
 import { CompromiseResponseStepCard } from "./compromise-response-step-card";
 import { EndSessionsStepModal } from "./end-sessions-step-modal";
