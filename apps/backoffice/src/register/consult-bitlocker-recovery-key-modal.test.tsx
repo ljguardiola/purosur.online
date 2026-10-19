@@ -65,9 +65,11 @@ test("shows the key in two lines of four blocks with its identifier and when it 
   await expect.element(dialog.getByText("Identificador de la clave: 1A2B3C4D")).toBeVisible();
   await expect
     .element(
-      dialog.getByText(
-        "Se usa solo si Windows la pide al arrancar la notebook, por ejemplo después de un cambio de hardware.",
-      ),
+      dialog
+        .getByText(
+          "Se usa solo si Windows la pide al arrancar la notebook, por ejemplo después de un cambio de hardware.",
+        )
+        .first(),
     )
     .toBeVisible();
   expect(services.consultBitlockerRecoveryKey).toHaveBeenCalledWith("register-5");

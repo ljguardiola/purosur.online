@@ -64,9 +64,11 @@ test("names the register and its machine and says why to keep the key", async ()
   await expect.element(dialog.getByText("Caja 3 · CAJA-MOSTRADOR", { exact: true })).toBeVisible();
   await expect
     .element(
-      dialog.getByText(
-        "Guardala para poder consultarla más adelante si Windows la pide al arrancar la notebook, por ejemplo después de un cambio de hardware.",
-      ),
+      dialog
+        .getByText(
+          "Guardala para poder consultarla más adelante si Windows la pide al arrancar la notebook, por ejemplo después de un cambio de hardware.",
+        )
+        .first(),
     )
     .toBeVisible();
 });
