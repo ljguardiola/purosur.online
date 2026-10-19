@@ -472,7 +472,7 @@ describe("voiding a sale", () => {
       const event = database
         .prepare("SELECT schema_version, payload FROM outbox WHERE event_type = 'sale_voided'")
         .get() as { schema_version: number; payload: string };
-      expect(event.schema_version).toBe(2);
+      expect(event.schema_version).toBe(3);
       expect(JSON.parse(event.payload).refunds).toEqual(
         expect.arrayContaining([
           expect.objectContaining({ parent_id: "mp-1", method, provider, state: "PENDING" }),

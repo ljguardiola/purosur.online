@@ -179,6 +179,7 @@ export type {
   BuyerTaxStatusOption,
   ChargeRefusal,
   ClockCorrectionAlertState,
+  CreditNoteAnswer,
   CreditNoteReason,
   DeferralReason,
   DeferredSale,
@@ -205,7 +206,10 @@ export type {
   RealTimeAuthorizationResolution,
   RegisterOfflineAuthorizationCodeHolding,
   RejectionClass,
+  SaleInvoice,
+  SaleVoidCreditNote,
   TaxAuthorityRejection,
+  VoucherReference,
 } from "./fiscal/index.js";
 export {
   ARCA_VITALITY_CHECK_INTERVAL_MS,
