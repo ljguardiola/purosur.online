@@ -32,6 +32,7 @@ type HarnessProps = {
   request: () => Promise<FakeOutcome>;
   onSettled?: (kind: string, current: boolean) => void;
   onSessionEnded?: () => void;
+  onCancelled?: () => void;
   services?: RevocationAttemptServices;
 };
 
@@ -39,6 +40,7 @@ function Harness({
   request,
   onSettled = () => {},
   onSessionEnded = () => {},
+  onCancelled,
   services = createServices(),
 }: HarnessProps) {
   const [open, setOpen] = useState(true);
@@ -46,6 +48,7 @@ function Harness({
     open,
     actionName: "Revocar la prueba",
     onSessionEnded,
+    ...(onCancelled ? { onCancelled } : {}),
     services,
   });
   return (
@@ -203,6 +206,33 @@ test("hands nothing to the operation and shows nothing when the authorization is
   await expect.element(stateOf(screen)).toHaveTextContent("En espera");
   await expect.element(noticeOf(screen)).toHaveTextContent("");
   expect(onSettled).not.toHaveBeenCalled();
+});
+
+test("reports the authorization cancelled when the person cancels it", async () => {
+  const onCancelled = vi.fn();
+  const screen = await renderHarness({
+    request: vi.fn().mockResolvedValue({ kind: "authorization_required" }),
+    onCancelled,
+  });
+  await revoke(screen);
+  const authDialog = screen.getByRole("dialog", { name: "Autorizá este cambio" });
+
+  await userEvent.click(authDialog.getByRole("button", { name: "Cancelar" }));
+
+  await expect.poll(() => onCancelled.mock.calls.length).toBe(1);
+});
+
+test("does not report a cancellation when the attempt is answered", async () => {
+  const onCancelled = vi.fn();
+  const screen = await renderHarness({
+    request: vi.fn().mockResolvedValue({ kind: "ok" }),
+    onCancelled,
+  });
+
+  await revoke(screen);
+
+  await expect.element(stateOf(screen)).toHaveTextContent("En espera");
+  expect(onCancelled).not.toHaveBeenCalled();
 });
 
 test("is revoking while the attempt is pending, and no longer once it answers", async () => {
