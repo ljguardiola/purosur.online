@@ -8,6 +8,7 @@ import {
   isAwaitingMercadoPago,
   isProcessedByMercadoPago,
   isRefundInCloudHands,
+  isRefundRefusedForGood,
   isRefundSentByCloud,
   MERCADO_PAGO_REFUND_STAGES,
   mercadoPagoRefundStage,
@@ -34,6 +35,74 @@ describe("isRefundSentByCloud", () => {
     ["CASH", "sale_cancelled", false],
   ])("answers %s of origin %s: %s", (method, origin, sent) => {
     expect(isRefundSentByCloud({ method, origin })).toBe(sent);
+  });
+});
+
+describe("isRefundRefusedForGood", () => {
+  const confirmedAt = new Date("2026-10-13T14:00:00Z");
+
+  it.each([
+    ["QR", "sale_cancelled"],
+    ["POINT", "sale_cancelled"],
+    ["QR", "late_payment"],
+    ["QR", "sale_voided"],
+    ["POINT", "sale_voided"],
+  ])(
+    "is true for a confirmed %s refund of origin %s Mercado Pago refused for good",
+    (method, origin) => {
+      expect(
+        isRefundRefusedForGood({
+          method,
+          origin,
+          confirmedAt,
+          lastRefusalReason: "payment_not_refundable",
+        }),
+      ).toBe(true);
+    },
+  );
+
+  it("is false while the refusal is only for insufficient balance", () => {
+    expect(
+      isRefundRefusedForGood({
+        method: "QR",
+        origin: "sale_cancelled",
+        confirmedAt,
+        lastRefusalReason: INSUFFICIENT_BALANCE_REFUSAL,
+      }),
+    ).toBe(false);
+  });
+
+  it("is false for a confirmed refund Mercado Pago has not refused", () => {
+    expect(
+      isRefundRefusedForGood({
+        method: "QR",
+        origin: "sale_cancelled",
+        confirmedAt,
+        lastRefusalReason: null,
+      }),
+    ).toBe(false);
+  });
+
+  it("is false for a refund no person confirmed", () => {
+    expect(
+      isRefundRefusedForGood({
+        method: "QR",
+        origin: "sale_cancelled",
+        confirmedAt: null,
+        lastRefusalReason: "payment_not_refundable",
+      }),
+    ).toBe(false);
+  });
+
+  it("is false for a refund the cloud does not send", () => {
+    expect(
+      isRefundRefusedForGood({
+        method: "TRANSFER",
+        origin: "sale_cancelled",
+        confirmedAt,
+        lastRefusalReason: "payment_not_refundable",
+      }),
+    ).toBe(false);
   });
 });
 

@@ -2,7 +2,6 @@ import fc from "fast-check";
 import { describe, expect, expectTypeOf, it } from "vitest";
 import {
   DISCARDABLE_REFUND_ALERT_KINDS,
-  isRefundDiscardable,
   isRefundDiscarded,
   isRefundOriginDiscardable,
   isRefundPending,
@@ -19,7 +18,6 @@ import {
   REFUND_STATES,
   REFUND_TASK_ORIGINS,
   refundAlertKind,
-  refundDiscardRefusal,
   refundsSettleApprovedPayments,
   SALE_CANCELLED_REFUND_ORIGIN,
   SALE_VOIDED_REFUND_ORIGIN,
@@ -240,45 +238,6 @@ describe("isRefundOriginDiscardable", () => {
     "is false for the origin %j",
     (origin) => {
       expect(isRefundOriginDiscardable(origin)).toBe(false);
-    },
-  );
-});
-
-describe("isRefundDiscardable", () => {
-  it("is true for the refund of a late payment no person has confirmed", () => {
-    expect(isRefundDiscardable({ origin: "late_payment", confirmedAt: null })).toBe(true);
-  });
-
-  it("is false once a person confirmed the refund of a late payment", () => {
-    expect(
-      isRefundDiscardable({
-        origin: "late_payment",
-        confirmedAt: new Date("2026-10-13T14:00:00Z"),
-      }),
-    ).toBe(false);
-  });
-
-  it.each(["sale_cancelled", "sale_voided"])("is false for an unconfirmed %s refund", (origin) => {
-    expect(isRefundDiscardable({ origin, confirmedAt: null })).toBe(false);
-  });
-});
-
-describe("refundDiscardRefusal", () => {
-  const confirmedAt = new Date("2026-10-13T14:00:00Z");
-
-  it("refuses nothing for the refund of a late payment no person has confirmed", () => {
-    expect(refundDiscardRefusal({ origin: "late_payment", confirmedAt: null })).toBeNull();
-  });
-
-  it("answers that a late-payment refund a person confirmed is already confirmed", () => {
-    expect(refundDiscardRefusal({ origin: "late_payment", confirmedAt })).toBe("already_confirmed");
-  });
-
-  it.each(["sale_cancelled", "sale_voided"])(
-    "answers that a %s refund is not discardable, confirmed or not",
-    (origin) => {
-      expect(refundDiscardRefusal({ origin, confirmedAt: null })).toBe("not_discardable");
-      expect(refundDiscardRefusal({ origin, confirmedAt })).toBe("not_discardable");
     },
   );
 });
