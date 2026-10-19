@@ -56,7 +56,8 @@ function PlaceholderRow<T extends RowData>({
               <div className="flex flex-row items-center justify-end gap-2">
                 <PlaceholderSquare />
                 {actionCount >= 2 && <PlaceholderSquare />}
-                {actionCount === 3 && <PlaceholderSquare />}
+                {actionCount >= 3 && <PlaceholderSquare />}
+                {actionCount === 4 && <PlaceholderSquare />}
               </div>
             ) : (
               <div
