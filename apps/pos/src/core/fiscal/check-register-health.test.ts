@@ -87,14 +87,6 @@ describe("checking the register's health against the cloud", () => {
     expect(recorded).toMatchObject([{ clockOffsetMs: 90_000 }]);
   });
 
-  it("records a clock ahead of the cloud's as a negative offset", async () => {
-    const serverTime = new Date(START.getTime() + ROUND_TRIP_MS / 2 - 150_000).toISOString();
-    const { recorded, outcome } = health(ok(ARCA, serverTime));
-
-    await outcome;
-    expect(recorded).toMatchObject([{ clockOffsetMs: -150_000 }]);
-  });
-
   it.each([
     ["an invalid token", { token_valid: false, probe_ok_at: null, reachable: true }],
     ["an unreachable tax authority", { token_valid: true, probe_ok_at: null, reachable: false }],

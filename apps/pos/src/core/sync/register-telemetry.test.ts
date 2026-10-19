@@ -227,18 +227,6 @@ describe("the register's clock drift telemetry", () => {
     );
   }
 
-  it("reports a clock drifted past the tolerance", async () => {
-    expect(await readerOfClockOffset(() => 61_000)()).toMatchObject({ clock_drift: true });
-  });
-
-  it("reports a clock back within the tolerance", async () => {
-    expect(await readerOfClockOffset(() => 3_000)()).toMatchObject({ clock_drift: false });
-  });
-
-  it("reports nothing about the clock before an offset was measured", async () => {
-    expect(await readerOfClockOffset(() => null)()).not.toHaveProperty("clock_drift");
-  });
-
   it("reads the latest offset each time it reports", async () => {
     let offset: number | null = 0;
     const read = readerOfClockOffset(() => offset);

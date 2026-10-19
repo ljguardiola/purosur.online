@@ -140,6 +140,34 @@ describe("observeRegisterStops", () => {
     ]);
   });
 
+  it("clears the register's open clock-drift alert once it reports its clock within tolerance", async () => {
+    await observeRegisterStops(
+      db,
+      {
+        registerId: REGISTER,
+        deviceId: DEVICE,
+        locationId: location,
+        report: { ...REPORT, clock_drift: true },
+      },
+      NOW,
+    );
+
+    await observeRegisterStops(
+      db,
+      {
+        registerId: REGISTER,
+        deviceId: DEVICE,
+        locationId: location,
+        report: { ...REPORT, clock_drift: false },
+      },
+      LATER,
+    );
+
+    expect(await alertsOfKind("clock_drift")).toEqual([
+      expect.objectContaining({ conditionClearedAt: LATER }),
+    ]);
+  });
+
   it("opens nothing for a register that reports its clock within tolerance", async () => {
     await observeRegisterStops(
       db,

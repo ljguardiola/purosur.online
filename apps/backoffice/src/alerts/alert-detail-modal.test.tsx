@@ -1406,6 +1406,31 @@ test("tells a register whose clock is off in plain language and that the alert c
   expect(screen.getByText(/No se cierra sola/).query()).toBeNull();
 });
 
+test("marks a register whose clock is off with the clock icon", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(
+    ok(
+      baseDetail({
+        kind: "clock_drift",
+        level: "critical",
+        audience: "local",
+        closing: "by_itself",
+        scope: "register-1",
+        scopeDisplay: "Caja 1",
+        detail: { deviceId: "device-1" },
+      }),
+    ),
+  );
+
+  const screen = await renderModal(services);
+
+  await expect
+    .element(screen.getByText("Reloj de la caja desajustado", { exact: true }))
+    .toBeVisible();
+  const iconBox = screen.getByRole("dialog").element().querySelector('[aria-hidden="true"]');
+  expect(iconBox?.querySelector("svg")?.classList.contains("lucide-clock")).toBe(true);
+});
+
 test("names a register whose clock is off by what happened when the alert is not for the Local audience", async () => {
   const services = createServices();
   vi.mocked(services.fetchAlert).mockResolvedValue(

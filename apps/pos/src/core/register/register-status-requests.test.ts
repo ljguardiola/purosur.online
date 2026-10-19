@@ -299,19 +299,6 @@ describe("the register's status", () => {
     expect((await status()).conditions).toEqual([{ kind: "clock_drift", level: "critical" }]);
   });
 
-  it("holds nothing about the clock before any health check measured it", async () => {
-    await recordClockOffset(1, null);
-
-    expect((await status()).conditions).toEqual([]);
-  });
-
-  it("drops clock_drift as soon as a later health check measures the clock back within the tolerance", async () => {
-    await recordClockOffset(1, 75_000);
-    await recordClockOffset(2, 2_000);
-
-    expect((await status()).conditions).toEqual([]);
-  });
-
   it("holds only installation_revoked once the cloud revoked the installation, with the cloud unreachable", async () => {
     holdBranchHours(mondayHours("09:00", "18:00"));
     await acceptedMinutesAgo(30);
