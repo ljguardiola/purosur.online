@@ -230,11 +230,21 @@ export type {
 } from "./remove-user-passkey.js";
 export { removeUserPasskey } from "./remove-user-passkey.js";
 export type {
+  PinResetStore,
+  PinResetStoreTransaction,
+} from "./pin-reset-store.js";
+export type {
   PinReplacementPorts,
   PinReplacementStore,
   ReplacePinInput,
 } from "./replace-pin.js";
 export { replacePin } from "./replace-pin.js";
+export type {
+  RequirePinResetOfEveryUserInput,
+  RequirePinResetOfEveryUserOutcome,
+  RequirePinResetOfEveryUserPorts,
+} from "./require-pin-reset-of-every-user.js";
+export { requirePinResetOfEveryUser } from "./require-pin-reset-of-every-user.js";
 export type {
   SessionAuthorizationStore,
   SessionAuthorizationStoreTransaction,
