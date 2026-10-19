@@ -14,6 +14,7 @@ import {
   salesHistoryFor,
 } from "./sales-history-requests";
 
+const NOW = new Date("2026-10-08T12:00:00.000Z");
 const PEPPER = Buffer.alloc(32, 7).toString("base64url");
 const ASK = { session: "all", state: "all", page: 1 } as const;
 
@@ -30,6 +31,7 @@ function deps(): SalesHistoryRequestDeps {
       hashPin: async () => "hash-of-a-pin",
       now: () => new Date("2026-10-08T12:00:00.000Z"),
     }),
+    now: () => NOW,
   };
 }
 
@@ -300,11 +302,28 @@ describe("the detail of a sale of the history", () => {
         line_count: 1,
         payments: [{ method: "CASH", amount: 3000 }],
         state: "completed",
-        voidability: { kind: "not_voidable", refusal: "carries_invoice" },
+        voidability: { kind: "not_voidable", refusal: "invoice_needs_connection" },
         void_authorization_required: true,
+        credit_note: null,
         reprint: { kind: "available" },
         next_copy: { kind: "original" },
       },
+    });
+  });
+
+  it("answers the refunds of an invoiced sale once the register reaches the tax authority", async () => {
+    database
+      .prepare(
+        `INSERT INTO register_health_checks (checked_at, round_trip_ms, token_valid, arca_reachable)
+         VALUES (?, 100, 1, 1)`,
+      )
+      .run(new Date(NOW.getTime() - 5_000).toISOString());
+
+    const answer = await saleHistoryDetailFor(deps(), "sale-1");
+
+    expect(answer.kind === "found" && answer.detail.voidability).toEqual({
+      kind: "voidable",
+      refunds: [{ method: "CASH", amount: 3000, state: "APPROVED", sent_by_cloud: false }],
     });
   });
 
@@ -380,6 +399,79 @@ describe("the detail of a sale of the history", () => {
     expect(answer.kind === "found" && answer.detail.next_copy).toEqual({
       kind: "duplicate",
       order_number: 1,
+    });
+  });
+
+  describe("the credit note of a voided sale", () => {
+    function addCreditNote(answer: Record<string, string | number | null>): void {
+      addSale({
+        id: "gone",
+        occurredAt: "2026-10-08T10:00:00.000Z",
+        operationNumber: 2,
+        state: "VOIDED",
+      });
+      database
+        .prepare(
+          `INSERT INTO sale_void_credit_notes (
+             id, sale_id, total, receiver_tax_status_code, corrected_voucher_type,
+             corrected_point_of_sale, corrected_number, state, point_of_sale, number, issued_on,
+             authorization_code, authorization_code_due_on, recorded_at, answered_at
+           ) VALUES (
+             'note-1', 'gone', 3000, 5, 11, 3, 41, @state, @point_of_sale, @number, @issued_on,
+             @authorization_code, @authorization_code_due_on, '2026-10-08T10:00:00.000Z', @answered_at
+           )`,
+        )
+        .run({
+          state: "IN_PROGRESS",
+          point_of_sale: null,
+          number: null,
+          issued_on: null,
+          authorization_code: null,
+          authorization_code_due_on: null,
+          answered_at: null,
+          ...answer,
+        });
+    }
+
+    it("answers it in progress", async () => {
+      addCreditNote({});
+
+      const answer = await saleHistoryDetailFor(deps(), "gone");
+
+      expect(answer.kind === "found" && answer.detail.credit_note).toEqual({
+        kind: "in_progress",
+      });
+    });
+
+    it("answers its authorization as the credit note's own point of sale, number, date and code", async () => {
+      addCreditNote({
+        state: "AUTHORIZED",
+        point_of_sale: 3,
+        number: 7,
+        issued_on: "2026-10-08",
+        authorization_code: "75123456789012",
+        authorization_code_due_on: "2026-10-18",
+        answered_at: "2026-10-08T10:00:05.000Z",
+      });
+
+      const answer = await saleHistoryDetailFor(deps(), "gone");
+
+      expect(answer.kind === "found" && answer.detail.credit_note).toEqual({
+        kind: "authorized",
+        point_of_sale: 3,
+        number: 7,
+        issued_on: "2026-10-08",
+        authorization_code: "75123456789012",
+        authorization_code_due_on: "2026-10-18",
+      });
+    });
+
+    it("answers its rejection", async () => {
+      addCreditNote({ state: "REJECTED", answered_at: "2026-10-08T10:00:05.000Z" });
+
+      const answer = await saleHistoryDetailFor(deps(), "gone");
+
+      expect(answer.kind === "found" && answer.detail.credit_note).toEqual({ kind: "rejected" });
     });
   });
 });
