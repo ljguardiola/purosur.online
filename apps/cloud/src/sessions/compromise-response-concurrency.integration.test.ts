@@ -26,11 +26,11 @@ afterAll(async () => {
   await integrationDb.close();
 });
 
-async function administrator(email: string): Promise<string> {
+async function administrator(email: string, permissionKeys: string[]): Promise<string> {
   const session = await openBackofficeSession(db, {
     now: SESSION_NOON,
     locationId: await seededLocationId(db),
-    permissionKeys: ["manage_users"],
+    permissionKeys,
     email,
   });
   return session.userId;
@@ -38,8 +38,8 @@ async function administrator(email: string): Promise<string> {
 
 describe("two Administrators starting the runbook at once on a real Postgres", () => {
   it("creates one runbook and hands the same one to both", async () => {
-    const first = await administrator("ada@example.com");
-    const second = await administrator("grace@example.com");
+    const first = await administrator("ada@example.com", ["manage_users"]);
+    const second = await administrator("grace@example.com", ["manage_users", "deactivate_users"]);
 
     const outcomes = await Promise.all(
       [first, second].map((actorId) =>
