@@ -81,17 +81,15 @@ function stepDoneAt(
 ): Date | null {
   switch (step) {
     case "rotate_external_secrets": {
-      let latest: Date | null = null;
+      const times: number[] = [];
       for (const item of EXTERNAL_SECRET_ITEMS) {
         const at = completionAt(completions, item);
         if (at === null) {
           return null;
         }
-        if (latest === null || at.getTime() > latest.getTime()) {
-          latest = at;
-        }
+        times.push(at.getTime());
       }
-      return latest;
+      return new Date(Math.max(...times));
     }
     case "notify":
       return completionAt(completions, NOTIFY_ITEM);
