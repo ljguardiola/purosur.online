@@ -126,7 +126,9 @@ async function dropEveryConnection(databaseUrl: string): Promise<void> {
     await sql`
       select pg_terminate_backend(pid)
       from pg_stat_activity
-      where datname = current_database() and pid <> pg_backend_pid()
+      where datname = current_database()
+        and backend_type = 'client backend'
+        and pid <> pg_backend_pid()
     `;
   } finally {
     await sql.end({ timeout: 1 });

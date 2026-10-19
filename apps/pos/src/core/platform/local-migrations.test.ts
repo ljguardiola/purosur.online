@@ -909,6 +909,7 @@ describe("the register's local migrations", () => {
         "0057_voided_sales",
         "0058_register_clock_guard",
         "0059_point_refunds",
+        "0062_health_check_clock_offset",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -995,6 +996,7 @@ describe("the register's local migrations", () => {
         "0057_voided_sales",
         "0058_register_clock_guard",
         "0059_point_refunds",
+        "0062_health_check_clock_offset",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1076,6 +1078,7 @@ describe("the register's local migrations", () => {
         "0057_voided_sales",
         "0058_register_clock_guard",
         "0059_point_refunds",
+        "0062_health_check_clock_offset",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1156,6 +1159,7 @@ describe("the register's local migrations", () => {
         "0057_voided_sales",
         "0058_register_clock_guard",
         "0059_point_refunds",
+        "0062_health_check_clock_offset",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1265,6 +1269,7 @@ describe("the register's local migrations", () => {
         "0057_voided_sales",
         "0058_register_clock_guard",
         "0059_point_refunds",
+        "0062_health_check_clock_offset",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1364,6 +1369,7 @@ describe("the register's local migrations", () => {
         "0057_voided_sales",
         "0058_register_clock_guard",
         "0059_point_refunds",
+        "0062_health_check_clock_offset",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1467,6 +1473,7 @@ describe("the register's local migrations", () => {
         "0057_voided_sales",
         "0058_register_clock_guard",
         "0059_point_refunds",
+        "0062_health_check_clock_offset",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1502,6 +1509,31 @@ describe("the register's local migrations", () => {
       for (const table of ["register_health_checks", "fiscal_documents", "deferred_sales"]) {
         expect(after.prepare(`SELECT count(*) AS total FROM ${table}`).get()).toEqual({ total: 0 });
       }
+      after.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
+  it("add no clock offset to the health checks a register already holds", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.filter(
+        (migration) => migration.name < "0062_health_check_clock_offset",
+      );
+      const before = openLocalDatabase(path, previous, migrationClock);
+      before.exec(
+        `INSERT INTO register_health_checks (checked_at, round_trip_ms, token_valid, arca_reachable)
+         VALUES ('2026-09-30T12:00:05.000Z', 120, 1, 1)`,
+      );
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+
+      expect(
+        after.prepare("SELECT round_trip_ms, clock_offset_ms FROM register_health_checks").all(),
+      ).toEqual([{ round_trip_ms: 120, clock_offset_ms: null }]);
       after.close();
     } finally {
       rmSync(folder, { recursive: true, force: true });
@@ -1553,6 +1585,7 @@ describe("the register's local migrations", () => {
         "0057_voided_sales",
         "0058_register_clock_guard",
         "0059_point_refunds",
+        "0062_health_check_clock_offset",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1631,6 +1664,7 @@ describe("the register's local migrations", () => {
         "0057_voided_sales",
         "0058_register_clock_guard",
         "0059_point_refunds",
+        "0062_health_check_clock_offset",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before

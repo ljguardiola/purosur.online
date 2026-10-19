@@ -3,6 +3,7 @@ export interface RegisterHealthCheck {
   roundTripMs: number;
   tokenValid: boolean;
   arcaReachable: boolean;
+  clockOffsetMs: number | null;
 }
 
 export interface RegisterHealthChecks {
