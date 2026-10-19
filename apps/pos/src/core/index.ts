@@ -32,6 +32,7 @@ import { applyRedeemedPin } from "./credentials/redeemed-pin";
 import { createClockGuardRequests } from "./fiscal/clock-guard-answers";
 import { cryptoShortCodes } from "./fiscal/crypto-short-codes";
 import {
+  cloudCreditNotes,
   createRealTimeAuthorization,
   settleInterruptedAuthorizations,
   startRegisterHealthChecks,
@@ -922,6 +923,9 @@ const rendererRequestDeps: RendererRequestDeps = {
                 (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
               now,
               ids: uuidV7Ids,
+              creditNotes: cloudCreditNotes({ cloudClient, readDeviceToken }),
+              printCreditNote: receiptPrinting.printVoidedSaleCreditNote,
+              reportFailure: (error) => reportFailure("printing a credit note", error),
             },
             request,
           ),
@@ -1114,6 +1118,7 @@ const rendererRequestDeps: RendererRequestDeps = {
   receiptPrintStatus: receiptPrinting.receiptPrintStatus,
   printOriginalReceipt: receiptPrinting.printOriginalReceipt,
   reprintSaleReceipt: receiptPrinting.reprintSaleReceipt,
+  printCreditNote: receiptPrinting.printCreditNote,
   reportFailure,
 };
 
