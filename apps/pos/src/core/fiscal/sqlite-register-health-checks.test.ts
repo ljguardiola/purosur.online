@@ -1,7 +1,10 @@
 import { recordRegisterHealthCheck } from "@purosur/domain/fiscal/use-cases";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { LocalDatabase } from "../platform/local-database";
-import { readLatestClockOffsetMs, SqliteRegisterHealthChecks } from "./sqlite-register-health-checks";
+import {
+  readLatestClockOffsetMs,
+  SqliteRegisterHealthChecks,
+} from "./sqlite-register-health-checks";
 import { SqliteRoundTripSamples } from "./sqlite-round-trip-samples";
 import { openFiscalDatabase } from "./test-support/real-time-authorization-database";
 

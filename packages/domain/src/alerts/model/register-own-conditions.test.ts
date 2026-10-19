@@ -134,7 +134,9 @@ describe("registerOwnConditions", () => {
   });
 
   it("holds clock_drift while the latest measured offset passes the tolerance either way", () => {
-    expect(conditions({ clockOffsetMs: 60_001 })).toEqual([{ kind: "clock_drift", level: "critical" }]);
+    expect(conditions({ clockOffsetMs: 60_001 })).toEqual([
+      { kind: "clock_drift", level: "critical" },
+    ]);
     expect(conditions({ clockOffsetMs: -60_001 })).toEqual([
       { kind: "clock_drift", level: "critical" },
     ]);

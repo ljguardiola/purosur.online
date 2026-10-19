@@ -445,10 +445,10 @@ describe("the edge origin guard", () => {
 
       expect(response.statusCode).toBe(200);
       expect(JSON.parse(response.body)).toEqual({
-      status: "ok",
-      version: "abc1234",
-      server_time: APP_CLOCK.toISOString(),
-    });
+        status: "ok",
+        version: "abc1234",
+        server_time: APP_CLOCK.toISOString(),
+      });
     });
 
     it.each(["/api/./health", "/api/x/../health", "/api/%2e%2e/health", "/api/health/"])(

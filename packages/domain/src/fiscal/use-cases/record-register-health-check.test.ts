@@ -10,13 +10,25 @@ describe("recordRegisterHealthCheck", () => {
 
     const outcome = await recordRegisterHealthCheck(
       { healthChecks },
-      { checkedAt: CHECKED_AT, roundTripMs: 180, tokenValid: true, arcaReachable: true, clockOffsetMs: null },
+      {
+        checkedAt: CHECKED_AT,
+        roundTripMs: 180,
+        tokenValid: true,
+        arcaReachable: true,
+        clockOffsetMs: null,
+      },
     );
 
     expect(outcome).toEqual({ kind: "recorded" });
     expect(healthChecks.recorded).toEqual([
       {
-        check: { checkedAt: CHECKED_AT, roundTripMs: 180, tokenValid: true, arcaReachable: true, clockOffsetMs: null },
+        check: {
+          checkedAt: CHECKED_AT,
+          roundTripMs: 180,
+          tokenValid: true,
+          arcaReachable: true,
+          clockOffsetMs: null,
+        },
         keepLast: 12,
       },
     ]);
@@ -27,11 +39,23 @@ describe("recordRegisterHealthCheck", () => {
 
     await recordRegisterHealthCheck(
       { healthChecks },
-      { checkedAt: CHECKED_AT, roundTripMs: 95, tokenValid: false, arcaReachable: false, clockOffsetMs: null },
+      {
+        checkedAt: CHECKED_AT,
+        roundTripMs: 95,
+        tokenValid: false,
+        arcaReachable: false,
+        clockOffsetMs: null,
+      },
     );
 
     expect(healthChecks.recorded.map(({ check }) => check)).toEqual([
-      { checkedAt: CHECKED_AT, roundTripMs: 95, tokenValid: false, arcaReachable: false, clockOffsetMs: null },
+      {
+        checkedAt: CHECKED_AT,
+        roundTripMs: 95,
+        tokenValid: false,
+        arcaReachable: false,
+        clockOffsetMs: null,
+      },
     ]);
   });
 
