@@ -909,8 +909,8 @@ describe("the register's local migrations", () => {
         "0057_voided_sales",
         "0058_register_clock_guard",
         "0059_point_refunds",
-        "0060_void_credit_notes",
         "0062_health_check_clock_offset",
+        "0064_void_credit_notes",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -997,8 +997,8 @@ describe("the register's local migrations", () => {
         "0057_voided_sales",
         "0058_register_clock_guard",
         "0059_point_refunds",
-        "0060_void_credit_notes",
         "0062_health_check_clock_offset",
+        "0064_void_credit_notes",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1080,8 +1080,8 @@ describe("the register's local migrations", () => {
         "0057_voided_sales",
         "0058_register_clock_guard",
         "0059_point_refunds",
-        "0060_void_credit_notes",
         "0062_health_check_clock_offset",
+        "0064_void_credit_notes",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1162,8 +1162,8 @@ describe("the register's local migrations", () => {
         "0057_voided_sales",
         "0058_register_clock_guard",
         "0059_point_refunds",
-        "0060_void_credit_notes",
         "0062_health_check_clock_offset",
+        "0064_void_credit_notes",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1273,8 +1273,8 @@ describe("the register's local migrations", () => {
         "0057_voided_sales",
         "0058_register_clock_guard",
         "0059_point_refunds",
-        "0060_void_credit_notes",
         "0062_health_check_clock_offset",
+        "0064_void_credit_notes",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1374,8 +1374,8 @@ describe("the register's local migrations", () => {
         "0057_voided_sales",
         "0058_register_clock_guard",
         "0059_point_refunds",
-        "0060_void_credit_notes",
         "0062_health_check_clock_offset",
+        "0064_void_credit_notes",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1479,8 +1479,8 @@ describe("the register's local migrations", () => {
         "0057_voided_sales",
         "0058_register_clock_guard",
         "0059_point_refunds",
-        "0060_void_credit_notes",
         "0062_health_check_clock_offset",
+        "0064_void_credit_notes",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1592,8 +1592,8 @@ describe("the register's local migrations", () => {
         "0057_voided_sales",
         "0058_register_clock_guard",
         "0059_point_refunds",
-        "0060_void_credit_notes",
         "0062_health_check_clock_offset",
+        "0064_void_credit_notes",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1672,8 +1672,8 @@ describe("the register's local migrations", () => {
         "0057_voided_sales",
         "0058_register_clock_guard",
         "0059_point_refunds",
-        "0060_void_credit_notes",
         "0062_health_check_clock_offset",
+        "0064_void_credit_notes",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
