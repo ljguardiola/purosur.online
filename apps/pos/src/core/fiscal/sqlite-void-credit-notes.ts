@@ -6,6 +6,82 @@ import {
 import type { PendingCreditNote, RegisterVoidCreditNotes } from "@purosur/domain/fiscal/use-cases";
 import type { LocalDatabase } from "../platform/local-database";
 
+interface AuthorizedRow {
+  state: "AUTHORIZED";
+  point_of_sale: number;
+  number: number;
+  issued_on: string;
+  authorization_code: string;
+  authorization_code_due_on: string;
+}
+
+interface UnauthorizedRow {
+  state: "IN_PROGRESS" | "REJECTED";
+}
+
+type CreditNoteRow = (AuthorizedRow | UnauthorizedRow) & {
+  id: string;
+  sale_id: string;
+  total: number;
+  receiver_tax_status_code: number;
+  corrected_voucher_type: number;
+  corrected_point_of_sale: number;
+  corrected_number: number;
+  recorded_at: string;
+};
+
+export interface StoredCreditNote extends SaleVoidCreditNote {
+  recordedAt: Date;
+  answer: CreditNoteAnswer;
+}
+
+function answerOf(row: CreditNoteRow): CreditNoteAnswer {
+  switch (row.state) {
+    case "IN_PROGRESS":
+      return { kind: "in_progress" };
+    case "REJECTED":
+      return { kind: "rejected" };
+    case "AUTHORIZED":
+      return {
+        kind: "authorized",
+        pointOfSale: row.point_of_sale,
+        number: row.number,
+        issuedOn: row.issued_on,
+        authorizationCode: row.authorization_code,
+        authorizationCodeDueOn: row.authorization_code_due_on,
+      };
+  }
+}
+
+export function readCreditNoteOfSale(
+  database: LocalDatabase,
+  saleId: string,
+): StoredCreditNote | null {
+  const row = database
+    .prepare<[string], CreditNoteRow>(
+      `SELECT id, sale_id, total, receiver_tax_status_code, corrected_voucher_type,
+              corrected_point_of_sale, corrected_number, state, point_of_sale, number, issued_on,
+              authorization_code, authorization_code_due_on, recorded_at
+       FROM sale_void_credit_notes WHERE sale_id = ?`,
+    )
+    .get(saleId);
+  return row === undefined
+    ? null
+    : {
+        creditNoteId: row.id,
+        saleId: row.sale_id,
+        total: row.total,
+        receiverTaxStatusCode: row.receiver_tax_status_code,
+        correctedVoucher: {
+          voucherType: row.corrected_voucher_type,
+          pointOfSale: row.corrected_point_of_sale,
+          number: row.corrected_number,
+        },
+        recordedAt: new Date(row.recorded_at),
+        answer: answerOf(row),
+      };
+}
+
 export function insertPendingCreditNote(
   database: LocalDatabase,
   { creditNoteId, saleId, total, receiverTaxStatusCode, correctedVoucher }: SaleVoidCreditNote,

@@ -593,6 +593,7 @@ describe("SqliteRegisterSalesHistory", () => {
         },
         voided: false,
         inOpenSession: true,
+        creditNote: null,
       });
     });
 
