@@ -91,6 +91,11 @@ async function insertUser(firstName: string, withPin = true): Promise<string> {
     .values({ firstName, email: `${firstName.toLowerCase()}@example.test`, locationId })
     .returning({ id: users.id });
   const id = user?.id as string;
+  const [role] = await db
+    .insert(roles)
+    .values({ name: `Cajera ${firstName}`, isAdministrator: false })
+    .returning({ id: roles.id });
+  await db.insert(userRoles).values({ userId: id, roleId: role?.id as string });
   if (withPin) {
     await db.insert(userPins).values({ userId: id, salt: "salt", hash: "hash", setAt: EARLIER });
   }

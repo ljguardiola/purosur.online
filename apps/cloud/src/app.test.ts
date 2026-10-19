@@ -2841,6 +2841,36 @@ describe("the route access inventory", () => {
         access: capabilityAccess("revoke_installations"),
       },
       {
+        method: "POST",
+        url: "/api/compromise-responses",
+        access: capabilityAccess("manage_users"),
+      },
+      {
+        method: "GET",
+        url: "/api/compromise-responses/current",
+        access: capabilityAccess("manage_users"),
+      },
+      {
+        method: "POST",
+        url: "/api/compromise-responses/current/steps/revoke-every-installation",
+        access: capabilityAccess("manage_users"),
+      },
+      {
+        method: "POST",
+        url: "/api/compromise-responses/current/steps/end-sessions-and-remove-passkeys",
+        access: capabilityAccess("manage_users"),
+      },
+      {
+        method: "POST",
+        url: "/api/compromise-responses/current/steps/force-pin-resets",
+        access: capabilityAccess("manage_users"),
+      },
+      {
+        method: "POST",
+        url: "/api/compromise-responses/current/items/:item",
+        access: capabilityAccess("manage_users"),
+      },
+      {
         method: "GET",
         url: "/api/registers/points-of-sale",
         access: capabilityAccess("cash_area"),
