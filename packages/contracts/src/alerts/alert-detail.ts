@@ -164,6 +164,12 @@ const externalBillingDetailSchema = z.object({
   number: z.int(),
 });
 
+const invoiceAlreadyCreditedDetailSchema = z.object({
+  pointOfSale: z.int(),
+  number: z.int(),
+  saleId: z.string(),
+});
+
 const clockCorrectedDetailSchema = z.object({
   pointOfSale: z.int(),
   documentType: z.literal(FACTURA_C_DOCUMENT_TYPE),
@@ -386,6 +392,11 @@ const alertDetailKinds = [
     ...alertBase,
     kind: z.literal("external_billing" satisfies AlertKind),
     detail: externalBillingDetailSchema,
+  }),
+  z.object({
+    ...alertBase,
+    kind: z.literal("invoice_already_credited" satisfies AlertKind),
+    detail: invoiceAlreadyCreditedDetailSchema,
   }),
   z.object({
     ...alertBase,
