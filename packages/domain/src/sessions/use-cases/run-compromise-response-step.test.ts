@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  type RunCompromiseResponseStepInput,
+  type CompromiseResponseStepRequest,
   runCompromiseResponseStep,
 } from "./run-compromise-response-step.js";
 import {
@@ -19,7 +19,7 @@ const THIRD_STEP = { step: "force_pin_resets" } as const;
 
 function run(
   world: { store: FakeCompromiseResponseStore; actions: FakeCompromiseResponseActions },
-  step: Omit<RunCompromiseResponseStepInput, "actorId" | "at">,
+  step: CompromiseResponseStepRequest,
 ) {
   return runCompromiseResponseStep(world, { ...step, actorId: "admin-1", at: AT });
 }
