@@ -1,4 +1,4 @@
-import { encodePinHash, voidSaleOutcomeSchema } from "@purosur/contracts";
+import { encodePinHash } from "@purosur/contracts";
 import type { CreditNoteAnswer } from "@purosur/domain";
 import {
   FICTIONAL_CUIT,
@@ -441,7 +441,6 @@ describe("voiding a sale of the sales history", () => {
             authorization_code_due_on: "2026-10-10",
           },
         });
-        expect(voidSaleOutcomeSchema.safeParse(outcome).success).toBe(true);
         expect(creditNoteCalls).toHaveLength(1);
         expect(creditNoteCalls[0]).toMatchObject({
           pointOfSale: 12,

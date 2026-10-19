@@ -2,16 +2,13 @@ import type { SaleHistoryDetailOutcome, SalesHistoryOutcome } from "@purosur/con
 
 type SaleHistoryDetail = Extract<SaleHistoryDetailOutcome, { kind: "found" }>["detail"];
 
-import {
-  type CreditNoteAnswer,
-  registerOperationAccess,
-  type SaleComprobante,
-} from "@purosur/domain";
+import { registerOperationAccess, type SaleComprobante } from "@purosur/domain";
 import {
   readSaleHistoryDetail,
   readSalesHistory,
   type SaleVoidability,
 } from "@purosur/domain/sales/use-cases";
+import { toWireCreditNote } from "../fiscal/wire-credit-note";
 import { inArgentinaTime } from "../platform/argentina-time";
 import type { LocalDatabase } from "../platform/local-database";
 import type { ActionGate } from "../sessions/action-gate";
@@ -52,19 +49,6 @@ function toWireVoidability(voidability: SaleVoidability): SaleHistoryDetail["voi
         })),
       }
     : voidability;
-}
-
-function toWireCreditNote(creditNote: CreditNoteAnswer | null): SaleHistoryDetail["credit_note"] {
-  return creditNote?.kind === "authorized"
-    ? {
-        kind: "authorized",
-        point_of_sale: creditNote.pointOfSale,
-        number: creditNote.number,
-        issued_on: creditNote.issuedOn,
-        authorization_code: creditNote.authorizationCode,
-        authorization_code_due_on: creditNote.authorizationCodeDueOn,
-      }
-    : creditNote;
 }
 
 export async function salesHistoryFor(
