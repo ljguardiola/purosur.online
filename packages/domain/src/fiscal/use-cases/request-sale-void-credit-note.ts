@@ -1,4 +1,5 @@
 import type { PushedEvent } from "../../sync/index.js";
+import type { VoucherReference } from "../model/orphan-authorization.js";
 import type { CreditNoteAnswer } from "../model/sale-void-credit-note.js";
 import { saleVoidCreditNoteOfEvent } from "../model/sale-void-credit-note.js";
 import type { CreditNote } from "./credit-note-ports.js";
@@ -24,7 +25,7 @@ export type RequestSaleVoidCreditNoteOutcome =
   | { kind: "point_of_sale_not_owned" }
   | { kind: "credit_note_not_owned" }
   | { kind: "voucher_not_owned" }
-  | { kind: "voucher_already_credited" };
+  | { kind: "voucher_already_credited"; voucher: VoucherReference; saleId: string };
 
 function answerOf({ pointOfSale, standing }: CreditNote): CreditNoteAnswer {
   switch (standing.kind) {
@@ -81,7 +82,11 @@ export async function requestSaleVoidCreditNote(
         });
       } catch (error) {
         if (error instanceof VoucherAlreadyCredited) {
-          return { kind: "voucher_already_credited" };
+          return {
+            kind: "voucher_already_credited",
+            voucher: asked.correctedVoucher,
+            saleId: asked.saleId,
+          };
         }
         throw error;
       }

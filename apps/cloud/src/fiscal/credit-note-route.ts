@@ -5,6 +5,7 @@ import {
   saleVoidCreditNoteRequestSchema,
   saleVoidCreditNoteResponseSchema,
 } from "@purosur/contracts";
+import { invoiceAlreadyCreditedObservation } from "@purosur/domain";
 import {
   creditNoteAnswerOf,
   issueCreditNote,
@@ -14,6 +15,7 @@ import {
 import { admitInstallationRequest } from "@purosur/domain/sync/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
+import { openAlert } from "../alerts/open-alert.js";
 import { sendRateLimited } from "../platform/rate-limited-response.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
 import { answerErrorsWithCloudEnvelope } from "../register/cloud-error-handler.js";
@@ -161,6 +163,16 @@ export function registerCreditNoteRoute<TQueryResult extends PgQueryResultHKT>(
         });
 
         const refusal = refusalOf(outcome);
+        if (outcome.kind === "voucher_already_credited") {
+          const observation = invoiceAlreadyCreditedObservation({
+            pointOfSale: outcome.voucher.pointOfSale,
+            number: outcome.voucher.number,
+            saleId: outcome.saleId,
+          });
+          if (observation.holds) {
+            await openAlert(options.db, observation.alert, { now: () => receivedAt });
+          }
+        }
         if (refusal !== null) {
           await reply.code(cloudErrorStatus(refusal.code)).send(refusal);
           return;
