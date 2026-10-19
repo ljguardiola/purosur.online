@@ -46,17 +46,17 @@ export function runbookBody(
   doneItems: readonly Item[] = [],
   completed = false,
 ): CompromiseResponseBody {
-  const firstUndone = STEPS.find((step) => !doneSteps.includes(step));
+  const isDone = (step: Step) => doneSteps.includes(step) || (step === "rotate_external_secrets" && ITEMS.filter((item) => ITEM_STEPS[item] === step).every((item) => doneItems.includes(item))) || (step === "notify" && doneItems.includes("notify"));
   return {
     id: "d3b07384-d9a1-4c3e-9f1a-0b1c2d3e4f50",
     started_at: "2026-10-01T14:00:00.000Z",
     started_by: "6f1d2b3c-4a5e-4f60-8a71-92b3c4d5e6f0",
     completed,
-    steps: STEPS.map((step) => ({
+    steps: STEPS.map((step, index) => ({
       step,
-      done: doneSteps.includes(step),
-      done_at: doneSteps.includes(step) ? DONE_AT : null,
-      available: !completed && step === firstUndone,
+      done: isDone(step),
+      done_at: isDone(step) ? DONE_AT : null,
+      available: !isDone(step) && STEPS.slice(0, index).every(isDone),
     })),
     items: ITEMS.map((item) => ({
       item,
