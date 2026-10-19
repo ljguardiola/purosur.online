@@ -571,6 +571,81 @@ describe("fortnightPresentationRows", () => {
     expect(rows("submitting", null)[0]?.rejectedDocument).toBeNull();
   });
 
+  describe("a presentation the tax authority lists as owed", () => {
+    it("shows an accepted fortnight without documents as listed as owed, keeping what it declared", () => {
+      expect(
+        fortnightPresentationRows({
+          state: "accepted",
+          movement: "none",
+          documents: [],
+          documentReports: [],
+          listedAsOwed: true,
+        }),
+      ).toEqual([
+        {
+          ...noRecord,
+          documentType: null,
+          state: "listed_as_owed",
+          documentCount: 0,
+          movement: "none",
+        },
+      ]);
+    });
+
+    it("shows each accepted document type as listed as owed and leaves the others as they are", () => {
+      expect(
+        fortnightPresentationRows({
+          state: "submitting",
+          movement: null,
+          documents: [document("factura_c", 9), document("nota_c", 4)],
+          documentReports: [
+            {
+              documentType: "factura_c",
+              state: "accepted",
+              reportedThrough: 9,
+              rejectedNumber: null,
+            },
+          ],
+          listedAsOwed: true,
+        }).map(({ documentType, state }) => [documentType, state]),
+      ).toEqual([
+        ["factura_c", "listed_as_owed"],
+        ["nota_c", null],
+      ]);
+    });
+
+    it.each([
+      null,
+      "blocked",
+      "refused",
+      "submitting",
+      "missing_document",
+      "needs_regularization",
+    ] as const)("keeps a fortnight without documents whose report is %s as it is", (state) => {
+      expect(
+        fortnightPresentationRows({
+          state,
+          movement: null,
+          documents: [],
+          documentReports: [],
+          listedAsOwed: true,
+        })[0]?.state,
+      ).toBe(state);
+    });
+
+    it("keeps an accepted fortnight as accepted when the tax authority does not list it", () => {
+      expect(
+        fortnightPresentationRows({
+          state: "accepted",
+          movement: "none",
+          documents: [],
+          documentReports: [],
+          listedAsOwed: false,
+        })[0]?.state,
+      ).toBe("accepted");
+    });
+  });
+
   describe("how a refusal is meant", () => {
     const refusalOf = (
       numbers: number[],
