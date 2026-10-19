@@ -2,6 +2,7 @@ import {
   compromiseResponseItemSchema,
   compromiseResponseSessionsAndPasskeysBodySchema,
 } from "@purosur/contracts";
+import type { PasskeyRemovalRefusal } from "@purosur/domain";
 import {
   type CompromiseResponseStepRequest,
   markCompromiseResponseItemDone,
@@ -72,6 +73,23 @@ const UNKNOWN_ITEM_RESPONSE = {
   details: [{ field: "item" }],
 } as const;
 
+async function sendActionRefusal(
+  reply: FastifyReply,
+  refusal: PasskeyRemovalRefusal,
+): Promise<void> {
+  switch (refusal) {
+    case "authorization_required":
+      await reply.code(401).send(AUTHORIZATION_REQUIRED_RESPONSE);
+      return;
+    case "user_not_found":
+      await reply.code(404).send(USER_NOT_FOUND_RESPONSE);
+      return;
+    case "own_account":
+      await reply.code(403).send(OWN_ACCOUNT_RESPONSE);
+      return;
+  }
+}
+
 export function registerCompromiseResponseRoutes<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: CompromiseResponseRouteOptions<TQueryResult>,
@@ -108,17 +126,8 @@ export function registerCompromiseResponseRoutes<TQueryResult extends PgQueryRes
         await reply.code(409).send(ALREADY_DONE_RESPONSE);
         return;
       case "action_refused":
-        switch (outcome.refusal) {
-          case "authorization_required":
-            await reply.code(401).send(AUTHORIZATION_REQUIRED_RESPONSE);
-            return;
-          case "user_not_found":
-            await reply.code(404).send(USER_NOT_FOUND_RESPONSE);
-            return;
-          case "own_account":
-            await reply.code(403).send(OWN_ACCOUNT_RESPONSE);
-            return;
-        }
+        await sendActionRefusal(reply, outcome.refusal);
+        return;
       case "done":
         await sendCurrentResponse(reply);
         return;
