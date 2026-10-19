@@ -1381,6 +1381,7 @@ test("tells a register whose clock is off in plain language and that the alert c
         kind: "clock_drift",
         level: "critical",
         audience: "local",
+        closing: "by_itself",
         scope: "register-1",
         scopeDisplay: "Caja 1",
         detail: { deviceId: "device-1" },

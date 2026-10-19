@@ -197,9 +197,9 @@ describe("RegisterStatusBar", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "1 aviso" }));
 
-    await expect.element(screen.getByText("Reloj de la caja desajustado")).toBeVisible();
-    await expect.element(screen.getByText(/está corrida más de un minuto/)).toBeVisible();
-    await expect.element(screen.getByText(/Seguir vendiendo con normalidad/)).toBeVisible();
+    await expect.element(screen.getByText("Reloj de la caja desajustado").first()).toBeVisible();
+    await expect.element(screen.getByText(/está corrida más de un minuto/).first()).toBeVisible();
+    await expect.element(screen.getByText(/Seguir vendiendo con normalidad/).first()).toBeVisible();
   });
 
   it("lists every condition in the panel, in the order the core gave them", async () => {
