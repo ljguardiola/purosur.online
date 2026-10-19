@@ -41,7 +41,6 @@ export type {
 } from "./model/cash-session-facts.js";
 export type { ClockDriftReport } from "./model/clock-drift.js";
 export {
-  CLOCK_DRIFT_TOLERANCE_MS,
   clockDriftReportOf,
   clockOffsetMs,
   isClockDrifted,
