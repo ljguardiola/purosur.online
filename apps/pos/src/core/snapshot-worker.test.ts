@@ -1,20 +1,31 @@
 import type { SnapshotWorkerJobMessage } from "@purosur/contracts";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { runRestoreJob as RunRestoreJob } from "./backups/run-restore-job";
 import type {
   runSnapshotJob as RunSnapshotJob,
   SnapshotJobResult,
 } from "./register/run-snapshot-job";
 
 const runSnapshotJob = vi.hoisted(() => vi.fn<typeof RunSnapshotJob>());
+const runRestoreJob = vi.hoisted(() => vi.fn<typeof RunRestoreJob>());
 
 vi.mock("electron", () => ({ net: { fetch: vi.fn() } }));
 vi.mock("./register/run-snapshot-job", () => ({ runSnapshotJob }));
+vi.mock("./backups/run-restore-job", () => ({ runRestoreJob }));
 
 const UPLOAD_JOB: SnapshotWorkerJobMessage = {
   kind: "upload_pending",
   device_token: "prefix.secret",
   cloud_url: "https://cloud.example.test",
   snapshots_folder: "/data/snapshots",
+};
+
+const RESTORE_JOB: SnapshotWorkerJobMessage = {
+  kind: "restore",
+  device_token: "prefix.secret",
+  cloud_url: "https://cloud.example.test",
+  staged_database_path: "/data/register.restored.sqlite",
+  snapshot_keys: [{ version: 1, key: Buffer.alloc(32, 1).toString("base64") }],
 };
 
 class ProcessExited extends Error {}
@@ -66,6 +77,7 @@ beforeEach(async () => {
 
 afterEach(() => {
   runSnapshotJob.mockReset();
+  runRestoreJob.mockReset();
   vi.restoreAllMocks();
   Reflect.deleteProperty(process, "parentPort");
 });
@@ -138,6 +150,53 @@ describe("the snapshot worker", () => {
     finishWith(new Error("disk full"));
 
     deliver(UPLOAD_JOB);
+
+    expect(await exited).toBe(1);
+  });
+
+  it("runs a restore job against the cloud it names, without taking or uploading anything", async () => {
+    runRestoreJob.mockResolvedValue({ kind: "no_generation" });
+
+    deliver(RESTORE_JOB);
+    await posted;
+
+    expect(runRestoreJob).toHaveBeenCalledWith(
+      RESTORE_JOB,
+      expect.objectContaining({
+        cloud: expect.objectContaining({ cloudUrl: "https://cloud.example.test" }),
+      }),
+    );
+    expect(runSnapshotJob).not.toHaveBeenCalled();
+  });
+
+  it("reports how the restore ended to main and stays alive for main to end it", async () => {
+    runRestoreJob.mockResolvedValue({ kind: "restored", generationId: "g", failures: [] });
+
+    deliver(RESTORE_JOB);
+
+    expect(await posted).toEqual({ type: "snapshot-restore-finished", outcome: "restored" });
+    expect(process.exit).not.toHaveBeenCalled();
+  });
+
+  it("logs why each generation could not be used when none was usable", async () => {
+    runRestoreJob.mockResolvedValue({
+      kind: "none_usable",
+      failures: [{ generationId: "g1", stage: "hash_mismatch" }],
+    });
+
+    deliver(RESTORE_JOB);
+    await posted;
+
+    expect(console.error).toHaveBeenCalledWith(
+      "snapshot worker: no generation could be restored",
+      [{ generationId: "g1", stage: "hash_mismatch" }],
+    );
+  });
+
+  it("exits with a failure when the restore job failed", async () => {
+    runRestoreJob.mockRejectedValue(new Error("disk full"));
+
+    deliver(RESTORE_JOB);
 
     expect(await exited).toBe(1);
   });
