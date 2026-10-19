@@ -22,7 +22,7 @@ test("shows the step's number, title, explanation and content", async () => {
   const screen = await renderCard({ done: false, doneAt: null, available: true });
 
   await expect.element(screen.getByRole("heading", { name: "Un paso de prueba" })).toBeVisible();
-  await expect.element(screen.getByText("2", { exact: true })).toBeVisible();
+  await expect.element(screen.getByText("Paso 2")).toBeVisible();
   await expect.element(screen.getByText("Lo que hace el paso.")).toBeVisible();
   await expect.element(screen.getByRole("button", { name: "Hacer el paso" })).toBeVisible();
 });
