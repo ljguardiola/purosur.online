@@ -172,6 +172,7 @@ function alertIcon(kind: string): Icon {
       return <DatabaseBackup />;
     case "fortnight_report_overdue":
     case "fortnight_report_needs_regularization":
+    case "fortnight_report_owed_elsewhere":
       return <TriangleAlert />;
     case "clock_corrected":
       return <Clock />;
@@ -480,6 +481,7 @@ function alertTitle(alert: AlertDetail): string {
     case "fortnight_report_overdue":
     case "external_billing":
     case "fortnight_report_needs_regularization":
+    case "fortnight_report_owed_elsewhere":
     case "clock_corrected":
       return alertKindLabel(alert.kind);
   }
@@ -563,6 +565,7 @@ function alertDescription(alert: AlertDetail, catalog: PermissionCatalogWire = [
     case "fortnight_report_pending":
     case "fortnight_report_overdue":
     case "fortnight_report_needs_regularization":
+    case "fortnight_report_owed_elsewhere":
       return "";
     case "clock_corrected":
       return alertKindDescription(alert.kind);
@@ -663,6 +666,13 @@ function AlertDescription({ alert }: { alert: AlertDetail }) {
           </p>
         ))}
       </>
+    );
+  }
+  if (alert.kind === "fortnight_report_owed_elsewhere") {
+    return (
+      <p className="text-text text-body">
+        {`ARCA informa adeudada la presentación de ${fortnightOfPointOfSale(alert.detail)}, que este sistema no maneja. Hay que presentarla desde donde se emitió: mientras siga adeudada, ARCA puede negar el próximo CAEA a todo el negocio.`}
+      </p>
     );
   }
   if (alert.kind === "lots_expiring") {
