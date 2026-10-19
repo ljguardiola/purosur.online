@@ -47,7 +47,7 @@ test("explains that every register of every branch stops syncing and must be enr
   const { dialog } = await renderModal(createServices());
 
   await expect.element(dialog.getByText(/dejan de poder sincronizar/)).toBeVisible();
-  await expect.element(dialog.getByText(/darla de alta de nuevo/)).toBeVisible();
+  await expect.element(dialog.getByText(/darla de alta de nuevo/).first()).toBeVisible();
 });
 
 test("has no accessibility violations", async () => {
