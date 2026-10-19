@@ -96,6 +96,30 @@ describe("requestVoidCreditNotes", () => {
     });
   });
 
+  it("records that the invoice already had a credit note, as the final answer", async () => {
+    const { creditNotes, run } = register([pendingNote(1)], [{ kind: "already_credited" }]);
+
+    const outcome = await run();
+
+    expect(creditNotes.answered.get("credit-note-1")).toEqual({
+      answer: { kind: "already_credited" },
+      answeredAt: NOW,
+    });
+    expect(outcome).toEqual({
+      kind: "requested",
+      answers: [{ creditNoteId: "credit-note-1", answer: { kind: "already_credited" } }],
+    });
+  });
+
+  it("never asks again about a credit note whose invoice already had one", async () => {
+    const { cloud, run } = register([pendingNote(1)], [{ kind: "already_credited" }, AUTHORIZED]);
+
+    await run();
+    await run();
+
+    expect(cloud.calls).toHaveLength(1);
+  });
+
   it.each<[string, CloudReply]>([
     ["no answer", null],
     ["an answer that it is still in progress", { kind: "in_progress" }],

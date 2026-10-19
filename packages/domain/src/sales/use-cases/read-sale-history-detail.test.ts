@@ -282,6 +282,7 @@ describe("readSaleHistoryDetail", () => {
       ],
       [{ kind: "in_progress" }],
       [{ kind: "rejected" }],
+      [{ kind: "already_credited" }],
     ] as const)("shows the credit note of a voided sale, %o", (creditNote) => {
       const history = new FakeRegisterSalesHistory([
         historySale({ voided: true, creditNote: structuredClone(creditNote) }),
