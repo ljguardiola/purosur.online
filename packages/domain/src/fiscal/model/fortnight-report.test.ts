@@ -170,6 +170,32 @@ describe("owesFortnightReport", () => {
     expect(owedWhenClaimedAt("2026-09-16T03:00:00.000Z")).toBe(false);
     expect(owedWhenClaimedAt("2026-09-18T12:00:00.000Z")).toBe(false);
   });
+
+  it("is owed by a listed presentation whenever the point of sale was claimed, once the fortnight closed", () => {
+    const claimedAfterClose = new Date("2026-09-18T12:00:00.000Z");
+
+    expect(
+      owesFortnightReport(
+        { fortnight: FIRST_HALF, claimedAt: claimedAfterClose, listed: true },
+        "2026-09-20",
+      ),
+    ).toBe(true);
+    expect(
+      owesFortnightReport(
+        { fortnight: FIRST_HALF, claimedAt: claimedAfterClose, listed: false },
+        "2026-09-20",
+      ),
+    ).toBe(false);
+  });
+
+  it("is not owed by a listed presentation while the fortnight is still running", () => {
+    expect(
+      owesFortnightReport(
+        { fortnight: FIRST_HALF, claimedAt: claimedBeforeClose, listed: true },
+        "2026-09-15",
+      ),
+    ).toBe(false);
+  });
 });
 
 describe("isFortnightReportOutstanding", () => {
