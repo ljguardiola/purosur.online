@@ -11,7 +11,7 @@ import { type Durability, nodeDurability } from "../register/durable-files";
 import { SqliteRestoredSyncIdentityStore } from "../sync/sqlite-restored-sync-identity-store";
 import type { RestorePending } from "./restore-pending";
 
-export const LIVE_DATABASE_FILE = "register.sqlite";
+const LIVE_DATABASE_FILE = "register.sqlite";
 export const STAGED_DATABASE_FILE = "register.restored.sqlite";
 
 export type AdoptStagedSnapshotOutcome =
