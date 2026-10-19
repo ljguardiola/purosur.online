@@ -44,20 +44,21 @@ how a new one is judged.
 
 ### Correctness
 
-- A check over the source out of step with the code it judges: it misses a
+- A check over the source out of step with what it judges: it misses a
   route ordinary code takes to what it refuses (a re-export of the library's
-  namespace), refuses correct code that reads alike (another binding of the
-  same library), or tells the author a fix it refuses again (a renumbering
-  hint that sorts before the last migration).
+  namespace); it refuses correct code that reads alike or that its own hint
+  suggests (a renumbering hint that sorts before the last migration); or it
+  is narrowed while its own test still expects the removed cases to pass.
 - A decision made from state other than the one in effect when it applies:
   an answer computed from the session before the operation changed it
   (`may_edit: true` to an Administrator who just left the role), a check
   made before the lock and never again under it, or rows locked in the
   opposite order of another operation that touches them.
-- A failure path that loses what the failure says: a handler that replaces
-  the error it caught, an outside call whose outcome is unknown (a timeout)
-  recorded as one that did nothing, or a follow-up enqueued only on the path
-  that succeeds.
+- A failure path out of step with what failed: a handler that replaces the
+  error it caught, so its kind never reaches what reacts to it; an outside
+  call whose outcome is unknown (a timeout) recorded as one that did nothing;
+  or one item's error that stops a sweep over many (or a housekeeping step's
+  failure that stops the work it serves).
 - A value one side of a boundary produces or accepts that the other side
   refuses or reads otherwise: a stricter shape in place of the reader it
   replaced, a plain-object lookup of a received code that answers for
@@ -113,9 +114,9 @@ how a new one is judged.
   attempt already failed.
 - A query out of step with what changes it: a value left stale by an
   operation that changes it (a register status no charge outcome
-  invalidates), a refusal saying the list is out of date while nothing reads
-  it again, or a re-read that calls the loader and writes the cache, so a
-  failed read shows no failure.
+  invalidates); a key invalidated again beside one that already contains
+  it, so it is read twice; or a re-read that calls the loader and writes the
+  cache, so a failed read shows no failure.
 - A modal handling an answer that arrives after it closed: a stale notice on
   its next opening, a late success whose list refresh is dropped, or a late
   callback resetting a later opening.
