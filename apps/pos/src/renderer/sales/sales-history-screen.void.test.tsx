@@ -73,7 +73,7 @@ describe("SalesHistoryScreen voiding a sale", () => {
     const { screen, voidSale, saleHistoryDetail, salesHistory } = await renderScreen({
       voidSale: async () => {
         done = true;
-        return { kind: "voided", refunds: [], authorized_by: null };
+        return { kind: "voided", refunds: [], authorized_by: null, credit_note: null };
       },
       saleHistoryDetail: async () => ({
         kind: "found",

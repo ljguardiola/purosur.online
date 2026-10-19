@@ -28,7 +28,21 @@ const SALE: SaleDetail = {
   void_authorization_required: false,
   reprint: { kind: "available" },
   next_copy: { kind: "original" },
+  credit_note: null,
 };
+const INVOICED_SALE: SaleDetail = {
+  ...SALE,
+  comprobante: { kind: "fiscal", document_type: "factura_c", point_of_sale: 4, number: 319 },
+  state: "completed",
+};
+const AUTHORIZED_CREDIT_NOTE = {
+  kind: "authorized",
+  point_of_sale: 4,
+  number: 12,
+  issued_on: "2026-10-09",
+  authorization_code: "75123456789012",
+  authorization_code_due_on: "2026-10-19",
+} as const;
 const CASH_REFUND: VoidRefund = {
   method: "CASH",
   amount: 5_070_000,
@@ -58,7 +72,7 @@ async function renderModal({
   sale = SALE,
   refunds = [CASH_REFUND],
   authorizationRequired = false,
-  voidSale = async () => ({ kind: "voided", refunds: [], authorized_by: null }),
+  voidSale = async () => ({ kind: "voided", refunds: [], authorized_by: null, credit_note: null }),
 }: Props = {}) {
   await page.viewport(1280, 1000);
   onTestFinished(() => page.viewport(414, 896));
@@ -119,6 +133,54 @@ describe("VoidSaleModal", () => {
       .toBeVisible();
     await expect.element(dialog.getByText("La mercadería vuelve al stock.")).toBeVisible();
     await expectNoAccessibilityViolations(document.body);
+  });
+
+  it("says the credit note that will be issued and printed, and the invoice it corrects, for a sale with an invoice", async () => {
+    const { screen } = await renderModal({ sale: INVOICED_SALE });
+
+    const dialog = screen.getByRole("dialog", { name: "Revisá qué pasa al anular" });
+
+    await expect.element(dialog.getByText("Factura C", { exact: true })).toBeVisible();
+    await expect.element(dialog.getByText("Número", { exact: true })).toBeVisible();
+    await expect.element(dialog.getByText("PV 00004 · Nº 00000319")).toBeVisible();
+    await expect
+      .element(dialog.getByText("Se emite e imprime la nota de crédito C por $ 50.700,00."))
+      .toBeVisible();
+    await expect
+      .element(dialog.getByText("No se emite nota de crédito: la venta todavía no tenía factura."))
+      .not.toBeInTheDocument();
+    await expect.element(dialog.getByText("La mercadería vuelve al stock.")).toBeVisible();
+    await expect
+      .element(dialog.getByRole("button", { name: "Anular y emitir nota de crédito" }))
+      .toBeVisible();
+    await expect.element(dialog.getByRole("button", { name: VOID })).not.toBeInTheDocument();
+    await expectNoAccessibilityViolations(document.body);
+  });
+
+  it("sends the void of a sale with an invoice from the button that says it issues the credit note", async () => {
+    const { screen, send } = await renderModal({ sale: INVOICED_SALE });
+
+    await userEvent.click(screen.getByRole("button", { name: "Anular y emitir nota de crédito" }));
+
+    expect(send).toHaveBeenCalledExactlyOnceWith("sale-1", false, undefined);
+  });
+
+  it("tells the screen the credit note the void came with", async () => {
+    const { screen, onVoided } = await renderModal({
+      sale: INVOICED_SALE,
+      voidSale: async () => ({
+        kind: "voided",
+        refunds: [],
+        authorized_by: null,
+        credit_note: AUTHORIZED_CREDIT_NOTE,
+      }),
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: "Anular y emitir nota de crédito" }));
+
+    await vi.waitFor(() =>
+      expect(onVoided).toHaveBeenCalledExactlyOnceWith(AUTHORIZED_CREDIT_NOTE),
+    );
   });
 
   it("leaves the comprobante out when the sale has none", async () => {
@@ -237,7 +299,7 @@ describe("VoidSaleModal", () => {
     await expect.element(screen.getByRole("button", { name: VOID })).toBeDisabled();
 
     expect(send).toHaveBeenCalledOnce();
-    answer.resolve({ kind: "voided", refunds: [], authorized_by: null });
+    answer.resolve({ kind: "voided", refunds: [], authorized_by: null, credit_note: null });
   });
 
   it("tells the screen the sale was voided", async () => {
@@ -364,8 +426,8 @@ describe("VoidSaleModal", () => {
         "La factura se está pidiendo a ARCA. Vas a poder anular cuando termine el trámite.",
       ],
       [
-        "carries_invoice",
-        "La caja todavía no anula una venta con factura. Se tramita como devolución.",
+        "invoice_needs_connection",
+        "Sin conexión con ARCA, la venta con factura se anula cuando vuelva la conexión.",
       ],
       ["not_completed", "La venta ya no se puede anular."],
     ] as const)(

@@ -25,7 +25,7 @@ const SALE: Sale = {
   line_count: 8,
   payments: [{ method: "CASH", amount: 5_070_000 }],
   state: "completed",
-  voidability: { kind: "not_voidable", refusal: "carries_invoice" },
+  voidability: { kind: "not_voidable", refusal: "session_closed" },
   void_authorization_required: false,
   reprint: { kind: "available" },
   next_copy: { kind: "duplicate", order_number: 1 },

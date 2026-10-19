@@ -29,6 +29,7 @@ const FISCAL_SALE: SaleDetail = {
   void_authorization_required: false,
   reprint: { kind: "available" },
   next_copy: { kind: "duplicate", order_number: 1 },
+  credit_note: null,
 };
 
 async function renderPanel(
@@ -45,15 +46,17 @@ async function renderPanel(
   );
   const onReprint = vi.fn();
   const onVoid = vi.fn();
+  const onPrintCreditNote = vi.fn();
   const screen = await render(
     <SaleHistoryDetailPanel
       saleId={"saleId" in options ? options.saleId : "sale-1"}
       readDetail={read}
       onReprint={onReprint}
       onVoid={onVoid}
+      onPrintCreditNote={onPrintCreditNote}
     />,
   );
-  return { screen, read, onReprint, onVoid };
+  return { screen, read, onReprint, onVoid, onPrintCreditNote };
 }
 
 describe("SaleHistoryDetailPanel", () => {
@@ -190,8 +193,8 @@ describe("SaleHistoryDetailPanel", () => {
       "La factura se está pidiendo a ARCA. Vas a poder anular cuando termine el trámite.",
     ],
     [
-      "carries_invoice",
-      "La caja todavía no anula una venta con factura. Se tramita como devolución.",
+      "invoice_needs_connection",
+      "Sin conexión con ARCA, la venta con factura se anula cuando vuelva la conexión.",
     ],
   ] as const)(
     "locks voiding and says why only in its tooltip when the sale cannot be voided: %s",
@@ -235,6 +238,65 @@ describe("SaleHistoryDetailPanel", () => {
     await expect
       .element(screen.getByRole("button", { name: /imprimir|Imprimir/ }))
       .not.toBeInTheDocument();
+  });
+
+  describe("the credit note of a voided sale", () => {
+    const VOIDED = {
+      ...FISCAL_SALE,
+      state: "voided",
+      voidability: { kind: "not_voidable", refusal: "not_completed" },
+      reprint: { kind: "sale_voided" },
+    } as const;
+
+    it("shows the point of sale and number of an authorized one and prints it from its button", async () => {
+      const authorized = {
+        kind: "authorized",
+        point_of_sale: 4,
+        number: 12,
+        issued_on: "2026-10-09",
+        authorization_code: "75123456789012",
+        authorization_code_due_on: "2026-10-19",
+      } as const;
+      const { screen, onPrintCreditNote } = await renderPanel({
+        read: async () => ({ kind: "found", detail: { ...VOIDED, credit_note: authorized } }),
+      });
+
+      await expect.element(screen.getByText("Nota de crédito C", { exact: true })).toBeVisible();
+      await expect.element(screen.getByText("PV 00004 · Nº 00000012")).toBeVisible();
+      await userEvent.click(screen.getByRole("button", { name: "Imprimir nota de crédito" }));
+
+      expect(onPrintCreditNote).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({ sale_id: "sale-1" }),
+      );
+      await expectNoAccessibilityViolations(screen.container);
+    });
+
+    it.each([
+      [{ kind: "in_progress" } as const, "En trámite con ARCA"],
+      [{ kind: "rejected" } as const, "No emitida"],
+      [{ kind: "already_credited" } as const, "No emitida: la factura ya tenía una"],
+    ])("shows one that is not authorized and offers no printing: %j", async (creditNote, shown) => {
+      const { screen } = await renderPanel({
+        read: async () => ({ kind: "found", detail: { ...VOIDED, credit_note: creditNote } }),
+      });
+
+      await expect.element(screen.getByText("Nota de crédito C", { exact: true })).toBeVisible();
+      await expect.element(screen.getByText(shown)).toBeVisible();
+      await expect
+        .element(screen.getByRole("button", { name: "Imprimir nota de crédito" }))
+        .not.toBeInTheDocument();
+    });
+
+    it("shows none for a sale that had no invoice", async () => {
+      const { screen } = await renderPanel({
+        read: async () => ({ kind: "found", detail: { ...VOIDED, credit_note: null } }),
+      });
+
+      await expect.element(screen.getByText("Anulada", { exact: true })).toBeVisible();
+      await expect
+        .element(screen.getByText("Nota de crédito C", { exact: true }))
+        .not.toBeInTheDocument();
+    });
   });
 
   it("offers no printing when the core says the sale's receipt is not printed, and still offers voiding", async () => {
