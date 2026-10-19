@@ -155,6 +155,7 @@ export const noBalanceCloudRefund: PendingRefund = {
 
 export const refusedCloudRefund: PendingRefund = {
   ...unconfirmedCloudRefund,
+  discardable: true,
   delivery_stage: "refused",
   last_refusal_reason: "refund_period_exceeded",
 };
