@@ -84,6 +84,7 @@ export {
   fortnightPresentationRows,
   fortnightReportDeadline,
   fortnightReportStanding,
+  fortnightReportStateWhenListedAsOwed,
   isFortnightReportOutstanding,
   isOfflineDocumentReported,
   owesFortnightReport,

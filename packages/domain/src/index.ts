@@ -235,6 +235,7 @@ export {
   fortnightContaining,
   fortnightPresentationRows,
   fortnightReportDeadline,
+  fortnightReportStateWhenListedAsOwed,
   fortnightsWithinRequestWindowOn,
   generationStampOf,
   hasFortnightStarted,

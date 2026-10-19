@@ -71,6 +71,12 @@ export function isFortnightReportOutstanding(state: FortnightReportState | null)
   return state !== "accepted" && state !== "needs_regularization";
 }
 
+export function fortnightReportStateWhenListedAsOwed(
+  state: FortnightReportState | null,
+): FortnightReportState | null {
+  return state === "accepted" ? null : state;
+}
+
 export function remedyForUnreportedDocuments(
   movement: FortnightReportMovement,
 ): UnreportedDocumentsRemedy {
