@@ -80,8 +80,10 @@ export async function recordOrphanRegularization<TQueryResult extends PgQueryRes
       id: creditNoteId,
       registerId,
       saleId,
+      reason: "orphan",
       pointOfSale,
       associatedVoucherType: associatedVoucher.voucherType,
+      associatedPointOfSale: associatedVoucher.pointOfSale,
       associatedNumber: associatedVoucher.number,
       keptVoucherType: keptVoucher.voucherType,
       keptPointOfSale: keptVoucher.pointOfSale,
@@ -92,8 +94,8 @@ export async function recordOrphanRegularization<TQueryResult extends PgQueryRes
     })
     .onConflictDoNothing({
       target: [
-        creditNotes.pointOfSale,
         creditNotes.associatedVoucherType,
+        creditNotes.associatedPointOfSale,
         creditNotes.associatedNumber,
       ],
     })

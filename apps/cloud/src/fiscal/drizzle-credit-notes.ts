@@ -19,13 +19,27 @@ import { withPointOfSaleLaneLock } from "./point-of-sale-lane-lock.js";
 import { insertFiscalTask, recordExternalInvoicing } from "./record-orphan-regularization.js";
 
 const UNIQUE_VIOLATION = "23505";
-const CREDIT_NOTE_NUMBER_KEY = "orphan_credit_notes_number_key";
+const CREDIT_NOTE_NUMBER_KEY = "credit_notes_number_key";
 
-type CreditNoteRow = typeof creditNotes.$inferSelect;
+export type CreditNoteRow = typeof creditNotes.$inferSelect;
 
-function standingOf(row: CreditNoteRow): CreditNoteStanding {
+export function standingOf(row: CreditNoteRow): CreditNoteStanding {
   if (row.answerKind === "authorized") {
-    return { kind: "authorized" };
+    if (
+      row.number === null ||
+      row.issuedOn === null ||
+      row.authorizationCode === null ||
+      row.authorizationCodeDueOn === null
+    ) {
+      throw new Error(`credit note ${row.id} is authorized without its authorization`);
+    }
+    return {
+      kind: "authorized",
+      number: row.number,
+      issuedOn: row.issuedOn,
+      authorizationCode: row.authorizationCode,
+      authorizationCodeDueOn: row.authorizationCodeDueOn,
+    };
   }
   if (row.answerKind === "rejected") {
     return { kind: "rejected" };
@@ -39,6 +53,22 @@ function standingOf(row: CreditNoteRow): CreditNoteStanding {
     issuedOn: row.issuedOn,
     requestedAt: row.requestedAt,
     unclearAnsweredAt: row.answerKind === "unclear" ? row.answeredAt : null,
+  };
+}
+
+export function creditNoteOf(row: CreditNoteRow): CreditNote {
+  return {
+    creditNoteId: row.id,
+    pointOfSale: row.pointOfSale,
+    associatedVoucher: {
+      voucherType: row.associatedVoucherType,
+      pointOfSale: row.associatedPointOfSale,
+      number: row.associatedNumber,
+    },
+    total: row.total,
+    receiverTaxStatusCode: row.receiverTaxStatusCode,
+    reason: row.reason,
+    standing: standingOf(row),
   };
 }
 
@@ -64,21 +94,7 @@ class DrizzleCreditNoteLane<TQueryResult extends PgQueryResultHKT> implements Cr
 
   async creditNote(creditNoteId: string): Promise<CreditNote | null> {
     const [row] = await this.db.select().from(creditNotes).where(eq(creditNotes.id, creditNoteId));
-    if (row === undefined) {
-      return null;
-    }
-    return {
-      creditNoteId,
-      pointOfSale: row.pointOfSale,
-      associatedVoucher: {
-        voucherType: row.associatedVoucherType,
-        pointOfSale: row.pointOfSale,
-        number: row.associatedNumber,
-      },
-      total: row.total,
-      receiverTaxStatusCode: row.receiverTaxStatusCode,
-      standing: standingOf(row),
-    };
+    return row === undefined ? null : creditNoteOf(row);
   }
 
   async otherCreditNoteStandings(creditNoteId: string): Promise<CreditNoteStanding[]> {

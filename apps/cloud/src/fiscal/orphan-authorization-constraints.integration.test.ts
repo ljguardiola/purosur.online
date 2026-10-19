@@ -1,3 +1,4 @@
+import { sql as sqlTag } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -299,8 +300,16 @@ describe("the credit notes table's constraints on a real Postgres", () => {
     ).resolves.toBeDefined();
   });
 
+  it("rejects an unknown reason", async () => {
+    const id = crypto.randomUUID();
+    await insertCreditNote({ ...voidedSale(), id });
+
+    await expect(
+      db.execute(sqlTag`update credit_notes set reason = 'refund' where id = ${id}`),
+    ).rejects.toSatisfy((error) => constraintViolatedBy(error, "credit_notes_reason_check"));
+  });
+
   it.each([
-    ["an unknown reason", () => ({ reason: "refund" }), "credit_notes_reason_check"],
     [
       "an orphan credit note with no kept voucher",
       () => ({ keptVoucherType: null, keptPointOfSale: null, keptNumber: null }),

@@ -67,7 +67,7 @@ export async function requestsAtNumber<TQueryResult extends PgQueryResultHKT>(
     .from(creditNotes)
     .where(
       and(
-        eq(creditNotes.pointOfSale, pointOfSale),
+        eq(creditNotes.associatedPointOfSale, pointOfSale),
         eq(creditNotes.associatedVoucherType, FACTURA_C_VOUCHER_TYPE),
         eq(creditNotes.associatedNumber, number),
       ),

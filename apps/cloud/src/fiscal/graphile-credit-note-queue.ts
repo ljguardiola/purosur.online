@@ -32,7 +32,7 @@ export async function enqueueMissingCreditNotes(transaction: SqlExecutor): Promi
       job_key_mode => 'preserve_run_at',
       priority => ${CREDIT_NOTE_PRIORITY}::int
     )
-    from orphan_credit_notes note
+    from credit_notes note
     where note.answer_kind is null or note.answer_kind = 'unclear'`,
   );
 }
