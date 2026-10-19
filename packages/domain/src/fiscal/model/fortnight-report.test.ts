@@ -9,6 +9,7 @@ import {
   fortnightReportDeadline,
   fortnightReportStanding,
   fortnightReportStateOfDocumentTypes,
+  fortnightReportStateWhenListedAsOwed,
   isFortnightReportOutstanding,
   isFortnightReportRetryDue,
   isOfflineDocumentReported,
@@ -740,5 +741,22 @@ describe("isFortnightReportRetryDue", () => {
     expect(isFortnightReportRetryDue(lastAttemptAt, new Date("2026-09-20T00:00:00.000Z"))).toBe(
       true,
     );
+  });
+});
+
+describe("fortnightReportStateWhenListedAsOwed", () => {
+  it("forgets an accepted report, which the tax authority's list contradicts", () => {
+    expect(fortnightReportStateWhenListedAsOwed("accepted")).toBeNull();
+  });
+
+  it.each([
+    null,
+    "blocked",
+    "missing_document",
+    "submitting",
+    "refused",
+    "needs_regularization",
+  ] as const)("keeps a report that is %s", (state) => {
+    expect(fortnightReportStateWhenListedAsOwed(state)).toBe(state);
   });
 });
