@@ -1,5 +1,9 @@
 import { Button, InlineNotice, Modal } from "@purosur/ui";
 import { Ban, ShieldOff, TriangleAlert, X } from "lucide-react";
+import {
+  type AuthorizedAttemptServices,
+  useAuthorizedAttempt,
+} from "../platform/use-authorized-attempt";
 import type {
   CompromiseResponse,
   revokeEveryInstallation,
@@ -7,9 +11,8 @@ import type {
 } from "./compromise-response-api";
 import { isRunbookRefusal } from "./compromise-response-api";
 import { StepAttemptNotices } from "./step-attempt-notices";
-import { type StepAttemptServices, useStepAttempt } from "./use-step-attempt";
 
-export type RevokeInstallationsStepModalServices = StepAttemptServices & {
+export type RevokeInstallationsStepModalServices = AuthorizedAttemptServices & {
   revokeEveryInstallation: typeof revokeEveryInstallation;
 };
 
@@ -36,7 +39,7 @@ export function RevokeInstallationsStepModal({
     authorizeSession,
     startAuthentication,
   } = services;
-  const { attempt, running, notice, modal } = useStepAttempt<StepOutcome, "outdated">({
+  const { attempt, running, notice, modal } = useAuthorizedAttempt<StepOutcome, "outdated">({
     open,
     actionName: "Revocar todas las instalaciones",
     onSessionEnded,

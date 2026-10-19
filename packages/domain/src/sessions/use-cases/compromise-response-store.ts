@@ -2,6 +2,7 @@ import type {
   CompromiseResponseAction,
   CompromiseResponseCompletion,
   CompromiseResponseItem,
+  PasskeyRemovalResult,
 } from "../model/compromise-response.js";
 
 export interface StoredCompromiseResponse {
@@ -9,6 +10,16 @@ export interface StoredCompromiseResponse {
   startedAt: Date;
   startedBy: string;
   completions: CompromiseResponseCompletion[];
+}
+
+export type InstallationRevocationResult = "nothing_to_revoke" | "revoked";
+
+export interface AccountPasskeyRemoval {
+  accountId: string;
+  administratorId: string;
+  locationId: string;
+  passkeyAuthorizedAt: Date | null;
+  at: Date;
 }
 
 export interface CompromiseResponses {
@@ -23,7 +34,7 @@ export interface CompromiseResponseStore {
 
 export interface CompromiseResponseStoreTransaction {
   // Serializes every change to the runbook, so two starts never create two runbooks and two
-  // administrators never record the same step twice.
+  // administrators never run the same step twice.
   lockLatestResponse(): Promise<StoredCompromiseResponse | null>;
   startResponse(actorId: string, at: Date): Promise<StoredCompromiseResponse>;
   recordStepDone(
@@ -38,4 +49,8 @@ export interface CompromiseResponseStoreTransaction {
     actorId: string,
     at: Date,
   ): Promise<void>;
+  revokeEveryInstallation(actorId: string, at: Date): Promise<InstallationRevocationResult>;
+  removeEveryPasskeyOf(removal: AccountPasskeyRemoval): Promise<PasskeyRemovalResult>;
+  endEveryBackofficeSession(actorId: string, at: Date): Promise<void>;
+  requirePinResetOfEveryUser(actorId: string, at: Date): Promise<void>;
 }

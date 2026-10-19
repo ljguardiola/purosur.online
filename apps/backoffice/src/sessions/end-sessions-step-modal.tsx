@@ -4,6 +4,10 @@ import { LogOut, X } from "lucide-react";
 import { useEffect, useEffectEvent } from "react";
 import type { fetchUsers } from "../platform/branch-users-api";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
+import {
+  type AuthorizedAttemptServices,
+  useAuthorizedAttempt,
+} from "../platform/use-authorized-attempt";
 import type {
   CompromiseResponse,
   EndSessionsAndRemovePasskeysOutcome,
@@ -19,9 +23,8 @@ import {
 } from "./end-sessions-form";
 import { useAccountsQuery } from "./sessions-queries";
 import { StepAttemptNotices } from "./step-attempt-notices";
-import { type StepAttemptServices, useStepAttempt } from "./use-step-attempt";
 
-export type EndSessionsStepModalServices = StepAttemptServices & {
+export type EndSessionsStepModalServices = AuthorizedAttemptServices & {
   endSessionsAndRemovePasskeys: typeof endSessionsAndRemovePasskeys;
   fetchUsers: typeof fetchUsers;
 };
@@ -51,7 +54,7 @@ export function EndSessionsStepModal({
     startAuthentication,
   } = services;
   const accounts = useAccountsQuery({ fetchUsers, enabled: open, onSessionEnded });
-  const { attempt, running, notice, modal } = useStepAttempt<
+  const { attempt, running, notice, modal } = useAuthorizedAttempt<
     EndSessionsAndRemovePasskeysOutcome,
     "outdated" | "notFound" | "ownAccount"
   >({

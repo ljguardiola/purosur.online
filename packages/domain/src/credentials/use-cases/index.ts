@@ -220,7 +220,10 @@ export type {
   RemoveEveryUserPasskeyOutcome,
   RemoveEveryUserPasskeyPorts,
 } from "./remove-every-user-passkey.js";
-export { removeEveryUserPasskey } from "./remove-every-user-passkey.js";
+export {
+  removeEveryUserPasskey,
+  removeEveryUserPasskeyWithin,
+} from "./remove-every-user-passkey.js";
 export type {
   RemoveOwnPasskeyInput,
   RemoveOwnPasskeyOutcome,
@@ -244,7 +247,10 @@ export type {
   RequirePinResetOfEveryUserOutcome,
   RequirePinResetOfEveryUserPorts,
 } from "./require-pin-reset-of-every-user.js";
-export { requirePinResetOfEveryUser } from "./require-pin-reset-of-every-user.js";
+export {
+  requirePinResetOfEveryUser,
+  requirePinResetOfEveryUserWithin,
+} from "./require-pin-reset-of-every-user.js";
 export type {
   SessionAuthorizationStore,
   SessionAuthorizationStoreTransaction,

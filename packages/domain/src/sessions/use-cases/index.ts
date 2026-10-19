@@ -18,11 +18,12 @@ export type {
 } from "./backoffice-session-ending-store.js";
 export type { CheckPinInput, CheckPinOutcome, PinRefusal } from "./check-pin.js";
 export { checkPin } from "./check-pin.js";
-export type { CompromiseResponseActions } from "./compromise-response-actions.js";
 export type {
+  AccountPasskeyRemoval,
   CompromiseResponseStore,
   CompromiseResponseStoreTransaction,
   CompromiseResponses,
+  InstallationRevocationResult,
   StoredCompromiseResponse,
 } from "./compromise-response-store.js";
 export type { CompromiseResponseView } from "./compromise-response-view.js";
@@ -36,7 +37,10 @@ export type {
   EndEveryBackofficeSessionOutcome,
   EndEveryBackofficeSessionPorts,
 } from "./end-every-backoffice-session.js";
-export { endEveryBackofficeSession } from "./end-every-backoffice-session.js";
+export {
+  endEveryBackofficeSession,
+  endEveryBackofficeSessionWithin,
+} from "./end-every-backoffice-session.js";
 export type {
   EndExpiredSessionInput,
   EndExpiredSessionOutcome,

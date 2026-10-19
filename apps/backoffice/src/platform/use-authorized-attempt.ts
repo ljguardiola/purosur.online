@@ -1,19 +1,19 @@
 import type { startAuthentication } from "@simplewebauthn/browser";
 import { useEffect, useRef, useState } from "react";
-import { useAuthorization } from "../platform/authorization-modal";
-import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useAuthorization } from "./authorization-modal";
+import { useSendToMyAccount } from "./send-to-my-account";
 import type {
   authorizeSession,
   fetchSessionAuthorizationOptions,
-} from "../platform/session-authorization-api";
+} from "./session-authorization-api";
 
-export type StepAttemptServices = {
+export type AuthorizedAttemptServices = {
   fetchSessionAuthorizationOptions: typeof fetchSessionAuthorizationOptions;
   authorizeSession: typeof authorizeSession;
   startAuthentication: typeof startAuthentication;
 };
 
-export type StepNotice<Specific extends string = never> =
+export type AttemptNotice<Specific extends string = never> =
   | { kind: Specific }
   | { kind: "attemptFailed" }
   | { kind: "rateLimited"; retryAfterSeconds: number };
@@ -42,7 +42,7 @@ type Opening<Specific extends string> = {
   showNotice: (kind: Specific) => void;
 };
 
-export function useStepAttempt<Outcome extends { kind: string }, Specific extends string>({
+export function useAuthorizedAttempt<Outcome extends { kind: string }, Specific extends string>({
   open,
   actionName,
   onSessionEnded,
@@ -51,10 +51,10 @@ export function useStepAttempt<Outcome extends { kind: string }, Specific extend
   open: boolean;
   actionName: string;
   onSessionEnded: () => void;
-  services: StepAttemptServices;
+  services: AuthorizedAttemptServices;
 }) {
   const sendToMyAccount = useSendToMyAccount();
-  const [notice, setNotice] = useState<StepNotice<Specific> | null>(null);
+  const [notice, setNotice] = useState<AttemptNotice<Specific> | null>(null);
   const [running, setRunning] = useState(false);
   const { run, modal } = useAuthorization<Outcome | SharedOutcome>({
     actionName,
@@ -83,7 +83,7 @@ export function useStepAttempt<Outcome extends { kind: string }, Specific extend
     if (current) {
       setRunning(false);
     }
-    const showNotice = (shown: StepNotice<Specific>) => {
+    const showNotice = (shown: AttemptNotice<Specific>) => {
       if (current) {
         setNotice(shown);
       }

@@ -10,7 +10,7 @@ type Transaction<TQueryResult extends PgQueryResultHKT> = Parameters<
   Parameters<PgDatabase<TQueryResult>["transaction"]>[0]
 >[0];
 
-class DrizzlePinResetStoreTransaction<TQueryResult extends PgQueryResultHKT>
+export class DrizzlePinResetStoreTransaction<TQueryResult extends PgQueryResultHKT>
   implements PinResetStoreTransaction
 {
   private readonly tx: Transaction<TQueryResult>;

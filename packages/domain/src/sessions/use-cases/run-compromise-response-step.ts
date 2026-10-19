@@ -5,12 +5,13 @@ import {
   type PasskeyRemovalRefusal,
   passkeyRemovalSettlesAccount,
 } from "../model/compromise-response.js";
-import type { CompromiseResponseActions } from "./compromise-response-actions.js";
-import type { CompromiseResponseStore } from "./compromise-response-store.js";
+import type {
+  CompromiseResponseStore,
+  CompromiseResponseStoreTransaction,
+} from "./compromise-response-store.js";
 
 export interface RunCompromiseResponseStepPorts {
   store: CompromiseResponseStore;
-  actions: CompromiseResponseActions;
 }
 
 export type CompromiseResponseStepRequest =
@@ -20,6 +21,8 @@ export type CompromiseResponseStepRequest =
 
 export type RunCompromiseResponseStepInput = {
   actorId: string;
+  locationId: string;
+  passkeyAuthorizedAt: Date | null;
   at: Date;
 } & CompromiseResponseStepRequest;
 
@@ -31,53 +34,50 @@ export type RunCompromiseResponseStepOutcome =
   | { kind: "done"; doneAt: Date };
 
 async function runAction(
-  actions: CompromiseResponseActions,
+  tx: CompromiseResponseStoreTransaction,
   input: RunCompromiseResponseStepInput,
 ): Promise<PasskeyRemovalRefusal | null> {
   switch (input.step) {
     case "revoke_every_installation":
-      await actions.revokeEveryInstallation();
+      await tx.revokeEveryInstallation(input.actorId, input.at);
       return null;
     case "end_sessions_and_remove_passkeys": {
-      const { kind } = await actions.removeAccountPasskeys(input.accountId);
-      if (!passkeyRemovalSettlesAccount(kind)) {
-        return kind;
+      const removal = await tx.removeEveryPasskeyOf({
+        accountId: input.accountId,
+        administratorId: input.actorId,
+        locationId: input.locationId,
+        passkeyAuthorizedAt: input.passkeyAuthorizedAt,
+        at: input.at,
+      });
+      if (!passkeyRemovalSettlesAccount(removal)) {
+        return removal;
       }
-      await actions.endEveryBackofficeSession();
+      await tx.endEveryBackofficeSession(input.actorId, input.at);
       return null;
     }
     case "force_pin_resets":
-      await actions.requirePinResetOfEveryUser();
+      await tx.requirePinResetOfEveryUser(input.actorId, input.at);
       return null;
   }
 }
 
 export async function runCompromiseResponseStep(
-  { store, actions }: RunCompromiseResponseStepPorts,
+  { store }: RunCompromiseResponseStepPorts,
   input: RunCompromiseResponseStepInput,
 ): Promise<RunCompromiseResponseStepOutcome> {
   const step: CompromiseResponseAction = input.step;
-  const refused = await store.transaction<RunCompromiseResponseStepOutcome | null>(async (tx) => {
+  return store.transaction<RunCompromiseResponseStepOutcome>(async (tx) => {
     const latest = await tx.lockLatestResponse();
     if (latest === null || isResponseCompleted(latest.completions)) {
       return { kind: "no_running_response" };
     }
     const refusal = actionStepRefusal(latest.completions, step);
-    return refusal === null ? null : { kind: refusal };
-  });
-  if (refused !== null) {
-    return refused;
-  }
-
-  const actionRefusal = await runAction(actions, input);
-  if (actionRefusal !== null) {
-    return { kind: "action_refused", refusal: actionRefusal };
-  }
-
-  return store.transaction<RunCompromiseResponseStepOutcome>(async (tx) => {
-    const latest = await tx.lockLatestResponse();
-    if (latest === null || actionStepRefusal(latest.completions, step) !== null) {
-      return { kind: "already_done" };
+    if (refusal !== null) {
+      return { kind: refusal };
+    }
+    const actionRefusal = await runAction(tx, input);
+    if (actionRefusal !== null) {
+      return { kind: "action_refused", refusal: actionRefusal };
     }
     await tx.recordStepDone(latest.id, step, input.actorId, input.at);
     return { kind: "done", doneAt: input.at };

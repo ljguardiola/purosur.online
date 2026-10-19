@@ -1,11 +1,14 @@
 import { Button, Modal } from "@purosur/ui";
 import { KeyRound, X } from "lucide-react";
+import {
+  type AuthorizedAttemptServices,
+  useAuthorizedAttempt,
+} from "../platform/use-authorized-attempt";
 import type { CompromiseResponse, forcePinResets, StepOutcome } from "./compromise-response-api";
 import { isRunbookRefusal } from "./compromise-response-api";
 import { StepAttemptNotices } from "./step-attempt-notices";
-import { type StepAttemptServices, useStepAttempt } from "./use-step-attempt";
 
-export type ForcePinResetsStepModalServices = StepAttemptServices & {
+export type ForcePinResetsStepModalServices = AuthorizedAttemptServices & {
   forcePinResets: typeof forcePinResets;
 };
 
@@ -32,7 +35,7 @@ export function ForcePinResetsStepModal({
     authorizeSession,
     startAuthentication,
   } = services;
-  const { attempt, running, notice, modal } = useStepAttempt<StepOutcome, "outdated">({
+  const { attempt, running, notice, modal } = useAuthorizedAttempt<StepOutcome, "outdated">({
     open,
     actionName: "Forzar el reinicio de PIN",
     onSessionEnded,

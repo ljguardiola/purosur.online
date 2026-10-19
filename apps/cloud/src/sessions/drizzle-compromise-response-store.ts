@@ -1,16 +1,41 @@
-import type {
-  CompromiseResponseStore,
-  CompromiseResponseStoreTransaction,
-  CompromiseResponses,
-  StoredCompromiseResponse,
+import type { PasskeyRemovalResult } from "@purosur/domain";
+import {
+  removeEveryUserPasskeyWithin,
+  requirePinResetOfEveryUserWithin,
+} from "@purosur/domain/credentials/use-cases";
+import { revokeEveryInstallationWithin } from "@purosur/domain/register/use-cases";
+import {
+  type AccountPasskeyRemoval,
+  type CompromiseResponseStore,
+  type CompromiseResponseStoreTransaction,
+  type CompromiseResponses,
+  endEveryBackofficeSessionWithin,
+  type InstallationRevocationResult,
+  type StoredCompromiseResponse,
 } from "@purosur/domain/sessions/use-cases";
 import { asc, desc, eq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import { drizzlePasskeyHolders } from "../credentials/drizzle-passkey-holders.js";
+import { DrizzlePasskeyRemovalStoreTransaction } from "../credentials/drizzle-passkey-removal-store.js";
+import { DrizzlePinResetStoreTransaction } from "../credentials/drizzle-pin-reset-store.js";
 import {
   auditLog,
   compromiseResponseCompletions,
   compromiseResponses,
 } from "../platform/db/schema.js";
+import { DrizzleEveryInstallationRevocationTransaction } from "../register/drizzle-every-installation-revocation-store.js";
+import { generateInstallationKey } from "../register/installation-key.js";
+import {
+  type InstallationKeyCipher,
+  installationKeyCipher,
+} from "../register/installation-key-cipher.js";
+import { type PendingChanges, withPendingChanges } from "../sync/change-log.js";
+import { DrizzleBackofficeSessionEndingStoreTransaction } from "./drizzle-backoffice-session-ending-store.js";
+
+export interface DrizzleCompromiseResponseStoreOptions {
+  keysEncryptionKey: Uint8Array;
+  now: () => Date;
+}
 
 type Transaction<TQueryResult extends PgQueryResultHKT> = Parameters<
   Parameters<PgDatabase<TQueryResult>["transaction"]>[0]
@@ -50,9 +75,20 @@ class DrizzleCompromiseResponseStoreTransaction<TQueryResult extends PgQueryResu
   implements CompromiseResponseStoreTransaction
 {
   private readonly tx: Transaction<TQueryResult>;
+  private readonly pending: PendingChanges;
+  private readonly cipher: InstallationKeyCipher;
+  private readonly now: () => Date;
 
-  constructor(tx: Transaction<TQueryResult>) {
+  constructor(
+    tx: Transaction<TQueryResult>,
+    pending: PendingChanges,
+    cipher: InstallationKeyCipher,
+    now: () => Date,
+  ) {
     this.tx = tx;
+    this.pending = pending;
+    this.cipher = cipher;
+    this.now = now;
   }
 
   async lockLatestResponse(): Promise<StoredCompromiseResponse | null> {
@@ -115,15 +151,60 @@ class DrizzleCompromiseResponseStoreTransaction<TQueryResult extends PgQueryResu
       at,
     });
   }
+
+  async revokeEveryInstallation(actorId: string, at: Date): Promise<InstallationRevocationResult> {
+    const { kind } = await revokeEveryInstallationWithin(
+      new DrizzleEveryInstallationRevocationTransaction(this.tx, this.cipher, this.now),
+      { clock: { now: () => at }, keys: { generate: generateInstallationKey } },
+      { actorId },
+    );
+    return kind;
+  }
+
+  async removeEveryPasskeyOf(removal: AccountPasskeyRemoval): Promise<PasskeyRemovalResult> {
+    const { kind } = await removeEveryUserPasskeyWithin(
+      new DrizzlePasskeyRemovalStoreTransaction(this.tx, this.now),
+      drizzlePasskeyHolders(this.tx),
+      {
+        locationId: removal.locationId,
+        administratorId: removal.administratorId,
+        targetUserId: removal.accountId,
+        passkeyAuthorizedAt: removal.passkeyAuthorizedAt,
+        at: removal.at,
+      },
+    );
+    return kind;
+  }
+
+  async endEveryBackofficeSession(actorId: string, at: Date): Promise<void> {
+    await endEveryBackofficeSessionWithin(
+      new DrizzleBackofficeSessionEndingStoreTransaction(this.tx),
+      { actorId, at },
+    );
+  }
+
+  async requirePinResetOfEveryUser(actorId: string, at: Date): Promise<void> {
+    await requirePinResetOfEveryUserWithin(
+      new DrizzlePinResetStoreTransaction(this.tx, this.pending, () => at),
+      { actorId },
+    );
+  }
 }
 
 export class DrizzleCompromiseResponseStore<TQueryResult extends PgQueryResultHKT>
   implements CompromiseResponseStore, CompromiseResponses
 {
   private readonly db: PgDatabase<TQueryResult>;
+  private readonly cipher: InstallationKeyCipher;
+  private readonly now: () => Date;
 
-  constructor(db: PgDatabase<TQueryResult>) {
+  constructor(
+    db: PgDatabase<TQueryResult>,
+    { keysEncryptionKey, now }: DrizzleCompromiseResponseStoreOptions,
+  ) {
     this.db = db;
+    this.cipher = installationKeyCipher(keysEncryptionKey);
+    this.now = now;
   }
 
   findLatestResponse(): Promise<StoredCompromiseResponse | null> {
@@ -133,6 +214,8 @@ export class DrizzleCompromiseResponseStore<TQueryResult extends PgQueryResultHK
   transaction<TOutcome>(
     work: (tx: CompromiseResponseStoreTransaction) => Promise<TOutcome>,
   ): Promise<TOutcome> {
-    return this.db.transaction((tx) => work(new DrizzleCompromiseResponseStoreTransaction(tx)));
+    return withPendingChanges(this.db, undefined, (tx, pending) =>
+      work(new DrizzleCompromiseResponseStoreTransaction(tx, pending, this.cipher, this.now)),
+    );
   }
 }

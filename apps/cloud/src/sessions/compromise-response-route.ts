@@ -19,7 +19,6 @@ import {
 } from "../credentials/passkey-authorization-guard.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
 import { backofficeOriginGuard } from "./backoffice-origin.js";
-import { compromiseResponseActions } from "./compromise-response-actions.js";
 import { compromiseResponseWire } from "./compromise-response-wire.js";
 import { DrizzleCompromiseResponseStore } from "./drizzle-compromise-response-store.js";
 import {
@@ -97,7 +96,7 @@ export function registerCompromiseResponseRoutes<TQueryResult extends PgQueryRes
   const { now } = options;
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
-  const store = new DrizzleCompromiseResponseStore(options.db);
+  const store = new DrizzleCompromiseResponseStore(options.db, options);
   const routeOptions = {
     preHandler: backofficeOriginGuard(options.backofficeOrigin),
     config: { access: capabilityAccess("manage_users"), sessionSource },
@@ -145,11 +144,14 @@ export function registerCompromiseResponseRoutes<TQueryResult extends PgQueryRes
       return undefined;
     }
     return runCompromiseResponseStep(
+      { store },
       {
-        store,
-        actions: compromiseResponseActions(options, openSession, attemptedAt),
+        ...step,
+        actorId: openSession.userId,
+        locationId: openSession.locationId,
+        passkeyAuthorizedAt: openSession.passkeyAuthorizedAt,
+        at: attemptedAt,
       },
-      { ...step, actorId: openSession.userId, at: attemptedAt },
     );
   }
 

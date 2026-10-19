@@ -1,4 +1,4 @@
-import type { PinResetStore } from "./pin-reset-store.js";
+import type { PinResetStore, PinResetStoreTransaction } from "./pin-reset-store.js";
 
 export interface RequirePinResetOfEveryUserPorts {
   store: PinResetStore;
@@ -12,8 +12,15 @@ export type RequirePinResetOfEveryUserOutcome = { kind: "required"; users: numbe
 
 export async function requirePinResetOfEveryUser(
   { store }: RequirePinResetOfEveryUserPorts,
+  input: RequirePinResetOfEveryUserInput,
+): Promise<RequirePinResetOfEveryUserOutcome> {
+  return store.transaction((tx) => requirePinResetOfEveryUserWithin(tx, input));
+}
+
+export async function requirePinResetOfEveryUserWithin(
+  tx: PinResetStoreTransaction,
   { actorId }: RequirePinResetOfEveryUserInput,
 ): Promise<RequirePinResetOfEveryUserOutcome> {
-  const users = await store.transaction((tx) => tx.requirePinResetOfEveryUser(actorId));
+  const users = await tx.requirePinResetOfEveryUser(actorId);
   return { kind: "required", users };
 }

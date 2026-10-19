@@ -1,9 +1,9 @@
 import { InlineNotice } from "@purosur/ui";
 import { ShieldX, TriangleAlert } from "lucide-react";
 import { retryAfterDetail } from "../platform/retry-after-detail";
-import type { StepNotice } from "./use-step-attempt";
+import type { AttemptNotice } from "../platform/use-authorized-attempt";
 
-export type StepAttemptNotice = StepNotice<"outdated" | "notFound" | "ownAccount">;
+export type StepAttemptNotice = AttemptNotice<"outdated" | "notFound" | "ownAccount">;
 
 export function StepAttemptNotices({
   notice,
