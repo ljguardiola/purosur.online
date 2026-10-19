@@ -4,9 +4,9 @@ import { useCloudQuery } from "../platform/use-cloud-query";
 import type { fetchAccounts } from "./compromise-response-accounts-api";
 import type { CompromiseResponse, fetchCompromiseResponse } from "./compromise-response-api";
 
-export const sessionsKey = ["sessions"] as const;
+const sessionsKey = ["sessions"] as const;
 
-export const sessionsKeys = {
+const sessionsKeys = {
   compromiseResponse: [...sessionsKey, "compromise-response"] as const,
   accounts: [...sessionsKey, "compromise-response-accounts"] as const,
 };
