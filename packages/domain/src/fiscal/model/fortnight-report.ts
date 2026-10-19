@@ -53,10 +53,16 @@ function hasFortnightClosed({ end }: Fortnight, today: string): boolean {
 }
 
 export function owesFortnightReport(
-  { fortnight, claimedAt }: { fortnight: Fortnight; claimedAt: Date },
+  {
+    fortnight,
+    claimedAt,
+    listed = false,
+  }: { fortnight: Fortnight; claimedAt: Date; listed?: boolean },
   today: string,
 ): boolean {
-  return hasFortnightClosed(fortnight, today) && claimedAt < fortnightClosesAt(fortnight);
+  return (
+    hasFortnightClosed(fortnight, today) && (listed || claimedAt < fortnightClosesAt(fortnight))
+  );
 }
 
 export function isFortnightReportOutstanding(state: FortnightReportState | null): boolean {

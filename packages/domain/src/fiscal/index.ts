@@ -131,6 +131,14 @@ export {
   OFFLINE_NUMBER_BLOCK_STATUSES,
 } from "./model/offline-number-block.js";
 export { CREDIT_NOTE_C_VOUCHER_TYPE } from "./model/orphan-credit-note.js";
+export type {
+  ListedOwedPresentation,
+  WithOwedPresentations,
+} from "./model/owed-presentation-list.js";
+export {
+  listsOwedPresentation,
+  splitOwedPresentations,
+} from "./model/owed-presentation-list.js";
 export {
   isPointOfSaleNumber,
   POINT_OF_SALE_NUMBER_MAX,
