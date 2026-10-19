@@ -100,15 +100,21 @@ describe("actionsColumn", () => {
     const one = actionsColumn({ id: "actions", header: "Acciones", actions: [edit] });
     const two = actionsColumn({ id: "actions", header: "Acciones", actions: [edit, edit] });
     const three = actionsColumn({ id: "actions", header: "Acciones", actions: [edit, edit, edit] });
+    const four = actionsColumn({
+      id: "actions",
+      header: "Acciones",
+      actions: [edit, edit, edit, edit],
+    });
 
     expect(one.enableSorting).toBe(false);
     expect(one.meta).toEqual({ actionCount: 1 });
     expect(two.meta).toEqual({ actionCount: 2 });
     expect(three.meta).toEqual({ actionCount: 3 });
+    expect(four.meta).toEqual({ actionCount: 4 });
     expectTypeOf(one).toEqualTypeOf<TableColumn<Product, "actions", false>>();
   });
 
-  it("does not accept zero or four actions, or a column without a title", () => {
+  it("does not accept zero or five actions, or a column without a title", () => {
     type Column = typeof actionsColumn<Product, "actions">;
     type Edit = TableAction<Product>;
 
@@ -117,6 +123,9 @@ describe("actionsColumn", () => {
     >().toEqualTypeOf<true>();
     expectTypeOf<
       Accepts<Column, { id: "actions"; header: string; actions: [Edit, Edit, Edit] }>
+    >().toEqualTypeOf<true>();
+    expectTypeOf<
+      Accepts<Column, { id: "actions"; header: string; actions: [Edit, Edit, Edit, Edit] }>
     >().toEqualTypeOf<true>();
     expectTypeOf<
       Accepts<Column, { id: "actions"; header: string; actions: [] }>
@@ -130,7 +139,7 @@ describe("actionsColumn", () => {
   it("keeps the column meta to what the table reads", () => {
     expectTypeOf<TableColumnMeta>().toEqualTypeOf<{
       align?: "start" | "end";
-      actionCount?: 1 | 2 | 3;
+      actionCount?: 1 | 2 | 3 | 4;
       width?: number;
     }>();
   });
