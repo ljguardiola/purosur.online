@@ -10,7 +10,6 @@ import type {
   endSessionsAndRemovePasskeys,
 } from "./compromise-response-api";
 import { isRunbookRefusal } from "./compromise-response-api";
-import { useAccountsQuery } from "./sessions-queries";
 import {
   accountOptions,
   EMPTY_VALUES,
@@ -18,6 +17,7 @@ import {
   REQUEST_FIELDS,
   requestFrom,
 } from "./end-sessions-form";
+import { useAccountsQuery } from "./sessions-queries";
 import { StepAttemptNotices } from "./step-attempt-notices";
 import { type StepAttemptServices, useStepAttempt } from "./use-step-attempt";
 

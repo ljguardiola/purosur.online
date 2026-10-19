@@ -21,15 +21,12 @@ import {
   isRunbookRefusal,
 } from "./compromise-response-api";
 import { CompromiseResponseChecklist, itemLabel } from "./compromise-response-checklist";
-import {
-  useCompromiseResponseQuery,
-  useReloadCompromiseResponse,
-} from "./sessions-queries";
 import type { CompromiseResponseScreenServices } from "./compromise-response-services";
 import { CompromiseResponseStepCard } from "./compromise-response-step-card";
 import { EndSessionsStepModal } from "./end-sessions-step-modal";
 import { ForcePinResetsStepModal } from "./force-pin-resets-step-modal";
 import { RevokeInstallationsStepModal } from "./revoke-installations-step-modal";
+import { useCompromiseResponseQuery, useReloadCompromiseResponse } from "./sessions-queries";
 import { StepAttemptNotices } from "./step-attempt-notices";
 
 const RegistersLink = createLink(ButtonLink);
