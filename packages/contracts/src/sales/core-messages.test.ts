@@ -1750,6 +1750,10 @@ describe("asking for the detail of one sale of the history", () => {
     },
     { kind: "found", detail: { ...detail, state: "voided", credit_note: { kind: "in_progress" } } },
     { kind: "found", detail: { ...detail, state: "voided", credit_note: { kind: "rejected" } } },
+    {
+      kind: "found",
+      detail: { ...detail, state: "voided", credit_note: { kind: "already_credited" } },
+    },
     { kind: "not_found" },
     { kind: "not_signed_in" },
     { kind: "lacks_permission" },

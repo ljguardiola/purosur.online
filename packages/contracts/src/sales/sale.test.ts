@@ -659,6 +659,7 @@ describe("voidSaleOutcomeSchema", () => {
     { ...voided, credit_note: authorizedCreditNote },
     { ...voided, credit_note: { kind: "in_progress" } },
     { ...voided, credit_note: { kind: "rejected" } },
+    { ...voided, credit_note: { kind: "already_credited" } },
     { kind: "not_found" },
     { kind: "not_completed" },
     { kind: "session_closed" },
