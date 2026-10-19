@@ -319,6 +319,15 @@ export async function withRegisterSession<TResult>(
       newSalesStoppedByBattery: () => false,
     });
 
+    const voidDeps = () => ({
+      ...deps(),
+      creditNotes: undefined,
+      printCreditNote: async () => undefined,
+      reportFailure: (error: unknown) => {
+        throw error;
+      },
+    });
+
     for (const [step, request] of [
       ["count a lot of a product", { productId: YERBA, counted: 12_000, expiresOn: "2027-03-31" }],
       [
@@ -670,7 +679,7 @@ export async function withRegisterSession<TResult>(
     });
     expectOutcome("charge the sale to void", voidCharge.kind, "completed");
     nextStep();
-    const voided = await voidSaleFor(deps(), {
+    const voided = await voidSaleFor(voidDeps(), {
       saleId: toVoid.sale.id,
       pendingRefundsConfirmed: false,
       authorization: { user_id: GRACE, pin: PIN },
@@ -710,7 +719,7 @@ export async function withRegisterSession<TResult>(
     });
     expectOutcome("charge the rest of the sale paid by QR to void", voidQrCharge.kind, "completed");
     nextStep();
-    const voidedOnQr = await voidSaleFor(deps(), {
+    const voidedOnQr = await voidSaleFor(voidDeps(), {
       saleId: toVoidOnQr.sale.id,
       pendingRefundsConfirmed: true,
       authorization: { user_id: GRACE, pin: PIN },
@@ -770,6 +779,23 @@ export async function withRegisterSession<TResult>(
       "charge a sale invoiced under the pre-obtained code",
       offlineTransfer.kind,
       "completed",
+    );
+    nextStep();
+    database
+      .prepare(
+        `INSERT INTO register_health_checks (checked_at, round_trip_ms, token_valid, arca_reachable)
+         VALUES (?, 120, 1, 1)`,
+      )
+      .run(now().toISOString());
+    const voidedInvoiced = await voidSaleFor(voidDeps(), {
+      saleId: offlineScan.sale.id,
+      pendingRefundsConfirmed: true,
+      authorization: { user_id: GRACE, pin: PIN },
+    });
+    expectOutcome(
+      "void the sale invoiced under the pre-obtained code authorized by PIN",
+      voidedInvoiced.kind,
+      "voided",
     );
     nextStep();
     rewindClock(10 * 60_000);
