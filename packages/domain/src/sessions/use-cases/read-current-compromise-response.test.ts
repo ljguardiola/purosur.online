@@ -11,7 +11,9 @@ import { FakeCompromiseResponseStore } from "./test-support/fake-compromise-resp
 
 describe("readCurrentCompromiseResponse", () => {
   it("answers none when no runbook was ever started", async () => {
-    const outcome = await readCurrentCompromiseResponse({ responses: new FakeCompromiseResponseStore() });
+    const outcome = await readCurrentCompromiseResponse({
+      responses: new FakeCompromiseResponseStore(),
+    });
 
     expect(outcome).toEqual({ kind: "none" });
   });
@@ -31,12 +33,14 @@ describe("readCurrentCompromiseResponse", () => {
       startedBy: "admin-1",
       completed: false,
     });
-    expect(outcome.response.steps.map(({ step, done, doneAt, available }) => ({
-      step,
-      done,
-      doneAt,
-      available,
-    }))).toEqual([
+    expect(
+      outcome.response.steps.map(({ step, done, doneAt, available }) => ({
+        step,
+        done,
+        doneAt,
+        available,
+      })),
+    ).toEqual([
       { step: "revoke_every_installation", done: true, doneAt: EARLIER, available: false },
       { step: "end_sessions_and_remove_passkeys", done: true, doneAt: EARLIER, available: false },
       { step: "force_pin_resets", done: false, doneAt: null, available: true },
@@ -96,6 +100,9 @@ describe("readCurrentCompromiseResponse", () => {
 
     const outcome = await readCurrentCompromiseResponse({ responses: store });
 
-    expect(outcome).toMatchObject({ kind: "found", response: { id: "response-2", completed: false } });
+    expect(outcome).toMatchObject({
+      kind: "found",
+      response: { id: "response-2", completed: false },
+    });
   });
 });

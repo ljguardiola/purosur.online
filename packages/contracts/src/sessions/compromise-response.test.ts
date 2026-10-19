@@ -92,7 +92,8 @@ describe("compromiseResponseSchema", () => {
   });
 
   it.each(["done", "available"])("requires a step's %s flag", (flag) => {
-    const { [flag as "done"]: _removed, ...step } = runbook.steps[1] as (typeof runbook.steps)[1] & {
+    const { [flag as "done"]: _removed, ...step } = runbook
+      .steps[1] as (typeof runbook.steps)[1] & {
       done: boolean;
     };
 

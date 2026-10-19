@@ -1,4 +1,7 @@
-import type { PinResetStore, PinResetStoreTransaction } from "@purosur/domain/credentials/use-cases";
+import type {
+  PinResetStore,
+  PinResetStoreTransaction,
+} from "@purosur/domain/credentials/use-cases";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { type PendingChanges, withPendingChanges } from "../sync/change-log.js";
 import { requirePinResetOfUsers } from "./require-pin-reset-of-users.js";
@@ -29,9 +32,7 @@ class DrizzlePinResetStoreTransaction<TQueryResult extends PgQueryResultHKT>
   }
 }
 
-export class DrizzlePinResetStore<TQueryResult extends PgQueryResultHKT>
-  implements PinResetStore
-{
+export class DrizzlePinResetStore<TQueryResult extends PgQueryResultHKT> implements PinResetStore {
   private readonly db: PgDatabase<TQueryResult>;
   private readonly now: () => Date;
 

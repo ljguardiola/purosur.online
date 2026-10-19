@@ -151,6 +151,10 @@ export type {
   PinCodeTarget,
 } from "./pin-code-store.js";
 export type {
+  PinResetStore,
+  PinResetStoreTransaction,
+} from "./pin-reset-store.js";
+export type {
   RecordRecoveryLinkSentInput,
   RecordRecoveryLinkSentOutcome,
   RecordRecoveryLinkSentPorts,
@@ -229,10 +233,6 @@ export type {
   RemoveUserPasskeyPorts,
 } from "./remove-user-passkey.js";
 export { removeUserPasskey } from "./remove-user-passkey.js";
-export type {
-  PinResetStore,
-  PinResetStoreTransaction,
-} from "./pin-reset-store.js";
 export type {
   PinReplacementPorts,
   PinReplacementStore,

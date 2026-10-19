@@ -75,12 +75,12 @@ describe("actionStepRefusal", () => {
   it("refuses a step while an earlier one is not done", () => {
     expect(actionStepRefusal([], "end_sessions_and_remove_passkeys")).toBe("out_of_order");
     expect(actionStepRefusal([], "force_pin_resets")).toBe("out_of_order");
-    expect(
-      actionStepRefusal(done("revoke_every_installation"), "force_pin_resets"),
-    ).toBe("out_of_order");
-    expect(
-      actionStepRefusal(done("end_sessions_and_remove_passkeys"), "force_pin_resets"),
-    ).toBe("out_of_order");
+    expect(actionStepRefusal(done("revoke_every_installation"), "force_pin_resets")).toBe(
+      "out_of_order",
+    );
+    expect(actionStepRefusal(done("end_sessions_and_remove_passkeys"), "force_pin_resets")).toBe(
+      "out_of_order",
+    );
   });
 
   it("lets a step run once every earlier step is done", () => {
@@ -118,14 +118,19 @@ describe("itemRefusal", () => {
   });
 
   it("lets the secrets be rotated in any order", () => {
-    expect(itemRefusal(done(...ACTION_STEPS_DONE.map(({ key }) => key), "postgres_credentials"), "claude_api_key")).toBeNull();
+    expect(
+      itemRefusal(
+        done(...ACTION_STEPS_DONE.map(({ key }) => key), "postgres_credentials"),
+        "claude_api_key",
+      ),
+    ).toBeNull();
   });
 
   it("refuses the notification until every secret is rotated", () => {
     expect(itemRefusal(ACTION_STEPS_DONE, "notify")).toBe("out_of_order");
-    expect(
-      itemRefusal([...ACTION_STEPS_DONE, ...EXTERNAL_SECRETS_DONE.slice(1)], "notify"),
-    ).toBe("out_of_order");
+    expect(itemRefusal([...ACTION_STEPS_DONE, ...EXTERNAL_SECRETS_DONE.slice(1)], "notify")).toBe(
+      "out_of_order",
+    );
     expect(itemRefusal([...ACTION_STEPS_DONE, ...EXTERNAL_SECRETS_DONE], "notify")).toBeNull();
   });
 

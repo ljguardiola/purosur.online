@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { type RunCompromiseResponseStepInput, runCompromiseResponseStep } from "./run-compromise-response-step.js";
+import {
+  type RunCompromiseResponseStepInput,
+  runCompromiseResponseStep,
+} from "./run-compromise-response-step.js";
 import {
   ACTION_COMPLETIONS,
   AT,
@@ -29,7 +32,10 @@ function world(completions: Parameters<typeof response>[0] = []) {
 
 describe("runCompromiseResponseStep", () => {
   it("refuses with no running response, running nothing, when no runbook was started", async () => {
-    const empty = { store: new FakeCompromiseResponseStore(), actions: new FakeCompromiseResponseActions() };
+    const empty = {
+      store: new FakeCompromiseResponseStore(),
+      actions: new FakeCompromiseResponseActions(),
+    };
 
     const outcome = await run(empty, FIRST_STEP);
 

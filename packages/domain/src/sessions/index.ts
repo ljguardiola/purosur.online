@@ -1,3 +1,9 @@
+export {
+  BACKOFFICE_REQUEST_WINDOW_MS,
+  BACKOFFICE_SESSION_REQUEST_LIMIT,
+  BACKOFFICE_SOURCE_ADDRESS_REQUEST_LIMIT,
+  backofficeRequestWindowStart,
+} from "./model/backoffice-request-rate-limits.js";
 export type {
   CompromiseResponseAction,
   CompromiseResponseCompletion,
@@ -15,12 +21,6 @@ export {
   COMPROMISE_RESPONSE_STEPS,
   EXTERNAL_SECRET_ITEMS,
 } from "./model/compromise-response.js";
-export {
-  BACKOFFICE_REQUEST_WINDOW_MS,
-  BACKOFFICE_SESSION_REQUEST_LIMIT,
-  BACKOFFICE_SOURCE_ADDRESS_REQUEST_LIMIT,
-  backofficeRequestWindowStart,
-} from "./model/backoffice-request-rate-limits.js";
 export {
   isLockedOutOfPinSignIn,
   PIN_SIGN_IN_LOCKOUT_FAILURES,

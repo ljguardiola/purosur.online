@@ -63,7 +63,10 @@ describe("markCompromiseResponseItemDone", () => {
     const outcome = await mark(store, "claude_api_key");
 
     expect(outcome).toEqual({ kind: "done", doneAt: AT });
-    expect(store.current.responses[0]?.completions.at(-1)).toEqual({ key: "claude_api_key", at: AT });
+    expect(store.current.responses[0]?.completions.at(-1)).toEqual({
+      key: "claude_api_key",
+      at: AT,
+    });
     expect(store.current.audits).toEqual([
       {
         kind: "item_done",

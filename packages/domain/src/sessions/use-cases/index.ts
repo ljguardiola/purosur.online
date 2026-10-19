@@ -20,9 +20,9 @@ export type { CheckPinInput, CheckPinOutcome, PinRefusal } from "./check-pin.js"
 export { checkPin } from "./check-pin.js";
 export type { CompromiseResponseActions } from "./compromise-response-actions.js";
 export type {
-  CompromiseResponses,
   CompromiseResponseStore,
   CompromiseResponseStoreTransaction,
+  CompromiseResponses,
   StoredCompromiseResponse,
 } from "./compromise-response-store.js";
 export type { CompromiseResponseView } from "./compromise-response-view.js";
@@ -117,12 +117,12 @@ export type {
   SignInLookupStore,
   SignInLookupStoreTransaction,
 } from "./sign-in-lookup-store.js";
+export type { SignOutInput, SignOutOutcome, SignOutPorts } from "./sign-out.js";
+export { signOut } from "./sign-out.js";
 export type {
   StartCompromiseResponseInput,
   StartCompromiseResponseOutcome,
   StartCompromiseResponsePorts,
 } from "./start-compromise-response.js";
 export { startCompromiseResponse } from "./start-compromise-response.js";
-export type { SignOutInput, SignOutOutcome, SignOutPorts } from "./sign-out.js";
-export { signOut } from "./sign-out.js";
 export type { TrippedSignInLockout } from "./trip-sign-in-lockout.js";

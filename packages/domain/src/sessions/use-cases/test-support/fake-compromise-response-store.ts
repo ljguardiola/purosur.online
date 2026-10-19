@@ -3,9 +3,9 @@ import type {
   CompromiseResponseItem,
 } from "../../model/compromise-response.js";
 import type {
-  CompromiseResponses,
   CompromiseResponseStore,
   CompromiseResponseStoreTransaction,
+  CompromiseResponses,
   StoredCompromiseResponse,
 } from "../compromise-response-store.js";
 
@@ -68,9 +68,7 @@ class FakeCompromiseResponseStoreTransaction implements CompromiseResponseStoreT
   }
 }
 
-export class FakeCompromiseResponseStore
-  implements CompromiseResponseStore, CompromiseResponses
-{
+export class FakeCompromiseResponseStore implements CompromiseResponseStore, CompromiseResponses {
   private state: FakeCompromiseResponseState = { responses: [], audits: [] };
 
   failingWrites = new Set<FailableWrite>();

@@ -22,7 +22,10 @@ afterAll(async () => {
 
 beforeEach(async () => {
   await testDatabase.clear();
-  const [first, second] = await db.insert(locations).values([{}, {}]).returning({ id: locations.id });
+  const [first, second] = await db
+    .insert(locations)
+    .values([{}, {}])
+    .returning({ id: locations.id });
   if (!first || !second) {
     throw new Error("test setup: seeding the branches returned no row");
   }
@@ -91,7 +94,11 @@ describe("DrizzlePinResetStore", () => {
     expect(versions.find(({ id }) => id === withoutPin)?.version).toBe(1);
     expect(
       await db
-        .select({ entityId: changes.entityId, version: changes.version, locationId: changes.locationId })
+        .select({
+          entityId: changes.entityId,
+          version: changes.version,
+          locationId: changes.locationId,
+        })
         .from(changes)
         .where(eq(changes.entityId, elsewhere)),
     ).toEqual([{ entityId: elsewhere, version: 2, locationId: otherBranchId }]);
@@ -99,7 +106,11 @@ describe("DrizzlePinResetStore", () => {
 
   it("audits each reset with its cause and the actor, only for users who held a PIN", async () => {
     const admin = await insertUser({ firstName: "Ada", locationId: branchId, withPin: true });
-    const cashier = await insertUser({ firstName: "Bea", locationId: otherBranchId, withPin: true });
+    const cashier = await insertUser({
+      firstName: "Bea",
+      locationId: otherBranchId,
+      withPin: true,
+    });
     await insertUser({ firstName: "Caro", locationId: branchId, withPin: false });
 
     await reset(admin);

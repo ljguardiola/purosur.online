@@ -13,5 +13,7 @@ export async function readCurrentCompromiseResponse({
   responses,
 }: ReadCurrentCompromiseResponsePorts): Promise<ReadCurrentCompromiseResponseOutcome> {
   const latest = await responses.findLatestResponse();
-  return latest === null ? { kind: "none" } : { kind: "found", response: compromiseResponseView(latest) };
+  return latest === null
+    ? { kind: "none" }
+    : { kind: "found", response: compromiseResponseView(latest) };
 }
