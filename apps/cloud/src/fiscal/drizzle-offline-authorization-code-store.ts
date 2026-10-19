@@ -6,7 +6,11 @@ import type {
 } from "@purosur/domain/fiscal/use-cases";
 import { eq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { caeaCodes, registerOfflinePointsOfSale } from "../platform/db/schema.js";
+import {
+  caeaCodes,
+  pointOfSaleClaims,
+  registerOfflinePointsOfSale,
+} from "../platform/db/schema.js";
 import { withPendingChanges } from "../sync/change-log.js";
 import { OFFLINE_AUTHORIZATION_CODE_VERSION } from "./offline-authorization-code-version.js";
 
@@ -77,6 +81,14 @@ export class DrizzleOfflineAuthorizationCodeStore<TQueryResult extends PgQueryRe
       .from(registerOfflinePointsOfSale)
       .limit(1);
     return row !== undefined;
+  }
+
+  async offlinePointsOfSale(): Promise<number[]> {
+    const rows = await this.db
+      .selectDistinct({ pointOfSaleNumber: pointOfSaleClaims.pointOfSaleNumber })
+      .from(pointOfSaleClaims)
+      .where(eq(pointOfSaleClaims.mechanism, "offline"));
+    return rows.map(({ pointOfSaleNumber }) => pointOfSaleNumber);
   }
 
   async holdAcquisition<TOutcome>(
