@@ -6,6 +6,7 @@ import {
 import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 import {
+  alerts,
   creditNotes,
   fiscalTasks,
   installationRequestAttempts,
@@ -322,6 +323,42 @@ describe("POST /fiscal/credit-notes", () => {
       expect(cloudErrorSchema.parse(response.json()).code).toBe("conflict");
       expect(route.wsfe.requests).toEqual([]);
       expect(await rows()).toHaveLength(1);
+    });
+
+    it("opens, once, an alert about the invoice that already had a credit note, naming the voided sale", async () => {
+      const { deviceToken } = await enrollRegister();
+      const first = requestBody();
+      await requestCreditNote(first, `Bearer ${deviceToken}`);
+      expect(await route.db.select().from(alerts)).toEqual([]);
+
+      await requestCreditNote(requestBody(), `Bearer ${deviceToken}`);
+      await requestCreditNote(requestBody(), `Bearer ${deviceToken}`);
+
+      expect(
+        await route.db
+          .select({ kind: alerts.kind, scope: alerts.scope, detail: alerts.detail })
+          .from(alerts),
+      ).toEqual([
+        {
+          kind: "invoice_already_credited",
+          scope: "31:factura_c:42",
+          detail: {
+            pointOfSale: 31,
+            number: 42,
+            saleId: expect.any(String),
+          },
+        },
+      ]);
+    });
+
+    it("opens no alert when the credit note was already recorded and is asked about again", async () => {
+      const { deviceToken } = await enrollRegister();
+      const body = requestBody();
+      await requestCreditNote(body, `Bearer ${deviceToken}`);
+
+      await requestCreditNote(body, `Bearer ${deviceToken}`);
+
+      expect(await route.db.select().from(alerts)).toEqual([]);
     });
   });
 });

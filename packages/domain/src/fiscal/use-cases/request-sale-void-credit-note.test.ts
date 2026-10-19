@@ -286,7 +286,11 @@ describe("requestSaleVoidCreditNote", () => {
           seeded: [[REGISTER_ID, { ...STORED, creditNoteId: otherId, reason }]],
         });
 
-        expect(await run()).toEqual({ kind: "voucher_already_credited" });
+        expect(await run()).toEqual({
+          kind: "voucher_already_credited",
+          voucher: { voucherType: 11, pointOfSale: 8, number: 77 },
+          saleId: "sale-1",
+        });
         expect(store.records).toEqual([]);
       },
     );
