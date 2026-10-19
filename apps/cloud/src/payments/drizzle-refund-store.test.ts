@@ -57,6 +57,7 @@ describe("DrizzleRefundStore", () => {
       origin: "sale_cancelled",
       method: "TRANSFER",
       confirmedAt: null,
+      lastRefusalReason: null,
     });
   });
 
@@ -202,6 +203,7 @@ describe("DrizzleRefundStore", () => {
         origin: "late_payment",
         method: "QR",
         confirmedAt: null,
+        lastRefusalReason: null,
       });
     });
 

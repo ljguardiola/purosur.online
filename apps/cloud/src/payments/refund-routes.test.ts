@@ -759,7 +759,12 @@ describe("POST /refunds/:id/discard", () => {
     ) {
       await db
         .update(paymentRefunds)
-        .set({ confirmedBy: userId, confirmedAt: NOW, ...refusal })
+        .set({
+          confirmedBy: userId,
+          confirmedAt: NOW,
+          providerRefundId: refusal.sentAt === null ? null : "REF-1",
+          ...refusal,
+        })
         .where(eq(paymentRefunds.id, refundId));
     }
 
