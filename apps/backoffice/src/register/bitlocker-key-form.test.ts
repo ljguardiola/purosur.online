@@ -21,9 +21,9 @@ test("builds the request with the typed key and identifier", () => {
 });
 
 test("trims the surrounding spaces of the typed key and identifier", () => {
-  expect(
-    bitlockerKeyRequestFrom({ recoveryKey: ` ${KEY} `, keyIdentifier: " 1A2B3C4D " }),
-  ).toEqual({ recovery_key: KEY, key_identifier: "1A2B3C4D" });
+  expect(bitlockerKeyRequestFrom({ recoveryKey: ` ${KEY} `, keyIdentifier: " 1A2B3C4D " })).toEqual(
+    { recovery_key: KEY, key_identifier: "1A2B3C4D" },
+  );
 });
 
 test("writes the typed identifier in uppercase", () => {

@@ -31,7 +31,9 @@ test("offers loading the key only for an installation in service without a key",
 
   await expect.element(screen.getByRole("button", loadAction)).toBeVisible();
   expect(
-    screen.getByRole("button", { name: /^Cargar la clave de recuperación de BitLocker/ }).elements(),
+    screen
+      .getByRole("button", { name: /^Cargar la clave de recuperación de BitLocker/ })
+      .elements(),
   ).toHaveLength(1);
 });
 
@@ -104,7 +106,9 @@ test("closing the consultation leaves no key on the screen", async () => {
   );
 
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
-  await expect.element(screen.getByText("Identificador de la clave: 1A2B3C4D")).not.toBeInTheDocument();
+  await expect
+    .element(screen.getByText("Identificador de la clave: 1A2B3C4D"))
+    .not.toBeInTheDocument();
 });
 
 test("the load action opens the loading of that register's key", async () => {
@@ -147,10 +151,15 @@ test("a loaded key is shown as active once the list reads again", async () => {
     dialog.getByRole("textbox", { name: /^Clave de recuperación de BitLocker/ }),
     KEY,
   );
-  await userEvent.fill(dialog.getByRole("textbox", { name: /^Identificador de la clave/ }), "1A2B3C4D");
+  await userEvent.fill(
+    dialog.getByRole("textbox", { name: /^Identificador de la clave/ }),
+    "1A2B3C4D",
+  );
   await userEvent.click(dialog.getByRole("button", { name: "Guardar la clave" }));
 
-  await expect.element(screen.getByText("Windows 11 Pro 10.0.26100 · BitLocker activo")).toBeVisible();
+  await expect
+    .element(screen.getByText("Windows 11 Pro 10.0.26100 · BitLocker activo"))
+    .toBeVisible();
   await expect
     .element(screen.getByRole("button", { name: /^Consultar la clave de recuperación/ }))
     .toBeVisible();

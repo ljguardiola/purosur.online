@@ -51,7 +51,10 @@ async function typeAndSave(dialog: Dialog, key: string, identifier: string) {
     dialog.getByRole("textbox", { name: /^Clave de recuperación de BitLocker/ }),
     key,
   );
-  await userEvent.fill(dialog.getByRole("textbox", { name: /^Identificador de la clave/ }), identifier);
+  await userEvent.fill(
+    dialog.getByRole("textbox", { name: /^Identificador de la clave/ }),
+    identifier,
+  );
   await userEvent.click(dialog.getByRole("button", { name: "Guardar la clave" }));
 }
 
