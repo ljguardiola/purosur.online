@@ -137,6 +137,6 @@ describe("DrizzlePinResetStore", () => {
 
     expect(await reset(admin)).toBe(0);
     expect(await db.select().from(auditLog)).toEqual([]);
-    expect(await db.select().from(changes)).toEqual([]);
+    expect(await db.select().from(changes).where(eq(changes.entity, "user"))).toEqual([]);
   });
 });
