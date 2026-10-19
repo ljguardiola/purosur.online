@@ -48,11 +48,16 @@ export class FakeOfflineAuthorizationCodeStore implements OfflineAuthorizationCo
   kept: KeptOfflineAuthorizationCode[] = [];
   operations: OfflineAuthorizationCodeOperation[] = [];
   offlinePointOfSaleConfigured = true;
+  ownedOfflinePointsOfSale: number[] = [];
   failingKeep = false;
   readonly heldFortnights = new Set<string>();
 
   async hasOfflinePointOfSale(): Promise<boolean> {
     return this.offlinePointOfSaleConfigured;
+  }
+
+  async offlinePointsOfSale(): Promise<number[]> {
+    return [...this.ownedOfflinePointsOfSale];
   }
 
   async holdAcquisition<TOutcome>(
