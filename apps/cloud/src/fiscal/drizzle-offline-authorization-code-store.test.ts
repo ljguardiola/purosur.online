@@ -51,6 +51,16 @@ describe("DrizzleOfflineAuthorizationCodeStore", () => {
     expect(await newStore().hasOfflinePointOfSale()).toBe(true);
   });
 
+  it("lists no offline point of sale while no register claims one", async () => {
+    expect(await newStore().offlinePointsOfSale()).toEqual([]);
+  });
+
+  it("lists the points of sale claimed for offline invoicing and none claimed for real time", async () => {
+    await seedOfflinePointOfSale(db);
+
+    expect(await newStore().offlinePointsOfSale()).toEqual([8]);
+  });
+
   it("holds no code for a fortnight before one is kept", async () => {
     const held = await newStore().holdAcquisition(OCTOBER_FIRST_HALF, (acquisition) =>
       acquisition.isHeld(),
