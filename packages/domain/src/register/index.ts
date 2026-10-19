@@ -39,6 +39,13 @@ export type {
   CashSessionClosedFact,
   CashSessionOpenedFact,
 } from "./model/cash-session-facts.js";
+export type { ClockDriftReport } from "./model/clock-drift.js";
+export {
+  CLOCK_DRIFT_TOLERANCE_MS,
+  clockDriftReportOf,
+  clockOffsetMs,
+  isClockDrifted,
+} from "./model/clock-drift.js";
 export type { CriticalBatteryAction } from "./model/critical-battery-action.js";
 export {
   CRITICAL_BATTERY_ACTIONS,
