@@ -9,6 +9,7 @@ import {
 import { useNavigate } from "@tanstack/react-router";
 import { Pencil, UserCheck, UserX } from "lucide-react";
 import { type ComponentType, Suspense, useEffect, useState } from "react";
+import type { BranchUserRole } from "../platform/branch-users-api";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { combineCloudData } from "../platform/combine-cloud-data";
 import { roleDisplayName } from "../platform/role-display-name";
@@ -20,7 +21,6 @@ import { DeactivateUserModal } from "./deactivate-user-modal";
 import { EditUserModal } from "./edit-user-modal";
 import { ReactivateUserModal } from "./reactivate-user-modal";
 import type { UserDetailScreenServices } from "./user-detail-services";
-import type { BranchUserRole } from "./users-api";
 import {
   type UserRead,
   useRefreshUsers,

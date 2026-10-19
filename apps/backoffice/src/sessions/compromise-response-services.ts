@@ -1,9 +1,9 @@
 import { startAuthentication } from "@simplewebauthn/browser";
+import { fetchUsers } from "../platform/branch-users-api";
 import {
   authorizeSession,
   fetchSessionAuthorizationOptions,
 } from "../platform/session-authorization-api";
-import { fetchAccounts } from "./compromise-response-accounts-api";
 import {
   endSessionsAndRemovePasskeys,
   fetchCompromiseResponse,
@@ -31,7 +31,7 @@ export const defaultCompromiseResponseScreenServices: CompromiseResponseScreenSe
   revokeEveryInstallation,
   forcePinResets,
   endSessionsAndRemovePasskeys,
-  fetchAccounts,
+  fetchUsers,
   fetchSessionAuthorizationOptions,
   authorizeSession,
   startAuthentication,

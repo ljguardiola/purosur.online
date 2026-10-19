@@ -2,8 +2,8 @@ import { compromiseResponseSessionsAndPasskeysBodySchema } from "@purosur/contra
 import { Button, LoadFailure, LoadingPlaceholder, Modal, useRequestForm } from "@purosur/ui";
 import { LogOut, X } from "lucide-react";
 import { useEffect, useEffectEvent } from "react";
+import type { fetchUsers } from "../platform/branch-users-api";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
-import type { fetchAccounts } from "./compromise-response-accounts-api";
 import type {
   CompromiseResponse,
   EndSessionsAndRemovePasskeysOutcome,
@@ -23,7 +23,7 @@ import { type StepAttemptServices, useStepAttempt } from "./use-step-attempt";
 
 export type EndSessionsStepModalServices = StepAttemptServices & {
   endSessionsAndRemovePasskeys: typeof endSessionsAndRemovePasskeys;
-  fetchAccounts: typeof fetchAccounts;
+  fetchUsers: typeof fetchUsers;
 };
 
 type EndSessionsStepModalProps = {
@@ -45,12 +45,12 @@ export function EndSessionsStepModal({
 }: EndSessionsStepModalProps) {
   const {
     endSessionsAndRemovePasskeys,
-    fetchAccounts,
+    fetchUsers,
     fetchSessionAuthorizationOptions,
     authorizeSession,
     startAuthentication,
   } = services;
-  const accounts = useAccountsQuery({ fetchAccounts, enabled: open, onSessionEnded });
+  const accounts = useAccountsQuery({ fetchUsers, enabled: open, onSessionEnded });
   const { attempt, running, notice, modal } = useStepAttempt<
     EndSessionsAndRemovePasskeysOutcome,
     "outdated" | "notFound" | "ownAccount"

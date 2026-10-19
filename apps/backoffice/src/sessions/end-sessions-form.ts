@@ -1,6 +1,6 @@
 import type { CompromiseResponseSessionsAndPasskeysBody } from "@purosur/contracts";
 import type { Option, Options } from "@purosur/ui";
-import type { Account } from "./compromise-response-accounts-api";
+import type { BranchUser } from "../platform/branch-users-api";
 
 export type EndSessionsFormValues = { accountId: string };
 
@@ -16,10 +16,12 @@ export function requestFrom({
   return { account_id: accountId };
 }
 
-export function accountOptions(accounts: Account[]): Options<Option<string>> | undefined {
-  const [first, ...rest] = accounts.map((account) => ({
-    value: account.id,
-    label: `${account.firstName} · ${account.email}`,
-  }));
+export function accountOptions(accounts: BranchUser[]): Options<Option<string>> | undefined {
+  const [first, ...rest] = accounts
+    .filter((account) => account.mayRemovePasskey)
+    .map((account) => ({
+      value: account.id,
+      label: `${account.firstName} · ${account.email}`,
+    }));
   return first && [first, ...rest];
 }

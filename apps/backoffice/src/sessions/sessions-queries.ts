@@ -1,7 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
+import type { fetchUsers } from "../platform/branch-users-api";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { useCloudQuery } from "../platform/use-cloud-query";
-import type { fetchAccounts } from "./compromise-response-accounts-api";
 import type { CompromiseResponse, fetchCompromiseResponse } from "./compromise-response-api";
 
 const sessionsKey = ["sessions"] as const;
@@ -25,14 +25,14 @@ export function useCompromiseResponseQuery(params: {
 }
 
 export function useAccountsQuery(params: {
-  fetchAccounts: typeof fetchAccounts;
+  fetchUsers: typeof fetchUsers;
   enabled: boolean;
   onSessionEnded: () => void;
 }) {
   const sendToMyAccount = useSendToMyAccount();
   return useCloudQuery({
     queryKey: sessionsKeys.accounts,
-    read: params.fetchAccounts,
+    read: params.fetchUsers,
     enabled: params.enabled,
     onSessionEnded: params.onSessionEnded,
     onForbidden: sendToMyAccount,
