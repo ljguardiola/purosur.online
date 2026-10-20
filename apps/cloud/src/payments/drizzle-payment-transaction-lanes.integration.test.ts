@@ -7,6 +7,7 @@ import {
   type MercadoPagoOrderPorts,
   type MercadoPagoOrderReading,
   type MercadoPagoOrderRefundsReading,
+  type MercadoPagoOrderSearch,
   type MercadoPagoOrders,
   type MercadoPagoQrOrderRequest,
 } from "@purosur/domain/payments/use-cases";
