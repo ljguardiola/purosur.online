@@ -11,6 +11,7 @@ import {
   installationRequestAttempts,
   paymentTransactions,
   registerPointTerminals,
+  registerQrPointsOfSale,
 } from "../platform/db/schema.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { insertRequestsUpToLimit } from "../sync/test-support/admitted-requests.js";
@@ -46,8 +47,20 @@ function orderRequest(
   };
 }
 
-function enroll(registerName = "Caja 1") {
-  return insertEnrolledInstallation(route.db, { now: NOW, registerName });
+function qrPointOfSaleOf(registerName: string): string {
+  return `${registerName.replace(/\s/gu, "_").toUpperCase()}_QR`;
+}
+
+async function enroll(registerName = "Caja 1", { withQrPointOfSale = true } = {}) {
+  const installation = await insertEnrolledInstallation(route.db, { now: NOW, registerName });
+  if (withQrPointOfSale) {
+    await route.db.insert(registerQrPointsOfSale).values({
+      registerId: installation.registerId,
+      externalPosId: qrPointOfSaleOf(registerName),
+      version: 1,
+    });
+  }
+  return installation;
 }
 
 async function assignTerminal(registerId: string, terminalId: string) {
@@ -250,6 +263,7 @@ describe("the Mercado Pago order routes", () => {
           externalReference: body.payment_transaction_id,
           amount: 5000,
           expiresAfterMinutes: 3,
+          externalPosId: "CAJA_1_QR",
         },
       ]);
       expect(await transactions()).toMatchObject([
@@ -308,6 +322,31 @@ describe("the Mercado Pago order routes", () => {
       expect(cloudErrorSchema.parse(response.json()).code).toBe("not_found");
       expect(await transactions()).toMatchObject([{ registerId: owner.registerId }]);
       expect(route.mercadoPago.creations).toHaveLength(1);
+    });
+
+    it("sends each register's order to the QR point of sale assigned to that register", async () => {
+      const first = await enroll("Caja 1");
+      const second = await enroll("Caja 2");
+
+      await createOrder(orderRequest(), `Bearer ${second.deviceToken}`);
+      await createOrder(orderRequest(), `Bearer ${first.deviceToken}`);
+
+      expect(route.mercadoPago.creations.map((order) => order.externalPosId)).toEqual([
+        "CAJA_2_QR",
+        "CAJA_1_QR",
+      ]);
+    });
+
+    it("answers that the provider is not configured when the register has no QR point of sale, even if another register has one", async () => {
+      await enroll("Caja 1");
+      const { deviceToken } = await enroll("Caja 2", { withQrPointOfSale: false });
+
+      const response = await createOrder(orderRequest(), `Bearer ${deviceToken}`);
+
+      expect(response.statusCode).toBe(503);
+      expect(cloudErrorSchema.parse(response.json()).code).toBe("payment_provider_not_configured");
+      expect(route.mercadoPago.creations).toEqual([]);
+      expect(await transactions()).toEqual([]);
     });
 
     it("answers that the provider refused the order", async () => {
