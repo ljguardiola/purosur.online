@@ -166,9 +166,15 @@ describe("manualDiscountsSchema", () => {
     ["an authorizer without an id", { ...saleRow, authorizer: { name: "Ana" } }],
     ["an authorizer with an empty id", { ...saleRow, authorizer: { id: "", name: "Ana" } }],
     ["an authorizer without a name field", { ...saleRow, authorizer: { id: USER_ID } }],
-    ["an adjustment of a kind that does not exist", { ...saleRow, adjustment: { kind: "X", value: 1 } }],
+    [
+      "an adjustment of a kind that does not exist",
+      { ...saleRow, adjustment: { kind: "X", value: 1 } },
+    ],
     ["a negative adjustment value", { ...saleRow, adjustment: { kind: "PERCENT", value: -1 } }],
-    ["an adjustment value with decimals", { ...saleRow, adjustment: { kind: "PERCENT", value: 1.5 } }],
+    [
+      "an adjustment value with decimals",
+      { ...saleRow, adjustment: { kind: "PERCENT", value: 1.5 } },
+    ],
     ["a new price on the total", { ...saleRow, adjustment: { kind: "PRICE", value: 5 } }],
     ["a discount on the total with a line", { ...saleRow, line_id: lineRow.line_id }],
     ["a discount on the total with a product", { ...saleRow, product_name: "Yerba" }],
