@@ -47,7 +47,10 @@ function salesByDay(headers: Record<string, string>, query = "") {
   return app.inject({ method: "GET", url: `/reports/sales-by-day${query}`, headers });
 }
 
-async function receiveSale(total: number, lines: unknown[] = []): Promise<{ registerId: string }> {
+async function receiveSale(
+  total: number,
+  lines: JsonValue[] = [],
+): Promise<{ registerId: string }> {
   const { deviceId, registerId } = await insertEnrolledInstallation(db, {
     now: NOW,
     registerName: "Caja 1",
