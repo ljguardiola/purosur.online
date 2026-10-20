@@ -1420,6 +1420,8 @@ function ghcrMirrorLines(
     lookupToken = GITHUB_TOKEN,
     copyNeeds = [spec.mirror.lookupJob],
     copyCondition = `\${{ needs.${spec.mirror.lookupJob}.outputs.mirrored == 'false' }}`,
+    copyJobTimeoutMinutes = spec.mirror.copyJobTimeoutMinutes,
+    copyStepTimeoutMinutes,
     copyToken = GITHUB_TOKEN,
     copyPermissions = ["packages: write"],
     copyLines = copyMirrorLines(spec.constant, spec.mirror.copyAttemptSeconds),
@@ -1450,12 +1452,15 @@ function ghcrMirrorLines(
       `    needs: [${copyNeeds.join(", ")}]`,
       `    if: ${copyCondition}`,
       "    runs-on: ubuntu-24.04",
-      `    timeout-minutes: ${spec.mirror.copyJobTimeoutMinutes}`,
+      `    timeout-minutes: ${copyJobTimeoutMinutes}`,
       "    permissions:",
       ...block(6, copyPermissions),
       "    steps:",
       "      - run: |",
       ...block(10, copyLines),
+      ...(copyStepTimeoutMinutes === undefined
+        ? []
+        : [`        timeout-minutes: ${copyStepTimeoutMinutes}`]),
       "        env:",
       `          GITHUB_TOKEN: ${copyToken}`,
       `          SOURCE_IMAGE: ${sourceImage}`,
@@ -1563,6 +1568,12 @@ for (const spec of PRE_PULLED_IMAGES) {
       violations,
       new RegExp(`${spec.job} job's pull step of .* sets no timeout-minutes`),
     );
+  });
+
+  test(`leaves a ${spec.job} job's pull step of ${spec.label} timing out before its last attempt to the retry-loop check`, () => {
+    const violations = spec.findViolations(jobWithPull(spec, { pullTimeoutMinutes: 1 }), setup());
+
+    assert.deepEqual(violations, []);
   });
 
   test(`flags a ${spec.job} job pulling ${spec.label} whose ${spec.testsScript} step sets no time limit`, () => {
@@ -1786,6 +1797,17 @@ for (const spec of MIRRORED_IMAGES) {
       new RegExp(`${copyJob} job does not copy .* with its own token`),
     );
   });
+
+  for (const [label, timeouts] of [
+    ["job", { copyJobTimeoutMinutes: 1 }],
+    ["step", { copyStepTimeoutMinutes: 1 }],
+  ]) {
+    test(`leaves a ${copyJob} ${label} timing out before its last copy attempt to the retry-loop check`, () => {
+      const violations = violationsWithMirror(spec, timeouts);
+
+      assert.deepEqual(violations, []);
+    });
+  }
 
   test(`flags a ${copyJob} job not granted packages: write`, () => {
     const violations = violationsWithMirror(spec, { copyPermissions: ["packages: read"] });

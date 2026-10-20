@@ -17,10 +17,8 @@ function workflowWith({
   stepName = "Retry",
   stepExtra = [],
   jobExtra = [],
-  top = [],
 }) {
   return [
-    ...top,
     "jobs:",
     "  build:",
     "    runs-on: ubuntu-24.04",
@@ -274,6 +272,77 @@ test("adds up every retry loop of a step", () => {
   const run = [...PULL_WITH_RETRIES.slice(0, 4), ...PULL_WITH_RETRIES.slice(0, 4)];
 
   assert.match(messagesOf({ run, jobTimeout: 1 })[0], /can take 2610 seconds/);
+});
+
+test("counts an attempt that goes on to the next one, or does more work before leaving the loop", () => {
+  for (const [run, seconds] of [
+    [
+      [
+        "for delay in 0 15 30 60; do",
+        '  sleep "$delay"',
+        "  timeout 300 docker pull image || continue",
+        "  exit 0",
+        "done",
+        "exit 1",
+      ],
+      1305,
+    ],
+    [
+      [
+        "for delay in 0 15 30 60; do",
+        "  if ! timeout 300 docker pull image; then",
+        "    sleep 30",
+        "    continue",
+        "  fi",
+        "  break",
+        "done",
+      ],
+      1320,
+    ],
+    [
+      [
+        "for attempt in 1 2 3; do",
+        "  if timeout 300 docker pull image; then",
+        "    timeout 300 docker push image",
+        "    exit 0",
+        "  fi",
+        "done",
+        "exit 1",
+      ],
+      1200,
+    ],
+  ]) {
+    assert.match(
+      messagesOf({ run, jobTimeout: 1 })[0] ?? "",
+      new RegExp(`can take ${seconds} seconds`),
+      run.join("\n"),
+    );
+  }
+});
+
+test("counts every round of a loop with many rounds", () => {
+  for (const loop of [
+    ["attempt=0", 'while [ "$attempt" -lt 2000 ]; do', "  sleep 1", "  attempt=$((attempt + 1))"],
+    ["for attempt in $(seq 1 2000); do", "  sleep 1"],
+    ["for attempt in {1..2000}; do", "  sleep 1"],
+  ]) {
+    const run = [...loop, "done"];
+
+    assert.match(messagesOf({ run, jobTimeout: 1 })[0] ?? "", /can take 2000 seconds/, loop[0]);
+  }
+});
+
+test("counts attempts run in the background as overlapping, up to the wait for the last", () => {
+  const run = [
+    "for delay in 0 15 30; do",
+    '  sleep "$delay"',
+    "  timeout 300 docker pull image &",
+    "done",
+  ];
+
+  assert.match(messagesOf({ run: [...run, "wait"], jobTimeout: 1 })[0], /can take 345 seconds/);
+  assert.deepEqual(messagesOf({ run: [...run, "wait"], jobTimeout: 6 }), []);
+  assert.deepEqual(messagesOf({ run, jobTimeout: 1 }), []);
 });
 
 test("counts only the sleeps of attempts with no time limit, and names what it could not bound", () => {
