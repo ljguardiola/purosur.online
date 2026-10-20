@@ -1765,6 +1765,8 @@ describe("wiring the register point of sale routes", () => {
     ["GET", "/api/registers/fortnight-presentations"],
     ["PUT", "/api/registers/00000000-0000-0000-0000-000000000000/point-of-sale"],
     ["PUT", "/api/registers/00000000-0000-0000-0000-000000000000/offline-point-of-sale"],
+    ["GET", "/api/registers/offline-points-of-sale"],
+    ["POST", "/api/registers/offline-points-of-sale/8/retirement"],
   ])("%s %s: answers according to the registersPointsOfSale option", async (method, url) => {
     const unwired = buildApp({ now: () => APP_CLOCK, version: "abc1234" });
     const wired = buildApp({
@@ -1776,7 +1778,7 @@ describe("wiring the register point of sale routes", () => {
       },
     });
     const request = {
-      method: method as "GET" | "PUT",
+      method: method as "GET" | "PUT" | "POST",
       url,
       headers: { origin: "https://staging.purosur.online" },
     };
@@ -2948,6 +2950,16 @@ describe("the route access inventory", () => {
       {
         method: "PUT",
         url: "/api/registers/:id/offline-point-of-sale",
+        access: capabilityAccess("cash_area"),
+      },
+      {
+        method: "GET",
+        url: "/api/registers/offline-points-of-sale",
+        access: capabilityAccess("cash_area"),
+      },
+      {
+        method: "POST",
+        url: "/api/registers/offline-points-of-sale/:number/retirement",
         access: capabilityAccess("cash_area"),
       },
       { method: "GET", url: "/api/health", access: PUBLIC_ACCESS },
