@@ -82,6 +82,7 @@ import {
   registerOfflinePointsOfSale,
   registerPointsOfSale,
   registerPointTerminals,
+  registerQrPointsOfSale,
   registerSnapshotGenerations,
   registerSnapshotKeys,
   registerSnapshotLifecycleRules,
@@ -313,6 +314,9 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
     await db
       .insert(registerPointTerminals)
       .values({ registerId: register.id, terminalId: "PAX_A910__SMARTPOS1", version: 1 });
+    await db
+      .insert(registerQrPointsOfSale)
+      .values({ registerId: register.id, externalPosId: "CAJA1_STORE_POS", version: 1 });
     await db.insert(pointOfSaleClaims).values({
       pointOfSaleNumber: 4,
       registerId: register.id,

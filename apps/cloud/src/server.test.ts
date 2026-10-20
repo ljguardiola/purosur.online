@@ -1721,7 +1721,6 @@ describe("startServer creating Mercado Pago QR orders", () => {
     const { started, buildApp, recovery } = start({
       ...env,
       MERCADOPAGO_ACCESS_TOKEN: "APP_USR-fictional-access-token",
-      MERCADOPAGO_QR_EXTERNAL_POS_ID: "STORE01POS01",
       MERCADOPAGO_WEBHOOK_SECRET: "fictional-webhook-secret",
     });
     await started;
@@ -1750,7 +1749,6 @@ describe("startServer creating Mercado Pago QR orders", () => {
     const { started, setUp } = start({
       ...env,
       MERCADOPAGO_ACCESS_TOKEN: "APP_USR-fictional-access-token",
-      MERCADOPAGO_QR_EXTERNAL_POS_ID: "STORE01POS01",
       MERCADOPAGO_WEBHOOK_SECRET: "fictional-webhook-secret",
     });
     await started;
@@ -1795,7 +1793,7 @@ describe("startServer creating Mercado Pago QR orders", () => {
     });
 
     await expect(started).rejects.toThrow(
-      "MERCADOPAGO_QR_EXTERNAL_POS_ID must be set when MERCADOPAGO_ACCESS_TOKEN is set",
+      "MERCADOPAGO_WEBHOOK_SECRET must be set when MERCADOPAGO_ACCESS_TOKEN is set",
     );
     expect(buildApp).not.toHaveBeenCalled();
   });

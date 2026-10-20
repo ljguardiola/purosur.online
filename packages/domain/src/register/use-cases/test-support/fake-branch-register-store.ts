@@ -21,6 +21,7 @@ export interface FakeBranchRegister {
   name: string;
   pointOfSaleNumber?: number;
   pointTerminal?: { terminalId: string | null; version: number };
+  qrPointOfSale?: { externalPosId: string | null; version: number };
 }
 
 export interface FakeRegisterInstallation
@@ -165,6 +166,7 @@ export class FakeBranchRegisterStore implements BranchRegisterStore, BranchRegis
             : null,
           pointOfSaleNumber: register.pointOfSaleNumber ?? null,
           pointTerminal: register.pointTerminal ?? { terminalId: null, version: 0 },
+          qrPointOfSale: register.qrPointOfSale ?? { externalPosId: null, version: 0 },
           installations: this.state.installations
             .filter((row) => row.registerId === register.id)
             .map(({ hostname, windowsVersion, enrolledAt, revokedAt, bitlockerKeyLoaded }) => ({

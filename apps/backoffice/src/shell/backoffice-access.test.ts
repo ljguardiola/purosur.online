@@ -1,6 +1,7 @@
 import { expect, test } from "vitest";
 import {
   canAssignPointTerminal,
+  canAssignQrPointOfSale,
   canCloseAlertsManually,
   canEnrollRegisters,
   canManageBatches,
@@ -49,6 +50,7 @@ test.each([
   ["canSeeCatalogArea", "catalog_area", canSeeCatalogArea],
   ["canSeeCashArea", "cash_area", canSeeCashArea],
   ["canAssignPointTerminal", "cash_area", canAssignPointTerminal],
+  ["canAssignQrPointOfSale", "cash_area", canAssignQrPointOfSale],
   ["canSeeAlertsArea", "alerts_area", canSeeAlertsArea],
   ["canCloseAlertsManually", "close_alerts_manually", canCloseAlertsManually],
   ["canSeeRegistersArea", "registers_area", canSeeRegistersArea],

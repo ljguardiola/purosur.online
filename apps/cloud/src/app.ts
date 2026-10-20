@@ -110,6 +110,7 @@ import {
 } from "./payments/payments-report-routes.js";
 import { type RefundRouteOptions, registerRefundRoutes } from "./payments/refund-routes.js";
 import { registerRegisterPointTerminalRoute } from "./payments/register-point-terminal-route.js";
+import { registerRegisterQrPointOfSaleRoute } from "./payments/register-qr-point-of-sale-route.js";
 import { registerPermissionCatalogRoute } from "./permissions/permission-catalog-route.js";
 import { registerRoleCreationRoutes } from "./permissions/role-creation-route.js";
 import { registerRoleEditRoutes } from "./permissions/role-edit-route.js";
@@ -664,6 +665,7 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
         registerRegisterCoverageRoute(api, { ...options.registers, now });
         registerRegisterEnrollmentCodeRoute(api, { ...options.registers, now });
         registerRegisterPointTerminalRoute(api, { ...options.registers, now });
+        registerRegisterQrPointOfSaleRoute(api, { ...options.registers, now });
       }
 
       if (options.snapshotBackups) {
