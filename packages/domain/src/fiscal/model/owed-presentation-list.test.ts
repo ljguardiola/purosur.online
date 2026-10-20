@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   type ListedOwedPresentation,
   listsOwedPresentation,
+  owedPresentationsToRecord,
   splitOwedPresentations,
 } from "./owed-presentation-list.js";
 
@@ -43,5 +44,19 @@ describe("listsOwedPresentation", () => {
     expect(listsOwedPresentation([listed(3)], listed(4))).toBe(false);
     expect(listsOwedPresentation([listed(3)], listed(3, SECOND_HALF))).toBe(false);
     expect(listsOwedPresentation([], listed(3))).toBe(false);
+  });
+});
+
+describe("owedPresentationsToRecord", () => {
+  it("records the list an answer names", () => {
+    expect(owedPresentationsToRecord({ owedPresentations: [listed(3)] })).toEqual([listed(3)]);
+  });
+
+  it("records nothing from an answer that lists no owed presentations", () => {
+    expect(owedPresentationsToRecord({})).toBeUndefined();
+  });
+
+  it("records nothing from an answer that says presentations are owed but names none it can read", () => {
+    expect(owedPresentationsToRecord({ owedPresentations: [] })).toBeUndefined();
   });
 });

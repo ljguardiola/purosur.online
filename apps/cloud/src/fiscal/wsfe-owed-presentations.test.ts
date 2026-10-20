@@ -38,12 +38,18 @@ describe("owedPresentationsOf", () => {
     expect(owedPresentationsOf([message("202609;1;4|202609;1;5")])).toHaveLength(2);
   });
 
-  it("ignores any other observation", () => {
+  it("answers no list when no observation lists owed presentations", () => {
     expect(
       owedPresentationsOf([
         { code: 15_008, message: "202609;1;4" },
         { code: 602, message: "" },
       ]),
+    ).toBeUndefined();
+  });
+
+  it("answers an empty list when the observation listing owed presentations names none it can read", () => {
+    expect(
+      owedPresentationsOf([{ code: 15_008, message: "202609;1;4" }, message("202609;1;0")]),
     ).toEqual([]);
   });
 

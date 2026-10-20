@@ -206,8 +206,17 @@ describe("WsfeTaxAuthorityOfflineDocumentReports.report", () => {
     });
   });
 
-  it("lists no owed presentations when observation 15014 names none", async () => {
+  it("answers an empty list of owed presentations when observation 15014 names none it can read", async () => {
     server.behave(answers("fe-caea-reg-informativo-accepted-with-observation.xml"));
+
+    expect(await reportsAt(server.endpoint).report(reportCall)).toStrictEqual({
+      kind: "accepted",
+      owedPresentations: [],
+    });
+  });
+
+  it("lists no owed presentations when no observation 15014 comes", async () => {
+    server.behave(answers("fe-caea-reg-informativo-accepted.xml"));
 
     expect(await reportsAt(server.endpoint).report(reportCall)).toStrictEqual({
       kind: "accepted",

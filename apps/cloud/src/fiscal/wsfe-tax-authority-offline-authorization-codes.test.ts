@@ -110,6 +110,16 @@ describe("WsfeTaxAuthorityOfflineAuthorizationCodes.request", () => {
     });
   });
 
+  it("answers an empty list of owed presentations when ARCA grants the code with observation 15014 naming none it can read", async () => {
+    server.behave(answers("fe-caea-solicitar-granted-owed-presentations-unreadable.xml"));
+
+    expect(await codesAt(server.endpoint).request(call)).toEqual({
+      kind: "granted",
+      code: GRANTED_CODE,
+      owedPresentations: [],
+    });
+  });
+
   it("lists no owed presentations when ARCA's refusal names none", async () => {
     server.behave(answers("fe-caea-solicitar-out-of-window.xml"));
 

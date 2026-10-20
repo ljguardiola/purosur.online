@@ -134,6 +134,22 @@ describe("obtainOfflineAuthorizationCodes", () => {
       },
     );
 
+    it("keeps the stored list when the tax authority grants a code saying presentations are owed but naming none it can read", async () => {
+      const { store, taxAuthority, owedPresentations, obtain } = setUp();
+      store.ownedOfflinePointsOfSale = [4];
+      owedPresentations.entries = [OWNED_OFFLINE, OWED_ELSEWHERE];
+      taxAuthority.requestAnswer = (fortnight) => ({
+        kind: "granted",
+        code: codeFor(fortnight),
+        owedPresentations: [],
+      });
+
+      await obtain();
+
+      expect(owedPresentations.replacements).toEqual([]);
+      expect(owedPresentations.entries).toEqual([OWNED_OFFLINE, OWED_ELSEWHERE]);
+    });
+
     it("keeps the list a granted code answers with, rather than forgetting what it names elsewhere", async () => {
       const { taxAuthority, owedPresentations, obtain } = setUp();
       taxAuthority.requestAnswer = (fortnight) => ({

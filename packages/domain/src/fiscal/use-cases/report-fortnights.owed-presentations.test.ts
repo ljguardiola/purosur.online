@@ -128,6 +128,18 @@ describe("reportFortnights, with the tax authority's list of owed presentations"
       expect(owedPresentations.entries).toEqual([LISTED_ELSEWHERE]);
     });
 
+    it("leaves the list alone when an answer says presentations are owed but names none it can read", async () => {
+      const { owedPresentations, documents, documentReports, run } = setUpReportFortnights();
+      owedPresentations.entries = [LISTED_ELSEWHERE];
+      documents.add(POINT_OF_SALE, SEPTEMBER_SECOND_HALF, offlineDocument(1));
+      documentReports.reportAnswer = () => ({ kind: "accepted", owedPresentations: [] });
+
+      await run();
+
+      expect(owedPresentations.replacements).toEqual([]);
+      expect(owedPresentations.entries).toEqual([LISTED_ELSEWHERE]);
+    });
+
     it("leaves the list alone when no answer carries one", async () => {
       const { owedPresentations, documents, run } = setUpReportFortnights();
       owedPresentations.entries = [LISTED_ELSEWHERE];
