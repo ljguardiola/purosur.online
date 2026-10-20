@@ -2,6 +2,7 @@ import { QueryClient } from "@tanstack/react-query";
 import { expect, test } from "vitest";
 import { FRONT_REGISTER_ID } from "../shell/test-support/report-fixtures";
 import { salesKey, salesKeys } from "./sales-queries";
+import { ANA_ID } from "./test-support/sales-fixtures";
 
 test("invalidating the sales key marks every sales read stale", async () => {
   const client = new QueryClient();
@@ -9,6 +10,7 @@ test("invalidating the sales key marks every sales read stale", async () => {
   client.setQueryData(salesKeys.productsAndCategories({ group: "category" }), []);
   client.setQueryData(salesKeys.cashiers({}), []);
   client.setQueryData(salesKeys.promotions({}), []);
+  client.setQueryData(salesKeys.manualDiscounts({}), []);
   client.setQueryData(salesKeys.averageTicket({}), []);
   client.setQueryData(["stock"], []);
 
@@ -20,6 +22,7 @@ test("invalidating the sales key marks every sales read stale", async () => {
   ).toBe(true);
   expect(client.getQueryState(salesKeys.cashiers({}))?.isInvalidated).toBe(true);
   expect(client.getQueryState(salesKeys.promotions({}))?.isInvalidated).toBe(true);
+  expect(client.getQueryState(salesKeys.manualDiscounts({}))?.isInvalidated).toBe(true);
   expect(client.getQueryState(salesKeys.averageTicket({}))?.isInvalidated).toBe(true);
   expect(client.getQueryState(["stock"])?.isInvalidated).toBe(false);
 });
@@ -70,6 +73,19 @@ test("each range and register has its own sales by promotion key", () => {
     salesKeys.promotions({ register_id: FRONT_REGISTER_ID }),
     salesKeys.cashiers({ register_id: FRONT_REGISTER_ID }),
     salesKeys.report({ register_id: FRONT_REGISTER_ID }),
+  ];
+
+  expect(new Set(keys.map((key) => JSON.stringify(key))).size).toBe(keys.length);
+});
+
+test("each range, register and authorizer has its own manual discounts key", () => {
+  const keys = [
+    salesKeys.manualDiscounts({}),
+    salesKeys.manualDiscounts({ from: "2026-10-01", to: "2026-10-07" }),
+    salesKeys.manualDiscounts({ from: "2026-10-01", to: "2026-10-08" }),
+    salesKeys.manualDiscounts({ register_id: FRONT_REGISTER_ID }),
+    salesKeys.manualDiscounts({ authorized_by: ANA_ID }),
+    salesKeys.promotions({ register_id: FRONT_REGISTER_ID }),
   ];
 
   expect(new Set(keys.map((key) => JSON.stringify(key))).size).toBe(keys.length);

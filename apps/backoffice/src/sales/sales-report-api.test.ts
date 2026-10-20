@@ -2,15 +2,18 @@ import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { FRONT_REGISTER_ID } from "../shell/test-support/report-fixtures";
 import {
   fetchAverageTicket,
+  fetchManualDiscounts,
   fetchSalesByCashier,
   fetchSalesByProductAndCategory,
   fetchSalesByPromotion,
   fetchSalesReport,
 } from "./sales-report-api";
 import {
+  ANA_ID,
   averageTicketReport,
   cashierSalesReport,
   categoryProductsReport,
+  manualDiscountsReport,
   promotionDiscountsReport,
   weekReport,
 } from "./test-support/sales-fixtures";
@@ -170,6 +173,45 @@ test.each([
   vi.mocked(fetch).mockResolvedValue(jsonResponse(status));
 
   expect(await fetchSalesByPromotion({})).toEqual({ kind });
+});
+
+test("fetchManualDiscounts asks for no filter when nothing is chosen", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, manualDiscountsReport));
+
+  expect(await fetchManualDiscounts({})).toEqual({ kind: "ok", value: manualDiscountsReport });
+  expect(fetch).toHaveBeenCalledWith("/api/reports/manual-discounts");
+});
+
+test("fetchManualDiscounts asks for the range, the register and the authorizer chosen", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, manualDiscountsReport));
+
+  await fetchManualDiscounts({
+    from: "2026-10-01",
+    to: "2026-10-07",
+    register_id: FRONT_REGISTER_ID,
+    authorized_by: ANA_ID,
+  });
+
+  expect(fetch).toHaveBeenCalledWith(
+    `/api/reports/manual-discounts?from=2026-10-01&to=2026-10-07&register_id=${FRONT_REGISTER_ID}&authorized_by=${ANA_ID}`,
+  );
+});
+
+test("fetchManualDiscounts treats a body that does not match the report as failed", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    jsonResponse(200, { ...manualDiscountsReport, totals: { discounted: 1 } }),
+  );
+
+  expect(await fetchManualDiscounts({})).toEqual({ kind: "failed" });
+});
+
+test.each([
+  [401, "unauthenticated"],
+  [403, "forbidden"],
+])("fetchManualDiscounts answers a %s as the cloud's outcome", async (status, kind) => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(status));
+
+  expect(await fetchManualDiscounts({})).toEqual({ kind });
 });
 
 test("fetchAverageTicket asks for no filter when no range and no register are chosen", async () => {
