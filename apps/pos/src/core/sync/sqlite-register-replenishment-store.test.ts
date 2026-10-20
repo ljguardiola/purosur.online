@@ -1,5 +1,10 @@
 import { encodePinHash } from "@purosur/contracts";
 import {
+  FICTIONAL_CUIT,
+  FICTIONAL_GROSS_INCOME_REGISTRATION,
+  FICTIONAL_LEGAL_NAME,
+} from "@purosur/domain/fiscal/test-support";
+import {
   aCancelledSaleFact,
   aCompletedSaleFact,
   aVoidedSaleFact,
@@ -307,7 +312,56 @@ describe("the register's store for replenishing a restored register", () => {
       expect(count("pre_emission_gate_outcomes")).toBe(1);
     });
 
-    it("leaves an offline fiscal document untouched, and says so, since its document is not in the event", async () => {
+    it("applies an offline fiscal document that carries its invoice with the live issuing writer", async () => {
+      await store.transaction((tx) => tx.applyFact(aCompletedSaleFact({ id: "sale-1" }), SOURCE));
+      const fact: SyncedFact = {
+        kind: "offline_fiscal_document_issued",
+        document: {
+          fiscalDocumentId: "document-1",
+          saleId: "sale-1",
+          registerId: "register-new",
+          pointOfSale: 12,
+          documentType: "factura_c",
+          number: 7,
+          issuedOn: "2026-10-07",
+          generatedAt: new Date("2026-10-07T10:00:00.000Z"),
+          generationStamp: "20261007070000",
+          offlineAuthorizationCode: "12345678901234",
+          fortnightStart: "2026-10-01",
+          fortnightEnd: "2026-10-15",
+          buyerDocumentType: 99,
+          buyerDocumentNumber: 0,
+          buyerTaxStatusCode: 5,
+          total: 1500,
+          netAmount: 1500,
+          cause: "no_connectivity",
+          invoice: {
+            invoiceClass: "C",
+            total: 1500,
+            netAmount: 1500,
+            vatAmount: 0,
+            issuer: {
+              legalName: FICTIONAL_LEGAL_NAME,
+              cuit: FICTIONAL_CUIT,
+              taxStatus: "MONOTRIBUTO",
+              grossIncomeRegistration: FICTIONAL_GROSS_INCOME_REGISTRATION,
+              activityStartDate: "2020-01-01",
+              version: 3,
+            },
+            buyerTaxStatusCode: 5,
+            buyerTaxStatusDescription: "Consumidor Final",
+          },
+        },
+      };
+
+      expect(await store.transaction((tx) => tx.applyFact(fact, SOURCE))).toBe("applied");
+
+      expect(database.prepare("SELECT id, number FROM offline_fiscal_documents").all()).toEqual([
+        { id: "document-1", number: 7 },
+      ]);
+    });
+
+    it("leaves an offline fiscal document that carries no invoice untouched, and says so", async () => {
       const fact: SyncedFact = {
         kind: "offline_fiscal_document_issued",
         document: {
