@@ -802,6 +802,9 @@ export async function startServer(env: ServerEnv, deps: StartServerDeps): Promis
           installationKeysEncryptionKey: database.installationKeysEncryptionKey,
           releaseCheckToken: env.RELEASE_CHECK_TOKEN,
           offsiteDumpCheckToken: env.OFFSITE_DUMP_CHECK_TOKEN,
+          ...(supplierPriceListReading
+            ? { supplierPriceListFiles: supplierPriceListReading.files }
+            : {}),
           ...(invoicing ? { enqueueTaxAuthorityCount: enqueueTaxAuthorityCountJob } : {}),
           ...(mercadoPago
             ? {

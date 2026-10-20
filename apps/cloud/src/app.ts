@@ -1,6 +1,7 @@
 import { extname, relative, sep } from "node:path";
 import fastifyStatic from "@fastify/static";
 import type { ErrorReportingConfiguration } from "@purosur/contracts";
+import type { SupplierPriceListFiles } from "@purosur/domain/purchasing/use-cases";
 import { admitInstallationRequest } from "@purosur/domain/sync/use-cases";
 import { setupFastifyErrorHandler as defaultSetupFastifyErrorHandler } from "@sentry/node";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
@@ -129,6 +130,7 @@ import { registerFreightsRoutes } from "./purchasing/freights-routes.js";
 import { registerPackagingsRoutes } from "./purchasing/packagings-routes.js";
 import { registerPurchasesRoutes } from "./purchasing/purchases-routes.js";
 import type { PurchasingRouteOptions } from "./purchasing/purchasing-route-options.js";
+import { registerSupplierPriceListsRoutes } from "./purchasing/supplier-price-lists-routes.js";
 import { registerSuppliersRoutes } from "./purchasing/suppliers-routes.js";
 import {
   type BitlockerRecoveryKeyRouteOptions,
@@ -313,6 +315,7 @@ interface DatabaseWiring<TQueryResult extends PgQueryResultHKT> {
   refundSending?: NonNullable<RefundRouteOptions<TQueryResult>["sending"]>;
   releaseCheckToken?: string | undefined;
   offsiteDumpCheckToken?: string | undefined;
+  supplierPriceListFiles?: SupplierPriceListFiles;
 }
 
 export function databaseRouteOptions<TQueryResult extends PgQueryResultHKT>(
@@ -337,7 +340,9 @@ export function databaseRouteOptions<TQueryResult extends PgQueryResultHKT>(
     fiscalAddresses: backoffice,
     categories: backoffice,
     brands: backoffice,
-    purchasing: backoffice,
+    purchasing: wiring.supplierPriceListFiles
+      ? { ...backoffice, supplierPriceListFiles: wiring.supplierPriceListFiles }
+      : backoffice,
     tags: backoffice,
     products: backoffice,
     alerts: backoffice,
@@ -567,6 +572,7 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
         registerPackagingsRoutes(api, { ...options.purchasing, now });
         registerPurchasesRoutes(api, { ...options.purchasing, now });
         registerFreightsRoutes(api, { ...options.purchasing, now });
+        registerSupplierPriceListsRoutes(api, { ...options.purchasing, now });
       }
 
       if (options.tags) {
