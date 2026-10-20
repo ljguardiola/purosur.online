@@ -136,6 +136,7 @@ export default defineRailway((ctx) => {
   // The secret key matching `ARCA_CERTIFICATE`, with which the cloud signs its logins at ARCA.
   const arcaPrivateKey = requireEnv("ARCA_PRIVATE_KEY");
   const mercadoPago = resolveMercadoPagoConfig(process.env);
+  const anthropicApiKey = process.env["ANTHROPIC_API_KEY"];
   const environment = ctx.environment;
   if (!environment) {
     throw new Error(".railway/railway.ts: the CLI gave no target environment name");
@@ -149,6 +150,7 @@ export default defineRailway((ctx) => {
   const media = bucket("Media Storage", { region: BUCKET_REGION });
   const registerUpdates = bucket("Register Updates", { region: BUCKET_REGION });
   const registerSnapshots = bucket("Register Snapshots", { region: BUCKET_REGION });
+  const supplierPriceLists = bucket("Supplier Price Lists", { region: BUCKET_REGION });
 
   const registryCredentials = {
     username: "ljguardiola",
@@ -221,6 +223,18 @@ export default defineRailway((ctx) => {
         registerSnapshots,
         "SECRET_ACCESS_KEY",
       ),
+      SUPPLIER_PRICE_LISTS_BUCKET_ENDPOINT: bucketReference(supplierPriceLists, "ENDPOINT"),
+      SUPPLIER_PRICE_LISTS_BUCKET_NAME: bucketReference(supplierPriceLists, "BUCKET"),
+      SUPPLIER_PRICE_LISTS_BUCKET_REGION: bucketReference(supplierPriceLists, "REGION"),
+      SUPPLIER_PRICE_LISTS_BUCKET_ACCESS_KEY_ID: bucketReference(
+        supplierPriceLists,
+        "ACCESS_KEY_ID",
+      ),
+      SUPPLIER_PRICE_LISTS_BUCKET_SECRET_ACCESS_KEY: bucketReference(
+        supplierPriceLists,
+        "SECRET_ACCESS_KEY",
+      ),
+      ...(anthropicApiKey ? { ANTHROPIC_API_KEY: anthropicApiKey } : {}),
       ...(mercadoPago
         ? {
             MERCADOPAGO_ACCESS_TOKEN: mercadoPago.accessToken,
@@ -266,6 +280,15 @@ export default defineRailway((ctx) => {
       : [];
 
   return project("Puro Sur", {
-    resources: [db, media, registerUpdates, registerSnapshots, migrate, cloud, ...offsiteDump],
+    resources: [
+      db,
+      media,
+      registerUpdates,
+      registerSnapshots,
+      supplierPriceLists,
+      migrate,
+      cloud,
+      ...offsiteDump,
+    ],
   });
 });
