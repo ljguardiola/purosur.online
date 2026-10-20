@@ -24,10 +24,13 @@ const enrolledInstallation = {
   hostname: "CAJA-MOSTRADOR",
   windows_version: "Windows 11 Pro 10.0.26100",
   enrolled_at: "2026-08-01T15:00:00.000Z",
+  bitlocker_key_loaded: false,
 };
 const revokedInstallation = {
-  ...enrolledInstallation,
   state: "revoked",
+  hostname: enrolledInstallation.hostname,
+  windows_version: enrolledInstallation.windows_version,
+  enrolled_at: enrolledInstallation.enrolled_at,
   revoked_at: "2026-08-03T18:30:00.000Z",
 };
 const withCode = {
@@ -61,6 +64,24 @@ describe("registerSummarySchema", () => {
     });
 
     expect(parsed.data?.installation).toEqual(enrolledInstallation);
+  });
+
+  it("reports whether the enrolled installation has its BitLocker key loaded", () => {
+    const loaded = {
+      ...withoutCode,
+      installation: { ...enrolledInstallation, bitlocker_key_loaded: true },
+    };
+
+    expect(registerSummarySchema.safeParse(loaded).data).toEqual(loaded);
+  });
+
+  it("does not carry the BitLocker key flag on a revoked installation", () => {
+    const parsed = registerSummarySchema.safeParse({
+      ...withoutCode,
+      installation: { ...revokedInstallation, bitlocker_key_loaded: true },
+    });
+
+    expect(parsed.data?.installation).toEqual(revokedInstallation);
   });
 
   it("accepts a code that expires within its last second", () => {
@@ -121,6 +142,9 @@ describe("registerSummarySchema", () => {
     ["installation", { ...enrolledInstallation, windows_version: null }],
     ["installation", { ...enrolledInstallation, enrolled_at: null }],
     ["installation", { ...enrolledInstallation, enrolled_at: undefined }],
+    ["installation", { ...enrolledInstallation, bitlocker_key_loaded: undefined }],
+    ["installation", { ...enrolledInstallation, bitlocker_key_loaded: "yes" }],
+    ["installation", { ...enrolledInstallation, bitlocker_key_loaded: null }],
     ["installation", { ...revokedInstallation, revoked_at: null }],
     ["installation", { ...revokedInstallation, revoked_at: undefined }],
     ["point_terminal_id", undefined],
@@ -167,7 +191,13 @@ describe("registerSummarySchema", () => {
       seconds_until_expiry: number;
     } | null>();
     expectTypeOf<RegisterSummaryBody["installation"]>().toEqualTypeOf<
-      | { state: "enrolled"; hostname: string; windows_version: string; enrolled_at: string }
+      | {
+          state: "enrolled";
+          hostname: string;
+          windows_version: string;
+          enrolled_at: string;
+          bitlocker_key_loaded: boolean;
+        }
       | {
           state: "revoked";
           hostname: string;

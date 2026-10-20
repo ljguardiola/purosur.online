@@ -229,6 +229,16 @@ describe("listBranchRegisters", () => {
       hostname: "CAJA-MOSTRADOR",
       windowsVersion: "Windows 11 Pro 10.0.26100",
       enrolledAt: new Date("2026-03-01T15:00:00.000Z"),
+      bitlockerKeyLoaded: false,
     });
+  });
+
+  it("reports the BitLocker key as loaded when the installation in service has one", async () => {
+    const store = storeWithCaja1();
+    store.seedInstallation(installationOfCaja1({ bitlockerKeyLoaded: true }));
+
+    const [caja1] = await listCaja1(store);
+
+    expect(caja1?.installation).toMatchObject({ kind: "enrolled", bitlockerKeyLoaded: true });
   });
 });

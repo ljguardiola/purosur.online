@@ -20,8 +20,9 @@ const CAPABILITIES_GRANTED_BY: readonly [PermissionKey, readonly Capability[]][]
   ["view_branch_alerts", ["alerts_area"]],
   ["view_all_alerts", ["alerts_area"]],
   ["dismiss_alerts_manually", ["close_alerts_manually"]],
-  ["enroll_register_devices", ["registers_area"]],
+  ["enroll_register_devices", ["registers_area", "enroll_registers"]],
   ["revoke_register_devices", ["revoke_installations"]],
+  ["view_bitlocker_key", ["registers_area", "bitlocker_recovery_key"]],
   ["release_quarantined_events", ["quarantined_events"]],
   ["manage_suppliers", ["suppliers", "stock_area"]],
   ["manage_purchase_presentations", ["purchase_packagings", "stock_area"]],
@@ -117,6 +118,46 @@ describe("the revoke_installations capability", () => {
           permissionKeys: PERMISSION_KEYS.filter((key) => key !== "revoke_register_devices"),
         },
         "revoke_installations",
+      ),
+    ).toBe(false);
+  });
+});
+
+describe("the enroll_registers capability", () => {
+  it("is granted to whoever may enroll register devices and to no one else", () => {
+    expect(
+      grantsCapability(
+        { isAdministrator: false, permissionKeys: ["enroll_register_devices"] },
+        "enroll_registers",
+      ),
+    ).toBe(true);
+    expect(
+      grantsCapability(
+        {
+          isAdministrator: false,
+          permissionKeys: PERMISSION_KEYS.filter((key) => key !== "enroll_register_devices"),
+        },
+        "enroll_registers",
+      ),
+    ).toBe(false);
+  });
+});
+
+describe("the bitlocker_recovery_key capability", () => {
+  it("is granted to whoever holds the BitLocker key permission and to no one else", () => {
+    expect(
+      grantsCapability(
+        { isAdministrator: false, permissionKeys: ["view_bitlocker_key"] },
+        "bitlocker_recovery_key",
+      ),
+    ).toBe(true);
+    expect(
+      grantsCapability(
+        {
+          isAdministrator: false,
+          permissionKeys: PERMISSION_KEYS.filter((key) => key !== "view_bitlocker_key"),
+        },
+        "bitlocker_recovery_key",
       ),
     ).toBe(false);
   });

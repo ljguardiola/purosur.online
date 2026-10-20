@@ -32,6 +32,7 @@ function toInstallationWire(
         hostname: installation.hostname,
         windows_version: installation.windowsVersion,
         enrolled_at: installation.enrolledAt.toISOString(),
+        bitlocker_key_loaded: installation.bitlockerKeyLoaded,
       };
     case "revoked":
       return {

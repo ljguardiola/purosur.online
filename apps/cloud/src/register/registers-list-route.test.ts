@@ -6,6 +6,7 @@ import {
   locations,
   pointOfSaleClaims,
   registerEnrollmentCodes,
+  registerInstallationBitlockerKeys,
   registerPointsOfSale,
   registerPointTerminals,
   registers,
@@ -302,6 +303,7 @@ describe("GET /registers", () => {
           hostname: "CAJA-MOSTRADOR",
           windows_version: "Windows 11 Pro 10.0.26100",
           enrolled_at: "2026-01-04T12:00:00.000Z",
+          bitlocker_key_loaded: false,
         },
       },
       {
@@ -315,6 +317,27 @@ describe("GET /registers", () => {
         },
       },
     ]);
+  });
+
+  it("lists whether the installation in service has its BitLocker key loaded", async () => {
+    const locationId = await seededLocationId(db);
+    const enrolled = await insertEnrolledInstallation(db, { now: NOON });
+    const userId = await insertUserWithPermission(locationId);
+    await db.insert(registerInstallationBitlockerKeys).values({
+      installationId: enrolled.deviceId,
+      sealedKey: "sealed",
+      keyIdentifier: "8F3A2C1D",
+      loadedAt: NOON,
+      loadedBy: userId,
+    });
+    const rawSessionId = await insertSession(userId);
+
+    const response = await getRegisters(rawSessionId);
+
+    expect(response.json()).toMatchObject([
+      { id: enrolled.registerId, installation: { bitlocker_key_loaded: true } },
+    ]);
+    expect(JSON.stringify(response.json())).not.toContain("sealed");
   });
 
   it("hides an expired pending code, reporting null", async () => {

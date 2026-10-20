@@ -225,6 +225,19 @@ describe("POST /registers/:id/device-codes", () => {
     expect(await db.select().from(registerEnrollmentCodes)).toHaveLength(0);
   });
 
+  it("rejects a user holding only the BitLocker key permission with 403 forbidden, changing nothing", async () => {
+    const locationId = await seededLocationId(db);
+    const registerId = await insertRegister(locationId, "Caja 1");
+    const userId = await insertUserWithPermission(locationId, ["view_bitlocker_key"]);
+    const rawSessionId = await insertSession(userId);
+
+    const response = await emitCode(registerId, rawSessionId);
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toMatchObject({ code: "forbidden" });
+    expect(await db.select().from(registerEnrollmentCodes)).toHaveLength(0);
+  });
+
   it("answers 400 validation_failed naming id for a malformed id, changing nothing", async () => {
     const locationId = await seededLocationId(db);
     const userId = await insertUserWithPermission(locationId);
