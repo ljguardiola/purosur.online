@@ -23,6 +23,7 @@ export class DrizzleRegisterBackupStandingReader<TQueryResult extends PgQueryRes
     const activeInstallation = alias(registerInstallations, "active_installation");
     const anyInstallation = alias(registerInstallations, "any_installation");
     const lastVerifiedInstallation = alias(registerInstallations, "last_verified_installation");
+    const generationInstallation = alias(registerInstallations, "generation_installation");
     const lastVerified = this.db
       .selectDistinctOn([registerSnapshotGenerations.registerId], {
         registerId: registerSnapshotGenerations.registerId,
@@ -31,8 +32,17 @@ export class DrizzleRegisterBackupStandingReader<TQueryResult extends PgQueryRes
         createdAt: registerSnapshotGenerations.createdAt,
       })
       .from(registerSnapshotGenerations)
+      .innerJoin(
+        generationInstallation,
+        eq(generationInstallation.id, registerSnapshotGenerations.deviceId),
+      )
       .where(eq(registerSnapshotGenerations.status, "verified"))
-      .orderBy(registerSnapshotGenerations.registerId, desc(registerSnapshotGenerations.createdAt))
+      .orderBy(
+        registerSnapshotGenerations.registerId,
+        desc(generationInstallation.enrolledAt),
+        desc(registerSnapshotGenerations.lastDeviceSeq),
+        desc(registerSnapshotGenerations.createdAt),
+      )
       .as("last_verified");
     const rows = await this.db
       .select({
