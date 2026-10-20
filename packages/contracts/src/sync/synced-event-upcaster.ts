@@ -1,4 +1,9 @@
-import type { DiscountBenefit, ManualAdjustment, SaleDiscount } from "@purosur/domain";
+import type {
+  DiscountBenefit,
+  ManualAdjustment,
+  OfflineFiscalDocumentIssuedFact,
+  SaleDiscount,
+} from "@purosur/domain";
 import type {
   DecodedEvent,
   EventUpcaster,
@@ -203,6 +208,31 @@ function completedSale(
   };
 }
 
+function offlineDocument(
+  payload: SyncedEventPayloads["offline_fiscal_document_issued@1"],
+): OfflineFiscalDocumentIssuedFact {
+  return {
+    fiscalDocumentId: payload.fiscal_document_id,
+    saleId: payload.sale_id,
+    registerId: payload.register_id,
+    pointOfSale: payload.point_of_sale,
+    documentType: payload.document_type,
+    number: payload.number,
+    issuedOn: payload.issued_on,
+    generatedAt: new Date(payload.generated_at),
+    generationStamp: payload.generation_stamp,
+    offlineAuthorizationCode: payload.offline_authorization_code,
+    fortnightStart: payload.fortnight_start,
+    fortnightEnd: payload.fortnight_end,
+    buyerDocumentType: payload.buyer_document_type,
+    buyerDocumentNumber: payload.buyer_document_number,
+    buyerTaxStatusCode: payload.buyer_tax_status_code,
+    total: payload.total,
+    netAmount: payload.net_amount,
+    cause: payload.cause,
+  };
+}
+
 const FACT_OF: {
   [Key in SyncedEventPayloadKey]: (
     payload: SyncedEventPayloads[Key],
@@ -366,25 +396,28 @@ const FACT_OF: {
   }),
   "offline_fiscal_document_issued@1": (payload) => ({
     kind: "offline_fiscal_document_issued",
+    document: offlineDocument(payload),
+  }),
+  "offline_fiscal_document_issued@2": (payload) => ({
+    kind: "offline_fiscal_document_issued",
     document: {
-      fiscalDocumentId: payload.fiscal_document_id,
-      saleId: payload.sale_id,
-      registerId: payload.register_id,
-      pointOfSale: payload.point_of_sale,
-      documentType: payload.document_type,
-      number: payload.number,
-      issuedOn: payload.issued_on,
-      generatedAt: new Date(payload.generated_at),
-      generationStamp: payload.generation_stamp,
-      offlineAuthorizationCode: payload.offline_authorization_code,
-      fortnightStart: payload.fortnight_start,
-      fortnightEnd: payload.fortnight_end,
-      buyerDocumentType: payload.buyer_document_type,
-      buyerDocumentNumber: payload.buyer_document_number,
-      buyerTaxStatusCode: payload.buyer_tax_status_code,
-      total: payload.total,
-      netAmount: payload.net_amount,
-      cause: payload.cause,
+      ...offlineDocument(payload),
+      invoice: {
+        invoiceClass: payload.document.invoice_class,
+        total: payload.document.total,
+        netAmount: payload.document.net_amount,
+        vatAmount: payload.document.vat_amount,
+        issuer: {
+          legalName: payload.document.issuer.legal_name,
+          cuit: payload.document.issuer.cuit,
+          taxStatus: payload.document.issuer.tax_status,
+          grossIncomeRegistration: payload.document.issuer.gross_income_registration,
+          activityStartDate: payload.document.issuer.activity_start_date,
+          version: payload.document.issuer.version,
+        },
+        buyerTaxStatusCode: payload.document.buyer_tax_status_code,
+        buyerTaxStatusDescription: payload.document.buyer_tax_status_description,
+      },
     },
   }),
 };
