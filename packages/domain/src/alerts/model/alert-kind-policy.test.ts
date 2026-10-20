@@ -73,6 +73,7 @@ describe("alertKindPolicy", () => {
     ],
     ["update_required", "critical", null, "all", "register", true],
     ["clock_corrected", "critical", null, "all", "register", false],
+    ["register_backup_overdue", "critical", null, "all", "register", true],
     ["register_silent", "critical", null, "local", "register", true],
     ["sales_denied", "critical", null, "local", "register", true],
     ["fiscal_emission_stopped", "critical", null, "local", "register", true],
@@ -130,6 +131,7 @@ describe("alertKindPolicy", () => {
       "lots_expiring",
       "offsite_dump_unverified",
       "fortnight_report_pending",
+      "register_backup_overdue",
     ]);
   });
 
@@ -173,6 +175,7 @@ describe("alertClosing", () => {
       external_billing: "by_hand",
       fortnight_report_needs_regularization: "by_hand",
       clock_corrected: "by_hand",
+      register_backup_overdue: "by_itself",
     });
   });
 
