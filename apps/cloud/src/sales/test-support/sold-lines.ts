@@ -62,3 +62,10 @@ export function withPromotion(
 ): SoldLine {
   return { ...line, promotionId, discountAmount };
 }
+
+export function withManualAdjustment(
+  line: SoldLine,
+  manualAdjustment: NonNullable<SoldLine["manualAdjustment"]>,
+): SoldLine {
+  return { ...line, manualAdjustment };
+}
