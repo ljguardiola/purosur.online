@@ -133,10 +133,7 @@ export {
   OFFLINE_NUMBER_BLOCK_STATUSES,
 } from "./model/offline-number-block.js";
 export { CREDIT_NOTE_C_VOUCHER_TYPE } from "./model/orphan-credit-note.js";
-export type {
-  ListedOwedPresentation,
-  WithOwedPresentations,
-} from "./model/owed-presentation-list.js";
+export type { ListedOwedPresentation } from "./model/owed-presentation-list.js";
 export {
   listsOwedPresentation,
   splitOwedPresentations,
