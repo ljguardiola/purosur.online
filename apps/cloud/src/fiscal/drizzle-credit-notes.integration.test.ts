@@ -198,6 +198,7 @@ describe("the credit note lanes on a real Postgres", () => {
       kind: "authorized",
       number: 7,
       issuedOn: "2026-10-07",
+      requestedAt: REQUESTED_AT,
       authorizationCode: "74123456789055",
       authorizationCodeDueOn: "2026-10-17",
     });
@@ -232,6 +233,7 @@ describe("the credit note lanes on a real Postgres", () => {
       kind: "authorized",
       number: 8,
       issuedOn: "2026-10-07",
+      requestedAt: REQUESTED_AT,
       authorizationCode: "74123456789056",
       authorizationCodeDueOn: "2026-10-17",
     });

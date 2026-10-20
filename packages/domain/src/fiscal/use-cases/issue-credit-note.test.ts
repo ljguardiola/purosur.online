@@ -135,6 +135,7 @@ describe("issueCreditNote", () => {
         kind: "authorized",
         number: 40,
         issuedOn: "2026-10-01",
+        requestedAt: REQUESTED_AT,
         authorizationCode: "75123456789011",
         authorizationCodeDueOn: "2026-10-11",
       },
@@ -143,6 +144,7 @@ describe("issueCreditNote", () => {
         pointOfSale: 12,
         number: 40,
         issuedOn: "2026-10-01",
+        issuedAt: REQUESTED_AT,
         authorizationCode: "75123456789011",
         authorizationCodeDueOn: "2026-10-11",
       },
@@ -210,7 +212,7 @@ describe("issueCreditNote", () => {
       expect(creditNotes.heldLaneDuringSolicit).toBe(true);
     });
 
-    it("records the authorization code of an authorized credit note", async () => {
+    it("records the authorization code of an authorized credit note, issued the moment its number was requested", async () => {
       const { store, ports } = scenario();
 
       expect(await issue(ports)).toEqual({
@@ -218,6 +220,7 @@ describe("issueCreditNote", () => {
         pointOfSale: 12,
         number: 42,
         issuedOn: ISSUE_DAY,
+        issuedAt: NOW,
         authorizationCode: "75123456789099",
         authorizationCodeDueOn: "2026-10-12",
       });
@@ -233,6 +236,7 @@ describe("issueCreditNote", () => {
         kind: "authorized",
         number: 42,
         issuedOn: ISSUE_DAY,
+        requestedAt: NOW,
         authorizationCode: "75123456789099",
         authorizationCodeDueOn: "2026-10-12",
       });
@@ -389,6 +393,7 @@ describe("issueCreditNote", () => {
         pointOfSale: 12,
         number: 42,
         issuedOn: ISSUE_DAY,
+        issuedAt: REQUESTED_AT,
         authorizationCode: "75123456789055",
         authorizationCodeDueOn: "2026-10-12",
       });
@@ -554,6 +559,7 @@ describe("creditNoteAnswerOf", () => {
     pointOfSale: 12,
     number: 42,
     issuedOn: ISSUE_DAY,
+    issuedAt: NOW,
     authorizationCode: "75123456789099",
     authorizationCodeDueOn: "2026-10-12",
   };

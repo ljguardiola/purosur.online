@@ -60,7 +60,7 @@ describe("SalesHistoryScreen voiding a sale", () => {
     await userEvent.click(screen.getByRole("button", { name: /Persona que autoriza/ }));
     await userEvent.click(screen.getByRole("option", { name: "Grace" }));
     await userEvent.type(screen.getByLabelText("PIN"), "1234");
-    await userEvent.click(screen.getByRole("button", { name: "Anular la venta" }));
+    await userEvent.click(screen.getByRole("button", { name: "Anular y emitir nota de crédito" }));
 
     expect(voidSale).toHaveBeenCalledExactlyOnceWith("sale-1", false, {
       user_id: "u2",
@@ -90,7 +90,7 @@ describe("SalesHistoryScreen voiding a sale", () => {
     await chooseSale(screen, "11:42");
     await userEvent.click(screen.getByRole("button", { name: "Anular venta" }));
 
-    await userEvent.click(screen.getByRole("button", { name: "Anular la venta" }));
+    await userEvent.click(screen.getByRole("button", { name: "Anular y emitir nota de crédito" }));
 
     expect(voidSale).toHaveBeenCalledExactlyOnceWith("sale-1", false, undefined);
     await expect.element(screen.getByText("Venta anulada", { exact: true })).toBeVisible();
@@ -112,10 +112,12 @@ describe("SalesHistoryScreen voiding a sale", () => {
     await chooseSale(screen, "11:42");
     await userEvent.click(screen.getByRole("button", { name: "Anular venta" }));
 
-    await userEvent.click(screen.getByRole("button", { name: "Anular la venta" }));
+    await userEvent.click(screen.getByRole("button", { name: "Anular y emitir nota de crédito" }));
 
     await expect
-      .element(screen.getByRole("dialog").getByRole("button", { name: "Anular la venta" }))
+      .element(
+        screen.getByRole("dialog").getByRole("button", { name: "Anular y emitir nota de crédito" }),
+      )
       .toHaveAttribute("aria-disabled", "true");
     await expect.poll(() => saleHistoryDetail.mock.calls.length).toBe(2);
   });
@@ -125,7 +127,7 @@ describe("SalesHistoryScreen voiding a sale", () => {
     await chooseSale(screen, "11:42");
     await userEvent.click(screen.getByRole("button", { name: "Anular venta" }));
 
-    await userEvent.click(screen.getByRole("button", { name: "Anular la venta" }));
+    await userEvent.click(screen.getByRole("button", { name: "Anular y emitir nota de crédito" }));
 
     await expect
       .element(screen.getByRole("dialog", { name: "Revisá qué pasa al anular" }))
@@ -139,7 +141,7 @@ describe("SalesHistoryScreen voiding a sale", () => {
     await chooseSale(screen, "11:42");
     await userEvent.click(screen.getByRole("button", { name: "Anular venta" }));
 
-    await userEvent.click(screen.getByRole("button", { name: "Anular la venta" }));
+    await userEvent.click(screen.getByRole("button", { name: "Anular y emitir nota de crédito" }));
 
     await expect.poll(() => onSessionInvalid.mock.calls.length).toBe(1);
   });

@@ -51,11 +51,11 @@ describe("voidedSaleNotice", () => {
     });
   });
 
-  it("says the credit note was not issued and the backoffice has it", () => {
+  it("says the tax authority rejected the credit note and who to tell", () => {
     expect(voidedSaleNotice({ kind: "rejected" })).toEqual({
       tone: "warning",
       title: "Venta anulada",
-      description: "La nota de crédito no se emitió. Queda en el backoffice para resolverla.",
+      description: "ARCA rechazó la nota de crédito. Avisá al Administrador.",
     });
   });
 
@@ -63,18 +63,17 @@ describe("voidedSaleNotice", () => {
     expect(voidedSaleNotice({ kind: "already_credited" })).toEqual({
       tone: "warning",
       title: "Venta anulada",
-      description:
-        "La factura ya tenía nota de crédito, así que no se emitió otra. El backoffice lo tiene.",
+      description: "La factura ya tenía nota de crédito, así que no se emitió otra.",
     });
   });
 });
 
 describe("creditNotePrintNotice", () => {
-  it("says it comes out as soon as the printer is ready", () => {
+  it("says it comes out as soon as the printer is ready, for the customer", () => {
     expect(creditNotePrintNotice("started")).toEqual({
       tone: "success",
       title: "La nota de crédito sale en cuanto la impresora esté lista",
-      description: "Sale como nota de crédito C.",
+      description: "Entregásela al cliente.",
     });
   });
 

@@ -76,13 +76,14 @@ describe("asking the cloud to issue the credit note of a voided sale", () => {
     expect(saleVoidCreditNoteRequestSchema.safeParse(posts[0]?.body).success).toBe(true);
   });
 
-  it("answers authorized with the number, date and code of the credit note", async () => {
+  it("answers authorized with the number, date, moment of issue and code of the credit note", async () => {
     const { creditNotes } = cloud(
       ok({
         state: "AUTHORIZED",
         point_of_sale: POINT_OF_SALE,
         number: 7,
         issued_on: "2026-09-30",
+        issued_at: "2026-09-30T15:40:01.000Z",
         authorization_code: "75123456789012",
         authorization_code_due_on: "2026-10-10",
       }),
@@ -93,6 +94,7 @@ describe("asking the cloud to issue the credit note of a voided sale", () => {
       pointOfSale: POINT_OF_SALE,
       number: 7,
       issuedOn: "2026-09-30",
+      issuedAt: new Date("2026-09-30T15:40:01.000Z"),
       authorizationCode: "75123456789012",
       authorizationCodeDueOn: "2026-10-10",
     });

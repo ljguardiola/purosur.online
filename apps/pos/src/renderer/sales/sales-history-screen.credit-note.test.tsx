@@ -96,6 +96,29 @@ describe("SalesHistoryScreen credit note of a voided sale", () => {
     await expect.poll(() => onSessionInvalid.mock.calls.length).toBe(1);
   });
 
+  it("reviews the void with the invoice the core says its credit note corrects", async () => {
+    const { screen } = await renderScreen({
+      saleHistoryDetail: async () => ({
+        kind: "found",
+        detail: {
+          ...DETAIL,
+          voidability: {
+            kind: "voidable",
+            refunds: [],
+            credit_note_corrects: { point_of_sale: 31, number: 8 },
+          },
+        },
+      }),
+    });
+    await chooseSale(screen, "11:42");
+
+    await userEvent.click(screen.getByRole("button", { name: "Anular venta" }));
+
+    await expect
+      .element(screen.getByRole("dialog").getByText("PV 00031 · Nº 00000008"))
+      .toBeVisible();
+  });
+
   it("tells how the credit note of the void it just made stands when it is not printed", async () => {
     const { screen } = await renderScreen({
       voidSale: async () => ({

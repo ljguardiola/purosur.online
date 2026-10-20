@@ -1,6 +1,8 @@
+import type { VoucherReference } from "../../model/orphan-authorization.js";
 import type { CreditNote } from "../credit-note-ports.js";
 import {
-  type RecordedCreditNote,
+  CreditNoteIdTaken,
+  type InvoiceAlreadyCredited,
   type SaleVoidCreditNoteLane,
   type SaleVoidCreditNoteLanes,
   type SaleVoidCreditNoteRecord,
@@ -12,11 +14,24 @@ export interface FakeRegisterPointsOfSale {
   offline?: number;
 }
 
+export interface RecordedCreditNote {
+  registerId: string;
+  creditNote: CreditNote;
+}
+
+export interface RaisedInvoiceAlreadyCredited {
+  voucher: VoucherReference;
+  saleId: string;
+  at: Date;
+}
+
 export class FakeSaleVoidCreditNoteStore implements SaleVoidCreditNoteLanes {
   readonly operations: string[] = [];
   readonly lanesEntered: number[] = [];
+  readonly lookups: { registerId: string; creditNoteId: string }[] = [];
   readonly recorded = new Map<string, RecordedCreditNote>();
   readonly records: SaleVoidCreditNoteRecord[] = [];
+  readonly alertsRaised: RaisedInvoiceAlreadyCredited[] = [];
   recordFailure: Error | undefined;
   private readonly registers: Map<string, FakeRegisterPointsOfSale>;
 
@@ -68,16 +83,22 @@ class FakeSaleVoidCreditNoteLane implements SaleVoidCreditNoteLane {
     return this.store.issuesFrom(registerId, pointOfSale);
   }
 
-  async recordedCreditNote(creditNoteId: string): Promise<RecordedCreditNote | null> {
+  async recordedCreditNote(registerId: string, creditNoteId: string): Promise<CreditNote | null> {
     this.store.operations.push("recordedCreditNote");
+    this.store.lookups.push({ registerId, creditNoteId });
     const recorded = this.store.recorded.get(creditNoteId);
-    return recorded === undefined ? null : structuredClone(recorded);
+    return recorded === undefined || recorded.registerId !== registerId
+      ? null
+      : structuredClone(recorded.creditNote);
   }
 
   async recordSaleVoidCreditNote(record: SaleVoidCreditNoteRecord): Promise<void> {
     this.store.operations.push("recordSaleVoidCreditNote");
     if (this.store.recordFailure !== undefined) {
       throw this.store.recordFailure;
+    }
+    if (this.store.recorded.has(record.creditNoteId)) {
+      throw new CreditNoteIdTaken();
     }
     const { voucherType, pointOfSale, number } = record.correctedVoucher;
     const alreadyCredited = [...this.store.recorded.values()].some(
@@ -99,5 +120,10 @@ class FakeSaleVoidCreditNoteLane implements SaleVoidCreditNoteLane {
       reason: "sale_void",
       standing: { kind: "not_requested" },
     });
+  }
+
+  async raiseInvoiceAlreadyCredited({ voucher, saleId }: InvoiceAlreadyCredited, at: Date) {
+    this.store.operations.push("raiseInvoiceAlreadyCredited");
+    this.store.alertsRaised.push({ voucher, saleId, at });
   }
 }

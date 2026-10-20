@@ -12,6 +12,7 @@ import { openLocalDatabase } from "../platform/test-support/open-local-database"
 import { readCreditNoteReceipt } from "./sqlite-credit-note-receipt";
 import {
   ANSWERED_AT,
+  ISSUED_AT,
   insertCreditNote,
   insertVoidedSale,
 } from "./test-support/credit-note-receipt-database";
@@ -43,6 +44,7 @@ describe("the receipt of the credit note of a voided sale", () => {
         point_of_sale: null,
         number: null,
         issued_on: null,
+        issued_at: null,
         authorization_code: null,
         authorization_code_due_on: null,
         answered_at: null,
@@ -55,6 +57,7 @@ describe("the receipt of the credit note of a voided sale", () => {
         point_of_sale: null,
         number: null,
         issued_on: null,
+        issued_at: null,
         authorization_code: null,
         authorization_code_due_on: null,
         answered_at: ANSWERED_AT,
@@ -67,6 +70,7 @@ describe("the receipt of the credit note of a voided sale", () => {
         point_of_sale: null,
         number: null,
         issued_on: null,
+        issued_at: null,
         authorization_code: null,
         authorization_code_due_on: null,
       },
@@ -78,7 +82,7 @@ describe("the receipt of the credit note of a voided sale", () => {
     expect(readCreditNoteReceipt(database, "sale-1")).toBeNull();
   });
 
-  it("carries the voided sale as it was sold, the moment it was voided and each refund", () => {
+  it("carries the voided sale as it was sold, the moment its credit note was issued and each refund", () => {
     insertFiscalDocument(database, { saleId: "sale-1", state: "AUTHORIZED", number: 41 });
     insertCreditNote(database);
 
@@ -89,7 +93,7 @@ describe("the receipt of the credit note of a voided sale", () => {
         instagramHandle: "@puro.sur",
       },
       operation: {
-        occurredAt: new Date(ANSWERED_AT),
+        occurredAt: new Date(ISSUED_AT),
         servedByFirstName: "Ada",
         operationNumber: 482,
       },

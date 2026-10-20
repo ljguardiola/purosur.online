@@ -121,6 +121,7 @@ class FakeCreditNoteLane implements CreditNoteLane {
         kind: "authorized",
         number: standing.number,
         issuedOn: standing.issuedOn,
+        requestedAt: standing.requestedAt,
         authorizationCode: record.authorizationCode,
         authorizationCodeDueOn: record.authorizationCodeDueOn,
       });

@@ -1697,6 +1697,7 @@ describe("asking for the detail of one sale of the history", () => {
         { method: "CASH", amount: 5000, state: "APPROVED", sent_by_cloud: false },
         { method: "QR", amount: 2500, state: "PENDING", sent_by_cloud: true },
       ],
+      credit_note_corrects: { point_of_sale: 3, number: 1204 },
     },
     void_authorization_required: false,
     credit_note: null,
@@ -1732,7 +1733,13 @@ describe("asking for the detail of one sale of the history", () => {
         detail: { ...detail, voidability: { kind: "not_voidable", refusal } },
       }),
     ),
-    { kind: "found", detail: { ...detail, voidability: { kind: "voidable", refunds: [] } } },
+    {
+      kind: "found",
+      detail: {
+        ...detail,
+        voidability: { kind: "voidable", refunds: [], credit_note_corrects: null },
+      },
+    },
     {
       kind: "found",
       detail: {
@@ -1782,6 +1789,32 @@ describe("asking for the detail of one sale of the history", () => {
     { kind: "found", detail: { ...detail, credit_note: { kind: "issued" } } },
     { kind: "found", detail: { ...detail, credit_note: { kind: "authorized", number: 41 } } },
     { kind: "found", detail: { ...detail, voidability: { kind: "voidable" } } },
+    {
+      kind: "found",
+      detail: { ...detail, voidability: { kind: "voidable", refunds: [] } },
+    },
+    {
+      kind: "found",
+      detail: {
+        ...detail,
+        voidability: {
+          kind: "voidable",
+          refunds: [],
+          credit_note_corrects: { point_of_sale: 0, number: 1204 },
+        },
+      },
+    },
+    {
+      kind: "found",
+      detail: {
+        ...detail,
+        voidability: {
+          kind: "voidable",
+          refunds: [],
+          credit_note_corrects: { point_of_sale: 3, number: 0 },
+        },
+      },
+    },
     {
       kind: "found",
       detail: {

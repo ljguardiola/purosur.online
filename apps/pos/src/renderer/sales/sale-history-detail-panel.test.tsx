@@ -25,6 +25,7 @@ const FISCAL_SALE: SaleDetail = {
       { method: "TRANSFER", amount: 3_070_000, state: "PENDING", sent_by_cloud: false },
       { method: "CASH", amount: 2_000_000, state: "APPROVED", sent_by_cloud: false },
     ],
+    credit_note_corrects: null,
   },
   void_authorization_required: false,
   reprint: { kind: "available" },

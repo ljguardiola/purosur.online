@@ -607,6 +607,7 @@ describe("asking for the credit notes of voided sales, as the register's health 
       point_of_sale: 12,
       number: 7,
       issued_on: "2026-09-30",
+      issued_at: "2026-09-30T12:05:01.000Z",
       authorization_code: "75123456789012",
       authorization_code_due_on: "2026-10-10",
     });

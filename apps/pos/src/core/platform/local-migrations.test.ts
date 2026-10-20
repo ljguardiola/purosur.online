@@ -5334,10 +5334,11 @@ describe("the register's local migrations", () => {
       `INSERT INTO sale_void_credit_notes (
          id, sale_id, total, receiver_tax_status_code, corrected_voucher_type,
          corrected_point_of_sale, corrected_number, state, point_of_sale, number, issued_on,
-         authorization_code, authorization_code_due_on, recorded_at, answered_at
+         issued_at, authorization_code, authorization_code_due_on, recorded_at, answered_at
        ) VALUES (
          @id, @sale_id, 3000, 5, 11, 12, 41, @state, @point_of_sale, @number, @issued_on,
-         @authorization_code, @authorization_code_due_on, '2026-10-09T12:30:00.000Z', @answered_at
+         @issued_at, @authorization_code, @authorization_code_due_on, '2026-10-09T12:30:00.000Z',
+         @answered_at
        )`,
     );
     const inProgress = {
@@ -5347,6 +5348,7 @@ describe("the register's local migrations", () => {
       point_of_sale: null,
       number: null,
       issued_on: null,
+      issued_at: null,
       authorization_code: null,
       authorization_code_due_on: null,
       answered_at: null,
@@ -5357,6 +5359,7 @@ describe("the register's local migrations", () => {
       point_of_sale: 12,
       number: 7,
       issued_on: "2026-10-09",
+      issued_at: "2026-10-09T12:30:40.000Z",
       authorization_code: "75123456789012",
       authorization_code_due_on: "2026-10-19",
       answered_at: "2026-10-09T12:31:00.000Z",
@@ -5373,6 +5376,17 @@ describe("the register's local migrations", () => {
     ).toThrow(/CHECK/);
     expect(() =>
       insert.run({ ...authorized, id: "note-5", sale_id: "sale-3", number: null }),
+    ).toThrow(/CHECK/);
+    expect(() =>
+      insert.run({ ...authorized, id: "note-15", sale_id: "sale-3", issued_at: null }),
+    ).toThrow(/CHECK/);
+    expect(() =>
+      insert.run({
+        ...inProgress,
+        id: "note-16",
+        sale_id: "sale-3",
+        issued_at: "2026-10-09T12:30:40.000Z",
+      }),
     ).toThrow(/CHECK/);
     expect(() => insert.run({ ...inProgress, id: "note-6", sale_id: "sale-3", number: 7 })).toThrow(
       /CHECK/,

@@ -324,6 +324,7 @@ describe("the detail of a sale of the history", () => {
     expect(answer.kind === "found" && answer.detail.voidability).toEqual({
       kind: "voidable",
       refunds: [{ method: "CASH", amount: 3000, state: "APPROVED", sent_by_cloud: false }],
+      credit_note_corrects: { point_of_sale: 3, number: 1204 },
     });
   });
 
@@ -340,6 +341,7 @@ describe("the detail of a sale of the history", () => {
     expect(answer.kind === "found" && answer.detail.voidability).toEqual({
       kind: "voidable",
       refunds: [{ method: "CASH", amount: 3000, state: "APPROVED", sent_by_cloud: false }],
+      credit_note_corrects: null,
     });
   });
 
@@ -415,10 +417,11 @@ describe("the detail of a sale of the history", () => {
           `INSERT INTO sale_void_credit_notes (
              id, sale_id, total, receiver_tax_status_code, corrected_voucher_type,
              corrected_point_of_sale, corrected_number, state, point_of_sale, number, issued_on,
-             authorization_code, authorization_code_due_on, recorded_at, answered_at
+             issued_at, authorization_code, authorization_code_due_on, recorded_at, answered_at
            ) VALUES (
              'note-1', 'gone', 3000, 5, 11, 3, 41, @state, @point_of_sale, @number, @issued_on,
-             @authorization_code, @authorization_code_due_on, '2026-10-08T10:00:00.000Z', @answered_at
+             @issued_at, @authorization_code, @authorization_code_due_on,
+             '2026-10-08T10:00:00.000Z', @answered_at
            )`,
         )
         .run({
@@ -426,6 +429,7 @@ describe("the detail of a sale of the history", () => {
           point_of_sale: null,
           number: null,
           issued_on: null,
+          issued_at: null,
           authorization_code: null,
           authorization_code_due_on: null,
           answered_at: null,
@@ -449,6 +453,7 @@ describe("the detail of a sale of the history", () => {
         point_of_sale: 3,
         number: 7,
         issued_on: "2026-10-08",
+        issued_at: "2026-10-08T10:00:03.000Z",
         authorization_code: "75123456789012",
         authorization_code_due_on: "2026-10-18",
         answered_at: "2026-10-08T10:00:05.000Z",

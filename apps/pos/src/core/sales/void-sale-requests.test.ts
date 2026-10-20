@@ -8,6 +8,7 @@ import {
 import type { CloudCreditNoteCall } from "@purosur/domain/fiscal/use-cases";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { derivePinVerifier } from "../credentials/pin-verifier";
+import { SqliteVoidCreditNotes } from "../fiscal/sqlite-void-credit-notes";
 import {
   insertFiscalDocument,
   insertHealthCheck,
@@ -79,6 +80,7 @@ const AUTHORIZED_CREDIT_NOTE: VoidCreditNoteStanding = {
   pointOfSale: 12,
   number: 7,
   issuedOn: "2026-09-30",
+  issuedAt: new Date("2026-09-30T12:30:01.000Z"),
   authorizationCode: "75123456789012",
   authorizationCodeDueOn: "2026-10-10",
 };
@@ -459,6 +461,30 @@ describe("voiding a sale of the sales history", () => {
         await voidSaleFor(voidDeps(), request(saleId, { authorization }));
 
         expect(printedCreditNotes).toEqual([saleId]);
+      });
+
+      it("answers and prints the credit note the register's health check recorded while the void's own request got no answer", async () => {
+        const saleId = await invoicedSale();
+
+        const outcome = await voidSaleFor(
+          voidDeps({
+            creditNotes: {
+              request: async (call) => {
+                await new SqliteVoidCreditNotes(database).recordAnswer(
+                  call.creditNoteId,
+                  AUTHORIZED_CREDIT_NOTE,
+                  VOIDED_AT,
+                );
+                return null;
+              },
+            },
+          }),
+          request(saleId, { authorization }),
+        );
+
+        expect(outcome).toMatchObject({ kind: "voided", credit_note: { kind: "authorized" } });
+        expect(printedCreditNotes).toEqual([saleId]);
+        expect(reportedFailures).toEqual([]);
       });
 
       it("answers the credit note in progress, printing nothing, when the cloud gives no answer", async () => {

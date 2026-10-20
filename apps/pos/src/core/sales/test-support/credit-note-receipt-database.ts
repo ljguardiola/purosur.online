@@ -2,7 +2,8 @@ import type { LocalDatabase } from "../../platform/local-database";
 
 const SOLD_AT = "2026-09-30T15:05:00.000Z";
 export const VOIDED_AT = "2026-09-30T15:40:00.000Z";
-export const ANSWERED_AT = "2026-09-30T15:40:05.000Z";
+export const ISSUED_AT = "2026-09-30T15:40:01.000Z";
+export const ANSWERED_AT = "2026-09-30T15:52:05.000Z";
 
 export function insertVoidedSale(database: LocalDatabase): void {
   database.exec(
@@ -35,6 +36,7 @@ export function insertCreditNote(
     point_of_sale: number | null;
     number: number | null;
     issued_on: string | null;
+    issued_at: string | null;
     authorization_code: string | null;
     authorization_code_due_on: string | null;
     answered_at: string | null;
@@ -46,10 +48,10 @@ export function insertCreditNote(
       `INSERT INTO sale_void_credit_notes (
          id, sale_id, total, receiver_tax_status_code, corrected_voucher_type,
          corrected_point_of_sale, corrected_number, state, point_of_sale, number, issued_on,
-         authorization_code, authorization_code_due_on, recorded_at, answered_at
+         issued_at, authorization_code, authorization_code_due_on, recorded_at, answered_at
        ) VALUES (
          'note-1', 'sale-1', 1190000, 5, 11, @corrected_point_of_sale, @corrected_number,
-         @state, @point_of_sale, @number, @issued_on, @authorization_code,
+         @state, @point_of_sale, @number, @issued_on, @issued_at, @authorization_code,
          @authorization_code_due_on, '${VOIDED_AT}', @answered_at
        )`,
     )
@@ -60,6 +62,7 @@ export function insertCreditNote(
       point_of_sale: 12,
       number: 7,
       issued_on: "2026-09-30",
+      issued_at: ISSUED_AT,
       authorization_code: "71234567890999",
       authorization_code_due_on: "2026-10-10",
       answered_at: ANSWERED_AT,

@@ -1,4 +1,5 @@
 import {
+  CreditNoteIdTaken,
   type SaleVoidCreditNoteLane,
   VoucherAlreadyCredited,
 } from "@purosur/domain/fiscal/use-cases";
@@ -90,7 +91,36 @@ describe("the credit notes of voided sales on a real Postgres", () => {
   });
 
   it("reads nothing of a credit note that was never recorded", async () => {
-    expect(await inLane((lane) => lane.recordedCreditNote(crypto.randomUUID()))).toBeNull();
+    expect(
+      await inLane((lane) => lane.recordedCreditNote(registerId, crypto.randomUUID())),
+    ).toBeNull();
+  });
+
+  it("reads nothing of a credit note another register recorded, and refuses to record another under its id", async () => {
+    const record = aRecord(undefined, 80);
+    await inLane((lane) => lane.recordSaleVoidCreditNote(record));
+    const otherRegisterId = await insertRegisterWithPointOfSale(db, {
+      pointOfSaleNumber: 9,
+      name: "caja-3",
+    });
+
+    expect(
+      await inLane((lane) => lane.recordedCreditNote(otherRegisterId, record.creditNoteId)),
+    ).toBeNull();
+    await expect(
+      inLane((lane) =>
+        lane.recordSaleVoidCreditNote({
+          ...aRecord(record.creditNoteId, 81),
+          registerId: otherRegisterId,
+        }),
+      ),
+    ).rejects.toBeInstanceOf(CreditNoteIdTaken);
+    expect(
+      await db
+        .select({ registerId: creditNotes.registerId })
+        .from(creditNotes)
+        .where(eq(creditNotes.id, record.creditNoteId)),
+    ).toEqual([{ registerId }]);
   });
 
   it("records a credit note of a voided sale, not yet requested, and asks for it to be issued in the same transaction", async () => {
@@ -119,17 +149,16 @@ describe("the credit notes of voided sales on a real Postgres", () => {
       number: null,
       createdAt: RECEIVED_AT,
     });
-    expect(await inLane((lane) => lane.recordedCreditNote(record.creditNoteId))).toEqual({
-      registerId,
-      creditNote: {
-        creditNoteId: record.creditNoteId,
-        pointOfSale: 7,
-        associatedVoucher: { voucherType: 11, pointOfSale: 31, number: 42 },
-        total: 12_500,
-        receiverTaxStatusCode: 5,
-        reason: "sale_void",
-        standing: { kind: "not_requested" },
-      },
+    expect(
+      await inLane((lane) => lane.recordedCreditNote(registerId, record.creditNoteId)),
+    ).toEqual({
+      creditNoteId: record.creditNoteId,
+      pointOfSale: 7,
+      associatedVoucher: { voucherType: 11, pointOfSale: 31, number: 42 },
+      total: 12_500,
+      receiverTaxStatusCode: 5,
+      reason: "sale_void",
+      standing: { kind: "not_requested" },
     });
   });
 

@@ -106,7 +106,7 @@ function addSale({
         `INSERT INTO fiscal_documents (
            id, sale_id, point_of_sale, document_type, number, issued_on, document, state,
            authorization_code, authorization_code_due_on, reserved_at, resolved_at
-         ) VALUES (?, ?, ?, 'factura_c', ?, '2026-10-08', '{}', ?, ?, ?, '2026-10-08T12:00:00.000Z', ?)`,
+         ) VALUES (?, ?, ?, 'factura_c', ?, '2026-10-08', '{"buyerTaxStatusCode":5}', ?, ?, ?, '2026-10-08T12:00:00.000Z', ?)`,
       )
       .run(
         `doc-${id}`,
@@ -128,7 +128,8 @@ function addSale({
            buyer_document_type, buyer_document_number, cause
          ) VALUES (
            ?, ?, ?, 'factura_c', ?, '2026-10-08', '2026-10-08T12:00:00.000Z', '20261008090000',
-           '36251478963214', '2026-10-01', '2026-10-15', '{}', 99, 0, 'no_connectivity'
+           '36251478963214', '2026-10-01', '2026-10-15', '{"buyerTaxStatusCode":5}', 99, 0,
+           'no_connectivity'
          )`,
       )
       .run(`offline-doc-${id}`, id, offlineDocument.pointOfSale, offlineDocument.number);
@@ -163,10 +164,11 @@ function addCreditNote(saleId: string, answer: Record<string, string | number | 
       `INSERT INTO sale_void_credit_notes (
          id, sale_id, total, receiver_tax_status_code, corrected_voucher_type,
          corrected_point_of_sale, corrected_number, state, point_of_sale, number, issued_on,
-         authorization_code, authorization_code_due_on, recorded_at, answered_at
+         issued_at, authorization_code, authorization_code_due_on, recorded_at, answered_at
        ) VALUES (
          @id, @sale_id, 1000, 5, 11, 3, 41, @state, @point_of_sale, @number, @issued_on,
-         @authorization_code, @authorization_code_due_on, '2026-10-08T12:30:00.000Z', @answered_at
+         @issued_at, @authorization_code, @authorization_code_due_on, '2026-10-08T12:30:00.000Z',
+         @answered_at
        )`,
     )
     .run({
@@ -176,6 +178,7 @@ function addCreditNote(saleId: string, answer: Record<string, string | number | 
       point_of_sale: null,
       number: null,
       issued_on: null,
+      issued_at: null,
       authorization_code: null,
       authorization_code_due_on: null,
       answered_at: null,
@@ -593,8 +596,42 @@ describe("SqliteRegisterSalesHistory", () => {
         },
         voided: false,
         inOpenSession: true,
+        invoices: [
+          {
+            origin: "real_time",
+            state: "AUTHORIZED",
+            pointOfSale: 7,
+            number: 1204,
+            buyerTaxStatusCode: 5,
+          },
+        ],
         creditNote: null,
       });
+    });
+
+    it("carries every fiscal document of the sale, its contingency document included", () => {
+      addSale({
+        id: "sale-1",
+        fiscal: { state: "RELEASED", pointOfSale: 7, number: 1204 },
+        offlineDocument: { pointOfSale: 31, number: 8 },
+      });
+
+      expect(history.saleOfRegister("sale-1")?.invoices).toEqual([
+        {
+          origin: "real_time",
+          state: "RELEASED",
+          pointOfSale: 7,
+          number: 1204,
+          buyerTaxStatusCode: 5,
+        },
+        {
+          origin: "offline",
+          state: "AUTHORIZED",
+          pointOfSale: 31,
+          number: 8,
+          buyerTaxStatusCode: 5,
+        },
+      ]);
     });
 
     it("shows a Mercado Pago QR payment of the sale with its amount", () => {
@@ -645,6 +682,7 @@ describe("SqliteRegisterSalesHistory", () => {
         point_of_sale: 3,
         number: 7,
         issued_on: "2026-10-08",
+        issued_at: "2026-10-08T12:30:58.000Z",
         authorization_code: "75123456789012",
         authorization_code_due_on: "2026-10-18",
         answered_at: "2026-10-08T12:31:00.000Z",
@@ -655,6 +693,7 @@ describe("SqliteRegisterSalesHistory", () => {
         pointOfSale: 3,
         number: 7,
         issuedOn: "2026-10-08",
+        issuedAt: new Date("2026-10-08T12:30:58.000Z"),
         authorizationCode: "75123456789012",
         authorizationCodeDueOn: "2026-10-18",
       });

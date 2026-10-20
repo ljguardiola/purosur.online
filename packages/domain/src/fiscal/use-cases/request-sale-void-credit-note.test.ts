@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { PushedEvent } from "../../sync/index.js";
+import type { SaleVoidCreditNote } from "../model/sale-void-credit-note.js";
 import type { CreditNote, CreditNoteStanding } from "./credit-note-ports.js";
 import {
   type RequestSaleVoidCreditNoteInput,
@@ -14,28 +14,15 @@ const RECEIVED_AT = new Date("2026-10-07T15:31:00.000Z");
 const REGISTER_ID = "register-1";
 const CREDIT_NOTE_ID = "credit-note-1";
 
-const VOID_EVENT: PushedEvent = {
-  event_id: "event-9",
-  device_seq: 19,
-  aggregate_type: "Sale",
-  aggregate_id: "sale-1",
-  event_type: "sale_voided",
-  schema_version: 3,
-  payload: {
-    total: 7_500,
-    credit_note: {
-      id: CREDIT_NOTE_ID,
-      total: 7_500,
-      receiver_tax_status_code: 5,
-      corrects: { voucher_type: 11, point_of_sale: 8, number: 77 },
-    },
-  },
-  occurred_at: "2026-10-07T15:30:00.000Z",
-  actor_id: "user-1",
-  chain_hmac: "hmac-9",
+const VOIDED: SaleVoidCreditNote = {
+  creditNoteId: CREDIT_NOTE_ID,
+  saleId: "sale-1",
+  total: 7_500,
+  receiverTaxStatusCode: 5,
+  correctedVoucher: { voucherType: 11, pointOfSale: 8, number: 77 },
 };
 
-const REQUEST = { creditNoteId: CREDIT_NOTE_ID, pointOfSale: 12, saleEvent: VOID_EVENT };
+const REQUEST = { creditNoteId: CREDIT_NOTE_ID, pointOfSale: 12, voided: VOIDED };
 
 const STORED: CreditNote = {
   creditNoteId: CREDIT_NOTE_ID,
@@ -114,18 +101,20 @@ describe("requestSaleVoidCreditNote", () => {
       ]);
     });
 
+    it("looks the credit note up among the register's own", async () => {
+      const { store, run } = request();
+
+      await run();
+
+      expect(store.lookups).toEqual([{ registerId: REGISTER_ID, creditNoteId: CREDIT_NOTE_ID }]);
+    });
+
     it("credits an invoice of the real-time point of sale as well as one of the contingency point of sale", async () => {
       const { store, run } = request({
         request: {
-          saleEvent: {
-            ...VOID_EVENT,
-            payload: {
-              ...VOID_EVENT.payload,
-              credit_note: {
-                ...(VOID_EVENT.payload["credit_note"] as object),
-                corrects: { voucher_type: 11, point_of_sale: 12, number: 1204 },
-              },
-            },
+          voided: {
+            ...VOIDED,
+            correctedVoucher: { voucherType: 11, pointOfSale: 12, number: 1204 },
           },
         },
       });
@@ -160,6 +149,7 @@ describe("requestSaleVoidCreditNote", () => {
           kind: "authorized",
           number: 42,
           issuedOn: "2026-10-07",
+          requestedAt: RECEIVED_AT,
           authorizationCode: "75123456789099",
           authorizationCodeDueOn: "2026-10-17",
         },
@@ -168,6 +158,7 @@ describe("requestSaleVoidCreditNote", () => {
           pointOfSale: 12,
           number: 42,
           issuedOn: "2026-10-07",
+          issuedAt: RECEIVED_AT,
           authorizationCode: "75123456789099",
           authorizationCodeDueOn: "2026-10-17",
         },
@@ -194,17 +185,26 @@ describe("requestSaleVoidCreditNote", () => {
       expect(store.records).toHaveLength(1);
     });
 
-    it("refuses a credit note id that another register recorded", async () => {
+    it("refuses a credit note id that another register recorded, leaving it as it was", async () => {
+      const theirs: CreditNote = {
+        ...STORED,
+        pointOfSale: 13,
+        associatedVoucher: { voucherType: 11, pointOfSale: 13, number: 5 },
+      };
       const { store, run } = request({
         registers: [
           [REGISTER_ID, { realTime: 12, offline: 8 }],
           ["register-2", { realTime: 13 }],
         ],
-        seeded: [["register-2", { ...STORED, pointOfSale: 13 }]],
+        seeded: [["register-2", theirs]],
       });
 
       expect(await run()).toEqual({ kind: "credit_note_not_owned" });
       expect(store.records).toEqual([]);
+      expect(store.recorded.get(CREDIT_NOTE_ID)).toEqual({
+        registerId: "register-2",
+        creditNote: theirs,
+      });
     });
   });
 
@@ -217,29 +217,9 @@ describe("requestSaleVoidCreditNote", () => {
   });
 
   describe("what keeps a credit note from being recorded", () => {
-    it.each([
-      ["an event of another type", { event_type: "sale_completed" }],
-      [
-        "an event of a void that asks for no credit note",
-        { payload: { total: 7_500, credit_note: null } },
-      ],
-      [
-        "an event asking for another credit note",
-        {
-          payload: {
-            total: 7_500,
-            credit_note: {
-              id: "credit-note-2",
-              total: 7_500,
-              receiver_tax_status_code: 5,
-              corrects: { voucher_type: 11, point_of_sale: 8, number: 77 },
-            },
-          },
-        },
-      ],
-    ])("refuses %s, without taking a lane", async (_case, overrides) => {
+    it("refuses a void that asks for another credit note, without taking a lane", async () => {
       const { store, run } = request({
-        request: { saleEvent: { ...VOID_EVENT, ...overrides } },
+        request: { voided: { ...VOIDED, creditNoteId: "credit-note-2" } },
       });
 
       expect(await run()).toEqual({ kind: "sale_event_mismatch" });
@@ -286,13 +266,41 @@ describe("requestSaleVoidCreditNote", () => {
           seeded: [[REGISTER_ID, { ...STORED, creditNoteId: otherId, reason }]],
         });
 
-        expect(await run()).toEqual({
-          kind: "voucher_already_credited",
-          voucher: { voucherType: 11, pointOfSale: 8, number: 77 },
-          saleId: "sale-1",
-        });
+        expect(await run()).toEqual({ kind: "voucher_already_credited" });
         expect(store.records).toEqual([]);
       },
     );
+
+    it("raises the alert about the invoice that already had a credit note, naming the voided sale, inside the lane", async () => {
+      const { store, run } = request({
+        seeded: [[REGISTER_ID, { ...STORED, creditNoteId: "credit-note-2" }]],
+      });
+
+      await run();
+
+      expect(store.alertsRaised).toEqual([
+        {
+          voucher: { voucherType: 11, pointOfSale: 8, number: 77 },
+          saleId: "sale-1",
+          at: RECEIVED_AT,
+        },
+      ]);
+      expect(store.operations.slice(-3)).toEqual([
+        "recordSaleVoidCreditNote",
+        "raiseInvoiceAlreadyCredited",
+        "leaveLane",
+      ]);
+    });
+
+    it.each([
+      ["recorded", []],
+      ["already recorded", [[REGISTER_ID, STORED]] as [string, CreditNote][]],
+    ])("raises no alert when the credit note is %s", async (_case, seeded) => {
+      const { store, run } = request({ seeded });
+
+      await run();
+
+      expect(store.alertsRaised).toEqual([]);
+    });
   });
 });

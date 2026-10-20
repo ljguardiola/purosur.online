@@ -43,6 +43,7 @@ const AUTHORIZED: CreditNoteAnswer = {
   pointOfSale: 12,
   number: 42,
   issuedOn: "2026-10-07",
+  issuedAt: new Date("2026-10-07T15:30:58.000Z"),
   authorizationCode: "75123456789099",
   authorizationCodeDueOn: "2026-10-17",
 };

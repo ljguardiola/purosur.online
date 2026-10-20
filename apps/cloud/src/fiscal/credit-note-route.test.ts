@@ -207,6 +207,27 @@ describe("POST /fiscal/credit-notes", () => {
       expect(cloudErrorSchema.parse(response.json()).code).toBe("validation_failed");
       expect(await rows()).toEqual([]);
     });
+
+    it("refuses a void whose credit note corrects no invoice C the voided sale could carry", async () => {
+      const { deviceToken } = await enrollRegister();
+      const creditNoteId = crypto.randomUUID();
+
+      const response = await requestCreditNote(
+        requestBody({
+          credit_note_id: creditNoteId,
+          sale_event: saleVoidedEvent(crypto.randomUUID(), {
+            id: creditNoteId,
+            total: 12_550,
+            corrects: { voucherType: 6, pointOfSale: 31, number: 0 },
+          }),
+        }),
+        `Bearer ${deviceToken}`,
+      );
+
+      expect(response.statusCode).toBe(400);
+      expect(cloudErrorSchema.parse(response.json()).code).toBe("validation_failed");
+      expect(await rows()).toEqual([]);
+    });
   });
 
   describe("what it answers", () => {
@@ -224,6 +245,7 @@ describe("POST /fiscal/credit-notes", () => {
         point_of_sale: 7,
         number: 5,
         issued_on: "2026-10-07",
+        issued_at: NOW.toISOString(),
         authorization_code: "74123456789055",
         authorization_code_due_on: "2026-10-18",
       });
