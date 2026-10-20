@@ -88,6 +88,8 @@ const TEST_RUNNER_DEFAULT_PATTERNS = [
 ];
 const SOURCE_EXTENSIONS = new Set([".js", ".mjs", ".cjs", ".ts", ".mts", ".cts"]);
 const GLOB_CHARACTERS = /[*?[]/;
+const PACKAGE_SPECIFIER =
+  /^(?:@[a-z0-9~-][a-z0-9._~-]*\/)?[a-z0-9~-][a-z0-9._~-]*(?:\/[A-Za-z0-9._~@-]+)*$/;
 
 function resolveNode(doc, node) {
   return isAlias(node) ? node.resolve(doc) : node;
@@ -461,11 +463,13 @@ function specifierText(node) {
 
 // Only `import type` and `export type` are erased when Node strips a script's types; an import
 // whose names are all marked `type` inline still loads its module.
-function runtimeSpecifiers(path, source) {
-  const sourceFile = ts.createSourceFile(path, source, ts.ScriptTarget.Latest, true);
+function runtimeSpecifiers(module) {
+  const sourceFile = ts.createSourceFile(module.path, module.source, ts.ScriptTarget.Latest, true);
   const specifiers = [];
   const add = (node) => {
-    specifiers.push({ specifier: specifierText(node), text: node.getText(sourceFile) });
+    const text =
+      module.quote?.(node.getStart(sourceFile), node.getEnd()) ?? node.getText(sourceFile);
+    specifiers.push({ specifier: specifierText(node), text });
   };
   const visit = (node) => {
     if (ts.isImportDeclaration(node)) {
@@ -498,16 +502,18 @@ function localPath(module, specifier) {
 }
 
 function resolvesInRepository(module, specifier) {
-  if (isLocal(specifier)) return localPath(module, specifier) !== undefined;
-  return !specifier.startsWith("/") && !specifier.includes("${{");
+  if (isBuiltin(specifier) || PACKAGE_SPECIFIER.test(specifier)) return true;
+  return (
+    isLocal(specifier) && !specifier.includes("${{") && localPath(module, specifier) !== undefined
+  );
 }
 
 // Walks a module's local imports depth first, in source order, and answers the first package it
 // imports while no install has run, or the first local module that does not exist. Only a module
 // that refuses unresolved paths answers an import whose path is not a literal, or is a literal
-// outside the repository or built from another expression.
+// that is neither a built-in, a package nor a path inside the repository.
 function firstProblem(repository, module, installed, visited) {
-  for (const { specifier, text } of runtimeSpecifiers(module.path, module.source)) {
+  for (const { specifier, text } of runtimeSpecifiers(module)) {
     const resolved =
       specifier !== undefined &&
       (!module.refusesUnresolved || resolvesInRepository(module, specifier));
@@ -639,6 +645,30 @@ function githubScriptSource(doc, stepNode) {
   return typeof script === "string" ? { uses, script } : undefined;
 }
 
+// Replaces each workspace expression with a placeholder TypeScript reads as plain text, and
+// quotes a range of the replaced source as the workflow wrote it.
+function githubScriptModule(script) {
+  const replacements = [];
+  let source = "";
+  let copied = 0;
+  for (const match of script.matchAll(WORKSPACE_EXPRESSION)) {
+    source += script.slice(copied, match.index) + GITHUB_SCRIPT_WORKSPACE;
+    copied = match.index + match[0].length;
+    replacements.push({ end: source.length, originalEnd: copied });
+  }
+  source += script.slice(copied);
+  const original = (position) => {
+    const before = replacements.findLast(({ end }) => end <= position);
+    return before === undefined ? position : before.originalEnd + position - before.end;
+  };
+  return {
+    path: "[github-script]",
+    source,
+    quote: (start, end) => script.slice(original(start), original(end)),
+    refusesUnresolved: true,
+  };
+}
+
 function checkWorkflow(path, doc, lineCounter, repository) {
   const jobsNode = resolveNode(doc, doc.get("jobs", true));
   if (!isMap(jobsNode)) return [];
@@ -664,12 +694,7 @@ function checkWorkflow(path, doc, lineCounter, repository) {
 
       const githubScript = githubScriptSource(doc, stepNode);
       if (githubScript !== undefined) {
-        const module = {
-          path: "[github-script]",
-          source: githubScript.script.replace(WORKSPACE_EXPRESSION, GITHUB_SCRIPT_WORKSPACE),
-          refusesUnresolved: true,
-        };
-        const problem = codeProblem(repository, module, installed);
+        const problem = codeProblem(repository, githubScriptModule(githubScript.script), installed);
         if (problem)
           violations.push(violationOf(githubScript.uses, "actions/github-script", problem));
         continue;
