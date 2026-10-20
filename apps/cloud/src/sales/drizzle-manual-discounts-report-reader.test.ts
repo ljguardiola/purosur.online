@@ -273,25 +273,25 @@ describe("DrizzleManualDiscountsReportReader.completedManualDiscounts", () => {
   it("leaves out the discounts of cancelled and voided sales", async () => {
     const { deviceId, locationId } = await aRegister();
     const cashier = await aUser("Ana", locationId);
-    const discounted = {
+    const discounted = () => ({
       actorId: cashier,
       saleDiscount: percentOnTotal(10),
       saleDiscountAmount: 100,
       lines: [
         lineWith({ kind: "PERCENT", percent: 10, reason: "Envase dañado", authorizedBy: null }),
       ],
-    };
+    });
     await applyCancelledSale(db, {
       deviceId,
       cancelledAt: MOMENT,
       total: 900,
-      overrides: { lines: discounted.lines },
+      overrides: { lines: discounted().lines },
     });
     await applyVoidedSale(db, {
       deviceId,
       completedAt: MOMENT,
       voidedAt: new Date("2026-10-06T15:00:00.000Z"),
-      completed: discounted,
+      completed: discounted(),
     });
 
     const records = await reader().completedManualDiscounts({
