@@ -213,14 +213,23 @@ describe("the rows the extractor reads", () => {
   });
 });
 
-describe("an answer the extractor does not accept", () => {
-  const tooManyRows = Array.from({ length: PRICE_LIST_EXTRACTION_MAX_ROWS + 1 }, () => ROW);
-
+describe("a value the domain judges", () => {
   it.each([
     ["a price with a fraction of a cent", { listDate: null, rows: [{ ...ROW, priceCents: 10.5 }] }],
     ["a negative price", { listDate: null, rows: [{ ...ROW, priceCents: -1 }] }],
     ["a source page below one", { listDate: null, rows: [{ ...ROW, page: 0 }] }],
     ["a list date that is not a calendar day", { listDate: "2026-13-45", rows: [ROW] }],
+  ])("answers %s as the model read it", async (_name, answer) => {
+    const { extractor } = extractorAnswering(() => streamedJsonResponse(answer));
+
+    expect(await extractor.extract(SOURCE)).toEqual({ kind: "extracted", ...answer });
+  });
+});
+
+describe("an answer the extractor does not accept", () => {
+  const tooManyRows = Array.from({ length: PRICE_LIST_EXTRACTION_MAX_ROWS + 1 }, () => ROW);
+
+  it.each([
     ["a row without a description", { listDate: null, rows: [{ ...ROW, description: "" }] }],
     [
       "a description past the limit",
