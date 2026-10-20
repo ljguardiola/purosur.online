@@ -38,14 +38,13 @@ export async function recordUnrecordedMercadoPagoOrder(
   if (search.kind === "unavailable") {
     return { kind: "provider_unavailable" };
   }
-  const recorded = search.orders.find(
-    ({ result }) => paidAmountOfMercadoPagoOrder(result) !== null,
-  );
-  const kept = recorded ?? search.orders[0];
+  const orders = search.orders.filter(({ result }) => result.externalReference === transaction.id);
+  const paid = orders.find(({ result }) => paidAmountOfMercadoPagoOrder(result) !== null);
+  const kept = paid ?? (orders.length === 1 ? orders[0] : undefined);
   if (kept === undefined) {
     return { kind: "not_found" };
   }
-  const others = search.orders.filter((order) => order !== kept);
+  const others = orders.filter((order) => order !== kept);
   return {
     kind: "recorded",
     transaction: await lane.inOneTransaction(async (atomic) => {

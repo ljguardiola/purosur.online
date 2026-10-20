@@ -45,12 +45,10 @@ export async function checkPendingMercadoPagoPayments({
       if (unrecorded.kind === "recorded") {
         return { kind: "refreshed" as const };
       }
-      if (unrecorded.kind === "provider_unavailable") {
-        return unrecorded;
-      }
-      return transaction.replaced
+      const checked = transaction.replaced
         ? settled(await cancelMercadoPagoOrderInLane(lane, ports, transaction))
-        : refreshMercadoPagoTransaction(lane, ports, transaction);
+        : await refreshMercadoPagoTransaction(lane, ports, transaction);
+      return unrecorded.kind === "provider_unavailable" ? unrecorded : checked;
     });
     if (refresh?.kind === "refreshed") {
       refreshed += 1;
