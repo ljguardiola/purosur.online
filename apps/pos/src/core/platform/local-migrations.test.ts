@@ -5351,4 +5351,35 @@ describe("the register's local migrations", () => {
       rmSync(folder, { recursive: true, force: true });
     }
   });
+
+  it("record the events replenished into a restored register, one row per event id", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.filter(
+        (migration) => migration.name < "0065_replenished_events",
+      );
+      expect(LOCAL_MIGRATIONS.map((migration) => migration.name)).toContain(
+        "0065_replenished_events",
+      );
+      const before = openLocalDatabase(path, previous, migrationClock);
+      before
+        .prepare("UPDATE sync_state SET pull_cursor = 9, device_id = 'device-a' WHERE id = 1")
+        .run();
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+
+      expect(after.prepare("SELECT pull_cursor, device_id FROM sync_state").all()).toEqual([
+        { pull_cursor: 9, device_id: "device-a" },
+      ]);
+      expect(after.prepare("SELECT * FROM replenished_events").all()).toEqual([]);
+      const record = after.prepare("INSERT INTO replenished_events (event_id) VALUES (?)");
+      expect(() => record.run("event-1")).not.toThrow();
+      expect(() => record.run("event-1")).toThrow(/UNIQUE|PRIMARY KEY/);
+      after.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
 });
