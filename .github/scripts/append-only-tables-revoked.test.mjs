@@ -413,6 +413,52 @@ test("reads a table defined through a local function that passes its name to pgT
   ]);
 });
 
+test("reads a table defined through a generic function, a generic arrow, or one taking its name after other parameters", () => {
+  const definition = schema(
+    "function priceVersions<T extends Record<string, Array<string>>>(name: string, extra: T) {",
+    "  return pgTable(name, {});",
+    "}",
+    "",
+    "const reviewVersions = <T extends string>(name: T) => pgTable(name, {});",
+    "",
+    "function costVersions(",
+    "  schemaName: string,",
+    "  name: string,",
+    "  columns: Record<string, () => void> = {},",
+    ") {",
+    "  return pgTable(name, columns);",
+    "}",
+    "",
+    "// Append-only: a price once charged stays what it was.",
+    'export const prices = priceVersions("prices", { a: 1, b: 2 });',
+    "",
+    "// Append-only like prices.",
+    'export const priceReviews = reviewVersions("price_reviews");',
+    "",
+    "// Append-only like prices.",
+    'export const costs = costVersions("audit", "costs", { a: () => {}, b: "x,y" });',
+  );
+  const create = migration(
+    "0000_tables",
+    'CREATE TABLE "prices" ();',
+    "--> statement-breakpoint",
+    'CREATE TABLE "price_reviews" ();',
+    "--> statement-breakpoint",
+    'CREATE TABLE "costs" ();',
+  );
+  const revoke = migration(
+    "0001_revoke",
+    'REVOKE UPDATE, DELETE, TRUNCATE ON "prices", "price_reviews", "costs" FROM cloud_app;',
+  );
+
+  assert.deepEqual(violationsOf(definition, create, revoke), []);
+  assert.deepEqual(violationsOf(definition, create), [
+    { path: SCHEMA_PATH, line: 16, table: "prices", rule: "marked-not-revoked" },
+    { path: SCHEMA_PATH, line: 19, table: "price_reviews", rule: "marked-not-revoked" },
+    { path: SCHEMA_PATH, line: 22, table: "costs", rule: "marked-not-revoked" },
+  ]);
+});
+
 test("names the table, where it is, and the rule it breaks", () => {
   const marked = findViolations({ ...APPEND_ONLY_PRICES, migrations: [CREATE_PRICES] }).map(
     describeViolation,
