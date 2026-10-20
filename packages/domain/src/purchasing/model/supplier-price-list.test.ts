@@ -210,4 +210,15 @@ describe("currentConfirmedListId", () => {
       ]),
     ).toBe("second");
   });
+
+  it("keeps the first of two lists with the same date confirmed at the same instant", () => {
+    const sameInstant = new Date("2026-03-02T10:00:00Z");
+
+    expect(
+      currentConfirmedListId([
+        { id: "first", listDate: "2026-03-01", confirmedAt: sameInstant },
+        { id: "second", listDate: "2026-03-01", confirmedAt: new Date(sameInstant) },
+      ]),
+    ).toBe("first");
+  });
 });
