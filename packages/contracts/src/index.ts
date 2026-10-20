@@ -315,6 +315,7 @@ export type {
 export {
   bitlockerRecoveryKeyLoadBodySchema,
   bitlockerRecoveryKeySchema,
+  bitlockerRecoveryKeyShapeSchema,
 } from "./register/bitlocker-recovery-key.js";
 export type { CloudError, CloudErrorCode } from "./register/cloud-error.js";
 export {

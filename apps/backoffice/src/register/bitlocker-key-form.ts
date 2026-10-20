@@ -1,4 +1,7 @@
-import type { BitlockerRecoveryKeyLoadBody } from "@purosur/contracts";
+import {
+  type BitlockerRecoveryKeyLoadBody,
+  bitlockerRecoveryKeyShapeSchema,
+} from "@purosur/contracts";
 
 export type BitlockerKeyFormValues = {
   recoveryKey: string;
@@ -17,8 +20,6 @@ export function bitlockerKeyRequestFrom({
   return { recovery_key: recoveryKey.trim(), key_identifier: keyIdentifier.trim().toUpperCase() };
 }
 
-const EIGHT_HYPHENATED_BLOCKS_OF_SIX_DIGITS = /^\d{6}(?:-\d{6}){7}$/;
-
 export function bitlockerRecoveryKeyMessage({
   recoveryKey,
 }: Pick<BitlockerKeyFormValues, "recoveryKey">): string {
@@ -26,7 +27,7 @@ export function bitlockerRecoveryKeyMessage({
   if (typed === "") {
     return "Ingresá la clave de 48 dígitos en ocho bloques de seis, separados por guiones.";
   }
-  return EIGHT_HYPHENATED_BLOCKS_OF_SIX_DIGITS.test(typed)
+  return bitlockerRecoveryKeyShapeSchema.safeParse(typed).success
     ? "Revisá la clave: algún bloque no es válido."
     : "Revisá la clave: son ocho bloques de seis dígitos separados por guiones.";
 }

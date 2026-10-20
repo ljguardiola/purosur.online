@@ -8,9 +8,13 @@ const KEY_PATTERN = new RegExp(
 );
 const KEY_IDENTIFIER_PATTERN = /^[0-9A-F]{8}$/;
 
+export function hasBitlockerRecoveryKeyShape(value: string): boolean {
+  return KEY_PATTERN.test(value);
+}
+
 export function isBitlockerRecoveryKey(value: string): boolean {
   return (
-    KEY_PATTERN.test(value) &&
+    hasBitlockerRecoveryKeyShape(value) &&
     value
       .split("-")
       .map(Number)

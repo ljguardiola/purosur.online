@@ -12,6 +12,7 @@ export {
   ON_BATTERY_CONDITION_MINUTES,
 } from "./model/battery.js";
 export {
+  hasBitlockerRecoveryKeyShape,
   isBitlockerKeyIdentifier,
   isBitlockerRecoveryKey,
 } from "./model/bitlocker-recovery-key.js";

@@ -540,6 +540,7 @@ export {
   ENROLLMENT_CODE_LENGTH,
   enrollmentAttemptWindowStart,
   expectedCash,
+  hasBitlockerRecoveryKeyShape,
   hasDistinctKeyVersions,
   INSTALLATION_KEY_BYTES,
   INSTALLATION_REPORT_MAX_LENGTH,
