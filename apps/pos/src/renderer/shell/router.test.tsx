@@ -2678,7 +2678,7 @@ describe("the register's status bar", () => {
         cloud: "unreachable" as const,
         serial_devices: { scale: "matching" as const, reader: "matching" as const },
         serial_devices_setup_offered: false,
-        fiscal_mode: "real_time",
+        fiscal_mode: "real_time" as const,
       }),
     };
     const router = createRegisterRouter(routeTree, context, "/");

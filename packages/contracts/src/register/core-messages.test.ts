@@ -2066,6 +2066,7 @@ describe("serial device messages", () => {
           cloud: "reachable",
           serial_devices: { scale: "matching", reader: "matching" },
           serial_devices_setup_offered: offered,
+          fiscal_mode: "real_time",
         },
       };
 
@@ -2086,6 +2087,7 @@ describe("serial device messages", () => {
           conditions: [],
           cloud: "reachable",
           serial_devices: { scale: "matching", reader: "matching" },
+          fiscal_mode: "real_time",
           ...offered,
         },
       }).success,

@@ -1842,7 +1842,13 @@ describe("createCoreClient", () => {
   });
 
   it.each([
-    { kind: "found", next_copy: { kind: "original" }, printed: false, standing: "printing" },
+    {
+      kind: "found",
+      next_copy: { kind: "original" },
+      printed: false,
+      standing: "printing",
+      comprobante: { kind: "none" },
+    },
     { kind: "not_found" },
     { kind: "unavailable" },
   ])(

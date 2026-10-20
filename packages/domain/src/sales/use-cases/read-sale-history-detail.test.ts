@@ -227,7 +227,7 @@ describe("readSaleHistoryDetail", () => {
         fiscalDocument: {
           state: "REQUESTING" as const,
           documentType: "factura_c" as const,
-          authorization: "real_time",
+          authorization: "real_time" as const,
           pointOfSale: 3,
           number: 1204,
         },

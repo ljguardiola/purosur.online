@@ -289,6 +289,7 @@ describe("SaleCompletedModal", () => {
           next_copy: { kind: "duplicate", order_number: 1 },
           printed: false,
           standing,
+          comprobante: { kind: "none" },
         }),
       });
 
