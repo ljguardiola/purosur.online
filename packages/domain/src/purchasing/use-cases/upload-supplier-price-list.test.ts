@@ -52,6 +52,7 @@ describe("uploadSupplierPriceList", () => {
         state: "READING",
         version: 1,
         listDate: null,
+        pricesIncludeVat: null,
         sentAt: null,
         sentOn: null,
         readFailure: null,
