@@ -22,6 +22,7 @@
     "record:arca-responses": "node dist/record-arca-responses.js"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "0.135.0",
     "@fastify/static": "^10.1.6",
     "@purosur/contracts": "workspace:*",
     "@purosur/domain": "workspace:*",
