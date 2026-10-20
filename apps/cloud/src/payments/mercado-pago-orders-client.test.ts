@@ -23,8 +23,8 @@ import {
   ORDER_ID,
   orderAlreadyCanceledError,
   orderAlreadyRefundedError,
-  orderSearchAnswer,
   orderPaymentNotYetEnabledForRefundError,
+  orderSearchAnswer,
   POINT_TERMINAL_ID,
   paidOrder,
   paidWithCardOrder,
@@ -1168,9 +1168,7 @@ describe("the Mercado Pago orders client", () => {
               status: "processed",
               statusDetail: "accredited",
               totalPaidAmount: 5000,
-              payments: [
-                { status: "processed", statusDetail: "accredited", paidAmount: 5000 },
-              ],
+              payments: [{ status: "processed", statusDetail: "accredited", paidAmount: 5000 }],
             }),
           },
         ],
@@ -1188,7 +1186,10 @@ describe("the Mercado Pago orders client", () => {
       ["no data", { paging: {} }],
       ["data that is not a list", { data: createdOrder() }],
       ["an order missing its fields", { data: [{ id: ORDER_ID }] }],
-      ["one order missing its fields among valid ones", { data: [createdOrder(), { id: ORDER_ID }] }],
+      [
+        "one order missing its fields among valid ones",
+        { data: [createdOrder(), { id: ORDER_ID }] },
+      ],
     ])("is unavailable when the answer has %s", async (_name, body) => {
       const { client } = clientAnswering(answer(200, body));
 

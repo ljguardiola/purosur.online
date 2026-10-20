@@ -78,6 +78,10 @@ class HeldMercadoPago implements MercadoPagoOrders {
     return { kind: "read", result: UNPAID_ORDER };
   }
 
+  async searchOrdersOfExternalReference(): Promise<MercadoPagoOrderSearch> {
+    return { kind: "unavailable" };
+  }
+
   async cancelOrder(): Promise<MercadoPagoOrderCancellation> {
     return { kind: "unavailable" };
   }

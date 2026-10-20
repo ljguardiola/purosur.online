@@ -3086,6 +3086,7 @@ describe("wiring the Mercado Pago notification route", () => {
           createQrOrder: async () => ({ kind: "unavailable" }),
           createPointOrder: async () => ({ kind: "unavailable" }),
           readOrder: async () => ({ kind: "unavailable" }),
+          searchOrdersOfExternalReference: async () => ({ kind: "unavailable" }),
           cancelOrder: async () => ({ kind: "unavailable" }),
           refundOrder: async () => ({ kind: "unavailable" }),
           readOrderRefunds: async () => ({ kind: "unavailable" }),
