@@ -9,7 +9,7 @@ function event(name: string, data: unknown): string {
 }
 
 // The server-sent events the Messages API streams for one answer, as its documentation lists them.
-export function messagesStreamText({
+function messagesStreamText({
   textParts,
   stopReason = "end_turn",
   withTextBlock = true,
