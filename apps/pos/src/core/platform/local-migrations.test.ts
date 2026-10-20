@@ -912,6 +912,7 @@ describe("the register's local migrations", () => {
         "0062_health_check_clock_offset",
         "0063_register_predecessor",
         "0064_void_credit_notes",
+        "0066_register_qr_point_of_sale",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1001,6 +1002,7 @@ describe("the register's local migrations", () => {
         "0062_health_check_clock_offset",
         "0063_register_predecessor",
         "0064_void_credit_notes",
+        "0066_register_qr_point_of_sale",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1085,6 +1087,7 @@ describe("the register's local migrations", () => {
         "0062_health_check_clock_offset",
         "0063_register_predecessor",
         "0064_void_credit_notes",
+        "0066_register_qr_point_of_sale",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1168,6 +1171,7 @@ describe("the register's local migrations", () => {
         "0062_health_check_clock_offset",
         "0063_register_predecessor",
         "0064_void_credit_notes",
+        "0066_register_qr_point_of_sale",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1280,6 +1284,7 @@ describe("the register's local migrations", () => {
         "0062_health_check_clock_offset",
         "0063_register_predecessor",
         "0064_void_credit_notes",
+        "0066_register_qr_point_of_sale",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1382,6 +1387,7 @@ describe("the register's local migrations", () => {
         "0062_health_check_clock_offset",
         "0063_register_predecessor",
         "0064_void_credit_notes",
+        "0066_register_qr_point_of_sale",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1488,6 +1494,7 @@ describe("the register's local migrations", () => {
         "0062_health_check_clock_offset",
         "0063_register_predecessor",
         "0064_void_credit_notes",
+        "0066_register_qr_point_of_sale",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1602,6 +1609,7 @@ describe("the register's local migrations", () => {
         "0062_health_check_clock_offset",
         "0063_register_predecessor",
         "0064_void_credit_notes",
+        "0066_register_qr_point_of_sale",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1683,6 +1691,7 @@ describe("the register's local migrations", () => {
         "0062_health_check_clock_offset",
         "0063_register_predecessor",
         "0064_void_credit_notes",
+        "0066_register_qr_point_of_sale",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before

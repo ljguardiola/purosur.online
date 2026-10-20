@@ -47,7 +47,7 @@ function orderAnswerOf(
     return UNREACHABLE;
   }
   if (response.kind === "error") {
-    if (method === "POINT" && response.error.code === "payment_provider_not_configured") {
+    if (response.error.code === "payment_provider_not_configured") {
       return { kind: "not_configured" };
     }
     if (method === "POINT" && response.error.code === "validation_failed") {

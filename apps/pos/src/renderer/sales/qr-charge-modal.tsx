@@ -24,6 +24,7 @@ import {
   ORDER_UNREACHABLE_MESSAGE,
 } from "./mercado-pago-charge-messages";
 
+const NOT_CONFIGURED_MESSAGE = "El QR no está configurado en esta caja.";
 const REFUSED_MESSAGE = "Mercado Pago no pudo crear la orden. Cobrá con otro medio.";
 
 export type ShownQrOrder = Extract<StartMercadoPagoChargeOutcome, { kind: "order_shown" }>;
@@ -68,6 +69,9 @@ export function QrChargeModal({
           break;
         case "invalid_amount":
           showFieldError("amount", INVALID_AMOUNT_MESSAGE);
+          break;
+        case "not_configured":
+          setNotice(NOT_CONFIGURED_MESSAGE);
           break;
         case "order_refused":
           setNotice(REFUSED_MESSAGE);
