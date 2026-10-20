@@ -437,7 +437,14 @@ export {
   newestPrice,
   priceReviewAt,
 } from "./pricing/index.js";
-export type { FreightMeans, FreightPeriodDays, ReceiptType } from "./purchasing/index.js";
+export type {
+  FreightMeans,
+  FreightPeriodDays,
+  ReceiptType,
+  SupplierPriceListReadFailure,
+  SupplierPriceListSourceKind,
+  SupplierPriceListState,
+} from "./purchasing/index.js";
 export {
   DEFAULT_FREIGHT_PERIOD_DAYS,
   FREIGHT_CARRIER_NAME_MAX_LENGTH,
@@ -454,6 +461,7 @@ export {
   isLotNumberTooLong,
   isPackageCount,
   isPackagingNameTooLong,
+  isPriceListRowPrice,
   isPurchaseDateInFuture,
   isPurchaseNoteTooLong,
   isReceiptNumberTooLong,
@@ -474,6 +482,9 @@ export {
   SUPPLIER_CONTACT_MAX_LENGTH,
   SUPPLIER_NAME_MAX_LENGTH,
   SUPPLIER_NOTE_MAX_LENGTH,
+  SUPPLIER_PRICE_LIST_READ_FAILURES,
+  SUPPLIER_PRICE_LIST_SOURCE_KINDS,
+  SUPPLIER_PRICE_LIST_STATES,
 } from "./purchasing/index.js";
 export type {
   BatteryReading,
