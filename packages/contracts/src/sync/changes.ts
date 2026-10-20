@@ -96,17 +96,19 @@ const priceListChangeSchema = z.object({
   row: z.object({ name: z.string(), version: z.int() }),
 });
 
+export const userRowSchema = z.object({
+  first_name: z.string(),
+  role_id: z.string(),
+  salt: z.string().nullable(),
+  pin_hash: z.string().nullable(),
+  active: z.boolean(),
+  version: z.int(),
+});
+
 const userChangeSchema = z.object({
   ...pulledChangeShape,
   entity: z.literal("user"),
-  row: z.object({
-    first_name: z.string(),
-    role_id: z.string(),
-    salt: z.string().nullable(),
-    pin_hash: z.string().nullable(),
-    active: z.boolean(),
-    version: z.int(),
-  }),
+  row: userRowSchema,
 });
 
 const roleChangeSchema = z.object({

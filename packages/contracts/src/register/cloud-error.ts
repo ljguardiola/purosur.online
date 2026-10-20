@@ -9,6 +9,8 @@ const CLOUD_ERRORS = {
   not_found: { status: 404, retryable: false },
   pin_already_set: { status: 409, retryable: false },
   conflict: { status: 409, retryable: false },
+  predecessor_not_of_register: { status: 409, retryable: false },
+  predecessor_not_revoked: { status: 409, retryable: false },
   reset_code_expired: { status: 410, retryable: false },
   reset_code_burned: { status: 410, retryable: false },
   rate_limited: { status: 429, retryable: true },
