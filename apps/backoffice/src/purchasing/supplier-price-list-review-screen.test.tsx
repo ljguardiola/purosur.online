@@ -116,10 +116,10 @@ test("shows each item with its code, presentation and source page, and its price
   const screen = await loaded(createServices(), extracted);
 
   const almond = screen.getByRole("row", { name: /Almendra pelada/ });
-  await expect.element(almond).toHaveTextContent("Cód. AL-25 · Bolsa 25 kg · página 2");
-  await expect.element(almond).toHaveTextContent("$ 254.500,00");
+  await expect.element(almond.getByText("Cód. AL-25 · Bolsa 25 kg · página 2")).toBeVisible();
+  await expect.element(almond.getByText("$ 254.500,00")).toBeVisible();
   const raisins = screen.getByRole("row", { name: /Pasas de uva/ });
-  await expect.element(raisins).toHaveTextContent("Sin precio");
+  await expect.element(raisins.getByText("Sin precio")).toBeVisible();
   expect(raisins.element().textContent).not.toContain("Cód.");
   expect(raisins.element().textContent).not.toContain("página");
 });
