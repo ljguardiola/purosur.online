@@ -6,7 +6,7 @@ import type { SaleDiscount } from "./sale-discount.js";
 import { saleUnitOfWeightSource, soldLineStockDelta } from "./sale-line.js";
 import type { WeightSource } from "./weight-source.js";
 
-export interface CompletedSaleLinePromotion {
+interface CompletedSaleLinePromotion {
   discountId: string;
   benefit: DiscountBenefit;
 }
