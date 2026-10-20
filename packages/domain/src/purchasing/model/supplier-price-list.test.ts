@@ -216,6 +216,17 @@ describe("currentConfirmedListId", () => {
     ).toBe("new");
   });
 
+  it("keeps the first of two lists with the same date confirmed at the same moment", () => {
+    const sameMoment = { listDate: "2026-03-01", confirmedAt: at("2026-03-02T10:00:00Z") };
+
+    expect(
+      currentConfirmedListId([
+        { id: "first", ...sameMoment },
+        { id: "second", ...sameMoment },
+      ]),
+    ).toBe("first");
+  });
+
   it("breaks a tie of list dates by the later confirmation", () => {
     expect(
       currentConfirmedListId([
