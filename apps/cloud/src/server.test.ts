@@ -1843,7 +1843,7 @@ describe("startServer reading supplier price lists", () => {
       enqueueMissingTaxAuthorityCounts: vi.fn().mockResolvedValue(undefined),
       enqueueMissingUnclearOutcomes: vi.fn().mockResolvedValue(undefined),
       enqueueMissingNumberingConflicts: vi.fn().mockResolvedValue(undefined),
-      enqueueMissingOrphanCreditNotes: vi.fn().mockResolvedValue(undefined),
+      enqueueMissingCreditNotes: vi.fn().mockResolvedValue(undefined),
     });
     return setUp.mock.calls[0]?.[0] as SetUpRecoveryEnv;
   }
