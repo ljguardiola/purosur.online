@@ -1,17 +1,19 @@
 import type { DeviceCredentials } from "@purosur/contracts";
+import type { LocalDatabase } from "../platform/local-database";
+import { installationHeld } from "../sync/sqlite-installation-presence";
 import type { RestorePending } from "./restore-pending";
 
 export function storingEnrollmentCredentials({
   store,
   pending,
-  freshDatabase,
+  database,
 }: {
   store: (credentials: DeviceCredentials) => Promise<boolean>;
   pending: RestorePending;
-  freshDatabase: boolean;
+  database: LocalDatabase | undefined;
 }): (credentials: DeviceCredentials) => Promise<boolean> {
   return async (credentials) => {
-    if (!freshDatabase) {
+    if (database === undefined || installationHeld(database)) {
       return store(credentials);
     }
     const earlier = pending.deviceId();

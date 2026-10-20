@@ -25,10 +25,10 @@ import {
   localDataFolderFromCoreArguments,
   sentryEnvironmentFromCoreArguments,
 } from "../shared/channel";
-import { adoptStagedSnapshot, STAGED_DATABASE_FILE } from "./backups/adopt-restored-snapshot";
+import { adoptStagedSnapshot } from "./backups/adopt-restored-snapshot";
+import { createRestoreAttempts } from "./backups/restore-attempts";
 import { createRestoreLaunch } from "./backups/restore-launch";
 import { storingEnrollmentCredentials } from "./backups/restore-on-enrollment";
-import { handleRestoreOutcome } from "./backups/restore-outcome";
 import { restorePendingIn } from "./backups/restore-pending";
 import { syncUnlessRestorePending } from "./backups/restore-sync-hold";
 import { requestFirstPinCode } from "./credentials/first-pin-code-request";
@@ -171,7 +171,6 @@ import { pushForRegisterService } from "./sync/push-for-register-service";
 import { pushResultOf, pushToCloud, pushWarningOf } from "./sync/push-to-cloud";
 import { damagedRegisterTelemetryReader, registerTelemetryReader } from "./sync/register-telemetry";
 import { SqliteAcceptedPushLog } from "./sync/sqlite-accepted-push-log";
-import { installationHeld } from "./sync/sqlite-installation-presence";
 import { SqliteLocalInstallation, salesStopOf } from "./sync/sqlite-local-installation";
 import { SqliteLocalOutbox } from "./sync/sqlite-local-outbox";
 import { SqliteLocalReplica } from "./sync/sqlite-local-replica";
@@ -241,15 +240,22 @@ const localDatabasePath =
   localDataFolder === undefined ? undefined : join(localDataFolder, LOCAL_DATABASE_FILE);
 const localDatabaseDamaged = localDatabaseDamageIn(localDataFolder);
 const restorePending = restorePendingIn(localDataFolder);
-const launchRestore =
-  localDataFolder === undefined
-    ? undefined
-    : createRestoreLaunch({
-        readCredentials: () => mainRequests.readCredentials(),
-        cloudUrl,
-        stagedDatabasePath: join(localDataFolder, STAGED_DATABASE_FILE),
-        postToMain: (message) => process.parentPort.postMessage(message),
-      });
+const restoreAttempts = createRestoreAttempts({
+  pending: restorePending,
+  launch: createRestoreLaunch({
+    pending: restorePending,
+    readCredentials: () => mainRequests.readCredentials(),
+    cloudUrl,
+    dataFolder: localDataFolder,
+    postToMain: (message) => process.parentPort.postMessage(message),
+  }),
+  restartCore: () => process.exit(0),
+  resumeSync: () => syncSchedule.syncNow(),
+  reportNoUsableGeneration: () => {
+    console.error("core: no snapshot generation could be restored, so the restore stays pending");
+    Sentry.captureMessage("core: no snapshot generation could be restored", "error");
+  },
+});
 
 async function startLocalDatabaseFile(): Promise<StartedLocalDatabase | undefined> {
   if (localDatabasePath === undefined) {
@@ -492,47 +498,50 @@ const batteryShutdown = createBatteryShutdown({
 // An unreachable cloud is how a register without internet looks, so only an unexpected stop is
 // reported; the next cycle resumes from the cursor and the outbox already saved either way.
 const syncSchedule = createSyncSchedule({
-  syncOnce: syncUnlessRestorePending(restorePending.isPending, () =>
-    runSyncCycle({
-      checkInstallation: async () => {
-        const attempt = await checkInstallation({
-          readCredentials: () => mainRequests.readCredentials(),
-          installation: localInstallation,
-          adoptDevice: (device) => replica?.adoptDevice(device),
-          getFromCloud:
-            cloudClient === undefined
-              ? undefined
-              : (path, headers) => getFromCloud(cloudClient, path, headers),
-        });
-        const warning = installationCheckWarningOf(attempt);
-        if (warning !== undefined) {
-          console.warn(warning, attempt);
-        }
-        return installationCheckResultOf(attempt);
-      },
-      push: pushOutboxToCloud,
-      prune: async () => {
-        await pruneLocalOutbox({ outbox: localOutbox, now });
-      },
-      pull: async () => {
-        const attempt = await pullFromCloud({
-          readCredentials: () => mainRequests.readCredentials(),
-          replica,
-          getFromCloud:
-            cloudClient === undefined
-              ? undefined
-              : (path, headers) => getFromCloud(cloudClient, path, headers),
-        });
-        const warning = pullWarningOf(attempt);
-        if (warning !== undefined) {
-          console.warn(warning, attempt);
-        }
-        return pullResultOf(attempt);
-      },
-      onCheckFailure: (error) => reportFailure("the installation check", error),
-      onPushFailure: (error) => reportFailure("the push", error),
-      onPruneFailure: (error) => reportFailure("the outbox pruning", error),
-    }),
+  syncOnce: syncUnlessRestorePending(
+    restorePending.isPending,
+    () => void restoreAttempts.attempt(),
+    () =>
+      runSyncCycle({
+        checkInstallation: async () => {
+          const attempt = await checkInstallation({
+            readCredentials: () => mainRequests.readCredentials(),
+            installation: localInstallation,
+            adoptDevice: (device) => replica?.adoptDevice(device),
+            getFromCloud:
+              cloudClient === undefined
+                ? undefined
+                : (path, headers) => getFromCloud(cloudClient, path, headers),
+          });
+          const warning = installationCheckWarningOf(attempt);
+          if (warning !== undefined) {
+            console.warn(warning, attempt);
+          }
+          return installationCheckResultOf(attempt);
+        },
+        push: pushOutboxToCloud,
+        prune: async () => {
+          await pruneLocalOutbox({ outbox: localOutbox, now });
+        },
+        pull: async () => {
+          const attempt = await pullFromCloud({
+            readCredentials: () => mainRequests.readCredentials(),
+            replica,
+            getFromCloud:
+              cloudClient === undefined
+                ? undefined
+                : (path, headers) => getFromCloud(cloudClient, path, headers),
+          });
+          const warning = pullWarningOf(attempt);
+          if (warning !== undefined) {
+            console.warn(warning, attempt);
+          }
+          return pullResultOf(attempt);
+        },
+        onCheckFailure: (error) => reportFailure("the installation check", error),
+        onPushFailure: (error) => reportFailure("the push", error),
+        onPruneFailure: (error) => reportFailure("the outbox pruning", error),
+      }),
   ),
   intervalMs: SYNC_INTERVAL_MS,
   failureBackoff: SYNC_FAILURE_BACKOFF,
@@ -637,7 +646,6 @@ const rendererRequestDeps: RendererRequestDeps = {
   registerService: register.service,
   registerName: () => replica?.registerName(),
   enroll: async (typedCode: string) => {
-    const freshDatabase = localDatabase !== undefined && !installationHeld(localDatabase);
     const outcome = await enroll(
       {
         postToCloud:
@@ -650,16 +658,14 @@ const rendererRequestDeps: RendererRequestDeps = {
         storeCredentials: storingEnrollmentCredentials({
           store: (credentials) => mainRequests.storeCredentials(credentials),
           pending: restorePending,
-          freshDatabase,
+          database: localDatabase,
         }),
         now,
       },
       typedCode,
     );
     if (outcome.kind === "enrolled") {
-      if (freshDatabase) {
-        void launchRestore?.();
-      }
+      void restoreAttempts.attempt();
       syncSchedule.syncNow();
     }
     return outcome;
@@ -1251,17 +1257,7 @@ messagesFromMain.deliverTo((event) => {
       updateHold.release();
     } else if (message.type === "snapshot-worker-exited") {
       void snapshotCycle?.workerExited(message.copy_failed_stage);
-      handleRestoreOutcome(message.restore_outcome, {
-        pending: restorePending,
-        restartCore: () => process.exit(0),
-        resumeSync: () => syncSchedule.syncNow(),
-        reportNoUsableGeneration: () => {
-          console.error(
-            "core: no snapshot generation could be restored, so the restore stays pending",
-          );
-          Sentry.captureMessage("core: no snapshot generation could be restored", "error");
-        },
-      });
+      restoreAttempts.workerExited(message.restore_outcome);
       if (deviceTokenRotation !== undefined) {
         refreshKeysWhenAnnounced(message.latest_announced_key_version, {
           readCredentials: () => mainRequests.readCredentials(),
@@ -1275,9 +1271,7 @@ messagesFromMain.deliverTo((event) => {
 });
 
 process.parentPort.postMessage({ type: "core-ready" } satisfies CoreReadyMessage);
-if (restorePending.isPending()) {
-  void launchRestore?.();
-}
+void restoreAttempts.attempt();
 void batteryWatch.start();
 void windowsCriticalBatteryActionReader({
   run: promisify(execFile),
