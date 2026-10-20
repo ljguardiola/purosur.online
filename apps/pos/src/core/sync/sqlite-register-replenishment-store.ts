@@ -8,9 +8,12 @@ import type {
   SyncedFact,
 } from "@purosur/domain/sync/use-cases";
 import { applyReplenishedClockCorrection } from "../fiscal/replenished-clock-corrections";
+import { applyReplenishedGateFailure } from "../fiscal/replenished-gate-failures";
 import type { LocalDatabase } from "../platform/local-database";
 import { applyReplenishedCashFact } from "../register/replenished-cash-facts";
+import { applyReplenishedReceiptFact } from "../sales/replenished-receipt-facts";
 import { applyReplenishedSaleFact } from "../sales/replenished-sale-facts";
+import { applyReplenishedSaleVoidFact } from "../sales/replenished-sale-void-facts";
 import { applyReplenishedOpeningCountFact } from "../stock/replenished-opening-count-facts";
 import { prepareAccessPageWrites } from "./access-page-writes";
 
@@ -118,9 +121,15 @@ function applyFact(
       applyReplenishedClockCorrection(database, fact);
       return "applied";
     case "sale_voided":
+      applyReplenishedSaleVoidFact(database, fact);
+      return "applied";
     case "sale_print_state_changed":
     case "reprint_recorded":
+      applyReplenishedReceiptFact(database, fact);
+      return "applied";
     case "fiscal_gate_failed":
+      applyReplenishedGateFailure(database, fact);
+      return "applied";
     case "offline_fiscal_document_issued":
       return "not_yet_applicable";
   }
