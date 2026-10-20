@@ -304,11 +304,19 @@ function createModules(readModule) {
     return undefined;
   };
 
+  const namespaceOf = (expression) => {
+    const node = withoutParentheses(expression);
+    if (ts.isIdentifier(node)) return namespaceOfDeclaration(bindingOf(node));
+    if (ts.isPropertyAccessExpression(node)) {
+      return exportedNamespace(namespaceOf(node.expression), node.name.text);
+    }
+    return undefined;
+  };
+
   const constantValueOf = (node) => {
     if (ts.isIdentifier(node)) return valueOfDeclaration(bindingOf(node));
-    if (ts.isPropertyAccessExpression(node) && ts.isIdentifier(node.expression)) {
-      const namespace = namespaceOfDeclaration(bindingOf(node.expression));
-      return exportedValue(namespace, node.name.text);
+    if (ts.isPropertyAccessExpression(node)) {
+      return exportedValue(namespaceOf(node.expression), node.name.text);
     }
     return undefined;
   };
