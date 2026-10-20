@@ -6,6 +6,7 @@ describe("syncUnlessRestorePending", () => {
     const synced: string[] = [];
     const sync = syncUnlessRestorePending(
       () => false,
+      () => synced.push("restore"),
       async () => {
         synced.push("sync");
         return { kind: "failed", retryAfterMs: 5 };
@@ -16,10 +17,11 @@ describe("syncUnlessRestorePending", () => {
     expect(synced).toEqual(["sync"]);
   });
 
-  it("neither pulls, pushes nor checks the installation while a restore is pending", async () => {
+  it("attempts the restore instead of pulling, pushing or checking the installation while a restore is pending", async () => {
     const synced: string[] = [];
     const sync = syncUnlessRestorePending(
       () => true,
+      () => synced.push("restore"),
       async () => {
         synced.push("sync");
         return { kind: "succeeded" };
@@ -27,7 +29,7 @@ describe("syncUnlessRestorePending", () => {
     );
 
     expect(await sync()).toEqual({ kind: "succeeded" });
-    expect(synced).toEqual([]);
+    expect(synced).toEqual(["restore"]);
   });
 
   it("syncs again as soon as the restore is no longer pending", async () => {
@@ -35,6 +37,7 @@ describe("syncUnlessRestorePending", () => {
     const synced: string[] = [];
     const sync = syncUnlessRestorePending(
       () => pending,
+      () => synced.push("restore"),
       async () => {
         synced.push("sync");
         return { kind: "succeeded" };
@@ -45,6 +48,6 @@ describe("syncUnlessRestorePending", () => {
     pending = false;
     await sync();
 
-    expect(synced).toEqual(["sync"]);
+    expect(synced).toEqual(["restore", "sync"]);
   });
 });

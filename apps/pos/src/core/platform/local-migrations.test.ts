@@ -909,8 +909,8 @@ describe("the register's local migrations", () => {
         "0057_voided_sales",
         "0058_register_clock_guard",
         "0059_point_refunds",
-        "0061_register_predecessor",
         "0062_health_check_clock_offset",
+        "0063_register_predecessor",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -997,8 +997,8 @@ describe("the register's local migrations", () => {
         "0057_voided_sales",
         "0058_register_clock_guard",
         "0059_point_refunds",
-        "0061_register_predecessor",
         "0062_health_check_clock_offset",
+        "0063_register_predecessor",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1080,8 +1080,8 @@ describe("the register's local migrations", () => {
         "0057_voided_sales",
         "0058_register_clock_guard",
         "0059_point_refunds",
-        "0061_register_predecessor",
         "0062_health_check_clock_offset",
+        "0063_register_predecessor",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1162,8 +1162,8 @@ describe("the register's local migrations", () => {
         "0057_voided_sales",
         "0058_register_clock_guard",
         "0059_point_refunds",
-        "0061_register_predecessor",
         "0062_health_check_clock_offset",
+        "0063_register_predecessor",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1273,8 +1273,8 @@ describe("the register's local migrations", () => {
         "0057_voided_sales",
         "0058_register_clock_guard",
         "0059_point_refunds",
-        "0061_register_predecessor",
         "0062_health_check_clock_offset",
+        "0063_register_predecessor",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1374,8 +1374,8 @@ describe("the register's local migrations", () => {
         "0057_voided_sales",
         "0058_register_clock_guard",
         "0059_point_refunds",
-        "0061_register_predecessor",
         "0062_health_check_clock_offset",
+        "0063_register_predecessor",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1479,8 +1479,8 @@ describe("the register's local migrations", () => {
         "0057_voided_sales",
         "0058_register_clock_guard",
         "0059_point_refunds",
-        "0061_register_predecessor",
         "0062_health_check_clock_offset",
+        "0063_register_predecessor",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1592,8 +1592,8 @@ describe("the register's local migrations", () => {
         "0057_voided_sales",
         "0058_register_clock_guard",
         "0059_point_refunds",
-        "0061_register_predecessor",
         "0062_health_check_clock_offset",
+        "0063_register_predecessor",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1672,8 +1672,8 @@ describe("the register's local migrations", () => {
         "0057_voided_sales",
         "0058_register_clock_guard",
         "0059_point_refunds",
-        "0061_register_predecessor",
         "0062_health_check_clock_offset",
+        "0063_register_predecessor",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -5323,10 +5323,10 @@ describe("the register's local migrations", () => {
     try {
       const path = join(folder, "register.sqlite");
       const previous = LOCAL_MIGRATIONS.filter(
-        (migration) => migration.name < "0061_register_predecessor",
+        (migration) => migration.name < "0063_register_predecessor",
       );
       expect(LOCAL_MIGRATIONS.map((migration) => migration.name)).toContain(
-        "0061_register_predecessor",
+        "0063_register_predecessor",
       );
       const before = openLocalDatabase(path, previous, migrationClock);
       before

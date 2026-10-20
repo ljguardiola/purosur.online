@@ -1,6 +1,7 @@
 import type { DeviceCredentials, SnapshotWorkerLaunchRequest } from "@purosur/contracts";
 import { describe, expect, it } from "vitest";
 import { createRestoreLaunch } from "./restore-launch";
+import type { RestorePending } from "./restore-pending";
 
 const KEY = Buffer.alloc(32, 3).toString("base64");
 const OTHER_KEY = Buffer.alloc(32, 4).toString("base64");
@@ -20,21 +21,41 @@ const CREDENTIALS: DeviceCredentials = {
 };
 
 function setup(
-  overrides: { credentials?: DeviceCredentials | undefined; cloudUrl?: string | undefined } = {},
+  overrides: {
+    credentials?: DeviceCredentials | undefined;
+    cloudUrl?: string | undefined;
+    dataFolder?: string | undefined;
+    markedDevice?: string | undefined;
+  } = {},
 ) {
+  const events: string[] = [];
+  let markedDevice = "markedDevice" in overrides ? overrides.markedDevice : "device-new";
+  const pending: RestorePending = {
+    isPending: () => true,
+    deviceId: () => markedDevice,
+    begin: (deviceId) => {
+      events.push(`begin ${deviceId}`);
+      markedDevice = deviceId;
+    },
+    clear: () => events.push("clear"),
+  };
   const posted: SnapshotWorkerLaunchRequest[] = [];
   const launch = createRestoreLaunch({
+    pending,
     readCredentials: async () => ("credentials" in overrides ? overrides.credentials : CREDENTIALS),
     cloudUrl: "cloudUrl" in overrides ? overrides.cloudUrl : "https://cloud.example.test",
-    stagedDatabasePath: "/data/register.restored.sqlite",
-    postToMain: (message) => posted.push(message),
+    dataFolder: "dataFolder" in overrides ? overrides.dataFolder : "/data",
+    postToMain: (message) => {
+      events.push("launch");
+      posted.push(message);
+    },
   });
-  return { launch, posted };
+  return { launch, posted, events };
 }
 
 describe("launching the restore", () => {
   it("asks main for a worker that restores with every snapshot key the installation holds", async () => {
-    const { launch, posted } = setup();
+    const { launch, posted, events } = setup();
 
     expect(await launch()).toBe(true);
 
@@ -51,12 +72,22 @@ describe("launching the restore", () => {
         },
       },
     ]);
+    expect(events).toEqual(["launch"]);
+  });
+
+  it("names the installation it holds the credentials of in a restore marker that could not be read, before restoring", async () => {
+    const { launch, events } = setup({ markedDevice: undefined });
+
+    expect(await launch()).toBe(true);
+
+    expect(events).toEqual(["begin device-new", "launch"]);
   });
 
   it.each([
     ["no credentials", { credentials: undefined }],
     ["credentials with no keys", { credentials: { ...CREDENTIALS, keys: undefined } }],
     ["no cloud", { cloudUrl: undefined }],
+    ["no data folder", { dataFolder: undefined }],
   ])("asks main for nothing with %s", async (_name, overrides) => {
     const { launch, posted } = setup(overrides);
 
