@@ -290,7 +290,7 @@ export const noPreviousAverageTicketReport: AverageTicketBody = {
 
 export const ANA_USER_ID = "77777777-7777-4777-8777-777777777777";
 export const BETO_USER_ID = "88888888-8888-4888-8888-888888888888";
-export const REMOVED_USER_ID = "99999999-9999-4999-8999-999999999999";
+const REMOVED_USER_ID = "99999999-9999-4999-8999-999999999999";
 
 export const manualDiscountsReport: ManualDiscountsBody = {
   range: { from: "2026-10-01", to: "2026-10-07" },
