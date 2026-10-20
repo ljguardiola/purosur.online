@@ -43,7 +43,7 @@ interface OfflinePointOfSaleRow {
   highest_synced_offline_number: number | null;
 }
 
-function clockMarkOf(
+export function clockMarkOf(
   database: LocalDatabase,
   pointOfSale: number,
   documentType: string,

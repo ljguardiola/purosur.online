@@ -9,6 +9,7 @@ import type {
 } from "@purosur/domain/sync/use-cases";
 import { applyReplenishedClockCorrection } from "../fiscal/replenished-clock-corrections";
 import { applyReplenishedGateFailure } from "../fiscal/replenished-gate-failures";
+import { applyReplenishedOfflineFiscalDocument } from "../fiscal/replenished-offline-fiscal-documents";
 import type { LocalDatabase } from "../platform/local-database";
 import { applyReplenishedCashFact } from "../register/replenished-cash-facts";
 import { applyReplenishedReceiptFact } from "../sales/replenished-receipt-facts";
@@ -131,6 +132,6 @@ function applyFact(
       applyReplenishedGateFailure(database, fact);
       return "applied";
     case "offline_fiscal_document_issued":
-      return "not_yet_applicable";
+      return applyReplenishedOfflineFiscalDocument(database, fact);
   }
 }
