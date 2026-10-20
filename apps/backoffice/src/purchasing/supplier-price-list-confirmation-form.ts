@@ -1,7 +1,7 @@
 import { type CalendarDate, parseDate } from "@internationalized/date";
 import type { SupplierPriceListConfirmationBody } from "@purosur/contracts";
 
-export type PricesIncludeVatChoice = "included" | "excluded";
+type PricesIncludeVatChoice = "included" | "excluded";
 
 export type ConfirmationFormValues = {
   date: CalendarDate | null;
