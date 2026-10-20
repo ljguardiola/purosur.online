@@ -119,6 +119,47 @@ test("accepts github.actor as the username: input of a login action", () => {
   assert.deepEqual(linesOf(source), []);
 });
 
+test("refuses github.actor as the username: input of an action that only mentions login in its name", () => {
+  const source = workflow(
+    "jobs:",
+    "  notify:",
+    "    steps:",
+    "      - uses: acme/require-login-approval@SHA1",
+    "        with:",
+    `          username: \${{ github.actor }}`,
+    "      - uses: acme/blogindex-notify@SHA1",
+    "        with:",
+    `          username: \${{ github.actor }}`,
+    "      - uses: login/notify-action@SHA1",
+    "        with:",
+    `          username: \${{ github.actor }}`,
+  );
+
+  assert.deepEqual(linesOf(source), [6, 9, 12]);
+});
+
+test("accepts github.actor as the username: input of registry login actions named like one", () => {
+  const source = workflow(
+    "jobs:",
+    "  publish:",
+    "    steps:",
+    "      - uses: aws-actions/amazon-ecr-login@SHA1",
+    "        with:",
+    `          username: \${{ github.actor }}`,
+    "      - uses: azure/docker-login@SHA1",
+    "        with:",
+    `          username: \${{ github.actor }}`,
+    "      - uses: redhat-actions/podman-login@SHA1",
+    "        with:",
+    `          username: \${{ github.actor }}`,
+    "      - uses: acme/login@SHA1",
+    "        with:",
+    `          username: \${{ github.actor }}`,
+  );
+
+  assert.deepEqual(linesOf(source), []);
+});
+
 test("refuses github.actor in a login action's input other than username:", () => {
   const source = workflow(
     "jobs:",
@@ -197,6 +238,39 @@ test("refuses $GITHUB_ACTOR in a run script outside a sign-in command, on its ow
   );
 
   assert.deepEqual(linesOf(source), [6]);
+});
+
+test("names the line of $GITHUB_ACTOR in a folded run script", () => {
+  const source = workflow(
+    "jobs:",
+    "  release:",
+    "    steps:",
+    "      - run: >-  # check the requester",
+    "          set -euo pipefail;",
+    "          echo start;",
+    '          ./admin.sh "$GITHUB_ACTOR"',
+  );
+
+  assert.deepEqual(linesOf(source), [7]);
+});
+
+test("names the line of github.actor in a plain or quoted value written over several lines", () => {
+  const source = workflow(
+    "env:",
+    "  PLAIN: requested",
+    `    by \${{ github.actor }}`,
+    '  DOUBLE: "requested',
+    `    by \\"\${{ github.actor }}\\""`,
+    "  SINGLE: 'it''s",
+    "",
+    `    \${{ github.actor }}'`,
+    "jobs:",
+    "  build:",
+    "    steps:",
+    "      - run: echo hi",
+  );
+
+  assert.deepEqual(linesOf(source), [3, 5, 8]);
 });
 
 test(`refuses \${{ github.actor }} in a run script outside a sign-in command`, () => {
