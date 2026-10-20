@@ -5,13 +5,18 @@ const SCHEMA_PATH = "apps/cloud/src/platform/db/schema.ts";
 const MIGRATIONS_DIR = "apps/cloud/migrations";
 const JOURNAL_PATH = `${MIGRATIONS_DIR}/meta/_journal.json`;
 const ROLE = "cloud_app";
-const APPEND_ONLY_MARK_RE = /\bAppend-only\b/;
+const APPEND_ONLY_MARK_RE = /\bappend-only\b/i;
 
-const TABLE_RE = /\bpgTable\(\s*"([^"]+)"/g;
+const IDENTIFIER = String.raw`[A-Za-z_$][\w$]*`;
+const TABLE_FUNCTION_RE = new RegExp(
+  String.raw`(?:\bfunction\s+(${IDENTIFIER})\s*\(|\b(?:const|let)\s+(${IDENTIFIER})\s*=\s*\()\s*(${IDENTIFIER})`,
+  "g",
+);
+const TABLE_NAME_PARAMETER_RE = new RegExp(String.raw`\bpgTable\(\s*(${IDENTIFIER})`, "g");
 const NAME = String.raw`(?:"[^"]+"|[A-Za-z_][\w$]*)`;
 const QUALIFIED_NAME = String.raw`(?:${NAME}\s*\.\s*)?${NAME}`;
 const CREATE_TABLE_RE = new RegExp(
-  String.raw`^create\s+(?:(?:global\s+|local\s+)?(?:temporary|temp|unlogged)\s+)?table\s+(?:if\s+not\s+exists\s+)?(${QUALIFIED_NAME})`,
+  String.raw`^create\s+(?:(?:global\s+|local\s+)?(?:temporary|temp|unlogged)\s+)?table\s+(if\s+not\s+exists\s+)?(${QUALIFIED_NAME})`,
   "i",
 );
 const DROP_TABLE_RE = /^drop\s+table\s+(?:if\s+exists\s+)?(.+?)(?:\s+(?:cascade|restrict))?$/i;
@@ -130,22 +135,37 @@ function statementsOf(source) {
 }
 
 function privilegesOf(list) {
-  const scopes = {};
+  const table = new Set();
+  const updateColumns = new Set();
   for (const entry of splitTopLevel(list)) {
     const match = entry.match(PRIVILEGE_RE);
     if (!match) continue;
     const name = match[1].toLowerCase().replace(/\s+privileges$/, "");
-    const scope = match[2] === undefined ? "table" : "columns";
-    const named = name === "all" ? (scope === "table" ? TRACKED : ["update"]) : [name];
-    for (const privilege of named.filter((each) => TRACKED.includes(each))) {
-      scopes[privilege] = scopes[privilege] === "table" ? "table" : scope;
+    if (match[2] === undefined) {
+      for (const privilege of name === "all" ? TRACKED : [name]) table.add(privilege);
+    } else if (name === "all" || name === "update") {
+      for (const column of splitTopLevel(match[2].slice(1, -1))) updateColumns.add(unquote(column));
     }
   }
-  return scopes;
+  return {
+    table: TRACKED.filter((privilege) => table.has(privilege)),
+    updateColumns: [...updateColumns],
+  };
 }
 
 function heldByDefault() {
-  return { update: true, delete: true, truncate: true, revokedAt: undefined };
+  return {
+    update: true,
+    updateColumns: new Set(),
+    delete: true,
+    truncate: true,
+    revokedAt: undefined,
+  };
+}
+
+function holds(state, privilege) {
+  if (privilege === "update") return state.update || state.updateColumns.size > 0;
+  return state[privilege];
 }
 
 function applyPrivilegeStatement(tables, match, location) {
@@ -160,17 +180,22 @@ function applyPrivilegeStatement(tables, match, location) {
   const names = ALL_TABLES_RE.test(target)
     ? [...tables.keys()]
     : splitTopLevel(target.replace(/^table\s+/i, "")).map(tableNameOf);
-  const scopes = privilegesOf(list);
+  const { table, updateColumns } = privilegesOf(list);
   const granting = verb.toLowerCase() === "grant";
-  const changed = TRACKED.filter((privilege) =>
-    granting ? scopes[privilege] !== undefined : scopes[privilege] === "table",
-  );
 
   for (const name of names) {
     const state = tables.get(name) ?? heldByDefault();
     tables.set(name, state);
-    for (const privilege of changed) state[privilege] = granting;
-    if (!granting && (changed.includes("update") || changed.includes("delete"))) {
+    for (const privilege of table) state[privilege] = granting;
+    for (const column of updateColumns) {
+      if (granting) state.updateColumns.add(column);
+      else state.updateColumns.delete(column);
+    }
+    if (!granting && table.includes("update")) state.updateColumns.clear();
+    if (
+      !granting &&
+      (table.includes("update") || table.includes("delete") || updateColumns.length > 0)
+    ) {
       state.revokedAt = location;
     }
   }
@@ -179,7 +204,8 @@ function applyPrivilegeStatement(tables, match, location) {
 function applyStatement(tables, text, location) {
   const created = text.match(CREATE_TABLE_RE);
   if (created) {
-    tables.set(tableNameOf(created[1]), heldByDefault());
+    const name = tableNameOf(created[2]);
+    if (!created[1] || !tables.has(name)) tables.set(name, heldByDefault());
     return;
   }
   const dropped = text.match(DROP_TABLE_RE);
@@ -209,9 +235,23 @@ function privilegesAfter(migrations) {
   return tables;
 }
 
+function escapeRegExp(text) {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function tableFunctionsOf(source) {
+  const functions = [...source.matchAll(TABLE_FUNCTION_RE)];
+  return [...source.matchAll(TABLE_NAME_PARAMETER_RE)].flatMap((call) => {
+    const enclosing = functions.filter((each) => each.index < call.index).at(-1);
+    return enclosing?.[3] === call[1] ? [enclosing[1] ?? enclosing[2]] : [];
+  });
+}
+
 function schemaTablesOf(source) {
   const lines = source.split("\n");
-  return [...source.matchAll(TABLE_RE)].map((match) => {
+  const definers = ["pgTable", ...tableFunctionsOf(source)].map(escapeRegExp);
+  const tableRe = new RegExp(String.raw`\b(?:${definers.join("|")})\(\s*"([^"]+)"`, "g");
+  return [...source.matchAll(tableRe)].map((match) => {
     let line = lineAt(source, match.index) - 1;
     while (line > 0 && !/^export\s/.test(lines[line])) line -= 1;
     let commentLine = line - 1;
@@ -239,7 +279,7 @@ export function findViolations({ schemaPath, schemaSource, migrations }) {
     .filter((table) => table.appendOnly)
     .filter((table) => {
       const state = tables.get(table.name) ?? heldByDefault();
-      return TRACKED.some((privilege) => state[privilege]);
+      return TRACKED.some((privilege) => holds(state, privilege));
     })
     .map((table) => ({
       path: schemaPath,
@@ -249,7 +289,7 @@ export function findViolations({ schemaPath, schemaSource, migrations }) {
     }));
 
   const revokedNotMarked = [...tables.entries()]
-    .filter(([name, state]) => !state.update && !state.delete && !marked.has(name))
+    .filter(([name, state]) => !holds(state, "update") && !state.delete && !marked.has(name))
     .map(([name, state]) => ({
       path: state.revokedAt.path,
       line: state.revokedAt.line,
