@@ -21,7 +21,7 @@ describe("discountBenefitText", () => {
 
 describe("discountTargetLine", () => {
   test.each([
-    [{ kind: "PRODUCT", name: "Yerba Playadito 1 kg" }, "Producto · Yerba Playadito 1 kg"],
+    [{ kind: "PRODUCT", name: "Yerba Hoja Alta 1 kg" }, "Producto · Yerba Hoja Alta 1 kg"],
     [{ kind: "CATEGORY", name: "Almacén › Yerbas" }, "Categoría · Almacén › Yerbas"],
     [{ kind: "TAG", name: "Sin TACC" }, "Distintivo · Sin TACC"],
   ] as const)("names the kind of %j before the target", (target, line) => {

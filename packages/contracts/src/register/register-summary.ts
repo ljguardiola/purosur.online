@@ -1,6 +1,10 @@
 import { ARGENTINA_TIME_ZONE } from "@purosur/domain";
 import { z } from "zod";
-import { pointOfSaleNumberSchema, pointTerminalIdSchema } from "../shared/index.js";
+import {
+  pointOfSaleNumberSchema,
+  pointTerminalIdSchema,
+  qrExternalPosIdSchema,
+} from "../shared/index.js";
 
 const instantSchema = z.string().meta({ timeZone: ARGENTINA_TIME_ZONE });
 
@@ -33,6 +37,8 @@ export const registerSummarySchema = z.object({
   point_of_sale_number: pointOfSaleNumberSchema.nullable(),
   point_terminal_id: pointTerminalIdSchema.nullable(),
   point_terminal_version: z.int().nonnegative(),
+  qr_external_pos_id: qrExternalPosIdSchema.nullable(),
+  qr_point_of_sale_version: z.int().nonnegative(),
   installation: installationSchema.nullable(),
 });
 

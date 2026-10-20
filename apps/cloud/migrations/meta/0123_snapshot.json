@@ -1,5 +1,5 @@
 {
-  "id": "b1a30a65-c12c-432d-a63e-b7f59b0c413c",
+  "id": "1b029c9a-0095-4d7b-89e4-6d522b4ee03e",
   "prevId": "26c6de9c-aa2d-4c29-a8e0-daad64362b7c",
   "version": "7",
   "dialect": "postgresql",
@@ -4468,57 +4468,6 @@
       },
       "isRLSEnabled": false
     },
-    "public.offline_point_of_sale_retirements": {
-      "name": "offline_point_of_sale_retirements",
-      "schema": "",
-      "columns": {
-        "point_of_sale_number": {
-          "name": "point_of_sale_number",
-          "type": "integer",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "retired_at": {
-          "name": "retired_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "retired_by": {
-          "name": "retired_by",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "offline_point_of_sale_retirements_point_of_sale_number_point_of_sale_claims_point_of_sale_number_fk": {
-          "name": "offline_point_of_sale_retirements_point_of_sale_number_point_of_sale_claims_point_of_sale_number_fk",
-          "tableFrom": "offline_point_of_sale_retirements",
-          "tableTo": "point_of_sale_claims",
-          "columnsFrom": ["point_of_sale_number"],
-          "columnsTo": ["point_of_sale_number"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "offline_point_of_sale_retirements_retired_by_users_id_fk": {
-          "name": "offline_point_of_sale_retirements_retired_by_users_id_fk",
-          "tableFrom": "offline_point_of_sale_retirements",
-          "tableTo": "users",
-          "columnsFrom": ["retired_by"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
     "public.offsite_dump_checks": {
       "name": "offsite_dump_checks",
       "schema": "",
@@ -7656,6 +7605,63 @@
           "value": "\"register_points_of_sale\".\"mechanism\" = 'real_time'"
         }
       },
+      "isRLSEnabled": false
+    },
+    "public.register_qr_points_of_sale": {
+      "name": "register_qr_points_of_sale",
+      "schema": "",
+      "columns": {
+        "register_id": {
+          "name": "register_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "external_pos_id": {
+          "name": "external_pos_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version": {
+          "name": "version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "register_qr_points_of_sale_external_pos_id_key": {
+          "name": "register_qr_points_of_sale_external_pos_id_key",
+          "columns": [
+            {
+              "expression": "external_pos_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "register_qr_points_of_sale_register_id_registers_id_fk": {
+          "name": "register_qr_points_of_sale_register_id_registers_id_fk",
+          "tableFrom": "register_qr_points_of_sale",
+          "tableTo": "registers",
+          "columnsFrom": ["register_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "public.register_snapshot_generations": {

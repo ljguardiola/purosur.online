@@ -122,7 +122,7 @@ test("creates a promotion with the request the cloud reads and reports the creat
   const { dialog } = await renderModal(services, { onCreated });
 
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "  Yerba de septiembre ");
-  await chooseProduct(dialog, "Yerba", "Yerba Playadito 1 kg");
+  await chooseProduct(dialog, "Yerba", "Yerba Hoja Alta 1 kg");
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Descuento/ }), "15");
   await typeDate(dialog, "Desde", "12092026");
   await typeDate(dialog, "Hasta", "30092026");
@@ -166,7 +166,7 @@ test("offers the products it is given by name", async () => {
       .getByRole("option")
       .all()
       .map((option) => option.element().textContent),
-  ).toEqual(["Almendras peladas", "Yerba Playadito 1 kgPlayadito · 1 kg"]);
+  ).toEqual(["Almendras peladas", "Yerba Hoja Alta 1 kgHoja Alta · 1 kg"]);
 });
 
 test("narrows the products to those whose name contains what was typed, and targets the one chosen", async () => {
@@ -195,14 +195,14 @@ test("finds a product by one of its barcodes", async () => {
   await userEvent.fill(productPicker(dialog), "7790001000101");
 
   await expect.poll(() => page.getByRole("option").all().length).toBe(1);
-  await expect.element(page.getByRole("option", { name: "Yerba Playadito 1 kg" })).toBeVisible();
+  await expect.element(page.getByRole("option", { name: "Yerba Hoja Alta 1 kg" })).toBeVisible();
 });
 
 test("tells two products with the same name apart by brand and net content", async () => {
   const twin = {
     ...yerbaProduct,
     id: "twin",
-    brandName: "Taragüí",
+    brandName: "Monte Güirá",
     netContent: { quantity: 500, unit: "G" },
   } as const;
   const { dialog } = await renderModal(createServices(), {
@@ -217,12 +217,12 @@ test("tells two products with the same name apart by brand and net content", asy
       .getByRole("option")
       .all()
       .map((option) => option.element().textContent),
-  ).toEqual(["Yerba Playadito 1 kgPlayadito · 1 kg", "Yerba Playadito 1 kgTaragüí · 500 g"]);
+  ).toEqual(["Yerba Hoja Alta 1 kgHoja Alta · 1 kg", "Yerba Hoja Alta 1 kgMonte Güirá · 500 g"]);
 });
 
 test("switching what it applies to changes the picker's label, options and placeholder, and clears the target", async () => {
   const { dialog } = await renderModal(createServices());
-  await chooseProduct(dialog, "Yerba", "Yerba Playadito 1 kg");
+  await chooseProduct(dialog, "Yerba", "Yerba Hoja Alta 1 kg");
 
   await userEvent.click(radioLabel(dialog, "Categoría"));
 
@@ -330,7 +330,7 @@ test.each([
   [
     "PRODUCT",
     "Elegí un producto",
-    "Yerba Playadito 1 kg",
+    "Yerba Hoja Alta 1 kg",
     "Ya no está disponible. Elegí otro producto.",
   ],
   ["CATEGORY", "Elegí una categoría", "Almacén", "Ya no está disponible. Elegí otra categoría."],
@@ -493,7 +493,7 @@ test("offers a buy-N-pay-M promotion only the products sold by the unit", async 
       .getByRole("option")
       .all()
       .map((option) => option.element().textContent),
-  ).toEqual(["Yerba Playadito 1 kgPlayadito · 1 kg"]);
+  ).toEqual(["Yerba Hoja Alta 1 kgHoja Alta · 1 kg"]);
 });
 
 test("creates a buy-N-pay-M promotion with the request the cloud reads", async () => {
@@ -503,7 +503,7 @@ test("creates a buy-N-pay-M promotion with the request the cloud reads", async (
   const { dialog } = await renderModal(services, { onCreated });
   await fillNewDiscountExceptTarget(dialog);
   await chooseBuyNPayM(dialog);
-  await chooseProduct(dialog, "Yerba", "Yerba Playadito 1 kg");
+  await chooseProduct(dialog, "Yerba", "Yerba Hoja Alta 1 kg");
   await fillQuantities(dialog, "3", "2");
 
   await userEvent.click(dialog.getByRole("button", { name: "Crear la promoción" }));
@@ -538,7 +538,7 @@ test("asks to pay fewer units than are bought, on the quantity to pay", async ()
   const { dialog } = await renderModal(services);
   await fillNewDiscountExceptTarget(dialog);
   await chooseBuyNPayM(dialog);
-  await chooseProduct(dialog, "Yerba", "Yerba Playadito 1 kg");
+  await chooseProduct(dialog, "Yerba", "Yerba Hoja Alta 1 kg");
   await fillQuantities(dialog, "3", "3");
 
   await userEvent.click(dialog.getByRole("button", { name: "Crear la promoción" }));
@@ -555,7 +555,7 @@ test("says a product that is now sold by weight cannot take it, on the picker", 
   const { dialog } = await renderModal(services);
   await fillNewDiscountExceptTarget(dialog);
   await chooseBuyNPayM(dialog);
-  await chooseProduct(dialog, "Yerba", "Yerba Playadito 1 kg");
+  await chooseProduct(dialog, "Yerba", "Yerba Hoja Alta 1 kg");
   await fillQuantities(dialog, "3", "2");
 
   await userEvent.click(dialog.getByRole("button", { name: "Crear la promoción" }));
@@ -573,7 +573,7 @@ test("switching the kind keeps the name, dates, weekdays and a product sold by t
   await expect
     .element(dialog.getByRole("textbox", { name: /^Nombre/ }))
     .toHaveValue("Yerba de septiembre");
-  await expect.element(productPicker(dialog)).toHaveValue("Yerba Playadito 1 kg");
+  await expect.element(productPicker(dialog)).toHaveValue("Yerba Hoja Alta 1 kg");
   await expect
     .element(dialog.getByRole("button", { name: "Lunes" }))
     .toHaveAttribute("aria-pressed", "true");
@@ -582,7 +582,7 @@ test("switching the kind keeps the name, dates, weekdays and a product sold by t
   await userEvent.click(radioLabel(dialog, "Porcentaje de descuento"));
 
   await expect.element(dialog.getByRole("textbox", { name: /^Descuento/ })).toHaveValue("15");
-  await expect.element(productPicker(dialog)).toHaveValue("Yerba Playadito 1 kg");
+  await expect.element(productPicker(dialog)).toHaveValue("Yerba Hoja Alta 1 kg");
 });
 
 test("switching to buy-N-pay-M leaves no product chosen when the chosen one is sold by weight", async () => {

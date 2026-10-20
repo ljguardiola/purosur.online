@@ -11,7 +11,17 @@ import {
   Tag,
   useTableModel,
 } from "@purosur/ui";
-import { Ban, Check, CreditCard, KeyRound, KeySquare, Laptop, Plus, Upload } from "lucide-react";
+import {
+  Ban,
+  Check,
+  CreditCard,
+  KeyRound,
+  KeySquare,
+  Laptop,
+  Plus,
+  QrCode,
+  Upload,
+} from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useAuthorization } from "../platform/authorization-modal";
 import { cloudTableState } from "../platform/cloud-table-state";
@@ -19,6 +29,7 @@ import { useSendToMyAccount } from "../platform/send-to-my-account";
 import {
   type BackofficeAccess,
   canAssignPointTerminal,
+  canAssignQrPointOfSale,
   canEnrollRegisters,
   canRevokeInstallations,
   canUseBitlockerRecoveryKey,
@@ -26,6 +37,7 @@ import {
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
 import { AssignPointTerminalModal } from "./assign-point-terminal-modal";
+import { AssignQrPointOfSaleModal } from "./assign-qr-point-of-sale-modal";
 import { ConsultBitlockerRecoveryKeyModal } from "./consult-bitlocker-recovery-key-modal";
 import { type EmissionState, EnrollmentCodeModal } from "./enrollment-code-modal";
 import { installationLines } from "./installation-text";
@@ -94,6 +106,7 @@ export function RegistersListScreen({
   const reloadRegister = useReloadRegister({ fetchRegisters });
   const [newModalOpen, setNewModalOpen] = useState(false);
   const [terminalTarget, setTerminalTarget] = useState<RegisterSummary | null>(null);
+  const [qrTarget, setQrTarget] = useState<RegisterSummary | null>(null);
   const [revokeTarget, setRevokeTarget] = useState<RegisterSummary | null>(null);
   const [loadKeyTarget, setLoadKeyTarget] = useState<RegisterSummary | null>(null);
   const [consultKeyTarget, setConsultKeyTarget] = useState<RegisterSummary | null>(null);
@@ -201,6 +214,15 @@ export function RegistersListScreen({
     "aria-label": `Asignar terminal Point a ${item.name}`,
     onPress: () => setTerminalTarget(item),
   });
+  const mayAssignQr = canAssignQrPointOfSale(access);
+  const assignQrAction = (item: RegisterSummary) =>
+    mayAssignQr
+      ? {
+          icon: <QrCode />,
+          "aria-label": `Asignar QR de Mercado Pago a ${item.name}`,
+          onPress: () => setQrTarget(item),
+        }
+      : undefined;
 
   const mayUseKey = canUseBitlockerRecoveryKey(access);
   const bitlockerKeyAction = (item: RegisterSummary) => {
@@ -225,11 +247,17 @@ export function RegistersListScreen({
   const rowActions = (() => {
     if (mayRevoke) {
       return mayAssignTerminal
-        ? ([bitlockerKeyAction, revokeAction, emitAction, assignTerminalAction] as const)
+        ? ([
+            bitlockerKeyAction,
+            revokeAction,
+            emitAction,
+            assignTerminalAction,
+            assignQrAction,
+          ] as const)
         : ([bitlockerKeyAction, revokeAction, emitAction] as const);
     }
     return mayAssignTerminal
-      ? ([bitlockerKeyAction, emitAction, assignTerminalAction] as const)
+      ? ([bitlockerKeyAction, emitAction, assignTerminalAction, assignQrAction] as const)
       : ([bitlockerKeyAction, emitAction] as const);
   })();
 
@@ -304,6 +332,16 @@ export function RegistersListScreen({
         ),
     }),
     dataColumn({
+      id: "qrPointOfSale",
+      header: "QR de Mercado Pago",
+      render: (item: RegisterSummary) =>
+        item.qrExternalPosId === null ? (
+          <span className="text-text-subtle text-detail">Sin asignar</span>
+        ) : (
+          <span className="text-text text-detail">{item.qrExternalPosId}</span>
+        ),
+    }),
+    dataColumn({
       id: "status",
       header: "Estado",
       render: (item: RegisterSummary) => installationStatus(item.installation),
@@ -375,6 +413,17 @@ export function RegistersListScreen({
         onClose={() => setTerminalTarget(null)}
         onSaved={() => {
           setTerminalTarget(null);
+          void refreshRegisters();
+        }}
+        reload={reloadRegister}
+        onSessionEnded={onSessionEnded}
+        services={services}
+      />
+      <AssignQrPointOfSaleModal
+        target={qrTarget}
+        onClose={() => setQrTarget(null)}
+        onSaved={() => {
+          setQrTarget(null);
           void refreshRegisters();
         }}
         reload={reloadRegister}

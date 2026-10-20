@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import {
   assignPointTerminal,
+  assignQrPointOfSale,
   consultBitlockerRecoveryKey,
   createRegister,
   emitEnrollmentCode,
@@ -35,6 +36,8 @@ const register1: RegisterSummary = {
   pointOfSaleNumber: null,
   pointTerminalId: null,
   pointTerminalVersion: 0,
+  qrExternalPosId: null,
+  qrPointOfSaleVersion: 0,
   installation: null,
 };
 const register2Wire = {
@@ -44,6 +47,8 @@ const register2Wire = {
   point_of_sale_number: 3,
   point_terminal_id: "TERM-0042",
   point_terminal_version: 2,
+  qr_external_pos_id: "CAJA2_STORE_POS",
+  qr_point_of_sale_version: 4,
   installation: null,
 };
 const register2: RegisterSummary = {
@@ -53,6 +58,8 @@ const register2: RegisterSummary = {
   pointOfSaleNumber: 3,
   pointTerminalId: "TERM-0042",
   pointTerminalVersion: 2,
+  qrExternalPosId: "CAJA2_STORE_POS",
+  qrPointOfSaleVersion: 4,
   installation: null,
 };
 
@@ -66,6 +73,8 @@ test("fetchRegisters lists every register, translating pending_code and point_of
         point_of_sale_number: null,
         point_terminal_id: null,
         point_terminal_version: 0,
+        qr_external_pos_id: null,
+        qr_point_of_sale_version: 0,
         installation: null,
       },
       register2Wire,
@@ -88,6 +97,8 @@ test("fetchRegisters translates an enrolled and a revoked installation from the 
         point_of_sale_number: null,
         point_terminal_id: null,
         point_terminal_version: 0,
+        qr_external_pos_id: null,
+        qr_point_of_sale_version: 0,
         installation: {
           state: "enrolled",
           hostname: "CAJA-MOSTRADOR",
@@ -103,6 +114,8 @@ test("fetchRegisters translates an enrolled and a revoked installation from the 
         point_of_sale_number: null,
         point_terminal_id: null,
         point_terminal_version: 0,
+        qr_external_pos_id: null,
+        qr_point_of_sale_version: 0,
         installation: {
           state: "revoked",
           hostname: "CAJA-DEPOSITO",
@@ -891,4 +904,114 @@ test("consultBitlockerRecoveryKey returns failed when the request throws", async
   vi.mocked(fetch).mockRejectedValue(new Error("network down"));
 
   expect(await consultBitlockerRecoveryKey("register-2")).toEqual({ kind: "failed" });
+});
+
+const qrAssignmentAnswer = {
+  register_id: "register-1",
+  external_pos_id: "CAJA1_STORE_POS",
+  version: 3,
+};
+
+test("assignQrPointOfSale puts the code and the version, and returns ok on 200", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, qrAssignmentAnswer));
+
+  const outcome = await assignQrPointOfSale("register-1", {
+    external_pos_id: "CAJA1_STORE_POS",
+    version: 2,
+  });
+
+  expect(outcome).toEqual({ kind: "ok" });
+  expect(fetch).toHaveBeenCalledWith("/api/registers/register-1/qr-point-of-sale", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ external_pos_id: "CAJA1_STORE_POS", version: 2 }),
+  });
+});
+
+test("assignQrPointOfSale sends a null code to remove the assignment", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    jsonResponse(200, { ...qrAssignmentAnswer, external_pos_id: null }),
+  );
+
+  expect(await assignQrPointOfSale("register-1", { external_pos_id: null, version: 3 })).toEqual({
+    kind: "ok",
+  });
+});
+
+test("assignQrPointOfSale returns failed on a 200 of another shape", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { assigned: true }));
+
+  expect(await assignQrPointOfSale("register-1", { external_pos_id: "P", version: 0 })).toEqual({
+    kind: "failed",
+  });
+});
+
+test("assignQrPointOfSale returns validation_failed on the named field for a 400", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    jsonResponse(400, {
+      code: "validation_failed",
+      message: "external_pos_id must be a QR point of sale id without spaces",
+      details: [{ field: "external_pos_id" }],
+    }),
+  );
+
+  expect(await assignQrPointOfSale("register-1", { external_pos_id: "A B", version: 0 })).toEqual({
+    kind: "validation_failed",
+    field: "external_pos_id",
+  });
+});
+
+test("assignQrPointOfSale returns not_found on 404", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(404, { code: "not_found" }));
+
+  expect(await assignQrPointOfSale("register-9", { external_pos_id: "P", version: 0 })).toEqual({
+    kind: "not_found",
+  });
+});
+
+test("assignQrPointOfSale tells a taken code from a stale version on 409", async () => {
+  vi.mocked(fetch).mockResolvedValueOnce(
+    jsonResponse(409, { code: "qr_point_of_sale_taken", details: [{ field: "external_pos_id" }] }),
+  );
+  vi.mocked(fetch).mockResolvedValueOnce(jsonResponse(409, { code: "stale_version" }));
+
+  expect(await assignQrPointOfSale("register-1", { external_pos_id: "P", version: 0 })).toEqual({
+    kind: "qr_point_of_sale_taken",
+  });
+  expect(await assignQrPointOfSale("register-1", { external_pos_id: "P", version: 0 })).toEqual({
+    kind: "stale_version",
+  });
+});
+
+test("assignQrPointOfSale returns failed on a 409 of another code", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code: "conflict" }));
+
+  expect(await assignQrPointOfSale("register-1", { external_pos_id: "P", version: 0 })).toEqual({
+    kind: "failed",
+  });
+});
+
+test.each([
+  ["a plain 401", jsonResponse(401), { kind: "unauthenticated" }],
+  ["a 403", jsonResponse(403), { kind: "forbidden" }],
+  [
+    "a 429",
+    jsonResponse(429, undefined, { "Retry-After": "30" }),
+    { kind: "rate_limited", retryAfterSeconds: 30 },
+  ],
+  ["a 500", jsonResponse(500), { kind: "failed" }],
+])("assignQrPointOfSale maps %s", async (_name, response, expected) => {
+  vi.mocked(fetch).mockResolvedValue(response);
+
+  expect(await assignQrPointOfSale("register-1", { external_pos_id: "P", version: 0 })).toEqual(
+    expected,
+  );
+});
+
+test("assignQrPointOfSale returns failed when the request cannot be made", async () => {
+  vi.mocked(fetch).mockRejectedValue(new TypeError("network"));
+
+  expect(await assignQrPointOfSale("register-1", { external_pos_id: "P", version: 0 })).toEqual({
+    kind: "failed",
+  });
 });

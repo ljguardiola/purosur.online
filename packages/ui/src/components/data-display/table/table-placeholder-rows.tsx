@@ -57,7 +57,8 @@ function PlaceholderRow<T extends RowData>({
                 <PlaceholderSquare />
                 {actionCount >= 2 && <PlaceholderSquare />}
                 {actionCount >= 3 && <PlaceholderSquare />}
-                {actionCount === 4 && <PlaceholderSquare />}
+                {actionCount >= 4 && <PlaceholderSquare />}
+                {actionCount === 5 && <PlaceholderSquare />}
               </div>
             ) : (
               <div

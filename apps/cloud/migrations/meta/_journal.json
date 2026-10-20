@@ -817,8 +817,15 @@
     {
       "idx": 116,
       "version": "7",
-      "when": 1792501135130,
-      "tag": "0123_offline_point_of_sale_retirements",
+      "when": 1792491719491,
+      "tag": "0123_register_qr_points_of_sale",
+      "breakpoints": true
+    },
+    {
+      "idx": 117,
+      "version": "7",
+      "when": 1792510138677,
+      "tag": "0124_offline_point_of_sale_retirements",
       "breakpoints": true
     }
   ]

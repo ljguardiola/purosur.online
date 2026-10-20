@@ -24,22 +24,27 @@ const optionsWithDescriptions: Options = [
   {
     value: "yerba",
     label: "Yerba mate",
-    description: "Playadito · 1 kg",
+    description: "Hoja Alta · 1 kg",
     searchKeywords: ["7790001000101"],
   },
   {
     value: "yerba-mini",
     label: "Yerba mate",
-    description: "Taragüí · 500 g",
+    description: "Monte Güirá · 500 g",
     searchKeywords: ["7790001000102"],
   },
-  { value: "cafe", label: "Café molido", description: "La Virginia · 250 g" },
+  { value: "cafe", label: "Café molido", description: "Tostadero Norte · 250 g" },
   { value: "miel", label: "Miel de abeja" },
 ];
 
 const optionsWithStatus: Options = [
-  { value: "yerba", label: "Yerba mate", description: "Playadito · 1 kg" },
-  { value: "cafe", label: "Café molido", description: "La Virginia · 250 g", status: "Inactivo" },
+  { value: "yerba", label: "Yerba mate", description: "Hoja Alta · 1 kg" },
+  {
+    value: "cafe",
+    label: "Café molido",
+    description: "Tostadero Norte · 250 g",
+    status: "Inactivo",
+  },
 ];
 
 const meta: Meta<typeof ComboBox<ProductId>> = {
