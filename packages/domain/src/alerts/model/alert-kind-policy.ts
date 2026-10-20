@@ -269,6 +269,14 @@ const ALERT_KIND_POLICIES = {
     deduplicates: true,
     resolvesAfterStableClear: false,
   },
+  register_backup_overdue: {
+    level: "critical",
+    escalation: null,
+    audience: "all",
+    scopeKind: "register",
+    deduplicates: true,
+    resolvesAfterStableClear: true,
+  },
 } as const satisfies Record<AlertKind, AlertKindPolicy>;
 
 export function alertKindPolicy(kind: AlertKind): AlertKindPolicy {
