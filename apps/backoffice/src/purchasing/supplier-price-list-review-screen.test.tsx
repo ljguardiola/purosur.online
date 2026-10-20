@@ -130,7 +130,7 @@ test("counts the items shown and the ones without a price", async () => {
   await expect.element(screen.getByText("1 a 3 de 3 ítems · 2 sin precio")).toBeVisible();
 });
 
-test("shows the items in pages of 50", async () => {
+test("shows the items in pages of 25", async () => {
   const rows = Array.from({ length: 120 }, (_, index) => ({
     id: `5b200000-0000-4000-8000-${String(index).padStart(12, "0")}`,
     description: `Ítem ${index + 1}`,
@@ -144,12 +144,12 @@ test("shows the items in pages of 50", async () => {
     reviewOf({ ...READ_LIST, unpricedRowCount: 0 }, rows),
   );
 
-  await expect.element(screen.getByText("1 a 50 de 120 ítems")).toBeVisible();
-  expect(itemRows(screen)).toHaveLength(50);
+  await expect.element(screen.getByText("1 a 25 de 120 ítems")).toBeVisible();
+  expect(itemRows(screen)).toHaveLength(25);
 
   await userEvent.click(screen.getByRole("button", { name: /Siguiente/ }));
 
-  await expect.element(screen.getByText("51 a 100 de 120 ítems")).toBeVisible();
+  await expect.element(screen.getByText("26 a 50 de 120 ítems")).toBeVisible();
 });
 
 test("the search field filters the items by description or code, and reports the filters", async () => {
