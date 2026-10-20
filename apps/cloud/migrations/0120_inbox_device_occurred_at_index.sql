@@ -1,1 +1,0 @@
-CREATE INDEX "inbox_device_id_occurred_at_idx" ON "inbox" USING btree ("device_id","occurred_at");

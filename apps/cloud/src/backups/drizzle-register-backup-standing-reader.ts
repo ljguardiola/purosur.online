@@ -1,6 +1,6 @@
 import type { RegisterBackupStanding } from "@purosur/domain";
 import type { RegisterBackupStandingReader } from "@purosur/domain/alerts/use-cases";
-import { and, eq, exists, gt, isNull, max, min, or } from "drizzle-orm";
+import { and, desc, eq, exists, gt, isNull, min, or } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { alias } from "drizzle-orm/pg-core";
 import {
@@ -22,14 +22,17 @@ export class DrizzleRegisterBackupStandingReader<TQueryResult extends PgQueryRes
   async watchedRegisterBackupStandings(): Promise<RegisterBackupStanding[]> {
     const activeInstallation = alias(registerInstallations, "active_installation");
     const anyInstallation = alias(registerInstallations, "any_installation");
+    const lastVerifiedInstallation = alias(registerInstallations, "last_verified_installation");
     const lastVerified = this.db
-      .select({
+      .selectDistinctOn([registerSnapshotGenerations.registerId], {
         registerId: registerSnapshotGenerations.registerId,
-        createdAt: max(registerSnapshotGenerations.createdAt).as("last_verified_at"),
+        deviceId: registerSnapshotGenerations.deviceId,
+        lastDeviceSeq: registerSnapshotGenerations.lastDeviceSeq,
+        createdAt: registerSnapshotGenerations.createdAt,
       })
       .from(registerSnapshotGenerations)
       .where(eq(registerSnapshotGenerations.status, "verified"))
-      .groupBy(registerSnapshotGenerations.registerId)
+      .orderBy(registerSnapshotGenerations.registerId, desc(registerSnapshotGenerations.createdAt))
       .as("last_verified");
     const rows = await this.db
       .select({
@@ -39,12 +42,20 @@ export class DrizzleRegisterBackupStandingReader<TQueryResult extends PgQueryRes
       })
       .from(registers)
       .leftJoin(lastVerified, eq(lastVerified.registerId, registers.id))
+      .leftJoin(lastVerifiedInstallation, eq(lastVerifiedInstallation.id, lastVerified.deviceId))
       .leftJoin(anyInstallation, eq(anyInstallation.registerId, registers.id))
       .leftJoin(
         inbox,
         and(
           eq(inbox.deviceId, anyInstallation.id),
-          or(isNull(lastVerified.createdAt), gt(inbox.occurredAt, lastVerified.createdAt)),
+          or(
+            isNull(lastVerified.createdAt),
+            and(
+              eq(anyInstallation.id, lastVerified.deviceId),
+              gt(inbox.deviceSeq, lastVerified.lastDeviceSeq),
+            ),
+            gt(anyInstallation.enrolledAt, lastVerifiedInstallation.enrolledAt),
+          ),
         ),
       )
       .where(

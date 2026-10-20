@@ -1205,6 +1205,7 @@ export const registerSnapshotGenerations = pgTable(
     size: bigint("size", { mode: "number" }).notNull(),
     sha256: text("sha256").notNull(),
     keyVersion: integer("key_version").notNull(),
+    lastDeviceSeq: bigint("last_device_seq", { mode: "number" }).notNull().default(0),
     status: snapshotGenerationStatus("status").notNull().default("declared"),
     failureReason: snapshotFailureReason("failure_reason"),
     uploadReportedAt: timestamp("upload_reported_at", { withTimezone: true }),
@@ -1345,7 +1346,6 @@ export const inbox = pgTable(
     index("inbox_applied_aggregate_idx")
       .on(table.aggregateType, table.aggregateId)
       .where(sql`${table.appliedAt} is not null`),
-    index("inbox_device_id_occurred_at_idx").on(table.deviceId, table.occurredAt),
   ],
 );
 

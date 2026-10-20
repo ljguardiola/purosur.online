@@ -1,5 +1,5 @@
 {
-  "id": "95bbbe11-365e-4e1b-845b-040d8943ce91",
+  "id": "d8afa9dd-9133-45e8-88e9-70fd97938be9",
   "prevId": "55db4f9e-bb59-4f8b-8c18-8b639745475c",
   "version": "7",
   "dialect": "postgresql",
@@ -3312,27 +3312,6 @@
           ],
           "isUnique": false,
           "where": "\"inbox\".\"applied_at\" is not null",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "inbox_device_id_occurred_at_idx": {
-          "name": "inbox_device_id_occurred_at_idx",
-          "columns": [
-            {
-              "expression": "device_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "occurred_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -7591,6 +7570,13 @@
           "type": "integer",
           "primaryKey": false,
           "notNull": true
+        },
+        "last_device_seq": {
+          "name": "last_device_seq",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
         },
         "status": {
           "name": "status",
