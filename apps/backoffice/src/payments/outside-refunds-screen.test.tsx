@@ -6,8 +6,10 @@ import { userEvent } from "vitest/browser";
 import { createQueryClient } from "../platform/query-client";
 import { render } from "../shell/test-support/render-with-router";
 import { OutsideRefundsScreen } from "./outside-refunds-screen";
-import type { RefundsScreenServices } from "./refunds-services";
+import type { OutsideRefundsScreenServices } from "./outside-refunds-services";
 import { type OutsideRefundsFilters, outsideRefundsFilters } from "./routes";
+import { deferred } from "./test-support/deferred";
+import { createOutsideRefundsServices } from "./test-support/outside-refunds-screen-services";
 import {
   LATE_POINT_PAYMENT_REFUND_ID,
   noPendingRefunds,
@@ -17,17 +19,18 @@ import {
   pendingRefundsWithLatePointPayment,
   SECOND_REFUND_ID,
   TRANSFER_REFUND_ID,
+  transferRefund,
 } from "./test-support/refund-fixtures";
-import { createRefundsServices, deferred } from "./test-support/refunds-screen-services";
 
 beforeEach(() => {
   window.history.pushState(null, "", "/");
 });
 
 const FRONT_REGISTER_ID = "33333333-3333-4333-8333-333333333333";
+const MAIN_REGISTER_ID = "11111111-1111-4111-8111-111111111111";
 
 function renderScreen(
-  services: RefundsScreenServices,
+  services: OutsideRefundsScreenServices,
   onSessionEnded = () => {},
   {
     filters = outsideRefundsFilters.parse({}),
@@ -51,7 +54,7 @@ function renderScreen(
   );
 }
 
-async function loaded(services: RefundsScreenServices) {
+async function loaded(services: OutsideRefundsScreenServices) {
   vi.mocked(services.fetchPendingRefunds).mockResolvedValue({ kind: "ok", value: pendingRefunds });
   const screen = await renderScreen(services);
   await expect.element(screen.getByRole("table", { name: "Reembolsos sin API" })).toBeVisible();
@@ -59,7 +62,7 @@ async function loaded(services: RefundsScreenServices) {
 }
 
 async function loadedWithPoint(
-  services: RefundsScreenServices,
+  services: OutsideRefundsScreenServices,
   options?: Parameters<typeof renderScreen>[2],
 ) {
   vi.mocked(services.fetchPendingRefunds).mockResolvedValue({
@@ -80,7 +83,7 @@ function rowTexts(screen: Awaited<ReturnType<typeof renderScreen>>) {
 }
 
 test("shows the eyebrow, the heading and each refund made outside the system with since when, why, how, how much", async () => {
-  const services = createRefundsServices();
+  const services = createOutsideRefundsServices();
   const screen = await loaded(services);
 
   await expect.element(screen.getByText("Caja y fiscal · Tareas")).toBeVisible();
@@ -102,7 +105,7 @@ test("shows the eyebrow, the heading and each refund made outside the system wit
 });
 
 test("heads the list by since when, why, how and how much, with no column for the register or the canceller", async () => {
-  const services = createRefundsServices();
+  const services = createOutsideRefundsServices();
   const screen = await loaded(services);
 
   const headers = screen
@@ -117,7 +120,7 @@ test("heads the list by since when, why, how and how much, with no column for th
 });
 
 test("lists only the refunds made outside the system, leaving out the ones Mercado Pago sends", async () => {
-  const services = createRefundsServices();
+  const services = createOutsideRefundsServices();
   vi.mocked(services.fetchPendingRefunds).mockResolvedValue({
     kind: "ok",
     value: pendingRefundsWithLatePayment,
@@ -131,7 +134,7 @@ test("lists only the refunds made outside the system, leaving out the ones Merca
 });
 
 test("tells a Point refund made outside the system by its method alone", async () => {
-  const services = createRefundsServices();
+  const services = createOutsideRefundsServices();
   const screen = await loadedWithPoint(services);
 
   await expect.element(screen.getByText("$ 760,00", { exact: true })).toBeVisible();
@@ -140,8 +143,32 @@ test("tells a Point refund made outside the system by its method alone", async (
   expect(pointRow).not.toContain("Sin confirmar");
 });
 
+test("names the Mercado Pago order under the method of a refund made outside the system that carries one", async () => {
+  const services = createOutsideRefundsServices();
+  vi.mocked(services.fetchPendingRefunds).mockResolvedValue({
+    kind: "ok",
+    value: {
+      refunds: [
+        {
+          ...transferRefund,
+          method: "POINT",
+          origin: "late_payment",
+          provider_order_id: "ORD01JQ4S4KY8HWQ6NA5PXB65B3D3",
+        },
+      ],
+    },
+  });
+
+  const screen = await renderScreen(services);
+
+  await expect.element(screen.getByText("$ 2.500,00", { exact: true })).toBeVisible();
+  const [row] = rowTexts(screen);
+  expect(row).toContain("Point integrada");
+  expect(row).toContain("Orden ORD01JQ4S4KY8HWQ6NA5PXB65B3D3");
+});
+
 test("explains under the table that these refunds are made outside the system and marked as done here", async () => {
-  const services = createRefundsServices();
+  const services = createOutsideRefundsServices();
   const screen = await loaded(services);
 
   await expect
@@ -150,7 +177,7 @@ test("explains under the table that these refunds are made outside the system an
 });
 
 test("filters the loaded refunds by the register that took them, offering every register in the list", async () => {
-  const services = createRefundsServices();
+  const services = createOutsideRefundsServices();
   const onFiltersChange = vi.fn();
   const screen = await loadedWithPoint(services, { onFiltersChange });
   await expect.element(screen.getByText("$ 760,00", { exact: true })).toBeVisible();
@@ -170,7 +197,7 @@ test("filters the loaded refunds by the register that took them, offering every 
 });
 
 test("opens on the register the address carries", async () => {
-  const services = createRefundsServices();
+  const services = createOutsideRefundsServices();
   const screen = await loadedWithPoint(services, {
     filters: { register: FRONT_REGISTER_ID, method: "all" },
   });
@@ -181,7 +208,7 @@ test("opens on the register the address carries", async () => {
 });
 
 test("shows every refund and reports every register when the address carries a register the list has none for", async () => {
-  const services = createRefundsServices();
+  const services = createOutsideRefundsServices();
   const onFiltersChange = vi.fn();
   const { promise, resolve } = deferred<Awaited<ReturnType<typeof services.fetchPendingRefunds>>>();
   vi.mocked(services.fetchPendingRefunds).mockReturnValue(promise);
@@ -202,7 +229,7 @@ test("shows every refund and reports every register when the address carries a r
 });
 
 test("offers only the registers of the refunds made outside the system", async () => {
-  const services = createRefundsServices();
+  const services = createOutsideRefundsServices();
   vi.mocked(services.fetchPendingRefunds).mockResolvedValue({
     kind: "ok",
     value: pendingRefundsWithLatePayment,
@@ -220,7 +247,7 @@ test("offers only the registers of the refunds made outside the system", async (
 });
 
 test("filters the loaded refunds by method, offering every method present in the list sorted by name", async () => {
-  const services = createRefundsServices();
+  const services = createOutsideRefundsServices();
   const onFiltersChange = vi.fn();
   const screen = await loadedWithPoint(services, { onFiltersChange });
   await expect.element(screen.getByText("$ 760,00", { exact: true })).toBeVisible();
@@ -239,7 +266,7 @@ test("filters the loaded refunds by method, offering every method present in the
 });
 
 test("offers only the methods of the refunds made outside the system", async () => {
-  const services = createRefundsServices();
+  const services = createOutsideRefundsServices();
   vi.mocked(services.fetchPendingRefunds).mockResolvedValue({
     kind: "ok",
     value: pendingRefundsWithLatePayment,
@@ -257,7 +284,7 @@ test("offers only the methods of the refunds made outside the system", async () 
 });
 
 test("combines the register and the method filters", async () => {
-  const services = createRefundsServices();
+  const services = createOutsideRefundsServices();
   const screen = await loadedWithPoint(services, {
     filters: { register: FRONT_REGISTER_ID, method: "POINT" },
   });
@@ -267,7 +294,7 @@ test("combines the register and the method filters", async () => {
 });
 
 test("opens on the method the address carries", async () => {
-  const services = createRefundsServices();
+  const services = createOutsideRefundsServices();
   const screen = await loadedWithPoint(services, {
     filters: { register: "all", method: "TRANSFER" },
   });
@@ -278,7 +305,7 @@ test("opens on the method the address carries", async () => {
 });
 
 test("shows every refund and reports every method when the address carries a method the list has none for", async () => {
-  const services = createRefundsServices();
+  const services = createOutsideRefundsServices();
   const onFiltersChange = vi.fn();
   const { promise, resolve } = deferred<Awaited<ReturnType<typeof services.fetchPendingRefunds>>>();
   vi.mocked(services.fetchPendingRefunds).mockReturnValue(promise);
@@ -298,8 +325,21 @@ test("shows every refund and reports every method when the address carries a met
     .toEqual([{ register: "all", method: "all" }]);
 });
 
+test("says no refund matches the filters when the register and the method chosen together hide every refund", async () => {
+  const services = createOutsideRefundsServices();
+  const screen = await loadedWithPoint(services, {
+    filters: { register: MAIN_REGISTER_ID, method: "POINT" },
+  });
+
+  await expect
+    .element(screen.getByText("No hay reembolsos pendientes con estos filtros"))
+    .toBeVisible();
+  await expect.element(screen.getByText("Probá con otra caja o con otro medio.")).toBeVisible();
+  expect(screen.getByText("Sin reembolsos pendientes", { exact: true }).query()).toBeNull();
+});
+
 test("shows the empty state when every pending refund is one Mercado Pago sends", async () => {
-  const services = createRefundsServices();
+  const services = createOutsideRefundsServices();
   vi.mocked(services.fetchPendingRefunds).mockResolvedValue({
     kind: "ok",
     value: pendingRefundsOfEveryCloudRefundStage,
@@ -314,7 +354,7 @@ test("shows the empty state when every pending refund is one Mercado Pago sends"
 });
 
 test("shows the empty state when no refund is pending at all", async () => {
-  const services = createRefundsServices();
+  const services = createOutsideRefundsServices();
   vi.mocked(services.fetchPendingRefunds).mockResolvedValue({
     kind: "ok",
     value: noPendingRefunds,
@@ -326,7 +366,7 @@ test("shows the empty state when no refund is pending at all", async () => {
 });
 
 test("shows the table loading while the refunds load", async () => {
-  const services = createRefundsServices();
+  const services = createOutsideRefundsServices();
   const firstLoad = deferred<Awaited<ReturnType<typeof services.fetchPendingRefunds>>>();
   vi.mocked(services.fetchPendingRefunds).mockReturnValueOnce(firstLoad.promise);
 
@@ -338,7 +378,7 @@ test("shows the table loading while the refunds load", async () => {
 });
 
 test("shows a load error with a retry action that starts again from the loading placeholder", async () => {
-  const services = createRefundsServices();
+  const services = createOutsideRefundsServices();
   const retry = deferred<Awaited<ReturnType<typeof services.fetchPendingRefunds>>>();
   vi.mocked(services.fetchPendingRefunds)
     .mockResolvedValueOnce({ kind: "failed" })
@@ -356,7 +396,7 @@ test("shows a load error with a retry action that starts again from the loading 
 });
 
 test("shows the rate-limited notice with the time to wait", async () => {
-  const services = createRefundsServices();
+  const services = createOutsideRefundsServices();
   vi.mocked(services.fetchPendingRefunds).mockResolvedValue({
     kind: "rate_limited",
     retryAfterSeconds: 120,
@@ -370,7 +410,7 @@ test("shows the rate-limited notice with the time to wait", async () => {
 
 test("navigates to Mi cuenta when the refunds request comes back forbidden", async () => {
   window.history.pushState(null, "", "/refunds/outside-the-system");
-  const services = createRefundsServices();
+  const services = createOutsideRefundsServices();
   vi.mocked(services.fetchPendingRefunds).mockResolvedValue({ kind: "forbidden" });
 
   await renderScreen(services);
@@ -379,7 +419,7 @@ test("navigates to Mi cuenta when the refunds request comes back forbidden", asy
 });
 
 test("ends the session when the refunds request finds no open session", async () => {
-  const services = createRefundsServices();
+  const services = createOutsideRefundsServices();
   vi.mocked(services.fetchPendingRefunds).mockResolvedValue({ kind: "unauthenticated" });
   const onSessionEnded = vi.fn();
 
@@ -389,7 +429,7 @@ test("ends the session when the refunds request finds no open session", async ()
 });
 
 test("offers marking as done on every refund, and discarding only the ones the cloud says are discardable, never sending", async () => {
-  const services = createRefundsServices();
+  const services = createOutsideRefundsServices();
   const screen = await loadedWithPoint(services);
 
   await expect
@@ -409,7 +449,7 @@ test("offers marking as done on every refund, and discarding only the ones the c
 });
 
 test("discarding a refund asks first, then discards it, reads the refunds again and the refund leaves the list", async () => {
-  const services = createRefundsServices();
+  const services = createOutsideRefundsServices();
   vi.mocked(services.discardRefund).mockResolvedValue({ kind: "ok" });
   const screen = await loadedWithPoint(services);
 
@@ -428,7 +468,7 @@ test("discarding a refund asks first, then discards it, reads the refunds again 
 });
 
 test("cancel closes the discard question and the refund stays listed", async () => {
-  const services = createRefundsServices();
+  const services = createOutsideRefundsServices();
   const screen = await loadedWithPoint(services);
   await userEvent.click(screen.getByRole("button", { name: "Descartar el reembolso de $ 760,00" }));
 
@@ -440,7 +480,7 @@ test("cancel closes the discard question and the refund stays listed", async () 
 });
 
 test("marking a refund as done asks first, then marks it and the refund leaves the list", async () => {
-  const services = createRefundsServices();
+  const services = createOutsideRefundsServices();
   vi.mocked(services.markRefundDone).mockResolvedValue({ kind: "ok" });
   const screen = await loaded(services);
 
@@ -466,7 +506,7 @@ test("marking a refund as done asks first, then marks it and the refund leaves t
 });
 
 test("marking a refund as done reads the refunds again and leaves other concepts' data as it was", async () => {
-  const services = createRefundsServices();
+  const services = createOutsideRefundsServices();
   vi.mocked(services.fetchPendingRefunds).mockResolvedValue({ kind: "ok", value: pendingRefunds });
   vi.mocked(services.markRefundDone).mockResolvedValue({ kind: "ok" });
   const queryClient = createQueryClient();
@@ -499,7 +539,7 @@ test("marking a refund as done reads the refunds again and leaves other concepts
 });
 
 test("a refund another person already marked as done leaves the list once the list is updated", async () => {
-  const services = createRefundsServices();
+  const services = createOutsideRefundsServices();
   vi.mocked(services.markRefundDone).mockResolvedValue({ kind: "already_done" });
   const screen = await loaded(services);
   await userEvent.click(
@@ -520,7 +560,7 @@ test("a refund another person already marked as done leaves the list once the li
 });
 
 test("cancel closes the question and the refund stays listed", async () => {
-  const services = createRefundsServices();
+  const services = createOutsideRefundsServices();
   const screen = await loaded(services);
   await userEvent.click(
     screen.getByRole("button", { name: "Marcar como hecho el reembolso de $ 2.500,00" }),

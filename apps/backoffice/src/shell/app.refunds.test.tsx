@@ -1,3 +1,4 @@
+import type { PendingRefundsBody } from "@purosur/contracts";
 import type { Capability } from "@purosur/domain";
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
@@ -8,7 +9,7 @@ import {
   pendingRefundsWithLatePointPayment,
 } from "../payments/test-support/refund-fixtures";
 import { openSession } from "../sessions/test-support/open-session";
-import { App } from "./app";
+import { App, type AppServices } from "./app";
 import { emptyHelp, resetPageState } from "./test-support/app";
 import { createAppServices } from "./test-support/app-services";
 import { opensOnlyScreens } from "./test-support/screen-routes";
@@ -36,11 +37,14 @@ function refundsServices(capabilities: Capability[]) {
     ),
   });
   vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
-  vi.mocked(services.refundsScreens.fetchPendingRefunds).mockResolvedValue({
-    kind: "ok",
-    value: pendingRefundsWithLatePayment,
-  });
+  answerPendingRefunds(services, pendingRefundsWithLatePayment);
   return services;
+}
+
+function answerPendingRefunds(services: AppServices, refunds: PendingRefundsBody) {
+  for (const screenServices of [services.mercadoPagoRefundsScreen, services.outsideRefundsScreen]) {
+    vi.mocked(screenServices.fetchPendingRefunds).mockResolvedValue({ kind: "ok", value: refunds });
+  }
 }
 
 test("opens the Mercado Pago refunds from the rail's Caja item for a user who only confirms refunds", async () => {
@@ -135,7 +139,8 @@ test.each(["/refunds/mercado-pago", "/refunds/outside-the-system"])(
     await expect
       .element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 }))
       .toBeVisible();
-    expect(services.refundsScreens.fetchPendingRefunds).not.toHaveBeenCalled();
+    expect(services.mercadoPagoRefundsScreen.fetchPendingRefunds).not.toHaveBeenCalled();
+    expect(services.outsideRefundsScreen.fetchPendingRefunds).not.toHaveBeenCalled();
   },
 );
 
@@ -167,10 +172,7 @@ test.each([
   "keeps the register chosen in the address of $path",
   async ({ path, chosen, hidden, shown, register }) => {
     const services = refundsServices(["refunds_area"]);
-    vi.mocked(services.refundsScreens.fetchPendingRefunds).mockResolvedValue({
-      kind: "ok",
-      value: pendingRefundsOfBothKinds,
-    });
+    answerPendingRefunds(services, pendingRefundsOfBothKinds);
     window.history.pushState(null, "", path);
 
     const screen = await render(<App help={emptyHelp} services={services} />);
@@ -189,10 +191,7 @@ test.each([
   { path: "/refunds/outside-the-system", hidden: "$ 2.500,00", shown: "$ 980,00" },
 ])("opens $path on the register the address carries", async ({ path, hidden, shown }) => {
   const services = refundsServices(["refunds_area"]);
-  vi.mocked(services.refundsScreens.fetchPendingRefunds).mockResolvedValue({
-    kind: "ok",
-    value: pendingRefundsOfBothKinds,
-  });
+  answerPendingRefunds(services, pendingRefundsOfBothKinds);
   const register = path.endsWith("mercado-pago")
     ? "33333333-3333-4333-8333-333333333333"
     : "22222222-2222-4222-8222-222222222222";
@@ -206,10 +205,7 @@ test.each([
 
 test("keeps the method chosen in the address of the refunds without an API", async () => {
   const services = refundsServices(["refunds_area"]);
-  vi.mocked(services.refundsScreens.fetchPendingRefunds).mockResolvedValue({
-    kind: "ok",
-    value: pendingRefundsWithLatePointPayment,
-  });
+  answerPendingRefunds(services, pendingRefundsWithLatePointPayment);
   window.history.pushState(null, "", "/refunds/outside-the-system");
 
   const screen = await render(<App help={emptyHelp} services={services} />);

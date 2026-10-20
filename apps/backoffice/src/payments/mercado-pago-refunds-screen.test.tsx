@@ -6,8 +6,10 @@ import { userEvent } from "vitest/browser";
 import { createQueryClient } from "../platform/query-client";
 import { render } from "../shell/test-support/render-with-router";
 import { MercadoPagoRefundsScreen } from "./mercado-pago-refunds-screen";
-import type { RefundsScreenServices } from "./refunds-services";
+import type { MercadoPagoRefundsScreenServices } from "./mercado-pago-refunds-services";
 import { type MercadoPagoRefundsFilters, mercadoPagoRefundsFilters } from "./routes";
+import { deferred } from "./test-support/deferred";
+import { createMercadoPagoRefundsServices } from "./test-support/mercado-pago-refunds-screen-services";
 import {
   CLOUD_SENT_REFUND_ID,
   LATE_PAYMENT_REFUND_ID,
@@ -23,7 +25,6 @@ import {
   pendingRefundsWithUnconfirmedCloudRefund,
   pendingRefundsWithUnconfirmedPointRefund,
 } from "./test-support/refund-fixtures";
-import { createRefundsServices, deferred } from "./test-support/refunds-screen-services";
 
 beforeEach(() => {
   window.history.pushState(null, "", "/");
@@ -32,7 +33,7 @@ beforeEach(() => {
 const FRONT_REGISTER_ID = "33333333-3333-4333-8333-333333333333";
 
 function renderScreen(
-  services: RefundsScreenServices,
+  services: MercadoPagoRefundsScreenServices,
   onSessionEnded = () => {},
   {
     filters = mercadoPagoRefundsFilters.parse({}),
@@ -56,7 +57,7 @@ function renderScreen(
   );
 }
 
-async function loaded(services: RefundsScreenServices) {
+async function loaded(services: MercadoPagoRefundsScreenServices) {
   vi.mocked(services.fetchPendingRefunds).mockResolvedValue({
     kind: "ok",
     value: pendingRefundsWithLatePayment,
@@ -75,7 +76,7 @@ function rowTexts(screen: Awaited<ReturnType<typeof renderScreen>>) {
 }
 
 test("shows the eyebrow, the heading and each Mercado Pago refund with since when, why, how, how much", async () => {
-  const services = createRefundsServices();
+  const services = createMercadoPagoRefundsServices();
   const screen = await loaded(services);
 
   await expect
@@ -100,7 +101,7 @@ test("shows the eyebrow, the heading and each Mercado Pago refund with since whe
 });
 
 test("heads the list by since when, why, how and how much, with no column for the register", async () => {
-  const services = createRefundsServices();
+  const services = createMercadoPagoRefundsServices();
   const screen = await loaded(services);
 
   const headers = screen
@@ -112,14 +113,14 @@ test("heads the list by since when, why, how and how much, with no column for th
 });
 
 test("lists only the refunds Mercado Pago sends, leaving out the ones made outside the system", async () => {
-  const services = createRefundsServices();
+  const services = createMercadoPagoRefundsServices();
   const screen = await loaded(services);
 
   expect(screen.getByText("$ 2.500,00", { exact: true }).query()).toBeNull();
 });
 
 test("leaves out a Point refund that is made outside the system", async () => {
-  const services = createRefundsServices();
+  const services = createMercadoPagoRefundsServices();
   vi.mocked(services.fetchPendingRefunds).mockResolvedValue({
     kind: "ok",
     value: pendingRefundsWithLatePointPayment,
@@ -132,7 +133,7 @@ test("leaves out a Point refund that is made outside the system", async () => {
 });
 
 test("tells, in the method cell of a refund for a second paid order, the order Mercado Pago gave", async () => {
-  const services = createRefundsServices();
+  const services = createMercadoPagoRefundsServices();
   vi.mocked(services.fetchPendingRefunds).mockResolvedValue({
     kind: "ok",
     value: pendingRefundsWithLatePaymentOfOtherOrder,
@@ -148,7 +149,7 @@ test("tells, in the method cell of a refund for a second paid order, the order M
 });
 
 test("explains under the table which refunds are sent only once confirmed here and which ones are sent without a step here", async () => {
-  const services = createRefundsServices();
+  const services = createMercadoPagoRefundsServices();
   const screen = await loaded(services);
 
   await expect
@@ -161,7 +162,7 @@ test("explains under the table which refunds are sent only once confirmed here a
 });
 
 test("filters the loaded refunds by the register that took them, offering only the registers of the listed refunds", async () => {
-  const services = createRefundsServices();
+  const services = createMercadoPagoRefundsServices();
   const onFiltersChange = vi.fn();
   vi.mocked(services.fetchPendingRefunds).mockResolvedValue({
     kind: "ok",
@@ -185,7 +186,7 @@ test("filters the loaded refunds by the register that took them, offering only t
 });
 
 test("opens on the register the address carries", async () => {
-  const services = createRefundsServices();
+  const services = createMercadoPagoRefundsServices();
   vi.mocked(services.fetchPendingRefunds).mockResolvedValue({
     kind: "ok",
     value: pendingRefundsOfTwoMercadoPagoRegisters,
@@ -201,7 +202,7 @@ test("opens on the register the address carries", async () => {
 });
 
 test("shows every refund and reports every register when the address carries a register the list has none for", async () => {
-  const services = createRefundsServices();
+  const services = createMercadoPagoRefundsServices();
   const onFiltersChange = vi.fn();
   const { promise, resolve } = deferred<Awaited<ReturnType<typeof services.fetchPendingRefunds>>>();
   vi.mocked(services.fetchPendingRefunds).mockReturnValue(promise);
@@ -220,7 +221,7 @@ test("shows every refund and reports every register when the address carries a r
 });
 
 test("shows the empty state when no Mercado Pago refund is pending, even if others are made outside the system", async () => {
-  const services = createRefundsServices();
+  const services = createMercadoPagoRefundsServices();
   vi.mocked(services.fetchPendingRefunds).mockResolvedValue({
     kind: "ok",
     value: pendingRefunds,
@@ -233,7 +234,7 @@ test("shows the empty state when no Mercado Pago refund is pending, even if othe
 });
 
 test("shows the empty state when no refund is pending at all", async () => {
-  const services = createRefundsServices();
+  const services = createMercadoPagoRefundsServices();
   vi.mocked(services.fetchPendingRefunds).mockResolvedValue({
     kind: "ok",
     value: noPendingRefunds,
@@ -245,7 +246,7 @@ test("shows the empty state when no refund is pending at all", async () => {
 });
 
 test("shows the table loading while the refunds load", async () => {
-  const services = createRefundsServices();
+  const services = createMercadoPagoRefundsServices();
   const firstLoad = deferred<Awaited<ReturnType<typeof services.fetchPendingRefunds>>>();
   vi.mocked(services.fetchPendingRefunds).mockReturnValueOnce(firstLoad.promise);
 
@@ -257,7 +258,7 @@ test("shows the table loading while the refunds load", async () => {
 });
 
 test("shows a load error with a retry action that starts again from the loading placeholder", async () => {
-  const services = createRefundsServices();
+  const services = createMercadoPagoRefundsServices();
   const retry = deferred<Awaited<ReturnType<typeof services.fetchPendingRefunds>>>();
   vi.mocked(services.fetchPendingRefunds)
     .mockResolvedValueOnce({ kind: "failed" })
@@ -277,7 +278,7 @@ test("shows a load error with a retry action that starts again from the loading 
 });
 
 test("shows the rate-limited notice with the time to wait", async () => {
-  const services = createRefundsServices();
+  const services = createMercadoPagoRefundsServices();
   vi.mocked(services.fetchPendingRefunds).mockResolvedValue({
     kind: "rate_limited",
     retryAfterSeconds: 120,
@@ -291,7 +292,7 @@ test("shows the rate-limited notice with the time to wait", async () => {
 
 test("navigates to Mi cuenta when the refunds request comes back forbidden", async () => {
   window.history.pushState(null, "", "/refunds/mercado-pago");
-  const services = createRefundsServices();
+  const services = createMercadoPagoRefundsServices();
   vi.mocked(services.fetchPendingRefunds).mockResolvedValue({ kind: "forbidden" });
 
   await renderScreen(services);
@@ -300,7 +301,7 @@ test("navigates to Mi cuenta when the refunds request comes back forbidden", asy
 });
 
 test("ends the session when the refunds request finds no open session", async () => {
-  const services = createRefundsServices();
+  const services = createMercadoPagoRefundsServices();
   vi.mocked(services.fetchPendingRefunds).mockResolvedValue({ kind: "unauthenticated" });
   const onSessionEnded = vi.fn();
 
@@ -310,7 +311,7 @@ test("ends the session when the refunds request finds no open session", async ()
 });
 
 test("offers to send and to discard a late QR payment's refund, never to mark it done, while nobody confirmed it", async () => {
-  const services = createRefundsServices();
+  const services = createMercadoPagoRefundsServices();
   const screen = await loaded(services);
 
   await expect
@@ -326,7 +327,7 @@ test("offers to send and to discard a late QR payment's refund, never to mark it
 });
 
 test("offers neither sending nor discarding a late QR payment's refund once it was confirmed, and tells how far it got", async () => {
-  const services = createRefundsServices();
+  const services = createMercadoPagoRefundsServices();
   vi.mocked(services.fetchPendingRefunds).mockResolvedValue({
     kind: "ok",
     value: pendingRefundsWithConfirmedLatePayment,
@@ -340,7 +341,7 @@ test("offers neither sending nor discarding a late QR payment's refund once it w
 });
 
 test("offers to send to Mercado Pago, and never to discard, the Point refund of a cancelled sale", async () => {
-  const services = createRefundsServices();
+  const services = createMercadoPagoRefundsServices();
   vi.mocked(services.fetchPendingRefunds).mockResolvedValue({
     kind: "ok",
     value: pendingRefundsWithUnconfirmedPointRefund,
@@ -357,7 +358,7 @@ test("offers to send to Mercado Pago, and never to discard, the Point refund of 
 });
 
 test("offers sending a QR refund of a cancelled sale to Mercado Pago", async () => {
-  const services = createRefundsServices();
+  const services = createMercadoPagoRefundsServices();
   vi.mocked(services.fetchPendingRefunds).mockResolvedValue({
     kind: "ok",
     value: pendingRefundsWithUnconfirmedCloudRefund,
@@ -374,7 +375,7 @@ test("offers sending a QR refund of a cancelled sale to Mercado Pago", async () 
 });
 
 test("tells how far each QR refund the cloud sends got, offering sending only the unconfirmed one and discarding only the one Mercado Pago refused for good", async () => {
-  const services = createRefundsServices();
+  const services = createMercadoPagoRefundsServices();
   vi.mocked(services.fetchPendingRefunds).mockResolvedValue({
     kind: "ok",
     value: pendingRefundsOfEveryCloudRefundStage,
@@ -391,7 +392,7 @@ test("tells how far each QR refund the cloud sends got, offering sending only th
 });
 
 test("tells a voided sale's Mercado Pago refunds by their origin and how far they got, offering no action on them", async () => {
-  const services = createRefundsServices();
+  const services = createMercadoPagoRefundsServices();
   vi.mocked(services.fetchPendingRefunds).mockResolvedValue({
     kind: "ok",
     value: pendingRefundsOfVoidedSalePaidThroughMercadoPago,
@@ -410,7 +411,7 @@ test("tells a voided sale's Mercado Pago refunds by their origin and how far the
 });
 
 test("discarding a refund asks first, then discards it and the refund leaves the list", async () => {
-  const services = createRefundsServices();
+  const services = createMercadoPagoRefundsServices();
   vi.mocked(services.discardRefund).mockResolvedValue({ kind: "ok" });
   const screen = await loaded(services);
 
@@ -430,7 +431,7 @@ test("discarding a refund asks first, then discards it and the refund leaves the
 });
 
 test("discarding a refund reads the refunds again and leaves other concepts' data as it was", async () => {
-  const services = createRefundsServices();
+  const services = createMercadoPagoRefundsServices();
   vi.mocked(services.fetchPendingRefunds).mockResolvedValue({
     kind: "ok",
     value: pendingRefundsWithLatePayment,
@@ -466,7 +467,7 @@ test("discarding a refund reads the refunds again and leaves other concepts' dat
 });
 
 test("a refund another person already discarded leaves the list once the list is updated", async () => {
-  const services = createRefundsServices();
+  const services = createMercadoPagoRefundsServices();
   vi.mocked(services.discardRefund).mockResolvedValue({ kind: "already_discarded" });
   const screen = await loaded(services);
   await userEvent.click(
@@ -484,7 +485,7 @@ test("a refund another person already discarded leaves the list once the list is
 });
 
 test("cancel closes the discard question and the refund stays listed", async () => {
-  const services = createRefundsServices();
+  const services = createMercadoPagoRefundsServices();
   const screen = await loaded(services);
   await userEvent.click(
     screen.getByRole("button", { name: "Descartar el reembolso de $ 1.250,00" }),
@@ -498,7 +499,7 @@ test("cancel closes the discard question and the refund stays listed", async () 
 });
 
 test("sending a refund asks first, then sends it, refreshes the list and tells Mercado Pago's answer", async () => {
-  const services = createRefundsServices();
+  const services = createMercadoPagoRefundsServices();
   vi.mocked(services.fetchPendingRefunds)
     .mockResolvedValueOnce({ kind: "ok", value: pendingRefundsWithUnconfirmedCloudRefund })
     .mockResolvedValue({ kind: "ok", value: pendingRefunds });
@@ -525,7 +526,7 @@ test("sending a refund asks first, then sends it, refreshes the list and tells M
 });
 
 test("a refusal of the confirmation keeps the question open and refreshes nothing until the list is updated", async () => {
-  const services = createRefundsServices();
+  const services = createMercadoPagoRefundsServices();
   vi.mocked(services.fetchPendingRefunds)
     .mockResolvedValueOnce({ kind: "ok", value: pendingRefundsWithUnconfirmedCloudRefund })
     .mockResolvedValue({ kind: "ok", value: pendingRefunds });
