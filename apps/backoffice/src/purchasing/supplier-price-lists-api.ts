@@ -13,6 +13,10 @@ import { rateLimitOutcome } from "../platform/rate-limit-outcome";
 import { readCloudJson } from "../platform/read-cloud-json";
 import { readValidationFailedField } from "../platform/validation-failed-field";
 
+export type SupplierPriceListRow = SupplierPriceListReview["rows"][number];
+
+export type SupplierPriceListReviewList = SupplierPriceListReview["list"];
+
 export type FetchSupplierPriceListsOutcome = CloudReadOutcome<SupplierPriceListSummary[]>;
 
 export type SupplierPriceListReviewRead =

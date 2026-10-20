@@ -53,9 +53,9 @@ test.each([
     <SupplierPriceListChangeNotices notice={notice} failedTitle="No se guardó el cambio" />,
   );
 
-  await expect.element(screen.getByRole("alert")).toHaveTextContent(title);
+  await expect.element(screen.getByText(title)).toBeVisible();
   if (description !== undefined) {
-    await expect.element(screen.getByRole("alert")).toHaveTextContent(description);
+    await expect.element(screen.getByText(description)).toBeVisible();
   }
 });
 

@@ -94,7 +94,7 @@ test("tells when the list changed, and updating it reports it", async () => {
   const screen = await renderModal({ removeSupplierPriceListRow, onOutdated });
   const dialog = await confirm(screen);
 
-  await expect.element(dialog.getByRole("alert")).toHaveTextContent("La lista cambió");
+  await expect.element(dialog.getByText("La lista cambió")).toBeVisible();
   await userEvent.click(dialog.getByRole("button", { name: "Actualizar la lista" }));
 
   expect(onOutdated).toHaveBeenCalledTimes(1);

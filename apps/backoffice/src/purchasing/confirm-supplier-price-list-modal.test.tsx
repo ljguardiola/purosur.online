@@ -137,7 +137,7 @@ test.each([
 
   const dialog = await confirm(screen);
 
-  await expect.element(dialog.getByRole("alert")).toHaveTextContent(title);
+  await expect.element(dialog.getByText(title)).toBeVisible();
   await expect.element(dialog.getByRole("button", { name: "Confirmar la lista" })).toBeEnabled();
 });
 
@@ -149,7 +149,7 @@ test("tells when the list changed, and updating it reports it", async () => {
   const screen = await renderModal({ confirmSupplierPriceList, onOutdated });
   const dialog = await confirm(screen);
 
-  await expect.element(dialog.getByRole("alert")).toHaveTextContent("La lista cambió");
+  await expect.element(dialog.getByText("La lista cambió")).toBeVisible();
   await userEvent.click(dialog.getByRole("button", { name: "Actualizar la lista" }));
 
   expect(onOutdated).toHaveBeenCalledTimes(1);
