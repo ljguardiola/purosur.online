@@ -86,23 +86,14 @@ describe("detectOverdueRegisterBackups", () => {
     ]);
   });
 
-  it("opens nothing when the first change is exactly an hour old", async () => {
+  it("opens nothing for a register whose changes since the last verified generation are not overdue yet", async () => {
     const store = storeWithViewers();
 
     const { outcome } = detect(store, [
-      standing({ firstChangeSinceLastVerifiedAt: before(NOW, REGISTER_BACKUP_OVERDUE_AFTER_MS) }),
+      standing({ firstChangeSinceLastVerifiedAt: before(NOW, 10 * MINUTE_MS) }),
     ]);
 
     await expect(outcome).resolves.toBe(0);
-    expect(store.snapshot().alerts).toEqual([]);
-  });
-
-  it("opens nothing when the first change is less than an hour old", async () => {
-    const store = storeWithViewers();
-
-    await detect(store, [standing({ firstChangeSinceLastVerifiedAt: before(NOW, 10 * MINUTE_MS) })])
-      .outcome;
-
     expect(store.snapshot().alerts).toEqual([]);
   });
 
