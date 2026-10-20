@@ -28,7 +28,10 @@ describe("supplierPriceListConfirmationBodySchema", () => {
       const result = supplierPriceListConfirmationBodySchema.safeParse({ version: 2, listDate });
 
       expect(result.success).toBe(false);
-      expect(result.error?.issues[0]?.path).toEqual(["listDate"]);
+      expect(result.error?.issues[0]).toMatchObject({
+        path: ["listDate"],
+        message: "listDate must be a calendar day in the form YYYY-MM-DD",
+      });
     },
   );
 

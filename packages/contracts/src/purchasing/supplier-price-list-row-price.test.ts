@@ -21,7 +21,10 @@ describe("supplierPriceListRowPriceBodySchema", () => {
       const result = supplierPriceListRowPriceBodySchema.safeParse({ priceCents, version: 1 });
 
       expect(result.success).toBe(false);
-      expect(result.error?.issues[0]?.path).toEqual(["priceCents"]);
+      expect(result.error?.issues[0]).toMatchObject({
+        path: ["priceCents"],
+        message: "priceCents must be a whole number of cents, not negative",
+      });
     },
   );
 
