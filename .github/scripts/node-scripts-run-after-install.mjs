@@ -271,7 +271,12 @@ function shellCommands(script) {
       skipNextWord = !/&(?:\d+-?|-)$/.test(operator);
       hereDocumentOperator = arithmeticDepth === 0 && /^<<-?$/.test(operator) ? operator : null;
       index += operator.length;
-    } else if (character === "(" && next === "(" && word === null) {
+    } else if (
+      character === "(" &&
+      next === "(" &&
+      word === null &&
+      script[findClosing(script, index + 2, "(", ")") + 1] === ")"
+    ) {
       endCommand();
       arithmeticDepth = 2;
       index += 2;
