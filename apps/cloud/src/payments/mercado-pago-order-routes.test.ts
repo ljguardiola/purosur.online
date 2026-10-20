@@ -713,7 +713,6 @@ describe("the Mercado Pago order routes", () => {
       await route.serveWith(
         createMercadoPagoOrdersClient({
           accessToken: "APP_USR-fictional-access-token-0001",
-          externalPosId: "STORE01POS01",
           fetch,
         }),
       );
@@ -756,7 +755,6 @@ describe("the Mercado Pago order routes", () => {
       await route.serveWith(
         createMercadoPagoOrdersClient({
           accessToken: "APP_USR-fictional-access-token-0001",
-          externalPosId: "STORE01POS01",
           fetch,
         }),
       );

@@ -321,7 +321,8 @@ describe("the Mercado Pago orders client", () => {
       await client.createQrOrder({ ...REQUEST, externalPosId: "CAJA2_STORE_POS" });
 
       const posIds = [0, 1].map(
-        (call) => JSON.parse(sentRequest(fetch, call).init.body as string).config.qr.external_pos_id,
+        (call) =>
+          JSON.parse(sentRequest(fetch, call).init.body as string).config.qr.external_pos_id,
       );
       expect(posIds).toEqual(["CAJA1_STORE_POS", "CAJA2_STORE_POS"]);
     });
