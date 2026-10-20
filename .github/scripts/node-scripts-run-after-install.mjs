@@ -134,17 +134,6 @@ function findClosing(script, start, open, close) {
   return script.length;
 }
 
-function arithmeticSubstitutions(expression) {
-  const commands = [];
-  let index = expression.indexOf("$(");
-  while (index !== -1) {
-    const close = findClosing(expression, index + 2, "(", ")");
-    commands.push(...shellCommands(expression.slice(index + 2, close)));
-    index = expression.indexOf("$(", close);
-  }
-  return commands;
-}
-
 // Splits a shell script into its commands, in the order they run: a command substitution runs
 // before the command whose word it is part of.
 function shellCommands(script) {
@@ -154,6 +143,7 @@ function shellCommands(script) {
   let skipNextWord = false;
   let hereDocumentOperator = null;
   const hereDocuments = [];
+  let arithmeticDepth = 0;
 
   const startWord = () => {
     word ??= { text: "", unresolved: false };
@@ -279,13 +269,12 @@ function shellCommands(script) {
       endWord();
       const operator = script.slice(index).match(/^(?:&>>?|[<>]{1,3}&?(?:\d+-?|-)?)/)[0];
       skipNextWord = !/&(?:\d+-?|-)$/.test(operator);
-      hereDocumentOperator = /^<<-?$/.test(operator) ? operator : null;
+      hereDocumentOperator = arithmeticDepth === 0 && /^<<-?$/.test(operator) ? operator : null;
       index += operator.length;
     } else if (character === "(" && next === "(" && word === null) {
       endCommand();
-      const close = findClosing(script, index + 1, "(", ")");
-      commands.push(...arithmeticSubstitutions(script.slice(index + 2, close)));
-      index = close + 1;
+      arithmeticDepth = 2;
+      index += 2;
     } else if (character === "\n") {
       endCommand();
       index = skipHereDocuments(index + 1);
@@ -297,6 +286,8 @@ function shellCommands(script) {
       character === ")"
     ) {
       endCommand();
+      if (arithmeticDepth > 0 && character === "(") arithmeticDepth += 1;
+      if (arithmeticDepth > 0 && character === ")") arithmeticDepth -= 1;
       index += 1;
     } else if (character === " " || character === "\t" || character === "\r") {
       endWord();
