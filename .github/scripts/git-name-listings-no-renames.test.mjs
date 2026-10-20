@@ -40,7 +40,7 @@ test("finds a listing run through execFile, spawn or a function of its own that 
 test("finds a listing whose arguments wait in a list before reaching git", () => {
   const source = [
     "const listings = [",
-    '  ["diff", "--name-only", `${base}...HEAD`],',
+    `  ["diff", "--name-only", \`\${base}...HEAD\`],`,
     '  ["diff", "--no-renames", "--name-only", "HEAD"],',
     '  ["ls-files", "--others", "--exclude-standard"],',
     "];",
@@ -110,7 +110,7 @@ test("finds a listing built by concatenating several arrays", () => {
 test("finds a git command string run through execSync", () => {
   const source = [
     'execSync("git diff --name-only origin/main...HEAD");',
-    "execSync(`git log --name-status ${base}..HEAD`);",
+    `execSync(\`git log --name-status \${base}..HEAD\`);`,
     'execSync("git show --no-renames --name-only " + sha);',
   ].join("\n");
 
@@ -120,7 +120,7 @@ test("finds a git command string run through execSync", () => {
 test("finds a git command string kept in a constant or built from several parts", () => {
   const source = [
     'const LIST = "git diff --name-only";',
-    "execSync(`${LIST} ${base}`);",
+    `execSync(\`\${LIST} \${base}\`);`,
     'execSync("git log " + "--name-only " + sha);',
   ].join("\n");
 
@@ -158,9 +158,7 @@ test("accepts arrays and strings that are not git invocations", () => {
 
 test("reports a listing on the line its arguments start and says to add --no-renames", () => {
   const files = {
-    "a.mjs": ['import x from "y";', "runGit([", '  "diff",', '  "--name-only",', "]);"].join(
-      "\n",
-    ),
+    "a.mjs": ['import x from "y";', "runGit([", '  "diff",', '  "--name-only",', "]);"].join("\n"),
     "b.mjs": 'runGit(["diff", "--no-renames", "--name-only"]);\n',
   };
 
