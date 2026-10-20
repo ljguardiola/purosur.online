@@ -1,6 +1,10 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { type InstallationStreamReach, streamReachesPast } from "./event-stream-reach.js";
+import {
+  type InstallationStreamReach,
+  isInstallationActiveDuring,
+  streamReachesPast,
+} from "./event-stream-reach.js";
 
 const PERIOD = {
   from: new Date("2026-09-01T03:00:00.000Z"),
@@ -225,6 +229,42 @@ describe("streamReachesPast", () => {
           );
         expect(streamReachesPast(installations, PERIOD)).toBe(expected);
       }),
+    );
+  });
+});
+
+describe("isInstallationActiveDuring", () => {
+  it("holds for an installation enrolled before the end of the period and never revoked", () => {
+    expect(isInstallationActiveDuring(installation(), PERIOD)).toBe(true);
+  });
+
+  it("holds for an installation enrolled just before the end of the period", () => {
+    expect(
+      isInstallationActiveDuring(
+        installation({ enrolledAt: new Date("2026-09-16T02:59:59.999Z") }),
+        PERIOD,
+      ),
+    ).toBe(true);
+  });
+
+  it("fails for an installation enrolled at or after the end of the period", () => {
+    expect(isInstallationActiveDuring(installation({ enrolledAt: PERIOD.until }), PERIOD)).toBe(
+      false,
+    );
+  });
+
+  it("holds for an installation revoked just after the start of the period", () => {
+    expect(
+      isInstallationActiveDuring(
+        installation({ revokedAt: new Date("2026-09-01T03:00:00.001Z") }),
+        PERIOD,
+      ),
+    ).toBe(true);
+  });
+
+  it("fails for an installation revoked at or before the start of the period", () => {
+    expect(isInstallationActiveDuring(installation({ revokedAt: PERIOD.from }), PERIOD)).toBe(
+      false,
     );
   });
 });

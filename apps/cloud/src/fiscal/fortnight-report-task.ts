@@ -19,6 +19,7 @@ import { DrizzleRegisterEventStreams } from "../sync/drizzle-register-event-stre
 import { DrizzleFortnightReportStore } from "./drizzle-fortnight-report-store.js";
 import { DrizzleOfflineAuthorizationCodeStore } from "./drizzle-offline-authorization-code-store.js";
 import { DrizzleOfflineDocumentsOfFortnight } from "./drizzle-offline-documents-of-fortnight.js";
+import { DrizzleOwedPresentationList } from "./drizzle-owed-presentation-list.js";
 import { DrizzleWsaaTokenSource } from "./drizzle-wsaa-token-source.js";
 import { rejectionsText } from "./offline-authorization-code-acquisition-description.js";
 import { WSFE_SERVICE } from "./wsaa-token-renewal-task.js";
@@ -102,6 +103,7 @@ export function fortnightReportJobs(
       documentReports,
       codeStore: new DrizzleOfflineAuthorizationCodeStore(db),
       codeAuthority,
+      owedPresentations: new DrizzleOwedPresentationList(db),
       tokens: new DrizzleWsaaTokenSource(db, { now }, WSFE_SERVICE, certificateFingerprint),
       clock: { now },
     });

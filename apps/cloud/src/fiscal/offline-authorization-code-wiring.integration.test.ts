@@ -113,4 +113,26 @@ describe("the offline authorization code acquisition the server sets up on a rea
       { through: "recovered" },
     ]);
   }, 90_000);
+
+  it("records the presentations ARCA lists as owed when it gives the code it already granted", async () => {
+    await sql`delete from caea_codes`;
+    await sql`delete from tax_authority_owed_presentations`;
+    fakeWsfe.requests.length = 0;
+    fakeWsfe.behave(
+      answersInTurn(
+        "fe-caea-solicitar-already-granted.xml",
+        "fe-caea-consultar-owed-presentations.xml",
+      ),
+    );
+
+    await acquireOnDemand();
+
+    expect(
+      await sql`select point_of_sale_number as pos, fortnight_start::text as "start"
+                from tax_authority_owed_presentations order by pos`,
+    ).toEqual([
+      { pos: 4, start: "2026-09-01" },
+      { pos: 9, start: "2026-08-16" },
+    ]);
+  }, 90_000);
 });

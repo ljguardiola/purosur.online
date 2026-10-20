@@ -20,6 +20,7 @@ import {
 import { reportError } from "../platform/error-reporting.js";
 import { DrizzleOfflineAuthorizationCodeAcquisitionReports } from "./drizzle-offline-authorization-code-acquisition-reports.js";
 import { DrizzleOfflineAuthorizationCodeStore } from "./drizzle-offline-authorization-code-store.js";
+import { DrizzleOwedPresentationList } from "./drizzle-owed-presentation-list.js";
 import { DrizzleWsaaTokenSource } from "./drizzle-wsaa-token-source.js";
 import {
   describeAcquisition,
@@ -55,6 +56,7 @@ export function offlineAuthorizationCodeJobs(
       store: new DrizzleOfflineAuthorizationCodeStore(db),
       tokens: new DrizzleWsaaTokenSource(db, { now }, WSFE_SERVICE, certificateFingerprint),
       taxAuthority,
+      owedPresentations: new DrizzleOwedPresentationList(db),
       clock: { now },
     });
     if (outcome.kind === "no_offline_point_of_sale") {
