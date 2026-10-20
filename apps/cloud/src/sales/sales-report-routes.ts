@@ -1,5 +1,7 @@
 import {
   averageTicketSchema,
+  manualDiscountsQuerySchema,
+  manualDiscountsSchema,
   reportQuerySchema,
   salesByCashierSchema,
   salesByProductAndCategoryQuerySchema,
@@ -7,8 +9,10 @@ import {
   salesByPromotionSchema,
   salesReportSchema,
 } from "@purosur/contracts";
+import type { ManualAdjustmentValue } from "@purosur/domain";
 import {
   readAverageTicket,
+  readManualDiscounts,
   readSalesByCashier,
   readSalesByDay,
   readSalesByProductAndCategory,
@@ -25,9 +29,21 @@ import {
   routeSessionSource,
 } from "../sessions/route-access.js";
 import { DrizzleCashierSalesReportReader } from "./drizzle-cashier-sales-report-reader.js";
+import { DrizzleManualDiscountsReportReader } from "./drizzle-manual-discounts-report-reader.js";
 import { DrizzleProductSalesReportReader } from "./drizzle-product-sales-report-reader.js";
 import { DrizzlePromotionSalesReportReader } from "./drizzle-promotion-sales-report-reader.js";
 import { DrizzleSalesReportReader } from "./drizzle-sales-report-reader.js";
+
+function adjustmentOnTheWire(adjustment: ManualAdjustmentValue): { kind: string; value: number } {
+  switch (adjustment.kind) {
+    case "PRICE":
+      return { kind: adjustment.kind, value: adjustment.unitPrice };
+    case "PERCENT":
+      return { kind: adjustment.kind, value: adjustment.percent };
+    case "AMOUNT":
+      return { kind: adjustment.kind, value: adjustment.amount };
+  }
+}
 
 export interface SalesReportRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
@@ -46,6 +62,7 @@ export function registerSalesReportRoutes<TQueryResult extends PgQueryResultHKT>
   const productReader = new DrizzleProductSalesReportReader(options.db);
   const cashierReader = new DrizzleCashierSalesReportReader(options.db);
   const promotionReader = new DrizzlePromotionSalesReportReader(options.db);
+  const manualDiscountsReader = new DrizzleManualDiscountsReportReader(options.db);
   const preHandler = sameOriginGuard(options.backofficeOrigin);
   const config = { access: capabilityAccess("reports_area"), sessionSource };
 
@@ -171,6 +188,54 @@ export function registerSalesReportRoutes<TQueryResult extends PgQueryResultHKT>
                   lines: report.totals.mostUsed.lines,
                 },
         },
+      }),
+    );
+  });
+
+  app.get("/reports/manual-discounts", { preHandler, config }, async (request, reply) => {
+    const query = await readValidatedBody(reply, manualDiscountsQuerySchema, request.query);
+    if (!query) {
+      return;
+    }
+    const report = await readManualDiscounts(
+      { reader: manualDiscountsReader, clock: { now } },
+      {
+        locationId: openSessionOf(request).locationId,
+        asked: { from: query.from, to: query.to },
+        registerId: query.register_id,
+        authorizedBy: query.authorized_by,
+      },
+    );
+    const person = ({ id, name }: { id: string; name: string | null }) => ({ id, name });
+    await reply.code(200).send(
+      manualDiscountsSchema.parse({
+        range: report.range,
+        rows: report.rows.map((row) => ({
+          kind: row.kind,
+          sale_id: row.saleId,
+          operation_number: row.operationNumber,
+          line_id: row.lineId,
+          completed_at: row.completedAt.toISOString(),
+          product_name: row.productName,
+          adjustment: adjustmentOnTheWire(row.adjustment),
+          reason: row.reason,
+          authorizer: person(row.authorizer),
+          discounted: row.discounted,
+        })),
+        totals: {
+          discounted: report.totals.discounted,
+          count: report.totals.count,
+          line_count: report.totals.lineCount,
+          sale_count: report.totals.saleCount,
+          most_authorized:
+            report.totals.mostAuthorized === null
+              ? null
+              : {
+                  ...person(report.totals.mostAuthorized),
+                  count: report.totals.mostAuthorized.count,
+                },
+        },
+        authorizers: report.authorizers.map(person),
       }),
     );
   });
