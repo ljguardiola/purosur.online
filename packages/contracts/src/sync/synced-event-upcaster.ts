@@ -396,7 +396,7 @@ function decodeAs<Key extends SyncedEventPayloadKey>(
   const parsed = syncedEventPayloadSchema(key).safeParse(event.payload);
   if (!parsed.success) {
     const reason = parsed.error.issues
-      .map((issue) => `${issue.path.join(".") || "payload"}: ${issue.message}`)
+      .map((issue) => `${issue.path.join(".")}: ${issue.message}`)
       .join("; ");
     return { kind: "unreadable", reason };
   }
