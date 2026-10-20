@@ -611,7 +611,7 @@ test("offers sending a QR refund of a cancelled sale to Mercado Pago and never m
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("tells how far each QR refund the cloud sends got and offers sending only the unconfirmed one", async () => {
+test("tells how far each QR refund the cloud sends got, offering sending only the unconfirmed one and discarding only the one Mercado Pago refused for good", async () => {
   const services = createServices();
   vi.mocked(services.fetchPendingRefunds).mockResolvedValue({
     kind: "ok",
@@ -628,6 +628,8 @@ test("tells how far each QR refund the cloud sends got and offers sending only t
   expect(rows[2]).toContain("Enviado a Mercado Pago · en proceso");
   expect(screen.getByRole("button", { name: /^Enviar a Mercado Pago/ }).all()).toHaveLength(1);
   expect(screen.getByRole("button", { name: /^Marcar como hecho/ }).all()).toHaveLength(0);
+  expect(screen.getByRole("button", { name: /^Descartar el reembolso/ }).all()).toHaveLength(1);
+  expect(rows[4]).toContain("Mercado Pago lo rechazó");
   await expectNoAccessibilityViolations(screen.container);
 });
 

@@ -2,18 +2,24 @@ import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
 import { DiscardRefundModal, type DiscardRefundModalServices } from "./discard-refund-modal";
-import { LATE_PAYMENT_REFUND_ID, latePaymentRefund } from "./test-support/refund-fixtures";
+import {
+  LATE_PAYMENT_REFUND_ID,
+  latePaymentRefund,
+  refusedCloudRefund,
+} from "./test-support/refund-fixtures";
 
 beforeEach(() => {
   window.history.pushState(null, "", "/");
 });
 
 function renderModal({
+  target = latePaymentRefund,
   discardRefund = vi.fn<DiscardRefundModalServices["discardRefund"]>(),
   onDone = () => {},
   onClose = () => {},
   onSessionEnded = () => {},
 }: {
+  target?: typeof latePaymentRefund;
   discardRefund?: DiscardRefundModalServices["discardRefund"];
   onDone?: () => void;
   onClose?: () => void;
@@ -22,7 +28,7 @@ function renderModal({
   return render(
     <main>
       <DiscardRefundModal
-        target={latePaymentRefund}
+        target={target}
         onClose={onClose}
         onDone={onDone}
         onSessionEnded={onSessionEnded}
@@ -49,6 +55,22 @@ test("asks about the refund by its amount and explains that discarding closes th
     .element(
       dialog.getByText(
         "Se cierra la tarea sin devolver el dinero al cliente y se resuelve su alerta. Descartala solo si no corresponde reembolsar este pago.",
+      ),
+    )
+    .toBeVisible();
+});
+
+test("explains that discarding a refund Mercado Pago refused for good leaves the refund to be done outside the system", async () => {
+  const screen = await renderModal({ target: refusedCloudRefund });
+  const dialog = screen.getByRole("dialog");
+
+  await expect
+    .element(dialog.getByRole("heading", { name: "¿Descartar el reembolso de $ 3.400,00?" }))
+    .toBeVisible();
+  await expect
+    .element(
+      dialog.getByText(
+        "Se cierra la tarea y se resuelve su alerta. El dinero se le devuelve al cliente fuera del sistema.",
       ),
     )
     .toBeVisible();
@@ -84,6 +106,10 @@ test.each([
   [
     "already_confirmed",
     "Ese reembolso ya se confirmó y se envía a Mercado Pago; ya no se puede descartar.",
+  ],
+  [
+    "waiting_for_balance",
+    "Ese reembolso espera saldo en Mercado Pago y se reintenta; no se puede descartar.",
   ],
   ["not_discardable", "Este reembolso no se puede descartar"],
   ["not_found", "Este reembolso ya no existe"],

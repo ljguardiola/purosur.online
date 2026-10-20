@@ -246,3 +246,43 @@ describe("listPendingRefunds", () => {
     expect(refund).toMatchObject({ sentByCloud: false, deliveryStage: null });
   });
 });
+
+describe("listPendingRefunds of confirmed refunds Mercado Pago refused", () => {
+  const confirmed: FakePendingRefund = {
+    ...TRANSFER_REFUND,
+    method: "POINT",
+    origin: "sale_voided",
+    confirmedAt: new Date("2026-10-07T16:00:00.000Z"),
+    sentAt: new Date("2026-10-07T16:00:02.000Z"),
+  };
+
+  it("lists a refund refused for good as discardable", async () => {
+    const store = new FakeRefundStore(
+      [],
+      [{ ...confirmed, lastRefusalReason: "payment_not_refundable" }],
+    );
+
+    const [refund] = await listPendingRefunds({ reader: store, clock }, { locationId: "branch-1" });
+
+    expect(refund).toMatchObject({ discardable: true, deliveryStage: "refused" });
+  });
+
+  it("lists a refund held for insufficient balance as not discardable", async () => {
+    const store = new FakeRefundStore(
+      [],
+      [{ ...confirmed, lastRefusalReason: "insufficient_balance" }],
+    );
+
+    const [refund] = await listPendingRefunds({ reader: store, clock }, { locationId: "branch-1" });
+
+    expect(refund).toMatchObject({ discardable: false, deliveryStage: "waiting_for_balance" });
+  });
+
+  it("lists a sent refund as not discardable", async () => {
+    const store = new FakeRefundStore([], [{ ...confirmed }]);
+
+    const [refund] = await listPendingRefunds({ reader: store, clock }, { locationId: "branch-1" });
+
+    expect(refund).toMatchObject({ discardable: false, deliveryStage: "sent" });
+  });
+});
