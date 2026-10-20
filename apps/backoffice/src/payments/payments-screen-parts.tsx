@@ -58,7 +58,7 @@ export const amountColumn = dataColumn({
   render: (refund: PendingRefund) => formatCents(refund.amount),
 });
 
-export type FilterOption = { value: string; label: string };
+type FilterOption = { value: string; label: string };
 
 export type FilterOptions = [FilterOption, ...FilterOption[]];
 
