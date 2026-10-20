@@ -24,16 +24,19 @@ function Harness({
   attempt,
   services,
   onSessionEnded = () => {},
+  consultation = false,
 }: {
   attempt: () => Promise<FakeOutcome>;
   services: AuthorizationServices;
   onSessionEnded?: () => void;
+  consultation?: boolean;
 }) {
   const [result, setResult] = useState<string | null>(null);
   const { run, modal } = useAuthorization<FakeOutcome>({
     actionName: "Guardar un rol",
     onSessionEnded,
     services,
+    consultation,
   });
   return (
     <div>
@@ -87,6 +90,23 @@ test("opens the modal with the action sentence when the action answers authoriza
     .toBeVisible();
   await expect.element(dialog.getByRole("button", { name: "Cancelar" })).toBeVisible();
   await expect.element(dialog.getByRole("button", { name: "Usar mi passkey" })).toBeVisible();
+});
+
+test("asks to authorize a consultation, not a change, for an action that only reads", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchSessionAuthorizationOptions).mockReturnValue(new Promise(() => {}));
+  const attempt = vi
+    .fn<() => Promise<FakeOutcome>>()
+    .mockResolvedValue({ kind: "authorization_required" });
+  const screen = await render(<Harness attempt={attempt} services={services} consultation />);
+
+  await userEvent.click(screen.getByRole("button", { name: "Run" }));
+
+  const dialog = screen.getByRole("dialog");
+  await expect
+    .element(dialog.getByRole("heading", { name: "Autorizá esta consulta" }))
+    .toBeVisible();
+  expect(dialog.getByRole("heading", { name: "Autorizá este cambio" }).query()).toBeNull();
 });
 
 test("authorizes and retries the action exactly once, resolving with the retried outcome", async () => {

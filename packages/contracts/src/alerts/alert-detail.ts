@@ -164,6 +164,12 @@ const externalBillingDetailSchema = z.object({
   number: z.int(),
 });
 
+const invoiceAlreadyCreditedDetailSchema = z.object({
+  pointOfSale: z.int(),
+  number: z.int(),
+  saleId: z.string(),
+});
+
 const clockCorrectedDetailSchema = z.object({
   pointOfSale: z.int(),
   documentType: z.literal(FACTURA_C_DOCUMENT_TYPE),
@@ -226,13 +232,17 @@ const lotsExpiringDetailSchema = z.object({
   aboutViewerBranch: z.boolean(),
 });
 
-const fortnightReportNeedsRegularizationDetailSchema = z.object({
+const fortnightReportOwedElsewhereDetailSchema = z.object({
   pointOfSaleNumber: z.int(),
-  registerId: z.string(),
-  registerName: z.string().optional(),
   fortnightStart: z.string(),
   fortnightEnd: z.string(),
 });
+
+const fortnightReportNeedsRegularizationDetailSchema =
+  fortnightReportOwedElsewhereDetailSchema.extend({
+    registerId: z.string(),
+    registerName: z.string().optional(),
+  });
 
 const fortnightReportOverdueDetailSchema = fortnightReportNeedsRegularizationDetailSchema.extend({
   deadline: z.string(),
@@ -398,8 +408,18 @@ const alertDetailKinds = [
   }),
   z.object({
     ...alertBase,
+    kind: z.literal("invoice_already_credited" satisfies AlertKind),
+    detail: invoiceAlreadyCreditedDetailSchema,
+  }),
+  z.object({
+    ...alertBase,
     kind: z.literal("fortnight_report_needs_regularization" satisfies AlertKind),
     detail: fortnightReportNeedsRegularizationDetailSchema,
+  }),
+  z.object({
+    ...alertBase,
+    kind: z.literal("fortnight_report_owed_elsewhere" satisfies AlertKind),
+    detail: fortnightReportOwedElsewhereDetailSchema,
   }),
 ] as const;
 

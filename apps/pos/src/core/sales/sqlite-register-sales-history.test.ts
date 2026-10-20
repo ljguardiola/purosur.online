@@ -106,7 +106,7 @@ function addSale({
         `INSERT INTO fiscal_documents (
            id, sale_id, point_of_sale, document_type, number, issued_on, document, state,
            authorization_code, authorization_code_due_on, reserved_at, resolved_at
-         ) VALUES (?, ?, ?, 'factura_c', ?, '2026-10-08', '{}', ?, ?, ?, '2026-10-08T12:00:00.000Z', ?)`,
+         ) VALUES (?, ?, ?, 'factura_c', ?, '2026-10-08', '{"buyerTaxStatusCode":5}', ?, ?, ?, '2026-10-08T12:00:00.000Z', ?)`,
       )
       .run(
         `doc-${id}`,
@@ -128,7 +128,8 @@ function addSale({
            buyer_document_type, buyer_document_number, cause
          ) VALUES (
            ?, ?, ?, 'factura_c', ?, '2026-10-08', '2026-10-08T12:00:00.000Z', '20261008090000',
-           '36251478963214', '2026-10-01', '2026-10-15', '{}', 99, 0, 'no_connectivity'
+           '36251478963214', '2026-10-01', '2026-10-15', '{"buyerTaxStatusCode":5}', 99, 0,
+           'no_connectivity'
          )`,
       )
       .run(`offline-doc-${id}`, id, offlineDocument.pointOfSale, offlineDocument.number);
@@ -155,6 +156,34 @@ function addSale({
       )
       .run(`doc-${id}`, id);
   }
+}
+
+function addCreditNote(saleId: string, answer: Record<string, string | number | null> = {}): void {
+  database
+    .prepare(
+      `INSERT INTO sale_void_credit_notes (
+         id, sale_id, total, receiver_tax_status_code, corrected_voucher_type,
+         corrected_point_of_sale, corrected_number, state, point_of_sale, number, issued_on,
+         issued_at, authorization_code, authorization_code_due_on, recorded_at, answered_at
+       ) VALUES (
+         @id, @sale_id, 1000, 5, 11, 3, 41, @state, @point_of_sale, @number, @issued_on,
+         @issued_at, @authorization_code, @authorization_code_due_on, '2026-10-08T12:30:00.000Z',
+         @answered_at
+       )`,
+    )
+    .run({
+      id: `note-${saleId}`,
+      sale_id: saleId,
+      state: "IN_PROGRESS",
+      point_of_sale: null,
+      number: null,
+      issued_on: null,
+      issued_at: null,
+      authorization_code: null,
+      authorization_code_due_on: null,
+      answered_at: null,
+      ...answer,
+    });
 }
 
 function idsOf(page: { entries: { saleId: string }[] }): string[] {
@@ -567,7 +596,42 @@ describe("SqliteRegisterSalesHistory", () => {
         },
         voided: false,
         inOpenSession: true,
+        invoices: [
+          {
+            origin: "real_time",
+            state: "AUTHORIZED",
+            pointOfSale: 7,
+            number: 1204,
+            buyerTaxStatusCode: 5,
+          },
+        ],
+        creditNote: null,
       });
+    });
+
+    it("carries every fiscal document of the sale, its contingency document included", () => {
+      addSale({
+        id: "sale-1",
+        fiscal: { state: "RELEASED", pointOfSale: 7, number: 1204 },
+        offlineDocument: { pointOfSale: 31, number: 8 },
+      });
+
+      expect(history.saleOfRegister("sale-1")?.invoices).toEqual([
+        {
+          origin: "real_time",
+          state: "RELEASED",
+          pointOfSale: 7,
+          number: 1204,
+          buyerTaxStatusCode: 5,
+        },
+        {
+          origin: "offline",
+          state: "AUTHORIZED",
+          pointOfSale: 31,
+          number: 8,
+          buyerTaxStatusCode: 5,
+        },
+      ]);
     });
 
     it("shows a Mercado Pago QR payment of the sale with its amount", () => {
@@ -596,6 +660,83 @@ describe("SqliteRegisterSalesHistory", () => {
       expect(history.saleOfRegister("missing")).toBeUndefined();
       expect(history.saleOfRegister("cancelled")).toBeUndefined();
       expect(history.saleOfRegister("another-registers")).toBeUndefined();
+    });
+
+    it("shows no credit note for a sale that has none", () => {
+      addSale({ id: "plain" });
+
+      expect(history.saleOfRegister("plain")?.creditNote).toBeNull();
+    });
+
+    it("shows the credit note of a voided sale in progress", () => {
+      addSale({ id: "gone", state: "VOIDED" });
+      addCreditNote("gone");
+
+      expect(history.saleOfRegister("gone")?.creditNote).toEqual({ kind: "in_progress" });
+    });
+
+    it("shows the authorization of the credit note of a voided sale", () => {
+      addSale({ id: "gone", state: "VOIDED" });
+      addCreditNote("gone", {
+        state: "AUTHORIZED",
+        point_of_sale: 3,
+        number: 7,
+        issued_on: "2026-10-08",
+        issued_at: "2026-10-08T12:30:58.000Z",
+        authorization_code: "75123456789012",
+        authorization_code_due_on: "2026-10-18",
+        answered_at: "2026-10-08T12:31:00.000Z",
+      });
+
+      expect(history.saleOfRegister("gone")?.creditNote).toEqual({
+        kind: "authorized",
+        pointOfSale: 3,
+        number: 7,
+        issuedOn: "2026-10-08",
+        issuedAt: new Date("2026-10-08T12:30:58.000Z"),
+        authorizationCode: "75123456789012",
+        authorizationCodeDueOn: "2026-10-18",
+      });
+    });
+
+    it("shows that the invoice of a voided sale already had a credit note", () => {
+      addSale({ id: "gone", state: "VOIDED" });
+      addCreditNote("gone", {
+        state: "ALREADY_CREDITED",
+        answered_at: "2026-10-08T12:31:00.000Z",
+      });
+
+      expect(history.saleOfRegister("gone")?.creditNote).toEqual({ kind: "already_credited" });
+    });
+
+    it("shows the rejection of the credit note of a voided sale", () => {
+      addSale({ id: "gone", state: "VOIDED" });
+      addCreditNote("gone", { state: "REJECTED", answered_at: "2026-10-08T12:31:00.000Z" });
+
+      expect(history.saleOfRegister("gone")?.creditNote).toEqual({ kind: "rejected" });
+    });
+  });
+
+  describe("the evidence that the register is fiscally online", () => {
+    it("is that of the latest health check", () => {
+      database.exec(
+        `INSERT INTO register_health_checks (checked_at, round_trip_ms, token_valid, arca_reachable)
+         VALUES ('2026-10-08T12:00:00.000Z', 100, 0, 0), ('2026-10-08T12:00:05.000Z', 100, 1, 1)`,
+      );
+
+      expect(history.fiscalOnlineEvidence()).toEqual({
+        lastHealthCheckOkAt: new Date("2026-10-08T12:00:05.000Z"),
+        tokenValid: true,
+        arcaReachable: true,
+      });
+    });
+
+    it("is none while the register never checked its health", () => {
+      expect(history.fiscalOnlineEvidence()).toEqual({
+        lastHealthCheckOkAt: null,
+        tokenValid: false,
+        arcaReachable: false,
+      });
     });
   });
 });

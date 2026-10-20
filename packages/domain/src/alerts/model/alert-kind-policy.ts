@@ -261,6 +261,14 @@ const ALERT_KIND_POLICIES = {
     deduplicates: false,
     resolvesAfterStableClear: false,
   },
+  invoice_already_credited: {
+    level: "critical",
+    escalation: null,
+    audience: "all",
+    scopeKind: "pointOfSaleDocumentNumber",
+    deduplicates: true,
+    resolvesAfterStableClear: false,
+  },
   fortnight_report_needs_regularization: {
     level: "critical",
     escalation: null,
@@ -268,6 +276,14 @@ const ALERT_KIND_POLICIES = {
     scopeKind: "pointOfSaleFortnight",
     deduplicates: true,
     resolvesAfterStableClear: false,
+  },
+  fortnight_report_owed_elsewhere: {
+    level: "critical",
+    escalation: null,
+    audience: "all",
+    scopeKind: "pointOfSaleFortnight",
+    deduplicates: true,
+    resolvesAfterStableClear: true,
   },
 } as const satisfies Record<AlertKind, AlertKindPolicy>;
 

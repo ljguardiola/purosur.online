@@ -2,7 +2,6 @@ import {
   type DeferredSale,
   FACTURA_C_DOCUMENT_TYPE,
   type FiscalDocumentState,
-  type FiscalOnlineSignalEvidence,
   IN_PROGRESS_FISCAL_DOCUMENT_STATES,
   NUMBER_CONSUMING_STATES,
   type OfflineNumberBlockRange,
@@ -25,15 +24,10 @@ import type { SaleAuthorizationDecision } from "@purosur/domain/sales/use-cases"
 import type { LocalDatabase } from "../platform/local-database";
 import { cryptoShortCodes } from "./crypto-short-codes";
 import { insertDeferredSale } from "./sqlite-deferred-sales";
+import { readFiscalOnlineEvidence } from "./sqlite-fiscal-online-evidence";
 
 function placeholdersFor(states: readonly FiscalDocumentState[]): string {
   return states.map(() => "?").join(", ");
-}
-
-interface HealthCheckRow {
-  checked_at: string;
-  token_valid: number;
-  arca_reachable: number;
 }
 
 interface PointOfSaleRow {
@@ -67,21 +61,7 @@ function sqliteSaleAuthorizationTransaction(
   appendOutboxEvent: (event: OutboxEventDraft) => void,
 ): SaleAuthorizationTransaction {
   return {
-    fiscalOnlineEvidence(): FiscalOnlineSignalEvidence {
-      const latest = database
-        .prepare<[], HealthCheckRow>(
-          `SELECT checked_at, token_valid, arca_reachable
-           FROM register_health_checks ORDER BY id DESC LIMIT 1`,
-        )
-        .get();
-      return latest === undefined
-        ? { lastHealthCheckOkAt: null, tokenValid: false, arcaReachable: false }
-        : {
-            lastHealthCheckOkAt: new Date(latest.checked_at),
-            tokenValid: latest.token_valid === 1,
-            arcaReachable: latest.arca_reachable === 1,
-          };
-    },
+    fiscalOnlineEvidence: () => readFiscalOnlineEvidence(database),
 
     realTimeSeries(): RealTimeSeries {
       const pointOfSale = database

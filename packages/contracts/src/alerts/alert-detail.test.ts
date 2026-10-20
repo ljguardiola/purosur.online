@@ -213,6 +213,9 @@ describe("alertDetailSchema", () => {
     expectTypeOf<WireDetail<"external_billing">>().toEqualTypeOf<
       AlertDetails["external_billing"]
     >();
+    expectTypeOf<WireDetail<"invoice_already_credited">>().toEqualTypeOf<
+      AlertDetails["invoice_already_credited"]
+    >();
     expectTypeOf<WireDetail<"late_payment_refund">>().toEqualTypeOf<
       AlertDetails["late_payment_refund"]
     >();
@@ -238,6 +241,9 @@ describe("alertDetailSchema", () => {
     expectTypeOf<
       Omit<WireDetail<"fortnight_report_needs_regularization">, "registerName">
     >().toEqualTypeOf<AlertDetails["fortnight_report_needs_regularization"]>();
+    expectTypeOf<WireDetail<"fortnight_report_owed_elsewhere">>().toEqualTypeOf<
+      AlertDetails["fortnight_report_owed_elsewhere"]
+    >();
     expectTypeOf<WireDetail<"fortnight_report_pending">["registerName"]>().toEqualTypeOf<
       string | undefined
     >();
@@ -403,6 +409,7 @@ describe("alertDetailSchema", () => {
         deadline: "2026-09-23",
       },
       external_billing: { pointOfSale: 12, documentType: "factura_c", number: 41 },
+      invoice_already_credited: { pointOfSale: 12, number: 41, saleId: "sale-1" },
       clock_corrected: {
         pointOfSale: 12,
         documentType: "factura_c",
@@ -415,6 +422,11 @@ describe("alertDetailSchema", () => {
         pointOfSaleNumber: 4,
         registerId: "register-1",
         registerName: "Caja 1",
+        fortnightStart: "2026-09-01",
+        fortnightEnd: "2026-09-15",
+      },
+      fortnight_report_owed_elsewhere: {
+        pointOfSaleNumber: 9,
         fortnightStart: "2026-09-01",
         fortnightEnd: "2026-09-15",
       },

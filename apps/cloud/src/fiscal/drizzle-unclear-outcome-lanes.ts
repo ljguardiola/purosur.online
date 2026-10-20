@@ -17,7 +17,7 @@ import { resolveUnclearOutcomeAlert } from "../alerts/resolve-unclear-outcome-al
 import { postgresErrorChain } from "../platform/db/postgres-error-chain.js";
 import { fiscalRequests, registerPointsOfSale } from "../platform/db/schema.js";
 import type { DedicatedConnections } from "../platform/dedicated-connections.js";
-import type { EnqueueOrphanCreditNote } from "./enqueue-orphan-credit-note.js";
+import type { EnqueueCreditNote } from "./enqueue-credit-note.js";
 import type { EnqueueUnclearOutcome } from "./enqueue-unclear-outcome.js";
 import { answerOf, decisionOf } from "./fiscal-request-answer.js";
 import { otherDocumentsOfSale } from "./orphan-local-standing.js";
@@ -41,16 +41,16 @@ class DrizzleUnclearOutcomeLane<TQueryResult extends PgQueryResultHKT>
 {
   private readonly db: PgDatabase<TQueryResult>;
   private readonly enqueueUnclearOutcome: EnqueueUnclearOutcome;
-  private readonly enqueueOrphanCreditNote: EnqueueOrphanCreditNote;
+  private readonly enqueueCreditNote: EnqueueCreditNote;
 
   constructor(
     db: PgDatabase<TQueryResult>,
     enqueueUnclearOutcome: EnqueueUnclearOutcome,
-    enqueueOrphanCreditNote: EnqueueOrphanCreditNote,
+    enqueueCreditNote: EnqueueCreditNote,
   ) {
     this.db = db;
     this.enqueueUnclearOutcome = enqueueUnclearOutcome;
-    this.enqueueOrphanCreditNote = enqueueOrphanCreditNote;
+    this.enqueueCreditNote = enqueueCreditNote;
   }
 
   async unclearRequest(fiscalDocumentId: string): Promise<UnclearRequest | null> {
@@ -105,7 +105,7 @@ class DrizzleUnclearOutcomeLane<TQueryResult extends PgQueryResultHKT>
       if (regularization !== null) {
         await recordOrphanRegularization(tx, regularization, {
           at: decidedAt,
-          enqueueOrphanCreditNote: this.enqueueOrphanCreditNote,
+          enqueueCreditNote: this.enqueueCreditNote,
         });
       }
     });
@@ -185,16 +185,16 @@ export class DrizzleUnclearOutcomeLanes<TQueryResult extends PgQueryResultHKT>
 {
   private readonly connections: DedicatedConnections<TQueryResult>;
   private readonly enqueueUnclearOutcome: EnqueueUnclearOutcome;
-  private readonly enqueueOrphanCreditNote: EnqueueOrphanCreditNote;
+  private readonly enqueueCreditNote: EnqueueCreditNote;
 
   constructor(
     connections: DedicatedConnections<TQueryResult>,
     enqueueUnclearOutcome: EnqueueUnclearOutcome,
-    enqueueOrphanCreditNote: EnqueueOrphanCreditNote,
+    enqueueCreditNote: EnqueueCreditNote,
   ) {
     this.connections = connections;
     this.enqueueUnclearOutcome = enqueueUnclearOutcome;
-    this.enqueueOrphanCreditNote = enqueueOrphanCreditNote;
+    this.enqueueCreditNote = enqueueCreditNote;
   }
 
   inPointOfSaleLane<TOutcome>(
@@ -202,9 +202,7 @@ export class DrizzleUnclearOutcomeLanes<TQueryResult extends PgQueryResultHKT>
     work: (lane: UnclearOutcomeLane) => Promise<TOutcome>,
   ): Promise<TOutcome> {
     return withPointOfSaleLaneLock(this.connections, pointOfSale, (db) =>
-      work(
-        new DrizzleUnclearOutcomeLane(db, this.enqueueUnclearOutcome, this.enqueueOrphanCreditNote),
-      ),
+      work(new DrizzleUnclearOutcomeLane(db, this.enqueueUnclearOutcome, this.enqueueCreditNote)),
     );
   }
 }

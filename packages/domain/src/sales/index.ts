@@ -11,6 +11,7 @@ export {
 } from "./model/manual-adjustment.js";
 export { openSaleStanding } from "./model/open-sale-standing.js";
 export type { ReceiptContent, ReceiptSource } from "./model/receipt-content.js";
+export { receiptContent } from "./model/receipt-content.js";
 export type { ReceiptCopy, ReceiptDelivery } from "./model/receipt-copy.js";
 export type { SalePrintState, SaleReprint } from "./model/receipt-events.js";
 export type {
@@ -60,6 +61,12 @@ export { mayBeSaleLineQuantity, saleTotal, saleUnitOfWeightSource } from "./mode
 export { UNPRINTED_SALE_STANDINGS } from "./model/sale-print-standing.js";
 export { SALE_VOID_REFUSALS } from "./model/sale-void.js";
 export type { SalesOfCashier, SoldByCashier } from "./model/sales-by-cashier.js";
+export type {
+  DiscountedLinesOfPromotion,
+  PromotionDiscountTotals,
+  PromotionTerms,
+  SalesOfPromotion,
+} from "./model/sales-by-promotion.js";
 export type { SalesOfDay, SalesReportTotals } from "./model/sales-report.js";
 export { SALES_REPORT_SALE_STATE } from "./model/sales-report.js";
 export type { SalesReportGroup } from "./model/sales-report-group.js";

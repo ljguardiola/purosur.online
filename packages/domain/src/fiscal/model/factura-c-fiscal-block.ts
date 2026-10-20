@@ -1,4 +1,6 @@
+import { CREDIT_NOTE_C_VOUCHER_TYPE } from "./credit-note.js";
 import type { Fortnight } from "./offline-authorization-code.js";
+import type { VoucherReference } from "./orphan-authorization.js";
 import type { FacturaC } from "./pre-emission-gate.js";
 
 export const FACTURA_C_VOUCHER_TYPE = 11;
@@ -61,15 +63,32 @@ export interface FacturaCFiscalBlock {
   qrText: string;
 }
 
-interface QrSource {
+export interface AuthorizedCreditNoteC {
   pointOfSale: number;
   number: number;
   issuedOn: string;
+  total: number;
+  document: FacturaC;
+  authorizationCode: string;
+  authorizationCodeDueOn: string;
+  corrects: VoucherReference;
+}
+
+export interface CreditNoteCFiscalBlock extends FacturaCFiscalBlock {
+  corrects: VoucherReference;
+}
+
+interface QrSource {
+  voucherType: number;
+  pointOfSale: number;
+  number: number;
+  issuedOn: string;
+  total: number;
   document: FacturaC;
 }
 
 function qrText(
-  { pointOfSale, number, issuedOn, document }: QrSource,
+  { voucherType, pointOfSale, number, issuedOn, total, document }: QrSource,
   authorizationCodeType: string,
   authorizationCode: string,
 ): string {
@@ -78,9 +97,9 @@ function qrText(
     fecha: issuedOn,
     cuit: Number(document.issuer.cuit.replaceAll("-", "")),
     ptoVta: pointOfSale,
-    tipoCmp: FACTURA_C_VOUCHER_TYPE,
+    tipoCmp: voucherType,
     nroCmp: number,
-    importe: document.total / CENTS_PER_PESO,
+    importe: total / CENTS_PER_PESO,
     moneda: CURRENCY_PESOS,
     ctz: EXCHANGE_RATE_PESOS,
     tipoDocRec: FINAL_CONSUMER_DOCUMENT_TYPE,
@@ -104,7 +123,33 @@ export function facturaCFiscalBlock(authorized: AuthorizedFacturaC): FacturaCFis
     number: authorized.number,
     authorizationCode: authorized.authorizationCode,
     authorizationCodeDueOn: authorized.authorizationCodeDueOn,
-    qrText: qrText(authorized, AUTHORIZATION_CODE_TYPE_CAE, authorized.authorizationCode),
+    qrText: qrText(
+      { ...authorized, voucherType: FACTURA_C_VOUCHER_TYPE, total: document.total },
+      AUTHORIZATION_CODE_TYPE_CAE,
+      authorized.authorizationCode,
+    ),
+  };
+}
+
+export function creditNoteCFiscalBlock(authorized: AuthorizedCreditNoteC): CreditNoteCFiscalBlock {
+  const { document } = authorized;
+  const { legalName, cuit, taxStatus, grossIncomeRegistration, activityStartDate } =
+    document.issuer;
+  return {
+    invoiceClass: "C",
+    voucherTypeCode: CREDIT_NOTE_C_VOUCHER_TYPE,
+    issuer: { legalName, cuit, taxStatus, grossIncomeRegistration, activityStartDate },
+    buyerTaxStatusDescription: document.buyerTaxStatusDescription,
+    pointOfSale: authorized.pointOfSale,
+    number: authorized.number,
+    authorizationCode: authorized.authorizationCode,
+    authorizationCodeDueOn: authorized.authorizationCodeDueOn,
+    corrects: authorized.corrects,
+    qrText: qrText(
+      { ...authorized, voucherType: CREDIT_NOTE_C_VOUCHER_TYPE },
+      AUTHORIZATION_CODE_TYPE_CAE,
+      authorized.authorizationCode,
+    ),
   };
 }
 
@@ -123,6 +168,10 @@ export function offlineFacturaCFiscalBlock(
     number: authorized.number,
     authorizationCode: authorized.offlineAuthorizationCode,
     fortnight: authorized.fortnight,
-    qrText: qrText(authorized, AUTHORIZATION_CODE_TYPE_CAEA, authorized.offlineAuthorizationCode),
+    qrText: qrText(
+      { ...authorized, voucherType: FACTURA_C_VOUCHER_TYPE, total: document.total },
+      AUTHORIZATION_CODE_TYPE_CAEA,
+      authorized.offlineAuthorizationCode,
+    ),
   };
 }

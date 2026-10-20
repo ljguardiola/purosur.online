@@ -1522,6 +1522,7 @@ describe("wiring the sales report routes", () => {
     { method: "GET", url: "/api/reports/sales-by-day" },
     { method: "GET", url: "/api/reports/sales-by-product-and-category" },
     { method: "GET", url: "/api/reports/sales-by-cashier" },
+    { method: "GET", url: "/api/reports/sales-by-promotion" },
     { method: "GET", url: "/api/reports/average-ticket" },
   ] as const;
 
@@ -1831,6 +1832,29 @@ describe("wiring the compromise-response runbook routes", () => {
   });
 });
 
+describe("wiring the BitLocker recovery key routes", () => {
+  it("answers POST /api/registers/:id/bitlocker-recovery-key/consultations according to the bitlockerRecoveryKeys option", async () => {
+    const unwired = buildApp({ now: () => APP_CLOCK, version: "abc1234" });
+    const wired = buildApp({
+      now: () => APP_CLOCK,
+      version: "abc1234",
+      bitlockerRecoveryKeys: {
+        db: testDatabase.db,
+        backofficeOrigin: "https://staging.purosur.online",
+        keysEncryptionKey: TEST_INSTALLATION_KEYS_ENCRYPTION_KEY,
+      },
+    });
+    const request = {
+      method: "POST",
+      url: "/api/registers/00000000-0000-0000-0000-000000000000/bitlocker-recovery-key/consultations",
+      headers: { origin: "https://staging.purosur.online" },
+    } as const;
+
+    expect((await unwired.inject(request)).statusCode).toBe(404);
+    expect((await wired.inject(request)).statusCode).toBe(401);
+  });
+});
+
 describe("wiring the device enrollment route", () => {
   it("does not register POST /api/devices when no devices option is given", async () => {
     const app = buildApp({ now: () => APP_CLOCK, version: "abc1234" });
@@ -1968,7 +1992,7 @@ describe("wiring the unclear outcome route", () => {
       enqueueUnclearOutcome: async () => {},
       withdrawUnclearOutcome: async () => {},
       enqueueNumberingDiagnosis: async () => {},
-      enqueueOrphanCreditNote: async () => {},
+      enqueueCreditNote: async () => {},
     };
   }
 
@@ -2758,6 +2782,11 @@ describe("the route access inventory", () => {
       },
       {
         method: "GET",
+        url: "/api/reports/sales-by-promotion",
+        access: capabilityAccess("reports_area"),
+      },
+      {
+        method: "GET",
         url: "/api/reports/average-ticket",
         access: capabilityAccess("reports_area"),
       },
@@ -2809,7 +2838,7 @@ describe("the route access inventory", () => {
       {
         method: "POST",
         url: "/api/registers",
-        access: capabilityAccess("registers_area"),
+        access: capabilityAccess("enroll_registers"),
       },
       {
         method: "GET",
@@ -2819,7 +2848,7 @@ describe("the route access inventory", () => {
       {
         method: "POST",
         url: "/api/registers/:id/device-codes",
-        access: capabilityAccess("registers_area"),
+        access: capabilityAccess("enroll_registers"),
       },
       {
         method: "PUT",
@@ -2885,6 +2914,16 @@ describe("the route access inventory", () => {
         method: "POST",
         url: "/api/compromise-responses/current/items/:item",
         access: capabilityAccess("manage_users"),
+      },
+      {
+        method: "POST",
+        url: "/api/registers/:id/bitlocker-recovery-key",
+        access: capabilityAccess("bitlocker_recovery_key"),
+      },
+      {
+        method: "POST",
+        url: "/api/registers/:id/bitlocker-recovery-key/consultations",
+        access: capabilityAccess("bitlocker_recovery_key"),
       },
       {
         method: "GET",

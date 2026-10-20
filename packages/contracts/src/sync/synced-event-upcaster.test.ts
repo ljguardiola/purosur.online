@@ -947,6 +947,27 @@ describe("decoding the events the registers pushed", () => {
         },
       );
 
+      it.each([
+        ["asks for no credit note", null],
+        [
+          "asks for the credit note of its invoice",
+          {
+            id: "01a1122a-030a-7000-8000-00000000ccc1",
+            total: 4800,
+            receiver_tax_status_code: 5,
+            corrects: { voucher_type: 11, point_of_sale: 7, number: 42 },
+          },
+        ],
+      ])(
+        "reads a version 3 voided sale that %s as it reads a version 2 one",
+        (_name, creditNote) => {
+          const readAs = (version: number, change: Record<string, unknown> = {}) =>
+            upcaster.decode(unappliedEventOf(voided(change, version)));
+
+          expect(readAs(3, { credit_note: creditNote })).toEqual(readAs(2));
+        },
+      );
+
       it("still reads a version 1 voided sale", () => {
         expect(upcaster.decode(unappliedEventOf(voided()))).toMatchObject({
           kind: "fact",

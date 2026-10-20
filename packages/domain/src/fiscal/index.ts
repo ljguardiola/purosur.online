@@ -24,6 +24,8 @@ export {
   clockCorrectionPeriodKey,
 } from "./model/clock-correction.js";
 export { selectConsumerBuyerTaxStatus } from "./model/consumer-buyer-tax-status.js";
+export type { CreditNoteReason } from "./model/credit-note.js";
+export { CREDIT_NOTE_C_VOUCHER_TYPE, CREDIT_NOTE_REASONS } from "./model/credit-note.js";
 export { isValidCuit } from "./model/cuit.js";
 export type {
   DeferredSale,
@@ -36,7 +38,9 @@ export {
   SHORT_CODE_ALPHABET,
 } from "./model/deferred-sale.js";
 export type {
+  AuthorizedCreditNoteC,
   AuthorizedFacturaC,
+  CreditNoteCFiscalBlock,
   FacturaCFiscalBlock,
   OfflineAuthorizedFacturaC,
   OfflineFacturaCFiscalBlock,
@@ -44,6 +48,7 @@ export type {
 export {
   AUTHORIZATION_CODE_TYPE_CAE,
   CURRENCY_PESOS,
+  creditNoteCFiscalBlock,
   EXCHANGE_RATE_PESOS,
   FACTURA_C_VOUCHER_TYPE,
   FINAL_CONSUMER_DOCUMENT_NUMBER,
@@ -68,7 +73,10 @@ export {
   fiscalEmissionStopReasonOf,
 } from "./model/fiscal-emission-stop.js";
 export type { FiscalOnlineSignalEvidence } from "./model/fiscal-online-signal.js";
-export { REGISTER_HEALTH_CHECK_INTERVAL_MS } from "./model/fiscal-online-signal.js";
+export {
+  isRegisterFiscallyOnline,
+  REGISTER_HEALTH_CHECK_INTERVAL_MS,
+} from "./model/fiscal-online-signal.js";
 export type {
   FiscalDocumentType,
   RejectionStandingChange,
@@ -79,6 +87,7 @@ export type { FiscalTaskDocumentType } from "./model/fiscal-task.js";
 export { CREDIT_NOTE_C_DOCUMENT_TYPE } from "./model/fiscal-task.js";
 export type {
   FortnightPresentationRefusal,
+  FortnightPresentationState,
   FortnightReportMovement,
   FortnightReportState,
 } from "./model/fortnight-report.js";
@@ -87,8 +96,9 @@ export {
   fortnightPresentationRows,
   fortnightReportDeadline,
   fortnightReportStanding,
-  isFortnightReportOutstanding,
+  isFortnightPresentationOwed,
   isOfflineDocumentReported,
+  owedFortnightPresentationState,
   owesFortnightReport,
 } from "./model/fortnight-report.js";
 export { generationStampOf } from "./model/generation-stamp.js";
@@ -134,7 +144,9 @@ export {
   nextOfflineNumber,
   OFFLINE_NUMBER_BLOCK_STATUSES,
 } from "./model/offline-number-block.js";
-export { CREDIT_NOTE_C_VOUCHER_TYPE } from "./model/orphan-credit-note.js";
+export type { VoucherReference } from "./model/orphan-authorization.js";
+export type { ListedOwedPresentation } from "./model/owed-presentation-list.js";
+export { splitOwedPresentations } from "./model/owed-presentation-list.js";
 export {
   isPointOfSaleNumber,
   POINT_OF_SALE_NUMBER_MAX,
@@ -167,6 +179,13 @@ export {
   SERIES_WAITING_STATES,
 } from "./model/real-time-authorization.js";
 export { REGISTER_CLOCK_TOLERANCE_MS } from "./model/register-clock.js";
+export type {
+  CreditNoteAnswer,
+  SaleInvoice,
+  SaleVoidCreditNote,
+  VoidCreditNoteStanding,
+} from "./model/sale-void-credit-note.js";
+export { invoiceToCorrect, saleVoidCreditNotePayload } from "./model/sale-void-credit-note.js";
 export {
   awaitsUnclearOutcomeDecision,
   UNCLEAR_ANSWER_KINDS,

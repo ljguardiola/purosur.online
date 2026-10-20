@@ -4,6 +4,8 @@ import {
   COMPROMISE_RESPONSE_ACTION_STEPS,
   COMPROMISE_RESPONSE_ITEMS,
   CREDIT_NOTE_C_DOCUMENT_TYPE,
+  CREDIT_NOTE_REASONS,
+  type CreditNoteReason,
   DEFAULT_EXPIRING_LOT_ALERT_DAYS,
   DEFAULT_GOOD_CONDITION_RETURN_DAYS,
   DEFAULT_UNREVIEWED_PRICE_ALERT_DAYS,
@@ -1157,6 +1159,18 @@ export const registerInstallations = pgTable(
       .where(sql`${table.revokedAt} is null`),
   ],
 );
+
+export const registerInstallationBitlockerKeys = pgTable("register_installation_bitlocker_keys", {
+  installationId: uuid("installation_id")
+    .primaryKey()
+    .references(() => registerInstallations.id),
+  sealedKey: text("sealed_key").notNull(),
+  keyIdentifier: text("key_identifier").notNull(),
+  loadedAt: timestamp("loaded_at", { withTimezone: true }).notNull(),
+  loadedBy: uuid("loaded_by")
+    .notNull()
+    .references(() => users.id),
+});
 
 function registerKeyVersions(name: string) {
   return pgTable(
@@ -2540,7 +2554,7 @@ export const fiscalTasks = pgTable(
     pointOfSale: integer("point_of_sale").notNull(),
     documentType: text("document_type").notNull(),
     number: integer("number").notNull(),
-    creditNoteId: uuid("credit_note_id").references(() => orphanCreditNotes.id),
+    creditNoteId: uuid("credit_note_id").references(() => creditNotes.id),
     reason: jsonb("reason").$type<JsonValue>().notNull(),
     state: text("state").notNull().default("open"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
@@ -2571,23 +2585,26 @@ export const fiscalTasks = pgTable(
   ],
 );
 
-// The credit note that cancels an authorization no sale accounts for. The row is the request to
-// issue it: it exists from the moment the orphan is detected, gets its number when the tax
-// authority is first asked, and keeps the answer. A number is held by one request at a time.
-export const orphanCreditNotes = pgTable(
-  "orphan_credit_notes",
+// A credit note the cloud issues: the one that cancels an authorization no sale accounts for, or
+// the one that cancels the invoice of a voided sale. The row is the request to issue it: it exists
+// from the moment it is asked for, gets its number when the tax authority is first asked, and keeps
+// the answer. A number is held by one request at a time, and an invoice is corrected once.
+export const creditNotes = pgTable(
+  "credit_notes",
   {
     id: uuid("id").primaryKey(),
     registerId: uuid("register_id")
       .notNull()
       .references(() => registers.id),
     saleId: uuid("sale_id").notNull(),
+    reason: text("reason").$type<CreditNoteReason>().notNull(),
     pointOfSale: integer("point_of_sale").notNull(),
     associatedVoucherType: integer("associated_voucher_type").notNull(),
+    associatedPointOfSale: integer("associated_point_of_sale").notNull(),
     associatedNumber: integer("associated_number").notNull(),
-    keptVoucherType: integer("kept_voucher_type").notNull(),
-    keptPointOfSale: integer("kept_point_of_sale").notNull(),
-    keptNumber: integer("kept_number").notNull(),
+    keptVoucherType: integer("kept_voucher_type"),
+    keptPointOfSale: integer("kept_point_of_sale"),
+    keptNumber: integer("kept_number"),
     total: bigint("total", { mode: "number" }).notNull(),
     receiverTaxStatusCode: integer("receiver_tax_status_code").notNull(),
     number: integer("number"),
@@ -2601,38 +2618,48 @@ export const orphanCreditNotes = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
   },
   (table) => [
-    uniqueIndex("orphan_credit_notes_orphan_key").on(
-      table.pointOfSale,
+    uniqueIndex("credit_notes_corrected_voucher_key").on(
       table.associatedVoucherType,
+      table.associatedPointOfSale,
       table.associatedNumber,
     ),
-    uniqueIndex("orphan_credit_notes_number_key")
+    uniqueIndex("credit_notes_number_key")
       .on(table.pointOfSale, table.number)
       .where(sql`${table.number} is not null and ${table.answerKind} is distinct from 'rejected'`),
     check(
-      "orphan_credit_notes_request_check",
+      "credit_notes_reason_check",
+      sql`${table.reason} in (${sql.raw(CREDIT_NOTE_REASONS.map((reason) => `'${reason}'`).join(", "))})`,
+    ),
+    check(
+      "credit_notes_kept_voucher_check",
+      sql`(${table.reason} = 'orphan') = (${table.keptVoucherType} is not null)
+        and (${table.keptVoucherType} is null) = (${table.keptPointOfSale} is null)
+        and (${table.keptVoucherType} is null) = (${table.keptNumber} is null)`,
+    ),
+    check(
+      "credit_notes_request_check",
       sql`(${table.number} is null) = (${table.issuedOn} is null)
         and (${table.number} is null) = (${table.requestedAt} is null)`,
     ),
     check(
-      "orphan_credit_notes_answer_kind_check",
+      "credit_notes_answer_kind_check",
       sql`${table.answerKind} in ('authorized', 'rejected', 'unclear')`,
     ),
     check(
-      "orphan_credit_notes_answer_request_check",
+      "credit_notes_answer_request_check",
       sql`${table.answerKind} is null or ${table.number} is not null`,
     ),
     check(
-      "orphan_credit_notes_answer_time_check",
+      "credit_notes_answer_time_check",
       sql`(${table.answerKind} is null) = (${table.answeredAt} is null)`,
     ),
     check(
-      "orphan_credit_notes_authorization_check",
+      "credit_notes_authorization_check",
       sql`coalesce(${table.answerKind} = 'authorized', false) = (${table.authorizationCode} is not null)
         and (${table.authorizationCode} is null) = (${table.authorizationCodeDueOn} is null)`,
     ),
     check(
-      "orphan_credit_notes_rejection_check",
+      "credit_notes_rejection_check",
       sql`coalesce(${table.answerKind} = 'rejected', false) = (${table.rejections} is not null)`,
     ),
   ],
@@ -2720,5 +2747,20 @@ export const compromiseResponseCompletions = pgTable(
       "compromise_response_completions_key_check",
       sql`${table.key} in (${sql.raw([...COMPROMISE_RESPONSE_ACTION_STEPS, ...COMPROMISE_RESPONSE_ITEMS].map((key) => `'${key}'`).join(", "))})`,
     ),
+  ],
+);
+
+export const taxAuthorityOwedPresentations = pgTable(
+  "tax_authority_owed_presentations",
+  {
+    pointOfSaleNumber: integer("point_of_sale_number").notNull(),
+    fortnightStart: date("fortnight_start", { mode: "string" }).notNull(),
+    listedAt: timestamp("listed_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    primaryKey({
+      name: "tax_authority_owed_presentations_pkey",
+      columns: [table.pointOfSaleNumber, table.fortnightStart],
+    }),
   ],
 );

@@ -82,6 +82,29 @@ export function fortnightReportNoLongerPendingObservation(
   return { holds: false, kind: "fortnight_report_pending", scope };
 }
 
+export function fortnightReportOwedElsewhereObservation({
+  pointOfSaleNumber,
+  fortnight,
+}: {
+  pointOfSaleNumber: number;
+  fortnight: Fortnight;
+}): AlertConditionObservation {
+  return {
+    holds: true,
+    alert: {
+      kind: "fortnight_report_owed_elsewhere",
+      scope: pointOfSaleFortnightScope(pointOfSaleNumber, fortnight.start),
+      detail: { pointOfSaleNumber, fortnightStart: fortnight.start, fortnightEnd: fortnight.end },
+    },
+  };
+}
+
+export function fortnightReportNoLongerOwedElsewhereObservation(
+  scope: string,
+): AlertConditionObservation {
+  return { holds: false, kind: "fortnight_report_owed_elsewhere", scope };
+}
+
 export function fortnightReportNeedsRegularizationAlert({
   pointOfSaleNumber,
   registerId,

@@ -1898,6 +1898,39 @@ test("tells that ARCA authorized a voucher no sale of the register justifies: it
   await expect.element(screen.getByRole("button", { name: "Cerrar la alerta" })).toBeEnabled();
 });
 
+test("tells that a voided sale's invoice already had a credit note: its number, that no other was issued and that it needs a review, closing by hand", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(
+    ok(
+      baseDetail({
+        kind: "invoice_already_credited",
+        level: "critical",
+        audience: "all",
+        scope: "3:factura_c:41",
+        scopeDisplay: "3:factura_c:41",
+        scopeKind: "pointOfSaleDocumentNumber",
+        closing: "by_hand",
+        detail: { pointOfSale: 3, number: 41, saleId: "sale-1" },
+      }),
+    ),
+  );
+
+  const screen = await renderModal(services, { access: accessWith("close_alerts_manually") });
+
+  await expect.element(screen.getByText("Factura ya acreditada", { exact: true })).toBeVisible();
+  await expect
+    .element(
+      screen.getByText(
+        "Se anuló en una caja una venta cuya factura C 00003-00000041 ya tenía una nota de crédito, así que no se emitió otra. La anulación y sus reintegros ya se hicieron en la caja. Revisar qué nota de crédito acreditó la factura.",
+        { exact: true },
+      ),
+    )
+    .toBeVisible();
+  await expect
+    .element(screen.getByText("Punto de venta 00003 · Factura C · 00000041", { exact: true }))
+    .toBeVisible();
+});
+
 test("tells that ARCA authorized a credit note C no credit note of the system justifies: its class and number and that it needs a review", async () => {
   const services = createServices();
   vi.mocked(services.fetchAlert).mockResolvedValue(
@@ -2379,5 +2412,50 @@ test("tells the deadline of a fortnight's report was missed, that it is to be pu
     .element(screen.getByText("No se cierra sola: se cierra a mano después de revisarla."))
     .toBeVisible();
   await expect.element(screen.getByText("Crítica")).toBeVisible();
+  await expectNoAccessibilityViolations(document.body);
+});
+
+function owedElsewhereAlert(
+  detail: Partial<Extract<AlertDetail, { kind: "fortnight_report_owed_elsewhere" }>["detail"]> = {},
+) {
+  return baseDetail({
+    kind: "fortnight_report_owed_elsewhere",
+    level: "critical",
+    audience: "all",
+    scope: "9:2026-09-01",
+    scopeDisplay: "9:2026-09-01:2026-09-15",
+    scopeKind: "pointOfSaleFortnight",
+    closing: "by_itself",
+    detail: {
+      pointOfSaleNumber: 9,
+      fortnightStart: "2026-09-01",
+      fortnightEnd: "2026-09-15",
+      ...detail,
+    },
+  });
+}
+
+test("tells ARCA lists a fortnight of a point of sale this system does not run as owed, that it has to be presented from where it was issued and that the next code can be denied to the whole business", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(ok(owedElsewhereAlert()));
+
+  const screen = await renderModal(services);
+
+  await expect
+    .element(screen.getByText("Presentación adeudada en otro sistema", { exact: true }))
+    .toBeVisible();
+  await expect
+    .element(
+      screen.getByText(
+        `ARCA informa adeudada la presentación de la quincena ${REPORT_FORTNIGHT} del punto de venta 00009, que este sistema no maneja. Hay que presentarla desde donde se emitió: mientras siga adeudada, ARCA puede negar el próximo CAEA a todo el negocio.`,
+        { exact: true },
+      ),
+    )
+    .toBeVisible();
+  await expect.element(screen.getByText("Crítica")).toBeVisible();
+  await expect
+    .element(screen.getByText(`Punto de venta 00009 · ${REPORT_FORTNIGHT}`, { exact: true }))
+    .toBeVisible();
+  expect(screen.getByText(/No se cierra sola/).query()).toBeNull();
   await expectNoAccessibilityViolations(document.body);
 });

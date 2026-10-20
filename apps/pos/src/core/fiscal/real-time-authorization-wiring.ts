@@ -1,8 +1,11 @@
+import { REAL_TIME_AUTHORIZATION_TIMEOUT_MS } from "@purosur/domain";
 import {
   applyUnclearOutcomeDecisions,
+  type CloudCreditNotes as CloudCreditNotesPort,
   type IdGenerator,
   type RealTimeTaxAuthority,
   recordRegisterHealthCheck,
+  requestVoidCreditNotes,
   type ShortCodeRandomness,
   settleInterruptedRealTimeAuthorizations,
 } from "@purosur/domain/fiscal/use-cases";
@@ -13,12 +16,14 @@ import {
 } from "../platform/cloud-client";
 import type { LocalDatabase } from "../platform/local-database";
 import { checkRegisterHealth } from "./check-register-health";
+import { CloudCreditNotes } from "./cloud-credit-notes";
 import { CloudRealTimeTaxAuthority } from "./cloud-real-time-tax-authority";
 import { CloudUnclearOutcomeDecisions } from "./cloud-unclear-outcome-decisions";
 import { authorizeSaleInRealTime } from "./real-time-sale-authorization";
 import { startRegisterHealthMonitor } from "./register-health-monitor";
 import { SqliteRealTimeFiscalDocuments } from "./sqlite-real-time-fiscal-documents";
 import { SqliteRegisterHealthChecks } from "./sqlite-register-health-checks";
+import { SqliteVoidCreditNotes } from "./sqlite-void-credit-notes";
 
 export interface RealTimeAuthorizationWiringDeps {
   database: LocalDatabase | undefined;
@@ -101,6 +106,22 @@ export async function settleInterruptedAuthorizations({
   }).catch(reportFailure);
 }
 
+export function cloudCreditNotes({
+  cloudClient,
+  readDeviceToken,
+}: Pick<RealTimeAuthorizationWiringDeps, "cloudClient" | "readDeviceToken">):
+  | CloudCreditNotesPort
+  | undefined {
+  return cloudClient === undefined
+    ? undefined
+    : new CloudCreditNotes({
+        timeoutMs: REAL_TIME_AUTHORIZATION_TIMEOUT_MS,
+        readDeviceToken,
+        post: (path, bearerToken, body, options) =>
+          postToCloudWithBearer(cloudClient, path, bearerToken, body, options),
+      });
+}
+
 export function startRegisterHealthChecks({
   database,
   cloudClient,
@@ -121,6 +142,8 @@ export function startRegisterHealthChecks({
     post: (path, bearerToken, body, options) =>
       postToCloudWithBearer(cloudClient, path, bearerToken, body, options),
   });
+  const creditNotes = new SqliteVoidCreditNotes(database);
+  const creditNotesCloud = cloudCreditNotes({ cloudClient, readDeviceToken });
   return startRegisterHealthMonitor({
     check: async () => {
       await checkRegisterHealth({
@@ -136,6 +159,13 @@ export function startRegisterHealthChecks({
       });
       for (const { error } of failed) {
         reportFailure(error);
+      }
+      if (creditNotesCloud !== undefined) {
+        await requestVoidCreditNotes({
+          creditNotes,
+          cloud: creditNotesCloud,
+          clock: { now },
+        }).catch(reportFailure);
       }
     },
     scheduleNext,

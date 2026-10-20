@@ -150,6 +150,28 @@ describe("DrizzleFortnightReportDeadlineAlerts hasOpenedOverdueAlert", () => {
   });
 });
 
+describe("DrizzleFortnightReportDeadlineAlerts hasOpenOverdueAlert", () => {
+  it("is false while no overdue alert was opened for the scope", async () => {
+    await insert(overdueAlert({ scope: "5:2026-09-01" }));
+    await insert(pendingAlert());
+
+    await expect(deadlineAlerts().hasOpenOverdueAlert(SCOPE)).resolves.toBe(false);
+  });
+
+  it("is true while the overdue alert of the scope is open", async () => {
+    await insert(overdueAlert());
+
+    await expect(deadlineAlerts().hasOpenOverdueAlert(SCOPE)).resolves.toBe(true);
+  });
+
+  it("is false once a person closed the overdue alert", async () => {
+    const id = await insert(overdueAlert());
+    await db.update(alerts).set({ resolvedAt: NOW }).where(eq(alerts.id, id));
+
+    await expect(deadlineAlerts().hasOpenOverdueAlert(SCOPE)).resolves.toBe(false);
+  });
+});
+
 describe("DrizzleFortnightReportDeadlineAlerts openOverdueAlert", () => {
   it("opens a critical alert for everyone, by the clock it is handed, that nothing closes by itself", async () => {
     await deadlineAlerts().openOverdueAlert({

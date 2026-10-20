@@ -8,6 +8,7 @@ import {
   readSalesHistory,
   type SaleVoidability,
 } from "@purosur/domain/sales/use-cases";
+import { toWireCreditNote } from "../fiscal/wire-credit-note";
 import { inArgentinaTime } from "../platform/argentina-time";
 import type { LocalDatabase } from "../platform/local-database";
 import type { ActionGate } from "../sessions/action-gate";
@@ -18,6 +19,7 @@ import { SqliteRegisterSalesHistory } from "./sqlite-register-sales-history";
 export interface SalesHistoryRequestDeps {
   database: LocalDatabase;
   gate: ActionGate;
+  now: () => Date;
 }
 
 export interface SalesHistoryRequest {
@@ -45,6 +47,13 @@ function toWireVoidability(voidability: SaleVoidability): SaleHistoryDetail["voi
           ...refund,
           sent_by_cloud: sentByCloud,
         })),
+        credit_note_corrects:
+          voidability.creditNoteCorrects === null
+            ? null
+            : {
+                point_of_sale: voidability.creditNoteCorrects.pointOfSale,
+                number: voidability.creditNoteCorrects.number,
+              },
       }
     : voidability;
 }
@@ -80,7 +89,7 @@ export async function salesHistoryFor(
 }
 
 export async function saleHistoryDetailFor(
-  { database, gate }: SalesHistoryRequestDeps,
+  { database, gate, now }: SalesHistoryRequestDeps,
   saleId: string,
 ): Promise<SaleHistoryDetailOutcome> {
   const guarded = await gate.run({ kind: "view_sales_history" }, async ({ signedInUserId }) => ({
@@ -88,6 +97,7 @@ export async function saleHistoryDetailFor(
       {
         history: new SqliteRegisterSalesHistory(database),
         ledger: new SqliteReceiptLedger(database),
+        clock: { now },
       },
       { saleId },
     ),
@@ -122,6 +132,7 @@ export async function saleHistoryDetailFor(
       state: detail.standing,
       voidability: toWireVoidability(detail.voidability),
       void_authorization_required: voidNeedsAuthorization,
+      credit_note: toWireCreditNote(detail.creditNote),
       reprint: detail.reprint,
       next_copy:
         detail.nextCopy.kind === "original"

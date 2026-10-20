@@ -289,6 +289,26 @@ describe("OpenAlertInput of a fortnight report", () => {
     }>().not.toExtend<OpenAlertInput>();
   });
 
+  it("accepts the point of sale and the fortnight, naming no register, for an alert of a presentation owed elsewhere", () => {
+    expectTypeOf<{
+      kind: "fortnight_report_owed_elsewhere";
+      scope: string;
+      detail: {
+        pointOfSaleNumber: number;
+        fortnightStart: string;
+        fortnightEnd: string;
+      };
+    }>().toExtend<OpenAlertInput>();
+  });
+
+  it("refuses an alert of a presentation owed elsewhere without the point of sale", () => {
+    expectTypeOf<{
+      kind: "fortnight_report_owed_elsewhere";
+      scope: string;
+      detail: { fortnightStart: string; fortnightEnd: string };
+    }>().not.toExtend<OpenAlertInput>();
+  });
+
   it("refuses an overdue alert without the deadline", () => {
     expectTypeOf<{
       kind: "fortnight_report_overdue";
@@ -346,6 +366,24 @@ describe("an external billing alert", () => {
       kind: "external_billing";
       scope: string;
       detail: { pointOfSale: number; documentType: "factura_c" };
+    }>().not.toExtend<OpenAlertInput>();
+  });
+});
+
+describe("an invoice already credited alert", () => {
+  it("accepts the point of sale and number of the invoice and the sale that was voided", () => {
+    expectTypeOf<{
+      kind: "invoice_already_credited";
+      scope: string;
+      detail: { pointOfSale: number; number: number; saleId: string };
+    }>().toExtend<OpenAlertInput>();
+  });
+
+  it("refuses one without its sale", () => {
+    expectTypeOf<{
+      kind: "invoice_already_credited";
+      scope: string;
+      detail: { pointOfSale: number; number: number };
     }>().not.toExtend<OpenAlertInput>();
   });
 });

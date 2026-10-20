@@ -8,6 +8,7 @@ test("invalidating the sales key marks every sales read stale", async () => {
   client.setQueryData(salesKeys.report({}), []);
   client.setQueryData(salesKeys.productsAndCategories({ group: "category" }), []);
   client.setQueryData(salesKeys.cashiers({}), []);
+  client.setQueryData(salesKeys.promotions({}), []);
   client.setQueryData(salesKeys.averageTicket({}), []);
   client.setQueryData(["stock"], []);
 
@@ -18,6 +19,7 @@ test("invalidating the sales key marks every sales read stale", async () => {
     client.getQueryState(salesKeys.productsAndCategories({ group: "category" }))?.isInvalidated,
   ).toBe(true);
   expect(client.getQueryState(salesKeys.cashiers({}))?.isInvalidated).toBe(true);
+  expect(client.getQueryState(salesKeys.promotions({}))?.isInvalidated).toBe(true);
   expect(client.getQueryState(salesKeys.averageTicket({}))?.isInvalidated).toBe(true);
   expect(client.getQueryState(["stock"])?.isInvalidated).toBe(false);
 });
@@ -55,6 +57,19 @@ test("each range and register has its own sales by cashier key", () => {
     salesKeys.cashiers({ register_id: FRONT_REGISTER_ID }),
     salesKeys.report({ register_id: FRONT_REGISTER_ID }),
     salesKeys.productsAndCategories({ group: "category" }),
+  ];
+
+  expect(new Set(keys.map((key) => JSON.stringify(key))).size).toBe(keys.length);
+});
+
+test("each range and register has its own sales by promotion key", () => {
+  const keys = [
+    salesKeys.promotions({}),
+    salesKeys.promotions({ from: "2026-10-01", to: "2026-10-07" }),
+    salesKeys.promotions({ from: "2026-10-01", to: "2026-10-08" }),
+    salesKeys.promotions({ register_id: FRONT_REGISTER_ID }),
+    salesKeys.cashiers({ register_id: FRONT_REGISTER_ID }),
+    salesKeys.report({ register_id: FRONT_REGISTER_ID }),
   ];
 
   expect(new Set(keys.map((key) => JSON.stringify(key))).size).toBe(keys.length);

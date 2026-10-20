@@ -98,6 +98,17 @@ describe("WsfeTaxAuthorityCreditNotes", () => {
       expect(block).not.toMatch(/Cuit/);
     });
 
+    it("associates the credit note to the point of sale of the voucher it cancels, not the one issuing the credit note", async () => {
+      await creditNotesAt(server.endpoint).solicit({
+        ...solicitation,
+        associatedVoucher: { voucherType: 11, pointOfSale: 31, number: 42 },
+      });
+
+      const [request] = server.requests;
+      expect(sentValue(request, "PtoVta")).toBe("7");
+      expect(sentValue(associatedBlock(request), "PtoVta")).toBe("31");
+    });
+
     it("carries no VAT breakdown, since a credit note C has none", async () => {
       await creditNotesAt(server.endpoint).solicit(solicitation);
 

@@ -23,6 +23,7 @@ function owed(overrides: Partial<OwedFortnightPresentation> = {}): OwedFortnight
     fortnight: FORTNIGHT,
     taxAuthorityDeadline: "2026-09-25",
     state: null,
+    listed: false,
     ...overrides,
   };
 }
@@ -206,7 +207,29 @@ describe("detectFortnightReportDeadlines", () => {
       const { alerts, outcome } = detect(
         [owed()],
         at("2026-10-02"),
-        new FakeFortnightReportDeadlineAlerts({ overdueScopes: [SCOPE] }),
+        new FakeFortnightReportDeadlineAlerts({ closedOverdueScopes: [SCOPE] }),
+      );
+      await outcome;
+
+      expect(alerts.overdueAlerts).toEqual([]);
+    });
+
+    it("opens it again for a presentation the tax authority lists as owed, once a person has closed it", async () => {
+      const { alerts, outcome } = detect(
+        [owed({ listed: true })],
+        at("2026-10-02"),
+        new FakeFortnightReportDeadlineAlerts({ closedOverdueScopes: [SCOPE] }),
+      );
+      await outcome;
+
+      expect(alerts.overdueAlerts.map(({ scope }) => scope)).toEqual([SCOPE]);
+    });
+
+    it("opens no second overdue alert for a presentation the tax authority lists as owed while one is open", async () => {
+      const { alerts, outcome } = detect(
+        [owed({ listed: true })],
+        at("2026-10-02"),
+        new FakeFortnightReportDeadlineAlerts({ openOverdueScopes: [SCOPE] }),
       );
       await outcome;
 
@@ -217,7 +240,7 @@ describe("detectFortnightReportDeadlines", () => {
       const { alerts, outcome } = detect(
         [owed(), owed({ pointOfSaleNumber: 5, registerId: "register-2" })],
         missedDay,
-        new FakeFortnightReportDeadlineAlerts({ overdueScopes: [SCOPE] }),
+        new FakeFortnightReportDeadlineAlerts({ openOverdueScopes: [SCOPE] }),
       );
       await outcome;
 
