@@ -70,6 +70,10 @@ test("counts an install with any options, and its short form", () => {
     "pnpm install --frozen-lockfile --ignore-scripts",
     "pnpm install --frozen-lockfile --filter a --filter @b/c",
     "pnpm i --frozen-lockfile",
+    "pnpm --filter a install",
+    "pnpm -F a --filter-prod @b/c i --frozen-lockfile",
+    "pnpm --filter=a --dir . install",
+    "pnpm --reporter append-only --loglevel warn install",
   ]) {
     assert.deepEqual(
       check(job(`      - run: ${command}`, "      - run: node s/main.mjs"), importsYaml),
@@ -121,6 +125,20 @@ test("does not count an install run in a directory outside the repository", () =
   ];
 
   assert.equal(check(job(steps), importsYaml).length, 1);
+});
+
+test("does not count an install whose directory option points outside the repository", () => {
+  for (const command of [
+    "pnpm -C ../previous install",
+    "pnpm --filter a --dir ../previous install",
+    "pnpm --dir=../previous -F a i",
+  ]) {
+    assert.equal(
+      check(job(`      - run: ${command}`, "      - run: node s/main.mjs"), importsYaml).length,
+      1,
+      command,
+    );
+  }
 });
 
 test("names the package reached through a chain of local imports, and the module importing it", () => {
@@ -280,7 +298,10 @@ test("follows a script whose path comes after other node flags", () => {
     "node --max-old-space-size=4096 --no-warnings s/main.mjs",
     "node --disable-warning ExperimentalWarning s/main.mjs arg",
   ]) {
-    assert.equal(check(job(`      - run: ${command}`), importsYaml).length, 1, command);
+    const violations = check(job(`      - run: ${command}`), importsYaml);
+
+    assert.equal(violations.length, 1, command);
+    assert.match(violations[0].message, /runs s\/main\.mjs, which imports package yaml/, command);
   }
 });
 
@@ -311,6 +332,8 @@ test("finds node wherever a shell command starts, and nowhere else", () => {
     "SOME_VAR=1 OTHER=2 node s/main.mjs",
     "if node s/main.mjs; then echo ok; fi",
     'node s/main.mjs > "$RUNNER_TEMP/out.json" 2>&1',
+    "diff <(node s/main.mjs) expected.txt",
+    "echo a | tee >(node s/main.mjs) > /dev/null",
   ]) {
     assert.equal(
       check(job(`      - run: ${JSON.stringify(script)}`), importsYaml).length,
@@ -336,6 +359,26 @@ test("reads a folded or continued script as one command", () => {
   assert.equal(check(continued, importsYaml).length, 1);
 });
 
+test("reads the commands after a here-document, whatever its body holds", () => {
+  for (const lines of [
+    ["cat <<EOF", "it's here", "EOF", "node s/main.mjs"],
+    ["cat <<'EOF' > out.txt", "it's here", "EOF", "node s/main.mjs"],
+    ['cat <<"END"', "it's here", "END", "node s/main.mjs"],
+    ["cat <<-EOF", "\tit's here", "\tEOF", "node s/main.mjs"],
+    ["cat <<A <<B", "it's", "A", "it's", "B", "node s/main.mjs"],
+  ]) {
+    const workflow = job("      - run: |", ...lines.map((line) => `          ${line}`));
+
+    assert.equal(check(workflow, importsYaml).length, 1, lines.join("\n"));
+  }
+});
+
+test("reads a here-string as a word of its command", () => {
+  const workflow = job("      - run: |", `          cat <<< "it's"`, "          node s/main.mjs");
+
+  assert.equal(check(workflow, importsYaml).length, 1);
+});
+
 test("ignores node commands that run no script", () => {
   assert.deepEqual(check(job("      - run: node --version && node -v"), {}), []);
 });
@@ -347,17 +390,22 @@ test("resolves a script path given from the workspace", () => {
     `node \${GITHUB_WORKSPACE}/s/main.mjs`,
     "node ./s/main.mjs",
   ]) {
-    assert.equal(check(job(`      - run: ${command}`), importsYaml).length, 1, command);
+    const violations = check(job(`      - run: ${command}`), importsYaml);
+
+    assert.equal(violations.length, 1, command);
+    assert.match(violations[0].message, /runs s\/main\.mjs, which imports package yaml/, command);
   }
 });
 
 test("resolves a script path against the step's working directory, then the job's defaults", () => {
   const files = { "apps/x/s/main.mjs": 'import "yaml";\n' };
 
-  assert.equal(
-    check(job("      - run: node s/main.mjs", "        working-directory: apps/x"), files).length,
-    1,
+  const fromStep = check(
+    job("      - run: node s/main.mjs", "        working-directory: apps/x"),
+    files,
   );
+  assert.equal(fromStep.length, 1);
+  assert.match(fromStep[0].message, /runs apps\/x\/s\/main\.mjs, which imports package yaml/);
 
   const withDefaults = [
     "jobs:",
@@ -368,7 +416,9 @@ test("resolves a script path against the step's working directory, then the job'
     "    steps:",
     "      - run: node s/main.mjs",
   ];
-  assert.equal(check(withDefaults, files).length, 1);
+  const fromDefaults = check(withDefaults, files);
+  assert.equal(fromDefaults.length, 1);
+  assert.match(fromDefaults[0].message, /runs apps\/x\/s\/main\.mjs, which imports package yaml/);
 });
 
 test("refuses a script path the check cannot resolve", () => {
