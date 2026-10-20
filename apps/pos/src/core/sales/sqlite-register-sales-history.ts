@@ -1,14 +1,17 @@
 import {
   FACTURA_C_DOCUMENT_TYPE,
+  type FiscalAuthorization,
   type FiscalDocumentState,
   type FiscalOnlineSignalEvidence,
   IN_PROGRESS_FISCAL_DOCUMENT_STATES,
   isDeferralPending,
   PENDING_DEFERRED_SALE_RECORD,
   SALE_STANDING_DEFINITIONS,
+  type SaleComprobante,
   type SaleFiscalFacts,
   type SaleStanding,
   type SaleStandingDefinition,
+  saleComprobanteOf,
 } from "@purosur/domain";
 import type {
   RegisterSalesHistory,
@@ -39,6 +42,7 @@ interface DetailRow extends SaleRow {
 
 interface FiscalDocumentRow {
   state: FiscalDocumentState;
+  authorization: FiscalAuthorization;
   point_of_sale: number;
   number: number;
 }
@@ -163,6 +167,10 @@ export class SqliteRegisterSalesHistory implements RegisterSalesHistory {
     };
   }
 
+  comprobanteOf(saleId: string): SaleComprobante {
+    return saleComprobanteOf(this.fiscalFactsOf(saleId));
+  }
+
   fiscalOnlineEvidence(): FiscalOnlineSignalEvidence {
     return readFiscalOnlineEvidence(this.database);
   }
@@ -212,9 +220,10 @@ export class SqliteRegisterSalesHistory implements RegisterSalesHistory {
   private fiscalFactsOf(saleId: string): SaleFiscalFacts {
     const document = this.database
       .prepare<[{ sale_id: string }], FiscalDocumentRow>(
-        `SELECT state, point_of_sale, number FROM fiscal_documents WHERE sale_id = @sale_id
+        `SELECT state, 'real_time' AS authorization, point_of_sale, number FROM fiscal_documents
+         WHERE sale_id = @sale_id
          UNION ALL
-         SELECT 'AUTHORIZED', point_of_sale, number FROM offline_fiscal_documents
+         SELECT 'AUTHORIZED', 'offline_code', point_of_sale, number FROM offline_fiscal_documents
          WHERE sale_id = @sale_id`,
       )
       .get({ sale_id: saleId });
@@ -233,6 +242,7 @@ export class SqliteRegisterSalesHistory implements RegisterSalesHistory {
           : {
               state: document.state,
               documentType: FACTURA_C_DOCUMENT_TYPE,
+              authorization: document.authorization,
               pointOfSale: document.point_of_sale,
               number: document.number,
             },

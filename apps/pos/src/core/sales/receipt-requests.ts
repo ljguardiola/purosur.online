@@ -22,7 +22,9 @@ import type { LocalDatabase } from "../platform/local-database";
 import type { ActionGate } from "../sessions/action-gate";
 import type { ReceiptPrintJobs } from "./receipt-print-jobs";
 import { escPosReceiptTemplate } from "./receipt-printer/escpos-receipt-template";
+import { toWireComprobante } from "./sales-history-requests";
 import { SqliteReceiptLedger } from "./sqlite-receipt-ledger";
+import { SqliteRegisterSalesHistory } from "./sqlite-register-sales-history";
 
 export interface ReceiptRequestDeps {
   database: LocalDatabase;
@@ -78,6 +80,9 @@ export async function receiptPrintStatusFor(
         next_copy: toWireCopy(delivery.nextCopy),
         printed: delivery.printedAt !== null,
         standing: jobs.standingOf(saleId),
+        comprobante: toWireComprobante(
+          new SqliteRegisterSalesHistory(database).comprobanteOf(saleId),
+        ),
       };
 }
 
