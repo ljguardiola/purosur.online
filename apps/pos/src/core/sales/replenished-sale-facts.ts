@@ -37,7 +37,17 @@ type SaleFact = Extract<
 type PaymentFact = CompletedSaleFact["payments"][number];
 type LineFact = CompletedSaleFact["lines"][number];
 
-function lineOf(line: LineFact): SaleLine {
+function discountName(database: LocalDatabase, discountId: string): string {
+  const discount = database
+    .prepare<[string], { name: string }>("SELECT name FROM discounts WHERE id = ?")
+    .get(discountId);
+  if (discount === undefined) {
+    throw new Error(`discount ${discountId} is not held`);
+  }
+  return discount.name;
+}
+
+function lineOf(database: LocalDatabase, line: LineFact): SaleLine {
   return {
     id: line.id,
     productId: line.productId,
@@ -47,7 +57,11 @@ function lineOf(line: LineFact): SaleLine {
     quantity: line.quantity,
     listUnitPrice: line.listUnitPrice,
     priceListId: line.priceListId,
-    promotions: [],
+    promotions: line.promotions.map(({ discountId, benefit }) => ({
+      id: discountId,
+      name: discountName(database, discountId),
+      benefit,
+    })),
     manualAdjustment: line.manualAdjustment,
     promotionId: line.promotionId,
     discountAmount: line.discountAmount,
@@ -147,6 +161,25 @@ function replenishPayment(database: LocalDatabase, saleId: string, payment: Paym
   }
 }
 
+export function holdSaleCashMovements(
+  database: LocalDatabase,
+  sale: Pick<CompletedSaleFact, "id" | "sessionId" | "cashMovements">,
+): void {
+  for (const movement of sale.cashMovements) {
+    if (!held(database, "SELECT 1 FROM cash_movements WHERE id = ?", movement.id)) {
+      insertCashMovement(database, {
+        id: movement.id,
+        sessionId: sale.sessionId,
+        type: movement.type,
+        amount: movement.amount,
+        actorId: movement.actorId,
+        occurredAt: movement.occurredAt,
+        ref: { type: "sale", id: sale.id },
+      });
+    }
+  }
+}
+
 // An open sale the snapshot holds is rebuilt from the fact, keeping the payments and cash
 // movements it already holds; answers false for a sale the snapshot already closed.
 function holdOpenSale(
@@ -183,25 +216,13 @@ function holdOpenSale(
     }
   }
   for (const line of sale.lines) {
-    insertSaleLine(database, sale.id, lineOf(line));
+    insertSaleLine(database, sale.id, lineOf(database, line));
   }
   updateSaleDiscount(database, sale.id, sale.saleDiscount);
   for (const payment of sale.payments) {
     replenishPayment(database, sale.id, payment);
   }
-  for (const movement of sale.cashMovements) {
-    if (!held(database, "SELECT 1 FROM cash_movements WHERE id = ?", movement.id)) {
-      insertCashMovement(database, {
-        id: movement.id,
-        sessionId: sale.sessionId,
-        type: movement.type,
-        amount: movement.amount,
-        actorId: movement.actorId,
-        occurredAt: movement.occurredAt,
-        ref: { type: "sale", id: sale.id },
-      });
-    }
-  }
+  holdSaleCashMovements(database, sale);
   return true;
 }
 
