@@ -324,6 +324,31 @@ test("follows the imports of code given to node -e", () => {
   assert.match(violations[0].message, /through s\/main\.mjs/);
 });
 
+test("refuses code given to node -e that imports a local module that does not exist", () => {
+  const violations = check(job(`      - run: node -e 'import("./gone.mjs")'`), {});
+
+  assert.equal(violations.length, 1);
+  assert.match(
+    violations[0].message,
+    /runs node -e code, which imports gone\.mjs, which does not exist$/,
+  );
+});
+
+test("follows a script's import of a path built from the workspace variable", () => {
+  const files = {
+    "s/main.mjs": `await import(\`\${process.env.GITHUB_WORKSPACE}/s/lib.mjs\`);\n`,
+    "s/lib.mjs": 'import "yaml";\n',
+  };
+
+  const violations = check(job("      - run: node s/main.mjs"), files);
+
+  assert.equal(violations.length, 1);
+  assert.match(
+    violations[0].message,
+    /runs s\/main\.mjs, which imports package yaml through s\/lib\.mjs /,
+  );
+});
+
 test("finds node wherever a shell command starts, and nowhere else", () => {
   for (const script of [
     "files=$(node s/main.mjs)",
@@ -607,6 +632,41 @@ test("refuses a github-script import path that cannot be resolved", () => {
       line,
     );
   }
+});
+
+test("refuses a github-script literal path outside the repository or built from another expression, installed or not", () => {
+  for (const [line, text] of [
+    ['require("/tmp/lib.js");', '"/tmp/lib.js"'],
+    ['await import("../outside.mjs");', '"../outside.mjs"'],
+    [`require("\${{ runner.temp }}/lib.js");`, `"\${{ runner.temp }}/lib.js"`],
+    [`require("\${{ env.SCRIPT_PATH }}");`, `"\${{ env.SCRIPT_PATH }}"`],
+  ]) {
+    for (const steps of [
+      [githubScript("Validate", line)],
+      [install, githubScript("Validate", line)],
+    ]) {
+      assert.deepEqual(
+        check(job(...steps), libImportsYaml).map((violation) => violation.message),
+        [
+          'step "Validate" of job build runs actions/github-script with an import path ' +
+            `that cannot be resolved: ${text}`,
+        ],
+        line,
+      );
+    }
+  }
+});
+
+test("accepts a github-script step requiring packages and built-ins after an install", () => {
+  const steps = githubScript(
+    "Read",
+    'require("yaml");',
+    'require("@scope/pkg/sub");',
+    'require("fs");',
+    'require("node:path");',
+  );
+
+  assert.deepEqual(check(job(install, steps)), []);
 });
 
 test("refuses a github-script step importing a module that does not exist", () => {
