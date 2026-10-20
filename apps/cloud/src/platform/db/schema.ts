@@ -1345,6 +1345,7 @@ export const inbox = pgTable(
     index("inbox_applied_aggregate_idx")
       .on(table.aggregateType, table.aggregateId)
       .where(sql`${table.appliedAt} is not null`),
+    index("inbox_device_id_occurred_at_idx").on(table.deviceId, table.occurredAt),
   ],
 );
 
