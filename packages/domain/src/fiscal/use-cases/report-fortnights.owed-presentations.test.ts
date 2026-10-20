@@ -212,6 +212,52 @@ describe("reportFortnights, with the tax authority's list of owed presentations"
       expect(presentationOutcomes(result)).toHaveLength(1);
       expect(setup.declarations.lookUps).toHaveLength(1);
     });
+
+    it("looks the documents up once when the tax authority does not answer their report, although it is both owed and accepted with unreported documents", async () => {
+      const setup = listed();
+      acceptedLocally(setup, "documents");
+      setup.reports.seedReportedThrough(LISTED, "factura_c", 3);
+      setup.documents.add(POINT_OF_SALE, SEPTEMBER_SECOND_HALF, ...documentsNumbered(1, 2, 3, 4));
+      setup.documentReports.hold(POINT_OF_SALE, "factura_c", 3);
+      setup.documentReports.reportAnswer = () => ({ kind: "no_answer" });
+
+      await setup.run();
+
+      expect(setup.documentReports.lastReportedCalls).toHaveLength(1);
+    });
+
+    it("still presents the unreported documents of another point of sale accepted with them", async () => {
+      const setup = listed();
+      const other = 8;
+      setup.codeStore.ownedOfflinePointsOfSale = [POINT_OF_SALE, other];
+      setup.reports.pointsOfSale.push({
+        pointOfSaleNumber: other,
+        registerId: REGISTER_ID,
+        claimedAt: new Date("2026-09-01T12:00:00.000Z"),
+      });
+      setup.reports.seed(
+        { pointOfSaleNumber: other, fortnight: SEPTEMBER_SECOND_HALF },
+        { state: "accepted", movement: "documents", lastAttemptAt: null },
+      );
+      setup.documents.add(POINT_OF_SALE, SEPTEMBER_SECOND_HALF, ...documentsNumbered(1));
+      setup.documents.add(other, SEPTEMBER_SECOND_HALF, ...documentsNumbered(1));
+
+      await setup.run();
+
+      expect(
+        setup.documentReports.reports.map(({ pointOfSaleNumber }) => pointOfSaleNumber),
+      ).toEqual([POINT_OF_SALE, other]);
+    });
+
+    it("resolves nothing when the list does not name the presentation that was accepted", async () => {
+      const setup = setUpReportFortnights();
+      setup.owedPresentations.entries = [LISTED_ELSEWHERE];
+
+      await setup.run();
+
+      expect(setup.declarations.declarations).toHaveLength(1);
+      expect(setup.owedPresentations.resolutions).toEqual([]);
+    });
   });
 
   describe("a presentation of a point of sale the system does not own", () => {
