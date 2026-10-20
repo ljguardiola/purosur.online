@@ -2810,6 +2810,7 @@ export const supplierPriceLists = pgTable(
     state: text("state").notNull(),
     readFailure: text("read_failure"),
     listDate: date("list_date", { mode: "string" }),
+    pricesIncludeVat: boolean("prices_include_vat"),
     uploadedAt: timestamp("uploaded_at", { withTimezone: true }).notNull(),
     uploadedBy: uuid("uploaded_by")
       .notNull()

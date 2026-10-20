@@ -1,5 +1,5 @@
 {
-  "id": "ec902fa2-fd09-4486-a2e2-425311dced27",
+  "id": "a8ba7286-7c92-4dc6-afc1-ee065adb2bba",
   "prevId": "1b029c9a-0095-4d7b-89e4-6d522b4ee03e",
   "version": "7",
   "dialect": "postgresql",
@@ -10372,6 +10372,12 @@
         "list_date": {
           "name": "list_date",
           "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "prices_include_vat": {
+          "name": "prices_include_vat",
+          "type": "boolean",
           "primaryKey": false,
           "notNull": false
         },

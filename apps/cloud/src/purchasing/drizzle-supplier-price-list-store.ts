@@ -131,6 +131,7 @@ class DrizzleSupplierPriceListStoreTransaction<TQueryResult extends PgQueryResul
         state: list.state as SupplierPriceListState,
         version: list.version,
         listDate: list.listDate,
+        pricesIncludeVat: list.pricesIncludeVat,
         sentAt: list.sentAt,
         rowPrices: rows.map((row) => row.priceCents),
       },
@@ -147,6 +148,7 @@ class DrizzleSupplierPriceListStoreTransaction<TQueryResult extends PgQueryResul
   async recordExtraction(
     listId: string,
     listDate: string | null,
+    pricesIncludeVat: boolean | null,
     rows: ProposedPriceListRow[],
   ): Promise<void> {
     await this.tx.insert(supplierPriceListRows).values(
@@ -165,6 +167,7 @@ class DrizzleSupplierPriceListStoreTransaction<TQueryResult extends PgQueryResul
       .set({
         state: "EXTRACTED",
         listDate,
+        pricesIncludeVat,
         extractedAt: this.now(),
         version: sql`${supplierPriceLists.version} + 1`,
       })
@@ -241,6 +244,7 @@ class DrizzleSupplierPriceListStoreTransaction<TQueryResult extends PgQueryResul
   async confirmList(
     listId: string,
     listDate: string,
+    pricesIncludeVat: boolean,
     confirmedAt: Date,
     actorId: string,
   ): Promise<void> {
@@ -249,6 +253,7 @@ class DrizzleSupplierPriceListStoreTransaction<TQueryResult extends PgQueryResul
       .set({
         state: "REVIEWED",
         listDate,
+        pricesIncludeVat,
         confirmedAt,
         confirmedBy: actorId,
         version: sql`${supplierPriceLists.version} + 1`,

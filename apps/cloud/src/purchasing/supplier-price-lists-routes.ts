@@ -58,6 +58,7 @@ const CONFIRMATION_REFUSALS = {
   no_rows: "the list has no rows to confirm",
   unpriced_rows: "some rows have no price",
   list_date_missing: "the list has no date",
+  vat_missing: "the list does not say whether its prices include VAT",
 } as const;
 
 function contentDisposition(fileName: string): string {
@@ -291,6 +292,7 @@ export function registerSupplierPriceListsRoutes<TQueryResult extends PgQueryRes
       listId: ids.id,
       version: body.version,
       listDate: body.listDate,
+      pricesIncludeVat: body.pricesIncludeVat,
       actorId: openSessionOf(request).userId,
       now: now(),
     });
@@ -301,7 +303,8 @@ export function registerSupplierPriceListsRoutes<TQueryResult extends PgQueryRes
     if (
       outcome.kind === "no_rows" ||
       outcome.kind === "unpriced_rows" ||
-      outcome.kind === "list_date_missing"
+      outcome.kind === "list_date_missing" ||
+      outcome.kind === "vat_missing"
     ) {
       await reply
         .code(409)

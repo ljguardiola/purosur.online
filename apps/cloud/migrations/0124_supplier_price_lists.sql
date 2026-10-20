@@ -28,6 +28,7 @@ CREATE TABLE "supplier_price_lists" (
 	"state" text NOT NULL,
 	"read_failure" text,
 	"list_date" date,
+	"prices_include_vat" boolean,
 	"uploaded_at" timestamp with time zone NOT NULL,
 	"uploaded_by" uuid NOT NULL,
 	"sent_at" timestamp with time zone,

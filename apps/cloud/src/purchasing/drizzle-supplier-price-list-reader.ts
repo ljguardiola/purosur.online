@@ -79,7 +79,11 @@ export class DrizzleSupplierPriceListReader<TQueryResult extends PgQueryResultHK
 
   async review(listId: string): Promise<SupplierPriceListReview | undefined> {
     const [list] = await this.db
-      .select({ ...listingColumns, version: supplierPriceLists.version })
+      .select({
+        ...listingColumns,
+        version: supplierPriceLists.version,
+        pricesIncludeVat: supplierPriceLists.pricesIncludeVat,
+      })
       .from(supplierPriceLists)
       .innerJoin(suppliers, eq(suppliers.id, supplierPriceLists.supplierId))
       .where(eq(supplierPriceLists.id, listId));
@@ -98,7 +102,14 @@ export class DrizzleSupplierPriceListReader<TQueryResult extends PgQueryResultHK
       .from(supplierPriceListRows)
       .where(eq(supplierPriceListRows.listId, listId))
       .orderBy(asc(supplierPriceListRows.position));
-    return { list: { ...toListing(list), version: list.version }, rows };
+    return {
+      list: {
+        ...toListing(list),
+        version: list.version,
+        pricesIncludeVat: list.pricesIncludeVat,
+      },
+      rows,
+    };
   }
 
   async fileName(listId: string): Promise<string | undefined> {
