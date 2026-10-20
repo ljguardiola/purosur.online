@@ -1,4 +1,9 @@
 import type { PushedEvent } from "@purosur/domain";
+import {
+  FICTIONAL_CUIT,
+  FICTIONAL_GROSS_INCOME_REGISTRATION,
+  FICTIONAL_LEGAL_NAME,
+} from "@purosur/domain/fiscal/test-support";
 import { describe, expect, it } from "vitest";
 import { syncedEventUpcaster } from "./synced-event-upcaster.js";
 import { recordedPushes } from "./test-support/recorded-pushes.js";
@@ -1717,6 +1722,117 @@ describe("decoding the events the registers pushed", () => {
         },
       },
     });
+  });
+
+  it("reads the document issued under a pre-obtained code with the invoice it carries", () => {
+    const decoded = upcaster.decode(
+      unappliedEventOf(
+        pushed({
+          event_type: "offline_fiscal_document_issued",
+          schema_version: 2,
+          payload: {
+            fiscal_document_id: "01a1122a-0305-7189-87d0-8256a353fd41",
+            sale_id: SALE,
+            register_id: "01a1122a-0305-7189-87d0-8256a353fd42",
+            point_of_sale: 7,
+            document_type: "factura_c",
+            number: 12,
+            issued_on: "2026-10-06",
+            generated_at: "2026-10-06T11:20:00.000Z",
+            generation_stamp: "20261006082000",
+            offline_authorization_code: "21403471111111",
+            fortnight_start: "2026-10-01",
+            fortnight_end: "2026-10-15",
+            buyer_document_type: 99,
+            buyer_document_number: 0,
+            buyer_tax_status_code: 5,
+            total: 4800,
+            net_amount: 4800,
+            cause: "unclear_outcome",
+            document: {
+              invoice_class: "C",
+              total: 4800,
+              net_amount: 4800,
+              vat_amount: 0,
+              issuer: {
+                legal_name: FICTIONAL_LEGAL_NAME,
+                cuit: FICTIONAL_CUIT,
+                tax_status: "MONOTRIBUTO",
+                gross_income_registration: FICTIONAL_GROSS_INCOME_REGISTRATION,
+                activity_start_date: "2020-01-01",
+                version: 3,
+              },
+              buyer_tax_status_code: 5,
+              buyer_tax_status_description: "Consumidor Final",
+            },
+          },
+        }),
+      ),
+    );
+
+    expect(decoded).toMatchObject({
+      kind: "fact",
+      fact: {
+        kind: "offline_fiscal_document_issued",
+        document: {
+          fiscalDocumentId: "01a1122a-0305-7189-87d0-8256a353fd41",
+          number: 12,
+          total: 4800,
+          invoice: {
+            invoiceClass: "C",
+            total: 4800,
+            netAmount: 4800,
+            vatAmount: 0,
+            issuer: {
+              legalName: FICTIONAL_LEGAL_NAME,
+              cuit: FICTIONAL_CUIT,
+              taxStatus: "MONOTRIBUTO",
+              grossIncomeRegistration: FICTIONAL_GROSS_INCOME_REGISTRATION,
+              activityStartDate: "2020-01-01",
+              version: 3,
+            },
+            buyerTaxStatusCode: 5,
+            buyerTaxStatusDescription: "Consumidor Final",
+          },
+        },
+      },
+    });
+  });
+
+  it("reads a version 1 document as one without an invoice", () => {
+    const decoded = upcaster.decode(
+      unappliedEventOf(
+        pushed({
+          event_type: "offline_fiscal_document_issued",
+          schema_version: 1,
+          payload: {
+            fiscal_document_id: "01a1122a-0305-7189-87d0-8256a353fd41",
+            sale_id: SALE,
+            register_id: "01a1122a-0305-7189-87d0-8256a353fd42",
+            point_of_sale: 7,
+            document_type: "factura_c",
+            number: 12,
+            issued_on: "2026-10-06",
+            generated_at: "2026-10-06T11:20:00.000Z",
+            generation_stamp: "20261006082000",
+            offline_authorization_code: "21403471111111",
+            fortnight_start: "2026-10-01",
+            fortnight_end: "2026-10-15",
+            buyer_document_type: 99,
+            buyer_document_number: 0,
+            buyer_tax_status_code: 5,
+            total: 4800,
+            net_amount: 4800,
+            cause: "unclear_outcome",
+          },
+        }),
+      ),
+    );
+
+    expect(decoded).toMatchObject({ kind: "fact" });
+    expect(decoded.kind === "fact" ? decoded.fact : undefined).not.toHaveProperty(
+      "document.invoice",
+    );
   });
 
   it("reads the correction of a register's clock mark", () => {
