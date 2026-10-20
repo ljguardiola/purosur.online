@@ -58,7 +58,7 @@ export function isSourcePage(page: number): boolean {
   return Number.isInteger(page) && page > 0;
 }
 
-export type ConfirmationRefusal = "no_rows" | "unpriced_rows" | "list_date_missing";
+type ConfirmationRefusal = "no_rows" | "unpriced_rows" | "list_date_missing";
 
 export type ConfirmationDecision =
   | { kind: "refused"; reason: ConfirmationRefusal }

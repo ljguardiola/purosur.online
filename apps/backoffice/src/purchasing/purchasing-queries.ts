@@ -40,7 +40,7 @@ export const purchasingKeys = {
   supplierPriceListReview: [...purchasingKey, "supplier-price-list-review"] as const,
 };
 
-export const SUPPLIER_PRICE_LIST_READING_REFRESH_MS = 5_000;
+const SUPPLIER_PRICE_LIST_READING_REFRESH_MS = 5_000;
 
 function useCloudQueryWhileReading<T>(
   query: Omit<Parameters<typeof useCloudQuery<T>>[0], "refetchInterval">,
