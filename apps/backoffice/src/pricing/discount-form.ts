@@ -20,9 +20,10 @@ import {
 import { Package, Percent } from "lucide-react";
 import { createElement } from "react";
 import { categoriesInTreeOrder, categoryPathLabels } from "../platform/category-path";
+import { DISCOUNT_TARGET_KIND_LABELS } from "../platform/discount-terms-text";
 import { formatNetContent } from "../platform/net-content";
 import { schemaLimit } from "../platform/schema-limit";
-import { DISCOUNT_KIND_LABELS, DISCOUNT_TARGET_KIND_LABELS } from "./discount-texts";
+import { DISCOUNT_KIND_LABELS } from "./discount-texts";
 
 export type DiscountFormValues = {
   name: string;

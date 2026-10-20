@@ -37,6 +37,7 @@ import type { AverageTicketScreenServices } from "../sales/average-ticket-servic
 import type { SalesByCashierScreenServices } from "../sales/sales-by-cashier-services";
 import type { SalesByDayScreenServices } from "../sales/sales-by-day-services";
 import type { SalesByProductAndCategoryScreenServices } from "../sales/sales-by-product-and-category-services";
+import type { SalesByPromotionScreenServices } from "../sales/sales-by-promotion-services";
 import type { CompromiseResponseScreenServices } from "../sessions/compromise-response-services";
 import type { EndEverySessionSectionServices } from "../sessions/end-every-session-section-services";
 import { checkSessionStatus, fetchSession, type SessionOutcome } from "../sessions/session-api";
@@ -94,6 +95,7 @@ export type AppServices = {
   salesByDayScreen: SalesByDayScreenServices;
   salesByProductAndCategoryScreen: SalesByProductAndCategoryScreenServices;
   salesByCashierScreen: SalesByCashierScreenServices;
+  salesByPromotionScreen: SalesByPromotionScreenServices;
   averageTicketScreen: AverageTicketScreenServices;
   salesByPaymentMethodScreen: SalesByPaymentMethodScreenServices;
   handConfirmedPaymentsScreen: HandConfirmedPaymentsScreenServices;
