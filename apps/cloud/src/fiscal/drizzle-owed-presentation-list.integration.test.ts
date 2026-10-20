@@ -100,7 +100,7 @@ describe("the owed presentation list on a real Postgres", () => {
   it("resolves only the presentation it is given", async () => {
     await list().replace([SEPTEMBER_FIRST_HALF_AT_4, AUGUST_SECOND_HALF_AT_9], AT);
 
-    await list().resolve(SEPTEMBER_FIRST_HALF_AT_4, LATER);
+    await list().resolve(SEPTEMBER_FIRST_HALF_AT_4);
 
     expect(await list().listed()).toEqual([AUGUST_SECOND_HALF_AT_9]);
   });
@@ -109,13 +109,13 @@ describe("the owed presentation list on a real Postgres", () => {
     const sameFortnightAt9 = { ...SEPTEMBER_FIRST_HALF_AT_4, pointOfSaleNumber: 9 };
     await list().replace([SEPTEMBER_FIRST_HALF_AT_4, sameFortnightAt9], AT);
 
-    await list().resolve(SEPTEMBER_FIRST_HALF_AT_4, LATER);
+    await list().resolve(SEPTEMBER_FIRST_HALF_AT_4);
 
     expect(await list().listed()).toEqual([sameFortnightAt9]);
   });
 
   it("resolves a presentation that is not listed without failing", async () => {
-    await list().resolve(SEPTEMBER_FIRST_HALF_AT_4, LATER);
+    await list().resolve(SEPTEMBER_FIRST_HALF_AT_4);
 
     expect(await list().listed()).toEqual([]);
   });
