@@ -14,9 +14,9 @@ test("fills the form with the register's QR point of sale and the version of its
 });
 
 test("fills the form empty for a register without a QR point of sale", () => {
-  expect(
-    qrPointOfSaleFormValuesFrom({ qrExternalPosId: null, qrPointOfSaleVersion: 0 }),
-  ).toEqual(EMPTY_QR_POINT_OF_SALE_FORM);
+  expect(qrPointOfSaleFormValuesFrom({ qrExternalPosId: null, qrPointOfSaleVersion: 0 })).toEqual(
+    EMPTY_QR_POINT_OF_SALE_FORM,
+  );
 });
 
 test("builds the request with the typed code and the version", () => {

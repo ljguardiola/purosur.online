@@ -293,9 +293,7 @@ test("shows a stale-version notice, and Recargar reads the register again so the
   };
   const { dialog } = await renderModal({ services, reload: () => found(changed) });
   await save(dialog);
-  await expect
-    .element(dialog.getByText("La caja QR cambió mientras la editabas"))
-    .toBeVisible();
+  await expect.element(dialog.getByText("La caja QR cambió mientras la editabas")).toBeVisible();
 
   await userEvent.click(dialog.getByRole("button", { name: "Recargar" }));
 

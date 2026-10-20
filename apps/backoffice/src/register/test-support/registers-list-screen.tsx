@@ -16,6 +16,7 @@ export function createServices(
     fetchRegisterCoverage: vi.fn().mockResolvedValue({ kind: "ok", value: [] }),
     createRegister: vi.fn(),
     assignPointTerminal: vi.fn(),
+    assignQrPointOfSale: vi.fn(),
     emitEnrollmentCode: vi.fn(),
     revokeRegister: vi.fn(),
     revokeEveryInstallation: vi.fn(),
@@ -35,6 +36,8 @@ export const register1: RegisterSummary = {
   pointOfSaleNumber: null,
   pointTerminalId: null,
   pointTerminalVersion: 0,
+  qrExternalPosId: null,
+  qrPointOfSaleVersion: 0,
   installation: null,
 };
 export const register2: RegisterSummary = {
@@ -44,6 +47,8 @@ export const register2: RegisterSummary = {
   pointOfSaleNumber: 3,
   pointTerminalId: "TERM-0042",
   pointTerminalVersion: 2,
+  qrExternalPosId: "CAJA2_STORE_POS",
+  qrPointOfSaleVersion: 4,
   installation: null,
 };
 export const enrolledRegister: RegisterSummary = {
@@ -53,6 +58,8 @@ export const enrolledRegister: RegisterSummary = {
   pointOfSaleNumber: null,
   pointTerminalId: null,
   pointTerminalVersion: 0,
+  qrExternalPosId: null,
+  qrPointOfSaleVersion: 0,
   installation: {
     state: "enrolled",
     hostname: "CAJA-MOSTRADOR",
@@ -80,6 +87,8 @@ export const revokedRegister: RegisterSummary = {
   pointOfSaleNumber: null,
   pointTerminalId: null,
   pointTerminalVersion: 0,
+  qrExternalPosId: null,
+  qrPointOfSaleVersion: 0,
   installation: {
     state: "revoked",
     hostname: "CAJA-DEPOSITO",

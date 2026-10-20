@@ -87,6 +87,8 @@ test("shows recién for a code issued less than a minute ago", async () => {
     pointOfSaleNumber: null,
     pointTerminalId: null,
     pointTerminalVersion: 0,
+    qrExternalPosId: null,
+    qrPointOfSaleVersion: 0,
     installation: null,
   };
   vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [justIssued] });
@@ -372,6 +374,8 @@ test("creates a register and shows it in the list", async () => {
         pointOfSaleNumber: null,
         pointTerminalId: null,
         pointTerminalVersion: 0,
+        qrExternalPosId: null,
+        qrPointOfSaleVersion: 0,
         installation: null,
       },
     ],
@@ -688,6 +692,8 @@ test("keeps the current rows visible while the list refreshes after creating a r
         pointOfSaleNumber: null,
         pointTerminalId: null,
         pointTerminalVersion: 0,
+        qrExternalPosId: null,
+        qrPointOfSaleVersion: 0,
         installation: null,
       },
     ],
@@ -725,6 +731,8 @@ test("shows loading placeholders, not an empty table, while the list refreshes f
         pointOfSaleNumber: null,
         pointTerminalId: null,
         pointTerminalVersion: 0,
+        qrExternalPosId: null,
+        qrPointOfSaleVersion: 0,
         installation: null,
       },
     ],
@@ -842,7 +850,7 @@ test("shows each register's Point terminal, or Sin asignar when it has none", as
 
   await expect.element(screen.getByRole("columnheader", { name: "Terminal Point" })).toBeVisible();
   await expect.element(screen.getByText("TERM-0042")).toBeVisible();
-  await expect.element(screen.getByText("Sin asignar")).toBeVisible();
+  await expect.element(screen.getByText("Sin asignar").first()).toBeVisible();
 });
 
 async function openTerminalModal(screen: Awaited<ReturnType<typeof renderScreen>>, name: string) {
@@ -875,7 +883,7 @@ test("assigning a terminal closes the modal and reads the list again", async () 
   });
   vi.mocked(services.assignPointTerminal).mockResolvedValue({ kind: "ok" });
   const screen = await renderScreen(services);
-  await expect.element(screen.getByText("Sin asignar")).toBeVisible();
+  await expect.element(screen.getByText("Sin asignar").first()).toBeVisible();
   const dialog = await openTerminalModal(screen, "Caja 1");
 
   await userEvent.fill(
