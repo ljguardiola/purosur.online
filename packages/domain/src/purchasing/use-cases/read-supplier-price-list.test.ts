@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { SUPPLIER_PRICE_LIST_STATES } from "../model/supplier-price-list.js";
+import {
+  SUPPLIER_PRICE_LIST_STATES,
+  type SupplierPriceListReadFailure,
+} from "../model/supplier-price-list.js";
+import type { PriceListExtraction } from "./price-list-extractor.js";
 import { readSupplierPriceList } from "./read-supplier-price-list.js";
 import { FakePriceListExtractor } from "./test-support/fake-price-list-extractor.js";
 import { FakeSupplierPriceListFiles } from "./test-support/fake-supplier-price-list-files.js";
@@ -200,11 +204,13 @@ describe("readSupplierPriceList", () => {
   });
 
   describe("an extraction that gives no rows", () => {
-    it.each([
+    const cases: [PriceListExtraction, SupplierPriceListReadFailure][] = [
       [{ kind: "extracted", listDate: "2026-03-01", rows: [] }, "no_items_found"],
       [{ kind: "unreadable" }, "unreadable_document"],
       [{ kind: "unavailable" }, "reading_unavailable"],
-    ] as const)("fails %j as %s, keeping it counted as sent", async (answer, reason) => {
+    ];
+
+    it.each(cases)("fails %j as %s, keeping it counted as sent", async (answer, reason) => {
       const { store, extractor, ports } = setup();
       extractor.answer = answer;
 
