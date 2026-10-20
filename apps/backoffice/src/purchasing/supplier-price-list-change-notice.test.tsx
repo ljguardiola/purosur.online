@@ -53,10 +53,12 @@ test.each([
     <SupplierPriceListChangeNotices notice={notice} failedTitle="No se guardó el cambio" />,
   );
 
-  await expect.element(screen.getByText(title)).toBeVisible();
-  if (description !== undefined) {
-    await expect.element(screen.getByText(description)).toBeVisible();
+  if (description === undefined) {
+    await expect.element(screen.getByRole("alert")).toHaveTextContent(title);
+    return;
   }
+  await expect.element(screen.getByText(title)).toBeVisible();
+  await expect.element(screen.getByText(description)).toBeVisible();
 });
 
 test("shows nothing without a notice, and leaves a missing date to its field", async () => {
