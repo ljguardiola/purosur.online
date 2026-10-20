@@ -52,29 +52,29 @@ export function isSourcePage(page: number): boolean {
   return Number.isInteger(page) && page > 0;
 }
 
-export function confirmedListDate(
-  readDate: string | null,
-  typedDate: string | null,
-): string | null {
-  return typedDate ?? readDate;
-}
-
 export type ConfirmationRefusal = "no_rows" | "unpriced_rows" | "list_date_missing";
 
-export function confirmationRefusal(list: {
+export type ConfirmationDecision =
+  | { kind: "refused"; reason: ConfirmationRefusal }
+  | { kind: "confirmable"; listDate: string };
+
+// The date a person typed in the review wins over the one the reading found.
+export function decideConfirmation(list: {
   rowPrices: (number | null)[];
-  listDate: string | null;
-}): ConfirmationRefusal | null {
+  readListDate: string | null;
+  typedListDate: string | null;
+}): ConfirmationDecision {
   if (list.rowPrices.length === 0) {
-    return "no_rows";
+    return { kind: "refused", reason: "no_rows" };
   }
   if (list.rowPrices.some((price) => price === null)) {
-    return "unpriced_rows";
+    return { kind: "refused", reason: "unpriced_rows" };
   }
-  if (list.listDate === null) {
-    return "list_date_missing";
+  const listDate = list.typedListDate ?? list.readListDate;
+  if (listDate === null) {
+    return { kind: "refused", reason: "list_date_missing" };
   }
-  return null;
+  return { kind: "confirmable", listDate };
 }
 
 export interface ConfirmedListDates {
