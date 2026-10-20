@@ -196,3 +196,11 @@ export const pendingRefundsOfVoidedSalePaidThroughMercadoPago: PendingRefundsBod
     },
   ],
 };
+
+export const pendingRefundsOfTwoMercadoPagoRegisters: PendingRefundsBody = {
+  refunds: [transferRefund, unconfirmedCloudRefund, latePaymentRefund],
+};
+
+export const pendingRefundsOfBothKinds: PendingRefundsBody = {
+  refunds: [transferRefund, secondRefund, unconfirmedCloudRefund, latePaymentRefund],
+};
