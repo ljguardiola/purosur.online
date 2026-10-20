@@ -250,6 +250,7 @@ export function registerRegisterSnapshotRoutes<TQueryResult extends PgQueryResul
             { registerId: register.registerId },
           );
           const answer = restorableSnapshotsSchema.parse({
+            register_id: register.registerId,
             generations: await Promise.all(
               generations.map(async (generation) => ({
                 generation_id: generation.generationId,

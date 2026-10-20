@@ -1761,7 +1761,7 @@ test("tells a refund owed for a second paid order of a sale's QR that the QR was
   expect(screen.getByText(/por otro medio/).query()).toBeNull();
 });
 
-test("explains the refund of a cancelled sale left pending to the branch, closing with the refund being marked as done", async () => {
+test("explains the refund of a cancelled sale left pending to the branch, closing once its refund is done or discarded", async () => {
   const services = createServices();
   vi.mocked(services.fetchAlert).mockResolvedValue(
     ok(
@@ -1772,7 +1772,7 @@ test("explains the refund of a cancelled sale left pending to the branch, closin
         scope: "refund-1",
         scopeDisplay: "refund-1",
         scopeKind: "refund",
-        closing: "when_its_refund_is_done",
+        closing: "with_its_refund",
         detail: {
           saleId: "sale-1",
           amount: 1_240_000,
@@ -1806,7 +1806,7 @@ test("explains the refund of a cancelled sale left pending to the branch, closin
   await expect
     .element(
       screen.getByText(
-        "Se cierra cuando su reembolso se marca como hecho o Mercado Pago lo acredita.",
+        "Se cierra cuando su reembolso se marca como hecho, se descarta o Mercado Pago lo acredita.",
         { exact: true },
       ),
     )

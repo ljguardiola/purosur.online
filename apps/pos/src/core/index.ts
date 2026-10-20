@@ -25,6 +25,12 @@ import {
   localDataFolderFromCoreArguments,
   sentryEnvironmentFromCoreArguments,
 } from "../shared/channel";
+import { adoptStagedSnapshot } from "./backups/adopt-restored-snapshot";
+import { createRestoreAttempts } from "./backups/restore-attempts";
+import { createRestoreLaunch } from "./backups/restore-launch";
+import { storingEnrollmentCredentials } from "./backups/restore-on-enrollment";
+import { restorePendingIn } from "./backups/restore-pending";
+import { syncUnlessRestorePending } from "./backups/restore-sync-hold";
 import { requestFirstPinCode } from "./credentials/first-pin-code-request";
 import { checkPinCodeRedemption, redeemPinCode } from "./credentials/pin-code-redemption";
 import { pinPolicy } from "./credentials/pin-policy";
@@ -234,6 +240,23 @@ const localDataFolder = localDataFolderFromCoreArguments(process.argv);
 const localDatabasePath =
   localDataFolder === undefined ? undefined : join(localDataFolder, LOCAL_DATABASE_FILE);
 const localDatabaseDamaged = localDatabaseDamageIn(localDataFolder);
+const restorePending = restorePendingIn(localDataFolder);
+const restoreAttempts = createRestoreAttempts({
+  pending: restorePending,
+  launch: createRestoreLaunch({
+    pending: restorePending,
+    readCredentials: () => mainRequests.readCredentials(),
+    cloudUrl,
+    dataFolder: localDataFolder,
+    postToMain: (message) => process.parentPort.postMessage(message),
+  }),
+  restartCore: () => process.exit(0),
+  resumeSync: () => syncSchedule.syncNow(),
+  reportNoUsableGeneration: () => {
+    console.error("core: no snapshot generation could be restored, so the restore stays pending");
+    Sentry.captureMessage("core: no snapshot generation could be restored", "error");
+  },
+});
 
 async function startLocalDatabaseFile(): Promise<StartedLocalDatabase | undefined> {
   if (localDatabasePath === undefined) {
@@ -263,6 +286,18 @@ async function startLocalDatabaseFile(): Promise<StartedLocalDatabase | undefine
     Sentry.captureException(error);
     return undefined;
   }
+}
+
+if (localDataFolder !== undefined) {
+  await adoptStagedSnapshot({
+    folder: localDataFolder,
+    pending: restorePending,
+    migrations: LOCAL_MIGRATIONS,
+    now,
+  }).catch((error: unknown) => {
+    console.error("core: the restored snapshot could not be adopted", error);
+    Sentry.captureException(error);
+  });
 }
 
 const startedLocalDatabase = await startLocalDatabaseFile();
@@ -464,47 +499,51 @@ const batteryShutdown = createBatteryShutdown({
 // An unreachable cloud is how a register without internet looks, so only an unexpected stop is
 // reported; the next cycle resumes from the cursor and the outbox already saved either way.
 const syncSchedule = createSyncSchedule({
-  syncOnce: () =>
-    runSyncCycle({
-      checkInstallation: async () => {
-        const attempt = await checkInstallation({
-          readCredentials: () => mainRequests.readCredentials(),
-          installation: localInstallation,
-          adoptDevice: (device) => replica?.adoptDevice(device),
-          getFromCloud:
-            cloudClient === undefined
-              ? undefined
-              : (path, headers) => getFromCloud(cloudClient, path, headers),
-        });
-        const warning = installationCheckWarningOf(attempt);
-        if (warning !== undefined) {
-          console.warn(warning, attempt);
-        }
-        return installationCheckResultOf(attempt);
-      },
-      push: pushOutboxToCloud,
-      prune: async () => {
-        await pruneLocalOutbox({ outbox: localOutbox, now });
-      },
-      pull: async () => {
-        const attempt = await pullFromCloud({
-          readCredentials: () => mainRequests.readCredentials(),
-          replica,
-          getFromCloud:
-            cloudClient === undefined
-              ? undefined
-              : (path, headers) => getFromCloud(cloudClient, path, headers),
-        });
-        const warning = pullWarningOf(attempt);
-        if (warning !== undefined) {
-          console.warn(warning, attempt);
-        }
-        return pullResultOf(attempt);
-      },
-      onCheckFailure: (error) => reportFailure("the installation check", error),
-      onPushFailure: (error) => reportFailure("the push", error),
-      onPruneFailure: (error) => reportFailure("the outbox pruning", error),
-    }),
+  syncOnce: syncUnlessRestorePending(
+    restorePending.isPending,
+    () => void restoreAttempts.attempt(),
+    () =>
+      runSyncCycle({
+        checkInstallation: async () => {
+          const attempt = await checkInstallation({
+            readCredentials: () => mainRequests.readCredentials(),
+            installation: localInstallation,
+            adoptDevice: (device) => replica?.adoptDevice(device),
+            getFromCloud:
+              cloudClient === undefined
+                ? undefined
+                : (path, headers) => getFromCloud(cloudClient, path, headers),
+          });
+          const warning = installationCheckWarningOf(attempt);
+          if (warning !== undefined) {
+            console.warn(warning, attempt);
+          }
+          return installationCheckResultOf(attempt);
+        },
+        push: pushOutboxToCloud,
+        prune: async () => {
+          await pruneLocalOutbox({ outbox: localOutbox, now });
+        },
+        pull: async () => {
+          const attempt = await pullFromCloud({
+            readCredentials: () => mainRequests.readCredentials(),
+            replica,
+            getFromCloud:
+              cloudClient === undefined
+                ? undefined
+                : (path, headers) => getFromCloud(cloudClient, path, headers),
+          });
+          const warning = pullWarningOf(attempt);
+          if (warning !== undefined) {
+            console.warn(warning, attempt);
+          }
+          return pullResultOf(attempt);
+        },
+        onCheckFailure: (error) => reportFailure("the installation check", error),
+        onPushFailure: (error) => reportFailure("the push", error),
+        onPruneFailure: (error) => reportFailure("the outbox pruning", error),
+      }),
+  ),
   intervalMs: SYNC_INTERVAL_MS,
   failureBackoff: SYNC_FAILURE_BACKOFF,
   random: Math.random,
@@ -617,12 +656,17 @@ const rendererRequestDeps: RendererRequestDeps = {
         installationReport: () => installationReportFrom({ hostname, version, release }),
         canStoreCredentials: () => mainRequests.canStoreCredentials(),
         generatePepper,
-        storeCredentials: (credentials) => mainRequests.storeCredentials(credentials),
+        storeCredentials: storingEnrollmentCredentials({
+          store: (credentials) => mainRequests.storeCredentials(credentials),
+          pending: restorePending,
+          database: localDatabase,
+        }),
         now,
       },
       typedCode,
     );
     if (outcome.kind === "enrolled") {
+      void restoreAttempts.attempt();
       syncSchedule.syncNow();
     }
     return outcome;
@@ -1219,6 +1263,7 @@ messagesFromMain.deliverTo((event) => {
       updateHold.release();
     } else if (message.type === "snapshot-worker-exited") {
       void snapshotCycle?.workerExited(message.copy_failed_stage);
+      restoreAttempts.workerExited(message.restore_outcome);
       if (deviceTokenRotation !== undefined) {
         refreshKeysWhenAnnounced(message.latest_announced_key_version, {
           readCredentials: () => mainRequests.readCredentials(),
@@ -1232,6 +1277,7 @@ messagesFromMain.deliverTo((event) => {
 });
 
 process.parentPort.postMessage({ type: "core-ready" } satisfies CoreReadyMessage);
+void restoreAttempts.attempt();
 void batteryWatch.start();
 void windowsCriticalBatteryActionReader({
   run: promisify(execFile),
@@ -1266,6 +1312,7 @@ if (
       setTimeout(run, delayMs);
     },
     localDatabaseDamaged,
+    restorePending: restorePending.isPending,
     health: startedLocalDatabase.health,
     reports: snapshotCorruptionReports,
     onCopyFailureRecorded: () => rendererConnection.tell(STORAGE_STANDING_CHANGED_NOTICE),

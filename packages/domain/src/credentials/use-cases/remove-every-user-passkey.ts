@@ -1,7 +1,10 @@
 import { mayRemovePasskeyOf } from "../../users/index.js";
 import { hasValidPasskeyAuthorization } from "../model/passkey-authorization-window.js";
 import type { PasskeyHolders } from "./passkey-holders.js";
-import type { PasskeyRemovalStore } from "./passkey-removal-store.js";
+import type {
+  PasskeyRemovalStore,
+  PasskeyRemovalStoreTransaction,
+} from "./passkey-removal-store.js";
 
 export interface RemoveEveryUserPasskeyPorts {
   store: PasskeyRemovalStore;
@@ -23,10 +26,15 @@ export type RemoveEveryUserPasskeyOutcome =
   | { kind: "no_passkeys" }
   | { kind: "removed" };
 
-export async function removeEveryUserPasskey(
-  { store, holders }: RemoveEveryUserPasskeyPorts,
+type RemovalRefusal = Extract<
+  RemoveEveryUserPasskeyOutcome,
+  { kind: "authorization_required" | "user_not_found" | "own_account" }
+>;
+
+async function removalRefusalOrTarget(
+  holders: PasskeyHolders,
   input: RemoveEveryUserPasskeyInput,
-): Promise<RemoveEveryUserPasskeyOutcome> {
+): Promise<RemovalRefusal | { kind: "target"; id: string }> {
   if (!hasValidPasskeyAuthorization({ passkeyAuthorizedAt: input.passkeyAuthorizedAt }, input.at)) {
     return { kind: "authorization_required" };
   }
@@ -37,25 +45,56 @@ export async function removeEveryUserPasskey(
   if (!mayRemovePasskeyOf(input.administratorId, target)) {
     return { kind: "own_account" };
   }
-  return store.transaction<RemoveEveryUserPasskeyOutcome>(async (tx) => {
-    const removable = await tx.lockUserPasskeys(target.id);
-    if (removable.length === 0) {
-      return { kind: "no_passkeys" };
-    }
-    for (const passkey of removable) {
-      await tx.deletePasskey(passkey.id);
-    }
-    await tx.revokeSessions(target.id, input.at);
-    for (const passkey of removable) {
-      await tx.recordUserPasskeyRemoved(input.administratorId, target.id, passkey);
-      await tx.openPasskeyRemovedAlert({
-        userId: target.id,
-        passkeyName: passkey.name,
-        actorId: input.administratorId,
-        via: "administrator",
-        openedAt: input.at,
-      });
-    }
-    return { kind: "removed" };
-  });
+  return { kind: "target", id: target.id };
+}
+
+async function removeEveryPasskeyOfTarget(
+  tx: PasskeyRemovalStoreTransaction,
+  targetId: string,
+  input: RemoveEveryUserPasskeyInput,
+): Promise<RemoveEveryUserPasskeyOutcome> {
+  const removable = await tx.lockUserPasskeys(targetId);
+  if (removable.length === 0) {
+    return { kind: "no_passkeys" };
+  }
+  for (const passkey of removable) {
+    await tx.deletePasskey(passkey.id);
+  }
+  await tx.revokeSessions(targetId, input.at);
+  for (const passkey of removable) {
+    await tx.recordUserPasskeyRemoved(input.administratorId, targetId, passkey);
+    await tx.openPasskeyRemovedAlert({
+      userId: targetId,
+      passkeyName: passkey.name,
+      actorId: input.administratorId,
+      via: "administrator",
+      openedAt: input.at,
+    });
+  }
+  return { kind: "removed" };
+}
+
+export async function removeEveryUserPasskey(
+  { store, holders }: RemoveEveryUserPasskeyPorts,
+  input: RemoveEveryUserPasskeyInput,
+): Promise<RemoveEveryUserPasskeyOutcome> {
+  const target = await removalRefusalOrTarget(holders, input);
+  if (target.kind !== "target") {
+    return target;
+  }
+  return store.transaction<RemoveEveryUserPasskeyOutcome>((tx) =>
+    removeEveryPasskeyOfTarget(tx, target.id, input),
+  );
+}
+
+export async function removeEveryUserPasskeyWithin(
+  tx: PasskeyRemovalStoreTransaction,
+  holders: PasskeyHolders,
+  input: RemoveEveryUserPasskeyInput,
+): Promise<RemoveEveryUserPasskeyOutcome> {
+  const target = await removalRefusalOrTarget(holders, input);
+  if (target.kind !== "target") {
+    return target;
+  }
+  return removeEveryPasskeyOfTarget(tx, target.id, input);
 }

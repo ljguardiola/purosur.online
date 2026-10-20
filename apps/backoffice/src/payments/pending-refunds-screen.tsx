@@ -211,9 +211,10 @@ export function PendingRefundsScreen({
           }}
           footer={
             <p className="text-text-subtle text-detail">
-              Los reembolsos de pagos con QR o Point de ventas canceladas, y con QR de aprobaciones
-              tardías, se envían a Mercado Pago desde acá; los demás se hacen fuera del sistema y
-              acá se marcan como hechos. Nada se envía a Mercado Pago sin confirmarlo acá.
+              Los reembolsos con QR o Point de ventas canceladas, y con QR de aprobaciones tardías,
+              se envían a Mercado Pago recién cuando se confirman acá. Los de ventas anuladas con QR
+              o Point los confirmó en la caja quien anuló la venta, y se envían sin pasar por acá.
+              Los demás se hacen fuera del sistema y acá se marcan como hechos.
             </p>
           }
         />

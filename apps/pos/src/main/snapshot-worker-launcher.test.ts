@@ -197,6 +197,47 @@ describe("createSnapshotWorkerLauncher", () => {
     expect(notices).toEqual([EXITED]);
   });
 
+  it.each(["restored", "no_generation", "none_usable", "unreachable"])(
+    "tells the core the restore ended as %s, and ends that worker",
+    (outcome) => {
+      const { launcher, workers, notices } = setup();
+      launcher.handleCoreMessage(LAUNCH);
+
+      workers[0]?.say({ type: "snapshot-restore-finished", outcome });
+
+      expect(workers[0]?.killed).toBe(1);
+      workers[0]?.exit(null);
+      expect(notices).toEqual([{ ...EXITED, restore_outcome: outcome }]);
+    },
+  );
+
+  it("does not carry the restore outcome of one worker over to the exit of the next", () => {
+    const { launcher, workers, notices } = setup();
+    launcher.handleCoreMessage(LAUNCH);
+    workers[0]?.say({ type: "snapshot-restore-finished", outcome: "restored" });
+    workers[0]?.exit(null);
+    launcher.handleCoreMessage(LAUNCH);
+
+    workers[1]?.exit(0);
+
+    expect(notices).toEqual([{ ...EXITED, restore_outcome: "restored" }, EXITED]);
+  });
+
+  it.each([
+    ["no outcome", { type: "snapshot-restore-finished" }],
+    ["an outcome that does not exist", { type: "snapshot-restore-finished", outcome: "half" }],
+    ["an outcome that is not text", { type: "snapshot-restore-finished", outcome: 1 }],
+  ])("ignores a restore message with %s", (_name, message) => {
+    const { launcher, workers, notices } = setup();
+    launcher.handleCoreMessage(LAUNCH);
+
+    workers[0]?.say(message);
+
+    expect(workers[0]?.killed).toBe(0);
+    workers[0]?.exit(1);
+    expect(notices).toEqual([EXITED]);
+  });
+
   it("does not carry the failure of one worker over to the exit of the next", () => {
     const { launcher, workers, notices } = setup();
     launcher.handleCoreMessage(LAUNCH);

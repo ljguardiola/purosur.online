@@ -910,6 +910,7 @@ describe("the register's local migrations", () => {
         "0058_register_clock_guard",
         "0059_point_refunds",
         "0062_health_check_clock_offset",
+        "0063_register_predecessor",
         "0064_void_credit_notes",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
@@ -998,6 +999,7 @@ describe("the register's local migrations", () => {
         "0058_register_clock_guard",
         "0059_point_refunds",
         "0062_health_check_clock_offset",
+        "0063_register_predecessor",
         "0064_void_credit_notes",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
@@ -1081,6 +1083,7 @@ describe("the register's local migrations", () => {
         "0058_register_clock_guard",
         "0059_point_refunds",
         "0062_health_check_clock_offset",
+        "0063_register_predecessor",
         "0064_void_credit_notes",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
@@ -1163,6 +1166,7 @@ describe("the register's local migrations", () => {
         "0058_register_clock_guard",
         "0059_point_refunds",
         "0062_health_check_clock_offset",
+        "0063_register_predecessor",
         "0064_void_credit_notes",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
@@ -1274,6 +1278,7 @@ describe("the register's local migrations", () => {
         "0058_register_clock_guard",
         "0059_point_refunds",
         "0062_health_check_clock_offset",
+        "0063_register_predecessor",
         "0064_void_credit_notes",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
@@ -1375,6 +1380,7 @@ describe("the register's local migrations", () => {
         "0058_register_clock_guard",
         "0059_point_refunds",
         "0062_health_check_clock_offset",
+        "0063_register_predecessor",
         "0064_void_credit_notes",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
@@ -1480,6 +1486,7 @@ describe("the register's local migrations", () => {
         "0058_register_clock_guard",
         "0059_point_refunds",
         "0062_health_check_clock_offset",
+        "0063_register_predecessor",
         "0064_void_credit_notes",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
@@ -1593,6 +1600,7 @@ describe("the register's local migrations", () => {
         "0058_register_clock_guard",
         "0059_point_refunds",
         "0062_health_check_clock_offset",
+        "0063_register_predecessor",
         "0064_void_credit_notes",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
@@ -1673,6 +1681,7 @@ describe("the register's local migrations", () => {
         "0058_register_clock_guard",
         "0059_point_refunds",
         "0062_health_check_clock_offset",
+        "0063_register_predecessor",
         "0064_void_credit_notes",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
@@ -5318,6 +5327,38 @@ describe("the register's local migrations", () => {
     });
   });
 
+  it("record the predecessor installations of a restored register, keeping the sync state a register already holds", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.filter(
+        (migration) => migration.name < "0063_register_predecessor",
+      );
+      expect(LOCAL_MIGRATIONS.map((migration) => migration.name)).toContain(
+        "0063_register_predecessor",
+      );
+      const before = openLocalDatabase(path, previous, migrationClock);
+      before
+        .prepare("UPDATE sync_state SET pull_cursor = 9, device_id = 'device-a' WHERE id = 1")
+        .run();
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+
+      expect(after.prepare("SELECT pull_cursor, device_id FROM sync_state").all()).toEqual([
+        { pull_cursor: 9, device_id: "device-a" },
+      ]);
+      expect(after.prepare("SELECT * FROM register_predecessor").all()).toEqual([]);
+      const record = after.prepare(
+        "INSERT INTO register_predecessor (device_id, last_acknowledged_seq) VALUES (?, ?)",
+      );
+      expect(() => record.run("device-a", -1)).toThrow(/CHECK/);
+      expect(() => record.run("device-a", 0)).not.toThrow();
+      expect(() => record.run("device-a", 3)).toThrow(/UNIQUE|PRIMARY KEY/);
+      after.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
   it("hold the credit note of a voided sale once per sale, its answer kept consistent with its state", () => {
     const database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS, migrationClock);
     database.exec(

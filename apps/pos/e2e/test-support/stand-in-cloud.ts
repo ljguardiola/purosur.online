@@ -21,6 +21,7 @@ import {
   type RealTimeAuthorizationRequestBody,
   realTimeAuthorizationRequestSchema,
   realTimeAuthorizationResponseSchema,
+  restorableSnapshotsSchema,
   type SyncChange,
   signInLookupBodySchema,
   signInLookupSchema,
@@ -199,6 +200,17 @@ export async function startStandInCloud(
     send(response, 200, approvedOrdersOfRegisterSchema.parse({ orders: [] }));
   }
 
+  function answerRestorableSnapshots(request: IncomingMessage, response: ServerResponse): void {
+    if (!hasDeviceToken(request, response, "a read of the restorable snapshots")) {
+      return;
+    }
+    send(
+      response,
+      200,
+      restorableSnapshotsSchema.parse({ register_id: randomUUID(), generations: [] }),
+    );
+  }
+
   function answerHealthCheck(request: IncomingMessage, response: ServerResponse): void {
     if (!hasDeviceToken(request, response, "a health check")) {
       return;
@@ -296,6 +308,8 @@ export async function startStandInCloud(
       answerHealthCheck(request, response);
     } else if (route === "GET /api/payments/mercado-pago/approved") {
       answerApprovedOrders(request, response);
+    } else if (route === "GET /api/devices/current/snapshots") {
+      answerRestorableSnapshots(request, response);
     } else if (route === "GET /api/changes") {
       pageAfter(url, request, response);
     } else {

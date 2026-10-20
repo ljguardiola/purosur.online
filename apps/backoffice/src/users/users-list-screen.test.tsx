@@ -2,6 +2,7 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { useEffect } from "react";
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import type { BranchUser } from "../platform/branch-users-api";
 import { ADMINISTRATOR_ACCESS, accessWith } from "../shell/test-support/backoffice-access";
 import { render } from "../shell/test-support/render-with-router";
 import { usersListFilters } from "./routes";
@@ -11,7 +12,6 @@ import {
   renderUsersList,
   usersListScreenElement,
 } from "./test-support/users-list-screen";
-import type { BranchUser } from "./users-api";
 import { UsersListScreen } from "./users-list-screen";
 import type { UsersListScreenServices } from "./users-list-services";
 import { useRefreshUsers } from "./users-queries";

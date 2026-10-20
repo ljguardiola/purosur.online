@@ -1,6 +1,8 @@
 import {
   ALERT_AUDIENCES,
   ALERT_LEVELS,
+  COMPROMISE_RESPONSE_ACTION_STEPS,
+  COMPROMISE_RESPONSE_ITEMS,
   CREDIT_NOTE_C_DOCUMENT_TYPE,
   CREDIT_NOTE_REASONS,
   type CreditNoteReason,
@@ -2700,6 +2702,38 @@ export const offsiteDumpChecks = pgTable(
     check(
       "offsite_dump_checks_result_shape_check",
       sql`(${table.status} = 'verified' and ${table.sizeBytes} is not null and ${table.failureReason} is null) or (${table.status} = 'failed' and ${table.failureReason} = 'shrank' and ${table.sizeBytes} is not null) or (${table.status} = 'failed' and ${table.failureReason} is not null and ${table.failureReason} <> 'shrank' and ${table.sizeBytes} is null)`,
+    ),
+  ],
+);
+
+export const compromiseResponses = pgTable("compromise_responses", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
+  startedBy: uuid("started_by")
+    .notNull()
+    .references(() => users.id),
+});
+
+export const compromiseResponseCompletions = pgTable(
+  "compromise_response_completions",
+  {
+    responseId: uuid("response_id")
+      .notNull()
+      .references(() => compromiseResponses.id),
+    key: text("key").notNull(),
+    doneBy: uuid("done_by")
+      .notNull()
+      .references(() => users.id),
+    doneAt: timestamp("done_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    primaryKey({
+      name: "compromise_response_completions_pk",
+      columns: [table.responseId, table.key],
+    }),
+    check(
+      "compromise_response_completions_key_check",
+      sql`${table.key} in (${sql.raw([...COMPROMISE_RESPONSE_ACTION_STEPS, ...COMPROMISE_RESPONSE_ITEMS].map((key) => `'${key}'`).join(", "))})`,
     ),
   ],
 );

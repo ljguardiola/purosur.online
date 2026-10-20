@@ -12,6 +12,8 @@ import type { ResolvedRefundAlert } from "./fake-refund-store.js";
 export interface FakeMercadoPagoStoredRefund extends MercadoPagoRefundRecord {
   doneBy?: string;
   doneAt?: Date;
+  discardedBy?: string;
+  discardedAt?: Date;
 }
 
 export type MercadoPagoRefundWrite =
@@ -20,6 +22,7 @@ export type MercadoPagoRefundWrite =
   | "recordRefundSent"
   | "recordRefundRefusal"
   | "recordRefundDone"
+  | "recordRefundDiscarded"
   | "resolveRefundAlert";
 
 class FakeMercadoPagoRefundTransaction implements MercadoPagoRefundTransaction {
@@ -56,6 +59,7 @@ class FakeMercadoPagoRefundTransaction implements MercadoPagoRefundTransaction {
         origin: refund.origin,
         method: refund.method,
         confirmedAt: refund.confirmedAt,
+        lastRefusalReason: refund.lastRefusalReason,
       }
     );
   }
@@ -111,8 +115,13 @@ class FakeMercadoPagoRefundTransaction implements MercadoPagoRefundTransaction {
     Object.assign(this.refund(refundId), { state: "APPROVED", doneBy, doneAt });
   }
 
-  async recordRefundDiscarded(): Promise<void> {
-    throw new Error("a refund sent by the cloud is never discarded");
+  async recordRefundDiscarded(
+    refundId: string,
+    discardedBy: string,
+    discardedAt: Date,
+  ): Promise<void> {
+    this.begin("recordRefundDiscarded");
+    Object.assign(this.refund(refundId), { state: "DISCARDED", discardedBy, discardedAt });
   }
 
   async resolveRefundAlert(

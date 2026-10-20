@@ -27,6 +27,8 @@ import {
   categories,
   changes,
   clockCorrections,
+  compromiseResponseCompletions,
+  compromiseResponses,
   creditNotes,
   deviceState,
   discounts,
@@ -894,6 +896,16 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
       pointOfSaleNumber: 7,
       countBeforeFreeze: 12,
       frozenAt: new Date("2026-10-14T09:00:00.000Z"),
+    });
+    const [compromiseResponse] = await db
+      .insert(compromiseResponses)
+      .values({ startedAt: new Date("2026-10-14T09:00:00.000Z"), startedBy: user.id })
+      .returning({ id: compromiseResponses.id });
+    await db.insert(compromiseResponseCompletions).values({
+      responseId: compromiseResponse?.id as string,
+      key: "revoke_every_installation",
+      doneBy: user.id,
+      doneAt: new Date("2026-10-14T09:05:00.000Z"),
     });
 
     const afterSeeding = await countsByTable(client);
