@@ -465,10 +465,7 @@ function runtimeSpecifiers(path, source) {
   const sourceFile = ts.createSourceFile(path, source, ts.ScriptTarget.Latest, true);
   const specifiers = [];
   const add = (node) => {
-    const specifier = specifierText(node);
-    specifiers.push(
-      specifier === undefined ? { unresolved: node.getText(sourceFile) } : { specifier },
-    );
+    specifiers.push({ specifier: specifierText(node), text: node.getText(sourceFile) });
   };
   const visit = (node) => {
     if (ts.isImportDeclaration(node)) {
@@ -494,13 +491,28 @@ function isBuiltinSpecifier(specifier) {
   return specifier.startsWith("node:") || isBuiltin(specifier);
 }
 
+function localPath(module, specifier) {
+  return specifier.startsWith(WORKSPACE)
+    ? insideRepository(".", `.${specifier.slice(WORKSPACE.length)}`)
+    : insideRepository(posix.dirname(module.path), specifier);
+}
+
+function resolvesInRepository(module, specifier) {
+  if (isLocal(specifier)) return localPath(module, specifier) !== undefined;
+  return !specifier.startsWith("/") && !specifier.includes("${{");
+}
+
 // Walks a module's local imports depth first, in source order, and answers the first package it
 // imports while no install has run, or the first local module that does not exist. Only a module
-// that refuses unresolved paths answers an import whose path is not a literal.
+// that refuses unresolved paths answers an import whose path is not a literal, or is a literal
+// outside the repository or built from another expression.
 function firstProblem(repository, module, installed, visited) {
-  for (const { specifier, unresolved } of runtimeSpecifiers(module.path, module.source)) {
-    if (unresolved !== undefined) {
-      if (module.refusesUnresolved) return { kind: "unresolved-import", text: unresolved };
+  for (const { specifier, text } of runtimeSpecifiers(module.path, module.source)) {
+    const resolved =
+      specifier !== undefined &&
+      (!module.refusesUnresolved || resolvesInRepository(module, specifier));
+    if (!resolved) {
+      if (module.refusesUnresolved) return { kind: "unresolved-import", text };
       continue;
     }
     if (isBuiltinSpecifier(specifier)) continue;
@@ -508,9 +520,7 @@ function firstProblem(repository, module, installed, visited) {
       if (installed) continue;
       return { kind: "package", name: packageName(specifier), via: module.path };
     }
-    const path = specifier.startsWith(WORKSPACE)
-      ? insideRepository(".", `.${specifier.slice(WORKSPACE.length)}`)
-      : insideRepository(posix.dirname(module.path), specifier);
+    const path = localPath(module, specifier);
     if (path === undefined || visited.has(path)) continue;
     visited.add(path);
     const source = repository.read(path);
