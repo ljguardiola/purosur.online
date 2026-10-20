@@ -330,6 +330,26 @@ for (const [route, spread, files] of [
     },
   ],
   [
+    "a namespace re-export read from a namespace import",
+    "index.git.COMMIT_DIFF_ARGS",
+    {
+      "script.mjs": 'import * as index from "./index.mjs";',
+      "index.mjs": 'export * as git from "./commit-diff-args.mjs";\n',
+      "commit-diff-args.mjs": COMMIT_DIFF_ARGS_MODULE,
+    },
+  ],
+  [
+    "namespaces nested two levels below a namespace import",
+    "a.b.c.COMMIT_DIFF_ARGS",
+    {
+      "script.mjs": 'import * as a from "./a.mjs";',
+      "a.mjs": 'export { b } from "./b.mjs";\n',
+      "b.mjs": 'import * as nested from "./c.mjs";\nexport { nested as b };\n',
+      "c.mjs": 'export * as c from "./commit-diff-args.mjs";\n',
+      "commit-diff-args.mjs": COMMIT_DIFF_ARGS_MODULE,
+    },
+  ],
+  [
     "an export list renaming a local constant",
     "COMMIT_DIFF_ARGS",
     {
