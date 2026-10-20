@@ -6,6 +6,7 @@ const BODY = {
   size: 4096,
   sha256: "ab".repeat(32),
   key_version: 2,
+  last_device_seq: 41,
 };
 
 describe("snapshotUploadBodySchema", () => {
@@ -32,14 +33,24 @@ describe("snapshotUploadBodySchema", () => {
     ["a hash that is not hexadecimal", { sha256: "zz".repeat(32) }],
     ["a key version of zero", { key_version: 0 }],
     ["a fractional key version", { key_version: 1.5 }],
+    ["a negative last device sequence", { last_device_seq: -1 }],
+    ["a fractional last device sequence", { last_device_seq: 1.5 }],
+    ["a last device sequence beyond the safe integers", { last_device_seq: 2 ** 53 }],
   ])("refuses %s", (_name, override) => {
     expect(snapshotUploadBodySchema.safeParse({ ...BODY, ...override }).success).toBe(false);
   });
 
-  it.each(["generation_id", "size", "sha256", "key_version"])("requires %s", (field) => {
-    const { [field]: _omitted, ...rest } = BODY as Record<string, unknown>;
-    expect(snapshotUploadBodySchema.safeParse(rest).success).toBe(false);
+  it("reads a declaration of a generation taken before the register recorded any change", () => {
+    expect(snapshotUploadBodySchema.parse({ ...BODY, last_device_seq: 0 }).last_device_seq).toBe(0);
   });
+
+  it.each(["generation_id", "size", "sha256", "key_version", "last_device_seq"])(
+    "requires %s",
+    (field) => {
+      const { [field]: _omitted, ...rest } = BODY as Record<string, unknown>;
+      expect(snapshotUploadBodySchema.safeParse(rest).success).toBe(false);
+    },
+  );
 
   it("refuses a field it does not know", () => {
     expect(snapshotUploadBodySchema.safeParse({ ...BODY, object_key: "x" }).success).toBe(false);

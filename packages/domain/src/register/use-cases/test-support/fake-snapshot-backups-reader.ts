@@ -28,6 +28,7 @@ export class FakeSnapshotBackupsReader implements SnapshotBackupsReader {
       size: 1024,
       sha256: "a".repeat(64),
       keyVersion: 1,
+      lastDeviceSeq: 0,
       status: "verified",
       failureReason: null,
       uploadReportedAt: null,
