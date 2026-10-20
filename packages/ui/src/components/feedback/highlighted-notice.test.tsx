@@ -302,3 +302,111 @@ test("accepts actions that are explicitly undefined", () => {
     actions: undefined;
   }>().toExtend<HighlightedNoticeProps>();
 });
+
+function rowNotice() {
+  return (
+    <HighlightedNotice
+      tone="error"
+      layout="row"
+      icon={<Info />}
+      title="Sale open"
+      description="Cancel it to close"
+      actions={
+        <Button variant="secondary" icon={<X />}>
+          Cancel the sale
+        </Button>
+      }
+    />
+  );
+}
+
+async function rowParts(screen: Awaited<ReturnType<typeof render>>) {
+  const notice = screen.container.firstElementChild as HTMLElement;
+  const title = screen.getByText("Sale open", { exact: true }).first().element() as HTMLElement;
+  const description = screen
+    .getByText("Cancel it to close", { exact: true })
+    .first()
+    .element() as HTMLElement;
+  return {
+    notice,
+    icon: notice.querySelector("svg") as SVGSVGElement,
+    title,
+    description,
+    textStack: title.parentElement as HTMLElement,
+    button: screen.getByRole("button", { name: "Cancel the sale" }).element() as HTMLElement,
+  };
+}
+
+const centerY = (element: Element) => {
+  const rect = element.getBoundingClientRect();
+  return (rect.top + rect.bottom) / 2;
+};
+
+test("places the action at the end of the same row, right of the text", async () => {
+  const screen = await render(rowNotice());
+  const { notice, textStack, button } = await rowParts(screen);
+
+  const textRect = textStack.getBoundingClientRect();
+  const buttonRect = button.getBoundingClientRect();
+  const noticeRect = notice.getBoundingClientRect();
+  expect(buttonRect.left).toBeGreaterThanOrEqual(textRect.right);
+  expect(buttonRect.top).toBeLessThan(textRect.bottom);
+  expect(noticeRect.right - buttonRect.right).toBeGreaterThan(15);
+  expect(noticeRect.right - buttonRect.right).toBeLessThan(17);
+});
+
+test("centers the icon, the text and the action vertically in the row layout", async () => {
+  const screen = await render(rowNotice());
+  const { icon, textStack, button } = await rowParts(screen);
+
+  expect(Math.abs(centerY(icon) - centerY(button))).toBeLessThan(1);
+  expect(Math.abs(centerY(textStack) - centerY(button))).toBeLessThan(1);
+});
+
+test("separates the icon, the text and the action by 16px in the row layout", async () => {
+  const screen = await render(rowNotice());
+  const { icon, textStack, button } = await rowParts(screen);
+
+  const iconRect = icon.getBoundingClientRect();
+  const textRect = textStack.getBoundingClientRect();
+  const buttonRect = button.getBoundingClientRect();
+  expect(textRect.left - iconRect.right).toBeGreaterThan(15);
+  expect(textRect.left - iconRect.right).toBeLessThan(17);
+  expect(buttonRect.left - textRect.right).toBeGreaterThan(15);
+  expect(buttonRect.left - textRect.right).toBeLessThan(17);
+});
+
+test("renders a 16px bold title in the tone's strong color and a 14px description in the text color in the row layout", async () => {
+  const screen = await render(rowNotice());
+  const { title, description, icon } = await rowParts(screen);
+
+  expect(getComputedStyle(title).fontSize).toBe("16px");
+  expect(getComputedStyle(title).fontWeight).toBe("700");
+  expect(getComputedStyle(title).color).toBe(tokenRgb("error-strong"));
+  expect(getComputedStyle(description).fontSize).toBe("14px");
+  expect(getComputedStyle(description).color).toBe(tokenRgb("text"));
+  expect(getComputedStyle(icon).color).toBe(tokenRgb("error-strong"));
+});
+
+test("keeps the 4px gap between the title and the description in the row layout", async () => {
+  const screen = await render(rowNotice());
+  const { title, description } = await rowParts(screen);
+
+  const gap = description.getBoundingClientRect().top - title.getBoundingClientRect().bottom;
+  expect(gap).toBeGreaterThan(3);
+  expect(gap).toBeLessThan(5);
+});
+
+test("still exposes the notice's text exactly once in the row layout", async () => {
+  const screen = await render(rowNotice());
+
+  expect(screen.getByRole("paragraph").elements()).toHaveLength(0);
+  const region = screen.container.querySelector('[role="alert"]') as HTMLElement;
+  await expect.poll(() => region.textContent).toBe("Sale open Cancel it to close");
+});
+
+test("has no accessibility violations in the row layout", async () => {
+  const screen = await render(rowNotice());
+
+  await expectNoAccessibilityViolations(screen.container);
+});
