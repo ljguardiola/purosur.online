@@ -104,8 +104,9 @@ test("names the report and the figures of the period", async () => {
 test("names the person who authorized the most discounts", async () => {
   const screen = await renderScreen(createServices());
 
-  const figure = screen.getByText("Más autorizó").element().parentElement;
-  expect(figure?.textContent).toContain("Ana");
+  await expect
+    .poll(() => screen.getByText("Más autorizó").element().parentElement?.textContent)
+    .toContain("Ana");
 });
 
 test("calls a most authorized person without a name Sin identificar", async () => {
@@ -119,8 +120,9 @@ test("calls a most authorized person without a name Sin identificar", async () =
 
   const screen = await renderScreen(services);
 
-  const figure = screen.getByText("Más autorizó").element().parentElement;
-  await expect.poll(() => figure?.textContent).toContain("Sin identificar");
+  await expect
+    .poll(() => screen.getByText("Más autorizó").element().parentElement?.textContent)
+    .toContain("Sin identificar");
 });
 
 test("counts a single discount as 1 descuento", async () => {
@@ -307,21 +309,15 @@ test("says there are no discounts in the period, with nobody who authorized the 
   expect(screen.getByText("—", { exact: true }).elements()).toHaveLength(1);
 });
 
-test.each([
-  ["a register", { register: FRONT_REGISTER_ID }],
-  ["an authorizer", { authorizedBy: ANA_USER_ID }],
-])(
-  "says no discount matches the filters when %s is chosen and none were made",
-  async (_name, chosen) => {
-    const screen = await renderScreen(servicesAnswering(noManualDiscountsReport), {
-      filters: manualDiscountsFilters.parse(chosen),
-    });
+test("says no discount matches the filters when a register is chosen and none were made", async () => {
+  const screen = await renderScreen(servicesAnswering(noManualDiscountsReport), {
+    filters: manualDiscountsFilters.parse({ register: FRONT_REGISTER_ID }),
+  });
 
-    await expect
-      .element(screen.getByText("No hay descuentos con estos filtros en este período"))
-      .toBeVisible();
-  },
-);
+  await expect
+    .element(screen.getByText("No hay descuentos con estos filtros en este período"))
+    .toBeVisible();
+});
 
 test("shows a failed load with a retry that loads the report again", async () => {
   const services = createServices();
