@@ -5477,4 +5477,40 @@ describe("the register's local migrations", () => {
     ).toThrow(/CHECK/);
     database.close();
   });
+
+  it("add the register's QR point of sale assignment, none for a register already holding data", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.filter(
+        (migration) => migration.name < "0066_register_qr_point_of_sale",
+      );
+      expect(LOCAL_MIGRATIONS.map((migration) => migration.name)).toContain(
+        "0066_register_qr_point_of_sale",
+      );
+      const before = openLocalDatabase(path, previous, migrationClock);
+      before.exec(
+        "INSERT INTO own_register (id, name, version, removed) VALUES ('r1', 'Caja 1', 1, 0)",
+      );
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+
+      expect(
+        after.prepare("SELECT count(*) AS total FROM register_qr_point_of_sale").get(),
+      ).toEqual({ total: 0 });
+      const assign = (assigned: number) =>
+        after
+          .prepare(
+            "INSERT INTO register_qr_point_of_sale (register_id, assigned, version) VALUES ('r1', ?, 1)",
+          )
+          .run(assigned);
+      expect(() => assign(2)).toThrow(/CHECK/);
+      expect(() => assign(1)).not.toThrow();
+      expect(() => assign(0)).toThrow(/UNIQUE|PRIMARY/);
+      after.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
 });

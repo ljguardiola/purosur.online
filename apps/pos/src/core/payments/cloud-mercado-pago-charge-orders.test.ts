@@ -124,7 +124,6 @@ describe("asking the cloud for a Mercado Pago QR order", () => {
     "not_found",
     "conflict",
     "payment_provider_refused",
-    "payment_provider_not_configured",
   ] as const)("answers refused when the cloud refuses a QR order with %s", async (code) => {
     const { orders } = cloudOrders([refused(code)]);
 
@@ -141,6 +140,12 @@ describe("asking the cloud for a Mercado Pago QR order", () => {
     const { orders } = cloudOrders([refused(code)]);
 
     expect(await orders.requestOrder({ ...ORDER, method: "POINT" })).toEqual({ kind: "refused" });
+  });
+
+  it("answers not_configured when the cloud has no QR point of sale configured for the QR order", async () => {
+    const { orders } = cloudOrders([refused("payment_provider_not_configured")]);
+
+    expect(await orders.requestOrder(ORDER)).toEqual({ kind: "not_configured" });
   });
 
   it("answers not_configured when the cloud has no terminal configured for the terminal order", async () => {
