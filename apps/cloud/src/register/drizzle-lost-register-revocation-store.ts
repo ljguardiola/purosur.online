@@ -3,16 +3,10 @@ import type {
   LostRegisterRevocationStore,
   LostRegisterRevocationStoreTransaction,
 } from "@purosur/domain/register/use-cases";
-import { and, asc, eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { removeUserPin } from "../credentials/remove-user-pin.js";
-import {
-  auditLog,
-  registerEnrollmentCodes,
-  registers,
-  userPins,
-  users,
-} from "../platform/db/schema.js";
+import { requirePinResetOfUsers } from "../credentials/require-pin-reset-of-users.js";
+import { registerEnrollmentCodes, registers } from "../platform/db/schema.js";
 import { type PendingChanges, withPendingChanges } from "../sync/change-log.js";
 import {
   DrizzleInstallationRevocation,
@@ -56,29 +50,12 @@ class DrizzleLostRegisterRevocationTransaction<TQueryResult extends PgQueryResul
   }
 
   async requirePinResetOfBranchUsers(branchId: string, actorId: string): Promise<void> {
-    await this.tx
-      .select({ id: users.id })
-      .from(users)
-      .where(eq(users.locationId, branchId))
-      .orderBy(asc(users.id))
-      .for("no key update");
-    const holders = await this.tx
-      .select({ userId: userPins.userId, locationId: users.locationId })
-      .from(userPins)
-      .innerJoin(users, eq(users.id, userPins.userId))
-      .where(eq(users.locationId, branchId))
-      .orderBy(asc(userPins.userId));
-    for (const { userId, locationId } of holders) {
-      if (await removeUserPin(this.tx, this.pending, locationId, userId)) {
-        await this.tx.insert(auditLog).values({
-          entity: "user",
-          entityId: userId,
-          actorId,
-          newValue: { pin_reset_required_by: "register_revocation" },
-          at: this.now(),
-        });
-      }
-    }
+    await requirePinResetOfUsers(this.tx, this.pending, {
+      branchId,
+      actorId,
+      requiredBy: "register_revocation",
+      at: this.now(),
+    });
   }
 
   recordLostRegisterRevocation(revocation: LostRegisterRevocation): Promise<void> {

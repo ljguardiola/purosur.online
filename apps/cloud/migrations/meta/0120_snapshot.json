@@ -1,6 +1,6 @@
 {
-  "id": "bc008cbb-006c-4572-95e3-bc501fd93f65",
-  "prevId": "e0b9ea35-8259-4d5e-9595-1374e30604fe",
+  "id": "71ad7798-4dec-4d07-b60d-ba113054de17",
+  "prevId": "55db4f9e-bb59-4f8b-8c18-8b639745475c",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -1850,6 +1850,114 @@
           "value": "\"clock_corrections\".\"corrected_reading\" < \"clock_corrections\".\"previous_reading\""
         }
       },
+      "isRLSEnabled": false
+    },
+    "public.compromise_response_completions": {
+      "name": "compromise_response_completions",
+      "schema": "",
+      "columns": {
+        "response_id": {
+          "name": "response_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "key": {
+          "name": "key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "done_by": {
+          "name": "done_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "done_at": {
+          "name": "done_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "compromise_response_completions_response_id_compromise_responses_id_fk": {
+          "name": "compromise_response_completions_response_id_compromise_responses_id_fk",
+          "tableFrom": "compromise_response_completions",
+          "tableTo": "compromise_responses",
+          "columnsFrom": ["response_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "compromise_response_completions_done_by_users_id_fk": {
+          "name": "compromise_response_completions_done_by_users_id_fk",
+          "tableFrom": "compromise_response_completions",
+          "tableTo": "users",
+          "columnsFrom": ["done_by"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "compromise_response_completions_pk": {
+          "name": "compromise_response_completions_pk",
+          "columns": ["response_id", "key"]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "compromise_response_completions_key_check": {
+          "name": "compromise_response_completions_key_check",
+          "value": "\"compromise_response_completions\".\"key\" in ('revoke_every_installation', 'end_sessions_and_remove_passkeys', 'force_pin_resets', 'mercado_pago_webhook_secret', 'whatsapp_webhook_token', 'whatsapp_webhook_secret', 'claude_api_key', 'postgres_credentials', 'ci_deployment_credentials', 'storage_bucket_credentials', 'arca_certificate_and_private_key', 'notify')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.compromise_responses": {
+      "name": "compromise_responses",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "started_at": {
+          "name": "started_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "started_by": {
+          "name": "started_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "compromise_responses_started_by_users_id_fk": {
+          "name": "compromise_responses_started_by_users_id_fk",
+          "tableFrom": "compromise_responses",
+          "tableTo": "users",
+          "columnsFrom": ["started_by"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "public.device_state": {

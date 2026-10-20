@@ -6,8 +6,8 @@ import type {
   authorizeSession,
   fetchSessionAuthorizationOptions,
 } from "../platform/session-authorization-api";
+import { useAuthorizedAttempt } from "../platform/use-authorized-attempt";
 import type { RevokeEveryInstallationOutcome, revokeEveryInstallation } from "./registers-api";
-import { useRevocationAttempt } from "./use-revocation-attempt";
 
 export type RevokeEveryInstallationModalServices = {
   revokeEveryInstallation: typeof revokeEveryInstallation;
@@ -39,10 +39,12 @@ export function RevokeEveryInstallationModal({
     authorizeSession,
     startAuthentication,
   } = services;
-  const { attempt, revoking, notice, modal } = useRevocationAttempt<
-    RevokeEveryInstallationOutcome,
-    "noActiveInstallation"
-  >({
+  const {
+    attempt,
+    running: revoking,
+    notice,
+    modal,
+  } = useAuthorizedAttempt<RevokeEveryInstallationOutcome, "noActiveInstallation">({
     open,
     actionName: "Revocar todas las instalaciones",
     onSessionEnded,

@@ -151,6 +151,10 @@ export type {
   PinCodeTarget,
 } from "./pin-code-store.js";
 export type {
+  PinResetStore,
+  PinResetStoreTransaction,
+} from "./pin-reset-store.js";
+export type {
   RecordRecoveryLinkSentInput,
   RecordRecoveryLinkSentOutcome,
   RecordRecoveryLinkSentPorts,
@@ -216,7 +220,10 @@ export type {
   RemoveEveryUserPasskeyOutcome,
   RemoveEveryUserPasskeyPorts,
 } from "./remove-every-user-passkey.js";
-export { removeEveryUserPasskey } from "./remove-every-user-passkey.js";
+export {
+  removeEveryUserPasskey,
+  removeEveryUserPasskeyWithin,
+} from "./remove-every-user-passkey.js";
 export type {
   RemoveOwnPasskeyInput,
   RemoveOwnPasskeyOutcome,
@@ -235,6 +242,15 @@ export type {
   ReplacePinInput,
 } from "./replace-pin.js";
 export { replacePin } from "./replace-pin.js";
+export type {
+  RequirePinResetOfEveryUserInput,
+  RequirePinResetOfEveryUserOutcome,
+  RequirePinResetOfEveryUserPorts,
+} from "./require-pin-reset-of-every-user.js";
+export {
+  requirePinResetOfEveryUser,
+  requirePinResetOfEveryUserWithin,
+} from "./require-pin-reset-of-every-user.js";
 export type {
   SessionAuthorizationStore,
   SessionAuthorizationStoreTransaction,

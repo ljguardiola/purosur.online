@@ -1,7 +1,16 @@
 import { createRoute, Outlet, useMatchRoute } from "@tanstack/react-router";
-import { HardDriveDownload, Laptop, PackageX, Shield, Store, Users } from "lucide-react";
+import {
+  HardDriveDownload,
+  Laptop,
+  PackageX,
+  Shield,
+  ShieldAlert,
+  Store,
+  Users,
+} from "lucide-react";
 import { AreaLayout, SectionLink } from "./area-layout";
 import {
+  canManageUsers,
   canSeeBackupsArea,
   canSeeBranchArea,
   canSeeQuarantinedEvents,
@@ -88,6 +97,16 @@ function SettingsArea() {
                   label="Sucursal"
                   icon={<Store />}
                   active={Boolean(matchRoute({ to: "/location-settings" }))}
+                />
+              </li>
+            )}
+            {canManageUsers(session) && (
+              <li>
+                <SectionLink
+                  to="/compromise-response"
+                  label="Respuesta ante un compromiso"
+                  icon={<ShieldAlert />}
+                  active={Boolean(matchRoute({ to: "/compromise-response" }))}
                 />
               </li>
             )}
