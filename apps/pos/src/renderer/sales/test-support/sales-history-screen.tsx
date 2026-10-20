@@ -1,5 +1,6 @@
 import type {
   Authorization,
+  PrintCreditNoteOutcome,
   ReprintSaleReceiptOutcome,
   SaleHistoryDetailOutcome,
   SalesHistoryOutcome,
@@ -68,10 +69,12 @@ export const DETAIL: SaleDetail = {
   voidability: {
     kind: "voidable",
     refunds: [{ method: "CASH", amount: 5_070_000, state: "APPROVED", sent_by_cloud: false }],
+    credit_note_corrects: { point_of_sale: 3, number: 1248 },
   },
   void_authorization_required: false,
   reprint: { kind: "available" },
   next_copy: { kind: "duplicate", order_number: 1 },
+  credit_note: null,
 };
 
 const AUTHORIZERS: SignInUser[] = [{ id: "u2", first_name: "Grace" }];
@@ -84,6 +87,7 @@ export type Overrides = Partial<Pick<SalesHistoryScreenProps, "person" | "sessio
     reason: string,
     authorization: Authorization | undefined,
   ) => Promise<ReprintSaleReceiptOutcome>;
+  printCreditNote?: (saleId: string) => Promise<PrintCreditNoteOutcome>;
   voidSale?: (
     saleId: string,
     pendingRefundsConfirmed: boolean,
@@ -118,7 +122,12 @@ export async function renderScreen({
         kind: "voided",
         refunds: [],
         authorized_by: null,
+        credit_note: null,
       })),
+  );
+  const printCreditNote = vi.fn(
+    overrides.printCreditNote ??
+      (async (): Promise<PrintCreditNoteOutcome> => ({ kind: "started" })),
   );
   const lock = vi.fn();
   const onSessionInvalid = vi.fn();
@@ -132,6 +141,7 @@ export async function renderScreen({
       saleHistoryDetail={saleHistoryDetail}
       reprintSaleReceipt={reprintSaleReceipt}
       voidSale={voidSale}
+      printCreditNote={printCreditNote}
       loadAuthorizers={async () => AUTHORIZERS}
       onSessionInvalid={onSessionInvalid}
     />,
@@ -142,6 +152,7 @@ export async function renderScreen({
     saleHistoryDetail,
     reprintSaleReceipt,
     voidSale,
+    printCreditNote,
     lock,
     onSessionInvalid,
   };

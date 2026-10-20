@@ -1,4 +1,8 @@
-import type { FiscalDocumentState } from "../../../fiscal/index.js";
+import type {
+  FiscalOnlineSignalEvidence,
+  SaleInvoice,
+  SaleVoidCreditNote,
+} from "../../../fiscal/index.js";
 import type { CashMovement } from "../../../register/index.js";
 import type { OutboxEventDraft } from "../../../shared/index.js";
 import type { SaleWithLines } from "../../model/sale.js";
@@ -19,7 +23,9 @@ export interface FakeSaleVoidLedgerState {
   openSessionId: string | undefined;
   sales: StoredSale[];
   payments: SaleToVoid["payments"];
-  fiscalDocuments: { saleId: string; state: FiscalDocumentState }[];
+  fiscalDocuments: (SaleInvoice & { saleId: string })[];
+  fiscalOnlineEvidence: FiscalOnlineSignalEvidence;
+  creditNotes: SaleVoidCreditNote[];
   deferredRecords: StoredDeferredRecord[];
   stockMovements: StoredStockMovement[];
   stockBalances: Record<string, number>;
@@ -36,6 +42,7 @@ export type FakeSaleVoidLedgerWrite =
   | "recordSaleVoidStockMovement"
   | "addToStockBalance"
   | "cancelDeferredSale"
+  | "recordPendingCreditNote"
   | "appendOutboxEvent";
 
 export class FakeSaleVoidLedger implements SaleVoidLedger {
@@ -49,6 +56,8 @@ export class FakeSaleVoidLedger implements SaleVoidLedger {
       sales: [],
       payments: [],
       fiscalDocuments: [],
+      fiscalOnlineEvidence: { lastHealthCheckOkAt: null, tokenValid: false, arcaReachable: false },
+      creditNotes: [],
       deferredRecords: [],
       stockMovements: [],
       stockBalances: {},
@@ -74,9 +83,9 @@ export class FakeSaleVoidLedger implements SaleVoidLedger {
           sale,
           inOpenSession: sale.sessionId === working.openSessionId,
           payments: working.payments.filter((payment) => payment.saleId === saleId),
-          fiscalDocumentStates: working.fiscalDocuments
+          fiscalDocuments: working.fiscalDocuments
             .filter((document) => document.saleId === saleId)
-            .map(({ state }) => state),
+            .map(({ saleId: _saleId, ...document }) => document),
           deferredRecord:
             record === undefined || record.cancelledAt !== undefined
               ? null
@@ -93,6 +102,7 @@ export class FakeSaleVoidLedger implements SaleVoidLedger {
               movement.ref?.type === "sale" && movement.ref.id === saleId,
           ),
         ),
+      fiscalOnlineEvidence: () => structuredClone(working.fiscalOnlineEvidence),
       outboxReady: () => working.outboxReady,
       recordVoidedSale: (saleId, voidedAt, authorizedBy) => {
         this.failIfAsked("recordVoidedSale");
@@ -132,6 +142,10 @@ export class FakeSaleVoidLedger implements SaleVoidLedger {
             record.cancelledAt = cancelledAt;
           }
         }
+      },
+      recordPendingCreditNote: (creditNote) => {
+        this.failIfAsked("recordPendingCreditNote");
+        working.creditNotes.push(creditNote);
       },
       appendOutboxEvent: (draft) => {
         this.failIfAsked("appendOutboxEvent");

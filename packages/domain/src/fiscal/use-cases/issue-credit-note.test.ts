@@ -4,21 +4,25 @@ import {
   UNCLEAR_OUTCOME_REASK_INTERVAL_MS,
   UNCLEAR_OUTCOME_SETTLING_DELAY_MS,
 } from "../model/unclear-outcome-decision.js";
-import type { SolicitationAnswer } from "./fiscal-document-authorization-ports.js";
-import { issueOrphanCreditNote } from "./issue-orphan-credit-note.js";
 import {
+  type CreditNote,
   CreditNoteNumberTaken,
   type CreditNoteStanding,
-  type OrphanCreditNote,
-} from "./orphan-credit-note-ports.js";
+} from "./credit-note-ports.js";
+import type { SolicitationAnswer } from "./fiscal-document-authorization-ports.js";
+import {
+  creditNoteAnswerOf,
+  type IssueCreditNoteOutcome,
+  issueCreditNote,
+} from "./issue-credit-note.js";
 import type { LastAuthorizedAnswer } from "./tax-authority-count-ports.js";
 import { ManualClock } from "./test-support/fake-arca-vitality.js";
 import {
   FakeCreditNoteInvoicing,
+  FakeCreditNoteStore,
   FakeCreditNoteTaxAuthority,
   FakeCreditNoteTokens,
-  FakeOrphanCreditNoteStore,
-} from "./test-support/fake-orphan-credit-notes.js";
+} from "./test-support/fake-credit-notes.js";
 import type { VoucherAnswer } from "./unclear-outcome-ports.js";
 
 const CREDIT_NOTE_ID = "credit-note-1";
@@ -70,13 +74,14 @@ function scenario({
   now = NOW,
   others = [],
 }: Scenario = {}) {
-  const store = new FakeOrphanCreditNoteStore();
-  const creditNote: OrphanCreditNote = {
+  const store = new FakeCreditNoteStore();
+  const creditNote: CreditNote = {
     creditNoteId: CREDIT_NOTE_ID,
     pointOfSale: 12,
     associatedVoucher: { voucherType: 11, pointOfSale: 12, number: 41 },
     total: 12_500,
     receiverTaxStatusCode: 5,
+    reason: "orphan",
     standing,
   };
   store.seed(creditNote);
@@ -105,10 +110,10 @@ function scenario({
 }
 
 function issue(ports: ReturnType<typeof scenario>["ports"], creditNoteId = CREDIT_NOTE_ID) {
-  return issueOrphanCreditNote(ports, { creditNoteId });
+  return issueCreditNote(ports, { creditNoteId });
 }
 
-describe("issueOrphanCreditNote", () => {
+describe("issueCreditNote", () => {
   it("reports a credit note the cloud has no record of, without taking a lane", async () => {
     const { store, ports } = scenario();
 
@@ -123,14 +128,33 @@ describe("issueOrphanCreditNote", () => {
     expect(await issue(ports)).toEqual({ kind: "not_found" });
   });
 
-  it.each<[string, CreditNoteStanding, string]>([
-    ["authorized", { kind: "authorized" }, "already_authorized"],
-    ["rejected", { kind: "rejected" }, "already_rejected"],
-  ])("does nothing with a credit note already %s", async (_case, standing, kind) => {
+  it.each<[string, CreditNoteStanding, object]>([
+    [
+      "authorized",
+      {
+        kind: "authorized",
+        number: 40,
+        issuedOn: "2026-10-01",
+        requestedAt: REQUESTED_AT,
+        authorizationCode: "75123456789011",
+        authorizationCodeDueOn: "2026-10-11",
+      },
+      {
+        kind: "already_authorized",
+        pointOfSale: 12,
+        number: 40,
+        issuedOn: "2026-10-01",
+        issuedAt: REQUESTED_AT,
+        authorizationCode: "75123456789011",
+        authorizationCodeDueOn: "2026-10-11",
+      },
+    ],
+    ["rejected", { kind: "rejected" }, { kind: "already_rejected" }],
+  ])("does nothing with a credit note already %s", async (_case, standing, outcome) => {
     const { store, taxAuthority, creditNotes, ports } = scenario({ standing });
 
-    expect(await issue(ports)).toEqual({ kind });
-    expect(store.operations).toEqual(["enterLane", "orphanCreditNote", "leaveLane"]);
+    expect(await issue(ports)).toEqual(outcome);
+    expect(store.operations).toEqual(["enterLane", "creditNote", "leaveLane"]);
     expect(taxAuthority.voucherLookups).toEqual([]);
     expect(creditNotes.solicitations).toEqual([]);
   });
@@ -172,7 +196,7 @@ describe("issueOrphanCreditNote", () => {
 
       expect(store.operations).toEqual([
         "enterLane",
-        "orphanCreditNote",
+        "creditNote",
         "validToken",
         "otherCreditNoteStandings",
         "lastAuthorized",
@@ -188,12 +212,15 @@ describe("issueOrphanCreditNote", () => {
       expect(creditNotes.heldLaneDuringSolicit).toBe(true);
     });
 
-    it("records the authorization code of an authorized credit note", async () => {
+    it("records the authorization code of an authorized credit note, issued the moment its number was requested", async () => {
       const { store, ports } = scenario();
 
       expect(await issue(ports)).toEqual({
         kind: "authorized",
+        pointOfSale: 12,
         number: 42,
+        issuedOn: ISSUE_DAY,
+        issuedAt: NOW,
         authorizationCode: "75123456789099",
         authorizationCodeDueOn: "2026-10-12",
       });
@@ -205,7 +232,14 @@ describe("issueOrphanCreditNote", () => {
           authorizedAt: NOW,
         },
       ]);
-      expect(store.standingOf(CREDIT_NOTE_ID)).toEqual({ kind: "authorized" });
+      expect(store.standingOf(CREDIT_NOTE_ID)).toEqual({
+        kind: "authorized",
+        number: 42,
+        issuedOn: ISSUE_DAY,
+        requestedAt: NOW,
+        authorizationCode: "75123456789099",
+        authorizationCodeDueOn: "2026-10-12",
+      });
     });
 
     it.each<[string, Scenario]>([
@@ -356,7 +390,10 @@ describe("issueOrphanCreditNote", () => {
 
       expect(await issue(ports)).toEqual({
         kind: "adopted",
+        pointOfSale: 12,
         number: 42,
+        issuedOn: ISSUE_DAY,
+        issuedAt: REQUESTED_AT,
         authorizationCode: "75123456789055",
         authorizationCodeDueOn: "2026-10-12",
       });
@@ -384,7 +421,7 @@ describe("issueOrphanCreditNote", () => {
       expect(await issue(ports)).toMatchObject({ kind: "authorized", number: 42 });
       expect(store.operations).toEqual([
         "enterLane",
-        "orphanCreditNote",
+        "creditNote",
         "validToken",
         "voucherAt",
         "lastAuthorized",
@@ -514,5 +551,43 @@ describe("issueOrphanCreditNote", () => {
         askAgainAt: new Date(SETTLED_AT.getTime() + UNCLEAR_OUTCOME_REASK_INTERVAL_MS),
       });
     });
+  });
+});
+
+describe("creditNoteAnswerOf", () => {
+  const AUTHORIZED = {
+    pointOfSale: 12,
+    number: 42,
+    issuedOn: ISSUE_DAY,
+    issuedAt: NOW,
+    authorizationCode: "75123456789099",
+    authorizationCodeDueOn: "2026-10-12",
+  };
+
+  it.each(["authorized", "adopted", "already_authorized"] as const)(
+    "is the authorized credit note when the issuance ended %s",
+    (kind) => {
+      expect(creditNoteAnswerOf({ kind, ...AUTHORIZED })).toEqual({
+        kind: "authorized",
+        ...AUTHORIZED,
+      });
+    },
+  );
+
+  it.each<IssueCreditNoteOutcome>([
+    { kind: "rejected", rejections: [] },
+    { kind: "already_rejected" },
+  ])("is a rejection when the issuance ended %j", (outcome) => {
+    expect(creditNoteAnswerOf(outcome)).toEqual({ kind: "rejected" });
+  });
+
+  it("is in progress while the issuance has to be tried again", () => {
+    expect(creditNoteAnswerOf({ kind: "retry", askAgainAt: NOW })).toEqual({
+      kind: "in_progress",
+    });
+  });
+
+  it("is no answer for a credit note the cloud does not know", () => {
+    expect(creditNoteAnswerOf({ kind: "not_found" })).toBeNull();
   });
 });

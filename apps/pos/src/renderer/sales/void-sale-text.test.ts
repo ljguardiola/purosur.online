@@ -14,9 +14,9 @@ describe("voidRefusalReason", () => {
     );
   });
 
-  it("says the register does not void a sale with an invoice yet", () => {
-    expect(voidRefusalReason("carries_invoice")).toBe(
-      "La caja todavía no anula una venta con factura. Se tramita como devolución.",
+  it("says a sale with an invoice is voided once the connection with the tax authority is back", () => {
+    expect(voidRefusalReason("invoice_needs_connection")).toBe(
+      "Sin conexión con ARCA, la venta con factura se anula cuando vuelva la conexión.",
     );
   });
 

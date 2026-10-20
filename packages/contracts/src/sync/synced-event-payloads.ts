@@ -17,7 +17,7 @@ import {
   WEIGHT_SOURCES,
 } from "@purosur/domain";
 import { z } from "zod";
-import { pointOfSaleNumberSchema, recordIdSchema } from "../shared/index.js";
+import { pointOfSaleNumberSchema, recordIdSchema, voidCreditNoteSchema } from "../shared/index.js";
 
 const text = z.string().min(1);
 const instant = z.iso.datetime();
@@ -407,6 +407,10 @@ const saleVoidedV2Schema = saleVoidedV1Schema.extend({
   refunds: z.array(saleRefundWithMercadoPagoSchema).min(1),
 });
 
+const saleVoidedV3Schema = saleVoidedV2Schema.extend({
+  credit_note: voidCreditNoteSchema.nullable(),
+});
+
 const cashSessionOpenedSchema = z.object({
   opened_by: text,
   opened_at: instant,
@@ -504,6 +508,7 @@ const PAYLOAD_SCHEMAS = {
   "sale_cancelled@7": saleCancelledV7Schema,
   "sale_voided@1": saleVoidedV1Schema,
   "sale_voided@2": saleVoidedV2Schema,
+  "sale_voided@3": saleVoidedV3Schema,
   "cash_session_opened@1": cashSessionOpenedSchema,
   "cash_session_closed@1": cashSessionClosedSchema,
   "cash_movement_recorded@1": cashMovementRecordedSchema,
