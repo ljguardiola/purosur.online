@@ -1,4 +1,9 @@
-import { type SaleLine, type SalePayment, saleUnitOfWeightSource } from "@purosur/domain";
+import {
+  type PendingMercadoPagoSalePayment,
+  type SaleLine,
+  type SalePayment,
+  saleUnitOfWeightSource,
+} from "@purosur/domain";
 import type { ReplenishedEventSource, SyncedFact } from "@purosur/domain/sync/use-cases";
 import {
   approvePendingMercadoPagoPayment,
@@ -92,7 +97,8 @@ function paymentOf(saleId: string, payment: PaymentFact): SalePayment {
 
 function pendingMercadoPagoPaymentOf(
   saleId: string,
-  payment: PaymentFact & { method: "QR" | "POINT" },
+  payment: PaymentFact,
+  method: "QR" | "POINT",
 ): PendingMercadoPagoSalePayment {
   const common = {
     id: payment.id,
@@ -103,7 +109,7 @@ function pendingMercadoPagoPaymentOf(
     occurredAt: payment.occurredAt,
     waitEndsAt: payment.occurredAt,
   } as const;
-  return payment.method === "QR"
+  return method === "QR"
     ? { ...common, method: "QR", provider: "MERCADOPAGO_QR" }
     : { ...common, method: "POINT", provider: "MERCADOPAGO_POINT" };
 }
@@ -130,8 +136,9 @@ function replenishPayment(database: LocalDatabase, saleId: string, payment: Paym
   const recorded = database
     .prepare<[string], { state: string }>("SELECT state FROM payment_transactions WHERE id = ?")
     .get(payment.id);
-  if (recorded === undefined && (payment.method === "QR" || payment.method === "POINT")) {
-    insertPendingMercadoPagoPayment(database, pendingMercadoPagoPaymentOf(saleId, payment));
+  const { method } = payment;
+  if (recorded === undefined && (method === "QR" || method === "POINT")) {
+    insertPendingMercadoPagoPayment(database, pendingMercadoPagoPaymentOf(saleId, payment, method));
     approvePendingMercadoPagoPayment(database, payment.id);
   } else if (recorded === undefined) {
     insertSalePayment(database, paymentOf(saleId, payment));
