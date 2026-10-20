@@ -12,12 +12,18 @@ export interface RegisterPointTerminal {
   version: number;
 }
 
+export interface RegisterQrPointOfSale {
+  externalPosId: string | null;
+  version: number;
+}
+
 export interface BranchRegister {
   id: string;
   name: string;
   enrollmentCode: RegisterEnrollmentCode | null;
   pointOfSaleNumber: number | null;
   pointTerminal: RegisterPointTerminal;
+  qrPointOfSale: RegisterQrPointOfSale;
   installations: RegisterInstallationRecord[];
 }
 

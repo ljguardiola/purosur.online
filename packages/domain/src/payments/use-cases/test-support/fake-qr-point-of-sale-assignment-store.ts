@@ -64,7 +64,10 @@ class FakeQrPointOfSaleAssignmentStoreTransaction
     if (this.store.failingWrites) {
       throw new Error("recordQrPointOfSaleAssignment failed");
     }
-    if (record.externalPosId !== null && this.store.pointsOfSaleLostToRace.has(record.externalPosId)) {
+    if (
+      record.externalPosId !== null &&
+      this.store.pointsOfSaleLostToRace.has(record.externalPosId)
+    ) {
       throw new QrPointOfSaleAlreadyAssigned();
     }
     const { actorId, ...row } = record;

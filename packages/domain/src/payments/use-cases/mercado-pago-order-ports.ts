@@ -73,6 +73,7 @@ export interface MercadoPagoQrOrderRequest {
   externalReference: string;
   amount: number;
   expiresAfterMinutes: number;
+  externalPosId: string;
 }
 
 export interface MercadoPagoPointOrderRequest {
@@ -126,6 +127,14 @@ export interface MercadoPagoOrderPorts {
 export interface PointTerminals {
   terminalOfRegister(registerId: string): Promise<string | null>;
 }
+
+export interface QrPointsOfSale {
+  pointOfSaleOfRegister(registerId: string): Promise<string | null>;
+}
+
+export type MercadoPagoQrOrderPorts = MercadoPagoOrderPorts & {
+  qrPointsOfSale: QrPointsOfSale;
+};
 
 export type MercadoPagoPointOrderPorts = MercadoPagoOrderPorts & {
   pointTerminals: PointTerminals;

@@ -8,6 +8,7 @@ import type {
   BranchRegisters,
   RegisterEnrollmentCode,
   RegisterPointTerminal,
+  RegisterQrPointOfSale,
 } from "./branch-register-store.js";
 
 export interface ListBranchRegistersPorts {
@@ -30,6 +31,7 @@ export interface BranchRegisterSummary {
   pendingCode: PendingEnrollmentCode | null;
   pointOfSaleNumber: number | null;
   pointTerminal: RegisterPointTerminal;
+  qrPointOfSale: RegisterQrPointOfSale;
   installation: RegisterInstallationState;
 }
 
@@ -58,6 +60,7 @@ export async function listBranchRegisters(
     pendingCode: pendingCodeOf(register.enrollmentCode, now),
     pointOfSaleNumber: register.pointOfSaleNumber,
     pointTerminal: register.pointTerminal,
+    qrPointOfSale: register.qrPointOfSale,
     installation: registerInstallationState(register.installations),
   }));
 }
