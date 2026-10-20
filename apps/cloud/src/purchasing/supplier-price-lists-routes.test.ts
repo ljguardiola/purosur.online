@@ -628,6 +628,28 @@ describe("POST /supplier-price-lists/:id/confirmation", () => {
     expect(response.json()).toMatchObject({ code: "validation_failed" });
   });
 
+  it("confirms a list of three thousand rows", async () => {
+    const { headers } = await manager();
+    const { listId } = await storedList({
+      state: "EXTRACTED",
+      listDate: "2026-03-01",
+      pricesIncludeVat: true,
+    });
+    await insertPriceListRows(
+      db,
+      listId,
+      Array.from({ length: 3_000 }, (_, index) => ({
+        description: `Ítem ${index + 1}`,
+        priceCents: 100 + index,
+      })),
+    );
+
+    const response = await confirm(headers, listId, { version: 1 });
+
+    expect(response.statusCode).toBe(200);
+    expect((await listRow(listId))?.state).toBe("REVIEWED");
+  });
+
   it("answers 400 for a VAT answer that is not a boolean", async () => {
     const { headers } = await manager();
     const { listId } = await storedList({ state: "EXTRACTED" });

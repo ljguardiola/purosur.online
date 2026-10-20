@@ -154,6 +154,58 @@ test("shows the items in pages of 25", async () => {
   await expect.element(screen.getByText("26 a 50 de 120 ítems")).toBeVisible();
 });
 
+test("shows a very long list in pages of 25, and confirming sends none of its items", async () => {
+  const rows = Array.from({ length: 3_000 }, (_, index) => ({
+    id: `5b200000-0000-4000-8000-${String(index).padStart(12, "0")}`,
+    description: `Ítem ${index + 1}`,
+    code: null,
+    presentation: null,
+    priceCents: 1_000,
+    page: null,
+  }));
+  const services = createServices();
+  vi.mocked(services.confirmSupplierPriceList).mockResolvedValue({ kind: "ok" });
+  const screen = await loaded(
+    services,
+    reviewOf({ ...READ_LIST, unpricedRowCount: 0 }, rows, EVERY_REVIEW_ACTION),
+  );
+
+  await expect.element(screen.getByText("1 a 25 de 3.000 ítems")).toBeVisible();
+  expect(itemRows(screen)).toHaveLength(25);
+
+  await userEvent.click(screen.getByRole("button", { name: "Confirmar la lista" }));
+  await userEvent.click(
+    screen.getByRole("dialog").getByRole("button", { name: "Confirmar la lista" }),
+  );
+
+  expect(services.confirmSupplierPriceList).toHaveBeenCalledWith(LIST_ID, {
+    listDate: "2026-09-25",
+    pricesIncludeVat: true,
+    version: 3,
+  });
+});
+
+test.each([
+  [true, "Precios con IVA incluido"],
+  [false, "Precios sin IVA"],
+] as const)("says whether the prices include VAT: %s", async (pricesIncludeVat, text) => {
+  const screen = await loaded(
+    createServices(),
+    reviewOf(READ_LIST, EXTRACTED_ROWS, EVERY_REVIEW_ACTION, pricesIncludeVat),
+  );
+
+  await expect.element(screen.getByText(text)).toBeVisible();
+});
+
+test("says nothing about VAT while the list is not known to say", async () => {
+  const screen = await loaded(
+    createServices(),
+    reviewOf(READ_LIST, EXTRACTED_ROWS, EVERY_REVIEW_ACTION, null),
+  );
+
+  expect(screen.getByText(/Precios (con|sin) IVA/).elements()).toEqual([]);
+});
+
 test("the search field filters the items by description or code, and reports the filters", async () => {
   const onFiltersChange = vi.fn();
   const screen = await loaded(createServices(), extracted, { onFiltersChange });
@@ -390,6 +442,7 @@ test("confirming the list goes back to the lists", async () => {
 
   expect(services.confirmSupplierPriceList).toHaveBeenCalledWith(LIST_ID, {
     listDate: "2026-09-25",
+    pricesIncludeVat: true,
     version: 3,
   });
   await expect.poll(() => onBack.mock.calls.length).toBe(1);

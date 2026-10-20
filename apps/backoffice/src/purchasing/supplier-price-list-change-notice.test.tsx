@@ -19,6 +19,7 @@ test.each([
   [{ kind: "no_rows" }, { kind: "noRows" }],
   [{ kind: "unpriced_rows" }, { kind: "unpricedRows" }],
   [{ kind: "list_date_missing" }, { kind: "listDateMissing" }],
+  [{ kind: "vat_missing" }, { kind: "vatMissing" }],
 ] as const)("turns the outcome %j into the notice %j", (outcome, notice) => {
   expect(supplierPriceListChangeNoticeOf(outcome)).toEqual(notice);
 });

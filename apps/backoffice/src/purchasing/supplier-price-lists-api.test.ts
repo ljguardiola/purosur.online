@@ -288,6 +288,7 @@ describe("confirmSupplierPriceList refusals", () => {
     ["no_rows", { kind: "no_rows" }],
     ["unpriced_rows", { kind: "unpriced_rows" }],
     ["list_date_missing", { kind: "list_date_missing" }],
+    ["vat_missing", { kind: "vat_missing" }],
   ])("answers a 409 with the code %s as %j", async (code, outcome) => {
     vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code }));
 
@@ -296,14 +297,37 @@ describe("confirmSupplierPriceList refusals", () => {
     );
   });
 
-  test("sends a missing date as null", async () => {
+  test("sends a missing date and a missing VAT answer as null", async () => {
     vi.mocked(fetch).mockResolvedValue(jsonResponse(200));
 
-    await confirmSupplierPriceList("list-1", { version: 3, listDate: null });
+    await confirmSupplierPriceList("list-1", {
+      version: 3,
+      listDate: null,
+      pricesIncludeVat: null,
+    });
 
     expect(fetch).toHaveBeenCalledWith(
       "/api/supplier-price-lists/list-1/confirmation",
-      expect.objectContaining({ body: JSON.stringify({ version: 3, listDate: null }) }),
+      expect.objectContaining({
+        body: JSON.stringify({ version: 3, listDate: null, pricesIncludeVat: null }),
+      }),
+    );
+  });
+
+  test("sends the VAT answer chosen", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(200));
+
+    await confirmSupplierPriceList("list-1", {
+      version: 3,
+      listDate: null,
+      pricesIncludeVat: false,
+    });
+
+    expect(fetch).toHaveBeenCalledWith(
+      "/api/supplier-price-lists/list-1/confirmation",
+      expect.objectContaining({
+        body: JSON.stringify({ version: 3, listDate: null, pricesIncludeVat: false }),
+      }),
     );
   });
 });

@@ -10,6 +10,7 @@ import { READ_LIST, reviewOf } from "./test-support/supplier-price-lists";
 
 const dated = reviewOf(READ_LIST, []).list;
 const undated = reviewOf({ ...READ_LIST, listDate: null }, []).list;
+const unknownVat = reviewOf(READ_LIST, [], undefined, null).list;
 
 beforeEach(() => {
   window.history.pushState(null, "", "/");
@@ -93,9 +94,46 @@ test("confirming sends the date and the loaded version, and reports it", async (
 
   expect(confirmSupplierPriceList).toHaveBeenCalledWith(dated.id, {
     listDate: "2026-09-25",
+    pricesIncludeVat: true,
     version: 3,
   });
   await expect.poll(() => onConfirmed.mock.calls.length).toBe(1);
+});
+
+test("starts with the VAT answer the list was read with and sends the one chosen instead", async () => {
+  const confirmSupplierPriceList = vi
+    .fn<ConfirmSupplierPriceListModalServices["confirmSupplierPriceList"]>()
+    .mockResolvedValue({ kind: "ok" });
+  const screen = await renderModal({ confirmSupplierPriceList });
+  const dialog = screen.getByRole("dialog");
+  const vat = dialog.getByRole("button", { name: /Los precios/ });
+
+  await expect.element(vat).toHaveTextContent("incluyen IVA");
+  await userEvent.click(vat);
+  await userEvent.click(screen.getByRole("option", { name: "no incluyen IVA" }));
+  await confirm(screen);
+
+  expect(confirmSupplierPriceList).toHaveBeenCalledWith(dated.id, {
+    listDate: "2026-09-25",
+    pricesIncludeVat: false,
+    version: 3,
+  });
+});
+
+test("asks for the VAT answer when the list does not say and none was chosen", async () => {
+  const confirmSupplierPriceList = vi
+    .fn<ConfirmSupplierPriceListModalServices["confirmSupplierPriceList"]>()
+    .mockResolvedValue({ kind: "vat_missing" });
+  const screen = await renderModal({ target: unknownVat, confirmSupplierPriceList });
+
+  const dialog = await confirm(screen);
+
+  expect(confirmSupplierPriceList).toHaveBeenCalledWith(unknownVat.id, {
+    listDate: "2026-09-25",
+    pricesIncludeVat: null,
+    version: 3,
+  });
+  await expect.element(dialog.getByText("Elegí si los precios incluyen IVA.")).toBeVisible();
 });
 
 test("sends the date the person typed over the one the list was read with", async () => {
@@ -110,6 +148,7 @@ test("sends the date the person typed over the one the list was read with", asyn
 
   expect(confirmSupplierPriceList).toHaveBeenCalledWith(undated.id, {
     listDate: "2026-09-05",
+    pricesIncludeVat: true,
     version: 3,
   });
 });

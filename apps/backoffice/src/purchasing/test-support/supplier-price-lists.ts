@@ -83,8 +83,9 @@ export function reviewOf(
   list: SupplierPriceListSummary,
   rows: SupplierPriceListReview["rows"],
   actions: ReviewActions = NO_REVIEW_ACTION,
+  pricesIncludeVat: boolean | null = true,
 ): SupplierPriceListReview {
-  return { list: { ...list, version: 3 }, rows, actions };
+  return { list: { ...list, version: 3, pricesIncludeVat }, rows, actions };
 }
 
 export const EXTRACTED_ROWS: SupplierPriceListReview["rows"] = [
