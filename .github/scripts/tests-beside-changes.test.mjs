@@ -116,8 +116,8 @@ test("selects a test once when several changed files sit beside it", () => {
 
 test("lists the files committed since the merge-base, the uncommitted ones and the untracked ones, once each", () => {
   const outputs = new Map([
-    ["diff --name-only origin/main...HEAD", "a.ts\nb.ts\n"],
-    ["diff --name-only HEAD", "b.ts\nc.ts\n"],
+    ["diff --name-only --no-renames origin/main...HEAD", "a.ts\nb.ts\n"],
+    ["diff --name-only --no-renames HEAD", "b.ts\nc.ts\n"],
     ["ls-files --others --exclude-standard", "d.ts\n"],
   ]);
   const runGit = (args) => Buffer.from(outputs.get(args.join(" ")) ?? "", "utf8");
