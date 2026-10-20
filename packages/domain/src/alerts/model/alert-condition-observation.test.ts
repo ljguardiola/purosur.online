@@ -13,6 +13,8 @@ import {
   offsiteDumpUnverifiedObservation,
   offsiteDumpVerifiedObservation,
   quietRegisterObservation,
+  registerBackedUpObservation,
+  registerBackupOverdueObservation,
   registerClockDriftObservation,
   registerFiscalEmissionObservation,
   registerSalesDeniedObservation,
@@ -434,6 +436,53 @@ describe("clockCorrectedObservation", () => {
           actorId: "user-1",
         },
       },
+    });
+  });
+});
+
+describe("registerBackupOverdueObservation", () => {
+  it("holds the overdue-backup condition of the register in its branch, naming its last verified generation and first unbacked change", () => {
+    expect(
+      registerBackupOverdueObservation({
+        registerId: "register-1",
+        locationId: "location-1",
+        lastVerifiedGenerationAt: new Date("2026-10-14T08:00:00.000Z"),
+        firstChangeAt: new Date("2026-10-14T09:15:00.000Z"),
+      }),
+    ).toEqual({
+      holds: true,
+      alert: {
+        kind: "register_backup_overdue",
+        scope: "register-1",
+        locationId: "location-1",
+        detail: {
+          lastVerifiedGenerationAt: "2026-10-14T08:00:00.000Z",
+          firstChangeAt: "2026-10-14T09:15:00.000Z",
+        },
+      },
+    });
+  });
+
+  it("names no last verified generation for a register that never had one", () => {
+    expect(
+      registerBackupOverdueObservation({
+        registerId: "register-1",
+        locationId: "location-1",
+        lastVerifiedGenerationAt: null,
+        firstChangeAt: new Date("2026-10-14T09:15:00.000Z"),
+      }),
+    ).toMatchObject({
+      alert: { detail: { lastVerifiedGenerationAt: null } },
+    });
+  });
+});
+
+describe("registerBackedUpObservation", () => {
+  it("clears the overdue-backup condition of the register", () => {
+    expect(registerBackedUpObservation("register-1")).toEqual({
+      holds: false,
+      kind: "register_backup_overdue",
+      scope: "register-1",
     });
   });
 });
