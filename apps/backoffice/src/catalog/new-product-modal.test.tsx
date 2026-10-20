@@ -577,16 +577,16 @@ test("keeps a rate-limited notice raised by saving when generating afterwards su
   await expect.element(dialog.getByText("Demasiadas solicitudes")).toBeVisible();
 });
 
-const granix: BrandSummary = {
+const granvel: BrandSummary = {
   id: "b7a4d000-0000-4000-8000-000000000001",
-  name: "Granix",
+  name: "Granvel",
   active: true,
   version: 1,
   productCount: 42,
 };
-const cabrales: BrandSummary = {
+const cabriola: BrandSummary = {
   id: "b7a4d000-0000-4000-8000-000000000002",
-  name: "Cabrales",
+  name: "Cabriola",
   active: true,
   version: 1,
   productCount: 9,
@@ -630,7 +630,7 @@ async function openStackedNewBrandModal(productDialog: Locator) {
 
 test("a new product starts with no brand, offering only the active brands by name", async () => {
   const { dialog } = await renderModal(createServices(), {
-    brands: [granix, litoral, cabrales],
+    brands: [granvel, litoral, cabriola],
   });
 
   await expect.element(brandSelect(dialog)).toHaveTextContent("Sin marca");
@@ -639,15 +639,15 @@ test("a new product starts with no brand, offering only the active brands by nam
   const options = dialog.getByRole("option").all();
   expect(options.map((option) => option.element().textContent)).toEqual([
     "Sin marca",
-    "Cabrales",
-    "Granix",
+    "Cabriola",
+    "Granvel",
   ]);
 });
 
 test("creates a product with no brand", async () => {
   const services = createServices();
   vi.mocked(services.createProduct).mockResolvedValue({ kind: "ok" });
-  const { dialog } = await renderModal(services, { brands: [granix] });
+  const { dialog } = await renderModal(services, { brands: [granvel] });
 
   await fillNewProduct(dialog);
   await userEvent.click(dialog.getByRole("button", { name: "Crear el producto" }));
@@ -659,11 +659,11 @@ test("creates a product with no brand", async () => {
 test("creates a product with the brand chosen", async () => {
   const services = createServices();
   vi.mocked(services.createProduct).mockResolvedValue({ kind: "ok" });
-  const { dialog } = await renderModal(services, { brands: [granix] });
+  const { dialog } = await renderModal(services, { brands: [granvel] });
 
   await fillNewProduct(dialog);
   await userEvent.click(brandSelect(dialog));
-  await userEvent.click(dialog.getByRole("option", { name: "Granix" }));
+  await userEvent.click(dialog.getByRole("option", { name: "Granvel" }));
   await userEvent.click(dialog.getByRole("button", { name: "Crear el producto" }));
 
   await expect.poll(() => vi.mocked(services.createProduct).mock.calls.length).toBe(1);
@@ -676,7 +676,7 @@ test("creates a brand in a modal stacked over the product form, then selects it 
   const services = createServices();
   vi.mocked(services.createBrand).mockResolvedValue({ kind: "ok", brand: dulcor });
   vi.mocked(services.createProduct).mockResolvedValue({ kind: "ok" });
-  const { screen, dialog: productDialog } = await renderModal(services, { brands: [granix] });
+  const { screen, dialog: productDialog } = await renderModal(services, { brands: [granvel] });
   await fillNewProduct(productDialog);
 
   const brandDialog = await openStackedNewBrandModal(productDialog);
@@ -709,11 +709,11 @@ test("creates a brand in a modal stacked over the product form, then selects it 
 test("a brand name already taken shows the error in the stacked modal and keeps the product form", async () => {
   const services = createServices();
   vi.mocked(services.createBrand).mockResolvedValue({ kind: "name_taken" });
-  const { screen, dialog: productDialog } = await renderModal(services, { brands: [granix] });
+  const { screen, dialog: productDialog } = await renderModal(services, { brands: [granvel] });
   await fillNewProduct(productDialog);
 
   const brandDialog = await openStackedNewBrandModal(productDialog);
-  await userEvent.fill(brandDialog.getByRole("textbox", { name: /^Nombre/ }), "granix");
+  await userEvent.fill(brandDialog.getByRole("textbox", { name: /^Nombre/ }), "granvel");
   await userEvent.click(brandDialog.getByRole("button", { name: "Crear la marca" }));
 
   await expect.element(brandDialog.getByText("Ya existe una marca con este nombre.")).toBeVisible();
@@ -729,7 +729,7 @@ test("a brand name already taken shows the error in the stacked modal and keeps 
 test("a failed brand creation shows the error notice in the stacked modal, keeping the name typed", async () => {
   const services = createServices();
   vi.mocked(services.createBrand).mockResolvedValue({ kind: "failed" });
-  const { dialog: productDialog } = await renderModal(services, { brands: [granix] });
+  const { dialog: productDialog } = await renderModal(services, { brands: [granvel] });
 
   const brandDialog = await openStackedNewBrandModal(productDialog);
   await userEvent.fill(brandDialog.getByRole("textbox", { name: /^Nombre/ }), "Dulcor");
@@ -743,10 +743,10 @@ test("a failed brand creation shows the error notice in the stacked modal, keepi
 test("shows on the brand field that the brand chosen was deactivated meanwhile", async () => {
   const services = createServices();
   vi.mocked(services.createProduct).mockResolvedValue({ kind: "brand_inactive" });
-  const { dialog } = await renderModal(services, { brands: [granix] });
+  const { dialog } = await renderModal(services, { brands: [granvel] });
   await fillNewProduct(dialog);
   await userEvent.click(brandSelect(dialog));
-  await userEvent.click(dialog.getByRole("option", { name: "Granix" }));
+  await userEvent.click(dialog.getByRole("option", { name: "Granvel" }));
 
   await userEvent.click(dialog.getByRole("button", { name: "Crear el producto" }));
 
@@ -761,7 +761,7 @@ test("shows on the brand field that the brand chosen no longer exists", async ()
     kind: "validation_failed",
     field: "brandId",
   });
-  const { dialog } = await renderModal(services, { brands: [granix] });
+  const { dialog } = await renderModal(services, { brands: [granvel] });
   await fillNewProduct(dialog);
 
   await userEvent.click(dialog.getByRole("button", { name: "Crear el producto" }));
@@ -770,7 +770,7 @@ test("shows on the brand field that the brand chosen no longer exists", async ()
 });
 
 test("has no accessibility violations with the brand modal stacked over the product form", async () => {
-  const { dialog } = await renderModal(createServices(), { brands: [granix] });
+  const { dialog } = await renderModal(createServices(), { brands: [granvel] });
 
   await openStackedNewBrandModal(dialog);
 

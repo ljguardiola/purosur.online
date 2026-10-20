@@ -36,7 +36,7 @@ afterAll(async () => {
 
 async function brandAndLeafCategory() {
   const store = new DrizzleCatalogStore(db);
-  const brand = await createBrand(store, { name: `Granix ${randomUUID()}` });
+  const brand = await createBrand(store, { name: `Granvel ${randomUUID()}` });
   const category = await createCategory(store, { name: `Almacén ${randomUUID()}`, parentId: null });
   if (brand.kind !== "created" || category.kind !== "created") {
     throw new Error("test setup: expected the brand and the category to be created");

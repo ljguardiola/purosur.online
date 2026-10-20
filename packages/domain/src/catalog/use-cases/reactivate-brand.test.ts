@@ -13,13 +13,13 @@ describe("reactivateBrand", () => {
 
   it("answers already_active for a brand that is already active, changing nothing", async () => {
     const store = new FakeCatalogStore();
-    store.seedBrand({ id: "brand-1", name: "Granix", active: true, version: 2 });
+    store.seedBrand({ id: "brand-1", name: "Granvel", active: true, version: 2 });
 
     const outcome = await reactivateBrand(store, "brand-1");
 
     expect(outcome).toEqual({ kind: "already_active" });
     expect(store.snapshot().brands).toEqual([
-      { id: "brand-1", name: "Granix", active: true, version: 2 },
+      { id: "brand-1", name: "Granvel", active: true, version: 2 },
     ]);
   });
 
@@ -40,7 +40,7 @@ describe("reactivateBrand", () => {
 
   it("runs entirely inside one transaction", async () => {
     const store = new FakeCatalogStore();
-    store.seedBrand({ id: "brand-1", name: "Granix", active: false, version: 1 });
+    store.seedBrand({ id: "brand-1", name: "Granvel", active: false, version: 1 });
 
     await reactivateBrand(store, "brand-1");
 

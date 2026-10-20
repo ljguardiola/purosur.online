@@ -25,16 +25,16 @@ function createServices(
   };
 }
 
-const granix: BrandSummary = {
+const granvel: BrandSummary = {
   id: "brand-1",
-  name: "Granix",
+  name: "Granvel",
   active: true,
   version: 1,
   productCount: 42,
 };
-const vitaco: BrandSummary = {
+const vitarda: BrandSummary = {
   id: "brand-2",
-  name: "Vitaco",
+  name: "Vitarda",
   active: true,
   version: 2,
   productCount: 18,
@@ -46,9 +46,9 @@ const litoral: BrandSummary = {
   version: 4,
   productCount: 3,
 };
-const cabrales: BrandSummary = {
+const cabriola: BrandSummary = {
   id: "brand-4",
-  name: "Cabrales",
+  name: "Cabriola",
   active: true,
   version: 1,
   productCount: 1,
@@ -115,17 +115,17 @@ async function loaded(services: BrandsListScreenServices, brands: BrandSummary[]
 
 test("shows the breadcrumb, heading, each active brand with its product count and state, and the totals", async () => {
   const services = createServices();
-  const screen = await loaded(services, [granix, vitaco, litoral]);
+  const screen = await loaded(services, [granvel, vitarda, litoral]);
 
   await expect.element(screen.getByText("Catálogo").first()).toBeVisible();
   await expect.element(screen.getByRole("heading", { name: "Marcas", level: 1 })).toBeVisible();
-  await expect.poll(() => rowTexts(screen)).toEqual(["Granix42Activa", "Vitaco18Activa"]);
+  await expect.poll(() => rowTexts(screen)).toEqual(["Granvel42Activa", "Vitarda18Activa"]);
   await expect.element(screen.getByText("2 marcas · 60 productos")).toBeVisible();
 });
 
 test("the state filter shows the inactive brands, or every brand, counting the inactive ones", async () => {
   const services = createServices();
-  const screen = await loaded(services, [granix, litoral]);
+  const screen = await loaded(services, [granvel, litoral]);
 
   await userEvent.click(screen.getByRole("button", { name: /Estado:/ }));
   await userEvent.click(screen.getByRole("option", { name: "Inactivas" }));
@@ -141,22 +141,22 @@ test("the state filter shows the inactive brands, or every brand, counting the i
 
 test("lists brands by name, and the products header orders them by how many products carry them", async () => {
   const services = createServices();
-  const screen = await loaded(services, [vitaco, granix, cabrales]);
+  const screen = await loaded(services, [vitarda, granvel, cabriola]);
 
   await expect
     .poll(() => rowTexts(screen).map((text) => text.split(/\d/)[0]))
-    .toEqual(["Cabrales", "Granix", "Vitaco"]);
+    .toEqual(["Cabriola", "Granvel", "Vitarda"]);
 
   await userEvent.click(screen.getByRole("button", { name: "Productos" }));
 
   await expect
     .poll(() => rowTexts(screen).map((text) => text.split(/\d/)[0]))
-    .toEqual(["Granix", "Vitaco", "Cabrales"]);
+    .toEqual(["Granvel", "Vitarda", "Cabriola"]);
 });
 
 test("the search field filters the brands by name, case-insensitively", async () => {
   const services = createServices();
-  const screen = await loaded(services, [granix, vitaco]);
+  const screen = await loaded(services, [granvel, vitarda]);
 
   await userEvent.fill(screen.getByPlaceholder("Buscar una marca"), "gRAN");
 
@@ -183,7 +183,7 @@ test("shows the blank empty state when there are no brands yet, with no footer",
 
 test("shows a filtered empty state when the search matches nothing", async () => {
   const services = createServices();
-  const screen = await loaded(services, [granix]);
+  const screen = await loaded(services, [granvel]);
 
   await userEvent.fill(screen.getByPlaceholder("Buscar una marca"), "zzz");
 
@@ -192,7 +192,7 @@ test("shows a filtered empty state when the search matches nothing", async () =>
 
 test("shows a filtered empty state when no brand has the chosen state", async () => {
   const services = createServices();
-  const screen = await loaded(services, [granix], {
+  const screen = await loaded(services, [granvel], {
     filters: brandsListFilters.parse({ status: "inactive" }),
   });
 
@@ -213,8 +213,8 @@ test("shows a load error with a retry action that starts again from the loading 
   await expect
     .element(screen.getByRole("table", { name: "Marcas" }))
     .toHaveAttribute("aria-busy", "true");
-  retry.resolve({ kind: "ok", value: [granix] });
-  await expect.element(screen.getByText("Granix")).toBeVisible();
+  retry.resolve({ kind: "ok", value: [granvel] });
+  await expect.element(screen.getByText("Granvel")).toBeVisible();
 });
 
 test("shows the rate-limited notice with the time to wait", async () => {
@@ -265,13 +265,13 @@ test("the create action stays available while the brands load, and after they fa
 
 test("creates a brand from the create modal, sending the name trimmed, and lists it", async () => {
   const services = createServices();
-  const dulcor: BrandSummary = { ...cabrales, id: "brand-9", name: "Dulcor", productCount: 0 };
+  const dulcor: BrandSummary = { ...cabriola, id: "brand-9", name: "Dulcor", productCount: 0 };
   vi.mocked(services.fetchBrands)
-    .mockResolvedValueOnce({ kind: "ok", value: [granix] })
-    .mockResolvedValueOnce({ kind: "ok", value: [granix, dulcor] });
+    .mockResolvedValueOnce({ kind: "ok", value: [granvel] })
+    .mockResolvedValueOnce({ kind: "ok", value: [granvel, dulcor] });
   vi.mocked(services.createBrand).mockResolvedValue({ kind: "ok", brand: dulcor });
   const screen = await renderScreen(services);
-  await expect.element(screen.getByText("Granix")).toBeVisible();
+  await expect.element(screen.getByText("Granvel")).toBeVisible();
   const dialog = await openNewBrandModal(screen);
 
   await expect.element(dialog.getByText("Catálogo", { exact: true })).toBeVisible();
@@ -286,7 +286,7 @@ test("creates a brand from the create modal, sending the name trimmed, and lists
 
 test("cancel closes the create modal without calling the API", async () => {
   const services = createServices();
-  const screen = await loaded(services, [granix]);
+  const screen = await loaded(services, [granvel]);
   const dialog = await openNewBrandModal(screen);
 
   await userEvent.click(dialog.getByRole("button", { name: "Cancelar" }));
@@ -297,7 +297,7 @@ test("cancel closes the create modal without calling the API", async () => {
 
 test("requires a name, and refuses one longer than 100 characters, without calling the API", async () => {
   const services = createServices();
-  const screen = await loaded(services, [granix]);
+  const screen = await loaded(services, [granvel]);
   const dialog = await openNewBrandModal(screen);
 
   await userEvent.click(dialog.getByRole("button", { name: "Crear la marca" }));
@@ -314,20 +314,20 @@ test("requires a name, and refuses one longer than 100 characters, without calli
 test("shows that a brand with that name already exists, keeping the modal open", async () => {
   const services = createServices();
   vi.mocked(services.createBrand).mockResolvedValue({ kind: "name_taken" });
-  const screen = await loaded(services, [vitaco]);
+  const screen = await loaded(services, [vitarda]);
   const dialog = await openNewBrandModal(screen);
 
-  await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "vitaco");
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "vitarda");
   await userEvent.click(dialog.getByRole("button", { name: "Crear la marca" }));
 
   await expect.element(dialog.getByText("Ya existe una marca con este nombre.")).toBeVisible();
-  await expect.element(dialog.getByRole("textbox", { name: /^Nombre/ })).toHaveValue("vitaco");
+  await expect.element(dialog.getByRole("textbox", { name: /^Nombre/ })).toHaveValue("vitarda");
 });
 
 test("shows the failure notice on create, keeping the typed name", async () => {
   const services = createServices();
   vi.mocked(services.createBrand).mockResolvedValue({ kind: "failed" });
-  const screen = await loaded(services, [granix]);
+  const screen = await loaded(services, [granvel]);
   const dialog = await openNewBrandModal(screen);
 
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Dulcor");
@@ -344,7 +344,7 @@ test("shows the rate-limited notice on create", async () => {
     kind: "rate_limited",
     retryAfterSeconds: 60,
   });
-  const screen = await loaded(services, [granix]);
+  const screen = await loaded(services, [granvel]);
   const dialog = await openNewBrandModal(screen);
 
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Dulcor");
@@ -356,11 +356,11 @@ test("shows the rate-limited notice on create", async () => {
 
 test("ends the session when creating finds no open session", async () => {
   const services = createServices();
-  vi.mocked(services.fetchBrands).mockResolvedValue({ kind: "ok", value: [granix] });
+  vi.mocked(services.fetchBrands).mockResolvedValue({ kind: "ok", value: [granvel] });
   vi.mocked(services.createBrand).mockResolvedValue({ kind: "unauthenticated" });
   const onSessionEnded = vi.fn();
   const screen = await renderScreen(services, onSessionEnded);
-  await expect.element(screen.getByText("Granix")).toBeVisible();
+  await expect.element(screen.getByText("Granvel")).toBeVisible();
   const dialog = await openNewBrandModal(screen);
 
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Dulcor");
@@ -372,43 +372,43 @@ test("ends the session when creating finds no open session", async () => {
 test("the edit action opens the brand's name, saying how many products show it, and saves the rename", async () => {
   const services = createServices();
   vi.mocked(services.editBrand).mockResolvedValue({ kind: "ok" });
-  const screen = await loaded(services, [granix]);
+  const screen = await loaded(services, [granvel]);
 
-  await userEvent.click(screen.getByRole("button", { name: "Editar la marca Granix" }));
+  await userEvent.click(screen.getByRole("button", { name: "Editar la marca Granvel" }));
   const dialog = screen.getByRole("dialog");
 
   await expect.element(dialog.getByText("Catálogo · Marcas")).toBeVisible();
-  await expect.element(dialog.getByRole("heading", { name: "Granix" })).toBeVisible();
-  await expect.element(dialog.getByRole("textbox", { name: /^Nombre/ })).toHaveValue("Granix");
+  await expect.element(dialog.getByRole("heading", { name: "Granvel" })).toBeVisible();
+  await expect.element(dialog.getByRole("textbox", { name: /^Nombre/ })).toHaveValue("Granvel");
   await expect
     .element(dialog.getByText("El nombre nuevo se ve en sus 42 productos."))
     .toBeVisible();
 
-  await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), " Granix Pro ");
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), " Granvel Pro ");
   vi.mocked(services.fetchBrands).mockResolvedValue({
     kind: "ok",
-    value: [{ ...granix, name: "Granix Pro", version: 2 }],
+    value: [{ ...granvel, name: "Granvel Pro", version: 2 }],
   });
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
 
-  expect(services.editBrand).toHaveBeenCalledWith("brand-1", { name: "Granix Pro", version: 1 });
+  expect(services.editBrand).toHaveBeenCalledWith("brand-1", { name: "Granvel Pro", version: 1 });
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
-  await expect.element(screen.getByText("Granix Pro")).toBeVisible();
+  await expect.element(screen.getByText("Granvel Pro")).toBeVisible();
 });
 
 test("the edit modal names the one product a brand is on, and says nothing about products for a brand on none", async () => {
   const services = createServices();
-  const screen = await loaded(services, [cabrales, { ...vitaco, productCount: 0 }]);
+  const screen = await loaded(services, [cabriola, { ...vitarda, productCount: 0 }]);
 
-  await userEvent.click(screen.getByRole("button", { name: "Editar la marca Cabrales" }));
+  await userEvent.click(screen.getByRole("button", { name: "Editar la marca Cabriola" }));
   await expect
     .element(screen.getByRole("dialog").getByText("El nombre nuevo se ve en su producto."))
     .toBeVisible();
   await userEvent.click(screen.getByRole("dialog").getByRole("button", { name: "Cancelar" }));
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
 
-  await userEvent.click(screen.getByRole("button", { name: "Editar la marca Vitaco" }));
-  await expect.element(screen.getByRole("dialog").getByRole("textbox")).toHaveValue("Vitaco");
+  await userEvent.click(screen.getByRole("button", { name: "Editar la marca Vitarda" }));
+  await expect.element(screen.getByRole("dialog").getByRole("textbox")).toHaveValue("Vitarda");
   expect(
     screen
       .getByRole("dialog")
@@ -420,11 +420,11 @@ test("the edit modal names the one product a brand is on, and says nothing about
 test("a rename to a name another brand has shows the error in place of the products line", async () => {
   const services = createServices();
   vi.mocked(services.editBrand).mockResolvedValue({ kind: "name_taken" });
-  const screen = await loaded(services, [granix, vitaco]);
-  await userEvent.click(screen.getByRole("button", { name: "Editar la marca Granix" }));
+  const screen = await loaded(services, [granvel, vitarda]);
+  await userEvent.click(screen.getByRole("button", { name: "Editar la marca Granvel" }));
   const dialog = screen.getByRole("dialog");
 
-  await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Vitaco");
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Vitarda");
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
 
   await expect.element(dialog.getByText("Ya existe una marca con este nombre.")).toBeVisible();
@@ -436,26 +436,26 @@ test("a stale-version reload on edit refills the form from the fresh brand and s
   vi.mocked(services.editBrand)
     .mockResolvedValueOnce({ kind: "stale_version" })
     .mockResolvedValueOnce({ kind: "ok" });
-  const screen = await loaded(services, [granix]);
-  await userEvent.click(screen.getByRole("button", { name: "Editar la marca Granix" }));
+  const screen = await loaded(services, [granvel]);
+  await userEvent.click(screen.getByRole("button", { name: "Editar la marca Granvel" }));
   const dialog = screen.getByRole("dialog");
-  await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Granix Pro");
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Granvel Pro");
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
 
   await expect.element(dialog.getByText("Esta marca cambió mientras la editabas")).toBeVisible();
   vi.mocked(services.fetchBrands).mockResolvedValue({
     kind: "ok",
-    value: [{ ...granix, name: "Granix Clásica", version: 5 }],
+    value: [{ ...granvel, name: "Granvel Clásica", version: 5 }],
   });
   await userEvent.click(dialog.getByRole("button", { name: "Recargar" }));
 
   await expect
     .element(dialog.getByRole("textbox", { name: /^Nombre/ }))
-    .toHaveValue("Granix Clásica");
-  await expect.element(dialog.getByRole("heading", { name: "Granix Clásica" })).toBeVisible();
+    .toHaveValue("Granvel Clásica");
+  await expect.element(dialog.getByRole("heading", { name: "Granvel Clásica" })).toBeVisible();
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
   expect(services.editBrand).toHaveBeenLastCalledWith("brand-1", {
-    name: "Granix Clásica",
+    name: "Granvel Clásica",
     version: 5,
   });
 });
@@ -463,8 +463,8 @@ test("a stale-version reload on edit refills the form from the fresh brand and s
 test("shows a not-found notice on edit when the brand no longer exists", async () => {
   const services = createServices();
   vi.mocked(services.editBrand).mockResolvedValue({ kind: "not_found" });
-  const screen = await loaded(services, [granix]);
-  await userEvent.click(screen.getByRole("button", { name: "Editar la marca Granix" }));
+  const screen = await loaded(services, [granvel]);
+  await userEvent.click(screen.getByRole("button", { name: "Editar la marca Granvel" }));
   const dialog = screen.getByRole("dialog");
 
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
@@ -475,8 +475,8 @@ test("shows a not-found notice on edit when the brand no longer exists", async (
 test("shows the failure notice on edit", async () => {
   const services = createServices();
   vi.mocked(services.editBrand).mockResolvedValue({ kind: "failed" });
-  const screen = await loaded(services, [granix]);
-  await userEvent.click(screen.getByRole("button", { name: "Editar la marca Granix" }));
+  const screen = await loaded(services, [granvel]);
+  await userEvent.click(screen.getByRole("button", { name: "Editar la marca Granvel" }));
   const dialog = screen.getByRole("dialog");
 
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
@@ -487,12 +487,12 @@ test("shows the failure notice on edit", async () => {
 test("deactivating asks first, then deactivates the brand and refreshes the list", async () => {
   const services = createServices();
   vi.mocked(services.deactivateBrand).mockResolvedValue({ kind: "ok" });
-  const screen = await loaded(services, [granix, litoral]);
+  const screen = await loaded(services, [granvel, litoral]);
 
-  await userEvent.click(screen.getByRole("button", { name: "Desactivar la marca Granix" }));
+  await userEvent.click(screen.getByRole("button", { name: "Desactivar la marca Granvel" }));
   const dialog = screen.getByRole("dialog");
   await expect
-    .element(dialog.getByRole("heading", { name: '¿Desactivar la marca "Granix"?' }))
+    .element(dialog.getByRole("heading", { name: '¿Desactivar la marca "Granvel"?' }))
     .toBeVisible();
   await expect
     .element(
@@ -503,7 +503,7 @@ test("deactivating asks first, then deactivates the brand and refreshes the list
     .toBeVisible();
   vi.mocked(services.fetchBrands).mockResolvedValue({
     kind: "ok",
-    value: [{ ...granix, active: false, version: 2 }, litoral],
+    value: [{ ...granvel, active: false, version: 2 }, litoral],
   });
   await userEvent.click(dialog.getByRole("button", { name: "Desactivar" }));
 
@@ -515,8 +515,8 @@ test("deactivating asks first, then deactivates the brand and refreshes the list
 
 test("cancel closes the deactivation question without calling the API", async () => {
   const services = createServices();
-  const screen = await loaded(services, [granix]);
-  await userEvent.click(screen.getByRole("button", { name: "Desactivar la marca Granix" }));
+  const screen = await loaded(services, [granvel]);
+  await userEvent.click(screen.getByRole("button", { name: "Desactivar la marca Granvel" }));
 
   await userEvent.click(screen.getByRole("dialog").getByRole("button", { name: "Cancelar" }));
 
@@ -527,7 +527,7 @@ test("cancel closes the deactivation question without calling the API", async ()
 test("reactivating an inactive brand asks first, then reactivates it", async () => {
   const services = createServices();
   vi.mocked(services.reactivateBrand).mockResolvedValue({ kind: "ok" });
-  const screen = await loaded(services, [granix, litoral], {
+  const screen = await loaded(services, [granvel, litoral], {
     filters: brandsListFilters.parse({ status: "all" }),
   });
   expect(
@@ -553,8 +553,8 @@ test("reactivating an inactive brand asks first, then reactivates it", async () 
 test("tells when the brand was already deactivated, and updating the list closes the question", async () => {
   const services = createServices();
   vi.mocked(services.deactivateBrand).mockResolvedValue({ kind: "already_changed" });
-  const screen = await loaded(services, [granix]);
-  await userEvent.click(screen.getByRole("button", { name: "Desactivar la marca Granix" }));
+  const screen = await loaded(services, [granvel]);
+  await userEvent.click(screen.getByRole("button", { name: "Desactivar la marca Granvel" }));
   const dialog = screen.getByRole("dialog");
 
   await userEvent.click(dialog.getByRole("button", { name: "Desactivar" }));
@@ -584,8 +584,8 @@ test("tells when the brand was already reactivated", async () => {
 test("tells when the brand no longer exists on deactivation", async () => {
   const services = createServices();
   vi.mocked(services.deactivateBrand).mockResolvedValue({ kind: "not_found" });
-  const screen = await loaded(services, [granix]);
-  await userEvent.click(screen.getByRole("button", { name: "Desactivar la marca Granix" }));
+  const screen = await loaded(services, [granvel]);
+  await userEvent.click(screen.getByRole("button", { name: "Desactivar la marca Granvel" }));
   const dialog = screen.getByRole("dialog");
 
   await userEvent.click(dialog.getByRole("button", { name: "Desactivar" }));
@@ -598,8 +598,8 @@ test("shows the failure and rate-limited notices on deactivation", async () => {
   vi.mocked(services.deactivateBrand)
     .mockResolvedValueOnce({ kind: "failed" })
     .mockResolvedValueOnce({ kind: "rate_limited", retryAfterSeconds: 60 });
-  const screen = await loaded(services, [granix]);
-  await userEvent.click(screen.getByRole("button", { name: "Desactivar la marca Granix" }));
+  const screen = await loaded(services, [granvel]);
+  await userEvent.click(screen.getByRole("button", { name: "Desactivar la marca Granvel" }));
   const dialog = screen.getByRole("dialog");
 
   await userEvent.click(dialog.getByRole("button", { name: "Desactivar" }));
@@ -629,7 +629,7 @@ test("ends the session when reactivating finds no open session", async () => {
 test("opens with the filters it is given, and reports every change to them", async () => {
   const services = createServices();
   const onFiltersChange = vi.fn();
-  const screen = await loaded(services, [granix, vitaco, litoral], {
+  const screen = await loaded(services, [granvel, vitarda, litoral], {
     filters: { search: "vit", status: "all", sortBy: "products", sort: "descending" },
     onFiltersChange,
   });
@@ -651,7 +651,7 @@ test("opens with the filters it is given, and reports every change to them", asy
 
 test("has no accessibility violations once loaded, and with the create modal open", async () => {
   const services = createServices();
-  const screen = await loaded(services, [granix, litoral], {
+  const screen = await loaded(services, [granvel, litoral], {
     filters: brandsListFilters.parse({ status: "all" }),
   });
 

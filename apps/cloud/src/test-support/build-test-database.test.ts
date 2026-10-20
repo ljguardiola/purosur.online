@@ -239,7 +239,10 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
     if (!category) {
       throw new Error("seeding categories returned no row");
     }
-    const [brand] = await db.insert(brands).values({ name: "Granix" }).returning({ id: brands.id });
+    const [brand] = await db
+      .insert(brands)
+      .values({ name: "Granvel" })
+      .returning({ id: brands.id });
     if (!brand) {
       throw new Error("seeding brands returned no row");
     }

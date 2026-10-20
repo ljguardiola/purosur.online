@@ -900,7 +900,7 @@ describe("PUT /products/:id", () => {
 
   it("gives the product an active brand", async () => {
     const categoryId = await insertCategory("Almacén");
-    const brandId = await insertBrand("Granix");
+    const brandId = await insertBrand("Granvel");
     const product = await insertProduct({
       name: "Galletitas",
       categoryId,
@@ -927,7 +927,7 @@ describe("PUT /products/:id", () => {
 
   it("removes the product's brand when sent null", async () => {
     const categoryId = await insertCategory("Almacén");
-    const brandId = await insertBrand("Granix");
+    const brandId = await insertBrand("Granvel");
     const product = await insertProduct({
       name: "Galletitas",
       categoryId,
@@ -954,7 +954,7 @@ describe("PUT /products/:id", () => {
 
   it("refuses a body without the brandId key, keeping the product's brand", async () => {
     const categoryId = await insertCategory("Almacén");
-    const brandId = await insertBrand("Granix");
+    const brandId = await insertBrand("Granvel");
     const product = await insertProduct({
       name: "Galletitas",
       categoryId,
@@ -1013,7 +1013,7 @@ describe("PUT /products/:id", () => {
 
   it("rejects moving the product to a deactivated brand with 409 brand_inactive, changing nothing", async () => {
     const categoryId = await insertCategory("Almacén");
-    const brandId = await insertBrand("Granix");
+    const brandId = await insertBrand("Granvel");
     const inactiveBrandId = await insertBrand("Yerba del Litoral", false);
     const product = await insertProduct({
       name: "Galletitas",

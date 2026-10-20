@@ -15,7 +15,7 @@ describe("BRAND_NAME_MAX_LENGTH", () => {
 
 describe("brandNameLength", () => {
   it("counts each letter as one character", () => {
-    expect(brandNameLength("Granix")).toBe(6);
+    expect(brandNameLength("Granvel")).toBe(6);
   });
 
   it("counts each emoji as one character", () => {

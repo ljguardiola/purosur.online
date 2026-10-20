@@ -485,9 +485,9 @@ test("shows on the barcodes the refusal of an internal code added to a product t
     .toBeVisible();
 });
 
-const granix: BrandSummary = {
+const granvel: BrandSummary = {
   id: "b7a4d000-0000-4000-8000-000000000001",
-  name: "Granix",
+  name: "Granvel",
   active: true,
   version: 1,
   productCount: 42,
@@ -515,7 +515,7 @@ test("editing a product whose brand was deactivated shows it and keeps it on sav
   const services = createServices();
   const miel: ProductSummary = { ...honey, brandId: litoral.id };
   vi.mocked(services.editProduct).mockResolvedValue({ kind: "ok" });
-  const { dialog } = await renderModal(miel, services, { brands: [granix, litoral] });
+  const { dialog } = await renderModal(miel, services, { brands: [granvel, litoral] });
 
   await expect
     .element(dialog.getByRole("button", { name: "Yerba del Litoral Inactiva Marca" }))
@@ -539,16 +539,16 @@ test("editing a product whose brand was deactivated shows it and keeps it on sav
 
 test("a product with an active brand is not offered the deactivated ones, and can drop its brand", async () => {
   const services = createServices();
-  const miel: ProductSummary = { ...honey, brandId: granix.id };
+  const miel: ProductSummary = { ...honey, brandId: granvel.id };
   vi.mocked(services.editProduct).mockResolvedValue({ kind: "ok" });
-  const { dialog } = await renderModal(miel, services, { brands: [granix, litoral] });
-  await expect.element(dialog.getByRole("button", { name: "Granix Marca" })).toBeVisible();
+  const { dialog } = await renderModal(miel, services, { brands: [granvel, litoral] });
+  await expect.element(dialog.getByRole("button", { name: "Granvel Marca" })).toBeVisible();
   expect(
     dialog.getByText("Marca dada de baja. No se ofrece para productos nuevos.").query(),
   ).toBeNull();
 
   await userEvent.click(brandSelect(dialog));
-  await expect.element(dialog.getByRole("option", { name: "Granix" })).toBeVisible();
+  await expect.element(dialog.getByRole("option", { name: "Granvel" })).toBeVisible();
   expect(dialog.getByRole("option", { name: /Yerba del Litoral/ }).query()).toBeNull();
   await userEvent.click(dialog.getByRole("option", { name: "Sin marca" }));
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
@@ -563,7 +563,7 @@ test("a product with an active brand is not offered the deactivated ones, and ca
 test("the brand just created is selected even before the brands are read again", async () => {
   const services = createServices();
   vi.mocked(services.createBrand).mockResolvedValue({ kind: "ok", brand: dulcor });
-  const { dialog } = await renderModal(honey, services, { brands: [granix] });
+  const { dialog } = await renderModal(honey, services, { brands: [granvel] });
 
   await userEvent.click(dialog.getByRole("button", { name: "Nueva marca" }));
   const brandDialog = page.getByRole("dialog", { name: "Nueva marca" });

@@ -52,7 +52,7 @@ function createBrand(
 
 describe("POST /brands", () => {
   it("returns 401 unauthenticated when no cookie was sent", async () => {
-    const response = await createBrand(undefined, { name: "Granix" });
+    const response = await createBrand(undefined, { name: "Granvel" });
 
     expect(response.statusCode).toBe(401);
     expect(response.json()).toMatchObject({ code: "unauthenticated" });
@@ -63,7 +63,7 @@ describe("POST /brands", () => {
 
     const response = await createBrand(
       rawSessionId,
-      { name: "Granix" },
+      { name: "Granvel" },
       { origin: "https://attacker.example" },
     );
 
@@ -75,7 +75,7 @@ describe("POST /brands", () => {
   it("rejects a user without the products and categories permission with 403 forbidden, creating nothing", async () => {
     const rawSessionId = await signedInWithPermissions(db, NOON, ["sell_and_charge"]);
 
-    const response = await createBrand(rawSessionId, { name: "Granix" });
+    const response = await createBrand(rawSessionId, { name: "Granvel" });
 
     expect(response.statusCode).toBe(403);
     expect(response.json()).toMatchObject({ code: "forbidden" });
@@ -123,10 +123,10 @@ describe("POST /brands", () => {
   });
 
   it("rejects a name a deactivated brand already has in another letter case with 409 brand_name_taken", async () => {
-    await insertBrand(db, { name: "Vitaco", active: false });
+    await insertBrand(db, { name: "Vitarda", active: false });
     const rawSessionId = await signedInWithPermissions(db, NOON);
 
-    const response = await createBrand(rawSessionId, { name: "vitaco" });
+    const response = await createBrand(rawSessionId, { name: "vitarda" });
 
     expect(response.statusCode).toBe(409);
     expect(response.json()).toMatchObject({ code: "brand_name_taken" });

@@ -58,7 +58,7 @@ async function storedBrand(id: string) {
 
 describe("DELETE /brands/:id/deactivation", () => {
   it("no longer answers the old reactivation path", async () => {
-    const brand = await insertBrand(db, { name: "Granix", active: false });
+    const brand = await insertBrand(db, { name: "Granvel", active: false });
     const rawSessionId = await signedInWithPermissions(db, NOON);
 
     const response = await app.inject({
@@ -71,7 +71,7 @@ describe("DELETE /brands/:id/deactivation", () => {
   });
 
   it("returns 401 unauthenticated when no cookie was sent, changing nothing", async () => {
-    const brand = await insertBrand(db, { name: "Granix", active: false });
+    const brand = await insertBrand(db, { name: "Granvel", active: false });
 
     const response = await request(undefined, brand.id);
 
@@ -80,7 +80,7 @@ describe("DELETE /brands/:id/deactivation", () => {
   });
 
   it("rejects an Origin that is not the backoffice's own, changing nothing", async () => {
-    const brand = await insertBrand(db, { name: "Granix", active: false });
+    const brand = await insertBrand(db, { name: "Granvel", active: false });
     const rawSessionId = await signedInWithPermissions(db, NOON);
 
     const response = await request(rawSessionId, brand.id, { origin: "https://attacker.example" });
@@ -91,7 +91,7 @@ describe("DELETE /brands/:id/deactivation", () => {
   });
 
   it("rejects a user without the products and categories permission with 403 forbidden, changing nothing", async () => {
-    const brand = await insertBrand(db, { name: "Granix", active: false });
+    const brand = await insertBrand(db, { name: "Granvel", active: false });
     const rawSessionId = await signedInWithPermissions(db, NOON, ["sell_and_charge"]);
 
     const response = await request(rawSessionId, brand.id);
@@ -102,7 +102,7 @@ describe("DELETE /brands/:id/deactivation", () => {
   });
 
   it("reactivates the brand, bumping its version and leaving the products that carry it with it", async () => {
-    const brand = await insertBrand(db, { name: "Granix", active: false });
+    const brand = await insertBrand(db, { name: "Granvel", active: false });
     await insertProductOfBrand(db, { name: "Galletitas", brandId: brand.id });
     const rawSessionId = await signedInWithPermissions(db, NOON);
 
@@ -114,7 +114,7 @@ describe("DELETE /brands/:id/deactivation", () => {
   });
 
   it("reactivates the brand for an Administrator even without the explicit permission", async () => {
-    const brand = await insertBrand(db, { name: "Granix", active: false });
+    const brand = await insertBrand(db, { name: "Granvel", active: false });
     const rawSessionId = await signedInAsAdministrator(db, NOON);
 
     const response = await request(rawSessionId, brand.id);
@@ -123,7 +123,7 @@ describe("DELETE /brands/:id/deactivation", () => {
   });
 
   it("returns 409 brand_already_active for a brand already active, changing nothing", async () => {
-    const brand = await insertBrand(db, { name: "Granix", active: true });
+    const brand = await insertBrand(db, { name: "Granvel", active: true });
     const rawSessionId = await signedInWithPermissions(db, NOON);
 
     const response = await request(rawSessionId, brand.id);
@@ -134,7 +134,7 @@ describe("DELETE /brands/:id/deactivation", () => {
   });
 
   it("answers 400 validation_failed naming id for a malformed id, changing nothing", async () => {
-    const brand = await insertBrand(db, { name: "Granix", active: false });
+    const brand = await insertBrand(db, { name: "Granvel", active: false });
     const rawSessionId = await signedInWithPermissions(db, NOON);
 
     const response = await request(rawSessionId, "not-a-uuid");

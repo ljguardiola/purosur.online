@@ -111,7 +111,7 @@ describe("DrizzleCatalogListReader", () => {
 
     it("answers each product with its category, brand, barcodes by position and tag ids by tag name", async () => {
       const categoryId = await insertCategory("Almacén");
-      const brandId = await insertBrand("Granix");
+      const brandId = await insertBrand("Granvel");
       const vegan = await insertTag("Vegano");
       const organic = await insertTag("Organico");
       const productId = await insertProduct({
@@ -159,43 +159,43 @@ describe("DrizzleCatalogListReader", () => {
   describe("brands", () => {
     it("answers every brand by name, deactivated ones included, counting the products in the requested scope", async () => {
       const categoryId = await insertCategory();
-      const granix = await insertBrand("Granix");
+      const granvel = await insertBrand("Granvel");
       const litoral = await insertBrand("Litoral", false);
-      await insertProduct({ name: "Miel", categoryId, brandId: granix });
-      await insertProduct({ name: "Avena", categoryId, brandId: granix });
-      await insertProduct({ name: "Harina", categoryId, brandId: granix, active: false });
+      await insertProduct({ name: "Miel", categoryId, brandId: granvel });
+      await insertProduct({ name: "Avena", categoryId, brandId: granvel });
+      await insertProduct({ name: "Harina", categoryId, brandId: granvel, active: false });
 
       const counts = async (scope: "active" | "inactive" | "any") =>
         (await reader.brands(scope)).map(({ name, productCount }) => [name, productCount]);
 
       expect(await counts("active")).toEqual([
-        ["Granix", 2],
+        ["Granvel", 2],
         ["Litoral", 0],
       ]);
       expect(await counts("inactive")).toEqual([
-        ["Granix", 1],
+        ["Granvel", 1],
         ["Litoral", 0],
       ]);
       expect(await counts("any")).toEqual([
-        ["Granix", 3],
+        ["Granvel", 3],
         ["Litoral", 0],
       ]);
       expect(await reader.brands("active")).toEqual([
-        { id: granix, name: "Granix", active: true, version: 1, productCount: 2 },
+        { id: granvel, name: "Granvel", active: true, version: 1, productCount: 2 },
         { id: litoral, name: "Litoral", active: false, version: 1, productCount: 0 },
       ]);
     });
 
     it("answers one brand with its count", async () => {
       const categoryId = await insertCategory();
-      const granix = await insertBrand("Granix");
+      const granvel = await insertBrand("Granvel");
       await insertBrand("Litoral");
-      await insertProduct({ name: "Miel", categoryId, brandId: granix });
-      await insertProduct({ name: "Harina", categoryId, brandId: granix, active: false });
+      await insertProduct({ name: "Miel", categoryId, brandId: granvel });
+      await insertProduct({ name: "Harina", categoryId, brandId: granvel, active: false });
 
-      expect(await reader.brand(granix, "active")).toEqual({
-        id: granix,
-        name: "Granix",
+      expect(await reader.brand(granvel, "active")).toEqual({
+        id: granvel,
+        name: "Granvel",
         active: true,
         version: 1,
         productCount: 1,

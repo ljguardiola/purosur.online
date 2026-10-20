@@ -30,7 +30,7 @@ afterAll(async () => {
 
 describe("creating two brands with the same name concurrently on a real Postgres through postgres-js", () => {
   it("creates exactly one of them and reports the other as name_taken", async () => {
-    const name = `Granix ${randomUUID()}`;
+    const name = `Granvel ${randomUUID()}`;
 
     const outcomes = await Promise.all([
       createBrand(new DrizzleCatalogStore(db), { name }),
@@ -50,7 +50,7 @@ describe("creating two brands with the same name concurrently on a real Postgres
 describe("renaming two brands to the same name concurrently on a real Postgres through postgres-js", () => {
   it("renames exactly one of them and reports the other as name_taken", async () => {
     const created = await Promise.all(
-      ["Vitaco", "Cabrales"].map((name) =>
+      ["Vitarda", "Cabriola"].map((name) =>
         createBrand(new DrizzleCatalogStore(db), { name: `${name} ${randomUUID()}` }),
       ),
     );

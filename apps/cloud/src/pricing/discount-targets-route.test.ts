@@ -181,14 +181,14 @@ describe("GET /discount-targets", () => {
   });
 
   it("tells each product's brand, net content and active barcodes apart", async () => {
-    const playadito = await insertBrand(db, { name: "Playadito" });
+    const hojaAlta = await insertBrand(db, { name: "Hoja Alta" });
     const retired = await insertBrand(db, { name: "Marca retirada", active: false });
     const rawSessionId = await signedInWithPermissions(db, NOON, ["manage_promotions"]);
     const kilo = await insertProductWithTags(db, {
       name: "Yerba mate",
       categoryName: "Yerbas de un kilo",
       tagIds: [],
-      brandId: playadito.id,
+      brandId: hojaAlta.id,
       netContent: { quantity: 1, unit: "KG" },
       barcodes: [{ code: "7790002" }, { code: "7790001" }, { code: "7790009", active: false }],
     });
@@ -209,7 +209,7 @@ describe("GET /discount-targets", () => {
       id: kilo.id,
       name: "Yerba mate",
       saleUnit: "UNIT",
-      brandName: "Playadito",
+      brandName: "Hoja Alta",
       netContent: { quantity: 1, unit: "KG" },
       barcodes: ["7790002", "7790001"],
       benefitKinds: ["PERCENT_OFF", "BUY_N_PAY_M"],

@@ -3,9 +3,9 @@ import { expect, test } from "vitest";
 import { brandOptions } from "./product-brand-field";
 import { NO_BRAND } from "./product-form";
 
-const granix: BrandSummary = {
+const granvel: BrandSummary = {
   id: "brand-1",
-  name: "Granix",
+  name: "Granvel",
   active: true,
   version: 1,
   productCount: 42,
@@ -19,19 +19,19 @@ const litoral: BrandSummary = {
 };
 
 test("offers no brand first, then the active brands by name, none of them marked", () => {
-  const dulcor: BrandSummary = { ...granix, id: "brand-9", name: "Dulcor" };
+  const dulcor: BrandSummary = { ...granvel, id: "brand-9", name: "Dulcor" };
 
-  expect(brandOptions([granix, litoral, dulcor], null)).toEqual([
+  expect(brandOptions([granvel, litoral, dulcor], null)).toEqual([
     { value: NO_BRAND, label: "Sin marca" },
     { value: dulcor.id, label: "Dulcor" },
-    { value: granix.id, label: "Granix" },
+    { value: granvel.id, label: "Granvel" },
   ]);
 });
 
 test("offers the deactivated brand the product keeps, marked as inactive", () => {
-  expect(brandOptions([granix, litoral], litoral.id)).toEqual([
+  expect(brandOptions([granvel, litoral], litoral.id)).toEqual([
     { value: NO_BRAND, label: "Sin marca" },
-    { value: granix.id, label: "Granix" },
+    { value: granvel.id, label: "Granvel" },
     { value: litoral.id, label: "Yerba del Litoral", status: "Inactiva" },
   ]);
 });

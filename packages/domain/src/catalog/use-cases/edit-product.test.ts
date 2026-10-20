@@ -462,7 +462,7 @@ describe("editProduct", () => {
   it("gives the product an active brand, locking the product, its category and then the brand", async () => {
     const store = new FakeCatalogStore();
     leafCategory(store);
-    store.seedBrand({ id: "brand-1", name: "Granix", active: true, version: 1 });
+    store.seedBrand({ id: "brand-1", name: "Granvel", active: true, version: 1 });
     activeProduct(store);
 
     const outcome = await editProduct(
@@ -488,7 +488,7 @@ describe("editProduct", () => {
   it("removes the product's brand when saved with none", async () => {
     const store = new FakeCatalogStore();
     leafCategory(store);
-    store.seedBrand({ id: "brand-1", name: "Granix", active: true, version: 1 });
+    store.seedBrand({ id: "brand-1", name: "Granvel", active: true, version: 1 });
     brandedProduct(store, "brand-1");
 
     const outcome = await editProduct(
@@ -544,7 +544,7 @@ describe("editProduct", () => {
   it("rejects moving a product to a deactivated brand it doesn't carry, changing nothing", async () => {
     const store = new FakeCatalogStore();
     leafCategory(store);
-    store.seedBrand({ id: "brand-1", name: "Granix", active: true, version: 1 });
+    store.seedBrand({ id: "brand-1", name: "Granvel", active: true, version: 1 });
     store.seedBrand({ id: "brand-2", name: "Yerba del Litoral", active: false, version: 2 });
     brandedProduct(store, "brand-1");
 
@@ -715,7 +715,7 @@ describe("editProduct", () => {
   it("replaces the product's tags with the ones sent, locking them in id order after the brand", async () => {
     const store = new FakeCatalogStore();
     leafCategory(store);
-    store.seedBrand({ id: "brand-1", name: "Granix", active: true, version: 1 });
+    store.seedBrand({ id: "brand-1", name: "Granvel", active: true, version: 1 });
     for (const id of ["tag-1", "tag-2", "tag-3"]) {
       store.seedTag({ id, name: id, active: true, version: 1 });
     }

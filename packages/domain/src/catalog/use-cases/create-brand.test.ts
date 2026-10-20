@@ -6,22 +6,22 @@ describe("createBrand", () => {
   it("creates an active brand at version 1", async () => {
     const store = new FakeCatalogStore();
 
-    const outcome = await createBrand(store, { name: "Granix" });
+    const outcome = await createBrand(store, { name: "Granvel" });
 
     expect(outcome).toEqual({
       kind: "created",
-      brand: { id: "brand-1", name: "Granix", active: true, version: 1 },
+      brand: { id: "brand-1", name: "Granvel", active: true, version: 1 },
     });
     expect(store.snapshot().brands).toEqual([
-      { id: "brand-1", name: "Granix", active: true, version: 1 },
+      { id: "brand-1", name: "Granvel", active: true, version: 1 },
     ]);
   });
 
   it("gives each created brand its own id", async () => {
     const store = new FakeCatalogStore();
 
-    const first = await createBrand(store, { name: "Granix" });
-    const second = await createBrand(store, { name: "Vitaco" });
+    const first = await createBrand(store, { name: "Granvel" });
+    const second = await createBrand(store, { name: "Vitarda" });
 
     expect(
       [first, second].map((outcome) => outcome.kind === "created" && outcome.brand.id),
@@ -30,9 +30,9 @@ describe("createBrand", () => {
 
   it("rejects a name another brand already has, ignoring letter case", async () => {
     const store = new FakeCatalogStore();
-    store.seedBrand({ id: "brand-7", name: "Granix", active: true, version: 1 });
+    store.seedBrand({ id: "brand-7", name: "Granvel", active: true, version: 1 });
 
-    const outcome = await createBrand(store, { name: "gRANIX" });
+    const outcome = await createBrand(store, { name: "gRANVEL" });
 
     expect(outcome).toEqual({ kind: "name_taken" });
     expect(store.snapshot().brands).toHaveLength(1);
@@ -49,9 +49,9 @@ describe("createBrand", () => {
 
   it("maps a name race caught by the store's insert to name_taken, leaving no brand behind", async () => {
     const store = new FakeCatalogStore();
-    store.brandNameConflicts.add("granix");
+    store.brandNameConflicts.add("granvel");
 
-    const outcome = await createBrand(store, { name: "Granix" });
+    const outcome = await createBrand(store, { name: "Granvel" });
 
     expect(outcome).toEqual({ kind: "name_taken" });
     expect(store.snapshot().brands).toEqual([]);
@@ -61,13 +61,13 @@ describe("createBrand", () => {
     const store = new FakeCatalogStore();
     vi.spyOn(store, "transaction").mockRejectedValue(new Error("connection lost"));
 
-    await expect(createBrand(store, { name: "Granix" })).rejects.toThrow("connection lost");
+    await expect(createBrand(store, { name: "Granvel" })).rejects.toThrow("connection lost");
   });
 
   it("runs entirely inside one transaction", async () => {
     const store = new FakeCatalogStore();
 
-    await createBrand(store, { name: "Granix" });
+    await createBrand(store, { name: "Granvel" });
 
     expect(store.transactionCount).toBe(1);
   });
