@@ -17,8 +17,8 @@ import { Pencil, Plus, Search, SearchX, Truck } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { formatDisplayDate } from "../platform/display-date";
+import { AreaTopBar } from "../shell/area-top-bar";
 import { ScreenLayout } from "../shell/screen-layout";
-import { StockTopBar } from "../shell/stock-top-bar";
 import { EditFreightModal } from "./edit-freight-modal";
 import { freightPeriodOf, freightPeriodOptions } from "./freight-form";
 import type { FreightsListScreenServices } from "./freights-list-services";
@@ -141,7 +141,8 @@ export function FreightsListScreen({
     <>
       <ScreenLayout
         topBar={
-          <StockTopBar
+          <AreaTopBar
+            eyebrow="Stock"
             title="Flete"
             action={
               <Button variant="primary" icon={<Plus />} onPress={() => setNewModalOpen(true)}>

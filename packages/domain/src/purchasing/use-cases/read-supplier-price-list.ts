@@ -25,6 +25,7 @@ export interface ReadSupplierPriceListPorts {
 export interface ReadSupplierPriceListInput {
   listId: string;
   now: () => Date;
+  finalAttempt: boolean;
 }
 
 export type ReadSupplierPriceListOutcome =
@@ -60,6 +61,32 @@ type Stop = { kind: "stop"; outcome: ReadSupplierPriceListOutcome };
 
 // The job only writes this list's state and rows: it has no port to reach anything else.
 export async function readSupplierPriceList(
+  ports: ReadSupplierPriceListPorts,
+  input: ReadSupplierPriceListInput,
+): Promise<ReadSupplierPriceListOutcome> {
+  try {
+    return await readOnce(ports, input);
+  } catch (error) {
+    if (input.finalAttempt) {
+      await settleUnfinishedReading(ports.store, input.listId);
+    }
+    throw error;
+  }
+}
+
+function settleUnfinishedReading(store: SupplierPriceListStore, listId: string): Promise<void> {
+  return store.transaction(async (tx) => {
+    const locked = await tx.lockList(listId);
+    if (locked.kind === "locked" && locked.list.state === "READING") {
+      await tx.recordReadFailure(
+        listId,
+        locked.list.sentAt === null ? "reading_unavailable" : "interrupted",
+      );
+    }
+  });
+}
+
+async function readOnce(
   { store, files, extractor }: ReadSupplierPriceListPorts,
   { listId, now }: ReadSupplierPriceListInput,
 ): Promise<ReadSupplierPriceListOutcome> {

@@ -35,7 +35,7 @@ function toListing(row: {
   supplierId: string;
   supplierName: string;
   sourceKind: string;
-  fileName: string | null;
+  fileName: string;
   listDate: string | null;
   rowCount: number;
   unpricedRowCount: number;
@@ -48,7 +48,7 @@ function toListing(row: {
     id: row.id,
     supplier: { id: row.supplierId, name: row.supplierName },
     sourceKind: row.sourceKind as SupplierPriceListSourceKind,
-    fileName: row.fileName ?? "",
+    fileName: row.fileName,
     listDate: row.listDate,
     rowCount: row.rowCount,
     unpricedRowCount: row.unpricedRowCount,
@@ -106,6 +106,6 @@ export class DrizzleSupplierPriceListReader<TQueryResult extends PgQueryResultHK
       .select({ fileName: supplierPriceLists.fileName })
       .from(supplierPriceLists)
       .where(eq(supplierPriceLists.id, listId));
-    return list?.fileName ?? undefined;
+    return list?.fileName;
   }
 }

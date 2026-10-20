@@ -2783,9 +2783,8 @@ export const supplierPriceLists = pgTable(
       .notNull()
       .references(() => locations.id),
     sourceKind: text("source_kind").notNull(),
-    fileName: text("file_name"),
-    fileByteSize: bigint("file_byte_size", { mode: "number" }),
-    sourceUrl: text("source_url"),
+    fileName: text("file_name").notNull(),
+    fileByteSize: bigint("file_byte_size", { mode: "number" }).notNull(),
     state: text("state").notNull(),
     readFailure: text("read_failure"),
     listDate: date("list_date", { mode: "string" }),

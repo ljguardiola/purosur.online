@@ -5,8 +5,10 @@ import {
   type SupplierPriceListRowPriceBody,
   type SupplierPriceListRowRemovalBody,
   type SupplierPriceListSummary,
+  type SupplierPriceListUploadQuery,
   supplierPriceListListSchema,
   supplierPriceListReviewSchema,
+  supplierPriceListUploadedSchema,
 } from "@purosur/contracts";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { rateLimitOutcome } from "../platform/rate-limit-outcome";
@@ -115,23 +117,26 @@ export async function fetchSupplierPriceListReview(
     : { kind: "failed" };
 }
 
-export async function uploadSupplierPriceList(input: {
-  supplierId: string;
-  file: File;
-}): Promise<UploadSupplierPriceListOutcome> {
-  const query = new URLSearchParams({ supplierId: input.supplierId, fileName: input.file.name });
+export async function uploadSupplierPriceList(
+  query: SupplierPriceListUploadQuery,
+  file: Blob,
+): Promise<UploadSupplierPriceListOutcome> {
+  const search = new URLSearchParams({ supplierId: query.supplierId, fileName: query.fileName });
   let response: Response;
   try {
-    response = await fetch(`/api/supplier-price-lists?${query}`, {
+    response = await fetch(`/api/supplier-price-lists?${search}`, {
       method: "POST",
       headers: { "Content-Type": "application/pdf" },
-      body: input.file,
+      body: file,
     });
   } catch {
     return { kind: "failed" };
   }
   if (response.ok) {
-    return { kind: "ok" };
+    const uploaded = supplierPriceListUploadedSchema.safeParse(
+      await response.json().catch(() => undefined),
+    );
+    return uploaded.success ? { kind: "ok" } : { kind: "failed" };
   }
   if (response.status === 400) {
     return validationFailed(response);

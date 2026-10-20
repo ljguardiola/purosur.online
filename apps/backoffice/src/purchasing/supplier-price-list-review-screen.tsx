@@ -30,12 +30,12 @@ import {
 import { useEffect, useEffectEvent, useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { formatDisplayDate } from "../platform/display-date";
+import { AreaTopBar } from "../shell/area-top-bar";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ConfirmSupplierPriceListModal } from "./confirm-supplier-price-list-modal";
 import { DiscardSupplierPriceListModal } from "./discard-supplier-price-list-modal";
 import { EditSupplierPriceListRowPriceModal } from "./edit-supplier-price-list-row-price-modal";
 import { useRefreshPurchasing, useSupplierPriceListReviewQuery } from "./purchasing-queries";
-import { PurchasingTopBar } from "./purchasing-screen-parts";
 import { RemoveSupplierPriceListRowModal } from "./remove-supplier-price-list-row-modal";
 import type { SupplierPriceListReviewScreenServices } from "./supplier-price-list-review-services";
 import { supplierPriceListStatusOf } from "./supplier-price-list-status";
@@ -110,7 +110,8 @@ export function SupplierPriceListReviewScreen({
   const review = data.status === "loaded" && data.value.kind === "found" ? data.value.review : null;
   const list = review?.list ?? null;
   const status = list === null ? null : supplierPriceListStatusOf(list);
-  const editable = list?.state === "EXTRACTED";
+  const actions = review?.actions ?? null;
+  const unread = list?.state === "READING" || list?.state === "READ_FAILED";
 
   const columns = [
     dataColumn({
@@ -142,7 +143,7 @@ export function SupplierPriceListReviewScreen({
       header: "Acciones",
       actions: [
         (row: SupplierPriceListRow) =>
-          editable
+          actions?.changeRows
             ? {
                 icon: <Pencil />,
                 "aria-label": `Editar el precio de ${row.description}`,
@@ -150,7 +151,7 @@ export function SupplierPriceListReviewScreen({
               }
             : undefined,
         (row: SupplierPriceListRow) =>
-          editable
+          actions?.changeRows
             ? {
                 icon: <Trash2 />,
                 "aria-label": `Quitar ${row.description} de la lista`,
@@ -187,10 +188,10 @@ export function SupplierPriceListReviewScreen({
     <>
       <ScreenLayout
         topBar={
-          <PurchasingTopBar
+          <AreaTopBar
             eyebrow="Pedidos · Listas de proveedores"
             title={list === null ? "Lista de proveedor" : `Lista de ${list.supplier.name}`}
-            actions={
+            action={
               list === null ? undefined : (
                 <div className="flex items-center gap-3">
                   <ButtonLink
@@ -201,7 +202,7 @@ export function SupplierPriceListReviewScreen({
                   >
                     Descargar el PDF
                   </ButtonLink>
-                  {list.state === "EXTRACTED" || list.state === "READ_FAILED" ? (
+                  {actions?.discard ? (
                     <Button
                       variant="secondary"
                       destructive
@@ -211,7 +212,7 @@ export function SupplierPriceListReviewScreen({
                       Descartar la lista
                     </Button>
                   ) : null}
-                  {list.state === "EXTRACTED" ? (
+                  {actions?.confirm ? (
                     <Button
                       variant="primary"
                       icon={<Check />}
@@ -245,7 +246,7 @@ export function SupplierPriceListReviewScreen({
         ) : null}
         {data.status === "loaded" && data.value.kind === "not_found" ? (
           <EmptyState icon={<FileX />} title="Esta lista ya no existe" variant="blank" />
-        ) : (
+        ) : unread ? null : (
           <>
             <div className="flex flex-wrap items-center gap-3">
               <div className="w-105">

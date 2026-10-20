@@ -1,9 +1,9 @@
 import { createRoute, Outlet, useMatchRoute } from "@tanstack/react-router";
 import { FileText } from "lucide-react";
 import { AreaLayout, SectionLink } from "./area-layout";
+import { AreaTopBarAlertsCount } from "./area-top-bar-alerts-count";
 import { canManageSupplierPriceLists, canSeeAlertsArea } from "./backoffice-access";
 import { signedInRoute } from "./signed-in-route";
-import { StockTopBarAlertsCount } from "./stock-top-bar-alerts-count";
 
 export const ordersAreaRoute = createRoute({
   getParentRoute: () => signedInRoute,
@@ -13,7 +13,7 @@ export const ordersAreaRoute = createRoute({
 
 function OrdersArea() {
   const { session, services, sessionActions } = ordersAreaRoute.useRouteContext();
-  const AlertsCount = services.stockTopBarAlertsCount;
+  const AlertsCount = services.areaTopBarAlertsCount;
   const matchRoute = useMatchRoute();
   const supplierPriceListsShown = Boolean(matchRoute({ to: "/supplier-price-lists", fuzzy: true }));
   return (
@@ -40,7 +40,7 @@ function OrdersArea() {
         </>
       }
     >
-      <StockTopBarAlertsCount
+      <AreaTopBarAlertsCount
         value={
           canSeeAlertsArea(session) ? (
             <AlertsCount
@@ -51,7 +51,7 @@ function OrdersArea() {
         }
       >
         <Outlet />
-      </StockTopBarAlertsCount>
+      </AreaTopBarAlertsCount>
     </AreaLayout>
   );
 }

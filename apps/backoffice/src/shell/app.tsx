@@ -123,7 +123,7 @@ export type AppServices = {
   accountFooter: AccountFooterServices;
   screenFailure: ScreenFailureServices;
   homeScreen: HomeScreenServices;
-  stockTopBarAlertsCount: ComponentType<AlertsOpenCountLinkProps>;
+  areaTopBarAlertsCount: ComponentType<AlertsOpenCountLinkProps>;
   alertsOpenCountLink: AlertsOpenCountLinkServices;
   alertsListScreen: AlertsListScreenServices;
   quarantinedEventsScreen: QuarantinedEventsScreenServices;
@@ -134,7 +134,7 @@ type ShellServiceName =
   | "checkSessionStatus"
   | "userDetailCredentialSections"
   | "usersListEndEverySessionSection"
-  | "stockTopBarAlertsCount"
+  | "areaTopBarAlertsCount"
   | "reportFiltersRegisterFilter"
   | "accountFooter"
   | "screenFailure";
@@ -153,7 +153,7 @@ const defaultRouteServices: RouteServices = {
     () => import("../credentials/user-credential-sections"),
     "UserCredentialSections",
   ),
-  stockTopBarAlertsCount: lazyScreen(
+  areaTopBarAlertsCount: lazyScreen(
     () => import("../alerts/alerts-open-count-link"),
     "AlertsOpenCountLink",
   ),

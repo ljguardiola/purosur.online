@@ -13,3 +13,5 @@ export const supplierPriceListUploadQuerySchema = z.object({
     isSupplierPriceListFileNameTooLong,
   ),
 });
+
+export type SupplierPriceListUploadQuery = z.input<typeof supplierPriceListUploadQuerySchema>;

@@ -5,6 +5,7 @@ import {
   supplierPriceListReviewSchema,
   supplierPriceListRowPriceBodySchema,
   supplierPriceListRowRemovalBodySchema,
+  supplierPriceListUploadedSchema,
   supplierPriceListUploadQuerySchema,
 } from "@purosur/contracts";
 import { SUPPLIER_PRICE_LIST_PDF_MAX_BYTES } from "@purosur/domain";
@@ -161,7 +162,9 @@ export function registerSupplierPriceListsRoutes<TQueryResult extends PgQueryRes
             });
             return;
           case "uploaded":
-            await reply.code(201).send({ listId: outcome.listId });
+            await reply
+              .code(201)
+              .send(supplierPriceListUploadedSchema.parse({ listId: outcome.listId }));
             return;
         }
       },
@@ -189,16 +192,11 @@ export function registerSupplierPriceListsRoutes<TQueryResult extends PgQueryRes
       await reply.code(404).send(NOT_FOUND);
       return;
     }
-    const listed = (await listSupplierPriceLists(reader)).find((list) => list.id === ids.id);
-    const { confirmedAt: _confirmedAt, ...list } = found.list;
     await reply.code(200).send(
       supplierPriceListReviewSchema.parse({
-        list: {
-          ...list,
-          uploadedAt: list.uploadedAt.toISOString(),
-          replaced: listed?.replaced ?? false,
-        },
+        list: { ...found.list, uploadedAt: found.list.uploadedAt.toISOString() },
         rows: found.rows,
+        actions: found.actions,
       }),
     );
   });

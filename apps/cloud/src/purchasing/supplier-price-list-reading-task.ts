@@ -26,11 +26,11 @@ export function supplierPriceListReadingJobs<TQueryResult extends PgQueryResultH
 }: SupplierPriceListReadingInput<TQueryResult>): BackgroundJobs {
   return {
     taskList: {
-      [SUPPLIER_PRICE_LIST_READING_TASK_IDENTIFIER]: async (payload) => {
+      [SUPPLIER_PRICE_LIST_READING_TASK_IDENTIFIER]: async (payload, helpers) => {
         const { listId } = payloadSchema.parse(payload);
         await readSupplierPriceList(
           { store: new DrizzleSupplierPriceListStore(db, now), files, extractor },
-          { listId, now },
+          { listId, now, finalAttempt: helpers.job.attempts >= helpers.job.max_attempts },
         );
       },
     },

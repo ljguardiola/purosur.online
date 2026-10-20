@@ -17,9 +17,9 @@ import { Check, Eye, FileText, Search, SearchX, Upload } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { formatDisplayDate } from "../platform/display-date";
+import { AreaTopBar } from "../shell/area-top-bar";
 import { ScreenLayout } from "../shell/screen-layout";
 import { useRefreshPurchasing, useSupplierPriceListsQuery } from "./purchasing-queries";
-import { PurchasingTopBar } from "./purchasing-screen-parts";
 import { supplierPriceListStatusOf } from "./supplier-price-list-status";
 import type { SupplierPriceListsFilters } from "./supplier-price-lists-filters";
 import type { SupplierPriceListsScreenServices } from "./supplier-price-lists-services";
@@ -38,7 +38,7 @@ type StateFilter = SupplierPriceListsFilters["state"];
 const NO_LISTS: SupplierPriceListSummary[] = [];
 const UNSET = "—";
 
-const SOURCE_KIND_LABEL = { PDF: "PDF", WEB: "Página web" } satisfies Record<
+const SOURCE_KIND_LABEL = { PDF: "PDF" } satisfies Record<
   SupplierPriceListSummary["sourceKind"],
   string
 >;
@@ -166,10 +166,10 @@ export function SupplierPriceListsScreen({
     <>
       <ScreenLayout
         topBar={
-          <PurchasingTopBar
+          <AreaTopBar
             eyebrow="Pedidos"
             title="Listas de proveedores"
-            actions={
+            action={
               <Button
                 variant="primary"
                 icon={<Upload />}
@@ -208,8 +208,6 @@ export function SupplierPriceListsScreen({
               ? {
                   icon: <FileText />,
                   title: "Todavía no hay listas cargadas",
-                  description:
-                    "Con las listas se comparan precios y se arman las sugerencias de pedido.",
                   variant: "blank",
                 }
               : { icon: <SearchX />, title: "Sin resultados", variant: "filtered" }

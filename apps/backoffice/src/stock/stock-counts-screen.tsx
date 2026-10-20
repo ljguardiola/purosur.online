@@ -19,9 +19,9 @@ import { Check, ClipboardCheck, Plus, Search } from "lucide-react";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { formatStockChange, formatStockQuantity } from "../platform/stock-quantity";
+import { AreaTopBar } from "../shell/area-top-bar";
 import { type BackofficeAccess, canSeeStockBalances } from "../shell/backoffice-access";
 import { ScreenLayout } from "../shell/screen-layout";
-import { StockTopBar } from "../shell/stock-top-bar";
 import { countMomentNow } from "./count-moment";
 import { NewCountModal } from "./new-count-modal";
 import type { StockCountsFilters } from "./routes";
@@ -247,7 +247,8 @@ export function StockCountsScreen({
     <>
       <ScreenLayout
         topBar={
-          <StockTopBar
+          <AreaTopBar
+            eyebrow="Stock"
             title="Recuentos"
             action={
               <Button

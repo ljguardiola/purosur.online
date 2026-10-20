@@ -10,7 +10,7 @@ export const SUPPLIER_PRICE_LIST_STATES = [
 
 export type SupplierPriceListState = (typeof SUPPLIER_PRICE_LIST_STATES)[number];
 
-export const SUPPLIER_PRICE_LIST_SOURCE_KINDS = ["PDF", "WEB"] as const;
+export const SUPPLIER_PRICE_LIST_SOURCE_KINDS = ["PDF"] as const;
 
 export type SupplierPriceListSourceKind = (typeof SUPPLIER_PRICE_LIST_SOURCE_KINDS)[number];
 
@@ -29,6 +29,12 @@ export const SUPPLIER_PRICE_LIST_FILE_NAME_MAX_LENGTH = 255;
 
 export const DEFAULT_SUPPLIER_PRICE_LIST_DAILY_EXTRACTION_CAP = 10;
 
+export const PRICE_LIST_EXTRACTION_MAX_ROWS = 5_000;
+
+export const PRICE_LIST_EXTRACTION_MAX_DESCRIPTION_LENGTH = 500;
+
+export const PRICE_LIST_EXTRACTION_MAX_SHORT_TEXT_LENGTH = 200;
+
 export function isSupplierPriceListPdfTooLarge(byteLength: number): boolean {
   return byteLength > SUPPLIER_PRICE_LIST_PDF_MAX_BYTES;
 }
@@ -44,6 +50,14 @@ export function countsTowardDailyExtractionCap(
   day: string,
 ): boolean {
   return list.sentOn === day || (list.state === "READING" && list.sentOn === null);
+}
+
+export function isSupplierPriceListUnderReview(state: SupplierPriceListState): boolean {
+  return state === "EXTRACTED";
+}
+
+export function isSupplierPriceListDiscardable(state: SupplierPriceListState): boolean {
+  return state === "EXTRACTED" || state === "READ_FAILED";
 }
 
 export function dailyExtractionCapReached(countedToday: number, cap: number): boolean {
@@ -64,7 +78,6 @@ export type ConfirmationDecision =
   | { kind: "refused"; reason: ConfirmationRefusal }
   | { kind: "confirmable"; listDate: string };
 
-// The date a person typed in the review wins over the one the reading found.
 export function decideConfirmation(list: {
   rowPrices: (number | null)[];
   readListDate: string | null;

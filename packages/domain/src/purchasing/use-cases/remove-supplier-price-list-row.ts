@@ -1,3 +1,4 @@
+import { isSupplierPriceListUnderReview } from "../model/supplier-price-list.js";
 import type { SupplierPriceListStore } from "./supplier-price-list-store.js";
 
 export interface RemoveSupplierPriceListRowInput {
@@ -22,7 +23,7 @@ export function removeSupplierPriceListRow(
     if (locked.kind === "not_found") {
       return { kind: "not_found" };
     }
-    if (locked.list.state !== "EXTRACTED") {
+    if (!isSupplierPriceListUnderReview(locked.list.state)) {
       return { kind: "not_editable" };
     }
     if (locked.list.version !== input.version) {

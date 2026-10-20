@@ -317,7 +317,7 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
       fetchAlertsOverview: vi.fn().mockReturnValue(new Promise(() => {})),
       fetchRegisterSyncStatus: vi.fn().mockReturnValue(new Promise(() => {})),
     },
-    stockTopBarAlertsCount: AlertsOpenCountLink,
+    areaTopBarAlertsCount: AlertsOpenCountLink,
     alertsOpenCountLink: {
       fetchAlertsOverview: vi.fn().mockReturnValue(new Promise(() => {})),
     },

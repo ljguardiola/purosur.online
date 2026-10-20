@@ -1,12 +1,11 @@
+import { supplierPriceListUploadQuerySchema } from "@purosur/contracts";
 import {
   Button,
   EmptyState,
-  FilePicker,
   InlineNotice,
   LoadFailure,
   LoadingPlaceholder,
   Modal,
-  SharedFieldError,
   useRequestForm,
 } from "@purosur/ui";
 import { Check, ShieldX, TriangleAlert, Truck, Upload, X } from "lucide-react";
@@ -23,7 +22,6 @@ import {
   UPLOAD_FIELD_MESSAGES,
   UPLOAD_FIELDS,
   uploadRequestFrom,
-  uploadRequestSchema,
 } from "./upload-supplier-price-list-form";
 
 export type UploadSupplierPriceListModalServices = {
@@ -146,15 +144,15 @@ export function UploadSupplierPriceListModal({
   });
   const { form, submit, submitting, reset } = useRequestForm({
     defaultValues: EMPTY_UPLOAD_FORM,
-    request: { schema: uploadRequestSchema, from: uploadRequestFrom },
+    request: { schema: supplierPriceListUploadQuerySchema, from: uploadRequestFrom },
     fields: UPLOAD_FIELDS,
     messages: UPLOAD_FIELD_MESSAGES,
-    onSubmit: async (_request, { parsed, showWireFieldError }) => {
-      if (parsed === undefined) {
+    onSubmit: async (_request, { parsed, values, showWireFieldError }) => {
+      if (parsed === undefined || values.file === null) {
         return;
       }
       setNotice(null);
-      const outcome = await services.uploadSupplierPriceList(parsed);
+      const outcome = await services.uploadSupplierPriceList(parsed, values.file);
       switch (outcome.kind) {
         case "ok":
           onUploaded();
@@ -276,20 +274,13 @@ export function UploadSupplierPriceListModal({
         )}
         <form.AppField name="file">
           {(field) => (
-            <SharedFieldError>
-              {(errorMessageId) => (
-                <FilePicker
-                  label="Archivo"
-                  required
-                  accept="application/pdf,.pdf"
-                  chooseText="Elegir un archivo"
-                  chooseAnotherText="Elegir otro archivo"
-                  file={field.state.value}
-                  onChange={field.handleChange}
-                  {...(errorMessageId === undefined ? {} : { errorMessageId })}
-                />
-              )}
-            </SharedFieldError>
+            <field.FilePicker
+              label="Archivo"
+              required
+              accept="application/pdf,.pdf"
+              chooseText="Elegir un archivo"
+              chooseAnotherText="Elegir otro archivo"
+            />
           )}
         </form.AppField>
         <p className="text-detail text-text-subtle">

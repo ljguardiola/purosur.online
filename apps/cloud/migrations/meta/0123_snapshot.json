@@ -1,5 +1,5 @@
 {
-  "id": "560db1d0-eb67-4555-9074-3fd765076341",
+  "id": "27f89d04-ac9c-49b2-9539-be694136e0d5",
   "prevId": "26c6de9c-aa2d-4c29-a8e0-daad64362b7c",
   "version": "7",
   "dialect": "postgresql",
@@ -10288,19 +10288,13 @@
           "name": "file_name",
           "type": "text",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
         "file_byte_size": {
           "name": "file_byte_size",
           "type": "bigint",
           "primaryKey": false,
-          "notNull": false
-        },
-        "source_url": {
-          "name": "source_url",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
         "state": {
           "name": "state",
@@ -10499,7 +10493,7 @@
       "checkConstraints": {
         "supplier_price_lists_source_kind_check": {
           "name": "supplier_price_lists_source_kind_check",
-          "value": "\"supplier_price_lists\".\"source_kind\" in ('PDF', 'WEB')"
+          "value": "\"supplier_price_lists\".\"source_kind\" in ('PDF')"
         },
         "supplier_price_lists_state_check": {
           "name": "supplier_price_lists_state_check",

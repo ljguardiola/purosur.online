@@ -15,8 +15,8 @@ import { deepEqual } from "@tanstack/react-router";
 import { BookOpen, Check, Pencil, Plus, Search, SearchX } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
+import { AreaTopBar } from "../shell/area-top-bar";
 import { ScreenLayout } from "../shell/screen-layout";
-import { StockTopBar } from "../shell/stock-top-bar";
 import { BATCH_COST_INCOMPLETE, batchDayText, batchUnitCostText } from "./assembly-batch-text";
 import { EditRecipeModal } from "./edit-recipe-modal";
 import { NewRecipeModal } from "./new-recipe-modal";
@@ -153,7 +153,8 @@ export function RecipesListScreen({
     <>
       <ScreenLayout
         topBar={
-          <StockTopBar
+          <AreaTopBar
+            eyebrow="Stock"
             title="Recetas"
             action={
               <Button

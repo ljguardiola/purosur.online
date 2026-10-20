@@ -17,8 +17,8 @@ import { Ban, Package, Pencil, Plus, RotateCcw, Search, SearchX } from "lucide-r
 import { useEffect, useEffectEvent, useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { formatStockQuantity } from "../platform/stock-quantity";
+import { AreaTopBar } from "../shell/area-top-bar";
 import { ScreenLayout } from "../shell/screen-layout";
-import { StockTopBar } from "../shell/stock-top-bar";
 import { DeactivatePackagingModal } from "./deactivate-packaging-modal";
 import { EditPackagingModal } from "./edit-packaging-modal";
 import { NewPackagingModal } from "./new-packaging-modal";
@@ -165,7 +165,8 @@ export function PackagingsListScreen({
     <>
       <ScreenLayout
         topBar={
-          <StockTopBar
+          <AreaTopBar
+            eyebrow="Stock"
             title="Presentaciones de compra"
             action={
               <Button

@@ -1,5 +1,10 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
+import {
+  PRICE_LIST_EXTRACTION_MAX_DESCRIPTION_LENGTH,
+  PRICE_LIST_EXTRACTION_MAX_ROWS,
+  PRICE_LIST_EXTRACTION_MAX_SHORT_TEXT_LENGTH,
+} from "@purosur/domain";
 import type {
   PriceListExtraction,
   PriceListExtractor,
@@ -9,9 +14,6 @@ import { z } from "zod";
 
 export const SUPPLIER_PRICE_LIST_READING_MODEL = "claude-sonnet-5-5";
 
-export const PRICE_LIST_EXTRACTION_MAX_ROWS = 5_000;
-export const PRICE_LIST_EXTRACTION_MAX_DESCRIPTION_LENGTH = 500;
-const MAX_SHORT_TEXT_LENGTH = 200;
 const MAX_OUTPUT_TOKENS = 64_000;
 const REQUEST_TIMEOUT_MS = 10 * 60 * 1000;
 
@@ -34,7 +36,7 @@ const proposedList = z.object({
   rows: z.array(proposedRow),
 });
 
-const shortText = z.string().max(MAX_SHORT_TEXT_LENGTH);
+const shortText = z.string().max(PRICE_LIST_EXTRACTION_MAX_SHORT_TEXT_LENGTH);
 
 const strictProposedList = z.object({
   listDate: z.string().nullable(),

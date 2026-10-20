@@ -23,9 +23,8 @@ CREATE TABLE "supplier_price_lists" (
 	"supplier_id" uuid NOT NULL,
 	"location_id" uuid NOT NULL,
 	"source_kind" text NOT NULL,
-	"file_name" text,
-	"file_byte_size" bigint,
-	"source_url" text,
+	"file_name" text NOT NULL,
+	"file_byte_size" bigint NOT NULL,
 	"state" text NOT NULL,
 	"read_failure" text,
 	"list_date" date,
@@ -39,7 +38,7 @@ CREATE TABLE "supplier_price_lists" (
 	"discarded_at" timestamp with time zone,
 	"discarded_by" uuid,
 	"version" integer DEFAULT 1 NOT NULL,
-	CONSTRAINT "supplier_price_lists_source_kind_check" CHECK ("supplier_price_lists"."source_kind" in ('PDF', 'WEB')),
+	CONSTRAINT "supplier_price_lists_source_kind_check" CHECK ("supplier_price_lists"."source_kind" in ('PDF')),
 	CONSTRAINT "supplier_price_lists_state_check" CHECK ("supplier_price_lists"."state" in ('READING', 'READ_FAILED', 'EXTRACTED', 'REVIEWED', 'DISCARDED')),
 	CONSTRAINT "supplier_price_lists_read_failure_check" CHECK ("supplier_price_lists"."read_failure" is null or "supplier_price_lists"."read_failure" in ('unreadable_document', 'no_items_found', 'reading_unavailable', 'interrupted'))
 );

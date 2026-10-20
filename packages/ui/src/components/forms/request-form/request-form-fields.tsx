@@ -3,6 +3,7 @@ import { type ReactNode, useId } from "react";
 import { Checkbox, type CheckboxProps } from "../checkbox";
 import { ComboBox, type ComboBoxProps } from "../combo-box";
 import { DateField, type DateFieldProps } from "../date-field";
+import { FilePicker, type FilePickerProps } from "../file-picker";
 import { OptionCardGroup, type OptionCardGroupProps } from "../option-card-group";
 import { QuantityUnitField, type QuantityUnitFieldProps } from "../quantity-unit-field";
 import { SegmentedControl, type SegmentedControlProps } from "../segmented-control";
@@ -67,6 +68,20 @@ export function BoundDateField(props: DistributiveOmit<DateFieldProps, FieldValu
       {...props}
       name={field.name}
       value={field.state.value}
+      onChange={field.handleChange}
+      errorMessage={fieldErrorMessage(field.state.meta.errors)}
+    />
+  );
+}
+
+export function BoundFilePicker(
+  props: DistributiveOmit<FilePickerProps, FieldValueProps | "file">,
+) {
+  const field = useFieldContext<File | null>();
+  return (
+    <FilePicker
+      {...props}
+      file={field.state.value}
       onChange={field.handleChange}
       errorMessage={fieldErrorMessage(field.state.meta.errors)}
     />

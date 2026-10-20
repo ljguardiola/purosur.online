@@ -1,4 +1,5 @@
 import {
+  countsTowardDailyExtractionCap,
   DEFAULT_SUPPLIER_PRICE_LIST_DAILY_EXTRACTION_CAP,
   type SupplierPriceListReadFailure,
   type SupplierPriceListSourceKind,
@@ -13,7 +14,7 @@ import type {
   SupplierPriceListStore,
   SupplierPriceListStoreTransaction,
 } from "@purosur/domain/purchasing/use-cases";
-import { and, asc, count, eq, isNull, or, sql } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import {
   auditLog,
@@ -55,19 +56,16 @@ class DrizzleSupplierPriceListStoreTransaction<TQueryResult extends PgQueryResul
   }
 
   async extractionsCountedOn(locationId: string, day: string): Promise<number> {
-    const [row] = await this.tx
-      .select({ counted: count() })
+    const lists = await this.tx
+      .select({ state: supplierPriceLists.state, sentOn: supplierPriceLists.sentOn })
       .from(supplierPriceLists)
-      .where(
-        and(
-          eq(supplierPriceLists.locationId, locationId),
-          or(
-            eq(supplierPriceLists.sentOn, day),
-            and(eq(supplierPriceLists.state, "READING"), isNull(supplierPriceLists.sentOn)),
-          ),
-        ),
-      );
-    return row?.counted ?? 0;
+      .where(eq(supplierPriceLists.locationId, locationId));
+    return lists.filter((list) =>
+      countsTowardDailyExtractionCap(
+        { state: list.state as SupplierPriceListState, sentOn: list.sentOn },
+        day,
+      ),
+    ).length;
   }
 
   async findSupplier(supplierId: string): Promise<FindPriceListSupplierResult> {

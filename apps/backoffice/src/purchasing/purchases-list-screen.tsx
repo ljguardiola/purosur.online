@@ -13,8 +13,8 @@ import { Check, Plus, ShoppingCart } from "lucide-react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { formatDisplayDate } from "../platform/display-date";
 import { formatStockQuantity } from "../platform/stock-quantity";
+import { AreaTopBar } from "../shell/area-top-bar";
 import { ScreenLayout } from "../shell/screen-layout";
-import { StockTopBar } from "../shell/stock-top-bar";
 import type { PurchasesListScreenServices } from "./purchases-list-services";
 import { usePurchasesQuery } from "./purchasing-queries";
 import { receiptLabel } from "./receipt-label";
@@ -149,7 +149,8 @@ export function PurchasesListScreen({
     <>
       <ScreenLayout
         topBar={
-          <StockTopBar
+          <AreaTopBar
+            eyebrow="Stock"
             title="Compras"
             action={
               <Button

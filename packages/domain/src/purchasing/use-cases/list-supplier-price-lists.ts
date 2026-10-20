@@ -9,27 +9,33 @@ export interface ListedSupplierPriceList extends Omit<SupplierPriceListListing, 
   replaced: boolean;
 }
 
+export function replacedListIds(lists: SupplierPriceListListing[]): Set<string> {
+  const reviewed = lists.filter((list) => list.state === "REVIEWED");
+  const replaced = new Set<string>();
+  for (const supplierId of new Set(reviewed.map((list) => list.supplier.id))) {
+    const current = currentConfirmedListId(
+      reviewed.flatMap((list) =>
+        list.supplier.id === supplierId && list.listDate !== null && list.confirmedAt !== null
+          ? [{ id: list.id, listDate: list.listDate, confirmedAt: list.confirmedAt }]
+          : [],
+      ),
+    );
+    for (const list of reviewed) {
+      if (list.supplier.id === supplierId && list.id !== current) {
+        replaced.add(list.id);
+      }
+    }
+  }
+  return replaced;
+}
+
 export async function listSupplierPriceLists(
   reader: SupplierPriceListReader,
 ): Promise<ListedSupplierPriceList[]> {
   const lists = await reader.lists();
-
-  const currentBySupplier = new Map<string, string | null>();
-  for (const supplierId of new Set(lists.map((list) => list.supplier.id))) {
-    currentBySupplier.set(
-      supplierId,
-      currentConfirmedListId(
-        lists.flatMap((list) =>
-          list.supplier.id === supplierId && list.listDate !== null && list.confirmedAt !== null
-            ? [{ id: list.id, listDate: list.listDate, confirmedAt: list.confirmedAt }]
-            : [],
-        ),
-      ),
-    );
-  }
-
+  const replaced = replacedListIds(lists);
   return lists.map(({ confirmedAt: _confirmedAt, ...list }) => ({
     ...list,
-    replaced: list.state === "REVIEWED" && currentBySupplier.get(list.supplier.id) !== list.id,
+    replaced: replaced.has(list.id),
   }));
 }

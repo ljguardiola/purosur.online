@@ -16,9 +16,9 @@ import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { purchasedProductsToReviewState } from "../platform/purchased-products-to-review";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { AreaTopBar } from "../shell/area-top-bar";
 import type { BackofficeAccess } from "../shell/backoffice-access";
 import { ScreenLayout } from "../shell/screen-layout";
-import { StockTopBar } from "../shell/stock-top-bar";
 import type { NewPurchaseScreenServices } from "./new-purchase-services";
 import {
   emptyPurchaseForm,
@@ -168,7 +168,8 @@ export function NewPurchaseScreen({ access, onSessionEnded, services }: NewPurch
   return (
     <ScreenLayout
       topBar={
-        <StockTopBar
+        <AreaTopBar
+          eyebrow="Stock"
           title="Registrar compra"
           action={
             <div className="flex items-center gap-3">
