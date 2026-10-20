@@ -1794,6 +1794,77 @@ describe("startServer creating Mercado Pago QR orders", () => {
   });
 });
 
+describe("startServer reading supplier price lists", () => {
+  const credentials = generateArcaTestCredentials();
+  const env = {
+    DATABASE_URL: "postgres://user:pass@db/purosur",
+    RESEND_API_KEY: "re_test_key",
+    RECOVERY_EMAIL_FROM: FICTIONAL_RECOVERY_SENDER,
+    RECOVERY_EMAIL_REPLY_TO: FICTIONAL_RECOVERY_REPLY_TO,
+    BACKOFFICE_ORIGIN: "https://staging.purosur.online",
+    EDGE_ORIGIN_SECRET: "edge-secret",
+    ARCA_CERTIFICATE: credentials.certificatePem,
+    ARCA_ENVIRONMENT: "homologation",
+    DEVICE_TOKEN_ROTATION_KEY: ROTATION_KEY,
+    INSTALLATION_KEYS_ENCRYPTION_KEY: KEYS_ENCRYPTION_KEY,
+  };
+  const priceListsBucket = {
+    SUPPLIER_PRICE_LISTS_BUCKET_ENDPOINT: "https://storage.example.com",
+    SUPPLIER_PRICE_LISTS_BUCKET_NAME: "supplier-price-lists",
+    SUPPLIER_PRICE_LISTS_BUCKET_REGION: "auto",
+    SUPPLIER_PRICE_LISTS_BUCKET_ACCESS_KEY_ID: "fictional-key-id",
+    SUPPLIER_PRICE_LISTS_BUCKET_SECRET_ACCESS_KEY: "fictional-secret",
+  };
+  const aiKey = { ANTHROPIC_API_KEY: "fictional-anthropic-key" };
+
+  async function recoveryEnvFor(startEnv: Record<string, string>) {
+    const recovery = {
+      db: {},
+      connections: { withConnection: vi.fn() },
+      jobQueue: { enqueueRecoveryRequest: vi.fn() },
+      backofficeOrigin: "https://staging.purosur.online",
+      worker: { stop: vi.fn() },
+      workerUtils: { addJob: vi.fn() },
+      close: vi.fn(),
+    };
+    const setUp = vi.fn().mockResolvedValue(recovery);
+    await startServer(startEnv, {
+      arcaEndpoints: arcaEndpointsOf,
+      initSentry: vi.fn(),
+      buildApp: vi.fn().mockReturnValue(appListeningBy(vi.fn())),
+      setUpRecovery: setUp,
+      recordAuthorizedCuit: vi.fn().mockResolvedValue(undefined),
+      enqueueBuyerTaxStatusFetch: vi.fn().mockResolvedValue(undefined),
+      enqueueMissingTaxAuthorityCounts: vi.fn().mockResolvedValue(undefined),
+      enqueueMissingUnclearOutcomes: vi.fn().mockResolvedValue(undefined),
+      enqueueMissingNumberingConflicts: vi.fn().mockResolvedValue(undefined),
+      enqueueMissingOrphanCreditNotes: vi.fn().mockResolvedValue(undefined),
+    });
+    return setUp.mock.calls[0]?.[0] as SetUpRecoveryEnv;
+  }
+
+  it("gives the setup of the recovery infrastructure the files and the extractor when the AI key and the bucket are configured", async () => {
+    const recoveryEnv = await recoveryEnvFor({ ...env, ...aiKey, ...priceListsBucket });
+
+    expect(recoveryEnv.supplierPriceListReading).toEqual({
+      files: expect.objectContaining({ store: expect.any(Function), read: expect.any(Function) }),
+      extractor: expect.objectContaining({ extract: expect.any(Function) }),
+    });
+  });
+
+  it("reads no supplier price list without the AI key", async () => {
+    const recoveryEnv = await recoveryEnvFor({ ...env, ...priceListsBucket });
+
+    expect(recoveryEnv).not.toHaveProperty("supplierPriceListReading");
+  });
+
+  it("reads no supplier price list without the bucket", async () => {
+    const recoveryEnv = await recoveryEnvFor({ ...env, ...aiKey });
+
+    expect(recoveryEnv).not.toHaveProperty("supplierPriceListReading");
+  });
+});
+
 describe("startServer with the real app", () => {
   const dirs: string[] = [];
 
