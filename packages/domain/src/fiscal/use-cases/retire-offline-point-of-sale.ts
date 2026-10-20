@@ -26,8 +26,7 @@ export function retireOfflinePointOfSale(
   return store.transaction<RetireOfflinePointOfSaleOutcome>(async (tx) => {
     await tx.lockPointOfSale(input.pointOfSaleNumber);
     const holder = await tx.branchPointOfSaleClaim(input.locationId, input.pointOfSaleNumber);
-    const assignedTo =
-      holder === undefined ? null : await tx.offlineRegisterOf(input.pointOfSaleNumber);
+    const assignedTo = await tx.offlineRegisterOf(input.pointOfSaleNumber);
     const refusal = offlinePointOfSaleRetirementRefusal(holder, assignedTo !== null);
     if (refusal !== undefined) {
       return { kind: refusal };
