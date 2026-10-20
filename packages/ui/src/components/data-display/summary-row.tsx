@@ -1,10 +1,11 @@
+import type { ReactNode } from "react";
 import { type Tone, toneClassName } from "../shared/tone";
 
 type SummaryRowTone = Extract<Tone, "error" | "info">;
 
 export type SummaryRowProps = {
   label: string;
-  value: string;
+  value: ReactNode;
 } & ({ strong?: boolean; detail?: false } | { strong?: false; detail: true; saving?: false }) &
   ({ saving?: boolean; tone?: undefined } | { saving?: false; tone: SummaryRowTone });
 
