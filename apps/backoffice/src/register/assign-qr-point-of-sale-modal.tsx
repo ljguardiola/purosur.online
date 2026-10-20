@@ -260,7 +260,6 @@ export function AssignQrPointOfSaleModal({
               <field.TextField
                 kind="plain-text"
                 label="Código de la caja QR en Mercado Pago"
-                description="El que figura en la caja QR dentro de tu cuenta de Mercado Pago"
                 required
               />
             )}
