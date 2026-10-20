@@ -50,6 +50,7 @@ import {
   offlineAuthorizationCodeAcquisitionReports,
   offlineFiscalDocuments,
   offlineNumberBlocks,
+  offlinePointOfSaleRetirements,
   offsiteDumpChecks,
   passkeyChallenges,
   passkeys,
@@ -323,6 +324,17 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
       registerId: register.id,
       pointOfSaleNumber: 4,
       version: 1,
+    });
+    await db.insert(pointOfSaleClaims).values({
+      pointOfSaleNumber: 5,
+      registerId: register.id,
+      mechanism: "offline",
+      claimedBy: user.id,
+    });
+    await db.insert(offlinePointOfSaleRetirements).values({
+      pointOfSaleNumber: 5,
+      retiredAt: new Date("2026-01-05T12:00:00.000Z"),
+      retiredBy: user.id,
     });
     await db.insert(offlineNumberBlocks).values({
       pointOfSaleNumber: 4,
