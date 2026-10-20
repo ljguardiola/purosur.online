@@ -18,7 +18,7 @@ function linesOf(source) {
 test("refuses github.actor in a workflow-level env: value", () => {
   const source = workflow(
     "env:",
-    "  REQUESTER: ${{ github.actor }}",
+    `  REQUESTER: \${{ github.actor }}`,
     "jobs:",
     "  build:",
     "    steps:",
@@ -33,7 +33,7 @@ test("refuses github.actor in a job-level env: value", () => {
     "jobs:",
     "  build:",
     "    env:",
-    "      REQUESTER: ${{ github.actor }}",
+    `      REQUESTER: \${{ github.actor }}`,
     "    steps:",
     "      - run: echo hi",
   );
@@ -48,13 +48,13 @@ test("refuses github.actor in a step-level env: value", () => {
     "    steps:",
     "      - run: ./release.sh",
     "        env:",
-    "          REQUESTER: ${{ github.actor }}",
+    `          REQUESTER: \${{ github.actor }}`,
   );
 
   assert.deepEqual(linesOf(source), [6]);
 });
 
-test("refuses github.actor in a job if: condition written without ${{ }}", () => {
+test(`refuses github.actor in a job if: condition written without \${{ }}`, () => {
   const source = workflow(
     "jobs:",
     "  release:",
@@ -66,12 +66,12 @@ test("refuses github.actor in a job if: condition written without ${{ }}", () =>
   assert.deepEqual(linesOf(source), [3]);
 });
 
-test("refuses github.actor in a step if: condition written with ${{ }}", () => {
+test(`refuses github.actor in a step if: condition written with \${{ }}`, () => {
   const source = workflow(
     "jobs:",
     "  release:",
     "    steps:",
-    "      - if: ${{ github.actor == 'owner' }}",
+    `      - if: \${{ github.actor == 'owner' }}`,
     "        run: echo hi",
   );
 
@@ -85,7 +85,7 @@ test("refuses github.actor in a with: input other than a sign-in username", () =
     "    steps:",
     "      - uses: some/notify-action@SHA1",
     "        with:",
-    "          requester: ${{ github.actor }}",
+    `          requester: \${{ github.actor }}`,
   );
 
   assert.deepEqual(linesOf(source), [6]);
@@ -98,7 +98,7 @@ test("refuses github.actor as the username: input of an action that is not a log
     "    steps:",
     "      - uses: some/notify-action@SHA1",
     "        with:",
-    "          username: ${{ github.actor }}",
+    `          username: \${{ github.actor }}`,
   );
 
   assert.deepEqual(linesOf(source), [6]);
@@ -112,8 +112,8 @@ test("accepts github.actor as the username: input of a login action", () => {
     "      - uses: docker/login-action@SHA1",
     "        with:",
     "          registry: ghcr.io",
-    "          username: ${{ github.actor }}",
-    "          password: ${{ secrets.GITHUB_TOKEN }}",
+    `          username: \${{ github.actor }}`,
+    `          password: \${{ secrets.GITHUB_TOKEN }}`,
   );
 
   assert.deepEqual(linesOf(source), []);
@@ -126,8 +126,8 @@ test("refuses github.actor in a login action's input other than username:", () =
     "    steps:",
     "      - uses: docker/login-action@SHA1",
     "        with:",
-    "          registry: ghcr.io/${{ github.actor }}",
-    "          username: ${{ github.actor }}",
+    `          registry: ghcr.io/\${{ github.actor }}`,
+    `          username: \${{ github.actor }}`,
   );
 
   assert.deepEqual(linesOf(source), [6]);
@@ -158,15 +158,15 @@ test("accepts $GITHUB_ACTOR as the --username of skopeo login inside a longer sc
   assert.deepEqual(linesOf(source), []);
 });
 
-test("accepts the short -u option, the =-joined form, ${GITHUB_ACTOR} and ${{ github.actor }} in a sign-in command", () => {
+test(`accepts the short -u option, the =-joined form, \${GITHUB_ACTOR} and \${{ github.actor }} in a sign-in command`, () => {
   const source = workflow(
     "jobs:",
     "  publish:",
     "    steps:",
     "      - run: |",
-    '          echo "$T" | docker login ghcr.io -u "${GITHUB_ACTOR}" --password-stdin',
+    `          echo "$T" | docker login ghcr.io -u "\${GITHUB_ACTOR}" --password-stdin`,
     '          echo "$T" | skopeo login ghcr.io --username=$GITHUB_ACTOR --password-stdin',
-    '          echo "$T" | docker login ghcr.io --username ${{ github.actor }} --password-stdin',
+    `          echo "$T" | docker login ghcr.io --username \${{ github.actor }} --password-stdin`,
   );
 
   assert.deepEqual(linesOf(source), []);
@@ -199,12 +199,12 @@ test("refuses $GITHUB_ACTOR in a run script outside a sign-in command, on its ow
   assert.deepEqual(linesOf(source), [6]);
 });
 
-test("refuses ${{ github.actor }} in a run script outside a sign-in command", () => {
+test(`refuses \${{ github.actor }} in a run script outside a sign-in command`, () => {
   const source = workflow(
     "jobs:",
     "  release:",
     "    steps:",
-    '      - run: ./check-admin.sh "${{ github.actor }}"',
+    `      - run: ./check-admin.sh "\${{ github.actor }}"`,
   );
 
   assert.deepEqual(linesOf(source), [4]);
@@ -259,9 +259,9 @@ test("refuses $GITHUB_ACTOR as the username of a command that is not a registry 
 test("refuses spacing and case variants of the expression", () => {
   const source = workflow(
     "env:",
-    "  A: ${{github.actor}}",
-    "  B: ${{   github.actor   }}",
-    "  C: ${{ GitHub.Actor }}",
+    `  A: \${{github.actor}}`,
+    `  B: \${{   github.actor   }}`,
+    `  C: \${{ GitHub.Actor }}`,
     "jobs:",
     "  build:",
     "    steps:",
@@ -274,7 +274,7 @@ test("refuses spacing and case variants of the expression", () => {
 test("refuses bracket notation", () => {
   const source = workflow(
     "env:",
-    "  A: ${{ github['actor'] }}",
+    `  A: \${{ github['actor'] }}`,
     "jobs:",
     "  build:",
     "    if: github[ 'actor' ] == 'owner'",
@@ -288,7 +288,7 @@ test("refuses bracket notation", () => {
 test("refuses github.actor embedded in a larger expression", () => {
   const source = workflow(
     "env:",
-    "  A: ${{ format('requested by {0}', github.actor) }}",
+    `  A: \${{ format('requested by {0}', github.actor) }}`,
     "jobs:",
     "  build:",
     "    steps:",
@@ -305,7 +305,7 @@ test("refuses a sign-in username reached through a YAML alias outside the sign-i
     "    steps:",
     "      - uses: docker/login-action@SHA1",
     "        with:",
-    "          username: &user ${{ github.actor }}",
+    `          username: &user \${{ github.actor }}`,
     "      - run: ./admin.sh",
     "        env:",
     "          REQUESTER: *user",
@@ -321,7 +321,7 @@ test("refuses an aliased env: map that reads github.actor wherever it is used", 
     "    steps:",
     "      - run: echo hi",
     "        env: &who",
-    "          REQUESTER: ${{ github.actor }}",
+    `          REQUESTER: \${{ github.actor }}`,
     "      - run: echo again",
     "        env: *who",
   );
@@ -332,12 +332,12 @@ test("refuses an aliased env: map that reads github.actor wherever it is used", 
 test("accepts github.triggering_actor in env:, if: and run:", () => {
   const source = workflow(
     "env:",
-    "  ACTOR: ${{ github.triggering_actor }}",
+    `  ACTOR: \${{ github.triggering_actor }}`,
     "jobs:",
     "  release:",
     "    if: github.triggering_actor == 'owner'",
     "    steps:",
-    '      - run: ./check-admin.sh "$GITHUB_TRIGGERING_ACTOR" "${{ github.triggering_actor }}"',
+    `      - run: ./check-admin.sh "$GITHUB_TRIGGERING_ACTOR" "\${{ github.triggering_actor }}"`,
   );
 
   assert.deepEqual(linesOf(source), []);
@@ -346,8 +346,8 @@ test("accepts github.triggering_actor in env:, if: and run:", () => {
 test("refuses github.actor_id and GITHUB_ACTOR_ID everywhere, a sign-in included", () => {
   const source = workflow(
     "env:",
-    "  A: ${{ github.actor_id }}",
-    "  B: ${{ github['actor_id'] }}",
+    `  A: \${{ github.actor_id }}`,
+    `  B: \${{ github['actor_id'] }}`,
     "jobs:",
     "  build:",
     "    if: github.actor_id == '1'",
@@ -355,7 +355,7 @@ test("refuses github.actor_id and GITHUB_ACTOR_ID everywhere, a sign-in included
     '      - run: echo "$GITHUB_ACTOR_ID"',
     "      - uses: docker/login-action@SHA1",
     "        with:",
-    "          username: ${{ github.actor_id }}",
+    `          username: \${{ github.actor_id }}`,
     '      - run: echo "$T" | docker login ghcr.io --username "$GITHUB_ACTOR_ID" --password-stdin',
   );
 
@@ -367,7 +367,7 @@ test("ignores other names that only start like GITHUB_ACTOR", () => {
     "jobs:",
     "  build:",
     "    steps:",
-    '      - run: echo "$GITHUB_ACTORS_FILE" "${{ github.actors }}"',
+    `      - run: echo "$GITHUB_ACTORS_FILE" "\${{ github.actors }}"`,
   );
 
   assert.deepEqual(linesOf(source), []);
