@@ -30,6 +30,14 @@ function recordedEvents(): PushedEvent[] {
   return recorded.push.events;
 }
 
+function firstRecordedEvent(): PushedEvent {
+  const [first] = recordedEvents();
+  if (first === undefined) {
+    throw new Error("the recorded push has no events");
+  }
+  return first;
+}
+
 const NOT_APPLICABLE_YET = ["fiscal_gate_failed"];
 
 function applicableEvents(): PushedEvent[] {
@@ -190,11 +198,11 @@ describe("replenishing a restored register from the cloud", () => {
 
   it("applies nothing of a page with an event it cannot read, and keeps the predecessor", async () => {
     const unreadable: PushedEvent = {
-      ...applicableEvents()[0],
+      ...firstRecordedEvent(),
       event_id: "01a12101-ffff-7000-8000-000000000099",
       device_seq: 99,
       schema_version: 99,
-    } as PushedEvent;
+    };
 
     const outcome = await step([ok([...applicableEvents(), unreadable])]);
 

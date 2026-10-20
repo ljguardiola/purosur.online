@@ -17,7 +17,7 @@ import type {
   ReplenishedUser,
 } from "../restored-register-replenishment-ports.js";
 
-export interface AppliedFact {
+interface AppliedFact {
   fact: SyncedFact;
   source: ReplenishedEventSource;
 }
