@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { inbox, users } from "../platform/db/schema.js";
+import { insertDiscount } from "../pricing/test-support/discount-route-fixtures.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import {
   BACKOFFICE_ORIGIN,
@@ -45,7 +46,7 @@ function salesByDay(headers: Record<string, string>, query = "") {
   return app.inject({ method: "GET", url: `/reports/sales-by-day${query}`, headers });
 }
 
-async function receiveSale(total: number): Promise<{ registerId: string }> {
+async function receiveSale(total: number, lines: unknown[] = []): Promise<{ registerId: string }> {
   const { deviceId, registerId } = await insertEnrolledInstallation(db, {
     now: NOW,
     registerName: "Caja 1",
@@ -77,7 +78,7 @@ async function receiveSale(total: number): Promise<{ registerId: string }> {
       actor_id: USER,
       occurred_at: "2026-10-07T14:00:00.000Z",
       total,
-      lines: [],
+      lines,
       cash_movements: [],
       payments: [
         {
@@ -513,6 +514,196 @@ describe("GET /reports/sales-by-cashier", () => {
     await applySyncedEventsTask(db, { now: () => NOW });
 
     const response = await salesByCashier(headers);
+
+    expect(response.json().rows).toEqual([]);
+  });
+});
+
+function salesByPromotion(headers: Record<string, string>, query = "") {
+  return app.inject({ method: "GET", url: `/reports/sales-by-promotion${query}`, headers });
+}
+
+function promotionLine(promotionId: string, discountAmount: number) {
+  return {
+    id: randomUUID(),
+    product_id: randomUUID(),
+    product_name: "Yerba 1 kg",
+    quantity: 2,
+    list_unit_price: 2_400,
+    price_list_id: randomUUID(),
+    promotion_id: promotionId,
+    discount_amount: discountAmount,
+    promotions: [],
+    line_total: 4_800 - discountAmount,
+  };
+}
+
+describe("GET /reports/sales-by-promotion access", () => {
+  const request = salesByPromotion;
+
+  it("returns 401 when no session cookie was sent", async () => {
+    const response = await request({ origin: BACKOFFICE_ORIGIN });
+
+    expect(response.statusCode).toBe(401);
+  });
+
+  it("rejects an Origin that is not the backoffice's own", async () => {
+    const { headers } = await signedInWith(db, ["view_reports"], NOW);
+
+    const response = await request({ ...headers, origin: "https://attacker.example" });
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toMatchObject({ code: "origin_rejected" });
+  });
+
+  it("rejects a user who may not view reports", async () => {
+    const { headers } = await signedInWith(db, ["view_stock_balances"], NOW);
+
+    const response = await request(headers);
+
+    expect(response.statusCode).toBe(403);
+  });
+
+  it("answers a user who may view reports", async () => {
+    const { headers } = await signedInWith(db, ["view_reports"], NOW);
+
+    const response = await request(headers);
+
+    expect(response.statusCode).toBe(200);
+  });
+});
+
+describe("GET /reports/sales-by-promotion", () => {
+  it.each([
+    ["a range ending before it starts", "?from=2026-10-06&to=2026-10-05"],
+    ["a register that is not an id", "?register_id=caja-1"],
+    ["a parameter given twice", "?from=2026-10-01&from=2026-10-02&to=2026-10-03"],
+  ])("answers 400 to %s", async (_name, query) => {
+    const { headers } = await signedInWith(db, ["view_reports"], NOW);
+
+    const response = await salesByPromotion(headers, query);
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({ code: "validation_failed" });
+  });
+
+  it("reports the current Argentina day when no range is asked", async () => {
+    const { headers } = await signedInWith(db, ["view_reports"], NOW);
+
+    const response = await salesByPromotion(headers);
+
+    expect(response.json()).toEqual({
+      range: { from: "2026-10-07", to: "2026-10-07" },
+      rows: [],
+      totals: { discounted: 0, lines: 0, most_used: null },
+    });
+  });
+
+  it("answers the lines, units and amount discounted of each promotion, the largest amount first", async () => {
+    const { headers } = await signedInWith(db, ["view_reports"], NOW);
+    const { deviceId } = await insertEnrolledInstallation(db, { now: NOW, registerName: "Caja 1" });
+    const categoryId = await insertCategoryNamed(db, "Almacén");
+    const finde = await insertDiscount(db, {
+      now: NOW,
+      name: "Finde",
+      categoryId,
+      weekdays: [6, 7],
+    });
+    const missing = randomUUID();
+    const soldLine = (promotionId: string, discountAmount: number) => ({
+      ...aSoldLine(randomUUID(), "Yerba 1 kg", 2, 4_800 - discountAmount),
+      promotionId,
+      discountAmount,
+    });
+    await applyCompletedSale(db, {
+      deviceId,
+      completedAt: new Date("2026-10-07T14:00:00.000Z"),
+      total: 9_000,
+      overrides: {
+        lines: [soldLine(finde.id, 300), soldLine(finde.id, 200), soldLine(missing, 900)],
+      },
+    });
+
+    const response = await salesByPromotion(headers);
+
+    expect(response.json()).toEqual({
+      range: { from: "2026-10-07", to: "2026-10-07" },
+      rows: [
+        {
+          promotion_id: missing,
+          name: null,
+          terms: null,
+          lines: 1,
+          units: 2,
+          thousandths: 0,
+          discounted: 900,
+        },
+        {
+          promotion_id: finde.id,
+          name: "Finde",
+          terms: {
+            benefit: { kind: "PERCENT_OFF", percent: 15 },
+            target: { kind: "CATEGORY", name: "Almacén" },
+            weekdays: [6, 7],
+          },
+          lines: 2,
+          units: 4,
+          thousandths: 0,
+          discounted: 500,
+        },
+      ],
+      totals: {
+        discounted: 1_400,
+        lines: 3,
+        most_used: { promotion_id: finde.id, name: "Finde", lines: 2 },
+      },
+    });
+  });
+
+  it("shows a pushed sale only once its event was applied", async () => {
+    const { headers } = await signedInWith(db, ["view_reports"], NOW);
+    const missing = randomUUID();
+    await receiveSale(4_700, [promotionLine(missing, 100)]);
+
+    const before = await salesByPromotion(headers, "?from=2026-10-07&to=2026-10-07");
+    await applySyncedEventsTask(db, { now: () => NOW });
+    const after = await salesByPromotion(headers, "?from=2026-10-07&to=2026-10-07");
+
+    expect(before.json().rows).toEqual([]);
+    expect(after.json().rows).toEqual([
+      {
+        promotion_id: missing,
+        name: null,
+        terms: null,
+        lines: 1,
+        units: 2,
+        thousandths: 0,
+        discounted: 100,
+      },
+    ]);
+  });
+
+  it("filters by an asked register of the branch", async () => {
+    const { headers } = await signedInWith(db, ["view_reports"], NOW);
+    const { registerId } = await receiveSale(4_700, [promotionLine(randomUUID(), 100)]);
+    await applySyncedEventsTask(db, { now: () => NOW });
+
+    const ofTheRegister = await salesByPromotion(headers, `?register_id=${registerId}`);
+    const ofAnotherRegister = await salesByPromotion(headers, `?register_id=${randomUUID()}`);
+
+    expect(ofTheRegister.json().totals.discounted).toBe(100);
+    expect(ofAnotherRegister.json().totals.discounted).toBe(0);
+  });
+
+  it("reports the branch of the session and never another", async () => {
+    const otherLocationId = await insertLocation(db);
+    const { headers } = await signedInWith(db, ["view_reports"], NOW, {
+      locationId: otherLocationId,
+    });
+    await receiveSale(4_700, [promotionLine(randomUUID(), 100)]);
+    await applySyncedEventsTask(db, { now: () => NOW });
+
+    const response = await salesByPromotion(headers);
 
     expect(response.json().rows).toEqual([]);
   });
