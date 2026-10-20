@@ -94,6 +94,13 @@ export type MercadoPagoOrderReading =
   | { kind: "read"; result: MercadoPagoOrderResult }
   | { kind: "unavailable" };
 
+export type MercadoPagoOrderSearch =
+  | {
+      kind: "read";
+      orders: readonly { orderId: string; result: MercadoPagoOrderResult }[];
+    }
+  | { kind: "unavailable" };
+
 export type MercadoPagoOrderRefundsReading =
   | { kind: "read"; refunds: readonly MercadoPagoOrderRefund[] }
   | { kind: "unavailable" };
@@ -108,6 +115,11 @@ export interface MercadoPagoOrders {
   createQrOrder(request: MercadoPagoQrOrderRequest): Promise<MercadoPagoOrderCreation>;
   createPointOrder(request: MercadoPagoPointOrderRequest): Promise<MercadoPagoOrderCreation>;
   readOrder(orderId: string): Promise<MercadoPagoOrderReading>;
+  searchOrdersOfExternalReference(
+    externalReference: string,
+    createdFrom: Date,
+    createdTo: Date,
+  ): Promise<MercadoPagoOrderSearch>;
   cancelOrder(orderId: string, idempotencyKey: string): Promise<MercadoPagoOrderCancellation>;
   refundOrder(orderId: string, idempotencyKey: string): Promise<MercadoPagoRefundAnswer>;
   readOrderRefunds(orderId: string): Promise<MercadoPagoOrderRefundsReading>;
