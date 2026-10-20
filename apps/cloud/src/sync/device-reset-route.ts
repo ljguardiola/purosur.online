@@ -89,7 +89,10 @@ export function registerDeviceResetRoute<TQueryResult extends PgQueryResultHKT>(
           case "replenishment":
             await reply.code(200).send(
               registerResetResponseSchema.parse({
-                events: outcome.events.map(({ event }) => event),
+                events: outcome.events.map(({ deviceId, event }) => ({
+                  ...event,
+                  device_id: deviceId,
+                })),
                 next: outcome.next && {
                   device_id: outcome.next.deviceId,
                   device_seq: outcome.next.deviceSeq,

@@ -15,7 +15,9 @@ export const registerResetRequestSchema = z.object({
 });
 
 export const registerResetResponseSchema = z.object({
-  events: z.array(pushedEventSchema).max(REPLENISHMENT_PAGE_MAX_EVENTS),
+  events: z
+    .array(pushedEventSchema.extend({ device_id: recordIdSchema() }))
+    .max(REPLENISHMENT_PAGE_MAX_EVENTS),
   next: eventPositionSchema.nullable(),
   users: z.array(userRowSchema.extend({ user_id: recordIdSchema() })),
 });
