@@ -3,6 +3,7 @@ import { createMercadoPagoQrOrder } from "./create-mercado-pago-qr-order.js";
 import type { FakePaymentTransactionLanes } from "./test-support/fake-payment-transaction-lanes.js";
 import {
   AMOUNT,
+  EXTERNAL_POS_ID,
   mercadoPagoOrderWorld,
   NOW,
   orderResult,
@@ -38,6 +39,7 @@ describe("createMercadoPagoQrOrder", () => {
       "enterLane",
       "recordedTransaction",
       "recordPendingTransaction",
+      "pointOfSaleOfRegister",
       "createQrOrder",
       "recordOrderCreated",
       "recordNoOtherOrderPossible",
@@ -59,8 +61,75 @@ describe("createMercadoPagoQrOrder", () => {
         externalReference: TRANSACTION_ID,
         amount: AMOUNT,
         expiresAfterMinutes: 3,
+        externalPosId: EXTERNAL_POS_ID,
       },
     ]);
+  });
+
+  it("sends each register's order to the QR point of sale assigned to that register and never to another's", async () => {
+    const { mercadoPago, qrPointsOfSale, ports } = mercadoPagoOrderWorld();
+    qrPointsOfSale.assign("register-2", "pos-2");
+
+    await createMercadoPagoQrOrder(ports, INPUT);
+    await createMercadoPagoQrOrder(ports, {
+      ...INPUT,
+      registerId: "register-2",
+      paymentTransactionId: "transaction-2",
+    });
+
+    expect(mercadoPago.creationRequests.map((request) => request.externalPosId)).toEqual([
+      "pos-1",
+      "pos-2",
+    ]);
+  });
+
+  it("answers that the register has no QR point of sale, sending nothing to Mercado Pago, when none is assigned to it", async () => {
+    const { mercadoPago, qrPointsOfSale, ports } = mercadoPagoOrderWorld();
+    qrPointsOfSale.assign("register-2", "pos-2");
+    qrPointsOfSale.unassign(REGISTER_ID);
+
+    const outcome = await createMercadoPagoQrOrder(ports, INPUT);
+
+    expect(outcome).toEqual({ kind: "not_configured" });
+    expect(mercadoPago.creationRequests).toEqual([]);
+  });
+
+  it("keeps the payment pending with no order possibly created when no QR point of sale is configured", async () => {
+    const { lanes, qrPointsOfSale, ports } = mercadoPagoOrderWorld();
+    qrPointsOfSale.unassign(REGISTER_ID);
+
+    const outcome = await createMercadoPagoQrOrder(ports, INPUT);
+
+    expect(outcome).toEqual({ kind: "not_configured" });
+    expect(lanes.transactions.get(TRANSACTION_ID)).toMatchObject({
+      method: "QR",
+      state: "PENDING",
+      providerOrderId: null,
+      creationOutcomeUnknown: false,
+    });
+  });
+
+  it("records that a retry created nothing when no QR point of sale is configured and no earlier attempt may have created an order", async () => {
+    const { lanes, qrPointsOfSale, ports } = mercadoPagoOrderWorld();
+    qrPointsOfSale.unassign(REGISTER_ID);
+    lanes.seed(storedTransaction({ creationOutcomeUnknown: false }));
+
+    const outcome = await createMercadoPagoQrOrder(ports, INPUT);
+
+    expect(outcome).toEqual({ kind: "not_configured" });
+    expect(lanes.operations).toContain("recordCreationCreatedNothing");
+  });
+
+  it("still remembers that an earlier attempt's order may exist when a retry finds no QR point of sale configured", async () => {
+    const { lanes, qrPointsOfSale, ports } = mercadoPagoOrderWorld();
+    qrPointsOfSale.unassign(REGISTER_ID);
+    lanes.seed(storedTransaction({ creationOutcomeUnknown: true }));
+
+    const outcome = await createMercadoPagoQrOrder(ports, INPUT);
+
+    expect(outcome).toEqual({ kind: "not_configured" });
+    expect(lanes.operations).not.toContain("recordCreationCreatedNothing");
+    expect(lanes.transactions.get(TRANSACTION_ID)?.creationOutcomeUnknown).toBe(true);
   });
 
   it("reports a new order as a pending payment that expires 3 minutes after it was asked for, plus the longest the creation call can take", async () => {
@@ -169,6 +238,7 @@ describe("createMercadoPagoQrOrder", () => {
       "enterLane",
       "recordedTransaction",
       "recordPendingTransaction",
+      "pointOfSaleOfRegister",
       "createQrOrder",
       "leaveLane",
     ]);
@@ -297,10 +367,11 @@ describe("createMercadoPagoQrOrder", () => {
       const outcome = await createMercadoPagoQrOrder(ports, INPUT);
 
       const expiresAt = new Date("2026-10-09T12:03:10.000Z");
-      expect(lanes.operations.slice(0, 4)).toEqual([
+      expect(lanes.operations.slice(0, 5)).toEqual([
         "enterLane",
         "recordedTransaction",
         "recordCreationAttempt",
+        "pointOfSaleOfRegister",
         "createQrOrder",
       ]);
       expect(outcome).toMatchObject({
@@ -535,6 +606,7 @@ describe("createMercadoPagoQrOrder", () => {
         "enterLane",
         "recordedTransaction",
         "recordCreationAttempt",
+        "pointOfSaleOfRegister",
         "createQrOrder",
         "recordOrderCreated",
         "recordNoOtherOrderPossible",

@@ -235,6 +235,14 @@ export {
   pointTerminalAssignmentBodySchema,
   pointTerminalAssignmentSchema,
 } from "./payments/point-terminal-assignment.js";
+export type {
+  QrPointOfSaleAssignmentAnswer,
+  QrPointOfSaleAssignmentBody,
+} from "./payments/qr-point-of-sale-assignment.js";
+export {
+  qrPointOfSaleAssignmentBodySchema,
+  qrPointOfSaleAssignmentSchema,
+} from "./payments/qr-point-of-sale-assignment.js";
 export type { SalesByPaymentMethodBody } from "./payments/sales-by-payment-method.js";
 export { salesByPaymentMethodSchema } from "./payments/sales-by-payment-method.js";
 export type { PermissionCatalogWire } from "./permissions/permission-catalog.js";

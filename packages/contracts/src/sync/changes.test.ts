@@ -117,6 +117,8 @@ const pointOfSaleRow = {
 
 const pointTerminalRow = { assigned: true, version: 1 };
 
+const qrPointOfSaleRow = { assigned: true, version: 1 };
+
 const thresholdRow = { amount: 1_000_000, valid_from: "2026-10-01", revision: 2 };
 
 const taxStatusSetRow = {
@@ -302,6 +304,14 @@ describe("changesPageSchema", () => {
     [
       "the point terminal of a register left with none",
       change(1, "register_point_terminal", { assigned: false, version: 2 }),
+    ],
+    [
+      "the QR point of sale of a register",
+      change(1, "register_qr_point_of_sale", qrPointOfSaleRow),
+    ],
+    [
+      "the QR point of sale of a register left with none",
+      change(1, "register_qr_point_of_sale", { assigned: false, version: 2 }),
     ],
     [
       "the offline point of sale of a register",
@@ -535,6 +545,7 @@ describe("changesPageSchema", () => {
     ["a set of buyer tax statuses", "buyer_tax_status_set", taxStatusSetRow],
     ["the point of sale of a register", "register_point_of_sale", pointOfSaleRow],
     ["the point terminal of a register", "register_point_terminal", pointTerminalRow],
+    ["the QR point of sale of a register", "register_qr_point_of_sale", qrPointOfSaleRow],
     [
       "the offline point of sale of a register",
       "register_offline_point_of_sale",
@@ -912,6 +923,22 @@ describe("changesPageSchema", () => {
     [
       "a point terminal of a fractional version",
       pageOf(change(1, "register_point_terminal", { assigned: true, version: 1.5 })),
+    ],
+    [
+      "a QR point of sale without its assigned flag",
+      pageOf(change(1, "register_qr_point_of_sale", { version: 1 })),
+    ],
+    [
+      "a QR point of sale whose assigned flag is not a boolean",
+      pageOf(change(1, "register_qr_point_of_sale", { assigned: "yes", version: 1 })),
+    ],
+    [
+      "a QR point of sale of version zero",
+      pageOf(change(1, "register_qr_point_of_sale", { assigned: true, version: 0 })),
+    ],
+    [
+      "a QR point of sale of a fractional version",
+      pageOf(change(1, "register_qr_point_of_sale", { assigned: true, version: 1.5 })),
     ],
     [
       "a point of sale of version zero",

@@ -9,12 +9,22 @@ import {
 } from "./payment-method-availability.js";
 
 describe("qrAvailability", () => {
-  it("is available while the cloud is reachable", () => {
-    expect(qrAvailability(true)).toBe("available");
+  it("is available with a QR point of sale assigned and the cloud reachable", () => {
+    expect(qrAvailability({ pointOfSaleAssigned: true, cloudReachable: true })).toBe("available");
   });
 
-  it("is offline while the cloud is not reachable", () => {
-    expect(qrAvailability(false)).toBe("offline");
+  it("is offline with a QR point of sale assigned and the cloud not reachable", () => {
+    expect(qrAvailability({ pointOfSaleAssigned: true, cloudReachable: false })).toBe("offline");
+  });
+
+  it("is not configured when the register has no QR point of sale assigned, whatever the cloud", () => {
+    fc.assert(
+      fc.property(
+        fc.boolean(),
+        (cloudReachable) =>
+          qrAvailability({ pointOfSaleAssigned: false, cloudReachable }) === "not_configured",
+      ),
+    );
   });
 });
 
@@ -89,6 +99,6 @@ describe("POINT_TERMINAL_AVAILABILITIES", () => {
 
 describe("QR_AVAILABILITIES", () => {
   it("lists what the register works out about the QR", () => {
-    expect(QR_AVAILABILITIES).toEqual(["available", "offline"]);
+    expect(QR_AVAILABILITIES).toEqual(["available", "offline", "not_configured"]);
   });
 });
