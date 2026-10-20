@@ -115,11 +115,11 @@ test("names the period only in its range fields", async () => {
   expect(screen.getByText(/07\/10\/2026/).query()).toBeNull();
 });
 
-test("shows each promotion with its lines, units and amount discounted", async () => {
+test("shows each promotion with its lines, quantity sold and amount discounted", async () => {
   const screen = await renderScreen(createServices());
 
   const table = screen.getByRole("table", { name: "Descuentos por promoción" });
-  for (const header of ["Promoción", "Líneas", "Unidades", "Descontado"]) {
+  for (const header of ["Promoción", "Líneas", "Cantidad", "Descontado"]) {
     await expect.element(table.getByRole("columnheader", { name: header })).toBeVisible();
   }
   const bundle = table.getByRole("row", { name: /Tres por dos/ });
@@ -233,7 +233,7 @@ test.each([
 test.each([
   ["Promoción", { sortBy: "name", sort: "ascending" }],
   ["Líneas", { sortBy: "lines", sort: "descending" }],
-  ["Unidades", { sortBy: "units", sort: "descending" }],
+  ["Cantidad", { sortBy: "units", sort: "descending" }],
 ] as const)(
   "reports the %s column as the order when its header is pressed",
   async (header, order) => {
