@@ -38,7 +38,9 @@ export async function recordUnrecordedMercadoPagoOrder(
   if (search.kind === "unavailable") {
     return { kind: "provider_unavailable" };
   }
-  const recorded = search.orders.find(({ result }) => paidAmountOfMercadoPagoOrder(result) !== null);
+  const recorded = search.orders.find(
+    ({ result }) => paidAmountOfMercadoPagoOrder(result) !== null,
+  );
   const kept = recorded ?? search.orders[0];
   if (kept === undefined) {
     return { kind: "not_found" };
