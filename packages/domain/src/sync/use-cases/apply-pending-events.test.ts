@@ -1169,6 +1169,7 @@ describe("an event that breaks an invariant of its own aggregate", () => {
           promotionId: null,
           discountAmount: 0,
           saleDiscountShare: 0,
+          promotions: [],
           lineTotal: 1,
         },
       ],

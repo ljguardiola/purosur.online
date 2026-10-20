@@ -166,6 +166,7 @@ describe("replenishing a completed sale into a restored register", () => {
             promotionId: null,
             discountAmount: 0,
             saleDiscountShare: 0,
+            promotions: [],
             lineTotal: 3000,
           },
           {
@@ -180,6 +181,7 @@ describe("replenishing a completed sale into a restored register", () => {
             promotionId: null,
             discountAmount: 0,
             saleDiscountShare: 0,
+            promotions: [],
             lineTotal: 3150,
           },
         ],
