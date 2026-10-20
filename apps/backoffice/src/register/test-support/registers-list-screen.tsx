@@ -1,5 +1,6 @@
 import { useIsFetching, useQueryClient } from "@tanstack/react-query";
-import { vi } from "vitest";
+import { onTestFinished, vi } from "vitest";
+import { page } from "vitest/browser";
 import type { BackofficeAccess } from "../../shell/backoffice-access";
 import { ADMINISTRATOR_ACCESS } from "../../shell/test-support/backoffice-access";
 import { render } from "../../shell/test-support/render-with-router";
@@ -123,11 +124,14 @@ function RefreshRegisters() {
   );
 }
 
-export function renderScreen(
+export async function renderScreen(
   services: RegistersListScreenServices,
   onSessionEnded: () => void = () => {},
   access: BackofficeAccess = ADMINISTRATOR_ACCESS,
 ) {
+  // Wider than the phone-sized default viewport, or five row actions leave the name column no room.
+  await page.viewport(1280, 900);
+  onTestFinished(() => page.viewport(414, 896));
   return render(
     <main>
       <RegistersListScreen access={access} services={services} onSessionEnded={onSessionEnded} />

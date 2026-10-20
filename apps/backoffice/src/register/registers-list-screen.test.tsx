@@ -1,6 +1,6 @@
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { act, StrictMode } from "react";
-import { beforeEach, expect, test, vi } from "vitest";
+import { beforeEach, expect, onTestFinished, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { ADMINISTRATOR_ACCESS, accessWith } from "../shell/test-support/backoffice-access";
 import { render } from "../shell/test-support/render-with-router";
@@ -467,6 +467,8 @@ test("under StrictMode, clicking the row action emits the code exactly once and 
     kind: "ok",
     value: { code: "P4NX7KWE2QRT8MZD", expiresAt: "2026-09-25T12:15:00.000Z" },
   });
+  await page.viewport(1280, 900);
+  onTestFinished(() => page.viewport(414, 896));
   const screen = await render(
     <StrictMode>
       <main>
@@ -557,14 +559,7 @@ test.each<CloseCodeModalCase>([
     },
     close: async (_screen, dialog) => {
       await expect.element(dialog.getByText("P4NX 7KWE 2QRT 8MZD")).toBeVisible();
-      // The modal is wider than the default phone-sized viewport, leaving its close button
-      // outside it and unclickable.
-      await page.viewport(1280, 900);
-      try {
-        await userEvent.click(dialog.getByRole("button", { name: "Cerrar" }));
-      } finally {
-        await page.viewport(414, 896);
-      }
+      await userEvent.click(dialog.getByRole("button", { name: "Cerrar" }));
     },
   },
   {
