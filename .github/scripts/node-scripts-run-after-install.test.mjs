@@ -683,6 +683,25 @@ test("accepts a github-script step requiring packages and built-ins after an ins
   assert.deepEqual(check(job(install, steps)), []);
 });
 
+test("treats a legacy package name with uppercase letters as a package in a github-script step", () => {
+  for (const [specifier, name] of [
+    ["JSONStream", "JSONStream"],
+    ["@Legacy/Pkg/sub", "@Legacy/Pkg"],
+  ]) {
+    const steps = githubScript("Read", `require("${specifier}");`);
+
+    assert.deepEqual(check(job(install, steps)), [], specifier);
+    assert.deepEqual(
+      check(job(steps)).map((violation) => violation.message),
+      [
+        `step "Read" of job build runs actions/github-script, which imports package ${name} ` +
+          "with no dependency installation in an earlier step of the job",
+      ],
+      specifier,
+    );
+  }
+});
+
 test("refuses a github-script step importing a module that does not exist", () => {
   const steps = githubScript(
     "Validate",
