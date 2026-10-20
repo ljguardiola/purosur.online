@@ -226,6 +226,19 @@ describe("reportFortnights, with the tax authority's list of owed presentations"
       expect(setup.documentReports.lastReportedCalls).toHaveLength(1);
     });
 
+    it("leaves a document that arrives while its fortnight is presented for the next run", async () => {
+      const setup = listed();
+      setup.documents.add(POINT_OF_SALE, SEPTEMBER_SECOND_HALF, ...documentsNumbered(1, 2));
+      setup.documentReports.reportAnswer = () => {
+        setup.documents.add(POINT_OF_SALE, SEPTEMBER_SECOND_HALF, ...documentsNumbered(3));
+        return { kind: "accepted" };
+      };
+
+      await setup.run();
+
+      expect(reportedNumbers(setup.documentReports.reports)).toEqual([[1, 2]]);
+    });
+
     it("still presents the unreported documents of another point of sale accepted with them", async () => {
       const setup = listed();
       const other = 8;
