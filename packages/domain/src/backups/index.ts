@@ -14,3 +14,8 @@ export {
   dueOffsiteDumpNight,
   isOffsiteDumpNight,
 } from "./model/offsite-dump-deadline.js";
+export type { RegisterBackupStanding } from "./model/register-backup-overdue.js";
+export {
+  isRegisterBackupOverdue,
+  REGISTER_BACKUP_OVERDUE_AFTER_MS,
+} from "./model/register-backup-overdue.js";
