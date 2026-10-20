@@ -70,8 +70,12 @@ async function chooseSupplier(screen: ModalScreen, name: string) {
   await userEvent.click(screen.getByRole("option", { name }));
 }
 
+function fileInput(screen: ModalScreen) {
+  return screen.getByRole("dialog").getByLabelText("Archivo", { exact: true });
+}
+
 async function chooseFile(screen: ModalScreen, file: File = pdf) {
-  await userEvent.upload(screen.getByRole("dialog").getByLabelText("Archivo PDF"), file);
+  await userEvent.upload(fileInput(screen), file);
 }
 
 async function submit(screen: ModalScreen) {
@@ -95,7 +99,13 @@ test("shows the title, what reading does and the file to choose", async () => {
       ),
     )
     .toBeVisible();
-  await expect.element(dialog.getByRole("button", { name: "Elegir un archivo" })).toBeVisible();
+  await expect.element(dialog.getByText("Elegir un archivo")).toBeVisible();
+});
+
+test("only accepts a PDF file", async () => {
+  const screen = await renderModal();
+
+  await expect.element(fileInput(screen)).toHaveAttribute("accept", "application/pdf,.pdf");
 });
 
 test("offers the active suppliers by name", async () => {
@@ -129,7 +139,7 @@ test("shows the chosen file with its size, and lets the person choose another", 
 
   await expect.element(dialog.getByText("lista-septiembre-2026.pdf")).toBeVisible();
   await expect.element(dialog.getByText("3 MB")).toBeVisible();
-  await expect.element(dialog.getByRole("button", { name: "Elegir otro archivo" })).toBeVisible();
+  await expect.element(dialog.getByText("Elegir otro archivo")).toBeVisible();
 });
 
 test("asks for the supplier and the file without calling the cloud", async () => {
