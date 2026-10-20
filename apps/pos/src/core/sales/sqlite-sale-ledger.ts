@@ -17,7 +17,6 @@ import {
 } from "@purosur/domain";
 import type {
   CandidatePromotion,
-  RegisterIdentity,
   SaleLedger,
   SaleLedgerTransaction,
   SellingSession,
@@ -39,7 +38,11 @@ import {
   readSalePayments,
 } from "../payments/sqlite-sale-payments";
 import type { LocalDatabase } from "../platform/local-database";
-import { insertCashMovement, readMovementsOf } from "../register/sqlite-cash-ledger";
+import {
+  insertCashMovement,
+  readMovementsOf,
+  readRegisterIdentity,
+} from "../register/sqlite-cash-ledger";
 import type { SignInStore } from "../sessions/sqlite-sign-in-store";
 import { addToStockBalance, insertSaleStockMovement } from "../stock/sqlite-stock-ledger";
 import { appendOutboxEvent } from "../sync/sqlite-outbox";
@@ -74,6 +77,176 @@ function benefitColumns(benefit: DiscountBenefit): BenefitColumns {
   return benefit.kind === "PERCENT_OFF"
     ? { kind: benefit.kind, percent: benefit.percent, buy_qty: null, pay_qty: null }
     : { kind: benefit.kind, percent: null, buy_qty: benefit.buyQty, pay_qty: benefit.payQty };
+}
+
+export function insertOpenedSale(database: LocalDatabase, sale: Sale): void {
+  database
+    .prepare(
+      `INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state)
+       VALUES (@id, @register_id, @device_id, @session_id, @actor_id, @state)`,
+    )
+    .run({
+      id: sale.id,
+      register_id: sale.registerId,
+      device_id: sale.deviceId,
+      session_id: sale.sessionId,
+      actor_id: sale.actorId,
+      state: sale.state,
+    });
+}
+
+export function insertSaleLine(database: LocalDatabase, saleId: string, line: SaleLine): void {
+  database
+    .prepare(
+      `INSERT INTO sale_lines (
+         id, sale_id, position, product_id, product_name, sale_unit, weight_source, quantity,
+         list_unit_price, price_list_id, promotion_id, discount_amount, line_total,
+         manual_adjustment_kind, manual_adjustment_value, manual_adjustment_reason,
+         manual_adjustment_authorized_by
+       ) VALUES (
+         @id, @sale_id,
+         (SELECT coalesce(max(position), 0) + 1 FROM sale_lines WHERE sale_id = @sale_id),
+         @product_id, @product_name, @sale_unit, @weight_source,
+         @quantity, @list_unit_price, @price_list_id,
+         @promotion_id, @discount_amount, @line_total,
+         @manual_adjustment_kind, @manual_adjustment_value, @manual_adjustment_reason,
+         @manual_adjustment_authorized_by
+       )`,
+    )
+    .run({
+      id: line.id,
+      sale_id: saleId,
+      product_id: line.productId,
+      product_name: line.productName,
+      sale_unit: line.saleUnit,
+      weight_source: line.weightSource,
+      quantity: line.quantity,
+      list_unit_price: line.listUnitPrice,
+      price_list_id: line.priceListId,
+      promotion_id: line.promotionId,
+      discount_amount: line.discountAmount,
+      line_total: line.lineTotal,
+      ...manualAdjustmentColumns(line.manualAdjustment),
+    });
+  const freeze = database.prepare(
+    `INSERT INTO sale_line_promotions (line_id, discount_id, name, kind, percent, buy_qty, pay_qty)
+     VALUES (@line_id, @discount_id, @name, @kind, @percent, @buy_qty, @pay_qty)`,
+  );
+  for (const promotion of line.promotions) {
+    freeze.run({
+      line_id: line.id,
+      discount_id: promotion.id,
+      name: promotion.name,
+      ...benefitColumns(promotion.benefit),
+    });
+  }
+}
+
+export function updateSaleDiscount(
+  database: LocalDatabase,
+  saleId: string,
+  discount: SaleDiscount | null,
+): void {
+  database
+    .prepare(
+      `UPDATE sales
+       SET sale_discount_kind = @sale_discount_kind, sale_discount_value = @sale_discount_value,
+           sale_discount_reason = @sale_discount_reason,
+           sale_discount_authorized_by = @sale_discount_authorized_by
+       WHERE id = @id`,
+    )
+    .run({ id: saleId, ...saleDiscountColumns(discount) });
+}
+
+export function deleteSaleLine(database: LocalDatabase, lineId: string): void {
+  database.prepare("DELETE FROM sale_line_promotions WHERE line_id = ?").run(lineId);
+  database.prepare("DELETE FROM sale_lines WHERE id = ?").run(lineId);
+}
+
+export function discardOpenSale(database: LocalDatabase, saleId: string): void {
+  database
+    .prepare(
+      "DELETE FROM sale_line_promotions WHERE line_id IN (SELECT id FROM sale_lines WHERE sale_id = ?)",
+    )
+    .run(saleId);
+  database.prepare("DELETE FROM sale_lines WHERE sale_id = ?").run(saleId);
+  database.prepare("DELETE FROM sales WHERE id = ?").run(saleId);
+}
+
+export function insertSalePayment(database: LocalDatabase, payment: SalePayment): void {
+  database
+    .prepare(
+      `INSERT INTO payment_transactions (
+         id, sale_id, kind, method, provider, amount, tendered, authorized_by, confirmed_at, state,
+         occurred_at
+       ) VALUES (
+         @id, @sale_id, @kind, @method, @provider, @amount, @tendered, @authorized_by,
+         @confirmed_at, @state, @occurred_at
+       )`,
+    )
+    .run({
+      id: payment.id,
+      sale_id: payment.saleId,
+      kind: payment.kind,
+      method: payment.method,
+      provider: payment.provider,
+      amount: payment.amount,
+      tendered: payment.tendered ?? null,
+      authorized_by: isConfirmedByHand(payment) ? payment.authorizedBy : null,
+      confirmed_at: isConfirmedByHand(payment) ? payment.confirmedAt.toISOString() : null,
+      state: payment.state,
+      occurred_at: payment.occurredAt.toISOString(),
+    });
+}
+
+export function takeOperationNumber(database: LocalDatabase): number {
+  const { last_number: lastTaken } = database
+    .prepare<[], { last_number: number }>("SELECT last_number FROM operation_counter")
+    .get() ?? { last_number: 0 };
+  const taken = nextOperationNumber(lastTaken);
+  database.prepare("UPDATE operation_counter SET last_number = ?").run(taken);
+  return taken;
+}
+
+export function advanceOperationCounterTo(database: LocalDatabase, operationNumber: number): void {
+  database
+    .prepare("UPDATE operation_counter SET last_number = max(last_number, ?)")
+    .run(operationNumber);
+}
+
+export function markSaleCompleted(
+  database: LocalDatabase,
+  saleId: string,
+  occurredAt: Date,
+  operationNumber: number,
+): void {
+  const { changes } = database
+    .prepare(
+      `UPDATE sales SET state = 'COMPLETED', occurred_at = ?, operation_number = ?
+       WHERE id = ? AND state = 'OPEN'`,
+    )
+    .run(occurredAt.toISOString(), operationNumber, saleId);
+  if (changes !== 1) {
+    throw new Error("the sale is not in progress");
+  }
+}
+
+export function markSaleCancelled(
+  database: LocalDatabase,
+  saleId: string,
+  occurredAt: Date,
+  authorizedBy: string | undefined,
+): void {
+  const { changes } = database
+    .prepare(
+      `UPDATE sales
+       SET state = 'CANCELLED', occurred_at = ?, cancellation_authorized_by = ?
+       WHERE id = ? AND state = 'OPEN'`,
+    )
+    .run(occurredAt.toISOString(), authorizedBy ?? null, saleId);
+  if (changes !== 1) {
+    throw new Error("the sale is not in progress");
+  }
 }
 
 export class SqliteSaleLedger implements SaleLedger {
@@ -119,21 +292,21 @@ export class SqliteSaleLedger implements SaleLedger {
       paidOrdersWithoutSale: () =>
         new SqliteLocalPaidOrders({ database: this.database }).paidOrdersWithoutSale(),
       paidOrderDiscovery: () => this.paidOrderDiscovery(),
-      registerIdentity: () => this.registerIdentity(),
+      registerIdentity: () => readRegisterIdentity(this.database),
       activeProductByBarcode: (code) => readActiveProductByBarcode(this.database, code),
       activeProductById: (productId) => readActiveProductById(this.database, productId),
       searchableProducts: () => readSearchableProducts(this.database),
       buyerIdentificationThresholds: () => this.buyerIdentificationThresholds(),
       currentPrice: (productId) => this.currentPrice(productId),
       promotionsTargeting: (productId) => this.promotionsTargeting(productId),
-      recordOpenedSale: (sale) => this.recordOpenedSale(sale),
-      recordSaleLine: (saleId, line) => this.recordSaleLine(saleId, line),
+      recordOpenedSale: (sale) => insertOpenedSale(this.database, sale),
+      recordSaleLine: (saleId, line) => insertSaleLine(this.database, saleId, line),
       recordChangedLine: (line) => this.recordChangedLine(line),
-      recordSaleDiscount: (saleId, discount) => this.recordSaleDiscount(saleId, discount),
-      deleteSaleLine: (lineId) => this.deleteSaleLine(lineId),
+      recordSaleDiscount: (saleId, discount) => updateSaleDiscount(this.database, saleId, discount),
+      deleteSaleLine: (lineId) => deleteSaleLine(this.database, lineId),
       salePayments: (saleId) => readSalePayments(this.database, saleId),
-      discardOpenSale: (saleId) => this.discardOpenSale(saleId),
-      recordPayment: (payment) => this.recordPayment(payment),
+      discardOpenSale: (saleId) => discardOpenSale(this.database, saleId),
+      recordPayment: (payment) => insertSalePayment(this.database, payment),
       recordPendingMercadoPagoPayment: (payment) =>
         insertPendingMercadoPagoPayment(this.database, payment),
       pendingMercadoPagoPayment: (paymentTransactionId) =>
@@ -148,11 +321,11 @@ export class SqliteSaleLedger implements SaleLedger {
       recordCashMovement: (movement) => insertCashMovement(this.database, movement),
       recordSaleStockMovement: (movement) => insertSaleStockMovement(this.database, movement),
       addToStockBalance: (productId, delta) => addToStockBalance(this.database, productId, delta),
-      takeOperationNumber: () => this.takeOperationNumber(),
+      takeOperationNumber: () => takeOperationNumber(this.database),
       recordCompletedSale: (saleId, occurredAt, operationNumber) =>
-        this.recordCompletedSale(saleId, occurredAt, operationNumber),
+        markSaleCompleted(this.database, saleId, occurredAt, operationNumber),
       recordCancelledSale: (saleId, occurredAt, authorizedBy) =>
-        this.recordCancelledSale(saleId, occurredAt, authorizedBy),
+        markSaleCancelled(this.database, saleId, occurredAt, authorizedBy),
       recordRefund: (refund) => insertPaymentRefund(this.database, refund),
       outboxReady: () => this.outboxChainKey !== undefined,
       appendOutboxEvent: (draft) => this.appendOutboxEvent(draft),
@@ -182,17 +355,6 @@ export class SqliteSaleLedger implements SaleLedger {
       )
       .get();
     return row?.installation_revoked_at != null;
-  }
-
-  private registerIdentity(): RegisterIdentity | undefined {
-    const row = this.database
-      .prepare<[], { register_id: string; device_id: string }>(
-        `SELECT own_register.id AS register_id, sync_state.device_id AS device_id
-         FROM own_register, sync_state
-         WHERE own_register.removed = 0 AND sync_state.device_id IS NOT NULL`,
-      )
-      .get();
-    return row === undefined ? undefined : { registerId: row.register_id, deviceId: row.device_id };
   }
 
   private buyerIdentificationThresholds(): BuyerIdentificationThreshold[] {
@@ -297,69 +459,6 @@ export class SqliteSaleLedger implements SaleLedger {
       .all(...parameters);
   }
 
-  private recordOpenedSale(sale: Sale): void {
-    this.database
-      .prepare(
-        `INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state)
-         VALUES (@id, @register_id, @device_id, @session_id, @actor_id, @state)`,
-      )
-      .run({
-        id: sale.id,
-        register_id: sale.registerId,
-        device_id: sale.deviceId,
-        session_id: sale.sessionId,
-        actor_id: sale.actorId,
-        state: sale.state,
-      });
-  }
-
-  private recordSaleLine(saleId: string, line: SaleLine): void {
-    this.database
-      .prepare(
-        `INSERT INTO sale_lines (
-           id, sale_id, position, product_id, product_name, sale_unit, weight_source, quantity,
-           list_unit_price, price_list_id, promotion_id, discount_amount, line_total,
-           manual_adjustment_kind, manual_adjustment_value, manual_adjustment_reason,
-           manual_adjustment_authorized_by
-         ) VALUES (
-           @id, @sale_id,
-           (SELECT coalesce(max(position), 0) + 1 FROM sale_lines WHERE sale_id = @sale_id),
-           @product_id, @product_name, @sale_unit, @weight_source,
-           @quantity, @list_unit_price, @price_list_id,
-           @promotion_id, @discount_amount, @line_total,
-           @manual_adjustment_kind, @manual_adjustment_value, @manual_adjustment_reason,
-           @manual_adjustment_authorized_by
-         )`,
-      )
-      .run({
-        id: line.id,
-        sale_id: saleId,
-        product_id: line.productId,
-        product_name: line.productName,
-        sale_unit: line.saleUnit,
-        weight_source: line.weightSource,
-        quantity: line.quantity,
-        list_unit_price: line.listUnitPrice,
-        price_list_id: line.priceListId,
-        promotion_id: line.promotionId,
-        discount_amount: line.discountAmount,
-        line_total: line.lineTotal,
-        ...manualAdjustmentColumns(line.manualAdjustment),
-      });
-    const freeze = this.database.prepare(
-      `INSERT INTO sale_line_promotions (line_id, discount_id, name, kind, percent, buy_qty, pay_qty)
-       VALUES (@line_id, @discount_id, @name, @kind, @percent, @buy_qty, @pay_qty)`,
-    );
-    for (const promotion of line.promotions) {
-      freeze.run({
-        line_id: line.id,
-        discount_id: promotion.id,
-        name: promotion.name,
-        ...benefitColumns(promotion.benefit),
-      });
-    }
-  }
-
   private recordChangedLine(line: SaleLine): void {
     this.database
       .prepare(
@@ -381,97 +480,6 @@ export class SqliteSaleLedger implements SaleLedger {
         line_total: line.lineTotal,
         ...manualAdjustmentColumns(line.manualAdjustment),
       });
-  }
-
-  private recordSaleDiscount(saleId: string, discount: SaleDiscount | null): void {
-    this.database
-      .prepare(
-        `UPDATE sales
-         SET sale_discount_kind = @sale_discount_kind, sale_discount_value = @sale_discount_value,
-             sale_discount_reason = @sale_discount_reason,
-             sale_discount_authorized_by = @sale_discount_authorized_by
-         WHERE id = @id`,
-      )
-      .run({ id: saleId, ...saleDiscountColumns(discount) });
-  }
-
-  private deleteSaleLine(lineId: string): void {
-    this.database.prepare("DELETE FROM sale_line_promotions WHERE line_id = ?").run(lineId);
-    this.database.prepare("DELETE FROM sale_lines WHERE id = ?").run(lineId);
-  }
-
-  private discardOpenSale(saleId: string): void {
-    this.database
-      .prepare(
-        "DELETE FROM sale_line_promotions WHERE line_id IN (SELECT id FROM sale_lines WHERE sale_id = ?)",
-      )
-      .run(saleId);
-    this.database.prepare("DELETE FROM sale_lines WHERE sale_id = ?").run(saleId);
-    this.database.prepare("DELETE FROM sales WHERE id = ?").run(saleId);
-  }
-
-  private recordPayment(payment: SalePayment): void {
-    this.database
-      .prepare(
-        `INSERT INTO payment_transactions (
-           id, sale_id, kind, method, provider, amount, tendered, authorized_by, confirmed_at, state,
-           occurred_at
-         ) VALUES (
-           @id, @sale_id, @kind, @method, @provider, @amount, @tendered, @authorized_by,
-           @confirmed_at, @state, @occurred_at
-         )`,
-      )
-      .run({
-        id: payment.id,
-        sale_id: payment.saleId,
-        kind: payment.kind,
-        method: payment.method,
-        provider: payment.provider,
-        amount: payment.amount,
-        tendered: payment.tendered ?? null,
-        authorized_by: isConfirmedByHand(payment) ? payment.authorizedBy : null,
-        confirmed_at: isConfirmedByHand(payment) ? payment.confirmedAt.toISOString() : null,
-        state: payment.state,
-        occurred_at: payment.occurredAt.toISOString(),
-      });
-  }
-
-  private takeOperationNumber(): number {
-    const { last_number: lastTaken } = this.database
-      .prepare<[], { last_number: number }>("SELECT last_number FROM operation_counter")
-      .get() ?? { last_number: 0 };
-    const taken = nextOperationNumber(lastTaken);
-    this.database.prepare("UPDATE operation_counter SET last_number = ?").run(taken);
-    return taken;
-  }
-
-  private recordCompletedSale(saleId: string, occurredAt: Date, operationNumber: number): void {
-    const { changes } = this.database
-      .prepare(
-        `UPDATE sales SET state = 'COMPLETED', occurred_at = ?, operation_number = ?
-         WHERE id = ? AND state = 'OPEN'`,
-      )
-      .run(occurredAt.toISOString(), operationNumber, saleId);
-    if (changes !== 1) {
-      throw new Error("the sale is not in progress");
-    }
-  }
-
-  private recordCancelledSale(
-    saleId: string,
-    occurredAt: Date,
-    authorizedBy: string | undefined,
-  ): void {
-    const { changes } = this.database
-      .prepare(
-        `UPDATE sales
-         SET state = 'CANCELLED', occurred_at = ?, cancellation_authorized_by = ?
-         WHERE id = ? AND state = 'OPEN'`,
-      )
-      .run(occurredAt.toISOString(), authorizedBy ?? null, saleId);
-    if (changes !== 1) {
-      throw new Error("the sale is not in progress");
-    }
   }
 
   private appendOutboxEvent(draft: OutboxEventDraft): void {

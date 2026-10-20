@@ -52,6 +52,26 @@ function toLine(row: LineRow): InitialCountLine {
   };
 }
 
+export function insertInitialCountMovement(
+  database: LocalDatabase,
+  movement: InitialCountMovement,
+): void {
+  database
+    .prepare(
+      `INSERT INTO stock_movements (id, product_id, kind, delta, occurred_at, expires_on, withdraws_movement_id)
+       VALUES (@id, @product_id, @kind, @delta, @occurred_at, @expires_on, @withdraws_movement_id)`,
+    )
+    .run({
+      id: movement.id,
+      product_id: movement.productId,
+      kind: movement.kind,
+      delta: movement.delta,
+      occurred_at: movement.occurredAt.toISOString(),
+      expires_on: movement.expiresOn,
+      withdraws_movement_id: movement.withdrawsMovementId,
+    });
+}
+
 export class SqliteInitialCountLedger implements InitialCountLedger {
   private readonly database: LocalDatabase;
   private readonly people: Pick<SignInStore, "activePerson">;
@@ -83,7 +103,7 @@ export class SqliteInitialCountLedger implements InitialCountLedger {
       searchableProducts: () => readSearchableProducts(this.database),
       initialCountLine: (movementId) => this.initialCountLine(movementId),
       notWithdrawnInitialCountLines: () => this.notWithdrawnInitialCountLines(),
-      recordInitialCountMovement: (movement) => this.recordInitialCountMovement(movement),
+      recordInitialCountMovement: (movement) => insertInitialCountMovement(this.database, movement),
       addToStockBalance: (productId, delta) => addToStockBalance(this.database, productId, delta),
       appendOutboxEvent: (draft) => this.appendOutboxEvent(draft),
     };
@@ -106,23 +126,6 @@ export class SqliteInitialCountLedger implements InitialCountLedger {
       .all()
       .map(toLine)
       .filter((line) => !line.withdrawn);
-  }
-
-  private recordInitialCountMovement(movement: InitialCountMovement): void {
-    this.database
-      .prepare(
-        `INSERT INTO stock_movements (id, product_id, kind, delta, occurred_at, expires_on, withdraws_movement_id)
-         VALUES (@id, @product_id, @kind, @delta, @occurred_at, @expires_on, @withdraws_movement_id)`,
-      )
-      .run({
-        id: movement.id,
-        product_id: movement.productId,
-        kind: movement.kind,
-        delta: movement.delta,
-        occurred_at: movement.occurredAt.toISOString(),
-        expires_on: movement.expiresOn,
-        withdraws_movement_id: movement.withdrawsMovementId,
-      });
   }
 
   private appendOutboxEvent(draft: OutboxEventDraft): void {
