@@ -7,7 +7,7 @@ import {
   recordAuthorizedCuit,
   recordBuyerIdentificationThreshold,
 } from "@purosur/domain/fiscal/use-cases";
-import { assignPointTerminal } from "@purosur/domain/payments/use-cases";
+import { assignPointTerminal, assignQrPointOfSale } from "@purosur/domain/payments/use-cases";
 import { createRole } from "@purosur/domain/permissions/use-cases";
 import { setPrice } from "@purosur/domain/pricing/use-cases";
 import { pullChanges } from "@purosur/domain/sync/use-cases";
@@ -26,6 +26,7 @@ import { DrizzleRegisterPointOfSaleStore } from "../fiscal/drizzle-register-poin
 import { enqueueOfflineAuthorizationCodeRequest } from "../fiscal/graphile-offline-authorization-code-queue.js";
 import { OFFLINE_AUTHORIZATION_CODE_REQUEST_TASK_IDENTIFIER } from "../fiscal/offline-authorization-code-task.js";
 import { DrizzlePointTerminalAssignmentStore } from "../payments/drizzle-point-terminal-assignment-store.js";
+import { DrizzleQrPointOfSaleAssignmentStore } from "../payments/drizzle-qr-point-of-sale-assignment-store.js";
 import { DrizzleRoleStore } from "../permissions/drizzle-role-store.js";
 import {
   buyerTaxStatusSets,
@@ -181,6 +182,19 @@ describe("a pull run as the role the deployed cloud connects with", () => {
     if (pointTerminal.kind !== "assigned") {
       throw new Error("test setup: the Point terminal was not assigned");
     }
+    const qrPointOfSale = await assignQrPointOfSale(
+      new DrizzleQrPointOfSaleAssignmentStore(db, () => NOW),
+      {
+        locationId,
+        registerId,
+        externalPosId: "CAJA1_STORE_POS",
+        version: 0,
+        actorId: actor.id,
+      },
+    );
+    if (qrPointOfSale.kind !== "assigned") {
+      throw new Error("test setup: the QR point of sale was not assigned");
+    }
     await db
       .insert(taxAuthorityLastAuthorizedNumbers)
       .values({ pointOfSaleNumber: 8, lastAuthorized: 0, readAt: NOW });
@@ -218,6 +232,7 @@ describe("a pull run as the role the deployed cloud connects with", () => {
       "register_offline_point_of_sale",
       "register_point_of_sale",
       "register_point_terminal",
+      "register_qr_point_of_sale",
       "role",
       "role",
       "tag",

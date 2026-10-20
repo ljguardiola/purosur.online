@@ -17,6 +17,8 @@ const withoutCode = {
   point_of_sale_number: null,
   point_terminal_id: null,
   point_terminal_version: 0,
+  qr_external_pos_id: null,
+  qr_point_of_sale_version: 0,
   installation: null,
 };
 const enrolledInstallation = {
@@ -40,6 +42,8 @@ const withCode = {
   point_of_sale_number: 3,
   point_terminal_id: "PAX_A910__SMARTPOS1234567890",
   point_terminal_version: 3,
+  qr_external_pos_id: "CAJA2_STORE_POS",
+  qr_point_of_sale_version: 2,
   installation: null,
 };
 
@@ -110,6 +114,8 @@ describe("registerSummarySchema", () => {
     "point_of_sale_number",
     "point_terminal_id",
     "point_terminal_version",
+    "qr_external_pos_id",
+    "qr_point_of_sale_version",
     "installation",
   ])("requires %s", (field) => {
     const { [field as keyof typeof withCode]: _omitted, ...rest } = withCode;
@@ -156,6 +162,15 @@ describe("registerSummarySchema", () => {
     ["point_terminal_version", -1],
     ["point_terminal_version", 1.5],
     ["point_terminal_version", "1"],
+    ["qr_external_pos_id", undefined],
+    ["qr_external_pos_id", ""],
+    ["qr_external_pos_id", "CAJA 2"],
+    ["qr_external_pos_id", 7],
+    ["qr_point_of_sale_version", undefined],
+    ["qr_point_of_sale_version", null],
+    ["qr_point_of_sale_version", -1],
+    ["qr_point_of_sale_version", 1.5],
+    ["qr_point_of_sale_version", "1"],
     ["point_of_sale_number", undefined],
     ["point_of_sale_number", 0],
     ["point_of_sale_number", 1.5],

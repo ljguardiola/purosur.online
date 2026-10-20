@@ -198,11 +198,15 @@ describe("the orphan authorizations the server sets up on a real Postgres", () =
       expect(
         await sql`select answer_kind from credit_notes where point_of_sale = ${pointOfSale}`,
       ).toEqual([{ answer_kind: "rejected" }]);
-      expect(
-        await sql`select 1 from graphile_worker._private_jobs j
-          join graphile_worker._private_tasks t on t.id = j.task_id
-          where t.identifier = 'issue-credit-note'`,
-      ).toEqual([]);
+      await vi.waitFor(
+        async () =>
+          expect(
+            await sql`select 1 from graphile_worker._private_jobs j
+              join graphile_worker._private_tasks t on t.id = j.task_id
+              where t.identifier = 'issue-credit-note'`,
+          ).toEqual([]),
+        TIMEOUT,
+      );
     });
 
     expect(fakeWsfe.requests).toHaveLength(3);

@@ -7,7 +7,9 @@ import {
   type MercadoPagoOrderPorts,
   type MercadoPagoOrderReading,
   type MercadoPagoOrderRefundsReading,
+  type MercadoPagoOrderSearch,
   type MercadoPagoOrders,
+  type MercadoPagoQrOrderPorts,
   type MercadoPagoQrOrderRequest,
 } from "@purosur/domain/payments/use-cases";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
@@ -78,6 +80,10 @@ class HeldMercadoPago implements MercadoPagoOrders {
     return { kind: "read", result: UNPAID_ORDER };
   }
 
+  async searchOrdersOfExternalReference(): Promise<MercadoPagoOrderSearch> {
+    return { kind: "unavailable" };
+  }
+
   async cancelOrder(): Promise<MercadoPagoOrderCancellation> {
     return { kind: "unavailable" };
   }
@@ -106,15 +112,16 @@ class HeldMercadoPago implements MercadoPagoOrders {
   }
 }
 
-function portsOf(mercadoPago: MercadoPagoOrders): MercadoPagoOrderPorts {
+function portsOf(mercadoPago: MercadoPagoOrders): MercadoPagoQrOrderPorts {
   return {
     lanes: new DrizzlePaymentTransactionLanes(postgresDedicatedConnections(sql)),
     mercadoPago,
+    qrPointsOfSale: { pointOfSaleOfRegister: async () => "CAJA1_STORE_POS" },
     clock: { now: () => CREATED_AT },
   };
 }
 
-function create(ports: MercadoPagoOrderPorts, registerId: string, paymentTransactionId: string) {
+function create(ports: MercadoPagoQrOrderPorts, registerId: string, paymentTransactionId: string) {
   return createMercadoPagoQrOrder(ports, {
     registerId,
     paymentTransactionId,
