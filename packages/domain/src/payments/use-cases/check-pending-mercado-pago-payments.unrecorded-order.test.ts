@@ -130,19 +130,65 @@ describe("checkPendingMercadoPagoPayments of a payment whose order creation was 
     expect(lanes.transactions.get(TRANSACTION_ID)).toEqual(storedTransaction(AWAITING_ORDER));
   });
 
-  it("counts the payment unavailable and records nothing when Mercado Pago cannot be searched", async () => {
+  it("counts the payment unavailable and still marks it as needing review once its time is over when Mercado Pago cannot be searched", async () => {
     const { lanes, mercadoPago, notificationPorts } = mercadoPagoOrderWorld();
     mercadoPago.searching = { kind: "unavailable" };
-    const expired = storedTransaction({
-      ...AWAITING_ORDER,
-      expiresAt: new Date("2026-10-09T11:59:59.000Z"),
-    });
-    lanes.seed(expired);
+    lanes.seed(
+      storedTransaction({ ...AWAITING_ORDER, expiresAt: new Date("2026-10-09T11:59:59.000Z") }),
+    );
 
     const outcome = await checkPendingMercadoPagoPayments(notificationPorts);
 
     expect(outcome).toEqual({ kind: "checked", refreshed: 0, unavailable: 1 });
-    expect(lanes.transactions.get(TRANSACTION_ID)).toEqual(expired);
+    expect(lanes.transactions.get(TRANSACTION_ID)).toMatchObject({
+      providerOrderId: null,
+      state: "PENDING",
+      needsReview: true,
+    });
+  });
+
+  it("counts the payment unavailable and leaves it unchanged while its time is not over when Mercado Pago cannot be searched", async () => {
+    const { lanes, mercadoPago, notificationPorts } = mercadoPagoOrderWorld();
+    mercadoPago.searching = { kind: "unavailable" };
+    lanes.seed(storedTransaction(AWAITING_ORDER));
+
+    const outcome = await checkPendingMercadoPagoPayments(notificationPorts);
+
+    expect(outcome).toEqual({ kind: "checked", refreshed: 0, unavailable: 1 });
+    expect(lanes.transactions.get(TRANSACTION_ID)).toEqual(storedTransaction(AWAITING_ORDER));
+  });
+
+  it("records no order whose external reference is another payment's", async () => {
+    const { lanes, mercadoPago, notificationPorts } = mercadoPagoOrderWorld();
+    mercadoPago.searching = {
+      kind: "read",
+      orders: [
+        {
+          orderId: "order-7",
+          result: { ...paidOrderResult(), externalReference: "other-payment" },
+        },
+      ],
+    };
+    lanes.seed(storedTransaction(AWAITING_ORDER));
+
+    await checkPendingMercadoPagoPayments(notificationPorts);
+
+    expect(lanes.transactions.get(TRANSACTION_ID)).toEqual(storedTransaction(AWAITING_ORDER));
+    expect(lanes.latePaymentRefunds.size).toBe(0);
+  });
+
+  it("records no order without an external reference", async () => {
+    const { lanes, mercadoPago, notificationPorts } = mercadoPagoOrderWorld();
+    mercadoPago.searching = {
+      kind: "read",
+      orders: [{ orderId: "order-7", result: { ...paidOrderResult(), externalReference: null } }],
+    };
+    lanes.seed(storedTransaction(AWAITING_ORDER));
+
+    await checkPendingMercadoPagoPayments(notificationPorts);
+
+    expect(lanes.transactions.get(TRANSACTION_ID)).toEqual(storedTransaction(AWAITING_ORDER));
+    expect(lanes.latePaymentRefunds.size).toBe(0);
   });
 
   it("searches a Point payment the same way", async () => {
@@ -198,9 +244,49 @@ describe("checkPendingMercadoPagoPayments of a payment whose order creation was 
       expect(refundedOrders(lanes)).toEqual([["order-3", AMOUNT + 500]]);
     });
 
-    it("records the first when none is paid and opens no refund task", async () => {
+    it("records none while none is paid and searches again on the next check", async () => {
       const { lanes, mercadoPago, notificationPorts } = mercadoPagoOrderWorld();
       mercadoPago.searching = found(["order-1", orderResult()], ["order-2", orderResult()]);
+      lanes.seed(storedTransaction(AWAITING_ORDER));
+
+      await checkPendingMercadoPagoPayments(notificationPorts);
+      expect(lanes.transactions.get(TRANSACTION_ID)).toEqual(storedTransaction(AWAITING_ORDER));
+      expect(lanes.latePaymentRefunds.size).toBe(0);
+      mercadoPago.searching = found(["order-1", orderResult()], ["order-2", paidOrderResult()]);
+      await checkPendingMercadoPagoPayments(notificationPorts);
+
+      expect(mercadoPago.orderSearches).toHaveLength(2);
+      expect(lanes.transactions.get(TRANSACTION_ID)).toMatchObject({
+        providerOrderId: "order-2",
+        state: "APPROVED",
+      });
+    });
+
+    it("marks the payment as needing review once its time is over while none is paid", async () => {
+      const { lanes, mercadoPago, notificationPorts } = mercadoPagoOrderWorld();
+      mercadoPago.searching = found(["order-1", orderResult()], ["order-2", orderResult()]);
+      lanes.seed(
+        storedTransaction({ ...AWAITING_ORDER, expiresAt: new Date("2026-10-09T11:59:59.000Z") }),
+      );
+
+      await checkPendingMercadoPagoPayments(notificationPorts);
+
+      expect(lanes.transactions.get(TRANSACTION_ID)).toMatchObject({
+        providerOrderId: null,
+        state: "PENDING",
+        needsReview: true,
+      });
+    });
+
+    it("counts only the orders of the payment's external reference", async () => {
+      const { lanes, mercadoPago, notificationPorts } = mercadoPagoOrderWorld();
+      mercadoPago.searching = {
+        kind: "read",
+        orders: [
+          { orderId: "order-1", result: { ...orderResult(), externalReference: TRANSACTION_ID } },
+          { orderId: "order-2", result: { ...paidOrderResult(), externalReference: "other" } },
+        ],
+      };
       lanes.seed(storedTransaction(AWAITING_ORDER));
 
       await checkPendingMercadoPagoPayments(notificationPorts);
@@ -215,7 +301,7 @@ describe("checkPendingMercadoPagoPayments of a payment whose order creation was 
     it("records the order and opens the refund tasks in one storage transaction", async () => {
       const { lanes, mercadoPago, notificationPorts } = mercadoPagoOrderWorld();
       mercadoPago.searching = found(["order-1", paidOrderResult()], ["order-2", paidOrderResult()]);
-      lanes.failOn = "openLatePaymentRefund";
+      lanes.failOn = "recordOrderCreated";
       lanes.seed(storedTransaction(AWAITING_ORDER));
 
       await expect(checkPendingMercadoPagoPayments(notificationPorts)).rejects.toThrow();
