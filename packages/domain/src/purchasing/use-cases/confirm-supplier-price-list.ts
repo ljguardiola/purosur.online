@@ -9,6 +9,8 @@ export interface ConfirmSupplierPriceListInput {
   version: number;
   // The date a person typed in the review, null when none was typed.
   listDate: string | null;
+  // The answer a person chose in the review, null when none was chosen.
+  pricesIncludeVat: boolean | null;
   actorId: string;
   now: Date;
 }
@@ -20,6 +22,7 @@ export type ConfirmSupplierPriceListOutcome =
   | { kind: "no_rows" }
   | { kind: "unpriced_rows" }
   | { kind: "list_date_missing" }
+  | { kind: "vat_missing" }
   | { kind: "confirmed" };
 
 export function confirmSupplierPriceList(
@@ -42,12 +45,20 @@ export function confirmSupplierPriceList(
       rowPrices: locked.list.rowPrices,
       readListDate: locked.list.listDate,
       typedListDate: input.listDate,
+      readPricesIncludeVat: locked.list.pricesIncludeVat,
+      typedPricesIncludeVat: input.pricesIncludeVat,
     });
     if (decision.kind === "refused") {
       return { kind: decision.reason };
     }
 
-    await tx.confirmList(input.listId, decision.listDate, input.now, input.actorId);
+    await tx.confirmList(
+      input.listId,
+      decision.listDate,
+      decision.pricesIncludeVat,
+      input.now,
+      input.actorId,
+    );
     return { kind: "confirmed" };
   });
 }

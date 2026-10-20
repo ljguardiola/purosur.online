@@ -18,7 +18,7 @@ export type FoundSupplierPriceListReview =
   | { kind: "not_found" }
   | {
       kind: "found";
-      list: ListedSupplierPriceList & { version: number };
+      list: ListedSupplierPriceList & { version: number; pricesIncludeVat: boolean | null };
       rows: SupplierPriceListReview["rows"];
       actions: SupplierPriceListReviewActions;
     };

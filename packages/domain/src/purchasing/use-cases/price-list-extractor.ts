@@ -10,7 +10,14 @@ export interface ExtractedPriceListRow {
 }
 
 export type PriceListExtraction =
-  | { kind: "extracted"; listDate: string | null; rows: ExtractedPriceListRow[] }
+  | {
+      kind: "extracted";
+      listDate: string | null;
+      // What the list says about its prices: true when they include VAT, false when they do not,
+      // null when it says nothing.
+      pricesIncludeVat: boolean | null;
+      rows: ExtractedPriceListRow[];
+    }
   | { kind: "unreadable" }
   | { kind: "unavailable" };
 

@@ -72,16 +72,18 @@ export function isSourcePage(page: number): boolean {
   return Number.isInteger(page) && page > 0;
 }
 
-type ConfirmationRefusal = "no_rows" | "unpriced_rows" | "list_date_missing";
+type ConfirmationRefusal = "no_rows" | "unpriced_rows" | "list_date_missing" | "vat_missing";
 
 export type ConfirmationDecision =
   | { kind: "refused"; reason: ConfirmationRefusal }
-  | { kind: "confirmable"; listDate: string };
+  | { kind: "confirmable"; listDate: string; pricesIncludeVat: boolean };
 
 export function decideConfirmation(list: {
   rowPrices: (number | null)[];
   readListDate: string | null;
   typedListDate: string | null;
+  readPricesIncludeVat: boolean | null;
+  typedPricesIncludeVat: boolean | null;
 }): ConfirmationDecision {
   if (list.rowPrices.length === 0) {
     return { kind: "refused", reason: "no_rows" };
@@ -93,7 +95,11 @@ export function decideConfirmation(list: {
   if (listDate === null) {
     return { kind: "refused", reason: "list_date_missing" };
   }
-  return { kind: "confirmable", listDate };
+  const pricesIncludeVat = list.typedPricesIncludeVat ?? list.readPricesIncludeVat;
+  if (pricesIncludeVat === null) {
+    return { kind: "refused", reason: "vat_missing" };
+  }
+  return { kind: "confirmable", listDate, pricesIncludeVat };
 }
 
 export interface ConfirmedListDates {

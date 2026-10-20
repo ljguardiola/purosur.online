@@ -25,6 +25,8 @@ export interface LockedSupplierPriceList {
   version: number;
   // The date the reading found, null when it found none.
   listDate: string | null;
+  // Whether the list's prices include VAT, null while neither the reading nor a person said.
+  pricesIncludeVat: boolean | null;
   // The instant the list was sent to the AI service, null while it has not been.
   sentAt: Date | null;
   rowPrices: (number | null)[];
@@ -59,6 +61,7 @@ export interface SupplierPriceListStoreTransaction {
   recordExtraction(
     listId: string,
     listDate: string | null,
+    pricesIncludeVat: boolean | null,
     rows: ProposedPriceListRow[],
   ): Promise<void>;
   recordReadFailure(listId: string, reason: SupplierPriceListReadFailure): Promise<void>;
@@ -66,7 +69,13 @@ export interface SupplierPriceListStoreTransaction {
   // Every change of the review advances the list's version.
   setRowPrice(listId: string, rowId: string, priceCents: number, actorId: string): Promise<void>;
   removeRow(listId: string, rowId: string, actorId: string): Promise<void>;
-  confirmList(listId: string, listDate: string, confirmedAt: Date, actorId: string): Promise<void>;
+  confirmList(
+    listId: string,
+    listDate: string,
+    pricesIncludeVat: boolean,
+    confirmedAt: Date,
+    actorId: string,
+  ): Promise<void>;
   discardList(listId: string, discardedAt: Date, actorId: string): Promise<void>;
 }
 

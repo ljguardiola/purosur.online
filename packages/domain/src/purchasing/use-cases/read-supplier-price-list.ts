@@ -149,7 +149,12 @@ async function readOnce(
       extraction.listDate !== null && isCalendarDay(extraction.listDate)
         ? extraction.listDate
         : null;
-    await tx.recordExtraction(listId, listDate, extraction.rows.map(proposedRow));
+    await tx.recordExtraction(
+      listId,
+      listDate,
+      extraction.pricesIncludeVat,
+      extraction.rows.map(proposedRow),
+    );
     return { kind: "extracted", rowCount: extraction.rows.length };
   });
 }

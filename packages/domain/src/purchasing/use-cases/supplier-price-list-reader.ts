@@ -29,7 +29,11 @@ export interface SupplierPriceListReviewRow {
 }
 
 export interface SupplierPriceListReview {
-  list: SupplierPriceListListing & { version: number };
+  list: SupplierPriceListListing & {
+    version: number;
+    // Whether the list's prices include VAT, null while neither the reading nor a person said.
+    pricesIncludeVat: boolean | null;
+  };
   rows: SupplierPriceListReviewRow[];
 }
 
