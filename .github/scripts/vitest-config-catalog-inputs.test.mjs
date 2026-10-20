@@ -277,6 +277,39 @@ test("reads a catalog project's single entry file named without a list, and a pr
   assert.deepEqual(catalogEntryFiles(project({}), "/repo"), []);
 });
 
+test("checks the catalog project's global setups and setup files named by the config it imports", async () => {
+  const root = mkdtempSync(join(tmpdir(), "vitest-config-catalog-inputs-"));
+  try {
+    for (const path of ["vitest.config.ts", "setup/global.ts", "setup/each.ts"]) {
+      mkdirSync(dirname(join(root, path)), { recursive: true });
+      writeFileSync(join(root, path), "export {};\n");
+    }
+    const config = {
+      test: {
+        projects: [
+          {
+            test: {
+              name: "catalog-visual",
+              globalSetup: [join(root, "setup/global.ts")],
+              setupFiles: [join(root, "setup/each.ts")],
+            },
+          },
+        ],
+      },
+    };
+
+    assert.deepEqual(
+      await checkRepository({ root, importConfig: async () => ({ default: config }) }),
+      [
+        "setup/global.ts, named by vitest.config.ts as a global setup of the catalog project, is not a catalog input in .github/scripts/change-scope.mjs",
+        "setup/each.ts, named by vitest.config.ts as a setup file of the catalog project, is not a catalog input in .github/scripts/change-scope.mjs",
+      ],
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("the repository's vitest config reaches no module that is not a catalog input", async () => {
   assert.deepEqual(await checkRepository(), []);
 });
