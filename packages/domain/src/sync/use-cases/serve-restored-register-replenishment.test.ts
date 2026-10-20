@@ -128,4 +128,20 @@ describe("serveRestoredRegisterReplenishment", () => {
       users: replenishment.users,
     });
   });
+
+  it("refuses a cursor that names an installation outside the replenishment, reading nothing", async () => {
+    const replenishment = aReplenishmentOfARevokedPredecessor();
+    replenishment.events = eventsOf(PREDECESSOR, 53, 3);
+    replenishment.users = [aUser("user-1")];
+    replenishment.refusedCursorDeviceIds.add("device-elsewhere");
+
+    const outcome = await serveRestoredRegisterReplenishment(
+      { replenishment },
+      { ...INPUT, after: { deviceId: "device-elsewhere", deviceSeq: 1 } },
+    );
+
+    expect(outcome).toEqual({ kind: "cursor_not_of_replenishment" });
+    expect(replenishment.eventReads).toEqual([]);
+    expect(replenishment.userReads).toEqual([]);
+  });
 });

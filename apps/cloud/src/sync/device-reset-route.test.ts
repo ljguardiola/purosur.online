@@ -127,6 +127,23 @@ describe("POST /devices/current/reset", () => {
     expect(cloudErrorSchema.parse(response.json()).code).toBe("predecessor_not_revoked");
   });
 
+  it("answers a conflict for a cursor that names an installation outside the replenishment", async () => {
+    const { predecessor, current } = await aRestoredRegister();
+    const other = await insertEnrolledInstallation(db, { now: NOW, registerName: "Caja 2" });
+
+    const response = await reset(
+      {
+        predecessor_device_id: predecessor.deviceId,
+        last_acknowledged_seq: 0,
+        after: { device_id: other.deviceId, device_seq: 1 },
+      },
+      `Bearer ${current.deviceToken}`,
+    );
+
+    expect(response.statusCode).toBe(409);
+    expect(cloudErrorSchema.parse(response.json()).code).toBe("cursor_not_of_replenishment");
+  });
+
   it("answers the events above the position and the branch's users", async () => {
     const { predecessor, current } = await aRestoredRegister();
     await insertInboxEvent(db, predecessor.deviceId, { deviceSeq: 1 });

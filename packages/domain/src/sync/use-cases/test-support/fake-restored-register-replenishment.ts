@@ -49,12 +49,21 @@ export class FakeRestoredRegisterReplenishment implements RestoredRegisterReplen
   users: ReplenishedUser[] = [];
   eventReads: OwnEventsRead[] = [];
   userReads: string[] = [];
+  refusedCursorDeviceIds = new Set<string>();
 
   async predecessorStanding(
     registerId: string,
     predecessorDeviceId: string,
   ): Promise<PredecessorStanding> {
     return this.standings.get(`${registerId}/${predecessorDeviceId}`) ?? "not_of_register";
+  }
+
+  async isReplenishmentCursor(
+    _registerId: string,
+    _predecessorDeviceId: string,
+    cursor: EventPosition,
+  ): Promise<boolean> {
+    return !this.refusedCursorDeviceIds.has(cursor.deviceId);
   }
 
   async ownEventsAbove(

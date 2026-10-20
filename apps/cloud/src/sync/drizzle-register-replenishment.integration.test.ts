@@ -323,18 +323,40 @@ describe("the events of a register above a predecessor position", () => {
       [second, 2],
     ]);
   });
+});
 
-  it("refuses to continue after an installation that does not exist", async () => {
+describe("whether a cursor belongs to a replenishment", () => {
+  it("holds for the predecessor and for installations enrolled after it", async () => {
+    const { registerId, predecessor, second } = await aRegisterRestoredTwice();
+
+    for (const deviceId of [predecessor, second]) {
+      expect(
+        await replenishment.isReplenishmentCursor(registerId, predecessor, {
+          deviceId,
+          deviceSeq: 1,
+        }),
+      ).toBe(true);
+    }
+  });
+
+  it("does not hold for an installation that does not exist, belongs to another register, or was enrolled before the predecessor", async () => {
     const { registerId, predecessor } = await aRegisterRestoredTwice();
+    const earlier = await insertInstallation(registerId, {
+      enrolledAt: hoursAfter(T0, -3),
+      revokedAt: hoursAfter(T0, -2),
+    });
+    const ofAnotherRegister = await insertInstallation(await insertRegister(await insertBranch()), {
+      enrolledAt: hoursAfter(T0, 3),
+    });
 
-    await expect(
-      replenishment.ownEventsAbove(
-        registerId,
-        { predecessorDeviceId: predecessor, lastAcknowledgedSeq: 0 },
-        { deviceId: randomUUID(), deviceSeq: 1 },
-        100,
-      ),
-    ).rejects.toThrow();
+    for (const deviceId of [randomUUID(), earlier, ofAnotherRegister]) {
+      expect(
+        await replenishment.isReplenishmentCursor(registerId, predecessor, {
+          deviceId,
+          deviceSeq: 1,
+        }),
+      ).toBe(false);
+    }
   });
 });
 
