@@ -89,6 +89,7 @@ export type {
   OpenOverdueUnclearOutcomeAlertsPorts,
 } from "./open-overdue-unclear-outcome-alerts.js";
 export { openOverdueUnclearOutcomeAlerts } from "./open-overdue-unclear-outcome-alerts.js";
+export type { RegisterBackupStandingReader } from "./register-backup-standing-reader.js";
 export type { ResolveAlertOutcome } from "./resolve-alert.js";
 export { resolveAlert } from "./resolve-alert.js";
 export { resolveStablyClearedAlerts } from "./resolve-stably-cleared-alerts.js";
