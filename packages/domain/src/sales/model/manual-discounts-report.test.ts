@@ -132,6 +132,18 @@ describe("manualDiscountRows", () => {
     expect(row?.discounted).toBe(1_500);
   });
 
+  it("leaves out a discount on the total that took nothing off", () => {
+    expect(manualDiscountRows(recordsOf([saleDiscount("s1", { amount: 0 })]))).toEqual([]);
+  });
+
+  it("keeps a discount on the total that took off a cent", () => {
+    expect(
+      manualDiscountRows(recordsOf([saleDiscount("s1", { amount: 1 })])).map(
+        (row) => row.discounted,
+      ),
+    ).toEqual([1]);
+  });
+
   it.each([
     ["kept the list price", 1_000],
     ["raised the price", 1_200],

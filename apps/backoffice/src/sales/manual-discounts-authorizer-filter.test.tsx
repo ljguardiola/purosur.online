@@ -39,7 +39,7 @@ test("offers everyone and each person who authorized a discount by name, and rep
   const onChange = vi.fn();
   const screen = await renderFilter({ authorizers: manualDiscountsReport.authorizers, onChange });
 
-  await userEvent.click(screen.getByRole("button", { name: /Autorizó:/ }));
+  await userEvent.click(screen.getByRole("button", { name: /Autorizante:/ }));
   await expect.element(screen.getByRole("option", { name: "Ana" })).toBeVisible();
   const options = screen
     .getByRole("option")
@@ -52,19 +52,38 @@ test("offers everyone and each person who authorized a discount by name, and rep
   await expectNoAccessibilityViolations(screen.container);
 });
 
+test("orders the people by the name it shows, whatever order they come in", async () => {
+  const screen = await renderFilter({
+    authorizers: [
+      { id: "66666666-6666-4666-8666-666666666666", name: null },
+      { id: BETO_USER_ID, name: "Beto" },
+      { id: ANA_USER_ID, name: "álvaro" },
+    ],
+  });
+
+  await userEvent.click(screen.getByRole("button", { name: /Autorizante:/ }));
+  await expect.element(screen.getByRole("option", { name: "Beto" })).toBeVisible();
+  const options = screen
+    .getByRole("option")
+    .elements()
+    .map((option) => option.textContent);
+
+  expect(options).toEqual(["Todos", "álvaro", "Beto", "Sin identificar"]);
+});
+
 test("shows the person it is given by name", async () => {
   const screen = await renderFilter({
     value: ANA_USER_ID,
     authorizers: manualDiscountsReport.authorizers,
   });
 
-  await expect.element(screen.getByRole("button", { name: "Autorizó: Ana" })).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Autorizante: Ana" })).toBeVisible();
 });
 
 test("offers only everyone when nobody authorized a discount", async () => {
   const screen = await renderFilter({ authorizers: [] });
 
-  await userEvent.click(screen.getByRole("button", { name: /Autorizó:/ }));
+  await userEvent.click(screen.getByRole("button", { name: /Autorizante:/ }));
 
   await expect.element(screen.getByRole("option", { name: "Todos" })).toBeVisible();
   expect(screen.getByRole("option").elements()).toHaveLength(1);
@@ -75,7 +94,9 @@ test("shows the person it is given, never everyone, until the people are known",
 
   const screen = await renderFilter({ value: BETO_USER_ID, authorizers: undefined, onChange });
 
-  await expect.element(screen.getByRole("button", { name: "Autorizó: El elegido" })).toBeVisible();
+  await expect
+    .element(screen.getByRole("button", { name: "Autorizante: El elegido" }))
+    .toBeVisible();
   expect(onChange).not.toHaveBeenCalled();
 });
 

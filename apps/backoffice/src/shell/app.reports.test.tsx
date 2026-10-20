@@ -411,7 +411,7 @@ test("keeps the authorizer of the manual discounts report in the address", async
   const screen = await render(<App help={emptyHelp} services={services} />);
   await expect.element(screen.getByRole("table").getByText("Cliente frecuente")).toBeVisible();
 
-  await userEvent.click(screen.getByRole("button", { name: /Autorizó:/ }));
+  await userEvent.click(screen.getByRole("button", { name: /Autorizante:/ }));
   await userEvent.click(screen.getByRole("option", { name: "Ana" }));
 
   await expect.poll(() => window.location.search).toBe(`?authorizedBy=${ANA_USER_ID}`);

@@ -16,6 +16,7 @@ import { ManualDiscountsScreen } from "./manual-discounts-screen";
 import type { ManualDiscountsScreenServices } from "./manual-discounts-services";
 import {
   ANA_USER_ID,
+  BETO_USER_ID,
   manualDiscountsReport,
   noManualDiscountsReport,
   singleManualDiscountReport,
@@ -143,9 +144,33 @@ test("shows each discount with its day and time, its sale, its kind, its reason,
   await expect.element(row.getByText("07/10/2026")).toBeVisible();
   await expect.element(row.getByText("11:30")).toBeVisible();
   await expect.element(row.getByText("Operación 000012")).toBeVisible();
-  await expect.element(row.getByText("Sobre el total")).toBeVisible();
   await expect.element(row.getByText("Beto")).toBeVisible();
-  await expect.element(row.getByText("$ 700,00")).toBeVisible();
+  await expect.element(row.getByText("$ 700,00", { exact: true })).toBeVisible();
+});
+
+test("writes an amount discount on the total with its amount", async () => {
+  const screen = await renderScreen(createServices());
+
+  const row = screen.getByRole("table").getByRole("row", { name: /Cliente frecuente/ });
+  await expect.element(row.getByText("Sobre el total · $ 700,00")).toBeVisible();
+});
+
+test("writes a percent discount on the total with its percent", async () => {
+  const [saleRow] = manualDiscountsReport.rows;
+  const services = servicesAnswering({
+    ...singleManualDiscountReport,
+    rows: [
+      {
+        ...(saleRow as (typeof manualDiscountsReport)["rows"][number]),
+        adjustment: { kind: "PERCENT", value: 15 },
+      },
+    ],
+  });
+
+  const screen = await renderScreen(services);
+
+  const row = screen.getByRole("table").getByRole("row", { name: /Cliente frecuente/ });
+  await expect.element(row.getByText("Sobre el total · 15 %")).toBeVisible();
 });
 
 test("names the product of a line discount under its sale", async () => {
@@ -258,7 +283,7 @@ test("offers the people who authorized a discount and asks the cloud again for t
   const screen = await renderScreen(services);
   await expect.element(screen.getByRole("table").getByText("Cliente frecuente")).toBeVisible();
 
-  await userEvent.click(screen.getByRole("button", { name: /Autorizó:/ }));
+  await userEvent.click(screen.getByRole("button", { name: /Autorizante:/ }));
   const options = screen
     .getByRole("option")
     .elements()
@@ -277,14 +302,39 @@ test("keeps the previous rows, marked as updating, while another authorizer load
   await expect.element(screen.getByRole("table").getByText("Cliente frecuente")).toBeVisible();
   vi.mocked(services.fetchManualDiscounts).mockReturnValue(new Promise(() => {}));
 
-  await userEvent.click(screen.getByRole("button", { name: /Autorizó:/ }));
+  await userEvent.click(screen.getByRole("button", { name: /Autorizante:/ }));
   await userEvent.click(screen.getByRole("option", { name: "Ana" }));
 
   await expect
     .element(screen.getByRole("table", { name: "Descuentos manuales y sobre el total" }))
     .toHaveAttribute("aria-busy", "true");
   await expect.element(screen.getByRole("table").getByText("Cliente frecuente")).toBeVisible();
-  await expect.element(screen.getByText("2 descuentos")).toBeVisible();
+  await expect.element(screen.getByText("$ 1.550,00")).toBeVisible();
+});
+
+test("leaves out who authorized the most while the report shows one person", async () => {
+  const services = servicesAnswering(singleManualDiscountReport);
+
+  const screen = await renderScreen(services, {
+    filters: manualDiscountsFilters.parse({ authorizedBy: BETO_USER_ID }),
+  });
+
+  await expect.element(screen.getByRole("table").getByText("Cliente frecuente")).toBeVisible();
+  await expect.element(screen.getByText("Descuentos", { exact: true })).toBeVisible();
+  expect(screen.getByText("Más autorizó").query()).toBeNull();
+  expect(screen.getByText("1 descuento", { exact: true }).query()).toBeNull();
+});
+
+test("leaves out who authorized the most while the report for one person loads", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchManualDiscounts).mockReturnValue(new Promise(() => {}));
+
+  const screen = await renderScreen(services, {
+    filters: manualDiscountsFilters.parse({ authorizedBy: BETO_USER_ID }),
+  });
+
+  await expect.element(screen.getByText("Descuentos", { exact: true })).toBeVisible();
+  expect(screen.getByText("Más autorizó").query()).toBeNull();
 });
 
 test("shows placeholders while the report loads", async () => {
