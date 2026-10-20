@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   isPointOfSaleNumber,
   mayRegisterClaimPointOfSale,
+  offlinePointOfSaleRetirementRefusal,
   POINT_OF_SALE_NUMBER_MAX,
   type PointOfSaleMechanism,
 } from "./point-of-sale.js";
@@ -87,6 +88,19 @@ describe("mayRegisterClaimPointOfSale", () => {
     },
   );
 
+  it.each(["real_time", "offline"] as const)(
+    "refuses a retired number to the register that held it, as %s",
+    (mechanism) => {
+      expect(
+        mayRegisterClaimPointOfSale(
+          { registerId: "register-1", mechanism, retiredAt: new Date("2026-09-20T12:00:00.000Z") },
+          "register-1",
+          mechanism,
+        ),
+      ).toBe(false);
+    },
+  );
+
   it("holds exactly when nobody holds the number, or the same register holds it under the same mechanism", () => {
     const mechanism = fc.constantFrom<PointOfSaleMechanism>("real_time", "offline");
     const registerId = fc.constantFrom("register-1", "register-2", "register-3");
@@ -99,5 +113,48 @@ describe("mayRegisterClaimPointOfSale", () => {
         );
       }),
     );
+  });
+});
+
+describe("offlinePointOfSaleRetirementRefusal", () => {
+  const offline = { registerId: "register-1", mechanism: "offline" as const };
+
+  it("refuses a number nobody claimed as not found", () => {
+    expect(offlinePointOfSaleRetirementRefusal(undefined, false)).toBe("not_found");
+  });
+
+  it("refuses a real-time number as not found", () => {
+    expect(
+      offlinePointOfSaleRetirementRefusal({ registerId: "register-1", mechanism: "real_time" }, false),
+    ).toBe("not_found");
+  });
+
+  it("refuses an offline number a register still has assigned", () => {
+    expect(offlinePointOfSaleRetirementRefusal(offline, true)).toBe("assigned");
+  });
+
+  it("refuses an offline number already retired", () => {
+    expect(
+      offlinePointOfSaleRetirementRefusal(
+        { ...offline, retiredAt: new Date("2026-09-20T12:00:00.000Z") },
+        false,
+      ),
+    ).toBe("already_retired");
+  });
+
+  it("allows an offline number no register has assigned any more", () => {
+    expect(offlinePointOfSaleRetirementRefusal(offline, false)).toBeUndefined();
+  });
+
+  it("refuses with not found before anything else, and as already retired before assigned", () => {
+    const retired = { ...offline, retiredAt: new Date("2026-09-20T12:00:00.000Z") };
+
+    expect(
+      offlinePointOfSaleRetirementRefusal(
+        { registerId: "register-1", mechanism: "real_time", retiredAt: retired.retiredAt },
+        true,
+      ),
+    ).toBe("not_found");
+    expect(offlinePointOfSaleRetirementRefusal(retired, true)).toBe("already_retired");
   });
 });
