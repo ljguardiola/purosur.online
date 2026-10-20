@@ -1015,7 +1015,7 @@ test("summarizes the refund of a cancelled sale left pending by its method and a
   await expect
     .element(
       row.getByText(
-        "Hay un reembolso de una venta anulada que todavía no se completó. Si es de un pago con QR, confirmarlo en Reembolsos pendientes para que la nube lo envíe a Mercado Pago; si es de otro medio y ya se hizo por fuera del sistema, marcarlo como hecho, y si todavía no se hizo, hacerlo cuanto antes. El Administrador ya fue avisado.",
+        "Hay un reembolso de una venta anulada que todavía no se completó. Si es de un pago con QR o Point, la nube lo envía a Mercado Pago sin que haya que confirmarlo. Si es de otro medio, hacerlo por fuera del sistema cuanto antes y marcarlo como hecho en Reembolsos sin API. El Administrador ya fue avisado.",
         { exact: true },
       ),
     )
