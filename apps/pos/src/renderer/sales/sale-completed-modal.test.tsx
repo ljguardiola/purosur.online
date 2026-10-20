@@ -11,8 +11,16 @@ afterEach(() => {
 
 type Standing = Extract<ReceiptPrintStatusOutcome, { kind: "found" }>["standing"];
 
-function found(standing: Standing, { printed = false } = {}): ReceiptPrintStatusOutcome {
-  return { kind: "found", next_copy: { kind: "original" }, printed, standing };
+type Comprobante = Extract<ReceiptPrintStatusOutcome, { kind: "found" }>["comprobante"];
+
+function found(
+  standing: Standing,
+  {
+    printed = false,
+    comprobante = { kind: "none" },
+  }: { printed?: boolean; comprobante?: Comprobante } = {},
+): ReceiptPrintStatusOutcome {
+  return { kind: "found", next_copy: { kind: "original" }, printed, standing, comprobante };
 }
 
 type Amounts =
@@ -361,6 +369,67 @@ describe("SaleCompletedModal", () => {
       await expect
         .element(screen.getByRole("button", { name: "Cambiar impresora" }))
         .not.toBeInTheDocument();
+    });
+  });
+
+  describe("for a sale with a factura C", () => {
+    const FISCAL = (authorization: "real_time" | "offline_code"): Comprobante => ({
+      kind: "fiscal",
+      document_type: "factura_c",
+      authorization,
+      point_of_sale: 8,
+      number: 412,
+    });
+
+    it("shows the contingency mode and lists the factura C for the customer while it prints", async () => {
+      const { screen } = await renderModal(CASH, {
+        readReceiptStatus: async () => found("printing", { comprobante: FISCAL("offline_code") }),
+      });
+
+      await expect.element(screen.getByText("Modo fiscal")).toBeVisible();
+      await expect.element(screen.getByText("Contingencia con CAEA")).toBeVisible();
+      await expect.element(screen.getByText("Factura C", { exact: true })).toBeVisible();
+      await expect.element(screen.getByText("Para el cliente")).toBeVisible();
+      await expect.element(screen.getByText("Imprimiendo")).toBeVisible();
+      await expect.element(screen.getByText("Ticket", { exact: true })).not.toBeInTheDocument();
+      await expectNoAccessibilityViolations(screen.container);
+    });
+
+    it("shows the document as printed once it was", async () => {
+      const { screen } = await renderModal(CASH, {
+        readReceiptStatus: async () =>
+          found("printed", { printed: true, comprobante: FISCAL("offline_code") }),
+      });
+
+      await expect.element(screen.getByText("Impreso")).toBeVisible();
+      await expect.element(screen.getByText("Contingencia con CAEA")).toBeVisible();
+    });
+
+    it("shows the online mode for a factura C authorized in real time", async () => {
+      const { screen } = await renderModal(CASH, {
+        readReceiptStatus: async () =>
+          found("printed", { printed: true, comprobante: FISCAL("real_time") }),
+      });
+
+      await expect.element(screen.getByText("En línea con CAE")).toBeVisible();
+      await expect.element(screen.getByText("Contingencia con CAEA")).not.toBeInTheDocument();
+    });
+
+    it("keeps the ticket row for a deferred sale's non-fiscal document", async () => {
+      const { screen } = await renderModal(CASH, {
+        readReceiptStatus: async () =>
+          found("printed", { printed: true, comprobante: { kind: "deferred_non_fiscal" } }),
+      });
+
+      await expect.element(screen.getByText("Ticket", { exact: true })).toBeVisible();
+      await expect.element(screen.getByText("Modo fiscal")).not.toBeInTheDocument();
+    });
+
+    it("keeps the ticket row for a sale with no comprobante", async () => {
+      const { screen } = await renderModal(CASH);
+
+      await expect.element(screen.getByText("Ticket", { exact: true })).toBeVisible();
+      await expect.element(screen.getByText("Modo fiscal")).not.toBeInTheDocument();
     });
   });
 });

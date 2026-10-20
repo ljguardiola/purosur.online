@@ -306,7 +306,13 @@ function coreAnswering(
     },
     async receiptPrintStatus(saleId) {
       return sales.receiptPrintStatus === undefined
-        ? { kind: "found", next_copy: { kind: "original" }, printed: true, standing: "printed" }
+        ? {
+            kind: "found",
+            next_copy: { kind: "original" },
+            printed: true,
+            standing: "printed",
+            comprobante: { kind: "none" },
+          }
         : sales.receiptPrintStatus(saleId);
     },
     async printCreditNote() {
@@ -3390,6 +3396,7 @@ describe("App", () => {
               next_copy: { kind: "original" },
               printed: false,
               standing: "paper_out",
+              comprobante: { kind: "none" },
             };
           },
         },

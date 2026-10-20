@@ -32,7 +32,13 @@ const SALE: SaleDetail = {
 };
 const INVOICED_SALE: SaleDetail = {
   ...SALE,
-  comprobante: { kind: "fiscal", document_type: "factura_c", point_of_sale: 4, number: 319 },
+  comprobante: {
+    kind: "fiscal",
+    document_type: "factura_c",
+    authorization: "real_time",
+    point_of_sale: 4,
+    number: 319,
+  },
   state: "completed",
 };
 const CORRECTED_INVOICE = { point_of_sale: 31, number: 8 };

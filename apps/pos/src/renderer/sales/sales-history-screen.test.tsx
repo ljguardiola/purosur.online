@@ -35,6 +35,28 @@ describe("SalesHistoryScreen", () => {
     await expectNoAccessibilityViolations(screen.container);
   });
 
+  it("shows a sale authorized under the pre-obtained code as a factura C with its point of sale and number", async () => {
+    const { screen } = await renderScreen({
+      salesHistory: async () =>
+        pageOf([
+          {
+            ...FISCAL_ROW,
+            comprobante: {
+              kind: "fiscal",
+              document_type: "factura_c",
+              authorization: "offline_code",
+              point_of_sale: 8,
+              number: 412,
+            },
+          },
+        ]),
+    });
+
+    const sales = table(screen);
+    await expect.element(sales.getByText("Factura C · CAEA")).toBeVisible();
+    await expect.element(sales.getByText("PV 00008 · Nº 00000412")).toBeVisible();
+  });
+
   it("shows only the operation number of a sale with no comprobante", async () => {
     const { screen } = await renderScreen();
 
