@@ -1,4 +1,5 @@
 import { averageTicket } from "./average-ticket.js";
+import { codeUnitOrder, nameOrder } from "./report-order.js";
 
 export interface SoldByCashier {
   cashierId: string;
@@ -17,17 +18,6 @@ export interface CashierSalesTotals {
   salesCount: number;
   total: number;
   averageTicket: number | null;
-}
-
-function codeUnitOrder(a: string, b: string): number {
-  return a < b ? -1 : a > b ? 1 : 0;
-}
-
-function nameOrder(a: string | null, b: string | null): number {
-  if (a === null || b === null) {
-    return Number(a === null) - Number(b === null);
-  }
-  return codeUnitOrder(a, b);
 }
 
 function cashierOrder(a: SoldByCashier, b: SoldByCashier): number {

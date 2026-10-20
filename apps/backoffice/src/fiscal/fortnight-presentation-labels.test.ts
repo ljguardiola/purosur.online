@@ -13,6 +13,7 @@ test.each([
   ["missing_document", { label: "Falta un comprobante", tone: "error" }],
   ["accepted", { label: "Aceptado", tone: "success" }],
   ["needs_regularization", { label: "A regularizar", tone: "error" }],
+  ["listed_as_owed", { label: "Adeudada según ARCA", tone: "error" }],
 ] as const)("badges the state %s", (state, badge) => {
   expect(presentationStateBadge({ state, refusal: null })).toEqual(badge);
 });

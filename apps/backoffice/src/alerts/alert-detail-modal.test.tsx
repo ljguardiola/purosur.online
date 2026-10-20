@@ -2381,3 +2381,48 @@ test("tells the deadline of a fortnight's report was missed, that it is to be pu
   await expect.element(screen.getByText("Crítica")).toBeVisible();
   await expectNoAccessibilityViolations(document.body);
 });
+
+function owedElsewhereAlert(
+  detail: Partial<Extract<AlertDetail, { kind: "fortnight_report_owed_elsewhere" }>["detail"]> = {},
+) {
+  return baseDetail({
+    kind: "fortnight_report_owed_elsewhere",
+    level: "critical",
+    audience: "all",
+    scope: "9:2026-09-01",
+    scopeDisplay: "9:2026-09-01:2026-09-15",
+    scopeKind: "pointOfSaleFortnight",
+    closing: "by_itself",
+    detail: {
+      pointOfSaleNumber: 9,
+      fortnightStart: "2026-09-01",
+      fortnightEnd: "2026-09-15",
+      ...detail,
+    },
+  });
+}
+
+test("tells ARCA lists a fortnight of a point of sale this system does not run as owed, that it has to be presented from where it was issued and that the next code can be denied to the whole business", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(ok(owedElsewhereAlert()));
+
+  const screen = await renderModal(services);
+
+  await expect
+    .element(screen.getByText("Presentación adeudada en otro sistema", { exact: true }))
+    .toBeVisible();
+  await expect
+    .element(
+      screen.getByText(
+        `ARCA informa adeudada la presentación de la quincena ${REPORT_FORTNIGHT} del punto de venta 00009, que este sistema no maneja. Hay que presentarla desde donde se emitió: mientras siga adeudada, ARCA puede negar el próximo CAEA a todo el negocio.`,
+        { exact: true },
+      ),
+    )
+    .toBeVisible();
+  await expect.element(screen.getByText("Crítica")).toBeVisible();
+  await expect
+    .element(screen.getByText(`Punto de venta 00009 · ${REPORT_FORTNIGHT}`, { exact: true }))
+    .toBeVisible();
+  expect(screen.getByText(/No se cierra sola/).query()).toBeNull();
+  await expectNoAccessibilityViolations(document.body);
+});

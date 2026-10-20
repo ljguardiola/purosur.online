@@ -309,4 +309,35 @@ describe("the fortnight report the server sets up on a real Postgres", () => {
 
     expect(fakeWsfe.requests).toEqual([]);
   }, 90_000);
+
+  it("looks a presentation recorded as accepted up again when ARCA lists it as owed, and takes it off the list once ARCA holds it", async () => {
+    await sql`delete from inbox`;
+    await sql`delete from register_installations`;
+    await sql`insert into fortnight_reports
+                (point_of_sale_number, fortnight_start, fortnight_end, state, movement, recorded_at)
+              values (8, '2026-10-01', '2026-10-15', 'accepted', 'none', ${NOW.toISOString()}::timestamptz)`;
+    await sql`insert into tax_authority_owed_presentations (point_of_sale_number, fortnight_start, listed_at)
+              values (8, '2026-10-01', ${NOW.toISOString()}::timestamptz)`;
+    fakeWsfe.behave(answersInTurn("fe-caea-sin-movimiento-consultar-held.xml"));
+
+    const recovery = await setUpRecovery(recoveryEnv(), () => NOW, {
+      emailSender: UNUSED_EMAIL_SENDER,
+      schedules: false,
+    });
+    try {
+      await recovery.workerUtils.addJob(FORTNIGHT_REPORT_TASK_IDENTIFIER, {});
+      await vi.waitFor(
+        async () => {
+          expect(await sql`select 1 from tax_authority_owed_presentations`).toHaveLength(0);
+        },
+        { timeout: 20_000, interval: 100 },
+      );
+    } finally {
+      await recovery.close();
+    }
+
+    expect(fakeWsfe.requests).toHaveLength(1);
+    expect(fakeWsfe.requests[0]).toContain("FECAEASinMovimientoConsultar");
+    expect(fakeWsfe.requests.join("")).not.toContain("FECAEASinMovimientoInformar");
+  }, 90_000);
 });
