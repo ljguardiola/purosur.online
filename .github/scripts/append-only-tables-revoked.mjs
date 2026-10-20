@@ -251,15 +251,20 @@ function endOfString(source, start) {
 function listAt(source, open, { angleBrackets }) {
   const items = [];
   let depth = 0;
-  let itemStart = open + 1;
+  let item = "";
+  let kept = open + 1;
   for (let index = open; index < source.length; index += 1) {
     const char = source[index];
     if (char === "/" && source[index + 1] === "/") {
+      item += `${source.slice(kept, index)} `;
       const end = source.indexOf("\n", index);
       index = end === -1 ? source.length : end;
+      kept = index;
     } else if (char === "/" && source[index + 1] === "*") {
+      item += `${source.slice(kept, index)} `;
       const end = source.indexOf("*/", index + 2);
       index = end === -1 ? source.length : end + 1;
+      kept = index + 1;
     } else if (char === '"' || char === "'" || char === "`") {
       index = endOfString(source, index);
     } else if ("([{".includes(char) || (angleBrackets && char === "<")) {
@@ -270,12 +275,13 @@ function listAt(source, open, { angleBrackets }) {
     ) {
       depth -= 1;
       if (depth === 0) {
-        items.push(source.slice(itemStart, index).trim());
-        return { items: items.filter((item) => item !== ""), end: index + 1 };
+        items.push((item + source.slice(kept, index)).trim());
+        return { items: items.filter((each) => each !== ""), end: index + 1 };
       }
     } else if (char === "," && depth === 1) {
-      items.push(source.slice(itemStart, index).trim());
-      itemStart = index + 1;
+      items.push((item + source.slice(kept, index)).trim());
+      item = "";
+      kept = index + 1;
     }
   }
   return { items, end: source.length };
