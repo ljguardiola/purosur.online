@@ -45,12 +45,16 @@ type Opening<Specific extends string> = {
 export function useAuthorizedAttempt<Outcome extends { kind: string }, Specific extends string>({
   open,
   actionName,
+  consultation = false,
   onSessionEnded,
+  onCancelled,
   services,
 }: {
   open: boolean;
   actionName: string;
+  consultation?: boolean;
   onSessionEnded: () => void;
+  onCancelled?: () => void;
   services: AuthorizedAttemptServices;
 }) {
   const sendToMyAccount = useSendToMyAccount();
@@ -58,6 +62,7 @@ export function useAuthorizedAttempt<Outcome extends { kind: string }, Specific 
   const [running, setRunning] = useState(false);
   const { run, modal } = useAuthorization<Outcome | SharedOutcome>({
     actionName,
+    consultation,
     onSessionEnded,
     services,
   });
@@ -96,7 +101,9 @@ export function useAuthorizedAttempt<Outcome extends { kind: string }, Specific 
       sendToMyAccount();
     } else if (outcome.kind === "rate_limited") {
       showNotice({ kind: "rateLimited", retryAfterSeconds: outcome.retryAfterSeconds });
-    } else if (outcome.kind !== "cancelled") {
+    } else if (outcome.kind === "cancelled") {
+      onCancelled?.();
+    } else {
       showNotice({ kind: "attemptFailed" });
     }
   }

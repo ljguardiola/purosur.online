@@ -1,5 +1,5 @@
 {
-  "id": "eaad01fe-ec3f-4fdf-97e1-5553fe104b82",
+  "id": "9db27620-7d4b-4e73-a28b-f930a3f2a5af",
   "prevId": "71ad7798-4dec-4d07-b60d-ba113054de17",
   "version": "7",
   "dialect": "postgresql",
@@ -7171,6 +7171,68 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.register_installation_bitlocker_keys": {
+      "name": "register_installation_bitlocker_keys",
+      "schema": "",
+      "columns": {
+        "installation_id": {
+          "name": "installation_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "sealed_key": {
+          "name": "sealed_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "key_identifier": {
+          "name": "key_identifier",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "loaded_at": {
+          "name": "loaded_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "loaded_by": {
+          "name": "loaded_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "register_installation_bitlocker_keys_installation_id_register_installations_id_fk": {
+          "name": "register_installation_bitlocker_keys_installation_id_register_installations_id_fk",
+          "tableFrom": "register_installation_bitlocker_keys",
+          "tableTo": "register_installations",
+          "columnsFrom": ["installation_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "register_installation_bitlocker_keys_loaded_by_users_id_fk": {
+          "name": "register_installation_bitlocker_keys_loaded_by_users_id_fk",
+          "tableFrom": "register_installation_bitlocker_keys",
+          "tableTo": "users",
+          "columnsFrom": ["loaded_by"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.register_installations": {
       "name": "register_installations",
       "schema": "",
@@ -7570,13 +7632,6 @@
           "type": "integer",
           "primaryKey": false,
           "notNull": true
-        },
-        "last_device_seq": {
-          "name": "last_device_seq",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
         },
         "status": {
           "name": "status",

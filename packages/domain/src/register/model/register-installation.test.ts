@@ -12,6 +12,7 @@ function installation(
     windowsVersion: "Windows 11 Pro 10.0.26100",
     enrolledAt: new Date("2026-08-01T15:00:00.000Z"),
     revokedAt: null,
+    bitlockerKeyLoaded: false,
     ...overrides,
   };
 }
@@ -27,6 +28,23 @@ describe("registerInstallationState", () => {
       hostname: "CAJA-MOSTRADOR",
       windowsVersion: "Windows 11 Pro 10.0.26100",
       enrolledAt: new Date("2026-08-01T15:00:00.000Z"),
+      bitlockerKeyLoaded: false,
+    });
+  });
+
+  it("reports whether the installation in service has its BitLocker key loaded", () => {
+    const replacedWithKey = installation({
+      revokedAt: new Date("2026-09-02T15:00:00.000Z"),
+      bitlockerKeyLoaded: true,
+    });
+
+    expect(registerInstallationState([installation({ bitlockerKeyLoaded: true })])).toMatchObject({
+      kind: "enrolled",
+      bitlockerKeyLoaded: true,
+    });
+    expect(registerInstallationState([replacedWithKey, installation()])).toMatchObject({
+      kind: "enrolled",
+      bitlockerKeyLoaded: false,
     });
   });
 

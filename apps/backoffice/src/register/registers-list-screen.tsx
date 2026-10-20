@@ -11,7 +11,7 @@ import {
   Tag,
   useTableModel,
 } from "@purosur/ui";
-import { Ban, Check, CreditCard, KeySquare, Laptop, Plus } from "lucide-react";
+import { Ban, Check, CreditCard, KeyRound, KeySquare, Laptop, Plus, Upload } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useAuthorization } from "../platform/authorization-modal";
 import { cloudTableState } from "../platform/cloud-table-state";
@@ -19,13 +19,17 @@ import { useSendToMyAccount } from "../platform/send-to-my-account";
 import {
   type BackofficeAccess,
   canAssignPointTerminal,
+  canEnrollRegisters,
   canRevokeInstallations,
+  canUseBitlockerRecoveryKey,
 } from "../shell/backoffice-access";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
 import { AssignPointTerminalModal } from "./assign-point-terminal-modal";
+import { ConsultBitlockerRecoveryKeyModal } from "./consult-bitlocker-recovery-key-modal";
 import { type EmissionState, EnrollmentCodeModal } from "./enrollment-code-modal";
 import { installationLines } from "./installation-text";
+import { LoadBitlockerRecoveryKeyModal } from "./load-bitlocker-recovery-key-modal";
 import { NewRegisterModal } from "./new-register-modal";
 import {
   pendingCodeAfter,
@@ -91,6 +95,8 @@ export function RegistersListScreen({
   const [newModalOpen, setNewModalOpen] = useState(false);
   const [terminalTarget, setTerminalTarget] = useState<RegisterSummary | null>(null);
   const [revokeTarget, setRevokeTarget] = useState<RegisterSummary | null>(null);
+  const [loadKeyTarget, setLoadKeyTarget] = useState<RegisterSummary | null>(null);
+  const [consultKeyTarget, setConsultKeyTarget] = useState<RegisterSummary | null>(null);
   const [revokeEveryOpen, setRevokeEveryOpen] = useState(false);
   const [revokedNotice, setRevokedNotice] = useState<{ id: number; registers: number } | null>(
     null,
@@ -173,11 +179,15 @@ export function RegistersListScreen({
     void refreshRegisters();
   }
 
-  const emitAction = (item: RegisterSummary) => ({
-    icon: <KeySquare />,
-    "aria-label": `Emitir código de alta para ${item.name}`,
-    onPress: () => void handleEmitClick(item),
-  });
+  const mayEnroll = canEnrollRegisters(access);
+  const emitAction = (item: RegisterSummary) =>
+    mayEnroll
+      ? {
+          icon: <KeySquare />,
+          "aria-label": `Emitir código de alta para ${item.name}`,
+          onPress: () => void handleEmitClick(item),
+        }
+      : undefined;
   const revokeAction = (item: RegisterSummary) =>
     item.installation?.state === "enrolled"
       ? {
@@ -192,17 +202,35 @@ export function RegistersListScreen({
     onPress: () => setTerminalTarget(item),
   });
 
+  const mayUseKey = canUseBitlockerRecoveryKey(access);
+  const bitlockerKeyAction = (item: RegisterSummary) => {
+    if (!mayUseKey || item.installation?.state !== "enrolled") {
+      return undefined;
+    }
+    return item.installation.bitlockerKeyLoaded
+      ? {
+          icon: <KeyRound />,
+          "aria-label": `Consultar la clave de recuperación de BitLocker de ${item.name}`,
+          onPress: () => setConsultKeyTarget(item),
+        }
+      : {
+          icon: <Upload />,
+          "aria-label": `Cargar la clave de recuperación de BitLocker de ${item.name}`,
+          onPress: () => setLoadKeyTarget(item),
+        };
+  };
+
   const mayRevoke = canRevokeInstallations(access);
   const mayAssignTerminal = canAssignPointTerminal(access);
   const rowActions = (() => {
     if (mayRevoke) {
       return mayAssignTerminal
-        ? ([revokeAction, emitAction, assignTerminalAction] as const)
-        : ([revokeAction, emitAction] as const);
+        ? ([bitlockerKeyAction, revokeAction, emitAction, assignTerminalAction] as const)
+        : ([bitlockerKeyAction, revokeAction, emitAction] as const);
     }
     return mayAssignTerminal
-      ? ([emitAction, assignTerminalAction] as const)
-      : ([emitAction] as const);
+      ? ([bitlockerKeyAction, emitAction, assignTerminalAction] as const)
+      : ([bitlockerKeyAction, emitAction] as const);
   })();
 
   const columns = [
@@ -302,9 +330,11 @@ export function RegistersListScreen({
               <p className="text-text-subtle text-detail">Configuración</p>
               <ScreenTitle>Cajas registradoras</ScreenTitle>
             </div>
-            <Button variant="primary" icon={<Plus />} onPress={() => setNewModalOpen(true)}>
-              Nueva caja
-            </Button>
+            {mayEnroll && (
+              <Button variant="primary" icon={<Plus />} onPress={() => setNewModalOpen(true)}>
+                Nueva caja
+              </Button>
+            )}
           </div>
         }
         bodyClassName="gap-4 p-6"
@@ -361,6 +391,21 @@ export function RegistersListScreen({
         target={revokeTarget}
         onClose={() => setRevokeTarget(null)}
         onRevoked={() => void refreshRegisters()}
+        onOutdated={() => void refreshRegisters()}
+        onSessionEnded={onSessionEnded}
+        services={services}
+      />
+      <LoadBitlockerRecoveryKeyModal
+        target={loadKeyTarget}
+        onClose={() => setLoadKeyTarget(null)}
+        onLoaded={() => void refreshRegisters()}
+        onOutdated={() => void refreshRegisters()}
+        onSessionEnded={onSessionEnded}
+        services={services}
+      />
+      <ConsultBitlockerRecoveryKeyModal
+        target={consultKeyTarget}
+        onClose={() => setConsultKeyTarget(null)}
         onOutdated={() => void refreshRegisters()}
         onSessionEnded={onSessionEnded}
         services={services}
