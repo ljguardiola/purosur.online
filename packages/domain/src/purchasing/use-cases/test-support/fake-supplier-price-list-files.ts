@@ -3,6 +3,7 @@ import type { SupplierPriceListFiles } from "../supplier-price-list-files.js";
 export class FakeSupplierPriceListFiles implements SupplierPriceListFiles {
   readonly stored = new Map<string, Uint8Array>();
   storeFails = false;
+  onRead: () => Promise<void> = async () => undefined;
 
   async store(listId: string, bytes: Uint8Array): Promise<void> {
     if (this.storeFails) {
@@ -12,6 +13,7 @@ export class FakeSupplierPriceListFiles implements SupplierPriceListFiles {
   }
 
   async read(listId: string): Promise<Uint8Array | null> {
+    await this.onRead();
     return this.stored.get(listId) ?? null;
   }
 }

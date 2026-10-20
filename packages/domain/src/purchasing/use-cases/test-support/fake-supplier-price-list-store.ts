@@ -285,6 +285,7 @@ export class FakeSupplierPriceListStore implements SupplierPriceListStore {
   failingWrites = new Set<FakeSupplierPriceListWrite>();
   lockCallOrder: string[] = [];
   transactionCount = 0;
+  openTransactions = 0;
 
   seedSupplier(supplier: FakePriceListSupplierRow): void {
     this.state.suppliers.push({ ...supplier });
@@ -335,11 +336,14 @@ export class FakeSupplierPriceListStore implements SupplierPriceListStore {
   ): Promise<TOutcome> {
     this.transactionCount += 1;
     const before = cloneState(this.state);
+    this.openTransactions += 1;
     try {
       return await work(new FakeSupplierPriceListStoreTransaction(this.state, this));
     } catch (error) {
       this.state = before;
       throw error;
+    } finally {
+      this.openTransactions -= 1;
     }
   }
 }

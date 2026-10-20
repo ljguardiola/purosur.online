@@ -7,11 +7,11 @@ import type {
 export class FakePriceListExtractor implements PriceListExtractor {
   readonly received: PriceListSource[] = [];
   answer: PriceListExtraction | Error = { kind: "extracted", listDate: null, rows: [] };
-  onExtract: () => void = () => undefined;
+  onExtract: () => Promise<void> = async () => undefined;
 
   async extract(source: PriceListSource): Promise<PriceListExtraction> {
     this.received.push(source);
-    this.onExtract();
+    await this.onExtract();
     if (this.answer instanceof Error) {
       throw this.answer;
     }
