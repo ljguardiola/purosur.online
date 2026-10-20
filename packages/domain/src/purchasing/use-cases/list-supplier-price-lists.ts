@@ -20,10 +20,7 @@ export async function listSupplierPriceLists(
       supplierId,
       currentConfirmedListId(
         lists.flatMap((list) =>
-          list.supplier.id === supplierId &&
-          list.state === "REVIEWED" &&
-          list.listDate !== null &&
-          list.confirmedAt !== null
+          list.supplier.id === supplierId && list.listDate !== null && list.confirmedAt !== null
             ? [{ id: list.id, listDate: list.listDate, confirmedAt: list.confirmedAt }]
             : [],
         ),
