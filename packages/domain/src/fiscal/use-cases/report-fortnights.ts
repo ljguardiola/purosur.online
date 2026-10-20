@@ -21,7 +21,9 @@ import {
 import {
   type ListedOwedPresentation,
   listsOwedPresentation,
+  owedPresentationsToRecord,
   splitOwedPresentations,
+  type WithOwedPresentations,
 } from "../model/owed-presentation-list.js";
 import type {
   FortnightReportPorts,
@@ -97,10 +99,11 @@ function presentationKey({ pointOfSaleNumber, code }: OwedFortnightReport): stri
 
 async function recordListOf(
   { owedPresentations, clock }: FortnightReportPorts,
-  answer: { owedPresentations?: ListedOwedPresentation[] },
+  answer: WithOwedPresentations<object>,
 ): Promise<void> {
-  if (answer.owedPresentations !== undefined) {
-    await owedPresentations.replace(answer.owedPresentations, clock.now());
+  const list = owedPresentationsToRecord(answer);
+  if (list !== undefined) {
+    await owedPresentations.replace(list, clock.now());
   }
 }
 

@@ -27,12 +27,13 @@ function entriesOf(message: string): ListedOwedPresentation[] {
 
 export function owedPresentationsOf(
   observations: readonly TaxAuthorityRejection[],
-): ListedOwedPresentation[] {
-  const listed: ListedOwedPresentation[] = [];
+): ListedOwedPresentation[] | undefined {
+  let listed: ListedOwedPresentation[] | undefined;
   for (const { code, message } of observations) {
     if (code !== OWED_PRESENTATIONS_OBSERVATION_CODE) {
       continue;
     }
+    listed ??= [];
     for (const entry of entriesOf(message)) {
       const known = listed.some(
         (other) =>

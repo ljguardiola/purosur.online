@@ -5,7 +5,10 @@ import {
   fortnightsWithinRequestWindowOn,
   isSameFortnight,
 } from "../model/offline-authorization-code.js";
-import type { WithOwedPresentations } from "../model/owed-presentation-list.js";
+import {
+  owedPresentationsToRecord,
+  type WithOwedPresentations,
+} from "../model/owed-presentation-list.js";
 import type {
   OfflineAuthorizationCode,
   OfflineAuthorizationCodeAcquisition,
@@ -115,7 +118,8 @@ async function recordList(
   { owedPresentations, clock }: OfflineAuthorizationCodePorts,
   answer: WithOwedPresentations<object>,
 ): Promise<void> {
-  if (answer.owedPresentations !== undefined) {
-    await owedPresentations.replace(answer.owedPresentations, clock.now());
+  const list = owedPresentationsToRecord(answer);
+  if (list !== undefined) {
+    await owedPresentations.replace(list, clock.now());
   }
 }

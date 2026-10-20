@@ -56,7 +56,7 @@ function readOf(result: CodeResult | undefined): Read {
     ...rejections,
     ...rejectionsOf(result.ResultGet?.Observaciones, "Obs"),
   ]);
-  const listing = owedPresentations.length > 0 ? { owedPresentations } : {};
+  const listing = owedPresentations === undefined ? {} : { owedPresentations };
   if (rejections.length > 0) {
     return { kind: "refused", rejections, ...listing };
   }

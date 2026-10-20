@@ -131,7 +131,7 @@ export class WsfeTaxAuthorityOfflineDocumentReports implements TaxAuthorityOffli
       ...refusals,
       ...details.flatMap(({ Observaciones }) => rejectionsOf(Observaciones, "Obs")),
     ]);
-    const listing = owedPresentations.length > 0 ? { owedPresentations } : {};
+    const listing = owedPresentations === undefined ? {} : { owedPresentations };
     if (refusals.length > 0) {
       return { kind: "refused", rejections: refusals, ...listing };
     }

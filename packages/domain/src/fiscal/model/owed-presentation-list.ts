@@ -9,6 +9,12 @@ export type WithOwedPresentations<TAnswer> = TAnswer & {
   owedPresentations?: ListedOwedPresentation[];
 };
 
+export function owedPresentationsToRecord(
+  answer: WithOwedPresentations<object>,
+): ListedOwedPresentation[] | undefined {
+  return answer.owedPresentations?.length ? answer.owedPresentations : undefined;
+}
+
 export function splitOwedPresentations(
   list: ListedOwedPresentation[],
   ownedPointsOfSale: readonly number[],
