@@ -63,12 +63,28 @@ export const REPLACED_LIST: SupplierPriceListSummary = {
   replaced: true,
 };
 
+type ReviewActions = SupplierPriceListReview["actions"];
+
+export const EVERY_REVIEW_ACTION: ReviewActions = {
+  changeRows: true,
+  confirm: true,
+  discard: true,
+};
+
+export const ONLY_DISCARD: ReviewActions = { changeRows: false, confirm: false, discard: true };
+
+const NO_REVIEW_ACTION: ReviewActions = {
+  changeRows: false,
+  confirm: false,
+  discard: false,
+};
+
 export function reviewOf(
   list: SupplierPriceListSummary,
   rows: SupplierPriceListReview["rows"],
-  version = 3,
+  actions: ReviewActions = NO_REVIEW_ACTION,
 ): SupplierPriceListReview {
-  return { list: { ...list, version }, rows };
+  return { list: { ...list, version: 3 }, rows, actions };
 }
 
 export const EXTRACTED_ROWS: SupplierPriceListReview["rows"] = [

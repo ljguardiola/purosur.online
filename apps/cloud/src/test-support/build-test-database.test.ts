@@ -931,6 +931,7 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
         locationId: await seededLocationId(db),
         sourceKind: "PDF",
         fileName: "lista.pdf",
+        fileByteSize: 1_000,
         state: "EXTRACTED",
         uploadedAt: new Date("2026-10-14T09:00:00.000Z"),
         uploadedBy: user.id,

@@ -8,8 +8,10 @@ import {
   decideConfirmation,
   isPriceListRowPrice,
   isSourcePage,
+  isSupplierPriceListDiscardable,
   isSupplierPriceListFileNameTooLong,
   isSupplierPriceListPdfTooLarge,
+  isSupplierPriceListUnderReview,
   SUPPLIER_PRICE_LIST_FILE_NAME_MAX_LENGTH,
   SUPPLIER_PRICE_LIST_PDF_MAX_BYTES,
   SUPPLIER_PRICE_LIST_READ_FAILURES,
@@ -26,7 +28,7 @@ describe("supplier price list constants", () => {
       "REVIEWED",
       "DISCARDED",
     ]);
-    expect(SUPPLIER_PRICE_LIST_SOURCE_KINDS).toEqual(["PDF", "WEB"]);
+    expect(SUPPLIER_PRICE_LIST_SOURCE_KINDS).toEqual(["PDF"]);
     expect(SUPPLIER_PRICE_LIST_READ_FAILURES).toEqual([
       "unreadable_document",
       "no_items_found",
@@ -97,6 +99,22 @@ describe("countsTowardDailyExtractionCap", () => {
       expect(countsTowardDailyExtractionCap({ state, sentOn: null }, DAY)).toBe(false);
     },
   );
+});
+
+describe("isSupplierPriceListUnderReview", () => {
+  it("is true only of an extracted list, the one whose rows may change and which may be confirmed", () => {
+    expect(
+      SUPPLIER_PRICE_LIST_STATES.filter((state) => isSupplierPriceListUnderReview(state)),
+    ).toEqual(["EXTRACTED"]);
+  });
+});
+
+describe("isSupplierPriceListDiscardable", () => {
+  it("is true of an extracted list and of one that could not be read", () => {
+    expect(
+      SUPPLIER_PRICE_LIST_STATES.filter((state) => isSupplierPriceListDiscardable(state)),
+    ).toEqual(["READ_FAILED", "EXTRACTED"]);
+  });
 });
 
 describe("dailyExtractionCapReached", () => {

@@ -1,8 +1,11 @@
+import {
+  PRICE_LIST_EXTRACTION_MAX_DESCRIPTION_LENGTH,
+  PRICE_LIST_EXTRACTION_MAX_ROWS,
+  PRICE_LIST_EXTRACTION_MAX_SHORT_TEXT_LENGTH,
+} from "@purosur/domain";
 import { describe, expect, it } from "vitest";
 import {
   AnthropicPriceListExtractor,
-  PRICE_LIST_EXTRACTION_MAX_DESCRIPTION_LENGTH,
-  PRICE_LIST_EXTRACTION_MAX_ROWS,
   SUPPLIER_PRICE_LIST_READING_MODEL,
 } from "./anthropic-price-list-extractor.js";
 import {
@@ -237,6 +240,22 @@ describe("an answer the extractor does not accept", () => {
         listDate: null,
         rows: [
           { ...ROW, description: "x".repeat(PRICE_LIST_EXTRACTION_MAX_DESCRIPTION_LENGTH + 1) },
+        ],
+      },
+    ],
+    [
+      "a code past the limit",
+      {
+        listDate: null,
+        rows: [{ ...ROW, code: "x".repeat(PRICE_LIST_EXTRACTION_MAX_SHORT_TEXT_LENGTH + 1) }],
+      },
+    ],
+    [
+      "a presentation past the limit",
+      {
+        listDate: null,
+        rows: [
+          { ...ROW, presentation: "x".repeat(PRICE_LIST_EXTRACTION_MAX_SHORT_TEXT_LENGTH + 1) },
         ],
       },
     ],

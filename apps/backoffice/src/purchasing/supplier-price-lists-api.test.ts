@@ -121,16 +121,26 @@ describe("fetchSupplierPriceListReview", () => {
 
 describe("uploadSupplierPriceList", () => {
   const file = new File(["%PDF-1.7"], "lista septiembre.pdf", { type: "application/pdf" });
-  const input = { supplierId: "supplier-1", file };
+  const query = { supplierId: "supplier-1", fileName: "lista septiembre.pdf" };
 
   test("posts the file's bytes as a PDF with the supplier and the file name in the query", async () => {
     vi.mocked(fetch).mockResolvedValue(jsonResponse(201, { listId: "list-1" }));
 
-    expect(await uploadSupplierPriceList(input)).toEqual({ kind: "ok" });
+    expect(await uploadSupplierPriceList(query, file)).toEqual({ kind: "ok" });
     expect(fetch).toHaveBeenCalledWith(
       "/api/supplier-price-lists?supplierId=supplier-1&fileName=lista+septiembre.pdf",
       { method: "POST", headers: { "Content-Type": "application/pdf" }, body: file },
     );
+  });
+
+  test.each([
+    ["without a body", undefined],
+    ["without the list's id", {}],
+    ["with an id that is not text", { listId: 7 }],
+  ])("returns failed for an upload answered %s", async (_name, body) => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(201, body));
+
+    expect(await uploadSupplierPriceList(query, file)).toEqual({ kind: "failed" });
   });
 
   test.each([
@@ -143,15 +153,15 @@ describe("uploadSupplierPriceList", () => {
   ])("answers a %i with %j as %j", async (status, body, outcome) => {
     vi.mocked(fetch).mockResolvedValue(jsonResponse(status, body));
 
-    expect(await uploadSupplierPriceList(input)).toEqual(outcome);
+    expect(await uploadSupplierPriceList(query, file)).toEqual(outcome);
   });
 
   test("returns failed on a 409 with another code or a cap that is not a number", async () => {
     vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code: "daily_cap_reached", cap: "x" }));
-    expect(await uploadSupplierPriceList(input)).toEqual({ kind: "failed" });
+    expect(await uploadSupplierPriceList(query, file)).toEqual({ kind: "failed" });
 
     vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code: "other" }));
-    expect(await uploadSupplierPriceList(input)).toEqual({ kind: "failed" });
+    expect(await uploadSupplierPriceList(query, file)).toEqual({ kind: "failed" });
   });
 
   test("returns validation_failed with the field the cloud refused", async () => {
@@ -159,7 +169,7 @@ describe("uploadSupplierPriceList", () => {
       jsonResponse(400, { code: "validation_failed", details: [{ field: "supplierId" }] }),
     );
 
-    expect(await uploadSupplierPriceList(input)).toEqual({
+    expect(await uploadSupplierPriceList(query, file)).toEqual({
       kind: "validation_failed",
       field: "supplierId",
     });
@@ -168,13 +178,13 @@ describe("uploadSupplierPriceList", () => {
   test.each(refusals)("answers a %i as %j", async (status, outcome) => {
     vi.mocked(fetch).mockResolvedValue(jsonResponse(status));
 
-    expect(await uploadSupplierPriceList(input)).toEqual(outcome);
+    expect(await uploadSupplierPriceList(query, file)).toEqual(outcome);
   });
 
   test("returns rate_limited with the Retry-After header on 429", async () => {
     vi.mocked(fetch).mockResolvedValue(jsonResponse(429, undefined, { "Retry-After": "60" }));
 
-    expect(await uploadSupplierPriceList(input)).toEqual({
+    expect(await uploadSupplierPriceList(query, file)).toEqual({
       kind: "rate_limited",
       retryAfterSeconds: 60,
     });
@@ -183,7 +193,7 @@ describe("uploadSupplierPriceList", () => {
   test("returns failed when the request throws", async () => {
     vi.mocked(fetch).mockRejectedValue(new Error("network down"));
 
-    expect(await uploadSupplierPriceList(input)).toEqual({ kind: "failed" });
+    expect(await uploadSupplierPriceList(query, file)).toEqual({ kind: "failed" });
   });
 });
 

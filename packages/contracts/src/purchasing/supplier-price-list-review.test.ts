@@ -33,6 +33,7 @@ const review = {
     version: 4,
   },
   rows: [row, bareRow],
+  actions: { changeRows: true, confirm: true, discard: true },
 };
 
 describe("supplierPriceListReviewSchema", () => {
@@ -50,6 +51,21 @@ describe("supplierPriceListReviewSchema", () => {
     const { version: _version, ...list } = review.list;
 
     expect(supplierPriceListReviewSchema.safeParse({ ...review, list }).success).toBe(false);
+  });
+
+  it("requires which actions the list allows", () => {
+    const { actions: _actions, ...withoutActions } = review;
+
+    expect(supplierPriceListReviewSchema.safeParse(withoutActions).success).toBe(false);
+  });
+
+  it.each(["changeRows", "confirm", "discard"])("requires whether the list allows %s", (action) => {
+    expect(
+      supplierPriceListReviewSchema.safeParse({
+        ...review,
+        actions: { ...review.actions, [action]: "yes" },
+      }).success,
+    ).toBe(false);
   });
 
   it("strips keys it does not define from the rows", () => {

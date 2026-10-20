@@ -25,7 +25,7 @@ function setup(
   return { store, files, extractor, ports: { store, files, extractor } };
 }
 
-const input = { listId: "list-1", now: () => NOW };
+const input = { listId: "list-1", now: () => NOW, finalAttempt: false };
 
 describe("readSupplierPriceList", () => {
   it("answers not_found for a missing list", async () => {
@@ -237,6 +237,99 @@ describe("readSupplierPriceList", () => {
       expect(store.snapshot().lists[0]).toMatchObject({
         state: "READ_FAILED",
         sentOn: SENT_ON,
+      });
+    });
+  });
+
+  describe("a run that throws", () => {
+    it("leaves the list to the next attempt when attempts remain", async () => {
+      const { store, files, extractor, ports } = setup();
+      files.onRead = async () => {
+        throw new Error("bucket unavailable");
+      };
+
+      await expect(readSupplierPriceList(ports, input)).rejects.toThrow("bucket unavailable");
+
+      expect(extractor.received).toEqual([]);
+      expect(store.snapshot().lists[0]).toMatchObject({
+        state: "READING",
+        sentAt: null,
+        sentOn: null,
+      });
+    });
+
+    it("fails a list never sent when the file cannot be read on the final attempt", async () => {
+      const { store, files, extractor, ports } = setup();
+      files.onRead = async () => {
+        throw new Error("bucket unavailable");
+      };
+
+      await expect(readSupplierPriceList(ports, { ...input, finalAttempt: true })).rejects.toThrow(
+        "bucket unavailable",
+      );
+
+      expect(extractor.received).toEqual([]);
+      expect(store.snapshot().lists[0]).toMatchObject({
+        state: "READ_FAILED",
+        readFailure: "reading_unavailable",
+        sentAt: null,
+        sentOn: null,
+      });
+    });
+
+    it("fails a list never sent when recording the send fails on the final attempt", async () => {
+      const { store, extractor, ports } = setup();
+      store.failingWrites.add("markSent");
+
+      await expect(readSupplierPriceList(ports, { ...input, finalAttempt: true })).rejects.toThrow(
+        "markSent failed",
+      );
+
+      expect(extractor.received).toEqual([]);
+      expect(store.snapshot().lists[0]).toMatchObject({
+        state: "READ_FAILED",
+        readFailure: "reading_unavailable",
+        sentAt: null,
+        sentOn: null,
+      });
+    });
+
+    it("fails a sent list as interrupted when its answer cannot be recorded on the final attempt", async () => {
+      const { store, extractor, ports } = setup();
+      extractor.answer = {
+        kind: "extracted",
+        listDate: null,
+        rows: [{ description: "Yerba", code: null, presentation: null, priceCents: 1, page: 1 }],
+      };
+      store.failingWrites.add("recordExtraction");
+
+      await expect(readSupplierPriceList(ports, { ...input, finalAttempt: true })).rejects.toThrow(
+        "recordExtraction failed",
+      );
+
+      expect(extractor.received).toHaveLength(1);
+      expect(store.snapshot().lists[0]).toMatchObject({
+        state: "READ_FAILED",
+        readFailure: "interrupted",
+        sentOn: SENT_ON,
+      });
+      expect(store.snapshot().rows).toEqual([]);
+    });
+
+    it("leaves a list another run already settled as it is on the final attempt", async () => {
+      const { store, files, ports } = setup();
+      files.onRead = async () => {
+        await store.transaction((tx) => tx.recordReadFailure("list-1", "no_items_found"));
+        throw new Error("bucket unavailable");
+      };
+
+      await expect(readSupplierPriceList(ports, { ...input, finalAttempt: true })).rejects.toThrow(
+        "bucket unavailable",
+      );
+
+      expect(store.snapshot().lists[0]).toMatchObject({
+        state: "READ_FAILED",
+        readFailure: "no_items_found",
       });
     });
   });

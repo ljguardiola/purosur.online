@@ -114,6 +114,37 @@ describe("listSupplierPriceLists", () => {
     ]);
   });
 
+  it.each(["READING", "READ_FAILED", "EXTRACTED", "DISCARDED"] as const)(
+    "never takes a list in state %s as the current one, whatever its confirmation instant",
+    async (state) => {
+      const reader = new FakeSupplierPriceListReader({
+        lists: [
+          listing({
+            id: "reviewed",
+            state: "REVIEWED",
+            listDate: "2026-03-01",
+            confirmedAt: new Date("2026-03-02T10:00:00Z"),
+            uploadedAt: new Date("2026-03-01T12:00:00Z"),
+          }),
+          listing({
+            id: "not-reviewed",
+            state,
+            listDate: "2026-04-01",
+            confirmedAt: new Date("2026-04-02T10:00:00Z"),
+            uploadedAt: new Date("2026-04-01T12:00:00Z"),
+          }),
+        ],
+      });
+
+      const lists = await listSupplierPriceLists(reader);
+
+      expect(lists.map((list) => [list.id, list.replaced])).toEqual([
+        ["not-reviewed", false],
+        ["reviewed", false],
+      ]);
+    },
+  );
+
   it("compares only the lists of the same supplier and ignores unconfirmed ones", async () => {
     const reader = new FakeSupplierPriceListReader({
       lists: [

@@ -37,11 +37,15 @@ beforeEach(async () => {
   });
 });
 
-function jobsAnswering(extraction: PriceListExtraction, received: PriceListSource[] = []) {
+function jobsAnswering(
+  extraction: PriceListExtraction,
+  received: PriceListSource[] = [],
+  read: () => Promise<Uint8Array | null> = async () => PDF,
+) {
   return supplierPriceListReadingJobs({
     now: () => NOW,
     db,
-    files: { store: async () => {}, read: async () => PDF },
+    files: { store: async () => {}, read },
     extractor: {
       extract: async (source) => {
         received.push(source);
@@ -51,12 +55,28 @@ function jobsAnswering(extraction: PriceListExtraction, received: PriceListSourc
   });
 }
 
-function runTask(jobs: ReturnType<typeof jobsAnswering>, payload: unknown) {
+function runTask(
+  jobs: ReturnType<typeof jobsAnswering>,
+  payload: unknown,
+  attempt: { attempts: number; max_attempts: number } = { attempts: 1, max_attempts: 3 },
+) {
   const task = jobs.taskList[SUPPLIER_PRICE_LIST_READING_TASK_IDENTIFIER];
   if (!task) {
     throw new Error("test setup: expected the registered reading task");
   }
-  return task(payload, buildJobHelpers().helpers);
+  return task(payload, buildJobHelpers(attempt).helpers);
+}
+
+async function readList() {
+  const [list] = await db
+    .select()
+    .from(supplierPriceLists)
+    .where(eq(supplierPriceLists.id, listId));
+  return list;
+}
+
+function unreadableBucket(): Promise<Uint8Array | null> {
+  return Promise.reject(new Error("bucket unavailable"));
 }
 
 describe("supplierPriceListReadingJobs", () => {
@@ -101,6 +121,30 @@ describe("supplierPriceListReadingJobs", () => {
       .from(supplierPriceLists)
       .where(eq(supplierPriceLists.id, listId));
     expect(list).toMatchObject({ state: "READ_FAILED", readFailure: "reading_unavailable" });
+  });
+
+  it("leaves a list whose file could not be read to the next attempt", async () => {
+    const jobs = jobsAnswering({ kind: "unavailable" }, [], unreadableBucket);
+
+    await expect(runTask(jobs, { listId }, { attempts: 2, max_attempts: 3 })).rejects.toThrow(
+      "bucket unavailable",
+    );
+
+    expect(await readList()).toMatchObject({ state: "READING", sentOn: null });
+  });
+
+  it("fails a list whose file could not be read on the last attempt, without counting it as sent", async () => {
+    const jobs = jobsAnswering({ kind: "unavailable" }, [], unreadableBucket);
+
+    await expect(runTask(jobs, { listId }, { attempts: 3, max_attempts: 3 })).rejects.toThrow(
+      "bucket unavailable",
+    );
+
+    expect(await readList()).toMatchObject({
+      state: "READ_FAILED",
+      readFailure: "reading_unavailable",
+      sentOn: null,
+    });
   });
 
   it.each([

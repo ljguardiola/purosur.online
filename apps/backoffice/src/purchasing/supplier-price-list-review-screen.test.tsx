@@ -12,8 +12,10 @@ import {
 } from "./supplier-price-lists-filters";
 import {
   DISCARDED_LIST,
+  EVERY_REVIEW_ACTION,
   EXTRACTED_ROWS,
   FAILED_LIST,
+  ONLY_DISCARD,
   READ_LIST,
   READING_LIST,
   REVIEWED_LIST,
@@ -101,7 +103,7 @@ function itemRows(screen: Screen) {
   return screen.getByRole("row").all().slice(1);
 }
 
-const extracted = reviewOf(READ_LIST, EXTRACTED_ROWS);
+const extracted = reviewOf(READ_LIST, EXTRACTED_ROWS, EVERY_REVIEW_ACTION);
 
 test("shows the supplier's name in the title, under Pedidos · Listas de proveedores", async () => {
   const screen = await loaded(createServices(), extracted);
@@ -141,7 +143,7 @@ test("shows the items in pages of 25", async () => {
   }));
   const screen = await loaded(
     createServices(),
-    reviewOf({ ...READ_LIST, unpricedRowCount: 0 }, rows),
+    reviewOf({ ...READ_LIST, unpricedRowCount: 0 }, rows, EVERY_REVIEW_ACTION),
   );
 
   await expect.element(screen.getByText("1 a 25 de 120 ítems")).toBeVisible();
@@ -198,6 +200,30 @@ test("offers to download the PDF, to discard the list and to confirm it", async 
   await expect.element(screen.getByRole("button", { name: "Confirmar la lista" })).toBeVisible();
 });
 
+test("offers only the actions the cloud allows, even on a list waiting for review", async () => {
+  const screen = await loaded(createServices(), reviewOf(READ_LIST, EXTRACTED_ROWS, ONLY_DISCARD));
+
+  await expect.element(screen.getByRole("button", { name: "Descartar la lista" })).toBeVisible();
+  expect(screen.getByRole("button", { name: /^Editar el precio/ }).query()).toBeNull();
+  expect(screen.getByRole("button", { name: /^Quitar/ }).query()).toBeNull();
+  expect(screen.getByRole("button", { name: "Confirmar la lista" }).query()).toBeNull();
+});
+
+test("offers the item actions the cloud allows, even on a reviewed list", async () => {
+  const screen = await loaded(
+    createServices(),
+    reviewOf(REVIEWED_LIST, EXTRACTED_ROWS, { changeRows: true, confirm: false, discard: false }),
+  );
+
+  await expect
+    .element(
+      screen.getByRole("button", { name: "Editar el precio de Almendra pelada Nonpareil x 25 kg" }),
+    )
+    .toBeVisible();
+  expect(screen.getByRole("button", { name: "Confirmar la lista" }).query()).toBeNull();
+  expect(screen.getByRole("button", { name: "Descartar la lista" }).query()).toBeNull();
+});
+
 test("a reviewed list is read-only: no item action, no confirm, no discard", async () => {
   const screen = await loaded(createServices(), reviewOf(REVIEWED_LIST, EXTRACTED_ROWS));
 
@@ -221,7 +247,7 @@ test("a list that could not be read says why and can only be discarded", async (
   const services = createServices();
   vi.mocked(services.fetchSupplierPriceListReview).mockResolvedValue({
     kind: "ok",
-    value: { kind: "found", review: reviewOf(FAILED_LIST, []) },
+    value: { kind: "found", review: reviewOf(FAILED_LIST, [], ONLY_DISCARD) },
   });
   const screen = await renderScreen(services);
 
@@ -229,6 +255,8 @@ test("a list that could not be read says why and can only be discarded", async (
   await expect.element(screen.getByText("No se pudo leer el contenido del archivo.")).toBeVisible();
   await expect.element(screen.getByRole("button", { name: "Descartar la lista" })).toBeVisible();
   expect(screen.getByRole("button", { name: "Confirmar la lista" }).query()).toBeNull();
+  expect(screen.getByRole("table").query()).toBeNull();
+  expect(screen.getByText("La lista no tiene ítems").query()).toBeNull();
 });
 
 test("a list still being read says so and reads again on its own until it is read", async () => {
@@ -244,6 +272,8 @@ test("a list still being read says so and reads again on its own until it is rea
     const screen = await renderScreen(services);
     await expect.element(screen.getByText("Leyendo la lista").first()).toBeVisible();
     expect(screen.getByRole("button", { name: "Confirmar la lista" }).query()).toBeNull();
+    expect(screen.getByRole("table").query()).toBeNull();
+    expect(screen.getByText("La lista no tiene ítems").query()).toBeNull();
 
     vi.advanceTimersByTime(5_000);
 

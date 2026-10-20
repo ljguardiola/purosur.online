@@ -46,4 +46,16 @@ describe("supplierPriceListUploadQuerySchema", () => {
       ).success,
     ).toBe(false);
   });
+
+  it("says which part of the query it refuses", () => {
+    const refused = supplierPriceListUploadQuerySchema.safeParse({ supplierId: "x", fileName: "" });
+
+    expect(refused.error?.issues.map((issue) => [issue.path, issue.message])).toEqual([
+      [["supplierId"], "supplierId must be a supplier's id"],
+      [
+        ["fileName"],
+        `fileName must be a non-empty string of at most ${SUPPLIER_PRICE_LIST_FILE_NAME_MAX_LENGTH} characters`,
+      ],
+    ]);
+  });
 });

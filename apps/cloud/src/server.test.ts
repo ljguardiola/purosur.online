@@ -1824,7 +1824,7 @@ describe("startServer reading supplier price lists", () => {
   };
   const aiKey = { ANTHROPIC_API_KEY: "fictional-anthropic-key" };
 
-  async function recoveryEnvFor(startEnv: Record<string, string>) {
+  async function startedWith(startEnv: Record<string, string>) {
     const recovery = {
       db: {},
       connections: { withConnection: vi.fn() },
@@ -1835,10 +1835,11 @@ describe("startServer reading supplier price lists", () => {
       close: vi.fn(),
     };
     const setUp = vi.fn().mockResolvedValue(recovery);
+    const buildApp = vi.fn().mockReturnValue(appListeningBy(vi.fn()));
     await startServer(startEnv, {
       arcaEndpoints: arcaEndpointsOf,
       initSentry: vi.fn(),
-      buildApp: vi.fn().mockReturnValue(appListeningBy(vi.fn())),
+      buildApp,
       setUpRecovery: setUp,
       recordAuthorizedCuit: vi.fn().mockResolvedValue(undefined),
       enqueueBuyerTaxStatusFetch: vi.fn().mockResolvedValue(undefined),
@@ -1847,8 +1848,35 @@ describe("startServer reading supplier price lists", () => {
       enqueueMissingNumberingConflicts: vi.fn().mockResolvedValue(undefined),
       enqueueMissingCreditNotes: vi.fn().mockResolvedValue(undefined),
     });
-    return setUp.mock.calls[0]?.[0] as SetUpRecoveryEnv;
+    const [appOptions] = buildApp.mock.calls[0] as [
+      { purchasing?: { supplierPriceListFiles?: unknown } },
+    ];
+    return { recoveryEnv: setUp.mock.calls[0]?.[0] as SetUpRecoveryEnv, appOptions };
   }
+
+  async function recoveryEnvFor(startEnv: Record<string, string>) {
+    return (await startedWith(startEnv)).recoveryEnv;
+  }
+
+  it("gives the purchasing routes the same files the reading job reads when the AI key and the bucket are configured", async () => {
+    const { recoveryEnv, appOptions } = await startedWith({
+      ...env,
+      ...aiKey,
+      ...priceListsBucket,
+    });
+
+    expect(appOptions.purchasing?.supplierPriceListFiles).toBeDefined();
+    expect(appOptions.purchasing?.supplierPriceListFiles).toBe(
+      recoveryEnv.supplierPriceListReading?.files,
+    );
+  });
+
+  it("gives the purchasing routes no files without the AI key", async () => {
+    const { appOptions } = await startedWith({ ...env, ...priceListsBucket });
+
+    expect(appOptions.purchasing).toBeDefined();
+    expect(appOptions.purchasing).not.toHaveProperty("supplierPriceListFiles");
+  });
 
   it("gives the setup of the recovery infrastructure the files and the extractor when the AI key and the bucket are configured", async () => {
     const recoveryEnv = await recoveryEnvFor({ ...env, ...aiKey, ...priceListsBucket });

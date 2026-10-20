@@ -60,9 +60,11 @@ describe("findSupplierPriceListReview", () => {
 
     const outcome = await findSupplierPriceListReview(reader, "list-1");
 
+    const { confirmedAt: _confirmedAt, ...listed } = LIST;
     expect(outcome).toEqual({
       kind: "found",
-      list: { ...LIST },
+      list: { ...listed, replaced: false },
+      actions: { changeRows: true, confirm: true, discard: true },
       rows: [
         {
           id: "row-1",
@@ -82,5 +84,46 @@ describe("findSupplierPriceListReview", () => {
         },
       ],
     });
+  });
+
+  it("answers that a confirmed list was replaced by a newer confirmed list of its supplier", async () => {
+    const reader = new FakeSupplierPriceListReader({
+      lists: [
+        {
+          ...LIST,
+          state: "REVIEWED",
+          listDate: "2026-03-01",
+          confirmedAt: new Date("2026-03-02T10:00:00Z"),
+        },
+        {
+          ...LIST,
+          id: "list-2",
+          state: "REVIEWED",
+          listDate: "2026-04-01",
+          confirmedAt: new Date("2026-04-02T10:00:00Z"),
+          uploadedAt: new Date("2026-04-01T12:00:00Z"),
+        },
+      ],
+    });
+
+    const replaced = await findSupplierPriceListReview(reader, "list-1");
+    const current = await findSupplierPriceListReview(reader, "list-2");
+
+    expect(replaced.kind === "found" && replaced.list.replaced).toBe(true);
+    expect(current.kind === "found" && current.list.replaced).toBe(false);
+  });
+
+  it.each([
+    ["READING", { changeRows: false, confirm: false, discard: false }],
+    ["READ_FAILED", { changeRows: false, confirm: false, discard: true }],
+    ["EXTRACTED", { changeRows: true, confirm: true, discard: true }],
+    ["REVIEWED", { changeRows: false, confirm: false, discard: false }],
+    ["DISCARDED", { changeRows: false, confirm: false, discard: false }],
+  ] as const)("answers which actions a list in state %s allows", async (state, actions) => {
+    const reader = new FakeSupplierPriceListReader({ lists: [{ ...LIST, state }] });
+
+    const outcome = await findSupplierPriceListReview(reader, "list-1");
+
+    expect(outcome.kind === "found" && outcome.actions).toEqual(actions);
   });
 });

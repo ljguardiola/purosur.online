@@ -162,10 +162,10 @@ test("uploads the file for the chosen supplier and reports it", async () => {
 
   await submit(screen);
 
-  expect(services.uploadSupplierPriceList).toHaveBeenCalledWith({
-    supplierId: andina.id,
-    file: pdf,
-  });
+  expect(services.uploadSupplierPriceList).toHaveBeenCalledWith(
+    { supplierId: andina.id, fileName: "lista-septiembre-2026.pdf" },
+    pdf,
+  );
   await expect.poll(() => onUploaded.mock.calls.length).toBe(1);
 });
 
@@ -215,6 +215,40 @@ test.each([
   await expect.element(dialog.getByText(title)).toBeVisible();
   await expect.element(dialog.getByText(description)).toBeVisible();
   await expect.element(dialog.getByRole("button", { name: "Leer la lista" })).toBeEnabled();
+});
+
+test("refuses a file whose name is too long without calling the cloud, saying so on the file", async () => {
+  const services = createServices();
+  const screen = await renderModal({ services });
+  const dialog = screen.getByRole("dialog");
+
+  await chooseSupplier(screen, "Distribuidora Andina");
+  await chooseFile(
+    screen,
+    new File(["%PDF-1.7"], `${"a".repeat(256)}.pdf`, { type: "application/pdf" }),
+  );
+  await userEvent.click(dialog.getByRole("button", { name: "Leer la lista" }));
+
+  await expect
+    .element(fileInput(screen))
+    .toHaveAccessibleDescription(
+      expect.stringContaining("El nombre del archivo es demasiado largo."),
+    );
+  expect(services.uploadSupplierPriceList).not.toHaveBeenCalled();
+});
+
+test("shows the cloud's refusal of the file name as a problem of the chosen file's name", async () => {
+  const services = createServices();
+  vi.mocked(services.uploadSupplierPriceList).mockResolvedValue({
+    kind: "validation_failed",
+    field: "fileName",
+  });
+  const screen = await renderModal({ services });
+
+  const dialog = await submit(screen);
+
+  await expect.element(dialog.getByText("El nombre del archivo es demasiado largo.")).toBeVisible();
+  expect(dialog.getByText("Elegí el archivo PDF de la lista.").query()).toBeNull();
 });
 
 test("shows a field the cloud refused under that field", async () => {

@@ -98,7 +98,11 @@ describe("the supplier price lists migration applied over a database that alread
 
   it.each([
     ["a state that is not one of the five", { state: "PENDING" }],
-    ["a source kind that is neither a PDF nor a web page", { source_kind: "XLS" }],
+    ["a source kind that is not a PDF", { source_kind: "XLS" }],
+    ["a web page as the source", { source_kind: "WEB" }],
+    ["a web address as the source", { source_url: "https://proveedor.example/lista" }],
+    ["a list without the name of its file", { file_name: null }],
+    ["a list without the size of its file", { file_byte_size: null }],
     ["a read failure that is not one the reading can end with", { read_failure: "lost" }],
   ])("refuses %s", async (_name, overrides) => {
     const { insertList } = await migratedDatabase();

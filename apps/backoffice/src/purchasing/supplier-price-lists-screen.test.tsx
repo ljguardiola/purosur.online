@@ -147,16 +147,15 @@ test("counts the lists in the footer", async () => {
   await expect.element(screen.getByText("3 listas")).toBeVisible();
 });
 
-test("explains that there are no lists yet", async () => {
+test("says there are no lists yet, and nothing else", async () => {
   const services = createServices();
   const screen = await loaded(services, []);
+  const table = screen.getByRole("table", { name: "Listas de proveedores" });
 
-  await expect.element(screen.getByText("Todavía no hay listas cargadas")).toBeVisible();
-  await expect
-    .element(
-      screen.getByText("Con las listas se comparan precios y se arman las sugerencias de pedido."),
-    )
-    .toBeVisible();
+  await expect.element(table.getByText("Todavía no hay listas cargadas")).toBeVisible();
+  expect(table.element().querySelector("tbody")?.textContent).toBe(
+    "Todavía no hay listas cargadas",
+  );
 });
 
 test("the search field filters by supplier or file name, and reports the filters", async () => {
@@ -283,7 +282,7 @@ test("uploading a list closes the modal, reads the lists again and says it was l
   await userEvent.click(dialog.getByRole("button", { name: /Proveedor/ }));
   await userEvent.click(screen.getByRole("option", { name: "Distribuidora Andina" }));
   await userEvent.upload(
-    dialog.getByLabelText("Archivo PDF"),
+    dialog.getByLabelText("Archivo", { exact: true }),
     new File(["%PDF-1.7"], "lista.pdf", { type: "application/pdf" }),
   );
   await userEvent.click(dialog.getByRole("button", { name: "Leer la lista" }));

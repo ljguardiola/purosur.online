@@ -163,6 +163,7 @@ describe("GET /supplier-price-lists/:id", () => {
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({
       list: { id: listId, state: "EXTRACTED", version: 1, replaced: false },
+      actions: { changeRows: true, confirm: true, discard: true },
       rows: [
         {
           description: "Yerba 1 kg",
