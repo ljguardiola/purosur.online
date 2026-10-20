@@ -17,6 +17,21 @@ describe("healthCheckSchema", () => {
     },
   );
 
+  it("accepts the answer carrying the server's time", () => {
+    const body = { status: "ok", version: "abc1234", server_time: "2026-10-01T12:00:00.000Z" };
+
+    expect(healthCheckSchema.parse(body)).toEqual(body);
+  });
+
+  it.each(["noon", 1_790_000_000_000, null])(
+    "refuses a server time that is not an ISO instant: %j",
+    (serverTime) => {
+      const body = { status: "ok", version: "abc1234", server_time: serverTime };
+
+      expect(healthCheckSchema.safeParse(body).success).toBe(false);
+    },
+  );
+
   it.each([
     { token_valid: true, probe_ok_at: "2026-10-01T12:00:00.000Z", reachable: true },
     { token_valid: false, probe_ok_at: null, reachable: false },

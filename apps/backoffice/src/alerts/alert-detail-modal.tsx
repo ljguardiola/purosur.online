@@ -175,6 +175,7 @@ function alertIcon(kind: string): Icon {
     case "fortnight_report_owed_elsewhere":
       return <TriangleAlert />;
     case "clock_corrected":
+    case "clock_drift":
       return <Clock />;
     default:
       return <Bell />;
@@ -469,6 +470,7 @@ function alertTitle(alert: AlertDetail): string {
     case "offline_authorization_code_missing":
     case "fiscal_unknown":
     case "fiscal_emission_stopped":
+    case "clock_drift":
     case "outbox_chain_broken":
       return alertKindDescription(alert.kind);
     case "late_payment_refund":
@@ -560,6 +562,7 @@ function alertDescription(alert: AlertDetail, catalog: PermissionCatalogWire = [
     case "register_silent":
     case "sales_denied":
     case "fiscal_emission_stopped":
+    case "clock_drift":
     case "late_payment_refund":
     case "refund_task":
     case "fortnight_report_pending":

@@ -10,13 +10,25 @@ describe("recordRegisterHealthCheck", () => {
 
     const outcome = await recordRegisterHealthCheck(
       { healthChecks },
-      { checkedAt: CHECKED_AT, roundTripMs: 180, tokenValid: true, arcaReachable: true },
+      {
+        checkedAt: CHECKED_AT,
+        roundTripMs: 180,
+        tokenValid: true,
+        arcaReachable: true,
+        clockOffsetMs: null,
+      },
     );
 
     expect(outcome).toEqual({ kind: "recorded" });
     expect(healthChecks.recorded).toEqual([
       {
-        check: { checkedAt: CHECKED_AT, roundTripMs: 180, tokenValid: true, arcaReachable: true },
+        check: {
+          checkedAt: CHECKED_AT,
+          roundTripMs: 180,
+          tokenValid: true,
+          arcaReachable: true,
+          clockOffsetMs: null,
+        },
         keepLast: 12,
       },
     ]);
@@ -27,11 +39,40 @@ describe("recordRegisterHealthCheck", () => {
 
     await recordRegisterHealthCheck(
       { healthChecks },
-      { checkedAt: CHECKED_AT, roundTripMs: 95, tokenValid: false, arcaReachable: false },
+      {
+        checkedAt: CHECKED_AT,
+        roundTripMs: 95,
+        tokenValid: false,
+        arcaReachable: false,
+        clockOffsetMs: null,
+      },
     );
 
     expect(healthChecks.recorded.map(({ check }) => check)).toEqual([
-      { checkedAt: CHECKED_AT, roundTripMs: 95, tokenValid: false, arcaReachable: false },
+      {
+        checkedAt: CHECKED_AT,
+        roundTripMs: 95,
+        tokenValid: false,
+        arcaReachable: false,
+        clockOffsetMs: null,
+      },
     ]);
+  });
+
+  it("records the offset between the register's clock and the cloud's the check measured", async () => {
+    const healthChecks = new FakeRegisterHealthChecks();
+
+    await recordRegisterHealthCheck(
+      { healthChecks },
+      {
+        checkedAt: CHECKED_AT,
+        roundTripMs: 95,
+        tokenValid: true,
+        arcaReachable: true,
+        clockOffsetMs: -75_000,
+      },
+    );
+
+    expect(healthChecks.recorded.map(({ check }) => check.clockOffsetMs)).toEqual([-75_000]);
   });
 });

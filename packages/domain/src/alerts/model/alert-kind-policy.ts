@@ -197,6 +197,14 @@ const ALERT_KIND_POLICIES = {
     deduplicates: true,
     resolvesAfterStableClear: true,
   },
+  clock_drift: {
+    level: "critical",
+    escalation: null,
+    audience: "local",
+    scopeKind: "register",
+    deduplicates: true,
+    resolvesAfterStableClear: true,
+  },
   outbox_chain_broken: {
     level: "warning",
     escalation: AFTER_OPENING,

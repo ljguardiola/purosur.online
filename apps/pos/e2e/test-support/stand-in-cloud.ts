@@ -209,6 +209,7 @@ export async function startStandInCloud(
       healthCheckSchema.parse({
         status: "ok",
         version: "stand-in",
+        server_time: new Date().toISOString(),
         installation: { revoked: false },
         ...(options.taxAuthorityReachable && {
           arca: { token_valid: true, probe_ok_at: new Date().toISOString(), reachable: true },

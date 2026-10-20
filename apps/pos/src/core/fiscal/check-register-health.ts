@@ -1,5 +1,5 @@
 import { healthCheckSchema } from "@purosur/contracts";
-import { REGISTER_HEALTH_CHECK_INTERVAL_MS } from "@purosur/domain";
+import { clockOffsetMs, REGISTER_HEALTH_CHECK_INTERVAL_MS } from "@purosur/domain";
 import type { RegisterHealthCheck } from "@purosur/domain/fiscal/use-cases";
 import type { CloudCallOptions, CloudResponse } from "../platform/cloud-client";
 
@@ -43,6 +43,10 @@ export async function checkRegisterHealth({
     roundTripMs: answeredAt.getTime() - askedAt.getTime(),
     tokenValid: health.data.arca.token_valid,
     arcaReachable: health.data.arca.reachable,
+    clockOffsetMs:
+      health.data.server_time === undefined
+        ? null
+        : clockOffsetMs({ askedAt, answeredAt, serverTime: new Date(health.data.server_time) }),
   });
   return "recorded";
 }

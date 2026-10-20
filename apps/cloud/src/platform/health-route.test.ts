@@ -38,6 +38,7 @@ beforeEach(async () => {
   registerRouteAccess(app);
   registerHealthRoute(app, {
     version: "abc1234",
+    now: () => NOW,
     arcaOnlineStatus: arcaOnlineStatusOf(db, {
       certificateFingerprint: CERTIFICATE_FINGERPRINT,
       now: () => NOW,
@@ -77,7 +78,11 @@ describe("GET /health", () => {
     const response = await checkHealth();
 
     expect(response.statusCode).toBe(200);
-    expect(healthCheckSchema.parse(response.json())).toEqual({ status: "ok", version: "abc1234" });
+    expect(healthCheckSchema.parse(response.json())).toEqual({
+      status: "ok",
+      version: "abc1234",
+      server_time: NOW.toISOString(),
+    });
   });
 
   it.each([
@@ -95,9 +100,20 @@ describe("GET /health", () => {
     expect(healthCheckSchema.parse(response.json())).toEqual({
       status: "ok",
       version: "abc1234",
+      server_time: NOW.toISOString(),
       installation: { revoked },
       arca: { token_valid: false, probe_ok_at: null, reachable: false },
     });
+  });
+
+  it("tells the time of the cloud's clock to every caller, whatever its token", async () => {
+    const { deviceToken } = await insertEnrolledInstallation(db, { now: NOW });
+
+    const anonymous = await checkHealth();
+    const installation = await checkHealth(`Bearer ${deviceToken}`);
+
+    expect(healthCheckSchema.parse(anonymous.json()).server_time).toBe(NOW.toISOString());
+    expect(healthCheckSchema.parse(installation.json()).server_time).toBe(NOW.toISOString());
   });
 
   it("does not read the state of ARCA for a caller that presents no device token", async () => {
@@ -105,6 +121,7 @@ describe("GET /health", () => {
     registerRouteAccess(failing);
     registerHealthRoute(failing, {
       version: "abc1234",
+      now: () => NOW,
       arcaOnlineStatus: () => Promise.reject(new Error("must not be read")),
     });
 
@@ -112,7 +129,11 @@ describe("GET /health", () => {
     await failing.close();
 
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toEqual({ status: "ok", version: "abc1234" });
+    expect(response.json()).toEqual({
+      status: "ok",
+      version: "abc1234",
+      server_time: NOW.toISOString(),
+    });
   });
 
   it("tells an installation ARCA is reachable from a recent successful probe", async () => {
@@ -218,6 +239,7 @@ describe("GET /health", () => {
     registerRouteAccess(failing);
     registerHealthRoute(failing, {
       version: "abc1234",
+      now: () => NOW,
       authenticateDevice: () =>
         Promise.reject(new Error("Failed query: select register_installations")),
     });
@@ -237,7 +259,7 @@ describe("GET /health", () => {
   it("answers without any installation when no device authentication is wired", async () => {
     const bare = Fastify();
     registerRouteAccess(bare);
-    registerHealthRoute(bare, { version: "abc1234" });
+    registerHealthRoute(bare, { version: "abc1234", now: () => NOW });
 
     const response = await bare.inject({
       method: "GET",
@@ -246,7 +268,11 @@ describe("GET /health", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toEqual({ status: "ok", version: "abc1234" });
+    expect(response.json()).toEqual({
+      status: "ok",
+      version: "abc1234",
+      server_time: NOW.toISOString(),
+    });
     await bare.close();
   });
 });

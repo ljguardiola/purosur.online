@@ -59,3 +59,7 @@ test("names the alert of a presentation ARCA lists as owed for a point of sale t
     "Presentación adeudada en otro sistema",
   );
 });
+
+test("names the alert of a register whose clock is off from the real time", () => {
+  expect(alertKindLabel("clock_drift")).toBe("Reloj de la caja desajustado");
+});
