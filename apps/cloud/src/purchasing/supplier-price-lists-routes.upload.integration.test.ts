@@ -23,11 +23,16 @@ let sql: ReturnType<typeof postgres>;
 let db: PostgresJsDatabase<Record<string, never>>;
 let app: FastifyInstance;
 let files: InMemorySupplierPriceListFiles;
+let headers: Record<string, string>;
+let userId: string;
+let supplierId: string;
 
 beforeAll(async () => {
   integrationDb = await createIntegrationDatabase("supplier_price_lists_routes");
   sql = postgres(integrationDb.databaseUrl, { max: 5 });
   db = drizzle(sql);
+  ({ headers, userId } = await signedInWith(db, ["manage_supplier_price_lists"], NOW));
+  supplierId = await insertSupplier(db, { actorId: await insertActor(db) });
 }, 60_000);
 
 afterAll(async () => {
@@ -62,32 +67,30 @@ function queuedReadings() {
 }
 
 async function upload(payload: Buffer) {
-  const { headers, userId } = await signedInWith(db, ["manage_supplier_price_lists"], NOW);
-  const supplierId = await insertSupplier(db, { actorId: await insertActor(db) });
   const response = await app.inject({
     method: "POST",
     url: `/supplier-price-lists?${new URLSearchParams({ supplierId, fileName: "lista.pdf" })}`,
     headers: { ...headers, "content-type": "application/pdf" },
     payload,
   });
-  return { response, userId };
+  return response;
 }
 
 describe("POST /supplier-price-lists on a real Postgres", () => {
   it("stores the list and its file and queues its reading, answering 201", async () => {
-    const { response, userId } = await upload(PDF);
+    const response = await upload(PDF);
 
     expect(response.statusCode).toBe(201);
     const { listId } = response.json();
     expect(await db.select().from(supplierPriceLists)).toMatchObject([
       { id: listId, state: "READING", fileName: "lista.pdf", uploadedBy: userId },
     ]);
-    expect(files.stored.get(listId)).toEqual(new Uint8Array(PDF));
+    expect(Buffer.from(files.stored.get(listId) ?? []).equals(PDF)).toBe(true);
     expect(await queuedReadings()).toEqual([{ payload: { listId } }]);
   });
 
   it("queues no reading for an upload it refuses", async () => {
-    const { response } = await upload(
+    const response = await upload(
       Buffer.concat([PDF, Buffer.alloc(SUPPLIER_PRICE_LIST_PDF_MAX_BYTES)]),
     );
 
