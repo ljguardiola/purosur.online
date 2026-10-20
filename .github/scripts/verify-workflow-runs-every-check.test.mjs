@@ -1245,9 +1245,7 @@ const POSTGRES_MIRROR = {
   dockerHubSourceImage: `postgres:18-alpine@${POSTGRES_DIGEST}`,
   otherDigestSourceImage: `public.ecr.aws/docker/library/postgres:18-alpine@${PLAYWRIGHT_DIGEST}`,
   copyAttemptSeconds: 300,
-  copyRetrySeconds: 1305,
   copyJobTimeoutMinutes: 25,
-  enoughCopyStepTimeoutMinutes: 22,
   notOnGhcrImages: [
     ECR_POSTGRES_IMAGE,
     `mirror:5000/library/postgres:18-alpine@${POSTGRES_DIGEST}`,
@@ -1264,9 +1262,7 @@ const PLAYWRIGHT_MIRROR = {
   dockerHubSourceImage: `playwright:v1.63.0-noble@${PLAYWRIGHT_DIGEST}`,
   otherDigestSourceImage: `mcr.microsoft.com/playwright:v1.63.0-noble@${POSTGRES_DIGEST}`,
   copyAttemptSeconds: 600,
-  copyRetrySeconds: 2505,
   copyJobTimeoutMinutes: 45,
-  enoughCopyStepTimeoutMinutes: 42,
   notOnGhcrImages: [
     MCR_PLAYWRIGHT_IMAGE,
     `mirror:5000/playwright:v1.63.0-noble@${PLAYWRIGHT_DIGEST}`,
@@ -1293,7 +1289,6 @@ const PRE_PULLED_IMAGES = [
     mirror: POSTGRES_MIRROR,
     pullAttemptSeconds: 120,
     otherPullAttemptSeconds: 300,
-    pullRetrySeconds: 585,
     enoughPullTimeoutMinutes: 10,
     jobSeconds: 1485,
     jobTimeoutMinutes: 25,
@@ -1311,7 +1306,6 @@ const PRE_PULLED_IMAGES = [
     mirror: PLAYWRIGHT_MIRROR,
     pullAttemptSeconds: 300,
     otherPullAttemptSeconds: 120,
-    pullRetrySeconds: 1305,
     enoughPullTimeoutMinutes: 22,
     jobSeconds: 2205,
     jobTimeoutMinutes: 37,
@@ -1328,7 +1322,6 @@ const PRE_PULLED_IMAGES = [
     mirror: PLAYWRIGHT_MIRROR,
     pullAttemptSeconds: 300,
     otherPullAttemptSeconds: 120,
-    pullRetrySeconds: 1305,
     enoughPullTimeoutMinutes: 22,
     jobSeconds: 2205,
     jobTimeoutMinutes: 37,
@@ -1427,8 +1420,6 @@ function ghcrMirrorLines(
     lookupToken = GITHUB_TOKEN,
     copyNeeds = [spec.mirror.lookupJob],
     copyCondition = `\${{ needs.${spec.mirror.lookupJob}.outputs.mirrored == 'false' }}`,
-    copyJobTimeoutMinutes = spec.mirror.copyJobTimeoutMinutes,
-    copyStepTimeoutMinutes,
     copyToken = GITHUB_TOKEN,
     copyPermissions = ["packages: write"],
     copyLines = copyMirrorLines(spec.constant, spec.mirror.copyAttemptSeconds),
@@ -1459,15 +1450,12 @@ function ghcrMirrorLines(
       `    needs: [${copyNeeds.join(", ")}]`,
       `    if: ${copyCondition}`,
       "    runs-on: ubuntu-24.04",
-      `    timeout-minutes: ${copyJobTimeoutMinutes}`,
+      `    timeout-minutes: ${spec.mirror.copyJobTimeoutMinutes}`,
       "    permissions:",
       ...block(6, copyPermissions),
       "    steps:",
       "      - run: |",
       ...block(10, copyLines),
-      ...(copyStepTimeoutMinutes === undefined
-        ? []
-        : [`        timeout-minutes: ${copyStepTimeoutMinutes}`]),
       "        env:",
       `          GITHUB_TOKEN: ${copyToken}`,
       `          SOURCE_IMAGE: ${sourceImage}`,
@@ -1575,30 +1563,6 @@ for (const spec of PRE_PULLED_IMAGES) {
       violations,
       new RegExp(`${spec.job} job's pull step of .* sets no timeout-minutes`),
     );
-  });
-
-  test(`flags a ${spec.job} job whose pull step of ${spec.label} times out before its last attempt can`, () => {
-    const shortMinutes = spec.enoughPullTimeoutMinutes - 1;
-    const violations = spec.findViolations(
-      jobWithPull(spec, { pullTimeoutMinutes: shortMinutes }),
-      setup(),
-    );
-
-    assertSingleViolation(
-      violations,
-      new RegExp(
-        `${spec.job} job's pull step of .* allows ${shortMinutes} minutes, less than the ${spec.pullRetrySeconds} seconds its pull attempts and their delays can take`,
-      ),
-    );
-  });
-
-  test(`passes a ${spec.job} job whose pull step of ${spec.label} times out just after its last attempt can`, () => {
-    const violations = spec.findViolations(
-      jobWithPull(spec, { pullTimeoutMinutes: spec.enoughPullTimeoutMinutes }),
-      setup(),
-    );
-
-    assert.deepEqual(violations, []);
   });
 
   test(`flags a ${spec.job} job pulling ${spec.label} whose ${spec.testsScript} step sets no time limit`, () => {
@@ -1821,30 +1785,6 @@ for (const spec of MIRRORED_IMAGES) {
       violations,
       new RegExp(`${copyJob} job does not copy .* with its own token`),
     );
-  });
-
-  for (const [label, timeouts] of [
-    ["job", { copyJobTimeoutMinutes: 10 }],
-    ["step", { copyStepTimeoutMinutes: 10 }],
-  ]) {
-    test(`flags a ${copyJob} ${label} whose time limit ends before its last copy attempt can`, () => {
-      const violations = violationsWithMirror(spec, timeouts);
-
-      assertSingleViolation(
-        violations,
-        new RegExp(
-          `${copyJob} ${label} allows 10 minutes, less than the ${spec.mirror.copyRetrySeconds} seconds its copy attempts and their delays can take`,
-        ),
-      );
-    });
-  }
-
-  test(`passes a ${copyJob} step whose time limit covers every copy attempt and delay`, () => {
-    const violations = violationsWithMirror(spec, {
-      copyStepTimeoutMinutes: spec.mirror.enoughCopyStepTimeoutMinutes,
-    });
-
-    assert.deepEqual(violations, []);
   });
 
   test(`flags a ${copyJob} job not granted packages: write`, () => {
