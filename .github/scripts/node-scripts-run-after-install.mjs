@@ -64,6 +64,15 @@ const NODE_PRELOAD_FLAGS = new Set([
 const NODE_EVAL_FLAGS = new Set(["-e", "--eval", "-p", "--print"]);
 const NODE_NO_SCRIPT_FLAGS = new Set(["-v", "--version", "-h", "--help", "--v8-options"]);
 const PNPM_DIRECTORY_FLAGS = new Set(["-C", "--dir"]);
+const PNPM_FLAGS_WITH_VALUE = new Set([
+  "-F",
+  "--filter",
+  "--filter-prod",
+  "--reporter",
+  "--loglevel",
+  "--test-pattern",
+  "--changed-files-ignore-pattern",
+]);
 
 const TEST_RUNNER_EXTENSIONS = "{cjs,mjs,js,cts,mts,ts}";
 const TEST_RUNNER_DEFAULT_PATTERNS = [
@@ -132,20 +141,43 @@ function shellCommands(script) {
   let words = [];
   let word = null;
   let skipNextWord = false;
+  let hereDocumentOperator = null;
+  const hereDocuments = [];
 
   const startWord = () => {
     word ??= { text: "", unresolved: false };
   };
   const endWord = () => {
     if (word === null) return;
-    if (skipNextWord) skipNextWord = false;
-    else words.push(word);
+    if (skipNextWord) {
+      skipNextWord = false;
+      if (hereDocumentOperator !== null) {
+        hereDocuments.push({ delimiter: word.text, stripsTabs: hereDocumentOperator === "<<-" });
+        hereDocumentOperator = null;
+      }
+    } else words.push(word);
     word = null;
   };
   const endCommand = () => {
     endWord();
+    skipNextWord = false;
+    hereDocumentOperator = null;
     if (words.length > 0) commands.push(words);
     words = [];
+  };
+  const skipHereDocuments = (start) => {
+    let lineStart = start;
+    for (const { delimiter, stripsTabs } of hereDocuments) {
+      while (lineStart < script.length) {
+        const end = script.indexOf("\n", lineStart);
+        const lineEnd = end === -1 ? script.length : end;
+        const line = script.slice(lineStart, lineEnd);
+        lineStart = lineEnd + 1;
+        if ((stripsTabs ? line.replace(/^\t+/, "") : line) === delimiter) break;
+      }
+    }
+    hereDocuments.length = 0;
+    return lineStart;
   };
   const substitute = (inner) => {
     const outerWords = words;
@@ -227,14 +259,21 @@ function shellCommands(script) {
       index = close + 1;
     } else if (character === "$") {
       index = expand(index);
+    } else if ((character === "<" || character === ">") && next === "(") {
+      const close = findClosing(script, index + 2, "(", ")");
+      substitute(script.slice(index + 2, close));
+      index = close + 1;
     } else if (character === ">" || character === "<" || (character === "&" && next === ">")) {
       if (word !== null && /^\d+$/.test(word.text) && !word.unresolved) word = null;
       endWord();
       const operator = script.slice(index).match(/^(?:&>>?|[<>]{1,3}&?(?:\d+-?|-)?)/)[0];
       skipNextWord = !/&(?:\d+-?|-)$/.test(operator);
+      hereDocumentOperator = /^<<-?$/.test(operator) ? operator : null;
       index += operator.length;
+    } else if (character === "\n") {
+      endCommand();
+      index = skipHereDocuments(index + 1);
     } else if (
-      character === "\n" ||
       character === ";" ||
       character === "|" ||
       character === "&" ||
@@ -290,6 +329,8 @@ function installsDependencies(args, workingDirectory) {
         directory === undefined || value === undefined
           ? undefined
           : insideRepository(directory, value.text);
+    } else if (PNPM_FLAGS_WITH_VALUE.has(flag)) {
+      index = flagValue(args, index, inlineValue).next;
     } else if (!text.startsWith("-")) {
       return (text === "install" || text === "i") && directory !== undefined;
     }
