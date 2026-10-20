@@ -346,7 +346,7 @@ describe("the Mercado Pago order routes", () => {
       expect(response.statusCode).toBe(503);
       expect(cloudErrorSchema.parse(response.json()).code).toBe("payment_provider_not_configured");
       expect(route.mercadoPago.creations).toEqual([]);
-      expect(await transactions()).toEqual([]);
+      expect(await transactions()).toMatchObject([{ state: "PENDING", providerOrderId: null }]);
     });
 
     it("answers that the provider refused the order", async () => {
