@@ -157,6 +157,7 @@ describe("the sales history", () => {
           comprobante: {
             kind: "fiscal",
             document_type: "factura_c",
+            authorization: "real_time",
             point_of_sale: 3,
             number: 1204,
           },

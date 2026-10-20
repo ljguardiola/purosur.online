@@ -358,6 +358,7 @@ describe("SqliteRegisterSalesHistory", () => {
         fiscalDocument: {
           state: "AUTHORIZED",
           documentType: "factura_c",
+          authorization: "real_time",
           pointOfSale: 7,
           number: 1204,
         },
@@ -372,10 +373,44 @@ describe("SqliteRegisterSalesHistory", () => {
         fiscalDocument: {
           state: "AUTHORIZED",
           documentType: "factura_c",
+          authorization: "offline_code",
           pointOfSale: 8,
           number: 412,
         },
       });
+    });
+
+    it("lists the document issued under a pre-obtained code as a comprobante authorized by it, with its point of sale and number", () => {
+      addSale({ id: "sale-1", offlineDocument: { pointOfSale: 8, number: 412 } });
+
+      expect(new SqliteRegisterSalesHistory(database).comprobanteOf("sale-1")).toEqual({
+        kind: "fiscal",
+        documentType: "factura_c",
+        authorization: "offline_code",
+        pointOfSale: 8,
+        number: 412,
+      });
+    });
+
+    it("lists a document authorized in real time as a comprobante authorized in real time", () => {
+      addSale({ id: "sale-1", fiscal: { state: "AUTHORIZED", pointOfSale: 7, number: 1204 } });
+
+      expect(new SqliteRegisterSalesHistory(database).comprobanteOf("sale-1")).toEqual({
+        kind: "fiscal",
+        documentType: "factura_c",
+        authorization: "real_time",
+        pointOfSale: 7,
+        number: 1204,
+      });
+    });
+
+    it("lists a deferred sale as a non-fiscal comprobante and a sale with no document as none", () => {
+      addSale({ id: "deferred", deferred: true });
+      addSale({ id: "plain" });
+
+      const history = new SqliteRegisterSalesHistory(database);
+      expect(history.comprobanteOf("deferred")).toEqual({ kind: "deferred_non_fiscal" });
+      expect(history.comprobanteOf("plain")).toEqual({ kind: "none" });
     });
 
     it("shows a voided sale as voided", () => {
@@ -427,6 +462,7 @@ describe("SqliteRegisterSalesHistory", () => {
         fiscalDocument: {
           state: "AUTHORIZED",
           documentType: "factura_c",
+          authorization: "real_time",
           pointOfSale: 7,
           number: 1204,
         },
@@ -590,6 +626,7 @@ describe("SqliteRegisterSalesHistory", () => {
           fiscalDocument: {
             state: "AUTHORIZED",
             documentType: "factura_c",
+            authorization: "real_time",
             pointOfSale: 7,
             number: 1204,
           },
