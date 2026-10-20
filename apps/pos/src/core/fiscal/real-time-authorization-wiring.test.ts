@@ -3,17 +3,22 @@ import { REGISTER_HEALTH_CHECK_INTERVAL_MS } from "@purosur/domain";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CloudClientDeps } from "../platform/cloud-client";
 import type { LocalDatabase } from "../platform/local-database";
+import { appendOutboxEvent } from "../sync/sqlite-outbox";
+import { CHAIN_KEY, outboxEventDraft } from "../sync/test-support/sqlite-local-outbox";
 import {
+  cloudCreditNotes,
   createRealTimeAuthorization,
   settleInterruptedAuthorizations,
   startRegisterHealthChecks,
 } from "./real-time-authorization-wiring";
+import { insertPendingCreditNote } from "./sqlite-void-credit-notes";
 import {
   FACTURA_C,
   insertCompletedSale,
   insertDeferredSale,
   insertFiscalDocument,
   insertHealthCheck,
+  insertPointOfSale,
   insertSaleCompletedEvent,
   openFiscalDatabase,
   SALE_COMPLETED_AT,
@@ -582,5 +587,191 @@ describe("applying the decisions of the documents left with an unclear outcome, 
     expect(database.prepare("SELECT count(*) AS total FROM register_health_checks").get()).toEqual({
       total: 1,
     });
+  });
+});
+
+describe("asking for the credit notes of voided sales, as the register's health is checked", () => {
+  const CREDIT_NOTE_PATH = "/api/fiscal/credit-notes";
+
+  const healthy = () =>
+    json({
+      status: "ok",
+      version: "abc1234",
+      installation: { revoked: false },
+      arca: { token_valid: true, probe_ok_at: "2026-09-30T12:05:00.000Z", reachable: true },
+    });
+
+  const authorized = () =>
+    json({
+      state: "AUTHORIZED",
+      point_of_sale: 12,
+      number: 7,
+      issued_on: "2026-09-30",
+      issued_at: "2026-09-30T12:05:01.000Z",
+      authorization_code: "75123456789012",
+      authorization_code_due_on: "2026-10-10",
+    });
+
+  function ticking(creditNote: () => Promise<Response>, failures: unknown[] = []) {
+    const { cloud, sent } = cloudAnswering(async (path) =>
+      path === CREDIT_NOTE_PATH ? creditNote() : healthy(),
+    );
+    const scheduled: { run: () => void; delayMs: number }[] = [];
+    startRegisterHealthChecks({
+      database,
+      cloudClient: cloud,
+      readDeviceToken: async () => "prefix.secret",
+      now: () => NOW,
+      scheduleNext: (run, delayMs) => {
+        scheduled.push({ run, delayMs });
+        return () => undefined;
+      },
+      reportFailure: (error) => failures.push(error),
+    });
+    async function tick(): Promise<void> {
+      const before = scheduled.length;
+      scheduled[before - 1]?.run();
+      await vi.waitFor(() => expect(scheduled).toHaveLength(before + 1));
+    }
+    return { sent, tick };
+  }
+
+  function leaveInProgress(index: number): void {
+    const saleId = `sale-${index}`;
+    insertCompletedSale(database, saleId);
+    database
+      .prepare(
+        "UPDATE sales SET state = 'VOIDED', voided_at = '2026-09-30T12:30:00.000Z' WHERE id = ?",
+      )
+      .run(saleId);
+    appendOutboxEvent(database, CHAIN_KEY, {
+      ...outboxEventDraft(index),
+      aggregate_type: "Sale",
+      aggregate_id: saleId,
+      event_type: "sale_voided",
+      schema_version: 3,
+      payload: { id: saleId },
+    });
+    insertPendingCreditNote(database, {
+      creditNoteId: `note-${index}`,
+      saleId,
+      total: 3000,
+      receiverTaxStatusCode: 5,
+      correctedVoucher: { voucherType: 11, pointOfSale: 12, number: 40 + index },
+    });
+  }
+
+  function noteStates(): unknown {
+    return database.prepare("SELECT id, state FROM sale_void_credit_notes ORDER BY id").all();
+  }
+
+  it("asks the cloud nothing when no credit note is in progress", async () => {
+    insertPointOfSale(database, 0);
+    const { sent, tick } = ticking(async () => authorized());
+
+    await tick();
+
+    expect(sent.map(({ path }) => path)).toEqual(["/api/health"]);
+  });
+
+  it("asks once about each credit note in progress, with the device token, on the first check as the register starts", async () => {
+    insertPointOfSale(database, 0);
+    leaveInProgress(1);
+    leaveInProgress(2);
+    const { sent, tick } = ticking(async () => json({ state: "IN_PROGRESS" }));
+
+    await tick();
+
+    expect(sent).toEqual([
+      { path: "/api/health", authorization: "Bearer prefix.secret" },
+      { path: CREDIT_NOTE_PATH, authorization: "Bearer prefix.secret" },
+      { path: CREDIT_NOTE_PATH, authorization: "Bearer prefix.secret" },
+    ]);
+    expect(noteStates()).toEqual([
+      { id: "note-1", state: "IN_PROGRESS" },
+      { id: "note-2", state: "IN_PROGRESS" },
+    ]);
+  });
+
+  it("records the authorization the cloud gives and asks no more about that credit note", async () => {
+    insertPointOfSale(database, 0);
+    leaveInProgress(1);
+    const { sent, tick } = ticking(async () => authorized());
+
+    await tick();
+    await tick();
+
+    expect(noteStates()).toEqual([{ id: "note-1", state: "AUTHORIZED" }]);
+    expect(sent.filter(({ path }) => path === CREDIT_NOTE_PATH)).toHaveLength(1);
+  });
+
+  it("asks again at the next check when the cloud gave no answer", async () => {
+    insertPointOfSale(database, 0);
+    leaveInProgress(1);
+    let answers = 0;
+    const { sent, tick } = ticking(async () => {
+      answers += 1;
+      return answers === 1 ? json({ error: "down" }, 503) : authorized();
+    });
+
+    await tick();
+    expect(noteStates()).toEqual([{ id: "note-1", state: "IN_PROGRESS" }]);
+    await tick();
+
+    expect(noteStates()).toEqual([{ id: "note-1", state: "AUTHORIZED" }]);
+    expect(sent.filter(({ path }) => path === CREDIT_NOTE_PATH)).toHaveLength(2);
+  });
+
+  it("keeps checking the register's health when asking for a credit note failed, reporting it", async () => {
+    insertPointOfSale(database, 0);
+    leaveInProgress(1);
+    database.prepare("DROP TABLE sale_void_credit_notes").run();
+    const failures: unknown[] = [];
+    const { tick } = ticking(async () => authorized(), failures);
+
+    await tick();
+
+    expect(failures.length).toBeGreaterThan(0);
+    expect(database.prepare("SELECT count(*) AS total FROM register_health_checks").get()).toEqual({
+      total: 1,
+    });
+  });
+});
+
+describe("the cloud that issues the credit note of a voided sale", () => {
+  it("is none for a register that cannot reach a cloud", () => {
+    expect(
+      cloudCreditNotes({ cloudClient: undefined, readDeviceToken: async () => "x" }),
+    ).toBeUndefined();
+  });
+
+  it("asks the cloud for the credit note with the device token", async () => {
+    const { cloud, sent } = cloudAnswering(async () => json({ state: "REJECTED" }));
+    insertPointOfSale(database, 0);
+
+    const answer = await cloudCreditNotes({
+      cloudClient: cloud,
+      readDeviceToken: async () => "prefix.secret",
+    })?.request({
+      creditNoteId: "018f0000-0000-7000-8000-0000000000c1",
+      pointOfSale: 12,
+      saleEvent: {
+        event_id: "018f0000-0000-7000-8000-000000000002",
+        device_seq: 1,
+        aggregate_type: "Sale",
+        aggregate_id: "018f0000-0000-7000-8000-0000000000a1",
+        event_type: "sale_voided",
+        schema_version: 3,
+        payload: {},
+        occurred_at: "2026-09-30T12:30:00.000Z",
+        actor_id: "u1",
+        chain_hmac: "hmac",
+      },
+    });
+
+    expect(answer).toEqual({ kind: "rejected" });
+    expect(sent).toEqual([
+      { path: "/api/fiscal/credit-notes", authorization: "Bearer prefix.secret" },
+    ]);
   });
 });

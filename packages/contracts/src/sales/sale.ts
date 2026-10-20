@@ -23,6 +23,7 @@ import {
   recordIdSchema,
   saleCancelRefusalSchema,
 } from "../shared/index.js";
+import { saleCreditNoteSchema } from "./sale-credit-note.js";
 
 const cents = z.int().nonnegative();
 
@@ -321,6 +322,7 @@ export const voidSaleOutcomeSchema = z.discriminatedUnion("kind", [
     kind: z.literal("voided"),
     refunds: z.array(plannedRefundSchema),
     authorized_by: authorizedBySchema.nullable(),
+    credit_note: saleCreditNoteSchema.nullable(),
   }),
   z.object({ kind: z.literal("not_found") }),
   z.object({ kind: z.enum(SALE_VOID_REFUSALS) }),

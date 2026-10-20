@@ -51,3 +51,4 @@ export {
 export { serialDeviceIdentitySchema } from "./serial-device-identity.js";
 export type { SignInUser } from "./sign-in-user.js";
 export { signInUserSchema } from "./sign-in-user.js";
+export { voidCreditNoteSchema } from "./void-credit-note.js";

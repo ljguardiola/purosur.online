@@ -5,10 +5,10 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
   alerts,
   arcaWsaaTokens,
+  creditNotes,
   fiscalRequests,
   fiscalTasks,
   numberingFreezes,
-  orphanCreditNotes,
   taxAuthorityLastAuthorizedNumbers,
 } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
@@ -77,7 +77,7 @@ function tasksUnderTest() {
     enqueueNumberingReconciliation: async (_, pointOfSale) => {
       reconciliationsRequested.push(pointOfSale);
     },
-    enqueueOrphanCreditNote: async (_, creditNoteId) => {
+    enqueueCreditNote: async (_, creditNoteId) => {
       creditNotesRequested.push(creditNoteId);
     },
   });
@@ -367,8 +367,8 @@ describe("numberingConflictJobs", () => {
 
       await reconcile({ pointOfSale: 7 }, buildJobHelpers().helpers);
 
-      const creditNotes = await testDatabase.db.select().from(orphanCreditNotes);
-      expect(creditNotes).toMatchObject([
+      const rows = await testDatabase.db.select().from(creditNotes);
+      expect(rows).toMatchObject([
         {
           saleId,
           pointOfSale: 7,
@@ -382,7 +382,7 @@ describe("numberingConflictJobs", () => {
           number: null,
         },
       ]);
-      expect(creditNotesRequested).toEqual([creditNotes[0]?.id]);
+      expect(creditNotesRequested).toEqual([rows[0]?.id]);
       expect(await testDatabase.db.select().from(fiscalTasks)).toEqual([]);
       expect(await freezes()).toEqual([]);
     });

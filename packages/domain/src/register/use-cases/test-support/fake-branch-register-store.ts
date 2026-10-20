@@ -23,8 +23,10 @@ export interface FakeBranchRegister {
   pointTerminal?: { terminalId: string | null; version: number };
 }
 
-export interface FakeRegisterInstallation extends RegisterInstallationRecord {
+export interface FakeRegisterInstallation
+  extends Omit<RegisterInstallationRecord, "bitlockerKeyLoaded"> {
   registerId: string;
+  bitlockerKeyLoaded?: boolean;
 }
 
 export interface FakeRegisterEnrollmentCode extends RegisterEnrollmentCode {
@@ -165,11 +167,12 @@ export class FakeBranchRegisterStore implements BranchRegisterStore, BranchRegis
           pointTerminal: register.pointTerminal ?? { terminalId: null, version: 0 },
           installations: this.state.installations
             .filter((row) => row.registerId === register.id)
-            .map(({ hostname, windowsVersion, enrolledAt, revokedAt }) => ({
+            .map(({ hostname, windowsVersion, enrolledAt, revokedAt, bitlockerKeyLoaded }) => ({
               hostname,
               windowsVersion,
               enrolledAt: new Date(enrolledAt),
               revokedAt: revokedAt ? new Date(revokedAt) : null,
+              bitlockerKeyLoaded: bitlockerKeyLoaded ?? false,
             })),
         };
       });

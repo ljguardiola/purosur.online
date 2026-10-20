@@ -2,6 +2,7 @@ import { expect, test } from "vitest";
 import {
   canAssignPointTerminal,
   canCloseAlertsManually,
+  canEnrollRegisters,
   canManageBatches,
   canManageFreights,
   canManageProductsAndCategories,
@@ -31,6 +32,7 @@ import {
   canSeeStockBalances,
   canSeeStockMovements,
   canSeeUsersArea,
+  canUseBitlockerRecoveryKey,
 } from "./backoffice-access";
 import {
   ADMINISTRATOR_ACCESS,
@@ -50,7 +52,9 @@ test.each([
   ["canSeeAlertsArea", "alerts_area", canSeeAlertsArea],
   ["canCloseAlertsManually", "close_alerts_manually", canCloseAlertsManually],
   ["canSeeRegistersArea", "registers_area", canSeeRegistersArea],
+  ["canEnrollRegisters", "enroll_registers", canEnrollRegisters],
   ["canRevokeInstallations", "revoke_installations", canRevokeInstallations],
+  ["canUseBitlockerRecoveryKey", "bitlocker_recovery_key", canUseBitlockerRecoveryKey],
   ["canSeeBackupsArea", "backups_area", canSeeBackupsArea],
   ["canSeeStockBalances", "stock_balances", canSeeStockBalances],
   ["canPerformStockCounts", "stock_counts", canPerformStockCounts],

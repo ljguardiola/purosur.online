@@ -112,6 +112,12 @@ interface ExternalBillingDetail {
   number: number;
 }
 
+interface InvoiceAlreadyCreditedDetail {
+  pointOfSale: number;
+  number: number;
+  saleId: string;
+}
+
 interface ClockCorrectedDetail {
   pointOfSale: number;
   documentType: FiscalDocumentType;
@@ -227,6 +233,7 @@ export interface AlertDetails {
   external_billing: ExternalBillingDetail;
   fortnight_report_needs_regularization: FortnightReportNeedsRegularizationDetail;
   clock_corrected: ClockCorrectedDetail;
+  invoice_already_credited: InvoiceAlreadyCreditedDetail;
   fortnight_report_owed_elsewhere: FortnightReportOwedElsewhereDetail;
 }
 

@@ -122,6 +122,7 @@ export type {
   MercadoPagoOrderPorts,
   MercadoPagoOrderReading,
   MercadoPagoOrderRefundsReading,
+  MercadoPagoOrderSearch,
   MercadoPagoOrders,
   MercadoPagoPointOrderPorts,
   MercadoPagoPointOrderRequest,

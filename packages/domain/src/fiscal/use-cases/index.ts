@@ -144,6 +144,20 @@ export type {
   CreateFiscalAddressOutcome,
 } from "./create-fiscal-address.js";
 export { createFiscalAddress } from "./create-fiscal-address.js";
+export type {
+  CreditNote,
+  CreditNoteAuthorizationRecord,
+  CreditNoteLane,
+  CreditNoteLanes,
+  CreditNoteRejectionRecord,
+  CreditNoteRequestRecord,
+  CreditNoteRequests,
+  CreditNoteSolicitation,
+  CreditNoteStanding,
+  IssueCreditNotePorts,
+  TaxAuthorityCreditNoteInvoicing,
+} from "./credit-note-ports.js";
+export { CreditNoteNumberTaken } from "./credit-note-ports.js";
 export type { CurrentFortnightCodeStanding } from "./current-fortnight-code-after-obtaining.js";
 export { currentFortnightCodeAfterObtaining } from "./current-fortnight-code-after-obtaining.js";
 export type {
@@ -239,10 +253,10 @@ export type {
   InterruptedRealTimeAuthorizationsTransaction,
 } from "./interrupted-real-time-authorization-ports.js";
 export type {
-  IssueOrphanCreditNoteInput,
-  IssueOrphanCreditNoteOutcome,
-} from "./issue-orphan-credit-note.js";
-export { issueOrphanCreditNote } from "./issue-orphan-credit-note.js";
+  IssueCreditNoteInput,
+  IssueCreditNoteOutcome,
+} from "./issue-credit-note.js";
+export { creditNoteAnswerOf, issueCreditNote } from "./issue-credit-note.js";
 export type {
   AuthorizedIssuerIdentification,
   EditableIssuerIdentification,
@@ -291,20 +305,6 @@ export type {
   OrphanStandingReader,
   RegularizeOrphanAuthorizationPorts,
 } from "./orphan-authorization-ports.js";
-export type {
-  CreditNoteAuthorizationRecord,
-  CreditNoteRejectionRecord,
-  CreditNoteRequestRecord,
-  CreditNoteSolicitation,
-  CreditNoteStanding,
-  IssueOrphanCreditNotePorts,
-  OrphanCreditNote,
-  OrphanCreditNoteLane,
-  OrphanCreditNoteLanes,
-  OrphanCreditNoteRequests,
-  TaxAuthorityCreditNoteInvoicing,
-} from "./orphan-credit-note-ports.js";
-export { CreditNoteNumberTaken } from "./orphan-credit-note-ports.js";
 export type { OwedPresentationList } from "./owed-presentation-list-ports.js";
 export type {
   ArcaOnlineStatus,
@@ -417,6 +417,30 @@ export type {
 } from "./request-real-time-authorization.js";
 export { requestRealTimeAuthorization } from "./request-real-time-authorization.js";
 export type {
+  RequestSaleVoidCreditNoteInput,
+  RequestSaleVoidCreditNoteOutcome,
+} from "./request-sale-void-credit-note.js";
+export { requestSaleVoidCreditNote } from "./request-sale-void-credit-note.js";
+export type {
+  RequestedCreditNote,
+  RequestVoidCreditNotesOutcome,
+} from "./request-void-credit-notes.js";
+export { requestVoidCreditNotes } from "./request-void-credit-notes.js";
+export type {
+  CloudCreditNoteCall,
+  CloudCreditNotes,
+  CreditNotePrinter,
+  PendingCreditNote,
+  RegisterVoidCreditNotes,
+  RequestVoidCreditNotesPorts,
+  RequestVoidedSaleCreditNotePorts,
+} from "./request-void-credit-notes-ports.js";
+export type {
+  RequestVoidedSaleCreditNoteInput,
+  RequestVoidedSaleCreditNoteOutcome,
+} from "./request-voided-sale-credit-note.js";
+export { requestVoidedSaleCreditNote } from "./request-voided-sale-credit-note.js";
+export type {
   RetireOfflinePointOfSaleInput,
   RetireOfflinePointOfSaleOutcome,
   RetireOfflinePointOfSalePorts,
@@ -435,6 +459,14 @@ export type {
   SaleAuthorizationTransaction,
   SaleOrigin,
 } from "./sale-authorization-ports.js";
+export type {
+  InvoiceAlreadyCredited,
+  RequestSaleVoidCreditNotePorts,
+  SaleVoidCreditNoteLane,
+  SaleVoidCreditNoteLanes,
+  SaleVoidCreditNoteRecord,
+} from "./sale-void-credit-note-ports.js";
+export { CreditNoteIdTaken, VoucherAlreadyCredited } from "./sale-void-credit-note-ports.js";
 export type { SettleInterruptedRealTimeAuthorizationsOutcome } from "./settle-interrupted-real-time-authorizations.js";
 export { settleInterruptedRealTimeAuthorizations } from "./settle-interrupted-real-time-authorizations.js";
 export type {

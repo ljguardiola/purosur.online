@@ -159,6 +159,12 @@ const printOriginalReceiptMessageSchema = z.object({
   sale_id: z.string(),
 });
 
+const printCreditNoteMessageSchema = z.object({
+  type: z.literal("print-credit-note"),
+  request_id: requestId,
+  sale_id: z.string(),
+});
+
 export const reprintSaleReceiptMessageSchema = z.object({
   type: z.literal("reprint-sale-receipt"),
   request_id: requestId,
@@ -245,6 +251,7 @@ export const salesRendererToCoreMessageSchema = z.discriminatedUnion("type", [
   cancelLockedSaleMessageSchema,
   receiptPrintStatusMessageSchema,
   printOriginalReceiptMessageSchema,
+  printCreditNoteMessageSchema,
   reprintSaleReceiptMessageSchema,
   salesHistoryMessageSchema,
   saleHistoryDetailMessageSchema,
@@ -297,6 +304,17 @@ const printOriginalReceiptOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("unavailable") }),
 ]);
 export type PrintOriginalReceiptOutcome = z.infer<typeof printOriginalReceiptOutcomeSchema>;
+
+const printCreditNoteOutcomeSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("started") }),
+  z.object({ kind: z.literal("busy") }),
+  z.object({ kind: z.literal("printer_not_configured") }),
+  z.object({ kind: z.literal("not_found") }),
+  z.object({ kind: z.literal("not_signed_in") }),
+  z.object({ kind: z.literal("lacks_permission") }),
+  z.object({ kind: z.literal("unavailable") }),
+]);
+export type PrintCreditNoteOutcome = z.infer<typeof printCreditNoteOutcomeSchema>;
 
 const reprintSaleReceiptOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("started"), copy: receiptCopySchema }),
@@ -416,6 +434,11 @@ export const salesCoreToRendererMessageSchema = z.discriminatedUnion("type", [
     type: z.literal("print-original-receipt-result"),
     request_id: requestId,
     outcome: printOriginalReceiptOutcomeSchema,
+  }),
+  z.object({
+    type: z.literal("print-credit-note-result"),
+    request_id: requestId,
+    outcome: printCreditNoteOutcomeSchema,
   }),
   z.object({
     type: z.literal("reprint-sale-receipt-result"),

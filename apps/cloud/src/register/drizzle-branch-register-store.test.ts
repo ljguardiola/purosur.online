@@ -7,6 +7,7 @@ import {
   locations,
   pointOfSaleClaims,
   registerEnrollmentCodes,
+  registerInstallationBitlockerKeys,
   registerPointsOfSale,
   registerPointTerminals,
   registers,
@@ -193,12 +194,14 @@ describe("branchRegisters of DrizzleBranchRegisterStore", () => {
           windowsVersion: "Windows 11 Pro 10.0.26100",
           enrolledAt: new Date("2026-09-09T12:00:00.000Z"),
           revokedAt: replacedAt,
+          bitlockerKeyLoaded: false,
         },
         {
           hostname: "CAJA-MOSTRADOR",
           windowsVersion: "Windows 11 Pro 10.0.26100",
           enrolledAt: new Date("2026-09-20T12:00:00.000Z"),
           revokedAt: null,
+          bitlockerKeyLoaded: false,
         },
       ]),
     );
@@ -208,8 +211,50 @@ describe("branchRegisters of DrizzleBranchRegisterStore", () => {
         windowsVersion: "Windows 11 Pro 10.0.26100",
         enrolledAt: new Date("2026-09-21T12:00:00.000Z"),
         revokedAt,
+        bitlockerKeyLoaded: false,
       },
     ]);
+  });
+
+  it("flags only the installations that have a BitLocker key loaded", async () => {
+    const locationId = await seededLocationId(db);
+    const caja1 = await insertRegister(locationId, "Caja 1");
+    await insertEnrolledInstallation(db, {
+      now: new Date("2026-09-10T12:00:00.000Z"),
+      existingRegisterId: caja1,
+      revokedAt: new Date("2026-09-20T12:00:00.000Z"),
+    });
+    const withKey = await insertEnrolledInstallation(db, {
+      now: new Date("2026-09-21T12:00:00.000Z"),
+      existingRegisterId: caja1,
+    });
+    const [actor] = await db
+      .insert(users)
+      .values({ firstName: "Ada", email: "ada@example.com", locationId })
+      .returning({ id: users.id });
+    await db.insert(registerInstallationBitlockerKeys).values({
+      installationId: withKey.deviceId,
+      sealedKey: "sealed",
+      keyIdentifier: "8F3A2C1D",
+      loadedAt: NOW,
+      loadedBy: actor?.id ?? "",
+    });
+
+    const [listed] = await new DrizzleBranchRegisterStore(db, () => NOW).branchRegisters(
+      locationId,
+    );
+
+    expect(
+      listed?.installations.map(({ revokedAt, bitlockerKeyLoaded }) => [
+        revokedAt === null,
+        bitlockerKeyLoaded,
+      ]),
+    ).toEqual(
+      expect.arrayContaining([
+        [false, false],
+        [true, true],
+      ]),
+    );
   });
 });
 

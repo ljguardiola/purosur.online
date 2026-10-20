@@ -69,6 +69,10 @@ import { registerBuyerIdentificationThresholdRecordRoute } from "./fiscal/buyer-
 import type { BuyerIdentificationThresholdsRouteOptions } from "./fiscal/buyer-identification-thresholds-list-route.js";
 import { registerBuyerIdentificationThresholdsListRoute } from "./fiscal/buyer-identification-thresholds-list-route.js";
 import { registerClockCorrectionsListRoute } from "./fiscal/clock-corrections-list-route.js";
+import {
+  type CreditNoteRouteOptions,
+  registerCreditNoteRoute,
+} from "./fiscal/credit-note-route.js";
 import { registerFiscalAddressCreationRoute } from "./fiscal/fiscal-address-creation-route.js";
 import { registerFiscalAddressEditRoute } from "./fiscal/fiscal-address-edit-route.js";
 import type { FiscalAddressesRouteOptions } from "./fiscal/fiscal-addresses-list-route.js";
@@ -130,6 +134,10 @@ import { registerPackagingsRoutes } from "./purchasing/packagings-routes.js";
 import { registerPurchasesRoutes } from "./purchasing/purchases-routes.js";
 import type { PurchasingRouteOptions } from "./purchasing/purchasing-route-options.js";
 import { registerSuppliersRoutes } from "./purchasing/suppliers-routes.js";
+import {
+  type BitlockerRecoveryKeyRouteOptions,
+  registerBitlockerRecoveryKeyRoute,
+} from "./register/bitlocker-recovery-key-route.js";
 import { authenticateDevice } from "./register/device-authentication.js";
 import { registerDeviceEnrollmentRoute } from "./register/device-enrollment-route.js";
 import { registerDeviceTokenRotationRoute } from "./register/device-token-rotation-route.js";
@@ -247,6 +255,7 @@ export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = Postgre
   snapshotBackups?: WithoutClock<SnapshotBackupsRouteOptions<TQueryResult>>;
   registerRevocations?: WithoutClock<RegisterRevocationRouteOptions<TQueryResult>>;
   compromiseResponses?: WithoutClock<CompromiseResponseRouteOptions<TQueryResult>>;
+  bitlockerRecoveryKeys?: WithoutClock<BitlockerRecoveryKeyRouteOptions<TQueryResult>>;
   registersPointsOfSale?: WithoutClock<RegistersPointsOfSaleRouteOptions<TQueryResult>>;
   stock?: WithoutClock<StockRouteOptions<TQueryResult>>;
   salesReports?: WithoutClock<SalesReportRouteOptions<TQueryResult>>;
@@ -260,6 +269,9 @@ export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = Postgre
       FiscalAuthorizationRouteOptions<TQueryResult> & UnclearOutcomeRouteOptions<TQueryResult>,
       keyof DeviceTokensOptions<TQueryResult>
     >
+  >;
+  creditNotes?: WithoutClock<
+    Omit<CreditNoteRouteOptions<TQueryResult>, keyof DeviceTokensOptions<TQueryResult>>
   >;
   mercadoPagoOrders?: WithoutClock<
     Omit<MercadoPagoOrderRoutesOptions<TQueryResult>, keyof DeviceTokensOptions<TQueryResult>>
@@ -283,6 +295,7 @@ type DatabaseRouteOptions<TQueryResult extends PgQueryResultHKT> = Required<
     | "enqueueOfflineAuthorizationCodeRequest"
     | "enqueueTaxAuthorityCountOnEnrollment"
     | "fiscalAuthorization"
+    | "creditNotes"
     | "mercadoPagoOrders"
     | "mercadoPagoNotifications"
     | "registerUpdateFeed"
@@ -349,6 +362,10 @@ export function databaseRouteOptions<TQueryResult extends PgQueryResultHKT>(
       keysEncryptionKey: wiring.installationKeysEncryptionKey,
     },
     compromiseResponses: {
+      ...backoffice,
+      keysEncryptionKey: wiring.installationKeysEncryptionKey,
+    },
+    bitlockerRecoveryKeys: {
       ...backoffice,
       keysEncryptionKey: wiring.installationKeysEncryptionKey,
     },
@@ -661,6 +678,10 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
         registerCompromiseResponseRoutes(api, { ...options.compromiseResponses, now });
       }
 
+      if (options.bitlockerRecoveryKeys) {
+        registerBitlockerRecoveryKeyRoute(api, { ...options.bitlockerRecoveryKeys, now });
+      }
+
       if (options.registersPointsOfSale) {
         registerRegistersPointsOfSaleListRoute(api, { ...options.registersPointsOfSale, now });
         registerFortnightPresentationsListRoute(api, { ...options.registersPointsOfSale, now });
@@ -714,6 +735,13 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
           registerUnclearOutcomeRoute(api, {
             ...options.devices,
             ...options.fiscalAuthorization,
+            now,
+          });
+        }
+        if (options.creditNotes) {
+          registerCreditNoteRoute(api, {
+            ...options.devices,
+            ...options.creditNotes,
             now,
           });
         }

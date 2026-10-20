@@ -1,4 +1,4 @@
-import type { CashMovement, OutboxEventDraft } from "@purosur/domain";
+import type { CashMovement, OutboxEventDraft, SaleVoidCreditNote } from "@purosur/domain";
 import type {
   SaleRefund,
   SaleStockMovement,
@@ -10,7 +10,9 @@ import {
   cancelDeferredSale,
   readUncancelledDeferredSaleRecord,
 } from "../fiscal/sqlite-deferred-sales";
-import { readFiscalDocumentStates } from "../fiscal/sqlite-fiscal-document-states";
+import { readFiscalOnlineEvidence } from "../fiscal/sqlite-fiscal-online-evidence";
+import { readSaleInvoices } from "../fiscal/sqlite-sale-invoices";
+import { insertPendingCreditNote } from "../fiscal/sqlite-void-credit-notes";
 import { insertPaymentRefund, readRecordedPayments } from "../payments/sqlite-sale-payments";
 import type { LocalDatabase } from "../platform/local-database";
 import { insertCashMovement, readMovementsOf } from "../register/sqlite-cash-ledger";
@@ -39,6 +41,7 @@ export class SqliteSaleVoidLedger implements SaleVoidLedger {
     return {
       saleToVoid: (saleId) => this.saleToVoid(saleId),
       saleCashMovements: (saleId) => readMovementsOf(this.database, { type: "sale", id: saleId }),
+      fiscalOnlineEvidence: () => readFiscalOnlineEvidence(this.database),
       outboxReady: () => this.outboxChainKey !== undefined,
       recordVoidedSale: (saleId, voidedAt, authorizedBy) =>
         this.recordVoidedSale(saleId, voidedAt, authorizedBy),
@@ -49,6 +52,8 @@ export class SqliteSaleVoidLedger implements SaleVoidLedger {
       addToStockBalance: (productId, delta) => addToStockBalance(this.database, productId, delta),
       cancelDeferredSale: (saleId, cancelledAt) =>
         cancelDeferredSale(this.database, saleId, cancelledAt),
+      recordPendingCreditNote: (creditNote: SaleVoidCreditNote) =>
+        insertPendingCreditNote(this.database, creditNote),
       appendOutboxEvent: (draft: OutboxEventDraft) => this.appendOutboxEvent(draft),
     };
   }
@@ -62,7 +67,7 @@ export class SqliteSaleVoidLedger implements SaleVoidLedger {
       sale,
       inOpenSession: this.isOpenSession(sale.sessionId),
       payments: readRecordedPayments(this.database, saleId),
-      fiscalDocumentStates: readFiscalDocumentStates(this.database, saleId),
+      fiscalDocuments: readSaleInvoices(this.database, saleId),
       deferredRecord: readUncancelledDeferredSaleRecord(this.database, saleId),
       stockMovements: readSaleStockMovements(this.database, saleId),
     };

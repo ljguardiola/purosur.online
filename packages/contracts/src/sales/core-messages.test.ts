@@ -681,6 +681,7 @@ describe("voiding a completed sale", () => {
           },
         ],
         authorized_by: null,
+        credit_note: { kind: "in_progress" },
       },
     };
 
@@ -1532,6 +1533,44 @@ describe("printing a sale's original receipt", () => {
   });
 });
 
+describe("printing the credit note of a voided sale", () => {
+  const print = { type: "print-credit-note", request_id: REQUEST_ID, sale_id: "sale-1" };
+
+  it("accepts a request naming the sale", () => {
+    expect(salesRendererToCoreMessageSchema.parse(print)).toEqual(print);
+  });
+
+  it.each(["request_id", "sale_id"])("rejects a request missing its %s", (field) => {
+    const message = Object.fromEntries(Object.entries(print).filter(([key]) => key !== field));
+
+    expect(salesRendererToCoreMessageSchema.safeParse(message).success).toBe(false);
+  });
+
+  it.each([
+    { kind: "started" },
+    { kind: "busy" },
+    { kind: "printer_not_configured" },
+    { kind: "not_found" },
+    { kind: "not_signed_in" },
+    { kind: "lacks_permission" },
+    { kind: "unavailable" },
+  ])("accepts the result $kind", (outcome) => {
+    const message = { type: "print-credit-note-result", request_id: REQUEST_ID, outcome };
+
+    expect(salesCoreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each([
+    { kind: "sale_voided" },
+    { kind: "already_attempted" },
+    { kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 2 },
+  ])("rejects the result %j", (outcome) => {
+    const message = { type: "print-credit-note-result", request_id: REQUEST_ID, outcome };
+
+    expect(salesCoreToRendererMessageSchema.safeParse(message).success).toBe(false);
+  });
+});
+
 describe("asking for the register's sales history", () => {
   const ask = {
     type: "sales-history",
@@ -1658,8 +1697,10 @@ describe("asking for the detail of one sale of the history", () => {
         { method: "CASH", amount: 5000, state: "APPROVED", sent_by_cloud: false },
         { method: "QR", amount: 2500, state: "PENDING", sent_by_cloud: true },
       ],
+      credit_note_corrects: { point_of_sale: 3, number: 1204 },
     },
     void_authorization_required: false,
+    credit_note: null,
     reprint: { kind: "available" },
     next_copy: { kind: "duplicate", order_number: 2 },
   };
@@ -1686,13 +1727,40 @@ describe("asking for the detail of one sale of the history", () => {
         voidability: { kind: "not_voidable", refusal: "not_completed" },
       },
     },
-    ...["not_completed", "session_closed", "invoice_in_flight", "carries_invoice"].map(
+    ...["not_completed", "session_closed", "invoice_in_flight", "invoice_needs_connection"].map(
       (refusal) => ({
         kind: "found",
         detail: { ...detail, voidability: { kind: "not_voidable", refusal } },
       }),
     ),
-    { kind: "found", detail: { ...detail, voidability: { kind: "voidable", refunds: [] } } },
+    {
+      kind: "found",
+      detail: {
+        ...detail,
+        voidability: { kind: "voidable", refunds: [], credit_note_corrects: null },
+      },
+    },
+    {
+      kind: "found",
+      detail: {
+        ...detail,
+        state: "voided",
+        credit_note: {
+          kind: "authorized",
+          point_of_sale: 3,
+          number: 41,
+          issued_on: "2026-10-07",
+          authorization_code: "75123456789099",
+          authorization_code_due_on: "2026-10-17",
+        },
+      },
+    },
+    { kind: "found", detail: { ...detail, state: "voided", credit_note: { kind: "in_progress" } } },
+    { kind: "found", detail: { ...detail, state: "voided", credit_note: { kind: "rejected" } } },
+    {
+      kind: "found",
+      detail: { ...detail, state: "voided", credit_note: { kind: "already_credited" } },
+    },
     { kind: "not_found" },
     { kind: "not_signed_in" },
     { kind: "lacks_permission" },
@@ -1713,7 +1781,40 @@ describe("asking for the detail of one sale of the history", () => {
     { kind: "found", detail: { ...detail, reprint: undefined } },
     { kind: "found", detail: { ...detail, reprint: { kind: "later" } } },
     { kind: "found", detail: { ...detail, voidability: undefined } },
+    {
+      kind: "found",
+      detail: { ...detail, voidability: { kind: "not_voidable", refusal: "carries_invoice" } },
+    },
+    { kind: "found", detail: { ...detail, credit_note: undefined } },
+    { kind: "found", detail: { ...detail, credit_note: { kind: "issued" } } },
+    { kind: "found", detail: { ...detail, credit_note: { kind: "authorized", number: 41 } } },
     { kind: "found", detail: { ...detail, voidability: { kind: "voidable" } } },
+    {
+      kind: "found",
+      detail: { ...detail, voidability: { kind: "voidable", refunds: [] } },
+    },
+    {
+      kind: "found",
+      detail: {
+        ...detail,
+        voidability: {
+          kind: "voidable",
+          refunds: [],
+          credit_note_corrects: { point_of_sale: 0, number: 1204 },
+        },
+      },
+    },
+    {
+      kind: "found",
+      detail: {
+        ...detail,
+        voidability: {
+          kind: "voidable",
+          refunds: [],
+          credit_note_corrects: { point_of_sale: 3, number: 0 },
+        },
+      },
+    },
     {
       kind: "found",
       detail: {

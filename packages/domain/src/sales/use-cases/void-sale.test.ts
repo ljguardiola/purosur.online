@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { FiscalDocumentState } from "../../fiscal/index.js";
+import type { FiscalOnlineSignalEvidence, SaleInvoice } from "../../fiscal/index.js";
 import type { SalePayment } from "../../payments/index.js";
 import type { SaleWithLines } from "../model/sale.js";
 import { SALE_VOID_REFUSALS, type SaleVoidRefusal } from "../model/sale-void.js";
@@ -148,9 +148,31 @@ const QUESO_SALE_STOCK = {
 const OWN_GRANT: VoidSaleGrant = { actorId: "cashier", authorizedBy: undefined };
 const AUTHORIZED_GRANT: VoidSaleGrant = { actorId: "cashier", authorizedBy: "supervisor" };
 const NOT_SIGNED_IN = { kind: "not_signed_in" } as const;
+const REAL_TIME_INVOICE = {
+  saleId: "sale-1",
+  origin: "real_time" as const,
+  state: "AUTHORIZED" as const,
+  pointOfSale: 3,
+  number: 1204,
+  buyerTaxStatusCode: 5,
+};
+const OFFLINE_INVOICE = {
+  ...REAL_TIME_INVOICE,
+  origin: "offline" as const,
+  pointOfSale: 8,
+  number: 77,
+};
+
+const ONLINE: FiscalOnlineSignalEvidence = {
+  lastHealthCheckOkAt: new Date(NOW.getTime() - 1_000),
+  tokenValid: true,
+  arcaReachable: true,
+};
+const OFFLINE: FiscalOnlineSignalEvidence = { ...ONLINE, lastHealthCheckOkAt: null };
 
 function ledger(state: Partial<FakeSaleVoidLedgerState> = {}): FakeSaleVoidLedger {
   return new FakeSaleVoidLedger({
+    fiscalOnlineEvidence: ONLINE,
     openSessionId: "session-1",
     sales: [COMPLETED_SALE],
     payments: [CASH_PAYMENT],
@@ -217,7 +239,12 @@ describe("voidSale", () => {
 
       const outcome = await void_(store);
 
-      expect(outcome).toEqual({ kind: "voided", refunds: [CASH_REFUND], grant: OWN_GRANT });
+      expect(outcome).toEqual({
+        kind: "voided",
+        refunds: [CASH_REFUND],
+        grant: OWN_GRANT,
+        creditNote: null,
+      });
       expect(store.state.sales).toEqual([{ ...COMPLETED_SALE, state: "VOIDED", voidedAt: NOW }]);
       expect(store.state.refunds).toEqual([CASH_REFUND]);
       expect(store.state.movements).toEqual([
@@ -281,7 +308,7 @@ describe("voidSale", () => {
           aggregate_type: "Sale",
           aggregate_id: "sale-1",
           event_type: "sale_voided",
-          schema_version: 2,
+          schema_version: 3,
           payload: {
             id: "sale-1",
             register_id: "register-1",
@@ -367,6 +394,7 @@ describe("voidSale", () => {
               { id: "id-3", sale_line_id: "line-1", product_id: "yerba", delta: 3000 },
             ],
             deferred_record_cancelled: true,
+            credit_note: null,
           },
           occurred_at: NOW.toISOString(),
           actor_id: "cashier",
@@ -640,19 +668,122 @@ describe("voidSale", () => {
       ]);
     });
 
-    it("emits the voiding as version 2 of the event, with the pending refund", async () => {
+    it("emits the voiding as version 3 of the event, with the pending refund", async () => {
       const store = ledger({ payments: [QR_PAYMENT] });
 
       await void_(store, { pendingRefundsConfirmed: true });
 
       expect(store.state.outbox[0]).toMatchObject({
         event_type: "sale_voided",
-        schema_version: 2,
+        schema_version: 3,
         payload: {
           payments: [{ method: "QR", provider: "MERCADOPAGO_QR" }],
           refunds: [{ method: "QR", provider: "MERCADOPAGO_QR", state: "PENDING" }],
         },
       });
+    });
+  });
+
+  describe("a sale that carries an authorized invoice", () => {
+    const REAL_TIME_CREDIT_NOTE = {
+      creditNoteId: "id-4",
+      saleId: "sale-1",
+      total: 6750,
+      receiverTaxStatusCode: 5,
+      correctedVoucher: { voucherType: 11, pointOfSale: 3, number: 1204 },
+    };
+    const CREDIT_NOTE_PAYLOAD = {
+      id: "id-4",
+      total: 6750,
+      receiver_tax_status_code: 5,
+      corrects: { voucher_type: 11, point_of_sale: 3, number: 1204 },
+    };
+
+    it("records one pending credit note for the full amount, referencing the invoice, in the same transaction", async () => {
+      const store = ledger({ fiscalDocuments: [REAL_TIME_INVOICE] });
+
+      const outcome = await void_(store);
+
+      expect(outcome).toMatchObject({ kind: "voided", creditNote: REAL_TIME_CREDIT_NOTE });
+      expect(store.state.creditNotes).toEqual([REAL_TIME_CREDIT_NOTE]);
+      expect(store.transactions).toBe(1);
+    });
+
+    it("credits the discounted total of a sale with a discount on its total", async () => {
+      const store = ledger({
+        sales: [{ ...COMPLETED_SALE, saleDiscount: TEN_PERCENT_SALE_DISCOUNT }],
+        fiscalDocuments: [REAL_TIME_INVOICE],
+      });
+
+      await void_(store);
+
+      expect(store.state.creditNotes).toMatchObject([{ total: 6075 }]);
+    });
+
+    it("asks for the credit note in the event, in the version that carries it", async () => {
+      const store = ledger({ fiscalDocuments: [REAL_TIME_INVOICE] });
+
+      await void_(store);
+
+      expect(store.state.outbox).toHaveLength(1);
+      expect(store.state.outbox[0]).toMatchObject({
+        event_id: "id-5",
+        schema_version: 3,
+        payload: { credit_note: CREDIT_NOTE_PAYLOAD },
+      });
+    });
+
+    it("corrects the contingency document, not the real-time invoice, when the sale has both", async () => {
+      const store = ledger({ fiscalDocuments: [REAL_TIME_INVOICE, OFFLINE_INVOICE] });
+
+      await void_(store);
+
+      expect(store.state.creditNotes).toMatchObject([
+        { correctedVoucher: { voucherType: 11, pointOfSale: 8, number: 77 } },
+      ]);
+    });
+
+    it("voids a sale invoiced under a contingency document with the connection available", async () => {
+      const store = ledger({ fiscalDocuments: [OFFLINE_INVOICE] });
+
+      const outcome = await void_(store);
+
+      expect(outcome).toMatchObject({ kind: "voided" });
+      expect(store.state.creditNotes).toHaveLength(1);
+    });
+
+    it("records no credit note for a sale without an authorized invoice, even without a connection", async () => {
+      const store = ledger({
+        fiscalDocuments: [invoice("REJECTED")],
+        fiscalOnlineEvidence: OFFLINE,
+      });
+
+      const outcome = await void_(store);
+
+      expect(outcome).toMatchObject({ kind: "voided", creditNote: null });
+      expect(store.state.creditNotes).toEqual([]);
+    });
+
+    it("records no second credit note when the void is repeated", async () => {
+      const store = ledger({ fiscalDocuments: [REAL_TIME_INVOICE] });
+      await void_(store);
+
+      const outcome = await void_(store);
+
+      expect(outcome).toEqual({ kind: "not_completed" });
+      expect(store.state.creditNotes).toHaveLength(1);
+      expect(store.state.outbox).toHaveLength(1);
+    });
+
+    it("tells whether the register is online by the clock of the void", async () => {
+      const store = ledger({
+        fiscalDocuments: [REAL_TIME_INVOICE],
+        fiscalOnlineEvidence: { ...ONLINE, lastHealthCheckOkAt: new Date(NOW.getTime() - 15_000) },
+      });
+
+      const outcome = await void_(store);
+
+      expect(outcome).toMatchObject({ kind: "voided" });
     });
   });
 
@@ -663,9 +794,31 @@ describe("voidSale", () => {
       ["not_completed", { sales: [{ ...COMPLETED_SALE, state: "OPEN" }] }],
       ["session_closed", { openSessionId: undefined }],
       ["session_closed", { openSessionId: "session-2" }],
-      ["invoice_in_flight", { fiscalDocuments: fiscalDocument("REQUESTING") }],
-      ["invoice_in_flight", { fiscalDocuments: fiscalDocument("UNKNOWN") }],
-      ["carries_invoice", { fiscalDocuments: fiscalDocument("AUTHORIZED") }],
+      ["invoice_in_flight", { fiscalDocuments: [invoice("REQUESTING")] }],
+      ["invoice_in_flight", { fiscalDocuments: [invoice("UNKNOWN")] }],
+      ["invoice_in_flight", { fiscalDocuments: [REAL_TIME_INVOICE, invoice("REQUESTING")] }],
+      [
+        "invoice_in_flight",
+        { fiscalDocuments: [OFFLINE_INVOICE, invoice("UNKNOWN")], fiscalOnlineEvidence: OFFLINE },
+      ],
+      [
+        "invoice_needs_connection",
+        { fiscalDocuments: [REAL_TIME_INVOICE], fiscalOnlineEvidence: OFFLINE },
+      ],
+      [
+        "invoice_needs_connection",
+        { fiscalDocuments: [OFFLINE_INVOICE], fiscalOnlineEvidence: OFFLINE },
+      ],
+      [
+        "invoice_needs_connection",
+        {
+          fiscalDocuments: [REAL_TIME_INVOICE],
+          fiscalOnlineEvidence: {
+            ...ONLINE,
+            lastHealthCheckOkAt: new Date(NOW.getTime() - 15_001),
+          },
+        },
+      ],
     ];
 
     it.each(REFUSED_CASES)("refuses with %s and changes nothing", async (refusal, changes) => {
@@ -685,7 +838,7 @@ describe("voidSale", () => {
     });
 
     it("voids a sale whose invoice request was rejected and fell back to a non-fiscal document", async () => {
-      const store = ledger({ fiscalDocuments: fiscalDocument("REJECTED") });
+      const store = ledger({ fiscalDocuments: [invoice("REJECTED")] });
 
       const outcome = await void_(store);
 
@@ -783,11 +936,12 @@ describe("voidSale", () => {
       "recordSaleVoidStockMovement",
       "addToStockBalance",
       "cancelDeferredSale",
+      "recordPendingCreditNote",
       "appendOutboxEvent",
     ];
 
     it.each(WRITES)("leaves nothing behind when %s fails", async (write) => {
-      const store = ledger();
+      const store = ledger({ fiscalDocuments: [REAL_TIME_INVOICE] });
       const before = structuredClone(store.state);
       store.failOn = write;
 
@@ -798,6 +952,6 @@ describe("voidSale", () => {
   });
 });
 
-function fiscalDocument(state: FiscalDocumentState) {
-  return [{ saleId: "sale-1", state }];
+function invoice(state: SaleInvoice["state"]) {
+  return { ...REAL_TIME_INVOICE, state };
 }
