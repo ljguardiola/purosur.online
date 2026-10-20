@@ -3,6 +3,7 @@ import type { Fortnight } from "../model/offline-authorization-code.js";
 import type { ListedOwedPresentation } from "../model/owed-presentation-list.js";
 import { offlineDocument } from "./test-support/fake-fortnight-reports.js";
 import {
+  CLAIMED_AT,
   codeFor,
   ON_OCTOBER_3,
   POINT_OF_SALE,

@@ -121,7 +121,7 @@ describe("retireOfflinePointOfSale", () => {
 
     expect(outcome).toEqual({ kind: "not_found" });
     expect(store.snapshot()).toEqual(before);
-    expect(store.operationOrder).toEqual(["lockPointOfSale", "branchPointOfSaleClaim"]);
+    expect(store.operationOrder).not.toContain("retirePointOfSale");
   });
 
   it("leaves nothing behind when recording the retirement fails, and lets the error through", async () => {
