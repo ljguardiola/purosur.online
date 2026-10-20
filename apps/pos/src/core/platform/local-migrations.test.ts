@@ -5485,6 +5485,8 @@ describe("the register's local migrations", () => {
       }),
     ).toThrow(/CHECK/);
     database.close();
+  });
+
   it("record the events replenished into a restored register, one row per event id", () => {
     const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
     try {
