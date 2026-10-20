@@ -68,7 +68,7 @@ export const latePaymentRefund: PendingRefundsBody["refunds"][number] = {
   last_refusal_reason: null,
 };
 
-const LATE_POINT_PAYMENT_REFUND_ID = "98989898-9898-4989-8989-989898989898";
+export const LATE_POINT_PAYMENT_REFUND_ID = "98989898-9898-4989-8989-989898989898";
 
 const latePointPaymentRefund: PendingRefundsBody["refunds"][number] = {
   ...latePaymentRefund,

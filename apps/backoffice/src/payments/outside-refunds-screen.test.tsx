@@ -9,6 +9,7 @@ import { OutsideRefundsScreen } from "./outside-refunds-screen";
 import type { RefundsScreenServices } from "./refunds-services";
 import { type OutsideRefundsFilters, outsideRefundsFilters } from "./routes";
 import {
+  LATE_POINT_PAYMENT_REFUND_ID,
   noPendingRefunds,
   pendingRefunds,
   pendingRefundsOfEveryCloudRefundStage,
@@ -387,7 +388,7 @@ test("ends the session when the refunds request finds no open session", async ()
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
 });
 
-test("offers only marking as done on each refund, never sending or discarding", async () => {
+test("offers marking as done on every refund, and discarding only the ones the cloud says are discardable, never sending", async () => {
   const services = createRefundsServices();
   const screen = await loadedWithPoint(services);
 
@@ -397,9 +398,45 @@ test("offers only marking as done on each refund, never sending or discarding", 
   await expect
     .element(screen.getByRole("button", { name: "Marcar como hecho el reembolso de $ 760,00" }))
     .toBeVisible();
+  await expect
+    .element(screen.getByRole("button", { name: "Descartar el reembolso de $ 760,00" }))
+    .toBeVisible();
+  expect(
+    screen.getByRole("button", { name: "Descartar el reembolso de $ 2.500,00" }).query(),
+  ).toBeNull();
   expect(screen.getByRole("button", { name: /^Enviar a Mercado Pago/ }).all()).toHaveLength(0);
-  expect(screen.getByRole("button", { name: /^Descartar el reembolso/ }).all()).toHaveLength(0);
   await expectNoAccessibilityViolations(screen.container);
+});
+
+test("discarding a refund asks first, then discards it, reads the refunds again and the refund leaves the list", async () => {
+  const services = createRefundsServices();
+  vi.mocked(services.discardRefund).mockResolvedValue({ kind: "ok" });
+  const screen = await loadedWithPoint(services);
+
+  await userEvent.click(screen.getByRole("button", { name: "Descartar el reembolso de $ 760,00" }));
+  const dialog = screen.getByRole("dialog");
+  await expect
+    .element(dialog.getByRole("heading", { name: "¿Descartar el reembolso de $ 760,00?" }))
+    .toBeVisible();
+  vi.mocked(services.fetchPendingRefunds).mockResolvedValue({ kind: "ok", value: pendingRefunds });
+  await userEvent.click(dialog.getByRole("button", { name: "Descartar reembolso" }));
+
+  expect(services.discardRefund).toHaveBeenCalledWith(LATE_POINT_PAYMENT_REFUND_ID);
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+  await expect.poll(() => screen.getByText("$ 760,00", { exact: true }).query()).toBeNull();
+  expect(services.fetchPendingRefunds).toHaveBeenCalledTimes(2);
+});
+
+test("cancel closes the discard question and the refund stays listed", async () => {
+  const services = createRefundsServices();
+  const screen = await loadedWithPoint(services);
+  await userEvent.click(screen.getByRole("button", { name: "Descartar el reembolso de $ 760,00" }));
+
+  await userEvent.click(screen.getByRole("dialog").getByRole("button", { name: "Cancelar" }));
+
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+  await expect.element(screen.getByText("$ 760,00", { exact: true })).toBeVisible();
+  expect(services.discardRefund).not.toHaveBeenCalled();
 });
 
 test("marking a refund as done asks first, then marks it and the refund leaves the list", async () => {
