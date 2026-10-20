@@ -34,22 +34,6 @@ function enclosing(node) {
   return parent;
 }
 
-function constantInitializers(nodes) {
-  const initializers = new Map();
-  for (const node of nodes) {
-    if (
-      ts.isVariableDeclaration(node) &&
-      ts.isIdentifier(node.name) &&
-      node.initializer !== undefined &&
-      ts.isVariableDeclarationList(node.parent) &&
-      (node.parent.flags & ts.NodeFlags.Const) !== 0
-    ) {
-      initializers.set(node.name.text, node.initializer);
-    }
-  }
-  return initializers;
-}
-
 function isConcatCall(node) {
   return (
     ts.isCallExpression(node) &&
@@ -86,27 +70,229 @@ function isConsumedIntoString(node) {
   return parent !== undefined && (isStringConcatenation(parent) || ts.isTemplateSpan(parent));
 }
 
+function isBlockScope(node) {
+  return (
+    ts.isSourceFile(node) ||
+    ts.isBlock(node) ||
+    ts.isForStatement(node) ||
+    ts.isForInStatement(node) ||
+    ts.isForOfStatement(node) ||
+    ts.isCaseBlock(node) ||
+    ts.isCatchClause(node) ||
+    ts.isFunctionLike(node)
+  );
+}
+
+function isFunctionScope(node) {
+  return ts.isSourceFile(node) || ts.isFunctionLike(node);
+}
+
+function nearest(node, isScope) {
+  let ancestor = node.parent;
+  while (!isScope(ancestor)) ancestor = ancestor.parent;
+  return ancestor;
+}
+
+function boundNames(name) {
+  if (ts.isIdentifier(name)) return [name];
+  return name.elements.flatMap((element) =>
+    ts.isOmittedExpression(element) ? [] : boundNames(element.name),
+  );
+}
+
+function variableScope(declaration) {
+  const list = declaration.parent;
+  if (!ts.isVariableDeclarationList(list)) return list;
+  const isBlockScoped = (list.flags & (ts.NodeFlags.Const | ts.NodeFlags.Let)) !== 0;
+  return nearest(list, isBlockScoped ? isBlockScope : isFunctionScope);
+}
+
+function declarationsOf(node) {
+  if (ts.isVariableDeclaration(node)) {
+    return boundNames(node.name).map((name) => ({ name, scope: variableScope(node) }));
+  }
+  if (ts.isParameter(node)) {
+    return boundNames(node.name).map((name) => ({ name, scope: node.parent }));
+  }
+  if ((ts.isFunctionDeclaration(node) || ts.isClassDeclaration(node)) && node.name) {
+    return [{ name: node.name, scope: nearest(node, isBlockScope) }];
+  }
+  if ((ts.isFunctionExpression(node) || ts.isClassExpression(node)) && node.name) {
+    return [{ name: node.name, scope: node }];
+  }
+  if (
+    (ts.isImportClause(node) || ts.isNamespaceImport(node) || ts.isImportSpecifier(node)) &&
+    node.name
+  ) {
+    return [{ name: node.name, scope: node.getSourceFile() }];
+  }
+  return [];
+}
+
 function isReference(identifier) {
   const parent = identifier.parent;
-  if (ts.isVariableDeclaration(parent) && parent.name === identifier) return false;
-  if (ts.isPropertyAccessExpression(parent) && parent.name === identifier) return false;
-  if (ts.isPropertyAssignment(parent) && parent.name === identifier) return false;
+  if (ts.isPropertyAccessExpression(parent)) return parent.name !== identifier;
+  if (
+    ts.isPropertyAssignment(parent) ||
+    ts.isMethodDeclaration(parent) ||
+    ts.isPropertyDeclaration(parent) ||
+    ts.isGetAccessorDeclaration(parent) ||
+    ts.isSetAccessorDeclaration(parent)
+  ) {
+    return parent.name !== identifier;
+  }
+  if (ts.isBindingElement(parent)) return parent.propertyName !== identifier;
+  if (ts.isImportSpecifier(parent) || ts.isImportClause(parent) || ts.isNamespaceImport(parent)) {
+    return false;
+  }
+  if (ts.isExportSpecifier(parent)) {
+    return (
+      parent.parent.parent.moduleSpecifier === undefined &&
+      (parent.propertyName ?? parent.name) === identifier
+    );
+  }
+  if (ts.isLabeledStatement(parent) || ts.isBreakOrContinueStatement(parent)) return false;
   return true;
 }
 
-function referencesByName(nodes) {
-  const references = new Map();
-  for (const node of nodes) {
-    if (!ts.isIdentifier(node) || !isReference(node)) continue;
-    references.set(node.text, [...(references.get(node.text) ?? []), node]);
-  }
-  return references;
+function isExported(statement) {
+  return statement.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword);
 }
 
-function createResolver(constants) {
+function isRelative(specifier) {
+  return specifier.startsWith("./") || specifier.startsWith("../");
+}
+
+function createModules(readModule) {
+  const modules = new Map();
+  const scopes = new Map();
+  const declarationNames = new Set();
+
+  const declare = ({ name, scope }, declaration) => {
+    declarationNames.add(name);
+    const names = scopes.get(scope) ?? new Map();
+    names.set(name.text, declaration);
+    scopes.set(scope, names);
+  };
+
+  const load = (path, source = readModule(path)) => {
+    if (modules.has(path)) return modules.get(path);
+    const sourceFile = parse(source, path);
+    const nodes = descendants(sourceFile);
+    for (const node of nodes) {
+      for (const binding of declarationsOf(node)) declare(binding, node);
+    }
+    const module = { sourceFile, nodes };
+    modules.set(path, module);
+    return module;
+  };
+
+  const bindingOf = (identifier) => {
+    if (declarationNames.has(identifier)) return undefined;
+    for (let scope = identifier.parent; scope !== undefined; scope = scope.parent) {
+      const declaration = scopes.get(scope)?.get(identifier.text);
+      if (declaration !== undefined) return declaration;
+    }
+    return undefined;
+  };
+
+  const importedPath = (from, moduleSpecifier) => {
+    if (moduleSpecifier === undefined || !ts.isStringLiteral(moduleSpecifier)) return undefined;
+    if (!isRelative(moduleSpecifier.text)) return undefined;
+    return posix.join(posix.dirname(from.fileName), moduleSpecifier.text);
+  };
+
+  const constantInitializer = (declaration) =>
+    ts.isVariableDeclaration(declaration) &&
+    ts.isIdentifier(declaration.name) &&
+    ts.isVariableDeclarationList(declaration.parent) &&
+    (declaration.parent.flags & ts.NodeFlags.Const) !== 0
+      ? declaration.initializer
+      : undefined;
+
+  const exportedValue = (path, name, visiting = new Set()) => {
+    const key = `${path}\0${name}`;
+    if (path === undefined || visiting.has(key)) return undefined;
+    const reached = new Set([...visiting, key]);
+    const { sourceFile } = load(path);
+    for (const statement of sourceFile.statements) {
+      if (ts.isVariableStatement(statement) && isExported(statement)) {
+        const declaration = statement.declarationList.declarations.find(
+          (candidate) => ts.isIdentifier(candidate.name) && candidate.name.text === name,
+        );
+        if (declaration !== undefined) return constantInitializer(declaration);
+      }
+      if (ts.isExportAssignment(statement) && !statement.isExportEquals && name === "default") {
+        return statement.expression;
+      }
+      if (!ts.isExportDeclaration(statement)) continue;
+      const from = importedPath(sourceFile, statement.moduleSpecifier);
+      if (statement.exportClause === undefined) {
+        const value = exportedValue(from, name, reached);
+        if (value !== undefined) return value;
+        continue;
+      }
+      if (!ts.isNamedExports(statement.exportClause)) continue;
+      const specifier = statement.exportClause.elements.find(
+        (element) => element.name.text === name,
+      );
+      if (specifier === undefined) continue;
+      const local = specifier.propertyName ?? specifier.name;
+      if (statement.moduleSpecifier !== undefined) return exportedValue(from, local.text, reached);
+      return valueOfDeclaration(scopes.get(sourceFile)?.get(local.text), reached);
+    }
+    return undefined;
+  };
+
+  const importOf = (declaration) => {
+    const importDeclaration = ts.isImportSpecifier(declaration)
+      ? declaration.parent.parent.parent
+      : ts.isNamespaceImport(declaration)
+        ? declaration.parent.parent
+        : declaration.parent;
+    return importedPath(declaration.getSourceFile(), importDeclaration.moduleSpecifier);
+  };
+
+  const valueOfDeclaration = (declaration, visiting) => {
+    if (declaration === undefined) return undefined;
+    if (ts.isImportSpecifier(declaration)) {
+      const imported = declaration.propertyName ?? declaration.name;
+      return exportedValue(importOf(declaration), imported.text, visiting);
+    }
+    if (ts.isImportClause(declaration)) {
+      return exportedValue(importOf(declaration), "default", visiting);
+    }
+    return constantInitializer(declaration);
+  };
+
+  const constantValueOf = (node) => {
+    if (ts.isIdentifier(node)) return valueOfDeclaration(bindingOf(node));
+    if (ts.isPropertyAccessExpression(node) && ts.isIdentifier(node.expression)) {
+      const namespace = bindingOf(node.expression);
+      if (namespace === undefined || !ts.isNamespaceImport(namespace)) return undefined;
+      return exportedValue(importOf(namespace), node.name.text);
+    }
+    return undefined;
+  };
+
+  const referencesOf = (module) => {
+    const references = new Map();
+    for (const node of module.nodes) {
+      if (!ts.isIdentifier(node) || !isReference(node)) continue;
+      const declaration = bindingOf(node);
+      if (declaration === undefined) continue;
+      references.set(declaration, [...(references.get(declaration) ?? []), node]);
+    }
+    return references;
+  };
+
+  return { load, constantValueOf, referencesOf };
+}
+
+function createResolver(constantValueOf) {
   const constantOf = (node, seen) => {
-    if (!ts.isIdentifier(node) || seen.has(node.text)) return undefined;
-    return constants.get(node.text);
+    const value = constantValueOf(node);
+    return value === undefined || seen.has(value) ? undefined : value;
   };
 
   const resolveString = (expression, seen = new Set()) => {
@@ -128,7 +314,7 @@ function createResolver(constants) {
     const constant = constantOf(node, seen);
     return constant === undefined
       ? undefined
-      : resolveString(constant, new Set([...seen, node.text]));
+      : resolveString(constant, new Set([...seen, constant]));
   };
 
   const resolveArray = (expression, seen = new Set()) => {
@@ -141,10 +327,10 @@ function createResolver(constants) {
       );
     }
     if (isConcatCall(node)) {
-      const receiver = resolveArray(node.expression.expression, seen);
-      if (receiver === undefined) return undefined;
+      const receiver = node.expression.expression;
+      if (resolveString(receiver, seen) !== undefined) return undefined;
       return [
-        ...receiver,
+        ...(resolveArray(receiver, seen) ?? [UNKNOWN]),
         ...node.arguments.flatMap(
           (arg) => resolveArray(arg, seen) ?? [resolveString(arg, seen) ?? UNKNOWN],
         ),
@@ -153,7 +339,7 @@ function createResolver(constants) {
     const constant = constantOf(node, seen);
     return constant === undefined
       ? undefined
-      : resolveArray(constant, new Set([...seen, node.text]));
+      : resolveArray(constant, new Set([...seen, constant]));
   };
 
   return { resolveArray, resolveString };
@@ -197,7 +383,7 @@ function isConstantConsumedOnlyBy(node, references, isConsumed) {
   ) {
     return false;
   }
-  const uses = references.get(declaration.name.text) ?? [];
+  const uses = references.get(declaration) ?? [];
   return uses.length > 0 && uses.every(isConsumed);
 }
 
@@ -216,11 +402,16 @@ function invokedArguments(node, references, { resolveArray, resolveString }) {
   return undefined;
 }
 
-export function findNameListingsWithRenames(source, fileName) {
-  const sourceFile = parse(source, fileName);
-  const nodes = descendants(sourceFile);
-  const resolver = createResolver(constantInitializers(nodes));
-  const references = referencesByName(nodes);
+export function findNameListingsWithRenames(
+  source,
+  fileName,
+  readModule = (path) => readFileSync(path, "utf8"),
+) {
+  const modules = createModules(readModule);
+  const module = modules.load(fileName, source);
+  const { sourceFile, nodes } = module;
+  const resolver = createResolver(modules.constantValueOf);
+  const references = modules.referencesOf(module);
   const lineStarts = sourceFile.getLineStarts();
 
   return nodes
@@ -237,7 +428,10 @@ export function findNameListingsWithRenames(source, fileName) {
 
 export function checkFiles(paths, readFile = (path) => readFileSync(path, "utf8")) {
   return paths.flatMap((path) =>
-    findNameListingsWithRenames(readFile(path), path).map((match) => ({ path, ...match })),
+    findNameListingsWithRenames(readFile(path), path, readFile).map((match) => ({
+      path,
+      ...match,
+    })),
   );
 }
 
