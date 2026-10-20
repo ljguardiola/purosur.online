@@ -42,18 +42,16 @@ function authorizerName(name: string | null): string {
   return name ?? UNIDENTIFIED;
 }
 
-function kindText(row: DiscountRow): string {
-  if (row.kind === "SALE") {
-    return "Sobre el total";
+function kindText({ kind, adjustment }: DiscountRow): string {
+  if (adjustment.kind === "PRICE") {
+    return "Precio nuevo";
   }
-  switch (row.adjustment.kind) {
-    case "PERCENT":
-      return `De línea · ${formatNumber(row.adjustment.value)} %`;
-    case "AMOUNT":
-      return `De línea · ${formatCents(row.adjustment.value)}`;
-    case "PRICE":
-      return "Precio nuevo";
-  }
+  const scope = kind === "SALE" ? "Sobre el total" : "De línea";
+  const off =
+    adjustment.kind === "PERCENT"
+      ? `${formatNumber(adjustment.value)} %`
+      : formatCents(adjustment.value);
+  return `${scope} · ${off}`;
 }
 
 const discountColumns = [
@@ -108,7 +106,8 @@ export function ManualDiscountsScreen({
   registerFilter,
   services,
 }: ManualDiscountsScreenProps) {
-  const filtered = filters.register !== "ALL" || filters.authorizedBy !== "ALL";
+  const authorizerChosen = filters.authorizedBy !== "ALL";
+  const filtered = filters.register !== "ALL" || authorizerChosen;
   const data = useManualDiscountsQuery({
     query: manualDiscountsQueryOf(filters),
     fetchManualDiscounts: services.fetchManualDiscounts,
@@ -143,7 +142,7 @@ export function ManualDiscountsScreen({
         />
       </div>
       {data.status === "failed" ? null : (
-        <div className="grid grid-cols-3 gap-4">
+        <div className={`grid gap-4 ${authorizerChosen ? "grid-cols-2" : "grid-cols-3"}`}>
           {shown ? (
             <>
               <Card>
@@ -161,21 +160,25 @@ export function ManualDiscountsScreen({
                   detail={`${formatNumber(shown.totals.line_count)} de línea · ${formatNumber(shown.totals.sale_count)} sobre el total`}
                 />
               </Card>
-              <Card>
-                <FigureStat
-                  size="heading"
-                  label="Más autorizó"
-                  value={mostAuthorized === null ? NO_FIGURE : authorizerName(mostAuthorized.name)}
-                  {...(mostAuthorized === null
-                    ? {}
-                    : {
-                        detail: plural(mostAuthorized.count, {
-                          one: "1 descuento",
-                          other: `${formatNumber(mostAuthorized.count)} descuentos`,
-                        }),
-                      })}
-                />
-              </Card>
+              {authorizerChosen ? null : (
+                <Card>
+                  <FigureStat
+                    size="heading"
+                    label="Más autorizó"
+                    value={
+                      mostAuthorized === null ? NO_FIGURE : authorizerName(mostAuthorized.name)
+                    }
+                    {...(mostAuthorized === null
+                      ? {}
+                      : {
+                          detail: plural(mostAuthorized.count, {
+                            one: "1 descuento",
+                            other: `${formatNumber(mostAuthorized.count)} descuentos`,
+                          }),
+                        })}
+                  />
+                </Card>
+              )}
             </>
           ) : (
             <>
@@ -185,9 +188,11 @@ export function ManualDiscountsScreen({
               <Card>
                 <FigureStat size="heading" label="Descuentos" loading />
               </Card>
-              <Card>
-                <FigureStat size="heading" label="Más autorizó" loading />
-              </Card>
+              {authorizerChosen ? null : (
+                <Card>
+                  <FigureStat size="heading" label="Más autorizó" loading />
+                </Card>
+              )}
             </>
           )}
         </div>

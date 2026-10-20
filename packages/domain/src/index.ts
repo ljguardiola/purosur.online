@@ -600,7 +600,6 @@ export {
 } from "./register/index.js";
 export type {
   DeferredSaleRecord,
-  DiscountAuthorizer,
   DiscountedLinesOfPromotion,
   LineDiscountRecord,
   LinePromotion,
@@ -608,8 +607,6 @@ export type {
   ManualAdjustment,
   ManualAdjustmentValue,
   ManualDiscountRecords,
-  ManualDiscountRow,
-  ManualDiscountTotals,
   PrinterStatus,
   PromotionDiscountTotals,
   PromotionTerms,

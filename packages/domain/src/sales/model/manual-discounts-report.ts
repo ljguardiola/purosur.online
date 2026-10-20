@@ -123,10 +123,9 @@ export function manualDiscountRows({
   saleDiscounts,
   lineDiscounts,
 }: ManualDiscountRecords): ManualDiscountRow[] {
-  return [
-    ...saleDiscounts.map(rowOfSale),
-    ...lineDiscounts.map(rowOfLine).filter((row) => row.discounted > 0),
-  ].sort(newestFirst);
+  return [...saleDiscounts.map(rowOfSale), ...lineDiscounts.map(rowOfLine)]
+    .filter((row) => row.discounted > 0)
+    .sort(newestFirst);
 }
 
 function byName(a: DiscountAuthorizer, b: DiscountAuthorizer): number {

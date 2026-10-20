@@ -1,5 +1,5 @@
 import type { ManualDiscountsBody } from "@purosur/contracts";
-import { ListFilter } from "@purosur/ui";
+import { ListFilter, sortedItems, textOrder } from "@purosur/ui";
 import { useEffect, useEffectEvent } from "react";
 
 type Option = { value: string; label: string };
@@ -12,6 +12,8 @@ export type ManualDiscountsAuthorizerFilterProps = {
 
 const UNIDENTIFIED = "Sin identificar";
 
+const authorizerOrder = textOrder((option: Option) => option.label);
+
 export function ManualDiscountsAuthorizerFilter({
   value,
   authorizers,
@@ -20,10 +22,10 @@ export function ManualDiscountsAuthorizerFilter({
   const reportChange = useEffectEvent(onChange);
   const authorizerChosen = value !== "ALL";
 
-  const listedOptions = (authorizers ?? []).map(({ id, name }) => ({
-    value: id,
-    label: name ?? UNIDENTIFIED,
-  }));
+  const listedOptions = sortedItems(
+    (authorizers ?? []).map(({ id, name }) => ({ value: id, label: name ?? UNIDENTIFIED })),
+    { order: authorizerOrder, direction: "ascending" },
+  );
   const chosenOption =
     authorizerChosen && authorizers === undefined ? [{ value, label: "El elegido" }] : [];
   const options = [{ value: "ALL", label: "Todos" }, ...chosenOption, ...listedOptions] satisfies [
@@ -41,7 +43,7 @@ export function ManualDiscountsAuthorizerFilter({
   return (
     <ListFilter
       name="authorizedBy"
-      label="Autorizó:"
+      label="Autorizante:"
       options={options}
       value={authorizerOffered ? value : "ALL"}
       onChange={onChange}

@@ -10,11 +10,8 @@ export {
   mayBeOverriddenUnitPrice,
 } from "./model/manual-adjustment.js";
 export type {
-  DiscountAuthorizer,
   LineDiscountRecord,
   ManualDiscountRecords,
-  ManualDiscountRow,
-  ManualDiscountTotals,
   SaleDiscountRecord,
 } from "./model/manual-discounts-report.js";
 export { openSaleStanding } from "./model/open-sale-standing.js";

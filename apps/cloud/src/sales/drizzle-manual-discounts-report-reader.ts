@@ -69,113 +69,114 @@ export class DrizzleManualDiscountsReportReader<TQueryResult extends PgQueryResu
     this.db = db;
   }
 
-  async completedManualDiscounts(query: ManualDiscountsQuery): Promise<ManualDiscountRecords> {
-    return {
-      saleDiscounts: await this.saleDiscounts(query),
-      lineDiscounts: await this.lineDiscounts(query),
-    };
+  completedManualDiscounts(query: ManualDiscountsQuery): Promise<ManualDiscountRecords> {
+    return this.db.transaction(
+      async (tx) => ({
+        saleDiscounts: await saleDiscounts(tx, query),
+        lineDiscounts: await lineDiscounts(tx, query),
+      }),
+      { isolationLevel: "repeatable read", accessMode: "read only" },
+    );
   }
+}
 
-  private async saleDiscounts({
-    locationId,
-    range,
-    registerId,
-  }: ManualDiscountsQuery): Promise<SaleDiscountRecord[]> {
-    const authorizer = alias(users, "authorizer");
-    const rows = await this.db
-      .select({
-        saleId: sales.id,
-        operationNumber: sales.operationNumber,
-        completedAt: sales.completedAt,
-        actorId: sales.actorId,
-        actorName: users.firstName,
-        authorizedBy: sales.saleDiscountAuthorizedBy,
-        authorizedByName: authorizer.firstName,
-        reason: sales.saleDiscountReason,
-        kind: sales.saleDiscountKind,
-        value: sales.saleDiscountValue,
-        amount: sales.saleDiscountAmount,
-      })
-      .from(sales)
-      .leftJoin(users, sql`${users.id}::text = ${sales.actorId}`)
-      .leftJoin(authorizer, sql`${authorizer.id}::text = ${sales.saleDiscountAuthorizedBy}`)
-      .where(
-        and(
-          isNotNull(sales.saleDiscountKind),
-          eq(sales.locationId, locationId),
-          eq(sales.state, SALES_REPORT_SALE_STATE),
-          registerId === undefined ? undefined : eq(sales.registerId, registerId),
-          sql`${saleDay} >= ${range.from}`,
-          sql`${saleDay} <= ${range.to}`,
-        ),
-      );
-    return rows.map((row) => ({
-      saleId: row.saleId,
-      operationNumber: row.operationNumber,
-      completedAt: stored(row.completedAt, "completion time"),
-      actorId: row.actorId,
-      actorName: row.actorName,
-      authorizedBy: row.authorizedBy,
-      authorizedByName: row.authorizedByName,
-      reason: stored(row.reason, "reason"),
-      discount: saleDiscountOf(row.kind, row.value),
-      amount: stored(row.amount, "amount"),
-    }));
-  }
+async function saleDiscounts<TQueryResult extends PgQueryResultHKT>(
+  db: PgDatabase<TQueryResult>,
+  { locationId, range, registerId }: ManualDiscountsQuery,
+): Promise<SaleDiscountRecord[]> {
+  const authorizer = alias(users, "authorizer");
+  const rows = await db
+    .select({
+      saleId: sales.id,
+      operationNumber: sales.operationNumber,
+      completedAt: sales.completedAt,
+      actorId: sales.actorId,
+      actorName: users.firstName,
+      authorizedBy: sales.saleDiscountAuthorizedBy,
+      authorizedByName: authorizer.firstName,
+      reason: sales.saleDiscountReason,
+      kind: sales.saleDiscountKind,
+      value: sales.saleDiscountValue,
+      amount: sales.saleDiscountAmount,
+    })
+    .from(sales)
+    .leftJoin(users, sql`${users.id}::text = ${sales.actorId}`)
+    .leftJoin(authorizer, sql`${authorizer.id}::text = ${sales.saleDiscountAuthorizedBy}`)
+    .where(
+      and(
+        isNotNull(sales.saleDiscountKind),
+        eq(sales.locationId, locationId),
+        eq(sales.state, SALES_REPORT_SALE_STATE),
+        registerId === undefined ? undefined : eq(sales.registerId, registerId),
+        sql`${saleDay} >= ${range.from}`,
+        sql`${saleDay} <= ${range.to}`,
+      ),
+    );
+  return rows.map((row) => ({
+    saleId: row.saleId,
+    operationNumber: row.operationNumber,
+    completedAt: stored(row.completedAt, "completion time"),
+    actorId: row.actorId,
+    actorName: row.actorName,
+    authorizedBy: row.authorizedBy,
+    authorizedByName: row.authorizedByName,
+    reason: stored(row.reason, "reason"),
+    discount: saleDiscountOf(row.kind, row.value),
+    amount: stored(row.amount, "amount"),
+  }));
+}
 
-  private async lineDiscounts({
-    locationId,
-    range,
-    registerId,
-  }: ManualDiscountsQuery): Promise<LineDiscountRecord[]> {
-    const authorizer = alias(users, "authorizer");
-    const rows = await this.db
-      .select({
-        saleId: sales.id,
-        operationNumber: sales.operationNumber,
-        completedAt: sales.completedAt,
-        actorId: sales.actorId,
-        actorName: users.firstName,
-        authorizedBy: saleLines.manualAdjustmentAuthorizedBy,
-        authorizedByName: authorizer.firstName,
-        reason: saleLines.manualAdjustmentReason,
-        lineId: saleLines.id,
-        productName: saleLines.productName,
-        quantity: saleLines.quantity,
-        weightSource: saleLines.weightSource,
-        listUnitPrice: saleLines.listUnitPrice,
-        kind: saleLines.manualAdjustmentKind,
-        value: saleLines.manualAdjustmentValue,
-      })
-      .from(saleLines)
-      .innerJoin(sales, eq(sales.id, saleLines.saleId))
-      .leftJoin(users, sql`${users.id}::text = ${sales.actorId}`)
-      .leftJoin(authorizer, sql`${authorizer.id}::text = ${saleLines.manualAdjustmentAuthorizedBy}`)
-      .where(
-        and(
-          isNotNull(saleLines.manualAdjustmentKind),
-          eq(sales.locationId, locationId),
-          eq(sales.state, SALES_REPORT_SALE_STATE),
-          registerId === undefined ? undefined : eq(sales.registerId, registerId),
-          sql`${saleDay} >= ${range.from}`,
-          sql`${saleDay} <= ${range.to}`,
-        ),
-      );
-    return rows.map((row) => ({
-      saleId: row.saleId,
-      operationNumber: row.operationNumber,
-      completedAt: stored(row.completedAt, "completion time"),
-      actorId: row.actorId,
-      actorName: row.actorName,
-      authorizedBy: row.authorizedBy,
-      authorizedByName: row.authorizedByName,
-      reason: stored(row.reason, "reason"),
-      lineId: row.lineId,
-      productName: row.productName,
-      quantity: row.quantity,
-      weightSource: weightSourceOf(row.weightSource),
-      listUnitPrice: row.listUnitPrice,
-      adjustment: adjustmentOf(row.kind, row.value),
-    }));
-  }
+async function lineDiscounts<TQueryResult extends PgQueryResultHKT>(
+  db: PgDatabase<TQueryResult>,
+  { locationId, range, registerId }: ManualDiscountsQuery,
+): Promise<LineDiscountRecord[]> {
+  const authorizer = alias(users, "authorizer");
+  const rows = await db
+    .select({
+      saleId: sales.id,
+      operationNumber: sales.operationNumber,
+      completedAt: sales.completedAt,
+      actorId: sales.actorId,
+      actorName: users.firstName,
+      authorizedBy: saleLines.manualAdjustmentAuthorizedBy,
+      authorizedByName: authorizer.firstName,
+      reason: saleLines.manualAdjustmentReason,
+      lineId: saleLines.id,
+      productName: saleLines.productName,
+      quantity: saleLines.quantity,
+      weightSource: saleLines.weightSource,
+      listUnitPrice: saleLines.listUnitPrice,
+      kind: saleLines.manualAdjustmentKind,
+      value: saleLines.manualAdjustmentValue,
+    })
+    .from(saleLines)
+    .innerJoin(sales, eq(sales.id, saleLines.saleId))
+    .leftJoin(users, sql`${users.id}::text = ${sales.actorId}`)
+    .leftJoin(authorizer, sql`${authorizer.id}::text = ${saleLines.manualAdjustmentAuthorizedBy}`)
+    .where(
+      and(
+        isNotNull(saleLines.manualAdjustmentKind),
+        eq(sales.locationId, locationId),
+        eq(sales.state, SALES_REPORT_SALE_STATE),
+        registerId === undefined ? undefined : eq(sales.registerId, registerId),
+        sql`${saleDay} >= ${range.from}`,
+        sql`${saleDay} <= ${range.to}`,
+      ),
+    );
+  return rows.map((row) => ({
+    saleId: row.saleId,
+    operationNumber: row.operationNumber,
+    completedAt: stored(row.completedAt, "completion time"),
+    actorId: row.actorId,
+    actorName: row.actorName,
+    authorizedBy: row.authorizedBy,
+    authorizedByName: row.authorizedByName,
+    reason: stored(row.reason, "reason"),
+    lineId: row.lineId,
+    productName: row.productName,
+    quantity: row.quantity,
+    weightSource: weightSourceOf(row.weightSource),
+    listUnitPrice: row.listUnitPrice,
+    adjustment: adjustmentOf(row.kind, row.value),
+  }));
 }
