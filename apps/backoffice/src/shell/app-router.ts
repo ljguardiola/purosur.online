@@ -12,7 +12,8 @@ import { fiscalConfigurationRoute, pointsOfSaleRoute } from "../fiscal/routes";
 import { helpArticleRoute, helpCategoryRoute, helpHomeRoute } from "../help/routes";
 import {
   handConfirmedPaymentsRoute,
-  pendingRefundsRoute,
+  mercadoPagoRefundsRoute,
+  outsideRefundsRoute,
   salesByPaymentMethodRoute,
 } from "../payments/routes";
 import { rolesListRoute } from "../permissions/routes";
@@ -98,7 +99,8 @@ const routeTree = rootRoute.addChildren([
     cashAndFiscalAreaRoute.addChildren([
       pointsOfSaleRoute,
       fiscalConfigurationRoute,
-      pendingRefundsRoute,
+      mercadoPagoRefundsRoute,
+      outsideRefundsRoute,
     ]),
     reportsAreaRoute.addChildren([
       reportsIndexRoute,

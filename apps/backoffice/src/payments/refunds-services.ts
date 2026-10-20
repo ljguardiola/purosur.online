@@ -3,13 +3,13 @@ import type { MarkRefundDoneModalServices } from "./mark-refund-done-modal";
 import { confirmRefund, discardRefund, fetchPendingRefunds, markRefundDone } from "./refunds-api";
 import type { SendRefundModalServices } from "./send-refund-modal";
 
-export type PendingRefundsScreenServices = {
+export type RefundsScreenServices = {
   fetchPendingRefunds: typeof fetchPendingRefunds;
 } & MarkRefundDoneModalServices &
   DiscardRefundModalServices &
   SendRefundModalServices;
 
-export const defaultPendingRefundsScreenServices: PendingRefundsScreenServices = {
+export const defaultRefundsScreenServices: RefundsScreenServices = {
   fetchPendingRefunds,
   markRefundDone,
   discardRefund,
