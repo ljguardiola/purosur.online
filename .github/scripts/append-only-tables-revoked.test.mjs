@@ -326,10 +326,10 @@ test("reads the migrations in the order the journal lists them", () => {
   const files = {
     "apps/cloud/src/platform/db/schema.ts": APPEND_ONLY_PRICES.schemaSource,
     "apps/cloud/migrations/meta/_journal.json": JSON.stringify({
-      entries: [{ tag: "0001_create" }, { tag: "0000_revoke" }],
+      entries: [{ tag: "0001_revoke" }, { tag: "0000_create" }],
     }),
-    "apps/cloud/migrations/0001_create.sql": CREATE_PRICES.source,
-    "apps/cloud/migrations/0000_revoke.sql":
+    "apps/cloud/migrations/0000_create.sql": CREATE_PRICES.source,
+    "apps/cloud/migrations/0001_revoke.sql":
       'REVOKE UPDATE, DELETE, TRUNCATE ON "prices" FROM cloud_app;',
   };
 
@@ -337,7 +337,7 @@ test("reads the migrations in the order the journal lists them", () => {
 
   assert.deepEqual(
     repository.migrations.map((entry) => entry.path),
-    ["apps/cloud/migrations/0001_create.sql", "apps/cloud/migrations/0000_revoke.sql"],
+    ["apps/cloud/migrations/0001_revoke.sql", "apps/cloud/migrations/0000_create.sql"],
   );
   assert.deepEqual(findViolations(repository), [
     {
