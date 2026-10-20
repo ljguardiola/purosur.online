@@ -178,7 +178,7 @@ export {
   REJECTION_CLASSES,
   SERIES_WAITING_STATES,
 } from "./model/real-time-authorization.js";
-export { REGISTER_CLOCK_TOLERANCE_MS } from "./model/register-clock.js";
+export { REGISTER_CLOCK_TOLERANCE_MS, raisedClockMark } from "./model/register-clock.js";
 export type {
   CreditNoteAnswer,
   SaleInvoice,
