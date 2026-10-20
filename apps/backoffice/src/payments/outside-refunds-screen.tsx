@@ -1,50 +1,35 @@
-import {
-  actionsColumn,
-  dataColumn,
-  formatCents,
-  ListFilter,
-  Table,
-  useTableModel,
-} from "@purosur/ui";
-import { CircleCheck, CircleX, HandCoins } from "lucide-react";
+import { actionsColumn, formatCents, ListFilter, Table, useTableModel } from "@purosur/ui";
+import { CircleCheck, CircleX, HandCoins, Search } from "lucide-react";
 import { useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
-import { paymentMethodLabel } from "../platform/payment-method-label";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTopBar } from "../shell/screen-top-bar";
 import { DiscardRefundModal } from "./discard-refund-modal";
 import { MarkRefundDoneModal } from "./mark-refund-done-modal";
+import type { OutsideRefundsScreenServices } from "./outside-refunds-services";
 import { usePendingRefundsQuery, useRefreshPayments } from "./payments-queries";
 import {
   amountColumn,
+  methodColumn,
+  methodFilterOptions,
   type PendingRefund,
   pendingSinceColumn,
   reasonColumn,
-} from "./refund-columns";
-import { madeOutsideTheSystem } from "./refund-kinds";
-import {
-  methodFilterOptions,
   registerFilterOptions,
   useOfferedChoice,
   useReportedFilters,
-} from "./refunds-filters";
-import type { RefundsScreenServices } from "./refunds-services";
+} from "./payments-screen-parts";
+import { madeOutsideTheSystem } from "./refund-kinds";
 import { ALL_METHODS, ALL_REGISTERS, type OutsideRefundsFilters } from "./routes";
 
 export type OutsideRefundsScreenProps = {
   filters: OutsideRefundsFilters;
   onFiltersChange: (filters: OutsideRefundsFilters) => void;
   onSessionEnded: () => void;
-  services: RefundsScreenServices;
+  services: OutsideRefundsScreenServices;
 };
 
 const NO_REFUNDS: PendingRefund[] = [];
-
-const methodColumn = dataColumn({
-  id: "method",
-  header: "Medio",
-  render: (refund: PendingRefund) => paymentMethodLabel(refund.method),
-});
 
 export function OutsideRefundsScreen({
   filters,
@@ -137,12 +122,21 @@ export function OutsideRefundsScreen({
           aria-label="Reembolsos sin API"
           table={table}
           {...cloudTableState(data, "los reembolsos sin API")}
-          empty={{
-            icon: <HandCoins />,
-            title: "Sin reembolsos pendientes",
-            description: "Todos los reembolsos hechos fuera del sistema están marcados.",
-            variant: "blank",
-          }}
+          empty={
+            refunds.length === 0
+              ? {
+                  icon: <HandCoins />,
+                  title: "Sin reembolsos pendientes",
+                  description: "Todos los reembolsos hechos fuera del sistema están marcados.",
+                  variant: "blank",
+                }
+              : {
+                  icon: <Search />,
+                  title: "No hay reembolsos pendientes con estos filtros",
+                  description: "Probá con otra caja o con otro medio.",
+                  variant: "filtered",
+                }
+          }
           footer={
             <p className="text-text-subtle text-detail">
               Se hacen fuera del sistema y acá se marcan como hechos.

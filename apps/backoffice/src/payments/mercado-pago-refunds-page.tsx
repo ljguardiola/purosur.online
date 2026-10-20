@@ -2,7 +2,7 @@ import { getRouteApi } from "@tanstack/react-router";
 import type { ReactElement } from "react";
 import { useDocumentTitle } from "../shell/document-title";
 import { MercadoPagoRefundsScreen } from "./mercado-pago-refunds-screen";
-import { defaultRefundsScreenServices } from "./refunds-services";
+import { defaultMercadoPagoRefundsScreenServices } from "./mercado-pago-refunds-services";
 
 const route = getRouteApi("/signed-in/cash-and-fiscal-area/refunds/mercado-pago");
 
@@ -16,7 +16,7 @@ export function MercadoPagoRefundsPage(): ReactElement {
       filters={filters}
       onFiltersChange={(next) => void navigate({ search: next, replace: true })}
       onSessionEnded={sessionActions.sessionEnded}
-      services={services.refundsScreens ?? defaultRefundsScreenServices}
+      services={services.mercadoPagoRefundsScreen ?? defaultMercadoPagoRefundsScreenServices}
     />
   );
 }

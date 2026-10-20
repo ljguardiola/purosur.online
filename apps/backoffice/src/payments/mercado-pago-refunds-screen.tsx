@@ -1,34 +1,33 @@
 import type { ConfirmedRefundBody } from "@purosur/contracts";
 import {
   actionsColumn,
-  dataColumn,
   FloatingNotification,
   formatCents,
   ListFilter,
   type NoticeTone,
   Table,
-  TableCellText,
   useTableModel,
 } from "@purosur/ui";
 import { Check, CircleX, HandCoins, Send, TriangleAlert } from "lucide-react";
 import { useRef, useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
-import { paymentMethodLabel } from "../platform/payment-method-label";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTopBar } from "../shell/screen-top-bar";
 import { DiscardRefundModal } from "./discard-refund-modal";
+import type { MercadoPagoRefundsScreenServices } from "./mercado-pago-refunds-services";
 import { usePendingRefundsQuery, useRefreshPayments } from "./payments-queries";
 import {
   amountColumn,
+  methodColumn,
   type PendingRefund,
   pendingSinceColumn,
   reasonColumn,
-} from "./refund-columns";
+  registerFilterOptions,
+  useOfferedChoice,
+  useReportedFilters,
+} from "./payments-screen-parts";
 import { refundConfirmationNotice } from "./refund-confirmation-notice";
-import { refundDeliveryStatus } from "./refund-delivery-status";
 import { sentToMercadoPago } from "./refund-kinds";
-import { registerFilterOptions, useOfferedChoice, useReportedFilters } from "./refunds-filters";
-import type { RefundsScreenServices } from "./refunds-services";
 import { ALL_REGISTERS, type MercadoPagoRefundsFilters } from "./routes";
 import { SendRefundModal } from "./send-refund-modal";
 
@@ -36,7 +35,7 @@ export type MercadoPagoRefundsScreenProps = {
   filters: MercadoPagoRefundsFilters;
   onFiltersChange: (filters: MercadoPagoRefundsFilters) => void;
   onSessionEnded: () => void;
-  services: RefundsScreenServices;
+  services: MercadoPagoRefundsScreenServices;
 };
 
 type ScreenNotice = {
@@ -47,21 +46,6 @@ type ScreenNotice = {
 };
 
 const NO_REFUNDS: PendingRefund[] = [];
-
-const methodColumn = dataColumn({
-  id: "method",
-  header: "Medio",
-  render: (refund: PendingRefund) => {
-    const status = refundDeliveryStatus(refund);
-    const order = refund.provider_order_id === null ? null : `Orden ${refund.provider_order_id}`;
-    const description = [status, order].filter((part) => part !== null).join(" · ") || null;
-    return description === null ? (
-      paymentMethodLabel(refund.method)
-    ) : (
-      <TableCellText description={description}>{paymentMethodLabel(refund.method)}</TableCellText>
-    );
-  },
-});
 
 export function MercadoPagoRefundsScreen({
   filters,

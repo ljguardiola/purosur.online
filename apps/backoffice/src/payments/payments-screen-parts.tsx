@@ -1,11 +1,62 @@
 import type { PendingRefundsBody } from "@purosur/contracts";
-import { sortedItems, textOrder } from "@purosur/ui";
+import {
+  dataColumn,
+  formatCents,
+  formatTimeAgoInHours,
+  sortedItems,
+  TableCellText,
+  textOrder,
+} from "@purosur/ui";
 import { deepEqual } from "@tanstack/react-router";
 import { useEffect, useEffectEvent, useState } from "react";
 import { paymentMethodLabel } from "../platform/payment-method-label";
+import { refundDeliveryStatus } from "./refund-delivery-status";
+import { refundDate } from "./refund-moments";
+import { refundReason } from "./refund-reason";
 import { ALL_METHODS, ALL_REGISTERS } from "./routes";
 
-type Refund = PendingRefundsBody["refunds"][number];
+export type PendingRefund = PendingRefundsBody["refunds"][number];
+
+export const pendingSinceColumn = dataColumn({
+  id: "pendingSince",
+  header: "Pendiente desde",
+  render: (refund: PendingRefund) => (
+    <TableCellText description={formatTimeAgoInHours(refund.seconds_pending)}>
+      {refundDate(refund.occurred_at)}
+    </TableCellText>
+  ),
+});
+
+export const reasonColumn = dataColumn({
+  id: "reason",
+  header: "Por qué",
+  render: (refund: PendingRefund) => {
+    const { title, detail } = refundReason(refund);
+    return <TableCellText description={detail}>{title}</TableCellText>;
+  },
+});
+
+export const methodColumn = dataColumn({
+  id: "method",
+  header: "Medio",
+  render: (refund: PendingRefund) => {
+    const status = refundDeliveryStatus(refund);
+    const order = refund.provider_order_id === null ? null : `Orden ${refund.provider_order_id}`;
+    const description = [status, order].filter((part) => part !== null).join(" · ") || null;
+    return description === null ? (
+      paymentMethodLabel(refund.method)
+    ) : (
+      <TableCellText description={description}>{paymentMethodLabel(refund.method)}</TableCellText>
+    );
+  },
+});
+
+export const amountColumn = dataColumn({
+  id: "amount",
+  header: "Importe",
+  align: "end",
+  render: (refund: PendingRefund) => formatCents(refund.amount),
+});
 
 export type FilterOption = { value: string; label: string };
 
@@ -19,7 +70,7 @@ function sortedByLabel(options: FilterOption[]): FilterOption[] {
 }
 
 export function registerFilterOptions(
-  refunds: Pick<Refund, "register_id" | "register_name">[],
+  refunds: Pick<PendingRefund, "register_id" | "register_name">[],
 ): FilterOptions {
   const registers = new Map(refunds.map((refund) => [refund.register_id, refund.register_name]));
   return [
@@ -28,7 +79,7 @@ export function registerFilterOptions(
   ];
 }
 
-export function methodFilterOptions(refunds: Pick<Refund, "method">[]): FilterOptions {
+export function methodFilterOptions(refunds: Pick<PendingRefund, "method">[]): FilterOptions {
   const methods = new Set(refunds.map((refund) => refund.method));
   return [
     { value: ALL_METHODS, label: "Todos" },
