@@ -207,6 +207,7 @@ describe("alertKindsWithScope", () => {
       "fiscal_emission_stopped",
       "clock_drift",
       "clock_corrected",
+      "register_backup_overdue",
     ]);
     expect(alertKindsWithScope("event")).toEqual(["event_invariant_violated"]);
     expect(alertKindsWithScope("pointOfSaleDocumentType")).toEqual(["fiscal_rejected"]);
