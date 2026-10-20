@@ -65,7 +65,7 @@ describe("readManualDiscounts", () => {
       count: 2,
       lineCount: 1,
       saleCount: 1,
-      mostAuthorized: { id: "ana", name: "Ana", count: 1 },
+      mostAuthorized: { id: "beto", name: "Beto", count: 1 },
     });
     expect(report.authorizers).toEqual([
       { id: "ana", name: "Ana" },
