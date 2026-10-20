@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import { expect, expectTypeOf, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
@@ -16,6 +16,16 @@ const texts = {
   chooseAnotherText: "Elegir otro archivo",
   accept: "application/pdf,.pdf",
 } as const;
+
+function WithSharedError() {
+  const errorId = useId();
+  return (
+    <>
+      <FilePicker {...texts} file={null} onChange={() => {}} errorMessageId={errorId} />
+      <p id={errorId}>Elegí un archivo</p>
+    </>
+  );
+}
 
 function Harness({ initial = null }: { initial?: File | null }) {
   const [file, setFile] = useState<File | null>(initial);
@@ -219,12 +229,7 @@ test("shows its error in place of the description, in the error color, and marks
 });
 
 test("is described by an error rendered elsewhere and marked invalid", async () => {
-  const screen = await render(
-    <>
-      <FilePicker {...texts} file={null} onChange={() => {}} errorMessageId="shared-error" />
-      <p id="shared-error">Elegí un archivo</p>
-    </>,
-  );
+  const screen = await render(<WithSharedError />);
   const input = screen.getByLabelText("Archivo", { exact: true });
 
   await expect.element(input).toBeInvalid();
