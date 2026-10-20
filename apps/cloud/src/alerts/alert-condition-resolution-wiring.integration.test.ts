@@ -19,6 +19,7 @@ import {
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { setUpRecovery } from "../server.js";
 import { insertPurchasedLot } from "../stock/test-support/lot-fixtures.js";
+import { insertInboxEvent } from "../sync/test-support/inbox-events.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
@@ -386,4 +387,49 @@ describe("the background worker the server sets up on a real Postgres", () => {
       await recovery.close();
     }
   }, 90_000);
+
+  it("opens the alert of a register whose changes have gone more than an hour without a verified generation", async () => {
+    const overdue = await insertEnrolledInstallation(db, {
+      now: NOW,
+      registerName: "Caja sin respaldo",
+    });
+    const firstChange = new Date(NOW.getTime() - 90 * MINUTE_MS);
+    await insertInboxEvent(db, overdue.deviceId, { occurredAt: firstChange });
+    const recovery = await setUpRecovery(
+      {
+        databaseUrl: integrationDb.databaseUrl,
+        emailSender: { transport: "log" },
+        emailFrom: FICTIONAL_RECOVERY_SENDER,
+        emailReplyTo: FICTIONAL_RECOVERY_REPLY_TO,
+        backofficeOrigin: "https://staging.purosur.online",
+        arcaCertificate: { environment: "production", notAfter: new Date("2126-09-01T19:42:17Z") },
+        arcaVitality: { endpoint: UNREACHABLE_WSFE_ENDPOINT },
+      },
+      () => NOW,
+      { emailSender: UNUSED_EMAIL_SENDER, schedules: false },
+    );
+
+    try {
+      await sql`select graphile_worker.add_job('alert-condition-resolution')`;
+
+      await vi.waitFor(
+        async () => {
+          const [row] = await db.select().from(alerts).where(eq(alerts.scope, overdue.registerId));
+          expect(row).toMatchObject({
+            kind: "register_backup_overdue",
+            level: "critical",
+            audience: "all",
+            resolvedAt: null,
+            detail: {
+              lastVerifiedGenerationAt: null,
+              firstChangeAt: firstChange.toISOString(),
+            },
+          });
+        },
+        { timeout: 20_000, interval: 100 },
+      );
+    } finally {
+      await recovery.close();
+    }
+  }, 60_000);
 });
