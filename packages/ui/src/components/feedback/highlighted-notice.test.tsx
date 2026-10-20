@@ -421,3 +421,26 @@ test("moves the action below the text when the row is too narrow to keep the tex
   expect(textRect.width).toBeGreaterThanOrEqual(128);
   expect(button.getBoundingClientRect().top).toBeGreaterThanOrEqual(textRect.bottom);
 });
+
+test("keeps the text beside the icon in the row layout without an action", async () => {
+  const screen = await render(
+    <div style={{ width: 600 }}>
+      <HighlightedNotice
+        tone="error"
+        layout="row"
+        icon={<Info />}
+        title="Sale open"
+        description="Cancel the open sale before closing the register, or ask a supervisor to close it for you from the back office"
+      />
+    </div>,
+  );
+  const icon = screen.container.querySelector("svg") as SVGSVGElement;
+  const title = screen.getByText("Sale open", { exact: true }).first().element() as HTMLElement;
+  const textStack = title.parentElement as HTMLElement;
+
+  const iconRect = icon.getBoundingClientRect();
+  const textRect = textStack.getBoundingClientRect();
+  expect(textRect.left - iconRect.right).toBeGreaterThan(15);
+  expect(textRect.left - iconRect.right).toBeLessThan(17);
+  expect(textRect.top).toBeLessThan(iconRect.bottom);
+});
