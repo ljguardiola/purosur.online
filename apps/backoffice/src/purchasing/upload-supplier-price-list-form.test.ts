@@ -34,6 +34,6 @@ test("starts without a supplier or a file", () => {
 
 test("lands the refusals on the supplier and the file fields, the file name included", () => {
   expect(UPLOAD_FIELDS).toEqual({ supplierId: "supplierId", file: "file", fileName: "file" });
-  expect(UPLOAD_FIELD_MESSAGES.supplierId(EMPTY_UPLOAD_FORM)).toBe("Elegí el proveedor.");
-  expect(UPLOAD_FIELD_MESSAGES.file(EMPTY_UPLOAD_FORM)).toBe("Elegí el archivo PDF de la lista.");
+  expect(UPLOAD_FIELD_MESSAGES.supplierId).toBe("Elegí el proveedor.");
+  expect(UPLOAD_FIELD_MESSAGES.file).toBe("Elegí el archivo PDF de la lista.");
 });

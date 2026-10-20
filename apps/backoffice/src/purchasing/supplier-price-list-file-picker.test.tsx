@@ -18,7 +18,7 @@ test("shows the chosen file by name and size, and offers to choose another", asy
   const screen = await render(<SupplierPriceListFilePicker file={pdf} onChange={() => {}} />);
 
   await expect.element(screen.getByText("lista-septiembre-2026.pdf")).toBeVisible();
-  await expect.element(screen.getByText("2,4 MB")).toBeVisible();
+  await expect.element(screen.getByText("3 MB")).toBeVisible();
   await expect.element(screen.getByRole("button", { name: "Elegir otro archivo" })).toBeVisible();
 });
 

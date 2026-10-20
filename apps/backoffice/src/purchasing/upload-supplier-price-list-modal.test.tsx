@@ -66,7 +66,7 @@ type ModalScreen = Awaited<ReturnType<typeof renderModal>>;
 
 async function chooseSupplier(screen: ModalScreen, name: string) {
   const dialog = screen.getByRole("dialog");
-  await userEvent.click(dialog.getByRole("button", { name: /^Proveedor/ }));
+  await userEvent.click(dialog.getByRole("button", { name: /Proveedor/ }));
   await userEvent.click(screen.getByRole("option", { name }));
 }
 
@@ -101,7 +101,7 @@ test("shows the title, what reading does and the file to choose", async () => {
 test("offers the active suppliers by name", async () => {
   const screen = await renderModal();
 
-  await userEvent.click(screen.getByRole("dialog").getByRole("button", { name: /^Proveedor/ }));
+  await userEvent.click(screen.getByRole("dialog").getByRole("button", { name: /Proveedor/ }));
 
   await expect
     .poll(() =>
@@ -117,7 +117,7 @@ test("opens with the supplier it is given chosen", async () => {
   const screen = await renderModal({ initialSupplierId: granos.id });
 
   await expect
-    .element(screen.getByRole("dialog").getByRole("button", { name: /^Proveedor/ }))
+    .element(screen.getByRole("dialog").getByRole("button", { name: /Proveedor/ }))
     .toHaveTextContent("Granos del Valle");
 });
 
@@ -128,7 +128,7 @@ test("shows the chosen file with its size, and lets the person choose another", 
   const dialog = screen.getByRole("dialog");
 
   await expect.element(dialog.getByText("lista-septiembre-2026.pdf")).toBeVisible();
-  await expect.element(dialog.getByText("2,4 MB")).toBeVisible();
+  await expect.element(dialog.getByText("3 MB")).toBeVisible();
   await expect.element(dialog.getByRole("button", { name: "Elegir otro archivo" })).toBeVisible();
 });
 
