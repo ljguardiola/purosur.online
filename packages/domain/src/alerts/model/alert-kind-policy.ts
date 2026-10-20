@@ -274,17 +274,13 @@ export function alertKindsWithScope(scopeKind: AlertScopeKind): AlertKind[] {
 export const ALERT_CLOSINGS = [
   "by_itself",
   "with_its_refund",
-  "when_its_refund_is_done",
   "when_its_document_is_resolved",
   "when_its_events_are_released",
   "by_hand",
 ] as const;
 export type AlertClosing = (typeof ALERT_CLOSINGS)[number];
 
-export function alertClosing(
-  kind: AlertKind,
-  discardableRefundAlertKinds: readonly AlertKind[],
-): AlertClosing {
+export function alertClosing(kind: AlertKind): AlertClosing {
   const policy = ALERT_KIND_POLICIES[kind];
   if (policy.resolvesAfterStableClear) {
     return "by_itself";
@@ -295,8 +291,5 @@ export function alertClosing(
   if (kind === "events_quarantined") {
     return "when_its_events_are_released";
   }
-  if (policy.scopeKind !== "refund") {
-    return "by_hand";
-  }
-  return discardableRefundAlertKinds.includes(kind) ? "with_its_refund" : "when_its_refund_is_done";
+  return policy.scopeKind === "refund" ? "with_its_refund" : "by_hand";
 }

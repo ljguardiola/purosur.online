@@ -5,7 +5,6 @@ import {
   alertKindPolicy,
   alertNamedRecordIds,
   argentinaCalendarDay,
-  DISCARDABLE_REFUND_ALERT_KINDS,
   hasFortnightStarted,
   isAlertKind,
   isAlertOfViewerBranch,
@@ -143,7 +142,7 @@ export function toAlertDetailBody(
     escalatedAt: alert.escalatedAt?.toISOString() ?? null,
     resolvedAt: alert.resolvedAt?.toISOString() ?? null,
     open: isOpenAlert(alert),
-    closing: alertClosing(alert.kind, DISCARDABLE_REFUND_ALERT_KINDS),
+    closing: alertClosing(alert.kind),
     deliveries: deliveries.map(toAlertDelivery),
   });
 }
