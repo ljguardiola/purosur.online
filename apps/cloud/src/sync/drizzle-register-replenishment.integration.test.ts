@@ -52,6 +52,10 @@ function hoursAfter(base: Date, hours: number): Date {
   return new Date(base.getTime() + hours * 60 * 60 * 1000);
 }
 
+function idStartingWith(prefix: string): string {
+  return prefix + randomUUID().slice(prefix.length);
+}
+
 async function insertBranch(): Promise<string> {
   const [location] = await db.insert(locations).values({}).returning({ id: locations.id });
   if (!location) {
@@ -109,12 +113,12 @@ function positionsOf(events: { deviceId: string; event: { device_seq: number } }
 async function aRegisterRestoredTwice() {
   const registerId = await insertRegister(await insertBranch());
   const predecessor = await insertInstallation(registerId, {
-    id: "ffffffff-0000-4000-8000-000000000001",
+    id: idStartingWith("ffffffff"),
     enrolledAt: T0,
     revokedAt: hoursAfter(T0, 5),
   });
   const second = await insertInstallation(registerId, {
-    id: "00000000-0000-4000-8000-000000000002",
+    id: idStartingWith("00000000"),
     enrolledAt: hoursAfter(T0, 2),
     revokedAt: hoursAfter(T0, 6),
   });
