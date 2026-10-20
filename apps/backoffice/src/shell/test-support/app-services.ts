@@ -192,6 +192,9 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
     salesByCashierScreen: {
       fetchSalesByCashier: vi.fn().mockReturnValue(new Promise(() => {})),
     },
+    salesByPromotionScreen: {
+      fetchSalesByPromotion: vi.fn().mockReturnValue(new Promise(() => {})),
+    },
     averageTicketScreen: {
       fetchAverageTicket: vi.fn().mockReturnValue(new Promise(() => {})),
     },
@@ -243,6 +246,8 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
       emitEnrollmentCode: vi.fn(),
       revokeRegister: vi.fn(),
       revokeEveryInstallation: vi.fn(),
+      loadBitlockerRecoveryKey: vi.fn(),
+      consultBitlockerRecoveryKey: vi.fn(),
       fetchSessionAuthorizationOptions: vi.fn(),
       authorizeSession: vi.fn(),
       startAuthentication: vi.fn(),

@@ -19,13 +19,12 @@ import { BadgePercent, Check, Pencil, Plus, Search, SearchX } from "lucide-react
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { combineCloudData } from "../platform/combine-cloud-data";
+import { discountBenefitText, discountTargetLine } from "../platform/discount-terms-text";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
 import {
   DISCOUNT_KIND_LABELS,
   DISCOUNT_STATUS_PRESENTATION,
-  discountBenefitText,
-  discountTargetLine,
   discountValidityText,
 } from "./discount-texts";
 import { DiscountWeekdays } from "./discount-weekdays";

@@ -27,7 +27,46 @@ const UPLOAD = {
   snapshots_folder: "/data/snapshots",
 };
 
+const RESTORE = {
+  kind: "restore",
+  device_token: "prefix.secret",
+  cloud_url: "https://cloud.example.test",
+  staged_database_path: "/data/register.restored.sqlite",
+  snapshot_keys: [
+    { version: 1, key: KEY },
+    { version: 2, key: Buffer.alloc(32, 8).toString("base64") },
+  ],
+};
+
 describe("snapshotWorkerJobSchema", () => {
+  it("reads a job that restores the newest snapshot", () => {
+    expect(snapshotWorkerJobSchema.parse(RESTORE)).toEqual(RESTORE);
+  });
+
+  it.each([
+    ["no snapshot key", { snapshot_keys: [] }],
+    [
+      "two keys of the same version",
+      { snapshot_keys: [RESTORE.snapshot_keys[0], RESTORE.snapshot_keys[0]] },
+    ],
+    ["a key that is not 32 bytes", { snapshot_keys: [{ version: 1, key: "c2hvcnQ=" }] }],
+    ["an empty staged database path", { staged_database_path: "" }],
+    ["an empty device token", { device_token: "" }],
+    ["a cloud url that is not a url", { cloud_url: "cloud" }],
+    ["a field it does not know", { extra: true }],
+  ])("refuses a restore job with %s", (_name, override) => {
+    expect(snapshotWorkerJobSchema.safeParse({ ...RESTORE, ...override }).success).toBe(false);
+  });
+
+  it.each(Object.keys(RESTORE).filter((field) => field !== "kind"))(
+    "requires %s in a restore job",
+    (field) => {
+      const { [field]: _omitted, ...rest } = RESTORE as Record<string, unknown>;
+
+      expect(snapshotWorkerJobSchema.safeParse(rest).success).toBe(false);
+    },
+  );
+
   it("reads a job that takes a snapshot", () => {
     expect(snapshotWorkerJobSchema.parse(TAKE)).toEqual(TAKE);
   });
@@ -86,7 +125,7 @@ describe("snapshotWorkerJobSchema", () => {
   });
 
   it("refuses a job of another kind", () => {
-    expect(snapshotWorkerJobSchema.safeParse({ ...UPLOAD, kind: "restore" }).success).toBe(false);
+    expect(snapshotWorkerJobSchema.safeParse({ ...UPLOAD, kind: "prune" }).success).toBe(false);
   });
 });
 
@@ -128,6 +167,23 @@ describe("snapshotWorkerMessageSchema", () => {
     const message = { type: "snapshot-key-version-announced", version: 3 };
 
     expect(snapshotWorkerMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each(["restored", "no_generation", "none_usable", "unreachable"])(
+    "reads the message that the restore ended as %s",
+    (outcome) => {
+      const message = { type: "snapshot-restore-finished", outcome };
+
+      expect(snapshotWorkerMessageSchema.parse(message)).toEqual(message);
+    },
+  );
+
+  it.each([
+    { type: "snapshot-restore-finished" },
+    { type: "snapshot-restore-finished", outcome: "half_restored" },
+    { type: "snapshot-restore-finished", outcome: "restored", extra: 1 },
+  ])("refuses %j", (message) => {
+    expect(snapshotWorkerMessageSchema.safeParse(message).success).toBe(false);
   });
 
   it.each([

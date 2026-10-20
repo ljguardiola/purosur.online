@@ -65,7 +65,7 @@ export const PERMISSION_LABELS = {
   dismiss_alerts_manually: "Cerrar alertas a mano",
   enroll_register_devices: "Dar de alta cajas",
   revoke_register_devices: "Revocar cajas",
-  view_bitlocker_key: "Consultar la clave de BitLocker",
+  view_bitlocker_key: "Cargar y consultar la clave de recuperación de BitLocker",
   release_quarantined_events: "Liberar eventos en cuarentena",
   view_backups_and_rotate_key: "Ver backups y rotar la clave",
   recover_contingency_receipts: "Rescatar tickets de contingencia",

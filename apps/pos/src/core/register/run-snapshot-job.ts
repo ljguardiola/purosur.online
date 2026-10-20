@@ -87,7 +87,7 @@ async function takeSnapshot(
 }
 
 export async function runSnapshotJob(
-  job: SnapshotWorkerJobMessage,
+  job: Exclude<SnapshotWorkerJobMessage, { kind: "restore" }>,
   deps: SnapshotJobDeps,
 ): Promise<SnapshotJobResult> {
   await mkdir(job.snapshots_folder, { recursive: true });

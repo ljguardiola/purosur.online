@@ -31,6 +31,7 @@ import {
   salesByCashierRoute,
   salesByDayRoute,
   salesByProductAndCategoryRoute,
+  salesByPromotionRoute,
 } from "../sales/routes";
 import { compromiseResponseRoute, signInRoute } from "../sessions/routes";
 import {
@@ -108,6 +109,7 @@ const routeTree = rootRoute.addChildren([
       salesByProductAndCategoryRoute,
       salesByCashierRoute,
       averageTicketRoute,
+      salesByPromotionRoute,
     ]),
     settingsAreaRoute.addChildren([
       myAccountRoute,

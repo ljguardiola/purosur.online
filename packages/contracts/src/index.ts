@@ -323,6 +323,15 @@ export {
 } from "./purchasing/supplier-price-list-summary.js";
 export type { SupplierSummary } from "./purchasing/supplier-summary.js";
 export { supplierListSchema, supplierSummarySchema } from "./purchasing/supplier-summary.js";
+export type {
+  BitlockerRecoveryKeyBody,
+  BitlockerRecoveryKeyLoadBody,
+} from "./register/bitlocker-recovery-key.js";
+export {
+  bitlockerRecoveryKeyLoadBodySchema,
+  bitlockerRecoveryKeySchema,
+  bitlockerRecoveryKeyShapeSchema,
+} from "./register/bitlocker-recovery-key.js";
 export type { CloudError, CloudErrorCode } from "./register/cloud-error.js";
 export {
   cloudError,
@@ -455,6 +464,7 @@ export {
   snapshotVerificationQuerySchema,
 } from "./register/snapshot-verification.js";
 export type {
+  SnapshotRestoreOutcomeKind,
   SnapshotWorkerJobMessage,
   SnapshotWorkerLaunchRequest,
   SnapshotWorkerMessage,
@@ -524,6 +534,8 @@ export {
   salesByProductAndCategoryQuerySchema,
   salesByProductAndCategorySchema,
 } from "./sales/sales-by-product-and-category.js";
+export type { SalesByPromotionBody } from "./sales/sales-by-promotion.js";
+export { salesByPromotionSchema } from "./sales/sales-by-promotion.js";
 export type {
   ReceiptCopyShown,
   SaleHistoryDetailOutcome,

@@ -77,6 +77,7 @@ import {
   registerContingencyTicketKeys,
   registerEnrollmentAttempts,
   registerEnrollmentCodes,
+  registerInstallationBitlockerKeys,
   registerInstallations,
   registerOfflinePointsOfSale,
   registerPointsOfSale,
@@ -108,6 +109,7 @@ import {
   suppliers,
   tags,
   taxAuthorityLastAuthorizedNumbers,
+  taxAuthorityOwedPresentations,
   userPinCodes,
   userPins,
   userRoles,
@@ -468,6 +470,13 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
       chainHmac: "forged-chain-hmac",
       refusedAt: new Date("2026-01-05T12:00:00.000Z"),
     });
+    await db.insert(registerInstallationBitlockerKeys).values({
+      installationId: installation.id,
+      sealedKey: "sealed",
+      keyIdentifier: "8F3A2C1D",
+      loadedAt: new Date("2026-01-05T12:00:00.000Z"),
+      loadedBy: user.id,
+    });
     await db.insert(installationRequestAttempts).values({
       deviceId: installation.id,
       endpoint: "push",
@@ -750,6 +759,11 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
         state: "missing_document",
         reportedThrough: 0,
         recordedAt: new Date("2026-10-16T12:00:00.000Z"),
+      });
+      await tx.insert(taxAuthorityOwedPresentations).values({
+        pointOfSaleNumber: 9,
+        fortnightStart: "2026-09-01",
+        listedAt: new Date("2026-10-16T12:00:00.000Z"),
       });
     });
     const [supplier] = await db
