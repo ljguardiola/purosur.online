@@ -17,6 +17,7 @@ import {
   insertSalePayment,
   takeOperationNumber,
 } from "./sqlite-sale-ledger";
+import { addDiscount } from "./test-support/sqlite-sale-ledger";
 
 type SaleFact = Extract<
   SyncedFact,
@@ -214,6 +215,94 @@ describe("replenishing a completed sale into a restored register", () => {
         line_total: 3150,
       },
     ]);
+  });
+
+  it("holds the promotions frozen on a line, named as the register's own discounts name them", () => {
+    addDiscount(
+      database,
+      "discount-1",
+      { kind: "PRODUCT", id: "product-1" },
+      { kind: "PERCENT_OFF", percent: 10 },
+      { name: "Diez por ciento" },
+    );
+    addDiscount(
+      database,
+      "discount-2",
+      { kind: "PRODUCT", id: "product-1" },
+      { kind: "BUY_N_PAY_M", buyQty: 3, payQty: 2 },
+      { name: "Tres por dos" },
+    );
+    const [line] = aCompletedSaleFact().sale.lines;
+    if (line === undefined) {
+      throw new Error("the fixture has no line");
+    }
+
+    apply(
+      completedSale({
+        lines: [
+          {
+            ...line,
+            promotionId: "discount-1",
+            promotions: [
+              { discountId: "discount-1", benefit: { kind: "PERCENT_OFF", percent: 10 } },
+              { discountId: "discount-2", benefit: { kind: "BUY_N_PAY_M", buyQty: 3, payQty: 2 } },
+            ],
+          },
+        ],
+      }),
+    );
+
+    expect(
+      database
+        .prepare(
+          "SELECT line_id, discount_id, name, kind, percent, buy_qty, pay_qty FROM sale_line_promotions ORDER BY discount_id",
+        )
+        .all(),
+    ).toEqual([
+      {
+        line_id: "line-1",
+        discount_id: "discount-1",
+        name: "Diez por ciento",
+        kind: "PERCENT_OFF",
+        percent: 10,
+        buy_qty: null,
+        pay_qty: null,
+      },
+      {
+        line_id: "line-1",
+        discount_id: "discount-2",
+        name: "Tres por dos",
+        kind: "BUY_N_PAY_M",
+        percent: null,
+        buy_qty: 3,
+        pay_qty: 2,
+      },
+    ]);
+    expect(database.prepare("SELECT promotion_id FROM sale_lines").get()).toEqual({
+      promotion_id: "discount-1",
+    });
+  });
+
+  it("is refused when a promotion frozen on a line is not one of the register's discounts", () => {
+    const [line] = aCompletedSaleFact().sale.lines;
+    if (line === undefined) {
+      throw new Error("the fixture has no line");
+    }
+
+    expect(() =>
+      apply(
+        completedSale({
+          lines: [
+            {
+              ...line,
+              promotions: [
+                { discountId: "discount-9", benefit: { kind: "PERCENT_OFF", percent: 10 } },
+              ],
+            },
+          ],
+        }),
+      ),
+    ).toThrow("discount discount-9 is not held");
   });
 
   it("holds its sale discount", () => {
