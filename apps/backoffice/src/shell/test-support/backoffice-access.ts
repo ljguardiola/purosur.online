@@ -17,6 +17,7 @@ const EVERY_CAPABILITY: Record<Capability, true> = {
   alerts_area: true,
   close_alerts_manually: true,
   registers_area: true,
+  enroll_registers: true,
   revoke_installations: true,
   bitlocker_recovery_key: true,
   backups_area: true,

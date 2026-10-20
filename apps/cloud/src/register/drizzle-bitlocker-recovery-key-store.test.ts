@@ -251,16 +251,21 @@ describe("DrizzleBitlockerRecoveryKeyStore", () => {
     expect(JSON.stringify(rows)).not.toContain(KEY_IDENTIFIER);
   });
 
-  it("leaves no key behind when the load fails midway", async () => {
-    const { registerId, locationId } = await setUp();
+  it("leaves no key behind when the work fails after the key is stored", async () => {
+    const { deviceId, actorId } = await setUp();
 
     await expect(
-      load({
-        branchId: locationId,
-        registerId,
-        actorId: "7d9b1f0e-3c52-4a8e-9d41-0b6f2e8a5c13",
+      new DrizzleBitlockerRecoveryKeyStore(db, cipher).transaction(async (tx) => {
+        await tx.storeRecoveryKey({
+          installationId: deviceId,
+          recoveryKey: RECOVERY_KEY,
+          keyIdentifier: KEY_IDENTIFIER,
+          loadedAt: LOADED_AT,
+          loadedBy: actorId,
+        });
+        throw new Error("audit write failed");
       }),
-    ).rejects.toThrow();
+    ).rejects.toThrow("audit write failed");
     expect(await db.select().from(registerInstallationBitlockerKeys)).toEqual([]);
   });
 });

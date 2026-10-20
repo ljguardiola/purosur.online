@@ -2809,7 +2809,7 @@ describe("the route access inventory", () => {
       {
         method: "POST",
         url: "/api/registers",
-        access: capabilityAccess("registers_area"),
+        access: capabilityAccess("enroll_registers"),
       },
       {
         method: "GET",
@@ -2819,7 +2819,7 @@ describe("the route access inventory", () => {
       {
         method: "POST",
         url: "/api/registers/:id/device-codes",
-        access: capabilityAccess("registers_area"),
+        access: capabilityAccess("enroll_registers"),
       },
       {
         method: "PUT",

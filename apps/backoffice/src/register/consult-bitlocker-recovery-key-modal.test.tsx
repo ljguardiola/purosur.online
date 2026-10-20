@@ -124,7 +124,7 @@ test("opens the authorization modal on authorization_required, then authorizes a
   grantAuthorization(services);
   const { screen, dialog } = await renderModal(services);
 
-  const authDialog = screen.getByRole("dialog", { name: "Autorizá este cambio" });
+  const authDialog = screen.getByRole("dialog", { name: "Autorizá esta consulta" });
   await expect.element(authDialog).toBeVisible();
   await expect
     .element(
@@ -149,7 +149,7 @@ test("cancelling the authorization closes the modal without a key", async () => 
 
   await userEvent.click(
     screen
-      .getByRole("dialog", { name: "Autorizá este cambio" })
+      .getByRole("dialog", { name: "Autorizá esta consulta" })
       .getByRole("button", { name: "Cancelar" }),
   );
 

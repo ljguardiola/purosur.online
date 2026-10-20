@@ -64,6 +64,19 @@ test("does not offer the key without the capability to use it", async () => {
   await expect.element(screen.getByRole("button", consultAction)).not.toBeInTheDocument();
 });
 
+test("offers neither a new register nor an enrollment code to a person who may only use the key", async () => {
+  const { screen } = await renderRegisters(
+    [enrolledRegister, registerWithBitlockerKey],
+    accessWith("registers_area", "bitlocker_recovery_key"),
+  );
+
+  await expect.element(screen.getByRole("button", consultAction)).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Nueva caja" })).not.toBeInTheDocument();
+  expect(
+    screen.getByRole("button", { name: /^Emitir código de alta para/ }).elements(),
+  ).toHaveLength(0);
+});
+
 test("says which installations have the key loaded", async () => {
   const { screen } = await renderRegisters([enrolledRegister, registerWithBitlockerKey]);
 

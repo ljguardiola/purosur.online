@@ -58,6 +58,25 @@ test("asks to review a typed key that does not fit", () => {
   );
 });
 
+test("asks to review the blocks of a typed key that has the shape but is not a valid key", () => {
+  const wellShapedInvalidKey = Array.from({ length: 8 }, () => "111112").join("-");
+
+  expect(bitlockerRecoveryKeyMessage({ recoveryKey: wellShapedInvalidKey })).toBe(
+    "Revisá la clave: algún bloque no es válido.",
+  );
+  expect(
+    bitlockerRecoveryKeyLoadBodySchema.safeParse(
+      bitlockerKeyRequestFrom({ recoveryKey: wellShapedInvalidKey, keyIdentifier: "1A2B3C4D" }),
+    ).success,
+  ).toBe(false);
+});
+
+test("asks to review the blocks of a well-shaped key typed with surrounding spaces", () => {
+  expect(bitlockerRecoveryKeyMessage({ recoveryKey: ` ${"111112-".repeat(7)}111112 ` })).toBe(
+    "Revisá la clave: algún bloque no es válido.",
+  );
+});
+
 test("asks for the identifier when nothing is typed", () => {
   expect(bitlockerKeyIdentifierMessage({ keyIdentifier: "" })).toBe(
     "Ingresá los 8 caracteres del identificador.",

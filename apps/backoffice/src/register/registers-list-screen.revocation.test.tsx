@@ -29,7 +29,10 @@ test("offers revoking to a person who may, only for a register with an installat
 });
 
 test("does not offer revoking without the capability to revoke registers", async () => {
-  const { screen } = await renderRegisters([enrolledRegister], accessWith("registers_area"));
+  const { screen } = await renderRegisters(
+    [enrolledRegister],
+    accessWith("registers_area", "enroll_registers"),
+  );
 
   await expect.element(screen.getByText("Caja 3")).toBeVisible();
   await expect.element(screen.getByRole("button", revokeAction)).not.toBeInTheDocument();
