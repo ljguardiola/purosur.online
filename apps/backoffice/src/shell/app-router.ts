@@ -32,7 +32,7 @@ import {
   salesByDayRoute,
   salesByProductAndCategoryRoute,
 } from "../sales/routes";
-import { signInRoute } from "../sessions/routes";
+import { compromiseResponseRoute, signInRoute } from "../sessions/routes";
 import {
   assemblyBatchesRoute,
   expiringLotsRoute,
@@ -117,6 +117,7 @@ const routeTree = rootRoute.addChildren([
       registersListRoute,
       snapshotBackupsRoute,
       branchSettingsRoute,
+      compromiseResponseRoute,
       quarantinedEventsRoute,
     ]),
     helpAreaRoute.addChildren([helpHomeRoute, helpCategoryRoute, helpArticleRoute]),

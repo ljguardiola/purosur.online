@@ -20,6 +20,10 @@ export const MIGRATION_TESTS = [
   },
 ];
 
+export const ROUTE_INVENTORY_TEST = "apps/cloud/src/app.test.ts";
+
+const CLOUD_SOURCE = "apps/cloud/src/";
+
 function stemOf(path) {
   const name = posix.basename(path);
   const extensionStart = name.lastIndexOf(".");
@@ -66,9 +70,25 @@ function testsApplyingChangedMigrations(changedFiles) {
   ).flatMap(({ tests }) => tests);
 }
 
+function isCloudRouteFile(changedFile) {
+  return (
+    changedFile.startsWith(CLOUD_SOURCE) &&
+    !posix.dirname(changedFile).split("/").includes(TEST_SUPPORT) &&
+    /-routes?\.ts$/.test(posix.basename(changedFile))
+  );
+}
+
+function routeInventoryTestOfChangedRoutes(changedFiles) {
+  return changedFiles.some(isCloudRouteFile) ? [ROUTE_INVENTORY_TEST] : [];
+}
+
 export function testsToRun({ testFiles, changedFiles, requestedFiles }) {
   const known = new Set(testFiles);
-  const named = [...testsApplyingChangedMigrations(changedFiles), ...requestedFiles];
+  const named = [
+    ...testsApplyingChangedMigrations(changedFiles),
+    ...routeInventoryTestOfChangedRoutes(changedFiles),
+    ...requestedFiles,
+  ];
   for (const testFile of named) {
     if (!known.has(testFile)) {
       throw new Error(`${testFile} is not a test file`);

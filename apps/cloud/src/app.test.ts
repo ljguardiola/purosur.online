@@ -94,7 +94,11 @@ describe("GET /api/health", () => {
     const response = await app.inject({ method: "GET", url: "/api/health" });
 
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toEqual({ status: "ok", version: "abc1234" });
+    expect(response.json()).toEqual({
+      status: "ok",
+      version: "abc1234",
+      server_time: APP_CLOCK.toISOString(),
+    });
   });
 
   it("reaches the enrolled installations when the device routes are wired", async () => {
@@ -386,7 +390,11 @@ describe("the edge origin guard", () => {
     const response = await app.inject({ method: "GET", url: "/api/health?probe=1" });
 
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toEqual({ status: "ok", version: "abc1234" });
+    expect(response.json()).toEqual({
+      status: "ok",
+      version: "abc1234",
+      server_time: APP_CLOCK.toISOString(),
+    });
   });
 
   // `inject()` resolves dot segments before routing, which a real socket does not, so these
@@ -436,7 +444,11 @@ describe("the edge origin guard", () => {
       const response = await getRawPath("/api/health");
 
       expect(response.statusCode).toBe(200);
-      expect(JSON.parse(response.body)).toEqual({ status: "ok", version: "abc1234" });
+      expect(JSON.parse(response.body)).toEqual({
+        status: "ok",
+        version: "abc1234",
+        server_time: APP_CLOCK.toISOString(),
+      });
     });
 
     it.each(["/api/./health", "/api/x/../health", "/api/%2e%2e/health", "/api/health/"])(
@@ -661,7 +673,11 @@ describe("serving the backoffice's static build", () => {
     const response = await app.inject({ method: "GET", url: "/api/health" });
 
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toEqual({ status: "ok", version: "abc1234" });
+    expect(response.json()).toEqual({
+      status: "ok",
+      version: "abc1234",
+      server_time: APP_CLOCK.toISOString(),
+    });
   });
 
   it.each([
@@ -1792,6 +1808,29 @@ describe("wiring the register revocation route", () => {
   });
 });
 
+describe("wiring the compromise-response runbook routes", () => {
+  it("answers GET /api/compromise-responses/current according to the compromiseResponses option", async () => {
+    const unwired = buildApp({ now: () => APP_CLOCK, version: "abc1234" });
+    const wired = buildApp({
+      now: () => APP_CLOCK,
+      version: "abc1234",
+      compromiseResponses: {
+        db: testDatabase.db,
+        backofficeOrigin: "https://staging.purosur.online",
+        keysEncryptionKey: TEST_INSTALLATION_KEYS_ENCRYPTION_KEY,
+      },
+    });
+    const request = {
+      method: "GET",
+      url: "/api/compromise-responses/current",
+      headers: { origin: "https://staging.purosur.online" },
+    } as const;
+
+    expect((await unwired.inject(request)).statusCode).toBe(404);
+    expect((await wired.inject(request)).statusCode).toBe(401);
+  });
+});
+
 describe("wiring the device enrollment route", () => {
   it("does not register POST /api/devices when no devices option is given", async () => {
     const app = buildApp({ now: () => APP_CLOCK, version: "abc1234" });
@@ -2816,6 +2855,36 @@ describe("the route access inventory", () => {
         method: "POST",
         url: "/api/registers/revocations",
         access: capabilityAccess("revoke_installations"),
+      },
+      {
+        method: "POST",
+        url: "/api/compromise-responses",
+        access: capabilityAccess("manage_users"),
+      },
+      {
+        method: "GET",
+        url: "/api/compromise-responses/current",
+        access: capabilityAccess("manage_users"),
+      },
+      {
+        method: "POST",
+        url: "/api/compromise-responses/current/steps/revoke-every-installation",
+        access: capabilityAccess("manage_users"),
+      },
+      {
+        method: "POST",
+        url: "/api/compromise-responses/current/steps/end-sessions-and-remove-passkeys",
+        access: capabilityAccess("manage_users"),
+      },
+      {
+        method: "POST",
+        url: "/api/compromise-responses/current/steps/force-pin-resets",
+        access: capabilityAccess("manage_users"),
+      },
+      {
+        method: "POST",
+        url: "/api/compromise-responses/current/items/:item",
+        access: capabilityAccess("manage_users"),
       },
       {
         method: "GET",

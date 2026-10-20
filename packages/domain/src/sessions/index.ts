@@ -4,6 +4,24 @@ export {
   BACKOFFICE_SOURCE_ADDRESS_REQUEST_LIMIT,
   backofficeRequestWindowStart,
 } from "./model/backoffice-request-rate-limits.js";
+export type {
+  CompromiseResponseAction,
+  CompromiseResponseCompletion,
+  CompromiseResponseItem,
+  CompromiseResponseItemState,
+  CompromiseResponseRefusal,
+  CompromiseResponseStep,
+  CompromiseResponseStepState,
+  ExternalSecretItem,
+  PasskeyRemovalRefusal,
+  PasskeyRemovalResult,
+} from "./model/compromise-response.js";
+export {
+  COMPROMISE_RESPONSE_ACTION_STEPS,
+  COMPROMISE_RESPONSE_ITEMS,
+  COMPROMISE_RESPONSE_STEPS,
+  EXTERNAL_SECRET_ITEMS,
+} from "./model/compromise-response.js";
 export {
   isLockedOutOfPinSignIn,
   PIN_SIGN_IN_LOCKOUT_FAILURES,

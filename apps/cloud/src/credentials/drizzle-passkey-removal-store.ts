@@ -14,7 +14,7 @@ type Transaction<TQueryResult extends PgQueryResultHKT> = Parameters<
   Parameters<PgDatabase<TQueryResult>["transaction"]>[0]
 >[0];
 
-class DrizzlePasskeyRemovalStoreTransaction<TQueryResult extends PgQueryResultHKT>
+export class DrizzlePasskeyRemovalStoreTransaction<TQueryResult extends PgQueryResultHKT>
   implements PasskeyRemovalStoreTransaction
 {
   private readonly tx: Transaction<TQueryResult>;

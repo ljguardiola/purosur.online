@@ -166,6 +166,10 @@ import {
   registerSalesReportRoutes,
   type SalesReportRouteOptions,
 } from "./sales/sales-report-routes.js";
+import {
+  type CompromiseResponseRouteOptions,
+  registerCompromiseResponseRoutes,
+} from "./sessions/compromise-response-route.js";
 import { registerEverySessionEndingRoute } from "./sessions/every-session-ending-route.js";
 import {
   declarePluginRoutesAccess,
@@ -242,6 +246,7 @@ export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = Postgre
   registers?: WithoutClock<RegistersRouteOptions<TQueryResult>>;
   snapshotBackups?: WithoutClock<SnapshotBackupsRouteOptions<TQueryResult>>;
   registerRevocations?: WithoutClock<RegisterRevocationRouteOptions<TQueryResult>>;
+  compromiseResponses?: WithoutClock<CompromiseResponseRouteOptions<TQueryResult>>;
   registersPointsOfSale?: WithoutClock<RegistersPointsOfSaleRouteOptions<TQueryResult>>;
   stock?: WithoutClock<StockRouteOptions<TQueryResult>>;
   salesReports?: WithoutClock<SalesReportRouteOptions<TQueryResult>>;
@@ -343,6 +348,10 @@ export function databaseRouteOptions<TQueryResult extends PgQueryResultHKT>(
       ...backoffice,
       keysEncryptionKey: wiring.installationKeysEncryptionKey,
     },
+    compromiseResponses: {
+      ...backoffice,
+      keysEncryptionKey: wiring.installationKeysEncryptionKey,
+    },
     registersPointsOfSale: wiring.enqueueTaxAuthorityCount
       ? { ...backoffice, enqueueTaxAuthorityCount: wiring.enqueueTaxAuthorityCount }
       : backoffice,
@@ -429,6 +438,7 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
       const health = options.health && { ...options.health, now };
       registerHealthRoute(api, {
         version: options.version,
+        now,
         ...(health && {
           arcaOnlineStatus: arcaOnlineStatusOf(health.db, health),
         }),
@@ -645,6 +655,10 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
 
       if (options.registerRevocations) {
         registerRegisterRevocationRoute(api, { ...options.registerRevocations, now });
+      }
+
+      if (options.compromiseResponses) {
+        registerCompromiseResponseRoutes(api, { ...options.compromiseResponses, now });
       }
 
       if (options.registersPointsOfSale) {
