@@ -11,9 +11,9 @@ import {
   type ScreenLocator,
 } from "./test-support/products-list-screen";
 
-const granvel: BrandSummary = {
+const granuz: BrandSummary = {
   id: "brand-1",
-  name: "Granvel",
+  name: "Granuz",
   active: true,
   version: 1,
   productCount: 42,
@@ -35,7 +35,7 @@ async function openStackedNewBrandModal(screen: Screen, productDialog: ScreenLoc
 
 test("creating a brand leaves the catalog unread while the product form is open, and reads it once the form closes", async () => {
   const services = createServices();
-  mockLoaded(services, [honey], undefined, [granvel]);
+  mockLoaded(services, [honey], undefined, [granuz]);
   vi.mocked(services.createBrand).mockResolvedValue({ kind: "ok", brand: dulcor });
   const screen = await renderScreen(services);
   const productDialog = await openEditProductModal(screen, honey);
@@ -49,7 +49,7 @@ test("creating a brand leaves the catalog unread while the product form is open,
 
   expect(vi.mocked(services.fetchBrands).mock.calls.length).toBe(brandsReads);
   expect(vi.mocked(services.fetchProducts).mock.calls.length).toBe(productsReads);
-  vi.mocked(services.fetchBrands).mockResolvedValue({ kind: "ok", value: [granvel, dulcor] });
+  vi.mocked(services.fetchBrands).mockResolvedValue({ kind: "ok", value: [granuz, dulcor] });
   await userEvent.click(
     screen.getByRole("dialog", { name: honey.name }).getByRole("button", { name: "Cancelar" }),
   );

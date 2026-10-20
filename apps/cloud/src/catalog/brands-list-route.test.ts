@@ -71,12 +71,12 @@ describe("GET /brands", () => {
   });
 
   it("lists every brand by name, active or not, with how many active products carry it", async () => {
-    const granvel = await insertBrand(db, { name: "Granvel" });
+    const granuz = await insertBrand(db, { name: "Granuz" });
     const litoral = await insertBrand(db, { name: "Yerba del Litoral", active: false, version: 3 });
     const cabriola = await insertBrand(db, { name: "Cabriola" });
-    await insertProductOfBrand(db, { name: "Galletitas", brandId: granvel.id });
-    await insertProductOfBrand(db, { name: "Tostadas", brandId: granvel.id });
-    await insertProductOfBrand(db, { name: "Barritas", brandId: granvel.id, active: false });
+    await insertProductOfBrand(db, { name: "Galletitas", brandId: granuz.id });
+    await insertProductOfBrand(db, { name: "Tostadas", brandId: granuz.id });
+    await insertProductOfBrand(db, { name: "Barritas", brandId: granuz.id, active: false });
     await insertProductOfBrand(db, { name: "Miel", brandId: litoral.id });
     await insertProductOfBrand(db, { name: "Dátiles sueltos", brandId: null });
     const rawSessionId = await signedInWithPermissions(db, NOON);
@@ -86,18 +86,18 @@ describe("GET /brands", () => {
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual([
       { id: cabriola.id, name: "Cabriola", active: true, version: 1, productCount: 0 },
-      { id: granvel.id, name: "Granvel", active: true, version: 1, productCount: 2 },
+      { id: granuz.id, name: "Granuz", active: true, version: 1, productCount: 2 },
       { id: litoral.id, name: "Yerba del Litoral", active: false, version: 3, productCount: 1 },
     ]);
   });
 
   it("lists brands for an Administrator even without the explicit permission", async () => {
-    await insertBrand(db, { name: "Granvel" });
+    await insertBrand(db, { name: "Granuz" });
     const rawSessionId = await signedInAsAdministrator(db, NOON);
 
     const response = await getBrands(rawSessionId);
 
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toMatchObject([{ name: "Granvel" }]);
+    expect(response.json()).toMatchObject([{ name: "Granuz" }]);
   });
 });

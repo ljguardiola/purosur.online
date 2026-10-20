@@ -23,9 +23,9 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-const granvel: BrandSummary = {
+const granuz: BrandSummary = {
   id: "brand-1",
-  name: "Granvel",
+  name: "Granuz",
   active: true,
   version: 1,
   productCount: 42,
@@ -43,14 +43,14 @@ const JSON_POST = { method: "POST", ...JSON_BODY };
 
 describe("fetchBrands", () => {
   test("lists every brand on 200", async () => {
-    vi.mocked(fetch).mockResolvedValue(jsonResponse(200, [granvel, litoral]));
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(200, [granuz, litoral]));
 
-    expect(await fetchBrands()).toEqual({ kind: "ok", value: [granvel, litoral] });
+    expect(await fetchBrands()).toEqual({ kind: "ok", value: [granuz, litoral] });
     expect(fetch).toHaveBeenCalledWith("/api/brands");
   });
 
   test("returns failed when a listed brand does not have the expected shape", async () => {
-    vi.mocked(fetch).mockResolvedValue(jsonResponse(200, [{ ...granvel, productCount: "42" }]));
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(200, [{ ...granuz, productCount: "42" }]));
 
     expect(await fetchBrands()).toEqual({ kind: "failed" });
   });
@@ -80,7 +80,7 @@ describe("fetchBrands", () => {
 
 describe("createBrand", () => {
   test("posts the name and answers the created brand on 201", async () => {
-    const dulcor = { ...granvel, id: "brand-9", name: "Dulcor", productCount: 0 };
+    const dulcor = { ...granuz, id: "brand-9", name: "Dulcor", productCount: 0 };
     vi.mocked(fetch).mockResolvedValue(jsonResponse(201, dulcor));
 
     expect(await createBrand({ name: "Dulcor" })).toEqual({ kind: "ok", brand: dulcor });
@@ -113,7 +113,7 @@ describe("createBrand", () => {
   test("returns name_taken on a 409", async () => {
     vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code: "brand_name_taken" }));
 
-    expect(await createBrand({ name: "vitarda" })).toEqual({ kind: "name_taken" });
+    expect(await createBrand({ name: "vitora" })).toEqual({ kind: "name_taken" });
   });
 
   test.each([
@@ -146,11 +146,11 @@ describe("editBrand", () => {
   test("puts the name and version and returns ok on 200 whatever the body says", async () => {
     vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { unexpected: true }));
 
-    expect(await editBrand("brand-1", { name: "Granvel Pro", version: 1 })).toEqual({ kind: "ok" });
+    expect(await editBrand("brand-1", { name: "Granuz Pro", version: 1 })).toEqual({ kind: "ok" });
     expect(fetch).toHaveBeenCalledWith("/api/brands/brand-1", {
       method: "PUT",
       ...JSON_BODY,
-      body: JSON.stringify({ name: "Granvel Pro", version: 1 }),
+      body: JSON.stringify({ name: "Granuz Pro", version: 1 }),
     });
   });
 
@@ -159,7 +159,7 @@ describe("editBrand", () => {
       jsonResponse(400, { code: "validation_failed", details: [{ field: "version" }] }),
     );
 
-    expect(await editBrand("brand-1", { name: "Granvel", version: 1 })).toEqual({
+    expect(await editBrand("brand-1", { name: "Granuz", version: 1 })).toEqual({
       kind: "validation_failed",
       field: "version",
     });
@@ -175,13 +175,13 @@ describe("editBrand", () => {
   ])("answers a %i carrying %j as %j", async (status, body, outcome) => {
     vi.mocked(fetch).mockResolvedValue(jsonResponse(status, body));
 
-    expect(await editBrand("brand-1", { name: "Vitarda", version: 1 })).toEqual(outcome);
+    expect(await editBrand("brand-1", { name: "Vitora", version: 1 })).toEqual(outcome);
   });
 
   test("returns rate_limited with the Retry-After header on 429", async () => {
     vi.mocked(fetch).mockResolvedValue(jsonResponse(429, undefined, { "Retry-After": "45" }));
 
-    expect(await editBrand("brand-1", { name: "Granvel", version: 1 })).toEqual({
+    expect(await editBrand("brand-1", { name: "Granuz", version: 1 })).toEqual({
       kind: "rate_limited",
       retryAfterSeconds: 45,
     });
@@ -190,7 +190,7 @@ describe("editBrand", () => {
   test("returns failed when the request throws", async () => {
     vi.mocked(fetch).mockRejectedValue(new Error("network down"));
 
-    expect(await editBrand("brand-1", { name: "Granvel", version: 1 })).toEqual({
+    expect(await editBrand("brand-1", { name: "Granuz", version: 1 })).toEqual({
       kind: "failed",
     });
   });

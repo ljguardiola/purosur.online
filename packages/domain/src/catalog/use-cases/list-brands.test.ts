@@ -3,34 +3,34 @@ import { listBrands } from "./list-brands.js";
 import { catalogProduct } from "./test-support/catalog-list-fixtures.js";
 import { FakeCatalogListReader } from "./test-support/fake-catalog-list-reader.js";
 
-const granvel = { id: "brand-1", name: "Granvel", active: true, version: 2 };
+const granuz = { id: "brand-1", name: "Granuz", active: true, version: 2 };
 const litoral = { id: "brand-2", name: "Yerba del Litoral", active: false, version: 1 };
 
 describe("listBrands", () => {
   it("lists the brands by name with their product counts", async () => {
     const reader = new FakeCatalogListReader({
-      brands: [litoral, granvel],
+      brands: [litoral, granuz],
       products: [
-        catalogProduct({ id: "product-1", brandId: granvel.id }),
-        catalogProduct({ id: "product-2", brandId: granvel.id }),
+        catalogProduct({ id: "product-1", brandId: granuz.id }),
+        catalogProduct({ id: "product-2", brandId: granuz.id }),
       ],
     });
 
     expect(await listBrands({ catalog: reader })).toEqual([
-      { ...granvel, productCount: 2 },
+      { ...granuz, productCount: 2 },
       { ...litoral, productCount: 0 },
     ]);
   });
 
   it("does not count a deactivated product in its brand", async () => {
     const reader = new FakeCatalogListReader({
-      brands: [granvel],
+      brands: [granuz],
       products: [
-        catalogProduct({ id: "product-1", brandId: granvel.id, active: true }),
-        catalogProduct({ id: "product-2", brandId: granvel.id, active: false }),
+        catalogProduct({ id: "product-1", brandId: granuz.id, active: true }),
+        catalogProduct({ id: "product-2", brandId: granuz.id, active: false }),
       ],
     });
 
-    expect(await listBrands({ catalog: reader })).toEqual([{ ...granvel, productCount: 1 }]);
+    expect(await listBrands({ catalog: reader })).toEqual([{ ...granuz, productCount: 1 }]);
   });
 });

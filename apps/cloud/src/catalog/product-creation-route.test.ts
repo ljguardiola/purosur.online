@@ -448,7 +448,7 @@ describe("POST /products", () => {
 
   it("creates the product with the active brand it was given", async () => {
     const categoryId = await insertCategory("Almacén");
-    const brandId = await insertBrand("Granvel");
+    const brandId = await insertBrand("Granuz");
     const userId = await insertUserWithPermission();
     const rawSessionId = await insertSession(userId);
 

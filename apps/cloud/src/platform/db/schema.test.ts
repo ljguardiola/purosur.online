@@ -128,17 +128,17 @@ describe("categories.parent_id", () => {
 
 describe("brands.name", () => {
   it("rejects a second brand with the same name in another letter case, even when the first is deactivated", async () => {
-    await db.insert(brands).values({ name: "Vitarda", active: false });
+    await db.insert(brands).values({ name: "Vitora", active: false });
 
-    await expect(db.insert(brands).values({ name: "vITARDA" })).rejects.toMatchObject({
+    await expect(db.insert(brands).values({ name: "vITORA" })).rejects.toMatchObject({
       cause: { constraint: "brands_name_lower_key" },
     });
   });
 
   it("starts a brand active at version 1", async () => {
-    const [brand] = await db.insert(brands).values({ name: "Granvel" }).returning();
+    const [brand] = await db.insert(brands).values({ name: "Granuz" }).returning();
 
-    expect(brand).toMatchObject({ name: "Granvel", active: true, version: 1 });
+    expect(brand).toMatchObject({ name: "Granuz", active: true, version: 1 });
   });
 });
 

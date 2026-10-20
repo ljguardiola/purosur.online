@@ -10,8 +10,8 @@ function firstFailure(body: unknown): { field: unknown; message: unknown } | und
 
 describe("brandEditBodySchema", () => {
   it("reads the name and the version loaded", () => {
-    expect(brandEditBodySchema.safeParse({ name: " Granvel ", version: 2 }).data).toEqual({
-      name: "Granvel",
+    expect(brandEditBodySchema.safeParse({ name: " Granuz ", version: 2 }).data).toEqual({
+      name: "Granuz",
       version: 2,
     });
   });

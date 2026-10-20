@@ -58,78 +58,78 @@ async function storedBrand(id: string) {
 
 describe("PUT /brands/:id", () => {
   it("no longer answers the old edit path", async () => {
-    const brand = await insertBrand(db, { name: "Granvel", active: true });
+    const brand = await insertBrand(db, { name: "Granuz", active: true });
     const rawSessionId = await signedInWithPermissions(db, NOON);
 
     const response = await app.inject({
       method: "POST",
       url: `/brands/${brand.id}/edit`,
       headers: { origin: BACKOFFICE_ORIGIN, ...sessionCookie(rawSessionId) },
-      payload: { name: "Granvel Pro", version: 1 },
+      payload: { name: "Granuz Pro", version: 1 },
     });
 
     expect(response.statusCode).toBe(404);
   });
 
   it("returns 401 unauthenticated when no cookie was sent", async () => {
-    const brand = await insertBrand(db, { name: "Granvel" });
+    const brand = await insertBrand(db, { name: "Granuz" });
 
-    const response = await editBrand(undefined, brand.id, { name: "Granvel Pro", version: 1 });
+    const response = await editBrand(undefined, brand.id, { name: "Granuz Pro", version: 1 });
 
     expect(response.statusCode).toBe(401);
   });
 
   it("rejects an Origin that is not the backoffice's own, changing nothing", async () => {
-    const brand = await insertBrand(db, { name: "Granvel" });
+    const brand = await insertBrand(db, { name: "Granuz" });
     const rawSessionId = await signedInWithPermissions(db, NOON);
 
     const response = await editBrand(
       rawSessionId,
       brand.id,
-      { name: "Granvel Pro", version: 1 },
+      { name: "Granuz Pro", version: 1 },
       { origin: "https://attacker.example" },
     );
 
     expect(response.statusCode).toBe(403);
     expect(response.json()).toMatchObject({ code: "origin_rejected" });
-    expect(await storedBrand(brand.id)).toMatchObject({ name: "Granvel", version: 1 });
+    expect(await storedBrand(brand.id)).toMatchObject({ name: "Granuz", version: 1 });
   });
 
   it("rejects a user without the products and categories permission with 403 forbidden, changing nothing", async () => {
-    const brand = await insertBrand(db, { name: "Granvel" });
+    const brand = await insertBrand(db, { name: "Granuz" });
     const rawSessionId = await signedInWithPermissions(db, NOON, ["sell_and_charge"]);
 
-    const response = await editBrand(rawSessionId, brand.id, { name: "Granvel Pro", version: 1 });
+    const response = await editBrand(rawSessionId, brand.id, { name: "Granuz Pro", version: 1 });
 
     expect(response.statusCode).toBe(403);
     expect(response.json()).toMatchObject({ code: "forbidden" });
-    expect(await storedBrand(brand.id)).toMatchObject({ name: "Granvel", version: 1 });
+    expect(await storedBrand(brand.id)).toMatchObject({ name: "Granuz", version: 1 });
   });
 
   it("renames the brand, answering it with its active products count", async () => {
-    const brand = await insertBrand(db, { name: "Granvel" });
+    const brand = await insertBrand(db, { name: "Granuz" });
     await insertProductOfBrand(db, { name: "Galletitas", brandId: brand.id });
     const rawSessionId = await signedInWithPermissions(db, NOON);
 
-    const response = await editBrand(rawSessionId, brand.id, { name: " Granvel Pro ", version: 1 });
+    const response = await editBrand(rawSessionId, brand.id, { name: " Granuz Pro ", version: 1 });
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({
       id: brand.id,
-      name: "Granvel Pro",
+      name: "Granuz Pro",
       active: true,
       version: 2,
       productCount: 1,
     });
-    expect(await storedBrand(brand.id)).toMatchObject({ name: "Granvel Pro", version: 2 });
+    expect(await storedBrand(brand.id)).toMatchObject({ name: "Granuz Pro", version: 2 });
   });
 
   it("answers 400 validation_failed naming id for a malformed id, changing nothing", async () => {
-    const brand = await insertBrand(db, { name: "Granvel" });
+    const brand = await insertBrand(db, { name: "Granuz" });
     const rawSessionId = await signedInWithPermissions(db, NOON);
 
     const response = await editBrand(rawSessionId, "not-a-uuid", {
-      name: "Granvel Pro",
+      name: "Granuz Pro",
       version: 1,
     });
 
@@ -138,7 +138,7 @@ describe("PUT /brands/:id", () => {
       code: "validation_failed",
       details: [{ field: "id" }],
     });
-    expect(await storedBrand(brand.id)).toMatchObject({ name: "Granvel", version: 1 });
+    expect(await storedBrand(brand.id)).toMatchObject({ name: "Granuz", version: 1 });
   });
 
   it.each(["00000000-0000-0000-0000-000000000000"])(
@@ -146,7 +146,7 @@ describe("PUT /brands/:id", () => {
     async (id) => {
       const rawSessionId = await signedInWithPermissions(db, NOON);
 
-      const response = await editBrand(rawSessionId, id, { name: "Granvel", version: 1 });
+      const response = await editBrand(rawSessionId, id, { name: "Granuz", version: 1 });
 
       expect(response.statusCode).toBe(404);
       expect(response.json()).toMatchObject({ code: "not_found" });
@@ -169,20 +169,20 @@ describe("PUT /brands/:id", () => {
   );
 
   it("answers a brand renamed through its id in uppercase with the id as stored", async () => {
-    const brand = await insertBrand(db, { name: "Granvel" });
+    const brand = await insertBrand(db, { name: "Granuz" });
     const rawSessionId = await signedInWithPermissions(db, NOON);
 
     const response = await editBrand(rawSessionId, brand.id.toUpperCase(), {
-      name: "Granvel Pro",
+      name: "Granuz Pro",
       version: 1,
     });
 
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toMatchObject({ id: brand.id, name: "Granvel Pro", version: 2 });
+    expect(response.json()).toMatchObject({ id: brand.id, name: "Granuz Pro", version: 2 });
   });
 
   it("rejects an empty name, changing nothing", async () => {
-    const brand = await insertBrand(db, { name: "Granvel" });
+    const brand = await insertBrand(db, { name: "Granuz" });
     const rawSessionId = await signedInWithPermissions(db, NOON);
 
     const response = await editBrand(rawSessionId, brand.id, { name: "", version: 1 });
@@ -195,25 +195,25 @@ describe("PUT /brands/:id", () => {
   });
 
   it("rejects a name another brand already has in another letter case with 409 brand_name_taken", async () => {
-    const brand = await insertBrand(db, { name: "Granvel" });
-    await insertBrand(db, { name: "Vitarda" });
+    const brand = await insertBrand(db, { name: "Granuz" });
+    await insertBrand(db, { name: "Vitora" });
     const rawSessionId = await signedInWithPermissions(db, NOON);
 
-    const response = await editBrand(rawSessionId, brand.id, { name: "VITARDA", version: 1 });
+    const response = await editBrand(rawSessionId, brand.id, { name: "VITORA", version: 1 });
 
     expect(response.statusCode).toBe(409);
     expect(response.json()).toMatchObject({ code: "brand_name_taken" });
-    expect(await storedBrand(brand.id)).toMatchObject({ name: "Granvel", version: 1 });
+    expect(await storedBrand(brand.id)).toMatchObject({ name: "Granuz", version: 1 });
   });
 
   it("returns 409 stale_version for a save made over a version someone else already changed", async () => {
-    const brand = await insertBrand(db, { name: "Granvel", version: 2 });
+    const brand = await insertBrand(db, { name: "Granuz", version: 2 });
     const rawSessionId = await signedInWithPermissions(db, NOON);
 
-    const response = await editBrand(rawSessionId, brand.id, { name: "Granvel Pro", version: 1 });
+    const response = await editBrand(rawSessionId, brand.id, { name: "Granuz Pro", version: 1 });
 
     expect(response.statusCode).toBe(409);
     expect(response.json()).toMatchObject({ code: "stale_version" });
-    expect(await storedBrand(brand.id)).toMatchObject({ name: "Granvel", version: 2 });
+    expect(await storedBrand(brand.id)).toMatchObject({ name: "Granuz", version: 2 });
   });
 });
