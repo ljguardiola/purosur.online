@@ -111,6 +111,12 @@ async function leftUnclearByNumbering(
   return request.fiscalDocumentId;
 }
 
+function reconciliationAskingAgainLater(pointOfSale: number) {
+  return sql`select 1 from graphile_worker._private_jobs
+    where key = ${`reconcile-numbering-conflict:${pointOfSale}`} and run_at > ${NOW.toISOString()}::timestamptz
+    and locked_at is null and last_error is null`;
+}
+
 describe("the numbering conflict work the server sets up on a real Postgres", () => {
   it("freezes the point of sale on a collision and, once ARCA's last number is read, alerts, continues the series and lifts the freeze", async () => {
     const { registerId, deviceToken } = await registerHoldingPointOfSale(7, 1);
@@ -145,6 +151,13 @@ describe("the numbering conflict work the server sets up on a real Postgres", ()
         },
       );
       expect(await pointOfSaleRow()).toMatchObject({ tax_authority_last_authorized_number: 1 });
+      await vi.waitFor(
+        async () => expect(await reconciliationAskingAgainLater(7)).toHaveLength(1),
+        {
+          timeout: 20_000,
+          interval: 100,
+        },
+      );
 
       fakeWsfe.requests.length = 0;
       fakeWsfe.behave(
@@ -191,7 +204,11 @@ describe("the numbering conflict work the server sets up on a real Postgres", ()
         "2126-01-01",
       );
       fakeWsfe.behave(
-        answersInTurn("fe-comp-ultimo-autorizado.xml", "fe-comp-consultar-found.xml"),
+        answersInTurn(
+          "fe-comp-ultimo-autorizado.xml",
+          "fe-comp-consultar-found.xml",
+          "fe-comp-ultimo-autorizado-token-error.xml",
+        ),
       );
       const recovery = await setUpRecovery(recoveryEnv(), () => NOW, {
         emailSender: UNUSED_EMAIL_SENDER,
@@ -211,6 +228,10 @@ describe("the numbering conflict work the server sets up on a real Postgres", ()
             interval: 100,
           },
         );
+        await vi.waitFor(
+          async () => expect(await reconciliationAskingAgainLater(pointOfSale)).toHaveLength(1),
+          { timeout: 20_000, interval: 100 },
+        );
 
         fakeWsfe.requests.length = 0;
         fakeWsfe.behave(answersInTurn("fe-comp-ultimo-autorizado-advanced.xml", file));
@@ -222,11 +243,7 @@ describe("the numbering conflict work the server sets up on a real Postgres", ()
             expect(
               fakeWsfe.requests.filter((request) => request.includes("FECompConsultar")),
             ).not.toEqual([]);
-            expect(
-              await sql`select 1 from graphile_worker._private_jobs
-                where key = ${`reconcile-numbering-conflict:${pointOfSale}`} and run_at > ${NOW.toISOString()}::timestamptz
-                and last_error is null`,
-            ).toHaveLength(1);
+            expect(await reconciliationAskingAgainLater(pointOfSale)).toHaveLength(1);
           },
           { timeout: 20_000, interval: 100 },
         );
