@@ -1,5 +1,5 @@
 import { createRoute, Outlet, useMatchRoute } from "@tanstack/react-router";
-import { HandCoins, Receipt, SlidersHorizontal } from "lucide-react";
+import { HandCoins, Landmark, Receipt, SlidersHorizontal } from "lucide-react";
 import { AreaLayout, SectionLink } from "./area-layout";
 import { canSeeCashArea, canSeeRefundsArea } from "./backoffice-access";
 import { signedInRoute } from "./signed-in-route";
@@ -13,7 +13,8 @@ export const cashAndFiscalAreaRoute = createRoute({
 function CashAndFiscalArea() {
   const { session } = signedInRoute.useRouteContext();
   const matchRoute = useMatchRoute();
-  const pendingRefundsShown = Boolean(matchRoute({ to: "/pending-refunds" }));
+  const mercadoPagoRefundsShown = Boolean(matchRoute({ to: "/refunds/mercado-pago" }));
+  const outsideRefundsShown = Boolean(matchRoute({ to: "/refunds/outside-the-system" }));
   const pointsOfSaleShown = Boolean(matchRoute({ to: "/points-of-sale" }));
   const fiscalSettingsShown = Boolean(matchRoute({ to: "/fiscal-settings" }));
   return (
@@ -27,15 +28,23 @@ function CashAndFiscalArea() {
           {canSeeRefundsArea(session) && (
             <>
               <p className="px-3 pt-3 pb-1 font-bold text-text-subtle text-caption tracking-xs">
-                CAJA
+                TAREAS
               </p>
               <ul className="flex flex-col gap-1">
                 <li>
                   <SectionLink
-                    to="/pending-refunds"
-                    label="Reembolsos pendientes"
+                    to="/refunds/mercado-pago"
+                    label="Reembolsos de MP"
                     icon={<HandCoins />}
-                    active={pendingRefundsShown}
+                    active={mercadoPagoRefundsShown}
+                  />
+                </li>
+                <li>
+                  <SectionLink
+                    to="/refunds/outside-the-system"
+                    label="Reembolsos sin API"
+                    icon={<Landmark />}
+                    active={outsideRefundsShown}
                   />
                 </li>
               </ul>
