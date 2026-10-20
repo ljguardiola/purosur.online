@@ -1899,6 +1899,39 @@ test("tells that ARCA authorized a voucher no sale of the register justifies: it
   await expect.element(screen.getByRole("button", { name: "Cerrar la alerta" })).toBeEnabled();
 });
 
+test("tells that a voided sale's invoice already had a credit note: its number, that no other was issued and that it needs a review, closing by hand", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(
+    ok(
+      baseDetail({
+        kind: "invoice_already_credited",
+        level: "critical",
+        audience: "all",
+        scope: "3:factura_c:41",
+        scopeDisplay: "3:factura_c:41",
+        scopeKind: "pointOfSaleDocumentNumber",
+        closing: "by_hand",
+        detail: { pointOfSale: 3, number: 41, saleId: "sale-1" },
+      }),
+    ),
+  );
+
+  const screen = await renderModal(services, { access: accessWith("close_alerts_manually") });
+
+  await expect.element(screen.getByText("Factura ya acreditada", { exact: true })).toBeVisible();
+  await expect
+    .element(
+      screen.getByText(
+        "Se anuló en una caja una venta cuya factura C 00003-00000041 ya tenía una nota de crédito, así que no se emitió otra. La anulación y sus reintegros ya se hicieron en la caja. Revisar qué nota de crédito acreditó la factura.",
+        { exact: true },
+      ),
+    )
+    .toBeVisible();
+  await expect
+    .element(screen.getByText("Punto de venta 00003 · Factura C · 00000041", { exact: true }))
+    .toBeVisible();
+});
+
 test("tells that ARCA authorized a credit note C no credit note of the system justifies: its class and number and that it needs a review", async () => {
   const services = createServices();
   vi.mocked(services.fetchAlert).mockResolvedValue(

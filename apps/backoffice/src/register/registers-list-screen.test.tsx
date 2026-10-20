@@ -896,7 +896,11 @@ test("offers the Point terminal action only to who may assign it", async () => {
   const services = createServices();
   vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [register1] });
 
-  const withoutIt = await renderScreen(services, () => {}, accessWith("registers_area"));
+  const withoutIt = await renderScreen(
+    services,
+    () => {},
+    accessWith("registers_area", "enroll_registers"),
+  );
   await expect.element(withoutIt.getByText("Caja 1")).toBeVisible();
   expect(
     withoutIt.getByRole("button", { name: "Asignar terminal Point a Caja 1" }).query(),
@@ -906,7 +910,11 @@ test("offers the Point terminal action only to who may assign it", async () => {
     .toBeVisible();
   await withoutIt.unmount();
 
-  const withIt = await renderScreen(services, () => {}, accessWith("registers_area", "cash_area"));
+  const withIt = await renderScreen(
+    services,
+    () => {},
+    accessWith("registers_area", "enroll_registers", "cash_area"),
+  );
   await expect
     .element(withIt.getByRole("button", { name: "Asignar terminal Point a Caja 1" }))
     .toBeVisible();

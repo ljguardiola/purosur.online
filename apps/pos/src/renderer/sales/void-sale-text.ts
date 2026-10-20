@@ -7,6 +7,10 @@ type Voidability = SaleDetail["voidability"];
 
 export type VoidRefusal = Extract<Voidability, { kind: "not_voidable" }>["refusal"];
 export type VoidRefund = Extract<Voidability, { kind: "voidable" }>["refunds"][number];
+export type VoidCreditNoteCorrects = Extract<
+  Voidability,
+  { kind: "voidable" }
+>["credit_note_corrects"];
 
 export function voidRefusalReason(refusal: VoidRefusal): string | undefined {
   switch (refusal) {
@@ -14,8 +18,8 @@ export function voidRefusalReason(refusal: VoidRefusal): string | undefined {
       return "La sesión de la venta ya cerró. Se tramita como devolución.";
     case "invoice_in_flight":
       return "La factura se está pidiendo a ARCA. Vas a poder anular cuando termine el trámite.";
-    case "carries_invoice":
-      return "La caja todavía no anula una venta con factura. Se tramita como devolución.";
+    case "invoice_needs_connection":
+      return "Sin conexión con ARCA, la venta con factura se anula cuando vuelva la conexión.";
     case "not_completed":
       return undefined;
   }

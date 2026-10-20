@@ -24,6 +24,7 @@ import type {
   OpenSale,
   PreviewSaleDiscountOutcome,
   PreviewSaleLineAdjustmentOutcome,
+  PrintCreditNoteOutcome,
   PrintOriginalReceiptOutcome,
   ReadClockGuardOutcome,
   ReadInitialCountOutcome,
@@ -278,6 +279,10 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
       printOriginalReceipt: async (saleId: string): Promise<PrintOriginalReceiptOutcome> => {
         saleChanges.push(["original-print", saleId].join(" "));
         return { kind: "already_attempted" };
+      },
+      printCreditNote: async (saleId: string): Promise<PrintCreditNoteOutcome> => {
+        saleChanges.push(["credit-note-print", saleId].join(" "));
+        return { kind: "not_found" };
       },
       reprintSaleReceipt: async (
         request: ReprintSaleReceiptRequest,
@@ -2823,6 +2828,14 @@ describe("answerRendererRequest", () => {
         "printing a sale's original receipt",
         "original-print s1",
         "print-original-receipt-result",
+      ],
+      [
+        "print-credit-note",
+        { type: "print-credit-note", sale_id: "s1" } as const,
+        "printCreditNote",
+        "printing the credit note of a voided sale",
+        "credit-note-print s1",
+        "print-credit-note-result",
       ],
       [
         "reprint-sale-receipt",

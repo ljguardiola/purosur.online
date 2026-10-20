@@ -15,6 +15,7 @@ export {
   canonicalOutboxEvent,
   canonicalOutboxPayload,
   SALE_COMPLETED_EVENT_TYPE,
+  SALE_VOIDED_EVENT_TYPE,
 } from "./outbox-event.js";
 export type { ReportPeriod } from "./report-period.js";
 export { isReportPeriodAsked, reportPeriodOf } from "./report-period.js";

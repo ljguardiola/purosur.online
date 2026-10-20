@@ -4,9 +4,9 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
   alerts,
   arcaWsaaTokens,
+  creditNotes,
   fiscalRequests,
   fiscalTasks,
-  orphanCreditNotes,
 } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { buildJobHelpers } from "../test-support/job-helpers.js";
@@ -67,7 +67,7 @@ function taskUnderTest() {
     db: testDatabase.db,
     connections: { withConnection: (work) => work(testDatabase.db) },
     enqueueUnclearOutcome: async () => {},
-    enqueueOrphanCreditNote: async (_, creditNoteId) => {
+    enqueueCreditNote: async (_, creditNoteId) => {
       creditNotesRequested.push(creditNoteId);
     },
   });
@@ -172,8 +172,8 @@ describe("unclearOutcomeJobs", () => {
       await task({ fiscalDocumentId }, buildJobHelpers().helpers);
 
       expect(await storedRow(fiscalDocumentId)).toMatchObject({ decision: "adopted" });
-      const creditNotes = await testDatabase.db.select().from(orphanCreditNotes);
-      expect(creditNotes).toMatchObject([
+      const rows = await testDatabase.db.select().from(creditNotes);
+      expect(rows).toMatchObject([
         {
           saleId,
           pointOfSale: 7,
@@ -186,7 +186,7 @@ describe("unclearOutcomeJobs", () => {
           receiverTaxStatusCode: 5,
         },
       ]);
-      expect(creditNotesRequested).toEqual([creditNotes[0]?.id]);
+      expect(creditNotesRequested).toEqual([rows[0]?.id]);
     });
 
     it("requests no credit note when the authorization is the only voucher of its sale", async () => {
@@ -198,7 +198,7 @@ describe("unclearOutcomeJobs", () => {
       await task({ fiscalDocumentId }, buildJobHelpers().helpers);
 
       expect(await storedRow(fiscalDocumentId)).toMatchObject({ decision: "adopted" });
-      expect(await testDatabase.db.select().from(orphanCreditNotes)).toEqual([]);
+      expect(await testDatabase.db.select().from(creditNotes)).toEqual([]);
       expect(creditNotesRequested).toEqual([]);
     });
   });
@@ -226,7 +226,7 @@ describe("unclearOutcomeJobs", () => {
         (alert) => alert.kind === "external_billing",
       ),
     ).toMatchObject([{ scope: "7:factura_c:42" }]);
-    expect(await testDatabase.db.select().from(orphanCreditNotes)).toEqual([]);
+    expect(await testDatabase.db.select().from(creditNotes)).toEqual([]);
   });
 
   it("asks again with the document's key and top priority at the time a pending decision names", async () => {

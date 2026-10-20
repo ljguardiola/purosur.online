@@ -32,6 +32,7 @@ import type {
   PinPolicy,
   PreviewSaleDiscountOutcome,
   PreviewSaleLineAdjustmentOutcome,
+  PrintCreditNoteOutcome,
   PrintOriginalReceiptOutcome,
   ReadReceiptPrinterOutcome,
   ReadSerialDevicesOutcome,
@@ -172,6 +173,7 @@ export interface RendererRequestDeps {
   voidSale: ((request: VoidSaleRequest) => Promise<VoidSaleOutcome>) | undefined;
   receiptPrintStatus: ((saleId: string) => Promise<ReceiptPrintStatusOutcome>) | undefined;
   printOriginalReceipt: ((saleId: string) => Promise<PrintOriginalReceiptOutcome>) | undefined;
+  printCreditNote: ((saleId: string) => Promise<PrintCreditNoteOutcome>) | undefined;
   reprintSaleReceipt:
     | ((request: ReprintSaleReceiptRequest) => Promise<ReprintSaleReceiptOutcome>)
     | undefined;
@@ -911,6 +913,18 @@ export async function answerRendererRequest(
           deps,
           "printing a sale's original receipt",
           printOriginalReceipt && (() => printOriginalReceipt(message.sale_id)),
+        ),
+      };
+    }
+    case "print-credit-note": {
+      const { printCreditNote } = deps;
+      return {
+        type: "print-credit-note-result",
+        request_id: message.request_id,
+        outcome: await attemptSaleChange(
+          deps,
+          "printing the credit note of a voided sale",
+          printCreditNote && (() => printCreditNote(message.sale_id)),
         ),
       };
     }
