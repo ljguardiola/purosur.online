@@ -11,7 +11,8 @@ export type SupplierPriceListChangeNotice =
   | { kind: "notFound" }
   | { kind: "noRows" }
   | { kind: "unpricedRows" }
-  | { kind: "listDateMissing" };
+  | { kind: "listDateMissing" }
+  | { kind: "vatMissing" };
 
 type RefusedChange = Exclude<
   ConfirmSupplierPriceListOutcome,
@@ -36,6 +37,8 @@ export function supplierPriceListChangeNoticeOf(
       return { kind: "unpricedRows" };
     case "list_date_missing":
       return { kind: "listDateMissing" };
+    case "vat_missing":
+      return { kind: "vatMissing" };
     case "failed":
     case "validation_failed":
       return { kind: "attemptFailed" };
@@ -58,6 +61,7 @@ export function SupplierPriceListChangeNotices({
   switch (notice?.kind) {
     case undefined:
     case "listDateMissing":
+    case "vatMissing":
       return null;
     case "attemptFailed":
       return (

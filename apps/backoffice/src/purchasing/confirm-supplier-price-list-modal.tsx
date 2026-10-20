@@ -20,6 +20,11 @@ import type {
   SupplierPriceListReviewList,
 } from "./supplier-price-lists-api";
 
+const VAT_OPTIONS = [
+  { value: "included", label: "incluyen IVA" },
+  { value: "excluded", label: "no incluyen IVA" },
+] as const;
+
 export type ConfirmSupplierPriceListModalServices = {
   confirmSupplierPriceList: typeof confirmSupplierPriceList;
 };
@@ -46,7 +51,7 @@ export function ConfirmSupplierPriceListModal({
   const [title, setTitle] = useState("");
   const [notice, setNotice] = useState<SupplierPriceListChangeNotice | null>(null);
   const { form, submit, submitting, reset } = useRequestForm({
-    defaultValues: confirmationFormValuesOf(null, 1),
+    defaultValues: confirmationFormValuesOf(null, null, 1),
     request: { schema: supplierPriceListConfirmationBodySchema, from: confirmationRequestFrom },
     fields: CONFIRMATION_FIELDS,
     messages: CONFIRMATION_FIELD_MESSAGES,
@@ -70,7 +75,8 @@ export function ConfirmSupplierPriceListModal({
       }
       if (
         (outcome.kind === "validation_failed" && showWireFieldError(outcome.field)) ||
-        (outcome.kind === "list_date_missing" && showWireFieldError("listDate"))
+        (outcome.kind === "list_date_missing" && showWireFieldError("listDate")) ||
+        (outcome.kind === "vat_missing" && showWireFieldError("pricesIncludeVat"))
       ) {
         return;
       }
@@ -80,7 +86,7 @@ export function ConfirmSupplierPriceListModal({
 
   useEffect(() => {
     if (target) {
-      reset(confirmationFormValuesOf(target.listDate, target.version));
+      reset(confirmationFormValuesOf(target.listDate, target.pricesIncludeVat, target.version));
       setTitle(`¿Confirmar la lista de ${target.supplier.name}?`);
       setNotice(null);
     }
@@ -144,6 +150,16 @@ export function ConfirmSupplierPriceListModal({
           </p>
           <form.AppField name="date">
             {(field) => <field.DateField label="Fecha de la lista" required />}
+          </form.AppField>
+          <form.AppField name="pricesIncludeVat">
+            {(field) => (
+              <field.Select
+                label="Los precios"
+                placeholder="Elegí una opción"
+                options={VAT_OPTIONS}
+                required
+              />
+            )}
           </form.AppField>
         </div>
       ) : null}

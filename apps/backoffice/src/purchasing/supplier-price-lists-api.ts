@@ -58,12 +58,18 @@ export type ConfirmSupplierPriceListOutcome =
   | { kind: "no_rows" }
   | { kind: "unpriced_rows" }
   | { kind: "list_date_missing" }
+  | { kind: "vat_missing" }
   | ReviewChangeRefusal;
 
 export type DiscardSupplierPriceListOutcome = { kind: "ok" } | ReviewChangeRefusal;
 
 const REVIEW_CONFLICTS = ["not_editable", "stale_version"] as const;
-const CONFIRMATION_CONFLICTS = ["no_rows", "unpriced_rows", "list_date_missing"] as const;
+const CONFIRMATION_CONFLICTS = [
+  "no_rows",
+  "unpriced_rows",
+  "list_date_missing",
+  "vat_missing",
+] as const;
 
 function refusal(response: Response): RequestRefusal {
   if (response.status === 401) {
@@ -236,6 +242,7 @@ export function confirmSupplierPriceList(
   const body: SupplierPriceListConfirmationBody = {
     version: input.version,
     listDate: input.listDate,
+    pricesIncludeVat: input.pricesIncludeVat,
   };
   return changeReview("POST", `/api/supplier-price-lists/${listId}/confirmation`, body, [
     ...REVIEW_CONFLICTS,

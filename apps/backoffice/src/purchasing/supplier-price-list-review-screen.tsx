@@ -276,6 +276,11 @@ export function SupplierPriceListReviewScreen({
                     Lista del {formatDisplayDate(list.listDate)}
                   </p>
                 )}
+                {list?.pricesIncludeVat == null ? null : (
+                  <p className="text-detail text-text-subtle">
+                    {list.pricesIncludeVat ? "Precios con IVA incluido" : "Precios sin IVA"}
+                  </p>
+                )}
                 {status !== null && (list?.state === "REVIEWED" || list?.state === "DISCARDED") ? (
                   <StatusIndicator tone={status.tone}>{status.label}</StatusIndicator>
                 ) : null}
