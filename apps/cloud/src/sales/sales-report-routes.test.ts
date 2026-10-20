@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import type { JsonValue } from "@purosur/domain";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { inbox, users } from "../platform/db/schema.js";
