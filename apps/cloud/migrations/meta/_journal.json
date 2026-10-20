@@ -813,6 +813,13 @@
       "when": 1792486760438,
       "tag": "0122_credit_notes",
       "breakpoints": true
+    },
+    {
+      "idx": 116,
+      "version": "7",
+      "when": 1792501135130,
+      "tag": "0123_offline_point_of_sale_retirements",
+      "breakpoints": true
     }
   ]
 }
