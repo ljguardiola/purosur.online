@@ -77,6 +77,7 @@ import {
   registerContingencyTicketKeys,
   registerEnrollmentAttempts,
   registerEnrollmentCodes,
+  registerInstallationBitlockerKeys,
   registerInstallations,
   registerOfflinePointsOfSale,
   registerPointsOfSale,
@@ -465,6 +466,13 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
       actorId: "0190f5a4-1b2c-7d3e-8f40-5a6b7c8d9e11",
       chainHmac: "forged-chain-hmac",
       refusedAt: new Date("2026-01-05T12:00:00.000Z"),
+    });
+    await db.insert(registerInstallationBitlockerKeys).values({
+      installationId: installation.id,
+      sealedKey: "sealed",
+      keyIdentifier: "8F3A2C1D",
+      loadedAt: new Date("2026-01-05T12:00:00.000Z"),
+      loadedBy: user.id,
     });
     await db.insert(installationRequestAttempts).values({
       deviceId: installation.id,

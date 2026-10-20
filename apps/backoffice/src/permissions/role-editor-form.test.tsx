@@ -70,6 +70,18 @@ test("the Caja area offers reading the register's help", async () => {
   await expect.element(screen.getByText("Leer la ayuda de la caja")).toBeVisible();
 });
 
+test("the Dispositivos area offers loading and consulting the BitLocker recovery key", async () => {
+  const screen = await render(<Harness initialArea="devices" />);
+
+  await expect
+    .element(
+      screen.getByRole("checkbox", {
+        name: "Cargar y consultar la clave de recuperación de BitLocker",
+      }),
+    )
+    .toBeVisible();
+});
+
 test("selecting another area on the left shows its own title and permissions on the right", async () => {
   const screen = await render(<Harness />);
 

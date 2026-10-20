@@ -1,4 +1,6 @@
 import {
+  type BitlockerRecoveryKeyLoadBody,
+  bitlockerRecoveryKeySchema,
   everyInstallationRevocationSchema,
   type PointTerminalAssignmentBody,
   pointTerminalAssignmentSchema,
@@ -18,7 +20,13 @@ import { readValidationFailedField } from "../platform/validation-failed-field";
 type PendingEnrollmentCode = { secondsSinceIssued: number; secondsUntilExpiry: number };
 
 export type RegisterInstallation =
-  | { state: "enrolled"; hostname: string; windowsVersion: string; enrolledAt: string }
+  | {
+      state: "enrolled";
+      hostname: string;
+      windowsVersion: string;
+      enrolledAt: string;
+      bitlockerKeyLoaded: boolean;
+    }
   | {
       state: "revoked";
       hostname: string;
@@ -93,6 +101,20 @@ export type RevokeRegisterOutcome =
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "failed" };
 
+export type LoadBitlockerRecoveryKeyOutcome =
+  | { kind: "ok" }
+  | { kind: "not_found" }
+  | { kind: "no_current_installation" }
+  | { kind: "already_loaded" }
+  | GatedActionErrorOutcome;
+
+export type ConsultBitlockerRecoveryKeyOutcome =
+  | { kind: "ok"; value: { recoveryKey: string; keyIdentifier: string } }
+  | { kind: "not_found" }
+  | { kind: "no_current_installation" }
+  | { kind: "not_loaded" }
+  | GatedActionErrorOutcome;
+
 export type RevokeEveryInstallationOutcome =
   | { kind: "ok"; value: { revokedAt: string; revokedRegisters: number } }
   | { kind: "no_active_installation" }
@@ -118,7 +140,7 @@ function installationFromWire(
     enrolledAt: installation.enrolled_at,
   };
   return installation.state === "enrolled"
-    ? { state: "enrolled", ...common }
+    ? { state: "enrolled", ...common, bitlockerKeyLoaded: installation.bitlocker_key_loaded }
     : { state: "revoked", ...common, revokedAt: installation.revoked_at };
 }
 
@@ -275,6 +297,71 @@ export async function revokeRegister(id: string): Promise<RevokeRegisterOutcome>
     const code = ((await response.json().catch(() => undefined)) as { code?: string } | undefined)
       ?.code;
     return code === "no_active_installation" ? { kind: code } : { kind: "failed" };
+  }
+  return gatedActionErrorOutcome(response);
+}
+
+async function conflictCode(response: Response): Promise<string | undefined> {
+  const body = (await response.json().catch(() => undefined)) as { code?: string } | undefined;
+  return body?.code;
+}
+
+export async function loadBitlockerRecoveryKey(
+  id: string,
+  body: BitlockerRecoveryKeyLoadBody,
+): Promise<LoadBitlockerRecoveryKeyOutcome> {
+  let response: Response;
+  try {
+    response = await postJson(`/api/registers/${id}/bitlocker-recovery-key`, body);
+  } catch {
+    return { kind: "failed" };
+  }
+  if (response.ok) {
+    return { kind: "ok" };
+  }
+  if (response.status === 404) {
+    return { kind: "not_found" };
+  }
+  if (response.status === 409) {
+    const code = await conflictCode(response);
+    return code === "no_current_installation" || code === "already_loaded"
+      ? { kind: code }
+      : { kind: "failed" };
+  }
+  return gatedActionErrorOutcome(response);
+}
+
+export async function consultBitlockerRecoveryKey(
+  id: string,
+): Promise<ConsultBitlockerRecoveryKeyOutcome> {
+  let response: Response;
+  try {
+    response = await postJson(`/api/registers/${id}/bitlocker-recovery-key/consultations`);
+  } catch {
+    return { kind: "failed" };
+  }
+  if (response.ok) {
+    const parsed = bitlockerRecoveryKeySchema.safeParse(
+      await response.json().catch(() => undefined),
+    );
+    return parsed.success
+      ? {
+          kind: "ok",
+          value: {
+            recoveryKey: parsed.data.recovery_key,
+            keyIdentifier: parsed.data.key_identifier,
+          },
+        }
+      : { kind: "failed" };
+  }
+  if (response.status === 404) {
+    return { kind: "not_found" };
+  }
+  if (response.status === 409) {
+    const code = await conflictCode(response);
+    return code === "no_current_installation" || code === "not_loaded"
+      ? { kind: code }
+      : { kind: "failed" };
   }
   return gatedActionErrorOutcome(response);
 }

@@ -27,7 +27,9 @@ export function installationLines(
   if (installation.state === "enrolled") {
     return {
       primary: `Dada de alta el ${installationDate(installation.enrolledAt)}`,
-      secondary: installation.windowsVersion,
+      secondary: installation.bitlockerKeyLoaded
+        ? `${installation.windowsVersion} · BitLocker activo`
+        : installation.windowsVersion,
     };
   }
   return {

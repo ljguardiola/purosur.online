@@ -1,11 +1,12 @@
 import { IconButton } from "../../forms/icon-button";
 import type { TableAction, TableActions, TableVariant } from "./table-types";
 
-// 60px for one 38px IconButton, 104px for two and 148px for three, with an 8px gap between them.
-const ACTIONS_CONTENT_WIDTH_PX: Record<1 | 2 | 3, number> = {
+// 60px for one 38px IconButton, then 44px more for each further one (38px plus an 8px gap).
+const ACTIONS_CONTENT_WIDTH_PX: Record<1 | 2 | 3 | 4, number> = {
   1: 60,
   2: 104,
   3: 148,
+  4: 192,
 };
 
 const CELL_EDGE_PADDING_PX = 16;
@@ -28,7 +29,7 @@ export function headerColumnWidthStyle(
   return { width: `${contentWidth + leftPadding + rightPadding}px` };
 }
 
-export function actionsContentWidth(actionCount: 1 | 2 | 3): number {
+export function actionsContentWidth(actionCount: 1 | 2 | 3 | 4): number {
   return ACTIONS_CONTENT_WIDTH_PX[actionCount];
 }
 
@@ -50,6 +51,7 @@ export function TableActionButtons<T>({ actions, item }: { actions: TableActions
       <TableActionButton action={actions[0]} item={item} />
       {actions[1] ? <TableActionButton action={actions[1]} item={item} /> : null}
       {actions[2] ? <TableActionButton action={actions[2]} item={item} /> : null}
+      {actions[3] ? <TableActionButton action={actions[3]} item={item} /> : null}
     </>
   );
 }

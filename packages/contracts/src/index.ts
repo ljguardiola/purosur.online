@@ -317,6 +317,15 @@ export type { SupplierEditBody } from "./purchasing/supplier-edit.js";
 export { supplierEditBodySchema } from "./purchasing/supplier-edit.js";
 export type { SupplierSummary } from "./purchasing/supplier-summary.js";
 export { supplierListSchema, supplierSummarySchema } from "./purchasing/supplier-summary.js";
+export type {
+  BitlockerRecoveryKeyBody,
+  BitlockerRecoveryKeyLoadBody,
+} from "./register/bitlocker-recovery-key.js";
+export {
+  bitlockerRecoveryKeyLoadBodySchema,
+  bitlockerRecoveryKeySchema,
+  bitlockerRecoveryKeyShapeSchema,
+} from "./register/bitlocker-recovery-key.js";
 export type { CloudError, CloudErrorCode } from "./register/cloud-error.js";
 export {
   cloudError,

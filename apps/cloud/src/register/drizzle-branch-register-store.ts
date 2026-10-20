@@ -17,6 +17,7 @@ import { postgresErrorChain } from "../platform/db/postgres-error-chain.js";
 import {
   auditLog,
   registerEnrollmentCodes,
+  registerInstallationBitlockerKeys,
   registerInstallations,
   registerPointsOfSale,
   registerPointTerminals,
@@ -196,9 +197,14 @@ export class DrizzleBranchRegisterStore<TQueryResult extends PgQueryResultHKT>
         windowsVersion: registerInstallations.windowsVersion,
         enrolledAt: registerInstallations.enrolledAt,
         revokedAt: registerInstallations.revokedAt,
+        bitlockerKeyLoaded: sql<boolean>`${registerInstallationBitlockerKeys.installationId} is not null`,
       })
       .from(registerInstallations)
       .innerJoin(registers, eq(registers.id, registerInstallations.registerId))
+      .leftJoin(
+        registerInstallationBitlockerKeys,
+        eq(registerInstallationBitlockerKeys.installationId, registerInstallations.id),
+      )
       .where(eq(registers.locationId, locationId));
     return rows.map(
       ({
@@ -225,11 +231,12 @@ export class DrizzleBranchRegisterStore<TQueryResult extends PgQueryResultHKT>
         },
         installations: installations
           .filter(({ registerId }) => registerId === id)
-          .map(({ hostname, windowsVersion, enrolledAt, revokedAt }) => ({
+          .map(({ hostname, windowsVersion, enrolledAt, revokedAt, bitlockerKeyLoaded }) => ({
             hostname,
             windowsVersion,
             enrolledAt,
             revokedAt,
+            bitlockerKeyLoaded,
           })),
       }),
     );

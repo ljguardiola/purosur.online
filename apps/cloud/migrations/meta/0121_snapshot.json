@@ -1,5 +1,5 @@
 {
-  "id": "9ba57990-5920-4ed5-b9bb-fdb67e8819c3",
+  "id": "9db27620-7d4b-4e73-a28b-f930a3f2a5af",
   "prevId": "71ad7798-4dec-4d07-b60d-ba113054de17",
   "version": "7",
   "dialect": "postgresql",
@@ -1960,244 +1960,6 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.credit_notes": {
-      "name": "credit_notes",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "register_id": {
-          "name": "register_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "sale_id": {
-          "name": "sale_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "reason": {
-          "name": "reason",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "point_of_sale": {
-          "name": "point_of_sale",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "associated_voucher_type": {
-          "name": "associated_voucher_type",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "associated_point_of_sale": {
-          "name": "associated_point_of_sale",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "associated_number": {
-          "name": "associated_number",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "kept_voucher_type": {
-          "name": "kept_voucher_type",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "kept_point_of_sale": {
-          "name": "kept_point_of_sale",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "kept_number": {
-          "name": "kept_number",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "total": {
-          "name": "total",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "receiver_tax_status_code": {
-          "name": "receiver_tax_status_code",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "number": {
-          "name": "number",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "issued_on": {
-          "name": "issued_on",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "requested_at": {
-          "name": "requested_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "answer_kind": {
-          "name": "answer_kind",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "answered_at": {
-          "name": "answered_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "authorization_code": {
-          "name": "authorization_code",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "authorization_code_due_on": {
-          "name": "authorization_code_due_on",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "rejections": {
-          "name": "rejections",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {
-        "credit_notes_corrected_voucher_key": {
-          "name": "credit_notes_corrected_voucher_key",
-          "columns": [
-            {
-              "expression": "associated_voucher_type",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "associated_point_of_sale",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "associated_number",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "credit_notes_number_key": {
-          "name": "credit_notes_number_key",
-          "columns": [
-            {
-              "expression": "point_of_sale",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "number",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "where": "\"credit_notes\".\"number\" is not null and \"credit_notes\".\"answer_kind\" is distinct from 'rejected'",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "credit_notes_register_id_registers_id_fk": {
-          "name": "credit_notes_register_id_registers_id_fk",
-          "tableFrom": "credit_notes",
-          "tableTo": "registers",
-          "columnsFrom": ["register_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "credit_notes_reason_check": {
-          "name": "credit_notes_reason_check",
-          "value": "\"credit_notes\".\"reason\" in ('orphan', 'sale_void')"
-        },
-        "credit_notes_kept_voucher_check": {
-          "name": "credit_notes_kept_voucher_check",
-          "value": "(\"credit_notes\".\"reason\" = 'orphan') = (\"credit_notes\".\"kept_voucher_type\" is not null)\n        and (\"credit_notes\".\"kept_voucher_type\" is null) = (\"credit_notes\".\"kept_point_of_sale\" is null)\n        and (\"credit_notes\".\"kept_voucher_type\" is null) = (\"credit_notes\".\"kept_number\" is null)"
-        },
-        "credit_notes_request_check": {
-          "name": "credit_notes_request_check",
-          "value": "(\"credit_notes\".\"number\" is null) = (\"credit_notes\".\"issued_on\" is null)\n        and (\"credit_notes\".\"number\" is null) = (\"credit_notes\".\"requested_at\" is null)"
-        },
-        "credit_notes_answer_kind_check": {
-          "name": "credit_notes_answer_kind_check",
-          "value": "\"credit_notes\".\"answer_kind\" in ('authorized', 'rejected', 'unclear')"
-        },
-        "credit_notes_answer_request_check": {
-          "name": "credit_notes_answer_request_check",
-          "value": "\"credit_notes\".\"answer_kind\" is null or \"credit_notes\".\"number\" is not null"
-        },
-        "credit_notes_answer_time_check": {
-          "name": "credit_notes_answer_time_check",
-          "value": "(\"credit_notes\".\"answer_kind\" is null) = (\"credit_notes\".\"answered_at\" is null)"
-        },
-        "credit_notes_authorization_check": {
-          "name": "credit_notes_authorization_check",
-          "value": "coalesce(\"credit_notes\".\"answer_kind\" = 'authorized', false) = (\"credit_notes\".\"authorization_code\" is not null)\n        and (\"credit_notes\".\"authorization_code\" is null) = (\"credit_notes\".\"authorization_code_due_on\" is null)"
-        },
-        "credit_notes_rejection_check": {
-          "name": "credit_notes_rejection_check",
-          "value": "coalesce(\"credit_notes\".\"answer_kind\" = 'rejected', false) = (\"credit_notes\".\"rejections\" is not null)"
-        }
-      },
-      "isRLSEnabled": false
-    },
     "public.device_state": {
       "name": "device_state",
       "schema": "",
@@ -2960,10 +2722,10 @@
           "onDelete": "no action",
           "onUpdate": "no action"
         },
-        "fiscal_tasks_credit_note_id_credit_notes_id_fk": {
-          "name": "fiscal_tasks_credit_note_id_credit_notes_id_fk",
+        "fiscal_tasks_credit_note_id_orphan_credit_notes_id_fk": {
+          "name": "fiscal_tasks_credit_note_id_orphan_credit_notes_id_fk",
           "tableFrom": "fiscal_tasks",
-          "tableTo": "credit_notes",
+          "tableTo": "orphan_credit_notes",
           "columnsFrom": ["credit_note_id"],
           "columnsTo": ["id"],
           "onDelete": "no action",
@@ -4512,6 +4274,224 @@
         "offsite_dump_checks_result_shape_check": {
           "name": "offsite_dump_checks_result_shape_check",
           "value": "(\"offsite_dump_checks\".\"status\" = 'verified' and \"offsite_dump_checks\".\"size_bytes\" is not null and \"offsite_dump_checks\".\"failure_reason\" is null) or (\"offsite_dump_checks\".\"status\" = 'failed' and \"offsite_dump_checks\".\"failure_reason\" = 'shrank' and \"offsite_dump_checks\".\"size_bytes\" is not null) or (\"offsite_dump_checks\".\"status\" = 'failed' and \"offsite_dump_checks\".\"failure_reason\" is not null and \"offsite_dump_checks\".\"failure_reason\" <> 'shrank' and \"offsite_dump_checks\".\"size_bytes\" is null)"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.orphan_credit_notes": {
+      "name": "orphan_credit_notes",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "register_id": {
+          "name": "register_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "sale_id": {
+          "name": "sale_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "point_of_sale": {
+          "name": "point_of_sale",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "associated_voucher_type": {
+          "name": "associated_voucher_type",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "associated_number": {
+          "name": "associated_number",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "kept_voucher_type": {
+          "name": "kept_voucher_type",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "kept_point_of_sale": {
+          "name": "kept_point_of_sale",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "kept_number": {
+          "name": "kept_number",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "total": {
+          "name": "total",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "receiver_tax_status_code": {
+          "name": "receiver_tax_status_code",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "number": {
+          "name": "number",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "issued_on": {
+          "name": "issued_on",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "requested_at": {
+          "name": "requested_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "answer_kind": {
+          "name": "answer_kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "answered_at": {
+          "name": "answered_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "authorization_code": {
+          "name": "authorization_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "authorization_code_due_on": {
+          "name": "authorization_code_due_on",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "rejections": {
+          "name": "rejections",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "orphan_credit_notes_orphan_key": {
+          "name": "orphan_credit_notes_orphan_key",
+          "columns": [
+            {
+              "expression": "point_of_sale",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "associated_voucher_type",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "associated_number",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "orphan_credit_notes_number_key": {
+          "name": "orphan_credit_notes_number_key",
+          "columns": [
+            {
+              "expression": "point_of_sale",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "number",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"orphan_credit_notes\".\"number\" is not null and \"orphan_credit_notes\".\"answer_kind\" is distinct from 'rejected'",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "orphan_credit_notes_register_id_registers_id_fk": {
+          "name": "orphan_credit_notes_register_id_registers_id_fk",
+          "tableFrom": "orphan_credit_notes",
+          "tableTo": "registers",
+          "columnsFrom": ["register_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "orphan_credit_notes_request_check": {
+          "name": "orphan_credit_notes_request_check",
+          "value": "(\"orphan_credit_notes\".\"number\" is null) = (\"orphan_credit_notes\".\"issued_on\" is null)\n        and (\"orphan_credit_notes\".\"number\" is null) = (\"orphan_credit_notes\".\"requested_at\" is null)"
+        },
+        "orphan_credit_notes_answer_kind_check": {
+          "name": "orphan_credit_notes_answer_kind_check",
+          "value": "\"orphan_credit_notes\".\"answer_kind\" in ('authorized', 'rejected', 'unclear')"
+        },
+        "orphan_credit_notes_answer_request_check": {
+          "name": "orphan_credit_notes_answer_request_check",
+          "value": "\"orphan_credit_notes\".\"answer_kind\" is null or \"orphan_credit_notes\".\"number\" is not null"
+        },
+        "orphan_credit_notes_answer_time_check": {
+          "name": "orphan_credit_notes_answer_time_check",
+          "value": "(\"orphan_credit_notes\".\"answer_kind\" is null) = (\"orphan_credit_notes\".\"answered_at\" is null)"
+        },
+        "orphan_credit_notes_authorization_check": {
+          "name": "orphan_credit_notes_authorization_check",
+          "value": "coalesce(\"orphan_credit_notes\".\"answer_kind\" = 'authorized', false) = (\"orphan_credit_notes\".\"authorization_code\" is not null)\n        and (\"orphan_credit_notes\".\"authorization_code\" is null) = (\"orphan_credit_notes\".\"authorization_code_due_on\" is null)"
+        },
+        "orphan_credit_notes_rejection_check": {
+          "name": "orphan_credit_notes_rejection_check",
+          "value": "coalesce(\"orphan_credit_notes\".\"answer_kind\" = 'rejected', false) = (\"orphan_credit_notes\".\"rejections\" is not null)"
         }
       },
       "isRLSEnabled": false
@@ -7180,6 +7160,68 @@
           "tableFrom": "register_enrollment_codes",
           "tableTo": "registers",
           "columnsFrom": ["register_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.register_installation_bitlocker_keys": {
+      "name": "register_installation_bitlocker_keys",
+      "schema": "",
+      "columns": {
+        "installation_id": {
+          "name": "installation_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "sealed_key": {
+          "name": "sealed_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "key_identifier": {
+          "name": "key_identifier",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "loaded_at": {
+          "name": "loaded_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "loaded_by": {
+          "name": "loaded_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "register_installation_bitlocker_keys_installation_id_register_installations_id_fk": {
+          "name": "register_installation_bitlocker_keys_installation_id_register_installations_id_fk",
+          "tableFrom": "register_installation_bitlocker_keys",
+          "tableTo": "register_installations",
+          "columnsFrom": ["installation_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "register_installation_bitlocker_keys_loaded_by_users_id_fk": {
+          "name": "register_installation_bitlocker_keys_loaded_by_users_id_fk",
+          "tableFrom": "register_installation_bitlocker_keys",
+          "tableTo": "users",
+          "columnsFrom": ["loaded_by"],
           "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"

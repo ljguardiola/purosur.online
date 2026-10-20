@@ -32,7 +32,7 @@ export function registerRegisterCreationRoute<TQueryResult extends PgQueryResult
     "/registers",
     {
       preHandler: backofficeOriginGuard(options.backofficeOrigin),
-      config: { access: capabilityAccess("registers_area"), sessionSource },
+      config: { access: capabilityAccess("enroll_registers"), sessionSource },
     },
     async (request, reply) => {
       const attemptedAt = now();
