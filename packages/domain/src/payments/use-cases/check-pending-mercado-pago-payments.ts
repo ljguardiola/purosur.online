@@ -1,6 +1,7 @@
 import { cancelMercadoPagoOrderInLane } from "./cancel-mercado-pago-order.js";
 import type { MercadoPagoNotificationPorts } from "./mercado-pago-notification-ports.js";
 import type { MercadoPagoCancellationKeys } from "./mercado-pago-order-ports.js";
+import { recordUnrecordedMercadoPagoOrder } from "./record-unrecorded-mercado-pago-order.js";
 import { refreshMercadoPagoTransaction } from "./refresh-mercado-pago-transaction.js";
 
 export interface CheckPendingMercadoPagoPaymentsOutcome {
@@ -35,6 +36,18 @@ export async function checkPendingMercadoPagoPayments({
         return null;
       }
       const ports = { mercadoPago, cancellationKeys, clock };
+      const unrecorded = await recordUnrecordedMercadoPagoOrder(
+        lane,
+        mercadoPago,
+        transaction,
+        clock.now(),
+      );
+      if (unrecorded.kind === "recorded") {
+        return { kind: "refreshed" as const };
+      }
+      if (unrecorded.kind === "provider_unavailable") {
+        return unrecorded;
+      }
       return transaction.replaced
         ? settled(await cancelMercadoPagoOrderInLane(lane, ports, transaction))
         : refreshMercadoPagoTransaction(lane, ports, transaction);
