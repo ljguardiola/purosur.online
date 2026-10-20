@@ -4,12 +4,12 @@ import {
   detectFortnightReportDeadlines,
   detectFortnightReportRegularizations,
   detectMissingOfflineAuthorizationCodes,
-  detectOverdueRegisterBackups,
   detectOwedElsewherePresentations,
   detectQuietRegisters,
   openOverdueUnclearOutcomeAlerts,
   resolveStablyClearedAlerts,
 } from "@purosur/domain/alerts/use-cases";
+import { detectOverdueRegisterBackups } from "@purosur/domain/backups/use-cases";
 import { openOverdueRefundTaskAlerts } from "@purosur/domain/payments/use-cases";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
@@ -37,6 +37,7 @@ import { DrizzleFortnightReportRegularizationAlerts } from "./drizzle-fortnight-
 import { DrizzleMissingOfflineAuthorizationCodeAlerts } from "./drizzle-missing-offline-authorization-code-alerts.js";
 import { DrizzleOwedElsewhereAlerts } from "./drizzle-owed-elsewhere-alerts.js";
 import { DrizzleUnclearOutcomeAlertStore } from "./drizzle-unclear-outcome-alert-store.js";
+import { observeAlertCondition } from "./observe-alert-condition.js";
 
 export const ALERT_CONDITION_RESOLUTION_TASK_IDENTIFIER = "alert-condition-resolution";
 
@@ -144,9 +145,12 @@ function detectOverdueRegisterBackupsTask<TQueryResult extends PgQueryResultHKT>
 ): Promise<number> {
   return detectOverdueRegisterBackups({
     standings: new DrizzleRegisterBackupStandingReader(db),
-    store: new DrizzleAlertStore(db, deps.now),
+    alerts: {
+      observeAlertCondition: async (observation) => {
+        await observeAlertCondition(db, observation, { now: deps.now });
+      },
+    },
     clock: { now: deps.now },
-    hasher: { hash: hashSourceAddress },
   });
 }
 

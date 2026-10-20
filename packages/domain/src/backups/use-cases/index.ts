@@ -1,8 +1,14 @@
+export { detectOverdueRegisterBackups } from "./detect-overdue-register-backups.js";
 export type {
   OffsiteDumpCheckPorts,
   OffsiteDumpCheckStore,
   OffsiteDumpCheckStoreTransaction,
 } from "./offsite-dump-check-store.js";
+export type {
+  OverdueRegisterBackupDetectionPorts,
+  RegisterBackupOverdueAlerts,
+  RegisterBackupStandingReader,
+} from "./overdue-register-backup-ports.js";
 export type {
   RecordOffsiteDumpCheckInput,
   RecordOffsiteDumpCheckOutcome,

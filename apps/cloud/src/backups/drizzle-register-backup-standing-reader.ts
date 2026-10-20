@@ -1,5 +1,5 @@
 import type { RegisterBackupStanding } from "@purosur/domain";
-import type { RegisterBackupStandingReader } from "@purosur/domain/alerts/use-cases";
+import type { RegisterBackupStandingReader } from "@purosur/domain/backups/use-cases";
 import { and, desc, eq, exists, gt, isNull, min, or } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { alias } from "drizzle-orm/pg-core";
