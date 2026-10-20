@@ -911,6 +911,7 @@ describe("the register's local migrations", () => {
         "0059_point_refunds",
         "0062_health_check_clock_offset",
         "0063_register_predecessor",
+        "0065_replenished_events",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -999,6 +1000,7 @@ describe("the register's local migrations", () => {
         "0059_point_refunds",
         "0062_health_check_clock_offset",
         "0063_register_predecessor",
+        "0065_replenished_events",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1082,6 +1084,7 @@ describe("the register's local migrations", () => {
         "0059_point_refunds",
         "0062_health_check_clock_offset",
         "0063_register_predecessor",
+        "0065_replenished_events",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1164,6 +1167,7 @@ describe("the register's local migrations", () => {
         "0059_point_refunds",
         "0062_health_check_clock_offset",
         "0063_register_predecessor",
+        "0065_replenished_events",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1275,6 +1279,7 @@ describe("the register's local migrations", () => {
         "0059_point_refunds",
         "0062_health_check_clock_offset",
         "0063_register_predecessor",
+        "0065_replenished_events",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1376,6 +1381,7 @@ describe("the register's local migrations", () => {
         "0059_point_refunds",
         "0062_health_check_clock_offset",
         "0063_register_predecessor",
+        "0065_replenished_events",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1481,6 +1487,7 @@ describe("the register's local migrations", () => {
         "0059_point_refunds",
         "0062_health_check_clock_offset",
         "0063_register_predecessor",
+        "0065_replenished_events",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1594,6 +1601,7 @@ describe("the register's local migrations", () => {
         "0059_point_refunds",
         "0062_health_check_clock_offset",
         "0063_register_predecessor",
+        "0065_replenished_events",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1674,6 +1682,7 @@ describe("the register's local migrations", () => {
         "0059_point_refunds",
         "0062_health_check_clock_offset",
         "0063_register_predecessor",
+        "0065_replenished_events",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before

@@ -61,6 +61,8 @@ beforeEach(() => {
   database.exec(
     `INSERT INTO own_register (id, name, version, removed) VALUES ('register-new', 'Caja 1', 1, 0);
      UPDATE sync_state SET device_id = 'device-new';
+     INSERT INTO roles (id, name, is_administrator, version) VALUES ('role-1', 'Cajera', 0, 1);
+     INSERT INTO role_permissions (role_id, permission_key, active) VALUES ('role-1', 'sell_and_charge', 1);
      INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
        VALUES ('session-1', 'register-new', 'device-old', 'cashier-1', '2026-10-07T08:00:00.000Z', 5000, 'OPEN');`,
   );
@@ -143,16 +145,19 @@ describe("the register's store for replenishing a restored register", () => {
       });
     });
 
-    it("holds no verifier for a user who has no PIN or is inactive", async () => {
+    it("holds no verifier for a user who has no PIN", async () => {
       await store.transaction((tx) =>
-        tx.applyUsers([
-          aUser({ userId: "user-2", pinHash: null, salt: null }),
-          aUser({ userId: "user-3", active: false }),
-        ]),
+        tx.applyUsers([aUser({ userId: "user-2", pinHash: null, salt: null })]),
       );
 
-      expect(count("users")).toBe(2);
+      expect(count("users")).toBe(1);
       expect(count("pin_verifiers")).toBe(0);
+    });
+
+    it("keeps an inactive user from signing in", async () => {
+      await store.transaction((tx) => tx.applyUsers([aUser({ active: false })]));
+
+      expect(await signInWith("1234")).not.toMatchObject({ kind: "signed_in" });
     });
   });
 
@@ -194,7 +199,15 @@ describe("the register's store for replenishing a restored register", () => {
         await store.transaction((tx) => tx.applyFact(aCompletedSaleFact({ id: "sale-1" }), SOURCE)),
       ).toBe("applied");
       expect(
-        await store.transaction((tx) => tx.applyFact(aCancelledSaleFact({ id: "sale-2" }), SOURCE)),
+        await store.transaction((tx) =>
+          tx.applyFact(
+            aCancelledSaleFact({
+              id: "sale-2",
+              lines: aCancelledSaleFact().sale.lines.map((line) => ({ ...line, id: "line-2" })),
+            }),
+            SOURCE,
+          ),
+        ),
       ).toBe("applied");
 
       expect(database.prepare("SELECT id, state FROM sales ORDER BY id").all()).toEqual([

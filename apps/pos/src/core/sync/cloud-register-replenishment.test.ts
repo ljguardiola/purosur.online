@@ -12,7 +12,7 @@ const OTHER_DEVICE = "9b1e5f3a-6c2d-4e8f-a1b7-0d4c8e2f6a13";
 function wireEvent(deviceSeq: number, deviceId = PREDECESSOR.deviceId) {
   return {
     device_id: deviceId,
-    event_id: `018f0000-0000-7000-8000-00000000000${deviceSeq}`,
+    event_id: `018f0000-0000-7000-8000-${String(deviceSeq).padStart(12, "0")}`,
     device_seq: deviceSeq,
     aggregate_type: "CashSession",
     aggregate_id: "session-1",
