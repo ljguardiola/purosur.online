@@ -379,6 +379,23 @@ test("reads a here-string as a word of its command", () => {
   assert.equal(check(workflow, importsYaml).length, 1);
 });
 
+test("reads a shift inside arithmetic as arithmetic, not as a here-document", () => {
+  for (const lines of [
+    ["(( mask = 1 << 2 ))", "node s/main.mjs"],
+    ["if (( 1 << 2 )); then echo; fi", "node s/main.mjs"],
+    ["for (( i = 0; i < 2; i++ )); do echo; done", "node s/main.mjs"],
+    ["x=$(( 1 << 2 ))", "node s/main.mjs"],
+  ]) {
+    const workflow = job("      - run: |", ...lines.map((line) => `          ${line}`));
+
+    assert.equal(check(workflow, importsYaml).length, 1, lines.join("\n"));
+  }
+});
+
+test("finds node in a command substitution inside arithmetic", () => {
+  assert.equal(check(job("      - run: (( $(node s/main.mjs) > 0 ))"), importsYaml).length, 1);
+});
+
 test("ignores node commands that run no script", () => {
   assert.deepEqual(check(job("      - run: node --version && node -v"), {}), []);
 });
