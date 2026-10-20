@@ -660,11 +660,27 @@ export {
   UNPRINTED_SALE_STANDINGS,
   WEIGHT_SOURCES,
 } from "./sales/index.js";
+export type {
+  CompromiseResponseAction,
+  CompromiseResponseCompletion,
+  CompromiseResponseItem,
+  CompromiseResponseItemState,
+  CompromiseResponseRefusal,
+  CompromiseResponseStep,
+  CompromiseResponseStepState,
+  ExternalSecretItem,
+  PasskeyRemovalRefusal,
+  PasskeyRemovalResult,
+} from "./sessions/index.js";
 export {
   BACKOFFICE_REQUEST_WINDOW_MS,
   BACKOFFICE_SESSION_REQUEST_LIMIT,
   BACKOFFICE_SOURCE_ADDRESS_REQUEST_LIMIT,
   backofficeRequestWindowStart,
+  COMPROMISE_RESPONSE_ACTION_STEPS,
+  COMPROMISE_RESPONSE_ITEMS,
+  COMPROMISE_RESPONSE_STEPS,
+  EXTERNAL_SECRET_ITEMS,
   hasReachedSignInFailureLimit,
   isLockedOutOfPinSignIn,
   isSignInBlockLive,

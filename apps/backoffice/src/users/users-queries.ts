@@ -1,9 +1,10 @@
 import { useQueryClient } from "@tanstack/react-query";
+import type { BranchUser, fetchUsers } from "../platform/branch-users-api";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import type { fetchRoles, RoleSummary } from "../platform/roles-api";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { fetchCloudQuery, useCloudQuery } from "../platform/use-cloud-query";
-import type { BranchUser, fetchUser, fetchUsers } from "./users-api";
+import type { fetchUser } from "./users-api";
 
 const usersKey = ["users"] as const;
 

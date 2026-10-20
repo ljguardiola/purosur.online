@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
-import { removeEveryUserPasskey } from "./remove-every-user-passkey.js";
+import {
+  removeEveryUserPasskey,
+  removeEveryUserPasskeyWithin,
+} from "./remove-every-user-passkey.js";
 import { FakePasskeyHolders } from "./test-support/fake-passkey-holders.js";
 import { FakePasskeyRemovalStore } from "./test-support/fake-passkey-removal-store.js";
 
@@ -204,5 +207,37 @@ describe("removeEveryUserPasskey", () => {
     ).rejects.toThrow(`${operation} failed`);
 
     expect(store.current).toEqual(before);
+  });
+});
+
+describe("removeEveryUserPasskeyWithin", () => {
+  it("removes every passkey of the chosen account on the transaction it is given", async () => {
+    const store = storeWithPasskeys();
+
+    const outcome = await store.transaction((tx) =>
+      removeEveryUserPasskeyWithin(tx, holdersWithTarget(), INPUT),
+    );
+
+    expect(outcome).toEqual({ kind: "removed" });
+    expect(store.current.passkeys).toEqual([{ id: "p-3", userId: "u-2", name: "Otra llave" }]);
+    expect(store.current.sessions).toEqual([
+      { id: "s-1", userId: "u-1", revokedAt: AT },
+      { id: "s-2", userId: "u-2", revokedAt: null },
+    ]);
+  });
+
+  it.each([
+    ["authorization_required", { passkeyAuthorizedAt: null }],
+    ["user_not_found", { targetUserId: "missing" }],
+    ["own_account", { targetUserId: "admin-1" }],
+  ] as const)("refuses as %s without touching the transaction", async (kind, override) => {
+    const store = storeWithPasskeys();
+
+    const outcome = await store.transaction((tx) =>
+      removeEveryUserPasskeyWithin(tx, holdersWithTarget(), { ...INPUT, ...override }),
+    );
+
+    expect(outcome).toEqual({ kind });
+    expect(store.operationOrder).toEqual([]);
   });
 });

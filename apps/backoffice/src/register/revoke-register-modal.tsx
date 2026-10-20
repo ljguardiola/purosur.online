@@ -6,8 +6,8 @@ import type {
   authorizeSession,
   fetchSessionAuthorizationOptions,
 } from "../platform/session-authorization-api";
+import { useAuthorizedAttempt } from "../platform/use-authorized-attempt";
 import type { RegisterSummary, RevokeRegisterOutcome, revokeRegister } from "./registers-api";
-import { useRevocationAttempt } from "./use-revocation-attempt";
 
 export type RevokeRegisterModalServices = {
   revokeRegister: typeof revokeRegister;
@@ -49,10 +49,12 @@ export function RevokeRegisterModal({
     startAuthentication,
   } = services;
   const open = target !== null;
-  const { attempt, revoking, notice, modal } = useRevocationAttempt<
-    RevokeRegisterOutcome,
-    "notFound" | "noActiveInstallation"
-  >({
+  const {
+    attempt,
+    running: revoking,
+    notice,
+    modal,
+  } = useAuthorizedAttempt<RevokeRegisterOutcome, "notFound" | "noActiveInstallation">({
     open,
     actionName: "Revocar por pérdida o robo",
     onSessionEnded,

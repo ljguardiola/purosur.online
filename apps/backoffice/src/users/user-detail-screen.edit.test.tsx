@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import type { BranchUser } from "../platform/branch-users-api";
 import { render } from "../shell/test-support/render-with-router";
 import {
   ADMINISTRATOR_ACCESS,
@@ -14,7 +15,6 @@ import {
   renderScreen,
 } from "./test-support/user-detail-screen";
 import { UserDetailScreen } from "./user-detail-screen";
-import type { BranchUser } from "./users-api";
 import { useRefreshUsers } from "./users-queries";
 
 beforeEach(() => {
