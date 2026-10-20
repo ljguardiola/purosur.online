@@ -106,6 +106,25 @@ test("offers the QR point of sale action only to who may assign it", async () =>
     .toBeVisible();
 });
 
+test("keeps no room in the actions column for the QR point of sale action of who may not assign it", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRegisters).mockReturnValue(new Promise(() => {}));
+
+  const screen = await renderScreen(
+    services,
+    () => {},
+    accessWith("registers_area", "enroll_registers"),
+  );
+
+  const table = screen.getByRole("table", { name: "Cajas registradoras" });
+  await expect.element(table).toHaveAttribute("aria-busy", "true");
+  const headers = table.getByRole("columnheader").elements();
+  const actionsIndex = headers.findIndex((header) => header.textContent === "Acciones");
+  const placeholderRow = table.element().querySelector("tbody tr");
+  const actionsPlaceholder = placeholderRow?.children[actionsIndex]?.firstElementChild;
+  expect(actionsPlaceholder?.childElementCount).toBe(2);
+});
+
 test("Recargar in the QR modal reads the registers once and shows what changed", async () => {
   const services = createServices();
   const changed = { ...register1, qrExternalPosId: "CAJA7_STORE_POS", qrPointOfSaleVersion: 5 };

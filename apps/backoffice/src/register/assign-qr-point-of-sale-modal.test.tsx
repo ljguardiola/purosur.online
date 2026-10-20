@@ -95,7 +95,7 @@ test("explains where the code comes from", async () => {
   const { dialog } = await renderModal();
 
   await expect
-    .element(dialog.getByText("El que figura como external_pos_id de la caja en Mercado Pago"))
+    .element(dialog.getByText("El que figura en la caja QR dentro de tu cuenta de Mercado Pago"))
     .toBeVisible();
 });
 

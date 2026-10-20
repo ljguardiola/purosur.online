@@ -76,6 +76,7 @@ describe("startMercadoPagoCharge", () => {
 
   it.each([
     { answer: { kind: "refused" }, outcome: { kind: "order_refused" } },
+    { answer: { kind: "not_configured" }, outcome: { kind: "order_refused" } },
     { answer: { kind: "unreachable" }, outcome: { kind: "unreachable" } },
   ] as const)(
     "answers $outcome.kind when the cloud's answer is $answer.kind, keeping the payment pending, since the order may exist, with its wait ended when the cloud answered",
@@ -137,18 +138,5 @@ describe("startMercadoPagoCharge", () => {
       remainingSeconds: 0,
       waitSeconds: 0,
     });
-  });
-
-  it("closes the payment as cancelled and tells the cloud answered not_configured, as no QR point of sale was there to show an order", async () => {
-    const world = new FakeMercadoPagoChargeWorld();
-    world.orderAnswer = { kind: "not_configured" };
-
-    expect(await startMercadoPagoCharge(world.ports, INPUT)).toEqual({ kind: "not_configured" });
-    expect(world.pendingCharge(CHARGE_PAYMENT_ID)).toBeNull();
-    expect(world.operations).toEqual([
-      "recordPendingPayment",
-      "requestOrder",
-      "recordEnded:CANCELLED",
-    ]);
   });
 });

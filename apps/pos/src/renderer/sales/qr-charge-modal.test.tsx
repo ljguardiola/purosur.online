@@ -139,21 +139,6 @@ describe("QrChargeModal", () => {
     expect(callbacks.onOrderShown).not.toHaveBeenCalled();
   });
 
-  it("says the QR is not configured in this register, keeping the way to another method", async () => {
-    const { screen, create, callbacks } = await renderModal(async () => ({
-      kind: "not_configured",
-    }));
-
-    await userEvent.click(create);
-
-    await expect
-      .element(screen.getByRole("alert"))
-      .toHaveTextContent("El QR no está configurado en esta caja.");
-    await userEvent.click(screen.getByRole("button", { name: "Cambiar de medio" }));
-    expect(callbacks.onChooseAnotherMethod).toHaveBeenCalledOnce();
-    expect(callbacks.onOrderShown).not.toHaveBeenCalled();
-  });
-
   it("says another QR charge of the sale is still waiting, keeping the way to another method", async () => {
     const { screen, create, callbacks } = await renderModal(async () => ({
       kind: "mercado_pago_charge_in_progress",
