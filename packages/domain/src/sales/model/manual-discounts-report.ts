@@ -111,7 +111,6 @@ function newestFirst(a: ManualDiscountRow, b: ManualDiscountRow): number {
   return (
     b.completedAt.getTime() - a.completedAt.getTime() ||
     codeUnitOrder(a.saleId, b.saleId) ||
-    Number(a.kind === "LINE") - Number(b.kind === "LINE") ||
     codeUnitOrder(a.lineId ?? "", b.lineId ?? "")
   );
 }
