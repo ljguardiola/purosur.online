@@ -23,7 +23,7 @@ const CREDIT_NOTE_NUMBER_KEY = "credit_notes_number_key";
 
 export type CreditNoteRow = typeof creditNotes.$inferSelect;
 
-export function standingOf(row: CreditNoteRow): CreditNoteStanding {
+function standingOf(row: CreditNoteRow): CreditNoteStanding {
   if (row.answerKind === "authorized") {
     if (
       row.number === null ||

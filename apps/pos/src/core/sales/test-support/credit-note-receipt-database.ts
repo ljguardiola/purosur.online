@@ -1,7 +1,7 @@
 import type { LocalDatabase } from "../../platform/local-database";
 
 const SOLD_AT = "2026-09-30T15:05:00.000Z";
-export const VOIDED_AT = "2026-09-30T15:40:00.000Z";
+const VOIDED_AT = "2026-09-30T15:40:00.000Z";
 export const ISSUED_AT = "2026-09-30T15:40:01.000Z";
 export const ANSWERED_AT = "2026-09-30T15:52:05.000Z";
 
