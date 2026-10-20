@@ -1860,4 +1860,25 @@ describe("decoding the events the registers pushed", () => {
     expect(decoded.kind).toBe("unreadable");
     expect(decoded).toMatchObject({ reason: expect.stringContaining("opening_float") });
   });
+
+  it("names a refused member of a line by its whole path and lists every refused member", () => {
+    const decoded = upcaster.decode(
+      unappliedEventOf(
+        pushed({
+          payload: {
+            ...saleFields,
+            total: "4800",
+            lines: [{ ...saleLine, quantity: 0 }],
+          },
+        }),
+      ),
+    );
+
+    expect(decoded).toMatchObject({
+      kind: "unreadable",
+      reason: expect.stringMatching(
+        /total: .*; lines\.0\.quantity: |lines\.0\.quantity: .*; total: /,
+      ),
+    });
+  });
 });

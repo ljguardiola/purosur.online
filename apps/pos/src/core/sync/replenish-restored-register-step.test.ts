@@ -8,6 +8,7 @@ import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import { migrationClock } from "../platform/test-support/migration-clock";
 import { openLocalDatabase } from "../platform/test-support/open-local-database";
 import { cashBalanceFor } from "../register/cash-session-requests";
+import { addDiscount } from "../sales/test-support/sqlite-sale-ledger";
 import {
   type ReplenishAttempt,
   replenishmentReportOf,
@@ -99,6 +100,12 @@ beforeEach(() => {
     `INSERT INTO own_register (id, name, version, removed) VALUES ('a41d9e07-52c3-4b68-8f2e-1c7d3a9b6e02', 'Caja 1', 1, 0);
      UPDATE sync_state SET device_id = 'device-new';`,
   );
+  for (const [id, benefit] of [
+    ["b5d2f7a1-8c40-4e96-a3b7-1f9e6c4d2a10", { kind: "PERCENT_OFF", percent: 10 }],
+    ["c9f4b2e7-1a58-4d36-8e0b-4a7c3f9d1e17", { kind: "BUY_N_PAY_M", buyQty: 3, payQty: 2 }],
+  ] as const) {
+    addDiscount(database, id, { kind: "PRODUCT", id: "product-1" }, benefit);
+  }
   database
     .prepare("INSERT INTO register_predecessor (device_id, last_acknowledged_seq) VALUES (?, ?)")
     .run(PREDECESSOR, 0);

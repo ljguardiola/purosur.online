@@ -118,7 +118,7 @@ describe("replenishing a voided sale into a restored register", () => {
       occurredAt: new Date("2026-10-07T10:00:00.000Z"),
       total: 1500,
       reason: "pre_emission_gate_failed",
-      shortCode: "ABCD1234",
+      shortCode: "ABCD2345",
       routedAt: new Date("2026-10-07T10:00:01.000Z"),
     });
 
