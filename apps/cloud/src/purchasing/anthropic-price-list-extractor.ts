@@ -1,6 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
-import { isCalendarDay, isPriceListRowPrice } from "@purosur/domain";
 import type {
   PriceListExtraction,
   PriceListExtractor,
@@ -38,15 +37,15 @@ const proposedList = z.object({
 const shortText = z.string().max(MAX_SHORT_TEXT_LENGTH);
 
 const strictProposedList = z.object({
-  listDate: z.string().refine(isCalendarDay).nullable(),
+  listDate: z.string().nullable(),
   rows: z
     .array(
       z.object({
         description: z.string().min(1).max(PRICE_LIST_EXTRACTION_MAX_DESCRIPTION_LENGTH),
         code: shortText.nullable(),
         presentation: shortText.nullable(),
-        priceCents: z.number().refine(isPriceListRowPrice).nullable(),
-        page: z.number().int().positive().nullable(),
+        priceCents: z.number().nullable(),
+        page: z.number().nullable(),
       }),
     )
     .max(PRICE_LIST_EXTRACTION_MAX_ROWS),
