@@ -254,11 +254,11 @@ export function RegistersListScreen({
             assignTerminalAction,
             assignQrAction,
           ] as const)
-        : ([bitlockerKeyAction, revokeAction, emitAction, assignQrAction] as const);
+        : ([bitlockerKeyAction, revokeAction, emitAction] as const);
     }
     return mayAssignTerminal
       ? ([bitlockerKeyAction, emitAction, assignTerminalAction, assignQrAction] as const)
-      : ([bitlockerKeyAction, emitAction, assignQrAction] as const);
+      : ([bitlockerKeyAction, emitAction] as const);
   })();
 
   const columns = [

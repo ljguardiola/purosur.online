@@ -128,7 +128,6 @@ export interface ServerEnv {
   /** PEM text of the RSA private key matching `ARCA_CERTIFICATE`, used to sign WSAA login requests. */
   ARCA_PRIVATE_KEY?: string | undefined;
   MERCADOPAGO_ACCESS_TOKEN?: string | undefined;
-  /** The identifier of the store's own QR code at Mercado Pago. */
   /** The secret Mercado Pago signs its notifications with, from its developer panel. */
   MERCADOPAGO_WEBHOOK_SECRET?: string | undefined;
   REGISTER_UPDATES_BUCKET_ENDPOINT?: string | undefined;

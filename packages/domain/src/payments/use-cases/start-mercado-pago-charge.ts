@@ -84,10 +84,6 @@ export async function startMercadoPagoCharge<Refusal, Settlement>(
       answer,
     );
   }
-  if (answer.kind === "not_configured") {
-    charges.recordEnded(paymentTransactionId, "CANCELLED");
-    return { kind: "not_configured" };
-  }
   if (answer.kind !== "created") {
     charges.recordWaitEnd(paymentTransactionId, clock.now());
     return answer.kind === "unreachable" ? { kind: "unreachable" } : { kind: "order_refused" };
