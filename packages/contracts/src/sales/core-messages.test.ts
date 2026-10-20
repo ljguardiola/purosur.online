@@ -1359,16 +1359,38 @@ describe("asking how a sale's receipt print stands", () => {
     expect(salesRendererToCoreMessageSchema.safeParse(message).success).toBe(false);
   });
 
+  const COMPROBANTE = {
+    kind: "fiscal",
+    document_type: "factura_c",
+    authorization: "offline_code",
+    point_of_sale: 3,
+    number: 1204,
+  };
+
   it.each([
     { kind: "not_found" },
     { kind: "not_signed_in" },
     { kind: "unavailable" },
-    { kind: "found", next_copy: { kind: "original" }, printed: false, standing: null },
+    {
+      kind: "found",
+      next_copy: { kind: "original" },
+      printed: false,
+      standing: null,
+      comprobante: COMPROBANTE,
+    },
     {
       kind: "found",
       next_copy: { kind: "duplicate", order_number: 2 },
       printed: true,
       standing: "printed",
+      comprobante: { kind: "none" },
+    },
+    {
+      kind: "found",
+      next_copy: { kind: "original" },
+      printed: false,
+      standing: null,
+      comprobante: { kind: "deferred_non_fiscal" },
     },
     ...[
       "printing",
@@ -1383,6 +1405,7 @@ describe("asking how a sale's receipt print stands", () => {
       next_copy: { kind: "original" },
       printed: false,
       standing,
+      comprobante: COMPROBANTE,
     })),
   ])("accepts the answer %j", (outcome) => {
     const message = { type: "receipt-print-status-result", request_id: REQUEST_ID, outcome };
@@ -1390,20 +1413,26 @@ describe("asking how a sale's receipt print stands", () => {
     expect(salesCoreToRendererMessageSchema.parse(message)).toEqual(message);
   });
 
+  const FOUND = {
+    kind: "found",
+    next_copy: { kind: "original" },
+    printed: false,
+    standing: null,
+    comprobante: COMPROBANTE,
+  };
+
   it.each([
-    { kind: "found", next_copy: { kind: "original" }, printed: false },
-    { kind: "found", next_copy: { kind: "original" }, printed: false, standing: "jammed" },
-    { kind: "found", next_copy: { kind: "original" }, printed: false, standing: "withdrawn" },
-    { kind: "found", next_copy: { kind: "original" }, printed: false, standing: "retry_offered" },
-    { kind: "found", next_copy: { kind: "duplicate" }, printed: false, standing: null },
-    {
-      kind: "found",
-      next_copy: { kind: "duplicate", order_number: 0 },
-      printed: false,
-      standing: null,
-    },
-    { kind: "found", next_copy: { kind: "reprint" }, printed: false, standing: null },
-    { kind: "found", next_copy: { kind: "original" }, standing: null },
+    { ...FOUND, standing: undefined },
+    { ...FOUND, standing: "jammed" },
+    { ...FOUND, standing: "withdrawn" },
+    { ...FOUND, standing: "retry_offered" },
+    { ...FOUND, next_copy: { kind: "duplicate" } },
+    { ...FOUND, next_copy: { kind: "duplicate", order_number: 0 } },
+    { ...FOUND, next_copy: { kind: "reprint" } },
+    { ...FOUND, printed: undefined },
+    { ...FOUND, comprobante: undefined },
+    { ...FOUND, comprobante: { kind: "other" } },
+    { ...FOUND, comprobante: { ...COMPROBANTE, authorization: undefined } },
     { kind: "lacks_permission" },
   ])("rejects the answer %j", (outcome) => {
     const message = { type: "receipt-print-status-result", request_id: REQUEST_ID, outcome };
@@ -1618,7 +1647,13 @@ describe("asking for the register's sales history", () => {
   const row = {
     sale_id: "sale-1",
     occurred_at: "2026-10-08T12:00:00.000Z",
-    comprobante: { kind: "fiscal", document_type: "factura_c", point_of_sale: 3, number: 1204 },
+    comprobante: {
+      kind: "fiscal",
+      document_type: "factura_c",
+      authorization: "real_time",
+      point_of_sale: 3,
+      number: 1204,
+    },
     operation_number: 482,
     payment_methods: ["CASH", "TRANSFER"],
     total: 7500,
@@ -1637,6 +1672,10 @@ describe("asking for the register's sales history", () => {
     {
       ...found,
       rows: [{ ...row, comprobante: { kind: "deferred_non_fiscal" }, state: "deferred" }],
+    },
+    {
+      ...found,
+      rows: [{ ...row, comprobante: { ...row.comprobante, authorization: "offline_code" } }],
     },
     { ...found, rows: [{ ...row, comprobante: { kind: "none" }, state: "in_progress" }] },
     { ...found, rows: [{ ...row, comprobante: { kind: "none" }, state: "voided" }] },
@@ -1657,6 +1696,14 @@ describe("asking for the register's sales history", () => {
     { ...found, rows: [{ ...row, payment_methods: ["CARD"] }] },
     { ...found, rows: [{ ...row, comprobante: { kind: "fiscal", document_type: "factura_c" } }] },
     { ...found, rows: [{ ...row, comprobante: { kind: "other" } }] },
+    {
+      ...found,
+      rows: [{ ...row, comprobante: { ...row.comprobante, authorization: "contingency" } }],
+    },
+    {
+      ...found,
+      rows: [{ ...row, comprobante: { ...row.comprobante, authorization: undefined } }],
+    },
     { ...found, rows: [{ ...row, operation_number: 0 }] },
     { ...found, rows: [{ ...row, occurred_at: "yesterday" }] },
     { kind: "not_found" },
