@@ -8,6 +8,7 @@ import type { LocalDatabase } from "../platform/local-database";
 import { currentSaleFor, type SaleRequestDeps } from "../sales/sale-requests";
 import type { CloudReachability } from "../sync/cloud-reachability";
 import { pointTerminalAssigned } from "./sqlite-point-terminal-assignment";
+import { qrPointOfSaleAssigned } from "./sqlite-qr-point-of-sale-assignment";
 
 export async function paymentMethodAvailabilityFor({
   database,
@@ -24,7 +25,10 @@ export async function paymentMethodAvailabilityFor({
   }
   const cloudReachable = cloud() === "reachable";
   return {
-    qr: qrAvailability(cloudReachable),
+    qr: qrAvailability({
+      pointOfSaleAssigned: qrPointOfSaleAssigned(database),
+      cloudReachable,
+    }),
     point: pointTerminalAvailability({
       terminalAssigned: pointTerminalAssigned(database),
       cloudReachable,

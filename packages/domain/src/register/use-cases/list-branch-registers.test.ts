@@ -70,6 +70,7 @@ describe("listBranchRegisters", () => {
         pendingCode: null,
         pointOfSaleNumber: null,
         pointTerminal: { terminalId: null, version: 0 },
+        qrPointOfSale: { externalPosId: null, version: 0 },
         installation: { kind: "not_enrolled" },
       },
       {
@@ -78,6 +79,7 @@ describe("listBranchRegisters", () => {
         pendingCode: null,
         pointOfSaleNumber: null,
         pointTerminal: { terminalId: null, version: 0 },
+        qrPointOfSale: { externalPosId: null, version: 0 },
         installation: { kind: "not_enrolled" },
       },
     ]);
@@ -209,6 +211,26 @@ describe("listBranchRegisters", () => {
     const [caja1] = await listCaja1(storeWithCaja1());
 
     expect(caja1?.pointTerminal).toEqual({ terminalId: null, version: 0 });
+  });
+
+  it("reports the QR point of sale a register is assigned with the version of its assignment", async () => {
+    const store = new FakeBranchRegisterStore();
+    store.seedRegister({
+      id: "register-1",
+      locationId: BRANCH,
+      name: "Caja 1",
+      qrPointOfSale: { externalPosId: "CAJA1_STORE_POS", version: 2 },
+    });
+
+    const [caja1] = await listCaja1(store);
+
+    expect(caja1?.qrPointOfSale).toEqual({ externalPosId: "CAJA1_STORE_POS", version: 2 });
+  });
+
+  it("reports no QR point of sale at version 0 for a register never assigned one", async () => {
+    const [caja1] = await listCaja1(storeWithCaja1());
+
+    expect(caja1?.qrPointOfSale).toEqual({ externalPosId: null, version: 0 });
   });
 
   it("reports the state the register's installations give it", async () => {

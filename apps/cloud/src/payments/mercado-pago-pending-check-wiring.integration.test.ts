@@ -27,6 +27,7 @@ const UNUSED_EMAIL_SENDER: AccessEmailSender = {
 
 const WATCHDOG_TASK_IDENTIFIER = "mercado-pago-pending-check-watchdog";
 const CHECKED_AT = new Date("2126-01-01T00:00:00.000Z");
+const SEARCHED_ORDER_ID = "ORD01JQ4S4KY8HWQ6NA5PXB65B3D4";
 const NEXT_CHECK_AT = new Date("2126-01-01T00:00:30.000Z");
 
 let integrationDb: IntegrationDatabase;
@@ -121,6 +122,45 @@ describe("the Mercado Pago pending check the server sets up on a real Postgres",
       });
 
       expect(await scheduledChecks()).toEqual([{ runAt: NEXT_CHECK_AT }]);
+    } finally {
+      await recovery.close();
+    }
+  }, 90_000);
+
+  it("approves a payment whose order creation was unclear when Mercado Pago has an order for it", async () => {
+    const db = drizzle(seedingSql);
+    const registerId = await insertRegister(db, "Caja 2");
+    const payment = pendingTransaction(registerId, {
+      creationOutcomeUnknown: true,
+      createdAt: new Date("2125-12-31T23:59:00.000Z"),
+      expiresAt: new Date("2126-01-01T00:04:00.000Z"),
+    });
+    await db.insert(paymentTransactions).values(payment);
+    const mercadoPago = new FakeMercadoPagoOrders();
+    mercadoPago.searching = {
+      kind: "read",
+      orders: [
+        { orderId: SEARCHED_ORDER_ID, result: { ...PAID_ORDER, externalReference: payment.id } },
+      ],
+    };
+    const recovery = await setUp(mercadoPago);
+    try {
+      await recovery.workerUtils.addJob(
+        MERCADO_PAGO_PENDING_CHECK_TASK_IDENTIFIER,
+        {},
+        { jobKey: MERCADO_PAGO_PENDING_CHECK_TASK_IDENTIFIER },
+      );
+
+      await vi.waitFor(
+        async () => {
+          const rows = await sql<{ state: string; providerOrderId: string | null }[]>`
+            select state, provider_order_id as "providerOrderId"
+            from payment_transactions where id = ${payment.id}`;
+          expect(rows).toEqual([{ state: "APPROVED", providerOrderId: SEARCHED_ORDER_ID }]);
+        },
+        { timeout: 20_000, interval: 100 },
+      );
+      expect(mercadoPago.searches[0]?.externalReference).toBe(payment.id);
     } finally {
       await recovery.close();
     }

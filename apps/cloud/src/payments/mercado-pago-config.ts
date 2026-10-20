@@ -1,12 +1,10 @@
 interface MercadoPagoConfig {
   accessToken: string;
-  externalPosId: string;
   webhookSecret: string;
 }
 
 const MERCADO_PAGO_VARIABLES = [
   ["MERCADOPAGO_ACCESS_TOKEN", "accessToken"],
-  ["MERCADOPAGO_QR_EXTERNAL_POS_ID", "externalPosId"],
   ["MERCADOPAGO_WEBHOOK_SECRET", "webhookSecret"],
 ] as const;
 
@@ -26,7 +24,6 @@ export function resolveMercadoPagoConfig(env: MercadoPagoEnv): MercadoPagoConfig
   }
   return {
     accessToken: env.MERCADOPAGO_ACCESS_TOKEN ?? "",
-    externalPosId: env.MERCADOPAGO_QR_EXTERNAL_POS_ID ?? "",
     webhookSecret: env.MERCADOPAGO_WEBHOOK_SECRET ?? "",
   };
 }

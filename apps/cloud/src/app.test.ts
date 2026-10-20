@@ -2856,6 +2856,11 @@ describe("the route access inventory", () => {
         access: capabilityAccess("cash_area"),
       },
       {
+        method: "PUT",
+        url: "/api/registers/:id/qr-point-of-sale",
+        access: capabilityAccess("cash_area"),
+      },
+      {
         method: "GET",
         url: "/api/snapshot-backups/registers",
         access: capabilityAccess("backups_area"),
@@ -3126,6 +3131,7 @@ describe("wiring the Mercado Pago notification route", () => {
           createQrOrder: async () => ({ kind: "unavailable" }),
           createPointOrder: async () => ({ kind: "unavailable" }),
           readOrder: async () => ({ kind: "unavailable" }),
+          searchOrdersOfExternalReference: async () => ({ kind: "unavailable" }),
           cancelOrder: async () => ({ kind: "unavailable" }),
           refundOrder: async () => ({ kind: "unavailable" }),
           readOrderRefunds: async () => ({ kind: "unavailable" }),
