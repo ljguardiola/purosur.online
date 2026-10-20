@@ -912,8 +912,8 @@ describe("the register's local migrations", () => {
         "0062_health_check_clock_offset",
         "0063_register_predecessor",
         "0064_void_credit_notes",
-        "0065_replenished_events",
         "0066_register_qr_point_of_sale",
+        "0067_replenished_events",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1003,8 +1003,8 @@ describe("the register's local migrations", () => {
         "0062_health_check_clock_offset",
         "0063_register_predecessor",
         "0064_void_credit_notes",
-        "0065_replenished_events",
         "0066_register_qr_point_of_sale",
+        "0067_replenished_events",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1089,8 +1089,8 @@ describe("the register's local migrations", () => {
         "0062_health_check_clock_offset",
         "0063_register_predecessor",
         "0064_void_credit_notes",
-        "0065_replenished_events",
         "0066_register_qr_point_of_sale",
+        "0067_replenished_events",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1174,8 +1174,8 @@ describe("the register's local migrations", () => {
         "0062_health_check_clock_offset",
         "0063_register_predecessor",
         "0064_void_credit_notes",
-        "0065_replenished_events",
         "0066_register_qr_point_of_sale",
+        "0067_replenished_events",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1288,8 +1288,8 @@ describe("the register's local migrations", () => {
         "0062_health_check_clock_offset",
         "0063_register_predecessor",
         "0064_void_credit_notes",
-        "0065_replenished_events",
         "0066_register_qr_point_of_sale",
+        "0067_replenished_events",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1392,8 +1392,8 @@ describe("the register's local migrations", () => {
         "0062_health_check_clock_offset",
         "0063_register_predecessor",
         "0064_void_credit_notes",
-        "0065_replenished_events",
         "0066_register_qr_point_of_sale",
+        "0067_replenished_events",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1500,8 +1500,8 @@ describe("the register's local migrations", () => {
         "0062_health_check_clock_offset",
         "0063_register_predecessor",
         "0064_void_credit_notes",
-        "0065_replenished_events",
         "0066_register_qr_point_of_sale",
+        "0067_replenished_events",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1616,8 +1616,8 @@ describe("the register's local migrations", () => {
         "0062_health_check_clock_offset",
         "0063_register_predecessor",
         "0064_void_credit_notes",
-        "0065_replenished_events",
         "0066_register_qr_point_of_sale",
+        "0067_replenished_events",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1699,8 +1699,8 @@ describe("the register's local migrations", () => {
         "0062_health_check_clock_offset",
         "0063_register_predecessor",
         "0064_void_credit_notes",
-        "0065_replenished_events",
         "0066_register_qr_point_of_sale",
+        "0067_replenished_events",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -5501,10 +5501,10 @@ describe("the register's local migrations", () => {
     try {
       const path = join(folder, "register.sqlite");
       const previous = LOCAL_MIGRATIONS.filter(
-        (migration) => migration.name < "0065_replenished_events",
+        (migration) => migration.name < "0067_replenished_events",
       );
       expect(LOCAL_MIGRATIONS.map((migration) => migration.name)).toContain(
-        "0065_replenished_events",
+        "0067_replenished_events",
       );
       const before = openLocalDatabase(path, previous, migrationClock);
       before
