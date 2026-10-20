@@ -10,7 +10,7 @@ const EXPRESSION_RE = /\$\{\{([\s\S]*?)\}\}/g;
 const ACTOR_EXPRESSION_RE =
   /(?<![\w.-])github\s*(?:\.\s*(actor(?:_id)?)|\[\s*['"](actor(?:_id)?)['"]\s*\])(?![\w-])/gi;
 const ACTOR_VARIABLE_RE = /(?<!\w)GITHUB_(ACTOR(?:_ID)?)(?!\w)/g;
-const LOGIN_ACTION_RE = /^[^/]+\/[^@]*login[^@]*@/i;
+const LOGIN_ACTION_RE = /^[^/@]+\/(?:[^/@]*-)?login(?:-action)?(?=[/@])/i;
 const COMMAND_RE = /[^|;&\n]+/g;
 const SIGN_IN_COMMAND_RE = /^\s*(?:docker|skopeo)\s+login(?!\S)/;
 const USERNAME_OPTION_RE =
@@ -74,10 +74,31 @@ function contextOf(doc, path, ancestors) {
   return "other";
 }
 
-function lineOfReference(text, index, valueNode, siteNode, lineCounter) {
-  const { line } = lineCounter.linePos(siteNode.range[0]);
-  if (siteNode !== valueNode || valueNode.type !== Scalar.BLOCK_LITERAL) return line;
-  return line + 1 + (text.slice(0, index).match(/\n/g)?.length ?? 0);
+function contentStartOf(node, source) {
+  const [start] = node.range;
+  if (node.type === Scalar.BLOCK_LITERAL || node.type === Scalar.BLOCK_FOLDED) {
+    return source.indexOf("\n", start) + 1;
+  }
+  if (node.type === Scalar.QUOTE_DOUBLE || node.type === Scalar.QUOTE_SINGLE) return start + 1;
+  return start;
+}
+
+function sourceOffsetOf(text, index, node, source) {
+  const end = node.range[1];
+  let cursor = contentStartOf(node, source);
+  for (const char of text.slice(0, index + 1)) {
+    if (/\s/.test(char)) continue;
+    const found = source.indexOf(char, cursor);
+    if (found === -1 || found >= end) return node.range[0];
+    cursor = found + 1;
+  }
+  return cursor - 1;
+}
+
+function lineOfReference(text, index, valueNode, siteNode, { source, lineCounter }) {
+  const offset =
+    siteNode === valueNode ? sourceOffsetOf(text, index, valueNode, source) : siteNode.range[0];
+  return lineCounter.linePos(offset).line;
 }
 
 function violatingReferences(text, context) {
@@ -91,16 +112,17 @@ function violatingReferences(text, context) {
   );
 }
 
-function scalarViolationLines(doc, valueNode, siteNode, path, ancestors, lineCounter) {
+function scalarViolationLines(doc, valueNode, siteNode, path, ancestors, workflow) {
   const text = valueNode.value;
   if (typeof text !== "string") return [];
   const context = contextOf(doc, path, ancestors);
   return violatingReferences(text, context).map((ref) =>
-    lineOfReference(text, ref.index, valueNode, siteNode, lineCounter),
+    lineOfReference(text, ref.index, valueNode, siteNode, workflow),
   );
 }
 
-function violationLinesOf({ doc, lineCounter }) {
+function violationLinesOf(workflow) {
+  const { doc } = workflow;
   const lines = [];
   const visiting = new Set();
 
@@ -109,7 +131,7 @@ function violationLinesOf({ doc, lineCounter }) {
     if (!node || visiting.has(node)) return;
     const siteNode = aliasSite ?? itemNode;
     if (isScalar(node)) {
-      lines.push(...scalarViolationLines(doc, node, siteNode, path, ancestors, lineCounter));
+      lines.push(...scalarViolationLines(doc, node, siteNode, path, ancestors, workflow));
       return;
     }
     const childAliasSite = siteNode === node ? undefined : siteNode;
@@ -133,7 +155,7 @@ function violationLinesOf({ doc, lineCounter }) {
 
 function parseWorkflow(source) {
   const lineCounter = new LineCounter();
-  return { doc: parseDocument(source, { lineCounter }), lineCounter };
+  return { doc: parseDocument(source, { lineCounter }), lineCounter, source };
 }
 
 export function findActorViolations(source) {
