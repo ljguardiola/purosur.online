@@ -123,6 +123,9 @@ describe("serveRestoredRegisterReplenishment", () => {
       { ...INPUT, after: { deviceId: PREDECESSOR, deviceSeq: 252 } },
     );
 
-    expect(second).toMatchObject({ events: [anEvent(PREDECESSOR, 253)], users: replenishment.users });
+    expect(second).toMatchObject({
+      events: [anEvent(PREDECESSOR, 253)],
+      users: replenishment.users,
+    });
   });
 });
