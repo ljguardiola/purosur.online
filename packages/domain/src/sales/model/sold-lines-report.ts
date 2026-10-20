@@ -1,3 +1,4 @@
+import { codeUnitOrder } from "./report-order.js";
 import { saleUnitOfWeightSource, soldQuantity } from "./sale-line.js";
 import type { WeightSource } from "./weight-source.js";
 
@@ -21,10 +22,6 @@ export interface SalesOfGroup extends SoldTotals {
 }
 
 const PATH_ORDER_SEPARATOR = "\u0000";
-
-function codeUnitOrder(a: string, b: string): number {
-  return a < b ? -1 : a > b ? 1 : 0;
-}
 
 function groupOrder(a: SalesOfGroup, b: SalesOfGroup): number {
   return (

@@ -54,3 +54,11 @@ export async function insertProductIn(db: Db, categoryId: string, name: string):
   }
   return product.id;
 }
+
+export function withPromotion(
+  line: SoldLine,
+  promotionId: string,
+  discountAmount: number,
+): SoldLine {
+  return { ...line, promotionId, discountAmount };
+}

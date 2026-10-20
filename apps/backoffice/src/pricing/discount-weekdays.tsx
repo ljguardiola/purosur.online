@@ -1,4 +1,4 @@
-import { weekdaysText } from "./discount-texts";
+import { weekdaysText } from "../platform/discount-terms-text";
 
 const WEEKDAY_MARKERS = [
   { weekday: 1, letter: "L" },
