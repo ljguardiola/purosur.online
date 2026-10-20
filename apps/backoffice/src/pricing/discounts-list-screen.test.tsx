@@ -69,7 +69,7 @@ test("shows the breadcrumb, heading and the current and scheduled promotions wit
         "Programada",
       ],
       [
-        "Yerba de septiembreProducto · Yerba Playadito 1 kg",
+        "Yerba de septiembreProducto · Yerba Hoja Alta 1 kg",
         "15 % de descuento",
         "12/09 → 30/09/2026",
         "LMMJVSD",
@@ -271,7 +271,7 @@ test("the buy-N-pay-M kind keeps only its promotions, showing what is bought and
     .poll(() => rowCells(screen))
     .toEqual([
       [
-        "Yerba 3x2Producto · Yerba Playadito 1 kg",
+        "Yerba 3x2Producto · Yerba Hoja Alta 1 kg",
         "Lleve 3, pague 2",
         "15/09 → 15/10/2026",
         "LMMJVSD",

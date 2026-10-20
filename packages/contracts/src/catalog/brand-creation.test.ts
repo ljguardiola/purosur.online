@@ -10,8 +10,8 @@ function firstFailure(body: unknown): { field: unknown; message: unknown } | und
 
 describe("brandCreationBodySchema", () => {
   it("accepts a name and trims it", () => {
-    expect(brandCreationBodySchema.safeParse({ name: "  Granix  " }).data).toEqual({
-      name: "Granix",
+    expect(brandCreationBodySchema.safeParse({ name: "  Granuz  " }).data).toEqual({
+      name: "Granuz",
     });
   });
 
@@ -35,7 +35,7 @@ describe("brandCreationBodySchema", () => {
     });
   });
 
-  it.each([null, undefined, "Granix", 1, []])("rejects the body %j as not an object", (body) => {
+  it.each([null, undefined, "Granuz", 1, []])("rejects the body %j as not an object", (body) => {
     expect(brandCreationBodySchema.safeParse(body).success).toBe(false);
   });
 });

@@ -9,10 +9,12 @@ import {
   openOverdueUnclearOutcomeAlerts,
   resolveStablyClearedAlerts,
 } from "@purosur/domain/alerts/use-cases";
+import { detectOverdueRegisterBackups } from "@purosur/domain/backups/use-cases";
 import { openOverdueRefundTaskAlerts } from "@purosur/domain/payments/use-cases";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { PoolClient } from "pg";
+import { DrizzleRegisterBackupStandingReader } from "../backups/drizzle-register-backup-standing-reader.js";
 import { DrizzleBranchExpiryWindowReader } from "../branch/drizzle-branch-expiry-window-reader.js";
 import { DrizzleBranchHoursReader } from "../branch/drizzle-branch-hours-reader.js";
 import { DrizzleFortnightRegularizationReader } from "../fiscal/drizzle-fortnight-regularization-reader.js";
@@ -35,6 +37,7 @@ import { DrizzleFortnightReportRegularizationAlerts } from "./drizzle-fortnight-
 import { DrizzleMissingOfflineAuthorizationCodeAlerts } from "./drizzle-missing-offline-authorization-code-alerts.js";
 import { DrizzleOwedElsewhereAlerts } from "./drizzle-owed-elsewhere-alerts.js";
 import { DrizzleUnclearOutcomeAlertStore } from "./drizzle-unclear-outcome-alert-store.js";
+import { observeAlertCondition } from "./observe-alert-condition.js";
 
 export const ALERT_CONDITION_RESOLUTION_TASK_IDENTIFIER = "alert-condition-resolution";
 
@@ -136,6 +139,21 @@ function detectFortnightReportRegularizationsTask<TQueryResult extends PgQueryRe
   });
 }
 
+function detectOverdueRegisterBackupsTask<TQueryResult extends PgQueryResultHKT>(
+  db: PgDatabase<TQueryResult>,
+  deps: { now: () => Date },
+): Promise<number> {
+  return detectOverdueRegisterBackups({
+    standings: new DrizzleRegisterBackupStandingReader(db),
+    alerts: {
+      observeAlertCondition: async (observation) => {
+        await observeAlertCondition(db, observation, { now: deps.now });
+      },
+    },
+    clock: { now: deps.now },
+  });
+}
+
 export interface AlertConditionResolutionJobsDeps {
   createDatabase?: (client: PoolClient) => NodePgDatabase<Record<string, never>>;
   resolve?: typeof resolveClearedConditionAlertsTask;
@@ -147,6 +165,7 @@ export interface AlertConditionResolutionJobsDeps {
   detectFortnightReportDeadlines?: typeof detectFortnightReportDeadlinesTask;
   detectFortnightReportRegularizations?: typeof detectFortnightReportRegularizationsTask;
   detectOwedElsewherePresentations?: typeof detectOwedElsewherePresentationsTask;
+  detectOverdueRegisterBackups?: typeof detectOverdueRegisterBackupsTask;
 }
 
 export function alertConditionResolutionJobs(
@@ -167,6 +186,8 @@ export function alertConditionResolutionJobs(
     deps.detectOwedElsewherePresentations ?? detectOwedElsewherePresentationsTask;
   const doDetectFortnightReportRegularizations =
     deps.detectFortnightReportRegularizations ?? detectFortnightReportRegularizationsTask;
+  const doDetectOverdueRegisterBackups =
+    deps.detectOverdueRegisterBackups ?? detectOverdueRegisterBackupsTask;
   return {
     taskList: {
       [ALERT_CONDITION_RESOLUTION_TASK_IDENTIFIER]: async (_payload, helpers) => {
@@ -181,6 +202,7 @@ export function alertConditionResolutionJobs(
           await doDetectFortnightReportDeadlines(db, { now: options.now });
           await doDetectOwedElsewherePresentations(db, { now: options.now });
           await doDetectFortnightReportRegularizations(db, { now: options.now });
+          await doDetectOverdueRegisterBackups(db, { now: options.now });
         });
       },
     },

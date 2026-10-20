@@ -30,6 +30,7 @@ const ALERT_KIND_LABELS = {
   clock_corrected: "Reloj de la caja corregido",
   invoice_already_credited: "Factura ya acreditada",
   fortnight_report_owed_elsewhere: "Presentación adeudada en otro sistema",
+  register_backup_overdue: "Caja sin backup verificado",
   clock_drift: "Reloj de la caja desajustado",
 } satisfies Record<AlertKind, string>;
 

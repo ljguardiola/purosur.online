@@ -11,6 +11,7 @@ const DECLARATION = {
   size: 4096,
   sha256: "b".repeat(64),
   keyVersion: 2,
+  lastDeviceSeq: 41,
 };
 
 function storeWithKeys(): FakeSnapshotStore {
@@ -37,11 +38,12 @@ function seedDeclared(store: FakeSnapshotStore, createdAt: string) {
     size: 4096,
     sha256: "b".repeat(64),
     keyVersion: 2,
+    lastDeviceSeq: 41,
   });
 }
 
 describe("requestSnapshotUpload", () => {
-  it("records the generation as declared at the cloud's own time", async () => {
+  it("records the generation as declared at the cloud's own time, with the last change it holds", async () => {
     const store = storeWithKeys();
 
     const outcome = await request(store);
@@ -56,6 +58,7 @@ describe("requestSnapshotUpload", () => {
         size: 4096,
         sha256: "b".repeat(64),
         keyVersion: 2,
+        lastDeviceSeq: 41,
         status: "declared",
         failureReason: null,
         uploadReportedAt: null,
@@ -139,13 +142,14 @@ describe("requestSnapshotUpload", () => {
       size: 4096,
       sha256: "b".repeat(64),
       keyVersion: 2,
+      lastDeviceSeq: 41,
       status: "uploaded",
     });
 
     expect(await request(store)).toMatchObject({ kind: "authorized" });
   });
 
-  it.each([{ size: 4097 }, { sha256: "c".repeat(64) }, { keyVersion: 1 }])(
+  it.each([{ size: 4097 }, { sha256: "c".repeat(64) }, { keyVersion: 1 }, { lastDeviceSeq: 42 }])(
     "refuses a generation id declared again as %j",
     async (different) => {
       const store = storeWithKeys();
@@ -174,6 +178,7 @@ describe("requestSnapshotUpload", () => {
         size: 4096,
         sha256: "b".repeat(64),
         keyVersion: 2,
+        lastDeviceSeq: 41,
         status,
       });
 
@@ -222,6 +227,7 @@ describe("requestSnapshotUpload", () => {
       size: 4096,
       sha256: "b".repeat(64),
       keyVersion: 2,
+      lastDeviceSeq: 41,
       status: "uploaded",
     });
 

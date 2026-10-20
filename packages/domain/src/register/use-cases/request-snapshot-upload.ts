@@ -26,6 +26,7 @@ export interface RequestSnapshotUploadInput {
   size: number;
   sha256: string;
   keyVersion: number;
+  lastDeviceSeq: number;
 }
 
 type RequestSnapshotUploadRefusal =
@@ -61,7 +62,8 @@ export async function requestSnapshotUpload(
       const sameDeclaration =
         existing.size === input.size &&
         existing.sha256 === input.sha256 &&
-        existing.keyVersion === input.keyVersion;
+        existing.keyVersion === input.keyVersion &&
+        existing.lastDeviceSeq === input.lastDeviceSeq;
       if (!sameDeclaration) {
         return { kind: "generation_conflict" };
       }
@@ -85,6 +87,7 @@ export async function requestSnapshotUpload(
           size: input.size,
           sha256: input.sha256,
           keyVersion: input.keyVersion,
+          lastDeviceSeq: input.lastDeviceSeq,
         });
       } catch (error) {
         if (error instanceof SnapshotGenerationIdTaken) {

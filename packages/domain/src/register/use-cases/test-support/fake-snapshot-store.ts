@@ -231,6 +231,7 @@ export class FakeSnapshotStore implements SnapshotStore, RegisterSnapshotLanes {
       size: 1024,
       sha256: "a".repeat(64),
       keyVersion: 1,
+      lastDeviceSeq: 0,
       status: "declared",
       failureReason: null,
       uploadReportedAt: null,
