@@ -519,6 +519,8 @@ export {
   salesByProductAndCategoryQuerySchema,
   salesByProductAndCategorySchema,
 } from "./sales/sales-by-product-and-category.js";
+export type { SalesByPromotionBody } from "./sales/sales-by-promotion.js";
+export { salesByPromotionSchema } from "./sales/sales-by-promotion.js";
 export type {
   ReceiptCopyShown,
   SaleHistoryDetailOutcome,

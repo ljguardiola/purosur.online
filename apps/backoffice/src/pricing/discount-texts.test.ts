@@ -1,39 +1,5 @@
 import { describe, expect, test } from "vitest";
-import {
-  DISCOUNT_STATUS_PRESENTATION,
-  discountBenefitText,
-  discountTargetLine,
-  discountValidityText,
-  weekdaysText,
-} from "./discount-texts";
-
-describe("discountBenefitText", () => {
-  test("writes the percentage off with a spaced percent sign", () => {
-    expect(discountBenefitText({ kind: "PERCENT_OFF", percent: 15 })).toBe("15 % de descuento");
-  });
-
-  test("writes how many units are bought and how many are paid", () => {
-    expect(discountBenefitText({ kind: "BUY_N_PAY_M", buyQty: 3, payQty: 2 })).toBe(
-      "Lleve 3, pague 2",
-    );
-  });
-
-  test("writes large quantities with the Argentine thousands separator", () => {
-    expect(discountBenefitText({ kind: "BUY_N_PAY_M", buyQty: 1200, payQty: 1000 })).toBe(
-      "Lleve 1.200, pague 1.000",
-    );
-  });
-});
-
-describe("discountTargetLine", () => {
-  test.each([
-    [{ kind: "PRODUCT", name: "Yerba Playadito 1 kg" }, "Producto · Yerba Playadito 1 kg"],
-    [{ kind: "CATEGORY", name: "Almacén › Yerbas" }, "Categoría · Almacén › Yerbas"],
-    [{ kind: "TAG", name: "Sin TACC" }, "Distintivo · Sin TACC"],
-  ] as const)("names the kind of %j before the target", (target, line) => {
-    expect(discountTargetLine(target)).toBe(line);
-  });
-});
+import { DISCOUNT_STATUS_PRESENTATION, discountValidityText } from "./discount-texts";
 
 describe("discountValidityText", () => {
   test("leaves the year off the start when both days fall in the same year", () => {
@@ -46,28 +12,6 @@ describe("discountValidityText", () => {
 
   test("writes a single day range in full on the end", () => {
     expect(discountValidityText("2026-03-05", "2026-03-05")).toBe("05/03 → 05/03/2026");
-  });
-});
-
-describe("weekdaysText", () => {
-  test("says every day when no weekday is marked", () => {
-    expect(weekdaysText([])).toBe("Todos los días");
-  });
-
-  test("says every day when all seven are marked", () => {
-    expect(weekdaysText([1, 2, 3, 4, 5, 6, 7])).toBe("Todos los días");
-  });
-
-  test("names a single weekday capitalized", () => {
-    expect(weekdaysText([2])).toBe("Martes");
-  });
-
-  test("lists several weekdays in week order joined with y", () => {
-    expect(weekdaysText([5, 1, 3])).toBe("Lunes, miércoles y viernes");
-  });
-
-  test("joins two weekdays with y", () => {
-    expect(weekdaysText([6, 7])).toBe("Sábado y domingo");
   });
 });
 

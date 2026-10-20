@@ -596,11 +596,14 @@ export {
 } from "./register/index.js";
 export type {
   DeferredSaleRecord,
+  DiscountedLinesOfPromotion,
   LinePromotion,
   ListPrice,
   ManualAdjustment,
   ManualAdjustmentValue,
   PrinterStatus,
+  PromotionDiscountTotals,
+  PromotionTerms,
   ReceiptContent,
   ReceiptCopy,
   ReceiptDelivery,
@@ -620,6 +623,7 @@ export type {
   SalesOfCashier,
   SalesOfDay,
   SalesOfGroup,
+  SalesOfPromotion,
   SalesReportGroup,
   SalesReportTotals,
   SaleWithLines,

@@ -7,6 +7,7 @@ import { refuseWithout } from "../shell/signed-in-route";
 import { averageTicketFilters } from "./average-ticket-filters";
 import { salesByCashierFilters } from "./sales-by-cashier-filters";
 import { salesByProductAndCategoryFilters } from "./sales-by-product-and-category-filters";
+import { salesByPromotionFilters } from "./sales-by-promotion-filters";
 
 export const reportsIndexRoute = createRoute({
   getParentRoute: () => reportsAreaRoute,
@@ -43,6 +44,15 @@ export const salesByCashierRoute = createRoute({
   validateSearch: salesByCashierFilters,
   search: { middlewares: [stripSearchParams(salesByCashierFilters.parse({}))] },
   component: lazyScreen(() => import("./sales-by-cashier-page"), "SalesByCashierPage"),
+});
+
+export const salesByPromotionRoute = createRoute({
+  getParentRoute: () => reportsAreaRoute,
+  path: "reports/sales-by-promotion",
+  beforeLoad: ({ context: { session } }) => refuseWithout(session, canSeeReports),
+  validateSearch: salesByPromotionFilters,
+  search: { middlewares: [stripSearchParams(salesByPromotionFilters.parse({}))] },
+  component: lazyScreen(() => import("./sales-by-promotion-page"), "SalesByPromotionPage"),
 });
 
 export const averageTicketRoute = createRoute({

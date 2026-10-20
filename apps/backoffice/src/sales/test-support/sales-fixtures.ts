@@ -2,6 +2,7 @@ import type {
   AverageTicketBody,
   SalesByCashierBody,
   SalesByProductAndCategoryBody,
+  SalesByPromotionBody,
   SalesReportBody,
 } from "@purosur/contracts";
 
@@ -129,6 +130,86 @@ export const noCashierSalesReport: SalesByCashierBody = {
   range: { from: "2026-10-07", to: "2026-10-07" },
   rows: [],
   totals: { cashiers: 0, sales_count: 0, total: 0, average_ticket: null },
+};
+
+const FINDE_ID = "44444444-4444-4444-8444-444444444444";
+const BUNDLE_ID = "55555555-5555-4555-8555-555555555555";
+const REMOVED_PROMOTION_ID = "66666666-6666-4666-8666-666666666666";
+
+export const promotionDiscountsReport: SalesByPromotionBody = {
+  range: { from: "2026-10-01", to: "2026-10-07" },
+  rows: [
+    {
+      promotion_id: FINDE_ID,
+      name: "Finde de yerbas",
+      terms: {
+        benefit: { kind: "PERCENT_OFF", percent: 15 },
+        target: { kind: "CATEGORY", name: "Almacén › Yerbas" },
+        weekdays: [6, 7],
+      },
+      lines: 30,
+      units: 45,
+      thousandths: 0,
+      discounted: 120_000,
+    },
+    {
+      promotion_id: BUNDLE_ID,
+      name: "Tres por dos",
+      terms: {
+        benefit: { kind: "BUY_N_PAY_M", buyQty: 3, payQty: 2 },
+        target: { kind: "PRODUCT", name: "Azúcar 1 kg" },
+        weekdays: [],
+      },
+      lines: 50,
+      units: 150,
+      thousandths: 2_500,
+      discounted: 90_000,
+    },
+    {
+      promotion_id: REMOVED_PROMOTION_ID,
+      name: null,
+      terms: null,
+      lines: 4,
+      units: 0,
+      thousandths: 1_250,
+      discounted: 3_000,
+    },
+  ],
+  totals: {
+    discounted: 213_000,
+    lines: 84,
+    most_used: { promotion_id: BUNDLE_ID, name: "Tres por dos", lines: 50 },
+  },
+};
+
+export const singleLinePromotionReport: SalesByPromotionBody = {
+  range: { from: "2026-10-07", to: "2026-10-07" },
+  rows: [
+    {
+      promotion_id: FINDE_ID,
+      name: "Finde de yerbas",
+      terms: {
+        benefit: { kind: "PERCENT_OFF", percent: 15 },
+        target: { kind: "CATEGORY", name: "Almacén › Yerbas" },
+        weekdays: [1, 2, 3, 4, 5, 6, 7],
+      },
+      lines: 1,
+      units: 1,
+      thousandths: 0,
+      discounted: 450,
+    },
+  ],
+  totals: {
+    discounted: 450,
+    lines: 1,
+    most_used: { promotion_id: FINDE_ID, name: "Finde de yerbas", lines: 1 },
+  },
+};
+
+export const noPromotionDiscountsReport: SalesByPromotionBody = {
+  range: { from: "2026-10-07", to: "2026-10-07" },
+  rows: [],
+  totals: { discounted: 0, lines: 0, most_used: null },
 };
 
 export const averageTicketReport: AverageTicketBody = {
