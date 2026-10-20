@@ -23,8 +23,8 @@ import {
   REAL_TIME_AUTHORIZATION_TIMEOUT_MS,
   ROUND_TRIP_SAMPLE_SIZE,
   realTimeAuthorizationResolution,
-  saleAuthorizationPath,
   SERIES_WAITING_STATES,
+  saleAuthorizationPath,
   taxAuthorityRefusalAnswer,
   taxAuthorityRejectionAnswer,
 } from "./real-time-authorization.js";
