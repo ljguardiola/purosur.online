@@ -150,6 +150,36 @@ describe("DrizzleRegisterBackupStandingReader", () => {
     });
   });
 
+  it("measures from the verified generation that holds the most changes even when an older one was declared after it", async () => {
+    const register = await enrolledRegister("Caja con envío atrasado");
+    await insertChange(register.deviceId, 5, at("09:00"));
+    await insertChange(register.deviceId, 10, at("10:00"));
+    await insertGeneration(register, at("12:00"), 10);
+    await insertGeneration(register, at("12:01"), 5);
+
+    expect(await standingOf(register.registerId)).toMatchObject({
+      lastVerifiedGenerationAt: at("12:00"),
+      firstChangeSinceLastVerifiedAt: null,
+    });
+  });
+
+  it("measures from a later installation's verified generation over an earlier installation's one holding more changes", async () => {
+    const earlier = await enrolledRegister("Caja con dos instalaciones", at("07:00"));
+    const later = await insertEnrolledInstallation(db, {
+      now: NOW,
+      existingRegisterId: earlier.registerId,
+      enrolledAt: at("07:30"),
+    });
+    await insertGeneration(earlier, at("12:30"), 20);
+    await insertGeneration(later, at("12:00"), 2);
+    await insertChange(later.deviceId, 3, at("11:00"));
+
+    expect(await standingOf(earlier.registerId)).toMatchObject({
+      lastVerifiedGenerationAt: at("12:00"),
+      firstChangeSinceLastVerifiedAt: at("11:00"),
+    });
+  });
+
   it("ignores generations that are not verified", async () => {
     const register = await enrolledRegister("Caja con generaciones sin verificar");
     await insertGeneration(register, at("08:00"), 1);

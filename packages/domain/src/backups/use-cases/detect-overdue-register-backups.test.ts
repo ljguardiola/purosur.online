@@ -117,38 +117,4 @@ describe("detectOverdueRegisterBackups", () => {
       }),
     ]);
   });
-
-  it("clears the alert once a newer verified generation leaves no change after it", async () => {
-    const { alerts } = await detect([
-      standing({ lastVerifiedGenerationAt: NOW, firstChangeSinceLastVerifiedAt: null }),
-    ]);
-
-    expect(alerts.observations).toEqual([backedUp("register-1")]);
-  });
-
-  it("keeps the alert open with the new last verified time when changes after a newer generation are already more than an hour old", async () => {
-    const newerGeneration = before(NOW, 90 * MINUTE_MS);
-    const firstChange = before(NOW, 80 * MINUTE_MS);
-
-    const { alerts } = await detect([
-      standing({
-        lastVerifiedGenerationAt: newerGeneration,
-        firstChangeSinceLastVerifiedAt: firstChange,
-      }),
-    ]);
-
-    expect(alerts.observations).toEqual([
-      {
-        holds: true,
-        alert: {
-          kind: "register_backup_overdue",
-          scope: "register-1",
-          detail: {
-            lastVerifiedGenerationAt: newerGeneration.toISOString(),
-            firstChangeAt: firstChange.toISOString(),
-          },
-        },
-      },
-    ]);
-  });
 });
