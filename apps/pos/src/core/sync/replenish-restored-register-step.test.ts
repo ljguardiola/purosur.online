@@ -1,0 +1,284 @@
+import { encodePinHash } from "@purosur/contracts";
+import { recordedPushes } from "@purosur/contracts/sync/test-support";
+import type { PushedEvent } from "@purosur/domain";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import type { CloudResponse } from "../platform/cloud-client";
+import type { LocalDatabase } from "../platform/local-database";
+import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
+import { migrationClock } from "../platform/test-support/migration-clock";
+import { openLocalDatabase } from "../platform/test-support/open-local-database";
+import { cashBalanceFor } from "../register/cash-session-requests";
+import {
+  type ReplenishAttempt,
+  replenishmentReportOf,
+  replenishRestoredRegisterStep,
+} from "./replenish-restored-register-step";
+
+const PREDECESSOR = "2f0c7a9e-8d1b-4c53-9a77-3b5e1d2c4f60";
+const CREDENTIALS = {
+  device_id: "device-new",
+  device_token: "prefix.secret",
+  pepper: Buffer.alloc(32, 9).toString("base64url"),
+};
+const SALT = encodePinHash(new Uint8Array(16).fill(1));
+
+function recordedEvents(): PushedEvent[] {
+  const recorded = recordedPushes().find(({ name }) => name === "sales-moving-stock.json");
+  if (recorded === undefined) {
+    throw new Error("the recorded push is missing");
+  }
+  return recorded.push.events;
+}
+
+const NOT_APPLICABLE_YET = ["fiscal_gate_failed"];
+
+function applicableEvents(): PushedEvent[] {
+  return recordedEvents().filter(
+    ({ event_type }) =>
+      !NOT_APPLICABLE_YET.includes(event_type) && event_type !== "cash_session_closed",
+  );
+}
+
+let database: LocalDatabase;
+let requests: { path: string; bearerToken: string; body: unknown }[];
+
+function pageOf(
+  events: PushedEvent[],
+  next: { device_id: string; device_seq: number } | null = null,
+) {
+  return {
+    events: events.map((event) => ({ ...event, device_id: PREDECESSOR })),
+    next,
+    users: [
+      {
+        user_id: "c7b3e5d2-18a4-4f90-b6d1-2e9f0a8c3d03",
+        first_name: "Ana",
+        role_id: "7c2e9a4b-1d5f-4b83-a0c6-8f3d2e1b5a79",
+        salt: SALT,
+        pin_hash: "argon2id$v=19$m=65536,t=3,p=4$c2FsdA$aGFzaC1vZi10aGUtcGlu",
+        active: true,
+        version: 1,
+      },
+    ],
+  };
+}
+
+function step(answers: CloudResponse[]) {
+  let answered = 0;
+  return replenishRestoredRegisterStep({
+    database,
+    readCredentials: async () => CREDENTIALS,
+    post: async (path, bearerToken, body) => {
+      requests.push({ path, bearerToken, body });
+      const answer = answers[answered++];
+      if (answer === undefined) {
+        throw new Error("the cloud was asked for a page nobody scripted");
+      }
+      return answer;
+    },
+    ids: { next: () => crypto.randomUUID() },
+  });
+}
+
+function ok(events: PushedEvent[], next = null as Parameters<typeof pageOf>[1]): CloudResponse {
+  return { kind: "ok", body: pageOf(events, next) };
+}
+
+function count(table: string): number {
+  return database.prepare<[], { total: number }>(`SELECT COUNT(*) AS total FROM ${table}`).get()
+    ?.total as number;
+}
+
+beforeEach(() => {
+  requests = [];
+  database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS, migrationClock);
+  database.exec(
+    `INSERT INTO own_register (id, name, version, removed) VALUES ('a41d9e07-52c3-4b68-8f2e-1c7d3a9b6e02', 'Caja 1', 1, 0);
+     UPDATE sync_state SET device_id = 'device-new';`,
+  );
+  database
+    .prepare("INSERT INTO register_predecessor (device_id, last_acknowledged_seq) VALUES (?, ?)")
+    .run(PREDECESSOR, 0);
+});
+
+afterEach(() => {
+  database.close();
+});
+
+describe("replenishing a restored register from the cloud", () => {
+  it("does nothing for a register that was not restored, without asking the cloud", async () => {
+    database.exec("DELETE FROM register_predecessor");
+
+    expect(await step([])).toEqual({ kind: "nothing_to_replenish" });
+    expect(requests).toEqual([]);
+  });
+
+  it("asks the cloud as the installation, naming the predecessor", async () => {
+    await step([ok([])]);
+
+    expect(requests).toEqual([
+      {
+        path: "/api/devices/current/reset",
+        bearerToken: "prefix.secret",
+        body: { predecessor_device_id: PREDECESSOR, last_acknowledged_seq: 0 },
+      },
+    ]);
+  });
+
+  it("applies the events of the sessions, sales and cash movements the snapshot lacks and forgets the predecessor", async () => {
+    const outcome = await step([ok(applicableEvents())]);
+
+    expect(outcome).toEqual({ kind: "replenished" });
+    expect(count("register_predecessor")).toBe(0);
+    expect(count("cash_sessions")).toBe(1);
+    expect(
+      database.prepare("SELECT state, COUNT(*) AS total FROM sales GROUP BY state").all(),
+    ).toEqual([
+      { state: "CANCELLED", total: 1 },
+      { state: "COMPLETED", total: 3 },
+    ]);
+  });
+
+  it("makes the open session expect the cash of everything that was replenished into it", async () => {
+    await step([ok(applicableEvents())]);
+
+    expect(cashBalanceFor(database)?.expected).toBe(10_400);
+  });
+
+  it("does not push again what it replenished", async () => {
+    await step([ok(applicableEvents())]);
+
+    expect(count("outbox")).toBe(0);
+  });
+
+  it("lets the cloud's users sign in from now on", async () => {
+    await step([ok(applicableEvents())]);
+
+    expect(count("pin_verifiers")).toBe(1);
+  });
+
+  it("applies nothing twice when the cloud serves the same events again after stopping halfway", async () => {
+    const events = applicableEvents();
+    const first = events.slice(0, 6);
+    const last = events[5];
+    const cursor = { device_id: PREDECESSOR, device_seq: last?.device_seq ?? 0 };
+
+    const interrupted = await step([ok(first, cursor), { kind: "unreachable" }]);
+    const afterFirstRun = {
+      movements: count("cash_movements"),
+      sales: count("sales"),
+      stock: count("stock_movements"),
+    };
+    const outcome = await step([ok(first, cursor), ok(events.slice(6))]);
+
+    expect(interrupted).toEqual({ kind: "unreachable" });
+    expect(outcome).toEqual({ kind: "replenished" });
+    expect(afterFirstRun.movements).toBeLessThan(count("cash_movements"));
+    expect(cashBalanceFor(database)?.expected).toBe(10_400);
+    expect(count("replenished_events")).toBe(events.length);
+  });
+
+  it("leaves the events the register cannot apply yet, keeps the predecessor and says how many", async () => {
+    const outcome = await step([
+      ok(recordedEvents().filter(({ event_type }) => event_type !== "cash_session_closed")),
+    ]);
+
+    expect(outcome).toEqual({ kind: "partially_replenished", unapplied: 3 });
+    expect(count("register_predecessor")).toBe(1);
+    expect(count("sales")).toBe(4);
+  });
+
+  it("applies nothing of a page with an event it cannot read, and keeps the predecessor", async () => {
+    const unreadable: PushedEvent = {
+      ...applicableEvents()[0],
+      event_id: "01a12101-ffff-7000-8000-000000000099",
+      device_seq: 99,
+      schema_version: 99,
+    } as PushedEvent;
+
+    const outcome = await step([ok([...applicableEvents(), unreadable])]);
+
+    expect(outcome).toMatchObject({ kind: "unreadable_event", eventId: unreadable.event_id });
+    expect(count("cash_sessions") + count("sales") + count("replenished_events")).toBe(0);
+    expect(count("register_predecessor")).toBe(1);
+  });
+
+  it("keeps the predecessor when the cloud refuses", async () => {
+    const outcome = await step([
+      {
+        kind: "error",
+        error: { code: "predecessor_not_revoked", message: "not revoked", details: [] },
+      },
+    ]);
+
+    expect(outcome).toEqual({ kind: "refused", refusal: "predecessor_not_revoked" });
+    expect(count("register_predecessor")).toBe(1);
+  });
+
+  it("does not run without an enrolled installation, a cloud or a local database", async () => {
+    const deps = {
+      database,
+      readCredentials: async () => CREDENTIALS,
+      post: async () => ({ kind: "unreachable" }) as const,
+      ids: { next: () => "id" },
+    };
+
+    expect(
+      await replenishRestoredRegisterStep({ ...deps, readCredentials: async () => undefined }),
+    ).toEqual({ kind: "not_enrolled" });
+    expect(await replenishRestoredRegisterStep({ ...deps, post: undefined })).toEqual({
+      kind: "no_cloud",
+    });
+    expect(await replenishRestoredRegisterStep({ ...deps, database: undefined })).toEqual({
+      kind: "no_local_database",
+    });
+  });
+});
+
+describe("what a replenishment attempt reports", () => {
+  it.each<[string, ReplenishAttempt]>([
+    ["nothing to replenish", { kind: "nothing_to_replenish" }],
+    ["a finished replenishment", { kind: "replenished" }],
+    ["an unreachable cloud", { kind: "unreachable" }],
+    ["a register that is not enrolled", { kind: "not_enrolled" }],
+    ["a register without a cloud", { kind: "no_cloud" }],
+    ["a register without a local database", { kind: "no_local_database" }],
+    ["a failure to reach the cloud", { kind: "failed", failure: { kind: "unreachable" } }],
+  ])("nothing for %s", (_name, attempt) => {
+    expect(replenishmentReportOf(attempt)).toBeUndefined();
+  });
+
+  it("an error for the cloud's refusal, which retrying will not change", () => {
+    expect(replenishmentReportOf({ kind: "refused", refusal: "predecessor_not_revoked" })).toEqual({
+      level: "error",
+      message:
+        "core: the cloud refused to replenish the restored register (predecessor_not_revoked), so it stays pending",
+    });
+  });
+
+  it("an error for an event it cannot read", () => {
+    expect(
+      replenishmentReportOf({ kind: "unreadable_event", eventId: "event-9", reason: "garbled" }),
+    ).toEqual({
+      level: "error",
+      message:
+        "core: event event-9 cannot be read (garbled), so the restored register stays pending its replenishment",
+    });
+  });
+
+  it("a warning for the events it cannot apply yet", () => {
+    expect(replenishmentReportOf({ kind: "partially_replenished", unapplied: 3 })).toEqual({
+      level: "warn",
+      message:
+        "core: 3 events of the restored register's predecessor cannot be applied yet, so its replenishment stays pending",
+    });
+  });
+
+  it("a warning for a cloud answer it could not use", () => {
+    expect(replenishmentReportOf({ kind: "failed", failure: { kind: "unreadable" } })).toEqual({
+      level: "warn",
+      message:
+        "core: the cloud's replenishment of the restored register was refused or unreadable, so it will be asked again later",
+    });
+  });
+});
