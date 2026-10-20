@@ -33,7 +33,12 @@ export async function detectFortnightReportDeadlines({
           state,
         }),
       );
-    } else if (standing.kind === "missed" && !(await alerts.hasOpenedOverdueAlert(scope))) {
+    } else if (
+      standing.kind === "missed" &&
+      !(await (owed.listed
+        ? alerts.hasOpenOverdueAlert(scope)
+        : alerts.hasOpenedOverdueAlert(scope)))
+    ) {
       await alerts.openOverdueAlert(
         fortnightReportOverdueAlert({ pointOfSaleNumber, registerId, fortnight, deadline }),
       );

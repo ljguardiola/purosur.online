@@ -27,6 +27,7 @@ export type {
   SaleDocument,
   VoucherReference,
 } from "../model/orphan-authorization.js";
+export type { ListedOwedPresentation } from "../model/owed-presentation-list.js";
 export type {
   DeferralReason,
   OfflineAuthorizationCause,
@@ -304,6 +305,7 @@ export type {
   TaxAuthorityCreditNoteInvoicing,
 } from "./orphan-credit-note-ports.js";
 export { CreditNoteNumberTaken } from "./orphan-credit-note-ports.js";
+export type { OwedPresentationList } from "./owed-presentation-list-ports.js";
 export type {
   ArcaOnlineStatus,
   ReadArcaOnlineStatusInput,

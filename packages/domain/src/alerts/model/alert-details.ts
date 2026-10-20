@@ -179,11 +179,14 @@ export const FORTNIGHT_REPORT_PENDING_REASONS = [
 
 export type FortnightReportPendingReason = (typeof FORTNIGHT_REPORT_PENDING_REASONS)[number];
 
-interface FortnightReportNeedsRegularizationDetail {
+interface FortnightReportOwedElsewhereDetail {
   pointOfSaleNumber: number;
-  registerId: string;
   fortnightStart: string;
   fortnightEnd: string;
+}
+
+interface FortnightReportNeedsRegularizationDetail extends FortnightReportOwedElsewhereDetail {
+  registerId: string;
 }
 
 interface FortnightReportOverdueDetail extends FortnightReportNeedsRegularizationDetail {
@@ -224,6 +227,7 @@ export interface AlertDetails {
   external_billing: ExternalBillingDetail;
   fortnight_report_needs_regularization: FortnightReportNeedsRegularizationDetail;
   clock_corrected: ClockCorrectedDetail;
+  fortnight_report_owed_elsewhere: FortnightReportOwedElsewhereDetail;
 }
 
 export type OpenAlertInput = {

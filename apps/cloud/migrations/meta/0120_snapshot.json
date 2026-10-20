@@ -1,5 +1,5 @@
 {
-  "id": "d4d0fb66-7d82-4d06-b6f6-803d63013d6a",
+  "id": "71ad7798-4dec-4d07-b60d-ba113054de17",
   "prevId": "55db4f9e-bb59-4f8b-8c18-8b639745475c",
   "version": "7",
   "dialect": "postgresql",
@@ -7171,68 +7171,6 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.register_installation_bitlocker_keys": {
-      "name": "register_installation_bitlocker_keys",
-      "schema": "",
-      "columns": {
-        "installation_id": {
-          "name": "installation_id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "sealed_key": {
-          "name": "sealed_key",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "key_identifier": {
-          "name": "key_identifier",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "loaded_at": {
-          "name": "loaded_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "loaded_by": {
-          "name": "loaded_by",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "register_installation_bitlocker_keys_installation_id_register_installations_id_fk": {
-          "name": "register_installation_bitlocker_keys_installation_id_register_installations_id_fk",
-          "tableFrom": "register_installation_bitlocker_keys",
-          "tableTo": "register_installations",
-          "columnsFrom": ["installation_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "register_installation_bitlocker_keys_loaded_by_users_id_fk": {
-          "name": "register_installation_bitlocker_keys_loaded_by_users_id_fk",
-          "tableFrom": "register_installation_bitlocker_keys",
-          "tableTo": "users",
-          "columnsFrom": ["loaded_by"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
     "public.register_installations": {
       "name": "register_installations",
       "schema": "",
@@ -9655,6 +9593,42 @@
           "value": "\"tax_authority_last_authorized_numbers\".\"last_authorized\" >= 0"
         }
       },
+      "isRLSEnabled": false
+    },
+    "public.tax_authority_owed_presentations": {
+      "name": "tax_authority_owed_presentations",
+      "schema": "",
+      "columns": {
+        "point_of_sale_number": {
+          "name": "point_of_sale_number",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fortnight_start": {
+          "name": "fortnight_start",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "listed_at": {
+          "name": "listed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "tax_authority_owed_presentations_pkey": {
+          "name": "tax_authority_owed_presentations_pkey",
+          "columns": ["point_of_sale_number", "fortnight_start"]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "public.user_pin_codes": {

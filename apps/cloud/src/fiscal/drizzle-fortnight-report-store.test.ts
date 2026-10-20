@@ -9,6 +9,7 @@ import {
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { DrizzleFortnightReportStore } from "./drizzle-fortnight-report-store.js";
 import { DrizzleOfflineAuthorizationCodeStore } from "./drizzle-offline-authorization-code-store.js";
+import { DrizzleOwedPresentationList } from "./drizzle-owed-presentation-list.js";
 import { insertOfflineFiscalDocument } from "./test-support/offline-fiscal-document-fixtures.js";
 import { seedOfflinePointOfSale } from "./test-support/offline-point-of-sale-fixtures.js";
 
@@ -51,6 +52,10 @@ async function claimedAt(claimedAtInstant: Date) {
       .set({ claimedAt: claimedAtInstant })
       .where(eq(pointOfSaleClaims.pointOfSaleNumber, OFFLINE_POINT_OF_SALE)),
   );
+}
+
+function listedAsOwed(pointOfSaleNumber: number, fortnight: Fortnight) {
+  return new DrizzleOwedPresentationList(db).replace([{ pointOfSaleNumber, fortnight }], AT);
 }
 
 function newStore() {
@@ -138,6 +143,66 @@ describe("DrizzleFortnightReportStore.owedReports", () => {
     const owed = await store.owedReports("2026-11-01");
 
     expect(owed.map(({ code }) => code.code)).toEqual(["36123456789013"]);
+  });
+});
+
+describe("DrizzleFortnightReportStore.owedReports for the presentations the tax authority lists as owed", () => {
+  it("owes a listed presentation recorded as accepted", async () => {
+    await seedOfflinePointOfSale(db);
+    await claimedAt(new Date("2026-09-20T12:00:00.000Z"));
+    await keepCode(OCTOBER_FIRST_HALF, "36123456789012");
+    const store = newStore();
+    await store.holdReport(KEY, (report) => report.record({ state: "accepted", at: AT }));
+    await listedAsOwed(OFFLINE_POINT_OF_SALE, OCTOBER_FIRST_HALF);
+
+    const owed = await store.owedReports("2026-11-01");
+
+    expect(owed.map(({ code }) => code.code)).toEqual(["36123456789012"]);
+  });
+
+  it("owes a listed presentation of a point of sale claimed after the fortnight closed", async () => {
+    await seedOfflinePointOfSale(db);
+    await claimedAt(new Date("2026-10-20T12:00:00.000Z"));
+    await keepCode(OCTOBER_FIRST_HALF, "36123456789012");
+    await listedAsOwed(OFFLINE_POINT_OF_SALE, OCTOBER_FIRST_HALF);
+
+    expect((await newStore().owedReports("2026-11-01")).map(({ code }) => code.code)).toEqual([
+      "36123456789012",
+    ]);
+  });
+
+  it("owes nothing for a listed presentation whose code is not kept yet", async () => {
+    await seedOfflinePointOfSale(db);
+    await claimedAt(new Date("2026-09-20T12:00:00.000Z"));
+    await listedAsOwed(OFFLINE_POINT_OF_SALE, OCTOBER_FIRST_HALF);
+
+    expect(await newStore().owedReports("2026-11-01")).toEqual([]);
+  });
+
+  it("owes nothing for a presentation listed for a point of sale the system does not own", async () => {
+    await seedOfflinePointOfSale(db);
+    await claimedAt(new Date("2026-10-20T12:00:00.000Z"));
+    await keepCode(OCTOBER_FIRST_HALF, "36123456789012");
+    await listedAsOwed(9, OCTOBER_FIRST_HALF);
+
+    expect(await newStore().owedReports("2026-11-01")).toEqual([]);
+  });
+
+  it("owes nothing for a listed presentation of the real-time point of sale", async () => {
+    await seedOfflinePointOfSale(db);
+    await keepCode(OCTOBER_FIRST_HALF, "36123456789012");
+    await listedAsOwed(7, OCTOBER_FIRST_HALF);
+
+    expect(await newStore().owedReports("2026-11-01")).toEqual([]);
+  });
+
+  it("owes nothing for a listed presentation of a fortnight that has not closed", async () => {
+    await seedOfflinePointOfSale(db);
+    await claimedAt(new Date("2026-10-20T12:00:00.000Z"));
+    await keepCode(OCTOBER_SECOND_HALF, "36123456789013");
+    await listedAsOwed(OFFLINE_POINT_OF_SALE, OCTOBER_SECOND_HALF);
+
+    expect(await newStore().owedReports("2026-10-20")).toEqual([]);
   });
 });
 

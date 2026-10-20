@@ -10,12 +10,14 @@ import type {
   FortnightReportState,
 } from "../model/fortnight-report.js";
 import type { Fortnight } from "../model/offline-authorization-code.js";
+import type { WithOwedPresentations } from "../model/owed-presentation-list.js";
 import type { WsaaTokenSource } from "./fiscal-document-authorization-ports.js";
 import type {
   OfflineAuthorizationCode,
   OfflineAuthorizationCodeStore,
   TaxAuthorityOfflineAuthorizationCodes,
 } from "./offline-authorization-code-ports.js";
+import type { OwedPresentationList } from "./owed-presentation-list-ports.js";
 import type { WsaaToken } from "./wsaa-token-ports.js";
 
 export interface OwedFortnightReport {
@@ -135,11 +137,12 @@ export interface OfflineDocumentReportCall {
   documents: OfflineDocumentOfFortnight[];
 }
 
-export type OfflineDocumentReportAnswer =
+export type OfflineDocumentReportAnswer = WithOwedPresentations<
   | { kind: "accepted" }
   | { kind: "rejected"; number: number; rejections: TaxAuthorityRejection[] }
   | { kind: "refused"; rejections: TaxAuthorityRejection[] }
-  | { kind: "no_answer" };
+  | { kind: "no_answer" }
+>;
 
 export interface TaxAuthorityOfflineDocumentReports {
   lastReported(call: OfflineDocumentLastReportedCall): Promise<OfflineDocumentLastReportedAnswer>;
@@ -155,6 +158,7 @@ export interface FortnightReportPorts {
   documentReports: TaxAuthorityOfflineDocumentReports;
   codeStore: OfflineAuthorizationCodeStore;
   codeAuthority: TaxAuthorityOfflineAuthorizationCodes;
+  owedPresentations: OwedPresentationList;
   tokens: WsaaTokenSource;
   clock: Clock;
 }

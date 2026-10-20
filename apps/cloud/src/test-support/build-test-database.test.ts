@@ -106,6 +106,7 @@ import {
   suppliers,
   tags,
   taxAuthorityLastAuthorizedNumbers,
+  taxAuthorityOwedPresentations,
   userPinCodes,
   userPins,
   userRoles,
@@ -755,6 +756,11 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
         state: "missing_document",
         reportedThrough: 0,
         recordedAt: new Date("2026-10-16T12:00:00.000Z"),
+      });
+      await tx.insert(taxAuthorityOwedPresentations).values({
+        pointOfSaleNumber: 9,
+        fortnightStart: "2026-09-01",
+        listedAt: new Date("2026-10-16T12:00:00.000Z"),
       });
     });
     const [supplier] = await db

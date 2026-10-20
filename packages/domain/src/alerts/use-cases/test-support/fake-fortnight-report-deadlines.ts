@@ -24,14 +24,21 @@ export class FakeFortnightReportDeadlineAlerts implements FortnightReportDeadlin
   readonly observations: AlertConditionObservation[] = [];
   readonly overdueAlerts: OpenAlertInput[] = [];
   private readonly pendingScopes: Set<string>;
-  private readonly overdueScopes: Set<string>;
+  private readonly openOverdueScopes: Set<string>;
+  private readonly closedOverdueScopes: Set<string>;
 
   constructor({
     pendingScopes = [],
-    overdueScopes = [],
-  }: { pendingScopes?: readonly string[]; overdueScopes?: readonly string[] } = {}) {
+    openOverdueScopes = [],
+    closedOverdueScopes = [],
+  }: {
+    pendingScopes?: readonly string[];
+    openOverdueScopes?: readonly string[];
+    closedOverdueScopes?: readonly string[];
+  } = {}) {
     this.pendingScopes = new Set(pendingScopes);
-    this.overdueScopes = new Set(overdueScopes);
+    this.openOverdueScopes = new Set(openOverdueScopes);
+    this.closedOverdueScopes = new Set(closedOverdueScopes);
   }
 
   async pendingAlertScopes(): Promise<string[]> {
@@ -46,11 +53,15 @@ export class FakeFortnightReportDeadlineAlerts implements FortnightReportDeadlin
   }
 
   async hasOpenedOverdueAlert(scope: string): Promise<boolean> {
-    return this.overdueScopes.has(scope);
+    return this.openOverdueScopes.has(scope) || this.closedOverdueScopes.has(scope);
+  }
+
+  async hasOpenOverdueAlert(scope: string): Promise<boolean> {
+    return this.openOverdueScopes.has(scope);
   }
 
   async openOverdueAlert(alert: OpenAlertInput): Promise<void> {
     this.overdueAlerts.push(structuredClone(alert));
-    this.overdueScopes.add(alert.scope);
+    this.openOverdueScopes.add(alert.scope);
   }
 }
