@@ -4,12 +4,18 @@ import { z } from "zod";
 import {
   canManageFreights,
   canManagePurchasePackagings,
+  canManageSupplierPriceLists,
   canManageSuppliers,
   canRecordPurchases,
 } from "../shell/backoffice-access";
 import { lazyScreen } from "../shell/lazy-screen";
+import { ordersAreaRoute } from "../shell/orders-area";
 import { refuseWithout } from "../shell/signed-in-route";
 import { stockAreaRoute } from "../shell/stock-area";
+import {
+  supplierPriceListReviewFilters,
+  supplierPriceListsFilters,
+} from "./supplier-price-lists-filters";
 
 export const suppliersListFilters = z.object({
   search: z.string().default("").catch(""),
@@ -73,4 +79,25 @@ export const freightsListRoute = createRoute({
   validateSearch: freightsListFilters,
   search: { middlewares: [stripSearchParams(freightsListFilters.parse({}))] },
   component: lazyScreen(() => import("./freights-list-page"), "FreightsListPage"),
+});
+
+export const supplierPriceListsRoute = createRoute({
+  getParentRoute: () => ordersAreaRoute,
+  path: "supplier-price-lists",
+  beforeLoad: ({ context: { session } }) => refuseWithout(session, canManageSupplierPriceLists),
+  validateSearch: supplierPriceListsFilters,
+  search: { middlewares: [stripSearchParams(supplierPriceListsFilters.parse({}))] },
+  component: lazyScreen(() => import("./supplier-price-lists-page"), "SupplierPriceListsPage"),
+});
+
+export const supplierPriceListReviewRoute = createRoute({
+  getParentRoute: () => ordersAreaRoute,
+  path: "supplier-price-lists/$listId",
+  beforeLoad: ({ context: { session } }) => refuseWithout(session, canManageSupplierPriceLists),
+  validateSearch: supplierPriceListReviewFilters,
+  search: { middlewares: [stripSearchParams(supplierPriceListReviewFilters.parse({}))] },
+  component: lazyScreen(
+    () => import("./supplier-price-list-review-page"),
+    "SupplierPriceListReviewPage",
+  ),
 });

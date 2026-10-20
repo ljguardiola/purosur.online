@@ -1,6 +1,15 @@
 import { AreaNavItem, SectionNavItem } from "@purosur/ui";
 import { createLink, useMatchRoute } from "@tanstack/react-router";
-import { Boxes, ChartColumn, Home, LifeBuoy, Package, Settings, Wallet } from "lucide-react";
+import {
+  Boxes,
+  ChartColumn,
+  ClipboardList,
+  Home,
+  LifeBuoy,
+  Package,
+  Settings,
+  Wallet,
+} from "lucide-react";
 import type { ReactNode } from "react";
 import { AccountFooter } from "./account-footer";
 import {
@@ -15,6 +24,7 @@ import {
   canSeeCashArea,
   canSeeCatalogArea,
   canSeeExpiringLots,
+  canSeeOrdersArea,
   canSeePricesArea,
   canSeeRefundsArea,
   canSeeReports,
@@ -29,7 +39,15 @@ const AreaLink = createLink(AreaNavItem);
 
 export const SectionLink = createLink(SectionNavItem);
 
-type Area = "home" | "catalog" | "stock" | "cash-and-fiscal" | "reports" | "settings" | "help";
+type Area =
+  | "home"
+  | "catalog"
+  | "stock"
+  | "orders"
+  | "cash-and-fiscal"
+  | "reports"
+  | "settings"
+  | "help";
 
 export type AreaLayoutProps = {
   area: Area;
@@ -92,6 +110,14 @@ export function AreaLayout({ area, sectionColumnLabel, sectionColumn, children }
               label="Stock"
               icon={<Boxes />}
               active={area === "stock"}
+            />
+          )}
+          {canSeeOrdersArea(session) && (
+            <AreaLink
+              to="/supplier-price-lists"
+              label="Pedidos"
+              icon={<ClipboardList />}
+              active={area === "orders"}
             />
           )}
           {(canSeeCashArea(session) || canSeeRefundsArea(session)) && (

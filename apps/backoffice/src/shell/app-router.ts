@@ -22,6 +22,8 @@ import {
   newPurchaseRoute,
   packagingsListRoute,
   purchasesListRoute,
+  supplierPriceListReviewRoute,
+  supplierPriceListsRoute,
   suppliersListRoute,
 } from "../purchasing/routes";
 import { registersListRoute, snapshotBackupsRoute } from "../register/routes";
@@ -50,6 +52,7 @@ import { catalogAreaRoute } from "./catalog-area";
 import { helpAreaRoute } from "./help-area";
 import { homeAreaRoute } from "./home-area";
 import { ScreenDownloadFailure } from "./lazy-screen";
+import { ordersAreaRoute } from "./orders-area";
 import { publicRoute } from "./public-route";
 import { reportsAreaRoute } from "./reports-area";
 import { type RouterContext, rootRoute } from "./root-route";
@@ -96,6 +99,7 @@ const routeTree = rootRoute.addChildren([
       assemblyBatchesRoute,
       initialInventoryRoute,
     ]),
+    ordersAreaRoute.addChildren([supplierPriceListsRoute, supplierPriceListReviewRoute]),
     cashAndFiscalAreaRoute.addChildren([
       pointsOfSaleRoute,
       fiscalConfigurationRoute,
