@@ -1,4 +1,4 @@
-import { isValidCashAmount } from "../../shared/index.js";
+import { codePointLength, isValidCashAmount } from "../../shared/index.js";
 
 export const SUPPLIER_PRICE_LIST_STATES = [
   "READING",
@@ -25,10 +25,16 @@ export type SupplierPriceListReadFailure = (typeof SUPPLIER_PRICE_LIST_READ_FAIL
 
 export const SUPPLIER_PRICE_LIST_PDF_MAX_BYTES = 20 * 1024 * 1024;
 
+export const SUPPLIER_PRICE_LIST_FILE_NAME_MAX_LENGTH = 255;
+
 export const DEFAULT_SUPPLIER_PRICE_LIST_DAILY_EXTRACTION_CAP = 10;
 
 export function isSupplierPriceListPdfTooLarge(byteLength: number): boolean {
   return byteLength > SUPPLIER_PRICE_LIST_PDF_MAX_BYTES;
+}
+
+export function isSupplierPriceListFileNameTooLong(fileName: string): boolean {
+  return codePointLength(fileName) > SUPPLIER_PRICE_LIST_FILE_NAME_MAX_LENGTH;
 }
 
 // An extraction counts on the Argentina calendar day it was sent to the AI service, whatever its
