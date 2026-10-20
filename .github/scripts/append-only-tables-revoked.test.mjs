@@ -155,6 +155,55 @@ test("accepts a table without the comment whose update is granted back on some c
   assert.deepEqual(violationsOf(PLAIN_PRICES, CREATE_PRICES, revoke, grant), []);
 });
 
+test("refuses an append-only table whose update granted back on some columns is revoked from them again", () => {
+  const revoke = migration(
+    "0001_revoke",
+    'REVOKE UPDATE, DELETE, TRUNCATE ON "prices" FROM cloud_app;',
+  );
+  const grant = migration(
+    "0002_grant",
+    'GRANT UPDATE ("printed_at", "voided_at") ON "prices" TO cloud_app;',
+  );
+  const revokeColumn = migration(
+    "0003_revoke_column",
+    'REVOKE UPDATE ("printed_at") ON "prices" FROM cloud_app;',
+  );
+  const revokeColumns = migration(
+    "0004_revoke_columns",
+    'REVOKE UPDATE ("voided_at") ON "prices" FROM cloud_app;',
+  );
+
+  assert.deepEqual(violationsOf(APPEND_ONLY_PRICES, CREATE_PRICES, revoke, grant, revokeColumn), [
+    { path: SCHEMA_PATH, line: 4, table: "prices", rule: "marked-not-revoked" },
+  ]);
+  assert.deepEqual(
+    violationsOf(APPEND_ONLY_PRICES, CREATE_PRICES, revoke, grant, revokeColumn, revokeColumns),
+    [],
+  );
+});
+
+test("reads a revoke of update on the whole table as taking back its columns' update", () => {
+  const grant = migration("0001_grant", 'GRANT UPDATE ("printed_at") ON "prices" TO cloud_app;');
+  const revoke = migration(
+    "0002_revoke",
+    'REVOKE UPDATE, DELETE, TRUNCATE ON "prices" FROM cloud_app;',
+  );
+
+  assert.deepEqual(violationsOf(APPEND_ONLY_PRICES, CREATE_PRICES, grant, revoke), []);
+});
+
+test("keeps update granted on the whole table when a column's update is revoked", () => {
+  const revoke = migration(
+    "0001_revoke",
+    'REVOKE DELETE, TRUNCATE ON "prices" FROM cloud_app;',
+    'REVOKE UPDATE ("printed_at") ON "prices" FROM cloud_app;',
+  );
+
+  assert.deepEqual(violationsOf(APPEND_ONLY_PRICES, CREATE_PRICES, revoke), [
+    { path: SCHEMA_PATH, line: 4, table: "prices", rule: "marked-not-revoked" },
+  ]);
+});
+
 test("accepts a table without the comment that keeps its update", () => {
   const revoke = migration("0001_revoke", 'REVOKE DELETE, TRUNCATE ON "prices" FROM cloud_app;');
 
@@ -219,19 +268,26 @@ test("reads revoke all privileges as revoking update, delete and truncate", () =
   assert.deepEqual(violationsOf(APPEND_ONLY_PRICES, CREATE_PRICES, revoke), []);
 });
 
-test("reads past a semicolon inside a dollar-quoted block or a string", () => {
-  const revoke = migration(
-    "0001_revoke",
+test("reads past a semicolon inside a dollar-quoted block", () => {
+  const block = migration(
+    "0001_block",
     "DO $$",
     "BEGIN",
-    "  CREATE ROLE cloud_app; REVOKE UPDATE ON prices FROM cloud_app;",
+    "  CREATE ROLE cloud_app; REVOKE UPDATE, DELETE, TRUNCATE ON prices FROM cloud_app;",
     "END",
     "$$;",
-    "--> statement-breakpoint",
-    "COMMENT ON TABLE prices IS 'a; REVOKE DELETE ON prices FROM cloud_app';",
   );
 
-  assert.deepEqual(violationsOf(PLAIN_PRICES, CREATE_PRICES, revoke), []);
+  assert.deepEqual(violationsOf(PLAIN_PRICES, CREATE_PRICES, block), []);
+});
+
+test("reads past a semicolon inside a string", () => {
+  const comment = migration(
+    "0001_comment",
+    "COMMENT ON TABLE prices IS 'a; REVOKE UPDATE, DELETE, TRUNCATE ON prices FROM cloud_app; b';",
+  );
+
+  assert.deepEqual(violationsOf(PLAIN_PRICES, CREATE_PRICES, comment), []);
 });
 
 test("judges a table dropped by a later migration by its final state", () => {
@@ -261,6 +317,16 @@ test("judges a table created again after a drop by the privileges of the new tab
   assert.deepEqual(violationsOf(APPEND_ONLY_PRICES, CREATE_PRICES, revoke, recreate), [
     { path: SCHEMA_PATH, line: 4, table: "prices", rule: "marked-not-revoked" },
   ]);
+});
+
+test("keeps the revokes of a table that a create if not exists finds already there", () => {
+  const revoke = migration(
+    "0001_revoke",
+    'REVOKE UPDATE, DELETE, TRUNCATE ON "prices" FROM cloud_app;',
+  );
+  const createAgain = migration("0002_create_again", 'CREATE TABLE IF NOT EXISTS "prices" ();');
+
+  assert.deepEqual(violationsOf(APPEND_ONLY_PRICES, CREATE_PRICES, revoke, createAgain), []);
 });
 
 test("follows a revoked table renamed by a later migration", () => {
@@ -297,6 +363,54 @@ test("reads the append-only mark only from the comment right above the table", (
   );
 
   assert.deepEqual(violationsOf(definition, CREATE_PRICES), []);
+});
+
+test("reads the append-only mark in any case, anywhere in the comment", () => {
+  const definition = schema(
+    "// A price once charged stays what it was, so its rows are append-only.",
+    'export const prices = pgTable("prices", {});',
+  );
+
+  assert.deepEqual(violationsOf(definition, CREATE_PRICES), [
+    { path: SCHEMA_PATH, line: 2, table: "prices", rule: "marked-not-revoked" },
+  ]);
+});
+
+test("reads a table defined through a local function that passes its name to pgTable", () => {
+  const definition = schema(
+    "function priceVersions(name: string) {",
+    "  return pgTable(",
+    "    name,",
+    '    { id: uuid("id").primaryKey() },',
+    "  );",
+    "}",
+    "",
+    "const reviewVersions = (name: string) => pgTable(name, {});",
+    "",
+    "// Append-only: a price once charged stays what it was.",
+    'export const prices = priceVersions("prices");',
+    "",
+    "// Append-only like prices.",
+    "export const priceReviews = reviewVersions(",
+    '  "price_reviews",',
+    ");",
+  );
+  const create = migration(
+    "0000_tables",
+    'CREATE TABLE "prices" ();',
+    "--> statement-breakpoint",
+    'CREATE TABLE "price_reviews" ();',
+  );
+  const revoke = migration(
+    "0001_revoke",
+    'REVOKE UPDATE, DELETE, TRUNCATE ON "prices", "price_reviews" FROM cloud_app;',
+  );
+
+  assert.deepEqual(violationsOf(definition, create, revoke), []);
+  assert.deepEqual(violationsOf(definition, create), [
+    { path: SCHEMA_PATH, line: 11, table: "prices", rule: "marked-not-revoked" },
+    { path: SCHEMA_PATH, line: 14, table: "price_reviews", rule: "marked-not-revoked" },
+  ]);
 });
 
 test("names the table, where it is, and the rule it breaks", () => {
