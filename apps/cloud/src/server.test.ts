@@ -914,6 +914,11 @@ describe("startServer", () => {
         backofficeOrigin: fakeRecovery.backofficeOrigin,
         keysEncryptionKey: KEYS_ENCRYPTION_KEY_BYTES,
       },
+      bitlockerRecoveryKeys: {
+        db: fakeRecovery.db,
+        backofficeOrigin: fakeRecovery.backofficeOrigin,
+        keysEncryptionKey: KEYS_ENCRYPTION_KEY_BYTES,
+      },
       stock: {
         db: fakeRecovery.db,
         backofficeOrigin: fakeRecovery.backofficeOrigin,

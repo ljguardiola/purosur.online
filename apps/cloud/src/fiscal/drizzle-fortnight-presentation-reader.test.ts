@@ -7,6 +7,7 @@ import { seededLocationId } from "../test-support/seeded-location.js";
 import { DrizzleFortnightPresentationReader } from "./drizzle-fortnight-presentation-reader.js";
 import { DrizzleFortnightReportStore } from "./drizzle-fortnight-report-store.js";
 import { DrizzleOfflineAuthorizationCodeStore } from "./drizzle-offline-authorization-code-store.js";
+import { DrizzleOwedPresentationList } from "./drizzle-owed-presentation-list.js";
 import { insertOfflineFiscalDocument } from "./test-support/offline-fiscal-document-fixtures.js";
 import { seedOfflinePointOfSale } from "./test-support/offline-point-of-sale-fixtures.js";
 
@@ -48,6 +49,10 @@ async function claimedAt(pointOfSaleNumber: number, instant: string) {
       .set({ claimedAt: new Date(instant) })
       .where(eq(pointOfSaleClaims.pointOfSaleNumber, pointOfSaleNumber)),
   );
+}
+
+function listedAsOwed(pointOfSaleNumber: number, fortnight: Fortnight) {
+  return new DrizzleOwedPresentationList(db).replace([{ pointOfSaleNumber, fortnight }], AT);
 }
 
 function claimedBeforeEveryFortnight(pointOfSaleNumber: number) {
@@ -152,6 +157,47 @@ describe("DrizzleFortnightPresentationReader.branchPresentations", () => {
     const [presentation] = await presentations("2026-10-16");
 
     expect(presentation).toMatchObject({ documentType: null, movement: "none", state: "accepted" });
+  });
+
+  it("shows an accepted presentation the tax authority lists as owed as listed as owed", async () => {
+    await seedOfflinePointOfSale(db);
+    await claimedBeforeEveryFortnight(OFFLINE_POINT_OF_SALE);
+    await keepCode(OCTOBER_FIRST_HALF, "36123456789012", "2026-10-20");
+    await keepCode(OCTOBER_SECOND_HALF, "36123456789013", "2026-11-05");
+    await record(OFFLINE_POINT_OF_SALE, OCTOBER_FIRST_HALF, "accepted", "none");
+    await record(OFFLINE_POINT_OF_SALE, OCTOBER_SECOND_HALF, "accepted", "none");
+    await listedAsOwed(OFFLINE_POINT_OF_SALE, OCTOBER_FIRST_HALF);
+
+    const listed = await presentations("2026-11-01");
+
+    expect(listed.map(({ fortnight, state }) => [fortnight.start, state])).toEqual([
+      ["2026-10-16", "accepted"],
+      ["2026-10-01", "listed_as_owed"],
+    ]);
+  });
+
+  it("does not mark the same fortnight of another point of sale as listed as owed", async () => {
+    await seedOfflinePointOfSale(db);
+    await claimedBeforeEveryFortnight(OFFLINE_POINT_OF_SALE);
+    await keepCode(OCTOBER_FIRST_HALF, "36123456789012", "2026-10-20");
+    await record(OFFLINE_POINT_OF_SALE, OCTOBER_FIRST_HALF, "accepted", "none");
+    await listedAsOwed(9, OCTOBER_FIRST_HALF);
+
+    const [presentation] = await presentations("2026-11-01");
+
+    expect(presentation?.state).toBe("accepted");
+  });
+
+  it("keeps the state of a listed presentation that is not accepted", async () => {
+    await seedOfflinePointOfSale(db);
+    await claimedBeforeEveryFortnight(OFFLINE_POINT_OF_SALE);
+    await keepCode(OCTOBER_FIRST_HALF, "36123456789012", "2026-10-20");
+    await record(OFFLINE_POINT_OF_SALE, OCTOBER_FIRST_HALF, "blocked");
+    await listedAsOwed(OFFLINE_POINT_OF_SALE, OCTOBER_FIRST_HALF);
+
+    const [presentation] = await presentations("2026-11-01");
+
+    expect(presentation?.state).toBe("blocked");
   });
 
   it("caps the deadline at the eighth day after the fortnight closes when the tax authority granted a later one", async () => {

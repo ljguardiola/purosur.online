@@ -249,6 +249,8 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
       emitEnrollmentCode: vi.fn(),
       revokeRegister: vi.fn(),
       revokeEveryInstallation: vi.fn(),
+      loadBitlockerRecoveryKey: vi.fn(),
+      consultBitlockerRecoveryKey: vi.fn(),
       fetchSessionAuthorizationOptions: vi.fn(),
       authorizeSession: vi.fn(),
       startAuthentication: vi.fn(),

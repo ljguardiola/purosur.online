@@ -162,6 +162,18 @@ describe("POST /registers", () => {
     expect(await db.select().from(registers)).toHaveLength(0);
   });
 
+  it("rejects a user holding only the BitLocker key permission with 403 forbidden, creating nothing", async () => {
+    const locationId = await seededLocationId(db);
+    const userId = await insertUserWithPermission(locationId, ["view_bitlocker_key"]);
+    const rawSessionId = await insertSession(userId);
+
+    const response = await createRegister(rawSessionId, { name: "Caja 1" });
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toMatchObject({ code: "forbidden" });
+    expect(await db.select().from(registers)).toHaveLength(0);
+  });
+
   it("returns 401 authorization_required and creates nothing when the session was never passkey-authorized", async () => {
     const locationId = await seededLocationId(db);
     const userId = await insertUserWithPermission(locationId);

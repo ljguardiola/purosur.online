@@ -10,6 +10,7 @@ const installationSchema = z.discriminatedUnion("state", [
     hostname: z.string(),
     windows_version: z.string(),
     enrolled_at: instantSchema,
+    bitlocker_key_loaded: z.boolean(),
   }),
   z.object({
     state: z.literal("revoked"),

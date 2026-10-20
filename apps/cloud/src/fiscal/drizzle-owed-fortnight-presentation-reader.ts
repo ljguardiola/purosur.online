@@ -1,3 +1,4 @@
+import { owedFortnightPresentationState } from "@purosur/domain";
 import type {
   OwedFortnightPresentation,
   OwedFortnightPresentationReader,
@@ -16,12 +17,13 @@ export class DrizzleOwedFortnightPresentationReader<TQueryResult extends PgQuery
 
   async owedPresentations(today: string): Promise<OwedFortnightPresentation[]> {
     const owed = await owedFortnightReportsWithState(this.db, today);
-    return owed.map(({ owed: { pointOfSaleNumber, registerId, code }, state }) => ({
+    return owed.map(({ owed: { pointOfSaleNumber, registerId, code }, state, listed }) => ({
       pointOfSaleNumber,
       registerId,
       fortnight: code.fortnight,
       taxAuthorityDeadline: code.reportDeadline,
-      state,
+      state: owedFortnightPresentationState({ state, listed }),
+      listed,
     }));
   }
 }

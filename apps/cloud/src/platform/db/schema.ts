@@ -1158,6 +1158,18 @@ export const registerInstallations = pgTable(
   ],
 );
 
+export const registerInstallationBitlockerKeys = pgTable("register_installation_bitlocker_keys", {
+  installationId: uuid("installation_id")
+    .primaryKey()
+    .references(() => registerInstallations.id),
+  sealedKey: text("sealed_key").notNull(),
+  keyIdentifier: text("key_identifier").notNull(),
+  loadedAt: timestamp("loaded_at", { withTimezone: true }).notNull(),
+  loadedBy: uuid("loaded_by")
+    .notNull()
+    .references(() => users.id),
+});
+
 function registerKeyVersions(name: string) {
   return pgTable(
     name,
@@ -2720,5 +2732,20 @@ export const compromiseResponseCompletions = pgTable(
       "compromise_response_completions_key_check",
       sql`${table.key} in (${sql.raw([...COMPROMISE_RESPONSE_ACTION_STEPS, ...COMPROMISE_RESPONSE_ITEMS].map((key) => `'${key}'`).join(", "))})`,
     ),
+  ],
+);
+
+export const taxAuthorityOwedPresentations = pgTable(
+  "tax_authority_owed_presentations",
+  {
+    pointOfSaleNumber: integer("point_of_sale_number").notNull(),
+    fortnightStart: date("fortnight_start", { mode: "string" }).notNull(),
+    listedAt: timestamp("listed_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    primaryKey({
+      name: "tax_authority_owed_presentations_pkey",
+      columns: [table.pointOfSaleNumber, table.fortnightStart],
+    }),
   ],
 );

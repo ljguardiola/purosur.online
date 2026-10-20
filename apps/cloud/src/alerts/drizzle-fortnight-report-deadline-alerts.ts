@@ -9,6 +9,7 @@ import { alerts } from "../platform/db/schema.js";
 import { DrizzleAlertStore } from "./drizzle-alert-store.js";
 import { observeAlertCondition } from "./observe-alert-condition.js";
 import { openAlert } from "./open-alert.js";
+import { openAlertCondition } from "./open-alert-condition.js";
 
 export class DrizzleFortnightReportDeadlineAlerts<TQueryResult extends PgQueryResultHKT>
   implements FortnightReportDeadlineAlerts
@@ -34,6 +35,21 @@ export class DrizzleFortnightReportDeadlineAlerts<TQueryResult extends PgQueryRe
       .select({ id: alerts.id })
       .from(alerts)
       .where(and(eq(alerts.kind, "fortnight_report_overdue"), eq(alerts.scope, scope)))
+      .limit(1);
+    return row !== undefined;
+  }
+
+  async hasOpenOverdueAlert(scope: string): Promise<boolean> {
+    const [row] = await this.db
+      .select({ id: alerts.id })
+      .from(alerts)
+      .where(
+        and(
+          eq(alerts.kind, "fortnight_report_overdue"),
+          eq(alerts.scope, scope),
+          openAlertCondition(),
+        ),
+      )
       .limit(1);
     return row !== undefined;
   }

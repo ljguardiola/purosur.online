@@ -9,11 +9,13 @@ import {
   fortnightReportDeadline,
   fortnightReportStanding,
   fortnightReportStateOfDocumentTypes,
+  isFortnightPresentationOwed,
   isFortnightReportOutstanding,
   isFortnightReportRetryDue,
   isOfflineDocumentReported,
   nextOfflineDocumentBatch,
   offlineDocumentPresentations,
+  owedFortnightPresentationState,
   owesFortnightReport,
   remedyForUnreportedDocuments,
 } from "./fortnight-report.js";
@@ -169,6 +171,32 @@ describe("owesFortnightReport", () => {
     expect(owedWhenClaimedAt("2026-09-16T02:59:59.999Z")).toBe(true);
     expect(owedWhenClaimedAt("2026-09-16T03:00:00.000Z")).toBe(false);
     expect(owedWhenClaimedAt("2026-09-18T12:00:00.000Z")).toBe(false);
+  });
+
+  it("is owed by a listed presentation whenever the point of sale was claimed, once the fortnight closed", () => {
+    const claimedAfterClose = new Date("2026-09-18T12:00:00.000Z");
+
+    expect(
+      owesFortnightReport(
+        { fortnight: FIRST_HALF, claimedAt: claimedAfterClose, listed: true },
+        "2026-09-20",
+      ),
+    ).toBe(true);
+    expect(
+      owesFortnightReport(
+        { fortnight: FIRST_HALF, claimedAt: claimedAfterClose, listed: false },
+        "2026-09-20",
+      ),
+    ).toBe(false);
+  });
+
+  it("is not owed by a listed presentation while the fortnight is still running", () => {
+    expect(
+      owesFortnightReport(
+        { fortnight: FIRST_HALF, claimedAt: claimedBeforeClose, listed: true },
+        "2026-09-15",
+      ),
+    ).toBe(false);
   });
 });
 
@@ -545,6 +573,81 @@ describe("fortnightPresentationRows", () => {
     expect(rows("submitting", null)[0]?.rejectedDocument).toBeNull();
   });
 
+  describe("a presentation the tax authority lists as owed", () => {
+    it("shows an accepted fortnight without documents as listed as owed, keeping what it declared", () => {
+      expect(
+        fortnightPresentationRows({
+          state: "accepted",
+          movement: "none",
+          documents: [],
+          documentReports: [],
+          listedAsOwed: true,
+        }),
+      ).toEqual([
+        {
+          ...noRecord,
+          documentType: null,
+          state: "listed_as_owed",
+          documentCount: 0,
+          movement: "none",
+        },
+      ]);
+    });
+
+    it("shows each accepted document type as listed as owed and leaves the others as they are", () => {
+      expect(
+        fortnightPresentationRows({
+          state: "submitting",
+          movement: null,
+          documents: [document("factura_c", 9), document("nota_c", 4)],
+          documentReports: [
+            {
+              documentType: "factura_c",
+              state: "accepted",
+              reportedThrough: 9,
+              rejectedNumber: null,
+            },
+          ],
+          listedAsOwed: true,
+        }).map(({ documentType, state }) => [documentType, state]),
+      ).toEqual([
+        ["factura_c", "listed_as_owed"],
+        ["nota_c", null],
+      ]);
+    });
+
+    it.each([
+      null,
+      "blocked",
+      "refused",
+      "submitting",
+      "missing_document",
+      "needs_regularization",
+    ] as const)("keeps a fortnight without documents whose report is %s as it is", (state) => {
+      expect(
+        fortnightPresentationRows({
+          state,
+          movement: null,
+          documents: [],
+          documentReports: [],
+          listedAsOwed: true,
+        })[0]?.state,
+      ).toBe(state);
+    });
+
+    it("keeps an accepted fortnight as accepted when the tax authority does not list it", () => {
+      expect(
+        fortnightPresentationRows({
+          state: "accepted",
+          movement: "none",
+          documents: [],
+          documentReports: [],
+          listedAsOwed: false,
+        })[0]?.state,
+      ).toBe("accepted");
+    });
+  });
+
   describe("how a refusal is meant", () => {
     const refusalOf = (
       numbers: number[],
@@ -639,5 +742,58 @@ describe("isFortnightReportRetryDue", () => {
     expect(isFortnightReportRetryDue(lastAttemptAt, new Date("2026-09-20T00:00:00.000Z"))).toBe(
       true,
     );
+  });
+});
+
+describe("isFortnightPresentationOwed", () => {
+  it.each([null, "blocked", "missing_document", "submitting", "refused"] as const)(
+    "is owed while its report is %s, whether the tax authority lists it or not",
+    (state) => {
+      expect(isFortnightPresentationOwed({ state, listed: false })).toBe(true);
+      expect(isFortnightPresentationOwed({ state, listed: true })).toBe(true);
+    },
+  );
+
+  it.each(["accepted", "needs_regularization"] as const)(
+    "is no longer owed once %s, while the tax authority does not list it",
+    (state) => {
+      expect(isFortnightPresentationOwed({ state, listed: false })).toBe(false);
+    },
+  );
+
+  it.each(["accepted", "needs_regularization"] as const)(
+    "is owed again although %s, once the tax authority lists it",
+    (state) => {
+      expect(isFortnightPresentationOwed({ state, listed: true })).toBe(true);
+    },
+  );
+});
+
+describe("owedFortnightPresentationState", () => {
+  it("forgets an accepted report the tax authority's list contradicts", () => {
+    expect(owedFortnightPresentationState({ state: "accepted", listed: true })).toBeNull();
+  });
+
+  it.each([
+    null,
+    "blocked",
+    "missing_document",
+    "submitting",
+    "refused",
+    "needs_regularization",
+  ] as const)("keeps a listed report that is %s", (state) => {
+    expect(owedFortnightPresentationState({ state, listed: true })).toBe(state);
+  });
+
+  it.each([
+    null,
+    "blocked",
+    "missing_document",
+    "submitting",
+    "refused",
+    "accepted",
+    "needs_regularization",
+  ] as const)("keeps a report the tax authority does not list that is %s", (state) => {
+    expect(owedFortnightPresentationState({ state, listed: false })).toBe(state);
   });
 });

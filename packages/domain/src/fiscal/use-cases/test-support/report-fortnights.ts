@@ -14,6 +14,7 @@ import {
   FakeOfflineAuthorizationCodeStore,
   FakeTaxAuthorityOfflineAuthorizationCodes,
 } from "./fake-offline-authorization-codes.js";
+import { FakeOwedPresentationList } from "./fake-owed-presentation-list.js";
 
 export const TOKEN = {
   token: "token",
@@ -54,6 +55,7 @@ export function setUpReportFortnights({
 } = {}) {
   const operations: string[] = [];
   const codeStore = new FakeOfflineAuthorizationCodeStore();
+  codeStore.ownedOfflinePointsOfSale = [POINT_OF_SALE];
   const codeAuthority = new FakeTaxAuthorityOfflineAuthorizationCodes(codeStore);
   if (keptCode) {
     codeStore.kept.push({
@@ -63,7 +65,8 @@ export function setUpReportFortnights({
     });
   }
   const documents = new FakeOfflineDocumentsOfFortnight(operations);
-  const reports = new FakeFortnightReportStore(codeStore, documents, operations);
+  const owedPresentations = new FakeOwedPresentationList();
+  const reports = new FakeFortnightReportStore(codeStore, documents, owedPresentations, operations);
   reports.pointsOfSale = [
     { pointOfSaleNumber: POINT_OF_SALE, registerId: REGISTER_ID, claimedAt: CLAIMED_AT },
   ];
@@ -81,6 +84,7 @@ export function setUpReportFortnights({
       documentReports,
       codeStore,
       codeAuthority,
+      owedPresentations,
       tokens: { validToken: async () => token },
       clock,
     });
@@ -88,6 +92,7 @@ export function setUpReportFortnights({
     operations,
     codeStore,
     codeAuthority,
+    owedPresentations,
     reports,
     documents,
     streams,
