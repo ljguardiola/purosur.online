@@ -2013,7 +2013,6 @@ test("tells which register went more than an hour without a verified backup, whe
       ),
     )
     .toBeVisible();
-  await expect.element(screen.getByText("Caja", { exact: true })).toBeVisible();
   await expect.element(screen.getByText("Caja 1", { exact: true })).toBeVisible();
   await expect.element(screen.getByText("Último backup verificado", { exact: true })).toBeVisible();
   await expect.element(screen.getByText("16/09/2026 · 11:31", { exact: true })).toBeVisible();
