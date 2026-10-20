@@ -1,0 +1,46 @@
+import { clockCorrectionPeriodKey } from "@purosur/domain";
+import type { SyncedFact } from "@purosur/domain/sync/use-cases";
+import type { LocalDatabase } from "../platform/local-database";
+import {
+  cashSessionStanding,
+  insertClockCorrection,
+  lowerClockMark,
+} from "./sqlite-clock-correction";
+
+type ClockCorrectedFact = Extract<SyncedFact, { kind: "clock_corrected" }>;
+
+function correctionHeld(database: LocalDatabase, { correction }: ClockCorrectedFact): boolean {
+  return (
+    database
+      .prepare(
+        `SELECT 1 FROM clock_corrections
+         WHERE point_of_sale = ? AND document_type = ?
+           AND previous_reading = ? AND corrected_reading = ?`,
+      )
+      .get(
+        correction.pointOfSale,
+        correction.documentType,
+        correction.previousReading.toISOString(),
+        correction.correctedReading.toISOString(),
+      ) !== undefined
+  );
+}
+
+export function applyReplenishedClockCorrection(
+  database: LocalDatabase,
+  fact: ClockCorrectedFact,
+): void {
+  if (correctionHeld(database, fact)) {
+    return;
+  }
+  const { pointOfSale, documentType, previousReading, correctedReading, registerId, actorId } =
+    fact.correction;
+  const lowering = { pointOfSale, documentType, previousReading, correctedReading };
+  lowerClockMark(database, lowering);
+  insertClockCorrection(database, {
+    period: clockCorrectionPeriodKey(cashSessionStanding(database)),
+    registerId,
+    actorId,
+    lowering,
+  });
+}
