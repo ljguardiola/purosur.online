@@ -2934,6 +2934,7 @@ describe("the route access inventory", () => {
       { method: "POST", url: "/api/pin-code-redemptions", access: PUBLIC_ACCESS },
       { method: "POST", url: "/api/sign-in-lookups", access: PUBLIC_ACCESS },
       { method: "POST", url: "/api/devices/current/tokens", access: PUBLIC_ACCESS },
+      { method: "POST", url: "/api/devices/current/reset", access: PUBLIC_ACCESS },
       { method: "POST", url: "/api/first-pin-codes", access: PUBLIC_ACCESS },
       { method: "HEAD", url: "/*", access: PUBLIC_ACCESS },
       { method: "GET", url: "/*", access: PUBLIC_ACCESS },
