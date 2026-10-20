@@ -406,6 +406,13 @@ test("finds node in nested subshells that open with two parentheses", () => {
   }
 });
 
+test("reads a here-document inside nested subshells that open with two parentheses", () => {
+  const lines = ["((cat <<EOF) | tee out)", "don't", "EOF", "node s/main.mjs"];
+  const workflow = job("      - run: |", ...lines.map((line) => `          ${line}`));
+
+  assert.equal(check(workflow, importsYaml).length, 1);
+});
+
 test("ignores node commands that run no script", () => {
   assert.deepEqual(check(job("      - run: node --version && node -v"), {}), []);
 });
