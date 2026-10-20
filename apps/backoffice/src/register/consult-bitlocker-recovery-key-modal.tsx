@@ -66,6 +66,7 @@ export function ConsultBitlockerRecoveryKeyModal({
   >({
     open,
     actionName: "Consultar la clave de recuperación de BitLocker",
+    consultation: true,
     onSessionEnded,
     onCancelled: onClose,
     services: { fetchSessionAuthorizationOptions, authorizeSession, startAuthentication },

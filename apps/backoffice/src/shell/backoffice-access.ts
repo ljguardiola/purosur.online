@@ -71,6 +71,10 @@ export function canSeeRegistersArea(access: BackofficeAccess): boolean {
   return grants(access, "registers_area");
 }
 
+export function canEnrollRegisters(access: BackofficeAccess): boolean {
+  return grants(access, "enroll_registers");
+}
+
 export function canRevokeInstallations(access: BackofficeAccess): boolean {
   return grants(access, "revoke_installations");
 }

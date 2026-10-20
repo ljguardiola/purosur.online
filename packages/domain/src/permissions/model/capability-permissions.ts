@@ -20,6 +20,7 @@ export const CAPABILITY_PERMISSIONS = {
   alerts_area: ["view_branch_alerts", "view_all_alerts"],
   close_alerts_manually: ["dismiss_alerts_manually"],
   registers_area: ["enroll_register_devices", "view_bitlocker_key"],
+  enroll_registers: ["enroll_register_devices"],
   revoke_installations: ["revoke_register_devices"],
   bitlocker_recovery_key: ["view_bitlocker_key"],
   quarantined_events: ["release_quarantined_events"],

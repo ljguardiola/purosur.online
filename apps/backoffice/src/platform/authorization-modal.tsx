@@ -27,6 +27,7 @@ type Authorizable = { kind: string };
 type AuthorizationModalProps = {
   open: boolean;
   actionName: string;
+  consultation: boolean;
   notice: ModalNotice | null;
   submitting: boolean;
   onCancel: () => void;
@@ -36,6 +37,7 @@ type AuthorizationModalProps = {
 function AuthorizationModal({
   open,
   actionName,
+  consultation,
   notice,
   submitting,
   onCancel,
@@ -52,7 +54,7 @@ function AuthorizationModal({
       width="confirmation"
       tone="info"
       icon={<Fingerprint />}
-      title="Autorizá este cambio"
+      title={consultation ? "Autorizá esta consulta" : "Autorizá este cambio"}
       closable
       footer={
         <>
@@ -106,10 +108,12 @@ function AuthorizationModal({
 
 export function useAuthorization<T extends Authorizable>({
   actionName,
+  consultation = false,
   onSessionEnded,
   services,
 }: {
   actionName: string;
+  consultation?: boolean;
   onSessionEnded: () => void;
   services?: AuthorizationServices;
 }): { run: (attempt: () => Promise<T>) => Promise<T | { kind: "cancelled" }>; modal: ReactNode } {
@@ -211,6 +215,7 @@ export function useAuthorization<T extends Authorizable>({
       <AuthorizationModal
         open={open}
         actionName={actionName}
+        consultation={consultation}
         notice={notice}
         submitting={submitting}
         onCancel={cancel}

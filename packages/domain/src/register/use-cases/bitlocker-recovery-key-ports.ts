@@ -24,7 +24,6 @@ export type BitlockerRecoveryKeyConsultation = BitlockerRecoveryKeyLoad;
 
 export interface BitlockerRecoveryKeyStoreTransaction {
   lockBranchRegister(branchId: string, registerId: string): Promise<boolean>;
-  // The installation in service, if any.
   currentInstallationOf(registerId: string): Promise<string | null>;
   hasRecoveryKey(installationId: string): Promise<boolean>;
   storeRecoveryKey(key: NewBitlockerRecoveryKey): Promise<void>;

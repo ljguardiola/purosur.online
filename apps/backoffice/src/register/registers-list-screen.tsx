@@ -19,6 +19,7 @@ import { useSendToMyAccount } from "../platform/send-to-my-account";
 import {
   type BackofficeAccess,
   canAssignPointTerminal,
+  canEnrollRegisters,
   canRevokeInstallations,
   canUseBitlockerRecoveryKey,
 } from "../shell/backoffice-access";
@@ -178,11 +179,15 @@ export function RegistersListScreen({
     void refreshRegisters();
   }
 
-  const emitAction = (item: RegisterSummary) => ({
-    icon: <KeySquare />,
-    "aria-label": `Emitir código de alta para ${item.name}`,
-    onPress: () => void handleEmitClick(item),
-  });
+  const mayEnroll = canEnrollRegisters(access);
+  const emitAction = (item: RegisterSummary) =>
+    mayEnroll
+      ? {
+          icon: <KeySquare />,
+          "aria-label": `Emitir código de alta para ${item.name}`,
+          onPress: () => void handleEmitClick(item),
+        }
+      : undefined;
   const revokeAction = (item: RegisterSummary) =>
     item.installation?.state === "enrolled"
       ? {
@@ -325,9 +330,11 @@ export function RegistersListScreen({
               <p className="text-text-subtle text-detail">Configuración</p>
               <ScreenTitle>Cajas registradoras</ScreenTitle>
             </div>
-            <Button variant="primary" icon={<Plus />} onPress={() => setNewModalOpen(true)}>
-              Nueva caja
-            </Button>
+            {mayEnroll && (
+              <Button variant="primary" icon={<Plus />} onPress={() => setNewModalOpen(true)}>
+                Nueva caja
+              </Button>
+            )}
           </div>
         }
         bodyClassName="gap-4 p-6"

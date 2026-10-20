@@ -45,12 +45,14 @@ type Opening<Specific extends string> = {
 export function useRevocationAttempt<Outcome extends { kind: string }, Specific extends string>({
   open,
   actionName,
+  consultation = false,
   onSessionEnded,
   onCancelled,
   services,
 }: {
   open: boolean;
   actionName: string;
+  consultation?: boolean;
   onSessionEnded: () => void;
   onCancelled?: () => void;
   services: RevocationAttemptServices;
@@ -60,6 +62,7 @@ export function useRevocationAttempt<Outcome extends { kind: string }, Specific 
   const [revoking, setRevoking] = useState(false);
   const { run, modal } = useAuthorization<Outcome | SharedOutcome>({
     actionName,
+    consultation,
     onSessionEnded,
     services,
   });
