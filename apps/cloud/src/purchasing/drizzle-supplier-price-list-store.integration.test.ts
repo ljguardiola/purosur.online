@@ -132,7 +132,7 @@ describe("recording an extraction, on a real Postgres", () => {
 
     await expect(
       store().transaction((tx) =>
-        tx.recordExtraction(listId, null, [
+        tx.recordExtraction(listId, null, null, [
           { description: "Yerba 1 kg", code: null, presentation: null, priceCents: 100, page: 1 },
           { description: "Azúcar 1 kg", code: null, presentation: null, priceCents: -5, page: 1 },
         ]),

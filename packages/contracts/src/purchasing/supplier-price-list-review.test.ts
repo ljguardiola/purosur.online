@@ -31,6 +31,7 @@ const review = {
     uploadedAt: "2026-03-01T12:00:00.000Z",
     replaced: false,
     version: 4,
+    pricesIncludeVat: true,
   },
   rows: [row, bareRow],
   actions: { changeRows: true, confirm: true, discard: true },
@@ -51,6 +52,27 @@ describe("supplierPriceListReviewSchema", () => {
     const { version: _version, ...list } = review.list;
 
     expect(supplierPriceListReviewSchema.safeParse({ ...review, list }).success).toBe(false);
+  });
+
+  it.each([true, false, null])(
+    "accepts a list whose prices include VAT: %s",
+    (pricesIncludeVat) => {
+      const withVat = { ...review, list: { ...review.list, pricesIncludeVat } };
+
+      expect(supplierPriceListReviewSchema.safeParse(withVat).data).toEqual(withVat);
+    },
+  );
+
+  it("requires whether the prices include VAT, even if not known yet", () => {
+    const { pricesIncludeVat: _pricesIncludeVat, ...list } = review.list;
+
+    expect(supplierPriceListReviewSchema.safeParse({ ...review, list }).success).toBe(false);
+    expect(
+      supplierPriceListReviewSchema.safeParse({
+        ...review,
+        list: { ...review.list, pricesIncludeVat: "yes" },
+      }).success,
+    ).toBe(false);
   });
 
   it("requires which actions the list allows", () => {

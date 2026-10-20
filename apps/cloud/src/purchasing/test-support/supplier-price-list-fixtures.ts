@@ -31,6 +31,7 @@ export interface PriceListSeed {
   sentAt?: Date | null;
   sentOn?: string | null;
   listDate?: string | null;
+  pricesIncludeVat?: boolean | null;
   confirmedAt?: Date | null;
   version?: number;
 }
@@ -54,6 +55,7 @@ export async function insertPriceList<TQueryResult extends PgQueryResultHKT>(
       sentAt: seed.sentAt ?? null,
       sentOn: seed.sentOn ?? null,
       listDate: seed.listDate ?? null,
+      pricesIncludeVat: seed.pricesIncludeVat ?? null,
       confirmedAt: seed.confirmedAt ?? null,
       version: seed.version ?? 1,
     })

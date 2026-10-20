@@ -93,6 +93,7 @@ describe("supplierPriceListReadingJobs", () => {
       {
         kind: "extracted",
         listDate: "2026-03-01",
+        pricesIncludeVat: false,
         rows: [
           { description: "Yerba 1 kg", code: null, presentation: null, priceCents: 900, page: 1 },
         ],
@@ -106,7 +107,12 @@ describe("supplierPriceListReadingJobs", () => {
       .select()
       .from(supplierPriceLists)
       .where(eq(supplierPriceLists.id, listId));
-    expect(list).toMatchObject({ state: "EXTRACTED", listDate: "2026-03-01", sentAt: NOW });
+    expect(list).toMatchObject({
+      state: "EXTRACTED",
+      listDate: "2026-03-01",
+      pricesIncludeVat: false,
+      sentAt: NOW,
+    });
     expect(await db.select().from(supplierPriceListRows)).toMatchObject([
       { listId, description: "Yerba 1 kg", priceCents: 900 },
     ]);

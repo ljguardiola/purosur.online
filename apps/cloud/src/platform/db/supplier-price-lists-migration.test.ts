@@ -21,7 +21,7 @@ async function databaseBefore() {
 async function migratedDatabase() {
   const before = await databaseBefore();
   const migrated = await before.database.applyMigration();
-  const insertList = async (overrides: Record<string, string | number | null> = {}) => {
+  const insertList = async (overrides: Record<string, string | number | boolean | null> = {}) => {
     const values = {
       supplier_id: before.supplierId,
       location_id: before.locationId,
@@ -42,7 +42,10 @@ async function migratedDatabase() {
     );
     return rows[0]?.id as string;
   };
-  const insertRow = (listId: string, overrides: Record<string, string | number | null> = {}) => {
+  const insertRow = (
+    listId: string,
+    overrides: Record<string, string | number | boolean | null> = {},
+  ) => {
     const values = { list_id: listId, position: 0, description: "Yerba 1 kg", ...overrides };
     const columns = Object.keys(values);
     return migrated.query(
@@ -82,6 +85,30 @@ describe("the supplier price lists migration applied over a database that alread
     expect(rows).toEqual([
       { state: "READING", version: 1, sent_at: null, sent_on: null, list_date: null },
     ]);
+  });
+
+  it("starts a list with no answer on whether its prices include VAT", async () => {
+    const { migrated, insertList } = await migratedDatabase();
+    const listId = await insertList();
+
+    const { rows } = await migrated.query(
+      "select prices_include_vat from supplier_price_lists where id = $1",
+      [listId],
+    );
+
+    expect(rows).toEqual([{ prices_include_vat: null }]);
+  });
+
+  it.each([true, false])("keeps a list whose prices include VAT: %s", async (answer) => {
+    const { migrated, insertList } = await migratedDatabase();
+    const listId = await insertList({ prices_include_vat: answer });
+
+    const { rows } = await migrated.query(
+      "select prices_include_vat from supplier_price_lists where id = $1",
+      [listId],
+    );
+
+    expect(rows).toEqual([{ prices_include_vat: answer }]);
   });
 
   it("keeps the calendar day an extraction was sent on and the list date as plain dates", async () => {

@@ -6,13 +6,37 @@ describe("supplierPriceListConfirmationBodySchema", () => {
     expect(
       supplierPriceListConfirmationBodySchema.safeParse({ version: 2, listDate: "2026-03-01" })
         .data,
-    ).toEqual({ version: 2, listDate: "2026-03-01" });
+    ).toEqual({ version: 2, listDate: "2026-03-01", pricesIncludeVat: null });
   });
 
   it.each([undefined, null, "", "  "])("reads %j as no date typed", (listDate) => {
     expect(
       supplierPriceListConfirmationBodySchema.safeParse({ version: 2, listDate }).data,
-    ).toEqual({ version: 2, listDate: null });
+    ).toEqual({ version: 2, listDate: null, pricesIncludeVat: null });
+  });
+
+  it.each([true, false])("reads whether the prices include VAT as %s", (pricesIncludeVat) => {
+    expect(
+      supplierPriceListConfirmationBodySchema.safeParse({ version: 2, pricesIncludeVat }).data
+        ?.pricesIncludeVat,
+    ).toBe(pricesIncludeVat);
+  });
+
+  it.each([undefined, null])("reads %j as no VAT answer chosen", (pricesIncludeVat) => {
+    expect(
+      supplierPriceListConfirmationBodySchema.safeParse({ version: 2, pricesIncludeVat }).data
+        ?.pricesIncludeVat,
+    ).toBeNull();
+  });
+
+  it.each(["yes", 1, "true"])("rejects the VAT answer %j", (pricesIncludeVat) => {
+    const result = supplierPriceListConfirmationBodySchema.safeParse({
+      version: 2,
+      pricesIncludeVat,
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.error?.issues[0]?.path).toEqual(["pricesIncludeVat"]);
   });
 
   it("trims the date", () => {

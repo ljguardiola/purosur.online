@@ -134,6 +134,7 @@ describe("reviewing a list", () => {
       actorId,
       state: "EXTRACTED",
       listDate: "2026-03-01",
+      pricesIncludeVat: false,
       version: 3,
     });
     const [firstId, secondId] = await insertPriceListRows(db, listId, [
@@ -150,7 +151,14 @@ describe("reviewing a list", () => {
     const review = await reader().review(listId);
 
     expect(review).toMatchObject({
-      list: { id: listId, version: 3, state: "EXTRACTED", rowCount: 2, unpricedRowCount: 1 },
+      list: {
+        id: listId,
+        version: 3,
+        state: "EXTRACTED",
+        rowCount: 2,
+        unpricedRowCount: 1,
+        pricesIncludeVat: false,
+      },
       rows: [
         {
           id: firstId,
@@ -170,6 +178,17 @@ describe("reviewing a list", () => {
         },
       ],
     });
+  });
+
+  it("answers a list that does not say whether its prices include VAT as not known", async () => {
+    const listId = await insertPriceList(db, {
+      supplierId,
+      locationId,
+      actorId,
+      state: "EXTRACTED",
+    });
+
+    expect((await reader().review(listId))?.list.pricesIncludeVat).toBeNull();
   });
 
   it("answers nothing for a list that does not exist", async () => {

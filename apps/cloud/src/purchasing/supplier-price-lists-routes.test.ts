@@ -143,7 +143,11 @@ describe("GET /supplier-price-lists", () => {
 describe("GET /supplier-price-lists/:id", () => {
   it("answers the list with its rows and whether a newer list replaced it", async () => {
     const { headers } = await manager();
-    const { listId } = await storedList({ state: "EXTRACTED", listDate: "2026-03-01" });
+    const { listId } = await storedList({
+      state: "EXTRACTED",
+      listDate: "2026-03-01",
+      pricesIncludeVat: false,
+    });
     await insertPriceListRows(db, listId, [
       {
         description: "Yerba 1 kg",
@@ -162,7 +166,13 @@ describe("GET /supplier-price-lists/:id", () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({
-      list: { id: listId, state: "EXTRACTED", version: 1, replaced: false },
+      list: {
+        id: listId,
+        state: "EXTRACTED",
+        version: 1,
+        replaced: false,
+        pricesIncludeVat: false,
+      },
       actions: { changeRows: true, confirm: true, discard: true },
       rows: [
         {
@@ -618,17 +628,32 @@ describe("POST /supplier-price-lists/:id/confirmation", () => {
     expect(response.json()).toMatchObject({ code: "validation_failed" });
   });
 
-  it("confirms the list with the date typed in the review and answers 200", async () => {
-    const { headers, userId } = await manager();
+  it("answers 400 for a VAT answer that is not a boolean", async () => {
+    const { headers } = await manager();
     const { listId } = await storedList({ state: "EXTRACTED" });
+
+    const response = await confirm(headers, listId, { version: 1, pricesIncludeVat: "yes" });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({ code: "validation_failed" });
+  });
+
+  it("confirms the list with the date and the VAT answer chosen in the review and answers 200", async () => {
+    const { headers, userId } = await manager();
+    const { listId } = await storedList({ state: "EXTRACTED", pricesIncludeVat: true });
     await insertPriceListRows(db, listId, [{ priceCents: 500 }]);
 
-    const response = await confirm(headers, listId, { version: 1, listDate: "2026-03-05" });
+    const response = await confirm(headers, listId, {
+      version: 1,
+      listDate: "2026-03-05",
+      pricesIncludeVat: false,
+    });
 
     expect(response.statusCode).toBe(200);
     expect(await listRow(listId)).toMatchObject({
       state: "REVIEWED",
       listDate: "2026-03-05",
+      pricesIncludeVat: false,
       confirmedBy: userId,
     });
   });
@@ -658,6 +683,10 @@ describe("POST /supplier-price-lists/:id/confirmation", () => {
           .set({ listDate: null })
           .where(eq(supplierPriceLists.id, listId));
       },
+    ],
+    [
+      "vat_missing",
+      async (listId: string) => void (await insertPriceListRows(db, listId, [{ priceCents: 100 }])),
     ],
   ])("answers 409 %s and leaves the list unconfirmed", async (code, arrange) => {
     const { headers } = await manager();

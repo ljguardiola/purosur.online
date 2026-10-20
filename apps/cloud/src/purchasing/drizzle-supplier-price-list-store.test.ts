@@ -190,6 +190,7 @@ describe("inserting and locking a list", () => {
       actorId,
       state: "EXTRACTED",
       listDate: "2026-03-01",
+      pricesIncludeVat: false,
       sentAt: NOW,
       sentOn: "2026-03-10",
       version: 4,
@@ -206,6 +207,7 @@ describe("inserting and locking a list", () => {
         state: "EXTRACTED",
         version: 4,
         listDate: "2026-03-01",
+        pricesIncludeVat: false,
         sentAt: NOW,
         rowPrices: [500, null],
       },
@@ -238,7 +240,7 @@ describe("recording what the reading found", () => {
     const listId = await insertPriceList(db, { supplierId, locationId, actorId });
 
     await store().transaction((tx) =>
-      tx.recordExtraction(listId, "2026-02-27", [
+      tx.recordExtraction(listId, "2026-02-27", false, [
         {
           description: "Yerba 1 kg",
           code: "Y-01",
@@ -259,6 +261,7 @@ describe("recording what the reading found", () => {
     expect(await listRow(listId)).toMatchObject({
       state: "EXTRACTED",
       listDate: "2026-02-27",
+      pricesIncludeVat: false,
       extractedAt: NOW,
       readFailure: null,
       version: 2,
@@ -383,11 +386,12 @@ describe("closing the review", () => {
       state: "EXTRACTED",
     });
 
-    await store().transaction((tx) => tx.confirmList(listId, "2026-03-05", NOW, actorId));
+    await store().transaction((tx) => tx.confirmList(listId, "2026-03-05", false, NOW, actorId));
 
     expect(await listRow(listId)).toMatchObject({
       state: "REVIEWED",
       listDate: "2026-03-05",
+      pricesIncludeVat: false,
       confirmedAt: NOW,
       confirmedBy: actorId,
       version: 2,
