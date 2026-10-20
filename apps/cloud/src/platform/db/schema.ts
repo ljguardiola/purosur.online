@@ -1158,6 +1158,18 @@ export const registerInstallations = pgTable(
   ],
 );
 
+export const registerInstallationBitlockerKeys = pgTable("register_installation_bitlocker_keys", {
+  installationId: uuid("installation_id")
+    .primaryKey()
+    .references(() => registerInstallations.id),
+  sealedKey: text("sealed_key").notNull(),
+  keyIdentifier: text("key_identifier").notNull(),
+  loadedAt: timestamp("loaded_at", { withTimezone: true }).notNull(),
+  loadedBy: uuid("loaded_by")
+    .notNull()
+    .references(() => users.id),
+});
+
 function registerKeyVersions(name: string) {
   return pgTable(
     name,

@@ -33,7 +33,7 @@ export function registerRegisterEnrollmentCodeRoute<TQueryResult extends PgQuery
     "/registers/:id/device-codes",
     {
       preHandler: backofficeOriginGuard(options.backofficeOrigin),
-      config: { access: capabilityAccess("registers_area"), sessionSource },
+      config: { access: capabilityAccess("enroll_registers"), sessionSource },
     },
     async (request, reply) => {
       const ids = await readRecordIds(reply, request.params, ["id"]);

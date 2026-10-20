@@ -5,11 +5,18 @@ export interface RegisterInstallationRecord {
   windowsVersion: string;
   enrolledAt: Date;
   revokedAt: Date | null;
+  bitlockerKeyLoaded: boolean;
 }
 
 export type RegisterInstallationState =
   | { kind: "not_enrolled" }
-  | { kind: "enrolled"; hostname: string; windowsVersion: string; enrolledAt: Date }
+  | {
+      kind: "enrolled";
+      hostname: string;
+      windowsVersion: string;
+      enrolledAt: Date;
+      bitlockerKeyLoaded: boolean;
+    }
   | {
       kind: "revoked";
       hostname: string;
@@ -25,8 +32,8 @@ export function registerInstallationState(
     (installation) => installationService(installation).kind === "in_service",
   );
   if (inService !== undefined) {
-    const { hostname, windowsVersion, enrolledAt } = inService;
-    return { kind: "enrolled", hostname, windowsVersion, enrolledAt };
+    const { hostname, windowsVersion, enrolledAt, bitlockerKeyLoaded } = inService;
+    return { kind: "enrolled", hostname, windowsVersion, enrolledAt, bitlockerKeyLoaded };
   }
   const revoked = installations.filter(isOutOfService);
   const lastRevokedAt = Math.max(...revoked.map(({ revokedAt }) => revokedAt.getTime()));

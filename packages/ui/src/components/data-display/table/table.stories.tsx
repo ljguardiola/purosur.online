@@ -302,6 +302,47 @@ export const WithThreeActions: Story = {
   ),
 };
 
+const fourActionColumns = [
+  ...baseColumns,
+  actionsColumn({
+    id: "actions",
+    header: "Acciones",
+    actions: [
+      (item: Product) => ({
+        icon: <Pencil />,
+        "aria-label": `Editar ${item.name}`,
+        onPress: () => {},
+      }),
+      (item: Product) => ({
+        icon: <Trash2 />,
+        "aria-label": `Eliminar ${item.name}`,
+        onPress: () => {},
+      }),
+      (item: Product) => ({
+        icon: <Pencil />,
+        "aria-label": `Duplicar ${item.name}`,
+        onPress: () => {},
+      }),
+      (item: Product) => ({
+        icon: <Trash2 />,
+        "aria-label": `Archivar ${item.name}`,
+        onPress: () => {},
+      }),
+    ],
+  }),
+] as const;
+
+export const WithFourActions: Story = {
+  render: () => (
+    <ProductsTable
+      aria-label="Productos"
+      columns={fourActionColumns}
+      sort={sort}
+      onSortChange={onSortChange}
+    />
+  ),
+};
+
 const detailColumns = [
   dataColumn({
     id: "name",
