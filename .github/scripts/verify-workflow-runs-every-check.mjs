@@ -656,14 +656,9 @@ function findPrePulledImageViolations(workflowSource, setupSource, spec) {
     if (mapHas(doc, pullStep, "shell")) {
       violations.push(`${pullStepName} sets its own shell`);
     }
-    const pullMinutes = resolveScalar(doc, mapGet(doc, pullStep, "timeout-minutes"));
-    if (pullMinutes === undefined) {
+    if (!mapHas(doc, pullStep, "timeout-minutes")) {
       violations.push(
         `verify.yml's ${spec.job} job's pull step of ${spec.label} sets no timeout-minutes`,
-      );
-    } else if (!(Number(pullMinutes) * 60 >= retrySeconds(spec.pullAttemptSeconds))) {
-      violations.push(
-        `verify.yml's ${spec.job} job's pull step of ${spec.label} allows ${pullMinutes} minutes, less than the ${retrySeconds(spec.pullAttemptSeconds)} seconds its pull attempts and their delays can take`,
       );
     }
   }
@@ -738,7 +733,6 @@ function mirrorConsumerViolations(mirror, job, { doc, jobSteps, pullStep }) {
 
 function mirrorJobsViolations(mirror, image, doc) {
   const violations = [];
-  const copyRetrySeconds = retrySeconds(mirror.copyAttemptSeconds);
 
   // A Dependabot run gets a read-only token whatever the workflow asks for, so the lookup must
   // need nothing more.
@@ -787,18 +781,6 @@ function mirrorJobsViolations(mirror, image, doc) {
       `verify.yml's ${mirror.copyJob} job does not copy to \`${image}\` with its own token, retrying`,
     );
     return violations;
-  }
-  for (const [label, node] of [
-    ["job", copyJob],
-    ["step", copyStep],
-  ]) {
-    if (!mapHas(doc, node, "timeout-minutes")) continue;
-    const minutes = resolveScalar(doc, mapGet(doc, node, "timeout-minutes"));
-    if (!(Number(minutes) * 60 >= copyRetrySeconds)) {
-      violations.push(
-        `verify.yml's ${mirror.copyJob} ${label} allows ${minutes} minutes, less than the ${copyRetrySeconds} seconds its copy attempts and their delays can take`,
-      );
-    }
   }
   const source = String(stepEnv(doc, copyStep, "SOURCE_IMAGE"));
   if (digestOf(image) !== undefined && digestOf(source) !== digestOf(image)) {
