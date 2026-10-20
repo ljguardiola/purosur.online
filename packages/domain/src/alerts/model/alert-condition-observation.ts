@@ -315,3 +315,29 @@ export function offsiteDumpUnverifiedObservation({
 export function offsiteDumpVerifiedObservation(environment: string): AlertConditionObservation {
   return { holds: false, kind: "offsite_dump_unverified", scope: environment };
 }
+
+export function registerBackupOverdueObservation({
+  registerId,
+  lastVerifiedGenerationAt,
+  firstChangeAt,
+}: {
+  registerId: string;
+  lastVerifiedGenerationAt: Date | null;
+  firstChangeAt: Date;
+}): AlertConditionObservation {
+  return {
+    holds: true,
+    alert: {
+      kind: "register_backup_overdue",
+      scope: registerId,
+      detail: {
+        lastVerifiedGenerationAt: lastVerifiedGenerationAt?.toISOString() ?? null,
+        firstChangeAt: firstChangeAt.toISOString(),
+      },
+    },
+  };
+}
+
+export function registerBackedUpObservation(registerId: string): AlertConditionObservation {
+  return { holds: false, kind: "register_backup_overdue", scope: registerId };
+}

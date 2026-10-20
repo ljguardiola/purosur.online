@@ -50,6 +50,8 @@ export { detectExpiringLots } from "./detect-expiring-lots.js";
 export { detectFortnightReportDeadlines } from "./detect-fortnight-report-deadlines.js";
 export { detectFortnightReportRegularizations } from "./detect-fortnight-report-regularizations.js";
 export { detectMissingOfflineAuthorizationCodes } from "./detect-missing-offline-authorization-codes.js";
+export type { OverdueRegisterBackupDetectionPorts } from "./detect-overdue-register-backups.js";
+export { detectOverdueRegisterBackups } from "./detect-overdue-register-backups.js";
 export type { QuietRegisterDetectionPorts } from "./detect-quiet-registers.js";
 export { detectQuietRegisters } from "./detect-quiet-registers.js";
 export type { DetectUnverifiedOffsiteDumpOutcome } from "./detect-unverified-offsite-dump.js";

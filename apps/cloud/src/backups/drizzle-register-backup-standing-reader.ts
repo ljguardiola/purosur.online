@@ -34,7 +34,6 @@ export class DrizzleRegisterBackupStandingReader<TQueryResult extends PgQueryRes
     const rows = await this.db
       .select({
         registerId: registers.id,
-        locationId: registers.locationId,
         lastVerifiedGenerationAt: lastVerified.createdAt,
         firstChangeSinceLastVerifiedAt: min(inbox.occurredAt),
       })
@@ -61,7 +60,7 @@ export class DrizzleRegisterBackupStandingReader<TQueryResult extends PgQueryRes
             ),
         ),
       )
-      .groupBy(registers.id, registers.locationId, lastVerified.createdAt);
+      .groupBy(registers.id, lastVerified.createdAt);
     return rows;
   }
 }

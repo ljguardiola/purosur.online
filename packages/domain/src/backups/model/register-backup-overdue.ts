@@ -2,7 +2,6 @@ export const REGISTER_BACKUP_OVERDUE_AFTER_MS = 60 * 60 * 1000;
 
 export interface RegisterBackupStanding {
   registerId: string;
-  locationId: string;
   lastVerifiedGenerationAt: Date | null;
   firstChangeSinceLastVerifiedAt: Date | null;
 }
