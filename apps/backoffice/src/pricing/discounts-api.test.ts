@@ -73,7 +73,7 @@ describe("fetchDiscountTargets", () => {
     products: [
       {
         id: "product-1",
-        name: "Yerba Playadito 1 kg",
+        name: "Yerba Hoja Alta 1 kg",
         saleUnit: "UNIT",
         brandName: null,
         netContent: null,

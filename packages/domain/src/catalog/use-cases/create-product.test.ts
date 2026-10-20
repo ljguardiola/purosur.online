@@ -169,7 +169,7 @@ describe("createProduct", () => {
     const store = new FakeCatalogStore();
     leafCategory(store);
     store.seedBrand({ id: "decoy", name: "Decoy", active: true, version: 1 });
-    store.seedBrand({ id: "brand-1", name: "Granix", active: true, version: 4 });
+    store.seedBrand({ id: "brand-1", name: "Granuz", active: true, version: 4 });
 
     const outcome = await createProduct(store, {
       name: "Galletitas",
@@ -185,7 +185,7 @@ describe("createProduct", () => {
     expect(store.snapshot().products).toMatchObject([{ id: "product-1", brandId: "brand-1" }]);
     expect(store.snapshot().brands).toContainEqual({
       id: "brand-1",
-      name: "Granix",
+      name: "Granuz",
       active: true,
       version: 4,
     });
@@ -417,7 +417,7 @@ describe("createProduct", () => {
   it("locks the tags in id order whatever order they were given, after the category and the brand", async () => {
     const store = new FakeCatalogStore();
     leafCategory(store);
-    store.seedBrand({ id: "brand-1", name: "Granix", active: true, version: 1 });
+    store.seedBrand({ id: "brand-1", name: "Granuz", active: true, version: 1 });
     for (const id of ["tag-1", "tag-2", "tag-3"]) {
       store.seedTag({ id, name: id, active: true, version: 1 });
     }
