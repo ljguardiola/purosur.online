@@ -1307,6 +1307,30 @@ describe("wiring the purchasing routes", () => {
       app.inject({ method: "POST", url: "/api/freights", headers: ORIGIN }),
       app.inject({ method: "PUT", url: `/api/freights/${ID}`, headers: ORIGIN }),
       app.inject({ method: "GET", url: "/api/freights/linkable-purchases" }),
+      app.inject({ method: "GET", url: "/api/supplier-price-lists" }),
+      app.inject({ method: "POST", url: "/api/supplier-price-lists", headers: ORIGIN }),
+      app.inject({ method: "GET", url: `/api/supplier-price-lists/${ID}` }),
+      app.inject({ method: "GET", url: `/api/supplier-price-lists/${ID}/file` }),
+      app.inject({
+        method: "PUT",
+        url: `/api/supplier-price-lists/${ID}/rows/${ID}/price`,
+        headers: ORIGIN,
+      }),
+      app.inject({
+        method: "DELETE",
+        url: `/api/supplier-price-lists/${ID}/rows/${ID}`,
+        headers: ORIGIN,
+      }),
+      app.inject({
+        method: "POST",
+        url: `/api/supplier-price-lists/${ID}/confirmation`,
+        headers: ORIGIN,
+      }),
+      app.inject({
+        method: "POST",
+        url: `/api/supplier-price-lists/${ID}/discard`,
+        headers: ORIGIN,
+      }),
     ]);
     return responses.map((response) => response.statusCode);
   }
@@ -1314,7 +1338,7 @@ describe("wiring the purchasing routes", () => {
   it("does not register the purchasing routes when no purchasing option is given", async () => {
     const app = buildApp({ now: () => APP_CLOCK, version: "abc1234" });
 
-    expect(await purchasingResponses(app)).toEqual(Array(17).fill(404));
+    expect(await purchasingResponses(app)).toEqual(Array(25).fill(404));
   });
 
   it("registers the purchasing routes when a purchasing option is given", async () => {
@@ -1324,7 +1348,7 @@ describe("wiring the purchasing routes", () => {
       purchasing: { db: testDatabase.db, backofficeOrigin: "https://staging.purosur.online" },
     });
 
-    expect(await purchasingResponses(app)).toEqual(Array(17).fill(401));
+    expect(await purchasingResponses(app)).toEqual(Array(25).fill(401));
   });
 });
 
@@ -2505,6 +2529,46 @@ describe("the route access inventory", () => {
         method: "DELETE",
         url: "/api/suppliers/:id/deactivation",
         access: capabilityAccess("suppliers"),
+      },
+      {
+        method: "GET",
+        url: "/api/supplier-price-lists",
+        access: capabilityAccess("supplier_price_lists"),
+      },
+      {
+        method: "POST",
+        url: "/api/supplier-price-lists",
+        access: capabilityAccess("supplier_price_lists"),
+      },
+      {
+        method: "GET",
+        url: "/api/supplier-price-lists/:id",
+        access: capabilityAccess("supplier_price_lists"),
+      },
+      {
+        method: "GET",
+        url: "/api/supplier-price-lists/:id/file",
+        access: capabilityAccess("supplier_price_lists"),
+      },
+      {
+        method: "PUT",
+        url: "/api/supplier-price-lists/:id/rows/:rowId/price",
+        access: capabilityAccess("supplier_price_lists"),
+      },
+      {
+        method: "DELETE",
+        url: "/api/supplier-price-lists/:id/rows/:rowId",
+        access: capabilityAccess("supplier_price_lists"),
+      },
+      {
+        method: "POST",
+        url: "/api/supplier-price-lists/:id/confirmation",
+        access: capabilityAccess("supplier_price_lists"),
+      },
+      {
+        method: "POST",
+        url: "/api/supplier-price-lists/:id/discard",
+        access: capabilityAccess("supplier_price_lists"),
       },
       {
         method: "GET",
