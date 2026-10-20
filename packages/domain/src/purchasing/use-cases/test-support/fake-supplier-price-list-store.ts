@@ -33,6 +33,7 @@ export interface FakeSupplierPriceListRow {
   state: SupplierPriceListState;
   version: number;
   listDate: string | null;
+  pricesIncludeVat: boolean | null;
   sentAt: Date | null;
   sentOn: string | null;
   readFailure: SupplierPriceListReadFailure | null;
@@ -130,6 +131,7 @@ class FakeSupplierPriceListStoreTransaction implements SupplierPriceListStoreTra
       state: "READING",
       version: 1,
       listDate: null,
+      pricesIncludeVat: null,
       sentAt: null,
       sentOn: null,
       readFailure: null,
@@ -160,6 +162,7 @@ class FakeSupplierPriceListStoreTransaction implements SupplierPriceListStoreTra
         state: list.state,
         version: list.version,
         listDate: list.listDate,
+        pricesIncludeVat: list.pricesIncludeVat,
         sentAt: list.sentAt,
         rowPrices: this.state.rows
           .filter((row) => row.listId === listId)
@@ -178,12 +181,14 @@ class FakeSupplierPriceListStoreTransaction implements SupplierPriceListStoreTra
   async recordExtraction(
     listId: string,
     listDate: string | null,
+    pricesIncludeVat: boolean | null,
     rows: ProposedPriceListRow[],
   ): Promise<void> {
     this.beforeWrite("recordExtraction");
     const list = this.listRow(listId);
     list.state = "EXTRACTED";
     list.listDate = listDate;
+    list.pricesIncludeVat = pricesIncludeVat;
     list.version += 1;
     rows.forEach((row, position) => {
       this.state.rows.push({
@@ -236,6 +241,7 @@ class FakeSupplierPriceListStoreTransaction implements SupplierPriceListStoreTra
   async confirmList(
     listId: string,
     listDate: string,
+    pricesIncludeVat: boolean,
     confirmedAt: Date,
     actorId: string,
   ): Promise<void> {
@@ -243,6 +249,7 @@ class FakeSupplierPriceListStoreTransaction implements SupplierPriceListStoreTra
     const list = this.listRow(listId);
     list.state = "REVIEWED";
     list.listDate = listDate;
+    list.pricesIncludeVat = pricesIncludeVat;
     list.confirmedAt = confirmedAt;
     list.confirmedBy = actorId;
     list.version += 1;
@@ -303,6 +310,7 @@ export class FakeSupplierPriceListStore implements SupplierPriceListStore {
       state: "READING",
       version: 1,
       listDate: null,
+      pricesIncludeVat: null,
       sentAt: null,
       sentOn: null,
       readFailure: null,

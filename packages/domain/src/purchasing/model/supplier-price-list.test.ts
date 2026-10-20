@@ -146,66 +146,102 @@ describe("isSourcePage", () => {
 });
 
 describe("decideConfirmation", () => {
-  const priced = [100, 250];
+  function decide(overrides: Partial<Parameters<typeof decideConfirmation>[0]> = {}) {
+    return decideConfirmation({
+      rowPrices: [100, 250],
+      readListDate: "2026-03-01",
+      typedListDate: null,
+      readPricesIncludeVat: true,
+      typedPricesIncludeVat: null,
+      ...overrides,
+    });
+  }
 
-  it("confirms a priced list under the date it was read with", () => {
-    expect(
-      decideConfirmation({ rowPrices: priced, readListDate: "2026-03-01", typedListDate: null }),
-    ).toEqual({ kind: "confirmable", listDate: "2026-03-01" });
+  it("confirms a priced list under the date and the VAT answer it was read with", () => {
+    expect(decide()).toEqual({
+      kind: "confirmable",
+      listDate: "2026-03-01",
+      pricesIncludeVat: true,
+    });
   });
 
   it("takes the typed date over the read one", () => {
-    expect(
-      decideConfirmation({
-        rowPrices: priced,
-        readListDate: "2026-03-01",
-        typedListDate: "2026-03-05",
-      }),
-    ).toEqual({ kind: "confirmable", listDate: "2026-03-05" });
+    expect(decide({ typedListDate: "2026-03-05" })).toEqual({
+      kind: "confirmable",
+      listDate: "2026-03-05",
+      pricesIncludeVat: true,
+    });
   });
 
   it("takes the typed date when none was read", () => {
-    expect(
-      decideConfirmation({ rowPrices: priced, readListDate: null, typedListDate: "2026-03-05" }),
-    ).toEqual({ kind: "confirmable", listDate: "2026-03-05" });
+    expect(decide({ readListDate: null, typedListDate: "2026-03-05" })).toMatchObject({
+      kind: "confirmable",
+      listDate: "2026-03-05",
+    });
   });
 
   it("needs a date", () => {
-    expect(
-      decideConfirmation({ rowPrices: priced, readListDate: null, typedListDate: null }),
-    ).toEqual({ kind: "refused", reason: "list_date_missing" });
+    expect(decide({ readListDate: null })).toEqual({
+      kind: "refused",
+      reason: "list_date_missing",
+    });
   });
 
   it("needs at least one row", () => {
-    expect(
-      decideConfirmation({ rowPrices: [], readListDate: "2026-03-01", typedListDate: null }),
-    ).toEqual({ kind: "refused", reason: "no_rows" });
+    expect(decide({ rowPrices: [] })).toEqual({ kind: "refused", reason: "no_rows" });
   });
 
   it("refuses a list holding a row without price", () => {
-    expect(
-      decideConfirmation({
-        rowPrices: [100, null],
-        readListDate: "2026-03-01",
-        typedListDate: null,
-      }),
-    ).toEqual({ kind: "refused", reason: "unpriced_rows" });
+    expect(decide({ rowPrices: [100, null] })).toEqual({
+      kind: "refused",
+      reason: "unpriced_rows",
+    });
   });
 
   it("accepts a free row, priced at zero", () => {
-    expect(
-      decideConfirmation({ rowPrices: [0], readListDate: "2026-03-01", typedListDate: null }).kind,
-    ).toBe("confirmable");
+    expect(decide({ rowPrices: [0] }).kind).toBe("confirmable");
   });
 
-  it("reports the missing rows before the unpriced ones before the missing date", () => {
-    expect(decideConfirmation({ rowPrices: [], readListDate: null, typedListDate: null })).toEqual({
-      kind: "refused",
-      reason: "no_rows",
+  it("takes the VAT answer a person typed, even no, over the one read", () => {
+    expect(decide({ readPricesIncludeVat: true, typedPricesIncludeVat: false })).toMatchObject({
+      kind: "confirmable",
+      pricesIncludeVat: false,
     });
-    expect(
-      decideConfirmation({ rowPrices: [null], readListDate: null, typedListDate: null }),
-    ).toEqual({ kind: "refused", reason: "unpriced_rows" });
+    expect(decide({ readPricesIncludeVat: false, typedPricesIncludeVat: true })).toMatchObject({
+      kind: "confirmable",
+      pricesIncludeVat: true,
+    });
+  });
+
+  it("keeps the VAT answer that was read when a person typed none, even no", () => {
+    expect(decide({ readPricesIncludeVat: false })).toMatchObject({
+      kind: "confirmable",
+      pricesIncludeVat: false,
+    });
+  });
+
+  it("takes the typed VAT answer when none was read", () => {
+    expect(decide({ readPricesIncludeVat: null, typedPricesIncludeVat: false })).toMatchObject({
+      kind: "confirmable",
+      pricesIncludeVat: false,
+    });
+  });
+
+  it("needs a VAT answer", () => {
+    expect(decide({ readPricesIncludeVat: null })).toEqual({
+      kind: "refused",
+      reason: "vat_missing",
+    });
+  });
+
+  it("reports the missing rows before the unpriced ones before the missing date before the missing VAT answer", () => {
+    const nothing = { readListDate: null, readPricesIncludeVat: null };
+    expect(decide({ ...nothing, rowPrices: [] })).toEqual({ kind: "refused", reason: "no_rows" });
+    expect(decide({ ...nothing, rowPrices: [null] })).toEqual({
+      kind: "refused",
+      reason: "unpriced_rows",
+    });
+    expect(decide(nothing)).toEqual({ kind: "refused", reason: "list_date_missing" });
   });
 });
 

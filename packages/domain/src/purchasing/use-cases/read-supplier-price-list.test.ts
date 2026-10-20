@@ -88,6 +88,7 @@ describe("readSupplierPriceList", () => {
     const answer = {
       kind: "extracted" as const,
       listDate: "2026-03-01",
+      pricesIncludeVat: false,
       rows: [
         {
           description: "Yerba 1 kg",
@@ -119,6 +120,18 @@ describe("readSupplierPriceList", () => {
         expect.objectContaining({ ...answer.rows[1], listId: "list-1", position: 1 }),
       ]);
     });
+
+    it.each([true, false, null])(
+      "records whether the list says its prices include VAT (%s)",
+      async (pricesIncludeVat) => {
+        const { store, extractor, ports } = setup();
+        extractor.answer = { ...answer, pricesIncludeVat };
+
+        await readSupplierPriceList(ports, input);
+
+        expect(store.snapshot().lists[0]?.pricesIncludeVat).toBe(pricesIncludeVat);
+      },
+    );
 
     it("sends the extractor the file and nothing else", async () => {
       const { extractor, ports } = setup();
@@ -161,6 +174,7 @@ describe("readSupplierPriceList", () => {
       extractor.answer = {
         kind: "extracted",
         listDate: "2026-02-30",
+        pricesIncludeVat: null,
         rows: [
           { description: "A", code: null, presentation: null, priceCents: -5, page: 0 },
           { description: "B", code: null, presentation: null, priceCents: 10.5, page: 1.5 },
@@ -187,6 +201,7 @@ describe("readSupplierPriceList", () => {
       extractor.answer = {
         kind: "extracted",
         listDate: null,
+        pricesIncludeVat: null,
         rows: [
           { description: instruction, code: null, presentation: null, priceCents: 1, page: 1 },
         ],
@@ -205,7 +220,10 @@ describe("readSupplierPriceList", () => {
 
   describe("an extraction that gives no rows", () => {
     const cases: [PriceListExtraction, SupplierPriceListReadFailure][] = [
-      [{ kind: "extracted", listDate: "2026-03-01", rows: [] }, "no_items_found"],
+      [
+        { kind: "extracted", listDate: "2026-03-01", pricesIncludeVat: true, rows: [] },
+        "no_items_found",
+      ],
       [{ kind: "unreadable" }, "unreadable_document"],
       [{ kind: "unavailable" }, "reading_unavailable"],
     ];
@@ -299,6 +317,7 @@ describe("readSupplierPriceList", () => {
       extractor.answer = {
         kind: "extracted",
         listDate: null,
+        pricesIncludeVat: null,
         rows: [{ description: "Yerba", code: null, presentation: null, priceCents: 1, page: 1 }],
       };
       store.failingWrites.add("recordExtraction");
@@ -356,7 +375,7 @@ describe("readSupplierPriceList", () => {
       const { store, files, ports } = setup();
       files.stored.clear();
       files.onRead = () =>
-        store.transaction((tx) => tx.recordExtraction("list-1", "2026-03-01", []));
+        store.transaction((tx) => tx.recordExtraction("list-1", "2026-03-01", null, []));
 
       expect(await readSupplierPriceList(ports, input)).toEqual({ kind: "already_read" });
       expect(store.snapshot().lists[0]?.state).toBe("EXTRACTED");

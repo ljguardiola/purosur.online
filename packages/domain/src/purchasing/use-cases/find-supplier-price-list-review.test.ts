@@ -15,6 +15,7 @@ const LIST = {
   uploadedAt: new Date("2026-03-01T12:00:00Z"),
   confirmedAt: null,
   version: 4,
+  pricesIncludeVat: false,
 };
 
 describe("findSupplierPriceListReview", () => {

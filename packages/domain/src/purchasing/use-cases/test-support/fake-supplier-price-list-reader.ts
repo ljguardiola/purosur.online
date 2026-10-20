@@ -6,7 +6,10 @@ import type {
 } from "../supplier-price-list-reader.js";
 
 export interface FakeSupplierPriceListData {
-  lists?: (SupplierPriceListListing & { version?: number })[];
+  lists?: (SupplierPriceListListing & {
+    version?: number;
+    pricesIncludeVat?: boolean | null;
+  })[];
   rows?: (SupplierPriceListReviewRow & { listId: string })[];
 }
 
@@ -19,7 +22,7 @@ export class FakeSupplierPriceListReader implements SupplierPriceListReader {
 
   async lists(): Promise<SupplierPriceListListing[]> {
     return this.data.lists
-      .map(({ version: _version, ...listing }) => listing)
+      .map(({ version: _version, pricesIncludeVat: _pricesIncludeVat, ...listing }) => listing)
       .sort((first, second) => second.uploadedAt.getTime() - first.uploadedAt.getTime());
   }
 
@@ -28,9 +31,9 @@ export class FakeSupplierPriceListReader implements SupplierPriceListReader {
     if (!found) {
       return undefined;
     }
-    const { version, ...list } = found;
+    const { version, pricesIncludeVat, ...list } = found;
     return {
-      list: { ...list, version: version ?? 1 },
+      list: { ...list, version: version ?? 1, pricesIncludeVat: pricesIncludeVat ?? null },
       rows: this.data.rows
         .filter((row) => row.listId === listId)
         .map(({ listId: _listId, ...row }) => row),

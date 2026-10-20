@@ -6,7 +6,11 @@ import { FakeSupplierPriceListStore } from "./test-support/fake-supplier-price-l
 const NOW = new Date("2026-03-12T15:00:00Z");
 
 function setup(
-  list: { state?: (typeof SUPPLIER_PRICE_LIST_STATES)[number]; listDate?: string | null } = {},
+  list: {
+    state?: (typeof SUPPLIER_PRICE_LIST_STATES)[number];
+    listDate?: string | null;
+    pricesIncludeVat?: boolean | null;
+  } = {},
   prices: (number | null)[] = [100_050, 250],
 ) {
   const store = new FakeSupplierPriceListStore();
@@ -14,6 +18,7 @@ function setup(
     id: "list-1",
     state: list.state ?? "EXTRACTED",
     listDate: list.listDate === undefined ? "2026-03-01" : list.listDate,
+    pricesIncludeVat: list.pricesIncludeVat === undefined ? true : list.pricesIncludeVat,
     version: 3,
   });
   prices.forEach((priceCents, index) => {
@@ -22,7 +27,14 @@ function setup(
   return store;
 }
 
-const input = { listId: "list-1", version: 3, listDate: null, actorId: "person-1", now: NOW };
+const input = {
+  listId: "list-1",
+  version: 3,
+  listDate: null,
+  pricesIncludeVat: null,
+  actorId: "person-1",
+  now: NOW,
+};
 
 describe("confirmSupplierPriceList", () => {
   it("confirms the list with the date it was read with, storing prices untouched", async () => {
@@ -64,6 +76,49 @@ describe("confirmSupplierPriceList", () => {
     expect(await confirmSupplierPriceList(store, input)).toEqual({ kind: "list_date_missing" });
     expect(store.snapshot().lists[0]?.state).toBe("EXTRACTED");
   });
+
+  it("confirms the list with the VAT answer it was read with", async () => {
+    const store = setup({ pricesIncludeVat: false });
+
+    expect(await confirmSupplierPriceList(store, input)).toEqual({ kind: "confirmed" });
+
+    expect(store.snapshot().lists[0]?.pricesIncludeVat).toBe(false);
+  });
+
+  it("takes the VAT answer chosen in the review over the one read", async () => {
+    const store = setup({ pricesIncludeVat: true });
+
+    await confirmSupplierPriceList(store, { ...input, pricesIncludeVat: false });
+
+    expect(store.snapshot().lists[0]?.pricesIncludeVat).toBe(false);
+  });
+
+  it("takes the VAT answer chosen in the review when the reading found none", async () => {
+    const store = setup({ pricesIncludeVat: null });
+
+    expect(await confirmSupplierPriceList(store, { ...input, pricesIncludeVat: true })).toEqual({
+      kind: "confirmed",
+    });
+    expect(store.snapshot().lists[0]?.pricesIncludeVat).toBe(true);
+  });
+
+  it("refuses a list whose VAT answer is not set, read or chosen", async () => {
+    const store = setup({ pricesIncludeVat: null });
+
+    expect(await confirmSupplierPriceList(store, input)).toEqual({ kind: "vat_missing" });
+    expect(store.snapshot().lists[0]?.state).toBe("EXTRACTED");
+  });
+
+  it.each([true, false])(
+    "stores every price as printed whether prices include VAT (%s)",
+    async (vat) => {
+      const store = setup({ pricesIncludeVat: vat });
+
+      await confirmSupplierPriceList(store, input);
+
+      expect(store.snapshot().rows.map((row) => row.priceCents)).toEqual([100_050, 250]);
+    },
+  );
 
   it("refuses a list left with no rows", async () => {
     const store = setup({}, []);

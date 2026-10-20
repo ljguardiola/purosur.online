@@ -6,7 +6,12 @@ import type {
 
 export class FakePriceListExtractor implements PriceListExtractor {
   readonly received: PriceListSource[] = [];
-  answer: PriceListExtraction | Error = { kind: "extracted", listDate: null, rows: [] };
+  answer: PriceListExtraction | Error = {
+    kind: "extracted",
+    listDate: null,
+    pricesIncludeVat: null,
+    rows: [],
+  };
   onExtract: () => Promise<void> = async () => undefined;
 
   async extract(source: PriceListSource): Promise<PriceListExtraction> {
