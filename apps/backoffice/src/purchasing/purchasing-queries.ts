@@ -59,12 +59,14 @@ function useCloudQueryWhileReading<T>(
 
 export function useSuppliersQuery(params: {
   fetchSuppliers: typeof fetchSuppliers;
+  enabled?: boolean;
   onSessionEnded: () => void;
 }) {
   const sendToMyAccount = useSendToMyAccount();
   return useCloudQuery<SupplierSummary[]>({
     queryKey: purchasingKeys.suppliers,
     read: params.fetchSuppliers,
+    enabled: params.enabled ?? true,
     onSessionEnded: params.onSessionEnded,
     onForbidden: sendToMyAccount,
   });
