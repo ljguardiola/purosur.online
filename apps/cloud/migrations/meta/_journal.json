@@ -792,6 +792,13 @@
       "when": 1792438229564,
       "tag": "0119_compromise_responses",
       "breakpoints": true
+    },
+    {
+      "idx": 113,
+      "version": "7",
+      "when": 1792476957043,
+      "tag": "0120_supplier_price_lists",
+      "breakpoints": true
     }
   ]
 }

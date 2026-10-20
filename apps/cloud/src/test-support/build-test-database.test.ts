@@ -102,6 +102,9 @@ import {
   stockCountLots,
   stockCounts,
   stockMovements,
+  supplierPriceListExtractionCaps,
+  supplierPriceListRows,
+  supplierPriceLists,
   suppliers,
   tags,
   taxAuthorityLastAuthorizedNumbers,
@@ -905,6 +908,26 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
       doneBy: user.id,
       doneAt: new Date("2026-10-14T09:05:00.000Z"),
     });
+    const [priceList] = await db
+      .insert(supplierPriceLists)
+      .values({
+        supplierId: supplier?.id as string,
+        locationId: await seededLocationId(db),
+        sourceKind: "PDF",
+        fileName: "lista.pdf",
+        state: "EXTRACTED",
+        uploadedAt: new Date("2026-10-14T09:00:00.000Z"),
+        uploadedBy: user.id,
+      })
+      .returning({ id: supplierPriceLists.id });
+    await db.insert(supplierPriceListRows).values({
+      listId: priceList?.id as string,
+      position: 0,
+      description: "Yerba 1 kg",
+    });
+    await db
+      .insert(supplierPriceListExtractionCaps)
+      .values({ locationId: await seededLocationId(db), dailyCap: 5 });
 
     const afterSeeding = await countsByTable(client);
     for (const [tablename, count] of afterSeeding) {

@@ -20,6 +20,9 @@ import {
   SNAPSHOT_FAILURE_REASONS,
   SNAPSHOT_GENERATION_STATUSES,
   SNAPSHOT_LIFECYCLE_LIMITS,
+  SUPPLIER_PRICE_LIST_READ_FAILURES,
+  SUPPLIER_PRICE_LIST_SOURCE_KINDS,
+  SUPPLIER_PRICE_LIST_STATES,
   type TaxAuthorityRejection,
 } from "@purosur/domain";
 import { sql } from "drizzle-orm";
@@ -2721,4 +2724,88 @@ export const compromiseResponseCompletions = pgTable(
       sql`${table.key} in (${sql.raw([...COMPROMISE_RESPONSE_ACTION_STEPS, ...COMPROMISE_RESPONSE_ITEMS].map((key) => `'${key}'`).join(", "))})`,
     ),
   ],
+);
+
+function quotedList(values: readonly string[]) {
+  return sql.raw(values.map((value) => `'${value}'`).join(", "));
+}
+
+export const supplierPriceLists = pgTable(
+  "supplier_price_lists",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    supplierId: uuid("supplier_id")
+      .notNull()
+      .references(() => suppliers.id),
+    locationId: uuid("location_id")
+      .notNull()
+      .references(() => locations.id),
+    sourceKind: text("source_kind").notNull(),
+    fileName: text("file_name"),
+    fileByteSize: bigint("file_byte_size", { mode: "number" }),
+    sourceUrl: text("source_url"),
+    state: text("state").notNull(),
+    readFailure: text("read_failure"),
+    listDate: date("list_date", { mode: "string" }),
+    uploadedAt: timestamp("uploaded_at", { withTimezone: true }).notNull(),
+    uploadedBy: uuid("uploaded_by")
+      .notNull()
+      .references(() => users.id),
+    sentAt: timestamp("sent_at", { withTimezone: true }),
+    sentOn: date("sent_on", { mode: "string" }),
+    extractedAt: timestamp("extracted_at", { withTimezone: true }),
+    confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
+    confirmedBy: uuid("confirmed_by").references(() => users.id),
+    discardedAt: timestamp("discarded_at", { withTimezone: true }),
+    discardedBy: uuid("discarded_by").references(() => users.id),
+    version: integer("version").notNull().default(1),
+  },
+  (table) => [
+    check(
+      "supplier_price_lists_source_kind_check",
+      sql`${table.sourceKind} in (${quotedList(SUPPLIER_PRICE_LIST_SOURCE_KINDS)})`,
+    ),
+    check(
+      "supplier_price_lists_state_check",
+      sql`${table.state} in (${quotedList(SUPPLIER_PRICE_LIST_STATES)})`,
+    ),
+    check(
+      "supplier_price_lists_read_failure_check",
+      sql`${table.readFailure} is null or ${table.readFailure} in (${quotedList(SUPPLIER_PRICE_LIST_READ_FAILURES)})`,
+    ),
+    index("supplier_price_lists_location_sent_on_idx").on(table.locationId, table.sentOn),
+    index("supplier_price_lists_supplier_state_idx").on(table.supplierId, table.state),
+  ],
+);
+
+export const supplierPriceListRows = pgTable(
+  "supplier_price_list_rows",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    listId: uuid("list_id")
+      .notNull()
+      .references(() => supplierPriceLists.id),
+    position: integer("position").notNull(),
+    description: text("description").notNull(),
+    supplierCode: text("supplier_code"),
+    presentation: text("presentation"),
+    priceCents: bigint("price_cents", { mode: "number" }),
+    page: integer("page"),
+  },
+  (table) => [
+    unique("supplier_price_list_rows_list_position_key").on(table.listId, table.position),
+    check("supplier_price_list_rows_price_check", sql`${table.priceCents} >= 0`),
+    check("supplier_price_list_rows_page_check", sql`${table.page} > 0`),
+  ],
+);
+
+export const supplierPriceListExtractionCaps = pgTable(
+  "supplier_price_list_extraction_caps",
+  {
+    locationId: uuid("location_id")
+      .primaryKey()
+      .references(() => locations.id),
+    dailyCap: integer("daily_cap").notNull(),
+  },
+  (table) => [check("supplier_price_list_extraction_caps_cap_check", sql`${table.dailyCap} > 0`)],
 );
