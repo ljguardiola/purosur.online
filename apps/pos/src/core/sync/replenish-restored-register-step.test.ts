@@ -234,6 +234,9 @@ describe("replenishing a restored register from the cloud", () => {
     }
     const events = recorded.push.events;
     for (const [id, kind] of frozenDiscountsOf(events)) {
+      if (database.prepare("SELECT 1 FROM discounts WHERE id = ?").get(id) !== undefined) {
+        continue;
+      }
       addDiscount(
         database,
         id,
