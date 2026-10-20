@@ -4,6 +4,8 @@ import {
   everyInstallationRevocationSchema,
   type PointTerminalAssignmentBody,
   pointTerminalAssignmentSchema,
+  type QrPointOfSaleAssignmentBody,
+  qrPointOfSaleAssignmentSchema,
   type RegisterCreationBody,
   type RegisterSummaryBody,
   registerCoverageSchema,
@@ -42,6 +44,8 @@ export type RegisterSummary = {
   pointOfSaleNumber: number | null;
   pointTerminalId: string | null;
   pointTerminalVersion: number;
+  qrExternalPosId: string | null;
+  qrPointOfSaleVersion: number;
   installation: RegisterInstallation | null;
 };
 
@@ -73,6 +77,17 @@ export type AssignPointTerminalOutcome =
   | { kind: "ok" }
   | { kind: "validation_failed"; field: string }
   | { kind: "point_terminal_taken" }
+  | { kind: "stale_version" }
+  | { kind: "not_found" }
+  | { kind: "forbidden" }
+  | { kind: "unauthenticated" }
+  | { kind: "rate_limited"; retryAfterSeconds: number }
+  | { kind: "failed" };
+
+export type AssignQrPointOfSaleOutcome =
+  | { kind: "ok" }
+  | { kind: "validation_failed"; field: string }
+  | { kind: "qr_point_of_sale_taken" }
   | { kind: "stale_version" }
   | { kind: "not_found" }
   | { kind: "forbidden" }
@@ -157,6 +172,8 @@ function registerFromWire(row: RegisterSummaryBody): RegisterSummary {
     pointOfSaleNumber: row.point_of_sale_number,
     pointTerminalId: row.point_terminal_id,
     pointTerminalVersion: row.point_terminal_version,
+    qrExternalPosId: row.qr_external_pos_id,
+    qrPointOfSaleVersion: row.qr_point_of_sale_version,
     installation: installationFromWire(row.installation),
   };
 }
@@ -426,6 +443,52 @@ export async function assignPointTerminal(
     const code = ((await response.json().catch(() => undefined)) as { code?: string } | undefined)
       ?.code;
     return code === "point_terminal_taken" || code === "stale_version"
+      ? { kind: code }
+      : { kind: "failed" };
+  }
+  if (response.status === 401) {
+    return { kind: "unauthenticated" };
+  }
+  if (response.status === 403) {
+    return { kind: "forbidden" };
+  }
+  if (response.status === 429) {
+    return rateLimitOutcome(response);
+  }
+  return { kind: "failed" };
+}
+
+export async function assignQrPointOfSale(
+  registerId: string,
+  body: QrPointOfSaleAssignmentBody,
+): Promise<AssignQrPointOfSaleOutcome> {
+  let response: Response;
+  try {
+    response = await fetch(`/api/registers/${registerId}/qr-point-of-sale`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  } catch {
+    return { kind: "failed" };
+  }
+  if (response.ok) {
+    const parsed = qrPointOfSaleAssignmentSchema.safeParse(
+      await response.json().catch(() => undefined),
+    );
+    return parsed.success ? { kind: "ok" } : { kind: "failed" };
+  }
+  if (response.status === 400) {
+    const field = await readValidationFailedField(response);
+    return field === undefined ? { kind: "failed" } : { kind: "validation_failed", field };
+  }
+  if (response.status === 404) {
+    return { kind: "not_found" };
+  }
+  if (response.status === 409) {
+    const code = ((await response.json().catch(() => undefined)) as { code?: string } | undefined)
+      ?.code;
+    return code === "qr_point_of_sale_taken" || code === "stale_version"
       ? { kind: code }
       : { kind: "failed" };
   }
