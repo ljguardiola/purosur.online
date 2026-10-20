@@ -91,12 +91,10 @@ test("names the register in the eyebrow and prefills the current code", async ()
   await expectNoAccessibilityViolations(document.body);
 });
 
-test("explains where the code comes from", async () => {
+test("names the code field by its label alone, with no description", async () => {
   const { dialog } = await renderModal();
 
-  await expect
-    .element(dialog.getByText("El que figura en la caja QR dentro de tu cuenta de Mercado Pago"))
-    .toBeVisible();
+  await expect.element(codeField(dialog)).not.toHaveAccessibleDescription();
 });
 
 test("saves the typed code with the version it was loaded with and reports it saved", async () => {
