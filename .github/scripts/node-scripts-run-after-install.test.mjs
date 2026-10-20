@@ -640,6 +640,20 @@ test("refuses a github-script literal path outside the repository or built from 
     ['await import("../outside.mjs");', '"../outside.mjs"'],
     [`require("\${{ runner.temp }}/lib.js");`, `"\${{ runner.temp }}/lib.js"`],
     [`require("\${{ env.SCRIPT_PATH }}");`, `"\${{ env.SCRIPT_PATH }}"`],
+    [
+      `require("\${{ github.workspace }}/\${{ env.SCRIPT_PATH }}");`,
+      `"\${{ github.workspace }}/\${{ env.SCRIPT_PATH }}"`,
+    ],
+    [`require("./\${{ inputs.name }}.js");`, `"./\${{ inputs.name }}.js"`],
+    ['await import("file:///tmp/lib.mjs");', '"file:///tmp/lib.mjs"'],
+    [
+      `require("\${{ github.workspace }}/../outside.js");`,
+      `"\${{ github.workspace }}/../outside.js"`,
+    ],
+    [
+      `await import(\`\${{github.workspace}}/../outside.mjs\`);`,
+      `\`\${{github.workspace}}/../outside.mjs\``,
+    ],
   ]) {
     for (const steps of [
       [githubScript("Validate", line)],
