@@ -24,6 +24,7 @@ import { highestSyncedOfflineNumber } from "./drizzle-highest-synced-offline-num
 import {
   claimPointOfSale,
   lockBranchRegister,
+  lockPointOfSale,
   lockPointOfSaleClaim,
 } from "./drizzle-point-of-sale-claims.js";
 import type { EnqueueTaxAuthorityCount } from "./graphile-tax-authority-count-queue.js";
@@ -114,6 +115,10 @@ export class DrizzleRegisterOfflinePointOfSaleStoreTransaction<
       .where(eq(registerOfflinePointsOfSale.registerId, registerId))
       .for("update");
     return current ?? { pointOfSaleNumber: null, version: NEVER_CONFIGURED_VERSION };
+  }
+
+  lockPointOfSale(pointOfSaleNumber: number): Promise<void> {
+    return lockPointOfSale(this.tx, pointOfSaleNumber);
   }
 
   lockPointOfSaleClaim(pointOfSaleNumber: number): Promise<PointOfSaleHolder | undefined> {
