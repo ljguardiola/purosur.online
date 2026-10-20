@@ -1,9 +1,9 @@
 import { randomUUID } from "node:crypto";
+import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { categories, products } from "../../platform/db/schema.js";
 import type { CompletedSale } from "../../sync/test-support/synced-facts.js";
-import type { TestDatabase } from "../../test-support/build-test-database.js";
 
-type Db = TestDatabase["db"];
+type Db = PgDatabase<PgQueryResultHKT>;
 type SoldLine = CompletedSale["lines"][number];
 
 export function aSoldLine(
