@@ -51,8 +51,8 @@ export function selectTestsBeside({ testFiles, changedFiles }) {
 
 export function changedFilesSince({ base, runGit }) {
   const listings = [
-    ["diff", "--name-only", `${base}...HEAD`],
-    ["diff", "--name-only", "HEAD"],
+    ["diff", "--name-only", "--no-renames", `${base}...HEAD`],
+    ["diff", "--name-only", "--no-renames", "HEAD"],
     ["ls-files", "--others", "--exclude-standard"],
   ];
   const files = listings.flatMap((args) =>

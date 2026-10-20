@@ -12,7 +12,7 @@ type Transaction<TQueryResult extends PgQueryResultHKT> = Parameters<
   Parameters<PgDatabase<TQueryResult>["transaction"]>[0]
 >[0];
 
-class DrizzleBackofficeSessionEndingStoreTransaction<TQueryResult extends PgQueryResultHKT>
+export class DrizzleBackofficeSessionEndingStoreTransaction<TQueryResult extends PgQueryResultHKT>
   implements BackofficeSessionEndingStoreTransaction
 {
   private readonly tx: Transaction<TQueryResult>;

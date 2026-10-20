@@ -239,7 +239,10 @@ export type {
   RevokeEveryInstallationInput,
   RevokeEveryInstallationOutcome,
 } from "./revoke-every-installation.js";
-export { revokeEveryInstallation } from "./revoke-every-installation.js";
+export {
+  revokeEveryInstallation,
+  revokeEveryInstallationWithin,
+} from "./revoke-every-installation.js";
 export type {
   RevokeLostRegisterInput,
   RevokeLostRegisterOutcome,

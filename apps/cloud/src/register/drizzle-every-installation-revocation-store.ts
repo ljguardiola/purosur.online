@@ -12,7 +12,7 @@ import {
 } from "./drizzle-installation-revocation.js";
 import type { InstallationKeyCipher } from "./installation-key-cipher.js";
 
-class DrizzleEveryInstallationRevocationTransaction<TQueryResult extends PgQueryResultHKT>
+export class DrizzleEveryInstallationRevocationTransaction<TQueryResult extends PgQueryResultHKT>
   extends DrizzleInstallationRevocation<TQueryResult>
   implements EveryInstallationRevocationStoreTransaction
 {

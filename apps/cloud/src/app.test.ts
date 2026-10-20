@@ -1808,6 +1808,29 @@ describe("wiring the register revocation route", () => {
   });
 });
 
+describe("wiring the compromise-response runbook routes", () => {
+  it("answers GET /api/compromise-responses/current according to the compromiseResponses option", async () => {
+    const unwired = buildApp({ now: () => APP_CLOCK, version: "abc1234" });
+    const wired = buildApp({
+      now: () => APP_CLOCK,
+      version: "abc1234",
+      compromiseResponses: {
+        db: testDatabase.db,
+        backofficeOrigin: "https://staging.purosur.online",
+        keysEncryptionKey: TEST_INSTALLATION_KEYS_ENCRYPTION_KEY,
+      },
+    });
+    const request = {
+      method: "GET",
+      url: "/api/compromise-responses/current",
+      headers: { origin: "https://staging.purosur.online" },
+    } as const;
+
+    expect((await unwired.inject(request)).statusCode).toBe(404);
+    expect((await wired.inject(request)).statusCode).toBe(401);
+  });
+});
+
 describe("wiring the BitLocker recovery key routes", () => {
   it("answers POST /api/registers/:id/bitlocker-recovery-key/consultations according to the bitlockerRecoveryKeys option", async () => {
     const unwired = buildApp({ now: () => APP_CLOCK, version: "abc1234" });
@@ -2855,6 +2878,36 @@ describe("the route access inventory", () => {
         method: "POST",
         url: "/api/registers/revocations",
         access: capabilityAccess("revoke_installations"),
+      },
+      {
+        method: "POST",
+        url: "/api/compromise-responses",
+        access: capabilityAccess("manage_users"),
+      },
+      {
+        method: "GET",
+        url: "/api/compromise-responses/current",
+        access: capabilityAccess("manage_users"),
+      },
+      {
+        method: "POST",
+        url: "/api/compromise-responses/current/steps/revoke-every-installation",
+        access: capabilityAccess("manage_users"),
+      },
+      {
+        method: "POST",
+        url: "/api/compromise-responses/current/steps/end-sessions-and-remove-passkeys",
+        access: capabilityAccess("manage_users"),
+      },
+      {
+        method: "POST",
+        url: "/api/compromise-responses/current/steps/force-pin-resets",
+        access: capabilityAccess("manage_users"),
+      },
+      {
+        method: "POST",
+        url: "/api/compromise-responses/current/items/:item",
+        access: capabilityAccess("manage_users"),
       },
       {
         method: "POST",

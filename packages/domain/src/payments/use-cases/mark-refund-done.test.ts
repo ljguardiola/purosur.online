@@ -14,6 +14,7 @@ const PENDING: FakeStoredRefund = {
   origin: "sale_cancelled",
   method: "TRANSFER",
   confirmedAt: null,
+  lastRefusalReason: null,
 };
 const LATE_PAYMENT: FakeStoredRefund = { ...PENDING, origin: "late_payment", method: "POINT" };
 const LATE_QR_PAYMENT: FakeStoredRefund = { ...LATE_PAYMENT, method: "QR" };

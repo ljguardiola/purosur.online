@@ -1,10 +1,10 @@
 import { beforeEach, expect, onTestFinished, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
+import type { BranchUser } from "../platform/branch-users-api";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import type { RoleSummary } from "../platform/roles-api";
 import { render } from "../shell/test-support/render-with-router";
 import { EditUserModal, type EditUserModalServices } from "./edit-user-modal";
-import type { BranchUser } from "./users-api";
 import type { UserRead } from "./users-queries";
 
 const shiftRole: RoleSummary = {

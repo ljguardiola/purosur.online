@@ -1,10 +1,11 @@
 import { startAuthentication } from "@simplewebauthn/browser";
+import { fetchUsers } from "../platform/branch-users-api";
 import { fetchRoles } from "../platform/roles-api";
 import {
   authorizeSession,
   fetchSessionAuthorizationOptions,
 } from "../platform/session-authorization-api";
-import { createUser, fetchUsers } from "./users-api";
+import { createUser } from "./users-api";
 
 export type UsersListScreenServices = {
   fetchUsers: typeof fetchUsers;

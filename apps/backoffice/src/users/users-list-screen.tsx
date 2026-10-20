@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 import { type ComponentType, Suspense, useEffect, useEffectEvent, useState } from "react";
 import { useAuthorization } from "../platform/authorization-modal";
+import type { BranchUser, BranchUserRole } from "../platform/branch-users-api";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { combineCloudData } from "../platform/combine-cloud-data";
 import { retryAfterDetail } from "../platform/retry-after-detail";
@@ -52,7 +53,7 @@ import { roleOptions } from "./role-display";
 import { roleFieldMessage } from "./role-field-message";
 import type { UsersListFilters } from "./routes";
 import { userEmailMessage } from "./user-email-message";
-import type { BranchUser, BranchUserRole, CreateUserOutcome, createUser } from "./users-api";
+import type { CreateUserOutcome, createUser } from "./users-api";
 import type { UsersListScreenServices } from "./users-list-services";
 import { useRefreshUsers, useRolesQuery, useUsersQuery } from "./users-queries";
 

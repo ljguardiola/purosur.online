@@ -7,13 +7,13 @@ import type {
   authorizeSession,
   fetchSessionAuthorizationOptions,
 } from "../platform/session-authorization-api";
+import { useAuthorizedAttempt } from "../platform/use-authorized-attempt";
 import { registerModalContext } from "./register-modal-context";
 import type {
   ConsultBitlockerRecoveryKeyOutcome,
   consultBitlockerRecoveryKey,
   RegisterSummary,
 } from "./registers-api";
-import { useRevocationAttempt } from "./use-revocation-attempt";
 
 export type ConsultBitlockerRecoveryKeyModalServices = {
   consultBitlockerRecoveryKey: typeof consultBitlockerRecoveryKey;
@@ -57,10 +57,10 @@ export function ConsultBitlockerRecoveryKeyModal({
   const requestedFor = useRef<string | null>(null);
   const {
     attempt,
-    revoking: consulting,
+    running: consulting,
     notice,
     modal,
-  } = useRevocationAttempt<
+  } = useAuthorizedAttempt<
     ConsultBitlockerRecoveryKeyOutcome,
     "notFound" | "noCurrentInstallation" | "notLoaded"
   >({

@@ -9,6 +9,7 @@ export interface LockedRefund {
   origin: string;
   method: string;
   confirmedAt: Date | null;
+  lastRefusalReason: string | null;
 }
 
 export interface PendingRefundRecord {

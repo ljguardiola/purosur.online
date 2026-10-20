@@ -37,6 +37,7 @@ import type { AverageTicketScreenServices } from "../sales/average-ticket-servic
 import type { SalesByCashierScreenServices } from "../sales/sales-by-cashier-services";
 import type { SalesByDayScreenServices } from "../sales/sales-by-day-services";
 import type { SalesByProductAndCategoryScreenServices } from "../sales/sales-by-product-and-category-services";
+import type { CompromiseResponseScreenServices } from "../sessions/compromise-response-services";
 import type { EndEverySessionSectionServices } from "../sessions/end-every-session-section-services";
 import { checkSessionStatus, fetchSession, type SessionOutcome } from "../sessions/session-api";
 import type { SignInScreenServices } from "../sessions/sign-in-services";
@@ -77,6 +78,7 @@ export type AppServices = {
   userDetailScreen: UserDetailScreenServices;
   usersListEndEverySessionSection: ComponentType<UsersListEndEverySessionSectionProps>;
   endEverySessionSection: EndEverySessionSectionServices;
+  compromiseResponseScreen: CompromiseResponseScreenServices;
   userDetailCredentialSections: ComponentType<UserCredentialSectionsProps>;
   userCredentialSections: UserCredentialSectionsServices;
   rolesListScreen: RolesListScreenServices;

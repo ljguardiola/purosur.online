@@ -141,10 +141,8 @@ describe("alertKindPolicy", () => {
 });
 
 describe("alertClosing", () => {
-  it("closes by itself an alert whose condition stays cleared, with its refund done or discarded a discardable refund's alert, once its refund is done any other refund's, and every other by hand", () => {
-    const closings = Object.fromEntries(
-      ALERT_KINDS.map((kind) => [kind, alertClosing(kind, ["late_payment_refund"])]),
-    );
+  it("closes by itself an alert whose condition stays cleared, a refund's alert with its refund done or discarded, and every other by hand", () => {
+    const closings = Object.fromEntries(ALERT_KINDS.map((kind) => [kind, alertClosing(kind)]));
 
     expect(closings).toEqual({
       backoffice_passkey_changed: "by_hand",
@@ -163,7 +161,7 @@ describe("alertClosing", () => {
       fiscal_rejected: "by_itself",
       offline_authorization_code_missing: "by_itself",
       late_payment_refund: "with_its_refund",
-      refund_task: "when_its_refund_is_done",
+      refund_task: "with_its_refund",
       fiscal_unknown: "when_its_document_is_resolved",
       fiscal_emission_stopped: "by_itself",
       clock_drift: "by_itself",
@@ -178,35 +176,10 @@ describe("alertClosing", () => {
     });
   });
 
-  it("closes a refund's alert with its refund done or discarded only when its kind is one of a discardable refund", () => {
-    expect(alertClosing("late_payment_refund", [])).toBe("when_its_refund_is_done");
-    expect(alertClosing("refund_task", ["refund_task"])).toBe("with_its_refund");
-  });
-
-  it("closes an unclear document's alert once its document is resolved whatever kinds belong to a discardable refund", () => {
-    expect(alertClosing("fiscal_unknown", [])).toBe("when_its_document_is_resolved");
-    expect(alertClosing("fiscal_unknown", ["fiscal_unknown"])).toBe(
-      "when_its_document_is_resolved",
-    );
-  });
-
-  it("closes an alert for quarantined events once none of its device's events is left in quarantine", () => {
-    expect(alertClosing("events_quarantined", [])).toBe("when_its_events_are_released");
-    expect(alertClosing("events_quarantined", ["events_quarantined"])).toBe(
-      "when_its_events_are_released",
-    );
-  });
-
-  it("closes an alert not scoped to a refund the same way whatever kinds belong to a discardable refund", () => {
-    expect(alertClosing("register_enrolled", ["register_enrolled"])).toBe("by_hand");
-    expect(alertClosing("update_required", ["update_required"])).toBe("by_itself");
-  });
-
   it("lists every way an alert closes", () => {
     expect(ALERT_CLOSINGS).toEqual([
       "by_itself",
       "with_its_refund",
-      "when_its_refund_is_done",
       "when_its_document_is_resolved",
       "when_its_events_are_released",
       "by_hand",

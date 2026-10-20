@@ -29,6 +29,7 @@ export type DiscardRefundOutcome =
   | { kind: "already_done" }
   | { kind: "already_discarded" }
   | { kind: "already_confirmed" }
+  | { kind: "waiting_for_balance" }
   | RequestRefusal;
 
 export type ConfirmRefundOutcome =
@@ -130,6 +131,9 @@ export async function discardRefund(refundId: string): Promise<DiscardRefundOutc
     }
     if (code === "refund_already_confirmed") {
       return { kind: "already_confirmed" };
+    }
+    if (code === "refund_waiting_for_balance") {
+      return { kind: "waiting_for_balance" };
     }
     return { kind: "failed" };
   }

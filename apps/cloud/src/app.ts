@@ -170,6 +170,10 @@ import {
   registerSalesReportRoutes,
   type SalesReportRouteOptions,
 } from "./sales/sales-report-routes.js";
+import {
+  type CompromiseResponseRouteOptions,
+  registerCompromiseResponseRoutes,
+} from "./sessions/compromise-response-route.js";
 import { registerEverySessionEndingRoute } from "./sessions/every-session-ending-route.js";
 import {
   declarePluginRoutesAccess,
@@ -246,6 +250,7 @@ export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = Postgre
   registers?: WithoutClock<RegistersRouteOptions<TQueryResult>>;
   snapshotBackups?: WithoutClock<SnapshotBackupsRouteOptions<TQueryResult>>;
   registerRevocations?: WithoutClock<RegisterRevocationRouteOptions<TQueryResult>>;
+  compromiseResponses?: WithoutClock<CompromiseResponseRouteOptions<TQueryResult>>;
   bitlockerRecoveryKeys?: WithoutClock<BitlockerRecoveryKeyRouteOptions<TQueryResult>>;
   registersPointsOfSale?: WithoutClock<RegistersPointsOfSaleRouteOptions<TQueryResult>>;
   stock?: WithoutClock<StockRouteOptions<TQueryResult>>;
@@ -345,6 +350,10 @@ export function databaseRouteOptions<TQueryResult extends PgQueryResultHKT>(
     registers: backoffice,
     snapshotBackups: { ...backoffice, keysEncryptionKey: wiring.installationKeysEncryptionKey },
     registerRevocations: {
+      ...backoffice,
+      keysEncryptionKey: wiring.installationKeysEncryptionKey,
+    },
+    compromiseResponses: {
       ...backoffice,
       keysEncryptionKey: wiring.installationKeysEncryptionKey,
     },
@@ -655,6 +664,10 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
 
       if (options.registerRevocations) {
         registerRegisterRevocationRoute(api, { ...options.registerRevocations, now });
+      }
+
+      if (options.compromiseResponses) {
+        registerCompromiseResponseRoutes(api, { ...options.compromiseResponses, now });
       }
 
       if (options.bitlockerRecoveryKeys) {

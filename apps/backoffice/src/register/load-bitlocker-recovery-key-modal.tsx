@@ -8,6 +8,7 @@ import type {
   authorizeSession,
   fetchSessionAuthorizationOptions,
 } from "../platform/session-authorization-api";
+import { useAuthorizedAttempt } from "../platform/use-authorized-attempt";
 import {
   bitlockerKeyIdentifierMessage,
   bitlockerKeyRequestFrom,
@@ -20,7 +21,6 @@ import type {
   loadBitlockerRecoveryKey,
   RegisterSummary,
 } from "./registers-api";
-import { useRevocationAttempt } from "./use-revocation-attempt";
 
 export type LoadBitlockerRecoveryKeyModalServices = {
   loadBitlockerRecoveryKey: typeof loadBitlockerRecoveryKey;
@@ -55,10 +55,10 @@ export function LoadBitlockerRecoveryKeyModal({
   const open = target !== null;
   const {
     attempt,
-    revoking: saving,
+    running: saving,
     notice,
     modal,
-  } = useRevocationAttempt<
+  } = useAuthorizedAttempt<
     LoadBitlockerRecoveryKeyOutcome,
     "notFound" | "noCurrentInstallation" | "alreadyLoaded"
   >({

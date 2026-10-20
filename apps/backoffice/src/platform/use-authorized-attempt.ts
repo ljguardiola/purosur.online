@@ -1,19 +1,19 @@
 import type { startAuthentication } from "@simplewebauthn/browser";
 import { useEffect, useRef, useState } from "react";
-import { useAuthorization } from "../platform/authorization-modal";
-import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useAuthorization } from "./authorization-modal";
+import { useSendToMyAccount } from "./send-to-my-account";
 import type {
   authorizeSession,
   fetchSessionAuthorizationOptions,
-} from "../platform/session-authorization-api";
+} from "./session-authorization-api";
 
-export type RevocationAttemptServices = {
+export type AuthorizedAttemptServices = {
   fetchSessionAuthorizationOptions: typeof fetchSessionAuthorizationOptions;
   authorizeSession: typeof authorizeSession;
   startAuthentication: typeof startAuthentication;
 };
 
-export type RevocationNotice<Specific extends string = never> =
+export type AttemptNotice<Specific extends string = never> =
   | { kind: Specific }
   | { kind: "attemptFailed" }
   | { kind: "rateLimited"; retryAfterSeconds: number };
@@ -42,7 +42,7 @@ type Opening<Specific extends string> = {
   showNotice: (kind: Specific) => void;
 };
 
-export function useRevocationAttempt<Outcome extends { kind: string }, Specific extends string>({
+export function useAuthorizedAttempt<Outcome extends { kind: string }, Specific extends string>({
   open,
   actionName,
   consultation = false,
@@ -55,11 +55,11 @@ export function useRevocationAttempt<Outcome extends { kind: string }, Specific 
   consultation?: boolean;
   onSessionEnded: () => void;
   onCancelled?: () => void;
-  services: RevocationAttemptServices;
+  services: AuthorizedAttemptServices;
 }) {
   const sendToMyAccount = useSendToMyAccount();
-  const [notice, setNotice] = useState<RevocationNotice<Specific> | null>(null);
-  const [revoking, setRevoking] = useState(false);
+  const [notice, setNotice] = useState<AttemptNotice<Specific> | null>(null);
+  const [running, setRunning] = useState(false);
   const { run, modal } = useAuthorization<Outcome | SharedOutcome>({
     actionName,
     consultation,
@@ -72,7 +72,7 @@ export function useRevocationAttempt<Outcome extends { kind: string }, Specific 
     openingRef.current += 1;
     if (open) {
       setNotice(null);
-      setRevoking(false);
+      setRunning(false);
     }
   }, [open]);
 
@@ -81,14 +81,14 @@ export function useRevocationAttempt<Outcome extends { kind: string }, Specific 
     settle: (outcome: Outcome, opening: Opening<Specific>) => void,
   ) {
     setNotice(null);
-    setRevoking(true);
+    setRunning(true);
     const opening = openingRef.current;
     const outcome = await run(request);
     const current = opening === openingRef.current;
     if (current) {
-      setRevoking(false);
+      setRunning(false);
     }
-    const showNotice = (shown: RevocationNotice<Specific>) => {
+    const showNotice = (shown: AttemptNotice<Specific>) => {
       if (current) {
         setNotice(shown);
       }
@@ -108,5 +108,5 @@ export function useRevocationAttempt<Outcome extends { kind: string }, Specific 
     }
   }
 
-  return { attempt, revoking, notice, modal };
+  return { attempt, running, notice, modal };
 }
