@@ -84,6 +84,7 @@ const decodedLine = {
   promotionId: null,
   discountAmount: 0,
   saleDiscountShare: 0,
+  promotions: [],
   lineTotal: 4800,
 };
 
@@ -105,6 +106,62 @@ describe("decoding the events the registers pushed", () => {
     ]),
   )("reads every recorded %s as a fact", (_name, event) => {
     expect(upcaster.decode(unappliedEventOf(event)).kind).toBe("fact");
+  });
+
+  it("reads the promotions frozen on a line as the benefit each one gave", () => {
+    const decoded = upcaster.decode(
+      unappliedEventOf(
+        pushed({
+          payload: {
+            ...saleFields,
+            payments: [{ ...salePayment, authorized_by: null, confirmed_at: null }],
+            lines: [
+              {
+                ...saleLine,
+                promotions: [
+                  {
+                    discount_id: "b5d2f7a1-8c40-4e96-a3b7-1f9e6c4d2a10",
+                    kind: "PERCENT_OFF",
+                    percent: 10,
+                    buy_qty: null,
+                    pay_qty: null,
+                  },
+                  {
+                    discount_id: "c6e3a8b2-9d51-4fa7-b4c8-2a0f7d5e3b21",
+                    kind: "BUY_N_PAY_M",
+                    percent: null,
+                    buy_qty: 3,
+                    pay_qty: 2,
+                  },
+                ],
+              },
+            ],
+          },
+        }),
+      ),
+    );
+
+    expect(decoded).toMatchObject({
+      kind: "fact",
+      fact: {
+        sale: {
+          lines: [
+            {
+              promotions: [
+                {
+                  discountId: "b5d2f7a1-8c40-4e96-a3b7-1f9e6c4d2a10",
+                  benefit: { kind: "PERCENT_OFF", percent: 10 },
+                },
+                {
+                  discountId: "c6e3a8b2-9d51-4fa7-b4c8-2a0f7d5e3b21",
+                  benefit: { kind: "BUY_N_PAY_M", buyQty: 3, payQty: 2 },
+                },
+              ],
+            },
+          ],
+        },
+      },
+    });
   });
 
   it("reads a version 2 sale as completed when it was charged", () => {
