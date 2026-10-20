@@ -58,13 +58,16 @@ export function owesFortnightReport(
   {
     fortnight,
     claimedAt,
+    retiredAt,
     listed = false,
-  }: { fortnight: Fortnight; claimedAt: Date; listed?: boolean },
+  }: { fortnight: Fortnight; claimedAt: Date; retiredAt?: Date | undefined; listed?: boolean },
   today: string,
 ): boolean {
-  return (
-    hasFortnightClosed(fortnight, today) && (listed || claimedAt < fortnightClosesAt(fortnight))
-  );
+  if (!hasFortnightClosed(fortnight, today)) {
+    return false;
+  }
+  const closesAt = fortnightClosesAt(fortnight);
+  return listed || (claimedAt < closesAt && (retiredAt === undefined || closesAt <= retiredAt));
 }
 
 export function isFortnightReportOutstanding(state: FortnightReportState | null): boolean {

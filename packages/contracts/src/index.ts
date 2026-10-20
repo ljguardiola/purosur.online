@@ -131,6 +131,15 @@ export type { IssuerIdentificationEditBody } from "./fiscal/issuer-identificatio
 export { issuerIdentificationEditBodySchema } from "./fiscal/issuer-identification-edit.js";
 export type { OfflinePointOfSaleConfigurationBody } from "./fiscal/offline-point-of-sale-configuration.js";
 export { offlinePointOfSaleConfigurationBodySchema } from "./fiscal/offline-point-of-sale-configuration.js";
+export type {
+  BranchOfflinePointOfSaleBody,
+  OfflinePointOfSaleRetirementBody,
+} from "./fiscal/offline-point-of-sale-retirement.js";
+export {
+  branchOfflinePointOfSaleListSchema,
+  branchOfflinePointOfSaleSchema,
+  offlinePointOfSaleRetirementSchema,
+} from "./fiscal/offline-point-of-sale-retirement.js";
 export type { PointOfSaleConfigurationBody } from "./fiscal/point-of-sale-configuration.js";
 export { pointOfSaleConfigurationBodySchema } from "./fiscal/point-of-sale-configuration.js";
 export type {

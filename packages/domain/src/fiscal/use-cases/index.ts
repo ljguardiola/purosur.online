@@ -417,6 +417,19 @@ export type {
 } from "./request-real-time-authorization.js";
 export { requestRealTimeAuthorization } from "./request-real-time-authorization.js";
 export type {
+  RetireOfflinePointOfSaleInput,
+  RetireOfflinePointOfSaleOutcome,
+  RetireOfflinePointOfSalePorts,
+} from "./retire-offline-point-of-sale.js";
+export { retireOfflinePointOfSale } from "./retire-offline-point-of-sale.js";
+export type {
+  BranchOfflinePointOfSale,
+  BranchOfflinePointOfSaleReader,
+  RetireOfflinePointOfSaleRecord,
+  RetireOfflinePointOfSaleStore,
+  RetireOfflinePointOfSaleStoreTransaction,
+} from "./retire-offline-point-of-sale-store.js";
+export type {
   FiscalDocumentReservation,
   IdGenerator,
   SaleAuthorizationTransaction,
