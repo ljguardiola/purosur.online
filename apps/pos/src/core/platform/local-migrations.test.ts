@@ -5359,6 +5359,8 @@ describe("the register's local migrations", () => {
     } finally {
       rmSync(folder, { recursive: true, force: true });
     }
+  });
+
   it("hold the credit note of a voided sale once per sale, its answer kept consistent with its state", () => {
     const database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS, migrationClock);
     database.exec(
