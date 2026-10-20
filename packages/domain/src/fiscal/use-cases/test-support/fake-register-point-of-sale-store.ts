@@ -5,6 +5,11 @@ import type {
   OfflineNumberBlockStore,
 } from "../offline-number-block-store.js";
 import type {
+  RetireOfflinePointOfSaleRecord,
+  RetireOfflinePointOfSaleStore,
+  RetireOfflinePointOfSaleStoreTransaction,
+} from "../retire-offline-point-of-sale-store.js";
+import type {
   RegisterOfflinePointOfSale,
   RegisterOfflinePointOfSaleRecord,
   RegisterOfflinePointOfSaleStore,
@@ -47,12 +52,19 @@ export interface FakePointOfSaleClaim {
   mechanism: PointOfSaleMechanism;
 }
 
+export interface FakePointOfSaleRetirement {
+  pointOfSaleNumber: number;
+  retiredAt: Date;
+  recordedBy: string | null;
+}
+
 export interface FakeRegisterPointOfSaleState {
   registers: FakeBranchRegister[];
   fiscalAddressIds: string[];
   registerPointsOfSale: FakeRegisterPointOfSale[];
   registerOfflinePointsOfSale: FakeRegisterOfflinePointOfSale[];
   pointOfSaleClaims: FakePointOfSaleClaim[];
+  pointOfSaleRetirements: FakePointOfSaleRetirement[];
   offlineNumberBlocks: OfflineNumberBlockRecord[];
   taxAuthorityCounts: [pointOfSaleNumber: number, lastAuthorized: number][];
   requiredTaxAuthorityCounts: number[];
@@ -63,6 +75,7 @@ type WriteOperation =
   | "claimPointOfSale"
   | "recordRegisterPointOfSale"
   | "recordRegisterOfflinePointOfSale"
+  | "retirePointOfSale"
   | "recordOfflineNumberBlock";
 
 class FakeRegisterPointOfSaleStoreTransaction implements RegisterPointOfSaleStoreTransaction {
@@ -108,7 +121,18 @@ class FakeRegisterPointOfSaleStoreTransaction implements RegisterPointOfSaleStor
     const claim = this.state.pointOfSaleClaims.find(
       (candidate) => candidate.pointOfSaleNumber === pointOfSaleNumber,
     );
-    return claim && { registerId: claim.registerId, mechanism: claim.mechanism };
+    return claim && this.holderOf(claim);
+  }
+
+  protected holderOf(claim: FakePointOfSaleClaim): PointOfSaleHolder {
+    const retirement = this.state.pointOfSaleRetirements.find(
+      (candidate) => candidate.pointOfSaleNumber === claim.pointOfSaleNumber,
+    );
+    return {
+      registerId: claim.registerId,
+      mechanism: claim.mechanism,
+      ...(retirement && { retiredAt: new Date(retirement.retiredAt) }),
+    };
   }
 
   async claimPointOfSale(claim: PointOfSaleClaim): Promise<void> {
@@ -171,6 +195,11 @@ class FakeRegisterOfflinePointOfSaleStoreTransaction
     return this.blocks.requireTaxAuthorityCount(pointOfSaleNumber);
   }
 
+  async lockPointOfSale(pointOfSaleNumber: number): Promise<void> {
+    this.store.operationOrder.push("lockPointOfSale");
+    this.store.lockedPointsOfSale.push(pointOfSaleNumber);
+  }
+
   async offlineRegisterOf(pointOfSaleNumber: number): Promise<string | null> {
     this.store.operationOrder.push("offlineRegisterOf");
     const row = this.state.registerOfflinePointsOfSale.find(
@@ -226,6 +255,38 @@ class FakeRegisterOfflinePointOfSaleStoreTransaction
   }
 }
 
+class FakeRetireOfflinePointOfSaleStoreTransaction
+  extends FakeRegisterOfflinePointOfSaleStoreTransaction
+  implements RetireOfflinePointOfSaleStoreTransaction
+{
+  async branchPointOfSaleClaim(
+    locationId: string,
+    pointOfSaleNumber: number,
+  ): Promise<PointOfSaleHolder | undefined> {
+    this.store.operationOrder.push("branchPointOfSaleClaim");
+    const claim = this.state.pointOfSaleClaims.find(
+      (candidate) =>
+        candidate.pointOfSaleNumber === pointOfSaleNumber &&
+        this.state.registers.some(
+          (register) => register.id === candidate.registerId && register.locationId === locationId,
+        ),
+    );
+    if (claim === undefined) {
+      return undefined;
+    }
+    return this.holderOf(claim);
+  }
+
+  async retirePointOfSale(record: RetireOfflinePointOfSaleRecord): Promise<void> {
+    this.beforeWrite("retirePointOfSale");
+    this.state.pointOfSaleRetirements.push({
+      pointOfSaleNumber: record.pointOfSaleNumber,
+      retiredAt: new Date(record.retiredAt),
+      recordedBy: record.actorId,
+    });
+  }
+}
+
 export class FakeRegisterPointOfSaleStore
   implements RegisterPointOfSaleStore, RegisterPointOfSaleReader
 {
@@ -235,6 +296,7 @@ export class FakeRegisterPointOfSaleStore
     registerPointsOfSale: [],
     registerOfflinePointsOfSale: [],
     pointOfSaleClaims: [],
+    pointOfSaleRetirements: [],
     offlineNumberBlocks: [],
     taxAuthorityCounts: [],
     requiredTaxAuthorityCounts: [],
@@ -244,6 +306,7 @@ export class FakeRegisterPointOfSaleStore
   failingWrites = new Set<WriteOperation>();
   pointOfSaleClaimConflicts = new Set<number>();
   operationOrder: string[] = [];
+  lockedPointsOfSale: number[] = [];
   offlineNumberBlockLocks: LockedOfflineNumberSeries[] = [];
   transactionCount = 0;
 
@@ -265,6 +328,10 @@ export class FakeRegisterPointOfSaleStore
 
   seedPointOfSaleClaim(claim: FakePointOfSaleClaim): void {
     this.state.pointOfSaleClaims.push({ ...claim });
+  }
+
+  seedPointOfSaleRetirement(retirement: Omit<FakePointOfSaleRetirement, "recordedBy">): void {
+    this.state.pointOfSaleRetirements.push({ ...retirement, recordedBy: null });
   }
 
   seedOfflineNumberBlock(block: OfflineNumberBlockRecord): void {
@@ -306,6 +373,11 @@ export class FakeRegisterPointOfSaleStore
   readonly offline: RegisterOfflinePointOfSaleStore = {
     transaction: (work) =>
       this.run((state) => work(new FakeRegisterOfflinePointOfSaleStoreTransaction(state, this))),
+  };
+
+  readonly retirement: RetireOfflinePointOfSaleStore = {
+    transaction: (work) =>
+      this.run((state) => work(new FakeRetireOfflinePointOfSaleStoreTransaction(state, this))),
   };
 
   transaction<TOutcome>(
