@@ -1,72 +1,78 @@
-import type { TaxAuthorityRejection } from "../model/fiscal-rejection-standing.js";
-import {
-  CREDIT_NOTE_C_DOCUMENT_TYPE,
-  creditNoteRejectedTask,
-  externalInvoicingTask,
-} from "../model/fiscal-task.js";
 import {
   CREDIT_NOTE_C_VOUCHER_TYPE,
   creditNoteIssueDate,
   mayTakeCreditNoteNumber,
   nextCreditNoteNumber,
   settleUnclearCreditNote,
-} from "../model/orphan-credit-note.js";
+} from "../model/credit-note.js";
+import type { TaxAuthorityRejection } from "../model/fiscal-rejection-standing.js";
+import {
+  CREDIT_NOTE_C_DOCUMENT_TYPE,
+  creditNoteRejectedTask,
+  externalInvoicingTask,
+} from "../model/fiscal-task.js";
+import type { CreditNoteAnswer } from "../model/sale-void-credit-note.js";
 import {
   hasUnclearOutcomeSettled,
   UNCLEAR_OUTCOME_REASK_INTERVAL_MS,
   unclearOutcomeSettlesAt,
 } from "../model/unclear-outcome-decision.js";
 import { solicitationAnswerOf, solicitationRejections } from "./authorize-fiscal-document.js";
-import type { SolicitationAnswer } from "./fiscal-document-authorization-ports.js";
 import {
+  type CreditNoteLane,
   CreditNoteNumberTaken,
-  type IssueOrphanCreditNotePorts,
-  type OrphanCreditNoteLane,
-} from "./orphan-credit-note-ports.js";
+  type IssueCreditNotePorts,
+} from "./credit-note-ports.js";
+import type { SolicitationAnswer } from "./fiscal-document-authorization-ports.js";
 import { taxAuthorityEvidenceOf } from "./tax-authority-evidence.js";
 
-export interface IssueOrphanCreditNoteInput {
+export interface IssueCreditNoteInput {
   creditNoteId: string;
 }
 
-export type IssueOrphanCreditNoteOutcome =
-  | {
-      kind: "authorized";
-      number: number;
-      authorizationCode: string;
-      authorizationCodeDueOn: string;
-    }
-  | { kind: "adopted"; number: number; authorizationCode: string; authorizationCodeDueOn: string }
+interface AuthorizedCreditNote {
+  pointOfSale: number;
+  number: number;
+  issuedOn: string;
+  issuedAt: Date;
+  authorizationCode: string;
+  authorizationCodeDueOn: string;
+}
+
+export type IssueCreditNoteOutcome =
+  | ({ kind: "authorized" } & AuthorizedCreditNote)
+  | ({ kind: "adopted" } & AuthorizedCreditNote)
   | { kind: "rejected"; rejections: readonly TaxAuthorityRejection[] }
-  | { kind: "already_authorized" }
+  | ({ kind: "already_authorized" } & AuthorizedCreditNote)
   | { kind: "already_rejected" }
   | { kind: "retry"; askAgainAt: Date }
   | { kind: "not_found" };
 
-export async function issueOrphanCreditNote(
-  ports: IssueOrphanCreditNotePorts,
-  { creditNoteId }: IssueOrphanCreditNoteInput,
-): Promise<IssueOrphanCreditNoteOutcome> {
+export async function issueCreditNote(
+  ports: IssueCreditNotePorts,
+  { creditNoteId }: IssueCreditNoteInput,
+): Promise<IssueCreditNoteOutcome> {
   const { requests, lanes, clock, tokens, taxAuthority, creditNotes } = ports;
   const pointOfSale = await requests.pointOfSaleOf(creditNoteId);
   if (pointOfSale === null) {
     return { kind: "not_found" };
   }
 
-  return lanes.inPointOfSaleLane<IssueOrphanCreditNoteOutcome>(pointOfSale, async (lane) => {
-    const creditNote = await lane.orphanCreditNote(creditNoteId);
+  return lanes.inPointOfSaleLane<IssueCreditNoteOutcome>(pointOfSale, async (lane) => {
+    const creditNote = await lane.creditNote(creditNoteId);
     if (creditNote === null) {
       return { kind: "not_found" };
     }
     const { standing } = creditNote;
     if (standing.kind === "authorized") {
-      return { kind: "already_authorized" };
+      const { kind: _kind, requestedAt, ...authorized } = standing;
+      return { kind: "already_authorized", pointOfSale, issuedAt: requestedAt, ...authorized };
     }
     if (standing.kind === "rejected") {
       return { kind: "already_rejected" };
     }
 
-    const retryLater = (): IssueOrphanCreditNoteOutcome => ({
+    const retryLater = (): IssueCreditNoteOutcome => ({
       kind: "retry",
       askAgainAt: new Date(clock.now().getTime() + UNCLEAR_OUTCOME_REASK_INTERVAL_MS),
     });
@@ -108,7 +114,10 @@ export async function issueOrphanCreditNote(
         });
         return {
           kind: "adopted",
+          pointOfSale,
           number: standing.number,
+          issuedOn: standing.issuedOn,
+          issuedAt: standing.requestedAt,
           authorizationCode,
           authorizationCodeDueOn,
         };
@@ -174,6 +183,8 @@ export async function issueOrphanCreditNote(
       creditNoteId,
       pointOfSale,
       number,
+      issuedOn,
+      requestedAt,
       solicitation,
       answeredAt: clock.now(),
     });
@@ -181,21 +192,25 @@ export async function issueOrphanCreditNote(
 }
 
 async function recordAnswer(
-  lane: OrphanCreditNoteLane,
+  lane: CreditNoteLane,
   {
     creditNoteId,
     pointOfSale,
     number,
+    issuedOn,
+    requestedAt,
     solicitation,
     answeredAt,
   }: {
     creditNoteId: string;
     pointOfSale: number;
     number: number;
+    issuedOn: string;
+    requestedAt: Date;
     solicitation: SolicitationAnswer;
     answeredAt: Date;
   },
-): Promise<IssueOrphanCreditNoteOutcome> {
+): Promise<IssueCreditNoteOutcome> {
   const answer = solicitationAnswerOf(solicitation);
   if (answer.kind === "authorized") {
     const { authorizationCode, authorizationCodeDueOn } = answer;
@@ -205,7 +220,15 @@ async function recordAnswer(
       authorizationCodeDueOn,
       authorizedAt: answeredAt,
     });
-    return { kind: "authorized", number, authorizationCode, authorizationCodeDueOn };
+    return {
+      kind: "authorized",
+      pointOfSale,
+      number,
+      issuedOn,
+      issuedAt: requestedAt,
+      authorizationCode,
+      authorizationCodeDueOn,
+    };
   }
   if (answer.kind === "rejected") {
     const rejections = solicitationRejections(solicitation);
@@ -219,4 +242,22 @@ async function recordAnswer(
   }
   await lane.recordCreditNoteUnclear(creditNoteId, answeredAt);
   return { kind: "retry", askAgainAt: unclearOutcomeSettlesAt(answeredAt) };
+}
+
+export function creditNoteAnswerOf(outcome: IssueCreditNoteOutcome): CreditNoteAnswer | null {
+  switch (outcome.kind) {
+    case "authorized":
+    case "adopted":
+    case "already_authorized": {
+      const { kind: _kind, ...authorized } = outcome;
+      return { kind: "authorized", ...authorized };
+    }
+    case "rejected":
+    case "already_rejected":
+      return { kind: "rejected" };
+    case "retry":
+      return { kind: "in_progress" };
+    case "not_found":
+      return null;
+  }
 }

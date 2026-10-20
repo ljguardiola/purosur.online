@@ -6,6 +6,7 @@ import {
   fiscalDocumentAuthorizedObservation,
   fiscalRejectionAlertObservation,
   fiscalRejectionObservation,
+  invoiceAlreadyCreditedObservation,
   lotsExpiringObservation,
   lotsNoLongerExpiringObservation,
   offlineAuthorizationCodeHeldObservation,
@@ -435,5 +436,29 @@ describe("clockCorrectedObservation", () => {
         },
       },
     });
+  });
+});
+
+describe("invoiceAlreadyCreditedObservation", () => {
+  it("holds the condition of the invoice of the point of sale and number that a voided sale could not credit", () => {
+    expect(
+      invoiceAlreadyCreditedObservation({ pointOfSale: 12, number: 41, saleId: "sale-1" }),
+    ).toEqual({
+      holds: true,
+      alert: {
+        kind: "invoice_already_credited",
+        scope: "12:factura_c:41",
+        detail: { pointOfSale: 12, number: 41, saleId: "sale-1" },
+      },
+    });
+  });
+
+  it("scopes the condition to each invoice on its own", () => {
+    expect(
+      invoiceAlreadyCreditedObservation({ pointOfSale: 12, number: 42, saleId: "sale-1" }),
+    ).toMatchObject({ alert: { scope: "12:factura_c:42" } });
+    expect(
+      invoiceAlreadyCreditedObservation({ pointOfSale: 3, number: 41, saleId: "sale-1" }),
+    ).toMatchObject({ alert: { scope: "3:factura_c:41" } });
   });
 });

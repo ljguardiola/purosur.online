@@ -2,6 +2,7 @@ import { PUSH_EVENTS_REQUEST_MAX_BYTES } from "@purosur/contracts";
 import {
   type PushedEvent,
   SALE_COMPLETED_EVENT_TYPE,
+  SALE_VOIDED_EVENT_TYPE,
   SERIES_WAITING_STATES,
 } from "@purosur/domain";
 import type { LocalOutbox, OutboxPruning } from "@purosur/domain/sync/use-cases";
@@ -103,8 +104,19 @@ export class SqliteLocalOutbox implements LocalOutbox, OutboxPruning {
                 SELECT sale_id FROM fiscal_documents
                 WHERE state IN (${SERIES_WAITING_STATES.map(() => "?").join(", ")})
               )
+            )
+            AND NOT (
+              event_type = ?
+              AND aggregate_id IN (
+                SELECT sale_id FROM sale_void_credit_notes WHERE state = 'IN_PROGRESS'
+              )
             )`,
       )
-      .run(cutoff.toISOString(), SALE_COMPLETED_EVENT_TYPE, ...SERIES_WAITING_STATES).changes;
+      .run(
+        cutoff.toISOString(),
+        SALE_COMPLETED_EVENT_TYPE,
+        ...SERIES_WAITING_STATES,
+        SALE_VOIDED_EVENT_TYPE,
+      ).changes;
   }
 }

@@ -1,16 +1,13 @@
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { orphanCreditNotes } from "../platform/db/schema.js";
+import { creditNotes } from "../platform/db/schema.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
 } from "../test-support/integration-database.js";
-import {
-  enqueueMissingOrphanCreditNotes,
-  enqueueOrphanCreditNoteJob,
-} from "./graphile-orphan-credit-note-queue.js";
-import { ORPHAN_CREDIT_NOTE_TASK_IDENTIFIER } from "./orphan-credit-note-task.js";
+import { CREDIT_NOTE_TASK_IDENTIFIER } from "./credit-note-task.js";
+import { enqueueCreditNoteJob, enqueueMissingCreditNotes } from "./graphile-credit-note-queue.js";
 import { insertRegisterWithPointOfSale } from "./test-support/authorization-request-fixtures.js";
 
 const CREATED_AT = new Date("2026-10-08T01:00:00.000Z");
@@ -20,7 +17,7 @@ let sql: ReturnType<typeof postgres>;
 let db: PostgresJsDatabase<Record<string, never>>;
 
 beforeEach(async () => {
-  integrationDb = await createIntegrationDatabase("orphan_credit_note_queue");
+  integrationDb = await createIntegrationDatabase("credit_note_queue");
   sql = postgres(integrationDb.databaseUrl, { max: 4 });
   db = drizzle(sql);
 }, 60_000);
@@ -35,22 +32,24 @@ async function pendingJobs() {
     select j.payload, j.key, j.priority
     from graphile_worker._private_jobs j
     join graphile_worker._private_tasks t on t.id = j.task_id
-    where t.identifier = ${ORPHAN_CREDIT_NOTE_TASK_IDENTIFIER}
+    where t.identifier = ${CREDIT_NOTE_TASK_IDENTIFIER}
     order by j.payload->>'creditNoteId'`;
 }
 
 async function creditNoteRow(
   registerId: string,
   number: number,
-  columns: Partial<typeof orphanCreditNotes.$inferInsert> = {},
+  columns: Partial<typeof creditNotes.$inferInsert> = {},
 ) {
   const id = crypto.randomUUID();
-  await db.insert(orphanCreditNotes).values({
+  await db.insert(creditNotes).values({
     id,
     registerId,
     saleId: crypto.randomUUID(),
     pointOfSale: 7,
     associatedVoucherType: 11,
+    associatedPointOfSale: 7,
+    reason: "orphan",
     associatedNumber: number,
     keptVoucherType: 11,
     keptPointOfSale: 31,
@@ -63,17 +62,17 @@ async function creditNoteRow(
   return id;
 }
 
-describe("the orphan credit note jobs on a real Postgres", () => {
+describe("the credit note jobs on a real Postgres", () => {
   it("enqueues the issuing of a credit note with its key and a priority above every other job", async () => {
     const creditNoteId = crypto.randomUUID();
 
-    await enqueueOrphanCreditNoteJob(db, creditNoteId);
+    await enqueueCreditNoteJob(db, creditNoteId);
 
     const [job, ...others] = await pendingJobs();
     expect(others).toEqual([]);
     expect(job).toMatchObject({
       payload: { creditNoteId },
-      key: `${ORPHAN_CREDIT_NOTE_TASK_IDENTIFIER}:${creditNoteId}`,
+      key: `${CREDIT_NOTE_TASK_IDENTIFIER}:${creditNoteId}`,
       priority: -20,
     });
   });
@@ -81,8 +80,8 @@ describe("the orphan credit note jobs on a real Postgres", () => {
   it("keeps a single job per credit note when it is enqueued again", async () => {
     const creditNoteId = crypto.randomUUID();
 
-    await enqueueOrphanCreditNoteJob(db, creditNoteId);
-    await enqueueOrphanCreditNoteJob(db, creditNoteId);
+    await enqueueCreditNoteJob(db, creditNoteId);
+    await enqueueCreditNoteJob(db, creditNoteId);
 
     expect(await pendingJobs()).toHaveLength(1);
   });
@@ -90,7 +89,7 @@ describe("the orphan credit note jobs on a real Postgres", () => {
   it("enqueues nothing when the transaction that enqueues it rolls back", async () => {
     await expect(
       db.transaction(async (transaction) => {
-        await enqueueOrphanCreditNoteJob(transaction, crypto.randomUUID());
+        await enqueueCreditNoteJob(transaction, crypto.randomUUID());
         throw new Error("the transaction failed after enqueueing");
       }),
     ).rejects.toThrow("the transaction failed");
@@ -118,13 +117,30 @@ describe("the orphan credit note jobs on a real Postgres", () => {
         answeredAt: CREATED_AT,
       });
 
-      await enqueueMissingOrphanCreditNotes(db);
-      await enqueueMissingOrphanCreditNotes(db);
+      await enqueueMissingCreditNotes(db);
+      await enqueueMissingCreditNotes(db);
 
       expect((await pendingJobs()).map((job) => job.payload.creditNoteId).sort()).toEqual(
         [waiting, requested, unclear].sort(),
       );
       expect((await pendingJobs()).map((job) => job.priority)).toEqual([-20, -20, -20]);
+    });
+
+    it("enqueues the credit notes of voided sales as it does the orphan ones", async () => {
+      const registerId = await insertRegisterWithPointOfSale(db, {
+        pointOfSaleNumber: 7,
+        name: "caja-1",
+      });
+      const voided = await creditNoteRow(registerId, 1, {
+        reason: "sale_void",
+        keptVoucherType: null,
+        keptPointOfSale: null,
+        keptNumber: null,
+      });
+
+      await enqueueMissingCreditNotes(db);
+
+      expect((await pendingJobs()).map((job) => job.payload.creditNoteId)).toEqual([voided]);
     });
 
     it("enqueues nothing for a credit note that was authorized or rejected", async () => {
@@ -150,7 +166,7 @@ describe("the orphan credit note jobs on a real Postgres", () => {
         rejections: [{ code: 10015, message: "invalid receiver" }],
       });
 
-      await enqueueMissingOrphanCreditNotes(db);
+      await enqueueMissingCreditNotes(db);
 
       expect(await pendingJobs()).toEqual([]);
     });
@@ -163,18 +179,18 @@ describe("the orphan credit note jobs on a real Postgres", () => {
       const creditNoteId = await creditNoteRow(registerId, 1);
       const dueAt = new Date("2126-01-01T00:00:00.000Z");
       await sql`select graphile_worker.add_job(
-        ${ORPHAN_CREDIT_NOTE_TASK_IDENTIFIER}::text,
+        ${CREDIT_NOTE_TASK_IDENTIFIER}::text,
         ${JSON.stringify({ creditNoteId })}::json,
-        job_key => ${`${ORPHAN_CREDIT_NOTE_TASK_IDENTIFIER}:${creditNoteId}`}::text,
+        job_key => ${`${CREDIT_NOTE_TASK_IDENTIFIER}:${creditNoteId}`}::text,
         run_at => ${dueAt.toISOString()}::timestamptz
       )`;
 
-      await enqueueMissingOrphanCreditNotes(db);
+      await enqueueMissingCreditNotes(db);
 
       const [job] = await sql<{ run_at: Date | string }[]>`
         select j.run_at from graphile_worker._private_jobs j
         join graphile_worker._private_tasks t on t.id = j.task_id
-        where t.identifier = ${ORPHAN_CREDIT_NOTE_TASK_IDENTIFIER}`;
+        where t.identifier = ${CREDIT_NOTE_TASK_IDENTIFIER}`;
       expect(new Date(job?.run_at ?? 0)).toEqual(dueAt);
     });
   });

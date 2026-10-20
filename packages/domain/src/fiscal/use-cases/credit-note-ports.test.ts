@@ -3,9 +3,9 @@ import type {
   ExternalInvoicingRegularization,
   OrphanRegularization,
 } from "../model/orphan-authorization.js";
-import type { OrphanCreditNoteLane } from "./orphan-credit-note-ports.js";
+import type { CreditNoteLane } from "./credit-note-ports.js";
 
-type RecordedWithRelease = Parameters<OrphanCreditNoteLane["releaseCreditNoteRequest"]>[1];
+type RecordedWithRelease = Parameters<CreditNoteLane["releaseCreditNoteRequest"]>[1];
 
 describe("releasing a credit note request", () => {
   it("records with it invoicing outside the register, or nothing", () => {
