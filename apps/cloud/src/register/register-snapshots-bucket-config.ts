@@ -1,4 +1,8 @@
-import { type BucketConfig, type BucketEnv, resolveBucketConfig } from "../platform/bucket-config.js";
+import {
+  type BucketConfig,
+  type BucketEnv,
+  resolveBucketConfig,
+} from "../platform/bucket-config.js";
 
 export type RegisterSnapshotsBucketConfig = BucketConfig;
 
