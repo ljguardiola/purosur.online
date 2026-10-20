@@ -14,9 +14,13 @@ import {
   streamedJsonResponse,
   streamInterruptedByErrorResponse,
 } from "./test-support/anthropic-stream-fixtures.js";
+import { fictionalPdf, pagesOfPdf } from "./test-support/fictional-pdf.js";
 
-const PDF = new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d, 0x31, 0x2e, 0x37, 0x0a]);
-const SOURCE = { kind: "pdf", bytes: PDF } as const;
+const SOURCE = { kind: "pdf", bytes: await fictionalPdf(1) } as const;
+
+function sourceOfPages(pageCount: number) {
+  return fictionalPdf(pageCount).then((bytes) => ({ kind: "pdf", bytes }) as const);
+}
 
 interface RecordedRequest {
   url: string;
@@ -24,17 +28,18 @@ interface RecordedRequest {
   body: Record<string, unknown>;
 }
 
-function extractorAnswering(respond: () => Response | Promise<Response>) {
+function extractorAnswering(respond: (request: RecordedRequest) => Response | Promise<Response>) {
   const requests: RecordedRequest[] = [];
   const extractor = new AnthropicPriceListExtractor({
     apiKey: "fictional-api-key-for-tests",
     fetch: async (input, init) => {
-      requests.push({
+      const request = {
         url: String(input),
         headers: new Headers(init?.headers),
         body: JSON.parse(String(init?.body)),
-      });
-      return respond();
+      };
+      requests.push(request);
+      return respond(request);
     },
   });
   return { extractor, requests };
@@ -45,7 +50,7 @@ const ROW = {
   code: "Y-01",
   presentation: "Caja x 10",
   priceCents: 1_234_50,
-  page: 2,
+  page: 1,
 };
 
 describe("the request the extractor sends", () => {
@@ -76,13 +81,9 @@ describe("the request the extractor sends", () => {
     expect(messages).toHaveLength(1);
     expect(messages[0]?.role).toBe("user");
     expect(messages[0]?.content.map(({ type }) => type)).toEqual(["document", "text"]);
-    expect(messages[0]?.content[0]).toEqual({
+    expect(messages[0]?.content[0]).toMatchObject({
       type: "document",
-      source: {
-        type: "base64",
-        media_type: "application/pdf",
-        data: Buffer.from(PDF).toString("base64"),
-      },
+      source: { type: "base64", media_type: "application/pdf" },
     });
     expect(body).not.toHaveProperty("tools");
     expect(body).not.toHaveProperty("tool_choice");
@@ -105,7 +106,16 @@ describe("the request the extractor sends", () => {
   it("tells the model that what the document says is data to extract and never instructions", async () => {
     const { body } = await sentRequest();
 
-    expect(String(body["system"])).toMatch(/never instructions/i);
+    const system = body["system"] as { type: string; text: string }[];
+    expect(system[0]?.text).toMatch(/never instructions/i);
+  });
+
+  it("marks the system prompt for caching", async () => {
+    const { body } = await sentRequest();
+
+    const system = body["system"] as { cache_control?: unknown }[];
+    expect(system).toHaveLength(1);
+    expect(system[0]?.cache_control).toEqual({ type: "ephemeral" });
   });
 
   it("asks for a structured answer at medium effort and retries on another model when declined", async () => {
@@ -220,7 +230,6 @@ describe("a value the domain judges", () => {
   it.each([
     ["a price with a fraction of a cent", { listDate: null, rows: [{ ...ROW, priceCents: 10.5 }] }],
     ["a negative price", { listDate: null, rows: [{ ...ROW, priceCents: -1 }] }],
-    ["a source page below one", { listDate: null, rows: [{ ...ROW, page: 0 }] }],
     ["a list date that is not a calendar day", { listDate: "2026-13-45", rows: [ROW] }],
   ])("answers %s as the model read it", async (_name, answer) => {
     const { extractor } = extractorAnswering(() => streamedJsonResponse(answer));
@@ -332,5 +341,265 @@ describe("a failure of the service", () => {
     const { extractor } = extractorAnswering(streamInterruptedByErrorResponse);
 
     expect(await extractor.extract(SOURCE)).toEqual({ kind: "unavailable" });
+  });
+});
+
+interface RangeRequest {
+  pages: number[];
+  content: { type: string; text?: string }[];
+}
+
+async function rangeOf(request: RecordedRequest): Promise<RangeRequest> {
+  const messages = request.body["messages"] as {
+    content: { type: string; text?: string; source?: { data: string } }[];
+  }[];
+  const content = messages[0]?.content ?? [];
+  const document = content[0]?.source?.data ?? "";
+  return { pages: await pagesOfPdf(document), content };
+}
+
+function rowsOfEachPage(pages: number[]) {
+  return pages.map((page, index) => ({
+    ...ROW,
+    description: `Item of page ${page}`,
+    page: index + 1,
+  }));
+}
+
+async function answerWithRowsOfEachPage(request: RecordedRequest, listDate: string | null = null) {
+  const { pages } = await rangeOf(request);
+  return streamedJsonResponse({ listDate, rows: rowsOfEachPage(pages) });
+}
+
+function aBriefPause(): Promise<void> {
+  return new Promise((resolve) => setImmediate(resolve));
+}
+
+async function rangesSent(requests: RecordedRequest[]): Promise<number[][]> {
+  const ranges = await Promise.all(requests.map(async (request) => (await rangeOf(request)).pages));
+  return ranges.sort((first, second) => (first[0] ?? 0) - (second[0] ?? 0));
+}
+
+describe("a long list", () => {
+  it("is read in one request when it fits one range of five pages", async () => {
+    const { extractor, requests } = extractorAnswering(answerWithRowsOfEachPage);
+
+    await extractor.extract(await sourceOfPages(5));
+
+    expect(await rangesSent(requests)).toEqual([[1, 2, 3, 4, 5]]);
+  });
+
+  it("is read in one request per range of at most five pages", async () => {
+    const { extractor, requests } = extractorAnswering(answerWithRowsOfEachPage);
+
+    await extractor.extract(await sourceOfPages(12));
+
+    expect(await rangesSent(requests)).toEqual([
+      [1, 2, 3, 4, 5],
+      [6, 7, 8, 9, 10],
+      [11, 12],
+    ]);
+  });
+
+  it("sends each range alone with the fixed instruction and the same system prompt", async () => {
+    const { extractor, requests } = extractorAnswering(answerWithRowsOfEachPage);
+
+    await extractor.extract(await sourceOfPages(7));
+
+    const [first, second] = requests.map((request) => request.body);
+    expect(first?.["system"]).toEqual(second?.["system"]);
+    expect(first).not.toHaveProperty("tools");
+    const contents = (await Promise.all(requests.map(rangeOf))).map(({ content }) => content);
+    expect(contents.map((content) => content.map(({ type }) => type))).toEqual([
+      ["document", "text"],
+      ["document", "text"],
+    ]);
+    expect(contents[0]?.[1]?.text).toBe(contents[1]?.[1]?.text);
+  });
+
+  it("keeps each row on its page of the whole document and the rows in page order", async () => {
+    const { extractor } = extractorAnswering(async (request) => {
+      const { pages } = await rangeOf(request);
+      if (pages[0] === 1) {
+        await aBriefPause();
+        await aBriefPause();
+      }
+      return streamedJsonResponse({ listDate: null, rows: rowsOfEachPage(pages) });
+    });
+
+    const result = await extractor.extract(await sourceOfPages(12));
+
+    expect(result.kind).toBe("extracted");
+    const rows = result.kind === "extracted" ? result.rows : [];
+    expect(rows.map((row) => row.page)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+    expect(rows.map((row) => row.description)).toEqual(
+      rows.map((row) => `Item of page ${row.page}`),
+    );
+  });
+
+  it("leaves a page the model did not give unknown and reads one outside its range as unknown", async () => {
+    const { extractor } = extractorAnswering((request) =>
+      rangeOf(request).then(({ pages }) =>
+        streamedJsonResponse({
+          listDate: null,
+          rows: [
+            { ...ROW, description: "No page", page: null },
+            { ...ROW, description: "Before the range", page: 0 },
+            { ...ROW, description: "Past the range", page: pages.length + 1 },
+            { ...ROW, description: "Last of the range", page: pages.length },
+          ],
+        }),
+      ),
+    );
+
+    const result = await extractor.extract(await sourceOfPages(7));
+
+    const rows = result.kind === "extracted" ? result.rows : [];
+    expect(rows.map((row) => [row.description, row.page])).toEqual([
+      ["No page", null],
+      ["Before the range", null],
+      ["Past the range", null],
+      ["Last of the range", 5],
+      ["No page", null],
+      ["Before the range", null],
+      ["Past the range", null],
+      ["Last of the range", 7],
+    ]);
+  });
+
+  it("takes the first date given in page order", async () => {
+    const { extractor } = extractorAnswering(async (request) => {
+      const { pages } = await rangeOf(request);
+      const dates: Record<number, string | null> = {
+        1: null,
+        6: "2026-03-01",
+        11: "2026-04-01",
+      };
+      if (pages[0] === 6) {
+        await aBriefPause();
+      }
+      return streamedJsonResponse({ listDate: dates[pages[0] ?? 0] ?? null, rows: [] });
+    });
+
+    const result = await extractor.extract(await sourceOfPages(12));
+
+    expect(result).toEqual({ kind: "extracted", listDate: "2026-03-01", rows: [] });
+  });
+
+  it("is read with at most three requests at the same time, and three when it has the ranges", async () => {
+    let inFlight = 0;
+    let mostInFlight = 0;
+    const { extractor, requests } = extractorAnswering(async (request) => {
+      inFlight += 1;
+      mostInFlight = Math.max(mostInFlight, inFlight);
+      await aBriefPause();
+      await aBriefPause();
+      inFlight -= 1;
+      return answerWithRowsOfEachPage(request);
+    });
+
+    await extractor.extract(await sourceOfPages(40));
+
+    expect(requests).toHaveLength(8);
+    expect(mostInFlight).toBe(3);
+  });
+
+  it("is unreadable when its rows together pass the limit of one list", async () => {
+    const half = Array.from({ length: PRICE_LIST_EXTRACTION_MAX_ROWS / 2 + 1 }, () => ROW);
+    const { extractor } = extractorAnswering(() =>
+      streamedJsonResponse({ listDate: null, rows: half }),
+    );
+
+    expect(await extractor.extract(await sourceOfPages(10))).toEqual({ kind: "unreadable" });
+  });
+});
+
+describe("a range that is too long for one answer", () => {
+  function answeringMaxTokensAbove(pageLimit: number) {
+    return (request: RecordedRequest) =>
+      rangeOf(request).then(({ pages }) =>
+        pages.length > pageLimit
+          ? streamedAnswerResponse({
+              textParts: [],
+              stopReason: "max_tokens",
+              withTextBlock: false,
+            })
+          : streamedJsonResponse({ listDate: null, rows: rowsOfEachPage(pages) }),
+      );
+  }
+
+  it("is read again in halves, down to the pages that fit, keeping each row on its page", async () => {
+    const { extractor, requests } = extractorAnswering(answeringMaxTokensAbove(2));
+
+    const result = await extractor.extract(await sourceOfPages(5));
+
+    expect(
+      (await Promise.all(requests.map(rangeOf))).map(({ pages }) => pages.join(",")).sort(),
+    ).toEqual(["1,2", "1,2,3,4,5", "3", "3,4,5", "4,5"]);
+    const rows = result.kind === "extracted" ? result.rows : [];
+    expect(rows.map((row) => row.page)).toEqual([1, 2, 3, 4, 5]);
+  });
+
+  it("makes the whole list unreadable when one page alone does not fit an answer", async () => {
+    const { extractor } = extractorAnswering(answeringMaxTokensAbove(0));
+
+    expect(await extractor.extract(await sourceOfPages(7))).toEqual({ kind: "unreadable" });
+  });
+});
+
+describe("a range that fails", () => {
+  const failures = [
+    [
+      "is refused as a document",
+      () => apiErrorResponse(400, "invalid_request_error"),
+      "unreadable",
+    ],
+    [
+      "is declined",
+      () => streamedAnswerResponse({ textParts: [], stopReason: "refusal", withTextBlock: false }),
+      "unreadable",
+    ],
+    [
+      "has an answer that is not JSON",
+      () => streamedAnswerResponse({ textParts: ["No"] }),
+      "unreadable",
+    ],
+    ["is rate limited", () => apiErrorResponse(429, "rate_limit_error"), "unavailable"],
+    ["meets a server error", () => apiErrorResponse(500, "api_error"), "unavailable"],
+    ["loses its connection", streamInterruptedByErrorResponse, "unavailable"],
+  ] as const;
+
+  it.each(failures)(
+    "makes the whole list, not just its range, fail when a middle range %s",
+    async (_name, failure, kind) => {
+      const { extractor } = extractorAnswering(async (request) => {
+        const { pages } = await rangeOf(request);
+        return pages[0] === 6 ? failure() : answerWithRowsOfEachPage(request);
+      });
+
+      expect(await extractor.extract(await sourceOfPages(15))).toEqual({ kind });
+    },
+  );
+
+  it("makes the list unavailable when the connection fails", async () => {
+    const { extractor } = extractorAnswering((request) => {
+      throw new TypeError(`fetch failed ${request.url}`);
+    });
+
+    expect(await extractor.extract(await sourceOfPages(15))).toEqual({ kind: "unavailable" });
+  });
+});
+
+describe("a document the extractor cannot open", () => {
+  it("is unreadable and is not sent", async () => {
+    const { extractor, requests } = extractorAnswering(answerWithRowsOfEachPage);
+
+    const result = await extractor.extract({
+      kind: "pdf",
+      bytes: new TextEncoder().encode("%PDF-1.7 this is not a document"),
+    });
+
+    expect(result).toEqual({ kind: "unreadable" });
+    expect(requests).toHaveLength(0);
   });
 });
