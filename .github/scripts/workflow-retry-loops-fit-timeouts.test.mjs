@@ -204,7 +204,7 @@ test("counts a loop that breaks once its counter reaches a literal limit", () =>
     "while true; do",
     "  ((attempt++))",
     '  timeout 100 docker pull "$IMAGE" && break',
-    '  [[ $attempt -ge 3 ]] && exit 1',
+    "  [[ $attempt -ge 3 ]] && exit 1",
     "  sleep 10",
     "done",
   ];
