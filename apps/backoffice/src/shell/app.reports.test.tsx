@@ -7,7 +7,7 @@ import {
   weekPaymentsReport,
 } from "../payments/test-support/payments-report-fixtures";
 import {
-  ANA_ID,
+  ANA_USER_ID,
   averageTicketReport,
   cashierSalesReport,
   categoryProductsReport,
@@ -390,7 +390,7 @@ test("opens the manual discounts report from the list and reads it from the clou
 });
 
 test("keeps the manual discounts report's filters after following its own side column link", async () => {
-  const url = `/reports/manual-discounts?authorizedBy=${ANA_ID}`;
+  const url = `/reports/manual-discounts?authorizedBy=${ANA_USER_ID}`;
   const services = reportsServices(["reports_area"]);
   window.history.pushState(null, "", url);
   const screen = await render(<App help={emptyHelp} services={services} />);
@@ -414,7 +414,7 @@ test("keeps the authorizer of the manual discounts report in the address", async
   await userEvent.click(screen.getByRole("button", { name: /Autorizó:/ }));
   await userEvent.click(screen.getByRole("option", { name: "Ana" }));
 
-  await expect.poll(() => window.location.search).toBe(`?authorizedBy=${ANA_ID}`);
+  await expect.poll(() => window.location.search).toBe(`?authorizedBy=${ANA_USER_ID}`);
 });
 
 test("rewrites a refused range of the manual discounts report out of the address", async () => {
@@ -422,14 +422,14 @@ test("rewrites a refused range of the manual discounts report out of the address
   window.history.pushState(
     null,
     "",
-    `/reports/manual-discounts?from=2026-10-08&to=2026-10-07&authorizedBy=${ANA_ID}`,
+    `/reports/manual-discounts?from=2026-10-08&to=2026-10-07&authorizedBy=${ANA_USER_ID}`,
   );
 
   await render(<App help={emptyHelp} services={services} />);
 
-  await expect.poll(() => window.location.search).toBe(`?authorizedBy=${ANA_ID}`);
+  await expect.poll(() => window.location.search).toBe(`?authorizedBy=${ANA_USER_ID}`);
   expect(services.manualDiscountsScreen.fetchManualDiscounts).toHaveBeenCalledWith({
-    authorized_by: ANA_ID,
+    authorized_by: ANA_USER_ID,
   });
 });
 

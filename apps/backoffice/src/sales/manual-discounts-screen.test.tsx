@@ -15,7 +15,7 @@ import { type ManualDiscountsFilters, manualDiscountsFilters } from "./manual-di
 import { ManualDiscountsScreen } from "./manual-discounts-screen";
 import type { ManualDiscountsScreenServices } from "./manual-discounts-services";
 import {
-  ANA_ID,
+  ANA_USER_ID,
   manualDiscountsReport,
   noManualDiscountsReport,
   singleManualDiscountReport,
@@ -113,7 +113,7 @@ test("calls a most authorized person without a name Sin identificar", async () =
     ...manualDiscountsReport,
     totals: {
       ...manualDiscountsReport.totals,
-      most_authorized: { id: ANA_ID, name: null, count: 2 },
+      most_authorized: { id: ANA_USER_ID, name: null, count: 2 },
     },
   });
 
@@ -222,7 +222,7 @@ test("asks the cloud for the range, the register and the authorizer the URL name
       from: "2026-10-02",
       to: "2026-10-05",
       register: FRONT_REGISTER_ID,
-      authorizedBy: ANA_ID,
+      authorizedBy: ANA_USER_ID,
     }),
   });
 
@@ -233,7 +233,7 @@ test("asks the cloud for the range, the register and the authorizer the URL name
         from: "2026-10-02",
         to: "2026-10-05",
         register_id: FRONT_REGISTER_ID,
-        authorized_by: ANA_ID,
+        authorized_by: ANA_USER_ID,
       },
     ]);
 });
@@ -266,7 +266,7 @@ test("offers the people who authorized a discount and asks the cloud again for t
   expect(options).toEqual(["Todos", "Ana", "Beto", "Sin identificar"]);
   await expect
     .poll(() => vi.mocked(services.fetchManualDiscounts).mock.lastCall)
-    .toEqual([{ authorized_by: ANA_ID }]);
+    .toEqual([{ authorized_by: ANA_USER_ID }]);
 });
 
 test("keeps the previous rows, marked as updating, while another authorizer loads", async () => {
@@ -309,7 +309,7 @@ test("says there are no discounts in the period, with nobody who authorized the 
 
 test.each([
   ["a register", { register: FRONT_REGISTER_ID }],
-  ["an authorizer", { authorizedBy: ANA_ID }],
+  ["an authorizer", { authorizedBy: ANA_USER_ID }],
 ])(
   "says no discount matches the filters when %s is chosen and none were made",
   async (_name, chosen) => {

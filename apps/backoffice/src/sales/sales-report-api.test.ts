@@ -9,7 +9,7 @@ import {
   fetchSalesReport,
 } from "./sales-report-api";
 import {
-  ANA_ID,
+  ANA_USER_ID,
   averageTicketReport,
   cashierSalesReport,
   categoryProductsReport,
@@ -189,11 +189,11 @@ test("fetchManualDiscounts asks for the range, the register and the authorizer c
     from: "2026-10-01",
     to: "2026-10-07",
     register_id: FRONT_REGISTER_ID,
-    authorized_by: ANA_ID,
+    authorized_by: ANA_USER_ID,
   });
 
   expect(fetch).toHaveBeenCalledWith(
-    `/api/reports/manual-discounts?from=2026-10-01&to=2026-10-07&register_id=${FRONT_REGISTER_ID}&authorized_by=${ANA_ID}`,
+    `/api/reports/manual-discounts?from=2026-10-01&to=2026-10-07&register_id=${FRONT_REGISTER_ID}&authorized_by=${ANA_USER_ID}`,
   );
 });
 

@@ -288,8 +288,8 @@ export const noPreviousAverageTicketReport: AverageTicketBody = {
   ],
 };
 
-export const ANA_ID = "77777777-7777-4777-8777-777777777777";
-export const BETO_ID = "88888888-8888-4888-8888-888888888888";
+export const ANA_USER_ID = "77777777-7777-4777-8777-777777777777";
+export const BETO_USER_ID = "88888888-8888-4888-8888-888888888888";
 export const REMOVED_USER_ID = "99999999-9999-4999-8999-999999999999";
 
 export const manualDiscountsReport: ManualDiscountsBody = {
@@ -304,7 +304,7 @@ export const manualDiscountsReport: ManualDiscountsBody = {
       product_name: null,
       adjustment: { kind: "AMOUNT", value: 70_000 },
       reason: "Cliente frecuente",
-      authorizer: { id: BETO_ID, name: "Beto" },
+      authorizer: { id: BETO_USER_ID, name: "Beto" },
       discounted: 70_000,
     },
     {
@@ -316,7 +316,7 @@ export const manualDiscountsReport: ManualDiscountsBody = {
       product_name: "Yerba 1 kg",
       adjustment: { kind: "PERCENT", value: 10 },
       reason: "Envase dañado",
-      authorizer: { id: ANA_ID, name: "Ana" },
+      authorizer: { id: ANA_USER_ID, name: "Ana" },
       discounted: 20_000,
     },
     {
@@ -328,7 +328,7 @@ export const manualDiscountsReport: ManualDiscountsBody = {
       product_name: "Azúcar 1 kg",
       adjustment: { kind: "AMOUNT", value: 50_000 },
       reason: "Regateo",
-      authorizer: { id: ANA_ID, name: "Ana" },
+      authorizer: { id: ANA_USER_ID, name: "Ana" },
       discounted: 50_000,
     },
     {
@@ -349,11 +349,11 @@ export const manualDiscountsReport: ManualDiscountsBody = {
     count: 4,
     line_count: 3,
     sale_count: 1,
-    most_authorized: { id: ANA_ID, name: "Ana", count: 2 },
+    most_authorized: { id: ANA_USER_ID, name: "Ana", count: 2 },
   },
   authorizers: [
-    { id: ANA_ID, name: "Ana" },
-    { id: BETO_ID, name: "Beto" },
+    { id: ANA_USER_ID, name: "Ana" },
+    { id: BETO_USER_ID, name: "Beto" },
     { id: REMOVED_USER_ID, name: null },
   ],
 };
@@ -366,9 +366,9 @@ export const singleManualDiscountReport: ManualDiscountsBody = {
     count: 1,
     line_count: 0,
     sale_count: 1,
-    most_authorized: { id: BETO_ID, name: "Beto", count: 1 },
+    most_authorized: { id: BETO_USER_ID, name: "Beto", count: 1 },
   },
-  authorizers: [{ id: BETO_ID, name: "Beto" }],
+  authorizers: [{ id: BETO_USER_ID, name: "Beto" }],
 };
 
 export const noManualDiscountsReport: ManualDiscountsBody = {

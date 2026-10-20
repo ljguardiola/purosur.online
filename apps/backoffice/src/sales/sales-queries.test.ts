@@ -2,7 +2,7 @@ import { QueryClient } from "@tanstack/react-query";
 import { expect, test } from "vitest";
 import { FRONT_REGISTER_ID } from "../shell/test-support/report-fixtures";
 import { salesKey, salesKeys } from "./sales-queries";
-import { ANA_ID } from "./test-support/sales-fixtures";
+import { ANA_USER_ID } from "./test-support/sales-fixtures";
 
 test("invalidating the sales key marks every sales read stale", async () => {
   const client = new QueryClient();
@@ -84,7 +84,7 @@ test("each range, register and authorizer has its own manual discounts key", () 
     salesKeys.manualDiscounts({ from: "2026-10-01", to: "2026-10-07" }),
     salesKeys.manualDiscounts({ from: "2026-10-01", to: "2026-10-08" }),
     salesKeys.manualDiscounts({ register_id: FRONT_REGISTER_ID }),
-    salesKeys.manualDiscounts({ authorized_by: ANA_ID }),
+    salesKeys.manualDiscounts({ authorized_by: ANA_USER_ID }),
     salesKeys.promotions({ register_id: FRONT_REGISTER_ID }),
   ];
 
