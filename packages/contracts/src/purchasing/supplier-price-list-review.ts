@@ -11,7 +11,10 @@ const supplierPriceListRowSchema = z.object({
 });
 
 export const supplierPriceListReviewSchema = z.object({
-  list: supplierPriceListSummarySchema.extend({ version: z.int() }),
+  list: supplierPriceListSummarySchema.extend({
+    version: z.int(),
+    pricesIncludeVat: z.boolean().nullable(),
+  }),
   rows: z.array(supplierPriceListRowSchema),
   actions: z.object({ changeRows: z.boolean(), confirm: z.boolean(), discard: z.boolean() }),
 });
