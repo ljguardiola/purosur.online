@@ -58,6 +58,7 @@ function buildFailingRouter(shouldThrow: () => boolean) {
         cloud: "reachable",
         serial_devices: { scale: "matching", reader: "matching" },
         serial_devices_setup_offered: false,
+        fiscal_mode: "real_time",
       }),
       recordCashMovement: async () => ({ kind: "unavailable" }),
       signIn: async () => ({ kind: "unavailable" }),

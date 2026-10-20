@@ -374,6 +374,7 @@ describe("createCoreClient", () => {
       cloud: "unreachable",
       serial_devices: { scale: "matching", reader: "not_registered" },
       serial_devices_setup_offered: false,
+      fiscal_mode: "real_time",
     };
 
     const asked = client.registerStatus();
@@ -2148,6 +2149,43 @@ describe("createCoreClient", () => {
 
     expect(first).toBe(1);
     expect(second).toBe(2);
+  });
+
+  it("tells each listener every time the fiscal mode changes, until it stops listening", () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+    let first = 0;
+    let second = 0;
+    const stopFirst = client.onFiscalModeChanged(() => {
+      first += 1;
+    });
+    client.onFiscalModeChanged(() => {
+      second += 1;
+    });
+
+    port.answer({ type: "fiscal-mode-changed" });
+    stopFirst();
+    port.answer({ type: "fiscal-mode-changed" });
+
+    expect(first).toBe(1);
+    expect(second).toBe(2);
+  });
+
+  it("does not take a fiscal mode change for the answer to a pending request", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const devices = client.readSerialDevices();
+    port.answer({ type: "fiscal-mode-changed" });
+    port.answer({
+      type: "read-serial-devices-result",
+      request_id: "request-1",
+      outcome: { kind: "unavailable" },
+    });
+
+    await expect(devices).resolves.toEqual({ kind: "unavailable" });
   });
 
   it("does not take a battery standing change for the answer to a pending request", async () => {

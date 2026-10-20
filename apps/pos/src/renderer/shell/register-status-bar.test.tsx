@@ -36,6 +36,7 @@ function loaded(status: Partial<RegisterStatus> = {}): CoreData<RegisterStatus> 
       cloud: "reachable",
       serial_devices: { scale: "matching", reader: "matching" },
       serial_devices_setup_offered: false,
+      fiscal_mode: "real_time",
       ...status,
     },
     refreshing: false,
@@ -418,5 +419,55 @@ describe("RegisterStatusBar", () => {
 
     const failed = await renderBar({ status: { status: "failed", retry: () => {} } });
     await expectNoAccessibilityViolations(failed.container);
+  });
+
+  it.each([
+    ["real_time", "Factura en línea"],
+    ["offline_code", "Contingencia CAEA"],
+  ] as const)("shows the fiscal mode %s as %s after the cloud", async (fiscalMode, text) => {
+    const screen = await renderBar({ status: loaded({ fiscal_mode: fiscalMode }) });
+
+    expect(barText(screen)).toMatch(new RegExp(`Nube conectada.*${text}`));
+  });
+
+  it("shows no fiscal indicator while the register is deferring its sales", async () => {
+    const screen = await renderBar({ status: loaded({ fiscal_mode: "deferring" }) });
+
+    expect(barText(screen)).not.toMatch(/Factura en línea|Contingencia CAEA/);
+  });
+
+  it("shows no fiscal indicator while the status is loading", async () => {
+    const screen = await renderBar({ status: { status: "loading" } });
+
+    expect(barText(screen)).not.toMatch(/Factura en línea|Contingencia CAEA/);
+  });
+
+  it("counts the contingency as one more notice, shown in the warning tone with its explanation", async () => {
+    const screen = await renderBar({
+      status: loaded({
+        fiscal_mode: "offline_code",
+        conditions: [{ kind: "serial_device_missing", level: "warning" }],
+      }),
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: "2 avisos" }));
+
+    await expect.element(screen.getByText("Facturación en modo de respaldo")).toBeVisible();
+  });
+
+  it("shows the notices pill for the contingency alone", async () => {
+    const screen = await renderBar({ status: loaded({ fiscal_mode: "offline_code" }) });
+
+    await userEvent.click(screen.getByRole("button", { name: "1 aviso" }));
+
+    await expect.element(screen.getByText("Facturación en modo de respaldo")).toBeVisible();
+    const card = noticeCard(screen.getByRole("dialog", { name: "Avisos de esta caja" }).element());
+    expect(getComputedStyle(card).borderLeftColor).toBe(tokenRgb("warning-soft"));
+  });
+
+  it("shows no contingency notice in real time", async () => {
+    const screen = await renderBar({ status: loaded({ fiscal_mode: "real_time" }) });
+
+    await expect.element(screen.getByRole("button", { name: /aviso/ })).not.toBeInTheDocument();
   });
 });
