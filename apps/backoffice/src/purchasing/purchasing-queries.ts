@@ -5,11 +5,13 @@ import type {
   PackagingSummary,
   PurchaseChoices,
   PurchaseSummary,
+  SupplierPriceListSummary,
   SupplierSummary,
 } from "@purosur/contracts";
 import { useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
-import { fetchCloudQuery, useCloudQuery } from "../platform/use-cloud-query";
+import { type CloudData, fetchCloudQuery, useCloudQuery } from "../platform/use-cloud-query";
 import type {
   FetchFreightsInput,
   FetchLinkablePurchasesInput,
@@ -18,6 +20,11 @@ import type {
 } from "./freights-api";
 import type { fetchPackagings } from "./packagings-api";
 import type { fetchPurchaseChoices, fetchPurchases } from "./purchases-api";
+import type {
+  fetchSupplierPriceListReview,
+  fetchSupplierPriceLists,
+  SupplierPriceListReviewRead,
+} from "./supplier-price-lists-api";
 import type { fetchSuppliers } from "./suppliers-api";
 
 export const purchasingKey = ["purchasing"] as const;
@@ -29,7 +36,26 @@ export const purchasingKeys = {
   purchaseChoices: [...purchasingKey, "purchase-choices"] as const,
   freights: [...purchasingKey, "freights"] as const,
   linkablePurchases: [...purchasingKey, "linkable-purchases"] as const,
+  supplierPriceLists: [...purchasingKey, "supplier-price-lists"] as const,
+  supplierPriceListReview: [...purchasingKey, "supplier-price-list-review"] as const,
 };
+
+export const SUPPLIER_PRICE_LIST_READING_REFRESH_MS = 5_000;
+
+function useCloudQueryWhileReading<T>(
+  query: Omit<Parameters<typeof useCloudQuery<T>>[0], "refetchInterval">,
+  isReading: (value: T) => boolean,
+): CloudData<T> {
+  const [reading, setReading] = useState(false);
+  const data = useCloudQuery<T>({
+    ...query,
+    ...(reading ? { refetchInterval: SUPPLIER_PRICE_LIST_READING_REFRESH_MS } : {}),
+  });
+  if (data.status === "loaded" && isReading(data.value) !== reading) {
+    setReading(!reading);
+  }
+  return data;
+}
 
 export function useSuppliersQuery(params: {
   fetchSuppliers: typeof fetchSuppliers;
@@ -112,6 +138,39 @@ export function useLinkablePurchasesQuery(params: {
     onSessionEnded: params.onSessionEnded,
     onForbidden: sendToMyAccount,
   });
+}
+
+export function useSupplierPriceListsQuery(params: {
+  fetchSupplierPriceLists: typeof fetchSupplierPriceLists;
+  onSessionEnded: () => void;
+}) {
+  const sendToMyAccount = useSendToMyAccount();
+  return useCloudQueryWhileReading<SupplierPriceListSummary[]>(
+    {
+      queryKey: purchasingKeys.supplierPriceLists,
+      read: params.fetchSupplierPriceLists,
+      onSessionEnded: params.onSessionEnded,
+      onForbidden: sendToMyAccount,
+    },
+    (lists) => lists.some((list) => list.state === "READING"),
+  );
+}
+
+export function useSupplierPriceListReviewQuery(params: {
+  listId: string;
+  fetchSupplierPriceListReview: typeof fetchSupplierPriceListReview;
+  onSessionEnded: () => void;
+}) {
+  const sendToMyAccount = useSendToMyAccount();
+  return useCloudQueryWhileReading<SupplierPriceListReviewRead>(
+    {
+      queryKey: [...purchasingKeys.supplierPriceListReview, params.listId],
+      read: () => params.fetchSupplierPriceListReview(params.listId),
+      onSessionEnded: params.onSessionEnded,
+      onForbidden: sendToMyAccount,
+    },
+    (read) => read.kind === "found" && read.review.list.state === "READING",
+  );
 }
 
 export function useRefreshPurchasing(): () => Promise<void> {

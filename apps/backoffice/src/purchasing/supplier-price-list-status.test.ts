@@ -29,7 +29,7 @@ describe("supplierPriceListStatusOf", () => {
     });
   });
 
-  test("calls a confirmed list reviewed, and a confirmed list a newer one replaced replaced", () => {
+  test("calls a confirmed list reviewed, and a confirmed list a newer one replaced", () => {
     expect(supplierPriceListStatusOf(REVIEWED_LIST)).toEqual({
       tone: "success",
       label: "Revisada",
