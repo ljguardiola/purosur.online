@@ -8,7 +8,9 @@ import {
   decideConfirmation,
   isPriceListRowPrice,
   isSourcePage,
+  isSupplierPriceListFileNameTooLong,
   isSupplierPriceListPdfTooLarge,
+  SUPPLIER_PRICE_LIST_FILE_NAME_MAX_LENGTH,
   SUPPLIER_PRICE_LIST_PDF_MAX_BYTES,
   SUPPLIER_PRICE_LIST_READ_FAILURES,
   SUPPLIER_PRICE_LIST_SOURCE_KINDS,
@@ -46,6 +48,19 @@ describe("isSupplierPriceListPdfTooLarge", () => {
 
   it("refuses one byte over the cap", () => {
     expect(isSupplierPriceListPdfTooLarge(SUPPLIER_PRICE_LIST_PDF_MAX_BYTES + 1)).toBe(true);
+  });
+});
+
+describe("isSupplierPriceListFileNameTooLong", () => {
+  it("allows a file name of 255 characters and refuses one more", () => {
+    expect(SUPPLIER_PRICE_LIST_FILE_NAME_MAX_LENGTH).toBe(255);
+    expect(isSupplierPriceListFileNameTooLong("a".repeat(255))).toBe(false);
+    expect(isSupplierPriceListFileNameTooLong("a".repeat(256))).toBe(true);
+  });
+
+  it("counts characters, not UTF-16 units", () => {
+    expect(isSupplierPriceListFileNameTooLong("🐟".repeat(255))).toBe(false);
+    expect(isSupplierPriceListFileNameTooLong("🐟".repeat(256))).toBe(true);
   });
 });
 
