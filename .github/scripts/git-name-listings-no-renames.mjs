@@ -78,7 +78,6 @@ function isBlockScope(node) {
     ts.isForInStatement(node) ||
     ts.isForOfStatement(node) ||
     ts.isCaseBlock(node) ||
-    ts.isCatchClause(node) ||
     ts.isFunctionLike(node)
   );
 }
@@ -265,12 +264,51 @@ function createModules(readModule) {
     return constantInitializer(declaration);
   };
 
+  const exportedNamespace = (path, name, visiting = new Set()) => {
+    const key = `${path}\0${name}`;
+    if (path === undefined || visiting.has(key)) return undefined;
+    const reached = new Set([...visiting, key]);
+    const { sourceFile } = load(path);
+    for (const statement of sourceFile.statements) {
+      if (!ts.isExportDeclaration(statement)) continue;
+      const from = importedPath(sourceFile, statement.moduleSpecifier);
+      if (statement.exportClause === undefined) {
+        const namespace = exportedNamespace(from, name, reached);
+        if (namespace !== undefined) return namespace;
+        continue;
+      }
+      if (ts.isNamespaceExport(statement.exportClause)) {
+        if (statement.exportClause.name.text === name) return from;
+        continue;
+      }
+      const specifier = statement.exportClause.elements.find(
+        (element) => element.name.text === name,
+      );
+      if (specifier === undefined) continue;
+      const local = specifier.propertyName ?? specifier.name;
+      if (statement.moduleSpecifier !== undefined) {
+        return exportedNamespace(from, local.text, reached);
+      }
+      return namespaceOfDeclaration(scopes.get(sourceFile)?.get(local.text), reached);
+    }
+    return undefined;
+  };
+
+  const namespaceOfDeclaration = (declaration, visiting) => {
+    if (declaration === undefined) return undefined;
+    if (ts.isNamespaceImport(declaration)) return importOf(declaration);
+    if (ts.isImportSpecifier(declaration)) {
+      const imported = declaration.propertyName ?? declaration.name;
+      return exportedNamespace(importOf(declaration), imported.text, visiting);
+    }
+    return undefined;
+  };
+
   const constantValueOf = (node) => {
     if (ts.isIdentifier(node)) return valueOfDeclaration(bindingOf(node));
     if (ts.isPropertyAccessExpression(node) && ts.isIdentifier(node.expression)) {
-      const namespace = bindingOf(node.expression);
-      if (namespace === undefined || !ts.isNamespaceImport(namespace)) return undefined;
-      return exportedValue(importOf(namespace), node.name.text);
+      const namespace = namespaceOfDeclaration(bindingOf(node.expression));
+      return exportedValue(namespace, node.name.text);
     }
     return undefined;
   };
