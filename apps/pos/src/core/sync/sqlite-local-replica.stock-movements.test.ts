@@ -130,6 +130,24 @@ describe("the stock movements a register pulls", () => {
     expect(balance()).toBe(7000);
   });
 
+  it("never count twice a sale of the snapshot's old installation that comes back by pull once the register took a new one", async () => {
+    sellOwnLine("own-sale-movement", -3000);
+    database.prepare("UPDATE sync_state SET device_id = 'device-b'").run();
+
+    await save(
+      stockMovementChange(1, "own-sale-movement", {
+        kind: "sale",
+        delta: -3000,
+        occurred_at: SOLD_AT,
+      }),
+    );
+
+    expect(balance()).toBe(7000);
+    expect(database.prepare("SELECT COUNT(*) AS total FROM stock_movements").get()).toEqual({
+      total: 1,
+    });
+  });
+
   it.each([
     ["an initial count", "opening_count", 5000, 15_000],
     ["the withdrawal of an initial count", "opening_count_withdrawal", -5000, 5000],

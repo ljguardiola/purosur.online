@@ -45,6 +45,7 @@ afterEach(async () => {
   await rm(folder, { recursive: true, force: true });
 });
 
+type SnapshotJobMessage = Exclude<SnapshotWorkerJobMessage, { kind: "restore" }>;
 type TakeJob = Extract<SnapshotWorkerJobMessage, { kind: "take" }>;
 
 function takeJob(overrides: Partial<TakeJob> = {}): TakeJob {
@@ -63,7 +64,7 @@ function takeJob(overrides: Partial<TakeJob> = {}): TakeJob {
   };
 }
 
-function uploadJob(): SnapshotWorkerJobMessage {
+function uploadJob(): SnapshotJobMessage {
   return {
     kind: "upload_pending",
     device_token: "prefix.secret",
@@ -72,7 +73,7 @@ function uploadJob(): SnapshotWorkerJobMessage {
   };
 }
 
-function run(job: SnapshotWorkerJobMessage, durability?: Durability) {
+function run(job: SnapshotJobMessage, durability?: Durability) {
   return runSnapshotJob(job, {
     cloud: { cloudUrl: job.cloud_url, fetch: cloud.fetch, sleep: async () => {} },
     now: () => NOW,

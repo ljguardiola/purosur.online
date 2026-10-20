@@ -16,6 +16,7 @@ const restorableSnapshotSchema = z.object({
 });
 
 export const restorableSnapshotsSchema = z.object({
+  register_id: recordIdSchema(),
   generations: z.array(restorableSnapshotSchema),
 });
 
