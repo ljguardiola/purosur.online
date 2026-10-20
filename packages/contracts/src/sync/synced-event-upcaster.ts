@@ -1,4 +1,4 @@
-import type { ManualAdjustment, SaleDiscount } from "@purosur/domain";
+import type { DiscountBenefit, ManualAdjustment, SaleDiscount } from "@purosur/domain";
 import type {
   DecodedEvent,
   EventUpcaster,
@@ -61,6 +61,14 @@ function saleDiscount(discount: SaleDiscountPayload): SaleDiscount {
     : { kind: "AMOUNT", amount: discount.value, reason, authorizedBy };
 }
 
+type LinePromotionPayload = CompletedSalePayload["lines"][number]["promotions"][number];
+
+function promotionBenefit(promotion: LinePromotionPayload): DiscountBenefit {
+  return promotion.kind === "PERCENT_OFF"
+    ? { kind: "PERCENT_OFF", percent: promotion.percent }
+    : { kind: "BUY_N_PAY_M", buyQty: promotion.buy_qty, payQty: promotion.pay_qty };
+}
+
 function saleParts(payload: CompletedSalePayload | CancelledSalePayload | VoidedSalePayload) {
   const discount = "sale_discount" in payload ? payload.sale_discount : null;
   return {
@@ -76,6 +84,10 @@ function saleParts(payload: CompletedSalePayload | CancelledSalePayload | Voided
       promotionId: line.promotion_id,
       discountAmount: line.discount_amount,
       saleDiscountShare: "sale_discount_share" in line ? line.sale_discount_share : 0,
+      promotions: line.promotions.map((promotion) => ({
+        discountId: promotion.discount_id,
+        benefit: promotionBenefit(promotion),
+      })),
       weightSource: "weight_source" in line ? line.weight_source : null,
       manualAdjustment:
         "manual_adjustment" in line ? manualAdjustment(line.manual_adjustment) : null,
