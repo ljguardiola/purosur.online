@@ -166,6 +166,7 @@ describe("POST /devices/current/reset", () => {
     expect(response.statusCode).toBe(200);
     const body = registerResetResponseSchema.parse(response.json());
     expect(body.events.map(({ event_id }) => event_id)).toEqual([eventId]);
+    expect(body.events.map(({ device_id }) => device_id)).toEqual([predecessor.deviceId]);
     expect(body.next).toBeNull();
     expect(body.users).toEqual([
       {
