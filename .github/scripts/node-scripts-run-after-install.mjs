@@ -89,7 +89,7 @@ const TEST_RUNNER_DEFAULT_PATTERNS = [
 const SOURCE_EXTENSIONS = new Set([".js", ".mjs", ".cjs", ".ts", ".mts", ".cts"]);
 const GLOB_CHARACTERS = /[*?[]/;
 const PACKAGE_SPECIFIER =
-  /^(?:@[a-z0-9~-][a-z0-9._~-]*\/)?[a-z0-9~-][a-z0-9._~-]*(?:\/[A-Za-z0-9._~@-]+)*$/;
+  /^(?:@[A-Za-z0-9~-][A-Za-z0-9._~-]*\/)?[A-Za-z0-9~-][A-Za-z0-9._~-]*(?:\/[A-Za-z0-9._~@-]+)*$/;
 
 function resolveNode(doc, node) {
   return isAlias(node) ? node.resolve(doc) : node;
