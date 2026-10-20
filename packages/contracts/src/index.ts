@@ -440,6 +440,7 @@ export {
   snapshotVerificationQuerySchema,
 } from "./register/snapshot-verification.js";
 export type {
+  SnapshotRestoreOutcomeKind,
   SnapshotWorkerJobMessage,
   SnapshotWorkerLaunchRequest,
   SnapshotWorkerMessage,

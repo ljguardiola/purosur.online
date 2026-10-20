@@ -481,6 +481,7 @@ describe("GET /devices/current/snapshots", () => {
 
     expect(response.statusCode).toBe(200);
     expect(restorableSnapshotsSchema.parse(response.json())).toEqual({
+      register_id: installation.registerId,
       generations: [
         {
           generation_id: OTHER_GENERATION_ID,
@@ -508,14 +509,17 @@ describe("GET /devices/current/snapshots", () => {
       tx.recordSnapshotKey(other.registerId, { version: 1, key: "other-key" }),
     );
     await seedGeneration(other, { status: "verified" });
-    const { deviceToken } = await enrolled();
+    const { deviceToken, registerId } = await enrolled();
     build();
 
     const response = await call("GET", "/devices/current/snapshots", {
       authorization: `Bearer ${deviceToken}`,
     });
 
-    expect(restorableSnapshotsSchema.parse(response.json())).toEqual({ generations: [] });
+    expect(restorableSnapshotsSchema.parse(response.json())).toEqual({
+      register_id: registerId,
+      generations: [],
+    });
   });
 
   it("answers snapshot_backups_unavailable, reporting why, when the bucket cannot presign", async () => {
