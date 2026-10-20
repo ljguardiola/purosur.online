@@ -296,8 +296,9 @@ describe("decideSaleAuthorization", () => {
           aggregate_type: "Sale",
           aggregate_id: SALE_ID,
           event_type: "offline_fiscal_document_issued",
-          schema_version: 1,
+          schema_version: 2,
           payload: expect.objectContaining({
+            document: expect.objectContaining({ invoice_class: "C" }),
             fiscal_document_id: "id-1",
             register_id: "register-1",
             number: 121,
