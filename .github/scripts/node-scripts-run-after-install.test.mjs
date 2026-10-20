@@ -396,6 +396,16 @@ test("finds node in a command substitution inside arithmetic", () => {
   assert.equal(check(job("      - run: (( $(node s/main.mjs) > 0 ))"), importsYaml).length, 1);
 });
 
+test("finds node in a backtick substitution inside arithmetic", () => {
+  assert.equal(check(job("      - run: (( `node s/main.mjs` > 0 ))"), importsYaml).length, 1);
+});
+
+test("finds node in nested subshells that open with two parentheses", () => {
+  for (const run of ["((node s/main.mjs) || true)", "((node s/main.mjs; true) 2>&1) | tee log"]) {
+    assert.equal(check(job(`      - run: ${run}`), importsYaml).length, 1, run);
+  }
+});
+
 test("ignores node commands that run no script", () => {
   assert.deepEqual(check(job("      - run: node --version && node -v"), {}), []);
 });
