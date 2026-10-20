@@ -1,7 +1,7 @@
 import {
   Button,
   EmptyState,
-  FieldGroup,
+  FilePicker,
   InlineNotice,
   LoadFailure,
   LoadingPlaceholder,
@@ -16,7 +16,6 @@ import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { purchaseSupplierOptions } from "./purchase-form";
 import { useSuppliersQuery } from "./purchasing-queries";
-import { SupplierPriceListFilePicker } from "./supplier-price-list-file-picker";
 import type { uploadSupplierPriceList } from "./supplier-price-lists-api";
 import type { fetchSuppliers } from "./suppliers-api";
 import {
@@ -277,16 +276,20 @@ export function UploadSupplierPriceListModal({
         )}
         <form.AppField name="file">
           {(field) => (
-            <FieldGroup label="Archivo" required>
-              <SharedFieldError>
-                {() => (
-                  <SupplierPriceListFilePicker
-                    file={field.state.value}
-                    onChange={field.handleChange}
-                  />
-                )}
-              </SharedFieldError>
-            </FieldGroup>
+            <SharedFieldError>
+              {(errorMessageId) => (
+                <FilePicker
+                  label="Archivo"
+                  required
+                  accept="application/pdf,.pdf"
+                  chooseText="Elegir un archivo"
+                  chooseAnotherText="Elegir otro archivo"
+                  file={field.state.value}
+                  onChange={field.handleChange}
+                  {...(errorMessageId === undefined ? {} : { errorMessageId })}
+                />
+              )}
+            </SharedFieldError>
           )}
         </form.AppField>
         <p className="text-detail text-text-subtle">
