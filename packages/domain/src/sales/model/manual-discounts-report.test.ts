@@ -220,16 +220,22 @@ describe("manualDiscountRows", () => {
       expect(rows.map((row) => row.saleId)).toEqual(["B1", "a0", "a1"]);
     });
 
-    it("puts the discount on the total of a sale before the discounts of its lines", () => {
-      const rows = manualDiscountRows(
-        recordsOf([saleDiscount("s1")], [lineDiscount("s1", "l1"), lineDiscount("s0", "l0")]),
-      );
+    it("puts the discount on the total of a sale before the discounts of its lines, whatever order they arrive in", () => {
+      const sale = saleDiscount("s1");
+      const lines = [lineDiscount("s1", "A1"), lineDiscount("s1", "0z")];
+      const other = lineDiscount("s0", "A0");
 
-      expect(rows.map((row) => [row.saleId, row.kind])).toEqual([
-        ["s0", "LINE"],
-        ["s1", "SALE"],
-        ["s1", "LINE"],
-      ]);
+      for (const records of [
+        recordsOf([sale], [...lines, other]),
+        recordsOf([sale], [other, ...[...lines].reverse()]),
+      ]) {
+        expect(manualDiscountRows(records).map((row) => [row.saleId, row.lineId])).toEqual([
+          ["s0", "A0"],
+          ["s1", null],
+          ["s1", "0z"],
+          ["s1", "A1"],
+        ]);
+      }
     });
 
     it("orders the lines of a sale by line id, comparing code units", () => {
