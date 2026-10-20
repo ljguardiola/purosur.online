@@ -107,11 +107,15 @@ function rowOfLine(record: LineDiscountRecord): ManualDiscountRow {
   };
 }
 
+function lineKey(row: ManualDiscountRow): string {
+  return row.lineId ?? "";
+}
+
 function newestFirst(a: ManualDiscountRow, b: ManualDiscountRow): number {
   return (
     b.completedAt.getTime() - a.completedAt.getTime() ||
     codeUnitOrder(a.saleId, b.saleId) ||
-    codeUnitOrder(a.lineId ?? "", b.lineId ?? "")
+    codeUnitOrder(lineKey(a), lineKey(b))
   );
 }
 
