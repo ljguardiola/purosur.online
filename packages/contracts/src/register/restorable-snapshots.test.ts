@@ -10,22 +10,49 @@ const GENERATION = {
   download_url: "https://bucket.example.test/snapshots/r/g?X-Amz-Signature=abc",
 };
 
+const REGISTER_ID = "7c9e6679-7425-40de-944b-e07fc1f90ae7";
+
 describe("restorableSnapshotsSchema", () => {
   it("reads the generations a restore can use", () => {
-    expect(restorableSnapshotsSchema.parse({ generations: [GENERATION] })).toEqual({
+    expect(
+      restorableSnapshotsSchema.parse({ register_id: REGISTER_ID, generations: [GENERATION] }),
+    ).toEqual({
+      register_id: REGISTER_ID,
       generations: [GENERATION],
     });
   });
 
   it("reads a generation id written in uppercase as lowercase", () => {
     const uppercase = { ...GENERATION, generation_id: GENERATION.generation_id.toUpperCase() };
-    expect(restorableSnapshotsSchema.parse({ generations: [uppercase] })).toEqual({
+    expect(
+      restorableSnapshotsSchema.parse({ register_id: REGISTER_ID, generations: [uppercase] }),
+    ).toEqual({
+      register_id: REGISTER_ID,
       generations: [GENERATION],
     });
   });
 
   it("reads an empty list", () => {
-    expect(restorableSnapshotsSchema.parse({ generations: [] })).toEqual({ generations: [] });
+    expect(restorableSnapshotsSchema.parse({ register_id: REGISTER_ID, generations: [] })).toEqual({
+      register_id: REGISTER_ID,
+      generations: [],
+    });
+  });
+
+  it("reads a register id written in uppercase as lowercase", () => {
+    expect(
+      restorableSnapshotsSchema.parse({ register_id: REGISTER_ID.toUpperCase(), generations: [] }),
+    ).toEqual({ register_id: REGISTER_ID, generations: [] });
+  });
+
+  it("refuses an answer without a register id", () => {
+    expect(restorableSnapshotsSchema.safeParse({ generations: [GENERATION] }).success).toBe(false);
+  });
+
+  it("refuses a register id that is not a uuid", () => {
+    expect(
+      restorableSnapshotsSchema.safeParse({ register_id: "r1", generations: [] }).success,
+    ).toBe(false);
   });
 
   it.each([
@@ -45,8 +72,10 @@ describe("restorableSnapshotsSchema", () => {
     ["a generation id that is not a uuid", { generation_id: "g1" }],
   ])("refuses a generation with %s", (_name, override) => {
     expect(
-      restorableSnapshotsSchema.safeParse({ generations: [{ ...GENERATION, ...override }] })
-        .success,
+      restorableSnapshotsSchema.safeParse({
+        register_id: REGISTER_ID,
+        generations: [{ ...GENERATION, ...override }],
+      }).success,
     ).toBe(false);
   });
 });

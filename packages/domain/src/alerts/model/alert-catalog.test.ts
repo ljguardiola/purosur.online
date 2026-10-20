@@ -40,6 +40,7 @@ describe("ALERT_KINDS", () => {
       "external_billing",
       "fortnight_report_needs_regularization",
       "clock_corrected",
+      "fortnight_report_owed_elsewhere",
     ]);
   });
 });

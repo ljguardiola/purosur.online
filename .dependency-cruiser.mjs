@@ -1,4 +1,4 @@
-export const CLOUD_ONLY_CONCEPTS = ["purchasing", "alerts", "catalog", "pricing", "backups"];
+export const CLOUD_ONLY_CONCEPTS = ["purchasing", "alerts", "catalog", "pricing"];
 
 const REAL_POSTGRES_TEST = "apps/cloud/src/.+\\.integration\\.test\\.ts$";
 

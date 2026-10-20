@@ -4,6 +4,7 @@ import {
   salesByCashierSchema,
   salesByProductAndCategoryQuerySchema,
   salesByProductAndCategorySchema,
+  salesByPromotionSchema,
   salesReportSchema,
 } from "@purosur/contracts";
 import {
@@ -11,6 +12,7 @@ import {
   readSalesByCashier,
   readSalesByDay,
   readSalesByProductAndCategory,
+  readSalesByPromotion,
 } from "@purosur/domain/sales/use-cases";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
@@ -24,6 +26,7 @@ import {
 } from "../sessions/route-access.js";
 import { DrizzleCashierSalesReportReader } from "./drizzle-cashier-sales-report-reader.js";
 import { DrizzleProductSalesReportReader } from "./drizzle-product-sales-report-reader.js";
+import { DrizzlePromotionSalesReportReader } from "./drizzle-promotion-sales-report-reader.js";
 import { DrizzleSalesReportReader } from "./drizzle-sales-report-reader.js";
 
 export interface SalesReportRouteOptions<TQueryResult extends PgQueryResultHKT> {
@@ -42,6 +45,7 @@ export function registerSalesReportRoutes<TQueryResult extends PgQueryResultHKT>
   const reader = new DrizzleSalesReportReader(options.db);
   const productReader = new DrizzleProductSalesReportReader(options.db);
   const cashierReader = new DrizzleCashierSalesReportReader(options.db);
+  const promotionReader = new DrizzlePromotionSalesReportReader(options.db);
   const preHandler = sameOriginGuard(options.backofficeOrigin);
   const config = { access: capabilityAccess("reports_area"), sessionSource };
 
@@ -125,6 +129,47 @@ export function registerSalesReportRoutes<TQueryResult extends PgQueryResultHKT>
           sales_count: report.totals.salesCount,
           total: report.totals.total,
           average_ticket: report.totals.averageTicket,
+        },
+      }),
+    );
+  });
+
+  app.get("/reports/sales-by-promotion", { preHandler, config }, async (request, reply) => {
+    const query = await readValidatedBody(reply, reportQuerySchema, request.query);
+    if (!query) {
+      return;
+    }
+    const report = await readSalesByPromotion(
+      { reader: promotionReader, clock: { now } },
+      {
+        locationId: openSessionOf(request).locationId,
+        asked: { from: query.from, to: query.to },
+        registerId: query.register_id,
+      },
+    );
+    await reply.code(200).send(
+      salesByPromotionSchema.parse({
+        range: report.range,
+        rows: report.rows.map((row) => ({
+          promotion_id: row.promotionId,
+          name: row.name,
+          terms: row.terms,
+          lines: row.lines,
+          units: row.units,
+          thousandths: row.thousandths,
+          discounted: row.discounted,
+        })),
+        totals: {
+          discounted: report.totals.discounted,
+          lines: report.totals.lines,
+          most_used:
+            report.totals.mostUsed === null
+              ? null
+              : {
+                  promotion_id: report.totals.mostUsed.promotionId,
+                  name: report.totals.mostUsed.name,
+                  lines: report.totals.mostUsed.lines,
+                },
         },
       }),
     );

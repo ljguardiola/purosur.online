@@ -226,13 +226,17 @@ const lotsExpiringDetailSchema = z.object({
   aboutViewerBranch: z.boolean(),
 });
 
-const fortnightReportNeedsRegularizationDetailSchema = z.object({
+const fortnightReportOwedElsewhereDetailSchema = z.object({
   pointOfSaleNumber: z.int(),
-  registerId: z.string(),
-  registerName: z.string().optional(),
   fortnightStart: z.string(),
   fortnightEnd: z.string(),
 });
+
+const fortnightReportNeedsRegularizationDetailSchema =
+  fortnightReportOwedElsewhereDetailSchema.extend({
+    registerId: z.string(),
+    registerName: z.string().optional(),
+  });
 
 const fortnightReportOverdueDetailSchema = fortnightReportNeedsRegularizationDetailSchema.extend({
   deadline: z.string(),
@@ -400,6 +404,11 @@ const alertDetailKinds = [
     ...alertBase,
     kind: z.literal("fortnight_report_needs_regularization" satisfies AlertKind),
     detail: fortnightReportNeedsRegularizationDetailSchema,
+  }),
+  z.object({
+    ...alertBase,
+    kind: z.literal("fortnight_report_owed_elsewhere" satisfies AlertKind),
+    detail: fortnightReportOwedElsewhereDetailSchema,
   }),
 ] as const;
 

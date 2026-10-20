@@ -4,12 +4,14 @@ import {
   fetchAverageTicket,
   fetchSalesByCashier,
   fetchSalesByProductAndCategory,
+  fetchSalesByPromotion,
   fetchSalesReport,
 } from "./sales-report-api";
 import {
   averageTicketReport,
   cashierSalesReport,
   categoryProductsReport,
+  promotionDiscountsReport,
   weekReport,
 } from "./test-support/sales-fixtures";
 
@@ -130,6 +132,44 @@ test.each([
   vi.mocked(fetch).mockResolvedValue(jsonResponse(status));
 
   expect(await fetchSalesByCashier({})).toEqual({ kind });
+});
+
+test("fetchSalesByPromotion asks for no filter when no range and no register are chosen", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, promotionDiscountsReport));
+
+  expect(await fetchSalesByPromotion({})).toEqual({ kind: "ok", value: promotionDiscountsReport });
+  expect(fetch).toHaveBeenCalledWith("/api/reports/sales-by-promotion");
+});
+
+test("fetchSalesByPromotion asks for the range and the register chosen", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, promotionDiscountsReport));
+
+  await fetchSalesByPromotion({
+    from: "2026-10-01",
+    to: "2026-10-07",
+    register_id: FRONT_REGISTER_ID,
+  });
+
+  expect(fetch).toHaveBeenCalledWith(
+    `/api/reports/sales-by-promotion?from=2026-10-01&to=2026-10-07&register_id=${FRONT_REGISTER_ID}`,
+  );
+});
+
+test("fetchSalesByPromotion treats a body that does not match the report as failed", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    jsonResponse(200, { ...promotionDiscountsReport, totals: { discounted: 1 } }),
+  );
+
+  expect(await fetchSalesByPromotion({})).toEqual({ kind: "failed" });
+});
+
+test.each([
+  [401, "unauthenticated"],
+  [403, "forbidden"],
+])("fetchSalesByPromotion answers a %s as the cloud's outcome", async (status, kind) => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(status));
+
+  expect(await fetchSalesByPromotion({})).toEqual({ kind });
 });
 
 test("fetchAverageTicket asks for no filter when no range and no register are chosen", async () => {

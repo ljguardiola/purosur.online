@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   fortnightReportNeedsRegularizationAlert,
+  fortnightReportNoLongerOwedElsewhereObservation,
   fortnightReportNoLongerPendingObservation,
   fortnightReportOverdueAlert,
+  fortnightReportOwedElsewhereObservation,
   fortnightReportPendingObservation,
   fortnightReportPendingReason,
   pointOfSaleFortnightScope,
@@ -164,6 +166,34 @@ describe("fortnightReportNeedsRegularizationAlert", () => {
         fortnightStart: "2026-09-01",
         fortnightEnd: "2026-09-15",
       },
+    });
+  });
+});
+
+describe("fortnightReportOwedElsewhereObservation", () => {
+  it("holds the condition of the point of sale's fortnight, naming the point of sale and the fortnight and no register", () => {
+    expect(
+      fortnightReportOwedElsewhereObservation({
+        pointOfSaleNumber: 9,
+        fortnight: { start: "2026-09-16", end: "2026-09-30" },
+      }),
+    ).toEqual({
+      holds: true,
+      alert: {
+        kind: "fortnight_report_owed_elsewhere",
+        scope: "9:2026-09-16",
+        detail: { pointOfSaleNumber: 9, fortnightStart: "2026-09-16", fortnightEnd: "2026-09-30" },
+      },
+    });
+  });
+});
+
+describe("fortnightReportNoLongerOwedElsewhereObservation", () => {
+  it("clears the owed elsewhere condition of the scope", () => {
+    expect(fortnightReportNoLongerOwedElsewhereObservation("9:2026-09-16")).toEqual({
+      holds: false,
+      kind: "fortnight_report_owed_elsewhere",
+      scope: "9:2026-09-16",
     });
   });
 });

@@ -112,6 +112,12 @@ test("describes a register's clock confirmed as correct, which lowers the clock 
   );
 });
 
+test("describes a presentation ARCA lists as owed for a point of sale this system does not run", () => {
+  expect(alertKindDescription("fortnight_report_owed_elsewhere")).toBe(
+    "ARCA informa adeudada la presentación de una quincena de un punto de venta que este sistema no maneja",
+  );
+});
+
 test("describes a register whose clock differs from the real time by more than a minute", () => {
   expect(alertKindDescription("clock_drift")).toBe(
     "La hora de una caja difiere en más de un minuto de la hora real",

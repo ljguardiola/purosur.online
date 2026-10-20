@@ -33,7 +33,10 @@ afterEach(() => {
   rmSync(folder, { recursive: true, force: true });
 });
 
-function start(walSizeBytes = 0, options: { damaged?: boolean; cloud?: FakeSnapshotCloud } = {}) {
+function start(
+  walSizeBytes = 0,
+  options: { damaged?: boolean; restorePending?: boolean; cloud?: FakeSnapshotCloud } = {},
+) {
   const cloud = options.cloud ?? new FakeSnapshotCloud();
   const damage: string[] = [];
   const reported: string[] = [];
@@ -71,6 +74,7 @@ function start(walSizeBytes = 0, options: { damaged?: boolean; cloud?: FakeSnaps
       scheduled.push({ run, delayMs });
     },
     localDatabaseDamaged: () => options.damaged ?? false,
+    restorePending: () => options.restorePending ?? false,
     health: {
       damageRecorded: async () => false,
       integrityHolds: async () => true,
@@ -190,6 +194,14 @@ describe("startSnapshotCycle", () => {
 
   it("asks main for no snapshot while the local database is damaged", async () => {
     const { scheduled, posted } = start(0, { damaged: true });
+
+    await scheduled[0]?.run();
+
+    expect(posted).toEqual([]);
+  });
+
+  it("asks main for no snapshot while a restore is pending", async () => {
+    const { scheduled, posted } = start(0, { restorePending: true });
 
     await scheduled[0]?.run();
 

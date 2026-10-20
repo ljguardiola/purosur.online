@@ -116,6 +116,10 @@ export type {
 export { printSaleReceipt } from "./print-sale-receipt.js";
 export type { ProductSalesReportReader, SoldLinesQuery } from "./product-sales-report-reader.js";
 export type {
+  PromotionSalesQuery,
+  PromotionSalesReportReader,
+} from "./promotion-sales-report-reader.js";
+export type {
   AverageTicketReport,
   ReadAverageTicketInput,
   TicketOfPeriod,
@@ -138,6 +142,11 @@ export type {
   SalesByProductAndCategoryReport,
 } from "./read-sales-by-product-and-category.js";
 export { readSalesByProductAndCategory } from "./read-sales-by-product-and-category.js";
+export type {
+  ReadSalesByPromotionInput,
+  SalesByPromotionReport,
+} from "./read-sales-by-promotion.js";
+export { readSalesByPromotion } from "./read-sales-by-promotion.js";
 export type {
   ReadSalesHistoryInput,
   ReadSalesHistoryPorts,

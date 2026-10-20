@@ -1,11 +1,12 @@
 import type { InstallationStreamReach } from "../../../sync/index.js";
 import type { FiscalDocumentType } from "../../model/fiscal-rejection-standing.js";
 import {
-  isFortnightReportOutstanding,
+  isFortnightPresentationOwed,
   isOfflineDocumentReported,
   owesFortnightReport,
 } from "../../model/fortnight-report.js";
 import type { Fortnight } from "../../model/offline-authorization-code.js";
+import { listsOwedPresentation } from "../../model/owed-presentation-list.js";
 import type {
   DocumentTypeReportChange,
   FortnightReportChange,
@@ -30,6 +31,7 @@ import type {
 } from "../fortnight-report-ports.js";
 import type { WsaaToken } from "../wsaa-token-ports.js";
 import type { FakeOfflineAuthorizationCodeStore } from "./fake-offline-authorization-codes.js";
+import type { FakeOwedPresentationList } from "./fake-owed-presentation-list.js";
 
 export interface OfflinePointOfSaleOfRegister {
   pointOfSaleNumber: number;
@@ -107,14 +109,17 @@ export class FakeFortnightReportStore implements FortnightReportStore {
   pointsOfSale: OfflinePointOfSaleOfRegister[] = [];
   private readonly codes: FakeOfflineAuthorizationCodeStore;
   private readonly documents: FakeOfflineDocumentsOfFortnight;
+  private readonly list: FakeOwedPresentationList;
 
   constructor(
     codes: FakeOfflineAuthorizationCodeStore,
     documents: FakeOfflineDocumentsOfFortnight,
+    list: FakeOwedPresentationList,
     operations: string[],
   ) {
     this.codes = codes;
     this.documents = documents;
+    this.list = list;
     this.operations = operations;
   }
 
@@ -157,14 +162,17 @@ export class FakeFortnightReportStore implements FortnightReportStore {
     this.operations.push("owedReports");
     return this.codes.kept.flatMap(({ code }) =>
       this.pointsOfSale
-        .filter(
-          ({ pointOfSaleNumber, claimedAt }) =>
-            owesFortnightReport({ fortnight: code.fortnight, claimedAt }, today) &&
-            isFortnightReportOutstanding(
-              this.recordedReports.get(keyOf({ pointOfSaleNumber, fortnight: code.fortnight }))
-                ?.state ?? null,
-            ),
-        )
+        .filter(({ pointOfSaleNumber, claimedAt }) => {
+          const key = { pointOfSaleNumber, fortnight: code.fortnight };
+          const listed = listsOwedPresentation(this.list.entries, key);
+          return (
+            owesFortnightReport({ fortnight: code.fortnight, claimedAt, listed }, today) &&
+            isFortnightPresentationOwed({
+              state: this.recordedReports.get(keyOf(key))?.state ?? null,
+              listed,
+            })
+          );
+        })
         .map(({ pointOfSaleNumber, registerId }) => ({ pointOfSaleNumber, registerId, code })),
     );
   }
