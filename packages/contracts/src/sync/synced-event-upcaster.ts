@@ -1,9 +1,3 @@
-import {
-  type SyncedEventPayloadKey,
-  type SyncedEventPayloads,
-  syncedEventPayloadKey,
-  syncedEventPayloadSchema,
-} from "@purosur/contracts";
 import type { ManualAdjustment, SaleDiscount } from "@purosur/domain";
 import type {
   DecodedEvent,
@@ -11,6 +5,12 @@ import type {
   SyncedFact,
   UnappliedEvent,
 } from "@purosur/domain/sync/use-cases";
+import {
+  type SyncedEventPayloadKey,
+  type SyncedEventPayloads,
+  syncedEventPayloadKey,
+  syncedEventPayloadSchema,
+} from "./synced-event-payloads.js";
 
 type CompletedSalePayload = SyncedEventPayloads[
   | "sale_completed@1"

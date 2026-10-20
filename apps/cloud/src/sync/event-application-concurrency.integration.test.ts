@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { syncedEventUpcaster } from "@purosur/contracts";
 import { applyPendingEvents } from "@purosur/domain/sync/use-cases";
 import { eq } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
@@ -11,7 +12,6 @@ import {
   type IntegrationDatabase,
 } from "../test-support/integration-database.js";
 import { DrizzleEventApplication } from "./drizzle-event-application.js";
-import { syncedEventUpcaster } from "./synced-event-upcaster.js";
 import { insertInboxEvent } from "./test-support/inbox-events.js";
 
 // PGlite serves every query on one connection, so these races need a real Postgres.

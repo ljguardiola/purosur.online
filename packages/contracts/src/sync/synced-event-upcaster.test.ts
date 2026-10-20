@@ -1,7 +1,7 @@
-import { recordedPushes } from "@purosur/contracts/sync/test-support";
 import type { PushedEvent } from "@purosur/domain";
 import { describe, expect, it } from "vitest";
 import { syncedEventUpcaster } from "./synced-event-upcaster.js";
+import { recordedPushes } from "./test-support/recorded-pushes.js";
 import { unappliedEventOf } from "./test-support/unapplied-event.js";
 
 const RECORDED_EVENTS = recordedPushes().flatMap(({ push }) => push.events);

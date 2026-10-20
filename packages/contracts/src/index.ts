@@ -716,6 +716,7 @@ export {
   syncedEventPayloadKey,
   syncedEventPayloadSchema,
 } from "./sync/synced-event-payloads.js";
+export { syncedEventUpcaster } from "./sync/synced-event-upcaster.js";
 export type { BranchUserWire } from "./users/branch-user.js";
 export { branchUserListSchema, branchUserSchema } from "./users/branch-user.js";
 export type { UserCreationBody } from "./users/user-creation.js";
