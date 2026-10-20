@@ -38,13 +38,8 @@ function firstRecordedEvent(): PushedEvent {
   return first;
 }
 
-const NOT_APPLICABLE_YET = ["fiscal_gate_failed"];
-
 function applicableEvents(): PushedEvent[] {
-  return recordedEvents().filter(
-    ({ event_type }) =>
-      !NOT_APPLICABLE_YET.includes(event_type) && event_type !== "cash_session_closed",
-  );
+  return recordedEvents().filter(({ event_type }) => event_type !== "cash_session_closed");
 }
 
 let database: LocalDatabase;
@@ -186,14 +181,20 @@ describe("replenishing a restored register from the cloud", () => {
     expect(count("replenished_events")).toBe(events.length);
   });
 
-  it("leaves the events the register cannot apply yet, keeps the predecessor and says how many", async () => {
-    const outcome = await step([
-      ok(recordedEvents().filter(({ event_type }) => event_type !== "cash_session_closed")),
-    ]);
+  it("leaves an offline fiscal document, keeps the predecessor and says how many", async () => {
+    const offline = recordedPushes()
+      .flatMap(({ push }) => push.events)
+      .find(({ event_type }) => event_type === "offline_fiscal_document_issued");
+    if (offline === undefined) {
+      throw new Error("no recorded push holds an offline fiscal document");
+    }
 
-    expect(outcome).toEqual({ kind: "partially_replenished", unapplied: 3 });
+    const outcome = await step([ok([...applicableEvents(), offline])]);
+
+    expect(outcome).toEqual({ kind: "partially_replenished", unapplied: 1 });
     expect(count("register_predecessor")).toBe(1);
     expect(count("sales")).toBe(4);
+    expect(count("pre_emission_gate_outcomes")).toBe(3);
   });
 
   it("applies nothing of a page with an event it cannot read, and keeps the predecessor", async () => {

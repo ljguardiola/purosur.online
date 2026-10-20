@@ -1,5 +1,9 @@
 import { encodePinHash } from "@purosur/contracts";
-import { aCancelledSaleFact, aCompletedSaleFact } from "@purosur/domain/sync/test-support";
+import {
+  aCancelledSaleFact,
+  aCompletedSaleFact,
+  aVoidedSaleFact,
+} from "@purosur/domain/sync/test-support";
 import type { ReplenishedUser, SyncedFact } from "@purosur/domain/sync/use-cases";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { derivePinVerifier } from "../credentials/pin-verifier";
@@ -261,11 +265,27 @@ describe("the register's store for replenishing a restored register", () => {
       });
     });
 
-    it("leaves a fact it cannot apply yet untouched, and says so", async () => {
+    it("applies the facts that follow a sale with the writers of the sale's void, receipt and gate", async () => {
+      await store.transaction((tx) => tx.applyFact(aCompletedSaleFact({ id: "sale-1" }), SOURCE));
       const facts: SyncedFact[] = [
         {
           kind: "sale_print_state_changed",
-          printState: { saleId: "sale-1", printAttemptedAt: new Date(), printedAt: null },
+          printState: {
+            saleId: "sale-1",
+            printAttemptedAt: new Date("2026-10-07T10:00:05.000Z"),
+            printedAt: null,
+          },
+        },
+        {
+          kind: "reprint_recorded",
+          reprint: {
+            saleId: "sale-1",
+            orderNumber: 1,
+            requestedBy: "cashier-1",
+            authorizedBy: null,
+            reason: { kind: "retry" },
+            occurredAt: new Date("2026-10-07T10:30:00.000Z"),
+          },
         },
         {
           kind: "fiscal_gate_failed",
@@ -275,14 +295,47 @@ describe("the register's store for replenishing a restored register", () => {
             evaluatedAt: new Date("2026-10-07T10:00:01.000Z"),
           },
         },
+        aVoidedSaleFact({ id: "sale-1" }),
       ];
 
       for (const fact of facts) {
-        expect(await store.transaction((tx) => tx.applyFact(fact, SOURCE))).toBe(
-          "not_yet_applicable",
-        );
+        expect(await store.transaction((tx) => tx.applyFact(fact, SOURCE))).toBe("applied");
       }
-      expect(count("sales") + count("cash_movements")).toBe(0);
+
+      expect(database.prepare("SELECT state FROM sales").get()).toEqual({ state: "VOIDED" });
+      expect(count("sale_reprints")).toBe(1);
+      expect(count("pre_emission_gate_outcomes")).toBe(1);
+    });
+
+    it("leaves an offline fiscal document untouched, and says so, since its document is not in the event", async () => {
+      const fact: SyncedFact = {
+        kind: "offline_fiscal_document_issued",
+        document: {
+          fiscalDocumentId: "document-1",
+          saleId: "sale-1",
+          registerId: "register-new",
+          pointOfSale: 12,
+          documentType: "factura_c",
+          number: 7,
+          issuedOn: "2026-10-07",
+          generatedAt: new Date("2026-10-07T10:00:00.000Z"),
+          generationStamp: "20261007100000",
+          offlineAuthorizationCode: "12345678901234",
+          fortnightStart: "2026-10-01",
+          fortnightEnd: "2026-10-15",
+          buyerDocumentType: 99,
+          buyerDocumentNumber: 0,
+          buyerTaxStatusCode: 5,
+          total: 1500,
+          netAmount: 1500,
+          cause: "no_connectivity",
+        },
+      };
+
+      expect(await store.transaction((tx) => tx.applyFact(fact, SOURCE))).toBe(
+        "not_yet_applicable",
+      );
+      expect(count("offline_fiscal_documents")).toBe(0);
     });
 
     it("never puts a replenished event in the outbox, so it is not pushed again", async () => {
