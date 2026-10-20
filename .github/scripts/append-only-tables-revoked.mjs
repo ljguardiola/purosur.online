@@ -8,11 +8,13 @@ const ROLE = "cloud_app";
 const APPEND_ONLY_MARK_RE = /\bappend-only\b/i;
 
 const IDENTIFIER = String.raw`[A-Za-z_$][\w$]*`;
+const GAP = String.raw`(?:\s|//[^\n]*|/\*[\s\S]*?\*/)*`;
 const DECLARATION_RE = new RegExp(
-  String.raw`\bfunction\s+(${IDENTIFIER})\s*(?=[<(])|\b(?:const|let)\s+(${IDENTIFIER})\s*=\s*(?=[<(])`,
+  String.raw`\bfunction\s+(${IDENTIFIER})\s*(?=[<(])|\b(?:const|let)\s+(${IDENTIFIER})\s*=${GAP}(?=[<(])`,
   "g",
 );
-const TABLE_NAME_PARAMETER_RE = new RegExp(String.raw`\bpgTable\(\s*(${IDENTIFIER})`, "g");
+const PG_TABLE_CALL_RE = /\bpgTable\s*\(/g;
+const IDENTIFIER_RE = new RegExp(`^${IDENTIFIER}$`);
 const PARAMETER_NAME_RE = new RegExp(String.raw`^(?:\.\.\.)?\s*(${IDENTIFIER})`);
 const NAME = String.raw`(?:"[^"]+"|[A-Za-z_][\w$]*)`;
 const QUALIFIED_NAME = String.raw`(?:${NAME}\s*\.\s*)?${NAME}`;
@@ -306,9 +308,12 @@ function tableFunctionsOf(source) {
     parameters: parametersAt(source, match.index + match[0].length),
   }));
   const functions = new Map();
-  for (const call of source.matchAll(TABLE_NAME_PARAMETER_RE)) {
+  for (const call of source.matchAll(PG_TABLE_CALL_RE)) {
+    const open = call.index + call[0].length - 1;
+    const [argument] = listAt(source, open, { angleBrackets: false }).items;
+    if (!IDENTIFIER_RE.test(argument ?? "")) continue;
     const enclosing = declarations.filter((each) => each.index < call.index).at(-1);
-    const position = enclosing?.parameters.indexOf(call[1]) ?? -1;
+    const position = enclosing?.parameters.indexOf(argument) ?? -1;
     if (position !== -1) functions.set(enclosing.name, position);
   }
   return functions;
