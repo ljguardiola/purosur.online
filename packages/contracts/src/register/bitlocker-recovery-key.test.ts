@@ -4,6 +4,7 @@ import {
   type BitlockerRecoveryKeyLoadBody,
   bitlockerRecoveryKeyLoadBodySchema,
   bitlockerRecoveryKeySchema,
+  bitlockerRecoveryKeyShapeSchema,
 } from "./bitlocker-recovery-key.js";
 
 const loadBody = {
@@ -65,6 +66,17 @@ describe("bitlockerRecoveryKeyLoadBodySchema", () => {
     ]);
   });
 
+  it("tells a recovery key with the shape apart from one whose blocks Windows never generates", () => {
+    const result = bitlockerRecoveryKeyLoadBodySchema.safeParse({
+      ...loadBody,
+      recovery_key: "000011-000022-000033-000044-000055-000066-000077-000089",
+    });
+
+    expect(result.error?.issues.map(({ path, message }) => [path[0], message])).toEqual([
+      ["recovery_key", "recovery_key blocks must be multiples of 11 below 720896"],
+    ]);
+  });
+
   it("does not repeat the refused key in its issues", () => {
     const refused = "000011-000022-000033-000044-000055-000066-000077-000089";
 
@@ -81,6 +93,25 @@ describe("bitlockerRecoveryKeyLoadBodySchema", () => {
       recovery_key: string;
       key_identifier: string;
     }>();
+  });
+});
+
+describe("bitlockerRecoveryKeyShapeSchema", () => {
+  it("accepts eight hyphenated blocks of six digits even when a block is not one Windows generates", () => {
+    expect(
+      bitlockerRecoveryKeyShapeSchema.safeParse(
+        "000011-000022-000033-000044-000055-000066-000077-999999",
+      ).success,
+    ).toBe(true);
+  });
+
+  it.each([
+    "000011-000022-000033-000044-000055-000066-000077",
+    "000011000022000033000044000055000066000077000088",
+    "",
+    7,
+  ])("refuses the recovery key %j", (recoveryKey) => {
+    expect(bitlockerRecoveryKeyShapeSchema.safeParse(recoveryKey).success).toBe(false);
   });
 });
 

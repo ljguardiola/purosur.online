@@ -1,6 +1,10 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { isBitlockerKeyIdentifier, isBitlockerRecoveryKey } from "./bitlocker-recovery-key.js";
+import {
+  hasBitlockerRecoveryKeyShape,
+  isBitlockerKeyIdentifier,
+  isBitlockerRecoveryKey,
+} from "./bitlocker-recovery-key.js";
 
 const BLOCK_LIMIT = 720896;
 
@@ -56,6 +60,41 @@ describe("isBitlockerRecoveryKey", () => {
     expect(isBitlockerRecoveryKey(`${blocks.join("-")}\n`)).toBe(false);
     expect(isBitlockerRecoveryKey(blocks.join("-").replace("0000", "00a0"))).toBe(false);
     expect(isBitlockerRecoveryKey(blocks.map((b) => b.slice(1)).join("-"))).toBe(false);
+  });
+});
+
+describe("hasBitlockerRecoveryKeyShape", () => {
+  it("accepts eight hyphenated blocks of six digits whatever their values", () => {
+    fc.assert(
+      fc.property(
+        fc.array(fc.integer({ min: 0, max: 999999 }), { minLength: 8, maxLength: 8 }),
+        (blocks) =>
+          hasBitlockerRecoveryKeyShape(blocks.map((b) => String(b).padStart(6, "0")).join("-")),
+      ),
+    );
+    expect(hasBitlockerRecoveryKeyShape(Array<string>(8).fill("999999").join("-"))).toBe(true);
+  });
+
+  it("refuses anything but eight hyphenated blocks of six digits", () => {
+    const blocks = Array<string>(9).fill("000011");
+    expect(hasBitlockerRecoveryKeyShape(blocks.slice(0, 7).join("-"))).toBe(false);
+    expect(hasBitlockerRecoveryKeyShape(blocks.join("-"))).toBe(false);
+    expect(hasBitlockerRecoveryKeyShape("")).toBe(false);
+    expect(hasBitlockerRecoveryKeyShape(blocks.slice(0, 8).join(""))).toBe(false);
+    expect(hasBitlockerRecoveryKeyShape(blocks.slice(0, 8).join(" "))).toBe(false);
+    expect(hasBitlockerRecoveryKeyShape(` ${blocks.slice(0, 8).join("-")}`)).toBe(false);
+    expect(hasBitlockerRecoveryKeyShape(`${blocks.slice(0, 8).join("-")}\n`)).toBe(false);
+    expect(hasBitlockerRecoveryKeyShape(blocks.slice(0, 8).join("-").replace("0000", "00a0"))).toBe(
+      false,
+    );
+    expect(
+      hasBitlockerRecoveryKeyShape(
+        blocks
+          .slice(0, 8)
+          .map((b) => b.slice(1))
+          .join("-"),
+      ),
+    ).toBe(false);
   });
 });
 
