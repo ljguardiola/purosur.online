@@ -13,6 +13,7 @@ import {
 } from "@purosur/ui";
 import { Check, Info, Percent, ShieldX, TriangleAlert, X } from "lucide-react";
 import { useEffect, useState } from "react";
+import { DISCOUNT_TARGET_KIND_LABELS } from "../platform/discount-terms-text";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import {
@@ -31,7 +32,6 @@ import {
   targetUnavailableMessage,
   WEEKDAY_OPTIONS,
 } from "./discount-form";
-import { DISCOUNT_TARGET_KIND_LABELS } from "./discount-texts";
 import type { createDiscount } from "./discounts-api";
 
 export type NewDiscountModalServices = {
