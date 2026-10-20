@@ -1,13 +1,10 @@
 import { FICTIONAL_CERTIFICATE_CUIT } from "@purosur/domain/fiscal/test-support";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { arcaWsaaTokens, fiscalTasks, orphanCreditNotes } from "../platform/db/schema.js";
+import { arcaWsaaTokens, creditNotes, fiscalTasks } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { buildJobHelpers } from "../test-support/job-helpers.js";
-import {
-  ORPHAN_CREDIT_NOTE_TASK_IDENTIFIER,
-  orphanCreditNoteJobs,
-} from "./orphan-credit-note-task.js";
+import { CREDIT_NOTE_TASK_IDENTIFIER, creditNoteJobs } from "./credit-note-task.js";
 import { insertRegisterWithPointOfSale } from "./test-support/authorization-request-fixtures.js";
 import {
   answersInTurn,
@@ -47,7 +44,7 @@ function taskUnderTest() {
     cuit: FICTIONAL_CERTIFICATE_CUIT,
     timeoutMs: 2_000,
   };
-  const jobs = orphanCreditNoteJobs({
+  const jobs = creditNoteJobs({
     now: () => NOW,
     vouchers: new WsfeTaxAuthorityVouchers(connection),
     taxAuthority: new WsfeTaxAuthorityLastAuthorized(connection),
@@ -56,9 +53,9 @@ function taskUnderTest() {
     db: testDatabase.db,
     connections: { withConnection: (work) => work(testDatabase.db) },
   });
-  const task = jobs.taskList[ORPHAN_CREDIT_NOTE_TASK_IDENTIFIER];
+  const task = jobs.taskList[CREDIT_NOTE_TASK_IDENTIFIER];
   if (!task) {
-    throw new Error("test setup: expected the registered orphan credit note task");
+    throw new Error("test setup: expected the registered credit note task");
   }
   return { jobs, task };
 }
@@ -74,18 +71,20 @@ async function issueWsaaToken() {
   });
 }
 
-async function aCreditNote(columns: Partial<typeof orphanCreditNotes.$inferInsert> = {}) {
+async function aCreditNote(columns: Partial<typeof creditNotes.$inferInsert> = {}) {
   const registerId = await insertRegisterWithPointOfSale(testDatabase.db, {
     pointOfSaleNumber: 7,
     name: "caja-1",
   });
   const id = crypto.randomUUID();
-  await testDatabase.db.insert(orphanCreditNotes).values({
+  await testDatabase.db.insert(creditNotes).values({
     id,
     registerId,
     saleId: crypto.randomUUID(),
     pointOfSale: 7,
     associatedVoucherType: 11,
+    associatedPointOfSale: 7,
+    reason: "orphan",
     associatedNumber: 42,
     keptVoucherType: 11,
     keptPointOfSale: 31,
@@ -101,8 +100,8 @@ async function aCreditNote(columns: Partial<typeof orphanCreditNotes.$inferInser
 async function storedRow(creditNoteId: string) {
   const [row] = await testDatabase.db
     .select()
-    .from(orphanCreditNotes)
-    .where(eq(orphanCreditNotes.id, creditNoteId));
+    .from(creditNotes)
+    .where(eq(creditNotes.id, creditNoteId));
   return row;
 }
 
@@ -112,11 +111,11 @@ function sentValue(request: string | undefined, element: string): string | undef
   )?.[1];
 }
 
-describe("orphanCreditNoteJobs", () => {
-  it("registers the task that issues an orphan credit note and schedules nothing, since it runs when a credit note is requested", () => {
+describe("creditNoteJobs", () => {
+  it("registers the task that issues an credit note and schedules nothing, since it runs when a credit note is requested", () => {
     const { jobs } = taskUnderTest();
 
-    expect(Object.keys(jobs.taskList)).toEqual([ORPHAN_CREDIT_NOTE_TASK_IDENTIFIER]);
+    expect(Object.keys(jobs.taskList)).toEqual([CREDIT_NOTE_TASK_IDENTIFIER]);
     expect(jobs.crontab).toEqual([]);
   });
 
@@ -195,10 +194,10 @@ describe("orphanCreditNoteJobs", () => {
     expect(await storedRow(creditNoteId)).toMatchObject({ answerKind: "unclear", number: 5 });
     expect(addJob.mock.calls).toEqual([
       [
-        ORPHAN_CREDIT_NOTE_TASK_IDENTIFIER,
+        CREDIT_NOTE_TASK_IDENTIFIER,
         { creditNoteId },
         {
-          jobKey: `${ORPHAN_CREDIT_NOTE_TASK_IDENTIFIER}:${creditNoteId}`,
+          jobKey: `${CREDIT_NOTE_TASK_IDENTIFIER}:${creditNoteId}`,
           jobKeyMode: "replace",
           priority: -20,
           runAt: new Date(NOW.getTime() + 60_000),
@@ -219,11 +218,7 @@ describe("orphanCreditNoteJobs", () => {
     expect(server.requests).toHaveLength(1);
     expect(await storedRow(creditNoteId)).toMatchObject({ number: null });
     expect(addJob.mock.calls).toMatchObject([
-      [
-        ORPHAN_CREDIT_NOTE_TASK_IDENTIFIER,
-        { creditNoteId },
-        { runAt: new Date(NOW.getTime() + 30_000) },
-      ],
+      [CREDIT_NOTE_TASK_IDENTIFIER, { creditNoteId }, { runAt: new Date(NOW.getTime() + 30_000) }],
     ]);
   });
 

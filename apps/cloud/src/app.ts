@@ -70,6 +70,10 @@ import { registerBuyerIdentificationThresholdRecordRoute } from "./fiscal/buyer-
 import type { BuyerIdentificationThresholdsRouteOptions } from "./fiscal/buyer-identification-thresholds-list-route.js";
 import { registerBuyerIdentificationThresholdsListRoute } from "./fiscal/buyer-identification-thresholds-list-route.js";
 import { registerClockCorrectionsListRoute } from "./fiscal/clock-corrections-list-route.js";
+import {
+  type CreditNoteRouteOptions,
+  registerCreditNoteRoute,
+} from "./fiscal/credit-note-route.js";
 import { registerFiscalAddressCreationRoute } from "./fiscal/fiscal-address-creation-route.js";
 import { registerFiscalAddressEditRoute } from "./fiscal/fiscal-address-edit-route.js";
 import type { FiscalAddressesRouteOptions } from "./fiscal/fiscal-addresses-list-route.js";
@@ -268,6 +272,9 @@ export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = Postgre
       keyof DeviceTokensOptions<TQueryResult>
     >
   >;
+  creditNotes?: WithoutClock<
+    Omit<CreditNoteRouteOptions<TQueryResult>, keyof DeviceTokensOptions<TQueryResult>>
+  >;
   mercadoPagoOrders?: WithoutClock<
     Omit<MercadoPagoOrderRoutesOptions<TQueryResult>, keyof DeviceTokensOptions<TQueryResult>>
   >;
@@ -290,6 +297,7 @@ type DatabaseRouteOptions<TQueryResult extends PgQueryResultHKT> = Required<
     | "enqueueOfflineAuthorizationCodeRequest"
     | "enqueueTaxAuthorityCountOnEnrollment"
     | "fiscalAuthorization"
+    | "creditNotes"
     | "mercadoPagoOrders"
     | "mercadoPagoNotifications"
     | "registerUpdateFeed"
@@ -733,6 +741,13 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
           registerUnclearOutcomeRoute(api, {
             ...options.devices,
             ...options.fiscalAuthorization,
+            now,
+          });
+        }
+        if (options.creditNotes) {
+          registerCreditNoteRoute(api, {
+            ...options.devices,
+            ...options.creditNotes,
             now,
           });
         }

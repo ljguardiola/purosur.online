@@ -810,8 +810,15 @@
     {
       "idx": 115,
       "version": "7",
-      "when": 1792486793793,
-      "tag": "0122_supplier_price_lists",
+      "when": 1792486760438,
+      "tag": "0122_credit_notes",
+      "breakpoints": true
+    },
+    {
+      "idx": 116,
+      "version": "7",
+      "when": 1792491103544,
+      "tag": "0123_supplier_price_lists",
       "breakpoints": true
     }
   ]

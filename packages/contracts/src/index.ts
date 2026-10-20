@@ -153,6 +153,15 @@ export {
   registerPointOfSaleSchema,
 } from "./fiscal/register-point-of-sale.js";
 export type {
+  SaleVoidCreditNoteRequestBody,
+  SaleVoidCreditNoteResponseBody,
+} from "./fiscal/sale-void-credit-note.js";
+export {
+  saleVoidCreditNoteRequestSchema,
+  saleVoidCreditNoteResponseSchema,
+  saleVoidedEventCreditNoteSchema,
+} from "./fiscal/sale-void-credit-note.js";
+export type {
   UnclearOutcomeAnswerBody,
   UnclearOutcomeQuestionBody,
 } from "./fiscal/unclear-outcome-question.js";
@@ -480,6 +489,7 @@ export type { AverageTicketBody } from "./sales/average-ticket.js";
 export { averageTicketSchema } from "./sales/average-ticket.js";
 export type {
   CancelLockedSaleOutcome,
+  PrintCreditNoteOutcome,
   PrintOriginalReceiptOutcome,
   ReceiptPrintStatusOutcome,
   ReprintSaleReceiptOutcome,
@@ -525,6 +535,8 @@ export type {
   VoidSaleOutcome,
   WeighProductOutcome,
 } from "./sales/sale.js";
+export type { SaleCreditNote } from "./sales/sale-credit-note.js";
+export { saleCreditNoteSchema } from "./sales/sale-credit-note.js";
 export type { SalesByCashierBody } from "./sales/sales-by-cashier.js";
 export { salesByCashierSchema } from "./sales/sales-by-cashier.js";
 export type {

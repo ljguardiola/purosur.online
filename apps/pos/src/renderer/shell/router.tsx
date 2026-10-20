@@ -35,6 +35,7 @@ import type {
   PinPolicy,
   PreviewSaleDiscountOutcome,
   PreviewSaleLineAdjustmentOutcome,
+  PrintCreditNoteOutcome,
   PrintOriginalReceiptOutcome,
   ReadClockGuardOutcome,
   ReadInitialCountOutcome,
@@ -244,6 +245,7 @@ export interface RouterContext {
   ) => Promise<VoidSaleOutcome>;
   receiptPrintStatus: (saleId: string) => Promise<ReceiptPrintStatusOutcome>;
   printOriginalReceipt: (saleId: string) => Promise<PrintOriginalReceiptOutcome>;
+  printCreditNote: (saleId: string) => Promise<PrintCreditNoteOutcome>;
   convertPaidOrderIntoRefund: (
     paymentTransactionId: string,
   ) => Promise<ConvertPaidOrderIntoRefundOutcome>;
@@ -809,6 +811,7 @@ const historyRoute = createRoute({
       saleHistoryDetail,
       reprintSaleReceipt,
       voidSale,
+      printCreditNote,
       authorizers,
       refreshCashSession,
     } = historyRoute.useRouteContext();
@@ -823,6 +826,7 @@ const historyRoute = createRoute({
         saleHistoryDetail={saleHistoryDetail}
         reprintSaleReceipt={reprintSaleReceipt}
         voidSale={voidSale}
+        printCreditNote={printCreditNote}
         loadAuthorizers={authorizers}
         onSessionInvalid={() => void refreshCashSession()}
       />
@@ -1167,6 +1171,7 @@ export function createAppRouter(
     | "voidSale"
     | "receiptPrintStatus"
     | "printOriginalReceipt"
+    | "printCreditNote"
     | "convertPaidOrderIntoRefund"
     | "reprintSaleReceipt"
     | "salesHistory"

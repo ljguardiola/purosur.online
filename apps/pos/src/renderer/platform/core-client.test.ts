@@ -1204,6 +1204,7 @@ describe("createCoreClient", () => {
         kind: "voided",
         refunds: [],
         authorized_by: { user_id: "u2", first_name: "Grace" },
+        credit_note: null,
       },
     });
 
@@ -1211,6 +1212,7 @@ describe("createCoreClient", () => {
       kind: "voided",
       refunds: [],
       authorized_by: { user_id: "u2", first_name: "Grace" },
+      credit_note: null,
     });
     expect(port.posted).toEqual([
       {
@@ -1858,6 +1860,24 @@ describe("createCoreClient", () => {
       ]);
     },
   );
+
+  it("asks the core to print the credit note of a voided sale", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const printed = client.printCreditNote("sale-1");
+    port.answer({
+      type: "print-credit-note-result",
+      request_id: "request-1",
+      outcome: { kind: "started" },
+    });
+
+    expect(await printed).toEqual({ kind: "started" });
+    expect(port.posted).toEqual([
+      { type: "print-credit-note", request_id: "request-1", sale_id: "sale-1" },
+    ]);
+  });
 
   it("asks the core to reprint a sale's receipt with its reason and the authorization given", async () => {
     const client = clientWithSequentialIds();

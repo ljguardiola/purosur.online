@@ -32,6 +32,8 @@ const ALERT_KIND_DESCRIPTIONS = {
   external_billing: "Un comprobante se emitió fuera del sistema",
   fortnight_report_needs_regularization:
     "Llegaron comprobantes de una quincena ya informada a ARCA sin movimiento",
+  invoice_already_credited:
+    "Se anuló una venta cuya factura ya tenía una nota de crédito, por lo que no se emitió otra",
   fortnight_report_owed_elsewhere:
     "ARCA informa adeudada la presentación de una quincena de un punto de venta que este sistema no maneja",
   clock_corrected:
