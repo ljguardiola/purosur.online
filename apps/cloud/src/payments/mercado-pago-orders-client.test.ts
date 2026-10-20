@@ -51,6 +51,7 @@ const REQUEST: MercadoPagoQrOrderRequest = {
   externalReference: "0b0a5a42-1f9a-4a53-9f55-3e1c1c0d7a10",
   amount: 5000,
   expiresAfterMinutes: 5,
+  externalPosId: EXTERNAL_POS_ID,
 };
 
 function answer(status: number, body: unknown): Response {
@@ -71,7 +72,6 @@ function clientAnswering(...responses: (Response | Error)[]) {
   });
   const client = createMercadoPagoOrdersClient({
     accessToken: ACCESS_TOKEN,
-    externalPosId: EXTERNAL_POS_ID,
     fetch,
   });
   return { client, fetch };
@@ -311,6 +311,21 @@ describe("the Mercado Pago orders client", () => {
       });
     });
 
+    it("posts each order to the QR point of sale its request names", async () => {
+      const { client, fetch } = clientAnswering(
+        answer(201, createdOrder()),
+        answer(201, createdOrder()),
+      );
+
+      await client.createQrOrder({ ...REQUEST, externalPosId: "CAJA1_STORE_POS" });
+      await client.createQrOrder({ ...REQUEST, externalPosId: "CAJA2_STORE_POS" });
+
+      const posIds = [0, 1].map(
+        (call) => JSON.parse(sentRequest(fetch, call).init.body as string).config.qr.external_pos_id,
+      );
+      expect(posIds).toEqual(["CAJA1_STORE_POS", "CAJA2_STORE_POS"]);
+    });
+
     it("sends the same body and the same key every time it is asked for the same order", async () => {
       const { client, fetch } = clientAnswering(
         answer(201, createdOrder()),
@@ -444,7 +459,6 @@ describe("the Mercado Pago orders client", () => {
       );
       const client = createMercadoPagoOrdersClient({
         accessToken: ACCESS_TOKEN,
-        externalPosId: EXTERNAL_POS_ID,
         fetch,
       });
 
@@ -704,7 +718,6 @@ describe("the Mercado Pago orders client", () => {
       );
       const client = createMercadoPagoOrdersClient({
         accessToken: ACCESS_TOKEN,
-        externalPosId: EXTERNAL_POS_ID,
         fetch,
       });
 
@@ -876,7 +889,6 @@ describe("the Mercado Pago orders client", () => {
       );
       const client = createMercadoPagoOrdersClient({
         accessToken: ACCESS_TOKEN,
-        externalPosId: EXTERNAL_POS_ID,
         fetch,
       });
 
@@ -1041,7 +1053,6 @@ describe("the Mercado Pago orders client", () => {
       );
       const client = createMercadoPagoOrdersClient({
         accessToken: ACCESS_TOKEN,
-        externalPosId: EXTERNAL_POS_ID,
         fetch,
       });
 
@@ -1252,7 +1263,6 @@ describe("the Mercado Pago orders client", () => {
       );
       const client = createMercadoPagoOrdersClient({
         accessToken: ACCESS_TOKEN,
-        externalPosId: EXTERNAL_POS_ID,
         fetch,
       });
 
@@ -1337,7 +1347,6 @@ describe("the Mercado Pago orders client", () => {
       );
       const client = createMercadoPagoOrdersClient({
         accessToken: ACCESS_TOKEN,
-        externalPosId: EXTERNAL_POS_ID,
         fetch,
       });
 
