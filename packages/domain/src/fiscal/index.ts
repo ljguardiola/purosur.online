@@ -83,6 +83,7 @@ export type { FiscalTaskDocumentType } from "./model/fiscal-task.js";
 export { CREDIT_NOTE_C_DOCUMENT_TYPE } from "./model/fiscal-task.js";
 export type {
   FortnightPresentationRefusal,
+  FortnightPresentationState,
   FortnightReportMovement,
   FortnightReportState,
 } from "./model/fortnight-report.js";
@@ -91,8 +92,9 @@ export {
   fortnightPresentationRows,
   fortnightReportDeadline,
   fortnightReportStanding,
-  isFortnightReportOutstanding,
+  isFortnightPresentationOwed,
   isOfflineDocumentReported,
+  owedFortnightPresentationState,
   owesFortnightReport,
 } from "./model/fortnight-report.js";
 export { generationStampOf } from "./model/generation-stamp.js";
@@ -139,6 +141,8 @@ export {
   OFFLINE_NUMBER_BLOCK_STATUSES,
 } from "./model/offline-number-block.js";
 export type { VoucherReference } from "./model/orphan-authorization.js";
+export type { ListedOwedPresentation } from "./model/owed-presentation-list.js";
+export { splitOwedPresentations } from "./model/owed-presentation-list.js";
 export {
   isPointOfSaleNumber,
   POINT_OF_SALE_NUMBER_MAX,

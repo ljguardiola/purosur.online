@@ -9,6 +9,7 @@ export interface OwedFortnightPresentation {
   fortnight: Fortnight;
   taxAuthorityDeadline: string;
   state: FortnightReportState | null;
+  listed: boolean;
 }
 
 export interface OwedFortnightPresentationReader {
@@ -19,6 +20,7 @@ export interface FortnightReportDeadlineAlerts {
   pendingAlertScopes(): Promise<string[]>;
   observeAlertCondition(observation: AlertConditionObservation): Promise<void>;
   hasOpenedOverdueAlert(scope: string): Promise<boolean>;
+  hasOpenOverdueAlert(scope: string): Promise<boolean>;
   openOverdueAlert(alert: OpenAlertInput): Promise<void>;
 }
 

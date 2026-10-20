@@ -14,6 +14,8 @@ export type DocumentTypeReportState = Exclude<
   "blocked" | "needs_regularization"
 >;
 
+export type FortnightPresentationState = FortnightReportState | "listed_as_owed";
+
 export type FortnightReportMovement = "none" | "documents";
 
 export type FortnightPresentationRefusal = "partial" | "whole";
@@ -53,14 +55,40 @@ function hasFortnightClosed({ end }: Fortnight, today: string): boolean {
 }
 
 export function owesFortnightReport(
-  { fortnight, claimedAt }: { fortnight: Fortnight; claimedAt: Date },
+  {
+    fortnight,
+    claimedAt,
+    listed = false,
+  }: { fortnight: Fortnight; claimedAt: Date; listed?: boolean },
   today: string,
 ): boolean {
-  return hasFortnightClosed(fortnight, today) && claimedAt < fortnightClosesAt(fortnight);
+  return (
+    hasFortnightClosed(fortnight, today) && (listed || claimedAt < fortnightClosesAt(fortnight))
+  );
 }
 
 export function isFortnightReportOutstanding(state: FortnightReportState | null): boolean {
   return state !== "accepted" && state !== "needs_regularization";
+}
+
+export function isFortnightPresentationOwed({
+  state,
+  listed,
+}: {
+  state: FortnightReportState | null;
+  listed: boolean;
+}): boolean {
+  return listed || isFortnightReportOutstanding(state);
+}
+
+export function owedFortnightPresentationState({
+  state,
+  listed,
+}: {
+  state: FortnightReportState | null;
+  listed: boolean;
+}): FortnightReportState | null {
+  return listed && state === "accepted" ? null : state;
 }
 
 export function remedyForUnreportedDocuments(
@@ -133,7 +161,7 @@ export function documentTypePresentationState(
 export interface FortnightPresentationRow<TDocumentType extends string> {
   documentType: TDocumentType | null;
   movement: FortnightReportMovement | null;
-  state: FortnightReportState | null;
+  state: FortnightPresentationState | null;
   refusal: FortnightPresentationRefusal | null;
   documentCount: number;
   rejectedDocument: { number: number; unprocessed: number } | null;
@@ -153,6 +181,29 @@ function documentTypeRefusal(
 }
 
 export function fortnightPresentationRows<TDocumentType extends string>({
+  state,
+  movement,
+  documents,
+  documentReports,
+  listedAsOwed = false,
+}: {
+  state: FortnightReportState | null;
+  movement: FortnightReportMovement | null;
+  documents: { documentType: TDocumentType; number: number }[];
+  documentReports: {
+    documentType: TDocumentType;
+    state: DocumentTypeReportState;
+    reportedThrough: number;
+    rejectedNumber: number | null;
+  }[];
+  listedAsOwed?: boolean;
+}): FortnightPresentationRow<TDocumentType>[] {
+  return presentationRowsOf({ state, movement, documents, documentReports }).map((row) =>
+    listedAsOwed && row.state === "accepted" ? { ...row, state: "listed_as_owed" } : row,
+  );
+}
+
+function presentationRowsOf<TDocumentType extends string>({
   state,
   movement,
   documents,

@@ -29,6 +29,7 @@ const ALERT_KIND_LABELS = {
   fortnight_report_needs_regularization: "Quincena a regularizar",
   clock_corrected: "Reloj de la caja corregido",
   invoice_already_credited: "Factura ya acreditada",
+  fortnight_report_owed_elsewhere: "Presentación adeudada en otro sistema",
   clock_drift: "Reloj de la caja desajustado",
 } satisfies Record<AlertKind, string>;
 
