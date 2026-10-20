@@ -32,6 +32,12 @@ export interface RestoredRegisterReplenishment {
     registerId: string,
     predecessorDeviceId: string,
   ): Promise<PredecessorStanding>;
+  // The predecessor, or an installation of the register enrolled after it.
+  isReplenishmentCursor(
+    registerId: string,
+    predecessorDeviceId: string,
+    cursor: EventPosition,
+  ): Promise<boolean>;
   // In installation enrollment order, then device sequence; strictly after `after` when given.
   ownEventsAbove(
     registerId: string,

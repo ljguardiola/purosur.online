@@ -19,6 +19,7 @@ export interface ServeRestoredRegisterReplenishmentInput {
 export type ServeRestoredRegisterReplenishmentOutcome =
   | { kind: "predecessor_not_of_register" }
   | { kind: "predecessor_not_revoked" }
+  | { kind: "cursor_not_of_replenishment" }
   | {
       kind: "replenishment";
       events: ReplenishedEvent[];
@@ -41,6 +42,12 @@ export async function serveRestoredRegisterReplenishment(
   }
   if (standing === "not_revoked") {
     return { kind: "predecessor_not_revoked" };
+  }
+  if (
+    after &&
+    !(await replenishment.isReplenishmentCursor(registerId, predecessorDeviceId, after))
+  ) {
+    return { kind: "cursor_not_of_replenishment" };
   }
   const read = await replenishment.ownEventsAbove(
     registerId,

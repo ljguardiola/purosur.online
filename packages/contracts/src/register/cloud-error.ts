@@ -11,6 +11,7 @@ const CLOUD_ERRORS = {
   conflict: { status: 409, retryable: false },
   predecessor_not_of_register: { status: 409, retryable: false },
   predecessor_not_revoked: { status: 409, retryable: false },
+  cursor_not_of_replenishment: { status: 409, retryable: false },
   reset_code_expired: { status: 410, retryable: false },
   reset_code_burned: { status: 410, retryable: false },
   rate_limited: { status: 429, retryable: true },

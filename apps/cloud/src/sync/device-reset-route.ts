@@ -25,6 +25,10 @@ const PREDECESSOR_NOT_OF_REGISTER = cloudError(
   "predecessor_not_of_register",
   "the predecessor installation does not belong to this register",
 );
+const CURSOR_NOT_OF_REPLENISHMENT = cloudError(
+  "cursor_not_of_replenishment",
+  "the cursor names an installation that is not part of this replenishment",
+);
 const PREDECESSOR_NOT_REVOKED = cloudError(
   "predecessor_not_revoked",
   "the predecessor installation is not revoked",
@@ -76,6 +80,11 @@ export function registerDeviceResetRoute<TQueryResult extends PgQueryResultHKT>(
             await reply
               .code(cloudErrorStatus(PREDECESSOR_NOT_REVOKED.code))
               .send(PREDECESSOR_NOT_REVOKED);
+            return;
+          case "cursor_not_of_replenishment":
+            await reply
+              .code(cloudErrorStatus(CURSOR_NOT_OF_REPLENISHMENT.code))
+              .send(CURSOR_NOT_OF_REPLENISHMENT);
             return;
           case "replenishment":
             await reply.code(200).send(

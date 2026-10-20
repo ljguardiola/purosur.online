@@ -39,6 +39,28 @@ export class DrizzleRegisterReplenishment<TQueryResult extends PgQueryResultHKT>
     return installation.revokedAt === null ? "not_revoked" : "revoked";
   }
 
+  async isReplenishmentCursor(
+    registerId: string,
+    predecessorDeviceId: string,
+    cursor: EventPosition,
+  ): Promise<boolean> {
+    if (cursor.deviceId === predecessorDeviceId) {
+      return true;
+    }
+    const predecessorEnrolledAt = await this.enrolledAtOf(registerId, predecessorDeviceId);
+    const [installation] = await this.db
+      .select({ id: registerInstallations.id })
+      .from(registerInstallations)
+      .where(
+        and(
+          eq(registerInstallations.id, cursor.deviceId),
+          eq(registerInstallations.registerId, registerId),
+          gt(registerInstallations.enrolledAt, predecessorEnrolledAt),
+        ),
+      );
+    return installation !== undefined;
+  }
+
   async ownEventsAbove(
     registerId: string,
     { predecessorDeviceId, lastAcknowledgedSeq }: ReplenishmentPosition,
