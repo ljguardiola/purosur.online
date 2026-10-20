@@ -14,6 +14,7 @@ const LATE_PAYMENT: FakeStoredRefund = {
   origin: "late_payment",
   method: "QR",
   confirmedAt: null,
+  lastRefusalReason: null,
 };
 
 function discard(store: FakeRefundStore, input: { refundId?: string; locationId?: string } = {}) {
@@ -101,15 +102,96 @@ describe("discardRefund", () => {
       expect(await discard(store)).toEqual({ kind: "already_discarded" });
     });
 
-    it("answers that a confirmed refund of a cancelled sale is not discardable", async () => {
-      const cancelled: FakeStoredRefund = {
+    it.each([
+      ["sale_cancelled", "QR"],
+      ["sale_cancelled", "POINT"],
+      ["sale_voided", "QR"],
+      ["sale_voided", "POINT"],
+    ])(
+      "refuses to discard a confirmed %s refund paid by %s that Mercado Pago has not refused, writing nothing",
+      async (origin, method) => {
+        const sent: FakeStoredRefund = { ...LATE_PAYMENT, confirmedAt, origin, method };
+        const store = new FakeRefundStore([{ ...sent }]);
+
+        expect(await discard(store)).toEqual({ kind: "already_confirmed" });
+        expect(store.refunds).toEqual([sent]);
+        expect(store.resolvedAlerts).toEqual([]);
+        expect(store.operationOrder).toEqual(["lockRefund"]);
+      },
+    );
+
+    it.each([
+      ["sale_cancelled", "QR", "refund_task"],
+      ["sale_cancelled", "POINT", "refund_task"],
+      ["late_payment", "QR", "late_payment_refund"],
+      ["sale_voided", "QR", "refund_task"],
+      ["sale_voided", "POINT", "refund_task"],
+    ])(
+      "discards a %s refund paid by %s that Mercado Pago refused for good and resolves its %s alert",
+      async (origin, method, alertKind) => {
+        const refused: FakeStoredRefund = {
+          ...LATE_PAYMENT,
+          confirmedAt,
+          origin,
+          method,
+          lastRefusalReason: "payment_not_refundable",
+        };
+        const store = new FakeRefundStore([{ ...refused }]);
+
+        expect(await discard(store)).toEqual({
+          kind: "discarded",
+          refundId: "refund-1",
+          discardedAt: NOW,
+        });
+        expect(store.refunds).toEqual([
+          { ...refused, state: "DISCARDED", discardedBy: "manager", discardedAt: NOW },
+        ]);
+        expect(store.resolvedAlerts).toEqual([
+          { refundId: "refund-1", kind: alertKind, resolvedBy: "manager", resolvedAt: NOW },
+        ]);
+      },
+    );
+
+    it("answers that a refund held for insufficient balance is waiting for balance, writing nothing", async () => {
+      const waiting: FakeStoredRefund = {
+        ...LATE_PAYMENT,
+        confirmedAt,
+        origin: "sale_voided",
+        lastRefusalReason: "insufficient_balance",
+      };
+      const store = new FakeRefundStore([{ ...waiting }]);
+
+      expect(await discard(store)).toEqual({ kind: "waiting_for_balance" });
+      expect(store.refunds).toEqual([waiting]);
+      expect(store.resolvedAlerts).toEqual([]);
+      expect(store.operationOrder).toEqual(["lockRefund"]);
+    });
+
+    it("answers that a refused refund already done is done", async () => {
+      const done: FakeStoredRefund = {
         ...LATE_PAYMENT,
         confirmedAt,
         origin: "sale_cancelled",
+        state: "APPROVED",
+        lastRefusalReason: "payment_not_refundable",
       };
-      const store = new FakeRefundStore([{ ...cancelled }]);
+      const store = new FakeRefundStore([{ ...done }]);
 
-      expect(await discard(store)).toEqual({ kind: "not_discardable" });
+      expect(await discard(store)).toEqual({ kind: "already_done" });
+      expect(store.refunds).toEqual([done]);
+    });
+
+    it("answers that a refused refund already discarded is discarded", async () => {
+      const discarded: FakeStoredRefund = {
+        ...LATE_PAYMENT,
+        confirmedAt,
+        origin: "sale_cancelled",
+        state: "DISCARDED",
+        lastRefusalReason: "payment_not_refundable",
+      };
+      const store = new FakeRefundStore([{ ...discarded }]);
+
+      expect(await discard(store)).toEqual({ kind: "already_discarded" });
     });
   });
 

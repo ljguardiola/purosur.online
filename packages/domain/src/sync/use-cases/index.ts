@@ -65,6 +65,17 @@ export { releaseQuarantinedEvent } from "./release-quarantined-event.js";
 export type { ResendPulledEntityInput } from "./resend-pulled-entity.js";
 export { resendPulledEntity } from "./resend-pulled-entity.js";
 export type {
+  ResetRestoredSyncIdentityInput,
+  ResetRestoredSyncIdentityOutcome,
+} from "./reset-restored-sync-identity.js";
+export { resetRestoredSyncIdentity } from "./reset-restored-sync-identity.js";
+export type {
+  CarriedSyncIdentity,
+  ResetRestoredSyncIdentityPorts,
+  RestoredSyncIdentityStore,
+  RestoredSyncIdentityTransaction,
+} from "./restored-sync-identity-ports.js";
+export type {
   AdmissionPorts,
   CatchUpPorts,
   ChangeLog,

@@ -1,10 +1,6 @@
 import type { Clock } from "../../shared/index.js";
-import {
-  isRefundDiscarded,
-  isRefundPending,
-  refundAlertKind,
-  refundDiscardRefusal,
-} from "../model/payment-refund.js";
+import { isRefundDiscarded, isRefundPending, refundAlertKind } from "../model/payment-refund.js";
+import { refundDiscardRefusal } from "../model/refund-discard.js";
 import type { RefundStore } from "./refund-store.js";
 
 export interface DiscardRefundPorts {
@@ -24,6 +20,7 @@ export type DiscardRefundOutcome =
   | { kind: "already_done" }
   | { kind: "already_discarded" }
   | { kind: "already_confirmed" }
+  | { kind: "waiting_for_balance" }
   | { kind: "discarded"; refundId: string; discardedAt: Date };
 
 export async function discardRefund(

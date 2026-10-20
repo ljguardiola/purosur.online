@@ -22,7 +22,7 @@ function copyOf(databasePath: string, copyPath: string): void {
   }
 }
 
-function checkCopy(copyPath: string): void {
+export function checkCopy(copyPath: string): void {
   const copy = openReadOnlyLocalDatabaseFile(copyPath);
   try {
     const integrity = copy.pragma("integrity_check") as { integrity_check: string }[];

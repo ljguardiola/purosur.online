@@ -16,7 +16,7 @@ function runGit(args, cwd) {
 
 // A merge commit's own changes are what it adds beyond git's automatic merge of its parents, such
 // as a conflict resolution; a diff against either parent would repeat the other side's commits.
-const COMMIT_DIFF_ARGS = ["show", "--format=", "--diff-merges=remerge"];
+const COMMIT_DIFF_ARGS = ["show", "--format=", "--diff-merges=remerge", "--no-renames"];
 
 export function listCommitsSince(base, cwd = process.cwd()) {
   return runGit(["rev-list", "--reverse", `${base}..HEAD`], cwd)

@@ -321,7 +321,6 @@ export {
   CONFIRMED_BY_HAND_METHODS,
   cancellableWithoutAuthorization,
   cashCharge,
-  DISCARDABLE_REFUND_ALERT_KINDS,
   isConfirmedByHand,
   isLateApproval,
   isPointTerminalId,

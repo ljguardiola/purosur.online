@@ -57,6 +57,7 @@ describe("DrizzleRefundStore", () => {
       origin: "sale_cancelled",
       method: "TRANSFER",
       confirmedAt: null,
+      lastRefusalReason: null,
     });
   });
 
@@ -202,6 +203,7 @@ describe("DrizzleRefundStore", () => {
         origin: "late_payment",
         method: "QR",
         confirmedAt: null,
+        lastRefusalReason: null,
       });
     });
 
@@ -241,7 +243,30 @@ describe("DrizzleRefundStore", () => {
         entity: "payment_refund",
         actorId: userId,
         at: discardedAt,
-        previousValue: { state: "PENDING" },
+        newValue: { state: "DISCARDED", discardedAt: discardedAt.toISOString() },
+      });
+      expect(audit?.previousValue).toEqual({ state: "PENDING" });
+    });
+
+    it("tells why Mercado Pago last refused a refund, and keeps the reason in the audit entry of its discard", async () => {
+      const { refundId, locationId } = await aPendingLatePaymentRefund(db, { openedAt: NOW });
+      const { userId } = await signedInWith(db, ["confirm_refunds"], NOW);
+      await db
+        .update(paymentRefunds)
+        .set({ confirmedBy: userId, confirmedAt: NOW, lastRefusalReason: "payment_not_refundable" })
+        .where(eq(paymentRefunds.id, refundId));
+      const discardedAt = new Date("2026-10-08T09:00:00.000Z");
+
+      const locked = await store().transaction(async (tx) => {
+        const refund = await tx.lockRefund(refundId, locationId);
+        await tx.recordRefundDiscarded(refundId, userId, discardedAt);
+        return refund;
+      });
+
+      expect(locked).toMatchObject({ lastRefusalReason: "payment_not_refundable" });
+      const [audit] = await db.select().from(auditLog).where(eq(auditLog.entityId, refundId));
+      expect(audit).toMatchObject({
+        previousValue: { state: "PENDING", lastRefusalReason: "payment_not_refundable" },
         newValue: { state: "DISCARDED", discardedAt: discardedAt.toISOString() },
       });
     });

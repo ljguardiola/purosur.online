@@ -2,7 +2,7 @@ import { SNAPSHOT_CORRUPTION_STAGES } from "@purosur/domain";
 import { z } from "zod";
 import { requestIdSchema } from "../shared/index.js";
 import { installationKeysSchema } from "./installation-keys.js";
-import { announcedKeyVersionSchema } from "./snapshot-worker.js";
+import { announcedKeyVersionSchema, snapshotRestoreOutcomeSchema } from "./snapshot-worker.js";
 
 const deviceCredentialsSchema = z.object({
   device_id: z.string(),
@@ -91,6 +91,7 @@ export const mainToCoreMessageSchema = z.discriminatedUnion("type", [
     type: z.literal("snapshot-worker-exited"),
     copy_failed_stage: z.enum(SNAPSHOT_CORRUPTION_STAGES).optional(),
     latest_announced_key_version: announcedKeyVersionSchema.optional(),
+    restore_outcome: snapshotRestoreOutcomeSchema.optional(),
   }),
 ]);
 export type MainToCoreMessage = z.output<typeof mainToCoreMessageSchema>;

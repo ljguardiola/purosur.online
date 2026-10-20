@@ -751,6 +751,56 @@ describe("POST /refunds/:id/discard", () => {
     expect(refund).toMatchObject({ state: "PENDING" });
   });
 
+  describe("a confirmed refund sent to Mercado Pago", () => {
+    async function confirmedWith(
+      refundId: string,
+      userId: string,
+      refusal: { lastRefusalReason: string | null; sentAt: Date | null },
+    ) {
+      await db
+        .update(paymentRefunds)
+        .set({
+          confirmedBy: userId,
+          confirmedAt: NOW,
+          providerRefundId: refusal.sentAt === null ? null : "REF-1",
+          ...refusal,
+        })
+        .where(eq(paymentRefunds.id, refundId));
+    }
+
+    it("discards a QR refund of a cancelled sale that Mercado Pago refused for good", async () => {
+      const { headers, userId } = await signedInWith(db, ["confirm_refunds"], NOW);
+      const { refundId } = await aPendingQrRefundOfCancelledSale(db, { cancelledAt: NOW });
+      await confirmedWith(refundId, userId, {
+        lastRefusalReason: "payment_not_refundable",
+        sentAt: null,
+      });
+
+      const response = await discard(headers, refundId);
+
+      expect(response.statusCode).toBe(200);
+      const [refund] = await db
+        .select()
+        .from(paymentRefunds)
+        .where(eq(paymentRefunds.id, refundId));
+      expect(refund).toMatchObject({ state: "DISCARDED", discardedBy: userId });
+    });
+
+    it("answers 409 refund_waiting_for_balance to one held for insufficient balance", async () => {
+      const { headers, userId } = await signedInWith(db, ["confirm_refunds"], NOW);
+      const { refundId } = await aPendingQrRefundOfCancelledSale(db, { cancelledAt: NOW });
+      await confirmedWith(refundId, userId, {
+        lastRefusalReason: "insufficient_balance",
+        sentAt: NOW,
+      });
+
+      const response = await discard(headers, refundId);
+
+      expect(response.statusCode).toBe(409);
+      expect(response.json()).toMatchObject({ code: "refund_waiting_for_balance" });
+    });
+  });
+
   it("answers 409 to a refund that was already marked as done", async () => {
     const { headers } = await signedInWith(db, ["confirm_refunds"], NOW);
     const late = await aPendingLatePaymentRefund(db, { openedAt: NOW, method: "POINT" });

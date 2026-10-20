@@ -31,6 +31,7 @@ export interface SnapshotCycleWiringDeps {
   postToMain: (message: SnapshotWorkerLaunchRequest) => void;
   scheduleNext: (run: () => Promise<void>, delayMs: number) => void;
   localDatabaseDamaged: () => boolean;
+  restorePending: () => boolean;
   health: LocalDatabaseHealth;
   reports: SnapshotCorruptionReports;
   onCopyFailureRecorded: () => void;
@@ -59,6 +60,9 @@ export function startSnapshotCycle(deps: SnapshotCycleWiringDeps): SnapshotCycle
   };
   const schedule = createSnapshotCycleSchedule({
     runCycle: async () => {
+      if (deps.restorePending()) {
+        return { kind: "launch_unavailable" };
+      }
       try {
         await pruneSnapshotsOnDisk({
           snapshotsFolder: deps.snapshotsFolder,

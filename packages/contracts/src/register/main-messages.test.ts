@@ -54,6 +54,24 @@ describe("mainToCoreMessageSchema", () => {
     ).toBe(false);
   });
 
+  it.each(["restored", "no_generation", "none_usable", "unreachable"])(
+    "accepts the notice that a snapshot worker exited after the restore ended as %s",
+    (outcome) => {
+      const message = { type: "snapshot-worker-exited", restore_outcome: outcome };
+
+      expect(mainToCoreMessageSchema.parse(message)).toEqual(message);
+    },
+  );
+
+  it("refuses a restore outcome that does not exist", () => {
+    expect(
+      mainToCoreMessageSchema.safeParse({
+        type: "snapshot-worker-exited",
+        restore_outcome: "half_restored",
+      }).success,
+    ).toBe(false);
+  });
+
   it("refuses a copy failure at a stage that does not exist", () => {
     expect(
       mainToCoreMessageSchema.safeParse({
