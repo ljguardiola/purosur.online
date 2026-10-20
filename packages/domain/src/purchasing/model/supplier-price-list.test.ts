@@ -1,12 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { MAX_CASH_AMOUNT_CENTS } from "../../shared/index.js";
 import {
-  confirmationRefusal,
-  confirmedListDate,
   countsTowardDailyExtractionCap,
   currentConfirmedListId,
   DEFAULT_SUPPLIER_PRICE_LIST_DAILY_EXTRACTION_CAP,
   dailyExtractionCapReached,
+  decideConfirmation,
   isPriceListRowPrice,
   isSourcePage,
   isSupplierPriceListPdfTooLarge,
@@ -113,46 +112,67 @@ describe("isSourcePage", () => {
   });
 });
 
-describe("confirmedListDate", () => {
+describe("decideConfirmation", () => {
+  const priced = [100, 250];
+
+  it("confirms a priced list under the date it was read with", () => {
+    expect(
+      decideConfirmation({ rowPrices: priced, readListDate: "2026-03-01", typedListDate: null }),
+    ).toEqual({ kind: "confirmable", listDate: "2026-03-01" });
+  });
+
   it("takes the typed date over the read one", () => {
-    expect(confirmedListDate("2026-03-01", "2026-03-05")).toBe("2026-03-05");
+    expect(
+      decideConfirmation({
+        rowPrices: priced,
+        readListDate: "2026-03-01",
+        typedListDate: "2026-03-05",
+      }),
+    ).toEqual({ kind: "confirmable", listDate: "2026-03-05" });
   });
 
-  it("takes the read date when none was typed", () => {
-    expect(confirmedListDate("2026-03-01", null)).toBe("2026-03-01");
-  });
-
-  it("has no date when neither exists", () => {
-    expect(confirmedListDate(null, null)).toBeNull();
-  });
-});
-
-describe("confirmationRefusal", () => {
-  it("needs at least one row", () => {
-    expect(confirmationRefusal({ rowPrices: [], listDate: "2026-03-01" })).toBe("no_rows");
-  });
-
-  it("refuses a list holding a row without price", () => {
-    expect(confirmationRefusal({ rowPrices: [100, null], listDate: "2026-03-01" })).toBe(
-      "unpriced_rows",
-    );
-  });
-
-  it("accepts a free row, priced at zero", () => {
-    expect(confirmationRefusal({ rowPrices: [0], listDate: "2026-03-01" })).toBeNull();
+  it("takes the typed date when none was read", () => {
+    expect(
+      decideConfirmation({ rowPrices: priced, readListDate: null, typedListDate: "2026-03-05" }),
+    ).toEqual({ kind: "confirmable", listDate: "2026-03-05" });
   });
 
   it("needs a date", () => {
-    expect(confirmationRefusal({ rowPrices: [100], listDate: null })).toBe("list_date_missing");
+    expect(
+      decideConfirmation({ rowPrices: priced, readListDate: null, typedListDate: null }),
+    ).toEqual({ kind: "refused", reason: "list_date_missing" });
+  });
+
+  it("needs at least one row", () => {
+    expect(
+      decideConfirmation({ rowPrices: [], readListDate: "2026-03-01", typedListDate: null }),
+    ).toEqual({ kind: "refused", reason: "no_rows" });
+  });
+
+  it("refuses a list holding a row without price", () => {
+    expect(
+      decideConfirmation({
+        rowPrices: [100, null],
+        readListDate: "2026-03-01",
+        typedListDate: null,
+      }),
+    ).toEqual({ kind: "refused", reason: "unpriced_rows" });
+  });
+
+  it("accepts a free row, priced at zero", () => {
+    expect(
+      decideConfirmation({ rowPrices: [0], readListDate: "2026-03-01", typedListDate: null }).kind,
+    ).toBe("confirmable");
   });
 
   it("reports the missing rows before the unpriced ones before the missing date", () => {
-    expect(confirmationRefusal({ rowPrices: [], listDate: null })).toBe("no_rows");
-    expect(confirmationRefusal({ rowPrices: [null], listDate: null })).toBe("unpriced_rows");
-  });
-
-  it("accepts a priced list with a date", () => {
-    expect(confirmationRefusal({ rowPrices: [100, 250], listDate: "2026-03-01" })).toBeNull();
+    expect(decideConfirmation({ rowPrices: [], readListDate: null, typedListDate: null })).toEqual({
+      kind: "refused",
+      reason: "no_rows",
+    });
+    expect(
+      decideConfirmation({ rowPrices: [null], readListDate: null, typedListDate: null }),
+    ).toEqual({ kind: "refused", reason: "unpriced_rows" });
   });
 });
 
