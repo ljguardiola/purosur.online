@@ -1,5 +1,14 @@
 import { createRoute, Outlet, useMatchRoute } from "@tanstack/react-router";
-import { BadgePercent, ChartColumn, List, Package, Receipt, Users, Wallet } from "lucide-react";
+import {
+  BadgePercent,
+  ChartColumn,
+  HandCoins,
+  List,
+  Package,
+  Receipt,
+  Users,
+  Wallet,
+} from "lucide-react";
 import { AreaLayout, SectionLink } from "./area-layout";
 import { signedInRoute } from "./signed-in-route";
 
@@ -21,6 +30,7 @@ function ReportsArea() {
   );
   const salesByCashierShown = Boolean(matchRoute({ to: "/reports/sales-by-cashier" }));
   const salesByPromotionShown = Boolean(matchRoute({ to: "/reports/sales-by-promotion" }));
+  const manualDiscountsShown = Boolean(matchRoute({ to: "/reports/manual-discounts" }));
   const averageTicketShown = Boolean(matchRoute({ to: "/reports/average-ticket" }));
   return (
     <AreaLayout
@@ -100,6 +110,15 @@ function ReportsArea() {
                 icon={<BadgePercent />}
                 search={salesByPromotionShown ? true : {}}
                 active={salesByPromotionShown}
+              />
+            </li>
+            <li>
+              <SectionLink
+                to="/reports/manual-discounts"
+                label="Descuentos manuales y sobre el total"
+                icon={<HandCoins />}
+                search={manualDiscountsShown ? true : {}}
+                active={manualDiscountsShown}
               />
             </li>
           </ul>

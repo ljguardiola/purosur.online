@@ -34,6 +34,7 @@ import type { ReportRegisterFilterProps } from "../register/report-register-filt
 import type { ReportRegisterFilterServices } from "../register/report-register-filter-services";
 import type { SnapshotBackupsScreenServices } from "../register/snapshot-backups-services";
 import type { AverageTicketScreenServices } from "../sales/average-ticket-services";
+import type { ManualDiscountsScreenServices } from "../sales/manual-discounts-services";
 import type { SalesByCashierScreenServices } from "../sales/sales-by-cashier-services";
 import type { SalesByDayScreenServices } from "../sales/sales-by-day-services";
 import type { SalesByProductAndCategoryScreenServices } from "../sales/sales-by-product-and-category-services";
@@ -96,6 +97,7 @@ export type AppServices = {
   salesByProductAndCategoryScreen: SalesByProductAndCategoryScreenServices;
   salesByCashierScreen: SalesByCashierScreenServices;
   salesByPromotionScreen: SalesByPromotionScreenServices;
+  manualDiscountsScreen: ManualDiscountsScreenServices;
   averageTicketScreen: AverageTicketScreenServices;
   salesByPaymentMethodScreen: SalesByPaymentMethodScreenServices;
   handConfirmedPaymentsScreen: HandConfirmedPaymentsScreenServices;

@@ -1,5 +1,7 @@
 import type {
   AverageTicketBody,
+  ManualDiscountsBody,
+  ManualDiscountsQuery,
   ReportQuery,
   SalesByCashierBody,
   SalesByProductAndCategoryBody,
@@ -11,6 +13,7 @@ import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { useCloudQuery } from "../platform/use-cloud-query";
 import type {
   fetchAverageTicket,
+  fetchManualDiscounts,
   fetchSalesByCashier,
   fetchSalesByProductAndCategory,
   fetchSalesByPromotion,
@@ -35,6 +38,15 @@ export const salesKeys = {
     [...salesKey, "cashiers", query.from ?? "", query.to ?? "", query.register_id ?? ""] as const,
   promotions: (query: ReportQuery) =>
     [...salesKey, "promotions", query.from ?? "", query.to ?? "", query.register_id ?? ""] as const,
+  manualDiscounts: (query: ManualDiscountsQuery) =>
+    [
+      ...salesKey,
+      "manual-discounts",
+      query.from ?? "",
+      query.to ?? "",
+      query.register_id ?? "",
+      query.authorized_by ?? "",
+    ] as const,
   averageTicket: (query: ReportQuery) =>
     [
       ...salesKey,
@@ -97,6 +109,22 @@ export function useSalesByPromotionQuery(
     queryKey: salesKeys.promotions(params.query),
     keepPreviousData: true,
     read: () => params.fetchSalesByPromotion(params.query),
+    onSessionEnded: params.onSessionEnded,
+    onForbidden: sendToMyAccount,
+  });
+}
+
+export function useManualDiscountsQuery(
+  params: ReadParams & {
+    query: ManualDiscountsQuery;
+    fetchManualDiscounts: typeof fetchManualDiscounts;
+  },
+) {
+  const sendToMyAccount = useSendToMyAccount();
+  return useCloudQuery<ManualDiscountsBody>({
+    queryKey: salesKeys.manualDiscounts(params.query),
+    keepPreviousData: true,
+    read: () => params.fetchManualDiscounts(params.query),
     onSessionEnded: params.onSessionEnded,
     onForbidden: sendToMyAccount,
   });
