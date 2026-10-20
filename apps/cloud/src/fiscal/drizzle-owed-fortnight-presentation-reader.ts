@@ -1,4 +1,4 @@
-import { fortnightReportStateWhenListedAsOwed } from "@purosur/domain";
+import { owedFortnightPresentationState } from "@purosur/domain";
 import type {
   OwedFortnightPresentation,
   OwedFortnightPresentationReader,
@@ -22,7 +22,8 @@ export class DrizzleOwedFortnightPresentationReader<TQueryResult extends PgQuery
       registerId,
       fortnight: code.fortnight,
       taxAuthorityDeadline: code.reportDeadline,
-      state: listed ? fortnightReportStateWhenListedAsOwed(state) : state,
+      state: owedFortnightPresentationState({ state, listed }),
+      listed,
     }));
   }
 }

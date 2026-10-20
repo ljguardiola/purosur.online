@@ -1,5 +1,5 @@
 import { argentinaCalendarDay, argentinaInstant, shiftCalendarDay } from "../../shared/index.js";
-import { streamReachesPast } from "../../sync/index.js";
+import { isInstallationActiveDuring, streamReachesPast } from "../../sync/index.js";
 import type {
   FiscalDocumentType,
   TaxAuthorityRejection,
@@ -72,13 +72,11 @@ export async function reportFortnights(
   const presentations: FortnightPresentation[] = [];
   const withDocumentsPresented = new Set<string>();
   for (const owed of await ports.reports.owedReports(today)) {
-    const owedPresentations = await ports.reports.holdReport(keyOf(owed), (report) =>
-      presentFortnight(ports, token, listed, owed, report),
+    presentations.push(
+      ...(await ports.reports.holdReport(keyOf(owed), (report) =>
+        presentFortnight(ports, token, listed, withDocumentsPresented, owed, report),
+      )),
     );
-    if (owedPresentations.some(({ documentType }) => documentType !== null)) {
-      withDocumentsPresented.add(presentationKey(owed));
-    }
-    presentations.push(...owedPresentations);
   }
   for (const accepted of await ports.reports.acceptedWithUnreportedDocuments()) {
     if (withDocumentsPresented.has(presentationKey(accepted))) {
@@ -107,13 +105,13 @@ async function recordListOf(
 }
 
 async function resolveWhenListed(
-  { owedPresentations, clock }: FortnightReportPorts,
+  { owedPresentations }: FortnightReportPorts,
   listed: ListedOwedPresentation[],
   owed: OwedFortnightReport,
 ): Promise<void> {
   const key = keyOf(owed);
   if (listsOwedPresentation(listed, key)) {
-    await owedPresentations.resolve(key, clock.now());
+    await owedPresentations.resolve(key);
   }
 }
 
@@ -168,7 +166,6 @@ async function recoverFortnightCode(
       return;
     }
     const answer = await codeAuthority.lookUp({ token, fortnight });
-    await recordListOf(ports, answer);
     if (answer.kind === "granted" && isSameFortnight(answer.code.fortnight, fortnight)) {
       await acquisition.keep({
         code: answer.code,
@@ -176,6 +173,7 @@ async function recoverFortnightCode(
         obtainedThrough: "recovered",
       });
     }
+    await recordListOf(ports, answer);
   });
 }
 
@@ -183,11 +181,12 @@ async function presentFortnight(
   ports: FortnightReportPorts,
   token: WsaaToken,
   listed: ListedOwedPresentation[],
+  withDocumentsPresented: Set<string>,
   owed: OwedFortnightReport,
   report: HeldFortnightReport,
 ): Promise<FortnightPresentation[]> {
   const { documents, declarations, clock } = ports;
-  const { pointOfSaleNumber, registerId, code } = owed;
+  const { pointOfSaleNumber, code } = owed;
   const presentation = (outcome: FortnightPresentationOutcome) => [
     fortnightPresentation(owed, outcome),
   ];
@@ -214,13 +213,14 @@ async function presentFortnight(
     return presentation({ kind: "lookup_no_answer" });
   }
 
-  if (!(await reachesPastClose(ports, registerId, code.fortnight))) {
+  if (!(await reachesPastClose(ports, listed, owed))) {
     await report.record({ state: "blocked", at: clock.now() });
     return presentation({ kind: "blocked" });
   }
 
   const issued = await documents.documentsOn(pointOfSaleNumber, code.fortnight);
   if (issued.length > 0) {
+    withDocumentsPresented.add(presentationKey(owed));
     return presentDocuments(ports, token, listed, owed, report, issued);
   }
 
@@ -245,13 +245,22 @@ async function presentFortnight(
 
 async function reachesPastClose(
   { streams }: FortnightReportPorts,
-  registerId: string,
-  fortnight: Fortnight,
+  listed: ListedOwedPresentation[],
+  owed: OwedFortnightReport,
 ): Promise<boolean> {
-  return streamReachesPast(await streams.installationsOf(registerId), {
+  const { fortnight } = owed.code;
+  const installations = await streams.installationsOf(owed.registerId);
+  const period = {
     from: new Date(argentinaInstant(fortnight.start, "00:00")),
     until: fortnightClosesAt(fortnight),
-  });
+  };
+  if (
+    listsOwedPresentation(listed, keyOf(owed)) &&
+    !installations.some((installation) => isInstallationActiveDuring(installation, period))
+  ) {
+    return false;
+  }
+  return streamReachesPast(installations, period);
 }
 
 async function presentUnreportedDocuments(
@@ -276,7 +285,7 @@ async function presentUnreportedDocuments(
     await report.record({ state: "needs_regularization", at: ports.clock.now() });
     return [fortnightPresentation(accepted, { kind: "needs_regularization" })];
   }
-  if (!(await reachesPastClose(ports, accepted.registerId, accepted.code.fortnight))) {
+  if (!(await reachesPastClose(ports, listed, accepted))) {
     await report.record({ state: "blocked", at: ports.clock.now() });
     return [fortnightPresentation(accepted, { kind: "blocked" })];
   }

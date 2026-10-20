@@ -52,6 +52,7 @@ export interface OfflineAuthorizationCodeAcquisition {
 export interface OfflineAuthorizationCodeStore {
   hasOfflinePointOfSale(): Promise<boolean>;
   offlinePointsOfSale(): Promise<number[]>;
+  ownedPointsOfSale(): Promise<number[]>;
   holdAcquisition<TOutcome>(
     fortnight: Fortnight,
     work: (acquisition: OfflineAuthorizationCodeAcquisition) => Promise<TOutcome>,

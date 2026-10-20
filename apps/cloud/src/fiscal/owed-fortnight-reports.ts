@@ -1,4 +1,4 @@
-import { isFortnightReportOutstanding, owesFortnightReport } from "@purosur/domain";
+import { isFortnightPresentationOwed, owesFortnightReport } from "@purosur/domain";
 import type {
   OwedFortnightReport,
   RecordedFortnightReport,
@@ -25,7 +25,7 @@ export async function owedFortnightReportsWithState<TQueryResult extends PgQuery
   today: string,
 ): Promise<OwedFortnightReportWithState[]> {
   const presentations = await closedFortnightPresentations(db, today);
-  return presentations.filter(({ state, listed }) => listed || isFortnightReportOutstanding(state));
+  return presentations.filter(isFortnightPresentationOwed);
 }
 
 export async function fortnightReportsOwedAs<TQueryResult extends PgQueryResultHKT>(

@@ -17,7 +17,7 @@ export class DrizzleOwedElsewherePresentationReader<TQueryResult extends PgQuery
   async owedElsewhere(): Promise<ListedOwedPresentation[]> {
     const { owedElsewhere } = splitOwedPresentations(
       await new DrizzleOwedPresentationList(this.db).listed(),
-      await new DrizzleOfflineAuthorizationCodeStore(this.db).offlinePointsOfSale(),
+      await new DrizzleOfflineAuthorizationCodeStore(this.db).ownedPointsOfSale(),
     );
     return owedElsewhere;
   }

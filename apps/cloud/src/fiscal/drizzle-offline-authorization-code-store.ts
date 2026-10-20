@@ -91,6 +91,13 @@ export class DrizzleOfflineAuthorizationCodeStore<TQueryResult extends PgQueryRe
     return rows.map(({ pointOfSaleNumber }) => pointOfSaleNumber);
   }
 
+  async ownedPointsOfSale(): Promise<number[]> {
+    const rows = await this.db
+      .select({ pointOfSaleNumber: pointOfSaleClaims.pointOfSaleNumber })
+      .from(pointOfSaleClaims);
+    return rows.map(({ pointOfSaleNumber }) => pointOfSaleNumber);
+  }
+
   async holdAcquisition<TOutcome>(
     fortnight: Fortnight,
     work: (acquisition: OfflineAuthorizationCodeAcquisition) => Promise<TOutcome>,

@@ -1,7 +1,7 @@
 import type { InstallationStreamReach } from "../../../sync/index.js";
 import type { FiscalDocumentType } from "../../model/fiscal-rejection-standing.js";
 import {
-  isFortnightReportOutstanding,
+  isFortnightPresentationOwed,
   isOfflineDocumentReported,
   owesFortnightReport,
 } from "../../model/fortnight-report.js";
@@ -167,8 +167,10 @@ export class FakeFortnightReportStore implements FortnightReportStore {
           const listed = listsOwedPresentation(this.list.entries, key);
           return (
             owesFortnightReport({ fortnight: code.fortnight, claimedAt, listed }, today) &&
-            (listed ||
-              isFortnightReportOutstanding(this.recordedReports.get(keyOf(key))?.state ?? null))
+            isFortnightPresentationOwed({
+              state: this.recordedReports.get(keyOf(key))?.state ?? null,
+              listed,
+            })
           );
         })
         .map(({ pointOfSaleNumber, registerId }) => ({ pointOfSaleNumber, registerId, code })),

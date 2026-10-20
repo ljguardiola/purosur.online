@@ -1,9 +1,9 @@
-import { fortnightContaining } from "@purosur/domain";
+import { fortnightContaining, splitOwedPresentations } from "@purosur/domain";
 import type {
   ListedOwedPresentation,
   OwedPresentationList,
 } from "@purosur/domain/fiscal/use-cases";
-import { and, eq } from "drizzle-orm";
+import { and, eq, or } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { taxAuthorityOwedPresentations } from "../platform/db/schema.js";
 
@@ -48,14 +48,26 @@ export class DrizzleOwedPresentationList<TQueryResult extends PgQueryResultHKT>
     });
   }
 
-  async resolve({ pointOfSaleNumber, fortnight }: ListedOwedPresentation): Promise<void> {
-    await this.db
-      .delete(taxAuthorityOwedPresentations)
-      .where(
-        and(
-          eq(taxAuthorityOwedPresentations.pointOfSaleNumber, pointOfSaleNumber),
-          eq(taxAuthorityOwedPresentations.fortnightStart, fortnight.start),
-        ),
-      );
+  async resolve(key: ListedOwedPresentation): Promise<void> {
+    await this.db.delete(taxAuthorityOwedPresentations).where(listedAs(key));
   }
+
+  async clearOwedElsewhere(ownedPointsOfSale: readonly number[]): Promise<void> {
+    await this.db.transaction(async (tx) => {
+      const { owedElsewhere } = splitOwedPresentations(
+        await new DrizzleOwedPresentationList(tx).listed(),
+        ownedPointsOfSale,
+      );
+      if (owedElsewhere.length > 0) {
+        await tx.delete(taxAuthorityOwedPresentations).where(or(...owedElsewhere.map(listedAs)));
+      }
+    });
+  }
+}
+
+function listedAs({ pointOfSaleNumber, fortnight }: ListedOwedPresentation) {
+  return and(
+    eq(taxAuthorityOwedPresentations.pointOfSaleNumber, pointOfSaleNumber),
+    eq(taxAuthorityOwedPresentations.fortnightStart, fortnight.start),
+  );
 }
