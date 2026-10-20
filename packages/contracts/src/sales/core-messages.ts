@@ -35,6 +35,7 @@ import {
   weighProductOutcomeSchema,
 } from "./sale.js";
 import {
+  comprobanteSchema,
   receiptCopySchema,
   saleHistoryDetailOutcomeSchema,
   salesHistoryOutcomeSchema,
@@ -285,6 +286,7 @@ const receiptPrintStatusOutcomeSchema = z.discriminatedUnion("kind", [
         "printed",
       ])
       .nullable(),
+    comprobante: comprobanteSchema,
   }),
   z.object({ kind: z.literal("not_found") }),
   z.object({ kind: z.literal("not_signed_in") }),

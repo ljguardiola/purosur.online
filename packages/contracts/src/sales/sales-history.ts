@@ -1,5 +1,6 @@
 import {
   FACTURA_C_DOCUMENT_TYPE,
+  FISCAL_AUTHORIZATIONS,
   PAYMENT_METHODS,
   PLANNED_REFUND_STATES,
   SALE_STANDINGS,
@@ -21,10 +22,11 @@ export const salesHistoryStateSchema = z.enum(["all", ...SALE_STANDINGS]);
 
 const saleStateSchema = z.enum(SALE_STANDINGS);
 
-const comprobanteSchema = z.discriminatedUnion("kind", [
+export const comprobanteSchema = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("fiscal"),
     document_type: z.literal(FACTURA_C_DOCUMENT_TYPE),
+    authorization: z.enum(FISCAL_AUTHORIZATIONS),
     point_of_sale: z.int().positive(),
     number: z.int().positive(),
   }),
