@@ -138,4 +138,17 @@ describe("startMercadoPagoCharge", () => {
       waitSeconds: 0,
     });
   });
+
+  it("closes the payment as cancelled and tells the cloud answered not_configured, as no QR point of sale was there to show an order", async () => {
+    const world = new FakeMercadoPagoChargeWorld();
+    world.orderAnswer = { kind: "not_configured" };
+
+    expect(await startMercadoPagoCharge(world.ports, INPUT)).toEqual({ kind: "not_configured" });
+    expect(world.pendingCharge(CHARGE_PAYMENT_ID)).toBeNull();
+    expect(world.operations).toEqual([
+      "recordPendingPayment",
+      "requestOrder",
+      "recordEnded:CANCELLED",
+    ]);
+  });
 });
