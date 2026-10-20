@@ -16,6 +16,13 @@ export function paidOrderDiscoveryStart(now: Date): Date {
   return new Date(now.getTime() - PAID_ORDER_DISCOVERY_WINDOW_HOURS * 60 * 60 * 1000);
 }
 
+export function paidOrderDiscoveryWindowOpenFor(
+  transaction: { createdAt: Date },
+  now: Date,
+): boolean {
+  return transaction.createdAt.getTime() >= paidOrderDiscoveryStart(now).getTime();
+}
+
 export type LocalSaleOfPaidOrder = "open" | "closed";
 
 export interface LocalStateOfPaidOrder {

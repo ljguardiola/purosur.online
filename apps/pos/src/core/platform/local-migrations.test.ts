@@ -911,6 +911,8 @@ describe("the register's local migrations", () => {
         "0059_point_refunds",
         "0062_health_check_clock_offset",
         "0063_register_predecessor",
+        "0064_void_credit_notes",
+        "0066_register_qr_point_of_sale",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -999,6 +1001,8 @@ describe("the register's local migrations", () => {
         "0059_point_refunds",
         "0062_health_check_clock_offset",
         "0063_register_predecessor",
+        "0064_void_credit_notes",
+        "0066_register_qr_point_of_sale",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1082,6 +1086,8 @@ describe("the register's local migrations", () => {
         "0059_point_refunds",
         "0062_health_check_clock_offset",
         "0063_register_predecessor",
+        "0064_void_credit_notes",
+        "0066_register_qr_point_of_sale",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1164,6 +1170,8 @@ describe("the register's local migrations", () => {
         "0059_point_refunds",
         "0062_health_check_clock_offset",
         "0063_register_predecessor",
+        "0064_void_credit_notes",
+        "0066_register_qr_point_of_sale",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1275,6 +1283,8 @@ describe("the register's local migrations", () => {
         "0059_point_refunds",
         "0062_health_check_clock_offset",
         "0063_register_predecessor",
+        "0064_void_credit_notes",
+        "0066_register_qr_point_of_sale",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1376,6 +1386,8 @@ describe("the register's local migrations", () => {
         "0059_point_refunds",
         "0062_health_check_clock_offset",
         "0063_register_predecessor",
+        "0064_void_credit_notes",
+        "0066_register_qr_point_of_sale",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1481,6 +1493,8 @@ describe("the register's local migrations", () => {
         "0059_point_refunds",
         "0062_health_check_clock_offset",
         "0063_register_predecessor",
+        "0064_void_credit_notes",
+        "0066_register_qr_point_of_sale",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1594,6 +1608,8 @@ describe("the register's local migrations", () => {
         "0059_point_refunds",
         "0062_health_check_clock_offset",
         "0063_register_predecessor",
+        "0064_void_credit_notes",
+        "0066_register_qr_point_of_sale",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1674,6 +1690,8 @@ describe("the register's local migrations", () => {
         "0059_point_refunds",
         "0062_health_check_clock_offset",
         "0063_register_predecessor",
+        "0064_void_credit_notes",
+        "0066_register_qr_point_of_sale",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -5346,6 +5364,159 @@ describe("the register's local migrations", () => {
       expect(() => record.run("device-a", -1)).toThrow(/CHECK/);
       expect(() => record.run("device-a", 0)).not.toThrow();
       expect(() => record.run("device-a", 3)).toThrow(/UNIQUE|PRIMARY KEY/);
+      after.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
+  it("hold the credit note of a voided sale once per sale, its answer kept consistent with its state", () => {
+    const database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS, migrationClock);
+    database.exec(
+      `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
+       VALUES ('s1', 'r1', 'device-a', 'u1', '2026-10-09T12:00:00.000Z', 0, 'OPEN');
+       INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at)
+       VALUES ('sale-1', 'r1', 'device-a', 's1', 'u1', 'COMPLETED', '2026-10-09T12:05:00.000Z'),
+              ('sale-2', 'r1', 'device-a', 's1', 'u1', 'COMPLETED', '2026-10-09T12:06:00.000Z'),
+              ('sale-3', 'r1', 'device-a', 's1', 'u1', 'COMPLETED', '2026-10-09T12:07:00.000Z'),
+              ('sale-4', 'r1', 'device-a', 's1', 'u1', 'COMPLETED', '2026-10-09T12:08:00.000Z'),
+              ('sale-5', 'r1', 'device-a', 's1', 'u1', 'COMPLETED', '2026-10-09T12:09:00.000Z');`,
+    );
+    const insert = database.prepare(
+      `INSERT INTO sale_void_credit_notes (
+         id, sale_id, total, receiver_tax_status_code, corrected_voucher_type,
+         corrected_point_of_sale, corrected_number, state, point_of_sale, number, issued_on,
+         issued_at, authorization_code, authorization_code_due_on, recorded_at, answered_at
+       ) VALUES (
+         @id, @sale_id, 3000, 5, 11, 12, 41, @state, @point_of_sale, @number, @issued_on,
+         @issued_at, @authorization_code, @authorization_code_due_on, '2026-10-09T12:30:00.000Z',
+         @answered_at
+       )`,
+    );
+    const inProgress = {
+      id: "note-1",
+      sale_id: "sale-1",
+      state: "IN_PROGRESS",
+      point_of_sale: null,
+      number: null,
+      issued_on: null,
+      issued_at: null,
+      authorization_code: null,
+      authorization_code_due_on: null,
+      answered_at: null,
+    };
+    const authorized = {
+      ...inProgress,
+      state: "AUTHORIZED",
+      point_of_sale: 12,
+      number: 7,
+      issued_on: "2026-10-09",
+      issued_at: "2026-10-09T12:30:40.000Z",
+      authorization_code: "75123456789012",
+      authorization_code_due_on: "2026-10-19",
+      answered_at: "2026-10-09T12:31:00.000Z",
+    };
+
+    expect(() => insert.run(inProgress)).not.toThrow();
+    expect(() => insert.run({ ...inProgress, id: "note-again" })).toThrow(/UNIQUE/);
+    expect(() => insert.run({ ...authorized, id: "note-2", sale_id: "sale-2" })).not.toThrow();
+    expect(() => insert.run({ ...inProgress, id: "note-3", sale_id: "missing" })).toThrow(
+      /FOREIGN KEY/,
+    );
+    expect(() =>
+      insert.run({ ...authorized, id: "note-4", sale_id: "sale-3", authorization_code: null }),
+    ).toThrow(/CHECK/);
+    expect(() =>
+      insert.run({ ...authorized, id: "note-5", sale_id: "sale-3", number: null }),
+    ).toThrow(/CHECK/);
+    expect(() =>
+      insert.run({ ...authorized, id: "note-15", sale_id: "sale-3", issued_at: null }),
+    ).toThrow(/CHECK/);
+    expect(() =>
+      insert.run({
+        ...inProgress,
+        id: "note-16",
+        sale_id: "sale-3",
+        issued_at: "2026-10-09T12:30:40.000Z",
+      }),
+    ).toThrow(/CHECK/);
+    expect(() => insert.run({ ...inProgress, id: "note-6", sale_id: "sale-3", number: 7 })).toThrow(
+      /CHECK/,
+    );
+    expect(() =>
+      insert.run({ ...inProgress, id: "note-7", sale_id: "sale-3", answered_at: "2026-10-09" }),
+    ).toThrow(/CHECK/);
+    expect(() =>
+      insert.run({ ...authorized, id: "note-8", sale_id: "sale-3", answered_at: null }),
+    ).toThrow(/CHECK/);
+    expect(() =>
+      insert.run({ ...inProgress, id: "note-9", sale_id: "sale-3", state: "REJECTED" }),
+    ).toThrow(/CHECK/);
+    expect(() =>
+      insert.run({
+        ...inProgress,
+        id: "note-10",
+        sale_id: "sale-4",
+        state: "REJECTED",
+        answered_at: "2026-10-09T12:31:00.000Z",
+      }),
+    ).not.toThrow();
+    expect(() =>
+      insert.run({ ...inProgress, id: "note-11", sale_id: "sale-3", state: "VOIDED" }),
+    ).toThrow(/CHECK/);
+    expect(() =>
+      insert.run({
+        ...inProgress,
+        id: "note-12",
+        sale_id: "sale-5",
+        state: "ALREADY_CREDITED",
+        answered_at: "2026-10-09T12:31:00.000Z",
+      }),
+    ).not.toThrow();
+    expect(() =>
+      insert.run({ ...inProgress, id: "note-13", sale_id: "sale-3", state: "ALREADY_CREDITED" }),
+    ).toThrow(/CHECK/);
+    expect(() =>
+      insert.run({
+        ...authorized,
+        id: "note-14",
+        sale_id: "sale-3",
+        state: "ALREADY_CREDITED",
+      }),
+    ).toThrow(/CHECK/);
+    database.close();
+  });
+
+  it("add the register's QR point of sale assignment, none for a register already holding data", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.filter(
+        (migration) => migration.name < "0066_register_qr_point_of_sale",
+      );
+      expect(LOCAL_MIGRATIONS.map((migration) => migration.name)).toContain(
+        "0066_register_qr_point_of_sale",
+      );
+      const before = openLocalDatabase(path, previous, migrationClock);
+      before.exec(
+        "INSERT INTO own_register (id, name, version, removed) VALUES ('r1', 'Caja 1', 1, 0)",
+      );
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+
+      expect(
+        after.prepare("SELECT count(*) AS total FROM register_qr_point_of_sale").get(),
+      ).toEqual({ total: 0 });
+      const assign = (assigned: number) =>
+        after
+          .prepare(
+            "INSERT INTO register_qr_point_of_sale (register_id, assigned, version) VALUES ('r1', ?, 1)",
+          )
+          .run(assigned);
+      expect(() => assign(2)).toThrow(/CHECK/);
+      expect(() => assign(1)).not.toThrow();
+      expect(() => assign(0)).toThrow(/UNIQUE|PRIMARY/);
       after.close();
     } finally {
       rmSync(folder, { recursive: true, force: true });

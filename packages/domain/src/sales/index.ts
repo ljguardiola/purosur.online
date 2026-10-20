@@ -16,6 +16,7 @@ export type {
 } from "./model/manual-discounts-report.js";
 export { openSaleStanding } from "./model/open-sale-standing.js";
 export type { ReceiptContent, ReceiptSource } from "./model/receipt-content.js";
+export { receiptContent } from "./model/receipt-content.js";
 export type { ReceiptCopy, ReceiptDelivery } from "./model/receipt-copy.js";
 export type { SalePrintState, SaleReprint } from "./model/receipt-events.js";
 export type {

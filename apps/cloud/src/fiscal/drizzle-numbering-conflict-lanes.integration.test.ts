@@ -6,9 +6,9 @@ import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   alerts,
+  creditNotes,
   fiscalRequests,
   fiscalTasks,
-  orphanCreditNotes,
   taxAuthorityLastAuthorizedNumbers,
 } from "../platform/db/schema.js";
 import { postgresDedicatedConnections } from "../platform/dedicated-connections.js";
@@ -544,7 +544,7 @@ describe("the numbering conflict lane on a real Postgres", () => {
       await settle(8, { regularizations: [regularization], lastAuthorized: 4_001 });
 
       expect(
-        (await db.select().from(orphanCreditNotes)).filter((row) => row.pointOfSale === 8),
+        (await db.select().from(creditNotes)).filter((row) => row.pointOfSale === 8),
       ).toMatchObject([{ id: regularization.creditNoteId, associatedNumber: 4_000 }]);
       expect(creditNotesEnqueued).toEqual([regularization.creditNoteId]);
       expect(await inLane(8, (lane) => lane.taxAuthorityCount())).toBe(4_001);
@@ -575,7 +575,7 @@ describe("the numbering conflict lane on a real Postgres", () => {
       }
 
       expect(
-        (await db.select().from(orphanCreditNotes)).filter((row) => row.associatedNumber === 4_100),
+        (await db.select().from(creditNotes)).filter((row) => row.associatedNumber === 4_100),
       ).toEqual([]);
       expect(await inLane(7, (lane) => lane.numberingFreeze())).not.toBeNull();
       await settle(7, { regularizations: [], lastAuthorized: 0 });

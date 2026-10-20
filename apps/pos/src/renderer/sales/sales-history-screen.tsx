@@ -1,7 +1,9 @@
 import type {
   Authorization,
+  PrintCreditNoteOutcome,
   ReceiptCopyShown,
   ReprintSaleReceiptOutcome,
+  SaleCreditNote,
   SaleHistoryDetailOutcome,
   SalesHistoryOutcome,
   SignInUser,
@@ -17,6 +19,7 @@ import type { SaleDetail } from "../shell/sale-receipt-text";
 import { receiptCopyPresentation } from "../shell/sale-receipt-text";
 import { sessionEyebrow } from "../shell/session-eyebrow";
 import type { SignedInPerson } from "../shell/signed-in-person";
+import { creditNotePrintNotice, voidedSaleNotice } from "./credit-note-text";
 import { SaleHistoryDetailPanel } from "./sale-history-detail-panel";
 import { SalesHistoryRail } from "./sales-history-rail";
 import type { SessionFilter, StateFilter } from "./sales-history-table";
@@ -41,6 +44,7 @@ export type SalesHistoryScreenProps = {
     pendingRefundsConfirmed: boolean,
     authorization: Authorization | undefined,
   ) => Promise<VoidSaleOutcome>;
+  printCreditNote: (saleId: string) => Promise<PrintCreditNoteOutcome>;
   loadAuthorizers: (permission: AuthorizablePermissionKey) => Promise<SignInUser[]>;
   onSessionInvalid: () => void;
 };
@@ -56,6 +60,7 @@ export function SalesHistoryScreen({
   saleHistoryDetail,
   reprintSaleReceipt,
   voidSale,
+  printCreditNote,
   loadAuthorizers,
   onSessionInvalid,
 }: SalesHistoryScreenProps) {
@@ -67,10 +72,31 @@ export function SalesHistoryScreen({
   const [selectedSaleId, setSelectedSaleId] = useState<string>();
   const [reprinting, setReprinting] = useState<SaleDetail>();
   const [voiding, setVoiding] = useState<SaleDetail>();
-  const [voided, setVoided] = useState(false);
+  const [voided, setVoided] = useState<{ creditNote: SaleCreditNote | null }>();
+  const [creditNotePrint, setCreditNotePrint] =
+    useState<ReturnType<typeof creditNotePrintNotice>>();
   const [sent, setSent] = useState<ReceiptCopyShown>();
   const history = useSalesHistoryQuery({ ...choice, read: salesHistory });
   const refreshHistory = useRefreshSalesHistory();
+
+  async function printCreditNoteOf(sale: SaleDetail) {
+    const outcome = await printCreditNote(sale.sale_id).catch((): "failed" => "failed");
+    if (outcome === "failed") {
+      setCreditNotePrint(creditNotePrintNotice("unavailable"));
+      return;
+    }
+    switch (outcome.kind) {
+      case "not_found":
+        setSelectedSaleId(undefined);
+        void refreshHistory();
+        break;
+      case "not_signed_in":
+        onSessionInvalid();
+        break;
+      default:
+        setCreditNotePrint(creditNotePrintNotice(outcome.kind));
+    }
+  }
 
   const refusal =
     history.status === "loaded" && history.value.kind !== "found" ? history.value : undefined;
@@ -121,6 +147,7 @@ export function SalesHistoryScreen({
         readDetail={saleHistoryDetail}
         onReprint={setReprinting}
         onVoid={setVoiding}
+        onPrintCreditNote={(sale) => void printCreditNoteOf(sale)}
       />
       {reprinting === undefined ? null : (
         <ReprintReceiptModal
@@ -146,13 +173,14 @@ export function SalesHistoryScreen({
         <VoidSaleModal
           sale={voiding}
           refunds={voiding.voidability.refunds}
+          creditNoteCorrects={voiding.voidability.credit_note_corrects}
           authorizationRequired={voiding.void_authorization_required}
           person={person}
           loadAuthorizers={loadAuthorizers}
           voidSale={voidSale}
-          onVoided={() => {
+          onVoided={(creditNote) => {
             setVoiding(undefined);
-            setVoided(true);
+            setVoided({ creditNote });
             void refreshHistory();
           }}
           onRefused={() => void refreshHistory()}
@@ -165,15 +193,20 @@ export function SalesHistoryScreen({
           onClose={() => setVoiding(undefined)}
         />
       )}
-      {voided ? (
+      {voided === undefined ? null : (
         <FloatingNotification
-          tone="success"
+          {...voidedSaleNotice(voided.creditNote)}
           icon={<CircleX />}
-          title="Venta anulada"
-          description="La mercadería volvió al stock."
-          onDismiss={() => setVoided(false)}
+          onDismiss={() => setVoided(undefined)}
         />
-      ) : null}
+      )}
+      {creditNotePrint === undefined ? null : (
+        <FloatingNotification
+          {...creditNotePrint}
+          icon={creditNotePrint.tone === "success" ? <Printer /> : <TriangleAlert />}
+          onDismiss={() => setCreditNotePrint(undefined)}
+        />
+      )}
       {sent === undefined ? null : (
         <FloatingNotification
           tone="success"

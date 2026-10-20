@@ -1,11 +1,14 @@
 import { encodePinHash } from "@purosur/contracts";
+import type { VoidCreditNoteStanding } from "@purosur/domain";
 import {
   FICTIONAL_CUIT,
   FICTIONAL_GROSS_INCOME_REGISTRATION,
   FICTIONAL_LEGAL_NAME,
 } from "@purosur/domain/fiscal/test-support";
+import type { CloudCreditNoteCall } from "@purosur/domain/fiscal/use-cases";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { derivePinVerifier } from "../credentials/pin-verifier";
+import { SqliteVoidCreditNotes } from "../fiscal/sqlite-void-credit-notes";
 import {
   insertFiscalDocument,
   insertHealthCheck,
@@ -27,7 +30,7 @@ import {
   type SellingRequestDeps,
   scanProductFor,
 } from "./sale-requests";
-import { type VoidSaleRequest, voidSaleFor } from "./void-sale-requests";
+import { type VoidSaleRequest, type VoidSaleRequestDeps, voidSaleFor } from "./void-sale-requests";
 
 const NOW = new Date("2026-09-30T12:00:00.000Z");
 const VOIDED_AT = new Date("2026-09-30T12:30:00.000Z");
@@ -72,8 +75,41 @@ function deps(
   };
 }
 
-function voidDeps(overrides: Partial<OutboxSaleRequestDeps> = {}): OutboxSaleRequestDeps {
-  return deps({ now: () => VOIDED_AT, ...overrides });
+const AUTHORIZED_CREDIT_NOTE: VoidCreditNoteStanding = {
+  kind: "authorized",
+  pointOfSale: 12,
+  number: 7,
+  issuedOn: "2026-09-30",
+  issuedAt: new Date("2026-09-30T12:30:01.000Z"),
+  authorizationCode: "75123456789012",
+  authorizationCodeDueOn: "2026-10-10",
+};
+
+let creditNoteCalls: CloudCreditNoteCall[];
+let creditNoteAnswer: VoidCreditNoteStanding | null;
+let printedCreditNotes: string[];
+let reportedFailures: unknown[];
+
+function voidDeps(overrides: Partial<VoidSaleRequestDeps> = {}): VoidSaleRequestDeps {
+  return {
+    ...deps({ now: () => VOIDED_AT }),
+    creditNotes: {
+      request: async (call) => {
+        creditNoteCalls.push(call);
+        return creditNoteAnswer;
+      },
+    },
+    printCreditNote: async (saleId) => {
+      printedCreditNotes.push(saleId);
+    },
+    reportFailure: (error) => reportedFailures.push(error),
+    ...overrides,
+  };
+}
+
+function connected(): void {
+  insertHealthCheck(database, { checkedAt: "2026-09-30T12:29:58.000Z" });
+  insertPointOfSale(database, 0);
 }
 
 function addPerson(id: string, firstName: string, permissions: string[]): void {
@@ -124,6 +160,10 @@ function saleStates(): unknown[] {
 
 beforeEach(() => {
   idCount = 0;
+  creditNoteCalls = [];
+  creditNoteAnswer = AUTHORIZED_CREDIT_NOTE;
+  printedCreditNotes = [];
+  reportedFailures = [];
   database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS, migrationClock);
   database.exec(
     `INSERT INTO roles (id, name, is_administrator, version) VALUES ('cashier', 'Cajera', 0, 1);
@@ -173,6 +213,7 @@ describe("voiding a sale of the sales history", () => {
         },
       ],
       authorized_by: null,
+      credit_note: null,
     });
     expect(
       database.prepare("SELECT state, voided_at, void_authorized_by FROM sales").all(),
@@ -349,26 +390,204 @@ describe("voiding a sale of the sales history", () => {
       },
     );
 
-    it("refuses a sale that carries an authorized invoice, changing nothing", async () => {
+    it("refuses a sale that carries an invoice while the register cannot reach the tax authority, changing nothing", async () => {
       const saleId = await soldInCash();
       database.exec("DELETE FROM deferred_sales");
       insertFiscalDocument(database, { saleId, state: "AUTHORIZED" });
 
       expect(await voidSaleFor(voidDeps(), request(saleId, { authorization }))).toEqual({
-        kind: "carries_invoice",
+        kind: "invoice_needs_connection",
       });
       expect(saleStates()).toEqual([{ state: "COMPLETED" }]);
+      expect(creditNoteCalls).toEqual([]);
     });
 
-    it("refuses a sale that carries a contingency document, changing nothing", async () => {
+    it("refuses a sale that carries a contingency document while it cannot reach the tax authority, changing nothing", async () => {
       const saleId = await soldInCash();
       insertOfflinePointOfSale(database);
       insertOfflineFiscalDocument(database, { saleId });
 
       expect(await voidSaleFor(voidDeps(), request(saleId, { authorization }))).toEqual({
-        kind: "carries_invoice",
+        kind: "invoice_needs_connection",
       });
       expect(saleStates()).toEqual([{ state: "COMPLETED" }]);
+    });
+
+    describe("a sale that carries an invoice, while the register reaches the tax authority", () => {
+      async function invoicedSale(): Promise<string> {
+        const saleId = await soldInCash();
+        database.exec("DELETE FROM deferred_sales");
+        insertFiscalDocument(database, {
+          saleId,
+          state: "AUTHORIZED",
+          pointOfSale: 12,
+          number: 41,
+        });
+        connected();
+        return saleId;
+      }
+
+      it("is voided, asking the cloud for the credit note of the void's event and answering its authorization", async () => {
+        const saleId = await invoicedSale();
+
+        const outcome = await voidSaleFor(voidDeps(), request(saleId, { authorization }));
+
+        expect(outcome).toMatchObject({
+          kind: "voided",
+          credit_note: {
+            kind: "authorized",
+            point_of_sale: 12,
+            number: 7,
+            issued_on: "2026-09-30",
+            authorization_code: "75123456789012",
+            authorization_code_due_on: "2026-10-10",
+          },
+        });
+        expect(creditNoteCalls).toHaveLength(1);
+        expect(creditNoteCalls[0]).toMatchObject({
+          pointOfSale: 12,
+          saleEvent: { event_type: "sale_voided", aggregate_id: saleId, schema_version: 3 },
+        });
+        expect(
+          database
+            .prepare("SELECT state, number, authorization_code FROM sale_void_credit_notes")
+            .all(),
+        ).toEqual([{ state: "AUTHORIZED", number: 7, authorization_code: "75123456789012" }]);
+      });
+
+      it("prints the credit note once the cloud authorized it", async () => {
+        const saleId = await invoicedSale();
+
+        await voidSaleFor(voidDeps(), request(saleId, { authorization }));
+
+        expect(printedCreditNotes).toEqual([saleId]);
+      });
+
+      it("answers and prints the credit note the register's health check recorded while the void's own request got no answer", async () => {
+        const saleId = await invoicedSale();
+
+        const outcome = await voidSaleFor(
+          voidDeps({
+            creditNotes: {
+              request: async (call) => {
+                await new SqliteVoidCreditNotes(database).recordAnswer(
+                  call.creditNoteId,
+                  AUTHORIZED_CREDIT_NOTE,
+                  VOIDED_AT,
+                );
+                return null;
+              },
+            },
+          }),
+          request(saleId, { authorization }),
+        );
+
+        expect(outcome).toMatchObject({ kind: "voided", credit_note: { kind: "authorized" } });
+        expect(printedCreditNotes).toEqual([saleId]);
+        expect(reportedFailures).toEqual([]);
+      });
+
+      it("answers the credit note in progress, printing nothing, when the cloud gives no answer", async () => {
+        const saleId = await invoicedSale();
+        creditNoteAnswer = null;
+
+        const outcome = await voidSaleFor(voidDeps(), request(saleId, { authorization }));
+
+        expect(outcome).toMatchObject({ kind: "voided", credit_note: { kind: "in_progress" } });
+        expect(saleStates()).toEqual([{ state: "VOIDED" }]);
+        expect(database.prepare("SELECT state FROM sale_void_credit_notes").all()).toEqual([
+          { state: "IN_PROGRESS" },
+        ]);
+        expect(printedCreditNotes).toEqual([]);
+      });
+
+      it("answers the credit note in progress, printing nothing, when the cloud says it is not resolved", async () => {
+        const saleId = await invoicedSale();
+        creditNoteAnswer = { kind: "in_progress" };
+
+        const outcome = await voidSaleFor(voidDeps(), request(saleId, { authorization }));
+
+        expect(outcome).toMatchObject({ kind: "voided", credit_note: { kind: "in_progress" } });
+        expect(printedCreditNotes).toEqual([]);
+      });
+
+      it("answers that the invoice already had a credit note, printing nothing and asking no more", async () => {
+        const saleId = await invoicedSale();
+        creditNoteAnswer = { kind: "already_credited" };
+
+        const outcome = await voidSaleFor(voidDeps(), request(saleId, { authorization }));
+
+        expect(outcome).toMatchObject({
+          kind: "voided",
+          credit_note: { kind: "already_credited" },
+        });
+        expect(database.prepare("SELECT state FROM sale_void_credit_notes").all()).toEqual([
+          { state: "ALREADY_CREDITED" },
+        ]);
+        expect(printedCreditNotes).toEqual([]);
+      });
+
+      it("answers the credit note rejected, printing nothing, when the tax authority rejected it", async () => {
+        const saleId = await invoicedSale();
+        creditNoteAnswer = { kind: "rejected" };
+
+        const outcome = await voidSaleFor(voidDeps(), request(saleId, { authorization }));
+
+        expect(outcome).toMatchObject({ kind: "voided", credit_note: { kind: "rejected" } });
+        expect(printedCreditNotes).toEqual([]);
+      });
+
+      it("keeps the credit note in progress while the register has no way to ask the cloud", async () => {
+        const saleId = await invoicedSale();
+
+        const outcome = await voidSaleFor(
+          voidDeps({ creditNotes: undefined }),
+          request(saleId, { authorization }),
+        );
+
+        expect(outcome).toMatchObject({ kind: "voided", credit_note: { kind: "in_progress" } });
+      });
+
+      it("keeps the void done and the credit note in progress when asking for it fails", async () => {
+        const saleId = await invoicedSale();
+        const failure = new Error("the cloud client broke");
+
+        const outcome = await voidSaleFor(
+          voidDeps({
+            creditNotes: {
+              request: async () => {
+                throw failure;
+              },
+            },
+          }),
+          request(saleId, { authorization }),
+        );
+
+        expect(outcome).toMatchObject({ kind: "voided", credit_note: { kind: "in_progress" } });
+        expect(reportedFailures).toEqual([failure]);
+        expect(saleStates()).toEqual([{ state: "VOIDED" }]);
+      });
+
+      it("asks only for the credit note of the sale it voided", async () => {
+        const other = await invoicedSale();
+        creditNoteAnswer = null;
+        await voidSaleFor(voidDeps(), request(other, { authorization }));
+        creditNoteCalls = [];
+        creditNoteAnswer = AUTHORIZED_CREDIT_NOTE;
+        const saleId = await soldInCash();
+        database.prepare("DELETE FROM deferred_sales WHERE sale_id = ?").run(saleId);
+        insertFiscalDocument(database, {
+          id: "doc-2",
+          saleId,
+          state: "AUTHORIZED",
+          pointOfSale: 12,
+          number: 42,
+        });
+
+        await voidSaleFor(voidDeps(), request(saleId, { authorization }));
+
+        expect(creditNoteCalls.map(({ saleEvent }) => saleEvent.aggregate_id)).toEqual([saleId]);
+      });
     });
 
     describe.each([

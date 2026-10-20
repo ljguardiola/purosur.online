@@ -9,11 +9,20 @@ export const POINT_TERMINAL_AVAILABILITIES = [
 
 export type PointTerminalAvailability = (typeof POINT_TERMINAL_AVAILABILITIES)[number];
 
-export const QR_AVAILABILITIES = ["available", "offline"] as const;
+export const QR_AVAILABILITIES = ["available", "offline", "not_configured"] as const;
 
 export type QrAvailability = (typeof QR_AVAILABILITIES)[number];
 
-export function qrAvailability(cloudReachable: boolean): QrAvailability {
+export function qrAvailability({
+  pointOfSaleAssigned,
+  cloudReachable,
+}: {
+  pointOfSaleAssigned: boolean;
+  cloudReachable: boolean;
+}): QrAvailability {
+  if (!pointOfSaleAssigned) {
+    return "not_configured";
+  }
   return cloudReachable ? "available" : "offline";
 }
 

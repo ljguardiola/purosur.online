@@ -26,6 +26,8 @@ const assigned: RegisterSummary = {
   pointOfSaleNumber: null,
   pointTerminalId: "TERM-0042",
   pointTerminalVersion: 2,
+  qrExternalPosId: null,
+  qrPointOfSaleVersion: 0,
   installation: null,
 };
 

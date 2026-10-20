@@ -307,6 +307,9 @@ function coreAnswering(
         ? { kind: "found", next_copy: { kind: "original" }, printed: true, standing: "printed" }
         : sales.receiptPrintStatus(saleId);
     },
+    async printCreditNote() {
+      return { kind: "unavailable" };
+    },
     async printOriginalReceipt() {
       return { kind: "unavailable" };
     },

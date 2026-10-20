@@ -58,6 +58,8 @@ function toRegisterWire(register: BranchRegisterSummary): RegisterSummaryBody {
     point_of_sale_number: register.pointOfSaleNumber,
     point_terminal_id: register.pointTerminal.terminalId,
     point_terminal_version: register.pointTerminal.version,
+    qr_external_pos_id: register.qrPointOfSale.externalPosId,
+    qr_point_of_sale_version: register.qrPointOfSale.version,
     installation: toInstallationWire(register.installation),
   };
 }

@@ -24,6 +24,7 @@ import {
   orderAlreadyCanceledError,
   orderAlreadyRefundedError,
   orderPaymentNotYetEnabledForRefundError,
+  orderSearchAnswer,
   POINT_TERMINAL_ID,
   paidOrder,
   paidWithCardOrder,
@@ -50,6 +51,7 @@ const REQUEST: MercadoPagoQrOrderRequest = {
   externalReference: "0b0a5a42-1f9a-4a53-9f55-3e1c1c0d7a10",
   amount: 5000,
   expiresAfterMinutes: 5,
+  externalPosId: EXTERNAL_POS_ID,
 };
 
 function answer(status: number, body: unknown): Response {
@@ -70,7 +72,6 @@ function clientAnswering(...responses: (Response | Error)[]) {
   });
   const client = createMercadoPagoOrdersClient({
     accessToken: ACCESS_TOKEN,
-    externalPosId: EXTERNAL_POS_ID,
     fetch,
   });
   return { client, fetch };
@@ -310,6 +311,22 @@ describe("the Mercado Pago orders client", () => {
       });
     });
 
+    it("posts each order to the QR point of sale its request names", async () => {
+      const { client, fetch } = clientAnswering(
+        answer(201, createdOrder()),
+        answer(201, createdOrder()),
+      );
+
+      await client.createQrOrder({ ...REQUEST, externalPosId: "CAJA1_STORE_POS" });
+      await client.createQrOrder({ ...REQUEST, externalPosId: "CAJA2_STORE_POS" });
+
+      const posIds = [0, 1].map(
+        (call) =>
+          JSON.parse(sentRequest(fetch, call).init.body as string).config.qr.external_pos_id,
+      );
+      expect(posIds).toEqual(["CAJA1_STORE_POS", "CAJA2_STORE_POS"]);
+    });
+
     it("sends the same body and the same key every time it is asked for the same order", async () => {
       const { client, fetch } = clientAnswering(
         answer(201, createdOrder()),
@@ -443,7 +460,6 @@ describe("the Mercado Pago orders client", () => {
       );
       const client = createMercadoPagoOrdersClient({
         accessToken: ACCESS_TOKEN,
-        externalPosId: EXTERNAL_POS_ID,
         fetch,
       });
 
@@ -703,7 +719,6 @@ describe("the Mercado Pago orders client", () => {
       );
       const client = createMercadoPagoOrdersClient({
         accessToken: ACCESS_TOKEN,
-        externalPosId: EXTERNAL_POS_ID,
         fetch,
       });
 
@@ -875,7 +890,6 @@ describe("the Mercado Pago orders client", () => {
       );
       const client = createMercadoPagoOrdersClient({
         accessToken: ACCESS_TOKEN,
-        externalPosId: EXTERNAL_POS_ID,
         fetch,
       });
 
@@ -1040,7 +1054,6 @@ describe("the Mercado Pago orders client", () => {
       );
       const client = createMercadoPagoOrdersClient({
         accessToken: ACCESS_TOKEN,
-        externalPosId: EXTERNAL_POS_ID,
         fetch,
       });
 
@@ -1106,6 +1119,158 @@ describe("the Mercado Pago orders client", () => {
       const { client } = clientAnswering(failure());
 
       expect(await client.readOrderRefunds(ORDER_ID)).toStrictEqual({ kind: "unavailable" });
+    });
+  });
+
+  describe("searching the orders of an external reference", () => {
+    const CREATED_FROM = new Date("2026-10-09T11:59:00.000Z");
+    const CREATED_TO = new Date("2026-10-09T12:04:00.000Z");
+
+    function search(client: ReturnType<typeof clientAnswering>["client"]) {
+      return client.searchOrdersOfExternalReference(
+        ORDER_EXTERNAL_REFERENCE,
+        CREATED_FROM,
+        CREATED_TO,
+      );
+    }
+
+    it("gets the orders by external reference and creation period with the access token", async () => {
+      const { client, fetch } = clientAnswering(answer(200, orderSearchAnswer([])));
+
+      await search(client);
+
+      const { url, init } = sentRequest(fetch);
+      const sent = new URL(String(url));
+      expect(`${sent.origin}${sent.pathname}`).toBe("https://api.mercadopago.com/v1/orders");
+      expect(Object.fromEntries(sent.searchParams)).toEqual({
+        external_reference: ORDER_EXTERNAL_REFERENCE,
+        begin_date: "2026-10-09T11:59:00.000Z",
+        end_date: "2026-10-09T12:04:00.000Z",
+        page_size: "50",
+      });
+      expect(init.method).toBe("GET");
+      expect(init.headers).toEqual({ Authorization: `Bearer ${ACCESS_TOKEN}` });
+      expect(init.body).toBeUndefined();
+    });
+
+    it("does not let an external reference change the query it is searched with", async () => {
+      const { client, fetch } = clientAnswering(answer(200, orderSearchAnswer([])));
+
+      await client.searchOrdersOfExternalReference("a&page_size=1#x", CREATED_FROM, CREATED_TO);
+
+      const sent = new URL(String(sentRequest(fetch).url));
+      expect(sent.searchParams.get("external_reference")).toBe("a&page_size=1#x");
+      expect(sent.searchParams.get("page_size")).toBe("50");
+    });
+
+    it("reads every order found with the same result as reading it by its identifier", async () => {
+      const { client } = clientAnswering(
+        answer(200, orderSearchAnswer([createdOrder(), paidWithCardOrder()])),
+      );
+
+      const searching = await search(client);
+
+      expect(searching).toStrictEqual({
+        kind: "read",
+        orders: [
+          { orderId: ORDER_ID, result: createdResult() },
+          {
+            orderId: ORDER_ID,
+            result: createdResult({
+              status: "processed",
+              statusDetail: "accredited",
+              totalPaidAmount: 5000,
+              payments: [{ status: "processed", statusDetail: "accredited", paidAmount: 5000 }],
+            }),
+          },
+        ],
+      });
+    });
+
+    it("reads no orders when Mercado Pago has none", async () => {
+      const { client } = clientAnswering(answer(200, orderSearchAnswer([])));
+
+      expect(await search(client)).toStrictEqual({ kind: "read", orders: [] });
+    });
+
+    it.each([
+      ["a body that is not an object", []],
+      ["no data", { paging: {} }],
+      ["data that is not a list", { data: createdOrder() }],
+      ["an order missing its fields", { data: [{ id: ORDER_ID }] }],
+      [
+        "one order missing its fields among valid ones",
+        { data: [createdOrder(), { id: ORDER_ID }] },
+      ],
+    ])("is unavailable when the answer has %s", async (_name, body) => {
+      const { client } = clientAnswering(answer(200, body));
+
+      expect(await search(client)).toStrictEqual({ kind: "unavailable" });
+    });
+
+    it.each([400, 401, 404, 429, 500, 503])(
+      "is unavailable when Mercado Pago answers %i",
+      async (status) => {
+        const { client } = clientAnswering(answer(status, { errors: [{ code: "nope" }] }));
+
+        expect(await search(client)).toStrictEqual({ kind: "unavailable" });
+      },
+    );
+
+    it("is unavailable when the network fails or the answer is not JSON", async () => {
+      const { client } = clientAnswering(new TypeError("fetch failed"), answer(200, "not json"));
+
+      expect(await search(client)).toStrictEqual({ kind: "unavailable" });
+      expect(await search(client)).toStrictEqual({ kind: "unavailable" });
+    });
+
+    it("logs nothing when it finds orders", async () => {
+      const { client } = clientAnswering(answer(200, orderSearchAnswer([paidWithCardOrder()])));
+
+      await search(client);
+
+      expect(consoleCalls).toEqual([]);
+    });
+
+    it.each([
+      [
+        "a 400",
+        () => answer(400, { errors: [{ code: "invalid_date_range" }] }),
+        { status: 400, code: "invalid_date_range" },
+      ],
+      ["a server error", () => answer(500, { message: ACCESS_TOKEN }), { status: 500, code: null }],
+      ["a success that is not JSON", () => answer(200, "not json"), { status: 200, code: null }],
+      [
+        "a network failure",
+        () => new TypeError(`fetch failed ${ACCESS_TOKEN}`),
+        { status: "unreachable", code: null },
+      ],
+    ])("logs the status and code of %s without the body", async (_name, response, logged) => {
+      const { client } = clientAnswering(response());
+
+      await search(client);
+
+      expect(consoleCalls).toEqual([["Mercado Pago did not answer the search for orders", logged]]);
+      expect(JSON.stringify(consoleCalls)).not.toContain(ACCESS_TOKEN);
+    });
+
+    it("is unavailable when Mercado Pago does not answer within 10 seconds", async () => {
+      vi.useFakeTimers();
+      const fetch = vi.fn<typeof globalThis.fetch>(
+        (_url, init) =>
+          new Promise((_resolve, reject) => {
+            init?.signal?.addEventListener("abort", () => reject(init.signal?.reason));
+          }),
+      );
+      const client = createMercadoPagoOrdersClient({
+        accessToken: ACCESS_TOKEN,
+        fetch,
+      });
+
+      const searching = search(client);
+      await vi.advanceTimersByTimeAsync(10_000);
+
+      expect(await searching).toStrictEqual({ kind: "unavailable" });
     });
   });
 
@@ -1183,7 +1348,6 @@ describe("the Mercado Pago orders client", () => {
       );
       const client = createMercadoPagoOrdersClient({
         accessToken: ACCESS_TOKEN,
-        externalPosId: EXTERNAL_POS_ID,
         fetch,
       });
 

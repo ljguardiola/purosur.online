@@ -5,6 +5,7 @@ import type {
   MercadoPagoOrderCreation,
   MercadoPagoOrderReading,
   MercadoPagoOrderRefundsReading,
+  MercadoPagoOrderSearch,
   MercadoPagoOrders,
   MercadoPagoPointOrderRequest,
   MercadoPagoQrOrderRequest,
@@ -16,6 +17,8 @@ export class FakeMercadoPagoOrders implements MercadoPagoOrders {
   readonly creationRequests: MercadoPagoQrOrderRequest[] = [];
   readonly pointCreationRequests: MercadoPagoPointOrderRequest[] = [];
   readonly readOrders: string[] = [];
+  readonly orderSearches: { externalReference: string; createdFrom: Date; createdTo: Date }[] = [];
+  searching: MercadoPagoOrderSearch = { kind: "read", orders: [] };
   readonly cancellations: { orderId: string; idempotencyKey: string }[] = [];
   readonly refundRequests: { orderId: string; idempotencyKey: string }[] = [];
   readonly refundReadings: string[] = [];
@@ -90,6 +93,17 @@ export class FakeMercadoPagoOrders implements MercadoPagoOrders {
     this.readOrders.push(orderId);
     this.observeLane();
     return this.queuedReadings.shift() ?? this.readingsByOrder.get(orderId) ?? this.reading;
+  }
+
+  async searchOrdersOfExternalReference(
+    externalReference: string,
+    createdFrom: Date,
+    createdTo: Date,
+  ): Promise<MercadoPagoOrderSearch> {
+    this.lanes.operations.push("searchOrdersOfExternalReference");
+    this.orderSearches.push({ externalReference, createdFrom, createdTo });
+    this.observeLane();
+    return this.searching;
   }
 
   async cancelOrder(

@@ -7,19 +7,17 @@ describe("paymentMethodAvailabilitySchema", () => {
     { qr: "offline", point: "offline", point_minimum: 1500 },
     { qr: "available", point: "below_minimum", point_minimum: 1500 },
     { qr: "available", point: "not_configured", point_minimum: 1500 },
+    { qr: "not_configured", point: "available", point_minimum: 1500 },
   ])("accepts %j", (availability) => {
     expect(paymentMethodAvailabilitySchema.parse(availability)).toEqual(availability);
   });
 
-  it.each(["below_minimum", "not_configured", "unknown"])(
-    "refuses %s as the availability of the QR",
-    (qr) => {
-      expect(
-        paymentMethodAvailabilitySchema.safeParse({ qr, point: "available", point_minimum: 1500 })
-          .success,
-      ).toBe(false);
-    },
-  );
+  it.each(["below_minimum", "unknown"])("refuses %s as the availability of the QR", (qr) => {
+    expect(
+      paymentMethodAvailabilitySchema.safeParse({ qr, point: "available", point_minimum: 1500 })
+        .success,
+    ).toBe(false);
+  });
 
   it("refuses an unknown availability of the terminal", () => {
     expect(

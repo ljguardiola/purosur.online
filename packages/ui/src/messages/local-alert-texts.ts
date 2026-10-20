@@ -134,13 +134,13 @@ const FIXED_LOCAL_ALERT_TEXTS = {
     title: "Reembolso pendiente por un pago tardío",
     meaning: "Mercado Pago cobró un QR de una venta que ya se había cobrado por otro medio.",
     whatToDo:
-      "Si es de un pago con QR, confirmarlo en Reembolsos pendientes para que la nube lo envíe a Mercado Pago; si es de otro medio y ya se hizo desde Mercado Pago, marcarlo como hecho, y si todavía no se hizo, hacerlo cuanto antes. Si no corresponde reembolsarlo, descartarlo. El Administrador ya fue avisado.",
+      "Si es de un pago con QR, confirmarlo en Reembolsos de Mercado Pago para que la nube lo envíe a Mercado Pago; si es de otro medio y ya se hizo desde Mercado Pago, marcarlo como hecho en Reembolsos sin API, y si todavía no se hizo, hacerlo cuanto antes. Si no corresponde reembolsarlo, descartarlo. El Administrador ya fue avisado.",
   },
   refund_task: {
     title: "Reembolso pendiente de confirmar",
-    meaning: "Hay un reembolso de una venta anulada que todavía no se completó.",
+    meaning: "Hay un reembolso de una venta anulada o cancelada que todavía no se completó.",
     whatToDo:
-      "Si es de un pago con QR, confirmarlo en Reembolsos pendientes para que la nube lo envíe a Mercado Pago; si es de otro medio y ya se hizo por fuera del sistema, marcarlo como hecho, y si todavía no se hizo, hacerlo cuanto antes. El Administrador ya fue avisado.",
+      "Si es de un pago con QR o Point, confirmarlo en Reembolsos de Mercado Pago para que la nube lo envíe; si Mercado Pago ya lo rechazó, descartarlo ahí. Si es de otro medio, hacerlo por fuera del sistema cuanto antes y marcarlo como hecho en Reembolsos sin API. El Administrador ya fue avisado.",
   },
   clock_drift: {
     title: "Reloj de la caja desajustado",

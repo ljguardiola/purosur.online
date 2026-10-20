@@ -641,17 +641,30 @@ describe("voidSaleOutcomeSchema", () => {
       { payment_id: "p2", method: "TRANSFER", amount: 500, state: "PENDING", sent_by_cloud: false },
     ],
     authorized_by: { user_id: "u2", first_name: "Ana" },
+    credit_note: null,
+  };
+  const authorizedCreditNote = {
+    kind: "authorized",
+    point_of_sale: 3,
+    number: 41,
+    issued_on: "2026-10-07",
+    authorization_code: "75123456789099",
+    authorization_code_due_on: "2026-10-17",
   };
 
   it.each([
     voided,
     { ...voided, authorized_by: null },
     { ...voided, refunds: [] },
+    { ...voided, credit_note: authorizedCreditNote },
+    { ...voided, credit_note: { kind: "in_progress" } },
+    { ...voided, credit_note: { kind: "rejected" } },
+    { ...voided, credit_note: { kind: "already_credited" } },
     { kind: "not_found" },
     { kind: "not_completed" },
     { kind: "session_closed" },
     { kind: "invoice_in_flight" },
-    { kind: "carries_invoice" },
+    { kind: "invoice_needs_connection" },
     { kind: "pending_refunds_unconfirmed" },
     { kind: "not_signed_in" },
     { kind: "lacks_permission" },
@@ -665,6 +678,15 @@ describe("voidSaleOutcomeSchema", () => {
   it.each([
     { kind: "voided", refunds: [] },
     { kind: "voided", authorized_by: null },
+    { kind: "carries_invoice" },
+    { ...voided, credit_note: undefined },
+    { ...voided, credit_note: { kind: "issued" } },
+    { ...voided, credit_note: { kind: "authorized" } },
+    { ...voided, credit_note: { ...authorizedCreditNote, number: 0 } },
+    { ...voided, credit_note: { ...authorizedCreditNote, point_of_sale: 0 } },
+    { ...voided, credit_note: { ...authorizedCreditNote, issued_on: "yesterday" } },
+    { ...voided, credit_note: { ...authorizedCreditNote, authorization_code: "" } },
+    { ...voided, credit_note: { ...authorizedCreditNote, authorization_code_due_on: "later" } },
     {
       ...voided,
       refunds: [

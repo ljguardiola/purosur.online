@@ -76,6 +76,7 @@ describe("startMercadoPagoCharge", () => {
 
   it.each([
     { answer: { kind: "refused" }, outcome: { kind: "order_refused" } },
+    { answer: { kind: "not_configured" }, outcome: { kind: "order_refused" } },
     { answer: { kind: "unreachable" }, outcome: { kind: "unreachable" } },
   ] as const)(
     "answers $outcome.kind when the cloud's answer is $answer.kind, keeping the payment pending, since the order may exist, with its wait ended when the cloud answered",

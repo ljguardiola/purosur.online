@@ -145,7 +145,7 @@ describe("the orphan authorizations the server sets up on a real Postgres", () =
       await vi.waitFor(
         async () =>
           expect(
-            await sql`select answer_kind, number, authorization_code from orphan_credit_notes where point_of_sale = ${pointOfSale}`,
+            await sql`select answer_kind, number, authorization_code from credit_notes where point_of_sale = ${pointOfSale}`,
           ).toEqual([
             { answer_kind: "authorized", number: 5, authorization_code: "74123456789055" },
           ]),
@@ -196,13 +196,17 @@ describe("the orphan authorizations the server sets up on a real Postgres", () =
         TIMEOUT,
       );
       expect(
-        await sql`select answer_kind from orphan_credit_notes where point_of_sale = ${pointOfSale}`,
+        await sql`select answer_kind from credit_notes where point_of_sale = ${pointOfSale}`,
       ).toEqual([{ answer_kind: "rejected" }]);
-      expect(
-        await sql`select 1 from graphile_worker._private_jobs j
-          join graphile_worker._private_tasks t on t.id = j.task_id
-          where t.identifier = 'issue-orphan-credit-note'`,
-      ).toEqual([]);
+      await vi.waitFor(
+        async () =>
+          expect(
+            await sql`select 1 from graphile_worker._private_jobs j
+              join graphile_worker._private_tasks t on t.id = j.task_id
+              where t.identifier = 'issue-credit-note'`,
+          ).toEqual([]),
+        TIMEOUT,
+      );
     });
 
     expect(fakeWsfe.requests).toHaveLength(3);
@@ -225,9 +229,7 @@ describe("the orphan authorizations the server sets up on a real Postgres", () =
       ).toEqual([{ scope: `${pointOfSale}:factura_c:42` }]);
     });
 
-    expect(
-      await sql`select 1 from orphan_credit_notes where point_of_sale = ${pointOfSale}`,
-    ).toEqual([]);
+    expect(await sql`select 1 from credit_notes where point_of_sale = ${pointOfSale}`).toEqual([]);
     expect(fakeWsfe.requests).toHaveLength(1);
   }, 90_000);
 });

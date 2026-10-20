@@ -13,7 +13,7 @@ export type TableSort<K extends string = string> = { column: K; direction: Table
 
 export type TableColumnMeta = {
   align?: TableColumnAlign;
-  actionCount?: 1 | 2 | 3 | 4;
+  actionCount?: 1 | 2 | 3 | 4 | 5;
   width?: number;
 };
 
@@ -54,7 +54,8 @@ export type TableActions<T> =
   | readonly [TableAction<T>]
   | readonly [TableAction<T>, TableAction<T>]
   | readonly [TableAction<T>, TableAction<T>, TableAction<T>]
-  | readonly [TableAction<T>, TableAction<T>, TableAction<T>, TableAction<T>];
+  | readonly [TableAction<T>, TableAction<T>, TableAction<T>, TableAction<T>]
+  | readonly [TableAction<T>, TableAction<T>, TableAction<T>, TableAction<T>, TableAction<T>];
 
 // "initial" placeholder rows render right away but stay invisible for a 300ms CSS reveal delay,
 // so a fast load never flashes them; "updating" keeps the current rows and runs a thin bar over
