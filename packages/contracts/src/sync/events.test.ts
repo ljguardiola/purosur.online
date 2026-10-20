@@ -182,6 +182,29 @@ describe("push events request", () => {
     ).toBe(false);
   });
 
+  it.each([true, false])("accepts a register that reports its clock drift as %s", (clockDrift) => {
+    const reported = { ...telemetry, clock_drift: clockDrift };
+
+    expect(requestWith({ telemetry: reported }).data?.telemetry).toEqual(reported);
+  });
+
+  it("accepts a clock drift report beside the sales and fiscal emission reports", () => {
+    const reported = {
+      ...telemetry,
+      sales_denied: true,
+      sales_denied_reason: "event_history_broken",
+      fiscal_emission_stopped: true,
+      fiscal_emission_stopped_reason: "legal_name_missing",
+      clock_drift: true,
+    };
+
+    expect(requestWith({ telemetry: reported }).data?.telemetry).toEqual(reported);
+  });
+
+  it("refuses a clock_drift that is not a boolean", () => {
+    expect(requestWith({ telemetry: { ...telemetry, clock_drift: "yes" } }).success).toBe(false);
+  });
+
   it("accepts telemetry at its limits", () => {
     const empty = { wal_size_bytes: 0, disk_free_bytes: 0, disk_free_ratio: 0 };
     const full = { ...empty, disk_free_ratio: 1 };

@@ -43,6 +43,7 @@ beforeEach(async () => {
   registerDeviceTokenRotationRoute(app, options);
   registerHealthRoute(app, {
     version: "abc1234",
+    now: () => NOW,
     authenticateDevice: (authorization) =>
       authenticateDevice(installationTokenPorts(options), authorization),
   });

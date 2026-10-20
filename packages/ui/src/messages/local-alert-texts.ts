@@ -142,6 +142,13 @@ const FIXED_LOCAL_ALERT_TEXTS = {
     whatToDo:
       "Si es de un pago con QR, confirmarlo en Reembolsos pendientes para que la nube lo envíe a Mercado Pago; si es de otro medio y ya se hizo por fuera del sistema, marcarlo como hecho, y si todavía no se hizo, hacerlo cuanto antes. El Administrador ya fue avisado.",
   },
+  clock_drift: {
+    title: "Reloj de la caja desajustado",
+    meaning:
+      "La hora de esta caja está corrida más de un minuto respecto de la hora real, y los comprobantes salen con la hora de la caja.",
+    whatToDo:
+      "Seguir vendiendo con normalidad. Corregir la fecha y hora de Windows o avisar al Administrador, que ya fue notificado.",
+  },
   fiscal_emission_stopped: {
     title: "Emisión de facturas detenida",
     meaning:

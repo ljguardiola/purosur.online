@@ -8,6 +8,7 @@ import {
   type StorageStanding,
 } from "@purosur/domain";
 import { readLatestPreEmissionGateOutcome } from "../fiscal/sqlite-pre-emission-gate";
+import { readLatestClockOffsetMs } from "../fiscal/sqlite-register-health-checks";
 import type { LocalDatabase } from "../platform/local-database";
 import type { SignedInPerson } from "../sessions/signed-in-person";
 import { SqliteSignInStore } from "../sessions/sqlite-sign-in-store";
@@ -60,6 +61,7 @@ export async function registerStatusFor({
       battery: battery(),
       newSalesStoppedByBattery: newSalesStoppedByBattery(),
       criticalBatteryAction: criticalBatteryAction(),
+      clockOffsetMs: readLatestClockOffsetMs(database),
     }),
     cloud: cloud(),
     serial_devices: {

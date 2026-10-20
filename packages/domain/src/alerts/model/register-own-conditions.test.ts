@@ -57,6 +57,7 @@ function conditions(overrides: Partial<Parameters<typeof registerOwnConditions>[
     battery: undefined,
     newSalesStoppedByBattery: false,
     criticalBatteryAction: { kind: "unreadable" },
+    clockOffsetMs: null,
     ...overrides,
   });
 }
@@ -67,6 +68,7 @@ describe("REGISTER_OWN_CONDITIONS", () => {
       "installation_revoked",
       "sales_denied",
       "fiscal_emission_stopped",
+      "clock_drift",
       "register_silent",
       "serial_device_missing",
       "disk_space_low",
@@ -129,6 +131,35 @@ describe("registerOwnConditions", () => {
 
   it("does not hold fiscal_emission_stopped for a register that never evaluated the pre-emission check", () => {
     expect(conditions({ latestPreEmissionGate: undefined })).toEqual([]);
+  });
+
+  it("holds clock_drift while the latest measured offset passes the tolerance either way", () => {
+    expect(conditions({ clockOffsetMs: 60_001 })).toEqual([
+      { kind: "clock_drift", level: "critical" },
+    ]);
+    expect(conditions({ clockOffsetMs: -60_001 })).toEqual([
+      { kind: "clock_drift", level: "critical" },
+    ]);
+  });
+
+  it("does not hold clock_drift for an offset within the tolerance or none measured", () => {
+    expect(conditions({ clockOffsetMs: 60_000 })).toEqual([]);
+    expect(conditions({ clockOffsetMs: -60_000 })).toEqual([]);
+    expect(conditions({ clockOffsetMs: null })).toEqual([]);
+  });
+
+  it("lists clock_drift after fiscal_emission_stopped and before register_silent", () => {
+    expect(
+      conditions({
+        latestPreEmissionGate: { kind: "failed", reason: "legal_name_missing" },
+        clockOffsetMs: 120_000,
+        lastAcceptedPushAt: minutesBefore(NOW, 60),
+      }),
+    ).toEqual([
+      { kind: "fiscal_emission_stopped", level: "critical" },
+      { kind: "clock_drift", level: "critical" },
+      { kind: "register_silent", level: "critical" },
+    ]);
   });
 
   it("lists fiscal_emission_stopped before register_silent", () => {

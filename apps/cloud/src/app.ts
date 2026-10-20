@@ -438,6 +438,7 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
       const health = options.health && { ...options.health, now };
       registerHealthRoute(api, {
         version: options.version,
+        now,
         ...(health && {
           arcaOnlineStatus: arcaOnlineStatusOf(health.db, health),
         }),

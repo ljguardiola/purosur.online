@@ -67,9 +67,15 @@ const fiscalEmissionStoppedReportSchema = z.union([
   z.object({ fiscal_emission_stopped: absent, fiscal_emission_stopped_reason: absent }),
 ]);
 
+const clockDriftReportSchema = z.union([
+  z.object({ clock_drift: z.boolean() }),
+  z.object({ clock_drift: absent }),
+]);
+
 const registerTelemetrySchema = storageTelemetrySchema
   .and(salesDeniedReportSchema)
-  .and(fiscalEmissionStoppedReportSchema);
+  .and(fiscalEmissionStoppedReportSchema)
+  .and(clockDriftReportSchema);
 
 export const PUSH_EVENTS_REQUEST_MAX_BYTES = 16_777_216;
 

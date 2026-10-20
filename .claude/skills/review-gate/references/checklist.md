@@ -44,29 +44,30 @@ how a new one is judged.
 
 ### Correctness
 
-- A check over the source that misses a route ordinary code takes to what it
-  refuses (a re-export of the library's namespace, a parameter default, a
-  JSX attribute or spread, a callback handed by name, a value cast with
-  `as`), or refuses correct code that reads alike (another binding of the
-  same library, a key read back through a library-typed property, a folder
-  outside the concepts treated as one).
-- A decision made from state that changed after it was read: an answer
-  computed from the session before the operation changed it (`may_edit:
-  true` to an Administrator who just left the role), a check made before the
-  lock and never again under it, a second-submit guard that reads only the
-  rendered `submitting`, so two quick presses both send.
-- A failure path that loses what the failure says: a handler that replaces
-  the error it caught, so its kind never reaches what reacts to it; a message
-  template whose value renders empty; an outcome whose only feedback is a
-  re-read that keeps the cached record when the re-read fails.
-- A reading of outside data that changes what passes: a stricter shape in
-  place of the reader it replaced, so stored data that reader accepted gets
-  another outcome; a non-strict schema that drops the keys a comparison is
-  meant to catch; a plain-object lookup of a received code that answers for
-  `constructor`.
-- A key wider or narrower than what it identifies: an alert deduplicated by
-  a scope wider than what it flags, a recorded child row checked only by its
-  foreign key, so it may name a parent of another record.
+- A check over the source out of step with what it judges: it misses a
+  route ordinary code takes to what it refuses (a re-export of the library's
+  namespace); it refuses correct code that reads alike or that its own hint
+  suggests (a renumbering hint that sorts before the last migration); or it
+  is narrowed while its own test still expects the removed cases to pass.
+- A decision made from state other than the one in effect when it applies:
+  an answer computed from the session before the operation changed it
+  (`may_edit: true` to an Administrator who just left the role), a check
+  made before the lock and never again under it, or rows locked in the
+  opposite order of another operation that touches them.
+- A failure path out of step with what failed: a handler that replaces the
+  error it caught, so its kind never reaches what reacts to it; an outside
+  call whose outcome is unknown (a timeout) recorded as one that did nothing;
+  or a failure whose effect reaches past or stops short of the work it
+  failed (one item's error halting a sweep over many, a follow-up enqueued
+  only on the path that succeeds, so half-done work waits for nothing).
+- A value one side of a boundary produces or accepts that the other side
+  refuses or reads otherwise: a stricter shape in place of the reader it
+  replaced, a plain-object lookup of a received code that answers for
+  `constructor`, or a limit two layers apply in different units.
+- A key, guard or bound wider or narrower than what it identifies: an alert
+  deduplicated by a scope wider than what it flags, a recorded child row
+  checked only by its foreign key, or a "latest" record picked by wall-clock
+  time, so a clock set back hides the newest.
 
 ### Structure
 
@@ -76,21 +77,31 @@ how a new one is judged.
 - A piece placed for the wrong set of users: in `platform/` or `shell/` while
   one concept uses it, in one concept's folder while others import it from
   there, or copied into a second concept instead of moved.
-- An aspect test file (`<name>.<aspect>.test.ts`) that copies the main test
-  file's setup instead of sharing it through `test-support/<name>.ts`.
+- A test helper or case placed where it does not belong: an aspect test file
+  (`<name>.<aspect>.test.ts`) or a second test of the concept copying setup
+  instead of sharing it through `test-support/`, or a case added under a
+  `describe` or aspect file named for another case (a Point refund test in
+  the QR payment aspect file).
 
 ### Business rules and boundaries
 
-- A screen deriving what the cloud or the core already answers: an action
+- A screen out of step with what the cloud or the core answers: an action
   hidden from a row's flag (`isAdministrator`) while the cloud decides it
   with a domain predicate (`isRoleEditable`), a refund's state read from its
-  method instead of its `state`, or a text naming one field from another
-  field's value.
+  method instead of its `state`, or an action offered to everyone who
+  reaches the screen while its route requires another permission.
 - A screen deciding about its own form through a contracts shape other than
   the one it validates the form with, or using a request shape's parse only
   as a yes/no while it sends a body built separately.
 - A read of another concept declared as a port of the concept that needs it
   instead of a read port of its own concept.
+- A business outcome decided outside the predicate that owns it: an answer
+  about what an operation allows computed by another predicate than the
+  operation applies, an adapter turning what a port records into another
+  concept's outcome, or a scope the model declares applied only where a list
+  offers its options while the use case that writes accepts any (packagings
+  offered for active products while creating one accepts a deactivated
+  product).
 
 ### Screens
 
@@ -98,8 +109,21 @@ how a new one is judged.
   covers, such as a panel total as `Eyebrow` plus a `text-display` figure
   where `FigureStat` exists.
 - A screen standing in for an answer it does not have: an action the cloud
-  answers for shown disabled from a defaulted flag while the record loads, or
-  a URL filter rewritten as not offered because its options failed to load.
+  answers for shown disabled from a defaulted flag while the record loads, a
+  URL filter rewritten as not offered because its options failed to load, or
+  an item shown as being checked, with a busy indicator, while the only
+  attempt already failed.
+- A query out of step with what changes it: a value left stale by an
+  operation that changes it (a register status no charge outcome
+  invalidates); a key invalidated again beside one that already contains
+  it, so it is read twice; or a re-read that calls the loader and writes the
+  cache, so a failed read shows no failure.
+- A modal handling an answer that arrives after it closed: a stale notice on
+  its next opening, a late success whose list refresh is dropped, or a late
+  callback resetting a later opening.
+- A guard out of step with what it guards: every route to a screen refused
+  while the core refuses only one action, or a person sent back to the
+  screen they are leaving.
 
 ### User-facing text
 
@@ -109,6 +133,25 @@ how a new one is judged.
 - A locked control left plainly disabled: its tooltip dropped while a
   refusal shows elsewhere, so the control itself no longer says why it is
   locked.
+- A text saying more or other than what happened or what the domain does: a
+  success notice naming every role while only some saved, a cause the
+  answer does not carry ("La tarjeta no se aprobó" for a decline that may be
+  a QR payment), or a consequence nothing produces ("El Administrador ya
+  fue avisado" for a condition no alert reports).
+- A text that names what the app does not show or have: a help step telling
+  the person to press "Reimprimir como duplicado" on an icon-only button, or
+  a refusal sending the cashier to a returns screen the register lacks.
+- Texts shown together that repeat or contradict each other: a refusal
+  beside a standing notice saying the same, or "Seguir vendiendo igual" in
+  the status bar that says "La caja no puede vender".
+
+### Comments
+
+- A name or comment the change made untrue: a variable kept as
+  `refreshSales` after it was rebound to a hook that refreshes only
+  payments, a test still titled for a setup or a set of values it no longer
+  has ("rejects a status outside starting, down and up" after `updating`
+  became valid), or a comment naming the folder a moved file left.
 
 ### Commit order
 
@@ -132,15 +175,27 @@ how a new one is judged.
 - A rule with no test at its own level: a domain predicate proven only
   through use cases, a shared helper tested only through its callers, or a
   query hook only through its screen.
-- A test whose outcome depends on timing it does not control: a baseline
-  taken while the app it started may still be working, a wait ended only by
-  events a broken run may never raise, a short client timeout in a shared
-  helper that answered cases meet only in real time.
+- A test that does not control the timing or the processes it depends on: a
+  baseline taken while the app it started may still be working, a wait ended
+  only by events a broken run may never raise, or a cleanup that ends a hung
+  process with a signal it handles as the same quit that hung.
+- A test removed while nothing else verifies its rule: a case deleted with
+  the code it covered while the replacing code applies the same rule (an
+  adapter's ordering case dropped while the new adapter keeps the same
+  `ORDER BY`).
+- A migration that leaves data or rights other than the schema means: a
+  backfill that guesses what old rows cannot prove (every recovery link
+  marked sent while some failed and await a retry), a column for a shown
+  value added with no backfill from what the database already records, or a
+  table the schema calls append-only left writable by `cloud_app`.
 
 ### Data
 
 - A fixture recorded from a real service that keeps an identity its scrubber
   does not name, such as an `O=` legal name when only `CN=` is replaced.
+- Sample or seeded data in a state the running system never produces: an
+  alert scoped to a record its detector does not watch, so the next run
+  closes it, or a lifetime its producer never writes for those days.
 
 ## Commit order
 

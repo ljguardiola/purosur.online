@@ -13,6 +13,7 @@ import {
   offsiteDumpUnverifiedObservation,
   offsiteDumpVerifiedObservation,
   quietRegisterObservation,
+  registerClockDriftObservation,
   registerFiscalEmissionObservation,
   registerSalesDeniedObservation,
   registerSyncedObservation,
@@ -150,6 +151,34 @@ describe("registerFiscalEmissionObservation", () => {
 
   it("observes nothing of a register that reports nothing about its emission", () => {
     expect(registerFiscalEmissionObservation({ ...register, report: {} })).toBeUndefined();
+  });
+});
+
+describe("registerClockDriftObservation", () => {
+  const register = { registerId: "register-1", deviceId: "device-1", locationId: "location-1" };
+
+  it("holds the clock-drift condition of the register, in its branch, naming the device, for a register that reports its clock drifted", () => {
+    expect(registerClockDriftObservation({ ...register, report: { clock_drift: true } })).toEqual({
+      holds: true,
+      alert: {
+        kind: "clock_drift",
+        scope: "register-1",
+        locationId: "location-1",
+        detail: { deviceId: "device-1" },
+      },
+    });
+  });
+
+  it("clears the clock-drift condition of the register for a register that reports its clock within tolerance", () => {
+    expect(registerClockDriftObservation({ ...register, report: { clock_drift: false } })).toEqual({
+      holds: false,
+      kind: "clock_drift",
+      scope: "register-1",
+    });
+  });
+
+  it("observes nothing of a register that reports nothing about its clock", () => {
+    expect(registerClockDriftObservation({ ...register, report: {} })).toBeUndefined();
   });
 });
 
