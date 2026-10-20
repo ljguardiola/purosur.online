@@ -107,6 +107,145 @@ test("finds a listing built by concatenating several arrays", () => {
   assert.deepEqual(linesOf(source), [3]);
 });
 
+test("resolves each constant to the declaration in scope where it is used", () => {
+  const source = [
+    "function listNames(base) {",
+    '  const args = ["diff", "--name-only"];',
+    "  return runGit([...args, base]);",
+    "}",
+    "function listHunks(base) {",
+    '  const args = ["diff", "--no-renames", "--unified=0"];',
+    "  return runGit([...args, base]);",
+    "}",
+  ].join("\n");
+
+  assert.deepEqual(linesOf(source), [3]);
+});
+
+test("judges a constant by the uses of its own declaration, not of another with its name", () => {
+  const source = [
+    "function listNames(base) {",
+    '  const args = ["diff", "--name-only"];',
+    '  return runGit([...args, "--no-renames", base]);',
+    "}",
+    "function listCommits() {",
+    '  const args = ["log", "--format=%H"];',
+    "  return runGit(args);",
+    "}",
+  ].join("\n");
+
+  assert.deepEqual(linesOf(source), []);
+});
+
+test("does not take a parameter for the constant its name shadows", () => {
+  const source = [
+    'const args = ["--no-renames"];',
+    'const list = (args) => runGit(["diff", "--name-only", ...args]);',
+  ].join("\n");
+
+  assert.deepEqual(linesOf(source), [2]);
+});
+
+test("finds a listing that concatenates onto an array it cannot follow", () => {
+  const source =
+    'const list = (globalArgs) => runGit(globalArgs.concat(["diff", "--name-only", base]));\n';
+
+  assert.deepEqual(linesOf(source), [1]);
+});
+
+test("accepts a string concatenated with a listing's words", () => {
+  const source = 'const label = "Listing: ".concat(["diff", "--name-only"]);\n';
+
+  assert.deepEqual(linesOf(source), []);
+});
+
+const COMMIT_DIFF_ARGS_MODULE = 'export const COMMIT_DIFF_ARGS = ["show", "--format="];\n';
+
+for (const [route, spread, files] of [
+  [
+    "a named import",
+    "COMMIT_DIFF_ARGS",
+    {
+      "script.mjs": 'import { COMMIT_DIFF_ARGS } from "./commit-diff-args.mjs";',
+      "commit-diff-args.mjs": COMMIT_DIFF_ARGS_MODULE,
+    },
+  ],
+  [
+    "a renamed import",
+    "SHOW",
+    {
+      "script.mjs": 'import { COMMIT_DIFF_ARGS as SHOW } from "./commit-diff-args.mjs";',
+      "commit-diff-args.mjs": COMMIT_DIFF_ARGS_MODULE,
+    },
+  ],
+  [
+    "a namespace import",
+    "diffArgs.COMMIT_DIFF_ARGS",
+    {
+      "script.mjs": 'import * as diffArgs from "./commit-diff-args.mjs";',
+      "commit-diff-args.mjs": COMMIT_DIFF_ARGS_MODULE,
+    },
+  ],
+  [
+    "a re-export by name",
+    "COMMIT_DIFF_ARGS",
+    {
+      "script.mjs": 'import { COMMIT_DIFF_ARGS } from "./git/args.mjs";',
+      "git/args.mjs": 'export { COMMIT_DIFF_ARGS } from "../commit-diff-args.mjs";\n',
+      "commit-diff-args.mjs": COMMIT_DIFF_ARGS_MODULE,
+    },
+  ],
+  [
+    "a re-export of a whole module",
+    "COMMIT_DIFF_ARGS",
+    {
+      "script.mjs": 'import { COMMIT_DIFF_ARGS } from "./git/args.mjs";',
+      "git/args.mjs": 'export * from "../commit-diff-args.mjs";\n',
+      "commit-diff-args.mjs": COMMIT_DIFF_ARGS_MODULE,
+    },
+  ],
+  [
+    "an export list renaming a local constant",
+    "COMMIT_DIFF_ARGS",
+    {
+      "script.mjs": 'import { COMMIT_DIFF_ARGS } from "./commit-diff-args.mjs";',
+      "commit-diff-args.mjs":
+        'const SHOW = ["show", "--format="];\nexport { SHOW as COMMIT_DIFF_ARGS };\n',
+    },
+  ],
+]) {
+  test(`finds a listing that spreads its subcommand from a constant reached through ${route}`, () => {
+    const scripts = Object.fromEntries(
+      Object.entries({
+        ...files,
+        "script.mjs": `${files["script.mjs"]}\nrunGit([...${spread}, "--name-only", commit]);\n`,
+      }).map(([path, source]) => [`.github/scripts/${path}`, source]),
+    );
+
+    const violations = checkFiles([".github/scripts/script.mjs"], (path) => scripts[path]);
+
+    assert.deepEqual(
+      violations.map(({ path, line }) => `${path}:${line}`),
+      [".github/scripts/script.mjs:2"],
+    );
+  });
+}
+
+test("accepts a listing whose --no-renames comes from an imported constant", () => {
+  const scripts = {
+    "script.mjs": [
+      'import { COMMIT_DIFF_ARGS } from "./commit-diff-args.mjs";',
+      'runGit([...COMMIT_DIFF_ARGS, "--name-only", commit]);',
+    ].join("\n"),
+    "commit-diff-args.mjs": 'export const COMMIT_DIFF_ARGS = ["show", "--no-renames"];\n',
+  };
+
+  assert.deepEqual(
+    checkFiles(["script.mjs"], (path) => scripts[path]),
+    [],
+  );
+});
+
 test("finds a git command string run through execSync", () => {
   const source = [
     'execSync("git diff --name-only origin/main...HEAD");',
