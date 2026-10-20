@@ -3,9 +3,11 @@ import type { CreditNote } from "./credit-note-ports.js";
 
 export class VoucherAlreadyCredited extends Error {}
 
-export interface RecordedCreditNote {
-  registerId: string;
-  creditNote: CreditNote;
+export class CreditNoteIdTaken extends Error {}
+
+export interface InvoiceAlreadyCredited {
+  voucher: VoucherReference;
+  saleId: string;
 }
 
 export interface SaleVoidCreditNoteRecord {
@@ -22,11 +24,13 @@ export interface SaleVoidCreditNoteRecord {
 export interface SaleVoidCreditNoteLane {
   registerOwnsPointOfSale(registerId: string, pointOfSale: number): Promise<boolean>;
   registerIssuesFromPointOfSale(registerId: string, pointOfSale: number): Promise<boolean>;
-  recordedCreditNote(creditNoteId: string): Promise<RecordedCreditNote | null>;
+  recordedCreditNote(registerId: string, creditNoteId: string): Promise<CreditNote | null>;
   /**
-   * Raises VoucherAlreadyCredited when a credit note, of any reason, already corrects the voucher.
+   * Raises VoucherAlreadyCredited when a credit note, of any reason, already corrects the voucher,
+   * and CreditNoteIdTaken when another register's credit note holds the id.
    */
   recordSaleVoidCreditNote(record: SaleVoidCreditNoteRecord): Promise<void>;
+  raiseInvoiceAlreadyCredited(invoice: InvoiceAlreadyCredited, at: Date): Promise<void>;
 }
 
 export interface SaleVoidCreditNoteLanes {

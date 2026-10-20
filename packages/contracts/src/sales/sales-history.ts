@@ -6,6 +6,7 @@ import {
   SALE_VOID_REFUSALS,
 } from "@purosur/domain";
 import { z } from "zod";
+import { pointOfSaleNumberSchema } from "../shared/index.js";
 import { saleCreditNoteSchema } from "./sale-credit-note.js";
 
 export const receiptCopySchema = z.discriminatedUnion("kind", [
@@ -67,6 +68,9 @@ const saleVoidabilitySchema = z.discriminatedUnion("kind", [
         sent_by_cloud: z.boolean(),
       }),
     ),
+    credit_note_corrects: z
+      .object({ point_of_sale: pointOfSaleNumberSchema, number: z.int().positive() })
+      .nullable(),
   }),
   z.object({ kind: z.literal("not_voidable"), refusal: z.enum(SALE_VOID_REFUSALS) }),
 ]);

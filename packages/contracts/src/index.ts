@@ -159,6 +159,7 @@ export type {
 export {
   saleVoidCreditNoteRequestSchema,
   saleVoidCreditNoteResponseSchema,
+  saleVoidedEventCreditNoteSchema,
 } from "./fiscal/sale-void-credit-note.js";
 export type {
   UnclearOutcomeAnswerBody,

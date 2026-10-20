@@ -8,7 +8,12 @@ export interface PendingCreditNote extends SaleVoidCreditNote {
 
 export interface RegisterVoidCreditNotes {
   inProgress(): Promise<PendingCreditNote[]>;
+  pendingCreditNote(creditNoteId: string): Promise<PendingCreditNote | null>;
+  recordedAnswer(creditNoteId: string): Promise<VoidCreditNoteStanding | null>;
   realTimePointOfSale(): Promise<number | null>;
+  /**
+   * Records the answer of a credit note still in progress; one that already has an answer keeps it.
+   */
   recordAnswer(
     creditNoteId: string,
     answer: Exclude<VoidCreditNoteStanding, { kind: "in_progress" }>,
@@ -35,4 +40,12 @@ export interface RequestVoidCreditNotesPorts {
   creditNotes: RegisterVoidCreditNotes;
   cloud: CloudCreditNotes;
   clock: Clock;
+}
+
+export interface CreditNotePrinter {
+  startPrinting(saleId: string): void;
+}
+
+export interface RequestVoidedSaleCreditNotePorts extends RequestVoidCreditNotesPorts {
+  printer: CreditNotePrinter;
 }

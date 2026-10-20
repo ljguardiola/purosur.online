@@ -2,9 +2,8 @@ import type { Authorization, AuthorizedBy, VoidSaleOutcome } from "@purosur/cont
 import type { VoidCreditNoteStanding } from "@purosur/domain";
 import {
   type CloudCreditNotes,
-  type PendingCreditNote,
-  type RegisterVoidCreditNotes,
-  requestVoidCreditNotes,
+  type RequestVoidedSaleCreditNoteInput,
+  requestVoidedSaleCreditNote,
 } from "@purosur/domain/fiscal/use-cases";
 import {
   type OperationAuthorization,
@@ -46,42 +45,29 @@ type VoidSaleRefusal = Extract<
   }
 >;
 
-const IN_PROGRESS: VoidCreditNoteStanding = { kind: "in_progress" };
-
 const NO_ANSWER_FROM_CLOUD: CloudCreditNotes = { request: async () => null };
-
-function onlyCreditNote(
-  creditNotes: RegisterVoidCreditNotes,
-  creditNoteId: string,
-): RegisterVoidCreditNotes {
-  return {
-    inProgress: async (): Promise<PendingCreditNote[]> =>
-      (await creditNotes.inProgress()).filter((pending) => pending.creditNoteId === creditNoteId),
-    realTimePointOfSale: () => creditNotes.realTimePointOfSale(),
-    recordAnswer: (id, answer, answeredAt) => creditNotes.recordAnswer(id, answer, answeredAt),
-  };
-}
 
 async function answerOfCreditNote(
   { database, now, creditNotes, printCreditNote, reportFailure }: VoidSaleRequestDeps,
-  saleId: string,
-  creditNoteId: string,
+  input: RequestVoidedSaleCreditNoteInput,
 ): Promise<VoidCreditNoteStanding> {
-  try {
-    const { answers } = await requestVoidCreditNotes({
-      creditNotes: onlyCreditNote(new SqliteVoidCreditNotes(database), creditNoteId),
+  const outcome = await requestVoidedSaleCreditNote(
+    {
+      creditNotes: new SqliteVoidCreditNotes(database),
       cloud: creditNotes ?? NO_ANSWER_FROM_CLOUD,
       clock: { now },
-    });
-    const answer = answers[0]?.answer ?? IN_PROGRESS;
-    if (answer.kind === "authorized") {
-      printCreditNote(saleId).catch(reportFailure);
-    }
-    return answer;
-  } catch (error) {
-    reportFailure(error);
-    return IN_PROGRESS;
+      printer: {
+        startPrinting: (saleId) => {
+          printCreditNote(saleId).catch(reportFailure);
+        },
+      },
+    },
+    input,
+  );
+  if (outcome.kind === "failed") {
+    reportFailure(outcome.error);
   }
+  return outcome.answer;
 }
 
 export async function voidSaleFor(
@@ -128,11 +114,10 @@ export async function voidSaleFor(
       outcome.creditNote === null
         ? null
         : toWireCreditNote(
-            await answerOfCreditNote(
-              deps,
-              outcome.creditNote.saleId,
-              outcome.creditNote.creditNoteId,
-            ),
+            await answerOfCreditNote(deps, {
+              creditNoteId: outcome.creditNote.creditNoteId,
+              saleId: outcome.creditNote.saleId,
+            }),
           ),
   };
 }

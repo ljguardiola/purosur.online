@@ -7,6 +7,10 @@ type Voidability = SaleDetail["voidability"];
 
 export type VoidRefusal = Extract<Voidability, { kind: "not_voidable" }>["refusal"];
 export type VoidRefund = Extract<Voidability, { kind: "voidable" }>["refunds"][number];
+export type VoidCreditNoteCorrects = Extract<
+  Voidability,
+  { kind: "voidable" }
+>["credit_note_corrects"];
 
 export function voidRefusalReason(refusal: VoidRefusal): string | undefined {
   switch (refusal) {

@@ -1,5 +1,8 @@
+import { invoiceAlreadyCreditedObservation } from "@purosur/domain";
 import {
-  type RecordedCreditNote,
+  type CreditNote,
+  CreditNoteIdTaken,
+  type InvoiceAlreadyCredited,
   type SaleVoidCreditNoteLane,
   type SaleVoidCreditNoteLanes,
   type SaleVoidCreditNoteRecord,
@@ -7,6 +10,7 @@ import {
 } from "@purosur/domain/fiscal/use-cases";
 import { and, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import { openAlert } from "../alerts/open-alert.js";
 import { postgresErrorChain } from "../platform/db/postgres-error-chain.js";
 import { creditNotes, pointOfSaleClaims, registerPointsOfSale } from "../platform/db/schema.js";
 import type { DedicatedConnections } from "../platform/dedicated-connections.js";
@@ -16,6 +20,7 @@ import { withPointOfSaleLaneLock } from "./point-of-sale-lane-lock.js";
 
 const UNIQUE_VIOLATION = "23505";
 const CORRECTED_VOUCHER_KEY = "credit_notes_corrected_voucher_key";
+const PRIMARY_KEY = "credit_notes_pkey";
 
 class DrizzleSaleVoidCreditNoteLane<TQueryResult extends PgQueryResultHKT>
   implements SaleVoidCreditNoteLane
@@ -54,9 +59,12 @@ class DrizzleSaleVoidCreditNoteLane<TQueryResult extends PgQueryResultHKT>
     return claim !== undefined;
   }
 
-  async recordedCreditNote(creditNoteId: string): Promise<RecordedCreditNote | null> {
-    const [row] = await this.db.select().from(creditNotes).where(eq(creditNotes.id, creditNoteId));
-    return row === undefined ? null : { registerId: row.registerId, creditNote: creditNoteOf(row) };
+  async recordedCreditNote(registerId: string, creditNoteId: string): Promise<CreditNote | null> {
+    const [row] = await this.db
+      .select()
+      .from(creditNotes)
+      .where(and(eq(creditNotes.id, creditNoteId), eq(creditNotes.registerId, registerId)));
+    return row === undefined ? null : creditNoteOf(row);
   }
 
   async recordSaleVoidCreditNote(record: SaleVoidCreditNoteRecord): Promise<void> {
@@ -78,14 +86,28 @@ class DrizzleSaleVoidCreditNoteLane<TQueryResult extends PgQueryResultHKT>
         await this.enqueueCreditNote(tx, record.creditNoteId);
       });
     } catch (error) {
-      if (
-        postgresErrorChain(error).some(
-          (link) => link.code === UNIQUE_VIOLATION && link.constraint === CORRECTED_VOUCHER_KEY,
-        )
-      ) {
+      const violated = postgresErrorChain(error).find((link) => link.code === UNIQUE_VIOLATION);
+      if (violated?.constraint === CORRECTED_VOUCHER_KEY) {
         throw new VoucherAlreadyCredited();
       }
+      if (violated?.constraint === PRIMARY_KEY) {
+        throw new CreditNoteIdTaken();
+      }
       throw error;
+    }
+  }
+
+  async raiseInvoiceAlreadyCredited(
+    { voucher, saleId }: InvoiceAlreadyCredited,
+    at: Date,
+  ): Promise<void> {
+    const observation = invoiceAlreadyCreditedObservation({
+      pointOfSale: voucher.pointOfSale,
+      number: voucher.number,
+      saleId,
+    });
+    if (observation.holds) {
+      await openAlert(this.db, observation.alert, { now: () => at });
     }
   }
 }

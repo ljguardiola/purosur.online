@@ -178,11 +178,7 @@ export type {
   SaleVoidCreditNote,
   VoidCreditNoteStanding,
 } from "./model/sale-void-credit-note.js";
-export {
-  invoiceToCorrect,
-  saleVoidCreditNoteOfEvent,
-  saleVoidCreditNotePayload,
-} from "./model/sale-void-credit-note.js";
+export { invoiceToCorrect, saleVoidCreditNotePayload } from "./model/sale-void-credit-note.js";
 export {
   awaitsUnclearOutcomeDecision,
   UNCLEAR_ANSWER_KINDS,

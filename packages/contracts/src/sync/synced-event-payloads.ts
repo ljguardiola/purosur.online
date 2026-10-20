@@ -3,7 +3,6 @@ import {
   CASH_MOVEMENT_TYPES,
   cashMovementReason,
   FACTURA_C_DOCUMENT_TYPE,
-  FACTURA_C_VOUCHER_TYPE,
   isCalendarDay,
   isValidCashAmount,
   isValidCashMovementAmount,
@@ -18,7 +17,7 @@ import {
   WEIGHT_SOURCES,
 } from "@purosur/domain";
 import { z } from "zod";
-import { pointOfSaleNumberSchema, recordIdSchema } from "../shared/index.js";
+import { pointOfSaleNumberSchema, recordIdSchema, voidCreditNoteSchema } from "../shared/index.js";
 
 const text = z.string().min(1);
 const instant = z.iso.datetime();
@@ -406,17 +405,6 @@ const saleVoidedV1Schema = z.object({
 const saleVoidedV2Schema = saleVoidedV1Schema.extend({
   payments: z.array(paymentWithMercadoPagoSchema).min(1),
   refunds: z.array(saleRefundWithMercadoPagoSchema).min(1),
-});
-
-const voidCreditNoteSchema = z.object({
-  id: text,
-  total: z.int().positive(),
-  receiver_tax_status_code: z.int(),
-  corrects: z.object({
-    voucher_type: z.literal(FACTURA_C_VOUCHER_TYPE),
-    point_of_sale: pointOfSaleNumberSchema,
-    number: z.int().positive(),
-  }),
 });
 
 const saleVoidedV3Schema = saleVoidedV2Schema.extend({

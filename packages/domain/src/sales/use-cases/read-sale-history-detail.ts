@@ -1,4 +1,9 @@
-import { isRegisterFiscallyOnline, type VoidCreditNoteStanding } from "../../fiscal/index.js";
+import {
+  invoiceToCorrect,
+  isRegisterFiscallyOnline,
+  type VoidCreditNoteStanding,
+  type VoucherReference,
+} from "../../fiscal/index.js";
 import {
   isRefundSentByCloud,
   type PlannedRefundState,
@@ -41,6 +46,7 @@ export type SaleVoidability =
         state: PlannedRefundState;
         sentByCloud: boolean;
       }[];
+      creditNoteCorrects: VoucherReference | null;
     }
   | { kind: "not_voidable"; refusal: SaleVoidRefusal };
 
@@ -73,7 +79,7 @@ export function readSaleHistoryDetail(
   if (record === undefined || delivery.kind === "not_found") {
     return { kind: "not_found" };
   }
-  const { fiscal, voided, inOpenSession, ...shown } = record;
+  const { fiscal, voided, inOpenSession, invoices: _invoices, ...shown } = record;
   const fiscallyOnline = isRegisterFiscallyOnline(history.fiscalOnlineEvidence(), clock.now());
   return {
     kind: "found",
@@ -89,13 +95,13 @@ export function readSaleHistoryDetail(
 }
 
 function saleVoidabilityOf(
-  { voided, inOpenSession, fiscal, payments }: SaleHistoryRecord,
+  { voided, inOpenSession, invoices, payments }: SaleHistoryRecord,
   fiscallyOnline: boolean,
 ): SaleVoidability {
   const refusal = saleVoidRefusal({
     state: voided ? "VOIDED" : "COMPLETED",
     inOpenSession,
-    fiscalDocumentStates: fiscal.fiscalDocument === null ? [] : [fiscal.fiscalDocument.state],
+    fiscalDocumentStates: invoices.map(({ state }) => state),
     fiscallyOnline,
   });
   if (refusal !== null) {
@@ -109,5 +115,6 @@ function saleVoidabilityOf(
       state: plannedRefundState(method),
       sentByCloud: isRefundSentByCloud({ method, origin: SALE_VOIDED_REFUND_ORIGIN }),
     })),
+    creditNoteCorrects: invoiceToCorrect(invoices)?.voucher ?? null,
   };
 }

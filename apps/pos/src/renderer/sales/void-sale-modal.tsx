@@ -24,10 +24,10 @@ import type { SaleDetail } from "../shell/sale-receipt-text";
 import { comprobantePresentation } from "../shell/sale-receipt-text";
 import type { SignedInPerson } from "../shell/signed-in-person";
 import { useAuthorization } from "../shell/use-authorization";
-import type { VoidRefund } from "./void-sale-text";
+import type { VoidCreditNoteCorrects, VoidRefund } from "./void-sale-text";
 import { voidRefundPresentation, voidRefusalReason } from "./void-sale-text";
 
-export type { VoidRefund } from "./void-sale-text";
+export type { VoidCreditNoteCorrects, VoidRefund } from "./void-sale-text";
 
 const FAILED_MESSAGE = "No se pudo anular la venta. Probá de nuevo.";
 const UNCONFIRMED_MESSAGE = "Confirmá los reembolsos pendientes antes de anular la venta.";
@@ -37,6 +37,7 @@ const AUTHORIZING = "anular ventas";
 export type VoidSaleModalProps = {
   sale: Pick<SaleDetail, "sale_id" | "occurred_at" | "total" | "comprobante" | "operation_number">;
   refunds: readonly VoidRefund[];
+  creditNoteCorrects: VoidCreditNoteCorrects;
   authorizationRequired: boolean;
   person: SignedInPerson;
   loadAuthorizers: (permission: AuthorizablePermissionKey) => Promise<SignInUser[]>;
@@ -55,6 +56,7 @@ export type VoidSaleModalProps = {
 export function VoidSaleModal({
   sale,
   refunds,
+  creditNoteCorrects,
   authorizationRequired,
   person,
   loadAuthorizers,
@@ -82,8 +84,12 @@ export function VoidSaleModal({
   }));
   const pending = shown.flatMap((refund) => (refund.pending ? [refund.position] : []));
   const allConfirmed = pending.every((position) => confirmed.includes(position));
-  const comprobante = comprobantePresentation(sale.comprobante);
-  const invoiced = sale.comprobante.kind === "fiscal";
+  const invoiced = creditNoteCorrects !== null;
+  const comprobante = comprobantePresentation(
+    creditNoteCorrects === null
+      ? sale.comprobante
+      : { kind: "fiscal", document_type: "factura_c", ...creditNoteCorrects },
+  );
 
   async function confirm() {
     if (submitting || refusalReason !== undefined || !allConfirmed || !authorization.ready) {

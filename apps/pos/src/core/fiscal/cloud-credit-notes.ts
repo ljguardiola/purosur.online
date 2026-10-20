@@ -38,6 +38,7 @@ function answerOf(response: CloudResponse): VoidCreditNoteStanding | null {
         pointOfSale: body.data.point_of_sale,
         number: body.data.number,
         issuedOn: body.data.issued_on,
+        issuedAt: new Date(body.data.issued_at),
         authorizationCode: body.data.authorization_code,
         authorizationCodeDueOn: body.data.authorization_code_due_on,
       };

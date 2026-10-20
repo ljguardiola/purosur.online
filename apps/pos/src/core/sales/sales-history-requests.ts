@@ -47,6 +47,13 @@ function toWireVoidability(voidability: SaleVoidability): SaleHistoryDetail["voi
           ...refund,
           sent_by_cloud: sentByCloud,
         })),
+        credit_note_corrects:
+          voidability.creditNoteCorrects === null
+            ? null
+            : {
+                point_of_sale: voidability.creditNoteCorrects.pointOfSale,
+                number: voidability.creditNoteCorrects.number,
+              },
       }
     : voidability;
 }

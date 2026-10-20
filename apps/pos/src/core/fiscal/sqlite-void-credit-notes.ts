@@ -12,6 +12,7 @@ interface AuthorizedRow {
   point_of_sale: number;
   number: number;
   issued_on: string;
+  issued_at: string;
   authorization_code: string;
   authorization_code_due_on: string;
 }
@@ -52,24 +53,26 @@ function answerOf(row: CreditNoteRow): VoidCreditNoteStanding {
         pointOfSale: row.point_of_sale,
         number: row.number,
         issuedOn: row.issued_on,
+        issuedAt: new Date(row.issued_at),
         authorizationCode: row.authorization_code,
         authorizationCodeDueOn: row.authorization_code_due_on,
       };
   }
 }
 
-export function readCreditNoteOfSale(
+function readCreditNote(
   database: LocalDatabase,
-  saleId: string,
+  column: "id" | "sale_id",
+  value: string,
 ): StoredCreditNote | null {
   const row = database
     .prepare<[string], CreditNoteRow>(
       `SELECT id, sale_id, total, receiver_tax_status_code, corrected_voucher_type,
               corrected_point_of_sale, corrected_number, state, point_of_sale, number, issued_on,
-              authorization_code, authorization_code_due_on, recorded_at, answered_at
-       FROM sale_void_credit_notes WHERE sale_id = ?`,
+              issued_at, authorization_code, authorization_code_due_on, recorded_at, answered_at
+       FROM sale_void_credit_notes WHERE ${column} = ?`,
     )
-    .get(saleId);
+    .get(value);
   return row === undefined
     ? null
     : {
@@ -86,6 +89,13 @@ export function readCreditNoteOfSale(
         answeredAt: row.answered_at === null ? null : new Date(row.answered_at),
         answer: answerOf(row),
       };
+}
+
+export function readCreditNoteOfSale(
+  database: LocalDatabase,
+  saleId: string,
+): StoredCreditNote | null {
+  return readCreditNote(database, "sale_id", saleId);
 }
 
 export function insertPendingCreditNote(
@@ -150,25 +160,43 @@ export class SqliteVoidCreditNotes implements RegisterVoidCreditNotes {
          ORDER BY recorded_at, id`,
       )
       .all()
-      .flatMap((row) => {
-        const saleEvent = this.saleVoidedEvent(row.sale_id);
-        return saleEvent === null
-          ? []
-          : [
-              {
-                creditNoteId: row.id,
-                saleId: row.sale_id,
-                total: row.total,
-                receiverTaxStatusCode: row.receiver_tax_status_code,
-                correctedVoucher: {
-                  voucherType: row.corrected_voucher_type,
-                  pointOfSale: row.corrected_point_of_sale,
-                  number: row.corrected_number,
-                },
-                saleEvent,
-              },
-            ];
-      });
+      .flatMap((row) => this.pendingOf(row));
+  }
+
+  async pendingCreditNote(creditNoteId: string): Promise<PendingCreditNote | null> {
+    const row = this.database
+      .prepare<[string], InProgressRow>(
+        `SELECT id, sale_id, total, receiver_tax_status_code, corrected_voucher_type,
+                corrected_point_of_sale, corrected_number
+         FROM sale_void_credit_notes
+         WHERE id = ? AND state = 'IN_PROGRESS'`,
+      )
+      .get(creditNoteId);
+    return row === undefined ? null : (this.pendingOf(row)[0] ?? null);
+  }
+
+  async recordedAnswer(creditNoteId: string): Promise<VoidCreditNoteStanding | null> {
+    return readCreditNote(this.database, "id", creditNoteId)?.answer ?? null;
+  }
+
+  private pendingOf(row: InProgressRow): PendingCreditNote[] {
+    const saleEvent = this.saleVoidedEvent(row.sale_id);
+    return saleEvent === null
+      ? []
+      : [
+          {
+            creditNoteId: row.id,
+            saleId: row.sale_id,
+            total: row.total,
+            receiverTaxStatusCode: row.receiver_tax_status_code,
+            correctedVoucher: {
+              voucherType: row.corrected_voucher_type,
+              pointOfSale: row.corrected_point_of_sale,
+              number: row.corrected_number,
+            },
+            saleEvent,
+          },
+        ];
   }
 
   private saleVoidedEvent(saleId: string): PushedEvent | null {
@@ -205,7 +233,8 @@ export class SqliteVoidCreditNotes implements RegisterVoidCreditNotes {
       .prepare(
         `UPDATE sale_void_credit_notes
          SET state = @state, point_of_sale = @point_of_sale, number = @number,
-             issued_on = @issued_on, authorization_code = @authorization_code,
+             issued_on = @issued_on, issued_at = @issued_at,
+             authorization_code = @authorization_code,
              authorization_code_due_on = @authorization_code_due_on, answered_at = @answered_at
          WHERE id = @id AND state = 'IN_PROGRESS'`,
       )
@@ -215,13 +244,14 @@ export class SqliteVoidCreditNotes implements RegisterVoidCreditNotes {
         point_of_sale: answer.kind === "authorized" ? answer.pointOfSale : null,
         number: answer.kind === "authorized" ? answer.number : null,
         issued_on: answer.kind === "authorized" ? answer.issuedOn : null,
+        issued_at: answer.kind === "authorized" ? answer.issuedAt.toISOString() : null,
         authorization_code: answer.kind === "authorized" ? answer.authorizationCode : null,
         authorization_code_due_on:
           answer.kind === "authorized" ? answer.authorizationCodeDueOn : null,
         answered_at: answeredAt.toISOString(),
       });
-    if (changes !== 1) {
-      throw new Error("the credit note is not in progress");
+    if (changes === 0 && (await this.recordedAnswer(creditNoteId)) === null) {
+      throw new Error(`the register holds no credit note ${creditNoteId}`);
     }
   }
 }

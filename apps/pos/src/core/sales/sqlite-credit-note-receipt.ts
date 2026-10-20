@@ -53,7 +53,7 @@ export function readCreditNoteReceipt(
   );
   return {
     header,
-    operation: { ...operation, occurredAt: creditNote.answeredAt ?? creditNote.recordedAt },
+    operation: { ...operation, occurredAt: answer.issuedAt },
     issuedOn: answer.issuedOn,
     lines,
     totals: { subtotal: totals.subtotal, saleDiscount: totals.saleDiscount, total: totals.total },

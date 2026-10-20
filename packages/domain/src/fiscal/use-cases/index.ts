@@ -427,10 +427,17 @@ export { requestVoidCreditNotes } from "./request-void-credit-notes.js";
 export type {
   CloudCreditNoteCall,
   CloudCreditNotes,
+  CreditNotePrinter,
   PendingCreditNote,
   RegisterVoidCreditNotes,
   RequestVoidCreditNotesPorts,
+  RequestVoidedSaleCreditNotePorts,
 } from "./request-void-credit-notes-ports.js";
+export type {
+  RequestVoidedSaleCreditNoteInput,
+  RequestVoidedSaleCreditNoteOutcome,
+} from "./request-voided-sale-credit-note.js";
+export { requestVoidedSaleCreditNote } from "./request-voided-sale-credit-note.js";
 export type {
   FiscalDocumentReservation,
   IdGenerator,
@@ -438,13 +445,13 @@ export type {
   SaleOrigin,
 } from "./sale-authorization-ports.js";
 export type {
-  RecordedCreditNote,
+  InvoiceAlreadyCredited,
   RequestSaleVoidCreditNotePorts,
   SaleVoidCreditNoteLane,
   SaleVoidCreditNoteLanes,
   SaleVoidCreditNoteRecord,
 } from "./sale-void-credit-note-ports.js";
-export { VoucherAlreadyCredited } from "./sale-void-credit-note-ports.js";
+export { CreditNoteIdTaken, VoucherAlreadyCredited } from "./sale-void-credit-note-ports.js";
 export type { SettleInterruptedRealTimeAuthorizationsOutcome } from "./settle-interrupted-real-time-authorizations.js";
 export { settleInterruptedRealTimeAuthorizations } from "./settle-interrupted-real-time-authorizations.js";
 export type {

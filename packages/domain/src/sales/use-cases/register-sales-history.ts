@@ -1,4 +1,8 @@
-import type { FiscalOnlineSignalEvidence, VoidCreditNoteStanding } from "../../fiscal/index.js";
+import type {
+  FiscalOnlineSignalEvidence,
+  SaleInvoice,
+  VoidCreditNoteStanding,
+} from "../../fiscal/index.js";
 import type { CompletedSalePayment } from "../model/completed-sale.js";
 import type { SaleFiscalFacts, SaleStanding } from "../model/sale-history.js";
 
@@ -36,6 +40,7 @@ export interface SaleHistoryRecord {
   fiscal: SaleFiscalFacts;
   voided: boolean;
   inOpenSession: boolean;
+  invoices: SaleInvoice[];
   creditNote: VoidCreditNoteStanding | null;
 }
 

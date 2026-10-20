@@ -3,7 +3,6 @@ import {
   invoiceToCorrect,
   type SaleInvoice,
   type SaleVoidCreditNote,
-  saleVoidCreditNoteOfEvent,
   saleVoidCreditNotePayload,
 } from "./sale-void-credit-note.js";
 
@@ -92,75 +91,5 @@ const PAYLOAD = {
 describe("saleVoidCreditNotePayload", () => {
   it("describes the credit note the void asks for", () => {
     expect(saleVoidCreditNotePayload(CREDIT_NOTE)).toEqual(PAYLOAD);
-  });
-});
-
-describe("saleVoidCreditNoteOfEvent", () => {
-  const event = (overrides: Record<string, unknown> = {}) => ({
-    event_type: "sale_voided",
-    aggregate_id: "sale-1",
-    payload: { credit_note: PAYLOAD },
-    ...overrides,
-  });
-
-  it("reads the credit note the voided sale's event asks for", () => {
-    expect(saleVoidCreditNoteOfEvent(event())).toEqual(CREDIT_NOTE);
-  });
-
-  it("reads the payload the void writes", () => {
-    expect(
-      saleVoidCreditNoteOfEvent(
-        event({ payload: { credit_note: saleVoidCreditNotePayload(CREDIT_NOTE) } }),
-      ),
-    ).toEqual(CREDIT_NOTE);
-  });
-
-  it.each([
-    ["an event of another type", { event_type: "sale_completed" }],
-    ["a void that asks for no credit note", { payload: { credit_note: null } }],
-    ["a void without the member", { payload: {} }],
-    ["a credit note that is not an object", { payload: { credit_note: "credit-note-1" } }],
-    ["a credit note without an id", { payload: { credit_note: { ...PAYLOAD, id: undefined } } }],
-    ["a credit note with a blank id", { payload: { credit_note: { ...PAYLOAD, id: "" } } }],
-    ["a total that is not a number", { payload: { credit_note: { ...PAYLOAD, total: "7500" } } }],
-    ["a fractional total", { payload: { credit_note: { ...PAYLOAD, total: 75.5 } } }],
-    ["a zero total", { payload: { credit_note: { ...PAYLOAD, total: 0 } } }],
-    [
-      "a receiver status that is not an integer",
-      { payload: { credit_note: { ...PAYLOAD, receiver_tax_status_code: 5.5 } } },
-    ],
-    ["no corrected voucher", { payload: { credit_note: { ...PAYLOAD, corrects: null } } }],
-    [
-      "a corrected voucher without its number",
-      {
-        payload: {
-          credit_note: { ...PAYLOAD, corrects: { voucher_type: 11, point_of_sale: 8 } },
-        },
-      },
-    ],
-    [
-      "a corrected voucher with a text point of sale",
-      {
-        payload: {
-          credit_note: {
-            ...PAYLOAD,
-            corrects: { voucher_type: 11, point_of_sale: "8", number: 77 },
-          },
-        },
-      },
-    ],
-    [
-      "a corrected voucher with a fractional voucher type",
-      {
-        payload: {
-          credit_note: {
-            ...PAYLOAD,
-            corrects: { voucher_type: 11.5, point_of_sale: 8, number: 77 },
-          },
-        },
-      },
-    ],
-  ])("reads no credit note from %s", (_case, overrides) => {
-    expect(saleVoidCreditNoteOfEvent(event(overrides))).toBeNull();
   });
 });

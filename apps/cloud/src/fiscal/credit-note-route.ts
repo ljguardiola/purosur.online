@@ -4,8 +4,8 @@ import {
   type SaleVoidCreditNoteResponseBody,
   saleVoidCreditNoteRequestSchema,
   saleVoidCreditNoteResponseSchema,
+  saleVoidedEventCreditNoteSchema,
 } from "@purosur/contracts";
-import { invoiceAlreadyCreditedObservation } from "@purosur/domain";
 import {
   creditNoteAnswerOf,
   issueCreditNote,
@@ -15,7 +15,6 @@ import {
 import { admitInstallationRequest } from "@purosur/domain/sync/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
-import { openAlert } from "../alerts/open-alert.js";
 import { sendRateLimited } from "../platform/rate-limited-response.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
 import { answerErrorsWithCloudEnvelope } from "../register/cloud-error-handler.js";
@@ -92,6 +91,7 @@ function toWire(answer: CreditNoteAnswer): SaleVoidCreditNoteResponseBody {
         point_of_sale: answer.pointOfSale,
         number: answer.number,
         issued_on: answer.issuedOn,
+        issued_at: answer.issuedAt.toISOString(),
         authorization_code: answer.authorizationCode,
         authorization_code_due_on: answer.authorizationCodeDueOn,
       };
@@ -152,27 +152,35 @@ export function registerCreditNoteRoute<TQueryResult extends PgQueryResultHKT>(
           return;
         }
 
+        const voided = saleVoidedEventCreditNoteSchema.safeParse(body.sale_event);
+        if (!voided.success) {
+          await reply.code(cloudErrorStatus(SALE_EVENT_MISMATCH.code)).send(SALE_EVENT_MISMATCH);
+          return;
+        }
+        const { aggregate_id: saleId, payload } = voided.data;
+        const { corrects } = payload.credit_note;
+
         const outcome = await requestSaleVoidCreditNote(requestPorts, {
           registerId: authentication.installation.registerId,
           receivedAt,
           request: {
             creditNoteId: body.credit_note_id,
             pointOfSale: body.point_of_sale,
-            saleEvent: body.sale_event,
+            voided: {
+              creditNoteId: payload.credit_note.id,
+              saleId,
+              total: payload.credit_note.total,
+              receiverTaxStatusCode: payload.credit_note.receiver_tax_status_code,
+              correctedVoucher: {
+                voucherType: corrects.voucher_type,
+                pointOfSale: corrects.point_of_sale,
+                number: corrects.number,
+              },
+            },
           },
         });
 
         const refusal = refusalOf(outcome);
-        if (outcome.kind === "voucher_already_credited") {
-          const observation = invoiceAlreadyCreditedObservation({
-            pointOfSale: outcome.voucher.pointOfSale,
-            number: outcome.voucher.number,
-            saleId: outcome.saleId,
-          });
-          if (observation.holds) {
-            await openAlert(options.db, observation.alert, { now: () => receivedAt });
-          }
-        }
         if (refusal !== null) {
           await reply.code(cloudErrorStatus(refusal.code)).send(refusal);
           return;

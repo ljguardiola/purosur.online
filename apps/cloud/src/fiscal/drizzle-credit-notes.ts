@@ -28,6 +28,7 @@ export function standingOf(row: CreditNoteRow): CreditNoteStanding {
     if (
       row.number === null ||
       row.issuedOn === null ||
+      row.requestedAt === null ||
       row.authorizationCode === null ||
       row.authorizationCodeDueOn === null
     ) {
@@ -37,6 +38,7 @@ export function standingOf(row: CreditNoteRow): CreditNoteStanding {
       kind: "authorized",
       number: row.number,
       issuedOn: row.issuedOn,
+      requestedAt: row.requestedAt,
       authorizationCode: row.authorizationCode,
       authorizationCodeDueOn: row.authorizationCodeDueOn,
     };

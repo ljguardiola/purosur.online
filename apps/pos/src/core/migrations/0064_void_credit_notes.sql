@@ -10,6 +10,7 @@ CREATE TABLE sale_void_credit_notes (
   point_of_sale INTEGER CHECK (point_of_sale BETWEEN 1 AND 99999),
   number INTEGER CHECK (number > 0),
   issued_on TEXT,
+  issued_at TEXT,
   authorization_code TEXT,
   authorization_code_due_on TEXT,
   recorded_at TEXT NOT NULL,
@@ -21,6 +22,7 @@ CREATE TABLE sale_void_credit_notes (
       AND point_of_sale IS NOT NULL
       AND number IS NOT NULL
       AND issued_on IS NOT NULL
+      AND issued_at IS NOT NULL
       AND authorization_code IS NOT NULL
       AND authorization_code_due_on IS NOT NULL
     )
@@ -29,6 +31,7 @@ CREATE TABLE sale_void_credit_notes (
       AND point_of_sale IS NULL
       AND number IS NULL
       AND issued_on IS NULL
+      AND issued_at IS NULL
       AND authorization_code IS NULL
       AND authorization_code_due_on IS NULL
     )

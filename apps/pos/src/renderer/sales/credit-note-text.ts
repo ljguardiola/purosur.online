@@ -39,14 +39,13 @@ export function voidedSaleNotice(creditNote: SaleCreditNote | null): Notice {
       return {
         tone: "warning",
         title,
-        description: "La nota de crédito no se emitió. Queda en el backoffice para resolverla.",
+        description: "ARCA rechazó la nota de crédito. Avisá al Administrador.",
       };
     case "already_credited":
       return {
         tone: "warning",
         title,
-        description:
-          "La factura ya tenía nota de crédito, así que no se emitió otra. El backoffice lo tiene.",
+        description: "La factura ya tenía nota de crédito, así que no se emitió otra.",
       };
   }
 }
@@ -59,7 +58,7 @@ export function creditNotePrintNotice(
       return {
         tone: "success",
         title: "La nota de crédito sale en cuanto la impresora esté lista",
-        description: "Sale como nota de crédito C.",
+        description: "Entregásela al cliente.",
       };
     case "busy":
       return {

@@ -1,9 +1,7 @@
-import type { PushedEvent } from "../../sync/index.js";
-import type { VoucherReference } from "../model/orphan-authorization.js";
-import type { CreditNoteAnswer } from "../model/sale-void-credit-note.js";
-import { saleVoidCreditNoteOfEvent } from "../model/sale-void-credit-note.js";
+import type { CreditNoteAnswer, SaleVoidCreditNote } from "../model/sale-void-credit-note.js";
 import type { CreditNote } from "./credit-note-ports.js";
 import {
+  CreditNoteIdTaken,
   type RequestSaleVoidCreditNotePorts,
   VoucherAlreadyCredited,
 } from "./sale-void-credit-note-ports.js";
@@ -13,7 +11,7 @@ export interface RequestSaleVoidCreditNoteInput {
   request: {
     creditNoteId: string;
     pointOfSale: number;
-    saleEvent: PushedEvent;
+    voided: SaleVoidCreditNote;
   };
   receivedAt: Date;
 }
@@ -25,13 +23,13 @@ export type RequestSaleVoidCreditNoteOutcome =
   | { kind: "point_of_sale_not_owned" }
   | { kind: "credit_note_not_owned" }
   | { kind: "voucher_not_owned" }
-  | { kind: "voucher_already_credited"; voucher: VoucherReference; saleId: string };
+  | { kind: "voucher_already_credited" };
 
 function answerOf({ pointOfSale, standing }: CreditNote): CreditNoteAnswer {
   switch (standing.kind) {
     case "authorized": {
-      const { kind: _kind, ...authorized } = standing;
-      return { kind: "authorized", pointOfSale, ...authorized };
+      const { kind: _kind, requestedAt, ...authorized } = standing;
+      return { kind: "authorized", pointOfSale, issuedAt: requestedAt, ...authorized };
     }
     case "rejected":
       return { kind: "rejected" };
@@ -45,8 +43,8 @@ export async function requestSaleVoidCreditNote(
   { lanes }: RequestSaleVoidCreditNotePorts,
   { registerId, request, receivedAt }: RequestSaleVoidCreditNoteInput,
 ): Promise<RequestSaleVoidCreditNoteOutcome> {
-  const asked = saleVoidCreditNoteOfEvent(request.saleEvent);
-  if (asked === null || asked.creditNoteId !== request.creditNoteId) {
+  const asked = request.voided;
+  if (asked.creditNoteId !== request.creditNoteId) {
     return { kind: "sale_event_mismatch" };
   }
 
@@ -57,11 +55,9 @@ export async function requestSaleVoidCreditNote(
         return { kind: "point_of_sale_not_owned" };
       }
 
-      const recorded = await lane.recordedCreditNote(request.creditNoteId);
+      const recorded = await lane.recordedCreditNote(registerId, request.creditNoteId);
       if (recorded !== null) {
-        return recorded.registerId === registerId
-          ? { kind: "already_recorded", answer: answerOf(recorded.creditNote) }
-          : { kind: "credit_note_not_owned" };
+        return { kind: "already_recorded", answer: answerOf(recorded) };
       }
 
       if (
@@ -81,12 +77,15 @@ export async function requestSaleVoidCreditNote(
           receivedAt,
         });
       } catch (error) {
+        if (error instanceof CreditNoteIdTaken) {
+          return { kind: "credit_note_not_owned" };
+        }
         if (error instanceof VoucherAlreadyCredited) {
-          return {
-            kind: "voucher_already_credited",
-            voucher: asked.correctedVoucher,
-            saleId: asked.saleId,
-          };
+          await lane.raiseInvoiceAlreadyCredited(
+            { voucher: asked.correctedVoucher, saleId: asked.saleId },
+            receivedAt,
+          );
+          return { kind: "voucher_already_credited" };
         }
         throw error;
       }

@@ -24,6 +24,7 @@ export type CreditNoteStanding =
       kind: "authorized";
       number: number;
       issuedOn: string;
+      requestedAt: Date;
       authorizationCode: string;
       authorizationCodeDueOn: string;
     }

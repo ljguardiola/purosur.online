@@ -34,6 +34,7 @@ interface AuthorizedCreditNote {
   pointOfSale: number;
   number: number;
   issuedOn: string;
+  issuedAt: Date;
   authorizationCode: string;
   authorizationCodeDueOn: string;
 }
@@ -64,8 +65,8 @@ export async function issueCreditNote(
     }
     const { standing } = creditNote;
     if (standing.kind === "authorized") {
-      const { kind: _kind, ...authorized } = standing;
-      return { kind: "already_authorized", pointOfSale, ...authorized };
+      const { kind: _kind, requestedAt, ...authorized } = standing;
+      return { kind: "already_authorized", pointOfSale, issuedAt: requestedAt, ...authorized };
     }
     if (standing.kind === "rejected") {
       return { kind: "already_rejected" };
@@ -116,6 +117,7 @@ export async function issueCreditNote(
           pointOfSale,
           number: standing.number,
           issuedOn: standing.issuedOn,
+          issuedAt: standing.requestedAt,
           authorizationCode,
           authorizationCodeDueOn,
         };
@@ -182,6 +184,7 @@ export async function issueCreditNote(
       pointOfSale,
       number,
       issuedOn,
+      requestedAt,
       solicitation,
       answeredAt: clock.now(),
     });
@@ -195,6 +198,7 @@ async function recordAnswer(
     pointOfSale,
     number,
     issuedOn,
+    requestedAt,
     solicitation,
     answeredAt,
   }: {
@@ -202,6 +206,7 @@ async function recordAnswer(
     pointOfSale: number;
     number: number;
     issuedOn: string;
+    requestedAt: Date;
     solicitation: SolicitationAnswer;
     answeredAt: Date;
   },
@@ -220,6 +225,7 @@ async function recordAnswer(
       pointOfSale,
       number,
       issuedOn,
+      issuedAt: requestedAt,
       authorizationCode,
       authorizationCodeDueOn,
     };

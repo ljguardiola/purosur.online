@@ -18,6 +18,7 @@ import type {
   SalesHistoryPage,
 } from "@purosur/domain/sales/use-cases";
 import { readFiscalOnlineEvidence } from "../fiscal/sqlite-fiscal-online-evidence";
+import { readSaleInvoices } from "../fiscal/sqlite-sale-invoices";
 import { readCreditNoteOfSale } from "../fiscal/sqlite-void-credit-notes";
 import { readSalePayments } from "../payments/sqlite-sale-payments";
 import type { LocalDatabase } from "../platform/local-database";
@@ -157,6 +158,7 @@ export class SqliteRegisterSalesHistory implements RegisterSalesHistory {
       fiscal: this.fiscalFactsOf(sale.id),
       voided: sale.voided === 1,
       inOpenSession: sale.in_open_session === 1,
+      invoices: readSaleInvoices(this.database, sale.id),
       creditNote: readCreditNoteOfSale(this.database, sale.id)?.answer ?? null,
     };
   }
