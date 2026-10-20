@@ -17,6 +17,7 @@ import { opensOnlyScreens } from "./test-support/screen-routes";
 opensOnlyScreens([
   "/",
   "/account",
+  "/alerts",
   "/help",
   "/supplier-price-lists",
   "/supplier-price-lists/$listId",
