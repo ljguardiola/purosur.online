@@ -65,6 +65,7 @@ describe("the project's resources", () => {
       "Media Storage",
       "Register Updates",
       "Register Snapshots",
+      "Supplier Price Lists",
       "Schema Migrations",
       "Cloud Server",
     ]);
@@ -90,6 +91,7 @@ describe("the offsite dump", () => {
         "Media Storage",
         "Register Updates",
         "Register Snapshots",
+        "Supplier Price Lists",
         "Schema Migrations",
         "Cloud Server",
         "Offsite Dump",
