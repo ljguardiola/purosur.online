@@ -23,9 +23,12 @@ export function HighlightedNotice({
   const row = layout === "row";
   const className = [
     "flex w-full rounded-lg p-4",
-    row ? "flex-wrap items-center gap-4" : "items-start gap-3",
+    row ? "items-center gap-4" : "items-start gap-3",
+    row && actions ? "flex-wrap" : undefined,
     toneClassName[tone].surface,
-  ].join(" ");
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   return (
     <NoticeFrame
