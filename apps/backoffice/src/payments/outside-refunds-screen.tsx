@@ -6,12 +6,13 @@ import {
   Table,
   useTableModel,
 } from "@purosur/ui";
-import { CircleCheck, HandCoins } from "lucide-react";
+import { CircleCheck, CircleX, HandCoins } from "lucide-react";
 import { useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { paymentMethodLabel } from "../platform/payment-method-label";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTopBar } from "../shell/screen-top-bar";
+import { DiscardRefundModal } from "./discard-refund-modal";
 import { MarkRefundDoneModal } from "./mark-refund-done-modal";
 import { usePendingRefundsQuery, useRefreshPayments } from "./payments-queries";
 import {
@@ -57,6 +58,7 @@ export function OutsideRefundsScreen({
   });
   const refreshPayments = useRefreshPayments();
   const [doneTarget, setDoneTarget] = useState<PendingRefund | null>(null);
+  const [discardTarget, setDiscardTarget] = useState<PendingRefund | null>(null);
   const refunds = data.status === "loaded" ? madeOutsideTheSystem(data.value.refunds) : NO_REFUNDS;
   const settled = data.status === "loaded";
 
@@ -88,6 +90,14 @@ export function OutsideRefundsScreen({
           "aria-label": `Marcar como hecho el reembolso de ${formatCents(refund.amount)}`,
           onPress: () => setDoneTarget(refund),
         }),
+        (refund: PendingRefund) =>
+          refund.discardable
+            ? {
+                icon: <CircleX />,
+                "aria-label": `Descartar el reembolso de ${formatCents(refund.amount)}`,
+                onPress: () => setDiscardTarget(refund),
+              }
+            : undefined,
       ],
     }),
   ] as const;
@@ -145,6 +155,16 @@ export function OutsideRefundsScreen({
         onClose={() => setDoneTarget(null)}
         onDone={() => {
           setDoneTarget(null);
+          void refreshPayments();
+        }}
+        onSessionEnded={onSessionEnded}
+        services={services}
+      />
+      <DiscardRefundModal
+        target={discardTarget}
+        onClose={() => setDiscardTarget(null)}
+        onDone={() => {
+          setDiscardTarget(null);
           void refreshPayments();
         }}
         onSessionEnded={onSessionEnded}
