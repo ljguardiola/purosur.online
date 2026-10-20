@@ -336,6 +336,7 @@ export {
   isConfirmedByHand,
   isLateApproval,
   isPointTerminalId,
+  isQrExternalPosId,
   isRefundPending,
   isRefundSentByCloud,
   isValidOrderAmount,

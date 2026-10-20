@@ -1,5 +1,5 @@
 {
-  "id": "67020ff2-42e9-4ce4-ac80-25f88861ffa6",
+  "id": "1b029c9a-0095-4d7b-89e4-6d522b4ee03e",
   "prevId": "26c6de9c-aa2d-4c29-a8e0-daad64362b7c",
   "version": "7",
   "dialect": "postgresql",
@@ -7607,6 +7607,63 @@
       },
       "isRLSEnabled": false
     },
+    "public.register_qr_points_of_sale": {
+      "name": "register_qr_points_of_sale",
+      "schema": "",
+      "columns": {
+        "register_id": {
+          "name": "register_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "external_pos_id": {
+          "name": "external_pos_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version": {
+          "name": "version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "register_qr_points_of_sale_external_pos_id_key": {
+          "name": "register_qr_points_of_sale_external_pos_id_key",
+          "columns": [
+            {
+              "expression": "external_pos_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "register_qr_points_of_sale_register_id_registers_id_fk": {
+          "name": "register_qr_points_of_sale_register_id_registers_id_fk",
+          "tableFrom": "register_qr_points_of_sale",
+          "tableTo": "registers",
+          "columnsFrom": ["register_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.register_snapshot_generations": {
       "name": "register_snapshot_generations",
       "schema": "",
@@ -7652,13 +7709,6 @@
           "type": "integer",
           "primaryKey": false,
           "notNull": true
-        },
-        "last_device_seq": {
-          "name": "last_device_seq",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
         },
         "status": {
           "name": "status",

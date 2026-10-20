@@ -28,6 +28,7 @@ import {
   registerOfflinePointsOfSale,
   registerPointsOfSale,
   registerPointTerminals,
+  registerQrPointsOfSale,
   registers,
   rolePermissions,
   roles,
@@ -57,6 +58,7 @@ import type {
   RegisterOfflinePointOfSaleRow,
   RegisterPointOfSaleRow,
   RegisterPointTerminalRow,
+  RegisterQrPointOfSaleRow,
   RegisterRow,
   RoleRow,
   StockMovementRow,
@@ -358,6 +360,30 @@ export async function readRegisterPointTerminals<TQueryResult extends PgQueryRes
     rows.map(({ registerId, terminalId, version }) => [
       registerId,
       { assigned: terminalId !== null, version },
+    ]),
+  );
+}
+
+export async function readRegisterQrPointsOfSale<TQueryResult extends PgQueryResultHKT>(
+  tx: PgDatabase<TQueryResult>,
+  registerIds: readonly string[],
+): Promise<Map<string, RegisterQrPointOfSaleRow>> {
+  if (registerIds.length === 0) {
+    return new Map();
+  }
+  const rows = await tx
+    .select({
+      registerId: registerQrPointsOfSale.registerId,
+      externalPosId: registerQrPointsOfSale.externalPosId,
+      version: registerQrPointsOfSale.version,
+    })
+    .from(registerQrPointsOfSale)
+    .where(inArray(registerQrPointsOfSale.registerId, [...registerIds]))
+    .orderBy(asc(registerQrPointsOfSale.registerId));
+  return new Map(
+    rows.map(({ registerId, externalPosId, version }) => [
+      registerId,
+      { assigned: externalPosId !== null, version },
     ]),
   );
 }
