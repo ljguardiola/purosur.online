@@ -75,7 +75,6 @@ describe("DrizzleRegisterBackupStandingReader", () => {
 
     expect(await standingOf(register.registerId)).toEqual({
       registerId: register.registerId,
-      locationId: register.locationId,
       lastVerifiedGenerationAt: null,
       firstChangeSinceLastVerifiedAt: null,
     });

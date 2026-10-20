@@ -441,11 +441,10 @@ describe("clockCorrectedObservation", () => {
 });
 
 describe("registerBackupOverdueObservation", () => {
-  it("holds the overdue-backup condition of the register in its branch, naming its last verified generation and first unbacked change", () => {
+  it("holds the overdue-backup condition of the register, naming its last verified generation and first unbacked change", () => {
     expect(
       registerBackupOverdueObservation({
         registerId: "register-1",
-        locationId: "location-1",
         lastVerifiedGenerationAt: new Date("2026-10-14T08:00:00.000Z"),
         firstChangeAt: new Date("2026-10-14T09:15:00.000Z"),
       }),
@@ -454,7 +453,6 @@ describe("registerBackupOverdueObservation", () => {
       alert: {
         kind: "register_backup_overdue",
         scope: "register-1",
-        locationId: "location-1",
         detail: {
           lastVerifiedGenerationAt: "2026-10-14T08:00:00.000Z",
           firstChangeAt: "2026-10-14T09:15:00.000Z",
@@ -467,7 +465,6 @@ describe("registerBackupOverdueObservation", () => {
     expect(
       registerBackupOverdueObservation({
         registerId: "register-1",
-        locationId: "location-1",
         lastVerifiedGenerationAt: null,
         firstChangeAt: new Date("2026-10-14T09:15:00.000Z"),
       }),

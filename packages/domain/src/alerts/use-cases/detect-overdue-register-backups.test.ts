@@ -18,7 +18,6 @@ function before(instant: Date, ms: number): Date {
 function standing(overrides: Partial<RegisterBackupStanding> = {}): RegisterBackupStanding {
   return {
     registerId: "register-1",
-    locationId: "location-1",
     lastVerifiedGenerationAt: before(NOW, 5 * 60 * MINUTE_MS),
     firstChangeSinceLastVerifiedAt: before(NOW, REGISTER_BACKUP_OVERDUE_AFTER_MS + MINUTE_MS),
     ...overrides,
@@ -62,7 +61,7 @@ describe("detectOverdueRegisterBackups", () => {
         scope: "register-1",
         level: "critical",
         audience: "all",
-        locationId: "location-1",
+        locationId: null,
         openedAt: NOW,
         detail: {
           lastVerifiedGenerationAt: current.lastVerifiedGenerationAt?.toISOString(),
@@ -124,14 +123,11 @@ describe("detectOverdueRegisterBackups", () => {
     const { outcome } = detect(store, [
       standing({ registerId: "register-1" }),
       standing({ registerId: "register-2", firstChangeSinceLastVerifiedAt: null }),
-      standing({ registerId: "register-3", locationId: "location-2" }),
+      standing({ registerId: "register-3" }),
     ]);
 
     await expect(outcome).resolves.toBe(2);
-    expect(store.snapshot().alerts.map(({ scope, locationId }) => [scope, locationId])).toEqual([
-      ["register-1", "location-1"],
-      ["register-3", "location-2"],
-    ]);
+    expect(store.snapshot().alerts.map(({ scope }) => scope)).toEqual(["register-1", "register-3"]);
   });
 
   it("keeps the one alert open, opening no second, while the register stays overdue", async () => {
@@ -192,7 +188,7 @@ describe("detectOverdueRegisterBackups", () => {
         scope: "register-1",
         level: "critical",
         audience: "all",
-        locationId: "location-1",
+        locationId: null,
         escalateAt: null,
         conditionClearedAt: before(NOW, 5 * MINUTE_MS),
       }),
