@@ -169,6 +169,7 @@ function alertIcon(kind: string): Icon {
     case "fortnight_report_pending":
       return <CalendarClock />;
     case "offsite_dump_unverified":
+    case "register_backup_overdue":
       return <DatabaseBackup />;
     case "fortnight_report_overdue":
     case "fortnight_report_needs_regularization":
@@ -483,6 +484,7 @@ function alertTitle(alert: AlertDetail): string {
     case "external_billing":
     case "fortnight_report_needs_regularization":
     case "clock_corrected":
+    case "register_backup_overdue":
       return alertKindLabel(alert.kind);
   }
 }
@@ -569,6 +571,8 @@ function alertDescription(alert: AlertDetail, catalog: PermissionCatalogWire = [
       return "";
     case "clock_corrected":
       return alertKindDescription(alert.kind);
+    case "register_backup_overdue":
+      return `La caja «${targetName}» registró cambios y lleva más de una hora sin un backup verificado.`;
   }
 }
 
@@ -635,6 +639,32 @@ function ClockCorrectionRows({
   );
 }
 
+function RegisterBackupOverdueRows({
+  detail,
+}: {
+  detail: Extract<AlertDetail, { kind: "register_backup_overdue" }>["detail"];
+}) {
+  const rows = [
+    [
+      "Último backup verificado",
+      detail.lastVerifiedGenerationAt === null
+        ? "Nunca"
+        : formatDayAndTime(detail.lastVerifiedGenerationAt, ALERT_TIME_ZONE),
+    ],
+    ["Primer cambio sin respaldar", formatDayAndTime(detail.firstChangeAt, ALERT_TIME_ZONE)],
+  ] as const;
+  return (
+    <div className="flex flex-col gap-1 rounded-lg border border-border p-3 text-detail">
+      {rows.map(([label, value]) => (
+        <div key={label} className="flex justify-between gap-2">
+          <span className="text-text-subtle">{label}</span>
+          <span>{value}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function AlertDescription({ alert }: { alert: AlertDetail }) {
   if (alert.kind === "fiscal_rejected") {
     return (
@@ -682,6 +712,14 @@ function AlertDescription({ alert }: { alert: AlertDetail }) {
       <>
         <p className="text-text text-body">{alertDescription(alert)}</p>
         <ClockCorrectionRows detail={alert.detail} />
+      </>
+    );
+  }
+  if (alert.kind === "register_backup_overdue") {
+    return (
+      <>
+        <p className="text-text text-body">{alertDescription(alert)}</p>
+        <RegisterBackupOverdueRows detail={alert.detail} />
       </>
     );
   }
