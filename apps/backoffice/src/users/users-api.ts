@@ -1,17 +1,8 @@
-import {
-  type BranchUserWire,
-  branchUserListSchema,
-  branchUserSchema,
-  type UserCreationBody,
-  type UserEditBody,
-} from "@purosur/contracts";
+import { branchUserSchema, type UserCreationBody, type UserEditBody } from "@purosur/contracts";
+import { type BranchUser, branchUserFromWire } from "../platform/branch-users-api";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { rateLimitOutcome } from "../platform/rate-limit-outcome";
 import { readValidationFailedField } from "../platform/validation-failed-field";
-
-export type BranchUser = ReturnType<typeof userFromWire>;
-
-export type BranchUserRole = BranchUser["role"];
 
 export type DeactivateUserOutcome =
   | { kind: "ok" }
@@ -30,8 +21,6 @@ export type ReactivateUserOutcome =
   | { kind: "unauthenticated" }
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "failed" };
-
-export type FetchUsersOutcome = CloudReadOutcome<BranchUser[]>;
 
 export type FetchUserOutcome = CloudReadOutcome<BranchUser> | { kind: "not_found" };
 
@@ -71,56 +60,6 @@ function sendJson(method: "POST" | "PUT", path: string, body: unknown): Promise<
 
 function postJson(path: string, body: unknown): Promise<Response> {
   return sendJson("POST", path, body);
-}
-
-function userFromWire(row: BranchUserWire) {
-  return {
-    id: row.id,
-    firstName: row.first_name,
-    email: row.email,
-    version: row.version,
-    // Absent unless the caller may see deactivated users.
-    ...(row.active !== undefined ? { active: row.active } : {}),
-    role: {
-      id: row.role.id,
-      isAdministrator: row.role.is_administrator,
-      name: row.role.name,
-    },
-    passkeyCount: row.passkey_count,
-    // The server refuses to change the role regardless, so callers lock that field on this.
-    isLastActiveAdministrator: row.is_last_active_administrator,
-    mayEmitPinCode: row.may_emit_pin_code,
-    mayEdit: row.may_edit,
-    mayDeactivate: row.may_deactivate,
-    mayReactivate: row.may_reactivate,
-    mayRemovePasskey: row.may_remove_passkey,
-  };
-}
-
-export async function fetchUsers(): Promise<FetchUsersOutcome> {
-  let response: Response;
-  try {
-    response = await fetch("/api/users");
-  } catch {
-    return { kind: "failed" };
-  }
-  if (response.status === 401) {
-    return { kind: "unauthenticated" };
-  }
-  if (response.status === 403) {
-    return { kind: "forbidden" };
-  }
-  if (response.status === 429) {
-    return rateLimitOutcome(response);
-  }
-  if (!response.ok) {
-    return { kind: "failed" };
-  }
-  const parsed = branchUserListSchema.safeParse(await response.json().catch(() => undefined));
-  if (!parsed.success) {
-    return { kind: "failed" };
-  }
-  return { kind: "ok", value: parsed.data.map(userFromWire) };
 }
 
 type GatedActionErrorOutcome =
@@ -207,7 +146,7 @@ export async function fetchUser(id: string): Promise<FetchUserOutcome> {
   if (!parsed.success) {
     return { kind: "failed" };
   }
-  return { kind: "ok", value: userFromWire(parsed.data) };
+  return { kind: "ok", value: branchUserFromWire(parsed.data) };
 }
 
 export async function editUser(id: string, input: UserEditBody): Promise<EditUserOutcome> {

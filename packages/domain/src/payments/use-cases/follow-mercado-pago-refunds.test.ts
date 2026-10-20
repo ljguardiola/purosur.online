@@ -105,6 +105,23 @@ describe("followMercadoPagoRefunds", () => {
     expect(world.mercadoPago.refundRequests).toEqual([]);
   });
 
+  it.each([
+    ["with no refusal", null],
+    ["held for insufficient balance", "insufficient_balance"],
+  ])(
+    "sends nothing for a discarded refund %s, which Mercado Pago would otherwise still be asked for",
+    async (_, lastRefusalReason) => {
+      const world = refundWorld([aConfirmedRefund({ state: "DISCARDED", lastRefusalReason })]);
+
+      const outcome = await followMercadoPagoRefunds(world.ports);
+
+      expect(outcome).toEqual({ kind: "followed", followed: 0, done: 0, unavailable: 0 });
+      expect(world.mercadoPago.refundRequests).toEqual([]);
+      expect(world.mercadoPago.refundReadings).toEqual([]);
+      expect(world.lanes.lanesEntered).toEqual([]);
+    },
+  );
+
   it("marks a refund sent in process as done by whoever confirmed it, at the moment it read it processed", async () => {
     const world = refundWorld([aSentRefund()]);
     world.mercadoPago.orderRefunds = {

@@ -1,5 +1,6 @@
 import { expect, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import type { BranchUser } from "../../platform/branch-users-api";
 import type { RoleSummary } from "../../platform/roles-api";
 import type { BackofficeAccess } from "../../shell/backoffice-access";
 import {
@@ -14,7 +15,6 @@ import {
   type UserDetailScreenProps,
 } from "../user-detail-screen";
 import type { UserDetailScreenServices } from "../user-detail-services";
-import type { BranchUser } from "../users-api";
 
 export { ADMINISTRATOR_ACCESS };
 

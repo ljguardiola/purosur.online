@@ -26,6 +26,7 @@ type DiscardNotice =
   | { kind: "alreadyDone" }
   | { kind: "alreadyDiscarded" }
   | { kind: "alreadyConfirmed" }
+  | { kind: "waitingForBalance" }
   | { kind: "notDiscardable" }
   | { kind: "notFound" };
 
@@ -138,8 +139,9 @@ export function DiscardRefundModal({
       <div className="flex flex-col gap-4">
         {shown ? (
           <p className="text-body text-text">
-            Se cierra la tarea sin devolver el dinero al cliente y se resuelve su alerta. Descartala
-            solo si no corresponde reembolsar este pago.
+            {shown.delivery_stage === "refused"
+              ? "Se cierra la tarea y se resuelve su alerta. El dinero se le devuelve al cliente fuera del sistema."
+              : "Se cierra la tarea sin devolver el dinero al cliente y se resuelve su alerta. Descartala solo si no corresponde reembolsar este pago."}
           </p>
         ) : null}
         {notice?.kind === "attemptFailed" && (
@@ -165,6 +167,13 @@ export function DiscardRefundModal({
             tone="error"
             icon={<TriangleAlert />}
             title="Ese reembolso ya se confirmó y se envía a Mercado Pago; ya no se puede descartar."
+          />
+        )}
+        {notice?.kind === "waitingForBalance" && (
+          <InlineNotice
+            tone="error"
+            icon={<TriangleAlert />}
+            title="Ese reembolso espera saldo en Mercado Pago y se reintenta; no se puede descartar."
           />
         )}
         {notice?.kind === "notDiscardable" && (
@@ -194,6 +203,7 @@ const STALE_NOTICE_KINDS = {
   already_done: "alreadyDone",
   already_discarded: "alreadyDiscarded",
   already_confirmed: "alreadyConfirmed",
+  waiting_for_balance: "waitingForBalance",
   not_discardable: "notDiscardable",
   not_found: "notFound",
 } as const;

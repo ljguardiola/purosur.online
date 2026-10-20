@@ -45,7 +45,13 @@ const REFUND_DISCARDED_RESPONSE = {
 
 const REFUND_NOT_DISCARDABLE_RESPONSE = {
   code: "refund_not_discardable",
-  message: "only the refund of a late payment can be discarded",
+  message: "only a refund Mercado Pago refused for good, or a late payment's, can be discarded",
+} as const;
+
+const REFUND_WAITING_FOR_BALANCE_RESPONSE = {
+  code: "refund_waiting_for_balance",
+  message:
+    "Mercado Pago refused this refund only for insufficient balance, so it is retried and cannot be discarded",
 } as const;
 
 const REFUND_ALREADY_CONFIRMED_RESPONSE = {
@@ -288,6 +294,10 @@ export function registerRefundRoutes<TQueryResult extends PgQueryResultHKT>(
       }
       if (outcome.kind === "already_confirmed") {
         await reply.code(409).send(REFUND_ALREADY_CONFIRMED_RESPONSE);
+        return;
+      }
+      if (outcome.kind === "waiting_for_balance") {
+        await reply.code(409).send(REFUND_WAITING_FOR_BALANCE_RESPONSE);
         return;
       }
       await reply.code(200).send(

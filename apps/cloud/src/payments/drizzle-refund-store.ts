@@ -52,6 +52,7 @@ export class DrizzleRefundStoreTransaction<TQueryResult extends PgQueryResultHKT
         origin: paymentRefunds.origin,
         method: paymentRefunds.method,
         confirmedAt: paymentRefunds.confirmedAt,
+        lastRefusalReason: paymentRefunds.lastRefusalReason,
       })
       .from(paymentRefunds)
       .leftJoin(salePayments, eq(salePayments.id, paymentRefunds.paymentId))
@@ -108,15 +109,20 @@ export class DrizzleRefundStoreTransaction<TQueryResult extends PgQueryResultHKT
     discardedBy: string,
     discardedAt: Date,
   ): Promise<void> {
-    await this.tx
+    const [discarded] = await this.tx
       .update(paymentRefunds)
       .set({ state: REFUND_DISCARDED_STATE, discardedBy, discardedAt })
-      .where(eq(paymentRefunds.id, refundId));
+      .where(eq(paymentRefunds.id, refundId))
+      .returning({ lastRefusalReason: paymentRefunds.lastRefusalReason });
+    const lastRefusalReason = discarded?.lastRefusalReason ?? null;
     await this.tx.insert(auditLog).values({
       entity: "payment_refund",
       entityId: refundId,
       actorId: discardedBy,
-      previousValue: { state: REFUND_PENDING_STATE },
+      previousValue:
+        lastRefusalReason === null
+          ? { state: REFUND_PENDING_STATE }
+          : { state: REFUND_PENDING_STATE, lastRefusalReason },
       newValue: { state: REFUND_DISCARDED_STATE, discardedAt: discardedAt.toISOString() },
       at: discardedAt,
     });

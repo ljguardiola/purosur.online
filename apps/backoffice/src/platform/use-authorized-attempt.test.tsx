@@ -2,7 +2,7 @@ import { useState } from "react";
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
-import { type RevocationAttemptServices, useRevocationAttempt } from "./use-revocation-attempt";
+import { type AuthorizedAttemptServices, useAuthorizedAttempt } from "./use-authorized-attempt";
 
 beforeEach(() => {
   window.history.pushState(null, "", "/");
@@ -17,7 +17,7 @@ type FakeOutcome =
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "failed" };
 
-function createServices(): RevocationAttemptServices {
+function createServices(): AuthorizedAttemptServices {
   return {
     fetchSessionAuthorizationOptions: vi.fn().mockResolvedValue({
       kind: "ok",
@@ -32,7 +32,7 @@ type HarnessProps = {
   request: () => Promise<FakeOutcome>;
   onSettled?: (kind: string, current: boolean) => void;
   onSessionEnded?: () => void;
-  services?: RevocationAttemptServices;
+  services?: AuthorizedAttemptServices;
 };
 
 function Harness({
@@ -42,7 +42,7 @@ function Harness({
   services = createServices(),
 }: HarnessProps) {
   const [open, setOpen] = useState(true);
-  const { attempt, revoking, notice, modal } = useRevocationAttempt<FakeOutcome, "gone">({
+  const { attempt, running, notice, modal } = useAuthorizedAttempt<FakeOutcome, "gone">({
     open,
     actionName: "Revocar la prueba",
     onSessionEnded,
@@ -70,7 +70,7 @@ function Harness({
         Abrir
       </button>
       <output aria-label="Aviso">{notice === null ? "" : JSON.stringify(notice)}</output>
-      <output aria-label="Estado">{revoking ? "Revocando" : "En espera"}</output>
+      <output aria-label="Estado">{running ? "Revocando" : "En espera"}</output>
       {modal}
     </main>
   );
@@ -205,7 +205,7 @@ test("hands nothing to the operation and shows nothing when the authorization is
   expect(onSettled).not.toHaveBeenCalled();
 });
 
-test("is revoking while the attempt is pending, and no longer once it answers", async () => {
+test("is running while the attempt is pending, and no longer once it answers", async () => {
   const { request, answer } = pending();
   const screen = await renderHarness({ request });
   await revoke(screen);

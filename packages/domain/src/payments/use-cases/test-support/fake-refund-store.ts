@@ -46,6 +46,7 @@ class FakeRefundStoreTransaction implements RefundStoreTransaction {
         origin: refund.origin,
         method: refund.method,
         confirmedAt: refund.confirmedAt,
+        lastRefusalReason: refund.lastRefusalReason,
       }
     );
   }
