@@ -410,3 +410,14 @@ test("has no accessibility violations in the row layout", async () => {
 
   await expectNoAccessibilityViolations(screen.container);
 });
+
+test("moves the action below the text when the row is too narrow to keep the text readable", async () => {
+  const screen = await render(<div style={{ width: 320 }}>{rowNotice()}</div>);
+  const title = screen.getByText("Sale open", { exact: true }).first().element() as HTMLElement;
+  const textStack = title.parentElement as HTMLElement;
+  const button = screen.getByRole("button", { name: "Cancel the sale" }).element();
+
+  const textRect = textStack.getBoundingClientRect();
+  expect(textRect.width).toBeGreaterThanOrEqual(128);
+  expect(button.getBoundingClientRect().top).toBeGreaterThanOrEqual(textRect.bottom);
+});
