@@ -72,11 +72,7 @@ function resolveModule(root, importer, specifier) {
 const notCatalogInput = (path, reason) =>
   `${path}, ${reason}, is not a catalog input in .github/scripts/change-scope.mjs`;
 
-export function findUndeclaredModules({
-  root,
-  entries,
-  readFile = (path) => readFileSync(join(root, path), "utf8"),
-}) {
+export function findUndeclaredModules({ root, entries }) {
   const violations = entries
     .filter(({ path }) => !isCatalogInput(path))
     .map(({ path, namedBy }) => notCatalogInput(path, namedBy));
@@ -84,7 +80,10 @@ export function findUndeclaredModules({
   const pending = entries.map(({ path }) => path);
   while (pending.length > 0) {
     const importer = pending.shift();
-    for (const { specifier, line } of findLocalImports(readFile(importer), importer)) {
+    for (const { specifier, line } of findLocalImports(
+      readFileSync(join(root, importer), "utf8"),
+      importer,
+    )) {
       const module = resolveModule(root, importer, specifier);
       if (module === undefined || visited.has(module)) continue;
       visited.add(module);
