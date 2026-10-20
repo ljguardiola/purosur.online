@@ -2532,46 +2532,6 @@ describe("the route access inventory", () => {
       },
       {
         method: "GET",
-        url: "/api/supplier-price-lists",
-        access: capabilityAccess("supplier_price_lists"),
-      },
-      {
-        method: "POST",
-        url: "/api/supplier-price-lists",
-        access: capabilityAccess("supplier_price_lists"),
-      },
-      {
-        method: "GET",
-        url: "/api/supplier-price-lists/:id",
-        access: capabilityAccess("supplier_price_lists"),
-      },
-      {
-        method: "GET",
-        url: "/api/supplier-price-lists/:id/file",
-        access: capabilityAccess("supplier_price_lists"),
-      },
-      {
-        method: "PUT",
-        url: "/api/supplier-price-lists/:id/rows/:rowId/price",
-        access: capabilityAccess("supplier_price_lists"),
-      },
-      {
-        method: "DELETE",
-        url: "/api/supplier-price-lists/:id/rows/:rowId",
-        access: capabilityAccess("supplier_price_lists"),
-      },
-      {
-        method: "POST",
-        url: "/api/supplier-price-lists/:id/confirmation",
-        access: capabilityAccess("supplier_price_lists"),
-      },
-      {
-        method: "POST",
-        url: "/api/supplier-price-lists/:id/discard",
-        access: capabilityAccess("supplier_price_lists"),
-      },
-      {
-        method: "GET",
         url: "/api/purchase-packagings",
         access: capabilityAccess("purchase_packagings"),
       },
@@ -2606,6 +2566,41 @@ describe("the route access inventory", () => {
       },
       { method: "POST", url: "/api/freights", access: capabilityAccess("freights") },
       { method: "PUT", url: "/api/freights/:id", access: capabilityAccess("freights") },
+      {
+        method: "GET",
+        url: "/api/supplier-price-lists",
+        access: capabilityAccess("supplier_price_lists"),
+      },
+      {
+        method: "GET",
+        url: "/api/supplier-price-lists/:id",
+        access: capabilityAccess("supplier_price_lists"),
+      },
+      {
+        method: "GET",
+        url: "/api/supplier-price-lists/:id/file",
+        access: capabilityAccess("supplier_price_lists"),
+      },
+      {
+        method: "PUT",
+        url: "/api/supplier-price-lists/:id/rows/:rowId/price",
+        access: capabilityAccess("supplier_price_lists"),
+      },
+      {
+        method: "DELETE",
+        url: "/api/supplier-price-lists/:id/rows/:rowId",
+        access: capabilityAccess("supplier_price_lists"),
+      },
+      {
+        method: "POST",
+        url: "/api/supplier-price-lists/:id/confirmation",
+        access: capabilityAccess("supplier_price_lists"),
+      },
+      {
+        method: "POST",
+        url: "/api/supplier-price-lists/:id/discard",
+        access: capabilityAccess("supplier_price_lists"),
+      },
       {
         method: "GET",
         url: "/api/tags",
@@ -3015,6 +3010,11 @@ describe("the route access inventory", () => {
         access: capabilityAccess("cash_area"),
       },
       { method: "GET", url: "/api/health", access: PUBLIC_ACCESS },
+      {
+        method: "POST",
+        url: "/api/supplier-price-lists",
+        access: capabilityAccess("supplier_price_lists"),
+      },
       { method: "POST", url: "/api/devices", access: PUBLIC_ACCESS },
       { method: "GET", url: "/api/changes", access: PUBLIC_ACCESS },
       { method: "POST", url: "/api/events", access: PUBLIC_ACCESS },
