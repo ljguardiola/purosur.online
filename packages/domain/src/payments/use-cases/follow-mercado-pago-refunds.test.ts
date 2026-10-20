@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { discardRefund } from "./discard-refund.js";
 import { followMercadoPagoRefunds } from "./follow-mercado-pago-refunds.js";
 import {
   aConfirmedRefund,
@@ -107,28 +106,19 @@ describe("followMercadoPagoRefunds", () => {
   });
 
   it.each([
-    ["QR", "sale_cancelled"],
-    ["POINT", "sale_cancelled"],
-    ["QR", "sale_voided"],
-    ["QR", "late_payment"],
+    ["with no refusal", null],
+    ["held for insufficient balance", "insufficient_balance"],
   ])(
-    "sends nothing for a %s refund of origin %s a person discarded after Mercado Pago refused it",
-    async (method, origin) => {
-      const world = refundWorld([
-        aConfirmedRefund({ method, origin, lastRefusalReason: "payment_not_refundable" }),
-      ]);
+    "sends nothing for a discarded refund %s, which Mercado Pago would otherwise still be asked for",
+    async (_, lastRefusalReason) => {
+      const world = refundWorld([aConfirmedRefund({ state: "DISCARDED", lastRefusalReason })]);
 
-      const discarded = await discardRefund(
-        { store: world.store, clock: world.ports.clock },
-        { refundId: "refund-1", locationId: "branch-1", actorId: "manager" },
-      );
       const outcome = await followMercadoPagoRefunds(world.ports);
 
-      expect(discarded).toMatchObject({ kind: "discarded" });
-      expect(world.store.refunds[0]).toMatchObject({ state: "DISCARDED" });
       expect(outcome).toEqual({ kind: "followed", followed: 0, done: 0, unavailable: 0 });
       expect(world.mercadoPago.refundRequests).toEqual([]);
       expect(world.mercadoPago.refundReadings).toEqual([]);
+      expect(world.lanes.lanesEntered).toEqual([]);
     },
   );
 

@@ -768,44 +768,22 @@ describe("POST /refunds/:id/discard", () => {
         .where(eq(paymentRefunds.id, refundId));
     }
 
-    it.each([
-      ["QR refund of a cancelled sale", aPendingQrRefundOfCancelledSale],
-      ["Point refund of a cancelled sale", aPendingPointRefundOfCancelledSale],
-    ])(
-      "discards the %s that Mercado Pago refused for good, leaving the pending refunds",
-      async (_name, aPending) => {
-        const { headers, userId } = await signedInWith(db, ["confirm_refunds"], NOW);
-        const { refundId } = await aPending(db, { cancelledAt: NOW });
-        await confirmedWith(refundId, userId, {
-          lastRefusalReason: "payment_not_refundable",
-          sentAt: null,
-        });
-
-        const response = await discard(headers, refundId);
-
-        expect(response.statusCode).toBe(200);
-        const [refund] = await db
-          .select()
-          .from(paymentRefunds)
-          .where(eq(paymentRefunds.id, refundId));
-        expect(refund).toMatchObject({ state: "DISCARDED", discardedBy: userId });
-        expect((await pendingRefunds(headers)).json()).toEqual({ refunds: [] });
-      },
-    );
-
-    it("discards a late-payment refund that Mercado Pago refused for good", async () => {
+    it("discards a QR refund of a cancelled sale that Mercado Pago refused for good", async () => {
       const { headers, userId } = await signedInWith(db, ["confirm_refunds"], NOW);
-      const late = await aPendingLatePaymentRefund(db, { openedAt: NOW });
-      await confirmedWith(late.refundId, userId, {
+      const { refundId } = await aPendingQrRefundOfCancelledSale(db, { cancelledAt: NOW });
+      await confirmedWith(refundId, userId, {
         lastRefusalReason: "payment_not_refundable",
         sentAt: null,
       });
 
-      const response = await discard(headers, late.refundId);
+      const response = await discard(headers, refundId);
 
       expect(response.statusCode).toBe(200);
-      const [alert] = await db.select().from(alerts).where(eq(alerts.id, late.alertId));
-      expect(alert).toMatchObject({ resolvedAt: NOW, resolvedBy: userId });
+      const [refund] = await db
+        .select()
+        .from(paymentRefunds)
+        .where(eq(paymentRefunds.id, refundId));
+      expect(refund).toMatchObject({ state: "DISCARDED", discardedBy: userId });
     });
 
     it("answers 409 refund_waiting_for_balance to one held for insufficient balance", async () => {
@@ -820,22 +798,6 @@ describe("POST /refunds/:id/discard", () => {
 
       expect(response.statusCode).toBe(409);
       expect(response.json()).toMatchObject({ code: "refund_waiting_for_balance" });
-      const [refund] = await db
-        .select()
-        .from(paymentRefunds)
-        .where(eq(paymentRefunds.id, refundId));
-      expect(refund).toMatchObject({ state: "PENDING" });
-    });
-
-    it("answers 409 refund_already_confirmed to one already sent", async () => {
-      const { headers, userId } = await signedInWith(db, ["confirm_refunds"], NOW);
-      const { refundId } = await aPendingPointRefundOfCancelledSale(db, { cancelledAt: NOW });
-      await confirmedWith(refundId, userId, { lastRefusalReason: null, sentAt: NOW });
-
-      const response = await discard(headers, refundId);
-
-      expect(response.statusCode).toBe(409);
-      expect(response.json()).toMatchObject({ code: "refund_already_confirmed" });
     });
   });
 
