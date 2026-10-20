@@ -208,11 +208,15 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
     reportRegisterFilter: {
       fetchReportRegisters: vi.fn().mockReturnValue(new Promise(() => {})),
     },
-    pendingRefundsScreen: {
+    mercadoPagoRefundsScreen: {
+      fetchPendingRefunds: vi.fn().mockReturnValue(new Promise(() => {})),
+      confirmRefund: vi.fn(),
+      discardRefund: vi.fn(),
+    },
+    outsideRefundsScreen: {
       fetchPendingRefunds: vi.fn().mockReturnValue(new Promise(() => {})),
       markRefundDone: vi.fn(),
       discardRefund: vi.fn(),
-      confirmRefund: vi.fn(),
     },
     userDetailScreen: {
       fetchUser: vi.fn().mockReturnValue(new Promise(() => {})),
