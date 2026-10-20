@@ -2,7 +2,8 @@ import { globSync, readFileSync } from "node:fs";
 import { isAlias, isMap, isScalar, isSeq, LineCounter, parseDocument } from "yaml";
 
 const GITHUB_DEFAULT_JOB_MINUTES = 360;
-const MAX_LOOP_ROUNDS = 1000;
+const MAX_LOOP_ROUNDS = 100000;
+const MAX_PATHS = 256;
 const MAX_CALL_DEPTH = 16;
 const UNKNOWN = Symbol("unknown");
 const ABSENT = Symbol("absent");
@@ -12,8 +13,6 @@ const DECLARATION_BUILTINS = new Set(["export", "local", "declare", "readonly", 
 const DURATION_UNITS = { "": 1, s: 1, m: 60, h: 3600, d: 86400 };
 
 class ShellSyntaxError extends Error {}
-
-// Tokenizing
 
 const WORD_ENDS = new Set([" ", "\t", "\n", ";", "&", "|", "(", ")", "<", ">"]);
 
@@ -325,8 +324,6 @@ function tokenize(source) {
   return tokens;
 }
 
-// Parsing
-
 function describeToken(token) {
   if (token.kind === "eof") return "the end of the script";
   if (token.kind === "op") return token.value === "\n" ? "a new line" : `\`${token.value}\``;
@@ -400,7 +397,8 @@ class Parser {
       const token = this.peek();
       if (token.kind === "eof" || this.isOp(")") || this.isOp(";;")) break;
       if (LIST_ENDS.has(literalText(token))) break;
-      items.push(this.parseAndOr());
+      const item = this.parseAndOr();
+      items.push(this.isOp("&") ? { type: "background", body: item } : item);
     }
     return { type: "list", items };
   }
@@ -594,8 +592,6 @@ class Parser {
 function parseShell(source) {
   return new Parser(source).parseScript();
 }
-
-// Arithmetic
 
 function tokenizeArithmetic(expr) {
   const tokens = [];
@@ -828,14 +824,13 @@ function statusOfArithmetic(value) {
   return value !== 0 ? 0 : 1;
 }
 
-// Running
-
 class ShellState {
   constructor(env) {
     this.env = env;
     this.positional = [];
     this.functions = new Map();
     this.elapsed = 0;
+    this.background = 0;
     this.unbounded = new Map();
     this.loopDepth = 0;
     this.callDepth = 0;
@@ -846,19 +841,23 @@ class ShellState {
     copy.positional = [...this.positional];
     copy.functions = new Map(this.functions);
     copy.elapsed = this.elapsed;
+    copy.background = this.background;
     copy.unbounded = new Map(this.unbounded);
     copy.loopDepth = this.loopDepth;
     copy.callDepth = this.callDepth;
     return copy;
   }
 
-  adopt(other) {
-    Object.assign(this, other);
+  absorbCost(other) {
+    this.elapsed = Math.max(this.elapsed, other.elapsed);
+    for (const [text, count] of other.unbounded) {
+      this.unbounded.set(text, Math.max(count, this.unbounded.get(text) ?? 0));
+    }
   }
 
-  addCost(costOf) {
-    this.elapsed = costOf.elapsed;
-    this.unbounded = costOf.unbounded;
+  absorb(other) {
+    this.absorbCost(other);
+    this.background = Math.max(this.background, other.background);
   }
 
   lookup(name) {
@@ -912,8 +911,8 @@ function sequence(first, step, last) {
   const values = [];
   if (step === 0) return values;
   for (let value = first; step > 0 ? value <= last : value >= last; value += step) {
+    if (values.length === MAX_LOOP_ROUNDS) return UNKNOWN;
     values.push(String(value));
-    if (values.length > MAX_LOOP_ROUNDS) break;
   }
   return values;
 }
@@ -931,12 +930,11 @@ function runCommandSubstitution(part, state) {
         : numbers.length === 2
           ? [numbers[0], 1, numbers[1]]
           : numbers;
-    return sequence(first, step, last).join("\n");
+    const values = sequence(first, step, last);
+    return values === UNKNOWN ? UNKNOWN : values.join("\n");
   }
   part.script ??= parseShell(part.cmdsub);
-  const subshell = state.clone();
-  run(part.script, subshell);
-  state.addCost(subshell);
+  for (const ended of run(part.script, state.clone())) state.absorbCost(ended.state);
   return UNKNOWN;
 }
 
@@ -1150,39 +1148,71 @@ function evaluateTest(args) {
   return value ? 0 : 1;
 }
 
-function alternatives(state, branches) {
-  const outcomes = branches.map((branch) => {
-    const copy = state.clone();
-    return { copy, result: branch(copy) };
-  });
-  const continuing = outcomes.filter((outcome) => outcome.result.signal === null);
-  const pool = continuing.length > 0 ? continuing : outcomes;
-  const chosen = pool.reduce((worst, outcome) =>
-    outcome.copy.elapsed > worst.copy.elapsed ? outcome : worst,
-  );
-  for (const outcome of outcomes) {
-    for (const [text, count] of outcome.copy.unbounded) {
-      chosen.copy.unbounded.set(text, Math.max(count, chosen.copy.unbounded.get(text) ?? 0));
-    }
+function outcome(state, { status, signal }) {
+  return { state, status, signal };
+}
+
+const nodeIds = new WeakMap();
+let nextNodeId = 0;
+
+function nodeId(node) {
+  if (!nodeIds.has(node)) nodeIds.set(node, nextNodeId++);
+  return nodeIds.get(node);
+}
+
+function byName([left], [right]) {
+  return left < right ? -1 : left > right ? 1 : 0;
+}
+
+function valueKey(value) {
+  return value === UNKNOWN ? null : value;
+}
+
+function stateKey(state) {
+  return JSON.stringify([
+    [...state.env].sort(byName).map(([name, value]) => [name, valueKey(value)]),
+    state.positional.map(valueKey),
+    [...state.functions].sort(byName).map(([name, body]) => [name, nodeId(body)]),
+    state.loopDepth,
+    state.callDepth,
+  ]);
+}
+
+function keepWorst(entries) {
+  if (entries.length <= MAX_PATHS) return entries;
+  return entries.sort((a, b) => b.state.elapsed - a.state.elapsed).slice(0, MAX_PATHS);
+}
+
+function merge(outcomes) {
+  if (outcomes.length < 2) return outcomes;
+  const kept = new Map();
+  for (const current of outcomes) {
+    const key = JSON.stringify([stateKey(current.state), current.status, current.signal]);
+    const same = kept.get(key);
+    if (same === undefined) kept.set(key, current);
+    else same.state.absorb(current.state);
   }
-  state.adopt(chosen.copy);
-  const statuses = new Set(outcomes.map((outcome) => outcome.result.status));
-  return {
-    status: statuses.size === 1 ? chosen.result.status : null,
-    signal: chosen.result.signal,
-  };
+  return keepWorst([...kept.values()]);
+}
+
+function then(outcomes, step) {
+  return merge(
+    outcomes.flatMap((current) => (current.signal === null ? step(current) : [current])),
+  );
 }
 
 function callFunction(body, args, state) {
-  if (state.callDepth >= MAX_CALL_DEPTH) return { status: null, signal: null };
+  if (state.callDepth >= MAX_CALL_DEPTH) return [outcome(state, { status: null, signal: null })];
   const saved = state.positional;
   state.positional = args;
   state.callDepth++;
-  const result = run(body, state);
-  state.callDepth--;
-  state.positional = saved;
-  if (result.signal?.kind === "return") return { status: result.status, signal: null };
-  return result;
+  return merge(
+    run(body, state).map((ended) => {
+      ended.state.callDepth--;
+      ended.state.positional = saved;
+      return ended.signal?.kind === "return" ? { ...ended, signal: null } : ended;
+    }),
+  );
 }
 
 function exitStatusOf(arg) {
@@ -1191,7 +1221,6 @@ function exitStatusOf(arg) {
 }
 
 function runCommand(name, args, node, state) {
-  if (state.functions.has(name)) return callFunction(state.functions.get(name), args, state);
   switch (name) {
     case "sleep": {
       const durations = args.map(parseDuration);
@@ -1205,6 +1234,9 @@ function runCommand(name, args, node, state) {
       else state.spend(bound);
       return { status: null, signal: null };
     }
+    case "wait":
+      state.elapsed = Math.max(state.elapsed, state.background);
+      return { status: null, signal: null };
     case "true":
     case ":":
       return DONE;
@@ -1278,91 +1310,149 @@ function runSimple(node, state) {
       }
       state.assign(name, value);
     }
-    return DONE;
+    return [outcome(state, DONE)];
   }
   const fields = expandWords(node.words.slice(index), state);
   if (fields === UNKNOWN || fields.length === 0 || fields[0] === UNKNOWN) {
     if (fields === UNKNOWN || fields[0] === UNKNOWN) state.leaveUnbounded(node.text);
-    return { status: null, signal: null };
+    return [outcome(state, { status: null, signal: null })];
   }
   const [name, ...args] = fields;
-  return runCommand(name, args, node, state);
+  if (state.functions.has(name)) return callFunction(state.functions.get(name), args, state);
+  return [outcome(state, runCommand(name, args, node, state))];
 }
 
 function runIf(node, index, state) {
-  if (index === node.clauses.length)
-    return node.elseBody === null ? DONE : run(node.elseBody, state);
+  if (index === node.clauses.length) {
+    return node.elseBody === null ? [outcome(state, DONE)] : run(node.elseBody, state);
+  }
   const clause = node.clauses[index];
-  const cond = run(clause.cond, state);
-  if (cond.signal !== null) return cond;
-  if (cond.status === 0) return run(clause.body, state);
-  if (cond.status === 1) return runIf(node, index + 1, state);
-  return alternatives(state, [
-    (copy) => run(clause.body, copy),
-    (copy) => runIf(node, index + 1, copy),
-  ]);
+  return then(run(clause.cond, state), (cond) => {
+    if (cond.status === 0) return run(clause.body, cond.state);
+    if (cond.status === 1) return runIf(node, index + 1, cond.state);
+    return [...run(clause.body, cond.state.clone()), ...runIf(node, index + 1, cond.state)];
+  });
 }
 
-function runLoopBody(body, state) {
-  const result = run(body, state);
-  const signal = result.signal;
-  if (signal === null) return { stop: false };
+function endRound(ended, finished) {
+  const { signal } = ended;
+  if (signal === null || (signal.kind === "continue" && signal.levels === 1)) return ended.state;
   if (signal.kind === "break" || signal.kind === "continue") {
     const outer = signal.levels > 1 ? { ...signal, levels: signal.levels - 1 } : null;
-    return {
-      stop: signal.kind === "break" || outer !== null,
-      result: { status: 0, signal: outer },
-    };
+    finished.push(outcome(ended.state, { status: 0, signal: outer }));
+  } else {
+    finished.push(ended);
   }
-  return { stop: true, result };
+  return null;
 }
 
-function uncountable(node, state, before) {
-  state.adopt(before);
-  state.leaveUnbounded(node.header);
-  return DONE;
+function leaveLoop(finished) {
+  for (const ended of finished) ended.state.loopDepth--;
+  return merge(finished);
+}
+
+function uncountable(node, before) {
+  before.leaveUnbounded(node.header);
+  return [outcome(before, DONE)];
 }
 
 function runFor(node, state) {
   const values = node.words === null ? state.positional : expandWords(node.words, state);
-  if (values === UNKNOWN) return uncountable(node, state, state.clone());
+  if (values === UNKNOWN) return uncountable(node, state);
   state.loopDepth++;
-  try {
-    for (const value of values) {
-      state.assign(node.name, value);
-      const { stop, result } = runLoopBody(node.body, state);
-      if (stop) return result;
+  let active = [outcome(state, DONE)];
+  const finished = [];
+  for (const value of values) {
+    const continuing = [];
+    for (const { state: current } of active) {
+      current.assign(node.name, value);
+      for (const ended of run(node.body, current)) {
+        const goesOn = endRound(ended, finished);
+        if (goesOn !== null) continuing.push(outcome(goesOn, DONE));
+      }
     }
-    return DONE;
-  } finally {
-    state.loopDepth--;
+    active = merge(continuing);
   }
+  finished.push(...active);
+  return leaveLoop(finished);
+}
+
+function enterRound(node, state, finished) {
+  const conds =
+    node.type === "cfor"
+      ? [
+          outcome(state, {
+            status:
+              node.cond.trim() === ""
+                ? 0
+                : statusOfArithmetic(evaluateArithmetic(node.cond, state)),
+            signal: null,
+          }),
+        ]
+      : run(node.cond, state);
+  const entering = [];
+  for (const cond of conds) {
+    const stops = node.until ? 0 : 1;
+    if (cond.signal !== null) finished.push(cond);
+    else if (cond.status === stops) finished.push(outcome(cond.state, DONE));
+    else if (cond.status !== null) entering.push(cond.state);
+    else {
+      finished.push(outcome(cond.state.clone(), DONE));
+      entering.push(cond.state);
+    }
+  }
+  return entering;
+}
+
+function mergeRounds(continuing) {
+  const groups = new Map();
+  for (const { state, seen } of continuing) {
+    const key = stateKey(state);
+    const group = groups.get(key);
+    if (group === undefined) groups.set(key, { key, state, histories: new Set([seen]) });
+    else {
+      group.state.absorb(state);
+      group.histories.add(seen);
+    }
+  }
+  const owners = new Map();
+  for (const { histories } of groups.values()) {
+    for (const seen of histories) owners.set(seen, (owners.get(seen) ?? 0) + 1);
+  }
+  return keepWorst(
+    [...groups.values()].map(({ key, state, histories }) => {
+      const [only] = histories;
+      const owned = histories.size === 1 && owners.get(only) === 1;
+      const seen = owned ? only : new Set([...histories].flatMap((history) => [...history]));
+      return { key, state, seen };
+    }),
+  );
 }
 
 function runRounds(node, state) {
   const before = state.clone();
   state.loopDepth++;
-  try {
-    if (node.type === "cfor") evaluateArithmetic(node.init, state);
-    for (let round = 0; round < MAX_LOOP_ROUNDS; round++) {
-      let status;
-      if (node.type === "cfor") {
-        status =
-          node.cond.trim() === "" ? 0 : statusOfArithmetic(evaluateArithmetic(node.cond, state));
-      } else {
-        const cond = run(node.cond, state);
-        if (cond.signal !== null) return cond;
-        status = cond.status;
+  if (node.type === "cfor") evaluateArithmetic(node.init, state);
+  let active = [{ key: stateKey(state), state, seen: new Set() }];
+  const finished = [];
+  for (let round = 0; active.length > 0; round++) {
+    if (round === MAX_LOOP_ROUNDS) return uncountable(node, before);
+    const continuing = [];
+    for (const { key, state: current, seen } of active) {
+      if (seen.has(key)) return uncountable(node, before);
+      seen.add(key);
+      for (const entering of enterRound(node, current, finished)) {
+        for (const ended of run(node.body, entering)) {
+          const goesOn = endRound(ended, finished);
+          if (goesOn === null) continue;
+          if (node.type === "cfor") evaluateArithmetic(node.update, goesOn);
+          continuing.push({ state: goesOn, seen });
+        }
       }
-      if (node.until ? status === 0 : status === 1) return DONE;
-      const { stop, result } = runLoopBody(node.body, state);
-      if (stop) return result;
-      if (node.type === "cfor") evaluateArithmetic(node.update, state);
     }
-  } finally {
-    state.loopDepth--;
+    active = mergeRounds(continuing);
   }
-  return uncountable(node, state, before);
+  return leaveLoop(finished);
 }
 
 function globToRegExp(pattern) {
@@ -1375,7 +1465,7 @@ function globToRegExp(pattern) {
 
 function runCase(node, state) {
   const value = expandToString(node.word, state);
-  const branches = [];
+  const bodies = [];
   let matched = false;
   for (const item of node.items) {
     const patterns = item.patterns.map((pattern) => expandToString(pattern, state));
@@ -1383,67 +1473,99 @@ function runCase(node, state) {
       value === UNKNOWN || pattern === UNKNOWN ? null : globToRegExp(pattern).test(value),
     );
     if (matches.includes(true)) {
-      branches.push((copy) => run(item.body, copy));
+      bodies.push(item.body);
       matched = true;
       break;
     }
-    if (matches.includes(null)) branches.push((copy) => run(item.body, copy));
+    if (matches.includes(null)) bodies.push(item.body);
   }
-  if (!matched) branches.push(() => DONE);
-  return branches.length === 1 ? branches[0](state) : alternatives(state, branches);
+  const outcomes = bodies.flatMap((body) => run(body, state.clone()));
+  if (!matched) outcomes.push(outcome(state, DONE));
+  return merge(outcomes);
 }
 
 function negate(status) {
   return status === null ? null : status === 0 ? 1 : 0;
 }
 
+function runPipeline(node, state) {
+  const single = node.commands.length === 1;
+  let outcomes = [outcome(state, DONE)];
+  for (const command of node.commands) {
+    outcomes = merge(
+      outcomes.flatMap((current) =>
+        run(command, current.state).map((ended) => (single ? ended : { ...ended, signal: null })),
+      ),
+    );
+  }
+  if (!node.negated) return outcomes;
+  return merge(outcomes.map((ended) => ({ ...ended, status: negate(ended.status) })));
+}
+
+function runAndOr(node, state) {
+  let outcomes = run(node.first, state);
+  for (const { op, pipeline } of node.rest) {
+    outcomes = then(outcomes, (current) => {
+      if (current.status === null) {
+        const skipped = { ...current, status: op === "&&" ? 1 : 0 };
+        return [...run(pipeline, current.state.clone()), skipped];
+      }
+      return (op === "&&") === (current.status === 0) ? run(pipeline, current.state) : [current];
+    });
+  }
+  return outcomes;
+}
+
+function runInBackground(node, state) {
+  for (const ended of run(node.body, state.clone())) {
+    state.background = Math.max(state.background, ended.state.elapsed);
+    state.absorbCost({ elapsed: state.elapsed, unbounded: ended.state.unbounded });
+  }
+  return [outcome(state, DONE)];
+}
+
+function runSubshell(node, state) {
+  return merge(
+    run(node.body, state.clone()).map((ended) => {
+      const parent = state.clone();
+      parent.absorbCost(ended.state);
+      return outcome(parent, { status: ended.status, signal: null });
+    }),
+  );
+}
+
 function run(node, state) {
   switch (node.type) {
     case "list": {
-      let result = DONE;
-      for (const item of node.items) {
-        result = run(item, state);
-        if (result.signal !== null) return result;
-      }
-      return result;
+      let outcomes = [outcome(state, DONE)];
+      for (const item of node.items)
+        outcomes = then(outcomes, (current) => run(item, current.state));
+      return outcomes;
     }
-    case "andor": {
-      let result = run(node.first, state);
-      for (const { op, pipeline } of node.rest) {
-        if (result.signal !== null) return result;
-        const runsNext = result.status === null ? null : (op === "&&") === (result.status === 0);
-        if (runsNext === true) result = run(pipeline, state);
-        else if (runsNext === null) {
-          const skipped = result;
-          result = alternatives(state, [(copy) => run(pipeline, copy), () => skipped]);
-        }
-      }
-      return result;
-    }
-    case "pipeline": {
-      let result = DONE;
-      for (const command of node.commands) result = run(command, state);
-      const signal = node.commands.length === 1 ? result.signal : null;
-      return { status: node.negated ? negate(result.status) : result.status, signal };
-    }
+    case "background":
+      return runInBackground(node, state);
+    case "andor":
+      return runAndOr(node, state);
+    case "pipeline":
+      return runPipeline(node, state);
     case "simple":
       return runSimple(node, state);
     case "arith":
-      return { status: statusOfArithmetic(evaluateArithmetic(node.expr, state)), signal: null };
+      return [
+        outcome(state, {
+          status: statusOfArithmetic(evaluateArithmetic(node.expr, state)),
+          signal: null,
+        }),
+      ];
     case "test": {
       const args = node.words.map((word) => expandToString(word, state));
-      return { status: evaluateTest(args), signal: null };
+      return [outcome(state, { status: evaluateTest(args), signal: null })];
     }
-    case "group": {
-      if (!node.subshell) return run(node.body, state);
-      const subshell = state.clone();
-      const result = run(node.body, subshell);
-      state.addCost(subshell);
-      return { status: result.status, signal: null };
-    }
+    case "group":
+      return node.subshell ? runSubshell(node, state) : run(node.body, state);
     case "funcdef":
       state.functions.set(node.name, node.body);
-      return DONE;
+      return [outcome(state, DONE)];
     case "if":
       return runIf(node, 0, state);
     case "for":
@@ -1458,12 +1580,12 @@ function run(node, state) {
 }
 
 function measureRetryLoops(source, env = new Map()) {
-  const state = new ShellState(new Map(env));
-  run(parseShell(source), state);
-  return { seconds: state.elapsed, unbounded: [...state.unbounded] };
+  const worst = new ShellState(new Map());
+  for (const ended of run(parseShell(source), new ShellState(new Map(env)))) {
+    worst.absorbCost(ended.state);
+  }
+  return { seconds: worst.elapsed, unbounded: [...worst.unbounded] };
 }
-
-// Workflows
 
 function resolveNode(doc, node) {
   return isAlias(node) ? node.resolve(doc) : node;
