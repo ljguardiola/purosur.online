@@ -8,11 +8,12 @@ const ROLE = "cloud_app";
 const APPEND_ONLY_MARK_RE = /\bappend-only\b/i;
 
 const IDENTIFIER = String.raw`[A-Za-z_$][\w$]*`;
-const TABLE_FUNCTION_RE = new RegExp(
-  String.raw`(?:\bfunction\s+(${IDENTIFIER})\s*\(|\b(?:const|let)\s+(${IDENTIFIER})\s*=\s*\()\s*(${IDENTIFIER})`,
+const DECLARATION_RE = new RegExp(
+  String.raw`\bfunction\s+(${IDENTIFIER})\s*(?=[<(])|\b(?:const|let)\s+(${IDENTIFIER})\s*=\s*(?=[<(])`,
   "g",
 );
 const TABLE_NAME_PARAMETER_RE = new RegExp(String.raw`\bpgTable\(\s*(${IDENTIFIER})`, "g");
+const PARAMETER_NAME_RE = new RegExp(String.raw`^(?:\.\.\.)?\s*(${IDENTIFIER})`);
 const NAME = String.raw`(?:"[^"]+"|[A-Za-z_][\w$]*)`;
 const QUALIFIED_NAME = String.raw`(?:${NAME}\s*\.\s*)?${NAME}`;
 const CREATE_TABLE_RE = new RegExp(
@@ -239,19 +240,91 @@ function escapeRegExp(text) {
   return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+function endOfString(source, start) {
+  let index = start + 1;
+  while (index < source.length && source[index] !== source[start]) {
+    index += source[index] === "\\" ? 2 : 1;
+  }
+  return index;
+}
+
+function listAt(source, open, { angleBrackets }) {
+  const items = [];
+  let depth = 0;
+  let itemStart = open + 1;
+  for (let index = open; index < source.length; index += 1) {
+    const char = source[index];
+    if (char === "/" && source[index + 1] === "/") {
+      const end = source.indexOf("\n", index);
+      index = end === -1 ? source.length : end;
+    } else if (char === "/" && source[index + 1] === "*") {
+      const end = source.indexOf("*/", index + 2);
+      index = end === -1 ? source.length : end + 1;
+    } else if (char === '"' || char === "'" || char === "`") {
+      index = endOfString(source, index);
+    } else if ("([{".includes(char) || (angleBrackets && char === "<")) {
+      depth += 1;
+    } else if (
+      ")]}".includes(char) ||
+      (angleBrackets && char === ">" && source[index - 1] !== "=")
+    ) {
+      depth -= 1;
+      if (depth === 0) {
+        items.push(source.slice(itemStart, index).trim());
+        return { items: items.filter((item) => item !== ""), end: index + 1 };
+      }
+    } else if (char === "," && depth === 1) {
+      items.push(source.slice(itemStart, index).trim());
+      itemStart = index + 1;
+    }
+  }
+  return { items, end: source.length };
+}
+
+function parametersAt(source, start) {
+  let open = start;
+  if (source[open] === "<") {
+    const { end } = listAt(source, open, { angleBrackets: true });
+    open = end + source.slice(end).match(/^\s*/)[0].length;
+  }
+  if (source[open] !== "(") return [];
+  return listAt(source, open, { angleBrackets: true }).items.map(
+    (parameter) => parameter.match(PARAMETER_NAME_RE)?.[1],
+  );
+}
+
 function tableFunctionsOf(source) {
-  const functions = [...source.matchAll(TABLE_FUNCTION_RE)];
-  return [...source.matchAll(TABLE_NAME_PARAMETER_RE)].flatMap((call) => {
-    const enclosing = functions.filter((each) => each.index < call.index).at(-1);
-    return enclosing?.[3] === call[1] ? [enclosing[1] ?? enclosing[2]] : [];
+  const declarations = [...source.matchAll(DECLARATION_RE)].map((match) => ({
+    index: match.index,
+    name: match[1] ?? match[2],
+    parameters: parametersAt(source, match.index + match[0].length),
+  }));
+  const functions = new Map();
+  for (const call of source.matchAll(TABLE_NAME_PARAMETER_RE)) {
+    const enclosing = declarations.filter((each) => each.index < call.index).at(-1);
+    const position = enclosing?.parameters.indexOf(call[1]) ?? -1;
+    if (position !== -1) functions.set(enclosing.name, position);
+  }
+  return functions;
+}
+
+function tableDefinitionsOf(source) {
+  const definers = new Map([["pgTable", 0], ...tableFunctionsOf(source)]);
+  const callRe = new RegExp(
+    String.raw`\b(${[...definers.keys()].map(escapeRegExp).join("|")})\s*\(`,
+    "g",
+  );
+  return [...source.matchAll(callRe)].flatMap((match) => {
+    const open = match.index + match[0].length - 1;
+    const argument = listAt(source, open, { angleBrackets: false }).items[definers.get(match[1])];
+    const name = argument?.match(/^"([^"]+)"$/)?.[1];
+    return name === undefined ? [] : [{ name, index: match.index }];
   });
 }
 
 function schemaTablesOf(source) {
   const lines = source.split("\n");
-  const definers = ["pgTable", ...tableFunctionsOf(source)].map(escapeRegExp);
-  const tableRe = new RegExp(String.raw`\b(?:${definers.join("|")})\(\s*"([^"]+)"`, "g");
-  return [...source.matchAll(tableRe)].map((match) => {
+  return tableDefinitionsOf(source).map((match) => {
     let line = lineAt(source, match.index) - 1;
     while (line > 0 && !/^export\s/.test(lines[line])) line -= 1;
     let commentLine = line - 1;
@@ -261,7 +334,7 @@ function schemaTablesOf(source) {
       commentLine -= 1;
     }
     return {
-      name: match[1],
+      name: match.name,
       line: line + 1,
       appendOnly: APPEND_ONLY_MARK_RE.test(comment.join("\n")),
     };
