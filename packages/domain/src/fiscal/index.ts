@@ -61,6 +61,12 @@ export {
   isSameFiscalAddressName,
 } from "./model/fiscal-address.js";
 export type {
+  FiscalAuthorization,
+  FiscalEmissionMode,
+  FiscalEmissionModeKind,
+} from "./model/fiscal-emission-mode.js";
+export { FISCAL_AUTHORIZATIONS, FISCAL_EMISSION_MODE_KINDS } from "./model/fiscal-emission-mode.js";
+export type {
   FiscalEmissionStoppedReport,
   LatestPreEmissionGateOutcome,
 } from "./model/fiscal-emission-stop.js";
