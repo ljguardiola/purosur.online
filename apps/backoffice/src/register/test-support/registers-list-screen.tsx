@@ -1,5 +1,6 @@
 import { useIsFetching, useQueryClient } from "@tanstack/react-query";
-import { vi } from "vitest";
+import { onTestFinished, vi } from "vitest";
+import { page } from "vitest/browser";
 import type { BackofficeAccess } from "../../shell/backoffice-access";
 import { ADMINISTRATOR_ACCESS } from "../../shell/test-support/backoffice-access";
 import { render } from "../../shell/test-support/render-with-router";
@@ -16,6 +17,7 @@ export function createServices(
     fetchRegisterCoverage: vi.fn().mockResolvedValue({ kind: "ok", value: [] }),
     createRegister: vi.fn(),
     assignPointTerminal: vi.fn(),
+    assignQrPointOfSale: vi.fn(),
     emitEnrollmentCode: vi.fn(),
     revokeRegister: vi.fn(),
     revokeEveryInstallation: vi.fn(),
@@ -35,6 +37,8 @@ export const register1: RegisterSummary = {
   pointOfSaleNumber: null,
   pointTerminalId: null,
   pointTerminalVersion: 0,
+  qrExternalPosId: null,
+  qrPointOfSaleVersion: 0,
   installation: null,
 };
 export const register2: RegisterSummary = {
@@ -44,6 +48,8 @@ export const register2: RegisterSummary = {
   pointOfSaleNumber: 3,
   pointTerminalId: "TERM-0042",
   pointTerminalVersion: 2,
+  qrExternalPosId: "CAJA2_STORE_POS",
+  qrPointOfSaleVersion: 4,
   installation: null,
 };
 export const enrolledRegister: RegisterSummary = {
@@ -53,6 +59,8 @@ export const enrolledRegister: RegisterSummary = {
   pointOfSaleNumber: null,
   pointTerminalId: null,
   pointTerminalVersion: 0,
+  qrExternalPosId: null,
+  qrPointOfSaleVersion: 0,
   installation: {
     state: "enrolled",
     hostname: "CAJA-MOSTRADOR",
@@ -80,6 +88,8 @@ export const revokedRegister: RegisterSummary = {
   pointOfSaleNumber: null,
   pointTerminalId: null,
   pointTerminalVersion: 0,
+  qrExternalPosId: null,
+  qrPointOfSaleVersion: 0,
   installation: {
     state: "revoked",
     hostname: "CAJA-DEPOSITO",
@@ -114,11 +124,14 @@ function RefreshRegisters() {
   );
 }
 
-export function renderScreen(
+export async function renderScreen(
   services: RegistersListScreenServices,
   onSessionEnded: () => void = () => {},
   access: BackofficeAccess = ADMINISTRATOR_ACCESS,
 ) {
+  // Wider than the phone-sized default viewport, or five row actions leave the name column no room.
+  await page.viewport(1280, 900);
+  onTestFinished(() => page.viewport(414, 896));
   return render(
     <main>
       <RegistersListScreen access={access} services={services} onSessionEnded={onSessionEnded} />

@@ -21,6 +21,7 @@ import {
   registerInstallations,
   registerPointsOfSale,
   registerPointTerminals,
+  registerQrPointsOfSale,
   registers,
 } from "../platform/db/schema.js";
 import { type PendingChanges, withPendingChanges } from "../sync/change-log.js";
@@ -183,11 +184,14 @@ export class DrizzleBranchRegisterStore<TQueryResult extends PgQueryResultHKT>
         pointOfSaleNumber: registerPointsOfSale.pointOfSaleNumber,
         pointTerminalId: registerPointTerminals.terminalId,
         pointTerminalVersion: registerPointTerminals.version,
+        qrExternalPosId: registerQrPointsOfSale.externalPosId,
+        qrPointOfSaleVersion: registerQrPointsOfSale.version,
       })
       .from(registers)
       .leftJoin(registerEnrollmentCodes, eq(registerEnrollmentCodes.registerId, registers.id))
       .leftJoin(registerPointsOfSale, eq(registerPointsOfSale.registerId, registers.id))
       .leftJoin(registerPointTerminals, eq(registerPointTerminals.registerId, registers.id))
+      .leftJoin(registerQrPointsOfSale, eq(registerQrPointsOfSale.registerId, registers.id))
       .where(eq(registers.locationId, locationId))
       .orderBy(asc(registers.name));
     const installations = await this.db
@@ -217,6 +221,8 @@ export class DrizzleBranchRegisterStore<TQueryResult extends PgQueryResultHKT>
         pointOfSaleNumber,
         pointTerminalId,
         pointTerminalVersion,
+        qrExternalPosId,
+        qrPointOfSaleVersion,
       }) => ({
         id,
         name,
@@ -228,6 +234,10 @@ export class DrizzleBranchRegisterStore<TQueryResult extends PgQueryResultHKT>
         pointTerminal: {
           terminalId: pointTerminalId,
           version: pointTerminalVersion ?? NEVER_ASSIGNED_VERSION,
+        },
+        qrPointOfSale: {
+          externalPosId: qrExternalPosId,
+          version: qrPointOfSaleVersion ?? NEVER_ASSIGNED_VERSION,
         },
         installations: installations
           .filter(({ registerId }) => registerId === id)

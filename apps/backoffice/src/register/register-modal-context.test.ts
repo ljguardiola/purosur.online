@@ -9,6 +9,8 @@ const register1: RegisterSummary = {
   pointOfSaleNumber: null,
   pointTerminalId: null,
   pointTerminalVersion: 0,
+  qrExternalPosId: null,
+  qrPointOfSaleVersion: 0,
   installation: null,
 };
 const enrolledRegister: RegisterSummary = {

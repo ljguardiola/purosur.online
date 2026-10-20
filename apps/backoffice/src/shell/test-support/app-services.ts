@@ -243,6 +243,7 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
       fetchRegisterCoverage: vi.fn().mockReturnValue(new Promise(() => {})),
       createRegister: vi.fn(),
       assignPointTerminal: vi.fn(),
+      assignQrPointOfSale: vi.fn(),
       emitEnrollmentCode: vi.fn(),
       revokeRegister: vi.fn(),
       revokeEveryInstallation: vi.fn(),
