@@ -112,6 +112,12 @@ test("describes a register's clock confirmed as correct, which lowers the clock 
   );
 });
 
+test("describes a register that recorded changes and went more than an hour without a verified backup", () => {
+  expect(alertKindDescription("register_backup_overdue")).toBe(
+    "Una caja registró cambios y lleva más de una hora sin un backup verificado",
+  );
+});
+
 test("describes a register whose clock differs from the real time by more than a minute", () => {
   expect(alertKindDescription("clock_drift")).toBe(
     "La hora de una caja difiere en más de un minuto de la hora real",

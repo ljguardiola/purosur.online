@@ -1980,6 +1980,73 @@ test("tells which register's clock was confirmed as correct, for which point of 
   await expectNoAccessibilityViolations(document.body);
 });
 
+test("tells which register went more than an hour without a verified backup, when its last one was taken and when its first unbacked change happened", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(
+    ok(
+      baseDetail({
+        kind: "register_backup_overdue",
+        level: "critical",
+        audience: "all",
+        scope: "register-1",
+        scopeDisplay: "Caja 1",
+        scopeKind: "register",
+        closing: "by_itself",
+        detail: {
+          lastVerifiedGenerationAt: "2026-09-16T14:31:00.000Z",
+          firstChangeAt: "2026-09-16T17:05:00.000Z",
+        },
+      }),
+    ),
+  );
+
+  const screen = await renderModal(services);
+
+  await expect
+    .element(screen.getByText("Caja sin backup verificado", { exact: true }))
+    .toBeVisible();
+  await expect
+    .element(
+      screen.getByText(
+        "La caja «Caja 1» registró cambios y lleva más de una hora sin un backup verificado.",
+        { exact: true },
+      ),
+    )
+    .toBeVisible();
+  await expect.element(screen.getByText("Caja", { exact: true })).toBeVisible();
+  await expect.element(screen.getByText("Caja 1", { exact: true })).toBeVisible();
+  await expect.element(screen.getByText("Último backup verificado", { exact: true })).toBeVisible();
+  await expect.element(screen.getByText("16/09/2026 · 11:31", { exact: true })).toBeVisible();
+  await expect
+    .element(screen.getByText("Primer cambio sin respaldar", { exact: true }))
+    .toBeVisible();
+  await expect.element(screen.getByText("16/09/2026 · 14:05", { exact: true })).toBeVisible();
+  await expectNoAccessibilityViolations(document.body);
+});
+
+test("says a register has never had a verified backup when it has none to name", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(
+    ok(
+      baseDetail({
+        kind: "register_backup_overdue",
+        level: "critical",
+        audience: "all",
+        scope: "register-1",
+        scopeDisplay: "Caja 1",
+        scopeKind: "register",
+        closing: "by_itself",
+        detail: { lastVerifiedGenerationAt: null, firstChangeAt: "2026-09-16T17:05:00.000Z" },
+      }),
+    ),
+  );
+
+  const screen = await renderModal(services);
+
+  await expect.element(screen.getByText("Último backup verificado", { exact: true })).toBeVisible();
+  await expect.element(screen.getByText("Nunca", { exact: true })).toBeVisible();
+});
+
 test("tells that an alert for quarantined events resolves by itself and still offers closing it by hand", async () => {
   const services = createServices();
   vi.mocked(services.fetchAlert).mockResolvedValue(ok(quarantinedEventAlert));
