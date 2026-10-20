@@ -78,7 +78,7 @@ function sessions() {
 
 function movements() {
   return database
-    .prepare(
+    .prepare<[], Record<string, unknown>>(
       `SELECT id, session_id, type, amount, reason, ref_type, ref_id, actor_id, authorized_by, occurred_at
          FROM cash_movements ORDER BY rowid`,
     )
@@ -250,14 +250,14 @@ describe("replenishing the cash session facts of a restored register", () => {
       apply(movement());
       apply(movement({ occurredAt: new Date("2026-10-05T10:00:01.000Z") }));
 
-      expect(movements().filter(({ type }) => (type as string) === "CASH_IN")).toHaveLength(2);
+      expect(movements().filter(({ type }) => type === "CASH_IN")).toHaveLength(2);
     });
 
     it("holds two movements of the same moment made by different people", () => {
       apply(movement());
       apply(movement({ actorId: "user-2" }));
 
-      expect(movements().filter(({ type }) => (type as string) === "CASH_IN")).toHaveLength(2);
+      expect(movements().filter(({ type }) => type === "CASH_IN")).toHaveLength(2);
     });
   });
 
