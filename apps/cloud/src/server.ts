@@ -5,6 +5,10 @@ import { fileURLToPath } from "node:url";
 import { isValidCuit } from "@purosur/domain";
 import { recordAuthorizedCuit } from "@purosur/domain/fiscal/use-cases";
 import type { MercadoPagoOrders } from "@purosur/domain/payments/use-cases";
+import type {
+  PriceListExtractor,
+  SupplierPriceListFiles,
+} from "@purosur/domain/purchasing/use-cases";
 import type { SnapshotObjects } from "@purosur/domain/register/use-cases";
 import * as Sentry from "@sentry/node";
 import {
@@ -96,6 +100,10 @@ import {
 import { normalizePemNewlines } from "./platform/pem-newlines.js";
 import { runShutdownSteps } from "./platform/run-shutdown-steps.js";
 import { initSentry } from "./platform/sentry.js";
+import { AnthropicPriceListExtractor } from "./purchasing/anthropic-price-list-extractor.js";
+import { BucketSupplierPriceListFiles } from "./purchasing/bucket-supplier-price-list-files.js";
+import { supplierPriceListReadingJobs } from "./purchasing/supplier-price-list-reading-task.js";
+import { resolveSupplierPriceListsBucketConfig } from "./purchasing/supplier-price-lists-bucket-config.js";
 import { BucketRegisterReleases } from "./register/bucket-register-releases.js";
 import { BucketRegisterSnapshots } from "./register/bucket-register-snapshots.js";
 import { registerSnapshotJobs } from "./register/register-snapshot-jobs.js";
@@ -142,6 +150,12 @@ export interface ServerEnv {
   REGISTER_SNAPSHOTS_BUCKET_REGION?: string | undefined;
   REGISTER_SNAPSHOTS_BUCKET_ACCESS_KEY_ID?: string | undefined;
   REGISTER_SNAPSHOTS_BUCKET_SECRET_ACCESS_KEY?: string | undefined;
+  ANTHROPIC_API_KEY?: string | undefined;
+  SUPPLIER_PRICE_LISTS_BUCKET_ENDPOINT?: string | undefined;
+  SUPPLIER_PRICE_LISTS_BUCKET_NAME?: string | undefined;
+  SUPPLIER_PRICE_LISTS_BUCKET_REGION?: string | undefined;
+  SUPPLIER_PRICE_LISTS_BUCKET_ACCESS_KEY_ID?: string | undefined;
+  SUPPLIER_PRICE_LISTS_BUCKET_SECRET_ACCESS_KEY?: string | undefined;
 }
 
 const DEFAULT_PORT = 3000;
@@ -415,6 +429,7 @@ export interface SetUpRecoveryEnv extends RecoveryEnv {
   arcaInvoicing?: { endpoint: string; cuit: string; certificateFingerprint: string };
   mercadoPago?: MercadoPagoOrders;
   registerSnapshotObjects?: SnapshotObjects;
+  supplierPriceListReading?: { files: SupplierPriceListFiles; extractor: PriceListExtractor };
 }
 
 function wsaaRenewalInput(
@@ -538,6 +553,9 @@ export async function setUpRecovery(
       applySyncedEventsJobs({ now }),
       ...(recoveryEnv.registerSnapshotObjects
         ? [registerSnapshotJobs({ now, objects: recoveryEnv.registerSnapshotObjects })]
+        : []),
+      ...(recoveryEnv.supplierPriceListReading
+        ? [supplierPriceListReadingJobs({ now, db, ...recoveryEnv.supplierPriceListReading })]
         : []),
       ...(recoveryEnv.mercadoPago
         ? [
@@ -728,6 +746,14 @@ export async function startServer(env: ServerEnv, deps: StartServerDeps): Promis
   const registerSnapshots =
     registerSnapshotsBucketConfig &&
     new BucketRegisterSnapshots(registerSnapshotsBucketConfig, { fetch, now });
+  const supplierPriceListsBucketConfig = resolveSupplierPriceListsBucketConfig(env);
+  const supplierPriceListReading =
+    supplierPriceListsBucketConfig && env.ANTHROPIC_API_KEY
+      ? {
+          files: new BucketSupplierPriceListFiles(supplierPriceListsBucketConfig, { fetch, now }),
+          extractor: new AnthropicPriceListExtractor({ apiKey: env.ANTHROPIC_API_KEY }),
+        }
+      : undefined;
   const configuration = recoveryEnv
     ? {
         authorizedCuit: requireAuthorizedCuit(env),
@@ -747,6 +773,7 @@ export async function startServer(env: ServerEnv, deps: StartServerDeps): Promis
           ...resolveArcaSigning(env, arcaEndpoints),
           ...(mercadoPago ? { mercadoPago } : {}),
           ...(registerSnapshots ? { registerSnapshotObjects: registerSnapshots } : {}),
+          ...(supplierPriceListReading ? { supplierPriceListReading } : {}),
         },
       }
     : undefined;
