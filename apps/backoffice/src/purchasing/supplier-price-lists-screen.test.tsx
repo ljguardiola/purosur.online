@@ -111,25 +111,31 @@ test("shows the heading under Pedidos and every list with its supplier, file, da
     .element(screen.getByRole("heading", { name: "Listas de proveedores", level: 1 }))
     .toBeVisible();
   const andina = rowOf(screen, "Distribuidora Andina");
-  await expect.element(andina).toHaveTextContent("lista-septiembre-2026.pdf");
-  await expect.element(andina).toHaveTextContent("PDF");
-  await expect.element(andina).toHaveTextContent("25/09/2026");
-  await expect.element(andina).toHaveTextContent("14 ítems para revisar");
+  await expect.element(andina.getByText("lista-septiembre-2026.pdf")).toBeVisible();
+  await expect.element(andina.getByText("PDF")).toBeVisible();
+  await expect.element(andina.getByText("25/09/2026")).toBeVisible();
+  await expect.element(andina.getByText("14 ítems para revisar")).toBeVisible();
   const granos = rowOf(screen, "Granos del Valle");
-  await expect.element(granos).toHaveTextContent("212");
-  await expect.element(granos).toHaveTextContent("Revisada");
+  await expect.element(granos.getByText("212")).toBeVisible();
+  await expect.element(granos.getByText("Revisada")).toBeVisible();
 });
 
 test("shows a dash for a list without a date, and every other state with its own label", async () => {
   const services = createServices();
   const screen = await loaded(services, [READING_LIST, FAILED_LIST, DISCARDED_LIST, REPLACED_LIST]);
 
-  await expect.element(rowOf(screen, "Cerealera del Norte")).toHaveTextContent("—");
-  await expect.element(rowOf(screen, "Cerealera del Norte")).toHaveTextContent("Leyendo la lista");
-  await expect.element(rowOf(screen, "Molinos San Javier")).toHaveTextContent("No se pudo leer");
+  await expect.element(rowOf(screen, "Cerealera del Norte").getByText("—").first()).toBeVisible();
   await expect
-    .element(rowOf(screen, "Molinos San Javier"))
-    .toHaveTextContent("No se pudo leer el contenido del archivo.");
+    .element(rowOf(screen, "Cerealera del Norte").getByText("Leyendo la lista"))
+    .toBeVisible();
+  await expect
+    .element(rowOf(screen, "Molinos San Javier").getByText("No se pudo leer", { exact: true }))
+    .toBeVisible();
+  await expect
+    .element(
+      rowOf(screen, "Molinos San Javier").getByText("No se pudo leer el contenido del archivo."),
+    )
+    .toBeVisible();
   await expect.element(screen.getByText("Descartada")).toBeVisible();
   await expect.element(screen.getByText("Reemplazada")).toBeVisible();
 });
