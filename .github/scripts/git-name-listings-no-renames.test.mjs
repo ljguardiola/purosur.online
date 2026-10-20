@@ -137,6 +137,86 @@ test("judges a constant by the uses of its own declaration, not of another with 
   assert.deepEqual(linesOf(source), []);
 });
 
+test("resolves a constant to the block it is declared in, not to another block of the same function", () => {
+  const source = [
+    "function list(names, base) {",
+    "  if (names) {",
+    '    const args = ["diff", "--name-only"];',
+    "    runGit([...args, base]);",
+    "  } else {",
+    '    const args = ["diff", "--no-renames", "--name-only"];',
+    "    runGit([...args, base]);",
+    "  }",
+    "}",
+  ].join("\n");
+
+  assert.deepEqual(linesOf(source), [4]);
+});
+
+test("resolves a constant to the loop that declares it, not to another loop beside it", () => {
+  const source = [
+    "function list(base) {",
+    '  for (const args = ["diff", "--name-only"]; ; ) {',
+    "    runGit([...args, base]);",
+    "    break;",
+    "  }",
+    '  for (const args = ["diff", "--no-renames", "--name-only"]; ; ) {',
+    "    runGit([...args, base]);",
+    "    break;",
+    "  }",
+    "}",
+  ].join("\n");
+
+  assert.deepEqual(linesOf(source), [3]);
+});
+
+for (const loop of ["of", "in"]) {
+  test(`does not take a for-${loop} loop variable for a constant of the same name declared after the loop`, () => {
+    const source = [
+      "function list(lists) {",
+      `  for (const args ${loop} lists) runGit(["diff", "--name-only", ...args]);`,
+      '  const args = ["--no-renames"];',
+      "}",
+    ].join("\n");
+
+    assert.deepEqual(linesOf(source), [2]);
+  });
+}
+
+test("resolves a constant to the switch that declares it, not to another switch beside it", () => {
+  const source = [
+    "function list(kind, base) {",
+    "  switch (kind) {",
+    '    case "names":',
+    '      const args = ["diff", "--name-only"];',
+    "      runGit([...args, base]);",
+    "  }",
+    "  switch (kind) {",
+    '    case "names":',
+    '      const args = ["diff", "--no-renames", "--name-only"];',
+    "      runGit([...args, base]);",
+    "  }",
+    "}",
+  ].join("\n");
+
+  assert.deepEqual(linesOf(source), [5]);
+});
+
+test("does not take a caught error for a constant of the same name declared after the try", () => {
+  const source = [
+    "function list() {",
+    "  try {",
+    "    work();",
+    "  } catch (args) {",
+    '    runGit(["diff", "--name-only", ...args]);',
+    "  }",
+    '  const args = ["--no-renames"];',
+    "}",
+  ].join("\n");
+
+  assert.deepEqual(linesOf(source), [5]);
+});
+
 test("does not take a parameter for the constant its name shadows", () => {
   const source = [
     'const args = ["--no-renames"];',
@@ -201,6 +281,51 @@ for (const [route, spread, files] of [
     {
       "script.mjs": 'import { COMMIT_DIFF_ARGS } from "./git/args.mjs";',
       "git/args.mjs": 'export * from "../commit-diff-args.mjs";\n',
+      "commit-diff-args.mjs": COMMIT_DIFF_ARGS_MODULE,
+    },
+  ],
+  [
+    "a default import",
+    "SHOW",
+    {
+      "script.mjs": 'import SHOW from "./commit-diff-args.mjs";',
+      "commit-diff-args.mjs": 'export default ["show", "--format="];\n',
+    },
+  ],
+  [
+    "a namespace re-export",
+    "git.COMMIT_DIFF_ARGS",
+    {
+      "script.mjs": 'import { git } from "./git.mjs";',
+      "git.mjs": 'export * as git from "./commit-diff-args.mjs";\n',
+      "commit-diff-args.mjs": COMMIT_DIFF_ARGS_MODULE,
+    },
+  ],
+  [
+    "a renamed import of a namespace re-export",
+    "diffArgs.COMMIT_DIFF_ARGS",
+    {
+      "script.mjs": 'import { git as diffArgs } from "./git.mjs";',
+      "git.mjs": 'export * as git from "./commit-diff-args.mjs";\n',
+      "commit-diff-args.mjs": COMMIT_DIFF_ARGS_MODULE,
+    },
+  ],
+  [
+    "a namespace re-exported by name",
+    "git.COMMIT_DIFF_ARGS",
+    {
+      "script.mjs": 'import { git } from "./index.mjs";',
+      "index.mjs": 'export { git } from "./git.mjs";\n',
+      "git.mjs": 'export * as git from "./commit-diff-args.mjs";\n',
+      "commit-diff-args.mjs": COMMIT_DIFF_ARGS_MODULE,
+    },
+  ],
+  [
+    "an export list naming a namespace import",
+    "git.COMMIT_DIFF_ARGS",
+    {
+      "script.mjs": 'import { git } from "./git.mjs";',
+      "git.mjs": 'import * as args from "./commit-diff-args.mjs";\nexport { args as git };\n',
       "commit-diff-args.mjs": COMMIT_DIFF_ARGS_MODULE,
     },
   ],
