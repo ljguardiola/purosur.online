@@ -459,6 +459,90 @@ test("reads a table defined through a generic function, a generic arrow, or one 
   ]);
 });
 
+test("reads a table name past a function-typed parameter or a string argument with a comma or parenthesis before it", () => {
+  const definition = schema(
+    "function costVersions(build: () => void, name: string) {",
+    "  return pgTable(name, {});",
+    "}",
+    "",
+    "function priceVersions(label: string, name: string) {",
+    "  return pgTable(name, {});",
+    "}",
+    "",
+    "// Append-only: a cost once charged stays what it was.",
+    'export const costs = costVersions(() => {}, "costs");',
+    "",
+    "// Append-only like costs.",
+    'export const prices = priceVersions("list, (current", "prices");',
+  );
+  const create = migration(
+    "0000_tables",
+    'CREATE TABLE "costs" ();',
+    "--> statement-breakpoint",
+    'CREATE TABLE "prices" ();',
+  );
+  const revoke = migration(
+    "0001_revoke",
+    'REVOKE UPDATE, DELETE, TRUNCATE ON "costs", "prices" FROM cloud_app;',
+  );
+
+  assert.deepEqual(violationsOf(definition, create, revoke), []);
+  assert.deepEqual(violationsOf(definition, create), [
+    { path: SCHEMA_PATH, line: 10, table: "costs", rule: "marked-not-revoked" },
+    { path: SCHEMA_PATH, line: 13, table: "prices", rule: "marked-not-revoked" },
+  ]);
+});
+
+test("reads a table name past comments around a helper's parameter, a helper call's argument, or pgTable's argument", () => {
+  const definition = schema(
+    "function priceVersions(",
+    "  // The table's name, as the migrations create it.",
+    "  name: string,",
+    ") {",
+    "  return pgTable(name, {});",
+    "}",
+    "",
+    "function reviewVersions(/* in the database, quoted */ name: string) {",
+    "  return pgTable(name, {});",
+    "}",
+    "",
+    "// Append-only: a price once charged stays what it was.",
+    "export const prices = priceVersions(",
+    "  // Named as in the migrations.",
+    '  "prices", // never renamed, never edited',
+    ");",
+    "",
+    "// Append-only like prices.",
+    'export const priceReviews = reviewVersions(/* kept apart, (reviewed) */ "price_reviews");',
+    "",
+    "// Append-only like prices.",
+    "export const costs = pgTable(",
+    "  // Charged costs.",
+    '  "costs" /* never edited */,',
+    "  {},",
+    ");",
+  );
+  const create = migration(
+    "0000_tables",
+    'CREATE TABLE "prices" ();',
+    "--> statement-breakpoint",
+    'CREATE TABLE "price_reviews" ();',
+    "--> statement-breakpoint",
+    'CREATE TABLE "costs" ();',
+  );
+  const revoke = migration(
+    "0001_revoke",
+    'REVOKE UPDATE, DELETE, TRUNCATE ON "prices", "price_reviews", "costs" FROM cloud_app;',
+  );
+
+  assert.deepEqual(violationsOf(definition, create, revoke), []);
+  assert.deepEqual(violationsOf(definition, create), [
+    { path: SCHEMA_PATH, line: 13, table: "prices", rule: "marked-not-revoked" },
+    { path: SCHEMA_PATH, line: 19, table: "price_reviews", rule: "marked-not-revoked" },
+    { path: SCHEMA_PATH, line: 22, table: "costs", rule: "marked-not-revoked" },
+  ]);
+});
+
 test("names the table, where it is, and the rule it breaks", () => {
   const marked = findViolations({ ...APPEND_ONLY_PRICES, migrations: [CREATE_PRICES] }).map(
     describeViolation,
