@@ -87,7 +87,7 @@ const promotionColumns = [
   }),
   dataColumn({
     id: "units",
-    header: "Unidades",
+    header: "Cantidad",
     align: "end",
     sort: {
       order: (a, b) => a.units - b.units || a.thousandths - b.thousandths,
