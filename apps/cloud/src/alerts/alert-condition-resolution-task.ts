@@ -4,6 +4,7 @@ import {
   detectFortnightReportDeadlines,
   detectFortnightReportRegularizations,
   detectMissingOfflineAuthorizationCodes,
+  detectOverdueRegisterBackups,
   detectQuietRegisters,
   openOverdueUnclearOutcomeAlerts,
   resolveStablyClearedAlerts,
@@ -12,6 +13,7 @@ import { openOverdueRefundTaskAlerts } from "@purosur/domain/payments/use-cases"
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { PoolClient } from "pg";
+import { DrizzleRegisterBackupStandingReader } from "../backups/drizzle-register-backup-standing-reader.js";
 import { DrizzleBranchExpiryWindowReader } from "../branch/drizzle-branch-expiry-window-reader.js";
 import { DrizzleBranchHoursReader } from "../branch/drizzle-branch-hours-reader.js";
 import { DrizzleFortnightRegularizationReader } from "../fiscal/drizzle-fortnight-regularization-reader.js";
@@ -123,6 +125,18 @@ function detectFortnightReportRegularizationsTask<TQueryResult extends PgQueryRe
   });
 }
 
+function detectOverdueRegisterBackupsTask<TQueryResult extends PgQueryResultHKT>(
+  db: PgDatabase<TQueryResult>,
+  deps: { now: () => Date },
+): Promise<number> {
+  return detectOverdueRegisterBackups({
+    standings: new DrizzleRegisterBackupStandingReader(db),
+    store: new DrizzleAlertStore(db, deps.now),
+    clock: { now: deps.now },
+    hasher: { hash: hashSourceAddress },
+  });
+}
+
 export interface AlertConditionResolutionJobsDeps {
   createDatabase?: (client: PoolClient) => NodePgDatabase<Record<string, never>>;
   resolve?: typeof resolveClearedConditionAlertsTask;
@@ -133,6 +147,7 @@ export interface AlertConditionResolutionJobsDeps {
   detectExpiringLots?: typeof detectExpiringLotsTask;
   detectFortnightReportDeadlines?: typeof detectFortnightReportDeadlinesTask;
   detectFortnightReportRegularizations?: typeof detectFortnightReportRegularizationsTask;
+  detectOverdueRegisterBackups?: typeof detectOverdueRegisterBackupsTask;
 }
 
 export function alertConditionResolutionJobs(
@@ -151,6 +166,8 @@ export function alertConditionResolutionJobs(
     deps.detectFortnightReportDeadlines ?? detectFortnightReportDeadlinesTask;
   const doDetectFortnightReportRegularizations =
     deps.detectFortnightReportRegularizations ?? detectFortnightReportRegularizationsTask;
+  const doDetectOverdueRegisterBackups =
+    deps.detectOverdueRegisterBackups ?? detectOverdueRegisterBackupsTask;
   return {
     taskList: {
       [ALERT_CONDITION_RESOLUTION_TASK_IDENTIFIER]: async (_payload, helpers) => {
@@ -164,6 +181,7 @@ export function alertConditionResolutionJobs(
           await doDetectExpiringLots(db, { now: options.now });
           await doDetectFortnightReportDeadlines(db, { now: options.now });
           await doDetectFortnightReportRegularizations(db, { now: options.now });
+          await doDetectOverdueRegisterBackups(db, { now: options.now });
         });
       },
     },
