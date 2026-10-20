@@ -165,14 +165,14 @@ describe("promotionDiscountTotals", () => {
     expect(promotionDiscountTotals(rows).mostUsed?.promotionId).toBe("p2");
   });
 
-  it("breaks a tie of lines and amount by name, a missing name last", () => {
+  it("breaks a tie of lines and amount by name, comparing code units and a missing name last", () => {
     const rows = salesOfPromotions([
       discounted("p1", null, 3, 100),
       discounted("p2", "Zoe", 3, 100),
       discounted("p3", "Ana", 3, 100),
     ]);
 
-    expect(promotionDiscountTotals(rows).mostUsed?.promotionId).toBe("p2");
+    expect(promotionDiscountTotals(rows).mostUsed?.promotionId).toBe("p3");
   });
 
   it("breaks the last tie by promotion id, whatever order the rows arrive in", () => {
