@@ -43,6 +43,27 @@ function applicableEvents(): PushedEvent[] {
   return recordedEvents().filter(({ event_type }) => event_type !== "cash_session_closed");
 }
 
+function frozenDiscountsOf(events: PushedEvent[]): Map<string, "PERCENT_OFF" | "BUY_N_PAY_M"> {
+  const discounts = new Map<string, "PERCENT_OFF" | "BUY_N_PAY_M">();
+  for (const { payload } of events) {
+    const lines = Array.isArray(payload["lines"]) ? payload["lines"] : [];
+    for (const line of lines) {
+      const promotions =
+        typeof line === "object" && line !== null && "promotions" in line ? line["promotions"] : [];
+      for (const promotion of Array.isArray(promotions) ? promotions : []) {
+        if (typeof promotion === "object" && promotion !== null && !Array.isArray(promotion)) {
+          const id = promotion["discount_id"];
+          const kind = promotion["kind"];
+          if (typeof id === "string" && (kind === "PERCENT_OFF" || kind === "BUY_N_PAY_M")) {
+            discounts.set(id, kind);
+          }
+        }
+      }
+    }
+  }
+  return discounts;
+}
+
 let database: LocalDatabase;
 let requests: { path: string; bearerToken: string; body: unknown }[];
 
@@ -202,6 +223,33 @@ describe("replenishing a restored register from the cloud", () => {
     expect(count("register_predecessor")).toBe(1);
     expect(count("sales")).toBe(4);
     expect(count("pre_emission_gate_outcomes")).toBe(3);
+  });
+
+  it("replenishes a whole session of every event the register builds, its offline invoice included", async () => {
+    const recorded = recordedPushes().find(
+      ({ name }) => name === "offline-fiscal-document-with-its-invoice.json",
+    );
+    if (recorded === undefined) {
+      throw new Error("the recorded push is missing");
+    }
+    const events = recorded.push.events;
+    for (const [id, kind] of frozenDiscountsOf(events)) {
+      addDiscount(
+        database,
+        id,
+        { kind: "PRODUCT", id: "product-1" },
+        kind === "PERCENT_OFF"
+          ? { kind: "PERCENT_OFF", percent: 10 }
+          : { kind: "BUY_N_PAY_M", buyQty: 3, payQty: 2 },
+      );
+    }
+
+    const outcome = await step([ok(events)]);
+
+    expect(outcome).toEqual({ kind: "replenished" });
+    expect(count("register_predecessor")).toBe(0);
+    expect(count("offline_fiscal_documents")).toBe(1);
+    expect(count("outbox")).toBe(0);
   });
 
   it("applies nothing of a page with an event it cannot read, and keeps the predecessor", async () => {
