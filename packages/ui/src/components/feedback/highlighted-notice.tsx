@@ -9,6 +9,7 @@ export type HighlightedNoticeProps = {
   title: string;
   description: string;
   actions?: ReactNode | undefined;
+  layout?: "stacked" | "row";
 };
 
 export function HighlightedNotice({
@@ -17,9 +18,12 @@ export function HighlightedNotice({
   title,
   description,
   actions,
+  layout = "stacked",
 }: HighlightedNoticeProps) {
+  const row = layout === "row";
   const className = [
-    "flex w-full items-start gap-3 rounded-lg p-4",
+    "flex w-full rounded-lg p-4",
+    row ? "items-center gap-4" : "items-start gap-3",
     toneClassName[tone].surface,
   ].join(" ");
 
@@ -31,9 +35,18 @@ export function HighlightedNotice({
       iconSize="lg"
       announcement={[title, description]}
       actions={actions}
+      actionsPlacement={row ? "end" : "below"}
     >
-      <p className="text-subheading">{title}</p>
-      <p className="text-detail leading-sm">{description}</p>
+      <p
+        className={
+          row ? `text-body font-bold ${toneClassName[tone].strongText}` : "text-subheading"
+        }
+      >
+        {title}
+      </p>
+      <p className={row ? "text-detail leading-sm text-text" : "text-detail leading-sm"}>
+        {description}
+      </p>
     </NoticeFrame>
   );
 }

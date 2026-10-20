@@ -12,6 +12,7 @@ export type NoticeFrameProps = {
   announcement: ReadonlyArray<string | undefined>;
   trailing?: ReactNode;
   actions?: ReactNode;
+  actionsPlacement?: "below" | "end";
   children: ReactNode;
 };
 
@@ -24,6 +25,7 @@ export function NoticeFrame({
   announcement,
   trailing,
   actions,
+  actionsPlacement = "below",
   children,
 }: NoticeFrameProps) {
   return (
@@ -39,7 +41,14 @@ export function NoticeFrame({
       )}
       {/* Hidden from assistive technology so its text isn't announced twice: the live region
           below is its only accessible copy. */}
-      {actions ? (
+      {actions && actionsPlacement === "end" ? (
+        <>
+          <div aria-hidden="true" className="flex min-w-0 flex-1 flex-col gap-1">
+            {children}
+          </div>
+          <div className="flex shrink-0 items-center gap-3">{actions}</div>
+        </>
+      ) : actions ? (
         <div className="flex flex-col gap-3">
           <div aria-hidden="true" className="flex flex-col gap-1">
             {children}
