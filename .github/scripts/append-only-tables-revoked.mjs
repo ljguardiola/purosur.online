@@ -8,7 +8,7 @@ const ROLE = "cloud_app";
 const APPEND_ONLY_MARK_RE = /\bappend-only\b/i;
 
 const IDENTIFIER = String.raw`[A-Za-z_$][\w$]*`;
-const GAP = String.raw`(?:\s|//[^\n]*|/\*[\s\S]*?\*/)*`;
+const GAP = String.raw`(?:\s|//[^\n]*(?![^\n])|/\*(?:[^*]|\*(?!/))*\*/)*`;
 const DECLARATION_RE = new RegExp(
   String.raw`\bfunction\s+(${IDENTIFIER})\s*(?=[<(])|\b(?:const|let)\s+(${IDENTIFIER})\s*=${GAP}(?=[<(])`,
   "g",
