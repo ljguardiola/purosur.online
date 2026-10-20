@@ -50,6 +50,10 @@ test("names the alert of a fortnight reported without movement that later receiv
   expect(alertKindLabel("fortnight_report_needs_regularization")).toBe("Quincena a regularizar");
 });
 
+test("names the alert of an invoice a voided sale could not credit", () => {
+  expect(alertKindLabel("invoice_already_credited")).toBe("Factura ya acreditada");
+});
+
 test("names the alert of a register's clock corrected from the register", () => {
   expect(alertKindLabel("clock_corrected")).toBe("Reloj de la caja corregido");
 });

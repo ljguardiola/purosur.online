@@ -387,3 +387,21 @@ describe("an external billing alert", () => {
     }>().not.toExtend<OpenAlertInput>();
   });
 });
+
+describe("an invoice already credited alert", () => {
+  it("accepts the point of sale and number of the invoice and the sale that was voided", () => {
+    expectTypeOf<{
+      kind: "invoice_already_credited";
+      scope: string;
+      detail: { pointOfSale: number; number: number; saleId: string };
+    }>().toExtend<OpenAlertInput>();
+  });
+
+  it("refuses one without its sale", () => {
+    expectTypeOf<{
+      kind: "invoice_already_credited";
+      scope: string;
+      detail: { pointOfSale: number; number: number };
+    }>().not.toExtend<OpenAlertInput>();
+  });
+});

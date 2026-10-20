@@ -1,10 +1,11 @@
 import { OFFSITE_DUMP_SHRINK_THRESHOLD_PERCENT } from "../../backups/index.js";
-import type {
-  FiscalDocumentType,
-  FiscalEmissionStoppedReport,
-  FiscalTaskDocumentType,
-  Fortnight,
-  RejectionStandingChange,
+import {
+  FACTURA_C_DOCUMENT_TYPE,
+  type FiscalDocumentType,
+  type FiscalEmissionStoppedReport,
+  type FiscalTaskDocumentType,
+  type Fortnight,
+  type RejectionStandingChange,
 } from "../../fiscal/index.js";
 import type { ClockDriftReport } from "../../register/index.js";
 import type { SalesDeniedReport } from "../../shared/index.js";
@@ -212,6 +213,25 @@ export function externalBillingObservation({
       kind: "external_billing",
       scope: [pointOfSale, documentType, number].join(":"),
       detail: { pointOfSale, documentType, number },
+    },
+  };
+}
+
+export function invoiceAlreadyCreditedObservation({
+  pointOfSale,
+  number,
+  saleId,
+}: {
+  pointOfSale: number;
+  number: number;
+  saleId: string;
+}): AlertConditionObservation {
+  return {
+    holds: true,
+    alert: {
+      kind: "invoice_already_credited",
+      scope: [pointOfSale, FACTURA_C_DOCUMENT_TYPE, number].join(":"),
+      detail: { pointOfSale, number, saleId },
     },
   };
 }

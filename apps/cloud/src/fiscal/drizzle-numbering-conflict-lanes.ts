@@ -19,8 +19,8 @@ import {
 import type { DedicatedConnections } from "../platform/dedicated-connections.js";
 import { withPendingChanges } from "../sync/change-log.js";
 import { DrizzleTaxAuthorityCounts } from "./drizzle-tax-authority-counts.js";
+import type { EnqueueCreditNote } from "./enqueue-credit-note.js";
 import type { EnqueueNumberingReconciliation } from "./enqueue-numbering-conflict.js";
-import type { EnqueueOrphanCreditNote } from "./enqueue-orphan-credit-note.js";
 import { answerOf } from "./fiscal-request-answer.js";
 import { diagnosisOf } from "./fiscal-request-diagnosis.js";
 import { notePointOfSaleHolderChanged } from "./note-point-of-sale-holder-changed.js";
@@ -62,20 +62,20 @@ class DrizzleNumberingConflictLane<TQueryResult extends PgQueryResultHKT>
   private readonly db: PgDatabase<TQueryResult>;
   private readonly pointOfSale: number;
   private readonly enqueueReconciliation: EnqueueNumberingReconciliation;
-  private readonly enqueueOrphanCreditNote: EnqueueOrphanCreditNote;
+  private readonly enqueueCreditNote: EnqueueCreditNote;
   private readonly now: () => Date;
 
   constructor(
     db: PgDatabase<TQueryResult>,
     pointOfSale: number,
     enqueueReconciliation: EnqueueNumberingReconciliation,
-    enqueueOrphanCreditNote: EnqueueOrphanCreditNote,
+    enqueueCreditNote: EnqueueCreditNote,
     now: () => Date,
   ) {
     this.db = db;
     this.pointOfSale = pointOfSale;
     this.enqueueReconciliation = enqueueReconciliation;
-    this.enqueueOrphanCreditNote = enqueueOrphanCreditNote;
+    this.enqueueCreditNote = enqueueCreditNote;
     this.now = now;
   }
 
@@ -182,7 +182,7 @@ class DrizzleNumberingConflictLane<TQueryResult extends PgQueryResultHKT>
       for (const regularization of regularizations) {
         await recordOrphanRegularization(tx, regularization, {
           at: this.now(),
-          enqueueOrphanCreditNote: this.enqueueOrphanCreditNote,
+          enqueueCreditNote: this.enqueueCreditNote,
         });
       }
       await new DrizzleTaxAuthorityCounts(tx, pending).advance({
@@ -202,18 +202,18 @@ export class DrizzleNumberingConflictLanes<TQueryResult extends PgQueryResultHKT
 {
   private readonly connections: DedicatedConnections<TQueryResult>;
   private readonly enqueueReconciliation: EnqueueNumberingReconciliation;
-  private readonly enqueueOrphanCreditNote: EnqueueOrphanCreditNote;
+  private readonly enqueueCreditNote: EnqueueCreditNote;
   private readonly now: () => Date;
 
   constructor(
     connections: DedicatedConnections<TQueryResult>,
     enqueueReconciliation: EnqueueNumberingReconciliation,
-    enqueueOrphanCreditNote: EnqueueOrphanCreditNote,
+    enqueueCreditNote: EnqueueCreditNote,
     now: () => Date,
   ) {
     this.connections = connections;
     this.enqueueReconciliation = enqueueReconciliation;
-    this.enqueueOrphanCreditNote = enqueueOrphanCreditNote;
+    this.enqueueCreditNote = enqueueCreditNote;
     this.now = now;
   }
 
@@ -227,7 +227,7 @@ export class DrizzleNumberingConflictLanes<TQueryResult extends PgQueryResultHKT
           db,
           pointOfSale,
           this.enqueueReconciliation,
-          this.enqueueOrphanCreditNote,
+          this.enqueueCreditNote,
           this.now,
         ),
       ),

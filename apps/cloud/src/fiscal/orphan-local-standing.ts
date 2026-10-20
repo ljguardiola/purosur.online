@@ -7,10 +7,10 @@ import type {
 import { and, asc, eq, ne } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import {
+  creditNotes,
   fiscalRequests,
   fiscalTasks,
   offlineFiscalDocuments,
-  orphanCreditNotes,
 } from "../platform/db/schema.js";
 import { answerOf, decisionOf } from "./fiscal-request-answer.js";
 
@@ -63,13 +63,13 @@ export async function requestsAtNumber<TQueryResult extends PgQueryResultHKT>(
   { pointOfSale, number }: AuthorizationNumber,
 ): Promise<RequestsAtNumber> {
   const [creditNote] = await db
-    .select({ id: orphanCreditNotes.id })
-    .from(orphanCreditNotes)
+    .select({ id: creditNotes.id })
+    .from(creditNotes)
     .where(
       and(
-        eq(orphanCreditNotes.pointOfSale, pointOfSale),
-        eq(orphanCreditNotes.associatedVoucherType, FACTURA_C_VOUCHER_TYPE),
-        eq(orphanCreditNotes.associatedNumber, number),
+        eq(creditNotes.associatedPointOfSale, pointOfSale),
+        eq(creditNotes.associatedVoucherType, FACTURA_C_VOUCHER_TYPE),
+        eq(creditNotes.associatedNumber, number),
       ),
     );
   const [task] = await db

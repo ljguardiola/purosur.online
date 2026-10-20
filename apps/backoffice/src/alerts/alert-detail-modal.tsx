@@ -433,6 +433,14 @@ function externalBillingDescription({
   return `ARCA tiene autorizado el comprobante ${document} de este punto de venta y ninguna venta de la caja lo justifica. Revisar quién lo emitió fuera del sistema. No se emite ninguna nota de crédito automática.`;
 }
 
+function invoiceAlreadyCreditedDescription({
+  pointOfSale,
+  number,
+}: Extract<AlertDetail, { kind: "invoice_already_credited" }>["detail"]): string {
+  const document = `${formatPointOfSaleNumber(pointOfSale)}-${formatInvoiceNumber(number)}`;
+  return `Se anuló en una caja una venta cuya factura C ${document} ya tenía una nota de crédito, así que no se emitió otra. La anulación y sus reintegros ya se hicieron en la caja. Revisar qué nota de crédito acreditó la factura.`;
+}
+
 function alertTitle(alert: AlertDetail): string {
   const localTitle = alert.audience === "local" ? localAlertTitle(alert.kind) : undefined;
   if (localTitle !== undefined) {
@@ -483,6 +491,7 @@ function alertTitle(alert: AlertDetail): string {
     case "fortnight_report_pending":
     case "fortnight_report_overdue":
     case "external_billing":
+    case "invoice_already_credited":
     case "fortnight_report_needs_regularization":
     case "fortnight_report_owed_elsewhere":
     case "clock_corrected":
@@ -557,6 +566,8 @@ function alertDescription(alert: AlertDetail, catalog: PermissionCatalogWire = [
       return fiscalUnknownDescription(alert.detail);
     case "external_billing":
       return externalBillingDescription(alert.detail);
+    case "invoice_already_credited":
+      return invoiceAlreadyCreditedDescription(alert.detail);
     case "outbox_chain_broken":
       return `La caja «${targetName}» envió eventos que no coinciden con su cadena: alguno se alteró, se quitó o se reordenó en el disco de la caja. La nube rechazó el envío y dio de baja la instalación.`;
     case "fiscal_rejected":

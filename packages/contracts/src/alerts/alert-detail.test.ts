@@ -213,6 +213,9 @@ describe("alertDetailSchema", () => {
     expectTypeOf<WireDetail<"external_billing">>().toEqualTypeOf<
       AlertDetails["external_billing"]
     >();
+    expectTypeOf<WireDetail<"invoice_already_credited">>().toEqualTypeOf<
+      AlertDetails["invoice_already_credited"]
+    >();
     expectTypeOf<WireDetail<"late_payment_refund">>().toEqualTypeOf<
       AlertDetails["late_payment_refund"]
     >();
@@ -409,6 +412,7 @@ describe("alertDetailSchema", () => {
         deadline: "2026-09-23",
       },
       external_billing: { pointOfSale: 12, documentType: "factura_c", number: 41 },
+      invoice_already_credited: { pointOfSale: 12, number: 41, saleId: "sale-1" },
       clock_corrected: {
         pointOfSale: 12,
         documentType: "factura_c",

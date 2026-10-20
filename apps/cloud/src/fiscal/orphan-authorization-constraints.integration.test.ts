@@ -1,7 +1,8 @@
+import { sql as sqlTag } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { fiscalTasks, orphanCreditNotes } from "../platform/db/schema.js";
+import { creditNotes, fiscalTasks } from "../platform/db/schema.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
@@ -57,14 +58,16 @@ function insertTask(overrides: Partial<typeof fiscalTasks.$inferInsert>) {
   });
 }
 
-function insertCreditNote(overrides: Partial<typeof orphanCreditNotes.$inferInsert>) {
+function insertCreditNote(overrides: Partial<typeof creditNotes.$inferInsert>) {
   seeded += 1;
-  return db.insert(orphanCreditNotes).values({
+  return db.insert(creditNotes).values({
     id: crypto.randomUUID(),
     registerId,
     saleId: crypto.randomUUID(),
     pointOfSale: 7,
     associatedVoucherType: 11,
+    associatedPointOfSale: 7,
+    reason: "orphan",
     associatedNumber: seeded,
     keptVoucherType: 11,
     keptPointOfSale: 31,
@@ -82,7 +85,16 @@ async function aCreditNoteId(): Promise<string> {
   return id;
 }
 
-function requested(): Partial<typeof orphanCreditNotes.$inferInsert> {
+function voidedSale(): Partial<typeof creditNotes.$inferInsert> {
+  return {
+    reason: "sale_void",
+    keptVoucherType: null,
+    keptPointOfSale: null,
+    keptNumber: null,
+  };
+}
+
+function requested(): Partial<typeof creditNotes.$inferInsert> {
   seeded += 1;
   return { number: 10_000 + seeded, issuedOn: "2026-10-07", requestedAt: CREATED_AT };
 }
@@ -171,42 +183,42 @@ describe("the fiscal tasks table's constraints on a real Postgres", () => {
         creditNoteId: crypto.randomUUID(),
       }),
     ).rejects.toSatisfy((error) =>
-      constraintViolatedBy(error, "fiscal_tasks_credit_note_id_orphan_credit_notes_id_fk"),
+      constraintViolatedBy(error, "fiscal_tasks_credit_note_id_credit_notes_id_fk"),
     );
   });
 });
 
-describe("the orphan credit notes table's constraints on a real Postgres", () => {
+describe("the credit notes table's constraints on a real Postgres", () => {
   it.each([
     [
       "a number with no issue day nor request time",
       () => ({ number: 1 }),
-      "orphan_credit_notes_request_check",
+      "credit_notes_request_check",
     ],
     [
       "an issue day with no number",
       () => ({ issuedOn: "2026-10-07" }),
-      "orphan_credit_notes_request_check",
+      "credit_notes_request_check",
     ],
     [
       "an unknown answer",
       () => ({ ...requested(), answerKind: "maybe", answeredAt: ANSWERED_AT }),
-      "orphan_credit_notes_answer_kind_check",
+      "credit_notes_answer_kind_check",
     ],
     [
       "an answer to a credit note never requested",
       () => ({ answerKind: "unclear", answeredAt: ANSWERED_AT }),
-      "orphan_credit_notes_answer_request_check",
+      "credit_notes_answer_request_check",
     ],
     [
       "an answer with no time",
       () => ({ ...requested(), answerKind: "unclear" }),
-      "orphan_credit_notes_answer_time_check",
+      "credit_notes_answer_time_check",
     ],
     [
       "an authorization with no code",
       () => ({ ...requested(), answerKind: "authorized", answeredAt: ANSWERED_AT }),
-      "orphan_credit_notes_authorization_check",
+      "credit_notes_authorization_check",
     ],
     [
       "an authorization code on an answer that is no authorization",
@@ -217,7 +229,7 @@ describe("the orphan credit notes table's constraints on a real Postgres", () =>
         authorizationCode: "75123456789099",
         authorizationCodeDueOn: "2026-10-17",
       }),
-      "orphan_credit_notes_authorization_check",
+      "credit_notes_authorization_check",
     ],
     [
       "an authorization code with no due day",
@@ -227,12 +239,12 @@ describe("the orphan credit notes table's constraints on a real Postgres", () =>
         answeredAt: ANSWERED_AT,
         authorizationCode: "75123456789099",
       }),
-      "orphan_credit_notes_authorization_check",
+      "credit_notes_authorization_check",
     ],
     [
       "a rejection with no reasons",
       () => ({ ...requested(), answerKind: "rejected", answeredAt: ANSWERED_AT }),
-      "orphan_credit_notes_rejection_check",
+      "credit_notes_rejection_check",
     ],
     [
       "rejection reasons on an answer that is no rejection",
@@ -242,7 +254,7 @@ describe("the orphan credit notes table's constraints on a real Postgres", () =>
         answeredAt: ANSWERED_AT,
         rejections: [{ code: 10015, message: "invalid receiver" }],
       }),
-      "orphan_credit_notes_rejection_check",
+      "credit_notes_rejection_check",
     ],
   ] as const)("rejects %s", async (_name, overrides, constraint) => {
     await expect(insertCreditNote(overrides())).rejects.toSatisfy((error) =>
@@ -254,7 +266,68 @@ describe("the orphan credit notes table's constraints on a real Postgres", () =>
     await insertCreditNote({ associatedNumber: 7_000 });
 
     await expect(insertCreditNote({ associatedNumber: 7_000 })).rejects.toSatisfy((error) =>
-      constraintViolatedBy(error, "orphan_credit_notes_orphan_key"),
+      constraintViolatedBy(error, "credit_notes_corrected_voucher_key"),
+    );
+  });
+
+  it("rejects a credit note of a voided sale for a voucher an orphan credit note already corrects", async () => {
+    await insertCreditNote({ associatedNumber: 7_001 });
+
+    await expect(insertCreditNote({ ...voidedSale(), associatedNumber: 7_001 })).rejects.toSatisfy(
+      (error) => constraintViolatedBy(error, "credit_notes_corrected_voucher_key"),
+    );
+  });
+
+  it("rejects a second credit note of a voided sale for the same voucher", async () => {
+    await insertCreditNote({ ...voidedSale(), associatedNumber: 7_002 });
+
+    await expect(insertCreditNote({ ...voidedSale(), associatedNumber: 7_002 })).rejects.toSatisfy(
+      (error) => constraintViolatedBy(error, "credit_notes_corrected_voucher_key"),
+    );
+  });
+
+  it("keeps a credit note for the voucher of each point of sale with the same number", async () => {
+    await insertCreditNote({ ...voidedSale(), associatedNumber: 7_003, associatedPointOfSale: 7 });
+
+    await expect(
+      insertCreditNote({ ...voidedSale(), associatedNumber: 7_003, associatedPointOfSale: 8 }),
+    ).resolves.toBeDefined();
+  });
+
+  it("keeps a credit note of a voided sale correcting a voucher of another point of sale than the one issuing it", async () => {
+    await expect(
+      insertCreditNote({ ...voidedSale(), pointOfSale: 7, associatedPointOfSale: 31 }),
+    ).resolves.toBeDefined();
+  });
+
+  it("rejects an unknown reason", async () => {
+    const id = crypto.randomUUID();
+    await insertCreditNote({ ...voidedSale(), id });
+
+    await expect(
+      db.execute(sqlTag`update credit_notes set reason = 'refund' where id = ${id}`),
+    ).rejects.toSatisfy((error) => constraintViolatedBy(error, "credit_notes_reason_check"));
+  });
+
+  it.each([
+    [
+      "an orphan credit note with no kept voucher",
+      () => ({ keptVoucherType: null, keptPointOfSale: null, keptNumber: null }),
+      "credit_notes_kept_voucher_check",
+    ],
+    [
+      "a credit note of a voided sale holding a kept voucher",
+      () => ({ ...voidedSale(), keptVoucherType: 11, keptPointOfSale: 31, keptNumber: 3 }),
+      "credit_notes_kept_voucher_check",
+    ],
+    [
+      "a kept voucher with no point of sale",
+      () => ({ keptPointOfSale: null }),
+      "credit_notes_kept_voucher_check",
+    ],
+  ] as const)("rejects %s", async (_name, overrides, constraint) => {
+    await expect(insertCreditNote(overrides())).rejects.toSatisfy((error) =>
+      constraintViolatedBy(error, constraint),
     );
   });
 
@@ -263,7 +336,7 @@ describe("the orphan credit notes table's constraints on a real Postgres", () =>
 
     await expect(
       insertCreditNote({ number: 8_000, issuedOn: "2026-10-07", requestedAt: CREATED_AT }),
-    ).rejects.toSatisfy((error) => constraintViolatedBy(error, "orphan_credit_notes_number_key"));
+    ).rejects.toSatisfy((error) => constraintViolatedBy(error, "credit_notes_number_key"));
   });
 
   it("lets a credit note take the number of a rejected one at the same point of sale", async () => {

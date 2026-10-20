@@ -1,31 +1,47 @@
 import {
+  type CreditNote,
   type CreditNoteAuthorizationRecord,
+  type CreditNoteLane,
+  type CreditNoteLanes,
   CreditNoteNumberTaken,
   type CreditNoteRejectionRecord,
   type CreditNoteRequestRecord,
+  type CreditNoteRequests,
   type CreditNoteStanding,
   type ExternalInvoicingRegularization,
-  type OrphanCreditNote,
-  type OrphanCreditNoteLane,
-  type OrphanCreditNoteLanes,
-  type OrphanCreditNoteRequests,
 } from "@purosur/domain/fiscal/use-cases";
 import { and, eq, ne } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { postgresErrorChain } from "../platform/db/postgres-error-chain.js";
-import { orphanCreditNotes } from "../platform/db/schema.js";
+import { creditNotes } from "../platform/db/schema.js";
 import type { DedicatedConnections } from "../platform/dedicated-connections.js";
 import { withPointOfSaleLaneLock } from "./point-of-sale-lane-lock.js";
 import { insertFiscalTask, recordExternalInvoicing } from "./record-orphan-regularization.js";
 
 const UNIQUE_VIOLATION = "23505";
-const CREDIT_NOTE_NUMBER_KEY = "orphan_credit_notes_number_key";
+const CREDIT_NOTE_NUMBER_KEY = "credit_notes_number_key";
 
-type CreditNoteRow = typeof orphanCreditNotes.$inferSelect;
+export type CreditNoteRow = typeof creditNotes.$inferSelect;
 
 function standingOf(row: CreditNoteRow): CreditNoteStanding {
   if (row.answerKind === "authorized") {
-    return { kind: "authorized" };
+    if (
+      row.number === null ||
+      row.issuedOn === null ||
+      row.requestedAt === null ||
+      row.authorizationCode === null ||
+      row.authorizationCodeDueOn === null
+    ) {
+      throw new Error(`credit note ${row.id} is authorized without its authorization`);
+    }
+    return {
+      kind: "authorized",
+      number: row.number,
+      issuedOn: row.issuedOn,
+      requestedAt: row.requestedAt,
+      authorizationCode: row.authorizationCode,
+      authorizationCodeDueOn: row.authorizationCodeDueOn,
+    };
   }
   if (row.answerKind === "rejected") {
     return { kind: "rejected" };
@@ -42,6 +58,22 @@ function standingOf(row: CreditNoteRow): CreditNoteStanding {
   };
 }
 
+export function creditNoteOf(row: CreditNoteRow): CreditNote {
+  return {
+    creditNoteId: row.id,
+    pointOfSale: row.pointOfSale,
+    associatedVoucher: {
+      voucherType: row.associatedVoucherType,
+      pointOfSale: row.associatedPointOfSale,
+      number: row.associatedNumber,
+    },
+    total: row.total,
+    receiverTaxStatusCode: row.receiverTaxStatusCode,
+    reason: row.reason,
+    standing: standingOf(row),
+  };
+}
+
 const NO_REQUEST = {
   number: null,
   issuedOn: null,
@@ -53,9 +85,7 @@ const NO_REQUEST = {
   rejections: null,
 };
 
-class DrizzleOrphanCreditNoteLane<TQueryResult extends PgQueryResultHKT>
-  implements OrphanCreditNoteLane
-{
+class DrizzleCreditNoteLane<TQueryResult extends PgQueryResultHKT> implements CreditNoteLane {
   private readonly db: PgDatabase<TQueryResult>;
   private readonly pointOfSale: number;
 
@@ -64,38 +94,16 @@ class DrizzleOrphanCreditNoteLane<TQueryResult extends PgQueryResultHKT>
     this.pointOfSale = pointOfSale;
   }
 
-  async orphanCreditNote(creditNoteId: string): Promise<OrphanCreditNote | null> {
-    const [row] = await this.db
-      .select()
-      .from(orphanCreditNotes)
-      .where(eq(orphanCreditNotes.id, creditNoteId));
-    if (row === undefined) {
-      return null;
-    }
-    return {
-      creditNoteId,
-      pointOfSale: row.pointOfSale,
-      associatedVoucher: {
-        voucherType: row.associatedVoucherType,
-        pointOfSale: row.pointOfSale,
-        number: row.associatedNumber,
-      },
-      total: row.total,
-      receiverTaxStatusCode: row.receiverTaxStatusCode,
-      standing: standingOf(row),
-    };
+  async creditNote(creditNoteId: string): Promise<CreditNote | null> {
+    const [row] = await this.db.select().from(creditNotes).where(eq(creditNotes.id, creditNoteId));
+    return row === undefined ? null : creditNoteOf(row);
   }
 
   async otherCreditNoteStandings(creditNoteId: string): Promise<CreditNoteStanding[]> {
     const rows = await this.db
       .select()
-      .from(orphanCreditNotes)
-      .where(
-        and(
-          eq(orphanCreditNotes.pointOfSale, this.pointOfSale),
-          ne(orphanCreditNotes.id, creditNoteId),
-        ),
-      );
+      .from(creditNotes)
+      .where(and(eq(creditNotes.pointOfSale, this.pointOfSale), ne(creditNotes.id, creditNoteId)));
     return rows.map(standingOf);
   }
 
@@ -108,9 +116,9 @@ class DrizzleOrphanCreditNoteLane<TQueryResult extends PgQueryResultHKT>
     await this.db.transaction(async (tx) => {
       try {
         await tx
-          .update(orphanCreditNotes)
+          .update(creditNotes)
           .set({ ...NO_REQUEST, number, issuedOn, requestedAt })
-          .where(eq(orphanCreditNotes.id, creditNoteId));
+          .where(eq(creditNotes.id, creditNoteId));
       } catch (error) {
         if (
           postgresErrorChain(error).some(
@@ -131,14 +139,14 @@ class DrizzleOrphanCreditNoteLane<TQueryResult extends PgQueryResultHKT>
     authorizedAt,
   }: CreditNoteAuthorizationRecord): Promise<void> {
     await this.db
-      .update(orphanCreditNotes)
+      .update(creditNotes)
       .set({
         answerKind: "authorized",
         answeredAt: authorizedAt,
         authorizationCode,
         authorizationCodeDueOn,
       })
-      .where(eq(orphanCreditNotes.id, creditNoteId));
+      .where(eq(creditNotes.id, creditNoteId));
   }
 
   async recordCreditNoteRejected({
@@ -149,14 +157,14 @@ class DrizzleOrphanCreditNoteLane<TQueryResult extends PgQueryResultHKT>
   }: CreditNoteRejectionRecord): Promise<void> {
     await this.db.transaction(async (tx) => {
       const [row] = await tx
-        .update(orphanCreditNotes)
+        .update(creditNotes)
         .set({
           answerKind: "rejected",
           answeredAt: rejectedAt,
           rejections: rejections.map((rejection) => ({ ...rejection })),
         })
-        .where(eq(orphanCreditNotes.id, creditNoteId))
-        .returning({ registerId: orphanCreditNotes.registerId });
+        .where(eq(creditNotes.id, creditNoteId))
+        .returning({ registerId: creditNotes.registerId });
       if (row === undefined) {
         throw new Error(`no orphan credit note ${creditNoteId}`);
       }
@@ -166,9 +174,9 @@ class DrizzleOrphanCreditNoteLane<TQueryResult extends PgQueryResultHKT>
 
   async recordCreditNoteUnclear(creditNoteId: string, answeredAt: Date): Promise<void> {
     await this.db
-      .update(orphanCreditNotes)
+      .update(creditNotes)
       .set({ answerKind: "unclear", answeredAt })
-      .where(eq(orphanCreditNotes.id, creditNoteId));
+      .where(eq(creditNotes.id, creditNoteId));
   }
 
   async releaseCreditNoteRequest(
@@ -176,10 +184,7 @@ class DrizzleOrphanCreditNoteLane<TQueryResult extends PgQueryResultHKT>
     foreignInvoicing: ExternalInvoicingRegularization | null,
   ): Promise<void> {
     await this.db.transaction(async (tx) => {
-      await tx
-        .update(orphanCreditNotes)
-        .set(NO_REQUEST)
-        .where(eq(orphanCreditNotes.id, creditNoteId));
+      await tx.update(creditNotes).set(NO_REQUEST).where(eq(creditNotes.id, creditNoteId));
       if (foreignInvoicing !== null) {
         await recordExternalInvoicing(tx, foreignInvoicing);
       }
@@ -187,8 +192,8 @@ class DrizzleOrphanCreditNoteLane<TQueryResult extends PgQueryResultHKT>
   }
 }
 
-export class DrizzleOrphanCreditNoteLanes<TQueryResult extends PgQueryResultHKT>
-  implements OrphanCreditNoteLanes
+export class DrizzleCreditNoteLanes<TQueryResult extends PgQueryResultHKT>
+  implements CreditNoteLanes
 {
   private readonly connections: DedicatedConnections<TQueryResult>;
 
@@ -198,16 +203,16 @@ export class DrizzleOrphanCreditNoteLanes<TQueryResult extends PgQueryResultHKT>
 
   inPointOfSaleLane<TOutcome>(
     pointOfSale: number,
-    work: (lane: OrphanCreditNoteLane) => Promise<TOutcome>,
+    work: (lane: CreditNoteLane) => Promise<TOutcome>,
   ): Promise<TOutcome> {
     return withPointOfSaleLaneLock(this.connections, pointOfSale, (db) =>
-      work(new DrizzleOrphanCreditNoteLane(db, pointOfSale)),
+      work(new DrizzleCreditNoteLane(db, pointOfSale)),
     );
   }
 }
 
-export class DrizzleOrphanCreditNoteRequests<TQueryResult extends PgQueryResultHKT>
-  implements OrphanCreditNoteRequests
+export class DrizzleCreditNoteRequests<TQueryResult extends PgQueryResultHKT>
+  implements CreditNoteRequests
 {
   private readonly db: PgDatabase<TQueryResult>;
 
@@ -217,9 +222,9 @@ export class DrizzleOrphanCreditNoteRequests<TQueryResult extends PgQueryResultH
 
   async pointOfSaleOf(creditNoteId: string): Promise<number | null> {
     const [row] = await this.db
-      .select({ pointOfSale: orphanCreditNotes.pointOfSale })
-      .from(orphanCreditNotes)
-      .where(eq(orphanCreditNotes.id, creditNoteId));
+      .select({ pointOfSale: creditNotes.pointOfSale })
+      .from(creditNotes)
+      .where(eq(creditNotes.id, creditNoteId));
     return row?.pointOfSale ?? null;
   }
 }
