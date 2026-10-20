@@ -5,6 +5,9 @@ import ts from "typescript";
 import { isAlias, isMap, isScalar, isSeq, LineCounter, parseDocument } from "yaml";
 
 const WORKSPACE = "\0workspace\0";
+const GITHUB_SCRIPT_ACTION = /^actions\/github-script@/i;
+const GITHUB_SCRIPT_WORKSPACE = "__github_workspace__";
+const WORKSPACE_EXPRESSION = /\$\{\{\s*github\.workspace\s*\}\}/g;
 const WORKSPACE_PREFIXES = [
   /^\$\{\{\s*github\.workspace\s*\}\}/,
   /^\$\{GITHUB_WORKSPACE\}/,
@@ -408,6 +411,7 @@ function packageName(specifier) {
 
 function isLocal(specifier) {
   return (
+    specifier.startsWith(WORKSPACE) ||
     specifier.startsWith("./") ||
     specifier.startsWith("../") ||
     specifier === "." ||
@@ -416,9 +420,43 @@ function isLocal(specifier) {
 }
 
 function literalText(node) {
-  return ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)
-    ? node.text
-    : undefined;
+  if (!ts.isStringLiteral(node) && !ts.isNoSubstitutionTemplateLiteral(node)) return undefined;
+  return node.text.startsWith(GITHUB_SCRIPT_WORKSPACE)
+    ? `${WORKSPACE}${node.text.slice(GITHUB_SCRIPT_WORKSPACE.length)}`
+    : node.text;
+}
+
+function isWorkspaceVariable(node) {
+  return (
+    ts.isPropertyAccessExpression(node) &&
+    node.name.text === "GITHUB_WORKSPACE" &&
+    ts.isPropertyAccessExpression(node.expression) &&
+    node.expression.name.text === "env" &&
+    ts.isIdentifier(node.expression.expression) &&
+    node.expression.expression.text === "process"
+  );
+}
+
+function specifierText(node) {
+  const literal = literalText(node);
+  if (literal !== undefined) return literal;
+  if (
+    ts.isTemplateExpression(node) &&
+    node.head.text === "" &&
+    node.templateSpans.length === 1 &&
+    isWorkspaceVariable(node.templateSpans[0].expression)
+  ) {
+    return `${WORKSPACE}${node.templateSpans[0].literal.text}`;
+  }
+  if (
+    ts.isBinaryExpression(node) &&
+    node.operatorToken.kind === ts.SyntaxKind.PlusToken &&
+    isWorkspaceVariable(node.left)
+  ) {
+    const rest = literalText(node.right);
+    return rest === undefined ? undefined : `${WORKSPACE}${rest}`;
+  }
+  return undefined;
 }
 
 // Only `import type` and `export type` are erased when Node strips a script's types; an import
@@ -426,25 +464,30 @@ function literalText(node) {
 function runtimeSpecifiers(path, source) {
   const sourceFile = ts.createSourceFile(path, source, ts.ScriptTarget.Latest, true);
   const specifiers = [];
+  const add = (node) => {
+    const specifier = specifierText(node);
+    specifiers.push(
+      specifier === undefined ? { unresolved: node.getText(sourceFile) } : { specifier },
+    );
+  };
   const visit = (node) => {
     if (ts.isImportDeclaration(node)) {
-      if (!node.importClause?.isTypeOnly) specifiers.push(literalText(node.moduleSpecifier));
+      if (!node.importClause?.isTypeOnly) add(node.moduleSpecifier);
     } else if (ts.isExportDeclaration(node)) {
-      if (!node.isTypeOnly && node.moduleSpecifier)
-        specifiers.push(literalText(node.moduleSpecifier));
+      if (!node.isTypeOnly && node.moduleSpecifier) add(node.moduleSpecifier);
     } else if (ts.isImportEqualsDeclaration(node)) {
       if (!node.isTypeOnly && ts.isExternalModuleReference(node.moduleReference)) {
-        specifiers.push(literalText(node.moduleReference.expression));
+        add(node.moduleReference.expression);
       }
     } else if (ts.isCallExpression(node) && node.arguments.length > 0) {
       const callsImport = node.expression.kind === ts.SyntaxKind.ImportKeyword;
       const callsRequire = ts.isIdentifier(node.expression) && node.expression.text === "require";
-      if (callsImport || callsRequire) specifiers.push(literalText(node.arguments[0]));
+      if (callsImport || callsRequire) add(node.arguments[0]);
     }
     ts.forEachChild(node, visit);
   };
   visit(sourceFile);
-  return specifiers.filter((specifier) => specifier !== undefined);
+  return specifiers;
 }
 
 function isBuiltinSpecifier(specifier) {
@@ -452,15 +495,22 @@ function isBuiltinSpecifier(specifier) {
 }
 
 // Walks a module's local imports depth first, in source order, and answers the first package it
-// imports while no install has run, or the first local module that does not exist.
+// imports while no install has run, or the first local module that does not exist. Only a module
+// that refuses unresolved paths answers an import whose path is not a literal.
 function firstProblem(repository, module, installed, visited) {
-  for (const specifier of runtimeSpecifiers(module.path, module.source)) {
+  for (const { specifier, unresolved } of runtimeSpecifiers(module.path, module.source)) {
+    if (unresolved !== undefined) {
+      if (module.refusesUnresolved) return { kind: "unresolved-import", text: unresolved };
+      continue;
+    }
     if (isBuiltinSpecifier(specifier)) continue;
     if (!isLocal(specifier)) {
       if (installed) continue;
       return { kind: "package", name: packageName(specifier), via: module.path };
     }
-    const path = insideRepository(posix.dirname(module.path), specifier);
+    const path = specifier.startsWith(WORKSPACE)
+      ? insideRepository(".", `.${specifier.slice(WORKSPACE.length)}`)
+      : insideRepository(posix.dirname(module.path), specifier);
     if (path === undefined || visited.has(path)) continue;
     visited.add(path);
     const source = repository.read(path);
@@ -479,21 +529,17 @@ function scriptProblem(repository, path, installed) {
   return firstProblem(repository, { path, source }, installed, new Set([path]));
 }
 
+function codeProblem(repository, module, installed) {
+  const problem = firstProblem(repository, module, installed, new Set());
+  return problem && { ...problem, via: problem.via === module.path ? undefined : problem.via };
+}
+
 function entryProblems(repository, entry, workingDirectory, installed) {
   if (entry.kind === "code") {
     if (workingDirectory === undefined)
       return [{ label: entry.label, problem: { kind: "unresolved", text: entry.label } }];
     const module = { path: posix.join(workingDirectory, "[eval]"), source: entry.code };
-    const problem = firstProblem(repository, module, installed, new Set());
-    return [
-      {
-        label: entry.label,
-        problem: problem && {
-          ...problem,
-          via: problem.via === module.path ? undefined : problem.via,
-        },
-      },
-    ];
+    return [{ label: entry.label, problem: codeProblem(repository, module, installed) }];
   }
 
   if (entry.kind === "default-tests") {
@@ -549,10 +595,14 @@ function describeProblem(label, problem) {
   switch (problem.kind) {
     case "unresolved":
       return `runs node with a script path that cannot be resolved: ${problem.text}`;
+    case "unresolved-import":
+      return `runs ${label} with an import path that cannot be resolved: ${problem.text}`;
     case "missing-script":
       return `runs ${label}, which does not exist`;
     case "missing-import":
-      return `runs ${label}, whose module ${problem.via} imports ${problem.path}, which does not exist`;
+      return problem.via === undefined
+        ? `runs ${label}, which imports ${problem.path}, which does not exist`
+        : `runs ${label}, whose module ${problem.via} imports ${problem.path}, which does not exist`;
     default: {
       const through =
         problem.via === undefined || problem.via === label ? "" : ` through ${problem.via}`;
@@ -564,10 +614,19 @@ function describeProblem(label, problem) {
   }
 }
 
-function stepLabel(doc, stepNode, run) {
+function stepLabel(doc, stepNode, fallback) {
   const name =
     resolveScalar(doc, stepNode.get("name", true)) ?? resolveScalar(doc, stepNode.get("id", true));
-  return name === undefined ? run.trim().split("\n")[0] : String(name);
+  return name === undefined ? fallback.trim().split("\n")[0] : String(name);
+}
+
+function githubScriptSource(doc, stepNode) {
+  const uses = resolveScalar(doc, stepNode.get("uses", true));
+  if (typeof uses !== "string" || !GITHUB_SCRIPT_ACTION.test(uses)) return undefined;
+  const withNode = resolveNode(doc, stepNode.get("with", true));
+  if (!isMap(withNode)) return undefined;
+  const script = resolveScalar(doc, withNode.get("script", true));
+  return typeof script === "string" ? { uses, script } : undefined;
 }
 
 function checkWorkflow(path, doc, lineCounter, repository) {
@@ -587,6 +646,25 @@ function checkWorkflow(path, doc, lineCounter, repository) {
     for (const stepItem of stepsNode.items) {
       const stepNode = resolveNode(doc, stepItem);
       if (!isMap(stepNode)) continue;
+      const violationOf = (fallback, label, problem) => ({
+        path,
+        line: lineCounter.linePos(stepNode.range[0]).line,
+        message: `step "${stepLabel(doc, stepNode, fallback)}" of job ${jobPair.key.value} ${describeProblem(label, problem)}`,
+      });
+
+      const githubScript = githubScriptSource(doc, stepNode);
+      if (githubScript !== undefined) {
+        const module = {
+          path: "[github-script]",
+          source: githubScript.script.replace(WORKSPACE_EXPRESSION, GITHUB_SCRIPT_WORKSPACE),
+          refusesUnresolved: true,
+        };
+        const problem = codeProblem(repository, module, installed);
+        if (problem)
+          violations.push(violationOf(githubScript.uses, "actions/github-script", problem));
+        continue;
+      }
+
       const run = resolveScalar(doc, stepNode.get("run", true));
       if (typeof run !== "string") continue;
       const workingDirectory = resolveWorkingDirectory(
@@ -606,12 +684,7 @@ function checkWorkflow(path, doc, lineCounter, repository) {
             workingDirectory,
             installed,
           )) {
-            if (problem === undefined) continue;
-            violations.push({
-              path,
-              line: lineCounter.linePos(stepNode.range[0]).line,
-              message: `step "${stepLabel(doc, stepNode, run)}" of job ${jobPair.key.value} ${describeProblem(label, problem)}`,
-            });
+            if (problem !== undefined) violations.push(violationOf(run, label, problem));
           }
         }
       }
