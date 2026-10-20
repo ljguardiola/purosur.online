@@ -4,11 +4,13 @@ import {
   fetchSessionAuthorizationOptions,
 } from "../platform/session-authorization-api";
 import type { AssignPointTerminalModalServices } from "./assign-point-terminal-modal";
+import type { AssignQrPointOfSaleModalServices } from "./assign-qr-point-of-sale-modal";
 import type { ConsultBitlockerRecoveryKeyModalServices } from "./consult-bitlocker-recovery-key-modal";
 import type { LoadBitlockerRecoveryKeyModalServices } from "./load-bitlocker-recovery-key-modal";
 import type { NewRegisterModalServices } from "./new-register-modal";
 import {
   assignPointTerminal,
+  assignQrPointOfSale,
   consultBitlockerRecoveryKey,
   createRegister,
   emitEnrollmentCode,
@@ -30,6 +32,7 @@ export type RegistersListScreenServices = {
   startAuthentication: typeof startAuthentication;
 } & NewRegisterModalServices &
   AssignPointTerminalModalServices &
+  AssignQrPointOfSaleModalServices &
   RevokeRegisterModalServices &
   RevokeEveryInstallationModalServices &
   LoadBitlockerRecoveryKeyModalServices &
@@ -40,6 +43,7 @@ export const defaultRegistersListScreenServices: RegistersListScreenServices = {
   fetchRegisterCoverage,
   createRegister,
   assignPointTerminal,
+  assignQrPointOfSale,
   emitEnrollmentCode,
   revokeRegister,
   revokeEveryInstallation,

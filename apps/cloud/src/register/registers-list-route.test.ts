@@ -9,6 +9,7 @@ import {
   registerInstallationBitlockerKeys,
   registerPointsOfSale,
   registerPointTerminals,
+  registerQrPointsOfSale,
   registers,
   rolePermissions,
   roles,
@@ -184,6 +185,8 @@ describe("GET /registers", () => {
         point_of_sale_number: null,
         point_terminal_id: null,
         point_terminal_version: 0,
+        qr_external_pos_id: null,
+        qr_point_of_sale_version: 0,
         installation: null,
       },
       {
@@ -193,6 +196,8 @@ describe("GET /registers", () => {
         point_of_sale_number: null,
         point_terminal_id: null,
         point_terminal_version: 0,
+        qr_external_pos_id: null,
+        qr_point_of_sale_version: 0,
         installation: null,
       },
     ]);
@@ -248,6 +253,26 @@ describe("GET /registers", () => {
     ]);
   });
 
+  it("lists the QR point of sale a register is assigned and the version of its assignment", async () => {
+    const locationId = await seededLocationId(db);
+    const assignedId = await insertRegister(locationId, "Caja 1");
+    const clearedId = await insertRegister(locationId, "Caja 2");
+    await insertRegister(locationId, "Caja 3");
+    await db.insert(registerQrPointsOfSale).values([
+      { registerId: assignedId, externalPosId: "CAJA1_STORE_POS", version: 2 },
+      { registerId: clearedId, externalPosId: null, version: 3 },
+    ]);
+    const rawSessionId = await insertSession(await insertUserWithPermission(locationId));
+
+    const response = await getRegisters(rawSessionId);
+
+    expect(response.json()).toMatchObject([
+      { name: "Caja 1", qr_external_pos_id: "CAJA1_STORE_POS", qr_point_of_sale_version: 2 },
+      { name: "Caja 2", qr_external_pos_id: null, qr_point_of_sale_version: 3 },
+      { name: "Caja 3", qr_external_pos_id: null, qr_point_of_sale_version: 0 },
+    ]);
+  });
+
   it("lists an unexpired, unredeemed pending code's seconds since issued and until expiry", async () => {
     const locationId = await seededLocationId(db);
     const registerId = await insertRegister(locationId, "Caja 1");
@@ -274,6 +299,8 @@ describe("GET /registers", () => {
         point_of_sale_number: null,
         point_terminal_id: null,
         point_terminal_version: 0,
+        qr_external_pos_id: null,
+        qr_point_of_sale_version: 0,
         installation: null,
       },
     ]);

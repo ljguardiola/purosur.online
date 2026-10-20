@@ -13,7 +13,6 @@ import { z } from "zod";
 
 export interface MercadoPagoOrdersClientOptions {
   accessToken: string;
-  externalPosId: string;
   fetch?: typeof globalThis.fetch;
 }
 
@@ -261,7 +260,7 @@ export function createMercadoPagoOrdersClient(
           total_amount: amount,
           external_reference: request.externalReference,
           expiration_time: `PT${request.expiresAfterMinutes}M`,
-          config: { qr: { external_pos_id: options.externalPosId, mode: "static" } },
+          config: { qr: { external_pos_id: request.externalPosId, mode: "static" } },
           transactions: { payments: [{ amount }] },
         },
         orderAnswerSchema,

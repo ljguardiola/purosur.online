@@ -9,11 +9,13 @@ import { FakeMercadoPagoOrders } from "./fake-mercado-pago-orders.js";
 import { FakePaymentTransactionDirectory } from "./fake-payment-transaction-directory.js";
 import { FakePaymentTransactionLanes } from "./fake-payment-transaction-lanes.js";
 import { FakePointTerminals } from "./fake-point-terminals.js";
+import { FakeQrPointsOfSale } from "./fake-qr-points-of-sale.js";
 import { FixedClock } from "./fake-refund-store.js";
 
 export const NOW = new Date("2026-10-09T12:00:00.000Z");
 export const REGISTER_ID = "register-1";
 export const TERMINAL_ID = "terminal-1";
+export const EXTERNAL_POS_ID = "pos-1";
 export const TRANSACTION_ID = "transaction-1";
 export const SALE_ID = "sale-1";
 export const AMOUNT = 2500;
@@ -99,6 +101,8 @@ export function mercadoPagoOrderWorld(
   });
   const pointTerminals = new FakePointTerminals(lanes.operations);
   pointTerminals.assign(REGISTER_ID, TERMINAL_ID);
+  const qrPointsOfSale = new FakeQrPointsOfSale(lanes.operations);
+  qrPointsOfSale.assign(REGISTER_ID, EXTERNAL_POS_ID);
   const directory = new FakePaymentTransactionDirectory(lanes);
   const cancellationKeys = new FakeMercadoPagoCancellationKeys();
   return {
@@ -107,7 +111,15 @@ export function mercadoPagoOrderWorld(
     directory,
     cancellationKeys,
     pointTerminals,
-    ports: { lanes, mercadoPago, cancellationKeys, pointTerminals, clock: new FixedClock(now) },
+    qrPointsOfSale,
+    ports: {
+      lanes,
+      mercadoPago,
+      cancellationKeys,
+      pointTerminals,
+      qrPointsOfSale,
+      clock: new FixedClock(now),
+    },
     notificationPorts: {
       directory,
       lanes,

@@ -419,7 +419,6 @@ describe("the Cloud Server service's environment", () => {
   describe("Mercado Pago", () => {
     const MERCADO_PAGO_ENV = {
       MERCADOPAGO_ACCESS_TOKEN: "APP_USR-fictional-access-token",
-      MERCADOPAGO_QR_EXTERNAL_POS_ID: "STORE01POS01",
       MERCADOPAGO_WEBHOOK_SECRET: "fictional-webhook-secret",
     };
 
@@ -429,12 +428,8 @@ describe("the Cloud Server service's environment", () => {
       }
     }
 
-    it("carries the access token, the QR code's identifier and the webhook secret when all are set", async () => {
-      stubMercadoPagoEnv([
-        "MERCADOPAGO_ACCESS_TOKEN",
-        "MERCADOPAGO_QR_EXTERNAL_POS_ID",
-        "MERCADOPAGO_WEBHOOK_SECRET",
-      ]);
+    it("carries the access token and the webhook secret when both are set", async () => {
+      stubMercadoPagoEnv(["MERCADOPAGO_ACCESS_TOKEN", "MERCADOPAGO_WEBHOOK_SECRET"]);
 
       const cloud = findService(await compile(), "Cloud Server");
 
@@ -454,10 +449,10 @@ describe("the Cloud Server service's environment", () => {
     });
 
     it("does not compile with only part of them set, naming the missing one", async () => {
-      stubMercadoPagoEnv(["MERCADOPAGO_ACCESS_TOKEN", "MERCADOPAGO_WEBHOOK_SECRET"]);
+      stubMercadoPagoEnv(["MERCADOPAGO_ACCESS_TOKEN"]);
 
       await expect(compile()).rejects.toThrow(
-        "MERCADOPAGO_QR_EXTERNAL_POS_ID must be set when MERCADOPAGO_ACCESS_TOKEN is set",
+        "MERCADOPAGO_WEBHOOK_SECRET must be set when MERCADOPAGO_ACCESS_TOKEN is set",
       );
     });
   });

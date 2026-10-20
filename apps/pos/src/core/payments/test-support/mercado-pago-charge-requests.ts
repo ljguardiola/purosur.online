@@ -102,6 +102,12 @@ export function assignPointTerminalToChargeRegister(database: LocalDatabase): vo
   );
 }
 
+export function assignQrPointOfSaleToChargeRegister(database: LocalDatabase): void {
+  database.exec(
+    "INSERT INTO register_qr_point_of_sale (register_id, assigned, version) VALUES ('register-1', 1, 1)",
+  );
+}
+
 export function seedChargeRegister(database: LocalDatabase): void {
   database.exec(
     `INSERT INTO roles (id, name, is_administrator, version) VALUES ('cashier', 'Cajera', 0, 1);

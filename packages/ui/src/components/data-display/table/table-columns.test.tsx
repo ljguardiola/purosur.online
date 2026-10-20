@@ -105,16 +105,22 @@ describe("actionsColumn", () => {
       header: "Acciones",
       actions: [edit, edit, edit, edit],
     });
+    const five = actionsColumn({
+      id: "actions",
+      header: "Acciones",
+      actions: [edit, edit, edit, edit, edit],
+    });
 
     expect(one.enableSorting).toBe(false);
     expect(one.meta).toEqual({ actionCount: 1 });
     expect(two.meta).toEqual({ actionCount: 2 });
     expect(three.meta).toEqual({ actionCount: 3 });
     expect(four.meta).toEqual({ actionCount: 4 });
+    expect(five.meta).toEqual({ actionCount: 5 });
     expectTypeOf(one).toEqualTypeOf<TableColumn<Product, "actions", false>>();
   });
 
-  it("does not accept zero or five actions, or a column without a title", () => {
+  it("does not accept zero or six actions, or a column without a title", () => {
     type Column = typeof actionsColumn<Product, "actions">;
     type Edit = TableAction<Product>;
 
@@ -128,10 +134,16 @@ describe("actionsColumn", () => {
       Accepts<Column, { id: "actions"; header: string; actions: [Edit, Edit, Edit, Edit] }>
     >().toEqualTypeOf<true>();
     expectTypeOf<
+      Accepts<Column, { id: "actions"; header: string; actions: [Edit, Edit, Edit, Edit, Edit] }>
+    >().toEqualTypeOf<true>();
+    expectTypeOf<
       Accepts<Column, { id: "actions"; header: string; actions: [] }>
     >().toEqualTypeOf<false>();
     expectTypeOf<
-      Accepts<Column, { id: "actions"; header: string; actions: [Edit, Edit, Edit, Edit, Edit] }>
+      Accepts<
+        Column,
+        { id: "actions"; header: string; actions: [Edit, Edit, Edit, Edit, Edit, Edit] }
+      >
     >().toEqualTypeOf<false>();
     expectTypeOf<Accepts<Column, { id: "actions"; actions: [Edit] }>>().toEqualTypeOf<false>();
   });
@@ -139,7 +151,7 @@ describe("actionsColumn", () => {
   it("keeps the column meta to what the table reads", () => {
     expectTypeOf<TableColumnMeta>().toEqualTypeOf<{
       align?: "start" | "end";
-      actionCount?: 1 | 2 | 3 | 4;
+      actionCount?: 1 | 2 | 3 | 4 | 5;
       width?: number;
     }>();
   });

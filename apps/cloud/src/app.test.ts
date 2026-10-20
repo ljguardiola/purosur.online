@@ -2915,6 +2915,11 @@ describe("the route access inventory", () => {
         access: capabilityAccess("cash_area"),
       },
       {
+        method: "PUT",
+        url: "/api/registers/:id/qr-point-of-sale",
+        access: capabilityAccess("cash_area"),
+      },
+      {
         method: "GET",
         url: "/api/snapshot-backups/registers",
         access: capabilityAccess("backups_area"),

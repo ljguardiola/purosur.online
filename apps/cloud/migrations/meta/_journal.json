@@ -817,8 +817,15 @@
     {
       "idx": 116,
       "version": "7",
-      "when": 1792496363905,
-      "tag": "0123_supplier_price_lists",
+      "when": 1792491719491,
+      "tag": "0123_register_qr_points_of_sale",
+      "breakpoints": true
+    },
+    {
+      "idx": 117,
+      "version": "7",
+      "when": 1792504401511,
+      "tag": "0124_supplier_price_lists",
       "breakpoints": true
     }
   ]

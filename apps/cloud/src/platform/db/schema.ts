@@ -87,7 +87,7 @@ export const branchSettings = pgTable("branch_settings", {
   version: integer("version").notNull().default(1),
 });
 
-// Written once, when the first cash session of the branch opens, and never changed.
+// Append-only: written once, when the first cash session of the branch opens, and never changed.
 export const branchFirstCashSessions = pgTable("branch_first_cash_sessions", {
   locationId: uuid("location_id")
     .primaryKey()
@@ -164,7 +164,8 @@ export const issuerIdentificationVersions = pgTable("issuer_identification_versi
   recordedBy: uuid("recorded_by").references(() => users.id),
 });
 
-// `amount` is in cents.
+// `amount` is in cents. Append-only: the threshold in force on a date stays what it was, so a sale
+// is always judged by the threshold of its day; a correction is a new revision, not an edit.
 export const buyerIdentificationThresholds = pgTable(
   "buyer_identification_thresholds",
   {
@@ -184,6 +185,8 @@ export const buyerIdentificationThresholds = pgTable(
   ],
 );
 
+// Append-only: each version of the tax authority's list of buyer tax statuses is kept as it was
+// received; a new version is a new row, never an edit of the one registers already pulled.
 export const buyerTaxStatusSets = pgTable(
   "buyer_tax_status_sets",
   {
@@ -1043,6 +1046,20 @@ export const registerPointTerminals = pgTable(
   (table) => [uniqueIndex("register_point_terminals_terminal_id_key").on(table.terminalId)],
 );
 
+export const registerQrPointsOfSale = pgTable(
+  "register_qr_points_of_sale",
+  {
+    registerId: uuid("register_id")
+      .primaryKey()
+      .references(() => registers.id),
+    externalPosId: text("external_pos_id"),
+    version: integer("version").notNull(),
+  },
+  (table) => [
+    uniqueIndex("register_qr_points_of_sale_external_pos_id_key").on(table.externalPosId),
+  ],
+);
+
 // The offline point of sale operates from its register's real-time point of sale's fiscal address,
 // which is why it carries none and why a register can't have one before the other.
 export const registerOfflinePointsOfSale = pgTable(
@@ -1501,6 +1518,7 @@ export const saleReprints = pgTable(
   ],
 );
 
+// Append-only: what a register sold is a fact of the sale; the cloud never rewrites or removes it.
 export const saleLines = pgTable(
   "sale_lines",
   {
@@ -1552,6 +1570,7 @@ export const saleLines = pgTable(
   ],
 );
 
+// Append-only: how a register was paid is a fact of the sale; the cloud never rewrites or removes it.
 export const salePayments = pgTable(
   "sale_payments",
   {
@@ -1655,6 +1674,8 @@ export const paymentRefunds = pgTable(
   ],
 );
 
+// Append-only: a cash session's balance is the sum of its movements, so a recorded movement is
+// never rewritten or removed.
 export const cashMovements = pgTable("cash_movements", {
   id: uuid("id").primaryKey(),
   sessionId: uuid("session_id")
@@ -1814,7 +1835,8 @@ export const signInLookupAttempts = pgTable(
   ],
 );
 
-// `actor_id` is nullable: a null actor reads as "the service itself acted" (e.g. a sign-in
+// Append-only: a record of who changed what is evidence, so not even the service may rewrite or
+// remove it. `actor_id` is nullable: a null actor reads as "the service itself acted" (e.g. a sign-in
 // lockout, which is keyed by source address and may match no account at all).
 export const auditLog = pgTable("audit_log", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -2274,7 +2296,7 @@ export const offlineAuthorizationCodeAcquisitionReports = pgTable(
   ],
 );
 
-// Permanent: a document issued under a pre-obtained code is never changed or deleted.
+// Append-only: a document issued under a pre-obtained code is never changed or deleted.
 export const offlineFiscalDocuments = pgTable(
   "offline_fiscal_documents",
   {
