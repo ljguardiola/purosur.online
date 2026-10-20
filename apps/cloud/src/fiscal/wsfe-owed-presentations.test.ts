@@ -53,9 +53,18 @@ describe("owedPresentationsOf", () => {
     ["a month of zero", "202600;1;4"],
     ["a period of fewer than six digits", "20269;1;4"],
     ["no point of sale", "202609;1;"],
+    ["a point of sale of zero", "202609;1;0"],
+    ["a point of sale of more than five digits", "202609;1;100000"],
+    ["a point of sale far beyond five digits", "202609;1;99999999999"],
     ["no entry", "sin quincenas"],
   ])("ignores an entry with %s", (_case, entries) => {
     expect(owedPresentationsOf([message(entries)])).toEqual([]);
+  });
+
+  it("reads the highest point of sale the tax authority numbers", () => {
+    expect(owedPresentationsOf([message("202609;1;99999")])).toEqual([
+      { pointOfSaleNumber: 99_999, fortnight: { start: "2026-09-01", end: "2026-09-15" } },
+    ]);
   });
 
   it("keeps the valid entries beside a malformed one", () => {

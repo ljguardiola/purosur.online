@@ -62,16 +62,14 @@ describe("DrizzleOwedElsewherePresentationReader.owedElsewhere", () => {
     ]);
   });
 
-  it("answers the presentations listed for the real-time point of sale, which is not presented offline", async () => {
+  it("leaves out the presentations listed for the real-time point of sale of a register", async () => {
     await seedOfflinePointOfSale(db);
     await listed({ pointOfSaleNumber: 7, fortnight: SEPTEMBER_FIRST_HALF });
 
-    expect(await reader().owedElsewhere()).toEqual([
-      { pointOfSaleNumber: 7, fortnight: SEPTEMBER_FIRST_HALF },
-    ]);
+    expect(await reader().owedElsewhere()).toEqual([]);
   });
 
-  it("answers every presentation listed while no register claims an offline point of sale", async () => {
+  it("answers every presentation listed while no register claims a point of sale", async () => {
     await listed({ pointOfSaleNumber: OFFLINE_POINT_OF_SALE, fortnight: SEPTEMBER_FIRST_HALF });
 
     expect(await reader().owedElsewhere()).toEqual([

@@ -49,6 +49,7 @@ export class FakeOfflineAuthorizationCodeStore implements OfflineAuthorizationCo
   operations: OfflineAuthorizationCodeOperation[] = [];
   offlinePointOfSaleConfigured = true;
   ownedOfflinePointsOfSale: number[] = [];
+  ownedRealTimePointsOfSale: number[] = [];
   failingKeep = false;
   readonly heldFortnights = new Set<string>();
 
@@ -58,6 +59,10 @@ export class FakeOfflineAuthorizationCodeStore implements OfflineAuthorizationCo
 
   async offlinePointsOfSale(): Promise<number[]> {
     return [...this.ownedOfflinePointsOfSale];
+  }
+
+  async ownedPointsOfSale(): Promise<number[]> {
+    return [...this.ownedOfflinePointsOfSale, ...this.ownedRealTimePointsOfSale];
   }
 
   async holdAcquisition<TOutcome>(

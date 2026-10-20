@@ -9,12 +9,13 @@ import {
   fortnightReportDeadline,
   fortnightReportStanding,
   fortnightReportStateOfDocumentTypes,
-  fortnightReportStateWhenListedAsOwed,
+  isFortnightPresentationOwed,
   isFortnightReportOutstanding,
   isFortnightReportRetryDue,
   isOfflineDocumentReported,
   nextOfflineDocumentBatch,
   offlineDocumentPresentations,
+  owedFortnightPresentationState,
   owesFortnightReport,
   remedyForUnreportedDocuments,
 } from "./fortnight-report.js";
@@ -744,9 +745,33 @@ describe("isFortnightReportRetryDue", () => {
   });
 });
 
-describe("fortnightReportStateWhenListedAsOwed", () => {
-  it("forgets an accepted report, which the tax authority's list contradicts", () => {
-    expect(fortnightReportStateWhenListedAsOwed("accepted")).toBeNull();
+describe("isFortnightPresentationOwed", () => {
+  it.each([null, "blocked", "missing_document", "submitting", "refused"] as const)(
+    "is owed while its report is %s, whether the tax authority lists it or not",
+    (state) => {
+      expect(isFortnightPresentationOwed({ state, listed: false })).toBe(true);
+      expect(isFortnightPresentationOwed({ state, listed: true })).toBe(true);
+    },
+  );
+
+  it.each(["accepted", "needs_regularization"] as const)(
+    "is no longer owed once %s, while the tax authority does not list it",
+    (state) => {
+      expect(isFortnightPresentationOwed({ state, listed: false })).toBe(false);
+    },
+  );
+
+  it.each(["accepted", "needs_regularization"] as const)(
+    "is owed again although %s, once the tax authority lists it",
+    (state) => {
+      expect(isFortnightPresentationOwed({ state, listed: true })).toBe(true);
+    },
+  );
+});
+
+describe("owedFortnightPresentationState", () => {
+  it("forgets an accepted report the tax authority's list contradicts", () => {
+    expect(owedFortnightPresentationState({ state: "accepted", listed: true })).toBeNull();
   });
 
   it.each([
@@ -756,7 +781,19 @@ describe("fortnightReportStateWhenListedAsOwed", () => {
     "submitting",
     "refused",
     "needs_regularization",
-  ] as const)("keeps a report that is %s", (state) => {
-    expect(fortnightReportStateWhenListedAsOwed(state)).toBe(state);
+  ] as const)("keeps a listed report that is %s", (state) => {
+    expect(owedFortnightPresentationState({ state, listed: true })).toBe(state);
+  });
+
+  it.each([
+    null,
+    "blocked",
+    "missing_document",
+    "submitting",
+    "refused",
+    "accepted",
+    "needs_regularization",
+  ] as const)("keeps a report the tax authority does not list that is %s", (state) => {
+    expect(owedFortnightPresentationState({ state, listed: false })).toBe(state);
   });
 });

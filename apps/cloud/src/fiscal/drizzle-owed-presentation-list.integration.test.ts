@@ -119,4 +119,27 @@ describe("the owed presentation list on a real Postgres", () => {
 
     expect(await list().listed()).toEqual([]);
   });
+
+  it("forgets the presentations owed elsewhere, keeping those of the points of sale owned as they were listed", async () => {
+    await list().replace([SEPTEMBER_FIRST_HALF_AT_4, AUGUST_SECOND_HALF_AT_9], AT);
+
+    await list().clearOwedElsewhere([4, 5]);
+
+    expect(
+      await db
+        .select({
+          pointOfSaleNumber: taxAuthorityOwedPresentations.pointOfSaleNumber,
+          listedAt: taxAuthorityOwedPresentations.listedAt,
+        })
+        .from(taxAuthorityOwedPresentations),
+    ).toEqual([{ pointOfSaleNumber: 4, listedAt: AT }]);
+  });
+
+  it("forgets every presentation while no point of sale is owned", async () => {
+    await list().replace([SEPTEMBER_FIRST_HALF_AT_4, AUGUST_SECOND_HALF_AT_9], AT);
+
+    await list().clearOwedElsewhere([]);
+
+    expect(await list().listed()).toEqual([]);
+  });
 });

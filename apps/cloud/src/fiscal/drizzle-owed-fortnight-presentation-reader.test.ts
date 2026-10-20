@@ -77,6 +77,7 @@ describe("DrizzleOwedFortnightPresentationReader.owedPresentations", () => {
         fortnight: OCTOBER_FIRST_HALF,
         taxAuthorityDeadline: "2026-10-20",
         state: null,
+        listed: false,
       },
     ]);
   });
@@ -135,6 +136,7 @@ describe("DrizzleOwedFortnightPresentationReader.owedPresentations for the prese
         fortnight: OCTOBER_FIRST_HALF,
         taxAuthorityDeadline: "2026-10-20",
         state: null,
+        listed: true,
       },
     ]);
   });

@@ -4,6 +4,7 @@ import { obtainOfflineAuthorizationCodes } from "./obtain-offline-authorization-
 import type {
   OfflineAuthorizationCode,
   OfflineAuthorizationCodeLookupAnswer,
+  OfflineAuthorizationCodeRequestAnswer,
 } from "./offline-authorization-code-ports.js";
 import { ManualClock } from "./test-support/fake-arca-vitality.js";
 import {
@@ -49,6 +50,10 @@ function setUp({ now = ON_OCTOBER_10, token = TOKEN as typeof TOKEN | null } = {
 }
 
 const OWED = [{ pointOfSaleNumber: 4, fortnight: { start: "2026-09-16", end: "2026-09-30" } }];
+const SEPTEMBER_FIRST_HALF: Fortnight = { start: "2026-09-01", end: "2026-09-15" };
+const OWNED_OFFLINE = { pointOfSaleNumber: 4, fortnight: SEPTEMBER_FIRST_HALF };
+const OWNED_REAL_TIME = { pointOfSaleNumber: 5, fortnight: SEPTEMBER_FIRST_HALF };
+const OWED_ELSEWHERE = { pointOfSaleNumber: 99, fortnight: SEPTEMBER_FIRST_HALF };
 
 describe("obtainOfflineAuthorizationCodes", () => {
   describe("the tax authority's list of owed presentations", () => {
@@ -99,6 +104,72 @@ describe("obtainOfflineAuthorizationCodes", () => {
 
       expect(owedPresentations.replacements).toEqual([]);
     });
+
+    it("forgets the presentations owed elsewhere once the tax authority grants a code without listing any", async () => {
+      const { store, owedPresentations, obtain } = setUp();
+      store.ownedOfflinePointsOfSale = [4];
+      store.ownedRealTimePointsOfSale = [5];
+      owedPresentations.entries = [OWNED_OFFLINE, OWNED_REAL_TIME, OWED_ELSEWHERE];
+
+      await obtain();
+
+      expect(owedPresentations.entries).toEqual([OWNED_OFFLINE, OWNED_REAL_TIME]);
+    });
+
+    it.each<[string, OfflineAuthorizationCodeRequestAnswer]>([
+      ["refuses the request", { kind: "refused", rejections: [{ code: 600, message: "x" }] }],
+      ["does not answer the request", { kind: "no_answer" }],
+      ["says the code was already granted", { kind: "already_granted" }],
+    ])(
+      "keeps the presentations owed elsewhere when the tax authority %s",
+      async (_name, answer) => {
+        const { taxAuthority, owedPresentations, obtain } = setUp();
+        owedPresentations.entries = [OWED_ELSEWHERE];
+        taxAuthority.requestAnswer = () => answer;
+        taxAuthority.lookUpAnswer = (fortnight) => ({ kind: "granted", code: codeFor(fortnight) });
+
+        await obtain();
+
+        expect(owedPresentations.entries).toEqual([OWED_ELSEWHERE]);
+      },
+    );
+
+    it("keeps the list a granted code answers with, rather than forgetting what it names elsewhere", async () => {
+      const { taxAuthority, owedPresentations, obtain } = setUp();
+      taxAuthority.requestAnswer = (fortnight) => ({
+        kind: "granted",
+        code: codeFor(fortnight),
+        owedPresentations: [OWED_ELSEWHERE],
+      });
+
+      await obtain();
+
+      expect(owedPresentations.entries).toEqual([OWED_ELSEWHERE]);
+    });
+
+    it.each<[string, () => OfflineAuthorizationCodeRequestAnswer]>([
+      [
+        "a granted code",
+        () => ({ kind: "granted", code: codeFor(FIRST_OCTOBER_HALF), owedPresentations: OWED }),
+      ],
+      ["an already granted code", () => ({ kind: "already_granted", owedPresentations: OWED })],
+    ])(
+      "keeps %s although the list its answer carries cannot be recorded",
+      async (_name, answer) => {
+        const { store, taxAuthority, owedPresentations, obtain } = setUp();
+        taxAuthority.requestAnswer = answer;
+        taxAuthority.lookUpAnswer = (fortnight) => ({
+          kind: "granted",
+          code: codeFor(fortnight),
+          owedPresentations: OWED,
+        });
+        owedPresentations.failingReplace = true;
+
+        await expect(obtain()).rejects.toThrow("replace failed");
+
+        expect(store.kept.map(({ code }) => code)).toEqual([codeFor(FIRST_OCTOBER_HALF)]);
+      },
+    );
   });
 
   it("requests nothing while no offline point of sale is configured", async () => {

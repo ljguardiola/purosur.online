@@ -155,7 +155,7 @@ describe("reportFortnights, with the tax authority's list of owed presentations"
       expect(presentationOutcomes(result).map(({ outcome }) => outcome)).toEqual([
         { kind: "accepted" },
       ]);
-      expect(owedPresentations.resolutions).toEqual([{ key: LISTED, at: ON_OCTOBER_3 }]);
+      expect(owedPresentations.resolutions).toEqual([LISTED]);
     });
 
     it("is not presented again when the list does not name it", async () => {
@@ -180,7 +180,7 @@ describe("reportFortnights, with the tax authority's list of owed presentations"
       ]);
       expect(setup.declarations.declarations).toEqual([]);
       expect(setup.documentReports.reports).toEqual([]);
-      expect(setup.owedPresentations.resolutions).toEqual([{ key: LISTED, at: ON_OCTOBER_3 }]);
+      expect(setup.owedPresentations.resolutions).toEqual([LISTED]);
     });
 
     it("sends nothing and is resolved when the tax authority already holds every document", async () => {
@@ -193,7 +193,7 @@ describe("reportFortnights, with the tax authority's list of owed presentations"
 
       expect(setup.documentReports.reports).toEqual([]);
       expect(setup.declarations.declarations).toEqual([]);
-      expect(setup.owedPresentations.resolutions).toEqual([{ key: LISTED, at: ON_OCTOBER_3 }]);
+      expect(setup.owedPresentations.resolutions).toEqual([LISTED]);
     });
 
     it("is presented once, although it is both owed and accepted with unreported documents", async () => {
@@ -206,11 +206,15 @@ describe("reportFortnights, with the tax authority's list of owed presentations"
         ...documentsNumbered(1, 2, 3, 4, 5),
       );
       setup.documentReports.hold(POINT_OF_SALE, "factura_c", 3);
+      setup.documentReports.reportAnswer = () => {
+        setup.documents.add(POINT_OF_SALE, SEPTEMBER_SECOND_HALF, ...documentsNumbered(6));
+        return { kind: "accepted" };
+      };
 
       const result = await setup.run();
 
       expect(presentationOutcomes(result)).toHaveLength(1);
-      expect(setup.declarations.lookUps).toHaveLength(1);
+      expect(reportedNumbers(setup.documentReports.reports)).toEqual([[4, 5]]);
     });
 
     it("looks the documents up once when the tax authority does not answer their report, although it is both owed and accepted with unreported documents", async () => {
@@ -332,6 +336,42 @@ describe("reportFortnights, with the tax authority's list of owed presentations"
       expect(presentationOutcomes(result)).toHaveLength(1);
     });
 
+    it("keeps the recovered code although the list its lookup answers with cannot be recorded", async () => {
+      const setup = freshDatabase();
+      setup.codeAuthority.lookUpAnswer = (fortnight) =>
+        fortnight.start === SEPTEMBER_FIRST_HALF.start
+          ? {
+              kind: "granted",
+              code: codeFor(SEPTEMBER_FIRST_HALF),
+              owedPresentations: [LISTED_FIRST_HALF],
+            }
+          : { kind: "no_answer" };
+      setup.owedPresentations.failingReplace = true;
+
+      await expect(setup.run()).rejects.toThrow("replace failed");
+
+      expect(setup.codeStore.kept.map(({ code }) => code)).toEqual([codeFor(SEPTEMBER_FIRST_HALF)]);
+    });
+
+    it.each([
+      ["no installation of the register at all", []],
+      [
+        "the register's only installation enrolled after the fortnight closed",
+        [reachingInstallation({ enrolledAt: new Date("2026-10-02T12:00:00.000Z") })],
+      ],
+    ])("stays owed, declaring nothing, with %s", async (_name, installations) => {
+      const setup = freshDatabase();
+      setup.streams.installations.set(REGISTER_ID, installations);
+
+      const result = await setup.run();
+
+      expect(presentationOutcomes(result).map(({ outcome }) => outcome)).toEqual([
+        { kind: "blocked" },
+      ]);
+      expect(setup.declarations.declarations).toEqual([]);
+      expect(setup.owedPresentations.entries).toEqual([LISTED_FIRST_HALF]);
+    });
+
     it("recovers the code under the fortnight's acquisition hold", async () => {
       const { codeAuthority, run } = freshDatabase();
 
@@ -383,9 +423,7 @@ describe("reportFortnights, with the tax authority's list of owed presentations"
       await setup.run();
 
       expect(setup.declarations.declarations).toHaveLength(1);
-      expect(setup.owedPresentations.resolutions).toEqual([
-        { key: LISTED_FIRST_HALF, at: ON_OCTOBER_3 },
-      ]);
+      expect(setup.owedPresentations.resolutions).toEqual([LISTED_FIRST_HALF]);
     });
   });
 
@@ -402,7 +440,7 @@ describe("reportFortnights, with the tax authority's list of owed presentations"
       await setup.run();
 
       expect(reportedNumbers(setup.documentReports.reports)).toEqual([[1, 2, 3]]);
-      expect(setup.owedPresentations.resolutions).toEqual([{ key: LISTED, at: ON_OCTOBER_3 }]);
+      expect(setup.owedPresentations.resolutions).toEqual([LISTED]);
     });
 
     it("stays owed when the register's stream is unproven", async () => {
