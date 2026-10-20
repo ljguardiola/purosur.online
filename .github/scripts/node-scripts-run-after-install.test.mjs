@@ -524,6 +524,123 @@ test("reports a workflow that does not parse as YAML instead of passing it silen
   assert.match(violations[0].message, /does not parse as YAML/);
 });
 
+function githubScript(name, ...scriptLines) {
+  return [
+    `      - name: ${name}`,
+    "        uses: actions/github-script@SHA1",
+    "        with:",
+    "          script: |",
+    ...scriptLines.map((line) => `            ${line}`),
+  ];
+}
+
+const libImportsYaml = {
+  "s/lib.mjs": 'import "./helper.mjs";\n',
+  "s/helper.mjs": 'import { parse } from "yaml";\n',
+};
+
+test("refuses a github-script step whose imported module reaches a package with no install", () => {
+  const steps = githubScript(
+    "Validate",
+    "const { run } = await import(",
+    `  \`\${process.env.GITHUB_WORKSPACE}/s/lib.mjs\``,
+    ");",
+  );
+
+  assert.deepEqual(check(job(steps), libImportsYaml), [
+    {
+      path: WORKFLOW,
+      line: 4,
+      message:
+        'step "Validate" of job build runs actions/github-script, which imports package yaml ' +
+        "through s/helper.mjs with no dependency installation in an earlier step of the job",
+    },
+  ]);
+});
+
+test("accepts a github-script step whose imported module reaches a package after an install", () => {
+  const steps = githubScript(
+    "Validate",
+    `await import(\`\${process.env.GITHUB_WORKSPACE}/s/lib.mjs\`);`,
+  );
+
+  assert.deepEqual(check(job(install, steps), libImportsYaml), []);
+});
+
+test("resolves a github-script path built from the workspace expression, or relative to it", () => {
+  for (const line of [
+    `await import("\${{ github.workspace }}/s/lib.mjs");`,
+    `await import(\`\${{ github.workspace }}/s/lib.mjs\`);`,
+    'require("./s/lib.mjs");',
+    'require(process.env.GITHUB_WORKSPACE + "/s/lib.mjs");',
+  ]) {
+    const violations = check(job(githubScript("Validate", line)), libImportsYaml);
+
+    assert.equal(violations.length, 1, line);
+    assert.match(violations[0].message, /package yaml through s\/helper\.mjs/, line);
+  }
+});
+
+test("names a package a github-script step requires directly, and accepts its built-ins", () => {
+  const [violation] = check(
+    job(githubScript("Read", 'const fs = require("node:fs");', 'const yaml = require("yaml");')),
+  );
+
+  assert.equal(
+    violation.message,
+    'step "Read" of job build runs actions/github-script, which imports package yaml ' +
+      "with no dependency installation in an earlier step of the job",
+  );
+});
+
+test("refuses a github-script import path that cannot be resolved", () => {
+  for (const [line, text] of [
+    ["await import(modulePath);", "modulePath"],
+    [`await import(\`\${process.env.SCRIPTS}/lib.mjs\`);`, `\`\${process.env.SCRIPTS}/lib.mjs\``],
+  ]) {
+    assert.deepEqual(
+      check(job(githubScript("Validate", line))).map((violation) => violation.message),
+      [
+        'step "Validate" of job build runs actions/github-script with an import path ' +
+          `that cannot be resolved: ${text}`,
+      ],
+      line,
+    );
+  }
+});
+
+test("refuses a github-script step importing a module that does not exist", () => {
+  const steps = githubScript(
+    "Validate",
+    `await import(\`\${process.env.GITHUB_WORKSPACE}/s/gone.mjs\`);`,
+  );
+
+  assert.match(
+    check(job(steps))[0].message,
+    /runs actions\/github-script, which imports s\/gone\.mjs, which does not exist/,
+  );
+});
+
+test("labels an unnamed github-script step by the action it uses", () => {
+  const steps = [
+    "      - uses: actions/github-script@SHA1",
+    "        with:",
+    '          script: require("yaml");',
+  ];
+
+  assert.match(check(job(steps))[0].message, /^step "actions\/github-script@SHA1" of job build/);
+});
+
+test("ignores steps that use another action", () => {
+  const steps = [
+    "      - uses: actions/other@SHA1",
+    "        with:",
+    '          script: require("yaml");',
+  ];
+
+  assert.deepEqual(check(job(steps)), []);
+});
+
 test("describes a violation with its file, line and message", () => {
   assert.equal(describeViolation({ path: "a.yml", line: 4, message: "m" }), "a.yml:4: m");
 });
