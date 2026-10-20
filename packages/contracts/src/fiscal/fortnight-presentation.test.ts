@@ -1,7 +1,7 @@
 import type {
   FortnightPresentationRefusal,
+  FortnightPresentationState,
   FortnightReportMovement,
-  FortnightReportState,
 } from "@purosur/domain";
 import { describe, expect, expectTypeOf, it } from "vitest";
 import {
@@ -38,6 +38,7 @@ describe("fortnightPresentationListSchema", () => {
     "refused",
     "accepted",
     "needs_regularization",
+    "listed_as_owed",
   ] as const)("reads the %s state", (state) => {
     expect(fortnightPresentationListSchema.parse([{ ...presentation, state }])).toEqual([
       { ...presentation, state },
@@ -117,7 +118,9 @@ describe("fortnightPresentationListSchema", () => {
   });
 
   it("carries exactly the states, movements and refusals the domain defines", () => {
-    expectTypeOf<FortnightPresentationBody["state"]>().toEqualTypeOf<FortnightReportState | null>();
+    expectTypeOf<
+      FortnightPresentationBody["state"]
+    >().toEqualTypeOf<FortnightPresentationState | null>();
     expectTypeOf<
       FortnightPresentationBody["movement"]
     >().toEqualTypeOf<FortnightReportMovement | null>();

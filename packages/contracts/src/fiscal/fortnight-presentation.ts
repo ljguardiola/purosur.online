@@ -1,19 +1,20 @@
 import {
   FACTURA_C_DOCUMENT_TYPE,
   type FortnightPresentationRefusal,
+  type FortnightPresentationState,
   type FortnightReportMovement,
-  type FortnightReportState,
 } from "@purosur/domain";
 import { z } from "zod";
 import { pointOfSaleNumberSchema } from "../shared/index.js";
 
-const fortnightReportStateSchema: z.ZodType<FortnightReportState> = z.enum([
+const fortnightPresentationStateSchema: z.ZodType<FortnightPresentationState> = z.enum([
   "blocked",
   "missing_document",
   "submitting",
   "refused",
   "accepted",
   "needs_regularization",
+  "listed_as_owed",
 ]);
 
 const fortnightReportMovementSchema: z.ZodType<FortnightReportMovement> = z.enum([
@@ -39,7 +40,7 @@ export const fortnightPresentationSchema = z.object({
     .nullable(),
   movement: fortnightReportMovementSchema.nullable(),
   refusal: fortnightPresentationRefusalSchema.nullable(),
-  state: fortnightReportStateSchema.nullable(),
+  state: fortnightPresentationStateSchema.nullable(),
 });
 
 export const fortnightPresentationListSchema = z.array(fortnightPresentationSchema);

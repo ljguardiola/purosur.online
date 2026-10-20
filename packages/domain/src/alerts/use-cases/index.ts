@@ -50,6 +50,7 @@ export { detectExpiringLots } from "./detect-expiring-lots.js";
 export { detectFortnightReportDeadlines } from "./detect-fortnight-report-deadlines.js";
 export { detectFortnightReportRegularizations } from "./detect-fortnight-report-regularizations.js";
 export { detectMissingOfflineAuthorizationCodes } from "./detect-missing-offline-authorization-codes.js";
+export { detectOwedElsewherePresentations } from "./detect-owed-elsewhere-presentations.js";
 export type { OverdueRegisterBackupDetectionPorts } from "./detect-overdue-register-backups.js";
 export { detectOverdueRegisterBackups } from "./detect-overdue-register-backups.js";
 export type { QuietRegisterDetectionPorts } from "./detect-quiet-registers.js";
@@ -91,6 +92,11 @@ export type {
   OpenOverdueUnclearOutcomeAlertsPorts,
 } from "./open-overdue-unclear-outcome-alerts.js";
 export { openOverdueUnclearOutcomeAlerts } from "./open-overdue-unclear-outcome-alerts.js";
+export type {
+  OwedElsewhereAlerts,
+  OwedElsewhereDetectionPorts,
+  OwedElsewherePresentationReader,
+} from "./owed-elsewhere-presentation-ports.js";
 export type { RegisterBackupStandingReader } from "./register-backup-standing-reader.js";
 export type { ResolveAlertOutcome } from "./resolve-alert.js";
 export { resolveAlert } from "./resolve-alert.js";

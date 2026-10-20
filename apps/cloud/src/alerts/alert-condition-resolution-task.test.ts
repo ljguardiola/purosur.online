@@ -52,6 +52,7 @@ describe("alertConditionResolutionJobs", () => {
         detectExpiringLots: vi.fn().mockResolvedValue(0),
         detectFortnightReportDeadlines: vi.fn().mockResolvedValue(0),
         detectFortnightReportRegularizations: vi.fn().mockResolvedValue(0),
+        detectOwedElsewherePresentations: vi.fn().mockResolvedValue(0),
         detectOverdueRegisterBackups: vi.fn().mockResolvedValue(0),
       },
     );
@@ -95,6 +96,7 @@ describe("alertConditionResolutionJobs", () => {
         detectExpiringLots: vi.fn().mockResolvedValue(0),
         detectFortnightReportDeadlines: vi.fn().mockResolvedValue(0),
         detectFortnightReportRegularizations: vi.fn().mockResolvedValue(0),
+        detectOwedElsewherePresentations: vi.fn().mockResolvedValue(0),
         detectOverdueRegisterBackups: vi.fn().mockResolvedValue(0),
       },
     );
@@ -136,6 +138,7 @@ describe("alertConditionResolutionJobs", () => {
         detectExpiringLots: vi.fn().mockResolvedValue(0),
         detectFortnightReportDeadlines: vi.fn().mockResolvedValue(0),
         detectFortnightReportRegularizations: vi.fn().mockResolvedValue(0),
+        detectOwedElsewherePresentations: vi.fn().mockResolvedValue(0),
         detectOverdueRegisterBackups: vi.fn().mockResolvedValue(0),
       },
     );
@@ -180,6 +183,7 @@ describe("alertConditionResolutionJobs", () => {
         detectExpiringLots: vi.fn().mockResolvedValue(0),
         detectFortnightReportDeadlines: vi.fn().mockResolvedValue(0),
         detectFortnightReportRegularizations: vi.fn().mockResolvedValue(0),
+        detectOwedElsewherePresentations: vi.fn().mockResolvedValue(0),
         detectOverdueRegisterBackups: vi.fn().mockResolvedValue(0),
       },
     );
@@ -224,6 +228,7 @@ describe("alertConditionResolutionJobs", () => {
         detectExpiringLots: vi.fn().mockResolvedValue(0),
         detectFortnightReportDeadlines: vi.fn().mockResolvedValue(0),
         detectFortnightReportRegularizations: vi.fn().mockResolvedValue(0),
+        detectOwedElsewherePresentations: vi.fn().mockResolvedValue(0),
         detectOverdueRegisterBackups: vi.fn().mockResolvedValue(0),
       },
     );
@@ -268,6 +273,7 @@ describe("alertConditionResolutionJobs", () => {
         detectExpiringLots,
         detectFortnightReportDeadlines: vi.fn().mockResolvedValue(0),
         detectFortnightReportRegularizations: vi.fn().mockResolvedValue(0),
+        detectOwedElsewherePresentations: vi.fn().mockResolvedValue(0),
         detectOverdueRegisterBackups: vi.fn().mockResolvedValue(0),
       },
     );
@@ -312,6 +318,7 @@ describe("alertConditionResolutionJobs", () => {
         detectExpiringLots,
         detectFortnightReportDeadlines,
         detectFortnightReportRegularizations: vi.fn().mockResolvedValue(0),
+        detectOwedElsewherePresentations: vi.fn().mockResolvedValue(0),
         detectOverdueRegisterBackups: vi.fn().mockResolvedValue(0),
       },
     );
@@ -356,6 +363,7 @@ describe("alertConditionResolutionJobs", () => {
         detectExpiringLots: vi.fn().mockResolvedValue(0),
         detectFortnightReportDeadlines,
         detectFortnightReportRegularizations,
+        detectOwedElsewherePresentations: vi.fn().mockResolvedValue(0),
         detectOverdueRegisterBackups: vi.fn().mockResolvedValue(0),
       },
     );
@@ -371,6 +379,51 @@ describe("alertConditionResolutionJobs", () => {
       "detectFortnightReportRegularizations",
     ]);
     expect(detectFortnightReportRegularizations.mock.calls[0]?.[0]).toBe(fakeDb);
+  });
+
+  it("looks for the presentations the tax authority lists as owed elsewhere right after looking for the reports near or past their deadline, on the same database and by the same clock", async () => {
+    const fakeClient: PoolClient = Object.create(null);
+    const fakeDb = { marker: "fake-db" };
+    const calls: string[] = [];
+    const detectFortnightReportDeadlines = vi.fn().mockImplementation(async () => {
+      calls.push("detectFortnightReportDeadlines");
+      return 0;
+    });
+    const detectOwedElsewherePresentations = vi.fn().mockImplementation(async () => {
+      calls.push("detectOwedElsewherePresentations");
+      return 0;
+    });
+
+    const jobs = alertConditionResolutionJobs(
+      { now: () => new Date("2026-01-05T12:00:00.000Z") },
+      {
+        createDatabase: vi.fn().mockReturnValue(fakeDb),
+        resolve: vi.fn().mockResolvedValue(0),
+        detectQuiet: vi.fn().mockResolvedValue(0),
+        detectMissingCodes: vi.fn().mockResolvedValue(0),
+        openRefundTaskAlerts: vi.fn().mockResolvedValue(0),
+        openUnclearOutcomeAlerts: vi.fn().mockResolvedValue(0),
+        detectExpiringLots: vi.fn().mockResolvedValue(0),
+        detectFortnightReportDeadlines,
+        detectOwedElsewherePresentations,
+        detectFortnightReportRegularizations: vi.fn().mockResolvedValue(0),
+        detectOverdueRegisterBackups: vi.fn().mockResolvedValue(0),
+      },
+    );
+    const task = jobs.taskList[ALERT_CONDITION_RESOLUTION_TASK_IDENTIFIER];
+    if (!task) {
+      throw new Error("test setup: expected the registered alert condition resolution task");
+    }
+
+    await task({}, jobHelpers(fakeClient, vi.fn()));
+
+    expect(calls).toEqual(["detectFortnightReportDeadlines", "detectOwedElsewherePresentations"]);
+    const [dbArgument, depsArgument] = detectOwedElsewherePresentations.mock.calls[0] as [
+      unknown,
+      { now: () => Date },
+    ];
+    expect(dbArgument).toBe(fakeDb);
+    expect(depsArgument.now()).toEqual(new Date("2026-01-05T12:00:00.000Z"));
   });
 
   it("looks for registers overdue for a verified backup right after the fortnight presentations that need regularization, on the same database and by the same clock", async () => {
@@ -398,6 +451,7 @@ describe("alertConditionResolutionJobs", () => {
         detectExpiringLots: vi.fn().mockResolvedValue(0),
         detectFortnightReportDeadlines: vi.fn().mockResolvedValue(0),
         detectFortnightReportRegularizations,
+        detectOwedElsewherePresentations: vi.fn().mockResolvedValue(0),
         detectOverdueRegisterBackups,
       },
     );

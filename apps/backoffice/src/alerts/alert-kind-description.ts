@@ -32,6 +32,8 @@ const ALERT_KIND_DESCRIPTIONS = {
   external_billing: "Un comprobante se emitió fuera del sistema",
   fortnight_report_needs_regularization:
     "Llegaron comprobantes de una quincena ya informada a ARCA sin movimiento",
+  fortnight_report_owed_elsewhere:
+    "ARCA informa adeudada la presentación de una quincena de un punto de venta que este sistema no maneja",
   clock_corrected:
     "Alguien confirmó desde la caja que su hora era correcta y bajó la marca de la guarda de reloj. Los comprobantes emitidos entre la lectura anterior y la nueva llevan fechas imposibles y van a regularización manual.",
   register_backup_overdue:

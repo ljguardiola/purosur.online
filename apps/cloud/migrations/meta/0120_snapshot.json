@@ -1,5 +1,5 @@
 {
-  "id": "d8afa9dd-9133-45e8-88e9-70fd97938be9",
+  "id": "71ad7798-4dec-4d07-b60d-ba113054de17",
   "prevId": "55db4f9e-bb59-4f8b-8c18-8b639745475c",
   "version": "7",
   "dialect": "postgresql",
@@ -7571,13 +7571,6 @@
           "primaryKey": false,
           "notNull": true
         },
-        "last_device_seq": {
-          "name": "last_device_seq",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
         "status": {
           "name": "status",
           "type": "snapshot_generation_status",
@@ -9600,6 +9593,42 @@
           "value": "\"tax_authority_last_authorized_numbers\".\"last_authorized\" >= 0"
         }
       },
+      "isRLSEnabled": false
+    },
+    "public.tax_authority_owed_presentations": {
+      "name": "tax_authority_owed_presentations",
+      "schema": "",
+      "columns": {
+        "point_of_sale_number": {
+          "name": "point_of_sale_number",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fortnight_start": {
+          "name": "fortnight_start",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "listed_at": {
+          "name": "listed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "tax_authority_owed_presentations_pkey": {
+          "name": "tax_authority_owed_presentations_pkey",
+          "columns": ["point_of_sale_number", "fortnight_start"]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "public.user_pin_codes": {

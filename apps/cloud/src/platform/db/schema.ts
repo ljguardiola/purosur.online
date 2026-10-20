@@ -2723,3 +2723,18 @@ export const compromiseResponseCompletions = pgTable(
     ),
   ],
 );
+
+export const taxAuthorityOwedPresentations = pgTable(
+  "tax_authority_owed_presentations",
+  {
+    pointOfSaleNumber: integer("point_of_sale_number").notNull(),
+    fortnightStart: date("fortnight_start", { mode: "string" }).notNull(),
+    listedAt: timestamp("listed_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    primaryKey({
+      name: "tax_authority_owed_presentations_pkey",
+      columns: [table.pointOfSaleNumber, table.fortnightStart],
+    }),
+  ],
+);

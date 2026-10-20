@@ -193,6 +193,36 @@ describe("WsfeTaxAuthorityOfflineDocumentReports.report", () => {
     expect(await reportsAt(server.endpoint).report(reportCall)).toEqual({ kind: "accepted" });
   });
 
+  it("lists the presentations ARCA says the business owes from every document's observations, once each", async () => {
+    server.behave(answers("fe-caea-reg-informativo-owed-presentations.xml"));
+
+    expect(await reportsAt(server.endpoint).report(reportCall)).toEqual({
+      kind: "accepted",
+      owedPresentations: [
+        { pointOfSaleNumber: 4, fortnight: { start: "2026-09-01", end: "2026-09-15" } },
+        { pointOfSaleNumber: 9, fortnight: { start: "2026-08-16", end: "2026-08-31" } },
+        { pointOfSaleNumber: 4, fortnight: { start: "2026-07-01", end: "2026-07-15" } },
+      ],
+    });
+  });
+
+  it("answers an empty list of owed presentations when observation 15014 names none it can read", async () => {
+    server.behave(answers("fe-caea-reg-informativo-accepted-with-observation.xml"));
+
+    expect(await reportsAt(server.endpoint).report(reportCall)).toStrictEqual({
+      kind: "accepted",
+      owedPresentations: [],
+    });
+  });
+
+  it("lists no owed presentations when no observation 15014 comes", async () => {
+    server.behave(answers("fe-caea-reg-informativo-accepted.xml"));
+
+    expect(await reportsAt(server.endpoint).report(reportCall)).toStrictEqual({
+      kind: "accepted",
+    });
+  });
+
   it("reports the documents of the point of sale under the code, authenticated with the token and the certificate's CUIT", async () => {
     server.behave(answers("fe-caea-reg-informativo-accepted.xml"));
 

@@ -4,6 +4,7 @@ import {
   detectFortnightReportDeadlines,
   detectFortnightReportRegularizations,
   detectMissingOfflineAuthorizationCodes,
+  detectOwedElsewherePresentations,
   detectOverdueRegisterBackups,
   detectQuietRegisters,
   openOverdueUnclearOutcomeAlerts,
@@ -18,6 +19,7 @@ import { DrizzleBranchExpiryWindowReader } from "../branch/drizzle-branch-expiry
 import { DrizzleBranchHoursReader } from "../branch/drizzle-branch-hours-reader.js";
 import { DrizzleFortnightRegularizationReader } from "../fiscal/drizzle-fortnight-regularization-reader.js";
 import { DrizzleOfflineAuthorizationCodeHoldingReader } from "../fiscal/drizzle-offline-authorization-code-holding-reader.js";
+import { DrizzleOwedElsewherePresentationReader } from "../fiscal/drizzle-owed-elsewhere-presentation-reader.js";
 import { DrizzleOwedFortnightPresentationReader } from "../fiscal/drizzle-owed-fortnight-presentation-reader.js";
 import { DrizzleRefundTaskAlertStore } from "../payments/drizzle-refund-task-alert-store.js";
 import {
@@ -33,6 +35,7 @@ import { DrizzleExpiringLotAlerts } from "./drizzle-expiring-lot-alerts.js";
 import { DrizzleFortnightReportDeadlineAlerts } from "./drizzle-fortnight-report-deadline-alerts.js";
 import { DrizzleFortnightReportRegularizationAlerts } from "./drizzle-fortnight-report-regularization-alerts.js";
 import { DrizzleMissingOfflineAuthorizationCodeAlerts } from "./drizzle-missing-offline-authorization-code-alerts.js";
+import { DrizzleOwedElsewhereAlerts } from "./drizzle-owed-elsewhere-alerts.js";
 import { DrizzleUnclearOutcomeAlertStore } from "./drizzle-unclear-outcome-alert-store.js";
 
 export const ALERT_CONDITION_RESOLUTION_TASK_IDENTIFIER = "alert-condition-resolution";
@@ -115,6 +118,16 @@ function detectFortnightReportDeadlinesTask<TQueryResult extends PgQueryResultHK
   });
 }
 
+function detectOwedElsewherePresentationsTask<TQueryResult extends PgQueryResultHKT>(
+  db: PgDatabase<TQueryResult>,
+  deps: { now: () => Date },
+): Promise<number> {
+  return detectOwedElsewherePresentations({
+    presentations: new DrizzleOwedElsewherePresentationReader(db),
+    alerts: new DrizzleOwedElsewhereAlerts(db, deps.now),
+  });
+}
+
 function detectFortnightReportRegularizationsTask<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   deps: { now: () => Date },
@@ -147,6 +160,7 @@ export interface AlertConditionResolutionJobsDeps {
   detectExpiringLots?: typeof detectExpiringLotsTask;
   detectFortnightReportDeadlines?: typeof detectFortnightReportDeadlinesTask;
   detectFortnightReportRegularizations?: typeof detectFortnightReportRegularizationsTask;
+  detectOwedElsewherePresentations?: typeof detectOwedElsewherePresentationsTask;
   detectOverdueRegisterBackups?: typeof detectOverdueRegisterBackupsTask;
 }
 
@@ -164,6 +178,8 @@ export function alertConditionResolutionJobs(
   const doDetectExpiringLots = deps.detectExpiringLots ?? detectExpiringLotsTask;
   const doDetectFortnightReportDeadlines =
     deps.detectFortnightReportDeadlines ?? detectFortnightReportDeadlinesTask;
+  const doDetectOwedElsewherePresentations =
+    deps.detectOwedElsewherePresentations ?? detectOwedElsewherePresentationsTask;
   const doDetectFortnightReportRegularizations =
     deps.detectFortnightReportRegularizations ?? detectFortnightReportRegularizationsTask;
   const doDetectOverdueRegisterBackups =
@@ -180,6 +196,7 @@ export function alertConditionResolutionJobs(
           await doOpenUnclearOutcomeAlerts(db, { now: options.now });
           await doDetectExpiringLots(db, { now: options.now });
           await doDetectFortnightReportDeadlines(db, { now: options.now });
+          await doDetectOwedElsewherePresentations(db, { now: options.now });
           await doDetectFortnightReportRegularizations(db, { now: options.now });
           await doDetectOverdueRegisterBackups(db, { now: options.now });
         });

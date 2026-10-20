@@ -71,6 +71,7 @@ describe("alertKindPolicy", () => {
       "pointOfSaleFortnight",
       true,
     ],
+    ["fortnight_report_owed_elsewhere", "critical", null, "all", "pointOfSaleFortnight", true],
     ["update_required", "critical", null, "all", "register", true],
     ["clock_corrected", "critical", null, "all", "register", false],
     ["register_backup_overdue", "critical", null, "all", "register", true],
@@ -131,6 +132,7 @@ describe("alertKindPolicy", () => {
       "lots_expiring",
       "offsite_dump_unverified",
       "fortnight_report_pending",
+      "fortnight_report_owed_elsewhere",
       "register_backup_overdue",
     ]);
   });
@@ -175,6 +177,7 @@ describe("alertClosing", () => {
       external_billing: "by_hand",
       fortnight_report_needs_regularization: "by_hand",
       clock_corrected: "by_hand",
+      fortnight_report_owed_elsewhere: "by_itself",
       register_backup_overdue: "by_itself",
     });
   });
@@ -231,6 +234,7 @@ describe("alertKindsWithScope", () => {
       "fortnight_report_pending",
       "fortnight_report_overdue",
       "fortnight_report_needs_regularization",
+      "fortnight_report_owed_elsewhere",
     ]);
   });
 });
