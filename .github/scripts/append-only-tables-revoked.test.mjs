@@ -613,6 +613,32 @@ test("reads a table defined through an arrow function with a comment above its p
   ]);
 });
 
+test("reads an arrow function's table past a comment on an earlier declaration", () => {
+  const revoke = migration(
+    "0001_revoke",
+    'REVOKE UPDATE, DELETE, TRUNCATE ON "prices" FROM cloud_app;',
+  );
+
+  for (const label of ['const label = /* plain */ "x";', 'const label = // see /* plain\n  "x";']) {
+    const definition = schema(
+      label,
+      "const priceVersions = /* one per version */ (name: string) => pgTable(name, {});",
+      "",
+      "// Append-only: a price once charged stays what it was.",
+      'export const prices = priceVersions("prices");',
+    );
+    const line =
+      definition.schemaSource
+        .split("\n")
+        .indexOf('export const prices = priceVersions("prices");') + 1;
+
+    assert.deepEqual(violationsOf(definition, CREATE_PRICES, revoke), []);
+    assert.deepEqual(violationsOf(definition, CREATE_PRICES), [
+      { path: SCHEMA_PATH, line, table: "prices", rule: "marked-not-revoked" },
+    ]);
+  }
+});
+
 test("names the table, where it is, and the rule it breaks", () => {
   const marked = findViolations({ ...APPEND_ONLY_PRICES, migrations: [CREATE_PRICES] }).map(
     describeViolation,
