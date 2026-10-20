@@ -23,7 +23,7 @@ export function HighlightedNotice({
   const row = layout === "row";
   const className = [
     "flex w-full rounded-lg p-4",
-    row ? "items-center gap-4" : "items-start gap-3",
+    row ? "flex-wrap items-center gap-4" : "items-start gap-3",
     toneClassName[tone].surface,
   ].join(" ");
 

@@ -43,7 +43,7 @@ export function NoticeFrame({
           below is its only accessible copy. */}
       {actions && actionsPlacement === "end" ? (
         <>
-          <div aria-hidden="true" className="flex min-w-0 flex-1 flex-col gap-1">
+          <div aria-hidden="true" className="flex min-w-0 flex-1 basis-32 flex-col gap-1">
             {children}
           </div>
           <div className="flex shrink-0 items-center gap-3">{actions}</div>
