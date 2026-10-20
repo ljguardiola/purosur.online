@@ -5,11 +5,6 @@ import type {
   OfflineNumberBlockStore,
 } from "../offline-number-block-store.js";
 import type {
-  RetireOfflinePointOfSaleRecord,
-  RetireOfflinePointOfSaleStore,
-  RetireOfflinePointOfSaleStoreTransaction,
-} from "../retire-offline-point-of-sale-store.js";
-import type {
   RegisterOfflinePointOfSale,
   RegisterOfflinePointOfSaleRecord,
   RegisterOfflinePointOfSaleStore,
@@ -27,6 +22,11 @@ import type {
   RegisterPointOfSaleStoreTransaction,
 } from "../register-point-of-sale-store.js";
 import { PointOfSaleClaimConflict } from "../register-point-of-sale-store.js";
+import type {
+  RetireOfflinePointOfSaleRecord,
+  RetireOfflinePointOfSaleStore,
+  RetireOfflinePointOfSaleStoreTransaction,
+} from "../retire-offline-point-of-sale-store.js";
 import {
   FakeOfflineNumberBlocks,
   type LockedOfflineNumberSeries,

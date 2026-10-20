@@ -96,7 +96,10 @@ describe("retireOfflinePointOfSale", () => {
 
   it("refuses a point of sale that is already retired, keeping the first retirement", async () => {
     const store = storeWithOfflinePointsOfSale();
-    const firstRetirement = { pointOfSaleNumber: 12, retiredAt: new Date("2026-09-20T12:00:00.000Z") };
+    const firstRetirement = {
+      pointOfSaleNumber: 12,
+      retiredAt: new Date("2026-09-20T12:00:00.000Z"),
+    };
     store.seedPointOfSaleRetirement(firstRetirement);
     const before = store.snapshot();
 

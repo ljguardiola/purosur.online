@@ -26,17 +26,14 @@ describe("branchOfflinePointOfSaleListSchema", () => {
     expect(branchOfflinePointOfSaleListSchema.parse([])).toEqual([]);
   });
 
-  it.each([
-    "point_of_sale_number",
-    "register_id",
-    "register_name",
-    "assigned",
-    "retired_at",
-  ])("refuses one without its %s", (field) => {
-    expect(
-      branchOfflinePointOfSaleListSchema.safeParse([{ ...assigned, [field]: undefined }]).success,
-    ).toBe(false);
-  });
+  it.each(["point_of_sale_number", "register_id", "register_name", "assigned", "retired_at"])(
+    "refuses one without its %s",
+    (field) => {
+      expect(
+        branchOfflinePointOfSaleListSchema.safeParse([{ ...assigned, [field]: undefined }]).success,
+      ).toBe(false);
+    },
+  );
 
   it("refuses a number the tax authority does not allow", () => {
     expect(

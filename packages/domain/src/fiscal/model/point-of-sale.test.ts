@@ -125,7 +125,10 @@ describe("offlinePointOfSaleRetirementRefusal", () => {
 
   it("refuses a real-time number as not found", () => {
     expect(
-      offlinePointOfSaleRetirementRefusal({ registerId: "register-1", mechanism: "real_time" }, false),
+      offlinePointOfSaleRetirementRefusal(
+        { registerId: "register-1", mechanism: "real_time" },
+        false,
+      ),
     ).toBe("not_found");
   });
 

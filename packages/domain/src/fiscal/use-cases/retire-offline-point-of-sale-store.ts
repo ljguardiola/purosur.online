@@ -26,7 +26,10 @@ export interface RetireOfflinePointOfSaleStore {
 }
 
 export interface RetireOfflinePointOfSaleStoreTransaction
-  extends Pick<RegisterOfflinePointOfSaleStoreTransaction, "lockPointOfSale" | "offlineRegisterOf"> {
+  extends Pick<
+    RegisterOfflinePointOfSaleStoreTransaction,
+    "lockPointOfSale" | "offlineRegisterOf"
+  > {
   branchPointOfSaleClaim(
     locationId: string,
     pointOfSaleNumber: number,
