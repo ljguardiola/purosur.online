@@ -1,4 +1,5 @@
 import type {
+  ClockPreviousReadingSource,
   DiscountBenefit,
   ManualAdjustment,
   OfflineFiscalDocumentIssuedFact,
@@ -148,6 +149,25 @@ function cancelledSale(payload: CancelledSalePayload): SyncedFact {
       ...saleParts(payload),
       payments: salePayments(payload.payments),
       refunds: saleRefunds(payload.refunds),
+    },
+  };
+}
+
+function clockCorrection(
+  payload: SyncedEventPayloads["clock_corrected@1"],
+  previousReadingSource: ClockPreviousReadingSource,
+  event: UnappliedEvent,
+): SyncedFact {
+  return {
+    kind: "clock_corrected",
+    correction: {
+      registerId: event.aggregateId,
+      pointOfSale: payload.point_of_sale,
+      documentType: payload.document_type,
+      previousReading: new Date(payload.previous_reading),
+      previousReadingSource,
+      correctedReading: new Date(payload.corrected_reading),
+      actorId: event.actorId,
     },
   };
 }
@@ -402,17 +422,9 @@ const FACT_OF: {
       evaluatedAt: new Date(payload.evaluated_at),
     },
   }),
-  "clock_corrected@1": (payload, event) => ({
-    kind: "clock_corrected",
-    correction: {
-      registerId: event.aggregateId,
-      pointOfSale: payload.point_of_sale,
-      documentType: payload.document_type,
-      previousReading: new Date(payload.previous_reading),
-      correctedReading: new Date(payload.corrected_reading),
-      actorId: event.actorId,
-    },
-  }),
+  "clock_corrected@1": (payload, event) => clockCorrection(payload, "clock_mark", event),
+  "clock_corrected@2": (payload, event) =>
+    clockCorrection(payload, payload.previous_reading_source, event),
   "offline_fiscal_document_issued@1": (payload) => ({
     kind: "offline_fiscal_document_issued",
     document: offlineDocument(payload),
