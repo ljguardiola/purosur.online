@@ -108,6 +108,18 @@ export { lastSuccessfulSyncOfRegister } from "./model/register-sync.js";
 export type { RegisterVersion } from "./model/register-version.js";
 export { isNewerRegisterVersion } from "./model/register-version.js";
 export type {
+  DeliveredRestorationStep,
+  RestorationEvidence,
+  RestorationStanding,
+  RestorationStep,
+  RestorationStepEvidence,
+} from "./model/restoration-protocol.js";
+export {
+  RESTORATION_STEPS,
+  restorationStanding,
+  UNDELIVERED_RESTORATION_STEPS,
+} from "./model/restoration-protocol.js";
+export type {
   DetectedSerialDevice,
   RegisteredSerialDevices,
   SerialDeviceIdentity,
