@@ -1,8 +1,9 @@
 import type { Fortnight } from "@purosur/domain/fiscal/use-cases";
 import { remedyRejectedDocument } from "@purosur/domain/fiscal/use-cases";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { auditLog, rejectedDocumentRemedies, users } from "../platform/db/schema.js";
+import { auditLog, locations, rejectedDocumentRemedies, users } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
+import { seededLocationId } from "../test-support/seeded-location.js";
 import { DrizzleFortnightReportStore } from "./drizzle-fortnight-report-store.js";
 import { DrizzleOfflineAuthorizationCodeStore } from "./drizzle-offline-authorization-code-store.js";
 import { DrizzleRejectedDocumentRemedyStore } from "./drizzle-rejected-document-remedy-store.js";
@@ -25,6 +26,7 @@ let db: TestDatabase["db"];
 let registerId: string;
 let actorId: string;
 let documentId: string;
+let locationId: string;
 
 beforeAll(async () => {
   testDatabase = await buildTestDatabase();
@@ -38,6 +40,7 @@ afterAll(async () => {
 beforeEach(async () => {
   await testDatabase.clear();
   registerId = await seedOfflinePointOfSale(db);
+  locationId = await seededLocationId(db);
   const [actor] = await db.select({ id: users.id }).from(users);
   actorId = actor?.id as string;
   await new DrizzleOfflineAuthorizationCodeStore(db).holdAcquisition(
@@ -92,7 +95,9 @@ const AUDIT = {
 
 describe("DrizzleRejectedDocumentRemedyStore reads", () => {
   it("recalls no report of a document type that was never presented", async () => {
-    expect(await store().transaction((tx) => tx.documentTypeReport(KEY, "factura_c"))).toBeNull();
+    expect(
+      await store().transaction((tx) => tx.documentTypeReport(KEY, "factura_c", locationId)),
+    ).toBeNull();
   });
 
   it("recalls the report of a document type with its rejected document, its rejections and the newest remedy for that document", async () => {
@@ -105,7 +110,9 @@ describe("DrizzleRejectedDocumentRemedyStore reads", () => {
       recordedAt: REMEDIED_AT,
     });
 
-    expect(await store().transaction((tx) => tx.documentTypeReport(KEY, "factura_c"))).toEqual({
+    expect(
+      await store().transaction((tx) => tx.documentTypeReport(KEY, "factura_c", locationId)),
+    ).toEqual({
       documentType: "factura_c",
       state: "refused",
       reportedThrough: 1,
@@ -126,13 +133,42 @@ describe("DrizzleRejectedDocumentRemedyStore reads", () => {
     });
 
     const documents = await store().transaction((tx) =>
-      tx.documentsOn(OFFLINE_POINT_OF_SALE, OCTOBER_FIRST_HALF),
+      tx.documentsOn(OFFLINE_POINT_OF_SALE, OCTOBER_FIRST_HALF, locationId),
     );
 
     expect(documents.map(({ number, correction }) => [number, correction])).toEqual([
       [1, null],
       [2, { total: 12_500 }],
     ]);
+  });
+});
+
+describe("DrizzleRejectedDocumentRemedyStore reads of another branch", () => {
+  async function anotherBranch() {
+    const [other] = await db.insert(locations).values({}).returning({ id: locations.id });
+    return other?.id as string;
+  }
+
+  it("recalls no report of a point of sale whose register belongs to another branch", async () => {
+    await rejectDocumentTwo();
+    const other = await anotherBranch();
+
+    expect(
+      await store().transaction((tx) => tx.documentTypeReport(KEY, "factura_c", other)),
+    ).toBeNull();
+    expect(
+      await store().transaction((tx) => tx.documentTypeReport(KEY, "factura_c", locationId)),
+    ).not.toBeNull();
+  });
+
+  it("reads no document of a point of sale whose register belongs to another branch", async () => {
+    const other = await anotherBranch();
+
+    expect(
+      await store().transaction((tx) =>
+        tx.documentsOn(OFFLINE_POINT_OF_SALE, OCTOBER_FIRST_HALF, other),
+      ),
+    ).toEqual([]);
   });
 });
 
@@ -263,6 +299,7 @@ describe("remedying a rejected document through the store", () => {
     remedyRejectedDocument(
       { store: store(), clock: { now: () => REMEDIED_AT } },
       {
+        locationId,
         pointOfSaleNumber: OFFLINE_POINT_OF_SALE,
         fortnightStart: OCTOBER_FIRST_HALF.start,
         documentType: "factura_c",
@@ -290,7 +327,7 @@ describe("remedying a rejected document through the store", () => {
       }),
     ]);
     const documents = await store().transaction((tx) =>
-      tx.documentsOn(OFFLINE_POINT_OF_SALE, OCTOBER_FIRST_HALF),
+      tx.documentsOn(OFFLINE_POINT_OF_SALE, OCTOBER_FIRST_HALF, locationId),
     );
     expect(documents.map(({ number, correction }) => [number, correction])).toEqual([
       [1, null],

@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 import type { RecordedDocumentTypeReport } from "./fortnight-report-ports.js";
 import { remedyRejectedDocument } from "./remedy-rejected-document.js";
 import { offlineDocument } from "./test-support/fake-fortnight-reports.js";
-import { FakeRemedyRejectedDocumentStore } from "./test-support/fake-remedy-rejected-document.js";
+import {
+  DEFAULT_LOCATION_ID,
+  FakeRemedyRejectedDocumentStore,
+} from "./test-support/fake-remedy-rejected-document.js";
 import { FixedClock } from "./test-support/fixed-clock.js";
 
 const FORTNIGHT = { start: "2026-09-16", end: "2026-09-30" };
@@ -46,6 +49,7 @@ function remedy(
   return remedyRejectedDocument(
     { store, clock: new FixedClock(NOW) },
     {
+      locationId: DEFAULT_LOCATION_ID,
       pointOfSaleNumber: 7,
       fortnightStart: FORTNIGHT.start,
       documentType: "factura_c",
@@ -302,4 +306,27 @@ describe("remedyRejectedDocument, when a write fails", () => {
       expect(store.snapshot()).toEqual({ remedies: [], audits: [] });
     },
   );
+});
+
+describe("remedyRejectedDocument, scoped to the branch", () => {
+  it.each([
+    ["reporting it again", { kind: "report" } as const],
+    ["correcting it", { kind: "printed", correction: { issuedOn: "2026-09-21" } } as const],
+  ])(
+    "finds no rejection of another branch's point of sale when %s, and records nothing",
+    async (_case, chosen) => {
+      const store = setUp();
+
+      const outcome = await remedy(store, { locationId: "location-2", remedy: chosen });
+
+      expect(outcome).toEqual({ kind: "not_rejected" });
+      expect(store.snapshot()).toEqual({ remedies: [], audits: [] });
+    },
+  );
+
+  it("remedies the rejection of the branch's own point of sale", async () => {
+    const store = setUp();
+
+    expect((await remedy(store)).kind).toBe("remedied");
+  });
 });

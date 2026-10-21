@@ -152,12 +152,14 @@ async function runReportTask() {
 
 async function recordPrintedCorrection() {
   const [actor] = await sql<{ id: string }[]>`select id from users limit 1`;
+  const [location] = await sql<{ id: string }[]>`select id from locations limit 1`;
   const outcome = await remedyRejectedDocument(
     {
       store: new DrizzleRejectedDocumentRemedyStore(drizzle(sql)),
       clock: { now: () => REMEDIED_AT },
     },
     {
+      locationId: location?.id as string,
       pointOfSaleNumber: 8,
       fortnightStart: OCTOBER_FIRST_HALF.start,
       documentType: "factura_c",

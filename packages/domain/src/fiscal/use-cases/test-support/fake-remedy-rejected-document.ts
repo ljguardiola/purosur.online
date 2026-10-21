@@ -19,6 +19,8 @@ interface FakeRemedyState {
   audits: RejectedDocumentRemedyAudit[];
 }
 
+export const DEFAULT_LOCATION_ID = "location-1";
+
 function keyOf({ pointOfSaleNumber, fortnight }: FortnightReportKey): string {
   return `${pointOfSaleNumber}:${fortnight.start}`;
 }
@@ -31,8 +33,14 @@ export class FakeRemedyRejectedDocumentStore implements RemedyRejectedDocumentSt
   private state: FakeRemedyState = { remedies: [], audits: [] };
   private readonly typeReports = new Map<string, RecordedDocumentTypeReport>();
   private readonly documents = new Map<string, OfflineDocumentOfFortnight[]>();
+  private readonly branchOfPointOfSale = new Map<number, string>();
 
-  seedDocumentTypeReport(key: FortnightReportKey, report: RecordedDocumentTypeReport): void {
+  seedDocumentTypeReport(
+    key: FortnightReportKey,
+    report: RecordedDocumentTypeReport,
+    locationId = DEFAULT_LOCATION_ID,
+  ): void {
+    this.branchOfPointOfSale.set(key.pointOfSaleNumber, locationId);
     this.typeReports.set(`${keyOf(key)}:${report.documentType}`, report);
   }
 
@@ -40,8 +48,14 @@ export class FakeRemedyRejectedDocumentStore implements RemedyRejectedDocumentSt
     pointOfSaleNumber: number,
     fortnight: Fortnight,
     documents: OfflineDocumentOfFortnight[],
+    locationId = DEFAULT_LOCATION_ID,
   ): void {
+    this.branchOfPointOfSale.set(pointOfSaleNumber, locationId);
     this.documents.set(keyOf({ pointOfSaleNumber, fortnight }), documents);
+  }
+
+  private isOfBranch(pointOfSaleNumber: number, locationId: string): boolean {
+    return this.branchOfPointOfSale.get(pointOfSaleNumber) === locationId;
   }
 
   snapshot(): FakeRemedyState {
@@ -74,13 +88,21 @@ export class FakeRemedyRejectedDocumentStore implements RemedyRejectedDocumentSt
         order.push("holdFortnightPresentation");
         this.heldPresentations.push(key);
       },
-      documentTypeReport: async (key: FortnightReportKey, documentType: FiscalDocumentType) => {
+      documentTypeReport: async (
+        key: FortnightReportKey,
+        documentType: FiscalDocumentType,
+        locationId: string,
+      ) => {
         order.push("documentTypeReport");
-        return this.typeReports.get(`${keyOf(key)}:${documentType}`) ?? null;
+        return this.isOfBranch(key.pointOfSaleNumber, locationId)
+          ? (this.typeReports.get(`${keyOf(key)}:${documentType}`) ?? null)
+          : null;
       },
-      documentsOn: async (pointOfSaleNumber, fortnight) => {
+      documentsOn: async (pointOfSaleNumber, fortnight, locationId) => {
         order.push("documentsOn");
-        return this.documents.get(keyOf({ pointOfSaleNumber, fortnight })) ?? [];
+        return this.isOfBranch(pointOfSaleNumber, locationId)
+          ? (this.documents.get(keyOf({ pointOfSaleNumber, fortnight })) ?? [])
+          : [];
       },
       recordRemedy: async (record) => {
         write("recordRemedy");

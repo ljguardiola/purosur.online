@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { auditLog, rejectedDocumentRemedies } from "../platform/db/schema.js";
+import { auditLog, locations, registers, rejectedDocumentRemedies } from "../platform/db/schema.js";
 import {
   BACKOFFICE_ORIGIN,
   type BackofficeSession,
@@ -185,6 +185,19 @@ describe("POST /registers/fortnight-presentations/rejected-document-remedies", (
     const session = await sessionWith(["change_fiscal_configuration"]);
 
     const response = await remedy(REPORT, session.headers, { number: 4 });
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({ code: "not_rejected" });
+    expect(await remedies()).toEqual([]);
+  });
+
+  it("answers 409 not_rejected for a rejected document of another branch, changing nothing", async () => {
+    await seedRejectedDocument();
+    const [otherLocation] = await db.insert(locations).values({}).returning({ id: locations.id });
+    await db.update(registers).set({ locationId: otherLocation?.id as string });
+    const session = await sessionWith(["change_fiscal_configuration"]);
+
+    const response = await remedy(REPORT, session.headers);
 
     expect(response.statusCode).toBe(409);
     expect(response.json()).toMatchObject({ code: "not_rejected" });
