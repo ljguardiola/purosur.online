@@ -52,6 +52,7 @@ const SERIES: RealTimeSeries = {
   numberingFrozen: false,
   clockMark: null,
   taxAuthorityLastIssuedOn: null,
+  latestClockCorrection: null,
 };
 const OFFLINE_SERIES: OfflineSeries = {
   pointOfSale: 7,
@@ -242,6 +243,58 @@ describe("decideSaleAuthorization", () => {
       expect(ids.issued).toBe(1);
     },
   );
+
+  describe("in the lapse after a clock correction", () => {
+    const LAPSE = {
+      series: {
+        ...SERIES,
+        taxAuthorityLastIssuedOn: "2026-10-03",
+        latestClockCorrection: {
+          previousReading: new Date("2026-10-04T15:00:00.000Z"),
+          correctedReading: new Date("2026-10-01T10:00:00.000Z"),
+        },
+      },
+    };
+
+    it("issues the sale under the offline code with the lapse as its cause, dated by the sale", () => {
+      const { tx, outcome } = decide(LAPSE);
+
+      expect(outcome).toEqual({
+        kind: "issued_offline",
+        fiscalDocumentId: "id-1",
+        cause: "clock_correction_lapse",
+      });
+      expect(tx.offlineDocuments).toMatchObject([
+        {
+          pointOfSale: 7,
+          number: 121,
+          issuedOn: "2026-10-01",
+          offlineAuthorizationCode: FIRST_HALF_CODE,
+          cause: "clock_correction_lapse",
+        },
+      ]);
+      expect(tx.reservations).toEqual([]);
+    });
+
+    it("routes the sale to the deferred flow when the register holds no code for its date", () => {
+      const { tx, outcome } = decide({ ...LAPSE, heldCodes: [] });
+
+      expect(outcome).toEqual({ kind: "deferred", reason: "clock_behind" });
+      expect(tx.offlineDocuments).toEqual([]);
+      expect(tx.reservations).toEqual([]);
+    });
+
+    it("reserves the next number once the decision's day reaches the tax authority's day", () => {
+      const decidedAt = new Date("2026-10-03T03:00:00.000Z");
+      const { outcome } = decide({
+        ...LAPSE,
+        decidedAt,
+        online: { ...ONLINE, lastHealthCheckOkAt: new Date(decidedAt.getTime() - 1_000) },
+      });
+
+      expect(outcome).toEqual({ kind: "reserved", fiscalDocumentId: "id-1" });
+    });
+  });
 
   describe("issuing under the pre-obtained code", () => {
     const OFFLINE = { online: { ...ONLINE, arcaReachable: false } };

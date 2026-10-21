@@ -190,6 +190,7 @@ describe("correctRegisterClock", () => {
         numberingFrozen: false,
         clockMark: store.state.marks[0]?.reading ?? null,
         taxAuthorityLastIssuedOn: "2026-10-02",
+        latestClockCorrection: null,
       },
       offlineSeries: {
         pointOfSale: 7,
