@@ -402,6 +402,18 @@ const FACT_OF: {
       evaluatedAt: new Date(payload.evaluated_at),
     },
   }),
+  "deferred_sale_recorded@1": (payload) => ({
+    kind: "deferred_sale_recorded",
+    deferredSale: {
+      id: payload.id,
+      saleId: payload.sale_id,
+      occurredAt: new Date(payload.occurred_at),
+      total: payload.total,
+      reason: payload.reason,
+      shortCode: payload.short_code,
+      routedAt: new Date(payload.routed_at),
+    },
+  }),
   "clock_corrected@1": (payload, event) => ({
     kind: "clock_corrected",
     correction: {
