@@ -1,4 +1,5 @@
 import type {
+  ClockPreviousReadingSource,
   FiscalDocumentType,
   FiscalTaskDocumentType,
   PreEmissionGateFailureReason,
@@ -123,6 +124,7 @@ interface ClockCorrectedDetail {
   pointOfSale: number;
   documentType: FiscalDocumentType;
   previousReading: string;
+  previousReadingSource: ClockPreviousReadingSource;
   correctedReading: string;
   actorId: string;
 }

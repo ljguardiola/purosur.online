@@ -4,6 +4,7 @@ export type {
   CashSessionStanding,
   ClockLowering,
   ClockMark,
+  ClockPreviousReadingSource,
 } from "../model/clock-correction.js";
 export type { FiscalOnlineSignalEvidence } from "../model/fiscal-online-signal.js";
 export type {
