@@ -1,6 +1,6 @@
 import { Button, formatPointOfSaleNumber, InlineNotice, Modal } from "@purosur/ui";
 import type { startAuthentication } from "@simplewebauthn/browser";
-import { Ban, ShieldX, TriangleAlert, X } from "lucide-react";
+import { ShieldX, Trash2, TriangleAlert, X } from "lucide-react";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import type {
   authorizeSession,
@@ -91,7 +91,7 @@ export function RetireOfflinePointOfSaleModal({
         }}
         width="confirmation"
         tone="error"
-        icon={<Ban />}
+        icon={<Trash2 />}
         title={
           target
             ? `¿Dar de baja el punto de venta ${formatPointOfSaleNumber(target.pointOfSaleNumber)}?`
@@ -114,7 +114,7 @@ export function RetireOfflinePointOfSaleModal({
               variant="primary"
               destructive
               size="large"
-              icon={<Ban />}
+              icon={<Trash2 />}
               fullWidth
               disabled={retiring}
               onPress={() => target && void retire(target)}
