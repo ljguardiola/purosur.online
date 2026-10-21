@@ -14,7 +14,6 @@ const eventPositionSchema = z.object({
 });
 
 const creditNoteAnswerFields = {
-  sale_id: recordIdSchema(),
   credit_note_id: recordIdSchema(),
   answered_at: z.iso.datetime(),
 };

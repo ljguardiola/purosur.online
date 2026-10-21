@@ -183,7 +183,6 @@ export type {
   BuyerTaxStatusOption,
   ChargeRefusal,
   ClockCorrectionAlertState,
-  ConfirmedCreditNoteAnswer,
   CreditNoteAnswer,
   CreditNoteCFiscalBlock,
   CreditNoteReason,

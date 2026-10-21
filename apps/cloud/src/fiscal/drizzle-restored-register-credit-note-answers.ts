@@ -34,7 +34,6 @@ export class DrizzleRestoredRegisterCreditNoteAnswers<TQueryResult extends PgQue
     return rows.map((row) => {
       const { pointOfSale, standing } = creditNoteOf(row);
       return {
-        saleId: row.saleId,
         creditNoteId: row.id,
         pointOfSale,
         standing,

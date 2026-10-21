@@ -129,9 +129,8 @@ export function registerDeviceResetRoute<TQueryResult extends PgQueryResultHKT>(
               active: user.active,
               version: user.version,
             })),
-            credit_notes: creditNoteAnswers.map(({ saleId, creditNoteId, answeredAt, answer }) => {
+            credit_notes: creditNoteAnswers.map(({ creditNoteId, answeredAt, answer }) => {
               const common = {
-                sale_id: saleId,
                 credit_note_id: creditNoteId,
                 answered_at: answeredAt.toISOString(),
               };

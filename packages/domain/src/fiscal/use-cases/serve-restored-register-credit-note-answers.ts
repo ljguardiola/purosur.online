@@ -17,10 +17,8 @@ export async function serveRestoredRegisterCreditNoteAnswers(
     return [];
   }
   const recorded = await creditNotes.saleVoidCreditNotesOf(registerId, saleIds);
-  return recorded.flatMap(({ saleId, creditNoteId, pointOfSale, standing, answeredAt }) => {
+  return recorded.flatMap(({ creditNoteId, pointOfSale, standing, answeredAt }) => {
     const answer = confirmedCreditNoteAnswer(standing, pointOfSale);
-    return answer === null || answeredAt === null
-      ? []
-      : [{ saleId, creditNoteId, answeredAt, answer }];
+    return answer === null || answeredAt === null ? [] : [{ creditNoteId, answeredAt, answer }];
   });
 }

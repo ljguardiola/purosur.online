@@ -1,7 +1,6 @@
 import type { CreditNoteStanding } from "../model/sale-void-credit-note.js";
 
 export interface SaleVoidCreditNoteOfRegister {
-  saleId: string;
   creditNoteId: string;
   pointOfSale: number;
   standing: CreditNoteStanding;

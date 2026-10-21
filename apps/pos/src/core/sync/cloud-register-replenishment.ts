@@ -73,7 +73,6 @@ export class CloudRegisterReplenishment implements RegisterReplenishmentFeed<Clo
           version: user.version,
         })),
         creditNoteAnswers: creditNotes.map((creditNote) => ({
-          saleId: creditNote.sale_id,
           creditNoteId: creditNote.credit_note_id,
           answeredAt: new Date(creditNote.answered_at),
           answer:

@@ -39,10 +39,9 @@ export type CreditNoteAnswer =
 
 export type VoidCreditNoteStanding = CreditNoteAnswer | { kind: "already_credited" };
 
-export type ConfirmedCreditNoteAnswer = Exclude<CreditNoteAnswer, { kind: "in_progress" }>;
+type ConfirmedCreditNoteAnswer = Exclude<CreditNoteAnswer, { kind: "in_progress" }>;
 
 export interface RestoredCreditNoteAnswer {
-  saleId: string;
   creditNoteId: string;
   answeredAt: Date;
   answer: ConfirmedCreditNoteAnswer;
