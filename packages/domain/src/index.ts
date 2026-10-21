@@ -312,6 +312,7 @@ export type {
   MercadoPagoChargeInProgress,
   MercadoPagoOrderRefund,
   MercadoPagoOrderTransaction,
+  MercadoPagoPaymentMethod,
   MercadoPagoPaymentTransaction,
   MercadoPagoPointPaymentTransaction,
   MercadoPagoQrPaymentTransaction,
