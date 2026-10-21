@@ -82,6 +82,24 @@ describe("clockLoweringsFor against the tax authority's last authorized day", ()
     ]);
   });
 
+  it("lowers from the start of the day, as derived, when the series' mark is exactly that start", () => {
+    const mark = {
+      pointOfSale: 12,
+      documentType: "factura_c",
+      reading: START_OF_TAX_AUTHORITY_DAY,
+    } as const;
+
+    expect(clockLoweringsFor([mark], READING, FLOOR)).toEqual([
+      {
+        pointOfSale: 12,
+        documentType: "factura_c",
+        previousReading: START_OF_TAX_AUTHORITY_DAY,
+        previousReadingSource: "tax_authority_day",
+        correctedReading: READING,
+      },
+    ]);
+  });
+
   it("lowers once from the start of the day when the series' mark is ahead of the reading but earlier than that start", () => {
     const mark = {
       pointOfSale: 12,
