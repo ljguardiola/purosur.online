@@ -495,12 +495,10 @@ describe("ReprintReceiptModal", () => {
       await userEvent.click(screen.getByRole("button", { name: REPRINT }));
 
       await expect
-        .element(
-          screen.getByText(
-            "Todavía puede salir una impresión de la nota de crédito. Esperá a que termine antes de reimprimir.",
-          ),
-        )
-        .toBeVisible();
+        .element(screen.getByRole("alert"))
+        .toHaveTextContent(
+          "Todavía puede salir una impresión de la nota de crédito. Esperá a que termine antes de reimprimir.",
+        );
     });
 
     it("asks the reason again when the core finds it blank", async () => {

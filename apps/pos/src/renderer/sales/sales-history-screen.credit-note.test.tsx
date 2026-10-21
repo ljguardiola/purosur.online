@@ -99,7 +99,7 @@ describe("SalesHistoryScreen credit note of a voided sale", () => {
         screen.getByRole("textbox", { name: "Motivo de la reimpresión" }),
         "El cliente la perdió",
       );
-      await userEvent.click(screen.getByRole("button", { name: REPRINT }));
+      await userEvent.click(screen.getByRole("dialog").getByRole("button", { name: REPRINT }));
 
       expect(reprintCreditNote).toHaveBeenCalledExactlyOnceWith(
         "sale-1",
@@ -143,7 +143,7 @@ describe("SalesHistoryScreen credit note of a voided sale", () => {
         "Otra copia",
       );
 
-      await userEvent.click(screen.getByRole("button", { name: REPRINT }));
+      await userEvent.click(screen.getByRole("dialog").getByRole("button", { name: REPRINT }));
 
       await expect.element(screen.getByText("Elegí una venta para ver su detalle")).toBeVisible();
     });

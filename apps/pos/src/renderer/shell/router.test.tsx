@@ -251,6 +251,7 @@ function contextWith(
     receiptPrintStatus: async () => ({ kind: "unavailable" }),
     printOriginalReceipt: async () => ({ kind: "unavailable" }),
     printCreditNote: async () => ({ kind: "unavailable" }),
+    reprintCreditNote: async () => ({ kind: "unavailable" }),
     convertPaidOrderIntoRefund: async () => ({ kind: "unavailable" }),
     reprintSaleReceipt: async () => ({ kind: "unavailable" }),
     salesHistory: async () => ({ kind: "unavailable" }),
