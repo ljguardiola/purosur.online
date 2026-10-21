@@ -188,7 +188,12 @@ type DiskSalesDeniedSubject =
 export type LocalAlertSubject =
   | { kind: "sales_denied"; reason: FixedSalesDeniedReason }
   | DiskSalesDeniedSubject
-  | { kind: "late_payment_refund"; providerOrderId: string | null; reason?: undefined }
+  | {
+      kind: "late_payment_refund";
+      providerOrderId: string | null;
+      method: "QR" | "POINT";
+      reason?: undefined;
+    }
   | BatteryLowSubject
   | OnBatterySubject
   | {
@@ -221,10 +226,30 @@ export function localAlertTitle(kind: string): string | undefined {
   return kind === "on_battery" ? ON_BATTERY_TITLE : FIXED_LOCAL_ALERT_TEXTS[kind].title;
 }
 
-function secondPaidOrderText(providerOrderId: string): LocalAlertText {
+const POINT_LATE_PAYMENT_REFUND_WHAT_TO_DO =
+  "Confirmarlo en Reembolsos de Mercado Pago para que la nube lo envíe a Mercado Pago. Si no corresponde reembolsarlo, descartarlo. El Administrador ya fue avisado.";
+
+function latePaymentRefundText(
+  subject: Extract<LocalAlertSubject, { kind: "late_payment_refund" }>,
+): LocalAlertText {
+  const { title, whatToDo } = FIXED_LOCAL_ALERT_TEXTS.late_payment_refund;
+  if (subject.method === "POINT") {
+    return {
+      title,
+      meaning:
+        subject.providerOrderId === null
+          ? "Mercado Pago cobró un pago con tarjeta en el Point de una venta que ya se había cobrado por otro medio."
+          : `Una venta se cobró dos veces con tarjeta en el Point; el pago de más es el de la orden ${subject.providerOrderId} de Mercado Pago.`,
+      whatToDo: POINT_LATE_PAYMENT_REFUND_WHAT_TO_DO,
+    };
+  }
   return {
-    ...FIXED_LOCAL_ALERT_TEXTS.late_payment_refund,
-    meaning: `El QR de una venta se pagó dos veces; el pago de más es el de la orden ${providerOrderId} de Mercado Pago.`,
+    title,
+    meaning:
+      subject.providerOrderId === null
+        ? FIXED_LOCAL_ALERT_TEXTS.late_payment_refund.meaning
+        : `El QR de una venta se pagó dos veces; el pago de más es el de la orden ${subject.providerOrderId} de Mercado Pago.`,
+    whatToDo,
   };
 }
 
@@ -240,8 +265,8 @@ export function localAlertText(subject: LocalAlertSubject): LocalAlertText {
   if (subject.kind === "on_battery") {
     return onBatteryText(subject);
   }
-  if (subject.kind === "late_payment_refund" && subject.providerOrderId !== null) {
-    return secondPaidOrderText(subject.providerOrderId);
+  if (subject.kind === "late_payment_refund") {
+    return latePaymentRefundText(subject);
   }
   return FIXED_LOCAL_ALERT_TEXTS[subject.kind];
 }
