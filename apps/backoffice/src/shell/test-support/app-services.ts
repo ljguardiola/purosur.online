@@ -296,6 +296,8 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
       fetchRegisterPointsOfSale: vi.fn().mockReturnValue(new Promise(() => {})),
       fetchFiscalAddresses: vi.fn().mockReturnValue(new Promise(() => {})),
       fetchFortnightPresentations: vi.fn().mockReturnValue(new Promise(() => {})),
+      fetchOfflinePointsOfSale: vi.fn().mockReturnValue(new Promise(() => {})),
+      retireOfflinePointOfSale: vi.fn(),
       configureRegisterPointOfSale: vi.fn(),
       configureRegisterOfflinePointOfSale: vi.fn(),
       createFiscalAddress: vi.fn(),
