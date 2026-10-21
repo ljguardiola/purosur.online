@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { unappliedEventOf } from "@purosur/contracts/sync/test-support/unapplied-event";
 import type { ManualAdjustment } from "@purosur/domain";
+import { A_DEFERRED_SALE_RECORDED_FACT } from "@purosur/domain/sync/test-support";
 import type { SyncedFact, UnappliedEvent } from "@purosur/domain/sync/use-cases";
 import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
@@ -863,6 +864,19 @@ describe("recording a failed fiscal gate", () => {
       },
       { deviceId },
     );
+
+    expect(await system.db.select().from(sales)).toEqual([]);
+    expect(await system.db.select().from(cashSessions)).toEqual([]);
+    expect(await system.db.select().from(cashMovements)).toEqual([]);
+  });
+});
+
+describe("recording a deferred sale", () => {
+  it("writes nothing", async () => {
+    const { deviceId } = await system.enrollInstallation();
+    await insertInboxEvent(system.db, deviceId);
+
+    await record(A_DEFERRED_SALE_RECORDED_FACT, { deviceId });
 
     expect(await system.db.select().from(sales)).toEqual([]);
     expect(await system.db.select().from(cashSessions)).toEqual([]);

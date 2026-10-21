@@ -5,11 +5,13 @@ import type {
   FacturaC,
   FiscalDocumentState,
 } from "@purosur/domain";
+import { deferredSaleRecordedEvent } from "@purosur/domain";
 import {
   FICTIONAL_CUIT,
   FICTIONAL_GROSS_INCOME_REGISTRATION,
   FICTIONAL_LEGAL_NAME,
 } from "@purosur/domain/fiscal/test-support";
+import type { DeferredSaleRecording } from "@purosur/domain/fiscal/use-cases";
 import type { LocalDatabase } from "../../platform/local-database";
 import { appendOutboxEvent } from "../../sync/sqlite-outbox";
 import {
@@ -252,6 +254,21 @@ export function deferredSaleOf(overrides: Partial<DeferredSale> = {}): DeferredS
     shortCode: "7KQ4M2P9",
     routedAt: new Date("2026-09-30T12:05:01.000Z"),
     ...overrides,
+  };
+}
+
+export function deferredSaleRecordingOf(
+  overrides: Partial<DeferredSale> = {},
+): DeferredSaleRecording {
+  const deferredSale = deferredSaleOf(overrides);
+  return {
+    sale: deferredSale,
+    event: deferredSaleRecordedEvent({
+      eventId: `event-of-${deferredSale.id}`,
+      registerId: "register-1",
+      actorId: "u1",
+      deferredSale,
+    }),
   };
 }
 

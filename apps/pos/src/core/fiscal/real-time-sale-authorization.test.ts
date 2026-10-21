@@ -4,6 +4,7 @@ import type {
 } from "@purosur/domain/fiscal/use-cases";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { LocalDatabase } from "../platform/local-database";
+import { CHAIN_KEY } from "../sync/test-support/sqlite-local-outbox";
 import { authorizeSaleInRealTime } from "./real-time-sale-authorization";
 import {
   FACTURA_C,
@@ -44,6 +45,7 @@ function authorize(
       now: () => ANSWERED_AT,
       ids: { next: () => "deferred-1" },
       shortCodes: scriptedShortCodes(["7KQ4M2P9", "R3XW8H5N"]),
+      outboxChainKey: CHAIN_KEY,
     },
     saleId,
   );
@@ -134,6 +136,34 @@ describe("authorizing a completed sale in real time", () => {
         reason: "rejected",
         short_code: "7KQ4M2P9",
         routed_at: ANSWERED_AT.toISOString(),
+      },
+    ]);
+  });
+
+  it("appends the event that carries the deferred record, with its short code, to the outbox", async () => {
+    await authorize({ kind: "rejected", codes: [10015], rejectionClass: "content" });
+
+    expect(
+      database
+        .prepare<[], { event_id: string; aggregate_id: string; payload: string }>(
+          "SELECT event_id, aggregate_id, payload FROM outbox WHERE event_type = 'deferred_sale_recorded'",
+        )
+        .all()
+        .map(({ payload, ...event }) => ({ ...event, payload: JSON.parse(payload) })),
+    ).toEqual([
+      {
+        event_id: "deferred-1",
+        aggregate_id: "sale-1",
+        payload: {
+          id: "deferred-1",
+          sale_id: "sale-1",
+          register_id: "register-1",
+          occurred_at: SALE_COMPLETED_AT.toISOString(),
+          total: FACTURA_C.total,
+          reason: "rejected",
+          short_code: "7KQ4M2P9",
+          routed_at: ANSWERED_AT.toISOString(),
+        },
       },
     ]);
   });

@@ -6,10 +6,10 @@ import {
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { LocalDatabase } from "../platform/local-database";
 import { SqliteLocalOutbox } from "../sync/sqlite-local-outbox";
-import { adoptDevice } from "../sync/test-support/sqlite-local-outbox";
+import { adoptDevice, CHAIN_KEY } from "../sync/test-support/sqlite-local-outbox";
 import { SqliteRealTimeFiscalDocuments } from "./sqlite-real-time-fiscal-documents";
 import {
-  deferredSaleOf,
+  deferredSaleRecordingOf,
   FACTURA_C,
   insertCompletedSale,
   insertDeferredSale,
@@ -50,6 +50,22 @@ function recordedDeferredSales() {
     .all();
 }
 
+function deferredSaleEvents() {
+  return database
+    .prepare(
+      "SELECT event_id, aggregate_id, payload FROM outbox WHERE event_type = 'deferred_sale_recorded'",
+    )
+    .all()
+    .map((row) => {
+      const { event_id, aggregate_id, payload } = row as {
+        event_id: string;
+        aggregate_id: string;
+        payload: string;
+      };
+      return { event_id, aggregate_id, payload: JSON.parse(payload) };
+    });
+}
+
 function storedDocument() {
   return database
     .prepare(
@@ -68,7 +84,7 @@ beforeEach(() => {
   insertCompletedSale(database, "sale-1");
   insertSaleCompletedEvent(database, "sale-1");
   insertFiscalDocument(database);
-  documents = new SqliteRealTimeFiscalDocuments(database);
+  documents = new SqliteRealTimeFiscalDocuments(database, CHAIN_KEY);
 });
 
 afterEach(() => {
@@ -87,6 +103,7 @@ describe("the document waiting on a real-time answer", () => {
       issuedOn: "2026-09-30",
       document: FACTURA_C,
       reservedAt: SALE_COMPLETED_AT,
+      origin: { registerId: "register-1", actorId: "u1" },
       saleEvent,
     });
     expect(saleEvent).toMatchObject({ event_type: "sale_completed", aggregate_id: "sale-1" });
@@ -150,12 +167,14 @@ describe("the documents still requesting their answer", () => {
       {
         fiscalDocumentId: "doc-1",
         saleId: "sale-1",
+        origin: { registerId: "register-1", actorId: "u1" },
         reservedAt: SALE_COMPLETED_AT,
         total: FACTURA_C.total,
       },
       {
         fiscalDocumentId: "doc-2",
         saleId: "sale-2",
+        origin: { registerId: "register-1", actorId: "u1" },
         reservedAt: SALE_COMPLETED_AT,
         total: FACTURA_C.total,
       },
@@ -195,7 +214,7 @@ describe("resolving a waiting document", () => {
     await documents.resolve(
       resolution({
         resolution: REJECTED,
-        deferredSale: deferredSaleOf({ reason: "rejected", routedAt: RESOLVED_AT }),
+        deferredSale: deferredSaleRecordingOf({ reason: "rejected", routedAt: RESOLVED_AT }),
       }),
     );
 
@@ -215,7 +234,7 @@ describe("resolving a waiting document", () => {
     await documents.resolve(
       resolution({
         resolution: UNCLEAR,
-        deferredSale: deferredSaleOf({ routedAt: RESOLVED_AT }),
+        deferredSale: deferredSaleRecordingOf({ routedAt: RESOLVED_AT }),
       }),
     );
 
@@ -233,7 +252,7 @@ describe("resolving a waiting document", () => {
     await documents.resolve(
       resolution({
         resolution: UNCLEAR,
-        deferredSale: deferredSaleOf({ routedAt: RESOLVED_AT }),
+        deferredSale: deferredSaleRecordingOf({ routedAt: RESOLVED_AT }),
       }),
     );
 
@@ -250,13 +269,107 @@ describe("resolving a waiting document", () => {
     ]);
   });
 
+  it("appends the event that carries the deferred record to the outbox, as the record is written", async () => {
+    await documents.resolve(
+      resolution({
+        resolution: UNCLEAR,
+        deferredSale: deferredSaleRecordingOf({ routedAt: RESOLVED_AT }),
+      }),
+    );
+
+    expect(deferredSaleEvents()).toEqual([
+      {
+        event_id: "event-of-deferred-1",
+        aggregate_id: "sale-1",
+        payload: {
+          id: "deferred-1",
+          sale_id: "sale-1",
+          register_id: "register-1",
+          occurred_at: SALE_COMPLETED_AT.toISOString(),
+          total: FACTURA_C.total,
+          reason: "unclear_outcome",
+          short_code: "7KQ4M2P9",
+          routed_at: RESOLVED_AT.toISOString(),
+        },
+      },
+    ]);
+  });
+
+  it("appends the event of an interrupted request's deferred record too", () => {
+    documents.transaction((tx) =>
+      tx.resolve(resolution({ resolution: UNCLEAR, deferredSale: deferredSaleRecordingOf() })),
+    );
+
+    expect(deferredSaleEvents().map(({ event_id }) => event_id)).toEqual(["event-of-deferred-1"]);
+  });
+
+  it("appends no event when the answer routes nothing", async () => {
+    await documents.resolve(
+      resolution({
+        resolution: {
+          state: "AUTHORIZED",
+          authorizationCode: "75123456789012",
+          authorizationCodeDueOn: "2026-10-10",
+        },
+      }),
+    );
+
+    expect(deferredSaleEvents()).toEqual([]);
+  });
+
+  it("appends no event for a record refused for its taken short code, and one for the record that follows", () => {
+    insertCompletedSale(database, "sale-2");
+    insertDeferredSale(database, "sale-2");
+    database.prepare("UPDATE deferred_sales SET short_code = '7KQ4M2P9'").run();
+
+    documents.transaction((tx) => {
+      try {
+        tx.resolve(resolution({ resolution: UNCLEAR, deferredSale: deferredSaleRecordingOf() }));
+      } catch {
+        tx.resolve(
+          resolution({
+            resolution: UNCLEAR,
+            deferredSale: deferredSaleRecordingOf({ shortCode: "R3XW8H5N" }),
+          }),
+        );
+      }
+    });
+
+    expect(deferredSaleEvents().map(({ payload }) => payload.short_code)).toEqual(["R3XW8H5N"]);
+  });
+
+  it("appends no event when the record cannot be written", async () => {
+    insertDeferredSale(database, "sale-1", "rejected");
+
+    await expect(
+      documents.resolve(
+        resolution({ resolution: UNCLEAR, deferredSale: deferredSaleRecordingOf() }),
+      ),
+    ).rejects.toThrow(/UNIQUE/);
+
+    expect(deferredSaleEvents()).toEqual([]);
+  });
+
+  it("refuses to record without the outbox chain key, changing nothing", async () => {
+    const keyless = new SqliteRealTimeFiscalDocuments(database, undefined);
+
+    await expect(
+      keyless.resolve(resolution({ resolution: UNCLEAR, deferredSale: deferredSaleRecordingOf() })),
+    ).rejects.toThrow("the register has no outbox chain key");
+
+    expect(storedDocument()).toMatchObject({ state: "REQUESTING" });
+    expect(recordedDeferredSales()).toEqual([]);
+  });
+
   it("refuses with a taken short code, changing nothing, when another sale's record already holds it", async () => {
     insertCompletedSale(database, "sale-2");
     insertDeferredSale(database, "sale-2");
     database.prepare("UPDATE deferred_sales SET short_code = '7KQ4M2P9'").run();
 
     await expect(
-      documents.resolve(resolution({ resolution: UNCLEAR, deferredSale: deferredSaleOf() })),
+      documents.resolve(
+        resolution({ resolution: UNCLEAR, deferredSale: deferredSaleRecordingOf() }),
+      ),
     ).rejects.toThrow(ShortCodeTaken);
 
     expect(storedDocument()).toMatchObject({ state: "REQUESTING", resolved_at: null });
@@ -270,13 +383,13 @@ describe("resolving a waiting document", () => {
 
     const outcome = documents.transaction((tx) => {
       try {
-        tx.resolve(resolution({ resolution: UNCLEAR, deferredSale: deferredSaleOf() }));
+        tx.resolve(resolution({ resolution: UNCLEAR, deferredSale: deferredSaleRecordingOf() }));
       } catch (error) {
         expect(error).toBeInstanceOf(ShortCodeTaken);
         tx.resolve(
           resolution({
             resolution: UNCLEAR,
-            deferredSale: deferredSaleOf({ shortCode: "R3XW8H5N" }),
+            deferredSale: deferredSaleRecordingOf({ shortCode: "R3XW8H5N" }),
           }),
         );
       }
@@ -294,7 +407,9 @@ describe("resolving a waiting document", () => {
     insertDeferredSale(database, "sale-1", "rejected");
 
     await expect(
-      documents.resolve(resolution({ resolution: UNCLEAR, deferredSale: deferredSaleOf() })),
+      documents.resolve(
+        resolution({ resolution: UNCLEAR, deferredSale: deferredSaleRecordingOf() }),
+      ),
     ).rejects.toThrow(/UNIQUE/);
 
     expect(storedDocument()).toMatchObject({ state: "REQUESTING", resolved_at: null });
