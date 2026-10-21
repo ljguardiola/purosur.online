@@ -914,6 +914,7 @@ describe("the register's local migrations", () => {
         "0064_void_credit_notes",
         "0066_register_qr_point_of_sale",
         "0067_replenished_events",
+        "0068_credit_note_reprints",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1005,6 +1006,7 @@ describe("the register's local migrations", () => {
         "0064_void_credit_notes",
         "0066_register_qr_point_of_sale",
         "0067_replenished_events",
+        "0068_credit_note_reprints",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1091,6 +1093,7 @@ describe("the register's local migrations", () => {
         "0064_void_credit_notes",
         "0066_register_qr_point_of_sale",
         "0067_replenished_events",
+        "0068_credit_note_reprints",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1176,6 +1179,7 @@ describe("the register's local migrations", () => {
         "0064_void_credit_notes",
         "0066_register_qr_point_of_sale",
         "0067_replenished_events",
+        "0068_credit_note_reprints",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1290,6 +1294,7 @@ describe("the register's local migrations", () => {
         "0064_void_credit_notes",
         "0066_register_qr_point_of_sale",
         "0067_replenished_events",
+        "0068_credit_note_reprints",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1394,6 +1399,7 @@ describe("the register's local migrations", () => {
         "0064_void_credit_notes",
         "0066_register_qr_point_of_sale",
         "0067_replenished_events",
+        "0068_credit_note_reprints",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1502,6 +1508,7 @@ describe("the register's local migrations", () => {
         "0064_void_credit_notes",
         "0066_register_qr_point_of_sale",
         "0067_replenished_events",
+        "0068_credit_note_reprints",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1618,6 +1625,7 @@ describe("the register's local migrations", () => {
         "0064_void_credit_notes",
         "0066_register_qr_point_of_sale",
         "0067_replenished_events",
+        "0068_credit_note_reprints",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1701,6 +1709,7 @@ describe("the register's local migrations", () => {
         "0064_void_credit_notes",
         "0066_register_qr_point_of_sale",
         "0067_replenished_events",
+        "0068_credit_note_reprints",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1866,8 +1875,8 @@ describe("the register's local migrations", () => {
       expect(() => receipt.run({ ...stored, sale_id: "sale-1", head: null })).toThrow(/NOT NULL/);
 
       const reprint = after.prepare(
-        `INSERT INTO sale_reprints (sale_id, order_number, requested_by, authorized_by, reason_kind, reason_text, occurred_at)
-         VALUES (@sale_id, @order_number, 'u1', NULL, @reason_kind, @reason_text, '2026-09-30T12:10:00.000Z')`,
+        `INSERT INTO sale_reprints (sale_id, document, order_number, requested_by, authorized_by, reason_kind, reason_text, occurred_at)
+         VALUES (@sale_id, 'sale_receipt', @order_number, 'u1', NULL, @reason_kind, @reason_text, '2026-09-30T12:10:00.000Z')`,
       );
       const retry = { sale_id: "sale-1", order_number: 1, reason_kind: "retry", reason_text: null };
       reprint.run(retry);
