@@ -83,7 +83,11 @@ describe("recording the document a register issued under a pre-obtained code", (
 
   it("keeps a document issued during the lapse after a clock correction with that cause", async () => {
     const { deviceId, registerId, saleId } = await enrolledWithSale();
-    const fact = anOfflineFiscalDocumentFact({ registerId, saleId, cause: "clock_correction_lapse" });
+    const fact = anOfflineFiscalDocumentFact({
+      registerId,
+      saleId,
+      cause: "clock_correction_lapse",
+    });
 
     await record(fact, deviceId);
 

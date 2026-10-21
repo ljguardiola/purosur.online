@@ -5,7 +5,6 @@ export type {
   ClockLowering,
   ClockMark,
 } from "../model/clock-correction.js";
-export type { ClockCorrectionReadings } from "../model/register-clock.js";
 export type { FiscalOnlineSignalEvidence } from "../model/fiscal-online-signal.js";
 export type {
   RejectionStandingChange,
@@ -38,6 +37,7 @@ export type {
   RealTimeSeries,
   RejectionClass,
 } from "../model/real-time-authorization.js";
+export type { ClockCorrectionReadings } from "../model/register-clock.js";
 export type {
   ClearAuthorizationAnswer,
   OutcomeToldToAskingRegister,

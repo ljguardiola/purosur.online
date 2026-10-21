@@ -5602,9 +5602,9 @@ describe("the register's local migrations", () => {
 
       const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
 
-      expect(
-        after.prepare("SELECT id, number, cause FROM offline_fiscal_documents").all(),
-      ).toEqual([{ id: "offline-kept", number: 1, cause: "unclear_outcome" }]);
+      expect(after.prepare("SELECT id, number, cause FROM offline_fiscal_documents").all()).toEqual(
+        [{ id: "offline-kept", number: 1, cause: "unclear_outcome" }],
+      );
       const insert = after.prepare(
         `INSERT INTO offline_fiscal_documents (
            id, sale_id, point_of_sale, document_type, number, issued_on, generated_at, generation_stamp,
