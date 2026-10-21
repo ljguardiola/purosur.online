@@ -63,19 +63,18 @@ export function readRegisterClockGuard(
     })
       ? floor
       : null;
-  const isFloorOf = (pointOfSale: number) =>
-    floorBehind !== null && floorBehind.pointOfSale === pointOfSale;
+  const isFloorOf = (pointOfSale: number) => floor !== null && floor.pointOfSale === pointOfSale;
 
   const blocks: ClockGuardBlock[] = marks
     .filter(
       ({ pointOfSale, reading: mark }) =>
-        isBehindClockMark(reading, mark) || isFloorOf(pointOfSale),
+        isBehindClockMark(reading, mark) || (floorBehind !== null && isFloorOf(pointOfSale)),
     )
     .map(({ pointOfSale, documentType, reading: latestReading }) => ({
       pointOfSale,
       documentType,
       latestReading,
-      taxAuthorityLastIssuedOn: isFloorOf(pointOfSale) ? (floorBehind?.lastIssuedOn ?? null) : null,
+      taxAuthorityLastIssuedOn: isFloorOf(pointOfSale) ? (floor?.lastIssuedOn ?? null) : null,
     }));
   if (floorBehind !== null && !blocks.some(({ pointOfSale }) => isFloorOf(pointOfSale))) {
     blocks.push({
