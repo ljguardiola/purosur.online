@@ -139,6 +139,22 @@ describe("clockLoweringsFor against the tax authority's last authorized day", ()
     ]);
   });
 
+  it("does not take the mark of another point of sale, though later than the start of the day, for the floor's series", () => {
+    const other = {
+      pointOfSale: 7,
+      documentType: "factura_c",
+      reading: new Date("2026-10-02T15:00:00.000Z"),
+    } as const;
+
+    expect(clockLoweringsFor([other], READING, FLOOR)).toContainEqual({
+      pointOfSale: 12,
+      documentType: "factura_c",
+      previousReading: START_OF_TAX_AUTHORITY_DAY,
+      previousReadingSource: "tax_authority_day",
+      correctedReading: READING,
+    });
+  });
+
   it("lowers nothing for the floor when the reading is on the tax authority's day", () => {
     const onTheDay = new Date("2026-10-02T12:00:00.000Z");
 
