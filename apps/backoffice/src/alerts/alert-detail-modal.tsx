@@ -174,6 +174,7 @@ function alertIcon(kind: string): Icon {
     case "fortnight_report_overdue":
     case "fortnight_report_needs_regularization":
     case "fortnight_report_owed_elsewhere":
+    case "fortnight_report_document_rejected":
       return <TriangleAlert />;
     case "clock_corrected":
     case "clock_drift":
@@ -494,6 +495,7 @@ function alertTitle(alert: AlertDetail): string {
     case "invoice_already_credited":
     case "fortnight_report_needs_regularization":
     case "fortnight_report_owed_elsewhere":
+    case "fortnight_report_document_rejected":
     case "clock_corrected":
     case "register_backup_overdue":
       return alertKindLabel(alert.kind);
@@ -582,6 +584,7 @@ function alertDescription(alert: AlertDetail, catalog: PermissionCatalogWire = [
     case "fortnight_report_overdue":
     case "fortnight_report_needs_regularization":
     case "fortnight_report_owed_elsewhere":
+    case "fortnight_report_document_rejected":
       return "";
     case "clock_corrected":
       return alertKindDescription(alert.kind);
@@ -708,6 +711,14 @@ function AlertDescription({ alert }: { alert: AlertDetail }) {
           </p>
         ))}
       </>
+    );
+  }
+  if (alert.kind === "fortnight_report_document_rejected") {
+    const { pointOfSaleNumber, rejectedNumber, fortnightStart, fortnightEnd } = alert.detail;
+    return (
+      <p className="text-text text-body">
+        {`ARCA rechazó el comprobante ${formatPointOfSaleNumber(pointOfSaleNumber)}-${formatInvoiceNumber(rejectedNumber)} de ${fortnightOfPointOfSale(alert.detail).replace(/ del punto de venta .*/, "")}. Los que le siguen quedan sin procesar hasta que se resuelva: en Puntos de venta se indica dónde está el error.`}
+      </p>
     );
   }
   if (alert.kind === "fortnight_report_owed_elsewhere") {
