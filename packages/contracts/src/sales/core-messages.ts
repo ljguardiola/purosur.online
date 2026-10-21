@@ -166,6 +166,14 @@ const printCreditNoteMessageSchema = z.object({
   sale_id: z.string(),
 });
 
+export const reprintCreditNoteMessageSchema = z.object({
+  type: z.literal("reprint-credit-note"),
+  request_id: requestId,
+  sale_id: z.string(),
+  reason: z.string(),
+  authorization: authorizationSchema.optional(),
+});
+
 export const reprintSaleReceiptMessageSchema = z.object({
   type: z.literal("reprint-sale-receipt"),
   request_id: requestId,
@@ -254,6 +262,7 @@ export const salesRendererToCoreMessageSchema = z.discriminatedUnion("type", [
   printOriginalReceiptMessageSchema,
   printCreditNoteMessageSchema,
   reprintSaleReceiptMessageSchema,
+  reprintCreditNoteMessageSchema,
   salesHistoryMessageSchema,
   saleHistoryDetailMessageSchema,
 ]);
@@ -308,8 +317,9 @@ const printOriginalReceiptOutcomeSchema = z.discriminatedUnion("kind", [
 export type PrintOriginalReceiptOutcome = z.infer<typeof printOriginalReceiptOutcomeSchema>;
 
 const printCreditNoteOutcomeSchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("started") }),
+  z.object({ kind: z.literal("started"), copy: receiptCopySchema }),
   z.object({ kind: z.literal("busy") }),
+  z.object({ kind: z.literal("already_attempted") }),
   z.object({ kind: z.literal("printer_not_configured") }),
   z.object({ kind: z.literal("not_found") }),
   z.object({ kind: z.literal("not_signed_in") }),
@@ -444,6 +454,11 @@ export const salesCoreToRendererMessageSchema = z.discriminatedUnion("type", [
   }),
   z.object({
     type: z.literal("reprint-sale-receipt-result"),
+    request_id: requestId,
+    outcome: reprintSaleReceiptOutcomeSchema,
+  }),
+  z.object({
+    type: z.literal("reprint-credit-note-result"),
     request_id: requestId,
     outcome: reprintSaleReceiptOutcomeSchema,
   }),
