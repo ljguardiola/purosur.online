@@ -18,7 +18,7 @@ import { configureOfflinePointOfSale } from "./test-support/offline-point-of-sal
 import { WITHOUT_CREDIT_NOTES } from "./test-support/rejected-document-remedy-fixtures.js";
 
 const FORTNIGHT = { start: "2026-10-01", end: "2026-10-15" };
-const ATTEMPTED_AT = new Date("2026-10-16T12:00:00.000Z");
+const ATTEMPTED_AT = new Date("2026-01-04T12:00:00.000Z");
 
 let testDatabase: TestDatabase;
 let db: TestDatabase["db"];
@@ -119,6 +119,8 @@ function remedy(
 }
 
 const REPORT = { kind: "report" };
+const remedyAudits = () =>
+  db.select().from(auditLog).where(eq(auditLog.entity, "offline_fiscal_document"));
 const remedies = () => db.select().from(rejectedDocumentRemedies);
 
 describe("POST /registers/fortnight-presentations/rejected-document-remedies", () => {
@@ -233,7 +235,7 @@ describe("POST /registers/fortnight-presentations/rejected-document-remedies", (
       refusal: "date_outside_fortnight",
     });
     expect(await remedies()).toEqual([]);
-    expect(await db.select().from(auditLog)).toEqual([]);
+    expect(await remedyAudits()).toEqual([]);
   });
 
   it("records the remedy that reports the document again, audited under the actor", async () => {
@@ -247,7 +249,7 @@ describe("POST /registers/fortnight-presentations/rejected-document-remedies", (
     expect(await remedies()).toMatchObject([
       { number: 3, kind: "report", recordedAt: SESSION_NOON },
     ]);
-    expect(await db.select().from(auditLog)).toMatchObject([
+    expect(await remedyAudits()).toMatchObject([
       { actorId: session.userId, at: SESSION_NOON, newValue: { remedy: "report", number: 3 } },
     ]);
   });

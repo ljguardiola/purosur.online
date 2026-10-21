@@ -18,6 +18,23 @@ export interface FortnightPresentationsRouteOptions<TQueryResult extends PgQuery
   now: () => Date;
 }
 
+function toRejectedDocumentWire(rejected: BranchFortnightPresentation["rejectedDocument"]) {
+  return rejected === null
+    ? null
+    : {
+        number: rejected.number,
+        unprocessed: rejected.unprocessed,
+        document_id: rejected.documentId,
+        issued_on: rejected.issuedOn,
+        total: rejected.total,
+        buyer_document_type: rejected.buyerDocumentType,
+        buyer_document_number: rejected.buyerDocumentNumber,
+        buyer_tax_status_code: rejected.buyerTaxStatusCode,
+        rejections: rejected.rejections,
+        remedy: rejected.remedy,
+      };
+}
+
 function toWire(presentation: BranchFortnightPresentation) {
   return {
     register_id: presentation.registerId,
@@ -27,7 +44,7 @@ function toWire(presentation: BranchFortnightPresentation) {
     deadline: presentation.deadline,
     document_type: presentation.documentType,
     document_count: presentation.documentCount,
-    rejected_document: presentation.rejectedDocument,
+    rejected_document: toRejectedDocumentWire(presentation.rejectedDocument),
     movement: presentation.movement,
     refusal: presentation.refusal,
     state: presentation.state,

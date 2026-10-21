@@ -94,6 +94,7 @@ import { registerRegisterOfflinePointOfSaleConfigurationRoute } from "./fiscal/r
 import { registerRegisterPointOfSaleConfigurationRoute } from "./fiscal/register-point-of-sale-configuration-route.js";
 import type { RegistersPointsOfSaleRouteOptions } from "./fiscal/registers-points-of-sale-list-route.js";
 import { registerRegistersPointsOfSaleListRoute } from "./fiscal/registers-points-of-sale-list-route.js";
+import { registerRejectedDocumentRemedyRoute } from "./fiscal/rejected-document-remedy-route.js";
 import {
   registerUnclearOutcomeRoute,
   type UnclearOutcomeRouteOptions,
@@ -696,6 +697,7 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
       if (options.registersPointsOfSale) {
         registerRegistersPointsOfSaleListRoute(api, { ...options.registersPointsOfSale, now });
         registerFortnightPresentationsListRoute(api, { ...options.registersPointsOfSale, now });
+        registerRejectedDocumentRemedyRoute(api, { ...options.registersPointsOfSale, now });
         registerClockCorrectionsListRoute(api, { ...options.registersPointsOfSale, now });
         registerRegisterPointOfSaleConfigurationRoute(api, {
           ...options.registersPointsOfSale,
