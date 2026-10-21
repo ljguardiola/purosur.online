@@ -9,7 +9,7 @@ import {
   aCompletedSaleFact,
   aVoidedSaleFact,
 } from "@purosur/domain/sync/test-support";
-import type { SyncedFact } from "@purosur/domain/sync/use-cases";
+import type { RegisterReplenishmentTransaction, SyncedFact } from "@purosur/domain/sync/use-cases";
 import type { ReplenishedUser } from "@purosur/domain/users/use-cases";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { derivePinVerifier } from "../credentials/pin-verifier";
@@ -408,6 +408,69 @@ describe("the register's store for replenishing a restored register", () => {
       await store.transaction((tx) => tx.applyFact(aCompletedSaleFact({ id: "sale-1" }), SOURCE));
 
       expect(count("outbox")).toBe(0);
+    });
+  });
+
+  describe("the credit note answer of a voided sale", () => {
+    const CREDIT_NOTE = {
+      creditNoteId: "note-1",
+      saleId: "sale-1",
+      total: 4800,
+      receiverTaxStatusCode: 5,
+      correctedVoucher: { voucherType: 11, pointOfSale: 7, number: 42 },
+    };
+    const ANSWER = {
+      creditNoteId: "note-1",
+      answeredAt: new Date("2026-10-07T10:30:00.000Z"),
+      answer: {
+        kind: "authorized" as const,
+        pointOfSale: 7,
+        number: 9,
+        issuedOn: "2026-10-07",
+        issuedAt: new Date("2026-10-07T10:29:00.000Z"),
+        authorizationCode: "74123456789012",
+        authorizationCodeDueOn: "2026-10-17",
+      },
+    };
+
+    async function replenishVoidedSale(tx: RegisterReplenishmentTransaction) {
+      await tx.applyFact(aCompletedSaleFact({ id: "sale-1" }), SOURCE);
+      await tx.applyFact({ ...aVoidedSaleFact({ id: "sale-1" }), creditNote: CREDIT_NOTE }, SOURCE);
+    }
+
+    it("is written as the credit note of the voided sale, with the cloud's authorization", async () => {
+      await store.transaction(async (tx) => {
+        await replenishVoidedSale(tx);
+        await tx.recordCreditNoteAnswer(CREDIT_NOTE, ANSWER);
+      });
+
+      expect(
+        database
+          .prepare(
+            "SELECT id, sale_id, state, number, authorization_code FROM sale_void_credit_notes",
+          )
+          .all(),
+      ).toEqual([
+        {
+          id: "note-1",
+          sale_id: "sale-1",
+          state: "AUTHORIZED",
+          number: 9,
+          authorization_code: "74123456789012",
+        },
+      ]);
+    });
+
+    it("leaves no credit note behind, not even one in progress, when its transaction fails", async () => {
+      await expect(
+        store.transaction(async (tx) => {
+          await replenishVoidedSale(tx);
+          await tx.recordCreditNoteAnswer(CREDIT_NOTE, ANSWER);
+          throw new Error("storage unavailable");
+        }),
+      ).rejects.toThrow("storage unavailable");
+
+      expect(count("sale_void_credit_notes")).toBe(0);
     });
   });
 
