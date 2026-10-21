@@ -93,9 +93,8 @@ describe("restorationStanding", () => {
           reset_sync_identity: reset,
           replenish,
         };
-        const firstPending = RESTORATION_STEPS.find(
-          (name) =>
-            name in combination && combination[name as keyof RestorationEvidence] === "pending",
+        const [firstPending] = RESTORATION_STEPS.filter(
+          (name) => (combination as Readonly<Record<string, string>>)[name] === "pending",
         );
 
         expect(restorationStanding(combination)).toEqual(

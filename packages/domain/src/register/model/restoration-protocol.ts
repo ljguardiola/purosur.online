@@ -32,11 +32,12 @@ export type RestorationStanding =
   | { kind: "completed" }
   | { kind: "in_progress"; step: Exclude<RestorationStep, "open_session"> };
 
-const DELIVERED_STEPS: readonly DeliveredRestorationStep[] = RESTORATION_STEPS.filter(
-  (step): step is DeliveredRestorationStep =>
-    step !== "open_session" &&
-    !(UNDELIVERED_RESTORATION_STEPS as readonly RestorationStep[]).includes(step),
-);
+const DELIVERED_STEPS = [
+  "enroll",
+  "restore",
+  "reset_sync_identity",
+  "replenish",
+] as const satisfies readonly DeliveredRestorationStep[];
 
 export function restorationStanding(evidence: RestorationEvidence): RestorationStanding {
   const pending = DELIVERED_STEPS.find((step) => evidence[step] === "pending");
