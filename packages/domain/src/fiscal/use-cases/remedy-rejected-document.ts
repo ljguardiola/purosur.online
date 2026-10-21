@@ -60,9 +60,7 @@ export function remedyRejectedDocument(
     let recorded = remedy;
     let changes: DocumentFieldChange[] = [];
     if (remedy.kind === "printed") {
-      const issued = (await tx.documentsOn(pointOfSaleNumber, fortnight, locationId)).filter(
-        (document) => document.documentType === documentType,
-      );
+      const issued = await tx.documentsOn(pointOfSaleNumber, fortnight, locationId);
       const printed = issued.find((document) => document.number === number);
       if (printed === undefined) {
         return { kind: "document_not_found" };
