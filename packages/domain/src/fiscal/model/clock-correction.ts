@@ -34,11 +34,14 @@ export interface TaxAuthorityClockFloor {
   corrections: readonly ClockCorrectionReadings[];
 }
 
-function isSeriesOf(
-  { pointOfSale, documentType }: { pointOfSale: number; documentType: FiscalDocumentType },
-  floor: TaxAuthorityClockFloor,
-): boolean {
-  return pointOfSale === floor.pointOfSale && documentType === floor.documentType;
+function seriesKey({
+  pointOfSale,
+  documentType,
+}: {
+  pointOfSale: number;
+  documentType: FiscalDocumentType;
+}): string {
+  return `${pointOfSale}:${documentType}`;
 }
 
 export function clockLoweringsFor(
@@ -69,7 +72,7 @@ export function clockLoweringsFor(
     return markLowerings;
   }
   const startOfTaxAuthorityDay = new Date(argentinaInstant(floor.lastIssuedOn, "00:00"));
-  const mark = marks.find((candidate) => isSeriesOf(candidate, floor));
+  const mark = marks.find((candidate) => seriesKey(candidate) === seriesKey(floor));
   const fromMark = mark !== undefined && mark.reading.getTime() > startOfTaxAuthorityDay.getTime();
   const floorLowering: ClockLowering = {
     pointOfSale: floor.pointOfSale,
@@ -78,7 +81,10 @@ export function clockLoweringsFor(
     previousReadingSource: fromMark ? "clock_mark" : "tax_authority_day",
     correctedReading: reading,
   };
-  return [...markLowerings.filter((lowering) => !isSeriesOf(lowering, floor)), floorLowering];
+  return [
+    ...markLowerings.filter((lowering) => seriesKey(lowering) !== seriesKey(floor)),
+    floorLowering,
+  ];
 }
 
 export interface ClockCorrectedFact extends ClockLowering {
