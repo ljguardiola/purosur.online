@@ -6,6 +6,7 @@ import {
   detectMissingOfflineAuthorizationCodes,
   detectOwedElsewherePresentations,
   detectQuietRegisters,
+  detectRejectedFortnightDocuments,
   openOverdueUnclearOutcomeAlerts,
   resolveStablyClearedAlerts,
 } from "@purosur/domain/alerts/use-cases";
@@ -21,6 +22,7 @@ import { DrizzleFortnightRegularizationReader } from "../fiscal/drizzle-fortnigh
 import { DrizzleOfflineAuthorizationCodeHoldingReader } from "../fiscal/drizzle-offline-authorization-code-holding-reader.js";
 import { DrizzleOwedElsewherePresentationReader } from "../fiscal/drizzle-owed-elsewhere-presentation-reader.js";
 import { DrizzleOwedFortnightPresentationReader } from "../fiscal/drizzle-owed-fortnight-presentation-reader.js";
+import { DrizzleRejectedFortnightDocumentReader } from "../fiscal/drizzle-rejected-fortnight-document-reader.js";
 import { DrizzleRefundTaskAlertStore } from "../payments/drizzle-refund-task-alert-store.js";
 import {
   type BackgroundJobs,
@@ -36,6 +38,7 @@ import { DrizzleFortnightReportDeadlineAlerts } from "./drizzle-fortnight-report
 import { DrizzleFortnightReportRegularizationAlerts } from "./drizzle-fortnight-report-regularization-alerts.js";
 import { DrizzleMissingOfflineAuthorizationCodeAlerts } from "./drizzle-missing-offline-authorization-code-alerts.js";
 import { DrizzleOwedElsewhereAlerts } from "./drizzle-owed-elsewhere-alerts.js";
+import { DrizzleRejectedFortnightDocumentAlerts } from "./drizzle-rejected-fortnight-document-alerts.js";
 import { DrizzleUnclearOutcomeAlertStore } from "./drizzle-unclear-outcome-alert-store.js";
 import { observeAlertCondition } from "./observe-alert-condition.js";
 
@@ -139,6 +142,16 @@ function detectFortnightReportRegularizationsTask<TQueryResult extends PgQueryRe
   });
 }
 
+function detectRejectedFortnightDocumentsTask<TQueryResult extends PgQueryResultHKT>(
+  db: PgDatabase<TQueryResult>,
+  deps: { now: () => Date },
+): Promise<number> {
+  return detectRejectedFortnightDocuments({
+    presentations: new DrizzleRejectedFortnightDocumentReader(db),
+    alerts: new DrizzleRejectedFortnightDocumentAlerts(db, deps.now),
+  });
+}
+
 function detectOverdueRegisterBackupsTask<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   deps: { now: () => Date },
@@ -165,6 +178,7 @@ export interface AlertConditionResolutionJobsDeps {
   detectFortnightReportDeadlines?: typeof detectFortnightReportDeadlinesTask;
   detectFortnightReportRegularizations?: typeof detectFortnightReportRegularizationsTask;
   detectOwedElsewherePresentations?: typeof detectOwedElsewherePresentationsTask;
+  detectRejectedFortnightDocuments?: typeof detectRejectedFortnightDocumentsTask;
   detectOverdueRegisterBackups?: typeof detectOverdueRegisterBackupsTask;
 }
 
@@ -186,6 +200,8 @@ export function alertConditionResolutionJobs(
     deps.detectOwedElsewherePresentations ?? detectOwedElsewherePresentationsTask;
   const doDetectFortnightReportRegularizations =
     deps.detectFortnightReportRegularizations ?? detectFortnightReportRegularizationsTask;
+  const doDetectRejectedFortnightDocuments =
+    deps.detectRejectedFortnightDocuments ?? detectRejectedFortnightDocumentsTask;
   const doDetectOverdueRegisterBackups =
     deps.detectOverdueRegisterBackups ?? detectOverdueRegisterBackupsTask;
   return {
@@ -202,6 +218,7 @@ export function alertConditionResolutionJobs(
           await doDetectFortnightReportDeadlines(db, { now: options.now });
           await doDetectOwedElsewherePresentations(db, { now: options.now });
           await doDetectFortnightReportRegularizations(db, { now: options.now });
+          await doDetectRejectedFortnightDocuments(db, { now: options.now });
           await doDetectOverdueRegisterBackups(db, { now: options.now });
         });
       },
