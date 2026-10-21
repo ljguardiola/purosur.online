@@ -1,5 +1,6 @@
 import type {
   CashBalance,
+  EnrollmentOutcome,
   ListedCashMovement,
   PaymentMethodAvailability,
   ReadClockGuardOutcome,
@@ -17,7 +18,13 @@ import { createQueryClient } from "../platform/query-client";
 import type { CashSessionState } from "../register/cash-session-state";
 import { registerStatusQueryOptions } from "../register/register-queries";
 import { serialDevicesOffer } from "../register/serial-devices-offer";
-import type { CoreStatus, Enrollment, RegisterServiceState, RouterContext } from "./router";
+import type {
+  CoreStatus,
+  Enrollment,
+  RegisterServiceState,
+  Restoration,
+  RouterContext,
+} from "./router";
 import { createRegisterRouter, routeFor, routeTree } from "./router";
 import type { SignedInPerson } from "./signed-in-person";
 import { startupPendingGate } from "./startup-pending-gate";
@@ -43,6 +50,8 @@ type RoutePath =
   | "/core-down"
   | "/updating"
   | "/out-of-service"
+  | "/restoring"
+  | "/restore-required"
   | "/older-version"
   | "/pin-code-redemption"
   | "/first-sign-in";
@@ -51,6 +60,9 @@ type RenderedScreen = Awaited<ReturnType<typeof render>>;
 const CORE_DOWN_TITLE = "Esperá un momento";
 const OLDER_VERSION_TITLE = "Hay que instalar la versión vigente";
 const OUT_OF_SERVICE_TITLE = "La caja necesita restaurarse";
+const RESTORING_TITLE = "La caja no puede vender todavía";
+const RESTORE_REQUIRED_TITLE = "La caja tiene que volver a darse de alta";
+const COMPLETED: Restoration = { kind: "completed" };
 const SIGNED_IN_TITLE = "¿Qué querés hacer?";
 const SIGN_IN_TITLE = "¿Quién abre la caja?";
 const SESSION_TITLE = "Venta en curso";
@@ -166,6 +178,8 @@ const screenFor: Record<
   "/core-down": (screen) => screen.getByText(CORE_DOWN_TITLE),
   "/updating": (screen) => screen.getByText("Actualizando la caja"),
   "/out-of-service": (screen) => screen.getByText(OUT_OF_SERVICE_TITLE),
+  "/restoring": (screen) => screen.getByRole("heading", { name: RESTORING_TITLE }),
+  "/restore-required": (screen) => screen.getByRole("heading", { name: RESTORE_REQUIRED_TITLE }),
   "/older-version": (screen) => screen.getByRole("heading", { name: OLDER_VERSION_TITLE }),
   "/pin-code-redemption": (screen) => screen.getByRole("heading", { name: PIN_REDEMPTION_TITLE }),
   "/first-sign-in": (screen) => screen.getByRole("heading", { name: FIRST_SIGN_IN_TITLE }),
@@ -184,11 +198,13 @@ function contextWith(
   signOut: () => void = () => {},
   cashSession: CashSessionState = NO_SESSION,
   registerService: RegisterServiceState = "in_service",
+  restoration: Restoration = COMPLETED,
 ): RouterContext {
   return {
     queryClient,
     coreStatus,
     registerService,
+    restoration,
     enrollment,
     person: person ?? undefined,
     cashSession,
@@ -286,10 +302,19 @@ function routerAt(
   person?: SignedInPerson | null,
   cashSession?: CashSessionState,
   registerService?: RegisterServiceState,
+  restoration?: Restoration,
 ) {
   return createRegisterRouter(
     routeTree,
-    contextWith(coreStatus, enrollment, person, undefined, cashSession, registerService),
+    contextWith(
+      coreStatus,
+      enrollment,
+      person,
+      undefined,
+      cashSession,
+      registerService,
+      restoration,
+    ),
     path,
   );
 }
@@ -334,6 +359,7 @@ describe("routeFor", () => {
     person: SignedInPerson | undefined;
     cashSession?: CashSessionState;
     registerService?: RegisterServiceState;
+    restoration?: Restoration;
     route: RoutePath;
   }>([
     { coreStatus: "up", enrollment: "enrolled", person: undefined, route: "/sign-in" },
@@ -471,19 +497,95 @@ describe("routeFor", () => {
       registerService: "out_of_service",
       route: "/starting",
     },
+    {
+      coreStatus: "up",
+      enrollment: "enrolled",
+      person: undefined,
+      restoration: { kind: "in_progress", step: "enroll" },
+      route: "/restore-required",
+    },
+    ...(
+      [
+        "restore",
+        "reset_sync_identity",
+        "replenish",
+        "recover_contingency_tickets",
+        "reconcile_fiscal_counters",
+        "regularize_orphan_authorizations",
+      ] as const
+    ).map((step) => ({
+      coreStatus: "up" as const,
+      enrollment: "enrolled" as const,
+      person: PERSON,
+      restoration: { kind: "in_progress" as const, step },
+      route: "/restoring" as const,
+    })),
+    {
+      coreStatus: "up",
+      enrollment: "enrolled",
+      person: PERSON,
+      cashSession: OPEN_SESSION,
+      restoration: { kind: "in_progress", step: "restore" },
+      route: "/restoring",
+    },
+    {
+      coreStatus: "up",
+      enrollment: "enrolled",
+      person: undefined,
+      cashSession: OPEN_SESSION,
+      restoration: { kind: "in_progress", step: "enroll" },
+      route: "/restore-required",
+    },
+    {
+      coreStatus: "up",
+      enrollment: "enrolled",
+      person: PERSON,
+      restoration: "unknown",
+      route: "/starting",
+    },
+    {
+      coreStatus: "up",
+      enrollment: "enrolled",
+      person: PERSON,
+      restoration: { kind: "completed" },
+      route: "/",
+    },
+    {
+      coreStatus: "up",
+      enrollment: "not_enrolled",
+      person: undefined,
+      restoration: "unknown",
+      route: "/enroll",
+    },
+    {
+      coreStatus: "up",
+      enrollment: "enrolled",
+      person: PERSON,
+      registerService: "out_of_service",
+      restoration: { kind: "in_progress", step: "restore" },
+      route: "/out-of-service",
+    },
+    {
+      coreStatus: "down",
+      enrollment: "enrolled",
+      person: PERSON,
+      restoration: { kind: "in_progress", step: "restore" },
+      route: "/core-down",
+    },
   ])(
-    "goes to $route when the core is $coreStatus, the installation $enrollment, the cash session $cashSession.status and the register $registerService",
+    "goes to $route when the core is $coreStatus, the installation $enrollment, the cash session $cashSession.status, the register $registerService and the restoration $restoration",
     ({
       coreStatus,
       enrollment,
       person,
       cashSession = NO_SESSION,
       registerService = "in_service",
+      restoration = COMPLETED,
       route,
     }) => {
-      expect(routeFor({ coreStatus, enrollment, person, cashSession, registerService })).toBe(
-        route,
-      );
+      expect(
+        routeFor({ coreStatus, enrollment, person, cashSession, registerService, restoration }),
+      ).toBe(route);
     },
   );
 });
@@ -500,9 +602,41 @@ describe("the register's router", () => {
     person?: null;
     cashSession?: CashSessionState;
     registerService?: RegisterServiceState;
+    restoration?: Restoration;
     redirectedTo: RoutePath;
   }>([
     { path: "/", coreStatus: "down", enrollment: "enrolled", redirectedTo: "/core-down" },
+    {
+      path: "/",
+      coreStatus: "up",
+      enrollment: "enrolled",
+      restoration: { kind: "in_progress", step: "restore" },
+      redirectedTo: "/restoring",
+    },
+    {
+      path: "/sign-in",
+      coreStatus: "up",
+      enrollment: "enrolled",
+      person: null,
+      restoration: { kind: "in_progress", step: "enroll" },
+      redirectedTo: "/restore-required",
+    },
+    {
+      path: "/session",
+      coreStatus: "up",
+      enrollment: "enrolled",
+      cashSession: OPEN_SESSION,
+      restoration: { kind: "in_progress", step: "replenish" },
+      redirectedTo: "/restoring",
+    },
+    { path: "/restoring", coreStatus: "up", enrollment: "enrolled", redirectedTo: "/" },
+    {
+      path: "/restore-required",
+      coreStatus: "up",
+      enrollment: "enrolled",
+      restoration: { kind: "in_progress", step: "restore" },
+      redirectedTo: "/restoring",
+    },
     { path: "/", coreStatus: "refused", enrollment: "enrolled", redirectedTo: "/older-version" },
     { path: "/older-version", coreStatus: "up", enrollment: "enrolled", redirectedTo: "/" },
     {
@@ -918,6 +1052,7 @@ describe("the register's router", () => {
       person,
       cashSession,
       registerService,
+      restoration,
       redirectedTo,
     }) => {
       const router = routerAt(
@@ -927,6 +1062,7 @@ describe("the register's router", () => {
         person === null ? null : PERSON,
         cashSession,
         registerService,
+        restoration,
       );
 
       const screen = await render(<RouterProvider router={router} />);
@@ -959,6 +1095,51 @@ describe("the register's router", () => {
     const screen = await render(<RouterProvider router={router} />);
 
     await expect.element(screen.getByText(OUT_OF_SERVICE_TITLE)).toBeVisible();
+  });
+
+  it("renders the restoring screen while the register catches up with the cloud", async () => {
+    const router = routerAt("/restoring", "up", "enrolled", null, NO_SESSION, "in_service", {
+      kind: "in_progress",
+      step: "replenish",
+    });
+
+    const screen = await render(<RouterProvider router={router} />);
+
+    await expect.element(screenFor["/restoring"](screen)).toBeVisible();
+  });
+
+  it("renders the restore-required screen while the register has to be enrolled again", async () => {
+    const router = routerAt("/restore-required", "up", "enrolled", null, NO_SESSION, "in_service", {
+      kind: "in_progress",
+      step: "enroll",
+    });
+
+    const screen = await render(<RouterProvider router={router} />);
+
+    await expect.element(screenFor["/restore-required"](screen)).toBeVisible();
+  });
+
+  it("enrolls the register again through the router context from the restore-required screen", async () => {
+    const enroll = vi.fn(async (): Promise<EnrollmentOutcome> => ({ kind: "enrolled" }));
+    const router = createRegisterRouter(
+      routeTree,
+      {
+        ...contextWith("up", "enrolled", null, undefined, NO_SESSION, "in_service", {
+          kind: "in_progress",
+          step: "enroll",
+        }),
+        enroll,
+        checkEnrollmentCode: async () => [],
+      },
+      "/restore-required",
+    );
+    const screen = await render(<RouterProvider router={router} />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Dar de alta la caja" }));
+    await userEvent.fill(screen.getByRole("textbox", { name: "Código de alta" }), "p4nx7kwe2qrt6mzd");
+    await userEvent.click(screen.getByRole("button", { name: "Dar de alta" }));
+
+    await expect.poll(() => enroll.mock.calls).toEqual([["p4nx7kwe2qrt6mzd"]]);
   });
 
   it("renders the enrollment screen while the installation isn't enrolled", async () => {

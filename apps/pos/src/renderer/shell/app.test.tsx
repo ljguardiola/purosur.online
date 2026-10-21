@@ -8,6 +8,7 @@ import type {
   OpenCashSessionOutcome,
   OpenSale,
   PinCodeRedemptionOutcome,
+  RestorationStandingAnswer,
   SalesHistoryOutcome,
   ScanProductOutcome,
   SignInOutcome,
@@ -27,6 +28,8 @@ const BRAND_LOGO_ALT = "Puro Sur";
 const CORE_DOWN_TITLE = "Esperá un momento";
 const ENROLLMENT_TITLE = "Dar de alta esta caja";
 const OUT_OF_SERVICE_TITLE = "La caja necesita restaurarse";
+const RESTORING_TITLE = "La caja no puede vender todavía";
+const RESTORE_REQUIRED_TITLE = "La caja tiene que volver a darse de alta";
 
 const SESSION_TITLE = "Venta en curso";
 const OPENED: OpenCashSessionOutcome = {
@@ -145,6 +148,7 @@ function coreAnswering(
   const storageStandingChangedListeners = new Set<() => void>();
   const batteryStandingChangedListeners = new Set<() => void>();
   const fiscalModeChangedListeners = new Set<() => void>();
+  const restorationStandingChangedListeners = new Set<() => void>();
   const barcodeReadListeners = new Set<(code: string) => void>();
   const core: CoreClient = {
     connect() {},
@@ -483,7 +487,12 @@ function coreAnswering(
         batteryStandingChangedListeners.delete(listener);
       };
     },
-    onRestorationStandingChanged: () => () => {},
+    onRestorationStandingChanged(listener) {
+      restorationStandingChangedListeners.add(listener);
+      return () => {
+        restorationStandingChangedListeners.delete(listener);
+      };
+    },
     onFiscalModeChanged(listener) {
       fiscalModeChangedListeners.add(listener);
       return () => {
@@ -522,6 +531,11 @@ function coreAnswering(
       listener();
     }
   }
+  function changeRestorationStanding() {
+    for (const listener of restorationStandingChangedListeners) {
+      listener();
+    }
+  }
   function finishPull(nameSaved: string | null) {
     savedName = nameSaved;
     for (const listener of pulledListeners) {
@@ -543,6 +557,7 @@ function coreAnswering(
     changeStorageStanding,
     changeBatteryStanding,
     changeFiscalMode,
+    changeRestorationStanding,
     readBarcode,
     usersLoads: () => usersLoads,
   };
@@ -604,6 +619,88 @@ describe("App", () => {
     await expect
       .element(screen.getByRole("heading", { name: SIGN_IN_TITLE }))
       .not.toBeInTheDocument();
+  });
+
+  it("shows that the register cannot sell yet while it catches up with the cloud", async () => {
+    const { core } = coreAnswering(true);
+    core.restorationStanding = async () => ({ kind: "in_progress", step: "replenish" });
+    const screen = await render(<App core={core} />);
+
+    postCoreStatus("up");
+
+    await expect.element(screen.getByText(RESTORING_TITLE)).toBeVisible();
+    await expect
+      .element(screen.getByRole("heading", { name: SIGN_IN_TITLE }))
+      .not.toBeInTheDocument();
+  });
+
+  it("never reaches the sale of a resumed session while the register is being restored", async () => {
+    const { core } = coreAnswering(true, undefined, undefined, {
+      cashSession: async () => GRACE_SESSION,
+    });
+    core.restorationStanding = async () => ({ kind: "in_progress", step: "restore" });
+    const screen = await render(<App core={core} />);
+
+    postCoreStatus("up");
+
+    await expect.element(screen.getByText(RESTORING_TITLE)).toBeVisible();
+    await expect
+      .element(screen.getByRole("heading", { name: LOCKED_TITLE }))
+      .not.toBeInTheDocument();
+  });
+
+  it("asks a register restored from a copy to be enrolled again", async () => {
+    const { core } = coreAnswering(true);
+    core.restorationStanding = async () => ({ kind: "in_progress", step: "enroll" });
+    const screen = await render(<App core={core} />);
+
+    postCoreStatus("up");
+
+    await expect.element(screen.getByText(RESTORE_REQUIRED_TITLE)).toBeVisible();
+    await expect
+      .element(screen.getByRole("button", { name: "Dar de alta la caja" }))
+      .toBeVisible();
+  });
+
+  it("stays on the brand panel until the core answers the restoration standing", async () => {
+    const { core } = coreAnswering(true);
+    core.restorationStanding = () => new Promise(() => {});
+    const screen = await render(<App core={core} />);
+
+    postCoreStatus("up");
+
+    await expect.element(screen.getByRole("img", { name: BRAND_LOGO_ALT })).toBeVisible();
+    await expect
+      .element(screen.getByRole("heading", { name: SIGN_IN_TITLE }))
+      .not.toBeInTheDocument();
+  });
+
+  it("goes on to sign in once the core says the restoration completed", async () => {
+    let standing: RestorationStandingAnswer = { kind: "in_progress", step: "replenish" };
+    const { core, changeRestorationStanding } = coreAnswering(true);
+    core.restorationStanding = async () => standing;
+    const screen = await render(<App core={core} />);
+    postCoreStatus("up");
+    await expect.element(screen.getByText(RESTORING_TITLE)).toBeVisible();
+
+    standing = { kind: "completed" };
+    changeRestorationStanding();
+
+    await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
+  });
+
+  it("does not ask for the restoration standing while the installation isn't enrolled", async () => {
+    const { core } = coreAnswering(false);
+    const restorationStanding = vi.fn<CoreClient["restorationStanding"]>(async () => ({
+      kind: "completed",
+    }));
+    core.restorationStanding = restorationStanding;
+    const screen = await render(<App core={core} />);
+
+    postCoreStatus("up");
+
+    await expect.element(screen.getByRole("heading", { name: ENROLLMENT_TITLE })).toBeVisible();
+    expect(restorationStanding).not.toHaveBeenCalled();
   });
 
   it("shows that the register needs restoring even when it is not enrolled", async () => {
