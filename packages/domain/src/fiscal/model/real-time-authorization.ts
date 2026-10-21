@@ -145,7 +145,7 @@ export interface SaleAuthorizationPathInput {
   offlineAuthorizationCode: string | null;
 }
 
-export type SaleAuthorizationGate<D> =
+type SaleAuthorizationGate<D> =
   | { kind: "passed"; document: D }
   | { kind: "failed"; reason: PreEmissionGateFailureReason };
 

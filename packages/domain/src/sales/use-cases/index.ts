@@ -129,13 +129,13 @@ export type {
   TicketOfPeriod,
 } from "./read-average-ticket.js";
 export { readAverageTicket } from "./read-average-ticket.js";
-export type { ReadSaleComprobantePorts } from "./read-sale-comprobante.js";
-export { readSaleComprobante } from "./read-sale-comprobante.js";
 export type {
   ManualDiscountsReport,
   ReadManualDiscountsInput,
 } from "./read-manual-discounts.js";
 export { readManualDiscounts } from "./read-manual-discounts.js";
+export type { ReadSaleComprobantePorts } from "./read-sale-comprobante.js";
+export { readSaleComprobante } from "./read-sale-comprobante.js";
 export type {
   ReadSaleHistoryDetailInput,
   ReadSaleHistoryDetailOutcome,
