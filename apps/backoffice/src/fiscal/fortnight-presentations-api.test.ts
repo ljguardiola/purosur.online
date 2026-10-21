@@ -2,6 +2,7 @@ import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import {
   type FortnightPresentation,
   fetchFortnightPresentations,
+  remedyRejectedDocument,
 } from "./fortnight-presentations-api";
 
 function jsonResponse(status: number, body?: unknown): Response {
@@ -61,11 +62,24 @@ const pending: FortnightPresentation = {
   state: null,
 };
 
+const rejectedDocumentWire = {
+  number: 17,
+  unprocessed: 12,
+  document_id: "6d1f0c52-0f7e-4a53-9f4c-2a7d2f1c9b77",
+  issued_on: "2026-09-09",
+  total: 1_845_000,
+  buyer_document_type: 99,
+  buyer_document_number: 0,
+  buyer_tax_status_code: 5,
+  rejections: [{ code: 10016, message: "Fictional observation" }],
+  remedy: "awaiting_remedy",
+};
+
 const partlyRejectedWire = {
   ...blockedWire,
   state: "refused",
   refusal: "partial",
-  rejected_document: { number: 17, unprocessed: 12 },
+  rejected_document: rejectedDocumentWire,
 };
 
 test("fetchFortnightPresentations returns the branch's presentations with their state and deadline", async () => {
@@ -88,7 +102,18 @@ test("fetchFortnightPresentations reads how a presentation was refused, the reje
         ...blocked,
         state: "refused",
         refusal: "partial",
-        rejectedDocument: { number: 17, unprocessed: 12 },
+        rejectedDocument: {
+          number: 17,
+          unprocessed: 12,
+          documentId: "6d1f0c52-0f7e-4a53-9f4c-2a7d2f1c9b77",
+          issuedOn: "2026-09-09",
+          total: 1_845_000,
+          buyerDocumentType: 99,
+          buyerDocumentNumber: 0,
+          buyerTaxStatusCode: 5,
+          rejections: [{ code: 10016, message: "Fictional observation" }],
+          remedy: "awaiting_remedy",
+        },
       },
     ],
   });
@@ -142,4 +167,127 @@ test("fetchFortnightPresentations returns failed when the network call throws", 
   vi.mocked(fetch).mockRejectedValue(new Error("offline"));
 
   expect(await fetchFortnightPresentations()).toEqual({ kind: "failed" });
+});
+
+const reportRemedy = {
+  point_of_sale_number: 4,
+  fortnight_start: "2026-09-01",
+  document_type: "factura_c",
+  number: 17,
+  remedy: { kind: "report" },
+} as const;
+
+test("remedyRejectedDocument posts the remedy and reads when it was recorded and the fields it changed", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    jsonResponse(200, {
+      recorded_at: "2026-09-20T15:30:00.000Z",
+      changes: [{ field: "issued_on", before: "2026-09-09", after: "2026-09-10" }],
+    }),
+  );
+
+  expect(await remedyRejectedDocument(reportRemedy)).toEqual({
+    kind: "ok",
+    value: {
+      recordedAt: "2026-09-20T15:30:00.000Z",
+      changes: [{ field: "issued_on", before: "2026-09-09", after: "2026-09-10" }],
+    },
+  });
+  expect(fetch).toHaveBeenCalledWith(
+    "/api/registers/fortnight-presentations/rejected-document-remedies",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(reportRemedy),
+    },
+  );
+});
+
+test("remedyRejectedDocument returns failed on 200 with a body that is not the recorded remedy", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { recorded_at: "yesterday" }));
+
+  expect(await remedyRejectedDocument(reportRemedy)).toEqual({ kind: "failed" });
+});
+
+test("remedyRejectedDocument names the field the cloud refused on 400", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    jsonResponse(400, { code: "validation_failed", details: [{ field: "remedy.correction.total" }] }),
+  );
+
+  expect(await remedyRejectedDocument(reportRemedy)).toEqual({
+    kind: "validation_failed",
+    field: "remedy.correction.total",
+  });
+});
+
+test("remedyRejectedDocument returns not_found when the presentation has no such document", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(404, { code: "document_not_found" }));
+
+  expect(await remedyRejectedDocument(reportRemedy)).toEqual({ kind: "not_found" });
+});
+
+test.each([
+  ["not_rejected", { kind: "not_rejected" }],
+  ["already_remedied", { kind: "already_remedied" }],
+  ["something_else", { kind: "failed" }],
+] as const)("remedyRejectedDocument maps the 409 reason %s", async (code, outcome) => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code }));
+
+  expect(await remedyRejectedDocument(reportRemedy)).toEqual(outcome);
+});
+
+test.each([
+  "nothing_changed",
+  "date_outside_fortnight",
+  "date_out_of_order",
+  "invalid_total",
+  "invalid_buyer_identification",
+] as const)("remedyRejectedDocument reads the correction refusal %s on 422", async (refusal) => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(422, { code: "correction_refused", refusal }));
+
+  expect(await remedyRejectedDocument(reportRemedy)).toEqual({
+    kind: "correction_refused",
+    refusal,
+  });
+});
+
+test.each([
+  ["a refusal the cloud does not define", { code: "correction_refused", refusal: "other" }],
+  ["another code", { code: "other", refusal: "nothing_changed" }],
+])("remedyRejectedDocument returns failed on 422 with %s", async (_name, body) => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(422, body));
+
+  expect(await remedyRejectedDocument(reportRemedy)).toEqual({ kind: "failed" });
+});
+
+test("remedyRejectedDocument asks for a fresh authorization on 401 authorization_required", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(401, { code: "authorization_required" }));
+
+  expect(await remedyRejectedDocument(reportRemedy)).toEqual({ kind: "authorization_required" });
+});
+
+test.each([
+  [401, { kind: "unauthenticated" }],
+  [403, { kind: "forbidden" }],
+  [500, { kind: "failed" }],
+])("remedyRejectedDocument maps %s", async (status, outcome) => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(status));
+
+  expect(await remedyRejectedDocument(reportRemedy)).toEqual(outcome);
+});
+
+test("remedyRejectedDocument returns rate_limited with the Retry-After header on 429", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    new Response(null, { status: 429, headers: { "Retry-After": "45" } }),
+  );
+
+  expect(await remedyRejectedDocument(reportRemedy)).toEqual({
+    kind: "rate_limited",
+    retryAfterSeconds: 45,
+  });
+});
+
+test("remedyRejectedDocument returns failed when the network call throws", async () => {
+  vi.mocked(fetch).mockRejectedValue(new Error("offline"));
+
+  expect(await remedyRejectedDocument(reportRemedy)).toEqual({ kind: "failed" });
 });
