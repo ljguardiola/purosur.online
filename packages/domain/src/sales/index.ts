@@ -9,6 +9,11 @@ export {
   mayBeManualDiscountPercent,
   mayBeOverriddenUnitPrice,
 } from "./model/manual-adjustment.js";
+export type {
+  LineDiscountRecord,
+  ManualDiscountRecords,
+  SaleDiscountRecord,
+} from "./model/manual-discounts-report.js";
 export { openSaleStanding } from "./model/open-sale-standing.js";
 export type { ReceiptContent, ReceiptSource } from "./model/receipt-content.js";
 export { receiptContent } from "./model/receipt-content.js";

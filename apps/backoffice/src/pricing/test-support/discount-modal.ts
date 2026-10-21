@@ -49,7 +49,7 @@ export async function fillNewDiscountExceptTarget(dialog: Dialog) {
 
 export async function fillValidNewDiscount(dialog: Dialog) {
   await fillNewDiscountExceptTarget(dialog);
-  await chooseProduct(dialog, "Yerba", "Yerba Playadito 1 kg");
+  await chooseProduct(dialog, "Yerba", "Yerba Hoja Alta 1 kg");
 }
 
 export async function chooseBuyNPayM(dialog: Dialog) {

@@ -38,6 +38,8 @@ const ALERT_KIND_DESCRIPTIONS = {
     "ARCA informa adeudada la presentación de una quincena de un punto de venta que este sistema no maneja",
   clock_corrected:
     "Alguien confirmó desde la caja que su hora era correcta y bajó la marca de la guarda de reloj. Los comprobantes emitidos entre la lectura anterior y la nueva llevan fechas imposibles y van a regularización manual.",
+  register_backup_overdue:
+    "Una caja registró cambios y lleva más de una hora sin un backup verificado",
   clock_drift: "La hora de una caja difiere en más de un minuto de la hora real",
 } satisfies Record<AlertKind, string>;
 

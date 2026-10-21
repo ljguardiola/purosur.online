@@ -330,6 +330,73 @@ test("keeps the destructive secondary variant's hover background at bone, like t
   expect(ratio).toBeGreaterThanOrEqual(AA_TEXT_CONTRAST);
 });
 
+test("fills the secondary variant with the surface color on a tinted surface", async () => {
+  const style = await buttonStyle("Revocar", { variant: "secondary", onTintedSurface: true });
+
+  expect(style.backgroundColor).toBe(tokenRgb("surface"));
+});
+
+test("turns the secondary variant's hover background to bone on a tinted surface", async () => {
+  const screen = await render(
+    <Button variant="secondary" onTintedSurface>
+      Revocar
+    </Button>,
+  );
+  const button = screen.getByRole("button", { name: "Revocar" }).element() as HTMLElement;
+
+  await userEvent.hover(button);
+  await expectHoverBackground(button, "surface-subtle");
+});
+
+test("renders the destructive secondary small button on a tinted surface 40px high with a white fill, a 1px error border and a bold error label", async () => {
+  const style = await buttonStyle("Revocar", {
+    variant: "secondary",
+    destructive: true,
+    size: "small",
+    onTintedSurface: true,
+  });
+
+  expect(style.height).toBe("40px");
+  expect(style.backgroundColor).toBe(tokenRgb("surface"));
+  expect(style.borderWidth).toBe("1px");
+  expect(style.borderColor).toBe(tokenRgb("error"));
+  expect(style.color).toBe(tokenRgb("error"));
+  expect(style.fontWeight).toBe("700");
+});
+
+test("keeps the destructive secondary label on a tinted surface readable against its white fill", async () => {
+  const style = await buttonStyle("Revocar", {
+    variant: "secondary",
+    destructive: true,
+    onTintedSurface: true,
+  });
+
+  const ratio = contrastRatio(rgbToHex(style.color), rgbToHex(style.backgroundColor));
+  expect(ratio).toBeGreaterThanOrEqual(AA_TEXT_CONTRAST);
+});
+
+test("accepts the tinted surface appearance on the secondary variant only", () => {
+  expectTypeOf<{
+    variant: "secondary";
+    onTintedSurface: true;
+  }>().toExtend<ButtonPropsWithoutText>();
+  expectTypeOf<{
+    variant: "primary";
+    onTintedSurface: true;
+  }>().not.toExtend<ButtonPropsWithoutText>();
+  expectTypeOf<{ onTintedSurface: true }>().not.toExtend<ButtonPropsWithoutText>();
+  expectTypeOf<{
+    variant: "text";
+    destructive: false;
+    onTintedSurface: true;
+  }>().not.toExtend<ButtonPropsWithoutText>();
+  expectTypeOf<{
+    variant: "text";
+    destructive: true;
+    onTintedSurface: true;
+  }>().not.toExtend<ButtonPropsWithoutText>();
+});
+
 test("shows the same focus outline on the destructive tone as on every other tone", async () => {
   const screen = await render(<Button destructive>Void sale</Button>);
   const button = screen.getByRole("button", { name: "Void sale" }).element() as HTMLElement;

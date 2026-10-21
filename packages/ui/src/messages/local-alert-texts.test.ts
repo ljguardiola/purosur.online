@@ -198,7 +198,7 @@ test("gives the refund owed for a late QR payment its title, what it means and w
     title: "Reembolso pendiente por un pago tardío",
     meaning: "Mercado Pago cobró un QR de una venta que ya se había cobrado por otro medio.",
     whatToDo:
-      "Si es de un pago con QR, confirmarlo en Reembolsos pendientes para que la nube lo envíe a Mercado Pago; si es de otro medio y ya se hizo desde Mercado Pago, marcarlo como hecho, y si todavía no se hizo, hacerlo cuanto antes. Si no corresponde reembolsarlo, descartarlo. El Administrador ya fue avisado.",
+      "Si es de un pago con QR, confirmarlo en Reembolsos de Mercado Pago para que la nube lo envíe a Mercado Pago; si es de otro medio y ya se hizo desde Mercado Pago, marcarlo como hecho en Reembolsos sin API, y si todavía no se hizo, hacerlo cuanto antes. Si no corresponde reembolsarlo, descartarlo. El Administrador ya fue avisado.",
   });
 });
 
@@ -208,16 +208,16 @@ test("tells the refund owed for a second paid order of a sale's QR that the QR w
     meaning:
       "El QR de una venta se pagó dos veces; el pago de más es el de la orden ORD01SECOND de Mercado Pago.",
     whatToDo:
-      "Si es de un pago con QR, confirmarlo en Reembolsos pendientes para que la nube lo envíe a Mercado Pago; si es de otro medio y ya se hizo desde Mercado Pago, marcarlo como hecho, y si todavía no se hizo, hacerlo cuanto antes. Si no corresponde reembolsarlo, descartarlo. El Administrador ya fue avisado.",
+      "Si es de un pago con QR, confirmarlo en Reembolsos de Mercado Pago para que la nube lo envíe a Mercado Pago; si es de otro medio y ya se hizo desde Mercado Pago, marcarlo como hecho en Reembolsos sin API, y si todavía no se hizo, hacerlo cuanto antes. Si no corresponde reembolsarlo, descartarlo. El Administrador ya fue avisado.",
   });
 });
 
 test("gives the refund of a cancelled sale left pending its title, what it means and what to do", () => {
   expect(localAlertText({ kind: "refund_task" })).toEqual({
     title: "Reembolso pendiente de confirmar",
-    meaning: "Hay un reembolso de una venta anulada que todavía no se completó.",
+    meaning: "Hay un reembolso de una venta anulada o cancelada que todavía no se completó.",
     whatToDo:
-      "Si es de un pago con QR, confirmarlo en Reembolsos pendientes para que la nube lo envíe a Mercado Pago; si es de otro medio y ya se hizo por fuera del sistema, marcarlo como hecho, y si todavía no se hizo, hacerlo cuanto antes. El Administrador ya fue avisado.",
+      "Si es de un pago con QR o Point, confirmarlo en Reembolsos de Mercado Pago para que la nube lo envíe; si Mercado Pago ya lo rechazó, descartarlo ahí. Si es de otro medio, hacerlo por fuera del sistema cuanto antes y marcarlo como hecho en Reembolsos sin API. El Administrador ya fue avisado.",
   });
   expect(localAlertTitle("refund_task")).toBe("Reembolso pendiente de confirmar");
 });

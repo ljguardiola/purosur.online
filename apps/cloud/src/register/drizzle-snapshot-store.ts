@@ -38,6 +38,7 @@ const generationColumns = {
   size: registerSnapshotGenerations.size,
   sha256: registerSnapshotGenerations.sha256,
   keyVersion: registerSnapshotGenerations.keyVersion,
+  lastDeviceSeq: registerSnapshotGenerations.lastDeviceSeq,
   status: registerSnapshotGenerations.status,
   failureReason: registerSnapshotGenerations.failureReason,
   uploadReportedAt: registerSnapshotGenerations.uploadReportedAt,

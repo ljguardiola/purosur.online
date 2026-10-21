@@ -6,6 +6,7 @@ export {
   isAlertKind,
   isAlertLevel,
 } from "./model/alert-catalog.js";
+export type { AlertConditionObservation } from "./model/alert-condition-observation.js";
 export {
   clockCorrectedObservation,
   externalBillingObservation,
@@ -13,6 +14,8 @@ export {
   invoiceAlreadyCreditedObservation,
   offlineAuthorizationCodeHeldObservation,
   offlineAuthorizationCodeMissingObservation,
+  registerBackedUpObservation,
+  registerBackupOverdueObservation,
   registerClockDriftObservation,
   registerFiscalEmissionObservation,
   registerSalesDeniedObservation,

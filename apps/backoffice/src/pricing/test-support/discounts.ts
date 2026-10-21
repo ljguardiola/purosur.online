@@ -7,7 +7,7 @@ export const yerbaOff: DiscountSummary = {
   target: {
     kind: "PRODUCT",
     id: "7a1f3c1e-4f6a-4d0e-9d6e-000000000101",
-    name: "Yerba Playadito 1 kg",
+    name: "Yerba Hoja Alta 1 kg",
   },
   validFrom: "2026-09-12",
   validTo: "2026-09-30",
@@ -92,7 +92,7 @@ export const yerbaThreeForTwo: DiscountSummary = {
   target: {
     kind: "PRODUCT",
     id: "7a1f3c1e-4f6a-4d0e-9d6e-000000000101",
-    name: "Yerba Playadito 1 kg",
+    name: "Yerba Hoja Alta 1 kg",
   },
   validFrom: "2026-09-15",
   validTo: "2026-10-15",
@@ -128,9 +128,9 @@ type TagTarget = DiscountTargets["tags"][number];
 
 export const yerbaProduct: ProductTarget = {
   id: "7a1f3c1e-4f6a-4d0e-9d6e-000000000101",
-  name: "Yerba Playadito 1 kg",
+  name: "Yerba Hoja Alta 1 kg",
   saleUnit: "UNIT",
-  brandName: "Playadito",
+  brandName: "Hoja Alta",
   netContent: { quantity: 1, unit: "KG" },
   barcodes: ["7790001000101"],
   benefitKinds: ["PERCENT_OFF", "BUY_N_PAY_M"],
@@ -150,7 +150,7 @@ export const retiredProduct: ProductTarget = {
   id: "7a1f3c1e-4f6a-4d0e-9d6e-000000000105",
   name: "Café en grano",
   saleUnit: "UNIT",
-  brandName: "La Virginia",
+  brandName: "Tostadero Norte",
   netContent: { quantity: 500, unit: "G" },
   barcodes: ["7790001000105"],
   benefitKinds: ["PERCENT_OFF", "BUY_N_PAY_M"],

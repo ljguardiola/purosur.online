@@ -12,7 +12,8 @@ import { fiscalConfigurationRoute, pointsOfSaleRoute } from "../fiscal/routes";
 import { helpArticleRoute, helpCategoryRoute, helpHomeRoute } from "../help/routes";
 import {
   handConfirmedPaymentsRoute,
-  pendingRefundsRoute,
+  mercadoPagoRefundsRoute,
+  outsideRefundsRoute,
   salesByPaymentMethodRoute,
 } from "../payments/routes";
 import { rolesListRoute } from "../permissions/routes";
@@ -27,6 +28,7 @@ import {
 import { registersListRoute, snapshotBackupsRoute } from "../register/routes";
 import {
   averageTicketRoute,
+  manualDiscountsRoute,
   reportsIndexRoute,
   salesByCashierRoute,
   salesByDayRoute,
@@ -99,7 +101,8 @@ const routeTree = rootRoute.addChildren([
     cashAndFiscalAreaRoute.addChildren([
       pointsOfSaleRoute,
       fiscalConfigurationRoute,
-      pendingRefundsRoute,
+      mercadoPagoRefundsRoute,
+      outsideRefundsRoute,
     ]),
     reportsAreaRoute.addChildren([
       reportsIndexRoute,
@@ -110,6 +113,7 @@ const routeTree = rootRoute.addChildren([
       salesByCashierRoute,
       averageTicketRoute,
       salesByPromotionRoute,
+      manualDiscountsRoute,
     ]),
     settingsAreaRoute.addChildren([
       myAccountRoute,

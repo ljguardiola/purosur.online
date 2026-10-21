@@ -18,7 +18,8 @@ import type { FiscalConfigurationScreenServices } from "../fiscal/fiscal-configu
 import type { PointsOfSaleScreenServices } from "../fiscal/points-of-sale-services";
 import type { BackofficeHelpCatalog } from "../help/help-catalog";
 import type { HandConfirmedPaymentsScreenServices } from "../payments/hand-confirmed-payments-services";
-import type { PendingRefundsScreenServices } from "../payments/pending-refunds-services";
+import type { MercadoPagoRefundsScreenServices } from "../payments/mercado-pago-refunds-services";
+import type { OutsideRefundsScreenServices } from "../payments/outside-refunds-services";
 import type { SalesByPaymentMethodScreenServices } from "../payments/sales-by-payment-method-services";
 import type { RolesListScreenServices } from "../permissions/roles-list-services";
 import { createQueryClient } from "../platform/query-client";
@@ -34,6 +35,7 @@ import type { ReportRegisterFilterProps } from "../register/report-register-filt
 import type { ReportRegisterFilterServices } from "../register/report-register-filter-services";
 import type { SnapshotBackupsScreenServices } from "../register/snapshot-backups-services";
 import type { AverageTicketScreenServices } from "../sales/average-ticket-services";
+import type { ManualDiscountsScreenServices } from "../sales/manual-discounts-services";
 import type { SalesByCashierScreenServices } from "../sales/sales-by-cashier-services";
 import type { SalesByDayScreenServices } from "../sales/sales-by-day-services";
 import type { SalesByProductAndCategoryScreenServices } from "../sales/sales-by-product-and-category-services";
@@ -96,12 +98,14 @@ export type AppServices = {
   salesByProductAndCategoryScreen: SalesByProductAndCategoryScreenServices;
   salesByCashierScreen: SalesByCashierScreenServices;
   salesByPromotionScreen: SalesByPromotionScreenServices;
+  manualDiscountsScreen: ManualDiscountsScreenServices;
   averageTicketScreen: AverageTicketScreenServices;
   salesByPaymentMethodScreen: SalesByPaymentMethodScreenServices;
   handConfirmedPaymentsScreen: HandConfirmedPaymentsScreenServices;
   reportFiltersRegisterFilter: ComponentType<ReportRegisterFilterProps>;
   reportRegisterFilter: ReportRegisterFilterServices;
-  pendingRefundsScreen: PendingRefundsScreenServices;
+  mercadoPagoRefundsScreen: MercadoPagoRefundsScreenServices;
+  outsideRefundsScreen: OutsideRefundsScreenServices;
   expiringLotsScreen: ExpiringLotsScreenServices;
   stockBalancesScreen: StockBalancesScreenServices;
   stockCountsScreen: StockCountsScreenServices;

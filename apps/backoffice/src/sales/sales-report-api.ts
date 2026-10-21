@@ -1,6 +1,9 @@
 import {
   type AverageTicketBody,
   averageTicketSchema,
+  type ManualDiscountsBody,
+  type ManualDiscountsQuery,
+  manualDiscountsSchema,
   type ReportQuery,
   type SalesByCashierBody,
   type SalesByProductAndCategoryBody,
@@ -72,6 +75,21 @@ export function fetchSalesByPromotion(
   const search = params.toString();
   const path = "/api/reports/sales-by-promotion";
   return readCloudJson(search ? `${path}?${search}` : path, salesByPromotionSchema);
+}
+
+export function fetchManualDiscounts(
+  query: ManualDiscountsQuery,
+): Promise<CloudReadOutcome<ManualDiscountsBody>> {
+  const params = new URLSearchParams();
+  for (const key of ["from", "to", "register_id", "authorized_by"] as const) {
+    const value = query[key];
+    if (value !== undefined) {
+      params.set(key, value);
+    }
+  }
+  const search = params.toString();
+  const path = "/api/reports/manual-discounts";
+  return readCloudJson(search ? `${path}?${search}` : path, manualDiscountsSchema);
 }
 
 export function fetchAverageTicket(
