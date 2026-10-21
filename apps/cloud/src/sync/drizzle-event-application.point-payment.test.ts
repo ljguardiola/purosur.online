@@ -1,9 +1,9 @@
 import { randomUUID } from "node:crypto";
+import { syncedEventUpcaster } from "@purosur/contracts";
 import { applyPendingEvents } from "@purosur/domain/sync/use-cases";
 import { describe, expect, it } from "vitest";
 import { pendingPointTransaction } from "../payments/test-support/payment-transaction-fixtures.js";
 import { paymentRefunds, paymentTransactions } from "../platform/db/schema.js";
-import { syncedEventUpcaster } from "./synced-event-upcaster.js";
 import { eventApplicationUnderTest } from "./test-support/drizzle-event-application.js";
 import { pushMercadoPagoSaleCancelled } from "./test-support/mercado-pago-cancelled-sale-push.js";
 

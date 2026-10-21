@@ -22,7 +22,7 @@ export async function recordAppliedOfflineFiscalDocument<TQueryResult extends Pg
   if (sale === undefined) {
     throw new Error(`sale ${document.saleId} is not applied for register ${origin.registerId}`);
   }
-  const { fiscalDocumentId, ...fields } = document;
+  const { fiscalDocumentId, invoice: _invoice, ...fields } = document;
   await tx
     .insert(offlineFiscalDocuments)
     .values({ id: fiscalDocumentId, ...fields, recordedAt })

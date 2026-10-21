@@ -173,6 +173,11 @@ import { pushDamagedRegisterReport } from "./sync/push-damaged-register-report";
 import { pushForRegisterService } from "./sync/push-for-register-service";
 import { pushResultOf, pushToCloud, pushWarningOf } from "./sync/push-to-cloud";
 import { damagedRegisterTelemetryReader, registerTelemetryReader } from "./sync/register-telemetry";
+import { replenishBeforeSync } from "./sync/replenish-before-sync";
+import {
+  replenishmentReportOf,
+  replenishRestoredRegisterStep,
+} from "./sync/replenish-restored-register-step";
 import { SqliteAcceptedPushLog } from "./sync/sqlite-accepted-push-log";
 import { SqliteLocalInstallation, salesStopOf } from "./sync/sqlite-local-installation";
 import { SqliteLocalOutbox } from "./sync/sqlite-local-outbox";
@@ -505,47 +510,73 @@ const syncSchedule = createSyncSchedule({
   syncOnce: syncUnlessRestorePending(
     restorePending.isPending,
     () => void restoreAttempts.attempt(),
-    () =>
-      runSyncCycle({
-        checkInstallation: async () => {
-          const attempt = await checkInstallation({
-            readCredentials: () => mainRequests.readCredentials(),
-            installation: localInstallation,
-            adoptDevice: (device) => replica?.adoptDevice(device),
-            getFromCloud:
-              cloudClient === undefined
-                ? undefined
-                : (path, headers) => getFromCloud(cloudClient, path, headers),
-          });
-          const warning = installationCheckWarningOf(attempt);
-          if (warning !== undefined) {
-            console.warn(warning, attempt);
-          }
-          return installationCheckResultOf(attempt);
-        },
-        push: pushOutboxToCloud,
-        prune: async () => {
-          await pruneLocalOutbox({ outbox: localOutbox, now });
-        },
-        pull: async () => {
-          const attempt = await pullFromCloud({
-            readCredentials: () => mainRequests.readCredentials(),
-            replica,
-            getFromCloud:
-              cloudClient === undefined
-                ? undefined
-                : (path, headers) => getFromCloud(cloudClient, path, headers),
-          });
-          const warning = pullWarningOf(attempt);
-          if (warning !== undefined) {
-            console.warn(warning, attempt);
-          }
-          return pullResultOf(attempt);
-        },
-        onCheckFailure: (error) => reportFailure("the installation check", error),
-        onPushFailure: (error) => reportFailure("the push", error),
-        onPruneFailure: (error) => reportFailure("the outbox pruning", error),
-      }),
+    replenishBeforeSync({
+      replenish: () =>
+        replenishRestoredRegisterStep({
+          database: localDatabase,
+          readCredentials: () => mainRequests.readCredentials(),
+          post:
+            cloudClient === undefined
+              ? undefined
+              : (path, bearerToken, body) =>
+                  postToCloudWithBearer(cloudClient, path, bearerToken, body),
+          ids: uuidV7Ids,
+        }),
+      report: (attempt) => {
+        const report = replenishmentReportOf(attempt);
+        if (report === undefined) {
+          return;
+        }
+        if (report.level === "error") {
+          console.error(report.message, attempt);
+          Sentry.captureMessage(report.message, "error");
+        } else {
+          console.warn(report.message, attempt);
+        }
+      },
+      onFailure: (error) => reportFailure("the replenishment of the restored register", error),
+      syncOnce: () =>
+        runSyncCycle({
+          checkInstallation: async () => {
+            const attempt = await checkInstallation({
+              readCredentials: () => mainRequests.readCredentials(),
+              installation: localInstallation,
+              adoptDevice: (device) => replica?.adoptDevice(device),
+              getFromCloud:
+                cloudClient === undefined
+                  ? undefined
+                  : (path, headers) => getFromCloud(cloudClient, path, headers),
+            });
+            const warning = installationCheckWarningOf(attempt);
+            if (warning !== undefined) {
+              console.warn(warning, attempt);
+            }
+            return installationCheckResultOf(attempt);
+          },
+          push: pushOutboxToCloud,
+          prune: async () => {
+            await pruneLocalOutbox({ outbox: localOutbox, now });
+          },
+          pull: async () => {
+            const attempt = await pullFromCloud({
+              readCredentials: () => mainRequests.readCredentials(),
+              replica,
+              getFromCloud:
+                cloudClient === undefined
+                  ? undefined
+                  : (path, headers) => getFromCloud(cloudClient, path, headers),
+            });
+            const warning = pullWarningOf(attempt);
+            if (warning !== undefined) {
+              console.warn(warning, attempt);
+            }
+            return pullResultOf(attempt);
+          },
+          onCheckFailure: (error) => reportFailure("the installation check", error),
+          onPushFailure: (error) => reportFailure("the push", error),
+          onPruneFailure: (error) => reportFailure("the outbox pruning", error),
+        }),
+    }),
   ),
   intervalMs: SYNC_INTERVAL_MS,
   failureBackoff: SYNC_FAILURE_BACKOFF,

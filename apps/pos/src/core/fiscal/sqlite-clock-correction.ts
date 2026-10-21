@@ -32,7 +32,7 @@ function clockMarks(database: LocalDatabase): ClockMark[] {
     }));
 }
 
-function cashSessionStanding(database: LocalDatabase): CashSessionStanding {
+export function cashSessionStanding(database: LocalDatabase): CashSessionStanding {
   const open = database
     .prepare<[], { id: string }>("SELECT id FROM cash_sessions WHERE state = 'OPEN'")
     .get();
@@ -49,6 +49,38 @@ function clockCorrectionRecordedIn(database: LocalDatabase, period: string): boo
     database.prepare("SELECT 1 FROM clock_corrections WHERE period = ? LIMIT 1").get(period) !==
     undefined
   );
+}
+
+export function lowerClockMark(
+  database: LocalDatabase,
+  { pointOfSale, documentType, correctedReading }: ClockLowering,
+): void {
+  database
+    .prepare(
+      "UPDATE register_clock_marks SET reading = ? WHERE point_of_sale = ? AND document_type = ?",
+    )
+    .run(correctedReading.toISOString(), pointOfSale, documentType);
+}
+
+export function insertClockCorrection(
+  database: LocalDatabase,
+  { period, registerId, actorId, lowering }: ClockCorrectionRecord,
+): void {
+  database
+    .prepare(
+      `INSERT INTO clock_corrections (
+         period, register_id, actor_id, point_of_sale, document_type, previous_reading, corrected_reading
+       ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    )
+    .run(
+      period,
+      registerId,
+      actorId,
+      lowering.pointOfSale,
+      lowering.documentType,
+      lowering.previousReading.toISOString(),
+      lowering.correctedReading.toISOString(),
+    );
 }
 
 export class SqliteClockCorrectionLedger implements ClockCorrectionLedger {
@@ -76,30 +108,8 @@ export class SqliteClockCorrectionLedger implements ClockCorrectionLedger {
       cashSessionStanding: () => cashSessionStanding(database),
       clockMarks: () => clockMarks(database),
       clockCorrectionRecordedIn: (period) => clockCorrectionRecordedIn(database, period),
-      lowerClockMark: ({ pointOfSale, documentType, correctedReading }: ClockLowering) => {
-        database
-          .prepare(
-            "UPDATE register_clock_marks SET reading = ? WHERE point_of_sale = ? AND document_type = ?",
-          )
-          .run(correctedReading.toISOString(), pointOfSale, documentType);
-      },
-      recordClockCorrection: ({ period, registerId, actorId, lowering }: ClockCorrectionRecord) => {
-        database
-          .prepare(
-            `INSERT INTO clock_corrections (
-               period, register_id, actor_id, point_of_sale, document_type, previous_reading, corrected_reading
-             ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-          )
-          .run(
-            period,
-            registerId,
-            actorId,
-            lowering.pointOfSale,
-            lowering.documentType,
-            lowering.previousReading.toISOString(),
-            lowering.correctedReading.toISOString(),
-          );
-      },
+      lowerClockMark: (lowering) => lowerClockMark(database, lowering),
+      recordClockCorrection: (record) => insertClockCorrection(database, record),
       appendOutboxEvent: (event: OutboxEventDraft) => {
         if (this.outboxChainKey === undefined) {
           throw new Error("the ledger has no outbox chain key");

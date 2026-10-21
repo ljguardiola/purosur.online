@@ -171,6 +171,54 @@ export function insertCashMovement(database: LocalDatabase, movement: CashMoveme
     });
 }
 
+export function readRegisterIdentity(database: LocalDatabase): RegisterIdentity | undefined {
+  const row = database
+    .prepare<[], { register_id: string; device_id: string }>(
+      `SELECT own_register.id AS register_id, sync_state.device_id AS device_id
+       FROM own_register, sync_state
+       WHERE own_register.removed = 0 AND sync_state.device_id IS NOT NULL`,
+    )
+    .get();
+  return row === undefined ? undefined : { registerId: row.register_id, deviceId: row.device_id };
+}
+
+export function insertOpenedSession(database: LocalDatabase, session: OpenedCashSession): void {
+  database
+    .prepare(
+      `INSERT INTO cash_sessions (
+         id, register_id, device_id, opened_by, opened_at, opening_float, state
+       ) VALUES (@id, @register_id, @device_id, @opened_by, @opened_at, @opening_float, @state)`,
+    )
+    .run({
+      id: session.id,
+      register_id: session.registerId,
+      device_id: session.deviceId,
+      opened_by: session.openedBy,
+      opened_at: session.openedAt.toISOString(),
+      opening_float: session.openingFloat,
+      state: session.state,
+    });
+}
+
+export function markSessionClosed(database: LocalDatabase, session: ClosedCashSession): void {
+  database
+    .prepare(
+      `UPDATE cash_sessions SET
+         state = @state, closed_by = @closed_by, closed_at = @closed_at,
+         expected_cash = @expected_cash, counted_cash = @counted_cash, difference = @difference
+       WHERE id = @id`,
+    )
+    .run({
+      id: session.id,
+      state: session.state,
+      closed_by: session.closedBy,
+      closed_at: session.closedAt.toISOString(),
+      expected_cash: session.expectedCash,
+      counted_cash: session.countedCash,
+      difference: session.difference,
+    });
+}
+
 export class SqliteCashLedger implements CashLedger {
   private readonly database: LocalDatabase;
   private readonly people: Pick<SignInStore, "activePerson">;
@@ -196,9 +244,9 @@ export class SqliteCashLedger implements CashLedger {
       openSession: () => readOpenSession(this.database),
       openSale: (sessionId) => this.openSale(sessionId),
       sessionMovements: (sessionId) => readSessionMovements(this.database, sessionId),
-      registerIdentity: () => this.registerIdentity(),
-      recordOpenedSession: (session) => this.recordOpenedSession(session),
-      recordClosedSession: (session) => this.recordClosedSession(session),
+      registerIdentity: () => readRegisterIdentity(this.database),
+      recordOpenedSession: (session) => insertOpenedSession(this.database, session),
+      recordClosedSession: (session) => markSessionClosed(this.database, session),
       recordCashMovement: (movement) => insertCashMovement(this.database, movement),
       appendOutboxEvent: (draft) => this.appendOutboxEvent(draft),
     };
@@ -214,53 +262,5 @@ export class SqliteCashLedger implements CashLedger {
       throw new Error("the ledger has no outbox chain key");
     }
     appendOutboxEvent(this.database, this.outboxChainKey, draft);
-  }
-
-  private registerIdentity(): RegisterIdentity | undefined {
-    const row = this.database
-      .prepare<[], { register_id: string; device_id: string }>(
-        `SELECT own_register.id AS register_id, sync_state.device_id AS device_id
-         FROM own_register, sync_state
-         WHERE own_register.removed = 0 AND sync_state.device_id IS NOT NULL`,
-      )
-      .get();
-    return row === undefined ? undefined : { registerId: row.register_id, deviceId: row.device_id };
-  }
-
-  private recordOpenedSession(session: OpenedCashSession): void {
-    this.database
-      .prepare(
-        `INSERT INTO cash_sessions (
-           id, register_id, device_id, opened_by, opened_at, opening_float, state
-         ) VALUES (@id, @register_id, @device_id, @opened_by, @opened_at, @opening_float, @state)`,
-      )
-      .run({
-        id: session.id,
-        register_id: session.registerId,
-        device_id: session.deviceId,
-        opened_by: session.openedBy,
-        opened_at: session.openedAt.toISOString(),
-        opening_float: session.openingFloat,
-        state: session.state,
-      });
-  }
-
-  private recordClosedSession(session: ClosedCashSession): void {
-    this.database
-      .prepare(
-        `UPDATE cash_sessions SET
-           state = @state, closed_by = @closed_by, closed_at = @closed_at,
-           expected_cash = @expected_cash, counted_cash = @counted_cash, difference = @difference
-         WHERE id = @id`,
-      )
-      .run({
-        id: session.id,
-        state: session.state,
-        closed_by: session.closedBy,
-        closed_at: session.closedAt.toISOString(),
-        expected_cash: session.expectedCash,
-        counted_cash: session.countedCash,
-        difference: session.difference,
-      });
   }
 }

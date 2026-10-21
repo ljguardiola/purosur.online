@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { unappliedEventOf } from "@purosur/contracts/sync/test-support/unapplied-event";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { DrizzleEventApplication } from "../../sync/drizzle-event-application.js";
 import {
@@ -10,7 +11,6 @@ import {
   type CompletedSale,
   type VoidedSale,
 } from "../../sync/test-support/synced-facts.js";
-import { unappliedEventOf } from "../../sync/test-support/unapplied-event.js";
 
 export async function applyCompletedSale<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,

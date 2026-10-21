@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
+import { syncedEventUpcaster } from "@purosur/contracts";
 import { applyPendingEvents } from "@purosur/domain/sync/use-cases";
 import { describe, expect, it } from "vitest";
 import { paymentRefunds, paymentTransactions } from "../platform/db/schema.js";
-import { syncedEventUpcaster } from "../sync/synced-event-upcaster.js";
 import { eventApplicationUnderTest } from "../sync/test-support/drizzle-event-application.js";
 import { AMOUNT, pushSaleThenItsVoiding } from "../sync/test-support/voided-sale-push.js";
 import { buildJobHelpers } from "../test-support/job-helpers.js";

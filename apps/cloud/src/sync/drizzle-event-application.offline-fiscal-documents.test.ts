@@ -1,11 +1,16 @@
 import { randomUUID } from "node:crypto";
+import { unappliedEventOf } from "@purosur/contracts/sync/test-support/unapplied-event";
+import {
+  FICTIONAL_CUIT,
+  FICTIONAL_GROSS_INCOME_REGISTRATION,
+  FICTIONAL_LEGAL_NAME,
+} from "@purosur/domain/fiscal/test-support";
 import type { SyncedFact } from "@purosur/domain/sync/use-cases";
 import { describe, expect, it } from "vitest";
 import { offlineFiscalDocuments } from "../platform/db/schema.js";
 import { applyCompletedSale } from "../sales/test-support/applied-sales.js";
 import { eventApplicationUnderTest } from "./test-support/drizzle-event-application.js";
 import { anOfflineFiscalDocumentFact } from "./test-support/synced-facts.js";
-import { unappliedEventOf } from "./test-support/unapplied-event.js";
 
 const system = eventApplicationUnderTest();
 
@@ -74,6 +79,36 @@ describe("recording the document a register issued under a pre-obtained code", (
         recordedAt: new Date("2026-10-06T15:00:00.000Z"),
       },
     ]);
+  });
+
+  it("keeps the same fields of a document that carries its invoice, and keeps no copy of the invoice", async () => {
+    const { deviceId, registerId, saleId } = await enrolledWithSale();
+    const withoutInvoice = anOfflineFiscalDocumentFact({ registerId, saleId });
+    const fact = anOfflineFiscalDocumentFact({
+      ...withoutInvoice.document,
+      invoice: {
+        invoiceClass: "C",
+        total: 4800,
+        netAmount: 4800,
+        vatAmount: 0,
+        issuer: {
+          legalName: FICTIONAL_LEGAL_NAME,
+          cuit: FICTIONAL_CUIT,
+          taxStatus: "MONOTRIBUTO",
+          grossIncomeRegistration: FICTIONAL_GROSS_INCOME_REGISTRATION,
+          activityStartDate: "2020-01-01",
+          version: 3,
+        },
+        buyerTaxStatusCode: 5,
+        buyerTaxStatusDescription: "Consumidor Final",
+      },
+    });
+
+    await record(fact, deviceId);
+
+    const [stored] = await system.db.select().from(offlineFiscalDocuments);
+    expect(stored).toMatchObject({ id: fact.document.fiscalDocumentId, number: 12, total: 4800 });
+    expect(Object.keys(stored ?? {})).not.toContain("invoice");
   });
 
   it("leaves the document as it is when the same document is recorded again", async () => {

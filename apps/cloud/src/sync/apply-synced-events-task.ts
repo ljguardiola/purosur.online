@@ -1,3 +1,4 @@
+import { syncedEventUpcaster } from "@purosur/contracts";
 import { type ApplyPendingEventsOutcome, applyPendingEvents } from "@purosur/domain/sync/use-cases";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
@@ -7,7 +8,6 @@ import { type BackgroundJobs, databaseOfClient } from "../platform/background-jo
 import { reportError } from "../platform/error-reporting.js";
 import { DrizzleEventApplication } from "./drizzle-event-application.js";
 import { reportedQuarantines } from "./reported-quarantines.js";
-import { syncedEventUpcaster } from "./synced-event-upcaster.js";
 
 export const APPLY_SYNCED_EVENTS_TASK_IDENTIFIER = "apply-synced-events";
 

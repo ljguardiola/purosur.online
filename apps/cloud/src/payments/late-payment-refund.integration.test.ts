@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { unappliedEventOf } from "@purosur/contracts/sync/test-support/unapplied-event";
 import { latePaymentRefund } from "@purosur/domain";
 import {
   checkPendingMercadoPagoPayments,
@@ -12,7 +13,6 @@ import { paymentRefunds, paymentTransactions } from "../platform/db/schema.js";
 import { postgresDedicatedConnections } from "../platform/dedicated-connections.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { DrizzleEventApplication } from "../sync/drizzle-event-application.js";
-import { unappliedEventOf } from "../sync/test-support/unapplied-event.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,

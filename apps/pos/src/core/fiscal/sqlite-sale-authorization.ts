@@ -20,6 +20,58 @@ import {
   readRealTimeSeries,
 } from "./sqlite-fiscal-series";
 
+export function insertOfflineFiscalDocument(
+  database: LocalDatabase,
+  document: OfflineFiscalDocument,
+): void {
+  database
+    .prepare(
+      `INSERT INTO offline_fiscal_documents (
+           id, sale_id, point_of_sale, document_type, number, issued_on, generated_at,
+           generation_stamp, offline_authorization_code, fortnight_start, fortnight_end, document,
+           buyer_document_type, buyer_document_number, cause
+         ) VALUES (
+           @id, @sale_id, @point_of_sale, @document_type, @number, @issued_on, @generated_at,
+           @generation_stamp, @offline_authorization_code, @fortnight_start, @fortnight_end,
+           @document, @buyer_document_type, @buyer_document_number, @cause
+         )`,
+    )
+    .run({
+      id: document.id,
+      sale_id: document.saleId,
+      point_of_sale: document.pointOfSale,
+      document_type: document.documentType,
+      number: document.number,
+      issued_on: document.issuedOn,
+      generated_at: document.generatedAt.toISOString(),
+      generation_stamp: document.generationStamp,
+      offline_authorization_code: document.offlineAuthorizationCode,
+      fortnight_start: document.fortnight.start,
+      fortnight_end: document.fortnight.end,
+      document: JSON.stringify(document.document),
+      buyer_document_type: document.buyerDocumentType,
+      buyer_document_number: document.buyerDocumentNumber,
+      cause: document.cause,
+    });
+}
+
+export function upsertClockMark(
+  database: LocalDatabase,
+  { pointOfSale, documentType, reading }: ClockMark,
+): void {
+  database
+    .prepare(
+      `INSERT INTO register_clock_marks (point_of_sale, document_type, reading)
+         VALUES (@point_of_sale, @document_type, @reading)
+         ON CONFLICT (point_of_sale, document_type) DO UPDATE SET reading = excluded.reading`,
+    )
+    .run({
+      point_of_sale: pointOfSale,
+      document_type: documentType,
+      reading: reading.toISOString(),
+    });
+}
+
 function sqliteSaleAuthorizationTransaction(
   database: LocalDatabase,
   appendOutboxEvent: (event: OutboxEventDraft) => void,
@@ -68,51 +120,10 @@ function sqliteSaleAuthorizationTransaction(
         });
     },
 
-    issueOfflineFiscalDocument(document: OfflineFiscalDocument): void {
-      database
-        .prepare(
-          `INSERT INTO offline_fiscal_documents (
-             id, sale_id, point_of_sale, document_type, number, issued_on, generated_at,
-             generation_stamp, offline_authorization_code, fortnight_start, fortnight_end, document,
-             buyer_document_type, buyer_document_number, cause
-           ) VALUES (
-             @id, @sale_id, @point_of_sale, @document_type, @number, @issued_on, @generated_at,
-             @generation_stamp, @offline_authorization_code, @fortnight_start, @fortnight_end,
-             @document, @buyer_document_type, @buyer_document_number, @cause
-           )`,
-        )
-        .run({
-          id: document.id,
-          sale_id: document.saleId,
-          point_of_sale: document.pointOfSale,
-          document_type: document.documentType,
-          number: document.number,
-          issued_on: document.issuedOn,
-          generated_at: document.generatedAt.toISOString(),
-          generation_stamp: document.generationStamp,
-          offline_authorization_code: document.offlineAuthorizationCode,
-          fortnight_start: document.fortnight.start,
-          fortnight_end: document.fortnight.end,
-          document: JSON.stringify(document.document),
-          buyer_document_type: document.buyerDocumentType,
-          buyer_document_number: document.buyerDocumentNumber,
-          cause: document.cause,
-        });
-    },
+    issueOfflineFiscalDocument: (document: OfflineFiscalDocument) =>
+      insertOfflineFiscalDocument(database, document),
 
-    recordClockMark({ pointOfSale, documentType, reading }: ClockMark): void {
-      database
-        .prepare(
-          `INSERT INTO register_clock_marks (point_of_sale, document_type, reading)
-           VALUES (@point_of_sale, @document_type, @reading)
-           ON CONFLICT (point_of_sale, document_type) DO UPDATE SET reading = excluded.reading`,
-        )
-        .run({
-          point_of_sale: pointOfSale,
-          document_type: documentType,
-          reading: reading.toISOString(),
-        });
-    },
+    recordClockMark: (mark: ClockMark) => upsertClockMark(database, mark),
 
     appendOutboxEvent,
 
