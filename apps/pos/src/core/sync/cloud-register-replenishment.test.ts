@@ -51,7 +51,7 @@ describe("the cloud's replenishment of a restored register, as the register read
   it("asks for the events after the predecessor's last acknowledged one, using the device token", async () => {
     const { feed, requests } = feedAnswering({
       kind: "ok",
-      body: { events: [], next: null, users: [] },
+      body: { events: [], next: null, users: [], credit_notes: [] },
     });
 
     await feed.pageAfter(PREDECESSOR, undefined);
@@ -72,7 +72,7 @@ describe("the cloud's replenishment of a restored register, as the register read
   it("continues after the event the previous page ended at", async () => {
     const { feed, requests } = feedAnswering({
       kind: "ok",
-      body: { events: [], next: null, users: [] },
+      body: { events: [], next: null, users: [], credit_notes: [] },
     });
 
     await feed.pageAfter(PREDECESSOR, { deviceId: OTHER_DEVICE, deviceSeq: 7 });
@@ -92,6 +92,7 @@ describe("the cloud's replenishment of a restored register, as the register read
         events: [wireEvent(53), wireEvent(1, OTHER_DEVICE)],
         next: { device_id: OTHER_DEVICE, device_seq: 1 },
         users: [WIRE_USER],
+        credit_notes: [],
       },
     });
 
@@ -118,6 +119,7 @@ describe("the cloud's replenishment of a restored register, as the register read
             version: 3,
           },
         ],
+        creditNoteAnswers: [],
       },
     });
   });
@@ -125,7 +127,12 @@ describe("the cloud's replenishment of a restored register, as the register read
   it("reads a last page that names no next one and a user without a PIN", async () => {
     const { feed } = feedAnswering({
       kind: "ok",
-      body: { events: [], next: null, users: [{ ...WIRE_USER, salt: null, pin_hash: null }] },
+      body: {
+        events: [],
+        next: null,
+        users: [{ ...WIRE_USER, salt: null, pin_hash: null }],
+        credit_notes: [],
+      },
     });
 
     const answer = await feed.pageAfter(PREDECESSOR, undefined);
@@ -186,7 +193,7 @@ describe("the cloud's replenishment of a restored register, as the register read
     const { device_id: _missing, ...withoutInstallation } = wireEvent(53);
     const { feed } = feedAnswering({
       kind: "ok",
-      body: { events: [withoutInstallation], next: null, users: [] },
+      body: { events: [withoutInstallation], next: null, users: [], credit_notes: [] },
     });
 
     expect(await feed.pageAfter(PREDECESSOR, undefined)).toEqual({
@@ -199,5 +206,99 @@ describe("the cloud's replenishment of a restored register, as the register read
     const { feed } = feedAnswering({ kind: "unreachable" });
 
     expect(await feed.pageAfter(PREDECESSOR, undefined)).toEqual({ kind: "unreachable" });
+  });
+
+  describe("the credit note answers", () => {
+    const SALE = "3c9d1e7a-5b24-4f86-8a0d-6e2b9c4f1a37";
+    const CREDIT_NOTE = "8e4b2a6c-1d93-4075-b5f8-2a7c9e0d3b61";
+    const OTHER_SALE = "5a7e2c91-3d68-4b04-a1f9-8c0b6d3e7f25";
+    const OTHER_CREDIT_NOTE = "1f6a3d9b-2c47-4e85-9b10-7d5e8a2c4f93";
+
+    function pageWith(...creditNotes: unknown[]) {
+      return feedAnswering({
+        kind: "ok",
+        body: { events: [], next: null, users: [], credit_notes: creditNotes },
+      }).feed.pageAfter(PREDECESSOR, undefined);
+    }
+
+    it("reads the authorization the tax authority gave a voided sale's credit note", async () => {
+      const answer = await pageWith({
+        sale_id: SALE,
+        credit_note_id: CREDIT_NOTE,
+        answered_at: "2026-10-07T10:30:00.000Z",
+        state: "AUTHORIZED",
+        point_of_sale: 7,
+        number: 9,
+        issued_on: "2026-10-07",
+        issued_at: "2026-10-07T10:29:00.000Z",
+        authorization_code: "74123456789012",
+        authorization_code_due_on: "2026-10-17",
+      });
+
+      expect(answer).toMatchObject({
+        kind: "page",
+        page: {
+          creditNoteAnswers: [
+            {
+              saleId: SALE,
+              creditNoteId: CREDIT_NOTE,
+              answeredAt: new Date("2026-10-07T10:30:00.000Z"),
+              answer: {
+                kind: "authorized",
+                pointOfSale: 7,
+                number: 9,
+                issuedOn: "2026-10-07",
+                issuedAt: new Date("2026-10-07T10:29:00.000Z"),
+                authorizationCode: "74123456789012",
+                authorizationCodeDueOn: "2026-10-17",
+              },
+            },
+          ],
+        },
+      });
+    });
+
+    it("reads the rejection the tax authority gave, in the order the cloud sent the answers", async () => {
+      const answer = await pageWith(
+        {
+          sale_id: SALE,
+          credit_note_id: CREDIT_NOTE,
+          answered_at: "2026-10-07T10:30:00.000Z",
+          state: "REJECTED",
+        },
+        {
+          sale_id: OTHER_SALE,
+          credit_note_id: OTHER_CREDIT_NOTE,
+          answered_at: "2026-10-07T10:31:00.000Z",
+          state: "REJECTED",
+        },
+      );
+
+      expect(answer).toMatchObject({
+        kind: "page",
+        page: {
+          creditNoteAnswers: [
+            {
+              saleId: SALE,
+              creditNoteId: CREDIT_NOTE,
+              answeredAt: new Date("2026-10-07T10:30:00.000Z"),
+              answer: { kind: "rejected" },
+            },
+            { saleId: OTHER_SALE, creditNoteId: OTHER_CREDIT_NOTE, answer: { kind: "rejected" } },
+          ],
+        },
+      });
+    });
+
+    it("fails on an answer that is still in progress", async () => {
+      const answer = await pageWith({
+        sale_id: SALE,
+        credit_note_id: CREDIT_NOTE,
+        answered_at: "2026-10-07T10:30:00.000Z",
+        state: "IN_PROGRESS",
+      });
+
+      expect(answer).toEqual({ kind: "failed", failure: { kind: "unreadable" } });
+    });
   });
 });
