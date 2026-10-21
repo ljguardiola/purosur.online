@@ -1663,14 +1663,14 @@ describe("printing the credit note of a voided sale", () => {
     expect(salesCoreToRendererMessageSchema.parse(message)).toEqual(message);
   });
 
-  it.each([
-    { kind: "started" },
-    { kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 2 },
-  ])("rejects the result %j", (outcome) => {
-    const message = { type: "print-credit-note-result", request_id: REQUEST_ID, outcome };
+  it.each([{ kind: "started" }, { kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 2 }])(
+    "rejects the result %j",
+    (outcome) => {
+      const message = { type: "print-credit-note-result", request_id: REQUEST_ID, outcome };
 
-    expect(salesCoreToRendererMessageSchema.safeParse(message).success).toBe(false);
-  });
+      expect(salesCoreToRendererMessageSchema.safeParse(message).success).toBe(false);
+    },
+  );
 });
 
 describe("asking for the register's sales history", () => {

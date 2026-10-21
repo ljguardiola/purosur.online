@@ -316,16 +316,7 @@ const printOriginalReceiptOutcomeSchema = z.discriminatedUnion("kind", [
 ]);
 export type PrintOriginalReceiptOutcome = z.infer<typeof printOriginalReceiptOutcomeSchema>;
 
-const printCreditNoteOutcomeSchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("started"), copy: receiptCopySchema }),
-  z.object({ kind: z.literal("busy") }),
-  z.object({ kind: z.literal("already_attempted") }),
-  z.object({ kind: z.literal("printer_not_configured") }),
-  z.object({ kind: z.literal("not_found") }),
-  z.object({ kind: z.literal("not_signed_in") }),
-  z.object({ kind: z.literal("lacks_permission") }),
-  z.object({ kind: z.literal("unavailable") }),
-]);
+const printCreditNoteOutcomeSchema = printOriginalReceiptOutcomeSchema;
 export type PrintCreditNoteOutcome = z.infer<typeof printCreditNoteOutcomeSchema>;
 
 const reprintSaleReceiptOutcomeSchema = z.discriminatedUnion("kind", [
