@@ -120,7 +120,10 @@ export function fortnightReportJobs(
     }
     for (const presentation of outcome.presentations) {
       const line = describePresentation(presentation);
-      if (presentation.outcome.kind === "retry_not_due") {
+      if (
+        presentation.outcome.kind === "retry_not_due" ||
+        presentation.outcome.kind === "awaiting_remedy"
+      ) {
         logger.debug(line);
         continue;
       }
