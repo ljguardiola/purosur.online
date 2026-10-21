@@ -110,6 +110,85 @@ afterEach(() => {
   database.close();
 });
 
+describe("a restored register that holds no clock mark, with its clock before the tax authority's last authorized day", () => {
+  const START_OF_THE_DAY = "2026-10-02T03:00:00.000Z";
+
+  beforeEach(() => {
+    database
+      .prepare(
+        `INSERT INTO register_point_of_sale (
+           register_id, point_of_sale_number, fiscal_address_id, tax_authority_last_authorized_number,
+           tax_authority_last_authorized_issued_on, version
+         ) VALUES ('register-1', 12, 'address-1', 40, '2026-10-02', 1)`,
+      )
+      .run();
+  });
+
+  it("is offered the correction by the guard, blocked with no reading of the register's own to show", () => {
+    expect(readClockGuardFor(deps())).toMatchObject({
+      kind: "read",
+      may_correct: true,
+      correction: "available",
+      blocks: [
+        {
+          point_of_sale: 12,
+          latest_reading: null,
+          tax_authority_last_authorized_issued_on: "2026-10-02",
+        },
+      ],
+    });
+  });
+
+  it("corrects against the start of that day, inventing no clock mark", async () => {
+    const outcome = await correctRegisterClockFor(deps());
+
+    expect(outcome).toEqual({
+      kind: "corrected",
+      lowerings: [
+        {
+          point_of_sale: 12,
+          document_type: "factura_c",
+          previous_reading: START_OF_THE_DAY,
+          corrected_reading: NOW.toISOString(),
+        },
+      ],
+    });
+    expect(marks()).toEqual([]);
+  });
+
+  it("records the correction and gives the cloud an event saying its previous reading is the tax authority's day", async () => {
+    await correctRegisterClockFor(deps());
+
+    expect(
+      database
+        .prepare("SELECT point_of_sale, previous_reading, corrected_reading FROM clock_corrections")
+        .all(),
+    ).toEqual([
+      {
+        point_of_sale: 12,
+        previous_reading: START_OF_THE_DAY,
+        corrected_reading: NOW.toISOString(),
+      },
+    ]);
+    const [event] = database
+      .prepare<[], { schema_version: number; payload: string }>(
+        "SELECT schema_version, payload FROM outbox",
+      )
+      .all();
+    expect(event?.schema_version).toBe(2);
+    expect(JSON.parse(event?.payload ?? "{}")).toMatchObject({
+      previous_reading: START_OF_THE_DAY,
+      previous_reading_source: "tax_authority_day",
+    });
+  });
+
+  it("is no longer offered the correction once corrected, since the lapse is open", async () => {
+    await correctRegisterClockFor(deps());
+
+    expect(readClockGuardFor(deps())).toMatchObject({ blocks: [], correction: "not_behind" });
+  });
+});
+
 describe("correcting the register's clock from the register", () => {
   it("lowers the marks ahead of the reading to the reading and reports each lowering", async () => {
     setMark(12, AHEAD);
