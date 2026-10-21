@@ -16,6 +16,9 @@ import {
 import { DrizzleRestoredRegisterCreditNoteAnswers } from "./drizzle-restored-register-credit-note-answers.js";
 import {
   ANSWERED_AT,
+  anAuthorizedAnswer,
+  anUnclearAnswer,
+  aRejectedAnswer,
   insertSaleVoidCreditNote,
   REQUESTED_AT,
 } from "./test-support/sale-void-credit-notes.js";
@@ -37,16 +40,6 @@ afterAll(async () => {
   await integrationDb.close();
 });
 
-const AUTHORIZED = {
-  number: 9,
-  issuedOn: "2026-10-07",
-  requestedAt: REQUESTED_AT,
-  answerKind: "authorized",
-  answeredAt: ANSWERED_AT,
-  authorizationCode: "74123456789012",
-  authorizationCodeDueOn: "2026-10-17",
-};
-
 async function aRegister(): Promise<string> {
   return insertRegister(db, await insertBranch(db));
 }
@@ -55,10 +48,12 @@ describe("the sale void credit notes of a restored register on a real Postgres",
   it("holds an authorized credit note with its authorization, the point of sale and when it was answered", async () => {
     const registerId = await aRegister();
     const saleId = crypto.randomUUID();
-    const creditNoteId = await insertSaleVoidCreditNote(db, registerId, saleId, {
-      ...AUTHORIZED,
-      number: 9,
-    });
+    const creditNoteId = await insertSaleVoidCreditNote(
+      db,
+      registerId,
+      saleId,
+      anAuthorizedAnswer(9),
+    );
 
     const found = await answers.saleVoidCreditNotesOf(registerId, [saleId]);
 
@@ -83,13 +78,7 @@ describe("the sale void credit notes of a restored register on a real Postgres",
   it("holds a rejected credit note", async () => {
     const registerId = await aRegister();
     const saleId = crypto.randomUUID();
-    await insertSaleVoidCreditNote(db, registerId, saleId, {
-      number: 10,
-      issuedOn: "2026-10-07",
-      requestedAt: REQUESTED_AT,
-      answerKind: "rejected",
-      answeredAt: ANSWERED_AT,
-    });
+    await insertSaleVoidCreditNote(db, registerId, saleId, aRejectedAnswer());
 
     const found = await answers.saleVoidCreditNotesOf(registerId, [saleId]);
 
@@ -100,24 +89,16 @@ describe("the sale void credit notes of a restored register on a real Postgres",
 
   it("holds the credit notes still waiting for the tax authority, or answered unclearly, as such", async () => {
     const registerId = await aRegister();
-    const [unrequested, requested, unclear] = [
-      crypto.randomUUID(),
-      crypto.randomUUID(),
-      crypto.randomUUID(),
-    ] as const;
+    const unrequested = crypto.randomUUID();
+    const requested = crypto.randomUUID();
+    const unclear = crypto.randomUUID();
     await insertSaleVoidCreditNote(db, registerId, unrequested);
     await insertSaleVoidCreditNote(db, registerId, requested, {
       number: 11,
       issuedOn: "2026-10-07",
       requestedAt: REQUESTED_AT,
     });
-    await insertSaleVoidCreditNote(db, registerId, unclear, {
-      number: 12,
-      issuedOn: "2026-10-07",
-      requestedAt: REQUESTED_AT,
-      answerKind: "unclear",
-      answeredAt: ANSWERED_AT,
-    });
+    await insertSaleVoidCreditNote(db, registerId, unclear, anUnclearAnswer());
 
     const found = await answers.saleVoidCreditNotesOf(registerId, [
       unrequested,
@@ -138,7 +119,7 @@ describe("the sale void credit notes of a restored register on a real Postgres",
     const registerId = await aRegister();
     const otherRegisterId = await aRegister();
     const saleId = crypto.randomUUID();
-    await insertSaleVoidCreditNote(db, otherRegisterId, saleId, AUTHORIZED);
+    await insertSaleVoidCreditNote(db, otherRegisterId, saleId, anAuthorizedAnswer());
 
     const found = await answers.saleVoidCreditNotesOf(registerId, [saleId]);
 
@@ -149,8 +130,8 @@ describe("the sale void credit notes of a restored register on a real Postgres",
     const registerId = await aRegister();
     const asked = crypto.randomUUID();
     const notAsked = crypto.randomUUID();
-    await insertSaleVoidCreditNote(db, registerId, asked, { ...AUTHORIZED, number: 13 });
-    await insertSaleVoidCreditNote(db, registerId, notAsked, { ...AUTHORIZED, number: 14 });
+    await insertSaleVoidCreditNote(db, registerId, asked, anAuthorizedAnswer());
+    await insertSaleVoidCreditNote(db, registerId, notAsked, anAuthorizedAnswer());
 
     const found = await answers.saleVoidCreditNotesOf(registerId, [asked]);
 
@@ -161,8 +142,7 @@ describe("the sale void credit notes of a restored register on a real Postgres",
     const registerId = await aRegister();
     const saleId = crypto.randomUUID();
     await insertSaleVoidCreditNote(db, registerId, saleId, {
-      ...AUTHORIZED,
-      number: 15,
+      ...anAuthorizedAnswer(),
       reason: "orphan",
       keptVoucherType: 11,
       keptPointOfSale: 31,

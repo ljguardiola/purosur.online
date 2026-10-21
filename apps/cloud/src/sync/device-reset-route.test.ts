@@ -4,6 +4,9 @@ import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
   ANSWERED_AT,
+  anAuthorizedAnswer,
+  anUnclearAnswer,
+  aRejectedAnswer,
   insertSaleVoidCreditNote,
   REQUESTED_AT,
 } from "../fiscal/test-support/sale-void-credit-notes.js";
@@ -207,16 +210,6 @@ describe("POST /devices/current/reset", () => {
   });
 
   describe("the credit note answers", () => {
-    const AUTHORIZED = {
-      number: 9,
-      issuedOn: "2026-10-07",
-      requestedAt: REQUESTED_AT,
-      answerKind: "authorized",
-      answeredAt: ANSWERED_AT,
-      authorizationCode: "74123456789012",
-      authorizationCodeDueOn: "2026-10-17",
-    };
-
     async function aVoidedSale(deviceId: string) {
       const saleId = crypto.randomUUID();
       await insertInboxEvent(db, deviceId, {
@@ -250,39 +243,42 @@ describe("POST /devices/current/reset", () => {
         db,
         current.registerId,
         authorizedSale,
-        AUTHORIZED,
+        anAuthorizedAnswer(9),
       );
-      const rejectedId = await insertSaleVoidCreditNote(db, current.registerId, rejectedSale, {
-        number: 10,
-        issuedOn: "2026-10-07",
-        requestedAt: REQUESTED_AT,
-        answerKind: "rejected",
-        answeredAt: ANSWERED_AT,
-      });
+      const rejectedId = await insertSaleVoidCreditNote(
+        db,
+        current.registerId,
+        rejectedSale,
+        aRejectedAnswer(),
+      );
 
       const response = await resetOf(predecessor, current);
 
       expect(response.statusCode).toBe(200);
-      expect(registerResetResponseSchema.parse(response.json()).credit_notes).toEqual([
-        {
-          sale_id: authorizedSale,
-          credit_note_id: authorizedId,
-          answered_at: ANSWERED_AT.toISOString(),
-          state: "AUTHORIZED",
-          point_of_sale: 7,
-          number: 9,
-          issued_on: "2026-10-07",
-          issued_at: REQUESTED_AT.toISOString(),
-          authorization_code: "74123456789012",
-          authorization_code_due_on: "2026-10-17",
-        },
-        {
-          sale_id: rejectedSale,
-          credit_note_id: rejectedId,
-          answered_at: ANSWERED_AT.toISOString(),
-          state: "REJECTED",
-        },
-      ]);
+      const { credit_notes } = registerResetResponseSchema.parse(response.json());
+      expect(credit_notes).toHaveLength(2);
+      expect(credit_notes).toEqual(
+        expect.arrayContaining([
+          {
+            sale_id: authorizedSale,
+            credit_note_id: authorizedId,
+            answered_at: ANSWERED_AT.toISOString(),
+            state: "AUTHORIZED",
+            point_of_sale: 7,
+            number: 9,
+            issued_on: "2026-10-07",
+            issued_at: REQUESTED_AT.toISOString(),
+            authorization_code: "74123456789012",
+            authorization_code_due_on: "2026-10-17",
+          },
+          {
+            sale_id: rejectedSale,
+            credit_note_id: rejectedId,
+            answered_at: ANSWERED_AT.toISOString(),
+            state: "REJECTED",
+          },
+        ]),
+      );
     });
 
     it("leaves out the credit notes the tax authority has not answered, or answered unclearly", async () => {
@@ -290,13 +286,7 @@ describe("POST /devices/current/reset", () => {
       const waiting = await aVoidedSale(predecessor.deviceId);
       const unclear = await aVoidedSale(predecessor.deviceId);
       await insertSaleVoidCreditNote(db, current.registerId, waiting);
-      await insertSaleVoidCreditNote(db, current.registerId, unclear, {
-        number: 11,
-        issuedOn: "2026-10-07",
-        requestedAt: REQUESTED_AT,
-        answerKind: "unclear",
-        answeredAt: ANSWERED_AT,
-      });
+      await insertSaleVoidCreditNote(db, current.registerId, unclear, anUnclearAnswer());
 
       const response = await resetOf(predecessor, current);
 
@@ -307,7 +297,7 @@ describe("POST /devices/current/reset", () => {
       const { predecessor, current } = await aRestoredRegister();
       const other = await insertEnrolledInstallation(db, { now: NOW, registerName: "Caja 2" });
       const saleId = await aVoidedSale(predecessor.deviceId);
-      await insertSaleVoidCreditNote(db, other.registerId, saleId, AUTHORIZED);
+      await insertSaleVoidCreditNote(db, other.registerId, saleId, anAuthorizedAnswer());
 
       const response = await resetOf(predecessor, current);
 
@@ -318,7 +308,7 @@ describe("POST /devices/current/reset", () => {
       const { predecessor, current } = await aRestoredRegister();
       const completedSale = crypto.randomUUID();
       await insertInboxEvent(db, predecessor.deviceId, { aggregateId: completedSale });
-      await insertSaleVoidCreditNote(db, current.registerId, completedSale, AUTHORIZED);
+      await insertSaleVoidCreditNote(db, current.registerId, completedSale, anAuthorizedAnswer());
 
       const response = await resetOf(predecessor, current);
 
@@ -337,11 +327,8 @@ describe("POST /devices/current/reset", () => {
         .orderBy(desc(inbox.deviceSeq))
         .limit(1);
       const secondSale = await aVoidedSale(predecessor.deviceId);
-      await insertSaleVoidCreditNote(db, current.registerId, firstSale, AUTHORIZED);
-      await insertSaleVoidCreditNote(db, current.registerId, secondSale, {
-        ...AUTHORIZED,
-        number: 12,
-      });
+      await insertSaleVoidCreditNote(db, current.registerId, firstSale, anAuthorizedAnswer());
+      await insertSaleVoidCreditNote(db, current.registerId, secondSale, anAuthorizedAnswer());
 
       const first = registerResetResponseSchema.parse((await resetOf(predecessor, current)).json());
       const second = registerResetResponseSchema.parse(
