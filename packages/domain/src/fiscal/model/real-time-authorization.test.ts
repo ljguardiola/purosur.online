@@ -755,6 +755,7 @@ describe("OFFLINE_AUTHORIZATION_CAUSES", () => {
       "no_connectivity",
       "unclear_outcome",
       "numbering_conflict",
+      "clock_correction_lapse",
     ]);
   });
 });
