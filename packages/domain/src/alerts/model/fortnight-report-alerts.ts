@@ -1,4 +1,5 @@
 import {
+  type FiscalDocumentType,
   type Fortnight,
   type FortnightReportState,
   fortnightContaining,
@@ -22,9 +23,19 @@ export function pointOfSaleFortnightScope(
 
 export function pointOfSaleFortnightScopeDisplay(scope: string): string {
   const fortnightStart = scope.split(":")[1];
-  return fortnightStart !== undefined && /^\d{4}-\d{2}-\d{2}$/.test(fortnightStart)
-    ? `${scope}:${fortnightContaining(fortnightStart).end}`
-    : scope;
+  if (fortnightStart === undefined || !/^\d{4}-\d{2}-\d{2}$/.test(fortnightStart)) {
+    return scope;
+  }
+  const [pointOfSale, start, ...rest] = scope.split(":");
+  return [pointOfSale, start, fortnightContaining(fortnightStart).end, ...rest].join(":");
+}
+
+export function rejectedDocumentScope(
+  pointOfSaleNumber: number,
+  fortnightStart: string,
+  documentType: FiscalDocumentType,
+): string {
+  return `${pointOfSaleFortnightScope(pointOfSaleNumber, fortnightStart)}:${documentType}`;
 }
 
 export function fortnightReportPendingReason(
@@ -130,4 +141,40 @@ export function fortnightReportOverdueAlert(
     scope: pointOfSaleFortnightScope(presentation.pointOfSaleNumber, presentation.fortnight.start),
     detail: presentationDetail(presentation),
   };
+}
+
+export function fortnightReportDocumentRejectedObservation({
+  pointOfSaleNumber,
+  registerId,
+  fortnight,
+  documentType,
+  rejectedNumber,
+}: {
+  pointOfSaleNumber: number;
+  registerId: string;
+  fortnight: Fortnight;
+  documentType: FiscalDocumentType;
+  rejectedNumber: number;
+}): AlertConditionObservation {
+  return {
+    holds: true,
+    alert: {
+      kind: "fortnight_report_document_rejected",
+      scope: rejectedDocumentScope(pointOfSaleNumber, fortnight.start, documentType),
+      detail: {
+        pointOfSaleNumber,
+        registerId,
+        fortnightStart: fortnight.start,
+        fortnightEnd: fortnight.end,
+        documentType,
+        rejectedNumber,
+      },
+    },
+  };
+}
+
+export function fortnightReportDocumentNoLongerRejectedObservation(
+  scope: string,
+): AlertConditionObservation {
+  return { holds: false, kind: "fortnight_report_document_rejected", scope };
 }

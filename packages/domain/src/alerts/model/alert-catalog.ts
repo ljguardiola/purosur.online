@@ -30,6 +30,7 @@ const ALERT_KIND_LIST = [
   "invoice_already_credited",
   "fortnight_report_owed_elsewhere",
   "register_backup_overdue",
+  "fortnight_report_document_rejected",
 ] as const;
 
 export type AlertKind = (typeof ALERT_KIND_LIST)[number];

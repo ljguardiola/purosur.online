@@ -53,6 +53,7 @@ export { detectMissingOfflineAuthorizationCodes } from "./detect-missing-offline
 export { detectOwedElsewherePresentations } from "./detect-owed-elsewhere-presentations.js";
 export type { QuietRegisterDetectionPorts } from "./detect-quiet-registers.js";
 export { detectQuietRegisters } from "./detect-quiet-registers.js";
+export { detectRejectedFortnightDocuments } from "./detect-rejected-fortnight-documents.js";
 export type { DetectUnverifiedOffsiteDumpOutcome } from "./detect-unverified-offsite-dump.js";
 export { detectUnverifiedOffsiteDump } from "./detect-unverified-offsite-dump.js";
 export { escalateOverdueAlerts } from "./escalate-overdue-alerts.js";
@@ -95,6 +96,12 @@ export type {
   OwedElsewhereDetectionPorts,
   OwedElsewherePresentationReader,
 } from "./owed-elsewhere-presentation-ports.js";
+export type {
+  RejectedFortnightDocument,
+  RejectedFortnightDocumentAlerts,
+  RejectedFortnightDocumentDetectionPorts,
+  RejectedFortnightDocumentReader,
+} from "./rejected-fortnight-document-ports.js";
 export type { ResolveAlertOutcome } from "./resolve-alert.js";
 export { resolveAlert } from "./resolve-alert.js";
 export { resolveStablyClearedAlerts } from "./resolve-stably-cleared-alerts.js";

@@ -211,6 +211,11 @@ interface FortnightReportPendingDetail extends FortnightReportOverdueDetail {
   reason: FortnightReportPendingReason;
 }
 
+interface FortnightReportDocumentRejectedDetail extends FortnightReportNeedsRegularizationDetail {
+  documentType: FiscalDocumentType;
+  rejectedNumber: number;
+}
+
 export interface AlertDetails {
   backoffice_passkey_changed: PasskeyChangedDetail;
   backoffice_recovery_requested: RecoveryRequestedDetail;
@@ -243,6 +248,7 @@ export interface AlertDetails {
   invoice_already_credited: InvoiceAlreadyCreditedDetail;
   fortnight_report_owed_elsewhere: FortnightReportOwedElsewhereDetail;
   register_backup_overdue: RegisterBackupOverdueDetail;
+  fortnight_report_document_rejected: FortnightReportDocumentRejectedDetail;
 }
 
 export type OpenAlertInput = {
