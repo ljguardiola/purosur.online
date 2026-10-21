@@ -914,6 +914,7 @@ describe("the register's local migrations", () => {
         "0064_void_credit_notes",
         "0066_register_qr_point_of_sale",
         "0067_replenished_events",
+        "0068_clock_correction_lapse_cause",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1005,6 +1006,7 @@ describe("the register's local migrations", () => {
         "0064_void_credit_notes",
         "0066_register_qr_point_of_sale",
         "0067_replenished_events",
+        "0068_clock_correction_lapse_cause",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1091,6 +1093,7 @@ describe("the register's local migrations", () => {
         "0064_void_credit_notes",
         "0066_register_qr_point_of_sale",
         "0067_replenished_events",
+        "0068_clock_correction_lapse_cause",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1176,6 +1179,7 @@ describe("the register's local migrations", () => {
         "0064_void_credit_notes",
         "0066_register_qr_point_of_sale",
         "0067_replenished_events",
+        "0068_clock_correction_lapse_cause",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1290,6 +1294,7 @@ describe("the register's local migrations", () => {
         "0064_void_credit_notes",
         "0066_register_qr_point_of_sale",
         "0067_replenished_events",
+        "0068_clock_correction_lapse_cause",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1394,6 +1399,7 @@ describe("the register's local migrations", () => {
         "0064_void_credit_notes",
         "0066_register_qr_point_of_sale",
         "0067_replenished_events",
+        "0068_clock_correction_lapse_cause",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1502,6 +1508,7 @@ describe("the register's local migrations", () => {
         "0064_void_credit_notes",
         "0066_register_qr_point_of_sale",
         "0067_replenished_events",
+        "0068_clock_correction_lapse_cause",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1618,6 +1625,7 @@ describe("the register's local migrations", () => {
         "0064_void_credit_notes",
         "0066_register_qr_point_of_sale",
         "0067_replenished_events",
+        "0068_clock_correction_lapse_cause",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1701,6 +1709,7 @@ describe("the register's local migrations", () => {
         "0064_void_credit_notes",
         "0066_register_qr_point_of_sale",
         "0067_replenished_events",
+        "0068_clock_correction_lapse_cause",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
