@@ -14,6 +14,7 @@ import {
 import type { RemedyRejectedDocumentPorts } from "./remedy-rejected-document-ports.js";
 
 export interface RemedyRejectedDocumentInput {
+  locationId: string;
   pointOfSaleNumber: number;
   fortnightStart: string;
   documentType: FiscalDocumentType;
@@ -32,6 +33,7 @@ export type RemedyRejectedDocumentOutcome =
 export function remedyRejectedDocument(
   { store, clock }: RemedyRejectedDocumentPorts,
   {
+    locationId,
     pointOfSaleNumber,
     fortnightStart,
     documentType,
@@ -44,7 +46,7 @@ export function remedyRejectedDocument(
   const key = { pointOfSaleNumber, fortnight };
   return store.transaction<RemedyRejectedDocumentOutcome>(async (tx) => {
     await tx.holdFortnightPresentation(key);
-    const rejection = await tx.documentTypeReport(key, documentType);
+    const rejection = await tx.documentTypeReport(key, documentType, locationId);
     if (rejection === null || rejection.rejectedNumber !== number) {
       return { kind: "not_rejected" };
     }
@@ -58,7 +60,7 @@ export function remedyRejectedDocument(
     let recorded = remedy;
     let changes: DocumentFieldChange[] = [];
     if (remedy.kind === "printed") {
-      const issued = (await tx.documentsOn(pointOfSaleNumber, fortnight)).filter(
+      const issued = (await tx.documentsOn(pointOfSaleNumber, fortnight, locationId)).filter(
         (document) => document.documentType === documentType,
       );
       const printed = issued.find((document) => document.number === number);

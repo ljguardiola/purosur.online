@@ -40,10 +40,12 @@ export interface RemedyRejectedDocumentStoreTransaction {
   documentTypeReport(
     key: FortnightReportKey,
     documentType: FiscalDocumentType,
+    locationId: string,
   ): Promise<RecordedDocumentTypeReport | null>;
   documentsOn(
     pointOfSaleNumber: number,
     fortnight: Fortnight,
+    locationId: string,
   ): Promise<OfflineDocumentOfFortnight[]>;
   recordRemedy(record: RejectedDocumentRemedyRecord): Promise<void>;
   recordRemedyAudit(audit: RejectedDocumentRemedyAudit): Promise<void>;

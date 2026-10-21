@@ -108,6 +108,7 @@ export function registerRejectedDocumentRemedyRoute<TQueryResult extends PgQuery
       const outcome = await remedyRejectedDocument(
         { store, clock: { now } },
         {
+          locationId: openSession.locationId,
           pointOfSaleNumber: body.point_of_sale_number,
           fortnightStart: body.fortnight_start,
           documentType: body.document_type,

@@ -50,18 +50,26 @@ class DrizzleRejectedDocumentRemedyTransaction<TQueryResult extends PgQueryResul
   async documentTypeReport(
     { pointOfSaleNumber, fortnight }: FortnightReportKey,
     documentType: RecordedDocumentTypeReport["documentType"],
+    locationId: string,
   ): Promise<RecordedDocumentTypeReport | null> {
-    const reports = await recordedDocumentTypeReports(this.tx, pointOfSaleNumber, fortnight);
+    const reports = await recordedDocumentTypeReports(
+      this.tx,
+      pointOfSaleNumber,
+      fortnight,
+      locationId,
+    );
     return reports.find((report) => report.documentType === documentType) ?? null;
   }
 
   documentsOn(
     pointOfSaleNumber: number,
     fortnight: FortnightReportKey["fortnight"],
+    locationId: string,
   ): Promise<OfflineDocumentOfFortnight[]> {
     return new DrizzleOfflineDocumentsOfFortnight(this.tx).documentsOn(
       pointOfSaleNumber,
       fortnight,
+      locationId,
     );
   }
 
