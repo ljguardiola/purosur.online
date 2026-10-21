@@ -14,7 +14,7 @@ import {
   voidedSale,
 } from "./test-support/receipt-rig.js";
 
-const INPUT = { saleId: "sale-1", reason: "el cliente la perdió" };
+const INPUT = { document: "sale_receipt", saleId: "sale-1", reason: "el cliente la perdió" };
 
 describe("reprintSaleReceipt", () => {
   it("returns the authority's refusal before reading any data or sending", async () => {
@@ -40,7 +40,11 @@ describe("reprintSaleReceipt", () => {
     async (_name, reason) => {
       const rig = receiptRig([completedSale({ printAttemptedAt: FIRST_PRINT_AT })]);
 
-      const outcome = await reprintSaleReceipt(rig.ports, { saleId: "sale-1", reason }, rig.watch);
+      const outcome = await reprintSaleReceipt(
+        rig.ports,
+        { document: "sale_receipt", saleId: "sale-1", reason },
+        rig.watch,
+      );
 
       expect(outcome).toEqual({
         kind: "invalid_reason",
@@ -78,7 +82,7 @@ describe("reprintSaleReceipt", () => {
 
     const printing = reprintSaleReceipt(
       rig.ports,
-      { saleId: "sale-1", reason: "  se mojó \n" },
+      { document: "sale_receipt", saleId: "sale-1", reason: "  se mojó \n" },
       rig.watch,
     );
     await rig.printer.whenWaiting();
@@ -130,6 +134,7 @@ describe("reprintSaleReceipt", () => {
     const atSend = rig.printer.sent[0]?.ledgerStateWhenSent;
     expect(atSend?.sales[0]?.reprints).toEqual([
       {
+        document: "sale_receipt",
         saleId: "sale-1",
         orderNumber: 1,
         requestedBy: "cashier",
@@ -144,9 +149,10 @@ describe("reprintSaleReceipt", () => {
         aggregate_type: "Sale",
         aggregate_id: "sale-1",
         event_type: "reprint_recorded",
-        schema_version: 1,
+        schema_version: 2,
         payload: {
           sale_id: "sale-1",
+          document: "sale_receipt",
           order_number: 1,
           requested_by: "cashier",
           authorized_by: "supervisor",

@@ -1,3 +1,4 @@
+import type { CreditNoteReceiptContent } from "../../model/credit-note-receipt-content.js";
 import type { ReceiptContent } from "../../model/receipt-content.js";
 import type { ReceiptCopy } from "../../model/receipt-copy.js";
 import type { ReceiptTemplate, StoredReceipt } from "../receipt-ports.js";
@@ -12,6 +13,7 @@ export function textOf(bytes: Uint8Array): string {
 export class FakeReceiptTemplate implements ReceiptTemplate {
   version = "v1";
   renders: ReceiptContent[] = [];
+  creditNoteRenders: CreditNoteReceiptContent[] = [];
 
   render(content: ReceiptContent): StoredReceipt {
     this.renders.push(content);
@@ -19,6 +21,15 @@ export class FakeReceiptTemplate implements ReceiptTemplate {
       templateVersion: this.version,
       head: encoder.encode(`HEAD[${this.version}] total ${content.totals.total}\n`),
       body: encoder.encode(`BODY ${content.lines.length} lines\n`),
+    };
+  }
+
+  renderCreditNote(content: CreditNoteReceiptContent): StoredReceipt {
+    this.creditNoteRenders.push(content);
+    return {
+      templateVersion: this.version,
+      head: encoder.encode(`CREDIT NOTE HEAD[${this.version}] total ${content.totals.total}\n`),
+      body: encoder.encode(`CREDIT NOTE BODY ${content.lines.length} lines\n`),
     };
   }
 

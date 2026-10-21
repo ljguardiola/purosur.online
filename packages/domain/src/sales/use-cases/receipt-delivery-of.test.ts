@@ -1,12 +1,18 @@
 import { describe, expect, it } from "vitest";
 import { receiptDeliveryOf } from "./receipt-delivery-of.js";
-import { completedSale, FIRST_PRINT_AT, receiptRig, SENT_AT } from "./test-support/receipt-rig.js";
+import {
+  completedSale,
+  creditedSale,
+  FIRST_PRINT_AT,
+  receiptRig,
+  SENT_AT,
+} from "./test-support/receipt-rig.js";
 
 describe("receiptDeliveryOf", () => {
   it("answers that a sale never printed would print the original next", () => {
     const rig = receiptRig();
 
-    expect(receiptDeliveryOf(rig.ports, { saleId: "sale-1" })).toEqual({
+    expect(receiptDeliveryOf(rig.ports, { document: "sale_receipt", saleId: "sale-1" })).toEqual({
       kind: "found",
       nextCopy: { kind: "original" },
       printAttemptedAt: null,
@@ -21,6 +27,7 @@ describe("receiptDeliveryOf", () => {
         printedAt: SENT_AT,
         reprints: [
           {
+            document: "sale_receipt",
             saleId: "sale-1",
             orderNumber: 1,
             requestedBy: "cashier",
@@ -32,7 +39,7 @@ describe("receiptDeliveryOf", () => {
       }),
     ]);
 
-    expect(receiptDeliveryOf(rig.ports, { saleId: "sale-1" })).toEqual({
+    expect(receiptDeliveryOf(rig.ports, { document: "sale_receipt", saleId: "sale-1" })).toEqual({
       kind: "found",
       nextCopy: { kind: "duplicate", orderNumber: 2 },
       printAttemptedAt: FIRST_PRINT_AT,
@@ -43,6 +50,26 @@ describe("receiptDeliveryOf", () => {
   it("answers not_found for a sale that is not completed", () => {
     const rig = receiptRig([completedSale({ completed: false })]);
 
-    expect(receiptDeliveryOf(rig.ports, { saleId: "sale-1" })).toEqual({ kind: "not_found" });
+    expect(receiptDeliveryOf(rig.ports, { document: "sale_receipt", saleId: "sale-1" })).toEqual({
+      kind: "not_found",
+    });
+  });
+
+  it("answers the credit note's copy from the credit note's own printing, not the sale receipt's", () => {
+    const rig = receiptRig([
+      creditedSale({ printAttemptedAt: FIRST_PRINT_AT }, { printAttemptedAt: null }),
+    ]);
+
+    expect(receiptDeliveryOf(rig.ports, { document: "credit_note", saleId: "sale-1" })).toEqual({
+      kind: "found",
+      nextCopy: { kind: "duplicate", orderNumber: 1 },
+      printAttemptedAt: FIRST_PRINT_AT,
+      printedAt: null,
+    });
+    expect(
+      receiptDeliveryOf(rig.ports, { document: "sale_receipt", saleId: "sale-1" }),
+    ).toMatchObject({
+      nextCopy: { kind: "original" },
+    });
   });
 });
