@@ -224,6 +224,7 @@ export type {
   RejectedDocumentRemedy,
   RejectedDocumentRemedyState,
   RejectionClass,
+  RestoredCreditNoteAnswer,
   SaleInvoice,
   SaleVoidCreditNote,
   TaxAuthorityRejection,

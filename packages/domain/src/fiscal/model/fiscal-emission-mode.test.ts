@@ -20,6 +20,7 @@ const SERIES = {
   numberingFrozen: false,
   clockMark: null,
   taxAuthorityLastIssuedOn: null,
+  clockCorrections: [],
 };
 const OFFLINE_SERIES = {
   pointOfSale: 7,
@@ -97,6 +98,23 @@ describe("fiscalEmissionModeOf", () => {
         offlineSeries: { ...OFFLINE_SERIES, blocksInAssignmentOrder: [] },
       }),
     ).toEqual({ kind: "deferring", reason: "fiscally_offline" });
+  });
+
+  it("is the offline code with the lapse as its cause while a clock correction keeps the reading behind the tax authority's day", () => {
+    expect(
+      modeOf({
+        series: {
+          ...SERIES,
+          taxAuthorityLastIssuedOn: "2026-10-03",
+          clockCorrections: [
+            {
+              previousReading: new Date("2026-10-04T15:00:00.000Z"),
+              correctedReading: new Date("2026-10-01T10:00:00.000Z"),
+            },
+          ],
+        },
+      }),
+    ).toEqual({ kind: "offline_code", cause: "clock_correction_lapse" });
   });
 
   it("defers without a point of sale", () => {

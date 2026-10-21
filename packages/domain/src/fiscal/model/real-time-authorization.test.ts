@@ -251,6 +251,7 @@ const SERIES = {
   numberingFrozen: false,
   clockMark: null,
   taxAuthorityLastIssuedOn: null,
+  clockCorrections: [],
 };
 const OFFLINE_SERIES = {
   pointOfSale: 7,
@@ -587,6 +588,105 @@ describe("decideSaleAuthorizationRoute under a clock behind the tax authority's 
   });
 });
 
+describe("decideSaleAuthorizationRoute in the lapse after a clock correction", () => {
+  const LAPSE_SERIES = {
+    ...SERIES,
+    taxAuthorityLastIssuedOn: "2026-10-03",
+    clockCorrections: [
+      {
+        previousReading: new Date("2026-10-04T15:00:00.000Z"),
+        correctedReading: new Date("2026-10-01T10:00:00.000Z"),
+      },
+    ],
+  };
+
+  it("issues the sale under the offline code while the register is online", () => {
+    expect(decide({ series: LAPSE_SERIES })).toEqual({
+      kind: "issue_offline",
+      cause: "clock_correction_lapse",
+      pointOfSale: 7,
+      number: 101,
+      document: DOCUMENT,
+      issuedOn: "2026-10-01",
+      fortnight: OCTOBER_FIRST_FORTNIGHT,
+      offlineAuthorizationCode: CODE,
+    });
+  });
+
+  it("defers the sale as the clock being behind when the register holds no code for it", () => {
+    expect(decide({ series: LAPSE_SERIES, offlineAuthorizationCode: null })).toEqual({
+      kind: "defer",
+      reason: "clock_behind",
+    });
+  });
+
+  it("reserves the next number again once the reading's day reaches the tax authority's day", () => {
+    const now = new Date("2026-10-03T03:00:00.000Z");
+
+    expect(
+      decide({
+        series: LAPSE_SERIES,
+        now,
+        online: { ...ONLINE, lastHealthCheckOkAt: new Date(now.getTime() - 1_000) },
+      }),
+    ).toMatchObject({ kind: "reserve" });
+  });
+
+  it("defers the sale as the clock being behind when the series' own mark is ahead, whatever the correction", () => {
+    expect(
+      decide({
+        series: { ...LAPSE_SERIES, clockMark: MORE_THAN_A_MINUTE_AHEAD_OF_NOW },
+      }),
+    ).toEqual({ kind: "defer", reason: "clock_behind" });
+  });
+
+  it("defers a sale before the tax authority's day when the correction does not explain it", () => {
+    expect(
+      decide({
+        series: {
+          ...LAPSE_SERIES,
+          clockCorrections: [
+            {
+              previousReading: new Date("2026-10-02T15:00:00.000Z"),
+              correctedReading: new Date("2026-10-01T10:00:00.000Z"),
+            },
+          ],
+        },
+      }),
+    ).toEqual({ kind: "defer", reason: "clock_behind" });
+  });
+
+  it("leaves a frozen numbering to its own cause", () => {
+    expect(decide({ series: { ...LAPSE_SERIES, numberingFrozen: true } })).toMatchObject({
+      kind: "issue_offline",
+      cause: "numbering_conflict",
+    });
+  });
+
+  it("leaves an unclear outcome to its own cause", () => {
+    expect(decide({ series: { ...LAPSE_SERIES, documentUnknown: true } })).toMatchObject({
+      kind: "issue_offline",
+      cause: "unclear_outcome",
+    });
+  });
+
+  it("defers the sale as the clock being behind when the offline series' mark is ahead of the sale", () => {
+    expect(
+      decide({
+        series: LAPSE_SERIES,
+        offlineSeries: { ...OFFLINE_SERIES, clockMark: MORE_THAN_A_MINUTE_AHEAD_OF_OCCURRED_AT },
+      }),
+    ).toEqual({ kind: "defer", reason: "clock_behind" });
+  });
+
+  it("does not look at the lapse for a register without a point of sale", () => {
+    expect(decide({ series: { ...LAPSE_SERIES, pointOfSale: null } })).toEqual({
+      kind: "defer",
+      reason: "point_of_sale_missing",
+    });
+  });
+});
+
 describe("decideSaleAuthorizationRoute under a clock behind the offline series' own mark", () => {
   const OFFLINE_BEHIND = {
     ...OFFLINE_SERIES,
@@ -659,6 +759,7 @@ describe("OFFLINE_AUTHORIZATION_CAUSES", () => {
       "no_connectivity",
       "unclear_outcome",
       "numbering_conflict",
+      "clock_correction_lapse",
     ]);
   });
 });

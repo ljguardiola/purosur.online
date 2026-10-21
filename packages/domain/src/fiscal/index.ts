@@ -207,6 +207,7 @@ export {
 } from "./model/rejected-document-remedy.js";
 export type {
   CreditNoteAnswer,
+  RestoredCreditNoteAnswer,
   SaleInvoice,
   SaleVoidCreditNote,
   VoidCreditNoteStanding,

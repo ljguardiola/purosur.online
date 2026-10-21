@@ -1,0 +1,2 @@
+ALTER TABLE "offline_fiscal_documents" DROP CONSTRAINT "offline_fiscal_documents_cause_known";--> statement-breakpoint
+ALTER TABLE "offline_fiscal_documents" ADD CONSTRAINT "offline_fiscal_documents_cause_known" CHECK ("offline_fiscal_documents"."cause" in ('no_connectivity', 'unclear_outcome', 'numbering_conflict', 'clock_correction_lapse'));

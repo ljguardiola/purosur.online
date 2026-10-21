@@ -1,5 +1,5 @@
 {
-  "id": "222220f9-2dce-408e-ad34-4e2786b2c069",
+  "id": "e0d806a1-03d0-4344-8c48-8877a76f332a",
   "prevId": "e6cd4423-34e5-4f9b-bc34-2457cc59e5db",
   "version": "7",
   "dialect": "postgresql",
@@ -2165,7 +2165,7 @@
       "checkConstraints": {
         "credit_notes_reason_check": {
           "name": "credit_notes_reason_check",
-          "value": "\"credit_notes\".\"reason\" in ('orphan', 'sale_void', 'rejected_document')"
+          "value": "\"credit_notes\".\"reason\" in ('orphan', 'sale_void')"
         },
         "credit_notes_kept_voucher_check": {
           "name": "credit_notes_kept_voucher_check",
@@ -4348,7 +4348,7 @@
         },
         "offline_fiscal_documents_cause_known": {
           "name": "offline_fiscal_documents_cause_known",
-          "value": "\"offline_fiscal_documents\".\"cause\" in ('no_connectivity', 'unclear_outcome', 'numbering_conflict')"
+          "value": "\"offline_fiscal_documents\".\"cause\" in ('no_connectivity', 'unclear_outcome', 'numbering_conflict', 'clock_correction_lapse')"
         },
         "offline_fiscal_documents_generation_stamp_shape": {
           "name": "offline_fiscal_documents_generation_stamp_shape",
@@ -8108,121 +8108,6 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.rejected_document_remedies": {
-      "name": "rejected_document_remedies",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "point_of_sale_number": {
-          "name": "point_of_sale_number",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "fortnight_start": {
-          "name": "fortnight_start",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "document_type": {
-          "name": "document_type",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "number": {
-          "name": "number",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "kind": {
-          "name": "kind",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "correction": {
-          "name": "correction",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "recorded_at": {
-          "name": "recorded_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {
-        "rejected_document_remedies_document_idx": {
-          "name": "rejected_document_remedies_document_idx",
-          "columns": [
-            {
-              "expression": "point_of_sale_number",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "fortnight_start",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "document_type",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "number",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "rejected_document_remedies_point_of_sale_number_point_of_sale_claims_point_of_sale_number_fk": {
-          "name": "rejected_document_remedies_point_of_sale_number_point_of_sale_claims_point_of_sale_number_fk",
-          "tableFrom": "rejected_document_remedies",
-          "tableTo": "point_of_sale_claims",
-          "columnsFrom": ["point_of_sale_number"],
-          "columnsTo": ["point_of_sale_number"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "rejected_document_remedies_kind_check": {
-          "name": "rejected_document_remedies_kind_check",
-          "value": "\"rejected_document_remedies\".\"kind\" in ('report', 'printed')"
-        },
-        "rejected_document_remedies_correction_check": {
-          "name": "rejected_document_remedies_correction_check",
-          "value": "(\"rejected_document_remedies\".\"kind\" = 'printed') = (\"rejected_document_remedies\".\"correction\" is not null)"
-        }
-      },
       "isRLSEnabled": false
     },
     "public.role_permissions": {

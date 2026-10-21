@@ -39,6 +39,58 @@ export type CreditNoteAnswer =
 
 export type VoidCreditNoteStanding = CreditNoteAnswer | { kind: "already_credited" };
 
+type ConfirmedCreditNoteAnswer = Exclude<CreditNoteAnswer, { kind: "in_progress" }>;
+
+export interface RestoredCreditNoteAnswer {
+  creditNoteId: string;
+  answeredAt: Date;
+  answer: ConfirmedCreditNoteAnswer;
+}
+
+export type CreditNoteStanding =
+  | { kind: "not_requested" }
+  | {
+      kind: "requested";
+      number: number;
+      issuedOn: string;
+      requestedAt: Date;
+      unclearAnsweredAt: Date | null;
+    }
+  | {
+      kind: "authorized";
+      number: number;
+      issuedOn: string;
+      requestedAt: Date;
+      authorizationCode: string;
+      authorizationCodeDueOn: string;
+    }
+  | { kind: "rejected" };
+
+export function creditNoteAnswerOf(
+  standing: CreditNoteStanding,
+  pointOfSale: number,
+): CreditNoteAnswer {
+  switch (standing.kind) {
+    case "authorized": {
+      const { kind: _kind, requestedAt, ...authorized } = standing;
+      return { kind: "authorized", pointOfSale, issuedAt: requestedAt, ...authorized };
+    }
+    case "rejected":
+      return { kind: "rejected" };
+    case "not_requested":
+    case "requested":
+      return { kind: "in_progress" };
+  }
+}
+
+export function confirmedCreditNoteAnswer(
+  standing: CreditNoteStanding,
+  pointOfSale: number,
+): ConfirmedCreditNoteAnswer | null {
+  const answer = creditNoteAnswerOf(standing, pointOfSale);
+  return answer.kind === "in_progress" ? null : answer;
+}
+
 function isAuthorized({ state }: SaleInvoice): boolean {
   return state === "AUTHORIZED";
 }

@@ -6,29 +6,13 @@ import type {
   ExternalInvoicingRegularization,
   VoucherReference,
 } from "../model/orphan-authorization.js";
+import type { CreditNoteStanding } from "../model/sale-void-credit-note.js";
 import type { SolicitationAnswer, WsaaTokenSource } from "./fiscal-document-authorization-ports.js";
 import type { TaxAuthorityLastAuthorizedLookup } from "./tax-authority-count-ports.js";
 import type { TaxAuthorityVoucherLookup } from "./unclear-outcome-ports.js";
 import type { WsaaToken } from "./wsaa-token-ports.js";
 
-export type CreditNoteStanding =
-  | { kind: "not_requested" }
-  | {
-      kind: "requested";
-      number: number;
-      issuedOn: string;
-      requestedAt: Date;
-      unclearAnsweredAt: Date | null;
-    }
-  | {
-      kind: "authorized";
-      number: number;
-      issuedOn: string;
-      requestedAt: Date;
-      authorizationCode: string;
-      authorizationCodeDueOn: string;
-    }
-  | { kind: "rejected" };
+export type { CreditNoteStanding };
 
 export class CreditNoteNumberTaken extends Error {}
 
