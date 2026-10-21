@@ -602,6 +602,7 @@ const realTimeAuthorization = createRealTimeAuthorization({
   reportFailure: (error) => reportFailure("the real-time authorization", error),
   ids: uuidV7Ids,
   shortCodes: cryptoShortCodes,
+  readOutboxChainKey: async () => (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
 });
 const fiscalModeWatch =
   localDatabase === undefined
@@ -662,6 +663,8 @@ const startupRecovery = recoverAtStartup({
         reportFailure("settling the interrupted real-time authorizations", error),
       ids: uuidV7Ids,
       shortCodes: cryptoShortCodes,
+      readOutboxChainKey: async () =>
+        (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
     }),
   followInterruptedCharges: interruptedCharges.followAtStartup,
   discoverPaidOrders: paidOrderDiscovery.discoverAtStartup,
