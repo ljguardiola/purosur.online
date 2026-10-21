@@ -209,9 +209,7 @@ describe("the cloud's replenishment of a restored register, as the register read
   });
 
   describe("the credit note answers", () => {
-    const SALE = "3c9d1e7a-5b24-4f86-8a0d-6e2b9c4f1a37";
     const CREDIT_NOTE = "8e4b2a6c-1d93-4075-b5f8-2a7c9e0d3b61";
-    const OTHER_SALE = "5a7e2c91-3d68-4b04-a1f9-8c0b6d3e7f25";
     const OTHER_CREDIT_NOTE = "1f6a3d9b-2c47-4e85-9b10-7d5e8a2c4f93";
 
     function pageWith(...creditNotes: unknown[]) {
@@ -223,7 +221,6 @@ describe("the cloud's replenishment of a restored register, as the register read
 
     it("reads the authorization the tax authority gave a voided sale's credit note", async () => {
       const answer = await pageWith({
-        sale_id: SALE,
         credit_note_id: CREDIT_NOTE,
         answered_at: "2026-10-07T10:30:00.000Z",
         state: "AUTHORIZED",
@@ -240,7 +237,6 @@ describe("the cloud's replenishment of a restored register, as the register read
         page: {
           creditNoteAnswers: [
             {
-              saleId: SALE,
               creditNoteId: CREDIT_NOTE,
               answeredAt: new Date("2026-10-07T10:30:00.000Z"),
               answer: {
@@ -261,13 +257,11 @@ describe("the cloud's replenishment of a restored register, as the register read
     it("reads the rejection the tax authority gave, in the order the cloud sent the answers", async () => {
       const answer = await pageWith(
         {
-          sale_id: SALE,
           credit_note_id: CREDIT_NOTE,
           answered_at: "2026-10-07T10:30:00.000Z",
           state: "REJECTED",
         },
         {
-          sale_id: OTHER_SALE,
           credit_note_id: OTHER_CREDIT_NOTE,
           answered_at: "2026-10-07T10:31:00.000Z",
           state: "REJECTED",
@@ -279,12 +273,11 @@ describe("the cloud's replenishment of a restored register, as the register read
         page: {
           creditNoteAnswers: [
             {
-              saleId: SALE,
               creditNoteId: CREDIT_NOTE,
               answeredAt: new Date("2026-10-07T10:30:00.000Z"),
               answer: { kind: "rejected" },
             },
-            { saleId: OTHER_SALE, creditNoteId: OTHER_CREDIT_NOTE, answer: { kind: "rejected" } },
+            { creditNoteId: OTHER_CREDIT_NOTE, answer: { kind: "rejected" } },
           ],
         },
       });
@@ -292,7 +285,6 @@ describe("the cloud's replenishment of a restored register, as the register read
 
     it("fails on an answer that is still in progress", async () => {
       const answer = await pageWith({
-        sale_id: SALE,
         credit_note_id: CREDIT_NOTE,
         answered_at: "2026-10-07T10:30:00.000Z",
         state: "IN_PROGRESS",

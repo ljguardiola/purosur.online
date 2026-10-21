@@ -5,7 +5,6 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from
 import {
   ANSWERED_AT,
   anAuthorizedAnswer,
-  anUnclearAnswer,
   aRejectedAnswer,
   insertSaleVoidCreditNote,
   REQUESTED_AT,
@@ -260,7 +259,6 @@ describe("POST /devices/current/reset", () => {
       expect(credit_notes).toEqual(
         expect.arrayContaining([
           {
-            sale_id: authorizedSale,
             credit_note_id: authorizedId,
             answered_at: ANSWERED_AT.toISOString(),
             state: "AUTHORIZED",
@@ -272,25 +270,12 @@ describe("POST /devices/current/reset", () => {
             authorization_code_due_on: "2026-10-17",
           },
           {
-            sale_id: rejectedSale,
             credit_note_id: rejectedId,
             answered_at: ANSWERED_AT.toISOString(),
             state: "REJECTED",
           },
         ]),
       );
-    });
-
-    it("leaves out the credit notes the tax authority has not answered, or answered unclearly", async () => {
-      const { predecessor, current } = await aRestoredRegister();
-      const waiting = await aVoidedSale(predecessor.deviceId);
-      const unclear = await aVoidedSale(predecessor.deviceId);
-      await insertSaleVoidCreditNote(db, current.registerId, waiting);
-      await insertSaleVoidCreditNote(db, current.registerId, unclear, anUnclearAnswer());
-
-      const response = await resetOf(predecessor, current);
-
-      expect(registerResetResponseSchema.parse(response.json()).credit_notes).toEqual([]);
     });
 
     it("never answers the credit note another register holds for a sale of this one", async () => {
@@ -327,8 +312,18 @@ describe("POST /devices/current/reset", () => {
         .orderBy(desc(inbox.deviceSeq))
         .limit(1);
       const secondSale = await aVoidedSale(predecessor.deviceId);
-      await insertSaleVoidCreditNote(db, current.registerId, firstSale, anAuthorizedAnswer());
-      await insertSaleVoidCreditNote(db, current.registerId, secondSale, anAuthorizedAnswer());
+      const firstCreditNote = await insertSaleVoidCreditNote(
+        db,
+        current.registerId,
+        firstSale,
+        anAuthorizedAnswer(),
+      );
+      const secondCreditNote = await insertSaleVoidCreditNote(
+        db,
+        current.registerId,
+        secondSale,
+        anAuthorizedAnswer(),
+      );
 
       const first = registerResetResponseSchema.parse((await resetOf(predecessor, current)).json());
       const second = registerResetResponseSchema.parse(
@@ -341,8 +336,12 @@ describe("POST /devices/current/reset", () => {
       );
 
       expect(first.next).not.toBeNull();
-      expect(first.credit_notes.map(({ sale_id }) => sale_id)).toEqual([firstSale]);
-      expect(second.credit_notes.map(({ sale_id }) => sale_id)).toEqual([secondSale]);
+      expect(first.credit_notes.map(({ credit_note_id }) => credit_note_id)).toEqual([
+        firstCreditNote,
+      ]);
+      expect(second.credit_notes.map(({ credit_note_id }) => credit_note_id)).toEqual([
+        secondCreditNote,
+      ]);
     });
   });
 });

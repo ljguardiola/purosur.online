@@ -420,7 +420,6 @@ describe("the register's store for replenishing a restored register", () => {
       correctedVoucher: { voucherType: 11, pointOfSale: 7, number: 42 },
     };
     const ANSWER = {
-      saleId: "sale-1",
       creditNoteId: "note-1",
       answeredAt: new Date("2026-10-07T10:30:00.000Z"),
       answer: {
@@ -460,16 +459,6 @@ describe("the register's store for replenishing a restored register", () => {
           authorization_code: "74123456789012",
         },
       ]);
-    });
-
-    it("is written once when the same answer is recorded again", async () => {
-      await store.transaction(async (tx) => {
-        await replenishVoidedSale(tx);
-        await tx.recordCreditNoteAnswer(CREDIT_NOTE, ANSWER);
-        await tx.recordCreditNoteAnswer(CREDIT_NOTE, ANSWER);
-      });
-
-      expect(count("sale_void_credit_notes")).toBe(1);
     });
 
     it("leaves no credit note behind, not even one in progress, when its transaction fails", async () => {

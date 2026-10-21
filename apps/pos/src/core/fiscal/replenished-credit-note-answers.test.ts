@@ -22,7 +22,6 @@ const CREDIT_NOTE: SaleVoidCreditNote = {
 };
 
 const AUTHORIZED: RestoredCreditNoteAnswer = {
-  saleId: "sale-1",
   creditNoteId: "note-1",
   answeredAt: ANSWERED_AT,
   answer: {
@@ -37,7 +36,6 @@ const AUTHORIZED: RestoredCreditNoteAnswer = {
 };
 
 const REJECTED: RestoredCreditNoteAnswer = {
-  saleId: "sale-1",
   creditNoteId: "note-1",
   answeredAt: ANSWERED_AT,
   answer: { kind: "rejected" },

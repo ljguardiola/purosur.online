@@ -34,7 +34,6 @@ function aCreditNote(saleId: string, creditNoteId = `credit-note-${saleId}`): Sa
 
 function anAuthorizedAnswer(creditNote: SaleVoidCreditNote): RestoredCreditNoteAnswer {
   return {
-    saleId: creditNote.saleId,
     creditNoteId: creditNote.creditNoteId,
     answeredAt: new Date("2026-10-07T10:30:00.000Z"),
     answer: {

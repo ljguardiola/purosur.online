@@ -5,6 +5,7 @@ import type {
 
 export interface StoredSaleVoidCreditNote extends SaleVoidCreditNoteOfRegister {
   registerId: string;
+  saleId: string;
 }
 
 export interface SaleVoidCreditNotesRead {
@@ -23,6 +24,6 @@ export class FakeRestoredRegisterCreditNoteAnswers implements RestoredRegisterCr
     this.reads.push({ registerId, saleIds });
     return this.creditNotes
       .filter((note) => note.registerId === registerId && saleIds.includes(note.saleId))
-      .map(({ registerId: _registerId, ...note }) => note);
+      .map(({ registerId: _registerId, saleId: _saleId, ...note }) => note);
   }
 }

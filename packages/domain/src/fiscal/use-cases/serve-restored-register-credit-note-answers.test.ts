@@ -51,7 +51,6 @@ describe("serveRestoredRegisterCreditNoteAnswers", () => {
 
     expect(answers).toEqual([
       {
-        saleId: "sale-1",
         creditNoteId: "credit-note-sale-1",
         answeredAt: ANSWERED_AT,
         answer: {
@@ -77,7 +76,6 @@ describe("serveRestoredRegisterCreditNoteAnswers", () => {
 
     expect(answers).toEqual([
       {
-        saleId: "sale-1",
         creditNoteId: "credit-note-sale-1",
         answeredAt: ANSWERED_AT,
         answer: { kind: "rejected" },
@@ -104,7 +102,7 @@ describe("serveRestoredRegisterCreditNoteAnswers", () => {
       { registerId: REGISTER, saleIds: ["sale-1", "sale-2", "sale-3", "sale-4"] },
     );
 
-    expect(answers.map(({ saleId }) => saleId)).toEqual(["sale-4"]);
+    expect(answers.map(({ creditNoteId }) => creditNoteId)).toEqual(["credit-note-sale-4"]);
   });
 
   it("leaves out an answer that carries no moment it was given", async () => {
@@ -131,7 +129,7 @@ describe("serveRestoredRegisterCreditNoteAnswers", () => {
     );
 
     expect(creditNotes.reads).toEqual([{ registerId: REGISTER, saleIds: ["sale-1", "sale-3"] }]);
-    expect(answers.map(({ saleId }) => saleId)).toEqual(["sale-1"]);
+    expect(answers.map(({ creditNoteId }) => creditNoteId)).toEqual(["credit-note-sale-1"]);
   });
 
   it("asks for nothing when no sale was voided", async () => {

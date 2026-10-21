@@ -59,7 +59,6 @@ describe("the sale void credit notes of a restored register on a real Postgres",
 
     expect(found).toEqual([
       {
-        saleId,
         creditNoteId,
         pointOfSale: 7,
         answeredAt: ANSWERED_AT,
@@ -78,12 +77,12 @@ describe("the sale void credit notes of a restored register on a real Postgres",
   it("holds a rejected credit note", async () => {
     const registerId = await aRegister();
     const saleId = crypto.randomUUID();
-    await insertSaleVoidCreditNote(db, registerId, saleId, aRejectedAnswer());
+    const creditNoteId = await insertSaleVoidCreditNote(db, registerId, saleId, aRejectedAnswer());
 
     const found = await answers.saleVoidCreditNotesOf(registerId, [saleId]);
 
     expect(found).toMatchObject([
-      { saleId, standing: { kind: "rejected" }, answeredAt: ANSWERED_AT },
+      { creditNoteId, standing: { kind: "rejected" }, answeredAt: ANSWERED_AT },
     ]);
   });
 
@@ -92,13 +91,13 @@ describe("the sale void credit notes of a restored register on a real Postgres",
     const unrequested = crypto.randomUUID();
     const requested = crypto.randomUUID();
     const unclear = crypto.randomUUID();
-    await insertSaleVoidCreditNote(db, registerId, unrequested);
-    await insertSaleVoidCreditNote(db, registerId, requested, {
+    const unrequestedNote = await insertSaleVoidCreditNote(db, registerId, unrequested);
+    const requestedNote = await insertSaleVoidCreditNote(db, registerId, requested, {
       number: 11,
       issuedOn: "2026-10-07",
       requestedAt: REQUESTED_AT,
     });
-    await insertSaleVoidCreditNote(db, registerId, unclear, anUnclearAnswer());
+    const unclearNote = await insertSaleVoidCreditNote(db, registerId, unclear, anUnclearAnswer());
 
     const found = await answers.saleVoidCreditNotesOf(registerId, [
       unrequested,
@@ -107,11 +106,11 @@ describe("the sale void credit notes of a restored register on a real Postgres",
     ]);
 
     expect(
-      Object.fromEntries(found.map(({ saleId, standing }) => [saleId, standing.kind])),
+      Object.fromEntries(found.map(({ creditNoteId, standing }) => [creditNoteId, standing.kind])),
     ).toEqual({
-      [unrequested]: "not_requested",
-      [requested]: "requested",
-      [unclear]: "requested",
+      [unrequestedNote]: "not_requested",
+      [requestedNote]: "requested",
+      [unclearNote]: "requested",
     });
   });
 
@@ -130,12 +129,12 @@ describe("the sale void credit notes of a restored register on a real Postgres",
     const registerId = await aRegister();
     const asked = crypto.randomUUID();
     const notAsked = crypto.randomUUID();
-    await insertSaleVoidCreditNote(db, registerId, asked, anAuthorizedAnswer());
+    const askedNote = await insertSaleVoidCreditNote(db, registerId, asked, anAuthorizedAnswer());
     await insertSaleVoidCreditNote(db, registerId, notAsked, anAuthorizedAnswer());
 
     const found = await answers.saleVoidCreditNotesOf(registerId, [asked]);
 
-    expect(found.map(({ saleId }) => saleId)).toEqual([asked]);
+    expect(found.map(({ creditNoteId }) => creditNoteId)).toEqual([askedNote]);
   });
 
   it("does not hold the credit notes that regularize an orphan authorization", async () => {

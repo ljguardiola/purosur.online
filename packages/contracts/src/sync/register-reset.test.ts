@@ -167,10 +167,8 @@ describe("the register reset response", () => {
   });
 
   describe("the credit note answers", () => {
-    const SALE = "3c9d1e7a-5b24-4f86-8a0d-6e2b9c4f1a37";
     const CREDIT_NOTE = "8e4b2a6c-1d93-4075-b5f8-2a7c9e0d3b61";
     const authorized = {
-      sale_id: SALE,
       credit_note_id: CREDIT_NOTE,
       answered_at: "2026-10-07T10:30:00.000Z",
       state: "AUTHORIZED",
@@ -182,7 +180,6 @@ describe("the register reset response", () => {
       authorization_code_due_on: "2026-10-17",
     };
     const rejected = {
-      sale_id: SALE,
       credit_note_id: CREDIT_NOTE,
       answered_at: "2026-10-07T10:30:00.000Z",
       state: "REJECTED",
@@ -207,12 +204,11 @@ describe("the register reset response", () => {
       const parsed = registerResetResponseSchema.parse(
         respondingWith({
           ...rejected,
-          sale_id: SALE.toUpperCase(),
           credit_note_id: CREDIT_NOTE.toUpperCase(),
         }),
       );
 
-      expect(parsed.credit_notes[0]).toMatchObject({ sale_id: SALE, credit_note_id: CREDIT_NOTE });
+      expect(parsed.credit_notes[0]).toMatchObject({ credit_note_id: CREDIT_NOTE });
     });
 
     it.each([
@@ -220,7 +216,6 @@ describe("the register reset response", () => {
       ["a credit note without a state", { ...rejected, state: undefined }],
       ["an answer without the moment it was given", { ...rejected, answered_at: undefined }],
       ["an answer given at a moment that is not a date", { ...rejected, answered_at: "soon" }],
-      ["an answer without its sale", { ...rejected, sale_id: undefined }],
       ["an answer without its credit note", { ...rejected, credit_note_id: undefined }],
       ["an authorization without its number", { ...authorized, number: undefined }],
       [
