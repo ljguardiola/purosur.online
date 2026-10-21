@@ -13,6 +13,7 @@ import {
   mayBeOverriddenUnitPrice,
   OFFLINE_AUTHORIZATION_CAUSES,
   PRE_EMISSION_GATE_FAILURE_REASONS,
+  PRINTED_DOCUMENTS,
   receiptReprintReason,
   WEIGHT_SOURCES,
 } from "@purosur/domain";
@@ -251,10 +252,16 @@ const saleCompletedV8Schema = saleCompletedV7Schema.extend({
   lines: z.array(discountedSaleLineSchema),
 });
 
-const salePrintStateChangedSchema = z.object({
+const printedDocumentSchema = z.enum(PRINTED_DOCUMENTS);
+
+const salePrintStateChangedV1Schema = z.object({
   sale_id: text,
   print_attempted_at: instant,
   printed_at: instant.nullable(),
+});
+
+const salePrintStateChangedV2Schema = salePrintStateChangedV1Schema.extend({
+  document: printedDocumentSchema,
 });
 
 const reprintRecordedFields = {
@@ -264,18 +271,26 @@ const reprintRecordedFields = {
   authorized_by: text.nullable(),
 };
 
-const reprintRecordedSchema = z.discriminatedUnion("reason_kind", [
-  z.object({
-    ...reprintRecordedFields,
-    reason_kind: z.literal("retry"),
-    reason_text: z.null(),
-  }),
-  z.object({
-    ...reprintRecordedFields,
-    reason_kind: z.literal("requested"),
-    reason_text: z.string().refine((reason) => receiptReprintReason(reason) === reason),
-  }),
-]);
+const reprintRecordedSchema = <Fields extends typeof reprintRecordedFields>(fields: Fields) =>
+  z.discriminatedUnion("reason_kind", [
+    z.object({
+      ...fields,
+      reason_kind: z.literal("retry"),
+      reason_text: z.null(),
+    }),
+    z.object({
+      ...fields,
+      reason_kind: z.literal("requested"),
+      reason_text: z.string().refine((reason) => receiptReprintReason(reason) === reason),
+    }),
+  ]);
+
+const reprintRecordedV1Schema = reprintRecordedSchema(reprintRecordedFields);
+
+const reprintRecordedV2Schema = reprintRecordedSchema({
+  ...reprintRecordedFields,
+  document: printedDocumentSchema,
+});
 
 const saleRefundFields = {
   id: text,
@@ -518,8 +533,10 @@ const PAYLOAD_SCHEMAS = {
   "sale_completed@6": saleCompletedV6Schema,
   "sale_completed@7": saleCompletedV7Schema,
   "sale_completed@8": saleCompletedV8Schema,
-  "sale_print_state_changed@1": salePrintStateChangedSchema,
-  "reprint_recorded@1": reprintRecordedSchema,
+  "sale_print_state_changed@1": salePrintStateChangedV1Schema,
+  "sale_print_state_changed@2": salePrintStateChangedV2Schema,
+  "reprint_recorded@1": reprintRecordedV1Schema,
+  "reprint_recorded@2": reprintRecordedV2Schema,
   "sale_cancelled@1": saleCancelledV1Schema,
   "sale_cancelled@2": saleCancelledV2Schema,
   "sale_cancelled@3": saleCancelledV3Schema,

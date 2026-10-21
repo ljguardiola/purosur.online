@@ -2,6 +2,7 @@ import type {
   DiscountBenefit,
   ManualAdjustment,
   OfflineFiscalDocumentIssuedFact,
+  PrintedDocument,
   SaleDiscount,
 } from "@purosur/domain";
 import type {
@@ -233,6 +234,43 @@ function offlineDocument(
   };
 }
 
+function printStateChanged(
+  payload: SyncedEventPayloads["sale_print_state_changed@1"],
+  document: PrintedDocument,
+): SyncedFact {
+  return {
+    kind: "sale_print_state_changed",
+    printState: {
+      saleId: payload.sale_id,
+      document,
+      printAttemptedAt: new Date(payload.print_attempted_at),
+      printedAt: payload.printed_at === null ? null : new Date(payload.printed_at),
+    },
+  };
+}
+
+function reprintRecorded(
+  payload: SyncedEventPayloads["reprint_recorded@1"],
+  document: PrintedDocument,
+  event: UnappliedEvent,
+): SyncedFact {
+  return {
+    kind: "reprint_recorded",
+    reprint: {
+      saleId: payload.sale_id,
+      document,
+      orderNumber: payload.order_number,
+      requestedBy: payload.requested_by,
+      authorizedBy: payload.authorized_by,
+      reason:
+        payload.reason_kind === "retry"
+          ? { kind: "retry" }
+          : { kind: "requested", text: payload.reason_text },
+      occurredAt: event.occurredAt,
+    },
+  };
+}
+
 const FACT_OF: {
   [Key in SyncedEventPayloadKey]: (
     payload: SyncedEventPayloads[Key],
@@ -285,28 +323,10 @@ const FACT_OF: {
       payload.stock_movements,
       payload.operation_number,
     ),
-  "sale_print_state_changed@1": (payload) => ({
-    kind: "sale_print_state_changed",
-    printState: {
-      saleId: payload.sale_id,
-      printAttemptedAt: new Date(payload.print_attempted_at),
-      printedAt: payload.printed_at === null ? null : new Date(payload.printed_at),
-    },
-  }),
-  "reprint_recorded@1": (payload, event) => ({
-    kind: "reprint_recorded",
-    reprint: {
-      saleId: payload.sale_id,
-      orderNumber: payload.order_number,
-      requestedBy: payload.requested_by,
-      authorizedBy: payload.authorized_by,
-      reason:
-        payload.reason_kind === "retry"
-          ? { kind: "retry" }
-          : { kind: "requested", text: payload.reason_text },
-      occurredAt: event.occurredAt,
-    },
-  }),
+  "sale_print_state_changed@1": (payload) => printStateChanged(payload, "sale_receipt"),
+  "sale_print_state_changed@2": (payload) => printStateChanged(payload, payload.document),
+  "reprint_recorded@1": (payload, event) => reprintRecorded(payload, "sale_receipt", event),
+  "reprint_recorded@2": (payload, event) => reprintRecorded(payload, payload.document, event),
   "sale_cancelled@1": cancelledSale,
   "sale_cancelled@2": cancelledSale,
   "sale_cancelled@3": cancelledSale,
