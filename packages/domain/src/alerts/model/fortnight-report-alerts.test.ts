@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  fortnightReportDocumentNoLongerRejectedObservation,
+  fortnightReportDocumentRejectedObservation,
   fortnightReportNeedsRegularizationAlert,
   fortnightReportNoLongerOwedElsewhereObservation,
   fortnightReportNoLongerPendingObservation,
@@ -9,6 +11,7 @@ import {
   fortnightReportPendingReason,
   pointOfSaleFortnightScope,
   pointOfSaleFortnightScopeDisplay,
+  rejectedDocumentScope,
 } from "./fortnight-report-alerts.js";
 
 const REGISTER_ID = "3f2b8c1e-5d4a-4b7e-9c10-a1b2c3d4e5f6";
@@ -42,6 +45,12 @@ describe("pointOfSaleFortnightScopeDisplay", () => {
     ["12:2027-02-16", "12:2027-02-16:2027-02-28"],
   ])("adds the day the fortnight ends to the scope %s", (scope, display) => {
     expect(pointOfSaleFortnightScopeDisplay(scope)).toBe(display);
+  });
+
+  it("keeps what follows the fortnight, such as a document type, after the day it ends", () => {
+    expect(pointOfSaleFortnightScopeDisplay("4:2026-09-01:factura_c")).toBe(
+      "4:2026-09-01:2026-09-15:factura_c",
+    );
   });
 
   it.each(["", "4", "4:", "4:not-a-day", "4:x2026-09-01", "4:2026-09-01x"])(
@@ -194,6 +203,50 @@ describe("fortnightReportNoLongerOwedElsewhereObservation", () => {
       holds: false,
       kind: "fortnight_report_owed_elsewhere",
       scope: "9:2026-09-16",
+    });
+  });
+});
+
+describe("rejectedDocumentScope", () => {
+  it("joins the point of sale, the day the fortnight starts and the document type", () => {
+    expect(rejectedDocumentScope(4, "2026-09-01", "factura_c")).toBe("4:2026-09-01:factura_c");
+  });
+});
+
+describe("fortnightReportDocumentRejectedObservation", () => {
+  it("holds the condition of the document type's presentation, naming the point of sale, its register, the fortnight, the document type and the rejected number", () => {
+    expect(
+      fortnightReportDocumentRejectedObservation({
+        pointOfSaleNumber: 4,
+        registerId: REGISTER_ID,
+        fortnight: { start: "2026-09-01", end: "2026-09-15" },
+        documentType: "factura_c",
+        rejectedNumber: 12,
+      }),
+    ).toEqual({
+      holds: true,
+      alert: {
+        kind: "fortnight_report_document_rejected",
+        scope: "4:2026-09-01:factura_c",
+        detail: {
+          pointOfSaleNumber: 4,
+          registerId: REGISTER_ID,
+          fortnightStart: "2026-09-01",
+          fortnightEnd: "2026-09-15",
+          documentType: "factura_c",
+          rejectedNumber: 12,
+        },
+      },
+    });
+  });
+});
+
+describe("fortnightReportDocumentNoLongerRejectedObservation", () => {
+  it("clears the rejected document condition of the scope", () => {
+    expect(fortnightReportDocumentNoLongerRejectedObservation("4:2026-09-01:factura_c")).toEqual({
+      holds: false,
+      kind: "fortnight_report_document_rejected",
+      scope: "4:2026-09-01:factura_c",
     });
   });
 });

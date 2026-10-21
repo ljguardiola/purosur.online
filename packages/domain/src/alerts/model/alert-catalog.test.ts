@@ -43,6 +43,7 @@ describe("ALERT_KINDS", () => {
       "invoice_already_credited",
       "fortnight_report_owed_elsewhere",
       "register_backup_overdue",
+      "fortnight_report_document_rejected",
     ]);
   });
 });
