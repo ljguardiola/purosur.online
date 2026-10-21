@@ -69,7 +69,7 @@ export function readRegisterClockGuard(
   const blocks: ClockGuardBlock[] = marks
     .filter(
       ({ pointOfSale, reading: mark }) =>
-        isBehindClockMark(reading, mark) || (floorBehind !== null && isFloorOf(pointOfSale)),
+        isBehindClockMark(reading, mark) || isFloorOf(pointOfSale),
     )
     .map(({ pointOfSale, documentType, reading: latestReading }) => ({
       pointOfSale,
