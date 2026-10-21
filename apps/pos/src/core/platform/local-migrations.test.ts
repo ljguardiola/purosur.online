@@ -5581,7 +5581,6 @@ describe("the register's local migrations", () => {
     }
   });
 
-<<<<<<< HEAD
   it("keep the reprints a register holds as receipt reprints and let a credit note number its own", () => {
     const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
     try {
@@ -5681,8 +5680,12 @@ describe("the register's local migrations", () => {
           )
           .run(),
       ).toThrow(/UNIQUE|PRIMARY KEY/);
-||||||| d9411c37e
-=======
+      after.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
   it("let an offline fiscal document record the lapse after a clock correction as its cause, keeping the documents a register already holds", () => {
     const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
     try {
@@ -5734,7 +5737,6 @@ describe("the register's local migrations", () => {
           .run(),
       ).toThrow(/UNIQUE/);
       expect(after.pragma("foreign_key_check")).toEqual([]);
->>>>>>> origin/main
       after.close();
     } finally {
       rmSync(folder, { recursive: true, force: true });
