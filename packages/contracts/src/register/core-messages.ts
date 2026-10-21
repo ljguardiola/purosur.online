@@ -4,6 +4,7 @@ import {
   CASH_MOVEMENT_DIRECTIONS,
   CASH_MOVEMENT_KINDS,
   CASH_MOVEMENT_TYPES,
+  FISCAL_EMISSION_MODE_KINDS,
   isAuthorizablePermissionKey,
   REGISTER_OWN_CONDITIONS,
   SALES_DENIED_REASONS,
@@ -375,6 +376,7 @@ const registerStatusSchema = z.object({
     reader: z.enum(SERIAL_DEVICE_STANDING_KINDS),
   }),
   serial_devices_setup_offered: z.boolean(),
+  fiscal_mode: z.enum(FISCAL_EMISSION_MODE_KINDS),
 });
 export type RegisterStatus = z.infer<typeof registerStatusSchema>;
 
@@ -558,6 +560,7 @@ export const registerCoreToRendererMessageSchema = z.discriminatedUnion("type", 
   z.object({ type: z.literal("serial-devices-changed") }),
   z.object({ type: z.literal("storage-standing-changed") }),
   z.object({ type: z.literal("battery-standing-changed") }),
+  z.object({ type: z.literal("fiscal-mode-changed") }),
   z.object({ type: z.literal("refused-while-updating"), request_id: requestId }),
 ]);
 export type RegisterCoreToRendererMessage = z.infer<typeof registerCoreToRendererMessageSchema>;

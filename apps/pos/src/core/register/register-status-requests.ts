@@ -7,6 +7,7 @@ import {
   registerOwnConditions,
   type StorageStanding,
 } from "@purosur/domain";
+import { readFiscalEmissionModeIn } from "../fiscal/sqlite-fiscal-emission-mode";
 import { readLatestPreEmissionGateOutcome } from "../fiscal/sqlite-pre-emission-gate";
 import { readLatestClockOffsetMs } from "../fiscal/sqlite-register-health-checks";
 import type { LocalDatabase } from "../platform/local-database";
@@ -72,6 +73,7 @@ export async function registerStatusFor({
       mayConfigure: mayConfigureSerialDevices(database, signedInPerson),
       standings,
     }),
+    fiscal_mode: readFiscalEmissionModeIn(database, now()).kind,
   };
 }
 

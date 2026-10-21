@@ -223,6 +223,7 @@ describe("printing a completed sale's receipt", () => {
       next_copy: { kind: "original" },
       printed: false,
       standing: "printer_not_configured",
+      comprobante: { kind: "none" },
     });
     await printCompletedSaleReceiptFor(deps(), "sale-1");
     expect(printer.waiting).toHaveLength(1);
@@ -259,6 +260,7 @@ describe("the print status of a sale's receipt", () => {
       next_copy: { kind: "original" },
       printed: false,
       standing: null,
+      comprobante: { kind: "none" },
     });
   });
 
@@ -270,6 +272,7 @@ describe("the print status of a sale's receipt", () => {
       next_copy: { kind: "original" },
       printed: false,
       standing: "printing",
+      comprobante: { kind: "none" },
     });
   });
 
@@ -295,6 +298,53 @@ describe("the print status of a sale's receipt", () => {
       next_copy: { kind: "original" },
       printed: false,
       standing: "failed",
+      comprobante: { kind: "none" },
+    });
+  });
+
+  it("names the factura C authorized under the pre-obtained code, with its point of sale and number", async () => {
+    database.exec(
+      `INSERT INTO offline_fiscal_documents (
+         id, sale_id, point_of_sale, document_type, number, issued_on, generated_at, generation_stamp,
+         offline_authorization_code, fortnight_start, fortnight_end, document,
+         buyer_document_type, buyer_document_number, cause
+       ) VALUES (
+         'offline-doc-1', 'sale-1', 8, 'factura_c', 412, '2026-10-08', '2026-10-08T12:00:00.000Z',
+         '20261008090000', '36251478963214', '2026-10-01', '2026-10-15', '{"buyerTaxStatusCode":5}',
+         99, 0, 'no_connectivity'
+       )`,
+    );
+
+    expect(await receiptPrintStatusFor(deps(), "sale-1")).toMatchObject({
+      comprobante: {
+        kind: "fiscal",
+        document_type: "factura_c",
+        authorization: "offline_code",
+        point_of_sale: 8,
+        number: 412,
+      },
+    });
+  });
+
+  it("names the factura C authorized in real time", async () => {
+    database.exec(
+      `INSERT INTO fiscal_documents (
+         id, sale_id, point_of_sale, document_type, number, issued_on, document, state,
+         authorization_code, authorization_code_due_on, reserved_at, resolved_at
+       ) VALUES (
+         'doc-1', 'sale-1', 3, 'factura_c', 1204, '2026-10-08', '{}', 'AUTHORIZED',
+         '75123456789012', '2026-10-18', '2026-10-08T12:00:00.000Z', '2026-10-08T12:00:01.000Z'
+       )`,
+    );
+
+    expect(await receiptPrintStatusFor(deps(), "sale-1")).toMatchObject({
+      comprobante: {
+        kind: "fiscal",
+        document_type: "factura_c",
+        authorization: "real_time",
+        point_of_sale: 3,
+        number: 1204,
+      },
     });
   });
 

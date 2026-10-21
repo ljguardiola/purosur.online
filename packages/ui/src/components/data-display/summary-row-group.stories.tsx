@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { SummaryRowGroup } from "./summary-row-group";
+import { Tag } from "./tag";
 
 const meta: Meta<typeof SummaryRowGroup> = {
   title: "Components/SummaryRowGroup",
@@ -16,6 +17,15 @@ export const Default: Story = {
       { label: "Artículos", value: "3" },
       { label: "Subtotal", value: "$120.000" },
       { label: "Total", value: "$120.000", strong: true },
+    ],
+  },
+};
+
+export const WithTagValue: Story = {
+  args: {
+    rows: [
+      { label: "Total", value: "$120.000" },
+      { label: "Modo fiscal", value: <Tag tone="warning">Contingencia con CAEA</Tag> },
     ],
   },
 };

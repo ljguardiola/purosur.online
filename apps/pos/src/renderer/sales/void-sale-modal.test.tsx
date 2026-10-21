@@ -32,7 +32,13 @@ const SALE: SaleDetail = {
 };
 const INVOICED_SALE: SaleDetail = {
   ...SALE,
-  comprobante: { kind: "fiscal", document_type: "factura_c", point_of_sale: 4, number: 319 },
+  comprobante: {
+    kind: "fiscal",
+    document_type: "factura_c",
+    authorization: "real_time",
+    point_of_sale: 4,
+    number: 319,
+  },
   state: "completed",
 };
 const CORRECTED_INVOICE = { point_of_sale: 31, number: 8 };
@@ -163,6 +169,36 @@ describe("VoidSaleModal", () => {
       .toBeVisible();
     await expect.element(dialog.getByRole("button", { name: VOID })).not.toBeInTheDocument();
     await expectNoAccessibilityViolations(document.body);
+  });
+
+  it("names the contingency invoice the credit note corrects as authorized under the pre-obtained code", async () => {
+    const { screen } = await renderModal({
+      sale: {
+        ...INVOICED_SALE,
+        comprobante: {
+          kind: "fiscal",
+          document_type: "factura_c",
+          authorization: "offline_code",
+          ...CORRECTED_INVOICE,
+        },
+      },
+      creditNoteCorrects: CORRECTED_INVOICE,
+    });
+
+    const dialog = screen.getByRole("dialog", { name: "Revisá qué pasa al anular" });
+
+    await expect.element(dialog.getByText("Factura C · CAEA", { exact: true })).toBeVisible();
+    await expect.element(dialog.getByText("PV 00031 · Nº 00000008")).toBeVisible();
+  });
+
+  it("keeps showing the sale's own comprobante when it is not fiscal even though the core names an invoice the credit note corrects", async () => {
+    const { screen } = await renderModal({ sale: SALE, creditNoteCorrects: CORRECTED_INVOICE });
+
+    const dialog = screen.getByRole("dialog", { name: "Revisá qué pasa al anular" });
+
+    await expect.element(dialog.getByText("Documento no fiscal")).toBeVisible();
+    await expect.element(dialog.getByText("Factura C", { exact: true })).not.toBeInTheDocument();
+    await expect.element(dialog.getByText("PV 00031 · Nº 00000008")).not.toBeInTheDocument();
   });
 
   it("voids without a credit note a sale whose comprobante names an invoice the core says the void does not credit", async () => {
