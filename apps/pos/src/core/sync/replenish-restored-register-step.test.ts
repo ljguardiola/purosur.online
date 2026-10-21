@@ -74,6 +74,7 @@ function pageOf(
   return {
     events: events.map((event) => ({ ...event, device_id: PREDECESSOR })),
     next,
+    credit_notes: [],
     users: [
       {
         user_id: "c7b3e5d2-18a4-4f90-b6d1-2e9f0a8c3d03",
@@ -247,11 +248,36 @@ describe("replenishing a restored register from the cloud", () => {
       );
     }
 
-    const outcome = await step([ok(events)]);
+    const creditNotes = events.flatMap(({ event_type, payload }) => {
+      const creditNote =
+        event_type === "sale_voided"
+          ? (payload as { credit_note: { id: string } | null }).credit_note
+          : null;
+      return creditNote === null
+        ? []
+        : [
+            {
+              credit_note_id: creditNote.id,
+              answered_at: "2026-10-06T15:44:05.000Z",
+              state: "AUTHORIZED",
+              point_of_sale: 31,
+              number: 1,
+              issued_on: "2026-10-06",
+              issued_at: "2026-10-06T15:44:01.000Z",
+              authorization_code: "76543210987654",
+              authorization_code_due_on: "2026-10-16",
+            },
+          ];
+    });
+
+    const outcome = await step([
+      { kind: "ok", body: { ...pageOf(events), credit_notes: creditNotes } },
+    ]);
 
     expect(outcome).toEqual({ kind: "replenished" });
     expect(count("register_predecessor")).toBe(0);
     expect(count("offline_fiscal_documents")).toBe(1);
+    expect(count("sale_void_credit_notes")).toBe(1);
     expect(count("outbox")).toBe(0);
   });
 
