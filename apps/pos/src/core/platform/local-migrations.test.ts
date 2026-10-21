@@ -5562,4 +5562,109 @@ describe("the register's local migrations", () => {
       rmSync(folder, { recursive: true, force: true });
     }
   });
+
+  it("keep the reprints a register holds as receipt reprints and let a credit note number its own", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.filter(
+        (migration) => migration.name < "0068_credit_note_reprints",
+      );
+      expect(LOCAL_MIGRATIONS.map((migration) => migration.name)).toContain(
+        "0068_credit_note_reprints",
+      );
+      const before = openLocalDatabase(path, previous, migrationClock);
+      before.exec(
+        `INSERT INTO own_register (id, name, version, removed) VALUES ('r1', 'Caja 1', 1, 0);
+         INSERT INTO roles (id, name, is_administrator, version) VALUES ('cashier', 'Cajera', 0, 1);
+         INSERT INTO users (id, first_name, role_id, salt, active, version) VALUES ('u1', 'Ada', 'cashier', 's', 1, 1);
+         INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
+         VALUES ('s1', 'r1', 'device-1', 'u1', '2026-09-30T12:00:00.000Z', 0, 'OPEN');
+         INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at, operation_number)
+         VALUES ('sale-1', 'r1', 'device-1', 's1', 'u1', 'COMPLETED', '2026-09-30T15:05:00.000Z', 1);
+         INSERT INTO sale_reprints (sale_id, order_number, requested_by, authorized_by, reason_kind, reason_text, occurred_at)
+         VALUES ('sale-1', 1, 'u1', 'u2', 'requested', 'Se mojo', '2026-09-30T15:10:00.000Z'),
+                ('sale-1', 2, 'u1', NULL, 'retry', NULL, '2026-09-30T15:11:00.000Z');`,
+      );
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+
+      expect(
+        after
+          .prepare(
+            "SELECT sale_id, document, order_number, requested_by, authorized_by, reason_kind, reason_text, occurred_at FROM sale_reprints ORDER BY order_number",
+          )
+          .all(),
+      ).toEqual([
+        {
+          sale_id: "sale-1",
+          document: "sale_receipt",
+          order_number: 1,
+          requested_by: "u1",
+          authorized_by: "u2",
+          reason_kind: "requested",
+          reason_text: "Se mojo",
+          occurred_at: "2026-09-30T15:10:00.000Z",
+        },
+        {
+          sale_id: "sale-1",
+          document: "sale_receipt",
+          order_number: 2,
+          requested_by: "u1",
+          authorized_by: null,
+          reason_kind: "retry",
+          reason_text: null,
+          occurred_at: "2026-09-30T15:11:00.000Z",
+        },
+      ]);
+      const reprint = (document: string, orderNumber: number) =>
+        after
+          .prepare(
+            `INSERT INTO sale_reprints (sale_id, document, order_number, requested_by, reason_kind, occurred_at)
+             VALUES ('sale-1', ?, ?, 'u1', 'retry', '2026-09-30T15:12:00.000Z')`,
+          )
+          .run(document, orderNumber);
+      expect(() => reprint("credit_note", 1)).not.toThrow();
+      expect(() => reprint("credit_note", 1)).toThrow(/UNIQUE|PRIMARY KEY/);
+      expect(() => reprint("sale_receipt", 2)).toThrow(/UNIQUE|PRIMARY KEY/);
+      expect(() => reprint("invoice", 1)).toThrow(/CHECK/);
+      expect(() => reprint("credit_note", 0)).toThrow(/CHECK/);
+      expect(() =>
+        after
+          .prepare(
+            `INSERT INTO sale_reprints (sale_id, document, order_number, requested_by, reason_kind, reason_text, occurred_at)
+             VALUES ('sale-1', 'credit_note', 5, 'u1', 'retry', 'texto', '2026-09-30T15:12:00.000Z')`,
+          )
+          .run(),
+      ).toThrow(/CHECK/);
+
+      const attempt = (saleId: string) =>
+        after
+          .prepare(
+            "INSERT INTO credit_note_prints (sale_id, print_attempted_at, printed_at) VALUES (?, '2026-09-30T16:00:00.000Z', NULL)",
+          )
+          .run(saleId);
+      expect(() => attempt("sale-1")).not.toThrow();
+      expect(() => attempt("sale-1")).toThrow(/UNIQUE|PRIMARY KEY/);
+      expect(() => attempt("missing")).toThrow(/FOREIGN KEY/);
+      expect(() =>
+        after
+          .prepare(
+            "INSERT INTO credit_note_receipts (sale_id, template_version, head, body) VALUES ('sale-1', '1', x'00', x'01')",
+          )
+          .run(),
+      ).not.toThrow();
+      expect(() =>
+        after
+          .prepare(
+            "INSERT INTO credit_note_receipts (sale_id, template_version, head, body) VALUES ('sale-1', '1', x'00', x'01')",
+          )
+          .run(),
+      ).toThrow(/UNIQUE|PRIMARY KEY/);
+      after.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
 });
