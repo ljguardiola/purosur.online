@@ -411,4 +411,32 @@ describe("the log and the error report of a fortnight report run", () => {
       },
     });
   });
+
+  it("logs a presentation whose rejected document awaits its remedy at debug level only, without reporting it or asking ARCA again", async () => {
+    const registerId = await owedFortnight({ syncedPastClose: true });
+    await issueDocuments(registerId, [1, 2]);
+    const documentReports = new FakeDocumentReports();
+    documentReports.reportAnswer = {
+      kind: "rejected",
+      number: 2,
+      rejections: [{ code: 1439, message: "Fictional observation" }],
+    };
+    const { task, report } = taskUnderTest(new FakeDeclarations(), vi.fn(), documentReports);
+    await task({}, buildJobHelpers().helpers);
+    documentReports.reported.length = 0;
+    report.mockClear();
+    const { helpers, logs } = buildJobHelpers();
+
+    await task({}, helpers);
+
+    expect(documentReports.reported).toEqual([]);
+    expect(report).not.toHaveBeenCalled();
+    expect(logs).toEqual([
+      {
+        level: "debug",
+        message:
+          "fortnight report of point of sale 8 for fortnight 2026-10-01..2026-10-15 (factura_c): awaiting_remedy",
+      },
+    ]);
+  });
 });
