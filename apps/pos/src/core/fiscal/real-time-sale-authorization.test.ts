@@ -45,7 +45,7 @@ function authorize(
       now: () => ANSWERED_AT,
       ids: { next: () => "deferred-1" },
       shortCodes: scriptedShortCodes(["7KQ4M2P9", "R3XW8H5N"]),
-      outboxChainKey: CHAIN_KEY,
+      readOutboxChainKey: async () => CHAIN_KEY,
     },
     saleId,
   );

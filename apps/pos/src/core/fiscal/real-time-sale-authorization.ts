@@ -15,16 +15,23 @@ export interface RealTimeSaleAuthorizationDeps {
   now: () => Date;
   ids: IdGenerator;
   shortCodes: ShortCodeRandomness;
-  outboxChainKey: string | undefined;
+  readOutboxChainKey: () => Promise<string | undefined>;
 }
 
 export async function authorizeSaleInRealTime(
-  { database, taxAuthority, now, ids, shortCodes, outboxChainKey }: RealTimeSaleAuthorizationDeps,
+  {
+    database,
+    taxAuthority,
+    now,
+    ids,
+    shortCodes,
+    readOutboxChainKey,
+  }: RealTimeSaleAuthorizationDeps,
   saleId: string,
 ): Promise<RequestRealTimeAuthorizationOutcome> {
   return requestRealTimeAuthorization(
     {
-      documents: new SqliteRealTimeFiscalDocuments(database, outboxChainKey),
+      documents: new SqliteRealTimeFiscalDocuments(database, await readOutboxChainKey()),
       roundTrips: new SqliteRoundTripSamples(database),
       taxAuthority,
       clock: { now },
