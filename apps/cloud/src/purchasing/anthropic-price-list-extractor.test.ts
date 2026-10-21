@@ -3,6 +3,7 @@ import {
   PRICE_LIST_EXTRACTION_MAX_ROWS,
   PRICE_LIST_EXTRACTION_MAX_SHORT_TEXT_LENGTH,
 } from "@purosur/domain";
+import { PDFDocument } from "pdf-lib";
 import { describe, expect, it } from "vitest";
 import {
   AnthropicPriceListExtractor,
@@ -18,6 +19,8 @@ import {
 import { fictionalAesProtectedPdfWithPagesInAnObjectStream } from "./test-support/fictional-aes-protected-pdf.js";
 import {
   fictionalPdf,
+  fictionalPdfWithItsEncryptionDictionaryInTheTrailer,
+  fictionalPdfWithPagesThatCannotBeCopied,
   fictionalPermissionsProtectedPdf,
   pagesOfPdf,
 } from "./test-support/fictional-pdf.js";
@@ -49,6 +52,13 @@ function extractorAnswering(respond: (request: RecordedRequest) => Response | Pr
     },
   });
   return { extractor, requests };
+}
+
+function documentSent(request: RecordedRequest): string {
+  const messages = request.body["messages"] as {
+    content: { source?: { data: string } }[];
+  }[];
+  return messages[0]?.content[0]?.source?.data ?? "";
 }
 
 const ROW = {
@@ -721,41 +731,11 @@ describe("a PDF protected by a permissions password", () => {
   const protectedSource = async (pageCount: number) =>
     ({ kind: "pdf", bytes: await fictionalPermissionsProtectedPdf(pageCount) }) as const;
 
-  function documentSent(request: RecordedRequest): string {
-    const messages = request.body["messages"] as {
-      content: { source?: { data: string } }[];
-    }[];
-    return messages[0]?.content[0]?.source?.data ?? "";
-  }
-
   it("is sent whole in one request, however many pages it has", async () => {
     const { extractor, requests } = extractorAnswering(() =>
       streamedJsonResponse({ listDate: null, pricesIncludeVat: null, rows: [ROW] }),
     );
     const source = await protectedSource(12);
-
-    const result = await extractor.extract(source);
-
-    expect(requests).toHaveLength(1);
-    expect(documentSent(requests[0] as RecordedRequest)).toBe(
-      Buffer.from(source.bytes).toString("base64"),
-    );
-    expect(result).toEqual({
-      kind: "extracted",
-      listDate: null,
-      pricesIncludeVat: null,
-      rows: [ROW],
-    });
-  });
-
-  it("is sent whole in one request when its pages sit in an encrypted object stream", async () => {
-    const { extractor, requests } = extractorAnswering(() =>
-      streamedJsonResponse({ listDate: null, pricesIncludeVat: null, rows: [ROW] }),
-    );
-    const source = {
-      kind: "pdf",
-      bytes: fictionalAesProtectedPdfWithPagesInAnObjectStream(),
-    } as const;
 
     const result = await extractor.extract(source);
 
@@ -786,16 +766,51 @@ describe("a PDF protected by a permissions password", () => {
   });
 });
 
-describe("a document the extractor cannot open", () => {
-  it("is unreadable and is not sent", async () => {
-    const { extractor, requests } = extractorAnswering(answerWithRowsOfEachPage);
+describe("a document the extractor cannot split into ranges", () => {
+  it.each([
+    [
+      "declares encryption with its catalog in an encrypted object stream",
+      () => fictionalAesProtectedPdfWithPagesInAnObjectStream(),
+    ],
+    [
+      "declares encryption with a plain catalog and its pages in an encrypted object stream",
+      () =>
+        fictionalAesProtectedPdfWithPagesInAnObjectStream({ plainCatalogAndPageTreeRoot: true }),
+    ],
+    [
+      "is encrypted by a dictionary written in its trailer",
+      () => fictionalPdfWithItsEncryptionDictionaryInTheTrailer(7),
+    ],
+    [
+      "opens but none of its pages can be copied into a range",
+      () => fictionalPdfWithPagesThatCannotBeCopied(7, [1, 2, 3, 4, 5, 6, 7]),
+    ],
+    [
+      "opens but a page of a later range cannot be copied",
+      () => fictionalPdfWithPagesThatCannotBeCopied(7, [7]),
+    ],
+    ["does not open", () => new TextEncoder().encode("%PDF-1.7 this is not a document")],
+    [
+      "opens with no pages",
+      () => PDFDocument.create().then((document) => document.save({ addDefaultPage: false })),
+    ],
+  ])("is sent whole in one request when it %s", async (_name, bytesOf) => {
+    const { extractor, requests } = extractorAnswering(() =>
+      streamedJsonResponse({ listDate: null, pricesIncludeVat: null, rows: [ROW] }),
+    );
+    const bytes = await bytesOf();
 
-    const result = await extractor.extract({
-      kind: "pdf",
-      bytes: new TextEncoder().encode("%PDF-1.7 this is not a document"),
+    const result = await extractor.extract({ kind: "pdf", bytes });
+
+    expect(requests).toHaveLength(1);
+    expect(documentSent(requests[0] as RecordedRequest)).toBe(
+      Buffer.from(bytes).toString("base64"),
+    );
+    expect(result).toEqual({
+      kind: "extracted",
+      listDate: null,
+      pricesIncludeVat: null,
+      rows: [ROW],
     });
-
-    expect(result).toEqual({ kind: "unreadable" });
-    expect(requests).toHaveLength(0);
   });
 });

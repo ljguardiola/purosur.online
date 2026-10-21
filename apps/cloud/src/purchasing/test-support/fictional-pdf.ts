@@ -1,4 +1,4 @@
-import { PDFDocument } from "pdf-lib";
+import { PDFDocument, PDFName, PDFNumber } from "pdf-lib";
 
 const FIRST_PAGE_WIDTH = 101;
 
@@ -20,6 +20,32 @@ export async function fictionalPermissionsProtectedPdf(pageCount: number): Promi
   document.context.trailerInfo.Encrypt = document.context.register(
     document.context.obj({ Filter: "Standard", V: 1, R: 2, O: "owner", U: "user", P: -44 }),
   );
+  return document.save();
+}
+
+export async function fictionalPdfWithItsEncryptionDictionaryInTheTrailer(
+  pageCount: number,
+): Promise<Uint8Array> {
+  const document = await documentOfPages(pageCount);
+  document.context.trailerInfo.Encrypt = document.context.obj({
+    Filter: "Standard",
+    V: 1,
+    R: 2,
+    O: "owner",
+    U: "user",
+    P: -44,
+  });
+  return document.save();
+}
+
+export async function fictionalPdfWithPagesThatCannotBeCopied(
+  pageCount: number,
+  pagesThatCannotBeCopied: number[],
+): Promise<Uint8Array> {
+  const document = await documentOfPages(pageCount);
+  for (const page of pagesThatCannotBeCopied) {
+    document.getPage(page - 1).node.set(PDFName.of("Parent"), PDFNumber.of(0));
+  }
   return document.save();
 }
 

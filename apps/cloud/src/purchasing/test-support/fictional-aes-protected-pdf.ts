@@ -85,12 +85,19 @@ function objectStreamOf(objects: [number, string][]): { header: string; data: Bu
   return { header, data: latin1(header + body) };
 }
 
-export function fictionalAesProtectedPdfWithPagesInAnObjectStream(): Uint8Array {
+const CATALOG: [number, string] = [1, "<< /Type /Catalog /Pages 2 0 R >>"];
+const PAGE_TREE_ROOT: [number, string] = [2, "<< /Type /Pages /Kids [3 0 R] /Count 1 >>"];
+
+export function fictionalAesProtectedPdfWithPagesInAnObjectStream({
+  plainCatalogAndPageTreeRoot = false,
+}: {
+  plainCatalogAndPageTreeRoot?: boolean;
+} = {}): Uint8Array {
   const documentId = randomBytes(16);
   const { owner, user, fileKey } = standardSecurity(documentId);
+  const plainObjects = plainCatalogAndPageTreeRoot ? [CATALOG, PAGE_TREE_ROOT] : [];
   const compressedObjects: [number, string][] = [
-    [1, "<< /Type /Catalog /Pages 2 0 R >>"],
-    [2, "<< /Type /Pages /Kids [3 0 R] /Count 1 >>"],
+    ...(plainCatalogAndPageTreeRoot ? [] : [CATALOG, PAGE_TREE_ROOT]),
     [
       3,
       "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 400 300] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>",
@@ -114,6 +121,10 @@ export function fictionalAesProtectedPdfWithPagesInAnObjectStream(): Uint8Array 
     );
   };
 
+  for (const [number, object] of plainObjects) {
+    offsets.set(number, written());
+    parts.push(latin1(`${number} 0 obj\n${object}\nendobj\n`));
+  }
   addStream(5, "", aesEncrypted(fileKey, 5, pageContent));
   addStream(
     OBJECT_STREAM,
