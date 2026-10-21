@@ -99,6 +99,8 @@ import { refuseNewerDatabase } from "./register/newer-database-refusal";
 import { readReceiptPrinterFor, setReceiptPrinterFor } from "./register/receipt-printer-requests";
 import { registerServiceOf } from "./register/register-service-of-database";
 import { registerStatusFor } from "./register/register-status-requests";
+import { restorationStandingFor } from "./register/restoration-standing-requests";
+import { createRestorationStandingWatch } from "./register/restoration-standing-watch";
 import { createSerialDeviceWatch, pathOfMatchingDevice } from "./register/serial-device-watch";
 import { serialDevicesReportOf } from "./register/serial-devices-report";
 import { readSerialDevicesFor, registerSerialDevicesFor } from "./register/serial-devices-requests";
@@ -241,6 +243,9 @@ const BATTERY_STANDING_CHANGED_NOTICE: CoreToRendererMessage = {
   type: "battery-standing-changed",
 };
 const FISCAL_MODE_CHANGED_NOTICE: CoreToRendererMessage = { type: "fiscal-mode-changed" };
+const RESTORATION_STANDING_CHANGED_NOTICE: CoreToRendererMessage = {
+  type: "restoration-standing-changed",
+};
 const QUIT_REGISTER_MESSAGE: QuitRegisterMessage = { type: "quit-register" };
 const SERIAL_DEVICE_CHECK_INTERVAL_MS = 3_000;
 const BARCODE_READER_RETRY_MS = 3_000;
@@ -484,6 +489,7 @@ async function pushOutboxToCloud() {
       }),
   });
   cloudReachability = nextCloudReachability(cloudReachability, attempt);
+  restorationStandingWatch?.check();
   const warning = pushWarningOf(attempt);
   if (warning !== undefined) {
     console.warn(warning, attempt);
@@ -593,6 +599,7 @@ const syncSchedule = createSyncSchedule({
     rendererConnection.tell(PULLED_NOTICE);
     interruptedCharges.afterEachSync();
     paidOrderDiscovery.afterEachSync();
+    restorationStandingWatch?.check();
   },
 });
 
@@ -612,6 +619,13 @@ const fiscalModeWatch =
     : createFiscalModeWatch({
         read: () => readFiscalEmissionModeIn(localDatabase, now()).kind,
         onChanged: () => rendererConnection.tell(FISCAL_MODE_CHANGED_NOTICE),
+      });
+const restorationStandingWatch =
+  localDatabase === undefined
+    ? undefined
+    : createRestorationStandingWatch({
+        read: () => restorationStandingFor(restorationOf(localDatabase)),
+        onChanged: () => rendererConnection.tell(RESTORATION_STANDING_CHANGED_NOTICE),
       });
 const mercadoPagoCharging = createMercadoPagoCharging({
   database: localDatabase,
@@ -692,6 +706,10 @@ const rendererRequestDeps: RendererRequestDeps = {
             newSalesStoppedByBattery: batteryShutdown.newSalesStoppedByBattery,
             criticalBatteryAction: () => criticalBatteryAction,
           }),
+  restorationStanding:
+    localDatabase === undefined
+      ? undefined
+      : () => restorationStandingFor(restorationOf(localDatabase)),
   registerService: register.service,
   registerName: () => replica?.registerName(),
   enroll: async (typedCode: string) => {

@@ -215,6 +215,9 @@ function coreAnswering(
       cashSessionAsks.push("cash-session");
       return cashDrawer.cashSession === undefined ? openedByRegister : cashDrawer.cashSession();
     },
+    async restorationStanding() {
+      return { kind: "completed" };
+    },
     async registerStatus() {
       statusAsks.push("register-status");
       return {
@@ -480,6 +483,7 @@ function coreAnswering(
         batteryStandingChangedListeners.delete(listener);
       };
     },
+    onRestorationStandingChanged: () => () => {},
     onFiscalModeChanged(listener) {
       fiscalModeChangedListeners.add(listener);
       return () => {

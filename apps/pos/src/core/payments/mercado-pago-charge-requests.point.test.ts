@@ -404,6 +404,7 @@ describe("a charge on the integrated terminal while the cloud cannot be reached"
       await chargeSaleInCashFor(
         {
           database,
+          restoration: restorationOf(database),
           gate: deps(online).gate,
           readOutboxChainKey: async () => CHARGE_CHAIN_KEY,
           now: () => CHARGE_NOW,
