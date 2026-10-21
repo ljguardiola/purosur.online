@@ -158,6 +158,14 @@ export {
   registerPointOfSaleSchema,
 } from "./fiscal/register-point-of-sale.js";
 export type {
+  RejectedDocumentRemedyBody,
+  RejectedDocumentRemedyResponseBody,
+} from "./fiscal/rejected-document-remedy.js";
+export {
+  rejectedDocumentRemedyBodySchema,
+  rejectedDocumentRemedyResponseSchema,
+} from "./fiscal/rejected-document-remedy.js";
+export type {
   SaleVoidCreditNoteRequestBody,
   SaleVoidCreditNoteResponseBody,
 } from "./fiscal/sale-void-credit-note.js";

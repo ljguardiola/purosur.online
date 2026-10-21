@@ -251,6 +251,12 @@ const fortnightReportNeedsRegularizationDetailSchema =
     registerName: z.string().optional(),
   });
 
+const fortnightReportDocumentRejectedDetailSchema =
+  fortnightReportNeedsRegularizationDetailSchema.extend({
+    documentType: z.literal(FACTURA_C_DOCUMENT_TYPE),
+    rejectedNumber: z.int(),
+  });
+
 const fortnightReportOverdueDetailSchema = fortnightReportNeedsRegularizationDetailSchema.extend({
   deadline: z.string(),
 });
@@ -432,6 +438,11 @@ const alertDetailKinds = [
     ...alertBase,
     kind: z.literal("fortnight_report_owed_elsewhere" satisfies AlertKind),
     detail: fortnightReportOwedElsewhereDetailSchema,
+  }),
+  z.object({
+    ...alertBase,
+    kind: z.literal("fortnight_report_document_rejected" satisfies AlertKind),
+    detail: fortnightReportDocumentRejectedDetailSchema,
   }),
 ] as const;
 

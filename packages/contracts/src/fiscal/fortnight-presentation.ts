@@ -3,6 +3,7 @@ import {
   type FortnightPresentationRefusal,
   type FortnightPresentationState,
   type FortnightReportMovement,
+  type RejectedDocumentRemedyState,
 } from "@purosur/domain";
 import { z } from "zod";
 import { pointOfSaleNumberSchema } from "../shared/index.js";
@@ -27,6 +28,24 @@ const fortnightPresentationRefusalSchema: z.ZodType<FortnightPresentationRefusal
   "whole",
 ]);
 
+const rejectedDocumentRemedyStateSchema: z.ZodType<RejectedDocumentRemedyState> = z.enum([
+  "awaiting_remedy",
+  "awaiting_resend",
+]);
+
+const rejectedDocumentSchema = z.object({
+  number: z.number().int().positive(),
+  unprocessed: z.number().int().nonnegative(),
+  document_id: z.string(),
+  issued_on: z.string(),
+  total: z.number().int(),
+  buyer_document_type: z.number().int(),
+  buyer_document_number: z.number().int(),
+  buyer_tax_status_code: z.number().int(),
+  rejections: z.array(z.object({ code: z.number().int(), message: z.string() })),
+  remedy: rejectedDocumentRemedyStateSchema,
+});
+
 export const fortnightPresentationSchema = z.object({
   register_id: z.string(),
   point_of_sale_number: pointOfSaleNumberSchema,
@@ -35,9 +54,7 @@ export const fortnightPresentationSchema = z.object({
   deadline: z.string(),
   document_type: z.literal(FACTURA_C_DOCUMENT_TYPE).nullable(),
   document_count: z.number().int().nonnegative(),
-  rejected_document: z
-    .object({ number: z.number().int().positive(), unprocessed: z.number().int().nonnegative() })
-    .nullable(),
+  rejected_document: rejectedDocumentSchema.nullable(),
   movement: fortnightReportMovementSchema.nullable(),
   refusal: fortnightPresentationRefusalSchema.nullable(),
   state: fortnightPresentationStateSchema.nullable(),
