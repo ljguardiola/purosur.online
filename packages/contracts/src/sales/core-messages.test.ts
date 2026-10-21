@@ -1546,6 +1546,7 @@ describe("reprinting a credit note from the history", () => {
     { kind: "busy" },
     { kind: "invalid_reason", max_length: 200 },
     { kind: "printer_not_configured" },
+    { kind: "sale_voided" },
     { kind: "not_found" },
     { kind: "not_signed_in" },
     { kind: "lacks_permission" },
@@ -1651,6 +1652,7 @@ describe("printing the credit note of a voided sale", () => {
     { kind: "busy" },
     { kind: "already_attempted" },
     { kind: "printer_not_configured" },
+    { kind: "sale_voided" },
     { kind: "not_found" },
     { kind: "not_signed_in" },
     { kind: "lacks_permission" },
@@ -1663,7 +1665,6 @@ describe("printing the credit note of a voided sale", () => {
 
   it.each([
     { kind: "started" },
-    { kind: "sale_voided" },
     { kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 2 },
   ])("rejects the result %j", (outcome) => {
     const message = { type: "print-credit-note-result", request_id: REQUEST_ID, outcome };
