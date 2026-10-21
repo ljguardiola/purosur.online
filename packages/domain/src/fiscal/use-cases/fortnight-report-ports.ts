@@ -11,6 +11,11 @@ import type {
 } from "../model/fortnight-report.js";
 import type { Fortnight } from "../model/offline-authorization-code.js";
 import type { WithOwedPresentations } from "../model/owed-presentation-list.js";
+import type {
+  OfflineDocumentCorrection,
+  RecordedRemedy,
+  RejectedDocumentCreditNote,
+} from "../model/rejected-document-remedy.js";
 import type { WsaaTokenSource } from "./fiscal-document-authorization-ports.js";
 import type {
   OfflineAuthorizationCode,
@@ -53,10 +58,27 @@ export interface DocumentTypeReportChange {
   rejections?: TaxAuthorityRejection[];
 }
 
+export interface RecordedDocumentTypeReport {
+  documentType: FiscalDocumentType;
+  state: DocumentTypeReportState;
+  reportedThrough: number;
+  rejectedNumber: number | null;
+  lastAttemptAt: Date | null;
+  rejections: TaxAuthorityRejection[];
+  remedy: RecordedRemedy | null;
+}
+
 export interface HeldFortnightReport {
   recorded(): Promise<RecordedFortnightReport | null>;
+  documentTypeReports(): Promise<RecordedDocumentTypeReport[]>;
   record(change: FortnightReportChange): Promise<void>;
   recordDocumentType(change: DocumentTypeReportChange): Promise<void>;
+  realTimePointOfSaleOf(registerId: string): Promise<number | null>;
+  /**
+   * Records the credit note for the corrected document it names, once per corrected voucher:
+   * deciding it again for a voucher that already has one changes nothing.
+   */
+  creditCorrectedDocument(creditNote: RejectedDocumentCreditNote): Promise<void>;
 }
 
 export interface FortnightReportStore {
@@ -69,6 +91,9 @@ export interface FortnightReportStore {
 }
 
 export interface OfflineDocumentOfFortnight {
+  id: string;
+  saleId: string;
+  registerId: string;
   documentType: FiscalDocumentType;
   number: number;
   issuedOn: string;
@@ -78,6 +103,7 @@ export interface OfflineDocumentOfFortnight {
   buyerTaxStatusCode: number;
   total: number;
   netAmount: number;
+  correction: OfflineDocumentCorrection | null;
 }
 
 export interface OfflineDocumentsOfFortnight {
