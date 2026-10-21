@@ -298,6 +298,18 @@ function authorizeCreditNoteOfVoidedSale(database: LocalDatabase, saleId: string
   }
 }
 
+function holdCreditNoteInProgress(database: LocalDatabase, saleId: string): void {
+  database
+    .prepare(
+      `UPDATE sale_void_credit_notes
+       SET state = 'IN_PROGRESS', point_of_sale = NULL, number = NULL, issued_on = NULL,
+           issued_at = NULL, authorization_code = NULL, authorization_code_due_on = NULL,
+           answered_at = NULL
+       WHERE sale_id = ?`,
+    )
+    .run(saleId);
+}
+
 async function printAndReprintCreditNote({
   deps,
   saleId,
@@ -888,6 +900,7 @@ export async function withRegisterSession<TResult>(
       saleId: offlineScan.sale.id,
       nextStep,
     });
+    holdCreditNoteInProgress(database, offlineScan.sale.id);
     nextStep();
     const closed = await closeCashSessionFor(deps(), {
       sessionId: opened.cash_session.id,
