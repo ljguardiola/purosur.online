@@ -1009,26 +1009,44 @@ describe("decoding the events the registers pushed", () => {
         },
       );
 
-      it.each([
-        ["asks for no credit note", null],
-        [
-          "asks for the credit note of its invoice",
-          {
-            id: "01a1122a-030a-7000-8000-00000000ccc1",
-            total: 4800,
-            receiver_tax_status_code: 5,
-            corrects: { voucher_type: 11, point_of_sale: 7, number: 42 },
-          },
-        ],
-      ])(
-        "reads a version 3 voided sale that %s as it reads a version 2 one",
-        (_name, creditNote) => {
-          const readAs = (version: number, change: Record<string, unknown> = {}) =>
-            upcaster.decode(unappliedEventOf(voided(change, version)));
+      const creditNoteRequest = {
+        id: "01a1122a-030a-7000-8000-00000000ccc1",
+        total: 4800,
+        receiver_tax_status_code: 5,
+        corrects: { voucher_type: 11, point_of_sale: 7, number: 42 },
+      };
 
-          expect(readAs(3, { credit_note: creditNote })).toEqual(readAs(2));
-        },
-      );
+      it("reads a version 3 voided sale that asks for no credit note as it reads a version 2 one", () => {
+        const readAs = (version: number) =>
+          upcaster.decode(unappliedEventOf(voided({ credit_note: null }, version)));
+
+        expect(readAs(3)).toEqual(readAs(2));
+        expect(readAs(3)).toMatchObject({ fact: { kind: "sale_voided", creditNote: null } });
+      });
+
+      it("reads the credit note a version 3 voided sale asks for, for the sale it voids", () => {
+        expect(
+          upcaster.decode(unappliedEventOf(voided({ credit_note: creditNoteRequest }, 3))),
+        ).toMatchObject({
+          kind: "fact",
+          fact: {
+            kind: "sale_voided",
+            creditNote: {
+              creditNoteId: "01a1122a-030a-7000-8000-00000000ccc1",
+              saleId: SALE,
+              total: 4800,
+              receiverTaxStatusCode: 5,
+              correctedVoucher: { voucherType: 11, pointOfSale: 7, number: 42 },
+            },
+          },
+        });
+      });
+
+      it.each([1, 2])("reads a version %s voided sale as asking for no credit note", (version) => {
+        expect(upcaster.decode(unappliedEventOf(voided({}, version)))).toMatchObject({
+          fact: { kind: "sale_voided", creditNote: null },
+        });
+      });
 
       it("still reads a version 1 voided sale", () => {
         expect(upcaster.decode(unappliedEventOf(voided()))).toMatchObject({

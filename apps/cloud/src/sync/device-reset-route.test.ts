@@ -1,7 +1,15 @@
 import { cloudErrorSchema, registerResetResponseSchema } from "@purosur/contracts";
+import { desc } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { roles, userRoles, users } from "../platform/db/schema.js";
+import {
+  ANSWERED_AT,
+  anAuthorizedAnswer,
+  aRejectedAnswer,
+  insertSaleVoidCreditNote,
+  REQUESTED_AT,
+} from "../fiscal/test-support/sale-void-credit-notes.js";
+import { inbox, roles, userRoles, users } from "../platform/db/schema.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { registerRouteAccess } from "../sessions/route-access.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
@@ -198,5 +206,142 @@ describe("POST /devices/current/reset", () => {
 
     const body = registerResetResponseSchema.parse(response.json());
     expect(body.events.map(({ event_id }) => event_id)).toEqual([third]);
+  });
+
+  describe("the credit note answers", () => {
+    async function aVoidedSale(deviceId: string) {
+      const saleId = crypto.randomUUID();
+      await insertInboxEvent(db, deviceId, {
+        eventType: "sale_voided",
+        schemaVersion: 3,
+        aggregateId: saleId,
+      });
+      return saleId;
+    }
+
+    function resetOf(
+      predecessor: { deviceId: string },
+      current: { deviceToken: string },
+      after?: { device_id: string; device_seq: number },
+    ) {
+      return reset(
+        {
+          predecessor_device_id: predecessor.deviceId,
+          last_acknowledged_seq: 0,
+          ...(after && { after }),
+        },
+        `Bearer ${current.deviceToken}`,
+      );
+    }
+
+    it("answers what the tax authority said about the credit notes of the register's voided sales", async () => {
+      const { predecessor, current } = await aRestoredRegister();
+      const authorizedSale = await aVoidedSale(predecessor.deviceId);
+      const rejectedSale = await aVoidedSale(predecessor.deviceId);
+      const authorizedId = await insertSaleVoidCreditNote(
+        db,
+        current.registerId,
+        authorizedSale,
+        anAuthorizedAnswer(9),
+      );
+      const rejectedId = await insertSaleVoidCreditNote(
+        db,
+        current.registerId,
+        rejectedSale,
+        aRejectedAnswer(),
+      );
+
+      const response = await resetOf(predecessor, current);
+
+      expect(response.statusCode).toBe(200);
+      const { credit_notes } = registerResetResponseSchema.parse(response.json());
+      expect(credit_notes).toHaveLength(2);
+      expect(credit_notes).toEqual(
+        expect.arrayContaining([
+          {
+            credit_note_id: authorizedId,
+            answered_at: ANSWERED_AT.toISOString(),
+            state: "AUTHORIZED",
+            point_of_sale: 7,
+            number: 9,
+            issued_on: "2026-10-07",
+            issued_at: REQUESTED_AT.toISOString(),
+            authorization_code: "74123456789012",
+            authorization_code_due_on: "2026-10-17",
+          },
+          {
+            credit_note_id: rejectedId,
+            answered_at: ANSWERED_AT.toISOString(),
+            state: "REJECTED",
+          },
+        ]),
+      );
+    });
+
+    it("never answers the credit note another register holds for a sale of this one", async () => {
+      const { predecessor, current } = await aRestoredRegister();
+      const other = await insertEnrolledInstallation(db, { now: NOW, registerName: "Caja 2" });
+      const saleId = await aVoidedSale(predecessor.deviceId);
+      await insertSaleVoidCreditNote(db, other.registerId, saleId, anAuthorizedAnswer());
+
+      const response = await resetOf(predecessor, current);
+
+      expect(registerResetResponseSchema.parse(response.json()).credit_notes).toEqual([]);
+    });
+
+    it("leaves out the credit note of a sale the page's events do not void", async () => {
+      const { predecessor, current } = await aRestoredRegister();
+      const completedSale = crypto.randomUUID();
+      await insertInboxEvent(db, predecessor.deviceId, { aggregateId: completedSale });
+      await insertSaleVoidCreditNote(db, current.registerId, completedSale, anAuthorizedAnswer());
+
+      const response = await resetOf(predecessor, current);
+
+      expect(registerResetResponseSchema.parse(response.json()).credit_notes).toEqual([]);
+    });
+
+    it("answers each credit note with the page that holds its voided sale, exactly once across the pages", async () => {
+      const { predecessor, current } = await aRestoredRegister();
+      const firstSale = await aVoidedSale(predecessor.deviceId);
+      for (let filler = 0; filler < 199; filler += 1) {
+        await insertInboxEvent(db, predecessor.deviceId);
+      }
+      const lastOfFirstPage = await db
+        .select({ deviceSeq: inbox.deviceSeq })
+        .from(inbox)
+        .orderBy(desc(inbox.deviceSeq))
+        .limit(1);
+      const secondSale = await aVoidedSale(predecessor.deviceId);
+      const firstCreditNote = await insertSaleVoidCreditNote(
+        db,
+        current.registerId,
+        firstSale,
+        anAuthorizedAnswer(),
+      );
+      const secondCreditNote = await insertSaleVoidCreditNote(
+        db,
+        current.registerId,
+        secondSale,
+        anAuthorizedAnswer(),
+      );
+
+      const first = registerResetResponseSchema.parse((await resetOf(predecessor, current)).json());
+      const second = registerResetResponseSchema.parse(
+        (
+          await resetOf(predecessor, current, {
+            device_id: predecessor.deviceId,
+            device_seq: lastOfFirstPage[0]?.deviceSeq ?? 0,
+          })
+        ).json(),
+      );
+
+      expect(first.next).not.toBeNull();
+      expect(first.credit_notes.map(({ credit_note_id }) => credit_note_id)).toEqual([
+        firstCreditNote,
+      ]);
+      expect(second.credit_notes.map(({ credit_note_id }) => credit_note_id)).toEqual([
+        secondCreditNote,
+      ]);
+    });
   });
 });

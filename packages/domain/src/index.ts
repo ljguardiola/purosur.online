@@ -217,6 +217,7 @@ export type {
   RealTimeAuthorizationResolution,
   RegisterOfflineAuthorizationCodeHolding,
   RejectionClass,
+  RestoredCreditNoteAnswer,
   SaleInvoice,
   SaleVoidCreditNote,
   TaxAuthorityRejection,

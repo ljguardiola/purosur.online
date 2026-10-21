@@ -4,10 +4,12 @@ import {
   registerResetRequestSchema,
   registerResetResponseSchema,
 } from "@purosur/contracts";
+import { serveRestoredRegisterCreditNoteAnswers } from "@purosur/domain/fiscal/use-cases";
 import { admitRestoredRegisterReplenishment } from "@purosur/domain/register/use-cases";
 import { serveRestoredRegisterReplenishment } from "@purosur/domain/sync/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
+import { DrizzleRestoredRegisterCreditNoteAnswers } from "../fiscal/drizzle-restored-register-credit-note-answers.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
 import { answerErrorsWithCloudEnvelope } from "../register/cloud-error-handler.js";
 import { authenticateDevice } from "../register/device-authentication.js";
@@ -44,6 +46,7 @@ export function registerDeviceResetRoute<TQueryResult extends PgQueryResultHKT>(
   const tokenPorts = installationTokenPorts(options);
   const admission = { predecessors: new DrizzleRestoredRegisterPredecessors(options.db) };
   const ports = { replenishment: new DrizzleRegisterReplenishment(options.db) };
+  const creditNotes = new DrizzleRestoredRegisterCreditNoteAnswers(options.db);
   const branchUsers = new DrizzleRegisterBranchUsers(options.db);
 
   app.register(async (scope) => {
@@ -101,6 +104,10 @@ export function registerDeviceResetRoute<TQueryResult extends PgQueryResultHKT>(
             after: { deviceId: body.after.device_id, deviceSeq: body.after.device_seq },
           }),
         });
+        const creditNoteAnswers = await serveRestoredRegisterCreditNoteAnswers(
+          { creditNotes },
+          { registerId, saleIds: page.voidedSaleIds },
+        );
         const users = await branchUsers.branchUsers(registerId);
 
         await reply.code(200).send(
@@ -122,6 +129,24 @@ export function registerDeviceResetRoute<TQueryResult extends PgQueryResultHKT>(
               active: user.active,
               version: user.version,
             })),
+            credit_notes: creditNoteAnswers.map(({ creditNoteId, answeredAt, answer }) => {
+              const common = {
+                credit_note_id: creditNoteId,
+                answered_at: answeredAt.toISOString(),
+              };
+              return answer.kind === "authorized"
+                ? {
+                    ...common,
+                    state: "AUTHORIZED" as const,
+                    point_of_sale: answer.pointOfSale,
+                    number: answer.number,
+                    issued_on: answer.issuedOn,
+                    issued_at: answer.issuedAt.toISOString(),
+                    authorization_code: answer.authorizationCode,
+                    authorization_code_due_on: answer.authorizationCodeDueOn,
+                  }
+                : { ...common, state: "REJECTED" as const };
+            }),
           }),
         );
       },

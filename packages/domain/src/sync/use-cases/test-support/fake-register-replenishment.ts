@@ -1,3 +1,4 @@
+import type { RestoredCreditNoteAnswer, SaleVoidCreditNote } from "../../../fiscal/index.js";
 import type { ReplenishedUser } from "../../../users/index.js";
 import type { SyncedFact } from "../../model/synced-fact.js";
 import { A_SESSION_OPENED_FACT } from "../../model/test-support/synced-facts.js";
@@ -47,8 +48,9 @@ export function aPage(
   events: ReplenishedEvent[],
   next: EventPosition | null = null,
   users: ReplenishedUser[] = [],
+  creditNoteAnswers: RestoredCreditNoteAnswer[] = [],
 ): RegisterReplenishmentFeedAnswer<FakeFailure> {
-  const page: ReplenishmentPage = { events, users, next };
+  const page: ReplenishmentPage = { events, users, next, creditNoteAnswers };
   return { kind: "page", page };
 }
 
@@ -77,14 +79,25 @@ export class FakeRegisterReplenishmentDecoder implements RegisterReplenishmentDe
   }
 }
 
+interface RecordedCreditNoteAnswer {
+  creditNote: SaleVoidCreditNote;
+  answer: RestoredCreditNoteAnswer;
+}
+
 export interface ReplenishingRegisterState {
   predecessor: RegisterPredecessor | undefined;
   users: ReplenishedUser[][];
   facts: AppliedFact[];
   appliedEventIds: string[];
+  creditNoteAnswers: RecordedCreditNoteAnswer[];
 }
 
-export type FakeStoreOperation = "applyUsers" | "applyFact" | "recordEventApplied" | "finish";
+export type FakeStoreOperation =
+  | "applyUsers"
+  | "applyFact"
+  | "recordCreditNoteAnswer"
+  | "recordEventApplied"
+  | "finish";
 
 export class FakeRegisterReplenishmentStore implements RegisterReplenishmentStore {
   state: ReplenishingRegisterState;
@@ -93,7 +106,7 @@ export class FakeRegisterReplenishmentStore implements RegisterReplenishmentStor
   failAt: { operation: FakeStoreOperation; eventId?: string } | undefined;
 
   constructor(predecessor: RegisterPredecessor | undefined) {
-    this.state = { predecessor, users: [], facts: [], appliedEventIds: [] };
+    this.state = { predecessor, users: [], facts: [], appliedEventIds: [], creditNoteAnswers: [] };
   }
 
   async predecessor(): Promise<RegisterPredecessor | undefined> {
@@ -126,6 +139,16 @@ export class FakeRegisterReplenishmentStore implements RegisterReplenishmentStor
         }
         working.facts.push({ fact, source });
         return "applied";
+      },
+      recordCreditNoteAnswer: async (creditNote, answer) => {
+        failIf("recordCreditNoteAnswer");
+        const saleIsVoided = working.facts.some(
+          ({ fact }) => fact.kind === "sale_voided" && fact.sale.id === creditNote.saleId,
+        );
+        if (!saleIsVoided) {
+          throw new Error(`the register holds no voided sale ${creditNote.saleId}`);
+        }
+        working.creditNoteAnswers.push({ creditNote, answer });
       },
       recordEventApplied: async (eventId) => {
         failIf("recordEventApplied", eventId);

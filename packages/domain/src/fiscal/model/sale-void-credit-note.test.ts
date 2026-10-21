@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  type CreditNoteStanding,
+  confirmedCreditNoteAnswer,
+  creditNoteAnswerOf,
   invoiceToCorrect,
   type SaleInvoice,
   type SaleVoidCreditNote,
@@ -91,5 +94,82 @@ const PAYLOAD = {
 describe("saleVoidCreditNotePayload", () => {
   it("describes the credit note the void asks for", () => {
     expect(saleVoidCreditNotePayload(CREDIT_NOTE)).toEqual(PAYLOAD);
+  });
+});
+
+const AUTHORIZED_STANDING: CreditNoteStanding = {
+  kind: "authorized",
+  number: 9,
+  issuedOn: "2026-10-07",
+  requestedAt: new Date("2026-10-07T10:29:00.000Z"),
+  authorizationCode: "74123456789012",
+  authorizationCodeDueOn: "2026-10-17",
+};
+
+const UNCONFIRMED_STANDINGS: [string, CreditNoteStanding][] = [
+  ["not requested yet", { kind: "not_requested" }],
+  [
+    "requested and unanswered",
+    {
+      kind: "requested",
+      number: 9,
+      issuedOn: "2026-10-07",
+      requestedAt: new Date("2026-10-07T10:29:00.000Z"),
+      unclearAnsweredAt: null,
+    },
+  ],
+  [
+    "requested and answered unclearly",
+    {
+      kind: "requested",
+      number: 9,
+      issuedOn: "2026-10-07",
+      requestedAt: new Date("2026-10-07T10:29:00.000Z"),
+      unclearAnsweredAt: new Date("2026-10-07T10:31:00.000Z"),
+    },
+  ],
+];
+
+describe("creditNoteAnswerOf", () => {
+  it("is the authorization with the point of sale, issued when it was requested", () => {
+    expect(creditNoteAnswerOf(AUTHORIZED_STANDING, 12)).toEqual({
+      kind: "authorized",
+      pointOfSale: 12,
+      number: 9,
+      issuedOn: "2026-10-07",
+      issuedAt: new Date("2026-10-07T10:29:00.000Z"),
+      authorizationCode: "74123456789012",
+      authorizationCodeDueOn: "2026-10-17",
+    });
+  });
+
+  it("is the rejection", () => {
+    expect(creditNoteAnswerOf({ kind: "rejected" }, 12)).toEqual({ kind: "rejected" });
+  });
+
+  it.each(UNCONFIRMED_STANDINGS)("is in progress when the credit note is %s", (_case, standing) => {
+    expect(creditNoteAnswerOf(standing, 12)).toEqual({ kind: "in_progress" });
+  });
+});
+
+describe("confirmedCreditNoteAnswer", () => {
+  it("is the authorization the tax authority gave", () => {
+    expect(confirmedCreditNoteAnswer(AUTHORIZED_STANDING, 12)).toEqual({
+      kind: "authorized",
+      pointOfSale: 12,
+      number: 9,
+      issuedOn: "2026-10-07",
+      issuedAt: new Date("2026-10-07T10:29:00.000Z"),
+      authorizationCode: "74123456789012",
+      authorizationCodeDueOn: "2026-10-17",
+    });
+  });
+
+  it("is the rejection the tax authority gave", () => {
+    expect(confirmedCreditNoteAnswer({ kind: "rejected" }, 12)).toEqual({ kind: "rejected" });
+  });
+
+  it.each(UNCONFIRMED_STANDINGS)("is no answer when the credit note is %s", (_case, standing) => {
+    expect(confirmedCreditNoteAnswer(standing, 12)).toBeNull();
   });
 });

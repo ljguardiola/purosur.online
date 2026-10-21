@@ -2,6 +2,7 @@ import type {
   ClockCorrectedFact,
   OfflineFiscalDocumentIssuedFact,
   PreEmissionGateFailureReason,
+  SaleVoidCreditNote,
 } from "../../fiscal/index.js";
 import { approvedPaymentsCoverTotal, refundsSettleApprovedPayments } from "../../payments/index.js";
 import type {
@@ -23,7 +24,7 @@ import type { InvariantBreak } from "./event-invariant-breaks.js";
 export type SyncedFact =
   | { kind: "sale_completed"; sale: CompletedSale }
   | { kind: "sale_cancelled"; sale: CancelledSale }
-  | { kind: "sale_voided"; sale: VoidedSale }
+  | { kind: "sale_voided"; sale: VoidedSale; creditNote: SaleVoidCreditNote | null }
   | { kind: "sale_print_state_changed"; printState: SalePrintState }
   | { kind: "reprint_recorded"; reprint: SaleReprint }
   | { kind: "cash_session_opened"; session: CashSessionOpenedFact }

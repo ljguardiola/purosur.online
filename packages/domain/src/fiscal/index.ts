@@ -188,6 +188,7 @@ export {
 export { REGISTER_CLOCK_TOLERANCE_MS, raisedClockMark } from "./model/register-clock.js";
 export type {
   CreditNoteAnswer,
+  RestoredCreditNoteAnswer,
   SaleInvoice,
   SaleVoidCreditNote,
   VoidCreditNoteStanding,

@@ -1,3 +1,4 @@
+import { SALE_VOIDED_EVENT_TYPE } from "../../shared/index.js";
 import {
   REPLENISHMENT_PAGE_MAX_EVENTS,
   REPLENISHMENT_PAGE_READ_LIMIT,
@@ -18,6 +19,7 @@ export interface ServeRestoredRegisterReplenishmentInput {
 export interface ServedReplenishmentPage {
   events: ReplenishedEvent[];
   next: EventPosition | null;
+  voidedSaleIds: string[];
 }
 
 export async function serveRestoredRegisterReplenishment(
@@ -41,5 +43,8 @@ export async function serveRestoredRegisterReplenishment(
     read.length > events.length && last
       ? { deviceId: last.deviceId, deviceSeq: last.event.device_seq }
       : null;
-  return { events, next };
+  const voidedSaleIds = events
+    .filter(({ event }) => event.event_type === SALE_VOIDED_EVENT_TYPE)
+    .map(({ event }) => event.aggregate_id);
+  return { events, next, voidedSaleIds };
 }

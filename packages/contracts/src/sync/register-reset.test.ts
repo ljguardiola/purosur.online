@@ -101,6 +101,7 @@ describe("the register reset response", () => {
       events: [anEvent(53), anEvent(54)],
       next: { device_id: PREDECESSOR, device_seq: 54 },
       users: [USER],
+      credit_notes: [],
     };
 
     expect(registerResetResponseSchema.parse(body)).toEqual(body);
@@ -111,6 +112,7 @@ describe("the register reset response", () => {
       events: [],
       next: null,
       users: [{ ...USER, salt: null, pin_hash: null }],
+      credit_notes: [],
     };
 
     expect(registerResetResponseSchema.parse(body)).toEqual(body);
@@ -121,29 +123,111 @@ describe("the register reset response", () => {
       anEvent(index + 1),
     );
 
-    expect(registerResetResponseSchema.safeParse({ events, next: null, users: [] }).success).toBe(
-      true,
-    );
+    expect(
+      registerResetResponseSchema.safeParse({ events, next: null, users: [], credit_notes: [] })
+        .success,
+    ).toBe(true);
     expect(
       registerResetResponseSchema.safeParse({
         events: [...events, anEvent(REPLENISHMENT_PAGE_MAX_EVENTS + 1)],
         next: null,
         users: [],
+        credit_notes: [],
       }).success,
     ).toBe(false);
   });
 
   it.each([
-    ["a missing next", { events: [], users: [] }],
-    ["a missing users list", { events: [], next: null }],
+    ["a missing next", { events: [], users: [], credit_notes: [] }],
+    ["a missing users list", { events: [], next: null, credit_notes: [] }],
+    ["a missing credit notes list", { events: [], next: null, users: [] }],
     [
       "an event without the installation that produced it",
-      { events: [{ ...anEvent(53), device_id: undefined }], next: null, users: [] },
+      {
+        events: [{ ...anEvent(53), device_id: undefined }],
+        next: null,
+        users: [],
+        credit_notes: [],
+      },
     ],
-    ["an event that is not a pushed event", { events: [{ event_id: "x" }], next: null, users: [] }],
-    ["a user without its id", { events: [], next: null, users: [{ ...USER, user_id: undefined }] }],
-    ["a next without its installation", { events: [], next: { device_seq: 3 }, users: [] }],
+    [
+      "an event that is not a pushed event",
+      { events: [{ event_id: "x" }], next: null, users: [], credit_notes: [] },
+    ],
+    [
+      "a user without its id",
+      { events: [], next: null, users: [{ ...USER, user_id: undefined }], credit_notes: [] },
+    ],
+    [
+      "a next without its installation",
+      { events: [], next: { device_seq: 3 }, users: [], credit_notes: [] },
+    ],
   ])("refuses %s", (_name, body) => {
     expect(registerResetResponseSchema.safeParse(body).success).toBe(false);
+  });
+
+  describe("the credit note answers", () => {
+    const CREDIT_NOTE = "8e4b2a6c-1d93-4075-b5f8-2a7c9e0d3b61";
+    const authorized = {
+      credit_note_id: CREDIT_NOTE,
+      answered_at: "2026-10-07T10:30:00.000Z",
+      state: "AUTHORIZED",
+      point_of_sale: 7,
+      number: 9,
+      issued_on: "2026-10-07",
+      issued_at: "2026-10-07T10:29:00.000Z",
+      authorization_code: "74123456789012",
+      authorization_code_due_on: "2026-10-17",
+    };
+    const rejected = {
+      credit_note_id: CREDIT_NOTE,
+      answered_at: "2026-10-07T10:30:00.000Z",
+      state: "REJECTED",
+    };
+    const respondingWith = (creditNote: unknown) => ({
+      events: [],
+      next: null,
+      users: [],
+      credit_notes: [creditNote],
+    });
+
+    it.each([
+      ["authorized", authorized],
+      ["rejected", rejected],
+    ])("holds the voided sales' %s credit notes", (_state, creditNote) => {
+      const body = respondingWith(creditNote);
+
+      expect(registerResetResponseSchema.parse(body)).toEqual(body);
+    });
+
+    it("lowercases the ids", () => {
+      const parsed = registerResetResponseSchema.parse(
+        respondingWith({
+          ...rejected,
+          credit_note_id: CREDIT_NOTE.toUpperCase(),
+        }),
+      );
+
+      expect(parsed.credit_notes[0]).toMatchObject({ credit_note_id: CREDIT_NOTE });
+    });
+
+    it.each([
+      ["a credit note still in progress", { ...rejected, state: "IN_PROGRESS" }],
+      ["a credit note without a state", { ...rejected, state: undefined }],
+      ["an answer without the moment it was given", { ...rejected, answered_at: undefined }],
+      ["an answer given at a moment that is not a date", { ...rejected, answered_at: "soon" }],
+      ["an answer without its credit note", { ...rejected, credit_note_id: undefined }],
+      ["an authorization without its number", { ...authorized, number: undefined }],
+      [
+        "an authorization without its authorization code",
+        { ...authorized, authorization_code: "" },
+      ],
+      [
+        "an authorization issued on a day that does not exist",
+        { ...authorized, issued_on: "2026-02-30" },
+      ],
+    ])("refuses %s", (_name, creditNote) => {
+      expect(registerResetResponseSchema.safeParse(respondingWith(creditNote)).success).toBe(false);
+    });
   });
 });

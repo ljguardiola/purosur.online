@@ -4,6 +4,7 @@ import type {
   OfflineFiscalDocumentIssuedFact,
   PrintedDocument,
   SaleDiscount,
+  SaleVoidCreditNote,
 } from "@purosur/domain";
 import type {
   DecodedEvent,
@@ -152,9 +153,27 @@ function cancelledSale(payload: CancelledSalePayload): SyncedFact {
   };
 }
 
+function voidedSaleCreditNote(payload: VoidedSalePayload): SaleVoidCreditNote | null {
+  const creditNote = "credit_note" in payload ? payload.credit_note : null;
+  return creditNote === null
+    ? null
+    : {
+        creditNoteId: creditNote.id,
+        saleId: payload.id,
+        total: creditNote.total,
+        receiverTaxStatusCode: creditNote.receiver_tax_status_code,
+        correctedVoucher: {
+          voucherType: creditNote.corrects.voucher_type,
+          pointOfSale: creditNote.corrects.point_of_sale,
+          number: creditNote.corrects.number,
+        },
+      };
+}
+
 function voidedSale(payload: VoidedSalePayload): SyncedFact {
   return {
     kind: "sale_voided",
+    creditNote: voidedSaleCreditNote(payload),
     sale: {
       id: payload.id,
       sessionId: payload.session_id,
