@@ -64,28 +64,11 @@ function failedStandingOf(status: ReceiptPrintStatus): FailedStanding | undefine
   return standing;
 }
 
-type FiscalComprobante = Extract<ReceiptPrintStatus["comprobante"], { kind: "fiscal" }>;
-
-const FISCAL_MODE_TAGS: Record<
-  FiscalComprobante["authorization"],
-  { tone: "warning" | "success"; text: string }
-> = {
-  offline_code: { tone: "warning", text: "Contingencia con CAEA" },
-  real_time: { tone: "success", text: "En línea con CAE" },
-};
-
 function receiptRowValue(receipt: ReturnType<typeof useReceiptPrintStatusQuery>): string {
   if (receipt.status === "failed") {
     return "No se pudo leer el estado";
   }
   return receipt.status === "loaded" && receipt.value.printed ? "Impreso" : "Imprimiendo";
-}
-
-function printTagTone(receipt: ReturnType<typeof useReceiptPrintStatusQuery>) {
-  if (receipt.status === "failed") {
-    return "neutral";
-  }
-  return receipt.status === "loaded" && receipt.value.printed ? "success" : "info";
 }
 
 export type SaleCompletedModalProps = {
@@ -172,12 +155,13 @@ export function SaleCompletedModal(props: SaleCompletedModalProps) {
     );
   }
 
-  const fiscal =
-    receipt.status === "loaded" && receipt.value.comprobante.kind === "fiscal"
-      ? receipt.value.comprobante
+  const contingency =
+    receipt.status === "loaded" &&
+    receipt.value.comprobante.kind === "fiscal" &&
+    receipt.value.comprobante.authorization === "offline_code"
+      ? receipt.value
       : undefined;
   const printState = receiptRowValue(receipt);
-  const fiscalMode = fiscal === undefined ? undefined : FISCAL_MODE_TAGS[fiscal.authorization];
 
   return (
     <Modal
@@ -201,22 +185,22 @@ export function SaleCompletedModal(props: SaleCompletedModalProps) {
           rows={[
             { label: "Total", value: formatCents(total) },
             paymentRow,
-            fiscalMode === undefined
+            contingency === undefined
               ? { label: "Ticket", value: printState }
               : {
                   label: "Modo fiscal",
-                  value: <Tag tone={fiscalMode.tone}>{fiscalMode.text}</Tag>,
+                  value: <Tag tone="warning">Contingencia con CAEA</Tag>,
                 },
           ]}
         />
-        {fiscal === undefined ? null : (
+        {contingency === undefined ? null : (
           <DocumentList
             label="Documentos para el cliente"
             rows={[
               {
                 title: "Factura C",
                 detail: "Para el cliente",
-                status: <Tag tone={printTagTone(receipt)}>{printState}</Tag>,
+                status: <Tag tone={contingency.printed ? "success" : "info"}>{printState}</Tag>,
               },
             ]}
           />

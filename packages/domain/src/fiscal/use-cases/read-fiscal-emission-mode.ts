@@ -14,5 +14,6 @@ export function readFiscalEmissionMode(
     series: reads.realTimeSeries(),
     offlineSeries: reads.offlineSeries(),
     offlineAuthorizationCode: reads.offlineAuthorizationCodeOf(invoiceOwnFortnight(now)),
+    latestGate: reads.latestPreEmissionGateOutcome(),
   });
 }

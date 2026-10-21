@@ -26,11 +26,9 @@ import {
   TriangleAlert,
   Unplug,
 } from "lucide-react";
-import {
-  ContingencyNoticeCard,
-  FiscalModeIndicator,
-  isInContingency,
-} from "../fiscal/fiscal-mode-indicator";
+import { ContingencyNoticeCard } from "../fiscal/contingency-notice-card";
+import { isInContingency } from "../fiscal/fiscal-contingency";
+import { FiscalModeIndicator } from "../fiscal/fiscal-mode-indicator";
 import type { CoreData } from "../platform/use-core-query";
 import type { CashSessionState } from "../register/cash-session-state";
 import type { SerialDeviceRole } from "../register/serial-device-standing";

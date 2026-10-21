@@ -6,7 +6,7 @@ import {
 import { isNumberingConflict } from "./numbering-conflict.js";
 import { type Fortnight, fortnightContaining } from "./offline-authorization-code.js";
 import { type NextOfflineNumberInput, nextOfflineNumber } from "./offline-number-block.js";
-import type { FacturaC, PreEmissionGateOutcome } from "./pre-emission-gate.js";
+import type { FacturaC, PreEmissionGateFailureReason } from "./pre-emission-gate.js";
 import { isBeforeTaxAuthorityLastIssuedDay, isBehindClockMark } from "./register-clock.js";
 
 export const REAL_TIME_AUTHORIZATION_TIMEOUT_MS = 5_000;
@@ -145,8 +145,12 @@ export interface SaleAuthorizationPathInput {
   offlineAuthorizationCode: string | null;
 }
 
-export interface SaleAuthorizationRouteInput extends SaleAuthorizationPathInput {
-  gate: PreEmissionGateOutcome;
+export type SaleAuthorizationGate<D> =
+  | { kind: "passed"; document: D }
+  | { kind: "failed"; reason: PreEmissionGateFailureReason };
+
+export interface SaleAuthorizationRouteInput<D = FacturaC> extends SaleAuthorizationPathInput {
+  gate: SaleAuthorizationGate<D>;
 }
 
 export type SaleAuthorizationPath =
@@ -162,14 +166,14 @@ export type SaleAuthorizationPath =
     }
   | { kind: "defer"; reason: DeferralReason };
 
-export type SaleAuthorizationRoute =
-  | { kind: "reserve"; pointOfSale: number; number: number; document: FacturaC }
+export type SaleAuthorizationRoute<D = FacturaC> =
+  | { kind: "reserve"; pointOfSale: number; number: number; document: D }
   | {
       kind: "issue_offline";
       cause: OfflineAuthorizationCause;
       pointOfSale: number;
       number: number;
-      document: FacturaC;
+      document: D;
       issuedOn: string;
       fortnight: Fortnight;
       offlineAuthorizationCode: string;
@@ -237,9 +241,9 @@ export function saleAuthorizationPath(input: SaleAuthorizationPathInput): SaleAu
   return { kind: "reserve", pointOfSale: series.pointOfSale, number };
 }
 
-export function decideSaleAuthorizationRoute(
-  input: SaleAuthorizationRouteInput,
-): SaleAuthorizationRoute {
+export function decideSaleAuthorizationRoute<D>(
+  input: SaleAuthorizationRouteInput<D>,
+): SaleAuthorizationRoute<D> {
   const { gate, ...pathInput } = input;
   if (gate.kind === "failed") {
     return { kind: "defer", reason: "pre_emission_gate_failed" };

@@ -15,6 +15,7 @@ import {
   printSaleReceipt,
   type ReceiptPrinters,
   type ReceiptPrintGrant,
+  readSaleComprobante,
   receiptDeliveryOf,
   reprintSaleReceipt,
 } from "@purosur/domain/sales/use-cases";
@@ -81,7 +82,7 @@ export async function receiptPrintStatusFor(
         printed: delivery.printedAt !== null,
         standing: jobs.standingOf(saleId),
         comprobante: toWireComprobante(
-          new SqliteRegisterSalesHistory(database).comprobanteOf(saleId),
+          readSaleComprobante({ history: new SqliteRegisterSalesHistory(database) }, { saleId }),
         ),
       };
 }

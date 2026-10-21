@@ -7,11 +7,9 @@ import {
   isDeferralPending,
   PENDING_DEFERRED_SALE_RECORD,
   SALE_STANDING_DEFINITIONS,
-  type SaleComprobante,
   type SaleFiscalFacts,
   type SaleStanding,
   type SaleStandingDefinition,
-  saleComprobanteOf,
 } from "@purosur/domain";
 import type {
   RegisterSalesHistory,
@@ -159,16 +157,12 @@ export class SqliteRegisterSalesHistory implements RegisterSalesHistory {
         method,
         amount,
       })),
-      fiscal: this.fiscalFactsOf(sale.id),
+      fiscal: this.fiscalFactsOfSale(sale.id),
       voided: sale.voided === 1,
       inOpenSession: sale.in_open_session === 1,
       invoices: readSaleInvoices(this.database, sale.id),
       creditNote: readCreditNoteOfSale(this.database, sale.id)?.answer ?? null,
     };
-  }
-
-  comprobanteOf(saleId: string): SaleComprobante {
-    return saleComprobanteOf(this.fiscalFactsOf(saleId));
   }
 
   fiscalOnlineEvidence(): FiscalOnlineSignalEvidence {
@@ -208,7 +202,7 @@ export class SqliteRegisterSalesHistory implements RegisterSalesHistory {
       operationNumber: row.operation_number,
       paymentMethods: methods.map(({ method }) => method),
       total: this.totalOf(row.id),
-      fiscal: this.fiscalFactsOf(row.id),
+      fiscal: this.fiscalFactsOfSale(row.id),
       voided: row.voided === 1,
     };
   }
@@ -217,7 +211,7 @@ export class SqliteRegisterSalesHistory implements RegisterSalesHistory {
     return saleTotalOf(this.database, saleId);
   }
 
-  private fiscalFactsOf(saleId: string): SaleFiscalFacts {
+  fiscalFactsOfSale(saleId: string): SaleFiscalFacts {
     const document = this.database
       .prepare<[{ sale_id: string }], FiscalDocumentRow>(
         `SELECT state, 'real_time' AS authorization, point_of_sale, number FROM fiscal_documents

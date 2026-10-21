@@ -10,6 +10,7 @@ import {
   readOfflineSeries,
   readRealTimeSeries,
 } from "./sqlite-fiscal-series";
+import { readLatestPreEmissionGateOutcome } from "./sqlite-pre-emission-gate";
 
 function sqliteFiscalEmissionModeReads(database: LocalDatabase): FiscalEmissionModeReads {
   return {
@@ -17,6 +18,7 @@ function sqliteFiscalEmissionModeReads(database: LocalDatabase): FiscalEmissionM
     realTimeSeries: () => readRealTimeSeries(database),
     offlineSeries: () => readOfflineSeries(database),
     offlineAuthorizationCodeOf: (fortnight) => readOfflineAuthorizationCodeOf(database, fortnight),
+    latestPreEmissionGateOutcome: () => readLatestPreEmissionGateOutcome(database),
   };
 }
 
