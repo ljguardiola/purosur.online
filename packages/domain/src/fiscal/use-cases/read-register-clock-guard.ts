@@ -5,7 +5,11 @@ import {
   clockCorrectionPeriodKey,
   clockLoweringsFor,
 } from "../model/clock-correction.js";
-import { isBeforeTaxAuthorityLastIssuedDay, isBehindClockMark } from "../model/register-clock.js";
+import {
+  isBeforeTaxAuthorityLastIssuedDay,
+  isBehindClockMark,
+  isInClockCorrectionLapse,
+} from "../model/register-clock.js";
 import type { RegisterClockGuardReader } from "./register-clock-guard-ports.js";
 
 export interface ClockGuardBlock {
@@ -50,8 +54,17 @@ export function readRegisterClockGuard(
   const marks = reader.clockMarks();
   const floor = reader.taxAuthorityFloor();
   const floorBehind =
-    floor !== null && isBeforeTaxAuthorityLastIssuedDay(reading, floor.lastIssuedOn) ? floor : null;
-  const isFloorOf = (pointOfSale: number) => floor !== null && floor.pointOfSale === pointOfSale;
+    floor !== null &&
+    isBeforeTaxAuthorityLastIssuedDay(reading, floor.lastIssuedOn) &&
+    !isInClockCorrectionLapse({
+      reading,
+      taxAuthorityLastIssuedOn: floor.lastIssuedOn,
+      latestCorrection: reader.latestClockCorrectionOf(floor.pointOfSale, floor.documentType),
+    })
+      ? floor
+      : null;
+  const isFloorOf = (pointOfSale: number) =>
+    floorBehind !== null && floorBehind.pointOfSale === pointOfSale;
 
   const blocks: ClockGuardBlock[] = marks
     .filter(
@@ -62,7 +75,7 @@ export function readRegisterClockGuard(
       pointOfSale,
       documentType,
       latestReading,
-      taxAuthorityLastIssuedOn: isFloorOf(pointOfSale) ? (floor?.lastIssuedOn ?? null) : null,
+      taxAuthorityLastIssuedOn: isFloorOf(pointOfSale) ? (floorBehind?.lastIssuedOn ?? null) : null,
     }));
   if (floorBehind !== null && !blocks.some(({ pointOfSale }) => isFloorOf(pointOfSale))) {
     blocks.push({

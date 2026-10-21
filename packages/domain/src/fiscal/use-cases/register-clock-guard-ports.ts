@@ -1,6 +1,7 @@
 import type { RoleAccess } from "../../permissions/index.js";
 import type { CashSessionStanding, ClockMark } from "../model/clock-correction.js";
 import type { FiscalDocumentType } from "../model/fiscal-rejection-standing.js";
+import type { ClockCorrectionReadings } from "../model/register-clock.js";
 
 export interface TaxAuthorityFloor {
   pointOfSale: number;
@@ -14,4 +15,8 @@ export interface RegisterClockGuardReader {
   taxAuthorityFloor(): TaxAuthorityFloor | null;
   cashSessionStanding(): CashSessionStanding;
   clockCorrectionRecordedIn(period: string): boolean;
+  latestClockCorrectionOf(
+    pointOfSale: number,
+    documentType: FiscalDocumentType,
+  ): ClockCorrectionReadings | null;
 }
