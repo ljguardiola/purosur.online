@@ -121,7 +121,12 @@ test("a cleared date asks for no change of the date", () => {
 test.each([
   ["no total", { total: "" }, "remedy", "total"],
   ["a total that is not an amount", { total: "mucho" }, "remedy", "total"],
-  ["no CUIT for a company", { buyerKind: "cuit", buyerCuit: "" }, "remedy", "buyer_document_number"],
+  [
+    "no CUIT for a company",
+    { buyerKind: "cuit", buyerCuit: "" },
+    "remedy",
+    "buyer_document_number",
+  ],
   [
     "a CUIT with letters",
     { buyerKind: "cuit", buyerCuit: "20-abc" },
@@ -129,14 +134,22 @@ test.each([
     "buyer_document_number",
   ],
   ["no tax status code", { buyerTaxStatusCode: "" }, "remedy", "buyer_tax_status_code"],
-  ["a tax status code with letters", { buyerTaxStatusCode: "cinco" }, "remedy", "buyer_tax_status_code"],
-] as const)("a printed correction with %s is refused by the contract, naming the field", (_case, overrides, first, field) => {
-  const result = rejectedDocumentRemedyBodySchema.safeParse(
-    remedyRequestFrom(valuesWith({ errorIn: "printed", ...overrides })),
-  );
+  [
+    "a tax status code with letters",
+    { buyerTaxStatusCode: "cinco" },
+    "remedy",
+    "buyer_tax_status_code",
+  ],
+] as const)(
+  "a printed correction with %s is refused by the contract, naming the field",
+  (_case, overrides, first, field) => {
+    const result = rejectedDocumentRemedyBodySchema.safeParse(
+      remedyRequestFrom(valuesWith({ errorIn: "printed", ...overrides })),
+    );
 
-  expect(result.error?.issues[0]?.path).toEqual([first, "correction", field]);
-});
+    expect(result.error?.issues[0]?.path).toEqual([first, "correction", field]);
+  },
+);
 
 test.each([
   { total: "", reason: "Ingresá el total del comprobante." },
@@ -168,7 +181,10 @@ test("asks to review the date the cloud refuses", () => {
 });
 
 test.each([
-  ["date_outside_fortnight", "Elegí una fecha dentro de la quincena del 1 al 15 de septiembre de 2026."],
+  [
+    "date_outside_fortnight",
+    "Elegí una fecha dentro de la quincena del 1 al 15 de septiembre de 2026.",
+  ],
   [
     "date_out_of_order",
     "La fecha no puede ser anterior a la del comprobante que le precede ni posterior a la del que le sigue.",
