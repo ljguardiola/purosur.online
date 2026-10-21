@@ -77,9 +77,10 @@ describe("restorationStanding", () => {
   });
 
   it("names the earliest pending step when a later one is pending too", () => {
-    expect(
-      restorationStanding(evidence({ enroll: "pending", replenish: "pending" })),
-    ).toEqual({ kind: "in_progress", step: "enroll" });
+    expect(restorationStanding(evidence({ enroll: "pending", replenish: "pending" }))).toEqual({
+      kind: "in_progress",
+      step: "enroll",
+    });
   });
 
   it("names the first pending delivered step for every combination of evidence", () => {
@@ -93,7 +94,8 @@ describe("restorationStanding", () => {
           replenish,
         };
         const firstPending = RESTORATION_STEPS.find(
-          (name) => name in combination && combination[name as keyof RestorationEvidence] === "pending",
+          (name) =>
+            name in combination && combination[name as keyof RestorationEvidence] === "pending",
         );
 
         expect(restorationStanding(combination)).toEqual(
