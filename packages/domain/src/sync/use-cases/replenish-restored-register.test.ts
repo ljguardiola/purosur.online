@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { A_CLOCK_CORRECTED_FACT } from "../model/test-support/synced-facts.js";
+import type { RestoredCreditNoteAnswer, SaleVoidCreditNote } from "../../fiscal/index.js";
+import type { SyncedFact } from "../model/synced-fact.js";
+import { A_CLOCK_CORRECTED_FACT, aVoidedSaleFact } from "../model/test-support/synced-facts.js";
 import { replenishRestoredRegister } from "./replenish-restored-register.js";
 import {
   aPage,
@@ -8,7 +10,10 @@ import {
   FakeRegisterReplenishmentFeed,
   FakeRegisterReplenishmentStore,
 } from "./test-support/fake-register-replenishment.js";
-import { anEvent } from "./test-support/fake-restored-register-replenishment.js";
+import {
+  anEvent,
+  aSaleVoidedEvent,
+} from "./test-support/fake-restored-register-replenishment.js";
 
 const PREDECESSOR = { deviceId: "device-old", lastAcknowledgedSeq: 52 };
 
@@ -18,6 +23,37 @@ function aRestoredRegister() {
   const decoder = new FakeRegisterReplenishmentDecoder();
   const run = () => replenishRestoredRegister({ feed, store, decoder });
   return { feed, store, decoder, run };
+}
+
+function aCreditNote(saleId: string, creditNoteId = `credit-note-${saleId}`): SaleVoidCreditNote {
+  return {
+    creditNoteId,
+    saleId,
+    total: 4800,
+    receiverTaxStatusCode: 5,
+    correctedVoucher: { voucherType: 11, pointOfSale: 7, number: 42 },
+  };
+}
+
+function anAuthorizedAnswer(creditNote: SaleVoidCreditNote): RestoredCreditNoteAnswer {
+  return {
+    saleId: creditNote.saleId,
+    creditNoteId: creditNote.creditNoteId,
+    answeredAt: new Date("2026-10-07T10:30:00.000Z"),
+    answer: {
+      kind: "authorized",
+      pointOfSale: 7,
+      number: 9,
+      issuedOn: "2026-10-07",
+      issuedAt: new Date("2026-10-07T10:29:00.000Z"),
+      authorizationCode: "74123456789012",
+      authorizationCodeDueOn: "2026-10-17",
+    },
+  };
+}
+
+function aVoidedSaleOf(creditNote: SaleVoidCreditNote | null, saleId: string): SyncedFact {
+  return { ...aVoidedSaleFact({ id: saleId }), creditNote };
 }
 
 describe("replenishRestoredRegister", () => {
@@ -274,6 +310,7 @@ describe("replenishRestoredRegister", () => {
       users: [[aUser("user-1")]],
       facts: [],
       appliedEventIds: [],
+      creditNoteAnswers: [],
     });
   });
 
@@ -322,5 +359,160 @@ describe("replenishRestoredRegister", () => {
 
     expect(outcome).toEqual({ kind: "replenished" });
     expect(store.state.facts).toHaveLength(1);
+  });
+
+  describe("the credit note of a voided sale", () => {
+    it("records the cloud's answer for the credit note the sale asked for, then the event", async () => {
+      const { feed, store, decoder, run } = aRestoredRegister();
+      const creditNote = aCreditNote("sale-1");
+      const answer = anAuthorizedAnswer(creditNote);
+      const event = aSaleVoidedEvent("device-old", 53, "sale-1");
+      decoder.facts.set(event.event.event_id, aVoidedSaleOf(creditNote, "sale-1"));
+      feed.answers = [aPage([event], null, [], [answer])];
+
+      const outcome = await run();
+
+      expect(outcome).toEqual({ kind: "replenished" });
+      expect(store.state.creditNoteAnswers).toEqual([{ creditNote, answer }]);
+      expect(store.state.appliedEventIds).toEqual([event.event.event_id]);
+    });
+
+    it("records no answer for a voided sale that asked for no credit note", async () => {
+      const { feed, store, decoder, run } = aRestoredRegister();
+      const event = aSaleVoidedEvent("device-old", 53, "sale-1");
+      decoder.facts.set(event.event.event_id, aVoidedSaleOf(null, "sale-1"));
+      feed.answers = [aPage([event], null, [], [anAuthorizedAnswer(aCreditNote("sale-1"))])];
+
+      const outcome = await run();
+
+      expect(outcome).toEqual({ kind: "replenished" });
+      expect(store.state.creditNoteAnswers).toEqual([]);
+    });
+
+    it("reports a voided sale the cloud holds no answer for as partially replenished, recording neither an answer nor its event", async () => {
+      const { feed, store, decoder, run } = aRestoredRegister();
+      const event = aSaleVoidedEvent("device-old", 53, "sale-1");
+      decoder.facts.set(event.event.event_id, aVoidedSaleOf(aCreditNote("sale-1"), "sale-1"));
+      feed.answers = [aPage([event])];
+
+      const outcome = await run();
+
+      expect(outcome).toEqual({ kind: "partially_replenished", unapplied: 1 });
+      expect(store.state.creditNoteAnswers).toEqual([]);
+      expect(store.state.appliedEventIds).toEqual([]);
+      expect(store.state.predecessor).toEqual(PREDECESSOR);
+    });
+
+    it("matches an answer by its credit note, not by the sale", async () => {
+      const { feed, store, decoder, run } = aRestoredRegister();
+      const event = aSaleVoidedEvent("device-old", 53, "sale-1");
+      decoder.facts.set(
+        event.event.event_id,
+        aVoidedSaleOf(aCreditNote("sale-1", "credit-note-asked"), "sale-1"),
+      );
+      const other = anAuthorizedAnswer(aCreditNote("sale-1", "credit-note-other"));
+      feed.answers = [aPage([event], null, [], [other])];
+
+      const outcome = await run();
+
+      expect(outcome).toEqual({ kind: "partially_replenished", unapplied: 1 });
+      expect(store.state.creditNoteAnswers).toEqual([]);
+    });
+
+    it("applies the rest of the page when one voided sale has no answer", async () => {
+      const { feed, store, decoder, run } = aRestoredRegister();
+      const answered = aCreditNote("sale-1");
+      const unanswered = aCreditNote("sale-2");
+      const events = [
+        aSaleVoidedEvent("device-old", 53, "sale-1"),
+        aSaleVoidedEvent("device-old", 54, "sale-2"),
+        anEvent("device-old", 55),
+      ];
+      decoder.facts.set(events[0]?.event.event_id ?? "", aVoidedSaleOf(answered, "sale-1"));
+      decoder.facts.set(events[1]?.event.event_id ?? "", aVoidedSaleOf(unanswered, "sale-2"));
+      feed.answers = [aPage(events, null, [], [anAuthorizedAnswer(answered)])];
+
+      const outcome = await run();
+
+      expect(outcome).toEqual({ kind: "partially_replenished", unapplied: 1 });
+      expect(store.state.creditNoteAnswers.map(({ creditNote }) => creditNote)).toEqual([answered]);
+      expect(store.state.appliedEventIds).toEqual([
+        events[0]?.event.event_id,
+        events[2]?.event.event_id,
+      ]);
+    });
+
+    it("takes each page's answers from that page, so every answer is used once across the pages", async () => {
+      const { feed, store, decoder, run } = aRestoredRegister();
+      const first = aCreditNote("sale-1");
+      const second = aCreditNote("sale-2");
+      const firstEvent = aSaleVoidedEvent("device-old", 53, "sale-1");
+      const secondEvent = aSaleVoidedEvent("device-old", 54, "sale-2");
+      decoder.facts.set(firstEvent.event.event_id, aVoidedSaleOf(first, "sale-1"));
+      decoder.facts.set(secondEvent.event.event_id, aVoidedSaleOf(second, "sale-2"));
+      feed.answers = [
+        aPage([firstEvent], { deviceId: "device-old", deviceSeq: 53 }, [], [
+          anAuthorizedAnswer(first),
+        ]),
+        aPage([secondEvent], null, [], [anAuthorizedAnswer(second)]),
+      ];
+
+      const outcome = await run();
+
+      expect(outcome).toEqual({ kind: "replenished" });
+      expect(store.state.creditNoteAnswers.map(({ creditNote }) => creditNote)).toEqual([
+        first,
+        second,
+      ]);
+    });
+
+    it("does not use an answer of one page for a sale of another", async () => {
+      const { feed, store, decoder, run } = aRestoredRegister();
+      const creditNote = aCreditNote("sale-2");
+      const firstEvent = anEvent("device-old", 53);
+      const secondEvent = aSaleVoidedEvent("device-old", 54, "sale-2");
+      decoder.facts.set(secondEvent.event.event_id, aVoidedSaleOf(creditNote, "sale-2"));
+      feed.answers = [
+        aPage([firstEvent], { deviceId: "device-old", deviceSeq: 53 }, [], [
+          anAuthorizedAnswer(creditNote),
+        ]),
+        aPage([secondEvent]),
+      ];
+
+      const outcome = await run();
+
+      expect(outcome).toEqual({ kind: "partially_replenished", unapplied: 1 });
+      expect(store.state.creditNoteAnswers).toEqual([]);
+    });
+
+    it("records the answer once the cloud holds it, when the call is repeated", async () => {
+      const { feed, store, decoder, run } = aRestoredRegister();
+      const creditNote = aCreditNote("sale-1");
+      const event = aSaleVoidedEvent("device-old", 53, "sale-1");
+      decoder.facts.set(event.event.event_id, aVoidedSaleOf(creditNote, "sale-1"));
+      feed.answers = [
+        aPage([event]),
+        aPage([event], null, [], [anAuthorizedAnswer(creditNote)]),
+      ];
+      await run();
+
+      const outcome = await run();
+
+      expect(outcome).toEqual({ kind: "replenished" });
+      expect(store.state.creditNoteAnswers).toHaveLength(1);
+    });
+
+    it("leaves nothing of a page behind when recording a credit note answer fails", async () => {
+      const { feed, store, decoder, run } = aRestoredRegister();
+      const creditNote = aCreditNote("sale-1");
+      const event = aSaleVoidedEvent("device-old", 53, "sale-1");
+      decoder.facts.set(event.event.event_id, aVoidedSaleOf(creditNote, "sale-1"));
+      store.failAt = { operation: "recordCreditNoteAnswer" };
+      feed.answers = [aPage([event], null, [], [anAuthorizedAnswer(creditNote)])];
+
+      await expect(run()).rejects.toThrow("storage unavailable");
+
+      expect(store.state).toMatchObject({ facts: [], creditNoteAnswers: [], appliedEventIds: [] });
+    });
   });
 });
