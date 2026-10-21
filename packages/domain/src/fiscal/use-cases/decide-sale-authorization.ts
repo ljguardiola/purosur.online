@@ -47,13 +47,22 @@ export function decideSaleAuthorization(
     offlineAuthorizationCode: tx.offlineAuthorizationCodeOf(invoiceOwnFortnight(occurredAt)),
   });
   if (route.kind === "defer") {
-    recordDeferredSale((sale) => tx.routeSaleToDeferred(sale), ids, shortCodes, {
-      saleId,
-      occurredAt,
-      total,
-      reason: route.reason,
-      routedAt: decidedAt,
-    });
+    recordDeferredSale(
+      ({ sale, event }) => {
+        tx.routeSaleToDeferred(sale);
+        tx.appendOutboxEvent(event);
+      },
+      ids,
+      shortCodes,
+      {
+        saleId,
+        occurredAt,
+        total,
+        reason: route.reason,
+        routedAt: decidedAt,
+        origin: tx.originOfSale(saleId),
+      },
+    );
     return { kind: "deferred", reason: route.reason };
   }
   const fiscalDocumentId = ids.next();

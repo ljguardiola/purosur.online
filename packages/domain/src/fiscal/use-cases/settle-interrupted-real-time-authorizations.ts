@@ -17,7 +17,7 @@ export async function settleInterruptedRealTimeAuthorizations({
   const resolvedAt = clock.now();
   return documents.transaction((tx) => {
     const requesting = tx.requestingDocuments();
-    for (const { fiscalDocumentId, saleId, reservedAt, total } of requesting) {
+    for (const { fiscalDocumentId, saleId, origin, reservedAt, total } of requesting) {
       recordDeferredSale(
         (deferredSale) =>
           tx.resolve({ fiscalDocumentId, saleId, resolution, resolvedAt, deferredSale }),
@@ -29,6 +29,7 @@ export async function settleInterruptedRealTimeAuthorizations({
           total,
           reason: resolution.deferralReason,
           routedAt: resolvedAt,
+          origin,
         },
       );
     }

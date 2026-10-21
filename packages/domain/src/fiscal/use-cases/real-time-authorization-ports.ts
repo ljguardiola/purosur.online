@@ -1,13 +1,13 @@
 import type { Clock } from "../../shared/index.js";
 import type { PushedEvent } from "../../sync/index.js";
-import type { DeferredSale } from "../model/deferred-sale.js";
 import type { FacturaC } from "../model/pre-emission-gate.js";
 import type {
   RealTimeAuthorizationAnswer,
   RealTimeAuthorizationResolution,
 } from "../model/real-time-authorization.js";
 import type { ShortCodeRandomness } from "./deferred-sale-ports.js";
-import type { IdGenerator } from "./sale-authorization-ports.js";
+import type { DeferredSaleRecording } from "./record-deferred-sale.js";
+import type { IdGenerator, SaleOrigin } from "./sale-authorization-ports.js";
 
 export interface WaitingFiscalDocument {
   fiscalDocumentId: string;
@@ -21,6 +21,7 @@ export interface WaitingFiscalDocument {
 
 export interface RequestedFiscalDocument extends WaitingFiscalDocument {
   reservedAt: Date;
+  origin: SaleOrigin;
 }
 
 export interface RealTimeAuthorizationResolved {
@@ -28,7 +29,7 @@ export interface RealTimeAuthorizationResolved {
   saleId: string;
   resolution: RealTimeAuthorizationResolution;
   resolvedAt: Date;
-  deferredSale: DeferredSale | null;
+  deferredSale: DeferredSaleRecording | null;
 }
 
 export interface RealTimeFiscalDocuments {
