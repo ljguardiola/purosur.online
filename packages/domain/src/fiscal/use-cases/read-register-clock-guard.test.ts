@@ -115,7 +115,7 @@ describe("readRegisterClockGuard", () => {
           pointOfSale: 12,
           documentType: "factura_c",
           latestReading: REAL_TIME_MARK.reading,
-          taxAuthorityLastIssuedOn: null,
+          taxAuthorityLastIssuedOn: "2026-10-02",
         },
       ]);
     });
@@ -212,6 +212,18 @@ describe("readRegisterClockGuard", () => {
     const [block] = read({ floor, marks: [OFFLINE_MARK] }).blocks;
 
     expect(block?.taxAuthorityLastIssuedOn).toBeNull();
+  });
+
+  it("names the tax authority's day on the block of its point of sale's mark even when the day is not ahead of the reading", () => {
+    const floor = {
+      pointOfSale: 12,
+      documentType: "factura_c",
+      lastIssuedOn: "2026-09-30",
+    } as const;
+
+    const [block] = read({ floor, marks: [REAL_TIME_MARK] }).blocks;
+
+    expect(block?.taxAuthorityLastIssuedOn).toBe("2026-09-30");
   });
 
   it("reads the day of the reading in Argentina", () => {
