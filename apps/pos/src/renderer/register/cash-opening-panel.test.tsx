@@ -222,9 +222,7 @@ describe("CashOpeningPanel", () => {
     await submitFloat(screen, "100");
 
     await expect
-      .element(
-        screen.getByText("La caja se está restaurando: todavía no se puede abrir.").first(),
-      )
+      .element(screen.getByText("La caja se está restaurando: todavía no se puede abrir.").first())
       .toBeVisible();
     await expectNoAccessibilityViolations(screen.container);
   });

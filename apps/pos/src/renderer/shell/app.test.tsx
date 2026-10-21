@@ -657,9 +657,7 @@ describe("App", () => {
     postCoreStatus("up");
 
     await expect.element(screen.getByText(RESTORE_REQUIRED_TITLE)).toBeVisible();
-    await expect
-      .element(screen.getByRole("button", { name: "Dar de alta la caja" }))
-      .toBeVisible();
+    await expect.element(screen.getByRole("button", { name: "Dar de alta la caja" })).toBeVisible();
   });
 
   it("stays on the brand panel until the core answers the restoration standing", async () => {

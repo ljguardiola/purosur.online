@@ -78,7 +78,11 @@ describe("RestoreRequiredScreen", () => {
       return { kind: "enrolled" };
     };
     const screen = await render(
-      <RestoreRequiredScreen registerName="Caja 2" checkCode={checkingLikeTheCore} enroll={enroll} />,
+      <RestoreRequiredScreen
+        registerName="Caja 2"
+        checkCode={checkingLikeTheCore}
+        enroll={enroll}
+      />,
     );
 
     await userEvent.click(screen.getByRole("button", { name: "Dar de alta la caja" }));

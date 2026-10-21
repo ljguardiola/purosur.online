@@ -1136,7 +1136,10 @@ describe("the register's router", () => {
     const screen = await render(<RouterProvider router={router} />);
 
     await userEvent.click(screen.getByRole("button", { name: "Dar de alta la caja" }));
-    await userEvent.fill(screen.getByRole("textbox", { name: "Código de alta" }), "p4nx7kwe2qrt6mzd");
+    await userEvent.fill(
+      screen.getByRole("textbox", { name: "Código de alta" }),
+      "p4nx7kwe2qrt6mzd",
+    );
     await userEvent.click(screen.getByRole("button", { name: "Dar de alta" }));
 
     await expect.poll(() => enroll.mock.calls).toEqual([["p4nx7kwe2qrt6mzd"]]);
