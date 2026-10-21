@@ -6,6 +6,7 @@ import {
   isRefundPending,
   LATE_PAYMENT_REFUND_ORIGIN,
   latePaymentRefund,
+  type LatePaymentRefund,
   latePaymentRefundOfUnrecordedOrder,
   methodsCoveringRefundedSale,
   PLANNED_REFUND_STATES,
@@ -340,6 +341,39 @@ describe("methodsCoveringRefundedSale", () => {
         { method: "TRANSFER", state: "APPROVED" },
       ]),
     ).toEqual([]);
+  });
+});
+
+describe("LatePaymentRefund", () => {
+  it("names the Mercado Pago method the late payment was made with", () => {
+    expectTypeOf<LatePaymentRefund["method"]>().toEqualTypeOf<"QR" | "POINT">();
+  });
+
+  it("is given back for a Point payment as well as for a QR one", () => {
+    expectTypeOf(latePaymentRefund).parameter(0).toExtend<{ method: "QR" | "POINT" }>();
+    expect(
+      latePaymentRefund({
+        id: "pay-4",
+        method: "POINT",
+        provider: "MERCADOPAGO_POINT",
+        amount: 900,
+      }).method,
+    ).toBe("POINT");
+  });
+
+  it("refuses a payment that is not a Mercado Pago one", () => {
+    expectTypeOf<{
+      id: string;
+      method: "CASH";
+      provider: string;
+      amount: number;
+    }>().not.toExtend<Parameters<typeof latePaymentRefund>[0]>();
+    expectTypeOf<{
+      id: string;
+      method: "CASH";
+      provider: string;
+      amount: number;
+    }>().not.toExtend<Parameters<typeof latePaymentRefundOfUnrecordedOrder>[0]>();
   });
 });
 

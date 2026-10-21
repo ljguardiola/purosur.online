@@ -9,6 +9,33 @@ describe("AlertDetails", () => {
 });
 
 describe("OpenAlertInput", () => {
+  it("accepts the payment method a late payment was made with, for a late-payment refund alert", () => {
+    expectTypeOf<{
+      kind: "late_payment_refund";
+      scope: string;
+      locationId: string;
+      detail: { saleId: string; amount: number; providerOrderId: string | null; method: "POINT" };
+    }>().toExtend<OpenAlertInput>();
+  });
+
+  it("refuses a late-payment refund alert without the payment method", () => {
+    expectTypeOf<{
+      kind: "late_payment_refund";
+      scope: string;
+      locationId: string;
+      detail: { saleId: string; amount: number; providerOrderId: string | null };
+    }>().not.toExtend<OpenAlertInput>();
+  });
+
+  it("refuses a late-payment refund alert of a payment that is not a Mercado Pago one", () => {
+    expectTypeOf<{
+      kind: "late_payment_refund";
+      scope: string;
+      locationId: string;
+      detail: { saleId: string; amount: number; providerOrderId: string | null; method: "CASH" };
+    }>().not.toExtend<OpenAlertInput>();
+  });
+
   it("accepts the lots count and the window in days, with the branch, for a lots-expiring alert", () => {
     expectTypeOf<{
       kind: "lots_expiring";
