@@ -151,7 +151,7 @@ describe("configureRegisterOfflinePointOfSale", () => {
     expect(store.snapshot().registerPointsOfSale).toEqual(before);
   });
 
-  it("locks the register, its real-time setup, its offline setup and the number's claim, in that order, before it writes, in one transaction", async () => {
+  it("locks the register, its real-time setup, its offline setup and the number, its claim, in that order, before it writes, in one transaction", async () => {
     const store = storeWithRegisters();
 
     await configure(store);
@@ -160,6 +160,7 @@ describe("configureRegisterOfflinePointOfSale", () => {
       "lockBranchRegister",
       "lockRegisterPointOfSale",
       "lockRegisterOfflinePointOfSale",
+      "lockPointOfSale",
       "lockPointOfSaleClaim",
       "claimPointOfSale",
       "recordRegisterOfflinePointOfSale",
@@ -295,6 +296,7 @@ describe("configureRegisterOfflinePointOfSale", () => {
       "lockBranchRegister",
       "lockRegisterPointOfSale",
       "lockRegisterOfflinePointOfSale",
+      "lockPointOfSale",
       "lockPointOfSaleClaim",
     ]);
   });
@@ -352,6 +354,36 @@ describe("configureRegisterOfflinePointOfSale", () => {
     expect(outcome).toEqual({ kind: "configured", setup: { pointOfSaleNumber: 12, version: 3 } });
     expect(store.operationOrder).not.toContain("claimPointOfSale");
     expect(store.snapshot().pointOfSaleClaims).toEqual(claimsBefore);
+  });
+
+  it("locks the number being claimed before it reads its claim", async () => {
+    const store = storeWithRegisters();
+
+    await configure(store, { pointOfSaleNumber: 14 });
+
+    expect(store.lockedPointsOfSale).toEqual([14]);
+  });
+
+  it.each([
+    ["the register that held it before", "register-1"],
+    ["another register", "register-2"],
+  ])("refuses a retired number to %s, writing nothing", async (_case, registerId) => {
+    const store = storeWithRegisters();
+    store.seedPointOfSaleClaim({
+      pointOfSaleNumber: 12,
+      registerId: "register-1",
+      mechanism: "offline",
+    });
+    store.seedPointOfSaleRetirement({
+      pointOfSaleNumber: 12,
+      retiredAt: new Date("2026-09-20T12:00:00.000Z"),
+    });
+    const before = store.snapshot();
+
+    const outcome = await configure(store, { registerId });
+
+    expect(outcome).toEqual({ kind: "point_of_sale_taken" });
+    expect(store.snapshot()).toEqual(before);
   });
 
   it("keeps the number a register leaves claimed for it when it moves to a new one", async () => {

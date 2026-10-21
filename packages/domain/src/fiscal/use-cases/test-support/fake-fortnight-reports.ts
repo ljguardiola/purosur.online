@@ -37,6 +37,7 @@ export interface OfflinePointOfSaleOfRegister {
   pointOfSaleNumber: number;
   registerId: string;
   claimedAt: Date;
+  retiredAt?: Date;
 }
 
 function keyOf({ pointOfSaleNumber, fortnight }: FortnightReportKey): string {
@@ -162,11 +163,14 @@ export class FakeFortnightReportStore implements FortnightReportStore {
     this.operations.push("owedReports");
     return this.codes.kept.flatMap(({ code }) =>
       this.pointsOfSale
-        .filter(({ pointOfSaleNumber, claimedAt }) => {
+        .filter(({ pointOfSaleNumber, claimedAt, retiredAt }) => {
           const key = { pointOfSaleNumber, fortnight: code.fortnight };
           const listed = listsOwedPresentation(this.list.entries, key);
           return (
-            owesFortnightReport({ fortnight: code.fortnight, claimedAt, listed }, today) &&
+            owesFortnightReport(
+              { fortnight: code.fortnight, claimedAt, retiredAt, listed },
+              today,
+            ) &&
             isFortnightPresentationOwed({
               state: this.recordedReports.get(keyOf(key))?.state ?? null,
               listed,

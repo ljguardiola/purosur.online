@@ -200,6 +200,66 @@ describe("owesFortnightReport", () => {
   });
 });
 
+describe("owesFortnightReport of a retired point of sale", () => {
+  const claimedAt = new Date("2026-08-01T12:00:00.000Z");
+  const closesAt = "2026-09-16T03:00:00.000Z";
+  const owedRetiredAt = (retiredAt: string, listed = false) =>
+    owesFortnightReport(
+      { fortnight: FIRST_HALF, claimedAt, retiredAt: new Date(retiredAt), listed },
+      "2026-10-30",
+    );
+
+  it("still owes a fortnight that closed before the retirement", () => {
+    expect(owedRetiredAt("2026-09-20T12:00:00.000Z")).toBe(true);
+  });
+
+  it("still owes a fortnight that closed at the very instant of the retirement", () => {
+    expect(owedRetiredAt(closesAt)).toBe(true);
+  });
+
+  it("owes no fortnight that closes after the retirement", () => {
+    expect(owedRetiredAt("2026-09-16T02:59:59.999Z")).toBe(false);
+    expect(owedRetiredAt("2026-09-05T12:00:00.000Z")).toBe(false);
+  });
+
+  it("owes a fortnight the tax authority lists as owed even when it closes after the retirement", () => {
+    expect(owedRetiredAt("2026-09-05T12:00:00.000Z", true)).toBe(true);
+  });
+
+  it("owes nothing of a fortnight still running, listed or not", () => {
+    expect(
+      owesFortnightReport(
+        { fortnight: FIRST_HALF, claimedAt, retiredAt: new Date("2026-09-05T12:00:00.000Z") },
+        "2026-09-15",
+      ),
+    ).toBe(false);
+    expect(
+      owesFortnightReport(
+        {
+          fortnight: FIRST_HALF,
+          claimedAt,
+          retiredAt: new Date("2026-09-05T12:00:00.000Z"),
+          listed: true,
+        },
+        "2026-09-15",
+      ),
+    ).toBe(false);
+  });
+
+  it("owes no fortnight that closed before its claim, retired or not", () => {
+    expect(
+      owesFortnightReport(
+        {
+          fortnight: FIRST_HALF,
+          claimedAt: new Date("2026-09-18T12:00:00.000Z"),
+          retiredAt: new Date("2026-09-30T12:00:00.000Z"),
+        },
+        "2026-10-30",
+      ),
+    ).toBe(false);
+  });
+});
+
 describe("isFortnightReportOutstanding", () => {
   it.each([null, "blocked", "missing_document", "submitting", "refused"] as const)(
     "is outstanding with the stored state %s",

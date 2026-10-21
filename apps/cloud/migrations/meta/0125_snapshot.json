@@ -1,5 +1,5 @@
 {
-  "id": "7cc01fd9-a2ed-4c1f-839c-f64d9255fd02",
+  "id": "4da009c2-2ee2-4bf9-bf47-e9d9df4183c1",
   "prevId": "1040db6d-2e1b-40f0-9548-3e9ad2185f31",
   "version": "7",
   "dialect": "postgresql",
@@ -4466,6 +4466,57 @@
           "value": "\"offline_number_blocks\".\"first_number\" >= 1 and \"offline_number_blocks\".\"last_number\" >= \"offline_number_blocks\".\"first_number\""
         }
       },
+      "isRLSEnabled": false
+    },
+    "public.offline_point_of_sale_retirements": {
+      "name": "offline_point_of_sale_retirements",
+      "schema": "",
+      "columns": {
+        "point_of_sale_number": {
+          "name": "point_of_sale_number",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "retired_at": {
+          "name": "retired_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "retired_by": {
+          "name": "retired_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "offline_point_of_sale_retirements_point_of_sale_number_point_of_sale_claims_point_of_sale_number_fk": {
+          "name": "offline_point_of_sale_retirements_point_of_sale_number_point_of_sale_claims_point_of_sale_number_fk",
+          "tableFrom": "offline_point_of_sale_retirements",
+          "tableTo": "point_of_sale_claims",
+          "columnsFrom": ["point_of_sale_number"],
+          "columnsTo": ["point_of_sale_number"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "offline_point_of_sale_retirements_retired_by_users_id_fk": {
+          "name": "offline_point_of_sale_retirements_retired_by_users_id_fk",
+          "tableFrom": "offline_point_of_sale_retirements",
+          "tableTo": "users",
+          "columnsFrom": ["retired_by"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "public.offsite_dump_checks": {
@@ -9527,370 +9578,6 @@
         "stock_movements_assembly_batch_iff_assembly_check": {
           "name": "stock_movements_assembly_batch_iff_assembly_check",
           "value": "(\"stock_movements\".\"kind\" in ('assembly_out', 'assembly_in')) = (\"stock_movements\".\"assembly_batch_id\" is not null)"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.supplier_price_list_extraction_caps": {
-      "name": "supplier_price_list_extraction_caps",
-      "schema": "",
-      "columns": {
-        "location_id": {
-          "name": "location_id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "daily_cap": {
-          "name": "daily_cap",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "supplier_price_list_extraction_caps_location_id_locations_id_fk": {
-          "name": "supplier_price_list_extraction_caps_location_id_locations_id_fk",
-          "tableFrom": "supplier_price_list_extraction_caps",
-          "tableTo": "locations",
-          "columnsFrom": ["location_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "supplier_price_list_extraction_caps_cap_check": {
-          "name": "supplier_price_list_extraction_caps_cap_check",
-          "value": "\"supplier_price_list_extraction_caps\".\"daily_cap\" > 0"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.supplier_price_list_rows": {
-      "name": "supplier_price_list_rows",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "list_id": {
-          "name": "list_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "position": {
-          "name": "position",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "description": {
-          "name": "description",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "supplier_code": {
-          "name": "supplier_code",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "presentation": {
-          "name": "presentation",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "price_cents": {
-          "name": "price_cents",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "page": {
-          "name": "page",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "supplier_price_list_rows_list_id_supplier_price_lists_id_fk": {
-          "name": "supplier_price_list_rows_list_id_supplier_price_lists_id_fk",
-          "tableFrom": "supplier_price_list_rows",
-          "tableTo": "supplier_price_lists",
-          "columnsFrom": ["list_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "supplier_price_list_rows_list_position_key": {
-          "name": "supplier_price_list_rows_list_position_key",
-          "nullsNotDistinct": false,
-          "columns": ["list_id", "position"]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {
-        "supplier_price_list_rows_price_check": {
-          "name": "supplier_price_list_rows_price_check",
-          "value": "\"supplier_price_list_rows\".\"price_cents\" >= 0"
-        },
-        "supplier_price_list_rows_page_check": {
-          "name": "supplier_price_list_rows_page_check",
-          "value": "\"supplier_price_list_rows\".\"page\" > 0"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.supplier_price_lists": {
-      "name": "supplier_price_lists",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "supplier_id": {
-          "name": "supplier_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "location_id": {
-          "name": "location_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "source_kind": {
-          "name": "source_kind",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "file_name": {
-          "name": "file_name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "file_byte_size": {
-          "name": "file_byte_size",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "state": {
-          "name": "state",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "read_failure": {
-          "name": "read_failure",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "list_date": {
-          "name": "list_date",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "prices_include_vat": {
-          "name": "prices_include_vat",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "uploaded_at": {
-          "name": "uploaded_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "uploaded_by": {
-          "name": "uploaded_by",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "sent_at": {
-          "name": "sent_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "sent_on": {
-          "name": "sent_on",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "extracted_at": {
-          "name": "extracted_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "confirmed_at": {
-          "name": "confirmed_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "confirmed_by": {
-          "name": "confirmed_by",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "discarded_at": {
-          "name": "discarded_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "discarded_by": {
-          "name": "discarded_by",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "version": {
-          "name": "version",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 1
-        }
-      },
-      "indexes": {
-        "supplier_price_lists_location_sent_on_idx": {
-          "name": "supplier_price_lists_location_sent_on_idx",
-          "columns": [
-            {
-              "expression": "location_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "sent_on",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "supplier_price_lists_supplier_state_idx": {
-          "name": "supplier_price_lists_supplier_state_idx",
-          "columns": [
-            {
-              "expression": "supplier_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "state",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "supplier_price_lists_supplier_id_suppliers_id_fk": {
-          "name": "supplier_price_lists_supplier_id_suppliers_id_fk",
-          "tableFrom": "supplier_price_lists",
-          "tableTo": "suppliers",
-          "columnsFrom": ["supplier_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "supplier_price_lists_location_id_locations_id_fk": {
-          "name": "supplier_price_lists_location_id_locations_id_fk",
-          "tableFrom": "supplier_price_lists",
-          "tableTo": "locations",
-          "columnsFrom": ["location_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "supplier_price_lists_uploaded_by_users_id_fk": {
-          "name": "supplier_price_lists_uploaded_by_users_id_fk",
-          "tableFrom": "supplier_price_lists",
-          "tableTo": "users",
-          "columnsFrom": ["uploaded_by"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "supplier_price_lists_confirmed_by_users_id_fk": {
-          "name": "supplier_price_lists_confirmed_by_users_id_fk",
-          "tableFrom": "supplier_price_lists",
-          "tableTo": "users",
-          "columnsFrom": ["confirmed_by"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "supplier_price_lists_discarded_by_users_id_fk": {
-          "name": "supplier_price_lists_discarded_by_users_id_fk",
-          "tableFrom": "supplier_price_lists",
-          "tableTo": "users",
-          "columnsFrom": ["discarded_by"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "supplier_price_lists_source_kind_check": {
-          "name": "supplier_price_lists_source_kind_check",
-          "value": "\"supplier_price_lists\".\"source_kind\" in ('PDF')"
-        },
-        "supplier_price_lists_state_check": {
-          "name": "supplier_price_lists_state_check",
-          "value": "\"supplier_price_lists\".\"state\" in ('READING', 'READ_FAILED', 'EXTRACTED', 'REVIEWED', 'DISCARDED')"
-        },
-        "supplier_price_lists_read_failure_check": {
-          "name": "supplier_price_lists_read_failure_check",
-          "value": "\"supplier_price_lists\".\"read_failure\" is null or \"supplier_price_lists\".\"read_failure\" in ('unreadable_document', 'no_items_found', 'reading_unavailable', 'interrupted')"
         }
       },
       "isRLSEnabled": false
