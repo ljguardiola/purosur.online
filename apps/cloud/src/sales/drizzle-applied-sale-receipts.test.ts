@@ -270,7 +270,10 @@ describe("recording the print state of an applied sale's credit note", () => {
 
     await recordCreditNotePrintState({ saleId, printAttemptedAt: ATTEMPTED, printedAt: PRINTED });
 
-    expect(await creditNotePrintStateOf(saleId)).toMatchObject({ attempted: LATER, printed: LATER });
+    expect(await creditNotePrintStateOf(saleId)).toMatchObject({
+      attempted: LATER,
+      printed: LATER,
+    });
   });
 
   it("never takes a printed credit note back to unprinted when an attempt arrives late", async () => {
@@ -339,7 +342,9 @@ describe("recording the reprints of an applied sale's credit note", () => {
     const saleId = await appliedSale();
     await recordReprint({ saleId, document: "credit_note", orderNumber: 1 });
 
-    await expect(recordReprint({ saleId, document: "credit_note", orderNumber: 1 })).rejects.toThrow();
+    await expect(
+      recordReprint({ saleId, document: "credit_note", orderNumber: 1 }),
+    ).rejects.toThrow();
   });
 
   it("refuses the reprint of a credit note of a sale of another register and keeps none", async () => {

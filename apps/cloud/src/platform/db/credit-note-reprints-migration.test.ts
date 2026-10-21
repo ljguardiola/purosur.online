@@ -80,10 +80,16 @@ describe("the credit note reprints migration applied over a database that alread
 
     await insert("credit_note", 1);
 
-    await expect(insert("credit_note", 1)).rejects.toThrow(/sale_reprints_sale_id_document_order_number_pk/);
-    await expect(insert("sale_receipt", 2)).rejects.toThrow(/sale_reprints_sale_id_document_order_number_pk/);
+    await expect(insert("credit_note", 1)).rejects.toThrow(
+      /sale_reprints_sale_id_document_order_number_pk/,
+    );
+    await expect(insert("sale_receipt", 2)).rejects.toThrow(
+      /sale_reprints_sale_id_document_order_number_pk/,
+    );
     await expect(insert("invoice", 1)).rejects.toThrow(/sale_reprints_document_check/);
-    await expect(insert("credit_note", 0)).rejects.toThrow(/sale_reprints_order_number_positive_check/);
+    await expect(insert("credit_note", 0)).rejects.toThrow(
+      /sale_reprints_order_number_positive_check/,
+    );
   });
 
   it("holds the print state of a sale's credit note, none printed for the sales it already has", async () => {
