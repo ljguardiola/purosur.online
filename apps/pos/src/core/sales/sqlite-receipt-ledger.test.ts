@@ -231,7 +231,7 @@ describe("a receipt ledger's recorded reprints", () => {
   it("refuse a second reprint with the same order number", () => {
     insertCompletedSale("sale-1");
     const reprint = {
-      document: "sale_receipt",
+      document: "sale_receipt" as const,
       saleId: "sale-1",
       orderNumber: 1,
       requestedBy: "u1",

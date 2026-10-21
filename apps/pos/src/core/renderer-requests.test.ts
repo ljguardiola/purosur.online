@@ -285,6 +285,19 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
         saleChanges.push(["credit-note-print", saleId].join(" "));
         return { kind: "not_found" };
       },
+      reprintCreditNote: async (
+        request: ReprintSaleReceiptRequest,
+      ): Promise<ReprintSaleReceiptOutcome> => {
+        saleChanges.push(
+          [
+            "credit-note-reprint",
+            request.saleId,
+            request.reason,
+            request.authorization?.user_id ?? "alone",
+          ].join(" "),
+        );
+        return { kind: "busy" };
+      },
       reprintSaleReceipt: async (
         request: ReprintSaleReceiptRequest,
       ): Promise<ReprintSaleReceiptOutcome> => {
@@ -2838,6 +2851,19 @@ describe("answerRendererRequest", () => {
         "printing the credit note of a voided sale",
         "credit-note-print s1",
         "print-credit-note-result",
+      ],
+      [
+        "reprint-credit-note",
+        {
+          type: "reprint-credit-note",
+          sale_id: "s1",
+          reason: "se mojó",
+          authorization: { user_id: "u2", pin: "1234" },
+        } as const,
+        "reprintCreditNote",
+        "reprinting a credit note",
+        "credit-note-reprint s1 se mojó u2",
+        "reprint-credit-note-result",
       ],
       [
         "reprint-sale-receipt",
