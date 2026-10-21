@@ -1,5 +1,5 @@
 {
-  "id": "40336951-f8d7-4220-8647-748d3a0a93d4",
+  "id": "1040db6d-2e1b-40f0-9548-3e9ad2185f31",
   "prevId": "1b029c9a-0095-4d7b-89e4-6d522b4ee03e",
   "version": "7",
   "dialect": "postgresql",
@@ -4468,57 +4468,6 @@
       },
       "isRLSEnabled": false
     },
-    "public.offline_point_of_sale_retirements": {
-      "name": "offline_point_of_sale_retirements",
-      "schema": "",
-      "columns": {
-        "point_of_sale_number": {
-          "name": "point_of_sale_number",
-          "type": "integer",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "retired_at": {
-          "name": "retired_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "retired_by": {
-          "name": "retired_by",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "offline_point_of_sale_retirements_point_of_sale_number_point_of_sale_claims_point_of_sale_number_fk": {
-          "name": "offline_point_of_sale_retirements_point_of_sale_number_point_of_sale_claims_point_of_sale_number_fk",
-          "tableFrom": "offline_point_of_sale_retirements",
-          "tableTo": "point_of_sale_claims",
-          "columnsFrom": ["point_of_sale_number"],
-          "columnsTo": ["point_of_sale_number"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "offline_point_of_sale_retirements_retired_by_users_id_fk": {
-          "name": "offline_point_of_sale_retirements_retired_by_users_id_fk",
-          "tableFrom": "offline_point_of_sale_retirements",
-          "tableTo": "users",
-          "columnsFrom": ["retired_by"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
     "public.offsite_dump_checks": {
       "name": "offsite_dump_checks",
       "schema": "",
@@ -7760,6 +7709,13 @@
           "type": "integer",
           "primaryKey": false,
           "notNull": true
+        },
+        "last_device_seq": {
+          "name": "last_device_seq",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
         },
         "status": {
           "name": "status",

@@ -36,6 +36,7 @@ export async function insertEnrolledInstallation<TQueryResult extends PgQueryRes
   options: {
     now: Date;
     revokedAt?: Date;
+    enrolledAt?: Date;
     tokenIssuedAt?: Date;
     registerName?: string;
     existingRegisterId?: string;
@@ -56,7 +57,7 @@ export async function insertEnrolledInstallation<TQueryResult extends PgQueryRes
       tokenIssuedAt: options.tokenIssuedAt ?? aDayBefore,
       hostname: "CAJA-MOSTRADOR",
       windowsVersion: "Windows 11 Pro 10.0.26100",
-      enrolledAt: aDayBefore,
+      enrolledAt: options.enrolledAt ?? aDayBefore,
       revokedAt: options.revokedAt ?? null,
     })
     .returning({ id: registerInstallations.id });

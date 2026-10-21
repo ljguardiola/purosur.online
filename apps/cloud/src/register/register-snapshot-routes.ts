@@ -135,6 +135,7 @@ export function registerRegisterSnapshotRoutes<TQueryResult extends PgQueryResul
               size: body.size,
               sha256: body.sha256,
               keyVersion: body.key_version,
+              lastDeviceSeq: body.last_device_seq,
             },
           );
         } catch (error) {

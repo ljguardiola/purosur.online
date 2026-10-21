@@ -228,6 +228,9 @@ describe("alertDetailSchema", () => {
     expectTypeOf<WireDetail<"offsite_dump_unverified">>().toEqualTypeOf<
       AlertDetails["offsite_dump_unverified"]
     >();
+    expectTypeOf<WireDetail<"register_backup_overdue">>().toEqualTypeOf<
+      AlertDetails["register_backup_overdue"]
+    >();
     expectTypeOf<Omit<WireDetail<"lots_expiring">, "aboutViewerBranch">>().toEqualTypeOf<
       AlertDetails["lots_expiring"]
     >();
@@ -418,6 +421,10 @@ describe("alertDetailSchema", () => {
         actorId: "user-1",
         actorName: "Ada",
       },
+      register_backup_overdue: {
+        lastVerifiedGenerationAt: "2026-10-14T08:00:00.000Z",
+        firstChangeAt: "2026-10-14T09:15:00.000Z",
+      },
       fortnight_report_needs_regularization: {
         pointOfSaleNumber: 4,
         registerId: "register-1",
@@ -457,6 +464,16 @@ describe("alertDetailSchema", () => {
       const { [field]: _omitted, ...detail } = detailOf[kind] as Record<string, unknown>;
 
       expect(alertDetailSchema.safeParse({ ...base, kind, detail }).success).toBe(false);
+    });
+
+    it("accepts an overdue-backup alert of a register that never had a verified generation", () => {
+      const alert = {
+        ...base,
+        kind: "register_backup_overdue",
+        detail: { ...detailOf.register_backup_overdue, lastVerifiedGenerationAt: null },
+      };
+
+      expect(alertDetailSchema.safeParse(alert).data).toEqual(alert);
     });
 
     it.each([

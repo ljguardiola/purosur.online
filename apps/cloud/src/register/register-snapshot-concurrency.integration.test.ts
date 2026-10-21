@@ -97,6 +97,7 @@ describe("declaring one snapshot generation twice at once on a real Postgres thr
           size: 4096,
           sha256: "ab".repeat(32),
           keyVersion: 1,
+          lastDeviceSeq: 41,
         },
       );
 
