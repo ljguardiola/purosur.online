@@ -71,3 +71,9 @@ test("names the alert of a register that went more than an hour without a verifi
 test("names the alert of a register whose clock is off from the real time", () => {
   expect(alertKindLabel("clock_drift")).toBe("Reloj de la caja desajustado");
 });
+
+test("names the alert of a presentation whose document ARCA rejected", () => {
+  expect(alertKindLabel("fortnight_report_document_rejected")).toBe(
+    "Comprobante rechazado en un informe quincenal",
+  );
+});

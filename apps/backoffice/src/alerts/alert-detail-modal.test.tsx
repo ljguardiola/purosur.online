@@ -1,5 +1,11 @@
 import type { AlertDetail, PermissionCatalogWire } from "@purosur/contracts";
-import { formatCalendarDay, formatCalendarDayRange, formatPercent } from "@purosur/ui";
+import {
+  formatCalendarDay,
+  formatCalendarDayRange,
+  formatInvoiceNumber,
+  formatPercent,
+  formatPointOfSaleNumber,
+} from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { act } from "react";
 import { beforeEach, expect, test, vi } from "vitest";
@@ -2552,6 +2558,50 @@ test("tells the deadline of a fortnight's report was missed, that it is to be pu
     .element(screen.getByText("No se cierra sola: se cierra a mano después de revisarla."))
     .toBeVisible();
   await expect.element(screen.getByText("Crítica")).toBeVisible();
+  await expectNoAccessibilityViolations(document.body);
+});
+
+function rejectedDocumentAlert(
+  detail: Partial<
+    Extract<AlertDetail, { kind: "fortnight_report_document_rejected" }>["detail"]
+  > = {},
+) {
+  const { deadline: _omitted, ...presentation } = REPORT_PRESENTATION;
+  return baseDetail({
+    kind: "fortnight_report_document_rejected",
+    level: "critical",
+    audience: "all",
+    scope: "4:2026-09-01:factura_c",
+    scopeDisplay: "4:2026-09-01:2026-09-15",
+    scopeKind: "pointOfSaleFortnight",
+    closing: "by_itself",
+    detail: { ...presentation, documentType: "factura_c", rejectedNumber: 298, ...detail },
+  });
+}
+
+test("tells which document ARCA rejected in which fortnight, that the ones behind it wait and where the remedy is applied", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(ok(rejectedDocumentAlert()));
+
+  const screen = await renderModal(services);
+
+  await expect
+    .element(
+      screen.getByText("Comprobante rechazado en un informe quincenal", { exact: true }),
+    )
+    .toBeVisible();
+  await expect
+    .element(
+      screen.getByText(
+        `ARCA rechazó el comprobante ${formatPointOfSaleNumber(4)}-${formatInvoiceNumber(298)} de la quincena ${REPORT_FORTNIGHT}. Los que le siguen quedan sin procesar hasta que se resuelva: en Puntos de venta se indica dónde está el error.`,
+        { exact: true },
+      ),
+    )
+    .toBeVisible();
+  await expect.element(screen.getByText("Crítica")).toBeVisible();
+  await expect
+    .element(screen.getByText(`Punto de venta 00004 · ${REPORT_FORTNIGHT}`, { exact: true }))
+    .toBeVisible();
   await expectNoAccessibilityViolations(document.body);
 });
 

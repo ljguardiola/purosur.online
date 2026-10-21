@@ -135,3 +135,9 @@ test("describes a register whose clock differs from the real time by more than a
     "La hora de una caja difiere en más de un minuto de la hora real",
   );
 });
+
+test("describes a presentation whose document ARCA rejected and that waits for its remedy", () => {
+  expect(alertKindDescription("fortnight_report_document_rejected")).toBe(
+    "ARCA rechazó un comprobante de una quincena y los que le siguen quedan sin procesar hasta que se corrija",
+  );
+});
