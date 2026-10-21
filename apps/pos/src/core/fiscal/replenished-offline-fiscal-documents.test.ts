@@ -176,4 +176,13 @@ describe("replenishing an offline fiscal document into a restored register", () 
     expect(documents()).toEqual([]);
     expect(clockMarks()).toEqual([]);
   });
+
+  it("answers applied for a document without its invoice that the snapshot already holds", () => {
+    applyReplenishedOfflineFiscalDocument(database, issued());
+    const before = { documents: documents(), marks: clockMarks() };
+
+    expect(applyReplenishedOfflineFiscalDocument(database, issued({}, false))).toBe("applied");
+
+    expect({ documents: documents(), marks: clockMarks() }).toEqual(before);
+  });
 });

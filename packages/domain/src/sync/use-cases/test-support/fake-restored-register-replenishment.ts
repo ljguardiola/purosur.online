@@ -1,9 +1,7 @@
 import type { PushedEvent } from "../../model/push-batch.js";
 import type {
   EventPosition,
-  PredecessorStanding,
   ReplenishedEvent,
-  ReplenishedUser,
   ReplenishmentPosition,
   RestoredRegisterReplenishment,
 } from "../restored-register-replenishment-ports.js";
@@ -24,18 +22,6 @@ export function anEvent(deviceId: string, deviceSeq: number): ReplenishedEvent {
   return { deviceId, event };
 }
 
-export function aUser(userId: string): ReplenishedUser {
-  return {
-    userId,
-    firstName: `Name of ${userId}`,
-    roleId: "role-1",
-    salt: "salt",
-    pinHash: "hash",
-    active: true,
-    version: 1,
-  };
-}
-
 export interface OwnEventsRead {
   registerId: string;
   position: ReplenishmentPosition;
@@ -44,27 +30,8 @@ export interface OwnEventsRead {
 }
 
 export class FakeRestoredRegisterReplenishment implements RestoredRegisterReplenishment {
-  standings = new Map<string, PredecessorStanding>();
   events: ReplenishedEvent[] = [];
-  users: ReplenishedUser[] = [];
   eventReads: OwnEventsRead[] = [];
-  userReads: string[] = [];
-  refusedCursorDeviceIds = new Set<string>();
-
-  async predecessorStanding(
-    registerId: string,
-    predecessorDeviceId: string,
-  ): Promise<PredecessorStanding> {
-    return this.standings.get(`${registerId}/${predecessorDeviceId}`) ?? "not_of_register";
-  }
-
-  async isReplenishmentCursor(
-    _registerId: string,
-    _predecessorDeviceId: string,
-    cursor: EventPosition,
-  ): Promise<boolean> {
-    return !this.refusedCursorDeviceIds.has(cursor.deviceId);
-  }
 
   async ownEventsAbove(
     registerId: string,
@@ -81,10 +48,5 @@ export class FakeRestoredRegisterReplenishment implements RestoredRegisterReplen
               deviceId === after.deviceId && event.device_seq === after.deviceSeq,
           );
     return this.events.slice(afterIndex + 1, afterIndex + 1 + limit);
-  }
-
-  async branchUsers(registerId: string): Promise<ReplenishedUser[]> {
-    this.userReads.push(registerId);
-    return this.users;
   }
 }

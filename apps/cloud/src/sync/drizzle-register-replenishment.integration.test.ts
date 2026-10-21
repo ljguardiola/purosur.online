@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import {
   drizzle,
   type PostgresJsDatabase,
@@ -7,15 +6,13 @@ import {
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
-  locations,
-  registerInstallations,
-  registers,
-  roles,
-  userPins,
-  userRoles,
-  users,
-} from "../platform/db/schema.js";
-import { issueDeviceToken } from "../register/device-token.js";
+  aRegisterRestoredTwice,
+  hoursAfter,
+  insertBranch,
+  insertInstallation,
+  insertRegister,
+  T0,
+} from "../register/test-support/restored-register-installations.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
@@ -27,78 +24,18 @@ let integrationDb: IntegrationDatabase;
 let sql: ReturnType<typeof postgres>;
 let db: PostgresJsDatabase<Record<string, never>>;
 let replenishment: DrizzleRegisterReplenishment<PostgresJsQueryResultHKT>;
-let roleId: string;
-
-const T0 = new Date("2026-09-01T10:00:00.000Z");
 
 beforeAll(async () => {
   integrationDb = await createIntegrationDatabase("register_replenishment");
   sql = postgres(integrationDb.databaseUrl, { max: 4 });
   db = drizzle(sql);
   replenishment = new DrizzleRegisterReplenishment(db);
-  const [role] = await db.select({ id: roles.id }).from(roles).limit(1);
-  if (!role) {
-    throw new Error("test setup: no role seeded");
-  }
-  roleId = role.id;
 }, 60_000);
 
 afterAll(async () => {
   await sql.end({ timeout: 1 });
   await integrationDb.close();
 });
-
-function hoursAfter(base: Date, hours: number): Date {
-  return new Date(base.getTime() + hours * 60 * 60 * 1000);
-}
-
-function idStartingWith(prefix: string): string {
-  return prefix + randomUUID().slice(prefix.length);
-}
-
-async function insertBranch(): Promise<string> {
-  const [location] = await db.insert(locations).values({}).returning({ id: locations.id });
-  if (!location) {
-    throw new Error("test setup: seeding the branch returned no row");
-  }
-  return location.id;
-}
-
-async function insertRegister(locationId: string): Promise<string> {
-  const [register] = await db
-    .insert(registers)
-    .values({ locationId, name: `Caja ${randomUUID()}` })
-    .returning({ id: registers.id });
-  if (!register) {
-    throw new Error("test setup: seeding the register returned no row");
-  }
-  return register.id;
-}
-
-async function insertInstallation(
-  registerId: string,
-  options: { id?: string; enrolledAt: Date; revokedAt?: Date },
-): Promise<string> {
-  const { lookupPrefix, tokenHash } = issueDeviceToken();
-  const [installation] = await db
-    .insert(registerInstallations)
-    .values({
-      ...(options.id !== undefined && { id: options.id }),
-      registerId,
-      tokenLookupPrefix: lookupPrefix,
-      tokenHash,
-      tokenIssuedAt: options.enrolledAt,
-      hostname: "CAJA-MOSTRADOR",
-      windowsVersion: "Windows 11 Pro 10.0.26100",
-      enrolledAt: options.enrolledAt,
-      revokedAt: options.revokedAt ?? null,
-    })
-    .returning({ id: registerInstallations.id });
-  if (!installation) {
-    throw new Error("test setup: seeding the installation returned no row");
-  }
-  return installation.id;
-}
 
 async function insertEvents(deviceId: string, seqs: number[]): Promise<void> {
   for (const deviceSeq of seqs) {
@@ -110,66 +47,9 @@ function positionsOf(events: { deviceId: string; event: { device_seq: number } }
   return events.map(({ deviceId, event }) => [deviceId, event.device_seq]);
 }
 
-async function aRegisterRestoredTwice() {
-  const registerId = await insertRegister(await insertBranch());
-  const predecessor = await insertInstallation(registerId, {
-    id: idStartingWith("ffffffff"),
-    enrolledAt: T0,
-    revokedAt: hoursAfter(T0, 5),
-  });
-  const second = await insertInstallation(registerId, {
-    id: idStartingWith("00000000"),
-    enrolledAt: hoursAfter(T0, 2),
-    revokedAt: hoursAfter(T0, 6),
-  });
-  const third = await insertInstallation(registerId, { enrolledAt: hoursAfter(T0, 4) });
-  return { registerId, predecessor, second, third };
-}
-
-describe("the standing of a predecessor installation", () => {
-  it("is not of the register when no installation has the id", async () => {
-    const registerId = await insertRegister(await insertBranch());
-
-    expect(await replenishment.predecessorStanding(registerId, randomUUID())).toBe(
-      "not_of_register",
-    );
-  });
-
-  it("is not of the register when the installation belongs to another register", async () => {
-    const branchId = await insertBranch();
-    const registerId = await insertRegister(branchId);
-    const otherRegisterId = await insertRegister(branchId);
-    const otherInstallation = await insertInstallation(otherRegisterId, {
-      enrolledAt: T0,
-      revokedAt: hoursAfter(T0, 1),
-    });
-
-    expect(await replenishment.predecessorStanding(registerId, otherInstallation)).toBe(
-      "not_of_register",
-    );
-  });
-
-  it("is not revoked while the installation is still active", async () => {
-    const registerId = await insertRegister(await insertBranch());
-    const installation = await insertInstallation(registerId, { enrolledAt: T0 });
-
-    expect(await replenishment.predecessorStanding(registerId, installation)).toBe("not_revoked");
-  });
-
-  it("is revoked once the installation was revoked", async () => {
-    const registerId = await insertRegister(await insertBranch());
-    const installation = await insertInstallation(registerId, {
-      enrolledAt: T0,
-      revokedAt: hoursAfter(T0, 1),
-    });
-
-    expect(await replenishment.predecessorStanding(registerId, installation)).toBe("revoked");
-  });
-});
-
 describe("the events of a register above a predecessor position", () => {
   it("holds the predecessor's events above the last acknowledged sequence, whatever their state", async () => {
-    const { registerId, predecessor } = await aRegisterRestoredTwice();
+    const { registerId, predecessor } = await aRegisterRestoredTwice(db);
     await insertEvents(predecessor, [1, 2, 3]);
     await insertInboxEvent(db, predecessor, { deviceSeq: 4, appliedAt: T0 });
     await insertInboxEvent(db, predecessor, {
@@ -192,7 +72,7 @@ describe("the events of a register above a predecessor position", () => {
   });
 
   it("holds every event of the installations enrolled after the predecessor, in enrollment order and then sequence", async () => {
-    const { registerId, predecessor, second, third } = await aRegisterRestoredTwice();
+    const { registerId, predecessor, second, third } = await aRegisterRestoredTwice(db);
     await insertEvents(predecessor, [1, 2]);
     await insertEvents(third, [2, 1]);
     await insertEvents(second, [3, 1]);
@@ -214,13 +94,13 @@ describe("the events of a register above a predecessor position", () => {
   });
 
   it("leaves out the events of installations enrolled before the predecessor and of other registers", async () => {
-    const { registerId, predecessor, second } = await aRegisterRestoredTwice();
-    const earlier = await insertInstallation(registerId, {
+    const { registerId, predecessor, second } = await aRegisterRestoredTwice(db);
+    const earlier = await insertInstallation(db, registerId, {
       enrolledAt: hoursAfter(T0, -3),
       revokedAt: hoursAfter(T0, -2),
     });
-    const otherRegisterId = await insertRegister(await insertBranch());
-    const ofAnotherRegister = await insertInstallation(otherRegisterId, {
+    const otherRegisterId = await insertRegister(db, await insertBranch(db));
+    const ofAnotherRegister = await insertInstallation(db, otherRegisterId, {
       enrolledAt: hoursAfter(T0, 3),
     });
     await insertEvents(earlier, [1]);
@@ -238,7 +118,7 @@ describe("the events of a register above a predecessor position", () => {
   });
 
   it("carries each event as the register pushed it", async () => {
-    const { registerId, predecessor } = await aRegisterRestoredTwice();
+    const { registerId, predecessor } = await aRegisterRestoredTwice(db);
     const eventId = await insertInboxEvent(db, predecessor, {
       deviceSeq: 1,
       aggregateType: "sale",
@@ -278,7 +158,7 @@ describe("the events of a register above a predecessor position", () => {
   });
 
   it("holds no more events than the limit", async () => {
-    const { registerId, predecessor } = await aRegisterRestoredTwice();
+    const { registerId, predecessor } = await aRegisterRestoredTwice(db);
     await insertEvents(predecessor, [1, 2, 3]);
 
     const events = await replenishment.ownEventsAbove(
@@ -295,7 +175,7 @@ describe("the events of a register above a predecessor position", () => {
   });
 
   it("continues strictly after an event, across installations", async () => {
-    const { registerId, predecessor, second, third } = await aRegisterRestoredTwice();
+    const { registerId, predecessor, second, third } = await aRegisterRestoredTwice(db);
     await insertEvents(predecessor, [1, 2]);
     await insertEvents(second, [1, 2]);
     await insertEvents(third, [1]);
@@ -322,96 +202,5 @@ describe("the events of a register above a predecessor position", () => {
       [second, 1],
       [second, 2],
     ]);
-  });
-});
-
-describe("whether a cursor belongs to a replenishment", () => {
-  it("holds for the predecessor and for installations enrolled after it", async () => {
-    const { registerId, predecessor, second } = await aRegisterRestoredTwice();
-
-    for (const deviceId of [predecessor, second]) {
-      expect(
-        await replenishment.isReplenishmentCursor(registerId, predecessor, {
-          deviceId,
-          deviceSeq: 1,
-        }),
-      ).toBe(true);
-    }
-  });
-
-  it("does not hold for an installation that does not exist, belongs to another register, or was enrolled before the predecessor", async () => {
-    const { registerId, predecessor } = await aRegisterRestoredTwice();
-    const earlier = await insertInstallation(registerId, {
-      enrolledAt: hoursAfter(T0, -3),
-      revokedAt: hoursAfter(T0, -2),
-    });
-    const ofAnotherRegister = await insertInstallation(await insertRegister(await insertBranch()), {
-      enrolledAt: hoursAfter(T0, 3),
-    });
-
-    for (const deviceId of [randomUUID(), earlier, ofAnotherRegister]) {
-      expect(
-        await replenishment.isReplenishmentCursor(registerId, predecessor, {
-          deviceId,
-          deviceSeq: 1,
-        }),
-      ).toBe(false);
-    }
-  });
-});
-
-describe("the users of a register's branch", () => {
-  async function insertUser(
-    locationId: string,
-    firstName: string,
-    options: { active?: boolean; pin?: { salt: string; hash: string } } = {},
-  ): Promise<string> {
-    const [user] = await db
-      .insert(users)
-      .values({
-        firstName,
-        email: `${randomUUID()}@example.com`,
-        locationId,
-        active: options.active ?? true,
-      })
-      .returning({ id: users.id });
-    if (!user) {
-      throw new Error("test setup: seeding the user returned no row");
-    }
-    await db.insert(userRoles).values({ userId: user.id, roleId });
-    if (options.pin) {
-      await db.insert(userPins).values({ userId: user.id, ...options.pin, setAt: T0 });
-    }
-    return user.id;
-  }
-
-  it("holds each user of the branch with the salt and digest of the PIN, and none of another branch", async () => {
-    const branchId = await insertBranch();
-    const registerId = await insertRegister(branchId);
-    const ana = await insertUser(branchId, "Ana", { pin: { salt: "c2FsdA", hash: "aGFzaA" } });
-    const beto = await insertUser(branchId, "Beto", { active: false });
-    await insertUser(await insertBranch(), "Carla", { pin: { salt: "s", hash: "h" } });
-
-    const branchUsers = await replenishment.branchUsers(registerId);
-
-    expect(branchUsers).toHaveLength(2);
-    expect(branchUsers.find(({ userId }) => userId === ana)).toEqual({
-      userId: ana,
-      firstName: "Ana",
-      roleId,
-      salt: "c2FsdA",
-      pinHash: "aGFzaA",
-      active: true,
-      version: 1,
-    });
-    expect(branchUsers.find(({ userId }) => userId === beto)).toEqual({
-      userId: beto,
-      firstName: "Beto",
-      roleId,
-      salt: null,
-      pinHash: null,
-      active: false,
-      version: 1,
-    });
   });
 });

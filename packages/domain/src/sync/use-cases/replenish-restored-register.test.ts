@@ -3,11 +3,12 @@ import { A_CLOCK_CORRECTED_FACT } from "../model/test-support/synced-facts.js";
 import { replenishRestoredRegister } from "./replenish-restored-register.js";
 import {
   aPage,
+  aUser,
   FakeRegisterReplenishmentDecoder,
   FakeRegisterReplenishmentFeed,
   FakeRegisterReplenishmentStore,
 } from "./test-support/fake-register-replenishment.js";
-import { anEvent, aUser } from "./test-support/fake-restored-register-replenishment.js";
+import { anEvent } from "./test-support/fake-restored-register-replenishment.js";
 
 const PREDECESSOR = { deviceId: "device-old", lastAcknowledgedSeq: 52 };
 
@@ -61,30 +62,21 @@ describe("replenishRestoredRegister", () => {
     expect(store.state.predecessor).toBeUndefined();
   });
 
-  it("applies the page's users before its events", async () => {
+  it("applies the page's users in their own local transaction before its events", async () => {
     const { feed, store, run } = aRestoredRegister();
     const users = [aUser("user-1"), aUser("user-2")];
     const order: string[] = [];
-    const transaction = store.transaction.bind(store);
-    store.transaction = (work) =>
-      transaction((tx) =>
-        work({
-          ...tx,
-          applyUsers: async (applied) => {
-            order.push("users");
-            await tx.applyUsers(applied);
-          },
-          applyFact: async (fact, source) => {
-            order.push("event");
-            return tx.applyFact(fact, source);
-          },
-        }),
-      );
+    const applyUsers = store.applyUsers.bind(store);
+    store.applyUsers = async (applied) => {
+      order.push(`users after ${store.transactions} event transactions`);
+      await applyUsers(applied);
+    };
     feed.answers = [aPage([anEvent("device-old", 53)], null, users)];
 
     await run();
 
-    expect(order).toEqual(["users", "event"]);
+    expect(order).toEqual(["users after 0 event transactions"]);
+    expect(store.transactions).toBe(1);
     expect(store.state.users).toEqual([users]);
   });
 
@@ -191,8 +183,18 @@ describe("replenishRestoredRegister", () => {
       reason: "no schema reads sale_completed version 99",
     });
     expect(store.transactions).toBe(0);
-    expect(store.state).toMatchObject({ users: [], facts: [], appliedEventIds: [] });
+    expect(store.state).toMatchObject({ facts: [], appliedEventIds: [] });
     expect(store.state.predecessor).toEqual(PREDECESSOR);
+  });
+
+  it("keeps the users of a page holding an event that cannot be decoded", async () => {
+    const { feed, store, decoder, run } = aRestoredRegister();
+    decoder.unreadable.set("event-device-old-53", "garbled");
+    feed.answers = [aPage([anEvent("device-old", 53)], null, [aUser("user-1")])];
+
+    await run();
+
+    expect(store.state.users).toEqual([[aUser("user-1")]]);
   });
 
   it("keeps the pages applied before the one that cannot be decoded", async () => {
@@ -258,7 +260,7 @@ describe("replenishRestoredRegister", () => {
     ]);
   });
 
-  it("leaves nothing of a page behind when applying one of its events fails", async () => {
+  it("leaves none of a page's events behind, but its users, when applying one of its events fails", async () => {
     const { feed, store, run } = aRestoredRegister();
     store.failAt = { operation: "applyFact", eventId: "event-device-old-54" };
     feed.answers = [
@@ -269,10 +271,21 @@ describe("replenishRestoredRegister", () => {
 
     expect(store.state).toEqual({
       predecessor: PREDECESSOR,
-      users: [],
+      users: [[aUser("user-1")]],
       facts: [],
       appliedEventIds: [],
     });
+  });
+
+  it("applies none of a page's events when writing its users fails", async () => {
+    const { feed, store, run } = aRestoredRegister();
+    store.failAt = { operation: "applyUsers" };
+    feed.answers = [aPage([anEvent("device-old", 53)], null, [aUser("user-1")])];
+
+    await expect(run()).rejects.toThrow("storage unavailable");
+
+    expect(store.transactions).toBe(0);
+    expect(store.state).toMatchObject({ users: [], facts: [], appliedEventIds: [] });
   });
 
   it("leaves nothing of a page behind when recording an applied event fails", async () => {

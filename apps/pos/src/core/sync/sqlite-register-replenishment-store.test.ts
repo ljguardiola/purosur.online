@@ -9,7 +9,8 @@ import {
   aCompletedSaleFact,
   aVoidedSaleFact,
 } from "@purosur/domain/sync/test-support";
-import type { ReplenishedUser, SyncedFact } from "@purosur/domain/sync/use-cases";
+import type { SyncedFact } from "@purosur/domain/sync/use-cases";
+import type { ReplenishedUser } from "@purosur/domain/users/use-cases";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { derivePinVerifier } from "../credentials/pin-verifier";
 import type { LocalDatabase } from "../platform/local-database";
@@ -120,7 +121,7 @@ describe("the register's store for replenishing a restored register", () => {
 
   describe("the users", () => {
     it("lets a cashier of the cloud's list sign in with their PIN, derived with this installation's pepper", async () => {
-      await store.transaction((tx) => tx.applyUsers([aUser()]));
+      await store.applyUsers([aUser()]);
 
       expect(await signInWith("1234")).toMatchObject({ kind: "signed_in" });
       expect(
@@ -129,24 +130,24 @@ describe("the register's store for replenishing a restored register", () => {
     });
 
     it("refuses a wrong PIN", async () => {
-      await store.transaction((tx) => tx.applyUsers([aUser()]));
+      await store.applyUsers([aUser()]);
 
       expect(await signInWith("9999")).toMatchObject({ kind: "wrong_pin" });
     });
 
     it("derives the verifier of a user the snapshot already holds at the same version, whose verifier it lost", async () => {
-      await store.transaction((tx) => tx.applyUsers([aUser()]));
+      await store.applyUsers([aUser()]);
       database.exec("DELETE FROM pin_verifiers");
 
-      await store.transaction((tx) => tx.applyUsers([aUser()]));
+      await store.applyUsers([aUser()]);
 
       expect(await signInWith("1234")).toMatchObject({ kind: "signed_in" });
     });
 
     it("never overwrites a user with an older version of themselves", async () => {
-      await store.transaction((tx) => tx.applyUsers([aUser({ version: 5, firstName: "Ana B" })]));
+      await store.applyUsers([aUser({ version: 5, firstName: "Ana B" })]);
 
-      await store.transaction((tx) => tx.applyUsers([aUser({ version: 2, firstName: "Ana A" })]));
+      await store.applyUsers([aUser({ version: 2, firstName: "Ana A" })]);
 
       expect(database.prepare("SELECT first_name, version FROM users").get()).toEqual({
         first_name: "Ana B",
@@ -155,18 +156,29 @@ describe("the register's store for replenishing a restored register", () => {
     });
 
     it("holds no verifier for a user who has no PIN", async () => {
-      await store.transaction((tx) =>
-        tx.applyUsers([aUser({ userId: "user-2", pinHash: null, salt: null })]),
-      );
+      await store.applyUsers([aUser({ userId: "user-2", pinHash: null, salt: null })]);
 
       expect(count("users")).toBe(1);
       expect(count("pin_verifiers")).toBe(0);
     });
 
     it("keeps an inactive user from signing in", async () => {
-      await store.transaction((tx) => tx.applyUsers([aUser({ active: false })]));
+      await store.applyUsers([aUser({ active: false })]);
 
       expect(await signInWith("1234")).not.toMatchObject({ kind: "signed_in" });
+    });
+
+    it("writes none of the users when one of them cannot be written", async () => {
+      database.exec(
+        `CREATE TRIGGER refuse_user_2 BEFORE INSERT ON users WHEN NEW.id = 'user-2'
+         BEGIN SELECT RAISE(ABORT, 'storage unavailable'); END;`,
+      );
+
+      await expect(store.applyUsers([aUser(), aUser({ userId: "user-2" })])).rejects.toThrow(
+        "storage unavailable",
+      );
+
+      expect(count("users") + count("pin_verifiers")).toBe(0);
     });
   });
 
@@ -403,23 +415,20 @@ describe("the register's store for replenishing a restored register", () => {
     it("leaves nothing behind when it fails", async () => {
       await expect(
         store.transaction(async (tx) => {
-          await tx.applyUsers([aUser()]);
           await tx.applyFact(aCompletedSaleFact({ id: "sale-1" }), SOURCE);
           await tx.recordEventApplied("event-1");
           throw new Error("storage unavailable");
         }),
       ).rejects.toThrow("storage unavailable");
 
-      expect(count("users") + count("sales") + count("replenished_events")).toBe(0);
+      expect(count("sales") + count("replenished_events")).toBe(0);
     });
 
     it("keeps what it did when it succeeds", async () => {
       await store.transaction(async (tx) => {
-        await tx.applyUsers([aUser()]);
         await tx.recordEventApplied("event-1");
       });
 
-      expect(count("users")).toBe(1);
       expect(count("replenished_events")).toBe(1);
     });
   });

@@ -1,3 +1,4 @@
+import type { ReplenishedUser } from "../../../users/index.js";
 import type { SyncedFact } from "../../model/synced-fact.js";
 import { A_SESSION_OPENED_FACT } from "../../model/test-support/synced-facts.js";
 import type {
@@ -11,11 +12,7 @@ import type {
   ReplenishedEventSource,
   ReplenishmentPage,
 } from "../register-replenishment-ports.js";
-import type {
-  EventPosition,
-  ReplenishedEvent,
-  ReplenishedUser,
-} from "../restored-register-replenishment-ports.js";
+import type { EventPosition, ReplenishedEvent } from "../restored-register-replenishment-ports.js";
 
 interface AppliedFact {
   fact: SyncedFact;
@@ -55,6 +52,18 @@ export function aPage(
   return { kind: "page", page };
 }
 
+export function aUser(userId: string): ReplenishedUser {
+  return {
+    userId,
+    firstName: `Name of ${userId}`,
+    roleId: "role-1",
+    salt: "salt",
+    pinHash: "hash",
+    active: true,
+    version: 1,
+  };
+}
+
 export class FakeRegisterReplenishmentDecoder implements RegisterReplenishmentDecoder {
   unreadable = new Map<string, string>();
   facts = new Map<string, SyncedFact>();
@@ -91,6 +100,13 @@ export class FakeRegisterReplenishmentStore implements RegisterReplenishmentStor
     return this.state.predecessor;
   }
 
+  async applyUsers(users: readonly ReplenishedUser[]): Promise<void> {
+    if (this.failAt?.operation === "applyUsers") {
+      throw new Error("storage unavailable");
+    }
+    this.state.users.push(structuredClone([...users]));
+  }
+
   async transaction<TOutcome>(
     work: (tx: RegisterReplenishmentTransaction) => Promise<TOutcome>,
   ): Promise<TOutcome> {
@@ -102,10 +118,6 @@ export class FakeRegisterReplenishmentStore implements RegisterReplenishmentStor
       }
     };
     const tx: RegisterReplenishmentTransaction = {
-      applyUsers: async (users) => {
-        failIf("applyUsers");
-        working.users.push(structuredClone([...users]));
-      },
       eventApplied: async (eventId) => working.appliedEventIds.includes(eventId),
       applyFact: async (fact, source): Promise<ReplenishedEventApplication> => {
         failIf("applyFact", source.eventId);
