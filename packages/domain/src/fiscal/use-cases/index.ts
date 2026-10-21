@@ -242,6 +242,7 @@ export type {
   OfflineDocumentReportCall,
   OfflineDocumentsOfFortnight,
   OwedFortnightReport,
+  RecordedDocumentTypeReport,
   RecordedFortnightReport,
   RegisterEventStreams,
   TaxAuthorityNoMovementDeclarations,
@@ -393,6 +394,18 @@ export type {
   RegularizeOrphanAuthorizationOutcome,
 } from "./regularize-orphan-authorization.js";
 export { regularizeOrphanAuthorization } from "./regularize-orphan-authorization.js";
+export type {
+  RemedyRejectedDocumentInput,
+  RemedyRejectedDocumentOutcome,
+} from "./remedy-rejected-document.js";
+export { remedyRejectedDocument } from "./remedy-rejected-document.js";
+export type {
+  RejectedDocumentRemedyAudit,
+  RejectedDocumentRemedyRecord,
+  RemedyRejectedDocumentPorts,
+  RemedyRejectedDocumentStore,
+  RemedyRejectedDocumentStoreTransaction,
+} from "./remedy-rejected-document-ports.js";
 export type {
   RenewWsaaTokenInput,
   RenewWsaaTokenOutcome,

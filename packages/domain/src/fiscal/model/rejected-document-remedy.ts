@@ -63,6 +63,10 @@ interface CorrectableDocument extends PresentedValues {
   correction: OfflineDocumentCorrection | null;
 }
 
+export interface PresentableOfflineDocument extends CorrectableDocument {
+  id: string;
+}
+
 export interface RejectedDocumentRejection {
   state: DocumentTypeReportState;
   rejectedNumber: number | null;

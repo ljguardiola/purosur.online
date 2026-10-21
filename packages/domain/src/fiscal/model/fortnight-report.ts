@@ -1,5 +1,12 @@
 import { argentinaInstant, shiftCalendarDay } from "../../shared/index.js";
+import type { TaxAuthorityRejection } from "./fiscal-rejection-standing.js";
 import type { Fortnight } from "./offline-authorization-code.js";
+import {
+  awaitsRemedy,
+  type PresentableOfflineDocument,
+  presentedOfflineDocument,
+  type RecordedRemedy,
+} from "./rejected-document-remedy.js";
 
 export type FortnightReportState =
   | "blocked"
@@ -161,13 +168,52 @@ export function documentTypePresentationState(
   return fortnightState === "blocked" ? "blocked" : null;
 }
 
+export type RejectedDocumentRemedyState = "awaiting_remedy" | "awaiting_resend";
+
+export interface RejectedDocumentOfPresentation {
+  number: number;
+  unprocessed: number;
+  documentId: string;
+  issuedOn: string;
+  total: number;
+  buyerDocumentType: number;
+  buyerDocumentNumber: number;
+  buyerTaxStatusCode: number;
+  rejections: TaxAuthorityRejection[];
+  remedy: RejectedDocumentRemedyState;
+}
+
 export interface FortnightPresentationRow<TDocumentType extends string> {
   documentType: TDocumentType | null;
   movement: FortnightReportMovement | null;
   state: FortnightPresentationState | null;
   refusal: FortnightPresentationRefusal | null;
   documentCount: number;
-  rejectedDocument: { number: number; unprocessed: number } | null;
+  rejectedDocument: RejectedDocumentOfPresentation | null;
+}
+
+function rejectedDocumentOf<TDocumentType extends string>(
+  report: PresentationDocumentReport<TDocumentType> | undefined,
+  documents: PresentationDocument<TDocumentType>[],
+): RejectedDocumentOfPresentation | null {
+  const rejectedNumber = report?.state === "refused" ? report.rejectedNumber : null;
+  const rejected = documents.find(({ number }) => number === rejectedNumber);
+  if (report === undefined || rejectedNumber === null || rejected === undefined) {
+    return null;
+  }
+  const presented = presentedOfflineDocument(rejected);
+  return {
+    number: rejectedNumber,
+    unprocessed: documents.filter(({ number }) => number > rejectedNumber).length,
+    documentId: presented.id,
+    issuedOn: presented.issuedOn,
+    total: presented.total,
+    buyerDocumentType: presented.buyerDocumentType,
+    buyerDocumentNumber: presented.buyerDocumentNumber,
+    buyerTaxStatusCode: presented.buyerTaxStatusCode,
+    rejections: report.rejections,
+    remedy: awaitsRemedy(report, report.remedy) ? "awaiting_remedy" : "awaiting_resend",
+  };
 }
 
 function documentTypeRefusal(
@@ -183,6 +229,20 @@ function documentTypeRefusal(
     : "whole";
 }
 
+export interface PresentationDocumentReport<TDocumentType extends string> {
+  documentType: TDocumentType;
+  state: DocumentTypeReportState;
+  reportedThrough: number;
+  rejectedNumber: number | null;
+  lastAttemptAt: Date | null;
+  rejections: TaxAuthorityRejection[];
+  remedy: RecordedRemedy | null;
+}
+
+type PresentationDocument<TDocumentType extends string> = PresentableOfflineDocument & {
+  documentType: TDocumentType;
+};
+
 export function fortnightPresentationRows<TDocumentType extends string>({
   state,
   movement,
@@ -192,13 +252,8 @@ export function fortnightPresentationRows<TDocumentType extends string>({
 }: {
   state: FortnightReportState | null;
   movement: FortnightReportMovement | null;
-  documents: { documentType: TDocumentType; number: number }[];
-  documentReports: {
-    documentType: TDocumentType;
-    state: DocumentTypeReportState;
-    reportedThrough: number;
-    rejectedNumber: number | null;
-  }[];
+  documents: PresentationDocument<TDocumentType>[];
+  documentReports: PresentationDocumentReport<TDocumentType>[];
   listedAsOwed?: boolean;
 }): FortnightPresentationRow<TDocumentType>[] {
   return presentationRowsOf({ state, movement, documents, documentReports }).map((row) =>
@@ -214,13 +269,8 @@ function presentationRowsOf<TDocumentType extends string>({
 }: {
   state: FortnightReportState | null;
   movement: FortnightReportMovement | null;
-  documents: { documentType: TDocumentType; number: number }[];
-  documentReports: {
-    documentType: TDocumentType;
-    state: DocumentTypeReportState;
-    reportedThrough: number;
-    rejectedNumber: number | null;
-  }[];
+  documents: PresentationDocument<TDocumentType>[];
+  documentReports: PresentationDocumentReport<TDocumentType>[];
 }): FortnightPresentationRow<TDocumentType>[] {
   if (state === "needs_regularization" || documents.length === 0) {
     return [
@@ -238,7 +288,6 @@ function presentationRowsOf<TDocumentType extends string>({
     const report = documentReports.find(
       ({ documentType }) => documentType === presentation.documentType,
     );
-    const rejectedNumber = report?.state === "refused" ? report.rejectedNumber : null;
     const numbers = presentation.documents.map(({ number }) => number);
     return {
       documentType: presentation.documentType,
@@ -246,14 +295,7 @@ function presentationRowsOf<TDocumentType extends string>({
       state: documentTypePresentationState(report?.state ?? null, state),
       refusal: documentTypeRefusal(report?.state ?? null, numbers, report?.reportedThrough ?? null),
       documentCount: presentation.documents.length,
-      rejectedDocument:
-        rejectedNumber === null
-          ? null
-          : {
-              number: rejectedNumber,
-              unprocessed: presentation.documents.filter(({ number }) => number > rejectedNumber)
-                .length,
-            },
+      rejectedDocument: rejectedDocumentOf(report, presentation.documents),
     };
   });
 }
