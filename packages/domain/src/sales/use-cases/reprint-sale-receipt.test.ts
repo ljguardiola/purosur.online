@@ -14,7 +14,11 @@ import {
   voidedSale,
 } from "./test-support/receipt-rig.js";
 
-const INPUT = { document: "sale_receipt", saleId: "sale-1", reason: "el cliente la perdió" };
+const INPUT = {
+  document: "sale_receipt",
+  saleId: "sale-1",
+  reason: "el cliente la perdió",
+} as const;
 
 describe("reprintSaleReceipt", () => {
   it("returns the authority's refusal before reading any data or sending", async () => {
