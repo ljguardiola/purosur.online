@@ -2,6 +2,7 @@ import type {
   FortnightPresentationRefusal,
   FortnightPresentationState,
   FortnightReportMovement,
+  RejectedDocumentRemedyState,
 } from "@purosur/domain";
 import { describe, expect, expectTypeOf, it } from "vitest";
 import {
@@ -75,10 +76,32 @@ describe("fortnightPresentationListSchema", () => {
     expect(fortnightPresentationListSchema.parse(list)).toEqual(list);
   });
 
-  it("reads the document the tax authority rejected and how many were left unprocessed", () => {
+  const rejectedDocument = {
+    number: 17,
+    unprocessed: 0,
+    document_id: "7c1f4d52-0f7e-4a53-9f4c-2a7d2f1c9b11",
+    issued_on: "2026-09-03",
+    total: 125000,
+    buyer_document_type: 99,
+    buyer_document_number: 0,
+    buyer_tax_status_code: 5,
+    rejections: [{ code: 10016, message: "Fecha de comprobante fuera de rango" }],
+    remedy: "awaiting_remedy",
+  };
+
+  it("reads the document the tax authority rejected as presented, with its rejections and how many were left unprocessed", () => {
     const list = [
-      { ...presentation, rejected_document: { number: 17, unprocessed: 0 } },
-      { ...presentation, rejected_document: { number: 3, unprocessed: 12 } },
+      { ...presentation, rejected_document: rejectedDocument },
+      {
+        ...presentation,
+        rejected_document: {
+          ...rejectedDocument,
+          number: 3,
+          unprocessed: 12,
+          rejections: [],
+          remedy: "awaiting_resend",
+        },
+      },
     ];
 
     expect(fortnightPresentationListSchema.parse(list)).toEqual(list);
@@ -101,9 +124,11 @@ describe("fortnightPresentationListSchema", () => {
     { refusal: "half" },
     { document_count: -1 },
     { document_count: 1.5 },
-    { rejected_document: { number: 0, unprocessed: 0 } },
-    { rejected_document: { number: 17, unprocessed: -1 } },
-    { rejected_document: { number: 17 } },
+    { rejected_document: { ...rejectedDocument, number: 0 } },
+    { rejected_document: { ...rejectedDocument, unprocessed: -1 } },
+    { rejected_document: { number: 17, unprocessed: 0 } },
+    { rejected_document: { ...rejectedDocument, remedy: "remedied" } },
+    { rejected_document: { ...rejectedDocument, rejections: [{ code: "x", message: "m" }] } },
   ])("refuses the presentation fields %j", (fields) => {
     expect(
       fortnightPresentationListSchema.safeParse([{ ...presentation, ...fields }]).success,
@@ -124,6 +149,9 @@ describe("fortnightPresentationListSchema", () => {
     expectTypeOf<
       FortnightPresentationBody["movement"]
     >().toEqualTypeOf<FortnightReportMovement | null>();
+    expectTypeOf<
+      NonNullable<FortnightPresentationBody["rejected_document"]>["remedy"]
+    >().toEqualTypeOf<RejectedDocumentRemedyState>();
     expectTypeOf<
       FortnightPresentationBody["refusal"]
     >().toEqualTypeOf<FortnightPresentationRefusal | null>();

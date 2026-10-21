@@ -244,6 +244,9 @@ describe("alertDetailSchema", () => {
     expectTypeOf<
       Omit<WireDetail<"fortnight_report_needs_regularization">, "registerName">
     >().toEqualTypeOf<AlertDetails["fortnight_report_needs_regularization"]>();
+    expectTypeOf<
+      Omit<WireDetail<"fortnight_report_document_rejected">, "registerName">
+    >().toEqualTypeOf<AlertDetails["fortnight_report_document_rejected"]>();
     expectTypeOf<WireDetail<"fortnight_report_owed_elsewhere">>().toEqualTypeOf<
       AlertDetails["fortnight_report_owed_elsewhere"]
     >();
@@ -437,6 +440,15 @@ describe("alertDetailSchema", () => {
         fortnightStart: "2026-09-01",
         fortnightEnd: "2026-09-15",
       },
+      fortnight_report_document_rejected: {
+        pointOfSaleNumber: 4,
+        registerId: "register-1",
+        registerName: "Caja 1",
+        fortnightStart: "2026-09-01",
+        fortnightEnd: "2026-09-15",
+        documentType: "factura_c",
+        rejectedNumber: 17,
+      },
       fortnight_report_owed_elsewhere: {
         pointOfSaleNumber: 9,
         fortnightStart: "2026-09-01",
@@ -566,6 +578,7 @@ describe("alertDetailSchema", () => {
       "fortnight_report_pending",
       "fortnight_report_overdue",
       "fortnight_report_needs_regularization",
+      "fortnight_report_document_rejected",
     ] as const)("accepts a %s alert that names no register", (kind) => {
       const { registerName: _omitted, ...detail } = detailOf[kind];
       const alert = { ...base, kind, detail };
