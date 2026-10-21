@@ -9,7 +9,9 @@ import type {
   MercadoPagoChargeOrderReading,
   MercadoPagoChargeOrders,
 } from "@purosur/domain/payments/use-cases";
+import { restorePendingIn } from "../../backups/restore-pending";
 import type { LocalDatabase } from "../../platform/local-database";
+import { SqliteRestorationEvidence } from "../../register/sqlite-restoration-evidence";
 import { scanProductFor } from "../../sales/sale-requests";
 import { createActionGate } from "../../sessions/action-gate";
 import type { SignedInPerson } from "../../sessions/signed-in-person";
@@ -86,6 +88,7 @@ export function chargeRequestDeps(
     orders,
     readOutboxChainKey: async () => CHARGE_CHAIN_KEY,
     now: () => CHARGE_NOW,
+    restoration: new SqliteRestorationEvidence(database, restorePendingIn(undefined)),
     ids: {
       next: () => {
         count += 1;
@@ -154,6 +157,7 @@ export async function openSaleOfTwoYerbas(register: ChargeRegister): Promise<str
     newSalesStoppedByDisk: () => false,
     localDatabaseDamaged: () => false,
     newSalesStoppedByBattery: () => false,
+    restoration: new SqliteRestorationEvidence(register.database, restorePendingIn(undefined)),
   };
   await scanProductFor(saleDeps, "111");
   const outcome = await scanProductFor(saleDeps, "111");
