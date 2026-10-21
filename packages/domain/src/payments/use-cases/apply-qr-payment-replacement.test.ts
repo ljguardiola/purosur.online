@@ -1,5 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
 import { applyQrPaymentReplacement } from "./apply-qr-payment-replacement.js";
+import type { ReplacedQrPayment } from "./qr-payment-replacement-store.js";
 import {
   FakeQrPaymentReplacements,
   type FakeRecordedQrPayment,
@@ -32,9 +33,13 @@ function apply(store: FakeQrPaymentReplacements, replacement = REPLACEMENT) {
 }
 
 describe("applyQrPaymentReplacement", () => {
+  it("only replaces a payment made through Mercado Pago", () => {
+    expectTypeOf<ReplacedQrPayment["method"]>().toEqualTypeOf<"QR" | "POINT">();
+  });
+
   it("marks a payment the provider had already approved as replaced and opens its pending refund task by the payment's own channel, in one transaction", async () => {
     const store = new FakeQrPaymentReplacements([
-      payment({ state: "APPROVED", method: "TRANSFER", provider: "SOME_PROVIDER", amount: 4100 }),
+      payment({ state: "APPROVED", method: "POINT", provider: "SOME_PROVIDER", amount: 4100 }),
     ]);
 
     const outcome = await apply(store);
@@ -45,7 +50,7 @@ describe("applyQrPaymentReplacement", () => {
       {
         refund: {
           paymentId: "transaction-1",
-          method: "TRANSFER",
+          method: "POINT",
           provider: "SOME_PROVIDER",
           amount: 4100,
           state: "PENDING",
