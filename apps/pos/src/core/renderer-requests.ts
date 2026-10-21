@@ -174,6 +174,9 @@ export interface RendererRequestDeps {
   receiptPrintStatus: ((saleId: string) => Promise<ReceiptPrintStatusOutcome>) | undefined;
   printOriginalReceipt: ((saleId: string) => Promise<PrintOriginalReceiptOutcome>) | undefined;
   printCreditNote: ((saleId: string) => Promise<PrintCreditNoteOutcome>) | undefined;
+  reprintCreditNote:
+    | ((request: ReprintSaleReceiptRequest) => Promise<ReprintSaleReceiptOutcome>)
+    | undefined;
   reprintSaleReceipt:
     | ((request: ReprintSaleReceiptRequest) => Promise<ReprintSaleReceiptOutcome>)
     | undefined;
@@ -925,6 +928,24 @@ export async function answerRendererRequest(
           deps,
           "printing the credit note of a voided sale",
           printCreditNote && (() => printCreditNote(message.sale_id)),
+        ),
+      };
+    }
+    case "reprint-credit-note": {
+      const { reprintCreditNote } = deps;
+      return {
+        type: "reprint-credit-note-result",
+        request_id: message.request_id,
+        outcome: await attemptSaleChange(
+          deps,
+          "reprinting a credit note",
+          reprintCreditNote &&
+            (() =>
+              reprintCreditNote({
+                saleId: message.sale_id,
+                reason: message.reason,
+                authorization: message.authorization,
+              })),
         ),
       };
     }

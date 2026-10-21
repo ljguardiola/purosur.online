@@ -287,8 +287,8 @@ describe("reprinting the credit note of a voided sale from its history", () => {
     printer.becomeReady();
 
     expect(outcome).toEqual({ kind: "started", copy: { kind: "duplicate", order_number: 1 } });
-    const original = printoutOf(printer.handed[0] ?? new Uint8Array()).textLines;
-    const duplicate = printoutOf(printer.handed[1] ?? new Uint8Array()).textLines;
+    const original = printoutOf(printer.handed[0] ?? new Uint8Array()).text.split("\n");
+    const duplicate = printoutOf(printer.handed[1] ?? new Uint8Array()).text.split("\n");
     const legendAt = duplicate.indexOf("[bold]              COPIA DUPLICADA Nº 1[/bold]");
     expect(duplicate[legendAt - 1]).toContain("Cód. 013");
     expect(duplicate.filter((_line, index) => index !== legendAt)).toEqual(original);

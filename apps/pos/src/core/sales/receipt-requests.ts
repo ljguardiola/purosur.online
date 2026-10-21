@@ -1,11 +1,10 @@
 import type {
   Authorization,
   PrintOriginalReceiptOutcome,
-  ReceiptCopyShown,
   ReceiptPrintStatusOutcome,
   ReprintSaleReceiptOutcome,
 } from "@purosur/contracts";
-import type { ReceiptCopy } from "@purosur/domain";
+import type { PrintedDocumentKey, ReceiptCopy } from "@purosur/domain";
 import {
   type Clock,
   type IdGenerator,
@@ -26,6 +25,7 @@ import { escPosReceiptTemplate } from "./receipt-printer/escpos-receipt-template
 import { toWireComprobante } from "./sales-history-requests";
 import { SqliteReceiptLedger } from "./sqlite-receipt-ledger";
 import { SqliteRegisterSalesHistory } from "./sqlite-register-sales-history";
+import { toWireCopy } from "./wire-receipt-copy";
 
 export interface ReceiptRequestDeps {
   database: LocalDatabase;
@@ -62,8 +62,8 @@ type SellerRefusal = Extract<
   { kind: "not_signed_in" | "lacks_permission" }
 >;
 
-function toWireCopy(copy: ReceiptCopy): ReceiptCopyShown {
-  return copy.kind === "original" ? copy : { kind: "duplicate", order_number: copy.orderNumber };
+function jobKeyOf({ document, saleId }: PrintedDocumentKey): string {
+  return document === "credit_note" ? `credit-note:${saleId}` : saleId;
 }
 
 export async function receiptPrintStatusFor(
@@ -73,7 +73,10 @@ export async function receiptPrintStatusFor(
   if (signedInUserId() === undefined) {
     return { kind: "not_signed_in" };
   }
-  const delivery = receiptDeliveryOf({ ledger: new SqliteReceiptLedger(database) }, { saleId });
+  const delivery = receiptDeliveryOf(
+    { ledger: new SqliteReceiptLedger(database) },
+    { document: "sale_receipt", saleId },
+  );
   return delivery.kind === "not_found"
     ? delivery
     : {
@@ -107,18 +110,14 @@ function printingPorts<Refusal>(
   };
 }
 
-function copyAfterGrant(deps: ReceiptRequestDeps, saleId: string, started: Started): void {
-  const delivery = receiptDeliveryOf(
-    { ledger: new SqliteReceiptLedger(deps.database) },
-    { saleId },
-  );
+function copyAfterGrant(deps: ReceiptRequestDeps, key: PrintedDocumentKey, started: Started): void {
+  const delivery = receiptDeliveryOf({ ledger: new SqliteReceiptLedger(deps.database) }, key);
   started.copy = delivery.kind === "found" ? delivery.nextCopy : undefined;
 }
 
 function signedSellerAuthority(
   deps: ReceiptRequestDeps,
-  saleId: string,
-  started: Started,
+  onGrant: () => void,
 ): OperationAuthority<ReceiptPrintGrant, SellerRefusal> {
   return {
     async authorize(): Promise<OperationAuthorization<ReceiptPrintGrant, SellerRefusal>> {
@@ -126,7 +125,7 @@ function signedSellerAuthority(
       if (guarded.kind !== "performed") {
         return { kind: "refused", refusal: guarded };
       }
-      copyAfterGrant(deps, saleId, started);
+      onGrant();
       return {
         kind: "granted",
         grant: { actorId: guarded.result.signedInUserId, authorizedBy: undefined },
@@ -139,42 +138,47 @@ export async function printCompletedSaleReceiptFor(
   deps: ReceiptRequestDeps,
   saleId: string,
 ): Promise<void> {
+  const key = { document: "sale_receipt", saleId } as const;
   const chainKey = await deps.readOutboxChainKey();
-  const started: Started = { copy: undefined };
   await deps.jobs.start(
-    saleId,
+    jobKeyOf(key),
     ({ watch, printers }) =>
       printSaleReceipt(
         printingPorts(
           deps,
           chainKey,
-          signedSellerAuthority(deps, saleId, started),
+          signedSellerAuthority(deps, () => {}),
           printers(deps.printers),
         ),
-        { saleId },
+        key,
         watch,
       ),
     { unattended: true },
   );
 }
 
-export async function printOriginalReceiptFor(
+export async function printOriginalFor<Refusal extends PrintOriginalReceiptOutcome>(
   deps: ReceiptRequestDeps,
-  saleId: string,
+  key: PrintedDocumentKey,
+  authority: (onGrant: () => void) => OperationAuthority<ReceiptPrintGrant, Refusal>,
+  options?: { unattended: boolean },
 ): Promise<PrintOriginalReceiptOutcome> {
   const chainKey = await deps.readOutboxChainKey();
   const started: Started = { copy: undefined };
-  const start = await deps.jobs.start(saleId, ({ watch, printers }) =>
-    printOriginalReceipt(
-      printingPorts(
-        deps,
-        chainKey,
-        signedSellerAuthority(deps, saleId, started),
-        printers(deps.printers),
+  const start = await deps.jobs.start(
+    jobKeyOf(key),
+    ({ watch, printers }) =>
+      printOriginalReceipt(
+        printingPorts(
+          deps,
+          chainKey,
+          authority(() => copyAfterGrant(deps, key, started)),
+          printers(deps.printers),
+        ),
+        key,
+        watch,
       ),
-      { saleId },
-      watch,
-    ),
+    options,
   );
   switch (start.kind) {
     case "busy":
@@ -194,9 +198,19 @@ export async function printOriginalReceiptFor(
   }
 }
 
-export async function reprintSaleReceiptFor(
+export async function printOriginalReceiptFor(
   deps: ReceiptRequestDeps,
-  { saleId, reason, authorization }: ReprintSaleReceiptRequest,
+  saleId: string,
+): Promise<PrintOriginalReceiptOutcome> {
+  return printOriginalFor(deps, { document: "sale_receipt", saleId }, (onGrant) =>
+    signedSellerAuthority(deps, onGrant),
+  );
+}
+
+export async function reprintFor(
+  deps: ReceiptRequestDeps,
+  key: PrintedDocumentKey,
+  { reason, authorization }: Omit<ReprintSaleReceiptRequest, "saleId">,
 ): Promise<ReprintSaleReceiptOutcome> {
   const chainKey = await deps.readOutboxChainKey();
   const started: Started = { copy: undefined };
@@ -210,7 +224,7 @@ export async function reprintSaleReceiptFor(
       if (guarded.kind !== "performed") {
         return { kind: "refused", refusal: guarded };
       }
-      copyAfterGrant(deps, saleId, started);
+      copyAfterGrant(deps, key, started);
       return {
         kind: "granted",
         grant: {
@@ -220,10 +234,10 @@ export async function reprintSaleReceiptFor(
       };
     },
   };
-  const start = await deps.jobs.start(saleId, ({ watch, printers }) =>
+  const start = await deps.jobs.start(jobKeyOf(key), ({ watch, printers }) =>
     reprintSaleReceipt(
       printingPorts(deps, chainKey, authority, printers(deps.printers)),
-      { saleId, reason },
+      { ...key, reason },
       watch,
     ),
   );
@@ -246,4 +260,11 @@ export async function reprintSaleReceiptFor(
         : outcome;
     }
   }
+}
+
+export async function reprintSaleReceiptFor(
+  deps: ReceiptRequestDeps,
+  { saleId, ...request }: ReprintSaleReceiptRequest,
+): Promise<ReprintSaleReceiptOutcome> {
+  return reprintFor(deps, { document: "sale_receipt", saleId }, request);
 }
