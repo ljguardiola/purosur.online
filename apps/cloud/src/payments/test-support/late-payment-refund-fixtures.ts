@@ -90,6 +90,7 @@ export async function aPendingLatePaymentRefund<TQueryResult extends PgQueryResu
         saleId: transaction.saleId,
         amount: refundAmount ?? transaction.amount,
         providerOrderId,
+        method: transaction.method,
       },
       openedAt,
     })

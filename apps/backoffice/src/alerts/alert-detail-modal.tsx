@@ -752,7 +752,11 @@ function AlertDescription({ alert }: { alert: AlertDetail }) {
   }
   if (alert.kind === "late_payment_refund") {
     return (
-      <LocalAlertExplanation kind={alert.kind} providerOrderId={alert.detail.providerOrderId} />
+      <LocalAlertExplanation
+        kind={alert.kind}
+        providerOrderId={alert.detail.providerOrderId}
+        method={alert.detail.method}
+      />
     );
   }
   if (alert.kind === "fiscal_emission_stopped") {

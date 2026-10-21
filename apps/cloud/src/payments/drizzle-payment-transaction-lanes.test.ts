@@ -529,6 +529,7 @@ describe("DrizzlePaymentTransactionLanes", () => {
             saleId: transaction.saleId,
             amount: transaction.amount,
             providerOrderId: null,
+            method: "QR",
           },
           openedAt: READ_AT,
         }),

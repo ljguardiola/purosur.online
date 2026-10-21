@@ -243,7 +243,7 @@ describe("DrizzleAlertReader listVisibleAlerts", () => {
     );
   });
 
-  it("reads the amount and the method of a refund left pending from the stored detail, and none of them for another kind", async () => {
+  it("reads the amount and the method of a late-payment refund or a refund left pending from the stored detail, and none of them for another kind", async () => {
     const forgottenId = await insertAlert({
       kind: "refund_task",
       audience: "local",
@@ -264,6 +264,11 @@ describe("DrizzleAlertReader listVisibleAlerts", () => {
       audience: "local",
       detail: { saleId: "sale-1", amount: 250_000, method: "QR" },
     });
+    const latePointId = await insertAlert({
+      kind: "late_payment_refund",
+      audience: "local",
+      detail: { saleId: "sale-2", amount: 90_000, method: "POINT" },
+    });
 
     const { alerts: listed } = await new DrizzleAlertReader(db).listVisibleAlerts(ALL, {}, 1);
     const refunds = new Map(
@@ -274,7 +279,8 @@ describe("DrizzleAlertReader listVisibleAlerts", () => {
       new Map([
         [forgottenId, [1_240_000, "TRANSFER"]],
         [otherId, [null, null]],
-        [lateId, [250_000, null]],
+        [lateId, [250_000, "QR"]],
+        [latePointId, [90_000, "POINT"]],
       ]),
     );
   });

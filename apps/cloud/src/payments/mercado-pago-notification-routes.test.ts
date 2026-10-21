@@ -383,7 +383,12 @@ describe("POST /payments/mercado-pago/notifications", () => {
           level: "warning",
           audience: "local",
           locationId: register?.locationId,
-          detail: { saleId: payment.saleId, amount: payment.amount, providerOrderId: null },
+          detail: {
+            saleId: payment.saleId,
+            amount: payment.amount,
+            providerOrderId: null,
+            method: "QR",
+          },
         }),
       ]);
     });
@@ -456,6 +461,7 @@ describe("POST /payments/mercado-pago/notifications", () => {
             saleId: payment.saleId,
             amount: PAID_ORDER.totalPaidAmount,
             providerOrderId: ORDER_ID,
+            method: "QR",
           },
         }),
       ]);

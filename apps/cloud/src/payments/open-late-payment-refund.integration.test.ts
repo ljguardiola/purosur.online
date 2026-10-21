@@ -11,7 +11,10 @@ import {
 } from "../test-support/integration-database.js";
 import { openLatePaymentRefund } from "./open-late-payment-refund.js";
 import { NOW } from "./test-support/fake-mercado-pago-orders.js";
-import { pendingTransaction } from "./test-support/payment-transaction-fixtures.js";
+import {
+  pendingPointTransaction,
+  pendingTransaction,
+} from "./test-support/payment-transaction-fixtures.js";
 
 let integrationDb: IntegrationDatabase;
 let sql: ReturnType<typeof postgres>;
@@ -38,6 +41,16 @@ async function aPayment() {
   return transaction;
 }
 
+async function aPointPayment() {
+  const { registerId } = await insertEnrolledInstallation(db, {
+    now: NOW,
+    registerName: `Caja ${randomUUID()}`,
+  });
+  const transaction = pendingPointTransaction(registerId, { providerOrderId: randomUUID() });
+  await db.insert(paymentTransactions).values(transaction);
+  return transaction;
+}
+
 async function refundsAndAlertsOf(paymentTransactionId: string) {
   const refunds = (await db.select().from(paymentRefunds)).filter(
     (refund) => refund.paymentTransactionId === paymentTransactionId,
@@ -59,7 +72,19 @@ describe("openLatePaymentRefund", () => {
     expect(refunds).toHaveLength(1);
     expect(refunds[0]?.providerOrderId).toBeNull();
     expect(openedAlerts.map(({ detail }) => detail)).toEqual([
-      { saleId: payment.saleId, amount: payment.amount, providerOrderId: null },
+      { saleId: payment.saleId, amount: payment.amount, providerOrderId: null, method: "QR" },
+    ]);
+  });
+
+  it("opens an alert that says the late payment was made at the Point", async () => {
+    const payment = await aPointPayment();
+
+    expect(await openLatePaymentRefund(db, latePaymentRefund(payment), NOW)).toBe("opened");
+
+    const { refunds, openedAlerts } = await refundsAndAlertsOf(payment.id);
+    expect(refunds.map(({ method }) => method)).toEqual(["POINT"]);
+    expect(openedAlerts.map(({ detail }) => detail)).toEqual([
+      { saleId: payment.saleId, amount: payment.amount, providerOrderId: null, method: "POINT" },
     ]);
   });
 
@@ -89,8 +114,8 @@ describe("openLatePaymentRefund", () => {
     ]);
     expect(openedAlerts.map(({ detail }) => detail)).toEqual(
       expect.arrayContaining([
-        { saleId: payment.saleId, amount: 4200, providerOrderId: "order-2" },
-        { saleId: payment.saleId, amount: 4300, providerOrderId: "order-3" },
+        { saleId: payment.saleId, amount: 4200, providerOrderId: "order-2", method: "QR" },
+        { saleId: payment.saleId, amount: 4300, providerOrderId: "order-3", method: "QR" },
       ]),
     );
     expect(openedAlerts).toHaveLength(2);

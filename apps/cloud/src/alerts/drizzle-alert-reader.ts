@@ -65,7 +65,7 @@ const SUMMARY_COLUMNS = {
   ),
   refundMethod: sql<
     string | null
-  >`case when ${alerts.kind} = 'refund_task' then ${alerts.detail}->>'method' end`,
+  >`case when ${alerts.kind} in ('late_payment_refund', 'refund_task') then ${alerts.detail}->>'method' end`,
 };
 
 // Storage keeps the kind as free text, so a row can carry a kind the catalog no longer lists.

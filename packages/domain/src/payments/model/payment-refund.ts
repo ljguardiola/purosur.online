@@ -1,5 +1,9 @@
-import type { AlertKind } from "../../alerts/index.js";
-import { hasApprovedPayment, PAYMENT_METHODS, type PaymentMethod } from "./payment.js";
+import {
+  hasApprovedPayment,
+  type MercadoPagoPaymentMethod,
+  PAYMENT_METHODS,
+  type PaymentMethod,
+} from "./payment.js";
 
 export interface RefundablePayment {
   id: string;
@@ -89,7 +93,7 @@ export function isRefundOriginDiscardable(origin: string): boolean {
   return origin === LATE_PAYMENT_REFUND_ORIGIN;
 }
 
-export function refundAlertKind(origin: string): AlertKind {
+export function refundAlertKind(origin: string): "late_payment_refund" | "refund_task" {
   return origin === LATE_PAYMENT_REFUND_ORIGIN ? "late_payment_refund" : "refund_task";
 }
 
@@ -98,13 +102,16 @@ export const REFUND_TASK_ORIGINS: readonly RefundOrigin[] = REFUND_ORIGINS.filte
 );
 
 export interface LatePaymentRefund extends PlannedRefund {
+  method: MercadoPagoPaymentMethod;
   origin: typeof LATE_PAYMENT_REFUND_ORIGIN;
   providerOrderId: string | null;
 }
 
-export function latePaymentRefund(
-  payment: Pick<RefundablePayment, "id" | "method" | "provider" | "amount">,
-): LatePaymentRefund {
+type LatePayment = Pick<RefundablePayment, "id" | "provider" | "amount"> & {
+  method: MercadoPagoPaymentMethod;
+};
+
+export function latePaymentRefund(payment: LatePayment): LatePaymentRefund {
   return {
     paymentId: payment.id,
     method: payment.method,
@@ -117,7 +124,7 @@ export function latePaymentRefund(
 }
 
 export function latePaymentRefundOfUnrecordedOrder(
-  payment: Pick<RefundablePayment, "id" | "method" | "provider" | "amount">,
+  payment: LatePayment,
   providerOrderId: string,
   paidAmount: number,
 ): LatePaymentRefund {

@@ -5,6 +5,7 @@ import {
   CREDIT_NOTE_C_DOCUMENT_TYPE,
   FACTURA_C_DOCUMENT_TYPE,
   FORTNIGHT_REPORT_PENDING_REASONS,
+  MERCADO_PAGO_PAYMENT_METHODS,
   OFFSITE_DUMP_UNVERIFIED_REASONS,
   PRE_EMISSION_GATE_FAILURE_REASONS,
   REJECTION_CLASSES,
@@ -183,6 +184,7 @@ const latePaymentRefundDetailSchema = z.object({
   saleId: z.string(),
   amount: z.int(),
   providerOrderId: z.string().nullable(),
+  method: z.enum(MERCADO_PAGO_PAYMENT_METHODS),
 });
 
 const refundTaskDetailSchema = z.object({

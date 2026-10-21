@@ -67,7 +67,7 @@ describe("openAlert", () => {
       kind: "late_payment_refund",
       scope: "refund-1",
       locationId: HERE,
-      detail: { saleId: "sale-1", amount: 2500, providerOrderId: null },
+      detail: { saleId: "sale-1", amount: 2500, providerOrderId: null, method: "QR" },
     });
 
     expect(store.snapshot().alerts[0]).toMatchObject({

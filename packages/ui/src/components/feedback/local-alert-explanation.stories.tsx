@@ -34,7 +34,7 @@ export const InstallationRevoked: Story = {
 };
 
 export const LatePaymentRefund: Story = {
-  args: { kind: "late_payment_refund", providerOrderId: null },
+  args: { kind: "late_payment_refund", providerOrderId: null, method: "QR" },
 };
 
 export const RefundTask: Story = {
@@ -50,7 +50,23 @@ export const ClockDrift: Story = {
 };
 
 export const LatePaymentRefundOfSecondOrder: Story = {
-  args: { kind: "late_payment_refund", providerOrderId: "ORD01JZ8K3M4N5P6Q7R8S9T0V" },
+  args: {
+    kind: "late_payment_refund",
+    providerOrderId: "ORD01JZ8K3M4N5P6Q7R8S9T0V",
+    method: "QR",
+  },
+};
+
+export const LatePaymentRefundOfPointPayment: Story = {
+  args: { kind: "late_payment_refund", providerOrderId: null, method: "POINT" },
+};
+
+export const LatePaymentRefundOfSecondOrderOfPointPayment: Story = {
+  args: {
+    kind: "late_payment_refund",
+    providerOrderId: "ORD01JZ8K3M4N5P6Q7R8S9T0V",
+    method: "POINT",
+  },
 };
 
 export const SalesDeniedShortOfDiskAtStartup: Story = {

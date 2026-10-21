@@ -1,4 +1,8 @@
-import type { LatePaymentRefund, PaymentMethod, PaymentTransactionState } from "@purosur/domain";
+import type {
+  LatePaymentRefund,
+  MercadoPagoPaymentMethod,
+  PaymentTransactionState,
+} from "@purosur/domain";
 import {
   applyQrPaymentReplacement,
   type LatePaymentRefundOpening,
@@ -51,7 +55,7 @@ class DrizzleQrPaymentReplacementTransaction<TQueryResult extends PgQueryResultH
     }
     return {
       ...row,
-      method: row.method as PaymentMethod,
+      method: row.method as MercadoPagoPaymentMethod,
       state: row.state as PaymentTransactionState,
     };
   }
