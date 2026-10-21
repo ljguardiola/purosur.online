@@ -5,11 +5,19 @@ export function RevokeEveryInstallationCallout({ onRevoke }: { onRevoke: () => v
   return (
     <HighlightedNotice
       tone="error"
+      layout="row"
       icon={<ShieldAlert />}
       title="Ante una sospecha de compromiso"
       description="Revoca todas las instalaciones en el momento y cambia sus claves. Cada caja se vuelve a dar de alta con un código nuevo."
       actions={
-        <Button variant="secondary" destructive icon={<ShieldOff />} onPress={onRevoke}>
+        <Button
+          variant="secondary"
+          destructive
+          size="small"
+          onTintedSurface
+          icon={<ShieldOff />}
+          onPress={onRevoke}
+        >
           Revocar todas las instalaciones
         </Button>
       }
