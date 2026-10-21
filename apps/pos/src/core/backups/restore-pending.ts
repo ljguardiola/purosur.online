@@ -3,7 +3,7 @@ import { join } from "node:path";
 
 const MARKER_FILE = "restore-pending";
 
-export interface BeginRestoreOptions {
+interface BeginRestoreOptions {
   setAsideLiveDatabase?: boolean;
 }
 

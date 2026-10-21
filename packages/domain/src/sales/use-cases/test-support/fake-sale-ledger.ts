@@ -35,7 +35,7 @@ import type {
   SellingSession,
 } from "../sale-ledger.js";
 
-export const RESTORATION_COMPLETED: RestorationEvidence = {
+const RESTORATION_COMPLETED: RestorationEvidence = {
   enroll: "completed",
   restore: "completed",
   reset_sync_identity: "completed",

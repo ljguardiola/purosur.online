@@ -17,12 +17,12 @@ export const UNDELIVERED_RESTORATION_STEPS = [
   "regularize_orphan_authorizations",
 ] as const satisfies readonly RestorationStep[];
 
-export type DeliveredRestorationStep = Exclude<
+type DeliveredRestorationStep = Exclude<
   RestorationStep,
   "open_session" | (typeof UNDELIVERED_RESTORATION_STEPS)[number]
 >;
 
-export type RestorationStepEvidence = "completed" | "pending";
+type RestorationStepEvidence = "completed" | "pending";
 
 export type RestorationEvidence = Readonly<
   Record<DeliveredRestorationStep, RestorationStepEvidence>
