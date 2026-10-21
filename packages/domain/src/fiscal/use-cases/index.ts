@@ -444,6 +444,11 @@ export type {
 } from "./request-voided-sale-credit-note.js";
 export { requestVoidedSaleCreditNote } from "./request-voided-sale-credit-note.js";
 export type {
+  RestoredRegisterCreditNoteAnswers,
+  SaleVoidCreditNoteOfRegister,
+  ServeRestoredRegisterCreditNoteAnswersPorts,
+} from "./restored-register-credit-note-answers-ports.js";
+export type {
   RetireOfflinePointOfSaleInput,
   RetireOfflinePointOfSaleOutcome,
   RetireOfflinePointOfSalePorts,
@@ -470,6 +475,8 @@ export type {
   SaleVoidCreditNoteRecord,
 } from "./sale-void-credit-note-ports.js";
 export { CreditNoteIdTaken, VoucherAlreadyCredited } from "./sale-void-credit-note-ports.js";
+export type { ServeRestoredRegisterCreditNoteAnswersInput } from "./serve-restored-register-credit-note-answers.js";
+export { serveRestoredRegisterCreditNoteAnswers } from "./serve-restored-register-credit-note-answers.js";
 export type { SettleInterruptedRealTimeAuthorizationsOutcome } from "./settle-interrupted-real-time-authorizations.js";
 export { settleInterruptedRealTimeAuthorizations } from "./settle-interrupted-real-time-authorizations.js";
 export type {

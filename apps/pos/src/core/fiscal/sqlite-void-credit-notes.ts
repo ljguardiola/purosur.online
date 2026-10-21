@@ -129,6 +129,35 @@ const STATES = {
   already_credited: "ALREADY_CREDITED",
 } as const;
 
+export function writeCreditNoteAnswer(
+  database: LocalDatabase,
+  creditNoteId: string,
+  answer: Exclude<VoidCreditNoteStanding, { kind: "in_progress" }>,
+  answeredAt: Date,
+): number {
+  return database
+    .prepare(
+      `UPDATE sale_void_credit_notes
+       SET state = @state, point_of_sale = @point_of_sale, number = @number,
+           issued_on = @issued_on, issued_at = @issued_at,
+           authorization_code = @authorization_code,
+           authorization_code_due_on = @authorization_code_due_on, answered_at = @answered_at
+       WHERE id = @id AND state = 'IN_PROGRESS'`,
+    )
+    .run({
+      id: creditNoteId,
+      state: STATES[answer.kind],
+      point_of_sale: answer.kind === "authorized" ? answer.pointOfSale : null,
+      number: answer.kind === "authorized" ? answer.number : null,
+      issued_on: answer.kind === "authorized" ? answer.issuedOn : null,
+      issued_at: answer.kind === "authorized" ? answer.issuedAt.toISOString() : null,
+      authorization_code: answer.kind === "authorized" ? answer.authorizationCode : null,
+      authorization_code_due_on:
+        answer.kind === "authorized" ? answer.authorizationCodeDueOn : null,
+      answered_at: answeredAt.toISOString(),
+    }).changes;
+}
+
 interface InProgressRow {
   id: string;
   sale_id: string;
@@ -229,27 +258,7 @@ export class SqliteVoidCreditNotes implements RegisterVoidCreditNotes {
     answer: Exclude<VoidCreditNoteStanding, { kind: "in_progress" }>,
     answeredAt: Date,
   ): Promise<void> {
-    const { changes } = this.database
-      .prepare(
-        `UPDATE sale_void_credit_notes
-         SET state = @state, point_of_sale = @point_of_sale, number = @number,
-             issued_on = @issued_on, issued_at = @issued_at,
-             authorization_code = @authorization_code,
-             authorization_code_due_on = @authorization_code_due_on, answered_at = @answered_at
-         WHERE id = @id AND state = 'IN_PROGRESS'`,
-      )
-      .run({
-        id: creditNoteId,
-        state: STATES[answer.kind],
-        point_of_sale: answer.kind === "authorized" ? answer.pointOfSale : null,
-        number: answer.kind === "authorized" ? answer.number : null,
-        issued_on: answer.kind === "authorized" ? answer.issuedOn : null,
-        issued_at: answer.kind === "authorized" ? answer.issuedAt.toISOString() : null,
-        authorization_code: answer.kind === "authorized" ? answer.authorizationCode : null,
-        authorization_code_due_on:
-          answer.kind === "authorized" ? answer.authorizationCodeDueOn : null,
-        answered_at: answeredAt.toISOString(),
-      });
+    const changes = writeCreditNoteAnswer(this.database, creditNoteId, answer, answeredAt);
     if (changes === 0 && (await this.recordedAnswer(creditNoteId)) === null) {
       throw new Error(`the register holds no credit note ${creditNoteId}`);
     }

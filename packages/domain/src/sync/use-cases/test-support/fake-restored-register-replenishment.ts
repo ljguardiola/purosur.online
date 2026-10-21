@@ -22,6 +22,23 @@ export function anEvent(deviceId: string, deviceSeq: number): ReplenishedEvent {
   return { deviceId, event };
 }
 
+export function aSaleVoidedEvent(
+  deviceId: string,
+  deviceSeq: number,
+  saleId: string,
+): ReplenishedEvent {
+  const { event } = anEvent(deviceId, deviceSeq);
+  return {
+    deviceId,
+    event: {
+      ...event,
+      aggregate_id: saleId,
+      event_type: "sale_voided",
+      schema_version: 3,
+    },
+  };
+}
+
 export interface OwnEventsRead {
   registerId: string;
   position: ReplenishmentPosition;

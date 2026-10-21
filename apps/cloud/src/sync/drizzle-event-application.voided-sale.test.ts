@@ -110,7 +110,7 @@ describe("recording the voided sales of applied events", () => {
     const voided = aVoidedSaleOf(completed, options.voided);
     const eventId = randomUUID();
     await record(
-      { kind: "sale_voided", sale: voided },
+      { kind: "sale_voided", creditNote: null, sale: voided },
       eventOf(deviceId, "sale_voided", voided.id, eventId),
     );
     return { completed, voided, eventId, deviceId, registerId, locationId };
@@ -229,7 +229,10 @@ describe("recording the voided sales of applied events", () => {
     const voided = aVoidedSaleOf(completed);
 
     await expect(
-      record({ kind: "sale_voided", sale: voided }, eventOf(deviceId, "sale_voided", voided.id)),
+      record(
+        { kind: "sale_voided", creditNote: null, sale: voided },
+        eventOf(deviceId, "sale_voided", voided.id),
+      ),
     ).rejects.toThrow(
       `sale ${voided.id} is not a completed sale of cash session ${voided.sessionId}`,
     );
@@ -255,7 +258,7 @@ describe("recording the voided sales of applied events", () => {
 
     await expect(
       record(
-        { kind: "sale_voided", sale: aVoidedSaleOf(completed) },
+        { kind: "sale_voided", creditNote: null, sale: aVoidedSaleOf(completed) },
         eventOf(deviceId, "sale_voided", cancelled.id),
       ),
     ).rejects.toThrow("is not a completed sale");
@@ -273,6 +276,7 @@ describe("recording the voided sales of applied events", () => {
       record(
         {
           kind: "sale_voided",
+          creditNote: null,
           sale: aVoidedSaleOf(completed, { voidedAt: new Date("2026-10-06T11:50:00.000Z") }),
         },
         eventOf(deviceId, "sale_voided", voided.id),
@@ -292,6 +296,7 @@ describe("recording the voided sales of applied events", () => {
       record(
         {
           kind: "sale_voided",
+          creditNote: null,
           sale: aVoidedSaleOf(completed, { sessionId: randomUUID() }),
         },
         eventOf(deviceId, "sale_voided", completed.id),
@@ -312,7 +317,7 @@ describe("recording the voided sales of applied events", () => {
 
     await expect(
       record(
-        { kind: "sale_voided", sale: aVoidedSaleOf(completed) },
+        { kind: "sale_voided", creditNote: null, sale: aVoidedSaleOf(completed) },
         eventOf(other.deviceId, "sale_voided", completed.id),
       ),
     ).rejects.toThrow("is not a completed sale");
@@ -335,6 +340,7 @@ describe("recording the voided sales of applied events", () => {
       record(
         {
           kind: "sale_voided",
+          creditNote: null,
           sale: { ...voided, refunds: [{ ...refund, paymentId: randomUUID() }] },
         },
         eventOf(deviceId, "sale_voided", voided.id),

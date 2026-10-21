@@ -141,6 +141,7 @@ export function aVoidedSaleFact(overrides: Partial<SaleVoided["sale"]> = {}): Sa
   const { cancelledAt, ...cancelled } = aCancelledSaleFact().sale;
   return {
     kind: "sale_voided",
+    creditNote: null,
     sale: {
       ...cancelled,
       voidedAt: cancelledAt,

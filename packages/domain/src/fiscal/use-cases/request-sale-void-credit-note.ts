@@ -1,5 +1,8 @@
-import type { CreditNoteAnswer, SaleVoidCreditNote } from "../model/sale-void-credit-note.js";
-import type { CreditNote } from "./credit-note-ports.js";
+import {
+  type CreditNoteAnswer,
+  creditNoteAnswerOf,
+  type SaleVoidCreditNote,
+} from "../model/sale-void-credit-note.js";
 import {
   CreditNoteIdTaken,
   type RequestSaleVoidCreditNotePorts,
@@ -25,20 +28,6 @@ export type RequestSaleVoidCreditNoteOutcome =
   | { kind: "voucher_not_owned" }
   | { kind: "voucher_already_credited" };
 
-function answerOf({ pointOfSale, standing }: CreditNote): CreditNoteAnswer {
-  switch (standing.kind) {
-    case "authorized": {
-      const { kind: _kind, requestedAt, ...authorized } = standing;
-      return { kind: "authorized", pointOfSale, issuedAt: requestedAt, ...authorized };
-    }
-    case "rejected":
-      return { kind: "rejected" };
-    case "not_requested":
-    case "requested":
-      return { kind: "in_progress" };
-  }
-}
-
 export async function requestSaleVoidCreditNote(
   { lanes }: RequestSaleVoidCreditNotePorts,
   { registerId, request, receivedAt }: RequestSaleVoidCreditNoteInput,
@@ -57,7 +46,10 @@ export async function requestSaleVoidCreditNote(
 
       const recorded = await lane.recordedCreditNote(registerId, request.creditNoteId);
       if (recorded !== null) {
-        return { kind: "already_recorded", answer: answerOf(recorded) };
+        return {
+          kind: "already_recorded",
+          answer: creditNoteAnswerOf(recorded.standing, recorded.pointOfSale),
+        };
       }
 
       if (
