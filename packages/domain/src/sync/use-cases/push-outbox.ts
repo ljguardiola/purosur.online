@@ -55,6 +55,7 @@ export async function pushOutbox<TFailure>({
         return { kind: "gap", expectedSeq: answer.expectedSeq };
       }
       case "stale_device":
+        await installation.recordStaleSequence();
         return { kind: "stale_device" };
       case "update_required":
         await outbox.acknowledgeThrough(answer.ackSeq);
@@ -80,6 +81,7 @@ async function reportWithoutEvents<TFailure>({
     case "gap":
       return { kind: "gap", expectedSeq: answer.expectedSeq };
     case "stale_device":
+      await installation.recordStaleSequence();
       return { kind: "stale_device" };
     case "update_required":
       await outbox.acknowledgeThrough(answer.ackSeq);
