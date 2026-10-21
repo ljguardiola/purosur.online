@@ -1,6 +1,7 @@
 import {
   ARGENTINA_TIME_ZONE,
   type CreditNoteCFiscalBlock,
+  type CreditNoteReceiptContent,
   type DeferredSaleDocumentBlock,
   type ReceiptContent,
   type ReceiptCopy,
@@ -419,16 +420,6 @@ function closing(out: Output): void {
   out.command(GS, 0x56, 1);
 }
 
-export interface CreditNoteReceiptContent {
-  header: ReceiptContent["header"];
-  operation: ReceiptContent["operation"];
-  issuedOn: string;
-  lines: ReceiptContent["lines"];
-  totals: SaleTotals;
-  refunds: { method: keyof typeof REFUND_NAMES; amount: number }[];
-  fiscal: CreditNoteCFiscalBlock;
-}
-
 function refunds(out: Output, content: CreditNoteReceiptContent["refunds"]): void {
   out.lines([
     RULE,
@@ -436,25 +427,24 @@ function refunds(out: Output, content: CreditNoteReceiptContent["refunds"]): voi
   ]);
 }
 
-function renderCreditNote(content: CreditNoteReceiptContent): Uint8Array {
-  const out = new Output();
-  initialization(out);
-  logo(out);
-  branch(out, content.header);
-  voucherType(out, content.fiscal, "NOTA DE CRÉDITO");
-  operation(out, content.operation, content.fiscal, {
+function renderCreditNote(content: CreditNoteReceiptContent): StoredReceipt {
+  const head = new Output();
+  initialization(head);
+  logo(head);
+  branch(head, content.header);
+  voucherType(head, content.fiscal, "NOTA DE CRÉDITO");
+  const body = new Output();
+  operation(body, content.operation, content.fiscal, {
     issuedOn: content.issuedOn,
     corrects: content.fiscal.corrects,
   });
-  issuer(out, content.fiscal);
-  saleLines(out, content);
-  refunds(out, content.refunds);
-  authorization(out, content.fiscal);
-  closing(out);
-  return out.bytes();
+  issuer(body, content.fiscal);
+  saleLines(body, content);
+  refunds(body, content.refunds);
+  authorization(body, content.fiscal);
+  closing(body);
+  return { templateVersion: TEMPLATE_VERSION, head: head.bytes(), body: body.bytes() };
 }
-
-export const escPosCreditNoteTemplate = { render: renderCreditNote };
 
 const DUPLICATE_LEGENDS: Record<string, (orderNumber: number) => Uint8Array> = {
   [TEMPLATE_VERSION]: (orderNumber) => {
@@ -505,4 +495,4 @@ function printable(stored: StoredReceipt, copy: ReceiptCopy): Uint8Array {
   return concatenated([stored.head, legend(copy.orderNumber), stored.body]);
 }
 
-export const escPosReceiptTemplate: ReceiptTemplate = { render, printable };
+export const escPosReceiptTemplate: ReceiptTemplate = { render, renderCreditNote, printable };
