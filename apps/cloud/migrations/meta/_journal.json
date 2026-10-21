@@ -841,6 +841,13 @@
       "when": 1792599762133,
       "tag": "0126_supplier_price_lists",
       "breakpoints": true
+    },
+    {
+      "idx": 120,
+      "version": "7",
+      "when": 1792614212548,
+      "tag": "0127_rejected_document_remedies",
+      "breakpoints": true
     }
   ]
 }

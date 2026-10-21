@@ -16,8 +16,10 @@ import {
   OFFLINE_AUTHORIZATION_CAUSES,
   OFFLINE_NUMBER_BLOCK_STATUSES,
   type OfflineAuthorizationCause,
+  type OfflineDocumentCorrection,
   POINT_OF_SALE_NUMBER_MAX,
   RECEIPT_TYPES,
+  type RejectedDocumentRemedy,
   SNAPSHOT_CORRUPTION_STAGES,
   SNAPSHOT_FAILURE_REASONS,
   SNAPSHOT_GENERATION_STATUSES,
@@ -2290,6 +2292,40 @@ export const fortnightDocumentReports = pgTable(
     check(
       "fortnight_document_reports_document_type_known",
       sql`${table.documentType} in (${sql.raw(`'${FACTURA_C_DOCUMENT_TYPE}'`)})`,
+    ),
+  ],
+);
+
+// Append-only: the newest remedy recorded for a number is the one in force, and a correction is
+// kept whole (every corrected field as the document is then presented).
+export const rejectedDocumentRemedies = pgTable(
+  "rejected_document_remedies",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    pointOfSaleNumber: integer("point_of_sale_number")
+      .notNull()
+      .references(() => pointOfSaleClaims.pointOfSaleNumber),
+    fortnightStart: date("fortnight_start", { mode: "string" }).notNull(),
+    documentType: text("document_type").$type<FiscalDocumentType>().notNull(),
+    number: integer("number").notNull(),
+    kind: text("kind").$type<RejectedDocumentRemedy["kind"]>().notNull(),
+    correction: jsonb("correction").$type<OfflineDocumentCorrection>(),
+    actorId: uuid("actor_id")
+      .notNull()
+      .references(() => users.id),
+    recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    index("rejected_document_remedies_document_idx").on(
+      table.pointOfSaleNumber,
+      table.fortnightStart,
+      table.documentType,
+      table.number,
+    ),
+    check("rejected_document_remedies_kind_check", sql`${table.kind} in ('report', 'printed')`),
+    check(
+      "rejected_document_remedies_correction_check",
+      sql`(${table.kind} = 'printed') = (${table.correction} is not null)`,
     ),
   ],
 );
