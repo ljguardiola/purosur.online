@@ -635,6 +635,39 @@ describe("whether the local database is damaged", () => {
   });
 });
 
+describe("the evidence of the restoration of the register", () => {
+  const PENDING_REPLENISHMENT = {
+    enroll: "completed",
+    restore: "completed",
+    reset_sync_identity: "completed",
+    replenish: "pending",
+  } as const;
+
+  it("is what the register's restoration answers", () => {
+    const restoring = new SqliteSaleLedger(
+      database,
+      new SqliteSignInStore(database),
+      CHAIN_KEY,
+      () => "pending",
+      () => false,
+      () => false,
+      () => false,
+      { evidence: () => PENDING_REPLENISHMENT },
+    );
+
+    expect(restoring.transaction((tx) => tx.restorationEvidence())).toEqual(PENDING_REPLENISHMENT);
+  });
+
+  it("is completed for a ledger the restoration was not given to", () => {
+    expect(ledger.transaction((tx) => tx.restorationEvidence())).toEqual({
+      enroll: "completed",
+      restore: "completed",
+      reset_sync_identity: "completed",
+      replenish: "completed",
+    });
+  });
+});
+
 describe("whether the battery stops new sales", () => {
   it("is what the register's battery answers", () => {
     const stopped = new SqliteSaleLedger(
