@@ -37,6 +37,7 @@ export {
   randomShortCode,
   SHORT_CODE_ALPHABET,
 } from "./model/deferred-sale.js";
+export { deferredSaleRecordedEvent } from "./model/deferred-sale-recorded-event.js";
 export type {
   AuthorizedCreditNoteC,
   AuthorizedFacturaC,

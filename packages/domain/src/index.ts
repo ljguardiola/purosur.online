@@ -239,6 +239,7 @@ export {
   clockCorrectionPeriodKey,
   creditNoteCFiscalBlock,
   DEFERRAL_REASONS,
+  deferredSaleRecordedEvent,
   EXCHANGE_RATE_PESOS,
   earliestThresholdStartDay,
   FACTURA_C_DOCUMENT_TYPE,
