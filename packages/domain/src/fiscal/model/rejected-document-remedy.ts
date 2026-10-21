@@ -8,7 +8,6 @@ import type { DocumentTypeReportState } from "./fortnight-report.js";
 import type { Fortnight } from "./offline-authorization-code.js";
 
 const CUIT_DOCUMENT_TYPE = 80;
-const CUIT_DIGITS = 11;
 const CUIT_PREFIX_END = 2;
 const CUIT_BODY_END = 10;
 
@@ -137,7 +136,7 @@ function isBuyerIdentified(documentType: number, documentNumber: number): boolea
     return documentNumber === FINAL_CONSUMER_DOCUMENT_NUMBER;
   }
   if (documentType === CUIT_DOCUMENT_TYPE) {
-    const digits = String(documentNumber).padStart(CUIT_DIGITS, "0");
+    const digits = String(documentNumber);
     return isValidCuit(
       [
         digits.slice(0, CUIT_PREFIX_END),
@@ -166,18 +165,9 @@ function isOutOfOrder(
   document: PresentedValues,
   documents: readonly PresentedValues[],
 ): boolean {
-  const before = documents.filter(({ number }) => number < document.number);
-  const after = documents.filter(({ number }) => number > document.number);
-  const previous = before.reduce<PresentedValues | undefined>(
-    (nearest, candidate) =>
-      nearest === undefined || candidate.number > nearest.number ? candidate : nearest,
-    undefined,
-  );
-  const next = after.reduce<PresentedValues | undefined>(
-    (nearest, candidate) =>
-      nearest === undefined || candidate.number < nearest.number ? candidate : nearest,
-    undefined,
-  );
+  const ordered = [...documents].sort((left, right) => left.number - right.number);
+  const previous = ordered.filter(({ number }) => number < document.number).at(-1);
+  const next = ordered.find(({ number }) => number > document.number);
   return (
     (previous !== undefined && issuedOn < previous.issuedOn) ||
     (next !== undefined && issuedOn > next.issuedOn)
@@ -200,7 +190,7 @@ export function offlineDocumentCorrectionRefusal({
   }
   const { issuedOn, total, buyerDocumentType, buyerDocumentNumber, buyerTaxStatusCode } = {
     ...document,
-    ...definedFields(correction),
+    ...correction,
   };
   if (issuedOn < fortnight.start || issuedOn > fortnight.end) {
     return "date_outside_fortnight";
@@ -219,10 +209,6 @@ export function offlineDocumentCorrectionRefusal({
     return "invalid_buyer_identification";
   }
   return null;
-}
-
-function definedFields(correction: OfflineDocumentCorrection): OfflineDocumentCorrection {
-  return Object.fromEntries(Object.entries(correction).filter(([, value]) => value !== undefined));
 }
 
 function isRemediedAfter(

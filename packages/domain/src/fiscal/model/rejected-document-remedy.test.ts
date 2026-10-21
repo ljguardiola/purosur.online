@@ -187,7 +187,7 @@ describe("offlineDocumentCorrectionRefusal", () => {
     const fartherAhead = document(9, { issuedOn: "2026-09-17" });
 
     expect(
-      refusal({ issuedOn: "2026-09-22" }, [last, fartherAhead, target, farther, first]),
+      refusal({ issuedOn: "2026-09-22" }, [fartherAhead, last, target, first, farther]),
     ).toBeNull();
   });
 
@@ -227,6 +227,9 @@ describe("offlineDocumentCorrectionRefusal", () => {
   it("refuses a final consumer carrying a document number, and a document type the domain has no rule for", () => {
     expect(refusal({ buyerDocumentNumber: 12_345_678 })).toBe("invalid_buyer_identification");
     expect(refusal({ buyerDocumentType: 96, buyerDocumentNumber: 12_345_678 })).toBe(
+      "invalid_buyer_identification",
+    );
+    expect(refusal({ buyerDocumentType: 96, buyerDocumentNumber: CUIT_NUMBER })).toBe(
       "invalid_buyer_identification",
     );
   });
