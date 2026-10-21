@@ -37,6 +37,7 @@ export type {
   RealTimeSeries,
   RejectionClass,
 } from "../model/real-time-authorization.js";
+export type { ClockCorrectionReadings } from "../model/register-clock.js";
 export type {
   ClearAuthorizationAnswer,
   OutcomeToldToAskingRegister,

@@ -914,7 +914,8 @@ describe("the register's local migrations", () => {
         "0064_void_credit_notes",
         "0066_register_qr_point_of_sale",
         "0067_replenished_events",
-        "0068_stale_sequence",
+        "0068_clock_correction_lapse_cause",
+        "0070_stale_sequence",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1006,7 +1007,8 @@ describe("the register's local migrations", () => {
         "0064_void_credit_notes",
         "0066_register_qr_point_of_sale",
         "0067_replenished_events",
-        "0068_stale_sequence",
+        "0068_clock_correction_lapse_cause",
+        "0070_stale_sequence",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1093,7 +1095,8 @@ describe("the register's local migrations", () => {
         "0064_void_credit_notes",
         "0066_register_qr_point_of_sale",
         "0067_replenished_events",
-        "0068_stale_sequence",
+        "0068_clock_correction_lapse_cause",
+        "0070_stale_sequence",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1179,7 +1182,8 @@ describe("the register's local migrations", () => {
         "0064_void_credit_notes",
         "0066_register_qr_point_of_sale",
         "0067_replenished_events",
-        "0068_stale_sequence",
+        "0068_clock_correction_lapse_cause",
+        "0070_stale_sequence",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1294,7 +1298,8 @@ describe("the register's local migrations", () => {
         "0064_void_credit_notes",
         "0066_register_qr_point_of_sale",
         "0067_replenished_events",
-        "0068_stale_sequence",
+        "0068_clock_correction_lapse_cause",
+        "0070_stale_sequence",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1399,7 +1404,8 @@ describe("the register's local migrations", () => {
         "0064_void_credit_notes",
         "0066_register_qr_point_of_sale",
         "0067_replenished_events",
-        "0068_stale_sequence",
+        "0068_clock_correction_lapse_cause",
+        "0070_stale_sequence",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1508,7 +1514,8 @@ describe("the register's local migrations", () => {
         "0064_void_credit_notes",
         "0066_register_qr_point_of_sale",
         "0067_replenished_events",
-        "0068_stale_sequence",
+        "0068_clock_correction_lapse_cause",
+        "0070_stale_sequence",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1625,7 +1632,8 @@ describe("the register's local migrations", () => {
         "0064_void_credit_notes",
         "0066_register_qr_point_of_sale",
         "0067_replenished_events",
-        "0068_stale_sequence",
+        "0068_clock_correction_lapse_cause",
+        "0070_stale_sequence",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1709,7 +1717,8 @@ describe("the register's local migrations", () => {
         "0064_void_credit_notes",
         "0066_register_qr_point_of_sale",
         "0067_replenished_events",
-        "0068_stale_sequence",
+        "0068_clock_correction_lapse_cause",
+        "0070_stale_sequence",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -5572,14 +5581,71 @@ describe("the register's local migrations", () => {
     }
   });
 
+  it("let an offline fiscal document record the lapse after a clock correction as its cause, keeping the documents a register already holds", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.filter(
+        (migration) => migration.name < "0068_clock_correction_lapse_cause",
+      );
+      expect(LOCAL_MIGRATIONS.map((migration) => migration.name)).toContain(
+        "0068_clock_correction_lapse_cause",
+      );
+      const before = openLocalDatabase(path, previous, migrationClock);
+      before.exec(
+        `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
+         VALUES ('s1', 'r1', 'device-a', 'u1', '2026-10-09T12:00:00.000Z', 0, 'OPEN');
+         INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at)
+         VALUES ('kept', 'r1', 'device-a', 's1', 'u1', 'COMPLETED', '2026-10-09T12:05:00.000Z'),
+                ('lapse', 'r1', 'device-a', 's1', 'u1', 'COMPLETED', '2026-10-09T12:06:00.000Z');
+         INSERT INTO offline_fiscal_documents (
+           id, sale_id, point_of_sale, document_type, number, issued_on, generated_at, generation_stamp,
+           offline_authorization_code, fortnight_start, fortnight_end, document,
+           buyer_document_type, buyer_document_number, cause
+         ) VALUES (
+           'offline-kept', 'kept', 31, 'factura_c', 1, '2026-10-09', '2026-10-09T12:05:00.000Z', '20261009090500',
+           '36251478963214', '2026-10-01', '2026-10-15', '{}', 99, 0, 'unclear_outcome'
+         );`,
+      );
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+
+      expect(after.prepare("SELECT id, number, cause FROM offline_fiscal_documents").all()).toEqual(
+        [{ id: "offline-kept", number: 1, cause: "unclear_outcome" }],
+      );
+      const insert = after.prepare(
+        `INSERT INTO offline_fiscal_documents (
+           id, sale_id, point_of_sale, document_type, number, issued_on, generated_at, generation_stamp,
+           offline_authorization_code, fortnight_start, fortnight_end, document,
+           buyer_document_type, buyer_document_number, cause
+         ) VALUES (
+           'offline-lapse', 'lapse', 31, 'factura_c', 2, '2026-10-09', '2026-10-09T12:06:00.000Z', '20261009090600',
+           '36251478963214', '2026-10-01', '2026-10-15', '{}', 99, 0, @cause
+         )`,
+      );
+      expect(() => insert.run({ cause: "other" })).toThrow(/CHECK/);
+      expect(() => insert.run({ cause: "clock_correction_lapse" })).not.toThrow();
+      expect(() =>
+        after
+          .prepare("UPDATE offline_fiscal_documents SET number = 1 WHERE id = 'offline-lapse'")
+          .run(),
+      ).toThrow(/UNIQUE/);
+      expect(after.pragma("foreign_key_check")).toEqual([]);
+      after.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
   it("add when the cloud first refused the register's sequence as stale, none for a register already holding data", () => {
     const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
     try {
       const path = join(folder, "register.sqlite");
       const previous = LOCAL_MIGRATIONS.filter(
-        (migration) => migration.name < "0068_stale_sequence",
+        (migration) => migration.name < "0070_stale_sequence",
       );
-      expect(LOCAL_MIGRATIONS.map((migration) => migration.name)).toContain("0068_stale_sequence");
+      expect(LOCAL_MIGRATIONS.map((migration) => migration.name)).toContain("0070_stale_sequence");
       const before = openLocalDatabase(path, previous, migrationClock);
       before
         .prepare("UPDATE sync_state SET pull_cursor = 9, device_id = 'device-a' WHERE id = 1")
