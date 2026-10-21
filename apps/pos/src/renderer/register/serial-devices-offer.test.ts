@@ -15,6 +15,7 @@ function statusOffering(serial_devices_setup_offered: boolean): RegisterStatus {
     cloud: "reachable",
     serial_devices: { scale: "matching", reader: "matching" },
     serial_devices_setup_offered,
+    fiscal_mode: "real_time",
   };
 }
 

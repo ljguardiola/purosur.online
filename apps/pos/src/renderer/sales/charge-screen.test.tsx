@@ -18,6 +18,7 @@ const FAILED_PRINT: ReceiptPrintStatusOutcome = {
   next_copy: { kind: "original" },
   printed: false,
   standing: "failed",
+  comprobante: { kind: "none" },
 };
 
 describe("ChargeScreen", () => {
@@ -190,6 +191,7 @@ describe("ChargeScreen", () => {
         next_copy: { kind: "original" },
         printed: false,
         standing: "paper_out",
+        comprobante: { kind: "none" },
       }),
     });
 

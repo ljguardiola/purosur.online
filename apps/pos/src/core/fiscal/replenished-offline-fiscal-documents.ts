@@ -1,11 +1,8 @@
 import { raisedClockMark } from "@purosur/domain";
 import type { ReplenishedEventApplication, SyncedFact } from "@purosur/domain/sync/use-cases";
 import type { LocalDatabase } from "../platform/local-database";
-import {
-  clockMarkOf,
-  insertOfflineFiscalDocument,
-  upsertClockMark,
-} from "./sqlite-sale-authorization";
+import { clockMarkOf } from "./sqlite-fiscal-series";
+import { insertOfflineFiscalDocument, upsertClockMark } from "./sqlite-sale-authorization";
 
 type OfflineDocumentFact = Extract<SyncedFact, { kind: "offline_fiscal_document_issued" }>;
 

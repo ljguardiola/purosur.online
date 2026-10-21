@@ -496,6 +496,14 @@ function Register({ core }: { core: CoreClient }) {
     [core, queryClient],
   );
 
+  useEffect(
+    () =>
+      core.onFiscalModeChanged(() => {
+        void queryClient.invalidateQueries({ queryKey: registerKeys.status });
+      }),
+    [core, queryClient],
+  );
+
   useEffect(() => {
     router.update({
       ...router.options,

@@ -48,5 +48,6 @@ export interface RegisterSalesHistory {
   salesOfOpenSession(filter: SalesHistoryFilter): SalesHistoryPage;
   salesOfRegister(filter: SalesHistoryFilter): SalesHistoryPage;
   saleOfRegister(saleId: string): SaleHistoryRecord | undefined;
+  fiscalFactsOfSale(saleId: string): SaleFiscalFacts;
   fiscalOnlineEvidence(): FiscalOnlineSignalEvidence;
 }

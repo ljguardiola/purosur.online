@@ -16,6 +16,13 @@ import {
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { insertPreEmissionGateOutcome } from "../fiscal/sqlite-pre-emission-gate";
 import { SqliteRegisterHealthChecks } from "../fiscal/sqlite-register-health-checks";
+import {
+  insertHealthCheck,
+  insertOfflineAuthorizationCode,
+  insertOfflineNumberBlock,
+  insertOfflinePointOfSale,
+  insertPointOfSale,
+} from "../fiscal/test-support/real-time-authorization-database";
 import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import { migrationClock } from "../platform/test-support/migration-clock";
@@ -209,6 +216,7 @@ describe("the register's status", () => {
       cloud: "unknown",
       serial_devices: { scale: "not_registered", reader: "not_registered" },
       serial_devices_setup_offered: false,
+      fiscal_mode: "deferring",
     });
   });
 
@@ -309,6 +317,7 @@ describe("the register's status", () => {
       cloud: "unreachable",
       serial_devices: { scale: "not_registered", reader: "not_registered" },
       serial_devices_setup_offered: false,
+      fiscal_mode: "deferring",
     });
   });
 
@@ -408,6 +417,7 @@ describe("the register's status", () => {
       cloud: "unknown",
       serial_devices: { scale: "unknown", reader: "not_registered" },
       serial_devices_setup_offered: false,
+      fiscal_mode: "deferring",
     });
   });
 
@@ -423,6 +433,7 @@ describe("the register's status", () => {
       cloud: "unknown",
       serial_devices: { scale: "unknown", reader: "not_registered" },
       serial_devices_setup_offered: false,
+      fiscal_mode: "deferring",
     });
   });
 
@@ -443,6 +454,7 @@ describe("the register's status", () => {
       cloud: "unknown",
       serial_devices: { scale: "unknown", reader: "unknown" },
       serial_devices_setup_offered: false,
+      fiscal_mode: "deferring",
     });
   });
 });
@@ -500,5 +512,51 @@ describe("the register's storage conditions on its status", () => {
     expect(conditions).toEqual([
       { kind: "sales_denied", reason: "disk_full", disk_free_ratio: 0.03, level: "critical" },
     ]);
+  });
+});
+
+describe("the register's fiscal mode on its status", () => {
+  function holdRealTimeSeries(): void {
+    database.exec(
+      "INSERT INTO own_register (id, name, version) VALUES ('register-1', 'Caja 1', 1)",
+    );
+    insertPointOfSale(database, 40);
+  }
+
+  function holdTheOfflineCode(): void {
+    insertOfflinePointOfSale(database, 31, 0);
+    insertOfflineNumberBlock(database, "block-1", 1, 1000, 31);
+    insertOfflineAuthorizationCode(database, {
+      fortnightStart: "2026-10-01",
+      fortnightEnd: "2026-10-15",
+    });
+  }
+
+  it("is real time while the register is online with its series ready", async () => {
+    holdRealTimeSeries();
+    insertHealthCheck(database, { checkedAt: new Date(NOW.getTime() - 1000).toISOString() });
+
+    expect((await status()).fiscal_mode).toBe("real_time");
+  });
+
+  it("is the offline code while the register would authorize a sale under its code", async () => {
+    holdRealTimeSeries();
+    holdTheOfflineCode();
+
+    expect((await status()).fiscal_mode).toBe("offline_code");
+  });
+
+  it("is deferring while the register is offline and holds no code", async () => {
+    holdRealTimeSeries();
+
+    expect((await status()).fiscal_mode).toBe("deferring");
+  });
+
+  it("is deferring while the register's latest sale failed the pre-emission check", async () => {
+    holdRealTimeSeries();
+    holdTheOfflineCode();
+    recordGateOutcome("sale-1", 10, false);
+
+    expect((await status()).fiscal_mode).toBe("deferring");
   });
 });

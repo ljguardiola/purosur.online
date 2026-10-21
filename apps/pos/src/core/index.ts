@@ -37,12 +37,14 @@ import { pinPolicy } from "./credentials/pin-policy";
 import { applyRedeemedPin } from "./credentials/redeemed-pin";
 import { createClockGuardRequests } from "./fiscal/clock-guard-answers";
 import { cryptoShortCodes } from "./fiscal/crypto-short-codes";
+import { createFiscalModeWatch } from "./fiscal/fiscal-mode-watch";
 import {
   cloudCreditNotes,
   createRealTimeAuthorization,
   settleInterruptedAuthorizations,
   startRegisterHealthChecks,
 } from "./fiscal/real-time-authorization-wiring";
+import { readFiscalEmissionModeIn } from "./fiscal/sqlite-fiscal-emission-mode";
 import { readLatestPreEmissionGateOutcome } from "./fiscal/sqlite-pre-emission-gate";
 import { readLatestClockOffsetMs } from "./fiscal/sqlite-register-health-checks";
 import { createMessageGate, type RejectionRecorder, summarizeRejection } from "./message-gate";
@@ -237,6 +239,7 @@ const STORAGE_STANDING_CHANGED_NOTICE: CoreToRendererMessage = {
 const BATTERY_STANDING_CHANGED_NOTICE: CoreToRendererMessage = {
   type: "battery-standing-changed",
 };
+const FISCAL_MODE_CHANGED_NOTICE: CoreToRendererMessage = { type: "fiscal-mode-changed" };
 const QUIT_REGISTER_MESSAGE: QuitRegisterMessage = { type: "quit-register" };
 const SERIAL_DEVICE_CHECK_INTERVAL_MS = 3_000;
 const BARCODE_READER_RETRY_MS = 3_000;
@@ -600,6 +603,13 @@ const realTimeAuthorization = createRealTimeAuthorization({
   ids: uuidV7Ids,
   shortCodes: cryptoShortCodes,
 });
+const fiscalModeWatch =
+  localDatabase === undefined
+    ? undefined
+    : createFiscalModeWatch({
+        read: () => readFiscalEmissionModeIn(localDatabase, now()).kind,
+        onChanged: () => rendererConnection.tell(FISCAL_MODE_CHANGED_NOTICE),
+      });
 const mercadoPagoCharging = createMercadoPagoCharging({
   database: localDatabase,
   gate: actionGate,
@@ -617,7 +627,10 @@ const receiptPrinting = createReceiptPrinting({
   ids: uuidV7Ids,
   readOutboxChainKey: async () => (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
   signedInUserId: () => signedInPerson.userId(),
-  beforePrinting: realTimeAuthorization.authorizeSale,
+  beforePrinting: async (saleId) => {
+    await realTimeAuthorization.authorizeSale(saleId);
+    fiscalModeWatch?.check();
+  },
   reportFailure,
   syncNow: () => syncSchedule.syncNow(),
 });
@@ -1226,6 +1239,7 @@ startRegisterHealthChecks({
     return () => clearTimeout(timer);
   },
   reportFailure: (error) => reportFailure("the register health check", error),
+  afterCheck: () => fiscalModeWatch?.check(),
 });
 
 const deviceTokenRotation =

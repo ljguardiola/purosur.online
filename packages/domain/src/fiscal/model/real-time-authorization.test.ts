@@ -24,6 +24,7 @@ import {
   ROUND_TRIP_SAMPLE_SIZE,
   realTimeAuthorizationResolution,
   SERIES_WAITING_STATES,
+  saleAuthorizationPath,
   taxAuthorityRefusalAnswer,
   taxAuthorityRejectionAnswer,
 } from "./real-time-authorization.js";
@@ -905,5 +906,49 @@ describe("isCompletionEventOfSale", () => {
     expect(isCompletionEventOfSale({ ...completion, event_type: "sale_cancelled" }, "sale-1")).toBe(
       false,
     );
+  });
+});
+
+describe("saleAuthorizationPath", () => {
+  function pathOf(changes: Partial<Parameters<typeof saleAuthorizationPath>[0]> = {}) {
+    return saleAuthorizationPath({
+      online: ONLINE,
+      now: NOW,
+      occurredAt: OCCURRED_AT,
+      series: SERIES,
+      offlineSeries: OFFLINE_SERIES,
+      offlineAuthorizationCode: CODE,
+      ...changes,
+    });
+  }
+
+  it("reserves the next number without naming any document", () => {
+    expect(pathOf()).toEqual({ kind: "reserve", pointOfSale: 12, number: 41 });
+  });
+
+  it("issues offline without naming any document when the register is not fiscally online", () => {
+    expect(pathOf({ online: { ...ONLINE, tokenValid: false } })).toEqual({
+      kind: "issue_offline",
+      cause: "no_connectivity",
+      pointOfSale: 7,
+      number: 101,
+      issuedOn: "2026-10-01",
+      fortnight: OCTOBER_FIRST_FORTNIGHT,
+      offlineAuthorizationCode: CODE,
+    });
+  });
+
+  it("defers when the register is offline and holds no code", () => {
+    expect(
+      pathOf({ online: { ...ONLINE, tokenValid: false }, offlineAuthorizationCode: null }),
+    ).toEqual({
+      kind: "defer",
+      reason: "fiscally_offline",
+    });
+  });
+
+  it("is the path the route follows once the gate passed", () => {
+    const changes = { online: { ...ONLINE, arcaReachable: false } };
+    expect(decide(changes)).toEqual({ ...pathOf(changes), document: DOCUMENT });
   });
 });
