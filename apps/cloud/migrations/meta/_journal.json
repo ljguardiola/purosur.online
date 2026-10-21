@@ -827,6 +827,20 @@
       "when": 1792502647115,
       "tag": "0124_snapshot_generations_last_device_seq",
       "breakpoints": true
+    },
+    {
+      "idx": 118,
+      "version": "7",
+      "when": 1792586248867,
+      "tag": "0125_offline_point_of_sale_retirements",
+      "breakpoints": true
+    },
+    {
+      "idx": 119,
+      "version": "7",
+      "when": 1792599762133,
+      "tag": "0126_supplier_price_lists",
+      "breakpoints": true
     }
   ]
 }

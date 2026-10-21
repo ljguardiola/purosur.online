@@ -144,6 +144,7 @@ function coreAnswering(
   const serialDevicesChangedListeners = new Set<() => void>();
   const storageStandingChangedListeners = new Set<() => void>();
   const batteryStandingChangedListeners = new Set<() => void>();
+  const fiscalModeChangedListeners = new Set<() => void>();
   const barcodeReadListeners = new Set<(code: string) => void>();
   const core: CoreClient = {
     connect() {},
@@ -221,6 +222,7 @@ function coreAnswering(
         cloud: "reachable",
         serial_devices: { scale: "matching", reader: "matching" },
         serial_devices_setup_offered: serialDevicesSetupOffered,
+        fiscal_mode: "real_time",
       };
     },
     async recordCashMovement(input) {
@@ -304,7 +306,13 @@ function coreAnswering(
     },
     async receiptPrintStatus(saleId) {
       return sales.receiptPrintStatus === undefined
-        ? { kind: "found", next_copy: { kind: "original" }, printed: true, standing: "printed" }
+        ? {
+            kind: "found",
+            next_copy: { kind: "original" },
+            printed: true,
+            standing: "printed",
+            comprobante: { kind: "none" },
+          }
         : sales.receiptPrintStatus(saleId);
     },
     async printCreditNote() {
@@ -472,6 +480,12 @@ function coreAnswering(
         batteryStandingChangedListeners.delete(listener);
       };
     },
+    onFiscalModeChanged(listener) {
+      fiscalModeChangedListeners.add(listener);
+      return () => {
+        fiscalModeChangedListeners.delete(listener);
+      };
+    },
     onBarcodeRead(listener) {
       barcodeReadListeners.add(listener);
       return () => {
@@ -499,6 +513,11 @@ function coreAnswering(
       listener();
     }
   }
+  function changeFiscalMode() {
+    for (const listener of fiscalModeChangedListeners) {
+      listener();
+    }
+  }
   function finishPull(nameSaved: string | null) {
     savedName = nameSaved;
     for (const listener of pulledListeners) {
@@ -519,6 +538,7 @@ function coreAnswering(
     changeSerialDevices,
     changeStorageStanding,
     changeBatteryStanding,
+    changeFiscalMode,
     readBarcode,
     usersLoads: () => usersLoads,
   };
@@ -763,6 +783,21 @@ describe("App", () => {
     const readsBefore = statusAsks.length;
 
     changeBatteryStanding();
+
+    await expect.poll(() => statusAsks.length).toBeGreaterThan(readsBefore);
+  });
+
+  it("reads the register's status again whenever the fiscal mode changes", async () => {
+    const { core, statusAsks, changeFiscalMode } = coreAnswering(true);
+    const screen = await render(<App core={core} />);
+    postCoreStatus("up");
+    await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
+    await userEvent.type(screen.getByLabelText("PIN"), "1234");
+    await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
+    await expect.element(screen.getByText("Nube conectada")).toBeVisible();
+    const readsBefore = statusAsks.length;
+
+    changeFiscalMode();
 
     await expect.poll(() => statusAsks.length).toBeGreaterThan(readsBefore);
   });
@@ -1850,6 +1885,7 @@ describe("App", () => {
           cloud: "unreachable",
           serial_devices: { scale: "matching", reader: "matching" },
           serial_devices_setup_offered: false,
+          fiscal_mode: "real_time",
         };
       },
     };
@@ -3360,6 +3396,7 @@ describe("App", () => {
               next_copy: { kind: "original" },
               printed: false,
               standing: "paper_out",
+              comprobante: { kind: "none" },
             };
           },
         },

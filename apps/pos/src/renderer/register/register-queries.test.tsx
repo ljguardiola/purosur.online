@@ -639,6 +639,7 @@ const STATUS: RegisterStatus = {
   cloud: "reachable",
   serial_devices: { scale: "matching", reader: "matching" },
   serial_devices_setup_offered: false,
+  fiscal_mode: "real_time",
 };
 
 type StatusRead = () => Promise<RegisterStatus | "unavailable">;

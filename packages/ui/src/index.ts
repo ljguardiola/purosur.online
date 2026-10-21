@@ -3,6 +3,11 @@ export type { ColumnChartBar, ColumnChartProps } from "./components/data-display
 export { ColumnChart } from "./components/data-display/column-chart";
 export type { CountCardProps } from "./components/data-display/count-card";
 export { CountCard } from "./components/data-display/count-card";
+export type {
+  DocumentListProps,
+  DocumentRowProps,
+} from "./components/data-display/document-list";
+export { DocumentList } from "./components/data-display/document-list";
 export type { FigureStatProps } from "./components/data-display/figure-stat";
 export { FigureStat } from "./components/data-display/figure-stat";
 export type { HelpArticleBodyProps } from "./components/data-display/help-article-body";
@@ -97,6 +102,8 @@ export type { FieldGroupProps } from "./components/forms/field-group";
 export { FieldGroup } from "./components/forms/field-group";
 export type { FieldSize, FieldSizeProviderProps } from "./components/forms/field-size";
 export { FieldSizeProvider } from "./components/forms/field-size";
+export type { FilePickerProps } from "./components/forms/file-picker";
+export { FilePicker } from "./components/forms/file-picker";
 export type { IconButtonProps } from "./components/forms/icon-button";
 export { IconButton } from "./components/forms/icon-button";
 export type {

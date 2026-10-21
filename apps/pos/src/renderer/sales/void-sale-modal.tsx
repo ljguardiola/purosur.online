@@ -86,9 +86,9 @@ export function VoidSaleModal({
   const allConfirmed = pending.every((position) => confirmed.includes(position));
   const invoiced = creditNoteCorrects !== null;
   const comprobante = comprobantePresentation(
-    creditNoteCorrects === null
+    creditNoteCorrects === null || sale.comprobante.kind !== "fiscal"
       ? sale.comprobante
-      : { kind: "fiscal", document_type: "factura_c", ...creditNoteCorrects },
+      : { ...sale.comprobante, ...creditNoteCorrects },
   );
 
   async function confirm() {

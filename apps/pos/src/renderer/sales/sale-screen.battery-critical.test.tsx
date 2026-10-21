@@ -15,6 +15,7 @@ function statusHolding(conditions: RegisterStatus["conditions"]): CoreData<Regis
       cloud: "reachable",
       serial_devices: { scale: "not_registered", reader: "not_registered" },
       serial_devices_setup_offered: false,
+      fiscal_mode: "real_time",
     },
     refreshing: false,
   };

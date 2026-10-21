@@ -1695,7 +1695,7 @@ test("tells a refund owed for a QR payment that arrived late: what it means, wha
         scopeDisplay: "refund-1",
         scopeKind: "refund",
         closing: "with_its_refund",
-        detail: { saleId: "sale-1", amount: 250_000, providerOrderId: null },
+        detail: { saleId: "sale-1", amount: 250_000, providerOrderId: null, method: "QR" },
       }),
     ),
   );
@@ -1728,7 +1728,7 @@ test("tells a refund owed for a QR payment that arrived late: what it means, wha
   await expect
     .element(
       screen.getByText(
-        "Si es de un pago con QR, confirmarlo en Reembolsos de Mercado Pago para que la nube lo envíe a Mercado Pago; si es de otro medio y ya se hizo desde Mercado Pago, marcarlo como hecho en Reembolsos sin API, y si todavía no se hizo, hacerlo cuanto antes. Si no corresponde reembolsarlo, descartarlo. El Administrador ya fue avisado.",
+        "Confirmarlo en Reembolsos de Mercado Pago para que la nube lo envíe a Mercado Pago. Si no corresponde reembolsarlo, descartarlo. El Administrador ya fue avisado.",
         { exact: true },
       ),
     )
@@ -1749,7 +1749,12 @@ test("tells a refund owed for a second paid order of a sale's QR that the QR was
         scopeDisplay: "refund-1",
         scopeKind: "refund",
         closing: "with_its_refund",
-        detail: { saleId: "sale-1", amount: 250_000, providerOrderId: "ORD01SECOND" },
+        detail: {
+          saleId: "sale-1",
+          amount: 250_000,
+          providerOrderId: "ORD01SECOND",
+          method: "QR",
+        },
       }),
     ),
   );
@@ -1759,6 +1764,74 @@ test("tells a refund owed for a second paid order of a sale's QR that the QR was
   await expect.element(screen.getByText(/El QR de una venta se pagó dos veces/)).toBeVisible();
   await expect.element(screen.getByText(/ORD01SECOND/)).toBeVisible();
   expect(screen.getByText(/por otro medio/).query()).toBeNull();
+});
+
+test("tells a refund owed for a Point payment that arrived late that it was a card payment at the Point", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(
+    ok(
+      baseDetail({
+        kind: "late_payment_refund",
+        level: "warning",
+        audience: "local",
+        scope: "refund-1",
+        scopeDisplay: "refund-1",
+        scopeKind: "refund",
+        closing: "with_its_refund",
+        detail: { saleId: "sale-1", amount: 250_000, providerOrderId: null, method: "POINT" },
+      }),
+    ),
+  );
+
+  const screen = await renderModal(services);
+
+  await expect
+    .element(
+      screen.getByText(
+        "Mercado Pago cobró un pago con tarjeta en el Point de una venta que ya se había cobrado por otro medio.",
+        { exact: true },
+      ),
+    )
+    .toBeVisible();
+  await expect
+    .element(
+      screen.getByText(
+        "Hacerlo desde Mercado Pago cuanto antes y marcarlo como hecho en Reembolsos sin API. Si no corresponde reembolsarlo, descartarlo. El Administrador ya fue avisado.",
+        { exact: true },
+      ),
+    )
+    .toBeVisible();
+  expect(screen.getByText(/QR/).query()).toBeNull();
+});
+
+test("tells a refund owed for a second paid order of a sale's Point payment that it was charged twice, naming that order", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(
+    ok(
+      baseDetail({
+        kind: "late_payment_refund",
+        level: "warning",
+        audience: "local",
+        scope: "refund-1",
+        scopeDisplay: "refund-1",
+        scopeKind: "refund",
+        closing: "with_its_refund",
+        detail: {
+          saleId: "sale-1",
+          amount: 250_000,
+          providerOrderId: "ORD01SECOND",
+          method: "POINT",
+        },
+      }),
+    ),
+  );
+
+  const screen = await renderModal(services);
+
+  await expect
+    .element(screen.getByText(/Una venta se cobró dos veces con tarjeta en el Point/))
+    .toBeVisible();
+  await expect.element(screen.getByText(/ORD01SECOND/)).toBeVisible();
 });
 
 test("explains the refund of a cancelled sale left pending to the branch, closing once its refund is done or discarded", async () => {

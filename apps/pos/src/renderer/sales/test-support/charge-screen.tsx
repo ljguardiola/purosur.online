@@ -170,6 +170,7 @@ const PRINTED: ReceiptPrintStatusOutcome = {
   next_copy: { kind: "original" },
   printed: true,
   standing: "printed",
+  comprobante: { kind: "none" },
 };
 
 export async function renderScreen(overrides: Overrides = {}) {

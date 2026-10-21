@@ -4,16 +4,33 @@ import {
   PointOfSaleClaimConflict,
   type PointOfSaleHolder,
 } from "@purosur/domain/fiscal/use-cases";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { postgresErrorChain } from "../platform/db/postgres-error-chain.js";
-import { pointOfSaleClaims, registers } from "../platform/db/schema.js";
+import {
+  offlinePointOfSaleRetirements,
+  pointOfSaleClaims,
+  registers,
+} from "../platform/db/schema.js";
 
 const UNIQUE_VIOLATION = "23505";
 const POINT_OF_SALE_CLAIM_KEYS = [
   "point_of_sale_claims_pkey",
   "point_of_sale_claims_number_register_mechanism_key",
 ];
+
+function pointOfSaleLockKey(pointOfSaleNumber: number): string {
+  return `offline_point_of_sale:${pointOfSaleNumber}`;
+}
+
+export async function lockPointOfSale<TQueryResult extends PgQueryResultHKT>(
+  tx: PgDatabase<TQueryResult>,
+  pointOfSaleNumber: number,
+): Promise<void> {
+  await tx.execute(
+    sql`select pg_advisory_xact_lock(hashtextextended(${pointOfSaleLockKey(pointOfSaleNumber)}, 0))`,
+  );
+}
 
 // NO KEY UPDATE leaves the foreign-key check of an enrollment redeeming this register's code free
 // to proceed, instead of deadlocking.
@@ -38,10 +55,30 @@ export async function lockPointOfSaleClaim<TQueryResult extends PgQueryResultHKT
   pointOfSaleNumber: number,
 ): Promise<PointOfSaleHolder | undefined> {
   const [claim] = await tx
-    .select({ registerId: pointOfSaleClaims.registerId, mechanism: pointOfSaleClaims.mechanism })
+    .select({
+      registerId: pointOfSaleClaims.registerId,
+      mechanism: pointOfSaleClaims.mechanism,
+      retiredAt: offlinePointOfSaleRetirements.retiredAt,
+    })
     .from(pointOfSaleClaims)
+    .leftJoin(
+      offlinePointOfSaleRetirements,
+      eq(offlinePointOfSaleRetirements.pointOfSaleNumber, pointOfSaleClaims.pointOfSaleNumber),
+    )
     .where(eq(pointOfSaleClaims.pointOfSaleNumber, pointOfSaleNumber));
-  return claim;
+  return claim && holderOf(claim);
+}
+
+export function holderOf({
+  registerId,
+  mechanism,
+  retiredAt,
+}: {
+  registerId: string;
+  mechanism: PointOfSaleHolder["mechanism"];
+  retiredAt: Date | null;
+}): PointOfSaleHolder {
+  return retiredAt === null ? { registerId, mechanism } : { registerId, mechanism, retiredAt };
 }
 
 export async function claimPointOfSale<TQueryResult extends PgQueryResultHKT>(

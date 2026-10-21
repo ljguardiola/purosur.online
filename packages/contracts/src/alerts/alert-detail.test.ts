@@ -381,7 +381,12 @@ describe("alertDetailSchema", () => {
         fortnightEnd: "2026-10-31",
         fortnightStarted: false,
       },
-      late_payment_refund: { saleId: "sale-1", amount: 250000, providerOrderId: "ORD01" },
+      late_payment_refund: {
+        saleId: "sale-1",
+        amount: 250000,
+        providerOrderId: "ORD01",
+        method: "QR",
+      },
       refund_task: {
         saleId: "sale-1",
         amount: 1240000,
@@ -600,10 +605,40 @@ describe("alertDetailSchema", () => {
       const alert = {
         ...base,
         kind: "late_payment_refund",
-        detail: { saleId: "sale-1", amount: 250000, providerOrderId: null },
+        detail: { saleId: "sale-1", amount: 250000, providerOrderId: null, method: "QR" },
       };
 
       expect(alertDetailSchema.safeParse(alert).data).toEqual(alert);
+    });
+
+    it("accepts a late payment refund alert of a payment made at the Point", () => {
+      const alert = {
+        ...base,
+        kind: "late_payment_refund",
+        detail: { saleId: "sale-1", amount: 250000, providerOrderId: "ORD01", method: "POINT" },
+      };
+
+      expect(alertDetailSchema.safeParse(alert).data).toEqual(alert);
+    });
+
+    it("refuses a late payment refund alert that does not say how the payment was made", () => {
+      const alert = {
+        ...base,
+        kind: "late_payment_refund",
+        detail: { saleId: "sale-1", amount: 250000, providerOrderId: null },
+      };
+
+      expect(alertDetailSchema.safeParse(alert).success).toBe(false);
+    });
+
+    it("refuses a late payment refund alert of a payment that is not a Mercado Pago one", () => {
+      const alert = {
+        ...base,
+        kind: "late_payment_refund",
+        detail: { saleId: "sale-1", amount: 250000, providerOrderId: null, method: "CASH" },
+      };
+
+      expect(alertDetailSchema.safeParse(alert).success).toBe(false);
     });
 
     it("accepts a sales-denied alert of a register whose local database is damaged", () => {

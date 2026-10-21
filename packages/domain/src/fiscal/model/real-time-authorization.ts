@@ -6,7 +6,7 @@ import {
 import { isNumberingConflict } from "./numbering-conflict.js";
 import { type Fortnight, fortnightContaining } from "./offline-authorization-code.js";
 import { type NextOfflineNumberInput, nextOfflineNumber } from "./offline-number-block.js";
-import type { FacturaC, PreEmissionGateOutcome } from "./pre-emission-gate.js";
+import type { FacturaC, PreEmissionGateFailureReason } from "./pre-emission-gate.js";
 import { isBeforeTaxAuthorityLastIssuedDay, isBehindClockMark } from "./register-clock.js";
 
 export const REAL_TIME_AUTHORIZATION_TIMEOUT_MS = 5_000;
@@ -136,8 +136,7 @@ const DEFERRAL_REASON_OF_CAUSE: Record<OfflineAuthorizationCause, DeferralReason
   numbering_conflict: "numbering_frozen",
 };
 
-export interface SaleAuthorizationRouteInput {
-  gate: PreEmissionGateOutcome;
+export interface SaleAuthorizationPathInput {
   online: FiscalOnlineSignalEvidence;
   now: Date;
   occurredAt: Date;
@@ -146,21 +145,42 @@ export interface SaleAuthorizationRouteInput {
   offlineAuthorizationCode: string | null;
 }
 
-export type SaleAuthorizationRoute =
-  | { kind: "reserve"; pointOfSale: number; number: number; document: FacturaC }
+type SaleAuthorizationGate<D> =
+  | { kind: "passed"; document: D }
+  | { kind: "failed"; reason: PreEmissionGateFailureReason };
+
+export interface SaleAuthorizationRouteInput<D = FacturaC> extends SaleAuthorizationPathInput {
+  gate: SaleAuthorizationGate<D>;
+}
+
+export type SaleAuthorizationPath =
+  | { kind: "reserve"; pointOfSale: number; number: number }
   | {
       kind: "issue_offline";
       cause: OfflineAuthorizationCause;
       pointOfSale: number;
       number: number;
-      document: FacturaC;
       issuedOn: string;
       fortnight: Fortnight;
       offlineAuthorizationCode: string;
     }
   | { kind: "defer"; reason: DeferralReason };
 
-function deferred(reason: DeferralReason): SaleAuthorizationRoute {
+export type SaleAuthorizationRoute<D = FacturaC> =
+  | { kind: "reserve"; pointOfSale: number; number: number; document: D }
+  | {
+      kind: "issue_offline";
+      cause: OfflineAuthorizationCause;
+      pointOfSale: number;
+      number: number;
+      document: D;
+      issuedOn: string;
+      fortnight: Fortnight;
+      offlineAuthorizationCode: string;
+    }
+  | { kind: "defer"; reason: DeferralReason };
+
+function deferred(reason: DeferralReason): SaleAuthorizationPath {
   return { kind: "defer", reason };
 }
 
@@ -168,11 +188,10 @@ export function invoiceOwnFortnight(occurredAt: Date): Fortnight {
   return fortnightContaining(invoiceDateOf(occurredAt));
 }
 
-function offlineRoute(
+function offlinePath(
   cause: OfflineAuthorizationCause,
-  document: FacturaC,
-  { occurredAt, offlineSeries, offlineAuthorizationCode }: SaleAuthorizationRouteInput,
-): SaleAuthorizationRoute {
+  { occurredAt, offlineSeries, offlineAuthorizationCode }: SaleAuthorizationPathInput,
+): SaleAuthorizationPath {
   if (isBehindClockMark(occurredAt, offlineSeries.clockMark)) {
     return deferred("clock_behind");
   }
@@ -185,25 +204,19 @@ function offlineRoute(
     cause,
     pointOfSale: offlineSeries.pointOfSale,
     number,
-    document,
     issuedOn: invoiceDateOf(occurredAt),
     fortnight: invoiceOwnFortnight(occurredAt),
     offlineAuthorizationCode,
   };
 }
 
-export function decideSaleAuthorizationRoute(
-  input: SaleAuthorizationRouteInput,
-): SaleAuthorizationRoute {
-  const { gate, online, now, series } = input;
-  if (gate.kind === "failed") {
-    return deferred("pre_emission_gate_failed");
-  }
+export function saleAuthorizationPath(input: SaleAuthorizationPathInput): SaleAuthorizationPath {
+  const { online, now, series } = input;
   if (series.pointOfSale !== null && series.numberingFrozen) {
-    return offlineRoute("numbering_conflict", gate.document, input);
+    return offlinePath("numbering_conflict", input);
   }
   if (series.pointOfSale !== null && series.documentUnknown) {
-    return offlineRoute("unclear_outcome", gate.document, input);
+    return offlinePath("unclear_outcome", input);
   }
   if (
     series.pointOfSale !== null &&
@@ -213,7 +226,7 @@ export function decideSaleAuthorizationRoute(
     return deferred("clock_behind");
   }
   if (!isRegisterFiscallyOnline(online, now)) {
-    return offlineRoute("no_connectivity", gate.document, input);
+    return offlinePath("no_connectivity", input);
   }
   if (series.pointOfSale === null) {
     return deferred("point_of_sale_missing");
@@ -225,7 +238,18 @@ export function decideSaleAuthorizationRoute(
   if (number === null) {
     return deferred("tax_authority_count_unknown");
   }
-  return { kind: "reserve", pointOfSale: series.pointOfSale, number, document: gate.document };
+  return { kind: "reserve", pointOfSale: series.pointOfSale, number };
+}
+
+export function decideSaleAuthorizationRoute<D>(
+  input: SaleAuthorizationRouteInput<D>,
+): SaleAuthorizationRoute<D> {
+  const { gate, ...pathInput } = input;
+  if (gate.kind === "failed") {
+    return { kind: "defer", reason: "pre_emission_gate_failed" };
+  }
+  const path = saleAuthorizationPath(pathInput);
+  return path.kind === "defer" ? path : { ...path, document: gate.document };
 }
 
 export const REJECTION_CLASSES = ["content", "standing"] as const;

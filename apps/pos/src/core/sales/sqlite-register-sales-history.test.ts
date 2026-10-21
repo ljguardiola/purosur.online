@@ -358,6 +358,7 @@ describe("SqliteRegisterSalesHistory", () => {
         fiscalDocument: {
           state: "AUTHORIZED",
           documentType: "factura_c",
+          authorization: "real_time",
           pointOfSale: 7,
           number: 1204,
         },
@@ -372,9 +373,31 @@ describe("SqliteRegisterSalesHistory", () => {
         fiscalDocument: {
           state: "AUTHORIZED",
           documentType: "factura_c",
+          authorization: "offline_code",
           pointOfSale: 8,
           number: 412,
         },
+      });
+    });
+
+    it("reads the fiscal facts of the sale asked for", () => {
+      addSale({ id: "sale-1", offlineDocument: { pointOfSale: 8, number: 412 } });
+      addSale({ id: "deferred", deferred: true });
+
+      const history = new SqliteRegisterSalesHistory(database);
+      expect(history.fiscalFactsOfSale("sale-1")).toEqual({
+        deferred: false,
+        fiscalDocument: {
+          state: "AUTHORIZED",
+          documentType: "factura_c",
+          authorization: "offline_code",
+          pointOfSale: 8,
+          number: 412,
+        },
+      });
+      expect(history.fiscalFactsOfSale("deferred")).toEqual({
+        deferred: true,
+        fiscalDocument: null,
       });
     });
 
@@ -427,6 +450,7 @@ describe("SqliteRegisterSalesHistory", () => {
         fiscalDocument: {
           state: "AUTHORIZED",
           documentType: "factura_c",
+          authorization: "real_time",
           pointOfSale: 7,
           number: 1204,
         },
@@ -590,6 +614,7 @@ describe("SqliteRegisterSalesHistory", () => {
           fiscalDocument: {
             state: "AUTHORIZED",
             documentType: "factura_c",
+            authorization: "real_time",
             pointOfSale: 7,
             number: 1204,
           },

@@ -5,6 +5,7 @@ import {
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import {
   fiscalAddresses,
+  offlinePointOfSaleRetirements,
   pointOfSaleClaims,
   registerOfflinePointsOfSale,
   registerPointsOfSale,
@@ -101,4 +102,44 @@ export async function configureOfflinePointOfSale<TQueryResult extends PgQueryRe
     throw new Error("test setup: the register's points of sale were not configured");
   }
   return register.id;
+}
+
+export async function moveRegisterToOfflinePointOfSale<TQueryResult extends PgQueryResultHKT>(
+  db: PgDatabase<TQueryResult>,
+  {
+    registerId,
+    pointOfSaleNumber,
+    version,
+    now,
+  }: { registerId: string; pointOfSaleNumber: number; version: number; now: Date },
+): Promise<void> {
+  const locationId = await seededLocationId(db);
+  const [actor] = await db.select({ id: users.id }).from(users).limit(1);
+  if (!actor) {
+    throw new Error("test setup: no user seeded");
+  }
+  await db
+    .insert(taxAuthorityLastAuthorizedNumbers)
+    .values({ pointOfSaleNumber, lastAuthorized: 0, readAt: now });
+  const outcome = await configureRegisterOfflinePointOfSale(
+    new DrizzleRegisterOfflinePointOfSaleStore(db, () => now),
+    { locationId, registerId, actorId: actor.id, pointOfSaleNumber, version },
+  );
+  if (outcome.kind !== "configured") {
+    throw new Error("test setup: the register was not moved to another offline point of sale");
+  }
+}
+
+export async function retireOfflinePointOfSaleAt<TQueryResult extends PgQueryResultHKT>(
+  db: PgDatabase<TQueryResult>,
+  pointOfSaleNumber: number,
+  retiredAt: Date,
+): Promise<void> {
+  const [actor] = await db.select({ id: users.id }).from(users).limit(1);
+  if (!actor) {
+    throw new Error("test setup: no user seeded");
+  }
+  await db
+    .insert(offlinePointOfSaleRetirements)
+    .values({ pointOfSaleNumber, retiredAt, retiredBy: actor.id });
 }

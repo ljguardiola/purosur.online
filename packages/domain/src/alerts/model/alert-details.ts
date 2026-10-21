@@ -5,6 +5,7 @@ import type {
   RejectionClass,
   TaxAuthorityRejection,
 } from "../../fiscal/index.js";
+import type { MercadoPagoPaymentMethod } from "../../payments/index.js";
 import type { SalesDeniedReason } from "../../shared/index.js";
 import type { AlertKind } from "./alert-catalog.js";
 import type { OffsiteDumpUnverifiedReason } from "./offsite-dump-unverified-reason.js";
@@ -136,6 +137,7 @@ interface LatePaymentRefundDetail {
   saleId: string;
   amount: number;
   providerOrderId: string | null;
+  method: MercadoPagoPaymentMethod;
 }
 
 interface RefundTaskDetail {

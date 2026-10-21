@@ -2,12 +2,14 @@ import { randomUUID } from "node:crypto";
 import {
   configureRegisterOfflinePointOfSale,
   configureRegisterPointOfSale,
+  retireOfflinePointOfSale,
 } from "@purosur/domain/fiscal/use-cases";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   fiscalAddresses,
+  offlinePointOfSaleRetirements,
   pointOfSaleClaims,
   registerOfflinePointsOfSale,
   registerPointsOfSale,
@@ -18,8 +20,12 @@ import {
   createIntegrationDatabase,
   type IntegrationDatabase,
 } from "../test-support/integration-database.js";
-import { runQueuedBehindHeldLock } from "../test-support/queued-behind-held-lock.js";
+import {
+  runQueuedBehindHeldLock,
+  waitForLockWaiters,
+} from "../test-support/queued-behind-held-lock.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
+import { DrizzleOfflinePointOfSaleRetirementStore } from "./drizzle-offline-point-of-sale-retirement-store.js";
 import { DrizzleRegisterOfflinePointOfSaleStore } from "./drizzle-register-offline-point-of-sale-store.js";
 import { DrizzleRegisterPointOfSaleStore } from "./drizzle-register-point-of-sale-store.js";
 
@@ -237,5 +243,65 @@ describe("a register's real-time point of sale stored directly, as cloud_app", (
       .values({ registerId: firstRegisterId, pointOfSaleNumber: 75, fiscalAddressId, version: 1 });
 
     await expect(insertion).rejects.toMatchObject({ cause: { code: FOREIGN_KEY_VIOLATION } });
+  });
+});
+
+describe("configuring and retiring the same offline point of sale at once on a real Postgres", () => {
+  it("makes both wait for the number's lock and leaves a retired number unassigned whichever goes first", async () => {
+    const { locationId, actorId, fiscalAddressId, firstRegisterId } = await seedTwoRegisters();
+    const offlineStore = new DrizzleRegisterOfflinePointOfSaleStore(db, () => NOON);
+    await configureRegisterPointOfSale(new DrizzleRegisterPointOfSaleStore(db, () => NOON), {
+      locationId,
+      registerId: firstRegisterId,
+      pointOfSaleNumber: 80,
+      fiscalAddressId,
+      version: 0,
+      actorId,
+    });
+    for (const [pointOfSaleNumber, version] of [
+      [81, 0],
+      [82, 1],
+    ] as const) {
+      await configureRegisterOfflinePointOfSale(offlineStore, {
+        locationId,
+        registerId: firstRegisterId,
+        pointOfSaleNumber,
+        version,
+        actorId,
+      });
+    }
+
+    const [configured, retired] = await offlineStore
+      .transaction(async (holder) => {
+        await holder.lockPointOfSale(81);
+        const configuring = configureRegisterOfflinePointOfSale(offlineStore, {
+          locationId,
+          registerId: firstRegisterId,
+          pointOfSaleNumber: 81,
+          version: 2,
+          actorId,
+        });
+        const retiring = retireOfflinePointOfSale(
+          { store: new DrizzleOfflinePointOfSaleRetirementStore(db), clock: { now: () => NOON } },
+          { locationId, pointOfSaleNumber: 81, actorId },
+        );
+        await waitForLockWaiters(adminSql, 2);
+        return [configuring, retiring] as const;
+      })
+      .then((queued) => Promise.all(queued));
+
+    expect([configured.kind, retired.kind]).toSatisfy(
+      (kinds: string[]) =>
+        (kinds[0] === "configured" && kinds[1] === "assigned") ||
+        (kinds[0] === "point_of_sale_taken" && kinds[1] === "retired"),
+    );
+    const assignments = await db.select().from(registerOfflinePointsOfSale);
+    const retiredNumbers = await db.select().from(offlinePointOfSaleRetirements);
+    const assignedNumbers = assignments
+      .filter(({ registerId }) => registerId === firstRegisterId)
+      .map(({ pointOfSaleNumber }) => pointOfSaleNumber);
+    expect(
+      retiredNumbers.some(({ pointOfSaleNumber }) => assignedNumbers.includes(pointOfSaleNumber)),
+    ).toBe(false);
   });
 });

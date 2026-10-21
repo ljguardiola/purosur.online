@@ -14,8 +14,8 @@ import { Check, CookingPot, Plus, Search, SearchX } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { formatStockQuantity } from "../platform/stock-quantity";
+import { AreaTopBar } from "../shell/area-top-bar";
 import { ScreenLayout } from "../shell/screen-layout";
-import { StockTopBar } from "../shell/stock-top-bar";
 import {
   assemblyBatchesCountText,
   BATCH_COST_INCOMPLETE,
@@ -142,7 +142,8 @@ export function AssemblyBatchesScreen({
     <>
       <ScreenLayout
         topBar={
-          <StockTopBar
+          <AreaTopBar
+            eyebrow="Stock"
             title="Tandas"
             action={
               <Button

@@ -157,6 +157,7 @@ describe("the sales history", () => {
           comprobante: {
             kind: "fiscal",
             document_type: "factura_c",
+            authorization: "real_time",
             point_of_sale: 3,
             number: 1204,
           },
@@ -296,7 +297,13 @@ describe("the detail of a sale of the history", () => {
         sale_id: "sale-1",
         occurred_at: "2026-10-08T06:00:00.000-03:00",
         total: 3000,
-        comprobante: { kind: "fiscal", document_type: "factura_c", point_of_sale: 3, number: 1204 },
+        comprobante: {
+          kind: "fiscal",
+          document_type: "factura_c",
+          authorization: "real_time",
+          point_of_sale: 3,
+          number: 1204,
+        },
         operation_number: 482,
         served_by_first_name: "Linus",
         line_count: 1,

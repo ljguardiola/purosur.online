@@ -286,6 +286,7 @@ describe("the register's receipt printing over its local database", () => {
         next_copy: { kind: "original" },
         printed: false,
         standing: "paper_out",
+        comprobante: { kind: "none" },
       });
       expect(
         database.prepare("SELECT print_attempted_at FROM sales WHERE id = 'sale-1'").get(),
@@ -313,6 +314,7 @@ describe("the register's receipt printing over its local database", () => {
       next_copy: { kind: "original" },
       printed: false,
       standing: null,
+      comprobante: { kind: "none" },
     });
     expect(await printing.reprintSaleReceipt?.({ saleId: "sale-1", reason: "Se perdió" })).toEqual({
       kind: "lacks_permission",

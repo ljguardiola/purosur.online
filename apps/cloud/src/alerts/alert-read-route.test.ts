@@ -487,7 +487,7 @@ describe("GET /alerts/:id for a register that lacks a fortnight's offline author
 });
 
 describe("GET /alerts/:id for the refund of a late payment", () => {
-  it("answers the warning of the branch with the refund as its scope and the sale and amount to give back", async () => {
+  it("answers the warning of the branch with the refund as its scope and the sale, amount and payment method to give back", async () => {
     const viewerRoleId = await insertRole("supervisor", ["view_all_alerts"]);
     const rawSessionId = await insertSession(await insertUserWithRole("Grace", viewerRoleId));
     const refundId = "4b0d2c1e-7f3a-4e58-9a61-0c5d8e2f1a77";
@@ -503,6 +503,7 @@ describe("GET /alerts/:id for the refund of a late payment", () => {
           saleId: "9d1c1e1e-5b1a-4a53-9c1c-3a7c6f0b2d10",
           amount: 250000,
           providerOrderId: null,
+          method: "POINT",
         },
         openedAt: NOON,
       })
@@ -524,6 +525,7 @@ describe("GET /alerts/:id for the refund of a late payment", () => {
         saleId: "9d1c1e1e-5b1a-4a53-9c1c-3a7c6f0b2d10",
         amount: 250000,
         providerOrderId: null,
+        method: "POINT",
       },
     });
   });

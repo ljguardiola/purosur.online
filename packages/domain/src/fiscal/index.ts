@@ -65,6 +65,12 @@ export {
   isSameFiscalAddressName,
 } from "./model/fiscal-address.js";
 export type {
+  FiscalAuthorization,
+  FiscalEmissionMode,
+  FiscalEmissionModeKind,
+} from "./model/fiscal-emission-mode.js";
+export { FISCAL_AUTHORIZATIONS, FISCAL_EMISSION_MODE_KINDS } from "./model/fiscal-emission-mode.js";
+export type {
   FiscalEmissionStoppedReport,
   LatestPreEmissionGateOutcome,
 } from "./model/fiscal-emission-stop.js";
@@ -149,6 +155,7 @@ export type { ListedOwedPresentation } from "./model/owed-presentation-list.js";
 export { splitOwedPresentations } from "./model/owed-presentation-list.js";
 export {
   isPointOfSaleNumber,
+  offlinePointOfSaleRetirementRefusal,
   POINT_OF_SALE_NUMBER_MAX,
 } from "./model/point-of-sale.js";
 export type {

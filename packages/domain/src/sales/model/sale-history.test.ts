@@ -12,7 +12,13 @@ import {
 } from "./sale-history.js";
 
 function document(state: FiscalDocumentState): SaleFiscalDocument {
-  return { state, documentType: "factura_c", pointOfSale: 3, number: 1204 };
+  return {
+    state,
+    documentType: "factura_c",
+    authorization: "real_time",
+    pointOfSale: 3,
+    number: 1204,
+  };
 }
 
 const NO_DOCUMENT: SaleFiscalFacts = { deferred: false, fiscalDocument: null };
@@ -88,9 +94,19 @@ describe("saleComprobanteOf", () => {
     expect(saleComprobanteOf({ deferred: false, fiscalDocument: document("AUTHORIZED") })).toEqual({
       kind: "fiscal",
       documentType: "factura_c",
+      authorization: "real_time",
       pointOfSale: 3,
       number: 1204,
     });
+  });
+
+  it("carries how the document was authorized", () => {
+    expect(
+      saleComprobanteOf({
+        deferred: false,
+        fiscalDocument: { ...document("AUTHORIZED"), authorization: "offline_code" },
+      }),
+    ).toMatchObject({ kind: "fiscal", authorization: "offline_code" });
   });
 
   it("is a non-fiscal document when the sale is deferred", () => {

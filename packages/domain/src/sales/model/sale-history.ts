@@ -1,4 +1,5 @@
 import {
+  type FiscalAuthorization,
   type FiscalDocumentState,
   type FiscalDocumentType,
   IN_PROGRESS_FISCAL_DOCUMENT_STATES,
@@ -13,6 +14,7 @@ export type SaleStanding = (typeof SALE_STANDINGS)[number];
 export interface SaleFiscalDocument {
   state: FiscalDocumentState;
   documentType: FiscalDocumentType;
+  authorization: FiscalAuthorization;
   pointOfSale: number;
   number: number;
 }
@@ -38,6 +40,7 @@ export type SaleComprobante =
   | {
       kind: "fiscal";
       documentType: FiscalDocumentType;
+      authorization: FiscalAuthorization;
       pointOfSale: number;
       number: number;
     }
@@ -90,8 +93,8 @@ export function saleStandingOf({
 
 export function saleComprobanteOf({ deferred, fiscalDocument }: SaleFiscalFacts): SaleComprobante {
   if (fiscalDocument?.state === "AUTHORIZED") {
-    const { documentType, pointOfSale, number } = fiscalDocument;
-    return { kind: "fiscal", documentType, pointOfSale, number };
+    const { documentType, authorization, pointOfSale, number } = fiscalDocument;
+    return { kind: "fiscal", documentType, authorization, pointOfSale, number };
   }
   return deferred ? { kind: "deferred_non_fiscal" } : { kind: "none" };
 }

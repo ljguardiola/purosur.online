@@ -11,7 +11,10 @@ import { DrizzleFortnightReportStore } from "./drizzle-fortnight-report-store.js
 import { DrizzleOfflineAuthorizationCodeStore } from "./drizzle-offline-authorization-code-store.js";
 import { DrizzleOwedPresentationList } from "./drizzle-owed-presentation-list.js";
 import { insertOfflineFiscalDocument } from "./test-support/offline-fiscal-document-fixtures.js";
-import { seedOfflinePointOfSale } from "./test-support/offline-point-of-sale-fixtures.js";
+import {
+  retireOfflinePointOfSaleAt,
+  seedOfflinePointOfSale,
+} from "./test-support/offline-point-of-sale-fixtures.js";
 
 const OCTOBER_FIRST_HALF = { start: "2026-10-01", end: "2026-10-15" };
 const OCTOBER_SECOND_HALF = { start: "2026-10-16", end: "2026-10-31" };
@@ -143,6 +146,20 @@ describe("DrizzleFortnightReportStore.owedReports", () => {
     const owed = await store.owedReports("2026-11-01");
 
     expect(owed.map(({ code }) => code.code)).toEqual(["36123456789013"]);
+  });
+});
+
+describe("DrizzleFortnightReportStore.owedReports for a retired point of sale", () => {
+  it("owes the fortnights that closed before the retirement and none that close after it", async () => {
+    await seedOfflinePointOfSale(db);
+    await claimedAt(new Date("2026-09-20T12:00:00.000Z"));
+    await keepCode(OCTOBER_FIRST_HALF, "36123456789012");
+    await keepCode(OCTOBER_SECOND_HALF, "36123456789013");
+    await retireOfflinePointOfSaleAt(db, OFFLINE_POINT_OF_SALE, AT);
+
+    const owed = await newStore().owedReports("2026-11-10");
+
+    expect(owed.map(({ code }) => code.code)).toEqual(["36123456789012"]);
   });
 });
 

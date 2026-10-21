@@ -15,8 +15,8 @@ import { deepEqual } from "@tanstack/react-router";
 import { Ban, Pencil, Plus, RotateCcw, Search, SearchX, Truck } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
+import { AreaTopBar } from "../shell/area-top-bar";
 import { ScreenLayout } from "../shell/screen-layout";
-import { StockTopBar } from "../shell/stock-top-bar";
 import { DeactivateSupplierModal } from "./deactivate-supplier-modal";
 import { EditSupplierModal } from "./edit-supplier-modal";
 import { NewSupplierModal } from "./new-supplier-modal";
@@ -165,7 +165,8 @@ export function SuppliersListScreen({
     <>
       <ScreenLayout
         topBar={
-          <StockTopBar
+          <AreaTopBar
+            eyebrow="Stock"
             title="Proveedores"
             action={
               <Button variant="primary" icon={<Plus />} onPress={() => setNewModalOpen(true)}>

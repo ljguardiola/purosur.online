@@ -1307,6 +1307,30 @@ describe("wiring the purchasing routes", () => {
       app.inject({ method: "POST", url: "/api/freights", headers: ORIGIN }),
       app.inject({ method: "PUT", url: `/api/freights/${ID}`, headers: ORIGIN }),
       app.inject({ method: "GET", url: "/api/freights/linkable-purchases" }),
+      app.inject({ method: "GET", url: "/api/supplier-price-lists" }),
+      app.inject({ method: "POST", url: "/api/supplier-price-lists", headers: ORIGIN }),
+      app.inject({ method: "GET", url: `/api/supplier-price-lists/${ID}` }),
+      app.inject({ method: "GET", url: `/api/supplier-price-lists/${ID}/file` }),
+      app.inject({
+        method: "PUT",
+        url: `/api/supplier-price-lists/${ID}/rows/${ID}/price`,
+        headers: ORIGIN,
+      }),
+      app.inject({
+        method: "DELETE",
+        url: `/api/supplier-price-lists/${ID}/rows/${ID}`,
+        headers: ORIGIN,
+      }),
+      app.inject({
+        method: "POST",
+        url: `/api/supplier-price-lists/${ID}/confirmation`,
+        headers: ORIGIN,
+      }),
+      app.inject({
+        method: "POST",
+        url: `/api/supplier-price-lists/${ID}/discard`,
+        headers: ORIGIN,
+      }),
     ]);
     return responses.map((response) => response.statusCode);
   }
@@ -1314,7 +1338,7 @@ describe("wiring the purchasing routes", () => {
   it("does not register the purchasing routes when no purchasing option is given", async () => {
     const app = buildApp({ now: () => APP_CLOCK, version: "abc1234" });
 
-    expect(await purchasingResponses(app)).toEqual(Array(17).fill(404));
+    expect(await purchasingResponses(app)).toEqual(Array(25).fill(404));
   });
 
   it("registers the purchasing routes when a purchasing option is given", async () => {
@@ -1324,7 +1348,7 @@ describe("wiring the purchasing routes", () => {
       purchasing: { db: testDatabase.db, backofficeOrigin: "https://staging.purosur.online" },
     });
 
-    expect(await purchasingResponses(app)).toEqual(Array(17).fill(401));
+    expect(await purchasingResponses(app)).toEqual(Array(25).fill(401));
   });
 });
 
@@ -1766,6 +1790,8 @@ describe("wiring the register point of sale routes", () => {
     ["GET", "/api/registers/fortnight-presentations"],
     ["PUT", "/api/registers/00000000-0000-0000-0000-000000000000/point-of-sale"],
     ["PUT", "/api/registers/00000000-0000-0000-0000-000000000000/offline-point-of-sale"],
+    ["GET", "/api/registers/offline-points-of-sale"],
+    ["POST", "/api/registers/offline-points-of-sale/8/retirement"],
   ])("%s %s: answers according to the registersPointsOfSale option", async (method, url) => {
     const unwired = buildApp({ now: () => APP_CLOCK, version: "abc1234" });
     const wired = buildApp({
@@ -1777,7 +1803,7 @@ describe("wiring the register point of sale routes", () => {
       },
     });
     const request = {
-      method: method as "GET" | "PUT",
+      method: method as "GET" | "PUT" | "POST",
       url,
       headers: { origin: "https://staging.purosur.online" },
     };
@@ -2545,6 +2571,41 @@ describe("the route access inventory", () => {
       { method: "PUT", url: "/api/freights/:id", access: capabilityAccess("freights") },
       {
         method: "GET",
+        url: "/api/supplier-price-lists",
+        access: capabilityAccess("supplier_price_lists"),
+      },
+      {
+        method: "GET",
+        url: "/api/supplier-price-lists/:id",
+        access: capabilityAccess("supplier_price_lists"),
+      },
+      {
+        method: "GET",
+        url: "/api/supplier-price-lists/:id/file",
+        access: capabilityAccess("supplier_price_lists"),
+      },
+      {
+        method: "PUT",
+        url: "/api/supplier-price-lists/:id/rows/:rowId/price",
+        access: capabilityAccess("supplier_price_lists"),
+      },
+      {
+        method: "DELETE",
+        url: "/api/supplier-price-lists/:id/rows/:rowId",
+        access: capabilityAccess("supplier_price_lists"),
+      },
+      {
+        method: "POST",
+        url: "/api/supplier-price-lists/:id/confirmation",
+        access: capabilityAccess("supplier_price_lists"),
+      },
+      {
+        method: "POST",
+        url: "/api/supplier-price-lists/:id/discard",
+        access: capabilityAccess("supplier_price_lists"),
+      },
+      {
+        method: "GET",
         url: "/api/tags",
         access: capabilityAccess("products_and_categories"),
       },
@@ -2961,7 +3022,22 @@ describe("the route access inventory", () => {
         url: "/api/registers/:id/offline-point-of-sale",
         access: capabilityAccess("cash_area"),
       },
+      {
+        method: "GET",
+        url: "/api/registers/offline-points-of-sale",
+        access: capabilityAccess("cash_area"),
+      },
+      {
+        method: "POST",
+        url: "/api/registers/offline-points-of-sale/:number/retirement",
+        access: capabilityAccess("cash_area"),
+      },
       { method: "GET", url: "/api/health", access: PUBLIC_ACCESS },
+      {
+        method: "POST",
+        url: "/api/supplier-price-lists",
+        access: capabilityAccess("supplier_price_lists"),
+      },
       { method: "POST", url: "/api/devices", access: PUBLIC_ACCESS },
       { method: "GET", url: "/api/changes", access: PUBLIC_ACCESS },
       { method: "POST", url: "/api/events", access: PUBLIC_ACCESS },

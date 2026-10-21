@@ -129,8 +129,10 @@ export function startRegisterHealthChecks({
   now,
   scheduleNext,
   reportFailure,
+  afterCheck,
 }: RealTimeAuthorizationWiringDeps & {
   scheduleNext: (run: () => void, delayMs: number) => () => void;
+  afterCheck?: () => void;
 }): (() => void) | undefined {
   if (database === undefined || cloudClient === undefined) {
     return undefined;
@@ -167,6 +169,7 @@ export function startRegisterHealthChecks({
           clock: { now },
         }).catch(reportFailure);
       }
+      afterCheck?.();
     },
     scheduleNext,
     onFailure: reportFailure,

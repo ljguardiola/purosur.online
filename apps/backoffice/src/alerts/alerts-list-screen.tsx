@@ -98,8 +98,15 @@ function alertScopeCell(alert: AlertSummary, scopeDisplay: string): string {
 }
 
 function alertRowDescription(alert: AlertSummary): string {
-  if (alert.kind === "late_payment_refund" && alert.refundAmount !== null) {
-    const payment = `QR de Mercado Pago de ${formatCents(alert.refundAmount)}`;
+  if (
+    alert.kind === "late_payment_refund" &&
+    alert.refundAmount !== null &&
+    (alert.refundMethod === "QR" || alert.refundMethod === "POINT")
+  ) {
+    const payment =
+      alert.refundMethod === "QR"
+        ? `QR de Mercado Pago de ${formatCents(alert.refundAmount)}`
+        : `Pago con tarjeta en el Point de ${formatCents(alert.refundAmount)}`;
     return alert.resolvedAt === null ? `${payment} por reembolsar` : payment;
   }
   if (alert.kind === "refund_task" && alert.resolvedAt !== null) {

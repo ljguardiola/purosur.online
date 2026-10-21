@@ -111,7 +111,10 @@ export function EditRegisterOfflinePointOfSaleModal({
         return;
       }
       if (outcome.kind === "point_of_sale_taken") {
-        showFieldError("pointOfSaleNumber", "Ese punto de venta ya está asignado.");
+        showFieldError(
+          "pointOfSaleNumber",
+          "Ese punto de venta no está disponible: ya se usó o se dio de baja.",
+        );
         return;
       }
       if (outcome.kind === "real_time_point_of_sale_missing") {

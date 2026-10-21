@@ -179,6 +179,18 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
       recordFreight: vi.fn(),
       editFreight: vi.fn(),
     },
+    supplierPriceListsScreen: {
+      fetchSupplierPriceLists: vi.fn().mockReturnValue(new Promise(() => {})),
+      uploadSupplierPriceList: vi.fn(),
+      fetchSuppliers: vi.fn().mockReturnValue(new Promise(() => {})),
+    },
+    supplierPriceListReviewScreen: {
+      fetchSupplierPriceListReview: vi.fn().mockReturnValue(new Promise(() => {})),
+      setSupplierPriceListRowPrice: vi.fn(),
+      removeSupplierPriceListRow: vi.fn(),
+      confirmSupplierPriceList: vi.fn(),
+      discardSupplierPriceList: vi.fn(),
+    },
     newPurchaseScreen: {
       fetchPurchaseChoices: vi.fn().mockReturnValue(new Promise(() => {})),
       registerPurchase: vi.fn(),
@@ -299,6 +311,8 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
       fetchRegisterPointsOfSale: vi.fn().mockReturnValue(new Promise(() => {})),
       fetchFiscalAddresses: vi.fn().mockReturnValue(new Promise(() => {})),
       fetchFortnightPresentations: vi.fn().mockReturnValue(new Promise(() => {})),
+      fetchOfflinePointsOfSale: vi.fn().mockReturnValue(new Promise(() => {})),
+      retireOfflinePointOfSale: vi.fn(),
       configureRegisterPointOfSale: vi.fn(),
       configureRegisterOfflinePointOfSale: vi.fn(),
       createFiscalAddress: vi.fn(),
@@ -313,7 +327,7 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
       fetchAlertsOverview: vi.fn().mockReturnValue(new Promise(() => {})),
       fetchRegisterSyncStatus: vi.fn().mockReturnValue(new Promise(() => {})),
     },
-    stockTopBarAlertsCount: AlertsOpenCountLink,
+    areaTopBarAlertsCount: AlertsOpenCountLink,
     alertsOpenCountLink: {
       fetchAlertsOverview: vi.fn().mockReturnValue(new Promise(() => {})),
     },

@@ -65,6 +65,7 @@ describe("the project's resources", () => {
       "Media Storage",
       "Register Updates",
       "Register Snapshots",
+      "Supplier Price Lists",
       "Schema Migrations",
       "Cloud Server",
     ]);
@@ -90,6 +91,7 @@ describe("the offsite dump", () => {
         "Media Storage",
         "Register Updates",
         "Register Snapshots",
+        "Supplier Price Lists",
         "Schema Migrations",
         "Cloud Server",
         "Offsite Dump",
@@ -204,6 +206,7 @@ describe("the offsite dump", () => {
 describe.each([
   ["Register Updates", "REGISTER_UPDATES_BUCKET"],
   ["Register Snapshots", "REGISTER_SNAPSHOTS_BUCKET"],
+  ["Supplier Price Lists", "SUPPLIER_PRICE_LISTS_BUCKET"],
 ])("the %s bucket", (bucketName, prefix) => {
   const BUCKET_OUTPUTS = {
     [`${prefix}_ENDPOINT`]: "ENDPOINT",
@@ -451,6 +454,35 @@ describe("the Cloud Server service's environment", () => {
       await expect(compile()).rejects.toThrow(
         "MERCADOPAGO_WEBHOOK_SECRET must be set when MERCADOPAGO_ACCESS_TOKEN is set",
       );
+    });
+  });
+
+  describe("the AI service key", () => {
+    it("carries the key when it is set", async () => {
+      vi.stubEnv("ANTHROPIC_API_KEY", "fictional-anthropic-key");
+
+      const cloud = findService(await compile(), "Cloud Server");
+
+      expect(cloud.variables?.["ANTHROPIC_API_KEY"]).toEqual({
+        type: "literal",
+        value: "fictional-anthropic-key",
+      });
+    });
+
+    it("leaves it out when it is not set", async () => {
+      vi.stubEnv("ANTHROPIC_API_KEY", "");
+
+      const cloud = findService(await compile(), "Cloud Server");
+
+      expect(cloud.variables).not.toHaveProperty("ANTHROPIC_API_KEY");
+    });
+
+    it("gives the Schema Migrations service no key", async () => {
+      vi.stubEnv("ANTHROPIC_API_KEY", "fictional-anthropic-key");
+
+      const migrate = findService(await compile(), "Schema Migrations");
+
+      expect(migrate.variables ?? {}).not.toHaveProperty("ANTHROPIC_API_KEY");
     });
   });
 

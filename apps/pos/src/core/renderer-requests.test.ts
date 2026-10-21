@@ -170,6 +170,7 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
         cloud: "unknown",
         serial_devices: { scale: "not_registered", reader: "not_registered" },
         serial_devices_setup_offered: false,
+        fiscal_mode: "real_time",
       }),
       recordCashMovement: async (
         request: CashMovementRequest,
@@ -870,6 +871,7 @@ describe("answerRendererRequest", () => {
       cloud: "unreachable",
       serial_devices: { scale: "matching", reader: "not_detected" },
       serial_devices_setup_offered: false,
+      fiscal_mode: "real_time",
     };
 
     expect(

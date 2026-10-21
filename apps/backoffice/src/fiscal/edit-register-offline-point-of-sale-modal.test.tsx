@@ -181,7 +181,7 @@ test("opens the authorization modal on authorization_required, then authorizes a
   expect(services.configureRegisterOfflinePointOfSale).toHaveBeenCalledTimes(2);
 });
 
-test("says the number is already assigned, on the number's field", async () => {
+test("says the number is no longer available, on the number's field", async () => {
   const services = createServices();
   vi.mocked(services.configureRegisterOfflinePointOfSale).mockResolvedValue({
     kind: "point_of_sale_taken",
@@ -191,7 +191,9 @@ test("says the number is already assigned, on the number's field", async () => {
 
   await save(dialog);
 
-  await expect.element(dialog.getByText("Ese punto de venta ya está asignado.")).toBeVisible();
+  await expect
+    .element(dialog.getByText("Ese punto de venta no está disponible: ya se usó o se dio de baja."))
+    .toBeVisible();
   expect(onSaved).not.toHaveBeenCalled();
 });
 
