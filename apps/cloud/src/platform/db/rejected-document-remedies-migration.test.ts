@@ -19,11 +19,8 @@ async function migratedDatabase() {
 
 const insertRemedy = (kind: string, correction: string) =>
   `insert into rejected_document_remedies
-     (point_of_sale_number, fortnight_start, document_type, number, kind, correction, actor_id,
-      recorded_at)
-   select 7, '2026-10-01', 'factura_c', 3, '${kind}', ${correction}, users.id,
-          '2026-10-16T12:00:00Z'
-   from users`;
+     (point_of_sale_number, fortnight_start, document_type, number, kind, correction, recorded_at)
+   values (7, '2026-10-01', 'factura_c', 3, '${kind}', ${correction}, '2026-10-16T12:00:00Z')`;
 
 describe("the rejected document remedies migration applied over a database that already holds data", {
   timeout: 30_000,

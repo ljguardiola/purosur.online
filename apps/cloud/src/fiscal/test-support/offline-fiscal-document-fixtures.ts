@@ -11,22 +11,25 @@ export async function insertOfflineFiscalDocument<TQueryResult extends PgQueryRe
     fortnight,
     number,
     saleId = randomUUID(),
+    issuedOn = fortnight.start,
   }: {
     registerId: string;
     pointOfSale: number;
     fortnight: Fortnight;
     number: number;
     saleId?: string;
+    issuedOn?: string;
   },
-): Promise<void> {
+): Promise<{ id: string; saleId: string }> {
+  const id = randomUUID();
   await db.insert(offlineFiscalDocuments).values({
-    id: randomUUID(),
+    id,
     saleId,
     registerId,
     pointOfSale,
     documentType: "factura_c",
     number,
-    issuedOn: fortnight.start,
+    issuedOn,
     generatedAt: new Date(`${fortnight.start}T12:00:00.000Z`),
     generationStamp: `${fortnight.start.replaceAll("-", "")}090000`,
     offlineAuthorizationCode: "36123456789012",
@@ -40,4 +43,5 @@ export async function insertOfflineFiscalDocument<TQueryResult extends PgQueryRe
     cause: "no_connectivity",
     recordedAt: new Date(`${fortnight.start}T12:00:00.000Z`),
   });
+  return { id, saleId };
 }

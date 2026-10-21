@@ -13,6 +13,7 @@ import { DrizzleFortnightReportStore } from "./drizzle-fortnight-report-store.js
 import { DrizzleOfflineAuthorizationCodeStore } from "./drizzle-offline-authorization-code-store.js";
 import { registerFortnightPresentationsListRoute } from "./fortnight-presentations-list-route.js";
 import { configureOfflinePointOfSale } from "./test-support/offline-point-of-sale-fixtures.js";
+import { WITHOUT_CREDIT_NOTES } from "./test-support/rejected-document-remedy-fixtures.js";
 
 const DECEMBER_SECOND_HALF = { start: "2025-12-16", end: "2025-12-31" };
 const OFFLINE_POINT_OF_SALE = 8;
@@ -99,7 +100,7 @@ describe("GET /registers/fortnight-presentations", () => {
       now: SESSION_NOON,
     });
     await keepDecemberCode(OFFLINE_POINT_OF_SALE);
-    await new DrizzleFortnightReportStore(db).holdReport(
+    await new DrizzleFortnightReportStore(db, WITHOUT_CREDIT_NOTES).holdReport(
       { pointOfSaleNumber: OFFLINE_POINT_OF_SALE, fortnight: DECEMBER_SECOND_HALF },
       (report) => report.record({ state: "refused", at: SESSION_NOON }),
     );

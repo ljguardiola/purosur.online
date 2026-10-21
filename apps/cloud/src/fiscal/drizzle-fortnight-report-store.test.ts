@@ -2,6 +2,7 @@ import type { Fortnight } from "@purosur/domain/fiscal/use-cases";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
+  creditNotes,
   fortnightDocumentReports,
   fortnightReports,
   pointOfSaleClaims,
@@ -15,6 +16,7 @@ import {
   retireOfflinePointOfSaleAt,
   seedOfflinePointOfSale,
 } from "./test-support/offline-point-of-sale-fixtures.js";
+import { insertRejectedDocumentRemedy } from "./test-support/rejected-document-remedy-fixtures.js";
 
 const OCTOBER_FIRST_HALF = { start: "2026-10-01", end: "2026-10-15" };
 const OCTOBER_SECOND_HALF = { start: "2026-10-16", end: "2026-10-31" };
@@ -36,6 +38,7 @@ afterAll(async () => {
 
 beforeEach(async () => {
   await testDatabase.clear();
+  enqueuedCreditNotes.length = 0;
 });
 
 async function keepCode(fortnight: Fortnight, code: string) {
@@ -61,8 +64,14 @@ function listedAsOwed(pointOfSaleNumber: number, fortnight: Fortnight) {
   return new DrizzleOwedPresentationList(db).replace([{ pointOfSaleNumber, fortnight }], AT);
 }
 
-function newStore() {
-  return new DrizzleFortnightReportStore(db);
+const enqueuedCreditNotes: string[] = [];
+
+function newStore(
+  enqueueCreditNote = async (_: unknown, creditNoteId: string) => {
+    enqueuedCreditNotes.push(creditNoteId);
+  },
+) {
+  return new DrizzleFortnightReportStore(db, { enqueueCreditNote, now: () => AT });
 }
 
 describe("DrizzleFortnightReportStore.owedReports", () => {
@@ -519,5 +528,224 @@ describe("DrizzleFortnightReportStore.acceptedWithUnreportedDocuments", () => {
     );
 
     expect(await newStore().acceptedWithUnreportedDocuments()).toEqual([]);
+  });
+});
+
+describe("DrizzleFortnightReportStore.documentTypeReports", () => {
+  const rejections = [{ code: 1439, message: "Fictional observation" }];
+
+  beforeEach(async () => {
+    await seedOfflinePointOfSale(db);
+    await keepCode(OCTOBER_FIRST_HALF, "36123456789012");
+  });
+
+  function refuseAt(number: number, fortnight: Fortnight = OCTOBER_FIRST_HALF) {
+    return newStore().holdReport(
+      { pointOfSaleNumber: OFFLINE_POINT_OF_SALE, fortnight },
+      (report) =>
+        report.recordDocumentType({
+          documentType: "factura_c",
+          state: "refused",
+          at: AT,
+          reportedThrough: number - 1,
+          rejectedNumber: number,
+          rejections,
+        }),
+    );
+  }
+
+  function documentTypeReports() {
+    return newStore().holdReport(KEY, (report) => report.documentTypeReports());
+  }
+
+  it("recalls no document type report for a presentation that recorded none", async () => {
+    expect(await documentTypeReports()).toEqual([]);
+  });
+
+  it("recalls a document type's progress, its rejected document and rejections, and that no remedy was recorded", async () => {
+    await refuseAt(5);
+
+    expect(await documentTypeReports()).toEqual([
+      {
+        documentType: "factura_c",
+        state: "refused",
+        reportedThrough: 4,
+        rejectedNumber: 5,
+        lastAttemptAt: AT,
+        rejections,
+        remedy: null,
+      },
+    ]);
+  });
+
+  it("recalls no rejections for a document type recorded without any", async () => {
+    await newStore().holdReport(KEY, (report) =>
+      report.recordDocumentType({
+        documentType: "factura_c",
+        state: "accepted",
+        at: AT,
+        reportedThrough: 9,
+      }),
+    );
+
+    expect(await documentTypeReports()).toEqual([
+      expect.objectContaining({ rejections: [], rejectedNumber: null, remedy: null }),
+    ]);
+  });
+
+  it("recalls the newest remedy recorded for the rejected document, with the time it was recorded", async () => {
+    await refuseAt(5);
+    const remedy = (recordedAt: string) =>
+      insertRejectedDocumentRemedy(db, {
+        pointOfSale: OFFLINE_POINT_OF_SALE,
+        fortnight: OCTOBER_FIRST_HALF,
+        number: 5,
+        correction: null,
+        recordedAt: new Date(recordedAt),
+      });
+    await remedy("2026-10-17T10:00:00.000Z");
+    await remedy("2026-10-18T10:00:00.000Z");
+    await remedy("2026-10-17T15:00:00.000Z");
+
+    expect(await documentTypeReports()).toEqual([
+      expect.objectContaining({
+        remedy: { number: 5, recordedAt: new Date("2026-10-18T10:00:00.000Z") },
+      }),
+    ]);
+  });
+
+  it("recalls no remedy of another document, of another point of sale or of another fortnight", async () => {
+    await refuseAt(5);
+    await keepCode(OCTOBER_SECOND_HALF, "36123456789013");
+    await refuseAt(5, OCTOBER_SECOND_HALF);
+    const otherRemedies = [
+      { pointOfSale: OFFLINE_POINT_OF_SALE, fortnight: OCTOBER_FIRST_HALF, number: 4 },
+      { pointOfSale: 7, fortnight: OCTOBER_FIRST_HALF, number: 5 },
+      { pointOfSale: OFFLINE_POINT_OF_SALE, fortnight: OCTOBER_SECOND_HALF, number: 5 },
+    ];
+    for (const other of otherRemedies) {
+      await insertRejectedDocumentRemedy(db, {
+        ...other,
+        correction: null,
+        recordedAt: new Date("2026-10-17T10:00:00.000Z"),
+      });
+    }
+
+    expect(await documentTypeReports()).toEqual([expect.objectContaining({ remedy: null })]);
+  });
+});
+
+describe("DrizzleFortnightReportStore.realTimePointOfSaleOf", () => {
+  it("answers the real-time point of sale a register holds, and none for a register that holds none", async () => {
+    const registerId = await seedOfflinePointOfSale(db);
+    await keepCode(OCTOBER_FIRST_HALF, "36123456789012");
+    const store = newStore();
+
+    expect(await store.holdReport(KEY, (report) => report.realTimePointOfSaleOf(registerId))).toBe(
+      7,
+    );
+    expect(
+      await store.holdReport(KEY, (report) =>
+        report.realTimePointOfSaleOf("0199b7a0-0000-7000-8000-0000000000ff"),
+      ),
+    ).toBeNull();
+  });
+});
+
+describe("DrizzleFortnightReportStore.creditCorrectedDocument", () => {
+  const creditNote = {
+    saleId: "0199b7a0-0000-7000-8000-000000000004",
+    reason: "rejected_document",
+    pointOfSale: 7,
+    associatedVoucher: { voucherType: 11, pointOfSale: OFFLINE_POINT_OF_SALE, number: 5 },
+    total: 12_500,
+    receiverTaxStatusCode: 5,
+  } as const;
+  let registerId: string;
+
+  beforeEach(async () => {
+    registerId = await seedOfflinePointOfSale(db);
+    await keepCode(OCTOBER_FIRST_HALF, "36123456789012");
+  });
+
+  function credit(store = newStore()) {
+    return store.holdReport(KEY, (report) => report.creditCorrectedDocument(creditNote));
+  }
+
+  it("asks for a credit note of the corrected document's whole total on the register's real-time point of sale, and queues its issuing", async () => {
+    await credit();
+
+    const rows = await db.select().from(creditNotes);
+    expect(rows).toEqual([
+      expect.objectContaining({
+        registerId,
+        saleId: creditNote.saleId,
+        reason: "rejected_document",
+        pointOfSale: 7,
+        associatedVoucherType: 11,
+        associatedPointOfSale: OFFLINE_POINT_OF_SALE,
+        associatedNumber: 5,
+        keptVoucherType: null,
+        total: 12_500,
+        receiverTaxStatusCode: 5,
+        number: null,
+        answerKind: null,
+        createdAt: AT,
+      }),
+    ]);
+    expect(enqueuedCreditNotes).toEqual([rows[0]?.id]);
+  });
+
+  it("asks for the credit note once, however many times the corrected document is credited", async () => {
+    await credit();
+    await credit();
+
+    expect(await db.select().from(creditNotes)).toHaveLength(1);
+    expect(enqueuedCreditNotes).toHaveLength(1);
+  });
+
+  it("asks for nothing when the corrected voucher already has a credit note, such as the one of a voided sale", async () => {
+    await db.insert(creditNotes).values({
+      id: "0199b7a0-0000-7000-8000-000000000009",
+      registerId,
+      saleId: creditNote.saleId,
+      reason: "sale_void",
+      pointOfSale: 7,
+      associatedVoucherType: 11,
+      associatedPointOfSale: OFFLINE_POINT_OF_SALE,
+      associatedNumber: 5,
+      total: 12_500,
+      receiverTaxStatusCode: 5,
+      createdAt: AT,
+    });
+
+    await credit();
+
+    expect(await db.select({ id: creditNotes.id }).from(creditNotes)).toEqual([
+      { id: "0199b7a0-0000-7000-8000-000000000009" },
+    ]);
+    expect(enqueuedCreditNotes).toEqual([]);
+  });
+
+  it("leaves no credit note behind when queuing its issuing fails", async () => {
+    const failing = newStore(async () => {
+      throw new Error("the queue is down");
+    });
+
+    await expect(credit(failing)).rejects.toThrow("the queue is down");
+
+    expect(await db.select().from(creditNotes)).toEqual([]);
+  });
+
+  it("asks for a credit note of another voucher separately", async () => {
+    await credit();
+    await newStore().holdReport(KEY, (report) =>
+      report.creditCorrectedDocument({
+        ...creditNote,
+        associatedVoucher: { ...creditNote.associatedVoucher, number: 6 },
+      }),
+    );
+
+    expect(await db.select().from(creditNotes)).toHaveLength(2);
   });
 });

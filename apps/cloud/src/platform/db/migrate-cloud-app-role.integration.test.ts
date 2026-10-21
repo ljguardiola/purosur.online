@@ -369,8 +369,8 @@ describe("the cloud_app role runMigrations creates", () => {
     `;
     await cloudApp`
       insert into rejected_document_remedies
-        (point_of_sale_number, fortnight_start, document_type, number, kind, actor_id, recorded_at)
-      values (902, '2026-10-01', 'factura_c', 17, 'report', ${user.id}, now())
+        (point_of_sale_number, fortnight_start, document_type, number, kind, recorded_at)
+      values (902, '2026-10-01', 'factura_c', 17, 'report', now())
     `;
 
     await expect(

@@ -351,7 +351,6 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
       number: 1,
       kind: "printed",
       correction: { issuedOn: "2026-01-02" },
-      actorId: user.id,
       recordedAt: new Date("2026-01-05T12:00:00.000Z"),
     });
     await db.insert(offlineNumberBlocks).values({
