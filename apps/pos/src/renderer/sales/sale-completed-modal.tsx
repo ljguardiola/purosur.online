@@ -1,5 +1,14 @@
 import type { ReceiptPrintStatusOutcome } from "@purosur/contracts";
-import { Button, FigureStat, formatCents, InlineNotice, Modal, SummaryRowGroup } from "@purosur/ui";
+import {
+  Button,
+  DocumentList,
+  FigureStat,
+  formatCents,
+  InlineNotice,
+  Modal,
+  SummaryRowGroup,
+  Tag,
+} from "@purosur/ui";
 import { useNavigate } from "@tanstack/react-router";
 import { ArrowRight, CircleCheck, Plus, Printer, TriangleAlert } from "lucide-react";
 import type { ReceiptPrintStatus } from "./sales-queries";
@@ -146,6 +155,14 @@ export function SaleCompletedModal(props: SaleCompletedModalProps) {
     );
   }
 
+  const contingency =
+    receipt.status === "loaded" &&
+    receipt.value.comprobante.kind === "fiscal" &&
+    receipt.value.comprobante.authorization === "offline_code"
+      ? receipt.value
+      : undefined;
+  const printState = receiptRowValue(receipt);
+
   return (
     <Modal
       open
@@ -168,9 +185,26 @@ export function SaleCompletedModal(props: SaleCompletedModalProps) {
           rows={[
             { label: "Total", value: formatCents(total) },
             paymentRow,
-            { label: "Ticket", value: receiptRowValue(receipt) },
+            contingency === undefined
+              ? { label: "Ticket", value: printState }
+              : {
+                  label: "Modo fiscal",
+                  value: <Tag tone="warning">Contingencia con CAEA</Tag>,
+                },
           ]}
         />
+        {contingency === undefined ? null : (
+          <DocumentList
+            label="Documentos para el cliente"
+            rows={[
+              {
+                title: "Factura C",
+                detail: "Para el cliente",
+                status: <Tag tone={contingency.printed ? "success" : "info"}>{printState}</Tag>,
+              },
+            ]}
+          />
+        )}
       </div>
     </Modal>
   );

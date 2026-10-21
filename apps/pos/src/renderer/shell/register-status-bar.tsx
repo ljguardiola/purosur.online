@@ -26,6 +26,9 @@ import {
   TriangleAlert,
   Unplug,
 } from "lucide-react";
+import { ContingencyNoticeCard } from "../fiscal/contingency-notice-card";
+import { isInContingency } from "../fiscal/fiscal-contingency";
+import { FiscalModeIndicator } from "../fiscal/fiscal-mode-indicator";
 import type { CoreData } from "../platform/use-core-query";
 import type { CashSessionState } from "../register/cash-session-state";
 import type { SerialDeviceRole } from "../register/serial-device-standing";
@@ -83,11 +86,17 @@ function conditionTone(condition: Condition): "error" | "warning" {
   return condition.level === "critical" ? "error" : "warning";
 }
 
-function NoticesPill({ conditions }: { conditions: RegisterStatus["conditions"] }) {
+function NoticesPill({
+  conditions,
+  contingency,
+}: {
+  conditions: RegisterStatus["conditions"];
+  contingency: boolean;
+}) {
   const tone = conditions.some((condition) => conditionTone(condition) === "error")
     ? "error"
     : "warning";
-  const count = conditions.length;
+  const count = conditions.length + (contingency ? 1 : 0);
   return (
     <NotificationPanel
       title="Avisos de esta caja"
@@ -110,6 +119,7 @@ function NoticesPill({ conditions }: { conditions: RegisterStatus["conditions"] 
           />
         );
       })}
+      {contingency ? <ContingencyNoticeCard /> : null}
     </NotificationPanel>
   );
 }
@@ -139,13 +149,20 @@ export function RegisterStatusBar({ person, cashSession, status }: RegisterStatu
         {session === undefined ? null : <p className="text-text-subtle text-detail">{session}</p>}
         {status.status === "loaded" ? <CloudIndicator cloud={status.value.cloud} /> : null}
         {status.status === "loaded" ? (
+          <FiscalModeIndicator mode={status.value.fiscal_mode} />
+        ) : null}
+        {status.status === "loaded" ? (
           <>
             <SerialDeviceIndicator device="scale" standing={status.value.serial_devices.scale} />
             <SerialDeviceIndicator device="reader" standing={status.value.serial_devices.reader} />
           </>
         ) : null}
-        {status.status === "loaded" && status.value.conditions.length > 0 ? (
-          <NoticesPill conditions={status.value.conditions} />
+        {status.status === "loaded" &&
+        status.value.conditions.length + (isInContingency(status.value.fiscal_mode) ? 1 : 0) > 0 ? (
+          <NoticesPill
+            conditions={status.value.conditions}
+            contingency={isInContingency(status.value.fiscal_mode)}
+          />
         ) : null}
       </div>
       {status.status === "loading" ? <LoadingPlaceholder variant="card" lines={1} /> : null}

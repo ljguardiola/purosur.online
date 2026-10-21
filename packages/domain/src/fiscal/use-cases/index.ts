@@ -215,6 +215,7 @@ export type {
   WsaaTokenSource,
 } from "./fiscal-document-authorization-ports.js";
 export { FiscalDocumentAlreadyRecorded } from "./fiscal-document-authorization-ports.js";
+export type { FiscalEmissionModeReads } from "./fiscal-emission-mode-ports.js";
 export type {
   BranchFortnightPresentation,
   FortnightPresentationReader,
@@ -311,6 +312,7 @@ export type {
   ReadArcaOnlineStatusInput,
 } from "./read-arca-online-status.js";
 export { readArcaOnlineStatus } from "./read-arca-online-status.js";
+export { readFiscalEmissionMode } from "./read-fiscal-emission-mode.js";
 export type {
   ClockGuardBlock,
   ReadRegisterClockGuardPorts,

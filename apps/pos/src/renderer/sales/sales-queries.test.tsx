@@ -611,6 +611,7 @@ describe("receipt print status query", () => {
         next_copy: { kind: "original" },
         printed: false,
         standing: "paper_out",
+        comprobante: { kind: "none" },
       }),
     );
     const screen = await renderWithClient(<ReceiptPrintStatusProbe read={read} />);
@@ -632,8 +633,20 @@ describe("receipt print status query", () => {
   it("asks again every second until the receipt is printed, and then stops", async () => {
     vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
     const answers: ReceiptPrintStatusOutcome[] = [
-      { kind: "found", next_copy: { kind: "original" }, printed: false, standing: "printing" },
-      { kind: "found", next_copy: { kind: "original" }, printed: true, standing: "printed" },
+      {
+        kind: "found",
+        next_copy: { kind: "original" },
+        printed: false,
+        standing: "printing",
+        comprobante: { kind: "none" },
+      },
+      {
+        kind: "found",
+        next_copy: { kind: "original" },
+        printed: true,
+        standing: "printed",
+        comprobante: { kind: "none" },
+      },
     ];
     const read = vi.fn(
       async () =>
@@ -642,6 +655,7 @@ describe("receipt print status query", () => {
           next_copy: { kind: "original" as const },
           printed: true,
           standing: "printed" as const,
+          comprobante: { kind: "none" as const },
         },
     );
     const screen = await renderWithClient(<ReceiptPrintStatusProbe read={read} />);
@@ -664,6 +678,7 @@ describe("receipt print status query", () => {
           next_copy: { kind: "original" },
           printed: false,
           standing,
+          comprobante: { kind: "none" },
         }),
       );
       const screen = await renderWithClient(<ReceiptPrintStatusProbe read={read} />);

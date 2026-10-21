@@ -273,7 +273,11 @@ describe("settling, as the register starts, the authorizations its last run left
 });
 
 describe("the register's health checks", () => {
-  function monitoring(cloud: CloudClientDeps | undefined, failures: unknown[] = []) {
+  function monitoring(
+    cloud: CloudClientDeps | undefined,
+    failures: unknown[] = [],
+    afterCheck: () => void = () => undefined,
+  ) {
     const scheduled: { run: () => void; delayMs: number }[] = [];
     const stop = startRegisterHealthChecks({
       database,
@@ -285,6 +289,7 @@ describe("the register's health checks", () => {
         return () => undefined;
       },
       reportFailure: (error) => failures.push(error),
+      afterCheck,
     });
     return { scheduled, stop };
   }
@@ -335,6 +340,32 @@ describe("the register's health checks", () => {
     expect(database.prepare("SELECT count(*) AS total FROM register_health_checks").get()).toEqual({
       total: 0,
     });
+  });
+
+  it("tells what follows after each check once what it recorded is stored", async () => {
+    const { cloud } = cloudAnswering(async () => healthy());
+    const seenWhenTold: unknown[] = [];
+    const { scheduled } = monitoring(cloud, [], () =>
+      seenWhenTold.push(
+        database.prepare("SELECT count(*) AS total FROM register_health_checks").get(),
+      ),
+    );
+
+    scheduled[0]?.run();
+
+    await vi.waitFor(() => expect(seenWhenTold).toEqual([{ total: 1 }]));
+  });
+
+  it("tells what follows even when the cloud cannot be reached", async () => {
+    const { cloud } = cloudAnswering(async () => {
+      throw new TypeError("fetch failed");
+    });
+    const afterCheck = vi.fn();
+    const { scheduled } = monitoring(cloud, [], afterCheck);
+
+    scheduled[0]?.run();
+
+    await vi.waitFor(() => expect(afterCheck).toHaveBeenCalledTimes(1));
   });
 
   it("starts no checks for a register that cannot reach a cloud", () => {

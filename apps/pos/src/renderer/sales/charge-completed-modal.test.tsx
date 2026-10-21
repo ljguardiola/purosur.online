@@ -10,6 +10,7 @@ const PRINTED: ReceiptPrintStatusOutcome = {
   next_copy: { kind: "original" },
   printed: true,
   standing: "printed",
+  comprobante: { kind: "none" },
 };
 const SALE = { sale_id: "sale-1", total: 476_000 } as const;
 
