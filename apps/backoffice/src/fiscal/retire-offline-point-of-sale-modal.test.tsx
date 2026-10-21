@@ -89,6 +89,14 @@ test("asks about the point of sale by its number and says what retiring it does"
     .toBeVisible();
 });
 
+test("shows the trash icon of giving a baja on the modal and on its Dar de baja", async () => {
+  const { dialog } = await renderModal(createServices());
+
+  const retire = dialog.getByRole("button", { name: "Dar de baja" }).element();
+  expect(retire.querySelector("svg")?.classList.contains("lucide-trash-2")).toBe(true);
+  expect(dialog.element().querySelector("svg.lucide-ban")).toBeNull();
+});
+
 test("has no accessibility violations", async () => {
   const { dialog } = await renderModal(createServices());
 
