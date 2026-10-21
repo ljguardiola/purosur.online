@@ -15,6 +15,11 @@ export const CONFIRMATION_FIELDS = {
   version: null,
 } as const;
 
+export const PRICES_INCLUDE_VAT_OPTIONS = [
+  { value: "included", label: "incluyen IVA" },
+  { value: "excluded", label: "no incluyen IVA" },
+] as const satisfies readonly { value: PricesIncludeVatChoice; label: string }[];
+
 const VAT_CHOICES = { true: "included", false: "excluded" } as const;
 
 export function confirmationFormValuesOf(

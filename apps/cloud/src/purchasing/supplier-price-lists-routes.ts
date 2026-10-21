@@ -32,7 +32,7 @@ import {
 } from "../sessions/route-access.js";
 import { DrizzleSupplierPriceListReader } from "./drizzle-supplier-price-list-reader.js";
 import { DrizzleSupplierPriceListStore } from "./drizzle-supplier-price-list-store.js";
-import { hasPdfSignature } from "./pdf-signature.js";
+import { opensAsPdf } from "./opens-as-pdf.js";
 import type { PurchasingRouteOptions } from "./purchasing-route-options.js";
 
 const NOT_FOUND = { code: "not_found", message: "no supplier price list with that id" } as const;
@@ -119,7 +119,7 @@ export function registerSupplierPriceListsRoutes<TQueryResult extends PgQueryRes
           return;
         }
         const pdf = Buffer.isBuffer(request.body) ? request.body : Buffer.alloc(0);
-        if (!hasPdfSignature(pdf)) {
+        if (!(await opensAsPdf(pdf))) {
           await reply.code(415).send(NOT_A_PDF);
           return;
         }

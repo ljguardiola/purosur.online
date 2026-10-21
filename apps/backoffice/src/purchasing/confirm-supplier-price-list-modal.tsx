@@ -14,16 +14,12 @@ import {
   CONFIRMATION_FIELDS,
   confirmationFormValuesOf,
   confirmationRequestFrom,
+  PRICES_INCLUDE_VAT_OPTIONS,
 } from "./supplier-price-list-confirmation-form";
 import type {
   confirmSupplierPriceList,
   SupplierPriceListReviewList,
 } from "./supplier-price-lists-api";
-
-const VAT_OPTIONS = [
-  { value: "included", label: "incluyen IVA" },
-  { value: "excluded", label: "no incluyen IVA" },
-] as const;
 
 export type ConfirmSupplierPriceListModalServices = {
   confirmSupplierPriceList: typeof confirmSupplierPriceList;
@@ -156,7 +152,7 @@ export function ConfirmSupplierPriceListModal({
               <field.Select
                 label="Los precios"
                 placeholder="Elegí una opción"
-                options={VAT_OPTIONS}
+                options={PRICES_INCLUDE_VAT_OPTIONS}
                 required
               />
             )}

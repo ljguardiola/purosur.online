@@ -142,12 +142,23 @@ async function inOrder<Item, Result>(
     while (!stopped && next < items.length) {
       const index = next;
       next += 1;
-      const result = await work(items[index] as Item);
-      results[index] = result;
-      stopped ||= stopAfter(result);
+      try {
+        const result = await work(items[index] as Item);
+        results[index] = result;
+        stopped ||= stopAfter(result);
+      } catch (error) {
+        stopped = true;
+        throw error;
+      }
     }
   }
-  await Promise.all(Array.from({ length: Math.min(atOnce, items.length) }, worker));
+  const outcomes = await Promise.allSettled(
+    Array.from({ length: Math.min(atOnce, items.length) }, worker),
+  );
+  const failure = outcomes.find((outcome) => outcome.status === "rejected");
+  if (failure) {
+    throw failure.reason;
+  }
   return results;
 }
 
@@ -162,13 +173,16 @@ export class AnthropicPriceListExtractor implements PriceListExtractor {
     let document: PDFDocument;
     let pageCount: number;
     try {
-      document = await PDFDocument.load(source.bytes);
+      document = await PDFDocument.load(source.bytes, { ignoreEncryption: true });
       pageCount = document.getPageCount();
     } catch {
       return { kind: "unreadable" };
     }
     if (pageCount === 0) {
       return { kind: "unreadable" };
+    }
+    if (document.isEncrypted) {
+      return this.readWhole(source.bytes, pageCount);
     }
     const ranges = Array.from({ length: Math.ceil(pageCount / PAGES_PER_RANGE) }, (_, index) => ({
       firstPage: index * PAGES_PER_RANGE + 1,
@@ -195,6 +209,18 @@ export class AnthropicPriceListExtractor implements PriceListExtractor {
       pricesIncludeVat: firstGiven(reads.map((reading) => reading.pricesIncludeVat)),
       rows,
     };
+  }
+
+  private async readWhole(pdf: Uint8Array, pageCount: number): Promise<PriceListExtraction> {
+    const reading = withRealPages(await this.askAboutRange(pdf), 1, pageCount);
+    switch (reading.kind) {
+      case "read":
+        return { ...reading, kind: "extracted" };
+      case "unavailable":
+        return { kind: "unavailable" };
+      default:
+        return { kind: "unreadable" };
+    }
   }
 
   private async readRange(
