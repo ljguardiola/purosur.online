@@ -139,20 +139,25 @@ export function seedChargeRegister(database: LocalDatabase): void {
     .run(FICTIONAL_LEGAL_NAME, FICTIONAL_GROSS_INCOME_REGISTRATION, FICTIONAL_CUIT);
 }
 
-export async function openSaleOfTwoYerbas(register: ChargeRegister): Promise<string> {
+function sequentialSaleIds(): IdGenerator {
+  let count = 0;
+  return {
+    next: () => {
+      count += 1;
+      return `sale-id-${count}`;
+    },
+  };
+}
+
+export async function openSaleOfTwoYerbas(
+  register: ChargeRegister,
+  saleIds: IdGenerator = sequentialSaleIds(),
+): Promise<string> {
   const saleDeps = {
     database: register.database,
     gate: chargeRequestDeps(register, new FakeMercadoPagoOrders(() => register.database)).gate,
     now: () => CHARGE_NOW,
-    ids: {
-      next: (() => {
-        let count = 0;
-        return () => {
-          count += 1;
-          return `sale-id-${count}`;
-        };
-      })(),
-    },
+    ids: saleIds,
     paidOrderDiscovery: () => "checked" as const,
     newSalesStoppedByDisk: () => false,
     localDatabaseDamaged: () => false,
