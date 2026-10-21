@@ -1,3 +1,4 @@
+import { recordIdSchema } from "@purosur/contracts";
 import {
   type PriceListExtractor,
   readSupplierPriceList,
@@ -9,7 +10,7 @@ import type { BackgroundJobs } from "../platform/background-jobs.js";
 import { DrizzleSupplierPriceListStore } from "./drizzle-supplier-price-list-store.js";
 import { SUPPLIER_PRICE_LIST_READING_TASK_IDENTIFIER } from "./supplier-price-list-reading-task-identifier.js";
 
-const payloadSchema = z.object({ listId: z.uuid() });
+const payloadSchema = z.object({ listId: recordIdSchema() });
 
 export interface SupplierPriceListReadingInput<TQueryResult extends PgQueryResultHKT> {
   now: () => Date;
