@@ -1,10 +1,7 @@
+import type { ReplenishedUser } from "../../users/index.js";
 import type { SyncedFact } from "../model/synced-fact.js";
 import type { DecodedEvent } from "./event-application-ports.js";
-import type {
-  EventPosition,
-  ReplenishedEvent,
-  ReplenishedUser,
-} from "./restored-register-replenishment-ports.js";
+import type { EventPosition, ReplenishedEvent } from "./restored-register-replenishment-ports.js";
 
 export interface RegisterPredecessor {
   deviceId: string;
@@ -43,7 +40,6 @@ export interface ReplenishedEventSource {
 export type ReplenishedEventApplication = "applied" | "not_yet_applicable";
 
 export interface RegisterReplenishmentTransaction {
-  applyUsers(users: readonly ReplenishedUser[]): Promise<void>;
   eventApplied(eventId: string): Promise<boolean>;
   // Applying an event the register already holds the rows of changes nothing and answers "applied".
   applyFact(fact: SyncedFact, source: ReplenishedEventSource): Promise<ReplenishedEventApplication>;
@@ -52,7 +48,9 @@ export interface RegisterReplenishmentTransaction {
 
 export interface RegisterReplenishmentStore {
   predecessor(): Promise<RegisterPredecessor | undefined>;
-  // All or nothing: a page that fails leaves no user, fact or applied event behind.
+  // All or nothing, in a local transaction of its own.
+  applyUsers(users: readonly ReplenishedUser[]): Promise<void>;
+  // All or nothing: a page that fails leaves no fact or applied event behind.
   transaction<TOutcome>(
     work: (tx: RegisterReplenishmentTransaction) => Promise<TOutcome>,
   ): Promise<TOutcome>;

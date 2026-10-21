@@ -13,16 +13,16 @@ export function applyReplenishedOfflineFiscalDocument(
   database: LocalDatabase,
   { document }: OfflineDocumentFact,
 ): ReplenishedEventApplication {
-  const { invoice } = document;
-  if (invoice === undefined) {
-    return "not_yet_applicable";
-  }
   if (
     database
       .prepare("SELECT 1 FROM offline_fiscal_documents WHERE id = ?")
       .get(document.fiscalDocumentId) !== undefined
   ) {
     return "applied";
+  }
+  const { invoice } = document;
+  if (invoice === undefined) {
+    return "not_yet_applicable";
   }
   if (database.prepare("SELECT 1 FROM sales WHERE id = ?").get(document.saleId) === undefined) {
     throw new Error(`sale ${document.saleId} is not held`);

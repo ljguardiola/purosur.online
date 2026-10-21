@@ -4,17 +4,20 @@ import {
   registerResetRequestSchema,
   registerResetResponseSchema,
 } from "@purosur/contracts";
+import { admitRestoredRegisterReplenishment } from "@purosur/domain/register/use-cases";
 import { serveRestoredRegisterReplenishment } from "@purosur/domain/sync/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { readValidatedBody } from "../platform/request-body-schema.js";
 import { answerErrorsWithCloudEnvelope } from "../register/cloud-error-handler.js";
 import { authenticateDevice } from "../register/device-authentication.js";
+import { DrizzleRestoredRegisterPredecessors } from "../register/drizzle-restored-register-predecessors.js";
 import {
   type DeviceTokensOptions,
   installationTokenPorts,
 } from "../register/installation-token-ports.js";
 import { PUBLIC_ACCESS } from "../sessions/route-access.js";
+import { DrizzleRegisterBranchUsers } from "../users/drizzle-register-branch-users.js";
 import { DrizzleRegisterReplenishment } from "./drizzle-register-replenishment.js";
 
 const DEVICE_TOKEN_REJECTED = cloudError(
@@ -39,7 +42,9 @@ export function registerDeviceResetRoute<TQueryResult extends PgQueryResultHKT>(
   options: DeviceTokensOptions<TQueryResult>,
 ): void {
   const tokenPorts = installationTokenPorts(options);
+  const admission = { predecessors: new DrizzleRestoredRegisterPredecessors(options.db) };
   const ports = { replenishment: new DrizzleRegisterReplenishment(options.db) };
+  const branchUsers = new DrizzleRegisterBranchUsers(options.db);
 
   app.register(async (scope) => {
     answerErrorsWithCloudEnvelope(scope);
@@ -61,16 +66,14 @@ export function registerDeviceResetRoute<TQueryResult extends PgQueryResultHKT>(
           return;
         }
 
-        const outcome = await serveRestoredRegisterReplenishment(ports, {
-          registerId: authentication.installation.registerId,
+        const { registerId } = authentication.installation;
+        const admitted = await admitRestoredRegisterReplenishment(admission, {
+          registerId,
           predecessorDeviceId: body.predecessor_device_id,
-          lastAcknowledgedSeq: body.last_acknowledged_seq,
-          ...(body.after && {
-            after: { deviceId: body.after.device_id, deviceSeq: body.after.device_seq },
-          }),
+          ...(body.after && { cursorDeviceId: body.after.device_id }),
         });
 
-        switch (outcome.kind) {
+        switch (admitted.kind) {
           case "predecessor_not_of_register":
             await reply
               .code(cloudErrorStatus(PREDECESSOR_NOT_OF_REGISTER.code))
@@ -86,30 +89,41 @@ export function registerDeviceResetRoute<TQueryResult extends PgQueryResultHKT>(
               .code(cloudErrorStatus(CURSOR_NOT_OF_REPLENISHMENT.code))
               .send(CURSOR_NOT_OF_REPLENISHMENT);
             return;
-          case "replenishment":
-            await reply.code(200).send(
-              registerResetResponseSchema.parse({
-                events: outcome.events.map(({ deviceId, event }) => ({
-                  ...event,
-                  device_id: deviceId,
-                })),
-                next: outcome.next && {
-                  device_id: outcome.next.deviceId,
-                  device_seq: outcome.next.deviceSeq,
-                },
-                users: outcome.users.map((user) => ({
-                  user_id: user.userId,
-                  first_name: user.firstName,
-                  role_id: user.roleId,
-                  salt: user.salt,
-                  pin_hash: user.pinHash,
-                  active: user.active,
-                  version: user.version,
-                })),
-              }),
-            );
-            return;
+          case "admitted":
+            break;
         }
+
+        const page = await serveRestoredRegisterReplenishment(ports, {
+          registerId,
+          predecessorDeviceId: body.predecessor_device_id,
+          lastAcknowledgedSeq: body.last_acknowledged_seq,
+          ...(body.after && {
+            after: { deviceId: body.after.device_id, deviceSeq: body.after.device_seq },
+          }),
+        });
+        const users = await branchUsers.branchUsers(registerId);
+
+        await reply.code(200).send(
+          registerResetResponseSchema.parse({
+            events: page.events.map(({ deviceId, event }) => ({
+              ...event,
+              device_id: deviceId,
+            })),
+            next: page.next && {
+              device_id: page.next.deviceId,
+              device_seq: page.next.deviceSeq,
+            },
+            users: users.map((user) => ({
+              user_id: user.userId,
+              first_name: user.firstName,
+              role_id: user.roleId,
+              salt: user.salt,
+              pin_hash: user.pinHash,
+              active: user.active,
+              version: user.version,
+            })),
+          }),
+        );
       },
     );
   });

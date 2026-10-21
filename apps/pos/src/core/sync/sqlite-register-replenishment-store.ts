@@ -7,6 +7,7 @@ import type {
   ReplenishedEventSource,
   SyncedFact,
 } from "@purosur/domain/sync/use-cases";
+import type { ReplenishedUser } from "@purosur/domain/users/use-cases";
 import { applyReplenishedClockCorrection } from "../fiscal/replenished-clock-corrections";
 import { applyReplenishedGateFailure } from "../fiscal/replenished-gate-failures";
 import { applyReplenishedOfflineFiscalDocument } from "../fiscal/replenished-offline-fiscal-documents";
@@ -44,6 +45,25 @@ export class SqliteRegisterReplenishmentStore implements RegisterReplenishmentSt
     return row && { deviceId: row.device_id, lastAcknowledgedSeq: row.last_acknowledged_seq };
   }
 
+  async applyUsers(users: readonly ReplenishedUser[]): Promise<void> {
+    const access = prepareAccessPageWrites(this.database, this.pepper, "redelivery");
+    this.database.transaction(() => {
+      for (const user of users) {
+        access.user({
+          entity_id: user.userId,
+          row: {
+            first_name: user.firstName,
+            role_id: user.roleId,
+            salt: user.salt,
+            pin_hash: user.pinHash,
+            active: user.active,
+            version: user.version,
+          },
+        });
+      }
+    })();
+  }
+
   async transaction<TOutcome>(
     work: (tx: RegisterReplenishmentTransaction) => Promise<TOutcome>,
   ): Promise<TOutcome> {
@@ -63,24 +83,8 @@ export class SqliteRegisterReplenishmentStore implements RegisterReplenishmentSt
   }
 
   private scope(): RegisterReplenishmentTransaction {
-    const { database, pepper, ids } = this;
+    const { database, ids } = this;
     return {
-      async applyUsers(users) {
-        const access = prepareAccessPageWrites(database, pepper, "redelivery");
-        for (const user of users) {
-          access.user({
-            entity_id: user.userId,
-            row: {
-              first_name: user.firstName,
-              role_id: user.roleId,
-              salt: user.salt,
-              pin_hash: user.pinHash,
-              active: user.active,
-              version: user.version,
-            },
-          });
-        }
-      },
       async eventApplied(eventId) {
         return (
           database.prepare("SELECT 1 FROM replenished_events WHERE event_id = ?").get(eventId) !==

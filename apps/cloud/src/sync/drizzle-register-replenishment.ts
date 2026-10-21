@@ -1,15 +1,12 @@
 import type {
   EventPosition,
-  PredecessorStanding,
   ReplenishedEvent,
-  ReplenishedUser,
   ReplenishmentPosition,
   RestoredRegisterReplenishment,
 } from "@purosur/domain/sync/use-cases";
 import { and, asc, eq, gt, or } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { inbox, registerInstallations, registers, users } from "../platform/db/schema.js";
-import { readUsers } from "./read-pulled-rows.js";
+import { inbox, registerInstallations } from "../platform/db/schema.js";
 
 export class DrizzleRegisterReplenishment<TQueryResult extends PgQueryResultHKT>
   implements RestoredRegisterReplenishment
@@ -18,47 +15,6 @@ export class DrizzleRegisterReplenishment<TQueryResult extends PgQueryResultHKT>
 
   constructor(db: PgDatabase<TQueryResult>) {
     this.db = db;
-  }
-
-  async predecessorStanding(
-    registerId: string,
-    predecessorDeviceId: string,
-  ): Promise<PredecessorStanding> {
-    const [installation] = await this.db
-      .select({ revokedAt: registerInstallations.revokedAt })
-      .from(registerInstallations)
-      .where(
-        and(
-          eq(registerInstallations.id, predecessorDeviceId),
-          eq(registerInstallations.registerId, registerId),
-        ),
-      );
-    if (!installation) {
-      return "not_of_register";
-    }
-    return installation.revokedAt === null ? "not_revoked" : "revoked";
-  }
-
-  async isReplenishmentCursor(
-    registerId: string,
-    predecessorDeviceId: string,
-    cursor: EventPosition,
-  ): Promise<boolean> {
-    if (cursor.deviceId === predecessorDeviceId) {
-      return true;
-    }
-    const predecessorEnrolledAt = await this.enrolledAtOf(registerId, predecessorDeviceId);
-    const [installation] = await this.db
-      .select({ id: registerInstallations.id })
-      .from(registerInstallations)
-      .where(
-        and(
-          eq(registerInstallations.id, cursor.deviceId),
-          eq(registerInstallations.registerId, registerId),
-          gt(registerInstallations.enrolledAt, predecessorEnrolledAt),
-        ),
-      );
-    return installation !== undefined;
   }
 
   async ownEventsAbove(
@@ -128,19 +84,6 @@ export class DrizzleRegisterReplenishment<TQueryResult extends PgQueryResultHKT>
         chain_hmac: row.chainHmac,
       },
     }));
-  }
-
-  async branchUsers(registerId: string): Promise<ReplenishedUser[]> {
-    const branchUsers = await this.db
-      .select({ id: users.id })
-      .from(registers)
-      .innerJoin(users, eq(users.locationId, registers.locationId))
-      .where(eq(registers.id, registerId));
-    const rows = await readUsers(
-      this.db,
-      branchUsers.map(({ id }) => id),
-    );
-    return [...rows].map(([userId, row]) => ({ userId, ...row }));
   }
 
   private async enrolledAtOf(registerId: string, deviceId: string): Promise<Date> {

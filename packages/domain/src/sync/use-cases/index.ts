@@ -86,9 +86,7 @@ export type {
 export { resetRestoredSyncIdentity } from "./reset-restored-sync-identity.js";
 export type {
   EventPosition,
-  PredecessorStanding,
   ReplenishedEvent,
-  ReplenishedUser,
   ReplenishmentPosition,
   RestoredRegisterReplenishment,
   ServeRestoredRegisterReplenishmentPorts,
@@ -100,8 +98,8 @@ export type {
   RestoredSyncIdentityTransaction,
 } from "./restored-sync-identity-ports.js";
 export type {
+  ServedReplenishmentPage,
   ServeRestoredRegisterReplenishmentInput,
-  ServeRestoredRegisterReplenishmentOutcome,
 } from "./serve-restored-register-replenishment.js";
 export { serveRestoredRegisterReplenishment } from "./serve-restored-register-replenishment.js";
 export type {

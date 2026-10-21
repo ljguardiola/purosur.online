@@ -5,7 +5,6 @@ import {
 import type {
   EventPosition,
   ReplenishedEvent,
-  ReplenishedUser,
   ServeRestoredRegisterReplenishmentPorts,
 } from "./restored-register-replenishment-ports.js";
 
@@ -16,16 +15,10 @@ export interface ServeRestoredRegisterReplenishmentInput {
   after?: EventPosition;
 }
 
-export type ServeRestoredRegisterReplenishmentOutcome =
-  | { kind: "predecessor_not_of_register" }
-  | { kind: "predecessor_not_revoked" }
-  | { kind: "cursor_not_of_replenishment" }
-  | {
-      kind: "replenishment";
-      events: ReplenishedEvent[];
-      next: EventPosition | null;
-      users: ReplenishedUser[];
-    };
+export interface ServedReplenishmentPage {
+  events: ReplenishedEvent[];
+  next: EventPosition | null;
+}
 
 export async function serveRestoredRegisterReplenishment(
   { replenishment }: ServeRestoredRegisterReplenishmentPorts,
@@ -35,20 +28,7 @@ export async function serveRestoredRegisterReplenishment(
     lastAcknowledgedSeq,
     after,
   }: ServeRestoredRegisterReplenishmentInput,
-): Promise<ServeRestoredRegisterReplenishmentOutcome> {
-  const standing = await replenishment.predecessorStanding(registerId, predecessorDeviceId);
-  if (standing === "not_of_register") {
-    return { kind: "predecessor_not_of_register" };
-  }
-  if (standing === "not_revoked") {
-    return { kind: "predecessor_not_revoked" };
-  }
-  if (
-    after &&
-    !(await replenishment.isReplenishmentCursor(registerId, predecessorDeviceId, after))
-  ) {
-    return { kind: "cursor_not_of_replenishment" };
-  }
+): Promise<ServedReplenishmentPage> {
   const read = await replenishment.ownEventsAbove(
     registerId,
     { predecessorDeviceId, lastAcknowledgedSeq },
@@ -61,10 +41,5 @@ export async function serveRestoredRegisterReplenishment(
     read.length > events.length && last
       ? { deviceId: last.deviceId, deviceSeq: last.event.device_seq }
       : null;
-  return {
-    kind: "replenishment",
-    events,
-    next,
-    users: await replenishment.branchUsers(registerId),
-  };
+  return { events, next };
 }

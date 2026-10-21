@@ -180,8 +180,6 @@ export function holdSaleCashMovements(
   }
 }
 
-// An open sale the snapshot holds is rebuilt from the fact, keeping the payments and cash
-// movements it already holds; answers false for a sale the snapshot already closed.
 function holdOpenSale(
   database: LocalDatabase,
   sale: CompletedSaleFact | CancelledSaleFact,

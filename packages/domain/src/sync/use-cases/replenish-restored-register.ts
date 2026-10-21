@@ -42,11 +42,9 @@ function decodedPage<TFailure>(
 
 async function applyPage<TFailure>(
   { store }: ReplenishRestoredRegisterPorts<TFailure>,
-  { users }: ReplenishmentPage,
   events: readonly DecodedPageEvent[],
 ): Promise<number> {
   return store.transaction(async (tx) => {
-    await tx.applyUsers(users);
     let unapplied = 0;
     for (const { replenished, fact } of events) {
       const { event, deviceId } = replenished;
@@ -84,11 +82,12 @@ export async function replenishRestoredRegister<TFailure>(
     if (answer.kind === "failed") {
       return { kind: "failed", failure: answer.failure };
     }
+    await ports.store.applyUsers(answer.page.users);
     const decoded = decodedPage(ports, answer.page);
     if (decoded.kind === "unreadable") {
       return { kind: "unreadable_event", eventId: decoded.eventId, reason: decoded.reason };
     }
-    unapplied += await applyPage(ports, answer.page, decoded.events);
+    unapplied += await applyPage(ports, decoded.events);
     if (answer.page.next === null) {
       break;
     }
