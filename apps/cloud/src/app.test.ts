@@ -1788,6 +1788,7 @@ describe("wiring the register point of sale routes", () => {
   it.each([
     ["GET", "/api/registers/points-of-sale"],
     ["GET", "/api/registers/fortnight-presentations"],
+    ["POST", "/api/registers/fortnight-presentations/rejected-document-remedies"],
     ["PUT", "/api/registers/00000000-0000-0000-0000-000000000000/point-of-sale"],
     ["PUT", "/api/registers/00000000-0000-0000-0000-000000000000/offline-point-of-sale"],
     ["GET", "/api/registers/offline-points-of-sale"],
@@ -3005,6 +3006,11 @@ describe("the route access inventory", () => {
       {
         method: "GET",
         url: "/api/registers/fortnight-presentations",
+        access: capabilityAccess("cash_area"),
+      },
+      {
+        method: "POST",
+        url: "/api/registers/fortnight-presentations/rejected-document-remedies",
         access: capabilityAccess("cash_area"),
       },
       {
