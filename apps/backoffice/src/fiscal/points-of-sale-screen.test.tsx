@@ -4,6 +4,7 @@ import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
 import type { FiscalAddress } from "./fiscal-addresses-api";
+import type { OfflinePointOfSale } from "./offline-points-of-sale-api";
 import { PointsOfSaleScreen } from "./points-of-sale-screen";
 import type { PointsOfSaleScreenServices } from "./points-of-sale-services";
 import type { RegisterPointOfSale } from "./register-points-of-sale-api";
@@ -19,6 +20,8 @@ function createServices(
     fetchRegisterPointsOfSale: vi.fn().mockResolvedValue({ kind: "ok", value: [] }),
     fetchFiscalAddresses: vi.fn().mockResolvedValue({ kind: "ok", value: [] }),
     fetchFortnightPresentations: vi.fn().mockResolvedValue({ kind: "ok", value: [] }),
+    fetchOfflinePointsOfSale: vi.fn().mockResolvedValue({ kind: "ok", value: [] }),
+    retireOfflinePointOfSale: vi.fn(),
     configureRegisterPointOfSale: vi.fn(),
     configureRegisterOfflinePointOfSale: vi.fn(),
     createFiscalAddress: vi.fn(),
@@ -397,4 +400,100 @@ test("keeps the registers on screen when the fortnight reports fail to load, and
   await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
 
   await expect.element(screen.getByText("Todavía no hay informes quincenales")).toBeVisible();
+});
+
+const freeOfflinePointOfSale: OfflinePointOfSale = {
+  pointOfSaleNumber: 6,
+  registerId: "register-9",
+  registerName: "Caja 9",
+  retirable: true,
+  retiredAt: null,
+};
+
+function withFreeOfflinePointOfSale(items: OfflinePointOfSale[] = [freeOfflinePointOfSale]) {
+  const services = serving([configuredRegister], [depot]);
+  services.fetchOfflinePointsOfSale = vi.fn().mockResolvedValue({ kind: "ok", value: items });
+  return services;
+}
+
+test("lists the offline points of sale left without a register between the registers and the fortnight reports", async () => {
+  const screen = await renderScreen(withFreeOfflinePointOfSale());
+
+  const table = screen.getByRole("table", { name: "Puntos de venta CAEA sin caja" });
+  await expect.element(table.getByText("Caja 9", { exact: true })).toBeVisible();
+  const text = document.body.textContent ?? "";
+  expect(text.indexOf("Caja 1")).toBeLessThan(text.indexOf("Usado por"));
+  expect(text.indexOf("Usado por")).toBeLessThan(text.indexOf("Quincena"));
+});
+
+test("keeps the registers on screen when the offline points of sale fail to load, and Reintentar loads them again", async () => {
+  const services = withFreeOfflinePointOfSale();
+  services.fetchOfflinePointsOfSale = vi
+    .fn()
+    .mockResolvedValueOnce({ kind: "failed" })
+    .mockResolvedValueOnce({ kind: "ok", value: [] });
+  const screen = await renderScreen(services);
+  await expect
+    .element(screen.getByText("No pudimos abrir los puntos de venta CAEA sin caja"))
+    .toBeVisible();
+  await expect.element(screen.getByText("00012")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+
+  await expect
+    .element(screen.getByText("Ningún punto de venta CAEA quedó sin caja."))
+    .toBeVisible();
+});
+
+test("retiring an offline point of sale reads the list and the fortnight reports again and announces it", async () => {
+  const services = withFreeOfflinePointOfSale();
+  vi.mocked(services.fetchOfflinePointsOfSale)
+    .mockResolvedValueOnce({ kind: "ok", value: [freeOfflinePointOfSale] })
+    .mockResolvedValue({
+      kind: "ok",
+      value: [
+        { ...freeOfflinePointOfSale, retirable: false, retiredAt: "2026-10-20T12:00:00.000Z" },
+      ],
+    });
+  vi.mocked(services.retireOfflinePointOfSale).mockResolvedValue({
+    kind: "retired",
+    value: { pointOfSaleNumber: 6, retiredAt: "2026-10-20T12:00:00.000Z" },
+  });
+  const screen = await renderScreen(services);
+  await userEvent.click(
+    screen.getByRole("button", { name: "Dar de baja el punto de venta 00006" }),
+  );
+  const dialog = screen.getByRole("dialog", { name: "¿Dar de baja el punto de venta 00006?" });
+
+  await userEvent.click(dialog.getByRole("button", { name: "Dar de baja" }));
+
+  expect(services.retireOfflinePointOfSale).toHaveBeenCalledWith(6);
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+  await expect.element(screen.getByText("Dado de baja", { exact: true })).toBeVisible();
+  await expect.element(screen.getByText("Punto de venta dado de baja")).toBeVisible();
+  await expect.element(screen.getByText("00006.", { exact: true })).toBeVisible();
+  expect(services.fetchFortnightPresentations).toHaveBeenCalledTimes(2);
+});
+
+test("a refused retirement reads the offline points of sale again", async () => {
+  const services = withFreeOfflinePointOfSale();
+  vi.mocked(services.fetchOfflinePointsOfSale)
+    .mockResolvedValueOnce({ kind: "ok", value: [freeOfflinePointOfSale] })
+    .mockResolvedValue({ kind: "ok", value: [] });
+  vi.mocked(services.retireOfflinePointOfSale).mockResolvedValue({ kind: "assigned" });
+  const screen = await renderScreen(services);
+  await userEvent.click(
+    screen.getByRole("button", { name: "Dar de baja el punto de venta 00006" }),
+  );
+  const dialog = screen.getByRole("dialog", { name: "¿Dar de baja el punto de venta 00006?" });
+
+  await userEvent.click(dialog.getByRole("button", { name: "Dar de baja" }));
+
+  await expect.poll(() => vi.mocked(services.fetchOfflinePointsOfSale).mock.calls.length).toBe(2);
+  expect(
+    screen
+      .getByRole("table", { name: "Puntos de venta CAEA sin caja" })
+      .getByText("Caja 9")
+      .query(),
+  ).toBeNull();
 });

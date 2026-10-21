@@ -7,7 +7,10 @@ import { DrizzleFortnightReportStore } from "./drizzle-fortnight-report-store.js
 import { DrizzleOfflineAuthorizationCodeStore } from "./drizzle-offline-authorization-code-store.js";
 import { DrizzleOwedFortnightPresentationReader } from "./drizzle-owed-fortnight-presentation-reader.js";
 import { DrizzleOwedPresentationList } from "./drizzle-owed-presentation-list.js";
-import { seedOfflinePointOfSale } from "./test-support/offline-point-of-sale-fixtures.js";
+import {
+  retireOfflinePointOfSaleAt,
+  seedOfflinePointOfSale,
+} from "./test-support/offline-point-of-sale-fixtures.js";
 
 const OCTOBER_FIRST_HALF = { start: "2026-10-01", end: "2026-10-15" };
 const OCTOBER_SECOND_HALF = { start: "2026-10-16", end: "2026-10-31" };
@@ -169,5 +172,33 @@ describe("DrizzleOwedFortnightPresentationReader.owedPresentations for the prese
     await listedAsOwed(9, OCTOBER_FIRST_HALF);
 
     expect(await reader().owedPresentations("2026-11-01")).toEqual([]);
+  });
+});
+
+describe("DrizzleOwedFortnightPresentationReader.owedPresentations for a retired point of sale", () => {
+  it("answers the fortnights that closed before the retirement and none that close after it", async () => {
+    await seedOfflinePointOfSale(db);
+    await claimedBeforeEveryFortnight();
+    await keepCode(OCTOBER_FIRST_HALF, "36123456789012", "2026-10-20");
+    await keepCode(OCTOBER_SECOND_HALF, "36123456789013", "2026-11-05");
+    await retireOfflinePointOfSaleAt(db, OFFLINE_POINT_OF_SALE, AT);
+
+    const owed = await reader().owedPresentations("2026-11-10");
+
+    expect(owed.map(({ fortnight }) => fortnight.start)).toEqual(["2026-10-01"]);
+  });
+
+  it("still answers a fortnight that closes after the retirement once the tax authority lists it as owed", async () => {
+    await seedOfflinePointOfSale(db);
+    await claimedBeforeEveryFortnight();
+    await keepCode(OCTOBER_SECOND_HALF, "36123456789013", "2026-11-05");
+    await retireOfflinePointOfSaleAt(db, OFFLINE_POINT_OF_SALE, AT);
+    await listedAsOwed(OFFLINE_POINT_OF_SALE, OCTOBER_SECOND_HALF);
+
+    const owed = await reader().owedPresentations("2026-11-10");
+
+    expect(owed.map(({ fortnight, listed }) => [fortnight.start, listed])).toEqual([
+      ["2026-10-16", true],
+    ]);
   });
 });

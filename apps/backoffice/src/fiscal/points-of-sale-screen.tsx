@@ -1,4 +1,4 @@
-import { Button, FloatingNotification } from "@purosur/ui";
+import { Button, FloatingNotification, formatPointOfSaleNumber } from "@purosur/ui";
 import { Check, Plus } from "lucide-react";
 import { useRef, useState } from "react";
 import { combineCloudData } from "../platform/combine-cloud-data";
@@ -11,14 +11,19 @@ import { FiscalAddressesSection } from "./fiscal-addresses-section";
 import {
   useFiscalAddressesQuery,
   useFortnightPresentationsQuery,
+  useOfflinePointsOfSaleQuery,
   useRegisterPointsOfSaleQuery,
   useReloadFiscalAddresses,
+  useReloadOfflinePointsOfSale,
   useReloadRegisterPointsOfSale,
 } from "./fiscal-queries";
 import { FortnightReportsSection } from "./fortnight-reports-section";
 import { NewFiscalAddressModal } from "./new-fiscal-address-modal";
+import type { OfflinePointOfSale } from "./offline-points-of-sale-api";
+import { OfflinePointsOfSaleSection } from "./offline-points-of-sale-section";
 import type { PointsOfSaleScreenServices } from "./points-of-sale-services";
 import { RegisterPointOfSaleSection } from "./register-point-of-sale-section";
+import { RetireOfflinePointOfSaleModal } from "./retire-offline-point-of-sale-modal";
 
 export type PointsOfSaleScreenProps = {
   onSessionEnded: () => void;
@@ -35,6 +40,12 @@ export function PointsOfSaleScreen({ onSessionEnded, services }: PointsOfSaleScr
     fetchFortnightPresentations,
     onSessionEnded,
   });
+  const offlinePointsOfSale = useOfflinePointsOfSaleQuery({
+    fetchOfflinePointsOfSale: services.fetchOfflinePointsOfSale,
+    onSessionEnded,
+  });
+  const reloadOfflinePointsOfSale = useReloadOfflinePointsOfSale();
+  const [retiring, setRetiring] = useState<OfflinePointOfSale | null>(null);
   const reloadRegisters = useReloadRegisterPointsOfSale({ fetchRegisterPointsOfSale });
   const reloadFiscalAddresses = useReloadFiscalAddresses({ fetchFiscalAddresses });
   const [editingRegister, setEditingRegister] = useState<{
@@ -79,6 +90,7 @@ export function PointsOfSaleScreen({ onSessionEnded, services }: PointsOfSaleScr
           data={registersWithAddresses}
           onEdit={({ registerId }, mechanism) => setEditingRegister({ registerId, mechanism })}
         />
+        <OfflinePointsOfSaleSection data={offlinePointsOfSale} onRetire={setRetiring} />
         <FortnightReportsSection data={combineCloudData(presentations, registers)} />
         <FiscalAddressesSection
           data={fiscalAddresses}
@@ -127,6 +139,20 @@ export function PointsOfSaleScreen({ onSessionEnded, services }: PointsOfSaleScr
           announce("Domicilio fiscal guardado", `${name}.`);
         }}
         reload={reloadFiscalAddresses}
+        onSessionEnded={onSessionEnded}
+        services={services}
+      />
+      <RetireOfflinePointOfSaleModal
+        target={retiring}
+        onClose={() => setRetiring(null)}
+        onRetired={(retired) => {
+          void reloadOfflinePointsOfSale();
+          announce(
+            "Punto de venta dado de baja",
+            `${formatPointOfSaleNumber(retired.pointOfSaleNumber)}.`,
+          );
+        }}
+        onOutdated={() => void reloadOfflinePointsOfSale()}
         onSessionEnded={onSessionEnded}
         services={services}
       />

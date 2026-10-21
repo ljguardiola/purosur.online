@@ -10,6 +10,7 @@ export type PointOfSaleMechanism = "real_time" | "offline";
 export interface PointOfSaleHolder {
   registerId: string;
   mechanism: PointOfSaleMechanism;
+  retiredAt?: Date;
 }
 
 export function mayRegisterClaimPointOfSale(
@@ -18,6 +19,24 @@ export function mayRegisterClaimPointOfSale(
   mechanism: PointOfSaleMechanism,
 ): boolean {
   return (
-    holder === undefined || (holder.registerId === registerId && holder.mechanism === mechanism)
+    holder === undefined ||
+    (holder.retiredAt === undefined &&
+      holder.registerId === registerId &&
+      holder.mechanism === mechanism)
   );
+}
+
+export type OfflinePointOfSaleRetirementRefusal = "not_found" | "already_retired" | "assigned";
+
+export function offlinePointOfSaleRetirementRefusal(
+  holder: PointOfSaleHolder | undefined,
+  assignedToRegister: boolean,
+): OfflinePointOfSaleRetirementRefusal | undefined {
+  if (holder === undefined || holder.mechanism !== "offline") {
+    return "not_found";
+  }
+  if (holder.retiredAt !== undefined) {
+    return "already_retired";
+  }
+  return assignedToRegister ? "assigned" : undefined;
 }

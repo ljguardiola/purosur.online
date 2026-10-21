@@ -13,6 +13,7 @@ import type {
   fetchFortnightPresentations,
 } from "./fortnight-presentations-api";
 import type { fetchIssuerIdentification, IssuerIdentification } from "./issuer-identification-api";
+import type { fetchOfflinePointsOfSale, OfflinePointOfSale } from "./offline-points-of-sale-api";
 import type { fetchRegisterPointsOfSale, RegisterPointOfSale } from "./register-points-of-sale-api";
 
 export const fiscalKey = ["fiscal"] as const;
@@ -22,6 +23,7 @@ export const fiscalKeys = {
   buyerIdentificationThresholds: [...fiscalKey, "buyer-identification-thresholds"] as const,
   fiscalAddresses: [...fiscalKey, "fiscal-addresses"] as const,
   registerPointsOfSale: [...fiscalKey, "register-points-of-sale"] as const,
+  offlinePointsOfSale: [...fiscalKey, "offline-points-of-sale"] as const,
   fortnightPresentations: [...fiscalKey, "fortnight-presentations"] as const,
   clockCorrections: [...fiscalKey, "clock-corrections"] as const,
 };
@@ -154,4 +156,22 @@ export function useClockCorrectionsQuery(params: {
     onSessionEnded: params.onSessionEnded,
     onForbidden: sendToMyAccount,
   });
+}
+
+export function useOfflinePointsOfSaleQuery(params: {
+  fetchOfflinePointsOfSale: typeof fetchOfflinePointsOfSale;
+  onSessionEnded: () => void;
+}) {
+  const sendToMyAccount = useSendToMyAccount();
+  return useCloudQuery<OfflinePointOfSale[]>({
+    queryKey: fiscalKeys.offlinePointsOfSale,
+    read: params.fetchOfflinePointsOfSale,
+    onSessionEnded: params.onSessionEnded,
+    onForbidden: sendToMyAccount,
+  });
+}
+
+export function useReloadOfflinePointsOfSale() {
+  const client = useQueryClient();
+  return () => client.invalidateQueries({ queryKey: fiscalKey });
 }

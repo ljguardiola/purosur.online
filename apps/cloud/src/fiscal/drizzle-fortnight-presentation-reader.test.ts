@@ -9,7 +9,10 @@ import { DrizzleFortnightReportStore } from "./drizzle-fortnight-report-store.js
 import { DrizzleOfflineAuthorizationCodeStore } from "./drizzle-offline-authorization-code-store.js";
 import { DrizzleOwedPresentationList } from "./drizzle-owed-presentation-list.js";
 import { insertOfflineFiscalDocument } from "./test-support/offline-fiscal-document-fixtures.js";
-import { seedOfflinePointOfSale } from "./test-support/offline-point-of-sale-fixtures.js";
+import {
+  retireOfflinePointOfSaleAt,
+  seedOfflinePointOfSale,
+} from "./test-support/offline-point-of-sale-fixtures.js";
 
 const OCTOBER_FIRST_HALF = { start: "2026-10-01", end: "2026-10-15" };
 const OCTOBER_SECOND_HALF = { start: "2026-10-16", end: "2026-10-31" };
@@ -127,6 +130,22 @@ async function presentations(today: string) {
 }
 
 describe("DrizzleFortnightPresentationReader.branchPresentations", () => {
+  it("answers the fortnights that closed before a point of sale was retired and none that close after it", async () => {
+    await seedOfflinePointOfSale(db);
+    await claimedBeforeEveryFortnight(OFFLINE_POINT_OF_SALE);
+    await keepCode(OCTOBER_FIRST_HALF, "36123456789012", "2026-10-20");
+    await keepCode(OCTOBER_SECOND_HALF, "36123456789013", "2026-11-05");
+    await retireOfflinePointOfSaleAt(
+      db,
+      OFFLINE_POINT_OF_SALE,
+      new Date("2026-10-16T12:00:00.000Z"),
+    );
+
+    const listed = await presentations("2026-11-10");
+
+    expect(listed.map(({ fortnight }) => fortnight.start)).toEqual(["2026-10-01"]);
+  });
+
   it("answers a closed fortnight with its register, its point of sale, no state while nothing was recorded and the deadline the domain sets", async () => {
     const registerId = await seedOfflinePointOfSale(db);
     await claimedBeforeEveryFortnight(OFFLINE_POINT_OF_SALE);

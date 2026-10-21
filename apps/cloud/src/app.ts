@@ -65,6 +65,7 @@ import { registerUserPasskeysRemovalRoute } from "./credentials/user-passkeys-re
 import { registerUserPinCodeRoutes } from "./credentials/user-pin-code-route.js";
 import { voidOutstandingRecoveryTokens } from "./credentials/void-outstanding-recovery-tokens.js";
 import { arcaOnlineStatusOf } from "./fiscal/arca-online-status.js";
+import { registerBranchOfflinePointsOfSaleListRoute } from "./fiscal/branch-offline-points-of-sale-list-route.js";
 import { registerBuyerIdentificationThresholdRecordRoute } from "./fiscal/buyer-identification-threshold-record-route.js";
 import type { BuyerIdentificationThresholdsRouteOptions } from "./fiscal/buyer-identification-thresholds-list-route.js";
 import { registerBuyerIdentificationThresholdsListRoute } from "./fiscal/buyer-identification-thresholds-list-route.js";
@@ -87,6 +88,7 @@ import type { EnqueueTaxAuthorityCount } from "./fiscal/graphile-tax-authority-c
 import { registerIssuerIdentificationEditRoute } from "./fiscal/issuer-identification-edit-route.js";
 import type { IssuerIdentificationRouteOptions } from "./fiscal/issuer-identification-read-route.js";
 import { registerIssuerIdentificationReadRoute } from "./fiscal/issuer-identification-read-route.js";
+import { registerOfflinePointOfSaleRetirementRoute } from "./fiscal/offline-point-of-sale-retirement-route.js";
 import { registerRegisterOfflinePointOfSaleConfigurationRoute } from "./fiscal/register-offline-point-of-sale-configuration-route.js";
 import { registerRegisterPointOfSaleConfigurationRoute } from "./fiscal/register-point-of-sale-configuration-route.js";
 import type { RegistersPointsOfSaleRouteOptions } from "./fiscal/registers-points-of-sale-list-route.js";
@@ -697,6 +699,8 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
           ...options.registersPointsOfSale,
           now,
         });
+        registerBranchOfflinePointsOfSaleListRoute(api, { ...options.registersPointsOfSale, now });
+        registerOfflinePointOfSaleRetirementRoute(api, { ...options.registersPointsOfSale, now });
       }
 
       if (options.devices) {
