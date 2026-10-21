@@ -15,6 +15,7 @@ import {
   streamedJsonResponse,
   streamInterruptedByErrorResponse,
 } from "./test-support/anthropic-stream-fixtures.js";
+import { fictionalAesProtectedPdfWithPagesInAnObjectStream } from "./test-support/fictional-aes-protected-pdf.js";
 import {
   fictionalPdf,
   fictionalPermissionsProtectedPdf,
@@ -732,6 +733,29 @@ describe("a PDF protected by a permissions password", () => {
       streamedJsonResponse({ listDate: null, pricesIncludeVat: null, rows: [ROW] }),
     );
     const source = await protectedSource(12);
+
+    const result = await extractor.extract(source);
+
+    expect(requests).toHaveLength(1);
+    expect(documentSent(requests[0] as RecordedRequest)).toBe(
+      Buffer.from(source.bytes).toString("base64"),
+    );
+    expect(result).toEqual({
+      kind: "extracted",
+      listDate: null,
+      pricesIncludeVat: null,
+      rows: [ROW],
+    });
+  });
+
+  it("is sent whole in one request when its pages sit in an encrypted object stream", async () => {
+    const { extractor, requests } = extractorAnswering(() =>
+      streamedJsonResponse({ listDate: null, pricesIncludeVat: null, rows: [ROW] }),
+    );
+    const source = {
+      kind: "pdf",
+      bytes: fictionalAesProtectedPdfWithPagesInAnObjectStream(),
+    } as const;
 
     const result = await extractor.extract(source);
 
