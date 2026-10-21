@@ -1,4 +1,6 @@
 import { randomUUID } from "node:crypto";
+import { syncedEventUpcaster } from "@purosur/contracts";
+import { unappliedEventOf } from "@purosur/contracts/sync/test-support/unapplied-event";
 import type { SyncedFact, UnappliedEvent } from "@purosur/domain/sync/use-cases";
 import { applyPendingEvents } from "@purosur/domain/sync/use-cases";
 import { asc, eq } from "drizzle-orm";
@@ -17,7 +19,6 @@ import {
   users,
 } from "../platform/db/schema.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
-import { syncedEventUpcaster } from "./synced-event-upcaster.js";
 import {
   APPLICATION_NOW,
   eventApplicationUnderTest,
@@ -31,7 +32,6 @@ import {
   type CompletedSale,
   type VoidedSale,
 } from "./test-support/synced-facts.js";
-import { unappliedEventOf } from "./test-support/unapplied-event.js";
 
 const system = eventApplicationUnderTest();
 

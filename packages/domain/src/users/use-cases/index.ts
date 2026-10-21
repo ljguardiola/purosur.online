@@ -1,3 +1,4 @@
+export type { ReplenishedUser } from "../model/replenished-user.js";
 export type {
   BranchUser,
   BranchUserActiveScope,
@@ -60,6 +61,7 @@ export type {
   ReactivateUserPorts,
 } from "./reactivate-user.js";
 export { reactivateUser } from "./reactivate-user.js";
+export type { RegisterBranchUsers } from "./register-branch-users.js";
 export type {
   AssignableRole,
   LockedUser,

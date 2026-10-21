@@ -464,6 +464,27 @@ const offlineFiscalDocumentIssuedSchema = z.object({
   cause: z.enum(OFFLINE_AUTHORIZATION_CAUSES),
 });
 
+const invoiceSchema = z.object({
+  invoice_class: z.literal("C"),
+  total: cents,
+  net_amount: cents,
+  vat_amount: z.literal(0),
+  issuer: z.object({
+    legal_name: text,
+    cuit: text,
+    tax_status: text,
+    gross_income_registration: text,
+    activity_start_date: z.string().refine(isCalendarDay),
+    version: z.int(),
+  }),
+  buyer_tax_status_code: z.int(),
+  buyer_tax_status_description: z.string(),
+});
+
+const offlineFiscalDocumentIssuedV2Schema = offlineFiscalDocumentIssuedSchema.extend({
+  document: invoiceSchema,
+});
+
 const clockCorrectedSchema = z.object({
   point_of_sale: pointOfSaleNumberSchema,
   document_type: z.literal(FACTURA_C_DOCUMENT_TYPE),
@@ -514,6 +535,7 @@ const PAYLOAD_SCHEMAS = {
   "cash_movement_recorded@1": cashMovementRecordedSchema,
   "fiscal_gate_failed@1": fiscalGateFailedSchema,
   "offline_fiscal_document_issued@1": offlineFiscalDocumentIssuedSchema,
+  "offline_fiscal_document_issued@2": offlineFiscalDocumentIssuedV2Schema,
   "clock_corrected@1": clockCorrectedSchema,
   "qr_payment_replaced@1": qrPaymentReplacedSchema,
   "opening_count_recorded@1": openingCountRecordedSchema,

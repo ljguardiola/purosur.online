@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { LocalDatabase } from "../platform/local-database";
 import { appendOutboxEvent } from "../sync/sqlite-outbox";
 import { CHAIN_KEY } from "../sync/test-support/sqlite-local-outbox";
+import { applyReplenishedOfflineFiscalDocument } from "./replenished-offline-fiscal-documents";
 import { decideSaleAuthorizationIn } from "./sqlite-sale-authorization";
 import {
   FACTURA_C,
@@ -421,6 +422,38 @@ describe("deciding a sale's authorization when the register holds a code for its
         cause: "no_connectivity",
       });
       expect(outboxEvents()).toHaveLength(2);
+    });
+
+    it("takes the number after the one a replenished document holds, never repeating it", () => {
+      insertCompletedSale(database, "replenished-sale");
+      applyReplenishedOfflineFiscalDocument(database, {
+        kind: "offline_fiscal_document_issued",
+        document: {
+          fiscalDocumentId: "replenished-doc",
+          saleId: "replenished-sale",
+          registerId: "register-1",
+          pointOfSale: OFFLINE_POINT_OF_SALE,
+          documentType: "factura_c",
+          number: 5,
+          issuedOn: "2026-09-30",
+          generatedAt: DECIDED_AT,
+          generationStamp: "20260930090500",
+          offlineAuthorizationCode: OFFLINE_CODE,
+          fortnightStart: "2026-09-16",
+          fortnightEnd: "2026-09-30",
+          buyerDocumentType: 99,
+          buyerDocumentNumber: 0,
+          buyerTaxStatusCode: 5,
+          total: 12_500,
+          netAmount: 12_500,
+          cause: "no_connectivity",
+          invoice: FACTURA_C,
+        },
+      });
+
+      decide();
+
+      expect(offlineDocuments().map((row) => (row as { number: number }).number)).toEqual([5, 6]);
     });
 
     it("takes the lowest unused number of the block after the documents already issued", () => {

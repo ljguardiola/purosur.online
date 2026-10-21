@@ -1,16 +1,21 @@
-import {
-  type SyncedEventPayloadKey,
-  type SyncedEventPayloads,
-  syncedEventPayloadKey,
-  syncedEventPayloadSchema,
-} from "@purosur/contracts";
-import type { ManualAdjustment, SaleDiscount } from "@purosur/domain";
+import type {
+  DiscountBenefit,
+  ManualAdjustment,
+  OfflineFiscalDocumentIssuedFact,
+  SaleDiscount,
+} from "@purosur/domain";
 import type {
   DecodedEvent,
   EventUpcaster,
   SyncedFact,
   UnappliedEvent,
 } from "@purosur/domain/sync/use-cases";
+import {
+  type SyncedEventPayloadKey,
+  type SyncedEventPayloads,
+  syncedEventPayloadKey,
+  syncedEventPayloadSchema,
+} from "./synced-event-payloads.js";
 
 type CompletedSalePayload = SyncedEventPayloads[
   | "sale_completed@1"
@@ -61,6 +66,14 @@ function saleDiscount(discount: SaleDiscountPayload): SaleDiscount {
     : { kind: "AMOUNT", amount: discount.value, reason, authorizedBy };
 }
 
+type LinePromotionPayload = CompletedSalePayload["lines"][number]["promotions"][number];
+
+function promotionBenefit(promotion: LinePromotionPayload): DiscountBenefit {
+  return promotion.kind === "PERCENT_OFF"
+    ? { kind: "PERCENT_OFF", percent: promotion.percent }
+    : { kind: "BUY_N_PAY_M", buyQty: promotion.buy_qty, payQty: promotion.pay_qty };
+}
+
 function saleParts(payload: CompletedSalePayload | CancelledSalePayload | VoidedSalePayload) {
   const discount = "sale_discount" in payload ? payload.sale_discount : null;
   return {
@@ -76,6 +89,10 @@ function saleParts(payload: CompletedSalePayload | CancelledSalePayload | Voided
       promotionId: line.promotion_id,
       discountAmount: line.discount_amount,
       saleDiscountShare: "sale_discount_share" in line ? line.sale_discount_share : 0,
+      promotions: line.promotions.map((promotion) => ({
+        discountId: promotion.discount_id,
+        benefit: promotionBenefit(promotion),
+      })),
       weightSource: "weight_source" in line ? line.weight_source : null,
       manualAdjustment:
         "manual_adjustment" in line ? manualAdjustment(line.manual_adjustment) : null,
@@ -188,6 +205,31 @@ function completedSale(
               delta: movement.delta,
             })),
     },
+  };
+}
+
+function offlineDocument(
+  payload: SyncedEventPayloads["offline_fiscal_document_issued@1"],
+): OfflineFiscalDocumentIssuedFact {
+  return {
+    fiscalDocumentId: payload.fiscal_document_id,
+    saleId: payload.sale_id,
+    registerId: payload.register_id,
+    pointOfSale: payload.point_of_sale,
+    documentType: payload.document_type,
+    number: payload.number,
+    issuedOn: payload.issued_on,
+    generatedAt: new Date(payload.generated_at),
+    generationStamp: payload.generation_stamp,
+    offlineAuthorizationCode: payload.offline_authorization_code,
+    fortnightStart: payload.fortnight_start,
+    fortnightEnd: payload.fortnight_end,
+    buyerDocumentType: payload.buyer_document_type,
+    buyerDocumentNumber: payload.buyer_document_number,
+    buyerTaxStatusCode: payload.buyer_tax_status_code,
+    total: payload.total,
+    netAmount: payload.net_amount,
+    cause: payload.cause,
   };
 }
 
@@ -354,25 +396,28 @@ const FACT_OF: {
   }),
   "offline_fiscal_document_issued@1": (payload) => ({
     kind: "offline_fiscal_document_issued",
+    document: offlineDocument(payload),
+  }),
+  "offline_fiscal_document_issued@2": (payload) => ({
+    kind: "offline_fiscal_document_issued",
     document: {
-      fiscalDocumentId: payload.fiscal_document_id,
-      saleId: payload.sale_id,
-      registerId: payload.register_id,
-      pointOfSale: payload.point_of_sale,
-      documentType: payload.document_type,
-      number: payload.number,
-      issuedOn: payload.issued_on,
-      generatedAt: new Date(payload.generated_at),
-      generationStamp: payload.generation_stamp,
-      offlineAuthorizationCode: payload.offline_authorization_code,
-      fortnightStart: payload.fortnight_start,
-      fortnightEnd: payload.fortnight_end,
-      buyerDocumentType: payload.buyer_document_type,
-      buyerDocumentNumber: payload.buyer_document_number,
-      buyerTaxStatusCode: payload.buyer_tax_status_code,
-      total: payload.total,
-      netAmount: payload.net_amount,
-      cause: payload.cause,
+      ...offlineDocument(payload),
+      invoice: {
+        invoiceClass: payload.document.invoice_class,
+        total: payload.document.total,
+        netAmount: payload.document.net_amount,
+        vatAmount: payload.document.vat_amount,
+        issuer: {
+          legalName: payload.document.issuer.legal_name,
+          cuit: payload.document.issuer.cuit,
+          taxStatus: payload.document.issuer.tax_status,
+          grossIncomeRegistration: payload.document.issuer.gross_income_registration,
+          activityStartDate: payload.document.issuer.activity_start_date,
+          version: payload.document.issuer.version,
+        },
+        buyerTaxStatusCode: payload.document.buyer_tax_status_code,
+        buyerTaxStatusDescription: payload.document.buyer_tax_status_description,
+      },
     },
   }),
 };
@@ -384,7 +429,7 @@ function decodeAs<Key extends SyncedEventPayloadKey>(
   const parsed = syncedEventPayloadSchema(key).safeParse(event.payload);
   if (!parsed.success) {
     const reason = parsed.error.issues
-      .map((issue) => `${issue.path.join(".") || "payload"}: ${issue.message}`)
+      .map((issue) => `${issue.path.join(".")}: ${issue.message}`)
       .join("; ");
     return { kind: "unreadable", reason };
   }

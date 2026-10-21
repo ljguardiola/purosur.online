@@ -1,8 +1,8 @@
+import { syncedEventUpcaster } from "@purosur/contracts";
 import type { FiscalDocumentType } from "@purosur/domain";
 import { and, eq, isNull, max } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { inbox, offlineFiscalDocuments } from "../platform/db/schema.js";
-import { syncedEventUpcaster } from "../sync/synced-event-upcaster.js";
 import { unappliedEventColumns } from "../sync/unapplied-event-columns.js";
 
 const OFFLINE_DOCUMENT_EVENT_TYPE = "offline_fiscal_document_issued";

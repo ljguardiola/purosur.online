@@ -25,6 +25,7 @@ export function aSoldLine(
     promotionId: null,
     discountAmount: 0,
     saleDiscountShare: 0,
+    promotions: [],
     lineTotal,
   };
 }
