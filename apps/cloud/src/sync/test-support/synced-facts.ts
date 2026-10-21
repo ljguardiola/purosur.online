@@ -31,6 +31,7 @@ export function aCompletedSale(overrides: Partial<CompletedSale> = {}): Complete
         promotionId: null,
         discountAmount: 0,
         saleDiscountShare: 0,
+        promotions: [],
         lineTotal: 4800,
       },
     ],

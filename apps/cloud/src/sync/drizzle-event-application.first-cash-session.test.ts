@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { unappliedEventOf } from "@purosur/contracts/sync/test-support/unapplied-event";
 import type { SyncedFact, UnappliedEvent } from "@purosur/domain/sync/use-cases";
 import { describe, expect, it } from "vitest";
 import { branchFirstCashSessions } from "../platform/db/schema.js";
@@ -9,7 +10,6 @@ import {
 } from "./test-support/drizzle-event-application.js";
 import { changesLoggedAfter, lastLoggedChangeSeq } from "./test-support/logged-changes.js";
 import { aCashSessionOpenedFact } from "./test-support/synced-facts.js";
-import { unappliedEventOf } from "./test-support/unapplied-event.js";
 
 const system = eventApplicationUnderTest();
 

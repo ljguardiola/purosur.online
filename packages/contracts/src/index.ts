@@ -748,6 +748,8 @@ export {
 } from "./sync/quarantined-events.js";
 export type { ReadableEventVersions } from "./sync/readable-event-versions.js";
 export { readableEventVersionsSchema } from "./sync/readable-event-versions.js";
+export type { RegisterResetRequest, RegisterResetResponse } from "./sync/register-reset.js";
+export { registerResetRequestSchema, registerResetResponseSchema } from "./sync/register-reset.js";
 export type {
   RegistersBelowMinimum,
   RegistersBelowMinimumQuery,
@@ -765,6 +767,7 @@ export {
   syncedEventPayloadKey,
   syncedEventPayloadSchema,
 } from "./sync/synced-event-payloads.js";
+export { syncedEventUpcaster } from "./sync/synced-event-upcaster.js";
 export type { BranchUserWire } from "./users/branch-user.js";
 export { branchUserListSchema, branchUserSchema } from "./users/branch-user.js";
 export type { UserCreationBody } from "./users/user-creation.js";

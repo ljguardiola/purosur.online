@@ -58,10 +58,25 @@ export { recordAcceptedPush } from "./record-accepted-push.js";
 export type { RedeliveryOutcome } from "./redeliver-pulled-entities.js";
 export { redeliverPulledEntities } from "./redeliver-pulled-entities.js";
 export type {
+  RegisterPredecessor,
+  RegisterReplenishmentDecoder,
+  RegisterReplenishmentFeed,
+  RegisterReplenishmentFeedAnswer,
+  RegisterReplenishmentStore,
+  RegisterReplenishmentTransaction,
+  ReplenishedEventApplication,
+  ReplenishedEventSource,
+  ReplenishmentPage,
+  ReplenishmentRefusal,
+  ReplenishRestoredRegisterPorts,
+} from "./register-replenishment-ports.js";
+export type {
   ReleaseQuarantinedEventInput,
   ReleaseQuarantinedEventOutcome,
 } from "./release-quarantined-event.js";
 export { releaseQuarantinedEvent } from "./release-quarantined-event.js";
+export type { ReplenishRestoredRegisterOutcome } from "./replenish-restored-register.js";
+export { replenishRestoredRegister } from "./replenish-restored-register.js";
 export type { ResendPulledEntityInput } from "./resend-pulled-entity.js";
 export { resendPulledEntity } from "./resend-pulled-entity.js";
 export type {
@@ -70,11 +85,23 @@ export type {
 } from "./reset-restored-sync-identity.js";
 export { resetRestoredSyncIdentity } from "./reset-restored-sync-identity.js";
 export type {
+  EventPosition,
+  ReplenishedEvent,
+  ReplenishmentPosition,
+  RestoredRegisterReplenishment,
+  ServeRestoredRegisterReplenishmentPorts,
+} from "./restored-register-replenishment-ports.js";
+export type {
   CarriedSyncIdentity,
   ResetRestoredSyncIdentityPorts,
   RestoredSyncIdentityStore,
   RestoredSyncIdentityTransaction,
 } from "./restored-sync-identity-ports.js";
+export type {
+  ServedReplenishmentPage,
+  ServeRestoredRegisterReplenishmentInput,
+} from "./serve-restored-register-replenishment.js";
+export { serveRestoredRegisterReplenishment } from "./serve-restored-register-replenishment.js";
 export type {
   AdmissionPorts,
   CatchUpPorts,

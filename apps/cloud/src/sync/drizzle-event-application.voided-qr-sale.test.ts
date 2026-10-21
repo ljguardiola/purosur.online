@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { syncedEventUpcaster } from "@purosur/contracts";
 import { applyPendingEvents } from "@purosur/domain/sync/use-cases";
 import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
@@ -7,7 +8,6 @@ import {
   pendingTransaction,
 } from "../payments/test-support/payment-transaction-fixtures.js";
 import { paymentRefunds, paymentTransactions, sales } from "../platform/db/schema.js";
-import { syncedEventUpcaster } from "./synced-event-upcaster.js";
 import { eventApplicationUnderTest } from "./test-support/drizzle-event-application.js";
 import {
   AMOUNT,

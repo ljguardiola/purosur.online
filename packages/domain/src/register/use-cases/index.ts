@@ -1,5 +1,11 @@
 export type { Clock, OperationAuthority, OperationAuthorization } from "../../shared/index.js";
 export type {
+  AdmitRestoredRegisterReplenishmentInput,
+  AdmitRestoredRegisterReplenishmentOutcome,
+  AdmitRestoredRegisterReplenishmentPorts,
+} from "./admit-restored-register-replenishment.js";
+export { admitRestoredRegisterReplenishment } from "./admit-restored-register-replenishment.js";
+export type {
   AnswerSnapshotVerificationInput,
   AnswerSnapshotVerificationPorts,
 } from "./answer-snapshot-verification.js";
@@ -234,6 +240,10 @@ export type {
   RequestSnapshotUploadPorts,
 } from "./request-snapshot-upload.js";
 export { requestSnapshotUpload } from "./request-snapshot-upload.js";
+export type {
+  PredecessorStanding,
+  RestoredRegisterPredecessors,
+} from "./restored-register-predecessors.js";
 export type {
   RevokedRegister,
   RevokeEveryInstallationInput,

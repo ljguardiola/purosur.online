@@ -73,7 +73,7 @@ export function prepareAccessPageWrites(
   );
 
   return {
-    user({ entity_id, row }: ChangeOf<"user">): void {
+    user({ entity_id, row }: Pick<ChangeOf<"user">, "entity_id" | "row">): void {
       if (pepper === undefined) {
         throw new Error("no installation has been adopted to derive PIN verifiers for");
       }
