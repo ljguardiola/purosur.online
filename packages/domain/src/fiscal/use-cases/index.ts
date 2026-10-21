@@ -417,10 +417,17 @@ export type {
 } from "./request-real-time-authorization.js";
 export { requestRealTimeAuthorization } from "./request-real-time-authorization.js";
 export type {
+  RestoredRegisterCreditNoteAnswers,
+  SaleVoidCreditNoteOfRegister,
+  ServeRestoredRegisterCreditNoteAnswersPorts,
+} from "./restored-register-credit-note-answers-ports.js";
+export type {
   RequestSaleVoidCreditNoteInput,
   RequestSaleVoidCreditNoteOutcome,
 } from "./request-sale-void-credit-note.js";
 export { requestSaleVoidCreditNote } from "./request-sale-void-credit-note.js";
+export type { ServeRestoredRegisterCreditNoteAnswersInput } from "./serve-restored-register-credit-note-answers.js";
+export { serveRestoredRegisterCreditNoteAnswers } from "./serve-restored-register-credit-note-answers.js";
 export type {
   RequestedCreditNote,
   RequestVoidCreditNotesOutcome,

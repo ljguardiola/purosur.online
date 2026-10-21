@@ -180,7 +180,9 @@ export {
 } from "./model/real-time-authorization.js";
 export { REGISTER_CLOCK_TOLERANCE_MS, raisedClockMark } from "./model/register-clock.js";
 export type {
+  ConfirmedCreditNoteAnswer,
   CreditNoteAnswer,
+  RestoredCreditNoteAnswer,
   SaleInvoice,
   SaleVoidCreditNote,
   VoidCreditNoteStanding,
