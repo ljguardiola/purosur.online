@@ -11,22 +11,22 @@ import {
   type ReceiptPrintOutcome,
 } from "./receipt-printing.js";
 
-export type ReprintSaleReceiptInput = PrintedDocumentKey & { reason: string };
+export type ReprintReceiptInput = PrintedDocumentKey & { reason: string };
 
-export type ReprintSaleReceiptPorts<
-  Grant extends ReceiptPrintGrant,
-  Refusal,
-> = ReceiptPrintingPorts<Grant, Refusal>;
+export type ReprintReceiptPorts<Grant extends ReceiptPrintGrant, Refusal> = ReceiptPrintingPorts<
+  Grant,
+  Refusal
+>;
 
-export type ReprintSaleReceiptOutcome =
+export type ReprintReceiptOutcome =
   | ReceiptPrintOutcome
   | { kind: "invalid_reason"; maxLength: number };
 
-export async function reprintSaleReceipt<Grant extends ReceiptPrintGrant, Refusal>(
-  ports: ReprintSaleReceiptPorts<Grant, Refusal>,
-  { reason, ...key }: ReprintSaleReceiptInput,
+export async function reprintReceipt<Grant extends ReceiptPrintGrant, Refusal>(
+  ports: ReprintReceiptPorts<Grant, Refusal>,
+  { reason, ...key }: ReprintReceiptInput,
   watch: ReceiptPrintWatch,
-): Promise<ReprintSaleReceiptOutcome | Refusal> {
+): Promise<ReprintReceiptOutcome | Refusal> {
   const text = receiptReprintReason(reason);
   if (text === undefined) {
     return { kind: "invalid_reason", maxLength: RECEIPT_REPRINT_REASON_MAX_LENGTH };

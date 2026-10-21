@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { RECEIPT_REPRINT_REASON_MAX_LENGTH } from "../model/receipt-reprint-reason.js";
 import { printOriginalReceipt } from "./print-original-receipt.js";
 import type { ReceiptPrintGrant } from "./receipt-printing.js";
-import { reprintSaleReceipt } from "./reprint-sale-receipt.js";
+import { reprintReceipt } from "./reprint-receipt.js";
 import { FakeOperationAuthority } from "./test-support/fake-operation-authority.js";
 import { textOf } from "./test-support/fake-receipt-template.js";
 import {
@@ -100,7 +100,7 @@ describe("printing a credit note", () => {
     it("is also the original when a reprint is asked for a credit note never printed, with no reprint recorded", async () => {
       const rig = receiptRig([creditedSale()]);
 
-      const printing = reprintSaleReceipt(rig.ports, DUPLICATE_INPUT, rig.watch);
+      const printing = reprintReceipt(rig.ports, DUPLICATE_INPUT, rig.watch);
       await rig.printer.whenWaiting();
       rig.printer.becomeReady();
 
@@ -142,7 +142,7 @@ describe("printing a credit note", () => {
     it("sends the same credit note with the duplicate legend and the next order number", async () => {
       const rig = receiptRig([attempted()]);
 
-      const printing = reprintSaleReceipt(rig.ports, DUPLICATE_INPUT, rig.watch);
+      const printing = reprintReceipt(rig.ports, DUPLICATE_INPUT, rig.watch);
       await rig.printer.whenWaiting();
       rig.printer.becomeReady();
 
@@ -164,7 +164,7 @@ describe("printing a credit note", () => {
       const rig = receiptRig([attempted()], authority);
       rig.clock.set(SENT_AT);
 
-      const printing = reprintSaleReceipt(rig.ports, DUPLICATE_INPUT, rig.watch);
+      const printing = reprintReceipt(rig.ports, DUPLICATE_INPUT, rig.watch);
       await rig.printer.whenWaiting();
       rig.printer.becomeReady();
       await printing;
@@ -222,7 +222,7 @@ describe("printing a credit note", () => {
       ]);
 
       for (const orderNumber of [1, 2]) {
-        const printing = reprintSaleReceipt(rig.ports, DUPLICATE_INPUT, rig.watch);
+        const printing = reprintReceipt(rig.ports, DUPLICATE_INPUT, rig.watch);
         await rig.printer.whenWaiting(orderNumber);
         rig.printer.becomeReady();
         expect(await printing).toEqual({
@@ -235,7 +235,7 @@ describe("printing a credit note", () => {
     it("does not touch the print state of the sale's receipt", async () => {
       const rig = receiptRig([attempted()]);
 
-      const printing = reprintSaleReceipt(rig.ports, DUPLICATE_INPUT, rig.watch);
+      const printing = reprintReceipt(rig.ports, DUPLICATE_INPUT, rig.watch);
       await rig.printer.whenWaiting();
       rig.printer.becomeReady();
       await printing;
@@ -258,7 +258,7 @@ describe("printing a credit note", () => {
       async (_name, reason) => {
         const rig = receiptRig([creditedSale({ printAttemptedAt: FIRST_PRINT_AT })]);
 
-        expect(await reprintSaleReceipt(rig.ports, { ...CREDIT_NOTE, reason }, rig.watch)).toEqual({
+        expect(await reprintReceipt(rig.ports, { ...CREDIT_NOTE, reason }, rig.watch)).toEqual({
           kind: "invalid_reason",
           maxLength: RECEIPT_REPRINT_REASON_MAX_LENGTH,
         });
@@ -273,9 +273,7 @@ describe("printing a credit note", () => {
       });
       const rig = receiptRig([creditedSale({ printAttemptedAt: FIRST_PRINT_AT })], refusing);
 
-      expect(await reprintSaleReceipt(rig.ports, DUPLICATE_INPUT, rig.watch)).toEqual(
-        NOT_PERMITTED,
-      );
+      expect(await reprintReceipt(rig.ports, DUPLICATE_INPUT, rig.watch)).toEqual(NOT_PERMITTED);
       expect(rig.ledger.transactions).toBe(0);
       expect(rig.printer.sent).toEqual([]);
     });
@@ -291,7 +289,7 @@ describe("printing a credit note", () => {
       expect(await printOriginalReceipt(rig.ports, CREDIT_NOTE, rig.watch)).toEqual({
         kind: "not_found",
       });
-      expect(await reprintSaleReceipt(rig.ports, DUPLICATE_INPUT, rig.watch)).toEqual({
+      expect(await reprintReceipt(rig.ports, DUPLICATE_INPUT, rig.watch)).toEqual({
         kind: "not_found",
       });
       expect(rig.printer.sent).toEqual([]);
@@ -302,7 +300,7 @@ describe("printing a credit note", () => {
       const rig = receiptRig([creditedSale({ printAttemptedAt: FIRST_PRINT_AT })]);
       rig.ledger.state.outboxReady = false;
 
-      expect(await reprintSaleReceipt(rig.ports, DUPLICATE_INPUT, rig.watch)).toEqual({
+      expect(await reprintReceipt(rig.ports, DUPLICATE_INPUT, rig.watch)).toEqual({
         kind: "unavailable",
       });
       expect(rig.ledger.state.sales[0]?.creditNote?.reprints).toEqual([]);
@@ -321,7 +319,7 @@ describe("printing a credit note", () => {
     it("records nothing when the print is abandoned before the printer was ready", async () => {
       const rig = receiptRig([creditedSale({ printAttemptedAt: FIRST_PRINT_AT })]);
 
-      const printing = reprintSaleReceipt(rig.ports, DUPLICATE_INPUT, rig.watch);
+      const printing = reprintReceipt(rig.ports, DUPLICATE_INPUT, rig.watch);
       await rig.printer.whenWaiting();
       rig.printer.abandon();
 

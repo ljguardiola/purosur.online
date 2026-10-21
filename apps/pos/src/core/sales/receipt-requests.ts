@@ -16,7 +16,7 @@ import {
   type ReceiptPrintGrant,
   readSaleComprobante,
   receiptDeliveryOf,
-  reprintSaleReceipt,
+  reprintReceipt,
 } from "@purosur/domain/sales/use-cases";
 import type { LocalDatabase } from "../platform/local-database";
 import type { ActionGate } from "../sessions/action-gate";
@@ -235,7 +235,7 @@ export async function reprintFor(
     },
   };
   const start = await deps.jobs.start(jobKeyOf(key), ({ watch, printers }) =>
-    reprintSaleReceipt(
+    reprintReceipt(
       printingPorts(deps, chainKey, authority, printers(deps.printers)),
       { ...key, reason },
       watch,
