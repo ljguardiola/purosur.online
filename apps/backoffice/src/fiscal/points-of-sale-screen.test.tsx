@@ -4,8 +4,8 @@ import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
 import type { FiscalAddress } from "./fiscal-addresses-api";
-import { PointsOfSaleScreen } from "./points-of-sale-screen";
 import type { OfflinePointOfSale } from "./offline-points-of-sale-api";
+import { PointsOfSaleScreen } from "./points-of-sale-screen";
 import type { PointsOfSaleScreenServices } from "./points-of-sale-services";
 import type { RegisterPointOfSale } from "./register-points-of-sale-api";
 
@@ -472,7 +472,8 @@ test("retiring an offline point of sale reads the list and the fortnight reports
   expect(services.retireOfflinePointOfSale).toHaveBeenCalledWith(6);
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
   await expect.element(screen.getByText("Dado de baja", { exact: true })).toBeVisible();
-  await expect.element(screen.getByText("Punto de venta 00006 dado de baja.")).toBeVisible();
+  await expect.element(screen.getByText("Punto de venta dado de baja")).toBeVisible();
+  await expect.element(screen.getByText("00006.", { exact: true })).toBeVisible();
   expect(services.fetchFortnightPresentations).toHaveBeenCalledTimes(2);
 });
 
