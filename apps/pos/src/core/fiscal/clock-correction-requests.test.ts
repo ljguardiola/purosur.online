@@ -236,6 +236,7 @@ describe("correcting the register's clock from the register", () => {
       point_of_sale: 12,
       document_type: "factura_c",
       previous_reading: AHEAD,
+      previous_reading_source: "clock_mark",
       corrected_reading: NOW.toISOString(),
     });
   });
