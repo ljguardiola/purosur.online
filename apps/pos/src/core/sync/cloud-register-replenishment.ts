@@ -58,7 +58,7 @@ export class CloudRegisterReplenishment implements RegisterReplenishmentFeed<Clo
     if (!answer.success) {
       return { kind: "failed", failure: { kind: "unreadable" } };
     }
-    const { events, users, next } = answer.data;
+    const { events, users, next, credit_notes: creditNotes } = answer.data;
     return {
       kind: "page",
       page: {
@@ -71,6 +71,23 @@ export class CloudRegisterReplenishment implements RegisterReplenishmentFeed<Clo
           pinHash: user.pin_hash,
           active: user.active,
           version: user.version,
+        })),
+        creditNoteAnswers: creditNotes.map((creditNote) => ({
+          saleId: creditNote.sale_id,
+          creditNoteId: creditNote.credit_note_id,
+          answeredAt: new Date(creditNote.answered_at),
+          answer:
+            creditNote.state === "AUTHORIZED"
+              ? {
+                  kind: "authorized",
+                  pointOfSale: creditNote.point_of_sale,
+                  number: creditNote.number,
+                  issuedOn: creditNote.issued_on,
+                  issuedAt: new Date(creditNote.issued_at),
+                  authorizationCode: creditNote.authorization_code,
+                  authorizationCodeDueOn: creditNote.authorization_code_due_on,
+                }
+              : { kind: "rejected" },
         })),
         next: next && { deviceId: next.device_id, deviceSeq: next.device_seq },
       },

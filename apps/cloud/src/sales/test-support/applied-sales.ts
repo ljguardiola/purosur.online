@@ -164,7 +164,7 @@ export async function applyVoidedSale<TQueryResult extends PgQueryResultHKT>(
       eventOf("Sale", completed.id, "sale_completed"),
     );
     await tx.record(
-      { kind: "sale_voided", sale: voided },
+      { kind: "sale_voided", creditNote: null, sale: voided },
       eventOf("Sale", completed.id, "sale_voided"),
     );
   });

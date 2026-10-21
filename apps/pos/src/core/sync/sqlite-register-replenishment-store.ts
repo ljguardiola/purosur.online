@@ -9,6 +9,7 @@ import type {
 } from "@purosur/domain/sync/use-cases";
 import type { ReplenishedUser } from "@purosur/domain/users/use-cases";
 import { applyReplenishedClockCorrection } from "../fiscal/replenished-clock-corrections";
+import { recordReplenishedCreditNoteAnswer } from "../fiscal/replenished-credit-note-answers";
 import { applyReplenishedGateFailure } from "../fiscal/replenished-gate-failures";
 import { applyReplenishedOfflineFiscalDocument } from "../fiscal/replenished-offline-fiscal-documents";
 import type { LocalDatabase } from "../platform/local-database";
@@ -93,6 +94,9 @@ export class SqliteRegisterReplenishmentStore implements RegisterReplenishmentSt
       },
       async applyFact(fact, source) {
         return applyFact(database, ids, fact, source);
+      },
+      async recordCreditNoteAnswer(creditNote, answer) {
+        recordReplenishedCreditNoteAnswer(database, creditNote, answer);
       },
       async recordEventApplied(eventId) {
         database.prepare("INSERT INTO replenished_events (event_id) VALUES (?)").run(eventId);
