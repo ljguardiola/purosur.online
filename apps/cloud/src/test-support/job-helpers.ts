@@ -13,7 +13,7 @@ function buildPoolClient(): PoolClient {
   return Object.assign(new pg.Client(), { release: () => {} });
 }
 
-function buildJob(): Job {
+function buildJob(overrides: Partial<Job> = {}): Job {
   const at = new Date("2026-01-01T00:00:00.000Z");
   return {
     id: "1",
@@ -34,6 +34,7 @@ function buildJob(): Job {
     locked_by: "test-worker",
     flags: null,
     is_available: false,
+    ...overrides,
   };
 }
 
@@ -42,7 +43,7 @@ interface LoggedLine {
   message: string;
 }
 
-export function buildJobHelpers() {
+export function buildJobHelpers(job: Partial<Job> = {}) {
   const logs: LoggedLine[] = [];
   const client = buildPoolClient();
   const borrowClient = vi.fn<(borrowed: PoolClient) => void>();
@@ -55,7 +56,7 @@ export function buildJobHelpers() {
     logger: new Logger(() => (level, message) => {
       logs.push({ level, message });
     }),
-    job: buildJob(),
+    job: buildJob(job),
     withPgClient,
     addJob,
     addJobs: async () => [],

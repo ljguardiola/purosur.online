@@ -15,8 +15,8 @@ import { Check, ClipboardList, Pencil, Search } from "lucide-react";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { formatStockQuantity } from "../platform/stock-quantity";
+import { AreaTopBar } from "../shell/area-top-bar";
 import { ScreenLayout } from "../shell/screen-layout";
-import { StockTopBar } from "../shell/stock-top-bar";
 import { EditLotCostModal, type InitialInventoryLot } from "./edit-lot-cost-modal";
 import type { InitialInventoryScreenServices } from "./initial-inventory-services";
 import type { InitialInventoryFilters } from "./routes";
@@ -186,7 +186,10 @@ export function InitialInventoryScreen({
 
   return (
     <>
-      <ScreenLayout topBar={<StockTopBar title="Inventario inicial" />} bodyClassName="gap-4 p-6">
+      <ScreenLayout
+        topBar={<AreaTopBar eyebrow="Stock" title="Inventario inicial" />}
+        bodyClassName="gap-4 p-6"
+      >
         <div className="flex flex-wrap items-center gap-3">
           <div className="w-105">
             <SearchField

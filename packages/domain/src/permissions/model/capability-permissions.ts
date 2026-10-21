@@ -51,6 +51,8 @@ export const CAPABILITY_PERMISSIONS = {
   freights: ["manage_freight"],
   recipes: ["manage_recipes"],
   batches: ["manage_batches"],
+  orders_area: ["manage_supplier_price_lists"],
+  supplier_price_lists: ["manage_supplier_price_lists"],
   reports_area: ["view_reports"],
   refunds_area: ["confirm_refunds"],
   backups_area: ["view_backups_and_rotate_key"],

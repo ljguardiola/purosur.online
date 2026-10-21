@@ -36,6 +36,7 @@ const CAPABILITIES_GRANTED_BY: readonly [PermissionKey, readonly Capability[]][]
   ["record_stock_losses", ["stock_losses", "stock_movements", "stock_area"]],
   ["adjust_stock", ["stock_adjustments", "stock_movements", "stock_area"]],
   ["manage_expiration_dates", ["stock_expiries", "stock_area"]],
+  ["manage_supplier_price_lists", ["orders_area", "supplier_price_lists"]],
   ["view_reports", ["reports_area"]],
   ["confirm_refunds", ["refunds_area"]],
   ["view_backups_and_rotate_key", ["backups_area"]],
@@ -272,4 +273,18 @@ describe("the stock and purchasing screens' capabilities", () => {
       ...CAPABILITY_PERMISSIONS.stock_adjustments,
     ]);
   });
+});
+
+describe("the supplier price lists capabilities", () => {
+  it.each(["supplier_price_lists", "orders_area"] as const)(
+    "%s is granted by loading and reviewing supplier price lists alone",
+    (capability) => {
+      expect(
+        grantsCapability(
+          { isAdministrator: false, permissionKeys: ["manage_supplier_price_lists"] },
+          capability,
+        ),
+      ).toBe(true);
+    },
+  );
 });
