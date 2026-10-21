@@ -12,6 +12,7 @@ import type {
 } from "@purosur/domain/purchasing/use-cases";
 import { PDFDocument } from "pdf-lib";
 import { z } from "zod";
+import { declaresEncryption } from "./opens-as-pdf.js";
 
 export const SUPPLIER_PRICE_LIST_READING_MODEL = "claude-sonnet-5-5";
 
@@ -96,7 +97,11 @@ function refusesTheDocument(error: unknown): boolean {
   );
 }
 
-function withRealPages(reading: RangeReading, firstPage: number, pageCount: number): RangeReading {
+function withRealPages(
+  reading: RangeReading,
+  firstPage: number,
+  pageCount: number | null,
+): RangeReading {
   if (reading.kind !== "read") {
     return reading;
   }
@@ -105,7 +110,7 @@ function withRealPages(reading: RangeReading, firstPage: number, pageCount: numb
     rows: reading.rows.map((row) => ({
       ...row,
       page:
-        row.page !== null && row.page >= 1 && row.page <= pageCount
+        row.page !== null && row.page >= 1 && (pageCount === null || row.page <= pageCount)
           ? row.page + firstPage - 1
           : null,
     })),
@@ -170,18 +175,19 @@ export class AnthropicPriceListExtractor implements PriceListExtractor {
   }
 
   async extract(source: PriceListSource): Promise<PriceListExtraction> {
+    const encrypted = declaresEncryption(source.bytes);
     let document: PDFDocument;
     let pageCount: number;
     try {
       document = await PDFDocument.load(source.bytes, { ignoreEncryption: true });
       pageCount = document.getPageCount();
     } catch {
-      return { kind: "unreadable" };
+      return encrypted ? this.readWhole(source.bytes, null) : { kind: "unreadable" };
     }
     if (pageCount === 0) {
       return { kind: "unreadable" };
     }
-    if (document.isEncrypted) {
+    if (encrypted || document.isEncrypted) {
       return this.readWhole(source.bytes, pageCount);
     }
     const ranges = Array.from({ length: Math.ceil(pageCount / PAGES_PER_RANGE) }, (_, index) => ({
@@ -211,7 +217,7 @@ export class AnthropicPriceListExtractor implements PriceListExtractor {
     };
   }
 
-  private async readWhole(pdf: Uint8Array, pageCount: number): Promise<PriceListExtraction> {
+  private async readWhole(pdf: Uint8Array, pageCount: number | null): Promise<PriceListExtraction> {
     const reading = withRealPages(await this.askAboutRange(pdf), 1, pageCount);
     switch (reading.kind) {
       case "read":
