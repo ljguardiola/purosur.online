@@ -28,6 +28,7 @@ import {
 import { registersListRoute, snapshotBackupsRoute } from "../register/routes";
 import {
   averageTicketRoute,
+  manualDiscountsRoute,
   reportsIndexRoute,
   salesByCashierRoute,
   salesByDayRoute,
@@ -112,6 +113,7 @@ const routeTree = rootRoute.addChildren([
       salesByCashierRoute,
       averageTicketRoute,
       salesByPromotionRoute,
+      manualDiscountsRoute,
     ]),
     settingsAreaRoute.addChildren([
       myAccountRoute,
