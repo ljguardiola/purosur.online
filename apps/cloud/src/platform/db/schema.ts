@@ -1,6 +1,8 @@
 import {
   ALERT_AUDIENCES,
   ALERT_LEVELS,
+  CLOCK_PREVIOUS_READING_SOURCES,
+  type ClockPreviousReadingSource,
   COMPROMISE_RESPONSE_ACTION_STEPS,
   COMPROMISE_RESPONSE_ITEMS,
   CREDIT_NOTE_C_DOCUMENT_TYPE,
@@ -2366,6 +2368,10 @@ export const clockCorrections = pgTable(
     pointOfSale: integer("point_of_sale").notNull(),
     documentType: text("document_type").$type<FiscalDocumentType>().notNull(),
     previousReading: timestamp("previous_reading", { withTimezone: true }).notNull(),
+    previousReadingSource: text("previous_reading_source")
+      .$type<ClockPreviousReadingSource>()
+      .notNull()
+      .default("clock_mark"),
     correctedReading: timestamp("corrected_reading", { withTimezone: true }).notNull(),
     actorId: uuid("actor_id")
       .notNull()
@@ -2381,6 +2387,10 @@ export const clockCorrections = pgTable(
     check(
       "clock_corrections_document_type_known",
       sql`${table.documentType} in (${sql.raw(`'${FACTURA_C_DOCUMENT_TYPE}'`)})`,
+    ),
+    check(
+      "clock_corrections_previous_reading_source_known",
+      sql`${table.previousReadingSource} in (${sql.raw(CLOCK_PREVIOUS_READING_SOURCES.map((source) => `'${source}'`).join(", "))})`,
     ),
     check(
       "clock_corrections_lowers_the_reading",

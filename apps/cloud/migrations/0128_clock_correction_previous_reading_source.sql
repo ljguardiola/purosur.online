@@ -1,0 +1,2 @@
+ALTER TABLE "clock_corrections" ADD COLUMN "previous_reading_source" text DEFAULT 'clock_mark' NOT NULL;--> statement-breakpoint
+ALTER TABLE "clock_corrections" ADD CONSTRAINT "clock_corrections_previous_reading_source_known" CHECK ("clock_corrections"."previous_reading_source" in ('clock_mark', 'tax_authority_day'));

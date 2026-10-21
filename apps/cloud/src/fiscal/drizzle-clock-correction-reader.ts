@@ -28,6 +28,7 @@ export class DrizzleClockCorrectionReader<TQueryResult extends PgQueryResultHKT>
         actorId: users.id,
         actorFirstName: users.firstName,
         previousReading: clockCorrections.previousReading,
+        previousReadingSource: clockCorrections.previousReadingSource,
         correctedReading: clockCorrections.correctedReading,
         resolvedAt: alerts.resolvedAt,
       })
