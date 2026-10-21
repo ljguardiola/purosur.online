@@ -1,4 +1,4 @@
-import type { OutboxEventDraft } from "../../shared/index.js";
+import type { JsonValue, OutboxEventDraft } from "../../shared/index.js";
 import {
   FINAL_CONSUMER_DOCUMENT_NUMBER,
   FINAL_CONSUMER_DOCUMENT_TYPE,
@@ -60,6 +60,26 @@ export interface OfflineFiscalDocumentIssuedFact {
   total: number;
   netAmount: number;
   cause: OfflineAuthorizationCause;
+  invoice?: FacturaC;
+}
+
+function invoiceRecord(invoice: FacturaC): JsonValue {
+  return {
+    invoice_class: invoice.invoiceClass,
+    total: invoice.total,
+    net_amount: invoice.netAmount,
+    vat_amount: invoice.vatAmount,
+    issuer: {
+      legal_name: invoice.issuer.legalName,
+      cuit: invoice.issuer.cuit,
+      tax_status: invoice.issuer.taxStatus,
+      gross_income_registration: invoice.issuer.grossIncomeRegistration,
+      activity_start_date: invoice.issuer.activityStartDate,
+      version: invoice.issuer.version,
+    },
+    buyer_tax_status_code: invoice.buyerTaxStatusCode,
+    buyer_tax_status_description: invoice.buyerTaxStatusDescription,
+  };
 }
 
 export interface OfflineFiscalDocumentIssuedEventInput {
@@ -81,7 +101,7 @@ export function offlineFiscalDocumentIssuedEvent({
     aggregate_type: "Sale",
     aggregate_id: document.saleId,
     event_type: OFFLINE_FISCAL_DOCUMENT_ISSUED_EVENT_TYPE,
-    schema_version: 1,
+    schema_version: 2,
     payload: {
       fiscal_document_id: document.id,
       sale_id: document.saleId,
@@ -101,6 +121,7 @@ export function offlineFiscalDocumentIssuedEvent({
       total: document.document.total,
       net_amount: document.document.netAmount,
       cause: document.cause,
+      document: invoiceRecord(document.document),
     },
     occurred_at: generatedAt,
     actor_id: actorId,

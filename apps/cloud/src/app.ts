@@ -199,6 +199,7 @@ import { registerStockMovementsRoutes } from "./stock/stock-movements-route.js";
 import { registerStockProductsRoute } from "./stock/stock-products-route.js";
 import type { StockRouteOptions } from "./stock/stock-route-options.js";
 import { registerChangesRoute } from "./sync/changes-route.js";
+import { registerDeviceResetRoute } from "./sync/device-reset-route.js";
 import { DrizzleRequestAdmission } from "./sync/drizzle-request-admission.js";
 import { registerEventsRoute } from "./sync/events-route.js";
 import { registerQuarantinedEventReleaseRoute } from "./sync/quarantined-event-release-route.js";
@@ -762,6 +763,7 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
         registerPinCodeRedemptionRoute(api, { ...options.devices, now });
         registerSignInLookupRoute(api, { ...options.devices, now });
         registerDeviceTokenRotationRoute(api, { ...options.devices, now });
+        registerDeviceResetRoute(api, { ...options.devices, now });
       }
 
       if (options.mercadoPagoNotifications) {

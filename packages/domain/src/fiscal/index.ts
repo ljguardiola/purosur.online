@@ -18,7 +18,11 @@ export {
   latestBuyerTaxStatusSet,
 } from "./model/buyer-tax-status-set.js";
 export type { ClockCorrectedFact, ClockCorrectionAlertState } from "./model/clock-correction.js";
-export { CLOCK_CORRECTED_EVENT_TYPE, clockCorrectedEvent } from "./model/clock-correction.js";
+export {
+  CLOCK_CORRECTED_EVENT_TYPE,
+  clockCorrectedEvent,
+  clockCorrectionPeriodKey,
+} from "./model/clock-correction.js";
 export { selectConsumerBuyerTaxStatus } from "./model/consumer-buyer-tax-status.js";
 export type { CreditNoteReason } from "./model/credit-note.js";
 export { CREDIT_NOTE_C_VOUCHER_TYPE, CREDIT_NOTE_REASONS } from "./model/credit-note.js";
@@ -174,7 +178,7 @@ export {
   REJECTION_CLASSES,
   SERIES_WAITING_STATES,
 } from "./model/real-time-authorization.js";
-export { REGISTER_CLOCK_TOLERANCE_MS } from "./model/register-clock.js";
+export { REGISTER_CLOCK_TOLERANCE_MS, raisedClockMark } from "./model/register-clock.js";
 export type {
   CreditNoteAnswer,
   SaleInvoice,

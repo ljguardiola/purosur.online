@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { syncedEventUpcaster } from "@purosur/contracts";
 import {
   applyPendingEvents,
   type QuarantineRelease,
@@ -21,7 +22,6 @@ import {
 } from "../test-support/queued-behind-held-lock.js";
 import { DrizzleEventApplication } from "./drizzle-event-application.js";
 import { DrizzleQuarantineRelease } from "./drizzle-quarantine-release.js";
-import { syncedEventUpcaster } from "./synced-event-upcaster.js";
 import { insertInboxEvent } from "./test-support/inbox-events.js";
 import { insertQuarantinedEvent, QUARANTINED_AT } from "./test-support/quarantined-events.js";
 

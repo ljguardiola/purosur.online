@@ -94,6 +94,9 @@
       "types": "./dist/sync/use-cases/index.d.ts",
       "default": "./dist/sync/use-cases/index.js"
     },
+    "./sync/test-support": {
+      "@purosur/source": "./src/sync/model/test-support/synced-facts.ts"
+    },
     "./fiscal/test-support": {
       "@purosur/source": "./src/fiscal/test-support/fictional-tax-identities.ts"
     }

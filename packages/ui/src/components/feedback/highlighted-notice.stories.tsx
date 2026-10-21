@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { Check, Info as InfoIcon, ShoppingBasket, X } from "lucide-react";
+import { Check, Info as InfoIcon, ShieldAlert, ShieldOff, ShoppingBasket, X } from "lucide-react";
 import { Button } from "../forms/button";
 import { HighlightedNotice } from "./highlighted-notice";
 
@@ -45,6 +45,21 @@ export const WithAction: Story = {
     actions: (
       <Button variant="secondary" icon={<X />}>
         Cancelar la venta
+      </Button>
+    ),
+  },
+};
+
+export const WithActionAtEnd: Story = {
+  args: {
+    tone: "error",
+    layout: "row",
+    icon: <ShieldAlert />,
+    title: "Ante una sospecha de compromiso",
+    description: "Revoca todas las instalaciones en el momento y cambia sus claves.",
+    actions: (
+      <Button variant="secondary" destructive size="small" onTintedSurface icon={<ShieldOff />}>
+        Revocar todas las instalaciones
       </Button>
     ),
   },

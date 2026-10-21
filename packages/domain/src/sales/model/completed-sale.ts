@@ -1,9 +1,15 @@
 import type { PaymentMethod } from "../../payments/index.js";
+import type { DiscountBenefit } from "../../pricing/index.js";
 import type { CashMovementType } from "../../register/index.js";
 import type { ManualAdjustment } from "./manual-adjustment.js";
 import type { SaleDiscount } from "./sale-discount.js";
 import { saleUnitOfWeightSource, soldLineStockDelta } from "./sale-line.js";
 import type { WeightSource } from "./weight-source.js";
+
+interface CompletedSaleLinePromotion {
+  discountId: string;
+  benefit: DiscountBenefit;
+}
 
 export interface CompletedSaleLine {
   id: string;
@@ -17,6 +23,7 @@ export interface CompletedSaleLine {
   promotionId: string | null;
   discountAmount: number;
   saleDiscountShare: number;
+  promotions: CompletedSaleLinePromotion[];
   lineTotal: number;
 }
 
