@@ -841,6 +841,13 @@
       "when": 1792599762133,
       "tag": "0126_supplier_price_lists",
       "breakpoints": true
+    },
+    {
+      "idx": 120,
+      "version": "7",
+      "when": 1792608030076,
+      "tag": "0127_credit_note_reprints",
+      "breakpoints": true
     }
   ]
 }
