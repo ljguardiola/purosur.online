@@ -76,6 +76,20 @@ describe("restorationStanding", () => {
     });
   });
 
+  it("is held by every step that is neither undelivered nor the session opening", () => {
+    const undelivered: readonly string[] = UNDELIVERED_RESTORATION_STEPS;
+    const heldBy = RESTORATION_STEPS.filter(
+      (step) => step !== "open_session" && !undelivered.includes(step),
+    );
+
+    for (const step of heldBy) {
+      expect(restorationStanding({ ...ALL_COMPLETED, [step]: "pending" })).toEqual({
+        kind: "in_progress",
+        step,
+      });
+    }
+  });
+
   it("names the earliest pending step when a later one is pending too", () => {
     expect(restorationStanding(evidence({ enroll: "pending", replenish: "pending" }))).toEqual({
       kind: "in_progress",
