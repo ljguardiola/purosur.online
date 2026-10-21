@@ -123,6 +123,7 @@ class FakeHeldReport implements HeldFortnightReport {
   }
 
   async realTimePointOfSaleOf(registerId: string): Promise<number | null> {
+    this.store.realTimePointOfSaleReads.push(registerId);
     return this.store.realTimePointsOfSale.get(registerId) ?? null;
   }
 
@@ -143,6 +144,7 @@ export class FakeFortnightReportStore implements FortnightReportStore {
   readonly documentTypeRows = new Map<string, RecordedDocumentTypeReport>();
   readonly remedies = new Map<string, RecordedRemedy>();
   readonly realTimePointsOfSale = new Map<string, number>();
+  readonly realTimePointOfSaleReads: string[] = [];
   readonly creditNotes = new Map<string, RejectedDocumentCreditNote>();
   pointsOfSale: OfflinePointOfSaleOfRegister[] = [];
   private readonly codes: FakeOfflineAuthorizationCodeStore;

@@ -202,10 +202,10 @@ async function presentFortnight(
     fortnightPresentation(owed, outcome),
   ];
   const recorded = await report.recorded();
-  const typeReports = recorded === null ? [] : await report.documentTypeReports();
-  const awaiting = typeReports.filter(awaitsRemedyOfRejection);
-  if (awaiting.length > 0 && awaiting.length === typeReports.filter(isRefused).length) {
-    return awaiting.map(({ documentType, rejectedNumber }) => ({
+  const typeReports = await report.documentTypeReports();
+  const refused = typeReports.filter(isRefused);
+  if (refused.length > 0 && refused.every(awaitsRemedyOfRejection)) {
+    return refused.map(({ documentType, rejectedNumber }) => ({
       ...fortnightPresentation(owed, { kind: "awaiting_remedy", number: rejectedNumber ?? 0 }),
       documentType,
     }));

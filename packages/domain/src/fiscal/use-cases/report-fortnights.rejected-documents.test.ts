@@ -350,6 +350,21 @@ describe("reportFortnights, for a document the tax authority rejected", () => {
       ).toEqual([1, 3, 5]);
     });
 
+    it("reads the real-time point of sale of a register once for all the documents it issued", async () => {
+      const setup = await setUpRejectedAt(3);
+      setup.documents.replace(POINT_OF_SALE, SEPTEMBER_SECOND_HALF, [
+        offlineDocument(1, { correction: { total: 100 } }),
+        offlineDocument(2, { correction: { total: 200 } }),
+        offlineDocument(3, corrected),
+      ]);
+      remedyRecordedAfterRejection(setup, 3);
+      setup.reports.realTimePointOfSaleReads.length = 0;
+
+      await setup.run();
+
+      expect(setup.reports.realTimePointOfSaleReads).toEqual([REGISTER_ID]);
+    });
+
     it("waits for the register to have a real-time point of sale", async () => {
       const setup = await setUpCorrected();
       setup.reports.realTimePointsOfSale.clear();
