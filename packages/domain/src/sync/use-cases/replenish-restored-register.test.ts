@@ -559,8 +559,12 @@ describe("replenishRestoredRegister", () => {
       const { feed, store, decoder, failure, run } = aGateFailureWithItsRecord();
       const other = anEvent("device-old", 55);
       decoder.facts.set(other.event.event_id, {
-        ...A_GATE_FAILED_FACT,
-        gateFailure: { ...A_GATE_FAILED_FACT.gateFailure, saleId: "sale-2" },
+        kind: "fiscal_gate_failed",
+        gateFailure: {
+          saleId: "sale-2",
+          reason: "issuer_identification_missing",
+          evaluatedAt: new Date("2026-10-07T10:00:01.000Z"),
+        },
       });
       feed.answers = [aPage([anEvent("device-old", 53), failure, other])];
       decoder.facts.set("event-device-old-53", A_DEFERRED_SALE_RECORDED_FACT);

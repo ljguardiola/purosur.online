@@ -28,7 +28,11 @@ function withDeferredRecords(events: PushedEvent[]): PushedEvent[] {
     if (event.event_type !== "fiscal_gate_failed") {
       return [event];
     }
-    const { sale_id, register_id, evaluated_at } = event.payload as Record<string, string>;
+    const { sale_id, register_id, evaluated_at } = event.payload as {
+      sale_id: string;
+      register_id: string;
+      evaluated_at: string;
+    };
     const record: PushedEvent = {
       ...event,
       event_id: `01a12101-eeee-7000-8000-${String(index).padStart(12, "0")}`,
@@ -40,7 +44,7 @@ function withDeferredRecords(events: PushedEvent[]): PushedEvent[] {
         occurred_at: evaluated_at,
         total: 1000,
         reason: "pre_emission_gate_failed",
-        short_code: `ABCDEFG${SHORT_CODE_ALPHABET[index % SHORT_CODE_ALPHABET.length]}`,
+        short_code: `ABCDEFG${SHORT_CODE_ALPHABET.charAt(index % SHORT_CODE_ALPHABET.length)}`,
         routed_at: evaluated_at,
       },
     };
