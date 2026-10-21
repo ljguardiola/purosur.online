@@ -4,7 +4,7 @@ import type { FiscalDocumentType } from "../../model/fiscal-rejection-standing.j
 import type { ClockCorrectionReadings } from "../../model/register-clock.js";
 import type { RegisterClockGuardReader, TaxAuthorityFloor } from "../register-clock-guard-ports.js";
 
-export interface RecordedClockCorrection extends ClockCorrectionReadings {
+interface RecordedClockCorrection extends ClockCorrectionReadings {
   pointOfSale: number;
   documentType: FiscalDocumentType;
 }
