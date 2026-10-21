@@ -22,6 +22,7 @@ function createServices(
     fetchFortnightPresentations: vi.fn().mockResolvedValue({ kind: "ok", value: [] }),
     fetchOfflinePointsOfSale: vi.fn().mockResolvedValue({ kind: "ok", value: [] }),
     retireOfflinePointOfSale: vi.fn(),
+    remedyRejectedDocument: vi.fn(),
     configureRegisterPointOfSale: vi.fn(),
     configureRegisterOfflinePointOfSale: vi.fn(),
     createFiscalAddress: vi.fn(),
@@ -496,4 +497,126 @@ test("a refused retirement reads the offline points of sale again", async () => 
       .getByText("Caja 9")
       .query(),
   ).toBeNull();
+});
+
+const partlyRejectedPresentation = {
+  registerId: configuredRegister.registerId,
+  pointOfSaleNumber: 13,
+  fortnight: { start: "2026-09-01", end: "2026-09-15" },
+  deadline: "2026-09-23",
+  documentType: "factura_c",
+  documentCount: 20,
+  rejectedDocument: {
+    number: 298,
+    unprocessed: 12,
+    documentId: "document-1",
+    issuedOn: "2026-09-09",
+    total: 1_845_000,
+    buyerDocumentType: 99,
+    buyerDocumentNumber: 0,
+    buyerTaxStatusCode: 5,
+    rejections: [{ code: 10016, message: "El importe total no coincide con la suma." }],
+    remedy: "awaiting_remedy",
+  },
+  movement: "documents",
+  refusal: "partial",
+  state: "refused",
+};
+
+const reviewRejectionButton =
+  "Revisar el rechazo del informe del 1 al 15 de septiembre del punto de venta 00013";
+
+function withRejectedDocument() {
+  const services = serving([configuredRegister], [depot]);
+  services.fetchFortnightPresentations = vi
+    .fn()
+    .mockResolvedValue({ kind: "ok", value: [partlyRejectedPresentation] });
+  return services;
+}
+
+test("the row of a rejected document opens its review, with the rejected document and what ARCA reported", async () => {
+  const screen = await renderScreen(withRejectedDocument());
+
+  await userEvent.click(screen.getByRole("button", { name: reviewRejectionButton }));
+
+  const dialog = screen.getByRole("dialog", { name: "Revisar el rechazo" });
+  await expect.element(dialog.getByText("Nº 00000298")).toBeVisible();
+  await expect.element(dialog.getByText("El importe total no coincide con la suma.")).toBeVisible();
+});
+
+test("correcting the report reads the presentations again and announces it", async () => {
+  const services = withRejectedDocument();
+  vi.mocked(services.fetchFortnightPresentations)
+    .mockResolvedValueOnce({ kind: "ok", value: [partlyRejectedPresentation] as never })
+    .mockResolvedValue({
+      kind: "ok",
+      value: [
+        {
+          ...partlyRejectedPresentation,
+          rejectedDocument: {
+            ...partlyRejectedPresentation.rejectedDocument,
+            remedy: "awaiting_resend",
+          },
+        },
+      ] as never,
+    });
+  vi.mocked(services.fetchSessionAuthorizationOptions).mockResolvedValue({
+    kind: "ok",
+    value: { challenge: "session-auth" } as never,
+  });
+  vi.mocked(services.startAuthentication).mockResolvedValue({ id: "existing-cred" } as never);
+  vi.mocked(services.authorizeSession).mockResolvedValue({ kind: "ok" });
+  vi.mocked(services.remedyRejectedDocument).mockResolvedValue({
+    kind: "ok",
+    value: { recordedAt: "2026-09-20T15:30:00.000Z", changes: [] },
+  });
+  const screen = await renderScreen(services);
+  await userEvent.click(screen.getByRole("button", { name: reviewRejectionButton }));
+  const dialog = screen.getByRole("dialog", { name: "Revisar el rechazo" });
+
+  await userEvent.click(dialog.getByRole("button", { name: "Corregir el informe" }));
+
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+  await expect.element(screen.getByText("Informe corregido")).toBeVisible();
+  await expect
+    .element(
+      screen.getByText(
+        "Nº 00000298 del punto de venta 00013: se vuelve a presentar con el mismo número.",
+      ),
+    )
+    .toBeVisible();
+  await expect.element(screen.getByText("Corregido, por reenviar")).toBeVisible();
+  expect(services.remedyRejectedDocument).toHaveBeenCalledWith({
+    point_of_sale_number: 13,
+    fortnight_start: "2026-09-01",
+    document_type: "factura_c",
+    number: 298,
+    remedy: { kind: "report" },
+  });
+});
+
+test("a document that is no longer rejected reads the presentations again and keeps the review open", async () => {
+  const services = withRejectedDocument();
+  vi.mocked(services.fetchFortnightPresentations)
+    .mockResolvedValueOnce({ kind: "ok", value: [partlyRejectedPresentation] as never })
+    .mockResolvedValue({ kind: "ok", value: [] });
+  vi.mocked(services.fetchSessionAuthorizationOptions).mockResolvedValue({
+    kind: "ok",
+    value: { challenge: "session-auth" } as never,
+  });
+  vi.mocked(services.startAuthentication).mockResolvedValue({ id: "existing-cred" } as never);
+  vi.mocked(services.authorizeSession).mockResolvedValue({ kind: "ok" });
+  vi.mocked(services.remedyRejectedDocument).mockResolvedValue({ kind: "not_rejected" });
+  const screen = await renderScreen(services);
+  await userEvent.click(screen.getByRole("button", { name: reviewRejectionButton }));
+  const dialog = screen.getByRole("dialog", { name: "Revisar el rechazo" });
+
+  await userEvent.click(dialog.getByRole("button", { name: "Corregir el informe" }));
+
+  await expect
+    .poll(() => vi.mocked(services.fetchFortnightPresentations).mock.calls.length)
+    .toBe(2);
+  await expect
+    .element(dialog.getByText("ARCA ya no tiene rechazado este comprobante.").first())
+    .toBeVisible();
 });

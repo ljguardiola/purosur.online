@@ -4,9 +4,10 @@ import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import type { CloudData } from "../platform/use-cloud-query";
-import type { FortnightPresentation } from "./fortnight-presentations-api";
+import type { FortnightPresentation, RejectedDocument } from "./fortnight-presentations-api";
 import { FortnightReportsSection } from "./fortnight-reports-section";
 import type { RegisterPointOfSale } from "./register-points-of-sale-api";
+import type { RemedyTarget } from "./rejected-document-remedy-form";
 
 const register: RegisterPointOfSale = {
   registerId: "register-1",
@@ -51,12 +52,43 @@ function loaded(
   return { status: "loaded", value: [presentations, registers], refreshing: false };
 }
 
-function sectionFor(data: CloudData<[FortnightPresentation[], RegisterPointOfSale[]]>) {
+function sectionFor(
+  data: CloudData<[FortnightPresentation[], RegisterPointOfSale[]]>,
+  onReview: (target: RemedyTarget) => void = () => {},
+) {
   return (
     <main>
-      <FortnightReportsSection data={data} />
+      <FortnightReportsSection data={data} onReview={onReview} />
     </main>
   );
+}
+
+function rejectedDocument(overrides: Partial<RejectedDocument> = {}): RejectedDocument {
+  return {
+    number: 298,
+    unprocessed: 12,
+    documentId: "document-1",
+    issuedOn: "2026-09-09",
+    total: 1_845_000,
+    buyerDocumentType: 99,
+    buyerDocumentNumber: 0,
+    buyerTaxStatusCode: 5,
+    rejections: [{ code: 10016, message: "Fictional observation" }],
+    remedy: "awaiting_remedy",
+    ...overrides,
+  };
+}
+
+function partlyRejected(overrides: Partial<FortnightPresentation> = {}): FortnightPresentation {
+  return presentation({
+    documentType: "factura_c",
+    movement: "documents",
+    documentCount: 20,
+    state: "refused",
+    refusal: "partial",
+    rejectedDocument: rejectedDocument(),
+    ...overrides,
+  });
 }
 
 test("lists each presentation with its fortnight, its point of sale, its document type, its documents, its state and its deadline", async () => {
@@ -199,6 +231,97 @@ test("has no accessibility violations with blocked and accepted presentations", 
   const screen = await render(
     sectionFor(loaded([presentation({ state: "blocked" }), presentation({ state: "accepted" })])),
   );
+
+  await expect.element(screen.getByRole("table")).toBeVisible();
+  await expectNoAccessibilityViolations(document.body);
+});
+
+test("warns above the table of each presentation with a rejected document that waits for its remedy", async () => {
+  const screen = await render(
+    sectionFor(
+      loaded([
+        partlyRejected(),
+        partlyRejected({ pointOfSaleNumber: 5, fortnight: augustSecondHalf }),
+      ]),
+    ),
+  );
+
+  await expect
+    .element(
+      screen.getByText(
+        `ARCA rechazó un comprobante del informe ${formatCalendarDayRange("2026-09-01", "2026-09-15")} del punto de venta 00004`,
+        { exact: true },
+      ),
+    )
+    .toBeVisible();
+  await expect
+    .element(
+      screen.getByText(
+        `ARCA rechazó un comprobante del informe ${formatCalendarDayRange("2026-08-16", "2026-08-31")} del punto de venta 00005`,
+        { exact: true },
+      ),
+    )
+    .toBeVisible();
+  expect(
+    screen.getByText("Hay que revisar dónde está el error antes de volver a presentar.").elements(),
+  ).toHaveLength(2);
+});
+
+test("shows no rejection warning for a corrected document that waits to be resent, and badges it", async () => {
+  const screen = await render(
+    sectionFor(
+      loaded([
+        partlyRejected({ rejectedDocument: rejectedDocument({ remedy: "awaiting_resend" }) }),
+      ]),
+    ),
+  );
+
+  const table = screen.getByRole("table", { name: "Informes quincenales" });
+  await expect.element(table.getByText("Corregido, por reenviar")).toBeVisible();
+  expect(screen.getByText(/ARCA rechazó un comprobante/).query()).toBeNull();
+});
+
+test("lists a rejected document with its count of unprocessed ones and the badge of a partial rejection", async () => {
+  const screen = await render(sectionFor(loaded([partlyRejected()])));
+
+  const table = screen.getByRole("table", { name: "Informes quincenales" });
+  await expect.element(table.getByText("1 rechazado · 12 sin procesar")).toBeVisible();
+  await expect.element(table.getByText("Rechazado en parte")).toBeVisible();
+});
+
+test("offers to review the rejection of a document that waits for its remedy, handing over what the modal needs", async () => {
+  const onReview = vi.fn();
+  const screen = await render(sectionFor(loaded([partlyRejected()]), onReview));
+
+  await userEvent.click(
+    screen.getByRole("button", {
+      name: `Revisar el rechazo del informe ${formatCalendarDayRange("2026-09-01", "2026-09-15")} del punto de venta 00004`,
+    }),
+  );
+
+  expect(onReview).toHaveBeenCalledWith({
+    pointOfSaleNumber: 4,
+    fortnight: septemberFirstHalf,
+    rejectedDocument: rejectedDocument(),
+  });
+});
+
+test("offers no review for a presentation that is not waiting for a remedy", async () => {
+  const screen = await render(
+    sectionFor(
+      loaded([
+        partlyRejected({ rejectedDocument: rejectedDocument({ remedy: "awaiting_resend" }) }),
+        presentation({ fortnight: augustSecondHalf, state: "accepted" }),
+      ]),
+    ),
+  );
+
+  await expect.element(screen.getByRole("table")).toBeVisible();
+  expect(screen.getByRole("button", { name: /Revisar el rechazo/ }).query()).toBeNull();
+});
+
+test("has no accessibility violations with a rejected document waiting for its remedy", async () => {
+  const screen = await render(sectionFor(loaded([partlyRejected()])));
 
   await expect.element(screen.getByRole("table")).toBeVisible();
   await expectNoAccessibilityViolations(document.body);
