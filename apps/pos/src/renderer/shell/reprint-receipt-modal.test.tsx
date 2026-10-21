@@ -36,6 +36,7 @@ const SALE: Sale = {
   reprint: { kind: "available" },
   next_copy: { kind: "duplicate", order_number: 1 },
   credit_note: null,
+  credit_note_next_copy: null,
 };
 
 const WITH_PERMISSION: SignedInPerson = {
@@ -52,6 +53,7 @@ const REPRINT = "Reimprimir duplicado";
 const REASON = "Motivo de la reimpresión";
 
 type Props = {
+  document?: ReprintReceiptModalProps["document"];
   sale?: ReprintReceiptModalProps["sale"];
   person?: SignedInPerson;
   reprintSaleReceipt?: (
@@ -62,6 +64,7 @@ type Props = {
 };
 
 async function renderModal({
+  document = "sale_receipt",
   sale = SALE,
   person = WITH_PERMISSION,
   reprintSaleReceipt = async () => ({
@@ -88,7 +91,8 @@ async function renderModal({
       sale={sale}
       person={person}
       loadAuthorizers={loadAuthorizers}
-      reprintSaleReceipt={reprint}
+      document={document}
+      reprint={reprint}
       {...handlers}
     />,
   );
@@ -412,6 +416,106 @@ describe("ReprintReceiptModal", () => {
       await expect
         .element(screen.getByRole("alert"))
         .toHaveTextContent("No se pudo reimprimir. Probá de nuevo.");
+    });
+  });
+
+  describe("for the credit note of a voided sale", () => {
+    const CREDIT_NOTE_SALE = {
+      sale_id: "sale-1",
+      occurred_at: SALE.occurred_at,
+      credit_note: {
+        kind: "authorized",
+        point_of_sale: 3,
+        number: 41,
+        issued_on: "2026-10-09",
+        authorization_code: "75123456789012",
+        authorization_code_due_on: "2026-10-19",
+      },
+      next_copy: { kind: "duplicate", order_number: 2 },
+    } as const;
+
+    it("says the credit note comes out as a duplicate, with its legend and its own comprobante", async () => {
+      const { screen } = await renderModal({
+        document: "credit_note",
+        sale: CREDIT_NOTE_SALE,
+      });
+
+      await expect
+        .element(screen.getByText("REIMPRIMIR NOTA DE CRÉDITO DE LA VENTA DE LAS 11:05"))
+        .toBeVisible();
+      await expect
+        .element(screen.getByRole("heading", { name: "Sale como duplicado" }))
+        .toBeVisible();
+      await expect.element(screen.getByText("COPIA DUPLICADA Nº 2")).toBeVisible();
+      await expect
+        .element(screen.getByText("Nota de crédito C · PV 00003 · Nº 00000041"))
+        .toBeVisible();
+      await expect.element(screen.getByText("Operación")).not.toBeInTheDocument();
+      await expectNoAccessibilityViolations(document.body);
+    });
+
+    it("sends the reason for the sale's credit note and tells the screen it started", async () => {
+      const { screen, reprint, onReprinted } = await renderModal({
+        document: "credit_note",
+        sale: CREDIT_NOTE_SALE,
+      });
+      await typeReason(screen, "El cliente la perdió");
+
+      await userEvent.click(screen.getByRole("button", { name: REPRINT }));
+
+      expect(reprint).toHaveBeenCalledExactlyOnceWith("sale-1", "El cliente la perdió", undefined);
+      await expect.poll(() => onReprinted.mock.calls.length).toBe(1);
+    });
+
+    it("asks another person's authorization from a person who may not reprint", async () => {
+      const { screen, reprint } = await renderModal({
+        document: "credit_note",
+        sale: CREDIT_NOTE_SALE,
+        person: WITHOUT_PERMISSION,
+      });
+      await typeReason(screen, "Otra copia");
+      await authorizeAs(screen, "Grace", "1234");
+
+      await userEvent.click(screen.getByRole("button", { name: REPRINT }));
+
+      expect(reprint).toHaveBeenCalledExactlyOnceWith("sale-1", "Otra copia", {
+        user_id: "u2",
+        pin: "1234",
+      });
+    });
+
+    it("says a print of the credit note may still come out while one waits for the printer", async () => {
+      const { screen } = await renderModal({
+        document: "credit_note",
+        sale: CREDIT_NOTE_SALE,
+        reprintSaleReceipt: async () => ({ kind: "busy" }),
+      });
+      await typeReason(screen, "Otra copia");
+
+      await userEvent.click(screen.getByRole("button", { name: REPRINT }));
+
+      await expect
+        .element(
+          screen.getByText(
+            "Todavía puede salir una impresión de la nota de crédito. Esperá a que termine antes de reimprimir.",
+          ),
+        )
+        .toBeVisible();
+    });
+
+    it("asks the reason again when the core finds it blank", async () => {
+      const { screen } = await renderModal({
+        document: "credit_note",
+        sale: CREDIT_NOTE_SALE,
+        reprintSaleReceipt: async () => ({ kind: "invalid_reason", max_length: 200 }),
+      });
+      await typeReason(screen, "Otra copia");
+
+      await userEvent.click(screen.getByRole("button", { name: REPRINT }));
+
+      await expect
+        .element(screen.getByText("Escribí el motivo (hasta 200 caracteres)."))
+        .toBeVisible();
     });
   });
 });
