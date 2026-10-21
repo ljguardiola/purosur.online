@@ -2,6 +2,7 @@ import { FACTURA_C_DOCUMENT_TYPE, type OutboxEventDraft, type RoleAccess } from 
 import type {
   CashSessionStanding,
   ClockCorrectionLedger,
+  ClockCorrectionReadings,
   ClockCorrectionRecord,
   ClockCorrectionTransaction,
   ClockLowering,
@@ -12,6 +13,7 @@ import type {
 import type { LocalDatabase } from "../platform/local-database";
 import type { SignInStore } from "../sessions/sqlite-sign-in-store";
 import { appendOutboxEvent } from "../sync/sqlite-outbox";
+import { latestClockCorrectionOf } from "./sqlite-fiscal-series";
 
 type People = Pick<SignInStore, "activePerson">;
 
@@ -162,5 +164,12 @@ export class SqliteRegisterClockGuardReader implements RegisterClockGuardReader 
 
   clockCorrectionRecordedIn(period: string): boolean {
     return clockCorrectionRecordedIn(this.database, period);
+  }
+
+  latestClockCorrectionOf(
+    pointOfSale: number,
+    documentType: ClockMark["documentType"],
+  ): ClockCorrectionReadings | null {
+    return latestClockCorrectionOf(this.database, pointOfSale, documentType);
   }
 }

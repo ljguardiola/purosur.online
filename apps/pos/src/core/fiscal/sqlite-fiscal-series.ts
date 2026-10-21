@@ -6,7 +6,12 @@ import {
   type OfflineNumberBlockRange,
   SERIES_WAITING_STATES,
 } from "@purosur/domain";
-import type { Fortnight, OfflineSeries, RealTimeSeries } from "@purosur/domain/fiscal/use-cases";
+import type {
+  ClockCorrectionReadings,
+  Fortnight,
+  OfflineSeries,
+  RealTimeSeries,
+} from "@purosur/domain/fiscal/use-cases";
 import type { LocalDatabase } from "../platform/local-database";
 
 function placeholdersFor(states: readonly FiscalDocumentState[]): string {
@@ -39,6 +44,26 @@ export function clockMarkOf(
   return mark === undefined ? null : new Date(mark.reading);
 }
 
+export function latestClockCorrectionOf(
+  database: LocalDatabase,
+  pointOfSale: number,
+  documentType: string,
+): ClockCorrectionReadings | null {
+  const correction = database
+    .prepare<[number, string], { previous_reading: string; corrected_reading: string }>(
+      `SELECT previous_reading, corrected_reading FROM clock_corrections
+       WHERE point_of_sale = ? AND document_type = ?
+       ORDER BY corrected_reading DESC, id DESC LIMIT 1`,
+    )
+    .get(pointOfSale, documentType);
+  return correction === undefined
+    ? null
+    : {
+        previousReading: new Date(correction.previous_reading),
+        correctedReading: new Date(correction.corrected_reading),
+      };
+}
+
 export function readRealTimeSeries(database: LocalDatabase): RealTimeSeries {
   const pointOfSale = database
     .prepare<[], PointOfSaleRow>(
@@ -61,6 +86,7 @@ export function readRealTimeSeries(database: LocalDatabase): RealTimeSeries {
       numberingFrozen: false,
       clockMark: null,
       taxAuthorityLastIssuedOn: null,
+      latestClockCorrection: null,
     };
   }
   const local = database
@@ -84,6 +110,11 @@ export function readRealTimeSeries(database: LocalDatabase): RealTimeSeries {
     numberingFrozen: pointOfSale.numbering_frozen === 1,
     clockMark: clockMarkOf(database, pointOfSale.point_of_sale, FACTURA_C_DOCUMENT_TYPE),
     taxAuthorityLastIssuedOn: pointOfSale.tax_authority_last_issued_on,
+    latestClockCorrection: latestClockCorrectionOf(
+      database,
+      pointOfSale.point_of_sale,
+      FACTURA_C_DOCUMENT_TYPE,
+    ),
     documentRequesting:
       waiting !== undefined && IN_PROGRESS_FISCAL_DOCUMENT_STATES.includes(waiting.state),
     documentUnknown:
