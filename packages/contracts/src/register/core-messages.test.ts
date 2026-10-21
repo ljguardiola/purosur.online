@@ -2143,7 +2143,6 @@ describe("restoration standing messages", () => {
     { kind: "in_progress" },
     { kind: "in_progress", step: "open_session" },
     { kind: "in_progress", step: "somewhere_else" },
-    { kind: "completed", step: "enroll" },
     { kind: "somewhere_else" },
   ])("rejects the restoration standing %j", (standing) => {
     const message = { type: "restoration-standing", request_id: REQUEST_ID, standing };

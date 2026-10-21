@@ -619,6 +619,7 @@ export {
   REGISTER_ABILITIES,
   REGISTER_NAME_MAX_LENGTH,
   REGISTER_UPDATE_HOLD_LIMIT_MS,
+  RESTORATION_STEPS,
   registerAbilities,
   registerNameLength,
   registerOperationAccess,
