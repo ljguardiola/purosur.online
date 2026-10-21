@@ -2,6 +2,7 @@ import type { RestorationEvidence } from "@purosur/domain";
 import type { RestorationProtocolEvidence } from "@purosur/domain/register/use-cases";
 import type { RestorePending } from "../backups/restore-pending";
 import type { LocalDatabase } from "../platform/local-database";
+import { staleSequenceDetected } from "../sync/sqlite-installation-presence";
 
 export class SqliteRestorationEvidence implements RestorationProtocolEvidence {
   private readonly database: LocalDatabase;
@@ -15,21 +16,11 @@ export class SqliteRestorationEvidence implements RestorationProtocolEvidence {
   evidence(): RestorationEvidence {
     const restoring = this.restorePending.isPending();
     return {
-      enroll: this.staleSequenceDetected() && !restoring ? "pending" : "completed",
+      enroll: staleSequenceDetected(this.database) && !restoring ? "pending" : "completed",
       restore: restoring ? "pending" : "completed",
       reset_sync_identity: restoring ? "pending" : "completed",
       replenish: this.holdsPredecessor() ? "pending" : "completed",
     };
-  }
-
-  private staleSequenceDetected(): boolean {
-    return (
-      this.database
-        .prepare<[], { detected: 1 }>(
-          "SELECT 1 AS detected FROM sync_state WHERE stale_sequence_detected_at IS NOT NULL",
-        )
-        .get() !== undefined
-    );
   }
 
   private holdsPredecessor(): boolean {

@@ -28,9 +28,10 @@ import {
 import { adoptStagedSnapshot } from "./backups/adopt-restored-snapshot";
 import { createRestoreAttempts } from "./backups/restore-attempts";
 import { createRestoreLaunch } from "./backups/restore-launch";
-import { storingEnrollmentCredentials } from "./backups/restore-on-enrollment";
+import { afterEnrollment, storingEnrollmentCredentials } from "./backups/restore-on-enrollment";
 import { restorePendingIn } from "./backups/restore-pending";
 import { syncUnlessRestorePending } from "./backups/restore-sync-hold";
+import { setAsideStaleDatabase } from "./backups/set-aside-stale-database";
 import { requestFirstPinCode } from "./credentials/first-pin-code-request";
 import { checkPinCodeRedemption, redeemPinCode } from "./credentials/pin-code-redemption";
 import { pinPolicy } from "./credentials/pin-policy";
@@ -255,6 +256,7 @@ const localDatabasePath =
   localDataFolder === undefined ? undefined : join(localDataFolder, LOCAL_DATABASE_FILE);
 const localDatabaseDamaged = localDatabaseDamageIn(localDataFolder);
 const restorePending = restorePendingIn(localDataFolder);
+const restartCore = () => process.exit(0);
 const restoreAttempts = createRestoreAttempts({
   pending: restorePending,
   launch: createRestoreLaunch({
@@ -264,7 +266,7 @@ const restoreAttempts = createRestoreAttempts({
     dataFolder: localDataFolder,
     postToMain: (message) => process.parentPort.postMessage(message),
   }),
-  restartCore: () => process.exit(0),
+  restartCore,
   resumeSync: () => syncSchedule.syncNow(),
   reportNoUsableGeneration: () => {
     console.error("core: no snapshot generation could be restored, so the restore stays pending");
@@ -303,15 +305,19 @@ async function startLocalDatabaseFile(): Promise<StartedLocalDatabase | undefine
 }
 
 if (localDataFolder !== undefined) {
-  await adoptStagedSnapshot({
-    folder: localDataFolder,
-    pending: restorePending,
-    migrations: LOCAL_MIGRATIONS,
-    now,
-  }).catch((error: unknown) => {
-    console.error("core: the restored snapshot could not be adopted", error);
-    Sentry.captureException(error);
-  });
+  await setAsideStaleDatabase({ folder: localDataFolder, pending: restorePending, now })
+    .then(() =>
+      adoptStagedSnapshot({
+        folder: localDataFolder,
+        pending: restorePending,
+        migrations: LOCAL_MIGRATIONS,
+        now,
+      }),
+    )
+    .catch((error: unknown) => {
+      console.error("core: the restored snapshot could not be adopted", error);
+      Sentry.captureException(error);
+    });
 }
 
 const startedLocalDatabase = await startLocalDatabaseFile();
@@ -732,8 +738,12 @@ const rendererRequestDeps: RendererRequestDeps = {
       typedCode,
     );
     if (outcome.kind === "enrolled") {
-      void restoreAttempts.attempt();
-      syncSchedule.syncNow();
+      afterEnrollment({
+        pending: restorePending,
+        restartCore,
+        attemptRestore: () => void restoreAttempts.attempt(),
+        syncNow: () => syncSchedule.syncNow(),
+      });
     }
     return outcome;
   },
