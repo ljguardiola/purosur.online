@@ -421,25 +421,25 @@ describe("RegisterStatusBar", () => {
     await expectNoAccessibilityViolations(failed.container);
   });
 
-  it.each([
-    ["real_time", "Factura en línea"],
-    ["offline_code", "Contingencia CAEA"],
-  ] as const)("shows the fiscal mode %s as %s after the cloud", async (fiscalMode, text) => {
-    const screen = await renderBar({ status: loaded({ fiscal_mode: fiscalMode }) });
+  it("shows the contingency mode after the cloud", async () => {
+    const screen = await renderBar({ status: loaded({ fiscal_mode: "offline_code" }) });
 
-    expect(barText(screen)).toMatch(new RegExp(`Nube conectada.*${text}`));
+    expect(barText(screen)).toMatch(/Nube conectada.*Contingencia CAEA/);
   });
 
-  it("shows no fiscal indicator while the register is deferring its sales", async () => {
-    const screen = await renderBar({ status: loaded({ fiscal_mode: "deferring" }) });
+  it.each([["real_time"], ["deferring"]] as const)(
+    "shows no fiscal indicator while the mode is %s",
+    async (fiscalMode) => {
+      const screen = await renderBar({ status: loaded({ fiscal_mode: fiscalMode }) });
 
-    expect(barText(screen)).not.toMatch(/Factura en línea|Contingencia CAEA/);
-  });
+      expect(barText(screen)).not.toMatch(/Factura en línea|Contingencia CAEA/);
+    },
+  );
 
   it("shows no fiscal indicator while the status is loading", async () => {
     const screen = await renderBar({ status: { status: "loading" } });
 
-    expect(barText(screen)).not.toMatch(/Factura en línea|Contingencia CAEA/);
+    expect(barText(screen)).not.toMatch(/Contingencia CAEA/);
   });
 
   it("counts the contingency as one more notice, shown in the warning tone with its explanation", async () => {

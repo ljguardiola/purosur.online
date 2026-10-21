@@ -38,6 +38,7 @@ function modeOf(changes: Partial<Parameters<typeof fiscalEmissionModeOf>[0]> = {
     series: SERIES,
     offlineSeries: OFFLINE_SERIES,
     offlineAuthorizationCode: CODE,
+    latestGate: undefined,
     ...changes,
   });
 }
@@ -45,6 +46,21 @@ function modeOf(changes: Partial<Parameters<typeof fiscalEmissionModeOf>[0]> = {
 describe("fiscalEmissionModeOf", () => {
   it("is real time while the register would reserve the next number", () => {
     expect(modeOf()).toEqual({ kind: "real_time" });
+  });
+
+  it("defers while the register's latest pre-emission gate failed", () => {
+    expect(
+      modeOf({
+        online: { ...ONLINE, arcaReachable: false },
+        latestGate: { kind: "failed", reason: "legal_name_missing" },
+      }),
+    ).toEqual({ kind: "deferring", reason: "pre_emission_gate_failed" });
+  });
+
+  it("follows the register's series once its latest pre-emission gate passed", () => {
+    expect(
+      modeOf({ online: { ...ONLINE, arcaReachable: false }, latestGate: { kind: "passed" } }),
+    ).toEqual({ kind: "offline_code", cause: "no_connectivity" });
   });
 
   it("is the offline code for lack of connectivity when it holds the code and a number", () => {

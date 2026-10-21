@@ -406,14 +406,16 @@ describe("SaleCompletedModal", () => {
       await expect.element(screen.getByText("Contingencia con CAEA")).toBeVisible();
     });
 
-    it("shows the online mode for a factura C authorized in real time", async () => {
+    it("keeps the ticket row for a factura C authorized in real time", async () => {
       const { screen } = await renderModal(CASH, {
         readReceiptStatus: async () =>
           found("printed", { printed: true, comprobante: FISCAL("real_time") }),
       });
 
-      await expect.element(screen.getByText("En línea con CAE")).toBeVisible();
-      await expect.element(screen.getByText("Contingencia con CAEA")).not.toBeInTheDocument();
+      await expect.element(screen.getByText("Ticket", { exact: true })).toBeVisible();
+      await expect.element(screen.getByText("Impreso")).toBeVisible();
+      await expect.element(screen.getByText("Modo fiscal")).not.toBeInTheDocument();
+      await expect.element(screen.getByText("Para el cliente")).not.toBeInTheDocument();
     });
 
     it("keeps the ticket row for a deferred sale's non-fiscal document", async () => {

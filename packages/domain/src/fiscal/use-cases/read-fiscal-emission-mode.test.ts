@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { LatestPreEmissionGateOutcome } from "../model/fiscal-emission-stop.js";
 import type { FiscalOnlineSignalEvidence } from "../model/fiscal-online-signal.js";
 import type { OfflineSeries, RealTimeSeries } from "../model/real-time-authorization.js";
 import {
@@ -7,6 +8,7 @@ import {
   FICTIONAL_LEGAL_NAME,
 } from "../test-support/fictional-tax-identities.js";
 import { decideSaleAuthorization } from "./decide-sale-authorization.js";
+import type { FiscalEmissionModeReads } from "./fiscal-emission-mode-ports.js";
 import { readFiscalEmissionMode } from "./read-fiscal-emission-mode.js";
 import {
   FakeSaleAuthorizationTransaction,
@@ -58,53 +60,44 @@ function transaction(
   });
 }
 
+function readsOf(
+  tx: FakeSaleAuthorizationTransaction,
+  latestGate: LatestPreEmissionGateOutcome | undefined = undefined,
+): FiscalEmissionModeReads {
+  return {
+    fiscalOnlineEvidence: () => tx.fiscalOnlineEvidence(),
+    realTimeSeries: () => tx.realTimeSeries(),
+    offlineSeries: () => tx.offlineSeries(),
+    offlineAuthorizationCodeOf: (fortnight) => tx.offlineAuthorizationCodeOf(fortnight),
+    latestPreEmissionGateOutcome: () => latestGate,
+  };
+}
+
 function modeOf(changes: Parameters<typeof transaction>[0] = {}) {
-  return readFiscalEmissionMode(transaction(changes), new FixedClock(NOW));
+  return readFiscalEmissionMode(readsOf(transaction(changes)), new FixedClock(NOW));
 }
 
 describe("readFiscalEmissionMode", () => {
-  it("is real time while the register is online with its series ready", () => {
-    expect(modeOf()).toEqual({ kind: "real_time" });
-  });
-
-  it("is the offline code for lack of connectivity when it holds the fortnight's code", () => {
+  it("answers the mode of the register's series and connectivity", () => {
     expect(modeOf({ online: OFFLINE })).toEqual({ kind: "offline_code", cause: "no_connectivity" });
   });
 
-  it("is the offline code while the numbering is frozen", () => {
-    expect(modeOf({ series: { ...SERIES, numberingFrozen: true } })).toEqual({
-      kind: "offline_code",
-      cause: "numbering_conflict",
-    });
-  });
-
-  it("is the offline code while a document's outcome is unknown", () => {
-    expect(modeOf({ series: { ...SERIES, documentUnknown: true } })).toEqual({
-      kind: "offline_code",
-      cause: "unclear_outcome",
-    });
-  });
-
-  it("defers when it is offline and holds no code", () => {
-    expect(modeOf({ online: OFFLINE, heldCodes: [] })).toEqual({
-      kind: "deferring",
-      reason: "fiscally_offline",
-    });
-  });
-
-  it("defers when it is offline and no offline number is left", () => {
+  it("answers the register's latest pre-emission gate", () => {
     expect(
-      modeOf({
-        online: OFFLINE,
-        offlineSeries: { ...OFFLINE_SERIES, blocksInAssignmentOrder: [] },
-      }),
-    ).toEqual({ kind: "deferring", reason: "fiscally_offline" });
+      readFiscalEmissionMode(
+        readsOf(transaction({ online: OFFLINE }), {
+          kind: "failed",
+          reason: "issuer_identification_missing",
+        }),
+        new FixedClock(NOW),
+      ),
+    ).toEqual({ kind: "deferring", reason: "pre_emission_gate_failed" });
   });
 
   it("looks the code up for the fortnight of the moment the clock gives", () => {
     const tx = transaction({ online: OFFLINE });
 
-    readFiscalEmissionMode(tx, new FixedClock(new Date("2026-10-20T15:00:00.000Z")));
+    readFiscalEmissionMode(readsOf(tx), new FixedClock(new Date("2026-10-20T15:00:00.000Z")));
 
     expect(tx.codeLookups).toEqual([SECOND_HALF]);
   });

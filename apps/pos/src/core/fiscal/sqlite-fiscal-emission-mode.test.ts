@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { LocalDatabase } from "../platform/local-database";
 import { readFiscalEmissionModeIn } from "./sqlite-fiscal-emission-mode";
+import { insertPreEmissionGateOutcome } from "./sqlite-pre-emission-gate";
 import {
   insertCompletedSale,
-  insertFiscalDocument,
   insertHealthCheck,
   insertOfflineAuthorizationCode,
   insertOfflineNumberBlock,
@@ -11,7 +11,6 @@ import {
   insertPointOfSale,
   OFFLINE_POINT_OF_SALE,
   openFiscalDatabase,
-  POINT_OF_SALE,
 } from "./test-support/real-time-authorization-database";
 
 const NOW = new Date("2026-09-30T12:05:00.000Z");
@@ -26,6 +25,9 @@ function holdACode(): void {
 
 beforeEach(() => {
   database = openFiscalDatabase();
+  insertPointOfSale(database, 40);
+  insertHealthCheck(database, { arcaReachable: false });
+  holdACode();
 });
 
 afterEach(() => {
@@ -33,64 +35,31 @@ afterEach(() => {
 });
 
 describe("the fiscal emission mode, in the local database", () => {
-  it("is real time while the register is online and the tax authority's count is known", () => {
-    insertHealthCheck(database);
-    insertPointOfSale(database, 40);
-
-    expect(readFiscalEmissionModeIn(database, NOW)).toEqual({ kind: "real_time" });
-  });
-
-  it("is the offline code without connectivity when the register holds a code and a block", () => {
-    insertHealthCheck(database, { arcaReachable: false });
-    insertPointOfSale(database, 40);
-    holdACode();
-
+  it("answers the mode of the register's series, connectivity and held code", () => {
     expect(readFiscalEmissionModeIn(database, NOW)).toEqual({
       kind: "offline_code",
       cause: "no_connectivity",
     });
   });
 
-  it("is the offline code while the numbering is frozen", () => {
-    insertHealthCheck(database);
-    insertPointOfSale(database, 40, POINT_OF_SALE, true);
-    holdACode();
-
-    expect(readFiscalEmissionModeIn(database, NOW)).toEqual({
-      kind: "offline_code",
-      cause: "numbering_conflict",
-    });
-  });
-
-  it("is the offline code while a document's outcome is unknown", () => {
-    insertHealthCheck(database);
-    insertPointOfSale(database, 40);
-    insertCompletedSale(database, "sale-1");
-    insertFiscalDocument(database, { state: "UNKNOWN" });
-    holdACode();
-
-    expect(readFiscalEmissionModeIn(database, NOW)).toEqual({
-      kind: "offline_code",
-      cause: "unclear_outcome",
-    });
-  });
-
-  it("is deferring when the register is offline and holds no code", () => {
-    insertPointOfSale(database, 40);
-
-    expect(readFiscalEmissionModeIn(database, NOW)).toEqual({
-      kind: "deferring",
-      reason: "fiscally_offline",
-    });
-  });
-
   it("looks the code up for the fortnight of the moment it is given", () => {
-    insertPointOfSale(database, 40);
-    holdACode();
-
     expect(readFiscalEmissionModeIn(database, new Date("2026-10-02T12:00:00.000Z"))).toEqual({
       kind: "deferring",
       reason: "fiscally_offline",
+    });
+  });
+
+  it("answers the register's latest pre-emission gate", () => {
+    insertCompletedSale(database, "sale-1");
+    insertPreEmissionGateOutcome(database, {
+      saleId: "sale-1",
+      evaluatedAt: NOW,
+      outcome: { kind: "failed", reason: "legal_name_missing" },
+    });
+
+    expect(readFiscalEmissionModeIn(database, NOW)).toEqual({
+      kind: "deferring",
+      reason: "pre_emission_gate_failed",
     });
   });
 });

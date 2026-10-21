@@ -171,6 +171,26 @@ describe("VoidSaleModal", () => {
     await expectNoAccessibilityViolations(document.body);
   });
 
+  it("names the contingency invoice the credit note corrects as authorized under the pre-obtained code", async () => {
+    const { screen } = await renderModal({
+      sale: {
+        ...INVOICED_SALE,
+        comprobante: {
+          kind: "fiscal",
+          document_type: "factura_c",
+          authorization: "offline_code",
+          ...CORRECTED_INVOICE,
+        },
+      },
+      creditNoteCorrects: CORRECTED_INVOICE,
+    });
+
+    const dialog = screen.getByRole("dialog", { name: "Revisá qué pasa al anular" });
+
+    await expect.element(dialog.getByText("Factura C · CAEA", { exact: true })).toBeVisible();
+    await expect.element(dialog.getByText("PV 00031 · Nº 00000008")).toBeVisible();
+  });
+
   it("voids without a credit note a sale whose comprobante names an invoice the core says the void does not credit", async () => {
     const { screen } = await renderModal({ sale: INVOICED_SALE, creditNoteCorrects: null });
 

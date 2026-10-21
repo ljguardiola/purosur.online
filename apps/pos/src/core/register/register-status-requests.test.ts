@@ -551,4 +551,12 @@ describe("the register's fiscal mode on its status", () => {
 
     expect((await status()).fiscal_mode).toBe("deferring");
   });
+
+  it("is deferring while the register's latest sale failed the pre-emission check", async () => {
+    holdRealTimeSeries();
+    holdTheOfflineCode();
+    recordGateOutcome("sale-1", 10, false);
+
+    expect((await status()).fiscal_mode).toBe("deferring");
+  });
 });
