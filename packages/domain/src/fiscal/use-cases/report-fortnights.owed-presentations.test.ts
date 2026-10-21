@@ -3,6 +3,7 @@ import type { Fortnight } from "../model/offline-authorization-code.js";
 import type { ListedOwedPresentation } from "../model/owed-presentation-list.js";
 import { offlineDocument } from "./test-support/fake-fortnight-reports.js";
 import {
+  CLAIMED_AT,
   codeFor,
   ON_OCTOBER_3,
   POINT_OF_SALE,
@@ -286,6 +287,59 @@ describe("reportFortnights, with the tax authority's list of owed presentations"
 
       expect(setup.declarations.declarations).toHaveLength(1);
       expect(setup.owedPresentations.resolutions).toEqual([]);
+    });
+  });
+
+  describe("a retired point of sale", () => {
+    const RETIRED_DURING_SECOND_HALF = new Date("2026-09-20T12:00:00.000Z");
+
+    it("presents no fortnight that closes after its retirement", async () => {
+      const setup = setUpReportFortnights();
+      setup.reports.pointsOfSale = [
+        {
+          pointOfSaleNumber: POINT_OF_SALE,
+          registerId: REGISTER_ID,
+          claimedAt: CLAIMED_AT,
+          retiredAt: RETIRED_DURING_SECOND_HALF,
+        },
+      ];
+
+      const result = await setup.run();
+
+      expect(presentationOutcomes(result)).toEqual([]);
+      expect(setup.declarations.declarations).toEqual([]);
+    });
+
+    it("still presents a fortnight that closed before its retirement", async () => {
+      const setup = setUpReportFortnights();
+      setup.reports.pointsOfSale = [
+        {
+          pointOfSaleNumber: POINT_OF_SALE,
+          registerId: REGISTER_ID,
+          claimedAt: CLAIMED_AT,
+          retiredAt: new Date("2026-10-02T12:00:00.000Z"),
+        },
+      ];
+
+      const result = await setup.run();
+
+      expect(presentationOutcomes(result).map(({ outcome }) => outcome.kind)).toEqual(["accepted"]);
+    });
+
+    it("still presents a fortnight the tax authority lists as owed even when it closes after the retirement", async () => {
+      const setup = listed();
+      setup.reports.pointsOfSale = [
+        {
+          pointOfSaleNumber: POINT_OF_SALE,
+          registerId: REGISTER_ID,
+          claimedAt: CLAIMED_AT,
+          retiredAt: RETIRED_DURING_SECOND_HALF,
+        },
+      ];
+
+      const result = await setup.run();
+
+      expect(presentationOutcomes(result).map(({ outcome }) => outcome.kind)).toEqual(["accepted"]);
     });
   });
 

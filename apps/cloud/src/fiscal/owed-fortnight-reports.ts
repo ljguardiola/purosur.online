@@ -8,6 +8,7 @@ import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import {
   caeaCodes,
   fortnightReports,
+  offlinePointOfSaleRetirements,
   pointOfSaleClaims,
   registers,
   taxAuthorityOwedPresentations,
@@ -74,9 +75,14 @@ export async function closedFortnightPresentations<TQueryResult extends PgQueryR
       pointOfSaleNumber: pointOfSaleClaims.pointOfSaleNumber,
       registerId: pointOfSaleClaims.registerId,
       claimedAt: pointOfSaleClaims.claimedAt,
+      retiredAt: offlinePointOfSaleRetirements.retiredAt,
     })
     .from(pointOfSaleClaims)
     .innerJoin(registers, eq(registers.id, pointOfSaleClaims.registerId))
+    .leftJoin(
+      offlinePointOfSaleRetirements,
+      eq(offlinePointOfSaleRetirements.pointOfSaleNumber, pointOfSaleClaims.pointOfSaleNumber),
+    )
     .where(
       and(
         eq(pointOfSaleClaims.mechanism, "offline"),
@@ -115,8 +121,11 @@ export async function closedFortnightPresentations<TQueryResult extends PgQueryR
         ...claim,
         listed: listed.has(`${claim.pointOfSaleNumber}:${fortnight.start}`),
       }))
-      .filter(({ claimedAt, listed: isListed }) =>
-        owesFortnightReport({ fortnight, claimedAt, listed: isListed }, today),
+      .filter(({ claimedAt, retiredAt, listed: isListed }) =>
+        owesFortnightReport(
+          { fortnight, claimedAt, listed: isListed, ...(retiredAt && { retiredAt }) },
+          today,
+        ),
       )
       .map(({ pointOfSaleNumber, registerId, listed: isListed }) => {
         const report = recordOf.get(`${pointOfSaleNumber}:${fortnight.start}`);

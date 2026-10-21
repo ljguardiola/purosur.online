@@ -1086,6 +1086,18 @@ export const registerOfflinePointsOfSale = pgTable(
   ],
 );
 
+// Append-only: the tax authority never lets a retired number be used again, so a retirement is
+// final.
+export const offlinePointOfSaleRetirements = pgTable("offline_point_of_sale_retirements", {
+  pointOfSaleNumber: integer("point_of_sale_number")
+    .primaryKey()
+    .references(() => pointOfSaleClaims.pointOfSaleNumber),
+  retiredAt: timestamp("retired_at", { withTimezone: true }).notNull().defaultNow(),
+  retiredBy: uuid("retired_by")
+    .notNull()
+    .references(() => users.id),
+});
+
 export const offlineNumberBlockStatus = pgEnum(
   "offline_number_block_status",
   OFFLINE_NUMBER_BLOCK_STATUSES,

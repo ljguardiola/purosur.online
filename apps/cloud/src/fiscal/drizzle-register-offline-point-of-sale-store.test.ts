@@ -13,6 +13,7 @@ import {
   fiscalAddresses,
   locations,
   offlineNumberBlocks,
+  offlinePointOfSaleRetirements,
   pointOfSaleClaims,
   registerOfflinePointsOfSale,
   registers,
@@ -567,6 +568,51 @@ describe("the tax authority's count behind the offline number blocks", () => {
     expect([first.kind, second.kind]).toEqual(["assigned", "already_has_block"]);
     expect(await db.select().from(offlineNumberBlocks)).toMatchObject([
       { pointOfSaleNumber: 8, registerId, firstNumber: 38, lastNumber: 1037, assignedAt: NOON },
+    ]);
+  });
+});
+
+describe("configuring a retired offline point of sale number", () => {
+  it("is refused as point_of_sale_taken to every register, the one that held it included, writing nothing", async () => {
+    const { locationId, actorId, registerId } = await seedRegisterWithRealTime();
+    const otherRegisterId = await insertRegister(locationId, "Caja 2");
+    await configureRealTime({
+      locationId,
+      registerId: otherRegisterId,
+      pointOfSaleNumber: 10,
+      fiscalAddressId: await insertFiscalAddress("Deposito Dos"),
+      version: 0,
+      actorId,
+    });
+    await configure({ locationId, registerId, pointOfSaleNumber: 8, version: 0, actorId });
+    await configure({ locationId, registerId, pointOfSaleNumber: 9, version: 1, actorId });
+    await db.insert(offlinePointOfSaleRetirements).values({
+      pointOfSaleNumber: 8,
+      retiredAt: NOON,
+      retiredBy: actorId,
+    });
+
+    const byHolder = await configure({
+      locationId,
+      registerId,
+      pointOfSaleNumber: 8,
+      version: 2,
+      actorId,
+    });
+    const byOther = await configure({
+      locationId,
+      registerId: otherRegisterId,
+      pointOfSaleNumber: 8,
+      version: 0,
+      actorId,
+    });
+
+    expect([byHolder, byOther]).toEqual([
+      { kind: "point_of_sale_taken" },
+      { kind: "point_of_sale_taken" },
+    ]);
+    expect(await db.select().from(registerOfflinePointsOfSale)).toEqual([
+      { registerId, pointOfSaleNumber: 9, mechanism: "offline", version: 2 },
     ]);
   });
 });

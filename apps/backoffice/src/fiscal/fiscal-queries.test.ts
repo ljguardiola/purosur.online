@@ -50,3 +50,12 @@ test("invalidating the fiscal key marks the clock corrections stale too", async 
 
   expect(client.getQueryState(fiscalKeys.clockCorrections)?.isInvalidated).toBe(true);
 });
+
+test("invalidating the fiscal key marks the offline points of sale stale too", async () => {
+  const client = new QueryClient();
+  client.setQueryData(fiscalKeys.offlinePointsOfSale, []);
+
+  await client.invalidateQueries({ queryKey: fiscalKey, refetchType: "none" });
+
+  expect(client.getQueryState(fiscalKeys.offlinePointsOfSale)?.isInvalidated).toBe(true);
+});

@@ -47,6 +47,7 @@ export async function configureRegisterOfflinePointOfSale(
         return { kind: "unchanged", setup: current };
       }
 
+      await tx.lockPointOfSale(input.pointOfSaleNumber);
       const holder = await tx.lockPointOfSaleClaim(input.pointOfSaleNumber);
       if (!mayRegisterClaimPointOfSale(holder, input.registerId, "offline")) {
         return { kind: "point_of_sale_taken" };
