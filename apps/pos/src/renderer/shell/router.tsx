@@ -38,6 +38,7 @@ import type {
   PrintCreditNoteOutcome,
   PrintOriginalReceiptOutcome,
   ReadClockGuardOutcome,
+  RestorationStandingAnswer,
   ReadInitialCountOutcome,
   ReadReceiptPrinterOutcome,
   ReadSerialDevicesOutcome,
@@ -109,6 +110,8 @@ import {
   useRegisterNameQuery,
   useRegisterStatusQuery,
 } from "../register/register-queries";
+import { RestoreRequiredScreen } from "../register/restore-required-screen";
+import { RestoringScreen } from "../register/restoring-screen";
 import { mayConfigureSerialDevices } from "../register/serial-devices-offer";
 import { SerialDevicesScreen } from "../register/serial-devices-screen";
 import { StartupPendingScreen } from "../register/startup-pending-screen";
@@ -131,12 +134,15 @@ export type CoreStatus = CoreStatusMessage["status"];
 
 export type Enrollment = "unknown" | "enrolled" | "not_enrolled";
 
+export type Restoration = RestorationStandingAnswer | "unknown";
+
 export type RegisterServiceState = "unknown" | "in_service" | "out_of_service";
 
 export interface RouterContext {
   queryClient: QueryClient;
   coreStatus: CoreStatus;
   registerService: RegisterServiceState;
+  restoration: Restoration;
   enrollment: Enrollment;
   person: SignedInPerson | undefined;
   cashSession: CashSessionState;
@@ -291,6 +297,8 @@ type ScreenPath =
   | "/core-down"
   | "/updating"
   | "/out-of-service"
+  | "/restoring"
+  | "/restore-required"
   | "/older-version";
 
 // Until the core says whether the register is in service and then whether this installation is
@@ -299,12 +307,13 @@ type ScreenPath =
 export function routeFor({
   coreStatus,
   registerService,
+  restoration,
   enrollment,
   person,
   cashSession,
 }: Pick<
   RouterContext,
-  "coreStatus" | "registerService" | "enrollment" | "person" | "cashSession"
+  "coreStatus" | "registerService" | "restoration" | "enrollment" | "person" | "cashSession"
 >): ScreenPath {
   if (coreStatus === "refused") {
     return "/older-version";
@@ -326,6 +335,12 @@ export function routeFor({
   }
   if (enrollment !== "enrolled") {
     return "/enroll";
+  }
+  if (restoration === "unknown") {
+    return "/starting";
+  }
+  if (restoration.kind === "in_progress") {
+    return restoration.step === "enroll" ? "/restore-required" : "/restoring";
   }
   if (cashSession.status === "unknown") {
     return "/starting";
@@ -1066,6 +1081,31 @@ const outOfServiceRoute = createRoute({
   component: OutOfServiceScreen,
 });
 
+const restoringRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/restoring",
+  beforeLoad: ({ context }) => requireRoute("/restoring", context),
+  component: function RestoringRoute() {
+    return <RestoringScreen registerName={useRegisterName()} />;
+  },
+});
+
+const restoreRequiredRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/restore-required",
+  beforeLoad: ({ context }) => requireRoute("/restore-required", context),
+  component: function RestoreRequiredRoute() {
+    const { enroll, checkEnrollmentCode } = restoreRequiredRoute.useRouteContext();
+    return (
+      <RestoreRequiredScreen
+        registerName={useRegisterName()}
+        checkCode={checkEnrollmentCode}
+        enroll={enroll}
+      />
+    );
+  },
+});
+
 const olderVersionRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/older-version",
@@ -1099,6 +1139,8 @@ export const routeTree = rootRoute.addChildren([
   coreDownRoute,
   updatingRoute,
   outOfServiceRoute,
+  restoringRoute,
+  restoreRequiredRoute,
   olderVersionRoute,
 ]);
 
@@ -1200,6 +1242,7 @@ export function createAppRouter(
       queryClient,
       coreStatus: "starting",
       registerService: "unknown",
+      restoration: "unknown",
       enrollment: "unknown",
       person: undefined,
       cashSession: { status: "unknown" },

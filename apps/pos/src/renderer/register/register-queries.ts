@@ -7,6 +7,7 @@ import type {
   ReadSerialDevicesOutcome,
   RecordableCashMovementKinds,
   RegisterStatus,
+  RestorationStandingAnswer,
   SessionOpenSale,
   SignInUser,
   StartupPending,
@@ -28,6 +29,7 @@ export const lockedClosersKey = [...registerKey, "locked-closers"] as const;
 export const registerKeys = {
   enrollment: [...registerKey, "enrollment"] as const,
   service: [...registerKey, "service"] as const,
+  restorationStanding: [...registerKey, "restoration-standing"] as const,
   cashSession: [...registerKey, "cash-session"] as const,
   registerName: [...registerKey, "register-name"] as const,
   status: [...registerKey, "status"] as const,
@@ -44,6 +46,8 @@ export const registerKeys = {
 };
 
 const CASH_SESSION_REREAD_MS = 5000;
+
+const STANDING_REREAD_MS = 5000;
 
 const UNKNOWN_SESSION: CashSessionState = { status: "unknown" };
 
@@ -72,6 +76,27 @@ export function useRegisterServiceQuery({
   enabled: boolean;
 }): CoreData<"in_service" | "out_of_service"> {
   return useCoreQuery({ queryKey: registerKeys.service, read, enabled });
+}
+
+export function restorationStandingQueryOptions(
+  read: () => Promise<RestorationStandingAnswer | "unavailable">,
+) {
+  return queryOptions({
+    ...coreQueryOptions({ queryKey: registerKeys.restorationStanding, read }),
+    refetchInterval: (query) => (query.state.status === "error" ? STANDING_REREAD_MS : false),
+    refetchIntervalInBackground: true,
+  });
+}
+
+export function useRestorationStandingQuery({
+  read,
+  enabled,
+}: {
+  read: () => Promise<RestorationStandingAnswer | "unavailable">;
+  enabled: boolean;
+}): RestorationStandingAnswer | "unknown" {
+  const query = useQuery({ ...restorationStandingQueryOptions(read), enabled });
+  return enabled ? (query.data ?? "unknown") : "unknown";
 }
 
 export function cashSessionQueryOptions(
