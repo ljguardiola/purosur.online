@@ -637,7 +637,12 @@ function ClockCorrectionRows({
 }) {
   const rows = [
     ["Punto de venta", formatPointOfSaleNumber(detail.pointOfSale)],
-    ["Lectura anterior", formatDayAndTime(detail.previousReading, ALERT_TIME_ZONE)],
+    detail.previousReadingSource === "tax_authority_day"
+      ? [
+          "Último día autorizado por ARCA",
+          formatDate(new Date(detail.previousReading), ALERT_DATE_OPTIONS),
+        ]
+      : ["Lectura anterior", formatDayAndTime(detail.previousReading, ALERT_TIME_ZONE)],
     ["Lectura nueva", formatDayAndTime(detail.correctedReading, ALERT_TIME_ZONE)],
     ...(detail.actorName === undefined ? [] : [["Corrigió", detail.actorName]]),
   ] as const;
