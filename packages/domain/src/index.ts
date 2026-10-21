@@ -277,6 +277,7 @@ export {
   isPointOfSaleNumber,
   isSameFiscalAddressName,
   isSecondHalfOfMonth,
+  isShortCode,
   isValidBuyerTaxStatusSet,
   isValidCuit,
   isWsaaTokenValid,

@@ -34,6 +34,7 @@ export type {
 } from "./model/deferred-sale.js";
 export {
   deferredSaleDocumentBlock,
+  isShortCode,
   randomShortCode,
   SHORT_CODE_ALPHABET,
 } from "./model/deferred-sale.js";

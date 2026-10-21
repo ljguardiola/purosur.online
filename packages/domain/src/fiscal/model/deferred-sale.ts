@@ -33,6 +33,13 @@ export function randomShortCode(nextIndex: (bound: number) => number): string {
   ).join("");
 }
 
+export function isShortCode(code: string): boolean {
+  return (
+    code.length === SHORT_CODE_LENGTH &&
+    [...code].every((char) => SHORT_CODE_ALPHABET.includes(char))
+  );
+}
+
 export function deferredSaleQrText({ id, shortCode }: DeferredSaleReference): string {
   return `${DEFERRED_SALE_QR_PREFIX}${id}:${shortCode}`;
 }

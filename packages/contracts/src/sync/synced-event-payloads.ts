@@ -5,6 +5,7 @@ import {
   DEFERRAL_REASONS,
   FACTURA_C_DOCUMENT_TYPE,
   isCalendarDay,
+  isShortCode,
   isValidCashAmount,
   isValidCashMovementAmount,
   manualAdjustmentReason,
@@ -451,7 +452,7 @@ const deferredSaleRecordedSchema = z.object({
   occurred_at: instant,
   total: cents,
   reason: z.enum(DEFERRAL_REASONS),
-  short_code: text,
+  short_code: z.string().refine(isShortCode),
   routed_at: instant,
 });
 
