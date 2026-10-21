@@ -10,11 +10,16 @@ import {
 } from "./anthropic-price-list-extractor.js";
 import {
   apiErrorResponse,
+  streamEndingWithoutAMessageResponse,
   streamedAnswerResponse,
   streamedJsonResponse,
   streamInterruptedByErrorResponse,
 } from "./test-support/anthropic-stream-fixtures.js";
-import { fictionalPdf, pagesOfPdf } from "./test-support/fictional-pdf.js";
+import {
+  fictionalPdf,
+  fictionalPermissionsProtectedPdf,
+  pagesOfPdf,
+} from "./test-support/fictional-pdf.js";
 
 const SOURCE = { kind: "pdf", bytes: await fictionalPdf(1) } as const;
 
@@ -678,6 +683,82 @@ describe("a range that fails", () => {
     });
 
     expect(await extractor.extract(await sourceOfPages(15))).toEqual({ kind: "unavailable" });
+  });
+});
+
+describe("a range that throws an unexpected error", () => {
+  it("starts no other range, and the list fails once the ranges already sent end", async () => {
+    let endFirstRange: () => void = () => undefined;
+    const firstRangeEnded = new Promise<void>((resolve) => {
+      endFirstRange = resolve;
+    });
+    let rangesAnsweredAfterTheFailure = 0;
+    const { extractor, requests } = extractorAnswering(async (request) => {
+      const { pages } = await rangeOf(request);
+      if (pages[0] === 1) {
+        return streamEndingWithoutAMessageResponse(endFirstRange);
+      }
+      await firstRangeEnded;
+      await aBriefPause();
+      await aBriefPause();
+      rangesAnsweredAfterTheFailure += 1;
+      return answerWithRowsOfEachPage(request);
+    });
+
+    await expect(extractor.extract(await sourceOfPages(30))).rejects.toThrow();
+
+    expect(rangesAnsweredAfterTheFailure).toBe(2);
+    expect(await rangesSent(requests)).toEqual([
+      [1, 2, 3, 4, 5],
+      [6, 7, 8, 9, 10],
+      [11, 12, 13, 14, 15],
+    ]);
+  });
+});
+
+describe("a PDF protected by a permissions password", () => {
+  const protectedSource = async (pageCount: number) =>
+    ({ kind: "pdf", bytes: await fictionalPermissionsProtectedPdf(pageCount) }) as const;
+
+  function documentSent(request: RecordedRequest): string {
+    const messages = request.body["messages"] as {
+      content: { source?: { data: string } }[];
+    }[];
+    return messages[0]?.content[0]?.source?.data ?? "";
+  }
+
+  it("is sent whole in one request, however many pages it has", async () => {
+    const { extractor, requests } = extractorAnswering(() =>
+      streamedJsonResponse({ listDate: null, pricesIncludeVat: null, rows: [ROW] }),
+    );
+    const source = await protectedSource(12);
+
+    const result = await extractor.extract(source);
+
+    expect(requests).toHaveLength(1);
+    expect(documentSent(requests[0] as RecordedRequest)).toBe(
+      Buffer.from(source.bytes).toString("base64"),
+    );
+    expect(result).toEqual({
+      kind: "extracted",
+      listDate: null,
+      pricesIncludeVat: null,
+      rows: [ROW],
+    });
+  });
+
+  it("is unreadable when its answer does not fit, without reading it again in parts", async () => {
+    const { extractor, requests } = extractorAnswering(() =>
+      streamedAnswerResponse({ textParts: [], stopReason: "max_tokens", withTextBlock: false }),
+    );
+
+    expect(await extractor.extract(await protectedSource(12))).toEqual({ kind: "unreadable" });
+    expect(requests).toHaveLength(1);
+  });
+  it("is unavailable when the service fails", async () => {
+    const { extractor } = extractorAnswering(() => apiErrorResponse(500, "api_error"));
+
+    expect(await extractor.extract(await protectedSource(3))).toEqual({ kind: "unavailable" });
   });
 });
 

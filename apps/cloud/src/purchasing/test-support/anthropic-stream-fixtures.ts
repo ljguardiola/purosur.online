@@ -80,6 +80,16 @@ export function streamInterruptedByErrorResponse(): Response {
   );
 }
 
+export function streamEndingWithoutAMessageResponse(onEnd: () => void): Response {
+  const body = new ReadableStream<Uint8Array>({
+    pull(controller) {
+      controller.close();
+      onEnd();
+    },
+  });
+  return new Response(body, { status: 200, headers: { "content-type": "text/event-stream" } });
+}
+
 export function apiErrorResponse(
   status: number,
   type: string,

@@ -6,6 +6,7 @@ import {
   CONFIRMATION_FIELDS,
   confirmationFormValuesOf,
   confirmationRequestFrom,
+  PRICES_INCLUDE_VAT_OPTIONS,
 } from "./supplier-price-list-confirmation-form";
 
 describe("confirmationRequestFrom", () => {
@@ -73,4 +74,13 @@ test("lands the date and the VAT answer on their fields, and not the version", (
   expect(CONFIRMATION_FIELD_MESSAGES.pricesIncludeVat(values)).toBe(
     "Elegí si los precios incluyen IVA.",
   );
+});
+
+describe("PRICES_INCLUDE_VAT_OPTIONS", () => {
+  test("offers that the prices include VAT and that they do not, read after the field's label", () => {
+    expect(PRICES_INCLUDE_VAT_OPTIONS).toEqual([
+      { value: "included", label: "incluyen IVA" },
+      { value: "excluded", label: "no incluyen IVA" },
+    ]);
+  });
 });

@@ -11,12 +11,13 @@ import {
 } from "../test-support/integration-database.js";
 import { SUPPLIER_PRICE_LIST_READING_TASK_IDENTIFIER } from "./supplier-price-list-reading-task-identifier.js";
 import { registerSupplierPriceListsRoutes } from "./supplier-price-lists-routes.js";
+import { fictionalPdf } from "./test-support/fictional-pdf.js";
 import { InMemorySupplierPriceListFiles } from "./test-support/in-memory-supplier-price-list-files.js";
 import { insertActor } from "./test-support/purchasing-fixtures.js";
 import { insertSupplier } from "./test-support/supplier-price-list-fixtures.js";
 
 const NOW = new Date("2026-09-16T15:00:00.000Z");
-const PDF = Buffer.from("%PDF-1.7\n1 0 obj\n<<>>\nendobj\n");
+const PDF = Buffer.from(await fictionalPdf(1));
 
 let integrationDb: IntegrationDatabase;
 let sql: ReturnType<typeof postgres>;

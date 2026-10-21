@@ -11,6 +11,7 @@ import { BACKOFFICE_ORIGIN, signedInWith } from "../stock/test-support/stock-rou
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { registerSupplierPriceListsRoutes } from "./supplier-price-lists-routes.js";
+import { fictionalPdf } from "./test-support/fictional-pdf.js";
 import { InMemorySupplierPriceListFiles } from "./test-support/in-memory-supplier-price-list-files.js";
 import { insertActor } from "./test-support/purchasing-fixtures.js";
 import {
@@ -21,7 +22,7 @@ import {
 
 const NOW = new Date("2026-09-16T15:00:00.000Z");
 const MISSING_ID = "00000000-0000-4000-8000-000000000000";
-const PDF = Buffer.from("%PDF-1.7\n1 0 obj\n<<>>\nendobj\n");
+const PDF = Buffer.from(await fictionalPdf(1));
 
 let testDatabase: TestDatabase;
 let db: TestDatabase["db"];
@@ -317,6 +318,11 @@ describe("POST /supplier-price-lists", () => {
     ["a file declared as something else", Buffer.from("PK\u0003\u0004zip"), "application/zip"],
     ["a JSON document", Buffer.from('{"a":1}'), "application/json"],
     ["an empty file", Buffer.alloc(0), "application/pdf"],
+    [
+      "a file that starts like a PDF but does not open as one",
+      Buffer.from("%PDF-1.7\n1 0 obj\n<<>>\nendobj\n"),
+      "application/pdf",
+    ],
   ])("answers 415 not_a_pdf for %s, storing nothing", async (_name, bytes, contentType) => {
     const { headers } = await manager();
     const supplierId = await storedSupplier();
