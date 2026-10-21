@@ -6,11 +6,13 @@ import type { AccessEmailSender } from "../credentials/recovery-email-sender.js"
 import { DrizzleOfflineAuthorizationCodeStore } from "../fiscal/drizzle-offline-authorization-code-store.js";
 import { UNREACHABLE_WSFE_ENDPOINT } from "../fiscal/test-support/fake-wsfe-server.js";
 import { configureOfflinePointOfSale } from "../fiscal/test-support/offline-point-of-sale-fixtures.js";
+import { insertRejectedDocumentRemedy } from "../fiscal/test-support/rejected-document-remedy-fixtures.js";
 import {
   alerts,
   branchHours,
   categories,
   deviceState,
+  fortnightDocumentReports,
   locations,
   lots,
   products,
@@ -380,6 +382,94 @@ describe("the background worker the server sets up on a real Postgres", () => {
           expect(
             rows.find(({ kind }) => kind === "fortnight_report_pending")?.conditionClearedAt,
           ).toEqual(currentTime);
+        },
+        { timeout: 20_000, interval: 100 },
+      );
+    } finally {
+      await recovery.close();
+    }
+  }, 90_000);
+
+  it("keeps the alert of a presentation with a rejected document open until its remedy is recorded, then clears it", async () => {
+    const registerId = await configureOfflinePointOfSale(db, {
+      registerName: "Caja con rechazo",
+      realTimePointOfSale: 15,
+      offlinePointOfSale: 16,
+      now: NOW,
+    });
+    const fortnight = { start: "2019-12-16", end: "2019-12-31" };
+    await new DrizzleOfflineAuthorizationCodeStore(db).holdAcquisition(fortnight, (acquisition) =>
+      acquisition.keep({
+        code: { code: "36123456789098", fortnight, reportDeadline: "2020-01-20" },
+        obtainedAt: new Date("2019-12-10T12:00:00.000Z"),
+        obtainedThrough: "requested",
+      }),
+    );
+    await db.insert(fortnightDocumentReports).values({
+      pointOfSaleNumber: 16,
+      fortnightStart: fortnight.start,
+      fortnightEnd: fortnight.end,
+      documentType: "factura_c",
+      state: "refused",
+      reportedThrough: 2,
+      rejectedNumber: 3,
+      rejections: [{ code: 10016, message: "Fictional observation" }],
+      lastAttemptAt: new Date("2020-01-03T12:00:00.000Z"),
+      recordedAt: new Date("2020-01-03T12:00:00.000Z"),
+    });
+    const recovery = await setUpRecovery(
+      {
+        databaseUrl: integrationDb.databaseUrl,
+        emailSender: { transport: "log" },
+        emailFrom: FICTIONAL_RECOVERY_SENDER,
+        emailReplyTo: FICTIONAL_RECOVERY_REPLY_TO,
+        backofficeOrigin: "https://staging.purosur.online",
+        arcaCertificate: { environment: "production", notAfter: new Date("2126-09-01T19:42:17Z") },
+        arcaVitality: { endpoint: UNREACHABLE_WSFE_ENDPOINT },
+      },
+      () => NOW,
+      { emailSender: UNUSED_EMAIL_SENDER, schedules: false },
+    );
+    const scope = "16:2019-12-16:factura_c";
+
+    try {
+      await sql`select graphile_worker.add_job('alert-condition-resolution')`;
+      await vi.waitFor(
+        async () => {
+          const rows = await db.select().from(alerts).where(eq(alerts.scope, scope));
+          expect(rows).toMatchObject([
+            {
+              kind: "fortnight_report_document_rejected",
+              level: "critical",
+              audience: "all",
+              resolvedAt: null,
+              conditionClearedAt: null,
+              detail: {
+                pointOfSaleNumber: 16,
+                registerId,
+                fortnightStart: "2019-12-16",
+                fortnightEnd: "2019-12-31",
+                documentType: "factura_c",
+                rejectedNumber: 3,
+              },
+            },
+          ]);
+        },
+        { timeout: 20_000, interval: 100 },
+      );
+
+      await insertRejectedDocumentRemedy(db, {
+        pointOfSale: 16,
+        fortnight,
+        number: 3,
+        correction: null,
+        recordedAt: new Date("2020-01-04T12:00:00.000Z"),
+      });
+      await sql`select graphile_worker.add_job('alert-condition-resolution')`;
+      await vi.waitFor(
+        async () => {
+          const rows = await db.select().from(alerts).where(eq(alerts.scope, scope));
+          expect(rows[0]?.conditionClearedAt).toEqual(NOW);
         },
         { timeout: 20_000, interval: 100 },
       );
