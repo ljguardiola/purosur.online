@@ -99,7 +99,7 @@ export function creditNoteContent(
   };
 }
 
-export function creditNote(
+function creditNote(
   overrides: Partial<FakeCreditNote> & Pick<FakeCreditNote, "content">,
 ): FakeCreditNote {
   return {
