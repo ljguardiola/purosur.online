@@ -1,10 +1,10 @@
 import { expect, test } from "vitest";
-import type { RejectedDocument } from "./fortnight-presentations-api";
 import {
   presentationDocumentsLabel,
   presentationDocumentTypeLabel,
   presentationStateBadge,
 } from "./fortnight-presentation-labels";
+import type { RejectedDocument } from "./fortnight-presentations-api";
 
 function rejectedDocument(overrides: Partial<RejectedDocument> = {}): RejectedDocument {
   return {
@@ -36,11 +36,13 @@ test.each([
 });
 
 test("badges a refusal the cloud tells is partial as partly rejected", () => {
-  expect(presentationStateBadge({
+  expect(
+    presentationStateBadge({
       state: "refused",
       refusal: "partial",
       rejectedDocument: rejectedDocument(),
-    })).toEqual({
+    }),
+  ).toEqual({
     label: "Rechazado en parte",
     tone: "error",
   });
@@ -57,7 +59,9 @@ test("badges a partly rejected presentation whose remedy waits to be presented a
 });
 
 test("badges a refusal the cloud tells is whole as rejected", () => {
-  expect(presentationStateBadge({ state: "refused", refusal: "whole", rejectedDocument: null })).toEqual({
+  expect(
+    presentationStateBadge({ state: "refused", refusal: "whole", rejectedDocument: null }),
+  ).toEqual({
     label: "Rechazado",
     tone: "error",
   });

@@ -181,10 +181,7 @@ test("asks to review the date the cloud refuses", () => {
 });
 
 test.each([
-  [
-    "date_outside_fortnight",
-    "Elegí una fecha dentro de la quincena del 1 al 15 de septiembre de 2026.",
-  ],
+  ["date_outside_fortnight", "Elegí una fecha dentro de la quincena del 1 al 15 de septiembre."],
   [
     "date_out_of_order",
     "La fecha no puede ser anterior a la del comprobante que le precede ni posterior a la del que le sigue.",

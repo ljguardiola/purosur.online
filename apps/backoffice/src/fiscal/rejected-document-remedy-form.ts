@@ -31,6 +31,25 @@ export type RemedyTarget = {
   rejectedDocument: RejectedDocument;
 };
 
+export const EMPTY_REMEDY_FORM: RemedyFormValues = {
+  pointOfSaleNumber: 0,
+  fortnightStart: "",
+  number: 0,
+  presented: {
+    issuedOn: "",
+    total: 0,
+    buyerDocumentType: FINAL_CONSUMER_DOCUMENT_TYPE,
+    buyerDocumentNumber: FINAL_CONSUMER_DOCUMENT_NUMBER,
+    buyerTaxStatusCode: 0,
+  },
+  errorIn: "report",
+  issuedOn: null,
+  total: "",
+  buyerKind: "final_consumer",
+  buyerCuit: "",
+  buyerTaxStatusCode: "",
+};
+
 export function remedyFormValuesFrom({
   pointOfSaleNumber,
   fortnight,

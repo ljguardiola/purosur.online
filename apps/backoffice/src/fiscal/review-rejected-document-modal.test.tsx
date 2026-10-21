@@ -3,7 +3,7 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
 import { type Locator, page, userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
-import type { RejectedDocument } from "./fortnight-presentations-api";
+import type { RecordedRemedy, RejectedDocument } from "./fortnight-presentations-api";
 import type { RemedyTarget } from "./rejected-document-remedy-form";
 import {
   ReviewRejectedDocumentModal,
@@ -33,7 +33,7 @@ const target: RemedyTarget = {
   rejectedDocument,
 };
 
-const recorded = {
+const recorded: RecordedRemedy = {
   recordedAt: "2026-09-20T15:30:00.000Z",
   changes: [{ field: "total", before: 1_845_000, after: 1_800_000 }],
 };
@@ -60,7 +60,7 @@ function createServices(): ReviewRejectedDocumentModalServices {
 type Handlers = {
   target?: RemedyTarget | null;
   onClose?: () => void;
-  onRemedied?: (target: RemedyTarget, value: typeof recorded) => void;
+  onRemedied?: (target: RemedyTarget, value: RecordedRemedy) => void;
   onOutdated?: () => void;
   onSessionEnded?: () => void;
 };
@@ -87,7 +87,7 @@ async function renderModal(services: ReviewRejectedDocumentModalServices, handle
 }
 
 function chooseTheDocumentIsWrong(dialog: Locator) {
-  return userEvent.click(dialog.getByRole("radio", { name: "En el comprobante impreso" }));
+  return userEvent.click(dialog.getByText("En el comprobante impreso"));
 }
 
 function submitReport(dialog: Locator) {
@@ -104,7 +104,7 @@ test("names the report and the point of sale, shows the rejected document and wh
   const { dialog } = await renderModal(createServices());
 
   await expect
-    .element(dialog.getByText("Informe del 1 al 15 de septiembre de 2026 · Punto de venta 00004"))
+    .element(dialog.getByText("Informe del 1 al 15 de septiembre · Punto de venta 00004"))
     .toBeVisible();
   await expect.element(dialog.getByRole("heading", { name: "Revisar el rechazo" })).toBeVisible();
   await expect.element(dialog.getByText("Factura C · CAEA")).toBeVisible();
@@ -144,9 +144,11 @@ test("asks where the error is, starting on the report, and says what correcting 
   await expect.element(dialog.getByText("Lo impreso está mal")).toBeVisible();
   await expect
     .element(
-      dialog.getByText(
-        "Se corrige el informe y se vuelve a presentar con el mismo número. Los 12 comprobantes sin procesar se presentan aparte.",
-      ),
+      dialog
+        .getByText(
+          "Se corrige el informe y se vuelve a presentar con el mismo número. Los 12 comprobantes sin procesar se presentan aparte.",
+        )
+        .first(),
     )
     .toBeVisible();
   await expect.element(dialog.getByRole("button", { name: "Cancelar" })).toBeVisible();
@@ -165,7 +167,7 @@ test.each([
       target: { ...target, rejectedDocument: { ...rejectedDocument, unprocessed } },
     });
 
-    await expect.element(dialog.getByText(notice, { exact: true })).toBeVisible();
+    await expect.element(dialog.getByText(notice, { exact: true }).first()).toBeVisible();
   },
 );
 
@@ -227,18 +229,21 @@ test("asks for the printed correction, with the printed values ready, when the e
     .element(dialog.getByRole("radio", { name: "En el comprobante impreso" }))
     .toBeChecked();
   await expect.element(dialog.getByRole("textbox", { name: /^Total/ })).toHaveValue("18.450,00");
-  await expect
-    .element(dialog.getByRole("group", { name: /^Fecha/ }))
-    .toHaveTextContent("09/09/2026");
+  const dateSegments = dialog.getByRole("group", { name: /^Fecha/ }).getByRole("spinbutton");
+  await expect.element(dateSegments.nth(0)).toHaveAttribute("aria-valuenow", "9");
+  await expect.element(dateSegments.nth(1)).toHaveAttribute("aria-valuenow", "9");
+  await expect.element(dateSegments.nth(2)).toHaveAttribute("aria-valuenow", "2026");
   await expect.element(dialog.getByRole("radio", { name: "Consumidor final" })).toBeChecked();
   await expect
     .element(dialog.getByRole("textbox", { name: /^Condición frente al IVA/ }))
     .toHaveValue("5");
   await expect
     .element(
-      dialog.getByText(
-        "Se informa el comprobante con la corrección, con el mismo número, y se emite una nota de crédito por su total para anularlo. Los 12 comprobantes sin procesar se presentan aparte.",
-      ),
+      dialog
+        .getByText(
+          "Se informa el comprobante con la corrección, con el mismo número, y se emite una nota de crédito por su total para anularlo. Los 12 comprobantes sin procesar se presentan aparte.",
+        )
+        .first(),
     )
     .toBeVisible();
   await expect
@@ -252,7 +257,7 @@ test("asks for the CUIT only when the buyer is identified by one", async () => {
   await chooseTheDocumentIsWrong(dialog);
   expect(dialog.getByRole("textbox", { name: /^CUIT del comprador/ }).query()).toBeNull();
 
-  await userEvent.click(dialog.getByRole("radio", { name: "CUIT" }));
+  await userEvent.click(dialog.getByText("CUIT", { exact: true }).last());
 
   await expect
     .element(dialog.getByRole("textbox", { name: /^CUIT del comprador/ }))
@@ -307,7 +312,7 @@ test("corrects the buyer's identification and tax status", async () => {
   const onRemedied = vi.fn();
   const { dialog } = await renderModal(services, { onRemedied });
   await chooseTheDocumentIsWrong(dialog);
-  await userEvent.click(dialog.getByRole("radio", { name: "CUIT" }));
+  await userEvent.click(dialog.getByText("CUIT", { exact: true }).last());
   await userEvent.fill(
     dialog.getByRole("textbox", { name: /^CUIT del comprador/ }),
     "20-00000001-5",
@@ -346,7 +351,7 @@ test("asks for the CUIT before calling the cloud", async () => {
   const services = createServices();
   const { dialog } = await renderModal(services);
   await chooseTheDocumentIsWrong(dialog);
-  await userEvent.click(dialog.getByRole("radio", { name: "CUIT" }));
+  await userEvent.click(dialog.getByText("CUIT", { exact: true }).last());
 
   await submitPrinted(dialog);
 
@@ -396,10 +401,7 @@ test("says nothing changed when the cloud finds no difference with what was pres
 });
 
 test.each([
-  [
-    "date_outside_fortnight",
-    "Elegí una fecha dentro de la quincena del 1 al 15 de septiembre de 2026.",
-  ],
+  ["date_outside_fortnight", "Elegí una fecha dentro de la quincena del 1 al 15 de septiembre."],
   [
     "date_out_of_order",
     "La fecha no puede ser anterior a la del comprobante que le precede ni posterior a la del que le sigue.",

@@ -210,7 +210,10 @@ test("remedyRejectedDocument returns failed on 200 with a body that is not the r
 
 test("remedyRejectedDocument names the field the cloud refused on 400", async () => {
   vi.mocked(fetch).mockResolvedValue(
-    jsonResponse(400, { code: "validation_failed", details: [{ field: "remedy.correction.total" }] }),
+    jsonResponse(400, {
+      code: "validation_failed",
+      details: [{ field: "remedy.correction.total" }],
+    }),
   );
 
   expect(await remedyRejectedDocument(reportRemedy)).toEqual({

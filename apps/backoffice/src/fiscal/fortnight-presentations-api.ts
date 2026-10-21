@@ -34,14 +34,13 @@ export type CorrectionRefusal =
   | "invalid_total"
   | "invalid_buyer_identification";
 
+export type RecordedRemedy = {
+  recordedAt: string;
+  changes: { field: string; before: string | number; after: string | number }[];
+};
+
 export type RemedyRejectedDocumentOutcome =
-  | {
-      kind: "ok";
-      value: {
-        recordedAt: string;
-        changes: { field: string; before: string | number; after: string | number }[];
-      };
-    }
+  | { kind: "ok"; value: RecordedRemedy }
   | { kind: "validation_failed"; field: string }
   | { kind: "not_found" }
   | { kind: "not_rejected" }
