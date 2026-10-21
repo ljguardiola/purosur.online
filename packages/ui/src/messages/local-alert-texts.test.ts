@@ -200,7 +200,7 @@ test("gives the refund owed for a late QR payment its title, what it means and w
     title: "Reembolso pendiente por un pago tardío",
     meaning: "Mercado Pago cobró un QR de una venta que ya se había cobrado por otro medio.",
     whatToDo:
-      "Si es de un pago con QR, confirmarlo en Reembolsos de Mercado Pago para que la nube lo envíe a Mercado Pago; si es de otro medio y ya se hizo desde Mercado Pago, marcarlo como hecho en Reembolsos sin API, y si todavía no se hizo, hacerlo cuanto antes. Si no corresponde reembolsarlo, descartarlo. El Administrador ya fue avisado.",
+      "Confirmarlo en Reembolsos de Mercado Pago para que la nube lo envíe a Mercado Pago. Si no corresponde reembolsarlo, descartarlo. El Administrador ya fue avisado.",
   });
 });
 
@@ -212,7 +212,7 @@ test("tells the refund owed for a second paid order of a sale's QR that the QR w
     meaning:
       "El QR de una venta se pagó dos veces; el pago de más es el de la orden ORD01SECOND de Mercado Pago.",
     whatToDo:
-      "Si es de un pago con QR, confirmarlo en Reembolsos de Mercado Pago para que la nube lo envíe a Mercado Pago; si es de otro medio y ya se hizo desde Mercado Pago, marcarlo como hecho en Reembolsos sin API, y si todavía no se hizo, hacerlo cuanto antes. Si no corresponde reembolsarlo, descartarlo. El Administrador ya fue avisado.",
+      "Confirmarlo en Reembolsos de Mercado Pago para que la nube lo envíe a Mercado Pago. Si no corresponde reembolsarlo, descartarlo. El Administrador ya fue avisado.",
   });
 });
 
@@ -224,7 +224,7 @@ test("gives the refund owed for a late Point payment its title, what it means an
     meaning:
       "Mercado Pago cobró un pago con tarjeta en el Point de una venta que ya se había cobrado por otro medio.",
     whatToDo:
-      "Confirmarlo en Reembolsos de Mercado Pago para que la nube lo envíe a Mercado Pago. Si no corresponde reembolsarlo, descartarlo. El Administrador ya fue avisado.",
+      "Hacerlo desde Mercado Pago cuanto antes y marcarlo como hecho en Reembolsos sin API. Si no corresponde reembolsarlo, descartarlo. El Administrador ya fue avisado.",
   });
 });
 
@@ -240,7 +240,7 @@ test("tells the refund owed for a second paid order of a sale's Point payment th
     meaning:
       "Una venta se cobró dos veces con tarjeta en el Point; el pago de más es el de la orden ORD01SECOND de Mercado Pago.",
     whatToDo:
-      "Confirmarlo en Reembolsos de Mercado Pago para que la nube lo envíe a Mercado Pago. Si no corresponde reembolsarlo, descartarlo. El Administrador ya fue avisado.",
+      "Hacerlo desde Mercado Pago cuanto antes y marcarlo como hecho en Reembolsos sin API. Si no corresponde reembolsarlo, descartarlo. El Administrador ya fue avisado.",
   });
 });
 

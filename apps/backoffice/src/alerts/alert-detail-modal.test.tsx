@@ -1728,7 +1728,7 @@ test("tells a refund owed for a QR payment that arrived late: what it means, wha
   await expect
     .element(
       screen.getByText(
-        "Si es de un pago con QR, confirmarlo en Reembolsos de Mercado Pago para que la nube lo envíe a Mercado Pago; si es de otro medio y ya se hizo desde Mercado Pago, marcarlo como hecho en Reembolsos sin API, y si todavía no se hizo, hacerlo cuanto antes. Si no corresponde reembolsarlo, descartarlo. El Administrador ya fue avisado.",
+        "Confirmarlo en Reembolsos de Mercado Pago para que la nube lo envíe a Mercado Pago. Si no corresponde reembolsarlo, descartarlo. El Administrador ya fue avisado.",
         { exact: true },
       ),
     )
@@ -1796,7 +1796,7 @@ test("tells a refund owed for a Point payment that arrived late that it was a ca
   await expect
     .element(
       screen.getByText(
-        "Confirmarlo en Reembolsos de Mercado Pago para que la nube lo envíe a Mercado Pago. Si no corresponde reembolsarlo, descartarlo. El Administrador ya fue avisado.",
+        "Hacerlo desde Mercado Pago cuanto antes y marcarlo como hecho en Reembolsos sin API. Si no corresponde reembolsarlo, descartarlo. El Administrador ya fue avisado.",
         { exact: true },
       ),
     )
