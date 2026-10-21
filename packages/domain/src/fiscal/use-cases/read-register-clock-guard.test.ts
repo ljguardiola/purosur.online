@@ -306,12 +306,12 @@ describe("readRegisterClockGuard", () => {
         corrections: [
           {
             pointOfSale: 12,
-            documentType: "factura_c",
+            documentType: "factura_c" as const,
             previousReading: new Date("2026-10-02T15:00:00.000Z"),
             correctedReading: READING,
           },
         ],
-      } as const;
+      };
 
       expect(read(state).correction).toBe("not_behind");
     });

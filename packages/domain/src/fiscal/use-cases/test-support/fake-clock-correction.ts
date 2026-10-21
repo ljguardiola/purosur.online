@@ -10,12 +10,12 @@ import type {
   ClockMark,
 } from "../../model/clock-correction.js";
 import type { FiscalDocumentType } from "../../model/fiscal-rejection-standing.js";
-import type { TaxAuthorityFloor } from "../register-clock-guard-ports.js";
 import type {
   ClockCorrectionLedger,
   ClockCorrectionRecord,
   ClockCorrectionTransaction,
 } from "../clock-correction-ports.js";
+import type { TaxAuthorityFloor } from "../register-clock-guard-ports.js";
 
 export interface FakeClockCorrectionState {
   accesses: Record<string, RoleAccess>;

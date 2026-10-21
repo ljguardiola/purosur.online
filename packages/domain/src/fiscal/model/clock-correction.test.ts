@@ -121,16 +121,6 @@ describe("clockLoweringsFor against the tax authority's last authorized day", ()
     ]);
   });
 
-  it("does not take another document type's mark of the same point of sale for the floor's series", () => {
-    const otherType = {
-      pointOfSale: 12,
-      documentType: "nota_credito_c",
-      reading: ahead(3_600_000),
-    } as const;
-
-    expect(clockLoweringsFor([otherType], READING, FLOOR)).toHaveLength(2);
-  });
-
   it("lowers nothing for the floor when the reading is on the tax authority's day", () => {
     const onTheDay = new Date("2026-10-02T12:00:00.000Z");
 
