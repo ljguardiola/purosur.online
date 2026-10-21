@@ -111,9 +111,9 @@ describe("correctionChanges", () => {
   });
 
   it("leaves out a field the correction repeats and one it does not name", () => {
-    expect(
-      correctionChanges(document(4), { issuedOn: "2026-09-20", total: 9_900 }),
-    ).toEqual([{ field: "total", before: 15_000, after: 9_900 }]);
+    expect(correctionChanges(document(4), { issuedOn: "2026-09-20", total: 9_900 })).toEqual([
+      { field: "total", before: 15_000, after: 9_900 },
+    ]);
   });
 
   it("is empty for an empty correction", () => {
@@ -123,9 +123,9 @@ describe("correctionChanges", () => {
 
 describe("correctionAfter", () => {
   it("is the changed fields alone for a document never corrected", () => {
-    expect(
-      correctionAfter(null, [{ field: "total", before: 15_000, after: 9_900 }]),
-    ).toEqual({ total: 9_900 });
+    expect(correctionAfter(null, [{ field: "total", before: 15_000, after: 9_900 }])).toEqual({
+      total: 9_900,
+    });
   });
 
   it("keeps what an earlier correction changed and lets the new changes win", () => {
@@ -186,7 +186,9 @@ describe("offlineDocumentCorrectionRefusal", () => {
     const farther = document(1, { issuedOn: "2026-09-28" });
     const fartherAhead = document(9, { issuedOn: "2026-09-17" });
 
-    expect(refusal({ issuedOn: "2026-09-22" }, [last, fartherAhead, target, farther, first])).toBeNull();
+    expect(
+      refusal({ issuedOn: "2026-09-22" }, [last, fartherAhead, target, farther, first]),
+    ).toBeNull();
   });
 
   it("does not order a document against the dates of the other documents of its type when it has no neighbour on that side", () => {
@@ -217,9 +219,9 @@ describe("offlineDocumentCorrectionRefusal", () => {
   });
 
   it("refuses a buyer whose CUIT does not validate", () => {
-    expect(refusal({ buyerDocumentType: 80, buyerDocumentNumber: CUIT_WITH_WRONG_CHECK_DIGIT })).toBe(
-      "invalid_buyer_identification",
-    );
+    expect(
+      refusal({ buyerDocumentType: 80, buyerDocumentNumber: CUIT_WITH_WRONG_CHECK_DIGIT }),
+    ).toBe("invalid_buyer_identification");
   });
 
   it("refuses a final consumer carrying a document number, and a document type the domain has no rule for", () => {
@@ -269,7 +271,10 @@ describe("offlineDocumentCorrectionRefusal", () => {
   });
 
   it("compares the new date with the neighbours' presented dates, not the date the correction repeats", () => {
-    const corrected = document(5, { issuedOn: "2026-09-22", correction: { issuedOn: "2026-09-22" } });
+    const corrected = document(5, {
+      issuedOn: "2026-09-22",
+      correction: { issuedOn: "2026-09-22" },
+    });
 
     expect(
       offlineDocumentCorrectionRefusal({
@@ -317,9 +322,9 @@ describe("awaitsRemedy", () => {
   );
 
   it("takes any remedy for the number as recorded after a rejection with no recorded attempt", () => {
-    expect(
-      awaitsRemedy({ ...refused, lastAttemptAt: null }, { number: 5, recordedAt: AT }),
-    ).toBe(false);
+    expect(awaitsRemedy({ ...refused, lastAttemptAt: null }, { number: 5, recordedAt: AT })).toBe(
+      false,
+    );
   });
 });
 
