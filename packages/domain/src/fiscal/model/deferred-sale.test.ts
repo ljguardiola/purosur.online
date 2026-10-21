@@ -66,7 +66,7 @@ describe("randomShortCode", () => {
 
   it("refuses a code holding a character outside the alphabet at any position", () => {
     for (let position = 0; position < SHORT_CODE_LENGTH; position += 1) {
-      const code = "7KQ4M2P9".slice(0, position) + "1" + "7KQ4M2P9".slice(position + 1);
+      const code = ["7KQ4M2P9".slice(0, position), "1", "7KQ4M2P9".slice(position + 1)].join("");
 
       expect(isShortCode(code)).toBe(false);
     }
