@@ -22,7 +22,7 @@ function toWire(offline: BranchOfflinePointOfSale) {
     point_of_sale_number: offline.pointOfSaleNumber,
     register_id: offline.registerId,
     register_name: offline.registerName,
-    assigned: offline.assigned,
+    retirable: offline.retirable,
     retired_at: offline.retiredAt?.toISOString() ?? null,
   };
 }
@@ -43,7 +43,9 @@ export function registerBranchOfflinePointsOfSaleListRoute<TQueryResult extends 
       config: { access: capabilityAccess("cash_area"), sessionSource },
     },
     async (request, reply) => {
-      const listed = await reader.listBranchOfflinePointsOfSale(openSessionOf(request).locationId);
+      const listed = await reader.listBranchOfflinePointsOfSaleWithoutRegister(
+        openSessionOf(request).locationId,
+      );
       await reply.code(200).send(branchOfflinePointOfSaleListSchema.parse(listed.map(toWire)));
     },
   );

@@ -1,5 +1,5 @@
 import {
-  Button,
+  actionsColumn,
   dataColumn,
   formatDayAndTime,
   formatPointOfSaleNumber,
@@ -7,7 +7,7 @@ import {
   Table,
   useTableModel,
 } from "@purosur/ui";
-import { Laptop } from "lucide-react";
+import { Laptop, Trash2 } from "lucide-react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import type { CloudData } from "../platform/use-cloud-query";
 import type { OfflinePointOfSale } from "./offline-points-of-sale-api";
@@ -20,9 +20,6 @@ type OfflinePointsOfSaleSectionProps = {
 const NO_ITEMS: OfflinePointOfSale[] = [];
 
 export function OfflinePointsOfSaleSection({ data, onRetire }: OfflinePointsOfSaleSectionProps) {
-  const withoutRegister = (data.status === "loaded" ? data.value : NO_ITEMS).filter(
-    ({ assigned }) => !assigned,
-  );
   const columns = [
     dataColumn({
       id: "pointOfSale",
@@ -47,26 +44,23 @@ export function OfflinePointsOfSaleSection({ data, onRetire }: OfflinePointsOfSa
           </span>
         ),
     }),
-    dataColumn({
+    actionsColumn({
       id: "actions",
       header: "Acciones",
-      align: "end",
-      render: (item: OfflinePointOfSale) =>
-        item.retiredAt === null ? (
-          <Button
-            variant="text"
-            destructive
-            size="small"
-            dataStatus={data.status}
-            onPress={() => onRetire(item)}
-          >
-            Dar de baja
-          </Button>
-        ) : null,
+      actions: [
+        (item: OfflinePointOfSale) =>
+          item.retirable
+            ? {
+                icon: <Trash2 />,
+                "aria-label": `Dar de baja el punto de venta ${formatPointOfSaleNumber(item.pointOfSaleNumber)}`,
+                onPress: () => onRetire(item),
+              }
+            : undefined,
+      ],
     }),
   ] as const;
   const table = useTableModel({
-    items: withoutRegister,
+    items: data.status === "loaded" ? data.value : NO_ITEMS,
     id: (item) => String(item.pointOfSaleNumber),
     columns,
   });

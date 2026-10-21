@@ -284,6 +284,7 @@ export {
   offlineAuthorizationCodeRequestOpensOn,
   offlineFiscalDocument,
   offlineFiscalDocumentIssuedEvent,
+  offlinePointOfSaleRetirementRefusal,
   owedFortnightPresentationState,
   owesFortnightReport,
   POINT_OF_SALE_NUMBER_MAX,

@@ -145,6 +145,7 @@ export type { ListedOwedPresentation } from "./model/owed-presentation-list.js";
 export { splitOwedPresentations } from "./model/owed-presentation-list.js";
 export {
   isPointOfSaleNumber,
+  offlinePointOfSaleRetirementRefusal,
   POINT_OF_SALE_NUMBER_MAX,
 } from "./model/point-of-sale.js";
 export type {

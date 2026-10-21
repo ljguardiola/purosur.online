@@ -157,8 +157,8 @@ export function RetireOfflinePointOfSaleModal({
           )}
           <p className="text-body text-text">
             Dalo de baja acá solo después de darle la baja en ARCA. Deja de deber los informes
-            quincenales de las quincenas que terminen después de hoy; los que ya debe siguen
-            pendientes.
+            quincenales desde la quincena en curso, salvo los que ARCA informe como adeudados; los
+            que ya debe siguen pendientes.
           </p>
           <InlineNotice
             tone="warning"

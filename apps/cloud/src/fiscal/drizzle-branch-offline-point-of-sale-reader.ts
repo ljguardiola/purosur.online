@@ -1,8 +1,9 @@
+import { offlinePointOfSaleRetirementRefusal } from "@purosur/domain";
 import type {
   BranchOfflinePointOfSale,
   BranchOfflinePointOfSaleReader,
 } from "@purosur/domain/fiscal/use-cases";
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, isNull } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import {
   offlinePointOfSaleRetirements,
@@ -20,13 +21,14 @@ export class DrizzleBranchOfflinePointOfSaleReader<TQueryResult extends PgQueryR
     this.db = db;
   }
 
-  async listBranchOfflinePointsOfSale(locationId: string): Promise<BranchOfflinePointOfSale[]> {
+  async listBranchOfflinePointsOfSaleWithoutRegister(
+    locationId: string,
+  ): Promise<BranchOfflinePointOfSale[]> {
     const rows = await this.db
       .select({
         pointOfSaleNumber: pointOfSaleClaims.pointOfSaleNumber,
         registerId: registers.id,
         registerName: registers.name,
-        assignedTo: registerOfflinePointsOfSale.registerId,
         retiredAt: offlinePointOfSaleRetirements.retiredAt,
       })
       .from(pointOfSaleClaims)
@@ -39,8 +41,25 @@ export class DrizzleBranchOfflinePointOfSaleReader<TQueryResult extends PgQueryR
         offlinePointOfSaleRetirements,
         eq(offlinePointOfSaleRetirements.pointOfSaleNumber, pointOfSaleClaims.pointOfSaleNumber),
       )
-      .where(and(eq(pointOfSaleClaims.mechanism, "offline"), eq(registers.locationId, locationId)))
+      .where(
+        and(
+          eq(pointOfSaleClaims.mechanism, "offline"),
+          eq(registers.locationId, locationId),
+          isNull(registerOfflinePointsOfSale.registerId),
+        ),
+      )
       .orderBy(asc(pointOfSaleClaims.pointOfSaleNumber));
-    return rows.map(({ assignedTo, ...row }) => ({ ...row, assigned: assignedTo !== null }));
+    return rows.map((row) => ({
+      ...row,
+      retirable:
+        offlinePointOfSaleRetirementRefusal(
+          {
+            registerId: row.registerId,
+            mechanism: "offline",
+            ...(row.retiredAt === null ? {} : { retiredAt: row.retiredAt }),
+          },
+          false,
+        ) === undefined,
+    }));
   }
 }

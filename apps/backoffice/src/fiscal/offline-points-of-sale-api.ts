@@ -16,7 +16,7 @@ export type OfflinePointOfSale = {
   pointOfSaleNumber: number;
   registerId: string;
   registerName: string;
-  assigned: boolean;
+  retirable: boolean;
   retiredAt: string | null;
 };
 
@@ -34,7 +34,7 @@ function offlinePointOfSaleFromWire(row: BranchOfflinePointOfSaleBody): OfflineP
     pointOfSaleNumber: row.point_of_sale_number,
     registerId: row.register_id,
     registerName: row.register_name,
-    assigned: row.assigned,
+    retirable: row.retirable,
     retiredAt: row.retired_at,
   };
 }

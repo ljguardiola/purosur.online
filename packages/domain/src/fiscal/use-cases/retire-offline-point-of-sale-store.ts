@@ -11,12 +11,14 @@ export interface BranchOfflinePointOfSale {
   pointOfSaleNumber: number;
   registerId: string;
   registerName: string;
-  assigned: boolean;
+  retirable: boolean;
   retiredAt: Date | null;
 }
 
 export interface BranchOfflinePointOfSaleReader {
-  listBranchOfflinePointsOfSale(locationId: string): Promise<BranchOfflinePointOfSale[]>;
+  listBranchOfflinePointsOfSaleWithoutRegister(
+    locationId: string,
+  ): Promise<BranchOfflinePointOfSale[]>;
 }
 
 export interface RetireOfflinePointOfSaleStore {
