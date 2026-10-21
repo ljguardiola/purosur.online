@@ -207,6 +207,7 @@ function contextWith(
       cloud: "reachable",
       serial_devices: { scale: "matching", reader: "matching" },
       serial_devices_setup_offered: false,
+      fiscal_mode: "real_time",
     }),
     recordCashMovement: async () => ({ kind: "unavailable" }),
     enroll: async () => ({ kind: "enrolled" }),
@@ -1640,6 +1641,7 @@ describe("the register's router", () => {
         cloud: "reachable",
         serial_devices: { scale: "not_registered", reader: "not_registered" },
         serial_devices_setup_offered: true,
+        fiscal_mode: "real_time",
       };
       const takeSerialDevicesOffer = vi.fn(
         async (readStatus: () => Promise<RegisterStatus>) => (await readStatus()) === status,
@@ -1667,6 +1669,7 @@ describe("the register's router", () => {
         cloud: "reachable",
         serial_devices: { scale: "not_registered", reader: "not_registered" },
         serial_devices_setup_offered: true,
+        fiscal_mode: "real_time",
       };
       const context = contextWith("up", "enrolled", DEVICES_CONFIGURER);
       const offer = serialDevicesOffer();
@@ -1675,6 +1678,7 @@ describe("the register's router", () => {
         ...offered,
         serial_devices: { scale: "matching", reader: "matching" },
         serial_devices_setup_offered: false,
+        fiscal_mode: "real_time",
       });
       const router = createRegisterRouter(
         routeTree,
@@ -2674,6 +2678,7 @@ describe("the register's status bar", () => {
         cloud: "unreachable" as const,
         serial_devices: { scale: "matching" as const, reader: "matching" as const },
         serial_devices_setup_offered: false,
+        fiscal_mode: "real_time" as const,
       }),
     };
     const router = createRegisterRouter(routeTree, context, "/");

@@ -14,7 +14,7 @@ export function comprobantePresentation(
   switch (comprobante.kind) {
     case "fiscal":
       return {
-        name: "Factura C",
+        name: comprobante.authorization === "offline_code" ? "Factura C · CAEA" : "Factura C",
         detail: `PV ${formatPointOfSaleNumber(comprobante.point_of_sale)} · Nº ${formatInvoiceNumber(comprobante.number)}`,
       };
     case "deferred_non_fiscal":

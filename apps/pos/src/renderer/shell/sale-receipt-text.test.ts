@@ -7,10 +7,23 @@ describe("comprobantePresentation", () => {
       comprobantePresentation({
         kind: "fiscal",
         document_type: "factura_c",
+        authorization: "real_time",
         point_of_sale: 3,
         number: 1248,
       }),
     ).toEqual({ name: "Factura C", detail: "PV 00003 · Nº 00001248" });
+  });
+
+  it("names a fiscal invoice authorized under the pre-obtained code as such, with the same point of sale and number", () => {
+    expect(
+      comprobantePresentation({
+        kind: "fiscal",
+        document_type: "factura_c",
+        authorization: "offline_code",
+        point_of_sale: 3,
+        number: 1248,
+      }),
+    ).toEqual({ name: "Factura C · CAEA", detail: "PV 00003 · Nº 00001248" });
   });
 
   it("names a deferred sale's document as not fiscal and says it still has to be invoiced", () => {

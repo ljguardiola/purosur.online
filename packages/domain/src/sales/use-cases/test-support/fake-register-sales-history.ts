@@ -1,5 +1,5 @@
 import type { FiscalOnlineSignalEvidence } from "../../../fiscal/index.js";
-import { saleStandingOf } from "../../model/sale-history.js";
+import { type SaleFiscalFacts, saleStandingOf } from "../../model/sale-history.js";
 import type {
   RegisterSalesHistory,
   SaleHistoryRecord,
@@ -50,6 +50,15 @@ export class FakeRegisterSalesHistory implements RegisterSalesHistory {
 
   saleOfRegister(saleId: string): SaleHistoryRecord | undefined {
     return this.sales.find(({ entry }) => entry.saleId === saleId)?.record;
+  }
+
+  fiscalFactsOfSale(saleId: string): SaleFiscalFacts {
+    return (
+      this.sales.find(({ entry }) => entry.saleId === saleId)?.entry.fiscal ?? {
+        deferred: false,
+        fiscalDocument: null,
+      }
+    );
   }
 
   private pageOf(sales: FakeHistorySale[], { standing, offset, limit }: SalesHistoryFilter) {

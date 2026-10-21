@@ -68,7 +68,19 @@ test("colors the success tone green message background with strong green text, c
   ).toBeGreaterThanOrEqual(AA_TEXT_CONTRAST);
 });
 
-test.each<TagProps["tone"]>(["neutral", "info", "success"])(
+test("colors the warning tone amber message background with strong amber text, clearing AA text contrast", async () => {
+  const screen = await render(<Tag tone="warning">Contingencia con CAEA</Tag>);
+  const tag = screen.getByText("Contingencia con CAEA").element() as HTMLElement;
+  const style = getComputedStyle(tag);
+
+  expect(style.backgroundColor).toBe(tokenRgb("warning-subtle"));
+  expect(style.color).toBe(tokenRgb("warning-strong"));
+  expect(
+    contrastRatio(rgbToHex(style.color), rgbToHex(style.backgroundColor)),
+  ).toBeGreaterThanOrEqual(AA_TEXT_CONTRAST);
+});
+
+test.each<TagProps["tone"]>(["neutral", "info", "success", "warning"])(
   "the %s tone draws the focus ring when reached by keyboard",
   async (tone) => {
     const screen = await render(

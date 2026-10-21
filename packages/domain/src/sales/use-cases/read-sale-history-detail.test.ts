@@ -47,6 +47,7 @@ function historySale(
         fiscalDocument: {
           state: "AUTHORIZED",
           documentType: "factura_c",
+          authorization: "real_time",
           pointOfSale: 3,
           number: 1204,
         },
@@ -79,7 +80,13 @@ describe("readSaleHistoryDetail", () => {
         saleId: "sale-1",
         occurredAt: new Date("2026-10-07T15:00:00.000Z"),
         total: 7500,
-        comprobante: { kind: "fiscal", documentType: "factura_c", pointOfSale: 3, number: 1204 },
+        comprobante: {
+          kind: "fiscal",
+          documentType: "factura_c",
+          authorization: "real_time",
+          pointOfSale: 3,
+          number: 1204,
+        },
         operationNumber: 482,
         servedByFirstName: "Marta",
         lineCount: 3,
@@ -220,6 +227,7 @@ describe("readSaleHistoryDetail", () => {
         fiscalDocument: {
           state: "REQUESTING" as const,
           documentType: "factura_c" as const,
+          authorization: "real_time" as const,
           pointOfSale: 3,
           number: 1204,
         },
@@ -299,6 +307,7 @@ describe("readSaleHistoryDetail", () => {
             fiscalDocument: {
               state: "RELEASED",
               documentType: "factura_c",
+              authorization: "real_time",
               pointOfSale: 3,
               number: 1204,
             },

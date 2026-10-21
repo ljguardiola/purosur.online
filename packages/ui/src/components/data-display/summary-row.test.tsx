@@ -354,3 +354,14 @@ test("does not accept a detail row that is a saving", () => {
     saving: true;
   }>().toExtend<SummaryRowProps>();
 });
+
+test("renders a value given as an element, such as a tag, at the right of the row", async () => {
+  const screen = await render(
+    <SummaryRow label="Modo fiscal" value={<span data-testid="shown-value">En línea</span>} />,
+  );
+  const row = screen.getByText("Modo fiscal").element().parentElement as HTMLElement;
+  const value = screen.getByTestId("shown-value").element() as HTMLElement;
+
+  expect(row.textContent).toBe("Modo fiscalEn línea");
+  expect(value.getBoundingClientRect().right).toBeCloseTo(row.getBoundingClientRect().right, 0);
+});

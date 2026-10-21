@@ -28,11 +28,12 @@ export interface SalesHistoryRequest {
   page: number;
 }
 
-function toWireComprobante(comprobante: SaleComprobante) {
+export function toWireComprobante(comprobante: SaleComprobante) {
   return comprobante.kind === "fiscal"
     ? {
         kind: comprobante.kind,
         document_type: comprobante.documentType,
+        authorization: comprobante.authorization,
         point_of_sale: comprobante.pointOfSale,
         number: comprobante.number,
       }
