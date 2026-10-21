@@ -83,6 +83,7 @@ describe("authorizing a completed sale in real time", () => {
     cloud: CloudClientDeps | undefined,
     failures: unknown[] = [],
     readDeviceToken: () => Promise<string | undefined> = async () => "prefix.secret",
+    readOutboxChainKey: () => Promise<string | undefined> = async () => CHAIN_KEY,
   ) {
     return createRealTimeAuthorization({
       database,
@@ -90,7 +91,7 @@ describe("authorizing a completed sale in real time", () => {
       readDeviceToken,
       now: () => NOW,
       ...scriptedDeferrals(),
-      readOutboxChainKey: async () => CHAIN_KEY,
+      readOutboxChainKey,
       reportFailure: (error) => failures.push(error),
     });
   }
@@ -168,6 +169,30 @@ describe("authorizing a completed sale in real time", () => {
 
     expect(failures).toEqual([failure]);
     expect(storedState()).toEqual({ state: "UNKNOWN" });
+  });
+
+  it("reports a failure to read the outbox chain key without rejecting, and settles the document as unclear once the key is read", async () => {
+    const { cloud } = cloudAnswering(async () =>
+      json({
+        state: "AUTHORIZED",
+        authorization_code: "75123456789012",
+        authorization_code_due_on: "2026-10-10",
+      }),
+    );
+    const failure = new Error("the outbox chain key cannot be read");
+    const failures: unknown[] = [];
+    const readOutboxChainKey = vi
+      .fn<() => Promise<string | undefined>>()
+      .mockRejectedValueOnce(failure)
+      .mockResolvedValue(CHAIN_KEY);
+
+    await expect(
+      authorization(cloud, failures, undefined, readOutboxChainKey).authorizeSale("sale-1"),
+    ).resolves.toBeUndefined();
+
+    expect(failures).toEqual([failure]);
+    expect(storedState()).toEqual({ state: "UNKNOWN" });
+    expect(deferredSaleEvents()).toMatchObject([{ aggregate_id: "sale-1" }]);
   });
 
   it("reports a failure of the authorization without rejecting", async () => {

@@ -1,13 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { decideSaleAuthorization } from "../../fiscal/use-cases/decide-sale-authorization.js";
-import {
-  FakeSaleAuthorizationTransaction,
-  SequentialIds,
-} from "../../fiscal/use-cases/test-support/fake-sale-authorization.js";
-import { ScriptedShortCodes } from "../../fiscal/use-cases/test-support/scripted-short-codes.js";
 import type { SaleWithLines } from "../model/sale.js";
 import { completeSale } from "./complete-sale.js";
-import { FakeSaleLedger } from "./test-support/fake-sale-ledger.js";
+import { FakeSaleLedger, SequentialIds } from "./test-support/fake-sale-ledger.js";
 
 const COMPLETED_AT = new Date("2026-10-02T02:30:00.000Z");
 const SALE: SaleWithLines = {
@@ -22,48 +16,24 @@ const SALE: SaleWithLines = {
 };
 
 describe("completeSale", () => {
-  it("records the deferred sale before the gate failure that deferred it", () => {
+  it("appends the gate failure after the events of the authorization decision it defers", () => {
     const ledger = new FakeSaleLedger({ sales: [SALE], issuerIdentifications: [] });
 
     ledger.transaction((tx) =>
       completeSale(
         {
           ...tx,
-          decideSaleAuthorization: ({ ids, saleId, gate, decidedAt, occurredAt, total }) => {
-            const authorization = new FakeSaleAuthorizationTransaction({
-              online: { lastHealthCheckOkAt: COMPLETED_AT, tokenValid: true, arcaReachable: true },
-              series: {
-                pointOfSale: 12,
-                localLastAuthorized: 40,
-                taxAuthorityLastAuthorized: 40,
-                documentRequesting: false,
-                documentUnknown: false,
-                numberingFrozen: false,
-                clockMark: null,
-                taxAuthorityLastIssuedOn: null,
-              },
-              offlineSeries: {
-                pointOfSale: null,
-                blocksInAssignmentOrder: [],
-                localLastUsed: null,
-                taxAuthorityLastAuthorized: null,
-                highestSyncedNumber: null,
-                clockMark: null,
-              },
-              heldCodes: [],
-              origin: { registerId: SALE.registerId, actorId: SALE.actorId },
-              takenShortCodes: [],
+          decideSaleAuthorization: ({ saleId, decidedAt }) => {
+            tx.appendOutboxEvent({
+              event_id: "deferred-event",
+              aggregate_type: "Sale",
+              aggregate_id: saleId,
+              event_type: "deferred_sale_recorded",
+              schema_version: 1,
+              payload: {},
+              occurred_at: decidedAt.toISOString(),
+              actor_id: SALE.actorId,
             });
-            decideSaleAuthorization(authorization, ids, new ScriptedShortCodes(["7KQ4M2P9"]), {
-              saleId,
-              gate,
-              decidedAt,
-              occurredAt,
-              total,
-            });
-            for (const event of authorization.outbox) {
-              tx.appendOutboxEvent(event);
-            }
           },
         },
         new SequentialIds(),
