@@ -1,4 +1,4 @@
-import { Button, HighlightedNotice, ScreenHeader } from "@purosur/ui";
+import { Button, InlineNotice, ScreenHeader } from "@purosur/ui";
 import { KeyRound } from "lucide-react";
 import { useState } from "react";
 import { BrandPanelScreen } from "../shell/brand-panel-screen";
@@ -24,7 +24,7 @@ export function RestoreRequiredScreen({
           title="La caja tiene que volver a darse de alta"
           description="Sus datos quedaron atrás de los de la nube, así que no puede vender hasta restaurarse."
         />
-        <HighlightedNotice
+        <InlineNotice
           tone="warning"
           icon={<KeyRound />}
           title="Pedí un código de alta"
