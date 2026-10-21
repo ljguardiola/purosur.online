@@ -54,6 +54,7 @@ export async function openLatePaymentRefund<TQueryResult extends PgQueryResultHK
         saleId: payment.saleId,
         amount: refund.amount,
         providerOrderId: refund.providerOrderId,
+        method: refund.method,
       },
     },
     { now: () => openedAt },
