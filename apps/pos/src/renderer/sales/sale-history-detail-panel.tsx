@@ -57,6 +57,7 @@ type SaleActions = {
   onReprint: (sale: SaleDetail) => void;
   onVoid: (sale: SaleDetail) => void;
   onPrintCreditNote: (sale: SaleDetail) => void;
+  onReprintCreditNote: (sale: SaleDetail) => void;
 };
 
 function SaleFooter({
@@ -64,12 +65,14 @@ function SaleFooter({
   onReprint,
   onVoid,
   onPrintCreditNote,
+  onReprintCreditNote,
 }: { sale: SaleDetail } & SaleActions) {
   const { voidability } = sale;
   const refusalReason =
     voidability.kind === "voidable" ? undefined : voidRefusalReason(voidability.refusal);
   const offersVoid = voidability.kind === "voidable" || refusalReason !== undefined;
   const offersCreditNote = sale.credit_note?.kind === "authorized";
+  const creditNoteIsDuplicate = sale.credit_note_next_copy?.kind === "duplicate";
   if (sale.reprint.kind !== "available" && !offersVoid && !offersCreditNote) {
     return null;
   }
@@ -92,9 +95,13 @@ function SaleFooter({
           size="large"
           fullWidth
           icon={<Printer />}
-          onPress={() => onPrintCreditNote(sale)}
+          onPress={() =>
+            creditNoteIsDuplicate ? onReprintCreditNote(sale) : onPrintCreditNote(sale)
+          }
         >
-          Imprimir nota de crédito
+          {creditNoteIsDuplicate
+            ? receiptCopyPresentation({ kind: "duplicate" }).printButton
+            : "Imprimir nota de crédito"}
         </Button>
       ) : null}
       {offersVoid ? (
@@ -118,7 +125,13 @@ function SaleFooter({
   );
 }
 
-function Sale({ sale, onReprint, onVoid, onPrintCreditNote }: { sale: SaleDetail } & SaleActions) {
+function Sale({
+  sale,
+  onReprint,
+  onVoid,
+  onPrintCreditNote,
+  onReprintCreditNote,
+}: { sale: SaleDetail } & SaleActions) {
   const details = nonEmptyRows(detailRows(sale));
   const payments = nonEmptyRows(
     sale.payments.map((payment) => ({
@@ -135,6 +148,7 @@ function Sale({ sale, onReprint, onVoid, onPrintCreditNote }: { sale: SaleDetail
           onReprint={onReprint}
           onVoid={onVoid}
           onPrintCreditNote={onPrintCreditNote}
+          onReprintCreditNote={onReprintCreditNote}
         />
       }
     >
@@ -162,6 +176,7 @@ function SelectedSale({
   onReprint,
   onVoid,
   onPrintCreditNote,
+  onReprintCreditNote,
 }: {
   detail: CoreData<ShownSaleHistoryDetail>;
 } & SaleActions) {
@@ -193,6 +208,7 @@ function SelectedSale({
           onReprint={onReprint}
           onVoid={onVoid}
           onPrintCreditNote={onPrintCreditNote}
+          onReprintCreditNote={onReprintCreditNote}
         />
       );
     case "not_found":
@@ -234,6 +250,7 @@ function SelectedSaleReader({
   onReprint,
   onVoid,
   onPrintCreditNote,
+  onReprintCreditNote,
 }: {
   saleId: string;
   readDetail: SaleHistoryDetailPanelProps["readDetail"];
@@ -245,6 +262,7 @@ function SelectedSaleReader({
       onReprint={onReprint}
       onVoid={onVoid}
       onPrintCreditNote={onPrintCreditNote}
+      onReprintCreditNote={onReprintCreditNote}
     />
   );
 }
@@ -260,6 +278,7 @@ export function SaleHistoryDetailPanel({
   onReprint,
   onVoid,
   onPrintCreditNote,
+  onReprintCreditNote,
 }: SaleHistoryDetailPanelProps) {
   if (saleId === undefined) {
     return (
@@ -279,6 +298,7 @@ export function SaleHistoryDetailPanel({
       onReprint={onReprint}
       onVoid={onVoid}
       onPrintCreditNote={onPrintCreditNote}
+      onReprintCreditNote={onReprintCreditNote}
     />
   );
 }

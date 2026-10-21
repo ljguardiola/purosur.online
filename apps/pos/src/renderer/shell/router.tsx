@@ -246,6 +246,11 @@ export interface RouterContext {
   receiptPrintStatus: (saleId: string) => Promise<ReceiptPrintStatusOutcome>;
   printOriginalReceipt: (saleId: string) => Promise<PrintOriginalReceiptOutcome>;
   printCreditNote: (saleId: string) => Promise<PrintCreditNoteOutcome>;
+  reprintCreditNote: (
+    saleId: string,
+    reason: string,
+    authorization: Authorization | undefined,
+  ) => Promise<ReprintSaleReceiptOutcome>;
   convertPaidOrderIntoRefund: (
     paymentTransactionId: string,
   ) => Promise<ConvertPaidOrderIntoRefundOutcome>;
@@ -812,6 +817,7 @@ const historyRoute = createRoute({
       reprintSaleReceipt,
       voidSale,
       printCreditNote,
+      reprintCreditNote,
       authorizers,
       refreshCashSession,
     } = historyRoute.useRouteContext();
@@ -827,6 +833,7 @@ const historyRoute = createRoute({
         reprintSaleReceipt={reprintSaleReceipt}
         voidSale={voidSale}
         printCreditNote={printCreditNote}
+        reprintCreditNote={reprintCreditNote}
         loadAuthorizers={authorizers}
         onSessionInvalid={() => void refreshCashSession()}
       />
@@ -1172,6 +1179,7 @@ export function createAppRouter(
     | "receiptPrintStatus"
     | "printOriginalReceipt"
     | "printCreditNote"
+    | "reprintCreditNote"
     | "convertPaidOrderIntoRefund"
     | "reprintSaleReceipt"
     | "salesHistory"
