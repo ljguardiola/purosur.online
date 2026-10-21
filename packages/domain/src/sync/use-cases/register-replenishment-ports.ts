@@ -1,3 +1,4 @@
+import type { RestoredCreditNoteAnswer, SaleVoidCreditNote } from "../../fiscal/index.js";
 import type { ReplenishedUser } from "../../users/index.js";
 import type { SyncedFact } from "../model/synced-fact.js";
 import type { DecodedEvent } from "./event-application-ports.js";
@@ -16,6 +17,7 @@ export type ReplenishmentRefusal =
 export interface ReplenishmentPage {
   events: ReplenishedEvent[];
   users: ReplenishedUser[];
+  creditNoteAnswers: RestoredCreditNoteAnswer[];
   next: EventPosition | null;
 }
 
@@ -43,6 +45,11 @@ export interface RegisterReplenishmentTransaction {
   eventApplied(eventId: string): Promise<boolean>;
   // Applying an event the register already holds the rows of changes nothing and answers "applied".
   applyFact(fact: SyncedFact, source: ReplenishedEventSource): Promise<ReplenishedEventApplication>;
+  // Recording an answer the register already holds changes nothing.
+  recordCreditNoteAnswer(
+    creditNote: SaleVoidCreditNote,
+    answer: RestoredCreditNoteAnswer,
+  ): Promise<void>;
   recordEventApplied(eventId: string): Promise<void>;
 }
 

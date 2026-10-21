@@ -10,10 +10,7 @@ import {
   FakeRegisterReplenishmentFeed,
   FakeRegisterReplenishmentStore,
 } from "./test-support/fake-register-replenishment.js";
-import {
-  anEvent,
-  aSaleVoidedEvent,
-} from "./test-support/fake-restored-register-replenishment.js";
+import { anEvent, aSaleVoidedEvent } from "./test-support/fake-restored-register-replenishment.js";
 
 const PREDECESSOR = { deviceId: "device-old", lastAcknowledgedSeq: 52 };
 
@@ -451,9 +448,12 @@ describe("replenishRestoredRegister", () => {
       decoder.facts.set(firstEvent.event.event_id, aVoidedSaleOf(first, "sale-1"));
       decoder.facts.set(secondEvent.event.event_id, aVoidedSaleOf(second, "sale-2"));
       feed.answers = [
-        aPage([firstEvent], { deviceId: "device-old", deviceSeq: 53 }, [], [
-          anAuthorizedAnswer(first),
-        ]),
+        aPage(
+          [firstEvent],
+          { deviceId: "device-old", deviceSeq: 53 },
+          [],
+          [anAuthorizedAnswer(first)],
+        ),
         aPage([secondEvent], null, [], [anAuthorizedAnswer(second)]),
       ];
 
@@ -473,9 +473,12 @@ describe("replenishRestoredRegister", () => {
       const secondEvent = aSaleVoidedEvent("device-old", 54, "sale-2");
       decoder.facts.set(secondEvent.event.event_id, aVoidedSaleOf(creditNote, "sale-2"));
       feed.answers = [
-        aPage([firstEvent], { deviceId: "device-old", deviceSeq: 53 }, [], [
-          anAuthorizedAnswer(creditNote),
-        ]),
+        aPage(
+          [firstEvent],
+          { deviceId: "device-old", deviceSeq: 53 },
+          [],
+          [anAuthorizedAnswer(creditNote)],
+        ),
         aPage([secondEvent]),
       ];
 
@@ -490,10 +493,7 @@ describe("replenishRestoredRegister", () => {
       const creditNote = aCreditNote("sale-1");
       const event = aSaleVoidedEvent("device-old", 53, "sale-1");
       decoder.facts.set(event.event.event_id, aVoidedSaleOf(creditNote, "sale-1"));
-      feed.answers = [
-        aPage([event]),
-        aPage([event], null, [], [anAuthorizedAnswer(creditNote)]),
-      ];
+      feed.answers = [aPage([event]), aPage([event], null, [], [anAuthorizedAnswer(creditNote)])];
       await run();
 
       const outcome = await run();

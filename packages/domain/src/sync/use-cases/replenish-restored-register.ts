@@ -1,3 +1,4 @@
+import type { RestoredCreditNoteAnswer } from "../../fiscal/index.js";
 import type { SyncedFact } from "../model/synced-fact.js";
 import type {
   RegisterPredecessor,
@@ -42,7 +43,13 @@ function decodedPage<TFailure>(
 
 async function applyPage<TFailure>(
   { store }: ReplenishRestoredRegisterPorts<TFailure>,
-  events: readonly DecodedPageEvent[],
+  {
+    events,
+    creditNoteAnswers,
+  }: {
+    events: readonly DecodedPageEvent[];
+    creditNoteAnswers: readonly RestoredCreditNoteAnswer[];
+  },
 ): Promise<number> {
   return store.transaction(async (tx) => {
     let unapplied = 0;
@@ -55,6 +62,15 @@ async function applyPage<TFailure>(
       if (application === "not_yet_applicable") {
         unapplied += 1;
         continue;
+      }
+      if (fact.kind === "sale_voided" && fact.creditNote !== null) {
+        const { creditNoteId } = fact.creditNote;
+        const answer = creditNoteAnswers.find((answered) => answered.creditNoteId === creditNoteId);
+        if (answer === undefined) {
+          unapplied += 1;
+          continue;
+        }
+        await tx.recordCreditNoteAnswer(fact.creditNote, answer);
       }
       await tx.recordEventApplied(event.event_id);
     }
@@ -87,7 +103,10 @@ export async function replenishRestoredRegister<TFailure>(
     if (decoded.kind === "unreadable") {
       return { kind: "unreadable_event", eventId: decoded.eventId, reason: decoded.reason };
     }
-    unapplied += await applyPage(ports, decoded.events);
+    unapplied += await applyPage(ports, {
+      events: decoded.events,
+      creditNoteAnswers: answer.page.creditNoteAnswers,
+    });
     if (answer.page.next === null) {
       break;
     }
