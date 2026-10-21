@@ -2,6 +2,7 @@ import type { Fortnight } from "@purosur/domain/fiscal/use-cases";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { DrizzleFortnightReportStore } from "./drizzle-fortnight-report-store.js";
+import { DrizzleOfflineAuthorizationCodeStore } from "./drizzle-offline-authorization-code-store.js";
 import { DrizzleRejectedFortnightDocumentReader } from "./drizzle-rejected-fortnight-document-reader.js";
 import { seedOfflinePointOfSale } from "./test-support/offline-point-of-sale-fixtures.js";
 import {
@@ -31,6 +32,18 @@ afterAll(async () => {
 beforeEach(async () => {
   await testDatabase.clear();
   registerId = await seedOfflinePointOfSale(db);
+  for (const [fortnight, code] of [
+    [OCTOBER_FIRST_HALF, "36123456789012"],
+    [OCTOBER_SECOND_HALF, "36123456789013"],
+  ] as const) {
+    await new DrizzleOfflineAuthorizationCodeStore(db).holdAcquisition(fortnight, (acquisition) =>
+      acquisition.keep({
+        code: { code, fortnight, reportDeadline: "2026-11-20" },
+        obtainedAt: new Date("2026-09-28T12:00:00.000Z"),
+        obtainedThrough: "requested",
+      }),
+    );
+  }
 });
 
 function record(
