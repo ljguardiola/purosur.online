@@ -1,5 +1,6 @@
 import type {
   AverageTicketBody,
+  ManualDiscountsBody,
   SalesByCashierBody,
   SalesByProductAndCategoryBody,
   SalesByPromotionBody,
@@ -285,4 +286,94 @@ export const noPreviousAverageTicketReport: AverageTicketBody = {
   weeks: [
     { from: "0001-01-01", to: "0001-01-07", sales_count: 1, total: 4_800, average_ticket: 4_800 },
   ],
+};
+
+export const ANA_USER_ID = "77777777-7777-4777-8777-777777777777";
+export const BETO_USER_ID = "88888888-8888-4888-8888-888888888888";
+const REMOVED_USER_ID = "99999999-9999-4999-8999-999999999999";
+
+export const manualDiscountsReport: ManualDiscountsBody = {
+  range: { from: "2026-10-01", to: "2026-10-07" },
+  rows: [
+    {
+      kind: "SALE",
+      sale_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      operation_number: 12,
+      line_id: null,
+      completed_at: "2026-10-07T14:30:00.000Z",
+      product_name: null,
+      adjustment: { kind: "AMOUNT", value: 70_000 },
+      reason: "Cliente frecuente",
+      authorizer: { id: BETO_USER_ID, name: "Beto" },
+      discounted: 70_000,
+    },
+    {
+      kind: "LINE",
+      sale_id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+      operation_number: 11,
+      line_id: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+      completed_at: "2026-10-07T13:00:00.000Z",
+      product_name: "Yerba 1 kg",
+      adjustment: { kind: "PERCENT", value: 10 },
+      reason: "Envase dañado",
+      authorizer: { id: ANA_USER_ID, name: "Ana" },
+      discounted: 20_000,
+    },
+    {
+      kind: "LINE",
+      sale_id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+      operation_number: 11,
+      line_id: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+      completed_at: "2026-10-07T13:00:00.000Z",
+      product_name: "Azúcar 1 kg",
+      adjustment: { kind: "AMOUNT", value: 50_000 },
+      reason: "Regateo",
+      authorizer: { id: ANA_USER_ID, name: "Ana" },
+      discounted: 50_000,
+    },
+    {
+      kind: "LINE",
+      sale_id: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+      operation_number: null,
+      line_id: "ffffffff-ffff-4fff-8fff-ffffffffffff",
+      completed_at: "2026-10-06T15:45:00.000Z",
+      product_name: "Aceite 900 ml",
+      adjustment: { kind: "PRICE", value: 80_000 },
+      reason: "Vencimiento cercano",
+      authorizer: { id: REMOVED_USER_ID, name: null },
+      discounted: 15_000,
+    },
+  ],
+  totals: {
+    discounted: 155_000,
+    count: 4,
+    line_count: 3,
+    sale_count: 1,
+    most_authorized: { id: ANA_USER_ID, name: "Ana", count: 2 },
+  },
+  authorizers: [
+    { id: ANA_USER_ID, name: "Ana" },
+    { id: BETO_USER_ID, name: "Beto" },
+    { id: REMOVED_USER_ID, name: null },
+  ],
+};
+
+export const singleManualDiscountReport: ManualDiscountsBody = {
+  range: { from: "2026-10-07", to: "2026-10-07" },
+  rows: [manualDiscountsReport.rows[0] as ManualDiscountsBody["rows"][number]],
+  totals: {
+    discounted: 70_000,
+    count: 1,
+    line_count: 0,
+    sale_count: 1,
+    most_authorized: { id: BETO_USER_ID, name: "Beto", count: 1 },
+  },
+  authorizers: [{ id: BETO_USER_ID, name: "Beto" }],
+};
+
+export const noManualDiscountsReport: ManualDiscountsBody = {
+  range: { from: "2026-10-07", to: "2026-10-07" },
+  rows: [],
+  totals: { discounted: 0, count: 0, line_count: 0, sale_count: 0, most_authorized: null },
+  authorizers: [],
 };

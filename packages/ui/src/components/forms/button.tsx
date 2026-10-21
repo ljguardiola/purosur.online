@@ -26,10 +26,34 @@ type ButtonCommonProps = Pick<AriaButtonProps, "onPress" | "type"> & {
 
 export type ButtonProps = ButtonCommonProps &
   (
-    | { variant?: "primary"; destructive?: boolean; size?: ButtonSize; icon?: Icon }
-    | { variant: "secondary"; destructive?: boolean; size?: ButtonSize; icon?: Icon }
-    | { variant: "text"; destructive?: false; size?: ButtonTextSize; icon?: Icon }
-    | { variant: "text"; destructive: true; size?: ButtonTextSize; icon?: undefined }
+    | {
+        variant?: "primary";
+        destructive?: boolean;
+        size?: ButtonSize;
+        icon?: Icon;
+        onTintedSurface?: undefined;
+      }
+    | {
+        variant: "secondary";
+        destructive?: boolean;
+        size?: ButtonSize;
+        icon?: Icon;
+        onTintedSurface?: boolean;
+      }
+    | {
+        variant: "text";
+        destructive?: false;
+        size?: ButtonTextSize;
+        icon?: Icon;
+        onTintedSurface?: undefined;
+      }
+    | {
+        variant: "text";
+        destructive: true;
+        size?: ButtonTextSize;
+        icon?: undefined;
+        onTintedSurface?: undefined;
+      }
   );
 
 // min-w-0 overrides a flex item's default min-width of auto, which otherwise refuses to shrink a
@@ -88,7 +112,7 @@ const textShapeClassName = "gap-2 rounded-md bg-transparent font-semibold";
 
 const variantClassName: Record<ButtonVariant, string> = {
   primary: "gap-3 rounded-lg font-bold text-text-inverse",
-  secondary: "gap-2 rounded-md border bg-transparent font-bold data-hovered:bg-surface-subtle",
+  secondary: "gap-2 rounded-md border font-bold data-hovered:bg-surface-subtle",
   text: `${textShapeClassName} data-hovered:bg-surface-subtle`,
 };
 
@@ -128,6 +152,7 @@ export function Button({
   disabled = false,
   disabledReason,
   dataStatus,
+  onTintedSurface = false,
   ...props
 }: ButtonProps) {
   const color = destructive ? "destructive" : "regular";
@@ -140,6 +165,7 @@ export function Button({
     variantClassName[variant],
     variant === "primary" ? primaryColorClassName[color] : "",
     variant === "secondary" ? secondaryColorClassName[color] : "",
+    variant === "secondary" ? (onTintedSurface ? "bg-surface" : "bg-transparent") : "",
     variant === "text" ? textColorClassName[color] : "",
   ]
     .filter(Boolean)

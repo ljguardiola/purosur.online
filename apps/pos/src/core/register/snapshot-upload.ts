@@ -34,6 +34,7 @@ export function cloudSnapshotUploads(
         size: generation.size,
         sha256: generation.sha256,
         key_version: generation.keyVersion,
+        last_device_seq: generation.sequences.lastDeviceSeq,
       };
       const declared = await postToCloudWithBearer(
         cloud,

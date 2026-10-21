@@ -13,13 +13,13 @@ const options: [ComboBoxOption<ProductId>, ...ComboBoxOption<ProductId>[]] = [
   {
     value: "yerba",
     label: "Yerba mate",
-    description: "Playadito · 1 kg",
+    description: "Hoja Alta · 1 kg",
     searchKeywords: ["7790001", "7790002"],
   },
   {
     value: "yerba-mini",
     label: "Yerba mate",
-    description: "Taragüí · 500 g",
+    description: "Monte Güirá · 500 g",
     searchKeywords: ["7790003"],
   },
   { value: "cafe", label: "Café molido", searchKeywords: ["7790004"] },
@@ -141,8 +141,8 @@ test("opens on focus listing every option with its description under the label",
       .elements()
       .map((el) => el.textContent),
   ).toEqual([
-    "Yerba matePlayadito · 1 kg",
-    "Yerba mateTaragüí · 500 g",
+    "Yerba mateHoja Alta · 1 kg",
+    "Yerba mateMonte Güirá · 500 g",
     "Café molido",
     "Miel de abejaCampo Real · 350 g",
   ]);
@@ -162,9 +162,9 @@ test("ignores case and accents when narrowing", async () => {
   await input(screen).fill("CAFE");
   await expect.poll(() => optionNames(screen)).toEqual(["Café molido"]);
 
-  await input(screen).fill("taragui");
+  await input(screen).fill("guira");
   await expect.poll(() => screen.getByRole("option").elements().length).toBe(1);
-  expect(screen.getByRole("option").element().textContent).toContain("Taragüí");
+  expect(screen.getByRole("option").element().textContent).toContain("Monte Güirá");
 });
 
 test("narrows by an option's description", async () => {
@@ -173,7 +173,7 @@ test("narrows by an option's description", async () => {
   await input(screen).fill("500 g");
 
   await expect.poll(() => screen.getByRole("option").elements().length).toBe(1);
-  expect(screen.getByRole("option").element().textContent).toContain("Taragüí · 500 g");
+  expect(screen.getByRole("option").element().textContent).toContain("Monte Güirá · 500 g");
 });
 
 test("narrows by a search keyword that is never shown", async () => {
@@ -182,7 +182,7 @@ test("narrows by a search keyword that is never shown", async () => {
   await input(screen).fill("7790002");
 
   await expect.poll(() => screen.getByRole("option").elements().length).toBe(1);
-  expect(screen.getByRole("option").element().textContent).toContain("Playadito · 1 kg");
+  expect(screen.getByRole("option").element().textContent).toContain("Hoja Alta · 1 kg");
   expect(screen.getByText("7790002").query()).toBeNull();
 });
 

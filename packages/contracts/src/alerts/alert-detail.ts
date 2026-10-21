@@ -226,6 +226,11 @@ const offsiteDumpUnverifiedDetailSchema = z.discriminatedUnion("reason", [
   }),
 ]);
 
+const registerBackupOverdueDetailSchema = z.object({
+  lastVerifiedGenerationAt: z.string().nullable(),
+  firstChangeAt: z.string(),
+});
+
 const lotsExpiringDetailSchema = z.object({
   lotCount: z.int(),
   windowDays: z.int(),
@@ -395,6 +400,11 @@ const alertDetailKinds = [
     ...alertBase,
     kind: z.literal("fortnight_report_overdue" satisfies AlertKind),
     detail: fortnightReportOverdueDetailSchema,
+  }),
+  z.object({
+    ...alertBase,
+    kind: z.literal("register_backup_overdue" satisfies AlertKind),
+    detail: registerBackupOverdueDetailSchema,
   }),
   z.object({
     ...alertBase,

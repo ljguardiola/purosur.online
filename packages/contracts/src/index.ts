@@ -500,6 +500,8 @@ export {
   salesCoreToRendererMessageSchema,
   salesRendererToCoreMessageSchema,
 } from "./sales/core-messages.js";
+export type { ManualDiscountsBody, ManualDiscountsQuery } from "./sales/manual-discounts.js";
+export { manualDiscountsQuerySchema, manualDiscountsSchema } from "./sales/manual-discounts.js";
 export type {
   AddProductOutcome,
   AddWeighedProductOutcome,
