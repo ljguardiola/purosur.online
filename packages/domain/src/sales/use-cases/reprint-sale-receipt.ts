@@ -1,3 +1,4 @@
+import type { PrintedDocumentKey } from "../model/printed-document.js";
 import {
   RECEIPT_REPRINT_REASON_MAX_LENGTH,
   receiptReprintReason,
@@ -10,10 +11,7 @@ import {
   type ReceiptPrintOutcome,
 } from "./receipt-printing.js";
 
-export interface ReprintSaleReceiptInput {
-  saleId: string;
-  reason: string;
-}
+export type ReprintSaleReceiptInput = PrintedDocumentKey & { reason: string };
 
 export type ReprintSaleReceiptPorts<
   Grant extends ReceiptPrintGrant,
@@ -26,12 +24,12 @@ export type ReprintSaleReceiptOutcome =
 
 export async function reprintSaleReceipt<Grant extends ReceiptPrintGrant, Refusal>(
   ports: ReprintSaleReceiptPorts<Grant, Refusal>,
-  { saleId, reason }: ReprintSaleReceiptInput,
+  { reason, ...key }: ReprintSaleReceiptInput,
   watch: ReceiptPrintWatch,
 ): Promise<ReprintSaleReceiptOutcome | Refusal> {
   const text = receiptReprintReason(reason);
   if (text === undefined) {
     return { kind: "invalid_reason", maxLength: RECEIPT_REPRINT_REASON_MAX_LENGTH };
   }
-  return printReceipt(ports, saleId, { kind: "requested", text }, watch);
+  return printReceipt(ports, key, { kind: "requested", text }, watch);
 }

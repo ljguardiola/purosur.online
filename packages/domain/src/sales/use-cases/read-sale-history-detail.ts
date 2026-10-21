@@ -13,8 +13,8 @@ import {
 import type { Clock } from "../../shared/index.js";
 import type { ReceiptCopy } from "../model/receipt-copy.js";
 import {
-  type ReceiptPrintAvailability,
   receiptPrintAvailability,
+  type SaleReceiptAvailability,
 } from "../model/receipt-print-availability.js";
 import {
   type SaleComprobante,
@@ -62,8 +62,9 @@ export interface SaleHistoryDetail {
   standing: SaleStanding;
   voidability: SaleVoidability;
   creditNote: VoidCreditNoteStanding | null;
-  reprint: ReceiptPrintAvailability;
+  reprint: SaleReceiptAvailability;
   nextCopy: ReceiptCopy;
+  creditNoteNextCopy: ReceiptCopy | null;
 }
 
 export type ReadSaleHistoryDetailOutcome =
@@ -75,11 +76,15 @@ export function readSaleHistoryDetail(
   { saleId }: ReadSaleHistoryDetailInput,
 ): ReadSaleHistoryDetailOutcome {
   const record = history.saleOfRegister(saleId);
-  const delivery = receiptDeliveryOf({ ledger }, { saleId });
+  const delivery = receiptDeliveryOf({ ledger }, { document: "sale_receipt", saleId });
   if (record === undefined || delivery.kind === "not_found") {
     return { kind: "not_found" };
   }
   const { fiscal, voided, inOpenSession, invoices: _invoices, ...shown } = record;
+  const creditNoteDelivery =
+    record.creditNote?.kind === "authorized"
+      ? receiptDeliveryOf({ ledger }, { document: "credit_note", saleId })
+      : undefined;
   const fiscallyOnline = isRegisterFiscallyOnline(history.fiscalOnlineEvidence(), clock.now());
   return {
     kind: "found",
@@ -88,8 +93,9 @@ export function readSaleHistoryDetail(
       comprobante: saleComprobanteOf(fiscal),
       standing: saleStandingOf({ ...fiscal, voided }),
       voidability: saleVoidabilityOf(record, fiscallyOnline),
-      reprint: receiptPrintAvailability({ voided }),
+      reprint: receiptPrintAvailability("sale_receipt", { voided }),
       nextCopy: delivery.nextCopy,
+      creditNoteNextCopy: creditNoteDelivery?.kind === "found" ? creditNoteDelivery.nextCopy : null,
     },
   };
 }
