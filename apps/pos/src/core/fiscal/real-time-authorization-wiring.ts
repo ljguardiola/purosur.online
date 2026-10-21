@@ -70,23 +70,25 @@ export function createRealTimeAuthorization({
         });
   return {
     authorizeSale: async (saleId) => {
-      const authorizeWith = async (authority: RealTimeTaxAuthority) =>
-        authorizeSaleInRealTime(
+      const outboxChainKey = await readOutboxChainKey();
+      try {
+        await authorizeSaleInRealTime(
+          { database, taxAuthority, now, ids, shortCodes, outboxChainKey },
+          saleId,
+        );
+      } catch (error) {
+        reportFailure(error);
+        await authorizeSaleInRealTime(
           {
             database,
-            taxAuthority: authority,
+            taxAuthority: UNABLE_TO_ASK,
             now,
             ids,
             shortCodes,
-            outboxChainKey: await readOutboxChainKey(),
+            outboxChainKey,
           },
           saleId,
-        );
-      try {
-        await authorizeWith(taxAuthority);
-      } catch (error) {
-        reportFailure(error);
-        await authorizeWith(UNABLE_TO_ASK).catch(reportFailure);
+        ).catch(reportFailure);
       }
     },
   };
