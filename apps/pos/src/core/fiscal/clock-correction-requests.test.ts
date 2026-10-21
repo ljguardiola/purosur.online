@@ -267,6 +267,20 @@ describe("reading the register's clock guard", () => {
     });
   });
 
+  it("answers no block for the tax authority's day while a correction keeps the reading behind it", async () => {
+    database.exec(
+      `INSERT INTO register_point_of_sale (
+         register_id, point_of_sale_number, fiscal_address_id, tax_authority_last_authorized_number,
+         tax_authority_last_authorized_issued_on, version
+       ) VALUES ('register-1', 12, 'address-1', 40, '2026-10-02', 1);
+       INSERT INTO clock_corrections (
+         period, register_id, actor_id, point_of_sale, document_type, previous_reading, corrected_reading
+       ) VALUES ('s1', 'register-1', 'u1', 12, 'factura_c', '2026-10-03T15:00:00.000Z', '2026-10-01T10:00:00.000Z');`,
+    );
+
+    expect(await readClockGuardFor(deps())).toMatchObject({ kind: "read", blocks: [] });
+  });
+
   it("answers that the period's correction was already made once it was made in the period", async () => {
     setMark(12, AHEAD);
     openSession("session-1");
