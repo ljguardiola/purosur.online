@@ -172,6 +172,11 @@ interface LotsExpiringDetail {
   windowDays: number;
 }
 
+interface RegisterBackupOverdueDetail {
+  lastVerifiedGenerationAt: string | null;
+  firstChangeAt: string;
+}
+
 export type OffsiteDumpUnverifiedDetail =
   | { night: string; reason: Exclude<OffsiteDumpUnverifiedReason, "shrank"> }
   | { night: string; reason: "shrank"; shrinkThresholdPercent: number };
@@ -235,6 +240,7 @@ export interface AlertDetails {
   clock_corrected: ClockCorrectedDetail;
   invoice_already_credited: InvoiceAlreadyCreditedDetail;
   fortnight_report_owed_elsewhere: FortnightReportOwedElsewhereDetail;
+  register_backup_overdue: RegisterBackupOverdueDetail;
 }
 
 export type OpenAlertInput = {

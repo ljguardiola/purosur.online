@@ -372,7 +372,7 @@ describe("targetOptions", () => {
       id: "product-4",
       name: "Yerba mate",
       saleUnit: "UNIT",
-      brandName: "Playadito",
+      brandName: "Hoja Alta",
       netContent: { quantity: 1, unit: "KG" },
       barcodes: ["7790001", "7790002"],
       benefitKinds: ["PERCENT_OFF", "BUY_N_PAY_M"],
@@ -384,14 +384,14 @@ describe("targetOptions", () => {
       {
         value: "product-4",
         label: "Yerba mate",
-        description: "Playadito · 1 kg",
+        description: "Hoja Alta · 1 kg",
         searchKeywords: ["7790001", "7790002"],
       },
     ]);
   });
 
   test("describes a product by its brand alone or by its net content alone", () => {
-    const branded = { ...rice, id: "product-5", brandName: "Gallo" };
+    const branded = { ...rice, id: "product-5", brandName: "Grano Fino" };
     const measured = {
       ...rice,
       id: "product-6",
@@ -400,18 +400,18 @@ describe("targetOptions", () => {
 
     const options = targetOptions("PRODUCT", { ...nothing, products: [branded, measured] });
 
-    expect(options?.map((option) => option.description)).toEqual(["Gallo", "500 g"]);
+    expect(options?.map((option) => option.description)).toEqual(["Grano Fino", "500 g"]);
   });
 
   test("tells two products with the same name apart by their descriptions", () => {
-    const kilo = { ...rice, id: "product-7", name: "Yerba mate", brandName: "Playadito" };
-    const half = { ...rice, id: "product-8", name: "Yerba mate", brandName: "Taragüí" };
+    const kilo = { ...rice, id: "product-7", name: "Yerba mate", brandName: "Hoja Alta" };
+    const half = { ...rice, id: "product-8", name: "Yerba mate", brandName: "Monte Güirá" };
 
     const options = targetOptions("PRODUCT", { ...nothing, products: [kilo, half] });
 
     expect(options?.map((option) => [option.label, option.description])).toEqual([
-      ["Yerba mate", "Playadito"],
-      ["Yerba mate", "Taragüí"],
+      ["Yerba mate", "Hoja Alta"],
+      ["Yerba mate", "Monte Güirá"],
     ]);
   });
 

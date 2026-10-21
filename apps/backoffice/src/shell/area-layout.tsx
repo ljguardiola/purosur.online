@@ -86,7 +86,7 @@ export function AreaLayout({ area, sectionColumnLabel, sectionColumn, children }
                     : canManageBatches(session)
                       ? "/assembly-batches"
                       : "/initial-inventory";
-  const cashTarget = canSeeCashArea(session) ? "/points-of-sale" : "/pending-refunds";
+  const cashTarget = canSeeCashArea(session) ? "/points-of-sale" : "/refunds/mercado-pago";
   const stockTargetShown = Boolean(matchRoute({ to: stockTarget }));
   return (
     <Shell

@@ -76,6 +76,7 @@ export type {
   OffsiteDumpCheckResult,
   OffsiteDumpFailureReason,
   OffsiteDumpReportedFailureReason,
+  RegisterBackupStanding,
   ReportedOffsiteDumpCheck,
 } from "./backups/index.js";
 export {
@@ -632,10 +633,12 @@ export {
 export type {
   DeferredSaleRecord,
   DiscountedLinesOfPromotion,
+  LineDiscountRecord,
   LinePromotion,
   ListPrice,
   ManualAdjustment,
   ManualAdjustmentValue,
+  ManualDiscountRecords,
   PrinterStatus,
   PromotionDiscountTotals,
   PromotionTerms,
@@ -648,6 +651,7 @@ export type {
   Sale,
   SaleComprobante,
   SaleDiscount,
+  SaleDiscountRecord,
   SaleDiscountValue,
   SaleFiscalDocument,
   SaleFiscalFacts,

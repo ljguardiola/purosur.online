@@ -824,8 +824,15 @@
     {
       "idx": 117,
       "version": "7",
-      "when": 1792505654842,
-      "tag": "0124_supplier_price_lists",
+      "when": 1792502647115,
+      "tag": "0124_snapshot_generations_last_device_seq",
+      "breakpoints": true
+    },
+    {
+      "idx": 118,
+      "version": "7",
+      "when": 1792591749540,
+      "tag": "0125_supplier_price_lists",
       "breakpoints": true
     }
   ]

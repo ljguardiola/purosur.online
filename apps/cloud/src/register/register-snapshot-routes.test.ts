@@ -21,7 +21,13 @@ const NOW = new Date("2026-10-14T15:00:00.000Z");
 const GENERATION_ID = "0f8fad5b-d9cb-469f-a165-70867728950e";
 const OTHER_GENERATION_ID = "6c1d3e84-0a52-4b0e-8a9f-1d2e3f4a5b6c";
 const SHA = "ab".repeat(32);
-const BODY = { generation_id: GENERATION_ID, size: 4096, sha256: SHA, key_version: 1 };
+const BODY = {
+  generation_id: GENERATION_ID,
+  size: 4096,
+  sha256: SHA,
+  key_version: 1,
+  last_device_seq: 41,
+};
 
 let testDatabase: TestDatabase;
 let db: TestDatabase["db"];
@@ -170,7 +176,7 @@ describe("POST /devices/current/snapshots", () => {
     expect(snapshotUploadAnswerSchema.parse(response.json()).current_key_version).toBe(2);
   });
 
-  it("authorizes the upload, recording the generation as declared at the cloud's time", async () => {
+  it("authorizes the upload, recording the generation as declared at the cloud's time with the last change it holds", async () => {
     const installation = await enrolled();
     build();
 
@@ -195,6 +201,7 @@ describe("POST /devices/current/snapshots", () => {
         size: 4096,
         sha256: SHA,
         keyVersion: 1,
+        lastDeviceSeq: 41,
         status: "declared",
       },
     ]);

@@ -6,12 +6,14 @@ const SHA256_HEX = /^[0-9a-f]{64}$/;
 export const snapshotSizeSchema = z.number().int().positive().safe();
 export const snapshotSha256Schema = z.string().regex(SHA256_HEX);
 export const snapshotKeyVersionSchema = z.number().int().positive().safe();
+const snapshotLastDeviceSeqSchema = z.number().int().nonnegative().safe();
 
 export const snapshotUploadBodySchema = z.strictObject({
   generation_id: recordIdSchema(),
   size: snapshotSizeSchema,
   sha256: snapshotSha256Schema,
   key_version: snapshotKeyVersionSchema,
+  last_device_seq: snapshotLastDeviceSeqSchema,
 });
 
 export type SnapshotUploadBody = z.output<typeof snapshotUploadBodySchema>;

@@ -5,9 +5,9 @@ const targets = {
   products: [
     {
       id: "product-1",
-      name: "Yerba Playadito 1 kg",
+      name: "Yerba Hoja Alta 1 kg",
       saleUnit: "UNIT",
-      brandName: "Playadito",
+      brandName: "Hoja Alta",
       netContent: { quantity: 1, unit: "KG" },
       barcodes: ["7790001", "7790002"],
       benefitKinds: ["PERCENT_OFF", "BUY_N_PAY_M"],

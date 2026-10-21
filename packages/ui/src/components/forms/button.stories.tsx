@@ -96,6 +96,23 @@ export const SecondaryDestructiveHovered: Story = {
   play: playHoverSetsDataHovered(theButton),
 };
 
+export const SecondaryDestructiveOnTintedSurface: Story = {
+  args: {
+    variant: "secondary",
+    destructive: true,
+    size: "small",
+    onTintedSurface: true,
+    children: "Desactivar",
+  },
+  decorators: [
+    (Story) => (
+      <div className="inline-block rounded-lg bg-error-subtle p-4">
+        <Story />
+      </div>
+    ),
+  ],
+};
+
 export const SecondaryDisabled: Story = {
   args: { variant: "secondary", disabled: true, children: "Cancelar" },
 };

@@ -57,6 +57,7 @@ function declaration(
     size: 4096,
     sha256: SHA,
     keyVersion: 1,
+    lastDeviceSeq: 41,
     ...overrides,
   };
 }
@@ -71,7 +72,7 @@ async function declare(
 }
 
 describe("DrizzleSnapshotStore", () => {
-  it("keeps a declared generation as declared, not pruned and with its object", async () => {
+  it("keeps a declared generation as declared, with the last change it holds, not pruned and with its object", async () => {
     const installation = await registerWithKeys();
     const generation = await declare(installation);
 

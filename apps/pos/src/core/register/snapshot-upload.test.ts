@@ -20,7 +20,7 @@ const DESTINATION = {
 const GENERATION: LocalSnapshotGeneration = {
   generationId: GENERATION_ID,
   createdAt: new Date("2026-10-15T12:00:00.000Z"),
-  sequences: { lastDeviceSeq: 1, pullCursor: 1 },
+  sequences: { lastDeviceSeq: 17, pullCursor: 1 },
   keyVersion: 3,
   size: 1234,
   sha256: "cd".repeat(32),
@@ -44,7 +44,7 @@ function uploads() {
 
 describe("cloudSnapshotUploads", () => {
   describe("declare", () => {
-    it("declares the size, hash and key version of the generation with the device token", async () => {
+    it("declares the size, hash, key version and last device sequence of the generation with the device token", async () => {
       const answer = await uploads().declare(GENERATION);
 
       expect(cloud.calls).toEqual([
@@ -56,6 +56,7 @@ describe("cloudSnapshotUploads", () => {
             size: 1234,
             sha256: "cd".repeat(32),
             key_version: 3,
+            last_device_seq: 17,
           },
         },
       ]);

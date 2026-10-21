@@ -15,7 +15,12 @@ import { insertInboxEvent } from "../sync/test-support/inbox-events.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { registerSalesReportRoutes } from "./sales-report-routes.js";
 import { applyCompletedSale } from "./test-support/applied-sales.js";
-import { aSoldLine, insertCategoryNamed, insertProductIn } from "./test-support/sold-lines.js";
+import {
+  aSoldLine,
+  insertCategoryNamed,
+  insertProductIn,
+  withManualAdjustment,
+} from "./test-support/sold-lines.js";
 
 const NOW = new Date("2026-10-07T15:00:00.000Z");
 const USER = "c7b3e5d2-18a4-4f90-b6d1-2e9f0a8c3d03";
@@ -708,6 +713,202 @@ describe("GET /reports/sales-by-promotion", () => {
     await applySyncedEventsTask(db, { now: () => NOW });
 
     const response = await salesByPromotion(headers);
+
+    expect(response.json().rows).toEqual([]);
+  });
+});
+
+function manualDiscounts(headers: Record<string, string>, query = "") {
+  return app.inject({ method: "GET", url: `/reports/manual-discounts${query}`, headers });
+}
+
+describe("GET /reports/manual-discounts access", () => {
+  const request = manualDiscounts;
+
+  it("returns 401 when no session cookie was sent", async () => {
+    const response = await request({ origin: BACKOFFICE_ORIGIN });
+
+    expect(response.statusCode).toBe(401);
+  });
+
+  it("rejects an Origin that is not the backoffice's own", async () => {
+    const { headers } = await signedInWith(db, ["view_reports"], NOW);
+
+    const response = await request({ ...headers, origin: "https://attacker.example" });
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toMatchObject({ code: "origin_rejected" });
+  });
+
+  it("rejects a user who may not view reports", async () => {
+    const { headers } = await signedInWith(db, ["view_stock_balances"], NOW);
+
+    const response = await request(headers);
+
+    expect(response.statusCode).toBe(403);
+  });
+
+  it("answers a user who may view reports", async () => {
+    const { headers } = await signedInWith(db, ["view_reports"], NOW);
+
+    const response = await request(headers);
+
+    expect(response.statusCode).toBe(200);
+  });
+});
+
+describe("GET /reports/manual-discounts", () => {
+  async function aCashier(firstName: string, locationId: string): Promise<string> {
+    const id = randomUUID();
+    await db.insert(users).values({ id, firstName, email: `${id}@example.com`, locationId });
+    return id;
+  }
+
+  async function discountedSales() {
+    const { deviceId, locationId, registerId } = await insertEnrolledInstallation(db, {
+      now: NOW,
+      registerName: "Caja 1",
+    });
+    const ana = await aCashier("Ana", locationId);
+    const beto = await aCashier("Beto", locationId);
+    const productId = randomUUID();
+    const line = withManualAdjustment(
+      { ...aSoldLine(productId, "Yerba 1 kg", 2, 2_000), listUnitPrice: 1_000 },
+      { kind: "PERCENT", percent: 10, reason: "Envase dañado", authorizedBy: null },
+    );
+    const lineSaleId = await applyCompletedSale(db, {
+      deviceId,
+      completedAt: new Date("2026-10-07T13:00:00.000Z"),
+      total: 1_800,
+      overrides: { actorId: ana, operationNumber: 4, lines: [line] },
+    });
+    const totalSaleId = await applyCompletedSale(db, {
+      deviceId,
+      completedAt: new Date("2026-10-07T14:00:00.000Z"),
+      total: 4_300,
+      overrides: {
+        actorId: ana,
+        operationNumber: 5,
+        saleDiscount: {
+          kind: "AMOUNT",
+          amount: 700,
+          reason: "Cliente frecuente",
+          authorizedBy: beto,
+        },
+        saleDiscountAmount: 700,
+      },
+    });
+    return { ana, beto, registerId, line, lineSaleId, totalSaleId };
+  }
+
+  it.each([
+    ["a range ending before it starts", "?from=2026-10-06&to=2026-10-05"],
+    ["a register that is not an id", "?register_id=caja-1"],
+    ["an authorizer that is not an id", "?authorized_by=Ana"],
+    ["a parameter given twice", "?from=2026-10-01&from=2026-10-02&to=2026-10-03"],
+  ])("answers 400 to %s", async (_name, query) => {
+    const { headers } = await signedInWith(db, ["view_reports"], NOW);
+
+    const response = await manualDiscounts(headers, query);
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({ code: "validation_failed" });
+  });
+
+  it("reports the current Argentina day when no range is asked", async () => {
+    const { headers } = await signedInWith(db, ["view_reports"], NOW);
+
+    const response = await manualDiscounts(headers);
+
+    expect(response.json()).toEqual({
+      range: { from: "2026-10-07", to: "2026-10-07" },
+      rows: [],
+      totals: { discounted: 0, count: 0, line_count: 0, sale_count: 0, most_authorized: null },
+      authorizers: [],
+    });
+  });
+
+  it("answers each discount with who authorized it, the totals and everyone who authorized one", async () => {
+    const { headers } = await signedInWith(db, ["view_reports"], NOW);
+    const { ana, beto, line, lineSaleId, totalSaleId } = await discountedSales();
+
+    const response = await manualDiscounts(headers);
+
+    expect(response.json()).toEqual({
+      range: { from: "2026-10-07", to: "2026-10-07" },
+      rows: [
+        {
+          kind: "SALE",
+          sale_id: totalSaleId,
+          operation_number: 5,
+          line_id: null,
+          completed_at: "2026-10-07T14:00:00.000Z",
+          product_name: null,
+          adjustment: { kind: "AMOUNT", value: 700 },
+          reason: "Cliente frecuente",
+          authorizer: { id: beto, name: "Beto" },
+          discounted: 700,
+        },
+        {
+          kind: "LINE",
+          sale_id: lineSaleId,
+          operation_number: 4,
+          line_id: line.id,
+          completed_at: "2026-10-07T13:00:00.000Z",
+          product_name: "Yerba 1 kg",
+          adjustment: { kind: "PERCENT", value: 10 },
+          reason: "Envase dañado",
+          authorizer: { id: ana, name: "Ana" },
+          discounted: 200,
+        },
+      ],
+      totals: {
+        discounted: 900,
+        count: 2,
+        line_count: 1,
+        sale_count: 1,
+        most_authorized: { id: beto, name: "Beto", count: 1 },
+      },
+      authorizers: [
+        { id: ana, name: "Ana" },
+        { id: beto, name: "Beto" },
+      ],
+    });
+  });
+
+  it("limits the discounts to those an asked person authorized and still offers everyone", async () => {
+    const { headers } = await signedInWith(db, ["view_reports"], NOW);
+    const { ana, beto } = await discountedSales();
+
+    const response = await manualDiscounts(headers, `?authorized_by=${ana}`);
+
+    expect(response.json().rows).toHaveLength(1);
+    expect(response.json().totals).toMatchObject({ discounted: 200, count: 1 });
+    expect(response.json().authorizers).toEqual([
+      { id: ana, name: "Ana" },
+      { id: beto, name: "Beto" },
+    ]);
+  });
+
+  it("filters by an asked register of the branch", async () => {
+    const { headers } = await signedInWith(db, ["view_reports"], NOW);
+    const { registerId } = await discountedSales();
+
+    const ofTheRegister = await manualDiscounts(headers, `?register_id=${registerId}`);
+    const ofAnotherRegister = await manualDiscounts(headers, `?register_id=${randomUUID()}`);
+
+    expect(ofTheRegister.json().totals.count).toBe(2);
+    expect(ofAnotherRegister.json().totals.count).toBe(0);
+  });
+
+  it("reports the branch of the session and never another", async () => {
+    const otherLocationId = await insertLocation(db);
+    const { headers } = await signedInWith(db, ["view_reports"], NOW, {
+      locationId: otherLocationId,
+    });
+    await discountedSales();
+
+    const response = await manualDiscounts(headers);
 
     expect(response.json().rows).toEqual([]);
   });

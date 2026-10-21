@@ -91,6 +91,10 @@ export type {
 } from "./current-sale.js";
 export { currentSale } from "./current-sale.js";
 export type {
+  ManualDiscountsQuery,
+  ManualDiscountsReportReader,
+} from "./manual-discounts-report-reader.js";
+export type {
   PreviewSaleDiscountInput,
   PreviewSaleDiscountOutcome,
   PreviewSaleDiscountPorts,
@@ -125,6 +129,11 @@ export type {
   TicketOfPeriod,
 } from "./read-average-ticket.js";
 export { readAverageTicket } from "./read-average-ticket.js";
+export type {
+  ManualDiscountsReport,
+  ReadManualDiscountsInput,
+} from "./read-manual-discounts.js";
+export { readManualDiscounts } from "./read-manual-discounts.js";
 export type {
   ReadSaleHistoryDetailInput,
   ReadSaleHistoryDetailOutcome,
