@@ -1,5 +1,6 @@
 import type { PermissionKey, StockMovementKind } from "@purosur/domain";
 import { eq } from "drizzle-orm";
+import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import {
   categories,
   locations,
@@ -16,12 +17,11 @@ import {
 } from "../../platform/db/schema.js";
 import { SESSION_COOKIE_NAME } from "../../sessions/session-cookie.js";
 import { generateSessionId, hashSessionId } from "../../sessions/session-id.js";
-import type { TestDatabase } from "../../test-support/build-test-database.js";
 import { seededLocationId } from "../../test-support/seeded-location.js";
 
 export const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
 
-type Db = TestDatabase["db"];
+type Db = PgDatabase<PgQueryResultHKT>;
 
 export async function insertLocation(db: Db): Promise<string> {
   const [location] = await db.insert(locations).values({}).returning({ id: locations.id });

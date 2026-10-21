@@ -146,3 +146,11 @@ export function canManageBatches(access: BackofficeAccess): boolean {
 export function canManageFreights(access: BackofficeAccess): boolean {
   return grants(access, "freights");
 }
+
+export function canManageSupplierPriceLists(access: BackofficeAccess): boolean {
+  return grants(access, "supplier_price_lists");
+}
+
+export function canSeeOrdersArea(access: BackofficeAccess): boolean {
+  return grants(access, "orders_area");
+}

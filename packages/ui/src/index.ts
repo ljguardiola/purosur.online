@@ -102,6 +102,8 @@ export type { FieldGroupProps } from "./components/forms/field-group";
 export { FieldGroup } from "./components/forms/field-group";
 export type { FieldSize, FieldSizeProviderProps } from "./components/forms/field-size";
 export { FieldSizeProvider } from "./components/forms/field-size";
+export type { FilePickerProps } from "./components/forms/file-picker";
+export { FilePicker } from "./components/forms/file-picker";
 export type { IconButtonProps } from "./components/forms/icon-button";
 export { IconButton } from "./components/forms/icon-button";
 export type {

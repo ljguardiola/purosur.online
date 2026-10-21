@@ -29,6 +29,8 @@ import type { FreightsListScreenServices } from "../purchasing/freights-list-ser
 import type { NewPurchaseScreenServices } from "../purchasing/new-purchase-services";
 import type { PackagingsListScreenServices } from "../purchasing/packagings-list-services";
 import type { PurchasesListScreenServices } from "../purchasing/purchases-list-services";
+import type { SupplierPriceListReviewScreenServices } from "../purchasing/supplier-price-list-review-services";
+import type { SupplierPriceListsScreenServices } from "../purchasing/supplier-price-lists-services";
 import type { SuppliersListScreenServices } from "../purchasing/suppliers-list-services";
 import type { RegistersListScreenServices } from "../register/registers-list-services";
 import type { ReportRegisterFilterProps } from "../register/report-register-filter";
@@ -114,6 +116,8 @@ export type AppServices = {
   packagingsListScreen: PackagingsListScreenServices;
   purchasesListScreen: PurchasesListScreenServices;
   freightsListScreen: FreightsListScreenServices;
+  supplierPriceListsScreen: SupplierPriceListsScreenServices;
+  supplierPriceListReviewScreen: SupplierPriceListReviewScreenServices;
   recipesListScreen: RecipesListScreenServices;
   assemblyBatchesScreen: AssemblyBatchesScreenServices;
   newPurchaseScreen: NewPurchaseScreenServices;
@@ -123,7 +127,7 @@ export type AppServices = {
   accountFooter: AccountFooterServices;
   screenFailure: ScreenFailureServices;
   homeScreen: HomeScreenServices;
-  stockTopBarAlertsCount: ComponentType<AlertsOpenCountLinkProps>;
+  areaTopBarAlertsCount: ComponentType<AlertsOpenCountLinkProps>;
   alertsOpenCountLink: AlertsOpenCountLinkServices;
   alertsListScreen: AlertsListScreenServices;
   quarantinedEventsScreen: QuarantinedEventsScreenServices;
@@ -134,7 +138,7 @@ type ShellServiceName =
   | "checkSessionStatus"
   | "userDetailCredentialSections"
   | "usersListEndEverySessionSection"
-  | "stockTopBarAlertsCount"
+  | "areaTopBarAlertsCount"
   | "reportFiltersRegisterFilter"
   | "accountFooter"
   | "screenFailure";
@@ -153,7 +157,7 @@ const defaultRouteServices: RouteServices = {
     () => import("../credentials/user-credential-sections"),
     "UserCredentialSections",
   ),
-  stockTopBarAlertsCount: lazyScreen(
+  areaTopBarAlertsCount: lazyScreen(
     () => import("../alerts/alerts-open-count-link"),
     "AlertsOpenCountLink",
   ),

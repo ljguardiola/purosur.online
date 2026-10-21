@@ -16,9 +16,9 @@ import { ArrowDownUp, Check, Plus, Search } from "lucide-react";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { formatStockChange, formatStockQuantity } from "../platform/stock-quantity";
+import { AreaTopBar } from "../shell/area-top-bar";
 import { type BackofficeAccess, canSeeStockBalances } from "../shell/backoffice-access";
 import { ScreenLayout } from "../shell/screen-layout";
-import { StockTopBar } from "../shell/stock-top-bar";
 import type { StockMovementsFilters } from "./routes";
 import { type MovementKind, REASONS_OF_KIND } from "./stock-movement-form";
 import { StockMovementModal } from "./stock-movement-modal";
@@ -205,7 +205,8 @@ export function StockMovementsScreen({
     <>
       <ScreenLayout
         topBar={
-          <StockTopBar
+          <AreaTopBar
+            eyebrow="Stock"
             title="Ajustes y pérdidas"
             action={
               <Button

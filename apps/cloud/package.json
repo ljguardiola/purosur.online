@@ -22,6 +22,7 @@
     "record:arca-responses": "node dist/record-arca-responses.js"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "0.135.0",
     "@fastify/static": "^10.1.6",
     "@purosur/contracts": "workspace:*",
     "@purosur/domain": "workspace:*",
@@ -32,6 +33,7 @@
     "fastify": "^5.12.5",
     "graphile-worker": "^0.18.0",
     "node-forge": "^1.4.0",
+    "pdf-lib": "1.17.1",
     "pdfkit": "^0.20.2",
     "pg": "^8.23.0",
     "postgres": "^3.4.9",
