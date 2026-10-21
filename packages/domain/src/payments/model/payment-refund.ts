@@ -1,4 +1,3 @@
-import type { AlertKind } from "../../alerts/index.js";
 import {
   hasApprovedPayment,
   type MercadoPagoPaymentMethod,
@@ -94,7 +93,7 @@ export function isRefundOriginDiscardable(origin: string): boolean {
   return origin === LATE_PAYMENT_REFUND_ORIGIN;
 }
 
-export function refundAlertKind(origin: string): AlertKind {
+export function refundAlertKind(origin: string): "late_payment_refund" | "refund_task" {
   return origin === LATE_PAYMENT_REFUND_ORIGIN ? "late_payment_refund" : "refund_task";
 }
 
