@@ -30,7 +30,7 @@ export function RestoreRequiredScreen({
           title="Pedí un código de alta"
           description="Un Administrador lo genera desde el backoffice. Las ventas guardadas en esta notebook se conservan."
         />
-        <Button fullWidth onClick={() => setEnrolling(true)}>
+        <Button fullWidth onPress={() => setEnrolling(true)}>
           Dar de alta la caja
         </Button>
       </main>
