@@ -1,9 +1,11 @@
-import { isCalendarDay, SALE_VOIDED_EVENT_TYPE } from "@purosur/domain";
+import { SALE_VOIDED_EVENT_TYPE } from "@purosur/domain";
 import { z } from "zod";
 import {
+  authorizedVoidCreditNoteAnswerSchema,
   pointOfSaleNumberSchema,
   pushedEventSchema,
   recordIdSchema,
+  rejectedVoidCreditNoteAnswerSchema,
   voidCreditNoteSchema,
 } from "../shared/index.js";
 
@@ -23,16 +25,8 @@ export const saleVoidedEventCreditNoteSchema = z.object({
 });
 
 export const saleVoidCreditNoteResponseSchema = z.discriminatedUnion("state", [
-  z.object({
-    state: z.literal("AUTHORIZED"),
-    point_of_sale: pointOfSaleNumberSchema,
-    number: z.int().positive(),
-    issued_on: z.string().refine(isCalendarDay),
-    issued_at: z.iso.datetime(),
-    authorization_code: z.string().min(1),
-    authorization_code_due_on: z.string().refine(isCalendarDay),
-  }),
-  z.object({ state: z.literal("REJECTED") }),
+  authorizedVoidCreditNoteAnswerSchema,
+  rejectedVoidCreditNoteAnswerSchema,
   z.object({ state: z.literal("IN_PROGRESS") }),
 ]);
 
