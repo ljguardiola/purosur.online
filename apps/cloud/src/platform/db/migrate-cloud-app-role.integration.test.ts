@@ -346,6 +346,45 @@ describe("the cloud_app role runMigrations creates", () => {
     await expectPermissionDenied(cloudApp`truncate offline_point_of_sale_retirements`);
   });
 
+  it("appends rejected document remedies but never rewrites, removes or truncates them", async () => {
+    const [location] = await cloudApp<{ id: string }[]>`select id from locations limit 1`;
+    if (!location) {
+      throw new Error("test setup: reading the seeded location returned no row");
+    }
+    const [user] = await cloudApp<{ id: string }[]>`
+      insert into users (first_name, email, location_id)
+      values ('Cloud App Role Test', ${`cloud-app-role-test-${randomUUID()}@example.com`}, ${location.id})
+      returning id
+    `;
+    const [register] = await cloudApp<{ id: string }[]>`
+      insert into registers (location_id, name)
+      values (${location.id}, ${`Caja ${randomUUID()}`}) returning id
+    `;
+    if (!user || !register) {
+      throw new Error("test setup: seeding the user or the register returned no row");
+    }
+    await cloudApp`
+      insert into point_of_sale_claims (point_of_sale_number, register_id, mechanism, claimed_by)
+      values (902, ${register.id}, 'offline', ${user.id})
+    `;
+    await cloudApp`
+      insert into rejected_document_remedies
+        (point_of_sale_number, fortnight_start, document_type, number, kind, actor_id, recorded_at)
+      values (902, '2026-10-01', 'factura_c', 17, 'report', ${user.id}, now())
+    `;
+
+    await expect(
+      cloudApp`select number from rejected_document_remedies where point_of_sale_number = 902`,
+    ).resolves.toEqual([{ number: 17 }]);
+    await expectPermissionDenied(
+      cloudApp`update rejected_document_remedies set number = 18 where point_of_sale_number = 902`,
+    );
+    await expectPermissionDenied(
+      cloudApp`delete from rejected_document_remedies where point_of_sale_number = 902`,
+    );
+    await expectPermissionDenied(cloudApp`truncate rejected_document_remedies`);
+  });
+
   async function insertCountedMovement(): Promise<{
     movementId: string;
     productId: string;

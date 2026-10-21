@@ -89,6 +89,7 @@ import {
   registerSnapshotLifecycleRules,
   registerSnapshotRetentionFreezes,
   registers,
+  rejectedDocumentRemedies,
   rolePermissions,
   roles,
   saleLines,
@@ -342,6 +343,16 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
       pointOfSaleNumber: 5,
       retiredAt: new Date("2026-01-05T12:00:00.000Z"),
       retiredBy: user.id,
+    });
+    await db.insert(rejectedDocumentRemedies).values({
+      pointOfSaleNumber: 4,
+      fortnightStart: "2026-01-01",
+      documentType: "factura_c",
+      number: 1,
+      kind: "printed",
+      correction: { issuedOn: "2026-01-02" },
+      actorId: user.id,
+      recordedAt: new Date("2026-01-05T12:00:00.000Z"),
     });
     await db.insert(offlineNumberBlocks).values({
       pointOfSaleNumber: 4,
