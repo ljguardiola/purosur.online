@@ -8,6 +8,10 @@ import {
 import type { Fortnight } from "../../model/offline-authorization-code.js";
 import { listsOwedPresentation } from "../../model/owed-presentation-list.js";
 import type {
+  RecordedRemedy,
+  RejectedDocumentCreditNote,
+} from "../../model/rejected-document-remedy.js";
+import type {
   DocumentTypeReportChange,
   FortnightReportChange,
   FortnightReportKey,
@@ -24,6 +28,7 @@ import type {
   OfflineDocumentReportCall,
   OfflineDocumentsOfFortnight,
   OwedFortnightReport,
+  RecordedDocumentTypeReport,
   RecordedFortnightReport,
   RegisterEventStreams,
   TaxAuthorityNoMovementDeclarations,
@@ -56,6 +61,10 @@ export function offlineDocument(
     documentType: "factura_c",
     number,
     issuedOn: "2026-09-20",
+    id: `document-${number}`,
+    saleId: `sale-${number}`,
+    registerId: "register-1",
+    correction: null,
     generatedAt: new Date("2026-09-20T15:00:00.000Z"),
     buyerDocumentType: 99,
     buyerDocumentNumber: 0,
@@ -93,10 +102,34 @@ class FakeHeldReport implements HeldFortnightReport {
   async recordDocumentType(change: DocumentTypeReportChange): Promise<void> {
     this.store.operations.push(`record ${change.documentType} ${change.state}`);
     this.store.documentTypeChanges.push({ ...this.key, change });
-    this.store.reportedThrough.set(
-      typeKeyOf(this.key, change.documentType),
-      change.reportedThrough,
-    );
+    const typeKey = typeKeyOf(this.key, change.documentType);
+    this.store.reportedThrough.set(typeKey, change.reportedThrough);
+    this.store.documentTypeRows.set(typeKey, {
+      documentType: change.documentType,
+      state: change.state,
+      reportedThrough: change.reportedThrough,
+      rejectedNumber: change.rejectedNumber ?? null,
+      lastAttemptAt: new Date(change.at),
+      rejections: change.rejections ?? [],
+      remedy: null,
+    });
+  }
+
+  async documentTypeReports(): Promise<RecordedDocumentTypeReport[]> {
+    const prefix = `${keyOf(this.key)}:`;
+    return [...this.store.documentTypeRows.entries()]
+      .filter(([typeKey]) => typeKey.startsWith(prefix))
+      .map(([typeKey, row]) => ({ ...row, remedy: this.store.remedies.get(typeKey) ?? null }));
+  }
+
+  async realTimePointOfSaleOf(registerId: string): Promise<number | null> {
+    return this.store.realTimePointsOfSale.get(registerId) ?? null;
+  }
+
+  async creditCorrectedDocument(creditNote: RejectedDocumentCreditNote): Promise<void> {
+    const { pointOfSale, number } = creditNote.associatedVoucher;
+    this.store.operations.push(`credit corrected document ${number}`);
+    this.store.creditNotes.set(`${pointOfSale}:${number}`, creditNote);
   }
 }
 
@@ -107,6 +140,10 @@ export class FakeFortnightReportStore implements FortnightReportStore {
   readonly recordedReports = new Map<string, RecordedFortnightReport>();
   readonly reportedThrough = new Map<string, number | null>();
   readonly heldKeys = new Set<string>();
+  readonly documentTypeRows = new Map<string, RecordedDocumentTypeReport>();
+  readonly remedies = new Map<string, RecordedRemedy>();
+  readonly realTimePointsOfSale = new Map<string, number>();
+  readonly creditNotes = new Map<string, RejectedDocumentCreditNote>();
   pointsOfSale: OfflinePointOfSaleOfRegister[] = [];
   private readonly codes: FakeOfflineAuthorizationCodeStore;
   private readonly documents: FakeOfflineDocumentsOfFortnight;
@@ -126,6 +163,15 @@ export class FakeFortnightReportStore implements FortnightReportStore {
 
   seed(key: FortnightReportKey, recorded: RecordedFortnightReport): void {
     this.recordedReports.set(keyOf(key), recorded);
+  }
+
+  seedDocumentTypeReport(key: FortnightReportKey, row: RecordedDocumentTypeReport): void {
+    this.documentTypeRows.set(typeKeyOf(key, row.documentType), row);
+    this.reportedThrough.set(typeKeyOf(key, row.documentType), row.reportedThrough);
+  }
+
+  recordRemedy(key: FortnightReportKey, documentType: FiscalDocumentType, remedy: RecordedRemedy) {
+    this.remedies.set(typeKeyOf(key, documentType), remedy);
   }
 
   seedReportedThrough(
@@ -211,6 +257,14 @@ export class FakeOfflineDocumentsOfFortnight implements OfflineDocumentsOfFortni
   ): void {
     const key = keyOf({ pointOfSaleNumber, fortnight });
     this.documents.set(key, [...(this.documents.get(key) ?? []), ...documents]);
+  }
+
+  replace(
+    pointOfSaleNumber: number,
+    fortnight: Fortnight,
+    documents: OfflineDocumentOfFortnight[],
+  ): void {
+    this.documents.set(keyOf({ pointOfSaleNumber, fortnight }), [...documents]);
   }
 
   of(pointOfSaleNumber: number, fortnight: Fortnight): OfflineDocumentOfFortnight[] {
