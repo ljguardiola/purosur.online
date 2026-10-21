@@ -1,10 +1,11 @@
 import { OFFSITE_DUMP_SHRINK_THRESHOLD_PERCENT } from "../../backups/index.js";
-import type {
-  FiscalDocumentType,
-  FiscalEmissionStoppedReport,
-  FiscalTaskDocumentType,
-  Fortnight,
-  RejectionStandingChange,
+import {
+  FACTURA_C_DOCUMENT_TYPE,
+  type FiscalDocumentType,
+  type FiscalEmissionStoppedReport,
+  type FiscalTaskDocumentType,
+  type Fortnight,
+  type RejectionStandingChange,
 } from "../../fiscal/index.js";
 import type { ClockDriftReport } from "../../register/index.js";
 import type { SalesDeniedReport } from "../../shared/index.js";
@@ -216,6 +217,25 @@ export function externalBillingObservation({
   };
 }
 
+export function invoiceAlreadyCreditedObservation({
+  pointOfSale,
+  number,
+  saleId,
+}: {
+  pointOfSale: number;
+  number: number;
+  saleId: string;
+}): AlertConditionObservation {
+  return {
+    holds: true,
+    alert: {
+      kind: "invoice_already_credited",
+      scope: [pointOfSale, FACTURA_C_DOCUMENT_TYPE, number].join(":"),
+      detail: { pointOfSale, number, saleId },
+    },
+  };
+}
+
 export function fiscalDocumentAuthorizedObservation({
   pointOfSale,
   documentType,
@@ -314,4 +334,30 @@ export function offsiteDumpUnverifiedObservation({
 
 export function offsiteDumpVerifiedObservation(environment: string): AlertConditionObservation {
   return { holds: false, kind: "offsite_dump_unverified", scope: environment };
+}
+
+export function registerBackupOverdueObservation({
+  registerId,
+  lastVerifiedGenerationAt,
+  firstChangeAt,
+}: {
+  registerId: string;
+  lastVerifiedGenerationAt: Date | null;
+  firstChangeAt: Date;
+}): AlertConditionObservation {
+  return {
+    holds: true,
+    alert: {
+      kind: "register_backup_overdue",
+      scope: registerId,
+      detail: {
+        lastVerifiedGenerationAt: lastVerifiedGenerationAt?.toISOString() ?? null,
+        firstChangeAt: firstChangeAt.toISOString(),
+      },
+    },
+  };
+}
+
+export function registerBackedUpObservation(registerId: string): AlertConditionObservation {
+  return { holds: false, kind: "register_backup_overdue", scope: registerId };
 }

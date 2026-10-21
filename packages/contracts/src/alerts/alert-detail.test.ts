@@ -213,6 +213,9 @@ describe("alertDetailSchema", () => {
     expectTypeOf<WireDetail<"external_billing">>().toEqualTypeOf<
       AlertDetails["external_billing"]
     >();
+    expectTypeOf<WireDetail<"invoice_already_credited">>().toEqualTypeOf<
+      AlertDetails["invoice_already_credited"]
+    >();
     expectTypeOf<WireDetail<"late_payment_refund">>().toEqualTypeOf<
       AlertDetails["late_payment_refund"]
     >();
@@ -224,6 +227,9 @@ describe("alertDetailSchema", () => {
     >();
     expectTypeOf<WireDetail<"offsite_dump_unverified">>().toEqualTypeOf<
       AlertDetails["offsite_dump_unverified"]
+    >();
+    expectTypeOf<WireDetail<"register_backup_overdue">>().toEqualTypeOf<
+      AlertDetails["register_backup_overdue"]
     >();
     expectTypeOf<Omit<WireDetail<"lots_expiring">, "aboutViewerBranch">>().toEqualTypeOf<
       AlertDetails["lots_expiring"]
@@ -406,6 +412,7 @@ describe("alertDetailSchema", () => {
         deadline: "2026-09-23",
       },
       external_billing: { pointOfSale: 12, documentType: "factura_c", number: 41 },
+      invoice_already_credited: { pointOfSale: 12, number: 41, saleId: "sale-1" },
       clock_corrected: {
         pointOfSale: 12,
         documentType: "factura_c",
@@ -413,6 +420,10 @@ describe("alertDetailSchema", () => {
         correctedReading: "2026-10-01T12:00:00.000Z",
         actorId: "user-1",
         actorName: "Ada",
+      },
+      register_backup_overdue: {
+        lastVerifiedGenerationAt: "2026-10-14T08:00:00.000Z",
+        firstChangeAt: "2026-10-14T09:15:00.000Z",
       },
       fortnight_report_needs_regularization: {
         pointOfSaleNumber: 4,
@@ -453,6 +464,16 @@ describe("alertDetailSchema", () => {
       const { [field]: _omitted, ...detail } = detailOf[kind] as Record<string, unknown>;
 
       expect(alertDetailSchema.safeParse({ ...base, kind, detail }).success).toBe(false);
+    });
+
+    it("accepts an overdue-backup alert of a register that never had a verified generation", () => {
+      const alert = {
+        ...base,
+        kind: "register_backup_overdue",
+        detail: { ...detailOf.register_backup_overdue, lastVerifiedGenerationAt: null },
+      };
+
+      expect(alertDetailSchema.safeParse(alert).data).toEqual(alert);
     });
 
     it.each([

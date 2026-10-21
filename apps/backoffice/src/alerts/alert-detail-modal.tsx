@@ -169,6 +169,7 @@ function alertIcon(kind: string): Icon {
     case "fortnight_report_pending":
       return <CalendarClock />;
     case "offsite_dump_unverified":
+    case "register_backup_overdue":
       return <DatabaseBackup />;
     case "fortnight_report_overdue":
     case "fortnight_report_needs_regularization":
@@ -432,6 +433,14 @@ function externalBillingDescription({
   return `ARCA tiene autorizado el comprobante ${document} de este punto de venta y ninguna venta de la caja lo justifica. Revisar quién lo emitió fuera del sistema. No se emite ninguna nota de crédito automática.`;
 }
 
+function invoiceAlreadyCreditedDescription({
+  pointOfSale,
+  number,
+}: Extract<AlertDetail, { kind: "invoice_already_credited" }>["detail"]): string {
+  const document = `${formatPointOfSaleNumber(pointOfSale)}-${formatInvoiceNumber(number)}`;
+  return `Se anuló en una caja una venta cuya factura C ${document} ya tenía una nota de crédito, así que no se emitió otra. La anulación y sus reintegros ya se hicieron en la caja. Revisar qué nota de crédito acreditó la factura.`;
+}
+
 function alertTitle(alert: AlertDetail): string {
   const localTitle = alert.audience === "local" ? localAlertTitle(alert.kind) : undefined;
   if (localTitle !== undefined) {
@@ -482,9 +491,11 @@ function alertTitle(alert: AlertDetail): string {
     case "fortnight_report_pending":
     case "fortnight_report_overdue":
     case "external_billing":
+    case "invoice_already_credited":
     case "fortnight_report_needs_regularization":
     case "fortnight_report_owed_elsewhere":
     case "clock_corrected":
+    case "register_backup_overdue":
       return alertKindLabel(alert.kind);
   }
 }
@@ -555,6 +566,8 @@ function alertDescription(alert: AlertDetail, catalog: PermissionCatalogWire = [
       return fiscalUnknownDescription(alert.detail);
     case "external_billing":
       return externalBillingDescription(alert.detail);
+    case "invoice_already_credited":
+      return invoiceAlreadyCreditedDescription(alert.detail);
     case "outbox_chain_broken":
       return `La caja «${targetName}» envió eventos que no coinciden con su cadena: alguno se alteró, se quitó o se reordenó en el disco de la caja. La nube rechazó el envío y dio de baja la instalación.`;
     case "fiscal_rejected":
@@ -572,6 +585,8 @@ function alertDescription(alert: AlertDetail, catalog: PermissionCatalogWire = [
       return "";
     case "clock_corrected":
       return alertKindDescription(alert.kind);
+    case "register_backup_overdue":
+      return `La caja «${targetName}» registró cambios y lleva más de una hora sin un backup verificado.`;
   }
 }
 
@@ -625,6 +640,32 @@ function ClockCorrectionRows({
     ["Lectura anterior", formatDayAndTime(detail.previousReading, ALERT_TIME_ZONE)],
     ["Lectura nueva", formatDayAndTime(detail.correctedReading, ALERT_TIME_ZONE)],
     ...(detail.actorName === undefined ? [] : [["Corrigió", detail.actorName]]),
+  ] as const;
+  return (
+    <div className="flex flex-col gap-1 rounded-lg border border-border p-3 text-detail">
+      {rows.map(([label, value]) => (
+        <div key={label} className="flex justify-between gap-2">
+          <span className="text-text-subtle">{label}</span>
+          <span>{value}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function RegisterBackupOverdueRows({
+  detail,
+}: {
+  detail: Extract<AlertDetail, { kind: "register_backup_overdue" }>["detail"];
+}) {
+  const rows = [
+    [
+      "Último backup verificado",
+      detail.lastVerifiedGenerationAt === null
+        ? "Nunca"
+        : formatDayAndTime(detail.lastVerifiedGenerationAt, ALERT_TIME_ZONE),
+    ],
+    ["Primer cambio sin respaldar", formatDayAndTime(detail.firstChangeAt, ALERT_TIME_ZONE)],
   ] as const;
   return (
     <div className="flex flex-col gap-1 rounded-lg border border-border p-3 text-detail">
@@ -692,6 +733,14 @@ function AlertDescription({ alert }: { alert: AlertDetail }) {
       <>
         <p className="text-text text-body">{alertDescription(alert)}</p>
         <ClockCorrectionRows detail={alert.detail} />
+      </>
+    );
+  }
+  if (alert.kind === "register_backup_overdue") {
+    return (
+      <>
+        <p className="text-text text-body">{alertDescription(alert)}</p>
+        <RegisterBackupOverdueRows detail={alert.detail} />
       </>
     );
   }

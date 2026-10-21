@@ -164,6 +164,12 @@ const externalBillingDetailSchema = z.object({
   number: z.int(),
 });
 
+const invoiceAlreadyCreditedDetailSchema = z.object({
+  pointOfSale: z.int(),
+  number: z.int(),
+  saleId: z.string(),
+});
+
 const clockCorrectedDetailSchema = z.object({
   pointOfSale: z.int(),
   documentType: z.literal(FACTURA_C_DOCUMENT_TYPE),
@@ -219,6 +225,11 @@ const offsiteDumpUnverifiedDetailSchema = z.discriminatedUnion("reason", [
     shrinkThresholdPercent: z.int(),
   }),
 ]);
+
+const registerBackupOverdueDetailSchema = z.object({
+  lastVerifiedGenerationAt: z.string().nullable(),
+  firstChangeAt: z.string(),
+});
 
 const lotsExpiringDetailSchema = z.object({
   lotCount: z.int(),
@@ -392,6 +403,11 @@ const alertDetailKinds = [
   }),
   z.object({
     ...alertBase,
+    kind: z.literal("register_backup_overdue" satisfies AlertKind),
+    detail: registerBackupOverdueDetailSchema,
+  }),
+  z.object({
+    ...alertBase,
     kind: z.literal("clock_corrected" satisfies AlertKind),
     detail: clockCorrectedDetailSchema,
   }),
@@ -399,6 +415,11 @@ const alertDetailKinds = [
     ...alertBase,
     kind: z.literal("external_billing" satisfies AlertKind),
     detail: externalBillingDetailSchema,
+  }),
+  z.object({
+    ...alertBase,
+    kind: z.literal("invoice_already_credited" satisfies AlertKind),
+    detail: invoiceAlreadyCreditedDetailSchema,
   }),
   z.object({
     ...alertBase,

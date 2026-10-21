@@ -9,6 +9,7 @@ import type { CloudReachability } from "../sync/cloud-reachability";
 import { paymentMethodAvailabilityFor } from "./payment-method-availability-requests";
 import {
   assignPointTerminalToChargeRegister,
+  assignQrPointOfSaleToChargeRegister,
   CHARGE_CHAIN_KEY,
   CHARGE_NOW,
   chargeRequestDeps,
@@ -38,6 +39,7 @@ beforeEach(() => {
   database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS, migrationClock);
   seedChargeRegister(database);
   assignPointTerminalToChargeRegister(database);
+  assignQrPointOfSaleToChargeRegister(database);
   signedInPerson = createSignedInPerson();
   signedInPerson.set("u1");
 });
@@ -124,5 +126,30 @@ describe("the payment methods available for the sale being charged", () => {
     await openSaleOfTwoYerbas({ database, signedInPerson });
 
     expect(await availability("unreachable")).toMatchObject({ point: "not_configured" });
+  });
+
+  it("leave the QR not configured while the register has no QR point of sale assigned, keeping the terminal available", async () => {
+    database.exec("DELETE FROM register_qr_point_of_sale");
+    await openSaleOfTwoYerbas({ database, signedInPerson });
+
+    expect(await availability("reachable")).toEqual({
+      qr: "not_configured",
+      point: "available",
+      point_minimum: 1500,
+    });
+  });
+
+  it("leave the QR not configured once the cloud has withdrawn the assignment", async () => {
+    database.exec("UPDATE register_qr_point_of_sale SET assigned = 0, version = 2");
+    await openSaleOfTwoYerbas({ database, signedInPerson });
+
+    expect(await availability("reachable")).toMatchObject({ qr: "not_configured" });
+  });
+
+  it("leave the QR not configured while offline, since it is not assigned", async () => {
+    database.exec("DELETE FROM register_qr_point_of_sale");
+    await openSaleOfTwoYerbas({ database, signedInPerson });
+
+    expect(await availability("unreachable")).toMatchObject({ qr: "not_configured" });
   });
 });

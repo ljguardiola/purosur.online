@@ -1,11 +1,22 @@
 import {
+  invoiceToCorrect,
+  isRegisterFiscallyOnline,
+  type SaleVoidCreditNote,
+  saleVoidCreditNotePayload,
+} from "../../fiscal/index.js";
+import {
   APPROVED_PAYMENT_STATE,
   isRefundPending,
   paymentRecord,
   plannedRefunds,
   type SalePayment,
 } from "../../payments/index.js";
-import type { Clock, OperationAuthority, OutboxEventDraft } from "../../shared/index.js";
+import {
+  type Clock,
+  type OperationAuthority,
+  type OutboxEventDraft,
+  SALE_VOIDED_EVENT_TYPE,
+} from "../../shared/index.js";
 import { saleVoidStockMovements } from "../../stock/index.js";
 import type { SaleWithLines } from "../model/sale.js";
 import { amountToCharge, settledLines } from "../model/sale-discount.js";
@@ -47,7 +58,7 @@ export type VoidSaleOutcome<Grant extends VoidSaleGrant> =
   | { kind: SaleVoidRefusal }
   | { kind: "pending_refunds_unconfirmed" }
   | { kind: "unavailable" }
-  | { kind: "voided"; refunds: SaleRefund[]; grant: Grant };
+  | { kind: "voided"; refunds: SaleRefund[]; grant: Grant; creditNote: SaleVoidCreditNote | null };
 
 export async function voidSale<Grant extends VoidSaleGrant, Refusal>(
   { ledger, clock, ids, authority }: VoidSalePorts<Grant, Refusal>,
@@ -64,14 +75,15 @@ export async function voidSale<Grant extends VoidSaleGrant, Refusal>(
     if (found === undefined) {
       return { kind: "not_found" };
     }
-    const { sale, inOpenSession, fiscalDocumentStates, deferredRecord, stockMovements } = found;
+    const { sale, inOpenSession, fiscalDocuments, deferredRecord, stockMovements } = found;
     const payments = found.payments.filter(
       (payment): payment is SalePayment => payment.state === APPROVED_PAYMENT_STATE,
     );
     const refusal = saleVoidRefusal({
       state: sale.state,
       inOpenSession,
-      fiscalDocumentStates,
+      fiscalDocumentStates: fiscalDocuments.map(({ state }) => state),
+      fiscallyOnline: isRegisterFiscallyOnline(tx.fiscalOnlineEvidence(), clock.now()),
     });
     if (refusal !== null) {
       return { kind: refusal };
@@ -106,6 +118,20 @@ export async function voidSale<Grant extends VoidSaleGrant, Refusal>(
     if (deferredRecordCancelled) {
       tx.cancelDeferredSale(sale.id, voidedAt);
     }
+    const invoice = invoiceToCorrect(fiscalDocuments);
+    const creditNote: SaleVoidCreditNote | null =
+      invoice === null
+        ? null
+        : {
+            creditNoteId: ids.next(),
+            saleId: sale.id,
+            total: amountToCharge(sale),
+            receiverTaxStatusCode: invoice.buyerTaxStatusCode,
+            correctedVoucher: invoice.voucher,
+          };
+    if (creditNote !== null) {
+      tx.recordPendingCreditNote(creditNote);
+    }
     tx.appendOutboxEvent(
       saleVoidedEvent(ids.next(), {
         sale,
@@ -114,11 +140,12 @@ export async function voidSale<Grant extends VoidSaleGrant, Refusal>(
         movements: tx.saleCashMovements(sale.id),
         stockMovements: returned,
         deferredRecordCancelled,
+        creditNote,
         grant,
         voidedAt,
       }),
     );
-    return { kind: "voided", refunds, grant };
+    return { kind: "voided", refunds, grant, creditNote };
   });
 }
 
@@ -147,6 +174,7 @@ interface Voiding {
   movements: readonly SaleCashMovement[];
   stockMovements: readonly SaleStockMovement[];
   deferredRecordCancelled: boolean;
+  creditNote: SaleVoidCreditNote | null;
   grant: VoidSaleGrant;
   voidedAt: Date;
 }
@@ -160,6 +188,7 @@ function saleVoidedEvent(
     movements,
     stockMovements,
     deferredRecordCancelled,
+    creditNote,
     grant,
     voidedAt,
   }: Voiding,
@@ -169,8 +198,8 @@ function saleVoidedEvent(
     event_id: eventId,
     aggregate_type: "Sale",
     aggregate_id: sale.id,
-    event_type: "sale_voided",
-    schema_version: 2,
+    event_type: SALE_VOIDED_EVENT_TYPE,
+    schema_version: 3,
     payload: {
       id: sale.id,
       register_id: sale.registerId,
@@ -196,6 +225,7 @@ function saleVoidedEvent(
       cash_movements: movements.map(saleCashMovementRecord),
       stock_movements: stockMovements.map(saleStockMovementRecord),
       deferred_record_cancelled: deferredRecordCancelled,
+      credit_note: creditNote === null ? null : saleVoidCreditNotePayload(creditNote),
     },
     occurred_at: voidedAtIso,
     actor_id: grant.actorId,

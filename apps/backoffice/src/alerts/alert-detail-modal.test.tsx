@@ -1728,7 +1728,7 @@ test("tells a refund owed for a QR payment that arrived late: what it means, wha
   await expect
     .element(
       screen.getByText(
-        "Si es de un pago con QR, confirmarlo en Reembolsos pendientes para que la nube lo envíe a Mercado Pago; si es de otro medio y ya se hizo desde Mercado Pago, marcarlo como hecho, y si todavía no se hizo, hacerlo cuanto antes. Si no corresponde reembolsarlo, descartarlo. El Administrador ya fue avisado.",
+        "Si es de un pago con QR, confirmarlo en Reembolsos de Mercado Pago para que la nube lo envíe a Mercado Pago; si es de otro medio y ya se hizo desde Mercado Pago, marcarlo como hecho en Reembolsos sin API, y si todavía no se hizo, hacerlo cuanto antes. Si no corresponde reembolsarlo, descartarlo. El Administrador ya fue avisado.",
         { exact: true },
       ),
     )
@@ -1790,15 +1790,16 @@ test("explains the refund of a cancelled sale left pending to the branch, closin
     .toBeVisible();
   await expect
     .element(
-      screen.getByText("Hay un reembolso de una venta anulada que todavía no se completó.", {
-        exact: true,
-      }),
+      screen.getByText(
+        "Hay un reembolso de una venta anulada o cancelada que todavía no se completó.",
+        { exact: true },
+      ),
     )
     .toBeVisible();
   await expect
     .element(
       screen.getByText(
-        "Si es de un pago con QR, confirmarlo en Reembolsos pendientes para que la nube lo envíe a Mercado Pago; si es de otro medio y ya se hizo por fuera del sistema, marcarlo como hecho, y si todavía no se hizo, hacerlo cuanto antes. El Administrador ya fue avisado.",
+        "Si es de un pago con QR o Point, confirmarlo en Reembolsos de Mercado Pago para que la nube lo envíe; si Mercado Pago ya lo rechazó, descartarlo ahí. Si es de otro medio, hacerlo por fuera del sistema cuanto antes y marcarlo como hecho en Reembolsos sin API. El Administrador ya fue avisado.",
         { exact: true },
       ),
     )
@@ -1898,6 +1899,39 @@ test("tells that ARCA authorized a voucher no sale of the register justifies: it
   await expect.element(screen.getByRole("button", { name: "Cerrar la alerta" })).toBeEnabled();
 });
 
+test("tells that a voided sale's invoice already had a credit note: its number, that no other was issued and that it needs a review, closing by hand", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(
+    ok(
+      baseDetail({
+        kind: "invoice_already_credited",
+        level: "critical",
+        audience: "all",
+        scope: "3:factura_c:41",
+        scopeDisplay: "3:factura_c:41",
+        scopeKind: "pointOfSaleDocumentNumber",
+        closing: "by_hand",
+        detail: { pointOfSale: 3, number: 41, saleId: "sale-1" },
+      }),
+    ),
+  );
+
+  const screen = await renderModal(services, { access: accessWith("close_alerts_manually") });
+
+  await expect.element(screen.getByText("Factura ya acreditada", { exact: true })).toBeVisible();
+  await expect
+    .element(
+      screen.getByText(
+        "Se anuló en una caja una venta cuya factura C 00003-00000041 ya tenía una nota de crédito, así que no se emitió otra. La anulación y sus reintegros ya se hicieron en la caja. Revisar qué nota de crédito acreditó la factura.",
+        { exact: true },
+      ),
+    )
+    .toBeVisible();
+  await expect
+    .element(screen.getByText("Punto de venta 00003 · Factura C · 00000041", { exact: true }))
+    .toBeVisible();
+});
+
 test("tells that ARCA authorized a credit note C no credit note of the system justifies: its class and number and that it needs a review", async () => {
   const services = createServices();
   vi.mocked(services.fetchAlert).mockResolvedValue(
@@ -1978,6 +2012,72 @@ test("tells which register's clock was confirmed as correct, for which point of 
   await expect.element(screen.getByText("Corrigió", { exact: true })).toBeVisible();
   await expect.element(screen.getByText("Lucía", { exact: true })).toBeVisible();
   await expectNoAccessibilityViolations(document.body);
+});
+
+test("tells which register went more than an hour without a verified backup, when its last one was taken and when its first unbacked change happened", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(
+    ok(
+      baseDetail({
+        kind: "register_backup_overdue",
+        level: "critical",
+        audience: "all",
+        scope: "register-1",
+        scopeDisplay: "Caja 1",
+        scopeKind: "register",
+        closing: "by_itself",
+        detail: {
+          lastVerifiedGenerationAt: "2026-09-16T14:31:00.000Z",
+          firstChangeAt: "2026-09-16T17:05:00.000Z",
+        },
+      }),
+    ),
+  );
+
+  const screen = await renderModal(services);
+
+  await expect
+    .element(screen.getByText("Caja sin backup verificado", { exact: true }))
+    .toBeVisible();
+  await expect
+    .element(
+      screen.getByText(
+        "La caja «Caja 1» registró cambios y lleva más de una hora sin un backup verificado.",
+        { exact: true },
+      ),
+    )
+    .toBeVisible();
+  await expect.element(screen.getByText("Caja 1", { exact: true })).toBeVisible();
+  await expect.element(screen.getByText("Último backup verificado", { exact: true })).toBeVisible();
+  await expect.element(screen.getByText("16/09/2026 · 11:31", { exact: true })).toBeVisible();
+  await expect
+    .element(screen.getByText("Primer cambio sin respaldar", { exact: true }))
+    .toBeVisible();
+  await expect.element(screen.getByText("16/09/2026 · 14:05", { exact: true })).toBeVisible();
+  await expectNoAccessibilityViolations(document.body);
+});
+
+test("says a register has never had a verified backup when it has none to name", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(
+    ok(
+      baseDetail({
+        kind: "register_backup_overdue",
+        level: "critical",
+        audience: "all",
+        scope: "register-1",
+        scopeDisplay: "Caja 1",
+        scopeKind: "register",
+        closing: "by_itself",
+        detail: { lastVerifiedGenerationAt: null, firstChangeAt: "2026-09-16T17:05:00.000Z" },
+      }),
+    ),
+  );
+
+  const screen = await renderModal(services);
+
+  await expect.element(screen.getByText("Último backup verificado", { exact: true })).toBeVisible();
+  await expect.element(screen.getByText("Nunca", { exact: true })).toBeVisible();
 });
 
 test("tells that an alert for quarantined events resolves by itself and still offers closing it by hand", async () => {

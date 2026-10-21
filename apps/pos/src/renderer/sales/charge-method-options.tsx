@@ -54,6 +54,12 @@ const QR_OPTION_OFFLINE: MethodOption = {
   disabled: true,
 };
 
+const QR_OPTION_NOT_CONFIGURED: MethodOption = {
+  ...QR_OPTION,
+  description: "No configurado en esta caja",
+  disabled: true,
+};
+
 const TRANSFER_OPTION: MethodOption = {
   value: "TRANSFER",
   label: "Transferencia",
@@ -81,6 +87,17 @@ function pointOption(point: PaymentMethodAvailability["point"]): MethodOption | 
   }
 }
 
+function qrOption(qr: PaymentMethodAvailability["qr"]): MethodOption {
+  switch (qr) {
+    case "available":
+      return QR_OPTION;
+    case "offline":
+      return QR_OPTION_OFFLINE;
+    case "not_configured":
+      return QR_OPTION_NOT_CONFIGURED;
+  }
+}
+
 export type ChargeMethodOptions = {
   options: Options<MethodOption>;
   belowMinimum: number | undefined;
@@ -101,7 +118,7 @@ export function chargeMethodOptions(
     options: [
       CASH_OPTION,
       ...(terminal === undefined ? [] : [terminal]),
-      qr === "available" ? QR_OPTION : QR_OPTION_OFFLINE,
+      qrOption(qr),
       TRANSFER_OPTION,
       STANDALONE_TERMINAL_OPTION,
     ],

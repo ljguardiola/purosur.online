@@ -75,3 +75,36 @@ export async function insertRegisterWithPointOfSale<TQueryResult extends PgQuery
   });
   return register.id;
 }
+
+export function saleVoidedEvent(
+  saleId: string,
+  creditNote: {
+    id: string;
+    total: number;
+    corrects: { voucherType: number; pointOfSale: number; number: number };
+  },
+): PushedEvent {
+  return {
+    event_id: crypto.randomUUID(),
+    device_seq: 8,
+    aggregate_type: "sale",
+    aggregate_id: saleId,
+    event_type: "sale_voided",
+    schema_version: 3,
+    payload: {
+      credit_note: {
+        id: creditNote.id,
+        total: creditNote.total,
+        receiver_tax_status_code: 5,
+        corrects: {
+          voucher_type: creditNote.corrects.voucherType,
+          point_of_sale: creditNote.corrects.pointOfSale,
+          number: creditNote.corrects.number,
+        },
+      },
+    },
+    occurred_at: "2026-10-08T01:29:58.000Z",
+    actor_id: "user-1",
+    chain_hmac: "hmac",
+  };
+}

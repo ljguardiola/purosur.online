@@ -352,6 +352,24 @@ describe("a clock corrected alert", () => {
   });
 });
 
+describe("a register backup overdue alert", () => {
+  it("accepts when the register's last verified generation was taken and when its first unbacked change happened", () => {
+    expectTypeOf<{
+      kind: "register_backup_overdue";
+      scope: string;
+      detail: { lastVerifiedGenerationAt: string | null; firstChangeAt: string };
+    }>().toExtend<OpenAlertInput>();
+  });
+
+  it("refuses one without the time of the first unbacked change", () => {
+    expectTypeOf<{
+      kind: "register_backup_overdue";
+      scope: string;
+      detail: { lastVerifiedGenerationAt: string | null };
+    }>().not.toExtend<OpenAlertInput>();
+  });
+});
+
 describe("an external billing alert", () => {
   it("accepts the point of sale, the document type and the number", () => {
     expectTypeOf<{
@@ -366,6 +384,24 @@ describe("an external billing alert", () => {
       kind: "external_billing";
       scope: string;
       detail: { pointOfSale: number; documentType: "factura_c" };
+    }>().not.toExtend<OpenAlertInput>();
+  });
+});
+
+describe("an invoice already credited alert", () => {
+  it("accepts the point of sale and number of the invoice and the sale that was voided", () => {
+    expectTypeOf<{
+      kind: "invoice_already_credited";
+      scope: string;
+      detail: { pointOfSale: number; number: number; saleId: string };
+    }>().toExtend<OpenAlertInput>();
+  });
+
+  it("refuses one without its sale", () => {
+    expectTypeOf<{
+      kind: "invoice_already_credited";
+      scope: string;
+      detail: { pointOfSale: number; number: number };
     }>().not.toExtend<OpenAlertInput>();
   });
 });

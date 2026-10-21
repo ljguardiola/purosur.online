@@ -37,6 +37,7 @@ export { plannedRefundSchema } from "./planned-refund.js";
 export { pointOfSaleNumberSchema } from "./point-of-sale-number.js";
 export { pointTerminalIdSchema } from "./point-terminal-id.js";
 export { pushedEventSchema } from "./pushed-event.js";
+export { qrExternalPosIdSchema } from "./qr-external-pos-id.js";
 export { recordIdSchema } from "./record-id.js";
 export type { ReportQuery } from "./report-query.js";
 export { reportQuerySchema } from "./report-query.js";
@@ -51,3 +52,4 @@ export {
 export { serialDeviceIdentitySchema } from "./serial-device-identity.js";
 export type { SignInUser } from "./sign-in-user.js";
 export { signInUserSchema } from "./sign-in-user.js";
+export { voidCreditNoteSchema } from "./void-credit-note.js";

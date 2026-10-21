@@ -1,0 +1,1 @@
+ALTER TABLE "register_snapshot_generations" ADD COLUMN "last_device_seq" bigint DEFAULT 0 NOT NULL;

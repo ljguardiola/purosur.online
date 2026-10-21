@@ -19,6 +19,11 @@ export type {
 } from "./assign-point-terminal.js";
 export { assignPointTerminal } from "./assign-point-terminal.js";
 export type {
+  AssignQrPointOfSaleInput,
+  AssignQrPointOfSaleOutcome,
+} from "./assign-qr-point-of-sale.js";
+export { assignQrPointOfSale } from "./assign-qr-point-of-sale.js";
+export type {
   CancelMercadoPagoOrderInput,
   CancelMercadoPagoOrderOutcome,
   CancelMercadoPagoOrderPorts,
@@ -122,15 +127,18 @@ export type {
   MercadoPagoOrderPorts,
   MercadoPagoOrderReading,
   MercadoPagoOrderRefundsReading,
+  MercadoPagoOrderSearch,
   MercadoPagoOrders,
   MercadoPagoPointOrderPorts,
   MercadoPagoPointOrderRequest,
+  MercadoPagoQrOrderPorts,
   MercadoPagoQrOrderRequest,
   PaymentTransactionLane,
   PaymentTransactionLanes,
   PaymentTransactionOutcome,
   PaymentTransactionReading,
   PointTerminals,
+  QrPointsOfSale,
   RecordedOrderState,
 } from "./mercado-pago-order-ports.js";
 export { PaymentTransactionAlreadyRecorded } from "./mercado-pago-order-ports.js";
@@ -186,6 +194,13 @@ export type {
   QrPaymentReplacementTransaction,
   ReplacedQrPayment,
 } from "./qr-payment-replacement-store.js";
+export type {
+  QrPointOfSaleAssignment,
+  QrPointOfSaleAssignmentRecord,
+  QrPointOfSaleAssignmentStore,
+  QrPointOfSaleAssignmentStoreTransaction,
+} from "./qr-point-of-sale-assignment-store.js";
+export { QrPointOfSaleAlreadyAssigned } from "./qr-point-of-sale-assignment-store.js";
 export type {
   ReadApprovedOrdersOfRegisterInput,
   ReadApprovedOrdersOfRegisterOutcome,

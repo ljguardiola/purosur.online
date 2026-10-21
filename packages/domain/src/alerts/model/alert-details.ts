@@ -112,6 +112,12 @@ interface ExternalBillingDetail {
   number: number;
 }
 
+interface InvoiceAlreadyCreditedDetail {
+  pointOfSale: number;
+  number: number;
+  saleId: string;
+}
+
 interface ClockCorrectedDetail {
   pointOfSale: number;
   documentType: FiscalDocumentType;
@@ -164,6 +170,11 @@ interface OutboxChainBrokenDetail {
 interface LotsExpiringDetail {
   lotCount: number;
   windowDays: number;
+}
+
+interface RegisterBackupOverdueDetail {
+  lastVerifiedGenerationAt: string | null;
+  firstChangeAt: string;
 }
 
 export type OffsiteDumpUnverifiedDetail =
@@ -227,7 +238,9 @@ export interface AlertDetails {
   external_billing: ExternalBillingDetail;
   fortnight_report_needs_regularization: FortnightReportNeedsRegularizationDetail;
   clock_corrected: ClockCorrectedDetail;
+  invoice_already_credited: InvoiceAlreadyCreditedDetail;
   fortnight_report_owed_elsewhere: FortnightReportOwedElsewhereDetail;
+  register_backup_overdue: RegisterBackupOverdueDetail;
 }
 
 export type OpenAlertInput = {

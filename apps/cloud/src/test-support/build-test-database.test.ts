@@ -29,6 +29,7 @@ import {
   clockCorrections,
   compromiseResponseCompletions,
   compromiseResponses,
+  creditNotes,
   deviceState,
   discounts,
   fiscalAddresses,
@@ -50,7 +51,6 @@ import {
   offlineFiscalDocuments,
   offlineNumberBlocks,
   offsiteDumpChecks,
-  orphanCreditNotes,
   passkeyChallenges,
   passkeys,
   paymentNotificationAttempts,
@@ -82,6 +82,7 @@ import {
   registerOfflinePointsOfSale,
   registerPointsOfSale,
   registerPointTerminals,
+  registerQrPointsOfSale,
   registerSnapshotGenerations,
   registerSnapshotKeys,
   registerSnapshotLifecycleRules,
@@ -239,7 +240,7 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
     if (!category) {
       throw new Error("seeding categories returned no row");
     }
-    const [brand] = await db.insert(brands).values({ name: "Granix" }).returning({ id: brands.id });
+    const [brand] = await db.insert(brands).values({ name: "Granuz" }).returning({ id: brands.id });
     if (!brand) {
       throw new Error("seeding brands returned no row");
     }
@@ -313,6 +314,9 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
     await db
       .insert(registerPointTerminals)
       .values({ registerId: register.id, terminalId: "PAX_A910__SMARTPOS1", version: 1 });
+    await db
+      .insert(registerQrPointsOfSale)
+      .values({ registerId: register.id, externalPosId: "CAJA1_STORE_POS", version: 1 });
     await db.insert(pointOfSaleClaims).values({
       pointOfSaleNumber: 4,
       registerId: register.id,
@@ -676,12 +680,14 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
       reason: { issuedOn: "2026-01-05", total: 10_000, authorizationCode: "75123456789012" },
       createdAt: new Date("2026-01-05T12:00:00.000Z"),
     });
-    await db.insert(orphanCreditNotes).values({
+    await db.insert(creditNotes).values({
       id: "00000000-0000-4000-8000-000000000107",
       registerId: register.id,
       saleId: "00000000-0000-4000-8000-000000000102",
       pointOfSale: 7,
       associatedVoucherType: 11,
+      associatedPointOfSale: 7,
+      reason: "orphan",
       associatedNumber: 44,
       keptVoucherType: 11,
       keptPointOfSale: 7,

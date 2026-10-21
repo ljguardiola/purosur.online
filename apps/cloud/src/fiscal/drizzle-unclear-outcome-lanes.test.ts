@@ -5,7 +5,7 @@ import {
 import { eq } from "drizzle-orm";
 import type { PgliteQueryResultHKT } from "drizzle-orm/pglite";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { alerts, fiscalRequests, fiscalTasks, orphanCreditNotes } from "../platform/db/schema.js";
+import { alerts, creditNotes, fiscalRequests, fiscalTasks } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { DrizzlePointOfSaleLanes } from "./drizzle-point-of-sale-lanes.js";
 import {
@@ -462,7 +462,7 @@ describe("DrizzleUnclearOutcomeLanes", () => {
 
       expect(await storedRow(request.fiscalDocumentId)).toMatchObject({ decision: "adopted" });
       expect(
-        (await db.select().from(orphanCreditNotes)).map(({ id, saleId, associatedNumber }) => ({
+        (await db.select().from(creditNotes)).map(({ id, saleId, associatedNumber }) => ({
           id,
           saleId,
           associatedNumber,
@@ -512,7 +512,7 @@ describe("DrizzleUnclearOutcomeLanes", () => {
       ).rejects.toThrow("the queue refused");
 
       expect(await storedRow(request.fiscalDocumentId)).toMatchObject({ decision: null });
-      expect(await db.select().from(orphanCreditNotes)).toEqual([]);
+      expect(await db.select().from(creditNotes)).toEqual([]);
     });
 
     it("records no regularization for a decision that carries none", async () => {
@@ -528,7 +528,7 @@ describe("DrizzleUnclearOutcomeLanes", () => {
         ),
       );
 
-      expect(await db.select().from(orphanCreditNotes)).toEqual([]);
+      expect(await db.select().from(creditNotes)).toEqual([]);
       expect(await db.select().from(fiscalTasks)).toEqual([]);
       expect(creditNotesEnqueued).toEqual([]);
     });

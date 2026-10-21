@@ -8,6 +8,7 @@ import {
   PAID_ORDER_REPLACED,
   type PaidOrderDiscoveryState,
   paidOrderDiscoveryStart,
+  paidOrderDiscoveryWindowOpenFor,
   paidOrdersSellingRefusal,
   paidOrdersWithoutSaleLetSell,
   paidOrderWithoutSaleBlocksSelling,
@@ -29,6 +30,25 @@ describe("paid order discovery window", () => {
     const now = new Date("2026-10-13T12:00:00.000Z");
     paidOrderDiscoveryStart(now);
     expect(now).toEqual(new Date("2026-10-13T12:00:00.000Z"));
+  });
+});
+
+describe("paid order discovery window of a payment transaction", () => {
+  const createdAt = new Date("2026-10-10T12:00:00.000Z");
+  const lastInstant = new Date("2026-10-13T12:00:00.000Z");
+
+  it("is open the moment the payment was created", () => {
+    expect(paidOrderDiscoveryWindowOpenFor({ createdAt }, createdAt)).toBe(true);
+  });
+
+  it("is still open exactly 72 hours after the payment was created", () => {
+    expect(paidOrderDiscoveryWindowOpenFor({ createdAt }, lastInstant)).toBe(true);
+  });
+
+  it("is closed one millisecond after that", () => {
+    expect(
+      paidOrderDiscoveryWindowOpenFor({ createdAt }, new Date(lastInstant.getTime() + 1)),
+    ).toBe(false);
   });
 });
 

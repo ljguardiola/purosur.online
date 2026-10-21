@@ -12,8 +12,8 @@ import type { DedicatedConnections } from "../platform/dedicated-connections.js"
 import { DrizzleNumberingConflictLanes } from "./drizzle-numbering-conflict-lanes.js";
 import { DrizzleUnclearOutcomeRequests } from "./drizzle-unclear-outcome-lanes.js";
 import { DrizzleWsaaTokenSource } from "./drizzle-wsaa-token-source.js";
+import type { EnqueueCreditNote } from "./enqueue-credit-note.js";
 import type { EnqueueNumberingReconciliation } from "./enqueue-numbering-conflict.js";
-import type { EnqueueOrphanCreditNote } from "./enqueue-orphan-credit-note.js";
 import { UNCLEAR_OUTCOME_PRIORITY } from "./unclear-outcome-task.js";
 import { WSFE_SERVICE } from "./wsaa-token-renewal-task.js";
 
@@ -38,7 +38,7 @@ export interface NumberingConflictInput<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
   connections: DedicatedConnections<TQueryResult>;
   enqueueNumberingReconciliation: EnqueueNumberingReconciliation;
-  enqueueOrphanCreditNote: EnqueueOrphanCreditNote;
+  enqueueCreditNote: EnqueueCreditNote;
 }
 
 function fiscalDocumentIdOf(payload: unknown): string {
@@ -71,14 +71,14 @@ export function numberingConflictJobs<TQueryResult extends PgQueryResultHKT>({
   db,
   connections,
   enqueueNumberingReconciliation,
-  enqueueOrphanCreditNote,
+  enqueueCreditNote,
 }: NumberingConflictInput<TQueryResult>): BackgroundJobs {
   const clock = { now };
   const ports = {
     lanes: new DrizzleNumberingConflictLanes(
       connections,
       enqueueNumberingReconciliation,
-      enqueueOrphanCreditNote,
+      enqueueCreditNote,
       now,
     ),
     clock,

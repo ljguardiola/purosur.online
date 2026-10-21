@@ -806,6 +806,27 @@
       "when": 1792483932343,
       "tag": "0121_bitlocker_recovery_keys",
       "breakpoints": true
+    },
+    {
+      "idx": 115,
+      "version": "7",
+      "when": 1792486760438,
+      "tag": "0122_credit_notes",
+      "breakpoints": true
+    },
+    {
+      "idx": 116,
+      "version": "7",
+      "when": 1792491719491,
+      "tag": "0123_register_qr_points_of_sale",
+      "breakpoints": true
+    },
+    {
+      "idx": 117,
+      "version": "7",
+      "when": 1792502647115,
+      "tag": "0124_snapshot_generations_last_device_seq",
+      "breakpoints": true
     }
   ]
 }

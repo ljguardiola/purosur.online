@@ -13,6 +13,7 @@ export interface NewSnapshotGeneration {
   size: number;
   sha256: string;
   keyVersion: number;
+  lastDeviceSeq: number;
 }
 
 export interface SnapshotGeneration extends NewSnapshotGeneration {

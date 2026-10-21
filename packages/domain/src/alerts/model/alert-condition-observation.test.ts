@@ -6,6 +6,7 @@ import {
   fiscalDocumentAuthorizedObservation,
   fiscalRejectionAlertObservation,
   fiscalRejectionObservation,
+  invoiceAlreadyCreditedObservation,
   lotsExpiringObservation,
   lotsNoLongerExpiringObservation,
   offlineAuthorizationCodeHeldObservation,
@@ -13,6 +14,8 @@ import {
   offsiteDumpUnverifiedObservation,
   offsiteDumpVerifiedObservation,
   quietRegisterObservation,
+  registerBackedUpObservation,
+  registerBackupOverdueObservation,
   registerClockDriftObservation,
   registerFiscalEmissionObservation,
   registerSalesDeniedObservation,
@@ -434,6 +437,74 @@ describe("clockCorrectedObservation", () => {
           actorId: "user-1",
         },
       },
+    });
+  });
+});
+
+describe("invoiceAlreadyCreditedObservation", () => {
+  it("holds the condition of the invoice of the point of sale and number that a voided sale could not credit", () => {
+    expect(
+      invoiceAlreadyCreditedObservation({ pointOfSale: 12, number: 41, saleId: "sale-1" }),
+    ).toEqual({
+      holds: true,
+      alert: {
+        kind: "invoice_already_credited",
+        scope: "12:factura_c:41",
+        detail: { pointOfSale: 12, number: 41, saleId: "sale-1" },
+      },
+    });
+  });
+
+  it("scopes the condition to each invoice on its own", () => {
+    expect(
+      invoiceAlreadyCreditedObservation({ pointOfSale: 12, number: 42, saleId: "sale-1" }),
+    ).toMatchObject({ alert: { scope: "12:factura_c:42" } });
+    expect(
+      invoiceAlreadyCreditedObservation({ pointOfSale: 3, number: 41, saleId: "sale-1" }),
+    ).toMatchObject({ alert: { scope: "3:factura_c:41" } });
+  });
+});
+
+describe("registerBackupOverdueObservation", () => {
+  it("holds the overdue-backup condition of the register, naming its last verified generation and first unbacked change", () => {
+    expect(
+      registerBackupOverdueObservation({
+        registerId: "register-1",
+        lastVerifiedGenerationAt: new Date("2026-10-14T08:00:00.000Z"),
+        firstChangeAt: new Date("2026-10-14T09:15:00.000Z"),
+      }),
+    ).toEqual({
+      holds: true,
+      alert: {
+        kind: "register_backup_overdue",
+        scope: "register-1",
+        detail: {
+          lastVerifiedGenerationAt: "2026-10-14T08:00:00.000Z",
+          firstChangeAt: "2026-10-14T09:15:00.000Z",
+        },
+      },
+    });
+  });
+
+  it("names no last verified generation for a register that never had one", () => {
+    expect(
+      registerBackupOverdueObservation({
+        registerId: "register-1",
+        lastVerifiedGenerationAt: null,
+        firstChangeAt: new Date("2026-10-14T09:15:00.000Z"),
+      }),
+    ).toMatchObject({
+      alert: { detail: { lastVerifiedGenerationAt: null } },
+    });
+  });
+});
+
+describe("registerBackedUpObservation", () => {
+  it("clears the overdue-backup condition of the register", () => {
+    expect(registerBackedUpObservation("register-1")).toEqual({
+      holds: false,
+      kind: "register_backup_overdue",
+      scope: "register-1",
     });
   });
 });

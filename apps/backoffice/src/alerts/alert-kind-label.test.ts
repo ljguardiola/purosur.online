@@ -50,6 +50,10 @@ test("names the alert of a fortnight reported without movement that later receiv
   expect(alertKindLabel("fortnight_report_needs_regularization")).toBe("Quincena a regularizar");
 });
 
+test("names the alert of an invoice a voided sale could not credit", () => {
+  expect(alertKindLabel("invoice_already_credited")).toBe("Factura ya acreditada");
+});
+
 test("names the alert of a register's clock corrected from the register", () => {
   expect(alertKindLabel("clock_corrected")).toBe("Reloj de la caja corregido");
 });
@@ -58,6 +62,10 @@ test("names the alert of a presentation ARCA lists as owed for a point of sale t
   expect(alertKindLabel("fortnight_report_owed_elsewhere")).toBe(
     "Presentación adeudada en otro sistema",
   );
+});
+
+test("names the alert of a register that went more than an hour without a verified backup", () => {
+  expect(alertKindLabel("register_backup_overdue")).toBe("Caja sin backup verificado");
 });
 
 test("names the alert of a register whose clock is off from the real time", () => {

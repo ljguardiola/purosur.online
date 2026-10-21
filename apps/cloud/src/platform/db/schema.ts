@@ -4,6 +4,8 @@ import {
   COMPROMISE_RESPONSE_ACTION_STEPS,
   COMPROMISE_RESPONSE_ITEMS,
   CREDIT_NOTE_C_DOCUMENT_TYPE,
+  CREDIT_NOTE_REASONS,
+  type CreditNoteReason,
   DEFAULT_EXPIRING_LOT_ALERT_DAYS,
   DEFAULT_GOOD_CONDITION_RETURN_DAYS,
   DEFAULT_UNREVIEWED_PRICE_ALERT_DAYS,
@@ -82,7 +84,7 @@ export const branchSettings = pgTable("branch_settings", {
   version: integer("version").notNull().default(1),
 });
 
-// Written once, when the first cash session of the branch opens, and never changed.
+// Append-only: written once, when the first cash session of the branch opens, and never changed.
 export const branchFirstCashSessions = pgTable("branch_first_cash_sessions", {
   locationId: uuid("location_id")
     .primaryKey()
@@ -159,7 +161,8 @@ export const issuerIdentificationVersions = pgTable("issuer_identification_versi
   recordedBy: uuid("recorded_by").references(() => users.id),
 });
 
-// `amount` is in cents.
+// `amount` is in cents. Append-only: the threshold in force on a date stays what it was, so a sale
+// is always judged by the threshold of its day; a correction is a new revision, not an edit.
 export const buyerIdentificationThresholds = pgTable(
   "buyer_identification_thresholds",
   {
@@ -179,6 +182,8 @@ export const buyerIdentificationThresholds = pgTable(
   ],
 );
 
+// Append-only: each version of the tax authority's list of buyer tax statuses is kept as it was
+// received; a new version is a new row, never an edit of the one registers already pulled.
 export const buyerTaxStatusSets = pgTable(
   "buyer_tax_status_sets",
   {
@@ -1038,6 +1043,20 @@ export const registerPointTerminals = pgTable(
   (table) => [uniqueIndex("register_point_terminals_terminal_id_key").on(table.terminalId)],
 );
 
+export const registerQrPointsOfSale = pgTable(
+  "register_qr_points_of_sale",
+  {
+    registerId: uuid("register_id")
+      .primaryKey()
+      .references(() => registers.id),
+    externalPosId: text("external_pos_id"),
+    version: integer("version").notNull(),
+  },
+  (table) => [
+    uniqueIndex("register_qr_points_of_sale_external_pos_id_key").on(table.externalPosId),
+  ],
+);
+
 // The offline point of sale operates from its register's real-time point of sale's fiscal address,
 // which is why it carries none and why a register can't have one before the other.
 export const registerOfflinePointsOfSale = pgTable(
@@ -1217,6 +1236,7 @@ export const registerSnapshotGenerations = pgTable(
     size: bigint("size", { mode: "number" }).notNull(),
     sha256: text("sha256").notNull(),
     keyVersion: integer("key_version").notNull(),
+    lastDeviceSeq: bigint("last_device_seq", { mode: "number" }).notNull().default(0),
     status: snapshotGenerationStatus("status").notNull().default("declared"),
     failureReason: snapshotFailureReason("failure_reason"),
     uploadReportedAt: timestamp("upload_reported_at", { withTimezone: true }),
@@ -1496,6 +1516,7 @@ export const saleReprints = pgTable(
   ],
 );
 
+// Append-only: what a register sold is a fact of the sale; the cloud never rewrites or removes it.
 export const saleLines = pgTable(
   "sale_lines",
   {
@@ -1547,6 +1568,7 @@ export const saleLines = pgTable(
   ],
 );
 
+// Append-only: how a register was paid is a fact of the sale; the cloud never rewrites or removes it.
 export const salePayments = pgTable(
   "sale_payments",
   {
@@ -1650,6 +1672,8 @@ export const paymentRefunds = pgTable(
   ],
 );
 
+// Append-only: a cash session's balance is the sum of its movements, so a recorded movement is
+// never rewritten or removed.
 export const cashMovements = pgTable("cash_movements", {
   id: uuid("id").primaryKey(),
   sessionId: uuid("session_id")
@@ -1809,7 +1833,8 @@ export const signInLookupAttempts = pgTable(
   ],
 );
 
-// `actor_id` is nullable: a null actor reads as "the service itself acted" (e.g. a sign-in
+// Append-only: a record of who changed what is evidence, so not even the service may rewrite or
+// remove it. `actor_id` is nullable: a null actor reads as "the service itself acted" (e.g. a sign-in
 // lockout, which is keyed by source address and may match no account at all).
 export const auditLog = pgTable("audit_log", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -2269,7 +2294,7 @@ export const offlineAuthorizationCodeAcquisitionReports = pgTable(
   ],
 );
 
-// Permanent: a document issued under a pre-obtained code is never changed or deleted.
+// Append-only: a document issued under a pre-obtained code is never changed or deleted.
 export const offlineFiscalDocuments = pgTable(
   "offline_fiscal_documents",
   {
@@ -2552,7 +2577,7 @@ export const fiscalTasks = pgTable(
     pointOfSale: integer("point_of_sale").notNull(),
     documentType: text("document_type").notNull(),
     number: integer("number").notNull(),
-    creditNoteId: uuid("credit_note_id").references(() => orphanCreditNotes.id),
+    creditNoteId: uuid("credit_note_id").references(() => creditNotes.id),
     reason: jsonb("reason").$type<JsonValue>().notNull(),
     state: text("state").notNull().default("open"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
@@ -2583,23 +2608,26 @@ export const fiscalTasks = pgTable(
   ],
 );
 
-// The credit note that cancels an authorization no sale accounts for. The row is the request to
-// issue it: it exists from the moment the orphan is detected, gets its number when the tax
-// authority is first asked, and keeps the answer. A number is held by one request at a time.
-export const orphanCreditNotes = pgTable(
-  "orphan_credit_notes",
+// A credit note the cloud issues: the one that cancels an authorization no sale accounts for, or
+// the one that cancels the invoice of a voided sale. The row is the request to issue it: it exists
+// from the moment it is asked for, gets its number when the tax authority is first asked, and keeps
+// the answer. A number is held by one request at a time, and an invoice is corrected once.
+export const creditNotes = pgTable(
+  "credit_notes",
   {
     id: uuid("id").primaryKey(),
     registerId: uuid("register_id")
       .notNull()
       .references(() => registers.id),
     saleId: uuid("sale_id").notNull(),
+    reason: text("reason").$type<CreditNoteReason>().notNull(),
     pointOfSale: integer("point_of_sale").notNull(),
     associatedVoucherType: integer("associated_voucher_type").notNull(),
+    associatedPointOfSale: integer("associated_point_of_sale").notNull(),
     associatedNumber: integer("associated_number").notNull(),
-    keptVoucherType: integer("kept_voucher_type").notNull(),
-    keptPointOfSale: integer("kept_point_of_sale").notNull(),
-    keptNumber: integer("kept_number").notNull(),
+    keptVoucherType: integer("kept_voucher_type"),
+    keptPointOfSale: integer("kept_point_of_sale"),
+    keptNumber: integer("kept_number"),
     total: bigint("total", { mode: "number" }).notNull(),
     receiverTaxStatusCode: integer("receiver_tax_status_code").notNull(),
     number: integer("number"),
@@ -2613,38 +2641,48 @@ export const orphanCreditNotes = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
   },
   (table) => [
-    uniqueIndex("orphan_credit_notes_orphan_key").on(
-      table.pointOfSale,
+    uniqueIndex("credit_notes_corrected_voucher_key").on(
       table.associatedVoucherType,
+      table.associatedPointOfSale,
       table.associatedNumber,
     ),
-    uniqueIndex("orphan_credit_notes_number_key")
+    uniqueIndex("credit_notes_number_key")
       .on(table.pointOfSale, table.number)
       .where(sql`${table.number} is not null and ${table.answerKind} is distinct from 'rejected'`),
     check(
-      "orphan_credit_notes_request_check",
+      "credit_notes_reason_check",
+      sql`${table.reason} in (${sql.raw(CREDIT_NOTE_REASONS.map((reason) => `'${reason}'`).join(", "))})`,
+    ),
+    check(
+      "credit_notes_kept_voucher_check",
+      sql`(${table.reason} = 'orphan') = (${table.keptVoucherType} is not null)
+        and (${table.keptVoucherType} is null) = (${table.keptPointOfSale} is null)
+        and (${table.keptVoucherType} is null) = (${table.keptNumber} is null)`,
+    ),
+    check(
+      "credit_notes_request_check",
       sql`(${table.number} is null) = (${table.issuedOn} is null)
         and (${table.number} is null) = (${table.requestedAt} is null)`,
     ),
     check(
-      "orphan_credit_notes_answer_kind_check",
+      "credit_notes_answer_kind_check",
       sql`${table.answerKind} in ('authorized', 'rejected', 'unclear')`,
     ),
     check(
-      "orphan_credit_notes_answer_request_check",
+      "credit_notes_answer_request_check",
       sql`${table.answerKind} is null or ${table.number} is not null`,
     ),
     check(
-      "orphan_credit_notes_answer_time_check",
+      "credit_notes_answer_time_check",
       sql`(${table.answerKind} is null) = (${table.answeredAt} is null)`,
     ),
     check(
-      "orphan_credit_notes_authorization_check",
+      "credit_notes_authorization_check",
       sql`coalesce(${table.answerKind} = 'authorized', false) = (${table.authorizationCode} is not null)
         and (${table.authorizationCode} is null) = (${table.authorizationCodeDueOn} is null)`,
     ),
     check(
-      "orphan_credit_notes_rejection_check",
+      "credit_notes_rejection_check",
       sql`coalesce(${table.answerKind} = 'rejected', false) = (${table.rejections} is not null)`,
     ),
   ],

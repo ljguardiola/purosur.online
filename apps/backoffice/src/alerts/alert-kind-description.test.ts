@@ -106,6 +106,12 @@ test("describes a fortnight already reported without movement that later receive
   );
 });
 
+test("describes an invoice that already had a credit note when a sale was voided", () => {
+  expect(alertKindDescription("invoice_already_credited")).toBe(
+    "Se anuló una venta cuya factura ya tenía una nota de crédito, por lo que no se emitió otra",
+  );
+});
+
 test("describes a register's clock confirmed as correct, which lowers the clock guard's mark", () => {
   expect(alertKindDescription("clock_corrected")).toBe(
     "Alguien confirmó desde la caja que su hora era correcta y bajó la marca de la guarda de reloj. Los comprobantes emitidos entre la lectura anterior y la nueva llevan fechas imposibles y van a regularización manual.",
@@ -115,6 +121,12 @@ test("describes a register's clock confirmed as correct, which lowers the clock 
 test("describes a presentation ARCA lists as owed for a point of sale this system does not run", () => {
   expect(alertKindDescription("fortnight_report_owed_elsewhere")).toBe(
     "ARCA informa adeudada la presentación de una quincena de un punto de venta que este sistema no maneja",
+  );
+});
+
+test("describes a register that recorded changes and went more than an hour without a verified backup", () => {
+  expect(alertKindDescription("register_backup_overdue")).toBe(
+    "Una caja registró cambios y lleva más de una hora sin un backup verificado",
   );
 });
 

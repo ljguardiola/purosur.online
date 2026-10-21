@@ -74,6 +74,8 @@ describe("alertKindPolicy", () => {
     ["fortnight_report_owed_elsewhere", "critical", null, "all", "pointOfSaleFortnight", true],
     ["update_required", "critical", null, "all", "register", true],
     ["clock_corrected", "critical", null, "all", "register", false],
+    ["invoice_already_credited", "critical", null, "all", "pointOfSaleDocumentNumber", true],
+    ["register_backup_overdue", "critical", null, "all", "register", true],
     ["register_silent", "critical", null, "local", "register", true],
     ["sales_denied", "critical", null, "local", "register", true],
     ["fiscal_emission_stopped", "critical", null, "local", "register", true],
@@ -132,6 +134,7 @@ describe("alertKindPolicy", () => {
       "offsite_dump_unverified",
       "fortnight_report_pending",
       "fortnight_report_owed_elsewhere",
+      "register_backup_overdue",
     ]);
   });
 
@@ -175,7 +178,9 @@ describe("alertClosing", () => {
       external_billing: "by_hand",
       fortnight_report_needs_regularization: "by_hand",
       clock_corrected: "by_hand",
+      invoice_already_credited: "by_hand",
       fortnight_report_owed_elsewhere: "by_itself",
+      register_backup_overdue: "by_itself",
     });
   });
 
@@ -207,6 +212,7 @@ describe("alertKindsWithScope", () => {
       "fiscal_emission_stopped",
       "clock_drift",
       "clock_corrected",
+      "register_backup_overdue",
     ]);
     expect(alertKindsWithScope("event")).toEqual(["event_invariant_violated"]);
     expect(alertKindsWithScope("pointOfSaleDocumentType")).toEqual(["fiscal_rejected"]);
@@ -219,7 +225,10 @@ describe("alertKindsWithScope", () => {
       "offline_authorization_code_missing",
     ]);
     expect(alertKindsWithScope("refund")).toEqual(["late_payment_refund", "refund_task"]);
-    expect(alertKindsWithScope("pointOfSaleDocumentNumber")).toEqual(["external_billing"]);
+    expect(alertKindsWithScope("pointOfSaleDocumentNumber")).toEqual([
+      "external_billing",
+      "invoice_already_credited",
+    ]);
     expect(alertKindsWithScope("fiscalDocument")).toEqual(["fiscal_unknown"]);
     expect(alertKindsWithScope("syncDevice")).toEqual([
       "events_quarantined",

@@ -4,6 +4,7 @@ import type {
   MercadoPagoOrderCreation,
   MercadoPagoOrderReading,
   MercadoPagoOrderRefundsReading,
+  MercadoPagoOrderSearch,
   MercadoPagoOrders,
   MercadoPagoPointOrderRequest,
   MercadoPagoQrOrderRequest,
@@ -12,7 +13,6 @@ import { z } from "zod";
 
 export interface MercadoPagoOrdersClientOptions {
   accessToken: string;
-  externalPosId: string;
   fetch?: typeof globalThis.fetch;
 }
 
@@ -109,6 +109,9 @@ function parsedOrder(
   };
 }
 
+const orderSearchSchema = z.object({ data: z.array(z.unknown()) });
+const ORDER_SEARCH_PAGE_SIZE = 50;
+
 const refundsSchema = z.object({
   transactions: z
     .object({
@@ -175,6 +178,11 @@ function warnOfAnswer(message: string, status: AnswerStatus, body: unknown): voi
 
 function notCancelled(status: AnswerStatus, body: unknown): MercadoPagoOrderCancellation {
   warnOfAnswer("Mercado Pago did not cancel the order", status, body);
+  return { kind: "unavailable" };
+}
+
+function notSearched(status: AnswerStatus, body: unknown): MercadoPagoOrderSearch {
+  warnOfAnswer("Mercado Pago did not answer the search for orders", status, body);
   return { kind: "unavailable" };
 }
 
@@ -252,7 +260,7 @@ export function createMercadoPagoOrdersClient(
           total_amount: amount,
           external_reference: request.externalReference,
           expiration_time: `PT${request.expiresAfterMinutes}M`,
-          config: { qr: { external_pos_id: options.externalPosId, mode: "static" } },
+          config: { qr: { external_pos_id: request.externalPosId, mode: "static" } },
           transactions: { payments: [{ amount }] },
         },
         orderAnswerSchema,
@@ -290,6 +298,35 @@ export function createMercadoPagoOrdersClient(
       return order === null
         ? notRead(answer.status, answer.body)
         : { kind: "read", result: order.result };
+    },
+
+    async searchOrdersOfExternalReference(
+      externalReference: string,
+      createdFrom: Date,
+      createdTo: Date,
+    ): Promise<MercadoPagoOrderSearch> {
+      const query = new URLSearchParams({
+        external_reference: externalReference,
+        begin_date: createdFrom.toISOString(),
+        end_date: createdTo.toISOString(),
+        page_size: String(ORDER_SEARCH_PAGE_SIZE),
+      });
+      const answer = await call(`/v1/orders?${query.toString()}`, {
+        method: "GET",
+        headers: { Authorization: `Bearer ${options.accessToken}` },
+      });
+      if (answer.kind === "unreachable") {
+        return notSearched("unreachable", null);
+      }
+      const page = orderSearchSchema.safeParse(answer.body);
+      if (answer.status < 200 || answer.status >= 300 || !page.success) {
+        return notSearched(answer.status, answer.body);
+      }
+      const orders = page.data.data.map((item) => parsedOrder(item));
+      const found = orders.filter((order) => order !== null);
+      return found.length === orders.length
+        ? { kind: "read", orders: found }
+        : notSearched(answer.status, answer.body);
     },
 
     async refundOrder(orderId: string, idempotencyKey: string): Promise<MercadoPagoRefundAnswer> {

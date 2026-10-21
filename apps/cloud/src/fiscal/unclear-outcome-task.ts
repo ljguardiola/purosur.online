@@ -12,7 +12,7 @@ import {
   DrizzleUnclearOutcomeRequests,
 } from "./drizzle-unclear-outcome-lanes.js";
 import { DrizzleWsaaTokenSource } from "./drizzle-wsaa-token-source.js";
-import type { EnqueueOrphanCreditNote } from "./enqueue-orphan-credit-note.js";
+import type { EnqueueCreditNote } from "./enqueue-credit-note.js";
 import type { EnqueueUnclearOutcome } from "./enqueue-unclear-outcome.js";
 import { WSFE_SERVICE } from "./wsaa-token-renewal-task.js";
 
@@ -33,7 +33,7 @@ export interface UnclearOutcomeInput<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
   connections: DedicatedConnections<TQueryResult>;
   enqueueUnclearOutcome: EnqueueUnclearOutcome;
-  enqueueOrphanCreditNote: EnqueueOrphanCreditNote;
+  enqueueCreditNote: EnqueueCreditNote;
 }
 
 function fiscalDocumentIdOf(payload: unknown): string {
@@ -55,16 +55,12 @@ export function unclearOutcomeJobs<TQueryResult extends PgQueryResultHKT>({
   db,
   connections,
   enqueueUnclearOutcome,
-  enqueueOrphanCreditNote,
+  enqueueCreditNote,
 }: UnclearOutcomeInput<TQueryResult>): BackgroundJobs {
   const clock = { now };
   const ports = {
     requests: new DrizzleUnclearOutcomeRequests(db),
-    lanes: new DrizzleUnclearOutcomeLanes(
-      connections,
-      enqueueUnclearOutcome,
-      enqueueOrphanCreditNote,
-    ),
+    lanes: new DrizzleUnclearOutcomeLanes(connections, enqueueUnclearOutcome, enqueueCreditNote),
     clock,
     ids: { next: () => randomUUID() },
     tokens: new DrizzleWsaaTokenSource(db, clock, WSFE_SERVICE, certificateFingerprint),

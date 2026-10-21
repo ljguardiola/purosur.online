@@ -21,6 +21,7 @@ import { createActionGate } from "../sessions/action-gate";
 import { createSignedInPerson } from "../sessions/signed-in-person";
 import { SqliteSignInStore } from "../sessions/sqlite-sign-in-store";
 import { createReceiptPrinting } from "./receipt-printing-wiring";
+import { insertCreditNote } from "./test-support/credit-note-receipt-database";
 import { printoutOf } from "./test-support/escpos-printout";
 import { ScriptedSocket } from "./test-support/scripted-socket";
 
@@ -45,6 +46,11 @@ describe("the register's receipt printing without a local database", () => {
   it("offers no request to answer", () => {
     expect(printing.receiptPrintStatus).toBeUndefined();
     expect(printing.reprintSaleReceipt).toBeUndefined();
+    expect(printing.printCreditNote).toBeUndefined();
+  });
+
+  it("prints no credit note right after a void", async () => {
+    await expect(printing.printVoidedSaleCreditNote("sale-1")).resolves.toBeUndefined();
   });
 
   it("leaves a charge as it is", () => {
@@ -338,6 +344,46 @@ describe("the register's receipt printing over its local database", () => {
     const [written] = connection?.socket.written ?? [];
     const paper = printoutOf(written ?? new Uint8Array());
     expect(paper.textLines).toContain("  Promo 20% en la segunda                -$ 6,00");
+  });
+
+  describe("the credit note of a voided sale", () => {
+    beforeEach(() => {
+      database.exec(
+        `INSERT INTO role_permissions (role_id, permission_key, active) VALUES ('role-cashier', 'view_sales_history', 1);
+         UPDATE sales SET state = 'VOIDED', voided_at = '2026-10-08T11:59:30.000Z' WHERE id = 'sale-1';`,
+      );
+      insertFiscalDocument(database, { saleId: "sale-1", state: "AUTHORIZED", number: 41 });
+      insertCreditNote(database);
+      saveAddress("10.10.10.2", null);
+    });
+
+    it("is printed on the printer right after the void, without anyone asking", async () => {
+      await printingOverDatabase().printVoidedSaleCreditNote("sale-1");
+
+      await vi.waitFor(() => expect(connections).toHaveLength(1));
+      const [connection] = connections;
+      connection?.socket.connected();
+      connection?.socket.receive(READY);
+      await vi.waitFor(() => expect(connection?.socket.written).toHaveLength(1));
+      expect(printoutOf(connection?.socket.written[0] ?? new Uint8Array()).text).toContain(
+        "NOTA DE CRÉDITO C",
+      );
+    });
+
+    it("is printed again from the history, answering that it started", async () => {
+      const printing = printingOverDatabase();
+
+      const reprinted = printing.printCreditNote?.("sale-1");
+      await vi.waitFor(() => expect(connections).toHaveLength(1));
+      const [connection] = connections;
+      connection?.socket.connected();
+      connection?.socket.receive(READY);
+
+      expect(await reprinted).toEqual({ kind: "started" });
+      expect(printoutOf(connection?.socket.written[0] ?? new Uint8Array()).text).toContain(
+        "Asociada a Factura C",
+      );
+    });
   });
 
   describe("a charge whose sale has a fiscal document", () => {

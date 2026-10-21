@@ -112,6 +112,8 @@ function upsertOf(entity: PulledEntity, changeSeq: number): SyncChange {
       };
     case "register_point_terminal":
       return { ...base, entity, row: { assigned: true, version: 1 } };
+    case "register_qr_point_of_sale":
+      return { ...base, entity, row: { assigned: true, version: 1 } };
     case "register_offline_point_of_sale":
       return {
         ...base,
