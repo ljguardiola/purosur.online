@@ -621,6 +621,7 @@ describe("LockedCashCount", () => {
 
   it.each<[string, CancelSale]>([
     ["the core is unavailable", async () => ({ kind: "unavailable" })],
+    ["the restoration is in progress", async () => ({ kind: "restoration_in_progress" })],
     ["the request fails", () => Promise.reject(new Error("the core connection was replaced"))],
   ])(
     "says the sale could not be cancelled when %s, keeping the open sale",
