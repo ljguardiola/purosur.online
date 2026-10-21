@@ -19,6 +19,10 @@ import { openLocalDatabase } from "../../platform/test-support/open-local-databa
 import { recordCashMovementFor } from "../../register/cash-movement-requests";
 import { closeCashSessionFor, openCashSessionFor } from "../../register/cash-session-requests";
 import { uuidV7Ids } from "../../register/uuid-v7-ids";
+import {
+  printVoidedSaleCreditNoteFor,
+  reprintCreditNoteFor,
+} from "../../sales/credit-note-receipt-requests";
 import { createReceiptPrintJobs, type ReceiptPrintJobs } from "../../sales/receipt-print-jobs";
 import {
   printCompletedSaleReceiptFor,
@@ -273,6 +277,66 @@ async function printAndReprintReceipt({
   expectOutcome("reprint the receipt from the history", reprint.kind, "started");
   printer.becomeReady();
   await untilPrinted(deps.jobs, saleId);
+}
+
+function authorizeCreditNoteOfVoidedSale(database: LocalDatabase, saleId: string, at: Date): void {
+  const answered = database
+    .prepare(
+      `UPDATE sale_void_credit_notes
+       SET state = 'AUTHORIZED', point_of_sale = corrected_point_of_sale, number = 1,
+           issued_on = @issued_on, issued_at = @issued_at, authorization_code = '71234567890999',
+           authorization_code_due_on = '2026-10-16', answered_at = @issued_at
+       WHERE sale_id = @sale_id AND state = 'IN_PROGRESS'`,
+    )
+    .run({
+      sale_id: saleId,
+      issued_on: at.toISOString().slice(0, 10),
+      issued_at: at.toISOString(),
+    });
+  if (answered.changes !== 1) {
+    throw new Error("The register session's voided sale has no credit note to authorize");
+  }
+}
+
+async function printAndReprintCreditNote({
+  deps,
+  saleId,
+  nextStep,
+}: {
+  deps: Omit<ReceiptRequestDeps, "printers">;
+  saleId: string;
+  nextStep: () => void;
+}): Promise<void> {
+  const printer = new ControllableReceiptPrinter();
+  const printers = { configured: () => printer };
+  const standing = () => deps.jobs.standingOf(`credit-note:${saleId}`);
+  const untilCreditNotePrinted = async () => {
+    for (let attempt = 0; attempt < 1000 && standing() !== "printed"; attempt += 1) {
+      await new Promise((resolve) => setImmediate(resolve));
+    }
+    if (standing() !== "printed") {
+      throw new Error("The register session's credit note was never recorded as printed");
+    }
+    await new Promise((resolve) => setImmediate(resolve));
+  };
+  nextStep();
+  await printVoidedSaleCreditNoteFor({ ...deps, printers }, saleId);
+  nextStep();
+  printer.becomeReady();
+  await untilCreditNotePrinted();
+  nextStep();
+  const reprint = await reprintCreditNoteFor(
+    { ...deps, printers },
+    {
+      saleId,
+      reason: "El cliente la perdio",
+      authorization: { user_id: GRACE, pin: PIN },
+    },
+  );
+  expectOutcome("reprint the credit note from the history", reprint.kind, "started");
+  printer.becomeReady();
+  await new Promise((resolve) => setImmediate(resolve));
+  await untilCreditNotePrinted();
 }
 
 export interface RegisterSession {
@@ -807,6 +871,23 @@ export async function withRegisterSession<TResult>(
       clockCorrected.kind,
       "corrected",
     );
+    nextStep();
+    authorizeCreditNoteOfVoidedSale(database, offlineScan.sale.id, now());
+    await printAndReprintCreditNote({
+      deps: {
+        ...deps(),
+        signedInUserId: () => signedInPerson.userId(),
+        jobs: createReceiptPrintJobs({
+          reportFailure: (context, error) => {
+            throw new Error(`The register session's credit note print failed: ${context}`, {
+              cause: error,
+            });
+          },
+        }),
+      },
+      saleId: offlineScan.sale.id,
+      nextStep,
+    });
     nextStep();
     const closed = await closeCashSessionFor(deps(), {
       sessionId: opened.cash_session.id,
