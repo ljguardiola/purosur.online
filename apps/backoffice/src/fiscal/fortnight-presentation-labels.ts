@@ -20,7 +20,11 @@ const NOT_APPLICABLE = "—";
 export function presentationStateBadge({
   state,
   refusal,
-}: Pick<FortnightPresentation, "state" | "refusal">) {
+  rejectedDocument,
+}: Pick<FortnightPresentation, "state" | "refusal" | "rejectedDocument">) {
+  if (refusal === "partial" && rejectedDocument?.remedy === "awaiting_resend") {
+    return { label: "Corregido, por reenviar", tone: "warning" } as const;
+  }
   if (refusal === "partial") {
     return { label: "Rechazado en parte", tone: "error" } as const;
   }
