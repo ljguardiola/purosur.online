@@ -717,7 +717,7 @@ function AlertDescription({ alert }: { alert: AlertDetail }) {
     const { pointOfSaleNumber, rejectedNumber, fortnightStart, fortnightEnd } = alert.detail;
     return (
       <p className="text-text text-body">
-        {`ARCA rechazó el comprobante ${formatPointOfSaleNumber(pointOfSaleNumber)}-${formatInvoiceNumber(rejectedNumber)} de ${fortnightOfPointOfSale(alert.detail).replace(/ del punto de venta .*/, "")}. Los que le siguen quedan sin procesar hasta que se resuelva: en Puntos de venta se indica dónde está el error.`}
+        {`ARCA rechazó el comprobante ${formatPointOfSaleNumber(pointOfSaleNumber)}-${formatInvoiceNumber(rejectedNumber)} de la quincena ${formatCalendarDayRange(fortnightStart, fortnightEnd)}. Los que le siguen quedan sin procesar hasta que se resuelva: en Puntos de venta se indica dónde está el error.`}
       </p>
     );
   }
