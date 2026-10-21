@@ -1684,6 +1684,43 @@ describe("decoding the events the registers pushed", () => {
     });
   });
 
+  it("reads a deferred sale record with its short code", () => {
+    const decoded = upcaster.decode(
+      unappliedEventOf(
+        pushed({
+          event_type: "deferred_sale_recorded",
+          schema_version: 1,
+          payload: {
+            id: "01a1122a-0305-7189-87d0-8256a353fd43",
+            sale_id: SALE,
+            register_id: saleFields.register_id,
+            occurred_at: "2026-10-06T11:19:58.000Z",
+            total: 12_500,
+            reason: "unclear_outcome",
+            short_code: "7KQ4M2P9",
+            routed_at: "2026-10-06T11:20:00.000Z",
+          },
+        }),
+      ),
+    );
+
+    expect(decoded).toEqual({
+      kind: "fact",
+      fact: {
+        kind: "deferred_sale_recorded",
+        deferredSale: {
+          id: "01a1122a-0305-7189-87d0-8256a353fd43",
+          saleId: SALE,
+          occurredAt: new Date("2026-10-06T11:19:58.000Z"),
+          total: 12_500,
+          reason: "unclear_outcome",
+          shortCode: "7KQ4M2P9",
+          routedAt: new Date("2026-10-06T11:20:00.000Z"),
+        },
+      },
+    });
+  });
+
   it("reads the document issued under a pre-obtained code", () => {
     const decoded = upcaster.decode(
       unappliedEventOf(
