@@ -3,6 +3,7 @@ import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import { migrationClock } from "../platform/test-support/migration-clock";
 import { openLocalDatabase } from "../platform/test-support/open-local-database";
+import { restorationOf } from "../register/test-support/restoration-of";
 import { chargeSaleInCashFor } from "../sales/sale-requests";
 import { createSignedInPerson, type SignedInPerson } from "../sessions/signed-in-person";
 import {
@@ -439,6 +440,7 @@ describe("abandoning a Mercado Pago QR charge at the register", () => {
     const charged = await chargeSaleInCashFor(
       {
         database,
+        restoration: restorationOf(database),
         gate: deps(orders).gate,
         readOutboxChainKey: async () => CHAIN_KEY,
         now: () => NOW,

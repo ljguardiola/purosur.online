@@ -548,6 +548,7 @@ export type {
   RegisterOperationAccess,
   RegisterService,
   RegisterVersion,
+  RestorationEvidence,
   SerialDeviceIdentity,
   SerialDeviceReport,
   SerialDeviceRole,

@@ -13,6 +13,7 @@ import {
   type MercadoPagoChargeSale,
   startMercadoPagoCharge,
 } from "@purosur/domain/payments/use-cases";
+import type { RestorationProtocolEvidence } from "@purosur/domain/register/use-cases";
 import {
   type IdGenerator,
   type PendingMercadoPagoPaymentRefusal,
@@ -22,6 +23,7 @@ import {
   type SettleApprovedMercadoPagoPaymentOutcome,
   settleApprovedMercadoPagoPayment,
 } from "@purosur/domain/sales/use-cases";
+
 import type { LocalDatabase } from "../platform/local-database";
 import { SqliteSaleLedger } from "../sales/sqlite-sale-ledger";
 import type { ActionGate } from "../sessions/action-gate";
@@ -35,6 +37,7 @@ export interface MercadoPagoChargeRequestDeps {
   readOutboxChainKey: () => Promise<string | undefined>;
   now: () => Date;
   ids: IdGenerator;
+  restoration: RestorationProtocolEvidence;
 }
 
 type MercadoPagoChargeSettlement =
@@ -42,14 +45,23 @@ type MercadoPagoChargeSettlement =
   | { kind: "unavailable" };
 
 function mercadoPagoChargeSale(
-  { database, now, ids }: MercadoPagoChargeRequestDeps,
+  { database, now, ids, restoration }: MercadoPagoChargeRequestDeps,
   outboxChainKey: string | undefined,
 ): MercadoPagoChargeSale<
   PendingMercadoPagoPaymentRefusal,
   MercadoPagoChargeSettlement,
   PendingQrPaymentReplacementRefusal
 > {
-  const ledger = new SqliteSaleLedger(database, new SqliteSignInStore(database), outboxChainKey);
+  const ledger = new SqliteSaleLedger(
+    database,
+    new SqliteSignInStore(database),
+    outboxChainKey,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    restoration,
+  );
   return {
     recordPendingPayment: (payment) => {
       const outcome = recordPendingMercadoPagoPayment({ ledger, ids }, payment);

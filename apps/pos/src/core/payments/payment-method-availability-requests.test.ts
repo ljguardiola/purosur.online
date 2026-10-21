@@ -3,6 +3,7 @@ import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import { migrationClock } from "../platform/test-support/migration-clock";
 import { openLocalDatabase } from "../platform/test-support/open-local-database";
+import { restorationOf } from "../register/test-support/restoration-of";
 import { chargeSaleInCashFor } from "../sales/sale-requests";
 import { createSignedInPerson, type SignedInPerson } from "../sessions/signed-in-person";
 import type { CloudReachability } from "../sync/cloud-reachability";
@@ -29,6 +30,7 @@ function gate() {
 function availability(cloud: CloudReachability) {
   return paymentMethodAvailabilityFor({
     database,
+    restoration: restorationOf(database),
     gate: gate(),
     now: () => CHARGE_NOW,
     cloud: () => cloud,
@@ -88,6 +90,7 @@ describe("the payment methods available for the sale being charged", () => {
     await chargeSaleInCashFor(
       {
         database,
+        restoration: restorationOf(database),
         gate: gate(),
         readOutboxChainKey: async () => CHARGE_CHAIN_KEY,
         now: () => CHARGE_NOW,

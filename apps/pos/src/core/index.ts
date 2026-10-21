@@ -108,6 +108,7 @@ import type { SnapshotCycleSchedule } from "./register/snapshot-cycle-schedule";
 import { startSnapshotCycle } from "./register/snapshot-cycle-wiring";
 import { readOpenSession } from "./register/sqlite-cash-ledger";
 import { localDatabaseDamageIn } from "./register/sqlite-local-database-health";
+import { SqliteRestorationEvidence } from "./register/sqlite-restoration-evidence";
 import { SqliteSerialDeviceRegistrations } from "./register/sqlite-serial-device-registrations";
 import { startupPendingFor } from "./register/startup-pending-requests";
 import { recoverAtStartup } from "./register/startup-recovery";
@@ -323,6 +324,8 @@ const localDatabase = register.database;
 const replica = localDatabase === undefined ? undefined : new SqliteLocalReplica(localDatabase);
 const localOutbox =
   localDatabase === undefined ? undefined : new SqliteLocalOutbox(localDatabase, now);
+const restorationOf = (database: NonNullable<typeof localDatabase>) =>
+  new SqliteRestorationEvidence(database, restorePending);
 const localInstallation =
   localDatabase === undefined ? undefined : new SqliteLocalInstallation(localDatabase, now);
 let cloudReachability: CloudReachability = INITIAL_CLOUD_REACHABILITY;
@@ -618,6 +621,7 @@ const mercadoPagoCharging = createMercadoPagoCharging({
   readOutboxChainKey: async () => (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
   now,
   ids: uuidV7Ids,
+  restoration: localDatabase === undefined ? undefined : restorationOf(localDatabase),
 });
 
 const receiptPrinting = createReceiptPrinting({
@@ -824,6 +828,7 @@ const rendererRequestDeps: RendererRequestDeps = {
           openCashSessionFor(
             {
               database: localDatabase,
+              restoration: restorationOf(localDatabase),
               gate: actionGate,
               readOutboxChainKey: async () =>
                 (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
@@ -869,6 +874,7 @@ const rendererRequestDeps: RendererRequestDeps = {
           cancelLockedSaleFor(
             {
               database: localDatabase,
+              restoration: restorationOf(localDatabase),
               gate: actionGate,
               readOutboxChainKey: async () =>
                 (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
@@ -929,6 +935,7 @@ const rendererRequestDeps: RendererRequestDeps = {
           scanProductFor(
             {
               database: localDatabase,
+              restoration: restorationOf(localDatabase),
               gate: actionGate,
               now,
               ids: uuidV7Ids,
@@ -944,7 +951,12 @@ const rendererRequestDeps: RendererRequestDeps = {
       ? undefined
       : (lineId, quantity, expectedQuantity) =>
           changeLineQuantityFor(
-            { database: localDatabase, gate: actionGate, now },
+            {
+              database: localDatabase,
+              restoration: restorationOf(localDatabase),
+              gate: actionGate,
+              now,
+            },
             lineId,
             quantity,
             expectedQuantity,
@@ -954,7 +966,12 @@ const rendererRequestDeps: RendererRequestDeps = {
       ? undefined
       : (lineId, weightThousandths, expectedWeightThousandths) =>
           changeLineWeightFor(
-            { database: localDatabase, gate: actionGate, now },
+            {
+              database: localDatabase,
+              restoration: restorationOf(localDatabase),
+              gate: actionGate,
+              now,
+            },
             lineId,
             weightThousandths,
             expectedWeightThousandths,
@@ -962,30 +979,78 @@ const rendererRequestDeps: RendererRequestDeps = {
   adjustSaleLine:
     localDatabase === undefined || actionGate === undefined
       ? undefined
-      : (request) => adjustSaleLineFor({ database: localDatabase, gate: actionGate, now }, request),
+      : (request) =>
+          adjustSaleLineFor(
+            {
+              database: localDatabase,
+              restoration: restorationOf(localDatabase),
+              gate: actionGate,
+              now,
+            },
+            request,
+          ),
   previewSaleLineAdjustment:
     localDatabase === undefined || actionGate === undefined
       ? undefined
       : (request) =>
-          previewSaleLineAdjustmentFor({ database: localDatabase, gate: actionGate, now }, request),
+          previewSaleLineAdjustmentFor(
+            {
+              database: localDatabase,
+              restoration: restorationOf(localDatabase),
+              gate: actionGate,
+              now,
+            },
+            request,
+          ),
   applySaleDiscount:
     localDatabase === undefined || actionGate === undefined
       ? undefined
       : (request) =>
-          applySaleDiscountFor({ database: localDatabase, gate: actionGate, now }, request),
+          applySaleDiscountFor(
+            {
+              database: localDatabase,
+              restoration: restorationOf(localDatabase),
+              gate: actionGate,
+              now,
+            },
+            request,
+          ),
   previewSaleDiscount:
     localDatabase === undefined || actionGate === undefined
       ? undefined
       : (request) =>
-          previewSaleDiscountFor({ database: localDatabase, gate: actionGate, now }, request),
+          previewSaleDiscountFor(
+            {
+              database: localDatabase,
+              restoration: restorationOf(localDatabase),
+              gate: actionGate,
+              now,
+            },
+            request,
+          ),
   removeSaleLine:
     localDatabase === undefined || actionGate === undefined
       ? undefined
-      : (lineId) => removeSaleLineFor({ database: localDatabase, gate: actionGate, now }, lineId),
+      : (lineId) =>
+          removeSaleLineFor(
+            {
+              database: localDatabase,
+              restoration: restorationOf(localDatabase),
+              gate: actionGate,
+              now,
+            },
+            lineId,
+          ),
   cancelSale:
     localDatabase === undefined || actionGate === undefined
       ? undefined
-      : () => cancelSaleFor({ database: localDatabase, gate: actionGate, now }),
+      : () =>
+          cancelSaleFor({
+            database: localDatabase,
+            restoration: restorationOf(localDatabase),
+            gate: actionGate,
+            now,
+          }),
   cancelPaidSale:
     localDatabase === undefined || actionGate === undefined
       ? undefined
@@ -993,6 +1058,7 @@ const rendererRequestDeps: RendererRequestDeps = {
           cancelPaidSaleFor(
             {
               database: localDatabase,
+              restoration: restorationOf(localDatabase),
               gate: actionGate,
               readOutboxChainKey: async () =>
                 (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
@@ -1026,6 +1092,7 @@ const rendererRequestDeps: RendererRequestDeps = {
           chargeSaleInCashFor(
             {
               database: localDatabase,
+              restoration: restorationOf(localDatabase),
               gate: actionGate,
               readOutboxChainKey: async () =>
                 (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
@@ -1041,6 +1108,7 @@ const rendererRequestDeps: RendererRequestDeps = {
           chargeSaleByTransferFor(
             {
               database: localDatabase,
+              restoration: restorationOf(localDatabase),
               gate: actionGate,
               readOutboxChainKey: async () =>
                 (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
@@ -1056,6 +1124,7 @@ const rendererRequestDeps: RendererRequestDeps = {
           chargeSaleOnStandaloneTerminalFor(
             {
               database: localDatabase,
+              restoration: restorationOf(localDatabase),
               gate: actionGate,
               readOutboxChainKey: async () =>
                 (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
@@ -1072,6 +1141,7 @@ const rendererRequestDeps: RendererRequestDeps = {
       : () =>
           paymentMethodAvailabilityFor({
             database: localDatabase,
+            restoration: restorationOf(localDatabase),
             gate: actionGate,
             now,
             cloud: () => cloudReachability,
@@ -1081,7 +1151,15 @@ const rendererRequestDeps: RendererRequestDeps = {
   searchProducts:
     localDatabase === undefined || actionGate === undefined
       ? undefined
-      : (query) => searchProductsFor({ database: localDatabase, gate: actionGate }, query),
+      : (query) =>
+          searchProductsFor(
+            {
+              database: localDatabase,
+              restoration: restorationOf(localDatabase),
+              gate: actionGate,
+            },
+            query,
+          ),
   addProduct:
     localDatabase === undefined || actionGate === undefined
       ? undefined
@@ -1089,6 +1167,7 @@ const rendererRequestDeps: RendererRequestDeps = {
           addSearchedProductFor(
             {
               database: localDatabase,
+              restoration: restorationOf(localDatabase),
               gate: actionGate,
               now,
               ids: uuidV7Ids,
@@ -1106,6 +1185,7 @@ const rendererRequestDeps: RendererRequestDeps = {
           addWeighedProductFor(
             {
               database: localDatabase,
+              restoration: restorationOf(localDatabase),
               gate: actionGate,
               now,
               ids: uuidV7Ids,
@@ -1124,6 +1204,7 @@ const rendererRequestDeps: RendererRequestDeps = {
           weighProductFor(
             {
               database: localDatabase,
+              restoration: restorationOf(localDatabase),
               gate: actionGate,
               now,
               ids: uuidV7Ids,
@@ -1162,11 +1243,26 @@ const rendererRequestDeps: RendererRequestDeps = {
   currentSale:
     localDatabase === undefined || actionGate === undefined
       ? undefined
-      : () => currentSaleFor({ database: localDatabase, gate: actionGate, now }),
+      : () =>
+          currentSaleFor({
+            database: localDatabase,
+            restoration: restorationOf(localDatabase),
+            gate: actionGate,
+            now,
+          }),
   cashCharge:
     localDatabase === undefined || actionGate === undefined
       ? undefined
-      : (request) => cashChargeFor({ database: localDatabase, gate: actionGate, now }, request),
+      : (request) =>
+          cashChargeFor(
+            {
+              database: localDatabase,
+              restoration: restorationOf(localDatabase),
+              gate: actionGate,
+              now,
+            },
+            request,
+          ),
   salesHistory:
     localDatabase === undefined || actionGate === undefined
       ? undefined
