@@ -33,7 +33,7 @@ const SERIES: RealTimeSeries = {
   numberingFrozen: false,
   clockMark: null,
   taxAuthorityLastIssuedOn: null,
-  latestClockCorrection: null,
+  clockCorrections: [],
 };
 const OFFLINE_SERIES: OfflineSeries = {
   pointOfSale: 7,

@@ -52,7 +52,7 @@ const SERIES: RealTimeSeries = {
   numberingFrozen: false,
   clockMark: null,
   taxAuthorityLastIssuedOn: null,
-  latestClockCorrection: null,
+  clockCorrections: [],
 };
 const OFFLINE_SERIES: OfflineSeries = {
   pointOfSale: 7,
@@ -249,10 +249,12 @@ describe("decideSaleAuthorization", () => {
       series: {
         ...SERIES,
         taxAuthorityLastIssuedOn: "2026-10-03",
-        latestClockCorrection: {
-          previousReading: new Date("2026-10-04T15:00:00.000Z"),
-          correctedReading: new Date("2026-10-01T10:00:00.000Z"),
-        },
+        clockCorrections: [
+          {
+            previousReading: new Date("2026-10-04T15:00:00.000Z"),
+            correctedReading: new Date("2026-10-01T10:00:00.000Z"),
+          },
+        ],
       },
     };
 

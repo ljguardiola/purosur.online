@@ -879,6 +879,37 @@ describe("deciding a sale's authorization against the register's clock marks", (
     });
   });
 
+  describe("in the lapse opened by a later correction that set the clock further back than an earlier one", () => {
+    beforeEach(() => {
+      database
+        .prepare(
+          "UPDATE register_point_of_sale SET tax_authority_last_authorized_issued_on = '2026-10-02'",
+        )
+        .run();
+      const correct = database.prepare(
+        `INSERT INTO clock_corrections (
+           period, register_id, actor_id, point_of_sale, document_type, previous_reading, corrected_reading
+         ) VALUES (?, 'r1', 'u1', ?, 'factura_c', ?, ?)`,
+      );
+      correct.run("s1", POINT_OF_SALE, "2026-10-01T15:00:00.000Z", "2026-09-30T11:00:00.000Z");
+      correct.run("s2", POINT_OF_SALE, "2026-10-02T15:00:00.000Z", "2026-09-30T10:00:00.000Z");
+    });
+
+    it("issues the sale under the code of its fortnight with the lapse as its cause, while the register is online", () => {
+      insertOfflinePointOfSale(database, OFFLINE_POINT_OF_SALE, 0);
+      insertOfflineNumberBlock(database, "block-1", 1, 1000, OFFLINE_POINT_OF_SALE);
+      insertOfflineAuthorizationCode(database);
+
+      decide();
+
+      expect(documents()).toEqual([]);
+      expect(routings()).toEqual([]);
+      expect(offlineDocuments()).toMatchObject([
+        { sale_id: "sale-1", number: 1, cause: "clock_correction_lapse" },
+      ]);
+    });
+  });
+
   describe("when the register holds a code and a block", () => {
     beforeEach(() => {
       insertOfflinePointOfSale(database, OFFLINE_POINT_OF_SALE, 0);

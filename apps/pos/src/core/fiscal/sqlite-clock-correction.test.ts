@@ -138,7 +138,7 @@ describe("the tax authority's last authorized day, read as the guard's floor", (
   });
 });
 
-describe("the latest correction of a point of sale's clock, read for its guard", () => {
+describe("the corrections of a point of sale's clock, read for its guard", () => {
   function recordCorrection(pointOfSale: number, previous: string, corrected: string) {
     database
       .prepare(
@@ -149,19 +149,25 @@ describe("the latest correction of a point of sale's clock, read for its guard",
       .run(pointOfSale, previous, corrected);
   }
 
-  it("is none while the point of sale was never corrected", () => {
-    expect(reader().latestClockCorrectionOf(12, "factura_c")).toBeNull();
+  it("are none while the point of sale was never corrected", () => {
+    expect(reader().clockCorrectionsOf(12, "factura_c")).toEqual([]);
   });
 
-  it("is the correction with the greatest corrected reading, of that point of sale only", () => {
+  it("are every correction of that point of sale only", () => {
     recordCorrection(12, "2026-10-05T15:00:00.000Z", "2026-10-02T15:00:00.000Z");
-    recordCorrection(12, "2026-10-04T15:00:00.000Z", "2026-10-03T15:00:00.000Z");
     recordCorrection(31, "2026-10-09T15:00:00.000Z", "2026-10-08T15:00:00.000Z");
+    recordCorrection(12, "2026-10-04T15:00:00.000Z", "2026-10-03T15:00:00.000Z");
 
-    expect(reader().latestClockCorrectionOf(12, "factura_c")).toEqual({
-      previousReading: new Date("2026-10-04T15:00:00.000Z"),
-      correctedReading: new Date("2026-10-03T15:00:00.000Z"),
-    });
+    expect(reader().clockCorrectionsOf(12, "factura_c")).toEqual([
+      {
+        previousReading: new Date("2026-10-05T15:00:00.000Z"),
+        correctedReading: new Date("2026-10-02T15:00:00.000Z"),
+      },
+      {
+        previousReading: new Date("2026-10-04T15:00:00.000Z"),
+        correctedReading: new Date("2026-10-03T15:00:00.000Z"),
+      },
+    ]);
   });
 });
 

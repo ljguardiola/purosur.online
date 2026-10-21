@@ -251,7 +251,7 @@ const SERIES = {
   numberingFrozen: false,
   clockMark: null,
   taxAuthorityLastIssuedOn: null,
-  latestClockCorrection: null,
+  clockCorrections: [],
 };
 const OFFLINE_SERIES = {
   pointOfSale: 7,
@@ -592,10 +592,12 @@ describe("decideSaleAuthorizationRoute in the lapse after a clock correction", (
   const LAPSE_SERIES = {
     ...SERIES,
     taxAuthorityLastIssuedOn: "2026-10-03",
-    latestClockCorrection: {
-      previousReading: new Date("2026-10-04T15:00:00.000Z"),
-      correctedReading: new Date("2026-10-01T10:00:00.000Z"),
-    },
+    clockCorrections: [
+      {
+        previousReading: new Date("2026-10-04T15:00:00.000Z"),
+        correctedReading: new Date("2026-10-01T10:00:00.000Z"),
+      },
+    ],
   };
 
   it("issues the sale under the offline code while the register is online", () => {
@@ -643,10 +645,12 @@ describe("decideSaleAuthorizationRoute in the lapse after a clock correction", (
       decide({
         series: {
           ...LAPSE_SERIES,
-          latestClockCorrection: {
-            previousReading: new Date("2026-10-02T15:00:00.000Z"),
-            correctedReading: new Date("2026-10-01T10:00:00.000Z"),
-          },
+          clockCorrections: [
+            {
+              previousReading: new Date("2026-10-02T15:00:00.000Z"),
+              correctedReading: new Date("2026-10-01T10:00:00.000Z"),
+            },
+          ],
         },
       }),
     ).toEqual({ kind: "defer", reason: "clock_behind" });

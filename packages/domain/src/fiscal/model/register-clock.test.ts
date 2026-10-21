@@ -71,7 +71,7 @@ describe("isInClockCorrectionLapse", () => {
     isInClockCorrectionLapse({
       reading: new Date("2026-10-02T15:00:00.000Z"),
       taxAuthorityLastIssuedOn: "2026-10-05",
-      latestCorrection: CORRECTION,
+      corrections: [CORRECTION],
       ...overrides,
     });
 
@@ -84,16 +84,18 @@ describe("isInClockCorrectionLapse", () => {
   });
 
   it("does not hold when the register was never corrected", () => {
-    expect(lapse({ latestCorrection: null })).toBe(false);
+    expect(lapse({ corrections: [] })).toBe(false);
   });
 
   it("does not hold for an old correction whose previous reading's day is before the tax authority's day", () => {
     expect(
       lapse({
-        latestCorrection: {
-          previousReading: new Date("2026-10-04T15:00:00.000Z"),
-          correctedReading: new Date("2026-10-01T15:00:00.000Z"),
-        },
+        corrections: [
+          {
+            previousReading: new Date("2026-10-04T15:00:00.000Z"),
+            correctedReading: new Date("2026-10-01T15:00:00.000Z"),
+          },
+        ],
       }),
     ).toBe(false);
   });
@@ -101,10 +103,12 @@ describe("isInClockCorrectionLapse", () => {
   it("holds when the correction's previous reading is on the tax authority's day", () => {
     expect(
       lapse({
-        latestCorrection: {
-          previousReading: new Date("2026-10-05T03:00:00.000Z"),
-          correctedReading: CORRECTION.correctedReading,
-        },
+        corrections: [
+          {
+            previousReading: new Date("2026-10-05T03:00:00.000Z"),
+            correctedReading: CORRECTION.correctedReading,
+          },
+        ],
       }),
     ).toBe(true);
   });
@@ -112,10 +116,12 @@ describe("isInClockCorrectionLapse", () => {
   it("does not hold when the correction's previous reading is the last Argentine moment before that day", () => {
     expect(
       lapse({
-        latestCorrection: {
-          previousReading: new Date("2026-10-05T02:59:59.000Z"),
-          correctedReading: CORRECTION.correctedReading,
-        },
+        corrections: [
+          {
+            previousReading: new Date("2026-10-05T02:59:59.000Z"),
+            correctedReading: CORRECTION.correctedReading,
+          },
+        ],
       }),
     ).toBe(false);
   });
@@ -123,10 +129,12 @@ describe("isInClockCorrectionLapse", () => {
   it("does not hold for a correction that did not lower the clock below the tax authority's day", () => {
     expect(
       lapse({
-        latestCorrection: {
-          previousReading: CORRECTION.previousReading,
-          correctedReading: new Date("2026-10-05T03:00:00.000Z"),
-        },
+        corrections: [
+          {
+            previousReading: CORRECTION.previousReading,
+            correctedReading: new Date("2026-10-05T03:00:00.000Z"),
+          },
+        ],
       }),
     ).toBe(false);
   });
@@ -134,13 +142,41 @@ describe("isInClockCorrectionLapse", () => {
   it("holds when the corrected reading is the last Argentine moment before the day", () => {
     expect(
       lapse({
-        latestCorrection: {
-          previousReading: CORRECTION.previousReading,
-          correctedReading: new Date("2026-10-05T02:59:59.000Z"),
-        },
+        corrections: [
+          {
+            previousReading: CORRECTION.previousReading,
+            correctedReading: new Date("2026-10-05T02:59:59.000Z"),
+          },
+        ],
         reading: new Date("2026-10-05T02:59:59.000Z"),
       }),
     ).toBe(true);
+  });
+
+  it("holds whichever order the correction that opened it and an earlier unrelated one come in", () => {
+    const unrelated = {
+      previousReading: new Date("2026-09-20T15:00:00.000Z"),
+      correctedReading: new Date("2026-09-18T15:00:00.000Z"),
+    };
+    expect(lapse({ corrections: [unrelated, CORRECTION] })).toBe(true);
+    expect(lapse({ corrections: [CORRECTION, unrelated] })).toBe(true);
+  });
+
+  it("does not hold when none of several corrections lowered the clock across the tax authority's day", () => {
+    expect(
+      lapse({
+        corrections: [
+          {
+            previousReading: new Date("2026-10-04T15:00:00.000Z"),
+            correctedReading: new Date("2026-10-01T15:00:00.000Z"),
+          },
+          {
+            previousReading: new Date("2026-10-06T15:00:00.000Z"),
+            correctedReading: new Date("2026-10-05T15:00:00.000Z"),
+          },
+        ],
+      }),
+    ).toBe(false);
   });
 
   it("ends when the reading's Argentine day reaches the tax authority's day", () => {

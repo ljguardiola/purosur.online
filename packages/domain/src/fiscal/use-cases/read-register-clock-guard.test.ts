@@ -100,17 +100,28 @@ describe("readRegisterClockGuard", () => {
       documentType: "factura_c",
       lastIssuedOn: "2026-10-02",
     } as const;
-    const latestCorrection = {
+    const correction = {
+      pointOfSale: 12,
+      documentType: "factura_c",
       previousReading: new Date("2026-10-03T15:00:00.000Z"),
       correctedReading: new Date("2026-09-30T15:00:00.000Z"),
+    } as const;
+    const earlierEpisode = {
+      ...correction,
+      previousReading: new Date("2026-10-01T15:00:00.000Z"),
     };
 
     it("does not block the point of sale for the tax authority's day", () => {
-      expect(read({ floor, latestCorrection }).blocks).toEqual([]);
+      expect(read({ floor, corrections: [correction] }).blocks).toEqual([]);
+    });
+
+    it("does not block the point of sale whichever order the correction and an earlier episode's come in", () => {
+      expect(read({ floor, corrections: [earlierEpisode, correction] }).blocks).toEqual([]);
+      expect(read({ floor, corrections: [correction, earlierEpisode] }).blocks).toEqual([]);
     });
 
     it("still blocks the point of sale whose mark is ahead of the reading", () => {
-      expect(read({ floor, latestCorrection, marks: [REAL_TIME_MARK] }).blocks).toEqual([
+      expect(read({ floor, corrections: [correction], marks: [REAL_TIME_MARK] }).blocks).toEqual([
         {
           pointOfSale: 12,
           documentType: "factura_c",
@@ -120,17 +131,18 @@ describe("readRegisterClockGuard", () => {
       ]);
     });
 
-    it("blocks again when the correction belongs to an earlier episode", () => {
-      const old = {
-        previousReading: new Date("2026-10-01T15:00:00.000Z"),
-        correctedReading: new Date("2026-09-30T15:00:00.000Z"),
-      };
+    it("blocks again when the only correction belongs to an earlier episode", () => {
+      expect(read({ floor, corrections: [earlierEpisode] }).blocks).toHaveLength(1);
+    });
 
-      expect(read({ floor, latestCorrection: old }).blocks).toHaveLength(1);
+    it("blocks the point of sale when the correction is of another point of sale", () => {
+      expect(read({ floor, corrections: [{ ...correction, pointOfSale: 7 }] }).blocks).toHaveLength(
+        1,
+      );
     });
 
     it("blocks the point of sale as before when there is no correction", () => {
-      expect(read({ floor, latestCorrection: null }).blocks).toHaveLength(1);
+      expect(read({ floor, corrections: [] }).blocks).toHaveLength(1);
     });
   });
 

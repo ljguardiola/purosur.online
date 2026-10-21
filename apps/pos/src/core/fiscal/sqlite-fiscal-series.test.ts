@@ -48,7 +48,7 @@ describe("readRealTimeSeries", () => {
       numberingFrozen: false,
       clockMark: null,
       taxAuthorityLastIssuedOn: null,
-      latestClockCorrection: null,
+      clockCorrections: [],
     });
   });
 
@@ -74,11 +74,11 @@ describe("readRealTimeSeries", () => {
       numberingFrozen: false,
       clockMark: null,
       taxAuthorityLastIssuedOn: "2026-09-29",
-      latestClockCorrection: null,
+      clockCorrections: [],
     });
   });
 
-  describe("the latest clock correction", () => {
+  describe("the clock corrections", () => {
     function correct(
       pointOfSale: number,
       previousReading: string,
@@ -94,40 +94,33 @@ describe("readRealTimeSeries", () => {
         .run(pointOfSale, documentType, previousReading, correctedReading);
     }
 
-    it("is none while the point of sale was never corrected", () => {
+    it("are none while the point of sale was never corrected", () => {
       insertPointOfSale(database, 40);
 
-      expect(readRealTimeSeries(database).latestClockCorrection).toBeNull();
+      expect(readRealTimeSeries(database).clockCorrections).toEqual([]);
     });
 
-    it("is the correction of the point of sale with the greatest corrected reading", () => {
+    it("are every correction of the point of sale, and none of another point of sale", () => {
       insertPointOfSale(database, 40);
       correct(POINT_OF_SALE, "2026-10-05T15:00:00.000Z", "2026-10-02T15:00:00.000Z");
+      correct(99, "2026-10-09T15:00:00.000Z", "2026-10-08T15:00:00.000Z");
       correct(POINT_OF_SALE, "2026-10-04T15:00:00.000Z", "2026-10-03T15:00:00.000Z");
       correct(POINT_OF_SALE, "2026-10-06T15:00:00.000Z", "2026-10-01T15:00:00.000Z");
 
-      expect(readRealTimeSeries(database).latestClockCorrection).toEqual({
-        previousReading: new Date("2026-10-04T15:00:00.000Z"),
-        correctedReading: new Date("2026-10-03T15:00:00.000Z"),
-      });
-    });
-
-    it("takes the last recorded of two corrections to the same reading", () => {
-      insertPointOfSale(database, 40);
-      correct(POINT_OF_SALE, "2026-10-05T15:00:00.000Z", "2026-10-02T15:00:00.000Z");
-      correct(POINT_OF_SALE, "2026-10-06T15:00:00.000Z", "2026-10-02T15:00:00.000Z");
-
-      expect(readRealTimeSeries(database).latestClockCorrection).toEqual({
-        previousReading: new Date("2026-10-06T15:00:00.000Z"),
-        correctedReading: new Date("2026-10-02T15:00:00.000Z"),
-      });
-    });
-
-    it("leaves out the corrections of another point of sale", () => {
-      insertPointOfSale(database, 40);
-      correct(99, "2026-10-05T15:00:00.000Z", "2026-10-02T15:00:00.000Z");
-
-      expect(readRealTimeSeries(database).latestClockCorrection).toBeNull();
+      expect(readRealTimeSeries(database).clockCorrections).toEqual([
+        {
+          previousReading: new Date("2026-10-05T15:00:00.000Z"),
+          correctedReading: new Date("2026-10-02T15:00:00.000Z"),
+        },
+        {
+          previousReading: new Date("2026-10-04T15:00:00.000Z"),
+          correctedReading: new Date("2026-10-03T15:00:00.000Z"),
+        },
+        {
+          previousReading: new Date("2026-10-06T15:00:00.000Z"),
+          correctedReading: new Date("2026-10-01T15:00:00.000Z"),
+        },
+      ]);
     });
   });
 
