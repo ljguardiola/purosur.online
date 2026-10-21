@@ -12,7 +12,11 @@ import type {
 } from "../../../payments/index.js";
 import type { RoleAccess } from "../../../permissions/index.js";
 import { newestPrice } from "../../../pricing/index.js";
-import { type CashMovement, nextOperationNumber } from "../../../register/index.js";
+import {
+  type CashMovement,
+  nextOperationNumber,
+  type RestorationEvidence,
+} from "../../../register/index.js";
 import type { Clock, OutboxEventDraft } from "../../../shared/index.js";
 import type { SaleWithLines } from "../../model/sale.js";
 import type { ListPrice } from "../../model/sale-line.js";
@@ -30,6 +34,18 @@ import type {
   SellableProduct,
   SellingSession,
 } from "../sale-ledger.js";
+
+export const RESTORATION_COMPLETED: RestorationEvidence = {
+  enroll: "completed",
+  restore: "completed",
+  reset_sync_identity: "completed",
+  replenish: "completed",
+};
+
+export const RESTORATION_IN_PROGRESS: RestorationEvidence = {
+  ...RESTORATION_COMPLETED,
+  replenish: "pending",
+};
 
 interface FakePrice extends ListPrice {
   id: string;
@@ -53,6 +69,7 @@ export interface FakeSaleLedgerState {
   paidOrdersWithoutSale: { resolved: boolean }[];
   paidOrderDiscovery: PaidOrderDiscoveryState;
   session: SellingSession | undefined;
+  restoration: RestorationEvidence;
   products: SellableProduct[];
   barcodes: Record<string, string>;
   prices: FakePrice[];
@@ -116,6 +133,7 @@ export class FakeSaleLedger implements SaleLedger {
       paidOrdersWithoutSale: [],
       paidOrderDiscovery: "checked",
       session: undefined,
+      restoration: RESTORATION_COMPLETED,
       products: [],
       barcodes: {},
       prices: [],
@@ -145,6 +163,7 @@ export class FakeSaleLedger implements SaleLedger {
     const working = structuredClone(this.state);
     const outcome = work({
       sellerAccess: (userId) => working.accesses[userId],
+      restorationEvidence: () => working.restoration,
       openSession: () => working.session,
       openSale: (sessionId) => {
         const sale = working.sales.find(
