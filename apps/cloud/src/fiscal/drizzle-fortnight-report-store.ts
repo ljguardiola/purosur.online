@@ -6,15 +6,22 @@ import type {
   FortnightReportStore,
   HeldFortnightReport,
   OwedFortnightReport,
+  RecordedDocumentTypeReport,
   RecordedFortnightReport,
+  RejectedDocumentCreditNote,
 } from "@purosur/domain/fiscal/use-cases";
 import { and, eq, inArray, isNotNull, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import {
+  creditNotes,
   fortnightDocumentReports,
   fortnightReports,
   offlineFiscalDocuments,
+  registerPointsOfSale,
 } from "../platform/db/schema.js";
+import { recordedDocumentTypeReports } from "./drizzle-recorded-document-type-reports.js";
+import type { EnqueueCreditNote } from "./enqueue-credit-note.js";
+import { fortnightReportLock } from "./fortnight-report-lock.js";
 import { fortnightReportsOwedAs, owedFortnightReportsWithState } from "./owed-fortnight-reports.js";
 
 const STATES_THAT_ARE_AN_ATTEMPT = new Set<FortnightReportChange["state"]>([
@@ -23,8 +30,9 @@ const STATES_THAT_ARE_AN_ATTEMPT = new Set<FortnightReportChange["state"]>([
   "accepted",
 ]);
 
-function fortnightReportLockKey({ pointOfSaleNumber, fortnight }: FortnightReportKey): string {
-  return `fortnight_report:${pointOfSaleNumber}:${fortnight.start}`;
+export interface FortnightReportStoreOptions {
+  enqueueCreditNote: EnqueueCreditNote;
+  now: () => Date;
 }
 
 class DrizzleHeldFortnightReport<TQueryResult extends PgQueryResultHKT>
@@ -32,10 +40,16 @@ class DrizzleHeldFortnightReport<TQueryResult extends PgQueryResultHKT>
 {
   private readonly db: PgDatabase<TQueryResult>;
   private readonly key: FortnightReportKey;
+  private readonly options: FortnightReportStoreOptions;
 
-  constructor(db: PgDatabase<TQueryResult>, key: FortnightReportKey) {
+  constructor(
+    db: PgDatabase<TQueryResult>,
+    key: FortnightReportKey,
+    options: FortnightReportStoreOptions,
+  ) {
     this.db = db;
     this.key = key;
+    this.options = options;
   }
 
   async recorded(): Promise<RecordedFortnightReport | null> {
@@ -114,6 +128,58 @@ class DrizzleHeldFortnightReport<TQueryResult extends PgQueryResultHKT>
       });
   }
 
+  documentTypeReports(): Promise<RecordedDocumentTypeReport[]> {
+    return recordedDocumentTypeReports(this.db, this.key.pointOfSaleNumber, this.key.fortnight);
+  }
+
+  async realTimePointOfSaleOf(registerId: string): Promise<number | null> {
+    const [row] = await this.db
+      .select({ pointOfSaleNumber: registerPointsOfSale.pointOfSaleNumber })
+      .from(registerPointsOfSale)
+      .where(eq(registerPointsOfSale.registerId, registerId));
+    return row?.pointOfSaleNumber ?? null;
+  }
+
+  async creditCorrectedDocument(creditNote: RejectedDocumentCreditNote): Promise<void> {
+    const { associatedVoucher } = creditNote;
+    await this.db.transaction(async (tx) => {
+      const [holder] = await tx
+        .select({ registerId: registerPointsOfSale.registerId })
+        .from(registerPointsOfSale)
+        .where(eq(registerPointsOfSale.pointOfSaleNumber, creditNote.pointOfSale));
+      if (holder === undefined) {
+        throw new Error(`no register holds point of sale ${creditNote.pointOfSale}`);
+      }
+      const creditNoteId = crypto.randomUUID();
+      const inserted = await tx
+        .insert(creditNotes)
+        .values({
+          id: creditNoteId,
+          registerId: holder.registerId,
+          saleId: creditNote.saleId,
+          reason: creditNote.reason,
+          pointOfSale: creditNote.pointOfSale,
+          associatedVoucherType: associatedVoucher.voucherType,
+          associatedPointOfSale: associatedVoucher.pointOfSale,
+          associatedNumber: associatedVoucher.number,
+          total: creditNote.total,
+          receiverTaxStatusCode: creditNote.receiverTaxStatusCode,
+          createdAt: this.options.now(),
+        })
+        .onConflictDoNothing({
+          target: [
+            creditNotes.associatedVoucherType,
+            creditNotes.associatedPointOfSale,
+            creditNotes.associatedNumber,
+          ],
+        })
+        .returning({ id: creditNotes.id });
+      if (inserted.length > 0) {
+        await this.options.enqueueCreditNote(tx, creditNoteId);
+      }
+    });
+  }
+
   private rowMatch() {
     return and(
       eq(fortnightReports.pointOfSaleNumber, this.key.pointOfSaleNumber),
@@ -129,9 +195,11 @@ export class DrizzleFortnightReportStore<TQueryResult extends PgQueryResultHKT>
   implements FortnightReportStore
 {
   private readonly db: PgDatabase<TQueryResult>;
+  private readonly options: FortnightReportStoreOptions;
 
-  constructor(db: PgDatabase<TQueryResult>) {
+  constructor(db: PgDatabase<TQueryResult>, options: FortnightReportStoreOptions) {
     this.db = db;
+    this.options = options;
   }
 
   async owedReports(today: string): Promise<OwedFortnightReport[]> {
@@ -201,10 +269,10 @@ export class DrizzleFortnightReportStore<TQueryResult extends PgQueryResultHKT>
     key: FortnightReportKey,
     work: (report: HeldFortnightReport) => Promise<TOutcome>,
   ): Promise<TOutcome> {
-    const lock = sql`hashtextextended(${fortnightReportLockKey(key)}, 0)`;
+    const lock = fortnightReportLock(key);
     await this.db.execute(sql`select pg_advisory_lock(${lock})`);
     try {
-      return await work(new DrizzleHeldFortnightReport(this.db, key));
+      return await work(new DrizzleHeldFortnightReport(this.db, key, this.options));
     } finally {
       await this.db.execute(sql`select pg_advisory_unlock(${lock})`);
     }

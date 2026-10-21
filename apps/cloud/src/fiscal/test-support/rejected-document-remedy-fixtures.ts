@@ -1,4 +1,5 @@
-import type { Fortnight, OfflineDocumentCorrection } from "@purosur/domain/fiscal/use-cases";
+import type { OfflineDocumentCorrection } from "@purosur/domain";
+import type { Fortnight } from "@purosur/domain/fiscal/use-cases";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { rejectedDocumentRemedies } from "../../platform/db/schema.js";
 

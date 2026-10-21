@@ -21,6 +21,7 @@ import { DrizzleOfflineAuthorizationCodeStore } from "./drizzle-offline-authoriz
 import { DrizzleOfflineDocumentsOfFortnight } from "./drizzle-offline-documents-of-fortnight.js";
 import { DrizzleOwedPresentationList } from "./drizzle-owed-presentation-list.js";
 import { DrizzleWsaaTokenSource } from "./drizzle-wsaa-token-source.js";
+import { enqueueCreditNoteJob } from "./graphile-credit-note-queue.js";
 import { rejectionsText } from "./offline-authorization-code-acquisition-description.js";
 import { WSFE_SERVICE } from "./wsaa-token-renewal-task.js";
 
@@ -96,7 +97,10 @@ export function fortnightReportJobs(
   const present = async (client: PoolClient, { logger }: JobHelpers) => {
     const db = doCreateDatabase(client);
     const outcome = await reportFortnights({
-      reports: new DrizzleFortnightReportStore(db),
+      reports: new DrizzleFortnightReportStore(db, {
+        enqueueCreditNote: enqueueCreditNoteJob,
+        now,
+      }),
       documents: new DrizzleOfflineDocumentsOfFortnight(db),
       streams: new DrizzleRegisterEventStreams(db),
       declarations,

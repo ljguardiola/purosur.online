@@ -29,6 +29,10 @@ export type {
 } from "../model/orphan-authorization.js";
 export type { ListedOwedPresentation } from "../model/owed-presentation-list.js";
 export type {
+  RecordedRemedy,
+  RejectedDocumentCreditNote,
+} from "../model/rejected-document-remedy.js";
+export type {
   DeferralReason,
   OfflineAuthorizationCause,
   OfflineSeries,

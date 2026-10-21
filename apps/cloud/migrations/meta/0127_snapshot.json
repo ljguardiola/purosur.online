@@ -1,5 +1,5 @@
 {
-  "id": "799d383c-141f-47b1-bce6-52e872b8160d",
+  "id": "222220f9-2dce-408e-ad34-4e2786b2c069",
   "prevId": "e6cd4423-34e5-4f9b-bc34-2457cc59e5db",
   "version": "7",
   "dialect": "postgresql",
@@ -8157,12 +8157,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "actor_id": {
-          "name": "actor_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
         "recorded_at": {
           "name": "recorded_at",
           "type": "timestamp with time zone",
@@ -8212,15 +8206,6 @@
           "tableTo": "point_of_sale_claims",
           "columnsFrom": ["point_of_sale_number"],
           "columnsTo": ["point_of_sale_number"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "rejected_document_remedies_actor_id_users_id_fk": {
-          "name": "rejected_document_remedies_actor_id_users_id_fk",
-          "tableFrom": "rejected_document_remedies",
-          "tableTo": "users",
-          "columnsFrom": ["actor_id"],
-          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }

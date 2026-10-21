@@ -6,6 +6,7 @@ import type {
 import { and, asc, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { offlineFiscalDocuments } from "../platform/db/schema.js";
+import { recordedRemedies, remedyKey } from "./drizzle-rejected-document-remedies.js";
 
 export class DrizzleOfflineDocumentsOfFortnight<TQueryResult extends PgQueryResultHKT>
   implements OfflineDocumentsOfFortnight
@@ -20,8 +21,11 @@ export class DrizzleOfflineDocumentsOfFortnight<TQueryResult extends PgQueryResu
     pointOfSaleNumber: number,
     fortnight: Fortnight,
   ): Promise<OfflineDocumentOfFortnight[]> {
-    return this.db
+    const documents = await this.db
       .select({
+        id: offlineFiscalDocuments.id,
+        saleId: offlineFiscalDocuments.saleId,
+        registerId: offlineFiscalDocuments.registerId,
         documentType: offlineFiscalDocuments.documentType,
         number: offlineFiscalDocuments.number,
         issuedOn: offlineFiscalDocuments.issuedOn,
@@ -40,5 +44,16 @@ export class DrizzleOfflineDocumentsOfFortnight<TQueryResult extends PgQueryResu
         ),
       )
       .orderBy(asc(offlineFiscalDocuments.documentType), asc(offlineFiscalDocuments.number));
+    const { corrections } = await recordedRemedies(this.db, {
+      pointsOfSale: [pointOfSaleNumber],
+      fortnightStart: fortnight.start,
+    });
+    return documents.map((document) => ({
+      ...document,
+      correction:
+        corrections.get(
+          remedyKey(pointOfSaleNumber, fortnight.start, document.documentType, document.number),
+        ) ?? null,
+    }));
   }
 }

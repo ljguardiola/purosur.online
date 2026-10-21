@@ -535,6 +535,10 @@ async function recordOfflineDocumentReports(
     number: number,
     netAmount = INVOICE_TOTAL_CENTS,
   ): OfflineDocumentOfFortnight => ({
+    id: crypto.randomUUID(),
+    saleId: crypto.randomUUID(),
+    registerId: crypto.randomUUID(),
+    correction: null,
     documentType: FACTURA_C_DOCUMENT_TYPE,
     number,
     issuedOn: invoiceDateOf(generatedAt),
