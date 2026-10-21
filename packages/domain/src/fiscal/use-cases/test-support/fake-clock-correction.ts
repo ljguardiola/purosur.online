@@ -9,6 +9,8 @@ import type {
   ClockLowering,
   ClockMark,
 } from "../../model/clock-correction.js";
+import type { FiscalDocumentType } from "../../model/fiscal-rejection-standing.js";
+import type { TaxAuthorityFloor } from "../register-clock-guard-ports.js";
 import type {
   ClockCorrectionLedger,
   ClockCorrectionRecord,
@@ -20,6 +22,7 @@ export interface FakeClockCorrectionState {
   registerId: string | undefined;
   standing: CashSessionStanding;
   marks: ClockMark[];
+  floor: TaxAuthorityFloor | null;
   records: ClockCorrectionRecord[];
   outbox: OutboxEventDraft[];
 }
@@ -34,6 +37,7 @@ export class FakeClockCorrectionLedger implements ClockCorrectionLedger {
       registerId: "register-1",
       standing: { openSessionId: null, lastClosedSessionId: null },
       marks: [],
+      floor: null,
       records: [],
       outbox: [],
       ...state,
@@ -48,6 +52,17 @@ export class FakeClockCorrectionLedger implements ClockCorrectionLedger {
       registerId: () => state.registerId,
       cashSessionStanding: () => state.standing,
       clockMarks: () => state.marks.map((mark) => ({ ...mark })),
+      taxAuthorityFloor: () => state.floor,
+      clockCorrectionsOf: (pointOfSale: number, documentType: FiscalDocumentType) =>
+        state.records
+          .filter(
+            ({ lowering }) =>
+              lowering.pointOfSale === pointOfSale && lowering.documentType === documentType,
+          )
+          .map(({ lowering }) => ({
+            previousReading: lowering.previousReading,
+            correctedReading: lowering.correctedReading,
+          })),
       clockCorrectionRecordedIn: (period) =>
         state.records.some((record) => record.period === period),
       lowerClockMark: ({ pointOfSale, documentType, correctedReading }: ClockLowering) => {
