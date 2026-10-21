@@ -5562,4 +5562,31 @@ describe("the register's local migrations", () => {
       rmSync(folder, { recursive: true, force: true });
     }
   });
+
+  it("add when the cloud first refused the register's sequence as stale, none for a register already holding data", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.filter(
+        (migration) => migration.name < "0068_stale_sequence",
+      );
+      expect(LOCAL_MIGRATIONS.map((migration) => migration.name)).toContain("0068_stale_sequence");
+      const before = openLocalDatabase(path, previous, migrationClock);
+      before
+        .prepare("UPDATE sync_state SET pull_cursor = 9, device_id = 'device-a' WHERE id = 1")
+        .run();
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+
+      expect(
+        after
+          .prepare("SELECT pull_cursor, device_id, stale_sequence_detected_at FROM sync_state")
+          .all(),
+      ).toEqual([{ pull_cursor: 9, device_id: "device-a", stale_sequence_detected_at: null }]);
+      after.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
 });
