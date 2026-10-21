@@ -19,6 +19,7 @@ function line(
     promotionId: null,
     discountAmount: 0,
     saleDiscountShare: 0,
+    promotions: [],
     lineTotal: 1500 * quantity,
   };
 }

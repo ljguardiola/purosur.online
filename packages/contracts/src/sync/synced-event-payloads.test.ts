@@ -146,6 +146,7 @@ describe("synced event payloads", () => {
       "clock_corrected@1",
       "fiscal_gate_failed@1",
       "offline_fiscal_document_issued@1",
+      "offline_fiscal_document_issued@2",
       "opening_count_recorded@1",
       "opening_count_withdrawn@1",
       "qr_payment_replaced@1",
@@ -189,7 +190,10 @@ describe("synced event payloads", () => {
     expect(syncedEventPayloadKey("offline_fiscal_document_issued", 1)).toBe(
       "offline_fiscal_document_issued@1",
     );
-    expect(syncedEventPayloadKey("offline_fiscal_document_issued", 2)).toBeUndefined();
+    expect(syncedEventPayloadKey("offline_fiscal_document_issued", 2)).toBe(
+      "offline_fiscal_document_issued@2",
+    );
+    expect(syncedEventPayloadKey("offline_fiscal_document_issued", 3)).toBeUndefined();
   });
 
   it.each([
@@ -366,7 +370,7 @@ describe("synced event payloads", () => {
     });
   });
 
-  describe("offline_fiscal_document_issued v1", () => {
+  describe("offline_fiscal_document_issued", () => {
     const { payload: issued } = offlineFiscalDocumentIssuedEvent({
       eventId: "event-1",
       registerId: "register-1",
@@ -399,15 +403,92 @@ describe("synced event payloads", () => {
         cause: "no_connectivity",
       }),
     });
-    const offline = (change: Payload = {}) => ({ ...(issued as Payload), ...change });
+    const { document: _invoice, ...version1 } = issued as Payload;
+    const offline = (change: Payload = {}) => ({ ...version1, ...change });
+    const offlineWithInvoice = (change: Payload = {}) => ({ ...(issued as Payload), ...change });
+    const invoice = (change: Payload = {}) => ({ ...(issued["document"] as Payload), ...change });
+    const issuer = (change: Payload = {}) => ({
+      ...((issued["document"] as Payload)["issuer"] as Payload),
+      ...change,
+    });
 
     it("describes the event the domain drafts for a document issued under a pre-obtained code", () => {
       expect(accepts("offline_fiscal_document_issued", 1, offline())).toBe(true);
+      expect(accepts("offline_fiscal_document_issued", 2, offlineWithInvoice())).toBe(true);
     });
 
-    it.each(Object.keys(issued))("refuses a payload without its %s", (field) => {
+    it("keeps reading the version 1 payload recorded before the invoice was carried", () => {
+      expect(offline()).not.toHaveProperty("document");
+      expect(accepts("offline_fiscal_document_issued", 1, offline())).toBe(true);
+    });
+
+    it.each(Object.keys(version1))("refuses a version 1 payload without its %s", (field) => {
       const { [field]: _removed, ...rest } = offline();
       expect(accepts("offline_fiscal_document_issued", 1, rest)).toBe(false);
+    });
+
+    it.each(Object.keys(issued))("refuses a version 2 payload without its %s", (field) => {
+      const { [field]: _removed, ...rest } = offlineWithInvoice();
+      expect(accepts("offline_fiscal_document_issued", 2, rest)).toBe(false);
+    });
+
+    it.each(Object.keys(issued["document"] as Payload))(
+      "refuses a version 2 invoice without its %s",
+      (field) => {
+        const { [field]: _removed, ...rest } = invoice();
+        expect(
+          accepts("offline_fiscal_document_issued", 2, offlineWithInvoice({ document: rest })),
+        ).toBe(false);
+      },
+    );
+
+    it.each([
+      "legal_name",
+      "cuit",
+      "tax_status",
+      "gross_income_registration",
+      "activity_start_date",
+      "version",
+    ])("refuses a version 2 invoice whose issuer lacks its %s", (field) => {
+      const { [field]: _removed, ...rest } = issuer();
+      expect(
+        accepts(
+          "offline_fiscal_document_issued",
+          2,
+          offlineWithInvoice({ document: invoice({ issuer: rest }) }),
+        ),
+      ).toBe(false);
+    });
+
+    it.each([
+      ["an invoice class other than C", { invoice_class: "A" }],
+      ["a VAT amount above zero", { vat_amount: 21 }],
+      ["a fractional total", { total: 10.5 }],
+      ["a negative net amount", { net_amount: -1 }],
+      ["a buyer tax status code that is not a number", { buyer_tax_status_code: "5" }],
+      ["an issuer that is not a record", { issuer: "someone" }],
+    ])("refuses a version 2 invoice with %s", (_case, change) => {
+      expect(
+        accepts(
+          "offline_fiscal_document_issued",
+          2,
+          offlineWithInvoice({ document: invoice(change) }),
+        ),
+      ).toBe(false);
+    });
+
+    it.each([
+      ["an activity start date that is not a calendar day", { activity_start_date: "2020-13-01" }],
+      ["an issuer version that is fractional", { version: 1.5 }],
+      ["an issuer legal name that is a number", { legal_name: 7 }],
+    ])("refuses a version 2 invoice whose issuer has %s", (_case, change) => {
+      expect(
+        accepts(
+          "offline_fiscal_document_issued",
+          2,
+          offlineWithInvoice({ document: invoice({ issuer: issuer(change) }) }),
+        ),
+      ).toBe(false);
     });
 
     it.each([

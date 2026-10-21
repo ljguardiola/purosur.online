@@ -186,6 +186,37 @@ function receiptLines(database: LocalDatabase, saleId: string): ReceiptSource["l
   }));
 }
 
+export function markPrintAttempted(database: LocalDatabase, saleId: string, at: Date): void {
+  database
+    .prepare("UPDATE sales SET print_attempted_at = ? WHERE id = ?")
+    .run(at.toISOString(), saleId);
+}
+
+export function markPrinted(database: LocalDatabase, saleId: string, at: Date): void {
+  database.prepare("UPDATE sales SET printed_at = ? WHERE id = ?").run(at.toISOString(), saleId);
+}
+
+export function insertReprint(database: LocalDatabase, reprint: ReceiptReprint): void {
+  database
+    .prepare(
+      `INSERT INTO sale_reprints (
+         sale_id, order_number, requested_by, authorized_by, reason_kind, reason_text, occurred_at
+       ) VALUES (
+         @sale_id, @order_number, @requested_by, @authorized_by, @reason_kind, @reason_text,
+         @occurred_at
+       )`,
+    )
+    .run({
+      sale_id: reprint.saleId,
+      order_number: reprint.orderNumber,
+      requested_by: reprint.requestedBy,
+      authorized_by: reprint.authorizedBy,
+      reason_kind: reprint.reason.kind,
+      reason_text: reprint.reason.kind === "requested" ? reprint.reason.text : null,
+      occurred_at: reprint.occurredAt.toISOString(),
+    });
+}
+
 export class SqliteReceiptLedger implements ReceiptLedger {
   private readonly database: LocalDatabase;
   private readonly outboxChainKey: string | undefined;
@@ -205,9 +236,9 @@ export class SqliteReceiptLedger implements ReceiptLedger {
       receiptSource: (saleId) => this.receiptSource(saleId),
       storedReceipt: (saleId) => this.storedReceipt(saleId),
       recordStoredReceipt: (saleId, receipt) => this.recordStoredReceipt(saleId, receipt),
-      recordPrintAttempt: (saleId, at) => this.recordPrintAttempt(saleId, at),
-      recordPrinted: (saleId, at) => this.recordPrinted(saleId, at),
-      recordReprint: (reprint) => this.recordReprint(reprint),
+      recordPrintAttempt: (saleId, at) => markPrintAttempted(this.database, saleId, at),
+      recordPrinted: (saleId, at) => markPrinted(this.database, saleId, at),
+      recordReprint: (reprint) => insertReprint(this.database, reprint),
       outboxReady: () => this.outboxChainKey !== undefined,
       appendOutboxEvent: (draft) => this.appendOutboxEvent(draft),
     };
@@ -263,39 +294,6 @@ export class SqliteReceiptLedger implements ReceiptLedger {
         template_version: receipt.templateVersion,
         head: Buffer.from(receipt.head),
         body: Buffer.from(receipt.body),
-      });
-  }
-
-  private recordPrintAttempt(saleId: string, at: Date): void {
-    this.database
-      .prepare("UPDATE sales SET print_attempted_at = ? WHERE id = ?")
-      .run(at.toISOString(), saleId);
-  }
-
-  private recordPrinted(saleId: string, at: Date): void {
-    this.database
-      .prepare("UPDATE sales SET printed_at = ? WHERE id = ?")
-      .run(at.toISOString(), saleId);
-  }
-
-  private recordReprint(reprint: ReceiptReprint): void {
-    this.database
-      .prepare(
-        `INSERT INTO sale_reprints (
-           sale_id, order_number, requested_by, authorized_by, reason_kind, reason_text, occurred_at
-         ) VALUES (
-           @sale_id, @order_number, @requested_by, @authorized_by, @reason_kind, @reason_text,
-           @occurred_at
-         )`,
-      )
-      .run({
-        sale_id: reprint.saleId,
-        order_number: reprint.orderNumber,
-        requested_by: reprint.requestedBy,
-        authorized_by: reprint.authorizedBy,
-        reason_kind: reprint.reason.kind,
-        reason_text: reprint.reason.kind === "requested" ? reprint.reason.text : null,
-        occurred_at: reprint.occurredAt.toISOString(),
       });
   }
 

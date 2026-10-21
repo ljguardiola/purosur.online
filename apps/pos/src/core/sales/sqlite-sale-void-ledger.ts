@@ -24,6 +24,24 @@ import {
 import { appendOutboxEvent } from "../sync/sqlite-outbox";
 import { readSale } from "./sqlite-open-sale";
 
+export function markSaleVoided(
+  database: LocalDatabase,
+  saleId: string,
+  voidedAt: Date,
+  authorizedBy: string | undefined,
+): void {
+  const { changes } = database
+    .prepare(
+      `UPDATE sales
+       SET state = 'VOIDED', voided_at = ?, void_authorized_by = ?
+       WHERE id = ? AND state = 'COMPLETED'`,
+    )
+    .run(voidedAt.toISOString(), authorizedBy ?? null, saleId);
+  if (changes !== 1) {
+    throw new Error("the sale is not completed");
+  }
+}
+
 export class SqliteSaleVoidLedger implements SaleVoidLedger {
   private readonly database: LocalDatabase;
   private readonly outboxChainKey: string | undefined;
@@ -44,7 +62,7 @@ export class SqliteSaleVoidLedger implements SaleVoidLedger {
       fiscalOnlineEvidence: () => readFiscalOnlineEvidence(this.database),
       outboxReady: () => this.outboxChainKey !== undefined,
       recordVoidedSale: (saleId, voidedAt, authorizedBy) =>
-        this.recordVoidedSale(saleId, voidedAt, authorizedBy),
+        markSaleVoided(this.database, saleId, voidedAt, authorizedBy),
       recordRefund: (refund: SaleRefund) => insertPaymentRefund(this.database, refund),
       recordCashMovement: (movement: CashMovement) => insertCashMovement(this.database, movement),
       recordSaleVoidStockMovement: (movement: SaleStockMovement) =>
@@ -81,19 +99,6 @@ export class SqliteSaleVoidLedger implements SaleVoidLedger {
         )
         .get(sessionId) !== undefined
     );
-  }
-
-  private recordVoidedSale(saleId: string, voidedAt: Date, authorizedBy: string | undefined): void {
-    const { changes } = this.database
-      .prepare(
-        `UPDATE sales
-         SET state = 'VOIDED', voided_at = ?, void_authorized_by = ?
-         WHERE id = ? AND state = 'COMPLETED'`,
-      )
-      .run(voidedAt.toISOString(), authorizedBy ?? null, saleId);
-    if (changes !== 1) {
-      throw new Error("the sale is not completed");
-    }
   }
 
   private appendOutboxEvent(draft: OutboxEventDraft): void {

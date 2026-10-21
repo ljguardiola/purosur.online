@@ -1,3 +1,4 @@
+import { syncedEventUpcaster } from "@purosur/contracts";
 import {
   type BatteryReport,
   type PushedEvent,
@@ -39,7 +40,6 @@ import type { InstallationKeyCipher } from "../register/installation-key-cipher.
 import { readOutboxChainKey } from "../register/outbox-chain-key.js";
 import { type PendingChanges, withPendingChanges } from "./change-log.js";
 import type { EnqueueEventApplication } from "./graphile-event-application-queue.js";
-import { syncedEventUpcaster } from "./synced-event-upcaster.js";
 import { unappliedEventColumns } from "./unapplied-event-columns.js";
 
 class DrizzleInboxTransaction<TQueryResult extends PgQueryResultHKT> implements InboxTransaction {
