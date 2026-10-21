@@ -408,6 +408,7 @@ describe("synced event payloads", () => {
       ["a negative total", { total: -1 }],
       ["a fractional total", { total: 1.5 }],
       ["an empty short code", { short_code: "" }],
+      ["a short code the domain does not draw", { short_code: "7kq4m2p9" }],
     ])("refuses %s", (_case, change) => {
       expect(accepts("deferred_sale_recorded", 1, { ...recorded, ...change })).toBe(false);
     });

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   deferredSaleDocumentBlock,
   deferredSaleQrText,
+  isShortCode,
   randomShortCode,
   SHORT_CODE_ALPHABET,
   SHORT_CODE_LENGTH,
@@ -40,13 +41,35 @@ describe("randomShortCode", () => {
 
   it("builds a code of 8 alphabet characters from any indexes", () => {
     fc.assert(
-      fc.property(fc.infiniteStream(fc.nat(SHORT_CODE_ALPHABET.length - 1)), (indexes) => {
-        const next = indexes[Symbol.iterator]();
-        const code = randomShortCode(() => next.next().value);
+      fc.property(
+        fc.array(fc.nat(), { minLength: SHORT_CODE_LENGTH, maxLength: SHORT_CODE_LENGTH }),
+        (indexes) => {
+          let drawn = 0;
+          const code = randomShortCode((bound) => (indexes[drawn++] as number) % bound);
 
-        expect(code).toMatch(/^[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{8}$/);
-      }),
+          expect(isShortCode(code)).toBe(true);
+        },
+      ),
     );
+  });
+
+  it.each([
+    ["one character short", "7KQ4M2P"],
+    ["one character long", "7KQ4M2P9X"],
+    ["empty", ""],
+    ["lower case", "7kq4m2p9"],
+    ["holding a character that can be mistaken for another", "7KQ4M2P0"],
+    ["holding a space", "7KQ4 2P9"],
+  ])("refuses a code that is %s", (_case, code) => {
+    expect(isShortCode(code)).toBe(false);
+  });
+
+  it("refuses a code holding a character outside the alphabet at any position", () => {
+    for (let position = 0; position < SHORT_CODE_LENGTH; position += 1) {
+      const code = "7KQ4M2P9".slice(0, position) + "1" + "7KQ4M2P9".slice(position + 1);
+
+      expect(isShortCode(code)).toBe(false);
+    }
   });
 });
 

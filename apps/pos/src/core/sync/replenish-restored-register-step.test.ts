@@ -1,6 +1,6 @@
 import { encodePinHash } from "@purosur/contracts";
 import { recordedPushes } from "@purosur/contracts/sync/test-support";
-import type { PushedEvent } from "@purosur/domain";
+import { type PushedEvent, SHORT_CODE_ALPHABET } from "@purosur/domain";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { CloudResponse } from "../platform/cloud-client";
 import type { LocalDatabase } from "../platform/local-database";
@@ -23,12 +23,37 @@ const CREDENTIALS = {
 };
 const SALT = encodePinHash(new Uint8Array(16).fill(1));
 
+function withDeferredRecords(events: PushedEvent[]): PushedEvent[] {
+  return events.flatMap((event, index) => {
+    if (event.event_type !== "fiscal_gate_failed") {
+      return [event];
+    }
+    const { sale_id, register_id, evaluated_at } = event.payload as Record<string, string>;
+    const record: PushedEvent = {
+      ...event,
+      event_id: `01a12101-eeee-7000-8000-${String(index).padStart(12, "0")}`,
+      event_type: "deferred_sale_recorded",
+      payload: {
+        id: `01a12101-dddd-7000-8000-${String(index).padStart(12, "0")}`,
+        sale_id,
+        register_id,
+        occurred_at: evaluated_at,
+        total: 1000,
+        reason: "pre_emission_gate_failed",
+        short_code: `ABCDEFG${SHORT_CODE_ALPHABET[index % SHORT_CODE_ALPHABET.length]}`,
+        routed_at: evaluated_at,
+      },
+    };
+    return [record, event];
+  });
+}
+
 function recordedEvents(): PushedEvent[] {
   const recorded = recordedPushes().find(({ name }) => name === "sales-moving-stock.json");
   if (recorded === undefined) {
     throw new Error("the recorded push is missing");
   }
-  return recorded.push.events;
+  return withDeferredRecords(recorded.push.events);
 }
 
 function firstRecordedEvent(): PushedEvent {
@@ -233,7 +258,7 @@ describe("replenishing a restored register from the cloud", () => {
     if (recorded === undefined) {
       throw new Error("the recorded push is missing");
     }
-    const events = recorded.push.events;
+    const events = withDeferredRecords(recorded.push.events);
     for (const [id, kind] of frozenDiscountsOf(events)) {
       if (database.prepare("SELECT 1 FROM discounts WHERE id = ?").get(id) !== undefined) {
         continue;
