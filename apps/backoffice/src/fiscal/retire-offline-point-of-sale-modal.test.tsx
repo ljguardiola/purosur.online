@@ -84,7 +84,7 @@ test("asks about the point of sale by its number and says what retiring it does"
     )
     .toBeVisible();
   await expect
-    .element(dialog.getByText(/No se puede deshacer y ninguna caja podrá volver a usarlo/))
+    .element(dialog.getByText(/No se puede deshacer y ninguna caja podrá volver a usarlo/).first())
     .toBeVisible();
 });
 
@@ -176,7 +176,7 @@ test("explains that a register now uses the point of sale and asks the screen to
   await confirm(dialog);
 
   await expect
-    .element(dialog.getByText("Una caja usa este punto de venta: no se puede dar de baja."))
+    .element(dialog.getByText("Una caja usa este punto de venta: no se puede dar de baja.").first())
     .toBeVisible();
   expect(onOutdated).toHaveBeenCalledTimes(1);
   expect(onClose).not.toHaveBeenCalled();
@@ -205,7 +205,7 @@ test("explains that the point of sale no longer exists and asks the screen to re
 
   await confirm(dialog);
 
-  await expect.element(dialog.getByText("Este punto de venta ya no existe.")).toBeVisible();
+  await expect.element(dialog.getByText("Este punto de venta ya no existe.").first()).toBeVisible();
   expect(onOutdated).toHaveBeenCalledTimes(1);
 });
 

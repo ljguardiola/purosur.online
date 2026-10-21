@@ -428,8 +428,8 @@ test("lists the offline points of sale left without a register between the regis
   await expect.element(table.getByText("Caja 9", { exact: true })).toBeVisible();
   expect(table.getByText("Caja 8", { exact: true }).query()).toBeNull();
   const text = document.body.textContent ?? "";
-  expect(text.indexOf("Caja 1")).toBeLessThan(text.indexOf("Puntos de venta CAEA sin caja"));
-  expect(text.indexOf("Puntos de venta CAEA sin caja")).toBeLessThan(text.indexOf("Quincena"));
+  expect(text.indexOf("Caja 1")).toBeLessThan(text.indexOf("Usado por"));
+  expect(text.indexOf("Usado por")).toBeLessThan(text.indexOf("Quincena"));
 });
 
 test("keeps the registers on screen when the offline points of sale fail to load, and Reintentar loads them again", async () => {
@@ -493,7 +493,7 @@ test("an offline point of sale a register took meanwhile is refused and leaves t
   await userEvent.click(dialog.getByRole("button", { name: "Dar de baja" }));
 
   await expect
-    .element(dialog.getByText("Una caja usa este punto de venta: no se puede dar de baja."))
+    .element(dialog.getByText("Una caja usa este punto de venta: no se puede dar de baja.").first())
     .toBeVisible();
   await expect.poll(() => vi.mocked(services.fetchOfflinePointsOfSale).mock.calls.length).toBe(2);
   expect(
