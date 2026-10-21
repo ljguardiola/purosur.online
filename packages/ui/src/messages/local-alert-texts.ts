@@ -134,7 +134,7 @@ const FIXED_LOCAL_ALERT_TEXTS = {
     title: "Reembolso pendiente por un pago tardío",
     meaning: "Mercado Pago cobró un QR de una venta que ya se había cobrado por otro medio.",
     whatToDo:
-      "Si es de un pago con QR, confirmarlo en Reembolsos de Mercado Pago para que la nube lo envíe a Mercado Pago; si es de otro medio y ya se hizo desde Mercado Pago, marcarlo como hecho en Reembolsos sin API, y si todavía no se hizo, hacerlo cuanto antes. Si no corresponde reembolsarlo, descartarlo. El Administrador ya fue avisado.",
+      "Confirmarlo en Reembolsos de Mercado Pago para que la nube lo envíe a Mercado Pago. Si no corresponde reembolsarlo, descartarlo. El Administrador ya fue avisado.",
   },
   refund_task: {
     title: "Reembolso pendiente de confirmar",
@@ -227,7 +227,7 @@ export function localAlertTitle(kind: string): string | undefined {
 }
 
 const POINT_LATE_PAYMENT_REFUND_WHAT_TO_DO =
-  "Confirmarlo en Reembolsos de Mercado Pago para que la nube lo envíe a Mercado Pago. Si no corresponde reembolsarlo, descartarlo. El Administrador ya fue avisado.";
+  "Hacerlo desde Mercado Pago cuanto antes y marcarlo como hecho en Reembolsos sin API. Si no corresponde reembolsarlo, descartarlo. El Administrador ya fue avisado.";
 
 function latePaymentRefundText(
   subject: Extract<LocalAlertSubject, { kind: "late_payment_refund" }>,
