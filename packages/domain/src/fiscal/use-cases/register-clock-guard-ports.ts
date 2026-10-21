@@ -15,8 +15,8 @@ export interface RegisterClockGuardReader {
   taxAuthorityFloor(): TaxAuthorityFloor | null;
   cashSessionStanding(): CashSessionStanding;
   clockCorrectionRecordedIn(period: string): boolean;
-  latestClockCorrectionOf(
+  clockCorrectionsOf(
     pointOfSale: number,
     documentType: FiscalDocumentType,
-  ): ClockCorrectionReadings | null;
+  ): readonly ClockCorrectionReadings[];
 }

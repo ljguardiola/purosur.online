@@ -120,7 +120,7 @@ export interface RealTimeSeries {
   numberingFrozen: boolean;
   clockMark: Date | null;
   taxAuthorityLastIssuedOn: string | null;
-  latestClockCorrection: ClockCorrectionReadings | null;
+  clockCorrections: readonly ClockCorrectionReadings[];
 }
 
 export interface OfflineSeries extends NextOfflineNumberInput {
@@ -236,7 +236,7 @@ export function saleAuthorizationPath(input: SaleAuthorizationPathInput): SaleAu
       isInClockCorrectionLapse({
         reading: now,
         taxAuthorityLastIssuedOn: series.taxAuthorityLastIssuedOn,
-        latestCorrection: series.latestClockCorrection,
+        corrections: series.clockCorrections,
       })
     ) {
       return offlinePath("clock_correction_lapse", input);

@@ -44,24 +44,22 @@ export function clockMarkOf(
   return mark === undefined ? null : new Date(mark.reading);
 }
 
-export function latestClockCorrectionOf(
+export function clockCorrectionsOf(
   database: LocalDatabase,
   pointOfSale: number,
   documentType: string,
-): ClockCorrectionReadings | null {
-  const correction = database
+): ClockCorrectionReadings[] {
+  return database
     .prepare<[number, string], { previous_reading: string; corrected_reading: string }>(
       `SELECT previous_reading, corrected_reading FROM clock_corrections
        WHERE point_of_sale = ? AND document_type = ?
-       ORDER BY corrected_reading DESC, id DESC LIMIT 1`,
+       ORDER BY id`,
     )
-    .get(pointOfSale, documentType);
-  return correction === undefined
-    ? null
-    : {
-        previousReading: new Date(correction.previous_reading),
-        correctedReading: new Date(correction.corrected_reading),
-      };
+    .all(pointOfSale, documentType)
+    .map((correction) => ({
+      previousReading: new Date(correction.previous_reading),
+      correctedReading: new Date(correction.corrected_reading),
+    }));
 }
 
 export function readRealTimeSeries(database: LocalDatabase): RealTimeSeries {
@@ -86,7 +84,7 @@ export function readRealTimeSeries(database: LocalDatabase): RealTimeSeries {
       numberingFrozen: false,
       clockMark: null,
       taxAuthorityLastIssuedOn: null,
-      latestClockCorrection: null,
+      clockCorrections: [],
     };
   }
   const local = database
@@ -110,7 +108,7 @@ export function readRealTimeSeries(database: LocalDatabase): RealTimeSeries {
     numberingFrozen: pointOfSale.numbering_frozen === 1,
     clockMark: clockMarkOf(database, pointOfSale.point_of_sale, FACTURA_C_DOCUMENT_TYPE),
     taxAuthorityLastIssuedOn: pointOfSale.tax_authority_last_issued_on,
-    latestClockCorrection: latestClockCorrectionOf(
+    clockCorrections: clockCorrectionsOf(
       database,
       pointOfSale.point_of_sale,
       FACTURA_C_DOCUMENT_TYPE,

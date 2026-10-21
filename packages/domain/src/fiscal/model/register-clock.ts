@@ -21,20 +21,22 @@ export interface ClockCorrectionReadings {
 export interface ClockCorrectionLapseInput {
   reading: Date;
   taxAuthorityLastIssuedOn: string | null;
-  latestCorrection: ClockCorrectionReadings | null;
+  corrections: readonly ClockCorrectionReadings[];
 }
 
 export function isInClockCorrectionLapse({
   reading,
   taxAuthorityLastIssuedOn,
-  latestCorrection,
+  corrections,
 }: ClockCorrectionLapseInput): boolean {
   return (
     taxAuthorityLastIssuedOn !== null &&
-    latestCorrection !== null &&
-    argentinaCalendarDay(latestCorrection.previousReading) >= taxAuthorityLastIssuedOn &&
-    argentinaCalendarDay(latestCorrection.correctedReading) < taxAuthorityLastIssuedOn &&
-    argentinaCalendarDay(reading) < taxAuthorityLastIssuedOn
+    argentinaCalendarDay(reading) < taxAuthorityLastIssuedOn &&
+    corrections.some(
+      ({ previousReading, correctedReading }) =>
+        argentinaCalendarDay(previousReading) >= taxAuthorityLastIssuedOn &&
+        argentinaCalendarDay(correctedReading) < taxAuthorityLastIssuedOn,
+    )
   );
 }
 

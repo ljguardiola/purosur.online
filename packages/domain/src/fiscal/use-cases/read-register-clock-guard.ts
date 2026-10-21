@@ -59,7 +59,7 @@ export function readRegisterClockGuard(
     !isInClockCorrectionLapse({
       reading,
       taxAuthorityLastIssuedOn: floor.lastIssuedOn,
-      latestCorrection: reader.latestClockCorrectionOf(floor.pointOfSale, floor.documentType),
+      corrections: reader.clockCorrectionsOf(floor.pointOfSale, floor.documentType),
     })
       ? floor
       : null;
