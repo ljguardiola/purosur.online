@@ -94,6 +94,46 @@ describe("readRegisterClockGuard", () => {
     ]);
   });
 
+  describe("in the lapse after a clock correction", () => {
+    const floor = {
+      pointOfSale: 12,
+      documentType: "factura_c",
+      lastIssuedOn: "2026-10-02",
+    } as const;
+    const latestCorrection = {
+      previousReading: new Date("2026-10-03T15:00:00.000Z"),
+      correctedReading: new Date("2026-09-30T15:00:00.000Z"),
+    };
+
+    it("does not block the point of sale for the tax authority's day", () => {
+      expect(read({ floor, latestCorrection }).blocks).toEqual([]);
+    });
+
+    it("still blocks the point of sale whose mark is ahead of the reading", () => {
+      expect(read({ floor, latestCorrection, marks: [REAL_TIME_MARK] }).blocks).toEqual([
+        {
+          pointOfSale: 12,
+          documentType: "factura_c",
+          latestReading: REAL_TIME_MARK.reading,
+          taxAuthorityLastIssuedOn: null,
+        },
+      ]);
+    });
+
+    it("blocks again when the correction belongs to an earlier episode", () => {
+      const old = {
+        previousReading: new Date("2026-10-01T15:00:00.000Z"),
+        correctedReading: new Date("2026-09-30T15:00:00.000Z"),
+      };
+
+      expect(read({ floor, latestCorrection: old }).blocks).toHaveLength(1);
+    });
+
+    it("blocks the point of sale as before when there is no correction", () => {
+      expect(read({ floor, latestCorrection: null }).blocks).toHaveLength(1);
+    });
+  });
+
   it("answers one block carrying both the mark and the day when both hold the point of sale", () => {
     const floor = {
       pointOfSale: 12,

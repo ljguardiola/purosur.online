@@ -1,5 +1,6 @@
 import type { RoleAccess } from "../../../permissions/index.js";
 import type { CashSessionStanding, ClockMark } from "../../model/clock-correction.js";
+import type { ClockCorrectionReadings } from "../../model/register-clock.js";
 import type { RegisterClockGuardReader, TaxAuthorityFloor } from "../register-clock-guard-ports.js";
 
 export interface FakeRegisterClockGuardState {
@@ -8,6 +9,7 @@ export interface FakeRegisterClockGuardState {
   floor: TaxAuthorityFloor | null;
   standing: CashSessionStanding;
   periodsWithCorrection: string[];
+  latestCorrection: ClockCorrectionReadings | null;
 }
 
 export function fakeRegisterClockGuardReader(
@@ -19,6 +21,7 @@ export function fakeRegisterClockGuardReader(
     floor = null,
     standing = { openSessionId: null, lastClosedSessionId: null },
     periodsWithCorrection = [],
+    latestCorrection = null,
   } = state;
   return {
     correctorAccess: (userId) => accesses[userId],
@@ -26,5 +29,6 @@ export function fakeRegisterClockGuardReader(
     taxAuthorityFloor: () => floor,
     cashSessionStanding: () => standing,
     clockCorrectionRecordedIn: (period) => periodsWithCorrection.includes(period),
+    latestClockCorrectionOf: () => latestCorrection,
   };
 }
