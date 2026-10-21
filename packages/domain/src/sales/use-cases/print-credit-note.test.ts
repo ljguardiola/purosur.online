@@ -1,20 +1,42 @@
 import { describe, expect, it } from "vitest";
+import {
+  FICTIONAL_CUIT,
+  FICTIONAL_GROSS_INCOME_REGISTRATION,
+  FICTIONAL_LEGAL_NAME,
+} from "../../fiscal/test-support/fictional-tax-identities.js";
 import { RECEIPT_REPRINT_REASON_MAX_LENGTH } from "../model/receipt-reprint-reason.js";
 import { printOriginalReceipt } from "./print-original-receipt.js";
 import type { ReceiptPrintGrant } from "./receipt-printing.js";
 import { reprintReceipt } from "./reprint-receipt.js";
 import { FakeOperationAuthority } from "./test-support/fake-operation-authority.js";
+import type { FakeCreditNote, FakeReceiptSale } from "./test-support/fake-receipt-ledger.js";
 import { textOf } from "./test-support/fake-receipt-template.js";
 import {
   AUTHORIZED_GRANT,
   completedSale,
-  creditedSale,
+  creditNoteContent,
   FIRST_PRINT_AT,
   NOT_PERMITTED,
   receiptRig,
+  creditedSale as rigCreditedSale,
   SENT_AT,
   voidedSale,
 } from "./test-support/receipt-rig.js";
+
+const CREDIT_NOTE_CONTENT = creditNoteContent({
+  legalName: FICTIONAL_LEGAL_NAME,
+  cuit: FICTIONAL_CUIT,
+  taxStatus: "Responsable Monotributo",
+  grossIncomeRegistration: FICTIONAL_GROSS_INCOME_REGISTRATION,
+  activityStartDate: "2020-01-15",
+});
+
+function creditedSale(
+  overrides: Partial<FakeCreditNote> = {},
+  sale: Partial<FakeReceiptSale> = {},
+) {
+  return rigCreditedSale({ content: CREDIT_NOTE_CONTENT, ...overrides }, sale);
+}
 
 const CREDIT_NOTE = { document: "credit_note", saleId: "sale-1" } as const;
 const DUPLICATE_INPUT = { ...CREDIT_NOTE, reason: "el cliente la perdió" };

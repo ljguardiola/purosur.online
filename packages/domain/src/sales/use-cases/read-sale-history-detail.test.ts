@@ -1,7 +1,16 @@
 import { describe, expect, it } from "vitest";
 import type { FiscalOnlineSignalEvidence } from "../../fiscal/index.js";
+import {
+  FICTIONAL_CUIT,
+  FICTIONAL_GROSS_INCOME_REGISTRATION,
+  FICTIONAL_LEGAL_NAME,
+} from "../../fiscal/test-support/fictional-tax-identities.js";
 import { readSaleHistoryDetail } from "./read-sale-history-detail.js";
-import { FakeReceiptLedger } from "./test-support/fake-receipt-ledger.js";
+import {
+  type FakeCreditNote,
+  FakeReceiptLedger,
+  type FakeReceiptSale,
+} from "./test-support/fake-receipt-ledger.js";
 import {
   type FakeHistorySale,
   FakeRegisterSalesHistory,
@@ -9,11 +18,27 @@ import {
 import { FixedClock } from "./test-support/fake-sale-ledger.js";
 import {
   completedSale,
-  creditedSale,
+  creditNoteContent,
   FIRST_PRINT_AT,
+  creditedSale as rigCreditedSale,
   SENT_AT,
   voidedSale,
 } from "./test-support/receipt-rig.js";
+
+const CREDIT_NOTE_CONTENT = creditNoteContent({
+  legalName: FICTIONAL_LEGAL_NAME,
+  cuit: FICTIONAL_CUIT,
+  taxStatus: "Responsable Monotributo",
+  grossIncomeRegistration: FICTIONAL_GROSS_INCOME_REGISTRATION,
+  activityStartDate: "2020-01-15",
+});
+
+function creditedSale(
+  overrides: Partial<FakeCreditNote> = {},
+  sale: Partial<FakeReceiptSale> = {},
+) {
+  return rigCreditedSale({ content: CREDIT_NOTE_CONTENT, ...overrides }, sale);
+}
 
 const NOW = new Date("2026-10-07T15:30:00.000Z");
 const clock = new FixedClock(NOW);

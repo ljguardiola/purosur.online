@@ -1,12 +1,34 @@
 import { describe, expect, it } from "vitest";
+import {
+  FICTIONAL_CUIT,
+  FICTIONAL_GROSS_INCOME_REGISTRATION,
+  FICTIONAL_LEGAL_NAME,
+} from "../../fiscal/test-support/fictional-tax-identities.js";
 import { receiptDeliveryOf } from "./receipt-delivery-of.js";
+import type { FakeCreditNote, FakeReceiptSale } from "./test-support/fake-receipt-ledger.js";
 import {
   completedSale,
-  creditedSale,
+  creditNoteContent,
   FIRST_PRINT_AT,
   receiptRig,
+  creditedSale as rigCreditedSale,
   SENT_AT,
 } from "./test-support/receipt-rig.js";
+
+const CREDIT_NOTE_CONTENT = creditNoteContent({
+  legalName: FICTIONAL_LEGAL_NAME,
+  cuit: FICTIONAL_CUIT,
+  taxStatus: "Responsable Monotributo",
+  grossIncomeRegistration: FICTIONAL_GROSS_INCOME_REGISTRATION,
+  activityStartDate: "2020-01-15",
+});
+
+function creditedSale(
+  overrides: Partial<FakeCreditNote> = {},
+  sale: Partial<FakeReceiptSale> = {},
+) {
+  return rigCreditedSale({ content: CREDIT_NOTE_CONTENT, ...overrides }, sale);
+}
 
 describe("receiptDeliveryOf", () => {
   it("answers that a sale never printed would print the original next", () => {

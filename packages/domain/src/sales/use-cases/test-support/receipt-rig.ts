@@ -1,8 +1,3 @@
-import {
-  FICTIONAL_CUIT,
-  FICTIONAL_GROSS_INCOME_REGISTRATION,
-  FICTIONAL_LEGAL_NAME,
-} from "../../../fiscal/test-support/fictional-tax-identities.js";
 import type { CreditNoteReceiptContent } from "../../model/credit-note-receipt-content.js";
 import type { ReceiptSource } from "../../model/receipt-content.js";
 import type { PrinterStatus } from "../../model/receipt-print-standing.js";
@@ -75,41 +70,40 @@ export function voidedSale(overrides: Partial<FakeReceiptSale> = {}): FakeReceip
   return completedSale({ completed: false, voided: true, ...overrides });
 }
 
-export const CREDIT_NOTE_CONTENT: CreditNoteReceiptContent = {
-  header: SOURCE.header,
-  operation: {
-    occurredAt: new Date("2026-10-07T16:00:00.000Z"),
-    servedByFirstName: "Marta",
-    operationNumber: 482,
-  },
-  issuedOn: "2026-10-07",
-  lines: [],
-  totals: { subtotal: 7500, saleDiscount: null, total: 7500 },
-  refunds: [{ method: "CASH", amount: 7500 }],
-  fiscal: {
-    invoiceClass: "C",
-    voucherTypeCode: 13,
-    issuer: {
-      legalName: FICTIONAL_LEGAL_NAME,
-      cuit: FICTIONAL_CUIT,
-      taxStatus: "Responsable Monotributo",
-      grossIncomeRegistration: FICTIONAL_GROSS_INCOME_REGISTRATION,
-      activityStartDate: "2020-01-15",
+export function creditNoteContent(
+  issuer: CreditNoteReceiptContent["fiscal"]["issuer"],
+): CreditNoteReceiptContent {
+  return {
+    header: SOURCE.header,
+    operation: {
+      occurredAt: new Date("2026-10-07T16:00:00.000Z"),
+      servedByFirstName: "Marta",
+      operationNumber: 482,
     },
-    buyerTaxStatusDescription: "Consumidor Final",
-    pointOfSale: 3,
-    number: 9,
-    authorizationCode: "71234567890999",
-    authorizationCodeDueOn: "2026-10-17",
-    qrText: "https://example.test/qr",
-    corrects: { voucherType: 11, pointOfSale: 3, number: 1204 },
-  },
-};
+    issuedOn: "2026-10-07",
+    lines: [],
+    totals: { subtotal: 7500, saleDiscount: null, total: 7500 },
+    refunds: [{ method: "CASH", amount: 7500 }],
+    fiscal: {
+      invoiceClass: "C",
+      voucherTypeCode: 13,
+      issuer,
+      buyerTaxStatusDescription: "Consumidor Final",
+      pointOfSale: 3,
+      number: 9,
+      authorizationCode: "71234567890999",
+      authorizationCodeDueOn: "2026-10-17",
+      qrText: "https://example.test/qr",
+      corrects: { voucherType: 11, pointOfSale: 3, number: 1204 },
+    },
+  };
+}
 
-export function creditNote(overrides: Partial<FakeCreditNote> = {}): FakeCreditNote {
+export function creditNote(
+  overrides: Partial<FakeCreditNote> & Pick<FakeCreditNote, "content">,
+): FakeCreditNote {
   return {
     authorized: true,
-    content: CREDIT_NOTE_CONTENT,
     printAttemptedAt: null,
     printedAt: null,
     stored: undefined,
@@ -119,7 +113,7 @@ export function creditNote(overrides: Partial<FakeCreditNote> = {}): FakeCreditN
 }
 
 export function creditedSale(
-  overrides: Partial<FakeCreditNote> = {},
+  overrides: Partial<FakeCreditNote> & Pick<FakeCreditNote, "content">,
   sale: Partial<FakeReceiptSale> = {},
 ): FakeReceiptSale {
   return voidedSale({ creditNote: creditNote(overrides), ...sale });
