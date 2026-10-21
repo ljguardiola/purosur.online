@@ -6,7 +6,13 @@ const ATTEMPTED_AT = new Date("2026-10-07T15:00:00.000Z");
 describe("nextReceiptCopy", () => {
   it("is the original while no print was ever attempted", () => {
     expect(
-      nextReceiptCopy({ printAttemptedAt: null, printedAt: null, reprintCount: 0, voided: false }),
+      nextReceiptCopy({
+        printAttemptedAt: null,
+        printedAt: null,
+        reprintCount: 0,
+        voided: false,
+        creditNoteAuthorized: false,
+      }),
     ).toEqual({
       kind: "original",
     });
@@ -19,6 +25,7 @@ describe("nextReceiptCopy", () => {
         printedAt: null,
         reprintCount: 0,
         voided: false,
+        creditNoteAuthorized: false,
       }),
     ).toEqual({ kind: "duplicate", orderNumber: 1 });
   });
@@ -30,6 +37,7 @@ describe("nextReceiptCopy", () => {
         printedAt: ATTEMPTED_AT,
         reprintCount: 2,
         voided: false,
+        creditNoteAuthorized: false,
       }),
     ).toEqual({ kind: "duplicate", orderNumber: 3 });
   });
