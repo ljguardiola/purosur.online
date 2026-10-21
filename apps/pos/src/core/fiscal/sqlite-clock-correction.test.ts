@@ -138,6 +138,39 @@ describe("the tax authority's last authorized day, read as the guard's floor", (
   });
 });
 
+describe("the corrections of a point of sale's clock, read for its guard", () => {
+  function recordCorrection(pointOfSale: number, previous: string, corrected: string) {
+    database
+      .prepare(
+        `INSERT INTO clock_corrections (
+           period, register_id, actor_id, point_of_sale, document_type, previous_reading, corrected_reading
+         ) VALUES ('s1', 'r1', 'u1', ?, 'factura_c', ?, ?)`,
+      )
+      .run(pointOfSale, previous, corrected);
+  }
+
+  it("are none while the point of sale was never corrected", () => {
+    expect(reader().clockCorrectionsOf(12, "factura_c")).toEqual([]);
+  });
+
+  it("are every correction of that point of sale only", () => {
+    recordCorrection(12, "2026-10-05T15:00:00.000Z", "2026-10-02T15:00:00.000Z");
+    recordCorrection(31, "2026-10-09T15:00:00.000Z", "2026-10-08T15:00:00.000Z");
+    recordCorrection(12, "2026-10-04T15:00:00.000Z", "2026-10-03T15:00:00.000Z");
+
+    expect(reader().clockCorrectionsOf(12, "factura_c")).toEqual([
+      {
+        previousReading: new Date("2026-10-05T15:00:00.000Z"),
+        correctedReading: new Date("2026-10-02T15:00:00.000Z"),
+      },
+      {
+        previousReading: new Date("2026-10-04T15:00:00.000Z"),
+        correctedReading: new Date("2026-10-03T15:00:00.000Z"),
+      },
+    ]);
+  });
+});
+
 describe("the cash session standing", () => {
   it("is none open and none closed on a register that never opened a session", () => {
     expect(ledger().transaction((tx) => tx.cashSessionStanding())).toEqual({

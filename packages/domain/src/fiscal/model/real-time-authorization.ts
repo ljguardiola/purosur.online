@@ -7,7 +7,12 @@ import { isNumberingConflict } from "./numbering-conflict.js";
 import { type Fortnight, fortnightContaining } from "./offline-authorization-code.js";
 import { type NextOfflineNumberInput, nextOfflineNumber } from "./offline-number-block.js";
 import type { FacturaC, PreEmissionGateFailureReason } from "./pre-emission-gate.js";
-import { isBeforeTaxAuthorityLastIssuedDay, isBehindClockMark } from "./register-clock.js";
+import {
+  type ClockCorrectionReadings,
+  isBeforeTaxAuthorityLastIssuedDay,
+  isBehindClockMark,
+  isInClockCorrectionLapse,
+} from "./register-clock.js";
 
 export const REAL_TIME_AUTHORIZATION_TIMEOUT_MS = 5_000;
 export const AUTHORIZATION_CALL_MARGIN_MS = 500;
@@ -115,6 +120,7 @@ export interface RealTimeSeries {
   numberingFrozen: boolean;
   clockMark: Date | null;
   taxAuthorityLastIssuedOn: string | null;
+  clockCorrections: readonly ClockCorrectionReadings[];
 }
 
 export interface OfflineSeries extends NextOfflineNumberInput {
@@ -126,6 +132,7 @@ export const OFFLINE_AUTHORIZATION_CAUSES = [
   "no_connectivity",
   "unclear_outcome",
   "numbering_conflict",
+  "clock_correction_lapse",
 ] as const;
 
 export type OfflineAuthorizationCause = (typeof OFFLINE_AUTHORIZATION_CAUSES)[number];
@@ -134,6 +141,7 @@ const DEFERRAL_REASON_OF_CAUSE: Record<OfflineAuthorizationCause, DeferralReason
   no_connectivity: "fiscally_offline",
   unclear_outcome: "document_waiting",
   numbering_conflict: "numbering_frozen",
+  clock_correction_lapse: "clock_behind",
 };
 
 export interface SaleAuthorizationPathInput {
@@ -223,6 +231,16 @@ export function saleAuthorizationPath(input: SaleAuthorizationPathInput): SaleAu
     (isBehindClockMark(now, series.clockMark) ||
       isBeforeTaxAuthorityLastIssuedDay(now, series.taxAuthorityLastIssuedOn))
   ) {
+    if (
+      !isBehindClockMark(now, series.clockMark) &&
+      isInClockCorrectionLapse({
+        reading: now,
+        taxAuthorityLastIssuedOn: series.taxAuthorityLastIssuedOn,
+        corrections: series.clockCorrections,
+      })
+    ) {
+      return offlinePath("clock_correction_lapse", input);
+    }
     return deferred("clock_behind");
   }
   if (!isRegisterFiscallyOnline(online, now)) {

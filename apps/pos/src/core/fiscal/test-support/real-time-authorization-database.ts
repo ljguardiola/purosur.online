@@ -4,6 +4,7 @@ import type {
   DeferredSaleReference,
   FacturaC,
   FiscalDocumentState,
+  OfflineAuthorizationCause,
 } from "@purosur/domain";
 import {
   FICTIONAL_CUIT,
@@ -204,7 +205,7 @@ export interface OfflineFiscalDocumentRow {
   saleId: string;
   pointOfSale: number;
   number: number;
-  cause: "no_connectivity" | "unclear_outcome" | "numbering_conflict";
+  cause: OfflineAuthorizationCause;
 }
 
 export function insertOfflineFiscalDocument(
