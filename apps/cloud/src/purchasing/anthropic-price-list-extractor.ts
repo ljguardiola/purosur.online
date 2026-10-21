@@ -130,6 +130,39 @@ async function pdfRange(
   return range.save();
 }
 
+async function splittable(bytes: Uint8Array): Promise<PDFDocument | null> {
+  try {
+    const document = await PDFDocument.load(bytes, { ignoreEncryption: true });
+    return document.isEncrypted || document.getPageCount() === 0 ? null : document;
+  } catch {
+    return null;
+  }
+}
+
+interface Range {
+  firstPage: number;
+  pageCount: number;
+  pdf: Uint8Array;
+}
+
+async function rangesOf(document: PDFDocument): Promise<Range[] | null> {
+  const pageCount = document.getPageCount();
+  const ranges: Range[] = [];
+  try {
+    for (let firstPage = 1; firstPage <= pageCount; firstPage += PAGES_PER_RANGE) {
+      const rangePageCount = Math.min(PAGES_PER_RANGE, pageCount - firstPage + 1);
+      ranges.push({
+        firstPage,
+        pageCount: rangePageCount,
+        pdf: await pdfRange(document, firstPage, rangePageCount),
+      });
+    }
+  } catch {
+    return null;
+  }
+  return ranges;
+}
+
 function firstGiven<Answer>(answers: (Answer | null)[]): Answer | null {
   return answers.find((answer) => answer !== null) ?? null;
 }
@@ -175,29 +208,21 @@ export class AnthropicPriceListExtractor implements PriceListExtractor {
   }
 
   async extract(source: PriceListSource): Promise<PriceListExtraction> {
-    const encrypted = declaresEncryption(source.bytes);
-    let document: PDFDocument;
-    let pageCount: number;
-    try {
-      document = await PDFDocument.load(source.bytes, { ignoreEncryption: true });
-      pageCount = document.getPageCount();
-    } catch {
-      return encrypted ? this.readWhole(source.bytes, null) : { kind: "unreadable" };
+    if (declaresEncryption(source.bytes)) {
+      return this.readWhole(source.bytes);
     }
-    if (pageCount === 0) {
-      return { kind: "unreadable" };
+    const document = await splittable(source.bytes);
+    if (document === null) {
+      return this.readWhole(source.bytes);
     }
-    if (encrypted || document.isEncrypted) {
-      return this.readWhole(source.bytes, pageCount);
+    const ranges = await rangesOf(document);
+    if (ranges === null) {
+      return this.readWhole(source.bytes);
     }
-    const ranges = Array.from({ length: Math.ceil(pageCount / PAGES_PER_RANGE) }, (_, index) => ({
-      firstPage: index * PAGES_PER_RANGE + 1,
-      pageCount: Math.min(PAGES_PER_RANGE, pageCount - index * PAGES_PER_RANGE),
-    }));
     const readings = await inOrder(
       ranges,
       RANGES_READ_AT_ONCE,
-      (range) => this.readRange(document, range.firstPage, range.pageCount),
+      (range) => this.readRange(document, range.firstPage, range.pageCount, range.pdf),
       (reading) => reading.kind !== "read",
     );
     const failure = readings.find((reading) => reading !== undefined && reading.kind !== "read");
@@ -217,8 +242,8 @@ export class AnthropicPriceListExtractor implements PriceListExtractor {
     };
   }
 
-  private async readWhole(pdf: Uint8Array, pageCount: number | null): Promise<PriceListExtraction> {
-    const reading = withRealPages(await this.askAboutRange(pdf), 1, pageCount);
+  private async readWhole(pdf: Uint8Array): Promise<PriceListExtraction> {
+    const reading = withRealPages(await this.askAboutRange(pdf), 1, null);
     switch (reading.kind) {
       case "read":
         return { ...reading, kind: "extracted" };
@@ -229,7 +254,7 @@ export class AnthropicPriceListExtractor implements PriceListExtractor {
     }
   }
 
-  private async readRange(
+  private async readPart(
     document: PDFDocument,
     firstPage: number,
     pageCount: number,
@@ -240,6 +265,15 @@ export class AnthropicPriceListExtractor implements PriceListExtractor {
     } catch {
       return { kind: "unreadable" };
     }
+    return this.readRange(document, firstPage, pageCount, pdf);
+  }
+
+  private async readRange(
+    document: PDFDocument,
+    firstPage: number,
+    pageCount: number,
+    pdf: Uint8Array,
+  ): Promise<RangeReading> {
     const reading = await this.askAboutRange(pdf);
     if (reading.kind !== "too_long") {
       return withRealPages(reading, firstPage, pageCount);
@@ -248,11 +282,11 @@ export class AnthropicPriceListExtractor implements PriceListExtractor {
       return { kind: "unreadable" };
     }
     const firstHalf = Math.floor(pageCount / 2);
-    const first = await this.readRange(document, firstPage, firstHalf);
+    const first = await this.readPart(document, firstPage, firstHalf);
     if (first.kind !== "read") {
       return first;
     }
-    const second = await this.readRange(document, firstPage + firstHalf, pageCount - firstHalf);
+    const second = await this.readPart(document, firstPage + firstHalf, pageCount - firstHalf);
     if (second.kind !== "read") {
       return second;
     }
