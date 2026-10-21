@@ -13,6 +13,31 @@ export function isBeforeTaxAuthorityLastIssuedDay(
   return lastIssuedOn !== null && argentinaCalendarDay(reading) < lastIssuedOn;
 }
 
+export interface ClockCorrectionReadings {
+  previousReading: Date;
+  correctedReading: Date;
+}
+
+export interface ClockCorrectionLapseInput {
+  reading: Date;
+  taxAuthorityLastIssuedOn: string | null;
+  latestCorrection: ClockCorrectionReadings | null;
+}
+
+export function isInClockCorrectionLapse({
+  reading,
+  taxAuthorityLastIssuedOn,
+  latestCorrection,
+}: ClockCorrectionLapseInput): boolean {
+  return (
+    taxAuthorityLastIssuedOn !== null &&
+    latestCorrection !== null &&
+    argentinaCalendarDay(latestCorrection.previousReading) >= taxAuthorityLastIssuedOn &&
+    argentinaCalendarDay(latestCorrection.correctedReading) < taxAuthorityLastIssuedOn &&
+    argentinaCalendarDay(reading) < taxAuthorityLastIssuedOn
+  );
+}
+
 export function raisedClockMark(mark: Date | null, reading: Date): Date {
   return mark === null ? reading : new Date(Math.max(mark.getTime(), reading.getTime()));
 }
