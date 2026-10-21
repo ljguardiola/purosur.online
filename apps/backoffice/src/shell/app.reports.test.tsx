@@ -7,9 +7,11 @@ import {
   weekPaymentsReport,
 } from "../payments/test-support/payments-report-fixtures";
 import {
+  ANA_USER_ID,
   averageTicketReport,
   cashierSalesReport,
   categoryProductsReport,
+  manualDiscountsReport,
   promotionDiscountsReport,
   weekReport,
 } from "../sales/test-support/sales-fixtures";
@@ -31,6 +33,7 @@ opensOnlyScreens([
   "/reports/sales-by-product-and-category",
   "/reports/sales-by-cashier",
   "/reports/sales-by-promotion",
+  "/reports/manual-discounts",
   "/reports/average-ticket",
 ]);
 
@@ -70,6 +73,10 @@ function reportsServices(capabilities: Capability[]) {
   vi.mocked(services.salesByPromotionScreen.fetchSalesByPromotion).mockResolvedValue({
     kind: "ok",
     value: promotionDiscountsReport,
+  });
+  vi.mocked(services.manualDiscountsScreen.fetchManualDiscounts).mockResolvedValue({
+    kind: "ok",
+    value: manualDiscountsReport,
   });
   vi.mocked(services.averageTicketScreen.fetchAverageTicket).mockResolvedValue({
     kind: "ok",
@@ -362,6 +369,70 @@ test("rewrites a refused range of the discounts by promotion report out of the a
   expect(services.salesByPromotionScreen.fetchSalesByPromotion).toHaveBeenCalledWith({});
 });
 
+test("opens the manual discounts report from the list and reads it from the cloud", async () => {
+  const services = reportsServices(["reports_area"]);
+  window.history.pushState(null, "", "/reports");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await userEvent.click(
+    screen.getByRole("main").getByRole("link", { name: "Descuentos manuales y sobre el total" }),
+  );
+
+  await expect
+    .element(
+      screen.getByRole("heading", { name: "Descuentos manuales y sobre el total", level: 1 }),
+    )
+    .toBeVisible();
+  expect(window.location.pathname).toBe("/reports/manual-discounts");
+  await expect.element(screen.getByRole("table").getByText("Cliente frecuente")).toBeVisible();
+  expect(services.manualDiscountsScreen.fetchManualDiscounts).toHaveBeenCalledWith({});
+  expect(document.title).toBe("Descuentos manuales y sobre el total · Puro Sur");
+});
+
+test("keeps the manual discounts report's filters after following its own side column link", async () => {
+  const url = `/reports/manual-discounts?authorizedBy=${ANA_USER_ID}`;
+  const services = reportsServices(["reports_area"]);
+  window.history.pushState(null, "", url);
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await expect.element(screen.getByRole("table").getByText("Envase dañado")).toBeVisible();
+  const sectionLink = screen
+    .getByRole("navigation", { name: "Reportes" })
+    .getByRole("link", { name: "Descuentos manuales y sobre el total" });
+  await expect.element(sectionLink).toHaveAttribute("href", url);
+
+  await userEvent.click(sectionLink);
+
+  await expect.poll(() => `${window.location.pathname}${window.location.search}`).toBe(url);
+});
+
+test("keeps the authorizer of the manual discounts report in the address", async () => {
+  const services = reportsServices(["reports_area"]);
+  window.history.pushState(null, "", "/reports/manual-discounts");
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await expect.element(screen.getByRole("table").getByText("Cliente frecuente")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: /Autorizante:/ }));
+  await userEvent.click(screen.getByRole("option", { name: "Ana" }));
+
+  await expect.poll(() => window.location.search).toBe(`?authorizedBy=${ANA_USER_ID}`);
+});
+
+test("rewrites a refused range of the manual discounts report out of the address", async () => {
+  const services = reportsServices(["reports_area"]);
+  window.history.pushState(
+    null,
+    "",
+    `/reports/manual-discounts?from=2026-10-08&to=2026-10-07&authorizedBy=${ANA_USER_ID}`,
+  );
+
+  await render(<App help={emptyHelp} services={services} />);
+
+  await expect.poll(() => window.location.search).toBe(`?authorizedBy=${ANA_USER_ID}`);
+  expect(services.manualDiscountsScreen.fetchManualDiscounts).toHaveBeenCalledWith({
+    authorized_by: ANA_USER_ID,
+  });
+});
+
 test("opens the average ticket report from the list and reads it from the cloud", async () => {
   const services = reportsServices(["reports_area"]);
   window.history.pushState(null, "", "/reports");
@@ -499,6 +570,7 @@ test.each([
   "/reports/sales-by-product-and-category",
   "/reports/sales-by-cashier",
   "/reports/sales-by-promotion",
+  "/reports/manual-discounts",
   "/reports/average-ticket",
 ])("sends a user without the reports permission who opens %s to Mi cuenta", async (path) => {
   const services = reportsServices(["stock_area"]);
@@ -515,5 +587,6 @@ test.each([
   ).not.toHaveBeenCalled();
   expect(services.salesByCashierScreen.fetchSalesByCashier).not.toHaveBeenCalled();
   expect(services.salesByPromotionScreen.fetchSalesByPromotion).not.toHaveBeenCalled();
+  expect(services.manualDiscountsScreen.fetchManualDiscounts).not.toHaveBeenCalled();
   expect(services.averageTicketScreen.fetchAverageTicket).not.toHaveBeenCalled();
 });
