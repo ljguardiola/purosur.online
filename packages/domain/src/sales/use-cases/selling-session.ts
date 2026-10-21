@@ -1,7 +1,14 @@
-import { isLockedToAnother, registerOperationAccess } from "../../register/index.js";
+import {
+  isLockedToAnother,
+  registerOperationAccess,
+  restorationStanding,
+} from "../../register/index.js";
 import type { SaleLedgerTransaction, SellingSession } from "./sale-ledger.js";
 
-export type SellingSessionRefusal = { kind: "not_permitted" } | { kind: "no_open_session" };
+export type SellingSessionRefusal =
+  | { kind: "not_permitted" }
+  | { kind: "restoration_in_progress" }
+  | { kind: "no_open_session" };
 
 export function sellingSession(
   tx: SaleLedgerTransaction,
@@ -10,6 +17,9 @@ export function sellingSession(
   const seller = { id: actorId, access: tx.sellerAccess(actorId) };
   if (registerOperationAccess({ kind: "sell" }, seller).kind !== "permitted") {
     return { kind: "not_permitted" };
+  }
+  if (restorationStanding(tx.restorationEvidence()).kind !== "completed") {
+    return { kind: "restoration_in_progress" };
   }
   const session = tx.openSession();
   if (!session) {

@@ -21,6 +21,7 @@ export interface RemoveSaleLinePorts {
 
 export type RemoveSaleLineOutcome =
   | { kind: "not_permitted" }
+  | { kind: "restoration_in_progress" }
   | { kind: "no_open_session" }
   | { kind: "no_open_sale" }
   | { kind: "sale_has_payments" }

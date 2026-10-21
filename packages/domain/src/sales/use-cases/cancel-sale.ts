@@ -17,6 +17,7 @@ export interface CancelSalePorts {
 
 export type CancelSaleOutcome =
   | { kind: "not_permitted" }
+  | { kind: "restoration_in_progress" }
   | { kind: "no_open_session" }
   | { kind: "no_open_sale" }
   | { kind: "has_approved_payment" }

@@ -21,6 +21,7 @@ export interface ChargeSaleInCashPorts {
 
 export type ChargeSaleInCashOutcome =
   | { kind: "not_permitted" }
+  | { kind: "restoration_in_progress" }
   | { kind: "no_open_session" }
   | { kind: "no_open_sale" }
   | { kind: "empty_sale" }

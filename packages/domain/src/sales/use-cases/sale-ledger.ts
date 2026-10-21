@@ -14,7 +14,7 @@ import type {
 } from "../../payments/index.js";
 import type { RoleAccess } from "../../permissions/index.js";
 import type { DiscountRecurrence } from "../../pricing/index.js";
-import type { CashMovement } from "../../register/index.js";
+import type { CashMovement, RestorationEvidence } from "../../register/index.js";
 import type { OutboxEventDraft } from "../../shared/index.js";
 import type { LinePromotion, Sale, SaleLine, SaleWithLines } from "../model/sale.js";
 import type { SaleDiscount } from "../model/sale-discount.js";
@@ -79,6 +79,7 @@ export interface SaleLedger {
 
 export interface SaleLedgerTransaction {
   sellerAccess(userId: string): RoleAccess | undefined;
+  restorationEvidence(): RestorationEvidence;
   openSession(): SellingSession | undefined;
   openSale(sessionId: string): SaleWithLines | undefined;
   installationRevoked(): boolean;
