@@ -191,6 +191,16 @@ describe("VoidSaleModal", () => {
     await expect.element(dialog.getByText("PV 00031 · Nº 00000008")).toBeVisible();
   });
 
+  it("keeps showing the sale's own comprobante when it is not fiscal even though the core names an invoice the credit note corrects", async () => {
+    const { screen } = await renderModal({ sale: SALE, creditNoteCorrects: CORRECTED_INVOICE });
+
+    const dialog = screen.getByRole("dialog", { name: "Revisá qué pasa al anular" });
+
+    await expect.element(dialog.getByText("Documento no fiscal")).toBeVisible();
+    await expect.element(dialog.getByText("Factura C", { exact: true })).not.toBeInTheDocument();
+    await expect.element(dialog.getByText("PV 00031 · Nº 00000008")).not.toBeInTheDocument();
+  });
+
   it("voids without a credit note a sale whose comprobante names an invoice the core says the void does not credit", async () => {
     const { screen } = await renderModal({ sale: INVOICED_SALE, creditNoteCorrects: null });
 
