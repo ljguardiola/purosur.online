@@ -1,5 +1,8 @@
-import type { ApprovedOrderOfRegister } from "@purosur/domain/payments/use-cases";
-import { discoverPaidOrdersWithoutSale } from "@purosur/domain/payments/use-cases";
+import {
+  type ApprovedOrderOfRegister,
+  type DiscoverPaidOrdersWithoutSaleOutcome,
+  discoverPaidOrdersWithoutSale,
+} from "@purosur/domain/payments/use-cases";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
@@ -33,7 +36,7 @@ afterEach(() => {
 describe("settling a paid order into the sale", () => {
   async function discover(
     restorationBegins = false,
-  ): Promise<{ failed: number } & Record<string, unknown>> {
+  ): Promise<Extract<DiscoverPaidOrdersWithoutSaleOutcome, { kind: "checked" }>> {
     const signedInPerson = createSignedInPerson();
     signedInPerson.set("u1");
     const saleId = await openSaleOfTwoYerbas({ database, signedInPerson }, uuidV7Ids);

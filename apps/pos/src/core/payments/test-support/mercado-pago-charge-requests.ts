@@ -9,6 +9,7 @@ import type {
   MercadoPagoChargeOrderReading,
   MercadoPagoChargeOrders,
 } from "@purosur/domain/payments/use-cases";
+import type { IdGenerator } from "@purosur/domain/sales/use-cases";
 import { restorePendingIn } from "../../backups/restore-pending";
 import type { LocalDatabase } from "../../platform/local-database";
 import { SqliteRestorationEvidence } from "../../register/sqlite-restoration-evidence";

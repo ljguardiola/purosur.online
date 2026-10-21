@@ -672,6 +672,7 @@ const paidOrderDiscovery = createPaidOrderDiscoveryWiring({
   cloudClient,
   readDeviceToken,
   readOutboxChainKey: async () => (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
+  restoration: localDatabase === undefined ? undefined : restorationOf(localDatabase),
   now,
   ids: uuidV7Ids,
   reportFailure,
