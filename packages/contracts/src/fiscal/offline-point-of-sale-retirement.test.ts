@@ -5,39 +5,40 @@ import {
 } from "./offline-point-of-sale-retirement.js";
 
 describe("branchOfflinePointOfSaleListSchema", () => {
-  const assigned = {
+  const retirable = {
     point_of_sale_number: 12,
     register_id: "3f0d1a52-0f7e-4a53-9f4c-2a7d2f1c9b10",
     register_name: "Caja 1",
-    assigned: true,
+    retirable: true,
     retired_at: null,
   };
   const retired = {
-    ...assigned,
+    ...retirable,
     point_of_sale_number: 13,
-    assigned: false,
+    retirable: false,
     retired_at: "2026-10-20T15:00:00.000Z",
   };
 
-  it("reads the offline points of sale of a branch, assigned, free or retired", () => {
-    const list = [assigned, { ...assigned, point_of_sale_number: 14, assigned: false }, retired];
+  it("reads the offline points of sale of a branch left without a register, retirable or retired", () => {
+    const list = [retirable, retired];
 
     expect(branchOfflinePointOfSaleListSchema.parse(list)).toEqual(list);
     expect(branchOfflinePointOfSaleListSchema.parse([])).toEqual([]);
   });
 
-  it.each(["point_of_sale_number", "register_id", "register_name", "assigned", "retired_at"])(
+  it.each(["point_of_sale_number", "register_id", "register_name", "retirable", "retired_at"])(
     "refuses one without its %s",
     (field) => {
       expect(
-        branchOfflinePointOfSaleListSchema.safeParse([{ ...assigned, [field]: undefined }]).success,
+        branchOfflinePointOfSaleListSchema.safeParse([{ ...retirable, [field]: undefined }])
+          .success,
       ).toBe(false);
     },
   );
 
   it("refuses a number the tax authority does not allow", () => {
     expect(
-      branchOfflinePointOfSaleListSchema.safeParse([{ ...assigned, point_of_sale_number: 100000 }])
+      branchOfflinePointOfSaleListSchema.safeParse([{ ...retirable, point_of_sale_number: 100000 }])
         .success,
     ).toBe(false);
   });

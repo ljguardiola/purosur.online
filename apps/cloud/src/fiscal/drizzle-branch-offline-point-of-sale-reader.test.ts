@@ -32,7 +32,7 @@ beforeEach(async () => {
 });
 
 describe("listing a branch's offline points of sale through DrizzleBranchOfflinePointOfSaleReader", () => {
-  it("lists every offline number a register of the branch claimed, by number, with its register, whether it is assigned and when it was retired", async () => {
+  it("lists every offline number a register of the branch claimed and none has assigned now, by number, with its register, whether it may be retired and when it was retired", async () => {
     const registerId = await configureOfflinePointOfSale(db, {
       registerName: "Caja 1",
       realTimePointOfSale: 7,
@@ -50,6 +50,12 @@ describe("listing a branch's offline points of sale through DrizzleBranchOffline
       version: 1,
       now: NOON,
     });
+    await moveRegisterToOfflinePointOfSale(db, {
+      registerId,
+      pointOfSaleNumber: 5,
+      version: 2,
+      now: NOON,
+    });
     const retiredAt = new Date("2026-01-06T09:30:00.000Z");
     await db
       .insert(offlinePointOfSaleRetirements)
@@ -57,11 +63,17 @@ describe("listing a branch's offline points of sale through DrizzleBranchOffline
 
     const listed = await new DrizzleBranchOfflinePointOfSaleReader(
       db,
-    ).listBranchOfflinePointsOfSale(locationId);
+    ).listBranchOfflinePointsOfSaleWithoutRegister(locationId);
 
     expect(listed).toEqual([
-      { pointOfSaleNumber: 6, registerId, registerName: "Caja 1", assigned: true, retiredAt: null },
-      { pointOfSaleNumber: 8, registerId, registerName: "Caja 1", assigned: false, retiredAt },
+      {
+        pointOfSaleNumber: 6,
+        registerId,
+        registerName: "Caja 1",
+        retirable: true,
+        retiredAt: null,
+      },
+      { pointOfSaleNumber: 8, registerId, registerName: "Caja 1", retirable: false, retiredAt },
     ]);
   });
 
@@ -80,7 +92,7 @@ describe("listing a branch's offline points of sale through DrizzleBranchOffline
 
     const listed = await new DrizzleBranchOfflinePointOfSaleReader(
       db,
-    ).listBranchOfflinePointsOfSale(otherLocation.id);
+    ).listBranchOfflinePointsOfSaleWithoutRegister(otherLocation.id);
 
     expect(listed).toEqual([]);
   });

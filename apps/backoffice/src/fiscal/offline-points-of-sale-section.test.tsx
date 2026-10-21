@@ -12,10 +12,14 @@ function offlinePointOfSale(overrides: Partial<OfflinePointOfSale> = {}): Offlin
     pointOfSaleNumber: 6,
     registerId: "register-1",
     registerName: "Caja 1",
-    assigned: false,
+    retirable: true,
     retiredAt: null,
     ...overrides,
   };
+}
+
+function retireAction(pointOfSaleNumber: number) {
+  return `Dar de baja el punto de venta ${formatPointOfSaleNumber(pointOfSaleNumber)}`;
 }
 
 function loaded(items: OfflinePointOfSale[]): CloudData<OfflinePointOfSale[]> {
@@ -50,7 +54,8 @@ test("lists each point of sale left without a register with its number, the regi
   await expect.element(table.getByText(formatPointOfSaleNumber(9), { exact: true })).toBeVisible();
   await expect.element(table.getByText("Caja 4", { exact: true })).toBeVisible();
   expect(table.getByText("Sin caja", { exact: true }).elements()).toHaveLength(2);
-  expect(table.getByRole("button", { name: "Dar de baja" }).elements()).toHaveLength(2);
+  await expect.element(table.getByRole("button", { name: retireAction(6) })).toBeVisible();
+  await expect.element(table.getByRole("button", { name: retireAction(9) })).toBeVisible();
 });
 
 test("labels the columns", async () => {
@@ -61,19 +66,19 @@ test("labels the columns", async () => {
   }
 });
 
-test("does not list a point of sale a register has assigned", async () => {
+test("offers no action on a point of sale the cloud says may not be retired", async () => {
   const screen = await render(
     sectionFor(
       loaded([
-        offlinePointOfSale({ pointOfSaleNumber: 6, registerName: "Caja 1" }),
-        offlinePointOfSale({ pointOfSaleNumber: 9, registerName: "Caja 4", assigned: true }),
+        offlinePointOfSale({ pointOfSaleNumber: 6, retirable: false }),
+        offlinePointOfSale({ pointOfSaleNumber: 9, registerName: "Caja 4" }),
       ]),
     ),
   );
 
-  await expect.element(screen.getByText("Caja 1", { exact: true })).toBeVisible();
-  expect(screen.getByText("Caja 4", { exact: true }).query()).toBeNull();
-  expect(screen.getByText(formatPointOfSaleNumber(9), { exact: true }).query()).toBeNull();
+  await expect.element(screen.getByRole("button", { name: retireAction(9) })).toBeVisible();
+  await expect.element(screen.getByText(formatPointOfSaleNumber(6), { exact: true })).toBeVisible();
+  expect(screen.getByRole("button", { name: retireAction(6) }).query()).toBeNull();
 });
 
 test("shows a retired point of sale with the day it was retired and no action", async () => {
@@ -81,7 +86,7 @@ test("shows a retired point of sale with the day it was retired and no action", 
   const screen = await render(
     sectionFor(
       loaded([
-        offlinePointOfSale({ retiredAt }),
+        offlinePointOfSale({ retirable: false, retiredAt }),
         offlinePointOfSale({ pointOfSaleNumber: 9, registerName: "Caja 4" }),
       ]),
     ),
@@ -91,26 +96,21 @@ test("shows a retired point of sale with the day it was retired and no action", 
   await expect
     .element(screen.getByText(formatDayAndTime(retiredAt), { exact: true }))
     .toBeVisible();
-  expect(screen.getByRole("button", { name: "Dar de baja" }).elements()).toHaveLength(1);
+  expect(screen.getByRole("button", { name: retireAction(6) }).query()).toBeNull();
 });
 
 test("asks to retire the point of sale of the row whose action was pressed", async () => {
   const onRetire = vi.fn();
   const target = offlinePointOfSale({ pointOfSaleNumber: 9, registerName: "Caja 4" });
-  const screen = await render(
-    sectionFor(
-      loaded([offlinePointOfSale({ retiredAt: "2026-10-01T15:30:00.000Z" }), target]),
-      onRetire,
-    ),
-  );
+  const screen = await render(sectionFor(loaded([offlinePointOfSale(), target]), onRetire));
 
-  await userEvent.click(screen.getByRole("button", { name: "Dar de baja" }));
+  await userEvent.click(screen.getByRole("button", { name: retireAction(9) }));
 
   expect(onRetire).toHaveBeenCalledWith(target);
 });
 
-test("shows the empty state when every point of sale has a register", async () => {
-  const screen = await render(sectionFor(loaded([offlinePointOfSale({ assigned: true })])));
+test("shows the empty state when no point of sale was left without a register", async () => {
+  const screen = await render(sectionFor(loaded([])));
 
   await expect
     .element(screen.getByText("Ningún punto de venta CAEA quedó sin caja."))
@@ -142,7 +142,11 @@ test("has no accessibility violations with free and retired points of sale", asy
     sectionFor(
       loaded([
         offlinePointOfSale(),
-        offlinePointOfSale({ pointOfSaleNumber: 9, retiredAt: "2026-10-01T15:30:00.000Z" }),
+        offlinePointOfSale({
+          pointOfSaleNumber: 9,
+          retirable: false,
+          retiredAt: "2026-10-01T15:30:00.000Z",
+        }),
       ]),
     ),
   );

@@ -17,7 +17,7 @@ const target: OfflinePointOfSale = {
   pointOfSaleNumber: 6,
   registerId: "register-1",
   registerName: "Caja 1",
-  assigned: false,
+  retirable: true,
   retiredAt: null,
 };
 
@@ -79,7 +79,8 @@ test("asks about the point of sale by its number and says what retiring it does"
   await expect
     .element(
       dialog.getByText(
-        /Deja de deber los informes quincenales de las quincenas que terminen después de hoy/,
+        "Deja de deber los informes quincenales desde la quincena en curso, salvo los que ARCA informe como adeudados; los que ya debe siguen pendientes.",
+        { exact: false },
       ),
     )
     .toBeVisible();

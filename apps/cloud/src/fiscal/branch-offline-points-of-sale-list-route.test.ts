@@ -72,7 +72,7 @@ describe("GET /registers/offline-points-of-sale", () => {
     expect(response.json()).toMatchObject({ code: "forbidden" });
   });
 
-  it("lists the branch's offline points of sale with their register, assignment and retirement", async () => {
+  it("lists the branch's offline points of sale left without a register, with their register, whether they may be retired and their retirement", async () => {
     const registerId = await configureOfflinePointOfSale(db, {
       registerName: "Caja 1",
       realTimePointOfSale: 7,
@@ -83,6 +83,12 @@ describe("GET /registers/offline-points-of-sale", () => {
       registerId,
       pointOfSaleNumber: 9,
       version: 1,
+      now: SESSION_NOON,
+    });
+    await moveRegisterToOfflinePointOfSale(db, {
+      registerId,
+      pointOfSaleNumber: 10,
+      version: 2,
       now: SESSION_NOON,
     });
     const [actor] = await db.select({ id: users.id }).from(users).limit(1);
@@ -102,14 +108,14 @@ describe("GET /registers/offline-points-of-sale", () => {
         point_of_sale_number: 8,
         register_id: registerId,
         register_name: "Caja 1",
-        assigned: false,
+        retirable: false,
         retired_at: SESSION_NOON.toISOString(),
       },
       {
         point_of_sale_number: 9,
         register_id: registerId,
         register_name: "Caja 1",
-        assigned: true,
+        retirable: true,
         retired_at: null,
       },
     ]);

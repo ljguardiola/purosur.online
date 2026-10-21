@@ -406,7 +406,7 @@ const freeOfflinePointOfSale: OfflinePointOfSale = {
   pointOfSaleNumber: 6,
   registerId: "register-9",
   registerName: "Caja 9",
-  assigned: false,
+  retirable: true,
   retiredAt: null,
 };
 
@@ -417,16 +417,10 @@ function withFreeOfflinePointOfSale(items: OfflinePointOfSale[] = [freeOfflinePo
 }
 
 test("lists the offline points of sale left without a register between the registers and the fortnight reports", async () => {
-  const screen = await renderScreen(
-    withFreeOfflinePointOfSale([
-      freeOfflinePointOfSale,
-      { ...freeOfflinePointOfSale, pointOfSaleNumber: 7, registerName: "Caja 8", assigned: true },
-    ]),
-  );
+  const screen = await renderScreen(withFreeOfflinePointOfSale());
 
   const table = screen.getByRole("table", { name: "Puntos de venta CAEA sin caja" });
   await expect.element(table.getByText("Caja 9", { exact: true })).toBeVisible();
-  expect(table.getByText("Caja 8", { exact: true }).query()).toBeNull();
   const text = document.body.textContent ?? "";
   expect(text.indexOf("Caja 1")).toBeLessThan(text.indexOf("Usado por"));
   expect(text.indexOf("Usado por")).toBeLessThan(text.indexOf("Quincena"));
@@ -457,14 +451,18 @@ test("retiring an offline point of sale reads the list and the fortnight reports
     .mockResolvedValueOnce({ kind: "ok", value: [freeOfflinePointOfSale] })
     .mockResolvedValue({
       kind: "ok",
-      value: [{ ...freeOfflinePointOfSale, retiredAt: "2026-10-20T12:00:00.000Z" }],
+      value: [
+        { ...freeOfflinePointOfSale, retirable: false, retiredAt: "2026-10-20T12:00:00.000Z" },
+      ],
     });
   vi.mocked(services.retireOfflinePointOfSale).mockResolvedValue({
     kind: "retired",
     value: { pointOfSaleNumber: 6, retiredAt: "2026-10-20T12:00:00.000Z" },
   });
   const screen = await renderScreen(services);
-  await userEvent.click(screen.getByRole("button", { name: "Dar de baja" }));
+  await userEvent.click(
+    screen.getByRole("button", { name: "Dar de baja el punto de venta 00006" }),
+  );
   const dialog = screen.getByRole("dialog", { name: "¿Dar de baja el punto de venta 00006?" });
 
   await userEvent.click(dialog.getByRole("button", { name: "Dar de baja" }));
@@ -477,24 +475,20 @@ test("retiring an offline point of sale reads the list and the fortnight reports
   expect(services.fetchFortnightPresentations).toHaveBeenCalledTimes(2);
 });
 
-test("an offline point of sale a register took meanwhile is refused and leaves the list", async () => {
+test("a refused retirement reads the offline points of sale again", async () => {
   const services = withFreeOfflinePointOfSale();
   vi.mocked(services.fetchOfflinePointsOfSale)
     .mockResolvedValueOnce({ kind: "ok", value: [freeOfflinePointOfSale] })
-    .mockResolvedValue({
-      kind: "ok",
-      value: [{ ...freeOfflinePointOfSale, assigned: true }],
-    });
+    .mockResolvedValue({ kind: "ok", value: [] });
   vi.mocked(services.retireOfflinePointOfSale).mockResolvedValue({ kind: "assigned" });
   const screen = await renderScreen(services);
-  await userEvent.click(screen.getByRole("button", { name: "Dar de baja" }));
+  await userEvent.click(
+    screen.getByRole("button", { name: "Dar de baja el punto de venta 00006" }),
+  );
   const dialog = screen.getByRole("dialog", { name: "¿Dar de baja el punto de venta 00006?" });
 
   await userEvent.click(dialog.getByRole("button", { name: "Dar de baja" }));
 
-  await expect
-    .element(dialog.getByText("Una caja usa este punto de venta: no se puede dar de baja.").first())
-    .toBeVisible();
   await expect.poll(() => vi.mocked(services.fetchOfflinePointsOfSale).mock.calls.length).toBe(2);
   expect(
     screen

@@ -24,7 +24,7 @@ const freeWire = {
   point_of_sale_number: 6,
   register_id: "3f0d1a52-0f7e-4a53-9f4c-2a7d2f1c9b10",
   register_name: "Caja 1",
-  assigned: false,
+  retirable: true,
   retired_at: null,
 };
 
@@ -32,7 +32,7 @@ const retiredWire = {
   point_of_sale_number: 7,
   register_id: "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d",
   register_name: "Caja 2",
-  assigned: false,
+  retirable: false,
   retired_at: "2026-10-01T15:30:00.000Z",
 };
 
@@ -40,7 +40,7 @@ const free: OfflinePointOfSale = {
   pointOfSaleNumber: 6,
   registerId: "3f0d1a52-0f7e-4a53-9f4c-2a7d2f1c9b10",
   registerName: "Caja 1",
-  assigned: false,
+  retirable: true,
   retiredAt: null,
 };
 
@@ -48,7 +48,7 @@ const retired: OfflinePointOfSale = {
   pointOfSaleNumber: 7,
   registerId: "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d",
   registerName: "Caja 2",
-  assigned: false,
+  retirable: false,
   retiredAt: "2026-10-01T15:30:00.000Z",
 };
 
