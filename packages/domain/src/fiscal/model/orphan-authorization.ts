@@ -1,4 +1,8 @@
-import { FACTURA_C_VOUCHER_TYPE } from "./factura-c-fiscal-block.js";
+import {
+  FACTURA_C_VOUCHER_TYPE,
+  FINAL_CONSUMER_DOCUMENT_NUMBER,
+  FINAL_CONSUMER_DOCUMENT_TYPE,
+} from "./factura-c-fiscal-block.js";
 import { FACTURA_C_DOCUMENT_TYPE, type FiscalDocumentType } from "./fiscal-rejection-standing.js";
 import {
   type ExternalInvoicingVoucher,
@@ -70,10 +74,56 @@ export function authorizedVoucherAmong(
   return documents.find(isAuthorizedDocument)?.voucher ?? null;
 }
 
+export interface RecordedAuthorizationRequest extends UnclearDocument {
+  outcome: RecordedRequestOutcome;
+}
+
+export function orphanEvidenceOfRecordedRequest({
+  pointOfSale,
+  request,
+}: {
+  pointOfSale: number;
+  request: RecordedAuthorizationRequest;
+}): OrphanEvidence {
+  const told = outcomeToldToAskingRegister(request.outcome);
+  if (told.kind === "pending") {
+    return { kind: "not_confirmed" };
+  }
+  const settlement = unclearDocumentSettlement(told);
+  if (settlement.state !== "AUTHORIZED") {
+    return { kind: "not_confirmed" };
+  }
+  return {
+    kind: "confirmed",
+    pointOfSale,
+    number: request.number,
+    voucher: {
+      issuedOn: request.issuedOn,
+      total: request.total,
+      documentType: FACTURA_C_VOUCHER_TYPE,
+      receiverDocumentType: FINAL_CONSUMER_DOCUMENT_TYPE,
+      receiverDocumentNumber: FINAL_CONSUMER_DOCUMENT_NUMBER,
+      receiverTaxStatusCode: request.buyerTaxStatusCode,
+      authorizationCode: settlement.authorizationCode,
+      authorizationCodeDueOn: settlement.authorizationCodeDueOn,
+    },
+  };
+}
+
 export type LocalStanding =
   | { kind: "no_local_sale" }
   | { kind: "local_sale"; saleId: string; otherAuthorizedVoucher: VoucherReference | null }
   | { kind: "already_regularized" };
+
+export function localStandingOfUnrecordedSale(
+  saleId: string,
+  otherDocumentsOfSale: readonly SaleDocument[],
+): LocalStanding {
+  const otherAuthorizedVoucher = authorizedVoucherAmong(otherDocumentsOfSale);
+  return otherAuthorizedVoucher === null
+    ? { kind: "no_local_sale" }
+    : { kind: "local_sale", saleId, otherAuthorizedVoucher };
+}
 
 export interface CreditNoteDecision {
   kind: "credit_note";
