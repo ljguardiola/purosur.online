@@ -70,6 +70,7 @@ import { registerBranchOfflinePointsOfSaleListRoute } from "./fiscal/branch-offl
 import { registerBuyerIdentificationThresholdRecordRoute } from "./fiscal/buyer-identification-threshold-record-route.js";
 import type { BuyerIdentificationThresholdsRouteOptions } from "./fiscal/buyer-identification-thresholds-list-route.js";
 import { registerBuyerIdentificationThresholdsListRoute } from "./fiscal/buyer-identification-thresholds-list-route.js";
+import { registerBuyerTaxStatusesListRoute } from "./fiscal/buyer-tax-statuses-list-route.js";
 import { registerClockCorrectionsListRoute } from "./fiscal/clock-corrections-list-route.js";
 import {
   type CreditNoteRouteOptions,
@@ -698,6 +699,7 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
         registerRegistersPointsOfSaleListRoute(api, { ...options.registersPointsOfSale, now });
         registerFortnightPresentationsListRoute(api, { ...options.registersPointsOfSale, now });
         registerRejectedDocumentRemedyRoute(api, { ...options.registersPointsOfSale, now });
+        registerBuyerTaxStatusesListRoute(api, { ...options.registersPointsOfSale, now });
         registerClockCorrectionsListRoute(api, { ...options.registersPointsOfSale, now });
         registerRegisterPointOfSaleConfigurationRoute(api, {
           ...options.registersPointsOfSale,

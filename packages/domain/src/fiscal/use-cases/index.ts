@@ -113,6 +113,7 @@ export type {
 } from "./buyer-tax-status-source.js";
 export type {
   BuyerTaxStatusPorts,
+  BuyerTaxStatusReader,
   BuyerTaxStatusSetVersion,
   BuyerTaxStatusStore,
   BuyerTaxStatusStoreTransaction,
