@@ -53,6 +53,7 @@ export type {
 export type {
   ApplyUnclearOutcomeDecisionsPorts,
   UnclearDocumentSettled,
+  UnclearFiscalDocument,
   UnclearFiscalDocuments,
   UnclearOutcomeAnswer,
   UnclearOutcomeCloud,
@@ -119,6 +120,18 @@ export type {
   BuyerTaxStatusStore,
   BuyerTaxStatusStoreTransaction,
 } from "./buyer-tax-status-store.js";
+export type {
+  CatchUpDeferredSalesOutcome,
+  CatchUpStopReason,
+} from "./catch-up-deferred-sales.js";
+export { catchUpDeferredSales } from "./catch-up-deferred-sales.js";
+export type {
+  CatchUpDeferredSalesPorts,
+  DeferredSaleCatchUp,
+  DeferredSaleCatchUpTransaction,
+  DeferredSaleHoldingAuthorizedDocument,
+  DeferredSaleSatisfaction,
+} from "./catch-up-deferred-sales-ports.js";
 export type { CheckArcaVitalityOutcome } from "./check-arca-vitality.js";
 export { checkArcaVitality } from "./check-arca-vitality.js";
 export type {
@@ -333,6 +346,7 @@ export type {
 } from "./read-unknown-fiscal-documents.js";
 export { readUnknownFiscalDocuments } from "./read-unknown-fiscal-documents.js";
 export type {
+  ExistingDeferredSale,
   RealTimeAuthorizationCall,
   RealTimeAuthorizationPorts,
   RealTimeAuthorizationResolved,
