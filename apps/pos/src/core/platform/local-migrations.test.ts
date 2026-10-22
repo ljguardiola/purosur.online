@@ -919,7 +919,7 @@ describe("the register's local migrations", () => {
         "0071_credit_note_reprints",
         "0072_awaiting_restored_numbering",
         "0073_replenished_credit_note_requests",
-        "0075_awaiting_orphan_sweep",
+        "0074_awaiting_orphan_sweep",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1016,7 +1016,7 @@ describe("the register's local migrations", () => {
         "0071_credit_note_reprints",
         "0072_awaiting_restored_numbering",
         "0073_replenished_credit_note_requests",
-        "0075_awaiting_orphan_sweep",
+        "0074_awaiting_orphan_sweep",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1108,7 +1108,7 @@ describe("the register's local migrations", () => {
         "0071_credit_note_reprints",
         "0072_awaiting_restored_numbering",
         "0073_replenished_credit_note_requests",
-        "0075_awaiting_orphan_sweep",
+        "0074_awaiting_orphan_sweep",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1199,7 +1199,7 @@ describe("the register's local migrations", () => {
         "0071_credit_note_reprints",
         "0072_awaiting_restored_numbering",
         "0073_replenished_credit_note_requests",
-        "0075_awaiting_orphan_sweep",
+        "0074_awaiting_orphan_sweep",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1319,7 +1319,7 @@ describe("the register's local migrations", () => {
         "0071_credit_note_reprints",
         "0072_awaiting_restored_numbering",
         "0073_replenished_credit_note_requests",
-        "0075_awaiting_orphan_sweep",
+        "0074_awaiting_orphan_sweep",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1429,7 +1429,7 @@ describe("the register's local migrations", () => {
         "0071_credit_note_reprints",
         "0072_awaiting_restored_numbering",
         "0073_replenished_credit_note_requests",
-        "0075_awaiting_orphan_sweep",
+        "0074_awaiting_orphan_sweep",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1543,7 +1543,7 @@ describe("the register's local migrations", () => {
         "0071_credit_note_reprints",
         "0072_awaiting_restored_numbering",
         "0073_replenished_credit_note_requests",
-        "0075_awaiting_orphan_sweep",
+        "0074_awaiting_orphan_sweep",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1665,7 +1665,7 @@ describe("the register's local migrations", () => {
         "0071_credit_note_reprints",
         "0072_awaiting_restored_numbering",
         "0073_replenished_credit_note_requests",
-        "0075_awaiting_orphan_sweep",
+        "0074_awaiting_orphan_sweep",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1754,7 +1754,7 @@ describe("the register's local migrations", () => {
         "0071_credit_note_reprints",
         "0072_awaiting_restored_numbering",
         "0073_replenished_credit_note_requests",
-        "0075_awaiting_orphan_sweep",
+        "0074_awaiting_orphan_sweep",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -5892,10 +5892,10 @@ describe("the orphan sweep migration", () => {
     try {
       const path = join(folder, "register.sqlite");
       const previous = LOCAL_MIGRATIONS.filter(
-        (migration) => migration.name < "0075_awaiting_orphan_sweep",
+        (migration) => migration.name < "0074_awaiting_orphan_sweep",
       );
       expect(LOCAL_MIGRATIONS.map((migration) => migration.name)).toContain(
-        "0075_awaiting_orphan_sweep",
+        "0074_awaiting_orphan_sweep",
       );
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
