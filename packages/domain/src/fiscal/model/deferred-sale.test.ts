@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   deferredSaleDocumentBlock,
   deferredSaleQrText,
+  deferredSaleReferenceFromQrText,
   isDeferralFinalWhenRecorded,
   isShortCode,
   randomShortCode,
@@ -80,6 +81,45 @@ describe("deferred sale QR text", () => {
     expect(deferredSaleQrText({ id: "0198-abc", shortCode: "7KQ4M2P9" })).toBe(
       "purosur-deferred-sale:0198-abc:7KQ4M2P9",
     );
+  });
+});
+
+describe("deferred sale reference from QR text", () => {
+  it("reads back the id and short code the QR text carries", () => {
+    expect(deferredSaleReferenceFromQrText("purosur-deferred-sale:0198-abc:7KQ4M2P9")).toEqual({
+      id: "0198-abc",
+      shortCode: "7KQ4M2P9",
+    });
+  });
+
+  it("is the inverse of the QR text for any reference", () => {
+    fc.assert(
+      fc.property(fc.uuid(), fc.integer({ min: 0, max: 2 ** 40 }), (id, seed) => {
+        let remaining = seed;
+        const shortCode = randomShortCode((bound) => {
+          const index = remaining % bound;
+          remaining = Math.floor(remaining / bound);
+          return index;
+        });
+        const reference = { id, shortCode };
+
+        expect(deferredSaleReferenceFromQrText(deferredSaleQrText(reference))).toEqual(reference);
+      }),
+    );
+  });
+
+  it.each([
+    ["an empty text", ""],
+    ["a text with another prefix", "other-prefix:0198-abc:7KQ4M2P9"],
+    ["a text without a short code", "purosur-deferred-sale:0198-abc"],
+    ["a text without an id", "purosur-deferred-sale::7KQ4M2P9"],
+    ["a text whose code is too short", "purosur-deferred-sale:0198-abc:7KQ4M2P"],
+    ["a text whose code is too long", "purosur-deferred-sale:0198-abc:7KQ4M2P9X"],
+    ["a text whose code leaves the alphabet", "purosur-deferred-sale:0198-abc:7KQ4M2P0"],
+    ["a text with a lowercase code", "purosur-deferred-sale:0198-abc:7kq4m2p9"],
+    ["a text with text before the prefix", " purosur-deferred-sale:0198-abc:7KQ4M2P9"],
+  ])("is null for %s", (_name, text) => {
+    expect(deferredSaleReferenceFromQrText(text)).toBeNull();
   });
 });
 
