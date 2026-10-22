@@ -40,6 +40,7 @@ const CAPABILITIES_GRANTED_BY: readonly [PermissionKey, readonly Capability[]][]
   ["view_reports", ["reports_area"]],
   ["confirm_refunds", ["refunds_area"]],
   ["view_backups_and_rotate_key", ["backups_area"]],
+  ["view_fiscal_documents", ["fiscal_information"]],
 ];
 
 function inCapabilityOrder(capabilities: readonly Capability[]): Capability[] {
