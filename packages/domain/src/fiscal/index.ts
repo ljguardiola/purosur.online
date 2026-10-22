@@ -55,7 +55,29 @@ export {
   randomShortCode,
   SHORT_CODE_ALPHABET,
 } from "./model/deferred-sale.js";
+export type { DeferredSaleStanding } from "./model/deferred-sale-alert-deadlines.js";
+export {
+  deferredSaleAgeInDays,
+  deferredSaleAlertEscalatesAt,
+  deferredSaleAlertOpensAt,
+  deferredSaleStanding,
+} from "./model/deferred-sale-alert-deadlines.js";
 export { deferredSaleExpiresOn, isDeferredSaleExpired } from "./model/deferred-sale-expiry.js";
+export type {
+  DeferredSaleRegularizationTask,
+  DeferredSaleSettling,
+  DeferredSaleState,
+  ExpiredDeferredSale,
+} from "./model/deferred-sale-record.js";
+export {
+  DEFERRED_SALE_STATES,
+  deferredSaleRegularizationTask,
+  deferredSaleSettlement,
+  EXPIRED_DEFERRED_SALE_STATE,
+  FISCAL_TASK_KINDS,
+  isUnbilledDeferredSale,
+  PENDING_DEFERRED_SALE_STATE,
+} from "./model/deferred-sale-record.js";
 export { deferredSaleRecordedEvent } from "./model/deferred-sale-recorded-event.js";
 export {
   type DeferredSaleSatisfied,
