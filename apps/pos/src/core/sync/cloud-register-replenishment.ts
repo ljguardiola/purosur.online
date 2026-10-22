@@ -3,7 +3,7 @@ import {
   type RegisterResetResponse,
   registerResetResponseSchema,
 } from "@purosur/contracts";
-import type { RestoredCreditNoteAnswer } from "@purosur/domain";
+import type { RestoredCreditNoteAnswer, RestoredUnclearDeferral } from "@purosur/domain";
 import type {
   EventPosition,
   RegisterPredecessor,
@@ -50,6 +50,31 @@ function answerOf(creditNote: WireCreditNote): RestoredCreditNoteAnswer["answer"
   }
 }
 
+type WireUnclearDeferral = RegisterResetResponse["unclear_deferrals"][number];
+
+function unclearDeferralOf(deferral: WireUnclearDeferral): RestoredUnclearDeferral {
+  const fiscalDocumentId = deferral.fiscal_document_id;
+  switch (deferral.state) {
+    case "UNSETTLED":
+      return { fiscalDocumentId, answer: { kind: "unsettled" } };
+    case "REJECTED":
+      return {
+        fiscalDocumentId,
+        answer: { kind: "rejected", answeredAt: new Date(deferral.answered_at) },
+      };
+    case "AUTHORIZED":
+      return {
+        fiscalDocumentId,
+        answer: {
+          kind: "authorized",
+          authorizationCode: deferral.authorization_code,
+          authorizationCodeDueOn: deferral.authorization_code_due_on,
+          answeredAt: new Date(deferral.answered_at),
+        },
+      };
+  }
+}
+
 export class CloudRegisterReplenishment implements RegisterReplenishmentFeed<CloudFailure> {
   private readonly deps: CloudRegisterReplenishmentDeps;
 
@@ -90,6 +115,7 @@ export class CloudRegisterReplenishment implements RegisterReplenishmentFeed<Clo
       next,
       credit_notes: creditNotes,
       unrequested_credit_note_ids: unrequestedCreditNoteIds,
+      unclear_deferrals: unclearDeferrals,
     } = answer.data;
     return {
       kind: "page",
@@ -110,6 +136,7 @@ export class CloudRegisterReplenishment implements RegisterReplenishmentFeed<Clo
           answer: answerOf(creditNote),
         })),
         unrequestedCreditNoteIds,
+        unclearDeferralAnswers: unclearDeferrals.map(unclearDeferralOf),
         next: next && { deviceId: next.device_id, deviceSeq: next.device_seq },
       },
     };
