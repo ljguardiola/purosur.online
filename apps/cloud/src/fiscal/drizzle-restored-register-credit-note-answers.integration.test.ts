@@ -5,6 +5,7 @@ import {
 } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { saleVoidCreditNoteRefusals } from "../platform/db/schema.js";
 import {
   insertBranch,
   insertRegister,
@@ -55,7 +56,7 @@ describe("the sale void credit notes of a restored register on a real Postgres",
       anAuthorizedAnswer(9),
     );
 
-    const found = await answers.saleVoidCreditNotesOf(registerId, [saleId]);
+    const found = await answers.saleVoidCreditNotesOf(registerId, [creditNoteId]);
 
     expect(found).toEqual([
       {
@@ -79,7 +80,7 @@ describe("the sale void credit notes of a restored register on a real Postgres",
     const saleId = crypto.randomUUID();
     const creditNoteId = await insertSaleVoidCreditNote(db, registerId, saleId, aRejectedAnswer());
 
-    const found = await answers.saleVoidCreditNotesOf(registerId, [saleId]);
+    const found = await answers.saleVoidCreditNotesOf(registerId, [creditNoteId]);
 
     expect(found).toMatchObject([
       { creditNoteId, standing: { kind: "rejected" }, answeredAt: ANSWERED_AT },
@@ -100,9 +101,9 @@ describe("the sale void credit notes of a restored register on a real Postgres",
     const unclearNote = await insertSaleVoidCreditNote(db, registerId, unclear, anUnclearAnswer());
 
     const found = await answers.saleVoidCreditNotesOf(registerId, [
-      unrequested,
-      requested,
-      unclear,
+      unrequestedNote,
+      requestedNote,
+      unclearNote,
     ]);
 
     expect(
@@ -114,25 +115,30 @@ describe("the sale void credit notes of a restored register on a real Postgres",
     });
   });
 
-  it("never holds the credit notes of another register, even for the same sale", async () => {
+  it("never holds the credit notes of another register", async () => {
     const registerId = await aRegister();
     const otherRegisterId = await aRegister();
     const saleId = crypto.randomUUID();
-    await insertSaleVoidCreditNote(db, otherRegisterId, saleId, anAuthorizedAnswer());
+    const creditNoteId = await insertSaleVoidCreditNote(
+      db,
+      otherRegisterId,
+      saleId,
+      anAuthorizedAnswer(),
+    );
 
-    const found = await answers.saleVoidCreditNotesOf(registerId, [saleId]);
+    const found = await answers.saleVoidCreditNotesOf(registerId, [creditNoteId]);
 
     expect(found).toEqual([]);
   });
 
-  it("holds only the credit notes of the sales it is asked about", async () => {
+  it("holds only the credit notes it is asked about", async () => {
     const registerId = await aRegister();
     const asked = crypto.randomUUID();
     const notAsked = crypto.randomUUID();
     const askedNote = await insertSaleVoidCreditNote(db, registerId, asked, anAuthorizedAnswer());
     await insertSaleVoidCreditNote(db, registerId, notAsked, anAuthorizedAnswer());
 
-    const found = await answers.saleVoidCreditNotesOf(registerId, [asked]);
+    const found = await answers.saleVoidCreditNotesOf(registerId, [askedNote]);
 
     expect(found.map(({ creditNoteId }) => creditNoteId)).toEqual([askedNote]);
   });
@@ -140,7 +146,7 @@ describe("the sale void credit notes of a restored register on a real Postgres",
   it("does not hold the credit notes that regularize an orphan authorization", async () => {
     const registerId = await aRegister();
     const saleId = crypto.randomUUID();
-    await insertSaleVoidCreditNote(db, registerId, saleId, {
+    const creditNoteId = await insertSaleVoidCreditNote(db, registerId, saleId, {
       ...anAuthorizedAnswer(),
       reason: "orphan",
       keptVoucherType: 11,
@@ -148,8 +154,44 @@ describe("the sale void credit notes of a restored register on a real Postgres",
       keptNumber: 5000,
     });
 
-    const found = await answers.saleVoidCreditNotesOf(registerId, [saleId]);
+    const found = await answers.saleVoidCreditNotesOf(registerId, [creditNoteId]);
 
     expect(found).toEqual([]);
+  });
+
+  it("holds the refusal kept for a credit note, with when it was refused", async () => {
+    const registerId = await aRegister();
+    const creditNoteId = crypto.randomUUID();
+    const refusedAt = new Date("2026-10-07T10:35:00.000Z");
+    await db
+      .insert(saleVoidCreditNoteRefusals)
+      .values({ creditNoteId, registerId, saleId: crypto.randomUUID(), refusedAt });
+
+    const found = await answers.keptRefusalsOf(registerId, [creditNoteId]);
+
+    expect(found).toEqual([{ creditNoteId, refusedAt }]);
+  });
+
+  it("holds only the refusals of its register for the credit notes it is asked about", async () => {
+    const registerId = await aRegister();
+    const otherRegisterId = await aRegister();
+    const asked = crypto.randomUUID();
+    const notAsked = crypto.randomUUID();
+    const ofOtherRegister = crypto.randomUUID();
+    const refusedAt = new Date("2026-10-07T10:35:00.000Z");
+    await db.insert(saleVoidCreditNoteRefusals).values([
+      { creditNoteId: asked, registerId, saleId: crypto.randomUUID(), refusedAt },
+      { creditNoteId: notAsked, registerId, saleId: crypto.randomUUID(), refusedAt },
+      {
+        creditNoteId: ofOtherRegister,
+        registerId: otherRegisterId,
+        saleId: crypto.randomUUID(),
+        refusedAt,
+      },
+    ]);
+
+    const found = await answers.keptRefusalsOf(registerId, [asked, ofOtherRegister]);
+
+    expect(found.map(({ creditNoteId }) => creditNoteId)).toEqual([asked]);
   });
 });
