@@ -149,6 +149,7 @@ describe("synced event payloads", () => {
       "clock_corrected@1",
       "clock_corrected@2",
       "deferred_sale_recorded@1",
+      "deferred_sale_satisfied@1",
       "fiscal_gate_failed@1",
       "offline_fiscal_document_issued@1",
       "offline_fiscal_document_issued@2",

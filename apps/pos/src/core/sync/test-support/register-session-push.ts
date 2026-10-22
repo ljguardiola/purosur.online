@@ -4,10 +4,15 @@ import {
   FICTIONAL_GROSS_INCOME_REGISTRATION,
   FICTIONAL_LEGAL_NAME,
 } from "@purosur/domain/fiscal/test-support";
+import { catchUpDeferredSales, type RealTimeTaxAuthority } from "@purosur/domain/fiscal/use-cases";
 import type { MercadoPagoChargeOrders } from "@purosur/domain/payments/use-cases";
 import { restorePendingIn } from "../../backups/restore-pending";
 import { derivePinVerifier } from "../../credentials/pin-verifier";
 import { correctRegisterClockFor } from "../../fiscal/clock-correction-requests";
+import { cryptoShortCodes } from "../../fiscal/crypto-short-codes";
+import { SqliteDeferredSaleCatchUp } from "../../fiscal/sqlite-deferred-sale-catch-up";
+import { SqliteRealTimeFiscalDocuments } from "../../fiscal/sqlite-real-time-fiscal-documents";
+import { SqliteRoundTripSamples } from "../../fiscal/sqlite-round-trip-samples";
 import {
   abandonMercadoPagoChargeFor,
   followMercadoPagoChargeFor,
@@ -339,6 +344,52 @@ async function printAndReprintCreditNote({
   printer.becomeReady();
   await new Promise((resolve) => setImmediate(resolve));
   await untilCreditNotePrinted();
+}
+
+const REAL_TIME_POINT_OF_SALE = 12;
+
+const AUTHORIZES_THEN_REJECTS = (() => {
+  let answered = 0;
+  const taxAuthority: RealTimeTaxAuthority = {
+    authorize: async () => {
+      answered += 1;
+      return answered === 1
+        ? {
+            kind: "authorized",
+            authorizationCode: "75123456789012",
+            authorizationCodeDueOn: "2026-10-16",
+          }
+        : { kind: "rejected", codes: [10015], rejectionClass: "content" };
+    },
+  };
+  return taxAuthority;
+})();
+
+async function catchUpFirstDeferredSale(database: LocalDatabase, now: () => Date): Promise<void> {
+  database
+    .prepare(
+      `INSERT INTO register_point_of_sale (
+         register_id, point_of_sale_number, fiscal_address_id, tax_authority_last_authorized_number, version
+       ) VALUES (?, ?, 'address-1', 100, 1)`,
+    )
+    .run(REGISTER, REAL_TIME_POINT_OF_SALE);
+  database
+    .prepare(
+      `INSERT INTO register_health_checks (checked_at, round_trip_ms, token_valid, arca_reachable)
+       VALUES (?, 120, 1, 1)`,
+    )
+    .run(now().toISOString());
+  const caughtUp = await catchUpDeferredSales({
+    catchUp: new SqliteDeferredSaleCatchUp(database, OUTBOX_CHAIN_KEY),
+    documents: new SqliteRealTimeFiscalDocuments(database, OUTBOX_CHAIN_KEY),
+    roundTrips: new SqliteRoundTripSamples(database),
+    taxAuthority: AUTHORIZES_THEN_REJECTS,
+    clock: { now },
+    ids: uuidV7Ids,
+    shortCodes: cryptoShortCodes,
+  });
+  expectOutcome("catch up the deferred sales", caughtUp.kind, "stopped");
+  expectOutcome("invoice the oldest deferred sale", String(caughtUp.invoiced.length), "1");
 }
 
 export interface RegisterSession {
@@ -925,6 +976,9 @@ export async function withRegisterSession<TResult>(
       voidedPendingCreditNote.kind,
       "voided",
     );
+    nextStep();
+    nextStep();
+    await catchUpFirstDeferredSale(database, now);
     nextStep();
     const closed = await closeCashSessionFor(deps(), {
       sessionId: opened.cash_session.id,
