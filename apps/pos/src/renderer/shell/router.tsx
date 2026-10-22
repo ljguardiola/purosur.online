@@ -845,6 +845,7 @@ const historyRoute = createRoute({
       salesHistory,
       saleHistoryDetail,
       reprintSaleReceipt,
+      printOriginalReceipt,
       voidSale,
       printCreditNote,
       reprintCreditNote,
@@ -861,6 +862,7 @@ const historyRoute = createRoute({
         salesHistory={salesHistory}
         saleHistoryDetail={saleHistoryDetail}
         reprintSaleReceipt={reprintSaleReceipt}
+        printOriginalReceipt={printOriginalReceipt}
         voidSale={voidSale}
         printCreditNote={printCreditNote}
         reprintCreditNote={reprintCreditNote}
