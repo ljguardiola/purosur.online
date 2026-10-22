@@ -586,6 +586,31 @@ describe("replenishRestoredRegister", () => {
       expect(store.state.appliedEventIds).toEqual([record.event.event_id, failure.event.event_id]);
     });
 
+    it("writes no record of an unclear outcome, reporting it as partially replenished, while it rebuilds a record of another reason", async () => {
+      const { feed, store, decoder, record, run } = aGateFailureWithItsRecord();
+      const unclear = anEvent("device-old", 55);
+      const unclearRecord: SyncedFact = {
+        kind: "deferred_sale_recorded",
+        deferredSale: {
+          id: "deferred-2",
+          saleId: "sale-2",
+          occurredAt: new Date("2026-10-07T11:00:00.000Z"),
+          total: 1200,
+          reason: "unclear_outcome",
+          shortCode: "9XP2M4QK",
+          routedAt: new Date("2026-10-07T11:00:01.000Z"),
+        },
+      };
+      decoder.facts.set(unclear.event.event_id, unclearRecord);
+      feed.answers = [aPage([record, unclear])];
+
+      const outcome = await run();
+
+      expect(outcome).toEqual({ kind: "partially_replenished", unapplied: 1 });
+      expect(store.state.facts.map(({ fact }) => fact)).toEqual([A_DEFERRED_SALE_RECORDED_FACT]);
+      expect(store.state.appliedEventIds).toEqual([record.event.event_id]);
+    });
+
     it("leaves the record unchanged when the same page is applied again", async () => {
       const { feed, store, record, failure, run } = aGateFailureWithItsRecord();
       feed.answers = [

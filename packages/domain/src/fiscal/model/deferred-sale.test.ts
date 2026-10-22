@@ -3,11 +3,13 @@ import { describe, expect, it } from "vitest";
 import {
   deferredSaleDocumentBlock,
   deferredSaleQrText,
+  isDeferralFinalWhenRecorded,
   isShortCode,
   randomShortCode,
   SHORT_CODE_ALPHABET,
   SHORT_CODE_LENGTH,
 } from "./deferred-sale.js";
+import { DEFERRAL_REASONS } from "./real-time-authorization.js";
 
 describe("short code alphabet", () => {
   it("has 32 distinct characters, none of which can be mistaken for another", () => {
@@ -89,4 +91,17 @@ describe("deferredSaleDocumentBlock", () => {
       qrText: "purosur-deferred-sale:0198-abc:7KQ4M2P9",
     });
   });
+});
+
+describe("isDeferralFinalWhenRecorded", () => {
+  it("leaves a deferral of an unclear outcome open to being settled after it is recorded", () => {
+    expect(isDeferralFinalWhenRecorded("unclear_outcome")).toBe(false);
+  });
+
+  it.each(DEFERRAL_REASONS.filter((reason) => reason !== "unclear_outcome"))(
+    "holds a deferral of %s final once recorded",
+    (reason) => {
+      expect(isDeferralFinalWhenRecorded(reason)).toBe(true);
+    },
+  );
 });
