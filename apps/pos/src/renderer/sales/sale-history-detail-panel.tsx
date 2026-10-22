@@ -55,6 +55,7 @@ function detailRows(sale: SaleDetail): SummaryRowProps[] {
 
 type SaleActions = {
   onReprint: (sale: SaleDetail) => void;
+  onPrintOriginal: (sale: SaleDetail) => void;
   onVoid: (sale: SaleDetail) => void;
   onPrintCreditNote: (sale: SaleDetail) => void;
   onReprintCreditNote: (sale: SaleDetail) => void;
@@ -63,6 +64,7 @@ type SaleActions = {
 function SaleFooter({
   sale,
   onReprint,
+  onPrintOriginal,
   onVoid,
   onPrintCreditNote,
   onReprintCreditNote,
@@ -84,7 +86,9 @@ function SaleFooter({
           size="large"
           fullWidth
           icon={<Printer />}
-          onPress={() => onReprint(sale)}
+          onPress={() =>
+            sale.next_copy.kind === "original" ? onPrintOriginal(sale) : onReprint(sale)
+          }
         >
           {receiptCopyPresentation(sale.next_copy).printButton}
         </Button>
@@ -128,6 +132,7 @@ function SaleFooter({
 function Sale({
   sale,
   onReprint,
+  onPrintOriginal,
   onVoid,
   onPrintCreditNote,
   onReprintCreditNote,
@@ -146,6 +151,7 @@ function Sale({
         <SaleFooter
           sale={sale}
           onReprint={onReprint}
+          onPrintOriginal={onPrintOriginal}
           onVoid={onVoid}
           onPrintCreditNote={onPrintCreditNote}
           onReprintCreditNote={onReprintCreditNote}
@@ -174,6 +180,7 @@ function Message({ children }: { children: ReactNode }) {
 function SelectedSale({
   detail,
   onReprint,
+  onPrintOriginal,
   onVoid,
   onPrintCreditNote,
   onReprintCreditNote,
@@ -206,6 +213,7 @@ function SelectedSale({
         <Sale
           sale={detail.value.detail}
           onReprint={onReprint}
+          onPrintOriginal={onPrintOriginal}
           onVoid={onVoid}
           onPrintCreditNote={onPrintCreditNote}
           onReprintCreditNote={onReprintCreditNote}
@@ -248,6 +256,7 @@ function SelectedSaleReader({
   saleId,
   readDetail,
   onReprint,
+  onPrintOriginal,
   onVoid,
   onPrintCreditNote,
   onReprintCreditNote,
@@ -260,6 +269,7 @@ function SelectedSaleReader({
     <SelectedSale
       detail={detail}
       onReprint={onReprint}
+      onPrintOriginal={onPrintOriginal}
       onVoid={onVoid}
       onPrintCreditNote={onPrintCreditNote}
       onReprintCreditNote={onReprintCreditNote}
@@ -276,6 +286,7 @@ export function SaleHistoryDetailPanel({
   saleId,
   readDetail,
   onReprint,
+  onPrintOriginal,
   onVoid,
   onPrintCreditNote,
   onReprintCreditNote,
@@ -296,6 +307,7 @@ export function SaleHistoryDetailPanel({
       saleId={saleId}
       readDetail={readDetail}
       onReprint={onReprint}
+      onPrintOriginal={onPrintOriginal}
       onVoid={onVoid}
       onPrintCreditNote={onPrintCreditNote}
       onReprintCreditNote={onReprintCreditNote}
