@@ -30,6 +30,6 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
-    "@sentry/core": "11.4.0"
+    "@sentry/core": "11.8.0"
   }
 }
