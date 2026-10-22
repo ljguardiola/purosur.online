@@ -1,4 +1,5 @@
 import {
+  type DeferredBacklogEntry,
   FACTURA_C_DOCUMENT_TYPE,
   type FiscalDocumentState,
   IN_PROGRESS_FISCAL_DOCUMENT_STATES,
@@ -8,7 +9,6 @@ import {
 } from "@purosur/domain";
 import type {
   ClockCorrectionReadings,
-  DeferredBacklogEntry,
   Fortnight,
   OfflineSeries,
   RealTimeSeries,
