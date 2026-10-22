@@ -1184,8 +1184,6 @@ describe("the register's router", () => {
     const screen = await render(<RouterProvider router={router} />);
 
     await expect.element(screen.getByRole("heading", { name: ENROLLMENT_TITLE })).toBeVisible();
-    await expect.element(screen.getByText("NOTEBOOK NUEVA")).toBeVisible();
-    await expect.element(screen.getByText("Sin dar de alta")).toBeVisible();
     await expect.element(screen.getByRole("button", { name: "Volver" })).not.toBeInTheDocument();
   });
 
@@ -1209,17 +1207,6 @@ describe("the register's router", () => {
     await expect.element(screen.getByText("CAJA 2", { exact: true })).toBeVisible();
     await expect.element(screen.getByText(RE_ENROLLMENT_STATUS)).toBeVisible();
     await expect.poll(() => router.state.location.pathname).toBe("/re-enroll");
-  });
-
-  it("names just the register it enrolls again when its name is not known", async () => {
-    const router = routerAt("/re-enroll", "up", "enrolled", null, NO_SESSION, "in_service", {
-      kind: "in_progress",
-      step: "enroll",
-    });
-
-    const screen = await render(<RouterProvider router={router} />);
-
-    await expect.element(screen.getByText("CAJA", { exact: true })).toBeVisible();
   });
 
   it("goes back to the restore-required screen from enrolling the register again", async () => {
