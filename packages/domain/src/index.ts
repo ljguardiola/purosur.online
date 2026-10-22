@@ -257,6 +257,7 @@ export {
   DEFERRED_BACKLOG_RETRY_INTERVAL_MS,
   deferredSaleExpiresOn,
   deferredSaleRecordedEvent,
+  deferredSaleSatisfiedEvent,
   EXCHANGE_RATE_PESOS,
   earliestThresholdStartDay,
   FACTURA_C_DOCUMENT_TYPE,

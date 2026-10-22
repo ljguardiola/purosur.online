@@ -57,6 +57,10 @@ export {
 } from "./model/deferred-sale.js";
 export { deferredSaleExpiresOn, isDeferredSaleExpired } from "./model/deferred-sale-expiry.js";
 export { deferredSaleRecordedEvent } from "./model/deferred-sale-recorded-event.js";
+export {
+  type DeferredSaleSatisfied,
+  deferredSaleSatisfiedEvent,
+} from "./model/deferred-sale-satisfied-event.js";
 export type {
   AuthorizedCreditNoteC,
   AuthorizedFacturaC,
