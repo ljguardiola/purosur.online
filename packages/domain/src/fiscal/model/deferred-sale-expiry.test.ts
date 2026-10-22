@@ -23,7 +23,7 @@ describe("deferredSaleExpiresOn", () => {
   it("counts the sale's Argentine day, not its UTC day", () => {
     expect(deferredSaleExpiresOn(new Date("2026-10-10T02:30:00Z"))).toBe("2026-10-14");
     expect(deferredSaleExpiresOn(new Date("2026-10-10T03:00:00Z"))).toBe("2026-10-15");
-    expect(deferredSaleExpiresOn(new Date("2026-10-31T01:00:00Z"))).toBe("2026-10-30");
+    expect(deferredSaleExpiresOn(new Date("2026-11-01T02:00:00Z"))).toBe("2026-10-31");
   });
 
   it("is never later than five days after the sale day nor than its month end", () => {
