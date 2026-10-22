@@ -1,8 +1,14 @@
 import type { SyncChange } from "@purosur/contracts";
+import { nextInvoiceNumber, restorationStanding } from "@purosur/domain";
+import { resetRestoredSyncIdentity } from "@purosur/domain/sync/use-cases";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { restorePendingIn } from "../backups/restore-pending";
+import { readRealTimeSeries } from "../fiscal/sqlite-fiscal-series";
 import type { LocalDatabase } from "../platform/local-database";
+import { SqliteRestorationEvidence } from "../register/sqlite-restoration-evidence";
 import type { RegisterPulledChange } from "./pulled-change";
 import type { SqliteLocalReplica } from "./sqlite-local-replica";
+import { SqliteRestoredSyncIdentityStore } from "./sqlite-restored-sync-identity-store";
 import {
   openAdoptedReplica,
   savePulledChanges,
@@ -451,5 +457,125 @@ describe("the register's local copy of its own point of sale", () => {
         expect(savedDay()).toEqual([expected]);
       },
     );
+  });
+
+  describe("the numbering a restored register awaits from the cloud", () => {
+    function awaiting() {
+      return database
+        .prepare<[], { awaiting_restored_numbering: number }>(
+          "SELECT awaiting_restored_numbering FROM register_point_of_sale",
+        )
+        .all()
+        .map((row) => row.awaiting_restored_numbering);
+    }
+
+    async function restoredWithCount(count: number, day: string) {
+      await save(pointOfSaleChange(1, 12, MAIN_STREET, 1, count, false, day));
+      database.exec("UPDATE register_point_of_sale SET awaiting_restored_numbering = 1");
+    }
+
+    it("holds no awaited numbering for a point of sale pulled on its own", async () => {
+      await save(pointOfSaleChange(1, 12, MAIN_STREET, 1, 40));
+
+      expect(awaiting()).toEqual([0]);
+    });
+
+    it("takes the pulled count and day over a higher local one at the same version", async () => {
+      await restoredWithCount(40, "2026-10-14");
+
+      await save(pointOfSaleChange(2, 12, MAIN_STREET, 1, 31, false, "2026-10-10"));
+
+      expect(savedCount()).toEqual([31]);
+      expect(savedDay()).toEqual(["2026-10-10"]);
+    });
+
+    it("takes the pulled count and day over a higher local one at a newer version", async () => {
+      await restoredWithCount(40, "2026-10-14");
+
+      await save(pointOfSaleChange(2, 12, MAIN_STREET, 2, 31, false, "2026-10-10"));
+
+      expect(savedCount()).toEqual([31]);
+      expect(savedDay()).toEqual(["2026-10-10"]);
+    });
+
+    it("takes a pulled count that is not known yet instead of keeping the local one", async () => {
+      await restoredWithCount(40, "2026-10-14");
+
+      await save(pointOfSaleChange(2, 12, MAIN_STREET, 1, null, true, null));
+
+      expect(savedFreezeAndCount()).toEqual([
+        { numbering_frozen: 1, tax_authority_last_authorized_number: null },
+      ]);
+      expect(savedDay()).toEqual([null]);
+    });
+
+    it("keeps awaiting while the pulled numbering is frozen", async () => {
+      await restoredWithCount(40, "2026-10-14");
+
+      await save(pointOfSaleChange(2, 12, MAIN_STREET, 1, 31, true, "2026-10-10"));
+
+      expect(awaiting()).toEqual([1]);
+    });
+
+    it("keeps awaiting while the pulled numbering has no count", async () => {
+      await restoredWithCount(40, "2026-10-14");
+
+      await save(pointOfSaleChange(2, 12, MAIN_STREET, 1, null, false, null));
+
+      expect(awaiting()).toEqual([1]);
+    });
+
+    it("stops awaiting once the pulled numbering is not frozen and carries a count", async () => {
+      await restoredWithCount(40, "2026-10-14");
+      await save(pointOfSaleChange(2, 12, MAIN_STREET, 1, 31, true, "2026-10-10"));
+
+      await save(pointOfSaleChange(3, 12, MAIN_STREET, 1, 31, false, "2026-10-10"));
+
+      expect(awaiting()).toEqual([0]);
+      expect(savedCount()).toEqual([31]);
+    });
+
+    it("keeps the highest count again after it stopped awaiting", async () => {
+      await restoredWithCount(40, "2026-10-14");
+      await save(pointOfSaleChange(2, 12, MAIN_STREET, 1, 31, false, "2026-10-10"));
+
+      await save(pointOfSaleChange(3, 12, MAIN_STREET, 1, 25, false, "2026-10-09"));
+
+      expect(savedCount()).toEqual([31]);
+    });
+
+    it("ignores an older version while it awaits", async () => {
+      await save(pointOfSaleChange(1, 12, MAIN_STREET, 2, 40, false, "2026-10-14"));
+      database.exec("UPDATE register_point_of_sale SET awaiting_restored_numbering = 1");
+
+      await save(pointOfSaleChange(2, 12, MAIN_STREET, 1, 31, false, "2026-10-10"));
+
+      expect(savedCount()).toEqual([40]);
+      expect(awaiting()).toEqual([1]);
+    });
+  });
+
+  describe("a restored register's first reservation after its numbering is reconciled", () => {
+    it("is the tax authority's last authorized number plus one, whatever higher count the snapshot held", async () => {
+      await save(pointOfSaleChange(1, 12, MAIN_STREET, 1, 44, false, "2026-10-14"));
+      await resetRestoredSyncIdentity(
+        { store: new SqliteRestoredSyncIdentityStore(database) },
+        { deviceId: "device-b" },
+      );
+      const evidence = new SqliteRestorationEvidence(database, restorePendingIn(undefined));
+      expect(restorationStanding(evidence.evidence())).toEqual({
+        kind: "in_progress",
+        step: "reconcile_fiscal_counters",
+      });
+
+      await save(pointOfSaleChange(2, 12, MAIN_STREET, 1, null, true, null));
+      expect(restorationStanding(evidence.evidence()).kind).toBe("in_progress");
+      expect(nextInvoiceNumber(readRealTimeSeries(database))).toBeNull();
+
+      await save(pointOfSaleChange(3, 12, MAIN_STREET, 1, 31, false, "2026-10-10"));
+
+      expect(restorationStanding(evidence.evidence())).toEqual({ kind: "completed" });
+      expect(nextInvoiceNumber(readRealTimeSeries(database))).toBe(32);
+    });
   });
 });

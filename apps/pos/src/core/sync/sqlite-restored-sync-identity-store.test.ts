@@ -136,6 +136,26 @@ describe("the restored sync identity store", () => {
     expect(count("users")).toBe(1);
   });
 
+  it("marks the register's point of sale as awaiting its numbering from the cloud when it adopts the new identity", async () => {
+    carryOldInstallation(5);
+    database.exec(`
+      INSERT INTO own_register (id, name, version, removed) VALUES ('r1', 'Caja 1', 1, 0);
+      INSERT INTO register_point_of_sale (register_id, point_of_sale_number, fiscal_address_id,
+        tax_authority_last_authorized_number, version)
+        VALUES ('r1', 12, 'address-1', 40, 2);
+    `);
+
+    await resetRestoredSyncIdentity({ store }, { deviceId: NEW_DEVICE });
+
+    expect(
+      database
+        .prepare(
+          "SELECT tax_authority_last_authorized_number AS count, awaiting_restored_numbering AS awaiting FROM register_point_of_sale",
+        )
+        .all(),
+    ).toEqual([{ count: 40, awaiting: 1 }]);
+  });
+
   it("leaves the new installation no enrollment pending from the old one's stale sequence", async () => {
     carryOldInstallation(5);
     database

@@ -12,6 +12,7 @@ const ALL_COMPLETED: RestorationEvidence = {
   restore: "completed",
   reset_sync_identity: "completed",
   replenish: "completed",
+  reconcile_fiscal_counters: "completed",
 };
 
 function evidence(overrides: Partial<RestorationEvidence>): RestorationEvidence {
@@ -34,10 +35,9 @@ describe("RESTORATION_STEPS", () => {
 });
 
 describe("UNDELIVERED_RESTORATION_STEPS", () => {
-  it("names the three steps nothing delivers yet", () => {
+  it("names the two steps nothing delivers yet", () => {
     expect(UNDELIVERED_RESTORATION_STEPS).toEqual([
       "recover_contingency_tickets",
-      "reconcile_fiscal_counters",
       "regularize_orphan_authorizations",
     ]);
   });
@@ -90,6 +90,13 @@ describe("restorationStanding", () => {
     }
   });
 
+  it("is in progress at the fiscal counters reconciliation while only it is pending", () => {
+    expect(restorationStanding(evidence({ reconcile_fiscal_counters: "pending" }))).toEqual({
+      kind: "in_progress",
+      step: "reconcile_fiscal_counters",
+    });
+  });
+
   it("names the earliest pending step when a later one is pending too", () => {
     expect(restorationStanding(evidence({ enroll: "pending", replenish: "pending" }))).toEqual({
       kind: "in_progress",
@@ -100,12 +107,13 @@ describe("restorationStanding", () => {
   it("names the first pending delivered step for every combination of evidence", () => {
     const step = fc.constantFrom("completed" as const, "pending" as const);
     fc.assert(
-      fc.property(step, step, step, step, (enroll, restore, reset, replenish) => {
+      fc.property(step, step, step, step, step, (enroll, restore, reset, replenish, counters) => {
         const combination: RestorationEvidence = {
           enroll,
           restore,
           reset_sync_identity: reset,
           replenish,
+          reconcile_fiscal_counters: counters,
         };
         const [firstPending] = RESTORATION_STEPS.filter(
           (name) => (combination as Readonly<Record<string, string>>)[name] === "pending",
