@@ -46,7 +46,7 @@ export async function insertSaleVoidCreditNote<TQueryResult extends PgQueryResul
   saleId: string,
   overrides: Partial<typeof creditNotes.$inferInsert> = {},
 ): Promise<string> {
-  const id = crypto.randomUUID();
+  const id = overrides.id ?? crypto.randomUUID();
   await db.insert(creditNotes).values({
     id,
     registerId,
