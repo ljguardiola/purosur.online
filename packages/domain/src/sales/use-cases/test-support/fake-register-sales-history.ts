@@ -1,4 +1,3 @@
-import type { FiscalOnlineSignalEvidence } from "../../../fiscal/index.js";
 import { type SaleFiscalFacts, saleStandingOf } from "../../model/sale-history.js";
 import type {
   RegisterSalesHistory,
@@ -17,22 +16,9 @@ export interface FakeHistorySale {
 export class FakeRegisterSalesHistory implements RegisterSalesHistory {
   readonly filters: { scope: "open_session" | "register"; filter: SalesHistoryFilter }[] = [];
   private readonly sales: FakeHistorySale[];
-  private readonly evidence: FiscalOnlineSignalEvidence;
 
-  constructor(
-    sales: FakeHistorySale[] = [],
-    evidence: FiscalOnlineSignalEvidence = {
-      lastHealthCheckOkAt: null,
-      tokenValid: false,
-      arcaReachable: false,
-    },
-  ) {
+  constructor(sales: FakeHistorySale[] = []) {
     this.sales = sales;
-    this.evidence = evidence;
-  }
-
-  fiscalOnlineEvidence(): FiscalOnlineSignalEvidence {
-    return this.evidence;
   }
 
   salesOfOpenSession(filter: SalesHistoryFilter): SalesHistoryPage {

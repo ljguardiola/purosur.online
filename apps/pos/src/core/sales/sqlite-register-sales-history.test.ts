@@ -762,27 +762,4 @@ describe("SqliteRegisterSalesHistory", () => {
       expect(history.saleOfRegister("gone")?.creditNote).toEqual({ kind: "rejected" });
     });
   });
-
-  describe("the evidence that the register is fiscally online", () => {
-    it("is that of the latest health check", () => {
-      database.exec(
-        `INSERT INTO register_health_checks (checked_at, round_trip_ms, token_valid, arca_reachable)
-         VALUES ('2026-10-08T12:00:00.000Z', 100, 0, 0), ('2026-10-08T12:00:05.000Z', 100, 1, 1)`,
-      );
-
-      expect(history.fiscalOnlineEvidence()).toEqual({
-        lastHealthCheckOkAt: new Date("2026-10-08T12:00:05.000Z"),
-        tokenValid: true,
-        arcaReachable: true,
-      });
-    });
-
-    it("is none while the register never checked its health", () => {
-      expect(history.fiscalOnlineEvidence()).toEqual({
-        lastHealthCheckOkAt: null,
-        tokenValid: false,
-        arcaReachable: false,
-      });
-    });
-  });
 });

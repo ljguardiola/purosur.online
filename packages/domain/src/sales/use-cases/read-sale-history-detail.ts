@@ -9,7 +9,6 @@ import {
   plannedRefundState,
   SALE_VOIDED_REFUND_ORIGIN,
 } from "../../payments/index.js";
-import type { Clock } from "../../shared/index.js";
 import type { ReceiptCopy } from "../model/receipt-copy.js";
 import {
   receiptPrintAvailability,
@@ -29,7 +28,6 @@ import type { RegisterSalesHistory, SaleHistoryRecord } from "./register-sales-h
 export interface ReadSaleHistoryDetailPorts {
   history: RegisterSalesHistory;
   ledger: ReceiptLedger;
-  clock: Clock;
 }
 
 export interface ReadSaleHistoryDetailInput {

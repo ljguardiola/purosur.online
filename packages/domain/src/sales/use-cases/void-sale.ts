@@ -140,15 +140,18 @@ export async function voidSale<Grant extends VoidSaleGrant, Refusal>(
             receiverTaxStatusCode: invoice.buyerTaxStatusCode,
             correctedVoucher: invoice.voucher,
           };
-    const offlineSeries = tx.offlineCreditNoteSeries();
-    const offline =
+    const offlineSeries =
       creditNote !== null && !isRegisterFiscallyOnline(tx.fiscalOnlineEvidence(), voidedAt)
-        ? offlineRoute({
+        ? tx.offlineCreditNoteSeries()
+        : null;
+    const offline =
+      offlineSeries === null
+        ? null
+        : offlineRoute({
             occurredAt: voidedAt,
             series: offlineSeries,
             offlineAuthorizationCode: tx.offlineAuthorizationCodeOf(invoiceOwnFortnight(voidedAt)),
-          })
-        : null;
+          });
     if (creditNote !== null && offline?.kind !== "issue_offline") {
       tx.recordPendingCreditNote(creditNote);
     }
@@ -185,7 +188,7 @@ export async function voidSale<Grant extends VoidSaleGrant, Refusal>(
       tx.recordClockMark({
         pointOfSale: offline.pointOfSale,
         documentType: CREDIT_NOTE_C_DOCUMENT_TYPE,
-        reading: raisedClockMark(offlineSeries.clockMark, voidedAt),
+        reading: raisedClockMark(offlineSeries?.clockMark ?? null, voidedAt),
       });
       tx.appendOutboxEvent(
         offlineCreditNoteIssuedEvent({

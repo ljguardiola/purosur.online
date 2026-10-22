@@ -99,7 +99,6 @@ export async function saleHistoryDetailFor(
       {
         history: new SqliteRegisterSalesHistory(database),
         ledger: new SqliteReceiptLedger(database),
-        clock: { now },
       },
       { saleId },
     ),

@@ -1,13 +1,11 @@
 import { FICTIONAL_ISSUER } from "@purosur/domain/fiscal/test-support";
 import { describe, expect, it } from "vitest";
-import type { FiscalOnlineSignalEvidence } from "../../fiscal/index.js";
 import { readSaleHistoryDetail } from "./read-sale-history-detail.js";
 import { FakeReceiptLedger } from "./test-support/fake-receipt-ledger.js";
 import {
   type FakeHistorySale,
   FakeRegisterSalesHistory,
 } from "./test-support/fake-register-sales-history.js";
-import { FixedClock } from "./test-support/fake-sale-ledger.js";
 import {
   completedSale,
   creditedSales,
@@ -17,14 +15,6 @@ import {
 } from "./test-support/receipt-rig.js";
 
 const creditedSale = creditedSales(FICTIONAL_ISSUER);
-
-const NOW = new Date("2026-10-07T15:30:00.000Z");
-const clock = new FixedClock(NOW);
-const ONLINE: FiscalOnlineSignalEvidence = {
-  lastHealthCheckOkAt: new Date(NOW.getTime() - 1_000),
-  tokenValid: true,
-  arcaReachable: true,
-};
 
 function historySale(
   overrides: Partial<NonNullable<FakeHistorySale["record"]>> = {},
@@ -80,10 +70,10 @@ function historySale(
 
 describe("readSaleHistoryDetail", () => {
   it("shows the sale's time, total, comprobante, operation number, who served it, lines and payments", () => {
-    const history = new FakeRegisterSalesHistory([historySale()], ONLINE);
+    const history = new FakeRegisterSalesHistory([historySale()]);
     const ledger = new FakeReceiptLedger({ sales: [completedSale()] });
 
-    expect(readSaleHistoryDetail({ history, ledger, clock }, { saleId: "sale-1" })).toEqual({
+    expect(readSaleHistoryDetail({ history, ledger }, { saleId: "sale-1" })).toEqual({
       kind: "found",
       detail: {
         saleId: "sale-1",
@@ -142,7 +132,7 @@ describe("readSaleHistoryDetail", () => {
       ],
     });
 
-    const outcome = readSaleHistoryDetail({ history, ledger, clock }, { saleId: "sale-1" });
+    const outcome = readSaleHistoryDetail({ history, ledger }, { saleId: "sale-1" });
 
     expect(outcome.kind === "found" && outcome.detail.nextCopy).toEqual({
       kind: "duplicate",
@@ -154,7 +144,7 @@ describe("readSaleHistoryDetail", () => {
     const history = new FakeRegisterSalesHistory([]);
     const ledger = new FakeReceiptLedger({ sales: [completedSale()] });
 
-    expect(readSaleHistoryDetail({ history, ledger, clock }, { saleId: "sale-1" })).toEqual({
+    expect(readSaleHistoryDetail({ history, ledger }, { saleId: "sale-1" })).toEqual({
       kind: "not_found",
     });
   });
@@ -163,7 +153,7 @@ describe("readSaleHistoryDetail", () => {
     const history = new FakeRegisterSalesHistory([historySale()]);
     const ledger = new FakeReceiptLedger({ sales: [completedSale({ completed: false })] });
 
-    expect(readSaleHistoryDetail({ history, ledger, clock }, { saleId: "sale-1" })).toEqual({
+    expect(readSaleHistoryDetail({ history, ledger }, { saleId: "sale-1" })).toEqual({
       kind: "not_found",
     });
   });
@@ -171,7 +161,7 @@ describe("readSaleHistoryDetail", () => {
   it("says reprinting is available for a sale that stands", () => {
     const history = new FakeRegisterSalesHistory([historySale()]);
     const ledger = new FakeReceiptLedger({ sales: [completedSale()] });
-    const outcome = readSaleHistoryDetail({ history, ledger, clock }, { saleId: "sale-1" });
+    const outcome = readSaleHistoryDetail({ history, ledger }, { saleId: "sale-1" });
 
     expect(outcome.kind === "found" && outcome.detail.reprint).toEqual({ kind: "available" });
   });
@@ -179,7 +169,7 @@ describe("readSaleHistoryDetail", () => {
   it("says a voided sale's receipt is not printed", () => {
     const history = new FakeRegisterSalesHistory([historySale({ voided: true })]);
     const ledger = new FakeReceiptLedger({ sales: [voidedSale()] });
-    const outcome = readSaleHistoryDetail({ history, ledger, clock }, { saleId: "sale-1" });
+    const outcome = readSaleHistoryDetail({ history, ledger }, { saleId: "sale-1" });
 
     expect(outcome.kind === "found" && outcome.detail.reprint).toEqual({ kind: "sale_voided" });
   });
@@ -192,7 +182,7 @@ describe("readSaleHistoryDetail", () => {
     function voidability(overrides: Parameters<typeof historySale>[0]) {
       const history = new FakeRegisterSalesHistory([historySale(overrides)]);
       const ledger = new FakeReceiptLedger({ sales: [completedSale()] });
-      const outcome = readSaleHistoryDetail({ history, ledger, clock }, { saleId: "sale-1" });
+      const outcome = readSaleHistoryDetail({ history, ledger }, { saleId: "sale-1" });
       return outcome.kind === "found" ? outcome.detail.voidability : undefined;
     }
 
@@ -284,25 +274,10 @@ describe("readSaleHistoryDetail", () => {
     });
 
     it("shows a sale that carries an authorized invoice as voidable while the tax authority can be reached", () => {
-      const history = new FakeRegisterSalesHistory([historySale()], ONLINE);
+      const history = new FakeRegisterSalesHistory([historySale()]);
       const ledger = new FakeReceiptLedger({ sales: [completedSale()] });
 
-      const outcome = readSaleHistoryDetail({ history, ledger, clock }, { saleId: "sale-1" });
-
-      expect(outcome).toMatchObject({
-        kind: "found",
-        detail: { voidability: { kind: "voidable" } },
-      });
-    });
-
-    it("shows a sale that carries an authorized invoice as voidable without a connection", () => {
-      const history = new FakeRegisterSalesHistory([historySale()], {
-        ...ONLINE,
-        lastHealthCheckOkAt: new Date(NOW.getTime() - 15_001),
-      });
-      const ledger = new FakeReceiptLedger({ sales: [completedSale()] });
-
-      const outcome = readSaleHistoryDetail({ history, ledger, clock }, { saleId: "sale-1" });
+      const outcome = readSaleHistoryDetail({ history, ledger }, { saleId: "sale-1" });
 
       expect(outcome).toMatchObject({
         kind: "found",
@@ -348,33 +323,30 @@ describe("readSaleHistoryDetail", () => {
     });
 
     it("names the invoice the void's credit note would correct, the one the customer received", () => {
-      const history = new FakeRegisterSalesHistory(
-        [
-          historySale({
-            payments: CASH_ONLY,
-            invoices: [
-              {
-                origin: "real_time",
-                state: "AUTHORIZED",
-                pointOfSale: 3,
-                number: 1204,
-                buyerTaxStatusCode: 5,
-              },
-              {
-                origin: "offline",
-                state: "AUTHORIZED",
-                pointOfSale: 8,
-                number: 77,
-                buyerTaxStatusCode: 5,
-              },
-            ],
-          }),
-        ],
-        ONLINE,
-      );
+      const history = new FakeRegisterSalesHistory([
+        historySale({
+          payments: CASH_ONLY,
+          invoices: [
+            {
+              origin: "real_time",
+              state: "AUTHORIZED",
+              pointOfSale: 3,
+              number: 1204,
+              buyerTaxStatusCode: 5,
+            },
+            {
+              origin: "offline",
+              state: "AUTHORIZED",
+              pointOfSale: 8,
+              number: 77,
+              buyerTaxStatusCode: 5,
+            },
+          ],
+        }),
+      ]);
       const ledger = new FakeReceiptLedger({ sales: [completedSale()] });
 
-      const outcome = readSaleHistoryDetail({ history, ledger, clock }, { saleId: "sale-1" });
+      const outcome = readSaleHistoryDetail({ history, ledger }, { saleId: "sale-1" });
 
       expect(outcome).toMatchObject({
         kind: "found",
@@ -426,7 +398,7 @@ describe("readSaleHistoryDetail", () => {
       ]);
       const ledger = new FakeReceiptLedger({ sales: [voidedSale()] });
 
-      const outcome = readSaleHistoryDetail({ history, ledger, clock }, { saleId: "sale-1" });
+      const outcome = readSaleHistoryDetail({ history, ledger }, { saleId: "sale-1" });
 
       expect(outcome).toMatchObject({ kind: "found", detail: { creditNote } });
     });
@@ -447,7 +419,7 @@ describe("readSaleHistoryDetail", () => {
       ]);
       const ledger = new FakeReceiptLedger({ sales: [creditedSale()] });
 
-      const outcome = readSaleHistoryDetail({ history, ledger, clock }, { saleId: "sale-1" });
+      const outcome = readSaleHistoryDetail({ history, ledger }, { saleId: "sale-1" });
 
       expect(outcome).toMatchObject({
         kind: "found",
@@ -472,7 +444,7 @@ describe("readSaleHistoryDetail", () => {
       ]);
       const ledger = new FakeReceiptLedger({ sales: [creditedSale()] });
 
-      const outcome = readSaleHistoryDetail({ history, ledger, clock }, { saleId: "sale-1" });
+      const outcome = readSaleHistoryDetail({ history, ledger }, { saleId: "sale-1" });
 
       expect(outcome).toMatchObject({
         kind: "found",
@@ -506,7 +478,7 @@ describe("readSaleHistoryDetail", () => {
         ],
       });
 
-      const outcome = readSaleHistoryDetail({ history, ledger, clock }, { saleId: "sale-1" });
+      const outcome = readSaleHistoryDetail({ history, ledger }, { saleId: "sale-1" });
 
       expect(outcome).toMatchObject({
         kind: "found",
@@ -528,7 +500,7 @@ describe("readSaleHistoryDetail", () => {
       ]);
       const ledger = new FakeReceiptLedger({ sales: [voidedSale()] });
 
-      const outcome = readSaleHistoryDetail({ history, ledger, clock }, { saleId: "sale-1" });
+      const outcome = readSaleHistoryDetail({ history, ledger }, { saleId: "sale-1" });
 
       expect(outcome).toMatchObject({ kind: "found", detail: { creditNoteNextCopy: null } });
     });
@@ -539,7 +511,7 @@ describe("readSaleHistoryDetail", () => {
       ]);
       const ledger = new FakeReceiptLedger({ sales: [completedSale()] });
 
-      const outcome = readSaleHistoryDetail({ history, ledger, clock }, { saleId: "sale-1" });
+      const outcome = readSaleHistoryDetail({ history, ledger }, { saleId: "sale-1" });
 
       expect(outcome).toMatchObject({ kind: "found", detail: { standing: "voided" } });
     });
