@@ -38,6 +38,13 @@ describe("isUnbilledDeferredSale", () => {
   it.each(["satisfied", "cancelled"] as const)("is not waiting once %s", (state) => {
     expect(isUnbilledDeferredSale({ state, regularizationTaskOpen: false })).toBe(false);
   });
+
+  it.each(["satisfied", "cancelled"] as const)(
+    "is not waiting once %s, whatever its task says",
+    (state) => {
+      expect(isUnbilledDeferredSale({ state, regularizationTaskOpen: true })).toBe(false);
+    },
+  );
 });
 
 describe("deferredSaleSettlement", () => {
