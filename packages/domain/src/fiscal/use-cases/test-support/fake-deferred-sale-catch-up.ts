@@ -32,7 +32,11 @@ export interface BacklogSale {
 export interface FakeDeferredSaleCatchUpState {
   series: Omit<
     RealTimeSeries,
-    "deferredBacklog" | "localLastAuthorized" | "localLastAuthorizedIssuedOn"
+    | "deferredBacklog"
+    | "localLastAuthorized"
+    | "localLastAuthorizedIssuedOn"
+    | "documentRequesting"
+    | "documentUnknown"
   > &
     Partial<
       Pick<
