@@ -91,13 +91,24 @@ export function SalesHistoryScreen({
   const [voided, setVoided] = useState<{ creditNote: SaleCreditNote | null }>();
   const [originalPrint, setOriginalPrint] = useState<ReturnType<typeof originalPrintNotice>>();
   const [sent, setSent] = useState<{ copy: ReceiptCopyShown; document: PrintedDocument }>();
+  const [printingOriginals, setPrintingOriginals] = useState<ReadonlySet<string>>(new Set());
   const history = useSalesHistoryQuery({ ...choice, read: salesHistory });
   const refreshHistory = useRefreshSalesHistory();
   const nextCreditNoteCopy = reprintingCreditNote?.credit_note_next_copy;
 
   async function printOriginalOf(document: PrintedDocument, sale: SaleDetail) {
+    const printing = `${document}:${sale.sale_id}`;
+    if (printingOriginals.has(printing)) {
+      return;
+    }
+    setPrintingOriginals((all) => new Set(all).add(printing));
     const print = document === "sale_receipt" ? printOriginalReceipt : printCreditNote;
     const outcome = await print(sale.sale_id).catch((): "failed" => "failed");
+    setPrintingOriginals((all) => {
+      const still = new Set(all);
+      still.delete(printing);
+      return still;
+    });
     if (outcome === "failed") {
       setOriginalPrint(originalPrintNotice(document, "unavailable"));
       return;
