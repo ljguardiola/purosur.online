@@ -41,6 +41,8 @@ const RESTORATION_COMPLETED: RestorationEvidence = {
   restore: "completed",
   reset_sync_identity: "completed",
   replenish: "completed",
+  reconcile_fiscal_counters: "completed",
+  cloud: "unknown",
 };
 
 export const RESTORATION_IN_PROGRESS: RestorationEvidence = {

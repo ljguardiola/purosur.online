@@ -4,6 +4,21 @@ import {
   presentationDocumentTypeLabel,
   presentationStateBadge,
 } from "./fortnight-presentation-labels";
+import type { RejectedDocument } from "./fortnight-presentations-api";
+
+function rejectedDocument(overrides: Partial<RejectedDocument> = {}): RejectedDocument {
+  return {
+    number: 5,
+    unprocessed: 12,
+    issuedOn: "2026-09-09",
+    total: 1_845_000,
+    buyer: { kind: "final_consumer" },
+    buyerTaxStatusCode: 5,
+    rejections: [{ code: 10016, message: "Fictional observation" }],
+    remedy: "awaiting_remedy",
+    ...overrides,
+  };
+}
 
 test.each([
   [null, { label: "Pendiente", tone: "warning" }],
@@ -15,18 +30,36 @@ test.each([
   ["needs_regularization", { label: "A regularizar", tone: "error" }],
   ["listed_as_owed", { label: "Adeudada según ARCA", tone: "error" }],
 ] as const)("badges the state %s", (state, badge) => {
-  expect(presentationStateBadge({ state, refusal: null })).toEqual(badge);
+  expect(presentationStateBadge({ state, refusal: null, rejectedDocument: null })).toEqual(badge);
 });
 
 test("badges a refusal the cloud tells is partial as partly rejected", () => {
-  expect(presentationStateBadge({ state: "refused", refusal: "partial" })).toEqual({
+  expect(
+    presentationStateBadge({
+      state: "refused",
+      refusal: "partial",
+      rejectedDocument: rejectedDocument(),
+    }),
+  ).toEqual({
     label: "Rechazado en parte",
     tone: "error",
   });
 });
 
+test("badges a partly rejected presentation whose remedy waits to be presented as corrected, to resend", () => {
+  expect(
+    presentationStateBadge({
+      state: "refused",
+      refusal: "partial",
+      rejectedDocument: rejectedDocument({ remedy: "awaiting_resend" }),
+    }),
+  ).toEqual({ label: "Corregido, por reenviar", tone: "warning" });
+});
+
 test("badges a refusal the cloud tells is whole as rejected", () => {
-  expect(presentationStateBadge({ state: "refused", refusal: "whole" })).toEqual({
+  expect(
+    presentationStateBadge({ state: "refused", refusal: "whole", rejectedDocument: null }),
+  ).toEqual({
     label: "Rechazado",
     tone: "error",
   });
@@ -66,7 +99,7 @@ test.each([
       movement: "documents",
       state: "refused",
       documentCount: 20,
-      rejectedDocument: { number: 5, unprocessed: 12 },
+      rejectedDocument: rejectedDocument(),
     },
     "1 rechazado · 12 sin procesar",
   ],
@@ -75,7 +108,7 @@ test.each([
       movement: "documents",
       state: "refused",
       documentCount: 20,
-      rejectedDocument: { number: 5, unprocessed: 0 },
+      rejectedDocument: rejectedDocument({ unprocessed: 0 }),
     },
     "1 rechazado",
   ],

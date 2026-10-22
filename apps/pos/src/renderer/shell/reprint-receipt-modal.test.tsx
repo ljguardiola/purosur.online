@@ -5,7 +5,7 @@ import type {
   SignInUser,
 } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
-import { describe, expect, it, onTestFinished, vi } from "vitest";
+import { describe, expect, expectTypeOf, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { deferred } from "../platform/test-support/deferred";
 import type { ReprintReceiptModalProps } from "./reprint-receipt-modal";
@@ -13,7 +13,8 @@ import { ReprintReceiptModal } from "./reprint-receipt-modal";
 import type { SignedInPerson } from "./signed-in-person";
 import { render } from "./test-support/render-with-router";
 
-type Sale = Extract<SaleHistoryDetailOutcome, { kind: "found" }>["detail"];
+type Sale = Extract<SaleHistoryDetailOutcome, { kind: "found" }>["detail"] &
+  Pick<ReprintReceiptModalProps["sale"], "next_copy">;
 
 const SALE: Sale = {
   sale_id: "sale-1",
@@ -124,12 +125,10 @@ describe("ReprintReceiptModal", () => {
     await expectNoAccessibilityViolations(document.body);
   });
 
-  it("says the sale's receipt comes out as an original when the core says no copy was printed yet", async () => {
-    const { screen } = await renderModal({ sale: { ...SALE, next_copy: { kind: "original" } } });
-
-    await expect.element(screen.getByRole("heading", { name: "Sale como original" })).toBeVisible();
-    await expect.element(screen.getByRole("button", { name: "Imprimir original" })).toBeVisible();
-    await expect.element(screen.getByText(/DUPLICADA/)).not.toBeInTheDocument();
+  it("is never opened for an original, which is printed without a reason", () => {
+    expectTypeOf<{ kind: "original" }>().not.toExtend<
+      ReprintReceiptModalProps["sale"]["next_copy"]
+    >();
   });
 
   it("names the operation when the sale has no comprobante", async () => {

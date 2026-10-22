@@ -36,6 +36,8 @@ const ALERT_KIND_DESCRIPTIONS = {
     "Se anuló una venta cuya factura ya tenía una nota de crédito, por lo que no se emitió otra",
   fortnight_report_owed_elsewhere:
     "ARCA informa adeudada la presentación de una quincena de un punto de venta que este sistema no maneja",
+  fortnight_report_document_rejected:
+    "ARCA rechazó un comprobante de una quincena y los que le siguen quedan sin procesar hasta que se corrija",
   clock_corrected:
     "Alguien confirmó desde la caja que su hora era correcta, aunque quedó atrás de la del último comprobante emitido.",
   register_backup_overdue:

@@ -1,3 +1,4 @@
+import { clockCorrectionPeriodKey } from "@purosur/domain";
 import type { SyncedFact } from "@purosur/domain/sync/use-cases";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { LocalDatabase } from "../platform/local-database";
@@ -6,6 +7,8 @@ import { migrationClock } from "../platform/test-support/migration-clock";
 import { openLocalDatabase } from "../platform/test-support/open-local-database";
 import { insertOpenedSession } from "../register/sqlite-cash-ledger";
 import { applyReplenishedClockCorrection } from "./replenished-clock-corrections";
+import { SqliteRegisterClockGuardReader } from "./sqlite-clock-correction";
+import { upsertClockMark } from "./sqlite-sale-authorization";
 
 type ClockCorrection = Extract<SyncedFact, { kind: "clock_corrected" }>;
 
@@ -70,14 +73,14 @@ describe("replenishing a clock correction into a restored register", () => {
     expect(clockMark()).toBe("2026-10-05T12:00:00.000Z");
   });
 
-  it("records the correction, in the period of the cash session open when it was made", () => {
+  it("records the correction apart from the period of the cash session open on the restored register", () => {
     openSession("session-1");
 
     applyReplenishedClockCorrection(database, CORRECTION);
 
     expect(corrections()).toEqual([
       {
-        period: "session-1",
+        period: "replayed from predecessor",
         register_id: "register-new",
         actor_id: "cashier-1",
         point_of_sale: 12,
@@ -88,10 +91,21 @@ describe("replenishing a clock correction into a restored register", () => {
     ]);
   });
 
-  it("records the correction, with no session open, in the period after the last closed one", () => {
+  it("records the correction, with no session open, apart from the period after the last closed one", () => {
     applyReplenishedClockCorrection(database, CORRECTION);
 
-    expect(corrections()).toMatchObject([{ period: "after session none" }]);
+    expect(corrections()).toMatchObject([{ period: "replayed from predecessor" }]);
+  });
+
+  it("leaves the restored register's current period free for a correction of its own", () => {
+    openSession("session-1");
+    const guard = new SqliteRegisterClockGuardReader(database, { activePerson: () => undefined });
+
+    applyReplenishedClockCorrection(database, CORRECTION);
+
+    expect(
+      guard.clockCorrectionRecordedIn(clockCorrectionPeriodKey(guard.cashSessionStanding())),
+    ).toBe(false);
   });
 
   it("changes nothing when the snapshot already holds the correction", () => {
@@ -101,6 +115,26 @@ describe("replenishing a clock correction into a restored register", () => {
     applyReplenishedClockCorrection(database, CORRECTION);
 
     expect({ mark: clockMark(), corrections: corrections() }).toEqual(before);
+  });
+
+  it("keeps the clock mark the restored register raised by issuing documents after the reading the correction lowered from", () => {
+    upsertClockMark(database, {
+      pointOfSale: 12,
+      documentType: "factura_c",
+      reading: new Date("2026-10-09T12:00:00.000Z"),
+    });
+
+    applyReplenishedClockCorrection(database, CORRECTION);
+
+    expect(clockMark()).toBe("2026-10-09T12:00:00.000Z");
+  });
+
+  it("sets the clock mark to the corrected reading when the restored register holds no mark", () => {
+    database.prepare("DELETE FROM register_clock_marks").run();
+
+    applyReplenishedClockCorrection(database, CORRECTION);
+
+    expect(clockMark()).toBe("2026-10-05T12:00:00.000Z");
   });
 
   it("holds two corrections of the same register made one after another", () => {

@@ -383,7 +383,12 @@ export async function withRegisterSession<TResult>(
       newSalesStoppedByDisk: () => false,
       localDatabaseDamaged: () => false,
       newSalesStoppedByBattery: () => false,
-      restoration: new SqliteRestorationEvidence(database, restorePendingIn(undefined)),
+      restoration: new SqliteRestorationEvidence(
+        database,
+        restorePendingIn(undefined),
+        () => "unknown",
+        () => false,
+      ),
     });
 
     const voidDeps = () => ({

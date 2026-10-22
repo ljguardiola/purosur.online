@@ -1,5 +1,5 @@
 {
-  "id": "624bf732-d882-4616-9b7a-c41a491bdd19",
+  "id": "9f2b2a7c-41f2-4993-bfcd-a1acfe8aa836",
   "prevId": "9d05fbb6-a072-4d95-bb03-fa579622725f",
   "version": "7",
   "dialect": "postgresql",
@@ -2176,7 +2176,7 @@
       "checkConstraints": {
         "credit_notes_reason_check": {
           "name": "credit_notes_reason_check",
-          "value": "\"credit_notes\".\"reason\" in ('orphan', 'sale_void')"
+          "value": "\"credit_notes\".\"reason\" in ('orphan', 'sale_void', 'rejected_document')"
         },
         "credit_notes_kept_voucher_check": {
           "name": "credit_notes_kept_voucher_check",
@@ -8121,6 +8121,126 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.rejected_document_remedies": {
+      "name": "rejected_document_remedies",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "bigserial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "point_of_sale_number": {
+          "name": "point_of_sale_number",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fortnight_start": {
+          "name": "fortnight_start",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "document_type": {
+          "name": "document_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "number": {
+          "name": "number",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "correction": {
+          "name": "correction",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "rejected_at": {
+          "name": "rejected_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "recorded_at": {
+          "name": "recorded_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "rejected_document_remedies_document_idx": {
+          "name": "rejected_document_remedies_document_idx",
+          "columns": [
+            {
+              "expression": "point_of_sale_number",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "fortnight_start",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "document_type",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "number",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "rejected_document_remedies_point_of_sale_number_point_of_sale_claims_point_of_sale_number_fk": {
+          "name": "rejected_document_remedies_point_of_sale_number_point_of_sale_claims_point_of_sale_number_fk",
+          "tableFrom": "rejected_document_remedies",
+          "tableTo": "point_of_sale_claims",
+          "columnsFrom": ["point_of_sale_number"],
+          "columnsTo": ["point_of_sale_number"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "rejected_document_remedies_kind_check": {
+          "name": "rejected_document_remedies_kind_check",
+          "value": "\"rejected_document_remedies\".\"kind\" in ('report', 'printed')"
+        },
+        "rejected_document_remedies_correction_check": {
+          "name": "rejected_document_remedies_correction_check",
+          "value": "(\"rejected_document_remedies\".\"kind\" = 'printed') = (\"rejected_document_remedies\".\"correction\" is not null)"
+        }
+      },
+      "isRLSEnabled": false
+    },
     "public.role_permissions": {
       "name": "role_permissions",
       "schema": "",
@@ -8564,53 +8684,6 @@
           "value": "(\"sale_reprints\".\"reason_kind\" = 'requested') = (\"sale_reprints\".\"reason_text\" is not null)"
         }
       },
-      "isRLSEnabled": false
-    },
-    "public.sale_void_credit_note_refusals": {
-      "name": "sale_void_credit_note_refusals",
-      "schema": "",
-      "columns": {
-        "credit_note_id": {
-          "name": "credit_note_id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "register_id": {
-          "name": "register_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "sale_id": {
-          "name": "sale_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "refused_at": {
-          "name": "refused_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "sale_void_credit_note_refusals_register_id_registers_id_fk": {
-          "name": "sale_void_credit_note_refusals_register_id_registers_id_fk",
-          "tableFrom": "sale_void_credit_note_refusals",
-          "tableTo": "registers",
-          "columnsFrom": ["register_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "public.sales": {

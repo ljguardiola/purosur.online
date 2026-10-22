@@ -222,6 +222,7 @@ export type {
   LockedInstallation,
   NewInstallation,
   PresentedDeviceToken,
+  RealTimeNumberingLane,
   RegisterKeys,
   RegisterStore,
   RegisterStoreTransaction,

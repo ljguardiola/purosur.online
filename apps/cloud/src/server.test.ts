@@ -8,7 +8,10 @@ import Fastify, { type FastifyInstance } from "fastify";
 import { afterEach, describe, expect, expectTypeOf, it, vi } from "vitest";
 import { type BuildAppOptions, buildApp as buildRealApp } from "./app.js";
 import { enqueueCreditNoteJob } from "./fiscal/graphile-credit-note-queue.js";
-import { enqueueNumberingDiagnosisJob } from "./fiscal/graphile-numbering-conflict-queue.js";
+import {
+  enqueueNumberingDiagnosisJob,
+  enqueueNumberingReconciliationJob,
+} from "./fiscal/graphile-numbering-conflict-queue.js";
 import { enqueueOfflineAuthorizationCodeRequest } from "./fiscal/graphile-offline-authorization-code-queue.js";
 import { enqueueTaxAuthorityCountJob } from "./fiscal/graphile-tax-authority-count-queue.js";
 import {
@@ -1601,6 +1604,19 @@ describe("startServer authorizing sales in real time", () => {
     expect(options.enqueueTaxAuthorityCountOnEnrollment).toBe(enqueueTaxAuthorityCountJob);
   });
 
+  it("has an installation's enrollment put its point of sale's numbering under reconciliation", async () => {
+    const { started, buildApp } = start({
+      ...env,
+      ARCA_PRIVATE_KEY: credentials.privateKeyPem,
+    });
+    await started;
+
+    const [options] = buildApp.mock.calls[0] as [BuildAppOptions];
+    expect(options.enqueueNumberingReconciliationOnEnrollment).toBe(
+      enqueueNumberingReconciliationJob,
+    );
+  });
+
   it("asks again for the count of every claimed point of sale that has none before it starts listening", async () => {
     const { started, steps, recovery, enqueueMissingTaxAuthorityCounts } = start({
       ...env,
@@ -1666,6 +1682,7 @@ describe("startServer authorizing sales in real time", () => {
     expect(options.registersPointsOfSale).not.toHaveProperty("enqueueTaxAuthorityCount");
     expect(options).not.toHaveProperty("enqueueOfflineAuthorizationCodeRequest");
     expect(options).not.toHaveProperty("enqueueTaxAuthorityCountOnEnrollment");
+    expect(options).not.toHaveProperty("enqueueNumberingReconciliationOnEnrollment");
     expect(enqueueMissingTaxAuthorityCounts).not.toHaveBeenCalled();
     expect(enqueueMissingUnclearOutcomes).not.toHaveBeenCalled();
   });

@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { enrollmentAttemptWindowStart, isRetainedSnapshotGeneration } from "@purosur/domain";
+import type { NumberingFreeze } from "@purosur/domain/fiscal/use-cases";
 import type {
   EnrollmentAlert,
   EnrollmentAttemptKey,
@@ -8,6 +9,7 @@ import type {
   LockedEnrollmentCode,
   LockedInstallation,
   NewInstallation,
+  RealTimeNumberingLane,
   RegisterKeys,
   RegisterStore,
   RegisterStoreTransaction,
@@ -17,7 +19,10 @@ import type {
 import { and, asc, desc, eq, gt, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { openAlert } from "../alerts/open-alert.js";
+import type { EnqueueNumberingReconciliation } from "../fiscal/enqueue-numbering-conflict.js";
+import { freezePointOfSaleNumbering } from "../fiscal/freeze-point-of-sale-numbering.js";
 import type { EnqueueTaxAuthorityCount } from "../fiscal/graphile-tax-authority-count-queue.js";
+import { pointOfSaleLaneLockKey } from "../fiscal/point-of-sale-lane-lock.js";
 import {
   auditLog,
   registerContingencyTicketKeys,
@@ -30,6 +35,7 @@ import {
   registerSnapshotKeys,
   taxAuthorityLastAuthorizedNumbers,
 } from "../platform/db/schema.js";
+import { type PendingChanges, withPendingChanges } from "../sync/change-log.js";
 import type { InstallationKeyCipher } from "./installation-key-cipher.js";
 import { readOutboxChainKey, sealOutboxChainKey } from "./outbox-chain-key.js";
 
@@ -66,15 +72,21 @@ class DrizzleRegisterStoreTransaction<TQueryResult extends PgQueryResultHKT>
   private readonly tx: Transaction<TQueryResult>;
   private readonly cipher: InstallationKeyCipher;
   private readonly enqueueTaxAuthorityCount: EnqueueTaxAuthorityCount | undefined;
+  private readonly enqueueNumberingReconciliation: EnqueueNumberingReconciliation | undefined;
+  private readonly pending: PendingChanges;
 
   constructor(
     tx: Transaction<TQueryResult>,
     cipher: InstallationKeyCipher,
     enqueueTaxAuthorityCount: EnqueueTaxAuthorityCount | undefined,
+    enqueueNumberingReconciliation: EnqueueNumberingReconciliation | undefined,
+    pending: PendingChanges,
   ) {
     this.tx = tx;
     this.cipher = cipher;
     this.enqueueTaxAuthorityCount = enqueueTaxAuthorityCount;
+    this.enqueueNumberingReconciliation = enqueueNumberingReconciliation;
+    this.pending = pending;
   }
 
   async lockEnrollmentCodes(lookup: string): Promise<LockedEnrollmentCode[]> {
@@ -344,6 +356,38 @@ class DrizzleRegisterStoreTransaction<TQueryResult extends PgQueryResultHKT>
       .where(eq(registerEnrollmentCodes.registerId, registerId));
   }
 
+  async takeRealTimeNumberingLane(registerId: string): Promise<RealTimeNumberingLane | null> {
+    if (this.enqueueNumberingReconciliation === undefined) {
+      return null;
+    }
+    const [realTime] = await this.tx
+      .select({ pointOfSale: registerPointsOfSale.pointOfSaleNumber })
+      .from(registerPointsOfSale)
+      .where(eq(registerPointsOfSale.registerId, registerId));
+    if (realTime === undefined) {
+      return null;
+    }
+    await this.tx.execute(
+      sql`select pg_advisory_xact_lock(hashtextextended(${pointOfSaleLaneLockKey(realTime.pointOfSale)}, 0))`,
+    );
+    const [held] = await this.tx
+      .select({ lastAuthorized: taxAuthorityLastAuthorizedNumbers.lastAuthorized })
+      .from(taxAuthorityLastAuthorizedNumbers)
+      .where(eq(taxAuthorityLastAuthorizedNumbers.pointOfSaleNumber, realTime.pointOfSale));
+    return { pointOfSale: realTime.pointOfSale, heldCount: held?.lastAuthorized ?? null };
+  }
+
+  async freezeRealTimeNumbering(pointOfSale: number, freeze: NumberingFreeze): Promise<void> {
+    if (this.enqueueNumberingReconciliation === undefined) {
+      return;
+    }
+    await freezePointOfSaleNumbering(this.tx, this.pending, {
+      pointOfSale,
+      freeze,
+      enqueueReconciliation: this.enqueueNumberingReconciliation,
+    });
+  }
+
   async requireFreshTaxAuthorityCount(registerId: string): Promise<void> {
     if (this.enqueueTaxAuthorityCount === undefined) {
       return;
@@ -356,14 +400,14 @@ class DrizzleRegisterStoreTransaction<TQueryResult extends PgQueryResultHKT>
       .select({ pointOfSale: registerOfflinePointsOfSale.pointOfSaleNumber })
       .from(registerOfflinePointsOfSale)
       .where(eq(registerOfflinePointsOfSale.registerId, registerId));
-    for (const held of [realTime, offline]) {
-      if (held === undefined) {
-        continue;
-      }
+    if (realTime !== undefined) {
+      await this.enqueueTaxAuthorityCount(this.tx, realTime.pointOfSale);
+    }
+    if (offline !== undefined) {
       await this.tx
         .delete(taxAuthorityLastAuthorizedNumbers)
-        .where(eq(taxAuthorityLastAuthorizedNumbers.pointOfSaleNumber, held.pointOfSale));
-      await this.enqueueTaxAuthorityCount(this.tx, held.pointOfSale);
+        .where(eq(taxAuthorityLastAuthorizedNumbers.pointOfSaleNumber, offline.pointOfSale));
+      await this.enqueueTaxAuthorityCount(this.tx, offline.pointOfSale);
     }
   }
 
@@ -390,22 +434,33 @@ export class DrizzleRegisterStore<TQueryResult extends PgQueryResultHKT> impleme
   private readonly db: PgDatabase<TQueryResult>;
   private readonly cipher: InstallationKeyCipher;
   private readonly enqueueTaxAuthorityCount: EnqueueTaxAuthorityCount | undefined;
+  private readonly enqueueNumberingReconciliation: EnqueueNumberingReconciliation | undefined;
 
   constructor(
     db: PgDatabase<TQueryResult>,
     cipher: InstallationKeyCipher,
     enqueueTaxAuthorityCount?: EnqueueTaxAuthorityCount,
+    enqueueNumberingReconciliation?: EnqueueNumberingReconciliation,
   ) {
     this.db = db;
     this.cipher = cipher;
     this.enqueueTaxAuthorityCount = enqueueTaxAuthorityCount;
+    this.enqueueNumberingReconciliation = enqueueNumberingReconciliation;
   }
 
   transaction<TOutcome>(
     work: (tx: RegisterStoreTransaction) => Promise<TOutcome>,
   ): Promise<TOutcome> {
-    return this.db.transaction((tx) =>
-      work(new DrizzleRegisterStoreTransaction(tx, this.cipher, this.enqueueTaxAuthorityCount)),
+    return withPendingChanges(this.db, undefined, (tx, pending) =>
+      work(
+        new DrizzleRegisterStoreTransaction(
+          tx,
+          this.cipher,
+          this.enqueueTaxAuthorityCount,
+          this.enqueueNumberingReconciliation,
+          pending,
+        ),
+      ),
     );
   }
 }

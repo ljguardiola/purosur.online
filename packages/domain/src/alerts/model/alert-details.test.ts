@@ -336,6 +336,35 @@ describe("OpenAlertInput of a fortnight report", () => {
     }>().not.toExtend<OpenAlertInput>();
   });
 
+  it("accepts the point of sale, its register, the fortnight, the document type and the rejected number for an alert of a rejected document", () => {
+    expectTypeOf<{
+      kind: "fortnight_report_document_rejected";
+      scope: string;
+      detail: {
+        pointOfSaleNumber: number;
+        registerId: string;
+        fortnightStart: string;
+        fortnightEnd: string;
+        documentType: "factura_c";
+        rejectedNumber: number;
+      };
+    }>().toExtend<OpenAlertInput>();
+  });
+
+  it("refuses an alert of a rejected document without the rejected number", () => {
+    expectTypeOf<{
+      kind: "fortnight_report_document_rejected";
+      scope: string;
+      detail: {
+        pointOfSaleNumber: number;
+        registerId: string;
+        fortnightStart: string;
+        fortnightEnd: string;
+        documentType: "factura_c";
+      };
+    }>().not.toExtend<OpenAlertInput>();
+  });
+
   it("refuses an overdue alert without the deadline", () => {
     expectTypeOf<{
       kind: "fortnight_report_overdue";

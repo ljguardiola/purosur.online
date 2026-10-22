@@ -27,6 +27,8 @@ export {
   CLOCK_PREVIOUS_READING_SOURCES,
   clockCorrectedEvent,
   clockCorrectionPeriodKey,
+  REPLAYED_CLOCK_CORRECTION_PERIOD_KEY,
+  replayedClockMark,
 } from "./model/clock-correction.js";
 export { selectConsumerBuyerTaxStatus } from "./model/consumer-buyer-tax-status.js";
 export type { CreditNoteReason } from "./model/credit-note.js";
@@ -104,6 +106,8 @@ export type {
   FortnightPresentationState,
   FortnightReportMovement,
   FortnightReportState,
+  RejectedDocumentOfPresentation,
+  RejectedDocumentRemedyState,
 } from "./model/fortnight-report.js";
 export {
   fortnightClosesAt,
@@ -129,6 +133,8 @@ export {
   awaitsNumberingDiagnosis,
   isNumberingConflictAnswer,
   NUMBERING_CONFLICT_REASK_INTERVAL_MS,
+  type NumberingFreeze,
+  restorationNumberingFreeze,
 } from "./model/numbering-conflict.js";
 export type { Fortnight } from "./model/offline-authorization-code.js";
 export {
@@ -194,6 +200,20 @@ export {
   SERIES_WAITING_STATES,
 } from "./model/real-time-authorization.js";
 export { REGISTER_CLOCK_TOLERANCE_MS, raisedClockMark } from "./model/register-clock.js";
+export type {
+  CorrectedBuyer,
+  CorrectedField,
+  DocumentFieldChange,
+  OfflineDocumentBuyer,
+  OfflineDocumentCorrection,
+  OfflineDocumentCorrectionRefusal,
+  RejectedDocumentRemedy,
+} from "./model/rejected-document-remedy.js";
+export {
+  awaitsRemedy,
+  buyerIdentificationOf,
+  remedyAwaitsResend,
+} from "./model/rejected-document-remedy.js";
 export type {
   CreditNoteAnswer,
   RestoredCreditNoteAnswer,

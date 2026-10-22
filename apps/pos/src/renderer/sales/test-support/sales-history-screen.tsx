@@ -1,6 +1,7 @@
 import type {
   Authorization,
   PrintCreditNoteOutcome,
+  PrintOriginalReceiptOutcome,
   ReprintSaleReceiptOutcome,
   SaleHistoryDetailOutcome,
   SalesHistoryOutcome,
@@ -100,6 +101,7 @@ export type Overrides = Partial<Pick<SalesHistoryScreenProps, "person" | "sessio
     reason: string,
     authorization: Authorization | undefined,
   ) => Promise<ReprintSaleReceiptOutcome>;
+  printOriginalReceipt?: (saleId: string) => Promise<PrintOriginalReceiptOutcome>;
   printCreditNote?: (saleId: string) => Promise<PrintCreditNoteOutcome>;
   reprintCreditNote?: (
     saleId: string,
@@ -143,6 +145,13 @@ export async function renderScreen({
         credit_note: null,
       })),
   );
+  const printOriginalReceipt = vi.fn(
+    overrides.printOriginalReceipt ??
+      (async (): Promise<PrintOriginalReceiptOutcome> => ({
+        kind: "started",
+        copy: { kind: "original" },
+      })),
+  );
   const printCreditNote = vi.fn(
     overrides.printCreditNote ??
       (async (): Promise<PrintCreditNoteOutcome> => ({
@@ -168,6 +177,7 @@ export async function renderScreen({
       salesHistory={salesHistory}
       saleHistoryDetail={saleHistoryDetail}
       reprintSaleReceipt={reprintSaleReceipt}
+      printOriginalReceipt={printOriginalReceipt}
       voidSale={voidSale}
       printCreditNote={printCreditNote}
       reprintCreditNote={reprintCreditNote}
@@ -180,6 +190,7 @@ export async function renderScreen({
     salesHistory,
     saleHistoryDetail,
     reprintSaleReceipt,
+    printOriginalReceipt,
     voidSale,
     printCreditNote,
     reprintCreditNote,

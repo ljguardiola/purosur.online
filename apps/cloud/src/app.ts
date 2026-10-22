@@ -70,11 +70,13 @@ import { registerBranchOfflinePointsOfSaleListRoute } from "./fiscal/branch-offl
 import { registerBuyerIdentificationThresholdRecordRoute } from "./fiscal/buyer-identification-threshold-record-route.js";
 import type { BuyerIdentificationThresholdsRouteOptions } from "./fiscal/buyer-identification-thresholds-list-route.js";
 import { registerBuyerIdentificationThresholdsListRoute } from "./fiscal/buyer-identification-thresholds-list-route.js";
+import { registerBuyerTaxStatusesListRoute } from "./fiscal/buyer-tax-statuses-list-route.js";
 import { registerClockCorrectionsListRoute } from "./fiscal/clock-corrections-list-route.js";
 import {
   type CreditNoteRouteOptions,
   registerCreditNoteRoute,
 } from "./fiscal/credit-note-route.js";
+import type { EnqueueNumberingReconciliation } from "./fiscal/enqueue-numbering-conflict.js";
 import { registerFiscalAddressCreationRoute } from "./fiscal/fiscal-address-creation-route.js";
 import { registerFiscalAddressEditRoute } from "./fiscal/fiscal-address-edit-route.js";
 import type { FiscalAddressesRouteOptions } from "./fiscal/fiscal-addresses-list-route.js";
@@ -94,6 +96,7 @@ import { registerRegisterOfflinePointOfSaleConfigurationRoute } from "./fiscal/r
 import { registerRegisterPointOfSaleConfigurationRoute } from "./fiscal/register-point-of-sale-configuration-route.js";
 import type { RegistersPointsOfSaleRouteOptions } from "./fiscal/registers-points-of-sale-list-route.js";
 import { registerRegistersPointsOfSaleListRoute } from "./fiscal/registers-points-of-sale-list-route.js";
+import { registerRejectedDocumentRemedyRoute } from "./fiscal/rejected-document-remedy-route.js";
 import {
   registerUnclearOutcomeRoute,
   type UnclearOutcomeRouteOptions,
@@ -270,6 +273,7 @@ export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = Postgre
   devices?: WithoutClock<DeviceTokensOptions<TQueryResult>>;
   enqueueOfflineAuthorizationCodeRequest?: EnqueueOfflineAuthorizationCodeRequest;
   enqueueTaxAuthorityCountOnEnrollment?: EnqueueTaxAuthorityCount;
+  enqueueNumberingReconciliationOnEnrollment?: EnqueueNumberingReconciliation;
   fiscalAuthorization?: WithoutClock<
     Omit<
       FiscalAuthorizationRouteOptions<TQueryResult> & UnclearOutcomeRouteOptions<TQueryResult>,
@@ -300,6 +304,7 @@ type DatabaseRouteOptions<TQueryResult extends PgQueryResultHKT> = Required<
     | "staticDir"
     | "enqueueOfflineAuthorizationCodeRequest"
     | "enqueueTaxAuthorityCountOnEnrollment"
+    | "enqueueNumberingReconciliationOnEnrollment"
     | "fiscalAuthorization"
     | "creditNotes"
     | "mercadoPagoOrders"
@@ -696,6 +701,8 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
       if (options.registersPointsOfSale) {
         registerRegistersPointsOfSaleListRoute(api, { ...options.registersPointsOfSale, now });
         registerFortnightPresentationsListRoute(api, { ...options.registersPointsOfSale, now });
+        registerRejectedDocumentRemedyRoute(api, { ...options.registersPointsOfSale, now });
+        registerBuyerTaxStatusesListRoute(api, { ...options.registersPointsOfSale, now });
         registerClockCorrectionsListRoute(api, { ...options.registersPointsOfSale, now });
         registerRegisterPointOfSaleConfigurationRoute(api, {
           ...options.registersPointsOfSale,
@@ -715,6 +722,9 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
           now,
           ...(options.enqueueTaxAuthorityCountOnEnrollment && {
             enqueueTaxAuthorityCount: options.enqueueTaxAuthorityCountOnEnrollment,
+          }),
+          ...(options.enqueueNumberingReconciliationOnEnrollment && {
+            enqueueNumberingReconciliation: options.enqueueNumberingReconciliationOnEnrollment,
           }),
         });
         registerChangesRoute(api, {

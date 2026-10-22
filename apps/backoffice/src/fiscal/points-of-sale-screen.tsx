@@ -1,4 +1,9 @@
-import { Button, FloatingNotification, formatPointOfSaleNumber } from "@purosur/ui";
+import {
+  Button,
+  FloatingNotification,
+  formatInvoiceNumber,
+  formatPointOfSaleNumber,
+} from "@purosur/ui";
 import { Check, Plus } from "lucide-react";
 import { useRef, useState } from "react";
 import { combineCloudData } from "../platform/combine-cloud-data";
@@ -14,6 +19,7 @@ import {
   useOfflinePointsOfSaleQuery,
   useRegisterPointsOfSaleQuery,
   useReloadFiscalAddresses,
+  useReloadFortnightPresentations,
   useReloadOfflinePointsOfSale,
   useReloadRegisterPointsOfSale,
 } from "./fiscal-queries";
@@ -23,7 +29,9 @@ import type { OfflinePointOfSale } from "./offline-points-of-sale-api";
 import { OfflinePointsOfSaleSection } from "./offline-points-of-sale-section";
 import type { PointsOfSaleScreenServices } from "./points-of-sale-services";
 import { RegisterPointOfSaleSection } from "./register-point-of-sale-section";
+import type { RemedyTarget } from "./rejected-document-remedy-form";
 import { RetireOfflinePointOfSaleModal } from "./retire-offline-point-of-sale-modal";
+import { ReviewRejectedDocumentModal } from "./review-rejected-document-modal";
 
 export type PointsOfSaleScreenProps = {
   onSessionEnded: () => void;
@@ -45,6 +53,8 @@ export function PointsOfSaleScreen({ onSessionEnded, services }: PointsOfSaleScr
     onSessionEnded,
   });
   const reloadOfflinePointsOfSale = useReloadOfflinePointsOfSale();
+  const reloadFortnightPresentations = useReloadFortnightPresentations();
+  const [reviewing, setReviewing] = useState<RemedyTarget | null>(null);
   const [retiring, setRetiring] = useState<OfflinePointOfSale | null>(null);
   const reloadRegisters = useReloadRegisterPointsOfSale({ fetchRegisterPointsOfSale });
   const reloadFiscalAddresses = useReloadFiscalAddresses({ fetchFiscalAddresses });
@@ -91,7 +101,10 @@ export function PointsOfSaleScreen({ onSessionEnded, services }: PointsOfSaleScr
           onEdit={({ registerId }, mechanism) => setEditingRegister({ registerId, mechanism })}
         />
         <OfflinePointsOfSaleSection data={offlinePointsOfSale} onRetire={setRetiring} />
-        <FortnightReportsSection data={combineCloudData(presentations, registers)} />
+        <FortnightReportsSection
+          data={combineCloudData(presentations, registers)}
+          onReview={setReviewing}
+        />
         <FiscalAddressesSection
           data={fiscalAddresses}
           onEdit={({ id }) => setEditingFiscalAddressId(id)}
@@ -153,6 +166,20 @@ export function PointsOfSaleScreen({ onSessionEnded, services }: PointsOfSaleScr
           );
         }}
         onOutdated={() => void reloadOfflinePointsOfSale()}
+        onSessionEnded={onSessionEnded}
+        services={services}
+      />
+      <ReviewRejectedDocumentModal
+        target={reviewing}
+        onClose={() => setReviewing(null)}
+        onRemedied={({ pointOfSaleNumber, rejectedDocument }) => {
+          void reloadFortnightPresentations();
+          announce(
+            "Informe corregido",
+            `Nº ${formatInvoiceNumber(rejectedDocument.number)} del punto de venta ${formatPointOfSaleNumber(pointOfSaleNumber)}: se vuelve a presentar con el mismo número.`,
+          );
+        }}
+        onOutdated={() => void reloadFortnightPresentations()}
         onSessionEnded={onSessionEnded}
         services={services}
       />

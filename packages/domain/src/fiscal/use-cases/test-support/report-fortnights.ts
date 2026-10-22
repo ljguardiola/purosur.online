@@ -28,6 +28,7 @@ export const ON_OCTOBER_3 = new Date("2026-10-03T15:00:00.000Z");
 export const ON_OCTOBER_20 = new Date("2026-10-20T15:00:00.000Z");
 export const REGISTER_ID = "register-1";
 export const POINT_OF_SALE = 7;
+export const REAL_TIME_POINT_OF_SALE = 3;
 export const CLAIMED_AT = new Date("2026-09-01T12:00:00.000Z");
 export const KEY = `${POINT_OF_SALE}:${SEPTEMBER_SECOND_HALF.start}`;
 
@@ -70,6 +71,7 @@ export function setUpReportFortnights({
   reports.pointsOfSale = [
     { pointOfSaleNumber: POINT_OF_SALE, registerId: REGISTER_ID, claimedAt: CLAIMED_AT },
   ];
+  reports.realTimePointsOfSale.set(REGISTER_ID, REAL_TIME_POINT_OF_SALE);
   const streams = new FakeRegisterEventStreams(operations);
   streams.installations.set(REGISTER_ID, [reachingInstallation()]);
   const declarations = new FakeTaxAuthorityNoMovementDeclarations(reports, operations);

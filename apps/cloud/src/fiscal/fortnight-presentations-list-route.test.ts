@@ -12,7 +12,9 @@ import { seededLocationId } from "../test-support/seeded-location.js";
 import { DrizzleFortnightReportStore } from "./drizzle-fortnight-report-store.js";
 import { DrizzleOfflineAuthorizationCodeStore } from "./drizzle-offline-authorization-code-store.js";
 import { registerFortnightPresentationsListRoute } from "./fortnight-presentations-list-route.js";
+import { insertOfflineFiscalDocument } from "./test-support/offline-fiscal-document-fixtures.js";
 import { configureOfflinePointOfSale } from "./test-support/offline-point-of-sale-fixtures.js";
+import { WITHOUT_CREDIT_NOTES } from "./test-support/rejected-document-remedy-fixtures.js";
 
 const DECEMBER_SECOND_HALF = { start: "2025-12-16", end: "2025-12-31" };
 const OFFLINE_POINT_OF_SALE = 8;
@@ -99,7 +101,7 @@ describe("GET /registers/fortnight-presentations", () => {
       now: SESSION_NOON,
     });
     await keepDecemberCode(OFFLINE_POINT_OF_SALE);
-    await new DrizzleFortnightReportStore(db).holdReport(
+    await new DrizzleFortnightReportStore(db, WITHOUT_CREDIT_NOTES).holdReport(
       { pointOfSaleNumber: OFFLINE_POINT_OF_SALE, fortnight: DECEMBER_SECOND_HALF },
       (report) => report.record({ state: "refused", at: SESSION_NOON }),
     );
@@ -150,6 +152,61 @@ describe("GET /registers/fortnight-presentations", () => {
         movement: null,
         refusal: "whole",
         state: "refused",
+      },
+    ]);
+  });
+
+  it("gives the rejected document of a presentation as presented, with its rejections and where its remedy stands", async () => {
+    const registerId = await configureOfflinePointOfSale(db, {
+      registerName: "caja-1",
+      realTimePointOfSale: 7,
+      offlinePointOfSale: OFFLINE_POINT_OF_SALE,
+      now: SESSION_NOON,
+    });
+    await keepDecemberCode(OFFLINE_POINT_OF_SALE);
+    await insertOfflineFiscalDocument(db, {
+      registerId,
+      pointOfSale: OFFLINE_POINT_OF_SALE,
+      fortnight: DECEMBER_SECOND_HALF,
+      number: 2,
+    });
+    await new DrizzleFortnightReportStore(db, WITHOUT_CREDIT_NOTES).holdReport(
+      { pointOfSaleNumber: OFFLINE_POINT_OF_SALE, fortnight: DECEMBER_SECOND_HALF },
+      async (report) => {
+        await report.record({ state: "refused", movement: "documents", at: SESSION_NOON });
+        await report.recordDocumentType({
+          documentType: "factura_c",
+          state: "refused",
+          at: SESSION_NOON,
+          reportedThrough: 1,
+          rejectedNumber: 2,
+          rejections: [{ code: 10016, message: "Fictional observation" }],
+        });
+      },
+    );
+    const session = await openBackofficeSession(db, {
+      now: SESSION_NOON,
+      locationId: await seededLocationId(db),
+      permissionKeys: ["change_fiscal_configuration"],
+      passkeyAuthorized: false,
+    });
+
+    const response = await listPresentations(session.headers);
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject([
+      {
+        document_type: "factura_c",
+        rejected_document: {
+          number: 2,
+          unprocessed: 0,
+          issued_on: "2025-12-16",
+          total: 10_000,
+          buyer: { kind: "final_consumer" },
+          buyer_tax_status_code: 5,
+          rejections: [{ code: 10016, message: "Fictional observation" }],
+          remedy: "awaiting_remedy",
+        },
       },
     ]);
   });

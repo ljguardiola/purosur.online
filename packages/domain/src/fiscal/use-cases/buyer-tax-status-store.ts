@@ -5,6 +5,10 @@ export interface BuyerTaxStatusSetVersion {
   options: BuyerTaxStatusOption[];
 }
 
+export interface BuyerTaxStatusReader {
+  latestBuyerTaxStatusSet(): Promise<BuyerTaxStatusSetVersion | undefined>;
+}
+
 export interface BuyerTaxStatusPorts {
   store: BuyerTaxStatusStore;
 }

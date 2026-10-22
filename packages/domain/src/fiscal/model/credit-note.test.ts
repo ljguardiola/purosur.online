@@ -138,6 +138,6 @@ describe("settleUnclearCreditNote", () => {
 
 describe("CREDIT_NOTE_REASONS", () => {
   it("lists why a credit note is issued: an authorization no sale accounts for, or a voided sale", () => {
-    expect(CREDIT_NOTE_REASONS).toEqual(["orphan", "sale_void"]);
+    expect(CREDIT_NOTE_REASONS).toEqual(["orphan", "sale_void", "rejected_document"]);
   });
 });

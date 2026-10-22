@@ -342,16 +342,15 @@ describe("the tax authority count jobs on a real Postgres", () => {
       );
     }
 
-    it("forgets the count and enqueues its read in the same transaction", async () => {
+    it("enqueues the read of the count in the enrollment's transaction", async () => {
       const registerId = await configuredRegisterWithCount(31);
 
       await enrollmentStore().transaction((tx) => tx.requireFreshTaxAuthorityCount(registerId));
 
-      expect(await db.select().from(taxAuthorityLastAuthorizedNumbers)).toEqual([]);
       expect(await pendingCountJobs()).toEqual([{ pointOfSale: 31, attempts: 0, maxAttempts: 25 }]);
     });
 
-    it("keeps the count and enqueues nothing when the enrollment rolls back", async () => {
+    it("enqueues nothing when the enrollment rolls back", async () => {
       const registerId = await configuredRegisterWithCount(32);
 
       await expect(
@@ -361,7 +360,6 @@ describe("the tax authority count jobs on a real Postgres", () => {
         }),
       ).rejects.toThrow("the enrollment failed");
 
-      expect(await db.select().from(taxAuthorityLastAuthorizedNumbers)).toHaveLength(1);
       expect(await pendingCountJobs()).toEqual([]);
     });
   });

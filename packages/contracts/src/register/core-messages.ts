@@ -395,6 +395,11 @@ const restorationStandingSchema = z.discriminatedUnion("kind", [
     kind: z.literal("in_progress"),
     step: z.enum(RESTORATION_STEPS).exclude(["open_session"]),
   }),
+  z.object({
+    kind: z.literal("without_connection"),
+    step: z.enum(RESTORATION_STEPS).exclude(["open_session", "enroll"]),
+  }),
+  z.object({ kind: z.literal("failed"), step: z.literal("restore") }),
 ]);
 export type RestorationStandingAnswer = z.infer<typeof restorationStandingSchema>;
 

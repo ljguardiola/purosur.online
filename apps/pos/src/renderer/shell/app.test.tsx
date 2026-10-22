@@ -637,6 +637,21 @@ describe("App", () => {
       .not.toBeInTheDocument();
   });
 
+  it("tells the restoring screen once the core says the register cannot reach the cloud", async () => {
+    let standing: RestorationStandingAnswer = { kind: "in_progress", step: "replenish" };
+    const { core, changeRestorationStanding } = coreAnswering(true);
+    core.restorationStanding = async () => standing;
+    const screen = await render(<App core={core} />);
+    postCoreStatus("up");
+    await expect.element(screen.getByText(RESTORING_TITLE)).toBeVisible();
+
+    standing = { kind: "without_connection", step: "replenish" };
+    changeRestorationStanding();
+
+    await expect.element(screen.getByText("Sin conexión con la nube")).toBeVisible();
+    await expect.element(screen.getByText(RESTORING_TITLE)).toBeVisible();
+  });
+
   it("never reaches the sale of a resumed session while the register is being restored", async () => {
     const { core } = coreAnswering(true, undefined, undefined, {
       cashSession: async () => GRACE_SESSION,

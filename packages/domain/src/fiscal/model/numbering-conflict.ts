@@ -48,6 +48,18 @@ export function diagnoseNumberingConflict({
   return onlyDateBehind ? { kind: "date_behind" } : { kind: "collision" };
 }
 
+export interface NumberingFreeze {
+  countBeforeFreeze: number;
+  frozenAt: Date;
+}
+
+export function restorationNumberingFreeze(
+  heldCount: number | null,
+  at: Date,
+): NumberingFreeze | null {
+  return heldCount === null ? null : { countBeforeFreeze: heldCount, frozenAt: at };
+}
+
 type NumberingDocumentSettlement =
   | "authorized"
   | "conflicting"

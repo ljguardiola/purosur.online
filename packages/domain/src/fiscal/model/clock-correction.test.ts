@@ -1,9 +1,12 @@
+import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import {
   CLOCK_CORRECTED_EVENT_TYPE,
   clockCorrectedEvent,
   clockCorrectionPeriodKey,
   clockLoweringsFor,
+  REPLAYED_CLOCK_CORRECTION_PERIOD_KEY,
+  replayedClockMark,
 } from "./clock-correction.js";
 
 const READING = new Date("2026-10-01T12:00:00.000Z");
@@ -178,6 +181,36 @@ describe("clockLoweringsFor against the tax authority's last authorized day", ()
   });
 });
 
+describe("replayedClockMark", () => {
+  const LOWERING = {
+    pointOfSale: 12,
+    documentType: "factura_c",
+    previousReading: ahead(3_600_000),
+    previousReadingSource: "clock_mark",
+    correctedReading: READING,
+  } as const;
+
+  it("is the corrected reading when the series holds no mark", () => {
+    expect(replayedClockMark(null, LOWERING)).toEqual(READING);
+  });
+
+  it("is the corrected reading when the mark is the reading the correction lowered from", () => {
+    expect(replayedClockMark(ahead(3_600_000), LOWERING)).toEqual(READING);
+  });
+
+  it("is the corrected reading when the mark is within a minute past the reading the correction lowered from", () => {
+    expect(replayedClockMark(ahead(3_660_000), LOWERING)).toEqual(READING);
+  });
+
+  it("keeps the mark when it is more than a minute past the reading the correction lowered from", () => {
+    expect(replayedClockMark(ahead(3_660_001), LOWERING)).toEqual(ahead(3_660_001));
+  });
+
+  it("is the corrected reading when the mark is earlier than it", () => {
+    expect(replayedClockMark(ahead(-60_000), LOWERING)).toEqual(READING);
+  });
+});
+
 describe("clockCorrectionPeriodKey", () => {
   it("is the open cash session while one is open", () => {
     expect(
@@ -194,6 +227,26 @@ describe("clockCorrectionPeriodKey", () => {
   it("is the period before any session while none was ever opened", () => {
     expect(clockCorrectionPeriodKey({ openSessionId: null, lastClosedSessionId: null })).toBe(
       "after session none",
+    );
+  });
+});
+
+describe("REPLAYED_CLOCK_CORRECTION_PERIOD_KEY", () => {
+  it("files a correction replayed from a predecessor apart from every period of the register", () => {
+    expect(REPLAYED_CLOCK_CORRECTION_PERIOD_KEY).toBe("replayed from predecessor");
+  });
+
+  it("is never the period of any cash session standing", () => {
+    fc.assert(
+      fc.property(
+        fc.option(fc.uuid()),
+        fc.option(fc.uuid()),
+        (openSessionId, lastClosedSessionId) => {
+          expect(clockCorrectionPeriodKey({ openSessionId, lastClosedSessionId })).not.toBe(
+            REPLAYED_CLOCK_CORRECTION_PERIOD_KEY,
+          );
+        },
+      ),
     );
   });
 });

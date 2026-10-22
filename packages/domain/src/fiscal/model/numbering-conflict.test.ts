@@ -8,6 +8,7 @@ import {
   NUMBERING_CONFLICT_REASK_INTERVAL_MS,
   type NumberingConflictDiagnosis,
   type NumberingReconciliationDocument,
+  restorationNumberingFreeze,
 } from "./numbering-conflict.js";
 import type { RealTimeAuthorizationAnswer } from "./real-time-authorization.js";
 
@@ -239,5 +240,24 @@ describe("decideNumberingReconciliation", () => {
     expect(
       decideNumberingReconciliation({ countBeforeFreeze: 10, lastAuthorized: 8, documents: [] }),
     ).toEqual({ kind: "reconciled", lastAuthorized: 8, numbersWithoutOwnDocument: [] });
+  });
+});
+
+describe("restorationNumberingFreeze", () => {
+  const frozenAt = new Date("2026-03-04T10:00:00.000Z");
+
+  it("freezes at the count the cloud holds", () => {
+    expect(restorationNumberingFreeze(25, frozenAt)).toEqual({
+      countBeforeFreeze: 25,
+      frozenAt,
+    });
+  });
+
+  it("freezes at a held count of zero", () => {
+    expect(restorationNumberingFreeze(0, frozenAt)).toEqual({ countBeforeFreeze: 0, frozenAt });
+  });
+
+  it("does not freeze when the cloud holds no count, so a sweep never starts from zero", () => {
+    expect(restorationNumberingFreeze(null, frozenAt)).toBeNull();
   });
 });

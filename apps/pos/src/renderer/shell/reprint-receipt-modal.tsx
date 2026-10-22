@@ -52,7 +52,7 @@ const PERMISSION: AuthorizablePermissionKey = "reprint_receipt";
 
 type ReprintableSale = Pick<SaleDetail, "sale_id" | "occurred_at"> &
   Partial<Pick<SaleDetail, "comprobante" | "operation_number" | "credit_note">> & {
-    next_copy: NextReceiptCopy;
+    next_copy: Extract<NextReceiptCopy, { kind: "duplicate" }>;
   };
 
 function documentComprobante(
@@ -189,7 +189,7 @@ export function ReprintReceiptModal({
       width="standard"
       tone="info"
       icon={<Printer />}
-      context={`${sale.next_copy.kind === "original" ? "IMPRIMIR" : "REIMPRIMIR"} ${SUBJECTS[document]} DE LAS ${formatClockTime(sale.occurred_at)}`}
+      context={`REIMPRIMIR ${SUBJECTS[document]} DE LAS ${formatClockTime(sale.occurred_at)}`}
       title={copy.comesOutAs}
       closable={!submitting}
       footer={

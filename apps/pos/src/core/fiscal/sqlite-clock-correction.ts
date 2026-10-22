@@ -53,7 +53,7 @@ function taxAuthorityFloor(database: LocalDatabase): TaxAuthorityFloor | null {
       };
 }
 
-export function cashSessionStanding(database: LocalDatabase): CashSessionStanding {
+function cashSessionStanding(database: LocalDatabase): CashSessionStanding {
   const open = database
     .prepare<[], { id: string }>("SELECT id FROM cash_sessions WHERE state = 'OPEN'")
     .get();
@@ -72,7 +72,7 @@ function clockCorrectionRecordedIn(database: LocalDatabase, period: string): boo
   );
 }
 
-export function lowerClockMark(
+function lowerClockMark(
   database: LocalDatabase,
   { pointOfSale, documentType, correctedReading }: ClockLowering,
 ): void {

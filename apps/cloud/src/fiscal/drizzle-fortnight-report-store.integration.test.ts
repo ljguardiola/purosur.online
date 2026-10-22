@@ -6,9 +6,12 @@ import {
   type IntegrationDatabase,
 } from "../test-support/integration-database.js";
 import { waitForLockWaiters } from "../test-support/queued-behind-held-lock.js";
+import { CREDIT_NOTE_TASK_IDENTIFIER } from "./credit-note-task.js";
 import { DrizzleFortnightReportStore } from "./drizzle-fortnight-report-store.js";
 import { DrizzleOfflineAuthorizationCodeStore } from "./drizzle-offline-authorization-code-store.js";
+import { enqueueCreditNoteJob } from "./graphile-credit-note-queue.js";
 import { seedOfflinePointOfSale } from "./test-support/offline-point-of-sale-fixtures.js";
+import { WITHOUT_CREDIT_NOTES } from "./test-support/rejected-document-remedy-fixtures.js";
 
 const OCTOBER_FIRST_HALF = { start: "2026-10-01", end: "2026-10-15" };
 const OCTOBER_SECOND_HALF = { start: "2026-10-16", end: "2026-10-31" };
@@ -44,7 +47,7 @@ afterAll(async () => {
 });
 
 function storeOn(connection: postgres.Sql) {
-  return new DrizzleFortnightReportStore(drizzle(connection));
+  return new DrizzleFortnightReportStore(drizzle(connection), WITHOUT_CREDIT_NOTES);
 }
 
 async function onOwnConnection<TOutcome>(
@@ -152,5 +155,38 @@ describe("the fortnight report store on a real Postgres", () => {
     expect(await onOwnConnection((store) => store.holdReport(FIRST_KEY, async () => "ran"))).toBe(
       "ran",
     );
+  });
+
+  it("queues the issuing of a corrected document's credit note together with the credit note, once", async () => {
+    const creditNote = {
+      saleId: "0199b7a0-0000-7000-8000-000000000004",
+      reason: "rejected_document",
+      pointOfSale: 7,
+      associatedVoucher: { voucherType: 11, pointOfSale: 8, number: 5 },
+      total: 12_500,
+      receiverTaxStatusCode: 5,
+    } as const;
+    const credit = async () => {
+      const connection = postgres(integrationDb.databaseUrl, { max: 1 });
+      try {
+        await new DrizzleFortnightReportStore(drizzle(connection), {
+          enqueueCreditNote: enqueueCreditNoteJob,
+          now: () => AT,
+        }).holdReport(FIRST_KEY, (report) => report.creditCorrectedDocument(creditNote));
+      } finally {
+        await connection.end({ timeout: 1 });
+      }
+    };
+
+    await credit();
+    await credit();
+
+    const jobs = await sql<{ payload: { creditNoteId: string } }[]>`
+      select j.payload from graphile_worker._private_jobs j
+      join graphile_worker._private_tasks t on t.id = j.task_id
+      where t.identifier = ${CREDIT_NOTE_TASK_IDENTIFIER}`;
+    const notes = await sql<{ id: string }[]>`select id from credit_notes`;
+    expect(notes).toHaveLength(1);
+    expect(jobs.map(({ payload }) => payload.creditNoteId)).toEqual([notes[0]?.id]);
   });
 });
