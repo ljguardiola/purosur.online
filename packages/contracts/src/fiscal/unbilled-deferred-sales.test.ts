@@ -25,12 +25,18 @@ describe("unbilledDeferredSalesSchema", () => {
     ["a negative count", { count: -1, oldest: null }],
     ["a fractional count", { count: 1.5, oldest: null }],
     ["no oldest", { count: 1 }],
-    ["an oldest without its age", { count: 1, oldest: { occurred_at: "2026-10-10T15:00:00.000Z" } }],
+    [
+      "an oldest without its age",
+      { count: 1, oldest: { occurred_at: "2026-10-10T15:00:00.000Z" } },
+    ],
     [
       "a negative age",
       { count: 1, oldest: { occurred_at: "2026-10-10T15:00:00.000Z", age_days: -1 } },
     ],
-    ["an oldest that is not an instant", { count: 1, oldest: { occurred_at: "today", age_days: 1 } }],
+    [
+      "an oldest that is not an instant",
+      { count: 1, oldest: { occurred_at: "today", age_days: 1 } },
+    ],
   ])("refuses %s", (_case, body) => {
     expect(unbilledDeferredSalesSchema.safeParse(body).success).toBe(false);
   });
