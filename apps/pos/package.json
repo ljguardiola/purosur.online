@@ -22,7 +22,7 @@
     "@purosur/ui": "workspace:*",
     "@react-aria/optimize-locales-plugin": "^2.0.2",
     "@resvg/resvg-js": "^2.6.2",
-    "@sentry/electron": "^8.1.0",
+    "@sentry/electron": "^8.3.0",
     "@tailwindcss/node": "^4.3.3",
     "@tailwindcss/oxide": "^4.3.3",
     "@tailwindcss/vite": "^4.3.3",
