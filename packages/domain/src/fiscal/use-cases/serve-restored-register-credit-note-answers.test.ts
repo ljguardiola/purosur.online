@@ -119,6 +119,21 @@ describe("serveRestoredRegisterCreditNoteAnswers", () => {
     expect(served.unrequestedCreditNoteIds).toEqual(["note-1", "note-3"]);
   });
 
+  it("answers already credited only for the credit note the refusal was kept for", async () => {
+    const creditNotes = aCloud(
+      [],
+      [{ registerId: REGISTER, creditNoteId: "note-2", refusedAt: REFUSED_AT }],
+    );
+
+    const served = await serveRestoredRegisterCreditNoteAnswers(
+      { creditNotes },
+      { registerId: REGISTER, creditNoteIds: ["note-1", "note-2"] },
+    );
+
+    expect(served.answers.map(({ creditNoteId }) => creditNoteId)).toEqual(["note-2"]);
+    expect(served.unrequestedCreditNoteIds).toEqual(["note-1"]);
+  });
+
   it("neither answers nor names as unrequested the credit notes the tax authority has not answered, or answered unclearly", async () => {
     const requested = {
       kind: "requested",
