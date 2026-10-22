@@ -52,7 +52,7 @@ export interface RegisterReplenishmentTransaction {
     creditNote: SaleVoidCreditNote,
     answer: RestoredCreditNoteAnswer,
   ): Promise<void>;
-  // Holding a credit note the register already holds changes nothing.
+  // Holding a credit note the register already holds an answer or a request for changes nothing.
   holdCreditNoteToRequest(creditNote: SaleVoidCreditNote, event: PushedEvent): Promise<void>;
   holdsDeferredSaleRecord(saleId: string): Promise<boolean>;
   recordEventApplied(eventId: string): Promise<void>;
