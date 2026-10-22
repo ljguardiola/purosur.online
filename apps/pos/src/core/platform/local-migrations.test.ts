@@ -6181,7 +6181,7 @@ describe("the offline void credit notes migration", () => {
       `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
        VALUES ('s1', 'r1', 'device-a', 'u1', '2026-10-09T12:00:00.000Z', 0, 'OPEN');
        INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at)
-       VALUES ('sale-1', 'r1', 'device-a', 's1', 'u1', 'VOIDED', '2026-10-09T12:05:00.000Z'),
+       VALUES ('sale-1', 'r1', 'device-a', 's1', 'u1', 'COMPLETED', '2026-10-09T12:05:00.000Z'),
               ('sale-2', 'r1', 'device-a', 's1', 'u1', 'COMPLETED', '2026-10-09T12:06:00.000Z'),
               ('sale-3', 'r1', 'device-a', 's1', 'u1', 'COMPLETED', '2026-10-09T12:07:00.000Z');
        INSERT INTO register_offline_point_of_sale (
