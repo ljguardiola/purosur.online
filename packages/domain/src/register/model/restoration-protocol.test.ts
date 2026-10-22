@@ -13,6 +13,7 @@ const ALL_COMPLETED: RestorationEvidence = {
   reset_sync_identity: "completed",
   replenish: "completed",
   reconcile_fiscal_counters: "completed",
+  regularize_orphan_authorizations: "completed",
   cloud: "unknown",
 };
 
@@ -36,11 +37,8 @@ describe("RESTORATION_STEPS", () => {
 });
 
 describe("UNDELIVERED_RESTORATION_STEPS", () => {
-  it("names the two steps nothing delivers yet", () => {
-    expect(UNDELIVERED_RESTORATION_STEPS).toEqual([
-      "recover_contingency_tickets",
-      "regularize_orphan_authorizations",
-    ]);
+  it("names the one step nothing delivers yet", () => {
+    expect(UNDELIVERED_RESTORATION_STEPS).toEqual(["recover_contingency_tickets"]);
   });
 });
 
@@ -98,6 +96,12 @@ describe("restorationStanding", () => {
     });
   });
 
+  it("is in progress at the orphan authorizations regularization while only it is pending", () => {
+    expect(
+      restorationStanding(evidence({ regularize_orphan_authorizations: "pending" })),
+    ).toEqual({ kind: "in_progress", step: "regularize_orphan_authorizations" });
+  });
+
   it("names the earliest pending step when a later one is pending too", () => {
     expect(restorationStanding(evidence({ enroll: "pending", replenish: "pending" }))).toEqual({
       kind: "in_progress",
@@ -108,13 +112,14 @@ describe("restorationStanding", () => {
   it("names the first pending delivered step for every combination of evidence", () => {
     const step = fc.constantFrom("completed" as const, "pending" as const);
     fc.assert(
-      fc.property(step, step, step, step, step, (enroll, restore, reset, replenish, counters) => {
+      fc.property(step, step, step, step, step, step, (enroll, restore, reset, replenish, counters, orphans) => {
         const combination: RestorationEvidence = {
           enroll,
           restore,
           reset_sync_identity: reset,
           replenish,
           reconcile_fiscal_counters: counters,
+          regularize_orphan_authorizations: orphans,
           cloud: "unknown",
         };
         const [firstPending] = RESTORATION_STEPS.filter(
@@ -137,6 +142,7 @@ describe("restorationStanding without the cloud", () => {
     "reset_sync_identity",
     "replenish",
     "reconcile_fiscal_counters",
+    "regularize_orphan_authorizations",
   ] as const;
 
   it("is without connection at every pending step after enrollment when the cloud is unreachable", () => {
