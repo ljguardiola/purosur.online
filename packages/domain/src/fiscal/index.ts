@@ -59,6 +59,7 @@ export { deferredSaleExpiresOn, isDeferredSaleExpired } from "./model/deferred-s
 export { deferredSaleRecordedEvent } from "./model/deferred-sale-recorded-event.js";
 export {
   type DeferredSaleSatisfied,
+  type DeferredSaleSatisfiedFact,
   deferredSaleSatisfiedEvent,
 } from "./model/deferred-sale-satisfied-event.js";
 export type {

@@ -472,6 +472,17 @@ const deferredSaleRecordedSchema = z.object({
   routed_at: instant,
 });
 
+const deferredSaleSatisfiedSchema = z.object({
+  id: text,
+  sale_id: text,
+  register_id: text,
+  fiscal_document_id: text,
+  point_of_sale: pointOfSaleNumberSchema,
+  number: z.int().positive(),
+  issued_on: z.string().refine(isCalendarDay),
+  satisfied_at: instant,
+});
+
 const offlineFiscalDocumentIssuedSchema = z.object({
   fiscal_document_id: text,
   sale_id: text,
@@ -570,6 +581,7 @@ const PAYLOAD_SCHEMAS = {
   "cash_movement_recorded@1": cashMovementRecordedSchema,
   "fiscal_gate_failed@1": fiscalGateFailedSchema,
   "deferred_sale_recorded@1": deferredSaleRecordedSchema,
+  "deferred_sale_satisfied@1": deferredSaleSatisfiedSchema,
   "offline_fiscal_document_issued@1": offlineFiscalDocumentIssuedSchema,
   "offline_fiscal_document_issued@2": offlineFiscalDocumentIssuedV2Schema,
   "clock_corrected@1": clockCorrectedSchema,

@@ -20,6 +20,7 @@ const EVENT_TYPE_NAMES: Readonly<Record<SyncedEventType, string>> = {
   opening_count_withdrawn: "línea del inventario inicial quitada",
   clock_corrected: "corrección de reloj",
   deferred_sale_recorded: "venta diferida registrada",
+  deferred_sale_satisfied: "venta diferida facturada",
 };
 
 function isSyncedEventType(eventType: string): eventType is SyncedEventType {

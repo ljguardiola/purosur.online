@@ -454,6 +454,18 @@ const FACT_OF: {
       routedAt: new Date(payload.routed_at),
     },
   }),
+  "deferred_sale_satisfied@1": (payload) => ({
+    kind: "deferred_sale_satisfied",
+    satisfaction: {
+      id: payload.id,
+      saleId: payload.sale_id,
+      fiscalDocumentId: payload.fiscal_document_id,
+      pointOfSale: payload.point_of_sale,
+      number: payload.number,
+      issuedOn: payload.issued_on,
+      satisfiedAt: new Date(payload.satisfied_at),
+    },
+  }),
   "clock_corrected@1": (payload, event) => clockCorrection(payload, "clock_mark", event),
   "clock_corrected@2": (payload, event) =>
     clockCorrection(payload, payload.previous_reading_source, event),

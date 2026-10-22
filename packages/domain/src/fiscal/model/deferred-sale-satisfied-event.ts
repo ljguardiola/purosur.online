@@ -13,6 +13,16 @@ export interface DeferredSaleSatisfied {
   satisfiedAt: Date;
 }
 
+export interface DeferredSaleSatisfiedFact {
+  id: string;
+  saleId: string;
+  fiscalDocumentId: string;
+  pointOfSale: number;
+  number: number;
+  issuedOn: string;
+  satisfiedAt: Date;
+}
+
 export function deferredSaleSatisfiedEvent({
   eventId,
   registerId,
