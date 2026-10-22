@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { type DeferredSale, SHORT_CODE_ATTEMPTS } from "../model/deferred-sale.js";
-import { deferredSaleRecordedEvent } from "../model/deferred-sale-recorded-event.js";
+import {
+  deferredSaleRecordedEvent,
+  type UnclearDeferralDocument,
+} from "../model/deferred-sale-recorded-event.js";
 import {
   FICTIONAL_CUIT,
   FICTIONAL_GROSS_INCOME_REGISTRATION,
@@ -51,7 +54,11 @@ const UNCLEAR_DOCUMENT = {
 
 const CODES = ["7KQ4M2P9", "R3XW8H5N", "ABCDEFGH", "JKLMNPQR", "STUVWXYZ"];
 
-function eventOf(sale: DeferredSale, eventId: string, unclearDocument = FACTS.unclearDocument) {
+function eventOf(
+  sale: DeferredSale,
+  eventId: string,
+  unclearDocument: UnclearDeferralDocument | null = null,
+) {
   return deferredSaleRecordedEvent({
     eventId,
     ...FACTS.origin,
