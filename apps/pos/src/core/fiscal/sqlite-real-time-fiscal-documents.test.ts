@@ -334,6 +334,7 @@ describe("resolving a waiting document", () => {
           reason: "unclear_outcome",
           short_code: "7KQ4M2P9",
           routed_at: RESOLVED_AT.toISOString(),
+          unclear_document: null,
         },
       },
     ]);
