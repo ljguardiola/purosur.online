@@ -1,3 +1,4 @@
+import type { FacturaC } from "@purosur/domain";
 import type {
   DeferredSaleCatchUp,
   DeferredSaleCatchUpTransaction,
@@ -23,6 +24,10 @@ interface HoldingRow {
   point_of_sale: number;
   number: number;
   issued_on: string;
+  document: string;
+  authorization_code: string;
+  authorization_code_due_on: string;
+  reserved_at: string;
 }
 
 export class SqliteDeferredSaleCatchUp implements DeferredSaleCatchUp {
@@ -67,7 +72,9 @@ export class SqliteDeferredSaleCatchUp implements DeferredSaleCatchUp {
       .prepare<[], HoldingRow>(
         `SELECT deferred_sales.id AS deferred_sale_id, deferred_sales.sale_id,
                 sales.register_id, sales.actor_id, fiscal_documents.id AS fiscal_document_id,
-                fiscal_documents.point_of_sale, fiscal_documents.number, fiscal_documents.issued_on
+                fiscal_documents.point_of_sale, fiscal_documents.number, fiscal_documents.issued_on,
+                fiscal_documents.document, fiscal_documents.authorization_code,
+                fiscal_documents.authorization_code_due_on, fiscal_documents.reserved_at
          FROM deferred_sales
          JOIN sales ON sales.id = deferred_sales.sale_id
          JOIN fiscal_documents ON fiscal_documents.sale_id = deferred_sales.sale_id
@@ -84,6 +91,10 @@ export class SqliteDeferredSaleCatchUp implements DeferredSaleCatchUp {
         pointOfSale: row.point_of_sale,
         number: row.number,
         issuedOn: row.issued_on,
+        document: JSON.parse(row.document) as FacturaC,
+        authorizationCode: row.authorization_code,
+        authorizationCodeDueOn: row.authorization_code_due_on,
+        reservedAt: new Date(row.reserved_at),
       }));
   }
 

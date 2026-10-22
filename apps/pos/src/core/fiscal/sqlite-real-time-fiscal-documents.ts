@@ -44,6 +44,7 @@ interface SaleEventRow extends Omit<PushedEvent, "payload"> {
 }
 
 interface UnclearDocumentRow extends WaitingDocumentRow {
+  reserved_at: string;
   register_id: string;
   actor_id: string;
   deferred_sale_id: string | null;
@@ -99,7 +100,8 @@ export class SqliteRealTimeFiscalDocuments
     return this.database
       .prepare<[], UnclearDocumentRow>(
         `SELECT fiscal_documents.id, fiscal_documents.sale_id, point_of_sale, number, issued_on,
-                document, sales.register_id, sales.actor_id, deferred_sales.id AS deferred_sale_id
+                document, reserved_at, sales.register_id, sales.actor_id,
+                deferred_sales.id AS deferred_sale_id
          FROM fiscal_documents
          JOIN sales ON sales.id = fiscal_documents.sale_id
          LEFT JOIN deferred_sales ON deferred_sales.sale_id = fiscal_documents.sale_id
@@ -110,6 +112,7 @@ export class SqliteRealTimeFiscalDocuments
       .map((row) => ({
         ...this.waitingDocumentOf(row),
         origin: { registerId: row.register_id, actorId: row.actor_id },
+        reservedAt: new Date(row.reserved_at),
         deferredSale: row.deferred_sale_id === null ? null : { id: row.deferred_sale_id },
       }));
   }
