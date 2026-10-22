@@ -73,7 +73,7 @@ export function clockLoweringsFor(
   }
   const startOfTaxAuthorityDay = new Date(argentinaInstant(floor.lastIssuedOn, "00:00"));
   const mark = marks.find((candidate) => seriesKey(candidate) === seriesKey(floor));
-  const fromMark = mark !== undefined && mark.reading.getTime() > startOfTaxAuthorityDay.getTime();
+  const fromMark = mark !== undefined && mark.reading.getTime() >= startOfTaxAuthorityDay.getTime();
   const floorLowering: ClockLowering = {
     pointOfSale: floor.pointOfSale,
     documentType: floor.documentType,

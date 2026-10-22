@@ -584,7 +584,9 @@ function alertDescription(alert: AlertDetail, catalog: PermissionCatalogWire = [
     case "fortnight_report_owed_elsewhere":
       return "";
     case "clock_corrected":
-      return alertKindDescription(alert.kind);
+      return alert.detail.previousReadingSource === "tax_authority_day"
+        ? "Alguien confirmó desde la caja que su hora era correcta, aunque es anterior al último día autorizado por ARCA. Hasta ese día, la caja factura con el CAEA."
+        : alertKindDescription(alert.kind);
     case "register_backup_overdue":
       return `La caja «${targetName}» registró cambios y lleva más de una hora sin un backup verificado.`;
   }
