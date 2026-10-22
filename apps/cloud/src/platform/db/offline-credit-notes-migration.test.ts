@@ -175,7 +175,7 @@ describe("the offline credit notes migration applied over a database that alread
     ).rejects.toThrow();
   });
 
-  it("holds at most one credit note C per corrected voucher", async () => {
+  it("keeps a second credit note C that corrects the same voucher, so the series of numbers stays whole", async () => {
     const { database, registerId } = await migrated();
     await insertDocument(database, registerId, {
       documentType: "credit_note_c",
@@ -184,14 +184,17 @@ describe("the offline credit notes migration applied over a database that alread
       corrected: CORRECTS,
     });
 
-    await expect(
-      insertDocument(database, registerId, {
-        documentType: "credit_note_c",
-        number: 2,
-        creditNoteId: "2b2b2b2b-2b2b-4b2b-8b2b-2b2b2b2b2b2b",
-        corrected: CORRECTS,
-      }),
-    ).rejects.toThrow(/offline_fiscal_documents_corrected_voucher_key/);
+    await insertDocument(database, registerId, {
+      documentType: "credit_note_c",
+      number: 2,
+      creditNoteId: "2b2b2b2b-2b2b-4b2b-8b2b-2b2b2b2b2b2b",
+      corrected: CORRECTS,
+    });
+
+    const { rows } = await database.query(
+      "select number from offline_fiscal_documents where document_type = 'credit_note_c' order by number",
+    );
+    expect(rows).toEqual([{ number: 1 }, { number: 2 }]);
   });
 
   it.each([
