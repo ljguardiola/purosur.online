@@ -574,7 +574,7 @@ describe("synced event payloads", () => {
       expect(accepts("offline_fiscal_document_issued", 1, offline(change))).toBe(false);
     });
 
-    it.each(["no_connectivity", "unclear_outcome", "numbering_conflict"])(
+    it.each(["no_connectivity", "unclear_outcome", "numbering_conflict", "clock_correction_lapse"])(
       "accepts the cause %s",
       (cause) => {
         expect(accepts("offline_fiscal_document_issued", 1, offline({ cause }))).toBe(true);

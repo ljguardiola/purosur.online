@@ -48,6 +48,7 @@ describe("readRealTimeSeries", () => {
       numberingFrozen: false,
       clockMark: null,
       taxAuthorityLastIssuedOn: null,
+      clockCorrections: [],
     });
   });
 
@@ -73,6 +74,53 @@ describe("readRealTimeSeries", () => {
       numberingFrozen: false,
       clockMark: null,
       taxAuthorityLastIssuedOn: "2026-09-29",
+      clockCorrections: [],
+    });
+  });
+
+  describe("the clock corrections", () => {
+    function correct(
+      pointOfSale: number,
+      previousReading: string,
+      correctedReading: string,
+      documentType = "factura_c",
+    ) {
+      database
+        .prepare(
+          `INSERT INTO clock_corrections (
+             period, register_id, actor_id, point_of_sale, document_type, previous_reading, corrected_reading
+           ) VALUES ('s1', 'r1', 'u1', ?, ?, ?, ?)`,
+        )
+        .run(pointOfSale, documentType, previousReading, correctedReading);
+    }
+
+    it("are none while the point of sale was never corrected", () => {
+      insertPointOfSale(database, 40);
+
+      expect(readRealTimeSeries(database).clockCorrections).toEqual([]);
+    });
+
+    it("are every correction of the point of sale, and none of another point of sale", () => {
+      insertPointOfSale(database, 40);
+      correct(POINT_OF_SALE, "2026-10-05T15:00:00.000Z", "2026-10-02T15:00:00.000Z");
+      correct(99, "2026-10-09T15:00:00.000Z", "2026-10-08T15:00:00.000Z");
+      correct(POINT_OF_SALE, "2026-10-04T15:00:00.000Z", "2026-10-03T15:00:00.000Z");
+      correct(POINT_OF_SALE, "2026-10-06T15:00:00.000Z", "2026-10-01T15:00:00.000Z");
+
+      expect(readRealTimeSeries(database).clockCorrections).toEqual([
+        {
+          previousReading: new Date("2026-10-05T15:00:00.000Z"),
+          correctedReading: new Date("2026-10-02T15:00:00.000Z"),
+        },
+        {
+          previousReading: new Date("2026-10-04T15:00:00.000Z"),
+          correctedReading: new Date("2026-10-03T15:00:00.000Z"),
+        },
+        {
+          previousReading: new Date("2026-10-06T15:00:00.000Z"),
+          correctedReading: new Date("2026-10-01T15:00:00.000Z"),
+        },
+      ]);
     });
   });
 
