@@ -27,7 +27,7 @@ import { useAuthorizedAttempt } from "../platform/use-authorized-attempt";
 import type { fetchBuyerTaxStatuses } from "./buyer-tax-statuses-api";
 import { FixedPair } from "./fiscal-data-pair";
 import { useBuyerTaxStatusesQuery } from "./fiscal-queries";
-import type { RecordedRemedy, remedyRejectedDocument } from "./fortnight-presentations-api";
+import type { remedyRejectedDocument } from "./fortnight-presentations-api";
 import {
   buyerCuitMessage,
   buyerTaxStatusCodeMessage,
@@ -53,7 +53,7 @@ export type ReviewRejectedDocumentModalServices = {
 type ReviewRejectedDocumentModalProps = {
   target: RemedyTarget | null;
   onClose: () => void;
-  onRemedied: (target: RemedyTarget, recorded: RecordedRemedy) => void;
+  onRemedied: (target: RemedyTarget) => void;
   onOutdated: () => void;
   onSessionEnded: () => void;
   services: ReviewRejectedDocumentModalServices;
@@ -78,7 +78,7 @@ const WHERE_OPTIONS = [
 
 const BUYER_OPTIONS = [
   { value: "final_consumer", label: "Consumidor final" },
-  { value: "cuit", label: "CUIT" },
+  { value: "cuit", label: "Con CUIT" },
 ] as const;
 
 function unprocessedSentence(unprocessed: number): string {
@@ -130,9 +130,9 @@ export function ReviewRejectedDocumentModal({
       remedy: null,
       "remedy.correction.issued_on": "issuedOn",
       "remedy.correction.total": "total",
-      "remedy.correction.buyer_document_type": ({ buyerKind }) =>
+      "remedy.correction.buyer": ({ buyerKind }) =>
         buyerKind === "cuit" ? "buyerCuit" : "buyerTaxStatusCode",
-      "remedy.correction.buyer_document_number": "buyerCuit",
+      "remedy.correction.buyer.number": "buyerCuit",
       "remedy.correction.buyer_tax_status_code": "buyerTaxStatusCode",
     },
     messages: {
@@ -152,7 +152,7 @@ export function ReviewRejectedDocumentModal({
             if (opening.current) {
               onClose();
             }
-            onRemedied(target, outcome.value);
+            onRemedied(target);
           } else if (outcome.kind === "validation_failed") {
             if (!showWireFieldError(outcome.field)) {
               opening.showNotice("invalid");
@@ -325,12 +325,7 @@ export function ReviewRejectedDocumentModal({
                   </form.AppField>
                 </div>
                 <form.AppField name="buyerKind">
-                  {(field) => (
-                    <field.SegmentedControl
-                      label="Documento del comprador"
-                      options={BUYER_OPTIONS}
-                    />
-                  )}
+                  {(field) => <field.SegmentedControl label="Comprador" options={BUYER_OPTIONS} />}
                 </form.AppField>
                 {values.buyerKind === "cuit" ? (
                   <form.AppField name="buyerCuit">

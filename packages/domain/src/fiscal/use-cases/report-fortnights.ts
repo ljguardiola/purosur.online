@@ -98,7 +98,60 @@ export async function reportFortnights(
       )),
     );
   }
+  for (const corrected of await ports.reports.withReportedCorrectionsAwaitingCredit()) {
+    await ports.reports.holdReport(keyOf(corrected), (report) =>
+      creditReportedCorrections(ports, corrected, report),
+    );
+  }
   return { kind: "reported", presentations };
+}
+
+async function creditReportedCorrections(
+  { documents }: FortnightReportPorts,
+  { pointOfSaleNumber, code }: OwedFortnightReport,
+  report: HeldFortnightReport,
+): Promise<void> {
+  const issued = await documents.documentsOn(pointOfSaleNumber, code.fortnight);
+  const reportedThroughOf = new Map(
+    (await report.documentTypeReports()).map(({ documentType, reportedThrough }) => [
+      documentType,
+      reportedThrough,
+    ]),
+  );
+  const realTimePointsOfSale = new Map<string, number | null>();
+  for (const document of issued) {
+    await creditIfCorrected(
+      report,
+      pointOfSaleNumber,
+      document,
+      reportedThroughOf.get(document.documentType) ?? null,
+      realTimePointsOfSale,
+    );
+  }
+}
+
+async function creditIfCorrected(
+  report: HeldFortnightReport,
+  offlinePointOfSale: number,
+  document: OfflineDocumentOfFortnight,
+  reportedThrough: number | null,
+  realTimePointsOfSale: Map<string, number | null>,
+): Promise<void> {
+  if (!realTimePointsOfSale.has(document.registerId)) {
+    realTimePointsOfSale.set(
+      document.registerId,
+      await report.realTimePointOfSaleOf(document.registerId),
+    );
+  }
+  const creditNote = rejectedDocumentCreditNote({
+    document,
+    offlinePointOfSale,
+    realTimePointOfSale: realTimePointsOfSale.get(document.registerId) ?? null,
+    reportedThrough,
+  });
+  if (creditNote !== null) {
+    await report.creditCorrectedDocument(creditNote);
+  }
 }
 
 function presentationKey({ pointOfSaleNumber, code }: OwedFortnightReport): string {
@@ -408,21 +461,13 @@ async function presentDocumentType(
       return lookupOutcome(last);
     }
     for (const document of documents) {
-      if (!realTimePointsOfSale.has(document.registerId)) {
-        realTimePointsOfSale.set(
-          document.registerId,
-          await report.realTimePointOfSaleOf(document.registerId),
-        );
-      }
-      const creditNote = rejectedDocumentCreditNote({
+      await creditIfCorrected(
+        report,
+        pointOfSaleNumber,
         document,
-        offlinePointOfSale: pointOfSaleNumber,
-        realTimePointOfSale: realTimePointsOfSale.get(document.registerId) ?? null,
-        reportedThrough: last.number,
-      });
-      if (creditNote !== null) {
-        await report.creditCorrectedDocument(creditNote);
-      }
+        last.number,
+        realTimePointsOfSale,
+      );
     }
     if (last.number < acceptedThrough) {
       return { kind: "unclear" };

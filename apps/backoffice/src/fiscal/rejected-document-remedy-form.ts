@@ -4,13 +4,9 @@ import { formatAmountInput, formatCalendarDayRange, parseAmountCents } from "@pu
 import type { BuyerTaxStatus } from "./buyer-tax-statuses-api";
 import type { CorrectionRefusal, RejectedDocument } from "./fortnight-presentations-api";
 
-const FINAL_CONSUMER_DOCUMENT_TYPE = 99;
-const FINAL_CONSUMER_DOCUMENT_NUMBER = 0;
-const CUIT_DOCUMENT_TYPE = 80;
-
 type PresentedValues = Pick<
   RejectedDocument,
-  "issuedOn" | "total" | "buyerDocumentType" | "buyerDocumentNumber" | "buyerTaxStatusCode"
+  "issuedOn" | "total" | "buyer" | "buyerTaxStatusCode"
 >;
 
 export type RemedyFormValues = {
@@ -39,8 +35,7 @@ export const EMPTY_REMEDY_FORM: RemedyFormValues = {
   presented: {
     issuedOn: "",
     total: 0,
-    buyerDocumentType: FINAL_CONSUMER_DOCUMENT_TYPE,
-    buyerDocumentNumber: FINAL_CONSUMER_DOCUMENT_NUMBER,
+    buyer: { kind: "final_consumer" },
     buyerTaxStatusCode: 0,
   },
   errorIn: "report",
@@ -56,7 +51,7 @@ export function remedyFormValuesFrom({
   fortnight,
   rejectedDocument,
 }: RemedyTarget): RemedyFormValues {
-  const isCuit = rejectedDocument.buyerDocumentType === CUIT_DOCUMENT_TYPE;
+  const { buyer } = rejectedDocument;
   return {
     pointOfSaleNumber,
     fortnightStart: fortnight.start,
@@ -64,15 +59,14 @@ export function remedyFormValuesFrom({
     presented: {
       issuedOn: rejectedDocument.issuedOn,
       total: rejectedDocument.total,
-      buyerDocumentType: rejectedDocument.buyerDocumentType,
-      buyerDocumentNumber: rejectedDocument.buyerDocumentNumber,
+      buyer,
       buyerTaxStatusCode: rejectedDocument.buyerTaxStatusCode,
     },
     errorIn: "report",
     issuedOn: parseDate(rejectedDocument.issuedOn),
     total: formatAmountInput(rejectedDocument.total),
-    buyerKind: isCuit ? "cuit" : "final_consumer",
-    buyerCuit: isCuit ? String(rejectedDocument.buyerDocumentNumber) : "",
+    buyerKind: buyer.kind === "cuit" ? "cuit" : "final_consumer",
+    buyerCuit: buyer.kind === "cuit" ? String(buyer.number) : "",
     buyerTaxStatusCode: String(rejectedDocument.buyerTaxStatusCode),
   };
 }
@@ -84,25 +78,31 @@ function wholeNumberOf(typed: string): number {
 
 type Correction = Extract<RejectedDocumentRemedyBody["remedy"], { kind: "printed" }>["correction"];
 
+type ChosenBuyer = NonNullable<Correction["buyer"]>;
+
+function chosenBuyerOf({ buyerKind, buyerCuit }: RemedyFormValues): ChosenBuyer {
+  return buyerKind === "cuit"
+    ? { kind: "cuit", number: wholeNumberOf(buyerCuit) }
+    : { kind: "final_consumer" };
+}
+
+function isPresentedBuyer(chosen: ChosenBuyer, presented: PresentedValues["buyer"]): boolean {
+  if (chosen.kind === "cuit") {
+    return presented.kind === "cuit" && presented.number === chosen.number;
+  }
+  return presented.kind === chosen.kind;
+}
+
 function correctionFrom(values: RemedyFormValues): Correction {
   const { presented } = values;
   const total = parseAmountCents(values.total) ?? Number.NaN;
-  const isCuit = values.buyerKind === "cuit";
-  const buyerDocumentType = isCuit ? CUIT_DOCUMENT_TYPE : FINAL_CONSUMER_DOCUMENT_TYPE;
-  const buyerDocumentNumber = isCuit
-    ? wholeNumberOf(values.buyerCuit)
-    : FINAL_CONSUMER_DOCUMENT_NUMBER;
+  const buyer = chosenBuyerOf(values);
   const buyerTaxStatusCode = wholeNumberOf(values.buyerTaxStatusCode);
   const issuedOn = values.issuedOn?.toString();
   return {
     ...(issuedOn !== undefined && issuedOn !== presented.issuedOn ? { issued_on: issuedOn } : {}),
     ...(total !== presented.total ? { total } : {}),
-    ...(buyerDocumentType !== presented.buyerDocumentType
-      ? { buyer_document_type: buyerDocumentType }
-      : {}),
-    ...(buyerDocumentNumber !== presented.buyerDocumentNumber
-      ? { buyer_document_number: buyerDocumentNumber }
-      : {}),
+    ...(isPresentedBuyer(buyer, presented.buyer) ? {} : { buyer }),
     ...(buyerTaxStatusCode !== presented.buyerTaxStatusCode
       ? { buyer_tax_status_code: buyerTaxStatusCode }
       : {}),

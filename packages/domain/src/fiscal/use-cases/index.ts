@@ -401,6 +401,10 @@ export type {
 } from "./regularize-orphan-authorization.js";
 export { regularizeOrphanAuthorization } from "./regularize-orphan-authorization.js";
 export type {
+  FortnightPresentationAwaitingRemedy,
+  RejectedFortnightDocumentReader,
+} from "./rejected-fortnight-document-reader.js";
+export type {
   RemedyRejectedDocumentInput,
   RemedyRejectedDocumentOutcome,
 } from "./remedy-rejected-document.js";

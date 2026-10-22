@@ -13,16 +13,47 @@ export function remedyKey(
   return `${pointOfSale}:${fortnightStart}:${documentType}:${number}`;
 }
 
+function rejectionKey(documentKey: string, rejectedAt: Date | null): string {
+  return `${documentKey}:${rejectedAt?.toISOString() ?? "never attempted"}`;
+}
+
+export interface RemediedRejection {
+  pointOfSale: number;
+  fortnightStart: string;
+  documentType: string;
+  rejectedNumber: number | null;
+  lastAttemptAt: Date | null;
+}
+
 export interface RecordedRemedies {
   corrections: Map<string, OfflineDocumentCorrection>;
-  latest: Map<string, RecordedRemedy>;
+  remedyOf(rejection: RemediedRejection): RecordedRemedy | null;
 }
 
 export async function recordedRemedies<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   { pointsOfSale, fortnightStart }: { pointsOfSale: number[]; fortnightStart?: string },
 ): Promise<RecordedRemedies> {
-  const recorded: RecordedRemedies = { corrections: new Map(), latest: new Map() };
+  const corrections = new Map<string, OfflineDocumentCorrection>();
+  const byRejection = new Map<string, RecordedRemedy>();
+  const recorded: RecordedRemedies = {
+    corrections,
+    remedyOf: ({
+      pointOfSale,
+      fortnightStart: start,
+      documentType,
+      rejectedNumber,
+      lastAttemptAt,
+    }) =>
+      rejectedNumber === null
+        ? null
+        : (byRejection.get(
+            rejectionKey(
+              remedyKey(pointOfSale, start, documentType, rejectedNumber),
+              lastAttemptAt,
+            ),
+          ) ?? null),
+  };
   if (pointsOfSale.length === 0) {
     return recorded;
   }
@@ -37,16 +68,19 @@ export async function recordedRemedies<TQueryResult extends PgQueryResultHKT>(
       documentType: rejectedDocumentRemedies.documentType,
       number: rejectedDocumentRemedies.number,
       correction: rejectedDocumentRemedies.correction,
-      recordedAt: rejectedDocumentRemedies.recordedAt,
+      rejectedAt: rejectedDocumentRemedies.rejectedAt,
     })
     .from(rejectedDocumentRemedies)
     .where(and(inArray(rejectedDocumentRemedies.pointOfSaleNumber, pointsOfSale), ...ofFortnight))
     .orderBy(asc(rejectedDocumentRemedies.recordedAt), asc(rejectedDocumentRemedies.id));
   for (const row of rows) {
     const key = remedyKey(row.pointOfSale, row.fortnightStart, row.documentType, row.number);
-    recorded.latest.set(key, { number: row.number, recordedAt: row.recordedAt });
+    byRejection.set(rejectionKey(key, row.rejectedAt), {
+      number: row.number,
+      rejectedAt: row.rejectedAt,
+    });
     if (row.correction !== null) {
-      recorded.corrections.set(key, row.correction);
+      corrections.set(key, row.correction);
     }
   }
   return recorded;

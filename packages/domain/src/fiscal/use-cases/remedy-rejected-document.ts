@@ -28,7 +28,7 @@ export type RemedyRejectedDocumentOutcome =
   | { kind: "already_remedied" }
   | { kind: "document_not_found" }
   | { kind: "correction_refused"; refusal: OfflineDocumentCorrectionRefusal }
-  | { kind: "remedied"; recordedAt: Date; changes: DocumentFieldChange[] };
+  | { kind: "remedied" };
 
 export function remedyRejectedDocument(
   { store, clock }: RemedyRejectedDocumentPorts,
@@ -86,6 +86,7 @@ export function remedyRejectedDocument(
       documentType,
       number,
       remedy: recorded,
+      rejectedAt: rejection.lastAttemptAt,
       recordedAt: at,
     });
     await tx.recordRemedyAudit({
@@ -98,6 +99,6 @@ export function remedyRejectedDocument(
       at,
       changes,
     });
-    return { kind: "remedied", recordedAt: at, changes };
+    return { kind: "remedied" };
   });
 }

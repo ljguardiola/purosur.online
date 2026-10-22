@@ -79,6 +79,7 @@ class DrizzleRejectedDocumentRemedyTransaction<TQueryResult extends PgQueryResul
     documentType,
     number,
     remedy,
+    rejectedAt,
     recordedAt,
   }: RejectedDocumentRemedyRecord): Promise<void> {
     await this.tx.insert(rejectedDocumentRemedies).values({
@@ -88,6 +89,7 @@ class DrizzleRejectedDocumentRemedyTransaction<TQueryResult extends PgQueryResul
       number,
       kind: remedy.kind,
       correction: remedy.kind === "printed" ? remedy.correction : null,
+      rejectedAt,
       recordedAt,
     });
   }

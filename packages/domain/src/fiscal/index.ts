@@ -190,8 +190,10 @@ export {
 } from "./model/real-time-authorization.js";
 export { REGISTER_CLOCK_TOLERANCE_MS, raisedClockMark } from "./model/register-clock.js";
 export type {
+  CorrectedBuyer,
   CorrectedField,
   DocumentFieldChange,
+  OfflineDocumentBuyer,
   OfflineDocumentCorrection,
   OfflineDocumentCorrectionRefusal,
   PresentableOfflineDocument,
@@ -202,6 +204,7 @@ export type {
 } from "./model/rejected-document-remedy.js";
 export {
   awaitsRemedy,
+  buyerIdentificationOf,
   presentedOfflineDocument,
   remedyAwaitsResend,
 } from "./model/rejected-document-remedy.js";

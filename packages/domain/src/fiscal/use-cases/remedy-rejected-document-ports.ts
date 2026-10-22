@@ -17,6 +17,7 @@ export interface RejectedDocumentRemedyRecord {
   documentType: FiscalDocumentType;
   number: number;
   remedy: RejectedDocumentRemedy;
+  rejectedAt: Date | null;
   recordedAt: Date;
 }
 

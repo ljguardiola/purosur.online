@@ -1,12 +1,11 @@
 import {
   type RejectedDocumentRemedyBody,
   rejectedDocumentRemedyBodySchema,
-  rejectedDocumentRemedyResponseSchema,
 } from "@purosur/contracts";
-import type {
-  DocumentFieldChange,
-  OfflineDocumentCorrectionRefusal,
-  RejectedDocumentRemedy,
+import {
+  buyerIdentificationOf,
+  type OfflineDocumentCorrectionRefusal,
+  type RejectedDocumentRemedy,
 } from "@purosur/domain";
 import { remedyRejectedDocument } from "@purosur/domain/fiscal/use-cases";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
@@ -43,29 +42,17 @@ const DOCUMENT_NOT_FOUND_RESPONSE = {
   message: "the presentation has no document with that number",
 } as const;
 
-const SNAKE_FIELD: Record<DocumentFieldChange["field"], string> = {
-  issuedOn: "issued_on",
-  total: "total",
-  buyerDocumentType: "buyer_document_type",
-  buyerDocumentNumber: "buyer_document_number",
-  buyerTaxStatusCode: "buyer_tax_status_code",
-};
-
 function remedyOf(wire: RejectedDocumentRemedyBody["remedy"]): RejectedDocumentRemedy {
   if (wire.kind === "report") {
     return { kind: "report" };
   }
-  const { issued_on, total, buyer_document_type, buyer_document_number, buyer_tax_status_code } =
-    wire.correction;
+  const { issued_on, total, buyer, buyer_tax_status_code } = wire.correction;
   return {
     kind: "printed",
     correction: {
       ...(issued_on === undefined ? {} : { issuedOn: issued_on }),
       ...(total === undefined ? {} : { total }),
-      ...(buyer_document_type === undefined ? {} : { buyerDocumentType: buyer_document_type }),
-      ...(buyer_document_number === undefined
-        ? {}
-        : { buyerDocumentNumber: buyer_document_number }),
+      ...(buyer === undefined ? {} : buyerIdentificationOf(buyer)),
       ...(buyer_tax_status_code === undefined ? {} : { buyerTaxStatusCode: buyer_tax_status_code }),
     },
   };
@@ -132,16 +119,7 @@ export function registerRejectedDocumentRemedyRoute<TQueryResult extends PgQuery
           await reply.code(422).send(correctionRefusedResponse(outcome.refusal));
           return;
         case "remedied":
-          await reply.code(200).send(
-            rejectedDocumentRemedyResponseSchema.parse({
-              recorded_at: outcome.recordedAt.toISOString(),
-              changes: outcome.changes.map(({ field, before, after }) => ({
-                field: SNAKE_FIELD[field],
-                before,
-                after,
-              })),
-            }),
-          );
+          await reply.code(204).send();
           return;
       }
     },

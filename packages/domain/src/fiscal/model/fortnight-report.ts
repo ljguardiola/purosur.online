@@ -3,6 +3,8 @@ import type { TaxAuthorityRejection } from "./fiscal-rejection-standing.js";
 import type { Fortnight } from "./offline-authorization-code.js";
 import {
   awaitsRemedy,
+  type OfflineDocumentBuyer,
+  offlineDocumentBuyerOf,
   type PresentableOfflineDocument,
   presentedOfflineDocument,
   type RecordedRemedy,
@@ -173,11 +175,9 @@ export type RejectedDocumentRemedyState = "awaiting_remedy" | "awaiting_resend";
 export interface RejectedDocumentOfPresentation {
   number: number;
   unprocessed: number;
-  documentId: string;
   issuedOn: string;
   total: number;
-  buyerDocumentType: number;
-  buyerDocumentNumber: number;
+  buyer: OfflineDocumentBuyer;
   buyerTaxStatusCode: number;
   rejections: TaxAuthorityRejection[];
   remedy: RejectedDocumentRemedyState;
@@ -205,11 +205,9 @@ function rejectedDocumentOf<TDocumentType extends string>(
   return {
     number: rejectedNumber,
     unprocessed: documents.filter(({ number }) => number > rejectedNumber).length,
-    documentId: presented.id,
     issuedOn: presented.issuedOn,
     total: presented.total,
-    buyerDocumentType: presented.buyerDocumentType,
-    buyerDocumentNumber: presented.buyerDocumentNumber,
+    buyer: offlineDocumentBuyerOf(presented),
     buyerTaxStatusCode: presented.buyerTaxStatusCode,
     rejections: report.rejections,
     remedy: awaitsRemedy(report, report.remedy) ? "awaiting_remedy" : "awaiting_resend",

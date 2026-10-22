@@ -2,7 +2,6 @@ import {
   type FortnightPresentationBody,
   fortnightPresentationListSchema,
   type RejectedDocumentRemedyBody,
-  rejectedDocumentRemedyResponseSchema,
 } from "@purosur/contracts";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { readValidationFailedField } from "../platform/validation-failed-field";
@@ -14,14 +13,14 @@ import {
   writeFailureOf,
 } from "./fiscal-api-request";
 
+type RejectedDocumentBody = NonNullable<FortnightPresentationBody["rejected_document"]>;
+
 export type RejectedDocument = {
   number: number;
   unprocessed: number;
-  documentId: string;
   issuedOn: string;
   total: number;
-  buyerDocumentType: number;
-  buyerDocumentNumber: number;
+  buyer: RejectedDocumentBody["buyer"];
   buyerTaxStatusCode: number;
   rejections: { code: number; message: string }[];
   remedy: "awaiting_remedy" | "awaiting_resend";
@@ -34,13 +33,8 @@ export type CorrectionRefusal =
   | "invalid_total"
   | "invalid_buyer_identification";
 
-export type RecordedRemedy = {
-  recordedAt: string;
-  changes: { field: string; before: string | number; after: string | number }[];
-};
-
 export type RemedyRejectedDocumentOutcome =
-  | { kind: "ok"; value: RecordedRemedy }
+  | { kind: "ok" }
   | { kind: "validation_failed"; field: string }
   | { kind: "not_found" }
   | { kind: "not_rejected" }
@@ -75,17 +69,13 @@ export type FortnightPresentation = {
 
 export type FetchFortnightPresentationsOutcome = CloudReadOutcome<FortnightPresentation[]>;
 
-function rejectedDocumentFromWire(
-  row: NonNullable<FortnightPresentationBody["rejected_document"]>,
-): RejectedDocument {
+function rejectedDocumentFromWire(row: RejectedDocumentBody): RejectedDocument {
   return {
     number: row.number,
     unprocessed: row.unprocessed,
-    documentId: row.document_id,
     issuedOn: row.issued_on,
     total: row.total,
-    buyerDocumentType: row.buyer_document_type,
-    buyerDocumentNumber: row.buyer_document_number,
+    buyer: row.buyer,
     buyerTaxStatusCode: row.buyer_tax_status_code,
     rejections: row.rejections,
     remedy: row.remedy,
@@ -125,15 +115,7 @@ export async function remedyRejectedDocument(
     return { kind: "failed" };
   }
   if (response.ok) {
-    const parsed = rejectedDocumentRemedyResponseSchema.safeParse(
-      await response.json().catch(() => undefined),
-    );
-    return parsed.success
-      ? {
-          kind: "ok",
-          value: { recordedAt: parsed.data.recorded_at, changes: parsed.data.changes },
-        }
-      : { kind: "failed" };
+    return { kind: "ok" };
   }
   if (response.status === 400) {
     const field = await readValidationFailedField(response);

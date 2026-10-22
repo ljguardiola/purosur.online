@@ -1,20 +1,34 @@
-import { FACTURA_C_DOCUMENT_TYPE } from "@purosur/domain";
+import {
+  type CorrectedBuyer,
+  FACTURA_C_DOCUMENT_TYPE,
+  isCalendarDay,
+  type OfflineDocumentBuyer,
+} from "@purosur/domain";
 import { z } from "zod";
 import { pointOfSaleNumberSchema } from "../shared/index.js";
 
-const CORRECTED_FIELDS = [
-  "issued_on",
-  "total",
-  "buyer_document_type",
-  "buyer_document_number",
-  "buyer_tax_status_code",
-] as const;
+const calendarDaySchema = z.string().refine(isCalendarDay);
+
+const finalConsumerSchema = z.object({ kind: z.literal("final_consumer") });
+
+const buyerWithCuitSchema = z.object({ kind: z.literal("cuit"), number: z.number().int() });
+
+const correctedBuyerSchema: z.ZodType<CorrectedBuyer, CorrectedBuyer> = z.discriminatedUnion(
+  "kind",
+  [finalConsumerSchema, buyerWithCuitSchema],
+);
+
+export const offlineDocumentBuyerSchema: z.ZodType<OfflineDocumentBuyer, OfflineDocumentBuyer> =
+  z.discriminatedUnion("kind", [
+    finalConsumerSchema,
+    buyerWithCuitSchema,
+    z.object({ kind: z.literal("other") }),
+  ]);
 
 const documentCorrectionSchema = z.object({
-  issued_on: z.string().optional(),
+  issued_on: calendarDaySchema.optional(),
   total: z.number().int().optional(),
-  buyer_document_type: z.number().int().optional(),
-  buyer_document_number: z.number().int().optional(),
+  buyer: correctedBuyerSchema.optional(),
   buyer_tax_status_code: z.number().int().optional(),
 });
 
@@ -25,24 +39,10 @@ const rejectedDocumentRemedySchema = z.discriminatedUnion("kind", [
 
 export const rejectedDocumentRemedyBodySchema = z.object({
   point_of_sale_number: pointOfSaleNumberSchema,
-  fortnight_start: z.string(),
+  fortnight_start: calendarDaySchema,
   document_type: z.literal(FACTURA_C_DOCUMENT_TYPE),
   number: z.number().int().positive(),
   remedy: rejectedDocumentRemedySchema,
 });
 
-export const rejectedDocumentRemedyResponseSchema = z.object({
-  recorded_at: z.iso.datetime(),
-  changes: z.array(
-    z.object({
-      field: z.enum(CORRECTED_FIELDS),
-      before: z.union([z.string(), z.number()]),
-      after: z.union([z.string(), z.number()]),
-    }),
-  ),
-});
-
 export type RejectedDocumentRemedyBody = z.input<typeof rejectedDocumentRemedyBodySchema>;
-export type RejectedDocumentRemedyResponseBody = z.output<
-  typeof rejectedDocumentRemedyResponseSchema
->;

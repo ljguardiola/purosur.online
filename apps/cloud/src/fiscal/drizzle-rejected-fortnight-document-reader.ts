@@ -1,12 +1,12 @@
 import { awaitsRemedy } from "@purosur/domain";
 import type {
-  RejectedFortnightDocument,
+  FortnightPresentationAwaitingRemedy,
   RejectedFortnightDocumentReader,
-} from "@purosur/domain/alerts/use-cases";
+} from "@purosur/domain/fiscal/use-cases";
 import { eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { fortnightDocumentReports, pointOfSaleClaims } from "../platform/db/schema.js";
-import { recordedRemedies, remedyKey } from "./drizzle-rejected-document-remedies.js";
+import { recordedRemedies } from "./drizzle-rejected-document-remedies.js";
 
 export class DrizzleRejectedFortnightDocumentReader<TQueryResult extends PgQueryResultHKT>
   implements RejectedFortnightDocumentReader
@@ -17,7 +17,7 @@ export class DrizzleRejectedFortnightDocumentReader<TQueryResult extends PgQuery
     this.db = db;
   }
 
-  async presentationsAwaitingRemedy(): Promise<RejectedFortnightDocument[]> {
+  async presentationsAwaitingRemedy(): Promise<FortnightPresentationAwaitingRemedy[]> {
     const refused = await this.db
       .select({
         pointOfSaleNumber: fortnightDocumentReports.pointOfSaleNumber,
@@ -35,7 +35,7 @@ export class DrizzleRejectedFortnightDocumentReader<TQueryResult extends PgQuery
         eq(pointOfSaleClaims.pointOfSaleNumber, fortnightDocumentReports.pointOfSaleNumber),
       )
       .where(eq(fortnightDocumentReports.state, "refused"));
-    const { latest } = await recordedRemedies(this.db, {
+    const { remedyOf } = await recordedRemedies(this.db, {
       pointsOfSale: [...new Set(refused.map(({ pointOfSaleNumber }) => pointOfSaleNumber))],
     });
     return refused.flatMap(
@@ -43,9 +43,13 @@ export class DrizzleRejectedFortnightDocumentReader<TQueryResult extends PgQuery
         rejectedNumber !== null &&
         awaitsRemedy(
           { ...rejection, rejectedNumber },
-          latest.get(
-            remedyKey(rejection.pointOfSaleNumber, fortnightStart, documentType, rejectedNumber),
-          ) ?? null,
+          remedyOf({
+            pointOfSale: rejection.pointOfSaleNumber,
+            fortnightStart,
+            documentType,
+            rejectedNumber,
+            lastAttemptAt: rejection.lastAttemptAt,
+          }),
         )
           ? [
               {

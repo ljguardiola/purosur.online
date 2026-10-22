@@ -24,11 +24,9 @@ function toRejectedDocumentWire(rejected: BranchFortnightPresentation["rejectedD
     : {
         number: rejected.number,
         unprocessed: rejected.unprocessed,
-        document_id: rejected.documentId,
         issued_on: rejected.issuedOn,
         total: rejected.total,
-        buyer_document_type: rejected.buyerDocumentType,
-        buyer_document_number: rejected.buyerDocumentNumber,
+        buyer: rejected.buyer,
         buyer_tax_status_code: rejected.buyerTaxStatusCode,
         rejections: rejected.rejections,
         remedy: rejected.remedy,

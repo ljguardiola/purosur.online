@@ -6,6 +6,7 @@ CREATE TABLE "rejected_document_remedies" (
 	"number" integer NOT NULL,
 	"kind" text NOT NULL,
 	"correction" jsonb,
+	"rejected_at" timestamp with time zone,
 	"recorded_at" timestamp with time zone NOT NULL,
 	CONSTRAINT "rejected_document_remedies_kind_check" CHECK ("rejected_document_remedies"."kind" in ('report', 'printed')),
 	CONSTRAINT "rejected_document_remedies_correction_check" CHECK (("rejected_document_remedies"."kind" = 'printed') = ("rejected_document_remedies"."correction" is not null))

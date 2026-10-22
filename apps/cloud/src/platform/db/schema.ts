@@ -2310,6 +2310,7 @@ export const rejectedDocumentRemedies = pgTable(
     number: integer("number").notNull(),
     kind: text("kind").$type<RejectedDocumentRemedy["kind"]>().notNull(),
     correction: jsonb("correction").$type<OfflineDocumentCorrection>(),
+    rejectedAt: timestamp("rejected_at", { withTimezone: true }),
     recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull(),
   },
   (table) => [

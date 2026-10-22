@@ -84,6 +84,7 @@ export interface HeldFortnightReport {
 export interface FortnightReportStore {
   owedReports(today: string): Promise<OwedFortnightReport[]>;
   acceptedWithUnreportedDocuments(): Promise<OwedFortnightReport[]>;
+  withReportedCorrectionsAwaitingCredit(): Promise<OwedFortnightReport[]>;
   holdReport<TOutcome>(
     key: FortnightReportKey,
     work: (report: HeldFortnightReport) => Promise<TOutcome>,

@@ -1,5 +1,5 @@
 {
-  "id": "94cf3a70-8875-45ae-ae1e-92e1fc39d866",
+  "id": "cb2dcf05-f06b-491a-a85f-17c7a3895574",
   "prevId": "e0d806a1-03d0-4344-8c48-8877a76f332a",
   "version": "7",
   "dialect": "postgresql",
@@ -8154,6 +8154,12 @@
         "correction": {
           "name": "correction",
           "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "rejected_at": {
+          "name": "rejected_at",
+          "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
         },

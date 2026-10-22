@@ -4,7 +4,7 @@ import {
   FINAL_CONSUMER_DOCUMENT_NUMBER,
   FINAL_CONSUMER_DOCUMENT_TYPE,
 } from "./factura-c-fiscal-block.js";
-import type { DocumentTypeReportState } from "./fortnight-report.js";
+import { type DocumentTypeReportState, isOfflineDocumentReported } from "./fortnight-report.js";
 import type { Fortnight } from "./offline-authorization-code.js";
 
 const CUIT_DOCUMENT_TYPE = 80;
@@ -74,7 +74,16 @@ export interface RejectedDocumentRejection {
 
 export interface RecordedRemedy {
   number: number;
-  recordedAt: Date;
+  rejectedAt: Date | null;
+}
+
+export type CorrectedBuyer = { kind: "final_consumer" } | { kind: "cuit"; number: number };
+
+export type OfflineDocumentBuyer = CorrectedBuyer | { kind: "other" };
+
+interface BuyerIdentification {
+  buyerDocumentType: number;
+  buyerDocumentNumber: number;
 }
 
 export interface RejectedDocumentCreditNote {
@@ -129,6 +138,28 @@ export function correctionAfter(
     Object.assign(correction, { [change.field]: change.after });
   }
   return correction;
+}
+
+export function offlineDocumentBuyerOf({
+  buyerDocumentType,
+  buyerDocumentNumber,
+}: BuyerIdentification): OfflineDocumentBuyer {
+  if (buyerDocumentType === CUIT_DOCUMENT_TYPE) {
+    return { kind: "cuit", number: buyerDocumentNumber };
+  }
+  return buyerDocumentType === FINAL_CONSUMER_DOCUMENT_TYPE &&
+    buyerDocumentNumber === FINAL_CONSUMER_DOCUMENT_NUMBER
+    ? { kind: "final_consumer" }
+    : { kind: "other" };
+}
+
+export function buyerIdentificationOf(buyer: CorrectedBuyer): BuyerIdentification {
+  return buyer.kind === "cuit"
+    ? { buyerDocumentType: CUIT_DOCUMENT_TYPE, buyerDocumentNumber: buyer.number }
+    : {
+        buyerDocumentType: FINAL_CONSUMER_DOCUMENT_TYPE,
+        buyerDocumentNumber: FINAL_CONSUMER_DOCUMENT_NUMBER,
+      };
 }
 
 function isBuyerIdentified(documentType: number, documentNumber: number): boolean {
@@ -211,14 +242,14 @@ export function offlineDocumentCorrectionRefusal({
   return null;
 }
 
-function isRemediedAfter(
+function isRemedyOf(
   { rejectedNumber, lastAttemptAt }: RejectedDocumentRejection,
   remedy: RecordedRemedy | null,
 ): boolean {
   return (
     remedy !== null &&
     remedy.number === rejectedNumber &&
-    (lastAttemptAt === null || remedy.recordedAt > lastAttemptAt)
+    remedy.rejectedAt?.getTime() === lastAttemptAt?.getTime()
   );
 }
 
@@ -230,14 +261,14 @@ export function awaitsRemedy(
   rejection: RejectedDocumentRejection,
   remedy: RecordedRemedy | null,
 ): boolean {
-  return isRejectedDocument(rejection) && !isRemediedAfter(rejection, remedy);
+  return isRejectedDocument(rejection) && !isRemedyOf(rejection, remedy);
 }
 
 export function remedyAwaitsResend(
   rejection: RejectedDocumentRejection,
   remedy: RecordedRemedy | null,
 ): boolean {
-  return isRejectedDocument(rejection) && isRemediedAfter(rejection, remedy);
+  return isRejectedDocument(rejection) && isRemedyOf(rejection, remedy);
 }
 
 export function rejectedDocumentCreditNote({
@@ -249,12 +280,12 @@ export function rejectedDocumentCreditNote({
   document: CorrectableDocument & { saleId: string };
   offlinePointOfSale: number;
   realTimePointOfSale: number | null;
-  reportedThrough: number;
+  reportedThrough: number | null;
 }): RejectedDocumentCreditNote | null {
   if (
     document.correction === null ||
     realTimePointOfSale === null ||
-    document.number > reportedThrough
+    !isOfflineDocumentReported(document.number, reportedThrough)
   ) {
     return null;
   }

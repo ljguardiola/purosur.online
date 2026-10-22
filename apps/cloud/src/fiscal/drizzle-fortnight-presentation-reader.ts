@@ -59,7 +59,7 @@ export class DrizzleFortnightPresentationReader<TQueryResult extends PgQueryResu
             })
             .from(fortnightDocumentReports)
             .where(inArray(fortnightDocumentReports.pointOfSaleNumber, pointsOfSale));
-    const { corrections, latest } = await recordedRemedies(this.db, { pointsOfSale });
+    const { corrections, remedyOf } = await recordedRemedies(this.db, { pointsOfSale });
     return presentations
       .flatMap(({ owed: { pointOfSaleNumber, registerId, code }, state, movement, listed }) => {
         const isOfThisPresentation = (row: { pointOfSale: number; fortnightStart: string }) =>
@@ -82,17 +82,7 @@ export class DrizzleFortnightPresentationReader<TQueryResult extends PgQueryResu
           documentReports: documentReports.filter(isOfThisPresentation).map((report) => ({
             ...report,
             rejections: report.rejections ?? [],
-            remedy:
-              report.rejectedNumber === null
-                ? null
-                : (latest.get(
-                    remedyKey(
-                      pointOfSaleNumber,
-                      report.fortnightStart,
-                      report.documentType,
-                      report.rejectedNumber,
-                    ),
-                  ) ?? null),
+            remedy: remedyOf(report),
           })),
           listedAsOwed: listed,
         }).map((row) => ({

@@ -7,6 +7,7 @@ import {
 } from "@purosur/domain";
 import { z } from "zod";
 import { pointOfSaleNumberSchema } from "../shared/index.js";
+import { offlineDocumentBuyerSchema } from "./rejected-document-remedy.js";
 
 const fortnightPresentationStateSchema: z.ZodType<FortnightPresentationState> = z.enum([
   "blocked",
@@ -36,11 +37,9 @@ const rejectedDocumentRemedyStateSchema: z.ZodType<RejectedDocumentRemedyState> 
 const rejectedDocumentSchema = z.object({
   number: z.number().int().positive(),
   unprocessed: z.number().int().nonnegative(),
-  document_id: z.string(),
   issued_on: z.string(),
   total: z.number().int(),
-  buyer_document_type: z.number().int(),
-  buyer_document_number: z.number().int(),
+  buyer: offlineDocumentBuyerSchema,
   buyer_tax_status_code: z.number().int(),
   rejections: z.array(z.object({ code: z.number().int(), message: z.string() })),
   remedy: rejectedDocumentRemedyStateSchema,

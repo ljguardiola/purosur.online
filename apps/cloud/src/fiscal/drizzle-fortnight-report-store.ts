@@ -1,4 +1,4 @@
-import { isOfflineDocumentReported } from "@purosur/domain";
+import { FACTURA_C_VOUCHER_TYPE, isOfflineDocumentReported } from "@purosur/domain";
 import type {
   DocumentTypeReportChange,
   FortnightReportChange,
@@ -10,7 +10,7 @@ import type {
   RecordedFortnightReport,
   RejectedDocumentCreditNote,
 } from "@purosur/domain/fiscal/use-cases";
-import { and, eq, inArray, isNotNull, sql } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import {
   creditNotes,
@@ -18,6 +18,7 @@ import {
   fortnightReports,
   offlineFiscalDocuments,
   registerPointsOfSale,
+  rejectedDocumentRemedies,
 } from "../platform/db/schema.js";
 import { recordedDocumentTypeReports } from "./drizzle-recorded-document-type-reports.js";
 import type { EnqueueCreditNote } from "./enqueue-credit-note.js";
@@ -261,6 +262,43 @@ export class DrizzleFortnightReportStore<TQueryResult extends PgQueryResultHKT>
       this.db,
       accepted.filter(({ pointOfSaleNumber, fortnightStart }) =>
         unreported.has(`${pointOfSaleNumber}:${fortnightStart}`),
+      ),
+    );
+  }
+
+  async withReportedCorrectionsAwaitingCredit(): Promise<OwedFortnightReport[]> {
+    const corrected = await this.db
+      .selectDistinct({
+        pointOfSaleNumber: rejectedDocumentRemedies.pointOfSaleNumber,
+        fortnightStart: rejectedDocumentRemedies.fortnightStart,
+        number: rejectedDocumentRemedies.number,
+        reportedThrough: fortnightDocumentReports.reportedThrough,
+      })
+      .from(rejectedDocumentRemedies)
+      .innerJoin(
+        fortnightDocumentReports,
+        and(
+          eq(
+            fortnightDocumentReports.pointOfSaleNumber,
+            rejectedDocumentRemedies.pointOfSaleNumber,
+          ),
+          eq(fortnightDocumentReports.fortnightStart, rejectedDocumentRemedies.fortnightStart),
+          eq(fortnightDocumentReports.documentType, rejectedDocumentRemedies.documentType),
+        ),
+      )
+      .leftJoin(
+        creditNotes,
+        and(
+          eq(creditNotes.associatedVoucherType, FACTURA_C_VOUCHER_TYPE),
+          eq(creditNotes.associatedPointOfSale, rejectedDocumentRemedies.pointOfSaleNumber),
+          eq(creditNotes.associatedNumber, rejectedDocumentRemedies.number),
+        ),
+      )
+      .where(and(isNotNull(rejectedDocumentRemedies.correction), isNull(creditNotes.id)));
+    return fortnightReportsOwedAs(
+      this.db,
+      corrected.filter(({ number, reportedThrough }) =>
+        isOfflineDocumentReported(number, reportedThrough),
       ),
     );
   }

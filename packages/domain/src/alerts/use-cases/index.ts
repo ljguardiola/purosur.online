@@ -97,10 +97,10 @@ export type {
   OwedElsewherePresentationReader,
 } from "./owed-elsewhere-presentation-ports.js";
 export type {
-  RejectedFortnightDocument,
   RejectedFortnightDocumentAlerts,
+  RejectedFortnightDocumentCandidate,
+  RejectedFortnightDocumentCandidateReader,
   RejectedFortnightDocumentDetectionPorts,
-  RejectedFortnightDocumentReader,
 } from "./rejected-fortnight-document-ports.js";
 export type { ResolveAlertOutcome } from "./resolve-alert.js";
 export { resolveAlert } from "./resolve-alert.js";

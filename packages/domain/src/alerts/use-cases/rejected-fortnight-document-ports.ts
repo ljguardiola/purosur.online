@@ -1,7 +1,7 @@
 import type { FiscalDocumentType, Fortnight } from "../../fiscal/index.js";
 import type { AlertConditionObservation } from "../model/alert-condition-observation.js";
 
-export interface RejectedFortnightDocument {
+export interface RejectedFortnightDocumentCandidate {
   pointOfSaleNumber: number;
   registerId: string;
   fortnight: Fortnight;
@@ -9,8 +9,8 @@ export interface RejectedFortnightDocument {
   rejectedNumber: number;
 }
 
-export interface RejectedFortnightDocumentReader {
-  presentationsAwaitingRemedy(): Promise<RejectedFortnightDocument[]>;
+export interface RejectedFortnightDocumentCandidateReader {
+  presentationsAwaitingRemedy(): Promise<RejectedFortnightDocumentCandidate[]>;
 }
 
 export interface RejectedFortnightDocumentAlerts {
@@ -19,6 +19,6 @@ export interface RejectedFortnightDocumentAlerts {
 }
 
 export interface RejectedFortnightDocumentDetectionPorts {
-  presentations: RejectedFortnightDocumentReader;
+  presentations: RejectedFortnightDocumentCandidateReader;
   alerts: RejectedFortnightDocumentAlerts;
 }
