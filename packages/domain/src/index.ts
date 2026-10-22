@@ -556,6 +556,7 @@ export type {
   CriticalBatteryAction,
   DetectedSerialDevice,
   DiskStanding,
+  InstallationEnrollment,
   LocalSnapshotGeneration,
   OpenedCashSession,
   ReceiptPrinterAddress,
@@ -610,6 +611,7 @@ export {
   hasDistinctKeyVersions,
   INSTALLATION_KEY_BYTES,
   INSTALLATION_REPORT_MAX_LENGTH,
+  installationEnrollment,
   isBitlockerKeyIdentifier,
   isBitlockerRecoveryKey,
   isDeviceTokenRotationDue,
@@ -873,6 +875,7 @@ export {
   pullAudienceOf,
   REPLENISHMENT_PAGE_MAX_EVENTS,
   SALES_DENIED_FOR_DAMAGED_LOCAL_DATABASE,
+  SALES_STOP_REASONS,
   salesDeniedReportOf,
 } from "./sync/index.js";
 export {
