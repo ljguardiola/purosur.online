@@ -250,7 +250,9 @@ function completedSale(
 }
 
 function offlineDocument(
-  payload: SyncedEventPayloads["offline_fiscal_document_issued@1"],
+  payload: SyncedEventPayloads[
+    | "offline_fiscal_document_issued@1"
+    | "offline_fiscal_document_issued@3"],
 ): OfflineFiscalDocumentIssuedFact {
   return {
     fiscalDocumentId: payload.fiscal_document_id,
@@ -504,6 +506,18 @@ const FACT_OF: {
     document: {
       ...offlineDocument(payload),
       invoice: invoiceOf(payload.document),
+    },
+  }),
+  "offline_fiscal_document_issued@3": (payload) => ({
+    kind: "offline_fiscal_document_issued",
+    document: {
+      ...offlineDocument(payload),
+      creditNoteId: payload.credit_note_id,
+      corrects: {
+        voucherType: payload.corrects.voucher_type,
+        pointOfSale: payload.corrects.point_of_sale,
+        number: payload.corrects.number,
+      },
     },
   }),
 };

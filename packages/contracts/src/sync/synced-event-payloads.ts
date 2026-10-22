@@ -2,6 +2,7 @@ import {
   CASH_MOVEMENT_KINDS,
   CASH_MOVEMENT_TYPES,
   CLOCK_PREVIOUS_READING_SOURCES,
+  CREDIT_NOTE_C_DOCUMENT_TYPE,
   cashMovementReason,
   DEFERRAL_REASONS,
   FACTURA_C_DOCUMENT_TYPE,
@@ -529,6 +530,14 @@ const offlineFiscalDocumentIssuedV2Schema = offlineFiscalDocumentIssuedSchema.ex
   document: invoiceSchema,
 });
 
+const offlineCreditNoteIssuedSchema = offlineFiscalDocumentIssuedSchema.extend({
+  document_type: z.literal(CREDIT_NOTE_C_DOCUMENT_TYPE),
+  total: z.int().positive(),
+  credit_note_id: text,
+  corrects: voidCreditNoteSchema.shape.corrects,
+  document: voidCreditNoteSchema,
+});
+
 const clockCorrectedSchema = z.object({
   point_of_sale: pointOfSaleNumberSchema,
   document_type: z.literal(FACTURA_C_DOCUMENT_TYPE),
@@ -588,6 +597,7 @@ const PAYLOAD_SCHEMAS = {
   "deferred_sale_satisfied@1": deferredSaleSatisfiedSchema,
   "offline_fiscal_document_issued@1": offlineFiscalDocumentIssuedSchema,
   "offline_fiscal_document_issued@2": offlineFiscalDocumentIssuedV2Schema,
+  "offline_fiscal_document_issued@3": offlineCreditNoteIssuedSchema,
   "clock_corrected@1": clockCorrectedSchema,
   "clock_corrected@2": clockCorrectedV2Schema,
   "qr_payment_replaced@1": qrPaymentReplacedSchema,

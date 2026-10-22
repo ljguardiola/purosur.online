@@ -1,6 +1,7 @@
 import { syncedEventUpcaster } from "@purosur/contracts";
 import {
   type BatteryReport,
+  FACTURA_C_DOCUMENT_TYPE,
   type PushedEvent,
   SERIAL_DEVICE_ROLES,
   type SerialDevicesReport,
@@ -156,7 +157,9 @@ class DrizzleInboxTransaction<TQueryResult extends PgQueryResultHKT> implements 
       const decoded = syncedEventUpcaster.decode(event);
       if (decoded.kind === "fact" && decoded.fact.kind === "offline_fiscal_document_issued") {
         const { pointOfSale, documentType } = decoded.fact.document;
-        series.push({ pointOfSaleNumber: pointOfSale, documentType });
+        if (documentType === FACTURA_C_DOCUMENT_TYPE) {
+          series.push({ pointOfSaleNumber: pointOfSale, documentType });
+        }
       }
     }
     const store = new DrizzleRegisterOfflinePointOfSaleStoreTransaction(

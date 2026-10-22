@@ -1,3 +1,4 @@
+import { FACTURA_C_DOCUMENT_TYPE } from "@purosur/domain";
 import type { SyncedFact } from "@purosur/domain/sync/use-cases";
 import { and, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
@@ -22,9 +23,20 @@ export async function recordAppliedOfflineFiscalDocument<TQueryResult extends Pg
   if (sale === undefined) {
     throw new Error(`sale ${document.saleId} is not applied for register ${origin.registerId}`);
   }
-  const { fiscalDocumentId, invoice: _invoice, ...fields } = document;
+  if (document.documentType !== FACTURA_C_DOCUMENT_TYPE) {
+    throw new Error(
+      `document ${document.fiscalDocumentId} is a ${document.documentType}, which the cloud does not apply yet`,
+    );
+  }
+  const {
+    fiscalDocumentId,
+    invoice: _invoice,
+    creditNoteId: _creditNoteId,
+    corrects: _corrects,
+    ...fields
+  } = document;
   await tx
     .insert(offlineFiscalDocuments)
-    .values({ id: fiscalDocumentId, ...fields, recordedAt })
+    .values({ id: fiscalDocumentId, ...fields, documentType: document.documentType, recordedAt })
     .onConflictDoNothing({ target: offlineFiscalDocuments.id });
 }
