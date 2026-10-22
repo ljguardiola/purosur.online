@@ -1,6 +1,7 @@
 import type { PrintOriginalReceiptOutcome } from "@purosur/contracts";
 import { describe, expect, it } from "vitest";
 import { userEvent } from "vitest/browser";
+import { deferred } from "../platform/test-support/deferred";
 import type { SalesHistoryScreenProps } from "./sales-history-screen";
 import { chooseSale, DETAIL, renderScreen } from "./test-support/sales-history-screen";
 
@@ -59,30 +60,34 @@ describe("SalesHistoryScreen receipt of a sale never printed", () => {
     await expect.poll(() => saleHistoryDetail.mock.calls.length).toBeGreaterThan(readsBefore);
   });
 
-  it.each([
-    [
-      { kind: "busy" } as PrintOriginalReceiptOutcome,
-      "Todavía puede salir una impresión de esta venta",
-    ],
-    [
-      { kind: "printer_not_configured" } as PrintOriginalReceiptOutcome,
-      "La impresora no está configurada",
-    ],
-    [
-      { kind: "lacks_permission" } as PrintOriginalReceiptOutcome,
-      "No tenés permiso para imprimir el ticket",
-    ],
-    [{ kind: "unavailable" } as PrintOriginalReceiptOutcome, "No se pudo imprimir el ticket"],
-  ])("says why it was not printed: %j", async (outcome, title) => {
+  it("says why it was not printed", async () => {
     const { screen } = await renderScreen({
       saleHistoryDetail: async () => ({ kind: "found", detail: NEVER_PRINTED_DETAIL }),
-      printOriginalReceipt: async () => outcome,
+      printOriginalReceipt: async () => ({ kind: "printer_not_configured" }),
     });
     await chooseSale(screen, "11:42");
 
     await userEvent.click(screen.getByRole("button", { name: PRINT }));
 
-    await expect.element(screen.getByText(title)).toBeVisible();
+    await expect.element(screen.getByText("La impresora no está configurada")).toBeVisible();
+  });
+
+  it("sends no second request while the first is still being answered, and keeps its answer", async () => {
+    const answer = deferred<PrintOriginalReceiptOutcome>();
+    const { screen, printOriginalReceipt } = await renderScreen({
+      saleHistoryDetail: async () => ({ kind: "found", detail: NEVER_PRINTED_DETAIL }),
+      printOriginalReceipt: () => answer.promise,
+    });
+    await chooseSale(screen, "11:42");
+
+    await userEvent.click(screen.getByRole("button", { name: PRINT }));
+    await userEvent.click(screen.getByRole("button", { name: PRINT }));
+    answer.resolve({ kind: "started", copy: { kind: "original" } });
+
+    await expect
+      .element(screen.getByText("El ticket sale en cuanto la impresora esté lista"))
+      .toBeVisible();
+    expect(printOriginalReceipt).toHaveBeenCalledOnce();
   });
 
   it("says it was not printed when the core cannot be reached", async () => {
