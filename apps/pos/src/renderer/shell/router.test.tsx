@@ -53,6 +53,7 @@ type RoutePath =
   | "/restoring"
   | "/restore-required"
   | "/re-enroll"
+  | "/revoked"
   | "/older-version"
   | "/pin-code-redemption"
   | "/first-sign-in";
@@ -63,6 +64,8 @@ const OLDER_VERSION_TITLE = "Hay que instalar la versión vigente";
 const OUT_OF_SERVICE_TITLE = "La caja necesita restaurarse";
 const RESTORING_TITLE = "La caja no puede vender todavía";
 const RESTORE_REQUIRED_TITLE = "La caja tiene que volver a darse de alta";
+const REVOKED_TITLE = "Esta notebook dejó de ser una caja";
+const REVOKED: Enrollment = { kind: "revoked", reason: "installation_revoked" };
 const COMPLETED: Restoration = { kind: "completed" };
 const SIGNED_IN_TITLE = "¿Qué querés hacer?";
 const SIGN_IN_TITLE = "¿Quién abre la caja?";
@@ -183,6 +186,7 @@ const screenFor: Record<
   "/restoring": (screen) => screen.getByRole("heading", { name: RESTORING_TITLE }),
   "/restore-required": (screen) => screen.getByRole("heading", { name: RESTORE_REQUIRED_TITLE }),
   "/re-enroll": (screen) => screen.getByText(RE_ENROLLMENT_STATUS),
+  "/revoked": (screen) => screen.getByRole("heading", { name: REVOKED_TITLE }),
   "/older-version": (screen) => screen.getByRole("heading", { name: OLDER_VERSION_TITLE }),
   "/pin-code-redemption": (screen) => screen.getByRole("heading", { name: PIN_REDEMPTION_TITLE }),
   "/first-sign-in": (screen) => screen.getByRole("heading", { name: FIRST_SIGN_IN_TITLE }),
@@ -370,6 +374,23 @@ describe("routeFor", () => {
     { coreStatus: "up", enrollment: "enrolled", person: PERSON, route: "/" },
     { coreStatus: "up", enrollment: "not_enrolled", person: PERSON, route: "/enroll" },
     { coreStatus: "up", enrollment: "unknown", person: PERSON, route: "/starting" },
+    { coreStatus: "up", enrollment: REVOKED, person: undefined, route: "/revoked" },
+    { coreStatus: "up", enrollment: REVOKED, person: PERSON, route: "/" },
+    {
+      coreStatus: "up",
+      enrollment: REVOKED,
+      person: undefined,
+      cashSession: OPEN_SESSION,
+      route: "/revoked",
+    },
+    {
+      coreStatus: "up",
+      enrollment: REVOKED,
+      person: PERSON,
+      cashSession: OPEN_SESSION,
+      route: "/session",
+    },
+    { coreStatus: "down", enrollment: REVOKED, person: undefined, route: "/core-down" },
     { coreStatus: "starting", enrollment: "enrolled", person: PERSON, route: "/starting" },
     { coreStatus: "down", enrollment: "enrolled", person: PERSON, route: "/core-down" },
     { coreStatus: "refused", enrollment: "enrolled", person: PERSON, route: "/older-version" },
@@ -680,6 +701,26 @@ describe("the register's router", () => {
       redirectedTo: "/restoring",
     },
     { path: "/re-enroll", coreStatus: "up", enrollment: "enrolled", redirectedTo: "/" },
+    {
+      path: "/sign-in",
+      coreStatus: "up",
+      enrollment: REVOKED,
+      person: null,
+      redirectedTo: "/revoked",
+    },
+    {
+      path: "/revoked",
+      coreStatus: "up",
+      enrollment: REVOKED,
+      redirectedTo: "/",
+    },
+    { path: "/revoked", coreStatus: "up", enrollment: "enrolled", redirectedTo: "/" },
+    {
+      path: "/re-enroll",
+      coreStatus: "up",
+      enrollment: REVOKED,
+      redirectedTo: "/",
+    },
     { path: "/", coreStatus: "refused", enrollment: "enrolled", redirectedTo: "/older-version" },
     { path: "/older-version", coreStatus: "up", enrollment: "enrolled", redirectedTo: "/" },
     {
@@ -1275,6 +1316,39 @@ describe("the register's router", () => {
     await userEvent.click(screen.getByRole("button", { name: "Volver" }));
 
     await expect.element(screenFor["/restore-required"](screen)).toBeVisible();
+  });
+
+  it("renders the revoked installation screen while nobody is signed in", async () => {
+    const router = routerAt("/revoked", "up", REVOKED, null);
+
+    const screen = await render(<RouterProvider router={router} />);
+
+    await expect.element(screenFor["/revoked"](screen)).toBeVisible();
+  });
+
+  it("goes from the revoked installation screen to enrolling the register again, under its name", async () => {
+    const router = createRegisterRouter(
+      routeTree,
+      { ...contextWith("up", REVOKED, null), registerName: async () => "Caja 2" },
+      "/revoked",
+    );
+    const screen = await render(<RouterProvider router={router} />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Dar de alta la caja" }));
+
+    await expect.element(screen.getByText(RE_ENROLLMENT_STATUS)).toBeVisible();
+    await expect.element(screen.getByText("CAJA 2", { exact: true })).toBeVisible();
+    await expect.poll(() => router.state.location.pathname).toBe("/re-enroll");
+  });
+
+  it("goes back to the revoked installation screen from enrolling the register again", async () => {
+    const router = routerAt("/re-enroll", "up", REVOKED, null);
+    const screen = await render(<RouterProvider router={router} />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Volver" }));
+
+    await expect.element(screenFor["/revoked"](screen)).toBeVisible();
+    await expect.poll(() => router.state.location.pathname).toBe("/revoked");
   });
 
   it("renders the sign-in screen while enrolled and nobody is signed in", async () => {
