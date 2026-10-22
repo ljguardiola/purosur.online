@@ -417,10 +417,13 @@ describe("decideUnclearRealTimeOutcome", () => {
       ]);
     });
 
-    it("regularizes nothing when a credit note already kept the adopted authorization", async () => {
+    it("regularizes nothing when a credit note already kept the adopted authorization, even with another valid voucher", async () => {
       const { ports, store } = scenario({
         voucher: { kind: "found", voucher: MATCHING_VOUCHER },
-        otherDocuments: KEPT_DOCUMENTS,
+        otherDocuments: [
+          ...KEPT_DOCUMENTS,
+          { kind: "offline", voucher: { ...KEPT_VOUCHER, number: KEPT_VOUCHER.number + 1 } },
+        ],
       });
       store.creditNotes.set("sale-1", [
         {

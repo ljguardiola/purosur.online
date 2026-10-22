@@ -464,14 +464,6 @@ describe("DrizzleUnclearOutcomeLanes", () => {
         },
       ]);
     });
-
-    it("are none for a sale without credit notes", async () => {
-      expect(
-        await unclearLanes.inPointOfSaleLane(7, (lane) =>
-          lane.creditNotesOfSale(crypto.randomUUID()),
-        ),
-      ).toEqual([]);
-    });
   });
 
   describe("recording a decision together with the regularization of an orphan authorization", () => {

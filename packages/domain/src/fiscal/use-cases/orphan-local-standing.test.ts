@@ -119,10 +119,18 @@ describe("localStandingBehindVoucher", () => {
     });
   });
 
-  it("answers a local sale with no other voucher when a credit note of the sale kept the voucher", async () => {
+  it("answers a local sale with no other voucher when a credit note of the sale kept the voucher, even with another valid voucher", async () => {
     const { answer } = standingOf(
       requestsAt(SALE_REQUEST),
-      [["sale-1", [{ kind: "offline", voucher: KEPT_VOUCHER }]]],
+      [
+        [
+          "sale-1",
+          [
+            { kind: "offline", voucher: KEPT_VOUCHER },
+            { kind: "offline", voucher: { ...KEPT_VOUCHER, number: 8 } },
+          ],
+        ],
+      ],
       [
         [
           "sale-1",

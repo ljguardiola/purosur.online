@@ -241,8 +241,12 @@ describe("regularizeOrphanAuthorization", () => {
       },
     );
 
-    it("regularizes nothing for a voucher a credit note already kept", async () => {
+    it("regularizes nothing for a voucher a credit note already kept, even with another valid voucher", async () => {
       const { store, ports } = twoAuthorizedRequests();
+      store.seedSaleDocumentsSeenFrom("sale-1", "document-41", [
+        authorizedAt(42),
+        authorizedAt(43),
+      ]);
       store.seedCreditNotes("sale-1", [
         {
           creditedVoucher: { voucherType: 11, pointOfSale: 12, number: 42 },

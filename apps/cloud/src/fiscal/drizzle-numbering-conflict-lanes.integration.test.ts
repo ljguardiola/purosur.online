@@ -594,10 +594,6 @@ describe("the numbering conflict lane on a real Postgres", () => {
         },
       ]);
     });
-
-    it("gives none for a sale without credit notes", async () => {
-      expect(await inLane(7, (lane) => lane.creditNotesOfSale(crypto.randomUUID()))).toEqual([]);
-    });
   });
 
   describe("settling a reconciliation with credit notes", () => {

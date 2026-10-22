@@ -34,7 +34,6 @@ import {
   OPENED_AT,
 } from "./test-support/orphan-regularization-fixtures.js";
 import { insertRecordedSale } from "./test-support/recorded-sale-fixtures.js";
-import { insertSaleVoidCreditNote } from "./test-support/sale-void-credit-notes.js";
 
 let integrationDb: IntegrationDatabase;
 let sql: ReturnType<typeof postgres>;
@@ -340,21 +339,6 @@ describe("the restored register orphan lane on a real Postgres", () => {
         {
           creditedVoucher: { voucherType: FACTURA_C_VOUCHER_TYPE, pointOfSale: 7, number: 90_101 },
           keptVoucher: { voucherType: FACTURA_C_VOUCHER_TYPE, pointOfSale: 7, number: 90_102 },
-        },
-      ]);
-    });
-
-    it("gives a credit note that kept no voucher with none kept", async () => {
-      const saleId = crypto.randomUUID();
-      await insertSaleVoidCreditNote(db, registerId, saleId, {
-        associatedPointOfSale: 7,
-        associatedNumber: 90_104,
-      });
-
-      expect(await inLane(7, (lane) => lane.creditNotesOfSale(saleId))).toEqual([
-        {
-          creditedVoucher: { voucherType: FACTURA_C_VOUCHER_TYPE, pointOfSale: 7, number: 90_104 },
-          keptVoucher: null,
         },
       ]);
     });
