@@ -9,7 +9,6 @@ import {
   REGISTER_OWN_CONDITIONS,
   RESTORATION_STEPS,
   SALES_DENIED_REASONS,
-  SALES_STOP_REASONS,
   STORAGE_SALES_DENIED_REASONS,
 } from "@purosur/domain";
 import { z } from "zod";
@@ -393,7 +392,7 @@ export type RegisterStatus = z.infer<typeof registerStatusSchema>;
 const enrollmentStandingSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("not_enrolled") }),
   z.object({ kind: z.literal("enrolled") }),
-  z.object({ kind: z.literal("revoked"), reason: z.enum(SALES_STOP_REASONS).nullable() }),
+  z.object({ kind: z.literal("revoked") }),
 ]);
 export type EnrollmentStandingAnswer = z.infer<typeof enrollmentStandingSchema>;
 

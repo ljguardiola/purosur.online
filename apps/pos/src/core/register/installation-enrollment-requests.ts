@@ -1,6 +1,7 @@
 import type { EnrollmentStandingAnswer } from "@purosur/contracts";
 import { installationEnrollment } from "@purosur/domain";
 import type { LocalDatabase } from "../platform/local-database";
+import { heldDeviceId } from "../sync/sqlite-installation-presence";
 import { salesStopOf } from "../sync/sqlite-local-installation";
 
 export interface EnrollmentStandingDeps {
@@ -16,19 +17,9 @@ export async function enrollmentStandingOf({
   if (database === undefined) {
     return { kind: credentials === undefined ? "not_enrolled" : "enrolled" };
   }
-  const standing = installationEnrollment({
+  return installationEnrollment({
     credentialsDeviceId: credentials?.device_id,
-    heldDeviceId: heldDeviceIdOf(database),
+    heldDeviceId: heldDeviceId(database),
     salesStop: salesStopOf(database),
   });
-  return standing.kind === "revoked"
-    ? { kind: "revoked", reason: standing.reason ?? null }
-    : standing;
-}
-
-function heldDeviceIdOf(database: LocalDatabase): string | undefined {
-  return (
-    database.prepare<[], { device_id: string | null }>("SELECT device_id FROM sync_state").get()
-      ?.device_id ?? undefined
-  );
 }

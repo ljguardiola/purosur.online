@@ -24,7 +24,6 @@ export {
   isInstallationRevoked,
   isSalesStopReason,
   SALES_DENIED_FOR_DAMAGED_LOCAL_DATABASE,
-  SALES_STOP_REASONS,
   salesDenialOf,
   salesDeniedReportOf,
 } from "./model/sales-stop.js";

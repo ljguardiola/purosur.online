@@ -84,10 +84,9 @@ function Register({ core }: { core: CoreClient }) {
   });
   let enrollment: Enrollment = "unknown";
   if (coreStatus === "up" && enrollmentRead.status === "loaded") {
-    enrollment =
-      enrollmentRead.value.kind === "revoked" ? enrollmentRead.value : enrollmentRead.value.kind;
+    enrollment = enrollmentRead.value.kind;
   }
-  const holdsEnrollment = enrollment === "enrolled" || typeof enrollment === "object";
+  const holdsEnrollment = enrollment === "enrolled" || enrollment === "revoked";
   const restoration: Restoration = useRestorationStandingQuery({
     read: () => core.restorationStanding(),
     enabled: coreStatus === "up" && holdsEnrollment,

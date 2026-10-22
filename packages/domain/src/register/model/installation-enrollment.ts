@@ -1,9 +1,9 @@
-import type { SalesStopReason, SalesStopState } from "../../sync/index.js";
+import { isInstallationRevoked, type SalesStopState } from "../../sync/index.js";
 
 export type InstallationEnrollment =
   | { kind: "not_enrolled" }
   | { kind: "enrolled" }
-  | { kind: "revoked"; reason: SalesStopReason | undefined };
+  | { kind: "revoked" };
 
 export function installationEnrollment({
   credentialsDeviceId,
@@ -17,8 +17,8 @@ export function installationEnrollment({
   if (credentialsDeviceId === undefined) {
     return { kind: "not_enrolled" };
   }
-  if (credentialsDeviceId === heldDeviceId && salesStop.stopped) {
-    return { kind: "revoked", reason: salesStop.reason };
+  if (credentialsDeviceId === heldDeviceId && isInstallationRevoked(salesStop)) {
+    return { kind: "revoked" };
   }
   return { kind: "enrolled" };
 }

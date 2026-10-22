@@ -135,11 +135,7 @@ import { StatusBarLayout } from "./status-bar-layout";
 
 export type CoreStatus = CoreStatusMessage["status"];
 
-export type Enrollment =
-  | "unknown"
-  | "enrolled"
-  | "not_enrolled"
-  | Extract<EnrollmentStandingAnswer, { kind: "revoked" }>;
+export type Enrollment = "unknown" | EnrollmentStandingAnswer["kind"];
 
 export type Restoration = RestorationStandingAnswer | "unknown";
 
@@ -349,7 +345,7 @@ export function routeFor({
   if (enrollment === "not_enrolled") {
     return "/enroll";
   }
-  if (typeof enrollment === "object" && person === undefined) {
+  if (enrollment === "revoked" && person === undefined) {
     return "/revoked";
   }
   if (restoration === "unknown") {
@@ -1148,18 +1144,12 @@ const restoreRequiredRoute = createRoute({
 const revokedRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/revoked",
-  beforeLoad: ({ context }) => {
-    requireRoute("/revoked", context);
-    const { enrollment } = context;
-    return { revocation: typeof enrollment === "object" ? enrollment : undefined };
-  },
+  beforeLoad: ({ context }) => requireRoute("/revoked", context),
   component: function RevokedRoute() {
     const navigate = revokedRoute.useNavigate();
-    const { revocation } = revokedRoute.useRouteContext();
     return (
       <RevokedInstallationScreen
         registerName={useRegisterName()}
-        reason={revocation?.reason ?? null}
         onEnroll={() => void navigate({ to: "/re-enroll" })}
       />
     );
