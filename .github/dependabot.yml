@@ -11,11 +11,6 @@ updates:
         patterns:
           - "tailwindcss"
           - "@tailwindcss/*"
-      # Every Sentry SDK and the error-reporting options test in packages/contracts share one
-      # @sentry/core, so these move together.
-      sentry:
-        patterns:
-          - "@sentry/*"
     commit-message:
       prefix: "chore(deps)"
     ignore:
