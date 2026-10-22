@@ -43,6 +43,7 @@ export type { ReportQuery } from "./report-query.js";
 export { reportQuerySchema } from "./report-query.js";
 export { requestIdSchema } from "./request-id.js";
 export { requiredTextSchema } from "./required-text.js";
+export { restorationInProgressOutcomeSchema } from "./restoration-in-progress.js";
 export { saleCancelRefusalSchema } from "./sale-cancel-refusal.js";
 export {
   noThresholdRefusalSchema,

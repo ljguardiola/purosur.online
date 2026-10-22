@@ -14,6 +14,10 @@ import {
 type Notice = { title: string; icon: "permission" | "failure" };
 
 const NOT_PERMITTED: Notice = { title: "No tenés permiso para abrir la caja.", icon: "permission" };
+const RESTORING: Notice = {
+  title: "La caja se está restaurando: todavía no se puede abrir.",
+  icon: "failure",
+};
 const FAILED: Notice = { title: "No se pudo abrir la caja. Probá de nuevo.", icon: "failure" };
 
 export type CashOpeningPanelProps = {
@@ -46,6 +50,9 @@ function OpeningForm({
           break;
         case "not_permitted":
           setNotice(NOT_PERMITTED);
+          break;
+        case "restoration_in_progress":
+          setNotice(RESTORING);
           break;
         case "unavailable":
           setNotice(FAILED);

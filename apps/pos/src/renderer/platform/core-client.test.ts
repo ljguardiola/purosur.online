@@ -395,6 +395,32 @@ describe("createCoreClient", () => {
     expect(await asked).toBe("unavailable");
   });
 
+  it("asks the core for the restoration standing and resolves with it", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+    const standing = { kind: "in_progress", step: "replenish" };
+
+    const asked = client.restorationStanding();
+    port.answer({ type: "restoration-standing", request_id: "request-1", standing });
+
+    expect(await asked).toEqual(standing);
+    expect(port.posted).toEqual([
+      { type: "restoration-standing-request", request_id: "request-1" },
+    ]);
+  });
+
+  it("resolves that the restoration standing is unavailable when the core cannot read it", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const asked = client.restorationStanding();
+    port.answer({ type: "restoration-standing-unavailable", request_id: "request-1" });
+
+    expect(await asked).toBe("unavailable");
+  });
+
   it("asks the core to record a cash movement with its authorization and resolves with the outcome", async () => {
     const client = clientWithSequentialIds();
     const port = new FakePort();
@@ -1877,12 +1903,63 @@ describe("createCoreClient", () => {
     port.answer({
       type: "print-credit-note-result",
       request_id: "request-1",
-      outcome: { kind: "started" },
+      outcome: { kind: "started", copy: { kind: "original" } },
     });
 
-    expect(await printed).toEqual({ kind: "started" });
+    expect(await printed).toEqual({ kind: "started", copy: { kind: "original" } });
     expect(port.posted).toEqual([
       { type: "print-credit-note", request_id: "request-1", sale_id: "sale-1" },
+    ]);
+  });
+
+  it("asks the core to reprint a credit note with its reason and the authorization given", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+    const authorization = { user_id: "u2", pin: "1234" };
+
+    const reprinted = client.reprintCreditNote("sale-1", "El cliente la perdió", authorization);
+    port.answer({
+      type: "reprint-credit-note-result",
+      request_id: "request-1",
+      outcome: { kind: "started", copy: { kind: "duplicate", order_number: 1 } },
+    });
+
+    expect(await reprinted).toEqual({
+      kind: "started",
+      copy: { kind: "duplicate", order_number: 1 },
+    });
+    expect(port.posted).toEqual([
+      {
+        type: "reprint-credit-note",
+        request_id: "request-1",
+        sale_id: "sale-1",
+        reason: "El cliente la perdió",
+        authorization,
+      },
+    ]);
+  });
+
+  it("asks the core to reprint a credit note without an authorization when none is given", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const reprinted = client.reprintCreditNote("sale-1", "Otra copia", undefined);
+    port.answer({
+      type: "reprint-credit-note-result",
+      request_id: "request-1",
+      outcome: { kind: "busy" },
+    });
+
+    expect(await reprinted).toEqual({ kind: "busy" });
+    expect(port.posted).toEqual([
+      {
+        type: "reprint-credit-note",
+        request_id: "request-1",
+        sale_id: "sale-1",
+        reason: "Otra copia",
+      },
     ]);
   });
 
@@ -2176,6 +2253,43 @@ describe("createCoreClient", () => {
 
     expect(first).toBe(1);
     expect(second).toBe(2);
+  });
+
+  it("tells each listener every time the restoration standing changes, until it stops listening", () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+    let first = 0;
+    let second = 0;
+    const stopFirst = client.onRestorationStandingChanged(() => {
+      first += 1;
+    });
+    client.onRestorationStandingChanged(() => {
+      second += 1;
+    });
+
+    port.answer({ type: "restoration-standing-changed" });
+    stopFirst();
+    port.answer({ type: "restoration-standing-changed" });
+
+    expect(first).toBe(1);
+    expect(second).toBe(2);
+  });
+
+  it("does not take a restoration standing change for the answer to a pending request", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const devices = client.readSerialDevices();
+    port.answer({ type: "restoration-standing-changed" });
+    port.answer({
+      type: "read-serial-devices-result",
+      request_id: "request-1",
+      outcome: { kind: "unavailable" },
+    });
+
+    await expect(devices).resolves.toEqual({ kind: "unavailable" });
   });
 
   it("does not take a fiscal mode change for the answer to a pending request", async () => {

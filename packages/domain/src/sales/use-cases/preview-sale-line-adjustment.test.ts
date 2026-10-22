@@ -73,7 +73,7 @@ function preview(
   lineId = "line-1",
 ): PreviewSaleLineAdjustmentOutcome {
   return previewSaleLineAdjustment(
-    { ledger: store, clock: new FixedClock(NOW) },
+    { ledger: store, restoration: store.restoration, clock: new FixedClock(NOW) },
     { actorId: "cashier", lineId, adjustment },
   );
 }

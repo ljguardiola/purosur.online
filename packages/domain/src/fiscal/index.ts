@@ -17,11 +17,17 @@ export {
   isValidBuyerTaxStatusSet,
   latestBuyerTaxStatusSet,
 } from "./model/buyer-tax-status-set.js";
-export type { ClockCorrectedFact, ClockCorrectionAlertState } from "./model/clock-correction.js";
+export type {
+  ClockCorrectedFact,
+  ClockCorrectionAlertState,
+  ClockPreviousReadingSource,
+} from "./model/clock-correction.js";
 export {
   CLOCK_CORRECTED_EVENT_TYPE,
+  CLOCK_PREVIOUS_READING_SOURCES,
   clockCorrectedEvent,
   clockCorrectionPeriodKey,
+  replayedClockMark,
 } from "./model/clock-correction.js";
 export { selectConsumerBuyerTaxStatus } from "./model/consumer-buyer-tax-status.js";
 export type { CreditNoteReason } from "./model/credit-note.js";
@@ -34,9 +40,12 @@ export type {
 } from "./model/deferred-sale.js";
 export {
   deferredSaleDocumentBlock,
+  isDeferralFinalWhenRecorded,
+  isShortCode,
   randomShortCode,
   SHORT_CODE_ALPHABET,
 } from "./model/deferred-sale.js";
+export { deferredSaleRecordedEvent } from "./model/deferred-sale-recorded-event.js";
 export type {
   AuthorizedCreditNoteC,
   AuthorizedFacturaC,
@@ -124,6 +133,8 @@ export {
   awaitsNumberingDiagnosis,
   isNumberingConflictAnswer,
   NUMBERING_CONFLICT_REASK_INTERVAL_MS,
+  type NumberingFreeze,
+  restorationNumberingFreeze,
 } from "./model/numbering-conflict.js";
 export type { Fortnight } from "./model/offline-authorization-code.js";
 export {

@@ -37,7 +37,10 @@ function ledger(state: Partial<FakeSaleLedgerState> = {}): FakeSaleLedger {
 }
 
 function search(store: FakeSaleLedger, query: string, actorId = "cashier") {
-  return searchProductsByName({ ledger: store }, { actorId, query });
+  return searchProductsByName(
+    { ledger: store, restoration: store.restoration },
+    { actorId, query },
+  );
 }
 
 describe("searchProductsByName", () => {

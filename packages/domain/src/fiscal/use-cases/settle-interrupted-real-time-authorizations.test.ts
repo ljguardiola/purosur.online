@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { deferredSaleRecordedEvent } from "../model/deferred-sale-recorded-event.js";
 import { settleInterruptedRealTimeAuthorizations } from "./settle-interrupted-real-time-authorizations.js";
 import { ManualClock } from "./test-support/fake-arca-vitality.js";
 import { FakeInterruptedRealTimeAuthorizations } from "./test-support/fake-interrupted-real-time-authorizations.js";
@@ -10,15 +11,19 @@ const FIRST_RESERVED_AT = new Date("2026-10-01T07:58:00.000Z");
 const SECOND_RESERVED_AT = new Date("2026-10-01T07:59:00.000Z");
 const SHORT_CODES = ["7KQ4M2P9", "R3XW8H5N", "ABCDEFGH"];
 
+const ORIGIN = { registerId: "register-1", actorId: "cashier" };
+
 const FIRST = {
   fiscalDocumentId: "doc-1",
   saleId: "sale-1",
+  origin: ORIGIN,
   reservedAt: FIRST_RESERVED_AT,
   total: 12_500,
 };
 const SECOND = {
   fiscalDocumentId: "doc-2",
   saleId: "sale-2",
+  origin: { registerId: "register-1", actorId: "other-cashier" },
   reservedAt: SECOND_RESERVED_AT,
   total: 4_000,
 };
@@ -44,6 +49,24 @@ describe("settling the real-time authorizations a stopped register left requesti
     const { documents, outcome } = settle([FIRST, SECOND]);
 
     expect(await outcome).toEqual({ kind: "settled", saleIds: ["sale-1", "sale-2"] });
+    const firstSale = {
+      id: "id-1",
+      saleId: "sale-1",
+      occurredAt: FIRST_RESERVED_AT,
+      total: 12_500,
+      reason: "unclear_outcome",
+      shortCode: "7KQ4M2P9",
+      routedAt: STARTED_AT,
+    } as const;
+    const secondSale = {
+      id: "id-3",
+      saleId: "sale-2",
+      occurredAt: SECOND_RESERVED_AT,
+      total: 4_000,
+      reason: "unclear_outcome",
+      shortCode: "R3XW8H5N",
+      routedAt: STARTED_AT,
+    } as const;
     expect(documents.resolutions).toEqual([
       {
         fiscalDocumentId: "doc-1",
@@ -51,13 +74,12 @@ describe("settling the real-time authorizations a stopped register left requesti
         resolution: { state: "UNKNOWN", deferralReason: "unclear_outcome" },
         resolvedAt: STARTED_AT,
         deferredSale: {
-          id: "id-1",
-          saleId: "sale-1",
-          occurredAt: FIRST_RESERVED_AT,
-          total: 12_500,
-          reason: "unclear_outcome",
-          shortCode: "7KQ4M2P9",
-          routedAt: STARTED_AT,
+          sale: firstSale,
+          event: deferredSaleRecordedEvent({
+            eventId: "id-2",
+            ...ORIGIN,
+            deferredSale: firstSale,
+          }),
         },
       },
       {
@@ -66,13 +88,13 @@ describe("settling the real-time authorizations a stopped register left requesti
         resolution: { state: "UNKNOWN", deferralReason: "unclear_outcome" },
         resolvedAt: STARTED_AT,
         deferredSale: {
-          id: "id-2",
-          saleId: "sale-2",
-          occurredAt: SECOND_RESERVED_AT,
-          total: 4_000,
-          reason: "unclear_outcome",
-          shortCode: "R3XW8H5N",
-          routedAt: STARTED_AT,
+          sale: secondSale,
+          event: deferredSaleRecordedEvent({
+            eventId: "id-4",
+            registerId: "register-1",
+            actorId: "other-cashier",
+            deferredSale: secondSale,
+          }),
         },
       },
     ]);
@@ -83,10 +105,10 @@ describe("settling the real-time authorizations a stopped register left requesti
 
     await outcome;
 
-    expect(documents.resolutions.map(({ deferredSale }) => deferredSale?.shortCode)).toEqual([
+    expect(documents.resolutions.map(({ deferredSale }) => deferredSale?.sale.shortCode)).toEqual([
       "R3XW8H5N",
     ]);
-    expect(documents.resolutionAttempts.map(({ deferredSale }) => deferredSale?.id)).toEqual([
+    expect(documents.resolutionAttempts.map(({ deferredSale }) => deferredSale?.sale.id)).toEqual([
       "id-1",
       "id-1",
     ]);

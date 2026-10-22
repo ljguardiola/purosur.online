@@ -146,6 +146,7 @@ function cancel(
   return cancelPaidSale(
     {
       ledger: store,
+      restoration: store.restoration,
       clock: new FixedClock(NOW),
       ids: new SequentialIds(),
       authority: granting(grant),
@@ -241,6 +242,7 @@ describe("cancelPaidSale", () => {
       const outcome = await cancelPaidSale(
         {
           ledger: store,
+          restoration: store.restoration,
           clock: new FixedClock(behind),
           ids: new SequentialIds(),
           authority: granting(OWN_GRANT),
@@ -716,7 +718,13 @@ describe("cancelPaidSale", () => {
       });
 
       const outcome = await cancelPaidSale(
-        { ledger: store, clock: new FixedClock(NOW), ids: new SequentialIds(), authority },
+        {
+          ledger: store,
+          restoration: store.restoration,
+          clock: new FixedClock(NOW),
+          ids: new SequentialIds(),
+          authority,
+        },
         { saleId: "sale-1", from: "sale" },
       );
 
@@ -737,7 +745,13 @@ describe("cancelPaidSale", () => {
       );
 
       await cancelPaidSale(
-        { ledger: store, clock: new FixedClock(NOW), ids: new SequentialIds(), authority },
+        {
+          ledger: store,
+          restoration: store.restoration,
+          clock: new FixedClock(NOW),
+          ids: new SequentialIds(),
+          authority,
+        },
         { saleId: "sale-1", from: "sale" },
       );
 

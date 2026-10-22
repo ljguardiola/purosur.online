@@ -58,6 +58,7 @@ import type {
   RegisterStatus,
   RemoveSaleLineOutcome,
   ReprintSaleReceiptOutcome,
+  RestorationStandingAnswer,
   SaleDiscountRequest,
   SaleHistoryDetailOutcome,
   SalesCoreToRendererMessage,
@@ -171,6 +172,7 @@ export interface CoreClient {
   openCashSession(openingFloat: number): Promise<OpenCashSessionOutcome>;
   cashSession(): Promise<OpenCashSession | null | "unavailable">;
   registerStatus(): Promise<RegisterStatus | "unavailable">;
+  restorationStanding(): Promise<RestorationStandingAnswer | "unavailable">;
   recordCashMovement(input: CashMovementInput): Promise<RecordCashMovementOutcome>;
   cashMovements(): Promise<ListedCashMovement[] | null | "unavailable">;
   cashMovementKinds(): Promise<RecordableCashMovementKinds | null | "unavailable">;
@@ -235,6 +237,11 @@ export interface CoreClient {
   receiptPrintStatus(saleId: string): Promise<ReceiptPrintStatusOutcome>;
   printOriginalReceipt(saleId: string): Promise<PrintOriginalReceiptOutcome>;
   printCreditNote(saleId: string): Promise<PrintCreditNoteOutcome>;
+  reprintCreditNote(
+    saleId: string,
+    reason: string,
+    authorization: Authorization | undefined,
+  ): Promise<ReprintSaleReceiptOutcome>;
   reprintSaleReceipt(
     saleId: string,
     reason: string,
@@ -281,6 +288,7 @@ export interface CoreClient {
   onStorageStandingChanged(listener: () => void): () => void;
   onBatteryStandingChanged(listener: () => void): () => void;
   onFiscalModeChanged(listener: () => void): () => void;
+  onRestorationStandingChanged(listener: () => void): () => void;
   onBarcodeRead(listener: (code: string) => void): () => void;
 }
 
@@ -303,6 +311,7 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
   const storageStandingChangedListeners = new Set<() => void>();
   const batteryStandingChangedListeners = new Set<() => void>();
   const fiscalModeChangedListeners = new Set<() => void>();
+  const restorationStandingChangedListeners = new Set<() => void>();
   const barcodeReadListeners = new Set<(code: string) => void>();
 
   function receive(port: CorePort, data: unknown): void {
@@ -339,6 +348,12 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
     }
     if (answer.data.type === "fiscal-mode-changed") {
       for (const listener of fiscalModeChangedListeners) {
+        listener();
+      }
+      return;
+    }
+    if (answer.data.type === "restoration-standing-changed") {
+      for (const listener of restorationStandingChangedListeners) {
         listener();
       }
       return;
@@ -542,6 +557,17 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
         },
       );
     },
+    restorationStanding() {
+      return ask(
+        { type: "restoration-standing-request", request_id: deps.newRequestId() },
+        (answer): RestorationStandingAnswer | "unavailable" | undefined => {
+          if (answer.type === "restoration-standing-unavailable") {
+            return "unavailable";
+          }
+          return answer.type === "restoration-standing" ? answer.standing : undefined;
+        },
+      );
+    },
     recordCashMovement({ kind, amount, reason, authorization }) {
       return ask(
         {
@@ -699,6 +725,18 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
       return ask(
         { type: "print-credit-note", request_id: deps.newRequestId(), sale_id: saleId },
         (answer) => (answer.type === "print-credit-note-result" ? answer.outcome : undefined),
+      );
+    },
+    reprintCreditNote(saleId, reason, authorization) {
+      return ask(
+        {
+          type: "reprint-credit-note",
+          request_id: deps.newRequestId(),
+          sale_id: saleId,
+          reason,
+          ...(authorization === undefined ? {} : { authorization }),
+        },
+        (answer) => (answer.type === "reprint-credit-note-result" ? answer.outcome : undefined),
       );
     },
     reprintSaleReceipt(saleId, reason, authorization) {
@@ -1052,6 +1090,12 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
       fiscalModeChangedListeners.add(listener);
       return () => {
         fiscalModeChangedListeners.delete(listener);
+      };
+    },
+    onRestorationStandingChanged(listener) {
+      restorationStandingChangedListeners.add(listener);
+      return () => {
+        restorationStandingChangedListeners.delete(listener);
       };
     },
     onBarcodeRead(listener) {

@@ -16,6 +16,7 @@ import {
   recordCashMovementFor,
 } from "./cash-movement-requests";
 import { type CashSessionRequestDeps, openCashSessionFor } from "./cash-session-requests";
+import { restorationOf } from "./test-support/restoration-of";
 
 const CHAIN_KEY = Buffer.from("0123456789abcdef0123456789abcdef").toString("base64");
 const PEPPER = Buffer.alloc(32, 7).toString("base64url");
@@ -114,7 +115,7 @@ beforeEach(async () => {
   database.prepare("UPDATE sync_state SET device_id = 'device-1'").run();
   signedInPerson = createSignedInPerson();
   signedInPerson.set("u1");
-  await openCashSessionFor(deps(), 5000);
+  await openCashSessionFor({ ...deps(), restoration: restorationOf(database) }, 5000);
 });
 
 afterEach(() => {

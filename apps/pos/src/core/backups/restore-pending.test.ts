@@ -70,4 +70,73 @@ describe("the restore pending marker", () => {
     expect(() => pending.begin("device-new")).not.toThrow();
     expect(pending.isPending()).toBe(false);
   });
+
+  it("does not ask to set the live database aside unless the restore began asking for it", () => {
+    const pending = restorePendingIn(folder);
+
+    expect(pending.setsAsideLiveDatabase()).toBe(false);
+    pending.begin("device-new");
+    expect(pending.setsAsideLiveDatabase()).toBe(false);
+  });
+
+  it("asks to set the live database aside, also for another reader of the folder", () => {
+    restorePendingIn(folder).begin("device-new", { setAsideLiveDatabase: true });
+
+    const later = restorePendingIn(folder);
+    expect(later.setsAsideLiveDatabase()).toBe(true);
+    expect(later.deviceId()).toBe("device-new");
+  });
+
+  it("stops asking to set the live database aside when a restore begins again without asking", () => {
+    const pending = restorePendingIn(folder);
+    pending.begin("device-first", { setAsideLiveDatabase: true });
+    pending.begin("device-second");
+
+    expect(pending.setsAsideLiveDatabase()).toBe(false);
+    expect(pending.deviceId()).toBe("device-second");
+  });
+
+  it("does not ask to set the live database aside in a marker written before it could", async () => {
+    await writeFile(join(folder, "restore-pending"), JSON.stringify({ device_id: "device-old" }));
+
+    const pending = restorePendingIn(folder);
+
+    expect(pending.setsAsideLiveDatabase()).toBe(false);
+    expect(pending.deviceId()).toBe("device-old");
+  });
+
+  it("does not ask to set the live database aside when the marker cannot be read", async () => {
+    await writeFile(join(folder, "restore-pending"), "not json");
+
+    expect(restorePendingIn(folder).setsAsideLiveDatabase()).toBe(false);
+  });
+
+  it("keeps the restore pending for the same installation once the live database was set aside", async () => {
+    const pending = restorePendingIn(folder);
+    pending.begin("device-new", { setAsideLiveDatabase: true });
+
+    pending.settleSetAside();
+
+    expect(pending.setsAsideLiveDatabase()).toBe(false);
+    expect(pending.isPending()).toBe(true);
+    expect(pending.deviceId()).toBe("device-new");
+    expect(await readdir(folder)).toEqual(["restore-pending"]);
+  });
+
+  it("begins no restore by settling a set-aside that nothing asked for", () => {
+    const pending = restorePendingIn(folder);
+
+    pending.settleSetAside();
+
+    expect(pending.isPending()).toBe(false);
+  });
+
+  it("never asks to set the live database aside without a data folder", () => {
+    const pending = restorePendingIn(undefined);
+
+    pending.begin("device-new", { setAsideLiveDatabase: true });
+
+    expect(pending.setsAsideLiveDatabase()).toBe(false);
+    expect(() => pending.settleSetAside()).not.toThrow();
+  });
 });

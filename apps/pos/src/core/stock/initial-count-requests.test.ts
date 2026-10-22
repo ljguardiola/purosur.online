@@ -5,6 +5,7 @@ import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import { migrationClock } from "../platform/test-support/migration-clock";
 import { openLocalDatabase } from "../platform/test-support/open-local-database";
 import { openCashSessionFor } from "../register/cash-session-requests";
+import { restorationOf } from "../register/test-support/restoration-of";
 import { createActionGate } from "../sessions/action-gate";
 import { createSignedInPerson, type SignedInPerson } from "../sessions/signed-in-person";
 import { SqliteSignInStore } from "../sessions/sqlite-sign-in-store";
@@ -417,7 +418,9 @@ describe("the retirement of the initial count", () => {
     await record("p1", 6000);
     expect(await readInitialCountFor(deps())).toMatchObject({ offered: true });
 
-    expect((await openCashSessionFor(deps(), 5000)).kind).toBe("opened");
+    expect(
+      (await openCashSessionFor({ ...deps(), restoration: restorationOf(database) }, 5000)).kind,
+    ).toBe("opened");
 
     expect(await readInitialCountFor(deps())).toMatchObject({ kind: "read", offered: false });
     expect(await record("p1", 1000)).toEqual({ kind: "not_offered" });

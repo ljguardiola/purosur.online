@@ -112,9 +112,9 @@ test("describes an invoice that already had a credit note when a sale was voided
   );
 });
 
-test("describes a register's clock confirmed as correct, which lowers the clock guard's mark", () => {
+test("describes a register's clock confirmed as correct though it fell behind its last issued voucher", () => {
   expect(alertKindDescription("clock_corrected")).toBe(
-    "Alguien confirmó desde la caja que su hora era correcta y bajó la marca de la guarda de reloj. Los comprobantes emitidos entre la lectura anterior y la nueva llevan fechas imposibles y van a regularización manual.",
+    "Alguien confirmó desde la caja que su hora era correcta, aunque quedó atrás de la del último comprobante emitido.",
   );
 });
 

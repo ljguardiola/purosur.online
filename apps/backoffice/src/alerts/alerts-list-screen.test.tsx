@@ -796,6 +796,34 @@ test("names an alert for a register's altered events by its kind, what happened 
   await expect.element(row.getByText("Eventos de una caja alterados en su disco")).toBeVisible();
 });
 
+test("describes a corrected register clock by what holds whatever its previous reading came from, never as a lowered mark", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlerts).mockResolvedValue(
+    ok([
+      {
+        ...passkeyAlert,
+        kind: "clock_corrected",
+        level: "critical",
+        scopeDisplay: "Caja 1",
+        scopeKind: "register",
+      },
+    ]),
+  );
+
+  const screen = await renderScreen(services);
+
+  const row = screen.getByRole("row", { name: /Caja 1/ });
+  await expect
+    .element(
+      row.getByText(
+        "Alguien confirmó desde la caja que su hora era correcta, aunque quedó atrás de la del último comprobante emitido.",
+      ),
+    )
+    .toBeVisible();
+  await expect.element(row.getByText(/bajó la marca/)).not.toBeInTheDocument();
+  await expect.element(row.getByText(/la lectura anterior/)).not.toBeInTheDocument();
+});
+
 test("names an alert for an expiring ARCA certificate by its kind and what happened", async () => {
   const services = createServices();
   vi.mocked(services.fetchAlerts).mockResolvedValue(

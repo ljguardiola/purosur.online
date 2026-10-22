@@ -150,6 +150,11 @@ export class FakeRegisterReplenishmentStore implements RegisterReplenishmentStor
         }
         working.creditNoteAnswers.push({ creditNote, answer });
       },
+      holdsDeferredSaleRecord: async (saleId) =>
+        working.facts.some(
+          ({ fact }) =>
+            fact.kind === "deferred_sale_recorded" && fact.deferredSale.saleId === saleId,
+        ),
       recordEventApplied: async (eventId) => {
         failIf("recordEventApplied", eventId);
         working.appliedEventIds.push(eventId);

@@ -15,6 +15,7 @@ import type { ActionGate } from "../sessions/action-gate";
 import { SqliteSignInStore } from "../sessions/sqlite-sign-in-store";
 import { SqliteReceiptLedger } from "./sqlite-receipt-ledger";
 import { SqliteRegisterSalesHistory } from "./sqlite-register-sales-history";
+import { toWireCopy } from "./wire-receipt-copy";
 
 export interface SalesHistoryRequestDeps {
   database: LocalDatabase;
@@ -135,10 +136,9 @@ export async function saleHistoryDetailFor(
       void_authorization_required: voidNeedsAuthorization,
       credit_note: toWireCreditNote(detail.creditNote),
       reprint: detail.reprint,
-      next_copy:
-        detail.nextCopy.kind === "original"
-          ? detail.nextCopy
-          : { kind: "duplicate", order_number: detail.nextCopy.orderNumber },
+      next_copy: toWireCopy(detail.nextCopy),
+      credit_note_next_copy:
+        detail.creditNoteNextCopy === null ? null : toWireCopy(detail.creditNoteNextCopy),
     },
   };
 }

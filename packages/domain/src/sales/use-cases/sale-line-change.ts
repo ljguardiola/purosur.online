@@ -3,6 +3,7 @@ import type { Clock } from "../../shared/index.js";
 import { type OpenSaleStanding, openSaleStanding } from "../model/open-sale-standing.js";
 import type { SaleLine, SaleWithLines } from "../model/sale.js";
 import { amountToCharge } from "../model/sale-discount.js";
+import type { RegisterRestoration } from "./register-restoration.js";
 import { withoutSaleDiscount } from "./remove-sale-discount.js";
 import { saleChargeRefusal } from "./sale-charge-refusal.js";
 import type { SaleLedgerTransaction } from "./sale-ledger.js";
@@ -11,6 +12,7 @@ import { isRefusal, sellingSession } from "./selling-session.js";
 
 export type SaleLineChangeRefusal =
   | { kind: "not_permitted" }
+  | { kind: "restoration_in_progress" }
   | { kind: "no_open_session" }
   | { kind: "no_open_sale" }
   | { kind: "sale_has_payments" };
@@ -27,8 +29,9 @@ export function saleToChange(
   tx: SaleLedgerTransaction,
   actorId: string,
   clock: Clock,
+  restoration: RegisterRestoration,
 ): SaleWithLines | SaleLineChangeRefusal {
-  const session = sellingSession(tx, actorId);
+  const session = sellingSession(tx, actorId, restoration);
   if (isRefusal(session)) {
     return session;
   }

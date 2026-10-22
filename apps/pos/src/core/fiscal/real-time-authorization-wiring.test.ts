@@ -57,6 +57,15 @@ function json(body: unknown, status = 200): Response {
   });
 }
 
+function deferredSaleEvents(): { event_id: string; aggregate_id: string; payload: unknown }[] {
+  return database
+    .prepare<[], { event_id: string; aggregate_id: string; payload: string }>(
+      "SELECT event_id, aggregate_id, payload FROM outbox WHERE event_type = 'deferred_sale_recorded' ORDER BY device_seq",
+    )
+    .all()
+    .map((row) => ({ ...row, payload: JSON.parse(row.payload) }));
+}
+
 function storedState(): unknown {
   return database.prepare("SELECT state FROM fiscal_documents WHERE id = 'doc-1'").get();
 }
@@ -74,6 +83,7 @@ describe("authorizing a completed sale in real time", () => {
     cloud: CloudClientDeps | undefined,
     failures: unknown[] = [],
     readDeviceToken: () => Promise<string | undefined> = async () => "prefix.secret",
+    readOutboxChainKey: () => Promise<string | undefined> = async () => CHAIN_KEY,
   ) {
     return createRealTimeAuthorization({
       database,
@@ -81,6 +91,7 @@ describe("authorizing a completed sale in real time", () => {
       readDeviceToken,
       now: () => NOW,
       ...scriptedDeferrals(),
+      readOutboxChainKey,
       reportFailure: (error) => failures.push(error),
     });
   }
@@ -129,6 +140,24 @@ describe("authorizing a completed sale in real time", () => {
     ]);
   });
 
+  it("appends the event of the deferred record to the outbox, under the key the register keeps for it", async () => {
+    const { cloud } = cloudAnswering(async () => json({ state: "UNCLEAR" }));
+
+    await authorization(cloud).authorizeSale("sale-1");
+
+    expect(deferredSaleEvents()).toMatchObject([
+      {
+        event_id: "deferred-2",
+        aggregate_id: "sale-1",
+        payload: {
+          id: "deferred-1",
+          short_code: SCRIPTED_SHORT_CODES[0],
+          register_id: "register-1",
+        },
+      },
+    ]);
+  });
+
   it("settles the document as unclear and reports it when asking the cloud fails", async () => {
     const { cloud } = cloudAnswering(async () => json({ state: "UNCLEAR" }));
     const failure = new Error("the credentials cannot be read");
@@ -140,6 +169,30 @@ describe("authorizing a completed sale in real time", () => {
 
     expect(failures).toEqual([failure]);
     expect(storedState()).toEqual({ state: "UNKNOWN" });
+  });
+
+  it("reports a failure to read the outbox chain key without rejecting, and settles the document as unclear once the key is read", async () => {
+    const { cloud } = cloudAnswering(async () =>
+      json({
+        state: "AUTHORIZED",
+        authorization_code: "75123456789012",
+        authorization_code_due_on: "2026-10-10",
+      }),
+    );
+    const failure = new Error("the outbox chain key cannot be read");
+    const failures: unknown[] = [];
+    const readOutboxChainKey = vi
+      .fn<() => Promise<string | undefined>>()
+      .mockRejectedValueOnce(failure)
+      .mockResolvedValue(CHAIN_KEY);
+
+    await expect(
+      authorization(cloud, failures, undefined, readOutboxChainKey).authorizeSale("sale-1"),
+    ).resolves.toBeUndefined();
+
+    expect(failures).toEqual([failure]);
+    expect(storedState()).toEqual({ state: "UNKNOWN" });
+    expect(deferredSaleEvents()).toMatchObject([{ aggregate_id: "sale-1" }]);
   });
 
   it("reports a failure of the authorization without rejecting", async () => {
@@ -173,6 +226,7 @@ describe("authorizing a completed sale in real time", () => {
       readDeviceToken: async () => undefined,
       now: () => NOW,
       ...scriptedDeferrals(),
+      readOutboxChainKey: async () => CHAIN_KEY,
       reportFailure: () => undefined,
     });
 
@@ -192,6 +246,7 @@ describe("settling, as the register starts, the authorizations its last run left
       now: () => NOW,
       reportFailure: () => {},
       ...scriptedDeferrals(),
+      readOutboxChainKey: async () => CHAIN_KEY,
     });
 
     expect(storedState()).toEqual({ state: "UNKNOWN" });
@@ -206,6 +261,7 @@ describe("settling, as the register starts, the authorizations its last run left
       now: () => NOW,
       reportFailure: () => {},
       ...scriptedDeferrals(),
+      readOutboxChainKey: async () => CHAIN_KEY,
     });
 
     expect(
@@ -220,6 +276,40 @@ describe("settling, as the register starts, the authorizations its last run left
     ]);
   });
 
+  it("appends the event of each deferred record to the outbox", async () => {
+    await settleInterruptedAuthorizations({
+      database,
+      now: () => NOW,
+      reportFailure: () => {},
+      ...scriptedDeferrals(),
+      readOutboxChainKey: async () => CHAIN_KEY,
+    });
+
+    expect(deferredSaleEvents()).toMatchObject([
+      {
+        event_id: "deferred-2",
+        aggregate_id: "sale-1",
+        payload: { id: "deferred-1", short_code: SCRIPTED_SHORT_CODES[0] },
+      },
+    ]);
+  });
+
+  it("settles none of them and reports it when the register has no outbox chain key", async () => {
+    const failures: unknown[] = [];
+
+    await settleInterruptedAuthorizations({
+      database,
+      now: () => NOW,
+      ...scriptedDeferrals(),
+      readOutboxChainKey: async () => undefined,
+      reportFailure: (error) => failures.push(error),
+    });
+
+    expect(failures).toHaveLength(1);
+    expect(storedState()).toEqual({ state: "REQUESTING" });
+    expect(deferredSaleEvents()).toEqual([]);
+  });
+
   it("reports a failure without rejecting", async () => {
     const failures: unknown[] = [];
     database.prepare("DROP TABLE deferred_sales").run();
@@ -229,6 +319,7 @@ describe("settling, as the register starts, the authorizations its last run left
         database,
         now: () => NOW,
         ...scriptedDeferrals(),
+        readOutboxChainKey: async () => CHAIN_KEY,
         reportFailure: (error) => failures.push(error),
       }),
     ).resolves.toBeUndefined();
@@ -247,6 +338,7 @@ describe("settling, as the register starts, the authorizations its last run left
       database,
       now: () => NOW,
       ...scriptedDeferrals(),
+      readOutboxChainKey: async () => CHAIN_KEY,
       reportFailure: (error) => failures.push(error),
     });
 
@@ -266,6 +358,7 @@ describe("settling, as the register starts, the authorizations its last run left
         database: undefined,
         now: () => NOW,
         ...scriptedDeferrals(),
+        readOutboxChainKey: async () => CHAIN_KEY,
         reportFailure: () => {},
       }),
     ).resolves.toBeUndefined();
@@ -553,6 +646,7 @@ describe("applying the decisions of the documents left with an unclear outcome, 
       now: () => NOW,
       reportFailure: () => {},
       ...scriptedDeferrals(),
+      readOutboxChainKey: async () => CHAIN_KEY,
     });
     expect(documentStates()).toEqual([{ id: "doc-1", state: "UNKNOWN" }]);
     const { tick } = ticking(async () => json({ state: "RELEASED" }));

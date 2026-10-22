@@ -81,7 +81,10 @@ function ledger(state: Partial<FakeSaleLedgerState> = {}): FakeSaleLedger {
 }
 
 function cancel(store: FakeSaleLedger, actorId = "cashier") {
-  return cancelSale({ ledger: store, clock: new FixedClock(NOW) }, { actorId });
+  return cancelSale(
+    { ledger: store, restoration: store.restoration, clock: new FixedClock(NOW) },
+    { actorId },
+  );
 }
 
 describe("cancelSale", () => {

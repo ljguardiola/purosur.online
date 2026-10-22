@@ -7,6 +7,7 @@ import {
   type SaleRefusal,
 } from "./chargeable-sale.js";
 import { completeSale } from "./complete-sale.js";
+import type { RegisterRestoration } from "./register-restoration.js";
 import type { IdGenerator, SaleLedger } from "./sale-ledger.js";
 
 export interface SettleApprovedMercadoPagoPaymentInput {
@@ -16,6 +17,7 @@ export interface SettleApprovedMercadoPagoPaymentInput {
 
 export interface SettleApprovedMercadoPagoPaymentPorts {
   ledger: SaleLedger;
+  restoration: RegisterRestoration;
   clock: Clock;
   ids: IdGenerator;
 }
@@ -27,7 +29,7 @@ export type SettleApprovedMercadoPagoPaymentOutcome =
   | { kind: "completed"; saleId: string; total: number };
 
 export function settleApprovedMercadoPagoPayment(
-  { ledger, clock, ids }: SettleApprovedMercadoPagoPaymentPorts,
+  { ledger, restoration, clock, ids }: SettleApprovedMercadoPagoPaymentPorts,
   { actorId, paymentTransactionId }: SettleApprovedMercadoPagoPaymentInput,
 ): SettleApprovedMercadoPagoPaymentOutcome {
   return ledger.transaction<SettleApprovedMercadoPagoPaymentOutcome>((tx) => {
@@ -36,7 +38,7 @@ export function settleApprovedMercadoPagoPayment(
       return { kind: "not_pending" };
     }
     const completedAt = clock.now();
-    const chargeable = chargeableSale(tx, actorId, pendingQr.saleId, completedAt);
+    const chargeable = chargeableSale(tx, actorId, pendingQr.saleId, completedAt, restoration);
     if (isSaleRefusal(chargeable)) {
       return chargeable;
     }

@@ -103,6 +103,7 @@ function apply(
   return applySaleDiscount(
     {
       ledger: store,
+      restoration: store.restoration,
       clock: new FixedClock(NOW),
       authority: new FakeOperationAuthority<ApplySaleDiscountGrant, never>({
         kind: "granted",
@@ -246,7 +247,7 @@ describe("applySaleDiscount", () => {
       });
 
       const outcome = await applySaleDiscount(
-        { ledger: store, clock: new FixedClock(NOW), authority },
+        { ledger: store, restoration: store.restoration, clock: new FixedClock(NOW), authority },
         { discount: { kind: "PERCENT", percent: 10 }, reason: REASON },
       );
 
@@ -267,7 +268,7 @@ describe("applySaleDiscount", () => {
       );
 
       await applySaleDiscount(
-        { ledger: store, clock: new FixedClock(NOW), authority },
+        { ledger: store, restoration: store.restoration, clock: new FixedClock(NOW), authority },
         { discount: { kind: "PERCENT", percent: 10 }, reason: REASON },
       );
 

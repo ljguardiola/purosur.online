@@ -9,6 +9,7 @@ import {
 import type { CloudClientDeps } from "../platform/cloud-client";
 import type { LocalDatabase } from "../platform/local-database";
 import type { CloudReachability } from "../sync/cloud-reachability";
+import { staleSequenceDetected } from "../sync/sqlite-installation-presence";
 import { sqliteSyncSequences } from "../sync/sqlite-sync-sequences";
 import type { StorageReading } from "../sync/storage-telemetry";
 import { createSnapshotCycleSchedule, type SnapshotCycleSchedule } from "./snapshot-cycle-schedule";
@@ -60,7 +61,7 @@ export function startSnapshotCycle(deps: SnapshotCycleWiringDeps): SnapshotCycle
   };
   const schedule = createSnapshotCycleSchedule({
     runCycle: async () => {
-      if (deps.restorePending()) {
+      if (deps.restorePending() || staleSequenceDetected(deps.database)) {
         return { kind: "launch_unavailable" };
       }
       try {

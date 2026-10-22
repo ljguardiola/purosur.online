@@ -6,6 +6,7 @@ import type {
 
 export class FakeLocalInstallation implements LocalInstallation {
   revocationsRecorded = 0;
+  staleSequencesRecorded = 0;
 
   get revoked(): boolean {
     return this.revocationsRecorded > 0;
@@ -13,6 +14,10 @@ export class FakeLocalInstallation implements LocalInstallation {
 
   async recordRevoked(): Promise<void> {
     this.revocationsRecorded += 1;
+  }
+
+  async recordStaleSequence(): Promise<void> {
+    this.staleSequencesRecorded += 1;
   }
 }
 

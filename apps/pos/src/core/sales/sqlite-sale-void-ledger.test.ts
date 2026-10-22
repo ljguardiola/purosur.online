@@ -20,6 +20,7 @@ import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import { migrationClock } from "../platform/test-support/migration-clock";
 import { openLocalDatabase } from "../platform/test-support/open-local-database";
+import { restorationOf } from "../register/test-support/restoration-of";
 import { SqliteSignInStore } from "../sessions/sqlite-sign-in-store";
 import { SqliteSaleLedger } from "./sqlite-sale-ledger";
 import { SqliteSaleVoidLedger } from "./sqlite-sale-void-ledger";
@@ -46,11 +47,11 @@ function voidLedger(chainKey: string | null = CHAIN_KEY): SqliteSaleVoidLedger {
 
 function sellTwo(): string {
   addScannedProduct(
-    { ledger: sales, clock: { now: () => NOW }, ids },
+    { ledger: sales, restoration: restorationOf(database), clock: { now: () => NOW }, ids },
     { actorId: "u1", code: "111" },
   );
   const outcome = addScannedProduct(
-    { ledger: sales, clock: { now: () => NOW }, ids },
+    { ledger: sales, restoration: restorationOf(database), clock: { now: () => NOW }, ids },
     { actorId: "u1", code: "111" },
   );
   if (outcome.kind !== "added") {
@@ -61,14 +62,14 @@ function sellTwo(): string {
 
 function payCash(saleId: string, tendered: number): void {
   chargeSaleInCash(
-    { ledger: sales, clock: { now: () => NOW }, ids },
+    { ledger: sales, restoration: restorationOf(database), clock: { now: () => NOW }, ids },
     { actorId: "u1", saleId, tendered },
   );
 }
 
 function payByTransfer(saleId: string, amount: number): void {
   chargeSaleByTransfer(
-    { ledger: sales, clock: { now: () => NOW }, ids },
+    { ledger: sales, restoration: restorationOf(database), clock: { now: () => NOW }, ids },
     { actorId: "u1", saleId, amount },
   );
 }

@@ -53,7 +53,10 @@ function ledger(state: Partial<FakeSaleLedgerState> = {}): FakeSaleLedger {
 }
 
 function read(store: FakeSaleLedger, actorId = "cashier") {
-  return currentSale({ ledger: store, clock: new FixedClock(NOW) }, { actorId });
+  return currentSale(
+    { ledger: store, restoration: store.restoration, clock: new FixedClock(NOW) },
+    { actorId },
+  );
 }
 
 describe("currentSale", () => {

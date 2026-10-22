@@ -28,6 +28,7 @@ function toWire(correction: BranchClockCorrection) {
     actor_id: correction.actorId,
     actor_first_name: correction.actorFirstName,
     previous_reading: correction.previousReading.toISOString(),
+    previous_reading_source: correction.previousReadingSource,
     corrected_reading: correction.correctedReading.toISOString(),
     alert_state: correction.alertState,
   };

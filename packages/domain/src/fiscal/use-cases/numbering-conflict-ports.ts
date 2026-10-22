@@ -1,6 +1,7 @@
 import type { Clock } from "../../shared/index.js";
 import type {
   NumberingConflictDiagnosis,
+  NumberingFreeze,
   NumberingReconciliationDocument,
 } from "../model/numbering-conflict.js";
 import type { OrphanRegularization } from "../model/orphan-authorization.js";
@@ -11,6 +12,8 @@ import type { IdGenerator } from "./sale-authorization-ports.js";
 import type { TaxAuthorityLastAuthorizedLookup } from "./tax-authority-count-ports.js";
 import type { TaxAuthorityVoucherLookup } from "./unclear-outcome-ports.js";
 
+export type { NumberingFreeze };
+
 export interface NumberingConflictRequest {
   pointOfSale: number;
   number: number;
@@ -18,11 +21,6 @@ export interface NumberingConflictRequest {
   answer: RealTimeAuthorizationAnswer | null;
   unclearCodes: readonly number[];
   diagnosis: NumberingConflictDiagnosis | null;
-}
-
-export interface NumberingFreeze {
-  countBeforeFreeze: number;
-  frozenAt: Date;
 }
 
 export interface NumberingDiagnosisRecord {

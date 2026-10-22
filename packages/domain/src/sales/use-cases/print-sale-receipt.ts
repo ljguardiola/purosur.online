@@ -1,3 +1,4 @@
+import type { PrintedDocumentKey } from "../model/printed-document.js";
 import type { ReceiptPrintWatch } from "./receipt-ports.js";
 import {
   printReceipt,
@@ -6,9 +7,7 @@ import {
   type ReceiptPrintOutcome,
 } from "./receipt-printing.js";
 
-export interface PrintSaleReceiptInput {
-  saleId: string;
-}
+export type PrintSaleReceiptInput = PrintedDocumentKey;
 
 export type PrintSaleReceiptPorts<Grant extends ReceiptPrintGrant, Refusal> = ReceiptPrintingPorts<
   Grant,
@@ -19,8 +18,8 @@ export type PrintSaleReceiptOutcome = ReceiptPrintOutcome;
 
 export function printSaleReceipt<Grant extends ReceiptPrintGrant, Refusal>(
   ports: PrintSaleReceiptPorts<Grant, Refusal>,
-  { saleId }: PrintSaleReceiptInput,
+  key: PrintSaleReceiptInput,
   watch: ReceiptPrintWatch,
 ): Promise<PrintSaleReceiptOutcome | Refusal> {
-  return printReceipt(ports, saleId, { kind: "retry" }, watch);
+  return printReceipt(ports, key, { kind: "retry" }, watch);
 }

@@ -29,6 +29,7 @@ const SALE: SaleDetail = {
   reprint: { kind: "available" },
   next_copy: { kind: "original" },
   credit_note: null,
+  credit_note_next_copy: null,
 };
 const INVOICED_SALE: SaleDetail = {
   ...SALE,

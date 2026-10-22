@@ -99,6 +99,7 @@ describe("GET /registers/clock-corrections", () => {
       actorId,
       correctedAt: new Date("2026-10-05T12:00:00.000Z"),
       pointOfSale: 9,
+      previousReadingSource: "tax_authority_day",
     });
     const session = await openBackofficeSession(db, {
       now: SESSION_NOON,
@@ -121,6 +122,7 @@ describe("GET /registers/clock-corrections", () => {
         actor_id: actorId,
         actor_first_name: "Ada",
         previous_reading: "2026-10-20T12:00:00.000Z",
+        previous_reading_source: "tax_authority_day",
         corrected_reading: "2026-10-05T12:00:00.000Z",
         alert_state: "open",
       },
@@ -134,6 +136,7 @@ describe("GET /registers/clock-corrections", () => {
         actor_id: actorId,
         actor_first_name: "Ada",
         previous_reading: "2026-10-20T12:00:00.000Z",
+        previous_reading_source: "clock_mark",
         corrected_reading: "2026-10-04T12:00:00.000Z",
         alert_state: "closed",
       },

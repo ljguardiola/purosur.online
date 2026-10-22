@@ -3,6 +3,7 @@ import {
   cancellableWithoutAuthorization,
 } from "../../payments/index.js";
 import type { Clock } from "../../shared/index.js";
+import type { RegisterRestoration } from "./register-restoration.js";
 import type { SaleLedger } from "./sale-ledger.js";
 import { isRefusal, sellingSession } from "./selling-session.js";
 
@@ -12,11 +13,13 @@ export interface CancelSaleInput {
 
 export interface CancelSalePorts {
   ledger: SaleLedger;
+  restoration: RegisterRestoration;
   clock: Clock;
 }
 
 export type CancelSaleOutcome =
   | { kind: "not_permitted" }
+  | { kind: "restoration_in_progress" }
   | { kind: "no_open_session" }
   | { kind: "no_open_sale" }
   | { kind: "has_approved_payment" }
@@ -24,11 +27,11 @@ export type CancelSaleOutcome =
   | { kind: "cancelled" };
 
 export function cancelSale(
-  { ledger, clock }: CancelSalePorts,
+  { ledger, restoration, clock }: CancelSalePorts,
   { actorId }: CancelSaleInput,
 ): CancelSaleOutcome {
   return ledger.transaction<CancelSaleOutcome>((tx) => {
-    const session = sellingSession(tx, actorId);
+    const session = sellingSession(tx, actorId, restoration);
     if (isRefusal(session)) {
       return session;
     }

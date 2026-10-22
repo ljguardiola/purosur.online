@@ -746,6 +746,12 @@ describe("SaleScreen", () => {
         help: "Esperá a que termine para empezar una venta.",
       },
       {
+        name: "the register being restored",
+        outcome: { kind: "restoration_in_progress" },
+        title: "La caja se está restaurando: todavía no se puede vender.",
+        help: "Esperá a que termine para empezar una venta.",
+      },
+      {
         name: "the core being unable to add it",
         outcome: { kind: "unavailable" },
         title: "No se pudo agregar el producto",

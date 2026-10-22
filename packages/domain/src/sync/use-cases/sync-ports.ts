@@ -225,6 +225,7 @@ export interface CloudEventInbox<TFailure> {
 // Once recorded, the register keeps knowing it was revoked: nothing the cloud answers later undoes it.
 export interface LocalInstallation {
   recordRevoked(): Promise<void>;
+  recordStaleSequence(): Promise<void>;
 }
 
 export interface PushOutboxPorts<TFailure> {

@@ -20,6 +20,7 @@ import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import { migrationClock } from "../platform/test-support/migration-clock";
 import { openLocalDatabase } from "../platform/test-support/open-local-database";
+import { restorationOf } from "../register/test-support/restoration-of";
 import { createActionGate } from "../sessions/action-gate";
 import { createSignedInPerson, type SignedInPerson } from "../sessions/signed-in-person";
 import { SqliteSignInStore } from "../sessions/sqlite-sign-in-store";
@@ -58,6 +59,7 @@ function deps(
 ): OutboxSaleRequestDeps & SellingRequestDeps {
   return {
     database,
+    restoration: restorationOf(database),
     gate: gate(),
     readOutboxChainKey: async () => CHAIN_KEY,
     now: () => NOW,

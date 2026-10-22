@@ -5,6 +5,7 @@ import type { Clock, OperationAuthority, OutboxEventDraft } from "../../shared/i
 import { saleCancelRefusal } from "../model/open-sale-standing.js";
 import type { SaleWithLines } from "../model/sale.js";
 import { amountToCharge, settledLines } from "../model/sale-discount.js";
+import type { RegisterRestoration } from "./register-restoration.js";
 import {
   saleCashMovementRecord,
   saleDiscountRecord,
@@ -31,6 +32,7 @@ export interface CancelPaidSaleGrant {
 
 export interface CancelPaidSalePorts<Grant extends CancelPaidSaleGrant, Refusal> {
   ledger: SaleLedger;
+  restoration: RegisterRestoration;
   clock: Clock;
   ids: IdGenerator;
   authority: OperationAuthority<Grant, Refusal>;
@@ -44,7 +46,7 @@ export type CancelPaidSaleOutcome<Grant extends CancelPaidSaleGrant> =
   | { kind: "cancelled"; refunds: SaleRefund[]; grant: Grant };
 
 export async function cancelPaidSale<Grant extends CancelPaidSaleGrant, Refusal>(
-  { ledger, clock, ids, authority }: CancelPaidSalePorts<Grant, Refusal>,
+  { ledger, restoration, clock, ids, authority }: CancelPaidSalePorts<Grant, Refusal>,
   { saleId, from }: CancelPaidSaleInput,
 ): Promise<CancelPaidSaleOutcome<Grant> | Refusal> {
   const authorization = await authority.authorize();
@@ -56,7 +58,9 @@ export async function cancelPaidSale<Grant extends CancelPaidSaleGrant, Refusal>
 
   return ledger.transaction<CancelPaidSaleOutcome<Grant>>((tx) => {
     const session =
-      from === "sale" ? sellingSession(tx, actorId) : (tx.openSession() ?? NO_OPEN_SESSION);
+      from === "sale"
+        ? sellingSession(tx, actorId, restoration)
+        : (tx.openSession() ?? NO_OPEN_SESSION);
     if (isRefusal(session)) {
       return session;
     }

@@ -1,9 +1,9 @@
 import type { EnrollmentOutcome } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
-import { EnrollmentScreen } from "./enrollment-screen";
+import { EnrollmentScreen, ReEnrollmentScreen } from "./enrollment-screen";
 
 const TYPED_CODE = "p4nx 7kwe 2qrt 6mzd";
 
@@ -42,7 +42,7 @@ async function submitCode(screen: Awaited<ReturnType<typeof render>>, code = TYP
 }
 
 describe("EnrollmentScreen", () => {
-  it("asks for the enrollment code the backoffice issues", async () => {
+  it("asks a new notebook for the enrollment code the backoffice issues", async () => {
     const screen = await render(
       <EnrollmentScreen
         checkCode={checkingLikeTheCore}
@@ -66,6 +66,17 @@ describe("EnrollmentScreen", () => {
     await expect.element(screen.getByText("Sin dar de alta")).toBeVisible();
 
     await expectNoAccessibilityViolations(screen.container);
+  });
+
+  it("offers no way back when it has nowhere to go back to", async () => {
+    const screen = await render(
+      <EnrollmentScreen
+        checkCode={checkingLikeTheCore}
+        enroll={answering({ kind: "enrolled" }).enroll}
+      />,
+    );
+
+    await expect.element(screen.getByRole("button", { name: "Volver" })).not.toBeInTheDocument();
   });
 
   it("redeems the code as it was typed, with or without spaces and in any case", async () => {
@@ -316,5 +327,72 @@ describe("EnrollmentScreen", () => {
 
     await expect.element(screen.getByText("El código ya no sirve")).toBeVisible();
     await expect.element(screen.getByText("No hay conexión a internet")).not.toBeInTheDocument();
+  });
+});
+
+describe("ReEnrollmentScreen", () => {
+  it("asks for the enrollment code to enroll the register again, under its name", async () => {
+    const screen = await render(
+      <ReEnrollmentScreen
+        registerName="Caja 2"
+        checkCode={checkingLikeTheCore}
+        enroll={answering({ kind: "enrolled" }).enroll}
+        onBack={() => {}}
+      />,
+    );
+
+    await expect.element(screen.getByText("CAJA 2", { exact: true })).toBeVisible();
+    await expect.element(screen.getByText("Dar de alta de nuevo")).toBeVisible();
+    await expect
+      .element(screen.getByRole("heading", { name: "Dar de alta esta caja" }))
+      .toBeVisible();
+    await expect.element(screen.getByRole("textbox", { name: "Código de alta" })).toBeVisible();
+
+    await expectNoAccessibilityViolations(screen.container);
+  });
+
+  it("names just the register when its name is not known", async () => {
+    const screen = await render(
+      <ReEnrollmentScreen
+        registerName={null}
+        checkCode={checkingLikeTheCore}
+        enroll={answering({ kind: "enrolled" }).enroll}
+        onBack={() => {}}
+      />,
+    );
+
+    await expect.element(screen.getByText("CAJA", { exact: true })).toBeVisible();
+  });
+
+  it("redeems the code it is given", async () => {
+    const { enroll, codes } = answering({ kind: "enrolled" });
+    const screen = await render(
+      <ReEnrollmentScreen
+        registerName="Caja 2"
+        checkCode={checkingLikeTheCore}
+        enroll={enroll}
+        onBack={() => {}}
+      />,
+    );
+
+    await submitCode(screen);
+
+    expect(codes).toEqual([TYPED_CODE]);
+  });
+
+  it("goes back when asked to", async () => {
+    const back = vi.fn();
+    const screen = await render(
+      <ReEnrollmentScreen
+        registerName="Caja 2"
+        checkCode={checkingLikeTheCore}
+        enroll={answering({ kind: "enrolled" }).enroll}
+        onBack={back}
+      />,
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "Volver" }));
+
+    expect(back).toHaveBeenCalledOnce();
   });
 });

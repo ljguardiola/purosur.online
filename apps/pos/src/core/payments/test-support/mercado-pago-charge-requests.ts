@@ -9,7 +9,10 @@ import type {
   MercadoPagoChargeOrderReading,
   MercadoPagoChargeOrders,
 } from "@purosur/domain/payments/use-cases";
+import type { IdGenerator } from "@purosur/domain/sales/use-cases";
+import { restorePendingIn } from "../../backups/restore-pending";
 import type { LocalDatabase } from "../../platform/local-database";
+import { SqliteRestorationEvidence } from "../../register/sqlite-restoration-evidence";
 import { scanProductFor } from "../../sales/sale-requests";
 import { createActionGate } from "../../sessions/action-gate";
 import type { SignedInPerson } from "../../sessions/signed-in-person";
@@ -86,6 +89,7 @@ export function chargeRequestDeps(
     orders,
     readOutboxChainKey: async () => CHARGE_CHAIN_KEY,
     now: () => CHARGE_NOW,
+    restoration: new SqliteRestorationEvidence(database, restorePendingIn(undefined)),
     ids: {
       next: () => {
         count += 1;
@@ -136,24 +140,30 @@ export function seedChargeRegister(database: LocalDatabase): void {
     .run(FICTIONAL_LEGAL_NAME, FICTIONAL_GROSS_INCOME_REGISTRATION, FICTIONAL_CUIT);
 }
 
-export async function openSaleOfTwoYerbas(register: ChargeRegister): Promise<string> {
+function sequentialSaleIds(): IdGenerator {
+  let count = 0;
+  return {
+    next: () => {
+      count += 1;
+      return `sale-id-${count}`;
+    },
+  };
+}
+
+export async function openSaleOfTwoYerbas(
+  register: ChargeRegister,
+  saleIds: IdGenerator = sequentialSaleIds(),
+): Promise<string> {
   const saleDeps = {
     database: register.database,
     gate: chargeRequestDeps(register, new FakeMercadoPagoOrders(() => register.database)).gate,
     now: () => CHARGE_NOW,
-    ids: {
-      next: (() => {
-        let count = 0;
-        return () => {
-          count += 1;
-          return `sale-id-${count}`;
-        };
-      })(),
-    },
+    ids: saleIds,
     paidOrderDiscovery: () => "checked" as const,
     newSalesStoppedByDisk: () => false,
     localDatabaseDamaged: () => false,
     newSalesStoppedByBattery: () => false,
+    restoration: new SqliteRestorationEvidence(register.database, restorePendingIn(undefined)),
   };
   await scanProductFor(saleDeps, "111");
   const outcome = await scanProductFor(saleDeps, "111");

@@ -24,6 +24,17 @@ export function comprobantePresentation(
   }
 }
 
+export const CREDIT_NOTE_NAME = "Nota de crédito C";
+
+export function creditNoteComprobantePresentation(
+  creditNote: Extract<NonNullable<SaleDetail["credit_note"]>, { kind: "authorized" }>,
+): { name: string; detail: string } {
+  return {
+    name: CREDIT_NOTE_NAME,
+    detail: `PV ${formatPointOfSaleNumber(creditNote.point_of_sale)} · Nº ${formatInvoiceNumber(creditNote.number)}`,
+  };
+}
+
 export type NextReceiptCopy =
   | { kind: "original" }
   | { kind: "duplicate"; order_number?: number | undefined };

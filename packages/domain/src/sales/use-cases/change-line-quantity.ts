@@ -1,5 +1,6 @@
 import type { Clock } from "../../shared/index.js";
 import { mayBeSaleLineQuantity, withQuantity } from "../model/sale-line.js";
+import type { RegisterRestoration } from "./register-restoration.js";
 import type { SaleLedger } from "./sale-ledger.js";
 import {
   type ChangedLineOutcome,
@@ -18,6 +19,7 @@ export interface ChangeLineQuantityInput {
 
 export interface ChangeLineQuantityPorts {
   ledger: SaleLedger;
+  restoration: RegisterRestoration;
   clock: Clock;
 }
 
@@ -30,11 +32,11 @@ export type ChangeLineQuantityOutcome =
   | ChangedLineOutcome;
 
 export function changeLineQuantity(
-  { ledger, clock }: ChangeLineQuantityPorts,
+  { ledger, restoration, clock }: ChangeLineQuantityPorts,
   { actorId, lineId, quantity, expectedQuantity }: ChangeLineQuantityInput,
 ): ChangeLineQuantityOutcome {
   return ledger.transaction<ChangeLineQuantityOutcome>((tx) => {
-    const sale = saleToChange(tx, actorId, clock);
+    const sale = saleToChange(tx, actorId, clock, restoration);
     if (isSaleLineChangeRefusal(sale)) {
       return sale;
     }

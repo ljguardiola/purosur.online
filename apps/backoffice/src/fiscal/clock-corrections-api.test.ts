@@ -23,6 +23,7 @@ const wire = {
   actor_id: "c7b3e5d2-18a4-4f90-b6d1-2e9f0a8c3d03",
   actor_first_name: "Ada",
   previous_reading: "2026-10-07T12:00:00.000Z",
+  previous_reading_source: "clock_mark",
   corrected_reading: "2026-10-05T12:00:00.000Z",
   alert_state: "open",
 };
@@ -35,6 +36,7 @@ const correction: ClockCorrection = {
   pointOfSaleNumber: 4,
   actorFirstName: "Ada",
   previousReading: "2026-10-07T12:00:00.000Z",
+  previousReadingSource: "clock_mark",
   correctedReading: "2026-10-05T12:00:00.000Z",
   alertState: "open",
 };
@@ -50,8 +52,22 @@ test("fetchClockCorrections returns the corrections in the order the cloud sends
   expect(fetch).toHaveBeenCalledWith("/api/registers/clock-corrections");
 });
 
+test("fetchClockCorrections tells a previous reading derived from the tax authority's day from a mark's", async () => {
+  const derived = { ...wire, previous_reading_source: "tax_authority_day" };
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, [derived]));
+
+  expect(await fetchClockCorrections()).toEqual({
+    kind: "ok",
+    value: [{ ...correction, previousReadingSource: "tax_authority_day" }],
+  });
+});
+
 test.each([
   ["a body that is not a list", wire],
+  [
+    "a row without where its previous reading came from",
+    [{ ...wire, previous_reading_source: undefined }],
+  ],
   ["a row missing a field", [{ ...wire, register_name: undefined }]],
   ["an alert state it does not know", [{ ...wire, alert_state: "snoozed" }]],
 ])("fetchClockCorrections returns failed on 200 with %s", async (_name, body) => {

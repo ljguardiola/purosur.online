@@ -39,7 +39,7 @@ const ALERT_KIND_DESCRIPTIONS = {
   fortnight_report_document_rejected:
     "ARCA rechazó un comprobante de una quincena y los que le siguen quedan sin procesar hasta que se corrija",
   clock_corrected:
-    "Alguien confirmó desde la caja que su hora era correcta y bajó la marca de la guarda de reloj. Los comprobantes emitidos entre la lectura anterior y la nueva llevan fechas imposibles y van a regularización manual.",
+    "Alguien confirmó desde la caja que su hora era correcta, aunque quedó atrás de la del último comprobante emitido.",
   register_backup_overdue:
     "Una caja registró cambios y lleva más de una hora sin un backup verificado",
   clock_drift: "La hora de una caja difiere en más de un minuto de la hora real",

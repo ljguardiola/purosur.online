@@ -442,6 +442,7 @@ export function StartupPendingScreen({
       </SidePanel>
       {duplicateOf === undefined ? null : (
         <ReprintReceiptModal
+          document="sale_receipt"
           sale={{
             sale_id: duplicateOf.sale_id,
             occurred_at: duplicateOf.completed_at,
@@ -449,7 +450,7 @@ export function StartupPendingScreen({
           }}
           person={person}
           loadAuthorizers={loadAuthorizers}
-          reprintSaleReceipt={reprintSaleReceipt}
+          reprint={reprintSaleReceipt}
           onReprinted={(copy) => {
             setDuplicateOf(undefined);
             setSent(copy);

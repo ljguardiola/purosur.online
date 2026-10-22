@@ -1,9 +1,10 @@
 import type { ConvertPaidOrderIntoRefundOutcome } from "@purosur/contracts";
-import type { PaidOrderDiscoveryState } from "@purosur/domain";
+import { type PaidOrderDiscoveryState, restorationStanding } from "@purosur/domain";
 import {
   type DiscoverPaidOrdersWithoutSaleOutcome,
   discoverPaidOrdersWithoutSale,
 } from "@purosur/domain/payments/use-cases";
+import type { RestorationProtocolEvidence } from "@purosur/domain/register/use-cases";
 import type { IdGenerator } from "@purosur/domain/sales/use-cases";
 import {
   type CloudClientDeps,
@@ -100,6 +101,7 @@ export interface PaidOrderDiscoveryWiringDeps {
   cloudClient: CloudClientDeps | undefined;
   readDeviceToken: () => Promise<string | undefined>;
   readOutboxChainKey: () => Promise<string | undefined>;
+  restoration: RestorationProtocolEvidence | undefined;
   now: () => Date;
   ids: IdGenerator;
   reportFailure: (activity: string, error: unknown) => void;
@@ -118,6 +120,7 @@ export function createPaidOrderDiscoveryWiring({
   cloudClient,
   readDeviceToken,
   readOutboxChainKey,
+  restoration,
   now,
   ids,
   reportFailure,
@@ -134,14 +137,25 @@ export function createPaidOrderDiscoveryWiring({
         });
   const discovery = createPaidOrderDiscovery({
     discover: async () => {
-      if (database === undefined || cloud === undefined) {
+      if (
+        database === undefined ||
+        cloud === undefined ||
+        restoration === undefined ||
+        restorationStanding(restoration.evidence()).kind !== "completed"
+      ) {
         return { kind: "deferred" };
       }
       return discoverPaidOrdersWithoutSale({
         cloud,
         refunds: cloud,
         local: new SqliteLocalPaidOrders({ database }),
-        sale: paidOrderSale({ database, outboxChainKey: await readOutboxChainKey(), now, ids }),
+        sale: paidOrderSale({
+          database,
+          outboxChainKey: await readOutboxChainKey(),
+          restoration,
+          now,
+          ids,
+        }),
         clock: { now },
       });
     },

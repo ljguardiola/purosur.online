@@ -19,6 +19,7 @@ import {
   enrollmentRequestSchema,
   INCOMPLETE_CODE_MESSAGE,
 } from "./enrollment-form";
+import { registerEyebrow } from "./register-eyebrow";
 
 type Notice = { icon: Icon; title: string; description: string };
 
@@ -70,12 +71,46 @@ function noticeFor(outcome: EnrollmentOutcome): Notice | undefined {
   }
 }
 
-export type EnrollmentScreenProps = {
+type EnrollmentRequests = {
   checkCode: (typedCode: string) => Promise<"code"[]>;
   enroll: (typedCode: string) => Promise<EnrollmentOutcome>;
 };
 
-export function EnrollmentScreen({ checkCode, enroll }: EnrollmentScreenProps) {
+export function EnrollmentScreen({ checkCode, enroll }: EnrollmentRequests) {
+  return (
+    <EnrollmentPanel
+      eyebrow="NOTEBOOK NUEVA"
+      status="Sin dar de alta"
+      checkCode={checkCode}
+      enroll={enroll}
+    />
+  );
+}
+
+export function ReEnrollmentScreen({
+  registerName,
+  checkCode,
+  enroll,
+  onBack,
+}: EnrollmentRequests & { registerName: string | null; onBack: () => void }) {
+  return (
+    <EnrollmentPanel
+      eyebrow={registerEyebrow(registerName)}
+      status="Dar de alta de nuevo"
+      checkCode={checkCode}
+      enroll={enroll}
+      onBack={onBack}
+    />
+  );
+}
+
+function EnrollmentPanel({
+  eyebrow,
+  status,
+  checkCode,
+  enroll,
+  onBack,
+}: EnrollmentRequests & { eyebrow: string; status: string; onBack?: () => void }) {
   const [outcome, setOutcome] = useState<EnrollmentOutcome>();
   const noticeId = useId();
   const { form, submit, submitting } = useRequestForm({
@@ -107,10 +142,10 @@ export function EnrollmentScreen({ checkCode, enroll }: EnrollmentScreenProps) {
   }
 
   return (
-    <BrandPanelScreen status="Sin dar de alta">
+    <BrandPanelScreen status={status}>
       <main className="flex w-full max-w-110 flex-col gap-4">
         <ScreenHeader
-          eyebrow="NOTEBOOK NUEVA"
+          eyebrow={eyebrow}
           title="Dar de alta esta caja"
           description="Escribí el código de alta que se genera en el backoffice, en Cajas registradoras. Vale 15 minutos y hace falta internet."
         />
@@ -144,6 +179,11 @@ export function EnrollmentScreen({ checkCode, enroll }: EnrollmentScreenProps) {
           <Button type="submit" fullWidth disabled={submitting}>
             Dar de alta
           </Button>
+          {onBack === undefined ? null : (
+            <Button variant="secondary" fullWidth onPress={onBack}>
+              Volver
+            </Button>
+          )}
         </form>
       </main>
     </BrandPanelScreen>

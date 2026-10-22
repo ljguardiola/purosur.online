@@ -1,6 +1,7 @@
 import type {
   Authorization,
   PrintCreditNoteOutcome,
+  PrintOriginalReceiptOutcome,
   ReprintSaleReceiptOutcome,
   SaleHistoryDetailOutcome,
   SalesHistoryOutcome,
@@ -87,6 +88,7 @@ export const DETAIL: SaleDetail = {
   reprint: { kind: "available" },
   next_copy: { kind: "duplicate", order_number: 1 },
   credit_note: null,
+  credit_note_next_copy: null,
 };
 
 const AUTHORIZERS: SignInUser[] = [{ id: "u2", first_name: "Grace" }];
@@ -99,7 +101,13 @@ export type Overrides = Partial<Pick<SalesHistoryScreenProps, "person" | "sessio
     reason: string,
     authorization: Authorization | undefined,
   ) => Promise<ReprintSaleReceiptOutcome>;
+  printOriginalReceipt?: (saleId: string) => Promise<PrintOriginalReceiptOutcome>;
   printCreditNote?: (saleId: string) => Promise<PrintCreditNoteOutcome>;
+  reprintCreditNote?: (
+    saleId: string,
+    reason: string,
+    authorization: Authorization | undefined,
+  ) => Promise<ReprintSaleReceiptOutcome>;
   voidSale?: (
     saleId: string,
     pendingRefundsConfirmed: boolean,
@@ -137,9 +145,26 @@ export async function renderScreen({
         credit_note: null,
       })),
   );
+  const printOriginalReceipt = vi.fn(
+    overrides.printOriginalReceipt ??
+      (async (): Promise<PrintOriginalReceiptOutcome> => ({
+        kind: "started",
+        copy: { kind: "original" },
+      })),
+  );
   const printCreditNote = vi.fn(
     overrides.printCreditNote ??
-      (async (): Promise<PrintCreditNoteOutcome> => ({ kind: "started" })),
+      (async (): Promise<PrintCreditNoteOutcome> => ({
+        kind: "started",
+        copy: { kind: "original" },
+      })),
+  );
+  const reprintCreditNote = vi.fn(
+    overrides.reprintCreditNote ??
+      (async (): Promise<ReprintSaleReceiptOutcome> => ({
+        kind: "started",
+        copy: { kind: "duplicate", order_number: 1 },
+      })),
   );
   const lock = vi.fn();
   const onSessionInvalid = vi.fn();
@@ -152,8 +177,10 @@ export async function renderScreen({
       salesHistory={salesHistory}
       saleHistoryDetail={saleHistoryDetail}
       reprintSaleReceipt={reprintSaleReceipt}
+      printOriginalReceipt={printOriginalReceipt}
       voidSale={voidSale}
       printCreditNote={printCreditNote}
+      reprintCreditNote={reprintCreditNote}
       loadAuthorizers={async () => AUTHORIZERS}
       onSessionInvalid={onSessionInvalid}
     />,
@@ -163,8 +190,10 @@ export async function renderScreen({
     salesHistory,
     saleHistoryDetail,
     reprintSaleReceipt,
+    printOriginalReceipt,
     voidSale,
     printCreditNote,
+    reprintCreditNote,
     lock,
     onSessionInvalid,
   };

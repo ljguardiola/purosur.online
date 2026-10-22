@@ -101,6 +101,7 @@ function adjust(
   return adjustSaleLine(
     {
       ledger: store,
+      restoration: store.restoration,
       clock: new FixedClock(NOW),
       authority: new FakeOperationAuthority<AdjustSaleLineGrant, never>({
         kind: "granted",
@@ -304,7 +305,7 @@ describe("adjustSaleLine", () => {
       });
 
       const outcome = await adjustSaleLine(
-        { ledger: store, clock: new FixedClock(NOW), authority },
+        { ledger: store, restoration: store.restoration, clock: new FixedClock(NOW), authority },
         { lineId: "line-1", adjustment: { kind: "PERCENT", percent: 20 }, reason: REASON },
       );
 
@@ -325,7 +326,7 @@ describe("adjustSaleLine", () => {
       );
 
       await adjustSaleLine(
-        { ledger: store, clock: new FixedClock(NOW), authority },
+        { ledger: store, restoration: store.restoration, clock: new FixedClock(NOW), authority },
         { lineId: "line-1", adjustment: { kind: "PERCENT", percent: 20 }, reason: REASON },
       );
 

@@ -90,7 +90,7 @@ function retype(
   expectedWeightThousandths = storedLine(store, lineId)?.quantity ?? 1,
 ) {
   return changeLineWeight(
-    { ledger: store, clock: new FixedClock(NOW) },
+    { ledger: store, restoration: store.restoration, clock: new FixedClock(NOW) },
     { actorId, lineId, weightThousandths, expectedWeightThousandths },
   );
 }

@@ -82,7 +82,12 @@ function weigh(
   actorId = "cashier",
 ) {
   return addWeighedProduct(
-    { ledger: store, clock: new FixedClock(NOW), ids: new SequentialIds() },
+    {
+      ledger: store,
+      restoration: store.restoration,
+      clock: new FixedClock(NOW),
+      ids: new SequentialIds(),
+    },
     { actorId, productId, weightThousandths },
   );
 }

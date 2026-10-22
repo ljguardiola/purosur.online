@@ -265,6 +265,7 @@ export function aSalePrintStateFact(
     kind: "sale_print_state_changed",
     printState: {
       saleId: randomUUID(),
+      document: "sale_receipt",
       printAttemptedAt: new Date("2026-10-06T11:21:00.000Z"),
       printedAt: null,
       ...overrides,
@@ -279,6 +280,7 @@ export function aReprintFact(
     kind: "reprint_recorded",
     reprint: {
       saleId: randomUUID(),
+      document: "sale_receipt",
       orderNumber: 1,
       requestedBy: USER,
       authorizedBy: null,
@@ -328,6 +330,7 @@ export function aClockCorrectedFact(
       pointOfSale: 7,
       documentType: "factura_c",
       previousReading: new Date("2026-10-07T12:00:00.000Z"),
+      previousReadingSource: "clock_mark",
       correctedReading: new Date("2026-10-05T12:00:00.000Z"),
       actorId: randomUUID(),
       ...overrides,

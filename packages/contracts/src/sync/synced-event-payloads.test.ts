@@ -1,5 +1,7 @@
 import {
   clockCorrectedEvent,
+  DEFERRAL_REASONS,
+  deferredSaleRecordedEvent,
   MAX_STOCK_QUANTITY,
   MAX_UNIT_PRICE_CENTS,
   offlineFiscalDocument,
@@ -144,6 +146,8 @@ describe("synced event payloads", () => {
       "cash_session_closed@1",
       "cash_session_opened@1",
       "clock_corrected@1",
+      "clock_corrected@2",
+      "deferred_sale_recorded@1",
       "fiscal_gate_failed@1",
       "offline_fiscal_document_issued@1",
       "offline_fiscal_document_issued@2",
@@ -151,6 +155,7 @@ describe("synced event payloads", () => {
       "opening_count_withdrawn@1",
       "qr_payment_replaced@1",
       "reprint_recorded@1",
+      "reprint_recorded@2",
       "sale_cancelled@1",
       "sale_cancelled@2",
       "sale_cancelled@3",
@@ -167,6 +172,7 @@ describe("synced event payloads", () => {
       "sale_completed@7",
       "sale_completed@8",
       "sale_print_state_changed@1",
+      "sale_print_state_changed@2",
       "sale_voided@1",
       "sale_voided@2",
       "sale_voided@3",
@@ -206,6 +212,7 @@ describe("synced event payloads", () => {
     ["a cash_session_closed version nobody emitted", "cash_session_closed", 2],
     ["a cash_movement_recorded version nobody emitted", "cash_movement_recorded", 2],
     ["a fiscal_gate_failed version nobody emitted", "fiscal_gate_failed", 2],
+    ["a deferred_sale_recorded version nobody emitted", "deferred_sale_recorded", 2],
     ["a qr_payment_replaced version nobody emitted", "qr_payment_replaced", 2],
     ["a prototype property name", "constructor", 1],
     ["a prototype property name as the version", "sale_completed", Number.NaN],
@@ -370,6 +377,68 @@ describe("synced event payloads", () => {
     });
   });
 
+  describe("deferred_sale_recorded v1", () => {
+    const { payload: recorded } = deferredSaleRecordedEvent({
+      eventId: "event-1",
+      registerId: "register-1",
+      actorId: "cashier",
+      deferredSale: {
+        id: "deferred-1",
+        saleId: "sale-1",
+        occurredAt: new Date("2026-10-06T11:19:58.000Z"),
+        total: 12_500,
+        reason: "unclear_outcome",
+        shortCode: "7KQ4M2P9",
+        routedAt: new Date("2026-10-06T11:20:00.000Z"),
+      },
+    });
+
+    it("describes the deferred sale record the domain builds", () => {
+      expect(accepts("deferred_sale_recorded", 1, recorded)).toBe(true);
+    });
+
+    it.each(DEFERRAL_REASONS)("accepts the reason %s", (reason) => {
+      expect(accepts("deferred_sale_recorded", 1, { ...recorded, reason })).toBe(true);
+    });
+
+    it("refuses a reason the deferral does not have", () => {
+      expect(accepts("deferred_sale_recorded", 1, { ...recorded, reason: "other" })).toBe(false);
+    });
+
+    it.each([
+      ["a sale date that is not ISO", { occurred_at: "yesterday" }],
+      ["a routing date that is not ISO", { routed_at: "now" }],
+      ["a negative total", { total: -1 }],
+      ["a fractional total", { total: 1.5 }],
+      ["an empty short code", { short_code: "" }],
+      ["a short code the domain does not draw", { short_code: "7kq4m2p9" }],
+    ])("refuses %s", (_case, change) => {
+      expect(accepts("deferred_sale_recorded", 1, { ...recorded, ...change })).toBe(false);
+    });
+
+    it("refuses it without any one of its fields", () => {
+      const accepted = Object.keys(recorded).filter((key) => {
+        const { [key]: _removed, ...rest } = recorded;
+        return accepts("deferred_sale_recorded", 1, rest);
+      });
+
+      expect(accepted).toEqual([]);
+    });
+
+    it("refuses it with any one of its fields of the wrong type", () => {
+      const accepted = Object.keys(recorded).filter((key) =>
+        accepts("deferred_sale_recorded", 1, { ...recorded, [key]: { unexpected: true } }),
+      );
+
+      expect(accepted).toEqual([]);
+    });
+
+    it("refuses it when it is not an object", () => {
+      expect(accepts("deferred_sale_recorded", 1, null)).toBe(false);
+      expect(accepts("deferred_sale_recorded", 1, [])).toBe(false);
+    });
+  });
+
   describe("offline_fiscal_document_issued", () => {
     const { payload: issued } = offlineFiscalDocumentIssuedEvent({
       eventId: "event-1",
@@ -525,24 +594,29 @@ describe("synced event payloads", () => {
         pointOfSale: 12,
         documentType: "factura_c",
         previousReading: new Date("2026-10-03T12:00:00.000Z"),
+        previousReadingSource: "clock_mark",
         correctedReading: new Date("2026-10-01T12:00:00.000Z"),
       },
     });
-    const clock = (change: Payload = {}) => ({ ...(corrected as Payload), ...change });
+    const { previous_reading_source: _source, ...recordedByRegistersInTheField } =
+      corrected as Payload;
+    const clock = (change: Payload = {}) => ({ ...recordedByRegistersInTheField, ...change });
 
-    it("has a schema for version 1 only", () => {
+    it("has a schema for version 1", () => {
       expect(syncedEventPayloadKey("clock_corrected", 1)).toBe("clock_corrected@1");
-      expect(syncedEventPayloadKey("clock_corrected", 2)).toBeUndefined();
     });
 
-    it("describes the event the domain drafts for a lowered mark", () => {
+    it("describes the event a register in the field sent for a lowered mark", () => {
       expect(accepts("clock_corrected", 1, clock())).toBe(true);
     });
 
-    it.each(Object.keys(corrected))("refuses a payload without its %s", (field) => {
-      const { [field]: _removed, ...rest } = clock();
-      expect(accepts("clock_corrected", 1, rest)).toBe(false);
-    });
+    it.each(Object.keys(recordedByRegistersInTheField))(
+      "refuses a payload without its %s",
+      (field) => {
+        const { [field]: _removed, ...rest } = clock();
+        expect(accepts("clock_corrected", 1, rest)).toBe(false);
+      },
+    );
 
     it.each([
       ["a point of sale the tax authority does not allow", { point_of_sale: 0 }],
@@ -551,6 +625,54 @@ describe("synced event payloads", () => {
       ["a corrected reading that is not an instant", { corrected_reading: 1 }],
     ])("refuses %s", (_case, change) => {
       expect(accepts("clock_corrected", 1, clock(change))).toBe(false);
+    });
+  });
+
+  describe("clock_corrected v2", () => {
+    const { payload: corrected } = clockCorrectedEvent({
+      eventId: "event-1",
+      registerId: "register-1",
+      actorId: "user-1",
+      lowering: {
+        pointOfSale: 12,
+        documentType: "factura_c",
+        previousReading: new Date("2026-10-03T12:00:00.000Z"),
+        previousReadingSource: "clock_mark",
+        correctedReading: new Date("2026-10-01T12:00:00.000Z"),
+      },
+    });
+    const clock = (change: Payload = {}) => ({ ...(corrected as Payload), ...change });
+
+    it("has a schema for versions 1 and 2 only", () => {
+      expect(syncedEventPayloadKey("clock_corrected", 2)).toBe("clock_corrected@2");
+      expect(syncedEventPayloadKey("clock_corrected", 3)).toBeUndefined();
+    });
+
+    it("describes the event the domain drafts for a lowering", () => {
+      expect(accepts("clock_corrected", 2, clock())).toBe(true);
+    });
+
+    it.each(["clock_mark", "tax_authority_day"])(
+      "accepts %s as the source of the previous reading",
+      (source) => {
+        expect(accepts("clock_corrected", 2, clock({ previous_reading_source: source }))).toBe(
+          true,
+        );
+      },
+    );
+
+    it.each(Object.keys(corrected))("refuses a payload without its %s", (field) => {
+      const { [field]: _removed, ...rest } = clock();
+      expect(accepts("clock_corrected", 2, rest)).toBe(false);
+    });
+
+    it.each([
+      ["a source it does not know", { previous_reading_source: "register" }],
+      ["a source that is not text", { previous_reading_source: 1 }],
+      ["a point of sale the tax authority does not allow", { point_of_sale: 0 }],
+      ["a previous reading that is not an instant", { previous_reading: "yesterday" }],
+    ])("refuses %s", (_case, change) => {
+      expect(accepts("clock_corrected", 2, clock(change))).toBe(false);
     });
   });
 
@@ -1504,6 +1626,99 @@ describe("synced event payloads", () => {
 
         expect(accepts("reprint_recorded", 1, rest), field).toBe(false);
       }
+    });
+  });
+
+  describe("sale_print_state_changed v2", () => {
+    const state = (): Payload => ({
+      sale_id: "sale-1",
+      document: "credit_note",
+      print_attempted_at: "2026-10-06T11:21:00.000Z",
+      printed_at: "2026-10-06T11:21:05.000Z",
+    });
+
+    it("accepts the state of each document a register prints", () => {
+      expect(accepts("sale_print_state_changed", 2, state())).toBe(true);
+      expect(accepts("sale_print_state_changed", 2, { ...state(), document: "sale_receipt" })).toBe(
+        true,
+      );
+    });
+
+    it("refuses a document the register does not print", () => {
+      expect(accepts("sale_print_state_changed", 2, { ...state(), document: "invoice" })).toBe(
+        false,
+      );
+    });
+
+    it("refuses the state without any one of its fields", () => {
+      for (const field of Object.keys(state())) {
+        const { [field]: _removed, ...rest } = state();
+
+        expect(accepts("sale_print_state_changed", 2, rest), field).toBe(false);
+      }
+    });
+
+    it("keeps the printing of version 1 as fields it needs", () => {
+      expect(accepts("sale_print_state_changed", 2, { ...state(), printed_at: null })).toBe(true);
+      expect(accepts("sale_print_state_changed", 2, { ...state(), printed_at: "now" })).toBe(false);
+      expect(accepts("sale_print_state_changed", 2, { ...state(), sale_id: "" })).toBe(false);
+    });
+  });
+
+  describe("reprint_recorded v2", () => {
+    const retry = (): Payload => ({
+      sale_id: "sale-1",
+      document: "credit_note",
+      order_number: 1,
+      requested_by: "cashier",
+      authorized_by: null,
+      reason_kind: "retry",
+      reason_text: null,
+    });
+    const requested = (): Payload => ({
+      ...retry(),
+      order_number: 2,
+      authorized_by: "manager",
+      reason_kind: "requested",
+      reason_text: "El cliente la perdio",
+    });
+
+    it("accepts a retry and a requested copy of each document a register prints", () => {
+      for (const document of ["sale_receipt", "credit_note"]) {
+        expect(accepts("reprint_recorded", 2, { ...retry(), document })).toBe(true);
+        expect(accepts("reprint_recorded", 2, { ...requested(), document })).toBe(true);
+      }
+    });
+
+    it("refuses a document the register does not print", () => {
+      expect(accepts("reprint_recorded", 2, { ...retry(), document: "invoice" })).toBe(false);
+      expect(accepts("reprint_recorded", 2, { ...requested(), document: "invoice" })).toBe(false);
+    });
+
+    it("refuses the copy without any one of its fields", () => {
+      for (const field of Object.keys(retry())) {
+        const { [field]: _removed, ...rest } = retry();
+        const { [field]: _removedRequested, ...restRequested } = requested();
+
+        expect(accepts("reprint_recorded", 2, rest), field).toBe(false);
+        expect(accepts("reprint_recorded", 2, restRequested), field).toBe(false);
+      }
+    });
+
+    it("applies the reason rules of version 1", () => {
+      const longest = "a".repeat(RECEIPT_REPRINT_REASON_MAX_LENGTH);
+
+      expect(accepts("reprint_recorded", 2, { ...retry(), reason_text: "texto" })).toBe(false);
+      expect(accepts("reprint_recorded", 2, { ...requested(), reason_text: null })).toBe(false);
+      expect(accepts("reprint_recorded", 2, { ...requested(), reason_text: longest })).toBe(true);
+      expect(accepts("reprint_recorded", 2, { ...requested(), reason_text: `${longest}a` })).toBe(
+        false,
+      );
+      expect(accepts("reprint_recorded", 2, { ...requested(), reason_text: " perdida" })).toBe(
+        false,
+      );
+      expect(accepts("reprint_recorded", 2, { ...retry(), reason_kind: "other" })).toBe(false);
+      expect(accepts("reprint_recorded", 2, { ...retry(), order_number: 0 })).toBe(false);
     });
   });
 

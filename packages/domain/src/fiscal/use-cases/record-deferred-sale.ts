@@ -1,7 +1,9 @@
+import type { OutboxEventDraft } from "../../shared/index.js";
 import { type DeferredSale, randomShortCode, SHORT_CODE_ATTEMPTS } from "../model/deferred-sale.js";
+import { deferredSaleRecordedEvent } from "../model/deferred-sale-recorded-event.js";
 import type { DeferralReason } from "../model/real-time-authorization.js";
 import { type ShortCodeRandomness, ShortCodeTaken } from "./deferred-sale-ports.js";
-import type { IdGenerator } from "./sale-authorization-ports.js";
+import type { IdGenerator, SaleOrigin } from "./sale-authorization-ports.js";
 
 export interface DeferredSaleFacts {
   saleId: string;
@@ -9,28 +11,42 @@ export interface DeferredSaleFacts {
   total: number;
   reason: DeferralReason;
   routedAt: Date;
+  origin: SaleOrigin;
 }
 
-function deferredSaleWith(id: string, shortCode: string, facts: DeferredSaleFacts): DeferredSale {
-  return { id, shortCode, ...facts };
+export interface DeferredSaleRecording {
+  sale: DeferredSale;
+  event: OutboxEventDraft;
+}
+
+function recordingWith(
+  id: string,
+  eventId: string,
+  shortCode: string,
+  { origin, ...facts }: DeferredSaleFacts,
+): DeferredSaleRecording {
+  const sale = { id, shortCode, ...facts };
+  return { sale, event: deferredSaleRecordedEvent({ eventId, ...origin, deferredSale: sale }) };
 }
 
 export function recordDeferredSale(
-  record: (sale: DeferredSale) => void,
+  record: (recording: DeferredSaleRecording) => void,
   ids: IdGenerator,
   shortCodes: ShortCodeRandomness,
   facts: DeferredSaleFacts,
 ): DeferredSale {
   const id = ids.next();
+  const eventId = ids.next();
   for (let attempt = 1; ; attempt += 1) {
-    const sale = deferredSaleWith(
+    const recording = recordingWith(
       id,
+      eventId,
       randomShortCode((bound) => shortCodes.nextIndex(bound)),
       facts,
     );
     try {
-      record(sale);
-      return sale;
+      record(recording);
+      return recording.sale;
     } catch (error) {
       if (!(error instanceof ShortCodeTaken) || attempt >= SHORT_CODE_ATTEMPTS) {
         throw error;
@@ -40,21 +56,23 @@ export function recordDeferredSale(
 }
 
 export async function recordDeferredSaleAsync(
-  record: (sale: DeferredSale) => Promise<void>,
+  record: (recording: DeferredSaleRecording) => Promise<void>,
   ids: IdGenerator,
   shortCodes: ShortCodeRandomness,
   facts: DeferredSaleFacts,
 ): Promise<DeferredSale> {
   const id = ids.next();
+  const eventId = ids.next();
   for (let attempt = 1; ; attempt += 1) {
-    const sale = deferredSaleWith(
+    const recording = recordingWith(
       id,
+      eventId,
       randomShortCode((bound) => shortCodes.nextIndex(bound)),
       facts,
     );
     try {
-      await record(sale);
-      return sale;
+      await record(recording);
+      return recording.sale;
     } catch (error) {
       if (!(error instanceof ShortCodeTaken) || attempt >= SHORT_CODE_ATTEMPTS) {
         throw error;

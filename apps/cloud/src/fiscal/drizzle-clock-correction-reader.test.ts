@@ -39,6 +39,7 @@ describe("DrizzleClockCorrectionReader", () => {
       correctedAt,
       pointOfSale: 7,
       previousReading: new Date("2026-10-07T12:00:00.000Z"),
+      previousReadingSource: "tax_authority_day",
     });
 
     expect(
@@ -54,6 +55,7 @@ describe("DrizzleClockCorrectionReader", () => {
         actorId,
         actorFirstName: "Ada",
         previousReading: new Date("2026-10-07T12:00:00.000Z"),
+        previousReadingSource: "tax_authority_day",
         correctedReading: correctedAt,
         alertState: "open",
       },

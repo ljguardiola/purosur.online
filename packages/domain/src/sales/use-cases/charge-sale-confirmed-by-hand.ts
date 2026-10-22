@@ -4,6 +4,7 @@ import { nonCashCharge } from "../../payments/index.js";
 import type { Clock } from "../../shared/index.js";
 import { isSaleRefusal, type PartiallyPaid, saleOpenToNewPayment } from "./chargeable-sale.js";
 import { completeSale } from "./complete-sale.js";
+import type { RegisterRestoration } from "./register-restoration.js";
 import type { IdGenerator, SaleLedger } from "./sale-ledger.js";
 
 export interface ChargeSaleConfirmedByHandInput {
@@ -14,12 +15,14 @@ export interface ChargeSaleConfirmedByHandInput {
 
 export interface ChargeSaleConfirmedByHandPorts {
   ledger: SaleLedger;
+  restoration: RegisterRestoration;
   clock: Clock;
   ids: IdGenerator;
 }
 
 export type ChargeSaleConfirmedByHandOutcome =
   | { kind: "not_permitted" }
+  | { kind: "restoration_in_progress" }
   | { kind: "no_open_session" }
   | { kind: "no_open_sale" }
   | { kind: "empty_sale" }
@@ -32,13 +35,13 @@ export type ChargeSaleConfirmedByHandOutcome =
   | { kind: "completed"; saleId: string; total: number };
 
 export function chargeSaleConfirmedByHand(
-  { ledger, clock, ids }: ChargeSaleConfirmedByHandPorts,
+  { ledger, restoration, clock, ids }: ChargeSaleConfirmedByHandPorts,
   { actorId, saleId, amount }: ChargeSaleConfirmedByHandInput,
   method: ConfirmedByHandMethod,
 ): ChargeSaleConfirmedByHandOutcome {
   return ledger.transaction<ChargeSaleConfirmedByHandOutcome>((tx) => {
     const completedAt = clock.now();
-    const chargeable = saleOpenToNewPayment(tx, actorId, saleId, completedAt);
+    const chargeable = saleOpenToNewPayment(tx, actorId, saleId, completedAt, restoration);
     if (isSaleRefusal(chargeable)) {
       return chargeable;
     }

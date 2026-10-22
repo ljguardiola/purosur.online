@@ -5,6 +5,7 @@ import {
   FICTIONAL_LEGAL_NAME,
 } from "@purosur/domain/fiscal/test-support";
 import {
+  A_DEFERRED_SALE_RECORDED_FACT,
   aCancelledSaleFact,
   aCompletedSaleFact,
   aVoidedSaleFact,
@@ -270,6 +271,7 @@ describe("the register's store for replenishing a restored register", () => {
           pointOfSale: 12,
           documentType: "factura_c",
           previousReading: new Date("2026-10-07T12:00:00.000Z"),
+          previousReadingSource: "clock_mark",
           correctedReading: new Date("2026-10-05T12:00:00.000Z"),
           actorId: "cashier-1",
         },
@@ -289,6 +291,7 @@ describe("the register's store for replenishing a restored register", () => {
           kind: "sale_print_state_changed",
           printState: {
             saleId: "sale-1",
+            document: "sale_receipt",
             printAttemptedAt: new Date("2026-10-07T10:00:05.000Z"),
             printedAt: null,
           },
@@ -297,6 +300,7 @@ describe("the register's store for replenishing a restored register", () => {
           kind: "reprint_recorded",
           reprint: {
             saleId: "sale-1",
+            document: "sale_receipt",
             orderNumber: 1,
             requestedBy: "cashier-1",
             authorizedBy: null,
@@ -402,6 +406,32 @@ describe("the register's store for replenishing a restored register", () => {
         "not_yet_applicable",
       );
       expect(count("offline_fiscal_documents")).toBe(0);
+    });
+
+    it("rebuilds the deferred-sale record of a sale with the short code it was issued with, and again without changing it", async () => {
+      await store.transaction((tx) => tx.applyFact(aCompletedSaleFact({ id: "sale-1" }), SOURCE));
+
+      expect(
+        await store.transaction((tx) => tx.applyFact(A_DEFERRED_SALE_RECORDED_FACT, SOURCE)),
+      ).toBe("applied");
+      expect(
+        await store.transaction((tx) => tx.applyFact(A_DEFERRED_SALE_RECORDED_FACT, SOURCE)),
+      ).toBe("applied");
+
+      expect(database.prepare("SELECT id, sale_id, short_code FROM deferred_sales").all()).toEqual([
+        { id: "deferred-1", sale_id: "sale-1", short_code: "7KQ4M2P9" },
+      ]);
+      expect(generated).toBe(0);
+    });
+
+    it("holds no deferred-sale record for a sale until it is rebuilt", async () => {
+      await store.transaction((tx) => tx.applyFact(aCompletedSaleFact({ id: "sale-1" }), SOURCE));
+
+      expect(await store.transaction((tx) => tx.holdsDeferredSaleRecord("sale-1"))).toBe(false);
+
+      await store.transaction((tx) => tx.applyFact(A_DEFERRED_SALE_RECORDED_FACT, SOURCE));
+
+      expect(await store.transaction((tx) => tx.holdsDeferredSaleRecord("sale-1"))).toBe(true);
     });
 
     it("never puts a replenished event in the outbox, so it is not pushed again", async () => {

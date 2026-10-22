@@ -1,5 +1,5 @@
 {
-  "id": "cb2dcf05-f06b-491a-a85f-17c7a3895574",
+  "id": "77cafd63-ca05-464c-9c45-75cb76b7c757",
   "prevId": "e0d806a1-03d0-4344-8c48-8877a76f332a",
   "version": "7",
   "dialect": "postgresql",
@@ -1754,6 +1754,13 @@
           "primaryKey": false,
           "notNull": true
         },
+        "previous_reading_source": {
+          "name": "previous_reading_source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'clock_mark'"
+        },
         "corrected_reading": {
           "name": "corrected_reading",
           "type": "timestamp with time zone",
@@ -1844,6 +1851,10 @@
         "clock_corrections_document_type_known": {
           "name": "clock_corrections_document_type_known",
           "value": "\"clock_corrections\".\"document_type\" in ('factura_c')"
+        },
+        "clock_corrections_previous_reading_source_known": {
+          "name": "clock_corrections_previous_reading_source_known",
+          "value": "\"clock_corrections\".\"previous_reading_source\" in ('clock_mark', 'tax_authority_day')"
         },
         "clock_corrections_lowers_the_reading": {
           "name": "clock_corrections_lowers_the_reading",
@@ -2165,7 +2176,7 @@
       "checkConstraints": {
         "credit_notes_reason_check": {
           "name": "credit_notes_reason_check",
-          "value": "\"credit_notes\".\"reason\" in ('orphan', 'sale_void', 'rejected_document')"
+          "value": "\"credit_notes\".\"reason\" in ('orphan', 'sale_void')"
         },
         "credit_notes_kept_voucher_check": {
           "name": "credit_notes_kept_voucher_check",
@@ -8108,126 +8119,6 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.rejected_document_remedies": {
-      "name": "rejected_document_remedies",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "bigserial",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "point_of_sale_number": {
-          "name": "point_of_sale_number",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "fortnight_start": {
-          "name": "fortnight_start",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "document_type": {
-          "name": "document_type",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "number": {
-          "name": "number",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "kind": {
-          "name": "kind",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "correction": {
-          "name": "correction",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "rejected_at": {
-          "name": "rejected_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "recorded_at": {
-          "name": "recorded_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {
-        "rejected_document_remedies_document_idx": {
-          "name": "rejected_document_remedies_document_idx",
-          "columns": [
-            {
-              "expression": "point_of_sale_number",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "fortnight_start",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "document_type",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "number",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "rejected_document_remedies_point_of_sale_number_point_of_sale_claims_point_of_sale_number_fk": {
-          "name": "rejected_document_remedies_point_of_sale_number_point_of_sale_claims_point_of_sale_number_fk",
-          "tableFrom": "rejected_document_remedies",
-          "tableTo": "point_of_sale_claims",
-          "columnsFrom": ["point_of_sale_number"],
-          "columnsTo": ["point_of_sale_number"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "rejected_document_remedies_kind_check": {
-          "name": "rejected_document_remedies_kind_check",
-          "value": "\"rejected_document_remedies\".\"kind\" in ('report', 'printed')"
-        },
-        "rejected_document_remedies_correction_check": {
-          "name": "rejected_document_remedies_correction_check",
-          "value": "(\"rejected_document_remedies\".\"kind\" = 'printed') = (\"rejected_document_remedies\".\"correction\" is not null)"
-        }
-      },
       "isRLSEnabled": false
     },
     "public.role_permissions": {

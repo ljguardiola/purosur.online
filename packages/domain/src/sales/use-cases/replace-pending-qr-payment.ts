@@ -1,3 +1,4 @@
+import type { RegisterRestoration } from "./register-restoration.js";
 import type { IdGenerator, SaleLedger } from "./sale-ledger.js";
 import { isRefusal, type SellingSessionRefusal, sellingSession } from "./selling-session.js";
 
@@ -9,6 +10,7 @@ export interface ReplacePendingQrPaymentInput {
 
 export interface ReplacePendingQrPaymentPorts {
   ledger: SaleLedger;
+  restoration: RegisterRestoration;
   ids: IdGenerator;
 }
 
@@ -23,11 +25,11 @@ export type ReplacePendingQrPaymentOutcome =
   | PendingQrPaymentReplacementRefusal;
 
 export function replacePendingQrPayment(
-  { ledger, ids }: ReplacePendingQrPaymentPorts,
+  { ledger, restoration, ids }: ReplacePendingQrPaymentPorts,
   { actorId, paymentTransactionId, replacedAt }: ReplacePendingQrPaymentInput,
 ): ReplacePendingQrPaymentOutcome {
   return ledger.transaction<ReplacePendingQrPaymentOutcome>((tx) => {
-    const session = sellingSession(tx, actorId);
+    const session = sellingSession(tx, actorId, restoration);
     if (isRefusal(session)) {
       return session;
     }

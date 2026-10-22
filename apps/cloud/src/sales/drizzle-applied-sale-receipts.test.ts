@@ -157,6 +157,7 @@ describe("recording the reprints of an applied sale", () => {
     expect(await system.db.select().from(saleReprints)).toEqual([
       {
         saleId,
+        document: "sale_receipt",
         orderNumber: 1,
         requestedBy: "c7b3e5d2-18a4-4f90-b6d1-2e9f0a8c3d03",
         authorizedBy: null,
@@ -215,6 +216,142 @@ describe("recording the reprints of an applied sale", () => {
 
     await expect(
       recordReprint({ saleId, orderNumber: 1 }, await anotherRegister()),
+    ).rejects.toThrow(/sale .* is not applied/);
+
+    expect(await system.db.select().from(saleReprints)).toEqual([]);
+  });
+});
+
+async function creditNotePrintStateOf(saleId: string) {
+  const [row] = await system.db
+    .select({
+      attempted: sales.creditNotePrintAttemptedAt,
+      printed: sales.creditNotePrintedAt,
+      receiptAttempted: sales.printAttemptedAt,
+      receiptPrinted: sales.printedAt,
+    })
+    .from(sales)
+    .where(eq(sales.id, saleId));
+  return row;
+}
+
+function recordCreditNotePrintState(
+  overrides: Parameters<typeof aSalePrintStateFact>[0],
+  pushedFrom: AppliedOrigin = origin,
+) {
+  return system.db.transaction((tx) =>
+    recordAppliedPrintState(
+      tx,
+      pushedFrom,
+      aSalePrintStateFact({ document: "credit_note", ...overrides }),
+    ),
+  );
+}
+
+describe("recording the print state of an applied sale's credit note", () => {
+  it("keeps the attempt and then the printing of the credit note, leaving the receipt's print state alone", async () => {
+    const saleId = await appliedSale();
+    await recordPrintState({ saleId, printAttemptedAt: ATTEMPTED, printedAt: PRINTED });
+
+    await recordCreditNotePrintState({ saleId, printAttemptedAt: LATER, printedAt: null });
+    await recordCreditNotePrintState({ saleId, printAttemptedAt: LATER, printedAt: LATER });
+
+    expect(await creditNotePrintStateOf(saleId)).toEqual({
+      attempted: LATER,
+      printed: LATER,
+      receiptAttempted: ATTEMPTED,
+      receiptPrinted: PRINTED,
+    });
+  });
+
+  it("keeps the latest attempt and the latest printing when older ones arrive afterwards", async () => {
+    const saleId = await appliedSale();
+    await recordCreditNotePrintState({ saleId, printAttemptedAt: LATER, printedAt: LATER });
+
+    await recordCreditNotePrintState({ saleId, printAttemptedAt: ATTEMPTED, printedAt: PRINTED });
+
+    expect(await creditNotePrintStateOf(saleId)).toMatchObject({
+      attempted: LATER,
+      printed: LATER,
+    });
+  });
+
+  it("never takes a printed credit note back to unprinted when an attempt arrives late", async () => {
+    const saleId = await appliedSale();
+    await recordCreditNotePrintState({ saleId, printAttemptedAt: ATTEMPTED, printedAt: PRINTED });
+
+    await recordCreditNotePrintState({ saleId, printAttemptedAt: ATTEMPTED, printedAt: null });
+
+    expect(await creditNotePrintStateOf(saleId)).toMatchObject({
+      attempted: ATTEMPTED,
+      printed: PRINTED,
+    });
+  });
+
+  it("refuses the print state of a sale of another register and leaves it untouched", async () => {
+    const saleId = await appliedSale();
+
+    await expect(
+      recordCreditNotePrintState(
+        { saleId, printAttemptedAt: ATTEMPTED, printedAt: PRINTED },
+        await anotherRegister(),
+      ),
+    ).rejects.toThrow(/sale .* is not applied/);
+
+    expect(await creditNotePrintStateOf(saleId)).toMatchObject({ attempted: null, printed: null });
+  });
+});
+
+describe("recording the reprints of an applied sale's credit note", () => {
+  it("keeps the reprint of the credit note with who asked, who authorized it and why", async () => {
+    const saleId = await appliedSale();
+
+    await recordReprint({
+      saleId,
+      document: "credit_note",
+      orderNumber: 1,
+      authorizedBy: "4a7c1e9d-3b62-4f05-8d1a-6e2b9c5f3a13",
+      reason: { kind: "requested", text: "El cliente la perdio" },
+    });
+
+    const [row] = await system.db.select().from(saleReprints);
+    expect(row).toMatchObject({
+      saleId,
+      document: "credit_note",
+      orderNumber: 1,
+      authorizedBy: "4a7c1e9d-3b62-4f05-8d1a-6e2b9c5f3a13",
+      reasonKind: "requested",
+      reasonText: "El cliente la perdio",
+    });
+  });
+
+  it("numbers the credit note's reprints apart from the receipt's", async () => {
+    const saleId = await appliedSale();
+
+    await recordReprint({ saleId, document: "sale_receipt", orderNumber: 1 });
+    await recordReprint({ saleId, document: "credit_note", orderNumber: 1 });
+
+    const rows = await system.db.select().from(saleReprints);
+    expect(rows.map((row) => [row.document, row.orderNumber]).sort()).toEqual([
+      ["credit_note", 1],
+      ["sale_receipt", 1],
+    ]);
+  });
+
+  it("refuses a second reprint of the credit note under an order number it already has", async () => {
+    const saleId = await appliedSale();
+    await recordReprint({ saleId, document: "credit_note", orderNumber: 1 });
+
+    await expect(
+      recordReprint({ saleId, document: "credit_note", orderNumber: 1 }),
+    ).rejects.toThrow();
+  });
+
+  it("refuses the reprint of a credit note of a sale of another register and keeps none", async () => {
+    const saleId = await appliedSale();
+
+    await expect(
+      recordReprint({ saleId, document: "credit_note", orderNumber: 1 }, await anotherRegister()),
     ).rejects.toThrow(/sale .* is not applied/);
 
     expect(await system.db.select().from(saleReprints)).toEqual([]);

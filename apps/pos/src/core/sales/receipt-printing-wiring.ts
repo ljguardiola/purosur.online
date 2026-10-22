@@ -2,7 +2,11 @@ import type { ReceiptPrinters } from "@purosur/domain/sales/use-cases";
 import type { LocalDatabase } from "../platform/local-database";
 import { SqliteReceiptPrinterSettings } from "../register/sqlite-receipt-printer-settings";
 import type { ActionGate } from "../sessions/action-gate";
-import { printCreditNoteFor, printVoidedSaleCreditNoteFor } from "./credit-note-receipt-requests";
+import {
+  printCreditNoteFor,
+  printVoidedSaleCreditNoteFor,
+  reprintCreditNoteFor,
+} from "./credit-note-receipt-requests";
 import {
   type PrintingCompletedSalesDeps,
   printingCompletedSales,
@@ -67,6 +71,11 @@ export interface ReceiptPrinting {
       ) => ReturnType<typeof reprintSaleReceiptFor>)
     | undefined;
   printCreditNote: ((saleId: string) => ReturnType<typeof printCreditNoteFor>) | undefined;
+  reprintCreditNote:
+    | ((
+        request: Parameters<typeof reprintCreditNoteFor>[1],
+      ) => ReturnType<typeof reprintCreditNoteFor>)
+    | undefined;
   printVoidedSaleCreditNote: (saleId: string) => Promise<void>;
 }
 
@@ -90,6 +99,7 @@ export function createReceiptPrinting({
       printOriginalReceipt: undefined,
       reprintSaleReceipt: undefined,
       printCreditNote: undefined,
+      reprintCreditNote: undefined,
       printVoidedSaleCreditNote: async () => undefined,
     };
   }
@@ -117,6 +127,7 @@ export function createReceiptPrinting({
     printOriginalReceipt: (saleId) => printOriginalReceiptFor(deps, saleId),
     reprintSaleReceipt: (request) => reprintSaleReceiptFor(deps, request),
     printCreditNote: (saleId) => printCreditNoteFor(deps, saleId),
+    reprintCreditNote: (request) => reprintCreditNoteFor(deps, request),
     printVoidedSaleCreditNote: (saleId) => printVoidedSaleCreditNoteFor(deps, saleId),
   };
 }

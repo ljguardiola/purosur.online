@@ -6,6 +6,7 @@ import {
   saleDiscountRefusal,
 } from "../model/sale-discount.js";
 import { saleTotal } from "../model/sale-line.js";
+import type { RegisterRestoration } from "./register-restoration.js";
 import type { SaleLedger } from "./sale-ledger.js";
 import {
   isSaleLineChangeRefusal,
@@ -20,6 +21,7 @@ export interface PreviewSaleDiscountInput {
 
 export interface PreviewSaleDiscountPorts {
   ledger: SaleLedger;
+  restoration: RegisterRestoration;
   clock: Clock;
 }
 
@@ -29,11 +31,11 @@ export type PreviewSaleDiscountOutcome =
   | { kind: "preview"; subtotal: number; saleDiscountAmount: number; total: number };
 
 export function previewSaleDiscount(
-  { ledger, clock }: PreviewSaleDiscountPorts,
+  { ledger, restoration, clock }: PreviewSaleDiscountPorts,
   { actorId, discount }: PreviewSaleDiscountInput,
 ): PreviewSaleDiscountOutcome {
   return ledger.transaction<PreviewSaleDiscountOutcome>((tx) => {
-    const sale = saleToChange(tx, actorId, clock);
+    const sale = saleToChange(tx, actorId, clock, restoration);
     if (isSaleLineChangeRefusal(sale)) {
       return sale;
     }

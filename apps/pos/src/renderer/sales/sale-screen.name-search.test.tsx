@@ -567,6 +567,11 @@ describe("SaleScreen searching by name", () => {
         title: NOT_PERMITTED_TITLE,
       },
       {
+        name: "the register is being restored",
+        outcome: { kind: "restoration_in_progress" },
+        title: "La caja se está restaurando: todavía no se puede vender.",
+      },
+      {
         name: "the core cannot search",
         outcome: { kind: "unavailable" },
         title: "No se pudo buscar el producto",

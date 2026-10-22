@@ -66,6 +66,45 @@ describe("recording the print state of an applied sale as cloud_app", () => {
     expect(row).toEqual({ attempted: ATTEMPTED, printed: PRINTED });
   });
 
+  it("keeps the attempt and then the printing of the credit note", async () => {
+    const saleId = await appliedSale();
+
+    await db.transaction((tx) =>
+      recordAppliedPrintState(
+        tx,
+        origin,
+        aSalePrintStateFact({
+          saleId,
+          document: "credit_note",
+          printAttemptedAt: ATTEMPTED,
+          printedAt: null,
+        }),
+      ),
+    );
+    await db.transaction((tx) =>
+      recordAppliedPrintState(
+        tx,
+        origin,
+        aSalePrintStateFact({
+          saleId,
+          document: "credit_note",
+          printAttemptedAt: ATTEMPTED,
+          printedAt: PRINTED,
+        }),
+      ),
+    );
+
+    const [row] = await db
+      .select({
+        attempted: sales.creditNotePrintAttemptedAt,
+        printed: sales.creditNotePrintedAt,
+        receiptAttempted: sales.printAttemptedAt,
+      })
+      .from(sales)
+      .where(eq(sales.id, saleId));
+    expect(row).toEqual({ attempted: ATTEMPTED, printed: PRINTED, receiptAttempted: null });
+  });
+
   it("still cannot rewrite, delete or truncate the rest of an applied sale", async () => {
     const saleId = await appliedSale();
 

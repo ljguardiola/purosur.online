@@ -280,21 +280,37 @@ describe("readRegisterClockGuard", () => {
       );
     });
 
-    it("is not, with nothing behind, when only the tax authority's day blocks, which no correction lowers", () => {
+    it("is when only the tax authority's day blocks and the register holds no mark", () => {
       const floor = {
         pointOfSale: 12,
         documentType: "factura_c",
         lastIssuedOn: "2026-10-02",
       } as const;
 
-      expect(read({ floor }).correction).toBe("not_behind");
+      expect(read({ floor }).correction).toBe("available");
     });
 
-    it("is not, with nothing behind, when only the tax authority's day blocks and the period's correction was made", () => {
+    it("is not, already used, when only the tax authority's day blocks and the period's correction was made", () => {
       const state = {
         floor: { pointOfSale: 12, documentType: "factura_c", lastIssuedOn: "2026-10-02" } as const,
         standing: { openSessionId: "session-1", lastClosedSessionId: "session-0" },
         periodsWithCorrection: ["session-1"],
+      };
+
+      expect(read(state).correction).toBe("already_corrected_in_period");
+    });
+
+    it("is not, with nothing behind, once a correction opened the lapse of the tax authority's day", () => {
+      const state = {
+        floor: { pointOfSale: 12, documentType: "factura_c", lastIssuedOn: "2026-10-02" } as const,
+        corrections: [
+          {
+            pointOfSale: 12,
+            documentType: "factura_c" as const,
+            previousReading: new Date("2026-10-02T15:00:00.000Z"),
+            correctedReading: READING,
+          },
+        ],
       };
 
       expect(read(state).correction).toBe("not_behind");

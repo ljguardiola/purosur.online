@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { RestoredCreditNoteAnswer, SaleVoidCreditNote } from "../../fiscal/index.js";
 import type { SyncedFact } from "../model/synced-fact.js";
-import { A_CLOCK_CORRECTED_FACT, aVoidedSaleFact } from "../model/test-support/synced-facts.js";
+import {
+  A_CLOCK_CORRECTED_FACT,
+  A_DEFERRED_SALE_RECORDED_FACT,
+  A_GATE_FAILED_FACT,
+  aVoidedSaleFact,
+} from "../model/test-support/synced-facts.js";
 import { replenishRestoredRegister } from "./replenish-restored-register.js";
 import {
   aPage,
@@ -512,6 +517,116 @@ describe("replenishRestoredRegister", () => {
       await expect(run()).rejects.toThrow("storage unavailable");
 
       expect(store.state).toMatchObject({ facts: [], creditNoteAnswers: [], appliedEventIds: [] });
+    });
+  });
+
+  describe("the deferred-sale record of a sale whose gate failed", () => {
+    function aGateFailureWithItsRecord() {
+      const run = aRestoredRegister();
+      const record = anEvent("device-old", 53);
+      const failure = anEvent("device-old", 54);
+      run.decoder.facts.set(record.event.event_id, A_DEFERRED_SALE_RECORDED_FACT);
+      run.decoder.facts.set(failure.event.event_id, A_GATE_FAILED_FACT);
+      return { ...run, record, failure };
+    }
+
+    it("rebuilds the record with the identifier and the short code it was issued with", async () => {
+      const { feed, store, record, failure, run } = aGateFailureWithItsRecord();
+      feed.answers = [aPage([record, failure])];
+
+      const outcome = await run();
+
+      expect(outcome).toEqual({ kind: "replenished" });
+      expect(store.state.facts.map(({ fact }) => fact)).toEqual([
+        A_DEFERRED_SALE_RECORDED_FACT,
+        A_GATE_FAILED_FACT,
+      ]);
+      expect(store.state.appliedEventIds).toEqual([record.event.event_id, failure.event.event_id]);
+    });
+
+    it("reports a gate failure the register holds no record for as partially replenished, leaving its event unrecorded", async () => {
+      const { feed, store, failure, run } = aGateFailureWithItsRecord();
+      feed.answers = [aPage([failure])];
+
+      const outcome = await run();
+
+      expect(outcome).toEqual({ kind: "partially_replenished", unapplied: 1 });
+      expect(store.state.appliedEventIds).toEqual([]);
+      expect(store.state.predecessor).toEqual(PREDECESSOR);
+    });
+
+    it("holds no record for a gate failure of another sale", async () => {
+      const { feed, store, decoder, failure, run } = aGateFailureWithItsRecord();
+      const other = anEvent("device-old", 55);
+      decoder.facts.set(other.event.event_id, {
+        kind: "fiscal_gate_failed",
+        gateFailure: {
+          saleId: "sale-2",
+          reason: "issuer_identification_missing",
+          evaluatedAt: new Date("2026-10-07T10:00:01.000Z"),
+        },
+      });
+      feed.answers = [aPage([anEvent("device-old", 53), failure, other])];
+      decoder.facts.set("event-device-old-53", A_DEFERRED_SALE_RECORDED_FACT);
+
+      const outcome = await run();
+
+      expect(outcome).toEqual({ kind: "partially_replenished", unapplied: 1 });
+      expect(store.state.appliedEventIds).toEqual(["event-device-old-53", failure.event.event_id]);
+    });
+
+    it("applies the gate failure once its record arrives on a later run", async () => {
+      const { feed, store, record, failure, run } = aGateFailureWithItsRecord();
+      feed.answers = [aPage([failure]), aPage([record, failure])];
+      await run();
+
+      const outcome = await run();
+
+      expect(outcome).toEqual({ kind: "replenished" });
+      expect(store.state.appliedEventIds).toEqual([record.event.event_id, failure.event.event_id]);
+    });
+
+    it("writes no record of an unclear outcome, reporting it as partially replenished, while it rebuilds a record of another reason", async () => {
+      const { feed, store, decoder, record, run } = aGateFailureWithItsRecord();
+      const unclear = anEvent("device-old", 55);
+      const unclearRecord: SyncedFact = {
+        kind: "deferred_sale_recorded",
+        deferredSale: {
+          id: "deferred-2",
+          saleId: "sale-2",
+          occurredAt: new Date("2026-10-07T11:00:00.000Z"),
+          total: 1200,
+          reason: "unclear_outcome",
+          shortCode: "9XP2M4QK",
+          routedAt: new Date("2026-10-07T11:00:01.000Z"),
+        },
+      };
+      decoder.facts.set(unclear.event.event_id, unclearRecord);
+      feed.answers = [aPage([record, unclear])];
+
+      const outcome = await run();
+
+      expect(outcome).toEqual({ kind: "partially_replenished", unapplied: 1 });
+      expect(store.state.facts.map(({ fact }) => fact)).toEqual([A_DEFERRED_SALE_RECORDED_FACT]);
+      expect(store.state.appliedEventIds).toEqual([record.event.event_id]);
+    });
+
+    it("leaves the record unchanged when the same page is applied again", async () => {
+      const { feed, store, record, failure, run } = aGateFailureWithItsRecord();
+      feed.answers = [
+        aPage([record], { deviceId: "device-old", deviceSeq: 53 }),
+        { kind: "unreachable" },
+        aPage([record], { deviceId: "device-old", deviceSeq: 53 }),
+        aPage([failure]),
+      ];
+      await run();
+
+      const outcome = await run();
+
+      expect(outcome).toEqual({ kind: "replenished" });
+      expect(
+        store.state.facts.filter(({ fact }) => fact.kind === "deferred_sale_recorded"),
+      ).toHaveLength(1);
     });
   });
 });

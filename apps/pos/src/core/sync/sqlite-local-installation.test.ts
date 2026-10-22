@@ -35,6 +35,14 @@ function revokedAt(database: LocalDatabase): string | null | undefined {
     .get()?.installation_revoked_at;
 }
 
+function staleSequenceDetectedAt(database: LocalDatabase): string | null | undefined {
+  return database
+    .prepare<[], { stale_sequence_detected_at: string | null }>(
+      "SELECT stale_sequence_detected_at FROM sync_state",
+    )
+    .get()?.stale_sequence_detected_at;
+}
+
 afterEach(() => {
   for (const folder of folders.splice(0)) {
     rmSync(folder, { recursive: true, force: true });
@@ -72,6 +80,50 @@ describe("recording that the installation was revoked", () => {
     const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
 
     expect(revokedAt(after)).toBe(REVOKED_AT.toISOString());
+    after.close();
+  });
+});
+
+describe("recording that the cloud refused the sequence as stale", () => {
+  it("records the moment of the first refusal", async () => {
+    const database = openRegister();
+
+    await new SqliteLocalInstallation(database, () => REVOKED_AT).recordStaleSequence();
+
+    expect(staleSequenceDetectedAt(database)).toBe(REVOKED_AT.toISOString());
+    database.close();
+  });
+
+  it("keeps the moment of the first refusal", async () => {
+    const database = openRegister();
+    database
+      .prepare("UPDATE sync_state SET stale_sequence_detected_at = '2026-09-30T08:00:00.000Z'")
+      .run();
+
+    await new SqliteLocalInstallation(database, () => REVOKED_AT).recordStaleSequence();
+
+    expect(staleSequenceDetectedAt(database)).toBe("2026-09-30T08:00:00.000Z");
+    database.close();
+  });
+
+  it("does not stop the register from opening new sales", async () => {
+    const database = openRegister();
+
+    await new SqliteLocalInstallation(database, () => REVOKED_AT).recordStaleSequence();
+
+    expect(salesStopOf(database)).toEqual({ stopped: false });
+    database.close();
+  });
+
+  it("is still known after the register restarts", async () => {
+    const path = databasePath();
+    const before = openRegister(path);
+    await new SqliteLocalInstallation(before, () => REVOKED_AT).recordStaleSequence();
+    before.close();
+
+    const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+
+    expect(staleSequenceDetectedAt(after)).toBe(REVOKED_AT.toISOString());
     after.close();
   });
 });

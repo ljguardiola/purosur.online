@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { PushedEvent } from "../../sync/index.js";
+import { deferredSaleRecordedEvent } from "../model/deferred-sale-recorded-event.js";
 import type { FacturaC } from "../model/pre-emission-gate.js";
 import type { RealTimeAuthorizationAnswer } from "../model/real-time-authorization.js";
 import {
@@ -24,12 +25,14 @@ const FISCAL_DOCUMENT_ID = "fiscal-document-1";
 const RESERVED_AT = new Date("2026-10-01T11:59:58.000Z");
 const SHORT_CODES = ["7KQ4M2P9", "R3XW8H5N"];
 
+const ORIGIN = { registerId: "register-1", actorId: "cashier" };
+
 function deferredRecord(
   reason: "rejected" | "unclear_outcome",
   routedAt: Date,
   shortCode = "7KQ4M2P9",
 ) {
-  return {
+  const sale = {
     id: "id-1",
     saleId: "sale-1",
     occurredAt: RESERVED_AT,
@@ -37,6 +40,10 @@ function deferredRecord(
     reason,
     shortCode,
     routedAt,
+  };
+  return {
+    sale,
+    event: deferredSaleRecordedEvent({ eventId: "id-2", ...ORIGIN, deferredSale: sale }),
   };
 }
 
@@ -78,6 +85,7 @@ const WAITING = {
   issuedOn: "2026-10-01",
   document: DOCUMENT,
   reservedAt: RESERVED_AT,
+  origin: ORIGIN,
   saleEvent: SALE_EVENT,
 };
 
@@ -274,14 +282,15 @@ describe("requestRealTimeAuthorization", () => {
     await expect(outcome).resolves.toEqual({ kind: "unclear" });
     expect(
       documents.resolutionAttempts.map(({ deferredSale }) => [
-        deferredSale?.id,
-        deferredSale?.shortCode,
+        deferredSale?.sale.id,
+        deferredSale?.sale.shortCode,
+        deferredSale?.event.event_id,
       ]),
     ).toEqual([
-      ["id-1", "7KQ4M2P9"],
-      ["id-1", "R3XW8H5N"],
+      ["id-1", "7KQ4M2P9", "id-2"],
+      ["id-1", "R3XW8H5N", "id-2"],
     ]);
-    expect(documents.resolutions.map(({ deferredSale }) => deferredSale?.shortCode)).toEqual([
+    expect(documents.resolutions.map(({ deferredSale }) => deferredSale?.sale.shortCode)).toEqual([
       "R3XW8H5N",
     ]);
   });

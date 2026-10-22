@@ -7,6 +7,7 @@ import {
   FISCAL_EMISSION_MODE_KINDS,
   isAuthorizablePermissionKey,
   REGISTER_OWN_CONDITIONS,
+  RESTORATION_STEPS,
   SALES_DENIED_REASONS,
   STORAGE_SALES_DENIED_REASONS,
 } from "@purosur/domain";
@@ -18,6 +19,7 @@ import {
   openCashSessionSchema,
   plannedRefundSchema,
   requestIdSchema,
+  restorationInProgressOutcomeSchema,
   saleCancelRefusalSchema,
   serialDeviceIdentitySchema,
   signInUserSchema,
@@ -155,6 +157,11 @@ export const setReceiptPrinterMessageSchema = z.object({
   address: z.string(),
 });
 
+const restorationStandingRequestMessageSchema = z.object({
+  type: z.literal("restoration-standing-request"),
+  request_id: requestId,
+});
+
 const readSerialDevicesMessageSchema = z.object({
   type: z.literal("read-serial-devices"),
   request_id: requestId,
@@ -190,6 +197,7 @@ export const registerRendererToCoreMessageSchema = z.discriminatedUnion("type", 
   startupPendingRequestMessageSchema,
   lockedClosersRequestMessageSchema,
   registerStatusRequestMessageSchema,
+  restorationStandingRequestMessageSchema,
   readReceiptPrinterMessageSchema,
   setReceiptPrinterMessageSchema,
   readSerialDevicesMessageSchema,
@@ -213,6 +221,7 @@ const openCashSessionOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("opened"), cash_session: openCashSessionSchema.nullable() }),
   z.object({ kind: z.literal("not_signed_in") }),
   z.object({ kind: z.literal("not_permitted") }),
+  restorationInProgressOutcomeSchema,
   z.object({ kind: z.literal("already_open") }),
   z.object({ kind: z.literal("invalid_opening_float") }),
   z.object({ kind: z.literal("unavailable") }),
@@ -380,6 +389,15 @@ const registerStatusSchema = z.object({
 });
 export type RegisterStatus = z.infer<typeof registerStatusSchema>;
 
+const restorationStandingSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("completed") }),
+  z.object({
+    kind: z.literal("in_progress"),
+    step: z.enum(RESTORATION_STEPS).exclude(["open_session"]),
+  }),
+]);
+export type RestorationStandingAnswer = z.infer<typeof restorationStandingSchema>;
+
 const readReceiptPrinterOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("configured"), address: receiptPrinterAddressSchema }),
   z.object({ kind: z.literal("not_configured") }),
@@ -538,6 +556,12 @@ export const registerCoreToRendererMessageSchema = z.discriminatedUnion("type", 
   }),
   z.object({ type: z.literal("register-status-unavailable"), request_id: requestId }),
   z.object({
+    type: z.literal("restoration-standing"),
+    request_id: requestId,
+    standing: restorationStandingSchema,
+  }),
+  z.object({ type: z.literal("restoration-standing-unavailable"), request_id: requestId }),
+  z.object({
     type: z.literal("read-receipt-printer-result"),
     request_id: requestId,
     outcome: readReceiptPrinterOutcomeSchema,
@@ -561,6 +585,7 @@ export const registerCoreToRendererMessageSchema = z.discriminatedUnion("type", 
   z.object({ type: z.literal("storage-standing-changed") }),
   z.object({ type: z.literal("battery-standing-changed") }),
   z.object({ type: z.literal("fiscal-mode-changed") }),
+  z.object({ type: z.literal("restoration-standing-changed") }),
   z.object({ type: z.literal("refused-while-updating"), request_id: requestId }),
 ]);
 export type RegisterCoreToRendererMessage = z.infer<typeof registerCoreToRendererMessageSchema>;

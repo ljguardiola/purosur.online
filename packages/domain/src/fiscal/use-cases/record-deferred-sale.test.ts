@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { type DeferredSale, SHORT_CODE_ATTEMPTS } from "../model/deferred-sale.js";
+import { deferredSaleRecordedEvent } from "../model/deferred-sale-recorded-event.js";
 import { ShortCodeTaken } from "./deferred-sale-ports.js";
-import { recordDeferredSale, recordDeferredSaleAsync } from "./record-deferred-sale.js";
+import {
+  type DeferredSaleRecording,
+  recordDeferredSale,
+  recordDeferredSaleAsync,
+} from "./record-deferred-sale.js";
 import { SequentialIds } from "./test-support/fake-sale-authorization.js";
 import { ScriptedShortCodes } from "./test-support/scripted-short-codes.js";
 
@@ -11,36 +16,46 @@ const FACTS = {
   total: 12_500,
   reason: "fiscally_offline",
   routedAt: new Date("2026-10-02T02:30:01.000Z"),
+  origin: { registerId: "register-1", actorId: "cashier" },
 } as const;
 
 const CODES = ["7KQ4M2P9", "R3XW8H5N", "ABCDEFGH", "JKLMNPQR", "STUVWXYZ"];
 
-function takenUntil(accepted: number, taken: DeferredSale[] = []) {
-  return (sale: DeferredSale): void => {
-    taken.push(sale);
+function eventOf(sale: DeferredSale, eventId: string) {
+  return deferredSaleRecordedEvent({ eventId, ...FACTS.origin, deferredSale: sale });
+}
+
+function takenUntil(accepted: number, taken: DeferredSaleRecording[] = []) {
+  return (recording: DeferredSaleRecording): void => {
+    taken.push(recording);
     if (taken.length <= accepted) {
       throw new ShortCodeTaken();
     }
   };
 }
 
+function attemptsOf(attempts: readonly DeferredSaleRecording[]) {
+  return attempts.map(({ sale: { id, shortCode }, event }) => [id, shortCode, event.event_id]);
+}
+
 describe("recordDeferredSale", () => {
-  it("records the sale's facts under an identifier and a short code drawn for it", () => {
-    const recorded: DeferredSale[] = [];
+  it("records the sale's facts under an identifier and a short code drawn for it, with the event that carries them", () => {
+    const recorded: DeferredSaleRecording[] = [];
 
     const sale = recordDeferredSale(
-      (deferred) => recorded.push(deferred),
+      (recording) => recorded.push(recording),
       new SequentialIds(),
       new ScriptedShortCodes(CODES),
       FACTS,
     );
 
-    expect(sale).toEqual({ ...FACTS, id: "id-1", shortCode: "7KQ4M2P9" });
-    expect(recorded).toEqual([sale]);
+    const { origin: _origin, ...recordedFacts } = FACTS;
+    expect(sale).toEqual({ ...recordedFacts, id: "id-1", shortCode: "7KQ4M2P9" });
+    expect(recorded).toEqual([{ sale, event: eventOf(sale, "id-2") }]);
   });
 
-  it("draws another short code, keeping the identifier, when the short code is already taken", () => {
-    const attempts: DeferredSale[] = [];
+  it("draws another short code, keeping the identifiers, when the short code is already taken", () => {
+    const attempts: DeferredSaleRecording[] = [];
     const ids = new SequentialIds();
 
     const sale = recordDeferredSale(
@@ -50,17 +65,18 @@ describe("recordDeferredSale", () => {
       FACTS,
     );
 
-    expect(attempts.map(({ id, shortCode }) => [id, shortCode])).toEqual([
-      ["id-1", "7KQ4M2P9"],
-      ["id-1", "R3XW8H5N"],
-      ["id-1", "ABCDEFGH"],
+    expect(attemptsOf(attempts)).toEqual([
+      ["id-1", "7KQ4M2P9", "id-2"],
+      ["id-1", "R3XW8H5N", "id-2"],
+      ["id-1", "ABCDEFGH", "id-2"],
     ]);
+    expect(attempts.at(-1)).toEqual({ sale, event: eventOf(sale, "id-2") });
     expect(sale.shortCode).toBe("ABCDEFGH");
-    expect(ids.issued).toBe(1);
+    expect(ids.issued).toBe(2);
   });
 
   it("gives up with the refusal after the attempts the domain allows", () => {
-    const attempts: DeferredSale[] = [];
+    const attempts: DeferredSaleRecording[] = [];
     const codes = new ScriptedShortCodes(
       Array.from({ length: SHORT_CODE_ATTEMPTS + 1 }, () => "7KQ4M2P9"),
     );
@@ -77,12 +93,12 @@ describe("recordDeferredSale", () => {
   });
 
   it("does not retry a failure that is not a taken short code", () => {
-    const attempts: DeferredSale[] = [];
+    const attempts: DeferredSaleRecording[] = [];
 
     expect(() =>
       recordDeferredSale(
-        (sale) => {
-          attempts.push(sale);
+        (recording) => {
+          attempts.push(recording);
           throw new Error("disk full");
         },
         new SequentialIds(),
@@ -95,51 +111,58 @@ describe("recordDeferredSale", () => {
 });
 
 describe("recordDeferredSaleAsync", () => {
-  it("records the sale's facts under an identifier and a short code drawn for it", async () => {
-    const recorded: DeferredSale[] = [];
+  it("records the sale's facts under an identifier and a short code drawn for it, with the event that carries them", async () => {
+    const recorded: DeferredSaleRecording[] = [];
 
     const sale = await recordDeferredSaleAsync(
-      async (deferred) => {
-        recorded.push(deferred);
+      async (recording) => {
+        recorded.push(recording);
       },
       new SequentialIds(),
       new ScriptedShortCodes(CODES),
       FACTS,
     );
 
-    expect(sale).toEqual({ ...FACTS, id: "id-1", shortCode: "7KQ4M2P9" });
-    expect(recorded).toEqual([sale]);
+    const { origin: _origin, ...recordedFacts } = FACTS;
+    expect(sale).toEqual({ ...recordedFacts, id: "id-1", shortCode: "7KQ4M2P9" });
+    expect(recorded).toEqual([{ sale, event: eventOf(sale, "id-2") }]);
   });
 
-  it("draws another short code, keeping the identifier, when the short code is already taken", async () => {
-    const attempts: DeferredSale[] = [];
+  it("draws another short code, keeping the identifiers, when the short code is already taken", async () => {
+    const attempts: DeferredSaleRecording[] = [];
     const ids = new SequentialIds();
     const record = takenUntil(1, attempts);
 
     const sale = await recordDeferredSaleAsync(
-      async (deferred) => record(deferred),
+      async (recording) => record(recording),
       ids,
       new ScriptedShortCodes(CODES),
       FACTS,
     );
 
-    expect(attempts.map(({ id, shortCode }) => [id, shortCode])).toEqual([
-      ["id-1", "7KQ4M2P9"],
-      ["id-1", "R3XW8H5N"],
+    expect(attemptsOf(attempts)).toEqual([
+      ["id-1", "7KQ4M2P9", "id-2"],
+      ["id-1", "R3XW8H5N", "id-2"],
     ]);
+    expect(attempts.at(-1)).toEqual({ sale, event: eventOf(sale, "id-2") });
     expect(sale.shortCode).toBe("R3XW8H5N");
-    expect(ids.issued).toBe(1);
+    expect(ids.issued).toBe(2);
   });
 
   it("gives up with the refusal after the attempts the domain allows", async () => {
-    const attempts: DeferredSale[] = [];
+    const attempts: DeferredSaleRecording[] = [];
     const record = takenUntil(Number.MAX_SAFE_INTEGER, attempts);
     const codes = new ScriptedShortCodes(
       Array.from({ length: SHORT_CODE_ATTEMPTS + 1 }, () => "7KQ4M2P9"),
     );
 
     await expect(
-      recordDeferredSaleAsync(async (sale) => record(sale), new SequentialIds(), codes, FACTS),
+      recordDeferredSaleAsync(
+        async (recording) => record(recording),
+        new SequentialIds(),
+        codes,
+        FACTS,
+      ),
     ).rejects.toThrow(ShortCodeTaken);
     expect(attempts).toHaveLength(SHORT_CODE_ATTEMPTS);
   });

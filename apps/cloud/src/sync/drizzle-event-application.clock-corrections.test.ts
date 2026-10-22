@@ -60,6 +60,7 @@ describe("recording the correction of a register's clock", () => {
         pointOfSale: 7,
         documentType: "factura_c",
         previousReading: new Date("2026-10-07T12:00:00.000Z"),
+        previousReadingSource: "clock_mark",
         correctedReading: new Date("2026-10-05T12:00:00.000Z"),
         actorId,
         correctedAt: new Date(CORRECTED_AT),
@@ -87,9 +88,30 @@ describe("recording the correction of a register's clock", () => {
           pointOfSale: 7,
           documentType: "factura_c",
           previousReading: "2026-10-07T12:00:00.000Z",
+          previousReadingSource: "clock_mark",
           correctedReading: "2026-10-05T12:00:00.000Z",
           actorId,
         },
+      }),
+    ]);
+  });
+
+  it("keeps, in the correction and in its alert, that the previous reading is the start of the tax authority's day", async () => {
+    const { deviceId, registerId, actorId } = await enrolledWithActor();
+    const fact = aClockCorrectedFact({
+      registerId,
+      actorId,
+      previousReadingSource: "tax_authority_day",
+    });
+
+    await record(fact, deviceId);
+
+    expect(await system.db.select().from(clockCorrections)).toEqual([
+      expect.objectContaining({ previousReadingSource: "tax_authority_day" }),
+    ]);
+    expect(await system.db.select().from(alerts)).toEqual([
+      expect.objectContaining({
+        detail: expect.objectContaining({ previousReadingSource: "tax_authority_day" }),
       }),
     ]);
   });

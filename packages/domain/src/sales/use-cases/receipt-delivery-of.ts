@@ -1,3 +1,4 @@
+import type { PrintedDocumentKey } from "../model/printed-document.js";
 import { nextReceiptCopy, type ReceiptCopy } from "../model/receipt-copy.js";
 import type { ReceiptLedger } from "./receipt-ports.js";
 
@@ -5,9 +6,7 @@ export interface ReceiptDeliveryOfPorts {
   ledger: ReceiptLedger;
 }
 
-export interface ReceiptDeliveryOfInput {
-  saleId: string;
-}
+export type ReceiptDeliveryOfInput = PrintedDocumentKey;
 
 export type ReceiptDeliveryOfOutcome =
   | { kind: "not_found" }
@@ -20,10 +19,10 @@ export type ReceiptDeliveryOfOutcome =
 
 export function receiptDeliveryOf(
   { ledger }: ReceiptDeliveryOfPorts,
-  { saleId }: ReceiptDeliveryOfInput,
+  key: ReceiptDeliveryOfInput,
 ): ReceiptDeliveryOfOutcome {
   return ledger.transaction((tx): ReceiptDeliveryOfOutcome => {
-    const delivery = tx.receiptDelivery(saleId);
+    const delivery = tx.receiptDelivery(key);
     return delivery === undefined
       ? { kind: "not_found" }
       : {

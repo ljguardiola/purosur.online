@@ -34,7 +34,8 @@ export type ScanProblem =
           | "local_database_damaged"
           | "battery_critical"
           | "paid_order_without_sale"
-          | "paid_orders_not_checked";
+          | "paid_orders_not_checked"
+          | "restoration_in_progress";
       }
     >
   | { kind: "not_sold_by_weight"; product_name: string }
@@ -125,6 +126,12 @@ export function messageFor(problem: ScanProblem): Message {
       return {
         icon: Ban,
         title: "La caja todavía está consultando los cobros pagados",
+        help: "Esperá a que termine para empezar una venta.",
+      };
+    case "restoration_in_progress":
+      return {
+        icon: Ban,
+        title: "La caja se está restaurando: todavía no se puede vender.",
         help: "Esperá a que termine para empezar una venta.",
       };
     case "manual_discount_removed":

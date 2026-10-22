@@ -16,7 +16,7 @@ import { toWireRefund } from "../payments/wire-refund";
 import type { OutboxSaleRequestDeps } from "./sale-requests";
 import { SqliteSaleVoidLedger } from "./sqlite-sale-void-ledger";
 
-export interface VoidSaleRequestDeps extends OutboxSaleRequestDeps {
+export interface VoidSaleRequestDeps extends Omit<OutboxSaleRequestDeps, "restoration"> {
   creditNotes: CloudCreditNotes | undefined;
   printCreditNote: (saleId: string) => Promise<void>;
   reportFailure: (error: unknown) => void;

@@ -6,6 +6,7 @@ import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import { migrationClock } from "../platform/test-support/migration-clock";
 import { openLocalDatabase } from "../platform/test-support/open-local-database";
+import { restorationOf } from "../register/test-support/restoration-of";
 import { cancelSaleFor, chargeSaleInCashFor, currentSaleFor } from "../sales/sale-requests";
 import { createSignedInPerson, type SignedInPerson } from "../sessions/signed-in-person";
 import {
@@ -52,6 +53,16 @@ function pointRows(): unknown[] {
        FROM payment_transactions WHERE method = 'POINT'`,
     )
     .all();
+}
+
+function countingIds(prefix: string): { next: () => string } {
+  let count = 0;
+  return {
+    next: () => {
+      count += 1;
+      return `${prefix}-${count}`;
+    },
+  };
 }
 
 function outboxEvents(): unknown[] {
@@ -197,7 +208,10 @@ describe("following a charge on the integrated terminal at the register", () => 
       await followMercadoPagoChargeFor(deps(orders), { paymentTransactionId: paymentId }),
     ).toEqual({ kind: "completed", sale_id: saleId, total: 3000 });
     expect(pointRows()).toMatchObject([{ state: "APPROVED" }]);
-    expect(outboxEvents()).toEqual([{ event_type: "sale_completed" }]);
+    expect(outboxEvents()).toEqual([
+      { event_type: "sale_completed" },
+      { event_type: "deferred_sale_recorded" },
+    ]);
     const completed = database
       .prepare("SELECT payload FROM outbox WHERE event_type = 'sale_completed'")
       .get() as { payload: string };
@@ -365,7 +379,12 @@ describe("a charge on the integrated terminal while the cloud cannot be reached"
     await pointChargeStarted();
 
     expect(
-      await cancelSaleFor({ database, gate: deps(new FakeOrders()).gate, now: () => CHARGE_NOW }),
+      await cancelSaleFor({
+        database,
+        gate: deps(new FakeOrders()).gate,
+        now: () => CHARGE_NOW,
+        restoration: restorationOf(database),
+      }),
     ).toEqual({
       kind: "mercado_pago_charge_in_progress",
     });
@@ -380,10 +399,11 @@ describe("a charge on the integrated terminal while the cloud cannot be reached"
       await chargeSaleInCashFor(
         {
           database,
+          restoration: restorationOf(database),
           gate: deps(offline).gate,
           readOutboxChainKey: async () => CHARGE_CHAIN_KEY,
           now: () => CHARGE_NOW,
-          ids: { next: () => "cash-1" },
+          ids: countingIds("cash"),
         },
         { saleId, tendered: 3000 },
       ),
@@ -397,10 +417,11 @@ describe("a charge on the integrated terminal while the cloud cannot be reached"
       await chargeSaleInCashFor(
         {
           database,
+          restoration: restorationOf(database),
           gate: deps(online).gate,
           readOutboxChainKey: async () => CHARGE_CHAIN_KEY,
           now: () => CHARGE_NOW,
-          ids: { next: () => "cash-1" },
+          ids: countingIds("cash"),
         },
         { saleId, tendered: 3000 },
       ),

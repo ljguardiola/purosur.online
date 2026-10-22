@@ -10,6 +10,10 @@ import type {
 import type { ReplenishedUser } from "@purosur/domain/users/use-cases";
 import { applyReplenishedClockCorrection } from "../fiscal/replenished-clock-corrections";
 import { recordReplenishedCreditNoteAnswer } from "../fiscal/replenished-credit-note-answers";
+import {
+  applyReplenishedDeferredSale,
+  holdsDeferredSaleRecord,
+} from "../fiscal/replenished-deferred-sales";
 import { applyReplenishedGateFailure } from "../fiscal/replenished-gate-failures";
 import { applyReplenishedOfflineFiscalDocument } from "../fiscal/replenished-offline-fiscal-documents";
 import type { LocalDatabase } from "../platform/local-database";
@@ -98,6 +102,9 @@ export class SqliteRegisterReplenishmentStore implements RegisterReplenishmentSt
       async recordCreditNoteAnswer(creditNote, answer) {
         recordReplenishedCreditNoteAnswer(database, creditNote, answer);
       },
+      async holdsDeferredSaleRecord(saleId) {
+        return holdsDeferredSaleRecord(database, saleId);
+      },
       async recordEventApplied(eventId) {
         database.prepare("INSERT INTO replenished_events (event_id) VALUES (?)").run(eventId);
       },
@@ -141,5 +148,7 @@ function applyFact(
       return "applied";
     case "offline_fiscal_document_issued":
       return applyReplenishedOfflineFiscalDocument(database, fact);
+    case "deferred_sale_recorded":
+      return applyReplenishedDeferredSale(database, fact);
   }
 }

@@ -16,6 +16,7 @@ const correction = {
   actor_id: "c7b3e5d2-18a4-4f90-b6d1-2e9f0a8c3d03",
   actor_first_name: "Ada",
   previous_reading: "2026-10-07T12:00:00.000Z",
+  previous_reading_source: "clock_mark",
   corrected_reading: "2026-10-05T12:00:00.000Z",
   alert_state: "open",
 };
@@ -36,11 +37,24 @@ describe("clockCorrectionListSchema", () => {
     ["a document type it does not know", { document_type: "factura_z" }],
     ["a point of sale outside the tax authority's range", { point_of_sale_number: 0 }],
     ["a reading that is not an instant", { previous_reading: "yesterday" }],
+    ["a source of the previous reading it does not know", { previous_reading_source: "register" }],
     ["a correction time that is not an instant", { corrected_at: "2026-10-05" }],
   ])("refuses a correction with %s", (_name, override) => {
     expect(clockCorrectionListSchema.safeParse([{ ...correction, ...override }]).success).toBe(
       false,
     );
+  });
+
+  it("reads a correction whose previous reading is the start of the tax authority's day", () => {
+    const derived = { ...correction, previous_reading_source: "tax_authority_day" };
+
+    expect(clockCorrectionListSchema.parse([derived])).toEqual([derived]);
+  });
+
+  it("refuses a correction that does not say where its previous reading came from", () => {
+    const { previous_reading_source: _source, ...withoutSource } = correction;
+
+    expect(clockCorrectionListSchema.safeParse([withoutSource]).success).toBe(false);
   });
 
   it("refuses a correction missing a field", () => {

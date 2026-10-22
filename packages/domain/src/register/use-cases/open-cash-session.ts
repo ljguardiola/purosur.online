@@ -2,7 +2,9 @@ import type { Clock, OperationAuthority } from "../../shared/index.js";
 import { isValidCashAmount } from "../../shared/index.js";
 import type { OpenedCashSession } from "../model/cash-session.js";
 import { registerOperationAccess } from "../model/register-operation.js";
+import { restorationStanding } from "../model/restoration-protocol.js";
 import type { CashLedger, IdGenerator } from "./cash-ledger.js";
+import type { RestorationProtocolEvidence } from "./restoration-protocol-evidence.js";
 
 export interface OpenCashSessionInput {
   openingFloat: number;
@@ -17,17 +19,19 @@ export interface OpenCashSessionPorts<Grant extends OpenCashSessionGrant, Refusa
   clock: Clock;
   ids: IdGenerator;
   authority: OperationAuthority<Grant, Refusal>;
+  restoration: RestorationProtocolEvidence;
 }
 
 export type OpenCashSessionOutcome<Grant extends OpenCashSessionGrant> =
   | { kind: "invalid_opening_float" }
   | { kind: "not_permitted" }
+  | { kind: "restoration_in_progress" }
   | { kind: "already_open" }
   | { kind: "unavailable" }
   | { kind: "opened"; session: OpenedCashSession; grant: Grant };
 
 export async function openCashSession<Grant extends OpenCashSessionGrant, Refusal>(
-  { ledger, clock, ids, authority }: OpenCashSessionPorts<Grant, Refusal>,
+  { ledger, clock, ids, authority, restoration }: OpenCashSessionPorts<Grant, Refusal>,
   { openingFloat }: OpenCashSessionInput,
 ): Promise<OpenCashSessionOutcome<Grant> | Refusal> {
   if (!isValidCashAmount(openingFloat)) {
@@ -44,6 +48,9 @@ export async function openCashSession<Grant extends OpenCashSessionGrant, Refusa
     const opener = { id: openerId, access: tx.openerAccess(openerId) };
     if (registerOperationAccess({ kind: "open_cash_session" }, opener).kind !== "permitted") {
       return { kind: "not_permitted" };
+    }
+    if (restorationStanding(restoration.evidence()).kind !== "completed") {
+      return { kind: "restoration_in_progress" };
     }
     if (tx.openSession()) {
       return { kind: "already_open" };

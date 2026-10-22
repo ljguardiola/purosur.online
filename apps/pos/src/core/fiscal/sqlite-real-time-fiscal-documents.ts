@@ -2,6 +2,7 @@ import {
   type FacturaC,
   type FiscalDocumentState,
   IN_PROGRESS_FISCAL_DOCUMENT_STATES,
+  type OutboxEventDraft,
   type PushedEvent,
   SALE_COMPLETED_EVENT_TYPE,
 } from "@purosur/domain";
@@ -18,6 +19,7 @@ import type {
   WaitingFiscalDocument,
 } from "@purosur/domain/fiscal/use-cases";
 import type { LocalDatabase } from "../platform/local-database";
+import { appendOutboxEvent } from "../sync/sqlite-outbox";
 import { insertDeferredSale } from "./sqlite-deferred-sales";
 
 interface WaitingDocumentRow {
@@ -31,6 +33,8 @@ interface WaitingDocumentRow {
 
 interface RequestedDocumentRow extends WaitingDocumentRow {
   reserved_at: string;
+  register_id: string;
+  actor_id: string;
 }
 
 interface SaleEventRow extends Omit<PushedEvent, "payload"> {
@@ -42,27 +46,37 @@ interface RequestingDocumentRow {
   sale_id: string;
   reserved_at: string;
   document: string;
+  register_id: string;
+  actor_id: string;
 }
 
 export class SqliteRealTimeFiscalDocuments
   implements RealTimeFiscalDocuments, InterruptedRealTimeAuthorizations, UnclearFiscalDocuments
 {
   private readonly database: LocalDatabase;
+  private readonly outboxChainKey: string | undefined;
 
-  constructor(database: LocalDatabase) {
+  constructor(database: LocalDatabase, outboxChainKey?: string) {
     this.database = database;
+    this.outboxChainKey = outboxChainKey;
   }
 
   async waitingDocumentOfSale(saleId: string): Promise<RequestedFiscalDocument | null> {
     const row = this.database
       .prepare<[string], RequestedDocumentRow>(
-        `SELECT id, sale_id, point_of_sale, number, issued_on, document, reserved_at
-         FROM fiscal_documents WHERE sale_id = ? AND state = 'REQUESTING'`,
+        `SELECT fiscal_documents.id, fiscal_documents.sale_id, point_of_sale, number, issued_on,
+                document, reserved_at, sales.register_id, sales.actor_id
+         FROM fiscal_documents JOIN sales ON sales.id = fiscal_documents.sale_id
+         WHERE fiscal_documents.sale_id = ? AND fiscal_documents.state = 'REQUESTING'`,
       )
       .get(saleId);
     return row === undefined
       ? null
-      : { ...this.waitingDocumentOf(row), reservedAt: new Date(row.reserved_at) };
+      : {
+          ...this.waitingDocumentOf(row),
+          reservedAt: new Date(row.reserved_at),
+          origin: { registerId: row.register_id, actorId: row.actor_id },
+        };
   }
 
   async unclearDocuments(): Promise<readonly WaitingFiscalDocument[]> {
@@ -165,14 +179,17 @@ export class SqliteRealTimeFiscalDocuments
   private requestingDocuments(): readonly InterruptedRealTimeAuthorization[] {
     return this.database
       .prepare<string[], RequestingDocumentRow>(
-        `SELECT id, sale_id, reserved_at, document FROM fiscal_documents
-         WHERE state IN (${IN_PROGRESS_FISCAL_DOCUMENT_STATES.map(() => "?").join(", ")})
-         ORDER BY reserved_at, id`,
+        `SELECT fiscal_documents.id, fiscal_documents.sale_id, reserved_at, document,
+                sales.register_id, sales.actor_id
+         FROM fiscal_documents JOIN sales ON sales.id = fiscal_documents.sale_id
+         WHERE fiscal_documents.state IN (${IN_PROGRESS_FISCAL_DOCUMENT_STATES.map(() => "?").join(", ")})
+         ORDER BY reserved_at, fiscal_documents.id`,
       )
       .all(...IN_PROGRESS_FISCAL_DOCUMENT_STATES)
       .map((row) => ({
         fiscalDocumentId: row.id,
         saleId: row.sale_id,
+        origin: { registerId: row.register_id, actorId: row.actor_id },
         reservedAt: new Date(row.reserved_at),
         total: (JSON.parse(row.document) as FacturaC).total,
       }));
@@ -222,8 +239,16 @@ export class SqliteRealTimeFiscalDocuments
       "the fiscal document is not waiting for an answer",
     );
     if (deferredSale !== null) {
-      insertDeferredSale(this.database, deferredSale);
+      insertDeferredSale(this.database, deferredSale.sale);
+      this.appendOutboxEvent(deferredSale.event);
     }
+  }
+
+  private appendOutboxEvent(event: OutboxEventDraft): void {
+    if (this.outboxChainKey === undefined) {
+      throw new Error("the register has no outbox chain key");
+    }
+    appendOutboxEvent(this.database, this.outboxChainKey, event);
   }
 
   private saleCompletedEvent(saleId: string): PushedEvent | null {

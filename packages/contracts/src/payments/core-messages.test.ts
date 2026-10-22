@@ -109,6 +109,7 @@ describe("starting a Mercado Pago QR charge", () => {
     { kind: "not_permitted" },
     { kind: "not_signed_in" },
     { kind: "no_open_session" },
+    { kind: "restoration_in_progress" },
     { kind: "unavailable" },
   ])("accepts the result $kind", (outcome) => {
     const result = { type: "start-mercado-pago-charge-result", request_id: REQUEST_ID, outcome };
@@ -229,6 +230,7 @@ describe("following a Mercado Pago QR charge", () => {
     { kind: "not_permitted" },
     { kind: "not_signed_in" },
     { kind: "no_open_session" },
+    { kind: "restoration_in_progress" },
     { kind: "unavailable" },
   ])("accepts the result $kind", (outcome) => {
     const result = {
@@ -303,6 +305,7 @@ describe("abandoning a Mercado Pago QR charge", () => {
     { kind: "not_permitted" },
     { kind: "not_signed_in" },
     { kind: "no_open_session" },
+    { kind: "restoration_in_progress" },
     { kind: "unavailable" },
   ])("accepts the result $kind", (outcome) => {
     const result = {

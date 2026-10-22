@@ -5,6 +5,7 @@ import {
   FICTIONAL_LEGAL_NAME,
 } from "@purosur/domain/fiscal/test-support";
 import type { MercadoPagoChargeOrders } from "@purosur/domain/payments/use-cases";
+import { restorePendingIn } from "../../backups/restore-pending";
 import { derivePinVerifier } from "../../credentials/pin-verifier";
 import { correctRegisterClockFor } from "../../fiscal/clock-correction-requests";
 import {
@@ -18,7 +19,12 @@ import { migrationClock } from "../../platform/test-support/migration-clock";
 import { openLocalDatabase } from "../../platform/test-support/open-local-database";
 import { recordCashMovementFor } from "../../register/cash-movement-requests";
 import { closeCashSessionFor, openCashSessionFor } from "../../register/cash-session-requests";
+import { SqliteRestorationEvidence } from "../../register/sqlite-restoration-evidence";
 import { uuidV7Ids } from "../../register/uuid-v7-ids";
+import {
+  printVoidedSaleCreditNoteFor,
+  reprintCreditNoteFor,
+} from "../../sales/credit-note-receipt-requests";
 import { createReceiptPrintJobs, type ReceiptPrintJobs } from "../../sales/receipt-print-jobs";
 import {
   printCompletedSaleReceiptFor,
@@ -275,6 +281,66 @@ async function printAndReprintReceipt({
   await untilPrinted(deps.jobs, saleId);
 }
 
+function authorizeCreditNoteOfVoidedSale(database: LocalDatabase, saleId: string, at: Date): void {
+  const answered = database
+    .prepare(
+      `UPDATE sale_void_credit_notes
+       SET state = 'AUTHORIZED', point_of_sale = corrected_point_of_sale, number = 1,
+           issued_on = @issued_on, issued_at = @issued_at, authorization_code = '71234567890999',
+           authorization_code_due_on = '2026-10-16', answered_at = @issued_at
+       WHERE sale_id = @sale_id AND state = 'IN_PROGRESS'`,
+    )
+    .run({
+      sale_id: saleId,
+      issued_on: at.toISOString().slice(0, 10),
+      issued_at: at.toISOString(),
+    });
+  if (answered.changes !== 1) {
+    throw new Error("The register session's voided sale has no credit note to authorize");
+  }
+}
+
+async function printAndReprintCreditNote({
+  deps,
+  saleId,
+  nextStep,
+}: {
+  deps: Omit<ReceiptRequestDeps, "printers">;
+  saleId: string;
+  nextStep: () => void;
+}): Promise<void> {
+  const printer = new ControllableReceiptPrinter();
+  const printers = { configured: () => printer };
+  const standing = () => deps.jobs.standingOf(`credit-note:${saleId}`);
+  const untilCreditNotePrinted = async () => {
+    for (let attempt = 0; attempt < 1000 && standing() !== "printed"; attempt += 1) {
+      await new Promise((resolve) => setImmediate(resolve));
+    }
+    if (standing() !== "printed") {
+      throw new Error("The register session's credit note was never recorded as printed");
+    }
+    await new Promise((resolve) => setImmediate(resolve));
+  };
+  nextStep();
+  await printVoidedSaleCreditNoteFor({ ...deps, printers }, saleId);
+  nextStep();
+  printer.becomeReady();
+  await untilCreditNotePrinted();
+  nextStep();
+  const reprint = await reprintCreditNoteFor(
+    { ...deps, printers },
+    {
+      saleId,
+      reason: "El cliente la perdio",
+      authorization: { user_id: GRACE, pin: PIN },
+    },
+  );
+  expectOutcome("reprint the credit note from the history", reprint.kind, "started");
+  printer.becomeReady();
+  await new Promise((resolve) => setImmediate(resolve));
+  await untilCreditNotePrinted();
+}
+
 export interface RegisterSession {
   database: LocalDatabase;
   now: () => Date;
@@ -317,6 +383,7 @@ export async function withRegisterSession<TResult>(
       newSalesStoppedByDisk: () => false,
       localDatabaseDamaged: () => false,
       newSalesStoppedByBattery: () => false,
+      restoration: new SqliteRestorationEvidence(database, restorePendingIn(undefined)),
     });
 
     const voidDeps = () => ({
@@ -781,6 +848,23 @@ export async function withRegisterSession<TResult>(
       "completed",
     );
     nextStep();
+    const pendingCreditNoteScan = await scanProductFor(deps(), "7790001000028");
+    if (pendingCreditNoteScan.kind !== "added") {
+      throw new Error(
+        `The register session's "scan a product whose void leaves its credit note in progress" ended as "${pendingCreditNoteScan.kind}"`,
+      );
+    }
+    nextStep();
+    const pendingCreditNoteTransfer = await chargeSaleByTransferFor(deps(), {
+      saleId: pendingCreditNoteScan.sale.id,
+      amount: pendingCreditNoteScan.sale.total,
+    });
+    expectOutcome(
+      "charge a sale whose void leaves its credit note in progress",
+      pendingCreditNoteTransfer.kind,
+      "completed",
+    );
+    nextStep();
     database
       .prepare(
         `INSERT INTO register_health_checks (checked_at, round_trip_ms, token_valid, arca_reachable)
@@ -806,6 +890,40 @@ export async function withRegisterSession<TResult>(
       "correct a register clock read behind its mark",
       clockCorrected.kind,
       "corrected",
+    );
+    nextStep();
+    authorizeCreditNoteOfVoidedSale(database, offlineScan.sale.id, now());
+    await printAndReprintCreditNote({
+      deps: {
+        ...deps(),
+        signedInUserId: () => signedInPerson.userId(),
+        jobs: createReceiptPrintJobs({
+          reportFailure: (context, error) => {
+            throw new Error(`The register session's credit note print failed: ${context}`, {
+              cause: error,
+            });
+          },
+        }),
+      },
+      saleId: offlineScan.sale.id,
+      nextStep,
+    });
+    nextStep();
+    database
+      .prepare(
+        `INSERT INTO register_health_checks (checked_at, round_trip_ms, token_valid, arca_reachable)
+         VALUES (?, 120, 1, 1)`,
+      )
+      .run(now().toISOString());
+    const voidedPendingCreditNote = await voidSaleFor(voidDeps(), {
+      saleId: pendingCreditNoteScan.sale.id,
+      pendingRefundsConfirmed: true,
+      authorization: { user_id: GRACE, pin: PIN },
+    });
+    expectOutcome(
+      "void a sale whose credit note stays in progress",
+      voidedPendingCreditNote.kind,
+      "voided",
     );
     nextStep();
     const closed = await closeCashSessionFor(deps(), {

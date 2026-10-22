@@ -50,6 +50,7 @@ export interface RegisterReplenishmentTransaction {
     creditNote: SaleVoidCreditNote,
     answer: RestoredCreditNoteAnswer,
   ): Promise<void>;
+  holdsDeferredSaleRecord(saleId: string): Promise<boolean>;
   recordEventApplied(eventId: string): Promise<void>;
 }
 

@@ -3,6 +3,7 @@ import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import { migrationClock } from "../platform/test-support/migration-clock";
 import { openLocalDatabase } from "../platform/test-support/open-local-database";
+import { restorationOf } from "../register/test-support/restoration-of";
 import { currentSaleFor } from "../sales/sale-requests";
 import { createActionGate } from "../sessions/action-gate";
 import { createSignedInPerson } from "../sessions/signed-in-person";
@@ -58,6 +59,7 @@ afterEach(() => {
 describe("the register's Mercado Pago QR charging", () => {
   it("offers no QR charge without a local database, a sign-in gate or a cloud", () => {
     const common = {
+      restoration: restorationOf(database),
       readDeviceToken: async () => "prefix.secret",
       readOutboxChainKey: async () => undefined,
       now: () => NOW,
@@ -95,6 +97,7 @@ describe("the register's Mercado Pago QR charging", () => {
     const saleId = await openSaleOfTwoYerbas({ database, signedInPerson });
     const charging = createMercadoPagoCharging({
       database,
+      restoration: restorationOf(database),
       gate: createActionGate({
         store: new SqliteSignInStore(database),
         signedInPerson,
@@ -149,6 +152,7 @@ describe("the register's Mercado Pago QR charging", () => {
     const notFound = cloudClient([]);
     const charging = createMercadoPagoCharging({
       database,
+      restoration: restorationOf(database),
       gate: pointGate,
       cloudClient: {
         ...notFound,
@@ -183,7 +187,14 @@ describe("the register's Mercado Pago QR charging", () => {
     expect(await charging.follow?.({ paymentTransactionId: POINT_PAYMENT_ID })).toEqual({
       kind: "closed",
     });
-    expect(await currentSaleFor({ database, gate: pointGate, now: () => NOW })).toMatchObject({
+    expect(
+      await currentSaleFor({
+        database,
+        gate: pointGate,
+        now: () => NOW,
+        restoration: restorationOf(database),
+      }),
+    ).toMatchObject({
       charge_refusal: null,
       mercado_pago_charge_in_progress: null,
     });
@@ -206,6 +217,7 @@ describe("the register's Mercado Pago QR charging", () => {
     signedIn.set("u1");
     const charging = createMercadoPagoCharging({
       database,
+      restoration: restorationOf(database),
       gate: createActionGate({
         store: new SqliteSignInStore(database),
         signedInPerson: signedIn,
@@ -248,6 +260,7 @@ describe("the register's Mercado Pago QR charging", () => {
     );
     const charging = createMercadoPagoCharging({
       database,
+      restoration: restorationOf(database),
       gate: gate(),
       cloudClient: cloudClient(requests, PROVIDER_UNAVAILABLE),
       readDeviceToken: async () => "prefix.secret",
@@ -289,6 +302,7 @@ describe("the register's Mercado Pago QR charging", () => {
     signedIn.set("u1");
     const charging = createMercadoPagoCharging({
       database,
+      restoration: restorationOf(database),
       gate: createActionGate({
         store: new SqliteSignInStore(database),
         signedInPerson: signedIn,

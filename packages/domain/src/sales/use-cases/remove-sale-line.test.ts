@@ -91,7 +91,10 @@ function ledger(state: Partial<FakeSaleLedgerState> = {}): FakeSaleLedger {
 }
 
 function remove(store: FakeSaleLedger, lineId: string, actorId = "cashier") {
-  return removeSaleLine({ ledger: store, clock: new FixedClock(NOW) }, { actorId, lineId });
+  return removeSaleLine(
+    { ledger: store, restoration: store.restoration, clock: new FixedClock(NOW) },
+    { actorId, lineId },
+  );
 }
 
 describe("removeSaleLine", () => {

@@ -66,6 +66,7 @@ export function CancelLockedPaidSaleModal({
         setNotice(QR_CHARGE_IN_PROGRESS_MESSAGE);
         break;
       case "unavailable":
+      case "restoration_in_progress":
         setNotice(FAILED_MESSAGE);
         break;
       default:

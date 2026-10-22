@@ -11,18 +11,19 @@ const CASHIER = "c7b3e5d2-18a4-4f90-b6d1-2e9f0a8c3d03";
 
 const route = eventsRouteUnderTest();
 
-function pushOf(registerId: string) {
+function pushOf(registerId: string, version: 1 | 2 = 1) {
   const unlinked = {
     event_id: crypto.randomUUID(),
     device_seq: 1,
     aggregate_type: "CashRegister",
     aggregate_id: registerId,
     event_type: "clock_corrected",
-    schema_version: 1,
+    schema_version: version,
     payload: {
       point_of_sale: 7,
       document_type: "factura_c",
       previous_reading: "2026-10-07T12:00:00.000Z",
+      ...(version === 2 ? { previous_reading_source: "tax_authority_day" } : {}),
       corrected_reading: "2026-10-05T12:00:00.000Z",
     },
     occurred_at: "2026-10-05T12:00:00.000Z",
@@ -64,6 +65,7 @@ describe("a clock correction pushed through POST /events", () => {
         registerId,
         pointOfSale: 7,
         actorId: CASHIER,
+        previousReadingSource: "clock_mark",
         correctedAt: new Date("2026-10-05T12:00:00.000Z"),
       }),
     ]);
@@ -72,6 +74,28 @@ describe("a clock correction pushed through POST /events", () => {
     ]);
     expect(await route.db.select().from(inbox)).toEqual([
       expect.objectContaining({ appliedAt: NOW }),
+    ]);
+  });
+
+  it("keeps that the previous reading is the start of the tax authority's day when the register says so", async () => {
+    const { deviceToken, registerId, locationId } = await insertEnrolledInstallation(route.db, {
+      now: NOW,
+      outboxChainKey: CHAIN_KEY,
+    });
+    await route.db
+      .insert(users)
+      .values({ id: CASHIER, firstName: "Ada", email: "ada@example.com", locationId });
+
+    await route.app.inject({
+      method: "POST",
+      url: "/events",
+      payload: pushOf(registerId, 2),
+      headers: { authorization: `Bearer ${deviceToken}` },
+    });
+    await applySyncedEventsTask(route.db, { now: () => NOW });
+
+    expect(await route.db.select().from(clockCorrections)).toEqual([
+      expect.objectContaining({ previousReadingSource: "tax_authority_day" }),
     ]);
   });
 });

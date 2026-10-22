@@ -3,37 +3,66 @@ import { join } from "node:path";
 
 const MARKER_FILE = "restore-pending";
 
+interface BeginRestoreOptions {
+  setAsideLiveDatabase?: boolean;
+}
+
 export interface RestorePending {
   isPending(): boolean;
   deviceId(): string | undefined;
-  begin(deviceId: string): void;
+  setsAsideLiveDatabase(): boolean;
+  begin(deviceId: string, options?: BeginRestoreOptions): void;
+  settleSetAside(): void;
   clear(): void;
 }
 
 export function restorePendingIn(folder: string | undefined): RestorePending {
   const marker = folder === undefined ? undefined : join(folder, MARKER_FILE);
+
+  function read(): { device_id?: unknown; set_aside_live_database?: unknown } | undefined {
+    if (marker === undefined || !existsSync(marker)) {
+      return undefined;
+    }
+    try {
+      const content: unknown = JSON.parse(readFileSync(marker, "utf8"));
+      return content === null || typeof content !== "object" ? undefined : content;
+    } catch {
+      return undefined;
+    }
+  }
+
+  function write(deviceId: string, setAsideLiveDatabase: boolean): void {
+    if (folder === undefined || marker === undefined) {
+      return;
+    }
+    mkdirSync(folder, { recursive: true });
+    const pendingWrite = `${marker}.tmp`;
+    writeFileSync(
+      pendingWrite,
+      JSON.stringify(
+        setAsideLiveDatabase
+          ? { device_id: deviceId, set_aside_live_database: true }
+          : { device_id: deviceId },
+      ),
+    );
+    renameSync(pendingWrite, marker);
+  }
+
   return {
     isPending: () => marker !== undefined && existsSync(marker),
     deviceId() {
-      if (marker === undefined || !existsSync(marker)) {
-        return undefined;
-      }
-      try {
-        const content: unknown = JSON.parse(readFileSync(marker, "utf8"));
-        const deviceId = (content as { device_id?: unknown } | null)?.device_id;
-        return typeof deviceId === "string" && deviceId !== "" ? deviceId : undefined;
-      } catch {
-        return undefined;
-      }
+      const deviceId = read()?.device_id;
+      return typeof deviceId === "string" && deviceId !== "" ? deviceId : undefined;
     },
-    begin(deviceId) {
-      if (folder === undefined || marker === undefined) {
-        return;
+    setsAsideLiveDatabase: () => read()?.set_aside_live_database === true,
+    begin(deviceId, options) {
+      write(deviceId, options?.setAsideLiveDatabase === true);
+    },
+    settleSetAside() {
+      const deviceId = this.deviceId();
+      if (deviceId !== undefined) {
+        write(deviceId, false);
       }
-      mkdirSync(folder, { recursive: true });
-      const pendingWrite = `${marker}.tmp`;
-      writeFileSync(pendingWrite, JSON.stringify({ device_id: deviceId }));
-      renameSync(pendingWrite, marker);
     },
     clear() {
       if (marker !== undefined) {

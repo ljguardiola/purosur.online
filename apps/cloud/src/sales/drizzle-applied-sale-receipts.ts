@@ -17,13 +17,22 @@ export async function recordAppliedPrintState<TQueryResult extends PgQueryResult
   origin: AppliedOrigin,
   { printState }: Extract<SyncedFact, { kind: "sale_print_state_changed" }>,
 ): Promise<void> {
-  const { saleId, printAttemptedAt, printedAt } = printState;
+  const { saleId, document, printAttemptedAt, printedAt } = printState;
+  const attemptedAt = printAttemptedAt.toISOString();
+  const printedMoment = printedAt?.toISOString() ?? null;
   const updated = await tx
     .update(sales)
-    .set({
-      printAttemptedAt: sql`greatest(${sales.printAttemptedAt}, ${printAttemptedAt.toISOString()}::timestamptz)`,
-      printedAt: sql`greatest(${sales.printedAt}, ${printedAt?.toISOString() ?? null}::timestamptz)`,
-    })
+    .set(
+      document === "credit_note"
+        ? {
+            creditNotePrintAttemptedAt: sql`greatest(${sales.creditNotePrintAttemptedAt}, ${attemptedAt}::timestamptz)`,
+            creditNotePrintedAt: sql`greatest(${sales.creditNotePrintedAt}, ${printedMoment}::timestamptz)`,
+          }
+        : {
+            printAttemptedAt: sql`greatest(${sales.printAttemptedAt}, ${attemptedAt}::timestamptz)`,
+            printedAt: sql`greatest(${sales.printedAt}, ${printedMoment}::timestamptz)`,
+          },
+    )
     .where(ofTheRegister(saleId, origin))
     .returning({ id: sales.id });
   if (updated.length === 0) {

@@ -208,6 +208,28 @@ describe("POST /devices/current/reset", () => {
     expect(body.events.map(({ event_id }) => event_id)).toEqual([third]);
   });
 
+  it("answers the deferred-sale records of the token's own register, never those of another register", async () => {
+    const { predecessor, current } = await aRestoredRegister();
+    const other = await insertEnrolledInstallation(db, { now: NOW, registerName: "Caja 2" });
+    const ownRecord = await insertInboxEvent(db, predecessor.deviceId, {
+      eventType: "deferred_sale_recorded",
+      schemaVersion: 1,
+    });
+    await insertInboxEvent(db, other.deviceId, {
+      eventType: "deferred_sale_recorded",
+      schemaVersion: 1,
+    });
+
+    const response = await reset(
+      { predecessor_device_id: predecessor.deviceId, last_acknowledged_seq: 0 },
+      `Bearer ${current.deviceToken}`,
+    );
+
+    expect(response.statusCode).toBe(200);
+    const { events } = registerResetResponseSchema.parse(response.json());
+    expect(events.map(({ event_id }) => event_id)).toEqual([ownRecord]);
+  });
+
   describe("the credit note answers", () => {
     async function aVoidedSale(deviceId: string) {
       const saleId = crypto.randomUUID();

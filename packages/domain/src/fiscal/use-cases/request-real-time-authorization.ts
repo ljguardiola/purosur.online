@@ -41,7 +41,7 @@ export async function requestRealTimeAuthorization(
   }
 
   const roundTripMedianMs = medianRoundTripMs(await roundTrips.recent());
-  const { saleEvent, reservedAt, ...waitingDocument } = waiting;
+  const { saleEvent, reservedAt, origin, ...waitingDocument } = waiting;
   const answer: RealTimeAuthorizationAnswer =
     roundTripMedianMs === null || saleEvent === null
       ? { kind: "not_attempted" }
@@ -72,6 +72,7 @@ export async function requestRealTimeAuthorization(
         total: waiting.document.total,
         reason: resolution.deferralReason,
         routedAt: resolved.resolvedAt,
+        origin,
       },
     );
   }

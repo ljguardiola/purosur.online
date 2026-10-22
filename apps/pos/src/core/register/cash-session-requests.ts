@@ -30,6 +30,7 @@ import {
   type OpenCashSessionGrant,
   type OperationAuthorization,
   openCashSession,
+  type RestorationProtocolEvidence,
 } from "@purosur/domain/register/use-cases";
 import {
   readPendingMercadoPagoPaymentsOf,
@@ -52,6 +53,10 @@ export interface CashSessionRequestDeps {
   ids: IdGenerator;
 }
 
+export interface OpenCashSessionRequestDeps extends CashSessionRequestDeps {
+  restoration: RestorationProtocolEvidence;
+}
+
 interface OpeningGrant extends OpenCashSessionGrant {
   opener: ActivePerson | undefined;
 }
@@ -62,7 +67,7 @@ type OpeningRefusal = Extract<
 >;
 
 export async function openCashSessionFor(
-  { database, gate, readOutboxChainKey, now, ids }: CashSessionRequestDeps,
+  { database, gate, readOutboxChainKey, now, ids, restoration }: OpenCashSessionRequestDeps,
   openingFloat: number,
 ): Promise<OpenCashSessionOutcome> {
   const outboxChainKey = await readOutboxChainKey();
@@ -72,6 +77,7 @@ export async function openCashSessionFor(
       ledger: new SqliteCashLedger(database, people, outboxChainKey),
       clock: { now },
       ids,
+      restoration,
       authority: {
         async authorize(): Promise<OperationAuthorization<OpeningGrant, OpeningRefusal>> {
           if (outboxChainKey === undefined) {

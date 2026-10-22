@@ -1,3 +1,4 @@
+import { FICTIONAL_ISSUER } from "@purosur/domain/fiscal/test-support";
 import { describe, expect, it } from "vitest";
 import type { FiscalOnlineSignalEvidence } from "../../fiscal/index.js";
 import { readSaleHistoryDetail } from "./read-sale-history-detail.js";
@@ -7,7 +8,15 @@ import {
   FakeRegisterSalesHistory,
 } from "./test-support/fake-register-sales-history.js";
 import { FixedClock } from "./test-support/fake-sale-ledger.js";
-import { completedSale, FIRST_PRINT_AT, SENT_AT, voidedSale } from "./test-support/receipt-rig.js";
+import {
+  completedSale,
+  creditedSales,
+  FIRST_PRINT_AT,
+  SENT_AT,
+  voidedSale,
+} from "./test-support/receipt-rig.js";
+
+const creditedSale = creditedSales(FICTIONAL_ISSUER);
 
 const NOW = new Date("2026-10-07T15:30:00.000Z");
 const clock = new FixedClock(NOW);
@@ -106,6 +115,7 @@ describe("readSaleHistoryDetail", () => {
         creditNote: null,
         reprint: { kind: "available" },
         nextCopy: { kind: "original" },
+        creditNoteNextCopy: null,
       },
     });
   });
@@ -119,6 +129,7 @@ describe("readSaleHistoryDetail", () => {
           printedAt: SENT_AT,
           reprints: [
             {
+              document: "sale_receipt",
               saleId: "sale-1",
               orderNumber: 1,
               requestedBy: "cashier",
@@ -404,6 +415,83 @@ describe("readSaleHistoryDetail", () => {
       const outcome = readSaleHistoryDetail({ history, ledger, clock }, { saleId: "sale-1" });
 
       expect(outcome).toMatchObject({ kind: "found", detail: { creditNote } });
+    });
+
+    const AUTHORIZED_CREDIT_NOTE = {
+      kind: "authorized",
+      pointOfSale: 3,
+      number: 41,
+      issuedOn: "2026-10-07",
+      issuedAt: new Date("2026-10-07T15:20:00.000Z"),
+      authorizationCode: "75123456789099",
+      authorizationCodeDueOn: "2026-10-17",
+    } as const;
+
+    it("shows the credit note's original as its next copy while it was never printed", () => {
+      const history = new FakeRegisterSalesHistory([
+        historySale({ voided: true, creditNote: AUTHORIZED_CREDIT_NOTE }),
+      ]);
+      const ledger = new FakeReceiptLedger({ sales: [creditedSale()] });
+
+      const outcome = readSaleHistoryDetail({ history, ledger, clock }, { saleId: "sale-1" });
+
+      expect(outcome).toMatchObject({
+        kind: "found",
+        detail: { creditNoteNextCopy: { kind: "original" } },
+      });
+    });
+
+    it("shows the numbered duplicate the credit note would print next, apart from the receipt's copies", () => {
+      const history = new FakeRegisterSalesHistory([
+        historySale({ voided: true, creditNote: AUTHORIZED_CREDIT_NOTE }),
+      ]);
+      const ledger = new FakeReceiptLedger({
+        sales: [
+          creditedSale(
+            {
+              printAttemptedAt: FIRST_PRINT_AT,
+              reprints: [
+                {
+                  document: "credit_note",
+                  saleId: "sale-1",
+                  orderNumber: 1,
+                  requestedBy: "cashier",
+                  authorizedBy: null,
+                  reason: { kind: "retry" },
+                  occurredAt: SENT_AT,
+                },
+              ],
+            },
+            { printAttemptedAt: FIRST_PRINT_AT },
+          ),
+        ],
+      });
+
+      const outcome = readSaleHistoryDetail({ history, ledger, clock }, { saleId: "sale-1" });
+
+      expect(outcome).toMatchObject({
+        kind: "found",
+        detail: {
+          creditNoteNextCopy: { kind: "duplicate", orderNumber: 2 },
+          nextCopy: { kind: "duplicate", orderNumber: 1 },
+        },
+      });
+    });
+
+    it.each([
+      [{ kind: "in_progress" }],
+      [{ kind: "rejected" }],
+      [{ kind: "already_credited" }],
+      [null],
+    ] as const)("has no next copy of the credit note while its standing is %o", (creditNote) => {
+      const history = new FakeRegisterSalesHistory([
+        historySale({ voided: true, creditNote: structuredClone(creditNote) }),
+      ]);
+      const ledger = new FakeReceiptLedger({ sales: [voidedSale()] });
+
+      const outcome = readSaleHistoryDetail({ history, ledger, clock }, { saleId: "sale-1" });
+
+      expect(outcome).toMatchObject({ kind: "found", detail: { creditNoteNextCopy: null } });
     });
 
     it("shows a voided sale with the voided standing", () => {

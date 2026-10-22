@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { RECEIPT_REPRINT_REASON_MAX_LENGTH } from "../model/receipt-reprint-reason.js";
 import type { ReceiptPrintGrant } from "./receipt-printing.js";
-import { reprintSaleReceipt } from "./reprint-sale-receipt.js";
+import { reprintReceipt } from "./reprint-receipt.js";
 import { FakeOperationAuthority } from "./test-support/fake-operation-authority.js";
 import { textOf } from "./test-support/fake-receipt-template.js";
 import {
@@ -14,9 +14,13 @@ import {
   voidedSale,
 } from "./test-support/receipt-rig.js";
 
-const INPUT = { saleId: "sale-1", reason: "el cliente la perdió" };
+const INPUT = {
+  document: "sale_receipt",
+  saleId: "sale-1",
+  reason: "el cliente la perdió",
+} as const;
 
-describe("reprintSaleReceipt", () => {
+describe("reprintReceipt", () => {
   it("returns the authority's refusal before reading any data or sending", async () => {
     const refusing = new FakeOperationAuthority<ReceiptPrintGrant, typeof NOT_PERMITTED>({
       kind: "refused",
@@ -24,7 +28,7 @@ describe("reprintSaleReceipt", () => {
     });
     const rig = receiptRig([completedSale()], refusing);
 
-    const outcome = await reprintSaleReceipt(rig.ports, INPUT, rig.watch);
+    const outcome = await reprintReceipt(rig.ports, INPUT, rig.watch);
 
     expect(outcome).toEqual(NOT_PERMITTED);
     expect(rig.ledger.transactions).toBe(0);
@@ -40,7 +44,11 @@ describe("reprintSaleReceipt", () => {
     async (_name, reason) => {
       const rig = receiptRig([completedSale({ printAttemptedAt: FIRST_PRINT_AT })]);
 
-      const outcome = await reprintSaleReceipt(rig.ports, { saleId: "sale-1", reason }, rig.watch);
+      const outcome = await reprintReceipt(
+        rig.ports,
+        { document: "sale_receipt", saleId: "sale-1", reason },
+        rig.watch,
+      );
 
       expect(outcome).toEqual({
         kind: "invalid_reason",
@@ -63,7 +71,7 @@ describe("reprintSaleReceipt", () => {
     });
     const rig = receiptRig([{ ...sale, source: { ...sale.source, fiscal: { kind: "awaiting" } } }]);
 
-    const printing = reprintSaleReceipt(rig.ports, INPUT, rig.watch);
+    const printing = reprintReceipt(rig.ports, INPUT, rig.watch);
     await rig.printer.whenWaiting();
     rig.printer.becomeReady();
 
@@ -76,9 +84,9 @@ describe("reprintSaleReceipt", () => {
   it("records the reason without the spaces around it", async () => {
     const rig = receiptRig([completedSale({ printAttemptedAt: FIRST_PRINT_AT })]);
 
-    const printing = reprintSaleReceipt(
+    const printing = reprintReceipt(
       rig.ports,
-      { saleId: "sale-1", reason: "  se mojó \n" },
+      { document: "sale_receipt", saleId: "sale-1", reason: "  se mojó \n" },
       rig.watch,
     );
     await rig.printer.whenWaiting();
@@ -94,7 +102,7 @@ describe("reprintSaleReceipt", () => {
   it("prints a sale never printed as the original, with no reprint and no reason recorded", async () => {
     const rig = receiptRig();
 
-    const printing = reprintSaleReceipt(rig.ports, INPUT, rig.watch);
+    const printing = reprintReceipt(rig.ports, INPUT, rig.watch);
     await rig.printer.whenWaiting();
     rig.printer.becomeReady();
 
@@ -123,13 +131,14 @@ describe("reprintSaleReceipt", () => {
     );
     rig.clock.set(SENT_AT);
 
-    const printing = reprintSaleReceipt(rig.ports, INPUT, rig.watch);
+    const printing = reprintReceipt(rig.ports, INPUT, rig.watch);
     await rig.printer.whenWaiting();
     rig.printer.becomeReady();
 
     const atSend = rig.printer.sent[0]?.ledgerStateWhenSent;
     expect(atSend?.sales[0]?.reprints).toEqual([
       {
+        document: "sale_receipt",
         saleId: "sale-1",
         orderNumber: 1,
         requestedBy: "cashier",
@@ -144,9 +153,10 @@ describe("reprintSaleReceipt", () => {
         aggregate_type: "Sale",
         aggregate_id: "sale-1",
         event_type: "reprint_recorded",
-        schema_version: 1,
+        schema_version: 2,
         payload: {
           sale_id: "sale-1",
+          document: "sale_receipt",
           order_number: 1,
           requested_by: "cashier",
           authorized_by: "supervisor",
@@ -171,7 +181,7 @@ describe("reprintSaleReceipt", () => {
   it("answers abandoned and records nothing when the print is abandoned before the printer was ready", async () => {
     const rig = receiptRig([completedSale({ printAttemptedAt: FIRST_PRINT_AT })]);
 
-    const printing = reprintSaleReceipt(rig.ports, INPUT, rig.watch);
+    const printing = reprintReceipt(rig.ports, INPUT, rig.watch);
     await rig.printer.whenWaiting();
     rig.printer.abandon();
 
@@ -187,7 +197,7 @@ describe("reprintSaleReceipt", () => {
     const rig = receiptRig([completedSale({ printAttemptedAt: FIRST_PRINT_AT })]);
 
     for (let round = 1; round <= 3; round += 1) {
-      const printing = reprintSaleReceipt(rig.ports, INPUT, rig.watch);
+      const printing = reprintReceipt(rig.ports, INPUT, rig.watch);
       await rig.printer.whenWaiting(round);
       rig.printer.becomeReady();
       expect(await printing).toEqual({
@@ -207,14 +217,14 @@ describe("reprintSaleReceipt", () => {
   ])("answers not_found and sends nothing when %s", async (_name, sales) => {
     const rig = receiptRig(sales);
 
-    expect(await reprintSaleReceipt(rig.ports, INPUT, rig.watch)).toEqual({ kind: "not_found" });
+    expect(await reprintReceipt(rig.ports, INPUT, rig.watch)).toEqual({ kind: "not_found" });
     expect(rig.printer.sent).toEqual([]);
   });
 
   it("answers sale_voided and records and sends nothing for a voided sale", async () => {
     const rig = receiptRig([voidedSale({ printAttemptedAt: FIRST_PRINT_AT })]);
 
-    expect(await reprintSaleReceipt(rig.ports, INPUT, rig.watch)).toEqual({ kind: "sale_voided" });
+    expect(await reprintReceipt(rig.ports, INPUT, rig.watch)).toEqual({ kind: "sale_voided" });
     expect(rig.printer.sent).toEqual([]);
     expect(rig.ledger.state.sales[0]?.reprints).toEqual([]);
     expect(rig.ledger.state.sales[0]?.stored).toBeUndefined();
@@ -225,7 +235,7 @@ describe("reprintSaleReceipt", () => {
     const rig = receiptRig([completedSale({ printAttemptedAt: FIRST_PRINT_AT })]);
     rig.printers.unconfigure();
 
-    expect(await reprintSaleReceipt(rig.ports, INPUT, rig.watch)).toEqual({
+    expect(await reprintReceipt(rig.ports, INPUT, rig.watch)).toEqual({
       kind: "printer_not_configured",
     });
     expect(rig.ledger.transactions).toBe(0);
@@ -237,7 +247,7 @@ describe("reprintSaleReceipt", () => {
     const rig = receiptRig([completedSale({ printAttemptedAt: FIRST_PRINT_AT })]);
     rig.ledger.state.outboxReady = false;
 
-    expect(await reprintSaleReceipt(rig.ports, INPUT, rig.watch)).toEqual({
+    expect(await reprintReceipt(rig.ports, INPUT, rig.watch)).toEqual({
       kind: "unavailable",
     });
     expect(rig.printer.sent).toEqual([]);

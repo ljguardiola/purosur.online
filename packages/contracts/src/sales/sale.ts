@@ -21,6 +21,7 @@ import {
   plannedRefundSchema,
   reachesThresholdRefusalSchema,
   recordIdSchema,
+  restorationInProgressOutcomeSchema,
   saleCancelRefusalSchema,
 } from "../shared/index.js";
 import { saleCreditNoteSchema } from "./sale-credit-note.js";
@@ -166,6 +167,7 @@ export const scanProductOutcomeSchema = z.discriminatedUnion("kind", [
   notPermittedOutcome,
   notSignedInOutcome,
   noOpenSessionOutcome,
+  restorationInProgressOutcomeSchema,
   installationRevokedOutcome,
   localDatabaseDamagedOutcome,
   batteryCriticalOutcome,
@@ -181,6 +183,7 @@ const saleRefusalSchemas = [
   notPermittedOutcome,
   notSignedInOutcome,
   noOpenSessionOutcome,
+  restorationInProgressOutcomeSchema,
   unavailableOutcome,
 ] as const;
 
@@ -229,6 +232,7 @@ export const adjustSaleLineOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("discount_exceeds_line") }),
   z.object({ kind: z.literal("no_open_sale") }),
   z.object({ kind: z.literal("no_open_session") }),
+  restorationInProgressOutcomeSchema,
   saleHasPaymentsOutcome,
   notPermittedOutcome,
   notSignedInOutcome,
@@ -247,6 +251,7 @@ export const previewSaleLineAdjustmentOutcomeSchema = z.discriminatedUnion("kind
   z.object({ kind: z.literal("discount_exceeds_line") }),
   z.object({ kind: z.literal("no_open_sale") }),
   z.object({ kind: z.literal("no_open_session") }),
+  restorationInProgressOutcomeSchema,
   saleHasPaymentsOutcome,
   notPermittedOutcome,
   notSignedInOutcome,
@@ -262,6 +267,7 @@ const saleDiscountRefusalSchemas = [
   z.object({ kind: z.literal("discount_exceeds_sale") }),
   z.object({ kind: z.literal("no_open_sale") }),
   z.object({ kind: z.literal("no_open_session") }),
+  restorationInProgressOutcomeSchema,
   saleHasPaymentsOutcome,
   notPermittedOutcome,
   notSignedInOutcome,
@@ -310,6 +316,7 @@ export const cancelPaidSaleOutcomeSchema = z.discriminatedUnion("kind", [
   }),
   z.object({ kind: z.literal("no_open_sale") }),
   z.object({ kind: z.literal("no_open_session") }),
+  restorationInProgressOutcomeSchema,
   qrChargeInProgressOutcome,
   notPermittedOutcome,
   notSignedInOutcome,
@@ -342,6 +349,7 @@ export const addProductOutcomeSchema = z.discriminatedUnion("kind", [
   notPermittedOutcome,
   notSignedInOutcome,
   noOpenSessionOutcome,
+  restorationInProgressOutcomeSchema,
   installationRevokedOutcome,
   localDatabaseDamagedOutcome,
   batteryCriticalOutcome,
@@ -362,6 +370,7 @@ export const addWeighedProductOutcomeSchema = z.discriminatedUnion("kind", [
   notPermittedOutcome,
   notSignedInOutcome,
   noOpenSessionOutcome,
+  restorationInProgressOutcomeSchema,
   installationRevokedOutcome,
   localDatabaseDamagedOutcome,
   batteryCriticalOutcome,
@@ -383,6 +392,7 @@ export const weighProductOutcomeSchema = z.discriminatedUnion("kind", [
   notPermittedOutcome,
   notSignedInOutcome,
   noOpenSessionOutcome,
+  restorationInProgressOutcomeSchema,
   installationRevokedOutcome,
   localDatabaseDamagedOutcome,
   batteryCriticalOutcome,
@@ -411,6 +421,7 @@ export const searchProductsOutcomeSchema = z.discriminatedUnion("kind", [
   notPermittedOutcome,
   notSignedInOutcome,
   noOpenSessionOutcome,
+  restorationInProgressOutcomeSchema,
   unavailableOutcome,
 ]);
 export type SearchProductsOutcome = z.infer<typeof searchProductsOutcomeSchema>;
@@ -433,6 +444,7 @@ export const chargeSaleInCashOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("not_permitted") }),
   z.object({ kind: z.literal("not_signed_in") }),
   z.object({ kind: z.literal("no_open_session") }),
+  restorationInProgressOutcomeSchema,
   z.object({ kind: z.literal("unavailable") }),
   qrChargeInProgressOutcome,
 ]);
@@ -451,6 +463,7 @@ const chargeSaleConfirmedByHandOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("not_permitted") }),
   z.object({ kind: z.literal("not_signed_in") }),
   z.object({ kind: z.literal("no_open_session") }),
+  restorationInProgressOutcomeSchema,
   z.object({ kind: z.literal("unavailable") }),
   qrChargeInProgressOutcome,
 ]);

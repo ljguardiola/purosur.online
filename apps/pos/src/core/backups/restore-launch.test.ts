@@ -33,6 +33,8 @@ function setup(
   const pending: RestorePending = {
     isPending: () => true,
     deviceId: () => markedDevice,
+    setsAsideLiveDatabase: () => false,
+    settleSetAside: () => undefined,
     begin: (deviceId) => {
       events.push(`begin ${deviceId}`);
       markedDevice = deviceId;

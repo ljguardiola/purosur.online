@@ -222,6 +222,7 @@ export type {
   LockedInstallation,
   NewInstallation,
   PresentedDeviceToken,
+  RealTimeNumberingLane,
   RegisterKeys,
   RegisterStore,
   RegisterStoreTransaction,
@@ -240,6 +241,7 @@ export type {
   RequestSnapshotUploadPorts,
 } from "./request-snapshot-upload.js";
 export { requestSnapshotUpload } from "./request-snapshot-upload.js";
+export type { RestorationProtocolEvidence } from "./restoration-protocol-evidence.js";
 export type {
   PredecessorStanding,
   RestoredRegisterPredecessors,

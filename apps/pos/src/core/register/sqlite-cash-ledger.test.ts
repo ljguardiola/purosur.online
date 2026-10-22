@@ -8,6 +8,7 @@ import { migrationClock } from "../platform/test-support/migration-clock";
 import { openLocalDatabase } from "../platform/test-support/open-local-database";
 import { SqliteSignInStore } from "../sessions/sqlite-sign-in-store";
 import { readOpenSessionMovements, SqliteCashLedger } from "./sqlite-cash-ledger";
+import { restorationOf } from "./test-support/restoration-of";
 
 const CHAIN_KEY_BYTES = Buffer.from("0123456789abcdef0123456789abcdef");
 const CHAIN_KEY = CHAIN_KEY_BYTES.toString("base64");
@@ -542,6 +543,7 @@ describe("opening a cash session through the ledger", () => {
         ledger,
         clock: { now: () => OPENED_AT },
         ids,
+        restoration: restorationOf(database),
         authority: { authorize: async () => ({ kind: "granted", grant: { openerId: "u1" } }) },
       },
       { openingFloat: 5000 },

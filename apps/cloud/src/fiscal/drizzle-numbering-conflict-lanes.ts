@@ -23,7 +23,7 @@ import type { EnqueueCreditNote } from "./enqueue-credit-note.js";
 import type { EnqueueNumberingReconciliation } from "./enqueue-numbering-conflict.js";
 import { answerOf } from "./fiscal-request-answer.js";
 import { diagnosisOf } from "./fiscal-request-diagnosis.js";
-import { notePointOfSaleHolderChanged } from "./note-point-of-sale-holder-changed.js";
+import { freezePointOfSaleNumbering } from "./freeze-point-of-sale-numbering.js";
 import { otherDocumentsOfSale, requestsAtNumber } from "./orphan-local-standing.js";
 import { withPointOfSaleLaneLock } from "./point-of-sale-lane-lock.js";
 import { recordOrphanRegularization } from "./record-orphan-regularization.js";
@@ -121,9 +121,11 @@ class DrizzleNumberingConflictLane<TQueryResult extends PgQueryResultHKT>
       if (freeze === null) {
         return;
       }
-      await tx.insert(numberingFreezes).values({ pointOfSaleNumber: this.pointOfSale, ...freeze });
-      await notePointOfSaleHolderChanged(tx, pending, this.pointOfSale);
-      await this.enqueueReconciliation(tx, this.pointOfSale);
+      await freezePointOfSaleNumbering(tx, pending, {
+        pointOfSale: this.pointOfSale,
+        freeze,
+        enqueueReconciliation: this.enqueueReconciliation,
+      });
     });
   }
 

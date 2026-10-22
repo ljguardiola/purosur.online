@@ -8,6 +8,7 @@ import {
 } from "../model/clock-correction.js";
 import type { ClockCorrectionLedger } from "./clock-correction-ports.js";
 import type { IdGenerator } from "./sale-authorization-ports.js";
+import { taxAuthorityClockFloor } from "./tax-authority-clock-floor.js";
 
 export interface CorrectRegisterClockGrant {
   correctorId: string;
@@ -53,7 +54,7 @@ export async function correctRegisterClock<Grant extends CorrectRegisterClockGra
     if (registerId === undefined) {
       return { kind: "unavailable" };
     }
-    const lowerings = clockLoweringsFor(tx.clockMarks(), clock.now());
+    const lowerings = clockLoweringsFor(tx.clockMarks(), clock.now(), taxAuthorityClockFloor(tx));
     if (lowerings.length === 0) {
       return { kind: "not_behind" };
     }

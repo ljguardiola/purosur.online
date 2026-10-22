@@ -208,6 +208,17 @@ describe("startSnapshotCycle", () => {
     expect(posted).toEqual([]);
   });
 
+  it("asks main for no snapshot while the cloud's refusal of the register's sequence as stale is recorded", async () => {
+    database
+      .prepare("UPDATE sync_state SET stale_sequence_detected_at = '2026-10-01T09:30:00.000Z'")
+      .run();
+    const { scheduled, posted } = start();
+
+    await scheduled[0]?.run();
+
+    expect(posted).toEqual([]);
+  });
+
   it("prunes the generations on disk the cloud verified before it decides the cycle", async () => {
     const snapshotsFolder = join(folder, "snapshots");
     const ids = await holdEightUploadedGenerations(snapshotsFolder);

@@ -36,6 +36,7 @@ export interface RealTimeAuthorizationWiringDeps {
 interface DeferralIdentities {
   ids: IdGenerator;
   shortCodes: ShortCodeRandomness;
+  readOutboxChainKey: () => Promise<string | undefined>;
 }
 
 interface RealTimeAuthorization {
@@ -54,6 +55,7 @@ export function createRealTimeAuthorization({
   reportFailure,
   ids,
   shortCodes,
+  readOutboxChainKey,
 }: RealTimeAuthorizationWiringDeps & DeferralIdentities): RealTimeAuthorization {
   if (database === undefined) {
     return { authorizeSale: async () => undefined };
@@ -69,7 +71,10 @@ export function createRealTimeAuthorization({
   return {
     authorizeSale: async (saleId) => {
       try {
-        await authorizeSaleInRealTime({ database, taxAuthority, now, ids, shortCodes }, saleId);
+        await authorizeSaleInRealTime(
+          { database, taxAuthority, now, ids, shortCodes, readOutboxChainKey },
+          saleId,
+        );
       } catch (error) {
         reportFailure(error);
         await authorizeSaleInRealTime(
@@ -79,6 +84,7 @@ export function createRealTimeAuthorization({
             now,
             ids,
             shortCodes,
+            readOutboxChainKey,
           },
           saleId,
         ).catch(reportFailure);
@@ -93,17 +99,19 @@ export async function settleInterruptedAuthorizations({
   reportFailure,
   ids,
   shortCodes,
+  readOutboxChainKey,
 }: Pick<RealTimeAuthorizationWiringDeps, "database" | "now" | "reportFailure"> &
   DeferralIdentities): Promise<void> {
   if (database === undefined) {
     return;
   }
-  await settleInterruptedRealTimeAuthorizations({
-    documents: new SqliteRealTimeFiscalDocuments(database),
-    clock: { now },
-    ids,
-    shortCodes,
-  }).catch(reportFailure);
+  await (async () =>
+    settleInterruptedRealTimeAuthorizations({
+      documents: new SqliteRealTimeFiscalDocuments(database, await readOutboxChainKey()),
+      clock: { now },
+      ids,
+      shortCodes,
+    }))().catch(reportFailure);
 }
 
 export function cloudCreditNotes({

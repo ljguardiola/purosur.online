@@ -4,3 +4,11 @@ export const FICTIONAL_LEGAL_NAME = "Comercio de Prueba";
 export const FICTIONAL_GROSS_INCOME_REGISTRATION = "CM 000-000000-0";
 export const FICTIONAL_CERTIFICATE_CUIT = "20-12345678-6";
 export const CUIT_NUMBER_NO_CHECK_DIGIT_VALIDATES = "26-00000000-0";
+
+export const FICTIONAL_ISSUER = {
+  legalName: FICTIONAL_LEGAL_NAME,
+  cuit: FICTIONAL_CUIT,
+  taxStatus: "Responsable Monotributo",
+  grossIncomeRegistration: FICTIONAL_GROSS_INCOME_REGISTRATION,
+  activityStartDate: "2020-01-15",
+} as const;

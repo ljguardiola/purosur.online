@@ -8,6 +8,8 @@ function setup({ pendingNow = true, launches = true } = {}) {
   const restorePending: RestorePending = {
     isPending: () => pending,
     deviceId: () => (pending ? "device-new" : undefined),
+    setsAsideLiveDatabase: () => false,
+    settleSetAside: () => undefined,
     begin: () => {
       pending = true;
     },

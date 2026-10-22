@@ -32,7 +32,7 @@ export class FakeInterruptedRealTimeAuthorizations implements InterruptedRealTim
         this.resolutionAttempts.push(resolved);
         if (
           resolved.deferredSale !== null &&
-          this.takenShortCodes.includes(resolved.deferredSale.shortCode)
+          this.takenShortCodes.includes(resolved.deferredSale.sale.shortCode)
         ) {
           throw new ShortCodeTaken();
         }

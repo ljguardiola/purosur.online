@@ -605,7 +605,7 @@ describe("DrizzleRegisterStore", () => {
       }
     }
 
-    it("deletes the count of the register's point of sale, leaves the others, and enqueues its read", async () => {
+    it("keeps the count of the register's real-time point of sale and enqueues its read", async () => {
       const registerId = await insertRegisterWithPointOfSale(db, {
         pointOfSaleNumber: 7,
         name: "caja-1",
@@ -618,11 +618,11 @@ describe("DrizzleRegisterStore", () => {
         tx.requireFreshTaxAuthorityCount(registerId),
       );
 
-      expect(await storedCountPointsOfSale()).toEqual([8]);
+      expect(await storedCountPointsOfSale()).toEqual([7, 8]);
       expect(enqueued).toEqual([7]);
     });
 
-    it("deletes the count of the register's offline point of sale too, leaves the others, and enqueues the read of each", async () => {
+    it("deletes the count of the register's offline point of sale, leaves the others, and enqueues the read of each", async () => {
       const registerId = await configureOfflinePointOfSale(db, {
         registerName: "caja-1",
         realTimePointOfSale: 7,
@@ -642,7 +642,7 @@ describe("DrizzleRegisterStore", () => {
         tx.requireFreshTaxAuthorityCount(registerId),
       );
 
-      expect(await storedCountPointsOfSale()).toEqual([3, 4]);
+      expect(await storedCountPointsOfSale()).toEqual([3, 4, 7]);
       expect(enqueued.sort()).toEqual([7, 8]);
     });
 

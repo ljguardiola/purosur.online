@@ -1,9 +1,11 @@
 import { resetRestoredSyncIdentity } from "@purosur/domain/sync/use-cases";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { restorePendingIn } from "../backups/restore-pending";
 import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import { migrationClock } from "../platform/test-support/migration-clock";
 import { openLocalDatabase } from "../platform/test-support/open-local-database";
+import { SqliteRestorationEvidence } from "../register/sqlite-restoration-evidence";
 import { SqliteRestoredSyncIdentityStore } from "./sqlite-restored-sync-identity-store";
 
 const OLD_DEVICE = "old-device";
@@ -132,6 +134,34 @@ describe("the restored sync identity store", () => {
     expect(count("pin_verifiers")).toBe(0);
     expect(count("pin_sign_in_failures")).toBe(0);
     expect(count("users")).toBe(1);
+  });
+
+  it("marks the register's point of sale as awaiting its numbering from the cloud when it adopts the new identity", async () => {
+    carryOldInstallation(5);
+    database.exec(`
+      INSERT INTO own_register (id, name, version, removed) VALUES ('r1', 'Caja 1', 1, 0);
+      INSERT INTO register_point_of_sale (register_id, point_of_sale_number, fiscal_address_id,
+        tax_authority_last_authorized_number, version)
+        VALUES ('r1', 12, 'address-1', 40, 2);
+    `);
+
+    await resetRestoredSyncIdentity({ store }, { deviceId: NEW_DEVICE });
+
+    expect(database.prepare("SELECT register_id FROM awaiting_restored_numbering").all()).toEqual([
+      { register_id: "r1" },
+    ]);
+  });
+
+  it("leaves the new installation no enrollment pending from the old one's stale sequence", async () => {
+    carryOldInstallation(5);
+    database
+      .prepare("UPDATE sync_state SET stale_sequence_detected_at = '2026-10-01T09:30:00.000Z'")
+      .run();
+
+    await resetRestoredSyncIdentity({ store }, { deviceId: NEW_DEVICE });
+
+    const evidence = new SqliteRestorationEvidence(database, restorePendingIn(undefined));
+    expect(evidence.evidence().enroll).toBe("completed");
   });
 
   it("leaves the register as it is when the identity already is the new installation's", async () => {

@@ -14,6 +14,10 @@ import {
   refusing,
 } from "./test-support/fake-operation-authority.js";
 import { FixedClock } from "./test-support/fake-register-store.js";
+import {
+  COMPLETED_RESTORATION,
+  FakeRestorationProtocolEvidence,
+} from "./test-support/fake-restoration-protocol-evidence.js";
 
 const NOW = new Date("2026-09-30T12:34:56.789Z");
 const IDENTITY = { registerId: "register-1", deviceId: "device-1" };
@@ -41,9 +45,16 @@ function open(
   authority: FakeOperationAuthority<OpenCashSessionGrant, typeof NOT_SIGNED_IN> = granting({
     openerId,
   }),
+  restoration = new FakeRestorationProtocolEvidence(),
 ) {
   return openCashSession(
-    { ledger: store, clock: new FixedClock(NOW), ids: new SequentialIds(), authority },
+    {
+      ledger: store,
+      clock: new FixedClock(NOW),
+      ids: new SequentialIds(),
+      authority,
+      restoration,
+    },
     { openingFloat },
   );
 }
@@ -237,4 +248,58 @@ describe("openCashSession", () => {
       nothingRecorded(store, before);
     },
   );
+
+  describe("while the register's restoration is in progress", () => {
+    const IN_PROGRESS = new FakeRestorationProtocolEvidence({
+      ...COMPLETED_RESTORATION,
+      replenish: "pending",
+    });
+
+    it("refuses and records nothing", async () => {
+      const store = ledger();
+      const before = structuredClone(store.state);
+
+      expect(
+        await open(store, "cashier", 150000, granting({ openerId: "cashier" }), IN_PROGRESS),
+      ).toEqual({
+        kind: "restoration_in_progress",
+      });
+
+      nothingRecorded(store, before);
+      expect(store.state.outbox).toEqual([]);
+    });
+
+    it("opens once the restoration is completed", async () => {
+      const store = ledger();
+
+      const outcome = await open(store);
+
+      expect(outcome.kind).toBe("opened");
+    });
+
+    it("answers not permitted to an opener who may not open sessions", async () => {
+      const store = ledger();
+
+      expect(
+        await open(store, "stranger", 150000, granting({ openerId: "stranger" }), IN_PROGRESS),
+      ).toEqual({ kind: "not_permitted" });
+    });
+
+    it("answers the authority's refusal before reading the restoration", async () => {
+      const store = ledger();
+      const restoration = new FakeRestorationProtocolEvidence();
+
+      await open(store, "cashier", 150000, refusing(NOT_SIGNED_IN), restoration);
+
+      expect(restoration.reads).toBe(0);
+    });
+
+    it("is checked before whether a session is already open", async () => {
+      const store = ledger({ sessions: [EARLIER_SESSION] });
+
+      expect(
+        await open(store, "cashier", 150000, granting({ openerId: "cashier" }), IN_PROGRESS),
+      ).toEqual({ kind: "restoration_in_progress" });
+    });
+  });
 });

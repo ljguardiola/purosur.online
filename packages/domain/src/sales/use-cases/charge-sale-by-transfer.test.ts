@@ -115,7 +115,7 @@ function charge(
   ids = new SequentialIds(),
 ) {
   return chargeSaleByTransfer(
-    { ledger: store, clock: new FixedClock(NOW), ids },
+    { ledger: store, restoration: store.restoration, clock: new FixedClock(NOW), ids },
     { actorId, saleId, amount },
   );
 }
@@ -583,7 +583,7 @@ describe("chargeSaleByTransfer", () => {
       const store = ledger({ movements: [OPENING] });
       const ids = new SequentialIds();
       chargeSaleInCash(
-        { ledger: store, clock: new FixedClock(NOW), ids },
+        { ledger: store, restoration: store.restoration, clock: new FixedClock(NOW), ids },
         { actorId: "cashier", saleId: "sale-1", tendered: 2000 },
       );
 

@@ -13,11 +13,17 @@ type ReceiptFact = Extract<SyncedFact, { kind: "sale_print_state_changed" | "rep
 
 let database: LocalDatabase;
 
-function printState(saleId: string, attemptedAt: string, printedAt: string | null): ReceiptFact {
+function printState(
+  saleId: string,
+  attemptedAt: string,
+  printedAt: string | null,
+  document: "sale_receipt" | "credit_note" = "sale_receipt",
+): ReceiptFact {
   return {
     kind: "sale_print_state_changed",
     printState: {
       saleId,
+      document,
       printAttemptedAt: new Date(attemptedAt),
       printedAt: printedAt === null ? null : new Date(printedAt),
     },
@@ -28,11 +34,13 @@ function reprint(
   orderNumber: number,
   reason: Extract<ReceiptFact, { kind: "reprint_recorded" }>["reprint"]["reason"],
   saleId = "sale-1",
+  document: "sale_receipt" | "credit_note" = "sale_receipt",
 ): ReceiptFact {
   return {
     kind: "reprint_recorded",
     reprint: {
       saleId,
+      document,
       orderNumber,
       requestedBy: "cashier-1",
       authorizedBy: "supervisor-1",
@@ -51,7 +59,7 @@ function printing() {
 function reprints() {
   return database
     .prepare(
-      "SELECT sale_id, order_number, requested_by, authorized_by, reason_kind, reason_text, occurred_at FROM sale_reprints ORDER BY order_number",
+      "SELECT sale_id, document, order_number, requested_by, authorized_by, reason_kind, reason_text, occurred_at FROM sale_reprints ORDER BY order_number",
     )
     .all();
 }
@@ -135,6 +143,7 @@ describe("replenishing the reprints of a sale into a restored register", () => {
     expect(reprints()).toEqual([
       {
         sale_id: "sale-1",
+        document: "sale_receipt",
         order_number: 1,
         requested_by: "cashier-1",
         authorized_by: "supervisor-1",
@@ -144,6 +153,7 @@ describe("replenishing the reprints of a sale into a restored register", () => {
       },
       {
         sale_id: "sale-1",
+        document: "sale_receipt",
         order_number: 2,
         requested_by: "cashier-1",
         authorized_by: "supervisor-1",
@@ -166,6 +176,78 @@ describe("replenishing the reprints of a sale into a restored register", () => {
   it("is refused for a sale the register does not hold", () => {
     expect(() =>
       applyReplenishedReceiptFact(database, reprint(1, { kind: "retry" }, "sale-9")),
+    ).toThrow("sale sale-9 is not held");
+  });
+});
+
+describe("replenishing the credit note of a sale into a restored register", () => {
+  function creditNotePrinting() {
+    return database
+      .prepare(
+        "SELECT print_attempted_at, printed_at FROM credit_note_prints WHERE sale_id = 'sale-1'",
+      )
+      .get();
+  }
+
+  it("holds when the credit note was sent to the printer and printed, apart from the receipt's", () => {
+    applyReplenishedReceiptFact(
+      database,
+      printState("sale-1", "2026-10-07T11:00:05.000Z", "2026-10-07T11:00:09.000Z", "credit_note"),
+    );
+
+    expect(creditNotePrinting()).toEqual({
+      print_attempted_at: "2026-10-07T11:00:05.000Z",
+      printed_at: "2026-10-07T11:00:09.000Z",
+    });
+    expect(printing()).toEqual({ print_attempted_at: null, printed_at: null });
+  });
+
+  it("keeps the later attempt the snapshot already holds over an earlier one", () => {
+    applyReplenishedReceiptFact(
+      database,
+      printState("sale-1", "2026-10-07T11:09:00.000Z", "2026-10-07T11:09:03.000Z", "credit_note"),
+    );
+
+    applyReplenishedReceiptFact(
+      database,
+      printState("sale-1", "2026-10-07T11:00:05.000Z", "2026-10-07T11:00:09.000Z", "credit_note"),
+    );
+
+    expect(creditNotePrinting()).toEqual({
+      print_attempted_at: "2026-10-07T11:09:00.000Z",
+      printed_at: "2026-10-07T11:09:03.000Z",
+    });
+  });
+
+  it("holds an attempt that was not printed without a printed moment", () => {
+    applyReplenishedReceiptFact(
+      database,
+      printState("sale-1", "2026-10-07T11:00:05.000Z", null, "credit_note"),
+    );
+
+    expect(creditNotePrinting()).toEqual({
+      print_attempted_at: "2026-10-07T11:00:05.000Z",
+      printed_at: null,
+    });
+  });
+
+  it("holds a reprint of the credit note beside a reprint of the receipt with the same order number", () => {
+    applyReplenishedReceiptFact(database, reprint(1, { kind: "retry" }));
+    applyReplenishedReceiptFact(database, reprint(1, { kind: "retry" }, "sale-1", "credit_note"));
+    applyReplenishedReceiptFact(database, reprint(1, { kind: "retry" }, "sale-1", "credit_note"));
+
+    expect(database.prepare("SELECT document FROM sale_reprints ORDER BY document").all()).toEqual([
+      { document: "credit_note" },
+      { document: "sale_receipt" },
+    ]);
+  });
+
+  it("is refused for a sale the register does not hold", () => {
+    expect(() =>
+      applyReplenishedReceiptFact(
+        database,
+        printState("sale-9", "2026-10-07T11:00:05.000Z", null, "credit_note"),
+      ),
     ).toThrow("sale sale-9 is not held");
   });
 });

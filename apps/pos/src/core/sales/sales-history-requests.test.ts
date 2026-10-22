@@ -314,6 +314,7 @@ describe("the detail of a sale of the history", () => {
         credit_note: null,
         reprint: { kind: "available" },
         next_copy: { kind: "original" },
+        credit_note_next_copy: null,
       },
     });
   });
@@ -494,6 +495,51 @@ describe("the detail of a sale of the history", () => {
       const answer = await saleHistoryDetailFor(deps(), "gone");
 
       expect(answer.kind === "found" && answer.detail.credit_note).toEqual({ kind: "rejected" });
+    });
+
+    const AUTHORIZED = {
+      state: "AUTHORIZED",
+      point_of_sale: 3,
+      number: 7,
+      issued_on: "2026-10-08",
+      issued_at: "2026-10-08T10:00:03.000Z",
+      authorization_code: "75123456789012",
+      authorization_code_due_on: "2026-10-18",
+      answered_at: "2026-10-08T10:00:05.000Z",
+    };
+
+    it("answers its original as the next printing of an authorized credit note never printed", async () => {
+      addCreditNote(AUTHORIZED);
+
+      const answer = await saleHistoryDetailFor(deps(), "gone");
+
+      expect(answer.kind === "found" && answer.detail.credit_note_next_copy).toEqual({
+        kind: "original",
+      });
+    });
+
+    it("answers the numbered duplicate as its next printing once it was attempted, apart from the receipt's", async () => {
+      addCreditNote(AUTHORIZED);
+      database.exec(
+        `INSERT INTO credit_note_prints (sale_id, print_attempted_at) VALUES ('gone', '2026-10-08T10:01:00.000Z');
+         INSERT INTO sale_reprints (sale_id, document, order_number, requested_by, reason_kind, occurred_at)
+         VALUES ('gone', 'credit_note', 1, 'clerk', 'retry', '2026-10-08T10:02:00.000Z')`,
+      );
+
+      const answer = await saleHistoryDetailFor(deps(), "gone");
+
+      expect(answer.kind === "found" && answer.detail).toMatchObject({
+        credit_note_next_copy: { kind: "duplicate", order_number: 2 },
+        next_copy: { kind: "original" },
+      });
+    });
+
+    it("answers no next printing while the credit note is not authorized", async () => {
+      addCreditNote({});
+
+      const answer = await saleHistoryDetailFor(deps(), "gone");
+
+      expect(answer.kind === "found" && answer.detail.credit_note_next_copy).toBeNull();
     });
   });
 });

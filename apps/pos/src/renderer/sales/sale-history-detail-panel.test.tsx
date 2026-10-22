@@ -37,6 +37,7 @@ const FISCAL_SALE: SaleDetail = {
   reprint: { kind: "available" },
   next_copy: { kind: "duplicate", order_number: 1 },
   credit_note: null,
+  credit_note_next_copy: null,
 };
 
 async function renderPanel(
@@ -52,18 +53,30 @@ async function renderPanel(
       (async (): Promise<SaleHistoryDetailOutcome> => ({ kind: "found", detail: FISCAL_SALE })),
   );
   const onReprint = vi.fn();
+  const onPrintOriginal = vi.fn();
   const onVoid = vi.fn();
   const onPrintCreditNote = vi.fn();
+  const onReprintCreditNote = vi.fn();
   const screen = await render(
     <SaleHistoryDetailPanel
       saleId={"saleId" in options ? options.saleId : "sale-1"}
       readDetail={read}
       onReprint={onReprint}
+      onPrintOriginal={onPrintOriginal}
       onVoid={onVoid}
       onPrintCreditNote={onPrintCreditNote}
+      onReprintCreditNote={onReprintCreditNote}
     />,
   );
-  return { screen, read, onReprint, onVoid, onPrintCreditNote };
+  return {
+    screen,
+    read,
+    onReprint,
+    onPrintOriginal,
+    onVoid,
+    onPrintCreditNote,
+    onReprintCreditNote,
+  };
 }
 
 describe("SaleHistoryDetailPanel", () => {
@@ -142,26 +155,28 @@ describe("SaleHistoryDetailPanel", () => {
     await expect.element(screen.getByText("Número", { exact: true })).not.toBeInTheDocument();
   });
 
-  it("offers reprinting a duplicate when the core says the next copy is one, and hands the sale over", async () => {
-    const { screen, onReprint } = await renderPanel();
+  it("offers reprinting a duplicate when the core says the next copy is one, asking before printing it", async () => {
+    const { screen, onReprint, onPrintOriginal } = await renderPanel();
 
     await userEvent.click(screen.getByRole("button", { name: "Reimprimir duplicado" }));
 
     expect(onReprint).toHaveBeenCalledExactlyOnceWith(FISCAL_SALE);
+    expect(onPrintOriginal).not.toHaveBeenCalled();
   });
 
-  it("offers printing the original when the core says the next copy is the original", async () => {
-    const { screen } = await renderPanel({
-      read: async () => ({
-        kind: "found",
-        detail: { ...FISCAL_SALE, next_copy: { kind: "original" } },
-      }),
+  it("offers printing the original when the core says the next copy is the original, printing it right away", async () => {
+    const original = { ...FISCAL_SALE, next_copy: { kind: "original" } } as const;
+    const { screen, onReprint, onPrintOriginal } = await renderPanel({
+      read: async () => ({ kind: "found", detail: original }),
     });
 
-    await expect.element(screen.getByRole("button", { name: "Imprimir original" })).toBeVisible();
     await expect
       .element(screen.getByRole("button", { name: "Reimprimir duplicado" }))
       .not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Imprimir original" }));
+
+    expect(onPrintOriginal).toHaveBeenCalledExactlyOnceWith(original);
+    expect(onReprint).not.toHaveBeenCalled();
   });
 
   it("offers voiding a voidable sale next to the print button, and hands the sale over", async () => {
@@ -254,18 +269,18 @@ describe("SaleHistoryDetailPanel", () => {
       voidability: { kind: "not_voidable", refusal: "not_completed" },
       reprint: { kind: "sale_voided" },
     } as const;
+    const AUTHORIZED = {
+      kind: "authorized",
+      point_of_sale: 4,
+      number: 12,
+      issued_on: "2026-10-09",
+      authorization_code: "75123456789012",
+      authorization_code_due_on: "2026-10-19",
+    } as const;
 
     it("shows the point of sale and number of an authorized one and prints it from its button", async () => {
-      const authorized = {
-        kind: "authorized",
-        point_of_sale: 4,
-        number: 12,
-        issued_on: "2026-10-09",
-        authorization_code: "75123456789012",
-        authorization_code_due_on: "2026-10-19",
-      } as const;
       const { screen, onPrintCreditNote } = await renderPanel({
-        read: async () => ({ kind: "found", detail: { ...VOIDED, credit_note: authorized } }),
+        read: async () => ({ kind: "found", detail: { ...VOIDED, credit_note: AUTHORIZED } }),
       });
 
       await expect.element(screen.getByText("Nota de crédito C", { exact: true })).toBeVisible();
@@ -275,6 +290,54 @@ describe("SaleHistoryDetailPanel", () => {
       expect(onPrintCreditNote).toHaveBeenCalledExactlyOnceWith(
         expect.objectContaining({ sale_id: "sale-1" }),
       );
+      await expectNoAccessibilityViolations(screen.container);
+    });
+
+    it("offers the original of an authorized credit note never printed, printing it right away", async () => {
+      const { screen, onPrintCreditNote, onReprintCreditNote } = await renderPanel({
+        read: async () => ({
+          kind: "found",
+          detail: {
+            ...VOIDED,
+            credit_note: AUTHORIZED,
+            credit_note_next_copy: { kind: "original" },
+          },
+        }),
+      });
+
+      await expect
+        .element(screen.getByRole("button", { name: "Reimprimir duplicado" }))
+        .not.toBeInTheDocument();
+      await userEvent.click(screen.getByRole("button", { name: "Imprimir nota de crédito" }));
+
+      expect(onPrintCreditNote).toHaveBeenCalledOnce();
+      expect(onReprintCreditNote).not.toHaveBeenCalled();
+    });
+
+    it("offers a duplicate of an authorized credit note already printed, asking before printing it", async () => {
+      const { screen, onPrintCreditNote, onReprintCreditNote } = await renderPanel({
+        read: async () => ({
+          kind: "found",
+          detail: {
+            ...VOIDED,
+            credit_note: AUTHORIZED,
+            credit_note_next_copy: { kind: "duplicate", order_number: 2 },
+          },
+        }),
+      });
+
+      await expect
+        .element(screen.getByRole("button", { name: "Imprimir nota de crédito" }))
+        .not.toBeInTheDocument();
+      await userEvent.click(screen.getByRole("button", { name: "Reimprimir duplicado" }));
+
+      expect(onReprintCreditNote).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({
+          sale_id: "sale-1",
+          credit_note_next_copy: { kind: "duplicate", order_number: 2 },
+        }),
+      );
+      expect(onPrintCreditNote).not.toHaveBeenCalled();
       await expectNoAccessibilityViolations(screen.container);
     });
 
