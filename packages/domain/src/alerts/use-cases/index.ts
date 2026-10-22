@@ -46,6 +46,13 @@ export type {
   ClosedAlert,
 } from "./close-alert.js";
 export { closeAlert } from "./close-alert.js";
+export type {
+  DeferredSaleDeadlineAlerts,
+  DeferredSaleDeadlineDetectionPorts,
+  DeferredSaleDeadlineReader,
+  PendingDeferredSaleForAlert,
+} from "./deferred-sale-deadline-ports.js";
+export { detectDeferredSaleDeadlines } from "./detect-deferred-sale-deadlines.js";
 export { detectExpiringLots } from "./detect-expiring-lots.js";
 export { detectFortnightReportDeadlines } from "./detect-fortnight-report-deadlines.js";
 export { detectFortnightReportRegularizations } from "./detect-fortnight-report-regularizations.js";
