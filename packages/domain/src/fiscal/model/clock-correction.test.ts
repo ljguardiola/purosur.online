@@ -1,9 +1,11 @@
+import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import {
   CLOCK_CORRECTED_EVENT_TYPE,
   clockCorrectedEvent,
   clockCorrectionPeriodKey,
   clockLoweringsFor,
+  REPLAYED_CLOCK_CORRECTION_PERIOD_KEY,
   replayedClockMark,
 } from "./clock-correction.js";
 
@@ -225,6 +227,26 @@ describe("clockCorrectionPeriodKey", () => {
   it("is the period before any session while none was ever opened", () => {
     expect(clockCorrectionPeriodKey({ openSessionId: null, lastClosedSessionId: null })).toBe(
       "after session none",
+    );
+  });
+});
+
+describe("REPLAYED_CLOCK_CORRECTION_PERIOD_KEY", () => {
+  it("files a correction replayed from a predecessor apart from every period of the register", () => {
+    expect(REPLAYED_CLOCK_CORRECTION_PERIOD_KEY).toBe("replayed from predecessor");
+  });
+
+  it("is never the period of any cash session standing", () => {
+    fc.assert(
+      fc.property(
+        fc.option(fc.uuid()),
+        fc.option(fc.uuid()),
+        (openSessionId, lastClosedSessionId) => {
+          expect(clockCorrectionPeriodKey({ openSessionId, lastClosedSessionId })).not.toBe(
+            REPLAYED_CLOCK_CORRECTION_PERIOD_KEY,
+          );
+        },
+      ),
     );
   });
 });
