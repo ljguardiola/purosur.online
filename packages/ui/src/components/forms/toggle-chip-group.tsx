@@ -81,7 +81,9 @@ export function ToggleChipGroup<V extends string>(props: ToggleChipGroupProps<V>
           <AriaToggleButton
             key={option.value}
             id={option.value}
-            aria-label={option.accessibleName ?? option.label}
+            {...(option.accessibleName !== undefined
+              ? { "aria-label": `${option.label}, ${option.accessibleName}` }
+              : {})}
             className={`${chipClassName} ${invalid ? invalidChipClassName : ""}`}
           >
             {option.label}

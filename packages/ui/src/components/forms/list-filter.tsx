@@ -66,7 +66,7 @@ export function ListFilter<V extends string>({
           >
             <span id={labelId} className="shrink truncate text-detail text-text-subtle">
               {label}
-            </span>
+            </span>{" "}
             {/* shrink-9999 absorbs the shrink pass before the label's plain `shrink` gives way. */}
             <AriaSelectValue
               id={valueId}
