@@ -40,6 +40,10 @@ export type {
 } from "../model/real-time-authorization.js";
 export type { ClockCorrectionReadings } from "../model/register-clock.js";
 export type {
+  RecordedRemedy,
+  RejectedDocumentCreditNote,
+} from "../model/rejected-document-remedy.js";
+export type {
   ClearAuthorizationAnswer,
   OutcomeToldToAskingRegister,
   RecordedRequestOutcome,
@@ -110,6 +114,7 @@ export type {
 } from "./buyer-tax-status-source.js";
 export type {
   BuyerTaxStatusPorts,
+  BuyerTaxStatusReader,
   BuyerTaxStatusSetVersion,
   BuyerTaxStatusStore,
   BuyerTaxStatusStoreTransaction,
@@ -244,6 +249,7 @@ export type {
   OfflineDocumentReportCall,
   OfflineDocumentsOfFortnight,
   OwedFortnightReport,
+  RecordedDocumentTypeReport,
   RecordedFortnightReport,
   RegisterEventStreams,
   TaxAuthorityNoMovementDeclarations,
@@ -396,6 +402,22 @@ export type {
   RegularizeOrphanAuthorizationOutcome,
 } from "./regularize-orphan-authorization.js";
 export { regularizeOrphanAuthorization } from "./regularize-orphan-authorization.js";
+export type {
+  FortnightPresentationAwaitingRemedy,
+  RejectedFortnightDocumentReader,
+} from "./rejected-fortnight-document-reader.js";
+export type {
+  RemedyRejectedDocumentInput,
+  RemedyRejectedDocumentOutcome,
+} from "./remedy-rejected-document.js";
+export { remedyRejectedDocument } from "./remedy-rejected-document.js";
+export type {
+  RejectedDocumentRemedyAudit,
+  RejectedDocumentRemedyRecord,
+  RemedyRejectedDocumentPorts,
+  RemedyRejectedDocumentStore,
+  RemedyRejectedDocumentStoreTransaction,
+} from "./remedy-rejected-document-ports.js";
 export type {
   RenewWsaaTokenInput,
   RenewWsaaTokenOutcome,

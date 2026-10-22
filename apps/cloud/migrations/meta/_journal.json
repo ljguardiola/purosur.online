@@ -862,6 +862,13 @@
       "when": 1792648940288,
       "tag": "0129_credit_note_reprints",
       "breakpoints": true
+    },
+    {
+      "idx": 123,
+      "version": "7",
+      "when": 1792659426169,
+      "tag": "0130_rejected_document_remedies",
+      "breakpoints": true
     }
   ]
 }

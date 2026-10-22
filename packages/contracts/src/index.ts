@@ -104,6 +104,8 @@ export {
 } from "./fiscal/buyer-identification-threshold.js";
 export type { BuyerIdentificationThresholdRecordBody } from "./fiscal/buyer-identification-threshold-record.js";
 export { buyerIdentificationThresholdRecordBodySchema } from "./fiscal/buyer-identification-threshold-record.js";
+export type { BuyerTaxStatusBody } from "./fiscal/buyer-tax-status.js";
+export { buyerTaxStatusListSchema } from "./fiscal/buyer-tax-status.js";
 export type { ClockCorrectionBody } from "./fiscal/clock-correction.js";
 export { clockCorrectionListSchema, clockCorrectionSchema } from "./fiscal/clock-correction.js";
 export type {
@@ -157,6 +159,8 @@ export {
   registerPointOfSaleOverviewSchema,
   registerPointOfSaleSchema,
 } from "./fiscal/register-point-of-sale.js";
+export type { RejectedDocumentRemedyBody } from "./fiscal/rejected-document-remedy.js";
+export { rejectedDocumentRemedyBodySchema } from "./fiscal/rejected-document-remedy.js";
 export type {
   SaleVoidCreditNoteRequestBody,
   SaleVoidCreditNoteResponseBody,

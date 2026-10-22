@@ -161,6 +161,7 @@ describe("a point-of-sale fortnight scope", () => {
       "fortnight_report_overdue",
       "fortnight_report_needs_regularization",
       "fortnight_report_owed_elsewhere",
+      "fortnight_report_document_rejected",
     ]);
     for (const kind of kindsScopedTo("pointOfSaleFortnight")) {
       expect(alertScopeRecordId({ kind, scope })).toBeUndefined();

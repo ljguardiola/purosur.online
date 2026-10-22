@@ -7,6 +7,7 @@ import { DrizzleFortnightRegularizationReader } from "./drizzle-fortnight-regula
 import { DrizzleFortnightReportStore } from "./drizzle-fortnight-report-store.js";
 import { DrizzleOfflineAuthorizationCodeStore } from "./drizzle-offline-authorization-code-store.js";
 import { seedOfflinePointOfSale } from "./test-support/offline-point-of-sale-fixtures.js";
+import { WITHOUT_CREDIT_NOTES } from "./test-support/rejected-document-remedy-fixtures.js";
 
 const OCTOBER_FIRST_HALF = { start: "2026-10-01", end: "2026-10-15" };
 const OCTOBER_SECOND_HALF = { start: "2026-10-16", end: "2026-10-31" };
@@ -52,7 +53,7 @@ function record(
   fortnight: Fortnight,
   state: "blocked" | "refused" | "accepted" | "needs_regularization",
 ) {
-  return new DrizzleFortnightReportStore(db).holdReport(
+  return new DrizzleFortnightReportStore(db, WITHOUT_CREDIT_NOTES).holdReport(
     { pointOfSaleNumber: OFFLINE_POINT_OF_SALE, fortnight },
     (report) => report.record({ state, at: AT }),
   );

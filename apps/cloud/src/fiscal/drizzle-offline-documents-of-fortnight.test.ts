@@ -3,6 +3,7 @@ import { buildTestDatabase, type TestDatabase } from "../test-support/build-test
 import { DrizzleOfflineDocumentsOfFortnight } from "./drizzle-offline-documents-of-fortnight.js";
 import { insertOfflineFiscalDocument } from "./test-support/offline-fiscal-document-fixtures.js";
 import { seedOfflinePointOfSale } from "./test-support/offline-point-of-sale-fixtures.js";
+import { insertRejectedDocumentRemedy } from "./test-support/rejected-document-remedy-fixtures.js";
 
 const OCTOBER_FIRST_HALF = { start: "2026-10-01", end: "2026-10-15" };
 const OCTOBER_SECOND_HALF = { start: "2026-10-16", end: "2026-10-31" };
@@ -33,13 +34,13 @@ describe("DrizzleOfflineDocumentsOfFortnight", () => {
   });
 
   it("reads what the tax authority is told of each document the point of sale issued under the fortnight's code, and only those", async () => {
-    await insertOfflineFiscalDocument(db, {
+    const second = await insertOfflineFiscalDocument(db, {
       registerId,
       pointOfSale: 8,
       fortnight: OCTOBER_FIRST_HALF,
       number: 2,
     });
-    await insertOfflineFiscalDocument(db, {
+    const first = await insertOfflineFiscalDocument(db, {
       registerId,
       pointOfSale: 8,
       fortnight: OCTOBER_FIRST_HALF,
@@ -61,7 +62,16 @@ describe("DrizzleOfflineDocumentsOfFortnight", () => {
     const documents = new DrizzleOfflineDocumentsOfFortnight(db);
 
     expect(await documents.documentsOn(8, OCTOBER_FIRST_HALF)).toEqual(
-      [1, 2].map((number) => ({
+      (
+        [
+          [1, first],
+          [2, second],
+        ] as const
+      ).map(([number, { id, saleId }]) => ({
+        id,
+        saleId,
+        registerId,
+        correction: null,
         documentType: "factura_c",
         number,
         issuedOn: "2026-10-01",
@@ -76,5 +86,70 @@ describe("DrizzleOfflineDocumentsOfFortnight", () => {
     expect(
       (await documents.documentsOn(8, OCTOBER_SECOND_HALF)).map(({ number }) => number),
     ).toEqual([3]);
+  });
+
+  it("reads the correction of the newest remedy that corrected the document, whatever remedies came after it", async () => {
+    await insertOfflineFiscalDocument(db, {
+      registerId,
+      pointOfSale: 8,
+      fortnight: OCTOBER_FIRST_HALF,
+      number: 1,
+    });
+    await insertOfflineFiscalDocument(db, {
+      registerId,
+      pointOfSale: 8,
+      fortnight: OCTOBER_FIRST_HALF,
+      number: 2,
+    });
+    const remedy = (number: number, correction: { issuedOn: string } | null, hour: number) =>
+      insertRejectedDocumentRemedy(db, {
+        pointOfSale: 8,
+        fortnight: OCTOBER_FIRST_HALF,
+        number,
+        correction,
+        recordedAt: new Date(`2026-10-16T${hour}:00:00.000Z`),
+      });
+    await remedy(1, { issuedOn: "2026-10-02" }, 10);
+    await remedy(1, { issuedOn: "2026-10-03" }, 11);
+    await remedy(1, null, 12);
+    await remedy(2, null, 12);
+
+    const documents = await new DrizzleOfflineDocumentsOfFortnight(db).documentsOn(
+      8,
+      OCTOBER_FIRST_HALF,
+    );
+
+    expect(documents.map(({ number, correction }) => [number, correction])).toEqual([
+      [1, { issuedOn: "2026-10-03" }],
+      [2, null],
+    ]);
+  });
+
+  it("reads no correction from a remedy of another point of sale or fortnight", async () => {
+    await insertOfflineFiscalDocument(db, {
+      registerId,
+      pointOfSale: 8,
+      fortnight: OCTOBER_FIRST_HALF,
+      number: 1,
+    });
+    for (const [pointOfSale, fortnight] of [
+      [7, OCTOBER_FIRST_HALF],
+      [8, OCTOBER_SECOND_HALF],
+    ] as const) {
+      await insertRejectedDocumentRemedy(db, {
+        pointOfSale,
+        fortnight,
+        number: 1,
+        correction: { issuedOn: "2026-10-05" },
+        recordedAt: new Date("2026-10-16T10:00:00.000Z"),
+      });
+    }
+
+    const [document] = await new DrizzleOfflineDocumentsOfFortnight(db).documentsOn(
+      8,
+      OCTOBER_FIRST_HALF,
+    );
+
+    expect(document?.correction).toBeNull();
   });
 });

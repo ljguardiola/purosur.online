@@ -13,6 +13,10 @@ import {
   retireOfflinePointOfSaleAt,
   seedOfflinePointOfSale,
 } from "./test-support/offline-point-of-sale-fixtures.js";
+import {
+  insertRejectedDocumentRemedy,
+  WITHOUT_CREDIT_NOTES,
+} from "./test-support/rejected-document-remedy-fixtures.js";
 
 const OCTOBER_FIRST_HALF = { start: "2026-10-01", end: "2026-10-15" };
 const OCTOBER_SECOND_HALF = { start: "2026-10-16", end: "2026-10-31" };
@@ -68,7 +72,7 @@ function record(
   state: "blocked" | "accepted" | "needs_regularization",
   movement?: "none",
 ) {
-  return new DrizzleFortnightReportStore(db).holdReport(
+  return new DrizzleFortnightReportStore(db, WITHOUT_CREDIT_NOTES).holdReport(
     { pointOfSaleNumber, fortnight },
     (report) => report.record({ state, at: AT, ...(movement === undefined ? {} : { movement }) }),
   );
@@ -78,9 +82,10 @@ function recordFacturaC(
   fortnight: Fortnight,
   progress: { state: "submitting" | "refused" | "accepted"; reportedThrough: number } & {
     rejectedNumber?: number;
+    rejections?: { code: number; message: string }[];
   },
 ) {
-  return new DrizzleFortnightReportStore(db).holdReport(
+  return new DrizzleFortnightReportStore(db, WITHOUT_CREDIT_NOTES).holdReport(
     { pointOfSaleNumber: OFFLINE_POINT_OF_SALE, fortnight },
     (report) => report.recordDocumentType({ documentType: "factura_c", at: AT, ...progress }),
   );
@@ -340,12 +345,14 @@ describe("DrizzleFortnightPresentationReader.branchPresentations", () => {
       ]);
     });
 
-    it("names the rejected document, how many documents after it were left unprocessed and that the refusal was partial", async () => {
+    it("gives the rejected document as presented, its rejections, how many documents after it were left unprocessed and that its remedy awaits a person", async () => {
       await issueFacturaC(registerId, OCTOBER_FIRST_HALF, [1, 2, 3, 4, 5]);
+      const rejections = [{ code: 10016, message: "Fictional observation" }];
       await recordFacturaC(OCTOBER_FIRST_HALF, {
         state: "refused",
         reportedThrough: 1,
         rejectedNumber: 2,
+        rejections,
       });
 
       const [presentation] = await presentations("2026-10-16");
@@ -356,7 +363,61 @@ describe("DrizzleFortnightPresentationReader.branchPresentations", () => {
         state: "refused",
         refusal: "partial",
         documentCount: 5,
-        rejectedDocument: { number: 2, unprocessed: 3 },
+        rejectedDocument: {
+          number: 2,
+          unprocessed: 3,
+          issuedOn: "2026-10-01",
+          total: 10_000,
+          buyer: { kind: "final_consumer" },
+          buyerTaxStatusCode: 5,
+          rejections,
+          remedy: "awaiting_remedy",
+        },
+      });
+    });
+
+    it("gives the rejected document with the correction a person recorded, awaiting its resend, and awaiting a remedy again when ARCA rejected it after that", async () => {
+      await issueFacturaC(registerId, OCTOBER_FIRST_HALF, [1, 2, 3]);
+      await recordFacturaC(OCTOBER_FIRST_HALF, {
+        state: "refused",
+        reportedThrough: 1,
+        rejectedNumber: 2,
+      });
+      await insertRejectedDocumentRemedy(db, {
+        pointOfSale: OFFLINE_POINT_OF_SALE,
+        fortnight: OCTOBER_FIRST_HALF,
+        number: 2,
+        correction: { issuedOn: "2026-10-03", total: 12_500 },
+        rejectedAt: AT,
+        recordedAt: new Date("2026-11-02T12:00:00.000Z"),
+      });
+
+      const [corrected] = await presentations("2026-10-16");
+
+      expect(corrected?.rejectedDocument).toMatchObject({
+        number: 2,
+        issuedOn: "2026-10-03",
+        total: 12_500,
+        remedy: "awaiting_resend",
+      });
+
+      await new DrizzleFortnightReportStore(db, WITHOUT_CREDIT_NOTES).holdReport(
+        { pointOfSaleNumber: OFFLINE_POINT_OF_SALE, fortnight: OCTOBER_FIRST_HALF },
+        (report) =>
+          report.recordDocumentType({
+            documentType: "factura_c",
+            state: "refused",
+            at: new Date("2026-11-03T12:00:00.000Z"),
+            reportedThrough: 1,
+            rejectedNumber: 2,
+          }),
+      );
+      const [rejectedAgain] = await presentations("2026-10-16");
+
+      expect(rejectedAgain?.rejectedDocument).toMatchObject({
+        number: 2,
+        issuedOn: "2026-10-03",
+        remedy: "awaiting_remedy",
       });
     });
 

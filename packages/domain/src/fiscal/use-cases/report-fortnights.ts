@@ -25,11 +25,18 @@ import {
   splitOwedPresentations,
   type WithOwedPresentations,
 } from "../model/owed-presentation-list.js";
+import {
+  awaitsRemedy,
+  presentedOfflineDocument,
+  rejectedDocumentCreditNote,
+  remedyAwaitsResend,
+} from "../model/rejected-document-remedy.js";
 import type {
   FortnightReportPorts,
   HeldFortnightReport,
   OfflineDocumentOfFortnight,
   OwedFortnightReport,
+  RecordedDocumentTypeReport,
 } from "./fortnight-report-ports.js";
 import type { WsaaToken } from "./wsaa-token-ports.js";
 
@@ -46,7 +53,8 @@ export type FortnightPresentationOutcome =
   | { kind: "rejected"; number: number; rejections: TaxAuthorityRejection[] }
   | { kind: "gap"; expectedNumber: number }
   | { kind: "unclear" }
-  | { kind: "needs_regularization" };
+  | { kind: "needs_regularization" }
+  | { kind: "awaiting_remedy"; number: number };
 
 export interface FortnightPresentation {
   pointOfSaleNumber: number;
@@ -90,7 +98,60 @@ export async function reportFortnights(
       )),
     );
   }
+  for (const corrected of await ports.reports.withReportedCorrectionsAwaitingCredit()) {
+    await ports.reports.holdReport(keyOf(corrected), (report) =>
+      creditReportedCorrections(ports, corrected, report),
+    );
+  }
   return { kind: "reported", presentations };
+}
+
+async function creditReportedCorrections(
+  { documents }: FortnightReportPorts,
+  { pointOfSaleNumber, code }: OwedFortnightReport,
+  report: HeldFortnightReport,
+): Promise<void> {
+  const issued = await documents.documentsOn(pointOfSaleNumber, code.fortnight);
+  const reportedThroughOf = new Map(
+    (await report.documentTypeReports()).map(({ documentType, reportedThrough }) => [
+      documentType,
+      reportedThrough,
+    ]),
+  );
+  const realTimePointsOfSale = new Map<string, number | null>();
+  for (const document of issued) {
+    await creditIfCorrected(
+      report,
+      pointOfSaleNumber,
+      document,
+      reportedThroughOf.get(document.documentType) ?? null,
+      realTimePointsOfSale,
+    );
+  }
+}
+
+async function creditIfCorrected(
+  report: HeldFortnightReport,
+  offlinePointOfSale: number,
+  document: OfflineDocumentOfFortnight,
+  reportedThrough: number | null,
+  realTimePointsOfSale: Map<string, number | null>,
+): Promise<void> {
+  if (!realTimePointsOfSale.has(document.registerId)) {
+    realTimePointsOfSale.set(
+      document.registerId,
+      await report.realTimePointOfSaleOf(document.registerId),
+    );
+  }
+  const creditNote = rejectedDocumentCreditNote({
+    document,
+    offlinePointOfSale,
+    realTimePointOfSale: realTimePointsOfSale.get(document.registerId) ?? null,
+    reportedThrough,
+  });
+  if (creditNote !== null) {
+    await report.creditCorrectedDocument(creditNote);
+  }
 }
 
 function presentationKey({ pointOfSaleNumber, code }: OwedFortnightReport): string {
@@ -194,9 +255,18 @@ async function presentFortnight(
     fortnightPresentation(owed, outcome),
   ];
   const recorded = await report.recorded();
+  const typeReports = await report.documentTypeReports();
+  const refused = typeReports.filter(isRefused);
+  if (refused.length > 0 && refused.every(awaitsRemedyOfRejection)) {
+    return refused.map(({ documentType, rejectedNumber }) => ({
+      ...fortnightPresentation(owed, { kind: "awaiting_remedy", number: rejectedNumber ?? 0 }),
+      documentType,
+    }));
+  }
   if (
     recorded?.state === "refused" &&
     recorded.lastAttemptAt !== null &&
+    !typeReports.some(awaitsResend) &&
     !isFortnightReportRetryDue(recorded.lastAttemptAt, clock.now())
   ) {
     return presentation({ kind: "retry_not_due" });
@@ -306,8 +376,16 @@ async function presentDocuments(
   const presentations: FortnightPresentation[] = [];
   const states: DocumentTypeReportState[] = [];
   let rejections: TaxAuthorityRejection[] | undefined;
+  const typeReports = await report.documentTypeReports();
   for (const { documentType, documents } of offlineDocumentPresentations(issued)) {
-    const outcome = await presentDocumentType(ports, token, owed, report, documentType, documents);
+    const awaiting = typeReports.find(
+      (typeReport) =>
+        typeReport.documentType === documentType && awaitsRemedyOfRejection(typeReport),
+    );
+    const outcome: FortnightPresentationOutcome =
+      awaiting === undefined
+        ? await presentDocumentType(ports, token, owed, report, documentType, documents)
+        : { kind: "awaiting_remedy", number: awaiting.rejectedNumber ?? 0 };
     presentations.push({ ...fortnightPresentation(owed, outcome), documentType });
     const state = documentTypeStateOf(outcome);
     if (state === null) {
@@ -334,6 +412,18 @@ async function presentDocuments(
   return presentations;
 }
 
+function isRefused({ state }: RecordedDocumentTypeReport): boolean {
+  return state === "refused";
+}
+
+function awaitsRemedyOfRejection(typeReport: RecordedDocumentTypeReport): boolean {
+  return awaitsRemedy(typeReport, typeReport.remedy);
+}
+
+function awaitsResend(typeReport: RecordedDocumentTypeReport): boolean {
+  return remedyAwaitsResend(typeReport, typeReport.remedy);
+}
+
 function documentTypeStateOf(
   outcome: FortnightPresentationOutcome,
 ): DocumentTypeReportState | null {
@@ -344,6 +434,7 @@ function documentTypeStateOf(
       return "missing_document";
     case "refused":
     case "rejected":
+    case "awaiting_remedy":
       return "refused";
     case "unclear":
       return "submitting";
@@ -358,14 +449,25 @@ async function presentDocumentType(
   { pointOfSaleNumber, code }: OwedFortnightReport,
   report: HeldFortnightReport,
   documentType: FiscalDocumentType,
-  documents: OfflineDocumentOfFortnight[],
+  issued: OfflineDocumentOfFortnight[],
 ): Promise<FortnightPresentationOutcome> {
   const { documentReports, clock } = ports;
+  const documents = issued.map(presentedOfflineDocument);
+  const realTimePointsOfSale = new Map<string, number | null>();
   let acceptedThrough = 0;
   for (;;) {
     const last = await documentReports.lastReported({ token, pointOfSaleNumber, documentType });
     if (last.kind !== "read") {
       return lookupOutcome(last);
+    }
+    for (const document of documents) {
+      await creditIfCorrected(
+        report,
+        pointOfSaleNumber,
+        document,
+        last.number,
+        realTimePointsOfSale,
+      );
     }
     if (last.number < acceptedThrough) {
       return { kind: "unclear" };

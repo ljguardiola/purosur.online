@@ -106,6 +106,8 @@ export type {
   FortnightPresentationState,
   FortnightReportMovement,
   FortnightReportState,
+  RejectedDocumentOfPresentation,
+  RejectedDocumentRemedyState,
 } from "./model/fortnight-report.js";
 export {
   fortnightClosesAt,
@@ -198,6 +200,20 @@ export {
   SERIES_WAITING_STATES,
 } from "./model/real-time-authorization.js";
 export { REGISTER_CLOCK_TOLERANCE_MS, raisedClockMark } from "./model/register-clock.js";
+export type {
+  CorrectedBuyer,
+  CorrectedField,
+  DocumentFieldChange,
+  OfflineDocumentBuyer,
+  OfflineDocumentCorrection,
+  OfflineDocumentCorrectionRefusal,
+  RejectedDocumentRemedy,
+} from "./model/rejected-document-remedy.js";
+export {
+  awaitsRemedy,
+  buyerIdentificationOf,
+  remedyAwaitsResend,
+} from "./model/rejected-document-remedy.js";
 export type {
   CreditNoteAnswer,
   RestoredCreditNoteAnswer,

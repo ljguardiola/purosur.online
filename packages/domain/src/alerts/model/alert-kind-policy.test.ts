@@ -72,6 +72,7 @@ describe("alertKindPolicy", () => {
       true,
     ],
     ["fortnight_report_owed_elsewhere", "critical", null, "all", "pointOfSaleFortnight", true],
+    ["fortnight_report_document_rejected", "critical", null, "all", "pointOfSaleFortnight", true],
     ["update_required", "critical", null, "all", "register", true],
     ["clock_corrected", "critical", null, "all", "register", false],
     ["invoice_already_credited", "critical", null, "all", "pointOfSaleDocumentNumber", true],
@@ -135,6 +136,7 @@ describe("alertKindPolicy", () => {
       "fortnight_report_pending",
       "fortnight_report_owed_elsewhere",
       "register_backup_overdue",
+      "fortnight_report_document_rejected",
     ]);
   });
 
@@ -181,6 +183,7 @@ describe("alertClosing", () => {
       invoice_already_credited: "by_hand",
       fortnight_report_owed_elsewhere: "by_itself",
       register_backup_overdue: "by_itself",
+      fortnight_report_document_rejected: "by_itself",
     });
   });
 
@@ -240,6 +243,7 @@ describe("alertKindsWithScope", () => {
       "fortnight_report_overdue",
       "fortnight_report_needs_regularization",
       "fortnight_report_owed_elsewhere",
+      "fortnight_report_document_rejected",
     ]);
   });
 });

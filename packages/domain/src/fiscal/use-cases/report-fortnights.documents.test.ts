@@ -379,11 +379,7 @@ describe("reportFortnights, for a fortnight with offline-authorized documents", 
 
     it("is not tried again before the retry interval has passed", async () => {
       const { documentReports, run, clock } = setUp();
-      documentReports.reportAnswer = () => ({
-        kind: "rejected",
-        number: 1,
-        rejections: REJECTIONS,
-      });
+      documentReports.reportAnswer = () => ({ kind: "refused", rejections: REJECTIONS });
       await run();
       clock.advanceBy(30 * 60 * 1000);
 
