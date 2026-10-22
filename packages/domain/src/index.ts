@@ -304,7 +304,6 @@ export {
   REJECTION_CLASSES,
   raisedClockMark,
   randomShortCode,
-  restorationNumberingFreeze,
   SERIES_WAITING_STATES,
   SHORT_CODE_ALPHABET,
   selectConsumerBuyerTaxStatus,
