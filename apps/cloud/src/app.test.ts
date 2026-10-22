@@ -1789,6 +1789,7 @@ describe("wiring the register point of sale routes", () => {
     ["GET", "/api/registers/points-of-sale"],
     ["GET", "/api/registers/fortnight-presentations"],
     ["POST", "/api/registers/fortnight-presentations/rejected-document-remedies"],
+    ["GET", "/api/registers/buyer-tax-statuses"],
     ["PUT", "/api/registers/00000000-0000-0000-0000-000000000000/point-of-sale"],
     ["PUT", "/api/registers/00000000-0000-0000-0000-000000000000/offline-point-of-sale"],
     ["GET", "/api/registers/offline-points-of-sale"],
@@ -3011,6 +3012,11 @@ describe("the route access inventory", () => {
       {
         method: "POST",
         url: "/api/registers/fortnight-presentations/rejected-document-remedies",
+        access: capabilityAccess("cash_area"),
+      },
+      {
+        method: "GET",
+        url: "/api/registers/buyer-tax-statuses",
         access: capabilityAccess("cash_area"),
       },
       {
