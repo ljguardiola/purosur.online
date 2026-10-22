@@ -6,6 +6,11 @@ import type { WeightSource } from "./weight-source.js";
 
 export type SaleState = "OPEN" | "COMPLETED" | "VOIDED" | "CANCELLED";
 
+export const SALE_STATES_AFTER_COMPLETION = [
+  "COMPLETED",
+  "VOIDED",
+] as const satisfies readonly SaleState[];
+
 export interface Sale {
   id: string;
   registerId: string;

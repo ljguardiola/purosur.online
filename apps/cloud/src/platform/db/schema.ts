@@ -2461,7 +2461,7 @@ export const fiscalRequests = pgTable(
     issuedOn: date("issued_on", { mode: "string" }).notNull(),
     total: bigint("total", { mode: "number" }).notNull(),
     buyerTaxStatusCode: integer("buyer_tax_status_code").notNull(),
-    saleEvent: jsonb("sale_event").$type<JsonValue>().notNull(),
+    saleEvent: jsonb("sale_event").$type<JsonValue>(),
     receivedAt: timestamp("received_at", { withTimezone: true }).notNull(),
     notAfter: timestamp("not_after", { withTimezone: true }).notNull(),
     answerKind: text("answer_kind"),

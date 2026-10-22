@@ -16,6 +16,7 @@ import { TEST_INSTALLATION_KEYS_ENCRYPTION_KEY } from "../test-support/installat
 import {
   authorizationRequestRecord,
   insertRegisterWithPointOfSale,
+  insertSaleOfRegister,
   saleCompletedEvent,
 } from "./test-support/authorization-request-fixtures.js";
 import { registerUnclearOutcomeRoute } from "./unclear-outcome-route.js";
@@ -202,6 +203,38 @@ describe("POST /fiscal/unclear-outcomes", () => {
       expect(response.statusCode).toBe(400);
       expect(cloudErrorSchema.parse(response.json()).code).toBe("validation_failed");
       expect(await requests()).toEqual([]);
+    });
+  });
+
+  describe("a question that carries no sale event", () => {
+    it("is refused when the cloud holds no completion of the sale for the register, recording nothing", async () => {
+      const { deviceToken } = await enrollRegisterWithPointOfSale();
+
+      const response = await ask(questionBody({ sale_event: null }), `Bearer ${deviceToken}`);
+
+      expect(response.statusCode).toBe(404);
+      expect(cloudErrorSchema.parse(response.json()).code).toBe("not_found");
+      expect(await requests()).toEqual([]);
+      expect(enqueuedUnclearOutcomes).toEqual([]);
+    });
+
+    it("uses the completion the cloud holds: records the document as abandoned without an event and answers PENDING", async () => {
+      const { deviceToken, registerId } = await enrollRegisterWithPointOfSale();
+      const body = questionBody({ sale_event: null });
+      await insertSaleOfRegister(testDatabase.db, registerId, body.sale_id);
+
+      const response = await ask(body, `Bearer ${deviceToken}`);
+
+      expect(response.statusCode).toBe(200);
+      expect(unclearOutcomeAnswerSchema.parse(response.json())).toEqual({ state: "PENDING" });
+      expect(await requests()).toEqual([
+        expect.objectContaining({
+          fiscalDocumentId: body.fiscal_document_id,
+          registerId,
+          saleEvent: null,
+          answerKind: "unclear",
+        }),
+      ]);
     });
   });
 

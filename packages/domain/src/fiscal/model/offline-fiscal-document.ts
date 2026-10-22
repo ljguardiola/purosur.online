@@ -63,7 +63,7 @@ export interface OfflineFiscalDocumentIssuedFact {
   invoice?: FacturaC;
 }
 
-function invoiceRecord(invoice: FacturaC): JsonValue {
+export function invoiceRecord(invoice: FacturaC): JsonValue {
   return {
     invoice_class: invoice.invoiceClass,
     total: invoice.total,

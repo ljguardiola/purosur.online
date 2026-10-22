@@ -1,15 +1,19 @@
 import { describe, expect, it } from "vitest";
 import type { PushedEvent } from "../../sync/index.js";
+import { deferredSaleSatisfiedEvent } from "../model/deferred-sale-satisfied-event.js";
 import type { FacturaC } from "../model/pre-emission-gate.js";
 import {
   FICTIONAL_CUIT,
   FICTIONAL_GROSS_INCOME_REGISTRATION,
   FICTIONAL_LEGAL_NAME,
 } from "../test-support/fictional-tax-identities.js";
-import type { UnclearOutcomeAnswer } from "./apply-unclear-outcome-decision-ports.js";
+import type {
+  UnclearFiscalDocument,
+  UnclearOutcomeAnswer,
+} from "./apply-unclear-outcome-decision-ports.js";
 import { applyUnclearOutcomeDecisions } from "./apply-unclear-outcome-decisions.js";
-import type { WaitingFiscalDocument } from "./real-time-authorization-ports.js";
 import { ManualClock } from "./test-support/fake-arca-vitality.js";
+import { SequentialIds } from "./test-support/fake-sale-authorization.js";
 import {
   FakeUnclearFiscalDocuments,
   FakeUnclearOutcomeCloud,
@@ -49,20 +53,40 @@ function saleEvent(saleId: string): PushedEvent {
   };
 }
 
-function unclear(index: number, withEvent = true): WaitingFiscalDocument {
+const ORIGIN = { registerId: "register-1", actorId: "cashier" };
+const RESERVED_AT = new Date("2026-10-01T11:59:58.000Z");
+
+function unclear(
+  index: number,
+  withEvent = true,
+  deferredSale: { id: string } | null = null,
+): UnclearFiscalDocument {
   return {
+    origin: ORIGIN,
+    deferredSale,
     fiscalDocumentId: `doc-${index}`,
     saleId: `sale-${index}`,
     pointOfSale: 12,
     number: 40 + index,
     issuedOn: "2026-10-01",
     document: DOCUMENT,
+    reservedAt: RESERVED_AT,
     saleEvent: withEvent ? saleEvent(`sale-${index}`) : null,
   };
 }
 
+function question(index: number, withEvent = true) {
+  const {
+    origin: _origin,
+    deferredSale: _deferredSale,
+    reservedAt: _reservedAt,
+    ...document
+  } = unclear(index, withEvent);
+  return document;
+}
+
 function apply(
-  documents: readonly WaitingFiscalDocument[],
+  documents: readonly UnclearFiscalDocument[],
   answers: Record<string, UnclearOutcomeAnswer>,
   failOnDocument?: string,
 ) {
@@ -73,6 +97,7 @@ function apply(
     documents: store,
     cloud,
     clock: new ManualClock(NOW),
+    ids: new SequentialIds(),
   });
   return { store, cloud, outcome };
 }
@@ -83,10 +108,7 @@ describe("applying the decisions of the documents left with an unclear outcome",
 
     await outcome;
 
-    expect(cloud.questions).toEqual([
-      { ...unclear(1), saleEvent: saleEvent("sale-1") },
-      { ...unclear(2), saleEvent: saleEvent("sale-2") },
-    ]);
+    expect(cloud.questions).toEqual([question(1), question(2)]);
   });
 
   it("asks nothing when no document is unclear", async () => {
@@ -113,6 +135,7 @@ describe("applying the decisions of the documents left with an unclear outcome",
         saleId: "sale-1",
         settlement: { state: "RELEASED" },
         settledAt: NOW,
+        deferredSaleSatisfied: null,
       },
     ]);
   });
@@ -195,24 +218,20 @@ describe("applying the decisions of the documents left with an unclear outcome",
     expect(store.settlements).toEqual([]);
   });
 
-  it("reports as failed, asking nothing about it, a document whose sale event is no longer held", async () => {
+  it("asks about a document whose sale event the register no longer holds without one, and settles it with the answer", async () => {
     const { cloud, store, outcome } = apply([unclear(1, false)], {
       "doc-1": { kind: "decided", decision: { kind: "released" } },
     });
 
     expect(await outcome).toEqual({
       kind: "applied",
-      settled: [],
+      settled: ["doc-1"],
       stillUnclear: [],
-      failed: [
-        {
-          fiscalDocumentId: "doc-1",
-          error: new Error("the completion event of the unclear document's sale is not held"),
-        },
-      ],
+      failed: [],
     });
-    expect(cloud.questions).toEqual([]);
-    expect(store.settlements).toEqual([]);
+    expect(cloud.questions).toEqual([question(1, false)]);
+    expect(cloud.questions[0]?.saleEvent).toBeNull();
+    expect(store.settlements.map(({ settlement }) => settlement)).toEqual([{ state: "RELEASED" }]);
   });
 
   it("settles the other documents and reports the one whose settling failed", async () => {
@@ -236,5 +255,79 @@ describe("applying the decisions of the documents left with an unclear outcome",
     expect(result.failed.map(({ fiscalDocumentId }) => fiscalDocumentId)).toEqual(["doc-2"]);
     expect(result.failed[0]?.error).toEqual(new Error("settling doc-2 failed"));
     expect(store.settlements.map(({ fiscalDocumentId }) => fiscalDocumentId)).toEqual(["doc-1"]);
+  });
+});
+
+describe("applying a decision to a document whose sale already has a deferred record", () => {
+  const ADOPTED: UnclearOutcomeAnswer = {
+    kind: "decided",
+    decision: {
+      kind: "adopted",
+      authorizationCode: "75123456789012",
+      authorizationCodeDueOn: "2026-10-11",
+    },
+  };
+
+  it("satisfies the record with the authorized document and reports it", async () => {
+    const { store, outcome } = apply([unclear(1, true, { id: "deferred-1" })], {
+      "doc-1": ADOPTED,
+    });
+
+    await outcome;
+
+    expect(store.settlements.map(({ deferredSaleSatisfied }) => deferredSaleSatisfied)).toEqual([
+      deferredSaleSatisfiedEvent({
+        eventId: "id-1",
+        ...ORIGIN,
+        deferredSaleId: "deferred-1",
+        saleId: "sale-1",
+        fiscalDocumentId: "doc-1",
+        pointOfSale: 12,
+        number: 41,
+        issuedOn: "2026-10-01",
+        document: DOCUMENT,
+        authorizationCode: "75123456789012",
+        authorizationCodeDueOn: "2026-10-11",
+        reservedAt: RESERVED_AT,
+        satisfiedAt: NOW,
+      }),
+    ]);
+  });
+
+  it("carries in the report everything a restored register needs to rebuild the authorized document", async () => {
+    const { store, outcome } = apply([unclear(1, true, { id: "deferred-1" })], {
+      "doc-1": ADOPTED,
+    });
+
+    await outcome;
+
+    expect(store.settlements[0]?.deferredSaleSatisfied?.payload).toMatchObject({
+      authorization_code: "75123456789012",
+      authorization_code_due_on: "2026-10-11",
+      reserved_at: RESERVED_AT.toISOString(),
+      document: { invoice_class: "C", total: 12_500 },
+    });
+  });
+
+  it.each<[string, UnclearOutcomeAnswer]>([
+    ["released", { kind: "decided", decision: { kind: "released" } }],
+    ["conflicting", { kind: "decided", decision: { kind: "conflicting" } }],
+    [
+      "rejected",
+      {
+        kind: "answered",
+        answer: { kind: "rejected", codes: [10015], rejectionClass: "content" },
+      },
+    ],
+  ])("reports no satisfaction when the document ends %s", async (_name, answer) => {
+    const { store, outcome } = apply([unclear(1, true, { id: "deferred-1" })], {
+      "doc-1": answer,
+    });
+
+    await outcome;
+
+    expect(store.settlements.map(({ deferredSaleSatisfied }) => deferredSaleSatisfied)).toEqual([
+      null,
+    ]);
   });
 });

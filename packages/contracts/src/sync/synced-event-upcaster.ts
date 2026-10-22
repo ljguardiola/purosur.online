@@ -1,6 +1,7 @@
 import type {
   ClockPreviousReadingSource,
   DiscountBenefit,
+  FacturaC,
   ManualAdjustment,
   OfflineFiscalDocumentIssuedFact,
   PrintedDocument,
@@ -273,6 +274,27 @@ function offlineDocument(
   };
 }
 
+function invoiceOf(
+  document: SyncedEventPayloads["offline_fiscal_document_issued@2"]["document"],
+): FacturaC {
+  return {
+    invoiceClass: document.invoice_class,
+    total: document.total,
+    netAmount: document.net_amount,
+    vatAmount: document.vat_amount,
+    issuer: {
+      legalName: document.issuer.legal_name,
+      cuit: document.issuer.cuit,
+      taxStatus: document.issuer.tax_status,
+      grossIncomeRegistration: document.issuer.gross_income_registration,
+      activityStartDate: document.issuer.activity_start_date,
+      version: document.issuer.version,
+    },
+    buyerTaxStatusCode: document.buyer_tax_status_code,
+    buyerTaxStatusDescription: document.buyer_tax_status_description,
+  };
+}
+
 function printStateChanged(
   payload: SyncedEventPayloads["sale_print_state_changed@1"],
   document: PrintedDocument,
@@ -454,6 +476,22 @@ const FACT_OF: {
       routedAt: new Date(payload.routed_at),
     },
   }),
+  "deferred_sale_satisfied@1": (payload) => ({
+    kind: "deferred_sale_satisfied",
+    satisfaction: {
+      id: payload.id,
+      saleId: payload.sale_id,
+      fiscalDocumentId: payload.fiscal_document_id,
+      pointOfSale: payload.point_of_sale,
+      number: payload.number,
+      issuedOn: payload.issued_on,
+      document: invoiceOf(payload.document),
+      authorizationCode: payload.authorization_code,
+      authorizationCodeDueOn: payload.authorization_code_due_on,
+      reservedAt: new Date(payload.reserved_at),
+      satisfiedAt: new Date(payload.satisfied_at),
+    },
+  }),
   "clock_corrected@1": (payload, event) => clockCorrection(payload, "clock_mark", event),
   "clock_corrected@2": (payload, event) =>
     clockCorrection(payload, payload.previous_reading_source, event),
@@ -465,22 +503,7 @@ const FACT_OF: {
     kind: "offline_fiscal_document_issued",
     document: {
       ...offlineDocument(payload),
-      invoice: {
-        invoiceClass: payload.document.invoice_class,
-        total: payload.document.total,
-        netAmount: payload.document.net_amount,
-        vatAmount: payload.document.vat_amount,
-        issuer: {
-          legalName: payload.document.issuer.legal_name,
-          cuit: payload.document.issuer.cuit,
-          taxStatus: payload.document.issuer.tax_status,
-          grossIncomeRegistration: payload.document.issuer.gross_income_registration,
-          activityStartDate: payload.document.issuer.activity_start_date,
-          version: payload.document.issuer.version,
-        },
-        buyerTaxStatusCode: payload.document.buyer_tax_status_code,
-        buyerTaxStatusDescription: payload.document.buyer_tax_status_description,
-      },
+      invoice: invoiceOf(payload.document),
     },
   }),
 };

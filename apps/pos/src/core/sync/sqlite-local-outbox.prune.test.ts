@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { insertPendingCreditNote, SqliteVoidCreditNotes } from "../fiscal/sqlite-void-credit-notes";
 import {
   insertCompletedSale,
+  insertDeferredSale,
   insertFiscalDocument,
   insertSaleCompletedEvent,
   openFiscalDatabase,
@@ -144,6 +145,77 @@ describe("forgetting the acknowledged events while a fiscal document waits", () 
   );
 });
 
+describe("forgetting the acknowledged events while a deferred sale waits in the backlog", () => {
+  async function forgetWith(
+    prepare: (fiscal: LocalDatabase) => void,
+  ): Promise<{ removed: number; held: unknown[] }> {
+    const fiscal = openFiscalDatabase();
+    try {
+      for (const saleId of ["sale-1", "sale-2"]) {
+        insertCompletedSale(fiscal, saleId);
+        insertSaleCompletedEvent(fiscal, saleId);
+      }
+      prepare(fiscal);
+      await new SqliteLocalOutbox(fiscal, () => dayAfterZero(1)).acknowledgeThrough(
+        Number.MAX_SAFE_INTEGER,
+      );
+      const removed = await new SqliteLocalOutbox(fiscal, () =>
+        dayAfterZero(100),
+      ).forgetAcknowledgedBefore(dayAfterZero(2));
+      return { removed, held: fiscal.prepare("SELECT aggregate_id FROM outbox").all() };
+    } finally {
+      fiscal.close();
+    }
+  }
+
+  it("keeps the completion event of a sale whose deferred record is pending, and forgets the other's", async () => {
+    const { removed, held } = await forgetWith((fiscal) => insertDeferredSale(fiscal, "sale-1"));
+
+    expect(removed).toBe(1);
+    expect(held).toEqual([{ aggregate_id: "sale-1" }]);
+  });
+
+  it("forgets the completion event of a sale whose deferred record is satisfied", async () => {
+    const { removed, held } = await forgetWith((fiscal) => {
+      insertFiscalDocument(fiscal, { state: "AUTHORIZED" });
+      insertDeferredSale(fiscal, "sale-1");
+      fiscal
+        .prepare(
+          "UPDATE deferred_sales SET satisfied_at = '2026-09-30T13:00:00.000Z', satisfied_by_fiscal_document_id = 'doc-1'",
+        )
+        .run();
+    });
+
+    expect(removed).toBe(2);
+    expect(held).toEqual([]);
+  });
+
+  it("forgets the completion event of a sale whose deferred record is cancelled", async () => {
+    const { removed, held } = await forgetWith((fiscal) => {
+      insertDeferredSale(fiscal, "sale-1");
+      fiscal.prepare("UPDATE deferred_sales SET cancelled_at = '2026-09-30T13:00:00.000Z'").run();
+    });
+
+    expect(removed).toBe(2);
+    expect(held).toEqual([]);
+  });
+
+  it("keeps only the completion event, forgetting the other events of the sale", async () => {
+    const { removed, held } = await forgetWith((fiscal) => {
+      insertDeferredSale(fiscal, "sale-1");
+      appendOutboxEvent(fiscal, CHAIN_KEY, {
+        ...outboxEventDraft(2),
+        aggregate_type: "Sale",
+        aggregate_id: "sale-1",
+        event_type: "deferred_sale_recorded",
+      });
+    });
+
+    expect(removed).toBe(2);
+    expect(held).toEqual([{ aggregate_id: "sale-1" }]);
+  });
+});
+
 describe("forgetting the acknowledged events while a voided sale's credit note is in progress", () => {
   function voidWithCreditNote(fiscal: LocalDatabase, saleId: string, deviceSeq: number) {
     insertCompletedSale(fiscal, saleId);
@@ -228,11 +300,25 @@ describe("forgetting the acknowledged events after a register session", () => {
         () => new Date("2099-01-01T00:00:00.000Z"),
       ).forgetAcknowledgedBefore(new Date("2098-12-01T00:00:00.000Z"));
 
-      expect(removed).toBe(outboxBefore.length - 1);
-      expect(outboxBefore.length).toBeGreaterThan(1);
-      expect(session.prepare("SELECT event_type FROM outbox").all()).toEqual([
-        { event_type: "sale_voided" },
-      ]);
+      const pendingDeferredSales = session
+        .prepare(
+          `SELECT count(*) AS total FROM deferred_sales
+           WHERE satisfied_at IS NULL AND cancelled_at IS NULL`,
+        )
+        .get();
+      expect(pendingDeferredSales).not.toEqual({ total: 0 });
+      expect(removed).toBeGreaterThan(0);
+      expect(
+        session
+          .prepare(
+            `SELECT DISTINCT event_type FROM outbox
+             WHERE event_type <> 'sale_completed' OR aggregate_id NOT IN (
+               SELECT sale_id FROM deferred_sales WHERE satisfied_at IS NULL AND cancelled_at IS NULL)
+             ORDER BY event_type`,
+          )
+          .all(),
+      ).toEqual([{ event_type: "sale_voided" }]);
+      expect(heldSeqs(session).length).toBeLessThan(outboxBefore.length);
       expect(
         session.prepare("SELECT state FROM sale_void_credit_notes ORDER BY state").all(),
       ).toEqual([{ state: "AUTHORIZED" }, { state: "IN_PROGRESS" }]);

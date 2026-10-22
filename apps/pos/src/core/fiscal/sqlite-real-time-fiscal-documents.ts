@@ -7,6 +7,7 @@ import {
   SALE_COMPLETED_EVENT_TYPE,
 } from "@purosur/domain";
 import type {
+  ExistingDeferredSale,
   InterruptedRealTimeAuthorization,
   InterruptedRealTimeAuthorizations,
   InterruptedRealTimeAuthorizationsTransaction,
@@ -15,6 +16,7 @@ import type {
   RequestedFiscalDocument,
   UnclearDocumentSettled,
   UnclearDocumentSettlement,
+  UnclearFiscalDocument,
   UnclearFiscalDocuments,
   WaitingFiscalDocument,
 } from "@purosur/domain/fiscal/use-cases";
@@ -41,6 +43,13 @@ interface SaleEventRow extends Omit<PushedEvent, "payload"> {
   payload: string;
 }
 
+interface UnclearDocumentRow extends WaitingDocumentRow {
+  reserved_at: string;
+  register_id: string;
+  actor_id: string;
+  deferred_sale_id: string | null;
+}
+
 interface RequestingDocumentRow {
   id: string;
   sale_id: string;
@@ -48,6 +57,7 @@ interface RequestingDocumentRow {
   document: string;
   register_id: string;
   actor_id: string;
+  holds_deferred_sale: 0 | 1;
 }
 
 export class SqliteRealTimeFiscalDocuments
@@ -79,14 +89,32 @@ export class SqliteRealTimeFiscalDocuments
         };
   }
 
-  async unclearDocuments(): Promise<readonly WaitingFiscalDocument[]> {
+  async deferredSaleOfSale(saleId: string): Promise<ExistingDeferredSale | null> {
+    const row = this.database
+      .prepare<[string], { id: string }>("SELECT id FROM deferred_sales WHERE sale_id = ?")
+      .get(saleId);
+    return row === undefined ? null : { id: row.id };
+  }
+
+  async unclearDocuments(): Promise<readonly UnclearFiscalDocument[]> {
     return this.database
-      .prepare<[], WaitingDocumentRow>(
-        `SELECT id, sale_id, point_of_sale, number, issued_on, document
-         FROM fiscal_documents WHERE state = 'UNKNOWN' ORDER BY reserved_at, id`,
+      .prepare<[], UnclearDocumentRow>(
+        `SELECT fiscal_documents.id, fiscal_documents.sale_id, point_of_sale, number, issued_on,
+                document, reserved_at, sales.register_id, sales.actor_id,
+                deferred_sales.id AS deferred_sale_id
+         FROM fiscal_documents
+         JOIN sales ON sales.id = fiscal_documents.sale_id
+         LEFT JOIN deferred_sales ON deferred_sales.sale_id = fiscal_documents.sale_id
+         WHERE fiscal_documents.state = 'UNKNOWN'
+         ORDER BY reserved_at, fiscal_documents.id`,
       )
       .all()
-      .map((row) => this.waitingDocumentOf(row));
+      .map((row) => ({
+        ...this.waitingDocumentOf(row),
+        origin: { registerId: row.register_id, actorId: row.actor_id },
+        reservedAt: new Date(row.reserved_at),
+        deferredSale: row.deferred_sale_id === null ? null : { id: row.deferred_sale_id },
+      }));
   }
 
   async settle({
@@ -94,6 +122,7 @@ export class SqliteRealTimeFiscalDocuments
     saleId,
     settlement,
     settledAt,
+    deferredSaleSatisfied,
   }: UnclearDocumentSettled): Promise<void> {
     this.database.transaction(() => {
       this.refuseUnlessDocumentOfSale(fiscalDocumentId, saleId);
@@ -105,6 +134,9 @@ export class SqliteRealTimeFiscalDocuments
         "the fiscal document is not unclear",
       );
       this.updateDeferredSale(fiscalDocumentId, saleId, settlement, settledAt);
+      if (deferredSaleSatisfied !== null) {
+        this.appendOutboxEvent(deferredSaleSatisfied);
+      }
     })();
   }
 
@@ -180,7 +212,9 @@ export class SqliteRealTimeFiscalDocuments
     return this.database
       .prepare<string[], RequestingDocumentRow>(
         `SELECT fiscal_documents.id, fiscal_documents.sale_id, reserved_at, document,
-                sales.register_id, sales.actor_id
+                sales.register_id, sales.actor_id,
+                EXISTS (SELECT 1 FROM deferred_sales WHERE deferred_sales.sale_id = fiscal_documents.sale_id)
+                  AS holds_deferred_sale
          FROM fiscal_documents JOIN sales ON sales.id = fiscal_documents.sale_id
          WHERE fiscal_documents.state IN (${IN_PROGRESS_FISCAL_DOCUMENT_STATES.map(() => "?").join(", ")})
          ORDER BY reserved_at, fiscal_documents.id`,
@@ -192,6 +226,7 @@ export class SqliteRealTimeFiscalDocuments
         origin: { registerId: row.register_id, actorId: row.actor_id },
         reservedAt: new Date(row.reserved_at),
         total: (JSON.parse(row.document) as FacturaC).total,
+        holdsDeferredSale: row.holds_deferred_sale === 1,
       }));
   }
 
@@ -229,6 +264,7 @@ export class SqliteRealTimeFiscalDocuments
     resolution,
     resolvedAt,
     deferredSale,
+    deferredSaleSatisfied,
   }: RealTimeAuthorizationResolved): void {
     this.refuseUnlessDocumentOfSale(fiscalDocumentId, saleId);
     this.changeState(
@@ -241,6 +277,10 @@ export class SqliteRealTimeFiscalDocuments
     if (deferredSale !== null) {
       insertDeferredSale(this.database, deferredSale.sale);
       this.appendOutboxEvent(deferredSale.event);
+    }
+    if (deferredSaleSatisfied !== null) {
+      this.updateDeferredSale(fiscalDocumentId, saleId, resolution, resolvedAt);
+      this.appendOutboxEvent(deferredSaleSatisfied);
     }
   }
 

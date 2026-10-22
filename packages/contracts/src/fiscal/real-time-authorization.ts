@@ -12,7 +12,7 @@ export const realTimeAuthorizationRequestSchema = z.object({
   buyer_tax_status_code: z.int(),
   timeout_ms: z.int().positive(),
   rtt_median_ms: z.int().nonnegative(),
-  sale_event: pushedEventSchema,
+  sale_event: pushedEventSchema.nullable(),
 });
 
 export type RealTimeAuthorizationRequestBody = z.output<typeof realTimeAuthorizationRequestSchema>;

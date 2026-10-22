@@ -34,6 +34,15 @@ export { selectConsumerBuyerTaxStatus } from "./model/consumer-buyer-tax-status.
 export type { CreditNoteReason } from "./model/credit-note.js";
 export { CREDIT_NOTE_C_VOUCHER_TYPE, CREDIT_NOTE_REASONS } from "./model/credit-note.js";
 export { isValidCuit } from "./model/cuit.js";
+export type { DeferredBacklogEntry, DeferredBacklogStep } from "./model/deferred-backlog.js";
+export {
+  DEFERRED_BACKLOG_RETRY_INTERVAL_MS,
+  hasDeferredBacklog,
+  isDateOrderBroken,
+  isInDeferredBacklog,
+  latestIssuedOn,
+  nextDeferredBacklogStep,
+} from "./model/deferred-backlog.js";
 export type {
   DeferredSale,
   DeferredSaleDocumentBlock,
@@ -46,7 +55,13 @@ export {
   randomShortCode,
   SHORT_CODE_ALPHABET,
 } from "./model/deferred-sale.js";
+export { deferredSaleExpiresOn, isDeferredSaleExpired } from "./model/deferred-sale-expiry.js";
 export { deferredSaleRecordedEvent } from "./model/deferred-sale-recorded-event.js";
+export {
+  type DeferredSaleSatisfied,
+  type DeferredSaleSatisfiedFact,
+  deferredSaleSatisfiedEvent,
+} from "./model/deferred-sale-satisfied-event.js";
 export type {
   AuthorizedCreditNoteC,
   AuthorizedFacturaC,

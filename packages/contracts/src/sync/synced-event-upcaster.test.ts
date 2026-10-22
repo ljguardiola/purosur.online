@@ -1796,6 +1796,81 @@ describe("decoding the events the registers pushed", () => {
     });
   });
 
+  it("reads a deferred sale satisfied by the invoice that caught it up", () => {
+    const decoded = upcaster.decode(
+      unappliedEventOf(
+        pushed({
+          event_type: "deferred_sale_satisfied",
+          schema_version: 1,
+          payload: {
+            id: "01a1122a-0305-7189-87d0-8256a353fd43",
+            sale_id: SALE,
+            register_id: saleFields.register_id,
+            fiscal_document_id: "01a1122a-0305-7189-87d0-8256a353fd44",
+            point_of_sale: 7,
+            number: 42,
+            issued_on: "2026-10-06",
+            document: {
+              invoice_class: "C",
+              total: 12_500,
+              net_amount: 12_500,
+              vat_amount: 0,
+              issuer: {
+                legal_name: FICTIONAL_LEGAL_NAME,
+                cuit: FICTIONAL_CUIT,
+                tax_status: "MONOTRIBUTO",
+                gross_income_registration: FICTIONAL_GROSS_INCOME_REGISTRATION,
+                activity_start_date: "2020-01-01",
+                version: 3,
+              },
+              buyer_tax_status_code: 5,
+              buyer_tax_status_description: "Consumidor Final",
+            },
+            authorization_code: "75123456789012",
+            authorization_code_due_on: "2026-10-16",
+            reserved_at: "2026-10-08T14:59:58.000Z",
+            satisfied_at: "2026-10-08T15:00:00.000Z",
+          },
+        }),
+      ),
+    );
+
+    expect(decoded).toEqual({
+      kind: "fact",
+      fact: {
+        kind: "deferred_sale_satisfied",
+        satisfaction: {
+          id: "01a1122a-0305-7189-87d0-8256a353fd43",
+          saleId: SALE,
+          fiscalDocumentId: "01a1122a-0305-7189-87d0-8256a353fd44",
+          pointOfSale: 7,
+          number: 42,
+          issuedOn: "2026-10-06",
+          document: {
+            invoiceClass: "C",
+            total: 12_500,
+            netAmount: 12_500,
+            vatAmount: 0,
+            issuer: {
+              legalName: FICTIONAL_LEGAL_NAME,
+              cuit: FICTIONAL_CUIT,
+              taxStatus: "MONOTRIBUTO",
+              grossIncomeRegistration: FICTIONAL_GROSS_INCOME_REGISTRATION,
+              activityStartDate: "2020-01-01",
+              version: 3,
+            },
+            buyerTaxStatusCode: 5,
+            buyerTaxStatusDescription: "Consumidor Final",
+          },
+          authorizationCode: "75123456789012",
+          authorizationCodeDueOn: "2026-10-16",
+          reservedAt: new Date("2026-10-08T14:59:58.000Z"),
+          satisfiedAt: new Date("2026-10-08T15:00:00.000Z"),
+        },
+      },
+    });
+  });
+
   it("reads the document issued under a pre-obtained code", () => {
     const decoded = upcaster.decode(
       unappliedEventOf(

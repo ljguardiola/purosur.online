@@ -247,3 +247,34 @@ export const AN_OPENING_COUNT_WITHDRAWN_FACT: SyncedFact = {
     actorId: "cashier-1",
   },
 };
+
+type DeferredSaleSatisfied = Extract<SyncedFact, { kind: "deferred_sale_satisfied" }>;
+
+type InvoiceIssuer = Omit<DeferredSaleSatisfied["satisfaction"]["document"]["issuer"], "version">;
+
+export function aDeferredSaleSatisfiedFact(issuer: InvoiceIssuer): DeferredSaleSatisfied {
+  return {
+    kind: "deferred_sale_satisfied",
+    satisfaction: {
+      id: "deferred-1",
+      saleId: "sale-1",
+      fiscalDocumentId: "document-1",
+      pointOfSale: 7,
+      number: 42,
+      issuedOn: "2026-10-07",
+      document: {
+        invoiceClass: "C",
+        total: 12_500,
+        netAmount: 12_500,
+        vatAmount: 0,
+        issuer: { ...issuer, version: 3 },
+        buyerTaxStatusCode: 5,
+        buyerTaxStatusDescription: "Consumidor Final",
+      },
+      authorizationCode: "75123456789012",
+      authorizationCodeDueOn: "2026-10-17",
+      reservedAt: new Date("2026-10-09T09:59:58.000Z"),
+      satisfiedAt: new Date("2026-10-09T10:00:00.000Z"),
+    },
+  };
+}

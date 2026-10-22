@@ -108,6 +108,13 @@ export class SqliteLocalOutbox implements LocalOutbox, OutboxPruning {
             AND NOT (
               event_type = ?
               AND aggregate_id IN (
+                SELECT sale_id FROM deferred_sales
+                WHERE satisfied_at IS NULL AND cancelled_at IS NULL
+              )
+            )
+            AND NOT (
+              event_type = ?
+              AND aggregate_id IN (
                 SELECT sale_id FROM sale_void_credit_notes WHERE state = 'IN_PROGRESS'
               )
             )`,
@@ -116,6 +123,7 @@ export class SqliteLocalOutbox implements LocalOutbox, OutboxPruning {
         cutoff.toISOString(),
         SALE_COMPLETED_EVENT_TYPE,
         ...SERIES_WAITING_STATES,
+        SALE_COMPLETED_EVENT_TYPE,
         SALE_VOIDED_EVENT_TYPE,
       ).changes;
   }

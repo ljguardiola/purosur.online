@@ -37,6 +37,10 @@ describe("unclearOutcomeQuestionSchema", () => {
     expect(unclearOutcomeQuestionSchema.parse(question)).toEqual(question);
   });
 
+  it("reads a question that carries no sale event of its own", () => {
+    expect(questionWith({ sale_event: null }).data).toEqual({ ...question, sale_event: null });
+  });
+
   it.each(Object.keys(question))("refuses a question without its %s", (field) => {
     expect(questionWith({ [field]: undefined }).success).toBe(false);
   });

@@ -118,6 +118,8 @@ export interface FiscalDocumentRow {
   pointOfSale: number;
   number: number;
   state: FiscalDocumentState;
+  issuedOn: string;
+  resolvedAt: string;
 }
 
 export function insertFiscalDocument(
@@ -128,6 +130,8 @@ export function insertFiscalDocument(
     pointOfSale = POINT_OF_SALE,
     number = 41,
     state = "REQUESTING",
+    issuedOn = "2026-09-30",
+    resolvedAt = "2026-09-30T12:05:01.000Z",
   }: Partial<FiscalDocumentRow> = {},
 ): void {
   database
@@ -136,7 +140,7 @@ export function insertFiscalDocument(
          id, sale_id, point_of_sale, document_type, number, issued_on, document, state,
          authorization_code, authorization_code_due_on, reserved_at, resolved_at
        ) VALUES (
-         @id, @sale_id, @point_of_sale, 'factura_c', @number, '2026-09-30', @document, @state,
+         @id, @sale_id, @point_of_sale, 'factura_c', @number, @issued_on, @document, @state,
          @code, @due_on, '2026-09-30T12:05:00.000Z', @resolved_at
        )`,
     )
@@ -145,11 +149,12 @@ export function insertFiscalDocument(
       sale_id: saleId,
       point_of_sale: pointOfSale,
       number,
+      issued_on: issuedOn,
       document: JSON.stringify(FACTURA_C),
       state,
       code: state === "AUTHORIZED" ? "75123456789012" : null,
       due_on: state === "AUTHORIZED" ? "2026-10-10" : null,
-      resolved_at: state === "REQUESTING" ? null : "2026-09-30T12:05:01.000Z",
+      resolved_at: state === "REQUESTING" ? null : resolvedAt,
     });
 }
 
@@ -287,14 +292,33 @@ export function insertDeferredSale(
   database: LocalDatabase,
   saleId: string,
   reason: DeferralReason = "unclear_outcome",
+  { occurredAt = SALE_COMPLETED_AT, routedAt = "2026-09-30T12:05:01.000Z" } = {},
 ): DeferredSaleReference {
   const shortCode = uniqueShortCode();
   const id = `deferred-of-${saleId}`;
   database
     .prepare(
       `INSERT INTO deferred_sales (id, sale_id, occurred_at, total, reason, short_code, routed_at)
-       VALUES (?, ?, ?, ?, ?, ?, '2026-09-30T12:05:01.000Z')`,
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
     )
-    .run(id, saleId, SALE_COMPLETED_AT.toISOString(), FACTURA_C.total, reason, shortCode);
+    .run(id, saleId, occurredAt.toISOString(), FACTURA_C.total, reason, shortCode, routedAt);
   return { id, shortCode };
+}
+
+export function insertIssuerIdentification(database: LocalDatabase): void {
+  database
+    .prepare(
+      `INSERT INTO issuer_identification_versions (
+         version, legal_name, gross_income_registration, activity_start_date, authorized_cuit, tax_status
+       ) VALUES (3, ?, ?, '2020-01-01', ?, 'MONOTRIBUTO')`,
+    )
+    .run(FICTIONAL_LEGAL_NAME, FICTIONAL_GROSS_INCOME_REGISTRATION, FICTIONAL_CUIT);
+}
+
+export function insertBuyerTaxStatusSet(database: LocalDatabase): void {
+  database
+    .prepare(
+      "INSERT INTO buyer_tax_status_sets (params_version, set_id, options) VALUES (1, 'set-1', ?)",
+    )
+    .run(JSON.stringify([{ code: 5, description: "Consumidor Final", invoice_class: "C" }]));
 }

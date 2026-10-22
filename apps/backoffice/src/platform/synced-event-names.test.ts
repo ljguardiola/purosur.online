@@ -38,6 +38,10 @@ describe("the Spanish names of synced events", () => {
     expect(syncedEventTypeName("deferred_sale_recorded")).toBe("venta diferida registrada");
   });
 
+  test("names a deferred sale satisfied by an invoice", () => {
+    expect(syncedEventTypeName("deferred_sale_satisfied")).toBe("venta diferida facturada");
+  });
+
   test("has no name for an unknown event type", () => {
     expect(syncedEventTypeName("something_new")).toBeUndefined();
   });

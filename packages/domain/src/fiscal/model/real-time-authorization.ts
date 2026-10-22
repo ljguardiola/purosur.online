@@ -1,5 +1,10 @@
 import { argentinaCalendarDay, SALE_COMPLETED_EVENT_TYPE } from "../../shared/index.js";
 import {
+  type DeferredBacklogEntry,
+  hasDeferredBacklog,
+  latestIssuedOn,
+} from "./deferred-backlog.js";
+import {
   type FiscalOnlineSignalEvidence,
   isRegisterFiscallyOnline,
 } from "./fiscal-online-signal.js";
@@ -81,6 +86,7 @@ export const DEFERRAL_REASONS = [
   "unclear_outcome",
   "numbering_frozen",
   "clock_behind",
+  "deferred_backlog",
 ] as const;
 
 export type DeferralReason = (typeof DEFERRAL_REASONS)[number];
@@ -121,6 +127,8 @@ export interface RealTimeSeries {
   clockMark: Date | null;
   taxAuthorityLastIssuedOn: string | null;
   clockCorrections: readonly ClockCorrectionReadings[];
+  localLastAuthorizedIssuedOn: string | null;
+  deferredBacklog: readonly DeferredBacklogEntry[];
 }
 
 export interface OfflineSeries extends NextOfflineNumberInput {
@@ -133,6 +141,7 @@ export const OFFLINE_AUTHORIZATION_CAUSES = [
   "unclear_outcome",
   "numbering_conflict",
   "clock_correction_lapse",
+  "deferred_backlog",
 ] as const;
 
 export type OfflineAuthorizationCause = (typeof OFFLINE_AUTHORIZATION_CAUSES)[number];
@@ -142,6 +151,7 @@ const DEFERRAL_REASON_OF_CAUSE: Record<OfflineAuthorizationCause, DeferralReason
   unclear_outcome: "document_waiting",
   numbering_conflict: "numbering_frozen",
   clock_correction_lapse: "clock_behind",
+  deferred_backlog: "deferred_backlog",
 };
 
 export interface SaleAuthorizationPathInput {
@@ -251,6 +261,15 @@ export function saleAuthorizationPath(input: SaleAuthorizationPathInput): SaleAu
   }
   if (series.documentRequesting) {
     return deferred("document_waiting");
+  }
+  if (
+    hasDeferredBacklog(
+      series.deferredBacklog,
+      now,
+      latestIssuedOn(series.taxAuthorityLastIssuedOn, series.localLastAuthorizedIssuedOn),
+    )
+  ) {
+    return offlinePath("deferred_backlog", input);
   }
   const number = nextInvoiceNumber(series);
   if (number === null) {

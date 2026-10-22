@@ -1,3 +1,4 @@
+import { deferredSaleSatisfiedEvent } from "@purosur/domain";
 import {
   type RealTimeAuthorizationResolved,
   ShortCodeTaken,
@@ -27,7 +28,7 @@ let documents: SqliteRealTimeFiscalDocuments;
 
 function resolution(
   resolved: Pick<RealTimeAuthorizationResolved, "resolution"> &
-    Partial<Pick<RealTimeAuthorizationResolved, "deferredSale">>,
+    Partial<Pick<RealTimeAuthorizationResolved, "deferredSale" | "deferredSaleSatisfied">>,
   fiscalDocumentId = "doc-1",
 ): RealTimeAuthorizationResolved {
   return {
@@ -35,6 +36,7 @@ function resolution(
     saleId: "sale-1",
     resolvedAt: RESOLVED_AT,
     deferredSale: null,
+    deferredSaleSatisfied: null,
     ...resolved,
   };
 }
@@ -170,6 +172,7 @@ describe("the documents still requesting their answer", () => {
         origin: { registerId: "register-1", actorId: "u1" },
         reservedAt: SALE_COMPLETED_AT,
         total: FACTURA_C.total,
+        holdsDeferredSale: false,
       },
       {
         fiscalDocumentId: "doc-2",
@@ -177,7 +180,25 @@ describe("the documents still requesting their answer", () => {
         origin: { registerId: "register-1", actorId: "u1" },
         reservedAt: SALE_COMPLETED_AT,
         total: FACTURA_C.total,
+        holdsDeferredSale: false,
       },
+    ]);
+  });
+
+  it("say whether the sale of each already holds a deferred record", async () => {
+    insertCompletedSale(database, "sale-2");
+    insertFiscalDocument(database, { id: "doc-2", saleId: "sale-2", pointOfSale: 13 });
+    insertDeferredSale(database, "sale-2");
+
+    expect(
+      documents.transaction((tx) =>
+        tx
+          .requestingDocuments()
+          .map(({ saleId, holdsDeferredSale }) => [saleId, holdsDeferredSale]),
+      ),
+    ).toEqual([
+      ["sale-1", false],
+      ["sale-2", true],
     ]);
   });
 
@@ -186,6 +207,23 @@ describe("the documents still requesting their answer", () => {
     insertFiscalDocument(database, { state: "AUTHORIZED" });
 
     expect(documents.transaction((tx) => tx.requestingDocuments())).toEqual([]);
+  });
+});
+
+describe("the deferred record of a sale", () => {
+  it("is the record the sale already holds", async () => {
+    insertDeferredSale(database, "sale-1");
+
+    await expect(documents.deferredSaleOfSale("sale-1")).resolves.toEqual({
+      id: "deferred-of-sale-1",
+    });
+  });
+
+  it("is none for a sale with no record, whatever other sales hold", async () => {
+    insertCompletedSale(database, "sale-2");
+    insertDeferredSale(database, "sale-2");
+
+    await expect(documents.deferredSaleOfSale("sale-1")).resolves.toBeNull();
   });
 });
 
@@ -415,6 +453,123 @@ describe("resolving a waiting document", () => {
     expect(storedDocument()).toMatchObject({ state: "REQUESTING", resolved_at: null });
   });
 
+  describe("satisfying the sale's deferred record", () => {
+    const AUTHORIZED = {
+      state: "AUTHORIZED",
+      authorizationCode: "75123456789012",
+      authorizationCodeDueOn: "2026-10-10",
+    } as const;
+
+    function satisfiedEvent() {
+      return deferredSaleSatisfiedEvent({
+        eventId: "event-satisfied-1",
+        registerId: "register-1",
+        actorId: "u1",
+        deferredSaleId: "deferred-of-sale-1",
+        saleId: "sale-1",
+        fiscalDocumentId: "doc-1",
+        pointOfSale: POINT_OF_SALE,
+        number: 41,
+        issuedOn: "2026-09-30",
+        document: FACTURA_C,
+        authorizationCode: "75123456789012",
+        authorizationCodeDueOn: "2026-10-10",
+        reservedAt: new Date("2026-09-30T12:05:00.000Z"),
+        satisfiedAt: RESOLVED_AT,
+      });
+    }
+
+    function satisfiedEvents() {
+      return database
+        .prepare(
+          "SELECT event_id, aggregate_id, payload FROM outbox WHERE event_type = 'deferred_sale_satisfied'",
+        )
+        .all()
+        .map((row) => {
+          const { event_id, aggregate_id, payload } = row as {
+            event_id: string;
+            aggregate_id: string;
+            payload: string;
+          };
+          return { event_id, aggregate_id, payload: JSON.parse(payload) };
+        });
+    }
+
+    function deferredRecord() {
+      return database
+        .prepare(
+          "SELECT satisfied_by_fiscal_document_id, satisfied_at FROM deferred_sales WHERE sale_id = 'sale-1'",
+        )
+        .get();
+    }
+
+    beforeEach(() => {
+      insertDeferredSale(database, "sale-1");
+    });
+
+    it("marks the record satisfied by the authorized document and appends the event that reports it", async () => {
+      await documents.resolve(
+        resolution({ resolution: AUTHORIZED, deferredSaleSatisfied: satisfiedEvent() }),
+      );
+
+      expect(deferredRecord()).toEqual({
+        satisfied_by_fiscal_document_id: "doc-1",
+        satisfied_at: RESOLVED_AT.toISOString(),
+      });
+      expect(satisfiedEvents()).toEqual([
+        {
+          event_id: "event-satisfied-1",
+          aggregate_id: "sale-1",
+          payload: satisfiedEvent().payload,
+        },
+      ]);
+    });
+
+    it("leaves the record pending and appends nothing when the answer satisfies nothing", async () => {
+      await documents.resolve(resolution({ resolution: REJECTED }));
+
+      expect(deferredRecord()).toEqual({
+        satisfied_by_fiscal_document_id: null,
+        satisfied_at: null,
+      });
+      expect(satisfiedEvents()).toEqual([]);
+    });
+
+    it("authorizes the document of an interrupted request's sale and reports the satisfaction too", () => {
+      documents.transaction((tx) =>
+        tx.resolve(resolution({ resolution: AUTHORIZED, deferredSaleSatisfied: satisfiedEvent() })),
+      );
+
+      expect(satisfiedEvents().map(({ event_id }) => event_id)).toEqual(["event-satisfied-1"]);
+    });
+
+    it("changes nothing when the sale has no record to satisfy", async () => {
+      database.prepare("DELETE FROM deferred_sales").run();
+
+      await expect(
+        documents.resolve(
+          resolution({ resolution: AUTHORIZED, deferredSaleSatisfied: satisfiedEvent() }),
+        ),
+      ).rejects.toThrow("the sale has no deferred record");
+
+      expect(storedDocument()).toMatchObject({ state: "REQUESTING", resolved_at: null });
+      expect(satisfiedEvents()).toEqual([]);
+    });
+
+    it("refuses to report without the outbox chain key, changing nothing", async () => {
+      const keyless = new SqliteRealTimeFiscalDocuments(database, undefined);
+
+      await expect(
+        keyless.resolve(
+          resolution({ resolution: AUTHORIZED, deferredSaleSatisfied: satisfiedEvent() }),
+        ),
+      ).rejects.toThrow("the register has no outbox chain key");
+
+      expect(storedDocument()).toMatchObject({ state: "REQUESTING" });
+      expect(deferredRecord()).toMatchObject({ satisfied_at: null });
+    });
+  });
+
   it("refuses to resolve a document that is no longer waiting, leaving it as it is", async () => {
     await documents.resolve(
       resolution({ resolution: { state: "UNKNOWN", deferralReason: "unclear_outcome" } }),
@@ -489,14 +644,17 @@ describe("the documents left with an unclear outcome", () => {
     const unclear = await documents.unclearDocuments();
 
     expect(
-      unclear.map(({ fiscalDocumentId, saleId, pointOfSale, number, issuedOn, document }) => ({
-        fiscalDocumentId,
-        saleId,
-        pointOfSale,
-        number,
-        issuedOn,
-        document,
-      })),
+      unclear.map(
+        ({ fiscalDocumentId, saleId, pointOfSale, number, issuedOn, document, reservedAt }) => ({
+          fiscalDocumentId,
+          saleId,
+          pointOfSale,
+          number,
+          issuedOn,
+          document,
+          reservedAt,
+        }),
+      ),
     ).toEqual([
       {
         fiscalDocumentId: "doc-2",
@@ -505,6 +663,7 @@ describe("the documents left with an unclear outcome", () => {
         number: 7,
         issuedOn: "2026-09-30",
         document: FACTURA_C,
+        reservedAt: new Date("2026-09-30T12:00:00.000Z"),
       },
       {
         fiscalDocumentId: "doc-1",
@@ -513,9 +672,31 @@ describe("the documents left with an unclear outcome", () => {
         number: 41,
         issuedOn: "2026-09-30",
         document: FACTURA_C,
+        reservedAt: new Date("2026-09-30T12:05:00.000Z"),
       },
     ]);
     expect(unclear.map(({ saleEvent }) => saleEvent?.aggregate_id)).toEqual(["sale-2", "sale-1"]);
+  });
+
+  it("carry the register and person of their sale and the record the sale already holds", async () => {
+    insertFiscalDocument(database, { state: "UNKNOWN" });
+    insertCompletedSale(database, "sale-2");
+    insertFiscalDocument(database, {
+      id: "doc-2",
+      saleId: "sale-2",
+      pointOfSale: 13,
+      state: "UNKNOWN",
+    });
+    insertDeferredSale(database, "sale-2");
+
+    const unclear = await documents.unclearDocuments();
+
+    expect(
+      unclear.map(({ saleId, origin, deferredSale }) => [saleId, origin, deferredSale]),
+    ).toEqual([
+      ["sale-1", { registerId: "register-1", actorId: "u1" }, null],
+      ["sale-2", { registerId: "register-1", actorId: "u1" }, { id: "deferred-of-sale-2" }],
+    ]);
   });
 
   it("carry no event when the outbox no longer holds the sale's", async () => {
@@ -551,7 +732,13 @@ describe("the documents left with an unclear outcome", () => {
 
 describe("settling an unclear document", () => {
   function settled(settlement: UnclearDocumentSettled["settlement"]): UnclearDocumentSettled {
-    return { fiscalDocumentId: "doc-1", saleId: "sale-1", settlement, settledAt: RESOLVED_AT };
+    return {
+      fiscalDocumentId: "doc-1",
+      saleId: "sale-1",
+      settlement,
+      settledAt: RESOLVED_AT,
+      deferredSaleSatisfied: null,
+    };
   }
 
   function deferredRecord() {
@@ -613,6 +800,50 @@ describe("settling an unclear document", () => {
       satisfied_by_fiscal_document_id: "doc-1",
       satisfied_at: RESOLVED_AT.toISOString(),
     });
+  });
+
+  it("appends the event that reports the satisfaction when it authorizes the document", async () => {
+    await documents.settle({
+      ...settled({
+        state: "AUTHORIZED",
+        authorizationCode: "75123456789012",
+        authorizationCodeDueOn: "2026-10-10",
+      }),
+      deferredSaleSatisfied: deferredSaleSatisfiedEvent({
+        eventId: "event-satisfied-1",
+        registerId: "register-1",
+        actorId: "u1",
+        deferredSaleId: "deferred-of-sale-1",
+        saleId: "sale-1",
+        fiscalDocumentId: "doc-1",
+        pointOfSale: POINT_OF_SALE,
+        number: 41,
+        issuedOn: "2026-09-30",
+        document: FACTURA_C,
+        authorizationCode: "75123456789012",
+        authorizationCodeDueOn: "2026-10-10",
+        reservedAt: new Date("2026-09-30T12:05:00.000Z"),
+        satisfiedAt: RESOLVED_AT,
+      }),
+    });
+
+    expect(
+      database
+        .prepare(
+          "SELECT event_id, aggregate_id FROM outbox WHERE event_type = 'deferred_sale_satisfied'",
+        )
+        .all(),
+    ).toEqual([{ event_id: "event-satisfied-1", aggregate_id: "sale-1" }]);
+  });
+
+  it("appends no event when it settles the document in any other way", async () => {
+    await documents.settle(settled({ state: "RELEASED" }));
+
+    expect(
+      database
+        .prepare("SELECT event_id FROM outbox WHERE event_type = 'deferred_sale_satisfied'")
+        .all(),
+    ).toEqual([]);
   });
 
   it("rejects it and gives the deferred record of its sale the reason rejected", async () => {

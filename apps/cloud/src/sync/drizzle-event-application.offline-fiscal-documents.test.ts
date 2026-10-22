@@ -96,6 +96,17 @@ describe("recording the document a register issued under a pre-obtained code", (
     ]);
   });
 
+  it("keeps a document issued while a deferred-sale backlog was pending with that cause", async () => {
+    const { deviceId, registerId, saleId } = await enrolledWithSale();
+    const fact = anOfflineFiscalDocumentFact({ registerId, saleId, cause: "deferred_backlog" });
+
+    await record(fact, deviceId);
+
+    expect(await system.db.select().from(offlineFiscalDocuments)).toMatchObject([
+      { id: fact.document.fiscalDocumentId, cause: "deferred_backlog" },
+    ]);
+  });
+
   it("keeps the same fields of a document that carries its invoice, and keeps no copy of the invoice", async () => {
     const { deviceId, registerId, saleId } = await enrolledWithSale();
     const withoutInvoice = anOfflineFiscalDocumentFact({ registerId, saleId });

@@ -207,6 +207,22 @@ describe("DrizzlePointOfSaleLanes", () => {
   });
 
   describe("the recorded requests", () => {
+    it("records a request that carries no sale event of its own", async () => {
+      const registerId = await insertRegisterWithPointOfSale(db, {
+        pointOfSaleNumber: 7,
+        name: "caja-1",
+      });
+      const request = authorizationRequestRecord(registerId, { saleEvent: null });
+
+      await lanes.inPointOfSaleLane(7, (lane) => lane.recordRequest(request));
+
+      const [row] = await db
+        .select({ saleEvent: fiscalRequests.saleEvent })
+        .from(fiscalRequests)
+        .where(eq(fiscalRequests.fiscalDocumentId, request.fiscalDocumentId));
+      expect(row).toEqual({ saleEvent: null });
+    });
+
     it("knows no request that was never recorded", async () => {
       const recorded = await lanes.inPointOfSaleLane(7, (lane) =>
         lane.recordedRequest(crypto.randomUUID(), crypto.randomUUID()),
