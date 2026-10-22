@@ -258,6 +258,7 @@ export {
   DEFERRED_BACKLOG_RETRY_INTERVAL_MS,
   deferredSaleExpiresOn,
   deferredSaleRecordedEvent,
+  deferredSaleReferenceFromQrText,
   deferredSaleSatisfiedEvent,
   EXCHANGE_RATE_PESOS,
   earliestThresholdStartDay,
@@ -677,6 +678,8 @@ export {
 } from "./register/index.js";
 export type {
   CreditNoteReceiptContent,
+  DeferredSaleFacts,
+  DeferredSaleInvoice,
   DeferredSaleRecord,
   DiscountedLinesOfPromotion,
   LineDiscountRecord,
