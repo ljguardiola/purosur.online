@@ -1,6 +1,10 @@
 import { type FiscalDocumentState, type SaleStanding, saleStandingOf } from "@purosur/domain";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { uniqueShortCode } from "../fiscal/test-support/real-time-authorization-database";
+import {
+  insertOfflineCreditNote,
+  insertOfflineFiscalDocument,
+  uniqueShortCode,
+} from "../fiscal/test-support/real-time-authorization-database";
 import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import { migrationClock } from "../platform/test-support/migration-clock";
@@ -398,6 +402,23 @@ describe("SqliteRegisterSalesHistory", () => {
       expect(history.fiscalFactsOfSale("deferred")).toEqual({
         deferred: true,
         fiscalDocument: null,
+      });
+    });
+
+    it("shows the factura of a sale, not the credit note issued under a pre-obtained code", () => {
+      addSale({ id: "sale-1", state: "VOIDED" });
+      insertOfflineCreditNote(database, { saleId: "sale-1", pointOfSale: 8, number: 3 });
+      insertOfflineFiscalDocument(database, { saleId: "sale-1", pointOfSale: 8, number: 412 });
+
+      expect(new SqliteRegisterSalesHistory(database).fiscalFactsOfSale("sale-1")).toEqual({
+        deferred: false,
+        fiscalDocument: {
+          state: "AUTHORIZED",
+          documentType: "factura_c",
+          authorization: "offline_code",
+          pointOfSale: 8,
+          number: 412,
+        },
       });
     });
 

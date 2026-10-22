@@ -1,20 +1,23 @@
 import { encodePinHash } from "@purosur/contracts";
-import type { VoidCreditNoteStanding } from "@purosur/domain";
 import {
   FICTIONAL_CUIT,
   FICTIONAL_GROSS_INCOME_REGISTRATION,
   FICTIONAL_LEGAL_NAME,
 } from "@purosur/domain/fiscal/test-support";
-import type { CloudCreditNoteCall } from "@purosur/domain/fiscal/use-cases";
+import type { CloudCreditNoteAnswer, CloudCreditNoteCall } from "@purosur/domain/fiscal/use-cases";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { derivePinVerifier } from "../credentials/pin-verifier";
 import { SqliteVoidCreditNotes } from "../fiscal/sqlite-void-credit-notes";
 import {
   insertFiscalDocument,
   insertHealthCheck,
+  insertOfflineAuthorizationCode,
+  insertOfflineCreditNoteSeriesCount,
   insertOfflineFiscalDocument,
+  insertOfflineNumberBlock,
   insertOfflinePointOfSale,
   insertPointOfSale,
+  OFFLINE_CODE,
 } from "../fiscal/test-support/real-time-authorization-database";
 import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
@@ -77,7 +80,7 @@ function deps(
   };
 }
 
-const AUTHORIZED_CREDIT_NOTE: VoidCreditNoteStanding = {
+const AUTHORIZED_CREDIT_NOTE: CloudCreditNoteAnswer = {
   kind: "authorized",
   pointOfSale: 12,
   number: 7,
@@ -88,7 +91,7 @@ const AUTHORIZED_CREDIT_NOTE: VoidCreditNoteStanding = {
 };
 
 let creditNoteCalls: CloudCreditNoteCall[];
-let creditNoteAnswer: VoidCreditNoteStanding | null;
+let creditNoteAnswer: CloudCreditNoteAnswer | null;
 let printedCreditNotes: string[];
 let reportedFailures: unknown[];
 
@@ -392,27 +395,118 @@ describe("voiding a sale of the sales history", () => {
       },
     );
 
-    it("refuses a sale that carries an invoice while the register cannot reach the tax authority, changing nothing", async () => {
-      const saleId = await soldInCash();
-      database.exec("DELETE FROM deferred_sales");
-      insertFiscalDocument(database, { saleId, state: "AUTHORIZED" });
+    describe("a sale that carries an invoice, while the register cannot reach the tax authority", () => {
+      async function invoicedSaleWithOfflineSeries(): Promise<string> {
+        const saleId = await soldInCash();
+        database.exec("DELETE FROM deferred_sales");
+        insertFiscalDocument(database, {
+          saleId,
+          state: "AUTHORIZED",
+          pointOfSale: 12,
+          number: 41,
+        });
+        insertOfflinePointOfSale(database, 31);
+        insertOfflineCreditNoteSeriesCount(database, 31, 40);
+        insertOfflineNumberBlock(database, "note-block", 41, 1040, 31, "credit_note_c");
+        insertOfflineAuthorizationCode(database);
+        return saleId;
+      }
 
-      expect(await voidSaleFor(voidDeps(), request(saleId, { authorization }))).toEqual({
-        kind: "invoice_needs_connection",
+      it("is voided, answering the credit note issued offline with its number, code and fortnight", async () => {
+        const saleId = await invoicedSaleWithOfflineSeries();
+
+        const outcome = await voidSaleFor(voidDeps(), request(saleId, { authorization }));
+
+        expect(outcome).toMatchObject({
+          kind: "voided",
+          credit_note: {
+            kind: "issued_offline",
+            point_of_sale: 31,
+            number: 41,
+            issued_on: "2026-09-30",
+            offline_authorization_code: OFFLINE_CODE,
+            fortnight_start: "2026-09-16",
+            fortnight_end: "2026-09-30",
+          },
+        });
+        expect(saleStates()).toEqual([{ state: "VOIDED" }]);
       });
-      expect(saleStates()).toEqual([{ state: "COMPLETED" }]);
-      expect(creditNoteCalls).toEqual([]);
-    });
 
-    it("refuses a sale that carries a contingency document while it cannot reach the tax authority, changing nothing", async () => {
-      const saleId = await soldInCash();
-      insertOfflinePointOfSale(database);
-      insertOfflineFiscalDocument(database, { saleId });
+      it("never asks the cloud for the credit note it issued itself", async () => {
+        const saleId = await invoicedSaleWithOfflineSeries();
 
-      expect(await voidSaleFor(voidDeps(), request(saleId, { authorization }))).toEqual({
-        kind: "invoice_needs_connection",
+        await voidSaleFor(voidDeps(), request(saleId, { authorization }));
+
+        expect(creditNoteCalls).toEqual([]);
+        expect(reportedFailures).toEqual([]);
       });
-      expect(saleStates()).toEqual([{ state: "COMPLETED" }]);
+
+      it("prints the credit note it issued, once", async () => {
+        const saleId = await invoicedSaleWithOfflineSeries();
+
+        await voidSaleFor(voidDeps(), request(saleId, { authorization }));
+
+        expect(printedCreditNotes).toEqual([saleId]);
+      });
+
+      it("credits the contingency document the customer received when the sale was invoiced under a contingency code", async () => {
+        const saleId = await soldInCash();
+        insertOfflinePointOfSale(database, 31);
+        insertOfflineFiscalDocument(database, { saleId, pointOfSale: 31, number: 8 });
+        insertOfflineCreditNoteSeriesCount(database, 31, 40);
+        insertOfflineNumberBlock(database, "note-block", 41, 1040, 31, "credit_note_c");
+        insertOfflineAuthorizationCode(database);
+
+        await voidSaleFor(voidDeps(), request(saleId, { authorization }));
+
+        expect(
+          database
+            .prepare(
+              "SELECT corrected_point_of_sale, corrected_number, state FROM sale_void_credit_notes",
+            )
+            .all(),
+        ).toEqual([{ corrected_point_of_sale: 31, corrected_number: 8, state: "ISSUED_OFFLINE" }]);
+      });
+
+      it("leaves the credit note in progress for the cloud while the register holds no number for it", async () => {
+        const saleId = await invoicedSaleWithOfflineSeries();
+        database.exec("DELETE FROM offline_number_blocks");
+        creditNoteAnswer = null;
+
+        const outcome = await voidSaleFor(voidDeps(), request(saleId, { authorization }));
+
+        expect(outcome).toMatchObject({ kind: "voided", credit_note: { kind: "in_progress" } });
+        expect(creditNoteCalls).toHaveLength(1);
+        expect(printedCreditNotes).toEqual([]);
+      });
+
+      it("refuses to void it a second time, issuing no second credit note", async () => {
+        const saleId = await invoicedSaleWithOfflineSeries();
+        await voidSaleFor(voidDeps(), request(saleId, { authorization }));
+
+        const second = await voidSaleFor(voidDeps(), request(saleId, { authorization }));
+
+        expect(second).toEqual({ kind: "not_completed" });
+        expect(
+          database
+            .prepare(
+              "SELECT count(*) AS total FROM offline_fiscal_documents WHERE document_type = 'credit_note_c'",
+            )
+            .get(),
+        ).toEqual({ total: 1 });
+      });
+
+      it("issues no credit note offline for a sale whose invoice request has no answer yet", async () => {
+        const saleId = await invoicedSaleWithOfflineSeries();
+        database.exec(
+          "UPDATE fiscal_documents SET state = 'UNKNOWN', authorization_code = NULL, authorization_code_due_on = NULL",
+        );
+
+        expect(await voidSaleFor(voidDeps(), request(saleId, { authorization }))).toEqual({
+          kind: "invoice_in_flight",
+        });
+        expect(saleStates()).toEqual([{ state: "COMPLETED" }]);
+      });
     });
 
     describe("a sale that carries an invoice, while the register reaches the tax authority", () => {

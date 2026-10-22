@@ -406,6 +406,17 @@ describe("readSaleHistoryDetail", () => {
           authorizationCodeDueOn: "2026-10-17",
         },
       ],
+      [
+        {
+          kind: "issued_offline",
+          pointOfSale: 9,
+          number: 41,
+          issuedOn: "2026-10-07",
+          issuedAt: new Date("2026-10-07T15:20:00.000Z"),
+          offlineAuthorizationCode: "71234567890123",
+          fortnight: { start: "2026-10-01", end: "2026-10-15" },
+        },
+      ],
       [{ kind: "in_progress" }],
       [{ kind: "rejected" }],
       [{ kind: "already_credited" }],
@@ -433,6 +444,31 @@ describe("readSaleHistoryDetail", () => {
     it("shows the credit note's original as its next copy while it was never printed", () => {
       const history = new FakeRegisterSalesHistory([
         historySale({ voided: true, creditNote: AUTHORIZED_CREDIT_NOTE }),
+      ]);
+      const ledger = new FakeReceiptLedger({ sales: [creditedSale()] });
+
+      const outcome = readSaleHistoryDetail({ history, ledger, clock }, { saleId: "sale-1" });
+
+      expect(outcome).toMatchObject({
+        kind: "found",
+        detail: { creditNoteNextCopy: { kind: "original" } },
+      });
+    });
+
+    it("shows the original of a credit note issued offline as its next copy while it was never printed", () => {
+      const history = new FakeRegisterSalesHistory([
+        historySale({
+          voided: true,
+          creditNote: {
+            kind: "issued_offline",
+            pointOfSale: 9,
+            number: 41,
+            issuedOn: "2026-10-07",
+            issuedAt: new Date("2026-10-07T15:20:00.000Z"),
+            offlineAuthorizationCode: "71234567890123",
+            fortnight: { start: "2026-10-01", end: "2026-10-15" },
+          },
+        }),
       ]);
       const ledger = new FakeReceiptLedger({ sales: [creditedSale()] });
 

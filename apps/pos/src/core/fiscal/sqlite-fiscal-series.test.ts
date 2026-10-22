@@ -10,6 +10,8 @@ import {
   insertDeferredSale,
   insertFiscalDocument,
   insertOfflineAuthorizationCode,
+  insertOfflineCreditNote,
+  insertOfflineCreditNoteSeriesCount,
   insertOfflineFiscalDocument,
   insertOfflineNumberBlock,
   insertOfflinePointOfSale,
@@ -422,6 +424,97 @@ describe("readOfflineSeries", () => {
       taxAuthorityLastAuthorized: 100,
       highestSyncedNumber: 102,
       clockMark: new Date("2026-09-30T12:00:00.000Z"),
+    });
+  });
+});
+
+describe("readOfflineSeries of the credit note series", () => {
+  function markCreditNoteClock(pointOfSale: number, reading: string): void {
+    database
+      .prepare(
+        "INSERT INTO register_clock_marks (point_of_sale, document_type, reading) VALUES (?, 'credit_note_c', ?)",
+      )
+      .run(pointOfSale, reading);
+  }
+
+  it("has no point of sale while the register has no offline one", () => {
+    expect(readOfflineSeries(database, "credit_note_c")).toEqual({
+      pointOfSale: null,
+      blocksInAssignmentOrder: [],
+      localLastUsed: null,
+      taxAuthorityLastAuthorized: null,
+      highestSyncedNumber: null,
+      clockMark: null,
+    });
+  });
+
+  it("knows no count of the tax authority until the cloud delivers one", () => {
+    insertOfflinePointOfSale(database, OFFLINE_POINT_OF_SALE, 100);
+
+    expect(readOfflineSeries(database, "credit_note_c")).toMatchObject({
+      pointOfSale: OFFLINE_POINT_OF_SALE,
+      taxAuthorityLastAuthorized: null,
+      highestSyncedNumber: null,
+    });
+  });
+
+  it("reads its own blocks, count, last used number and clock mark, never those of the invoice series", () => {
+    insertOfflinePointOfSale(database, OFFLINE_POINT_OF_SALE, 100);
+    insertOfflineCreditNoteSeriesCount(database, OFFLINE_POINT_OF_SALE, 40, 42);
+    insertOfflineNumberBlock(database, "invoice-block", 101, 200, OFFLINE_POINT_OF_SALE);
+    insertOfflineNumberBlock(
+      database,
+      "note-block-2",
+      1001,
+      2000,
+      OFFLINE_POINT_OF_SALE,
+      "credit_note_c",
+    );
+    insertOfflineNumberBlock(
+      database,
+      "note-block-1",
+      41,
+      1000,
+      OFFLINE_POINT_OF_SALE,
+      "credit_note_c",
+    );
+    insertCompletedSale(database, "sale-1");
+    insertCompletedSale(database, "sale-2");
+    insertOfflineFiscalDocument(database, { id: "offline-1", saleId: "sale-1", number: 150 });
+    insertOfflineCreditNote(database, { id: "offline-note-1", saleId: "sale-1", number: 43 });
+    insertOfflineCreditNote(database, {
+      id: "offline-note-2",
+      saleId: "sale-2",
+      creditNoteId: "note-2",
+      number: 44,
+    });
+    markClock(OFFLINE_POINT_OF_SALE, "2026-09-30T13:00:00.000Z");
+    markCreditNoteClock(OFFLINE_POINT_OF_SALE, "2026-09-30T12:30:00.000Z");
+
+    expect(readOfflineSeries(database, "credit_note_c")).toEqual({
+      pointOfSale: OFFLINE_POINT_OF_SALE,
+      blocksInAssignmentOrder: [
+        { firstNumber: 41, lastNumber: 1000 },
+        { firstNumber: 1001, lastNumber: 2000 },
+      ],
+      localLastUsed: 44,
+      taxAuthorityLastAuthorized: 40,
+      highestSyncedNumber: 42,
+      clockMark: new Date("2026-09-30T12:30:00.000Z"),
+    });
+  });
+
+  it("leaves the invoice series as it was beside the credit notes", () => {
+    insertOfflinePointOfSale(database, OFFLINE_POINT_OF_SALE, 100);
+    insertOfflineNumberBlock(database, "invoice-block", 101, 200, OFFLINE_POINT_OF_SALE);
+    insertCompletedSale(database, "sale-1");
+    insertOfflineFiscalDocument(database, { id: "offline-1", saleId: "sale-1", number: 150 });
+    insertOfflineCreditNote(database, { id: "offline-note-1", saleId: "sale-1", number: 160 });
+
+    expect(readOfflineSeries(database)).toMatchObject({
+      blocksInAssignmentOrder: [{ firstNumber: 101, lastNumber: 200 }],
+      localLastUsed: 150,
+      clockMark: null,
     });
   });
 });

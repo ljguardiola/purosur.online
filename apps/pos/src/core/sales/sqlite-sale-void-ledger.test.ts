@@ -10,11 +10,17 @@ import {
   voidSale,
 } from "@purosur/domain/sales/use-cases";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { readSaleInvoices } from "../fiscal/sqlite-sale-invoices";
 import {
   insertFiscalDocument,
   insertHealthCheck,
+  insertOfflineAuthorizationCode,
+  insertOfflineCreditNoteSeriesCount,
   insertOfflineFiscalDocument,
+  insertOfflineNumberBlock,
   insertOfflinePointOfSale,
+  OFFLINE_CODE,
+  OFFLINE_POINT_OF_SALE,
 } from "../fiscal/test-support/real-time-authorization-database";
 import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
@@ -618,5 +624,163 @@ describe("voiding a sale", () => {
     expect(() =>
       voidLedger().transaction((tx) => tx.cancelDeferredSale(saleId, VOIDED_AT)),
     ).toThrow();
+  });
+});
+
+describe("the credit note of a sale voided without a connection", () => {
+  function invoicedSaleWithOfflineCreditNoteSeries(): string {
+    const saleId = sellTwo();
+    payCash(saleId, 3000);
+    insertFiscalDocument(database, { saleId, state: "AUTHORIZED", pointOfSale: 12, number: 41 });
+    insertOfflinePointOfSale(database, OFFLINE_POINT_OF_SALE, 100);
+    insertOfflineCreditNoteSeriesCount(database, OFFLINE_POINT_OF_SALE, 40);
+    insertOfflineNumberBlock(
+      database,
+      "note-block",
+      41,
+      1040,
+      OFFLINE_POINT_OF_SALE,
+      "credit_note_c",
+    );
+    insertOfflineAuthorizationCode(database);
+    return saleId;
+  }
+
+  it("is issued under the fortnight's code, numbered in the credit note series of the offline point of sale", async () => {
+    const saleId = invoicedSaleWithOfflineCreditNoteSeries();
+
+    const outcome = await voidIt(saleId);
+
+    expect(outcome).toMatchObject({ kind: "voided", creditNoteIssuedOffline: true });
+    expect(
+      database
+        .prepare(
+          `SELECT sale_id, point_of_sale, document_type, number, issued_on, generated_at,
+                  offline_authorization_code, fortnight_start, fortnight_end, buyer_document_type,
+                  cause, corrected_voucher_type, corrected_point_of_sale, corrected_number
+           FROM offline_fiscal_documents WHERE document_type = 'credit_note_c'`,
+        )
+        .all(),
+    ).toEqual([
+      {
+        sale_id: saleId,
+        point_of_sale: OFFLINE_POINT_OF_SALE,
+        document_type: "credit_note_c",
+        number: 41,
+        issued_on: "2026-09-30",
+        generated_at: VOIDED_AT.toISOString(),
+        offline_authorization_code: OFFLINE_CODE,
+        fortnight_start: "2026-09-16",
+        fortnight_end: "2026-09-30",
+        buyer_document_type: 99,
+        cause: "no_connectivity",
+        corrected_voucher_type: 11,
+        corrected_point_of_sale: 12,
+        corrected_number: 41,
+      },
+    ]);
+  });
+
+  it("is recorded as issued offline, answered with the document that carries its number", async () => {
+    const saleId = invoicedSaleWithOfflineCreditNoteSeries();
+
+    await voidIt(saleId);
+
+    expect(
+      database
+        .prepare(
+          `SELECT notes.state, notes.answered_at, notes.offline_fiscal_document_id = documents.id AS carried
+           FROM sale_void_credit_notes AS notes
+           JOIN offline_fiscal_documents AS documents ON documents.credit_note_id = notes.id`,
+        )
+        .all(),
+    ).toEqual([{ state: "ISSUED_OFFLINE", answered_at: VOIDED_AT.toISOString(), carried: 1 }]);
+  });
+
+  it("appends the voiding and then the report event of the credit note, in version 3", async () => {
+    const saleId = invoicedSaleWithOfflineCreditNoteSeries();
+
+    await voidIt(saleId);
+
+    expect(
+      database
+        .prepare(
+          `SELECT event_type, schema_version FROM outbox
+           WHERE event_type IN ('sale_voided', 'offline_fiscal_document_issued')
+           ORDER BY device_seq`,
+        )
+        .all(),
+    ).toEqual([
+      { event_type: "sale_voided", schema_version: 3 },
+      { event_type: "offline_fiscal_document_issued", schema_version: 3 },
+    ]);
+  });
+
+  it("raises the clock mark of the credit note series to the moment of the void", async () => {
+    const saleId = invoicedSaleWithOfflineCreditNoteSeries();
+
+    await voidIt(saleId);
+
+    expect(
+      database
+        .prepare("SELECT point_of_sale, document_type, reading FROM register_clock_marks")
+        .all(),
+    ).toEqual([
+      {
+        point_of_sale: OFFLINE_POINT_OF_SALE,
+        document_type: "credit_note_c",
+        reading: VOIDED_AT.toISOString(),
+      },
+    ]);
+  });
+
+  it("is never listed among the invoices of the sale", async () => {
+    const saleId = invoicedSaleWithOfflineCreditNoteSeries();
+    insertOfflineFiscalDocument(database, { id: "offline-invoice", saleId, number: 101 });
+
+    await voidIt(saleId);
+
+    expect(
+      readSaleInvoices(database, saleId).map(({ origin, number }) => [origin, number]),
+    ).toEqual([
+      ["real_time", 41],
+      ["offline", 101],
+    ]);
+  });
+
+  it("is left in progress for the cloud while the series holds no number block", async () => {
+    const saleId = invoicedSaleWithOfflineCreditNoteSeries();
+    database.exec("DELETE FROM offline_number_blocks");
+
+    const outcome = await voidIt(saleId);
+
+    expect(outcome).toMatchObject({ kind: "voided", creditNoteIssuedOffline: false });
+    expect(database.prepare("SELECT state FROM sale_void_credit_notes").all()).toEqual([
+      { state: "IN_PROGRESS" },
+    ]);
+    expect(
+      database.prepare("SELECT count(*) AS total FROM offline_fiscal_documents").get(),
+    ).toEqual({ total: 0 });
+  });
+
+  it("is left out when the void is rolled back", async () => {
+    const saleId = invoicedSaleWithOfflineCreditNoteSeries();
+    database.exec(
+      `CREATE TRIGGER refuse_credit_note_events BEFORE INSERT ON outbox
+       WHEN NEW.event_type = 'offline_fiscal_document_issued'
+       BEGIN SELECT RAISE(ABORT, 'outbox refused'); END`,
+    );
+
+    await expect(voidIt(saleId)).rejects.toThrow("outbox refused");
+
+    expect(
+      database.prepare("SELECT count(*) AS total FROM offline_fiscal_documents").get(),
+    ).toEqual({ total: 0 });
+    expect(database.prepare("SELECT count(*) AS total FROM sale_void_credit_notes").get()).toEqual({
+      total: 0,
+    });
+    expect(database.prepare("SELECT state FROM sales WHERE id = ?").get(saleId)).toEqual({
+      state: "COMPLETED",
+    });
   });
 });

@@ -309,7 +309,11 @@ describe("the detail of a sale of the history", () => {
         line_count: 1,
         payments: [{ method: "CASH", amount: 3000 }],
         state: "completed",
-        voidability: { kind: "not_voidable", refusal: "invoice_needs_connection" },
+        voidability: {
+          kind: "voidable",
+          refunds: [{ method: "CASH", amount: 3000, state: "APPROVED", sent_by_cloud: false }],
+          credit_note_corrects: { voucher_type: 11, point_of_sale: 3, number: 1204 },
+        },
         void_authorization_required: true,
         credit_note: null,
         reprint: { kind: "available" },

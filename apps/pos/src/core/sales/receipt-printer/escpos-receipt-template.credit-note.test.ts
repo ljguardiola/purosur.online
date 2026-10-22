@@ -1,4 +1,8 @@
-import type { CreditNoteCFiscalBlock, CreditNoteReceiptContent } from "@purosur/domain";
+import type {
+  CreditNoteCFiscalBlock,
+  CreditNoteReceiptContent,
+  OfflineCreditNoteCFiscalBlock,
+} from "@purosur/domain";
 import {
   FICTIONAL_CUIT,
   FICTIONAL_GROSS_INCOME_REGISTRATION,
@@ -237,5 +241,35 @@ describe("the ESC/POS credit note of a voided sale", () => {
       ...stored.head,
       ...stored.body,
     ]);
+  });
+
+  describe("issued under the fortnight's contingency code", () => {
+    const { authorizationCodeDueOn: _dueOn, ...issued } = FISCAL_BLOCK;
+    const OFFLINE_BLOCK: OfflineCreditNoteCFiscalBlock = {
+      ...issued,
+      authorizationCode: "71234567890123",
+      fortnight: { start: "2026-10-01", end: "2026-10-15" },
+    };
+
+    it("names the credit note, the invoice it corrects, the code and the fortnight, and prints the QR", () => {
+      const { textLines } = printed(creditNote({ fiscal: OFFLINE_BLOCK }));
+
+      expect(textLines).toContain("[bold]               NOTA DE CRÉDITO C[/bold]");
+      expect(textLines).toContain("Asociada a Factura C              00012-00000123");
+      expect(textLines).toContain(`[qr store ${QR_TEXT}]`);
+      expect(textLines).toContain(
+        "[small]       CAEA 71234567890123  ·  Quincena 1 al 15/10/2026[/small]",
+      );
+      expect(textLines.some((line) => line.includes("CAE 7"))).toBe(false);
+    });
+
+    it("lays out the rest as the credit note authorized by the tax authority", () => {
+      const offline = printed(creditNote({ fiscal: OFFLINE_BLOCK })).textLines;
+      const online = printed(creditNote()).textLines;
+
+      expect(offline.filter((line) => !line.includes("CAE"))).toEqual(
+        online.filter((line) => !line.includes("CAE")),
+      );
+    });
   });
 });
