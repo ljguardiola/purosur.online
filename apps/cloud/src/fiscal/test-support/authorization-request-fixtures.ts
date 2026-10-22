@@ -89,7 +89,7 @@ export async function insertSaleOfRegister<TQueryResult extends PgQueryResultHKT
   db: PgDatabase<TQueryResult>,
   registerId: string,
   saleId: string,
-  state: "COMPLETED" | "CANCELLED" = "COMPLETED",
+  state: "COMPLETED" | "CANCELLED" | "VOIDED" = "COMPLETED",
 ): Promise<void> {
   const [installed] = await db
     .select({ id: registerInstallations.id })
@@ -115,8 +115,9 @@ export async function insertSaleOfRegister<TQueryResult extends PgQueryResultHKT
     sessionId,
     actorId,
     state,
-    completedAt: state === "COMPLETED" ? RECEIVED_AT : null,
+    completedAt: state === "CANCELLED" ? null : RECEIVED_AT,
     cancelledAt: state === "CANCELLED" ? RECEIVED_AT : null,
+    voidedAt: state === "VOIDED" ? RECEIVED_AT : null,
     total: 1500,
     appliedAt: RECEIVED_AT,
   });

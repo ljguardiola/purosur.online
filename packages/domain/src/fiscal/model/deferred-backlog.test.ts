@@ -67,6 +67,21 @@ describe("latestIssuedOn", () => {
     expect(latestIssuedOn("2026-10-10", "2026-10-12")).toBe("2026-10-12");
     expect(latestIssuedOn("2026-10-12", "2026-10-10")).toBe("2026-10-12");
   });
+
+  it("is always one of the two days it is given, the later as written", () => {
+    fc.assert(
+      fc.property(
+        fc.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+        fc.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+        (a, b) => {
+          const later = latestIssuedOn(a, b);
+          expect([a, b]).toContain(later);
+          expect([a, b, later].sort()[2]).toBe(later);
+        },
+      ),
+    );
+    expect(latestIssuedOn("2026-02-30", "2026-02-27")).toBe("2026-02-30");
+  });
 });
 
 describe("isInDeferredBacklog", () => {
@@ -141,12 +156,25 @@ describe("nextDeferredBacklogStep", () => {
     });
   });
 
-  it("breaks a full tie by deferred sale id", () => {
+  it("breaks a full tie by deferred sale id, in either order given", () => {
     const first = entry({ deferredSaleId: "a" });
     const second = entry({ deferredSaleId: "b" });
     expect(nextDeferredBacklogStep([second, first], now, null)).toEqual({
       kind: "invoice",
       entry: first,
+    });
+    expect(nextDeferredBacklogStep([first, second], now, null)).toEqual({
+      kind: "invoice",
+      entry: first,
+    });
+  });
+
+  it("orders deferred sale ids of a full tie by their code units, as storage does", () => {
+    const upper = entry({ deferredSaleId: "B" });
+    const lower = entry({ deferredSaleId: "a" });
+    expect(nextDeferredBacklogStep([lower, upper], now, null)).toEqual({
+      kind: "invoice",
+      entry: upper,
     });
   });
 

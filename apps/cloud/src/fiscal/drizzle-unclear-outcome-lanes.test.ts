@@ -15,7 +15,6 @@ import {
 import {
   authorizationRequestRecord,
   insertRegisterWithPointOfSale,
-  insertSaleOfRegister,
   RECEIVED_AT,
 } from "./test-support/authorization-request-fixtures.js";
 import { insertOfflineFiscalDocument } from "./test-support/offline-fiscal-document-fixtures.js";
@@ -587,46 +586,6 @@ describe("DrizzleUnclearOutcomeLanes", () => {
       ]);
 
       expect(answers).toEqual([true, false, false]);
-    });
-  });
-
-  describe("whether the cloud holds the completion of a sale", () => {
-    it("does for a completed sale of the register", async () => {
-      const registerId = await insertRegisterWithPointOfSale(db, {
-        pointOfSaleNumber: 7,
-        name: "caja-1",
-      });
-      const saleId = crypto.randomUUID();
-      await insertSaleOfRegister(db, registerId, saleId);
-
-      const holds = await unclearLanes.inPointOfSaleLane(7, (lane) =>
-        lane.holdsSaleCompletion(registerId, saleId),
-      );
-
-      expect(holds).toBe(true);
-    });
-
-    it("does not for a sale the cloud never received, another register's sale, nor a cancelled sale", async () => {
-      const registerId = await insertRegisterWithPointOfSale(db, {
-        pointOfSaleNumber: 7,
-        name: "caja-1",
-      });
-      const otherRegisterId = await insertRegisterWithPointOfSale(db, {
-        pointOfSaleNumber: 8,
-        name: "caja-2",
-      });
-      const othersSaleId = crypto.randomUUID();
-      const cancelledSaleId = crypto.randomUUID();
-      await insertSaleOfRegister(db, otherRegisterId, othersSaleId);
-      await insertSaleOfRegister(db, registerId, cancelledSaleId, "CANCELLED");
-
-      const answers = await unclearLanes.inPointOfSaleLane(7, async (lane) => [
-        await lane.holdsSaleCompletion(registerId, crypto.randomUUID()),
-        await lane.holdsSaleCompletion(registerId, othersSaleId),
-        await lane.holdsSaleCompletion(registerId, cancelledSaleId),
-      ]);
-
-      expect(answers).toEqual([false, false, false]);
     });
   });
 

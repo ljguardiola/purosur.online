@@ -243,6 +243,7 @@ describe("GET /changes carrying the register's own point of sale", () => {
         diagnosis: { kind: "collision" },
         diagnosedAt: NOW,
         freeze: { countBeforeFreeze: 41, frozenAt: NOW },
+        taxAuthorityCount: null,
       }),
     );
 
@@ -288,6 +289,7 @@ describe("GET /changes carrying the register's own point of sale", () => {
         diagnosis: { kind: "collision" },
         diagnosedAt: NOW,
         freeze: { countBeforeFreeze: 41, frozenAt: NOW },
+        taxAuthorityCount: null,
       }),
     );
 

@@ -931,6 +931,7 @@ describe("catching up the deferred sales, as the register's health is checked", 
     answers: { unclear?: () => Promise<Response>; authorize?: () => Promise<Response> } = {},
     failures: unknown[] = [],
     readOutboxChainKey: () => Promise<string | undefined> = async () => CHAIN_KEY,
+    afterCheck: () => void = () => undefined,
   ) {
     const { cloud, sent } = cloudAnswering(async (path) => {
       if (path === UNCLEAR_PATH) {
@@ -954,6 +955,7 @@ describe("catching up the deferred sales, as the register's health is checked", 
       ...scriptedDeferrals(),
       readOutboxChainKey,
       reportFailure: (error) => failures.push(error),
+      afterCheck,
     });
     async function tick(): Promise<void> {
       const before = scheduled.length;
@@ -1032,5 +1034,30 @@ describe("catching up the deferred sales, as the register's health is checked", 
     await tick();
 
     expect(failures).toHaveLength(1);
+  });
+
+  it("reports a failure to read the outbox chain key and catches nothing up, still settling the unclear documents and telling what follows", async () => {
+    insertCompletedSale(database, "sale-9");
+    insertSaleCompletedEvent(database, "sale-9");
+    insertFiscalDocument(database, { id: "doc-9", saleId: "sale-9", number: 99, state: "UNKNOWN" });
+    addPendingSale(1);
+    const failures: unknown[] = [];
+    const keyUnreadable = new Error("the credentials could not be read");
+    const afterCheck = vi.fn();
+    const { sent, tick } = ticking(
+      {},
+      failures,
+      async () => {
+        throw keyUnreadable;
+      },
+      afterCheck,
+    );
+
+    await tick();
+
+    expect(failures).toEqual([keyUnreadable]);
+    expect(sent.map(({ path }) => path)).toEqual(["/api/health", UNCLEAR_PATH]);
+    expect(afterCheck).toHaveBeenCalledTimes(1);
+    expect(documents()).toEqual([{ sale_id: "sale-9", number: 99, state: "UNKNOWN" }]);
   });
 });

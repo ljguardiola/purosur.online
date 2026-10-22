@@ -11,10 +11,11 @@ import {
   type TaxAuthorityInvoicing,
   type WsaaTokenSource,
 } from "../fiscal-document-authorization-ports.js";
+import type { SaleCompletions } from "../sale-completion-ports.js";
 import type { LastAuthorizedCount } from "../tax-authority-count-ports.js";
 import type { WsaaToken } from "../wsaa-token-ports.js";
 
-export class FakePointOfSaleLanes implements PointOfSaleLanes {
+export class FakePointOfSaleLanes implements PointOfSaleLanes, SaleCompletions {
   readonly operations: string[] = [];
   readonly requests = new Map<string, AuthorizationRequestRecord>();
   readonly answers = new Map<string, RealTimeAuthorizationAnswer>();
@@ -59,7 +60,8 @@ export class FakePointOfSaleLanes implements PointOfSaleLanes {
     this.heldSales.add(`${registerId}/${saleId}`);
   }
 
-  holdsSaleCompletion(registerId: string, saleId: string): boolean {
+  async holdsCompletionOf(registerId: string, saleId: string): Promise<boolean> {
+    this.operations.push("holdsSaleCompletion");
     return this.heldSales.has(`${registerId}/${saleId}`);
   }
 
@@ -78,11 +80,6 @@ class FakeLane implements PointOfSaleLane {
   async registerOwnsPointOfSale(registerId: string, pointOfSale: number): Promise<boolean> {
     this.lanes.operations.push("registerOwnsPointOfSale");
     return this.lanes.ownerOf(pointOfSale) === registerId;
-  }
-
-  async holdsSaleCompletion(registerId: string, saleId: string): Promise<boolean> {
-    this.lanes.operations.push("holdsSaleCompletion");
-    return this.lanes.holdsSaleCompletion(registerId, saleId);
   }
 
   async recordedRequest(

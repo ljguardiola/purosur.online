@@ -48,7 +48,7 @@ const TOKEN = {
 function setup() {
   const documents = new FakePointOfSaleLanes([[12, REGISTER_ID]]);
   const store = new FakeUnclearOutcomeStore(documents);
-  const ports = { lanes: store, clock: new ManualClock(NOW) };
+  const ports = { lanes: store, saleCompletions: documents, clock: new ManualClock(NOW) };
   return { documents, store, ports };
 }
 
@@ -93,6 +93,7 @@ describe("askAboutUnclearOutcome", () => {
     const outcome = await authorizeFiscalDocument(
       {
         lanes: documents,
+        saleCompletions: documents,
         clock: ports.clock,
         tokens: new FakeWsaaTokenSource(documents, TOKEN),
         taxAuthority,

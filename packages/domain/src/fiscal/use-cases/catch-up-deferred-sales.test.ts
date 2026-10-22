@@ -251,6 +251,20 @@ describe("catching up the deferred sales", () => {
     expect(register.reservations.map(({ saleId }) => saleId)).toEqual(["sale-3"]);
   });
 
+  it("drops a sale waiting to be retried once the series reached a later day, and invoices the next one", async () => {
+    const attemptEndedAt = new Date(NOW.getTime() - 60_000);
+    const { register, outcome } = catchUp({
+      series: { ...state().series, taxAuthorityLastIssuedOn: "2026-10-02" },
+      backlog: [
+        sale("sale-1", "2026-10-01T14:00:00.000Z", { lastAttemptEndedAt: attemptEndedAt }),
+        THIRD,
+      ],
+    });
+
+    expect(await outcome).toEqual({ kind: "completed", invoiced: ["sale-3"] });
+    expect(register.reservations.map(({ saleId }) => saleId)).toEqual(["sale-3"]);
+  });
+
   describe("stops, reserving nothing, when", () => {
     it.each([
       [

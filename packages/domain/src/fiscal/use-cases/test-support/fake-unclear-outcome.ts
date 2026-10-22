@@ -146,11 +146,6 @@ class FakeUnclearOutcomeLane implements UnclearOutcomeLane {
     return this.store.documents.ownerOf(pointOfSale) === registerId;
   }
 
-  async holdsSaleCompletion(registerId: string, saleId: string): Promise<boolean> {
-    this.store.documents.operations.push("holdsSaleCompletion");
-    return this.store.documents.holdsSaleCompletion(registerId, saleId);
-  }
-
   async recordedRequest(
     registerId: string,
     fiscalDocumentId: string,

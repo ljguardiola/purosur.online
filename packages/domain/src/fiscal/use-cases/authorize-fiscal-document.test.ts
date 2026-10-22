@@ -116,7 +116,7 @@ function authorize({
     clock.advanceBy(ANSWER_DELAY_MS),
   );
   const outcome = authorizeFiscalDocument(
-    { lanes, clock, tokens, taxAuthority },
+    { lanes, saleCompletions: lanes, clock, tokens, taxAuthority },
     { registerId: REGISTER_ID, request: { ...REQUEST, ...request }, receivedAt: RECEIVED_AT },
   );
   return { lanes, taxAuthority, outcome };
