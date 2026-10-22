@@ -337,10 +337,29 @@ describe("requestRealTimeAuthorization for a sale that already has a deferred re
           pointOfSale: 12,
           number: 41,
           issuedOn: "2026-10-01",
+          document: DOCUMENT,
+          authorizationCode: "75123456789012",
+          authorizationCodeDueOn: "2026-10-11",
+          reservedAt: RESERVED_AT,
           satisfiedAt: new Date(START.getTime() + ANSWER_DELAY_MS),
         }),
       },
     ]);
+  });
+
+  it("carries in the report everything a restored register needs to rebuild the authorized document", async () => {
+    const { documents, outcome } = request({
+      answer: AUTHORIZED,
+      existingDeferredSale: EXISTING,
+    });
+    await outcome;
+
+    expect(documents.resolutions[0]?.deferredSaleSatisfied?.payload).toMatchObject({
+      authorization_code: "75123456789012",
+      authorization_code_due_on: "2026-10-11",
+      reserved_at: RESERVED_AT.toISOString(),
+      document: { invoice_class: "C", total: 12_500 },
+    });
   });
 
   it.each([

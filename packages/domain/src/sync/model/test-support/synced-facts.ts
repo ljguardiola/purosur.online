@@ -1,3 +1,8 @@
+import {
+  FICTIONAL_CUIT,
+  FICTIONAL_GROSS_INCOME_REGISTRATION,
+  FICTIONAL_LEGAL_NAME,
+} from "@purosur/domain/fiscal/test-support";
 import type { SyncedFact } from "../synced-fact.js";
 
 type SaleCompleted = Extract<SyncedFact, { kind: "sale_completed" }>;
@@ -257,6 +262,25 @@ export const A_DEFERRED_SALE_SATISFIED_FACT: SyncedFact = {
     pointOfSale: 7,
     number: 42,
     issuedOn: "2026-10-07",
+    document: {
+      invoiceClass: "C",
+      total: 12_500,
+      netAmount: 12_500,
+      vatAmount: 0,
+      issuer: {
+        legalName: FICTIONAL_LEGAL_NAME,
+        cuit: FICTIONAL_CUIT,
+        taxStatus: "MONOTRIBUTO",
+        grossIncomeRegistration: FICTIONAL_GROSS_INCOME_REGISTRATION,
+        activityStartDate: "2020-01-01",
+        version: 3,
+      },
+      buyerTaxStatusCode: 5,
+      buyerTaxStatusDescription: "Consumidor Final",
+    },
+    authorizationCode: "75123456789012",
+    authorizationCodeDueOn: "2026-10-17",
+    reservedAt: new Date("2026-10-09T09:59:58.000Z"),
     satisfiedAt: new Date("2026-10-09T10:00:00.000Z"),
   },
 };

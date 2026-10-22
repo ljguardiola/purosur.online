@@ -32,6 +32,10 @@ function recordedPayload(eventType: string, schemaVersion: number, index = 0): P
   return structuredClone(matching[index]?.["payload"] as Payload);
 }
 
+function invoiceOf(payload: Payload): Payload {
+  return payload["document"] as Payload;
+}
+
 function accepts(eventType: string, schemaVersion: number, payload: unknown): boolean {
   const key = syncedEventPayloadKey(eventType, schemaVersion);
   return key !== undefined && syncedEventPayloadSchema(key).safeParse(payload).success;
@@ -458,6 +462,25 @@ describe("synced event payloads", () => {
       pointOfSale: 7,
       number: 42,
       issuedOn: "2026-10-06",
+      document: {
+        invoiceClass: "C",
+        total: 12_500,
+        netAmount: 12_500,
+        vatAmount: 0,
+        issuer: {
+          legalName: FICTIONAL_LEGAL_NAME,
+          cuit: FICTIONAL_CUIT,
+          taxStatus: "MONOTRIBUTO",
+          grossIncomeRegistration: FICTIONAL_GROSS_INCOME_REGISTRATION,
+          activityStartDate: "2020-01-01",
+          version: 3,
+        },
+        buyerTaxStatusCode: 5,
+        buyerTaxStatusDescription: "Consumidor Final",
+      },
+      authorizationCode: "75123456789012",
+      authorizationCodeDueOn: "2026-10-16",
+      reservedAt: new Date("2026-10-08T14:59:58.000Z"),
       satisfiedAt: new Date("2026-10-08T15:00:00.000Z"),
     });
 
@@ -472,6 +495,14 @@ describe("synced event payloads", () => {
       ["a number of zero", { number: 0 }],
       ["a fractional number", { number: 1.5 }],
       ["an empty document id", { fiscal_document_id: "" }],
+      ["an empty authorization code", { authorization_code: "" }],
+      ["a due date that is not a calendar day", { authorization_code_due_on: "2026-13-01" }],
+      ["a reservation instant that is not ISO", { reserved_at: "yesterday" }],
+      [
+        "an invoice that is not class C",
+        { document: { ...invoiceOf(satisfied), invoice_class: "A" } },
+      ],
+      ["an invoice with a negative total", { document: { ...invoiceOf(satisfied), total: -1 } }],
     ])("refuses %s", (_case, change) => {
       expect(accepts("deferred_sale_satisfied", 1, { ...satisfied, ...change })).toBe(false);
     });

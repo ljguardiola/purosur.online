@@ -3,6 +3,7 @@ import type { DeferredBacklogEntry } from "../model/deferred-backlog.js";
 import { DEFERRED_BACKLOG_RETRY_INTERVAL_MS } from "../model/deferred-backlog.js";
 import { deferredSaleSatisfiedEvent } from "../model/deferred-sale-satisfied-event.js";
 import { FACTURA_C_DOCUMENT_TYPE } from "../model/fiscal-rejection-standing.js";
+import type { FacturaC } from "../model/pre-emission-gate.js";
 import type { RealTimeAuthorizationAnswer } from "../model/real-time-authorization.js";
 import {
   FICTIONAL_CUIT,
@@ -28,6 +29,23 @@ const AUTHORIZED: RealTimeAuthorizationAnswer = {
   kind: "authorized",
   authorizationCode: "75123456789012",
   authorizationCodeDueOn: "2026-10-13",
+};
+const HELD_RESERVED_AT = new Date("2026-10-01T14:00:05.000Z");
+const HELD_INVOICE: FacturaC = {
+  invoiceClass: "C",
+  total: 1_000,
+  netAmount: 1_000,
+  vatAmount: 0,
+  issuer: {
+    legalName: FICTIONAL_LEGAL_NAME,
+    cuit: FICTIONAL_CUIT,
+    taxStatus: "MONOTRIBUTO",
+    grossIncomeRegistration: FICTIONAL_GROSS_INCOME_REGISTRATION,
+    activityStartDate: "2020-01-01",
+    version: 3,
+  },
+  buyerTaxStatusCode: 5,
+  buyerTaxStatusDescription: "Consumidor Final",
 };
 const REJECTED: RealTimeAuthorizationAnswer = {
   kind: "rejected",
@@ -374,6 +392,10 @@ describe("catching up the deferred sales", () => {
       pointOfSale: 12,
       number: 99,
       issuedOn: "2026-10-01",
+      document: HELD_INVOICE,
+      authorizationCode: "75123456789012",
+      authorizationCodeDueOn: "2026-10-11",
+      reservedAt: HELD_RESERVED_AT,
     };
     const { register, outcome } = catchUp({
       backlog: [SECOND],
@@ -395,6 +417,10 @@ describe("catching up the deferred sales", () => {
           pointOfSale: 12,
           number: 99,
           issuedOn: "2026-10-01",
+          document: HELD_INVOICE,
+          authorizationCode: "75123456789012",
+          authorizationCodeDueOn: "2026-10-11",
+          reservedAt: HELD_RESERVED_AT,
           satisfiedAt: NOW,
         }),
       },
@@ -411,6 +437,10 @@ describe("catching up the deferred sales", () => {
       pointOfSale: 12,
       number: 99,
       issuedOn: "2026-10-01",
+      document: HELD_INVOICE,
+      authorizationCode: "75123456789012",
+      authorizationCodeDueOn: "2026-10-11",
+      reservedAt: HELD_RESERVED_AT,
     };
     const { register, outcome } = catchUp({
       backlog: [],
@@ -430,8 +460,24 @@ describe("catching up the deferred sales", () => {
     expect(
       register.resolutions.map(({ deferredSaleSatisfied }) => deferredSaleSatisfied?.payload),
     ).toEqual([
-      expect.objectContaining({ id: "deferred-of-sale-1", sale_id: "sale-1", number: 101 }),
-      expect.objectContaining({ id: "deferred-of-sale-2", sale_id: "sale-2", number: 102 }),
+      expect.objectContaining({
+        id: "deferred-of-sale-1",
+        sale_id: "sale-1",
+        number: 101,
+        authorization_code: "75123456789012",
+        authorization_code_due_on: "2026-10-13",
+        reserved_at: NOW.toISOString(),
+        document: expect.objectContaining({ invoice_class: "C", total: 1_000 }),
+      }),
+      expect.objectContaining({
+        id: "deferred-of-sale-2",
+        sale_id: "sale-2",
+        number: 102,
+        authorization_code: "75123456789012",
+        authorization_code_due_on: "2026-10-13",
+        reserved_at: NOW.toISOString(),
+        document: expect.objectContaining({ invoice_class: "C", total: 1_000 }),
+      }),
     ]);
   });
 });

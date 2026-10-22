@@ -54,6 +54,7 @@ function saleEvent(saleId: string): PushedEvent {
 }
 
 const ORIGIN = { registerId: "register-1", actorId: "cashier" };
+const RESERVED_AT = new Date("2026-10-01T11:59:58.000Z");
 
 function unclear(
   index: number,
@@ -69,12 +70,18 @@ function unclear(
     number: 40 + index,
     issuedOn: "2026-10-01",
     document: DOCUMENT,
+    reservedAt: RESERVED_AT,
     saleEvent: withEvent ? saleEvent(`sale-${index}`) : null,
   };
 }
 
 function question(index: number) {
-  const { origin: _origin, deferredSale: _deferredSale, ...document } = unclear(index);
+  const {
+    origin: _origin,
+    deferredSale: _deferredSale,
+    reservedAt: _reservedAt,
+    ...document
+  } = unclear(index);
   return document;
 }
 
@@ -282,9 +289,28 @@ describe("applying a decision to a document whose sale already has a deferred re
         pointOfSale: 12,
         number: 41,
         issuedOn: "2026-10-01",
+        document: DOCUMENT,
+        authorizationCode: "75123456789012",
+        authorizationCodeDueOn: "2026-10-11",
+        reservedAt: RESERVED_AT,
         satisfiedAt: NOW,
       }),
     ]);
+  });
+
+  it("carries in the report everything a restored register needs to rebuild the authorized document", async () => {
+    const { store, outcome } = apply([unclear(1, true, { id: "deferred-1" })], {
+      "doc-1": ADOPTED,
+    });
+
+    await outcome;
+
+    expect(store.settlements[0]?.deferredSaleSatisfied?.payload).toMatchObject({
+      authorization_code: "75123456789012",
+      authorization_code_due_on: "2026-10-11",
+      reserved_at: RESERVED_AT.toISOString(),
+      document: { invoice_class: "C", total: 12_500 },
+    });
   });
 
   it.each<[string, UnclearOutcomeAnswer]>([
