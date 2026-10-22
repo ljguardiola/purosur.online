@@ -1,3 +1,4 @@
+import type { VoucherReference } from "../../../fiscal/index.js";
 import type { MercadoPagoOrderTransaction } from "../../../payments/index.js";
 import type { CompletedSale } from "../../../sales/index.js";
 import type { EventInvariantBreaks } from "../../model/event-invariant-breaks.js";
@@ -34,6 +35,9 @@ export interface FakeEventApplicationState {
   invariantBreaks: EventInvariantBreaks[];
   releases: QuarantineReleaseRecord[];
   clearedDeviceQuarantines: string[];
+  creditedVouchers: VoucherReference[];
+  voucherLocks: VoucherReference[];
+  alreadyCreditedAlerts: { voucher: VoucherReference; saleId: string; at: Date }[];
 }
 
 const keyOf = (key: AggregateKey) => `${key.aggregateType}/${key.aggregateId}`;
@@ -76,6 +80,9 @@ export class FakeEventApplication implements EventApplication {
     invariantBreaks: [],
     releases: [],
     clearedDeviceQuarantines: [],
+    creditedVouchers: [],
+    voucherLocks: [],
+    alreadyCreditedAlerts: [],
   };
   calls: string[] = [];
   transactions = 0;
@@ -169,6 +176,31 @@ export class FakeEventApplication implements EventApplication {
         if (failure !== undefined) {
           throw failure;
         }
+      },
+      lockCreditedVoucher: async (voucher) => {
+        this.state.writeOrder.push("lock voucher");
+        this.state.voucherLocks.push(voucher);
+      },
+      voucherAlreadyCredited: async (voucher, exceptOfflineDocumentId) => {
+        this.state.writeOrder.push("check voucher");
+        const same = (other: VoucherReference) =>
+          other.voucherType === voucher.voucherType &&
+          other.pointOfSale === voucher.pointOfSale &&
+          other.number === voucher.number;
+        return (
+          this.state.creditedVouchers.some(same) ||
+          this.state.recorded.some(
+            ({ fact }) =>
+              fact.kind === "offline_fiscal_document_issued" &&
+              fact.document.corrects !== undefined &&
+              fact.document.fiscalDocumentId !== exceptOfflineDocumentId &&
+              same(fact.document.corrects),
+          )
+        );
+      },
+      raiseInvoiceAlreadyCredited: async (invoice, at) => {
+        this.state.writeOrder.push("alert");
+        this.state.alreadyCreditedAlerts.push({ ...invoice, at });
       },
       applySaleStock: async (sale: CompletedSale, _movements, event) => {
         this.state.writeOrder.push("stock");
