@@ -1,3 +1,4 @@
+import { SALE_COMPLETED_EVENT_TYPE } from "@purosur/domain";
 import type {
   AuthorizationNumber,
   NumberingFreeze,
@@ -6,13 +7,16 @@ import type {
   RequestsAtNumber,
   RestoredRegisterOrphanLane,
   RestoredRegisterOrphanLanes,
+  SaleCreditNote,
   SaleDocument,
   UnrecordedSaleRequest,
 } from "@purosur/domain/fiscal/use-cases";
-import { and, asc, eq, isNull, or } from "drizzle-orm";
+import { and, asc, eq, isNull, notExists, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import {
+  creditNotes,
   fiscalRequests,
+  inbox,
   numberingFreezes,
   registerPointsOfSale,
   sales,
@@ -82,7 +86,17 @@ class DrizzleRestoredRegisterOrphanLane<TQueryResult extends PgQueryResultHKT>
         and(
           eq(fiscalRequests.pointOfSale, this.pointOfSale),
           isNull(sales.id),
-          or(eq(fiscalRequests.answerKind, "authorized"), eq(fiscalRequests.decision, "adopted")),
+          notExists(
+            this.db
+              .select({ eventId: inbox.eventId })
+              .from(inbox)
+              .where(
+                and(
+                  eq(inbox.eventType, SALE_COMPLETED_EVENT_TYPE),
+                  eq(inbox.aggregateId, sql`${fiscalRequests.saleId}::text`),
+                ),
+              ),
+          ),
         ),
       )
       .orderBy(asc(fiscalRequests.number));
@@ -94,6 +108,36 @@ class DrizzleRestoredRegisterOrphanLane<TQueryResult extends PgQueryResultHKT>
       total: request.total,
       buyerTaxStatusCode: request.buyerTaxStatusCode,
       outcome: { answer: answerOf(request), decision: decisionOf(request) },
+    }));
+  }
+
+  async creditNotesOfSale(saleId: string): Promise<SaleCreditNote[]> {
+    const rows = await this.db
+      .select({
+        associatedVoucherType: creditNotes.associatedVoucherType,
+        associatedPointOfSale: creditNotes.associatedPointOfSale,
+        associatedNumber: creditNotes.associatedNumber,
+        keptVoucherType: creditNotes.keptVoucherType,
+        keptPointOfSale: creditNotes.keptPointOfSale,
+        keptNumber: creditNotes.keptNumber,
+      })
+      .from(creditNotes)
+      .where(eq(creditNotes.saleId, saleId))
+      .orderBy(asc(creditNotes.createdAt), asc(creditNotes.id));
+    return rows.map((row) => ({
+      creditedVoucher: {
+        voucherType: row.associatedVoucherType,
+        pointOfSale: row.associatedPointOfSale,
+        number: row.associatedNumber,
+      },
+      keptVoucher:
+        row.keptVoucherType === null || row.keptPointOfSale === null || row.keptNumber === null
+          ? null
+          : {
+              voucherType: row.keptVoucherType,
+              pointOfSale: row.keptPointOfSale,
+              number: row.keptNumber,
+            },
     }));
   }
 

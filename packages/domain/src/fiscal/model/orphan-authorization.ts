@@ -115,11 +115,37 @@ export type LocalStanding =
   | { kind: "local_sale"; saleId: string; otherAuthorizedVoucher: VoucherReference | null }
   | { kind: "already_regularized" };
 
+export interface SaleCreditNote {
+  creditedVoucher: VoucherReference;
+  keptVoucher: VoucherReference | null;
+}
+
+function sameVoucher(one: VoucherReference, other: VoucherReference): boolean {
+  return (
+    one.voucherType === other.voucherType &&
+    one.pointOfSale === other.pointOfSale &&
+    one.number === other.number
+  );
+}
+
 export function localStandingOfUnrecordedSale(
-  saleId: string,
-  otherDocumentsOfSale: readonly SaleDocument[],
+  { saleId, voucher }: { saleId: string; voucher: VoucherReference },
+  {
+    otherDocuments,
+    creditNotes,
+  }: { otherDocuments: readonly SaleDocument[]; creditNotes: readonly SaleCreditNote[] },
 ): LocalStanding {
-  const otherAuthorizedVoucher = authorizedVoucherAmong(otherDocumentsOfSale);
+  if (
+    creditNotes.some(({ keptVoucher }) => keptVoucher !== null && sameVoucher(keptVoucher, voucher))
+  ) {
+    return { kind: "local_sale", saleId, otherAuthorizedVoucher: null };
+  }
+  const otherAuthorizedVoucher = authorizedVoucherAmong(
+    otherDocuments.filter(
+      (document) =>
+        !creditNotes.some(({ creditedVoucher }) => sameVoucher(creditedVoucher, document.voucher)),
+    ),
+  );
   return otherAuthorizedVoucher === null
     ? { kind: "no_local_sale" }
     : { kind: "local_sale", saleId, otherAuthorizedVoucher };

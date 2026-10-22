@@ -1,6 +1,9 @@
 import type { Clock } from "../../shared/index.js";
 import type { NumberingFreeze } from "../model/numbering-conflict.js";
-import type { RecordedAuthorizationRequest } from "../model/orphan-authorization.js";
+import type {
+  RecordedAuthorizationRequest,
+  SaleCreditNote,
+} from "../model/orphan-authorization.js";
 import type { OrphanRegularizationLane } from "./orphan-authorization-ports.js";
 import type { IdGenerator } from "./sale-authorization-ports.js";
 
@@ -11,11 +14,8 @@ export interface UnrecordedSaleRequest extends RecordedAuthorizationRequest {
 
 export interface RestoredRegisterOrphanLane extends OrphanRegularizationLane {
   numberingFreeze(): Promise<NumberingFreeze | null>;
-  /**
-   * The point of sale's authorization requests whose sale is not recorded. The adapter may leave
-   * out the ones that cannot be authorized; the domain decides which are.
-   */
   requestsWithoutRecordedSale(): Promise<UnrecordedSaleRequest[]>;
+  creditNotesOfSale(saleId: string): Promise<SaleCreditNote[]>;
 }
 
 export interface RestoredRegisterOrphanLanes {

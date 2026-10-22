@@ -25,6 +25,7 @@ export type {
   LocalRequestAtNumber,
   OrphanRegularization,
   RequestsAtNumber,
+  SaleCreditNote,
   SaleDocument,
   VoucherReference,
 } from "../model/orphan-authorization.js";

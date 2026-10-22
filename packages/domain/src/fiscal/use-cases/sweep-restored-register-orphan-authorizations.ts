@@ -1,3 +1,4 @@
+import { FACTURA_C_VOUCHER_TYPE } from "../model/factura-c-fiscal-block.js";
 import {
   decideOrphanAuthorization,
   localStandingOfUnrecordedSale,
@@ -26,16 +27,33 @@ export async function sweepRestoredRegisterOrphanAuthorizations(
         return false;
       }
       for (const request of await lane.requestsWithoutRecordedSale()) {
+        const evidence = orphanEvidenceOfRecordedRequest({ pointOfSale, request });
+        if (evidence.kind === "not_confirmed") {
+          continue;
+        }
         const atNumber = await lane.requestsAtNumber({ pointOfSale, number: request.number });
         if (atNumber.kind === "already_regularized") {
           continue;
         }
         const regularization = orphanRegularization(
           decideOrphanAuthorization({
-            evidence: orphanEvidenceOfRecordedRequest({ pointOfSale, request }),
+            evidence,
             local: localStandingOfUnrecordedSale(
-              request.saleId,
-              await lane.otherDocumentsOfSale(request.saleId, request.fiscalDocumentId),
+              {
+                saleId: request.saleId,
+                voucher: {
+                  voucherType: FACTURA_C_VOUCHER_TYPE,
+                  pointOfSale,
+                  number: request.number,
+                },
+              },
+              {
+                otherDocuments: await lane.otherDocumentsOfSale(
+                  request.saleId,
+                  request.fiscalDocumentId,
+                ),
+                creditNotes: await lane.creditNotesOfSale(request.saleId),
+              },
             ),
           }),
           { creditNoteId: ids.next(), now: clock.now() },
