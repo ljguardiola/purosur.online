@@ -1,4 +1,4 @@
-import { FISCAL_TASK_KINDS } from "@purosur/domain";
+import { ARGENTINA_TIME_ZONE, FISCAL_TASK_KINDS } from "@purosur/domain";
 import { describe, expect, expectTypeOf, it } from "vitest";
 import { type FiscalTaskItem, fiscalTaskItemSchema, fiscalTasksSchema } from "./fiscal-tasks.js";
 
@@ -61,6 +61,15 @@ describe("fiscalTasksSchema", () => {
 });
 
 describe("fiscalTaskItemSchema", () => {
+  it("marks the instants of a task as written in Argentina's time zone", () => {
+    expect(fiscalTaskItemSchema.options[2].shape.created_at.meta()).toEqual({
+      timeZone: ARGENTINA_TIME_ZONE,
+    });
+    expect(fiscalTaskItemSchema.options[2].shape.sale_occurred_at.meta()).toEqual({
+      timeZone: ARGENTINA_TIME_ZONE,
+    });
+  });
+
   it.each([
     ["an id that is not a UUID", { id: "task-1" }],
     ["a negative time open", { open_for_seconds: -1 }],
