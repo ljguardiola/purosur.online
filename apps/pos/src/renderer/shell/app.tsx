@@ -6,6 +6,7 @@ import type {
   ChargeSaleOnStandaloneTerminalOutcome,
   CloseCashSessionOutcome,
   CloseLockedCashSessionOutcome,
+  EnrollmentStandingAnswer,
   FollowMercadoPagoChargeOutcome,
   ManualAdjustmentRequest,
   OpenCashSession,
@@ -83,18 +84,20 @@ function Register({ core }: { core: CoreClient }) {
   });
   let enrollment: Enrollment = "unknown";
   if (coreStatus === "up" && enrollmentRead.status === "loaded") {
-    enrollment = enrollmentRead.value ? "enrolled" : "not_enrolled";
+    enrollment =
+      enrollmentRead.value.kind === "revoked" ? enrollmentRead.value : enrollmentRead.value.kind;
   }
+  const holdsEnrollment = enrollment === "enrolled" || typeof enrollment === "object";
   const restoration: Restoration = useRestorationStandingQuery({
     read: () => core.restorationStanding(),
-    enabled: coreStatus === "up" && enrollment === "enrolled",
+    enabled: coreStatus === "up" && holdsEnrollment,
   });
   const [signedInPerson, setPerson] = useState<SignedInPerson>();
   const { offerSerialDevicesAfterSignIn, takeSerialDevicesOffer } = useSerialDevicesOffer();
   const startupPendingGate = useStartupPendingGate();
   const cashSession = useCashSessionQuery({
     read: () => core.cashSession(),
-    enabled: enrollment === "enrolled" && registerService === "in_service",
+    enabled: holdsEnrollment && registerService === "in_service",
   });
   const person = cashSession.status === "open" && cashSession.locked ? undefined : signedInPerson;
 
@@ -122,7 +125,9 @@ function Register({ core }: { core: CoreClient }) {
   async function enroll(typedCode: string) {
     const outcome = await core.enroll(typedCode);
     if (outcome.kind === "enrolled") {
-      await setQueryAnswer(queryClient, registerKeys.enrollment, true);
+      await setQueryAnswer<EnrollmentStandingAnswer>(queryClient, registerKeys.enrollment, {
+        kind: "enrolled",
+      });
     }
     return outcome;
   }
@@ -460,10 +465,10 @@ function Register({ core }: { core: CoreClient }) {
   }, [coreStatus, queryClient]);
 
   useEffect(() => {
-    if (enrollment !== "enrolled") {
+    if (!holdsEnrollment) {
       void queryClient.resetQueries({ queryKey: registerKeys.cashSession });
     }
-  }, [enrollment, queryClient]);
+  }, [holdsEnrollment, queryClient]);
 
   useEffect(
     () =>
@@ -508,6 +513,14 @@ function Register({ core }: { core: CoreClient }) {
     () =>
       core.onRestorationStandingChanged(() => {
         void queryClient.invalidateQueries({ queryKey: registerKeys.restorationStanding });
+      }),
+    [core, queryClient],
+  );
+
+  useEffect(
+    () =>
+      core.onEnrollmentStandingChanged(() => {
+        void queryClient.invalidateQueries({ queryKey: registerKeys.enrollment });
       }),
     [core, queryClient],
   );
