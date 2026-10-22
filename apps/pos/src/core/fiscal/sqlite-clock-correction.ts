@@ -34,6 +34,25 @@ function clockMarks(database: LocalDatabase): ClockMark[] {
     }));
 }
 
+function taxAuthorityFloor(database: LocalDatabase): TaxAuthorityFloor | null {
+  const row = database
+    .prepare<[], { point_of_sale: number; last_issued_on: string | null }>(
+      `SELECT register_point_of_sale.point_of_sale_number AS point_of_sale,
+              register_point_of_sale.tax_authority_last_authorized_issued_on AS last_issued_on
+       FROM register_point_of_sale
+       JOIN own_register ON own_register.id = register_point_of_sale.register_id
+       WHERE own_register.removed = 0`,
+    )
+    .get();
+  return row === undefined || row.last_issued_on === null
+    ? null
+    : {
+        pointOfSale: row.point_of_sale,
+        documentType: FACTURA_C_DOCUMENT_TYPE,
+        lastIssuedOn: row.last_issued_on,
+      };
+}
+
 export function cashSessionStanding(database: LocalDatabase): CashSessionStanding {
   const open = database
     .prepare<[], { id: string }>("SELECT id FROM cash_sessions WHERE state = 'OPEN'")
@@ -109,6 +128,9 @@ export class SqliteClockCorrectionLedger implements ClockCorrectionLedger {
           ?.id,
       cashSessionStanding: () => cashSessionStanding(database),
       clockMarks: () => clockMarks(database),
+      taxAuthorityFloor: () => taxAuthorityFloor(database),
+      clockCorrectionsOf: (pointOfSale, documentType) =>
+        clockCorrectionsOf(database, pointOfSale, documentType),
       clockCorrectionRecordedIn: (period) => clockCorrectionRecordedIn(database, period),
       lowerClockMark: (lowering) => lowerClockMark(database, lowering),
       recordClockCorrection: (record) => insertClockCorrection(database, record),
@@ -140,22 +162,7 @@ export class SqliteRegisterClockGuardReader implements RegisterClockGuardReader 
   }
 
   taxAuthorityFloor(): TaxAuthorityFloor | null {
-    const row = this.database
-      .prepare<[], { point_of_sale: number; last_issued_on: string | null }>(
-        `SELECT register_point_of_sale.point_of_sale_number AS point_of_sale,
-                register_point_of_sale.tax_authority_last_authorized_issued_on AS last_issued_on
-         FROM register_point_of_sale
-         JOIN own_register ON own_register.id = register_point_of_sale.register_id
-         WHERE own_register.removed = 0`,
-      )
-      .get();
-    return row === undefined || row.last_issued_on === null
-      ? null
-      : {
-          pointOfSale: row.point_of_sale,
-          documentType: FACTURA_C_DOCUMENT_TYPE,
-          lastIssuedOn: row.last_issued_on,
-        };
+    return taxAuthorityFloor(this.database);
   }
 
   cashSessionStanding(): CashSessionStanding {

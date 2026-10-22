@@ -136,6 +136,16 @@ describe("the tax authority's last authorized day, read as the guard's floor", (
 
     expect(reader().taxAuthorityFloor()).toBeNull();
   });
+
+  it("is the same inside the correction's transaction", () => {
+    registerOwnRegister();
+    setPointOfSale("2026-10-01");
+
+    expect(ledger().transaction((tx) => tx.taxAuthorityFloor())).toEqual(
+      reader().taxAuthorityFloor(),
+    );
+    expect(ledger().transaction((tx) => tx.taxAuthorityFloor())).not.toBeNull();
+  });
 });
 
 describe("the corrections of a point of sale's clock, read for its guard", () => {
@@ -166,6 +176,25 @@ describe("the corrections of a point of sale's clock, read for its guard", () =>
       {
         previousReading: new Date("2026-10-04T15:00:00.000Z"),
         correctedReading: new Date("2026-10-03T15:00:00.000Z"),
+      },
+    ]);
+  });
+});
+
+describe("the corrections of a point of sale's clock, read inside the correction's transaction", () => {
+  it("are those the guard reads", () => {
+    database
+      .prepare(
+        `INSERT INTO clock_corrections (
+           period, register_id, actor_id, point_of_sale, document_type, previous_reading, corrected_reading
+         ) VALUES ('s1', 'r1', 'u1', 12, 'factura_c', '2026-10-05T15:00:00.000Z', '2026-10-02T15:00:00.000Z')`,
+      )
+      .run();
+
+    expect(ledger().transaction((tx) => tx.clockCorrectionsOf(12, "factura_c"))).toEqual([
+      {
+        previousReading: new Date("2026-10-05T15:00:00.000Z"),
+        correctedReading: new Date("2026-10-02T15:00:00.000Z"),
       },
     ]);
   });
@@ -205,6 +234,7 @@ describe("lowering a clock mark and recording the correction", () => {
     pointOfSale: 12,
     documentType: "factura_c",
     previousReading: new Date("2026-10-01T16:00:00.000Z"),
+    previousReadingSource: "clock_mark",
     correctedReading: new Date("2026-10-01T15:00:00.000Z"),
   } as const;
 
@@ -231,6 +261,29 @@ describe("lowering a clock mark and recording the correction", () => {
     ).toEqual([
       { point_of_sale: 12, reading: "2026-10-01T15:00:00.000Z" },
       { point_of_sale: 31, reading: "2026-10-01T16:30:00.000Z" },
+    ]);
+  });
+
+  it("records a correction from the tax authority's day without inventing a mark for the series", () => {
+    const derived = {
+      ...LOWERING,
+      previousReading: new Date("2026-10-02T03:00:00.000Z"),
+      previousReadingSource: "tax_authority_day",
+    } as const;
+
+    ledger().transaction((tx) => {
+      tx.lowerClockMark(derived);
+      tx.recordClockCorrection({
+        period: "s1",
+        registerId: "r1",
+        actorId: "u1",
+        lowering: derived,
+      });
+    });
+
+    expect(database.prepare("SELECT 1 FROM register_clock_marks").all()).toEqual([]);
+    expect(database.prepare("SELECT previous_reading FROM clock_corrections").all()).toEqual([
+      { previous_reading: "2026-10-02T03:00:00.000Z" },
     ]);
   });
 

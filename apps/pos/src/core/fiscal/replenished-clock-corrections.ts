@@ -33,9 +33,22 @@ export function applyReplenishedClockCorrection(
   if (correctionHeld(database, fact)) {
     return;
   }
-  const { pointOfSale, documentType, previousReading, correctedReading, registerId, actorId } =
-    fact.correction;
-  const lowering = { pointOfSale, documentType, previousReading, correctedReading };
+  const {
+    pointOfSale,
+    documentType,
+    previousReading,
+    previousReadingSource,
+    correctedReading,
+    registerId,
+    actorId,
+  } = fact.correction;
+  const lowering = {
+    pointOfSale,
+    documentType,
+    previousReading,
+    previousReadingSource,
+    correctedReading,
+  };
   lowerClockMark(database, lowering);
   insertClockCorrection(database, {
     period: clockCorrectionPeriodKey(cashSessionStanding(database)),

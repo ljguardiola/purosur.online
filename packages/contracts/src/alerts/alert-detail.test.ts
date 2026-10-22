@@ -422,6 +422,7 @@ describe("alertDetailSchema", () => {
         pointOfSale: 12,
         documentType: "factura_c",
         previousReading: "2026-10-03T12:00:00.000Z",
+        previousReadingSource: "clock_mark",
         correctedReading: "2026-10-01T12:00:00.000Z",
         actorId: "user-1",
         actorName: "Ada",
@@ -691,12 +692,27 @@ describe("alertDetailSchema", () => {
       ["a fractional point of sale", { pointOfSale: 1.5 }],
       ["a previous reading as a number", { previousReading: 1 }],
       ["a corrected reading as a number", { correctedReading: 1 }],
+      ["a source of the previous reading it does not know", { previousReadingSource: "register" }],
     ])("refuses a clock corrected alert with %s", (_case, change) => {
       const alert = {
         ...base,
         kind: "clock_corrected",
         detail: { ...detailOf.clock_corrected, ...change },
       };
+
+      expect(alertDetailSchema.safeParse(alert).success).toBe(false);
+    });
+
+    it("accepts a clock corrected alert whose previous reading is the start of the tax authority's day", () => {
+      const detail = { ...detailOf.clock_corrected, previousReadingSource: "tax_authority_day" };
+      const alert = { ...base, kind: "clock_corrected", detail };
+
+      expect(alertDetailSchema.safeParse(alert).data).toEqual(alert);
+    });
+
+    it("refuses a clock corrected alert that does not say where its previous reading came from", () => {
+      const { previousReadingSource: _omitted, ...detail } = detailOf.clock_corrected;
+      const alert = { ...base, kind: "clock_corrected", detail };
 
       expect(alertDetailSchema.safeParse(alert).success).toBe(false);
     });
