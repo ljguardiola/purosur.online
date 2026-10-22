@@ -1,5 +1,9 @@
 import type { Clock } from "../../shared/index.js";
-import type { OrphanRegularization, SaleDocument } from "../model/orphan-authorization.js";
+import type {
+  OrphanRegularization,
+  SaleCreditNote,
+  SaleDocument,
+} from "../model/orphan-authorization.js";
 import type { RealTimeAuthorizationAnswer } from "../model/real-time-authorization.js";
 import type {
   RecordedRequestOutcome,
@@ -44,6 +48,7 @@ export interface UnclearOutcomeLane {
     regularization: OrphanRegularization | null,
   ): Promise<void>;
   otherDocumentsOfSale(saleId: string, fiscalDocumentId: string): Promise<SaleDocument[]>;
+  creditNotesOfSale(saleId: string): Promise<SaleCreditNote[]>;
   registerOwnsPointOfSale(registerId: string, pointOfSale: number): Promise<boolean>;
   recordedRequest(
     registerId: string,

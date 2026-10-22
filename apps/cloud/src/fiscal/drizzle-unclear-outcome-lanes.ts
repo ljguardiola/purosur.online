@@ -3,6 +3,7 @@ import {
   FiscalDocumentAlreadyRecorded,
   type OrphanRegularization,
   type RecordedRequestOutcome,
+  type SaleCreditNote,
   type SaleDocument,
   type UnclearOutcomeDecision,
   type UnclearOutcomeLane,
@@ -20,7 +21,7 @@ import type { DedicatedConnections } from "../platform/dedicated-connections.js"
 import type { EnqueueCreditNote } from "./enqueue-credit-note.js";
 import type { EnqueueUnclearOutcome } from "./enqueue-unclear-outcome.js";
 import { answerOf, decisionOf } from "./fiscal-request-answer.js";
-import { otherDocumentsOfSale } from "./orphan-local-standing.js";
+import { creditNotesOfSale, otherDocumentsOfSale } from "./orphan-local-standing.js";
 import { withPointOfSaleLaneLock } from "./point-of-sale-lane-lock.js";
 import { recordOrphanRegularization } from "./record-orphan-regularization.js";
 
@@ -113,6 +114,10 @@ class DrizzleUnclearOutcomeLane<TQueryResult extends PgQueryResultHKT>
 
   otherDocumentsOfSale(saleId: string, fiscalDocumentId: string): Promise<SaleDocument[]> {
     return otherDocumentsOfSale(this.db, saleId, fiscalDocumentId);
+  }
+
+  creditNotesOfSale(saleId: string): Promise<SaleCreditNote[]> {
+    return creditNotesOfSale(this.db, saleId);
   }
 
   async registerOwnsPointOfSale(registerId: string, pointOfSale: number): Promise<boolean> {

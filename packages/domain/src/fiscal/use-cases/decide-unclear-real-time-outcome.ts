@@ -1,10 +1,10 @@
 import { FACTURA_C_VOUCHER_TYPE } from "../model/factura-c-fiscal-block.js";
 import {
-  authorizedVoucherAmong,
   decideOrphanAuthorization,
   type LocalStanding,
   type OrphanRegularization,
   orphanRegularization,
+  otherVoucherToKeep,
 } from "../model/orphan-authorization.js";
 import {
   awaitsUnclearOutcomeDecision,
@@ -64,8 +64,12 @@ async function regularizationOf(
       : {
           kind: "local_sale",
           saleId,
-          otherAuthorizedVoucher: authorizedVoucherAmong(
-            await lane.otherDocumentsOfSale(saleId, fiscalDocumentId),
+          otherAuthorizedVoucher: otherVoucherToKeep(
+            { voucherType: FACTURA_C_VOUCHER_TYPE, pointOfSale, number },
+            {
+              otherDocuments: await lane.otherDocumentsOfSale(saleId, fiscalDocumentId),
+              creditNotes: await lane.creditNotesOfSale(saleId),
+            },
           ),
         };
   return orphanRegularization(
