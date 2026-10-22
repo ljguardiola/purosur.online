@@ -53,4 +53,34 @@ describe("the restoration standing watch", () => {
 
     expect(onChanged).not.toHaveBeenCalled();
   });
+
+  it("says so when the standing moves from in progress to without connection at the same step", () => {
+    const { watch, onChanged, become } = watchOver({ kind: "in_progress", step: "replenish" });
+
+    become({ kind: "without_connection", step: "replenish" });
+    watch.check();
+
+    expect(onChanged).toHaveBeenCalledTimes(1);
+  });
+
+  it("says so when the standing moves from in progress to failed at the same step", () => {
+    const { watch, onChanged, become } = watchOver({ kind: "in_progress", step: "restore" });
+
+    become({ kind: "failed", step: "restore" });
+    watch.check();
+
+    expect(onChanged).toHaveBeenCalledTimes(1);
+  });
+
+  it("says so when the step changes while the register stays without connection", () => {
+    const { watch, onChanged, become } = watchOver({
+      kind: "without_connection",
+      step: "restore",
+    });
+
+    become({ kind: "without_connection", step: "replenish" });
+    watch.check();
+
+    expect(onChanged).toHaveBeenCalledTimes(1);
+  });
 });

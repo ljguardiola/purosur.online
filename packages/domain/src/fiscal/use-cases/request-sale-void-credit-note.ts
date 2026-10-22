@@ -77,6 +77,10 @@ export async function requestSaleVoidCreditNote(
             { voucher: asked.correctedVoucher, saleId: asked.saleId },
             receivedAt,
           );
+          await lane.keepAlreadyCreditedRefusal(
+            { creditNoteId: asked.creditNoteId, registerId, saleId: asked.saleId },
+            receivedAt,
+          );
           return { kind: "voucher_already_credited" };
         }
         throw error;

@@ -1,9 +1,12 @@
 import {
   cloudError,
   cloudErrorStatus,
+  type RegisterResetResponse,
   registerResetRequestSchema,
   registerResetResponseSchema,
+  saleVoidedEventCreditNoteSchema,
 } from "@purosur/contracts";
+import type { RestoredCreditNoteAnswer } from "@purosur/domain";
 import { serveRestoredRegisterCreditNoteAnswers } from "@purosur/domain/fiscal/use-cases";
 import { admitRestoredRegisterReplenishment } from "@purosur/domain/register/use-cases";
 import { serveRestoredRegisterReplenishment } from "@purosur/domain/sync/use-cases";
@@ -38,6 +41,31 @@ const PREDECESSOR_NOT_REVOKED = cloudError(
   "predecessor_not_revoked",
   "the predecessor installation is not revoked",
 );
+
+function creditNoteBody({
+  creditNoteId,
+  answeredAt,
+  answer,
+}: RestoredCreditNoteAnswer): RegisterResetResponse["credit_notes"][number] {
+  const common = { credit_note_id: creditNoteId, answered_at: answeredAt.toISOString() };
+  switch (answer.kind) {
+    case "authorized":
+      return {
+        ...common,
+        state: "AUTHORIZED",
+        point_of_sale: answer.pointOfSale,
+        number: answer.number,
+        issued_on: answer.issuedOn,
+        issued_at: answer.issuedAt.toISOString(),
+        authorization_code: answer.authorizationCode,
+        authorization_code_due_on: answer.authorizationCodeDueOn,
+      };
+    case "rejected":
+      return { ...common, state: "REJECTED" };
+    case "already_credited":
+      return { ...common, state: "ALREADY_CREDITED" };
+  }
+}
 
 export function registerDeviceResetRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
@@ -104,9 +132,13 @@ export function registerDeviceResetRoute<TQueryResult extends PgQueryResultHKT>(
             after: { deviceId: body.after.device_id, deviceSeq: body.after.device_seq },
           }),
         });
+        const voidedCreditNoteIds = page.events.flatMap(({ event }) => {
+          const voided = saleVoidedEventCreditNoteSchema.safeParse(event);
+          return voided.success ? [voided.data.payload.credit_note.id] : [];
+        });
         const creditNoteAnswers = await serveRestoredRegisterCreditNoteAnswers(
           { creditNotes },
-          { registerId, saleIds: page.voidedSaleIds },
+          { registerId, creditNoteIds: voidedCreditNoteIds },
         );
         const users = await branchUsers.branchUsers(registerId);
 
@@ -129,24 +161,8 @@ export function registerDeviceResetRoute<TQueryResult extends PgQueryResultHKT>(
               active: user.active,
               version: user.version,
             })),
-            credit_notes: creditNoteAnswers.map(({ creditNoteId, answeredAt, answer }) => {
-              const common = {
-                credit_note_id: creditNoteId,
-                answered_at: answeredAt.toISOString(),
-              };
-              return answer.kind === "authorized"
-                ? {
-                    ...common,
-                    state: "AUTHORIZED" as const,
-                    point_of_sale: answer.pointOfSale,
-                    number: answer.number,
-                    issued_on: answer.issuedOn,
-                    issued_at: answer.issuedAt.toISOString(),
-                    authorization_code: answer.authorizationCode,
-                    authorization_code_due_on: answer.authorizationCodeDueOn,
-                  }
-                : { ...common, state: "REJECTED" as const };
-            }),
+            credit_notes: creditNoteAnswers.answers.map(creditNoteBody),
+            unrequested_credit_note_ids: creditNoteAnswers.unrequestedCreditNoteIds,
           }),
         );
       },

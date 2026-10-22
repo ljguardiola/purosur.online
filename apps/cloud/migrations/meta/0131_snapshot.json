@@ -1,5 +1,5 @@
 {
-  "id": "e243482a-595e-42ba-8b15-4f1f4998fc9f",
+  "id": "3a021252-693c-4a01-a020-65c23c54ad1f",
   "prevId": "9f2b2a7c-41f2-4993-bfcd-a1acfe8aa836",
   "version": "7",
   "dialect": "postgresql",
@@ -4359,7 +4359,7 @@
         },
         "offline_fiscal_documents_cause_known": {
           "name": "offline_fiscal_documents_cause_known",
-          "value": "\"offline_fiscal_documents\".\"cause\" in ('no_connectivity', 'unclear_outcome', 'numbering_conflict', 'clock_correction_lapse', 'deferred_backlog')"
+          "value": "\"offline_fiscal_documents\".\"cause\" in ('no_connectivity', 'unclear_outcome', 'numbering_conflict', 'clock_correction_lapse')"
         },
         "offline_fiscal_documents_generation_stamp_shape": {
           "name": "offline_fiscal_documents_generation_stamp_shape",
@@ -8684,6 +8684,53 @@
           "value": "(\"sale_reprints\".\"reason_kind\" = 'requested') = (\"sale_reprints\".\"reason_text\" is not null)"
         }
       },
+      "isRLSEnabled": false
+    },
+    "public.sale_void_credit_note_refusals": {
+      "name": "sale_void_credit_note_refusals",
+      "schema": "",
+      "columns": {
+        "credit_note_id": {
+          "name": "credit_note_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "register_id": {
+          "name": "register_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "sale_id": {
+          "name": "sale_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "refused_at": {
+          "name": "refused_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "sale_void_credit_note_refusals_register_id_registers_id_fk": {
+          "name": "sale_void_credit_note_refusals_register_id_registers_id_fk",
+          "tableFrom": "sale_void_credit_note_refusals",
+          "tableTo": "registers",
+          "columnsFrom": ["register_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "public.sales": {

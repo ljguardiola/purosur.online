@@ -7,11 +7,13 @@ export interface RestoreAttemptsDeps {
   restartCore: () => void;
   resumeSync: () => void;
   reportNoUsableGeneration: () => void;
+  cloudAnswered: (reachable: boolean) => void;
 }
 
 export interface RestoreAttempts {
   attempt(): Promise<void>;
   workerExited(outcome: SnapshotRestoreOutcomeKind | undefined): void;
+  noUsableGeneration(): boolean;
 }
 
 export function createRestoreAttempts(deps: RestoreAttemptsDeps): RestoreAttempts {
@@ -33,6 +35,9 @@ export function createRestoreAttempts(deps: RestoreAttemptsDeps): RestoreAttempt
     },
     workerExited(outcome) {
       running = false;
+      if (outcome !== undefined) {
+        deps.cloudAnswered(outcome !== "unreachable");
+      }
       if (outcome === "restored") {
         deps.restartCore();
       } else if (outcome === "no_generation") {
@@ -43,5 +48,6 @@ export function createRestoreAttempts(deps: RestoreAttemptsDeps): RestoreAttempt
         deps.reportNoUsableGeneration();
       }
     },
+    noUsableGeneration: () => noneUsable,
   };
 }

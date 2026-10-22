@@ -26,5 +26,5 @@ export function createRestorationStandingWatch({
 }
 
 function stepOf(standing: RestorationStandingAnswer): string | undefined {
-  return standing.kind === "in_progress" ? standing.step : undefined;
+  return standing.kind === "completed" ? undefined : standing.step;
 }

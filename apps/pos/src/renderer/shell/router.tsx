@@ -111,7 +111,7 @@ import {
   useRegisterStatusQuery,
 } from "../register/register-queries";
 import { RestoreRequiredScreen } from "../register/restore-required-screen";
-import type { RestoringStep } from "../register/restoring-screen";
+import type { RestoringStanding } from "../register/restoring-screen";
 import { RestoringScreen } from "../register/restoring-screen";
 import { mayConfigureSerialDevices } from "../register/serial-devices-offer";
 import { SerialDevicesScreen } from "../register/serial-devices-screen";
@@ -348,6 +348,9 @@ export function routeFor({
   if (restoration.kind === "in_progress") {
     return restoration.step === "enroll" ? "/restore-required" : "/restoring";
   }
+  if (restoration.kind === "without_connection" || restoration.kind === "failed") {
+    return "/restoring";
+  }
   if (cashSession.status === "unknown") {
     return "/starting";
   }
@@ -393,18 +396,20 @@ function requireOpenSession(context: RouterContext) {
   return { ...context.cashSession, person: context.person };
 }
 
-function requireRestoringStep(context: RouterContext): { restoringStep: RestoringStep } {
+function requireRestoringStanding(context: RouterContext): {
+  restoringStanding: RestoringStanding;
+} {
   const route = routeFor(context);
   const { restoration } = context;
   if (
     route !== "/restoring" ||
     restoration === "unknown" ||
-    restoration.kind !== "in_progress" ||
-    restoration.step === "enroll"
+    restoration.kind === "completed" ||
+    (restoration.kind === "in_progress" && restoration.step === "enroll")
   ) {
     throw redirect({ to: route });
   }
-  return { restoringStep: restoration.step };
+  return { restoringStanding: restoration };
 }
 
 function requireLockedRegister(context: RouterContext) {
@@ -1108,10 +1113,10 @@ const outOfServiceRoute = createRoute({
 const restoringRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/restoring",
-  beforeLoad: ({ context }) => requireRestoringStep(context),
+  beforeLoad: ({ context }) => requireRestoringStanding(context),
   component: function RestoringRoute() {
-    const { restoringStep } = restoringRoute.useRouteContext();
-    return <RestoringScreen registerName={useRegisterName()} step={restoringStep} />;
+    const { restoringStanding } = restoringRoute.useRouteContext();
+    return <RestoringScreen registerName={useRegisterName()} standing={restoringStanding} />;
   },
 });
 
