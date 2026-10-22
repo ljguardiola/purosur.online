@@ -918,6 +918,7 @@ describe("the register's local migrations", () => {
         "0070_stale_sequence",
         "0071_credit_note_reprints",
         "0072_awaiting_restored_numbering",
+        "0075_awaiting_orphan_sweep",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1013,6 +1014,7 @@ describe("the register's local migrations", () => {
         "0070_stale_sequence",
         "0071_credit_note_reprints",
         "0072_awaiting_restored_numbering",
+        "0075_awaiting_orphan_sweep",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1103,6 +1105,7 @@ describe("the register's local migrations", () => {
         "0070_stale_sequence",
         "0071_credit_note_reprints",
         "0072_awaiting_restored_numbering",
+        "0075_awaiting_orphan_sweep",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1192,6 +1195,7 @@ describe("the register's local migrations", () => {
         "0070_stale_sequence",
         "0071_credit_note_reprints",
         "0072_awaiting_restored_numbering",
+        "0075_awaiting_orphan_sweep",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1310,6 +1314,7 @@ describe("the register's local migrations", () => {
         "0070_stale_sequence",
         "0071_credit_note_reprints",
         "0072_awaiting_restored_numbering",
+        "0075_awaiting_orphan_sweep",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1418,6 +1423,7 @@ describe("the register's local migrations", () => {
         "0070_stale_sequence",
         "0071_credit_note_reprints",
         "0072_awaiting_restored_numbering",
+        "0075_awaiting_orphan_sweep",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1530,6 +1536,7 @@ describe("the register's local migrations", () => {
         "0070_stale_sequence",
         "0071_credit_note_reprints",
         "0072_awaiting_restored_numbering",
+        "0075_awaiting_orphan_sweep",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1650,6 +1657,7 @@ describe("the register's local migrations", () => {
         "0070_stale_sequence",
         "0071_credit_note_reprints",
         "0072_awaiting_restored_numbering",
+        "0075_awaiting_orphan_sweep",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1737,6 +1745,7 @@ describe("the register's local migrations", () => {
         "0070_stale_sequence",
         "0071_credit_note_reprints",
         "0072_awaiting_restored_numbering",
+        "0075_awaiting_orphan_sweep",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
