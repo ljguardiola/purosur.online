@@ -52,6 +52,7 @@ type RoutePath =
   | "/out-of-service"
   | "/restoring"
   | "/restore-required"
+  | "/re-enroll"
   | "/older-version"
   | "/pin-code-redemption"
   | "/first-sign-in";
@@ -147,6 +148,7 @@ const BALANCE: CashBalance = {
 };
 const BRAND_LOGO_ALT = "Puro Sur";
 const ENROLLMENT_TITLE = "Dar de alta esta caja";
+const RE_ENROLLMENT_STATUS = "Dar de alta de nuevo";
 const PIN_REDEMPTION_TITLE = "Cambiar el PIN";
 const FIRST_SIGN_IN_TITLE = "Ingresar por primera vez";
 const OUTER_BOUNDARY_TEXT = "caught outside the router";
@@ -180,6 +182,7 @@ const screenFor: Record<
   "/out-of-service": (screen) => screen.getByText(OUT_OF_SERVICE_TITLE),
   "/restoring": (screen) => screen.getByRole("heading", { name: RESTORING_TITLE }),
   "/restore-required": (screen) => screen.getByRole("heading", { name: RESTORE_REQUIRED_TITLE }),
+  "/re-enroll": (screen) => screen.getByText(RE_ENROLLMENT_STATUS),
   "/older-version": (screen) => screen.getByRole("heading", { name: OLDER_VERSION_TITLE }),
   "/pin-code-redemption": (screen) => screen.getByRole("heading", { name: PIN_REDEMPTION_TITLE }),
   "/first-sign-in": (screen) => screen.getByRole("heading", { name: FIRST_SIGN_IN_TITLE }),
@@ -637,6 +640,14 @@ describe("the register's router", () => {
       restoration: { kind: "in_progress", step: "restore" },
       redirectedTo: "/restoring",
     },
+    {
+      path: "/re-enroll",
+      coreStatus: "up",
+      enrollment: "enrolled",
+      restoration: { kind: "in_progress", step: "restore" },
+      redirectedTo: "/restoring",
+    },
+    { path: "/re-enroll", coreStatus: "up", enrollment: "enrolled", redirectedTo: "/" },
     { path: "/", coreStatus: "refused", enrollment: "enrolled", redirectedTo: "/older-version" },
     { path: "/older-version", coreStatus: "up", enrollment: "enrolled", redirectedTo: "/" },
     {
@@ -1108,6 +1119,28 @@ describe("the register's router", () => {
     await expect.element(screenFor["/restoring"](screen)).toBeVisible();
   });
 
+  it("says the register is being restored from a copy before the copy is restored", async () => {
+    const router = routerAt("/restoring", "up", "enrolled", null, NO_SESSION, "in_service", {
+      kind: "in_progress",
+      step: "restore",
+    });
+
+    const screen = await render(<RouterProvider router={router} />);
+
+    await expect.element(screen.getByText("RESTAURANDO DESDE UNA COPIA")).toBeVisible();
+  });
+
+  it("says the register was restored from a copy once the copy is restored", async () => {
+    const router = routerAt("/restoring", "up", "enrolled", null, NO_SESSION, "in_service", {
+      kind: "in_progress",
+      step: "reset_sync_identity",
+    });
+
+    const screen = await render(<RouterProvider router={router} />);
+
+    await expect.element(screen.getByText("RESTAURADA DESDE UNA COPIA")).toBeVisible();
+  });
+
   it("renders the restore-required screen while the register has to be enrolled again", async () => {
     const router = routerAt("/restore-required", "up", "enrolled", null, NO_SESSION, "in_service", {
       kind: "in_progress",
@@ -1151,6 +1184,54 @@ describe("the register's router", () => {
     const screen = await render(<RouterProvider router={router} />);
 
     await expect.element(screen.getByRole("heading", { name: ENROLLMENT_TITLE })).toBeVisible();
+    await expect.element(screen.getByText("NOTEBOOK NUEVA")).toBeVisible();
+    await expect.element(screen.getByText("Sin dar de alta")).toBeVisible();
+    await expect.element(screen.getByRole("button", { name: "Volver" })).not.toBeInTheDocument();
+  });
+
+  it("goes from the restore-required screen to enrolling the register again, under its name", async () => {
+    const router = createRegisterRouter(
+      routeTree,
+      {
+        ...contextWith("up", "enrolled", null, undefined, NO_SESSION, "in_service", {
+          kind: "in_progress",
+          step: "enroll",
+        }),
+        registerName: async () => "Caja 2",
+      },
+      "/restore-required",
+    );
+    const screen = await render(<RouterProvider router={router} />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Dar de alta la caja" }));
+
+    await expect.element(screen.getByRole("heading", { name: ENROLLMENT_TITLE })).toBeVisible();
+    await expect.element(screen.getByText("CAJA 2", { exact: true })).toBeVisible();
+    await expect.element(screen.getByText(RE_ENROLLMENT_STATUS)).toBeVisible();
+    await expect.poll(() => router.state.location.pathname).toBe("/re-enroll");
+  });
+
+  it("names just the register it enrolls again when its name is not known", async () => {
+    const router = routerAt("/re-enroll", "up", "enrolled", null, NO_SESSION, "in_service", {
+      kind: "in_progress",
+      step: "enroll",
+    });
+
+    const screen = await render(<RouterProvider router={router} />);
+
+    await expect.element(screen.getByText("CAJA", { exact: true })).toBeVisible();
+  });
+
+  it("goes back to the restore-required screen from enrolling the register again", async () => {
+    const router = routerAt("/re-enroll", "up", "enrolled", null, NO_SESSION, "in_service", {
+      kind: "in_progress",
+      step: "enroll",
+    });
+    const screen = await render(<RouterProvider router={router} />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Volver" }));
+
+    await expect.element(screenFor["/restore-required"](screen)).toBeVisible();
   });
 
   it("renders the sign-in screen while enrolled and nobody is signed in", async () => {

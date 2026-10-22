@@ -1,24 +1,13 @@
-import type { EnrollmentOutcome } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { RestoreRequiredScreen } from "./restore-required-screen";
 
-const TYPED_CODE = "p4nx 7kwe 2qrt 6mzd";
-
-async function checkingLikeTheCore(typedCode: string): Promise<"code"[]> {
-  return typedCode.replaceAll(" ", "").length === 16 ? [] : ["code"];
-}
-
 describe("RestoreRequiredScreen", () => {
   it("says the register has to be enrolled again and what it takes", async () => {
     const screen = await render(
-      <RestoreRequiredScreen
-        registerName="Caja 2"
-        checkCode={checkingLikeTheCore}
-        enroll={async () => ({ kind: "enrolled" })}
-      />,
+      <RestoreRequiredScreen registerName="Caja 2" onEnroll={() => {}} />,
     );
 
     await expect.element(screen.getByText("CAJA 2")).toBeVisible();
@@ -46,49 +35,17 @@ describe("RestoreRequiredScreen", () => {
   });
 
   it("names just the register when its name is not known", async () => {
-    const screen = await render(
-      <RestoreRequiredScreen
-        registerName={null}
-        checkCode={checkingLikeTheCore}
-        enroll={async () => ({ kind: "enrolled" })}
-      />,
-    );
+    const screen = await render(<RestoreRequiredScreen registerName={null} onEnroll={() => {}} />);
 
     await expect.element(screen.getByText("CAJA", { exact: true })).toBeVisible();
   });
 
-  it("shows the enrollment form when asked to enroll the register", async () => {
-    const screen = await render(
-      <RestoreRequiredScreen
-        registerName="Caja 2"
-        checkCode={checkingLikeTheCore}
-        enroll={async () => ({ kind: "enrolled" })}
-      />,
-    );
+  it("asks to enroll the register again", async () => {
+    const enroll = vi.fn();
+    const screen = await render(<RestoreRequiredScreen registerName="Caja 2" onEnroll={enroll} />);
 
     await userEvent.click(screen.getByRole("button", { name: "Dar de alta la caja" }));
 
-    await expect.element(screen.getByRole("textbox", { name: "Código de alta" })).toBeVisible();
-  });
-
-  it("enrolls the register with the typed code", async () => {
-    const codes: string[] = [];
-    const enroll = async (typedCode: string): Promise<EnrollmentOutcome> => {
-      codes.push(typedCode);
-      return { kind: "enrolled" };
-    };
-    const screen = await render(
-      <RestoreRequiredScreen
-        registerName="Caja 2"
-        checkCode={checkingLikeTheCore}
-        enroll={enroll}
-      />,
-    );
-
-    await userEvent.click(screen.getByRole("button", { name: "Dar de alta la caja" }));
-    await userEvent.fill(screen.getByRole("textbox", { name: "Código de alta" }), TYPED_CODE);
-    await userEvent.click(screen.getByRole("button", { name: "Dar de alta" }));
-
-    await expect.poll(() => codes).toEqual([TYPED_CODE]);
+    expect(enroll).toHaveBeenCalledOnce();
   });
 });
