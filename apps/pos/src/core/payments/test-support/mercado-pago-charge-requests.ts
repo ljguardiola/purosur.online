@@ -89,7 +89,12 @@ export function chargeRequestDeps(
     orders,
     readOutboxChainKey: async () => CHARGE_CHAIN_KEY,
     now: () => CHARGE_NOW,
-    restoration: new SqliteRestorationEvidence(database, restorePendingIn(undefined)),
+    restoration: new SqliteRestorationEvidence(
+      database,
+      restorePendingIn(undefined),
+      () => "unknown",
+      () => false,
+    ),
     ids: {
       next: () => {
         count += 1;
@@ -163,7 +168,12 @@ export async function openSaleOfTwoYerbas(
     newSalesStoppedByDisk: () => false,
     localDatabaseDamaged: () => false,
     newSalesStoppedByBattery: () => false,
-    restoration: new SqliteRestorationEvidence(register.database, restorePendingIn(undefined)),
+    restoration: new SqliteRestorationEvidence(
+      register.database,
+      restorePendingIn(undefined),
+      () => "unknown",
+      () => false,
+    ),
   };
   await scanProductFor(saleDeps, "111");
   const outcome = await scanProductFor(saleDeps, "111");

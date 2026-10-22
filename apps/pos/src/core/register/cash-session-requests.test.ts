@@ -47,7 +47,12 @@ function deps(overrides: Partial<OpenCashSessionRequestDeps> = {}): OpenCashSess
     }),
     readOutboxChainKey: async () => CHAIN_KEY,
     now: () => NOW,
-    restoration: new SqliteRestorationEvidence(database, restorePendingIn(undefined)),
+    restoration: new SqliteRestorationEvidence(
+      database,
+      restorePendingIn(undefined),
+      () => "unknown",
+      () => false,
+    ),
     ids: {
       next: () => {
         count += 1;

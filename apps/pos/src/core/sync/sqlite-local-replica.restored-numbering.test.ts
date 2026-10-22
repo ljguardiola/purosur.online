@@ -102,7 +102,12 @@ describe("a restored register's numbering", () => {
       { deviceId: "device-b" },
     );
     database.exec("DELETE FROM register_predecessor");
-    const evidence = new SqliteRestorationEvidence(database, restorePendingIn(undefined));
+    const evidence = new SqliteRestorationEvidence(
+      database,
+      restorePendingIn(undefined),
+      () => "unknown",
+      () => false,
+    );
     expect(restorationStanding(evidence.evidence())).toEqual({
       kind: "in_progress",
       step: "reconcile_fiscal_counters",

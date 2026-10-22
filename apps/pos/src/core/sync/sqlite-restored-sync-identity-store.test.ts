@@ -160,7 +160,12 @@ describe("the restored sync identity store", () => {
 
     await resetRestoredSyncIdentity({ store }, { deviceId: NEW_DEVICE });
 
-    const evidence = new SqliteRestorationEvidence(database, restorePendingIn(undefined));
+    const evidence = new SqliteRestorationEvidence(
+      database,
+      restorePendingIn(undefined),
+      () => "unknown",
+      () => false,
+    );
     expect(evidence.evidence().enroll).toBe("completed");
   });
 
