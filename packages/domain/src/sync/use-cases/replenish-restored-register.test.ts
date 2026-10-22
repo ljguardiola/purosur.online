@@ -340,6 +340,7 @@ describe("replenishRestoredRegister", () => {
       appliedEventIds: [],
       creditNoteAnswers: [],
       heldCreditNotes: [],
+      rebuiltUnclearDeferrals: [],
     });
   });
 
