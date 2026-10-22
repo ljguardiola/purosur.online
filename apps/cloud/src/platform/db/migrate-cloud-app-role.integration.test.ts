@@ -346,6 +346,36 @@ describe("the cloud_app role runMigrations creates", () => {
     await expectPermissionDenied(cloudApp`truncate offline_point_of_sale_retirements`);
   });
 
+  it("appends sale-void credit note refusals but never rewrites, removes or truncates them", async () => {
+    const [location] = await cloudApp<{ id: string }[]>`select id from locations limit 1`;
+    if (!location) {
+      throw new Error("test setup: reading the seeded location returned no row");
+    }
+    const [register] = await cloudApp<{ id: string }[]>`
+      insert into registers (location_id, name)
+      values (${location.id}, ${`Caja ${randomUUID()}`}) returning id
+    `;
+    if (!register) {
+      throw new Error("test setup: seeding the register returned no row");
+    }
+    const creditNoteId = randomUUID();
+    await cloudApp`
+      insert into sale_void_credit_note_refusals (credit_note_id, register_id, sale_id, refused_at)
+      values (${creditNoteId}, ${register.id}, ${randomUUID()}, now())
+    `;
+
+    await expect(
+      cloudApp`select credit_note_id from sale_void_credit_note_refusals where credit_note_id = ${creditNoteId}`,
+    ).resolves.toEqual([{ credit_note_id: creditNoteId }]);
+    await expectPermissionDenied(
+      cloudApp`update sale_void_credit_note_refusals set refused_at = now() where credit_note_id = ${creditNoteId}`,
+    );
+    await expectPermissionDenied(
+      cloudApp`delete from sale_void_credit_note_refusals where credit_note_id = ${creditNoteId}`,
+    );
+    await expectPermissionDenied(cloudApp`truncate sale_void_credit_note_refusals`);
+  });
+
   async function insertCountedMovement(): Promise<{
     movementId: string;
     productId: string;

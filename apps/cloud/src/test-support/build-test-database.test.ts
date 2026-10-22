@@ -95,6 +95,7 @@ import {
   salePayments,
   saleReprints,
   sales,
+  saleVoidCreditNoteRefusals,
   serialDeviceState,
   sessions,
   signInChallenges,
@@ -710,6 +711,12 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
       total: 10_000,
       receiverTaxStatusCode: 5,
       createdAt: new Date("2026-01-05T12:00:00.000Z"),
+    });
+    await db.insert(saleVoidCreditNoteRefusals).values({
+      creditNoteId: "00000000-0000-4000-8000-000000000108",
+      registerId: register.id,
+      saleId: "00000000-0000-4000-8000-000000000109",
+      refusedAt: new Date("2026-01-05T12:00:00.000Z"),
     });
     await db.insert(offlineFiscalDocuments).values({
       id: "00000000-0000-4000-8000-000000000103",
