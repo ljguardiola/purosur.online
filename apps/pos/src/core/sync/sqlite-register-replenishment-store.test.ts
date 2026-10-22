@@ -504,6 +504,61 @@ describe("the register's store for replenishing a restored register", () => {
     });
   });
 
+  describe("a credit note held to be requested", () => {
+    const CREDIT_NOTE = {
+      creditNoteId: "note-1",
+      saleId: "sale-1",
+      total: 3000,
+      receiverTaxStatusCode: 5,
+      correctedVoucher: { voucherType: 11, pointOfSale: 7, number: 41 },
+    };
+    const EVENT = {
+      event_id: "event-1",
+      device_seq: 53,
+      aggregate_type: "Sale",
+      aggregate_id: "sale-1",
+      event_type: "sale_voided",
+      schema_version: 3,
+      payload: {},
+      occurred_at: "2026-10-07T10:28:00.000Z",
+      actor_id: "user-1",
+      chain_hmac: "hmac",
+    };
+
+    async function replenishVoidedSale(tx: RegisterReplenishmentTransaction) {
+      await tx.applyFact(aCompletedSaleFact({ id: "sale-1" }), SOURCE);
+      await tx.applyFact({ ...aVoidedSaleFact({ id: "sale-1" }), creditNote: CREDIT_NOTE }, SOURCE);
+    }
+
+    it("is written as the credit note in progress of the voided sale, with the event it requests", async () => {
+      await store.transaction(async (tx) => {
+        await replenishVoidedSale(tx);
+        await tx.holdCreditNoteToRequest(CREDIT_NOTE, EVENT);
+      });
+
+      expect(
+        database.prepare("SELECT id, sale_id, state FROM sale_void_credit_notes").all(),
+      ).toEqual([{ id: "note-1", sale_id: "sale-1", state: "IN_PROGRESS" }]);
+      expect(
+        database
+          .prepare("SELECT credit_note_id, event_id FROM replenished_credit_note_requests")
+          .all(),
+      ).toEqual([{ credit_note_id: "note-1", event_id: "event-1" }]);
+    });
+
+    it("leaves nothing behind when its transaction fails", async () => {
+      await expect(
+        store.transaction(async (tx) => {
+          await replenishVoidedSale(tx);
+          await tx.holdCreditNoteToRequest(CREDIT_NOTE, EVENT);
+          throw new Error("storage unavailable");
+        }),
+      ).rejects.toThrow("storage unavailable");
+
+      expect(count("sale_void_credit_notes") + count("replenished_credit_note_requests")).toBe(0);
+    });
+  });
+
   describe("a transaction", () => {
     it("leaves nothing behind when it fails", async () => {
       await expect(
