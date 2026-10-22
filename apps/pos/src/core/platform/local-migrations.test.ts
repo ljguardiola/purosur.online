@@ -918,6 +918,7 @@ describe("the register's local migrations", () => {
         "0070_stale_sequence",
         "0071_credit_note_reprints",
         "0072_awaiting_restored_numbering",
+        "0073_replenished_credit_note_requests",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1013,6 +1014,7 @@ describe("the register's local migrations", () => {
         "0070_stale_sequence",
         "0071_credit_note_reprints",
         "0072_awaiting_restored_numbering",
+        "0073_replenished_credit_note_requests",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1103,6 +1105,7 @@ describe("the register's local migrations", () => {
         "0070_stale_sequence",
         "0071_credit_note_reprints",
         "0072_awaiting_restored_numbering",
+        "0073_replenished_credit_note_requests",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1192,6 +1195,7 @@ describe("the register's local migrations", () => {
         "0070_stale_sequence",
         "0071_credit_note_reprints",
         "0072_awaiting_restored_numbering",
+        "0073_replenished_credit_note_requests",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1310,6 +1314,7 @@ describe("the register's local migrations", () => {
         "0070_stale_sequence",
         "0071_credit_note_reprints",
         "0072_awaiting_restored_numbering",
+        "0073_replenished_credit_note_requests",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1418,6 +1423,7 @@ describe("the register's local migrations", () => {
         "0070_stale_sequence",
         "0071_credit_note_reprints",
         "0072_awaiting_restored_numbering",
+        "0073_replenished_credit_note_requests",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1530,6 +1536,7 @@ describe("the register's local migrations", () => {
         "0070_stale_sequence",
         "0071_credit_note_reprints",
         "0072_awaiting_restored_numbering",
+        "0073_replenished_credit_note_requests",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1650,6 +1657,7 @@ describe("the register's local migrations", () => {
         "0070_stale_sequence",
         "0071_credit_note_reprints",
         "0072_awaiting_restored_numbering",
+        "0073_replenished_credit_note_requests",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1737,6 +1745,7 @@ describe("the register's local migrations", () => {
         "0070_stale_sequence",
         "0071_credit_note_reprints",
         "0072_awaiting_restored_numbering",
+        "0073_replenished_credit_note_requests",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -5814,6 +5823,53 @@ describe("the register's local migrations", () => {
       expect(after.prepare("SELECT register_id FROM awaiting_restored_numbering").all()).toEqual(
         [],
       );
+      after.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
+  it("hold the sale-voided event of a credit note a restored register must request, once per credit note and only for a credit note it holds, none for a register already holding credit notes", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.filter(
+        (migration) => migration.name < "0073_replenished_credit_note_requests",
+      );
+      expect(LOCAL_MIGRATIONS.map((migration) => migration.name)).toContain(
+        "0073_replenished_credit_note_requests",
+      );
+      const before = openLocalDatabase(path, previous, migrationClock);
+      before.exec(
+        `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
+         VALUES ('s1', 'r1', 'device-a', 'u1', '2026-10-09T12:00:00.000Z', 0, 'OPEN');
+         INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at)
+         VALUES ('sale-1', 'r1', 'device-a', 's1', 'u1', 'COMPLETED', '2026-10-09T12:05:00.000Z');
+         INSERT INTO sale_void_credit_notes (
+           id, sale_id, total, receiver_tax_status_code, corrected_voucher_type,
+           corrected_point_of_sale, corrected_number, state, recorded_at
+         ) VALUES ('note-1', 'sale-1', 3000, 5, 11, 12, 41, 'IN_PROGRESS', '2026-10-09T12:30:00.000Z');`,
+      );
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+
+      expect(after.prepare("SELECT id FROM sale_void_credit_notes").all()).toEqual([
+        { id: "note-1" },
+      ]);
+      expect(after.prepare("SELECT * FROM replenished_credit_note_requests").all()).toEqual([]);
+      const hold = after.prepare(
+        `INSERT INTO replenished_credit_note_requests (
+           credit_note_id, event_id, device_seq, aggregate_type, aggregate_id, event_type,
+           schema_version, payload, occurred_at, actor_id, chain_hmac
+         ) VALUES (
+           @credit_note_id, 'event-1', 53, 'Sale', 'sale-1', 'sale_voided', 3, '{}',
+           '2026-10-09T12:20:00.000Z', 'u1', 'hmac'
+         )`,
+      );
+      expect(() => hold.run({ credit_note_id: "note-1" })).not.toThrow();
+      expect(() => hold.run({ credit_note_id: "note-1" })).toThrow(/UNIQUE|PRIMARY KEY/);
+      expect(() => hold.run({ credit_note_id: "note-unknown" })).toThrow(/FOREIGN KEY/);
       after.close();
     } finally {
       rmSync(folder, { recursive: true, force: true });

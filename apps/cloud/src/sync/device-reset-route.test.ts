@@ -9,7 +9,13 @@ import {
   insertSaleVoidCreditNote,
   REQUESTED_AT,
 } from "../fiscal/test-support/sale-void-credit-notes.js";
-import { inbox, roles, userRoles, users } from "../platform/db/schema.js";
+import {
+  inbox,
+  roles,
+  saleVoidCreditNoteRefusals,
+  userRoles,
+  users,
+} from "../platform/db/schema.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { registerRouteAccess } from "../sessions/route-access.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
@@ -231,14 +237,28 @@ describe("POST /devices/current/reset", () => {
   });
 
   describe("the credit note answers", () => {
-    async function aVoidedSale(deviceId: string) {
+    async function aVoidedSale(
+      deviceId: string,
+      creditNoteId: string | null = crypto.randomUUID(),
+    ) {
       const saleId = crypto.randomUUID();
       await insertInboxEvent(db, deviceId, {
         eventType: "sale_voided",
         schemaVersion: 3,
         aggregateId: saleId,
+        payload:
+          creditNoteId === null
+            ? {}
+            : {
+                credit_note: {
+                  id: creditNoteId,
+                  total: 4800,
+                  receiver_tax_status_code: 5,
+                  corrects: { voucher_type: 11, point_of_sale: 7, number: 1 },
+                },
+              },
       });
-      return saleId;
+      return { saleId, creditNoteId };
     }
 
     function resetOf(
@@ -258,25 +278,26 @@ describe("POST /devices/current/reset", () => {
 
     it("answers what the tax authority said about the credit notes of the register's voided sales", async () => {
       const { predecessor, current } = await aRestoredRegister();
-      const authorizedSale = await aVoidedSale(predecessor.deviceId);
-      const rejectedSale = await aVoidedSale(predecessor.deviceId);
+      const authorized = await aVoidedSale(predecessor.deviceId);
+      const rejected = await aVoidedSale(predecessor.deviceId);
       const authorizedId = await insertSaleVoidCreditNote(
         db,
         current.registerId,
-        authorizedSale,
-        anAuthorizedAnswer(9),
+        authorized.saleId,
+        { ...anAuthorizedAnswer(9), id: authorized.creditNoteId ?? "" },
       );
-      const rejectedId = await insertSaleVoidCreditNote(
-        db,
-        current.registerId,
-        rejectedSale,
-        aRejectedAnswer(),
-      );
+      const rejectedId = await insertSaleVoidCreditNote(db, current.registerId, rejected.saleId, {
+        ...aRejectedAnswer(),
+        id: rejected.creditNoteId ?? "",
+      });
 
       const response = await resetOf(predecessor, current);
 
       expect(response.statusCode).toBe(200);
-      const { credit_notes } = registerResetResponseSchema.parse(response.json());
+      const { credit_notes, unrequested_credit_note_ids } = registerResetResponseSchema.parse(
+        response.json(),
+      );
+      expect(unrequested_credit_note_ids).toEqual([]);
       expect(credit_notes).toHaveLength(2);
       expect(credit_notes).toEqual(
         expect.arrayContaining([
@@ -300,11 +321,74 @@ describe("POST /devices/current/reset", () => {
       );
     });
 
-    it("never answers the credit note another register holds for a sale of this one", async () => {
+    it("answers already credited, when it was refused, for a credit note the cloud refused", async () => {
+      const { predecessor, current } = await aRestoredRegister();
+      const refused = await aVoidedSale(predecessor.deviceId);
+      const refusedAt = new Date("2026-10-07T10:35:00.000Z");
+      await db.insert(saleVoidCreditNoteRefusals).values({
+        creditNoteId: refused.creditNoteId ?? "",
+        registerId: current.registerId,
+        saleId: refused.saleId,
+        refusedAt,
+      });
+
+      const response = await resetOf(predecessor, current);
+
+      const body = registerResetResponseSchema.parse(response.json());
+      expect(body.credit_notes).toEqual([
+        {
+          credit_note_id: refused.creditNoteId,
+          answered_at: refusedAt.toISOString(),
+          state: "ALREADY_CREDITED",
+        },
+      ]);
+      expect(body.unrequested_credit_note_ids).toEqual([]);
+    });
+
+    it("names as unrequested the credit note of a voided sale the cloud never recorded", async () => {
+      const { predecessor, current } = await aRestoredRegister();
+      const unrequested = await aVoidedSale(predecessor.deviceId);
+
+      const response = await resetOf(predecessor, current);
+
+      const body = registerResetResponseSchema.parse(response.json());
+      expect(body.unrequested_credit_note_ids).toEqual([unrequested.creditNoteId]);
+      expect(body.credit_notes).toEqual([]);
+    });
+
+    it("neither answers nor names as unrequested a credit note still unsettled in the cloud", async () => {
+      const { predecessor, current } = await aRestoredRegister();
+      const waiting = await aVoidedSale(predecessor.deviceId);
+      await insertSaleVoidCreditNote(db, current.registerId, waiting.saleId, {
+        id: waiting.creditNoteId ?? "",
+      });
+
+      const response = await resetOf(predecessor, current);
+
+      const body = registerResetResponseSchema.parse(response.json());
+      expect(body.credit_notes).toEqual([]);
+      expect(body.unrequested_credit_note_ids).toEqual([]);
+    });
+
+    it("names no credit note for a voided sale that asked for none", async () => {
+      const { predecessor, current } = await aRestoredRegister();
+      await aVoidedSale(predecessor.deviceId, null);
+
+      const response = await resetOf(predecessor, current);
+
+      const body = registerResetResponseSchema.parse(response.json());
+      expect(body.credit_notes).toEqual([]);
+      expect(body.unrequested_credit_note_ids).toEqual([]);
+    });
+
+    it("never answers the credit note another register holds under an id this register's void names", async () => {
       const { predecessor, current } = await aRestoredRegister();
       const other = await insertEnrolledInstallation(db, { now: NOW, registerName: "Caja 2" });
-      const saleId = await aVoidedSale(predecessor.deviceId);
-      await insertSaleVoidCreditNote(db, other.registerId, saleId, anAuthorizedAnswer());
+      const voided = await aVoidedSale(predecessor.deviceId);
+      await insertSaleVoidCreditNote(db, other.registerId, voided.saleId, {
+        ...anAuthorizedAnswer(),
+        id: voided.creditNoteId ?? "",
+      });
 
       const response = await resetOf(predecessor, current);
 
@@ -337,14 +421,14 @@ describe("POST /devices/current/reset", () => {
       const firstCreditNote = await insertSaleVoidCreditNote(
         db,
         current.registerId,
-        firstSale,
-        anAuthorizedAnswer(),
+        firstSale.saleId,
+        { ...anAuthorizedAnswer(), id: firstSale.creditNoteId ?? "" },
       );
       const secondCreditNote = await insertSaleVoidCreditNote(
         db,
         current.registerId,
-        secondSale,
-        anAuthorizedAnswer(),
+        secondSale.saleId,
+        { ...anAuthorizedAnswer(), id: secondSale.creditNoteId ?? "" },
       );
 
       const first = registerResetResponseSchema.parse((await resetOf(predecessor, current)).json());

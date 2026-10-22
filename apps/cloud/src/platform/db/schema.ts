@@ -2760,6 +2760,17 @@ export const creditNotes = pgTable(
   ],
 );
 
+// Append-only: the cloud keeps the first refusal of a voided sale's credit note whose invoice
+// another credit note had already corrected, to hand it to a restored register.
+export const saleVoidCreditNoteRefusals = pgTable("sale_void_credit_note_refusals", {
+  creditNoteId: uuid("credit_note_id").primaryKey(),
+  registerId: uuid("register_id")
+    .notNull()
+    .references(() => registers.id),
+  saleId: uuid("sale_id").notNull(),
+  refusedAt: timestamp("refused_at", { withTimezone: true }).notNull(),
+});
+
 // A purchase puts the product's price back under review on the branch's price list until a review
 // resolves it. Rows are only opened and then resolved, never rewritten or removed.
 export const priceReviewPostponements = pgTable(

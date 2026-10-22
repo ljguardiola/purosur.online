@@ -49,8 +49,15 @@ export function aPage(
   next: EventPosition | null = null,
   users: ReplenishedUser[] = [],
   creditNoteAnswers: RestoredCreditNoteAnswer[] = [],
+  unrequestedCreditNoteIds: string[] = [],
 ): RegisterReplenishmentFeedAnswer<FakeFailure> {
-  const page: ReplenishmentPage = { events, users, next, creditNoteAnswers };
+  const page: ReplenishmentPage = {
+    events,
+    users,
+    next,
+    creditNoteAnswers,
+    unrequestedCreditNoteIds,
+  };
   return { kind: "page", page };
 }
 
@@ -84,18 +91,25 @@ interface RecordedCreditNoteAnswer {
   answer: RestoredCreditNoteAnswer;
 }
 
+interface HeldCreditNote {
+  creditNote: SaleVoidCreditNote;
+  event: ReplenishedEvent["event"];
+}
+
 export interface ReplenishingRegisterState {
   predecessor: RegisterPredecessor | undefined;
   users: ReplenishedUser[][];
   facts: AppliedFact[];
   appliedEventIds: string[];
   creditNoteAnswers: RecordedCreditNoteAnswer[];
+  heldCreditNotes: HeldCreditNote[];
 }
 
 export type FakeStoreOperation =
   | "applyUsers"
   | "applyFact"
   | "recordCreditNoteAnswer"
+  | "holdCreditNoteToRequest"
   | "recordEventApplied"
   | "finish";
 
@@ -106,7 +120,14 @@ export class FakeRegisterReplenishmentStore implements RegisterReplenishmentStor
   failAt: { operation: FakeStoreOperation; eventId?: string } | undefined;
 
   constructor(predecessor: RegisterPredecessor | undefined) {
-    this.state = { predecessor, users: [], facts: [], appliedEventIds: [], creditNoteAnswers: [] };
+    this.state = {
+      predecessor,
+      users: [],
+      facts: [],
+      appliedEventIds: [],
+      creditNoteAnswers: [],
+      heldCreditNotes: [],
+    };
   }
 
   async predecessor(): Promise<RegisterPredecessor | undefined> {
@@ -149,6 +170,16 @@ export class FakeRegisterReplenishmentStore implements RegisterReplenishmentStor
           throw new Error(`the register holds no voided sale ${creditNote.saleId}`);
         }
         working.creditNoteAnswers.push({ creditNote, answer });
+      },
+      holdCreditNoteToRequest: async (creditNote, event) => {
+        failIf("holdCreditNoteToRequest");
+        if (
+          !working.heldCreditNotes.some(
+            (held) => held.creditNote.creditNoteId === creditNote.creditNoteId,
+          )
+        ) {
+          working.heldCreditNotes.push({ creditNote, event });
+        }
       },
       holdsDeferredSaleRecord: async (saleId) =>
         working.facts.some(

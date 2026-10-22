@@ -1,4 +1,9 @@
-import { type RegisterResetRequest, registerResetResponseSchema } from "@purosur/contracts";
+import {
+  type RegisterResetRequest,
+  type RegisterResetResponse,
+  registerResetResponseSchema,
+} from "@purosur/contracts";
+import type { RestoredCreditNoteAnswer } from "@purosur/domain";
 import type {
   EventPosition,
   RegisterPredecessor,
@@ -22,6 +27,27 @@ const REFUSALS: readonly ReplenishmentRefusal[] = [
 
 function refusalOf(code: string): ReplenishmentRefusal | undefined {
   return REFUSALS.find((refusal) => refusal === code);
+}
+
+type WireCreditNote = RegisterResetResponse["credit_notes"][number];
+
+function answerOf(creditNote: WireCreditNote): RestoredCreditNoteAnswer["answer"] {
+  switch (creditNote.state) {
+    case "AUTHORIZED":
+      return {
+        kind: "authorized",
+        pointOfSale: creditNote.point_of_sale,
+        number: creditNote.number,
+        issuedOn: creditNote.issued_on,
+        issuedAt: new Date(creditNote.issued_at),
+        authorizationCode: creditNote.authorization_code,
+        authorizationCodeDueOn: creditNote.authorization_code_due_on,
+      };
+    case "REJECTED":
+      return { kind: "rejected" };
+    case "ALREADY_CREDITED":
+      return { kind: "already_credited" };
+  }
 }
 
 export class CloudRegisterReplenishment implements RegisterReplenishmentFeed<CloudFailure> {
@@ -58,7 +84,13 @@ export class CloudRegisterReplenishment implements RegisterReplenishmentFeed<Clo
     if (!answer.success) {
       return { kind: "failed", failure: { kind: "unreadable" } };
     }
-    const { events, users, next, credit_notes: creditNotes } = answer.data;
+    const {
+      events,
+      users,
+      next,
+      credit_notes: creditNotes,
+      unrequested_credit_note_ids: unrequestedCreditNoteIds,
+    } = answer.data;
     return {
       kind: "page",
       page: {
@@ -75,19 +107,9 @@ export class CloudRegisterReplenishment implements RegisterReplenishmentFeed<Clo
         creditNoteAnswers: creditNotes.map((creditNote) => ({
           creditNoteId: creditNote.credit_note_id,
           answeredAt: new Date(creditNote.answered_at),
-          answer:
-            creditNote.state === "AUTHORIZED"
-              ? {
-                  kind: "authorized",
-                  pointOfSale: creditNote.point_of_sale,
-                  number: creditNote.number,
-                  issuedOn: creditNote.issued_on,
-                  issuedAt: new Date(creditNote.issued_at),
-                  authorizationCode: creditNote.authorization_code,
-                  authorizationCodeDueOn: creditNote.authorization_code_due_on,
-                }
-              : { kind: "rejected" },
+          answer: answerOf(creditNote),
         })),
+        unrequestedCreditNoteIds,
         next: next && { deviceId: next.device_id, deviceSeq: next.device_seq },
       },
     };

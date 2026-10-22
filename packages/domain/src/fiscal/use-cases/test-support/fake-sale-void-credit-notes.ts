@@ -25,6 +25,13 @@ export interface RaisedInvoiceAlreadyCredited {
   at: Date;
 }
 
+export interface KeptAlreadyCreditedRefusal {
+  creditNoteId: string;
+  registerId: string;
+  saleId: string;
+  at: Date;
+}
+
 export class FakeSaleVoidCreditNoteStore implements SaleVoidCreditNoteLanes {
   readonly operations: string[] = [];
   readonly lanesEntered: number[] = [];
@@ -32,6 +39,7 @@ export class FakeSaleVoidCreditNoteStore implements SaleVoidCreditNoteLanes {
   readonly recorded = new Map<string, RecordedCreditNote>();
   readonly records: SaleVoidCreditNoteRecord[] = [];
   readonly alertsRaised: RaisedInvoiceAlreadyCredited[] = [];
+  readonly refusalsKept: KeptAlreadyCreditedRefusal[] = [];
   recordFailure: Error | undefined;
   private readonly registers: Map<string, FakeRegisterPointsOfSale>;
 
@@ -125,5 +133,17 @@ class FakeSaleVoidCreditNoteLane implements SaleVoidCreditNoteLane {
   async raiseInvoiceAlreadyCredited({ voucher, saleId }: InvoiceAlreadyCredited, at: Date) {
     this.store.operations.push("raiseInvoiceAlreadyCredited");
     this.store.alertsRaised.push({ voucher, saleId, at });
+  }
+
+  async keepAlreadyCreditedRefusal(
+    refusal: { creditNoteId: string; registerId: string; saleId: string },
+    at: Date,
+  ) {
+    this.store.operations.push("keepAlreadyCreditedRefusal");
+    if (
+      !this.store.refusalsKept.some(({ creditNoteId }) => creditNoteId === refusal.creditNoteId)
+    ) {
+      this.store.refusalsKept.push({ ...refusal, at });
+    }
   }
 }

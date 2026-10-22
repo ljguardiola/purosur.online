@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import { serveRestoredRegisterReplenishment } from "./serve-restored-register-replenishment.js";
 import {
   anEvent,
-  aSaleVoidedEvent,
   FakeRestoredRegisterReplenishment,
 } from "./test-support/fake-restored-register-replenishment.js";
 
@@ -21,7 +20,7 @@ describe("serveRestoredRegisterReplenishment", () => {
 
     const outcome = await serveRestoredRegisterReplenishment({ replenishment }, INPUT);
 
-    expect(outcome).toEqual({ events: replenishment.events, next: null, voidedSaleIds: [] });
+    expect(outcome).toEqual({ events: replenishment.events, next: null });
   });
 
   it("reads the events above the position the register reported", async () => {
@@ -48,7 +47,6 @@ describe("serveRestoredRegisterReplenishment", () => {
     expect(outcome).toEqual({
       events: replenishment.events.slice(0, 200),
       next: { deviceId: PREDECESSOR, deviceSeq: 252 },
-      voidedSaleIds: [],
     });
   });
 
@@ -58,7 +56,7 @@ describe("serveRestoredRegisterReplenishment", () => {
 
     const outcome = await serveRestoredRegisterReplenishment({ replenishment }, INPUT);
 
-    expect(outcome).toEqual({ events: replenishment.events, next: null, voidedSaleIds: [] });
+    expect(outcome).toEqual({ events: replenishment.events, next: null });
   });
 
   it("continues strictly after the event the register names", async () => {
@@ -74,34 +72,7 @@ describe("serveRestoredRegisterReplenishment", () => {
     expect(outcome).toEqual({
       events: [anEvent(PREDECESSOR, 55)],
       next: null,
-      voidedSaleIds: [],
     });
     expect(replenishment.eventReads[0]?.after).toEqual(after);
-  });
-
-  it("names the voided sales whose events are in the page", async () => {
-    const replenishment = new FakeRestoredRegisterReplenishment();
-    replenishment.events = [
-      anEvent(PREDECESSOR, 53),
-      aSaleVoidedEvent(PREDECESSOR, 54, "sale-7"),
-      aSaleVoidedEvent("device-newer", 1, "sale-9"),
-    ];
-
-    const outcome = await serveRestoredRegisterReplenishment({ replenishment }, INPUT);
-
-    expect(outcome.voidedSaleIds).toEqual(["sale-7", "sale-9"]);
-  });
-
-  it("names only the voided sales of the page it serves, not of the events left for the next one", async () => {
-    const replenishment = new FakeRestoredRegisterReplenishment();
-    replenishment.events = [
-      ...eventsOf(PREDECESSOR, 53, 199),
-      aSaleVoidedEvent(PREDECESSOR, 252, "sale-in-page"),
-      aSaleVoidedEvent(PREDECESSOR, 253, "sale-in-next-page"),
-    ];
-
-    const outcome = await serveRestoredRegisterReplenishment({ replenishment }, INPUT);
-
-    expect(outcome.voidedSaleIds).toEqual(["sale-in-page"]);
   });
 });

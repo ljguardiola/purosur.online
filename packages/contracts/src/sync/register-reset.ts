@@ -21,6 +21,7 @@ const creditNoteAnswerFields = {
 const registerResetCreditNoteSchema = z.discriminatedUnion("state", [
   authorizedVoidCreditNoteAnswerSchema.extend(creditNoteAnswerFields),
   rejectedVoidCreditNoteAnswerSchema.extend(creditNoteAnswerFields),
+  z.object({ state: z.literal("ALREADY_CREDITED") }).extend(creditNoteAnswerFields),
 ]);
 
 export const registerResetRequestSchema = z.object({
@@ -36,6 +37,7 @@ export const registerResetResponseSchema = z.object({
   next: eventPositionSchema.nullable(),
   users: z.array(userRowSchema.extend({ user_id: recordIdSchema() })),
   credit_notes: z.array(registerResetCreditNoteSchema),
+  unrequested_credit_note_ids: z.array(recordIdSchema()),
 });
 
 export type RegisterResetRequest = z.output<typeof registerResetRequestSchema>;

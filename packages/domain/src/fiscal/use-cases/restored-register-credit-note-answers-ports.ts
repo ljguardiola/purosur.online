@@ -7,11 +7,20 @@ export interface SaleVoidCreditNoteOfRegister {
   answeredAt: Date | null;
 }
 
+export interface KeptAlreadyCreditedRefusalOfRegister {
+  creditNoteId: string;
+  refusedAt: Date;
+}
+
 export interface RestoredRegisterCreditNoteAnswers {
   saleVoidCreditNotesOf(
     registerId: string,
-    saleIds: readonly string[],
+    creditNoteIds: readonly string[],
   ): Promise<SaleVoidCreditNoteOfRegister[]>;
+  keptRefusalsOf(
+    registerId: string,
+    creditNoteIds: readonly string[],
+  ): Promise<KeptAlreadyCreditedRefusalOfRegister[]>;
 }
 
 export interface ServeRestoredRegisterCreditNoteAnswersPorts {
