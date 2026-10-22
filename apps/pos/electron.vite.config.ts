@@ -1,8 +1,8 @@
 import { fileURLToPath } from "node:url";
 import optimizeLocales from "@react-aria/optimize-locales-plugin";
+import babel from "@rolldown/plugin-babel";
 import tailwindcss from "@tailwindcss/vite";
-import react from "@vitejs/plugin-react";
-import reactCompiler from "babel-plugin-react-compiler";
+import react, { reactCompilerPreset } from "@vitejs/plugin-react";
 import { defineConfig } from "electron-vite";
 import { defaultClientConditions, defaultServerConditions, type Plugin } from "vite";
 import { withoutPackageOutput } from "../../.github/scripts/without-package-output.mjs";
@@ -67,7 +67,8 @@ export default defineConfig({
     plugins: [
       withoutPackageOutput(repoRoot),
       optimizeLocales.vite({ locales: ["es"] }),
-      react({ babel: { plugins: [reactCompiler] } }),
+      react(),
+      babel({ presets: [reactCompilerPreset()] }),
       tailwindcss(),
       contentSecurityPolicyMeta(),
     ],
