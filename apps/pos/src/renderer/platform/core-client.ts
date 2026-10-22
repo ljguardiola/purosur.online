@@ -237,6 +237,11 @@ export interface CoreClient {
   receiptPrintStatus(saleId: string): Promise<ReceiptPrintStatusOutcome>;
   printOriginalReceipt(saleId: string): Promise<PrintOriginalReceiptOutcome>;
   printCreditNote(saleId: string): Promise<PrintCreditNoteOutcome>;
+  reprintCreditNote(
+    saleId: string,
+    reason: string,
+    authorization: Authorization | undefined,
+  ): Promise<ReprintSaleReceiptOutcome>;
   reprintSaleReceipt(
     saleId: string,
     reason: string,
@@ -720,6 +725,18 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
       return ask(
         { type: "print-credit-note", request_id: deps.newRequestId(), sale_id: saleId },
         (answer) => (answer.type === "print-credit-note-result" ? answer.outcome : undefined),
+      );
+    },
+    reprintCreditNote(saleId, reason, authorization) {
+      return ask(
+        {
+          type: "reprint-credit-note",
+          request_id: deps.newRequestId(),
+          sale_id: saleId,
+          reason,
+          ...(authorization === undefined ? {} : { authorization }),
+        },
+        (answer) => (answer.type === "reprint-credit-note-result" ? answer.outcome : undefined),
       );
     },
     reprintSaleReceipt(saleId, reason, authorization) {

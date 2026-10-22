@@ -524,6 +524,7 @@ export {
   chargeSaleByTransferMessageSchema,
   chargeSaleInCashMessageSchema,
   chargeSaleOnStandaloneTerminalMessageSchema,
+  reprintCreditNoteMessageSchema,
   reprintSaleReceiptMessageSchema,
   salesCoreToRendererMessageSchema,
   salesRendererToCoreMessageSchema,

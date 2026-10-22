@@ -33,9 +33,10 @@ function printStateEvent(id: string, printAttemptedAt: Date, printedAt: Date) {
     aggregate_type: "Sale",
     aggregate_id: "sale-1",
     event_type: "sale_print_state_changed",
-    schema_version: 1,
+    schema_version: 2,
     payload: {
       sale_id: "sale-1",
+      document: "sale_receipt",
       print_attempted_at: printAttemptedAt.toISOString(),
       printed_at: printedAt.toISOString(),
     },
@@ -53,7 +54,13 @@ describe("printSaleReceipt", () => {
     it("answers unavailable, recording, rendering and sending nothing while the tax authority has not answered", async () => {
       const rig = receiptRig([saleWithFiscal({ kind: "awaiting" })]);
 
-      expect(await printSaleReceipt(rig.ports, { saleId: "sale-1" }, rig.watch)).toEqual({
+      expect(
+        await printSaleReceipt(
+          rig.ports,
+          { document: "sale_receipt", saleId: "sale-1" },
+          rig.watch,
+        ),
+      ).toEqual({
         kind: "unavailable",
       });
       expect(rig.template.renders).toEqual([]);
@@ -69,7 +76,11 @@ describe("printSaleReceipt", () => {
       const authorized = authorizedFacturaC(7500, ISSUER_IDENTITY);
       const rig = receiptRig([saleWithFiscal({ kind: "authorized", authorized })]);
 
-      const printing = printSaleReceipt(rig.ports, { saleId: "sale-1" }, rig.watch);
+      const printing = printSaleReceipt(
+        rig.ports,
+        { document: "sale_receipt", saleId: "sale-1" },
+        rig.watch,
+      );
       await rig.printer.whenWaiting();
       rig.printer.becomeReady();
       await printing;
@@ -82,7 +93,11 @@ describe("printSaleReceipt", () => {
     it("records and sends nothing while the printer has not reported it is ready", async () => {
       const rig = receiptRig();
 
-      const printing = printSaleReceipt(rig.ports, { saleId: "sale-1" }, rig.watch);
+      const printing = printSaleReceipt(
+        rig.ports,
+        { document: "sale_receipt", saleId: "sale-1" },
+        rig.watch,
+      );
       await rig.printer.whenWaiting();
       rig.printer.report("paper_out");
 
@@ -102,7 +117,11 @@ describe("printSaleReceipt", () => {
     it("records only the attempt, and stores the receipt, as it sends", async () => {
       const rig = receiptRig();
 
-      const printing = printSaleReceipt(rig.ports, { saleId: "sale-1" }, rig.watch);
+      const printing = printSaleReceipt(
+        rig.ports,
+        { document: "sale_receipt", saleId: "sale-1" },
+        rig.watch,
+      );
       await rig.printer.whenWaiting();
       rig.printer.becomeReady();
 
@@ -117,7 +136,11 @@ describe("printSaleReceipt", () => {
     it("hands the printer the original, as the template prints it, with the status watch it was given", async () => {
       const rig = receiptRig();
 
-      const printing = printSaleReceipt(rig.ports, { saleId: "sale-1" }, rig.watch);
+      const printing = printSaleReceipt(
+        rig.ports,
+        { document: "sale_receipt", saleId: "sale-1" },
+        rig.watch,
+      );
       await rig.printer.whenWaiting();
       rig.printer.report("paper_out");
       expect(rig.statuses).toEqual(["paper_out"]);
@@ -133,7 +156,11 @@ describe("printSaleReceipt", () => {
     it("records printed_at and the print-state event, in a transaction of their own, once the printer answers it was sent", async () => {
       const rig = receiptRig();
 
-      const printing = printSaleReceipt(rig.ports, { saleId: "sale-1" }, rig.watch);
+      const printing = printSaleReceipt(
+        rig.ports,
+        { document: "sale_receipt", saleId: "sale-1" },
+        rig.watch,
+      );
       await rig.printer.whenWaiting();
       rig.printer.becomeReady();
       rig.clock.set(SENT_AT);
@@ -151,7 +178,11 @@ describe("printSaleReceipt", () => {
     it("keeps the attempt and leaves printed_at empty, with no print-state event, when the printer breaks after the bytes were handed to it", async () => {
       const rig = receiptRig();
 
-      const printing = printSaleReceipt(rig.ports, { saleId: "sale-1" }, rig.watch);
+      const printing = printSaleReceipt(
+        rig.ports,
+        { document: "sale_receipt", saleId: "sale-1" },
+        rig.watch,
+      );
       await rig.printer.whenWaiting();
       rig.printer.breakAfterSending();
 
@@ -166,7 +197,11 @@ describe("printSaleReceipt", () => {
     it("writes nothing when the print is abandoned before the printer was ready", async () => {
       const rig = receiptRig();
 
-      const printing = printSaleReceipt(rig.ports, { saleId: "sale-1" }, rig.watch);
+      const printing = printSaleReceipt(
+        rig.ports,
+        { document: "sale_receipt", saleId: "sale-1" },
+        rig.watch,
+      );
       await rig.printer.whenWaiting();
       rig.printer.abandon();
       const outcome = await printing;
@@ -184,12 +219,20 @@ describe("printSaleReceipt", () => {
 
     it("prints the original again after an abandoned print, with no reprint number consumed", async () => {
       const rig = receiptRig();
-      const first = printSaleReceipt(rig.ports, { saleId: "sale-1" }, rig.watch);
+      const first = printSaleReceipt(
+        rig.ports,
+        { document: "sale_receipt", saleId: "sale-1" },
+        rig.watch,
+      );
       await rig.printer.whenWaiting(1);
       rig.printer.abandon();
       await first;
 
-      const second = printSaleReceipt(rig.ports, { saleId: "sale-1" }, rig.watch);
+      const second = printSaleReceipt(
+        rig.ports,
+        { document: "sale_receipt", saleId: "sale-1" },
+        rig.watch,
+      );
       await rig.printer.whenWaiting(2);
       rig.printer.becomeReady();
 
@@ -201,7 +244,11 @@ describe("printSaleReceipt", () => {
   describe("a copy decided before the printer was ready", () => {
     it("is recomputed as it sends, so the bytes match what was recorded", async () => {
       const rig = receiptRig();
-      const printing = printSaleReceipt(rig.ports, { saleId: "sale-1" }, rig.watch);
+      const printing = printSaleReceipt(
+        rig.ports,
+        { document: "sale_receipt", saleId: "sale-1" },
+        rig.watch,
+      );
       await rig.printer.whenWaiting();
       const [sale] = rig.ledger.state.sales;
       if (sale !== undefined) {
@@ -222,7 +269,11 @@ describe("printSaleReceipt", () => {
 
     it("fails when the sale is gone as the printer becomes ready", async () => {
       const rig = receiptRig();
-      const printing = printSaleReceipt(rig.ports, { saleId: "sale-1" }, rig.watch);
+      const printing = printSaleReceipt(
+        rig.ports,
+        { document: "sale_receipt", saleId: "sale-1" },
+        rig.watch,
+      );
       await rig.printer.whenWaiting();
       rig.ledger.state.sales = [];
 
@@ -239,7 +290,11 @@ describe("printSaleReceipt", () => {
       const rig = receiptRig([attempted]);
       rig.clock.set(SENT_AT);
 
-      const printing = printSaleReceipt(rig.ports, { saleId: "sale-1" }, rig.watch);
+      const printing = printSaleReceipt(
+        rig.ports,
+        { document: "sale_receipt", saleId: "sale-1" },
+        rig.watch,
+      );
       await rig.printer.whenWaiting();
       expect(rig.ledger.state.sales[0]?.reprints).toEqual([]);
       expect(rig.ledger.state.outbox).toEqual([]);
@@ -247,6 +302,7 @@ describe("printSaleReceipt", () => {
 
       const atSend = rig.printer.sent[0]?.ledgerStateWhenSent;
       const reprint = {
+        document: "sale_receipt",
         saleId: "sale-1",
         orderNumber: 1,
         requestedBy: "cashier",
@@ -260,9 +316,10 @@ describe("printSaleReceipt", () => {
         aggregate_type: "Sale",
         aggregate_id: "sale-1",
         event_type: "reprint_recorded",
-        schema_version: 1,
+        schema_version: 2,
         payload: {
           sale_id: "sale-1",
+          document: "sale_receipt",
           order_number: 1,
           requested_by: "cashier",
           authorized_by: null,
@@ -282,7 +339,11 @@ describe("printSaleReceipt", () => {
       const rig = receiptRig([attempted]);
       rig.clock.set(SENT_AT);
 
-      const printing = printSaleReceipt(rig.ports, { saleId: "sale-1" }, rig.watch);
+      const printing = printSaleReceipt(
+        rig.ports,
+        { document: "sale_receipt", saleId: "sale-1" },
+        rig.watch,
+      );
       await rig.printer.whenWaiting();
       rig.printer.becomeReady();
       const outcome = await printing;
@@ -299,13 +360,21 @@ describe("printSaleReceipt", () => {
 
     it("completes a print that broke after the bytes were handed over, as a duplicate with the earlier attempt time", async () => {
       const rig = receiptRig();
-      const broken = printSaleReceipt(rig.ports, { saleId: "sale-1" }, rig.watch);
+      const broken = printSaleReceipt(
+        rig.ports,
+        { document: "sale_receipt", saleId: "sale-1" },
+        rig.watch,
+      );
       await rig.printer.whenWaiting(1);
       rig.printer.breakAfterSending();
       await expect(broken).rejects.toThrow();
       rig.clock.set(SENT_AT);
 
-      const again = printSaleReceipt(rig.ports, { saleId: "sale-1" }, rig.watch);
+      const again = printSaleReceipt(
+        rig.ports,
+        { document: "sale_receipt", saleId: "sale-1" },
+        rig.watch,
+      );
       await rig.printer.whenWaiting(2);
       rig.printer.becomeReady();
 
@@ -323,7 +392,11 @@ describe("printSaleReceipt", () => {
       });
       const rig = receiptRig([attempted], authority);
 
-      const printing = printSaleReceipt(rig.ports, { saleId: "sale-1" }, rig.watch);
+      const printing = printSaleReceipt(
+        rig.ports,
+        { document: "sale_receipt", saleId: "sale-1" },
+        rig.watch,
+      );
       await rig.printer.whenWaiting();
       rig.printer.becomeReady();
       await printing;
@@ -339,7 +412,11 @@ describe("printSaleReceipt", () => {
       ]);
       rig.clock.set(SENT_AT);
 
-      const printing = printSaleReceipt(rig.ports, { saleId: "sale-1" }, rig.watch);
+      const printing = printSaleReceipt(
+        rig.ports,
+        { document: "sale_receipt", saleId: "sale-1" },
+        rig.watch,
+      );
       await rig.printer.whenWaiting();
       rig.printer.becomeReady();
       const outcome = await printing;
@@ -357,7 +434,11 @@ describe("printSaleReceipt", () => {
     const orders: unknown[] = [];
 
     for (let round = 0; round < 3; round += 1) {
-      const printing = printSaleReceipt(rig.ports, { saleId: "sale-1" }, rig.watch);
+      const printing = printSaleReceipt(
+        rig.ports,
+        { document: "sale_receipt", saleId: "sale-1" },
+        rig.watch,
+      );
       await rig.printer.whenWaiting(round + 1);
       rig.printer.becomeReady();
       orders.push(await printing);
@@ -376,12 +457,20 @@ describe("printSaleReceipt", () => {
   it("renders the receipt once and reuses the stored bytes in every later print", async () => {
     const rig = receiptRig();
 
-    const first = printSaleReceipt(rig.ports, { saleId: "sale-1" }, rig.watch);
+    const first = printSaleReceipt(
+      rig.ports,
+      { document: "sale_receipt", saleId: "sale-1" },
+      rig.watch,
+    );
     await rig.printer.whenWaiting(1);
     rig.printer.becomeReady();
     await first;
     rig.template.version = "v2";
-    const second = printSaleReceipt(rig.ports, { saleId: "sale-1" }, rig.watch);
+    const second = printSaleReceipt(
+      rig.ports,
+      { document: "sale_receipt", saleId: "sale-1" },
+      rig.watch,
+    );
     await rig.printer.whenWaiting(2);
     rig.printer.becomeReady();
     await second;
@@ -401,7 +490,11 @@ describe("printSaleReceipt", () => {
       });
       const rig = receiptRig([completedSale()], refusing);
 
-      const outcome = await printSaleReceipt(rig.ports, { saleId: "sale-1" }, rig.watch);
+      const outcome = await printSaleReceipt(
+        rig.ports,
+        { document: "sale_receipt", saleId: "sale-1" },
+        rig.watch,
+      );
 
       expect(outcome).toEqual(NOT_PERMITTED);
       expect(refusing.asked).toBe(1);
@@ -413,7 +506,11 @@ describe("printSaleReceipt", () => {
       const rig = receiptRig();
       rig.printers.unconfigure();
 
-      const outcome = await printSaleReceipt(rig.ports, { saleId: "sale-1" }, rig.watch);
+      const outcome = await printSaleReceipt(
+        rig.ports,
+        { document: "sale_receipt", saleId: "sale-1" },
+        rig.watch,
+      );
 
       expect(outcome).toEqual({ kind: "printer_not_configured" });
       expect(rig.ledger.transactions).toBe(0);
@@ -425,10 +522,14 @@ describe("printSaleReceipt", () => {
     it("prints the original once a printer is configured after finding none", async () => {
       const rig = receiptRig();
       rig.printers.unconfigure();
-      await printSaleReceipt(rig.ports, { saleId: "sale-1" }, rig.watch);
+      await printSaleReceipt(rig.ports, { document: "sale_receipt", saleId: "sale-1" }, rig.watch);
       rig.printers.configure(rig.printer);
 
-      const printing = printSaleReceipt(rig.ports, { saleId: "sale-1" }, rig.watch);
+      const printing = printSaleReceipt(
+        rig.ports,
+        { document: "sale_receipt", saleId: "sale-1" },
+        rig.watch,
+      );
       await rig.printer.whenWaiting();
       rig.printer.becomeReady();
 
@@ -438,7 +539,11 @@ describe("printSaleReceipt", () => {
     it("asks for the configured printer once per print", async () => {
       const rig = receiptRig();
 
-      const printing = printSaleReceipt(rig.ports, { saleId: "sale-1" }, rig.watch);
+      const printing = printSaleReceipt(
+        rig.ports,
+        { document: "sale_receipt", saleId: "sale-1" },
+        rig.watch,
+      );
       await rig.printer.whenWaiting();
       rig.printer.becomeReady();
       await printing;
@@ -454,7 +559,11 @@ describe("printSaleReceipt", () => {
       const rig = receiptRig([completedSale()], refusing);
       rig.printers.unconfigure();
 
-      const outcome = await printSaleReceipt(rig.ports, { saleId: "sale-1" }, rig.watch);
+      const outcome = await printSaleReceipt(
+        rig.ports,
+        { document: "sale_receipt", saleId: "sale-1" },
+        rig.watch,
+      );
 
       expect(outcome).toEqual(NOT_PERMITTED);
       expect(rig.printers.asked).toBe(0);
@@ -466,7 +575,11 @@ describe("printSaleReceipt", () => {
     ])("answers not_found and sends nothing when %s", async (_name, sales) => {
       const rig = receiptRig(sales);
 
-      const outcome = await printSaleReceipt(rig.ports, { saleId: "sale-1" }, rig.watch);
+      const outcome = await printSaleReceipt(
+        rig.ports,
+        { document: "sale_receipt", saleId: "sale-1" },
+        rig.watch,
+      );
 
       expect(outcome).toEqual({ kind: "not_found" });
       expect(rig.printer.sent).toEqual([]);
@@ -476,7 +589,11 @@ describe("printSaleReceipt", () => {
     it("answers sale_voided and records and sends nothing for a voided sale", async () => {
       const rig = receiptRig([voidedSale()]);
 
-      const outcome = await printSaleReceipt(rig.ports, { saleId: "sale-1" }, rig.watch);
+      const outcome = await printSaleReceipt(
+        rig.ports,
+        { document: "sale_receipt", saleId: "sale-1" },
+        rig.watch,
+      );
 
       expect(outcome).toEqual({ kind: "sale_voided" });
       expect(rig.printer.sent).toEqual([]);
@@ -489,7 +606,11 @@ describe("printSaleReceipt", () => {
       const rig = receiptRig();
       rig.ledger.state.outboxReady = false;
 
-      const outcome = await printSaleReceipt(rig.ports, { saleId: "sale-1" }, rig.watch);
+      const outcome = await printSaleReceipt(
+        rig.ports,
+        { document: "sale_receipt", saleId: "sale-1" },
+        rig.watch,
+      );
 
       expect(outcome).toEqual({ kind: "unavailable" });
       expect(rig.printer.sent).toEqual([]);

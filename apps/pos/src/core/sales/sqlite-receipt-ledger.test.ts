@@ -11,6 +11,7 @@ import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import { migrationClock } from "../platform/test-support/migration-clock";
 import { openLocalDatabase } from "../platform/test-support/open-local-database";
 import { SqliteReceiptLedger } from "./sqlite-receipt-ledger";
+import { insertCreditNote, insertVoidedSale } from "./test-support/credit-note-receipt-database";
 
 const CHAIN_KEY = Buffer.from("0123456789abcdef0123456789abcdef").toString("base64");
 const COMPLETED_AT = "2026-09-30T15:05:00.000Z";
@@ -91,29 +92,39 @@ describe("a receipt ledger's delivery of a sale", () => {
   it("is unknown for a sale that does not exist and for one that is not completed", () => {
     insertCompletedSale("sale-open", "OPEN");
 
-    expect(inTransaction((tx) => tx.receiptDelivery("missing"))).toBeUndefined();
-    expect(inTransaction((tx) => tx.receiptDelivery("sale-open"))).toBeUndefined();
+    expect(
+      inTransaction((tx) => tx.receiptDelivery({ document: "sale_receipt", saleId: "missing" })),
+    ).toBeUndefined();
+    expect(
+      inTransaction((tx) => tx.receiptDelivery({ document: "sale_receipt", saleId: "sale-open" })),
+    ).toBeUndefined();
   });
 
   it("is known for a voided sale, so its detail can still be read", () => {
     insertCompletedSale("sale-gone", "VOIDED");
 
-    expect(inTransaction((tx) => tx.receiptDelivery("sale-gone"))).toMatchObject({
+    expect(
+      inTransaction((tx) => tx.receiptDelivery({ document: "sale_receipt", saleId: "sale-gone" })),
+    ).toMatchObject({
       printAttemptedAt: null,
       printedAt: null,
       reprintCount: 0,
       voided: true,
+      creditNoteAuthorized: false,
     });
   });
 
   it("starts with nothing attempted, printed or reprinted", () => {
     insertCompletedSale("sale-1");
 
-    expect(inTransaction((tx) => tx.receiptDelivery("sale-1"))).toEqual<ReceiptDelivery>({
+    expect(
+      inTransaction((tx) => tx.receiptDelivery({ document: "sale_receipt", saleId: "sale-1" })),
+    ).toEqual<ReceiptDelivery>({
       printAttemptedAt: null,
       printedAt: null,
       reprintCount: 0,
       voided: false,
+      creditNoteAuthorized: false,
     });
   });
 
@@ -123,18 +134,22 @@ describe("a receipt ledger's delivery of a sale", () => {
     const printedAt = new Date("2026-09-30T15:06:05.000Z");
 
     inTransaction((tx) => {
-      tx.recordPrintAttempt("sale-1", attemptedAt);
+      tx.recordPrintAttempt({ document: "sale_receipt", saleId: "sale-1" }, attemptedAt);
     });
-    expect(inTransaction((tx) => tx.receiptDelivery("sale-1"))).toEqual({
+    expect(
+      inTransaction((tx) => tx.receiptDelivery({ document: "sale_receipt", saleId: "sale-1" })),
+    ).toEqual({
       printAttemptedAt: attemptedAt,
       printedAt: null,
       reprintCount: 0,
       voided: false,
+      creditNoteAuthorized: false,
     });
 
     inTransaction((tx) => {
-      tx.recordPrinted("sale-1", printedAt);
+      tx.recordPrinted({ document: "sale_receipt", saleId: "sale-1" }, printedAt);
       tx.recordReprint({
+        document: "sale_receipt",
         saleId: "sale-1",
         orderNumber: 1,
         requestedBy: "u1",
@@ -143,6 +158,7 @@ describe("a receipt ledger's delivery of a sale", () => {
         occurredAt: new Date("2026-09-30T15:10:00.000Z"),
       });
       tx.recordReprint({
+        document: "sale_receipt",
         saleId: "sale-1",
         orderNumber: 2,
         requestedBy: "u1",
@@ -151,11 +167,14 @@ describe("a receipt ledger's delivery of a sale", () => {
         occurredAt: new Date("2026-09-30T15:20:00.000Z"),
       });
     });
-    expect(inTransaction((tx) => tx.receiptDelivery("sale-1"))).toEqual({
+    expect(
+      inTransaction((tx) => tx.receiptDelivery({ document: "sale_receipt", saleId: "sale-1" })),
+    ).toEqual({
       printAttemptedAt: attemptedAt,
       printedAt,
       reprintCount: 2,
       voided: false,
+      creditNoteAuthorized: false,
     });
   });
 });
@@ -166,6 +185,7 @@ describe("a receipt ledger's recorded reprints", () => {
 
     inTransaction((tx) => {
       tx.recordReprint({
+        document: "sale_receipt",
         saleId: "sale-1",
         orderNumber: 1,
         requestedBy: "u1",
@@ -174,6 +194,7 @@ describe("a receipt ledger's recorded reprints", () => {
         occurredAt: new Date("2026-09-30T15:10:00.000Z"),
       });
       tx.recordReprint({
+        document: "sale_receipt",
         saleId: "sale-1",
         orderNumber: 2,
         requestedBy: "u1",
@@ -186,6 +207,7 @@ describe("a receipt ledger's recorded reprints", () => {
     expect(database.prepare("SELECT * FROM sale_reprints ORDER BY order_number").all()).toEqual([
       {
         sale_id: "sale-1",
+        document: "sale_receipt",
         order_number: 1,
         requested_by: "u1",
         authorized_by: "u2",
@@ -195,6 +217,7 @@ describe("a receipt ledger's recorded reprints", () => {
       },
       {
         sale_id: "sale-1",
+        document: "sale_receipt",
         order_number: 2,
         requested_by: "u1",
         authorized_by: null,
@@ -208,6 +231,7 @@ describe("a receipt ledger's recorded reprints", () => {
   it("refuse a second reprint with the same order number", () => {
     insertCompletedSale("sale-1");
     const reprint = {
+      document: "sale_receipt" as const,
       saleId: "sale-1",
       orderNumber: 1,
       requestedBy: "u1",
@@ -230,17 +254,24 @@ describe("a receipt ledger's recorded reprints", () => {
 describe("a receipt ledger's stored receipt", () => {
   it("is absent until recorded and then comes back byte for byte", () => {
     insertCompletedSale("sale-1");
-    expect(inTransaction((tx) => tx.storedReceipt("sale-1"))).toBeUndefined();
+    expect(
+      inTransaction((tx) => tx.storedReceipt({ document: "sale_receipt", saleId: "sale-1" })),
+    ).toBeUndefined();
 
     inTransaction((tx) => {
-      tx.recordStoredReceipt("sale-1", {
-        templateVersion: "1",
-        head: Uint8Array.from([0x1b, 0x40, 0x00, 0xff]),
-        body: Uint8Array.from([0x41, 0x0a]),
-      });
+      tx.recordStoredReceipt(
+        { document: "sale_receipt", saleId: "sale-1" },
+        {
+          templateVersion: "1",
+          head: Uint8Array.from([0x1b, 0x40, 0x00, 0xff]),
+          body: Uint8Array.from([0x41, 0x0a]),
+        },
+      );
     });
 
-    const stored = inTransaction((tx) => tx.storedReceipt("sale-1"));
+    const stored = inTransaction((tx) =>
+      tx.storedReceipt({ document: "sale_receipt", saleId: "sale-1" }),
+    );
     expect(stored?.templateVersion).toBe("1");
     expect(Array.from(stored?.head ?? [])).toEqual([0x1b, 0x40, 0x00, 0xff]);
     expect(Array.from(stored?.body ?? [])).toEqual([0x41, 0x0a]);
@@ -457,8 +488,13 @@ describe("a receipt ledger's outbox", () => {
     aggregate_type: "Sale",
     aggregate_id: "sale-1",
     event_type: "sale_print_state_changed",
-    schema_version: 1,
-    payload: { sale_id: "sale-1", print_attempted_at: COMPLETED_AT, printed_at: null },
+    schema_version: 2,
+    payload: {
+      sale_id: "sale-1",
+      document: "sale_receipt",
+      print_attempted_at: COMPLETED_AT,
+      printed_at: null,
+    },
     occurred_at: COMPLETED_AT,
     actor_id: "u1",
   };
@@ -488,11 +524,170 @@ describe("a receipt ledger's transaction", () => {
 
     expect(() =>
       inTransaction((tx) => {
-        tx.recordPrintAttempt("sale-1", new Date(COMPLETED_AT));
+        tx.recordPrintAttempt(
+          { document: "sale_receipt", saleId: "sale-1" },
+          new Date(COMPLETED_AT),
+        );
         throw new Error("the printer is gone");
       }),
     ).toThrow("the printer is gone");
 
-    expect(inTransaction((tx) => tx.receiptDelivery("sale-1"))?.printAttemptedAt).toBeNull();
+    expect(
+      inTransaction((tx) => tx.receiptDelivery({ document: "sale_receipt", saleId: "sale-1" }))
+        ?.printAttemptedAt,
+    ).toBeNull();
+  });
+});
+
+describe("a receipt ledger's credit note of a voided sale", () => {
+  const creditNote = { document: "credit_note", saleId: "sale-1" } as const;
+  const receipt = { document: "sale_receipt", saleId: "sale-1" } as const;
+
+  beforeEach(() => {
+    insertVoidedSale(database);
+    insertCreditNote(database);
+  });
+
+  it("is authorized once the tax authority authorized it, whatever its print state", () => {
+    expect(inTransaction((tx) => tx.receiptDelivery(creditNote))).toEqual<ReceiptDelivery>({
+      printAttemptedAt: null,
+      printedAt: null,
+      reprintCount: 0,
+      voided: true,
+      creditNoteAuthorized: true,
+    });
+  });
+
+  it.each(["IN_PROGRESS", "REJECTED", "ALREADY_CREDITED"])(
+    "is not authorized while it is %s",
+    (state) => {
+      database.exec("DELETE FROM sale_void_credit_notes");
+      insertCreditNote(database, {
+        state,
+        point_of_sale: null,
+        number: null,
+        issued_on: null,
+        issued_at: null,
+        authorization_code: null,
+        authorization_code_due_on: null,
+        answered_at: state === "IN_PROGRESS" ? null : "2026-09-30T15:40:05.000Z",
+      });
+
+      expect(inTransaction((tx) => tx.receiptDelivery(creditNote))?.creditNoteAuthorized).toBe(
+        false,
+      );
+    },
+  );
+
+  it("is not authorized for a voided sale without a credit note", () => {
+    database.exec("DELETE FROM sale_void_credit_notes");
+
+    expect(inTransaction((tx) => tx.receiptDelivery(creditNote))?.creditNoteAuthorized).toBe(false);
+  });
+
+  it("holds its own print attempt, printed moment and reprints apart from the sale receipt's", () => {
+    const attemptedAt = new Date("2026-09-30T16:00:00.000Z");
+    const printedAt = new Date("2026-09-30T16:00:04.000Z");
+
+    inTransaction((tx) => {
+      tx.recordPrintAttempt(creditNote, attemptedAt);
+      tx.recordPrinted(creditNote, printedAt);
+      tx.recordReprint({
+        document: "credit_note",
+        saleId: "sale-1",
+        orderNumber: 1,
+        requestedBy: "u1",
+        authorizedBy: "u2",
+        reason: { kind: "requested", text: "El cliente la perdio" },
+        occurredAt: new Date("2026-09-30T16:10:00.000Z"),
+      });
+    });
+
+    expect(inTransaction((tx) => tx.receiptDelivery(creditNote))).toMatchObject({
+      printAttemptedAt: attemptedAt,
+      printedAt,
+      reprintCount: 1,
+    });
+    expect(inTransaction((tx) => tx.receiptDelivery(receipt))).toMatchObject({
+      printAttemptedAt: null,
+      printedAt: null,
+      reprintCount: 0,
+    });
+    expect(database.prepare("SELECT print_attempted_at, printed_at FROM sales").get()).toEqual({
+      print_attempted_at: null,
+      printed_at: null,
+    });
+  });
+
+  it("moves the attempt to the moment it is recorded again", () => {
+    inTransaction((tx) => {
+      tx.recordPrintAttempt(creditNote, new Date("2026-09-30T16:00:00.000Z"));
+    });
+
+    expect(() =>
+      inTransaction((tx) => {
+        tx.recordPrintAttempt(creditNote, new Date("2026-09-30T16:30:00.000Z"));
+      }),
+    ).not.toThrow();
+    expect(inTransaction((tx) => tx.receiptDelivery(creditNote))?.printAttemptedAt).toEqual(
+      new Date("2026-09-30T16:30:00.000Z"),
+    );
+  });
+
+  it("numbers its reprints apart from the sale receipt's and refuses a repeated number of its own", () => {
+    const reprint = (document: "sale_receipt" | "credit_note") => ({
+      document,
+      saleId: "sale-1",
+      orderNumber: 1,
+      requestedBy: "u1",
+      authorizedBy: null,
+      reason: { kind: "retry" } as const,
+      occurredAt: new Date("2026-09-30T16:10:00.000Z"),
+    });
+
+    inTransaction((tx) => {
+      tx.recordReprint(reprint("sale_receipt"));
+      tx.recordReprint(reprint("credit_note"));
+    });
+
+    expect(() =>
+      inTransaction((tx) => {
+        tx.recordReprint(reprint("credit_note"));
+      }),
+    ).toThrow();
+    expect(database.prepare("SELECT document FROM sale_reprints ORDER BY document").all()).toEqual([
+      { document: "credit_note" },
+      { document: "sale_receipt" },
+    ]);
+  });
+
+  it("stores the rendered credit note apart from the sale receipt, byte for byte", () => {
+    expect(inTransaction((tx) => tx.storedReceipt(creditNote))).toBeUndefined();
+
+    inTransaction((tx) => {
+      tx.recordStoredReceipt(creditNote, {
+        templateVersion: "1",
+        head: Uint8Array.from([0x1b, 0x40, 0x00, 0xff]),
+        body: Uint8Array.from([0x41, 0x0a]),
+      });
+    });
+
+    const stored = inTransaction((tx) => tx.storedReceipt(creditNote));
+    expect(stored?.templateVersion).toBe("1");
+    expect(Array.from(stored?.head ?? [])).toEqual([0x1b, 0x40, 0x00, 0xff]);
+    expect(Array.from(stored?.body ?? [])).toEqual([0x41, 0x0a]);
+    expect(inTransaction((tx) => tx.storedReceipt(receipt))).toBeUndefined();
+  });
+
+  it("builds its content from the credit note the tax authority authorized", () => {
+    insertFiscalDocument(database, { saleId: "sale-1", state: "AUTHORIZED", number: 41 });
+
+    const content = inTransaction((tx) => tx.creditNoteContent("sale-1"));
+
+    expect(content.fiscal).toMatchObject({ number: 7, pointOfSale: 12 });
+    expect(content.refunds).toEqual([
+      { method: "CASH", amount: 700000 },
+      { method: "TRANSFER", amount: 490000 },
+    ]);
   });
 });

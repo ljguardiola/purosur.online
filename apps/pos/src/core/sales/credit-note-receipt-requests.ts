@@ -1,61 +1,74 @@
-import type { PrintCreditNoteOutcome } from "@purosur/contracts";
-import { escPosCreditNoteTemplate } from "./receipt-printer/escpos-receipt-template";
-import type { ReceiptRequestDeps } from "./receipt-requests";
-import { readCreditNoteReceipt } from "./sqlite-credit-note-receipt";
+import type { PrintCreditNoteOutcome, ReprintSaleReceiptOutcome } from "@purosur/contracts";
+import type {
+  OperationAuthority,
+  OperationAuthorization,
+  ReceiptPrintGrant,
+} from "@purosur/domain/sales/use-cases";
+import {
+  printOriginalFor,
+  type ReceiptRequestDeps,
+  type ReprintSaleReceiptRequest,
+  reprintFor,
+} from "./receipt-requests";
 
-type Unprinted = Extract<PrintCreditNoteOutcome, { kind: "not_found" | "printer_not_configured" }>;
+type HistoryRefusal = Extract<
+  PrintCreditNoteOutcome,
+  { kind: "not_signed_in" | "lacks_permission" | "unavailable" }
+>;
 
-function jobOf(saleId: string): string {
-  return `credit-note:${saleId}`;
-}
+type NotSignedIn = Extract<ReprintSaleReceiptOutcome, { kind: "not_signed_in" }>;
 
-function start(
-  { database, printers, jobs }: ReceiptRequestDeps,
-  saleId: string,
-  unattended: boolean,
-) {
-  return jobs.start(
-    jobOf(saleId),
-    async (runner): Promise<Unprinted | { kind: "printed" }> => {
-      const content = readCreditNoteReceipt(database, saleId);
-      if (content === null) {
-        return { kind: "not_found" };
-      }
-      const printer = runner.printers(printers).configured();
-      if (printer === undefined) {
-        return { kind: "printer_not_configured" };
-      }
-      await printer.print(runner.watch, () => escPosCreditNoteTemplate.render(content));
-      return { kind: "printed" };
-    },
-    { unattended },
-  );
+function creditNoteOf(saleId: string) {
+  return { document: "credit_note", saleId } as const;
 }
 
 export async function printCreditNoteFor(
   deps: ReceiptRequestDeps,
   saleId: string,
 ): Promise<PrintCreditNoteOutcome> {
-  const guarded = await deps.gate.run({ kind: "view_sales_history" }, async () => undefined);
-  if (guarded.kind !== "performed") {
-    return guarded;
-  }
-  const started = await start(deps, saleId, false);
-  switch (started.kind) {
-    case "busy":
-      return { kind: "busy" };
-    case "failed":
-      return { kind: "unavailable" };
-    case "sent":
-      return { kind: "started" };
-    case "answered":
-      return started.outcome.kind === "printed" ? { kind: "started" } : started.outcome;
-  }
+  return printOriginalFor(
+    deps,
+    creditNoteOf(saleId),
+    (onGrant): OperationAuthority<ReceiptPrintGrant, HistoryRefusal> => ({
+      async authorize(): Promise<OperationAuthorization<ReceiptPrintGrant, HistoryRefusal>> {
+        const guarded = await deps.gate.run({ kind: "view_sales_history" }, async (actor) => actor);
+        if (guarded.kind !== "performed") {
+          return { kind: "refused", refusal: guarded };
+        }
+        onGrant();
+        return {
+          kind: "granted",
+          grant: { actorId: guarded.result.signedInUserId, authorizedBy: undefined },
+        };
+      },
+    }),
+  );
+}
+
+export async function reprintCreditNoteFor(
+  deps: ReceiptRequestDeps,
+  { saleId, ...request }: ReprintSaleReceiptRequest,
+): Promise<ReprintSaleReceiptOutcome> {
+  return reprintFor(deps, creditNoteOf(saleId), request);
 }
 
 export async function printVoidedSaleCreditNoteFor(
   deps: ReceiptRequestDeps,
   saleId: string,
 ): Promise<void> {
-  await start(deps, saleId, true);
+  await printOriginalFor(
+    deps,
+    creditNoteOf(saleId),
+    (onGrant): OperationAuthority<ReceiptPrintGrant, NotSignedIn> => ({
+      async authorize(): Promise<OperationAuthorization<ReceiptPrintGrant, NotSignedIn>> {
+        const actorId = deps.signedInUserId();
+        if (actorId === undefined) {
+          return { kind: "refused", refusal: { kind: "not_signed_in" } };
+        }
+        onGrant();
+        return { kind: "granted", grant: { actorId, authorizedBy: undefined } };
+      },
+    }),
+    { unattended: true },
+  );
 }

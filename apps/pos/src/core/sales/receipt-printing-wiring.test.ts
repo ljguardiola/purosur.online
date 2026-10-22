@@ -47,6 +47,7 @@ describe("the register's receipt printing without a local database", () => {
     expect(printing.receiptPrintStatus).toBeUndefined();
     expect(printing.reprintSaleReceipt).toBeUndefined();
     expect(printing.printCreditNote).toBeUndefined();
+    expect(printing.reprintCreditNote).toBeUndefined();
   });
 
   it("prints no credit note right after a void", async () => {
@@ -372,19 +373,50 @@ describe("the register's receipt printing over its local database", () => {
       );
     });
 
-    it("is printed again from the history, answering that it started", async () => {
+    it("is printed from the history as the original the first time, answering the copy that started", async () => {
       const printing = printingOverDatabase();
 
-      const reprinted = printing.printCreditNote?.("sale-1");
+      const printed = printing.printCreditNote?.("sale-1");
       await vi.waitFor(() => expect(connections).toHaveLength(1));
       const [connection] = connections;
       connection?.socket.connected();
       connection?.socket.receive(READY);
 
-      expect(await reprinted).toEqual({ kind: "started" });
+      expect(await printed).toEqual({ kind: "started", copy: { kind: "original" } });
       expect(printoutOf(connection?.socket.written[0] ?? new Uint8Array()).text).toContain(
         "Asociada a Factura C",
       );
+    });
+
+    it("is reprinted from the history as a numbered duplicate once printed, for a person holding the reprint permission", async () => {
+      database.exec(
+        "INSERT INTO role_permissions (role_id, permission_key, active) VALUES ('role-cashier', 'reprint_receipt', 1)",
+      );
+      const printing = printingOverDatabase();
+      const first = printing.printCreditNote?.("sale-1");
+      await vi.waitFor(() => expect(connections).toHaveLength(1));
+      connections[0]?.socket.connected();
+      connections[0]?.socket.receive(READY);
+      await first;
+
+      const reprinted = printing.reprintCreditNote?.({ saleId: "sale-1", reason: "Se perdió" });
+      await vi.waitFor(() => expect(connections).toHaveLength(2));
+      connections[1]?.socket.connected();
+      connections[1]?.socket.receive(READY);
+
+      expect(await reprinted).toEqual({
+        kind: "started",
+        copy: { kind: "duplicate", order_number: 1 },
+      });
+      expect(printoutOf(connections[1]?.socket.written[0] ?? new Uint8Array()).text).toContain(
+        "COPIA DUPLICADA Nº 1",
+      );
+    });
+
+    it("refuses the reprint of the credit note to a person without the reprint permission", async () => {
+      expect(
+        await printingOverDatabase().reprintCreditNote?.({ saleId: "sale-1", reason: "Se perdió" }),
+      ).toEqual({ kind: "lacks_permission" });
     });
   });
 

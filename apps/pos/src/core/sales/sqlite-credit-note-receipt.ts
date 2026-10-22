@@ -1,8 +1,12 @@
-import { creditNoteCFiscalBlock, type FacturaC, receiptContent } from "@purosur/domain";
+import {
+  type CreditNoteReceiptContent,
+  creditNoteCFiscalBlock,
+  type FacturaC,
+  receiptContent,
+} from "@purosur/domain";
 import { readCreditNoteOfSale } from "../fiscal/sqlite-void-credit-notes";
 import type { LocalDatabase } from "../platform/local-database";
-import type { CreditNoteReceiptContent } from "./receipt-printer/escpos-receipt-template";
-import { readReceiptSource } from "./sqlite-receipt-ledger";
+import { readReceiptSource } from "./sqlite-receipt-source";
 
 type Refund = CreditNoteReceiptContent["refunds"][number];
 

@@ -325,6 +325,9 @@ function coreAnswering(
     async printCreditNote() {
       return { kind: "unavailable" };
     },
+    async reprintCreditNote() {
+      return { kind: "unavailable" };
+    },
     async printOriginalReceipt() {
       return { kind: "unavailable" };
     },
