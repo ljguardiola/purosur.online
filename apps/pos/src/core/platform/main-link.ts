@@ -1,4 +1,4 @@
-import type { DeviceCredentialsRequest } from "@purosur/contracts";
+import { type DeviceCredentialsRequest, deviceCredentialsAnswerSchema } from "@purosur/contracts";
 import { createHeldMessages } from "./held-messages";
 import { createMainRequests } from "./main-requests";
 
@@ -15,7 +15,14 @@ export function createMainLink<TEvent extends { data: unknown }>(deps: {
     post: (message) => deps.parentPort.postMessage(message),
     newRequestId: deps.newRequestId,
   });
-  const fromMain = createHeldMessages<TEvent>();
+  const fromMain = createHeldMessages<TEvent>((event) => {
+    const answer = deviceCredentialsAnswerSchema.safeParse(event.data);
+    if (!answer.success) {
+      return false;
+    }
+    mainRequests.receive(answer.data);
+    return true;
+  });
   deps.parentPort.on("message", fromMain.receive);
   return { mainRequests, deliverTo: fromMain.deliverTo };
 }

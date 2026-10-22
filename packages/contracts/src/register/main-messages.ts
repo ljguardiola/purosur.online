@@ -48,7 +48,7 @@ export type DeviceCredentialsRequest =
   | { type: "device-credentials-read-request"; request_id: string }
   | { type: "device-credentials-storable-request"; request_id: string };
 
-const deviceCredentialsAnswerSchema = z.discriminatedUnion("type", [
+export const deviceCredentialsAnswerSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("device-credentials-stored"),
     request_id: requestIdSchema,
