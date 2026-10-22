@@ -1,4 +1,22 @@
+export type {
+  ContingencyBackupTicketIds,
+  ContingencyBackupTicketPrinter,
+  ContingencyBackupTicketPrinting,
+  ContingencyBackupTicketReads,
+  ContingencyBackupTicketSealer,
+  ContingencyBackupTicketSealing,
+  ContingencyBackupTicketStore,
+  DiscardContingencyBackupTicketsPorts,
+  DiscardContingencyBackupTicketsTransaction,
+  NewContingencyBackupTicket,
+  PrintContingencyBackupTicketTransaction,
+  PrintNextContingencyBackupTicketPorts,
+  RecordContingencyBackupTicketPorts,
+  RecordContingencyBackupTicketTransaction,
+} from "./contingency-backup-ticket-ports.js";
 export { detectOverdueRegisterBackups } from "./detect-overdue-register-backups.js";
+export type { DiscardContingencyBackupTicketsOutcome } from "./discard-contingency-backup-tickets.js";
+export { discardContingencyBackupTickets } from "./discard-contingency-backup-tickets.js";
 export type {
   OffsiteDumpCheckPorts,
   OffsiteDumpCheckStore,
@@ -9,6 +27,13 @@ export type {
   RegisterBackupOverdueAlerts,
   RegisterBackupStandingReader,
 } from "./overdue-register-backup-ports.js";
+export type { PrintNextContingencyBackupTicketOutcome } from "./print-next-contingency-backup-ticket.js";
+export { printNextContingencyBackupTicket } from "./print-next-contingency-backup-ticket.js";
+export type {
+  RecordContingencyBackupTicketInput,
+  RecordContingencyBackupTicketOutcome,
+} from "./record-contingency-backup-ticket.js";
+export { recordContingencyBackupTicket } from "./record-contingency-backup-ticket.js";
 export type {
   RecordOffsiteDumpCheckInput,
   RecordOffsiteDumpCheckOutcome,
