@@ -229,6 +229,14 @@ export type {
   StoredDeviceToken,
   VersionedKey,
 } from "./register-store.js";
+export type { RegularizeRestoredOrphanAuthorizationsOutcome } from "./regularize-restored-orphan-authorizations.js";
+export { regularizeRestoredOrphanAuthorizations } from "./regularize-restored-orphan-authorizations.js";
+export type {
+  AwaitedOrphanSweep,
+  OrphanSweepAnswer,
+  OrphanSweepRequester,
+  RegularizeRestoredOrphanAuthorizationsPorts,
+} from "./regularize-restored-orphan-authorizations-ports.js";
 export { reportLocalDatabaseDamage } from "./report-local-database-damage.js";
 export type {
   ReportSnapshotCorruptionInput,
