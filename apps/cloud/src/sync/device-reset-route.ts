@@ -7,9 +7,8 @@ import {
   registerResetResponseSchema,
   saleVoidedEventCreditNoteSchema,
 } from "@purosur/contracts";
-import type { RestoredCreditNoteAnswer } from "@purosur/domain";
+import type { RestoredCreditNoteAnswer, RestoredUnclearDeferral } from "@purosur/domain";
 import {
-  type ServedUnclearDeferralAnswer,
   serveRestoredRegisterCreditNoteAnswers,
   serveRestoredRegisterUnclearDeferralAnswers,
 } from "@purosur/domain/fiscal/use-cases";
@@ -76,7 +75,7 @@ function creditNoteBody({
 function unclearDeferralBody({
   fiscalDocumentId,
   answer,
-}: ServedUnclearDeferralAnswer): RegisterResetResponse["unclear_deferrals"][number] {
+}: RestoredUnclearDeferral): RegisterResetResponse["unclear_deferrals"][number] {
   const common = { fiscal_document_id: fiscalDocumentId };
   switch (answer.kind) {
     case "unsettled":

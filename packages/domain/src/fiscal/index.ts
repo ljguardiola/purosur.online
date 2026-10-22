@@ -235,6 +235,7 @@ export {
 export type {
   RebuiltAuthorizedDocument,
   RebuiltUnclearDeferral,
+  RestoredUnclearDeferral,
   RestoredUnclearDeferralAnswer,
 } from "./model/restored-unclear-deferral.js";
 export {

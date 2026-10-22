@@ -17,6 +17,11 @@ export type RestoredUnclearDeferralAnswer =
       answeredAt: Date;
     };
 
+export interface RestoredUnclearDeferral {
+  fiscalDocumentId: string;
+  answer: RestoredUnclearDeferralAnswer;
+}
+
 const UNSETTLED: RestoredUnclearDeferralAnswer = { kind: "unsettled" };
 
 export function restoredUnclearDeferralAnswer(

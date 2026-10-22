@@ -1,5 +1,5 @@
 import {
-  type RestoredUnclearDeferralAnswer,
+  type RestoredUnclearDeferral,
   restoredUnclearDeferralAnswer,
 } from "../model/restored-unclear-deferral.js";
 import type { ServeRestoredRegisterUnclearDeferralAnswersPorts } from "./restored-register-unclear-deferral-answers-ports.js";
@@ -9,15 +9,10 @@ export interface ServeRestoredRegisterUnclearDeferralAnswersInput {
   fiscalDocumentIds: readonly string[];
 }
 
-export interface ServedUnclearDeferralAnswer {
-  fiscalDocumentId: string;
-  answer: RestoredUnclearDeferralAnswer;
-}
-
 export async function serveRestoredRegisterUnclearDeferralAnswers(
   { unclearDeferrals }: ServeRestoredRegisterUnclearDeferralAnswersPorts,
   { registerId, fiscalDocumentIds }: ServeRestoredRegisterUnclearDeferralAnswersInput,
-): Promise<ServedUnclearDeferralAnswer[]> {
+): Promise<RestoredUnclearDeferral[]> {
   const asked = [...new Set(fiscalDocumentIds)];
   if (asked.length === 0) {
     return [];

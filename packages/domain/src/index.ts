@@ -233,6 +233,7 @@ export type {
   RejectedDocumentRemedyState,
   RejectionClass,
   RestoredCreditNoteAnswer,
+  RestoredUnclearDeferral,
   RestoredUnclearDeferralAnswer,
   SaleInvoice,
   SaleVoidCreditNote,
