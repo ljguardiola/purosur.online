@@ -1062,8 +1062,8 @@ describe("decideSaleAuthorizationRoute while a deferred-sale backlog is pending"
   const BACKLOG_ENTRY = {
     deferredSaleId: "deferred-1",
     saleId: "sale-1",
-    occurredAt: new Date("2026-09-30T12:00:00.000Z"),
-    routedAt: new Date("2026-09-30T12:00:05.000Z"),
+    occurredAt: new Date("2026-10-01T10:00:00.000Z"),
+    routedAt: new Date("2026-10-01T10:00:05.000Z"),
     total: 1000,
     lastAttemptEndedAt: null,
   };
@@ -1144,16 +1144,40 @@ describe("decideSaleAuthorizationRoute while a deferred-sale backlog is pending"
     ).toMatchObject({ kind: "reserve", number: 41 });
   });
 
-  it("reserves as usual when the only pending sale is behind the tax authority's last issued day", () => {
-    expect(
-      decide({ series: { ...BACKLOG_SERIES, taxAuthorityLastIssuedOn: "2026-10-01" } }),
-    ).toMatchObject({ kind: "reserve" });
-  });
+  describe("two days later", () => {
+    const TWO_DAYS_LATER = new Date("2026-10-03T12:00:00.000Z");
+    const later = {
+      now: TWO_DAYS_LATER,
+      online: { ...ONLINE, lastHealthCheckOkAt: new Date(TWO_DAYS_LATER.getTime() - 1_000) },
+    };
 
-  it("reserves as usual when the only pending sale is behind the register's own last authorized day", () => {
-    expect(
-      decide({ series: { ...BACKLOG_SERIES, localLastAuthorizedIssuedOn: "2026-10-01" } }),
-    ).toMatchObject({ kind: "reserve" });
+    it("reserves as usual when the only pending sale is behind the tax authority's last issued day", () => {
+      expect(
+        decide({ ...later, series: { ...BACKLOG_SERIES, taxAuthorityLastIssuedOn: "2026-10-02" } }),
+      ).toMatchObject({ kind: "reserve" });
+    });
+
+    it("reserves as usual when the only pending sale is behind the register's own last authorized day", () => {
+      expect(
+        decide({
+          ...later,
+          series: { ...BACKLOG_SERIES, localLastAuthorizedIssuedOn: "2026-10-02" },
+        }),
+      ).toMatchObject({ kind: "reserve" });
+    });
+
+    it("holds the backlog while the sale is on the last issued day", () => {
+      expect(
+        decide({
+          ...later,
+          series: {
+            ...BACKLOG_SERIES,
+            taxAuthorityLastIssuedOn: "2026-10-01",
+            localLastAuthorizedIssuedOn: "2026-09-30",
+          },
+        }),
+      ).toMatchObject({ cause: "deferred_backlog" });
+    });
   });
 
   it("still holds the backlog when one pending sale is dropped and another is not", () => {
