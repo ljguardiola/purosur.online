@@ -143,6 +143,8 @@ describe("recording the voided sales of applied events", () => {
       operationNumber: null,
       printAttemptedAt: null,
       printedAt: null,
+      creditNotePrintAttemptedAt: null,
+      creditNotePrintedAt: null,
     });
   });
 
