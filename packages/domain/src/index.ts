@@ -269,6 +269,7 @@ export {
   FISCAL_ADDRESS_STREET_ADDRESS_MAX_LENGTH,
   FISCAL_AUTHORIZATIONS,
   FISCAL_EMISSION_MODE_KINDS,
+  FISCAL_TASK_KINDS,
   fiscalEmissionStoppedReportOf,
   fiscalEmissionStopReasonOf,
   fortnightAfter,
