@@ -40,6 +40,10 @@ export function isShortCode(code: string): boolean {
   );
 }
 
+export function isDeferralFinalWhenRecorded(reason: DeferralReason): boolean {
+  return reason !== "unclear_outcome";
+}
+
 export function deferredSaleQrText({ id, shortCode }: DeferredSaleReference): string {
   return `${DEFERRED_SALE_QR_PREFIX}${id}:${shortCode}`;
 }

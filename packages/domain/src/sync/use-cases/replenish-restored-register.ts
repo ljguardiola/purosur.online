@@ -1,4 +1,4 @@
-import type { RestoredCreditNoteAnswer } from "../../fiscal/index.js";
+import { isDeferralFinalWhenRecorded, type RestoredCreditNoteAnswer } from "../../fiscal/index.js";
 import type { SyncedFact } from "../model/synced-fact.js";
 import type {
   RegisterPredecessor,
@@ -56,6 +56,13 @@ async function applyPage<TFailure>(
     for (const { replenished, fact } of events) {
       const { event, deviceId } = replenished;
       if (await tx.eventApplied(event.event_id)) {
+        continue;
+      }
+      if (
+        fact.kind === "deferred_sale_recorded" &&
+        !isDeferralFinalWhenRecorded(fact.deferredSale.reason)
+      ) {
+        unapplied += 1;
         continue;
       }
       const application = await tx.applyFact(fact, { eventId: event.event_id, deviceId });
