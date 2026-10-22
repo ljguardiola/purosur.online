@@ -2,13 +2,14 @@ import { encodePinHash } from "@purosur/contracts";
 import {
   FICTIONAL_CUIT,
   FICTIONAL_GROSS_INCOME_REGISTRATION,
+  FICTIONAL_ISSUER,
   FICTIONAL_LEGAL_NAME,
 } from "@purosur/domain/fiscal/test-support";
 import {
   A_DEFERRED_SALE_RECORDED_FACT,
-  A_DEFERRED_SALE_SATISFIED_FACT,
   aCancelledSaleFact,
   aCompletedSaleFact,
+  aDeferredSaleSatisfiedFact,
   aVoidedSaleFact,
 } from "@purosur/domain/sync/test-support";
 import type { RegisterReplenishmentTransaction, SyncedFact } from "@purosur/domain/sync/use-cases";
@@ -429,13 +430,17 @@ describe("the register's store for replenishing a restored register", () => {
       await store.transaction((tx) => tx.applyFact(aCompletedSaleFact({ id: "sale-1" }), SOURCE));
 
       expect(
-        await store.transaction((tx) => tx.applyFact(A_DEFERRED_SALE_SATISFIED_FACT, SOURCE)),
+        await store.transaction((tx) =>
+          tx.applyFact(aDeferredSaleSatisfiedFact(FICTIONAL_ISSUER), SOURCE),
+        ),
       ).toBe("not_yet_applicable");
       expect(count("fiscal_documents")).toBe(0);
 
       await store.transaction((tx) => tx.applyFact(A_DEFERRED_SALE_RECORDED_FACT, SOURCE));
       expect(
-        await store.transaction((tx) => tx.applyFact(A_DEFERRED_SALE_SATISFIED_FACT, SOURCE)),
+        await store.transaction((tx) =>
+          tx.applyFact(aDeferredSaleSatisfiedFact(FICTIONAL_ISSUER), SOURCE),
+        ),
       ).toBe("applied");
 
       expect(database.prepare("SELECT id, sale_id, state FROM fiscal_documents").all()).toEqual([

@@ -1,8 +1,3 @@
-import {
-  FICTIONAL_CUIT,
-  FICTIONAL_GROSS_INCOME_REGISTRATION,
-  FICTIONAL_LEGAL_NAME,
-} from "@purosur/domain/fiscal/test-support";
 import type { SyncedFact } from "../synced-fact.js";
 
 type SaleCompleted = Extract<SyncedFact, { kind: "sale_completed" }>;
@@ -253,34 +248,33 @@ export const AN_OPENING_COUNT_WITHDRAWN_FACT: SyncedFact = {
   },
 };
 
-export const A_DEFERRED_SALE_SATISFIED_FACT: SyncedFact = {
-  kind: "deferred_sale_satisfied",
-  satisfaction: {
-    id: "deferred-1",
-    saleId: "sale-1",
-    fiscalDocumentId: "document-1",
-    pointOfSale: 7,
-    number: 42,
-    issuedOn: "2026-10-07",
-    document: {
-      invoiceClass: "C",
-      total: 12_500,
-      netAmount: 12_500,
-      vatAmount: 0,
-      issuer: {
-        legalName: FICTIONAL_LEGAL_NAME,
-        cuit: FICTIONAL_CUIT,
-        taxStatus: "MONOTRIBUTO",
-        grossIncomeRegistration: FICTIONAL_GROSS_INCOME_REGISTRATION,
-        activityStartDate: "2020-01-01",
-        version: 3,
+type DeferredSaleSatisfied = Extract<SyncedFact, { kind: "deferred_sale_satisfied" }>;
+
+type InvoiceIssuer = Omit<DeferredSaleSatisfied["satisfaction"]["document"]["issuer"], "version">;
+
+export function aDeferredSaleSatisfiedFact(issuer: InvoiceIssuer): DeferredSaleSatisfied {
+  return {
+    kind: "deferred_sale_satisfied",
+    satisfaction: {
+      id: "deferred-1",
+      saleId: "sale-1",
+      fiscalDocumentId: "document-1",
+      pointOfSale: 7,
+      number: 42,
+      issuedOn: "2026-10-07",
+      document: {
+        invoiceClass: "C",
+        total: 12_500,
+        netAmount: 12_500,
+        vatAmount: 0,
+        issuer: { ...issuer, version: 3 },
+        buyerTaxStatusCode: 5,
+        buyerTaxStatusDescription: "Consumidor Final",
       },
-      buyerTaxStatusCode: 5,
-      buyerTaxStatusDescription: "Consumidor Final",
+      authorizationCode: "75123456789012",
+      authorizationCodeDueOn: "2026-10-17",
+      reservedAt: new Date("2026-10-09T09:59:58.000Z"),
+      satisfiedAt: new Date("2026-10-09T10:00:00.000Z"),
     },
-    authorizationCode: "75123456789012",
-    authorizationCodeDueOn: "2026-10-17",
-    reservedAt: new Date("2026-10-09T09:59:58.000Z"),
-    satisfiedAt: new Date("2026-10-09T10:00:00.000Z"),
-  },
-};
+  };
+}

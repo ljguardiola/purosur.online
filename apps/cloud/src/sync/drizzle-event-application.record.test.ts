@@ -1,9 +1,10 @@
 import { randomUUID } from "node:crypto";
 import { unappliedEventOf } from "@purosur/contracts/sync/test-support/unapplied-event";
 import type { ManualAdjustment } from "@purosur/domain";
+import { FICTIONAL_ISSUER } from "@purosur/domain/fiscal/test-support";
 import {
   A_DEFERRED_SALE_RECORDED_FACT,
-  A_DEFERRED_SALE_SATISFIED_FACT,
+  aDeferredSaleSatisfiedFact,
 } from "@purosur/domain/sync/test-support";
 import type { SyncedFact, UnappliedEvent } from "@purosur/domain/sync/use-cases";
 import { eq } from "drizzle-orm";
@@ -896,7 +897,7 @@ describe("recording a deferred sale satisfied", () => {
     const { deviceId } = await system.enrollInstallation();
     await insertInboxEvent(system.db, deviceId);
 
-    await record(A_DEFERRED_SALE_SATISFIED_FACT, { deviceId });
+    await record(aDeferredSaleSatisfiedFact(FICTIONAL_ISSUER), { deviceId });
 
     expect(await system.db.select().from(sales)).toEqual([]);
     expect(await system.db.select().from(cashSessions)).toEqual([]);

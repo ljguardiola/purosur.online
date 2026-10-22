@@ -1,8 +1,9 @@
+import { FICTIONAL_ISSUER } from "@purosur/domain/fiscal/test-support";
 import {
   catchUpDeferredSales,
   type RealTimeAuthorizationCall,
 } from "@purosur/domain/fiscal/use-cases";
-import { A_DEFERRED_SALE_SATISFIED_FACT } from "@purosur/domain/sync/test-support";
+import { aDeferredSaleSatisfiedFact } from "@purosur/domain/sync/test-support";
 import type { SyncedFact } from "@purosur/domain/sync/use-cases";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { LocalDatabase } from "../platform/local-database";
@@ -28,7 +29,7 @@ import { scriptedShortCodes } from "./test-support/scripted-short-codes";
 
 type SatisfactionFact = Extract<SyncedFact, { kind: "deferred_sale_satisfied" }>;
 
-const BASE = A_DEFERRED_SALE_SATISFIED_FACT as SatisfactionFact;
+const BASE = aDeferredSaleSatisfiedFact(FICTIONAL_ISSUER) as SatisfactionFact;
 const SATISFIED: SatisfactionFact = {
   ...BASE,
   satisfaction: { ...BASE.satisfaction, pointOfSale: POINT_OF_SALE },
