@@ -72,7 +72,7 @@ export class SqliteRestoredSyncIdentityStore implements RestoredSyncIdentityStor
             `UPDATE sync_state SET
                device_id = ?, last_device_seq = 0, last_chain_hmac = NULL,
                installation_revoked_at = NULL, sales_stopped_reason = NULL,
-               last_accepted_push_at = NULL`,
+               stale_sequence_detected_at = NULL, last_accepted_push_at = NULL`,
           )
           .run(deviceId);
       },

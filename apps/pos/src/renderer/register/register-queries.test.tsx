@@ -7,6 +7,7 @@ import type {
   ReadSerialDevicesOutcome,
   RecordableCashMovementKinds,
   RegisterStatus,
+  RestorationStandingAnswer,
   SessionOpenSale,
   SignInUser,
   StartupPending,
@@ -33,6 +34,7 @@ import {
   useReceiptPrinterQuery,
   useRegisterNameQuery,
   useRegisterStatusQuery,
+  useRestorationStandingQuery,
   useSerialDevicesQuery,
   useSessionOpenSaleQuery,
   useSetSessionOpenSale,
@@ -389,6 +391,73 @@ describe("cash session query", () => {
     await expect.poll(() => read.mock.calls.length).toBe(2);
     await vi.advanceTimersByTimeAsync(5000);
     await expect.element((await screen).getByText("none")).toBeVisible();
+    await vi.advanceTimersByTimeAsync(60_000);
+
+    expect(read).toHaveBeenCalledTimes(3);
+  });
+});
+
+type RestorationRead = () => Promise<RestorationStandingAnswer | "unavailable">;
+
+function RestorationProbe({ read, enabled }: { read: RestorationRead; enabled: boolean }) {
+  const standing = useRestorationStandingQuery({ read, enabled });
+  return <p>{standing === "unknown" ? "unknown" : JSON.stringify(standing)}</p>;
+}
+
+function renderRestoration(read: RestorationRead, enabled = true) {
+  return render(
+    <QueryClientProvider client={createQueryClient()}>
+      <RestorationProbe read={read} enabled={enabled} />
+    </QueryClientProvider>,
+  );
+}
+
+describe("restoration standing query", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("is unknown until the core answers, then holds the standing it answers", async () => {
+    const screen = await renderRestoration(async () => ({
+      kind: "in_progress",
+      step: "replenish",
+    }));
+
+    await expect
+      .element(screen.getByText(JSON.stringify({ kind: "in_progress", step: "replenish" })))
+      .toBeVisible();
+  });
+
+  it("holds a completed restoration", async () => {
+    const screen = await renderRestoration(async () => ({ kind: "completed" }));
+
+    await expect.element(screen.getByText(JSON.stringify({ kind: "completed" }))).toBeVisible();
+  });
+
+  it("does not read while disabled", async () => {
+    const read = vi.fn<RestorationRead>(async () => ({ kind: "completed" }));
+    const screen = await renderRestoration(read, false);
+
+    await expect.element(screen.getByText("unknown")).toBeVisible();
+    expect(read).not.toHaveBeenCalled();
+  });
+
+  it("stays unknown and reads again every five seconds while the core cannot answer", async () => {
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+    const answers: ("unavailable" | { kind: "completed" })[] = [
+      "unavailable",
+      "unavailable",
+      { kind: "completed" },
+    ];
+    const read = vi.fn<RestorationRead>(async () => answers.shift() ?? { kind: "completed" });
+    const screen = await renderRestoration(read);
+    await expect.poll(() => read.mock.calls.length).toBe(1);
+    await expect.element(screen.getByText("unknown")).toBeVisible();
+
+    await vi.advanceTimersByTimeAsync(5000);
+    await expect.poll(() => read.mock.calls.length).toBe(2);
+    await vi.advanceTimersByTimeAsync(5000);
+    await expect.element(screen.getByText(JSON.stringify({ kind: "completed" }))).toBeVisible();
     await vi.advanceTimersByTimeAsync(60_000);
 
     expect(read).toHaveBeenCalledTimes(3);

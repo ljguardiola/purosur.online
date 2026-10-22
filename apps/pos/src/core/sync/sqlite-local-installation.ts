@@ -42,4 +42,12 @@ export class SqliteLocalInstallation implements LocalInstallation {
   async recordRevoked(): Promise<void> {
     stopOpeningNewSales(this.database, "installation_revoked", this.now());
   }
+
+  async recordStaleSequence(): Promise<void> {
+    this.database
+      .prepare<[string]>(
+        "UPDATE sync_state SET stale_sequence_detected_at = ? WHERE stale_sequence_detected_at IS NULL",
+      )
+      .run(this.now().toISOString());
+  }
 }

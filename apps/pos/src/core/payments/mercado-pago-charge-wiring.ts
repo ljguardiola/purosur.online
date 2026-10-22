@@ -4,6 +4,7 @@ import type {
   StartMercadoPagoChargeOutcome,
 } from "@purosur/contracts";
 import type { InterruptedMercadoPagoCharge } from "@purosur/domain/payments/use-cases";
+import type { RestorationProtocolEvidence } from "@purosur/domain/register/use-cases";
 import type { IdGenerator } from "@purosur/domain/sales/use-cases";
 import {
   type CloudClientDeps,
@@ -31,6 +32,7 @@ export interface MercadoPagoChargingWiringDeps {
   readOutboxChainKey: () => Promise<string | undefined>;
   now: () => Date;
   ids: IdGenerator;
+  restoration: RestorationProtocolEvidence | undefined;
 }
 
 export interface MercadoPagoCharging {
@@ -63,8 +65,14 @@ export function createMercadoPagoCharging({
   readOutboxChainKey,
   now,
   ids,
+  restoration,
 }: MercadoPagoChargingWiringDeps): MercadoPagoCharging {
-  if (database === undefined || gate === undefined || cloudClient === undefined) {
+  if (
+    database === undefined ||
+    gate === undefined ||
+    cloudClient === undefined ||
+    restoration === undefined
+  ) {
     return {
       start: undefined,
       follow: undefined,
@@ -87,6 +95,7 @@ export function createMercadoPagoCharging({
     readOutboxChainKey,
     now,
     ids,
+    restoration,
   };
   return {
     start: (request) => startMercadoPagoChargeFor(deps, request),

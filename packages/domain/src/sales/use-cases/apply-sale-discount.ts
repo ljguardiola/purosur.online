@@ -9,6 +9,7 @@ import {
   type SaleDiscountValue,
   saleDiscountRefusal,
 } from "../model/sale-discount.js";
+import type { RegisterRestoration } from "./register-restoration.js";
 import { saleChargeRefusal } from "./sale-charge-refusal.js";
 import type { SaleLedger } from "./sale-ledger.js";
 import {
@@ -29,6 +30,7 @@ export interface ApplySaleDiscountGrant {
 
 export interface ApplySaleDiscountPorts<Grant extends ApplySaleDiscountGrant, Refusal> {
   ledger: SaleLedger;
+  restoration: RegisterRestoration;
   clock: Clock;
   authority: OperationAuthority<Grant, Refusal>;
 }
@@ -43,7 +45,7 @@ export type ApplySaleDiscountOutcome =
     } & OpenSaleStanding);
 
 export async function applySaleDiscount<Grant extends ApplySaleDiscountGrant, Refusal>(
-  { ledger, clock, authority }: ApplySaleDiscountPorts<Grant, Refusal>,
+  { ledger, restoration, clock, authority }: ApplySaleDiscountPorts<Grant, Refusal>,
   { discount, reason }: ApplySaleDiscountInput,
 ): Promise<ApplySaleDiscountOutcome | Refusal> {
   const authorization = await authority.authorize();
@@ -53,7 +55,7 @@ export async function applySaleDiscount<Grant extends ApplySaleDiscountGrant, Re
   const { actorId, authorizedBy } = authorization.grant;
 
   return ledger.transaction<ApplySaleDiscountOutcome>((tx) => {
-    const sale = saleToChange(tx, actorId, clock);
+    const sale = saleToChange(tx, actorId, clock, restoration);
     if (isSaleLineChangeRefusal(sale)) {
       return sale;
     }

@@ -1,6 +1,7 @@
 import { encodePinHash } from "@purosur/contracts";
 import { REGISTER_ABILITIES } from "@purosur/domain";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { restorePendingIn } from "../backups/restore-pending";
 import { derivePinVerifier } from "../credentials/pin-verifier";
 import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
@@ -10,7 +11,6 @@ import { createActionGate } from "../sessions/action-gate";
 import { createSignedInPerson, type SignedInPerson } from "../sessions/signed-in-person";
 import { SqliteSignInStore } from "../sessions/sqlite-sign-in-store";
 import {
-  type CashSessionRequestDeps,
   cashBalanceFor,
   cashCountPreviewFor,
   closeCashSessionFor,
@@ -18,10 +18,12 @@ import {
   currentCashSession,
   identifyLockedCloserFor,
   lockedClosersFor,
+  type OpenCashSessionRequestDeps,
   openCashSessionFor,
   sessionOpenSaleFor,
 } from "./cash-session-requests";
 import { SqliteCashLedger } from "./sqlite-cash-ledger";
+import { SqliteRestorationEvidence } from "./sqlite-restoration-evidence";
 
 const CHAIN_KEY = Buffer.from("0123456789abcdef0123456789abcdef").toString("base64");
 const NOW = new Date("2026-09-30T12:00:00.000Z");
@@ -32,7 +34,7 @@ const AUTHORIZER_PIN = "1234";
 let database: LocalDatabase;
 let signedInPerson: SignedInPerson;
 
-function deps(overrides: Partial<CashSessionRequestDeps> = {}): CashSessionRequestDeps {
+function deps(overrides: Partial<OpenCashSessionRequestDeps> = {}): OpenCashSessionRequestDeps {
   let count = 0;
   return {
     database,
@@ -45,6 +47,7 @@ function deps(overrides: Partial<CashSessionRequestDeps> = {}): CashSessionReque
     }),
     readOutboxChainKey: async () => CHAIN_KEY,
     now: () => NOW,
+    restoration: new SqliteRestorationEvidence(database, restorePendingIn(undefined)),
     ids: {
       next: () => {
         count += 1;
@@ -171,6 +174,15 @@ describe("opening a cash session on the register", () => {
     }
 
     expect(await openCashSessionFor(deps(), openingFloat)).toEqual({ kind });
+  });
+
+  it("refuses to open a session while the restoration of the register is in progress", async () => {
+    database
+      .prepare("UPDATE sync_state SET stale_sequence_detected_at = '2026-09-30T08:00:00.000Z'")
+      .run();
+
+    expect(await openCashSessionFor(deps(), 5000)).toEqual({ kind: "restoration_in_progress" });
+    expect(openedSessions()).toEqual([]);
   });
 
   it("refuses an opening float that is not an amount before telling that nobody is signed in", async () => {

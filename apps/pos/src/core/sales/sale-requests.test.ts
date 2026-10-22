@@ -6,12 +6,14 @@ import {
 } from "@purosur/domain/fiscal/test-support";
 import type { Scale, ScaleReading } from "@purosur/domain/sales/use-cases";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { restorePendingIn } from "../backups/restore-pending";
 import { derivePinVerifier } from "../credentials/pin-verifier";
 import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import { migrationClock } from "../platform/test-support/migration-clock";
 import { openLocalDatabase } from "../platform/test-support/open-local-database";
 import { cashBalanceFor } from "../register/cash-session-requests";
+import { SqliteRestorationEvidence } from "../register/sqlite-restoration-evidence";
 import { createActionGate } from "../sessions/action-gate";
 import { createSignedInPerson, type SignedInPerson } from "../sessions/signed-in-person";
 import { SqliteSignInStore } from "../sessions/sqlite-sign-in-store";
@@ -77,8 +79,15 @@ function deps(
     newSalesStoppedByDisk: () => false,
     localDatabaseDamaged: () => false,
     newSalesStoppedByBattery: () => false,
+    restoration: new SqliteRestorationEvidence(database, restorePendingIn(undefined)),
     ...overrides,
   };
+}
+
+function markRegisterStale(): void {
+  database
+    .prepare("UPDATE sync_state SET stale_sequence_detected_at = '2026-09-30T08:00:00.000Z'")
+    .run();
 }
 
 function idsStartingWith(prefix: string): OutboxSaleRequestDeps["ids"] {
@@ -400,6 +409,12 @@ describe("scanning a product on the register", () => {
     expect(await scanProductFor(deps({ paidOrderDiscovery: () => "pending" }), "111")).toEqual({
       kind: "paid_orders_not_checked",
     });
+  });
+
+  it("answers that the restoration of the register is in progress when no sale was started", async () => {
+    markRegisterStale();
+
+    expect(await scanProductFor(deps(), "111")).toEqual({ kind: "restoration_in_progress" });
   });
 
   it("answers unavailable when the register does not know its own identity yet", async () => {
@@ -935,6 +950,15 @@ describe("the sale in progress", () => {
       pending: 2000,
       lines_lock: "approved_payment",
       cancel_refusal: null,
+    });
+  });
+
+  it("refuses to charge in cash once the restoration of the register is in progress", async () => {
+    const saleId = await sellTwoForPayments();
+    markRegisterStale();
+
+    expect(await chargeSaleInCashFor(deps(), { saleId, tendered: 3000 })).toEqual({
+      kind: "restoration_in_progress",
     });
   });
 
