@@ -2,6 +2,7 @@ import { cloudErrorSchema, registerResetResponseSchema } from "@purosur/contract
 import { desc } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { authorizationRequestRecord } from "../fiscal/test-support/authorization-request-fixtures.js";
 import {
   ANSWERED_AT,
   anAuthorizedAnswer,
@@ -10,6 +11,7 @@ import {
   REQUESTED_AT,
 } from "../fiscal/test-support/sale-void-credit-notes.js";
 import {
+  fiscalRequests,
   inbox,
   roles,
   saleVoidCreditNoteRefusals,
@@ -22,11 +24,12 @@ import { buildTestDatabase, type TestDatabase } from "../test-support/build-test
 import { TEST_DEVICE_TOKEN_ROTATION_KEY } from "../test-support/device-token-rotation-key.js";
 import { TEST_INSTALLATION_KEYS_ENCRYPTION_KEY } from "../test-support/installation-keys-encryption-key.js";
 import { registerDeviceResetRoute } from "./device-reset-route.js";
-import { insertInboxEvent } from "./test-support/inbox-events.js";
+import { type InboxEventValues, insertInboxEvent } from "./test-support/inbox-events.js";
 
 const NOW = new Date("2026-10-20T12:00:00.000Z");
 const URL = "/devices/current/reset";
 
+let nextRequestNumber = 1;
 let testDatabase: TestDatabase;
 let db: TestDatabase["db"];
 let app: FastifyInstance;
@@ -448,6 +451,132 @@ describe("POST /devices/current/reset", () => {
       expect(second.credit_notes.map(({ credit_note_id }) => credit_note_id)).toEqual([
         secondCreditNote,
       ]);
+    });
+  });
+
+  describe("the unclear deferral answers", () => {
+    const REQUEST_ANSWERED_AT = new Date("2026-10-08T15:00:00.000Z");
+
+    async function anUnclearDeferral(
+      deviceId: string,
+      fiscalDocumentId = crypto.randomUUID(),
+      eventOverrides: Partial<InboxEventValues> = {},
+    ) {
+      await insertInboxEvent(db, deviceId, {
+        eventType: "deferred_sale_recorded",
+        schemaVersion: 2,
+        payload: {
+          reason: "unclear_outcome",
+          unclear_document: { fiscal_document_id: fiscalDocumentId },
+        },
+        ...eventOverrides,
+      });
+      return fiscalDocumentId;
+    }
+
+    async function aFiscalRequest(
+      registerId: string,
+      fiscalDocumentId: string,
+      answer: "authorized" | "rejected" | "unclear",
+    ) {
+      const { saleEvent: _saleEvent, ...request } = authorizationRequestRecord(registerId, {
+        fiscalDocumentId,
+        number: nextRequestNumber++,
+      });
+      await db.insert(fiscalRequests).values({
+        ...request,
+        answerKind: answer,
+        answeredAt: REQUEST_ANSWERED_AT,
+        ...(answer === "authorized" && {
+          authorizationCode: "75123456789012",
+          authorizationCodeDueOn: "2026-10-18",
+        }),
+        ...(answer === "rejected" && { rejectionCodes: [10015], rejectionClass: "content" }),
+        ...(answer === "unclear" && { unclearCodes: [] }),
+      });
+    }
+
+    function resetOf(predecessor: { deviceId: string }, current: { deviceToken: string }) {
+      return reset(
+        { predecessor_device_id: predecessor.deviceId, last_acknowledged_seq: 0 },
+        `Bearer ${current.deviceToken}`,
+      );
+    }
+
+    it("answers what the cloud settled about each document an unclear outcome left waiting on the page", async () => {
+      const { predecessor, current } = await aRestoredRegister();
+      const authorized = await anUnclearDeferral(predecessor.deviceId);
+      const rejected = await anUnclearDeferral(predecessor.deviceId);
+      const stillUnclear = await anUnclearDeferral(predecessor.deviceId);
+      const neverAsked = await anUnclearDeferral(predecessor.deviceId);
+      await aFiscalRequest(current.registerId, authorized, "authorized");
+      await aFiscalRequest(current.registerId, rejected, "rejected");
+      await aFiscalRequest(current.registerId, stillUnclear, "unclear");
+
+      const response = await resetOf(predecessor, current);
+
+      expect(response.statusCode).toBe(200);
+      const { unclear_deferrals } = registerResetResponseSchema.parse(response.json());
+      expect(unclear_deferrals).toHaveLength(4);
+      expect(unclear_deferrals).toEqual(
+        expect.arrayContaining([
+          {
+            fiscal_document_id: authorized,
+            state: "AUTHORIZED",
+            authorization_code: "75123456789012",
+            authorization_code_due_on: "2026-10-18",
+            answered_at: REQUEST_ANSWERED_AT.toISOString(),
+          },
+          {
+            fiscal_document_id: rejected,
+            state: "REJECTED",
+            answered_at: REQUEST_ANSWERED_AT.toISOString(),
+          },
+          { fiscal_document_id: stillUnclear, state: "UNSETTLED" },
+          { fiscal_document_id: neverAsked, state: "UNSETTLED" },
+        ]),
+      );
+    });
+
+    it("never answers the request another register holds under a document id this register's deferral names", async () => {
+      const { predecessor, current } = await aRestoredRegister();
+      const other = await insertEnrolledInstallation(db, { now: NOW, registerName: "Caja 2" });
+      const documentId = await anUnclearDeferral(predecessor.deviceId);
+      await aFiscalRequest(other.registerId, documentId, "authorized");
+
+      const response = await resetOf(predecessor, current);
+
+      expect(registerResetResponseSchema.parse(response.json()).unclear_deferrals).toEqual([
+        { fiscal_document_id: documentId, state: "UNSETTLED" },
+      ]);
+    });
+
+    it.each([
+      [
+        "a deferral of the first version",
+        { schemaVersion: 1, payload: { reason: "unclear_outcome" } },
+      ],
+      [
+        "a deferral that left no document waiting",
+        { payload: { reason: "rejected", unclear_document: null } },
+      ],
+      ["an event that is not a deferral", { eventType: "sale_completed" }],
+    ])("answers nothing for %s", async (_case, eventOverrides) => {
+      const { predecessor, current } = await aRestoredRegister();
+      await anUnclearDeferral(predecessor.deviceId, undefined, eventOverrides);
+
+      const response = await resetOf(predecessor, current);
+
+      expect(registerResetResponseSchema.parse(response.json()).unclear_deferrals).toEqual([]);
+    });
+
+    it("answers nothing for a request of the register whose deferral the page does not hold", async () => {
+      const { predecessor, current } = await aRestoredRegister();
+      await aFiscalRequest(current.registerId, crypto.randomUUID(), "authorized");
+
+      const response = await resetOf(predecessor, current);
+
+      expect(registerResetResponseSchema.parse(response.json()).unclear_deferrals).toEqual([]);
     });
   });
 });
