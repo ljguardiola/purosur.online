@@ -175,3 +175,8 @@ export function useReloadOfflinePointsOfSale() {
   const client = useQueryClient();
   return () => client.invalidateQueries({ queryKey: fiscalKey });
 }
+
+export function useReloadFortnightPresentations() {
+  const client = useQueryClient();
+  return () => client.invalidateQueries({ queryKey: fiscalKey });
+}

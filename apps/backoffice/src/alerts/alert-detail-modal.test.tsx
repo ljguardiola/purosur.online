@@ -2586,9 +2586,7 @@ test("tells which document ARCA rejected in which fortnight, that the ones behin
   const screen = await renderModal(services);
 
   await expect
-    .element(
-      screen.getByText("Comprobante rechazado en un informe quincenal", { exact: true }),
-    )
+    .element(screen.getByText("Comprobante rechazado en un informe quincenal", { exact: true }))
     .toBeVisible();
   await expect
     .element(

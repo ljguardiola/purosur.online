@@ -1,4 +1,5 @@
 import {
+  actionsColumn,
   dataColumn,
   formatCalendarDayNumeric,
   formatCalendarDayRange,
@@ -8,7 +9,7 @@ import {
   Table,
   useTableModel,
 } from "@purosur/ui";
-import { FileText, TriangleAlert } from "lucide-react";
+import { CircleAlert, FileSearch, FileText, TriangleAlert } from "lucide-react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import type { CloudData } from "../platform/use-cloud-query";
 import {
@@ -18,19 +19,25 @@ import {
 } from "./fortnight-presentation-labels";
 import type { FortnightPresentation } from "./fortnight-presentations-api";
 import type { RegisterPointOfSale } from "./register-points-of-sale-api";
+import type { RemedyTarget } from "./rejected-document-remedy-form";
 
 type FortnightReportsSectionProps = {
   data: CloudData<[FortnightPresentation[], RegisterPointOfSale[]]>;
+  onReview: (target: RemedyTarget) => void;
 };
 
 const NO_PRESENTATIONS: FortnightPresentation[] = [];
 const UNKNOWN_REGISTER = "Una caja";
 
+function fortnightOf({ fortnight }: FortnightPresentation) {
+  return formatCalendarDayRange(fortnight.start, fortnight.end);
+}
+
 function presentationKey(item: FortnightPresentation) {
   return `${item.pointOfSaleNumber}:${item.fortnight.start}:${item.documentType ?? "none"}`;
 }
 
-export function FortnightReportsSection({ data }: FortnightReportsSectionProps) {
+export function FortnightReportsSection({ data, onReview }: FortnightReportsSectionProps) {
   const [presentations, registers] = data.status === "loaded" ? data.value : [NO_PRESENTATIONS, []];
   const registerNameOf = (registerId: string) =>
     registers.find((register) => register.registerId === registerId)?.registerName ??
@@ -74,6 +81,27 @@ export function FortnightReportsSection({ data }: FortnightReportsSectionProps) 
         </span>
       ),
     }),
+    actionsColumn({
+      id: "actions",
+      header: "Acciones",
+      actions: [
+        (item: FortnightPresentation) => {
+          const { rejectedDocument } = item;
+          return rejectedDocument?.remedy === "awaiting_remedy"
+            ? {
+                icon: <FileSearch />,
+                "aria-label": `Revisar el rechazo del informe ${fortnightOf(item)} del punto de venta ${formatPointOfSaleNumber(item.pointOfSaleNumber)}`,
+                onPress: () =>
+                  onReview({
+                    pointOfSaleNumber: item.pointOfSaleNumber,
+                    fortnight: item.fortnight,
+                    rejectedDocument,
+                  }),
+              }
+            : undefined;
+        },
+      ],
+    }),
   ] as const;
   const table = useTableModel({
     items: presentations,
@@ -81,6 +109,9 @@ export function FortnightReportsSection({ data }: FortnightReportsSectionProps) 
     columns,
   });
   const blocked = presentations.filter(({ state }) => state === "blocked");
+  const awaitingRemedy = presentations.filter(
+    ({ rejectedDocument }) => rejectedDocument?.remedy === "awaiting_remedy",
+  );
 
   return (
     <section className="flex flex-col gap-3">
@@ -91,6 +122,15 @@ export function FortnightReportsSection({ data }: FortnightReportsSectionProps) 
           icon={<TriangleAlert />}
           title={`${registerNameOf(item.registerId)} todavía no terminó de sincronizar`}
           description={`El informe ${formatCalendarDayRange(item.fortnight.start, item.fortnight.end)} del punto de venta ${formatPointOfSaleNumber(item.pointOfSaleNumber)} se puede presentar cuando termine.`}
+        />
+      ))}
+      {awaitingRemedy.map((item) => (
+        <InlineNotice
+          key={presentationKey(item)}
+          tone="error"
+          icon={<CircleAlert />}
+          title={`ARCA rechazó un comprobante del informe ${fortnightOf(item)} del punto de venta ${formatPointOfSaleNumber(item.pointOfSaleNumber)}`}
+          description="Hay que revisar dónde está el error antes de volver a presentar."
         />
       ))}
       <Table
