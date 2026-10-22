@@ -6194,7 +6194,14 @@ describe("the offline void credit notes migration", () => {
        INSERT INTO sale_void_credit_notes (
          id, sale_id, total, receiver_tax_status_code, corrected_voucher_type,
          corrected_point_of_sale, corrected_number, state, recorded_at
-       ) VALUES ('note-kept', 'sale-1', 3000, 5, 11, 31, 1001, 'IN_PROGRESS', '2026-10-09T12:30:00.000Z');`,
+       ) VALUES ('note-kept', 'sale-1', 3000, 5, 11, 31, 1001, 'IN_PROGRESS', '2026-10-09T12:30:00.000Z');
+       INSERT INTO replenished_credit_note_requests (
+         credit_note_id, event_id, device_seq, aggregate_type, aggregate_id, event_type,
+         schema_version, payload, occurred_at, actor_id, chain_hmac
+       ) VALUES (
+         'note-kept', 'event-1', 7, 'Sale', 'sale-1', 'sale_voided', 3, '{}',
+         '2026-10-09T12:30:00.000Z', 'u1', 'hmac-1'
+       );`,
     );
     before.close();
     return openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
@@ -6269,6 +6276,11 @@ describe("the offline void credit notes migration", () => {
       expect(
         after.prepare("SELECT point_of_sale, document_type FROM register_clock_marks").all(),
       ).toEqual([{ point_of_sale: 31, document_type: "factura_c" }]);
+      expect(
+        after
+          .prepare("SELECT credit_note_id, event_id FROM replenished_credit_note_requests")
+          .all(),
+      ).toEqual([{ credit_note_id: "note-kept", event_id: "event-1" }]);
       expect(after.pragma("foreign_key_check")).toEqual([]);
     });
   });
