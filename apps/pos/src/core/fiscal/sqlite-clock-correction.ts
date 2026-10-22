@@ -72,7 +72,7 @@ function clockCorrectionRecordedIn(database: LocalDatabase, period: string): boo
   );
 }
 
-export function lowerClockMark(
+function lowerClockMark(
   database: LocalDatabase,
   { pointOfSale, documentType, correctedReading }: ClockLowering,
 ): void {
