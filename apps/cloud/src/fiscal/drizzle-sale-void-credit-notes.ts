@@ -1,5 +1,6 @@
 import { invoiceAlreadyCreditedObservation } from "@purosur/domain";
 import {
+  type AlreadyCreditedRefusal,
   type CreditNote,
   CreditNoteIdTaken,
   type InvoiceAlreadyCredited,
@@ -12,7 +13,12 @@ import { and, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { openAlert } from "../alerts/open-alert.js";
 import { postgresErrorChain } from "../platform/db/postgres-error-chain.js";
-import { creditNotes, pointOfSaleClaims, registerPointsOfSale } from "../platform/db/schema.js";
+import {
+  creditNotes,
+  pointOfSaleClaims,
+  registerPointsOfSale,
+  saleVoidCreditNoteRefusals,
+} from "../platform/db/schema.js";
 import type { DedicatedConnections } from "../platform/dedicated-connections.js";
 import { creditNoteOf } from "./drizzle-credit-notes.js";
 import type { EnqueueCreditNote } from "./enqueue-credit-note.js";
@@ -109,6 +115,13 @@ class DrizzleSaleVoidCreditNoteLane<TQueryResult extends PgQueryResultHKT>
     if (observation.holds) {
       await openAlert(this.db, observation.alert, { now: () => at });
     }
+  }
+
+  async keepAlreadyCreditedRefusal(refusal: AlreadyCreditedRefusal, at: Date): Promise<void> {
+    await this.db
+      .insert(saleVoidCreditNoteRefusals)
+      .values({ ...refusal, refusedAt: at })
+      .onConflictDoNothing();
   }
 }
 

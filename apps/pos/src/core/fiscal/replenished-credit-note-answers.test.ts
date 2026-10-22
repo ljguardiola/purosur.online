@@ -113,6 +113,26 @@ describe("replenishing the credit note answer of a voided sale", () => {
     ]);
   });
 
+  it("writes the credit note the cloud refused because the invoice was already credited", () => {
+    voidSale();
+
+    recordReplenishedCreditNoteAnswer(database, CREDIT_NOTE, {
+      creditNoteId: "note-1",
+      answeredAt: ANSWERED_AT,
+      answer: { kind: "already_credited" },
+    });
+
+    expect(creditNoteRows()).toMatchObject([
+      {
+        id: "note-1",
+        state: "ALREADY_CREDITED",
+        number: null,
+        authorization_code: null,
+        answered_at: ANSWERED_AT.toISOString(),
+      },
+    ]);
+  });
+
   it("answers the credit note the restored backup still holds in progress", () => {
     voidSale();
     insertPendingCreditNote(database, CREDIT_NOTE);
