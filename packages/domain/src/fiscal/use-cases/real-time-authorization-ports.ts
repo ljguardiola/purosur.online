@@ -47,8 +47,7 @@ export interface RoundTripSamples {
   recent(): Promise<readonly number[]>;
 }
 
-export interface RealTimeAuthorizationCall extends Omit<WaitingFiscalDocument, "saleEvent"> {
-  saleEvent: PushedEvent;
+export interface RealTimeAuthorizationCall extends WaitingFiscalDocument {
   timeoutMs: number;
   roundTripMedianMs: number;
 }

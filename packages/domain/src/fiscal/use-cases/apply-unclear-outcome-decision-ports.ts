@@ -1,5 +1,4 @@
 import type { Clock, OutboxEventDraft } from "../../shared/index.js";
-import type { PushedEvent } from "../../sync/index.js";
 import type {
   OutcomeToldToAskingRegister,
   UnclearDocumentSettlement,
@@ -10,9 +9,7 @@ import type {
 } from "./real-time-authorization-ports.js";
 import type { IdGenerator, SaleOrigin } from "./sale-authorization-ports.js";
 
-export interface UnclearOutcomeQuestion extends Omit<WaitingFiscalDocument, "saleEvent"> {
-  saleEvent: PushedEvent;
-}
+export type UnclearOutcomeQuestion = WaitingFiscalDocument;
 
 export interface UnclearFiscalDocument extends WaitingFiscalDocument {
   origin: SaleOrigin;

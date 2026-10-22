@@ -44,7 +44,7 @@ export async function requestRealTimeAuthorization(
   const roundTripMedianMs = medianRoundTripMs(await roundTrips.recent());
   const { saleEvent, reservedAt, origin, ...waitingDocument } = waiting;
   const answer: RealTimeAuthorizationAnswer =
-    roundTripMedianMs === null || saleEvent === null
+    roundTripMedianMs === null
       ? { kind: "not_attempted" }
       : await taxAuthority.authorize({
           ...waitingDocument,
