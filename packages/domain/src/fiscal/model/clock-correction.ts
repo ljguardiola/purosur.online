@@ -112,6 +112,8 @@ export function clockCorrectionPeriodKey({
   return openSessionId ?? `after session ${lastClosedSessionId ?? "none"}`;
 }
 
+export const REPLAYED_CLOCK_CORRECTION_PERIOD_KEY = "replayed from predecessor";
+
 export interface ClockCorrectedEventInput {
   eventId: string;
   registerId: string;
