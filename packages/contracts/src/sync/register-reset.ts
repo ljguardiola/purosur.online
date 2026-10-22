@@ -1,4 +1,4 @@
-import { REPLENISHMENT_PAGE_MAX_EVENTS } from "@purosur/domain";
+import { isCalendarDay, REPLENISHMENT_PAGE_MAX_EVENTS } from "@purosur/domain";
 import { z } from "zod";
 import {
   authorizedVoidCreditNoteAnswerSchema,
@@ -24,6 +24,24 @@ const registerResetCreditNoteSchema = z.discriminatedUnion("state", [
   z.object({ state: z.literal("ALREADY_CREDITED") }).extend(creditNoteAnswerFields),
 ]);
 
+const unclearDeferralFields = { fiscal_document_id: recordIdSchema() };
+
+const registerResetUnclearDeferralSchema = z.discriminatedUnion("state", [
+  z.object({ state: z.literal("UNSETTLED"), ...unclearDeferralFields }),
+  z.object({
+    state: z.literal("REJECTED"),
+    ...unclearDeferralFields,
+    answered_at: z.iso.datetime(),
+  }),
+  z.object({
+    state: z.literal("AUTHORIZED"),
+    ...unclearDeferralFields,
+    authorization_code: z.string().min(1),
+    authorization_code_due_on: z.string().refine(isCalendarDay),
+    answered_at: z.iso.datetime(),
+  }),
+]);
+
 export const registerResetRequestSchema = z.object({
   predecessor_device_id: recordIdSchema(),
   last_acknowledged_seq: z.int().nonnegative(),
@@ -38,6 +56,7 @@ export const registerResetResponseSchema = z.object({
   users: z.array(userRowSchema.extend({ user_id: recordIdSchema() })),
   credit_notes: z.array(registerResetCreditNoteSchema),
   unrequested_credit_note_ids: z.array(recordIdSchema()),
+  unclear_deferrals: z.array(registerResetUnclearDeferralSchema),
 });
 
 export type RegisterResetRequest = z.output<typeof registerResetRequestSchema>;

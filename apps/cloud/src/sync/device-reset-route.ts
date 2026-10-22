@@ -1,18 +1,24 @@
 import {
   cloudError,
   cloudErrorStatus,
+  deferredSaleUnclearDocumentEventSchema,
   type RegisterResetResponse,
   registerResetRequestSchema,
   registerResetResponseSchema,
   saleVoidedEventCreditNoteSchema,
 } from "@purosur/contracts";
 import type { RestoredCreditNoteAnswer } from "@purosur/domain";
-import { serveRestoredRegisterCreditNoteAnswers } from "@purosur/domain/fiscal/use-cases";
+import {
+  type ServedUnclearDeferralAnswer,
+  serveRestoredRegisterCreditNoteAnswers,
+  serveRestoredRegisterUnclearDeferralAnswers,
+} from "@purosur/domain/fiscal/use-cases";
 import { admitRestoredRegisterReplenishment } from "@purosur/domain/register/use-cases";
 import { serveRestoredRegisterReplenishment } from "@purosur/domain/sync/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { DrizzleRestoredRegisterCreditNoteAnswers } from "../fiscal/drizzle-restored-register-credit-note-answers.js";
+import { DrizzleRestoredRegisterUnclearDeferralAnswers } from "../fiscal/drizzle-restored-register-unclear-deferral-answers.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
 import { answerErrorsWithCloudEnvelope } from "../register/cloud-error-handler.js";
 import { authenticateDevice } from "../register/device-authentication.js";
@@ -67,6 +73,27 @@ function creditNoteBody({
   }
 }
 
+function unclearDeferralBody({
+  fiscalDocumentId,
+  answer,
+}: ServedUnclearDeferralAnswer): RegisterResetResponse["unclear_deferrals"][number] {
+  const common = { fiscal_document_id: fiscalDocumentId };
+  switch (answer.kind) {
+    case "unsettled":
+      return { ...common, state: "UNSETTLED" };
+    case "rejected":
+      return { ...common, state: "REJECTED", answered_at: answer.answeredAt.toISOString() };
+    case "authorized":
+      return {
+        ...common,
+        state: "AUTHORIZED",
+        authorization_code: answer.authorizationCode,
+        authorization_code_due_on: answer.authorizationCodeDueOn,
+        answered_at: answer.answeredAt.toISOString(),
+      };
+  }
+}
+
 export function registerDeviceResetRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: DeviceTokensOptions<TQueryResult>,
@@ -75,6 +102,7 @@ export function registerDeviceResetRoute<TQueryResult extends PgQueryResultHKT>(
   const admission = { predecessors: new DrizzleRestoredRegisterPredecessors(options.db) };
   const ports = { replenishment: new DrizzleRegisterReplenishment(options.db) };
   const creditNotes = new DrizzleRestoredRegisterCreditNoteAnswers(options.db);
+  const unclearDeferrals = new DrizzleRestoredRegisterUnclearDeferralAnswers(options.db);
   const branchUsers = new DrizzleRegisterBranchUsers(options.db);
 
   app.register(async (scope) => {
@@ -140,6 +168,16 @@ export function registerDeviceResetRoute<TQueryResult extends PgQueryResultHKT>(
           { creditNotes },
           { registerId, creditNoteIds: voidedCreditNoteIds },
         );
+        const unclearDeferralDocumentIds = page.events.flatMap(({ event }) => {
+          const deferral = deferredSaleUnclearDocumentEventSchema.safeParse(event);
+          return deferral.success
+            ? [deferral.data.payload.unclear_document.fiscal_document_id]
+            : [];
+        });
+        const unclearDeferralAnswers = await serveRestoredRegisterUnclearDeferralAnswers(
+          { unclearDeferrals },
+          { registerId, fiscalDocumentIds: unclearDeferralDocumentIds },
+        );
         const users = await branchUsers.branchUsers(registerId);
 
         await reply.code(200).send(
@@ -163,6 +201,7 @@ export function registerDeviceResetRoute<TQueryResult extends PgQueryResultHKT>(
             })),
             credit_notes: creditNoteAnswers.answers.map(creditNoteBody),
             unrequested_credit_note_ids: creditNoteAnswers.unrequestedCreditNoteIds,
+            unclear_deferrals: unclearDeferralAnswers.map(unclearDeferralBody),
           }),
         );
       },
