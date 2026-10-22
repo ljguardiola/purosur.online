@@ -1856,10 +1856,18 @@ describe("createCoreClient", () => {
     client.connect(next);
 
     const enrolled = client.enrollmentStatus();
-    previous.answer({ type: "enrollment-status", request_id: "request-1", enrolled: false });
-    next.answer({ type: "enrollment-status", request_id: "request-1", enrolled: true });
+    previous.answer({
+      type: "enrollment-status",
+      request_id: "request-1",
+      standing: { kind: "not_enrolled" },
+    });
+    next.answer({
+      type: "enrollment-status",
+      request_id: "request-1",
+      standing: { kind: "enrolled" },
+    });
 
-    expect(await enrolled).toBe(true);
+    expect(await enrolled).toEqual({ kind: "enrolled" });
   });
 
   it("tells each listener every time the core finishes a pull, until it stops listening", () => {
