@@ -56,7 +56,7 @@ function step(
   const { evidence = AT_THE_SWEEP, withCloud = true } = overrides;
   return regularizeOrphanAuthorizationsStep({
     database: "database" in overrides ? overrides.database : database,
-    evidence: { evidence: () => evidence },
+    evidence: () => ({ evidence: () => evidence }),
     readCredentials: async () => ("credentials" in overrides ? overrides.credentials : CREDENTIALS),
     post: withCloud
       ? async (path) => {
