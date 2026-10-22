@@ -1365,6 +1365,9 @@ startRegisterHealthChecks({
   },
   reportFailure: (error) => reportFailure("the register health check", error),
   afterCheck: () => fiscalModeWatch?.check(),
+  ids: uuidV7Ids,
+  shortCodes: cryptoShortCodes,
+  readOutboxChainKey: async () => (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
 });
 
 const deviceTokenRotation =
