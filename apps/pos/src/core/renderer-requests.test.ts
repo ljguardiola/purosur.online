@@ -16,6 +16,7 @@ import type {
   ChargeSaleOnStandaloneTerminalOutcome,
   CloseCashSessionOutcome,
   CloseLockedCashSessionOutcome,
+  EnrollmentStandingAnswer,
   FirstPinCodeRequestOutcome,
   IdentifyLockedCloserOutcome,
   ListedCashMovement,
@@ -130,7 +131,9 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
     signOuts,
     failures,
     deps: {
-      credentialsPresent: async () => enrolled,
+      enrollmentStanding: async (): Promise<EnrollmentStandingAnswer> => ({
+        kind: enrolled ? "enrolled" : "not_enrolled",
+      }),
       registerService: { kind: "in_service" as const },
       registerName: (): string | undefined => undefined,
       enroll: async (code: string) => {
@@ -439,17 +442,19 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
 }
 
 describe("answerRendererRequest", () => {
-  it.each([true, false])(
-    "answers whether this installation is enrolled from its stored credentials: %s",
-    async (enrolled) => {
-      const answer = await answerRendererRequest(deps(enrolled).deps, {
-        type: "enrollment-status-request",
-        request_id: "r1",
-      });
+  it.each([
+    { kind: "not_enrolled" },
+    { kind: "enrolled" },
+    { kind: "revoked", reason: "installation_revoked" },
+    { kind: "revoked", reason: null },
+  ] as const)("answers the enrollment standing the register reads: $kind", async (standing) => {
+    const answer = await answerRendererRequest(
+      deps(true, { enrollmentStanding: async () => standing }).deps,
+      { type: "enrollment-status-request", request_id: "r1" },
+    );
 
-      expect(answer).toEqual({ type: "enrollment-status", request_id: "r1", enrolled });
-    },
-  );
+    expect(answer).toEqual({ type: "enrollment-status", request_id: "r1", standing });
+  });
 
   it.each([
     ["in_service", { kind: "in_service" }],
