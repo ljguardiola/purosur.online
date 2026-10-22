@@ -18,6 +18,7 @@ import { insertEnrolledInstallation } from "../register/test-support/enrolled-in
 import { insertRequestsUpToLimit } from "../sync/test-support/admitted-requests.js";
 import {
   insertRegisterWithPointOfSale,
+  insertSaleOfRegister,
   saleCompletedEvent,
 } from "./test-support/authorization-request-fixtures.js";
 import {
@@ -209,6 +210,45 @@ describe("POST /fiscal/authorize", () => {
       expect(cloudErrorSchema.parse(response.json()).code).toBe("validation_failed");
       expect(route.taxAuthority.solicitations).toEqual([]);
       expect(await requests()).toEqual([]);
+    });
+  });
+
+  describe("a request that carries no sale event", () => {
+    it("refuses it when the cloud holds no completion of the sale for the register, recording nothing and not calling the tax authority", async () => {
+      const { deviceToken } = await enrollRegisterWithPointOfSale();
+      await route.issueWsaaToken();
+
+      const response = await authorize(requestBody({ sale_event: null }), `Bearer ${deviceToken}`);
+
+      expect(response.statusCode).toBe(404);
+      expect(cloudErrorSchema.parse(response.json()).code).toBe("not_found");
+      expect(route.taxAuthority.solicitations).toEqual([]);
+      expect(await requests()).toEqual([]);
+    });
+
+    it("uses the completion the cloud holds: keeps the request without an event, asks the tax authority and answers AUTHORIZED", async () => {
+      const { deviceToken, registerId } = await enrollRegisterWithPointOfSale();
+      await route.issueWsaaToken();
+      route.taxAuthority.answer = {
+        kind: "authorized",
+        authorizationCode: "74123456789012",
+        authorizationCodeDueOn: "2026-10-16",
+      };
+      const body = requestBody({ sale_event: null });
+      await insertSaleOfRegister(route.db, registerId, body.sale_id);
+
+      const response = await authorize(body, `Bearer ${deviceToken}`);
+
+      expect(response.statusCode).toBe(200);
+      expect(realTimeAuthorizationResponseSchema.parse(response.json())).toMatchObject({
+        state: "AUTHORIZED",
+      });
+      expect(route.taxAuthority.solicitations).toHaveLength(1);
+      const [row] = await route.db
+        .select()
+        .from(fiscalRequests)
+        .where(eq(fiscalRequests.fiscalDocumentId, body.fiscal_document_id));
+      expect(row).toMatchObject({ registerId, saleId: body.sale_id, saleEvent: null });
     });
   });
 

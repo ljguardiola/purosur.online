@@ -1,7 +1,16 @@
 import type { AuthorizationRequestRecord } from "@purosur/domain/fiscal/use-cases";
 import { configureRegisterPointOfSale } from "@purosur/domain/fiscal/use-cases";
+import { eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { fiscalAddresses, registers, users } from "../../platform/db/schema.js";
+import {
+  cashSessions,
+  fiscalAddresses,
+  registerInstallations,
+  registers,
+  sales,
+  users,
+} from "../../platform/db/schema.js";
+import { insertEnrolledInstallation } from "../../register/test-support/enrolled-installation.js";
 import { seededLocationId } from "../../test-support/seeded-location.js";
 import { DrizzleRegisterPointOfSaleStore } from "../drizzle-register-point-of-sale-store.js";
 
@@ -74,6 +83,43 @@ export async function insertRegisterWithPointOfSale<TQueryResult extends PgQuery
     actorId: actor.id,
   });
   return register.id;
+}
+
+export async function insertSaleOfRegister<TQueryResult extends PgQueryResultHKT>(
+  db: PgDatabase<TQueryResult>,
+  registerId: string,
+  saleId: string,
+  state: "COMPLETED" | "CANCELLED" = "COMPLETED",
+): Promise<void> {
+  const [installed] = await db
+    .select({ id: registerInstallations.id })
+    .from(registerInstallations)
+    .where(eq(registerInstallations.registerId, registerId));
+  const deviceId =
+    installed?.id ??
+    (await insertEnrolledInstallation(db, { now: RECEIVED_AT, existingRegisterId: registerId }))
+      .deviceId;
+  const origin = { locationId: await seededLocationId(db), registerId, deviceId };
+  const actorId = crypto.randomUUID();
+  const sessionId = crypto.randomUUID();
+  await db.insert(cashSessions).values({
+    id: sessionId,
+    ...origin,
+    openedBy: actorId,
+    openedAt: RECEIVED_AT,
+    openingFloat: 0,
+  });
+  await db.insert(sales).values({
+    id: saleId,
+    ...origin,
+    sessionId,
+    actorId,
+    state,
+    completedAt: state === "COMPLETED" ? RECEIVED_AT : null,
+    cancelledAt: state === "CANCELLED" ? RECEIVED_AT : null,
+    total: 1500,
+    appliedAt: RECEIVED_AT,
+  });
 }
 
 export function saleVoidedEvent(
