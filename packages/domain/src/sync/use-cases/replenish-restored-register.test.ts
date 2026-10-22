@@ -312,6 +312,7 @@ describe("replenishRestoredRegister", () => {
       facts: [],
       appliedEventIds: [],
       creditNoteAnswers: [],
+      heldCreditNotes: [],
     });
   });
 
@@ -517,6 +518,106 @@ describe("replenishRestoredRegister", () => {
       await expect(run()).rejects.toThrow("storage unavailable");
 
       expect(store.state).toMatchObject({ facts: [], creditNoteAnswers: [], appliedEventIds: [] });
+    });
+  });
+
+  describe("the credit note of a voided sale the cloud settled without a credit note", () => {
+    it("records an already-credited answer as the cloud's answer, then the event", async () => {
+      const { feed, store, decoder, run } = aRestoredRegister();
+      const creditNote = aCreditNote("sale-1");
+      const answer: RestoredCreditNoteAnswer = {
+        creditNoteId: creditNote.creditNoteId,
+        answeredAt: new Date("2026-10-07T10:30:00.000Z"),
+        answer: { kind: "already_credited" },
+      };
+      const event = aSaleVoidedEvent("device-old", 53, "sale-1");
+      decoder.facts.set(event.event.event_id, aVoidedSaleOf(creditNote, "sale-1"));
+      feed.answers = [aPage([event], null, [], [answer])];
+
+      const outcome = await run();
+
+      expect(outcome).toEqual({ kind: "replenished" });
+      expect(store.state.creditNoteAnswers).toEqual([{ creditNote, answer }]);
+      expect(store.state.appliedEventIds).toEqual([event.event.event_id]);
+    });
+
+    it("holds a credit note the cloud never recorded to be requested with the voiding event, leaving the event unapplied", async () => {
+      const { feed, store, decoder, run } = aRestoredRegister();
+      const creditNote = aCreditNote("sale-1");
+      const event = aSaleVoidedEvent("device-old", 53, "sale-1");
+      decoder.facts.set(event.event.event_id, aVoidedSaleOf(creditNote, "sale-1"));
+      feed.answers = [aPage([event], null, [], [], [creditNote.creditNoteId])];
+
+      const outcome = await run();
+
+      expect(outcome).toEqual({ kind: "partially_replenished", unapplied: 1 });
+      expect(store.state.heldCreditNotes).toEqual([{ creditNote, event: event.event }]);
+      expect(store.state.creditNoteAnswers).toEqual([]);
+      expect(store.state.appliedEventIds).toEqual([]);
+      expect(store.state.predecessor).toEqual(PREDECESSOR);
+    });
+
+    it("holds nothing for a credit note the cloud has not settled and did not name as unrequested", async () => {
+      const { feed, store, decoder, run } = aRestoredRegister();
+      const event = aSaleVoidedEvent("device-old", 53, "sale-1");
+      decoder.facts.set(event.event.event_id, aVoidedSaleOf(aCreditNote("sale-1"), "sale-1"));
+      feed.answers = [aPage([event], null, [], [], ["credit-note-of-another-sale"])];
+
+      const outcome = await run();
+
+      expect(outcome).toEqual({ kind: "partially_replenished", unapplied: 1 });
+      expect(store.state.heldCreditNotes).toEqual([]);
+    });
+
+    it("holds the credit note only once when the call is repeated, and applies the answer the cloud gives later", async () => {
+      const { feed, store, decoder, run } = aRestoredRegister();
+      const creditNote = aCreditNote("sale-1");
+      const event = aSaleVoidedEvent("device-old", 53, "sale-1");
+      decoder.facts.set(event.event.event_id, aVoidedSaleOf(creditNote, "sale-1"));
+      feed.answers = [
+        aPage([event], null, [], [], [creditNote.creditNoteId]),
+        aPage([event], null, [], [], [creditNote.creditNoteId]),
+        aPage([event], null, [], [anAuthorizedAnswer(creditNote)]),
+      ];
+      await run();
+      await run();
+      expect(store.state.heldCreditNotes).toHaveLength(1);
+
+      const outcome = await run();
+
+      expect(outcome).toEqual({ kind: "replenished" });
+      expect(store.state.creditNoteAnswers).toEqual([
+        { creditNote, answer: anAuthorizedAnswer(creditNote) },
+      ]);
+      expect(store.state.appliedEventIds).toEqual([event.event.event_id]);
+    });
+
+    it("prefers the cloud's answer over a request when it names a credit note both answered and unrequested", async () => {
+      const { feed, store, decoder, run } = aRestoredRegister();
+      const creditNote = aCreditNote("sale-1");
+      const event = aSaleVoidedEvent("device-old", 53, "sale-1");
+      decoder.facts.set(event.event.event_id, aVoidedSaleOf(creditNote, "sale-1"));
+      feed.answers = [
+        aPage([event], null, [], [anAuthorizedAnswer(creditNote)], [creditNote.creditNoteId]),
+      ];
+
+      const outcome = await run();
+
+      expect(outcome).toEqual({ kind: "replenished" });
+      expect(store.state.heldCreditNotes).toEqual([]);
+    });
+
+    it("leaves nothing of a page behind when holding a credit note fails", async () => {
+      const { feed, store, decoder, run } = aRestoredRegister();
+      const creditNote = aCreditNote("sale-1");
+      const event = aSaleVoidedEvent("device-old", 53, "sale-1");
+      decoder.facts.set(event.event.event_id, aVoidedSaleOf(creditNote, "sale-1"));
+      store.failAt = { operation: "holdCreditNoteToRequest" };
+      feed.answers = [aPage([event], null, [], [], [creditNote.creditNoteId])];
+
+      await expect(run()).rejects.toThrow("storage unavailable");
+
+      expect(store.state).toMatchObject({ facts: [], heldCreditNotes: [], appliedEventIds: [] });
     });
   });
 
