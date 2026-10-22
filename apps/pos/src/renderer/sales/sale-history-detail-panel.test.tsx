@@ -53,6 +53,7 @@ async function renderPanel(
       (async (): Promise<SaleHistoryDetailOutcome> => ({ kind: "found", detail: FISCAL_SALE })),
   );
   const onReprint = vi.fn();
+  const onPrintOriginal = vi.fn();
   const onVoid = vi.fn();
   const onPrintCreditNote = vi.fn();
   const onReprintCreditNote = vi.fn();
@@ -61,12 +62,21 @@ async function renderPanel(
       saleId={"saleId" in options ? options.saleId : "sale-1"}
       readDetail={read}
       onReprint={onReprint}
+      onPrintOriginal={onPrintOriginal}
       onVoid={onVoid}
       onPrintCreditNote={onPrintCreditNote}
       onReprintCreditNote={onReprintCreditNote}
     />,
   );
-  return { screen, read, onReprint, onVoid, onPrintCreditNote, onReprintCreditNote };
+  return {
+    screen,
+    read,
+    onReprint,
+    onPrintOriginal,
+    onVoid,
+    onPrintCreditNote,
+    onReprintCreditNote,
+  };
 }
 
 describe("SaleHistoryDetailPanel", () => {
@@ -145,26 +155,28 @@ describe("SaleHistoryDetailPanel", () => {
     await expect.element(screen.getByText("Número", { exact: true })).not.toBeInTheDocument();
   });
 
-  it("offers reprinting a duplicate when the core says the next copy is one, and hands the sale over", async () => {
-    const { screen, onReprint } = await renderPanel();
+  it("offers reprinting a duplicate when the core says the next copy is one, asking before printing it", async () => {
+    const { screen, onReprint, onPrintOriginal } = await renderPanel();
 
     await userEvent.click(screen.getByRole("button", { name: "Reimprimir duplicado" }));
 
     expect(onReprint).toHaveBeenCalledExactlyOnceWith(FISCAL_SALE);
+    expect(onPrintOriginal).not.toHaveBeenCalled();
   });
 
-  it("offers printing the original when the core says the next copy is the original", async () => {
-    const { screen } = await renderPanel({
-      read: async () => ({
-        kind: "found",
-        detail: { ...FISCAL_SALE, next_copy: { kind: "original" } },
-      }),
+  it("offers printing the original when the core says the next copy is the original, printing it right away", async () => {
+    const original = { ...FISCAL_SALE, next_copy: { kind: "original" } } as const;
+    const { screen, onReprint, onPrintOriginal } = await renderPanel({
+      read: async () => ({ kind: "found", detail: original }),
     });
 
-    await expect.element(screen.getByRole("button", { name: "Imprimir original" })).toBeVisible();
     await expect
       .element(screen.getByRole("button", { name: "Reimprimir duplicado" }))
       .not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Imprimir original" }));
+
+    expect(onPrintOriginal).toHaveBeenCalledExactlyOnceWith(original);
+    expect(onReprint).not.toHaveBeenCalled();
   });
 
   it("offers voiding a voidable sale next to the print button, and hands the sale over", async () => {

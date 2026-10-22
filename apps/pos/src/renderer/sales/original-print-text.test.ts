@@ -1,9 +1,52 @@
 import { describe, expect, it } from "vitest";
-import { creditNotePrintNotice } from "./original-print-text";
+import { originalPrintNotice } from "./original-print-text";
 
-describe("creditNotePrintNotice", () => {
+describe("originalPrintNotice of a sale's receipt", () => {
   it("says it comes out as soon as the printer is ready, for the customer", () => {
-    expect(creditNotePrintNotice("started")).toEqual({
+    expect(originalPrintNotice("sale_receipt", "started")).toEqual({
+      tone: "success",
+      title: "El ticket sale en cuanto la impresora esté lista",
+      description: "Entregáselo al cliente.",
+    });
+  });
+
+  it("says the receipt may have come out when a print of it was already tried, and that it is reprinted as a duplicate", () => {
+    expect(originalPrintNotice("sale_receipt", "already_attempted")).toEqual({
+      tone: "error",
+      title: "Puede que el ticket haya salido",
+      description: "Ahora se reimprime como duplicado, pidiendo el motivo.",
+    });
+  });
+
+  it.each([
+    [
+      "busy",
+      "Todavía puede salir una impresión de esta venta",
+      "Esperá a que termine antes de imprimir el ticket.",
+    ],
+    [
+      "printer_not_configured",
+      "La impresora no está configurada",
+      "Configurala para imprimir el ticket.",
+    ],
+    [
+      "lacks_permission",
+      "No tenés permiso para imprimir el ticket",
+      "Pedile a alguien con permiso que lo imprima.",
+    ],
+    ["unavailable", "No se pudo imprimir el ticket", "Probá de nuevo."],
+  ] as const)("refuses %s", (kind, title, description) => {
+    expect(originalPrintNotice("sale_receipt", kind)).toEqual({
+      tone: "error",
+      title,
+      description,
+    });
+  });
+});
+
+describe("originalPrintNotice of a credit note", () => {
+  it("says it comes out as soon as the printer is ready, for the customer", () => {
+    expect(originalPrintNotice("credit_note", "started")).toEqual({
       tone: "success",
       title: "La nota de crédito sale en cuanto la impresora esté lista",
       description: "Entregásela al cliente.",
@@ -11,7 +54,7 @@ describe("creditNotePrintNotice", () => {
   });
 
   it("says the credit note may have come out when a print of it was already tried, and that it is reprinted as a duplicate", () => {
-    expect(creditNotePrintNotice("already_attempted")).toEqual({
+    expect(originalPrintNotice("credit_note", "already_attempted")).toEqual({
       tone: "error",
       title: "Puede que la nota de crédito haya salido",
       description: "Ahora se reimprime como duplicado, pidiendo el motivo.",
@@ -36,6 +79,6 @@ describe("creditNotePrintNotice", () => {
     ],
     ["unavailable", "No se pudo imprimir la nota de crédito", "Probá de nuevo."],
   ] as const)("refuses %s", (kind, title, description) => {
-    expect(creditNotePrintNotice(kind)).toEqual({ tone: "error", title, description });
+    expect(originalPrintNotice("credit_note", kind)).toEqual({ tone: "error", title, description });
   });
 });
