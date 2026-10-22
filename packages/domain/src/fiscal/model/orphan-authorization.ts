@@ -1,4 +1,8 @@
-import { FACTURA_C_VOUCHER_TYPE } from "./factura-c-fiscal-block.js";
+import {
+  FACTURA_C_VOUCHER_TYPE,
+  FINAL_CONSUMER_DOCUMENT_NUMBER,
+  FINAL_CONSUMER_DOCUMENT_TYPE,
+} from "./factura-c-fiscal-block.js";
 import { FACTURA_C_DOCUMENT_TYPE, type FiscalDocumentType } from "./fiscal-rejection-standing.js";
 import {
   type ExternalInvoicingVoucher,
@@ -70,10 +74,82 @@ export function authorizedVoucherAmong(
   return documents.find(isAuthorizedDocument)?.voucher ?? null;
 }
 
+export interface RecordedAuthorizationRequest extends UnclearDocument {
+  outcome: RecordedRequestOutcome;
+}
+
+export function orphanEvidenceOfRecordedRequest({
+  pointOfSale,
+  request,
+}: {
+  pointOfSale: number;
+  request: RecordedAuthorizationRequest;
+}): OrphanEvidence {
+  const told = outcomeToldToAskingRegister(request.outcome);
+  if (told.kind === "pending") {
+    return { kind: "not_confirmed" };
+  }
+  const settlement = unclearDocumentSettlement(told);
+  if (settlement.state !== "AUTHORIZED") {
+    return { kind: "not_confirmed" };
+  }
+  return {
+    kind: "confirmed",
+    pointOfSale,
+    number: request.number,
+    voucher: {
+      issuedOn: request.issuedOn,
+      total: request.total,
+      documentType: FACTURA_C_VOUCHER_TYPE,
+      receiverDocumentType: FINAL_CONSUMER_DOCUMENT_TYPE,
+      receiverDocumentNumber: FINAL_CONSUMER_DOCUMENT_NUMBER,
+      receiverTaxStatusCode: request.buyerTaxStatusCode,
+      authorizationCode: settlement.authorizationCode,
+      authorizationCodeDueOn: settlement.authorizationCodeDueOn,
+    },
+  };
+}
+
 export type LocalStanding =
   | { kind: "no_local_sale" }
   | { kind: "local_sale"; saleId: string; otherAuthorizedVoucher: VoucherReference | null }
   | { kind: "already_regularized" };
+
+export interface SaleCreditNote {
+  creditedVoucher: VoucherReference;
+  keptVoucher: VoucherReference | null;
+}
+
+function sameVoucher(one: VoucherReference, other: VoucherReference): boolean {
+  return (
+    one.voucherType === other.voucherType &&
+    one.pointOfSale === other.pointOfSale &&
+    one.number === other.number
+  );
+}
+
+export function localStandingOfUnrecordedSale(
+  { saleId, voucher }: { saleId: string; voucher: VoucherReference },
+  {
+    otherDocuments,
+    creditNotes,
+  }: { otherDocuments: readonly SaleDocument[]; creditNotes: readonly SaleCreditNote[] },
+): LocalStanding {
+  if (
+    creditNotes.some(({ keptVoucher }) => keptVoucher !== null && sameVoucher(keptVoucher, voucher))
+  ) {
+    return { kind: "local_sale", saleId, otherAuthorizedVoucher: null };
+  }
+  const otherAuthorizedVoucher = authorizedVoucherAmong(
+    otherDocuments.filter(
+      (document) =>
+        !creditNotes.some(({ creditedVoucher }) => sameVoucher(creditedVoucher, document.voucher)),
+    ),
+  );
+  return otherAuthorizedVoucher === null
+    ? { kind: "no_local_sale" }
+    : { kind: "local_sale", saleId, otherAuthorizedVoucher };
+}
 
 export interface CreditNoteDecision {
   kind: "credit_note";

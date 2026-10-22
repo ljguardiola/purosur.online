@@ -611,8 +611,6 @@ test("names the trigger for assistive technology with both its label and its cur
     .toBeVisible();
 });
 
-// react-aria-components' collection is keyed by `id` (this component's `option.value`), the same
-// Map semantics as any JS object literal: the last entry with a given key is the only one that exists.
 test("keeps only the last option with a given value, everywhere, when a caller passes duplicates", async () => {
   const dupOptions: [Option<"a" | "b">, Option<"a" | "b">, Option<"a" | "b">] = [
     { value: "b", label: "Otro" },

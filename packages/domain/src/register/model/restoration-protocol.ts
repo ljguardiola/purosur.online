@@ -13,7 +13,6 @@ export type RestorationStep = (typeof RESTORATION_STEPS)[number];
 
 export const UNDELIVERED_RESTORATION_STEPS = [
   "recover_contingency_tickets",
-  "regularize_orphan_authorizations",
 ] as const satisfies readonly RestorationStep[];
 
 type DeliveredRestorationStep = Exclude<
@@ -52,6 +51,7 @@ const DELIVERED_STEPS = [
   "reset_sync_identity",
   "replenish",
   "reconcile_fiscal_counters",
+  "regularize_orphan_authorizations",
 ] as const satisfies readonly DeliveredRestorationStep[];
 
 export function restorationStanding(evidence: RestorationEvidence): RestorationStanding {

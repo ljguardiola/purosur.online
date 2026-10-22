@@ -38,13 +38,3 @@ patchedDependencies:
   # leaving the job locked for four hours; the patch awaits it. Remove once graphile-worker awaits
   # and handles the outcome record itself.
   "graphile-worker@0.18.0": patches/graphile-worker@0.18.0.patch
-
-packageExtensions:
-  # unplugin types its Vite plugins against whichever vite it can reach without declaring it, so
-  # the register (Vite 7) would get them typed against the root's Vite 8.
-  unplugin@2:
-    peerDependencies:
-      vite: "*"
-    peerDependenciesMeta:
-      vite:
-        optional: true

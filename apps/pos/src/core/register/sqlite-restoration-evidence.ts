@@ -42,6 +42,7 @@ export class SqliteRestorationEvidence implements RestorationProtocolEvidence {
       reset_sync_identity: restoring ? "pending" : "completed",
       replenish: this.holdsPredecessor() ? "pending" : "completed",
       reconcile_fiscal_counters: awaitsRestoredNumbering(this.database) ? "pending" : "completed",
+      regularize_orphan_authorizations: this.awaitsOrphanSweep() ? "pending" : "completed",
       cloud: this.cloudReachability(),
     };
   }
@@ -51,6 +52,14 @@ export class SqliteRestorationEvidence implements RestorationProtocolEvidence {
       return "completed";
     }
     return this.noUsableGeneration() ? "failed" : "pending";
+  }
+
+  private awaitsOrphanSweep(): boolean {
+    return (
+      this.database
+        .prepare<[], { awaiting: 1 }>("SELECT 1 AS awaiting FROM awaiting_orphan_sweep LIMIT 1")
+        .get() !== undefined
+    );
   }
 
   private holdsPredecessor(): boolean {

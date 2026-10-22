@@ -214,7 +214,7 @@ jobs:
           fi
         env:
           GITHUB_TOKEN: ${{ github.token }}
-          PLAYWRIGHT_SERVER_IMAGE: ghcr.io/ljguardiola/playwright:v1.63.0-noble@sha256:eff16c30e6f3f4af0a03fa4b706120d5e9b0891c344a27d64559aff5900a4a27
+          PLAYWRIGHT_SERVER_IMAGE: ghcr.io/ljguardiola/playwright:v1.64.1-noble@sha256:7852dc5a7d72f5fe458a597d690f6c42fbc8e9e26ddfa95f8e6ef552558d9bbf
 
   playwright-image-copy:
     name: playwright image copy
@@ -236,8 +236,8 @@ jobs:
           exit 1
         env:
           GITHUB_TOKEN: ${{ github.token }}
-          SOURCE_IMAGE: mcr.microsoft.com/playwright:v1.63.0-noble@sha256:eff16c30e6f3f4af0a03fa4b706120d5e9b0891c344a27d64559aff5900a4a27
-          PLAYWRIGHT_SERVER_IMAGE: ghcr.io/ljguardiola/playwright:v1.63.0-noble@sha256:eff16c30e6f3f4af0a03fa4b706120d5e9b0891c344a27d64559aff5900a4a27
+          SOURCE_IMAGE: mcr.microsoft.com/playwright:v1.64.1-noble@sha256:7852dc5a7d72f5fe458a597d690f6c42fbc8e9e26ddfa95f8e6ef552558d9bbf
+          PLAYWRIGHT_SERVER_IMAGE: ghcr.io/ljguardiola/playwright:v1.64.1-noble@sha256:7852dc5a7d72f5fe458a597d690f6c42fbc8e9e26ddfa95f8e6ef552558d9bbf
 
   # vitest run, sharded six ways, each shard given an even share of every project's files by their
   # durations measured on the run test-durations-source picked, so a slow shard - not the
@@ -297,7 +297,7 @@ jobs:
           done
           exit 1
         env:
-          PLAYWRIGHT_SERVER_IMAGE: ghcr.io/ljguardiola/playwright:v1.63.0-noble@sha256:eff16c30e6f3f4af0a03fa4b706120d5e9b0891c344a27d64559aff5900a4a27
+          PLAYWRIGHT_SERVER_IMAGE: ghcr.io/ljguardiola/playwright:v1.64.1-noble@sha256:7852dc5a7d72f5fe458a597d690f6c42fbc8e9e26ddfa95f8e6ef552558d9bbf
 
       - run: pnpm verify:tests --shard=${{ matrix.shard }}/6
         timeout-minutes: 15
@@ -352,7 +352,7 @@ jobs:
           done
           exit 1
         env:
-          PLAYWRIGHT_SERVER_IMAGE: ghcr.io/ljguardiola/playwright:v1.63.0-noble@sha256:eff16c30e6f3f4af0a03fa4b706120d5e9b0891c344a27d64559aff5900a4a27
+          PLAYWRIGHT_SERVER_IMAGE: ghcr.io/ljguardiola/playwright:v1.64.1-noble@sha256:7852dc5a7d72f5fe458a597d690f6c42fbc8e9e26ddfa95f8e6ef552558d9bbf
 
       - run: pnpm verify:visual
         timeout-minutes: 15
