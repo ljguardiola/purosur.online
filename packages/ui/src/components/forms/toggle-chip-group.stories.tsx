@@ -54,15 +54,15 @@ export const WithDescription: Story = {
 };
 
 export const UnselectedHovered: Story = {
-  play: playHoverSetsDataHovered(chip("Martes")),
+  play: playHoverSetsDataHovered(chip("Mar, Martes")),
 };
 
 export const SelectedHovered: Story = {
-  play: playHoverSetsDataHovered(chip("Lunes")),
+  play: playHoverSetsDataHovered(chip("Lun, Lunes")),
 };
 
 export const FocusVisible: Story = {
-  play: playTabReachesFocusVisible(chip("Lunes")),
+  play: playTabReachesFocusVisible(chip("Lun, Lunes")),
 };
 
 export const Invalid: Story = {

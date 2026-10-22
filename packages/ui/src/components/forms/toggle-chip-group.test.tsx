@@ -6,7 +6,11 @@ import { expectNoAccessibilityViolations } from "../../test/axe";
 import { insetBoundary, tokenRgb } from "../../test/token-colors";
 import type { FieldErrorProps } from "./field-error";
 import { Select } from "./select";
-import { ToggleChipGroup, type ToggleChipGroupProps } from "./toggle-chip-group";
+import {
+  ToggleChipGroup,
+  type ToggleChipGroupProps,
+  type ToggleChipOption,
+} from "./toggle-chip-group";
 
 type Day = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
 
@@ -43,6 +47,12 @@ function ControlledGroup({ initial, onChange }: { initial: Day[]; onChange?: (v:
 
 type Screen = Awaited<ReturnType<typeof render>>;
 
+function chipName(option: ToggleChipOption<string>): string {
+  return option.accessibleName === undefined
+    ? option.label
+    : `${option.label}, ${option.accessibleName}`;
+}
+
 function chip(screen: Screen, name: string): HTMLElement {
   return screen.getByRole("button", { name }).element() as HTMLElement;
 }
@@ -54,12 +64,13 @@ test("shows the visible label and names the group after it", async () => {
   await expect.element(screen.getByRole("toolbar", { name: "Days" })).toBeVisible();
 });
 
-test("shows every option's visible label as a chip named by its accessible name", async () => {
+test("shows every option's visible label as a chip named by that label followed by its accessible name", async () => {
   const screen = await render(<ToggleChipGroup {...baseProps()} />);
 
+  expect(chip(screen, "Mon, Monday").textContent).toBe("Mon");
+  expect(chip(screen, "Sun, Sunday").textContent).toBe("Sun");
   for (const option of options) {
-    const element = chip(screen, option.accessibleName ?? option.label);
-    expect(element.textContent).toBe(option.label);
+    expect(chip(screen, chipName(option)).textContent).toBe(option.label);
   }
 });
 
@@ -74,29 +85,29 @@ test("names a chip by its label when the option has no accessible name", async (
 test("marks exactly the chosen chips as pressed", async () => {
   const screen = await render(<ToggleChipGroup {...baseProps({ value: ["tue", "sun"] })} />);
 
-  expect(chip(screen, "Tuesday").getAttribute("aria-pressed")).toBe("true");
-  expect(chip(screen, "Sunday").getAttribute("aria-pressed")).toBe("true");
-  expect(chip(screen, "Monday").getAttribute("aria-pressed")).toBe("false");
+  expect(chip(screen, "Tue, Tuesday").getAttribute("aria-pressed")).toBe("true");
+  expect(chip(screen, "Sun, Sunday").getAttribute("aria-pressed")).toBe("true");
+  expect(chip(screen, "Mon, Monday").getAttribute("aria-pressed")).toBe("false");
 });
 
 test("reports the new set in option order when a chip is chosen", async () => {
   const onChange = vi.fn();
   const screen = await render(<ControlledGroup initial={["fri"]} onChange={onChange} />);
 
-  await userEvent.click(chip(screen, "Tuesday"));
+  await userEvent.click(chip(screen, "Tue, Tuesday"));
 
   expect(onChange).toHaveBeenLastCalledWith(["tue", "fri"]);
-  expect(chip(screen, "Tuesday").getAttribute("aria-pressed")).toBe("true");
+  expect(chip(screen, "Tue, Tuesday").getAttribute("aria-pressed")).toBe("true");
 });
 
 test("reports the set without a chip when it is unchosen, down to none", async () => {
   const onChange = vi.fn();
   const screen = await render(<ControlledGroup initial={["mon", "tue"]} onChange={onChange} />);
 
-  await userEvent.click(chip(screen, "Monday"));
+  await userEvent.click(chip(screen, "Mon, Monday"));
   expect(onChange).toHaveBeenLastCalledWith(["tue"]);
 
-  await userEvent.click(chip(screen, "Tuesday"));
+  await userEvent.click(chip(screen, "Tue, Tuesday"));
   expect(onChange).toHaveBeenLastCalledWith([]);
 });
 
@@ -105,12 +116,12 @@ test("toggles the focused chip with Space and Enter and moves between chips with
   const screen = await render(<ControlledGroup initial={[]} onChange={onChange} />);
 
   await userEvent.tab();
-  expect(document.activeElement).toBe(chip(screen, "Monday"));
+  expect(document.activeElement).toBe(chip(screen, "Mon, Monday"));
   await userEvent.keyboard(" ");
   expect(onChange).toHaveBeenLastCalledWith(["mon"]);
 
   await userEvent.keyboard("{ArrowRight}");
-  expect(document.activeElement).toBe(chip(screen, "Tuesday"));
+  expect(document.activeElement).toBe(chip(screen, "Tue, Tuesday"));
   await userEvent.keyboard("{Enter}");
   expect(onChange).toHaveBeenLastCalledWith(["mon", "tue"]);
 });
@@ -132,9 +143,7 @@ test("is a single tab stop", async () => {
 
 test("lays the chips out as one row of equally wide chips 8px apart", async () => {
   const screen = await render(<ToggleChipGroup {...baseProps()} />);
-  const rects = options.map((option) =>
-    chip(screen, option.accessibleName ?? option.label).getBoundingClientRect(),
-  );
+  const rects = options.map((option) => chip(screen, chipName(option)).getBoundingClientRect());
 
   for (const rect of rects) {
     expect(rect.width).toBeCloseTo(rects[0]?.width ?? 0, 0);
@@ -166,14 +175,14 @@ test("matches a select beside it in label, label spacing and height", async () =
 
   expect(getComputedStyle(groupLabel).font).toBe(getComputedStyle(selectLabel).font);
   expect(getComputedStyle(groupField).rowGap).toBe(getComputedStyle(selectField).rowGap);
-  expect(chip(screen, "Monday").getBoundingClientRect().height).toBe(
+  expect(chip(screen, "Mon, Monday").getBoundingClientRect().height).toBe(
     selectTrigger.getBoundingClientRect().height,
   );
 });
 
 test("draws a chosen chip blue with a 2px blue border and white bold 14px text, 8px rounded", async () => {
   const screen = await render(<ToggleChipGroup {...baseProps({ value: ["mon"] })} />);
-  const style = getComputedStyle(chip(screen, "Monday"));
+  const style = getComputedStyle(chip(screen, "Mon, Monday"));
 
   expect(style.backgroundColor).toBe(tokenRgb("action"));
   expect(style.boxShadow).toContain(insetBoundary("action", "2px"));
@@ -186,7 +195,7 @@ test("draws a chosen chip blue with a 2px blue border and white bold 14px text, 
 
 test("draws an unchosen chip on the surface with the field border and regular ink text", async () => {
   const screen = await render(<ToggleChipGroup {...baseProps()} />);
-  const style = getComputedStyle(chip(screen, "Monday"));
+  const style = getComputedStyle(chip(screen, "Mon, Monday"));
 
   expect(style.backgroundColor).toBe(tokenRgb("surface"));
   expect(style.boxShadow).toContain(insetBoundary("border", "2px"));
@@ -196,8 +205,8 @@ test("draws an unchosen chip on the surface with the field border and regular in
 
 test("turns a hovered unchosen chip bone and a hovered chosen chip strong blue", async () => {
   const screen = await render(<ToggleChipGroup {...baseProps({ value: ["tue"] })} />);
-  const unchosen = chip(screen, "Monday");
-  const chosen = chip(screen, "Tuesday");
+  const unchosen = chip(screen, "Mon, Monday");
+  const chosen = chip(screen, "Tue, Tuesday");
 
   await userEvent.hover(unchosen);
   await expect
@@ -213,22 +222,22 @@ test("shows the package's focus ring on the keyboard-focused chip", async () => 
 
   await userEvent.tab();
 
-  const style = getComputedStyle(chip(screen, "Monday"));
-  await expect.poll(() => getComputedStyle(chip(screen, "Monday")).outlineWidth).toBe("3px");
+  const style = getComputedStyle(chip(screen, "Mon, Monday"));
+  await expect.poll(() => getComputedStyle(chip(screen, "Mon, Monday")).outlineWidth).toBe("3px");
   expect(style.outlineColor).toBe(tokenRgb("focus"));
 });
 
 test("shows the pointer cursor on each chip", async () => {
   const screen = await render(<ToggleChipGroup {...baseProps()} />);
 
-  expect(getComputedStyle(chip(screen, "Monday")).cursor).toBe("pointer");
+  expect(getComputedStyle(chip(screen, "Mon, Monday")).cursor).toBe("pointer");
 });
 
 test("disables every chip and dims the whole field", async () => {
   const screen = await render(<ToggleChipGroup {...baseProps({ disabled: true })} />);
 
   for (const option of options) {
-    const element = chip(screen, option.accessibleName ?? option.label) as HTMLButtonElement;
+    const element = chip(screen, chipName(option)) as HTMLButtonElement;
     expect(element.disabled).toBe(true);
   }
   expect(getComputedStyle(screen.container.firstElementChild as Element).opacity).toBe("0.45");
@@ -253,7 +262,7 @@ test("shows the error message in place of the description, draws unchosen chips 
   await expect
     .element(screen.getByRole("toolbar", { name: "Days" }))
     .toHaveAccessibleDescription("Pick a day.");
-  expect(getComputedStyle(chip(screen, "Monday")).boxShadow).toContain(
+  expect(getComputedStyle(chip(screen, "Mon, Monday")).boxShadow).toContain(
     insetBoundary("error", "2px"),
   );
 });
