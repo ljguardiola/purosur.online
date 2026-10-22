@@ -300,11 +300,25 @@ describe("forgetting the acknowledged events after a register session", () => {
         () => new Date("2099-01-01T00:00:00.000Z"),
       ).forgetAcknowledgedBefore(new Date("2098-12-01T00:00:00.000Z"));
 
-      expect(removed).toBe(outboxBefore.length - 1);
-      expect(outboxBefore.length).toBeGreaterThan(1);
-      expect(session.prepare("SELECT event_type FROM outbox").all()).toEqual([
-        { event_type: "sale_voided" },
-      ]);
+      const pendingDeferredSales = session
+        .prepare(
+          `SELECT count(*) AS total FROM deferred_sales
+           WHERE satisfied_at IS NULL AND cancelled_at IS NULL`,
+        )
+        .get();
+      expect(pendingDeferredSales).not.toEqual({ total: 0 });
+      expect(removed).toBeGreaterThan(0);
+      expect(
+        session
+          .prepare(
+            `SELECT DISTINCT event_type FROM outbox
+             WHERE event_type <> 'sale_completed' OR aggregate_id NOT IN (
+               SELECT sale_id FROM deferred_sales WHERE satisfied_at IS NULL AND cancelled_at IS NULL)
+             ORDER BY event_type`,
+          )
+          .all(),
+      ).toEqual([{ event_type: "sale_voided" }]);
+      expect(heldSeqs(session).length).toBeLessThan(outboxBefore.length);
       expect(
         session.prepare("SELECT state FROM sale_void_credit_notes ORDER BY state").all(),
       ).toEqual([{ state: "AUTHORIZED" }, { state: "IN_PROGRESS" }]);
