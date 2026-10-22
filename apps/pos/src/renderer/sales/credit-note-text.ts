@@ -60,7 +60,7 @@ export function creditNotePrintNotice(
     case "already_attempted":
       return {
         tone: "error",
-        title: "La nota de crédito ya se imprimió",
+        title: "Puede que la nota de crédito haya salido",
         description: "Ahora se reimprime como duplicado, pidiendo el motivo.",
       };
     case "busy":

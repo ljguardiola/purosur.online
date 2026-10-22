@@ -55,6 +55,18 @@ type ReprintableSale = Pick<SaleDetail, "sale_id" | "occurred_at"> &
     next_copy: NextReceiptCopy;
   };
 
+function documentComprobante(
+  document: PrintedDocument,
+  sale: ReprintableSale,
+): { name: string; detail: string } | undefined {
+  if (document === "credit_note") {
+    return sale.credit_note?.kind === "authorized"
+      ? creditNoteComprobantePresentation(sale.credit_note)
+      : undefined;
+  }
+  return sale.comprobante === undefined ? undefined : comprobantePresentation(sale.comprobante);
+}
+
 export type ReprintReceiptModalProps = {
   document: PrintedDocument;
   sale: ReprintableSale;
@@ -84,8 +96,7 @@ export function ReprintReceiptModal({
 }: ReprintReceiptModalProps) {
   const [notice, setNotice] = useState<string>();
   const copy = receiptCopyPresentation(sale.next_copy);
-  const comprobante =
-    sale.comprobante === undefined ? undefined : comprobantePresentation(sale.comprobante);
+  const comprobante = documentComprobante(document, sale);
   const authorization = useAuthorization({
     person,
     permission: PERMISSION,
@@ -156,19 +167,12 @@ export function ReprintReceiptModal({
     void submit();
   }
 
-  const operationNumber = sale.operation_number ?? null;
-  const creditNote =
-    document === "credit_note" && sale.credit_note?.kind === "authorized"
-      ? creditNoteComprobantePresentation(sale.credit_note)
-      : undefined;
+  const operationNumber = document === "sale_receipt" ? (sale.operation_number ?? null) : null;
   const rows = nonEmptyRows([
     ...(copy.legend === undefined ? [] : [{ label: "Leyenda", value: copy.legend }]),
     ...(comprobante === undefined
       ? []
       : [{ label: "Comprobante", value: `${comprobante.name} · ${comprobante.detail}` }]),
-    ...(creditNote === undefined
-      ? []
-      : [{ label: "Comprobante", value: `${creditNote.name} · ${creditNote.detail}` }]),
     ...(operationNumber === null
       ? []
       : [{ label: "Operación", value: formatOperationNumber(operationNumber) }]),
