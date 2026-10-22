@@ -26,6 +26,7 @@ import {
   SALE_COMPLETED_AT,
 } from "./test-support/real-time-authorization-database";
 import { SCRIPTED_SHORT_CODES, scriptedDeferrals } from "./test-support/scripted-deferrals";
+import { scriptedShortCodes } from "./test-support/scripted-short-codes";
 
 const NOW = new Date("2026-09-30T12:05:02.000Z");
 const CLOUD_URL = "https://staging.purosur.online";
@@ -333,13 +334,13 @@ describe("settling, as the register starts, the authorizations its last run left
   it("settles none of them and reports it when settling one of them fails", async () => {
     insertCompletedSale(database, "sale-2");
     insertFiscalDocument(database, { id: "doc-2", saleId: "sale-2", pointOfSale: 13 });
-    insertDeferredSale(database, "sale-2");
     const failures: unknown[] = [];
 
     await settleInterruptedAuthorizations({
       database,
       now: () => NOW,
       ...scriptedDeferrals(),
+      shortCodes: scriptedShortCodes([SCRIPTED_SHORT_CODES[0]]),
       readOutboxChainKey: async () => CHAIN_KEY,
       reportFailure: (error) => failures.push(error),
     });
@@ -349,9 +350,7 @@ describe("settling, as the register starts, the authorizations its last run left
       { id: "doc-1", state: "REQUESTING" },
       { id: "doc-2", state: "REQUESTING" },
     ]);
-    expect(database.prepare("SELECT sale_id FROM deferred_sales").all()).toEqual([
-      { sale_id: "sale-2" },
-    ]);
+    expect(database.prepare("SELECT sale_id FROM deferred_sales").all()).toEqual([]);
   });
 
   it("resolves at once for a register with no local database", async () => {
@@ -1013,15 +1012,16 @@ describe("catching up the deferred sales, as the register's health is checked", 
     insertCompletedSale(database, "sale-9");
     insertSaleCompletedEvent(database, "sale-9");
     insertFiscalDocument(database, { id: "doc-9", saleId: "sale-9", number: 99, state: "UNKNOWN" });
-    insertDeferredSale(database, "sale-9");
-    database.prepare("UPDATE deferred_sales SET satisfied_at = NULL").run();
     addPendingSale(1);
     const { sent, tick } = ticking({ unclear: async () => json({ state: "RELEASED" }) });
 
     await tick();
 
     expect(sent.map(({ path }) => path)).toEqual(["/api/health", UNCLEAR_PATH, AUTHORIZE_PATH]);
-    expect(documents()).toEqual([{ sale_id: "sale-1", number: 101, state: "AUTHORIZED" }]);
+    expect(documents()).toEqual([
+      { sale_id: "sale-9", number: 99, state: "RELEASED" },
+      { sale_id: "sale-1", number: 101, state: "AUTHORIZED" },
+    ]);
   });
 
   it("reports a failure of the catch-up without ending the tick", async () => {
