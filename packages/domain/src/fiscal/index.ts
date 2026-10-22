@@ -238,10 +238,7 @@ export type {
   RestoredUnclearDeferral,
   RestoredUnclearDeferralAnswer,
 } from "./model/restored-unclear-deferral.js";
-export {
-  rebuiltUnclearDeferral,
-  restoredUnclearDeferralAnswer,
-} from "./model/restored-unclear-deferral.js";
+export { rebuiltUnclearDeferral } from "./model/restored-unclear-deferral.js";
 export type {
   CreditNoteAnswer,
   RestoredCreditNoteAnswer,
