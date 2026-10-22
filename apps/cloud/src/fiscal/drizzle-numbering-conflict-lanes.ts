@@ -7,6 +7,7 @@ import type {
   NumberingFreeze,
   OrphanRegularization,
   RequestsAtNumber,
+  SaleCreditNote,
   SaleDocument,
 } from "@purosur/domain/fiscal/use-cases";
 import { and, asc, eq, gt, lte } from "drizzle-orm";
@@ -24,7 +25,11 @@ import type { EnqueueNumberingReconciliation } from "./enqueue-numbering-conflic
 import { answerOf } from "./fiscal-request-answer.js";
 import { diagnosisOf } from "./fiscal-request-diagnosis.js";
 import { freezePointOfSaleNumbering } from "./freeze-point-of-sale-numbering.js";
-import { otherDocumentsOfSale, requestsAtNumber } from "./orphan-local-standing.js";
+import {
+  creditNotesOfSale,
+  otherDocumentsOfSale,
+  requestsAtNumber,
+} from "./orphan-local-standing.js";
 import { withPointOfSaleLaneLock } from "./point-of-sale-lane-lock.js";
 import { recordOrphanRegularization } from "./record-orphan-regularization.js";
 
@@ -85,6 +90,10 @@ class DrizzleNumberingConflictLane<TQueryResult extends PgQueryResultHKT>
 
   otherDocumentsOfSale(saleId: string, fiscalDocumentId: string): Promise<SaleDocument[]> {
     return otherDocumentsOfSale(this.db, saleId, fiscalDocumentId);
+  }
+
+  creditNotesOfSale(saleId: string): Promise<SaleCreditNote[]> {
+    return creditNotesOfSale(this.db, saleId);
   }
 
   async numberingConflictRequest(

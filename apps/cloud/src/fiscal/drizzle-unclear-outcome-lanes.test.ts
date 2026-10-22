@@ -429,6 +429,43 @@ describe("DrizzleUnclearOutcomeLanes", () => {
     });
   });
 
+  describe("the credit notes of a sale", () => {
+    it("are each credit note of the sale with the voucher it credited and the one it kept", async () => {
+      const request = await recordedRequest(42, { kind: "unclear" });
+      await unclearLanes.inPointOfSaleLane(7, (lane) =>
+        lane.recordDecision(
+          request.fiscalDocumentId,
+          {
+            kind: "adopted",
+            authorizationCode: "74123456789012",
+            authorizationCodeDueOn: "2026-10-16",
+          },
+          DECIDED_AT,
+          { fiscalDocumentId: request.fiscalDocumentId, clearedAt: DECIDED_AT },
+          {
+            kind: "credit_note",
+            creditNoteId: crypto.randomUUID(),
+            saleId: request.saleId,
+            pointOfSale: 7,
+            associatedVoucher: { voucherType: 11, pointOfSale: 7, number: 42 },
+            keptVoucher: { voucherType: 11, pointOfSale: 31, number: 5 },
+            total: 1500,
+            receiverTaxStatusCode: 5,
+          },
+        ),
+      );
+
+      expect(
+        await unclearLanes.inPointOfSaleLane(7, (lane) => lane.creditNotesOfSale(request.saleId)),
+      ).toEqual([
+        {
+          creditedVoucher: { voucherType: 11, pointOfSale: 7, number: 42 },
+          keptVoucher: { voucherType: 11, pointOfSale: 31, number: 5 },
+        },
+      ]);
+    });
+  });
+
   describe("recording a decision together with the regularization of an orphan authorization", () => {
     const credit = (saleId: string, number: number) => ({
       kind: "credit_note" as const,

@@ -128,27 +128,42 @@ function sameVoucher(one: VoucherReference, other: VoucherReference): boolean {
   );
 }
 
-export function localStandingOfUnrecordedSale(
-  { saleId, voucher }: { saleId: string; voucher: VoucherReference },
+export function isKeptByCreditNote(
+  voucher: VoucherReference,
+  creditNotes: readonly SaleCreditNote[],
+): boolean {
+  return creditNotes.some(
+    ({ keptVoucher }) => keptVoucher !== null && sameVoucher(keptVoucher, voucher),
+  );
+}
+
+export function otherVoucherToKeep(
+  voucher: VoucherReference,
   {
     otherDocuments,
     creditNotes,
   }: { otherDocuments: readonly SaleDocument[]; creditNotes: readonly SaleCreditNote[] },
-): LocalStanding {
-  if (
-    creditNotes.some(({ keptVoucher }) => keptVoucher !== null && sameVoucher(keptVoucher, voucher))
-  ) {
-    return { kind: "local_sale", saleId, otherAuthorizedVoucher: null };
+): VoucherReference | null {
+  if (isKeptByCreditNote(voucher, creditNotes)) {
+    return null;
   }
-  const otherAuthorizedVoucher = authorizedVoucherAmong(
+  return authorizedVoucherAmong(
     otherDocuments.filter(
       (document) =>
         !creditNotes.some(({ creditedVoucher }) => sameVoucher(creditedVoucher, document.voucher)),
     ),
   );
-  return otherAuthorizedVoucher === null
-    ? { kind: "no_local_sale" }
-    : { kind: "local_sale", saleId, otherAuthorizedVoucher };
+}
+
+export function localStandingOfUnrecordedSale(
+  { saleId, voucher }: { saleId: string; voucher: VoucherReference },
+  sale: { otherDocuments: readonly SaleDocument[]; creditNotes: readonly SaleCreditNote[] },
+): LocalStanding {
+  const otherAuthorizedVoucher = otherVoucherToKeep(voucher, sale);
+  if (otherAuthorizedVoucher === null && !isKeptByCreditNote(voucher, sale.creditNotes)) {
+    return { kind: "no_local_sale" };
+  }
+  return { kind: "local_sale", saleId, otherAuthorizedVoucher };
 }
 
 export interface CreditNoteDecision {
