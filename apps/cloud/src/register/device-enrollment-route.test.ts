@@ -6,6 +6,7 @@ import { insertRegisterWithPointOfSale } from "../fiscal/test-support/authorizat
 import {
   alerts,
   auditLog,
+  numberingFreezes,
   registerContingencyTicketKeys,
   registerEnrollmentAttempts,
   registerEnrollmentCodes,
@@ -31,6 +32,7 @@ let testDatabase: TestDatabase;
 let db: TestDatabase["db"];
 let app: FastifyInstance;
 let enqueuedCountReads: number[];
+let enqueuedReconciliations: number[];
 
 beforeAll(async () => {
   testDatabase = await buildTestDatabase();
@@ -45,6 +47,7 @@ beforeEach(async () => {
   await testDatabase.clear();
   app = Fastify();
   enqueuedCountReads = [];
+  enqueuedReconciliations = [];
   registerRouteAccess(app);
   registerDeviceEnrollmentRoute(app, {
     db,
@@ -52,6 +55,9 @@ beforeEach(async () => {
     now: () => NOW,
     enqueueTaxAuthorityCount: async (_transaction, pointOfSale) => {
       enqueuedCountReads.push(pointOfSale);
+    },
+    enqueueNumberingReconciliation: async (_transaction, pointOfSale) => {
+      enqueuedReconciliations.push(pointOfSale);
     },
   });
 });
@@ -220,6 +226,31 @@ describe("POST /devices", () => {
     expect(response.statusCode).toBe(200);
     expect(await db.select().from(taxAuthorityLastAuthorizedNumbers)).toEqual([]);
     expect(enqueuedCountReads).toEqual([7]);
+  });
+
+  it("freezes the numbering of the register's point of sale at the stored count and queues its reconciliation", async () => {
+    const registerId = await insertRegisterWithPointOfSale(db, {
+      pointOfSaleNumber: 7,
+      name: "caja-con-punto",
+    });
+    await db.insert(registerEnrollmentCodes).values({
+      registerId,
+      codeLookup: CODE.slice(0, 4),
+      codeHash: hashSecretCode(CODE),
+      issuedAt: minutesAgo(5),
+      expiresAt: minutesAgo(-10),
+    });
+    await db
+      .insert(taxAuthorityLastAuthorizedNumbers)
+      .values({ pointOfSaleNumber: 7, lastAuthorized: 11, readAt: NOW });
+
+    const response = await enroll();
+
+    expect(response.statusCode).toBe(200);
+    expect(await db.select().from(numberingFreezes)).toEqual([
+      { pointOfSaleNumber: 7, countBeforeFreeze: 11, frozenAt: NOW },
+    ]);
+    expect(enqueuedReconciliations).toEqual([7]);
   });
 
   it("revokes the installation that held the register before", async () => {
