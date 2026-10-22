@@ -27,6 +27,7 @@ export class FakePointOfSaleLanes implements PointOfSaleLanes {
   recordingFailure: Error | undefined;
   answerRecordingFailure: Error | undefined;
   private readonly owners: Map<number, string>;
+  private readonly heldSales = new Set<string>();
 
   constructor(owners: Iterable<[number, string]>) {
     this.owners = new Map(owners);
@@ -54,6 +55,14 @@ export class FakePointOfSaleLanes implements PointOfSaleLanes {
     }
   }
 
+  seedHeldSaleCompletion(registerId: string, saleId: string) {
+    this.heldSales.add(`${registerId}/${saleId}`);
+  }
+
+  holdsSaleCompletion(registerId: string, saleId: string): boolean {
+    return this.heldSales.has(`${registerId}/${saleId}`);
+  }
+
   ownerOf(pointOfSale: number): string | undefined {
     return this.owners.get(pointOfSale);
   }
@@ -69,6 +78,11 @@ class FakeLane implements PointOfSaleLane {
   async registerOwnsPointOfSale(registerId: string, pointOfSale: number): Promise<boolean> {
     this.lanes.operations.push("registerOwnsPointOfSale");
     return this.lanes.ownerOf(pointOfSale) === registerId;
+  }
+
+  async holdsSaleCompletion(registerId: string, saleId: string): Promise<boolean> {
+    this.lanes.operations.push("holdsSaleCompletion");
+    return this.lanes.holdsSaleCompletion(registerId, saleId);
   }
 
   async recordedRequest(

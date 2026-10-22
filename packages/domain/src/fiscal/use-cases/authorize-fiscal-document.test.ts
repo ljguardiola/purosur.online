@@ -64,7 +64,8 @@ interface Scenario {
   owners?: [number, string][];
   token?: typeof TOKEN | null;
   solicitation?: SolicitationAnswer | Error;
-  request?: Partial<typeof REQUEST>;
+  request?: Partial<Omit<typeof REQUEST, "saleEvent">> & { saleEvent?: PushedEvent | null };
+  saleCompletionHeldFor?: string;
   startAt?: Date;
   recordingFailure?: Error;
   answerRecordingFailure?: Error;
@@ -79,6 +80,7 @@ function authorize({
   token = TOKEN,
   solicitation = AUTHORIZED_BY_ARCA,
   request = {},
+  saleCompletionHeldFor,
   startAt = RECEIVED_AT,
   recordingFailure,
   answerRecordingFailure,
@@ -88,6 +90,9 @@ function authorize({
   const lanes = new FakePointOfSaleLanes(owners);
   lanes.recordingFailure = recordingFailure;
   lanes.answerRecordingFailure = answerRecordingFailure;
+  if (saleCompletionHeldFor !== undefined) {
+    lanes.seedHeldSaleCompletion(saleCompletionHeldFor, "sale-1");
+  }
   if (seeded) {
     lanes.seedRequest(
       {
@@ -440,6 +445,83 @@ describe("authorizeFiscalDocument", () => {
     await expect(outcome).resolves.toEqual({ kind: "sale_event_mismatch" });
     expect(lanes.operations).toEqual([]);
     expect(taxAuthority.solicitations).toEqual([]);
+  });
+
+  describe("a request that carries no sale event", () => {
+    it("uses the completion the cloud already holds: records the request without an event and solicits the tax authority", async () => {
+      const { lanes, taxAuthority, outcome } = authorize({
+        request: { saleEvent: null },
+        saleCompletionHeldFor: REGISTER_ID,
+      });
+
+      await expect(outcome).resolves.toMatchObject({
+        kind: "answered",
+        answer: AUTHORIZED_ANSWER,
+      });
+      expect(lanes.operations.slice(0, 8)).toEqual([
+        "enterLane",
+        "registerOwnsPointOfSale",
+        "recordedRequest",
+        "holdsSaleCompletion",
+        "recordRequest",
+        "validToken",
+        "solicit",
+        expect.stringMatching(/^recordTaxAuthorityAnswer:/),
+      ]);
+      expect(lanes.requests.get(FISCAL_DOCUMENT_ID)?.saleEvent).toBeNull();
+      expect(taxAuthority.solicitations).toHaveLength(1);
+    });
+
+    it("refuses when the cloud holds no completion of that sale, recording nothing and never calling the tax authority", async () => {
+      const { lanes, taxAuthority, outcome } = authorize({ request: { saleEvent: null } });
+
+      await expect(outcome).resolves.toEqual({ kind: "sale_completion_not_held" });
+      expect(lanes.operations).toEqual([
+        "enterLane",
+        "registerOwnsPointOfSale",
+        "recordedRequest",
+        "holdsSaleCompletion",
+        "leaveLane",
+      ]);
+      expect(lanes.requests.size).toBe(0);
+      expect(taxAuthority.solicitations).toEqual([]);
+    });
+
+    it("does not count another register's completion of the sale", async () => {
+      const { outcome } = authorize({
+        request: { saleEvent: null },
+        saleCompletionHeldFor: "register-2",
+      });
+
+      await expect(outcome).resolves.toEqual({ kind: "sale_completion_not_held" });
+    });
+
+    it("returns the answer already recorded for the document before asking about the completion", async () => {
+      const { lanes, outcome } = authorize({
+        request: { saleEvent: null },
+        seeded: { answer: AUTHORIZED_ANSWER },
+      });
+
+      await expect(outcome).resolves.toEqual({
+        kind: "already_answered",
+        answer: AUTHORIZED_ANSWER,
+      });
+      expect(lanes.operations).not.toContain("holdsSaleCompletion");
+    });
+
+    it("refuses a point of sale nobody owns before asking about the completion", async () => {
+      const { lanes, outcome } = authorize({ owners: [], request: { saleEvent: null } });
+
+      await expect(outcome).resolves.toEqual({ kind: "point_of_sale_not_owned" });
+      expect(lanes.operations).not.toContain("holdsSaleCompletion");
+    });
+  });
+
+  it("never asks whether the cloud holds the completion when the request carries the event", async () => {
+    const { lanes, outcome } = authorize();
+    await outcome;
+
+    expect(lanes.operations).not.toContain("holdsSaleCompletion");
   });
 
   it("returns the answer already recorded for the document, without calling the tax authority again", async () => {
