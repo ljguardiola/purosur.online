@@ -2004,6 +2004,74 @@ describe("decoding the events the registers pushed", () => {
     });
   });
 
+  it("reads the credit note issued under a pre-obtained code with the voucher it corrects", () => {
+    const decoded = upcaster.decode(
+      unappliedEventOf(
+        pushed({
+          event_type: "offline_fiscal_document_issued",
+          schema_version: 3,
+          payload: {
+            fiscal_document_id: "01a1122a-0305-7189-87d0-8256a353fd41",
+            sale_id: SALE,
+            register_id: "01a1122a-0305-7189-87d0-8256a353fd42",
+            point_of_sale: 7,
+            document_type: "credit_note_c",
+            number: 3,
+            issued_on: "2026-10-06",
+            generated_at: "2026-10-06T11:20:00.000Z",
+            generation_stamp: "20261006082000",
+            offline_authorization_code: "21403471111111",
+            fortnight_start: "2026-10-01",
+            fortnight_end: "2026-10-15",
+            buyer_document_type: 99,
+            buyer_document_number: 0,
+            buyer_tax_status_code: 5,
+            total: 4800,
+            net_amount: 4800,
+            cause: "no_connectivity",
+            credit_note_id: "01a1122a-0305-7189-87d0-8256a353fd43",
+            corrects: { voucher_type: 11, point_of_sale: 7, number: 12 },
+            document: {
+              id: "01a1122a-0305-7189-87d0-8256a353fd43",
+              total: 4800,
+              receiver_tax_status_code: 5,
+              corrects: { voucher_type: 11, point_of_sale: 7, number: 12 },
+            },
+          },
+        }),
+      ),
+    );
+
+    expect(decoded).toEqual({
+      kind: "fact",
+      fact: {
+        kind: "offline_fiscal_document_issued",
+        document: {
+          fiscalDocumentId: "01a1122a-0305-7189-87d0-8256a353fd41",
+          saleId: SALE,
+          registerId: "01a1122a-0305-7189-87d0-8256a353fd42",
+          pointOfSale: 7,
+          documentType: "credit_note_c",
+          number: 3,
+          issuedOn: "2026-10-06",
+          generatedAt: new Date("2026-10-06T11:20:00.000Z"),
+          generationStamp: "20261006082000",
+          offlineAuthorizationCode: "21403471111111",
+          fortnightStart: "2026-10-01",
+          fortnightEnd: "2026-10-15",
+          buyerDocumentType: 99,
+          buyerDocumentNumber: 0,
+          buyerTaxStatusCode: 5,
+          total: 4800,
+          netAmount: 4800,
+          cause: "no_connectivity",
+          creditNoteId: "01a1122a-0305-7189-87d0-8256a353fd43",
+          corrects: { voucherType: 11, pointOfSale: 7, number: 12 },
+        },
+      },
+    });
+  });
+
   it("reads a version 1 document as one without an invoice", () => {
     const decoded = upcaster.decode(
       unappliedEventOf(

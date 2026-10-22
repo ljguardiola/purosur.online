@@ -5,6 +5,8 @@ import {
   deferredSaleSatisfiedEvent,
   MAX_STOCK_QUANTITY,
   MAX_UNIT_PRICE_CENTS,
+  offlineCreditNote,
+  offlineCreditNoteIssuedEvent,
   offlineFiscalDocument,
   offlineFiscalDocumentIssuedEvent,
   preEmissionGateFailedEvent,
@@ -205,7 +207,10 @@ describe("synced event payloads", () => {
     expect(syncedEventPayloadKey("offline_fiscal_document_issued", 2)).toBe(
       "offline_fiscal_document_issued@2",
     );
-    expect(syncedEventPayloadKey("offline_fiscal_document_issued", 3)).toBeUndefined();
+    expect(syncedEventPayloadKey("offline_fiscal_document_issued", 3)).toBe(
+      "offline_fiscal_document_issued@3",
+    );
+    expect(syncedEventPayloadKey("offline_fiscal_document_issued", 4)).toBeUndefined();
   });
 
   it.each([
@@ -527,6 +532,60 @@ describe("synced event payloads", () => {
     it("refuses it when it is not an object", () => {
       expect(accepts("deferred_sale_satisfied", 1, null)).toBe(false);
       expect(accepts("deferred_sale_satisfied", 1, [])).toBe(false);
+    });
+  });
+
+  describe("offline_fiscal_document_issued as a credit note", () => {
+    const { payload: creditNote } = offlineCreditNoteIssuedEvent({
+      eventId: "event-1",
+      registerId: "register-1",
+      actorId: "cashier",
+      document: offlineCreditNote({
+        id: "fiscal-document-2",
+        saleId: "sale-1",
+        creditNoteId: "credit-note-1",
+        pointOfSale: 7,
+        number: 12,
+        issuedOn: "2026-10-15",
+        generatedAt: new Date("2026-10-16T03:00:01.000Z"),
+        offlineAuthorizationCode: "71234567890123",
+        fortnight: { start: "2026-10-01", end: "2026-10-15" },
+        total: 6750,
+        receiverTaxStatusCode: 5,
+        corrects: { voucherType: 11, pointOfSale: 7, number: 101 },
+        cause: "no_connectivity",
+      }),
+    });
+    const note = (change: Payload = {}) => ({ ...(creditNote as Payload), ...change });
+
+    it("describes the event the domain drafts for a credit note issued under a pre-obtained code", () => {
+      expect(accepts("offline_fiscal_document_issued", 3, note())).toBe(true);
+    });
+
+    it.each(Object.keys(creditNote))("refuses a version 3 payload without its %s", (field) => {
+      const { [field]: _removed, ...rest } = note();
+      expect(accepts("offline_fiscal_document_issued", 3, rest)).toBe(false);
+    });
+
+    it.each([
+      ["a factura C", { document_type: "factura_c" }],
+      [
+        "a voucher type other than a factura C corrected",
+        { corrects: { voucher_type: 13, point_of_sale: 7, number: 101 } },
+      ],
+      [
+        "a corrected number of zero",
+        { corrects: { voucher_type: 11, point_of_sale: 7, number: 0 } },
+      ],
+      ["a total of zero", { total: 0 }],
+      ["an unknown cause", { cause: "whim" }],
+    ])("refuses a version 3 payload with %s", (_case, change) => {
+      expect(accepts("offline_fiscal_document_issued", 3, note(change))).toBe(false);
+    });
+
+    it("refuses a credit note in versions 1 and 2, which carry facturas only", () => {
+      expect(accepts("offline_fiscal_document_issued", 1, note())).toBe(false);
+      expect(accepts("offline_fiscal_document_issued", 2, note())).toBe(false);
     });
   });
 
