@@ -1,6 +1,6 @@
+import type { DeviceCredentialsRequest } from "@purosur/contracts";
 import { createHeldMessages } from "./held-messages";
 import { createMainRequests } from "./main-requests";
-import type { DeviceCredentialsRequest } from "@purosur/contracts";
 
 interface MainPort<TEvent> {
   on(event: "message", listener: (event: TEvent) => void): unknown;
