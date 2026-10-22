@@ -214,6 +214,19 @@ describe("CashOpeningPanel", () => {
     await expectNoAccessibilityViolations(screen.container);
   });
 
+  it("says the register cannot be opened while it is being restored", async () => {
+    const { screen } = await renderPanel({
+      open: async () => ({ kind: "restoration_in_progress" }),
+    });
+
+    await submitFloat(screen, "100");
+
+    await expect
+      .element(screen.getByText("La caja se está restaurando: todavía no se puede abrir.").first())
+      .toBeVisible();
+    await expectNoAccessibilityViolations(screen.container);
+  });
+
   it.each<[string, () => Promise<OpenCashSessionOutcome>]>([
     ["is unavailable", async () => ({ kind: "unavailable" })],
     ["fails to answer", () => Promise.reject(new Error("the core connection was replaced"))],

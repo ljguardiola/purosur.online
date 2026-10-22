@@ -916,6 +916,7 @@ describe("the register's local migrations", () => {
         "0067_replenished_events",
         "0068_clock_correction_lapse_cause",
         "0069_credit_note_reprints",
+        "0070_stale_sequence",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1009,6 +1010,7 @@ describe("the register's local migrations", () => {
         "0067_replenished_events",
         "0068_clock_correction_lapse_cause",
         "0069_credit_note_reprints",
+        "0070_stale_sequence",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1097,6 +1099,7 @@ describe("the register's local migrations", () => {
         "0067_replenished_events",
         "0068_clock_correction_lapse_cause",
         "0069_credit_note_reprints",
+        "0070_stale_sequence",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1184,6 +1187,7 @@ describe("the register's local migrations", () => {
         "0067_replenished_events",
         "0068_clock_correction_lapse_cause",
         "0069_credit_note_reprints",
+        "0070_stale_sequence",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1300,6 +1304,7 @@ describe("the register's local migrations", () => {
         "0067_replenished_events",
         "0068_clock_correction_lapse_cause",
         "0069_credit_note_reprints",
+        "0070_stale_sequence",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1406,6 +1411,7 @@ describe("the register's local migrations", () => {
         "0067_replenished_events",
         "0068_clock_correction_lapse_cause",
         "0069_credit_note_reprints",
+        "0070_stale_sequence",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1516,6 +1522,7 @@ describe("the register's local migrations", () => {
         "0067_replenished_events",
         "0068_clock_correction_lapse_cause",
         "0069_credit_note_reprints",
+        "0070_stale_sequence",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1634,6 +1641,7 @@ describe("the register's local migrations", () => {
         "0067_replenished_events",
         "0068_clock_correction_lapse_cause",
         "0069_credit_note_reprints",
+        "0070_stale_sequence",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1719,6 +1727,7 @@ describe("the register's local migrations", () => {
         "0067_replenished_events",
         "0068_clock_correction_lapse_cause",
         "0069_credit_note_reprints",
+        "0070_stale_sequence",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -5737,6 +5746,33 @@ describe("the register's local migrations", () => {
           .run(),
       ).toThrow(/UNIQUE/);
       expect(after.pragma("foreign_key_check")).toEqual([]);
+      after.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
+  it("add when the cloud first refused the register's sequence as stale, none for a register already holding data", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.filter(
+        (migration) => migration.name < "0070_stale_sequence",
+      );
+      expect(LOCAL_MIGRATIONS.map((migration) => migration.name)).toContain("0070_stale_sequence");
+      const before = openLocalDatabase(path, previous, migrationClock);
+      before
+        .prepare("UPDATE sync_state SET pull_cursor = 9, device_id = 'device-a' WHERE id = 1")
+        .run();
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+
+      expect(
+        after
+          .prepare("SELECT pull_cursor, device_id, stale_sequence_detected_at FROM sync_state")
+          .all(),
+      ).toEqual([{ pull_cursor: 9, device_id: "device-a", stale_sequence_detected_at: null }]);
       after.close();
     } finally {
       rmSync(folder, { recursive: true, force: true });

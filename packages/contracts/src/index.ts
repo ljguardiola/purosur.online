@@ -383,6 +383,7 @@ export type {
   RegisterRendererToCoreMessage,
   RegisterSerialDevicesOutcome,
   RegisterStatus,
+  RestorationStandingAnswer,
   SessionOpenSale,
   SetReceiptPrinterOutcome,
 } from "./register/core-messages.js";

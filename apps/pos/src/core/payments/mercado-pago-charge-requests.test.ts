@@ -3,6 +3,7 @@ import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import { migrationClock } from "../platform/test-support/migration-clock";
 import { openLocalDatabase } from "../platform/test-support/open-local-database";
+import { restorationOf } from "../register/test-support/restoration-of";
 import { chargeSaleInCashFor } from "../sales/sale-requests";
 import { createSignedInPerson, type SignedInPerson } from "../sessions/signed-in-person";
 import {
@@ -65,6 +66,20 @@ afterEach(() => {
 });
 
 describe("starting a Mercado Pago QR charge at the register", () => {
+  it("refuses to start once the restoration of the register is in progress, and asks the cloud for nothing", async () => {
+    const saleId = await saleOfTwoYerbas();
+    const orders = new FakeOrders();
+    database
+      .prepare("UPDATE sync_state SET stale_sequence_detected_at = '2026-10-09T08:00:00.000Z'")
+      .run();
+
+    expect(
+      await startMercadoPagoChargeFor(deps(orders), { saleId, method: "QR", amount: 2000 }),
+    ).toEqual({ kind: "restoration_in_progress" });
+    expect(orders.requested).toEqual([]);
+    expect(qrRows()).toEqual([]);
+  });
+
   it("keeps the pending QR payment before asking the cloud for its order, and shows the order", async () => {
     const saleId = await saleOfTwoYerbas();
     const orders = new FakeOrders();
@@ -425,6 +440,7 @@ describe("abandoning a Mercado Pago QR charge at the register", () => {
     const charged = await chargeSaleInCashFor(
       {
         database,
+        restoration: restorationOf(database),
         gate: deps(orders).gate,
         readOutboxChainKey: async () => CHAIN_KEY,
         now: () => NOW,

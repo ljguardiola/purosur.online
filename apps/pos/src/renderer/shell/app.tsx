@@ -40,13 +40,14 @@ import {
   useCashSessionQuery,
   useEnrollmentQuery,
   useRegisterServiceQuery,
+  useRestorationStandingQuery,
 } from "../register/register-queries";
 import { useSerialDevicesOffer } from "../register/serial-devices-offer";
 import { salesKeys } from "../sales/sales-queries";
 import { sessionsKey } from "../sessions/sessions-queries";
 import { stockKeys } from "../stock/stock-queries";
 import { BarcodeReadings } from "./barcode-readings";
-import type { Enrollment, RegisterServiceState } from "./router";
+import type { Enrollment, RegisterServiceState, Restoration } from "./router";
 import { createAppRouter } from "./router";
 import type { SignedInPerson } from "./signed-in-person";
 import { useStartupPendingGate } from "./startup-pending-gate";
@@ -84,6 +85,10 @@ function Register({ core }: { core: CoreClient }) {
   if (coreStatus === "up" && enrollmentRead.status === "loaded") {
     enrollment = enrollmentRead.value ? "enrolled" : "not_enrolled";
   }
+  const restoration: Restoration = useRestorationStandingQuery({
+    read: () => core.restorationStanding(),
+    enabled: coreStatus === "up" && enrollment === "enrolled",
+  });
   const [signedInPerson, setPerson] = useState<SignedInPerson>();
   const { offerSerialDevicesAfterSignIn, takeSerialDevicesOffer } = useSerialDevicesOffer();
   const startupPendingGate = useStartupPendingGate();
@@ -450,6 +455,7 @@ function Register({ core }: { core: CoreClient }) {
     if (coreStatus !== "up") {
       setPerson(undefined);
       void queryClient.resetQueries({ queryKey: registerKeys.service });
+      void queryClient.resetQueries({ queryKey: registerKeys.restorationStanding });
     }
   }, [coreStatus, queryClient]);
 
@@ -500,6 +506,14 @@ function Register({ core }: { core: CoreClient }) {
 
   useEffect(
     () =>
+      core.onRestorationStandingChanged(() => {
+        void queryClient.invalidateQueries({ queryKey: registerKeys.restorationStanding });
+      }),
+    [core, queryClient],
+  );
+
+  useEffect(
+    () =>
       core.onFiscalModeChanged(() => {
         void queryClient.invalidateQueries({ queryKey: registerKeys.status });
       }),
@@ -513,13 +527,14 @@ function Register({ core }: { core: CoreClient }) {
         ...router.options.context,
         coreStatus,
         registerService,
+        restoration,
         enrollment,
         person,
         cashSession,
       },
     });
     void router.invalidate();
-  }, [router, coreStatus, registerService, enrollment, person, cashSession]);
+  }, [router, coreStatus, registerService, restoration, enrollment, person, cashSession]);
 
   return <RouterProvider router={router} context={{ queryClient, ...services }} />;
 }

@@ -5,6 +5,7 @@ import {
   FICTIONAL_LEGAL_NAME,
 } from "@purosur/domain/fiscal/test-support";
 import type { MercadoPagoChargeOrders } from "@purosur/domain/payments/use-cases";
+import { restorePendingIn } from "../../backups/restore-pending";
 import { derivePinVerifier } from "../../credentials/pin-verifier";
 import { correctRegisterClockFor } from "../../fiscal/clock-correction-requests";
 import {
@@ -18,6 +19,7 @@ import { migrationClock } from "../../platform/test-support/migration-clock";
 import { openLocalDatabase } from "../../platform/test-support/open-local-database";
 import { recordCashMovementFor } from "../../register/cash-movement-requests";
 import { closeCashSessionFor, openCashSessionFor } from "../../register/cash-session-requests";
+import { SqliteRestorationEvidence } from "../../register/sqlite-restoration-evidence";
 import { uuidV7Ids } from "../../register/uuid-v7-ids";
 import {
   printVoidedSaleCreditNoteFor,
@@ -381,6 +383,7 @@ export async function withRegisterSession<TResult>(
       newSalesStoppedByDisk: () => false,
       localDatabaseDamaged: () => false,
       newSalesStoppedByBattery: () => false,
+      restoration: new SqliteRestorationEvidence(database, restorePendingIn(undefined)),
     });
 
     const voidDeps = () => ({

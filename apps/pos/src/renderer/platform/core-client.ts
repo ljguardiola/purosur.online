@@ -58,6 +58,7 @@ import type {
   RegisterStatus,
   RemoveSaleLineOutcome,
   ReprintSaleReceiptOutcome,
+  RestorationStandingAnswer,
   SaleDiscountRequest,
   SaleHistoryDetailOutcome,
   SalesCoreToRendererMessage,
@@ -171,6 +172,7 @@ export interface CoreClient {
   openCashSession(openingFloat: number): Promise<OpenCashSessionOutcome>;
   cashSession(): Promise<OpenCashSession | null | "unavailable">;
   registerStatus(): Promise<RegisterStatus | "unavailable">;
+  restorationStanding(): Promise<RestorationStandingAnswer | "unavailable">;
   recordCashMovement(input: CashMovementInput): Promise<RecordCashMovementOutcome>;
   cashMovements(): Promise<ListedCashMovement[] | null | "unavailable">;
   cashMovementKinds(): Promise<RecordableCashMovementKinds | null | "unavailable">;
@@ -286,6 +288,7 @@ export interface CoreClient {
   onStorageStandingChanged(listener: () => void): () => void;
   onBatteryStandingChanged(listener: () => void): () => void;
   onFiscalModeChanged(listener: () => void): () => void;
+  onRestorationStandingChanged(listener: () => void): () => void;
   onBarcodeRead(listener: (code: string) => void): () => void;
 }
 
@@ -308,6 +311,7 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
   const storageStandingChangedListeners = new Set<() => void>();
   const batteryStandingChangedListeners = new Set<() => void>();
   const fiscalModeChangedListeners = new Set<() => void>();
+  const restorationStandingChangedListeners = new Set<() => void>();
   const barcodeReadListeners = new Set<(code: string) => void>();
 
   function receive(port: CorePort, data: unknown): void {
@@ -344,6 +348,12 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
     }
     if (answer.data.type === "fiscal-mode-changed") {
       for (const listener of fiscalModeChangedListeners) {
+        listener();
+      }
+      return;
+    }
+    if (answer.data.type === "restoration-standing-changed") {
+      for (const listener of restorationStandingChangedListeners) {
         listener();
       }
       return;
@@ -544,6 +554,17 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
             return "unavailable";
           }
           return answer.type === "register-status" ? answer.status : undefined;
+        },
+      );
+    },
+    restorationStanding() {
+      return ask(
+        { type: "restoration-standing-request", request_id: deps.newRequestId() },
+        (answer): RestorationStandingAnswer | "unavailable" | undefined => {
+          if (answer.type === "restoration-standing-unavailable") {
+            return "unavailable";
+          }
+          return answer.type === "restoration-standing" ? answer.standing : undefined;
         },
       );
     },
@@ -1069,6 +1090,12 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
       fiscalModeChangedListeners.add(listener);
       return () => {
         fiscalModeChangedListeners.delete(listener);
+      };
+    },
+    onRestorationStandingChanged(listener) {
+      restorationStandingChangedListeners.add(listener);
+      return () => {
+        restorationStandingChangedListeners.delete(listener);
       };
     },
     onBarcodeRead(listener) {

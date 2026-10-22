@@ -4,6 +4,7 @@ import {
   authorizationSchema,
   plannedRefundSchema,
   requestIdSchema,
+  restorationInProgressOutcomeSchema,
 } from "../shared/index.js";
 import {
   addProductOutcomeSchema,
@@ -273,6 +274,7 @@ const cancelLockedSaleOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("not_permitted") }),
   z.object({ kind: z.literal("no_open_sale") }),
   z.object({ kind: z.literal("no_open_session") }),
+  restorationInProgressOutcomeSchema,
   ...authorizationRefusalSchema.options,
   z.object({ kind: z.literal("not_locked") }),
   qrChargeInProgressOutcome,

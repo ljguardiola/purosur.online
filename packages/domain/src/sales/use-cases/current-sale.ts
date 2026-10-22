@@ -3,6 +3,7 @@ import type { Clock } from "../../shared/index.js";
 import { type OpenSaleStanding, openSaleStanding } from "../model/open-sale-standing.js";
 import type { SaleWithLines } from "../model/sale.js";
 import { amountToCharge } from "../model/sale-discount.js";
+import type { RegisterRestoration } from "./register-restoration.js";
 import { saleChargeRefusal } from "./sale-charge-refusal.js";
 import type { SaleLedger } from "./sale-ledger.js";
 import { isRefusal, sellingSession } from "./selling-session.js";
@@ -13,11 +14,13 @@ export interface CurrentSaleInput {
 
 export interface CurrentSalePorts {
   ledger: SaleLedger;
+  restoration: RegisterRestoration;
   clock: Clock;
 }
 
 export type CurrentSaleOutcome =
   | { kind: "not_permitted" }
+  | { kind: "restoration_in_progress" }
   | { kind: "no_open_session" }
   | { kind: "no_sale" }
   | ({
@@ -27,11 +30,11 @@ export type CurrentSaleOutcome =
     } & OpenSaleStanding);
 
 export function currentSale(
-  { ledger, clock }: CurrentSalePorts,
+  { ledger, restoration, clock }: CurrentSalePorts,
   { actorId }: CurrentSaleInput,
 ): CurrentSaleOutcome {
   return ledger.transaction<CurrentSaleOutcome>((tx) => {
-    const session = sellingSession(tx, actorId);
+    const session = sellingSession(tx, actorId, restoration);
     if (isRefusal(session)) {
       return session;
     }

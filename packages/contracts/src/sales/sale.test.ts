@@ -377,6 +377,7 @@ describe("scanProductOutcomeSchema", () => {
     { kind: "not_permitted" },
     { kind: "not_signed_in" },
     { kind: "no_open_session" },
+    { kind: "restoration_in_progress" },
     { kind: "installation_revoked" },
     { kind: "disk_space_short" },
     { kind: "local_database_damaged" },
@@ -407,6 +408,7 @@ const refusals = [
   { kind: "not_permitted" },
   { kind: "not_signed_in" },
   { kind: "no_open_session" },
+  { kind: "restoration_in_progress" },
   { kind: "no_open_sale" },
   { kind: "unavailable" },
 ];
@@ -467,6 +469,7 @@ describe("addWeighedProductOutcomeSchema", () => {
     { kind: "not_permitted" },
     { kind: "not_signed_in" },
     { kind: "no_open_session" },
+    { kind: "restoration_in_progress" },
     { kind: "installation_revoked" },
     { kind: "disk_space_short" },
     { kind: "local_database_damaged" },
@@ -502,6 +505,7 @@ describe("weighProductOutcomeSchema", () => {
     { kind: "not_permitted" },
     { kind: "not_signed_in" },
     { kind: "no_open_session" },
+    { kind: "restoration_in_progress" },
     { kind: "installation_revoked" },
     { kind: "disk_space_short" },
     { kind: "local_database_damaged" },
@@ -598,6 +602,7 @@ describe("cancelPaidSaleOutcomeSchema", () => {
     { ...cancelled, refunds: [] },
     { kind: "no_open_sale" },
     { kind: "no_open_session" },
+    { kind: "restoration_in_progress" },
     { kind: "not_permitted" },
     { kind: "not_signed_in" },
     { kind: "lacks_permission" },
@@ -929,6 +934,7 @@ describe("chargeSaleInCashOutcomeSchema", () => {
     { kind: "not_permitted" },
     { kind: "not_signed_in" },
     { kind: "no_open_session" },
+    { kind: "restoration_in_progress" },
     { kind: "unavailable" },
     { kind: "mercado_pago_charge_in_progress" },
   ])("accepts the outcome $kind", (outcome) => {
@@ -973,6 +979,7 @@ describe("chargeSaleByTransferOutcomeSchema", () => {
     { kind: "not_permitted" },
     { kind: "not_signed_in" },
     { kind: "no_open_session" },
+    { kind: "restoration_in_progress" },
     { kind: "unavailable" },
     { kind: "mercado_pago_charge_in_progress" },
   ])("accepts the outcome $kind", (outcome) => {
@@ -1026,6 +1033,7 @@ describe("chargeSaleOnStandaloneTerminalOutcomeSchema", () => {
     { kind: "not_permitted" },
     { kind: "not_signed_in" },
     { kind: "no_open_session" },
+    { kind: "restoration_in_progress" },
     { kind: "unavailable" },
     { kind: "mercado_pago_charge_in_progress" },
   ])("accepts the outcome $kind", (outcome) => {
@@ -1081,6 +1089,7 @@ describe("searchProductsOutcomeSchema", () => {
     { kind: "not_permitted" },
     { kind: "not_signed_in" },
     { kind: "no_open_session" },
+    { kind: "restoration_in_progress" },
     { kind: "unavailable" },
   ])("accepts the outcome $kind", (outcome) => {
     expect(searchProductsOutcomeSchema.parse(outcome)).toEqual(outcome);
@@ -1182,6 +1191,7 @@ describe("addProductOutcomeSchema", () => {
     { kind: "not_permitted" },
     { kind: "not_signed_in" },
     { kind: "no_open_session" },
+    { kind: "restoration_in_progress" },
     { kind: "installation_revoked" },
     { kind: "disk_space_short" },
     { kind: "local_database_damaged" },

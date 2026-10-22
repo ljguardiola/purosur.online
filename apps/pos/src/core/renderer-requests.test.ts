@@ -37,6 +37,7 @@ import type {
   RegisterStatus,
   RemoveSaleLineOutcome,
   ReprintSaleReceiptOutcome,
+  RestorationStandingAnswer,
   SaleHistoryDetailOutcome,
   SalesHistoryOutcome,
   ScanProductOutcome,
@@ -172,6 +173,7 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
         serial_devices_setup_offered: false,
         fiscal_mode: "real_time",
       }),
+      restorationStanding: (): RestorationStandingAnswer => ({ kind: "completed" }),
       recordCashMovement: async (
         request: CashMovementRequest,
       ): Promise<RecordCashMovementOutcome> => {
@@ -919,6 +921,43 @@ describe("answerRendererRequest", () => {
       }),
     ).toEqual({ type: "register-status-unavailable", request_id: "r32" });
     expect(failing.failures).toEqual([{ context: "reading the register's status", error }]);
+  });
+
+  it("answers the restoration standing as the core reads it", async () => {
+    const standing: RestorationStandingAnswer = { kind: "in_progress", step: "replenish" };
+
+    expect(
+      await answerRendererRequest(deps(true, { restorationStanding: () => standing }).deps, {
+        type: "restoration-standing-request",
+        request_id: "r33",
+      }),
+    ).toEqual({ type: "restoration-standing", request_id: "r33", standing });
+  });
+
+  it("answers that the restoration standing cannot be read when the register has no database", async () => {
+    expect(
+      await answerRendererRequest(deps(true, { restorationStanding: undefined }).deps, {
+        type: "restoration-standing-request",
+        request_id: "r34",
+      }),
+    ).toEqual({ type: "restoration-standing-unavailable", request_id: "r34" });
+  });
+
+  it("answers that the restoration standing cannot be read when reading it fails, and reports why", async () => {
+    const error = new Error("database is locked");
+    const failing = deps(true, {
+      restorationStanding: () => {
+        throw error;
+      },
+    });
+
+    expect(
+      await answerRendererRequest(failing.deps, {
+        type: "restoration-standing-request",
+        request_id: "r35",
+      }),
+    ).toEqual({ type: "restoration-standing-unavailable", request_id: "r35" });
+    expect(failing.failures).toEqual([{ context: "reading the restoration standing", error }]);
   });
 
   it("records a cash movement as sent, with its authorization if it has one, and answers the outcome", async () => {

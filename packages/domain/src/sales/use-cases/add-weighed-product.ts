@@ -1,5 +1,6 @@
 import type { Clock } from "../../shared/index.js";
 import { mayBeSaleLineQuantity } from "../model/sale-line.js";
+import type { RegisterRestoration } from "./register-restoration.js";
 import {
   type AddedLineOutcome,
   isSaleAdditionRefusal,
@@ -24,6 +25,7 @@ export interface AddWeighedProductInput {
 
 export interface AddWeighedProductPorts {
   ledger: SaleLedger;
+  restoration: RegisterRestoration;
   clock: Clock;
   ids: IdGenerator;
 }
@@ -36,11 +38,11 @@ export type AddWeighedProductOutcome =
   | AddedLineOutcome;
 
 export function addWeighedProduct(
-  { ledger, clock, ids }: AddWeighedProductPorts,
+  { ledger, restoration, clock, ids }: AddWeighedProductPorts,
   { actorId, productId, weightThousandths }: AddWeighedProductInput,
 ): AddWeighedProductOutcome {
   return ledger.transaction<AddWeighedProductOutcome>((tx) => {
-    const addition = saleToAddTo(tx, actorId, clock);
+    const addition = saleToAddTo(tx, actorId, clock, restoration);
     if (isSaleAdditionRefusal(addition)) {
       return addition;
     }
