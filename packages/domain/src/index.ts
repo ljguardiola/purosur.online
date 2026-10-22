@@ -73,6 +73,9 @@ export {
   showsAlertScope,
 } from "./alerts/index.js";
 export type {
+  ContingencyBackupOperation,
+  ContingencyBackupPrintFailureReason,
+  ContingencyBackupTicketStanding,
   OffsiteDumpCheckResult,
   OffsiteDumpFailureReason,
   OffsiteDumpReportedFailureReason,
@@ -80,6 +83,9 @@ export type {
   ReportedOffsiteDumpCheck,
 } from "./backups/index.js";
 export {
+  CONTINGENCY_BACKUP_OPERATIONS,
+  CONTINGENCY_BACKUP_PRINT_FAILURE_REASONS,
+  CONTINGENCY_BACKUP_TICKET_STANDINGS,
   classifyOffsiteDumpCheck,
   dueOffsiteDumpNight,
   isOffsiteDumpNight,

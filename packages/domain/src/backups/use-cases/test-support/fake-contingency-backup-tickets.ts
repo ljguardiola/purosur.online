@@ -99,13 +99,17 @@ export class FakeContingencyBackupTicketIds implements ContingencyBackupTicketId
 export class FakeContingencyBackupTicketSealer implements ContingencyBackupTicketSealer {
   readonly sealed: string[] = [];
 
+  private readonly answer: ContingencyBackupTicketSealing;
+
   constructor(
-    private readonly answer: ContingencyBackupTicketSealing = {
+    answer: ContingencyBackupTicketSealing = {
       kind: "sealed",
       keyVersion: 1,
       qrCodes: ["QR-1", "QR-2"],
     },
-  ) {}
+  ) {
+    this.answer = answer;
+  }
 
   async seal(ticketId: string): Promise<ContingencyBackupTicketSealing> {
     this.sealed.push(ticketId);
@@ -117,10 +121,16 @@ export class FakeContingencyBackupTicketPrinter implements ContingencyBackupTick
   readonly printed: string[] = [];
   transactionOpenWhilePrinting = false;
 
+  private readonly store: FakeContingencyBackupTicketStore;
+  private readonly answer: ContingencyBackupTicketPrinting;
+
   constructor(
-    private readonly store: FakeContingencyBackupTicketStore,
-    private readonly answer: ContingencyBackupTicketPrinting = { kind: "sent" },
-  ) {}
+    store: FakeContingencyBackupTicketStore,
+    answer: ContingencyBackupTicketPrinting = { kind: "sent" },
+  ) {
+    this.store = store;
+    this.answer = answer;
+  }
 
   async print(ticketId: string): Promise<ContingencyBackupTicketPrinting> {
     this.printed.push(ticketId);
