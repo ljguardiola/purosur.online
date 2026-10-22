@@ -1,4 +1,4 @@
-import type { CreditNoteCFiscalBlock } from "@purosur/domain";
+import type { CreditNoteCFiscalBlock, CreditNoteReceiptContent } from "@purosur/domain";
 import {
   FICTIONAL_CUIT,
   FICTIONAL_GROSS_INCOME_REGISTRATION,
@@ -6,7 +6,7 @@ import {
 } from "@purosur/domain/fiscal/test-support";
 import { describe, expect, it } from "vitest";
 import { printoutOf } from "../test-support/escpos-printout";
-import { type CreditNoteReceiptContent, escPosCreditNoteTemplate } from "./escpos-receipt-template";
+import { escPosReceiptTemplate } from "./escpos-receipt-template";
 
 const RULE = "─".repeat(48);
 const QR_TEXT = "https://www.arca.gob.ar/fe/qr/?p=eyJ0aXBvQ21wIjoxM30=";
@@ -81,8 +81,13 @@ function creditNote(overrides: Partial<CreditNoteReceiptContent> = {}): CreditNo
   };
 }
 
-function printed(content: CreditNoteReceiptContent) {
-  return printoutOf(escPosCreditNoteTemplate.render(content));
+function printed(
+  content: CreditNoteReceiptContent,
+  copy: Parameters<typeof escPosReceiptTemplate.printable>[1] = { kind: "original" },
+) {
+  return printoutOf(
+    escPosReceiptTemplate.printable(escPosReceiptTemplate.renderCreditNote(content), copy),
+  );
 }
 
 const HEAD = [
@@ -206,5 +211,31 @@ describe("the ESC/POS credit note of a voided sale", () => {
     expect(printed(content).rows.every(({ text, small }) => text.length <= (small ? 64 : 48))).toBe(
       true,
     );
+  });
+
+  it("prints a duplicate as the same credit note with its numbered legend right under the voucher type", () => {
+    const original = printed(creditNote());
+    const duplicate = printed(creditNote(), { kind: "duplicate", orderNumber: 2 });
+
+    expect(duplicate.text).toBe(
+      [
+        ...HEAD,
+        "[bold]              COPIA DUPLICADA Nº 2[/bold]",
+        ...OPERATION,
+        ...VOIDED_SALE,
+        ...AUTHORIZATION,
+        ...CLOSING,
+      ].join("\n"),
+    );
+    expect(original.text).not.toContain("COPIA DUPLICADA");
+  });
+
+  it("keeps the rendered credit note as a head and a body that join into the original", () => {
+    const stored = escPosReceiptTemplate.renderCreditNote(creditNote());
+
+    expect(Array.from(escPosReceiptTemplate.printable(stored, { kind: "original" }))).toEqual([
+      ...stored.head,
+      ...stored.body,
+    ]);
   });
 });

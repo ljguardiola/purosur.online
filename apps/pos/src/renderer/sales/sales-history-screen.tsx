@@ -9,7 +9,7 @@ import type {
   SignInUser,
   VoidSaleOutcome,
 } from "@purosur/contracts";
-import type { AuthorizablePermissionKey } from "@purosur/domain";
+import type { AuthorizablePermissionKey, PrintedDocument } from "@purosur/domain";
 import { EmptyState, FloatingNotification, ScreenHeader } from "@purosur/ui";
 import { CircleX, Lock, Printer, TriangleAlert } from "lucide-react";
 import { useState } from "react";
@@ -45,8 +45,18 @@ export type SalesHistoryScreenProps = {
     authorization: Authorization | undefined,
   ) => Promise<VoidSaleOutcome>;
   printCreditNote: (saleId: string) => Promise<PrintCreditNoteOutcome>;
+  reprintCreditNote: (
+    saleId: string,
+    reason: string,
+    authorization: Authorization | undefined,
+  ) => Promise<ReprintSaleReceiptOutcome>;
   loadAuthorizers: (permission: AuthorizablePermissionKey) => Promise<SignInUser[]>;
   onSessionInvalid: () => void;
+};
+
+const REPRINT_STARTED_TITLES: Record<PrintedDocument, string> = {
+  sale_receipt: "La reimpresión sale en cuanto la impresora esté lista",
+  credit_note: "La reimpresión de la nota de crédito sale en cuanto la impresora esté lista",
 };
 
 type FilterChoice = { session: SessionFilter; state: StateFilter; page: number };
@@ -61,6 +71,7 @@ export function SalesHistoryScreen({
   reprintSaleReceipt,
   voidSale,
   printCreditNote,
+  reprintCreditNote,
   loadAuthorizers,
   onSessionInvalid,
 }: SalesHistoryScreenProps) {
@@ -71,13 +82,15 @@ export function SalesHistoryScreen({
   });
   const [selectedSaleId, setSelectedSaleId] = useState<string>();
   const [reprinting, setReprinting] = useState<SaleDetail>();
+  const [reprintingCreditNote, setReprintingCreditNote] = useState<SaleDetail>();
   const [voiding, setVoiding] = useState<SaleDetail>();
   const [voided, setVoided] = useState<{ creditNote: SaleCreditNote | null }>();
   const [creditNotePrint, setCreditNotePrint] =
     useState<ReturnType<typeof creditNotePrintNotice>>();
-  const [sent, setSent] = useState<ReceiptCopyShown>();
+  const [sent, setSent] = useState<{ copy: ReceiptCopyShown; document: PrintedDocument }>();
   const history = useSalesHistoryQuery({ ...choice, read: salesHistory });
   const refreshHistory = useRefreshSalesHistory();
+  const nextCreditNoteCopy = reprintingCreditNote?.credit_note_next_copy;
 
   async function printCreditNoteOf(sale: SaleDetail) {
     const outcome = await printCreditNote(sale.sale_id).catch((): "failed" => "failed");
@@ -87,6 +100,7 @@ export function SalesHistoryScreen({
     }
     switch (outcome.kind) {
       case "not_found":
+      case "sale_voided":
         setSelectedSaleId(undefined);
         void refreshHistory();
         break;
@@ -95,6 +109,7 @@ export function SalesHistoryScreen({
         break;
       default:
         setCreditNotePrint(creditNotePrintNotice(outcome.kind));
+        void refreshHistory();
     }
   }
 
@@ -148,16 +163,18 @@ export function SalesHistoryScreen({
         onReprint={setReprinting}
         onVoid={setVoiding}
         onPrintCreditNote={(sale) => void printCreditNoteOf(sale)}
+        onReprintCreditNote={setReprintingCreditNote}
       />
       {reprinting === undefined ? null : (
         <ReprintReceiptModal
+          document="sale_receipt"
           sale={reprinting}
           person={person}
           loadAuthorizers={loadAuthorizers}
-          reprintSaleReceipt={reprintSaleReceipt}
+          reprint={reprintSaleReceipt}
           onReprinted={(copy) => {
             setReprinting(undefined);
-            setSent(copy);
+            setSent({ copy, document: "sale_receipt" });
             void refreshHistory();
           }}
           onSaleGone={() => {
@@ -169,6 +186,27 @@ export function SalesHistoryScreen({
           onClose={() => setReprinting(undefined)}
         />
       )}
+      {reprintingCreditNote !== undefined && nextCreditNoteCopy ? (
+        <ReprintReceiptModal
+          document="credit_note"
+          sale={{ ...reprintingCreditNote, next_copy: nextCreditNoteCopy }}
+          person={person}
+          loadAuthorizers={loadAuthorizers}
+          reprint={reprintCreditNote}
+          onReprinted={(copy) => {
+            setReprintingCreditNote(undefined);
+            setSent({ copy, document: "credit_note" });
+            void refreshHistory();
+          }}
+          onSaleGone={() => {
+            setReprintingCreditNote(undefined);
+            setSelectedSaleId(undefined);
+            void refreshHistory();
+          }}
+          onSessionInvalid={onSessionInvalid}
+          onClose={() => setReprintingCreditNote(undefined)}
+        />
+      ) : null}
       {voiding === undefined || voiding.voidability.kind !== "voidable" ? null : (
         <VoidSaleModal
           sale={voiding}
@@ -211,8 +249,8 @@ export function SalesHistoryScreen({
         <FloatingNotification
           tone="success"
           icon={<Printer />}
-          title="La reimpresión sale en cuanto la impresora esté lista"
-          description={`${receiptCopyPresentation(sent).comesOutAs}.`}
+          title={REPRINT_STARTED_TITLES[sent.document]}
+          description={`${receiptCopyPresentation(sent.copy).comesOutAs}.`}
           onDismiss={() => setSent(undefined)}
         />
       )}

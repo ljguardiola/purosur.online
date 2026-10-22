@@ -1334,6 +1334,7 @@ const rendererRequestDeps: RendererRequestDeps = {
   printOriginalReceipt: receiptPrinting.printOriginalReceipt,
   reprintSaleReceipt: receiptPrinting.reprintSaleReceipt,
   printCreditNote: receiptPrinting.printCreditNote,
+  reprintCreditNote: receiptPrinting.reprintCreditNote,
   reportFailure,
 };
 

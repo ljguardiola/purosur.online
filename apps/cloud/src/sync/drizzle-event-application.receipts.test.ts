@@ -88,6 +88,46 @@ describe("recording the receipt events of applied events", () => {
     expect(rows.map((row) => [row.saleId, row.orderNumber])).toEqual([[saleId, 1]]);
   });
 
+  it("keeps a reprint of a credit note under the document the event names", async () => {
+    const { saleId, deviceId } = await appliedSale();
+
+    await record(
+      aReprintFact({ saleId, document: "credit_note", orderNumber: 1 }),
+      saleId,
+      "reprint_recorded",
+      deviceId,
+    );
+    await record(
+      aReprintFact({ saleId, document: "sale_receipt", orderNumber: 1 }),
+      saleId,
+      "reprint_recorded",
+      deviceId,
+    );
+
+    const rows = await system.db.select().from(saleReprints);
+    expect(rows.map((row) => row.document).sort()).toEqual(["credit_note", "sale_receipt"]);
+  });
+
+  it("keeps the print state of a credit note apart from the receipt's", async () => {
+    const { saleId, deviceId } = await appliedSale();
+    const printedAt = new Date("2026-10-06T11:21:05.000Z");
+
+    await record(
+      aSalePrintStateFact({
+        saleId,
+        document: "credit_note",
+        printAttemptedAt: new Date("2026-10-06T11:21:00.000Z"),
+        printedAt,
+      }),
+      saleId,
+      "sale_print_state_changed",
+      deviceId,
+    );
+
+    const [row] = await system.db.select().from(sales);
+    expect(row).toMatchObject({ creditNotePrintedAt: printedAt, printedAt: null });
+  });
+
   it("fails a reprint of a sale pushed by the installation of another register", async () => {
     const { saleId } = await appliedSale();
     const other = await insertEnrolledInstallation(system.db, {

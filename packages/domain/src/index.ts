@@ -648,6 +648,7 @@ export {
   walOversized,
 } from "./register/index.js";
 export type {
+  CreditNoteReceiptContent,
   DeferredSaleRecord,
   DiscountedLinesOfPromotion,
   LineDiscountRecord,
@@ -656,6 +657,8 @@ export type {
   ManualAdjustment,
   ManualAdjustmentValue,
   ManualDiscountRecords,
+  PrintedDocument,
+  PrintedDocumentKey,
   PrinterStatus,
   PromotionDiscountTotals,
   PromotionTerms,
@@ -705,6 +708,7 @@ export {
   observePrintSent,
   openSaleStanding,
   PENDING_DEFERRED_SALE_RECORD,
+  PRINTED_DOCUMENTS,
   RECEIPT_REPRINT_REASON_MAX_LENGTH,
   receiptContent,
   receiptPrintStanding,

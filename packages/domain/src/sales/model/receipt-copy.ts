@@ -3,6 +3,7 @@ export interface ReceiptDelivery {
   printedAt: Date | null;
   reprintCount: number;
   voided: boolean;
+  creditNoteAuthorized: boolean;
 }
 
 export type ReceiptCopy = { kind: "original" } | { kind: "duplicate"; orderNumber: number };

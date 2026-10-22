@@ -417,6 +417,8 @@ function Register({ core }: { core: CoreClient }) {
     receiptPrintStatus: (saleId: string) => core.receiptPrintStatus(saleId),
     printOriginalReceipt: (saleId: string) => core.printOriginalReceipt(saleId),
     printCreditNote: (saleId: string) => core.printCreditNote(saleId),
+    reprintCreditNote: (saleId: string, reason: string, authorization: Authorization | undefined) =>
+      core.reprintCreditNote(saleId, reason, authorization),
     convertPaidOrderIntoRefund: (paymentTransactionId: string) =>
       core.convertPaidOrderIntoRefund(paymentTransactionId),
     reprintSaleReceipt: (

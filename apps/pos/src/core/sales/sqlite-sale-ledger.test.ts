@@ -993,7 +993,7 @@ describe("charging an open sale in cash", () => {
             }),
           },
         },
-        { saleId },
+        { document: "sale_receipt", saleId },
         new ReceiptPrintObserver().watch,
       );
       return printoutOf(printouts[0] ?? new Uint8Array()).textLines;

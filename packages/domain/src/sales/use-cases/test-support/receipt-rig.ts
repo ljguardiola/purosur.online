@@ -1,9 +1,14 @@
+import type { CreditNoteReceiptContent } from "../../model/credit-note-receipt-content.js";
 import type { ReceiptSource } from "../../model/receipt-content.js";
 import type { PrinterStatus } from "../../model/receipt-print-standing.js";
 import type { ReceiptPrintGrant, ReceiptPrintingPorts } from "../receipt-printing.js";
 import { AdjustableClock } from "./adjustable-clock.js";
 import { FakeOperationAuthority } from "./fake-operation-authority.js";
-import { FakeReceiptLedger, type FakeReceiptSale } from "./fake-receipt-ledger.js";
+import {
+  type FakeCreditNote,
+  FakeReceiptLedger,
+  type FakeReceiptSale,
+} from "./fake-receipt-ledger.js";
 import { FakeReceiptPrinter } from "./fake-receipt-printer.js";
 import { FakeReceiptPrinters } from "./fake-receipt-printers.js";
 import { FakeReceiptTemplate } from "./fake-receipt-template.js";
@@ -63,6 +68,56 @@ export function completedSale(overrides: Partial<FakeReceiptSale> = {}): FakeRec
 
 export function voidedSale(overrides: Partial<FakeReceiptSale> = {}): FakeReceiptSale {
   return completedSale({ completed: false, voided: true, ...overrides });
+}
+
+type Issuer = CreditNoteReceiptContent["fiscal"]["issuer"];
+
+function creditNoteContent(issuer: Issuer): CreditNoteReceiptContent {
+  return {
+    header: SOURCE.header,
+    operation: {
+      occurredAt: new Date("2026-10-07T16:00:00.000Z"),
+      servedByFirstName: "Marta",
+      operationNumber: 482,
+    },
+    issuedOn: "2026-10-07",
+    lines: [],
+    totals: { subtotal: 7500, saleDiscount: null, total: 7500 },
+    refunds: [{ method: "CASH", amount: 7500 }],
+    fiscal: {
+      invoiceClass: "C",
+      voucherTypeCode: 13,
+      issuer,
+      buyerTaxStatusDescription: "Consumidor Final",
+      pointOfSale: 3,
+      number: 9,
+      authorizationCode: "71234567890999",
+      authorizationCodeDueOn: "2026-10-17",
+      qrText: "https://example.test/qr",
+      corrects: { voucherType: 11, pointOfSale: 3, number: 1204 },
+    },
+  };
+}
+
+function creditNote(
+  overrides: Partial<FakeCreditNote> & Pick<FakeCreditNote, "content">,
+): FakeCreditNote {
+  return {
+    authorized: true,
+    printAttemptedAt: null,
+    printedAt: null,
+    stored: undefined,
+    reprints: [],
+    ...overrides,
+  };
+}
+
+export function creditedSales(issuer: Issuer) {
+  const content = creditNoteContent(issuer);
+  return (
+    overrides: Partial<FakeCreditNote> = {},
+    sale: Partial<FakeReceiptSale> = {},
+  ): FakeReceiptSale => voidedSale({ creditNote: creditNote({ content, ...overrides }), ...sale });
 }
 
 export function receiptRig(

@@ -1,4 +1,5 @@
 import type { Clock, OperationAuthority, OutboxEventDraft } from "../../shared/index.js";
+import type { PrintedDocumentKey } from "../model/printed-document.js";
 import { receiptContent } from "../model/receipt-content.js";
 import { nextReceiptCopy, type ReceiptCopy } from "../model/receipt-copy.js";
 import { receiptPrintAvailability } from "../model/receipt-print-availability.js";
@@ -44,38 +45,38 @@ class CopyIsNoLongerTheOriginal extends Error {}
 
 export function printReceipt<Grant extends ReceiptPrintGrant, Refusal>(
   ports: ReceiptPrintingPorts<Grant, Refusal>,
-  saleId: string,
+  key: PrintedDocumentKey,
   reasonOfDuplicate: ReceiptReason,
   watch: ReceiptPrintWatch,
 ): Promise<ReceiptPrintOutcome | Refusal> {
-  return printWithAuthority(ports, saleId, reasonOfDuplicate, watch, "any_copy");
+  return printWithAuthority(ports, key, reasonOfDuplicate, watch, "any_copy");
 }
 
 export function printOriginalOnly<Grant extends ReceiptPrintGrant, Refusal>(
   ports: ReceiptPrintingPorts<Grant, Refusal>,
-  saleId: string,
+  key: PrintedDocumentKey,
   watch: ReceiptPrintWatch,
 ): Promise<OriginalReceiptPrintOutcome | Refusal> {
-  return printWithAuthority(ports, saleId, { kind: "retry" }, watch, "original_only");
+  return printWithAuthority(ports, key, { kind: "retry" }, watch, "original_only");
 }
 
 function printWithAuthority<Grant extends ReceiptPrintGrant, Refusal>(
   ports: ReceiptPrintingPorts<Grant, Refusal>,
-  saleId: string,
+  key: PrintedDocumentKey,
   reasonOfDuplicate: ReceiptReason,
   watch: ReceiptPrintWatch,
   scope: "any_copy",
 ): Promise<ReceiptPrintOutcome | Refusal>;
 function printWithAuthority<Grant extends ReceiptPrintGrant, Refusal>(
   ports: ReceiptPrintingPorts<Grant, Refusal>,
-  saleId: string,
+  key: PrintedDocumentKey,
   reasonOfDuplicate: ReceiptReason,
   watch: ReceiptPrintWatch,
   scope: "original_only",
 ): Promise<OriginalReceiptPrintOutcome | Refusal>;
 async function printWithAuthority<Grant extends ReceiptPrintGrant, Refusal>(
   ports: ReceiptPrintingPorts<Grant, Refusal>,
-  saleId: string,
+  key: PrintedDocumentKey,
   reasonOfDuplicate: ReceiptReason,
   watch: ReceiptPrintWatch,
   scope: PrintScope,
@@ -84,13 +85,13 @@ async function printWithAuthority<Grant extends ReceiptPrintGrant, Refusal>(
   if (authorization.kind === "refused") {
     return authorization.refusal;
   }
-  return printGrantedReceipt(ports, authorization.grant, saleId, reasonOfDuplicate, watch, scope);
+  return printGrantedReceipt(ports, authorization.grant, key, reasonOfDuplicate, watch, scope);
 }
 
 async function printGrantedReceipt<Grant extends ReceiptPrintGrant, Refusal>(
   { ledger, clock, ids, template, printers }: ReceiptPrintingPorts<Grant, Refusal>,
   grant: Grant,
-  saleId: string,
+  key: PrintedDocumentKey,
   reasonOfDuplicate: ReceiptReason,
   watch: ReceiptPrintWatch,
   scope: PrintScope,
@@ -100,20 +101,21 @@ async function printGrantedReceipt<Grant extends ReceiptPrintGrant, Refusal>(
     return { kind: "printer_not_configured" };
   }
   const decided = ledger.transaction<ReceiptCopy | OriginalReceiptPrintOutcome>((tx) => {
-    const delivery = tx.receiptDelivery(saleId);
+    const delivery = tx.receiptDelivery(key);
     if (delivery === undefined) {
       return { kind: "not_found" };
     }
-    if (receiptPrintAvailability(delivery).kind === "sale_voided") {
+    const availability = receiptPrintAvailability(key.document, delivery);
+    if (availability.kind === "sale_voided") {
       return { kind: "sale_voided" };
+    }
+    if (availability.kind === "credit_note_not_authorized") {
+      return { kind: "not_found" };
     }
     if (!tx.outboxReady()) {
       return { kind: "unavailable" };
     }
-    if (
-      tx.storedReceipt(saleId) === undefined &&
-      tx.receiptSource(saleId).fiscal.kind === "awaiting"
-    ) {
+    if (!isRenderable(tx, key)) {
       return { kind: "unavailable" };
     }
     const copy = nextReceiptCopy(delivery);
@@ -128,9 +130,9 @@ async function printGrantedReceipt<Grant extends ReceiptPrintGrant, Refusal>(
   const handedOver: { copy?: ReceiptCopy } = {};
   const sending = () =>
     ledger.transaction((tx) => {
-      const delivery = tx.receiptDelivery(saleId);
+      const delivery = tx.receiptDelivery(key);
       if (delivery === undefined) {
-        throw new Error(`sale ${saleId} has no receipt to send`);
+        throw new Error(`sale ${key.saleId} has no ${key.document} to send`);
       }
       const copy = nextReceiptCopy(delivery);
       if (scope === "original_only" && copy.kind === "duplicate") {
@@ -138,10 +140,10 @@ async function printGrantedReceipt<Grant extends ReceiptPrintGrant, Refusal>(
       }
       const at = clock.now();
       if (copy.kind === "original") {
-        tx.recordPrintAttempt(saleId, at);
+        tx.recordPrintAttempt(key, at);
       } else {
         tx.recordReprint({
-          saleId,
+          ...key,
           orderNumber: copy.orderNumber,
           requestedBy: grant.actorId,
           authorizedBy: grant.authorizedBy ?? null,
@@ -149,11 +151,11 @@ async function printGrantedReceipt<Grant extends ReceiptPrintGrant, Refusal>(
           occurredAt: at,
         });
         tx.appendOutboxEvent(
-          reprintEvent(ids.next(), saleId, copy.orderNumber, grant, reasonOfDuplicate, at),
+          reprintEvent(ids.next(), key, copy.orderNumber, grant, reasonOfDuplicate, at),
         );
       }
       handedOver.copy = copy;
-      return template.printable(storedReceiptOf(tx, template, saleId), copy);
+      return template.printable(storedReceiptOf(tx, template, key), copy);
     });
   let ending: ReceiptPrintEnding;
   try {
@@ -168,36 +170,47 @@ async function printGrantedReceipt<Grant extends ReceiptPrintGrant, Refusal>(
     return { kind: "abandoned", copy: decided };
   }
   ledger.transaction((tx) => {
-    const delivery = tx.receiptDelivery(saleId);
+    const delivery = tx.receiptDelivery(key);
     if (delivery === undefined || delivery.printedAt !== null) {
       return;
     }
     const at = clock.now();
-    tx.recordPrinted(saleId, at);
+    tx.recordPrinted(key, at);
     tx.appendOutboxEvent(
-      printStateEvent(ids.next(), saleId, grant, delivery.printAttemptedAt ?? at, at),
+      printStateEvent(ids.next(), key, grant, delivery.printAttemptedAt ?? at, at),
     );
   });
   return { kind: "printed", copy: handedOver.copy ?? decided };
 }
 
+function isRenderable(tx: ReceiptLedgerTransaction, key: PrintedDocumentKey): boolean {
+  return (
+    key.document === "credit_note" ||
+    tx.storedReceipt(key) !== undefined ||
+    tx.receiptSource(key.saleId).fiscal.kind !== "awaiting"
+  );
+}
+
 function storedReceiptOf(
   tx: ReceiptLedgerTransaction,
   template: ReceiptTemplate,
-  saleId: string,
+  key: PrintedDocumentKey,
 ): StoredReceipt {
-  const stored = tx.storedReceipt(saleId);
+  const stored = tx.storedReceipt(key);
   if (stored !== undefined) {
     return stored;
   }
-  const rendered = template.render(receiptContent(tx.receiptSource(saleId)));
-  tx.recordStoredReceipt(saleId, rendered);
+  const rendered =
+    key.document === "credit_note"
+      ? template.renderCreditNote(tx.creditNoteContent(key.saleId))
+      : template.render(receiptContent(tx.receiptSource(key.saleId)));
+  tx.recordStoredReceipt(key, rendered);
   return rendered;
 }
 
 function printStateEvent(
   eventId: string,
-  saleId: string,
+  { document, saleId }: PrintedDocumentKey,
   { actorId }: ReceiptPrintGrant,
   printAttemptedAt: Date,
   printedAt: Date,
@@ -207,9 +220,10 @@ function printStateEvent(
     aggregate_type: "Sale",
     aggregate_id: saleId,
     event_type: "sale_print_state_changed",
-    schema_version: 1,
+    schema_version: 2,
     payload: {
       sale_id: saleId,
+      document,
       print_attempted_at: printAttemptedAt.toISOString(),
       printed_at: printedAt.toISOString(),
     },
@@ -220,7 +234,7 @@ function printStateEvent(
 
 function reprintEvent(
   eventId: string,
-  saleId: string,
+  { document, saleId }: PrintedDocumentKey,
   orderNumber: number,
   { actorId, authorizedBy }: ReceiptPrintGrant,
   reason: ReceiptReason,
@@ -231,9 +245,10 @@ function reprintEvent(
     aggregate_type: "Sale",
     aggregate_id: saleId,
     event_type: "reprint_recorded",
-    schema_version: 1,
+    schema_version: 2,
     payload: {
       sale_id: saleId,
+      document,
       order_number: orderNumber,
       requested_by: actorId,
       authorized_by: authorizedBy ?? null,

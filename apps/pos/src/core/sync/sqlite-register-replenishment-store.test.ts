@@ -290,6 +290,7 @@ describe("the register's store for replenishing a restored register", () => {
           kind: "sale_print_state_changed",
           printState: {
             saleId: "sale-1",
+            document: "sale_receipt",
             printAttemptedAt: new Date("2026-10-07T10:00:05.000Z"),
             printedAt: null,
           },
@@ -298,6 +299,7 @@ describe("the register's store for replenishing a restored register", () => {
           kind: "reprint_recorded",
           reprint: {
             saleId: "sale-1",
+            document: "sale_receipt",
             orderNumber: 1,
             requestedBy: "cashier-1",
             authorizedBy: null,

@@ -218,11 +218,11 @@ export type {
 } from "./replace-pending-qr-payment.js";
 export { replacePendingQrPayment } from "./replace-pending-qr-payment.js";
 export type {
-  ReprintSaleReceiptInput,
-  ReprintSaleReceiptOutcome,
-  ReprintSaleReceiptPorts,
-} from "./reprint-sale-receipt.js";
-export { reprintSaleReceipt } from "./reprint-sale-receipt.js";
+  ReprintReceiptInput,
+  ReprintReceiptOutcome,
+  ReprintReceiptPorts,
+} from "./reprint-receipt.js";
+export { reprintReceipt } from "./reprint-receipt.js";
 export type {
   CandidatePromotion,
   IdGenerator,

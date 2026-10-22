@@ -95,6 +95,7 @@ const saleHistoryDetailSchema = z.object({
     z.object({ kind: z.literal("sale_voided") }),
   ]),
   next_copy: receiptCopySchema,
+  credit_note_next_copy: receiptCopySchema.nullable(),
 });
 
 export const saleHistoryDetailOutcomeSchema = z.discriminatedUnion("kind", [

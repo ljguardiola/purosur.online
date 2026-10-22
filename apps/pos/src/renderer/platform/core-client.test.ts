@@ -1903,12 +1903,63 @@ describe("createCoreClient", () => {
     port.answer({
       type: "print-credit-note-result",
       request_id: "request-1",
-      outcome: { kind: "started" },
+      outcome: { kind: "started", copy: { kind: "original" } },
     });
 
-    expect(await printed).toEqual({ kind: "started" });
+    expect(await printed).toEqual({ kind: "started", copy: { kind: "original" } });
     expect(port.posted).toEqual([
       { type: "print-credit-note", request_id: "request-1", sale_id: "sale-1" },
+    ]);
+  });
+
+  it("asks the core to reprint a credit note with its reason and the authorization given", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+    const authorization = { user_id: "u2", pin: "1234" };
+
+    const reprinted = client.reprintCreditNote("sale-1", "El cliente la perdió", authorization);
+    port.answer({
+      type: "reprint-credit-note-result",
+      request_id: "request-1",
+      outcome: { kind: "started", copy: { kind: "duplicate", order_number: 1 } },
+    });
+
+    expect(await reprinted).toEqual({
+      kind: "started",
+      copy: { kind: "duplicate", order_number: 1 },
+    });
+    expect(port.posted).toEqual([
+      {
+        type: "reprint-credit-note",
+        request_id: "request-1",
+        sale_id: "sale-1",
+        reason: "El cliente la perdió",
+        authorization,
+      },
+    ]);
+  });
+
+  it("asks the core to reprint a credit note without an authorization when none is given", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const reprinted = client.reprintCreditNote("sale-1", "Otra copia", undefined);
+    port.answer({
+      type: "reprint-credit-note-result",
+      request_id: "request-1",
+      outcome: { kind: "busy" },
+    });
+
+    expect(await reprinted).toEqual({ kind: "busy" });
+    expect(port.posted).toEqual([
+      {
+        type: "reprint-credit-note",
+        request_id: "request-1",
+        sale_id: "sale-1",
+        reason: "Otra copia",
+      },
     ]);
   });
 
