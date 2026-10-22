@@ -2133,6 +2133,10 @@ describe("restoration standing messages", () => {
     { kind: "in_progress", step: "recover_contingency_tickets" },
     { kind: "in_progress", step: "reconcile_fiscal_counters" },
     { kind: "in_progress", step: "regularize_orphan_authorizations" },
+    { kind: "without_connection", step: "restore" },
+    { kind: "without_connection", step: "replenish" },
+    { kind: "without_connection", step: "reconcile_fiscal_counters" },
+    { kind: "failed", step: "restore" },
   ])("accepts the restoration standing %j", (standing) => {
     const message = { type: "restoration-standing", request_id: REQUEST_ID, standing };
 
@@ -2144,6 +2148,10 @@ describe("restoration standing messages", () => {
     { kind: "in_progress", step: "open_session" },
     { kind: "in_progress", step: "somewhere_else" },
     { kind: "somewhere_else" },
+    { kind: "without_connection" },
+    { kind: "without_connection", step: "open_session" },
+    { kind: "failed" },
+    { kind: "failed", step: "replenish" },
   ])("rejects the restoration standing %j", (standing) => {
     const message = { type: "restoration-standing", request_id: REQUEST_ID, standing };
 

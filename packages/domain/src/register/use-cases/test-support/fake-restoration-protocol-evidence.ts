@@ -7,6 +7,7 @@ export const COMPLETED_RESTORATION: RestorationEvidence = {
   reset_sync_identity: "completed",
   replenish: "completed",
   reconcile_fiscal_counters: "completed",
+  cloud: "unknown",
 };
 
 export class FakeRestorationProtocolEvidence implements RestorationProtocolEvidence {

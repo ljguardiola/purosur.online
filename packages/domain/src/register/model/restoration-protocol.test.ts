@@ -13,6 +13,7 @@ const ALL_COMPLETED: RestorationEvidence = {
   reset_sync_identity: "completed",
   replenish: "completed",
   reconcile_fiscal_counters: "completed",
+  cloud: "unknown",
 };
 
 function evidence(overrides: Partial<RestorationEvidence>): RestorationEvidence {
@@ -114,6 +115,7 @@ describe("restorationStanding", () => {
           reset_sync_identity: reset,
           replenish,
           reconcile_fiscal_counters: counters,
+          cloud: "unknown",
         };
         const [firstPending] = RESTORATION_STEPS.filter(
           (name) => (combination as Readonly<Record<string, string>>)[name] === "pending",
@@ -126,5 +128,76 @@ describe("restorationStanding", () => {
         );
       }),
     );
+  });
+});
+
+describe("restorationStanding without the cloud", () => {
+  const LATER_STEPS = [
+    "restore",
+    "reset_sync_identity",
+    "replenish",
+    "reconcile_fiscal_counters",
+  ] as const;
+
+  it("is without connection at every pending step after enrollment when the cloud is unreachable", () => {
+    for (const step of LATER_STEPS) {
+      expect(restorationStanding(evidence({ [step]: "pending", cloud: "unreachable" }))).toEqual({
+        kind: "without_connection",
+        step,
+      });
+    }
+  });
+
+  it("stays in progress at a pending step when the cloud is reachable or not yet known", () => {
+    for (const cloud of ["reachable", "unknown"] as const) {
+      expect(restorationStanding(evidence({ replenish: "pending", cloud }))).toEqual({
+        kind: "in_progress",
+        step: "replenish",
+      });
+    }
+  });
+
+  it("stays in progress at a pending enrollment whatever the cloud answers", () => {
+    expect(restorationStanding(evidence({ enroll: "pending", cloud: "unreachable" }))).toEqual({
+      kind: "in_progress",
+      step: "enroll",
+    });
+  });
+
+  it("names the earliest pending step as the one without connection", () => {
+    expect(
+      restorationStanding(
+        evidence({ reset_sync_identity: "pending", replenish: "pending", cloud: "unreachable" }),
+      ),
+    ).toEqual({ kind: "without_connection", step: "reset_sync_identity" });
+  });
+
+  it("is completed when nothing is pending even if the cloud is unreachable", () => {
+    expect(restorationStanding(evidence({ cloud: "unreachable" }))).toEqual({ kind: "completed" });
+  });
+});
+
+describe("restorationStanding when the restore failed", () => {
+  it("is failed at the restore step when no usable snapshot could be restored", () => {
+    expect(restorationStanding(evidence({ restore: "failed" }))).toEqual({
+      kind: "failed",
+      step: "restore",
+    });
+  });
+
+  it("is failed rather than without connection whatever the cloud answers", () => {
+    for (const cloud of ["reachable", "unreachable", "unknown"] as const) {
+      expect(restorationStanding(evidence({ restore: "failed", cloud }))).toEqual({
+        kind: "failed",
+        step: "restore",
+      });
+    }
+  });
+
+  it("stays in progress at a pending enrollment", () => {
+    expect(restorationStanding(evidence({ enroll: "pending", restore: "failed" }))).toEqual({
+      kind: "in_progress",
+      step: "enroll",
+    });
   });
 });
