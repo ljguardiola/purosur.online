@@ -75,13 +75,13 @@ function unclear(
   };
 }
 
-function question(index: number) {
+function question(index: number, withEvent = true) {
   const {
     origin: _origin,
     deferredSale: _deferredSale,
     reservedAt: _reservedAt,
     ...document
-  } = unclear(index);
+  } = unclear(index, withEvent);
   return document;
 }
 
@@ -218,24 +218,20 @@ describe("applying the decisions of the documents left with an unclear outcome",
     expect(store.settlements).toEqual([]);
   });
 
-  it("reports as failed, asking nothing about it, a document whose sale event is no longer held", async () => {
+  it("asks about a document whose sale event the register no longer holds without one, and settles it with the answer", async () => {
     const { cloud, store, outcome } = apply([unclear(1, false)], {
       "doc-1": { kind: "decided", decision: { kind: "released" } },
     });
 
     expect(await outcome).toEqual({
       kind: "applied",
-      settled: [],
+      settled: ["doc-1"],
       stillUnclear: [],
-      failed: [
-        {
-          fiscalDocumentId: "doc-1",
-          error: new Error("the completion event of the unclear document's sale is not held"),
-        },
-      ],
+      failed: [],
     });
-    expect(cloud.questions).toEqual([]);
-    expect(store.settlements).toEqual([]);
+    expect(cloud.questions).toEqual([question(1, false)]);
+    expect(cloud.questions[0]?.saleEvent).toBeNull();
+    expect(store.settlements.map(({ settlement }) => settlement)).toEqual([{ state: "RELEASED" }]);
   });
 
   it("settles the other documents and reports the one whose settling failed", async () => {

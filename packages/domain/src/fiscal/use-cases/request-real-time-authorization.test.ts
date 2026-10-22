@@ -235,7 +235,7 @@ describe("requestRealTimeAuthorization", () => {
     ]);
   });
 
-  it("makes no call and leaves the outcome unknown when the sale's event is no longer held", async () => {
+  it("asks the tax authority without an event when the register no longer holds the sale's", async () => {
     const { documents, taxAuthority, outcome } = request({
       waiting: { ...WAITING, saleEvent: null },
       answer: {
@@ -245,16 +245,25 @@ describe("requestRealTimeAuthorization", () => {
       },
     });
 
-    await expect(outcome).resolves.toEqual({ kind: "unclear" });
-    expect(taxAuthority.calls).toEqual([]);
-    expect(documents.resolutions).toEqual([
+    await expect(outcome).resolves.toEqual({ kind: "authorized" });
+    expect(taxAuthority.calls).toEqual([
       {
         fiscalDocumentId: FISCAL_DOCUMENT_ID,
         saleId: "sale-1",
-        resolution: { state: "UNKNOWN", deferralReason: "unclear_outcome" },
-        resolvedAt: START,
-        deferredSale: deferredRecord("unclear_outcome", START),
-        deferredSaleSatisfied: null,
+        pointOfSale: 12,
+        number: 41,
+        issuedOn: "2026-10-01",
+        document: DOCUMENT,
+        saleEvent: null,
+        timeoutMs: 5_000,
+        roundTripMedianMs: 200,
+      },
+    ]);
+    expect(documents.resolutions.map(({ resolution }) => resolution)).toEqual([
+      {
+        state: "AUTHORIZED",
+        authorizationCode: "75123456789012",
+        authorizationCodeDueOn: "2026-10-11",
       },
     ]);
   });
