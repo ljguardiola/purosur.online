@@ -5,6 +5,7 @@ import type { RejectedDocument } from "./fortnight-presentations-api";
 import {
   buyerCuitMessage,
   buyerTaxStatusCodeMessage,
+  buyerTaxStatusOptions,
   correctionRefusalField,
   correctionRefusalMessage,
   issuedOnMessage,
@@ -170,10 +171,28 @@ test.each([
   expect(buyerCuitMessage(valuesWith({ buyerCuit }))).toBe(reason);
 });
 
-test("asks for the tax status code in digits", () => {
-  expect(buyerTaxStatusCodeMessage()).toBe(
-    "Escribí el código de la condición frente al IVA, solo con números.",
-  );
+test("asks to choose the tax status", () => {
+  expect(buyerTaxStatusCodeMessage()).toBe("Elegí la condición frente al IVA.");
+});
+
+const statuses = [
+  { code: 5, description: "Consumidor Final" },
+  { code: 1, description: "IVA Responsable Inscripto" },
+];
+
+test("offers the descriptions of the statuses, valued by their code", () => {
+  expect(buyerTaxStatusOptions(statuses, 5)).toEqual([
+    { value: "5", label: "Consumidor Final" },
+    { value: "1", label: "IVA Responsable Inscripto" },
+  ]);
+});
+
+test("offers a code that was printed but is not in the set as its code, first", () => {
+  expect(buyerTaxStatusOptions(statuses, 7)).toEqual([
+    { value: "7", label: "Código 7" },
+    { value: "5", label: "Consumidor Final" },
+    { value: "1", label: "IVA Responsable Inscripto" },
+  ]);
 });
 
 test("asks to review the date the cloud refuses", () => {

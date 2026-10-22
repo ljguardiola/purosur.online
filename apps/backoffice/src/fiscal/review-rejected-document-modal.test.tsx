@@ -46,9 +46,15 @@ const reportRequest = {
   remedy: { kind: "report" },
 };
 
+const buyerTaxStatuses = [
+  { code: 5, description: "Consumidor Final" },
+  { code: 1, description: "IVA Responsable Inscripto" },
+];
+
 function createServices(): ReviewRejectedDocumentModalServices {
   return {
     remedyRejectedDocument: vi.fn(),
+    fetchBuyerTaxStatuses: vi.fn().mockResolvedValue({ kind: "ok", value: buyerTaxStatuses }),
     fetchSessionAuthorizationOptions: vi
       .fn()
       .mockResolvedValue({ kind: "ok", value: { challenge: "session-auth" } }),
@@ -235,8 +241,8 @@ test("asks for the printed correction, with the printed values ready, when the e
   await expect.element(dateSegments.nth(2)).toHaveAttribute("aria-valuenow", "2026");
   await expect.element(dialog.getByRole("radio", { name: "Consumidor final" })).toBeChecked();
   await expect
-    .element(dialog.getByRole("textbox", { name: /^Condición frente al IVA/ }))
-    .toHaveValue("5");
+    .element(dialog.getByRole("button", { name: /Condición frente al IVA/ }))
+    .toHaveTextContent("Consumidor Final");
   await expect
     .element(
       dialog
@@ -310,14 +316,15 @@ test("corrects the buyer's identification and tax status", async () => {
   const services = createServices();
   vi.mocked(services.remedyRejectedDocument).mockResolvedValue({ kind: "ok", value: recorded });
   const onRemedied = vi.fn();
-  const { dialog } = await renderModal(services, { onRemedied });
+  const { screen, dialog } = await renderModal(services, { onRemedied });
   await chooseTheDocumentIsWrong(dialog);
   await userEvent.click(dialog.getByText("CUIT", { exact: true }).last());
   await userEvent.fill(
     dialog.getByRole("textbox", { name: /^CUIT del comprador/ }),
     "20-00000001-5",
   );
-  await userEvent.fill(dialog.getByRole("textbox", { name: /^Condición frente al IVA/ }), "1");
+  await userEvent.click(dialog.getByRole("button", { name: /Condición frente al IVA/ }));
+  await userEvent.click(screen.getByRole("option", { name: "IVA Responsable Inscripto" }));
 
   await submitPrinted(dialog);
 
@@ -496,4 +503,74 @@ test("ends the session when the cloud no longer knows it", async () => {
   await submitReport(dialog);
 
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
+});
+
+test("reads the tax statuses only once the error is in the printed document", async () => {
+  const services = createServices();
+  const { dialog } = await renderModal(services);
+
+  expect(services.fetchBuyerTaxStatuses).not.toHaveBeenCalled();
+  await chooseTheDocumentIsWrong(dialog);
+
+  await expect.poll(() => vi.mocked(services.fetchBuyerTaxStatuses).mock.calls.length).toBe(1);
+});
+
+test("shows a printed tax status that is not in the set as its code", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchBuyerTaxStatuses).mockResolvedValue({
+    kind: "ok",
+    value: [{ code: 1, description: "IVA Responsable Inscripto" }],
+  });
+  const { dialog } = await renderModal(services);
+
+  await chooseTheDocumentIsWrong(dialog);
+
+  await expect
+    .element(dialog.getByRole("button", { name: /Condición frente al IVA/ }))
+    .toHaveTextContent("Código 5");
+});
+
+test("keeps the correction unavailable while the tax statuses load", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchBuyerTaxStatuses).mockReturnValue(new Promise(() => {}));
+  const { dialog } = await renderModal(services);
+
+  await chooseTheDocumentIsWrong(dialog);
+
+  await expect
+    .element(dialog.getByRole("button", { name: "Corregir y anular con nota de crédito" }))
+    .toBeDisabled();
+  expect(dialog.getByRole("button", { name: /Condición frente al IVA/ }).query()).toBeNull();
+});
+
+test("shows a load failure of the tax statuses, keeps the correction unavailable, and Reintentar reads them again", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchBuyerTaxStatuses)
+    .mockResolvedValueOnce({ kind: "failed" })
+    .mockResolvedValueOnce({ kind: "ok", value: buyerTaxStatuses });
+  const { dialog } = await renderModal(services);
+  await chooseTheDocumentIsWrong(dialog);
+
+  await expect
+    .element(dialog.getByText("No pudimos abrir las condiciones frente al IVA"))
+    .toBeVisible();
+  await expect
+    .element(dialog.getByRole("button", { name: "Corregir y anular con nota de crédito" }))
+    .toBeDisabled();
+  await userEvent.click(dialog.getByRole("button", { name: "Reintentar" }));
+
+  await expect
+    .element(dialog.getByRole("button", { name: /Condición frente al IVA/ }))
+    .toHaveTextContent("Consumidor Final");
+  await expect
+    .element(dialog.getByRole("button", { name: "Corregir y anular con nota de crédito" }))
+    .toBeEnabled();
+});
+
+test("correcting the report does not wait for the tax statuses", async () => {
+  const services = createServices();
+  vi.mocked(services.remedyRejectedDocument).mockResolvedValue({ kind: "ok", value: recorded });
+  const { dialog } = await renderModal(services);
+
+  await expect.element(dialog.getByRole("button", { name: "Corregir el informe" })).toBeEnabled();
 });
