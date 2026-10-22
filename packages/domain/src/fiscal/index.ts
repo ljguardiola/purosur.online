@@ -105,7 +105,6 @@ export type {
   FortnightPresentationState,
   FortnightReportMovement,
   FortnightReportState,
-  PresentationDocumentReport,
   RejectedDocumentOfPresentation,
   RejectedDocumentRemedyState,
 } from "./model/fortnight-report.js";
@@ -207,16 +206,11 @@ export type {
   OfflineDocumentBuyer,
   OfflineDocumentCorrection,
   OfflineDocumentCorrectionRefusal,
-  PresentableOfflineDocument,
-  RecordedRemedy,
-  RejectedDocumentCreditNote,
-  RejectedDocumentRejection,
   RejectedDocumentRemedy,
 } from "./model/rejected-document-remedy.js";
 export {
   awaitsRemedy,
   buyerIdentificationOf,
-  presentedOfflineDocument,
   remedyAwaitsResend,
 } from "./model/rejected-document-remedy.js";
 export type {

@@ -17,7 +17,7 @@ function rejectionKey(documentKey: string, rejectedAt: Date | null): string {
   return `${documentKey}:${rejectedAt?.toISOString() ?? "never attempted"}`;
 }
 
-export interface RemediedRejection {
+interface RemediedRejection {
   pointOfSale: number;
   fortnightStart: string;
   documentType: string;
