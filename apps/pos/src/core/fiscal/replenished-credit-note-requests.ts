@@ -25,17 +25,9 @@ export function holdReplenishedCreditNoteToRequest(
        WHERE EXISTS (SELECT 1 FROM sale_void_credit_notes WHERE id = @credit_note_id)`,
     )
     .run({
+      ...event,
       credit_note_id: creditNote.creditNoteId,
-      event_id: event.event_id,
-      device_seq: event.device_seq,
-      aggregate_type: event.aggregate_type,
-      aggregate_id: event.aggregate_id,
-      event_type: event.event_type,
-      schema_version: event.schema_version,
       payload: JSON.stringify(event.payload),
-      occurred_at: event.occurred_at,
-      actor_id: event.actor_id,
-      chain_hmac: event.chain_hmac,
     }).changes;
   if (changes === 0 && !holdsRequest(database, creditNote.creditNoteId)) {
     throw new Error(`the register holds no credit note ${creditNote.creditNoteId}`);
