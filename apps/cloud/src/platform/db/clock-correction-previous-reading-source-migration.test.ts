@@ -26,7 +26,8 @@ async function aRegisterAndActor(client: SqlOnlyDatabase) {
   );
   const registerId = registerRows[0]?.id;
   const actorId = userRows[0]?.id;
-  if (!registerId || !actorId) throw new Error("test setup: inserting the register or user returned no row");
+  if (!registerId || !actorId)
+    throw new Error("test setup: inserting the register or user returned no row");
   return { registerId, actorId };
 }
 
