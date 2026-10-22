@@ -497,7 +497,7 @@ interface LegacyRowsInput<TDocumentType extends string> {
     rejectedNumber: number | null;
     lastAttemptAt?: Date | null;
     rejections?: { code: number; message: string }[];
-    remedy?: { number: number; recordedAt: Date } | null;
+    remedy?: { number: number; rejectedAt: Date | null } | null;
   }[];
   listedAsOwed?: boolean;
 }
@@ -543,11 +543,9 @@ describe("fortnightPresentationRows", () => {
   const noRecord = { movement: null, refusal: null, rejectedDocument: null } as const;
   const rejectedDocumentOf = (number: number) => ({
     number,
-    documentId: `document-factura_c-${number}`,
     issuedOn: "2026-09-20",
     total: 15_000,
-    buyerDocumentType: 99,
-    buyerDocumentNumber: 0,
+    buyer: { kind: "final_consumer" },
     buyerTaxStatusCode: 5,
     rejections: [],
     remedy: "awaiting_remedy",
@@ -742,11 +740,9 @@ describe("fortnightPresentationRows", () => {
       ).toEqual({
         number: 2,
         unprocessed: 0,
-        documentId: "document-factura_c-2",
         issuedOn: "2026-09-19",
         total: 800,
-        buyerDocumentType: 80,
-        buyerDocumentNumber: 20_000_000_001,
+        buyer: { kind: "cuit", number: 20_000_000_001 },
         buyerTaxStatusCode: 6,
         rejections: REJECTIONS,
         remedy: "awaiting_remedy",
@@ -764,20 +760,20 @@ describe("fortnightPresentationRows", () => {
       expect(row).toMatchObject({ issuedOn: "2026-09-21", total: 9_900, buyerTaxStatusCode: 6 });
     });
 
-    it("awaits the remedy while none is recorded after the rejection", () => {
+    it("awaits the remedy while none is recorded for the rejection", () => {
       expect(rejectedRow()?.remedy).toBe("awaiting_remedy");
       expect(
-        rejectedRow({ remedy: { number: 2, recordedAt: new Date(AT.getTime() - 1) } })?.remedy,
+        rejectedRow({ remedy: { number: 2, rejectedAt: new Date(AT.getTime() - 1) } })?.remedy,
       ).toBe("awaiting_remedy");
-      expect(
-        rejectedRow({ remedy: { number: 3, recordedAt: new Date(AT.getTime() + 1) } })?.remedy,
-      ).toBe("awaiting_remedy");
+      expect(rejectedRow({ remedy: { number: 3, rejectedAt: AT } })?.remedy).toBe(
+        "awaiting_remedy",
+      );
     });
 
-    it("awaits the resend once the remedy of that number was recorded after the rejection", () => {
-      expect(
-        rejectedRow({ remedy: { number: 2, recordedAt: new Date(AT.getTime() + 1) } })?.remedy,
-      ).toBe("awaiting_resend");
+    it("awaits the resend once the remedy of that number was recorded for the rejection", () => {
+      expect(rejectedRow({ remedy: { number: 2, rejectedAt: new Date(AT) } })?.remedy).toBe(
+        "awaiting_resend",
+      );
     });
 
     it("names no rejected document when the rejected number is not among the documents", () => {

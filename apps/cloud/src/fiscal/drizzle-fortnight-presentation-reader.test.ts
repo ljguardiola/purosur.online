@@ -92,18 +92,14 @@ function recordFacturaC(
 }
 
 async function issueFacturaC(registerId: string, fortnight: Fortnight, numbers: number[]) {
-  const issued: { id: string }[] = [];
   for (const number of numbers) {
-    issued.push(
-      await insertOfflineFiscalDocument(db, {
-        registerId,
-        pointOfSale: OFFLINE_POINT_OF_SALE,
-        fortnight,
-        number,
-      }),
-    );
+    await insertOfflineFiscalDocument(db, {
+      registerId,
+      pointOfSale: OFFLINE_POINT_OF_SALE,
+      fortnight,
+      number,
+    });
   }
-  return issued;
 }
 
 async function seedOtherBranchOfflinePointOfSale(pointOfSaleNumber: number) {
@@ -350,7 +346,7 @@ describe("DrizzleFortnightPresentationReader.branchPresentations", () => {
     });
 
     it("gives the rejected document as presented, its rejections, how many documents after it were left unprocessed and that its remedy awaits a person", async () => {
-      const issued = await issueFacturaC(registerId, OCTOBER_FIRST_HALF, [1, 2, 3, 4, 5]);
+      await issueFacturaC(registerId, OCTOBER_FIRST_HALF, [1, 2, 3, 4, 5]);
       const rejections = [{ code: 10016, message: "Fictional observation" }];
       await recordFacturaC(OCTOBER_FIRST_HALF, {
         state: "refused",
@@ -370,11 +366,9 @@ describe("DrizzleFortnightPresentationReader.branchPresentations", () => {
         rejectedDocument: {
           number: 2,
           unprocessed: 3,
-          documentId: issued[1]?.id,
           issuedOn: "2026-10-01",
           total: 10_000,
-          buyerDocumentType: 99,
-          buyerDocumentNumber: 0,
+          buyer: { kind: "final_consumer" },
           buyerTaxStatusCode: 5,
           rejections,
           remedy: "awaiting_remedy",
@@ -394,6 +388,7 @@ describe("DrizzleFortnightPresentationReader.branchPresentations", () => {
         fortnight: OCTOBER_FIRST_HALF,
         number: 2,
         correction: { issuedOn: "2026-10-03", total: 12_500 },
+        rejectedAt: AT,
         recordedAt: new Date("2026-11-02T12:00:00.000Z"),
       });
 

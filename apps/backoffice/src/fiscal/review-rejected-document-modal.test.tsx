@@ -3,7 +3,7 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
 import { type Locator, page, userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
-import type { RecordedRemedy, RejectedDocument } from "./fortnight-presentations-api";
+import type { RejectedDocument } from "./fortnight-presentations-api";
 import type { RemedyTarget } from "./rejected-document-remedy-form";
 import {
   ReviewRejectedDocumentModal,
@@ -17,11 +17,9 @@ beforeEach(() => {
 const rejectedDocument: RejectedDocument = {
   number: 298,
   unprocessed: 12,
-  documentId: "document-1",
   issuedOn: "2026-09-09",
   total: 1_845_000,
-  buyerDocumentType: 99,
-  buyerDocumentNumber: 0,
+  buyer: { kind: "final_consumer" },
   buyerTaxStatusCode: 5,
   rejections: [{ code: 10016, message: "El importe total no coincide con la suma." }],
   remedy: "awaiting_remedy",
@@ -31,11 +29,6 @@ const target: RemedyTarget = {
   pointOfSaleNumber: 4,
   fortnight: { start: "2026-09-01", end: "2026-09-15" },
   rejectedDocument,
-};
-
-const recorded: RecordedRemedy = {
-  recordedAt: "2026-09-20T15:30:00.000Z",
-  changes: [{ field: "total", before: 1_845_000, after: 1_800_000 }],
 };
 
 const reportRequest = {
@@ -66,7 +59,7 @@ function createServices(): ReviewRejectedDocumentModalServices {
 type Handlers = {
   target?: RemedyTarget | null;
   onClose?: () => void;
-  onRemedied?: (target: RemedyTarget, value: RecordedRemedy) => void;
+  onRemedied?: (target: RemedyTarget) => void;
   onOutdated?: () => void;
   onSessionEnded?: () => void;
 };
@@ -213,7 +206,7 @@ test("cancelling closes without calling the cloud", async () => {
 
 test("reports the document as presented when the error is in the report, closes and tells what was recorded", async () => {
   const services = createServices();
-  vi.mocked(services.remedyRejectedDocument).mockResolvedValue({ kind: "ok", value: recorded });
+  vi.mocked(services.remedyRejectedDocument).mockResolvedValue({ kind: "ok" });
   const onClose = vi.fn();
   const onRemedied = vi.fn();
   const { dialog } = await renderModal(services, { onClose, onRemedied });
@@ -221,7 +214,7 @@ test("reports the document as presented when the error is in the report, closes 
   await submitReport(dialog);
 
   await expect.poll(() => onRemedied.mock.calls.length).toBe(1);
-  expect(onRemedied).toHaveBeenCalledWith(target, recorded);
+  expect(onRemedied).toHaveBeenCalledWith(target);
   expect(onClose).toHaveBeenCalledTimes(1);
   expect(services.remedyRejectedDocument).toHaveBeenCalledWith(reportRequest);
 });
@@ -239,7 +232,13 @@ test("asks for the printed correction, with the printed values ready, when the e
   await expect.element(dateSegments.nth(0)).toHaveAttribute("aria-valuenow", "9");
   await expect.element(dateSegments.nth(1)).toHaveAttribute("aria-valuenow", "9");
   await expect.element(dateSegments.nth(2)).toHaveAttribute("aria-valuenow", "2026");
-  await expect.element(dialog.getByRole("radio", { name: "Consumidor final" })).toBeChecked();
+  await expect
+    .element(
+      dialog
+        .getByRole("radiogroup", { name: "Comprador" })
+        .getByRole("radio", { name: "Consumidor final" }),
+    )
+    .toBeChecked();
   await expect
     .element(dialog.getByRole("button", { name: /Condición frente al IVA/ }))
     .toHaveTextContent("Consumidor Final");
@@ -263,7 +262,7 @@ test("asks for the CUIT only when the buyer is identified by one", async () => {
   await chooseTheDocumentIsWrong(dialog);
   expect(dialog.getByRole("textbox", { name: /^CUIT del comprador/ }).query()).toBeNull();
 
-  await userEvent.click(dialog.getByText("CUIT", { exact: true }).last());
+  await userEvent.click(dialog.getByText("Con CUIT", { exact: true }).last());
 
   await expect
     .element(dialog.getByRole("textbox", { name: /^CUIT del comprador/ }))
@@ -272,7 +271,7 @@ test("asks for the CUIT only when the buyer is identified by one", async () => {
 
 test("corrects only what changed and closes when the correction is recorded", async () => {
   const services = createServices();
-  vi.mocked(services.remedyRejectedDocument).mockResolvedValue({ kind: "ok", value: recorded });
+  vi.mocked(services.remedyRejectedDocument).mockResolvedValue({ kind: "ok" });
   const onClose = vi.fn();
   const onRemedied = vi.fn();
   const { dialog } = await renderModal(services, { onClose, onRemedied });
@@ -291,7 +290,7 @@ test("corrects only what changed and closes when the correction is recorded", as
 
 test("corrects the date with the one typed", async () => {
   const services = createServices();
-  vi.mocked(services.remedyRejectedDocument).mockResolvedValue({ kind: "ok", value: recorded });
+  vi.mocked(services.remedyRejectedDocument).mockResolvedValue({ kind: "ok" });
   const onRemedied = vi.fn();
   const { dialog } = await renderModal(services, { onRemedied });
   await chooseTheDocumentIsWrong(dialog);
@@ -314,14 +313,14 @@ test("corrects the date with the one typed", async () => {
 
 test("corrects the buyer's identification and tax status", async () => {
   const services = createServices();
-  vi.mocked(services.remedyRejectedDocument).mockResolvedValue({ kind: "ok", value: recorded });
+  vi.mocked(services.remedyRejectedDocument).mockResolvedValue({ kind: "ok" });
   const onRemedied = vi.fn();
   const { screen, dialog } = await renderModal(services, { onRemedied });
   await chooseTheDocumentIsWrong(dialog);
-  await userEvent.click(dialog.getByText("CUIT", { exact: true }).last());
+  await userEvent.click(dialog.getByText("Con CUIT", { exact: true }).last());
   await userEvent.fill(
     dialog.getByRole("textbox", { name: /^CUIT del comprador/ }),
-    "20-00000001-5",
+    "20-00000000-1",
   );
   await userEvent.click(dialog.getByRole("button", { name: /Condición frente al IVA/ }));
   await userEvent.click(screen.getByRole("option", { name: "IVA Responsable Inscripto" }));
@@ -334,8 +333,7 @@ test("corrects the buyer's identification and tax status", async () => {
     remedy: {
       kind: "printed",
       correction: {
-        buyer_document_type: 80,
-        buyer_document_number: 20_000_000_015,
+        buyer: { kind: "cuit", number: 20_000_000_001 },
         buyer_tax_status_code: 1,
       },
     },
@@ -358,7 +356,7 @@ test("asks for the CUIT before calling the cloud", async () => {
   const services = createServices();
   const { dialog } = await renderModal(services);
   await chooseTheDocumentIsWrong(dialog);
-  await userEvent.click(dialog.getByText("CUIT", { exact: true }).last());
+  await userEvent.click(dialog.getByText("Con CUIT", { exact: true }).last());
 
   await submitPrinted(dialog);
 
@@ -370,7 +368,7 @@ test("asks for the passkey on authorization_required, then authorizes and retrie
   const services = createServices();
   vi.mocked(services.remedyRejectedDocument)
     .mockResolvedValueOnce({ kind: "authorization_required" })
-    .mockResolvedValueOnce({ kind: "ok", value: recorded });
+    .mockResolvedValueOnce({ kind: "ok" });
   const onRemedied = vi.fn();
   const { screen, dialog } = await renderModal(services, { onRemedied });
 
@@ -569,7 +567,7 @@ test("shows a load failure of the tax statuses, keeps the correction unavailable
 
 test("correcting the report does not wait for the tax statuses", async () => {
   const services = createServices();
-  vi.mocked(services.remedyRejectedDocument).mockResolvedValue({ kind: "ok", value: recorded });
+  vi.mocked(services.remedyRejectedDocument).mockResolvedValue({ kind: "ok" });
   const { dialog } = await renderModal(services);
 
   await expect.element(dialog.getByRole("button", { name: "Corregir el informe" })).toBeEnabled();

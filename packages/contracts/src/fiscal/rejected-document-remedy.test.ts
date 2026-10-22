@@ -1,8 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  rejectedDocumentRemedyBodySchema,
-  rejectedDocumentRemedyResponseSchema,
-} from "./rejected-document-remedy.js";
+import { rejectedDocumentRemedyBodySchema } from "./rejected-document-remedy.js";
 
 const base = {
   point_of_sale_number: 4,
@@ -28,11 +25,14 @@ describe("rejectedDocumentRemedyBodySchema", () => {
           correction: {
             issued_on: "2026-09-03",
             total: 125000,
-            buyer_document_type: 80,
-            buyer_document_number: 20000000001,
+            buyer: { kind: "cuit", number: 20000000001 },
             buyer_tax_status_code: 1,
           },
         },
+      },
+      {
+        ...base,
+        remedy: { kind: "printed", correction: { buyer: { kind: "final_consumer" } } },
       },
       { ...base, remedy: { kind: "printed", correction: {} } },
     ];
@@ -60,7 +60,15 @@ describe("rejectedDocumentRemedyBodySchema", () => {
     { remedy: { kind: "printed" } },
     { remedy: { kind: "printed", correction: { total: 12.5 } } },
     { remedy: { kind: "printed", correction: { issued_on: 20260903 } } },
+    { remedy: { kind: "printed", correction: { issued_on: "2026-09-20x" } } },
+    { remedy: { kind: "printed", correction: { issued_on: "2026-09-31" } } },
+    { fortnight_start: "not-a-day" },
+    { fortnight_start: "2026-02-30" },
     { remedy: { kind: "printed", correction: { buyer_tax_status_code: "1" } } },
+    { remedy: { kind: "printed", correction: { buyer: { kind: "dni", number: 30111222 } } } },
+    { remedy: { kind: "printed", correction: { buyer: { kind: "cuit" } } } },
+    { remedy: { kind: "printed", correction: { buyer: { kind: "cuit", number: 2.5 } } } },
+    { remedy: { kind: "printed", correction: { buyer: { kind: "other" } } } },
     { document_type: "factura_a" },
     { number: 0 },
     { number: 1.5 },
@@ -69,33 +77,6 @@ describe("rejectedDocumentRemedyBodySchema", () => {
     expect(
       rejectedDocumentRemedyBodySchema.safeParse({ ...base, remedy: { kind: "report" }, ...fields })
         .success,
-    ).toBe(false);
-  });
-});
-
-describe("rejectedDocumentRemedyResponseSchema", () => {
-  it("reads when the remedy was recorded and the fields it changed with their values before and after", () => {
-    const response = {
-      recorded_at: "2026-09-20T15:00:00.000Z",
-      changes: [
-        { field: "issued_on", before: "2026-09-02", after: "2026-09-03" },
-        { field: "total", before: 1000, after: 1250 },
-      ],
-    };
-
-    expect(rejectedDocumentRemedyResponseSchema.parse(response)).toEqual(response);
-    expect(rejectedDocumentRemedyResponseSchema.parse({ ...response, changes: [] })).toEqual({
-      ...response,
-      changes: [],
-    });
-  });
-
-  it("refuses a change of a field that cannot be corrected", () => {
-    expect(
-      rejectedDocumentRemedyResponseSchema.safeParse({
-        recorded_at: "2026-09-20T15:00:00.000Z",
-        changes: [{ field: "number", before: 1, after: 2 }],
-      }).success,
     ).toBe(false);
   });
 });

@@ -62,12 +62,12 @@ function remedy(
 }
 
 describe("remedyRejectedDocument, reporting the document again", () => {
-  it("records the remedy at the moment it was asked, and an audit entry naming who chose it and which remedy", async () => {
+  it("records the remedy for the rejection it remedies at the moment it was asked, and an audit entry naming who chose it and which remedy", async () => {
     const store = setUp();
 
     const outcome = await remedy(store);
 
-    expect(outcome).toEqual({ kind: "remedied", recordedAt: NOW, changes: [] });
+    expect(outcome).toEqual({ kind: "remedied" });
     expect(store.snapshot()).toEqual({
       remedies: [
         {
@@ -76,6 +76,7 @@ describe("remedyRejectedDocument, reporting the document again", () => {
           documentType: "factura_c",
           number: 3,
           remedy: { kind: "report" },
+          rejectedAt: REJECTED_AT,
           recordedAt: NOW,
         },
       ],
@@ -109,15 +110,24 @@ describe("remedyRejectedDocument, reporting the document again", () => {
     expect(store.transactionCount).toBe(1);
   });
 
-  it("remedies again a number the tax authority rejected once more after an earlier remedy", async () => {
-    const store = setUp(
-      rejection({ remedy: { number: 3, recordedAt: new Date(REJECTED_AT.getTime() - 1) } }),
-    );
+  it.each([
+    ["earlier", -1],
+    ["later, as after the clock went back", 1],
+  ])(
+    "remedies again a number the tax authority rejected once more after a remedy recorded for an %s rejection",
+    async (_case, offset) => {
+      const store = setUp(
+        rejection({
+          remedy: { number: 3, rejectedAt: new Date(REJECTED_AT.getTime() + offset) },
+        }),
+      );
 
-    const outcome = await remedy(store);
+      const outcome = await remedy(store);
 
-    expect(outcome.kind).toBe("remedied");
-  });
+      expect(outcome.kind).toBe("remedied");
+      expect(store.snapshot().remedies.map(({ rejectedAt }) => rejectedAt)).toEqual([REJECTED_AT]);
+    },
+  );
 });
 
 describe("remedyRejectedDocument, correcting a document printed wrong", () => {
@@ -135,7 +145,7 @@ describe("remedyRejectedDocument, correcting a document printed wrong", () => {
       { field: "issuedOn", before: "2026-09-20", after: "2026-09-21" },
       { field: "total", before: 15_000, after: 9_900 },
     ];
-    expect(outcome).toEqual({ kind: "remedied", recordedAt: NOW, changes });
+    expect(outcome).toEqual({ kind: "remedied" });
     expect(store.snapshot()).toEqual({
       remedies: [
         {
@@ -144,6 +154,7 @@ describe("remedyRejectedDocument, correcting a document printed wrong", () => {
           documentType: "factura_c",
           number: 3,
           remedy: printed({ issuedOn: "2026-09-21", total: 9_900 }),
+          rejectedAt: REJECTED_AT,
           recordedAt: NOW,
         },
       ],
@@ -181,9 +192,10 @@ describe("remedyRejectedDocument, correcting a document printed wrong", () => {
 
     const outcome = await remedy(store, { remedy: printed({ total: 9_000 }) });
 
-    expect(outcome).toMatchObject({
-      changes: [{ field: "total", before: 9_900, after: 9_000 }],
-    });
+    expect(outcome).toEqual({ kind: "remedied" });
+    expect(store.snapshot().audits[0]?.changes).toEqual([
+      { field: "total", before: 9_900, after: 9_000 },
+    ]);
     expect(store.snapshot().remedies[0]?.remedy).toEqual(
       printed({ issuedOn: "2026-09-19", total: 9_000 }),
     );
@@ -272,9 +284,7 @@ describe("remedyRejectedDocument, when there is nothing to remedy", () => {
   });
 
   it("refuses a rejection whose remedy is already recorded, keeping the first remedy", async () => {
-    const store = setUp(
-      rejection({ remedy: { number: 3, recordedAt: new Date(REJECTED_AT.getTime() + 1) } }),
-    );
+    const store = setUp(rejection({ remedy: { number: 3, rejectedAt: new Date(REJECTED_AT) } }));
 
     const outcome = await remedy(store);
 

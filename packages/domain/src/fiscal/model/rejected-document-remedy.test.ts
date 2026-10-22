@@ -2,9 +2,11 @@ import { describe, expect, it } from "vitest";
 import { FICTIONAL_CUIT } from "../test-support/fictional-tax-identities.js";
 import {
   awaitsRemedy,
+  buyerIdentificationOf,
   correctionAfter,
   correctionChanges,
   type OfflineDocumentCorrection,
+  offlineDocumentBuyerOf,
   offlineDocumentCorrectionRefusal,
   presentedOfflineDocument,
   rejectedDocumentCreditNote,
@@ -86,6 +88,48 @@ describe("presentedOfflineDocument", () => {
     expect(
       presentedOfflineDocument({ ...printed, correction: { buyerTaxStatusCode: 6 } }).netAmount,
     ).toBe(8_000);
+  });
+});
+
+describe("offlineDocumentBuyerOf", () => {
+  it("is a final consumer for the final consumer's document type and number", () => {
+    expect(offlineDocumentBuyerOf({ buyerDocumentType: 99, buyerDocumentNumber: 0 })).toEqual({
+      kind: "final_consumer",
+    });
+  });
+
+  it("is a buyer with a CUIT for the CUIT document type, carrying its number", () => {
+    expect(
+      offlineDocumentBuyerOf({ buyerDocumentType: 80, buyerDocumentNumber: CUIT_NUMBER }),
+    ).toEqual({ kind: "cuit", number: CUIT_NUMBER });
+  });
+
+  it("is another buyer for any other document type, and for a final consumer carrying a number", () => {
+    expect(offlineDocumentBuyerOf({ buyerDocumentType: 96, buyerDocumentNumber: 1 })).toEqual({
+      kind: "other",
+    });
+    expect(offlineDocumentBuyerOf({ buyerDocumentType: 96, buyerDocumentNumber: 0 })).toEqual({
+      kind: "other",
+    });
+    expect(offlineDocumentBuyerOf({ buyerDocumentType: 99, buyerDocumentNumber: 1 })).toEqual({
+      kind: "other",
+    });
+  });
+});
+
+describe("buyerIdentificationOf", () => {
+  it("is the final consumer's document type and number for a final consumer", () => {
+    expect(buyerIdentificationOf({ kind: "final_consumer" })).toEqual({
+      buyerDocumentType: 99,
+      buyerDocumentNumber: 0,
+    });
+  });
+
+  it("is the CUIT document type with the buyer's number for a buyer with a CUIT", () => {
+    expect(buyerIdentificationOf({ kind: "cuit", number: CUIT_NUMBER })).toEqual({
+      buyerDocumentType: 80,
+      buyerDocumentNumber: CUIT_NUMBER,
+    });
   });
 });
 
@@ -224,6 +268,12 @@ describe("offlineDocumentCorrectionRefusal", () => {
     ).toBe("invalid_buyer_identification");
   });
 
+  it("refuses a CUIT number with fewer digits than a CUIT, even one that validates once padded with zeros", () => {
+    expect(refusal({ buyerDocumentType: 80, buyerDocumentNumber: 1_000_000_007 })).toBe(
+      "invalid_buyer_identification",
+    );
+  });
+
   it("refuses a final consumer carrying a document number, and a document type the domain has no rule for", () => {
     expect(refusal({ buyerDocumentNumber: 12_345_678 })).toBe("invalid_buyer_identification");
     expect(refusal({ buyerDocumentType: 96, buyerDocumentNumber: 12_345_678 })).toBe(
@@ -298,19 +348,17 @@ describe("awaitsRemedy", () => {
     expect(awaitsRemedy(refused, null)).toBe(true);
   });
 
-  it("is false once a remedy for that same number was recorded after the rejection", () => {
-    expect(awaitsRemedy(refused, { number: 5, recordedAt: new Date(AT.getTime() + 1) })).toBe(
-      false,
-    );
+  it("is false once a remedy of that same number was recorded for that rejection", () => {
+    expect(awaitsRemedy(refused, { number: 5, rejectedAt: new Date(AT) })).toBe(false);
   });
 
-  it("is true when the remedy was recorded before the rejection, or at the very moment of it", () => {
-    expect(awaitsRemedy(refused, { number: 5, recordedAt: new Date(AT.getTime() - 1) })).toBe(true);
-    expect(awaitsRemedy(refused, { number: 5, recordedAt: AT })).toBe(true);
+  it("is true when the remedy of the number was recorded for an earlier or a later rejection of it", () => {
+    expect(awaitsRemedy(refused, { number: 5, rejectedAt: new Date(AT.getTime() - 1) })).toBe(true);
+    expect(awaitsRemedy(refused, { number: 5, rejectedAt: new Date(AT.getTime() + 1) })).toBe(true);
   });
 
-  it("is true when the remedy recorded after the rejection is for another number", () => {
-    expect(awaitsRemedy(refused, { number: 4, recordedAt: new Date(AT.getTime() + 1) })).toBe(true);
+  it("is true when the remedy recorded for the rejection is for another number", () => {
+    expect(awaitsRemedy(refused, { number: 4, rejectedAt: AT })).toBe(true);
   });
 
   it("is false for a refusal that named no rejected document", () => {
@@ -324,25 +372,29 @@ describe("awaitsRemedy", () => {
     },
   );
 
-  it("takes any remedy for the number as recorded after a rejection with no recorded attempt", () => {
-    expect(awaitsRemedy({ ...refused, lastAttemptAt: null }, { number: 5, recordedAt: AT })).toBe(
-      false,
-    );
+  it("takes a rejection with no recorded attempt as remedied only by a remedy recorded for no attempt either", () => {
+    const unattempted = { ...refused, lastAttemptAt: null };
+
+    expect(awaitsRemedy(unattempted, { number: 5, rejectedAt: null })).toBe(false);
+    expect(awaitsRemedy(unattempted, { number: 5, rejectedAt: AT })).toBe(true);
+    expect(awaitsRemedy(refused, { number: 5, rejectedAt: null })).toBe(true);
   });
 });
 
 describe("remedyAwaitsResend", () => {
   const AT = new Date("2026-10-03T15:00:00.000Z");
   const refused = { state: "refused" as const, rejectedNumber: 5, lastAttemptAt: AT };
-  const remedy = { number: 5, recordedAt: new Date(AT.getTime() + 1) };
+  const remedy = { number: 5, rejectedAt: new Date(AT) };
 
-  it("is true for a rejected document whose remedy was recorded after the rejection", () => {
+  it("is true for a rejected document whose remedy was recorded for that rejection", () => {
     expect(remedyAwaitsResend(refused, remedy)).toBe(true);
   });
 
   it("is false while the rejected document still awaits its remedy", () => {
     expect(remedyAwaitsResend(refused, null)).toBe(false);
-    expect(remedyAwaitsResend(refused, { ...remedy, recordedAt: AT })).toBe(false);
+    expect(remedyAwaitsResend(refused, { ...remedy, rejectedAt: new Date(AT.getTime() + 1) })).toBe(
+      false,
+    );
   });
 
   it("is false for a refusal with no rejected document, whatever remedy is recorded", () => {
@@ -393,5 +445,9 @@ describe("rejectedDocumentCreditNote", () => {
 
   it("is not decided while the register has no real-time point of sale", () => {
     expect(decide({ realTimePointOfSale: null })).toBeNull();
+  });
+
+  it("is not decided while nothing of the document's type was reported", () => {
+    expect(decide({ reportedThrough: null })).toBeNull();
   });
 });

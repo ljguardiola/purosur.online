@@ -79,11 +79,9 @@ describe("fortnightPresentationListSchema", () => {
   const rejectedDocument = {
     number: 17,
     unprocessed: 0,
-    document_id: "7c1f4d52-0f7e-4a53-9f4c-2a7d2f1c9b11",
     issued_on: "2026-09-03",
     total: 125000,
-    buyer_document_type: 99,
-    buyer_document_number: 0,
+    buyer: { kind: "final_consumer" },
     buyer_tax_status_code: 5,
     rejections: [{ code: 10016, message: "Fecha de comprobante fuera de rango" }],
     remedy: "awaiting_remedy",
@@ -98,9 +96,14 @@ describe("fortnightPresentationListSchema", () => {
           ...rejectedDocument,
           number: 3,
           unprocessed: 12,
+          buyer: { kind: "cuit", number: 20000000001 },
           rejections: [],
           remedy: "awaiting_resend",
         },
+      },
+      {
+        ...presentation,
+        rejected_document: { ...rejectedDocument, buyer: { kind: "other" } },
       },
     ];
 
@@ -128,6 +131,9 @@ describe("fortnightPresentationListSchema", () => {
     { rejected_document: { ...rejectedDocument, unprocessed: -1 } },
     { rejected_document: { number: 17, unprocessed: 0 } },
     { rejected_document: { ...rejectedDocument, remedy: "remedied" } },
+    { rejected_document: { ...rejectedDocument, buyer: { kind: "dni" } } },
+    { rejected_document: { ...rejectedDocument, buyer: { kind: "cuit" } } },
+    { rejected_document: { ...rejectedDocument, buyer: undefined } },
     { rejected_document: { ...rejectedDocument, rejections: [{ code: "x", message: "m" }] } },
   ])("refuses the presentation fields %j", (fields) => {
     expect(

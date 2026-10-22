@@ -100,13 +100,14 @@ describe("DrizzleRejectedDocumentRemedyStore reads", () => {
     ).toBeNull();
   });
 
-  it("recalls the report of a document type with its rejected document, its rejections and the newest remedy for that document", async () => {
+  it("recalls the report of a document type with its rejected document, its rejections and the remedy recorded for that rejection", async () => {
     await rejectDocumentTwo();
     await insertRejectedDocumentRemedy(db, {
       pointOfSale: OFFLINE_POINT_OF_SALE,
       fortnight: OCTOBER_FIRST_HALF,
       number: 2,
       correction: { issuedOn: "2026-10-02" },
+      rejectedAt: REJECTED_AT,
       recordedAt: REMEDIED_AT,
     });
 
@@ -119,7 +120,7 @@ describe("DrizzleRejectedDocumentRemedyStore reads", () => {
       rejectedNumber: 2,
       lastAttemptAt: REJECTED_AT,
       rejections: REJECTIONS,
-      remedy: { number: 2, recordedAt: REMEDIED_AT },
+      remedy: { number: 2, rejectedAt: REJECTED_AT },
     });
   });
 
@@ -181,6 +182,7 @@ describe("DrizzleRejectedDocumentRemedyStore writes", () => {
         documentType: "factura_c",
         number: 2,
         remedy: { kind: "report" },
+        rejectedAt: REJECTED_AT,
         recordedAt: REMEDIED_AT,
       }),
     );
@@ -193,6 +195,7 @@ describe("DrizzleRejectedDocumentRemedyStore writes", () => {
         number: 2,
         kind: "report",
         correction: null,
+        rejectedAt: REJECTED_AT,
         recordedAt: REMEDIED_AT,
       }),
     ]);
@@ -206,6 +209,7 @@ describe("DrizzleRejectedDocumentRemedyStore writes", () => {
         documentType: "factura_c",
         number: 2,
         remedy: { kind: "printed", correction: { issuedOn: "2026-10-02", total: 12_500 } },
+        rejectedAt: REJECTED_AT,
         recordedAt: REMEDIED_AT,
       }),
     );
@@ -282,6 +286,7 @@ describe("DrizzleRejectedDocumentRemedyStore writes", () => {
           documentType: "factura_c",
           number: 2,
           remedy: { kind: "report" },
+          rejectedAt: REJECTED_AT,
           recordedAt: REMEDIED_AT,
         });
         await tx.recordRemedyAudit({ ...AUDIT, kind: "report", actorId, changes: [] });
@@ -309,16 +314,15 @@ describe("remedying a rejected document through the store", () => {
       },
     );
 
-  it("records a correction and its audit, and the presentation then reads the document corrected", async () => {
+  it("records a correction for the rejection and its audit, and the presentation then reads the document corrected and awaiting its resend", async () => {
     await rejectDocumentTwo();
 
     const outcome = await remedy({ kind: "printed", correction: { issuedOn: "2026-10-02" } });
 
-    expect(outcome).toEqual({
-      kind: "remedied",
-      recordedAt: REMEDIED_AT,
-      changes: [{ field: "issuedOn", before: "2026-10-01", after: "2026-10-02" }],
-    });
+    expect(outcome).toEqual({ kind: "remedied" });
+    expect(
+      await store().transaction((tx) => tx.documentTypeReport(KEY, "factura_c", locationId)),
+    ).toMatchObject({ remedy: { number: 2, rejectedAt: REJECTED_AT } });
     expect(await db.select().from(auditLog)).toEqual([
       expect.objectContaining({
         entityId: documentId,

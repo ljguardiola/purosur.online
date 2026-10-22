@@ -1,18 +1,20 @@
 import type { AlertConditionObservation } from "../../model/alert-condition-observation.js";
 import type {
-  RejectedFortnightDocument,
   RejectedFortnightDocumentAlerts,
-  RejectedFortnightDocumentReader,
+  RejectedFortnightDocumentCandidate,
+  RejectedFortnightDocumentCandidateReader,
 } from "../rejected-fortnight-document-ports.js";
 
-export class FakeRejectedFortnightDocumentReader implements RejectedFortnightDocumentReader {
-  private readonly rejected: readonly RejectedFortnightDocument[];
+export class FakeRejectedFortnightDocumentReader
+  implements RejectedFortnightDocumentCandidateReader
+{
+  private readonly rejected: readonly RejectedFortnightDocumentCandidate[];
 
-  constructor(rejected: readonly RejectedFortnightDocument[]) {
+  constructor(rejected: readonly RejectedFortnightDocumentCandidate[]) {
     this.rejected = structuredClone(rejected);
   }
 
-  async presentationsAwaitingRemedy(): Promise<RejectedFortnightDocument[]> {
+  async presentationsAwaitingRemedy(): Promise<RejectedFortnightDocumentCandidate[]> {
     return structuredClone([...this.rejected]);
   }
 }

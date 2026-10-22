@@ -531,6 +531,93 @@ describe("DrizzleFortnightReportStore.acceptedWithUnreportedDocuments", () => {
   });
 });
 
+describe("DrizzleFortnightReportStore.withReportedCorrectionsAwaitingCredit", () => {
+  let registerId: string;
+
+  beforeEach(async () => {
+    registerId = await seedOfflinePointOfSale(db);
+    await keepCode(OCTOBER_FIRST_HALF, "36123456789012");
+    for (const number of [1, 2, 3]) {
+      await insertOfflineFiscalDocument(db, {
+        registerId,
+        pointOfSale: OFFLINE_POINT_OF_SALE,
+        fortnight: OCTOBER_FIRST_HALF,
+        number,
+      });
+    }
+  });
+
+  function reportedThrough(number: number) {
+    return newStore().holdReport(KEY, (report) =>
+      report.recordDocumentType({
+        documentType: "factura_c",
+        state: "accepted",
+        at: AT,
+        reportedThrough: number,
+      }),
+    );
+  }
+
+  function correct(number: number, correction: { total: number } | null = { total: 9_900 }) {
+    return insertRejectedDocumentRemedy(db, {
+      pointOfSale: OFFLINE_POINT_OF_SALE,
+      fortnight: OCTOBER_FIRST_HALF,
+      number,
+      correction,
+      rejectedAt: AT,
+      recordedAt: AT,
+    });
+  }
+
+  it("lists a presentation whose corrected document the tax authority holds and that has no credit note yet, as owed reports are listed", async () => {
+    await correct(2);
+    await reportedThrough(3);
+
+    expect(await newStore().withReportedCorrectionsAwaitingCredit()).toEqual([
+      {
+        pointOfSaleNumber: OFFLINE_POINT_OF_SALE,
+        registerId,
+        code: {
+          code: "36123456789012",
+          fortnight: OCTOBER_FIRST_HALF,
+          reportDeadline: "2026-10-20",
+        },
+      },
+    ]);
+  });
+
+  it("lists nothing while the tax authority does not hold the corrected document yet", async () => {
+    await correct(3);
+    await reportedThrough(2);
+
+    expect(await newStore().withReportedCorrectionsAwaitingCredit()).toEqual([]);
+  });
+
+  it("lists nothing for a document reported again without a correction", async () => {
+    await correct(2, null);
+    await reportedThrough(3);
+
+    expect(await newStore().withReportedCorrectionsAwaitingCredit()).toEqual([]);
+  });
+
+  it("lists nothing once the corrected document has a credit note", async () => {
+    await correct(2);
+    await reportedThrough(3);
+    await newStore().holdReport(KEY, (report) =>
+      report.creditCorrectedDocument({
+        saleId: "0199b7a0-0000-7000-8000-000000000004",
+        reason: "rejected_document",
+        pointOfSale: 7,
+        associatedVoucher: { voucherType: 11, pointOfSale: OFFLINE_POINT_OF_SALE, number: 2 },
+        total: 9_900,
+        receiverTaxStatusCode: 5,
+      }),
+    );
+
+    expect(await newStore().withReportedCorrectionsAwaitingCredit()).toEqual([]);
+  });
+});
+
 describe("DrizzleFortnightReportStore.documentTypeReports", () => {
   const rejections = [{ code: 1439, message: "Fictional observation" }];
 
@@ -593,25 +680,37 @@ describe("DrizzleFortnightReportStore.documentTypeReports", () => {
     ]);
   });
 
-  it("recalls the newest remedy recorded for the rejected document, with the time it was recorded", async () => {
+  it("recalls the remedy recorded for the rejection the document type holds, not one recorded later for an earlier rejection", async () => {
     await refuseAt(5);
-    const remedy = (recordedAt: string) =>
+    const remedy = (rejectedAt: Date, recordedAt: string) =>
       insertRejectedDocumentRemedy(db, {
         pointOfSale: OFFLINE_POINT_OF_SALE,
         fortnight: OCTOBER_FIRST_HALF,
         number: 5,
         correction: null,
+        rejectedAt,
         recordedAt: new Date(recordedAt),
       });
-    await remedy("2026-10-17T10:00:00.000Z");
-    await remedy("2026-10-18T10:00:00.000Z");
-    await remedy("2026-10-17T15:00:00.000Z");
+    await remedy(AT, "2026-10-17T10:00:00.000Z");
+    await remedy(new Date(AT.getTime() - 60_000), "2026-10-18T10:00:00.000Z");
 
     expect(await documentTypeReports()).toEqual([
-      expect.objectContaining({
-        remedy: { number: 5, recordedAt: new Date("2026-10-18T10:00:00.000Z") },
-      }),
+      expect.objectContaining({ remedy: { number: 5, rejectedAt: AT } }),
     ]);
+  });
+
+  it("recalls no remedy while the only one recorded is for another rejection of the document", async () => {
+    await refuseAt(5);
+    await insertRejectedDocumentRemedy(db, {
+      pointOfSale: OFFLINE_POINT_OF_SALE,
+      fortnight: OCTOBER_FIRST_HALF,
+      number: 5,
+      correction: null,
+      rejectedAt: new Date(AT.getTime() + 60_000),
+      recordedAt: new Date("2026-10-17T10:00:00.000Z"),
+    });
+
+    expect(await documentTypeReports()).toEqual([expect.objectContaining({ remedy: null })]);
   });
 
   it("recalls no remedy of another document, of another point of sale or of another fortnight", async () => {
@@ -627,6 +726,7 @@ describe("DrizzleFortnightReportStore.documentTypeReports", () => {
       await insertRejectedDocumentRemedy(db, {
         ...other,
         correction: null,
+        rejectedAt: AT,
         recordedAt: new Date("2026-10-17T10:00:00.000Z"),
       });
     }

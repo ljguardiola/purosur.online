@@ -176,6 +176,10 @@ export class FakeFortnightReportStore implements FortnightReportStore {
     this.remedies.set(typeKeyOf(key, documentType), remedy);
   }
 
+  rejectionAt(key: FortnightReportKey, documentType: FiscalDocumentType): Date | null {
+    return this.documentTypeRows.get(typeKeyOf(key, documentType))?.lastAttemptAt ?? null;
+  }
+
   seedReportedThrough(
     key: FortnightReportKey,
     documentType: FiscalDocumentType,
@@ -202,6 +206,27 @@ export class FakeFortnightReportStore implements FortnightReportStore {
                   ),
               )
           );
+        })
+        .map(({ pointOfSaleNumber, registerId }) => ({ pointOfSaleNumber, registerId, code })),
+    );
+  }
+
+  async withReportedCorrectionsAwaitingCredit(): Promise<OwedFortnightReport[]> {
+    return this.codes.kept.flatMap(({ code }) =>
+      this.pointsOfSale
+        .filter(({ pointOfSaleNumber }) => {
+          const key = { pointOfSaleNumber, fortnight: code.fortnight };
+          return this.documents
+            .of(pointOfSaleNumber, code.fortnight)
+            .some(
+              ({ documentType, number, correction }) =>
+                correction !== null &&
+                isOfflineDocumentReported(
+                  number,
+                  this.reportedThrough.get(typeKeyOf(key, documentType)) ?? null,
+                ) &&
+                !this.creditNotes.has(`${pointOfSaleNumber}:${number}`),
+            );
         })
         .map(({ pointOfSaleNumber, registerId }) => ({ pointOfSaleNumber, registerId, code })),
     );

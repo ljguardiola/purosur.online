@@ -10,12 +10,14 @@ export async function insertRejectedDocumentRemedy<TQueryResult extends PgQueryR
     fortnight,
     number,
     correction,
+    rejectedAt = null,
     recordedAt,
   }: {
     pointOfSale: number;
     fortnight: Fortnight;
     number: number;
     correction: OfflineDocumentCorrection | null;
+    rejectedAt?: Date | null;
     recordedAt: Date;
   },
 ): Promise<void> {
@@ -26,6 +28,7 @@ export async function insertRejectedDocumentRemedy<TQueryResult extends PgQueryR
     number,
     kind: correction === null ? "report" : "printed",
     correction,
+    rejectedAt,
     recordedAt,
   });
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { detectRejectedFortnightDocuments } from "./detect-rejected-fortnight-documents.js";
-import type { RejectedFortnightDocument } from "./rejected-fortnight-document-ports.js";
+import type { RejectedFortnightDocumentCandidate } from "./rejected-fortnight-document-ports.js";
 import {
   FakeRejectedFortnightDocumentAlerts,
   FakeRejectedFortnightDocumentReader,
@@ -13,7 +13,7 @@ function rejected(
   pointOfSaleNumber: number,
   fortnight = FIRST_HALF,
   rejectedNumber = 12,
-): RejectedFortnightDocument {
+): RejectedFortnightDocumentCandidate {
   return {
     pointOfSaleNumber,
     registerId: `register-${pointOfSaleNumber}`,
@@ -42,7 +42,7 @@ function holds(pointOfSaleNumber: number, fortnight = FIRST_HALF, rejectedNumber
 }
 
 function detect(
-  presentations: RejectedFortnightDocument[],
+  presentations: RejectedFortnightDocumentCandidate[],
   alerts = new FakeRejectedFortnightDocumentAlerts(),
 ) {
   return {

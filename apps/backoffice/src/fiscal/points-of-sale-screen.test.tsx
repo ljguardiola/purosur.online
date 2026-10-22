@@ -510,11 +510,9 @@ const partlyRejectedPresentation = {
   rejectedDocument: {
     number: 298,
     unprocessed: 12,
-    documentId: "document-1",
     issuedOn: "2026-09-09",
     total: 1_845_000,
-    buyerDocumentType: 99,
-    buyerDocumentNumber: 0,
+    buyer: { kind: "final_consumer" },
     buyerTaxStatusCode: 5,
     rejections: [{ code: 10016, message: "El importe total no coincide con la suma." }],
     remedy: "awaiting_remedy",
@@ -569,7 +567,6 @@ test("correcting the report reads the presentations again and announces it", asy
   vi.mocked(services.authorizeSession).mockResolvedValue({ kind: "ok" });
   vi.mocked(services.remedyRejectedDocument).mockResolvedValue({
     kind: "ok",
-    value: { recordedAt: "2026-09-20T15:30:00.000Z", changes: [] },
   });
   const screen = await renderScreen(services);
   await userEvent.click(screen.getByRole("button", { name: reviewRejectionButton }));

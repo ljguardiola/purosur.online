@@ -13,8 +13,8 @@ import {
 const OCTOBER_FIRST_HALF: Fortnight = { start: "2026-10-01", end: "2026-10-15" };
 const OCTOBER_SECOND_HALF: Fortnight = { start: "2026-10-16", end: "2026-10-31" };
 const ATTEMPTED_AT = new Date("2026-10-16T12:00:00.000Z");
-const AFTER_THE_ATTEMPT = new Date("2026-10-17T12:00:00.000Z");
-const BEFORE_THE_ATTEMPT = new Date("2026-10-15T12:00:00.000Z");
+const AN_EARLIER_ATTEMPT = new Date("2026-10-15T12:00:00.000Z");
+const REMEDIED_AT = new Date("2026-10-17T12:00:00.000Z");
 
 let testDatabase: TestDatabase;
 let db: TestDatabase["db"];
@@ -88,14 +88,15 @@ describe("DrizzleRejectedFortnightDocumentReader.presentationsAwaitingRemedy", (
     ]);
   });
 
-  it("answers a rejected document whose only remedy came before the last attempt, or was for another document", async () => {
+  it("answers a rejected document whose only remedy was for an earlier rejection of it, or for another document", async () => {
     await record(OCTOBER_FIRST_HALF, { state: "refused", rejectedNumber: 4 });
     await insertRejectedDocumentRemedy(db, {
       pointOfSale: 8,
       fortnight: OCTOBER_FIRST_HALF,
       number: 4,
       correction: null,
-      recordedAt: BEFORE_THE_ATTEMPT,
+      rejectedAt: AN_EARLIER_ATTEMPT,
+      recordedAt: REMEDIED_AT,
     });
     await record(OCTOBER_SECOND_HALF, { state: "refused", rejectedNumber: 2 });
     await insertRejectedDocumentRemedy(db, {
@@ -103,7 +104,8 @@ describe("DrizzleRejectedFortnightDocumentReader.presentationsAwaitingRemedy", (
       fortnight: OCTOBER_SECOND_HALF,
       number: 1,
       correction: null,
-      recordedAt: AFTER_THE_ATTEMPT,
+      rejectedAt: ATTEMPTED_AT,
+      recordedAt: REMEDIED_AT,
     });
 
     const awaiting = await awaitingRemedy();
@@ -119,14 +121,23 @@ describe("DrizzleRejectedFortnightDocumentReader.presentationsAwaitingRemedy", (
     expect(awaiting).toHaveLength(2);
   });
 
-  it("answers nothing for a rejected document remedied after the last attempt", async () => {
+  it("answers nothing for a rejected document remedied for its last rejection, even with a remedy recorded later for an earlier one", async () => {
     await record(OCTOBER_FIRST_HALF, { state: "refused", rejectedNumber: 4 });
     await insertRejectedDocumentRemedy(db, {
       pointOfSale: 8,
       fortnight: OCTOBER_FIRST_HALF,
       number: 4,
       correction: { issuedOn: "2026-10-02" },
-      recordedAt: AFTER_THE_ATTEMPT,
+      rejectedAt: ATTEMPTED_AT,
+      recordedAt: REMEDIED_AT,
+    });
+    await insertRejectedDocumentRemedy(db, {
+      pointOfSale: 8,
+      fortnight: OCTOBER_FIRST_HALF,
+      number: 4,
+      correction: null,
+      rejectedAt: AN_EARLIER_ATTEMPT,
+      recordedAt: new Date(REMEDIED_AT.getTime() + 60_000),
     });
 
     expect(await awaitingRemedy()).toEqual([]);

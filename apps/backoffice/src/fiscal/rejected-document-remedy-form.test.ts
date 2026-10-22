@@ -20,11 +20,9 @@ const fortnight = { start: "2026-09-01", end: "2026-09-15" };
 const rejectedDocument: RejectedDocument = {
   number: 298,
   unprocessed: 12,
-  documentId: "document-1",
   issuedOn: "2026-09-09",
   total: 1_845_000,
-  buyerDocumentType: 99,
-  buyerDocumentNumber: 0,
+  buyer: { kind: "final_consumer" },
   buyerTaxStatusCode: 5,
   rejections: [{ code: 10016, message: "Fictional observation" }],
   remedy: "awaiting_remedy",
@@ -47,18 +45,33 @@ test("starts on the error being in the report, with the printed values of the do
   });
 });
 
+const soldWithCuit = {
+  ...target,
+  rejectedDocument: {
+    ...rejectedDocument,
+    buyer: { kind: "cuit", number: 20_000_000_001 },
+    buyerTaxStatusCode: 1,
+  },
+} as const;
+
 test("starts a document sold to a company with its CUIT typed", () => {
+  expect(remedyFormValuesFrom(soldWithCuit)).toMatchObject({
+    buyerKind: "cuit",
+    buyerCuit: "20000000001",
+  });
+});
+
+test("starts a document whose buyer is neither a final consumer nor a CUIT on a final consumer, with no CUIT typed", () => {
   const values = remedyFormValuesFrom({
     ...target,
-    rejectedDocument: {
-      ...rejectedDocument,
-      buyerDocumentType: 80,
-      buyerDocumentNumber: 20_000_000_015,
-      buyerTaxStatusCode: 1,
-    },
+    rejectedDocument: { ...rejectedDocument, buyer: { kind: "other" } },
   });
 
-  expect(values).toMatchObject({ buyerKind: "cuit", buyerCuit: "20000000015" });
+  expect(values).toMatchObject({ buyerKind: "final_consumer", buyerCuit: "" });
+  expect(remedyRequestFrom({ ...values, errorIn: "printed" }).remedy).toEqual({
+    kind: "printed",
+    correction: { buyer: { kind: "final_consumer" } },
+  });
 });
 
 test("asks for the document to be reported as presented when the error is in the report", () => {
@@ -86,12 +99,12 @@ test("asks to correct only what changed from the printed document when the error
   expect(rejectedDocumentRemedyBodySchema.safeParse(request).success).toBe(true);
 });
 
-test("asks to correct the buyer by the document type, its number and its tax status code", () => {
+test("asks to correct the buyer as one with the typed CUIT and the chosen tax status code", () => {
   const request = remedyRequestFrom(
     valuesWith({
       errorIn: "printed",
       buyerKind: "cuit",
-      buyerCuit: "20-00000001-5",
+      buyerCuit: "20-00000000-1",
       buyerTaxStatusCode: "1",
     }),
   );
@@ -99,10 +112,31 @@ test("asks to correct the buyer by the document type, its number and its tax sta
   expect(request.remedy).toEqual({
     kind: "printed",
     correction: {
-      buyer_document_type: 80,
-      buyer_document_number: 20_000_000_015,
+      buyer: { kind: "cuit", number: 20_000_000_001 },
       buyer_tax_status_code: 1,
     },
+  });
+  expect(rejectedDocumentRemedyBodySchema.safeParse(request).success).toBe(true);
+});
+
+test("asks to correct a buyer printed with a CUIT as a final consumer", () => {
+  const values = remedyFormValuesFrom(soldWithCuit);
+
+  expect(
+    remedyRequestFrom({ ...values, errorIn: "printed", buyerKind: "final_consumer" }).remedy,
+  ).toEqual({ kind: "printed", correction: { buyer: { kind: "final_consumer" } } });
+});
+
+test("asks for no change of the buyer while the CUIT typed is the printed one, and for one once it differs", () => {
+  const values = { ...remedyFormValuesFrom(soldWithCuit), errorIn: "printed" } as const;
+
+  expect(remedyRequestFrom({ ...values, buyerCuit: "20-00000000-1" }).remedy).toEqual({
+    kind: "printed",
+    correction: {},
+  });
+  expect(remedyRequestFrom({ ...values, buyerCuit: "23-00000000-0" }).remedy).toEqual({
+    kind: "printed",
+    correction: { buyer: { kind: "cuit", number: 23_000_000_000 } },
   });
 });
 
@@ -120,35 +154,20 @@ test("a cleared date asks for no change of the date", () => {
 });
 
 test.each([
-  ["no total", { total: "" }, "remedy", "total"],
-  ["a total that is not an amount", { total: "mucho" }, "remedy", "total"],
-  [
-    "no CUIT for a company",
-    { buyerKind: "cuit", buyerCuit: "" },
-    "remedy",
-    "buyer_document_number",
-  ],
-  [
-    "a CUIT with letters",
-    { buyerKind: "cuit", buyerCuit: "20-abc" },
-    "remedy",
-    "buyer_document_number",
-  ],
-  ["no tax status code", { buyerTaxStatusCode: "" }, "remedy", "buyer_tax_status_code"],
-  [
-    "a tax status code with letters",
-    { buyerTaxStatusCode: "cinco" },
-    "remedy",
-    "buyer_tax_status_code",
-  ],
+  ["no total", { total: "" }, ["total"]],
+  ["a total that is not an amount", { total: "mucho" }, ["total"]],
+  ["no CUIT for a company", { buyerKind: "cuit", buyerCuit: "" }, ["buyer", "number"]],
+  ["a CUIT with letters", { buyerKind: "cuit", buyerCuit: "20-abc" }, ["buyer", "number"]],
+  ["no tax status code", { buyerTaxStatusCode: "" }, ["buyer_tax_status_code"]],
+  ["a tax status code with letters", { buyerTaxStatusCode: "cinco" }, ["buyer_tax_status_code"]],
 ] as const)(
   "a printed correction with %s is refused by the contract, naming the field",
-  (_case, overrides, first, field) => {
+  (_case, overrides, field) => {
     const result = rejectedDocumentRemedyBodySchema.safeParse(
       remedyRequestFrom(valuesWith({ errorIn: "printed", ...overrides })),
     );
 
-    expect(result.error?.issues[0]?.path).toEqual([first, "correction", field]);
+    expect(result.error?.issues[0]?.path).toEqual(["remedy", "correction", ...field]);
   },
 );
 
@@ -166,7 +185,7 @@ test.each([
 test.each([
   { buyerCuit: "", reason: "Ingresá el CUIT del comprador." },
   { buyerCuit: "20-abc", reason: "Escribí el CUIT solo con números." },
-  { buyerCuit: "20-00000001-5", reason: "Revisá el CUIT." },
+  { buyerCuit: "20-00000000-2", reason: "Revisá el CUIT." },
 ])("a typed CUIT of '$buyerCuit' can't be sent: $reason", ({ buyerCuit, reason }) => {
   expect(buyerCuitMessage(valuesWith({ buyerCuit }))).toBe(reason);
 });

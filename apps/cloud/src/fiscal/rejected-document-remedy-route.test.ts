@@ -257,17 +257,17 @@ describe("POST /registers/fortnight-presentations/rejected-document-remedies", (
 
     const response = await remedy(REPORT, session.headers);
 
-    expect(response.statusCode).toBe(200);
-    expect(response.json()).toEqual({ recorded_at: SESSION_NOON.toISOString(), changes: [] });
+    expect(response.statusCode).toBe(204);
+    expect(response.body).toBe("");
     expect(await remedies()).toMatchObject([
-      { number: 3, kind: "report", recordedAt: SESSION_NOON },
+      { number: 3, kind: "report", rejectedAt: ATTEMPTED_AT, recordedAt: SESSION_NOON },
     ]);
     expect(await remedyAudits()).toMatchObject([
       { actorId: session.userId, at: SESSION_NOON, newValue: { remedy: "report", number: 3 } },
     ]);
   });
 
-  it("records a correction and answers the fields it changed with their values before and after, audited under the actor", async () => {
+  it("records a correction, audited under the actor with the fields it changed and their values before and after", async () => {
     await seedRejectedDocument();
     const session = await sessionWith(["change_fiscal_configuration"]);
 
@@ -276,14 +276,7 @@ describe("POST /registers/fortnight-presentations/rejected-document-remedies", (
       session.headers,
     );
 
-    expect(response.statusCode).toBe(200);
-    expect(response.json()).toEqual({
-      recorded_at: SESSION_NOON.toISOString(),
-      changes: [
-        { field: "issued_on", before: "2026-10-03", after: "2026-10-02" },
-        { field: "total", before: 10_000, after: 12_500 },
-      ],
-    });
+    expect(response.statusCode).toBe(204);
     expect(await remedies()).toMatchObject([
       { kind: "printed", correction: { issuedOn: "2026-10-02", total: 12_500 } },
     ]);
@@ -293,6 +286,30 @@ describe("POST /registers/fortnight-presentations/rejected-document-remedies", (
         entity: "offline_fiscal_document",
         previousValue: { issued_on: "2026-10-03", total: 10_000 },
         newValue: { issued_on: "2026-10-02", total: 12_500 },
+      },
+    ]);
+  });
+
+  it("records the buyer a correction names as the document type and number the domain gives it", async () => {
+    await seedRejectedDocument();
+    const session = await sessionWith(["change_fiscal_configuration"]);
+
+    const response = await remedy(
+      {
+        kind: "printed",
+        correction: { buyer: { kind: "cuit", number: 20_000_000_001 }, buyer_tax_status_code: 1 },
+      },
+      session.headers,
+    );
+
+    expect(response.statusCode).toBe(204);
+    expect(await remedies()).toMatchObject([
+      {
+        correction: {
+          buyerDocumentType: 80,
+          buyerDocumentNumber: 20_000_000_001,
+          buyerTaxStatusCode: 1,
+        },
       },
     ]);
   });

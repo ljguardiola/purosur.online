@@ -67,11 +67,9 @@ function rejectedDocument(overrides: Partial<RejectedDocument> = {}): RejectedDo
   return {
     number: 298,
     unprocessed: 12,
-    documentId: "document-1",
     issuedOn: "2026-09-09",
     total: 1_845_000,
-    buyerDocumentType: 99,
-    buyerDocumentNumber: 0,
+    buyer: { kind: "final_consumer" },
     buyerTaxStatusCode: 5,
     rejections: [{ code: 10016, message: "Fictional observation" }],
     remedy: "awaiting_remedy",

@@ -65,12 +65,10 @@ const pending: FortnightPresentation = {
 const rejectedDocumentWire = {
   number: 17,
   unprocessed: 12,
-  document_id: "6d1f0c52-0f7e-4a53-9f4c-2a7d2f1c9b77",
   issued_on: "2026-09-09",
   total: 1_845_000,
-  buyer_document_type: 99,
-  buyer_document_number: 0,
-  buyer_tax_status_code: 5,
+  buyer: { kind: "cuit", number: 20_000_000_001 },
+  buyer_tax_status_code: 1,
   rejections: [{ code: 10016, message: "Fictional observation" }],
   remedy: "awaiting_remedy",
 };
@@ -105,12 +103,10 @@ test("fetchFortnightPresentations reads how a presentation was refused, the reje
         rejectedDocument: {
           number: 17,
           unprocessed: 12,
-          documentId: "6d1f0c52-0f7e-4a53-9f4c-2a7d2f1c9b77",
           issuedOn: "2026-09-09",
           total: 1_845_000,
-          buyerDocumentType: 99,
-          buyerDocumentNumber: 0,
-          buyerTaxStatusCode: 5,
+          buyer: { kind: "cuit", number: 20_000_000_001 },
+          buyerTaxStatusCode: 1,
           rejections: [{ code: 10016, message: "Fictional observation" }],
           remedy: "awaiting_remedy",
         },
@@ -136,6 +132,15 @@ test.each([
   ["a row missing its document count", [{ ...blockedWire, document_count: undefined }]],
   ["a document type the cloud does not define", [{ ...blockedWire, document_type: "factura_a" }]],
   ["a state the cloud does not define", [{ ...blockedWire, state: "paused" }]],
+  [
+    "a rejected document whose buyer the cloud does not define",
+    [
+      {
+        ...partlyRejectedWire,
+        rejected_document: { ...rejectedDocumentWire, buyer: { kind: "dni" } },
+      },
+    ],
+  ],
 ])("fetchFortnightPresentations returns failed on 200 with %s", async (_name, body) => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(200, body));
 
@@ -177,21 +182,10 @@ const reportRemedy = {
   remedy: { kind: "report" },
 } as const;
 
-test("remedyRejectedDocument posts the remedy and reads when it was recorded and the fields it changed", async () => {
-  vi.mocked(fetch).mockResolvedValue(
-    jsonResponse(200, {
-      recorded_at: "2026-09-20T15:30:00.000Z",
-      changes: [{ field: "issued_on", before: "2026-09-09", after: "2026-09-10" }],
-    }),
-  );
+test("remedyRejectedDocument posts the remedy and answers ok on 204", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(204));
 
-  expect(await remedyRejectedDocument(reportRemedy)).toEqual({
-    kind: "ok",
-    value: {
-      recordedAt: "2026-09-20T15:30:00.000Z",
-      changes: [{ field: "issued_on", before: "2026-09-09", after: "2026-09-10" }],
-    },
-  });
+  expect(await remedyRejectedDocument(reportRemedy)).toEqual({ kind: "ok" });
   expect(fetch).toHaveBeenCalledWith(
     "/api/registers/fortnight-presentations/rejected-document-remedies",
     {
@@ -200,12 +194,6 @@ test("remedyRejectedDocument posts the remedy and reads when it was recorded and
       body: JSON.stringify(reportRemedy),
     },
   );
-});
-
-test("remedyRejectedDocument returns failed on 200 with a body that is not the recorded remedy", async () => {
-  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { recorded_at: "yesterday" }));
-
-  expect(await remedyRejectedDocument(reportRemedy)).toEqual({ kind: "failed" });
 });
 
 test("remedyRejectedDocument names the field the cloud refused on 400", async () => {

@@ -39,7 +39,10 @@ function remedyRecordedAfterRejection(
   number: number,
 ) {
   clock.advanceBy(1000);
-  reports.recordRemedy(KEY, "factura_c", { number, recordedAt: clock.now() });
+  reports.recordRemedy(KEY, "factura_c", {
+    number,
+    rejectedAt: reports.rejectionAt(KEY, "factura_c"),
+  });
 }
 
 describe("reportFortnights, for a document the tax authority rejected", () => {
@@ -88,11 +91,11 @@ describe("reportFortnights, for a document the tax authority rejected", () => {
       expect(setup.reports.documentTypeChanges).toHaveLength(typeChanges);
     });
 
-    it("keeps awaiting when the only remedy recorded is older than the rejection", async () => {
+    it("keeps awaiting when the only remedy recorded is for an earlier rejection of the number", async () => {
       const setup = await setUpRejectedAt(3);
       setup.reports.recordRemedy(KEY, "factura_c", {
         number: 3,
-        recordedAt: new Date(setup.clock.now().getTime() - 1000),
+        rejectedAt: new Date(setup.clock.now().getTime() - 1000),
       });
       setup.clock.advanceBy(5 * HOUR_MS);
 
@@ -104,7 +107,10 @@ describe("reportFortnights, for a document the tax authority rejected", () => {
     it("keeps awaiting when the remedy recorded is for another number", async () => {
       const setup = await setUpRejectedAt(3);
       setup.clock.advanceBy(1000);
-      setup.reports.recordRemedy(KEY, "factura_c", { number: 2, recordedAt: setup.clock.now() });
+      setup.reports.recordRemedy(KEY, "factura_c", {
+        number: 2,
+        rejectedAt: setup.reports.rejectionAt(KEY, "factura_c"),
+      });
 
       const result = await setup.run();
 
@@ -130,12 +136,45 @@ describe("reportFortnights, for a document the tax authority rejected", () => {
       setup.documentReports.reportAnswer = () => ({ kind: "refused", rejections: REJECTIONS });
       await setup.run();
       setup.clock.advanceBy(1000);
-      setup.reports.recordRemedy(KEY, "factura_c", { number: 1, recordedAt: setup.clock.now() });
+      setup.reports.recordRemedy(KEY, "factura_c", {
+        number: 1,
+        rejectedAt: setup.reports.rejectionAt(KEY, "factura_c"),
+      });
 
       const result = await setup.run();
 
       expect(presentationOutcomes(result)[0]?.outcome).toEqual({ kind: "retry_not_due" });
       expect(setup.documentReports.reports).toHaveLength(1);
+    });
+
+    it("awaits the remedy of a rejected document even before anything is recorded for the fortnight, asking the tax authority nothing", async () => {
+      const setup = setUpReportFortnights();
+      setup.documents.add(
+        POINT_OF_SALE,
+        SEPTEMBER_SECOND_HALF,
+        ...[1, 2, 3].map((number) => offlineDocument(number)),
+      );
+      setup.reports.seedDocumentTypeReport(KEY, {
+        documentType: "factura_c",
+        state: "refused",
+        reportedThrough: 1,
+        rejectedNumber: 2,
+        lastAttemptAt: setup.clock.now(),
+        rejections: REJECTIONS,
+        remedy: null,
+      });
+
+      const result = await setup.run();
+
+      expect(presentationOutcomes(result)).toEqual([
+        {
+          pointOfSaleNumber: POINT_OF_SALE,
+          fortnight: SEPTEMBER_SECOND_HALF,
+          documentType: "factura_c",
+          outcome: { kind: "awaiting_remedy", number: 2 },
+        },
+      ]);
+      expect(setup.operations.filter((op) => op.startsWith("tax authority"))).toEqual([]);
     });
 
     it("presents the fortnights without a rejected document as usual", async () => {
@@ -214,6 +253,27 @@ describe("reportFortnights, for a document the tax authority rejected", () => {
         kind: "awaiting_remedy",
         number: 3,
       });
+    });
+
+    it("awaits a remedy for a newer rejection of the number even when the clock went back below the earlier remedy", async () => {
+      const setup = await setUpRejectedAt(3);
+      remedyRecordedAfterRejection(setup, 3);
+      setup.clock.advanceBy(-10_000);
+      setup.documentReports.reportAnswer = () => ({
+        kind: "rejected",
+        number: 3,
+        rejections: REJECTIONS,
+      });
+      await setup.run();
+      const reportsBefore = setup.documentReports.reports.length;
+
+      const result = await setup.run();
+
+      expect(presentationOutcomes(result)[0]?.outcome).toEqual({
+        kind: "awaiting_remedy",
+        number: 3,
+      });
+      expect(setup.documentReports.reports).toHaveLength(reportsBefore);
     });
 
     it("sends the documents as presented, with the correction a person entered", async () => {
@@ -373,6 +433,49 @@ describe("reportFortnights, for a document the tax authority rejected", () => {
 
       expect(setup.reports.creditNotes.size).toBe(0);
       expect(setup.reports.changes.at(-1)?.change.state).toBe("accepted");
+    });
+
+    it("is recorded by a later run once the register has a real-time point of sale, under the presentation's lock and without presenting it again", async () => {
+      const setup = await setUpCorrected();
+      setup.reports.realTimePointsOfSale.clear();
+      await setup.run();
+      setup.reports.realTimePointsOfSale.set(REGISTER_ID, REAL_TIME_POINT_OF_SALE);
+      const reportsBefore = setup.documentReports.reports.length;
+      const before = setup.operations.length;
+
+      await setup.run();
+
+      expect([...setup.reports.creditNotes.values()]).toEqual([
+        expect.objectContaining({
+          saleId: "sale-3",
+          pointOfSale: REAL_TIME_POINT_OF_SALE,
+          associatedVoucher: { voucherType: 11, pointOfSale: POINT_OF_SALE, number: 3 },
+          total: 9_900,
+        }),
+      ]);
+      expect(setup.documentReports.reports).toHaveLength(reportsBefore);
+      const run = setup.operations.slice(before);
+      const credit = run.indexOf("credit corrected document 3");
+      expect(run.slice(0, credit)).toContain(
+        `hold ${POINT_OF_SALE}:${SEPTEMBER_SECOND_HALF.start}`,
+      );
+      expect(run.slice(credit)).toContain(
+        `release ${POINT_OF_SALE}:${SEPTEMBER_SECOND_HALF.start}`,
+      );
+    });
+
+    it("is not recorded by a later run for a corrected number the tax authority does not hold yet", async () => {
+      const setup = await setUpRejectedAt(3);
+      setup.documents.replace(POINT_OF_SALE, SEPTEMBER_SECOND_HALF, [
+        offlineDocument(1),
+        offlineDocument(2),
+        offlineDocument(3, corrected),
+      ]);
+      setup.clock.advanceBy(5 * HOUR_MS);
+
+      await setup.run();
+
+      expect(setup.reports.creditNotes.size).toBe(0);
     });
   });
 });

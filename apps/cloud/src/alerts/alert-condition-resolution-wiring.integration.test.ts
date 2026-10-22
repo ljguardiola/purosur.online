@@ -463,6 +463,7 @@ describe("the background worker the server sets up on a real Postgres", () => {
         fortnight,
         number: 3,
         correction: null,
+        rejectedAt: new Date("2020-01-03T12:00:00.000Z"),
         recordedAt: new Date("2020-01-04T12:00:00.000Z"),
       });
       await sql`select graphile_worker.add_job('alert-condition-resolution')`;

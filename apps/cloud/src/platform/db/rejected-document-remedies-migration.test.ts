@@ -73,6 +73,26 @@ describe("the rejected document remedies migration applied over a database that 
     ]);
   });
 
+  it("records the instant of the rejection a remedy remedies, and none for a rejection never attempted", async () => {
+    const client = await migratedDatabase();
+
+    await client.query(
+      `insert into rejected_document_remedies
+         (point_of_sale_number, fortnight_start, document_type, number, kind, rejected_at, recorded_at)
+       values
+         (7, '2026-10-01', 'factura_c', 3, 'report', '2026-10-16T11:00:00Z', '2026-10-16T12:00:00Z'),
+         (7, '2026-10-01', 'factura_c', 4, 'report', null, '2026-10-16T12:00:00Z')`,
+    );
+
+    const { rows } = await client.query(
+      `select number, rejected_at from rejected_document_remedies order by number`,
+    );
+    expect(rows).toEqual([
+      { number: 3, rejected_at: new Date("2026-10-16T11:00:00.000Z") },
+      { number: 4, rejected_at: null },
+    ]);
+  });
+
   it.each([
     [
       "a corrected remedy without its correction",
