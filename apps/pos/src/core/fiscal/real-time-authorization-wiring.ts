@@ -175,8 +175,14 @@ export function startRegisterHealthChecks({
         record: (check) => recordRegisterHealthCheck({ healthChecks }, check),
         now,
       }).catch(reportFailure);
-      const outboxChainKey = await readOutboxChainKey();
-      const documents = new SqliteRealTimeFiscalDocuments(database, outboxChainKey);
+      const outboxChainKey = await readOutboxChainKey().then(
+        (key) => ({ key }),
+        (error: unknown) => {
+          reportFailure(error);
+          return undefined;
+        },
+      );
+      const documents = new SqliteRealTimeFiscalDocuments(database, outboxChainKey?.key);
       const { failed } = await applyUnclearOutcomeDecisions({
         documents,
         cloud,
@@ -186,15 +192,17 @@ export function startRegisterHealthChecks({
       for (const { error } of failed) {
         reportFailure(error);
       }
-      await catchUpDeferredSales({
-        catchUp: new SqliteDeferredSaleCatchUp(database, outboxChainKey),
-        documents,
-        roundTrips: new SqliteRoundTripSamples(database),
-        taxAuthority,
-        clock: { now },
-        ids,
-        shortCodes,
-      }).catch(reportFailure);
+      if (outboxChainKey !== undefined) {
+        await catchUpDeferredSales({
+          catchUp: new SqliteDeferredSaleCatchUp(database, outboxChainKey.key),
+          documents,
+          roundTrips: new SqliteRoundTripSamples(database),
+          taxAuthority,
+          clock: { now },
+          ids,
+          shortCodes,
+        }).catch(reportFailure);
+      }
       if (creditNotesCloud !== undefined) {
         await requestVoidCreditNotes({
           creditNotes,

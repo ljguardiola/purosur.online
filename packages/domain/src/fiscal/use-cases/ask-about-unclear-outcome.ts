@@ -22,7 +22,7 @@ export type AskAboutUnclearOutcomeOutcome =
   | { kind: "sale_completion_not_held" };
 
 export async function askAboutUnclearOutcome(
-  { lanes, clock }: AskAboutUnclearOutcomePorts,
+  { lanes, saleCompletions, clock }: AskAboutUnclearOutcomePorts,
   { registerId, request }: AskAboutUnclearOutcomeInput,
 ): Promise<AskAboutUnclearOutcomeOutcome> {
   if (request.saleEvent !== null && !isCompletionEventOfSale(request.saleEvent, request.saleId)) {
@@ -43,7 +43,7 @@ export async function askAboutUnclearOutcome(
 
       if (
         request.saleEvent === null &&
-        !(await lane.holdsSaleCompletion(registerId, request.saleId))
+        !(await saleCompletions.holdsCompletionOf(registerId, request.saleId))
       ) {
         return { kind: "sale_completion_not_held" };
       }

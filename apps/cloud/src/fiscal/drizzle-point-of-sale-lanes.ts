@@ -13,7 +13,7 @@ import {
   type RecordedAuthorizationRequest,
   type RejectionStandingChange,
 } from "@purosur/domain/fiscal/use-cases";
-import { and, eq, isNotNull, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { observeAlertCondition } from "../alerts/observe-alert-condition.js";
 import { postgresErrorChain } from "../platform/db/postgres-error-chain.js";
@@ -21,7 +21,6 @@ import {
   arcaInvoicingEvidence,
   fiscalRequests,
   registerPointsOfSale,
-  sales,
 } from "../platform/db/schema.js";
 import type { DedicatedConnections } from "../platform/dedicated-connections.js";
 import { PendingChanges } from "../sync/change-log.js";
@@ -84,16 +83,6 @@ class DrizzlePointOfSaleLane<TQueryResult extends PgQueryResultHKT> implements P
         ),
       );
     return current !== undefined;
-  }
-
-  async holdsSaleCompletion(registerId: string, saleId: string): Promise<boolean> {
-    const [sale] = await this.db
-      .select({ id: sales.id })
-      .from(sales)
-      .where(
-        and(eq(sales.id, saleId), eq(sales.registerId, registerId), isNotNull(sales.completedAt)),
-      );
-    return sale !== undefined;
   }
 
   async recordedRequest(

@@ -24,6 +24,7 @@ import {
   type DeviceTokensOptions,
   installationTokenPorts,
 } from "../register/installation-token-ports.js";
+import { DrizzleSaleCompletions } from "../sales/drizzle-sale-completions.js";
 import { PUBLIC_ACCESS } from "../sessions/route-access.js";
 import { DrizzleRequestAdmission } from "../sync/drizzle-request-admission.js";
 import { clearAuthorizationAnswerToWire } from "./clear-authorization-answer-wire.js";
@@ -102,6 +103,7 @@ export function registerFiscalAuthorizationRoute<TQueryResult extends PgQueryRes
       options.withdrawUnclearOutcome,
       options.enqueueNumberingDiagnosis,
     ),
+    saleCompletions: new DrizzleSaleCompletions(options.db),
     clock,
     tokens: new DrizzleWsaaTokenSource(
       options.db,

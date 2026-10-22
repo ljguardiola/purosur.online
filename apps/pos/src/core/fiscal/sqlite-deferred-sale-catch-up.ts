@@ -6,6 +6,7 @@ import type {
   DeferredSaleSatisfaction,
 } from "@purosur/domain/fiscal/use-cases";
 import type { LocalDatabase } from "../platform/local-database";
+import { awaitsRestoredNumbering } from "../register/sqlite-restoration-evidence";
 import { appendOutboxEvent } from "../sync/sqlite-outbox";
 import { readFiscalOnlineEvidence } from "./sqlite-fiscal-online-evidence";
 import { readRealTimeSeries } from "./sqlite-fiscal-series";
@@ -46,7 +47,7 @@ export class SqliteDeferredSaleCatchUp implements DeferredSaleCatchUp {
         fiscalOnlineEvidence: () => readFiscalOnlineEvidence(this.database),
         issuerIdentification: () => readIssuerIdentificationInEffect(this.database),
         buyerTaxStatuses: () => readBuyerTaxStatusSetInEffect(this.database),
-        awaitsRestoredNumbering: () => this.awaitsRestoredNumbering(),
+        awaitsRestoredNumbering: () => awaitsRestoredNumbering(this.database),
         deferredSalesHoldingAuthorizedDocument: () => this.deferredSalesHoldingAuthorizedDocument(),
         satisfyDeferredSale: (satisfaction) => this.satisfyDeferredSale(satisfaction),
         reserveFiscalDocument: (reservation) =>
@@ -54,17 +55,6 @@ export class SqliteDeferredSaleCatchUp implements DeferredSaleCatchUp {
         recordClockMark: (mark) => upsertClockMark(this.database, mark),
       }),
     )();
-  }
-
-  private awaitsRestoredNumbering(): boolean {
-    return (
-      this.database
-        .prepare<[], { awaiting: 1 }>(
-          `SELECT 1 AS awaiting FROM awaiting_restored_numbering
-           JOIN register_point_of_sale USING (register_id) LIMIT 1`,
-        )
-        .get() !== undefined
-    );
   }
 
   private deferredSalesHoldingAuthorizedDocument(): readonly DeferredSaleHoldingAuthorizedDocument[] {

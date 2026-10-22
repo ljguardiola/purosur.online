@@ -12,6 +12,7 @@ import type {
   WsaaTokenSource,
 } from "./fiscal-document-authorization-ports.js";
 import type { IdGenerator } from "./sale-authorization-ports.js";
+import type { SaleCompletions } from "./sale-completion-ports.js";
 import type { TaxAuthorityLastAuthorizedLookup } from "./tax-authority-count-ports.js";
 import type { WsaaToken } from "./wsaa-token-ports.js";
 
@@ -45,7 +46,6 @@ export interface UnclearOutcomeLane {
   ): Promise<void>;
   otherDocumentsOfSale(saleId: string, fiscalDocumentId: string): Promise<SaleDocument[]>;
   registerOwnsPointOfSale(registerId: string, pointOfSale: number): Promise<boolean>;
-  holdsSaleCompletion(registerId: string, saleId: string): Promise<boolean>;
   recordedRequest(
     registerId: string,
     fiscalDocumentId: string,
@@ -90,5 +90,6 @@ export interface DecideUnclearRealTimeOutcomePorts {
 
 export interface AskAboutUnclearOutcomePorts {
   lanes: UnclearOutcomeLanes;
+  saleCompletions: SaleCompletions;
   clock: Clock;
 }

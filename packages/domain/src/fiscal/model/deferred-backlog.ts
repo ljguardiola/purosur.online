@@ -27,10 +27,8 @@ export function isDateOrderBroken(
 }
 
 export function latestIssuedOn(a: string | null, b: string | null): string | null {
-  if (a === null || b === null) {
-    return a ?? b;
-  }
-  return new Date(Math.max(Date.parse(a), Date.parse(b))).toISOString().slice(0, 10);
+  const knownDays = [a, b].filter((day) => day !== null).sort();
+  return knownDays.at(-1) ?? null;
 }
 
 export function isInDeferredBacklog(
@@ -59,7 +57,8 @@ function compareBacklogOrder(a: DeferredBacklogEntry, b: DeferredBacklogEntry): 
   if (a.routedAt.getTime() !== b.routedAt.getTime()) {
     return a.routedAt.getTime() - b.routedAt.getTime();
   }
-  return a.deferredSaleId.localeCompare(b.deferredSaleId);
+  const [firstId] = [a.deferredSaleId, b.deferredSaleId].sort();
+  return firstId === a.deferredSaleId ? -1 : 1;
 }
 
 export function nextDeferredBacklogStep(

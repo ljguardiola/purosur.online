@@ -85,7 +85,7 @@ function taxAuthorityGaveAnswer(
 }
 
 export async function authorizeFiscalDocument(
-  { lanes, clock, tokens, taxAuthority }: AuthorizeFiscalDocumentPorts,
+  { lanes, saleCompletions, clock, tokens, taxAuthority }: AuthorizeFiscalDocumentPorts,
   { registerId, request, receivedAt }: AuthorizeFiscalDocumentInput,
 ): Promise<AuthorizeFiscalDocumentOutcome> {
   if (request.saleEvent !== null && !isCompletionEventOfSale(request.saleEvent, request.saleId)) {
@@ -106,7 +106,7 @@ export async function authorizeFiscalDocument(
 
       if (
         request.saleEvent === null &&
-        !(await lane.holdsSaleCompletion(registerId, request.saleId))
+        !(await saleCompletions.holdsCompletionOf(registerId, request.saleId))
       ) {
         return { kind: "sale_completion_not_held" };
       }

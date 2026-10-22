@@ -506,6 +506,7 @@ export type {
   SaleAuthorizationTransaction,
   SaleOrigin,
 } from "./sale-authorization-ports.js";
+export type { SaleCompletions } from "./sale-completion-ports.js";
 export type {
   AlreadyCreditedRefusal,
   InvoiceAlreadyCredited,
