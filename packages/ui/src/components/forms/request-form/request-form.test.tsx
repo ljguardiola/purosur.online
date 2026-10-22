@@ -1216,9 +1216,9 @@ test("a segmented control submits the segment that was chosen", async () => {
 });
 
 const DAY_CHIPS = [
-  { value: "1", label: "Lun", accessibleName: "Lunes" },
-  { value: "2", label: "Mar", accessibleName: "Martes" },
-  { value: "3", label: "Mié", accessibleName: "Miércoles" },
+  { value: "1", label: "Lun", fullLabel: "Lunes" },
+  { value: "2", label: "Mar", fullLabel: "Martes" },
+  { value: "3", label: "Mié", fullLabel: "Miércoles" },
 ] as const;
 
 function ChipsProbe({ onSubmit }: { onSubmit: (days: string[]) => Promise<void> }) {
@@ -1249,7 +1249,7 @@ test("a toggle chip group shows its field's message after a failed submit and cl
 
   await userEvent.click(screen.getByRole("button", { name: "Enviar" }));
   await expect.element(screen.getByText("Elegí al menos un día.")).toBeVisible();
-  await userEvent.click(screen.getByRole("button", { name: "Martes" }));
+  await userEvent.click(screen.getByRole("button", { name: "Mar, Martes" }));
 
   await expect.poll(() => screen.getByText("Elegí al menos un día.").query()).toBeNull();
 });
@@ -1258,8 +1258,8 @@ test("a toggle chip group submits the chips that were chosen, in the order of it
   const onSubmit = vi.fn<(days: string[]) => Promise<void>>(() => Promise.resolve());
   const screen = await render(<ChipsProbe onSubmit={onSubmit} />);
 
-  await userEvent.click(screen.getByRole("button", { name: "Miércoles" }));
-  await userEvent.click(screen.getByRole("button", { name: "Lunes" }));
+  await userEvent.click(screen.getByRole("button", { name: "Mié, Miércoles" }));
+  await userEvent.click(screen.getByRole("button", { name: "Lun, Lunes" }));
   await userEvent.click(screen.getByRole("button", { name: "Enviar" }));
 
   await expect.poll(() => onSubmit.mock.calls.length).toBe(1);

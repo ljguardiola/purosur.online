@@ -183,7 +183,7 @@ test("draws the pill variant as an error pill that reads its title and Reintenta
   const button = screen
     .getByRole("button", { name: "Demasiadas solicitudes. Reintentar" })
     .element() as HTMLElement;
-  expect(button.textContent).toBe("Demasiadas solicitudesReintentar");
+  expect(button.textContent).toBe("Demasiadas solicitudes Reintentar");
   expect(button.querySelector("svg")?.closest("[aria-hidden='true']")).not.toBeNull();
 
   const reference = await render(
