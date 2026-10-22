@@ -4,6 +4,7 @@ import {
   confirmedCreditNoteAnswer,
   creditNoteAnswerOf,
   invoiceToCorrect,
+  restoredCreditNoteSettlement,
   type SaleInvoice,
   type SaleVoidCreditNote,
   saleVoidCreditNotePayload,
@@ -171,5 +172,62 @@ describe("confirmedCreditNoteAnswer", () => {
 
   it.each(UNCONFIRMED_STANDINGS)("is no answer when the credit note is %s", (_case, standing) => {
     expect(confirmedCreditNoteAnswer(standing, 12)).toBeNull();
+  });
+});
+
+describe("restoredCreditNoteSettlement", () => {
+  it("answers with the authorization the tax authority gave", () => {
+    expect(
+      restoredCreditNoteSettlement({ standing: AUTHORIZED_STANDING, pointOfSale: 12 }, false),
+    ).toEqual({
+      kind: "answered",
+      answer: {
+        kind: "authorized",
+        pointOfSale: 12,
+        number: 9,
+        issuedOn: "2026-10-07",
+        issuedAt: new Date("2026-10-07T10:29:00.000Z"),
+        authorizationCode: "74123456789012",
+        authorizationCodeDueOn: "2026-10-17",
+      },
+    });
+  });
+
+  it("answers with the rejection the tax authority gave", () => {
+    expect(
+      restoredCreditNoteSettlement({ standing: { kind: "rejected" }, pointOfSale: 12 }, false),
+    ).toEqual({ kind: "answered", answer: { kind: "rejected" } });
+  });
+
+  it("answers that the invoice was already credited when the refusal was kept and no credit note was recorded", () => {
+    expect(restoredCreditNoteSettlement(null, true)).toEqual({
+      kind: "answered",
+      answer: { kind: "already_credited" },
+    });
+  });
+
+  it("was never requested when no credit note was recorded and no refusal was kept", () => {
+    expect(restoredCreditNoteSettlement(null, false)).toEqual({ kind: "never_requested" });
+  });
+
+  it.each(UNCONFIRMED_STANDINGS)(
+    "is unsettled when the recorded credit note is %s",
+    (_case, standing) => {
+      expect(restoredCreditNoteSettlement({ standing, pointOfSale: 12 }, false)).toEqual({
+        kind: "unsettled",
+      });
+    },
+  );
+
+  it("is unsettled, never already credited, when the recorded credit note is still in progress beside a refusal", () => {
+    expect(
+      restoredCreditNoteSettlement({ standing: { kind: "not_requested" }, pointOfSale: 12 }, true),
+    ).toEqual({ kind: "unsettled" });
+  });
+
+  it("answers with the recorded credit note's own answer beside a refusal", () => {
+    expect(
+      restoredCreditNoteSettlement({ standing: { kind: "rejected" }, pointOfSale: 12 }, true),
+    ).toEqual({ kind: "answered", answer: { kind: "rejected" } });
   });
 });
