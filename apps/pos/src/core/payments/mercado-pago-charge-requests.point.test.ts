@@ -55,6 +55,16 @@ function pointRows(): unknown[] {
     .all();
 }
 
+function countingIds(prefix: string): { next: () => string } {
+  let count = 0;
+  return {
+    next: () => {
+      count += 1;
+      return `${prefix}-${count}`;
+    },
+  };
+}
+
 function outboxEvents(): unknown[] {
   return database.prepare("SELECT event_type FROM outbox ORDER BY device_seq").all();
 }
@@ -198,7 +208,10 @@ describe("following a charge on the integrated terminal at the register", () => 
       await followMercadoPagoChargeFor(deps(orders), { paymentTransactionId: paymentId }),
     ).toEqual({ kind: "completed", sale_id: saleId, total: 3000 });
     expect(pointRows()).toMatchObject([{ state: "APPROVED" }]);
-    expect(outboxEvents()).toEqual([{ event_type: "sale_completed" }]);
+    expect(outboxEvents()).toEqual([
+      { event_type: "sale_completed" },
+      { event_type: "deferred_sale_recorded" },
+    ]);
     const completed = database
       .prepare("SELECT payload FROM outbox WHERE event_type = 'sale_completed'")
       .get() as { payload: string };
@@ -390,7 +403,7 @@ describe("a charge on the integrated terminal while the cloud cannot be reached"
           gate: deps(offline).gate,
           readOutboxChainKey: async () => CHARGE_CHAIN_KEY,
           now: () => CHARGE_NOW,
-          ids: { next: () => "cash-1" },
+          ids: countingIds("cash"),
         },
         { saleId, tendered: 3000 },
       ),
@@ -408,7 +421,7 @@ describe("a charge on the integrated terminal while the cloud cannot be reached"
           gate: deps(online).gate,
           readOutboxChainKey: async () => CHARGE_CHAIN_KEY,
           now: () => CHARGE_NOW,
-          ids: { next: () => "cash-1" },
+          ids: countingIds("cash"),
         },
         { saleId, tendered: 3000 },
       ),

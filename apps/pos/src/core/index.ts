@@ -60,9 +60,8 @@ import {
   postToCloudWithBearer,
 } from "./platform/cloud-client";
 import { initializeErrorReporting } from "./platform/error-reporting";
-import { createHeldMessages } from "./platform/held-messages";
 import { LOCAL_MIGRATIONS } from "./platform/local-migrations";
-import { createMainRequests } from "./platform/main-requests";
+import { createMainLink } from "./platform/main-link";
 import { refreshKeysWhenAnnounced } from "./register/announced-key-refresh";
 import { createBatteryShutdown } from "./register/battery-shutdown";
 import { createBatteryWatch } from "./register/battery-watch";
@@ -212,14 +211,11 @@ const recorder: RejectionRecorder = {
 };
 
 const gateFromMain = createMessageGate(mainToCoreMessageSchema, recorder);
-const messagesFromMain = createHeldMessages<Electron.MessageEvent>();
-process.parentPort.on("message", messagesFromMain.receive);
-const gateFromRenderer = createMessageGate(rendererToCoreMessageSchema, recorder);
-
-const mainRequests = createMainRequests({
-  post: (message) => process.parentPort.postMessage(message),
+const { mainRequests, deliverTo: deliverMessagesFromMain } = createMainLink({
+  parentPort: process.parentPort,
   newRequestId: randomUUID,
 });
+const gateFromRenderer = createMessageGate(rendererToCoreMessageSchema, recorder);
 
 const cloudUrl = cloudUrlFromCoreArguments(process.argv);
 if (cloudUrl === undefined) {
@@ -618,6 +614,7 @@ const realTimeAuthorization = createRealTimeAuthorization({
   reportFailure: (error) => reportFailure("the real-time authorization", error),
   ids: uuidV7Ids,
   shortCodes: cryptoShortCodes,
+  readOutboxChainKey: async () => (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
 });
 const fiscalModeWatch =
   localDatabase === undefined
@@ -687,6 +684,8 @@ const startupRecovery = recoverAtStartup({
         reportFailure("settling the interrupted real-time authorizations", error),
       ids: uuidV7Ids,
       shortCodes: cryptoShortCodes,
+      readOutboxChainKey: async () =>
+        (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
     }),
   followInterruptedCharges: interruptedCharges.followAtStartup,
   discoverPaidOrders: paidOrderDiscovery.discoverAtStartup,
@@ -1419,7 +1418,7 @@ const rendererConnection = createRendererConnection(
 
 let snapshotCycle: SnapshotCycleSchedule | undefined;
 
-messagesFromMain.deliverTo((event) => {
+deliverMessagesFromMain((event) => {
   const [rendererPort] = event.ports;
   if (rendererPort) {
     rendererConnection.adopt(rendererPort);

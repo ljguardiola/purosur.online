@@ -1,5 +1,7 @@
 import {
   clockCorrectedEvent,
+  DEFERRAL_REASONS,
+  deferredSaleRecordedEvent,
   MAX_STOCK_QUANTITY,
   MAX_UNIT_PRICE_CENTS,
   offlineFiscalDocument,
@@ -145,6 +147,7 @@ describe("synced event payloads", () => {
       "cash_session_opened@1",
       "clock_corrected@1",
       "clock_corrected@2",
+      "deferred_sale_recorded@1",
       "fiscal_gate_failed@1",
       "offline_fiscal_document_issued@1",
       "offline_fiscal_document_issued@2",
@@ -209,6 +212,7 @@ describe("synced event payloads", () => {
     ["a cash_session_closed version nobody emitted", "cash_session_closed", 2],
     ["a cash_movement_recorded version nobody emitted", "cash_movement_recorded", 2],
     ["a fiscal_gate_failed version nobody emitted", "fiscal_gate_failed", 2],
+    ["a deferred_sale_recorded version nobody emitted", "deferred_sale_recorded", 2],
     ["a qr_payment_replaced version nobody emitted", "qr_payment_replaced", 2],
     ["a prototype property name", "constructor", 1],
     ["a prototype property name as the version", "sale_completed", Number.NaN],
@@ -370,6 +374,68 @@ describe("synced event payloads", () => {
 
     it("refuses a date that is not ISO", () => {
       expect(accepts("fiscal_gate_failed", 1, { ...failed(), evaluated_at: "now" })).toBe(false);
+    });
+  });
+
+  describe("deferred_sale_recorded v1", () => {
+    const { payload: recorded } = deferredSaleRecordedEvent({
+      eventId: "event-1",
+      registerId: "register-1",
+      actorId: "cashier",
+      deferredSale: {
+        id: "deferred-1",
+        saleId: "sale-1",
+        occurredAt: new Date("2026-10-06T11:19:58.000Z"),
+        total: 12_500,
+        reason: "unclear_outcome",
+        shortCode: "7KQ4M2P9",
+        routedAt: new Date("2026-10-06T11:20:00.000Z"),
+      },
+    });
+
+    it("describes the deferred sale record the domain builds", () => {
+      expect(accepts("deferred_sale_recorded", 1, recorded)).toBe(true);
+    });
+
+    it.each(DEFERRAL_REASONS)("accepts the reason %s", (reason) => {
+      expect(accepts("deferred_sale_recorded", 1, { ...recorded, reason })).toBe(true);
+    });
+
+    it("refuses a reason the deferral does not have", () => {
+      expect(accepts("deferred_sale_recorded", 1, { ...recorded, reason: "other" })).toBe(false);
+    });
+
+    it.each([
+      ["a sale date that is not ISO", { occurred_at: "yesterday" }],
+      ["a routing date that is not ISO", { routed_at: "now" }],
+      ["a negative total", { total: -1 }],
+      ["a fractional total", { total: 1.5 }],
+      ["an empty short code", { short_code: "" }],
+      ["a short code the domain does not draw", { short_code: "7kq4m2p9" }],
+    ])("refuses %s", (_case, change) => {
+      expect(accepts("deferred_sale_recorded", 1, { ...recorded, ...change })).toBe(false);
+    });
+
+    it("refuses it without any one of its fields", () => {
+      const accepted = Object.keys(recorded).filter((key) => {
+        const { [key]: _removed, ...rest } = recorded;
+        return accepts("deferred_sale_recorded", 1, rest);
+      });
+
+      expect(accepted).toEqual([]);
+    });
+
+    it("refuses it with any one of its fields of the wrong type", () => {
+      const accepted = Object.keys(recorded).filter((key) =>
+        accepts("deferred_sale_recorded", 1, { ...recorded, [key]: { unexpected: true } }),
+      );
+
+      expect(accepted).toEqual([]);
+    });
+
+    it("refuses it when it is not an object", () => {
+      expect(accepts("deferred_sale_recorded", 1, null)).toBe(false);
+      expect(accepts("deferred_sale_recorded", 1, [])).toBe(false);
     });
   });
 

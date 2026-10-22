@@ -1,5 +1,6 @@
 import type {
   ClockCorrectedFact,
+  DeferredSale,
   OfflineFiscalDocumentIssuedFact,
   PreEmissionGateFailureReason,
   SaleVoidCreditNote,
@@ -41,7 +42,8 @@ export type SyncedFact =
       gateFailure: { saleId: string; reason: PreEmissionGateFailureReason; evaluatedAt: Date };
     }
   | { kind: "offline_fiscal_document_issued"; document: OfflineFiscalDocumentIssuedFact }
-  | { kind: "clock_corrected"; correction: ClockCorrectedFact };
+  | { kind: "clock_corrected"; correction: ClockCorrectedFact }
+  | { kind: "deferred_sale_recorded"; deferredSale: DeferredSale };
 
 export interface AggregateKey {
   aggregateType: string;

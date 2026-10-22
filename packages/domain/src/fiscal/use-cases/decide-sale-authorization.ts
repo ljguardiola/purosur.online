@@ -13,7 +13,7 @@ import {
 } from "../model/real-time-authorization.js";
 import { raisedClockMark } from "../model/register-clock.js";
 import type { ShortCodeRandomness } from "./deferred-sale-ports.js";
-import { recordDeferredSale } from "./record-deferred-sale.js";
+import { type DeferredSaleRecording, recordDeferredSale } from "./record-deferred-sale.js";
 import type { IdGenerator, SaleAuthorizationTransaction } from "./sale-authorization-ports.js";
 
 export interface DecideSaleAuthorizationInput {
@@ -47,12 +47,17 @@ export function decideSaleAuthorization(
     offlineAuthorizationCode: tx.offlineAuthorizationCodeOf(invoiceOwnFortnight(occurredAt)),
   });
   if (route.kind === "defer") {
-    recordDeferredSale((sale) => tx.routeSaleToDeferred(sale), ids, shortCodes, {
+    const routeToDeferred = ({ sale, event }: DeferredSaleRecording) => {
+      tx.routeSaleToDeferred(sale);
+      tx.appendOutboxEvent(event);
+    };
+    recordDeferredSale(routeToDeferred, ids, shortCodes, {
       saleId,
       occurredAt,
       total,
       reason: route.reason,
       routedAt: decidedAt,
+      origin: tx.originOfSale(saleId),
     });
     return { kind: "deferred", reason: route.reason };
   }

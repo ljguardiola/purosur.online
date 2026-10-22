@@ -238,9 +238,29 @@ describe("decideSaleAuthorization", () => {
       ]);
       expect(tx.reservations).toEqual([]);
       expect(tx.offlineDocuments).toEqual([]);
-      expect(tx.outbox).toEqual([]);
+      expect(tx.outbox).toEqual([
+        {
+          event_id: "id-2",
+          aggregate_type: "Sale",
+          aggregate_id: SALE_ID,
+          event_type: "deferred_sale_recorded",
+          schema_version: 1,
+          payload: {
+            id: "id-1",
+            sale_id: SALE_ID,
+            register_id: ORIGIN.registerId,
+            occurred_at: OCCURRED_AT.toISOString(),
+            total: SALE_TOTAL,
+            reason,
+            short_code: "7KQ4M2P9",
+            routed_at: DECIDED_AT.toISOString(),
+          },
+          occurred_at: DECIDED_AT.toISOString(),
+          actor_id: ORIGIN.actorId,
+        },
+      ]);
       expect(tx.recordedClockMarks).toEqual([]);
-      expect(ids.issued).toBe(1);
+      expect(ids.issued).toBe(2);
     },
   );
 
@@ -410,12 +430,12 @@ describe("decideSaleAuthorization", () => {
 
       expect(outcome).toEqual({ kind: "deferred", reason: "pre_emission_gate_failed" });
       expect(tx.offlineDocuments).toEqual([]);
-      expect(tx.outbox).toEqual([]);
+      expect(tx.outbox.map(({ event_type }) => event_type)).toEqual(["deferred_sale_recorded"]);
     });
   });
 
-  it("draws another short code for the record when the first is already taken", () => {
-    const { tx, outcome } = decide({
+  it("draws another short code for the record when the first is already taken, appending one event", () => {
+    const { tx, ids, outcome } = decide({
       series: { ...SERIES, pointOfSale: null },
       takenShortCodes: ["7KQ4M2P9"],
     });
@@ -426,5 +446,13 @@ describe("decideSaleAuthorization", () => {
       ["id-1", "R3XW8H5N"],
     ]);
     expect(tx.routings.map(({ shortCode }) => shortCode)).toEqual(["R3XW8H5N"]);
+    expect(tx.outbox).toMatchObject([
+      {
+        event_id: "id-2",
+        event_type: "deferred_sale_recorded",
+        payload: { id: "id-1", short_code: "R3XW8H5N" },
+      },
+    ]);
+    expect(ids.issued).toBe(2);
   });
 });

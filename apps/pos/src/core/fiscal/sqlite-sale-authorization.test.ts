@@ -531,7 +531,7 @@ describe("deciding a sale's authorization when the register holds a code for its
       expect(offlineDocuments()).toMatchObject([{ number: 1, fortnight_start: "2026-09-16" }]);
     });
 
-    it("defers the sale as fiscally offline, issuing and appending nothing, when no code covers the sale's date", () => {
+    it("defers the sale as fiscally offline, issuing nothing and appending only the event of the deferred record, when no code covers the sale's date", () => {
       database.prepare("DELETE FROM offline_authorization_codes").run();
       insertOfflineAuthorizationCode(database, {
         fortnightStart: "2026-10-01",
@@ -542,7 +542,10 @@ describe("deciding a sale's authorization when the register holds a code for its
 
       expect(offlineDocuments()).toEqual([]);
       expect(routings()).toMatchObject([{ sale_id: "sale-1", reason: "fiscally_offline" }]);
-      expect(outboxEvents()).toHaveLength(1);
+      expect(outboxEvents().map(({ event_type }) => event_type)).toEqual([
+        "sale_completed",
+        "deferred_sale_recorded",
+      ]);
     });
 
     it.each([
@@ -573,7 +576,10 @@ describe("deciding a sale's authorization when the register holds a code for its
         offlineDocuments().filter((row) => (row as { sale_id: string }).sale_id === "sale-1"),
       ).toEqual([]);
       expect(routings()).toMatchObject([{ sale_id: "sale-1", reason: "fiscally_offline" }]);
-      expect(outboxEvents()).toHaveLength(1);
+      expect(outboxEvents().map(({ event_type }) => event_type)).toEqual([
+        "sale_completed",
+        "deferred_sale_recorded",
+      ]);
     });
 
     it("defers a sale whose gate failed, even holding a code", () => {
@@ -581,6 +587,28 @@ describe("deciding a sale's authorization when the register holds a code for its
 
       expect(offlineDocuments()).toEqual([]);
       expect(routings()).toMatchObject([{ reason: "pre_emission_gate_failed" }]);
+    });
+
+    it("appends, with the deferred record, the event that carries its identifier and short code", () => {
+      decide({ kind: "failed", reason: "issuer_identification_missing" });
+
+      const [record] = database.prepare("SELECT id, short_code FROM deferred_sales").all() as {
+        id: string;
+        short_code: string;
+      }[];
+      const [, deferred] = outboxEvents();
+      expect(deferred).toMatchObject({
+        aggregate_id: "sale-1",
+        event_type: "deferred_sale_recorded",
+        actor_id: "u1",
+      });
+      expect(JSON.parse(deferred?.payload ?? "{}")).toMatchObject({
+        id: record?.id,
+        sale_id: "sale-1",
+        register_id: "register-1",
+        short_code: record?.short_code,
+        reason: "pre_emission_gate_failed",
+      });
     });
 
     it("uses the code of the fortnight the sale's own date falls in, not the one of the moment it is decided", () => {

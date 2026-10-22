@@ -52,3 +52,37 @@ describe("messages held until the core is ready", () => {
     expect(handled).toEqual(["first", "second", "third"]);
   });
 });
+
+describe("messages taken early", () => {
+  function heldTakingCredentialsAnswers() {
+    const early: string[] = [];
+    const held = createHeldMessages<string>((message) => {
+      if (message !== "credentials answer") {
+        return false;
+      }
+      early.push(message);
+      return true;
+    });
+    return { held, early };
+  }
+
+  it("hands a message the early handler takes to it right away, before the core is ready", () => {
+    const { held, early } = heldTakingCredentialsAnswers();
+
+    held.receive("credentials answer");
+
+    expect(early).toEqual(["credentials answer"]);
+  });
+
+  it("holds the messages the early handler does not take, in order, and never delivers the taken one", () => {
+    const { held } = heldTakingCredentialsAnswers();
+    const handled: string[] = [];
+    held.receive("renderer port");
+    held.receive("credentials answer");
+    held.receive("update hold release");
+
+    held.deliverTo((message) => handled.push(message));
+
+    expect(handled).toEqual(["renderer port", "update hold release"]);
+  });
+});

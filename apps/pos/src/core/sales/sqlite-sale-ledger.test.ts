@@ -852,9 +852,15 @@ describe("charging an open sale in cash", () => {
         aggregate_id: saleId,
         event_type: "sale_completed",
       },
+      {
+        device_seq: 2,
+        aggregate_type: "Sale",
+        aggregate_id: saleId,
+        event_type: "deferred_sale_recorded",
+      },
     ]);
     expect(database.prepare("SELECT last_device_seq FROM sync_state").get()).toEqual({
-      last_device_seq: 1,
+      last_device_seq: 2,
     });
   });
 

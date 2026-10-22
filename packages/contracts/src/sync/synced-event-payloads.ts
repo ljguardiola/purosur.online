@@ -3,8 +3,10 @@ import {
   CASH_MOVEMENT_TYPES,
   CLOCK_PREVIOUS_READING_SOURCES,
   cashMovementReason,
+  DEFERRAL_REASONS,
   FACTURA_C_DOCUMENT_TYPE,
   isCalendarDay,
+  isShortCode,
   isValidCashAmount,
   isValidCashMovementAmount,
   manualAdjustmentReason,
@@ -459,6 +461,17 @@ const fiscalGateFailedSchema = z.object({
   evaluated_at: instant,
 });
 
+const deferredSaleRecordedSchema = z.object({
+  id: text,
+  sale_id: text,
+  register_id: text,
+  occurred_at: instant,
+  total: cents,
+  reason: z.enum(DEFERRAL_REASONS),
+  short_code: z.string().refine(isShortCode),
+  routed_at: instant,
+});
+
 const offlineFiscalDocumentIssuedSchema = z.object({
   fiscal_document_id: text,
   sale_id: text,
@@ -556,6 +569,7 @@ const PAYLOAD_SCHEMAS = {
   "cash_session_closed@1": cashSessionClosedSchema,
   "cash_movement_recorded@1": cashMovementRecordedSchema,
   "fiscal_gate_failed@1": fiscalGateFailedSchema,
+  "deferred_sale_recorded@1": deferredSaleRecordedSchema,
   "offline_fiscal_document_issued@1": offlineFiscalDocumentIssuedSchema,
   "offline_fiscal_document_issued@2": offlineFiscalDocumentIssuedV2Schema,
   "clock_corrected@1": clockCorrectedSchema,

@@ -459,6 +459,7 @@ describe("the register's receipt printing over its local database", () => {
         readDeviceToken,
         now: () => NOW,
         ...scriptedDeferrals(),
+        readOutboxChainKey: async () => CHAIN_KEY,
         reportFailure: () => {},
       });
       return printingOverDatabase(authorization.authorizeSale).afterCompletedSale(async () => ({
@@ -582,6 +583,7 @@ describe("the register's receipt printing over its local database", () => {
         now: () => NOW,
         reportFailure: () => {},
         ...scriptedDeferrals(),
+        readOutboxChainKey: async () => CHAIN_KEY,
       });
 
       const reprinted = printingOverDatabase().reprintSaleReceipt?.({
