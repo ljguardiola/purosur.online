@@ -250,8 +250,40 @@ describe("cash movement requests", () => {
 });
 
 describe("registerCoreToRendererMessageSchema", () => {
-  it.each([true, false])("accepts whether this installation is enrolled: %s", (enrolled) => {
-    const message = { type: "enrollment-status", request_id: REQUEST_ID, enrolled };
+  it.each([
+    { kind: "not_enrolled" },
+    { kind: "enrolled" },
+    { kind: "revoked", reason: "installation_revoked" },
+    { kind: "revoked", reason: "event_history_broken" },
+    { kind: "revoked", reason: null },
+  ])("accepts the standing of this installation's enrollment: $kind $reason", (standing) => {
+    const message = { type: "enrollment-status", request_id: REQUEST_ID, standing };
+
+    expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("rejects a revoked standing for a reason it does not know", () => {
+    const message = {
+      type: "enrollment-status",
+      request_id: REQUEST_ID,
+      standing: { kind: "revoked", reason: "x" },
+    };
+
+    expect(registerCoreToRendererMessageSchema.safeParse(message).success).toBe(false);
+  });
+
+  it("rejects a revoked standing without its reason", () => {
+    const message = {
+      type: "enrollment-status",
+      request_id: REQUEST_ID,
+      standing: { kind: "revoked" },
+    };
+
+    expect(registerCoreToRendererMessageSchema.safeParse(message).success).toBe(false);
+  });
+
+  it("accepts the notice that the enrollment standing changed, which answers no request", () => {
+    const message = { type: "enrollment-standing-changed" };
 
     expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
   });
@@ -344,7 +376,7 @@ describe("registerCoreToRendererMessageSchema", () => {
     expect(registerCoreToRendererMessageSchema.safeParse(message).success).toBe(false);
   });
 
-  it("rejects an enrollment status without whether it is enrolled", () => {
+  it("rejects an enrollment status without its standing", () => {
     expect(
       registerCoreToRendererMessageSchema.safeParse({
         type: "enrollment-status",
