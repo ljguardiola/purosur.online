@@ -105,6 +105,7 @@ function pageOf(
     next,
     credit_notes: [],
     unrequested_credit_note_ids: [],
+    unclear_deferrals: [],
     users: [
       {
         user_id: "c7b3e5d2-18a4-4f90-b6d1-2e9f0a8c3d03",
