@@ -59,14 +59,13 @@ describe("DrizzleDeferredSaleDueAlerts", () => {
     expect(row).toMatchObject({ kind: "deferred_sale_due", level: "warning" });
   });
 
-  it("resolves the alert of a deferred sale no longer due and stops listing its scope", async () => {
+  it("records that the condition cleared when the deferred sale is no longer due", async () => {
     const alerts_ = new DrizzleDeferredSaleDueAlerts(db, () => NOW);
     await alerts_.observeAlertCondition(await dueObservation());
 
     await alerts_.observeAlertCondition({ holds: false, kind: "deferred_sale_due", scope: SCOPE });
 
-    expect(await alerts_.dueAlertScopes()).toEqual([]);
     const [row] = await db.select().from(alerts).where(eq(alerts.kind, "deferred_sale_due"));
-    expect(row?.resolvedAt).toBeInstanceOf(Date);
+    expect(row?.conditionClearedAt).toEqual(NOW);
   });
 });

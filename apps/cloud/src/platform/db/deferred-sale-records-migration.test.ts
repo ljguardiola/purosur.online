@@ -15,10 +15,11 @@ async function databaseHoldingTasksOfBothKinds() {
   await database.query(
     `insert into credit_notes (
        id, register_id, sale_id, reason, point_of_sale, associated_voucher_type,
-       associated_point_of_sale, associated_number, total, receiver_tax_status_code, created_at
+       associated_point_of_sale, associated_number, kept_voucher_type, kept_point_of_sale,
+       kept_number, total, receiver_tax_status_code, created_at
      ) select
        '0199b7a0-0000-7000-8000-0000000000c1', registers.id,
-       '0199b7a0-0000-7000-8000-0000000000c2', 'orphan', 7, 11, 7, 3, 12500, 5, now()
+       '0199b7a0-0000-7000-8000-0000000000c2', 'orphan', 7, 11, 7, 3, 11, 31, 3, 12500, 5, now()
      from registers`,
   );
   await database.query(
@@ -39,7 +40,11 @@ async function databaseHoldingTasksOfBothKinds() {
 }
 
 async function migratedDatabase() {
-  return (await databaseBeforeMigration("_deferred_sale_records")).applyMigration();
+  const database = await databaseBeforeMigration("_deferred_sale_records");
+  await database.query(
+    `insert into registers (location_id, name) select id, 'Caja 1' from locations limit 1`,
+  );
+  return database.applyMigration();
 }
 
 function insertDeferredSale(

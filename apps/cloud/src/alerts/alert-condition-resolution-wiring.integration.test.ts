@@ -164,7 +164,10 @@ describe("the background worker the server sets up on a real Postgres", () => {
   }, 60_000);
 
   it("alerts on a deferred sale nearing its expiry and turns one past it into a regularization task whose alert never opens", async () => {
-    const installation = await insertEnrolledInstallation(db, { now: NOW });
+    const installation = await insertEnrolledInstallation(db, {
+      now: NOW,
+      registerName: "Caja diferidas",
+    });
     const nearing = await insertDeferredSaleRow(db, {
       ...installation,
       occurredAt: new Date("2020-01-01T15:00:00.000Z"),
