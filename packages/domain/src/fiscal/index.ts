@@ -233,6 +233,15 @@ export {
   remedyAwaitsResend,
 } from "./model/rejected-document-remedy.js";
 export type {
+  RebuiltAuthorizedDocument,
+  RebuiltUnclearDeferral,
+  RestoredUnclearDeferralAnswer,
+} from "./model/restored-unclear-deferral.js";
+export {
+  rebuiltUnclearDeferral,
+  restoredUnclearDeferralAnswer,
+} from "./model/restored-unclear-deferral.js";
+export type {
   CreditNoteAnswer,
   RestoredCreditNoteAnswer,
   SaleInvoice,
