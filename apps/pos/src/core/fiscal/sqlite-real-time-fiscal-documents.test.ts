@@ -471,6 +471,10 @@ describe("resolving a waiting document", () => {
         pointOfSale: POINT_OF_SALE,
         number: 41,
         issuedOn: "2026-09-30",
+        document: FACTURA_C,
+        authorizationCode: "75123456789012",
+        authorizationCodeDueOn: "2026-10-10",
+        reservedAt: new Date("2026-09-30T12:05:00.000Z"),
         satisfiedAt: RESOLVED_AT,
       });
     }
@@ -516,16 +520,7 @@ describe("resolving a waiting document", () => {
         {
           event_id: "event-satisfied-1",
           aggregate_id: "sale-1",
-          payload: {
-            id: "deferred-of-sale-1",
-            sale_id: "sale-1",
-            register_id: "register-1",
-            fiscal_document_id: "doc-1",
-            point_of_sale: POINT_OF_SALE,
-            number: 41,
-            issued_on: "2026-09-30",
-            satisfied_at: RESOLVED_AT.toISOString(),
-          },
+          payload: satisfiedEvent().payload,
         },
       ]);
     });
@@ -649,14 +644,17 @@ describe("the documents left with an unclear outcome", () => {
     const unclear = await documents.unclearDocuments();
 
     expect(
-      unclear.map(({ fiscalDocumentId, saleId, pointOfSale, number, issuedOn, document }) => ({
-        fiscalDocumentId,
-        saleId,
-        pointOfSale,
-        number,
-        issuedOn,
-        document,
-      })),
+      unclear.map(
+        ({ fiscalDocumentId, saleId, pointOfSale, number, issuedOn, document, reservedAt }) => ({
+          fiscalDocumentId,
+          saleId,
+          pointOfSale,
+          number,
+          issuedOn,
+          document,
+          reservedAt,
+        }),
+      ),
     ).toEqual([
       {
         fiscalDocumentId: "doc-2",
@@ -665,6 +663,7 @@ describe("the documents left with an unclear outcome", () => {
         number: 7,
         issuedOn: "2026-09-30",
         document: FACTURA_C,
+        reservedAt: new Date("2026-09-30T12:00:00.000Z"),
       },
       {
         fiscalDocumentId: "doc-1",
@@ -673,6 +672,7 @@ describe("the documents left with an unclear outcome", () => {
         number: 41,
         issuedOn: "2026-09-30",
         document: FACTURA_C,
+        reservedAt: new Date("2026-09-30T12:05:00.000Z"),
       },
     ]);
     expect(unclear.map(({ saleEvent }) => saleEvent?.aggregate_id)).toEqual(["sale-2", "sale-1"]);
@@ -819,6 +819,10 @@ describe("settling an unclear document", () => {
         pointOfSale: POINT_OF_SALE,
         number: 41,
         issuedOn: "2026-09-30",
+        document: FACTURA_C,
+        authorizationCode: "75123456789012",
+        authorizationCodeDueOn: "2026-10-10",
+        reservedAt: new Date("2026-09-30T12:05:00.000Z"),
         satisfiedAt: RESOLVED_AT,
       }),
     });

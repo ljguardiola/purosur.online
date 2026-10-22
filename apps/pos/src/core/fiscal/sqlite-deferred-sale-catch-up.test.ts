@@ -50,6 +50,10 @@ function satisfaction(): DeferredSaleSatisfied {
     pointOfSale: POINT_OF_SALE,
     number: 41,
     issuedOn: "2026-10-08",
+    document: FACTURA_C,
+    authorizationCode: "75123456789012",
+    authorizationCodeDueOn: "2026-10-10",
+    reservedAt: new Date("2026-09-30T12:05:00.000Z"),
     satisfiedAt: NOW,
   };
 }
@@ -154,6 +158,10 @@ describe("the deferred sales holding an authorized document", () => {
         pointOfSale: POINT_OF_SALE,
         number: 41,
         issuedOn: "2026-10-08",
+        document: FACTURA_C,
+        authorizationCode: "75123456789012",
+        authorizationCodeDueOn: "2026-10-10",
+        reservedAt: new Date("2026-09-30T12:05:00.000Z"),
       },
     ]);
   });
