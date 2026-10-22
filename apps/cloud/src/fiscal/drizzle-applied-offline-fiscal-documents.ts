@@ -11,6 +11,11 @@ export async function recordAppliedOfflineFiscalDocument<TQueryResult extends Pg
   { document }: Extract<SyncedFact, { kind: "offline_fiscal_document_issued" }>,
   recordedAt: Date,
 ): Promise<void> {
+  if (document.documentType !== FACTURA_C_DOCUMENT_TYPE) {
+    throw new Error(
+      `document ${document.fiscalDocumentId} is a ${document.documentType}, which the cloud does not apply yet`,
+    );
+  }
   if (document.registerId !== origin.registerId) {
     throw new Error(
       `document ${document.fiscalDocumentId} names register ${document.registerId}, not the register ${origin.registerId} that pushed it`,
@@ -22,11 +27,6 @@ export async function recordAppliedOfflineFiscalDocument<TQueryResult extends Pg
     .where(and(eq(sales.id, document.saleId), eq(sales.registerId, origin.registerId)));
   if (sale === undefined) {
     throw new Error(`sale ${document.saleId} is not applied for register ${origin.registerId}`);
-  }
-  if (document.documentType !== FACTURA_C_DOCUMENT_TYPE) {
-    throw new Error(
-      `document ${document.fiscalDocumentId} is a ${document.documentType}, which the cloud does not apply yet`,
-    );
   }
   const {
     fiscalDocumentId,
