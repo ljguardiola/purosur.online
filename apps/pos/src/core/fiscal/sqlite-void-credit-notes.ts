@@ -209,7 +209,7 @@ export class SqliteVoidCreditNotes implements RegisterVoidCreditNotes {
   }
 
   private pendingOf(row: InProgressRow): PendingCreditNote[] {
-    const saleEvent = this.saleVoidedEvent(row.sale_id);
+    const saleEvent = this.saleVoidedEvent(row.sale_id) ?? this.replenishedRequestEvent(row.id);
     return saleEvent === null
       ? []
       : [
@@ -237,6 +237,18 @@ export class SqliteVoidCreditNotes implements RegisterVoidCreditNotes {
           WHERE event_type = ? AND aggregate_id = ?`,
       )
       .get(SALE_VOIDED_EVENT_TYPE, saleId);
+    return row === undefined ? null : { ...row, payload: JSON.parse(row.payload) };
+  }
+
+  private replenishedRequestEvent(creditNoteId: string): PushedEvent | null {
+    const row = this.database
+      .prepare<[string], SaleEventRow>(
+        `SELECT event_id, device_seq, aggregate_type, aggregate_id, event_type, schema_version,
+                payload, occurred_at, actor_id, chain_hmac
+           FROM replenished_credit_note_requests
+          WHERE credit_note_id = ?`,
+      )
+      .get(creditNoteId);
     return row === undefined ? null : { ...row, payload: JSON.parse(row.payload) };
   }
 

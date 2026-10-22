@@ -1,29 +1,46 @@
 import type {
+  KeptAlreadyCreditedRefusalOfRegister,
   RestoredRegisterCreditNoteAnswers,
   SaleVoidCreditNoteOfRegister,
 } from "../restored-register-credit-note-answers-ports.js";
 
 export interface StoredSaleVoidCreditNote extends SaleVoidCreditNoteOfRegister {
   registerId: string;
-  saleId: string;
 }
 
-export interface SaleVoidCreditNotesRead {
+export interface StoredAlreadyCreditedRefusal extends KeptAlreadyCreditedRefusalOfRegister {
   registerId: string;
-  saleIds: readonly string[];
+}
+
+export interface CreditNotesRead {
+  registerId: string;
+  creditNoteIds: readonly string[];
 }
 
 export class FakeRestoredRegisterCreditNoteAnswers implements RestoredRegisterCreditNoteAnswers {
   creditNotes: StoredSaleVoidCreditNote[] = [];
-  reads: SaleVoidCreditNotesRead[] = [];
+  refusals: StoredAlreadyCreditedRefusal[] = [];
+  reads: CreditNotesRead[] = [];
 
   async saleVoidCreditNotesOf(
     registerId: string,
-    saleIds: readonly string[],
+    creditNoteIds: readonly string[],
   ): Promise<SaleVoidCreditNoteOfRegister[]> {
-    this.reads.push({ registerId, saleIds });
+    this.reads.push({ registerId, creditNoteIds });
     return this.creditNotes
-      .filter((note) => note.registerId === registerId && saleIds.includes(note.saleId))
-      .map(({ registerId: _registerId, saleId: _saleId, ...note }) => note);
+      .filter((note) => note.registerId === registerId && creditNoteIds.includes(note.creditNoteId))
+      .map(({ registerId: _registerId, ...note }) => note);
+  }
+
+  async keptRefusalsOf(
+    registerId: string,
+    creditNoteIds: readonly string[],
+  ): Promise<KeptAlreadyCreditedRefusalOfRegister[]> {
+    return this.refusals
+      .filter(
+        (refusal) =>
+          refusal.registerId === registerId && creditNoteIds.includes(refusal.creditNoteId),
+      )
+      .map(({ registerId: _registerId, ...refusal }) => refusal);
   }
 }

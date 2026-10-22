@@ -10,6 +10,7 @@ import type {
 import type { ReplenishedUser } from "@purosur/domain/users/use-cases";
 import { applyReplenishedClockCorrection } from "../fiscal/replenished-clock-corrections";
 import { recordReplenishedCreditNoteAnswer } from "../fiscal/replenished-credit-note-answers";
+import { holdReplenishedCreditNoteToRequest } from "../fiscal/replenished-credit-note-requests";
 import {
   applyReplenishedDeferredSale,
   holdsDeferredSaleRecord,
@@ -101,6 +102,9 @@ export class SqliteRegisterReplenishmentStore implements RegisterReplenishmentSt
       },
       async recordCreditNoteAnswer(creditNote, answer) {
         recordReplenishedCreditNoteAnswer(database, creditNote, answer);
+      },
+      async holdCreditNoteToRequest(creditNote, event) {
+        holdReplenishedCreditNoteToRequest(database, creditNote, event);
       },
       async holdsDeferredSaleRecord(saleId) {
         return holdsDeferredSaleRecord(database, saleId);

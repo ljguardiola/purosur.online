@@ -51,7 +51,13 @@ describe("the cloud's replenishment of a restored register, as the register read
   it("asks for the events after the predecessor's last acknowledged one, using the device token", async () => {
     const { feed, requests } = feedAnswering({
       kind: "ok",
-      body: { events: [], next: null, users: [], credit_notes: [] },
+      body: {
+        events: [],
+        next: null,
+        users: [],
+        credit_notes: [],
+        unrequested_credit_note_ids: [],
+      },
     });
 
     await feed.pageAfter(PREDECESSOR, undefined);
@@ -72,7 +78,13 @@ describe("the cloud's replenishment of a restored register, as the register read
   it("continues after the event the previous page ended at", async () => {
     const { feed, requests } = feedAnswering({
       kind: "ok",
-      body: { events: [], next: null, users: [], credit_notes: [] },
+      body: {
+        events: [],
+        next: null,
+        users: [],
+        credit_notes: [],
+        unrequested_credit_note_ids: [],
+      },
     });
 
     await feed.pageAfter(PREDECESSOR, { deviceId: OTHER_DEVICE, deviceSeq: 7 });
@@ -93,6 +105,7 @@ describe("the cloud's replenishment of a restored register, as the register read
         next: { device_id: OTHER_DEVICE, device_seq: 1 },
         users: [WIRE_USER],
         credit_notes: [],
+        unrequested_credit_note_ids: [],
       },
     });
 
@@ -120,6 +133,7 @@ describe("the cloud's replenishment of a restored register, as the register read
           },
         ],
         creditNoteAnswers: [],
+        unrequestedCreditNoteIds: [],
       },
     });
   });
@@ -132,6 +146,7 @@ describe("the cloud's replenishment of a restored register, as the register read
         next: null,
         users: [{ ...WIRE_USER, salt: null, pin_hash: null }],
         credit_notes: [],
+        unrequested_credit_note_ids: [],
       },
     });
 
@@ -193,7 +208,13 @@ describe("the cloud's replenishment of a restored register, as the register read
     const { device_id: _missing, ...withoutInstallation } = wireEvent(53);
     const { feed } = feedAnswering({
       kind: "ok",
-      body: { events: [withoutInstallation], next: null, users: [], credit_notes: [] },
+      body: {
+        events: [withoutInstallation],
+        next: null,
+        users: [],
+        credit_notes: [],
+        unrequested_credit_note_ids: [],
+      },
     });
 
     expect(await feed.pageAfter(PREDECESSOR, undefined)).toEqual({
@@ -215,7 +236,13 @@ describe("the cloud's replenishment of a restored register, as the register read
     function pageWith(...creditNotes: unknown[]) {
       return feedAnswering({
         kind: "ok",
-        body: { events: [], next: null, users: [], credit_notes: creditNotes },
+        body: {
+          events: [],
+          next: null,
+          users: [],
+          credit_notes: creditNotes,
+          unrequested_credit_note_ids: [],
+        },
       }).feed.pageAfter(PREDECESSOR, undefined);
     }
 
@@ -280,6 +307,45 @@ describe("the cloud's replenishment of a restored register, as the register read
             { creditNoteId: OTHER_CREDIT_NOTE, answer: { kind: "rejected" } },
           ],
         },
+      });
+    });
+
+    it("reads that the invoice was already credited, when the cloud refused the credit note", async () => {
+      const answer = await pageWith({
+        credit_note_id: CREDIT_NOTE,
+        answered_at: "2026-10-07T10:35:00.000Z",
+        state: "ALREADY_CREDITED",
+      });
+
+      expect(answer).toMatchObject({
+        kind: "page",
+        page: {
+          creditNoteAnswers: [
+            {
+              creditNoteId: CREDIT_NOTE,
+              answeredAt: new Date("2026-10-07T10:35:00.000Z"),
+              answer: { kind: "already_credited" },
+            },
+          ],
+        },
+      });
+    });
+
+    it("reads the credit notes the cloud never recorded as unrequested", async () => {
+      const { feed } = feedAnswering({
+        kind: "ok",
+        body: {
+          events: [],
+          next: null,
+          users: [],
+          credit_notes: [],
+          unrequested_credit_note_ids: [CREDIT_NOTE, OTHER_CREDIT_NOTE],
+        },
+      });
+
+      expect(await feed.pageAfter(PREDECESSOR, undefined)).toMatchObject({
+        kind: "page",
+        page: { unrequestedCreditNoteIds: [CREDIT_NOTE, OTHER_CREDIT_NOTE] },
       });
     });
 

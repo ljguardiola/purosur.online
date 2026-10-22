@@ -46,9 +46,11 @@ async function applyPage<TFailure>(
   {
     events,
     creditNoteAnswers,
+    unrequestedCreditNoteIds,
   }: {
     events: readonly DecodedPageEvent[];
     creditNoteAnswers: readonly RestoredCreditNoteAnswer[];
+    unrequestedCreditNoteIds: readonly string[];
   },
 ): Promise<number> {
   return store.transaction(async (tx) => {
@@ -81,6 +83,9 @@ async function applyPage<TFailure>(
         const { creditNoteId } = fact.creditNote;
         const answer = creditNoteAnswers.find((answered) => answered.creditNoteId === creditNoteId);
         if (answer === undefined) {
+          if (unrequestedCreditNoteIds.includes(creditNoteId)) {
+            await tx.holdCreditNoteToRequest(fact.creditNote, event);
+          }
           unapplied += 1;
           continue;
         }
@@ -120,6 +125,7 @@ export async function replenishRestoredRegister<TFailure>(
     unapplied += await applyPage(ports, {
       events: decoded.events,
       creditNoteAnswers: answer.page.creditNoteAnswers,
+      unrequestedCreditNoteIds: answer.page.unrequestedCreditNoteIds,
     });
     if (answer.page.next === null) {
       break;

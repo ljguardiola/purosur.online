@@ -7,7 +7,13 @@ import { eq } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { creditNotes, pointOfSaleClaims, registers, users } from "../platform/db/schema.js";
+import {
+  creditNotes,
+  pointOfSaleClaims,
+  registers,
+  saleVoidCreditNoteRefusals,
+  users,
+} from "../platform/db/schema.js";
 import { postgresDedicatedConnections } from "../platform/dedicated-connections.js";
 import {
   createIntegrationDatabase,
@@ -215,5 +221,41 @@ describe("the credit notes of voided sales on a real Postgres", () => {
     expect(
       await db.select().from(creditNotes).where(eq(creditNotes.id, record.creditNoteId)),
     ).toEqual([]);
+  });
+
+  it("keeps the refusal of a credit note under its id, with the register, the sale and when it was refused", async () => {
+    const creditNoteId = crypto.randomUUID();
+    const saleId = crypto.randomUUID();
+
+    await inLane((lane) =>
+      lane.keepAlreadyCreditedRefusal({ creditNoteId, registerId, saleId }, RECEIVED_AT),
+    );
+
+    expect(
+      await db
+        .select()
+        .from(saleVoidCreditNoteRefusals)
+        .where(eq(saleVoidCreditNoteRefusals.creditNoteId, creditNoteId)),
+    ).toEqual([{ creditNoteId, registerId, saleId, refusedAt: RECEIVED_AT }]);
+  });
+
+  it("keeps the first refusal of a credit note when it is refused again", async () => {
+    const creditNoteId = crypto.randomUUID();
+    const saleId = crypto.randomUUID();
+    const later = new Date("2026-10-09T01:00:00.000Z");
+    await inLane((lane) =>
+      lane.keepAlreadyCreditedRefusal({ creditNoteId, registerId, saleId }, RECEIVED_AT),
+    );
+
+    await inLane((lane) =>
+      lane.keepAlreadyCreditedRefusal({ creditNoteId, registerId, saleId }, later),
+    );
+
+    expect(
+      await db
+        .select({ refusedAt: saleVoidCreditNoteRefusals.refusedAt })
+        .from(saleVoidCreditNoteRefusals)
+        .where(eq(saleVoidCreditNoteRefusals.creditNoteId, creditNoteId)),
+    ).toEqual([{ refusedAt: RECEIVED_AT }]);
   });
 });

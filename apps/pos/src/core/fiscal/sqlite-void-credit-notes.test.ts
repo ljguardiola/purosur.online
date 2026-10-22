@@ -74,6 +74,76 @@ afterEach(() => {
 });
 
 describe("the credit notes in progress", () => {
+  function holdReplenishedCreditNote(saleId: string, creditNoteId: string, outboxEvent = false) {
+    insertCompletedSale(database, saleId);
+    database
+      .prepare("UPDATE sales SET state = 'VOIDED', voided_at = ? WHERE id = ?")
+      .run(VOIDED_AT, saleId);
+    insertPendingCreditNote(database, {
+      creditNoteId,
+      saleId,
+      total: 3000,
+      receiverTaxStatusCode: 5,
+      correctedVoucher: { voucherType: 11, pointOfSale: POINT_OF_SALE, number: 41 },
+    });
+    const event = {
+      event_id: `replenished-${saleId}`,
+      device_seq: 53,
+      aggregate_type: "Sale",
+      aggregate_id: saleId,
+      event_type: "sale_voided",
+      schema_version: 3,
+      payload: { id: saleId, credit_note: { id: creditNoteId, total: 3000 } },
+      occurred_at: VOIDED_AT,
+      actor_id: "user-1",
+      chain_hmac: "hmac-53",
+    };
+    database
+      .prepare(
+        `INSERT INTO replenished_credit_note_requests (
+           credit_note_id, event_id, device_seq, aggregate_type, aggregate_id, event_type,
+           schema_version, payload, occurred_at, actor_id, chain_hmac
+         ) VALUES (
+           @credit_note_id, @event_id, @device_seq, @aggregate_type, @aggregate_id, @event_type,
+           @schema_version, @payload, @occurred_at, @actor_id, @chain_hmac
+         )`,
+      )
+      .run({ ...event, credit_note_id: creditNoteId, payload: JSON.stringify(event.payload) });
+    if (outboxEvent) {
+      eventCount += 1;
+      appendOutboxEvent(database, CHAIN_KEY, {
+        ...outboxEventDraft(eventCount),
+        aggregate_type: "Sale",
+        aggregate_id: saleId,
+        event_type: "sale_voided",
+        schema_version: 3,
+        payload: { id: saleId, credit_note: { id: creditNoteId, total: 3000 } },
+      });
+    }
+    return event;
+  }
+
+  it("carry the event a restored register replenished for a void, which its outbox never held", async () => {
+    const event = holdReplenishedCreditNote("sale-1", "note-1");
+
+    await expect(creditNotes.inProgress()).resolves.toMatchObject([
+      { creditNoteId: "note-1", saleEvent: event },
+    ]);
+    await expect(creditNotes.pendingCreditNote("note-1")).resolves.toMatchObject({
+      creditNoteId: "note-1",
+      saleEvent: event,
+    });
+  });
+
+  it("carry the event of the register's own outbox rather than a replenished one", async () => {
+    holdReplenishedCreditNote("sale-1", "note-1", true);
+    const [ownEvent] = await new SqliteLocalOutbox(database, () => ANSWERED_AT).unacknowledged(10);
+
+    const [pending] = await creditNotes.inProgress();
+
+    expect(pending?.saleEvent).toEqual(ownEvent);
+  });
+
   it("are none while no voided sale asked for one", async () => {
     await expect(creditNotes.inProgress()).resolves.toEqual([]);
   });

@@ -44,7 +44,7 @@ type ConfirmedCreditNoteAnswer = Exclude<CreditNoteAnswer, { kind: "in_progress"
 export interface RestoredCreditNoteAnswer {
   creditNoteId: string;
   answeredAt: Date;
-  answer: ConfirmedCreditNoteAnswer;
+  answer: ConfirmedCreditNoteAnswer | { kind: "already_credited" };
 }
 
 export type CreditNoteStanding =
@@ -89,6 +89,24 @@ export function confirmedCreditNoteAnswer(
 ): ConfirmedCreditNoteAnswer | null {
   const answer = creditNoteAnswerOf(standing, pointOfSale);
   return answer.kind === "in_progress" ? null : answer;
+}
+
+export type RestoredCreditNoteSettlement =
+  | { kind: "answered"; answer: RestoredCreditNoteAnswer["answer"] }
+  | { kind: "never_requested" }
+  | { kind: "unsettled" };
+
+export function restoredCreditNoteSettlement(
+  recorded: { standing: CreditNoteStanding; pointOfSale: number } | null,
+  alreadyCreditedRefusalKept: boolean,
+): RestoredCreditNoteSettlement {
+  if (recorded !== null) {
+    const answer = confirmedCreditNoteAnswer(recorded.standing, recorded.pointOfSale);
+    return answer === null ? { kind: "unsettled" } : { kind: "answered", answer };
+  }
+  return alreadyCreditedRefusalKept
+    ? { kind: "answered", answer: { kind: "already_credited" } }
+    : { kind: "never_requested" };
 }
 
 function isAuthorized({ state }: SaleInvoice): boolean {
