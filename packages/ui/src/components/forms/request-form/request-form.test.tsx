@@ -1216,9 +1216,9 @@ test("a segmented control submits the segment that was chosen", async () => {
 });
 
 const DAY_CHIPS = [
-  { value: "1", label: "Lun", accessibleName: "Lunes" },
-  { value: "2", label: "Mar", accessibleName: "Martes" },
-  { value: "3", label: "Mié", accessibleName: "Miércoles" },
+  { value: "1", label: "Lun", fullLabel: "Lunes" },
+  { value: "2", label: "Mar", fullLabel: "Martes" },
+  { value: "3", label: "Mié", fullLabel: "Miércoles" },
 ] as const;
 
 function ChipsProbe({ onSubmit }: { onSubmit: (days: string[]) => Promise<void> }) {

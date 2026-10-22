@@ -15,13 +15,13 @@ import {
 type Day = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
 
 const options: ToggleChipGroupProps<Day>["options"] = [
-  { value: "mon", label: "Mon", accessibleName: "Monday" },
-  { value: "tue", label: "Tue", accessibleName: "Tuesday" },
-  { value: "wed", label: "Wed", accessibleName: "Wednesday" },
-  { value: "thu", label: "Thu", accessibleName: "Thursday" },
-  { value: "fri", label: "Fri", accessibleName: "Friday" },
-  { value: "sat", label: "Sat", accessibleName: "Saturday" },
-  { value: "sun", label: "Sun", accessibleName: "Sunday" },
+  { value: "mon", label: "Mon", fullLabel: "Monday" },
+  { value: "tue", label: "Tue", fullLabel: "Tuesday" },
+  { value: "wed", label: "Wed", fullLabel: "Wednesday" },
+  { value: "thu", label: "Thu", fullLabel: "Thursday" },
+  { value: "fri", label: "Fri", fullLabel: "Friday" },
+  { value: "sat", label: "Sat", fullLabel: "Saturday" },
+  { value: "sun", label: "Sun", fullLabel: "Sunday" },
 ];
 
 type BaseProps = Omit<ToggleChipGroupProps<Day>, keyof FieldErrorProps>;
@@ -48,9 +48,9 @@ function ControlledGroup({ initial, onChange }: { initial: Day[]; onChange?: (v:
 type Screen = Awaited<ReturnType<typeof render>>;
 
 function chipName(option: ToggleChipOption<string>): string {
-  return option.accessibleName === undefined
+  return option.fullLabel === undefined
     ? option.label
-    : `${option.label}, ${option.accessibleName}`;
+    : `${option.label}, ${option.fullLabel}`;
 }
 
 function chip(screen: Screen, name: string): HTMLElement {
@@ -64,7 +64,7 @@ test("shows the visible label and names the group after it", async () => {
   await expect.element(screen.getByRole("toolbar", { name: "Days" })).toBeVisible();
 });
 
-test("shows every option's visible label as a chip named by that label followed by its accessible name", async () => {
+test("shows every option's visible label as a chip named by that label followed by its full label", async () => {
   const screen = await render(<ToggleChipGroup {...baseProps()} />);
 
   expect(chip(screen, "Mon, Monday").textContent).toBe("Mon");
@@ -74,7 +74,7 @@ test("shows every option's visible label as a chip named by that label followed 
   }
 });
 
-test("names a chip by its label when the option has no accessible name", async () => {
+test("names a chip by its label when the option has no full label", async () => {
   const screen = await render(
     <ToggleChipGroup {...baseProps({ options: [{ value: "mon", label: "Monday" }] })} />,
   );

@@ -307,7 +307,7 @@ describe("option lists", () => {
 
   test("offers the weekdays Monday first, with their full names for assistive technology", () => {
     expect(
-      WEEKDAY_OPTIONS.map(({ value, label, accessibleName }) => [value, label, accessibleName]),
+      WEEKDAY_OPTIONS.map(({ value, label, fullLabel }) => [value, label, fullLabel]),
     ).toEqual([
       ["1", "Lun", "Lunes"],
       ["2", "Mar", "Martes"],
