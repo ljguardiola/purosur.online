@@ -195,6 +195,7 @@ export type {
   DeferredSale,
   DeferredSaleDocumentBlock,
   DeferredSaleReference,
+  DeferredSaleSatisfied,
   DocumentFieldChange,
   FacturaC,
   FacturaCFiscalBlock,
