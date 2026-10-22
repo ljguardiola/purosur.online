@@ -253,6 +253,7 @@ const localDatabasePath =
 const localDatabaseDamaged = localDatabaseDamageIn(localDataFolder);
 const restorePending = restorePendingIn(localDataFolder);
 const restartCore = () => process.exit(0);
+let cloudReachability: CloudReachability = INITIAL_CLOUD_REACHABILITY;
 const restoreAttempts = createRestoreAttempts({
   pending: restorePending,
   launch: createRestoreLaunch({
@@ -267,6 +268,9 @@ const restoreAttempts = createRestoreAttempts({
   reportNoUsableGeneration: () => {
     console.error("core: no snapshot generation could be restored, so the restore stays pending");
     Sentry.captureMessage("core: no snapshot generation could be restored", "error");
+  },
+  cloudAnswered: (reachable) => {
+    cloudReachability = reachable ? "reachable" : "unreachable";
   },
 });
 
@@ -332,10 +336,14 @@ const replica = localDatabase === undefined ? undefined : new SqliteLocalReplica
 const localOutbox =
   localDatabase === undefined ? undefined : new SqliteLocalOutbox(localDatabase, now);
 const restorationOf = (database: NonNullable<typeof localDatabase>) =>
-  new SqliteRestorationEvidence(database, restorePending);
+  new SqliteRestorationEvidence(
+    database,
+    restorePending,
+    () => cloudReachability,
+    restoreAttempts.noUsableGeneration,
+  );
 const localInstallation =
   localDatabase === undefined ? undefined : new SqliteLocalInstallation(localDatabase, now);
-let cloudReachability: CloudReachability = INITIAL_CLOUD_REACHABILITY;
 const signInStore = localDatabase === undefined ? undefined : new SqliteSignInStore(localDatabase);
 const signedInPerson = createSignedInPerson();
 const readPepper = async () => (await mainRequests.readCredentials())?.pepper;
@@ -1434,6 +1442,7 @@ deliverMessagesFromMain((event) => {
     } else if (message.type === "snapshot-worker-exited") {
       void snapshotCycle?.workerExited(message.copy_failed_stage);
       restoreAttempts.workerExited(message.restore_outcome);
+      restorationStandingWatch?.check();
       if (deviceTokenRotation !== undefined) {
         refreshKeysWhenAnnounced(message.latest_announced_key_version, {
           readCredentials: () => mainRequests.readCredentials(),

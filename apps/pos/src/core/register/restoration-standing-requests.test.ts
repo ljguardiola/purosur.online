@@ -8,6 +8,7 @@ const COMPLETED: RestorationEvidence = {
   reset_sync_identity: "completed",
   replenish: "completed",
   reconcile_fiscal_counters: "completed",
+  cloud: "unknown",
 };
 
 describe("the restoration standing the register answers", () => {
