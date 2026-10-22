@@ -916,6 +916,7 @@ describe("the register's local migrations", () => {
         "0067_replenished_events",
         "0068_clock_correction_lapse_cause",
         "0070_stale_sequence",
+        "0072_awaiting_restored_numbering",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1009,6 +1010,7 @@ describe("the register's local migrations", () => {
         "0067_replenished_events",
         "0068_clock_correction_lapse_cause",
         "0070_stale_sequence",
+        "0072_awaiting_restored_numbering",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1097,6 +1099,7 @@ describe("the register's local migrations", () => {
         "0067_replenished_events",
         "0068_clock_correction_lapse_cause",
         "0070_stale_sequence",
+        "0072_awaiting_restored_numbering",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1184,6 +1187,7 @@ describe("the register's local migrations", () => {
         "0067_replenished_events",
         "0068_clock_correction_lapse_cause",
         "0070_stale_sequence",
+        "0072_awaiting_restored_numbering",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1300,6 +1304,7 @@ describe("the register's local migrations", () => {
         "0067_replenished_events",
         "0068_clock_correction_lapse_cause",
         "0070_stale_sequence",
+        "0072_awaiting_restored_numbering",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1406,6 +1411,7 @@ describe("the register's local migrations", () => {
         "0067_replenished_events",
         "0068_clock_correction_lapse_cause",
         "0070_stale_sequence",
+        "0072_awaiting_restored_numbering",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1516,6 +1522,7 @@ describe("the register's local migrations", () => {
         "0067_replenished_events",
         "0068_clock_correction_lapse_cause",
         "0070_stale_sequence",
+        "0072_awaiting_restored_numbering",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1634,6 +1641,7 @@ describe("the register's local migrations", () => {
         "0067_replenished_events",
         "0068_clock_correction_lapse_cause",
         "0070_stale_sequence",
+        "0072_awaiting_restored_numbering",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1719,6 +1727,7 @@ describe("the register's local migrations", () => {
         "0067_replenished_events",
         "0068_clock_correction_lapse_cause",
         "0070_stale_sequence",
+        "0072_awaiting_restored_numbering",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before

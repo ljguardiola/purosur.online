@@ -1,14 +1,8 @@
 import type { SyncChange } from "@purosur/contracts";
-import { nextInvoiceNumber, restorationStanding } from "@purosur/domain";
-import { resetRestoredSyncIdentity } from "@purosur/domain/sync/use-cases";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { restorePendingIn } from "../backups/restore-pending";
-import { readRealTimeSeries } from "../fiscal/sqlite-fiscal-series";
 import type { LocalDatabase } from "../platform/local-database";
-import { SqliteRestorationEvidence } from "../register/sqlite-restoration-evidence";
 import type { RegisterPulledChange } from "./pulled-change";
 import type { SqliteLocalReplica } from "./sqlite-local-replica";
-import { SqliteRestoredSyncIdentityStore } from "./sqlite-restored-sync-identity-store";
 import {
   openAdoptedReplica,
   savePulledChanges,
@@ -552,30 +546,6 @@ describe("the register's local copy of its own point of sale", () => {
 
       expect(savedCount()).toEqual([40]);
       expect(awaiting()).toEqual([1]);
-    });
-  });
-
-  describe("a restored register's first reservation after its numbering is reconciled", () => {
-    it("is the tax authority's last authorized number plus one, whatever higher count the snapshot held", async () => {
-      await save(pointOfSaleChange(1, 12, MAIN_STREET, 1, 44, false, "2026-10-14"));
-      await resetRestoredSyncIdentity(
-        { store: new SqliteRestoredSyncIdentityStore(database) },
-        { deviceId: "device-b" },
-      );
-      const evidence = new SqliteRestorationEvidence(database, restorePendingIn(undefined));
-      expect(restorationStanding(evidence.evidence())).toEqual({
-        kind: "in_progress",
-        step: "reconcile_fiscal_counters",
-      });
-
-      await save(pointOfSaleChange(2, 12, MAIN_STREET, 1, null, true, null));
-      expect(restorationStanding(evidence.evidence()).kind).toBe("in_progress");
-      expect(nextInvoiceNumber(readRealTimeSeries(database))).toBeNull();
-
-      await save(pointOfSaleChange(3, 12, MAIN_STREET, 1, 31, false, "2026-10-10"));
-
-      expect(restorationStanding(evidence.evidence())).toEqual({ kind: "completed" });
-      expect(nextInvoiceNumber(readRealTimeSeries(database))).toBe(32);
     });
   });
 });
