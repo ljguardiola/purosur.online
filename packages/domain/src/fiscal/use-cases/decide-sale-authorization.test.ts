@@ -53,6 +53,8 @@ const SERIES: RealTimeSeries = {
   clockMark: null,
   taxAuthorityLastIssuedOn: null,
   clockCorrections: [],
+  localLastAuthorizedIssuedOn: null,
+  deferredBacklog: [],
 };
 const OFFLINE_SERIES: OfflineSeries = {
   pointOfSale: 7,
