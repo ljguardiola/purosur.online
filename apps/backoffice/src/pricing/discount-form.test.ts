@@ -306,17 +306,17 @@ describe("option lists", () => {
   });
 
   test("offers the weekdays Monday first, with their full names for assistive technology", () => {
-    expect(
-      WEEKDAY_OPTIONS.map(({ value, label, fullLabel }) => [value, label, fullLabel]),
-    ).toEqual([
-      ["1", "Lun", "Lunes"],
-      ["2", "Mar", "Martes"],
-      ["3", "Mié", "Miércoles"],
-      ["4", "Jue", "Jueves"],
-      ["5", "Vie", "Viernes"],
-      ["6", "Sáb", "Sábado"],
-      ["7", "Dom", "Domingo"],
-    ]);
+    expect(WEEKDAY_OPTIONS.map(({ value, label, fullLabel }) => [value, label, fullLabel])).toEqual(
+      [
+        ["1", "Lun", "Lunes"],
+        ["2", "Mar", "Martes"],
+        ["3", "Mié", "Miércoles"],
+        ["4", "Jue", "Jueves"],
+        ["5", "Vie", "Viernes"],
+        ["6", "Sáb", "Sábado"],
+        ["7", "Dom", "Domingo"],
+      ],
+    );
   });
 });
 

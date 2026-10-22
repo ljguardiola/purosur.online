@@ -48,9 +48,7 @@ function ControlledGroup({ initial, onChange }: { initial: Day[]; onChange?: (v:
 type Screen = Awaited<ReturnType<typeof render>>;
 
 function chipName(option: ToggleChipOption<string>): string {
-  return option.fullLabel === undefined
-    ? option.label
-    : `${option.label}, ${option.fullLabel}`;
+  return option.fullLabel === undefined ? option.label : `${option.label}, ${option.fullLabel}`;
 }
 
 function chip(screen: Screen, name: string): HTMLElement {
