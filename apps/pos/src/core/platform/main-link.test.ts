@@ -34,12 +34,14 @@ function link() {
 const credentials = { device_id: "device-1", device_token: "token", pepper: "pepper" };
 
 async function settled<T>(promise: Promise<T>): Promise<{ value: T } | "pending"> {
-  const pending = Symbol("pending");
-  const result = await Promise.race([
-    promise.then((value) => ({ value })),
-    Promise.resolve(pending),
-  ]);
-  return result === pending ? "pending" : result;
+  let outcome: { value: T } | "pending" = "pending";
+  promise.then((value) => {
+    outcome = { value };
+  });
+  for (let tick = 0; tick < 5; tick++) {
+    await Promise.resolve();
+  }
+  return outcome;
 }
 
 describe("the register core's link to main", () => {
