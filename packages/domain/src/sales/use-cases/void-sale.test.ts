@@ -244,6 +244,7 @@ describe("voidSale", () => {
         refunds: [CASH_REFUND],
         grant: OWN_GRANT,
         creditNote: null,
+        creditNoteIssuedOffline: false,
       });
       expect(store.state.sales).toEqual([{ ...COMPLETED_SALE, state: "VOIDED", voidedAt: NOW }]);
       expect(store.state.refunds).toEqual([CASH_REFUND]);
