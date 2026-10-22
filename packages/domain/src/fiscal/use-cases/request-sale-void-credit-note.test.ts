@@ -292,6 +292,28 @@ describe("requestSaleVoidCreditNote", () => {
       ]);
     });
 
+    it("keeps the refusal of the voided sale's credit note, inside the lane, beside the alert", async () => {
+      const { store, run } = request({
+        seeded: [[REGISTER_ID, { ...STORED, creditNoteId: "credit-note-2" }]],
+      });
+
+      await run();
+
+      expect(store.refusalsKept).toEqual([
+        {
+          creditNoteId: "credit-note-1",
+          registerId: REGISTER_ID,
+          saleId: "sale-1",
+          at: RECEIVED_AT,
+        },
+      ]);
+      expect(store.operations.slice(-3)).toEqual([
+        "raiseInvoiceAlreadyCredited",
+        "keepAlreadyCreditedRefusal",
+        "leaveLane",
+      ]);
+    });
+
     it.each([
       ["recorded", []],
       ["already recorded", [[REGISTER_ID, STORED]] as [string, CreditNote][]],
@@ -301,6 +323,7 @@ describe("requestSaleVoidCreditNote", () => {
       await run();
 
       expect(store.alertsRaised).toEqual([]);
+      expect(store.refusalsKept).toEqual([]);
     });
   });
 });
