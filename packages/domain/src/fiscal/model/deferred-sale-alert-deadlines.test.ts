@@ -34,7 +34,7 @@ describe("deferredSaleAlertOpensAt and deferredSaleAlertEscalatesAt", () => {
   it("brings both forward when the month-end limit comes first", () => {
     const occurredAt = sale("2026-09-28");
     expect(deferredSaleExpiresOn(occurredAt)).toBe("2026-09-30");
-    expect(deferredSaleAlertOpensAt(occurredAt)).toEqual(startOf("2026-09-28"));
+    expect(deferredSaleAlertOpensAt(occurredAt)).toEqual(occurredAt);
     expect(deferredSaleAlertEscalatesAt(occurredAt)).toEqual(startOf("2026-09-29"));
   });
 
@@ -50,14 +50,14 @@ describe("deferredSaleAlertOpensAt and deferredSaleAlertEscalatesAt", () => {
     expect(deferredSaleAlertEscalatesAt(occurredAt)).toEqual(occurredAt);
   });
 
-  it("clamps the opening to the sale on the day before the last day of its month", () => {
+  it("clamps both to the sale on the day before the last day of its month", () => {
     const occurredAt = sale("2026-09-29", "18:30");
     expect(deferredSaleAlertOpensAt(occurredAt)).toEqual(occurredAt);
-    expect(deferredSaleAlertEscalatesAt(occurredAt)).toEqual(startOf("2026-09-30"));
+    expect(deferredSaleAlertEscalatesAt(occurredAt)).toEqual(occurredAt);
   });
 
   it("handles February and its leap day", () => {
-    expect(deferredSaleAlertOpensAt(sale("2026-02-26"))).toEqual(startOf("2026-02-26"));
+    expect(deferredSaleAlertOpensAt(sale("2026-02-26"))).toEqual(sale("2026-02-26"));
     expect(deferredSaleAlertEscalatesAt(sale("2026-02-26"))).toEqual(startOf("2026-02-27"));
     expect(deferredSaleAlertOpensAt(sale("2028-02-26"))).toEqual(startOf("2028-02-27"));
     expect(deferredSaleAlertEscalatesAt(sale("2028-02-26"))).toEqual(startOf("2028-02-28"));
