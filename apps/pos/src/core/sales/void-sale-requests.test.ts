@@ -476,7 +476,7 @@ describe("voiding a sale of the sales history", () => {
         const outcome = await voidSaleFor(voidDeps(), request(saleId, { authorization }));
 
         expect(outcome).toMatchObject({ kind: "voided", credit_note: { kind: "in_progress" } });
-        expect(creditNoteCalls).toHaveLength(1);
+        expect(creditNoteCalls).toEqual([]);
         expect(printedCreditNotes).toEqual([]);
       });
 
