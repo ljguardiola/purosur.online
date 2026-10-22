@@ -1,5 +1,6 @@
 import type { RestoredCreditNoteAnswer, SaleVoidCreditNote } from "../../fiscal/index.js";
 import type { ReplenishedUser } from "../../users/index.js";
+import type { PushedEvent } from "../model/push-batch.js";
 import type { SyncedFact } from "../model/synced-fact.js";
 import type { DecodedEvent } from "./event-application-ports.js";
 import type { EventPosition, ReplenishedEvent } from "./restored-register-replenishment-ports.js";
@@ -18,6 +19,7 @@ export interface ReplenishmentPage {
   events: ReplenishedEvent[];
   users: ReplenishedUser[];
   creditNoteAnswers: RestoredCreditNoteAnswer[];
+  unrequestedCreditNoteIds: string[];
   next: EventPosition | null;
 }
 
@@ -50,6 +52,8 @@ export interface RegisterReplenishmentTransaction {
     creditNote: SaleVoidCreditNote,
     answer: RestoredCreditNoteAnswer,
   ): Promise<void>;
+  // Holding a credit note the register already holds changes nothing.
+  holdCreditNoteToRequest(creditNote: SaleVoidCreditNote, event: PushedEvent): Promise<void>;
   holdsDeferredSaleRecord(saleId: string): Promise<boolean>;
   recordEventApplied(eventId: string): Promise<void>;
 }
