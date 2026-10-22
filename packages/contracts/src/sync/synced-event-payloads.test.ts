@@ -401,6 +401,12 @@ describe("synced event payloads", () => {
       expect(accepts("deferred_sale_recorded", 1, { ...recorded, reason })).toBe(true);
     });
 
+    it("accepts a sale deferred to join the backlog", () => {
+      expect(
+        accepts("deferred_sale_recorded", 1, { ...recorded, reason: "deferred_backlog" }),
+      ).toBe(true);
+    });
+
     it("refuses a reason the deferral does not have", () => {
       expect(accepts("deferred_sale_recorded", 1, { ...recorded, reason: "other" })).toBe(false);
     });
@@ -577,12 +583,15 @@ describe("synced event payloads", () => {
       expect(accepts("offline_fiscal_document_issued", 1, offline(change))).toBe(false);
     });
 
-    it.each(["no_connectivity", "unclear_outcome", "numbering_conflict", "clock_correction_lapse"])(
-      "accepts the cause %s",
-      (cause) => {
-        expect(accepts("offline_fiscal_document_issued", 1, offline({ cause }))).toBe(true);
-      },
-    );
+    it.each([
+      "no_connectivity",
+      "unclear_outcome",
+      "numbering_conflict",
+      "clock_correction_lapse",
+      "deferred_backlog",
+    ])("accepts the cause %s", (cause) => {
+      expect(accepts("offline_fiscal_document_issued", 1, offline({ cause }))).toBe(true);
+    });
   });
 
   describe("clock_corrected v1", () => {
