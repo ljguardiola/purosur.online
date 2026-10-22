@@ -2097,6 +2097,43 @@ describe("wiring the unclear outcome route", () => {
   });
 });
 
+describe("wiring the restored register orphan sweep route", () => {
+  function devicesOptions() {
+    return {
+      db: testDatabase.db,
+      rotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY,
+      keysEncryptionKey: TEST_INSTALLATION_KEYS_ENCRYPTION_KEY,
+    };
+  }
+
+  it("does not register POST /api/devices/current/orphan-sweep when no restoredOrphanSweep option is given", async () => {
+    const app = buildApp({ now: () => APP_CLOCK, version: "abc1234", devices: devicesOptions() });
+
+    const response = await app.inject({ method: "POST", url: "/api/devices/current/orphan-sweep" });
+
+    expect(response.statusCode).toBe(404);
+  });
+
+  it("registers POST /api/devices/current/orphan-sweep, refusing a request without a device token, when a devices and a restoredOrphanSweep option are given", async () => {
+    const app = buildApp({
+      now: () => APP_CLOCK,
+      version: "abc1234",
+      devices: devicesOptions(),
+      restoredOrphanSweep: {
+        connections: {
+          withConnection: (work) => work(testDatabase.db),
+        } satisfies DedicatedConnections<PgliteQueryResultHKT>,
+        enqueueCreditNote: async () => {},
+      },
+    });
+
+    const response = await app.inject({ method: "POST", url: "/api/devices/current/orphan-sweep" });
+
+    expect(response.statusCode).toBe(401);
+    expect(response.json()).toMatchObject({ code: "device_token_rejected" });
+  });
+});
+
 describe("wiring the device token rotation route", () => {
   it("does not register POST /api/devices/current/tokens when no devices option is given", async () => {
     const app = buildApp({ now: () => APP_CLOCK, version: "abc1234" });

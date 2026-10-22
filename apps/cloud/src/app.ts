@@ -98,6 +98,10 @@ import type { RegistersPointsOfSaleRouteOptions } from "./fiscal/registers-point
 import { registerRegistersPointsOfSaleListRoute } from "./fiscal/registers-points-of-sale-list-route.js";
 import { registerRejectedDocumentRemedyRoute } from "./fiscal/rejected-document-remedy-route.js";
 import {
+  type RestoredRegisterOrphanSweepRouteOptions,
+  registerRestoredRegisterOrphanSweepRoute,
+} from "./fiscal/restored-register-orphan-sweep-route.js";
+import {
   registerUnclearOutcomeRoute,
   type UnclearOutcomeRouteOptions,
 } from "./fiscal/unclear-outcome-route.js";
@@ -283,6 +287,12 @@ export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = Postgre
   creditNotes?: WithoutClock<
     Omit<CreditNoteRouteOptions<TQueryResult>, keyof DeviceTokensOptions<TQueryResult>>
   >;
+  restoredOrphanSweep?: WithoutClock<
+    Omit<
+      RestoredRegisterOrphanSweepRouteOptions<TQueryResult>,
+      keyof DeviceTokensOptions<TQueryResult>
+    >
+  >;
   mercadoPagoOrders?: WithoutClock<
     Omit<MercadoPagoOrderRoutesOptions<TQueryResult>, keyof DeviceTokensOptions<TQueryResult>>
   >;
@@ -307,6 +317,7 @@ type DatabaseRouteOptions<TQueryResult extends PgQueryResultHKT> = Required<
     | "enqueueNumberingReconciliationOnEnrollment"
     | "fiscalAuthorization"
     | "creditNotes"
+    | "restoredOrphanSweep"
     | "mercadoPagoOrders"
     | "mercadoPagoNotifications"
     | "registerUpdateFeed"
@@ -765,6 +776,13 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
           registerCreditNoteRoute(api, {
             ...options.devices,
             ...options.creditNotes,
+            now,
+          });
+        }
+        if (options.restoredOrphanSweep) {
+          registerRestoredRegisterOrphanSweepRoute(api, {
+            ...options.devices,
+            ...options.restoredOrphanSweep,
             now,
           });
         }

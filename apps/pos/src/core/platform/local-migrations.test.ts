@@ -919,6 +919,7 @@ describe("the register's local migrations", () => {
         "0071_credit_note_reprints",
         "0072_awaiting_restored_numbering",
         "0073_replenished_credit_note_requests",
+        "0074_awaiting_orphan_sweep",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1015,6 +1016,7 @@ describe("the register's local migrations", () => {
         "0071_credit_note_reprints",
         "0072_awaiting_restored_numbering",
         "0073_replenished_credit_note_requests",
+        "0074_awaiting_orphan_sweep",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1106,6 +1108,7 @@ describe("the register's local migrations", () => {
         "0071_credit_note_reprints",
         "0072_awaiting_restored_numbering",
         "0073_replenished_credit_note_requests",
+        "0074_awaiting_orphan_sweep",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1196,6 +1199,7 @@ describe("the register's local migrations", () => {
         "0071_credit_note_reprints",
         "0072_awaiting_restored_numbering",
         "0073_replenished_credit_note_requests",
+        "0074_awaiting_orphan_sweep",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1315,6 +1319,7 @@ describe("the register's local migrations", () => {
         "0071_credit_note_reprints",
         "0072_awaiting_restored_numbering",
         "0073_replenished_credit_note_requests",
+        "0074_awaiting_orphan_sweep",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1424,6 +1429,7 @@ describe("the register's local migrations", () => {
         "0071_credit_note_reprints",
         "0072_awaiting_restored_numbering",
         "0073_replenished_credit_note_requests",
+        "0074_awaiting_orphan_sweep",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1537,6 +1543,7 @@ describe("the register's local migrations", () => {
         "0071_credit_note_reprints",
         "0072_awaiting_restored_numbering",
         "0073_replenished_credit_note_requests",
+        "0074_awaiting_orphan_sweep",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1658,6 +1665,7 @@ describe("the register's local migrations", () => {
         "0071_credit_note_reprints",
         "0072_awaiting_restored_numbering",
         "0073_replenished_credit_note_requests",
+        "0074_awaiting_orphan_sweep",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1746,6 +1754,7 @@ describe("the register's local migrations", () => {
         "0071_credit_note_reprints",
         "0072_awaiting_restored_numbering",
         "0073_replenished_credit_note_requests",
+        "0074_awaiting_orphan_sweep",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -5870,6 +5879,35 @@ describe("the register's local migrations", () => {
       expect(() => hold.run({ credit_note_id: "note-1" })).not.toThrow();
       expect(() => hold.run({ credit_note_id: "note-1" })).toThrow(/UNIQUE|PRIMARY KEY/);
       expect(() => hold.run({ credit_note_id: "note-unknown" })).toThrow(/FOREIGN KEY/);
+      after.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("the orphan sweep migration", () => {
+  it("leaves a register that already holds data awaiting no sweep", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.filter(
+        (migration) => migration.name < "0074_awaiting_orphan_sweep",
+      );
+      expect(LOCAL_MIGRATIONS.map((migration) => migration.name)).toContain(
+        "0074_awaiting_orphan_sweep",
+      );
+      const before = openLocalDatabase(path, previous, migrationClock);
+      before.exec(
+        `INSERT INTO own_register (id, name, version, removed) VALUES ('r1', 'Caja 1', 1, 0);
+         INSERT INTO register_point_of_sale (register_id, point_of_sale_number, fiscal_address_id, version)
+         VALUES ('r1', 12, 'address-1', 2);`,
+      );
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+
+      expect(after.prepare("SELECT register_id FROM awaiting_orphan_sweep").all()).toEqual([]);
       after.close();
     } finally {
       rmSync(folder, { recursive: true, force: true });
