@@ -67,7 +67,9 @@ export type {
   AuthorizedFacturaC,
   CreditNoteCFiscalBlock,
   FacturaCFiscalBlock,
+  OfflineAuthorizedCreditNoteC,
   OfflineAuthorizedFacturaC,
+  OfflineCreditNoteCFiscalBlock,
   OfflineFacturaCFiscalBlock,
 } from "./model/factura-c-fiscal-block.js";
 export {
@@ -79,6 +81,7 @@ export {
   FINAL_CONSUMER_DOCUMENT_NUMBER,
   FINAL_CONSUMER_DOCUMENT_TYPE,
   facturaCFiscalBlock,
+  offlineCreditNoteCFiscalBlock,
   offlineFacturaCFiscalBlock,
   TAX_AUTHORITY_QR_URL,
 } from "./model/factura-c-fiscal-block.js";
