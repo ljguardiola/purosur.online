@@ -70,9 +70,9 @@ export function voidedSale(overrides: Partial<FakeReceiptSale> = {}): FakeReceip
   return completedSale({ completed: false, voided: true, ...overrides });
 }
 
-export function creditNoteContent(
-  issuer: CreditNoteReceiptContent["fiscal"]["issuer"],
-): CreditNoteReceiptContent {
+type Issuer = CreditNoteReceiptContent["fiscal"]["issuer"];
+
+function creditNoteContent(issuer: Issuer): CreditNoteReceiptContent {
   return {
     header: SOURCE.header,
     operation: {
@@ -112,11 +112,12 @@ function creditNote(
   };
 }
 
-export function creditedSale(
-  overrides: Partial<FakeCreditNote> & Pick<FakeCreditNote, "content">,
-  sale: Partial<FakeReceiptSale> = {},
-): FakeReceiptSale {
-  return voidedSale({ creditNote: creditNote(overrides), ...sale });
+export function creditedSales(issuer: Issuer) {
+  const content = creditNoteContent(issuer);
+  return (
+    overrides: Partial<FakeCreditNote> = {},
+    sale: Partial<FakeReceiptSale> = {},
+  ): FakeReceiptSale => voidedSale({ creditNote: creditNote({ content, ...overrides }), ...sale });
 }
 
 export function receiptRig(

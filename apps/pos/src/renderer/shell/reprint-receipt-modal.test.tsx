@@ -420,9 +420,10 @@ describe("ReprintReceiptModal", () => {
   });
 
   describe("for the credit note of a voided sale", () => {
-    const CREDIT_NOTE_SALE = {
-      sale_id: "sale-1",
-      occurred_at: SALE.occurred_at,
+    const CREDIT_NOTE_SALE: Sale = {
+      ...SALE,
+      state: "voided",
+      reprint: { kind: "sale_voided" },
       credit_note: {
         kind: "authorized",
         point_of_sale: 3,
@@ -431,8 +432,9 @@ describe("ReprintReceiptModal", () => {
         authorization_code: "75123456789012",
         authorization_code_due_on: "2026-10-19",
       },
+      credit_note_next_copy: { kind: "duplicate", order_number: 2 },
       next_copy: { kind: "duplicate", order_number: 2 },
-    } as const;
+    };
 
     it("says the credit note comes out as a duplicate, with its legend and its own comprobante", async () => {
       const { screen } = await renderModal({
@@ -450,8 +452,21 @@ describe("ReprintReceiptModal", () => {
       await expect
         .element(screen.getByText("Nota de crédito C · PV 00003 · Nº 00000041"))
         .toBeVisible();
-      await expect.element(screen.getByText("Operación")).not.toBeInTheDocument();
       await expectNoAccessibilityViolations(document.body);
+    });
+
+    it("names only the credit note, not the sale's invoice nor its operation", async () => {
+      const { screen } = await renderModal({
+        document: "credit_note",
+        sale: CREDIT_NOTE_SALE,
+      });
+
+      await expect
+        .element(screen.getByText("Nota de crédito C · PV 00003 · Nº 00000041"))
+        .toBeVisible();
+      expect(screen.getByText("Comprobante", { exact: true }).elements()).toHaveLength(1);
+      await expect.element(screen.getByText(/Factura C/)).not.toBeInTheDocument();
+      await expect.element(screen.getByText("Operación")).not.toBeInTheDocument();
     });
 
     it("sends the reason for the sale's credit note and tells the screen it started", async () => {

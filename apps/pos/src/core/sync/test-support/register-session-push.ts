@@ -298,18 +298,6 @@ function authorizeCreditNoteOfVoidedSale(database: LocalDatabase, saleId: string
   }
 }
 
-function holdCreditNoteInProgress(database: LocalDatabase, saleId: string): void {
-  database
-    .prepare(
-      `UPDATE sale_void_credit_notes
-       SET state = 'IN_PROGRESS', point_of_sale = NULL, number = NULL, issued_on = NULL,
-           issued_at = NULL, authorization_code = NULL, authorization_code_due_on = NULL,
-           answered_at = NULL
-       WHERE sale_id = ?`,
-    )
-    .run(saleId);
-}
-
 async function printAndReprintCreditNote({
   deps,
   saleId,
@@ -857,6 +845,23 @@ export async function withRegisterSession<TResult>(
       "completed",
     );
     nextStep();
+    const pendingCreditNoteScan = await scanProductFor(deps(), "7790001000028");
+    if (pendingCreditNoteScan.kind !== "added") {
+      throw new Error(
+        `The register session's "scan a product whose void leaves its credit note in progress" ended as "${pendingCreditNoteScan.kind}"`,
+      );
+    }
+    nextStep();
+    const pendingCreditNoteTransfer = await chargeSaleByTransferFor(deps(), {
+      saleId: pendingCreditNoteScan.sale.id,
+      amount: pendingCreditNoteScan.sale.total,
+    });
+    expectOutcome(
+      "charge a sale whose void leaves its credit note in progress",
+      pendingCreditNoteTransfer.kind,
+      "completed",
+    );
+    nextStep();
     database
       .prepare(
         `INSERT INTO register_health_checks (checked_at, round_trip_ms, token_valid, arca_reachable)
@@ -900,7 +905,23 @@ export async function withRegisterSession<TResult>(
       saleId: offlineScan.sale.id,
       nextStep,
     });
-    holdCreditNoteInProgress(database, offlineScan.sale.id);
+    nextStep();
+    database
+      .prepare(
+        `INSERT INTO register_health_checks (checked_at, round_trip_ms, token_valid, arca_reachable)
+         VALUES (?, 120, 1, 1)`,
+      )
+      .run(now().toISOString());
+    const voidedPendingCreditNote = await voidSaleFor(voidDeps(), {
+      saleId: pendingCreditNoteScan.sale.id,
+      pendingRefundsConfirmed: true,
+      authorization: { user_id: GRACE, pin: PIN },
+    });
+    expectOutcome(
+      "void a sale whose credit note stays in progress",
+      voidedPendingCreditNote.kind,
+      "voided",
+    );
     nextStep();
     const closed = await closeCashSessionFor(deps(), {
       sessionId: opened.cash_session.id,

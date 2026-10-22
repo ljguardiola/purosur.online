@@ -68,7 +68,7 @@ describe("SalesHistoryScreen credit note of a voided sale", () => {
     await expect.poll(() => saleHistoryDetail.mock.calls.length).toBeGreaterThan(readsBefore);
   });
 
-  it("says the credit note was already printed, and reads the sale again, when another print got ahead", async () => {
+  it("says the credit note may have come out, and reads the sale again, when a print of it was already tried", async () => {
     const { screen, saleHistoryDetail } = await renderScreen({
       saleHistoryDetail: async () => ({ kind: "found", detail: VOIDED_DETAIL }),
       printCreditNote: async () => ({ kind: "already_attempted" }),
@@ -78,7 +78,9 @@ describe("SalesHistoryScreen credit note of a voided sale", () => {
 
     await userEvent.click(screen.getByRole("button", { name: PRINT }));
 
-    await expect.element(screen.getByText("La nota de crédito ya se imprimió")).toBeVisible();
+    await expect
+      .element(screen.getByText("Puede que la nota de crédito haya salido"))
+      .toBeVisible();
     await expect.poll(() => saleHistoryDetail.mock.calls.length).toBeGreaterThan(readsBefore);
   });
 
@@ -114,6 +116,23 @@ describe("SalesHistoryScreen credit note of a voided sale", () => {
           ),
         )
         .toBeVisible();
+    });
+
+    it("names in the reprint only the credit note, not the sale's invoice nor its operation", async () => {
+      const { screen } = await renderScreen({
+        saleHistoryDetail: async () => ({ kind: "found", detail: PRINTED_DETAIL }),
+      });
+      await chooseSale(screen, "11:42");
+
+      await userEvent.click(screen.getByRole("button", { name: REPRINT }));
+
+      const dialog = screen.getByRole("dialog");
+      await expect
+        .element(dialog.getByText("Nota de crédito C · PV 00003 · Nº 00000007"))
+        .toBeVisible();
+      expect(dialog.getByText("Comprobante", { exact: true }).elements()).toHaveLength(1);
+      await expect.element(dialog.getByText(/Factura C/)).not.toBeInTheDocument();
+      await expect.element(dialog.getByText("Operación")).not.toBeInTheDocument();
     });
 
     it("closes the modal without printing from Cancelar", async () => {
