@@ -97,7 +97,17 @@ CREATE TABLE offline_series_counts (
   PRIMARY KEY (point_of_sale, document_type)
 );
 
-CREATE TABLE sale_void_credit_notes_rebuilt (
+CREATE TABLE sale_void_credit_notes_held AS
+  SELECT id, sale_id, total, receiver_tax_status_code, corrected_voucher_type, corrected_point_of_sale,
+         corrected_number, state, point_of_sale, number, issued_on, issued_at, authorization_code,
+         authorization_code_due_on, recorded_at, answered_at
+  FROM sale_void_credit_notes;
+
+DROP INDEX sale_void_credit_notes_in_progress;
+
+DROP TABLE sale_void_credit_notes;
+
+CREATE TABLE sale_void_credit_notes (
   id TEXT PRIMARY KEY,
   sale_id TEXT NOT NULL UNIQUE REFERENCES sales (id),
   total INTEGER NOT NULL CHECK (total > 0),
@@ -139,7 +149,7 @@ CREATE TABLE sale_void_credit_notes_rebuilt (
   )
 );
 
-INSERT INTO sale_void_credit_notes_rebuilt (
+INSERT INTO sale_void_credit_notes (
   id, sale_id, total, receiver_tax_status_code, corrected_voucher_type, corrected_point_of_sale,
   corrected_number, state, point_of_sale, number, issued_on, issued_at, authorization_code,
   authorization_code_due_on, recorded_at, answered_at
@@ -147,13 +157,9 @@ INSERT INTO sale_void_credit_notes_rebuilt (
 SELECT id, sale_id, total, receiver_tax_status_code, corrected_voucher_type, corrected_point_of_sale,
        corrected_number, state, point_of_sale, number, issued_on, issued_at, authorization_code,
        authorization_code_due_on, recorded_at, answered_at
-FROM sale_void_credit_notes;
+FROM sale_void_credit_notes_held;
 
-DROP INDEX sale_void_credit_notes_in_progress;
-
-DROP TABLE sale_void_credit_notes;
-
-ALTER TABLE sale_void_credit_notes_rebuilt RENAME TO sale_void_credit_notes;
+DROP TABLE sale_void_credit_notes_held;
 
 CREATE INDEX sale_void_credit_notes_in_progress
   ON sale_void_credit_notes (recorded_at, id)
