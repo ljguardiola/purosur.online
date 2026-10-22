@@ -77,6 +77,10 @@ export async function requestRealTimeAuthorization(
               pointOfSale: waiting.pointOfSale,
               number: waiting.number,
               issuedOn: waiting.issuedOn,
+              document: waiting.document,
+              authorizationCode: resolution.authorizationCode,
+              authorizationCodeDueOn: resolution.authorizationCodeDueOn,
+              reservedAt,
               satisfiedAt: resolved.resolvedAt,
             }),
     });

@@ -16,6 +16,7 @@ export interface UnclearOutcomeQuestion extends Omit<WaitingFiscalDocument, "sal
 
 export interface UnclearFiscalDocument extends WaitingFiscalDocument {
   origin: SaleOrigin;
+  reservedAt: Date;
   deferredSale: ExistingDeferredSale | null;
 }
 

@@ -28,6 +28,7 @@ export async function applyUnclearOutcomeDecisions({
   async function applyTo({
     saleEvent,
     origin,
+    reservedAt,
     deferredSale,
     ...document
   }: UnclearFiscalDocument): Promise<DocumentResult> {
@@ -56,6 +57,10 @@ export async function applyUnclearOutcomeDecisions({
               pointOfSale: document.pointOfSale,
               number: document.number,
               issuedOn: document.issuedOn,
+              document: document.document,
+              authorizationCode: settlement.authorizationCode,
+              authorizationCodeDueOn: settlement.authorizationCodeDueOn,
+              reservedAt,
               satisfiedAt: settledAt,
             })
           : null,

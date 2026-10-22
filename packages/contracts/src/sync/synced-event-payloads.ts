@@ -472,6 +472,23 @@ const deferredSaleRecordedSchema = z.object({
   routed_at: instant,
 });
 
+const invoiceSchema = z.object({
+  invoice_class: z.literal("C"),
+  total: cents,
+  net_amount: cents,
+  vat_amount: z.literal(0),
+  issuer: z.object({
+    legal_name: text,
+    cuit: text,
+    tax_status: text,
+    gross_income_registration: text,
+    activity_start_date: z.string().refine(isCalendarDay),
+    version: z.int(),
+  }),
+  buyer_tax_status_code: z.int(),
+  buyer_tax_status_description: z.string(),
+});
+
 const deferredSaleSatisfiedSchema = z.object({
   id: text,
   sale_id: text,
@@ -480,6 +497,10 @@ const deferredSaleSatisfiedSchema = z.object({
   point_of_sale: pointOfSaleNumberSchema,
   number: z.int().positive(),
   issued_on: z.string().refine(isCalendarDay),
+  document: invoiceSchema,
+  authorization_code: text,
+  authorization_code_due_on: z.string().refine(isCalendarDay),
+  reserved_at: instant,
   satisfied_at: instant,
 });
 
@@ -502,23 +523,6 @@ const offlineFiscalDocumentIssuedSchema = z.object({
   total: cents,
   net_amount: cents,
   cause: z.enum(OFFLINE_AUTHORIZATION_CAUSES),
-});
-
-const invoiceSchema = z.object({
-  invoice_class: z.literal("C"),
-  total: cents,
-  net_amount: cents,
-  vat_amount: z.literal(0),
-  issuer: z.object({
-    legal_name: text,
-    cuit: text,
-    tax_status: text,
-    gross_income_registration: text,
-    activity_start_date: z.string().refine(isCalendarDay),
-    version: z.int(),
-  }),
-  buyer_tax_status_code: z.int(),
-  buyer_tax_status_description: z.string(),
 });
 
 const offlineFiscalDocumentIssuedV2Schema = offlineFiscalDocumentIssuedSchema.extend({
