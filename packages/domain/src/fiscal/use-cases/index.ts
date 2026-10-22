@@ -504,6 +504,18 @@ export { serveRestoredRegisterCreditNoteAnswers } from "./serve-restored-registe
 export type { SettleInterruptedRealTimeAuthorizationsOutcome } from "./settle-interrupted-real-time-authorizations.js";
 export { settleInterruptedRealTimeAuthorizations } from "./settle-interrupted-real-time-authorizations.js";
 export type {
+  SweepRestoredRegisterOrphanAuthorizationsInput,
+  SweepRestoredRegisterOrphanAuthorizationsOutcome,
+} from "./sweep-restored-register-orphan-authorizations.js";
+export { sweepRestoredRegisterOrphanAuthorizations } from "./sweep-restored-register-orphan-authorizations.js";
+export type {
+  RegisterFiscalPointsOfSale,
+  RestoredRegisterOrphanLane,
+  RestoredRegisterOrphanLanes,
+  SweepRestoredRegisterOrphanAuthorizationsPorts,
+  UnrecordedSaleRequest,
+} from "./sweep-restored-register-orphan-authorizations-ports.js";
+export type {
   LastAuthorizedAnswer,
   LastAuthorizedCount,
   TaxAuthorityCountPorts,
