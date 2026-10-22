@@ -39,12 +39,22 @@ async function saleHoldingPaidOrder(amount = 3000): Promise<string> {
   return saleId;
 }
 
+function countingIds(): { next: () => string } {
+  let count = 0;
+  return {
+    next: () => {
+      count += 1;
+      return `generated-${count}`;
+    },
+  };
+}
+
 function settle({ canSignEvents = true } = {}) {
   return paidOrderSale({
     database,
     outboxChainKey: canSignEvents ? CHARGE_CHAIN_KEY : undefined,
     now: () => CHARGE_NOW,
-    ids: { next: () => "generated-id" },
+    ids: countingIds(),
   }).settleApprovedPayment({ actorId: "u1", paymentTransactionId: "qr-1" });
 }
 
@@ -61,6 +71,7 @@ describe("settling a paid order on the sale it pays", () => {
     expect(saleStates()).toEqual([{ state: "COMPLETED" }]);
     expect(database.prepare("SELECT event_type FROM outbox").all()).toEqual([
       { event_type: "sale_completed" },
+      { event_type: "deferred_sale_recorded" },
     ]);
   });
 

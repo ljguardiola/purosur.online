@@ -2134,6 +2134,7 @@ describe("charging the sale in progress in cash", () => {
     expect(database.prepare("SELECT state FROM sales").all()).toEqual([{ state: "COMPLETED" }]);
     expect(database.prepare("SELECT event_type FROM outbox").all()).toEqual([
       { event_type: "sale_completed" },
+      { event_type: "deferred_sale_recorded" },
     ]);
   });
 
@@ -2189,6 +2190,7 @@ describe("charging the sale in progress in cash", () => {
     ]);
     expect(database.prepare("SELECT event_type FROM outbox").all()).toEqual([
       { event_type: "sale_completed" },
+      { event_type: "deferred_sale_recorded" },
     ]);
   });
 
@@ -2207,6 +2209,7 @@ describe("charging the sale in progress in cash", () => {
     ).toEqual([{ outcome: "FAILED", failure_reason: "issuer_identification_missing" }]);
     expect(database.prepare("SELECT event_type FROM outbox ORDER BY device_seq").all()).toEqual([
       { event_type: "sale_completed" },
+      { event_type: "deferred_sale_recorded" },
       { event_type: "fiscal_gate_failed" },
     ]);
   });
@@ -2322,6 +2325,7 @@ describe("charging the sale in progress by transfer", () => {
     expect(database.prepare("SELECT state FROM sales").all()).toEqual([{ state: "COMPLETED" }]);
     expect(database.prepare("SELECT event_type FROM outbox").all()).toEqual([
       { event_type: "sale_completed" },
+      { event_type: "deferred_sale_recorded" },
     ]);
   });
 
@@ -2525,6 +2529,7 @@ describe("charging the sale in progress on the standalone terminal", () => {
     expect(database.prepare("SELECT state FROM sales").all()).toEqual([{ state: "COMPLETED" }]);
     expect(database.prepare("SELECT event_type FROM outbox").all()).toEqual([
       { event_type: "sale_completed" },
+      { event_type: "deferred_sale_recorded" },
     ]);
   });
 
