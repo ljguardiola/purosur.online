@@ -24,6 +24,5 @@ To register the first Administrator's passkey: open the backoffice, request an a
 
 - TypeScript is pinned to exactly `6.0.3`. TypeScript 7 ships no JavaScript API, and dependency-cruiser declares support for `typescript >=2.0.0 <7.0.0`; under TypeScript 7 it would cruise zero modules and exit 0, so the architecture gate would pass without checking anything. Lift this pin once dependency-cruiser supports TypeScript 7.
 - `@types/node` stays on the Node major pinned in `.node-version`.
-- vite and `@vitejs/plugin-react` stay on their current majors: electron-vite, which builds the register, supports vite only up to 7, and `@vitejs/plugin-react` 6 requires vite 8. Lift this pin once a stable electron-vite supports vite 8.
 - pnpm is pinned to an 11.x release in `package.json`'s `packageManager`, never 12. pnpm 12 writes a two-document lockfile that GitHub's dependency graph and Dependabot mis-parse. Lift this pin once that parsing is fixed.
 - Dependency ranges are lowered instead of adding `minimumReleaseAgeExclude` entries. pnpm 11 refuses to resolve a version published less than a day ago (`minimumReleaseAge`, 1440 minutes) and enforces this even under `--frozen-lockfile`, so a range is lowered to the newest already-day-old version instead. After lowering a range, re-resolve with `pnpm clean --lockfile` followed by `pnpm install`.
