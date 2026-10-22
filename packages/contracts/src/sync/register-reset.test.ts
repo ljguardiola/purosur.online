@@ -234,6 +234,7 @@ describe("the register reset response", () => {
       next: null,
       users: [],
       credit_notes: [creditNote],
+      unrequested_credit_note_ids: [],
     });
 
     it.each([
