@@ -6,7 +6,6 @@ import { insertRegisterWithPointOfSale } from "../fiscal/test-support/authorizat
 import {
   alerts,
   auditLog,
-  numberingFreezes,
   registerContingencyTicketKeys,
   registerEnrollmentAttempts,
   registerEnrollmentCodes,
@@ -205,7 +204,7 @@ describe("POST /devices", () => {
     }
   });
 
-  it("forgets the stored count of the register's point of sale and queues a new read from the tax authority", async () => {
+  it("queues a new read from the tax authority of the count of the register's point of sale", async () => {
     const registerId = await insertRegisterWithPointOfSale(db, {
       pointOfSaleNumber: 7,
       name: "caja-con-punto",
@@ -217,18 +216,14 @@ describe("POST /devices", () => {
       issuedAt: minutesAgo(5),
       expiresAt: minutesAgo(-10),
     });
-    await db
-      .insert(taxAuthorityLastAuthorizedNumbers)
-      .values({ pointOfSaleNumber: 7, lastAuthorized: 11, readAt: NOW });
 
     const response = await enroll();
 
     expect(response.statusCode).toBe(200);
-    expect(await db.select().from(taxAuthorityLastAuthorizedNumbers)).toEqual([]);
     expect(enqueuedCountReads).toEqual([7]);
   });
 
-  it("freezes the numbering of the register's point of sale at the stored count and queues its reconciliation", async () => {
+  it("queues the reconciliation of the numbering of the register's point of sale", async () => {
     const registerId = await insertRegisterWithPointOfSale(db, {
       pointOfSaleNumber: 7,
       name: "caja-con-punto",
@@ -247,9 +242,6 @@ describe("POST /devices", () => {
     const response = await enroll();
 
     expect(response.statusCode).toBe(200);
-    expect(await db.select().from(numberingFreezes)).toEqual([
-      { pointOfSaleNumber: 7, countBeforeFreeze: 11, frozenAt: NOW },
-    ]);
     expect(enqueuedReconciliations).toEqual([7]);
   });
 
