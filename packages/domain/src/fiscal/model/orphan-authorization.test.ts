@@ -5,7 +5,9 @@ import {
   decideOrphanAuthorization,
   type LocalRequestAtNumber,
   type LocalStanding,
+  localStandingOfUnrecordedSale,
   type OrphanEvidence,
+  orphanEvidenceOfRecordedRequest,
   orphanRegularization,
   requestBehindVoucher,
   type SaleDocument,
@@ -257,5 +259,87 @@ describe("authorizedVoucherAmong", () => {
 
   it("finds none in a sale with no other document", () => {
     expect(authorizedVoucherAmong([])).toBeNull();
+  });
+});
+
+describe("orphanEvidenceOfRecordedRequest", () => {
+  const document = { number: 41, issuedOn: "2026-10-01", total: 12_500, buyerTaxStatusCode: 5 };
+  const request = (outcome: Extract<SaleDocument, { kind: "real_time" }>["outcome"]) => ({
+    ...document,
+    outcome,
+  });
+
+  it("confirms a request the tax authority authorized with the voucher it recorded", () => {
+    expect(
+      orphanEvidenceOfRecordedRequest({
+        pointOfSale: 12,
+        request: request({
+          answer: {
+            kind: "authorized",
+            authorizationCode: "75123456789012",
+            authorizationCodeDueOn: "2026-10-11",
+          },
+          decision: null,
+        }),
+      }),
+    ).toEqual({ kind: "confirmed", pointOfSale: 12, number: 41, voucher: VOUCHER });
+  });
+
+  it("confirms a request whose authorization was adopted after an unclear answer", () => {
+    expect(
+      orphanEvidenceOfRecordedRequest({
+        pointOfSale: 12,
+        request: request({
+          answer: { kind: "unclear" },
+          decision: {
+            kind: "adopted",
+            authorizationCode: "75123456789012",
+            authorizationCodeDueOn: "2026-10-11",
+          },
+        }),
+      }),
+    ).toEqual({ kind: "confirmed", pointOfSale: 12, number: 41, voucher: VOUCHER });
+  });
+
+  it.each<[string, Extract<SaleDocument, { kind: "real_time" }>["outcome"]]>([
+    ["has no answer yet", { answer: null, decision: null }],
+    ["is still unclear", { answer: { kind: "unclear" }, decision: null }],
+    [
+      "was rejected",
+      { answer: { kind: "rejected", codes: [10016], rejectionClass: "content" }, decision: null },
+    ],
+    ["was released", { answer: { kind: "unclear" }, decision: { kind: "released" } }],
+    ["is conflicting", { answer: { kind: "unclear" }, decision: { kind: "conflicting" } }],
+  ])("does not confirm a request that %s", (_case, outcome) => {
+    expect(orphanEvidenceOfRecordedRequest({ pointOfSale: 12, request: request(outcome) })).toEqual(
+      { kind: "not_confirmed" },
+    );
+  });
+});
+
+describe("localStandingOfUnrecordedSale", () => {
+  it("stands as a local sale with the other authorized voucher when the sale has one", () => {
+    expect(
+      localStandingOfUnrecordedSale("sale-1", [{ kind: "offline", voucher: OFFLINE_VOUCHER }]),
+    ).toEqual({ kind: "local_sale", saleId: "sale-1", otherAuthorizedVoucher: OFFLINE_VOUCHER });
+  });
+
+  it.each<[string, SaleDocument[]]>([
+    ["no other document", []],
+    [
+      "only a rejected document",
+      [
+        {
+          kind: "real_time",
+          voucher: OFFLINE_VOUCHER,
+          outcome: {
+            answer: { kind: "rejected", codes: [10016], rejectionClass: "content" },
+            decision: null,
+          },
+        },
+      ],
+    ],
+  ])("stands as no local sale when the sale has %s", (_case, documents) => {
+    expect(localStandingOfUnrecordedSale("sale-1", documents)).toEqual({ kind: "no_local_sale" });
   });
 });
