@@ -389,9 +389,49 @@ describe("decideUnclearRealTimeOutcome", () => {
         "unclearRequest",
         "voucherAt",
         "otherDocumentsOfSale",
+        "creditNotesOfSale",
         "recordDecision:adopted@2026-10-01T12:01:00.000Z",
         "leaveLane",
       ]);
+    });
+
+    it("keeps the other voucher still valid when the sale's first authorized document was already credited", async () => {
+      const { ports, store } = scenario({
+        voucher: { kind: "found", voucher: MATCHING_VOUCHER },
+        otherDocuments: [
+          { kind: "offline", voucher: { voucherType: 11, pointOfSale: 13, number: 6 } },
+          { kind: "offline", voucher: KEPT_VOUCHER },
+        ],
+      });
+      store.creditNotes.set("sale-1", [
+        {
+          creditedVoucher: { voucherType: 11, pointOfSale: 13, number: 6 },
+          keptVoucher: null,
+        },
+      ]);
+
+      await decide(ports);
+
+      expect(store.regularizations).toMatchObject([
+        { kind: "credit_note", keptVoucher: KEPT_VOUCHER },
+      ]);
+    });
+
+    it("regularizes nothing when a credit note already kept the adopted authorization", async () => {
+      const { ports, store } = scenario({
+        voucher: { kind: "found", voucher: MATCHING_VOUCHER },
+        otherDocuments: KEPT_DOCUMENTS,
+      });
+      store.creditNotes.set("sale-1", [
+        {
+          creditedVoucher: KEPT_VOUCHER,
+          keptVoucher: { voucherType: 11, pointOfSale: 12, number: 41 },
+        },
+      ]);
+
+      await decide(ports);
+
+      expect(store.regularizations).toEqual([null]);
     });
 
     it("regularizes nothing when no other document of the sale is authorized", async () => {
