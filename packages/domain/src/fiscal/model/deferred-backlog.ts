@@ -30,7 +30,7 @@ export function latestIssuedOn(a: string | null, b: string | null): string | nul
   if (a === null || b === null) {
     return a ?? b;
   }
-  return a > b ? a : b;
+  return new Date(Math.max(Date.parse(a), Date.parse(b))).toISOString().slice(0, 10);
 }
 
 export function isInDeferredBacklog(
@@ -59,7 +59,7 @@ function compareBacklogOrder(a: DeferredBacklogEntry, b: DeferredBacklogEntry): 
   if (a.routedAt.getTime() !== b.routedAt.getTime()) {
     return a.routedAt.getTime() - b.routedAt.getTime();
   }
-  return a.deferredSaleId < b.deferredSaleId ? -1 : a.deferredSaleId > b.deferredSaleId ? 1 : 0;
+  return a.deferredSaleId.localeCompare(b.deferredSaleId);
 }
 
 export function nextDeferredBacklogStep(
