@@ -258,7 +258,7 @@ describe("the ESC/POS credit note of a voided sale", () => {
       expect(textLines).toContain("Asociada a Factura C              00012-00000123");
       expect(text).toContain(`[qr store ${QR_TEXT}]`);
       expect(text).toContain(
-        "[small]       CAEA 71234567890123  ·  Quincena 1 al 15/10/2026[/small]",
+        "[small]        CAEA 71234567890123  ·  Quincena 1 al 15/10/2026[/small]",
       );
       expect(textLines.some((line) => line.includes("CAE 7"))).toBe(false);
     });
