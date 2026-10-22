@@ -788,6 +788,7 @@ export {
   argentinaCalendarDay,
   argentinaInstant,
   isCalendarDay,
+  lastDayOfMonth,
   isoWeekdayOf,
   isReportPeriodAsked,
   isValidCashAmount,
