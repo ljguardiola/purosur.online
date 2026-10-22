@@ -8116,10 +8116,9 @@
       "columns": {
         "id": {
           "name": "id",
-          "type": "uuid",
+          "type": "bigserial",
           "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
+          "notNull": true
         },
         "point_of_sale_number": {
           "name": "point_of_sale_number",

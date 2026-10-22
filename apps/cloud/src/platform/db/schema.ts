@@ -2301,7 +2301,7 @@ export const fortnightDocumentReports = pgTable(
 export const rejectedDocumentRemedies = pgTable(
   "rejected_document_remedies",
   {
-    id: uuid("id").primaryKey().defaultRandom(),
+    id: bigserial("id", { mode: "number" }).primaryKey(),
     pointOfSaleNumber: integer("point_of_sale_number")
       .notNull()
       .references(() => pointOfSaleClaims.pointOfSaleNumber),

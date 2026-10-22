@@ -72,7 +72,7 @@ export async function recordedRemedies<TQueryResult extends PgQueryResultHKT>(
     })
     .from(rejectedDocumentRemedies)
     .where(and(inArray(rejectedDocumentRemedies.pointOfSaleNumber, pointsOfSale), ...ofFortnight))
-    .orderBy(asc(rejectedDocumentRemedies.recordedAt), asc(rejectedDocumentRemedies.id));
+    .orderBy(asc(rejectedDocumentRemedies.id));
   for (const row of rows) {
     const key = remedyKey(row.pointOfSale, row.fortnightStart, row.documentType, row.number);
     byRejection.set(rejectionKey(key, row.rejectedAt), {

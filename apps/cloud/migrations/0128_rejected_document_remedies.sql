@@ -1,5 +1,5 @@
 CREATE TABLE "rejected_document_remedies" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"id" bigserial PRIMARY KEY NOT NULL,
 	"point_of_sale_number" integer NOT NULL,
 	"fortnight_start" date NOT NULL,
 	"document_type" text NOT NULL,
