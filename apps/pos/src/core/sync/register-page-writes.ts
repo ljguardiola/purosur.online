@@ -14,7 +14,9 @@ function keepingHighest(table: string, column: string): string {
 
 const COUNT = "tax_authority_last_authorized_number";
 const DAY = "tax_authority_last_authorized_issued_on";
-const AWAITED_FROM_CLOUD = `register_point_of_sale.awaiting_restored_numbering = 1
+const AWAITED_FROM_CLOUD = `EXISTS (
+           SELECT 1 FROM awaiting_restored_numbering
+           WHERE awaiting_restored_numbering.register_id = register_point_of_sale.register_id)
            AND excluded.version >= register_point_of_sale.version`;
 
 function latestDay(table: string): string {
@@ -96,11 +98,6 @@ export function prepareRegisterPageWrites(database: LocalDatabase, mode: PageWri
              ELSE register_point_of_sale.${DAY} END
          ELSE ${latestDay("register_point_of_sale")} END,
        numbering_frozen = excluded.numbering_frozen,
-       awaiting_restored_numbering = CASE
-         WHEN ${AWAITED_FROM_CLOUD}
-           AND excluded.numbering_frozen = 0
-           AND excluded.${COUNT} IS NOT NULL
-         THEN 0 ELSE register_point_of_sale.awaiting_restored_numbering END,
        version = excluded.version
      WHERE excluded.version > register_point_of_sale.version
        OR (${AWAITED_FROM_CLOUD})
@@ -125,6 +122,14 @@ export function prepareRegisterPageWrites(database: LocalDatabase, mode: PageWri
        @tax_authority_last_authorized_issued_on, @numbering_frozen, @version
      )
      ${savePointOfSaleConflict}`,
+  );
+  const settleAwaitedNumbering = database.prepare(
+    `DELETE FROM awaiting_restored_numbering
+     WHERE register_id = @register_id
+       AND EXISTS (
+         SELECT 1 FROM register_point_of_sale
+         WHERE register_id = @register_id AND version = @version
+           AND numbering_frozen = 0 AND ${COUNT} IS NOT NULL)`,
   );
   const saveOfflinePointOfSaleConflict =
     mode === "pull"
@@ -180,6 +185,9 @@ export function prepareRegisterPageWrites(database: LocalDatabase, mode: PageWri
         ...row,
         numbering_frozen: row.numbering_frozen ? 1 : 0,
       });
+      if (mode === "pull") {
+        settleAwaitedNumbering.run({ register_id: entity_id, version: row.version });
+      }
     },
 
     offlinePointOfSale({

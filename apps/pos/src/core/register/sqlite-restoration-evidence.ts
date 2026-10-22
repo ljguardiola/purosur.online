@@ -28,7 +28,8 @@ export class SqliteRestorationEvidence implements RestorationProtocolEvidence {
     return (
       this.database
         .prepare<[], { awaiting: 1 }>(
-          "SELECT 1 AS awaiting FROM register_point_of_sale WHERE awaiting_restored_numbering = 1 LIMIT 1",
+          `SELECT 1 AS awaiting FROM awaiting_restored_numbering
+           JOIN register_point_of_sale USING (register_id) LIMIT 1`,
         )
         .get() !== undefined
     );

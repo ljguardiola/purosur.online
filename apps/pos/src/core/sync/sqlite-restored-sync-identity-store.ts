@@ -75,7 +75,10 @@ export class SqliteRestoredSyncIdentityStore implements RestoredSyncIdentityStor
                stale_sequence_detected_at = NULL, last_accepted_push_at = NULL`,
           )
           .run(deviceId);
-        database.exec("UPDATE register_point_of_sale SET awaiting_restored_numbering = 1");
+        database.exec(
+          `INSERT OR IGNORE INTO awaiting_restored_numbering (register_id)
+           SELECT register_id FROM register_point_of_sale`,
+        );
       },
       async discardCarriedPinVerifiers() {
         database.exec("DELETE FROM pin_verifiers; DELETE FROM pin_sign_in_failures;");
