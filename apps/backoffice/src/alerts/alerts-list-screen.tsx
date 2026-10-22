@@ -20,6 +20,7 @@ import {
 import { deepEqual } from "@tanstack/react-router";
 import { Bell, Eye, Search } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
+import { ALERT_LEVEL_TONE } from "../platform/alert-level-tone";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { paymentMethodLabel } from "../platform/payment-method-label";
 import type { CloudData } from "../platform/use-cloud-query";
@@ -29,7 +30,6 @@ import { ScreenTitle } from "../shell/screen-title";
 import { ALERT_LEVEL_LABELS, AlertDetailModal, alertDateTime } from "./alert-detail-modal";
 import { alertKindDescription, DESCRIBED_ALERT_KINDS } from "./alert-kind-description";
 import { alertKindLabel } from "./alert-kind-label";
-import { ALERT_LEVEL_TONE } from "./alert-level-tone";
 import { alertScopeLabel } from "./alert-scope-label";
 import type { AlertListQuery } from "./alerts-api";
 import type { AlertsListScreenServices } from "./alerts-list-services";
