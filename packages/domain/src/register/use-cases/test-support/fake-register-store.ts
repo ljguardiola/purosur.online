@@ -57,7 +57,7 @@ export interface FakeRealTimeNumberingLane extends RealTimeNumberingLane {
   registerId: string;
 }
 
-export interface FakeNumberingFreeze extends NumberingFreeze {
+interface FakeNumberingFreeze extends NumberingFreeze {
   pointOfSale: number;
 }
 
