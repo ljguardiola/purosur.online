@@ -240,6 +240,7 @@ export type {
   RequestSnapshotUploadPorts,
 } from "./request-snapshot-upload.js";
 export { requestSnapshotUpload } from "./request-snapshot-upload.js";
+export type { RestorationProtocolEvidence } from "./restoration-protocol-evidence.js";
 export type {
   PredecessorStanding,
   RestoredRegisterPredecessors,

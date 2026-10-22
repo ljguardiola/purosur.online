@@ -59,6 +59,7 @@ describe("cancelling the open sale of a locked register", () => {
     { kind: "not_permitted" },
     { kind: "no_open_sale" },
     { kind: "no_open_session" },
+    { kind: "restoration_in_progress" },
     { kind: "not_locked" },
     { kind: "lacks_permission" },
     { kind: "unavailable" },
@@ -343,6 +344,7 @@ describe("sale answers", () => {
   it.each([
     { kind: "results", products: [], more: false },
     { kind: "no_open_session" },
+    { kind: "restoration_in_progress" },
     { kind: "unavailable" },
   ])("accepts the search result $kind", (outcome) => {
     const message = { type: "search-products-result", request_id: REQUEST_ID, outcome };
@@ -840,6 +842,7 @@ describe("previewing a sale line adjustment", () => {
     { kind: "discount_exceeds_line" },
     { kind: "no_open_sale" },
     { kind: "no_open_session" },
+    { kind: "restoration_in_progress" },
     { kind: "sale_has_payments" },
     { kind: "not_permitted" },
     { kind: "not_signed_in" },

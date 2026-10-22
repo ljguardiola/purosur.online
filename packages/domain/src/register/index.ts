@@ -107,6 +107,8 @@ export { isOutOfService, isWatchedForQuietness } from "./model/register-service.
 export { lastSuccessfulSyncOfRegister } from "./model/register-sync.js";
 export type { RegisterVersion } from "./model/register-version.js";
 export { isNewerRegisterVersion } from "./model/register-version.js";
+export type { RestorationEvidence, RestorationStanding } from "./model/restoration-protocol.js";
+export { RESTORATION_STEPS, restorationStanding } from "./model/restoration-protocol.js";
 export type {
   DetectedSerialDevice,
   RegisteredSerialDevices,

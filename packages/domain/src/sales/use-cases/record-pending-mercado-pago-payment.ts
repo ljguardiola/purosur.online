@@ -4,6 +4,7 @@ import {
   type PendingMercadoPagoSalePayment,
 } from "../../payments/index.js";
 import { isSaleRefusal, type NewPaymentRefusal, saleOpenToNewPayment } from "./chargeable-sale.js";
+import type { RegisterRestoration } from "./register-restoration.js";
 import type { IdGenerator, SaleLedger } from "./sale-ledger.js";
 
 export interface RecordPendingMercadoPagoPaymentInput {
@@ -17,6 +18,7 @@ export interface RecordPendingMercadoPagoPaymentInput {
 
 export interface RecordPendingMercadoPagoPaymentPorts {
   ledger: SaleLedger;
+  restoration: RegisterRestoration;
   ids: IdGenerator;
 }
 
@@ -31,11 +33,11 @@ export type RecordPendingMercadoPagoPaymentOutcome =
   | PendingMercadoPagoPaymentRefusal;
 
 export function recordPendingMercadoPagoPayment(
-  { ledger, ids }: RecordPendingMercadoPagoPaymentPorts,
+  { ledger, restoration, ids }: RecordPendingMercadoPagoPaymentPorts,
   { actorId, saleId, method, amount, occurredAt, waitEndsAt }: RecordPendingMercadoPagoPaymentInput,
 ): RecordPendingMercadoPagoPaymentOutcome {
   return ledger.transaction<RecordPendingMercadoPagoPaymentOutcome>((tx) => {
-    const chargeable = saleOpenToNewPayment(tx, actorId, saleId, occurredAt);
+    const chargeable = saleOpenToNewPayment(tx, actorId, saleId, occurredAt, restoration);
     if (isSaleRefusal(chargeable)) {
       return chargeable;
     }

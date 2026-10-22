@@ -43,6 +43,7 @@ import type {
   RegisterStatus,
   RemoveSaleLineOutcome,
   ReprintSaleReceiptOutcome,
+  RestorationStandingAnswer,
   SaleHistoryDetailOutcome,
   SalesHistoryOutcome,
   ScanProductOutcome,
@@ -99,6 +100,7 @@ export interface RendererRequestDeps {
   openCashSession: ((openingFloat: number) => Promise<OpenCashSessionOutcome>) | undefined;
   cashSession: (() => OpenCashSession | null) | undefined;
   registerStatus: (() => Promise<RegisterStatus>) | undefined;
+  restorationStanding: (() => RestorationStandingAnswer) | undefined;
   recordCashMovement:
     | ((request: CashMovementRequest) => Promise<RecordCashMovementOutcome>)
     | undefined;
@@ -444,6 +446,15 @@ function readCashMovementKinds(
   }
 }
 
+function readRestorationStanding(deps: RendererRequestDeps): RestorationStandingAnswer | undefined {
+  try {
+    return deps.restorationStanding?.();
+  } catch (error) {
+    deps.reportFailure("reading the restoration standing", error);
+    return undefined;
+  }
+}
+
 async function readRegisterStatus(deps: RendererRequestDeps): Promise<RegisterStatus | undefined> {
   try {
     return await deps.registerStatus?.();
@@ -714,6 +725,12 @@ export async function answerRendererRequest(
       return status === undefined
         ? { type: "register-status-unavailable", request_id: message.request_id }
         : { type: "register-status", request_id: message.request_id, status };
+    }
+    case "restoration-standing-request": {
+      const standing = readRestorationStanding(deps);
+      return standing === undefined
+        ? { type: "restoration-standing-unavailable", request_id: message.request_id }
+        : { type: "restoration-standing", request_id: message.request_id, standing };
     }
     case "record-cash-movement":
       return {

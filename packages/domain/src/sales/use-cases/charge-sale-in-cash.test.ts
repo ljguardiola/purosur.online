@@ -15,6 +15,7 @@ import {
   type FakeSaleLedgerState,
   type FakeSaleLedgerWrite,
   FixedClock,
+  RESTORATION_IN_PROGRESS,
   SequentialIds,
 } from "./test-support/fake-sale-ledger.js";
 import { TEN_PERCENT_SALE_DISCOUNT } from "./test-support/sale-discounts.js";
@@ -150,7 +151,7 @@ function charge(
   ids = new SequentialIds(),
 ) {
   return chargeSaleInCash(
-    { ledger: store, clock: new FixedClock(NOW), ids },
+    { ledger: store, restoration: store.restoration, clock: new FixedClock(NOW), ids },
     { actorId, saleId, tendered },
   );
 }
@@ -1273,5 +1274,21 @@ describe("chargeSaleInCash on a sale with a discount on the total", () => {
 
     expect(charge(store, 0)).toEqual({ kind: "zero_total" });
     expect(store.state).toEqual(before);
+  });
+});
+
+describe("chargeSaleInCash while the register's restoration is in progress", () => {
+  it("refuses the charge and records nothing", () => {
+    const store = ledger({ restoration: RESTORATION_IN_PROGRESS });
+    const before = structuredClone(store.state);
+
+    expect(charge(store, TOTAL)).toEqual({ kind: "restoration_in_progress" });
+    expect(store.state).toEqual(before);
+  });
+
+  it("answers not permitted to an actor who may not sell", () => {
+    const store = ledger({ restoration: RESTORATION_IN_PROGRESS, accesses: {} });
+
+    expect(charge(store, TOTAL)).toEqual({ kind: "not_permitted" });
   });
 });

@@ -6,6 +6,7 @@ import {
   reachesThresholdRefusalSchema,
   recordIdSchema,
   requestIdSchema,
+  restorationInProgressOutcomeSchema,
 } from "../shared/index.js";
 import { paymentMethodAvailabilitySchema } from "./payment-method-availability.js";
 
@@ -58,6 +59,7 @@ const saleChargeRefusals = [
   z.object({ kind: z.literal("not_permitted") }),
   z.object({ kind: z.literal("not_signed_in") }),
   z.object({ kind: z.literal("no_open_session") }),
+  restorationInProgressOutcomeSchema,
   z.object({ kind: z.literal("unavailable") }),
 ] as const;
 

@@ -6,6 +6,7 @@ import {
   manualAdjustmentRefusal,
   soldQuantity,
 } from "../model/sale-line.js";
+import type { RegisterRestoration } from "./register-restoration.js";
 import type { SaleLedger } from "./sale-ledger.js";
 import {
   isSaleLineChangeRefusal,
@@ -21,6 +22,7 @@ export interface PreviewSaleLineAdjustmentInput {
 
 export interface PreviewSaleLineAdjustmentPorts {
   ledger: SaleLedger;
+  restoration: RegisterRestoration;
   clock: Clock;
 }
 
@@ -31,11 +33,11 @@ export type PreviewSaleLineAdjustmentOutcome =
   | { kind: "preview"; discountAmount: number; lineTotal: number };
 
 export function previewSaleLineAdjustment(
-  { ledger, clock }: PreviewSaleLineAdjustmentPorts,
+  { ledger, restoration, clock }: PreviewSaleLineAdjustmentPorts,
   { actorId, lineId, adjustment }: PreviewSaleLineAdjustmentInput,
 ): PreviewSaleLineAdjustmentOutcome {
   return ledger.transaction<PreviewSaleLineAdjustmentOutcome>((tx) => {
-    const sale = saleToChange(tx, actorId, clock);
+    const sale = saleToChange(tx, actorId, clock, restoration);
     if (isSaleLineChangeRefusal(sale)) {
       return sale;
     }

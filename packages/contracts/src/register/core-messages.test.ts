@@ -875,6 +875,7 @@ describe("cash session answers", () => {
   it.each([
     { kind: "not_signed_in" },
     { kind: "not_permitted" },
+    { kind: "restoration_in_progress" },
     { kind: "already_open" },
     { kind: "invalid_opening_float" },
     { kind: "unavailable" },
@@ -2106,5 +2107,65 @@ describe("a request refused while an update installs", () => {
     expect(
       registerCoreToRendererMessageSchema.safeParse({ type: "refused-while-updating" }).success,
     ).toBe(false);
+  });
+});
+
+describe("restoration standing messages", () => {
+  it("accepts a request for the restoration standing", () => {
+    const message = { type: "restoration-standing-request", request_id: REQUEST_ID };
+
+    expect(registerRendererToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("rejects a request for the restoration standing without its request id", () => {
+    expect(
+      registerRendererToCoreMessageSchema.safeParse({ type: "restoration-standing-request" })
+        .success,
+    ).toBe(false);
+  });
+
+  it.each([
+    { kind: "completed" },
+    { kind: "in_progress", step: "enroll" },
+    { kind: "in_progress", step: "restore" },
+    { kind: "in_progress", step: "reset_sync_identity" },
+    { kind: "in_progress", step: "replenish" },
+    { kind: "in_progress", step: "recover_contingency_tickets" },
+    { kind: "in_progress", step: "reconcile_fiscal_counters" },
+    { kind: "in_progress", step: "regularize_orphan_authorizations" },
+  ])("accepts the restoration standing %j", (standing) => {
+    const message = { type: "restoration-standing", request_id: REQUEST_ID, standing };
+
+    expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each([
+    { kind: "in_progress" },
+    { kind: "in_progress", step: "open_session" },
+    { kind: "in_progress", step: "somewhere_else" },
+    { kind: "somewhere_else" },
+  ])("rejects the restoration standing %j", (standing) => {
+    const message = { type: "restoration-standing", request_id: REQUEST_ID, standing };
+
+    expect(registerCoreToRendererMessageSchema.safeParse(message).success).toBe(false);
+  });
+
+  it("accepts that the restoration standing cannot be read", () => {
+    const message = { type: "restoration-standing-unavailable", request_id: REQUEST_ID };
+
+    expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("rejects that the restoration standing cannot be read without its request id", () => {
+    expect(
+      registerCoreToRendererMessageSchema.safeParse({ type: "restoration-standing-unavailable" })
+        .success,
+    ).toBe(false);
+  });
+
+  it("accepts the notice that the restoration standing changed, which answers no request", () => {
+    const message = { type: "restoration-standing-changed" };
+
+    expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
   });
 });
