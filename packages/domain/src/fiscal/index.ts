@@ -56,7 +56,10 @@ export {
   SHORT_CODE_ALPHABET,
 } from "./model/deferred-sale.js";
 export { deferredSaleExpiresOn, isDeferredSaleExpired } from "./model/deferred-sale-expiry.js";
-export { deferredSaleRecordedEvent } from "./model/deferred-sale-recorded-event.js";
+export {
+  deferredSaleRecordedEvent,
+  type UnclearDeferralDocument,
+} from "./model/deferred-sale-recorded-event.js";
 export {
   type DeferredSaleSatisfied,
   type DeferredSaleSatisfiedFact,

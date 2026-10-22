@@ -234,6 +234,7 @@ export type {
   SaleInvoice,
   SaleVoidCreditNote,
   TaxAuthorityRejection,
+  UnclearDeferralDocument,
   VoidCreditNoteStanding,
   VoucherReference,
 } from "./fiscal/index.js";
