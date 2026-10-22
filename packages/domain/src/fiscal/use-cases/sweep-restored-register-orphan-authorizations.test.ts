@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { FACTURA_C_VOUCHER_TYPE } from "../model/factura-c-fiscal-block.js";
 import type { SaleDocument } from "../model/orphan-authorization.js";
+import { sweepRestoredRegisterOrphanAuthorizations } from "./sweep-restored-register-orphan-authorizations.js";
+import type { UnrecordedSaleRequest } from "./sweep-restored-register-orphan-authorizations-ports.js";
 import { ManualClock } from "./test-support/fake-arca-vitality.js";
 import { FakeRestoredRegisterOrphanSweep } from "./test-support/fake-restored-register-orphan-sweep.js";
 import { SequentialIds } from "./test-support/fake-sale-authorization.js";
-import { sweepRestoredRegisterOrphanAuthorizations } from "./sweep-restored-register-orphan-authorizations.js";
-import type { UnrecordedSaleRequest } from "./sweep-restored-register-orphan-authorizations-ports.js";
 
 const NOW = new Date("2026-10-01T12:00:00.000Z");
 
@@ -22,8 +22,8 @@ const request = (
   number: number,
   overrides: Partial<UnrecordedSaleRequest> = {},
 ): UnrecordedSaleRequest => ({
-  fiscalDocumentId: `document-`,
-  saleId: `sale-`,
+  fiscalDocumentId: `document-${number}`,
+  saleId: `sale-${number}`,
   number,
   issuedOn: "2026-10-01",
   total: 12_500,

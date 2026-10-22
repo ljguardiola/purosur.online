@@ -36,7 +36,7 @@ export class FakeRestoredRegisterOrphanSweep
   }
 
   seedRequestsAtNumber({ pointOfSale, number }: AuthorizationNumber, requests: RequestsAtNumber) {
-    this.atNumber.set(`/`, requests);
+    this.atNumber.set(`${pointOfSale}/${number}`, requests);
   }
 
   seedSaleDocuments(saleId: string, documents: SaleDocument[]) {
@@ -52,11 +52,11 @@ export class FakeRestoredRegisterOrphanSweep
     pointOfSale: number,
     work: (lane: RestoredRegisterOrphanLane) => Promise<TOutcome>,
   ): Promise<TOutcome> {
-    this.operations.push(`enterLane:`);
+    this.operations.push(`enterLane:${pointOfSale}`);
     try {
       return await work(this.laneOf(pointOfSale));
     } finally {
-      this.operations.push(`leaveLane:`);
+      this.operations.push(`leaveLane:${pointOfSale}`);
     }
   }
 
@@ -72,9 +72,7 @@ export class FakeRestoredRegisterOrphanSweep
       },
       requestsAtNumber: async ({ number }) => {
         this.operations.push("requestsAtNumber");
-        return (
-          this.atNumber.get(`/`) ?? { kind: "requests", requests: [] }
-        );
+        return this.atNumber.get(`${pointOfSale}/${number}`) ?? { kind: "requests", requests: [] };
       },
       otherDocumentsOfSale: async (saleId) => {
         this.operations.push("otherDocumentsOfSale");
