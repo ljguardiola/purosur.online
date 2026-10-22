@@ -7,18 +7,28 @@ import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import { migrationClock } from "../platform/test-support/migration-clock";
 import { openLocalDatabase } from "../platform/test-support/open-local-database";
+import type { CloudReachability } from "../sync/cloud-reachability";
 import { SqliteRestorationEvidence } from "./sqlite-restoration-evidence";
 
 let database: LocalDatabase;
 let folder: string;
 let pending: RestorePending;
 let evidence: SqliteRestorationEvidence;
+let cloud: CloudReachability;
+let noUsableGeneration: boolean;
 
 beforeEach(() => {
   database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS, migrationClock);
   folder = mkdtempSync(join(tmpdir(), "purosur-pos-restoration-evidence-"));
   pending = restorePendingIn(folder);
-  evidence = new SqliteRestorationEvidence(database, pending);
+  cloud = "unknown";
+  noUsableGeneration = false;
+  evidence = new SqliteRestorationEvidence(
+    database,
+    pending,
+    () => cloud,
+    () => noUsableGeneration,
+  );
 });
 
 afterEach(() => {
@@ -52,6 +62,7 @@ describe("the evidence of the restoration protocol", () => {
       reset_sync_identity: "completed",
       replenish: "completed",
       reconcile_fiscal_counters: "completed",
+      cloud: "unknown",
     });
   });
 
@@ -64,6 +75,7 @@ describe("the evidence of the restoration protocol", () => {
       reset_sync_identity: "completed",
       replenish: "completed",
       reconcile_fiscal_counters: "completed",
+      cloud: "unknown",
     });
   });
 
@@ -83,6 +95,7 @@ describe("the evidence of the restoration protocol", () => {
       reset_sync_identity: "pending",
       replenish: "completed",
       reconcile_fiscal_counters: "completed",
+      cloud: "unknown",
     });
   });
 
@@ -95,6 +108,7 @@ describe("the evidence of the restoration protocol", () => {
       reset_sync_identity: "completed",
       replenish: "pending",
       reconcile_fiscal_counters: "completed",
+      cloud: "unknown",
     });
   });
 
@@ -107,6 +121,7 @@ describe("the evidence of the restoration protocol", () => {
       reset_sync_identity: "completed",
       replenish: "completed",
       reconcile_fiscal_counters: "pending",
+      cloud: "unknown",
     });
   });
 
@@ -124,8 +139,45 @@ describe("the evidence of the restoration protocol", () => {
   });
 
   it("holds the restore completed for a register with no folder to hold a marker", () => {
-    const withoutFolder = new SqliteRestorationEvidence(database, restorePendingIn(undefined));
+    const withoutFolder = new SqliteRestorationEvidence(
+      database,
+      restorePendingIn(undefined),
+      () => cloud,
+      () => noUsableGeneration,
+    );
 
     expect(withoutFolder.evidence().restore).toBe("completed");
+  });
+
+  it.each(["reachable", "unreachable", "unknown"] as const)(
+    "follows the cloud reachability it is given: %s",
+    (answer) => {
+      cloud = answer;
+
+      expect(evidence.evidence().cloud).toBe(answer);
+    },
+  );
+
+  it("holds the restore failed while it is pending and no snapshot generation is usable", () => {
+    pending.begin("device-b");
+    noUsableGeneration = true;
+
+    expect(evidence.evidence()).toMatchObject({
+      enroll: "completed",
+      restore: "failed",
+      reset_sync_identity: "pending",
+    });
+  });
+
+  it("holds the restore pending, not failed, while a usable generation may still exist", () => {
+    pending.begin("device-b");
+
+    expect(evidence.evidence().restore).toBe("pending");
+  });
+
+  it("holds the restore completed when no restore is pending, whatever was found before", () => {
+    noUsableGeneration = true;
+
+    expect(evidence.evidence().restore).toBe("completed");
   });
 });

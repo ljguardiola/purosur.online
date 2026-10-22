@@ -4,6 +4,7 @@ import type { RestorePending } from "./restore-pending";
 
 function setup({ pendingNow = true, launches = true } = {}) {
   const calls: string[] = [];
+  const cloudAnswers: boolean[] = [];
   let pending = pendingNow;
   const restorePending: RestorePending = {
     isPending: () => pending,
@@ -27,8 +28,9 @@ function setup({ pendingNow = true, launches = true } = {}) {
     restartCore: () => calls.push("restart"),
     resumeSync: () => calls.push("sync"),
     reportNoUsableGeneration: () => calls.push("report"),
+    cloudAnswered: (reachable) => cloudAnswers.push(reachable),
   });
-  return { attempts, calls };
+  return { attempts, calls, cloudAnswers };
 }
 
 describe("attempting the restore", () => {
@@ -114,4 +116,63 @@ describe("attempting the restore", () => {
 
     expect(calls).toEqual(["launch", "clear", "sync"]);
   });
+});
+
+describe("what a restore says about the cloud", () => {
+  it("says the cloud was not reached once the restore could not reach it", async () => {
+    const { attempts, cloudAnswers } = setup();
+    await attempts.attempt();
+
+    attempts.workerExited("unreachable");
+
+    expect(cloudAnswers).toEqual([false]);
+  });
+
+  it.each(["restored", "no_generation", "none_usable"] as const)(
+    "says the cloud was reached once the restore ended %s",
+    async (outcome) => {
+      const { attempts, cloudAnswers } = setup();
+      await attempts.attempt();
+
+      attempts.workerExited(outcome);
+
+      expect(cloudAnswers).toEqual([true]);
+    },
+  );
+
+  it("says nothing about the cloud when the worker ended with no outcome", async () => {
+    const { attempts, cloudAnswers } = setup();
+    await attempts.attempt();
+
+    attempts.workerExited(undefined);
+
+    expect(cloudAnswers).toEqual([]);
+  });
+});
+
+describe("whether any snapshot could be used", () => {
+  it("holds that one may be usable before any restore ended", () => {
+    expect(setup().attempts.noUsableGeneration()).toBe(false);
+  });
+
+  it("holds that none is usable once a restore ended with none usable", async () => {
+    const { attempts } = setup();
+    await attempts.attempt();
+
+    attempts.workerExited("none_usable");
+
+    expect(attempts.noUsableGeneration()).toBe(true);
+  });
+
+  it.each(["unreachable", "restored", "no_generation", undefined] as const)(
+    "holds that one may be usable once a restore ended %s",
+    async (outcome) => {
+      const { attempts } = setup();
+      await attempts.attempt();
+
+      attempts.workerExited(outcome);
+
+      expect(attempts.noUsableGeneration()).toBe(false);
+    },
+  );
 });
