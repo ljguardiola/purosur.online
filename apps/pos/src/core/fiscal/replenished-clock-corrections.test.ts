@@ -6,6 +6,7 @@ import { migrationClock } from "../platform/test-support/migration-clock";
 import { openLocalDatabase } from "../platform/test-support/open-local-database";
 import { insertOpenedSession } from "../register/sqlite-cash-ledger";
 import { applyReplenishedClockCorrection } from "./replenished-clock-corrections";
+import { upsertClockMark } from "./sqlite-sale-authorization";
 
 type ClockCorrection = Extract<SyncedFact, { kind: "clock_corrected" }>;
 
@@ -101,6 +102,26 @@ describe("replenishing a clock correction into a restored register", () => {
     applyReplenishedClockCorrection(database, CORRECTION);
 
     expect({ mark: clockMark(), corrections: corrections() }).toEqual(before);
+  });
+
+  it("keeps the clock mark the restored register raised by issuing documents after the reading the correction lowered from", () => {
+    upsertClockMark(database, {
+      pointOfSale: 12,
+      documentType: "factura_c",
+      reading: new Date("2026-10-09T12:00:00.000Z"),
+    });
+
+    applyReplenishedClockCorrection(database, CORRECTION);
+
+    expect(clockMark()).toBe("2026-10-09T12:00:00.000Z");
+  });
+
+  it("sets the clock mark to the corrected reading when the restored register holds no mark", () => {
+    database.prepare("DELETE FROM register_clock_marks").run();
+
+    applyReplenishedClockCorrection(database, CORRECTION);
+
+    expect(clockMark()).toBe("2026-10-05T12:00:00.000Z");
   });
 
   it("holds two corrections of the same register made one after another", () => {

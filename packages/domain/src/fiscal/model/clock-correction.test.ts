@@ -4,6 +4,7 @@ import {
   clockCorrectedEvent,
   clockCorrectionPeriodKey,
   clockLoweringsFor,
+  replayedClockMark,
 } from "./clock-correction.js";
 
 const READING = new Date("2026-10-01T12:00:00.000Z");
@@ -175,6 +176,36 @@ describe("clockLoweringsFor against the tax authority's last authorized day", ()
     ];
 
     expect(clockLoweringsFor([], READING, { ...FLOOR, corrections })).toHaveLength(1);
+  });
+});
+
+describe("replayedClockMark", () => {
+  const LOWERING = {
+    pointOfSale: 12,
+    documentType: "factura_c",
+    previousReading: ahead(3_600_000),
+    previousReadingSource: "clock_mark",
+    correctedReading: READING,
+  } as const;
+
+  it("is the corrected reading when the series holds no mark", () => {
+    expect(replayedClockMark(null, LOWERING)).toEqual(READING);
+  });
+
+  it("is the corrected reading when the mark is the reading the correction lowered from", () => {
+    expect(replayedClockMark(ahead(3_600_000), LOWERING)).toEqual(READING);
+  });
+
+  it("is the corrected reading when the mark is within a minute past the reading the correction lowered from", () => {
+    expect(replayedClockMark(ahead(3_660_000), LOWERING)).toEqual(READING);
+  });
+
+  it("keeps the mark when it is more than a minute past the reading the correction lowered from", () => {
+    expect(replayedClockMark(ahead(3_660_001), LOWERING)).toEqual(ahead(3_660_001));
+  });
+
+  it("is the corrected reading when the mark is earlier than it", () => {
+    expect(replayedClockMark(ahead(-60_000), LOWERING)).toEqual(READING);
   });
 });
 
