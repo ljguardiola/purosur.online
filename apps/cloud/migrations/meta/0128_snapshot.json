@@ -1,5 +1,5 @@
 {
-  "id": "c81c94b1-1163-4a77-bbfc-0794363b0c46",
+  "id": "77cafd63-ca05-464c-9c45-75cb76b7c757",
   "prevId": "e0d806a1-03d0-4344-8c48-8877a76f332a",
   "version": "7",
   "dialect": "postgresql",
@@ -1754,6 +1754,13 @@
           "primaryKey": false,
           "notNull": true
         },
+        "previous_reading_source": {
+          "name": "previous_reading_source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'clock_mark'"
+        },
         "corrected_reading": {
           "name": "corrected_reading",
           "type": "timestamp with time zone",
@@ -1844,6 +1851,10 @@
         "clock_corrections_document_type_known": {
           "name": "clock_corrections_document_type_known",
           "value": "\"clock_corrections\".\"document_type\" in ('factura_c')"
+        },
+        "clock_corrections_previous_reading_source_known": {
+          "name": "clock_corrections_previous_reading_source_known",
+          "value": "\"clock_corrections\".\"previous_reading_source\" in ('clock_mark', 'tax_authority_day')"
         },
         "clock_corrections_lowers_the_reading": {
           "name": "clock_corrections_lowers_the_reading",
@@ -8471,13 +8482,6 @@
           "primaryKey": false,
           "notNull": true
         },
-        "document": {
-          "name": "document",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'sale_receipt'"
-        },
         "order_number": {
           "name": "order_number",
           "type": "integer",
@@ -8528,18 +8532,14 @@
         }
       },
       "compositePrimaryKeys": {
-        "sale_reprints_sale_id_document_order_number_pk": {
-          "name": "sale_reprints_sale_id_document_order_number_pk",
-          "columns": ["sale_id", "document", "order_number"]
+        "sale_reprints_sale_id_order_number_pk": {
+          "name": "sale_reprints_sale_id_order_number_pk",
+          "columns": ["sale_id", "order_number"]
         }
       },
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {
-        "sale_reprints_document_check": {
-          "name": "sale_reprints_document_check",
-          "value": "\"sale_reprints\".\"document\" in ('sale_receipt', 'credit_note')"
-        },
         "sale_reprints_order_number_positive_check": {
           "name": "sale_reprints_order_number_positive_check",
           "value": "\"sale_reprints\".\"order_number\" > 0"
@@ -8685,18 +8685,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "credit_note_print_attempted_at": {
-          "name": "credit_note_print_attempted_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "credit_note_printed_at": {
-          "name": "credit_note_printed_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
         "applied_at": {
           "name": "applied_at",
           "type": "timestamp with time zone",
@@ -8754,10 +8742,6 @@
         "sales_printed_only_after_attempted_check": {
           "name": "sales_printed_only_after_attempted_check",
           "value": "\"sales\".\"printed_at\" is null or \"sales\".\"print_attempted_at\" is not null"
-        },
-        "sales_credit_note_printed_only_after_attempted_check": {
-          "name": "sales_credit_note_printed_only_after_attempted_check",
-          "value": "\"sales\".\"credit_note_printed_at\" is null or \"sales\".\"credit_note_print_attempted_at\" is not null"
         },
         "sales_state_check": {
           "name": "sales_state_check",

@@ -1,0 +1,31 @@
+{
+  "outbox_chain_key": "BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc=",
+  "push": {
+    "app_version": "0.0.0",
+    "telemetry": {
+      "wal_size_bytes": 4120032,
+      "disk_free_bytes": 182536847360,
+      "disk_free_ratio": 0.38
+    },
+    "events": [
+      {
+        "event_id": "01a1b5c2-7e30-7d41-9a62-3f0c8d1e4b57",
+        "device_seq": 1,
+        "aggregate_type": "CashRegister",
+        "aggregate_id": "01a1122a-0305-7189-87d0-8256a353fd42",
+        "event_type": "clock_corrected",
+        "schema_version": 2,
+        "payload": {
+          "point_of_sale": 12,
+          "document_type": "factura_c",
+          "previous_reading": "2026-10-08T03:00:00.000Z",
+          "previous_reading_source": "tax_authority_day",
+          "corrected_reading": "2026-10-06T11:20:00.000Z"
+        },
+        "occurred_at": "2026-10-06T11:20:00.000Z",
+        "actor_id": "c7b3e5d2-18a4-4f90-b6d1-2e9f0a8c3d03",
+        "chain_hmac": "6+SbqpYM9cUqK+TWJDmCn+Xtifo76r217cGHfKet5xU="
+      }
+    ]
+  }
+}

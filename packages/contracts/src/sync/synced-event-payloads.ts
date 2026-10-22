@@ -1,6 +1,7 @@
 import {
   CASH_MOVEMENT_KINDS,
   CASH_MOVEMENT_TYPES,
+  CLOCK_PREVIOUS_READING_SOURCES,
   cashMovementReason,
   FACTURA_C_DOCUMENT_TYPE,
   isCalendarDay,
@@ -507,6 +508,10 @@ const clockCorrectedSchema = z.object({
   corrected_reading: instant,
 });
 
+const clockCorrectedV2Schema = clockCorrectedSchema.extend({
+  previous_reading_source: z.enum(CLOCK_PREVIOUS_READING_SOURCES),
+});
+
 const qrPaymentReplacedSchema = z.object({
   payment_transaction_id: text,
   sale_id: text,
@@ -554,6 +559,7 @@ const PAYLOAD_SCHEMAS = {
   "offline_fiscal_document_issued@1": offlineFiscalDocumentIssuedSchema,
   "offline_fiscal_document_issued@2": offlineFiscalDocumentIssuedV2Schema,
   "clock_corrected@1": clockCorrectedSchema,
+  "clock_corrected@2": clockCorrectedV2Schema,
   "qr_payment_replaced@1": qrPaymentReplacedSchema,
   "opening_count_recorded@1": openingCountRecordedSchema,
   "opening_count_withdrawn@1": openingCountWithdrawnSchema,

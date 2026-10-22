@@ -359,10 +359,25 @@ describe("a clock corrected alert", () => {
         pointOfSale: number;
         documentType: "factura_c";
         previousReading: string;
+        previousReadingSource: "clock_mark" | "tax_authority_day";
         correctedReading: string;
         actorId: string;
       };
     }>().toExtend<OpenAlertInput>();
+  });
+
+  it("refuses one without where its previous reading came from", () => {
+    expectTypeOf<{
+      kind: "clock_corrected";
+      scope: string;
+      detail: {
+        pointOfSale: number;
+        documentType: "factura_c";
+        previousReading: string;
+        correctedReading: string;
+        actorId: string;
+      };
+    }>().not.toExtend<OpenAlertInput>();
   });
 
   it("refuses one without who corrected the clock", () => {
@@ -373,6 +388,7 @@ describe("a clock corrected alert", () => {
         pointOfSale: number;
         documentType: "factura_c";
         previousReading: string;
+        previousReadingSource: "clock_mark" | "tax_authority_day";
         correctedReading: string;
       };
     }>().not.toExtend<OpenAlertInput>();

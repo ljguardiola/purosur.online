@@ -11,6 +11,7 @@ import {
   isInClockCorrectionLapse,
 } from "../model/register-clock.js";
 import type { RegisterClockGuardReader } from "./register-clock-guard-ports.js";
+import { taxAuthorityClockFloor } from "./tax-authority-clock-floor.js";
 
 export interface ClockGuardBlock {
   pointOfSale: number;
@@ -33,7 +34,7 @@ function clockCorrectionAvailability(
   marks: readonly ClockMark[],
   reading: Date,
 ): ClockCorrectionAvailability {
-  if (clockLoweringsFor(marks, reading).length === 0) {
+  if (clockLoweringsFor(marks, reading, taxAuthorityClockFloor(reader)).length === 0) {
     return "not_behind";
   }
   return reader.clockCorrectionRecordedIn(clockCorrectionPeriodKey(reader.cashSessionStanding()))

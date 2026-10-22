@@ -64,12 +64,14 @@ describe("correctRegisterClock", () => {
         pointOfSale: 12,
         documentType: "factura_c",
         previousReading: REAL_TIME_MARK.reading,
+        previousReadingSource: "clock_mark",
         correctedReading: READING,
       },
       {
         pointOfSale: 7,
         documentType: "factura_c",
         previousReading: OFFLINE_MARK.reading,
+        previousReadingSource: "clock_mark",
         correctedReading: READING,
       },
     ];
@@ -103,6 +105,7 @@ describe("correctRegisterClock", () => {
           pointOfSale: 12,
           documentType: "factura_c",
           previousReading: REAL_TIME_MARK.reading,
+          previousReadingSource: "clock_mark",
           correctedReading: READING,
         },
       },
@@ -114,6 +117,7 @@ describe("correctRegisterClock", () => {
           pointOfSale: 7,
           documentType: "factura_c",
           previousReading: OFFLINE_MARK.reading,
+          previousReadingSource: "clock_mark",
           correctedReading: READING,
         },
       },
@@ -146,6 +150,104 @@ describe("correctRegisterClock", () => {
         actor_id: "ana",
       },
     ]);
+  });
+
+  describe("a register with no mark whose reading is before the tax authority's last authorized day", () => {
+    const floor = {
+      pointOfSale: 12,
+      documentType: "factura_c",
+      lastIssuedOn: "2026-10-02",
+    } as const;
+    const START_OF_DAY = new Date("2026-10-02T03:00:00.000Z");
+
+    it("corrects against the start of that day and invents no mark", async () => {
+      const store = ledger({ marks: [], floor });
+
+      const outcome = await correct(store);
+
+      expect(outcome).toEqual({
+        kind: "corrected",
+        lowerings: [
+          {
+            pointOfSale: 12,
+            documentType: "factura_c",
+            previousReading: START_OF_DAY,
+            previousReadingSource: "tax_authority_day",
+            correctedReading: READING,
+          },
+        ],
+        grant: { correctorId: "ana" },
+      });
+      expect(store.state.marks).toEqual([]);
+    });
+
+    it("records the correction and emits the event naming the derived source", async () => {
+      const store = ledger({ marks: [], floor });
+
+      await correct(store);
+
+      expect(store.state.records).toHaveLength(1);
+      expect(store.state.records[0]?.lowering.previousReadingSource).toBe("tax_authority_day");
+      expect(store.state.outbox).toMatchObject([
+        {
+          event_type: "clock_corrected",
+          schema_version: 2,
+          payload: {
+            previous_reading: "2026-10-02T03:00:00.000Z",
+            previous_reading_source: "tax_authority_day",
+          },
+        },
+      ]);
+    });
+
+    it("lowers the series' mark once when it has one, not twice", async () => {
+      const store = ledger({ marks: [{ ...REAL_TIME_MARK }], floor });
+
+      const outcome = await correct(store);
+
+      expect(outcome).toMatchObject({
+        kind: "corrected",
+        lowerings: [
+          {
+            pointOfSale: 12,
+            previousReading: START_OF_DAY,
+            previousReadingSource: "tax_authority_day",
+          },
+        ],
+      });
+      expect(store.state.marks[0]?.reading).toEqual(READING);
+    });
+
+    it("is not offered again once its correction opened the lapse", async () => {
+      const store = ledger({ marks: [], floor });
+      await correct(store);
+      store.state.standing = { openSessionId: "session-2", lastClosedSessionId: null };
+
+      await expect(correct(store)).resolves.toEqual({ kind: "not_behind" });
+    });
+
+    it("keeps the once-per-period limit", async () => {
+      const store = ledger({
+        marks: [],
+        floor,
+        records: [
+          {
+            period: "after session none",
+            registerId: "register-1",
+            actorId: "ana",
+            lowering: {
+              pointOfSale: 3,
+              documentType: "factura_c",
+              previousReading: ahead(1),
+              previousReadingSource: "clock_mark",
+              correctedReading: READING,
+            },
+          },
+        ],
+      });
+
+      await expect(correct(store)).resolves.toEqual({ kind: "already_corrected_in_period" });
+    });
   });
 
   it("does everything in one transaction", async () => {
@@ -261,6 +363,16 @@ describe("correctRegisterClock", () => {
 
     it("answers not behind for a register with no mark at all", async () => {
       await expect(correct(ledger({ marks: [] }))).resolves.toEqual({ kind: "not_behind" });
+    });
+
+    it("answers not behind when the reading is on the tax authority's last authorized day", async () => {
+      const floor = {
+        pointOfSale: 12,
+        documentType: "factura_c",
+        lastIssuedOn: "2026-10-01",
+      } as const;
+
+      await expect(correct(ledger({ marks: [], floor }))).resolves.toEqual({ kind: "not_behind" });
     });
 
     it("does not use up the period's correction", async () => {

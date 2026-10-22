@@ -1,5 +1,5 @@
 import { type ClockCorrectionBody, clockCorrectionListSchema } from "@purosur/contracts";
-import type { ClockCorrectionAlertState } from "@purosur/domain";
+import type { ClockCorrectionAlertState, ClockPreviousReadingSource } from "@purosur/domain";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { readCloudList } from "./fiscal-api-request";
 
@@ -11,6 +11,7 @@ export type ClockCorrection = {
   pointOfSaleNumber: number;
   actorFirstName: string;
   previousReading: string;
+  previousReadingSource: ClockPreviousReadingSource;
   correctedReading: string;
   alertState: ClockCorrectionAlertState;
 };
@@ -26,6 +27,7 @@ function clockCorrectionFromWire(row: ClockCorrectionBody): ClockCorrection {
     pointOfSaleNumber: row.point_of_sale_number,
     actorFirstName: row.actor_first_name,
     previousReading: row.previous_reading,
+    previousReadingSource: row.previous_reading_source,
     correctedReading: row.corrected_reading,
     alertState: row.alert_state,
   };
