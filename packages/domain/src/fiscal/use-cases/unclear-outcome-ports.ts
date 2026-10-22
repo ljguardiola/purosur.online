@@ -45,6 +45,7 @@ export interface UnclearOutcomeLane {
   ): Promise<void>;
   otherDocumentsOfSale(saleId: string, fiscalDocumentId: string): Promise<SaleDocument[]>;
   registerOwnsPointOfSale(registerId: string, pointOfSale: number): Promise<boolean>;
+  holdsSaleCompletion(registerId: string, saleId: string): Promise<boolean>;
   recordedRequest(
     registerId: string,
     fiscalDocumentId: string,

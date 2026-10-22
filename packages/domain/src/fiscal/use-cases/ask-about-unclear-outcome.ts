@@ -18,13 +18,14 @@ export type AskAboutUnclearOutcomeOutcome =
   | OutcomeToldToAskingRegister
   | { kind: "point_of_sale_not_owned" }
   | { kind: "fiscal_document_not_owned" }
-  | { kind: "sale_event_mismatch" };
+  | { kind: "sale_event_mismatch" }
+  | { kind: "sale_completion_not_held" };
 
 export async function askAboutUnclearOutcome(
   { lanes, clock }: AskAboutUnclearOutcomePorts,
   { registerId, request }: AskAboutUnclearOutcomeInput,
 ): Promise<AskAboutUnclearOutcomeOutcome> {
-  if (!isCompletionEventOfSale(request.saleEvent, request.saleId)) {
+  if (request.saleEvent !== null && !isCompletionEventOfSale(request.saleEvent, request.saleId)) {
     return { kind: "sale_event_mismatch" };
   }
 
@@ -38,6 +39,13 @@ export async function askAboutUnclearOutcome(
       const recorded = await lane.recordedRequest(registerId, request.fiscalDocumentId);
       if (recorded !== null) {
         return outcomeToldToAskingRegister(recorded);
+      }
+
+      if (
+        request.saleEvent === null &&
+        !(await lane.holdsSaleCompletion(registerId, request.saleId))
+      ) {
+        return { kind: "sale_completion_not_held" };
       }
 
       try {

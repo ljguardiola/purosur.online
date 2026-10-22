@@ -21,7 +21,7 @@ export interface AuthorizationRequestRecord extends FiscalDocumentData {
   registerId: string;
   saleId: string;
   notAfter: Date;
-  saleEvent: PushedEvent;
+  saleEvent: PushedEvent | null;
   receivedAt: Date;
 }
 
@@ -33,6 +33,7 @@ export interface RecordedAuthorizationRequest {
 
 export interface PointOfSaleLane {
   registerOwnsPointOfSale(registerId: string, pointOfSale: number): Promise<boolean>;
+  holdsSaleCompletion(registerId: string, saleId: string): Promise<boolean>;
   recordedRequest(
     registerId: string,
     fiscalDocumentId: string,
