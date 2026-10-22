@@ -94,6 +94,8 @@ import {
   fileSnapshotCorruptionReports,
   SNAPSHOT_CORRUPTION_UNREPORTED_FILE,
 } from "./register/file-snapshot-corruption-reports";
+import { enrollmentStandingOf } from "./register/installation-enrollment-requests";
+import { createInstallationEnrollmentWatch } from "./register/installation-enrollment-watch";
 import { type StartedLocalDatabase, startLocalDatabase } from "./register/local-database-startup";
 import { refuseNewerDatabase } from "./register/newer-database-refusal";
 import { readReceiptPrinterFor, setReceiptPrinterFor } from "./register/receipt-printer-requests";
@@ -242,6 +244,9 @@ const BATTERY_STANDING_CHANGED_NOTICE: CoreToRendererMessage = {
 const FISCAL_MODE_CHANGED_NOTICE: CoreToRendererMessage = { type: "fiscal-mode-changed" };
 const RESTORATION_STANDING_CHANGED_NOTICE: CoreToRendererMessage = {
   type: "restoration-standing-changed",
+};
+const ENROLLMENT_STANDING_CHANGED_NOTICE: CoreToRendererMessage = {
+  type: "enrollment-standing-changed",
 };
 const QUIT_REGISTER_MESSAGE: QuitRegisterMessage = { type: "quit-register" };
 const SERIAL_DEVICE_CHECK_INTERVAL_MS = 3_000;
@@ -500,6 +505,7 @@ async function pushOutboxToCloud() {
   });
   cloudReachability = nextCloudReachability(cloudReachability, attempt);
   restorationStandingWatch?.check();
+  checkEnrollmentStanding();
   const warning = pushWarningOf(attempt);
   if (warning !== undefined) {
     console.warn(warning, attempt);
@@ -610,6 +616,7 @@ const syncSchedule = createSyncSchedule({
     interruptedCharges.afterEachSync();
     paidOrderDiscovery.afterEachSync();
     restorationStandingWatch?.check();
+    checkEnrollmentStanding();
   },
 });
 
@@ -638,6 +645,23 @@ const restorationStandingWatch =
         read: () => restorationStandingFor(restorationOf(localDatabase)),
         onChanged: () => rendererConnection.tell(RESTORATION_STANDING_CHANGED_NOTICE),
       });
+const readEnrollmentStanding = () =>
+  enrollmentStandingOf({
+    readCredentials: () => mainRequests.readCredentials(),
+    database: localDatabase,
+  });
+const enrollmentWatch = createInstallationEnrollmentWatch({
+  read: readEnrollmentStanding,
+  onChanged: () => rendererConnection.tell(ENROLLMENT_STANDING_CHANGED_NOTICE),
+});
+function checkEnrollmentStanding(): void {
+  enrollmentWatch
+    .check()
+    .catch((error: unknown) => reportFailure("watching the enrollment standing", error));
+}
+enrollmentWatch
+  .start()
+  .catch((error: unknown) => reportFailure("reading the enrollment standing", error));
 const mercadoPagoCharging = createMercadoPagoCharging({
   database: localDatabase,
   gate: actionGate,
@@ -703,7 +727,7 @@ const startupRecovery = recoverAtStartup({
 await startupRecovery.authorizationsSettled;
 
 const rendererRequestDeps: RendererRequestDeps = {
-  credentialsPresent: () => mainRequests.credentialsPresent(),
+  enrollmentStanding: readEnrollmentStanding,
   registerStatus:
     localDatabase === undefined || serialDeviceWatch === undefined || storageWatch === undefined
       ? undefined
@@ -746,6 +770,7 @@ const rendererRequestDeps: RendererRequestDeps = {
       typedCode,
     );
     if (outcome.kind === "enrolled") {
+      checkEnrollmentStanding();
       afterEnrollment({
         pending: restorePending,
         restartCore,
