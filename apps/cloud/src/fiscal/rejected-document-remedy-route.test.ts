@@ -1,3 +1,4 @@
+import { FICTIONAL_CUIT } from "@purosur/domain/fiscal/test-support";
 import { eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -16,6 +17,8 @@ import { registerRejectedDocumentRemedyRoute } from "./rejected-document-remedy-
 import { insertOfflineFiscalDocument } from "./test-support/offline-fiscal-document-fixtures.js";
 import { configureOfflinePointOfSale } from "./test-support/offline-point-of-sale-fixtures.js";
 import { WITHOUT_CREDIT_NOTES } from "./test-support/rejected-document-remedy-fixtures.js";
+
+const FICTIONAL_CUIT_NUMBER = Number(FICTIONAL_CUIT.replaceAll("-", ""));
 
 const FORTNIGHT = { start: "2026-10-01", end: "2026-10-15" };
 const ATTEMPTED_AT = new Date("2026-01-04T12:00:00.000Z");
@@ -297,7 +300,10 @@ describe("POST /registers/fortnight-presentations/rejected-document-remedies", (
     const response = await remedy(
       {
         kind: "printed",
-        correction: { buyer: { kind: "cuit", number: 20_000_000_001 }, buyer_tax_status_code: 1 },
+        correction: {
+          buyer: { kind: "cuit", number: FICTIONAL_CUIT_NUMBER },
+          buyer_tax_status_code: 1,
+        },
       },
       session.headers,
     );
@@ -307,7 +313,7 @@ describe("POST /registers/fortnight-presentations/rejected-document-remedies", (
       {
         correction: {
           buyerDocumentType: 80,
-          buyerDocumentNumber: 20_000_000_001,
+          buyerDocumentNumber: FICTIONAL_CUIT_NUMBER,
           buyerTaxStatusCode: 1,
         },
       },

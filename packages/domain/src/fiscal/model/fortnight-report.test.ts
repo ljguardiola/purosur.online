@@ -1,6 +1,7 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { shiftCalendarDay } from "../../shared/index.js";
+import { FICTIONAL_CUIT } from "../test-support/fictional-tax-identities.js";
 import {
   type DocumentTypeReportState,
   documentTypePresentationState,
@@ -21,6 +22,8 @@ import {
   remedyForUnreportedDocuments,
 } from "./fortnight-report.js";
 import { fortnightContaining } from "./offline-authorization-code.js";
+
+const FICTIONAL_CUIT_NUMBER = Number(FICTIONAL_CUIT.replaceAll("-", ""));
 
 const anyDay = fc
   .date({ min: new Date("2000-01-01T00:00:00Z"), max: new Date("2099-12-31T00:00:00Z") })
@@ -731,7 +734,7 @@ describe("fortnightPresentationRows", () => {
             {
               buyerTaxStatusCode: 6,
               buyerDocumentType: 80,
-              buyerDocumentNumber: 20_000_000_001,
+              buyerDocumentNumber: FICTIONAL_CUIT_NUMBER,
               issuedOn: "2026-09-19",
               total: 800,
             },
@@ -742,7 +745,7 @@ describe("fortnightPresentationRows", () => {
         unprocessed: 0,
         issuedOn: "2026-09-19",
         total: 800,
-        buyer: { kind: "cuit", number: 20_000_000_001 },
+        buyer: { kind: "cuit", number: FICTIONAL_CUIT_NUMBER },
         buyerTaxStatusCode: 6,
         rejections: REJECTIONS,
         remedy: "awaiting_remedy",

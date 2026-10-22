@@ -1,5 +1,8 @@
+import { FICTIONAL_CUIT } from "@purosur/domain/fiscal/test-support";
 import { describe, expect, it } from "vitest";
 import { rejectedDocumentRemedyBodySchema } from "./rejected-document-remedy.js";
+
+const FICTIONAL_CUIT_NUMBER = Number(FICTIONAL_CUIT.replaceAll("-", ""));
 
 const base = {
   point_of_sale_number: 4,
@@ -25,7 +28,7 @@ describe("rejectedDocumentRemedyBodySchema", () => {
           correction: {
             issued_on: "2026-09-03",
             total: 125000,
-            buyer: { kind: "cuit", number: 20000000001 },
+            buyer: { kind: "cuit", number: FICTIONAL_CUIT_NUMBER },
             buyer_tax_status_code: 1,
           },
         },

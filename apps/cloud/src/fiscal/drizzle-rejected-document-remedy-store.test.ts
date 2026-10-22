@@ -1,3 +1,4 @@
+import { FICTIONAL_CUIT } from "@purosur/domain/fiscal/test-support";
 import type { Fortnight } from "@purosur/domain/fiscal/use-cases";
 import { remedyRejectedDocument } from "@purosur/domain/fiscal/use-cases";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -13,6 +14,8 @@ import {
   insertRejectedDocumentRemedy,
   WITHOUT_CREDIT_NOTES,
 } from "./test-support/rejected-document-remedy-fixtures.js";
+
+const FICTIONAL_CUIT_NUMBER = Number(FICTIONAL_CUIT.replaceAll("-", ""));
 
 const OCTOBER_FIRST_HALF: Fortnight = { start: "2026-10-01", end: "2026-10-15" };
 const OFFLINE_POINT_OF_SALE = 8;
@@ -232,7 +235,7 @@ describe("DrizzleRejectedDocumentRemedyStore writes", () => {
           { field: "issuedOn", before: "2026-10-01", after: "2026-10-02" },
           { field: "total", before: 10_000, after: 12_500 },
           { field: "buyerDocumentType", before: 99, after: 80 },
-          { field: "buyerDocumentNumber", before: 0, after: 20_000_000_001 },
+          { field: "buyerDocumentNumber", before: 0, after: FICTIONAL_CUIT_NUMBER },
           { field: "buyerTaxStatusCode", before: 5, after: 1 },
         ],
       }),
@@ -255,7 +258,7 @@ describe("DrizzleRejectedDocumentRemedyStore writes", () => {
           issued_on: "2026-10-02",
           total: 12_500,
           buyer_document_type: 80,
-          buyer_document_number: 20_000_000_001,
+          buyer_document_number: FICTIONAL_CUIT_NUMBER,
           buyer_tax_status_code: 1,
         },
       }),

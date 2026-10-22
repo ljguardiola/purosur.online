@@ -1,9 +1,12 @@
+import { FICTIONAL_CUIT } from "@purosur/domain/fiscal/test-support";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import {
   type FortnightPresentation,
   fetchFortnightPresentations,
   remedyRejectedDocument,
 } from "./fortnight-presentations-api";
+
+const FICTIONAL_CUIT_NUMBER = Number(FICTIONAL_CUIT.replaceAll("-", ""));
 
 function jsonResponse(status: number, body?: unknown): Response {
   return new Response(body === undefined ? null : JSON.stringify(body), { status });
@@ -67,7 +70,7 @@ const rejectedDocumentWire = {
   unprocessed: 12,
   issued_on: "2026-09-09",
   total: 1_845_000,
-  buyer: { kind: "cuit", number: 20_000_000_001 },
+  buyer: { kind: "cuit", number: FICTIONAL_CUIT_NUMBER },
   buyer_tax_status_code: 1,
   rejections: [{ code: 10016, message: "Fictional observation" }],
   remedy: "awaiting_remedy",
@@ -105,7 +108,7 @@ test("fetchFortnightPresentations reads how a presentation was refused, the reje
           unprocessed: 12,
           issuedOn: "2026-09-09",
           total: 1_845_000,
-          buyer: { kind: "cuit", number: 20_000_000_001 },
+          buyer: { kind: "cuit", number: FICTIONAL_CUIT_NUMBER },
           buyerTaxStatusCode: 1,
           rejections: [{ code: 10016, message: "Fictional observation" }],
           remedy: "awaiting_remedy",

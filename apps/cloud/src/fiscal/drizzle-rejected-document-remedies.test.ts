@@ -59,6 +59,21 @@ describe("recordedRemedies", () => {
     ]);
   });
 
+  it("keeps as the correction in force the one recorded last, even when the clock went back between the two remedies", async () => {
+    await remedy({ correction: { total: 100 }, recordedAt: new Date("2026-10-17T10:00:00.000Z") });
+    await remedy({
+      correction: { total: 200 },
+      rejectedAt: new Date("2026-10-17T12:00:00.000Z"),
+      recordedAt: new Date("2026-10-17T09:00:00.000Z"),
+    });
+
+    const { corrections } = await recordedRemedies(db, { pointsOfSale: [8] });
+
+    expect([...corrections]).toEqual([
+      [remedyKey(8, OCTOBER_FIRST_HALF.start, "factura_c", 3), { total: 200 }],
+    ]);
+  });
+
   it("answers the remedy recorded for a rejection by the instant of that rejection, whenever it was recorded", async () => {
     await remedy({ recordedAt: new Date("2026-10-17T10:00:00.000Z") });
     await remedy({

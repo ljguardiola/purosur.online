@@ -4,11 +4,14 @@ import type {
   FortnightReportMovement,
   RejectedDocumentRemedyState,
 } from "@purosur/domain";
+import { FICTIONAL_CUIT } from "@purosur/domain/fiscal/test-support";
 import { describe, expect, expectTypeOf, it } from "vitest";
 import {
   type FortnightPresentationBody,
   fortnightPresentationListSchema,
 } from "./fortnight-presentation.js";
+
+const FICTIONAL_CUIT_NUMBER = Number(FICTIONAL_CUIT.replaceAll("-", ""));
 
 const presentation = {
   register_id: "3f0d1a52-0f7e-4a53-9f4c-2a7d2f1c9b10",
@@ -96,7 +99,7 @@ describe("fortnightPresentationListSchema", () => {
           ...rejectedDocument,
           number: 3,
           unprocessed: 12,
-          buyer: { kind: "cuit", number: 20000000001 },
+          buyer: { kind: "cuit", number: FICTIONAL_CUIT_NUMBER },
           rejections: [],
           remedy: "awaiting_resend",
         },

@@ -1,3 +1,4 @@
+import { FICTIONAL_CUIT } from "@purosur/domain/fiscal/test-support";
 import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
@@ -9,6 +10,8 @@ import {
   ReviewRejectedDocumentModal,
   type ReviewRejectedDocumentModalServices,
 } from "./review-rejected-document-modal";
+
+const FICTIONAL_CUIT_NUMBER = Number(FICTIONAL_CUIT.replaceAll("-", ""));
 
 beforeEach(() => {
   window.history.pushState(null, "", "/");
@@ -320,7 +323,7 @@ test("corrects the buyer's identification and tax status", async () => {
   await userEvent.click(dialog.getByText("Con CUIT", { exact: true }).last());
   await userEvent.fill(
     dialog.getByRole("textbox", { name: /^CUIT del comprador/ }),
-    "20-00000000-1",
+    FICTIONAL_CUIT,
   );
   await userEvent.click(dialog.getByRole("button", { name: /Condición frente al IVA/ }));
   await userEvent.click(screen.getByRole("option", { name: "IVA Responsable Inscripto" }));
@@ -333,7 +336,7 @@ test("corrects the buyer's identification and tax status", async () => {
     remedy: {
       kind: "printed",
       correction: {
-        buyer: { kind: "cuit", number: 20_000_000_001 },
+        buyer: { kind: "cuit", number: FICTIONAL_CUIT_NUMBER },
         buyer_tax_status_code: 1,
       },
     },

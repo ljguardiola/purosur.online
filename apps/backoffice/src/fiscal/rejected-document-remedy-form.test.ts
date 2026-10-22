@@ -1,5 +1,6 @@
 import { parseDate } from "@internationalized/date";
 import { rejectedDocumentRemedyBodySchema } from "@purosur/contracts";
+import { ANOTHER_FICTIONAL_CUIT, FICTIONAL_CUIT } from "@purosur/domain/fiscal/test-support";
 import { expect, test } from "vitest";
 import type { RejectedDocument } from "./fortnight-presentations-api";
 import {
@@ -14,6 +15,11 @@ import {
   remedyRequestFrom,
   totalMessage,
 } from "./rejected-document-remedy-form";
+
+const FICTIONAL_CUIT_DIGITS = FICTIONAL_CUIT.replaceAll("-", "");
+const FICTIONAL_CUIT_NUMBER = Number(FICTIONAL_CUIT_DIGITS);
+const ANOTHER_FICTIONAL_CUIT_NUMBER = Number(ANOTHER_FICTIONAL_CUIT.replaceAll("-", ""));
+const FICTIONAL_CUIT_WITH_ANOTHER_CHECK_DIGIT = `${FICTIONAL_CUIT.slice(0, -1)}2`;
 
 const fortnight = { start: "2026-09-01", end: "2026-09-15" };
 
@@ -49,7 +55,7 @@ const soldWithCuit = {
   ...target,
   rejectedDocument: {
     ...rejectedDocument,
-    buyer: { kind: "cuit", number: 20_000_000_001 },
+    buyer: { kind: "cuit", number: FICTIONAL_CUIT_NUMBER },
     buyerTaxStatusCode: 1,
   },
 } as const;
@@ -57,7 +63,7 @@ const soldWithCuit = {
 test("starts a document sold to a company with its CUIT typed", () => {
   expect(remedyFormValuesFrom(soldWithCuit)).toMatchObject({
     buyerKind: "cuit",
-    buyerCuit: "20000000001",
+    buyerCuit: FICTIONAL_CUIT_DIGITS,
   });
 });
 
@@ -104,7 +110,7 @@ test("asks to correct the buyer as one with the typed CUIT and the chosen tax st
     valuesWith({
       errorIn: "printed",
       buyerKind: "cuit",
-      buyerCuit: "20-00000000-1",
+      buyerCuit: FICTIONAL_CUIT,
       buyerTaxStatusCode: "1",
     }),
   );
@@ -112,7 +118,7 @@ test("asks to correct the buyer as one with the typed CUIT and the chosen tax st
   expect(request.remedy).toEqual({
     kind: "printed",
     correction: {
-      buyer: { kind: "cuit", number: 20_000_000_001 },
+      buyer: { kind: "cuit", number: FICTIONAL_CUIT_NUMBER },
       buyer_tax_status_code: 1,
     },
   });
@@ -130,13 +136,13 @@ test("asks to correct a buyer printed with a CUIT as a final consumer", () => {
 test("asks for no change of the buyer while the CUIT typed is the printed one, and for one once it differs", () => {
   const values = { ...remedyFormValuesFrom(soldWithCuit), errorIn: "printed" } as const;
 
-  expect(remedyRequestFrom({ ...values, buyerCuit: "20-00000000-1" }).remedy).toEqual({
+  expect(remedyRequestFrom({ ...values, buyerCuit: FICTIONAL_CUIT }).remedy).toEqual({
     kind: "printed",
     correction: {},
   });
-  expect(remedyRequestFrom({ ...values, buyerCuit: "23-00000000-0" }).remedy).toEqual({
+  expect(remedyRequestFrom({ ...values, buyerCuit: ANOTHER_FICTIONAL_CUIT }).remedy).toEqual({
     kind: "printed",
-    correction: { buyer: { kind: "cuit", number: 23_000_000_000 } },
+    correction: { buyer: { kind: "cuit", number: ANOTHER_FICTIONAL_CUIT_NUMBER } },
   });
 });
 
@@ -185,7 +191,7 @@ test.each([
 test.each([
   { buyerCuit: "", reason: "Ingresá el CUIT del comprador." },
   { buyerCuit: "20-abc", reason: "Escribí el CUIT solo con números." },
-  { buyerCuit: "20-00000000-2", reason: "Revisá el CUIT." },
+  { buyerCuit: FICTIONAL_CUIT_WITH_ANOTHER_CHECK_DIGIT, reason: "Revisá el CUIT." },
 ])("a typed CUIT of '$buyerCuit' can't be sent: $reason", ({ buyerCuit, reason }) => {
   expect(buyerCuitMessage(valuesWith({ buyerCuit }))).toBe(reason);
 });
