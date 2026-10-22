@@ -2,6 +2,7 @@ import {
   clockCorrectedEvent,
   DEFERRAL_REASONS,
   deferredSaleRecordedEvent,
+  deferredSaleSatisfiedEvent,
   MAX_STOCK_QUANTITY,
   MAX_UNIT_PRICE_CENTS,
   offlineFiscalDocument,
@@ -442,6 +443,58 @@ describe("synced event payloads", () => {
     it("refuses it when it is not an object", () => {
       expect(accepts("deferred_sale_recorded", 1, null)).toBe(false);
       expect(accepts("deferred_sale_recorded", 1, [])).toBe(false);
+    });
+  });
+
+  describe("deferred_sale_satisfied v1", () => {
+    const { payload: satisfied } = deferredSaleSatisfiedEvent({
+      eventId: "event-1",
+      registerId: "register-1",
+      actorId: "cashier",
+      deferredSaleId: "deferred-1",
+      saleId: "sale-1",
+      fiscalDocumentId: "document-1",
+      pointOfSale: 7,
+      number: 42,
+      issuedOn: "2026-10-06",
+      satisfiedAt: new Date("2026-10-08T15:00:00.000Z"),
+    });
+
+    it("describes the satisfaction the domain builds", () => {
+      expect(accepts("deferred_sale_satisfied", 1, satisfied)).toBe(true);
+    });
+
+    it.each([
+      ["a satisfaction date that is not ISO", { satisfied_at: "now" }],
+      ["an issue date that is not a calendar day", { issued_on: "2026-13-01" }],
+      ["a point of sale of zero", { point_of_sale: 0 }],
+      ["a number of zero", { number: 0 }],
+      ["a fractional number", { number: 1.5 }],
+      ["an empty document id", { fiscal_document_id: "" }],
+    ])("refuses %s", (_case, change) => {
+      expect(accepts("deferred_sale_satisfied", 1, { ...satisfied, ...change })).toBe(false);
+    });
+
+    it("refuses it without any one of its fields", () => {
+      const accepted = Object.keys(satisfied).filter((key) => {
+        const { [key]: _removed, ...rest } = satisfied;
+        return accepts("deferred_sale_satisfied", 1, rest);
+      });
+
+      expect(accepted).toEqual([]);
+    });
+
+    it("refuses it with any one of its fields of the wrong type", () => {
+      const accepted = Object.keys(satisfied).filter((key) =>
+        accepts("deferred_sale_satisfied", 1, { ...satisfied, [key]: { unexpected: true } }),
+      );
+
+      expect(accepted).toEqual([]);
+    });
+
+    it("refuses it when it is not an object", () => {
+      expect(accepts("deferred_sale_satisfied", 1, null)).toBe(false);
+      expect(accepts("deferred_sale_satisfied", 1, [])).toBe(false);
     });
   });
 

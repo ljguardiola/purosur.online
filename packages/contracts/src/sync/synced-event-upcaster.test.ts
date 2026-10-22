@@ -1796,6 +1796,43 @@ describe("decoding the events the registers pushed", () => {
     });
   });
 
+  it("reads a deferred sale satisfied by the invoice that caught it up", () => {
+    const decoded = upcaster.decode(
+      unappliedEventOf(
+        pushed({
+          event_type: "deferred_sale_satisfied",
+          schema_version: 1,
+          payload: {
+            id: "01a1122a-0305-7189-87d0-8256a353fd43",
+            sale_id: SALE,
+            register_id: saleFields.register_id,
+            fiscal_document_id: "01a1122a-0305-7189-87d0-8256a353fd44",
+            point_of_sale: 7,
+            number: 42,
+            issued_on: "2026-10-06",
+            satisfied_at: "2026-10-08T15:00:00.000Z",
+          },
+        }),
+      ),
+    );
+
+    expect(decoded).toEqual({
+      kind: "fact",
+      fact: {
+        kind: "deferred_sale_satisfied",
+        satisfaction: {
+          id: "01a1122a-0305-7189-87d0-8256a353fd43",
+          saleId: SALE,
+          fiscalDocumentId: "01a1122a-0305-7189-87d0-8256a353fd44",
+          pointOfSale: 7,
+          number: 42,
+          issuedOn: "2026-10-06",
+          satisfiedAt: new Date("2026-10-08T15:00:00.000Z"),
+        },
+      },
+    });
+  });
+
   it("reads the document issued under a pre-obtained code", () => {
     const decoded = upcaster.decode(
       unappliedEventOf(

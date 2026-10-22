@@ -247,3 +247,16 @@ export const AN_OPENING_COUNT_WITHDRAWN_FACT: SyncedFact = {
     actorId: "cashier-1",
   },
 };
+
+export const A_DEFERRED_SALE_SATISFIED_FACT: SyncedFact = {
+  kind: "deferred_sale_satisfied",
+  satisfaction: {
+    id: "deferred-1",
+    saleId: "sale-1",
+    fiscalDocumentId: "document-1",
+    pointOfSale: 7,
+    number: 42,
+    issuedOn: "2026-10-07",
+    satisfiedAt: new Date("2026-10-09T10:00:00.000Z"),
+  },
+};
