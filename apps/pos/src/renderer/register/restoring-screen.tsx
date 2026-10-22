@@ -22,7 +22,7 @@ export function RestoringScreen({
           <ScreenHeader
             eyebrow={registerEyebrow(registerName, "SIN COPIA PARA RESTAURAR")}
             title="No se pudo restaurar la caja"
-            description="Ninguna copia de esta caja se pudo recuperar. Se vuelve a intentar la próxima vez que se abra la caja."
+            description="Ninguna copia de esta caja se pudo recuperar. Se vuelve a intentar la próxima vez que se inicie la aplicación."
           />
           <InlineNotice
             tone="error"
@@ -48,7 +48,7 @@ export function RestoringScreen({
           <InlineNotice
             tone="warning"
             icon={<WifiOff />}
-            title="Sin conexión a internet"
+            title="Sin conexión con la nube"
             description="Si el local no tiene internet, conectá la notebook al hotspot de un celular. La caja sigue sola en cuanto hay conexión."
           />
         ) : null}
