@@ -72,7 +72,7 @@ function preview(
   discount: Parameters<typeof previewSaleDiscount>[1]["discount"],
 ): PreviewSaleDiscountOutcome {
   return previewSaleDiscount(
-    { ledger: store, clock: new FixedClock(NOW) },
+    { ledger: store, restoration: store.restoration, clock: new FixedClock(NOW) },
     { actorId: "cashier", discount },
   );
 }

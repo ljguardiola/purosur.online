@@ -69,7 +69,7 @@ function ledger(state: Partial<FakeSaleLedgerState> = {}): FakeSaleLedger {
 
 function replace(store: FakeSaleLedger, paymentTransactionId = "qr-1", actorId = "cashier") {
   return replacePendingQrPayment(
-    { ledger: store, ids: new SequentialIds() },
+    { ledger: store, restoration: store.restoration, ids: new SequentialIds() },
     { actorId, paymentTransactionId, replacedAt: REPLACED_AT },
   );
 }

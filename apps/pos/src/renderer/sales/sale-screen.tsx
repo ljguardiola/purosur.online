@@ -291,6 +291,7 @@ export function SaleScreen({
         onSessionInvalid();
         break;
       case "not_permitted":
+      case "restoration_in_progress":
         setResults(undefined);
         setProblem(outcome);
         break;
@@ -348,6 +349,7 @@ export function SaleScreen({
       case "battery_critical":
       case "paid_order_without_sale":
       case "paid_orders_not_checked":
+      case "restoration_in_progress":
         refuse(submitted, outcome);
         break;
       case "weight_needed":

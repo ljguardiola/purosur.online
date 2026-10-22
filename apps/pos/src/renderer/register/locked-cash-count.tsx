@@ -191,6 +191,7 @@ export function LockedCashCount({
         setFailure(CANCEL_REFUSAL_MESSAGES[outcome.kind]);
         break;
       case "unavailable":
+      case "restoration_in_progress":
         setFailure(CANCEL_FAILED);
         break;
       default:

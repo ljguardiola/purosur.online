@@ -3,7 +3,7 @@ import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import { migrationClock } from "../platform/test-support/migration-clock";
 import { openLocalDatabase } from "../platform/test-support/open-local-database";
-import { installationHeld } from "./sqlite-installation-presence";
+import { installationHeld, staleSequenceDetected } from "./sqlite-installation-presence";
 
 let database: LocalDatabase;
 
@@ -24,5 +24,17 @@ describe("installationHeld", () => {
     database.exec("UPDATE sync_state SET device_id = 'device-a'");
 
     expect(installationHeld(database)).toBe(true);
+  });
+});
+
+describe("staleSequenceDetected", () => {
+  it("is false for a register the cloud never refused as stale", () => {
+    expect(staleSequenceDetected(database)).toBe(false);
+  });
+
+  it("is true once the cloud refused the register's sequence as stale", () => {
+    database.exec("UPDATE sync_state SET stale_sequence_detected_at = '2026-10-18T09:00:00.000Z'");
+
+    expect(staleSequenceDetected(database)).toBe(true);
   });
 });

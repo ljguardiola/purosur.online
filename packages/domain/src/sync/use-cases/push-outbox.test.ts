@@ -247,4 +247,53 @@ describe("pushing the outbox to the cloud", () => {
     expect(await outcome).toEqual({ kind: "failed", failure: "offline" });
     expect(outbox.acknowledgedThrough).toEqual([200]);
   });
+
+  it("records the stale sequence once when the cloud says this is a stale device", async () => {
+    const outbox = new FakeLocalOutbox(eventsFrom(1, 2));
+    const { installation, outcome } = push(outbox, [{ kind: "stale_device", ackSeq: 9 }]);
+
+    await outcome;
+
+    expect(installation.staleSequencesRecorded).toBe(1);
+  });
+
+  it("records the stale sequence when the cloud says this is a stale device of a push of no events", async () => {
+    const outbox = new FakeLocalOutbox([]);
+    const { installation, outcome } = push(outbox, [{ kind: "stale_device", ackSeq: 9 }]);
+
+    await outcome;
+
+    expect(installation.staleSequencesRecorded).toBe(1);
+  });
+
+  it.each<FakeCloudAnswer>([
+    { kind: "received", ackSeq: 2 },
+    { kind: "gap", ackSeq: 0, expectedSeq: 1 },
+    { kind: "update_required", ackSeq: 1 },
+    { kind: "revoked" },
+    { kind: "failed", failure: "token refused" },
+  ])("does not record the stale sequence when the cloud answers $kind", async (answer) => {
+    const outbox = new FakeLocalOutbox(eventsFrom(1, 2));
+    const { installation, outcome } = push(outbox, [answer, { kind: "received", ackSeq: 2 }]);
+    await outcome;
+
+    expect(installation.staleSequencesRecorded).toBe(0);
+  });
+
+  it.each<FakeCloudAnswer>([
+    { kind: "received", ackSeq: 0 },
+    { kind: "gap", ackSeq: 0, expectedSeq: 1 },
+    { kind: "update_required", ackSeq: 1 },
+    { kind: "revoked" },
+    { kind: "failed", failure: "token refused" },
+  ])(
+    "does not record the stale sequence when the cloud answers $kind to a push of no events",
+    async (answer) => {
+      const outbox = new FakeLocalOutbox([]);
+      const { installation, outcome } = push(outbox, [answer]);
+      await outcome;
+
+      expect(installation.staleSequencesRecorded).toBe(0);
+    },
+  );
 });

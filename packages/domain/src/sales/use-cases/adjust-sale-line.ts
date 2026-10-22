@@ -5,6 +5,7 @@ import {
   manualAdjustmentRefusal,
   withManualAdjustment,
 } from "../model/sale-line.js";
+import type { RegisterRestoration } from "./register-restoration.js";
 import type { SaleLedger } from "./sale-ledger.js";
 import {
   type ChangedLineOutcome,
@@ -27,6 +28,7 @@ export interface AdjustSaleLineGrant {
 
 export interface AdjustSaleLinePorts<Grant extends AdjustSaleLineGrant, Refusal> {
   ledger: SaleLedger;
+  restoration: RegisterRestoration;
   clock: Clock;
   authority: OperationAuthority<Grant, Refusal>;
 }
@@ -38,7 +40,7 @@ export type AdjustSaleLineOutcome =
   | ChangedLineOutcome;
 
 export async function adjustSaleLine<Grant extends AdjustSaleLineGrant, Refusal>(
-  { ledger, clock, authority }: AdjustSaleLinePorts<Grant, Refusal>,
+  { ledger, restoration, clock, authority }: AdjustSaleLinePorts<Grant, Refusal>,
   { lineId, adjustment, reason }: AdjustSaleLineInput,
 ): Promise<AdjustSaleLineOutcome | Refusal> {
   const authorization = await authority.authorize();
@@ -48,7 +50,7 @@ export async function adjustSaleLine<Grant extends AdjustSaleLineGrant, Refusal>
   const { actorId, authorizedBy } = authorization.grant;
 
   return ledger.transaction<AdjustSaleLineOutcome>((tx) => {
-    const sale = saleToChange(tx, actorId, clock);
+    const sale = saleToChange(tx, actorId, clock, restoration);
     if (isSaleLineChangeRefusal(sale)) {
       return sale;
     }

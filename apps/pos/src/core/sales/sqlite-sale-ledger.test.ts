@@ -36,6 +36,7 @@ import { migrationClock } from "../platform/test-support/migration-clock";
 import { openLocalDatabase } from "../platform/test-support/open-local-database";
 import { cashBalanceFor } from "../register/cash-session-requests";
 import { SqliteCashLedger } from "../register/sqlite-cash-ledger";
+import { restorationOf } from "../register/test-support/restoration-of";
 import { SqliteSignInStore } from "../sessions/sqlite-sign-in-store";
 import { escPosReceiptTemplate } from "./receipt-printer/escpos-receipt-template";
 import { SqliteReceiptLedger } from "./sqlite-receipt-ledger";
@@ -67,7 +68,10 @@ const ids = {
 };
 
 function scan(code: string) {
-  return addScannedProduct({ ledger, clock: { now: () => NOW }, ids }, { actorId: "u1", code });
+  return addScannedProduct(
+    { ledger, restoration: restorationOf(database), clock: { now: () => NOW }, ids },
+    { actorId: "u1", code },
+  );
 }
 
 function addCashier(): void {
@@ -197,7 +201,7 @@ describe("scanning a barcode", () => {
 
 function weigh(productId: string, weightThousandths: number) {
   return addWeighedProduct(
-    { ledger, clock: { now: () => NOW }, ids },
+    { ledger, restoration: restorationOf(database), clock: { now: () => NOW }, ids },
     { actorId: "u1", productId, weightThousandths },
   );
 }
@@ -222,7 +226,10 @@ describe("a line sold by weight", () => {
   it("is read back with its unit, its weight and its source after the register restarts", () => {
     weigh("p1", 1250);
 
-    const outcome = currentSale({ ledger, clock: { now: () => NOW } }, { actorId: "u1" });
+    const outcome = currentSale(
+      { ledger, restoration: restorationOf(database), clock: { now: () => NOW } },
+      { actorId: "u1" },
+    );
 
     expect(outcome.kind === "open" && outcome.sale.lines).toEqual([
       expect.objectContaining({
@@ -251,7 +258,7 @@ describe("a line sold by weight", () => {
     const lineId = added.kind === "added" ? (added.sale.lines[0]?.id as string) : "";
 
     changeLineWeight(
-      { ledger, clock: { now: () => NOW } },
+      { ledger, restoration: restorationOf(database), clock: { now: () => NOW } },
       { actorId: "u1", lineId, weightThousandths: 2000, expectedWeightThousandths: 1250 },
     );
 
@@ -266,7 +273,7 @@ describe("a line sold by weight", () => {
     database.prepare("UPDATE sale_lines SET weight_source = 'SCALE'").run();
 
     changeLineWeight(
-      { ledger, clock: { now: () => NOW } },
+      { ledger, restoration: restorationOf(database), clock: { now: () => NOW } },
       { actorId: "u1", lineId, weightThousandths: 1250, expectedWeightThousandths: 1250 },
     );
 
@@ -284,7 +291,10 @@ describe("a line sold by weight", () => {
     );
     weigh("p1", 1000);
 
-    const outcome = currentSale({ ledger, clock: { now: () => NOW } }, { actorId: "u1" });
+    const outcome = currentSale(
+      { ledger, restoration: restorationOf(database), clock: { now: () => NOW } },
+      { actorId: "u1" },
+    );
 
     expect(outcome.kind === "open" && outcome.sale.lines[0]).toMatchObject({
       saleUnit: "KG",
@@ -401,7 +411,10 @@ describe("the sale being built", () => {
     scan("222");
     scan("111");
 
-    const outcome = currentSale({ ledger, clock: { now: () => NOW } }, { actorId: "u1" });
+    const outcome = currentSale(
+      { ledger, restoration: restorationOf(database), clock: { now: () => NOW } },
+      { actorId: "u1" },
+    );
 
     expect(outcome.kind === "open" && outcome.sale.lines.map((line) => line.productId)).toEqual([
       "p3",
@@ -443,7 +456,12 @@ describe("the sale being built", () => {
       .prepare("UPDATE sales SET state = 'COMPLETED', occurred_at = ?")
       .run(NOW.toISOString());
 
-    expect(currentSale({ ledger, clock: { now: () => NOW } }, { actorId: "u1" })).toEqual({
+    expect(
+      currentSale(
+        { ledger, restoration: restorationOf(database), clock: { now: () => NOW } },
+        { actorId: "u1" },
+      ),
+    ).toEqual({
       kind: "no_sale",
     });
   });
@@ -542,7 +560,12 @@ describe("the sale after the register restarts", () => {
         () => "checked",
       );
 
-      expect(currentSale({ ledger, clock: { now: () => NOW } }, { actorId: "u1" })).toMatchObject({
+      expect(
+        currentSale(
+          { ledger, restoration: restorationOf(database), clock: { now: () => NOW } },
+          { actorId: "u1" },
+        ),
+      ).toMatchObject({
         kind: "open",
         sale: {
           lines: [
@@ -739,7 +762,7 @@ describe("charging an open sale in cash", () => {
 
   function charge(saleId: string, tendered: number) {
     return chargeSaleInCash(
-      { ledger, clock: { now: () => NOW }, ids },
+      { ledger, restoration: restorationOf(database), clock: { now: () => NOW }, ids },
       { actorId: "u1", saleId, tendered },
     );
   }
@@ -749,7 +772,7 @@ describe("charging an open sale in cash", () => {
     const chargedAt = new Date("2026-10-01T00:02:00.000Z");
 
     chargeSaleInCash(
-      { ledger, clock: { now: () => chargedAt }, ids },
+      { ledger, restoration: restorationOf(database), clock: { now: () => chargedAt }, ids },
       { actorId: "u1", saleId, tendered: 5000 },
     );
 
@@ -1212,7 +1235,7 @@ describe("charging a sale with a line sold by weight", () => {
     const saleId = added.kind === "added" ? added.sale.id : "";
 
     chargeSaleInCash(
-      { ledger, clock: { now: () => NOW }, ids },
+      { ledger, restoration: restorationOf(database), clock: { now: () => NOW }, ids },
       { actorId: "u1", saleId, tendered: 12000 },
     );
 
@@ -1261,14 +1284,14 @@ describe("paying an open sale across several payments", () => {
 
   function payCash(saleId: string, tendered: number) {
     return chargeSaleInCash(
-      { ledger, clock: { now: () => NOW }, ids },
+      { ledger, restoration: restorationOf(database), clock: { now: () => NOW }, ids },
       { actorId: "u1", saleId, tendered },
     );
   }
 
   function payByTransfer(saleId: string, amount: number) {
     return chargeSaleByTransfer(
-      { ledger, clock: { now: () => NOW }, ids },
+      { ledger, restoration: restorationOf(database), clock: { now: () => NOW }, ids },
       { actorId: "u1", saleId, amount },
     );
   }
@@ -1540,7 +1563,10 @@ describe("a line's promotions", () => {
   it("are frozen with the line and read back after the sale is reopened", () => {
     scan("111");
 
-    const outcome = currentSale({ ledger, clock: { now: () => NOW } }, { actorId: "u1" });
+    const outcome = currentSale(
+      { ledger, restoration: restorationOf(database), clock: { now: () => NOW } },
+      { actorId: "u1" },
+    );
 
     expect(outcome.kind === "open" && outcome.sale.lines[0]).toMatchObject({
       promotions: [
@@ -1568,7 +1594,10 @@ describe("a line's promotions", () => {
     );
 
     scan("111");
-    const outcome = currentSale({ ledger, clock: { now: () => NOW } }, { actorId: "u1" });
+    const outcome = currentSale(
+      { ledger, restoration: restorationOf(database), clock: { now: () => NOW } },
+      { actorId: "u1" },
+    );
 
     expect(
       outcome.kind === "open" && outcome.sale.lines[0]?.promotions.map((promotion) => promotion.id),
@@ -1580,7 +1609,10 @@ describe("a line's promotions", () => {
     database.prepare("UPDATE discounts SET name = 'Nombre nuevo' WHERE id = 'ten'").run();
 
     scan("111");
-    const outcome = currentSale({ ledger, clock: { now: () => NOW } }, { actorId: "u1" });
+    const outcome = currentSale(
+      { ledger, restoration: restorationOf(database), clock: { now: () => NOW } },
+      { actorId: "u1" },
+    );
 
     expect(
       database
@@ -1627,7 +1659,12 @@ describe("a line's promotions", () => {
 });
 
 describe("the lines of the sale being changed", () => {
-  const sellerPorts = () => ({ ledger, clock: { now: () => NOW }, ids });
+  const sellerPorts = () => ({
+    ledger,
+    restoration: restorationOf(database),
+    clock: { now: () => NOW },
+    ids,
+  });
 
   beforeEach(() => {
     readySeller();
@@ -1712,7 +1749,10 @@ describe("the lines of the sale being changed", () => {
     scan("111");
     scan("222");
 
-    const outcome = cancelSale({ ledger, clock: { now: () => NOW } }, { actorId: "u1" });
+    const outcome = cancelSale(
+      { ledger, restoration: restorationOf(database), clock: { now: () => NOW } },
+      { actorId: "u1" },
+    );
 
     expect(outcome).toEqual({ kind: "cancelled" });
     expect(rowsPerTable()).toEqual(before);
@@ -1723,7 +1763,10 @@ describe("the lines of the sale being changed", () => {
     chargeSaleInCash(sellerPorts(), { actorId: "u1", saleId: "id-1", tendered: 5000 });
     scan("222");
 
-    cancelSale({ ledger, clock: { now: () => NOW } }, { actorId: "u1" });
+    cancelSale(
+      { ledger, restoration: restorationOf(database), clock: { now: () => NOW } },
+      { actorId: "u1" },
+    );
 
     expect(database.prepare("SELECT id, state FROM sales").all()).toEqual([
       { id: "id-1", state: "COMPLETED" },
@@ -1864,7 +1907,10 @@ describe("the lines of the sale being changed", () => {
 
   it("lets the next scan start a new open sale once the previous one is cancelled", () => {
     scan("111");
-    cancelSale({ ledger, clock: { now: () => NOW } }, { actorId: "u1" });
+    cancelSale(
+      { ledger, restoration: restorationOf(database), clock: { now: () => NOW } },
+      { actorId: "u1" },
+    );
 
     scan("111");
 
@@ -1878,7 +1924,12 @@ describe("the lines of the sale being changed", () => {
     const before = rowsPerTable();
     scan("111");
 
-    expect(cancelSale({ ledger: keyless, clock: { now: () => NOW } }, { actorId: "u1" })).toEqual({
+    expect(
+      cancelSale(
+        { ledger: keyless, restoration: restorationOf(database), clock: { now: () => NOW } },
+        { actorId: "u1" },
+      ),
+    ).toEqual({
       kind: "cancelled",
     });
     expect(rowsPerTable()).toEqual(before);
@@ -1917,14 +1968,14 @@ describe("cancelling an open sale with approved payments", () => {
 
   function payCash(saleId: string, tendered: number) {
     return chargeSaleInCash(
-      { ledger, clock: { now: () => NOW }, ids },
+      { ledger, restoration: restorationOf(database), clock: { now: () => NOW }, ids },
       { actorId: "u1", saleId, tendered },
     );
   }
 
   function payByTransfer(saleId: string, amount: number) {
     return chargeSaleByTransfer(
-      { ledger, clock: { now: () => NOW }, ids },
+      { ledger, restoration: restorationOf(database), clock: { now: () => NOW }, ids },
       { actorId: "u1", saleId, amount },
     );
   }
@@ -1934,6 +1985,7 @@ describe("cancelling an open sale with approved payments", () => {
     return cancelPaidSale(
       {
         ledger,
+        restoration: restorationOf(database),
         clock: { now: () => CANCELLED_AT },
         ids,
         authority: { authorize: async () => ({ kind: "granted", grant }) },

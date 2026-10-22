@@ -1,5 +1,6 @@
 import type { Clock } from "../../shared/index.js";
 import { mayBeSaleLineQuantity, withWeight } from "../model/sale-line.js";
+import type { RegisterRestoration } from "./register-restoration.js";
 import type { SaleLedger } from "./sale-ledger.js";
 import {
   type ChangedLineOutcome,
@@ -18,6 +19,7 @@ export interface ChangeLineWeightInput {
 
 export interface ChangeLineWeightPorts {
   ledger: SaleLedger;
+  restoration: RegisterRestoration;
   clock: Clock;
 }
 
@@ -30,11 +32,11 @@ export type ChangeLineWeightOutcome =
   | ChangedLineOutcome;
 
 export function changeLineWeight(
-  { ledger, clock }: ChangeLineWeightPorts,
+  { ledger, restoration, clock }: ChangeLineWeightPorts,
   { actorId, lineId, weightThousandths, expectedWeightThousandths }: ChangeLineWeightInput,
 ): ChangeLineWeightOutcome {
   return ledger.transaction<ChangeLineWeightOutcome>((tx) => {
-    const sale = saleToChange(tx, actorId, clock);
+    const sale = saleToChange(tx, actorId, clock, restoration);
     if (isSaleLineChangeRefusal(sale)) {
       return sale;
     }

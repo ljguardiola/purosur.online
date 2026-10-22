@@ -11,6 +11,7 @@ import {
   type FakeSaleLedgerState,
   type FakeSaleLedgerWrite,
   FixedClock,
+  RESTORATION_IN_PROGRESS,
   SequentialIds,
 } from "./test-support/fake-sale-ledger.js";
 import { TEN_PERCENT_SALE_DISCOUNT } from "./test-support/sale-discounts.js";
@@ -99,7 +100,12 @@ function ledger(state: Partial<FakeSaleLedgerState> = {}): FakeSaleLedger {
 
 function scan(store: FakeSaleLedger, code = "7790001", actorId = "cashier") {
   return addScannedProduct(
-    { ledger: store, clock: new FixedClock(NOW), ids: new SequentialIds() },
+    {
+      ledger: store,
+      restoration: store.restoration,
+      clock: new FixedClock(NOW),
+      ids: new SequentialIds(),
+    },
     { actorId, code },
   );
 }
@@ -811,7 +817,12 @@ describe("addScannedProduct", () => {
       });
 
       const outcome = addScannedProduct(
-        { ledger: store, clock: new FixedClock(lateEvening), ids: new SequentialIds() },
+        {
+          ledger: store,
+          restoration: store.restoration,
+          clock: new FixedClock(lateEvening),
+          ids: new SequentialIds(),
+        },
         { actorId: "cashier", code: "7790001" },
       );
 
@@ -1043,5 +1054,35 @@ describe("add-scanned-product on a sale with a discount on the total", () => {
 
     expect(outcome).toEqual({ kind: "unknown_code" });
     expect(store.state.sales[0]?.saleDiscount).toEqual(TEN_PERCENT_SALE_DISCOUNT);
+  });
+});
+
+describe("addScannedProduct while the register's restoration is in progress", () => {
+  it("refuses to start a sale and records nothing", () => {
+    const store = ledger({ restoration: RESTORATION_IN_PROGRESS });
+    const before = structuredClone(store.state);
+
+    expect(scan(store)).toEqual({ kind: "restoration_in_progress" });
+    nothingRecorded(store, before);
+  });
+
+  it("refuses to add to a sale the resumed session already holds", () => {
+    const store = ledger({ restoration: RESTORATION_IN_PROGRESS, sales: [OPEN_SALE] });
+    const before = structuredClone(store.state);
+
+    expect(scan(store)).toEqual({ kind: "restoration_in_progress" });
+    nothingRecorded(store, before);
+  });
+
+  it("answers not permitted to an actor who may not sell", () => {
+    const store = ledger({ restoration: RESTORATION_IN_PROGRESS, accesses: {} });
+
+    expect(scan(store)).toEqual({ kind: "not_permitted" });
+  });
+
+  it("is checked before whether a cash session is open", () => {
+    const store = ledger({ restoration: RESTORATION_IN_PROGRESS, session: undefined });
+
+    expect(scan(store)).toEqual({ kind: "restoration_in_progress" });
   });
 });

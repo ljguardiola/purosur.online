@@ -6,6 +6,7 @@ import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import { migrationClock } from "../platform/test-support/migration-clock";
 import { openLocalDatabase } from "../platform/test-support/open-local-database";
+import { restorationOf } from "../register/test-support/restoration-of";
 import { cancelSaleFor, chargeSaleInCashFor, currentSaleFor } from "../sales/sale-requests";
 import { createSignedInPerson, type SignedInPerson } from "../sessions/signed-in-person";
 import {
@@ -365,7 +366,12 @@ describe("a charge on the integrated terminal while the cloud cannot be reached"
     await pointChargeStarted();
 
     expect(
-      await cancelSaleFor({ database, gate: deps(new FakeOrders()).gate, now: () => CHARGE_NOW }),
+      await cancelSaleFor({
+        database,
+        gate: deps(new FakeOrders()).gate,
+        now: () => CHARGE_NOW,
+        restoration: restorationOf(database),
+      }),
     ).toEqual({
       kind: "mercado_pago_charge_in_progress",
     });
@@ -380,6 +386,7 @@ describe("a charge on the integrated terminal while the cloud cannot be reached"
       await chargeSaleInCashFor(
         {
           database,
+          restoration: restorationOf(database),
           gate: deps(offline).gate,
           readOutboxChainKey: async () => CHARGE_CHAIN_KEY,
           now: () => CHARGE_NOW,
@@ -397,6 +404,7 @@ describe("a charge on the integrated terminal while the cloud cannot be reached"
       await chargeSaleInCashFor(
         {
           database,
+          restoration: restorationOf(database),
           gate: deps(online).gate,
           readOutboxChainKey: async () => CHARGE_CHAIN_KEY,
           now: () => CHARGE_NOW,
