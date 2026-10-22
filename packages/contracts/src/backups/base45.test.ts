@@ -3,7 +3,8 @@ import { describe, expect, it } from "vitest";
 import { base45Decode, base45Encode } from "./base45.js";
 
 const text = (value: string) => new TextEncoder().encode(value);
-const asText = (bytes: Uint8Array | null) => (bytes === null ? null : new TextDecoder().decode(bytes));
+const asText = (bytes: Uint8Array | null) =>
+  bytes === null ? null : new TextDecoder().decode(bytes);
 
 describe("base45Encode", () => {
   it.each([
