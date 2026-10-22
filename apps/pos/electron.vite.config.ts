@@ -40,7 +40,7 @@ export default defineConfig({
       // workspace packages as bare imports at runtime; only `electron`, Node built-ins and
       // better-sqlite3 and serialport, whose native bindings can't be bundled, stay external.
       externalizeDeps: false,
-      rolldownOptions: {
+      rollupOptions: {
         external: ["better-sqlite3", "serialport"],
         input: {
           index: r("src/main/index.ts"),
@@ -54,7 +54,7 @@ export default defineConfig({
   preload: {
     plugins: [withoutPackageOutput(repoRoot)],
     build: {
-      rolldownOptions: {
+      rollupOptions: {
         // A sandboxed preload can't be an ES module, and a .js file inside a "type": "module"
         // package would be read as one.
         output: { format: "cjs", entryFileNames: "[name].cjs" },
@@ -73,7 +73,7 @@ export default defineConfig({
       contentSecurityPolicyMeta(),
     ],
     build: {
-      rolldownOptions: {
+      rollupOptions: {
         input: {
           index: r("src/renderer/index.html"),
         },
