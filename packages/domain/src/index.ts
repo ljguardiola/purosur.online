@@ -858,6 +858,7 @@ export {
 export type {
   EventInvariantBreaks,
   EventQuarantine,
+  InstallationEnrollment,
   JsonValue,
   OutboxEvent,
   OutboxEventDraft,
@@ -875,6 +876,7 @@ export {
   FIRST_PULL_CURSOR,
   hasPulledChange,
   INSTALLATION_REQUEST_LIMITS,
+  installationEnrollment,
   isLeftBehindByMinimum,
   isPageAfter,
   isPullCursor,

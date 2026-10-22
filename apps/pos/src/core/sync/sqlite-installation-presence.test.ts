@@ -3,7 +3,11 @@ import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import { migrationClock } from "../platform/test-support/migration-clock";
 import { openLocalDatabase } from "../platform/test-support/open-local-database";
-import { installationHeld, staleSequenceDetected } from "./sqlite-installation-presence";
+import {
+  heldDeviceId,
+  installationHeld,
+  staleSequenceDetected,
+} from "./sqlite-installation-presence";
 
 let database: LocalDatabase;
 
@@ -24,6 +28,18 @@ describe("installationHeld", () => {
     database.exec("UPDATE sync_state SET device_id = 'device-a'");
 
     expect(installationHeld(database)).toBe(true);
+  });
+});
+
+describe("heldDeviceId", () => {
+  it("is undefined for a local database that never held an installation", () => {
+    expect(heldDeviceId(database)).toBeUndefined();
+  });
+
+  it("is the device of the installation the local database holds", () => {
+    database.exec("UPDATE sync_state SET device_id = 'device-a'");
+
+    expect(heldDeviceId(database)).toBe("device-a");
   });
 });
 

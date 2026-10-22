@@ -1,6 +1,7 @@
 import type {
   CashBalance,
   CashCountPreview,
+  EnrollmentStandingAnswer,
   ListedCashMovement,
   OpenCashSession,
   ReadReceiptPrinterOutcome,
@@ -62,9 +63,9 @@ export function useEnrollmentQuery({
   read,
   enabled,
 }: {
-  read: () => Promise<boolean>;
+  read: () => Promise<EnrollmentStandingAnswer>;
   enabled: boolean;
-}): CoreData<boolean> {
+}): CoreData<EnrollmentStandingAnswer> {
   return useCoreQuery({ queryKey: registerKeys.enrollment, read, enabled });
 }
 

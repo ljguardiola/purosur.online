@@ -26,20 +26,6 @@ describe("createMainRequests", () => {
     ]);
   });
 
-  it("asks main whether credentials are present and resolves with its answer", async () => {
-    const { requests, posted } = requestsWithSequentialIds();
-
-    const present = requests.credentialsPresent();
-    requests.receive({
-      type: "device-credentials-presence",
-      request_id: "request-1",
-      present: false,
-    });
-
-    expect(await present).toBe(false);
-    expect(posted).toEqual([{ type: "device-credentials-request", request_id: "request-1" }]);
-  });
-
   it("asks main for the stored credentials and resolves with them", async () => {
     const { requests, posted } = requestsWithSequentialIds();
 
@@ -103,17 +89,17 @@ describe("createMainRequests", () => {
   it("matches each answer to its own request, whatever order they arrive in", async () => {
     const { requests } = requestsWithSequentialIds();
 
-    const first = requests.credentialsPresent();
-    const second = requests.credentialsPresent();
+    const first = requests.canStoreCredentials();
+    const second = requests.canStoreCredentials();
     requests.receive({
-      type: "device-credentials-presence",
+      type: "device-credentials-storable",
       request_id: "request-2",
-      present: true,
+      storable: true,
     });
     requests.receive({
-      type: "device-credentials-presence",
+      type: "device-credentials-storable",
       request_id: "request-1",
-      present: false,
+      storable: false,
     });
 
     expect(await first).toBe(false);
@@ -122,16 +108,16 @@ describe("createMainRequests", () => {
 
   it("settles no request with a health check", async () => {
     const { requests } = requestsWithSequentialIds();
-    const present = requests.credentialsPresent();
+    const storable = requests.canStoreCredentials();
 
     requests.receive({ type: "health-check" });
     requests.receive({
-      type: "device-credentials-presence",
+      type: "device-credentials-storable",
       request_id: "request-1",
-      present: true,
+      storable: true,
     });
 
-    expect(await present).toBe(true);
+    expect(await storable).toBe(true);
   });
 
   it("settles nothing with an answer to no pending request", async () => {
@@ -149,9 +135,9 @@ describe("createMainRequests", () => {
     const stored = requests.storeCredentials(CREDENTIALS);
 
     requests.receive({
-      type: "device-credentials-presence",
+      type: "device-credentials-storable",
       request_id: "request-1",
-      present: true,
+      storable: true,
     });
     requests.receive({ type: "device-credentials-stored", request_id: "request-1", stored: false });
 

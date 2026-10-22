@@ -8,6 +8,13 @@ export function installationHeld(database: LocalDatabase): boolean {
   );
 }
 
+export function heldDeviceId(database: LocalDatabase): string | undefined {
+  return (
+    database.prepare<[], { device_id: string | null }>("SELECT device_id FROM sync_state").get()
+      ?.device_id ?? undefined
+  );
+}
+
 export function staleSequenceDetected(database: LocalDatabase): boolean {
   return (
     database
