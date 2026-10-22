@@ -1,0 +1,437 @@
+import { describe, expect, it } from "vitest";
+import type { DeferredBacklogEntry } from "../model/deferred-backlog.js";
+import { DEFERRED_BACKLOG_RETRY_INTERVAL_MS } from "../model/deferred-backlog.js";
+import { deferredSaleSatisfiedEvent } from "../model/deferred-sale-satisfied-event.js";
+import { FACTURA_C_DOCUMENT_TYPE } from "../model/fiscal-rejection-standing.js";
+import type { RealTimeAuthorizationAnswer } from "../model/real-time-authorization.js";
+import {
+  FICTIONAL_CUIT,
+  FICTIONAL_GROSS_INCOME_REGISTRATION,
+  FICTIONAL_LEGAL_NAME,
+} from "../test-support/fictional-tax-identities.js";
+import { catchUpDeferredSales } from "./catch-up-deferred-sales.js";
+import { ManualClock } from "./test-support/fake-arca-vitality.js";
+import {
+  type BacklogSale,
+  FakeDeferredSaleCatchUp,
+  type FakeDeferredSaleCatchUpState,
+  ScriptedRealTimeTaxAuthority,
+} from "./test-support/fake-deferred-sale-catch-up.js";
+import { FakeRoundTripSamples } from "./test-support/fake-real-time-authorization.js";
+import { SequentialIds } from "./test-support/fake-sale-authorization.js";
+import { ScriptedShortCodes } from "./test-support/scripted-short-codes.js";
+
+const NOW = new Date("2026-10-03T15:00:00.000Z");
+const ORIGIN = { registerId: "register-1", actorId: "cashier" };
+
+const AUTHORIZED: RealTimeAuthorizationAnswer = {
+  kind: "authorized",
+  authorizationCode: "75123456789012",
+  authorizationCodeDueOn: "2026-10-13",
+};
+const REJECTED: RealTimeAuthorizationAnswer = {
+  kind: "rejected",
+  codes: [10015],
+  rejectionClass: "content",
+};
+
+function sale(
+  id: string,
+  occurredAt: string,
+  overrides: Partial<DeferredBacklogEntry> = {},
+): BacklogSale {
+  return {
+    origin: ORIGIN,
+    entry: {
+      deferredSaleId: `deferred-of-${id}`,
+      saleId: id,
+      occurredAt: new Date(occurredAt),
+      routedAt: new Date(occurredAt),
+      total: 1_000,
+      lastAttemptEndedAt: null,
+      ...overrides,
+    },
+  };
+}
+
+const FIRST = sale("sale-1", "2026-10-01T14:00:00.000Z");
+const SECOND = sale("sale-2", "2026-10-02T02:30:00.000Z");
+const THIRD = sale("sale-3", "2026-10-02T13:00:00.000Z");
+
+function state(
+  overrides: Partial<FakeDeferredSaleCatchUpState> = {},
+): FakeDeferredSaleCatchUpState {
+  return {
+    series: {
+      pointOfSale: 12,
+      taxAuthorityLastAuthorized: 100,
+      numberingFrozen: false,
+      clockMark: null,
+      taxAuthorityLastIssuedOn: "2026-09-30",
+      clockCorrections: [],
+    },
+    online: { lastHealthCheckOkAt: NOW, tokenValid: true, arcaReachable: true },
+    issuer: {
+      legalName: FICTIONAL_LEGAL_NAME,
+      grossIncomeRegistration: FICTIONAL_GROSS_INCOME_REGISTRATION,
+      activityStartDate: "2020-01-01",
+      authorizedCuit: FICTIONAL_CUIT,
+      taxStatus: "MONOTRIBUTO",
+      version: 3,
+    },
+    buyerTaxStatuses: [{ code: 5, description: "Consumidor Final", invoiceClass: "C" }],
+    awaitingRestoredNumbering: false,
+    backlog: [FIRST, SECOND, THIRD],
+    holdingAuthorizedDocument: [],
+    ...overrides,
+  };
+}
+
+function catchUp(
+  overrides: Partial<FakeDeferredSaleCatchUpState> = {},
+  answers: readonly RealTimeAuthorizationAnswer[] = [AUTHORIZED],
+) {
+  const register = new FakeDeferredSaleCatchUp(state(overrides));
+  const taxAuthority = new ScriptedRealTimeTaxAuthority(answers);
+  const ids = new SequentialIds();
+  const outcome = catchUpDeferredSales({
+    catchUp: register,
+    documents: register,
+    roundTrips: new FakeRoundTripSamples([100]),
+    taxAuthority,
+    clock: new ManualClock(NOW),
+    ids,
+    shortCodes: new ScriptedShortCodes(["7KQ4M2P9"]),
+  });
+  return { register, taxAuthority, outcome };
+}
+
+describe("catching up the deferred sales", () => {
+  it("invoices the backlog one sale at a time in strict date order, whatever order it is held in", async () => {
+    const { register, outcome } = catchUp({ backlog: [THIRD, FIRST, SECOND] });
+
+    expect(await outcome).toEqual({
+      kind: "completed",
+      invoiced: ["sale-1", "sale-2", "sale-3"],
+    });
+    expect(register.reservations.map(({ saleId }) => saleId)).toEqual([
+      "sale-1",
+      "sale-2",
+      "sale-3",
+    ]);
+  });
+
+  it("numbers each invoice after the tax authority's last authorized voucher and the previous one", async () => {
+    const { register, outcome } = catchUp();
+    await outcome;
+
+    expect(register.reservations.map(({ pointOfSale, number }) => [pointOfSale, number])).toEqual([
+      [12, 101],
+      [12, 102],
+      [12, 103],
+    ]);
+  });
+
+  it("numbers after the register's own authorized documents when they are ahead of the tax authority", async () => {
+    const { register, outcome } = catchUp({
+      series: { ...state().series, localLastAuthorized: 130 },
+    });
+    await outcome;
+
+    expect(register.reservations.map(({ number }) => number)).toEqual([131, 132, 133]);
+  });
+
+  it("dates each invoice with its sale's own day, never the day it is processed", async () => {
+    const { register, outcome } = catchUp();
+    await outcome;
+
+    expect(register.reservations.map(({ issuedOn }) => issuedOn)).toEqual([
+      "2026-10-01",
+      "2026-10-01",
+      "2026-10-02",
+    ]);
+  });
+
+  it("reserves each document at the moment it does, rebuilt from the sale's total and the issuer in effect", async () => {
+    const { register, outcome } = catchUp({
+      backlog: [sale("sale-1", "2026-10-01T14:00:00.000Z", { total: 4_321 })],
+    });
+    await outcome;
+
+    expect(register.reservations).toEqual([
+      {
+        id: "id-1",
+        saleId: "sale-1",
+        pointOfSale: 12,
+        number: 101,
+        issuedOn: "2026-10-01",
+        reservedAt: NOW,
+        document: {
+          invoiceClass: "C",
+          total: 4_321,
+          netAmount: 4_321,
+          vatAmount: 0,
+          issuer: {
+            legalName: FICTIONAL_LEGAL_NAME,
+            cuit: FICTIONAL_CUIT,
+            taxStatus: "MONOTRIBUTO",
+            grossIncomeRegistration: FICTIONAL_GROSS_INCOME_REGISTRATION,
+            activityStartDate: "2020-01-01",
+            version: 3,
+          },
+          buyerTaxStatusCode: 5,
+          buyerTaxStatusDescription: "Consumidor Final",
+        },
+      },
+    ]);
+  });
+
+  it("raises the register's clock mark to the moment it reserves", async () => {
+    const { register, outcome } = catchUp({
+      backlog: [FIRST],
+      series: { ...state().series, clockMark: new Date("2026-10-03T14:00:00.000Z") },
+    });
+    await outcome;
+
+    expect(register.clockMarks).toEqual([
+      { pointOfSale: 12, documentType: FACTURA_C_DOCUMENT_TYPE, reading: NOW },
+    ]);
+  });
+
+  it("asks the tax authority for each document it reserved, for its own sale", async () => {
+    const { taxAuthority, outcome } = catchUp();
+    await outcome;
+
+    expect(taxAuthority.calls.map(({ saleId, number }) => [saleId, number])).toEqual([
+      ["sale-1", 101],
+      ["sale-2", 102],
+      ["sale-3", 103],
+    ]);
+  });
+
+  it("completes without reserving anything when the backlog is empty", async () => {
+    const { register, outcome } = catchUp({ backlog: [] });
+
+    expect(await outcome).toEqual({ kind: "completed", invoiced: [] });
+    expect(register.reservations).toEqual([]);
+  });
+
+  it("never reserves a sale whose window ran out", async () => {
+    const expired = sale("sale-0", "2026-09-27T14:00:00.000Z");
+    const { register, outcome } = catchUp({ backlog: [expired, FIRST] });
+
+    expect(await outcome).toEqual({ kind: "completed", invoiced: ["sale-1"] });
+    expect(register.reservations.map(({ saleId }) => saleId)).toEqual(["sale-1"]);
+  });
+
+  it("never reserves a sale dated before the last authorized document", async () => {
+    const { register, outcome } = catchUp({
+      series: { ...state().series, taxAuthorityLastIssuedOn: "2026-10-02" },
+    });
+
+    expect(await outcome).toEqual({ kind: "completed", invoiced: ["sale-3"] });
+    expect(register.reservations.map(({ saleId }) => saleId)).toEqual(["sale-3"]);
+  });
+
+  describe("stops, reserving nothing, when", () => {
+    it.each([
+      [
+        "a fiscal document waits for the tax authority's answer",
+        { series: { ...state().series, documentRequesting: true } },
+        { kind: "document_waiting" },
+      ],
+      [
+        "a fiscal document is missing the tax authority's answer",
+        { series: { ...state().series, documentUnknown: true } },
+        { kind: "document_waiting" },
+      ],
+      [
+        "the register has no point of sale",
+        { series: { ...state().series, pointOfSale: null } },
+        { kind: "point_of_sale_missing" },
+      ],
+      [
+        "its numbering is frozen",
+        { series: { ...state().series, numberingFrozen: true } },
+        { kind: "numbering_frozen" },
+      ],
+      [
+        "its clock reads behind its mark",
+        { series: { ...state().series, clockMark: new Date("2026-10-03T16:00:00.000Z") } },
+        { kind: "clock_behind" },
+      ],
+      [
+        "the register is not fiscally online",
+        {
+          online: { lastHealthCheckOkAt: null, tokenValid: true, arcaReachable: true },
+        },
+        { kind: "fiscally_offline" },
+      ],
+      [
+        "a restored register still awaits its numbering",
+        { awaitingRestoredNumbering: true },
+        { kind: "awaiting_restored_numbering" },
+      ],
+      [
+        "the tax authority's last authorized number is unknown",
+        { series: { ...state().series, taxAuthorityLastAuthorized: null } },
+        { kind: "tax_authority_count_unknown" },
+      ],
+    ] satisfies [string, Partial<FakeDeferredSaleCatchUpState>, { kind: string }][])(
+      "%s",
+      async (_case, overrides, reason) => {
+        const { register, taxAuthority, outcome } = catchUp(overrides);
+
+        expect(await outcome).toEqual({ kind: "stopped", invoiced: [], reason });
+        expect(register.reservations).toEqual([]);
+        expect(taxAuthority.calls).toEqual([]);
+      },
+    );
+
+    it("does not move past a sale whose document the pre-emission gate refuses", async () => {
+      const { register, taxAuthority, outcome } = catchUp({ issuer: undefined });
+
+      expect(await outcome).toEqual({
+        kind: "stopped",
+        invoiced: [],
+        reason: { kind: "gate_failed", reason: "issuer_identification_missing" },
+      });
+      expect(register.reservations).toEqual([]);
+      expect(taxAuthority.calls).toEqual([]);
+    });
+
+    it("waits for the retry interval of a sale whose last attempt ended", async () => {
+      const attemptEndedAt = new Date(NOW.getTime() - DEFERRED_BACKLOG_RETRY_INTERVAL_MS + 1_000);
+      const { register, outcome } = catchUp({
+        backlog: [
+          sale("sale-1", "2026-10-01T14:00:00.000Z", { lastAttemptEndedAt: attemptEndedAt }),
+          SECOND,
+        ],
+      });
+
+      expect(await outcome).toEqual({
+        kind: "stopped",
+        invoiced: [],
+        reason: {
+          kind: "retry_later",
+          until: new Date(attemptEndedAt.getTime() + DEFERRED_BACKLOG_RETRY_INTERVAL_MS),
+        },
+      });
+      expect(register.reservations).toEqual([]);
+    });
+  });
+
+  it("retries a sale once the retry interval passed", async () => {
+    const attemptEndedAt = new Date(NOW.getTime() - DEFERRED_BACKLOG_RETRY_INTERVAL_MS);
+    const { register, outcome } = catchUp({
+      backlog: [sale("sale-1", "2026-10-01T14:00:00.000Z", { lastAttemptEndedAt: attemptEndedAt })],
+    });
+
+    expect(await outcome).toEqual({ kind: "completed", invoiced: ["sale-1"] });
+    expect(register.reservations).toHaveLength(1);
+  });
+
+  it("stops at a rejected sale without invoicing the ones behind it", async () => {
+    const { register, taxAuthority, outcome } = catchUp({}, [REJECTED]);
+
+    expect(await outcome).toEqual({
+      kind: "stopped",
+      invoiced: [],
+      reason: { kind: "authorization_not_granted", outcome: "rejected" },
+    });
+    expect(register.reservations.map(({ saleId }) => saleId)).toEqual(["sale-1"]);
+    expect(taxAuthority.calls).toHaveLength(1);
+  });
+
+  it("keeps what it invoiced before a rejection and stops there", async () => {
+    const { register, outcome } = catchUp({}, [AUTHORIZED, REJECTED]);
+
+    expect(await outcome).toEqual({
+      kind: "stopped",
+      invoiced: ["sale-1"],
+      reason: { kind: "authorization_not_granted", outcome: "rejected" },
+    });
+    expect(register.reservations.map(({ saleId }) => saleId)).toEqual(["sale-1", "sale-2"]);
+  });
+
+  it("stops at a sale whose outcome is unclear, leaving its document to be settled", async () => {
+    const { register, outcome } = catchUp({}, [{ kind: "unclear" }]);
+
+    expect(await outcome).toEqual({
+      kind: "stopped",
+      invoiced: [],
+      reason: { kind: "authorization_not_granted", outcome: "unclear" },
+    });
+    expect(register.reservations.map(({ saleId }) => saleId)).toEqual(["sale-1"]);
+  });
+
+  it("satisfies a deferred sale that already holds an authorized document, without invoicing it again", async () => {
+    const holder = {
+      deferredSaleId: "deferred-of-sale-1",
+      saleId: "sale-1",
+      origin: ORIGIN,
+      fiscalDocumentId: "document-9",
+      pointOfSale: 12,
+      number: 99,
+      issuedOn: "2026-10-01",
+    };
+    const { register, outcome } = catchUp({
+      backlog: [SECOND],
+      holdingAuthorizedDocument: [holder],
+    });
+
+    expect(await outcome).toEqual({ kind: "completed", invoiced: ["sale-2"] });
+    expect(register.satisfactions).toEqual([
+      {
+        saleId: "sale-1",
+        fiscalDocumentId: "document-9",
+        satisfiedAt: NOW,
+        event: deferredSaleSatisfiedEvent({
+          eventId: "id-1",
+          ...ORIGIN,
+          deferredSaleId: "deferred-of-sale-1",
+          saleId: "sale-1",
+          fiscalDocumentId: "document-9",
+          pointOfSale: 12,
+          number: 99,
+          issuedOn: "2026-10-01",
+          satisfiedAt: NOW,
+        }),
+      },
+    ]);
+    expect(register.reservations.map(({ saleId }) => saleId)).toEqual(["sale-2"]);
+  });
+
+  it("satisfies the records of authorized documents even when it must stop", async () => {
+    const holder = {
+      deferredSaleId: "deferred-of-sale-1",
+      saleId: "sale-1",
+      origin: ORIGIN,
+      fiscalDocumentId: "document-9",
+      pointOfSale: 12,
+      number: 99,
+      issuedOn: "2026-10-01",
+    };
+    const { register, outcome } = catchUp({
+      backlog: [],
+      awaitingRestoredNumbering: true,
+      holdingAuthorizedDocument: [holder],
+    });
+
+    await outcome;
+
+    expect(register.satisfactions.map(({ saleId }) => saleId)).toEqual(["sale-1"]);
+  });
+
+  it("reports the satisfaction of each sale it invoices through the authorization it reuses", async () => {
+    const { register, outcome } = catchUp({ backlog: [FIRST, SECOND] });
+    await outcome;
+
+    expect(
+      register.resolutions.map(({ deferredSaleSatisfied }) => deferredSaleSatisfied?.payload),
+    ).toEqual([
+      expect.objectContaining({ id: "deferred-of-sale-1", sale_id: "sale-1", number: 101 }),
+      expect.objectContaining({ id: "deferred-of-sale-2", sale_id: "sale-2", number: 102 }),
+    ]);
+  });
+});
