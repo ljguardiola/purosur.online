@@ -14,6 +14,10 @@ function keepingHighest(table: string, column: string): string {
 
 const COUNT = "tax_authority_last_authorized_number";
 const DAY = "tax_authority_last_authorized_issued_on";
+const AWAITED_FROM_CLOUD = `EXISTS (
+           SELECT 1 FROM awaiting_restored_numbering
+           WHERE awaiting_restored_numbering.register_id = register_point_of_sale.register_id)
+           AND excluded.version >= register_point_of_sale.version`;
 
 function latestDay(table: string): string {
   return `CASE
@@ -61,6 +65,7 @@ export function prepareRegisterPageWrites(database: LocalDatabase, mode: PageWri
        fiscal_address_id = CASE WHEN excluded.version > register_point_of_sale.version
          THEN excluded.fiscal_address_id ELSE register_point_of_sale.fiscal_address_id END,
        tax_authority_last_authorized_number = CASE
+         WHEN ${AWAITED_FROM_CLOUD} THEN excluded.tax_authority_last_authorized_number
          WHEN excluded.version = register_point_of_sale.version
            AND excluded.tax_authority_last_authorized_number IS NOT NULL
            AND (register_point_of_sale.tax_authority_last_authorized_number IS NULL
@@ -74,6 +79,7 @@ export function prepareRegisterPageWrites(database: LocalDatabase, mode: PageWri
          THEN register_point_of_sale.tax_authority_last_authorized_number
          ELSE excluded.tax_authority_last_authorized_number END,
        ${DAY} = CASE
+         WHEN ${AWAITED_FROM_CLOUD} THEN excluded.${DAY}
          WHEN excluded.version = register_point_of_sale.version THEN
            CASE
              WHEN excluded.${COUNT} IS NOT NULL
@@ -94,6 +100,7 @@ export function prepareRegisterPageWrites(database: LocalDatabase, mode: PageWri
        numbering_frozen = excluded.numbering_frozen,
        version = excluded.version
      WHERE excluded.version > register_point_of_sale.version
+       OR (${AWAITED_FROM_CLOUD})
        OR (excluded.version = register_point_of_sale.version
          AND excluded.tax_authority_last_authorized_number IS NOT NULL
          AND (register_point_of_sale.tax_authority_last_authorized_number IS NULL
@@ -115,6 +122,14 @@ export function prepareRegisterPageWrites(database: LocalDatabase, mode: PageWri
        @tax_authority_last_authorized_issued_on, @numbering_frozen, @version
      )
      ${savePointOfSaleConflict}`,
+  );
+  const settleAwaitedNumbering = database.prepare(
+    `DELETE FROM awaiting_restored_numbering
+     WHERE register_id = @register_id
+       AND EXISTS (
+         SELECT 1 FROM register_point_of_sale
+         WHERE register_id = @register_id AND version = @version
+           AND numbering_frozen = 0 AND ${COUNT} IS NOT NULL)`,
   );
   const saveOfflinePointOfSaleConflict =
     mode === "pull"
@@ -170,6 +185,9 @@ export function prepareRegisterPageWrites(database: LocalDatabase, mode: PageWri
         ...row,
         numbering_frozen: row.numbering_frozen ? 1 : 0,
       });
+      if (mode === "pull") {
+        settleAwaitedNumbering.run({ register_id: entity_id, version: row.version });
+      }
     },
 
     offlinePointOfSale({

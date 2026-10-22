@@ -270,10 +270,11 @@ describe("enrollInstallation", () => {
 
   it("revokes the previous installation, then locks the register's keys, before it records the new one, and opens the alert last", async () => {
     const store = storeWithCode();
+    store.seedRealTimeNumberingLane({ registerId: "register-1", pointOfSale: 7, heldCount: 11 });
 
     await enroll(store);
 
-    expect(store.operationOrder.slice(-9)).toEqual([
+    expect(store.operationOrder.slice(-11)).toEqual([
       "revokeActiveInstallation",
       "lockRegisterKeys",
       "recordSnapshotKey",
@@ -281,6 +282,8 @@ describe("enrollInstallation", () => {
       "recordInstallation",
       "recordInstallationEnrollment",
       "markEnrollmentCodeRedeemed",
+      "takeRealTimeNumberingLane",
+      "freezeRealTimeNumbering",
       "requireFreshTaxAuthorityCount",
       "openEnrollmentAlert",
     ]);
@@ -289,6 +292,7 @@ describe("enrollInstallation", () => {
   it("records the revocation right after revoking, and the enrollment right after recording the installation", async () => {
     const store = storeWithCode();
     store.seedInstallation(previousInstallation());
+    store.seedRealTimeNumberingLane({ registerId: "register-1", pointOfSale: 7, heldCount: 11 });
 
     await enroll(store);
 
@@ -302,6 +306,8 @@ describe("enrollInstallation", () => {
       "recordInstallation",
       "recordInstallationEnrollment",
       "markEnrollmentCodeRedeemed",
+      "takeRealTimeNumberingLane",
+      "freezeRealTimeNumbering",
       "requireFreshTaxAuthorityCount",
       "openEnrollmentAlert",
     ]);
@@ -353,6 +359,59 @@ describe("enrollInstallation", () => {
       expect(store.snapshot().installationRevocations).toEqual([]);
       expect(store.snapshot().installationEnrollments).toEqual([]);
     }
+  });
+
+  it("freezes the enrolled register's real-time numbering at the count the cloud holds, as of the enrollment", async () => {
+    const store = storeWithCode();
+    store.seedRealTimeNumberingLane({ registerId: "register-1", pointOfSale: 7, heldCount: 11 });
+    store.seedRealTimeNumberingLane({ registerId: "register-2", pointOfSale: 8, heldCount: 4 });
+
+    await enroll(store);
+
+    expect(store.snapshot().numberingFreezes).toEqual([
+      { pointOfSale: 7, countBeforeFreeze: 11, frozenAt: NOW },
+    ]);
+  });
+
+  it("freezes no numbering when the cloud never held a count of the point of sale, since none of its numbers was ever authorized through the cloud", async () => {
+    const store = storeWithCode();
+    store.seedRealTimeNumberingLane({ registerId: "register-1", pointOfSale: 7, heldCount: null });
+
+    await enroll(store);
+
+    expect(store.snapshot().numberingFreezes).toEqual([]);
+    expect(store.operationOrder).not.toContain("freezeRealTimeNumbering");
+  });
+
+  it("freezes no numbering for a register without a real-time point of sale", async () => {
+    const store = storeWithCode();
+
+    await enroll(store);
+
+    expect(store.snapshot().numberingFreezes).toEqual([]);
+    expect(store.operationOrder).not.toContain("freezeRealTimeNumbering");
+  });
+
+  it("takes no numbering lane when the code is refused or the attempt is rate limited", async () => {
+    const refused = storeWithCode({ redeemedAt: EARLIER });
+    const limited = storeWithCode();
+    seedAttempts(limited, { kind: "source_address", value: SOURCE }, [...NINE, 10]);
+
+    await enroll(refused);
+    await enroll(limited);
+
+    expect(refused.operationOrder).not.toContain("takeRealTimeNumberingLane");
+    expect(limited.operationOrder).not.toContain("takeRealTimeNumberingLane");
+  });
+
+  it("leaves no freeze behind when the enrollment fails and is rolled back", async () => {
+    const store = storeWithCode();
+    store.seedRealTimeNumberingLane({ registerId: "register-1", pointOfSale: 7, heldCount: 11 });
+    store.failingWrites.add("openEnrollmentAlert");
+
+    await expect(enroll(store)).rejects.toThrow("openEnrollmentAlert failed");
+
+    expect(store.snapshot().numberingFreezes).toEqual([]);
   });
 
   it("requires a fresh tax authority count for the enrolled register", async () => {

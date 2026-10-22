@@ -36,6 +36,14 @@ const holdPredecessor = () =>
     .prepare("INSERT INTO register_predecessor (device_id, last_acknowledged_seq) VALUES ('d0', 4)")
     .run();
 
+const holdPointOfSale = (awaiting: boolean) =>
+  database.exec(
+    `INSERT INTO own_register (id, name, version, removed) VALUES ('r1', 'Caja 1', 1, 0);
+     INSERT INTO register_point_of_sale (register_id, point_of_sale_number, fiscal_address_id, version)
+       VALUES ('r1', 12, 'address-1', 1);
+     ${awaiting ? "INSERT INTO awaiting_restored_numbering (register_id) VALUES ('r1');" : ""}`,
+  );
+
 describe("the evidence of the restoration protocol", () => {
   it("holds every delivered step completed for a register that never went stale", () => {
     expect(evidence.evidence()).toEqual({
@@ -43,6 +51,7 @@ describe("the evidence of the restoration protocol", () => {
       restore: "completed",
       reset_sync_identity: "completed",
       replenish: "completed",
+      reconcile_fiscal_counters: "completed",
     });
   });
 
@@ -54,6 +63,7 @@ describe("the evidence of the restoration protocol", () => {
       restore: "completed",
       reset_sync_identity: "completed",
       replenish: "completed",
+      reconcile_fiscal_counters: "completed",
     });
   });
 
@@ -72,6 +82,7 @@ describe("the evidence of the restoration protocol", () => {
       restore: "pending",
       reset_sync_identity: "pending",
       replenish: "completed",
+      reconcile_fiscal_counters: "completed",
     });
   });
 
@@ -83,7 +94,26 @@ describe("the evidence of the restoration protocol", () => {
       restore: "completed",
       reset_sync_identity: "completed",
       replenish: "pending",
+      reconcile_fiscal_counters: "completed",
     });
+  });
+
+  it("holds the reconciliation of the fiscal counters pending while a point of sale awaits its numbering", () => {
+    holdPointOfSale(true);
+
+    expect(evidence.evidence()).toEqual({
+      enroll: "completed",
+      restore: "completed",
+      reset_sync_identity: "completed",
+      replenish: "completed",
+      reconcile_fiscal_counters: "pending",
+    });
+  });
+
+  it("holds the reconciliation of the fiscal counters completed once no point of sale awaits its numbering", () => {
+    holdPointOfSale(false);
+
+    expect(evidence.evidence().reconcile_fiscal_counters).toBe("completed");
   });
 
   it("follows the restore as it ends", () => {

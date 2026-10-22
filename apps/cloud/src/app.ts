@@ -75,6 +75,7 @@ import {
   type CreditNoteRouteOptions,
   registerCreditNoteRoute,
 } from "./fiscal/credit-note-route.js";
+import type { EnqueueNumberingReconciliation } from "./fiscal/enqueue-numbering-conflict.js";
 import { registerFiscalAddressCreationRoute } from "./fiscal/fiscal-address-creation-route.js";
 import { registerFiscalAddressEditRoute } from "./fiscal/fiscal-address-edit-route.js";
 import type { FiscalAddressesRouteOptions } from "./fiscal/fiscal-addresses-list-route.js";
@@ -270,6 +271,7 @@ export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = Postgre
   devices?: WithoutClock<DeviceTokensOptions<TQueryResult>>;
   enqueueOfflineAuthorizationCodeRequest?: EnqueueOfflineAuthorizationCodeRequest;
   enqueueTaxAuthorityCountOnEnrollment?: EnqueueTaxAuthorityCount;
+  enqueueNumberingReconciliationOnEnrollment?: EnqueueNumberingReconciliation;
   fiscalAuthorization?: WithoutClock<
     Omit<
       FiscalAuthorizationRouteOptions<TQueryResult> & UnclearOutcomeRouteOptions<TQueryResult>,
@@ -300,6 +302,7 @@ type DatabaseRouteOptions<TQueryResult extends PgQueryResultHKT> = Required<
     | "staticDir"
     | "enqueueOfflineAuthorizationCodeRequest"
     | "enqueueTaxAuthorityCountOnEnrollment"
+    | "enqueueNumberingReconciliationOnEnrollment"
     | "fiscalAuthorization"
     | "creditNotes"
     | "mercadoPagoOrders"
@@ -715,6 +718,9 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
           now,
           ...(options.enqueueTaxAuthorityCountOnEnrollment && {
             enqueueTaxAuthorityCount: options.enqueueTaxAuthorityCountOnEnrollment,
+          }),
+          ...(options.enqueueNumberingReconciliationOnEnrollment && {
+            enqueueNumberingReconciliation: options.enqueueNumberingReconciliationOnEnrollment,
           }),
         });
         registerChangesRoute(api, {

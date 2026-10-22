@@ -33,6 +33,7 @@ import {
   registerEnrollmentCodes,
   roles,
   sessions,
+  taxAuthorityLastAuthorizedNumbers,
   userRoles,
   users,
 } from "./platform/db/schema.js";
@@ -263,6 +264,46 @@ describe("POST /api/devices", () => {
 
     expect(response.statusCode).toBe(200);
     expect(enqueueTaxAuthorityCountOnEnrollment).toHaveBeenCalledWith(expect.anything(), 7);
+  });
+});
+
+describe("POST /api/devices numbering reconciliation", () => {
+  it("queues the reconciliation of the enrolled register's frozen point of sale when it is wired", async () => {
+    const code = "P4NX7KWE2QRT6MZD";
+    const registerId = await insertRegisterWithPointOfSale(testDatabase.db, {
+      pointOfSaleNumber: 7,
+      name: "caja-con-punto-congelado",
+    });
+    await testDatabase.db.insert(registerEnrollmentCodes).values({
+      registerId,
+      codeLookup: code.slice(0, 4),
+      codeHash: hashSecretCode(code),
+      issuedAt: APP_CLOCK,
+      expiresAt: new Date(APP_CLOCK.getTime() + 10 * 60 * 1000),
+    });
+    await testDatabase.db
+      .insert(taxAuthorityLastAuthorizedNumbers)
+      .values({ pointOfSaleNumber: 7, lastAuthorized: 11, readAt: APP_CLOCK });
+    const enqueueNumberingReconciliationOnEnrollment = vi.fn(async () => undefined);
+    const app = buildApp({
+      now: () => APP_CLOCK,
+      version: "abc1234",
+      devices: {
+        db: testDatabase.db,
+        rotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY,
+        keysEncryptionKey: TEST_INSTALLATION_KEYS_ENCRYPTION_KEY,
+      },
+      enqueueNumberingReconciliationOnEnrollment,
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/devices",
+      payload: { code, hostname: "CAJA-MOSTRADOR", windows_version: "Windows 11 Pro" },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(enqueueNumberingReconciliationOnEnrollment).toHaveBeenCalledWith(expect.anything(), 7);
   });
 });
 

@@ -2,7 +2,7 @@ import { sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { DedicatedConnections } from "../platform/dedicated-connections.js";
 
-function pointOfSaleLaneLockKey(pointOfSale: number): string {
+export function pointOfSaleLaneLockKey(pointOfSale: number): string {
   return `fiscal_point_of_sale_lane:${pointOfSale}`;
 }
 

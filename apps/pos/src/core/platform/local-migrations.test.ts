@@ -917,6 +917,7 @@ describe("the register's local migrations", () => {
         "0068_clock_correction_lapse_cause",
         "0070_stale_sequence",
         "0071_credit_note_reprints",
+        "0072_awaiting_restored_numbering",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1011,6 +1012,7 @@ describe("the register's local migrations", () => {
         "0068_clock_correction_lapse_cause",
         "0070_stale_sequence",
         "0071_credit_note_reprints",
+        "0072_awaiting_restored_numbering",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1100,6 +1102,7 @@ describe("the register's local migrations", () => {
         "0068_clock_correction_lapse_cause",
         "0070_stale_sequence",
         "0071_credit_note_reprints",
+        "0072_awaiting_restored_numbering",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1188,6 +1191,7 @@ describe("the register's local migrations", () => {
         "0068_clock_correction_lapse_cause",
         "0070_stale_sequence",
         "0071_credit_note_reprints",
+        "0072_awaiting_restored_numbering",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1305,6 +1309,7 @@ describe("the register's local migrations", () => {
         "0068_clock_correction_lapse_cause",
         "0070_stale_sequence",
         "0071_credit_note_reprints",
+        "0072_awaiting_restored_numbering",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1412,6 +1417,7 @@ describe("the register's local migrations", () => {
         "0068_clock_correction_lapse_cause",
         "0070_stale_sequence",
         "0071_credit_note_reprints",
+        "0072_awaiting_restored_numbering",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1523,6 +1529,7 @@ describe("the register's local migrations", () => {
         "0068_clock_correction_lapse_cause",
         "0070_stale_sequence",
         "0071_credit_note_reprints",
+        "0072_awaiting_restored_numbering",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1642,6 +1649,7 @@ describe("the register's local migrations", () => {
         "0068_clock_correction_lapse_cause",
         "0070_stale_sequence",
         "0071_credit_note_reprints",
+        "0072_awaiting_restored_numbering",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1728,6 +1736,7 @@ describe("the register's local migrations", () => {
         "0068_clock_correction_lapse_cause",
         "0070_stale_sequence",
         "0071_credit_note_reprints",
+        "0072_awaiting_restored_numbering",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -5773,6 +5782,38 @@ describe("the register's local migrations", () => {
           .prepare("SELECT pull_cursor, device_id, stale_sequence_detected_at FROM sync_state")
           .all(),
       ).toEqual([{ pull_cursor: 9, device_id: "device-a", stale_sequence_detected_at: null }]);
+      after.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
+  it("add the points of sale a restored register awaits the numbering of, none for a register already holding data", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.filter(
+        (migration) => migration.name < "0072_awaiting_restored_numbering",
+      );
+      expect(LOCAL_MIGRATIONS.map((migration) => migration.name)).toContain(
+        "0072_awaiting_restored_numbering",
+      );
+      const before = openLocalDatabase(path, previous, migrationClock);
+      before.exec(
+        `INSERT INTO own_register (id, name, version, removed) VALUES ('r1', 'Caja 1', 1, 0);
+         INSERT INTO register_point_of_sale (register_id, point_of_sale_number, fiscal_address_id, version)
+         VALUES ('r1', 12, 'address-1', 2);`,
+      );
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+
+      expect(after.prepare("SELECT register_id FROM register_point_of_sale").all()).toEqual([
+        { register_id: "r1" },
+      ]);
+      expect(after.prepare("SELECT register_id FROM awaiting_restored_numbering").all()).toEqual(
+        [],
+      );
       after.close();
     } finally {
       rmSync(folder, { recursive: true, force: true });

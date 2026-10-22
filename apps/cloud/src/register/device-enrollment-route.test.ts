@@ -31,6 +31,7 @@ let testDatabase: TestDatabase;
 let db: TestDatabase["db"];
 let app: FastifyInstance;
 let enqueuedCountReads: number[];
+let enqueuedReconciliations: number[];
 
 beforeAll(async () => {
   testDatabase = await buildTestDatabase();
@@ -45,6 +46,7 @@ beforeEach(async () => {
   await testDatabase.clear();
   app = Fastify();
   enqueuedCountReads = [];
+  enqueuedReconciliations = [];
   registerRouteAccess(app);
   registerDeviceEnrollmentRoute(app, {
     db,
@@ -52,6 +54,9 @@ beforeEach(async () => {
     now: () => NOW,
     enqueueTaxAuthorityCount: async (_transaction, pointOfSale) => {
       enqueuedCountReads.push(pointOfSale);
+    },
+    enqueueNumberingReconciliation: async (_transaction, pointOfSale) => {
+      enqueuedReconciliations.push(pointOfSale);
     },
   });
 });
@@ -199,7 +204,26 @@ describe("POST /devices", () => {
     }
   });
 
-  it("forgets the stored count of the register's point of sale and queues a new read from the tax authority", async () => {
+  it("queues a new read from the tax authority of the count of the register's point of sale", async () => {
+    const registerId = await insertRegisterWithPointOfSale(db, {
+      pointOfSaleNumber: 7,
+      name: "caja-con-punto",
+    });
+    await db.insert(registerEnrollmentCodes).values({
+      registerId,
+      codeLookup: CODE.slice(0, 4),
+      codeHash: hashSecretCode(CODE),
+      issuedAt: minutesAgo(5),
+      expiresAt: minutesAgo(-10),
+    });
+
+    const response = await enroll();
+
+    expect(response.statusCode).toBe(200);
+    expect(enqueuedCountReads).toEqual([7]);
+  });
+
+  it("queues the reconciliation of the numbering of the register's point of sale", async () => {
     const registerId = await insertRegisterWithPointOfSale(db, {
       pointOfSaleNumber: 7,
       name: "caja-con-punto",
@@ -218,8 +242,7 @@ describe("POST /devices", () => {
     const response = await enroll();
 
     expect(response.statusCode).toBe(200);
-    expect(await db.select().from(taxAuthorityLastAuthorizedNumbers)).toEqual([]);
-    expect(enqueuedCountReads).toEqual([7]);
+    expect(enqueuedReconciliations).toEqual([7]);
   });
 
   it("revokes the installation that held the register before", async () => {
