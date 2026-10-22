@@ -2704,6 +2704,7 @@ describe("the register's local migrations", () => {
           .all(),
       ).toEqual([
         { name: "fiscal_documents_number_in_use" },
+        { name: "fiscal_documents_one_open_per_sale" },
         { name: "fiscal_documents_one_waiting" },
       ]);
       after.close();
@@ -4067,12 +4068,12 @@ describe("the register's local migrations", () => {
     it("give a sale at most one fiscal document waiting for an answer or authorized, of a known sale", () => {
       const database = withSales();
 
-      insertDocument(database, { state: "REQUESTING" });
+      insertDocument(database, { state: "AUTHORIZED" });
 
       expect(() => insertDocument(database, { id: "doc-2", number: 42 })).toThrow(/UNIQUE/);
-      expect(() => insertDocument(database, { id: "doc-3", sale_id: "missing" })).toThrow(
-        /FOREIGN KEY/,
-      );
+      expect(() =>
+        insertDocument(database, { id: "doc-3", sale_id: "missing", number: 43 }),
+      ).toThrow(/FOREIGN KEY/);
       database.close();
     });
 
