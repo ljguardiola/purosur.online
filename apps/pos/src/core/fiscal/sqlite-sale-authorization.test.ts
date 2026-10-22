@@ -1,8 +1,14 @@
+import type { RoleAccess } from "@purosur/domain";
+import {
+  type CorrectRegisterClockGrant,
+  correctRegisterClock,
+} from "@purosur/domain/fiscal/use-cases";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { LocalDatabase } from "../platform/local-database";
 import { appendOutboxEvent } from "../sync/sqlite-outbox";
 import { CHAIN_KEY } from "../sync/test-support/sqlite-local-outbox";
 import { applyReplenishedOfflineFiscalDocument } from "./replenished-offline-fiscal-documents";
+import { SqliteClockCorrectionLedger } from "./sqlite-clock-correction";
 import { decideSaleAuthorizationIn } from "./sqlite-sale-authorization";
 import {
   FACTURA_C,
@@ -903,6 +909,72 @@ describe("deciding a sale's authorization against the register's clock marks", (
       decide();
 
       expect(offlineDocuments()).toEqual([]);
+      expect(routings()).toMatchObject([{ sale_id: "sale-1", reason: "clock_behind" }]);
+    });
+  });
+
+  describe("on a restored register that holds no clock mark, with the clock before the tax authority's last authorized day", () => {
+    const CORRECTOR: RoleAccess = {
+      isAdministrator: false,
+      permissionKeys: ["correct_register_clock"],
+    };
+    const people = { activePerson: () => ({ firstName: "Ada", access: CORRECTOR }) };
+
+    beforeEach(() => {
+      database
+        .prepare(
+          "UPDATE register_point_of_sale SET tax_authority_last_authorized_issued_on = '2026-10-02'",
+        )
+        .run();
+      insertOfflinePointOfSale(database, OFFLINE_POINT_OF_SALE, 0);
+      insertOfflineNumberBlock(database, "block-1", 1, 1000, OFFLINE_POINT_OF_SALE);
+      insertOfflineAuthorizationCode(database);
+    });
+
+    function correctClock() {
+      let issued = 0;
+      return correctRegisterClock<CorrectRegisterClockGrant, never>({
+        ledger: new SqliteClockCorrectionLedger(database, people, CHAIN_KEY),
+        clock: { now: () => new Date("2026-09-30T12:00:00.000Z") },
+        ids: {
+          next: () => {
+            issued += 1;
+            return `correction-${issued}`;
+          },
+        },
+        authority: { authorize: async () => ({ kind: "granted", grant: { correctorId: "u1" } }) },
+      });
+    }
+
+    it("issues the sale under the code of its fortnight with the confirmed date once the clock is corrected, and defers nothing", async () => {
+      await expect(correctClock()).resolves.toMatchObject({ kind: "corrected" });
+
+      decide();
+
+      expect(documents()).toEqual([]);
+      expect(routings()).toEqual([]);
+      expect(offlineDocuments()).toMatchObject([
+        {
+          sale_id: "sale-1",
+          point_of_sale: OFFLINE_POINT_OF_SALE,
+          issued_on: "2026-09-30",
+          offline_authorization_code: OFFLINE_CODE,
+          cause: "clock_correction_lapse",
+        },
+      ]);
+    });
+
+    it("keeps no mark of the series the correction lowered from the tax authority's day", async () => {
+      await correctClock();
+
+      expect(clockMarks()).toEqual([]);
+    });
+
+    it("defers the sale as clock_behind while no correction was confirmed", () => {
+      decide();
+
+      expect(offlineDocuments()).toEqual([]);
+      expect(documents()).toEqual([]);
       expect(routings()).toMatchObject([{ sale_id: "sale-1", reason: "clock_behind" }]);
     });
   });

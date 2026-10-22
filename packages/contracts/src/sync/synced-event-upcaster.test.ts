@@ -1917,12 +1917,41 @@ describe("decoding the events the registers pushed", () => {
           pointOfSale: 12,
           documentType: "factura_c",
           previousReading: new Date("2026-10-08T11:20:00.000Z"),
+          previousReadingSource: "clock_mark",
           correctedReading: new Date("2026-10-06T11:20:00.000Z"),
           actorId: USER,
         },
       },
     });
   });
+
+  it.each(["clock_mark", "tax_authority_day"] as const)(
+    "reads a correction whose previous reading came from %s",
+    (source) => {
+      const decoded = upcaster.decode(
+        unappliedEventOf(
+          pushed({
+            aggregate_type: "CashRegister",
+            aggregate_id: "01a1122a-0305-7189-87d0-8256a353fd42",
+            event_type: "clock_corrected",
+            schema_version: 2,
+            payload: {
+              point_of_sale: 12,
+              document_type: "factura_c",
+              previous_reading: "2026-10-08T03:00:00.000Z",
+              previous_reading_source: source,
+              corrected_reading: "2026-10-06T11:20:00.000Z",
+            },
+          }),
+        ),
+      );
+
+      expect(decoded).toMatchObject({
+        kind: "fact",
+        fact: { kind: "clock_corrected", correction: { previousReadingSource: source } },
+      });
+    },
+  );
 
   it("reads the replacement of a pending QR payment", () => {
     const decoded = upcaster.decode(

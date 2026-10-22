@@ -584,7 +584,9 @@ function alertDescription(alert: AlertDetail, catalog: PermissionCatalogWire = [
     case "fortnight_report_owed_elsewhere":
       return "";
     case "clock_corrected":
-      return alertKindDescription(alert.kind);
+      return alert.detail.previousReadingSource === "tax_authority_day"
+        ? "Alguien confirmó desde la caja que su hora era correcta, aunque es anterior al último día autorizado por ARCA. Hasta ese día, la caja factura con el CAEA."
+        : "Alguien confirmó desde la caja que su hora era correcta y bajó la marca de la guarda de reloj. Los comprobantes emitidos entre la lectura anterior y la nueva llevan fechas imposibles y van a regularización manual.";
     case "register_backup_overdue":
       return `La caja «${targetName}» registró cambios y lleva más de una hora sin un backup verificado.`;
   }
@@ -637,7 +639,12 @@ function ClockCorrectionRows({
 }) {
   const rows = [
     ["Punto de venta", formatPointOfSaleNumber(detail.pointOfSale)],
-    ["Lectura anterior", formatDayAndTime(detail.previousReading, ALERT_TIME_ZONE)],
+    detail.previousReadingSource === "tax_authority_day"
+      ? [
+          "Último día autorizado por ARCA",
+          formatDate(new Date(detail.previousReading), ALERT_DATE_OPTIONS),
+        ]
+      : ["Lectura anterior", formatDayAndTime(detail.previousReading, ALERT_TIME_ZONE)],
     ["Lectura nueva", formatDayAndTime(detail.correctedReading, ALERT_TIME_ZONE)],
     ...(detail.actorName === undefined ? [] : [["Corrigió", detail.actorName]]),
   ] as const;

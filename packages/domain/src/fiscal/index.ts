@@ -17,9 +17,14 @@ export {
   isValidBuyerTaxStatusSet,
   latestBuyerTaxStatusSet,
 } from "./model/buyer-tax-status-set.js";
-export type { ClockCorrectedFact, ClockCorrectionAlertState } from "./model/clock-correction.js";
+export type {
+  ClockCorrectedFact,
+  ClockCorrectionAlertState,
+  ClockPreviousReadingSource,
+} from "./model/clock-correction.js";
 export {
   CLOCK_CORRECTED_EVENT_TYPE,
+  CLOCK_PREVIOUS_READING_SOURCES,
   clockCorrectedEvent,
   clockCorrectionPeriodKey,
 } from "./model/clock-correction.js";

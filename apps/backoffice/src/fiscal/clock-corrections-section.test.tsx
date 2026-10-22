@@ -15,6 +15,7 @@ function correction(overrides: Partial<ClockCorrection> = {}): ClockCorrection {
     pointOfSaleNumber: 4,
     actorFirstName: "Ada",
     previousReading: "2026-10-07T14:31:00.000Z",
+    previousReadingSource: "clock_mark",
     correctedReading: "2026-10-05T12:00:00.000Z",
     alertState: "open",
     ...overrides,
@@ -48,6 +49,23 @@ test("lists each correction with when it was made, which register and point of s
   await expect.element(screen.getByText("07/10/2026 · 11:31", { exact: true })).toBeVisible();
   await expect.element(screen.getByText("05/10/2026 · 09:00", { exact: true })).toBeVisible();
   await expect.element(screen.getByText("Abierto", { exact: true })).toBeVisible();
+});
+
+test("shows a previous reading derived from the tax authority's day as that day alone, described as the last day the tax authority authorized", async () => {
+  const screen = await render(
+    sectionFor(
+      loaded([
+        correction({
+          previousReading: "2026-10-07T03:00:00.000Z",
+          previousReadingSource: "tax_authority_day",
+        }),
+      ]),
+    ),
+  );
+
+  await expect.element(screen.getByText("07/10/2026", { exact: true })).toBeVisible();
+  await expect.element(screen.getByText("Último día autorizado por ARCA")).toBeVisible();
+  await expect.element(screen.getByText("07/10/2026 · 00:00")).not.toBeInTheDocument();
 });
 
 test("tells an open alert from a closed one", async () => {

@@ -418,6 +418,7 @@ describe("clockCorrectedObservation", () => {
     pointOfSale: 12,
     documentType: "factura_c",
     previousReading: "2026-10-03T12:00:00.000Z",
+    previousReadingSource: "tax_authority_day",
     correctedReading: "2026-10-01T12:00:00.000Z",
     actorId: "user-1",
   } as const;
@@ -433,6 +434,7 @@ describe("clockCorrectedObservation", () => {
           pointOfSale: 12,
           documentType: "factura_c",
           previousReading: "2026-10-03T12:00:00.000Z",
+          previousReadingSource: "tax_authority_day",
           correctedReading: "2026-10-01T12:00:00.000Z",
           actorId: "user-1",
         },

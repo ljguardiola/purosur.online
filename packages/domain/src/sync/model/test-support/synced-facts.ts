@@ -220,6 +220,7 @@ export const A_CLOCK_CORRECTED_FACT: SyncedFact = {
     pointOfSale: 12,
     documentType: "factura_c",
     previousReading: new Date("2026-10-07T12:00:00.000Z"),
+    previousReadingSource: "clock_mark",
     correctedReading: new Date("2026-10-05T12:00:00.000Z"),
     actorId: "cashier-1",
   },
