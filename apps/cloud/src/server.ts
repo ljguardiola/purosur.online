@@ -841,6 +841,14 @@ export async function startServer(env: ServerEnv, deps: StartServerDeps): Promis
           },
         }
       : {}),
+    ...(database
+      ? {
+          restoredOrphanSweep: {
+            connections: database.recovery.connections,
+            enqueueCreditNote: enqueueCreditNoteJob,
+          },
+        }
+      : {}),
     ...(database && invoicing
       ? {
           fiscalAuthorization: {
