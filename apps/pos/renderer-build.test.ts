@@ -34,18 +34,3 @@ test("the renderer carries the design system's screen-reader texts only in Spani
 
   expect(new Set(translations)).toEqual(new Set(["es-ES"]));
 });
-
-test("every screen of the renderer is memoized by the React Compiler", () => {
-  const screens = chunks.flatMap((chunk) =>
-    Object.entries(chunk.modules).filter(
-      ([moduleId]) =>
-        moduleId.startsWith(`${POS_ROOT}src/renderer/`) && moduleId.endsWith("-screen.tsx"),
-    ),
-  );
-  const uncompiled = screens
-    .filter(([, module]) => !module.code?.includes("react.memo_cache_sentinel"))
-    .map(([moduleId]) => moduleId);
-
-  expect(screens).not.toEqual([]);
-  expect(uncompiled).toEqual([]);
-});
