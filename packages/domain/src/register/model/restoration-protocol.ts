@@ -30,7 +30,7 @@ type RestoringStepEvidence<Step extends DeliveredRestorationStep> =
     ? RestorationStepEvidence | "failed"
     : RestorationStepEvidence;
 
-export type CloudEvidence = "reachable" | "unreachable" | "unknown";
+type CloudEvidence = "reachable" | "unreachable" | "unknown";
 
 export type RestorationEvidence = Readonly<
   { [Step in DeliveredRestorationStep]: RestoringStepEvidence<Step> } & {
