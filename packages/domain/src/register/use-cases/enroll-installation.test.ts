@@ -273,7 +273,7 @@ describe("enrollInstallation", () => {
 
     await enroll(store);
 
-    expect(store.operationOrder.slice(-9)).toEqual([
+    expect(store.operationOrder.slice(-10)).toEqual([
       "revokeActiveInstallation",
       "lockRegisterKeys",
       "recordSnapshotKey",
@@ -281,6 +281,7 @@ describe("enrollInstallation", () => {
       "recordInstallation",
       "recordInstallationEnrollment",
       "markEnrollmentCodeRedeemed",
+      "reconcileRealTimeNumbering",
       "requireFreshTaxAuthorityCount",
       "openEnrollmentAlert",
     ]);
@@ -302,6 +303,7 @@ describe("enrollInstallation", () => {
       "recordInstallation",
       "recordInstallationEnrollment",
       "markEnrollmentCodeRedeemed",
+      "reconcileRealTimeNumbering",
       "requireFreshTaxAuthorityCount",
       "openEnrollmentAlert",
     ]);
@@ -353,6 +355,37 @@ describe("enrollInstallation", () => {
       expect(store.snapshot().installationRevocations).toEqual([]);
       expect(store.snapshot().installationEnrollments).toEqual([]);
     }
+  });
+
+  it("puts the enrolled register's real-time numbering under reconciliation, as of the enrollment", async () => {
+    const store = storeWithCode();
+
+    await enroll(store);
+
+    expect(store.snapshot().realTimeNumberingReconciliations).toEqual([
+      { registerId: "register-1", at: NOW },
+    ]);
+  });
+
+  it("reconciles no numbering when the code is refused or the attempt is rate limited", async () => {
+    const refused = storeWithCode({ redeemedAt: EARLIER });
+    const limited = storeWithCode();
+    seedAttempts(limited, { kind: "source_address", value: SOURCE }, [...NINE, 10]);
+
+    await enroll(refused);
+    await enroll(limited);
+
+    expect(refused.snapshot().realTimeNumberingReconciliations).toEqual([]);
+    expect(limited.snapshot().realTimeNumberingReconciliations).toEqual([]);
+  });
+
+  it("reconciles no numbering when the enrollment fails and is rolled back", async () => {
+    const store = storeWithCode();
+    store.failingWrites.add("openEnrollmentAlert");
+
+    await expect(enroll(store)).rejects.toThrow("openEnrollmentAlert failed");
+
+    expect(store.snapshot().realTimeNumberingReconciliations).toEqual([]);
   });
 
   it("requires a fresh tax authority count for the enrolled register", async () => {
