@@ -72,6 +72,31 @@ export function upsertClockMark(
     });
 }
 
+export function insertFiscalDocumentReservation(
+  database: LocalDatabase,
+  reservation: FiscalDocumentReservation,
+): void {
+  database
+    .prepare(
+      `INSERT INTO fiscal_documents (
+         id, sale_id, point_of_sale, document_type, number, issued_on, document, state, reserved_at
+       ) VALUES (
+         @id, @sale_id, @point_of_sale, @document_type, @number, @issued_on, @document,
+         'REQUESTING', @reserved_at
+       )`,
+    )
+    .run({
+      id: reservation.id,
+      sale_id: reservation.saleId,
+      point_of_sale: reservation.pointOfSale,
+      document_type: FACTURA_C_DOCUMENT_TYPE,
+      number: reservation.number,
+      issued_on: reservation.issuedOn,
+      document: JSON.stringify(reservation.document),
+      reserved_at: reservation.reservedAt.toISOString(),
+    });
+}
+
 function sqliteSaleAuthorizationTransaction(
   database: LocalDatabase,
   appendOutboxEvent: (event: OutboxEventDraft) => void,
@@ -98,27 +123,8 @@ function sqliteSaleAuthorizationTransaction(
       return { registerId: origin.register_id, actorId: origin.actor_id };
     },
 
-    reserveFiscalDocument(reservation: FiscalDocumentReservation): void {
-      database
-        .prepare(
-          `INSERT INTO fiscal_documents (
-             id, sale_id, point_of_sale, document_type, number, issued_on, document, state, reserved_at
-           ) VALUES (
-             @id, @sale_id, @point_of_sale, @document_type, @number, @issued_on, @document,
-             'REQUESTING', @reserved_at
-           )`,
-        )
-        .run({
-          id: reservation.id,
-          sale_id: reservation.saleId,
-          point_of_sale: reservation.pointOfSale,
-          document_type: FACTURA_C_DOCUMENT_TYPE,
-          number: reservation.number,
-          issued_on: reservation.issuedOn,
-          document: JSON.stringify(reservation.document),
-          reserved_at: reservation.reservedAt.toISOString(),
-        });
-    },
+    reserveFiscalDocument: (reservation: FiscalDocumentReservation) =>
+      insertFiscalDocumentReservation(database, reservation),
 
     issueOfflineFiscalDocument: (document: OfflineFiscalDocument) =>
       insertOfflineFiscalDocument(database, document),

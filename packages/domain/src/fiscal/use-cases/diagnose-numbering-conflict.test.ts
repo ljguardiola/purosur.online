@@ -206,6 +206,24 @@ describe("diagnoseNumberingConflict", () => {
     expect(store.reconciliationRequests).toEqual([]);
   });
 
+  it("records with a date behind the last authorized number and its voucher's day the tax authority gave, so the register learns the day its series reached", async () => {
+    const { store, ports } = scenario();
+
+    await diagnose(ports);
+
+    expect(store.recordedCounts).toEqual([
+      { pointOfSale: 12, lastAuthorized: 40, issuedOn: "2026-10-02", readAt: NOW },
+    ]);
+  });
+
+  it("records no count with a collision, which the reconciliation settles", async () => {
+    const { store, ports } = scenario({ request: { issuedOn: "2026-10-02" } });
+
+    await diagnose(ports);
+
+    expect(store.recordedCounts).toEqual([]);
+  });
+
   it("records a collision, freezes the point of sale at the count held and asks for a reconciliation when the date is not behind", async () => {
     const { store, ports } = scenario({ request: { issuedOn: "2026-10-02" }, count: 37 });
 

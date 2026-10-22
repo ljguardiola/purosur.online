@@ -19,6 +19,7 @@ import type {
 } from "../numbering-conflict-ports.js";
 import type {
   LastAuthorizedAnswer,
+  LastAuthorizedCount,
   TaxAuthorityLastAuthorizedLookup,
 } from "../tax-authority-count-ports.js";
 import type { TaxAuthorityVoucherLookup, VoucherAnswer } from "../unclear-outcome-ports.js";
@@ -43,6 +44,7 @@ interface StoreState {
   saleDocuments: Map<string, SaleDocument[]>;
   regularizations: OrphanRegularization[];
   reconciliationRequests: number[];
+  recordedCounts: LastAuthorizedCount[];
 }
 
 export class FakeNumberingConflictStore
@@ -61,6 +63,7 @@ export class FakeNumberingConflictStore
     saleDocuments: new Map(),
     regularizations: [],
     reconciliationRequests: [],
+    recordedCounts: [],
   };
 
   seedRequest(request: SeededNumberingRequest) {
@@ -124,6 +127,10 @@ export class FakeNumberingConflictStore
     return this.state.reconciliationRequests;
   }
 
+  get recordedCounts(): readonly LastAuthorizedCount[] {
+    return this.state.recordedCounts;
+  }
+
   async pointOfSaleOf(fiscalDocumentId: string): Promise<number | null> {
     const request = this.state.requests.get(fiscalDocumentId);
     if (this.vanishAfterLookup) {
@@ -178,6 +185,7 @@ class FakeNumberingConflictLane implements NumberingConflictLane {
     fiscalDocumentId,
     diagnosis,
     freeze,
+    taxAuthorityCount,
   }: NumberingDiagnosisRecord): Promise<void> {
     this.store.record(
       `recordNumberingDiagnosis:${diagnosis.kind}${freeze === null ? "" : ":freezing"}`,
@@ -189,6 +197,9 @@ class FakeNumberingConflictLane implements NumberingConflictLane {
     if (freeze !== null) {
       this.store.current.freezes.set(this.pointOfSale, freeze);
       this.store.current.reconciliationRequests.push(this.pointOfSale);
+    }
+    if (taxAuthorityCount !== null) {
+      this.store.current.recordedCounts.push(taxAuthorityCount);
     }
   }
 

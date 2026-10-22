@@ -876,6 +876,20 @@
       "when": 1792665597157,
       "tag": "0131_sale_void_credit_note_refusals",
       "breakpoints": true
+    },
+    {
+      "idx": 125,
+      "version": "7",
+      "when": 1792673086935,
+      "tag": "0132_deferred_backlog_cause",
+      "breakpoints": true
+    },
+    {
+      "idx": 126,
+      "version": "7",
+      "when": 1792678115441,
+      "tag": "0133_fiscal_request_without_sale_event",
+      "breakpoints": true
     }
   ]
 }

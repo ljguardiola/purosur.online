@@ -1,6 +1,9 @@
+import { deferredSaleSatisfiedEvent } from "../model/deferred-sale-satisfied-event.js";
 import { unclearDocumentSettlement } from "../model/unclear-outcome-decision.js";
-import type { ApplyUnclearOutcomeDecisionsPorts } from "./apply-unclear-outcome-decision-ports.js";
-import type { WaitingFiscalDocument } from "./real-time-authorization-ports.js";
+import type {
+  ApplyUnclearOutcomeDecisionsPorts,
+  UnclearFiscalDocument,
+} from "./apply-unclear-outcome-decision-ports.js";
 
 interface UnclearOutcomeDecisionFailure {
   fiscalDocumentId: string;
@@ -20,23 +23,44 @@ export async function applyUnclearOutcomeDecisions({
   documents,
   cloud,
   clock,
+  ids,
 }: ApplyUnclearOutcomeDecisionsPorts): Promise<ApplyUnclearOutcomeDecisionsOutcome> {
   async function applyTo({
     saleEvent,
+    origin,
+    reservedAt,
+    deferredSale,
     ...document
-  }: WaitingFiscalDocument): Promise<DocumentResult> {
-    if (saleEvent === null) {
-      throw new Error("the completion event of the unclear document's sale is not held");
-    }
+  }: UnclearFiscalDocument): Promise<DocumentResult> {
     const told = await cloud.outcomeOf({ ...document, saleEvent });
     if (told.kind === "pending" || told.kind === "no_answer") {
       return "still_unclear";
     }
+    const settlement = unclearDocumentSettlement(told);
+    const settledAt = clock.now();
     await documents.settle({
       fiscalDocumentId: document.fiscalDocumentId,
       saleId: document.saleId,
-      settlement: unclearDocumentSettlement(told),
-      settledAt: clock.now(),
+      settlement,
+      settledAt,
+      deferredSaleSatisfied:
+        settlement.state === "AUTHORIZED" && deferredSale !== null
+          ? deferredSaleSatisfiedEvent({
+              eventId: ids.next(),
+              ...origin,
+              deferredSaleId: deferredSale.id,
+              saleId: document.saleId,
+              fiscalDocumentId: document.fiscalDocumentId,
+              pointOfSale: document.pointOfSale,
+              number: document.number,
+              issuedOn: document.issuedOn,
+              document: document.document,
+              authorizationCode: settlement.authorizationCode,
+              authorizationCodeDueOn: settlement.authorizationCodeDueOn,
+              reservedAt,
+              satisfiedAt: settledAt,
+            })
+          : null,
     });
     return "settled";
   }

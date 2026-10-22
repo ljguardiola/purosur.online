@@ -86,6 +86,12 @@ export async function diagnoseNumberingConflict(
         diagnosis,
         diagnosedAt,
         freeze: null,
+        taxAuthorityCount: {
+          pointOfSale,
+          lastAuthorized: lastAuthorized.number,
+          issuedOn: lastAuthorizedIssuedOn,
+          readAt: diagnosedAt,
+        },
       });
       return diagnosis;
     }
@@ -93,7 +99,13 @@ export async function diagnoseNumberingConflict(
       (await lane.numberingFreeze()) === null
         ? { countBeforeFreeze: await lane.taxAuthorityCount(), frozenAt: diagnosedAt }
         : null;
-    await lane.recordNumberingDiagnosis({ fiscalDocumentId, diagnosis, diagnosedAt, freeze });
+    await lane.recordNumberingDiagnosis({
+      fiscalDocumentId,
+      diagnosis,
+      diagnosedAt,
+      freeze,
+      taxAuthorityCount: null,
+    });
     return { kind: "collision", freeze: freeze === null ? "already_frozen" : "frozen" };
   });
 }

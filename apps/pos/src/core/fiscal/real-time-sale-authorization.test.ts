@@ -205,13 +205,18 @@ describe("authorizing a completed sale in real time", () => {
     },
   );
 
-  it("makes no call and leaves the document unclear when the sale's event is no longer held", async () => {
+  it("asks the tax authority without an event when the sale's event is no longer held", async () => {
     database.prepare("DELETE FROM outbox").run();
 
-    await authorize({ kind: "unclear" });
+    await authorize({
+      kind: "authorized",
+      authorizationCode: "75123456789012",
+      authorizationCodeDueOn: "2026-10-10",
+    });
 
-    expect(calls).toEqual([]);
-    expect(storedDocument()).toMatchObject({ state: "UNKNOWN" });
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toMatchObject({ fiscalDocumentId: "doc-1", saleEvent: null });
+    expect(storedDocument()).toMatchObject({ state: "AUTHORIZED" });
   });
 
   it("asks nothing for a sale routed to the deferred flow, which has no document", async () => {

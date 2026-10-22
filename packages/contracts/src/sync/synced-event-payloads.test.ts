@@ -2,6 +2,7 @@ import {
   clockCorrectedEvent,
   DEFERRAL_REASONS,
   deferredSaleRecordedEvent,
+  deferredSaleSatisfiedEvent,
   MAX_STOCK_QUANTITY,
   MAX_UNIT_PRICE_CENTS,
   offlineFiscalDocument,
@@ -29,6 +30,10 @@ function recordedPayload(eventType: string, schemaVersion: number, index = 0): P
     (event) => event.event_type === eventType && event.schema_version === schemaVersion,
   );
   return structuredClone(matching[index]?.["payload"] as Payload);
+}
+
+function invoiceOf(payload: Payload): Payload {
+  return payload["document"] as Payload;
 }
 
 function accepts(eventType: string, schemaVersion: number, payload: unknown): boolean {
@@ -148,6 +153,7 @@ describe("synced event payloads", () => {
       "clock_corrected@1",
       "clock_corrected@2",
       "deferred_sale_recorded@1",
+      "deferred_sale_satisfied@1",
       "fiscal_gate_failed@1",
       "offline_fiscal_document_issued@1",
       "offline_fiscal_document_issued@2",
@@ -401,6 +407,12 @@ describe("synced event payloads", () => {
       expect(accepts("deferred_sale_recorded", 1, { ...recorded, reason })).toBe(true);
     });
 
+    it("accepts a sale deferred to join the backlog", () => {
+      expect(
+        accepts("deferred_sale_recorded", 1, { ...recorded, reason: "deferred_backlog" }),
+      ).toBe(true);
+    });
+
     it("refuses a reason the deferral does not have", () => {
       expect(accepts("deferred_sale_recorded", 1, { ...recorded, reason: "other" })).toBe(false);
     });
@@ -436,6 +448,85 @@ describe("synced event payloads", () => {
     it("refuses it when it is not an object", () => {
       expect(accepts("deferred_sale_recorded", 1, null)).toBe(false);
       expect(accepts("deferred_sale_recorded", 1, [])).toBe(false);
+    });
+  });
+
+  describe("deferred_sale_satisfied v1", () => {
+    const { payload: satisfied } = deferredSaleSatisfiedEvent({
+      eventId: "event-1",
+      registerId: "register-1",
+      actorId: "cashier",
+      deferredSaleId: "deferred-1",
+      saleId: "sale-1",
+      fiscalDocumentId: "document-1",
+      pointOfSale: 7,
+      number: 42,
+      issuedOn: "2026-10-06",
+      document: {
+        invoiceClass: "C",
+        total: 12_500,
+        netAmount: 12_500,
+        vatAmount: 0,
+        issuer: {
+          legalName: FICTIONAL_LEGAL_NAME,
+          cuit: FICTIONAL_CUIT,
+          taxStatus: "MONOTRIBUTO",
+          grossIncomeRegistration: FICTIONAL_GROSS_INCOME_REGISTRATION,
+          activityStartDate: "2020-01-01",
+          version: 3,
+        },
+        buyerTaxStatusCode: 5,
+        buyerTaxStatusDescription: "Consumidor Final",
+      },
+      authorizationCode: "75123456789012",
+      authorizationCodeDueOn: "2026-10-16",
+      reservedAt: new Date("2026-10-08T14:59:58.000Z"),
+      satisfiedAt: new Date("2026-10-08T15:00:00.000Z"),
+    });
+
+    it("describes the satisfaction the domain builds", () => {
+      expect(accepts("deferred_sale_satisfied", 1, satisfied)).toBe(true);
+    });
+
+    it.each([
+      ["a satisfaction date that is not ISO", { satisfied_at: "now" }],
+      ["an issue date that is not a calendar day", { issued_on: "2026-13-01" }],
+      ["a point of sale of zero", { point_of_sale: 0 }],
+      ["a number of zero", { number: 0 }],
+      ["a fractional number", { number: 1.5 }],
+      ["an empty document id", { fiscal_document_id: "" }],
+      ["an empty authorization code", { authorization_code: "" }],
+      ["a due date that is not a calendar day", { authorization_code_due_on: "2026-13-01" }],
+      ["a reservation instant that is not ISO", { reserved_at: "yesterday" }],
+      [
+        "an invoice that is not class C",
+        { document: { ...invoiceOf(satisfied), invoice_class: "A" } },
+      ],
+      ["an invoice with a negative total", { document: { ...invoiceOf(satisfied), total: -1 } }],
+    ])("refuses %s", (_case, change) => {
+      expect(accepts("deferred_sale_satisfied", 1, { ...satisfied, ...change })).toBe(false);
+    });
+
+    it("refuses it without any one of its fields", () => {
+      const accepted = Object.keys(satisfied).filter((key) => {
+        const { [key]: _removed, ...rest } = satisfied;
+        return accepts("deferred_sale_satisfied", 1, rest);
+      });
+
+      expect(accepted).toEqual([]);
+    });
+
+    it("refuses it with any one of its fields of the wrong type", () => {
+      const accepted = Object.keys(satisfied).filter((key) =>
+        accepts("deferred_sale_satisfied", 1, { ...satisfied, [key]: { unexpected: true } }),
+      );
+
+      expect(accepted).toEqual([]);
+    });
+
+    it("refuses it when it is not an object", () => {
+      expect(accepts("deferred_sale_satisfied", 1, null)).toBe(false);
+      expect(accepts("deferred_sale_satisfied", 1, [])).toBe(false);
     });
   });
 
@@ -577,12 +668,15 @@ describe("synced event payloads", () => {
       expect(accepts("offline_fiscal_document_issued", 1, offline(change))).toBe(false);
     });
 
-    it.each(["no_connectivity", "unclear_outcome", "numbering_conflict", "clock_correction_lapse"])(
-      "accepts the cause %s",
-      (cause) => {
-        expect(accepts("offline_fiscal_document_issued", 1, offline({ cause }))).toBe(true);
-      },
-    );
+    it.each([
+      "no_connectivity",
+      "unclear_outcome",
+      "numbering_conflict",
+      "clock_correction_lapse",
+      "deferred_backlog",
+    ])("accepts the cause %s", (cause) => {
+      expect(accepts("offline_fiscal_document_issued", 1, offline({ cause }))).toBe(true);
+    });
   });
 
   describe("clock_corrected v1", () => {

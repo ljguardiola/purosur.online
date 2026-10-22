@@ -11,6 +11,7 @@ import type { ReplenishedUser } from "@purosur/domain/users/use-cases";
 import { applyReplenishedClockCorrection } from "../fiscal/replenished-clock-corrections";
 import { recordReplenishedCreditNoteAnswer } from "../fiscal/replenished-credit-note-answers";
 import { holdReplenishedCreditNoteToRequest } from "../fiscal/replenished-credit-note-requests";
+import { applyReplenishedDeferredSaleSatisfaction } from "../fiscal/replenished-deferred-sale-satisfactions";
 import {
   applyReplenishedDeferredSale,
   holdsDeferredSaleRecord,
@@ -154,5 +155,7 @@ function applyFact(
       return applyReplenishedOfflineFiscalDocument(database, fact);
     case "deferred_sale_recorded":
       return applyReplenishedDeferredSale(database, fact);
+    case "deferred_sale_satisfied":
+      return applyReplenishedDeferredSaleSatisfaction(database, fact);
   }
 }

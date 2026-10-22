@@ -2,12 +2,14 @@ import { encodePinHash } from "@purosur/contracts";
 import {
   FICTIONAL_CUIT,
   FICTIONAL_GROSS_INCOME_REGISTRATION,
+  FICTIONAL_ISSUER,
   FICTIONAL_LEGAL_NAME,
 } from "@purosur/domain/fiscal/test-support";
 import {
   A_DEFERRED_SALE_RECORDED_FACT,
   aCancelledSaleFact,
   aCompletedSaleFact,
+  aDeferredSaleSatisfiedFact,
   aVoidedSaleFact,
 } from "@purosur/domain/sync/test-support";
 import type { RegisterReplenishmentTransaction, SyncedFact } from "@purosur/domain/sync/use-cases";
@@ -422,6 +424,32 @@ describe("the register's store for replenishing a restored register", () => {
         { id: "deferred-1", sale_id: "sale-1", short_code: "7KQ4M2P9" },
       ]);
       expect(generated).toBe(0);
+    });
+
+    it("rebuilds the authorized document that satisfied a deferred sale, and the record it satisfied, only once the record is rebuilt", async () => {
+      await store.transaction((tx) => tx.applyFact(aCompletedSaleFact({ id: "sale-1" }), SOURCE));
+
+      expect(
+        await store.transaction((tx) =>
+          tx.applyFact(aDeferredSaleSatisfiedFact(FICTIONAL_ISSUER), SOURCE),
+        ),
+      ).toBe("not_yet_applicable");
+      expect(count("fiscal_documents")).toBe(0);
+
+      await store.transaction((tx) => tx.applyFact(A_DEFERRED_SALE_RECORDED_FACT, SOURCE));
+      expect(
+        await store.transaction((tx) =>
+          tx.applyFact(aDeferredSaleSatisfiedFact(FICTIONAL_ISSUER), SOURCE),
+        ),
+      ).toBe("applied");
+
+      expect(database.prepare("SELECT id, sale_id, state FROM fiscal_documents").all()).toEqual([
+        { id: "document-1", sale_id: "sale-1", state: "AUTHORIZED" },
+      ]);
+      expect(
+        database.prepare("SELECT satisfied_by_fiscal_document_id FROM deferred_sales").all(),
+      ).toEqual([{ satisfied_by_fiscal_document_id: "document-1" }]);
+      expect(count("outbox")).toBe(0);
     });
 
     it("holds no deferred-sale record for a sale until it is rebuilt", async () => {

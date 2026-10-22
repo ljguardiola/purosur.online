@@ -1,0 +1,1 @@
+ALTER TABLE "fiscal_requests" ALTER COLUMN "sale_event" DROP NOT NULL;

@@ -7,6 +7,7 @@ import {
 } from "./sqlite-fiscal-series";
 import {
   insertCompletedSale,
+  insertDeferredSale,
   insertFiscalDocument,
   insertOfflineAuthorizationCode,
   insertOfflineFiscalDocument,
@@ -49,6 +50,8 @@ describe("readRealTimeSeries", () => {
       clockMark: null,
       taxAuthorityLastIssuedOn: null,
       clockCorrections: [],
+      localLastAuthorizedIssuedOn: null,
+      deferredBacklog: [],
     });
   });
 
@@ -75,6 +78,8 @@ describe("readRealTimeSeries", () => {
       clockMark: null,
       taxAuthorityLastIssuedOn: "2026-09-29",
       clockCorrections: [],
+      localLastAuthorizedIssuedOn: null,
+      deferredBacklog: [],
     });
   });
 
@@ -121,6 +126,189 @@ describe("readRealTimeSeries", () => {
           correctedReading: new Date("2026-10-01T15:00:00.000Z"),
         },
       ]);
+    });
+  });
+
+  describe("the latest day an authorized document was issued on", () => {
+    it("is none while nothing was authorized", () => {
+      insertPointOfSale(database, 40);
+      insertCompletedSale(database, "sale-1");
+      insertFiscalDocument(database, { state: "REJECTED", issuedOn: "2026-10-05" });
+
+      expect(readRealTimeSeries(database).localLastAuthorizedIssuedOn).toBeNull();
+    });
+
+    it("is the latest day among the authorized documents of its own point of sale", () => {
+      insertPointOfSale(database, 40);
+      insertCompletedSale(database, "sale-1");
+      insertCompletedSale(database, "sale-2");
+      insertCompletedSale(database, "sale-3");
+      insertCompletedSale(database, "sale-4");
+      insertFiscalDocument(database, {
+        id: "doc-1",
+        saleId: "sale-1",
+        number: 41,
+        state: "AUTHORIZED",
+        issuedOn: "2026-10-03",
+      });
+      insertFiscalDocument(database, {
+        id: "doc-2",
+        saleId: "sale-2",
+        number: 42,
+        state: "AUTHORIZED",
+        issuedOn: "2026-10-02",
+      });
+      insertFiscalDocument(database, {
+        id: "doc-3",
+        saleId: "sale-3",
+        number: 43,
+        state: "CONFLICTING",
+        issuedOn: "2026-10-09",
+      });
+      insertFiscalDocument(database, {
+        id: "doc-4",
+        saleId: "sale-4",
+        pointOfSale: 99,
+        number: 50,
+        state: "AUTHORIZED",
+        issuedOn: "2026-10-08",
+      });
+
+      expect(readRealTimeSeries(database).localLastAuthorizedIssuedOn).toBe("2026-10-03");
+    });
+  });
+
+  describe("the deferred-sale backlog", () => {
+    function backlogOf() {
+      return readRealTimeSeries(database).deferredBacklog;
+    }
+
+    it("is empty while no sale was deferred", () => {
+      insertPointOfSale(database, 40);
+
+      expect(backlogOf()).toEqual([]);
+    });
+
+    it("holds a deferred sale that was not invoiced, with when it happened and was deferred", () => {
+      insertPointOfSale(database, 40);
+      insertCompletedSale(database, "sale-1");
+      insertDeferredSale(database, "sale-1", "fiscally_offline", {
+        occurredAt: new Date("2026-09-30T12:00:00.000Z"),
+        routedAt: "2026-09-30T12:00:07.000Z",
+      });
+
+      expect(backlogOf()).toEqual([
+        {
+          deferredSaleId: "deferred-of-sale-1",
+          saleId: "sale-1",
+          occurredAt: new Date("2026-09-30T12:00:00.000Z"),
+          routedAt: new Date("2026-09-30T12:00:07.000Z"),
+          total: 12_500,
+          lastAttemptEndedAt: null,
+        },
+      ]);
+    });
+
+    it("holds every pending deferred sale, whatever its age", () => {
+      insertPointOfSale(database, 40);
+      insertCompletedSale(database, "sale-1");
+      insertCompletedSale(database, "sale-2");
+      insertDeferredSale(database, "sale-1", "fiscally_offline", {
+        occurredAt: new Date("2025-01-01T12:00:00.000Z"),
+      });
+      insertDeferredSale(database, "sale-2");
+
+      expect(
+        backlogOf()
+          .map((entry) => entry.saleId)
+          .sort(),
+      ).toEqual(["sale-1", "sale-2"]);
+    });
+
+    it("leaves out a deferred sale already satisfied or cancelled", () => {
+      insertPointOfSale(database, 40);
+      insertCompletedSale(database, "sale-1");
+      insertCompletedSale(database, "sale-2");
+      insertCompletedSale(database, "sale-3");
+      insertDeferredSale(database, "sale-1");
+      insertDeferredSale(database, "sale-2");
+      insertDeferredSale(database, "sale-3");
+      insertFiscalDocument(database, {
+        id: "doc-1",
+        saleId: "sale-1",
+        number: 41,
+        state: "AUTHORIZED",
+      });
+      database.exec(
+        `UPDATE deferred_sales SET satisfied_by_fiscal_document_id = 'doc-1',
+           satisfied_at = '2026-09-30T13:00:00.000Z' WHERE sale_id = 'sale-1';
+         UPDATE deferred_sales SET cancelled_at = '2026-09-30T13:00:00.000Z' WHERE sale_id = 'sale-2'`,
+      );
+
+      expect(backlogOf().map((entry) => entry.saleId)).toEqual(["sale-3"]);
+    });
+
+    it("leaves out a sale already holding an authorized document, even if its record is still open", () => {
+      insertPointOfSale(database, 40);
+      insertCompletedSale(database, "sale-1");
+      insertDeferredSale(database, "sale-1");
+      insertFiscalDocument(database, { state: "AUTHORIZED" });
+
+      expect(backlogOf()).toEqual([]);
+    });
+
+    it("leaves out a sale already issued under the offline authorization code", () => {
+      insertPointOfSale(database, 40);
+      insertCompletedSale(database, "sale-1");
+      insertDeferredSale(database, "sale-1");
+      insertOfflineFiscalDocument(database);
+
+      expect(backlogOf()).toEqual([]);
+    });
+
+    it("reports when the latest earlier document of the sale ended without being authorized", () => {
+      insertPointOfSale(database, 40);
+      insertCompletedSale(database, "sale-1");
+      insertCompletedSale(database, "sale-2");
+      insertDeferredSale(database, "sale-1");
+      insertDeferredSale(database, "sale-2");
+      insertFiscalDocument(database, {
+        id: "doc-1",
+        saleId: "sale-1",
+        number: 41,
+        state: "REJECTED",
+        resolvedAt: "2026-09-30T12:10:00.000Z",
+      });
+      database.exec(
+        `INSERT INTO fiscal_documents (
+           id, sale_id, point_of_sale, document_type, number, issued_on, document, state,
+           reserved_at, resolved_at
+         ) VALUES
+           ('doc-2', 'sale-1', 12, 'factura_c', 42, '2026-09-30', '{}', 'RELEASED',
+            '2026-09-30T12:20:00.000Z', '2026-09-30T12:30:00.000Z'),
+           ('doc-3', 'sale-1', 12, 'factura_c', 43, '2026-09-30', '{}', 'CONFLICTING',
+            '2026-09-30T12:11:00.000Z', '2026-09-30T12:12:00.000Z')`,
+      );
+
+      const bySale = Object.fromEntries(backlogOf().map((entry) => [entry.saleId, entry]));
+      expect(bySale["sale-1"]?.lastAttemptEndedAt).toEqual(new Date("2026-09-30T12:30:00.000Z"));
+      expect(bySale["sale-2"]?.lastAttemptEndedAt).toBeNull();
+    });
+
+    it("does not take a document still waiting for an answer as an ended attempt", () => {
+      insertPointOfSale(database, 40);
+      insertCompletedSale(database, "sale-1");
+      insertDeferredSale(database, "sale-1");
+      insertFiscalDocument(database, { state: "UNKNOWN" });
+
+      expect(backlogOf()).toMatchObject([{ saleId: "sale-1", lastAttemptEndedAt: null }]);
+    });
+
+    it("is read even before the register has a point of sale", () => {
+      insertCompletedSale(database, "sale-1");
+      insertDeferredSale(database, "sale-1");
+
+      expect(backlogOf().map((entry) => entry.saleId)).toEqual(["sale-1"]);
     });
   });
 
