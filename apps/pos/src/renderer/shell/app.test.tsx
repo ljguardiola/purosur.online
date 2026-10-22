@@ -637,6 +637,31 @@ describe("App", () => {
       .not.toBeInTheDocument();
   });
 
+  it.each([
+    { kind: "without_connection", step: "replenish" },
+    { kind: "failed", step: "restore" },
+  ] as const)(
+    "keeps the register on the restoring screen while its standing is %j",
+    async (standing) => {
+      const { core } = coreAnswering(true);
+      core.restorationStanding = async () => standing;
+      const screen = await render(<App core={core} />);
+
+      postCoreStatus("up");
+
+      await expect
+        .element(
+          screen
+            .getByText("La caja no puede vender todavía")
+            .or(screen.getByText("No se pudo restaurar la caja")),
+        )
+        .toBeVisible();
+      await expect
+        .element(screen.getByRole("heading", { name: SIGN_IN_TITLE }))
+        .not.toBeInTheDocument();
+    },
+  );
+
   it("never reaches the sale of a resumed session while the register is being restored", async () => {
     const { core } = coreAnswering(true, undefined, undefined, {
       cashSession: async () => GRACE_SESSION,
