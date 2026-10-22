@@ -49,7 +49,7 @@ import {
   WifiOff,
 } from "lucide-react";
 import { type ReactElement, useState } from "react";
-import { ALERT_LEVEL_TONE } from "../platform/alert-level-tone";
+import { ALERT_LEVEL_LABELS, ALERT_LEVEL_TONE } from "../platform/alert-level-tone";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { fetchPermissionCatalog as fetchPermissionCatalogDefault } from "../platform/permission-catalog-api";
 import { AREA_LABELS, PERMISSION_LABELS } from "../platform/permission-labels";
@@ -103,12 +103,6 @@ const ALERT_TIME_OPTIONS: Intl.DateTimeFormatOptions = {
 export function alertDateTime(date: Date): string {
   return `${formatDate(date, ALERT_DATE_OPTIONS)} ${formatDate(date, ALERT_TIME_OPTIONS)}`;
 }
-
-export const ALERT_LEVEL_LABELS: Record<AlertLevel, string> = {
-  critical: "Crítica",
-  warning: "Advertencia",
-  informational: "Informativa",
-};
 
 export type AlertDetailModalServices = {
   fetchAlert: typeof fetchAlertDefault;
