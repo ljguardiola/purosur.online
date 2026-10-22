@@ -246,7 +246,7 @@ describe("decideSaleAuthorization", () => {
           aggregate_type: "Sale",
           aggregate_id: SALE_ID,
           event_type: "deferred_sale_recorded",
-          schema_version: 1,
+          schema_version: 2,
           payload: {
             id: "id-1",
             sale_id: SALE_ID,
@@ -256,6 +256,7 @@ describe("decideSaleAuthorization", () => {
             reason,
             short_code: "7KQ4M2P9",
             routed_at: DECIDED_AT.toISOString(),
+            unclear_document: null,
           },
           occurred_at: DECIDED_AT.toISOString(),
           actor_id: ORIGIN.actorId,

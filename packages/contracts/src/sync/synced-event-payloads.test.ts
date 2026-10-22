@@ -41,6 +41,56 @@ function accepts(eventType: string, schemaVersion: number, payload: unknown): bo
   return key !== undefined && syncedEventPayloadSchema(key).safeParse(payload).success;
 }
 
+const UNCLEAR_DOCUMENT = {
+  fiscalDocumentId: "document-1",
+  pointOfSale: 7,
+  number: 42,
+  issuedOn: "2026-10-06",
+  document: {
+    invoiceClass: "C",
+    total: 12_500,
+    netAmount: 12_500,
+    vatAmount: 0,
+    issuer: {
+      legalName: FICTIONAL_LEGAL_NAME,
+      cuit: FICTIONAL_CUIT,
+      taxStatus: "MONOTRIBUTO",
+      grossIncomeRegistration: FICTIONAL_GROSS_INCOME_REGISTRATION,
+      activityStartDate: "2020-01-01",
+      version: 3,
+    },
+    buyerTaxStatusCode: 5,
+    buyerTaxStatusDescription: "Consumidor Final",
+  },
+  reservedAt: new Date("2026-10-06T11:19:58.000Z"),
+} as const;
+
+function deferredSaleRecorded(unclearDocument: typeof UNCLEAR_DOCUMENT | null) {
+  return deferredSaleRecordedEvent({
+    eventId: "event-1",
+    registerId: "register-1",
+    actorId: "cashier",
+    deferredSale: {
+      id: "deferred-1",
+      saleId: "sale-1",
+      occurredAt: new Date("2026-10-06T11:19:58.000Z"),
+      total: 12_500,
+      reason: "unclear_outcome",
+      shortCode: "7KQ4M2P9",
+      routedAt: new Date("2026-10-06T11:20:00.000Z"),
+    },
+    unclearDocument,
+  }).payload as Payload;
+}
+
+function unclearDocumentOf(payload: Payload): Payload {
+  return payload["unclear_document"] as Payload;
+}
+
+function invoiceOfUnclearDocument(payload: Payload): Payload {
+  return unclearDocumentOf(payload)["document"] as Payload;
+}
+
 const CASH_PAYMENT_V2 = {
   id: "pay-1",
   kind: "SALE",
@@ -153,6 +203,7 @@ describe("synced event payloads", () => {
       "clock_corrected@1",
       "clock_corrected@2",
       "deferred_sale_recorded@1",
+      "deferred_sale_recorded@2",
       "deferred_sale_satisfied@1",
       "fiscal_gate_failed@1",
       "offline_fiscal_document_issued@1",
@@ -218,7 +269,7 @@ describe("synced event payloads", () => {
     ["a cash_session_closed version nobody emitted", "cash_session_closed", 2],
     ["a cash_movement_recorded version nobody emitted", "cash_movement_recorded", 2],
     ["a fiscal_gate_failed version nobody emitted", "fiscal_gate_failed", 2],
-    ["a deferred_sale_recorded version nobody emitted", "deferred_sale_recorded", 2],
+    ["a deferred_sale_recorded version nobody emitted", "deferred_sale_recorded", 3],
     ["a qr_payment_replaced version nobody emitted", "qr_payment_replaced", 2],
     ["a prototype property name", "constructor", 1],
     ["a prototype property name as the version", "sale_completed", Number.NaN],
@@ -384,20 +435,7 @@ describe("synced event payloads", () => {
   });
 
   describe("deferred_sale_recorded v1", () => {
-    const { payload: recorded } = deferredSaleRecordedEvent({
-      eventId: "event-1",
-      registerId: "register-1",
-      actorId: "cashier",
-      deferredSale: {
-        id: "deferred-1",
-        saleId: "sale-1",
-        occurredAt: new Date("2026-10-06T11:19:58.000Z"),
-        total: 12_500,
-        reason: "unclear_outcome",
-        shortCode: "7KQ4M2P9",
-        routedAt: new Date("2026-10-06T11:20:00.000Z"),
-      },
-    });
+    const { unclear_document: _unclearDocument, ...recorded } = deferredSaleRecorded(null);
 
     it("describes the deferred sale record the domain builds", () => {
       expect(accepts("deferred_sale_recorded", 1, recorded)).toBe(true);
@@ -448,6 +486,104 @@ describe("synced event payloads", () => {
     it("refuses it when it is not an object", () => {
       expect(accepts("deferred_sale_recorded", 1, null)).toBe(false);
       expect(accepts("deferred_sale_recorded", 1, [])).toBe(false);
+    });
+  });
+
+  describe("deferred_sale_recorded v2", () => {
+    const recorded = deferredSaleRecorded(UNCLEAR_DOCUMENT);
+
+    it("describes the deferred sale record the domain builds", () => {
+      expect(accepts("deferred_sale_recorded", 2, recorded)).toBe(true);
+    });
+
+    it.each(DEFERRAL_REASONS)("accepts the reason %s", (reason) => {
+      expect(accepts("deferred_sale_recorded", 2, { ...recorded, reason })).toBe(true);
+    });
+
+    it("accepts a sale deferred to join the backlog", () => {
+      expect(
+        accepts("deferred_sale_recorded", 2, { ...recorded, reason: "deferred_backlog" }),
+      ).toBe(true);
+    });
+
+    it("accepts a record that leaves no document waiting", () => {
+      expect(accepts("deferred_sale_recorded", 2, deferredSaleRecorded(null))).toBe(true);
+    });
+
+    it.each([
+      [
+        "a document that is not class C",
+        { ...invoiceOfUnclearDocument(recorded), invoice_class: "A" },
+      ],
+      ["an invoice with a negative total", { ...invoiceOfUnclearDocument(recorded), total: -1 }],
+    ])("refuses the waiting document with %s", (_case, document) => {
+      expect(
+        accepts("deferred_sale_recorded", 2, {
+          ...recorded,
+          unclear_document: { ...unclearDocumentOf(recorded), document },
+        }),
+      ).toBe(false);
+    });
+
+    it.each([
+      ["a document id that is empty", { fiscal_document_id: "" }],
+      ["a point of sale of zero", { point_of_sale: 0 }],
+      ["a number of zero", { number: 0 }],
+      ["an issue date that is not a calendar day", { issued_on: "2026-13-01" }],
+      ["a reservation instant that is not ISO", { reserved_at: "yesterday" }],
+    ])("refuses a waiting document with %s", (_case, change) => {
+      expect(
+        accepts("deferred_sale_recorded", 2, {
+          ...recorded,
+          unclear_document: { ...unclearDocumentOf(recorded), ...change },
+        }),
+      ).toBe(false);
+    });
+
+    it("refuses a waiting document without any one of its fields", () => {
+      const accepted = Object.keys(unclearDocumentOf(recorded)).filter((key) => {
+        const { [key]: _removed, ...rest } = unclearDocumentOf(recorded);
+        return accepts("deferred_sale_recorded", 2, { ...recorded, unclear_document: rest });
+      });
+
+      expect(accepted).toEqual([]);
+    });
+
+    it("refuses a reason the deferral does not have", () => {
+      expect(accepts("deferred_sale_recorded", 2, { ...recorded, reason: "other" })).toBe(false);
+    });
+
+    it.each([
+      ["a sale date that is not ISO", { occurred_at: "yesterday" }],
+      ["a routing date that is not ISO", { routed_at: "now" }],
+      ["a negative total", { total: -1 }],
+      ["a fractional total", { total: 1.5 }],
+      ["an empty short code", { short_code: "" }],
+      ["a short code the domain does not draw", { short_code: "7kq4m2p9" }],
+    ])("refuses %s", (_case, change) => {
+      expect(accepts("deferred_sale_recorded", 2, { ...recorded, ...change })).toBe(false);
+    });
+
+    it("refuses it without any one of its fields", () => {
+      const accepted = Object.keys(recorded).filter((key) => {
+        const { [key]: _removed, ...rest } = recorded;
+        return accepts("deferred_sale_recorded", 2, rest);
+      });
+
+      expect(accepted).toEqual([]);
+    });
+
+    it("refuses it with any one of its fields of the wrong type", () => {
+      const accepted = Object.keys(recorded).filter((key) =>
+        accepts("deferred_sale_recorded", 2, { ...recorded, [key]: { unexpected: true } }),
+      );
+
+      expect(accepted).toEqual([]);
+    });
+
+    it("refuses it when it is not an object", () => {
+      expect(accepts("deferred_sale_recorded", 2, null)).toBe(false);
+      expect(accepts("deferred_sale_recorded", 2, [])).toBe(false);
     });
   });
 
