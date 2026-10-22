@@ -39,9 +39,9 @@ const holdPredecessor = () =>
 const holdPointOfSale = (awaiting: boolean) =>
   database.exec(
     `INSERT INTO own_register (id, name, version, removed) VALUES ('r1', 'Caja 1', 1, 0);
-     INSERT INTO register_point_of_sale (register_id, point_of_sale_number, fiscal_address_id,
-       awaiting_restored_numbering, version)
-       VALUES ('r1', 12, 'address-1', ${awaiting ? 1 : 0}, 1);`,
+     INSERT INTO register_point_of_sale (register_id, point_of_sale_number, fiscal_address_id, version)
+       VALUES ('r1', 12, 'address-1', 1);
+     ${awaiting ? "INSERT INTO awaiting_restored_numbering (register_id) VALUES ('r1');" : ""}`,
   );
 
 describe("the evidence of the restoration protocol", () => {

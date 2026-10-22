@@ -456,22 +456,21 @@ describe("the register's local copy of its own point of sale", () => {
   describe("the numbering a restored register awaits from the cloud", () => {
     function awaiting() {
       return database
-        .prepare<[], { awaiting_restored_numbering: number }>(
-          "SELECT awaiting_restored_numbering FROM register_point_of_sale",
-        )
-        .all()
-        .map((row) => row.awaiting_restored_numbering);
+        .prepare<[], { register_id: string }>("SELECT register_id FROM awaiting_restored_numbering")
+        .all().length;
     }
 
     async function restoredWithCount(count: number, day: string) {
       await save(pointOfSaleChange(1, 12, MAIN_STREET, 1, count, false, day));
-      database.exec("UPDATE register_point_of_sale SET awaiting_restored_numbering = 1");
+      database.exec(
+        "INSERT INTO awaiting_restored_numbering (register_id) SELECT register_id FROM register_point_of_sale",
+      );
     }
 
     it("holds no awaited numbering for a point of sale pulled on its own", async () => {
       await save(pointOfSaleChange(1, 12, MAIN_STREET, 1, 40));
 
-      expect(awaiting()).toEqual([0]);
+      expect(awaiting()).toBe(0);
     });
 
     it("takes the pulled count and day over a higher local one at the same version", async () => {
@@ -508,7 +507,7 @@ describe("the register's local copy of its own point of sale", () => {
 
       await save(pointOfSaleChange(2, 12, MAIN_STREET, 1, 31, true, "2026-10-10"));
 
-      expect(awaiting()).toEqual([1]);
+      expect(awaiting()).toBe(1);
     });
 
     it("keeps awaiting while the pulled numbering has no count", async () => {
@@ -516,7 +515,7 @@ describe("the register's local copy of its own point of sale", () => {
 
       await save(pointOfSaleChange(2, 12, MAIN_STREET, 1, null, false, null));
 
-      expect(awaiting()).toEqual([1]);
+      expect(awaiting()).toBe(1);
     });
 
     it("stops awaiting once the pulled numbering is not frozen and carries a count", async () => {
@@ -525,7 +524,7 @@ describe("the register's local copy of its own point of sale", () => {
 
       await save(pointOfSaleChange(3, 12, MAIN_STREET, 1, 31, false, "2026-10-10"));
 
-      expect(awaiting()).toEqual([0]);
+      expect(awaiting()).toBe(0);
       expect(savedCount()).toEqual([31]);
     });
 
@@ -540,12 +539,14 @@ describe("the register's local copy of its own point of sale", () => {
 
     it("ignores an older version while it awaits", async () => {
       await save(pointOfSaleChange(1, 12, MAIN_STREET, 2, 40, false, "2026-10-14"));
-      database.exec("UPDATE register_point_of_sale SET awaiting_restored_numbering = 1");
+      database.exec(
+        "INSERT INTO awaiting_restored_numbering (register_id) SELECT register_id FROM register_point_of_sale",
+      );
 
       await save(pointOfSaleChange(2, 12, MAIN_STREET, 1, 31, false, "2026-10-10"));
 
       expect(savedCount()).toEqual([40]);
-      expect(awaiting()).toEqual([1]);
+      expect(awaiting()).toBe(1);
     });
   });
 });

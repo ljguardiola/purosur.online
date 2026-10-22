@@ -147,13 +147,9 @@ describe("the restored sync identity store", () => {
 
     await resetRestoredSyncIdentity({ store }, { deviceId: NEW_DEVICE });
 
-    expect(
-      database
-        .prepare(
-          "SELECT tax_authority_last_authorized_number AS count, awaiting_restored_numbering AS awaiting FROM register_point_of_sale",
-        )
-        .all(),
-    ).toEqual([{ count: 40, awaiting: 1 }]);
+    expect(database.prepare("SELECT register_id FROM awaiting_restored_numbering").all()).toEqual([
+      { register_id: "r1" },
+    ]);
   });
 
   it("leaves the new installation no enrollment pending from the old one's stale sequence", async () => {

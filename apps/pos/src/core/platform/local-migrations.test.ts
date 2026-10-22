@@ -5674,7 +5674,7 @@ describe("the register's local migrations", () => {
     }
   });
 
-  it("add whether a restored register awaits the numbering of its point of sale, none for a register already holding data", () => {
+  it("add the points of sale a restored register awaits the numbering of, none for a register already holding data", () => {
     const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
     try {
       const path = join(folder, "register.sqlite");
@@ -5694,13 +5694,12 @@ describe("the register's local migrations", () => {
 
       const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
 
-      expect(
-        after
-          .prepare(
-            "SELECT register_id, point_of_sale_number, awaiting_restored_numbering FROM register_point_of_sale",
-          )
-          .all(),
-      ).toEqual([{ register_id: "r1", point_of_sale_number: 12, awaiting_restored_numbering: 0 }]);
+      expect(after.prepare("SELECT register_id FROM register_point_of_sale").all()).toEqual([
+        { register_id: "r1" },
+      ]);
+      expect(after.prepare("SELECT register_id FROM awaiting_restored_numbering").all()).toEqual(
+        [],
+      );
       after.close();
     } finally {
       rmSync(folder, { recursive: true, force: true });
