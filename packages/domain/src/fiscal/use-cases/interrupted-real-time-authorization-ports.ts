@@ -9,6 +9,7 @@ export interface InterruptedRealTimeAuthorization {
   origin: SaleOrigin;
   reservedAt: Date;
   total: number;
+  holdsDeferredSale: boolean;
 }
 
 export interface InterruptedRealTimeAuthorizations {
