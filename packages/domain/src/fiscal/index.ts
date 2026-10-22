@@ -17,9 +17,14 @@ export {
   isValidBuyerTaxStatusSet,
   latestBuyerTaxStatusSet,
 } from "./model/buyer-tax-status-set.js";
-export type { ClockCorrectedFact, ClockCorrectionAlertState } from "./model/clock-correction.js";
+export type {
+  ClockCorrectedFact,
+  ClockCorrectionAlertState,
+  ClockPreviousReadingSource,
+} from "./model/clock-correction.js";
 export {
   CLOCK_CORRECTED_EVENT_TYPE,
+  CLOCK_PREVIOUS_READING_SOURCES,
   clockCorrectedEvent,
   clockCorrectionPeriodKey,
 } from "./model/clock-correction.js";
@@ -34,9 +39,12 @@ export type {
 } from "./model/deferred-sale.js";
 export {
   deferredSaleDocumentBlock,
+  isDeferralFinalWhenRecorded,
+  isShortCode,
   randomShortCode,
   SHORT_CODE_ALPHABET,
 } from "./model/deferred-sale.js";
+export { deferredSaleRecordedEvent } from "./model/deferred-sale-recorded-event.js";
 export type {
   AuthorizedCreditNoteC,
   AuthorizedFacturaC,

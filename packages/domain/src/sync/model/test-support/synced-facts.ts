@@ -200,6 +200,19 @@ export const A_GATE_FAILED_FACT: SyncedFact = {
   },
 };
 
+export const A_DEFERRED_SALE_RECORDED_FACT: SyncedFact = {
+  kind: "deferred_sale_recorded",
+  deferredSale: {
+    id: "deferred-1",
+    saleId: "sale-1",
+    occurredAt: new Date("2026-10-07T10:00:00.000Z"),
+    total: 4800,
+    reason: "pre_emission_gate_failed",
+    shortCode: "7KQ4M2P9",
+    routedAt: new Date("2026-10-07T10:00:01.000Z"),
+  },
+};
+
 export const A_CLOCK_CORRECTED_FACT: SyncedFact = {
   kind: "clock_corrected",
   correction: {
@@ -207,6 +220,7 @@ export const A_CLOCK_CORRECTED_FACT: SyncedFact = {
     pointOfSale: 12,
     documentType: "factura_c",
     previousReading: new Date("2026-10-07T12:00:00.000Z"),
+    previousReadingSource: "clock_mark",
     correctedReading: new Date("2026-10-05T12:00:00.000Z"),
     actorId: "cashier-1",
   },

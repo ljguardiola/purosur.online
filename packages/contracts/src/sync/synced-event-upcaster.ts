@@ -1,7 +1,9 @@
 import type {
+  ClockPreviousReadingSource,
   DiscountBenefit,
   ManualAdjustment,
   OfflineFiscalDocumentIssuedFact,
+  PrintedDocument,
   SaleDiscount,
   SaleVoidCreditNote,
 } from "@purosur/domain";
@@ -152,6 +154,25 @@ function cancelledSale(payload: CancelledSalePayload): SyncedFact {
   };
 }
 
+function clockCorrection(
+  payload: SyncedEventPayloads["clock_corrected@1"],
+  previousReadingSource: ClockPreviousReadingSource,
+  event: UnappliedEvent,
+): SyncedFact {
+  return {
+    kind: "clock_corrected",
+    correction: {
+      registerId: event.aggregateId,
+      pointOfSale: payload.point_of_sale,
+      documentType: payload.document_type,
+      previousReading: new Date(payload.previous_reading),
+      previousReadingSource,
+      correctedReading: new Date(payload.corrected_reading),
+      actorId: event.actorId,
+    },
+  };
+}
+
 function voidedSaleCreditNote(payload: VoidedSalePayload): SaleVoidCreditNote | null {
   const creditNote = "credit_note" in payload ? payload.credit_note : null;
   return creditNote === null
@@ -252,6 +273,43 @@ function offlineDocument(
   };
 }
 
+function printStateChanged(
+  payload: SyncedEventPayloads["sale_print_state_changed@1"],
+  document: PrintedDocument,
+): SyncedFact {
+  return {
+    kind: "sale_print_state_changed",
+    printState: {
+      saleId: payload.sale_id,
+      document,
+      printAttemptedAt: new Date(payload.print_attempted_at),
+      printedAt: payload.printed_at === null ? null : new Date(payload.printed_at),
+    },
+  };
+}
+
+function reprintRecorded(
+  payload: SyncedEventPayloads["reprint_recorded@1"],
+  document: PrintedDocument,
+  event: UnappliedEvent,
+): SyncedFact {
+  return {
+    kind: "reprint_recorded",
+    reprint: {
+      saleId: payload.sale_id,
+      document,
+      orderNumber: payload.order_number,
+      requestedBy: payload.requested_by,
+      authorizedBy: payload.authorized_by,
+      reason:
+        payload.reason_kind === "retry"
+          ? { kind: "retry" }
+          : { kind: "requested", text: payload.reason_text },
+      occurredAt: event.occurredAt,
+    },
+  };
+}
+
 const FACT_OF: {
   [Key in SyncedEventPayloadKey]: (
     payload: SyncedEventPayloads[Key],
@@ -304,28 +362,10 @@ const FACT_OF: {
       payload.stock_movements,
       payload.operation_number,
     ),
-  "sale_print_state_changed@1": (payload) => ({
-    kind: "sale_print_state_changed",
-    printState: {
-      saleId: payload.sale_id,
-      printAttemptedAt: new Date(payload.print_attempted_at),
-      printedAt: payload.printed_at === null ? null : new Date(payload.printed_at),
-    },
-  }),
-  "reprint_recorded@1": (payload, event) => ({
-    kind: "reprint_recorded",
-    reprint: {
-      saleId: payload.sale_id,
-      orderNumber: payload.order_number,
-      requestedBy: payload.requested_by,
-      authorizedBy: payload.authorized_by,
-      reason:
-        payload.reason_kind === "retry"
-          ? { kind: "retry" }
-          : { kind: "requested", text: payload.reason_text },
-      occurredAt: event.occurredAt,
-    },
-  }),
+  "sale_print_state_changed@1": (payload) => printStateChanged(payload, "sale_receipt"),
+  "sale_print_state_changed@2": (payload) => printStateChanged(payload, payload.document),
+  "reprint_recorded@1": (payload, event) => reprintRecorded(payload, "sale_receipt", event),
+  "reprint_recorded@2": (payload, event) => reprintRecorded(payload, payload.document, event),
   "sale_cancelled@1": cancelledSale,
   "sale_cancelled@2": cancelledSale,
   "sale_cancelled@3": cancelledSale,
@@ -402,17 +442,21 @@ const FACT_OF: {
       evaluatedAt: new Date(payload.evaluated_at),
     },
   }),
-  "clock_corrected@1": (payload, event) => ({
-    kind: "clock_corrected",
-    correction: {
-      registerId: event.aggregateId,
-      pointOfSale: payload.point_of_sale,
-      documentType: payload.document_type,
-      previousReading: new Date(payload.previous_reading),
-      correctedReading: new Date(payload.corrected_reading),
-      actorId: event.actorId,
+  "deferred_sale_recorded@1": (payload) => ({
+    kind: "deferred_sale_recorded",
+    deferredSale: {
+      id: payload.id,
+      saleId: payload.sale_id,
+      occurredAt: new Date(payload.occurred_at),
+      total: payload.total,
+      reason: payload.reason,
+      shortCode: payload.short_code,
+      routedAt: new Date(payload.routed_at),
     },
   }),
+  "clock_corrected@1": (payload, event) => clockCorrection(payload, "clock_mark", event),
+  "clock_corrected@2": (payload, event) =>
+    clockCorrection(payload, payload.previous_reading_source, event),
   "offline_fiscal_document_issued@1": (payload) => ({
     kind: "offline_fiscal_document_issued",
     document: offlineDocument(payload),

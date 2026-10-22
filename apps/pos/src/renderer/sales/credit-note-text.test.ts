@@ -77,6 +77,14 @@ describe("creditNotePrintNotice", () => {
     });
   });
 
+  it("says the credit note may have come out when a print of it was already tried, and that it is reprinted as a duplicate", () => {
+    expect(creditNotePrintNotice("already_attempted")).toEqual({
+      tone: "error",
+      title: "Puede que la nota de crédito haya salido",
+      description: "Ahora se reimprime como duplicado, pidiendo el motivo.",
+    });
+  });
+
   it.each([
     [
       "busy",

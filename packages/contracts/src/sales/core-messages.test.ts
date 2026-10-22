@@ -1513,6 +1513,67 @@ describe("reprinting a sale's receipt from the history", () => {
   });
 });
 
+describe("reprinting a credit note from the history", () => {
+  const reprint = {
+    type: "reprint-credit-note",
+    request_id: REQUEST_ID,
+    sale_id: "sale-1",
+    reason: "el cliente la perdió",
+  };
+
+  it("accepts a request with the typed reason", () => {
+    expect(salesRendererToCoreMessageSchema.parse(reprint)).toEqual(reprint);
+  });
+
+  it("accepts a request carrying another person's PIN", () => {
+    const message = { ...reprint, authorization: { user_id: "u2", pin: "1234" } };
+
+    expect(salesRendererToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each(["request_id", "sale_id", "reason"])("rejects a request missing its %s", (field) => {
+    const message = Object.fromEntries(Object.entries(reprint).filter(([key]) => key !== field));
+
+    expect(salesRendererToCoreMessageSchema.safeParse(message).success).toBe(false);
+  });
+
+  it("rejects an authorization without a PIN", () => {
+    const message = { ...reprint, authorization: { user_id: "u2" } };
+
+    expect(salesRendererToCoreMessageSchema.safeParse(message).success).toBe(false);
+  });
+
+  it.each([
+    { kind: "started", copy: { kind: "duplicate", order_number: 3 } },
+    { kind: "started", copy: { kind: "original" } },
+    { kind: "busy" },
+    { kind: "invalid_reason", max_length: 200 },
+    { kind: "printer_not_configured" },
+    { kind: "sale_voided" },
+    { kind: "not_found" },
+    { kind: "not_signed_in" },
+    { kind: "lacks_permission" },
+    { kind: "unavailable" },
+    { kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 2 },
+    { kind: "rate_limited", retry_after_seconds: 1, attempts_left: 2 },
+    { kind: "locked", consecutive_failures: 8 },
+  ])("accepts the result $kind", (outcome) => {
+    const message = { type: "reprint-credit-note-result", request_id: REQUEST_ID, outcome };
+
+    expect(salesCoreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each([
+    { kind: "invalid_reason" },
+    { kind: "not_offered" },
+    { kind: "started", copy: { kind: "duplicate", order_number: 1.5 } },
+  ])("rejects the result %j", (outcome) => {
+    const message = { type: "reprint-credit-note-result", request_id: REQUEST_ID, outcome };
+
+    expect(salesCoreToRendererMessageSchema.safeParse(message).success).toBe(false);
+  });
+});
+
 describe("printing a sale's original receipt", () => {
   const print = { type: "print-original-receipt", request_id: REQUEST_ID, sale_id: "sale-1" };
 
@@ -1578,10 +1639,23 @@ describe("printing the credit note of a voided sale", () => {
     expect(salesRendererToCoreMessageSchema.safeParse(message).success).toBe(false);
   });
 
+  it("carries no reason and no authorization", () => {
+    const message = {
+      ...print,
+      reason: "otra copia",
+      authorization: { user_id: "u2", pin: "1234" },
+    };
+
+    expect(salesRendererToCoreMessageSchema.parse(message)).toEqual(print);
+  });
+
   it.each([
-    { kind: "started" },
+    { kind: "started", copy: { kind: "original" } },
+    { kind: "started", copy: { kind: "duplicate", order_number: 3 } },
     { kind: "busy" },
+    { kind: "already_attempted" },
     { kind: "printer_not_configured" },
+    { kind: "sale_voided" },
     { kind: "not_found" },
     { kind: "not_signed_in" },
     { kind: "lacks_permission" },
@@ -1592,15 +1666,14 @@ describe("printing the credit note of a voided sale", () => {
     expect(salesCoreToRendererMessageSchema.parse(message)).toEqual(message);
   });
 
-  it.each([
-    { kind: "sale_voided" },
-    { kind: "already_attempted" },
-    { kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 2 },
-  ])("rejects the result %j", (outcome) => {
-    const message = { type: "print-credit-note-result", request_id: REQUEST_ID, outcome };
+  it.each([{ kind: "started" }, { kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 2 }])(
+    "rejects the result %j",
+    (outcome) => {
+      const message = { type: "print-credit-note-result", request_id: REQUEST_ID, outcome };
 
-    expect(salesCoreToRendererMessageSchema.safeParse(message).success).toBe(false);
-  });
+      expect(salesCoreToRendererMessageSchema.safeParse(message).success).toBe(false);
+    },
+  );
 });
 
 describe("asking for the register's sales history", () => {
@@ -1753,6 +1826,7 @@ describe("asking for the detail of one sale of the history", () => {
     credit_note: null,
     reprint: { kind: "available" },
     next_copy: { kind: "duplicate", order_number: 2 },
+    credit_note_next_copy: null,
   };
   const answer = (outcome: unknown) => ({
     type: "sale-history-detail-result",
@@ -1768,6 +1842,11 @@ describe("asking for the detail of one sale of the history", () => {
     },
     { kind: "found", detail: { ...detail, occurred_at: "2026-10-08T09:00:00.000-03:00" } },
     { kind: "found", detail: { ...detail, void_authorization_required: true } },
+    {
+      kind: "found",
+      detail: { ...detail, credit_note_next_copy: { kind: "duplicate", order_number: 1 } },
+    },
+    { kind: "found", detail: { ...detail, credit_note_next_copy: { kind: "original" } } },
     { kind: "found", detail: { ...detail, reprint: { kind: "sale_voided" } } },
     {
       kind: "found",
@@ -1824,6 +1903,8 @@ describe("asking for the detail of one sale of the history", () => {
     { kind: "found", detail: { ...detail, line_count: -1 } },
     { kind: "found", detail: { ...detail, payments: [{ method: "CARD", amount: 1 }] } },
     { kind: "found", detail: { ...detail, next_copy: { kind: "reprint" } } },
+    { kind: "found", detail: { ...detail, credit_note_next_copy: undefined } },
+    { kind: "found", detail: { ...detail, credit_note_next_copy: { kind: "reprint" } } },
     { kind: "found", detail: { ...detail, served_by_first_name: undefined } },
     { kind: "found", detail: { ...detail, state: "cancelled" } },
     { kind: "found", detail: { ...detail, void_authorization_required: undefined } },

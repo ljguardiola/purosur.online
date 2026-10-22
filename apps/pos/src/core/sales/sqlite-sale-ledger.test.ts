@@ -852,9 +852,15 @@ describe("charging an open sale in cash", () => {
         aggregate_id: saleId,
         event_type: "sale_completed",
       },
+      {
+        device_seq: 2,
+        aggregate_type: "Sale",
+        aggregate_id: saleId,
+        event_type: "deferred_sale_recorded",
+      },
     ]);
     expect(database.prepare("SELECT last_device_seq FROM sync_state").get()).toEqual({
-      last_device_seq: 1,
+      last_device_seq: 2,
     });
   });
 
@@ -993,7 +999,7 @@ describe("charging an open sale in cash", () => {
             }),
           },
         },
-        { saleId },
+        { document: "sale_receipt", saleId },
         new ReceiptPrintObserver().watch,
       );
       return printoutOf(printouts[0] ?? new Uint8Array()).textLines;

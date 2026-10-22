@@ -31,6 +31,7 @@ export async function recordAppliedClockCorrection<TQueryResult extends PgQueryR
     pointOfSale: correction.pointOfSale,
     documentType: correction.documentType,
     previousReading: correction.previousReading.toISOString(),
+    previousReadingSource: correction.previousReadingSource,
     correctedReading: correction.correctedReading.toISOString(),
     actorId: correction.actorId,
   });
@@ -44,6 +45,7 @@ export async function recordAppliedClockCorrection<TQueryResult extends PgQueryR
     pointOfSale: correction.pointOfSale,
     documentType: correction.documentType,
     previousReading: correction.previousReading,
+    previousReadingSource: correction.previousReadingSource,
     correctedReading: correction.correctedReading,
     actorId: correction.actorId,
     correctedAt: event.occurredAt,

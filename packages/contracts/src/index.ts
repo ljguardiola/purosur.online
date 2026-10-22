@@ -422,7 +422,11 @@ export type {
   QuitRegisterMessage,
   UpdateSafeMomentAnswer,
 } from "./register/main-messages.js";
-export { coreStatusMessageSchema, mainToCoreMessageSchema } from "./register/main-messages.js";
+export {
+  coreStatusMessageSchema,
+  deviceCredentialsAnswerSchema,
+  mainToCoreMessageSchema,
+} from "./register/main-messages.js";
 export { receiptPrinterAddressTextSchema } from "./register/receipt-printer-address.js";
 export type { RegisterCreationBody } from "./register/register-creation.js";
 export { registerCreationBodySchema } from "./register/register-creation.js";
@@ -520,6 +524,7 @@ export {
   chargeSaleByTransferMessageSchema,
   chargeSaleInCashMessageSchema,
   chargeSaleOnStandaloneTerminalMessageSchema,
+  reprintCreditNoteMessageSchema,
   reprintSaleReceiptMessageSchema,
   salesCoreToRendererMessageSchema,
   salesRendererToCoreMessageSchema,

@@ -1,9 +1,12 @@
 import {
   CASH_MOVEMENT_KINDS,
   CASH_MOVEMENT_TYPES,
+  CLOCK_PREVIOUS_READING_SOURCES,
   cashMovementReason,
+  DEFERRAL_REASONS,
   FACTURA_C_DOCUMENT_TYPE,
   isCalendarDay,
+  isShortCode,
   isValidCashAmount,
   isValidCashMovementAmount,
   manualAdjustmentReason,
@@ -13,6 +16,7 @@ import {
   mayBeOverriddenUnitPrice,
   OFFLINE_AUTHORIZATION_CAUSES,
   PRE_EMISSION_GATE_FAILURE_REASONS,
+  PRINTED_DOCUMENTS,
   receiptReprintReason,
   WEIGHT_SOURCES,
 } from "@purosur/domain";
@@ -251,10 +255,16 @@ const saleCompletedV8Schema = saleCompletedV7Schema.extend({
   lines: z.array(discountedSaleLineSchema),
 });
 
-const salePrintStateChangedSchema = z.object({
+const printedDocumentSchema = z.enum(PRINTED_DOCUMENTS);
+
+const salePrintStateChangedV1Schema = z.object({
   sale_id: text,
   print_attempted_at: instant,
   printed_at: instant.nullable(),
+});
+
+const salePrintStateChangedV2Schema = salePrintStateChangedV1Schema.extend({
+  document: printedDocumentSchema,
 });
 
 const reprintRecordedFields = {
@@ -264,18 +274,26 @@ const reprintRecordedFields = {
   authorized_by: text.nullable(),
 };
 
-const reprintRecordedSchema = z.discriminatedUnion("reason_kind", [
-  z.object({
-    ...reprintRecordedFields,
-    reason_kind: z.literal("retry"),
-    reason_text: z.null(),
-  }),
-  z.object({
-    ...reprintRecordedFields,
-    reason_kind: z.literal("requested"),
-    reason_text: z.string().refine((reason) => receiptReprintReason(reason) === reason),
-  }),
-]);
+const reprintRecordedSchema = <Fields extends typeof reprintRecordedFields>(fields: Fields) =>
+  z.discriminatedUnion("reason_kind", [
+    z.object({
+      ...fields,
+      reason_kind: z.literal("retry"),
+      reason_text: z.null(),
+    }),
+    z.object({
+      ...fields,
+      reason_kind: z.literal("requested"),
+      reason_text: z.string().refine((reason) => receiptReprintReason(reason) === reason),
+    }),
+  ]);
+
+const reprintRecordedV1Schema = reprintRecordedSchema(reprintRecordedFields);
+
+const reprintRecordedV2Schema = reprintRecordedSchema({
+  ...reprintRecordedFields,
+  document: printedDocumentSchema,
+});
 
 const saleRefundFields = {
   id: text,
@@ -443,6 +461,17 @@ const fiscalGateFailedSchema = z.object({
   evaluated_at: instant,
 });
 
+const deferredSaleRecordedSchema = z.object({
+  id: text,
+  sale_id: text,
+  register_id: text,
+  occurred_at: instant,
+  total: cents,
+  reason: z.enum(DEFERRAL_REASONS),
+  short_code: z.string().refine(isShortCode),
+  routed_at: instant,
+});
+
 const offlineFiscalDocumentIssuedSchema = z.object({
   fiscal_document_id: text,
   sale_id: text,
@@ -492,6 +521,10 @@ const clockCorrectedSchema = z.object({
   corrected_reading: instant,
 });
 
+const clockCorrectedV2Schema = clockCorrectedSchema.extend({
+  previous_reading_source: z.enum(CLOCK_PREVIOUS_READING_SOURCES),
+});
+
 const qrPaymentReplacedSchema = z.object({
   payment_transaction_id: text,
   sale_id: text,
@@ -518,8 +551,10 @@ const PAYLOAD_SCHEMAS = {
   "sale_completed@6": saleCompletedV6Schema,
   "sale_completed@7": saleCompletedV7Schema,
   "sale_completed@8": saleCompletedV8Schema,
-  "sale_print_state_changed@1": salePrintStateChangedSchema,
-  "reprint_recorded@1": reprintRecordedSchema,
+  "sale_print_state_changed@1": salePrintStateChangedV1Schema,
+  "sale_print_state_changed@2": salePrintStateChangedV2Schema,
+  "reprint_recorded@1": reprintRecordedV1Schema,
+  "reprint_recorded@2": reprintRecordedV2Schema,
   "sale_cancelled@1": saleCancelledV1Schema,
   "sale_cancelled@2": saleCancelledV2Schema,
   "sale_cancelled@3": saleCancelledV3Schema,
@@ -534,9 +569,11 @@ const PAYLOAD_SCHEMAS = {
   "cash_session_closed@1": cashSessionClosedSchema,
   "cash_movement_recorded@1": cashMovementRecordedSchema,
   "fiscal_gate_failed@1": fiscalGateFailedSchema,
+  "deferred_sale_recorded@1": deferredSaleRecordedSchema,
   "offline_fiscal_document_issued@1": offlineFiscalDocumentIssuedSchema,
   "offline_fiscal_document_issued@2": offlineFiscalDocumentIssuedV2Schema,
   "clock_corrected@1": clockCorrectedSchema,
+  "clock_corrected@2": clockCorrectedV2Schema,
   "qr_payment_replaced@1": qrPaymentReplacedSchema,
   "opening_count_recorded@1": openingCountRecordedSchema,
   "opening_count_withdrawn@1": openingCountWithdrawnSchema,

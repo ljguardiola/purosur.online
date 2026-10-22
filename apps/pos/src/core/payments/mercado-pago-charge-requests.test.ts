@@ -223,6 +223,7 @@ describe("following a Mercado Pago QR charge at the register", () => {
     expect(qrRows()).toMatchObject([{ id: "qr-1", state: "APPROVED" }]);
     expect(database.prepare("SELECT event_type FROM outbox").all()).toEqual([
       { event_type: "sale_completed" },
+      { event_type: "deferred_sale_recorded" },
     ]);
   });
 
@@ -379,7 +380,10 @@ describe("abandoning a Mercado Pago QR charge at the register", () => {
       settlement: { kind: "completed", sale_id: saleId, total: 3000 },
     });
     expect(qrRows()).toMatchObject([{ state: "APPROVED" }]);
-    expect(outboxEvents()).toEqual([{ event_type: "sale_completed", aggregate_id: saleId }]);
+    expect(outboxEvents()).toEqual([
+      { event_type: "sale_completed", aggregate_id: saleId },
+      { event_type: "deferred_sale_recorded", aggregate_id: saleId },
+    ]);
   });
 
   it("answers the rest still to pay when the payment already made covers part of the sale", async () => {
@@ -540,6 +544,7 @@ describe("following the Mercado Pago charges a stopped register left pending", (
     expect(qrRows()).toMatchObject([{ id: "qr-1", state: "APPROVED" }]);
     expect(database.prepare("SELECT event_type FROM outbox").all()).toEqual([
       { event_type: "sale_completed" },
+      { event_type: "deferred_sale_recorded" },
     ]);
   });
 

@@ -3,13 +3,18 @@ export interface HeldMessages<TMessage> {
   deliverTo(handle: (message: TMessage) => void): void;
 }
 
-export function createHeldMessages<TMessage>(): HeldMessages<TMessage> {
+export function createHeldMessages<TMessage>(
+  takeEarly: (message: TMessage) => boolean = () => false,
+): HeldMessages<TMessage> {
   const held: { message: TMessage }[] = [];
   let handler: ((message: TMessage) => void) | undefined;
 
   return {
     receive(message) {
       if (handler === undefined) {
+        if (takeEarly(message)) {
+          return;
+        }
         held.push({ message });
         return;
       }

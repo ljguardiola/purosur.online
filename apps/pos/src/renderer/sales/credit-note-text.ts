@@ -1,16 +1,13 @@
 import type { PrintCreditNoteOutcome, SaleCreditNote } from "@purosur/contracts";
 import type { NoticeTone, SummaryRowProps } from "@purosur/ui";
-import { formatInvoiceNumber, formatPointOfSaleNumber } from "@purosur/ui";
+import { CREDIT_NOTE_NAME, creditNoteComprobantePresentation } from "../shell/sale-receipt-text";
 
-const LABEL = "Nota de crédito C";
+const LABEL = CREDIT_NOTE_NAME;
 
 export function creditNoteRow(creditNote: SaleCreditNote): SummaryRowProps {
   switch (creditNote.kind) {
     case "authorized":
-      return {
-        label: LABEL,
-        value: `PV ${formatPointOfSaleNumber(creditNote.point_of_sale)} · Nº ${formatInvoiceNumber(creditNote.number)}`,
-      };
+      return { label: LABEL, value: creditNoteComprobantePresentation(creditNote).detail };
     case "in_progress":
       return { label: LABEL, value: "En trámite con ARCA" };
     case "rejected":
@@ -51,7 +48,7 @@ export function voidedSaleNotice(creditNote: SaleCreditNote | null): Notice {
 }
 
 export function creditNotePrintNotice(
-  kind: Exclude<PrintCreditNoteOutcome["kind"], "not_found" | "not_signed_in">,
+  kind: Exclude<PrintCreditNoteOutcome["kind"], "not_found" | "sale_voided" | "not_signed_in">,
 ): Notice {
   switch (kind) {
     case "started":
@@ -59,6 +56,12 @@ export function creditNotePrintNotice(
         tone: "success",
         title: "La nota de crédito sale en cuanto la impresora esté lista",
         description: "Entregásela al cliente.",
+      };
+    case "already_attempted":
+      return {
+        tone: "error",
+        title: "Puede que la nota de crédito haya salido",
+        description: "Ahora se reimprime como duplicado, pidiendo el motivo.",
       };
     case "busy":
       return {

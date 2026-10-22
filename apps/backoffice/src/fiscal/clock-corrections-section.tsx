@@ -44,7 +44,14 @@ const columns = [
   dataColumn({
     id: "previousReading",
     header: "Lectura anterior",
-    render: (item: ClockCorrection) => clockCorrectionReading(item.previousReading),
+    render: (item: ClockCorrection) =>
+      item.previousReadingSource === "tax_authority_day" ? (
+        <TableCellText description="Último día autorizado por ARCA">
+          {clockCorrectionDay(item.previousReading)}
+        </TableCellText>
+      ) : (
+        clockCorrectionReading(item.previousReading)
+      ),
   }),
   dataColumn({
     id: "correctedReading",

@@ -34,6 +34,10 @@ describe("the Spanish names of synced events", () => {
     expect(syncedEventTypeName("clock_corrected")).toBe("corrección de reloj");
   });
 
+  test("names the recording of a deferred sale", () => {
+    expect(syncedEventTypeName("deferred_sale_recorded")).toBe("venta diferida registrada");
+  });
+
   test("has no name for an unknown event type", () => {
     expect(syncedEventTypeName("something_new")).toBeUndefined();
   });

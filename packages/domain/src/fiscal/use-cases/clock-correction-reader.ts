@@ -1,4 +1,7 @@
-import type { ClockCorrectionAlertState } from "../model/clock-correction.js";
+import type {
+  ClockCorrectionAlertState,
+  ClockPreviousReadingSource,
+} from "../model/clock-correction.js";
 import type { FiscalDocumentType } from "../model/fiscal-rejection-standing.js";
 
 export interface BranchClockCorrection {
@@ -11,6 +14,7 @@ export interface BranchClockCorrection {
   actorId: string;
   actorFirstName: string;
   previousReading: Date;
+  previousReadingSource: ClockPreviousReadingSource;
   correctedReading: Date;
   alertState: ClockCorrectionAlertState;
 }

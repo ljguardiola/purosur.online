@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import type { ClockPreviousReadingSource } from "@purosur/domain/fiscal/use-cases";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { alerts, clockCorrections, locations, registers, users } from "../../platform/db/schema.js";
 
@@ -15,6 +16,7 @@ export async function insertClockCorrection<TQueryResult extends PgQueryResultHK
     correctedAt,
     pointOfSale = 7,
     previousReading = new Date("2026-10-20T12:00:00.000Z"),
+    previousReadingSource = "clock_mark",
     alertClosed = false,
   }: {
     registerId: string;
@@ -22,6 +24,7 @@ export async function insertClockCorrection<TQueryResult extends PgQueryResultHK
     correctedAt: Date;
     pointOfSale?: number;
     previousReading?: Date;
+    previousReadingSource?: ClockPreviousReadingSource;
     alertClosed?: boolean;
   },
 ): Promise<InsertedClockCorrection> {
@@ -37,6 +40,7 @@ export async function insertClockCorrection<TQueryResult extends PgQueryResultHK
         pointOfSale,
         documentType: "factura_c",
         previousReading: previousReading.toISOString(),
+        previousReadingSource,
         correctedReading: correctedAt.toISOString(),
         actorId,
       },
@@ -54,6 +58,7 @@ export async function insertClockCorrection<TQueryResult extends PgQueryResultHK
     pointOfSale,
     documentType: "factura_c",
     previousReading,
+    previousReadingSource,
     correctedReading: correctedAt,
     actorId,
     correctedAt,

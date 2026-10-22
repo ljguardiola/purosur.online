@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { comprobantePresentation, receiptCopyPresentation } from "./sale-receipt-text";
+import {
+  comprobantePresentation,
+  creditNoteComprobantePresentation,
+  receiptCopyPresentation,
+} from "./sale-receipt-text";
 
 describe("comprobantePresentation", () => {
   it("names a fiscal invoice with its point of sale and number padded to the digits the tax authority prints", () => {
@@ -35,6 +39,21 @@ describe("comprobantePresentation", () => {
 
   it("has nothing to name when the sale has no comprobante", () => {
     expect(comprobantePresentation({ kind: "none" })).toBeUndefined();
+  });
+});
+
+describe("creditNoteComprobantePresentation", () => {
+  it("names an authorized credit note with its point of sale and number padded to the digits the tax authority prints", () => {
+    expect(
+      creditNoteComprobantePresentation({
+        kind: "authorized",
+        point_of_sale: 4,
+        number: 12,
+        issued_on: "2026-10-09",
+        authorization_code: "75123456789012",
+        authorization_code_due_on: "2026-10-19",
+      }),
+    ).toEqual({ name: "Nota de crédito C", detail: "PV 00004 · Nº 00000012" });
   });
 });
 

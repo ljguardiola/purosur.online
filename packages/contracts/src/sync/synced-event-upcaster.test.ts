@@ -1261,12 +1261,46 @@ describe("decoding the events the registers pushed", () => {
         kind: "sale_print_state_changed",
         printState: {
           saleId: SALE,
+          document: "sale_receipt",
           printAttemptedAt: new Date("2026-10-06T11:21:00.000Z"),
           printedAt: new Date("2026-10-06T11:21:05.000Z"),
         },
       },
     });
   });
+
+  it.each(["sale_receipt", "credit_note"] as const)(
+    "reads the print state of a sale's %s as the document the event names",
+    (document) => {
+      const decoded = upcaster.decode(
+        unappliedEventOf(
+          pushed({
+            event_type: "sale_print_state_changed",
+            schema_version: 2,
+            payload: {
+              sale_id: SALE,
+              document,
+              print_attempted_at: "2026-10-06T11:21:00.000Z",
+              printed_at: null,
+            },
+          }),
+        ),
+      );
+
+      expect(decoded).toEqual({
+        kind: "fact",
+        fact: {
+          kind: "sale_print_state_changed",
+          printState: {
+            saleId: SALE,
+            document,
+            printAttemptedAt: new Date("2026-10-06T11:21:00.000Z"),
+            printedAt: null,
+          },
+        },
+      });
+    },
+  );
 
   it("reads a receipt that was attempted and not printed as having no printing time", () => {
     const decoded = upcaster.decode(
@@ -1311,6 +1345,7 @@ describe("decoding the events the registers pushed", () => {
         kind: "reprint_recorded",
         reprint: {
           saleId: SALE,
+          document: "sale_receipt",
           orderNumber: 1,
           requestedBy: USER,
           authorizedBy: null,
@@ -1320,6 +1355,46 @@ describe("decoding the events the registers pushed", () => {
       },
     });
   });
+
+  it.each(["sale_receipt", "credit_note"] as const)(
+    "reads a copy of a sale's %s with the document the event names",
+    (document) => {
+      const decoded = upcaster.decode(
+        unappliedEventOf(
+          pushed({
+            event_type: "reprint_recorded",
+            schema_version: 2,
+            occurred_at: "2026-10-06T11:32:00.000Z",
+            payload: {
+              sale_id: SALE,
+              document,
+              order_number: 3,
+              requested_by: USER,
+              authorized_by: "4a7c1e9d-3b62-4f05-8d1a-6e2b9c5f3a13",
+              reason_kind: "requested",
+              reason_text: "El cliente la perdio",
+            },
+          }),
+        ),
+      );
+
+      expect(decoded).toEqual({
+        kind: "fact",
+        fact: {
+          kind: "reprint_recorded",
+          reprint: {
+            saleId: SALE,
+            document,
+            orderNumber: 3,
+            requestedBy: USER,
+            authorizedBy: "4a7c1e9d-3b62-4f05-8d1a-6e2b9c5f3a13",
+            reason: { kind: "requested", text: "El cliente la perdio" },
+            occurredAt: new Date("2026-10-06T11:32:00.000Z"),
+          },
+        },
+      });
+    },
+  );
 
   it("reads a copy somebody asked for with its reason and the person who authorized it", () => {
     const decoded = upcaster.decode(
@@ -1684,6 +1759,43 @@ describe("decoding the events the registers pushed", () => {
     });
   });
 
+  it("reads a deferred sale record with its short code", () => {
+    const decoded = upcaster.decode(
+      unappliedEventOf(
+        pushed({
+          event_type: "deferred_sale_recorded",
+          schema_version: 1,
+          payload: {
+            id: "01a1122a-0305-7189-87d0-8256a353fd43",
+            sale_id: SALE,
+            register_id: saleFields.register_id,
+            occurred_at: "2026-10-06T11:19:58.000Z",
+            total: 12_500,
+            reason: "unclear_outcome",
+            short_code: "7KQ4M2P9",
+            routed_at: "2026-10-06T11:20:00.000Z",
+          },
+        }),
+      ),
+    );
+
+    expect(decoded).toEqual({
+      kind: "fact",
+      fact: {
+        kind: "deferred_sale_recorded",
+        deferredSale: {
+          id: "01a1122a-0305-7189-87d0-8256a353fd43",
+          saleId: SALE,
+          occurredAt: new Date("2026-10-06T11:19:58.000Z"),
+          total: 12_500,
+          reason: "unclear_outcome",
+          shortCode: "7KQ4M2P9",
+          routedAt: new Date("2026-10-06T11:20:00.000Z"),
+        },
+      },
+    });
+  });
+
   it("reads the document issued under a pre-obtained code", () => {
     const decoded = upcaster.decode(
       unappliedEventOf(
@@ -1880,12 +1992,41 @@ describe("decoding the events the registers pushed", () => {
           pointOfSale: 12,
           documentType: "factura_c",
           previousReading: new Date("2026-10-08T11:20:00.000Z"),
+          previousReadingSource: "clock_mark",
           correctedReading: new Date("2026-10-06T11:20:00.000Z"),
           actorId: USER,
         },
       },
     });
   });
+
+  it.each(["clock_mark", "tax_authority_day"] as const)(
+    "reads a correction whose previous reading came from %s",
+    (source) => {
+      const decoded = upcaster.decode(
+        unappliedEventOf(
+          pushed({
+            aggregate_type: "CashRegister",
+            aggregate_id: "01a1122a-0305-7189-87d0-8256a353fd42",
+            event_type: "clock_corrected",
+            schema_version: 2,
+            payload: {
+              point_of_sale: 12,
+              document_type: "factura_c",
+              previous_reading: "2026-10-08T03:00:00.000Z",
+              previous_reading_source: source,
+              corrected_reading: "2026-10-06T11:20:00.000Z",
+            },
+          }),
+        ),
+      );
+
+      expect(decoded).toMatchObject({
+        kind: "fact",
+        fact: { kind: "clock_corrected", correction: { previousReadingSource: source } },
+      });
+    },
+  );
 
   it("reads the replacement of a pending QR payment", () => {
     const decoded = upcaster.decode(

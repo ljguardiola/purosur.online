@@ -1,6 +1,8 @@
 import {
   ALERT_AUDIENCES,
   ALERT_LEVELS,
+  CLOCK_PREVIOUS_READING_SOURCES,
+  type ClockPreviousReadingSource,
   COMPROMISE_RESPONSE_ACTION_STEPS,
   COMPROMISE_RESPONSE_ITEMS,
   CREDIT_NOTE_C_DOCUMENT_TYPE,
@@ -1454,6 +1456,10 @@ export const sales = pgTable(
     operationNumber: bigint("operation_number", { mode: "number" }),
     printAttemptedAt: timestamp("print_attempted_at", { withTimezone: true }),
     printedAt: timestamp("printed_at", { withTimezone: true }),
+    creditNotePrintAttemptedAt: timestamp("credit_note_print_attempted_at", {
+      withTimezone: true,
+    }),
+    creditNotePrintedAt: timestamp("credit_note_printed_at", { withTimezone: true }),
     appliedAt: timestamp("applied_at", { withTimezone: true }).notNull(),
   },
   (table) => [
@@ -1461,6 +1467,10 @@ export const sales = pgTable(
     check(
       "sales_printed_only_after_attempted_check",
       sql`${table.printedAt} is null or ${table.printAttemptedAt} is not null`,
+    ),
+    check(
+      "sales_credit_note_printed_only_after_attempted_check",
+      sql`${table.creditNotePrintedAt} is null or ${table.creditNotePrintAttemptedAt} is not null`,
     ),
     check("sales_state_check", sql`${table.state} in ('COMPLETED', 'CANCELLED', 'VOIDED')`),
     check(
@@ -1513,6 +1523,7 @@ export const saleReprints = pgTable(
     saleId: uuid("sale_id")
       .notNull()
       .references(() => sales.id),
+    document: text("document").notNull().default("sale_receipt"),
     orderNumber: integer("order_number").notNull(),
     requestedBy: text("requested_by").notNull(),
     authorizedBy: text("authorized_by"),
@@ -1521,7 +1532,11 @@ export const saleReprints = pgTable(
     occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull(),
   },
   (table) => [
-    primaryKey({ columns: [table.saleId, table.orderNumber] }),
+    primaryKey({ columns: [table.saleId, table.document, table.orderNumber] }),
+    check(
+      "sale_reprints_document_check",
+      sql`${table.document} in ('sale_receipt', 'credit_note')`,
+    ),
     check("sale_reprints_order_number_positive_check", sql`${table.orderNumber} > 0`),
     check("sale_reprints_reason_kind_check", sql`${table.reasonKind} in ('retry', 'requested')`),
     check(
@@ -2366,6 +2381,10 @@ export const clockCorrections = pgTable(
     pointOfSale: integer("point_of_sale").notNull(),
     documentType: text("document_type").$type<FiscalDocumentType>().notNull(),
     previousReading: timestamp("previous_reading", { withTimezone: true }).notNull(),
+    previousReadingSource: text("previous_reading_source")
+      .$type<ClockPreviousReadingSource>()
+      .notNull()
+      .default("clock_mark"),
     correctedReading: timestamp("corrected_reading", { withTimezone: true }).notNull(),
     actorId: uuid("actor_id")
       .notNull()
@@ -2381,6 +2400,10 @@ export const clockCorrections = pgTable(
     check(
       "clock_corrections_document_type_known",
       sql`${table.documentType} in (${sql.raw(`'${FACTURA_C_DOCUMENT_TYPE}'`)})`,
+    ),
+    check(
+      "clock_corrections_previous_reading_source_known",
+      sql`${table.previousReadingSource} in (${sql.raw(CLOCK_PREVIOUS_READING_SOURCES.map((source) => `'${source}'`).join(", "))})`,
     ),
     check(
       "clock_corrections_lowers_the_reading",
