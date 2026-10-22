@@ -97,9 +97,10 @@ describe("restorationStanding", () => {
   });
 
   it("is in progress at the orphan authorizations regularization while only it is pending", () => {
-    expect(
-      restorationStanding(evidence({ regularize_orphan_authorizations: "pending" })),
-    ).toEqual({ kind: "in_progress", step: "regularize_orphan_authorizations" });
+    expect(restorationStanding(evidence({ regularize_orphan_authorizations: "pending" }))).toEqual({
+      kind: "in_progress",
+      step: "regularize_orphan_authorizations",
+    });
   });
 
   it("names the earliest pending step when a later one is pending too", () => {
@@ -112,26 +113,34 @@ describe("restorationStanding", () => {
   it("names the first pending delivered step for every combination of evidence", () => {
     const step = fc.constantFrom("completed" as const, "pending" as const);
     fc.assert(
-      fc.property(step, step, step, step, step, step, (enroll, restore, reset, replenish, counters, orphans) => {
-        const combination: RestorationEvidence = {
-          enroll,
-          restore,
-          reset_sync_identity: reset,
-          replenish,
-          reconcile_fiscal_counters: counters,
-          regularize_orphan_authorizations: orphans,
-          cloud: "unknown",
-        };
-        const [firstPending] = RESTORATION_STEPS.filter(
-          (name) => (combination as Readonly<Record<string, string>>)[name] === "pending",
-        );
+      fc.property(
+        step,
+        step,
+        step,
+        step,
+        step,
+        step,
+        (enroll, restore, reset, replenish, counters, orphans) => {
+          const combination: RestorationEvidence = {
+            enroll,
+            restore,
+            reset_sync_identity: reset,
+            replenish,
+            reconcile_fiscal_counters: counters,
+            regularize_orphan_authorizations: orphans,
+            cloud: "unknown",
+          };
+          const [firstPending] = RESTORATION_STEPS.filter(
+            (name) => (combination as Readonly<Record<string, string>>)[name] === "pending",
+          );
 
-        expect(restorationStanding(combination)).toEqual(
-          firstPending === undefined
-            ? { kind: "completed" }
-            : { kind: "in_progress", step: firstPending },
-        );
-      }),
+          expect(restorationStanding(combination)).toEqual(
+            firstPending === undefined
+              ? { kind: "completed" }
+              : { kind: "in_progress", step: firstPending },
+          );
+        },
+      ),
     );
   });
 });
