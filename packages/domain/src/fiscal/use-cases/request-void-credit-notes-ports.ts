@@ -1,6 +1,10 @@
 import type { Clock } from "../../shared/index.js";
 import type { PushedEvent } from "../../sync/index.js";
-import type { SaleVoidCreditNote, VoidCreditNoteStanding } from "../model/sale-void-credit-note.js";
+import type {
+  RequestedCreditNoteAnswer,
+  SaleVoidCreditNote,
+  VoidCreditNoteStanding,
+} from "../model/sale-void-credit-note.js";
 
 export interface PendingCreditNote extends SaleVoidCreditNote {
   saleEvent: PushedEvent;
@@ -16,7 +20,7 @@ export interface RegisterVoidCreditNotes {
    */
   recordAnswer(
     creditNoteId: string,
-    answer: Exclude<VoidCreditNoteStanding, { kind: "in_progress" }>,
+    answer: RequestedCreditNoteAnswer,
     answeredAt: Date,
   ): Promise<void>;
 }
@@ -27,13 +31,15 @@ export interface CloudCreditNoteCall {
   saleEvent: PushedEvent;
 }
 
+export type CloudCreditNoteAnswer = Exclude<VoidCreditNoteStanding, { kind: "issued_offline" }>;
+
 export interface CloudCreditNotes {
   /**
    * Resolves to already_credited when the cloud refuses because a credit note already corrects the
    * invoice. Resolves to null when the cloud gave no answer. Asking again about the same credit note never
    * issues another one.
    */
-  request(call: CloudCreditNoteCall): Promise<VoidCreditNoteStanding | null>;
+  request(call: CloudCreditNoteCall): Promise<CloudCreditNoteAnswer | null>;
 }
 
 export interface RequestVoidCreditNotesPorts {

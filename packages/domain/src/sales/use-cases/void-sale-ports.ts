@@ -1,5 +1,9 @@
 import type {
   FiscalOnlineSignalEvidence,
+  FiscalTaskDocumentType,
+  Fortnight,
+  OfflineCreditNote,
+  OfflineSeries,
   SaleInvoice,
   SaleVoidCreditNote,
 } from "../../fiscal/index.js";
@@ -19,6 +23,12 @@ export interface SaleToVoid {
   stockMovements: SaleStockMovement[];
 }
 
+export interface OfflineCreditNoteClockMark {
+  pointOfSale: number;
+  documentType: FiscalTaskDocumentType;
+  reading: Date;
+}
+
 export interface SaleVoidLedger {
   transaction<TOutcome>(work: (tx: SaleVoidTransaction) => TOutcome): TOutcome;
 }
@@ -35,5 +45,9 @@ export interface SaleVoidTransaction {
   addToStockBalance(productId: string, delta: number): void;
   cancelDeferredSale(saleId: string, cancelledAt: Date): void;
   recordPendingCreditNote(creditNote: SaleVoidCreditNote): void;
+  offlineCreditNoteSeries(): OfflineSeries;
+  offlineAuthorizationCodeOf(fortnight: Fortnight): string | null;
+  issueOfflineCreditNote(document: OfflineCreditNote): void;
+  recordClockMark(mark: OfflineCreditNoteClockMark): void;
   appendOutboxEvent(draft: OutboxEventDraft): void;
 }

@@ -1,6 +1,5 @@
 import {
   invoiceToCorrect,
-  isRegisterFiscallyOnline,
   type VoidCreditNoteStanding,
   type VoucherReference,
 } from "../../fiscal/index.js";
@@ -72,7 +71,7 @@ export type ReadSaleHistoryDetailOutcome =
   | { kind: "found"; detail: SaleHistoryDetail };
 
 export function readSaleHistoryDetail(
-  { history, ledger, clock }: ReadSaleHistoryDetailPorts,
+  { history, ledger }: ReadSaleHistoryDetailPorts,
   { saleId }: ReadSaleHistoryDetailInput,
 ): ReadSaleHistoryDetailOutcome {
   const record = history.saleOfRegister(saleId);
@@ -85,14 +84,13 @@ export function readSaleHistoryDetail(
     record.creditNote?.kind === "authorized"
       ? receiptDeliveryOf({ ledger }, { document: "credit_note", saleId })
       : undefined;
-  const fiscallyOnline = isRegisterFiscallyOnline(history.fiscalOnlineEvidence(), clock.now());
   return {
     kind: "found",
     detail: {
       ...shown,
       comprobante: saleComprobanteOf(fiscal),
       standing: saleStandingOf({ ...fiscal, voided }),
-      voidability: saleVoidabilityOf(record, fiscallyOnline),
+      voidability: saleVoidabilityOf(record),
       reprint: receiptPrintAvailability("sale_receipt", { voided }),
       nextCopy: delivery.nextCopy,
       creditNoteNextCopy: creditNoteDelivery?.kind === "found" ? creditNoteDelivery.nextCopy : null,
@@ -100,15 +98,16 @@ export function readSaleHistoryDetail(
   };
 }
 
-function saleVoidabilityOf(
-  { voided, inOpenSession, invoices, payments }: SaleHistoryRecord,
-  fiscallyOnline: boolean,
-): SaleVoidability {
+function saleVoidabilityOf({
+  voided,
+  inOpenSession,
+  invoices,
+  payments,
+}: SaleHistoryRecord): SaleVoidability {
   const refusal = saleVoidRefusal({
     state: voided ? "VOIDED" : "COMPLETED",
     inOpenSession,
     fiscalDocumentStates: invoices.map(({ state }) => state),
-    fiscallyOnline,
   });
   if (refusal !== null) {
     return { kind: "not_voidable", refusal };

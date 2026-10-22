@@ -215,6 +215,7 @@ export {
   DEFERRAL_REASONS,
   IN_PROGRESS_FISCAL_DOCUMENT_STATES,
   invoiceDateOf,
+  invoiceOwnFortnight,
   isFiscalOutcomeUnresolved,
   NUMBER_CONSUMING_STATES,
   OFFLINE_AUTHORIZATION_CAUSES,
@@ -240,6 +241,8 @@ export {
 } from "./model/rejected-document-remedy.js";
 export type {
   CreditNoteAnswer,
+  CreditNoteIssuedOffline,
+  RequestedCreditNoteAnswer,
   RestoredCreditNoteAnswer,
   SaleInvoice,
   SaleVoidCreditNote,

@@ -1,5 +1,6 @@
 import type { JsonValue } from "../../shared/index.js";
 import { FACTURA_C_VOUCHER_TYPE } from "./factura-c-fiscal-block.js";
+import type { Fortnight } from "./offline-authorization-code.js";
 import type { VoucherReference } from "./orphan-authorization.js";
 import type { FiscalDocumentState } from "./real-time-authorization.js";
 
@@ -37,7 +38,25 @@ export type CreditNoteAnswer =
   | { kind: "rejected" }
   | { kind: "in_progress" };
 
-export type VoidCreditNoteStanding = CreditNoteAnswer | { kind: "already_credited" };
+export interface CreditNoteIssuedOffline {
+  kind: "issued_offline";
+  pointOfSale: number;
+  number: number;
+  issuedOn: string;
+  issuedAt: Date;
+  offlineAuthorizationCode: string;
+  fortnight: Fortnight;
+}
+
+export type VoidCreditNoteStanding =
+  | CreditNoteAnswer
+  | { kind: "already_credited" }
+  | CreditNoteIssuedOffline;
+
+export type RequestedCreditNoteAnswer = Exclude<
+  VoidCreditNoteStanding,
+  { kind: "in_progress" | "issued_offline" }
+>;
 
 type ConfirmedCreditNoteAnswer = Exclude<CreditNoteAnswer, { kind: "in_progress" }>;
 
