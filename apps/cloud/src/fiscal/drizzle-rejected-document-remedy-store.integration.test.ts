@@ -1,4 +1,4 @@
-import { drizzle } from "drizzle-orm/postgres-js";
+import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
@@ -38,7 +38,7 @@ function gate() {
 }
 
 async function onOwnConnection<TOutcome>(
-  use: (connection: ReturnType<typeof drizzle>) => Promise<TOutcome>,
+  use: (connection: PostgresJsDatabase) => Promise<TOutcome>,
 ): Promise<TOutcome> {
   const connection = postgres(integrationDb.databaseUrl, { max: 1 });
   try {

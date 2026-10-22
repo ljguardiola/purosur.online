@@ -19,6 +19,9 @@ const token = {
 
 function document(number: number, total = 12_345): OfflineDocumentOfFortnight {
   return {
+    id: `document-${number}`,
+    saleId: `sale-${number}`,
+    registerId: "register-1",
     documentType: "factura_c",
     number,
     issuedOn: "2026-10-08",
@@ -28,6 +31,7 @@ function document(number: number, total = 12_345): OfflineDocumentOfFortnight {
     buyerTaxStatusCode: 5,
     total,
     netAmount: total,
+    correction: null,
   };
 }
 

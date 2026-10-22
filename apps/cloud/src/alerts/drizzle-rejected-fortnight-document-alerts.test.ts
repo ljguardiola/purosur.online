@@ -15,7 +15,7 @@ const DETAIL = {
   fortnightEnd: "2026-10-15",
   documentType: "factura_c",
   rejectedNumber: 4,
-};
+} as const;
 
 let testDatabase: TestDatabase;
 let db: TestDatabase["db"];
