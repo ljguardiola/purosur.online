@@ -1,8 +1,8 @@
 import { fileURLToPath } from "node:url";
 import optimizeLocales from "@react-aria/optimize-locales-plugin";
+import babel from "@rolldown/plugin-babel";
 import tailwindcss from "@tailwindcss/vite";
-import react from "@vitejs/plugin-react";
-import reactCompiler from "babel-plugin-react-compiler";
+import react, { reactCompilerPreset } from "@vitejs/plugin-react";
 import { defineConfig } from "electron-vite";
 import { defaultClientConditions, defaultServerConditions, type Plugin } from "vite";
 import { withoutPackageOutput } from "../../.github/scripts/without-package-output.mjs";
@@ -40,7 +40,7 @@ export default defineConfig({
       // workspace packages as bare imports at runtime; only `electron`, Node built-ins and
       // better-sqlite3 and serialport, whose native bindings can't be bundled, stay external.
       externalizeDeps: false,
-      rollupOptions: {
+      rolldownOptions: {
         external: ["better-sqlite3", "serialport"],
         input: {
           index: r("src/main/index.ts"),
@@ -54,7 +54,7 @@ export default defineConfig({
   preload: {
     plugins: [withoutPackageOutput(repoRoot)],
     build: {
-      rollupOptions: {
+      rolldownOptions: {
         // A sandboxed preload can't be an ES module, and a .js file inside a "type": "module"
         // package would be read as one.
         output: { format: "cjs", entryFileNames: "[name].cjs" },
@@ -67,12 +67,13 @@ export default defineConfig({
     plugins: [
       withoutPackageOutput(repoRoot),
       optimizeLocales.vite({ locales: ["es"] }),
-      react({ babel: { plugins: [reactCompiler] } }),
+      react(),
+      babel({ presets: [reactCompilerPreset()] }),
       tailwindcss(),
       contentSecurityPolicyMeta(),
     ],
     build: {
-      rollupOptions: {
+      rolldownOptions: {
         input: {
           index: r("src/renderer/index.html"),
         },
