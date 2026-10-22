@@ -1,5 +1,5 @@
+import { FICTIONAL_ISSUER } from "@purosur/domain/fiscal/test-support";
 import { describe, expect, it } from "vitest";
-import { FICTIONAL_ISSUER } from "../../fiscal/test-support/fictional-issuer.js";
 import { printOriginalReceipt } from "./print-original-receipt.js";
 import { textOf } from "./test-support/fake-receipt-template.js";
 import {

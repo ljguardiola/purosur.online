@@ -1,6 +1,6 @@
+import { FICTIONAL_ISSUER } from "@purosur/domain/fiscal/test-support";
 import { describe, expect, it } from "vitest";
 import type { FiscalOnlineSignalEvidence } from "../../fiscal/index.js";
-import { FICTIONAL_ISSUER } from "../../fiscal/test-support/fictional-issuer.js";
 import { readSaleHistoryDetail } from "./read-sale-history-detail.js";
 import { FakeReceiptLedger } from "./test-support/fake-receipt-ledger.js";
 import {

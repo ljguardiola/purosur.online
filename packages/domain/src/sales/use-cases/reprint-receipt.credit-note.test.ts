@@ -1,5 +1,5 @@
+import { FICTIONAL_ISSUER } from "@purosur/domain/fiscal/test-support";
 import { describe, expect, it } from "vitest";
-import { FICTIONAL_ISSUER } from "../../fiscal/test-support/fictional-issuer.js";
 import { RECEIPT_REPRINT_REASON_MAX_LENGTH } from "../model/receipt-reprint-reason.js";
 import type { ReceiptPrintGrant } from "./receipt-printing.js";
 import { reprintReceipt } from "./reprint-receipt.js";
