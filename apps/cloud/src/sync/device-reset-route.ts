@@ -3,6 +3,7 @@ import {
   cloudErrorStatus,
   registerResetRequestSchema,
   registerResetResponseSchema,
+  saleVoidedEventCreditNoteSchema,
 } from "@purosur/contracts";
 import { serveRestoredRegisterCreditNoteAnswers } from "@purosur/domain/fiscal/use-cases";
 import { admitRestoredRegisterReplenishment } from "@purosur/domain/register/use-cases";
@@ -104,9 +105,13 @@ export function registerDeviceResetRoute<TQueryResult extends PgQueryResultHKT>(
             after: { deviceId: body.after.device_id, deviceSeq: body.after.device_seq },
           }),
         });
+        const voidedCreditNoteIds = page.events.flatMap(({ event }) => {
+          const voided = saleVoidedEventCreditNoteSchema.safeParse(event);
+          return voided.success ? [voided.data.payload.credit_note.id] : [];
+        });
         const creditNoteAnswers = await serveRestoredRegisterCreditNoteAnswers(
           { creditNotes },
-          { registerId, saleIds: page.voidedSaleIds },
+          { registerId, creditNoteIds: voidedCreditNoteIds },
         );
         const users = await branchUsers.branchUsers(registerId);
 
@@ -129,13 +134,14 @@ export function registerDeviceResetRoute<TQueryResult extends PgQueryResultHKT>(
               active: user.active,
               version: user.version,
             })),
-            credit_notes: creditNoteAnswers.map(({ creditNoteId, answeredAt, answer }) => {
+            credit_notes: creditNoteAnswers.answers.map(({ creditNoteId, answeredAt, answer }) => {
               const common = {
                 credit_note_id: creditNoteId,
                 answered_at: answeredAt.toISOString(),
               };
-              return answer.kind === "authorized"
-                ? {
+              switch (answer.kind) {
+                case "authorized":
+                  return {
                     ...common,
                     state: "AUTHORIZED" as const,
                     point_of_sale: answer.pointOfSale,
@@ -144,9 +150,14 @@ export function registerDeviceResetRoute<TQueryResult extends PgQueryResultHKT>(
                     issued_at: answer.issuedAt.toISOString(),
                     authorization_code: answer.authorizationCode,
                     authorization_code_due_on: answer.authorizationCodeDueOn,
-                  }
-                : { ...common, state: "REJECTED" as const };
+                  };
+                case "rejected":
+                  return { ...common, state: "REJECTED" as const };
+                case "already_credited":
+                  return { ...common, state: "ALREADY_CREDITED" as const };
+              }
             }),
+            unrequested_credit_note_ids: creditNoteAnswers.unrequestedCreditNoteIds,
           }),
         );
       },
