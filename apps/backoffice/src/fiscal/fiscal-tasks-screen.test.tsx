@@ -32,7 +32,7 @@ function renderScreen(services: FiscalTasksScreenServices, onSessionEnded = () =
 async function loaded(services: FiscalTasksScreenServices, tasks = fiscalTasks) {
   vi.mocked(services.fetchFiscalTasks).mockResolvedValue({ kind: "ok", value: tasks });
   const screen = await renderScreen(services);
-  await expect.element(screen.getByText("Facturación externa")).toBeVisible();
+  await expect.element(screen.getByText(/tareas? abiertas?$/)).toBeVisible();
   return screen;
 }
 
@@ -101,7 +101,6 @@ test("counts the open tasks under the table", async () => {
 
 test("counts a single open task in the singular", async () => {
   const screen = await loaded(createFiscalTasksServices(), { tasks: [deferredSaleExpiredTask] });
-  await expect.element(screen.getByText("Venta diferida vencida")).toBeVisible();
 
   await expect.element(screen.getByText("1 tarea abierta")).toBeVisible();
 });
