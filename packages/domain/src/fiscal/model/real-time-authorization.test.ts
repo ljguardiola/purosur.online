@@ -1102,7 +1102,10 @@ describe("decideSaleAuthorizationRoute while a deferred-sale backlog is pending"
     expect(
       decide({
         series: BACKLOG_SERIES,
-        offlineSeries: { ...OFFLINE_SERIES, clockMark: new Date(OCCURRED_AT.getTime() + 3_600_000) },
+        offlineSeries: {
+          ...OFFLINE_SERIES,
+          clockMark: new Date(OCCURRED_AT.getTime() + 3_600_000),
+        },
       }),
     ).toEqual({ kind: "defer", reason: "clock_behind" });
   });
