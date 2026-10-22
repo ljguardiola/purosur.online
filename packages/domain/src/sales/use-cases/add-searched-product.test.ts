@@ -91,7 +91,12 @@ function ledger(state: Partial<FakeSaleLedgerState> = {}): FakeSaleLedger {
 
 function add(store: FakeSaleLedger, productId = "yerba", actorId = "cashier") {
   return addSearchedProduct(
-    { ledger: store, clock: new FixedClock(NOW), ids: new SequentialIds() },
+    {
+      ledger: store,
+      restoration: store.restoration,
+      clock: new FixedClock(NOW),
+      ids: new SequentialIds(),
+    },
     { actorId, productId },
   );
 }

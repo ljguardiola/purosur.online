@@ -23,19 +23,13 @@ export function paidOrderSale({
   now,
   ids,
 }: PaidOrderSaleDeps): PaidOrderSale {
-  const ledger = new SqliteSaleLedger(
-    database,
-    new SqliteSignInStore(database),
-    outboxChainKey,
-    undefined,
-    undefined,
-    undefined,
-    undefined,
-    restoration,
-  );
+  const ledger = new SqliteSaleLedger(database, new SqliteSignInStore(database), outboxChainKey);
   return {
     settleApprovedPayment: (payment) => {
-      const settled = settleApprovedMercadoPagoPayment({ ledger, clock: { now }, ids }, payment);
+      const settled = settleApprovedMercadoPagoPayment(
+        { ledger, restoration, clock: { now }, ids },
+        payment,
+      );
       switch (settled.kind) {
         case "completed":
           return { kind: "completed", saleId: settled.saleId };

@@ -23,7 +23,6 @@ import {
   type SettleApprovedMercadoPagoPaymentOutcome,
   settleApprovedMercadoPagoPayment,
 } from "@purosur/domain/sales/use-cases";
-
 import type { LocalDatabase } from "../platform/local-database";
 import { SqliteSaleLedger } from "../sales/sqlite-sale-ledger";
 import type { ActionGate } from "../sessions/action-gate";
@@ -52,27 +51,18 @@ function mercadoPagoChargeSale(
   MercadoPagoChargeSettlement,
   PendingQrPaymentReplacementRefusal
 > {
-  const ledger = new SqliteSaleLedger(
-    database,
-    new SqliteSignInStore(database),
-    outboxChainKey,
-    undefined,
-    undefined,
-    undefined,
-    undefined,
-    restoration,
-  );
+  const ledger = new SqliteSaleLedger(database, new SqliteSignInStore(database), outboxChainKey);
   return {
     recordPendingPayment: (payment) => {
-      const outcome = recordPendingMercadoPagoPayment({ ledger, ids }, payment);
+      const outcome = recordPendingMercadoPagoPayment({ ledger, restoration, ids }, payment);
       return outcome.kind === "recorded" ? outcome : { kind: "refused", refusal: outcome };
     },
     settleApprovedPayment: (payment) =>
       outboxChainKey === undefined
         ? { kind: "unavailable" }
-        : settleApprovedMercadoPagoPayment({ ledger, clock: { now }, ids }, payment),
+        : settleApprovedMercadoPagoPayment({ ledger, restoration, clock: { now }, ids }, payment),
     replacePendingPayment: (payment) => {
-      const outcome = replacePendingQrPayment({ ledger, ids }, payment);
+      const outcome = replacePendingQrPayment({ ledger, restoration, ids }, payment);
       return outcome.kind === "replaced" ? outcome : { kind: "refused", refusal: outcome };
     },
   };

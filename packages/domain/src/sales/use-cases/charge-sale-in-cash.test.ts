@@ -151,7 +151,7 @@ function charge(
   ids = new SequentialIds(),
 ) {
   return chargeSaleInCash(
-    { ledger: store, clock: new FixedClock(NOW), ids },
+    { ledger: store, restoration: store.restoration, clock: new FixedClock(NOW), ids },
     { actorId, saleId, tendered },
   );
 }

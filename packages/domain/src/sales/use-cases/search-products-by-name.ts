@@ -4,6 +4,7 @@ import {
   rankProductSearch,
   type SaleUnit,
 } from "../../catalog/index.js";
+import type { RegisterRestoration } from "./register-restoration.js";
 import type { SaleLedger } from "./sale-ledger.js";
 import { isRefusal, type SellingSessionRefusal, sellingSession } from "./selling-session.js";
 
@@ -14,6 +15,7 @@ export interface SearchProductsByNameInput {
 
 export interface SearchProductsByNamePorts {
   ledger: SaleLedger;
+  restoration: RegisterRestoration;
 }
 
 export interface FoundProduct {
@@ -29,11 +31,11 @@ export type SearchProductsByNameOutcome =
   | { kind: "results"; products: FoundProduct[]; more: boolean };
 
 export function searchProductsByName(
-  { ledger }: SearchProductsByNamePorts,
+  { ledger, restoration }: SearchProductsByNamePorts,
   { actorId, query }: SearchProductsByNameInput,
 ): SearchProductsByNameOutcome {
   return ledger.transaction<SearchProductsByNameOutcome>((tx) => {
-    const session = sellingSession(tx, actorId);
+    const session = sellingSession(tx, actorId, restoration);
     if (isRefusal(session)) {
       return session;
     }

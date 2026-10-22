@@ -74,6 +74,7 @@ function weigh(
   return weighProductOnScale(
     {
       ledger: store,
+      restoration: store.restoration,
       clock: new FixedClock(NOW),
       ids: new SequentialIds(),
       scale: new FakeScale(reading),
@@ -136,8 +137,15 @@ describe("weighProductOnScale", () => {
   it("asks the scale once per call", async () => {
     const scale = new FakeScale(STABLE_1250);
 
+    const store = ledger();
     await weighProductOnScale(
-      { ledger: ledger(), clock: new FixedClock(NOW), ids: new SequentialIds(), scale },
+      {
+        ledger: store,
+        restoration: store.restoration,
+        clock: new FixedClock(NOW),
+        ids: new SequentialIds(),
+        scale,
+      },
       { actorId: "cashier", productId: "queso" },
     );
 

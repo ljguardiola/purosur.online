@@ -78,7 +78,7 @@ export function useRegisterServiceQuery({
   return useCoreQuery({ queryKey: registerKeys.service, read, enabled });
 }
 
-export function restorationStandingQueryOptions(
+function restorationStandingQueryOptions(
   read: () => Promise<RestorationStandingAnswer | "unavailable">,
 ) {
   return queryOptions({

@@ -111,6 +111,7 @@ import {
   useRegisterStatusQuery,
 } from "../register/register-queries";
 import { RestoreRequiredScreen } from "../register/restore-required-screen";
+import type { RestoringStep } from "../register/restoring-screen";
 import { RestoringScreen } from "../register/restoring-screen";
 import { mayConfigureSerialDevices } from "../register/serial-devices-offer";
 import { SerialDevicesScreen } from "../register/serial-devices-screen";
@@ -385,6 +386,20 @@ function requireOpenSession(context: RouterContext) {
     throw redirect({ to: routeFor(context) });
   }
   return { ...context.cashSession, person: context.person };
+}
+
+function requireRestoringStep(context: RouterContext): { restoringStep: RestoringStep } {
+  const route = routeFor(context);
+  const { restoration } = context;
+  if (
+    route !== "/restoring" ||
+    restoration === "unknown" ||
+    restoration.kind !== "in_progress" ||
+    restoration.step === "enroll"
+  ) {
+    throw redirect({ to: route });
+  }
+  return { restoringStep: restoration.step };
 }
 
 function requireLockedRegister(context: RouterContext) {
@@ -1049,7 +1064,14 @@ const enrollRoute = createRoute({
   beforeLoad: ({ context }) => requireRoute("/enroll", context),
   component: function EnrollRoute() {
     const { enroll, checkEnrollmentCode } = enrollRoute.useRouteContext();
-    return <EnrollmentScreen checkCode={checkEnrollmentCode} enroll={enroll} />;
+    return (
+      <EnrollmentScreen
+        eyebrow="NOTEBOOK NUEVA"
+        status="Sin dar de alta"
+        checkCode={checkEnrollmentCode}
+        enroll={enroll}
+      />
+    );
   },
 });
 
@@ -1084,9 +1106,10 @@ const outOfServiceRoute = createRoute({
 const restoringRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/restoring",
-  beforeLoad: ({ context }) => requireRoute("/restoring", context),
+  beforeLoad: ({ context }) => requireRestoringStep(context),
   component: function RestoringRoute() {
-    return <RestoringScreen registerName={useRegisterName()} />;
+    const { restoringStep } = restoringRoute.useRouteContext();
+    return <RestoringScreen registerName={useRegisterName()} step={restoringStep} />;
   },
 });
 
@@ -1095,12 +1118,31 @@ const restoreRequiredRoute = createRoute({
   path: "/restore-required",
   beforeLoad: ({ context }) => requireRoute("/restore-required", context),
   component: function RestoreRequiredRoute() {
-    const { enroll, checkEnrollmentCode } = restoreRequiredRoute.useRouteContext();
+    const navigate = restoreRequiredRoute.useNavigate();
     return (
       <RestoreRequiredScreen
         registerName={useRegisterName()}
+        onEnroll={() => void navigate({ to: "/re-enroll" })}
+      />
+    );
+  },
+});
+
+const reEnrollRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/re-enroll",
+  beforeLoad: ({ context }) => requireRoute("/restore-required", context),
+  component: function ReEnrollRoute() {
+    const { enroll, checkEnrollmentCode } = reEnrollRoute.useRouteContext();
+    const navigate = reEnrollRoute.useNavigate();
+    const registerName = useRegisterName();
+    return (
+      <EnrollmentScreen
+        eyebrow={registerName === null ? "CAJA" : registerName.toUpperCase()}
+        status="Dar de alta de nuevo"
         checkCode={checkEnrollmentCode}
         enroll={enroll}
+        onBack={() => void navigate({ to: "/restore-required" })}
       />
     );
   },
@@ -1141,6 +1183,7 @@ export const routeTree = rootRoute.addChildren([
   outOfServiceRoute,
   restoringRoute,
   restoreRequiredRoute,
+  reEnrollRoute,
   olderVersionRoute,
 ]);
 

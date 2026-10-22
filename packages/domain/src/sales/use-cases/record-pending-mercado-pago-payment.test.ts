@@ -61,7 +61,7 @@ function record(
   method: "QR" | "POINT" = "QR",
 ) {
   return recordPendingMercadoPagoPayment(
-    { ledger: store, ids: new SequentialIds() },
+    { ledger: store, restoration: store.restoration, ids: new SequentialIds() },
     { actorId, saleId: "sale-1", method, amount, occurredAt: STARTED_AT, waitEndsAt: WAIT_ENDS_AT },
   );
 }

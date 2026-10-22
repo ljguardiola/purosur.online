@@ -70,12 +70,21 @@ function noticeFor(outcome: EnrollmentOutcome): Notice | undefined {
   }
 }
 
-export type EnrollmentScreenProps = {
+type EnrollmentScreenProps = {
+  eyebrow: string;
+  status: string;
   checkCode: (typedCode: string) => Promise<"code"[]>;
   enroll: (typedCode: string) => Promise<EnrollmentOutcome>;
+  onBack?: () => void;
 };
 
-export function EnrollmentScreen({ checkCode, enroll }: EnrollmentScreenProps) {
+export function EnrollmentScreen({
+  eyebrow,
+  status,
+  checkCode,
+  enroll,
+  onBack,
+}: EnrollmentScreenProps) {
   const [outcome, setOutcome] = useState<EnrollmentOutcome>();
   const noticeId = useId();
   const { form, submit, submitting } = useRequestForm({
@@ -107,10 +116,10 @@ export function EnrollmentScreen({ checkCode, enroll }: EnrollmentScreenProps) {
   }
 
   return (
-    <BrandPanelScreen status="Sin dar de alta">
+    <BrandPanelScreen status={status}>
       <main className="flex w-full max-w-110 flex-col gap-4">
         <ScreenHeader
-          eyebrow="NOTEBOOK NUEVA"
+          eyebrow={eyebrow}
           title="Dar de alta esta caja"
           description="Escribí el código de alta que se genera en el backoffice, en Cajas registradoras. Vale 15 minutos y hace falta internet."
         />
@@ -144,6 +153,11 @@ export function EnrollmentScreen({ checkCode, enroll }: EnrollmentScreenProps) {
           <Button type="submit" fullWidth disabled={submitting}>
             Dar de alta
           </Button>
+          {onBack === undefined ? null : (
+            <Button variant="secondary" fullWidth onPress={onBack}>
+              Volver
+            </Button>
+          )}
         </form>
       </main>
     </BrandPanelScreen>

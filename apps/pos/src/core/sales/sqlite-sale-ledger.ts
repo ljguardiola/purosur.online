@@ -15,7 +15,6 @@ import {
   type SaleLine,
   type SalePayment,
 } from "@purosur/domain";
-import type { RestorationProtocolEvidence } from "@purosur/domain/register/use-cases";
 import type {
   CandidatePromotion,
   SaleLedger,
@@ -250,15 +249,6 @@ export function markSaleCancelled(
   }
 }
 
-const RESTORATION_NEVER_STARTED: RestorationProtocolEvidence = {
-  evidence: () => ({
-    enroll: "completed",
-    restore: "completed",
-    reset_sync_identity: "completed",
-    replenish: "completed",
-  }),
-};
-
 export class SqliteSaleLedger implements SaleLedger {
   private readonly database: LocalDatabase;
   private readonly people: Pick<SignInStore, "activePerson">;
@@ -267,7 +257,6 @@ export class SqliteSaleLedger implements SaleLedger {
   private readonly newSalesStoppedByDisk: () => boolean;
   private readonly localDatabaseDamaged: () => boolean;
   private readonly newSalesStoppedByBattery: () => boolean;
-  private readonly restoration: RestorationProtocolEvidence;
 
   constructor(
     database: LocalDatabase,
@@ -277,7 +266,6 @@ export class SqliteSaleLedger implements SaleLedger {
     newSalesStoppedByDisk: () => boolean = () => false,
     localDatabaseDamaged: () => boolean = () => false,
     newSalesStoppedByBattery: () => boolean = () => false,
-    restoration: RestorationProtocolEvidence = RESTORATION_NEVER_STARTED,
   ) {
     this.database = database;
     this.people = people;
@@ -286,7 +274,6 @@ export class SqliteSaleLedger implements SaleLedger {
     this.newSalesStoppedByDisk = newSalesStoppedByDisk;
     this.localDatabaseDamaged = localDatabaseDamaged;
     this.newSalesStoppedByBattery = newSalesStoppedByBattery;
-    this.restoration = restoration;
   }
 
   transaction<TOutcome>(work: (tx: SaleLedgerTransaction) => TOutcome): TOutcome {
@@ -296,7 +283,6 @@ export class SqliteSaleLedger implements SaleLedger {
   private transactionScope(): SaleLedgerTransaction {
     return {
       sellerAccess: (userId) => this.people.activePerson(userId)?.access,
-      restorationEvidence: () => this.restoration.evidence(),
       openSession: () => this.openSession(),
       openSale: (sessionId) => readOpenSale(this.database, sessionId),
       installationRevoked: () => this.installationRevoked(),

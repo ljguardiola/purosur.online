@@ -5,6 +5,7 @@ import type { Clock } from "../../shared/index.js";
 import type { SaleWithLines } from "../model/sale.js";
 import { isSaleRefusal, type PartiallyPaid, saleOpenToNewPayment } from "./chargeable-sale.js";
 import { completeSale } from "./complete-sale.js";
+import type { RegisterRestoration } from "./register-restoration.js";
 import type { IdGenerator, SaleCashMovement, SaleLedger } from "./sale-ledger.js";
 
 export interface ChargeSaleInCashInput {
@@ -15,6 +16,7 @@ export interface ChargeSaleInCashInput {
 
 export interface ChargeSaleInCashPorts {
   ledger: SaleLedger;
+  restoration: RegisterRestoration;
   clock: Clock;
   ids: IdGenerator;
 }
@@ -33,12 +35,12 @@ export type ChargeSaleInCashOutcome =
   | { kind: "completed"; saleId: string; total: number; tendered: number; change: number };
 
 export function chargeSaleInCash(
-  { ledger, clock, ids }: ChargeSaleInCashPorts,
+  { ledger, restoration, clock, ids }: ChargeSaleInCashPorts,
   { actorId, saleId, tendered }: ChargeSaleInCashInput,
 ): ChargeSaleInCashOutcome {
   return ledger.transaction<ChargeSaleInCashOutcome>((tx) => {
     const completedAt = clock.now();
-    const chargeable = saleOpenToNewPayment(tx, actorId, saleId, completedAt);
+    const chargeable = saleOpenToNewPayment(tx, actorId, saleId, completedAt, restoration);
     if (isSaleRefusal(chargeable)) {
       return chargeable;
     }

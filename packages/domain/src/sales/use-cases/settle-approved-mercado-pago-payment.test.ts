@@ -98,7 +98,12 @@ function ledger(state: Partial<FakeSaleLedgerState> = {}): FakeSaleLedger {
 
 function settle(store: FakeSaleLedger, paymentTransactionId = "qr-1", actorId = "cashier") {
   return settleApprovedMercadoPagoPayment(
-    { ledger: store, clock: new FixedClock(APPROVED_AT), ids: new SequentialIds() },
+    {
+      ledger: store,
+      restoration: store.restoration,
+      clock: new FixedClock(APPROVED_AT),
+      ids: new SequentialIds(),
+    },
     { actorId, paymentTransactionId },
   );
 }

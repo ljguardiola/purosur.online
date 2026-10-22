@@ -114,21 +114,8 @@ export interface ChargeSaleOnStandaloneTerminalRequest {
   amount: number;
 }
 
-function saleLedger(
-  database: LocalDatabase,
-  restoration: RestorationProtocolEvidence,
-  outboxChainKey?: string,
-): SqliteSaleLedger {
-  return new SqliteSaleLedger(
-    database,
-    new SqliteSignInStore(database),
-    outboxChainKey,
-    undefined,
-    undefined,
-    undefined,
-    undefined,
-    restoration,
-  );
+function saleLedger(database: LocalDatabase, outboxChainKey?: string): SqliteSaleLedger {
+  return new SqliteSaleLedger(database, new SqliteSignInStore(database), outboxChainKey);
 }
 
 function sellingLedger(
@@ -137,7 +124,6 @@ function sellingLedger(
   newSalesStoppedByDisk: () => boolean,
   localDatabaseDamaged: () => boolean,
   newSalesStoppedByBattery: () => boolean,
-  restoration: RestorationProtocolEvidence,
 ): SqliteSaleLedger {
   return new SqliteSaleLedger(
     database,
@@ -147,7 +133,6 @@ function sellingLedger(
     newSalesStoppedByDisk,
     localDatabaseDamaged,
     newSalesStoppedByBattery,
-    restoration,
   );
 }
 
@@ -312,8 +297,8 @@ export async function scanProductFor(
           newSalesStoppedByDisk,
           localDatabaseDamaged,
           newSalesStoppedByBattery,
-          restoration,
         ),
+        restoration,
         clock: { now },
         ids,
       },
@@ -358,8 +343,8 @@ export async function addSearchedProductFor(
           newSalesStoppedByDisk,
           localDatabaseDamaged,
           newSalesStoppedByBattery,
-          restoration,
         ),
+        restoration,
         clock: { now },
         ids,
       },
@@ -387,7 +372,7 @@ export async function searchProductsFor(
 ): Promise<SearchProductsOutcome> {
   const guarded = await gate.run({ kind: "sell" }, async ({ signedInUserId }) =>
     searchProductsByName(
-      { ledger: saleLedger(database, restoration) },
+      { ledger: saleLedger(database), restoration },
       { actorId: signedInUserId, query },
     ),
   );
@@ -463,8 +448,8 @@ export async function addWeighedProductFor(
           newSalesStoppedByDisk,
           localDatabaseDamaged,
           newSalesStoppedByBattery,
-          restoration,
         ),
+        restoration,
         clock: { now },
         ids,
       },
@@ -514,8 +499,8 @@ export async function weighProductFor(
           newSalesStoppedByDisk,
           localDatabaseDamaged,
           newSalesStoppedByBattery,
-          restoration,
         ),
+        restoration,
         clock: { now },
         ids,
         scale,
@@ -549,7 +534,7 @@ export async function currentSaleFor({
   restoration,
 }: Pick<SaleRequestDeps, "database" | "gate" | "now" | "restoration">): Promise<CurrentSaleAnswer> {
   const guarded = await asSeller({ database, gate }, (actorId) =>
-    currentSale({ ledger: saleLedger(database, restoration), clock: { now } }, { actorId }),
+    currentSale({ ledger: saleLedger(database), restoration, clock: { now } }, { actorId }),
   );
   if (guarded.kind === "not_signed_in") {
     return null;
@@ -585,7 +570,7 @@ export async function changeLineQuantityFor(
 ): Promise<ChangeLineQuantityOutcome> {
   const guarded = await asSeller({ database, gate }, (actorId) =>
     changeLineQuantity(
-      { ledger: saleLedger(database, restoration), clock: { now } },
+      { ledger: saleLedger(database), restoration, clock: { now } },
       { actorId, lineId, quantity, expectedQuantity },
     ),
   );
@@ -616,7 +601,7 @@ export async function changeLineWeightFor(
 ): Promise<ChangeLineWeightOutcome> {
   const guarded = await asSeller({ database, gate }, (actorId) =>
     changeLineWeight(
-      { ledger: saleLedger(database, restoration), clock: { now } },
+      { ledger: saleLedger(database), restoration, clock: { now } },
       { actorId, lineId, weightThousandths, expectedWeightThousandths },
     ),
   );
@@ -668,7 +653,8 @@ export async function adjustSaleLineFor(
 ): Promise<AdjustSaleLineOutcome> {
   const outcome = await adjustSaleLine<AdjustSaleLineGrant, AdjustSaleLineRefusal>(
     {
-      ledger: saleLedger(database, restoration),
+      ledger: saleLedger(database),
+      restoration,
       clock: { now },
       authority: {
         async authorize(): Promise<
@@ -719,7 +705,7 @@ export async function previewSaleLineAdjustmentFor(
 ): Promise<PreviewSaleLineAdjustmentOutcome> {
   const guarded = await gate.run({ kind: "sell" }, async ({ signedInUserId }) =>
     previewSaleLineAdjustment(
-      { ledger: saleLedger(database, restoration), clock: { now } },
+      { ledger: saleLedger(database), restoration, clock: { now } },
       { actorId: signedInUserId, lineId, adjustment: toManualAdjustmentValue(adjustment) },
     ),
   );
@@ -764,7 +750,8 @@ export async function applySaleDiscountFor(
 ): Promise<ApplySaleDiscountOutcome> {
   const outcome = await applySaleDiscount<ApplySaleDiscountGrant, ApplySaleDiscountRefusal>(
     {
-      ledger: saleLedger(database, restoration),
+      ledger: saleLedger(database),
+      restoration,
       clock: { now },
       authority: {
         async authorize(): Promise<
@@ -813,7 +800,7 @@ export async function previewSaleDiscountFor(
 ): Promise<PreviewSaleDiscountOutcome> {
   const guarded = await gate.run({ kind: "sell" }, async ({ signedInUserId }) =>
     previewSaleDiscount(
-      { ledger: saleLedger(database, restoration), clock: { now } },
+      { ledger: saleLedger(database), restoration, clock: { now } },
       { actorId: signedInUserId, discount: toSaleDiscountValue(discount) },
     ),
   );
@@ -842,7 +829,7 @@ export async function removeSaleLineFor(
 ): Promise<RemoveSaleLineOutcome> {
   const guarded = await asSeller({ database, gate }, (actorId) =>
     removeSaleLine(
-      { ledger: saleLedger(database, restoration), clock: { now } },
+      { ledger: saleLedger(database), restoration, clock: { now } },
       { actorId, lineId },
     ),
   );
@@ -867,7 +854,7 @@ export async function cancelSaleFor({
 }: Pick<SaleRequestDeps, "database" | "gate" | "now" | "restoration">): Promise<CancelSaleOutcome> {
   const guarded = await gate.run({ kind: "sell" }, async ({ signedInUserId }) =>
     cancelSale(
-      { ledger: saleLedger(database, restoration), clock: { now } },
+      { ledger: saleLedger(database), restoration, clock: { now } },
       { actorId: signedInUserId },
     ),
   );
@@ -898,7 +885,8 @@ export async function cancelPaidSaleFor(
   const outboxChainKey = await readOutboxChainKey();
   const outcome = await cancelPaidSale<CancelPaidSaleRequestGrant, CancelPaidSaleRefusal>(
     {
-      ledger: saleLedger(database, restoration, outboxChainKey),
+      ledger: saleLedger(database, outboxChainKey),
+      restoration,
       clock: { now },
       ids,
       authority: {
@@ -951,7 +939,8 @@ export async function cancelLockedSaleFor(
   const outboxChainKey = await readOutboxChainKey();
   const outcome = await cancelPaidSale<CancelPaidSaleGrant, CancelLockedSaleRefusal>(
     {
-      ledger: saleLedger(database, restoration, outboxChainKey),
+      ledger: saleLedger(database, outboxChainKey),
+      restoration,
       clock: { now },
       ids,
       authority: {
@@ -992,7 +981,7 @@ export async function chargeSaleInCashFor(
   }
   const guarded = await gate.run({ kind: "sell" }, async ({ signedInUserId }) =>
     chargeSaleInCash(
-      { ledger: saleLedger(database, restoration, outboxChainKey), clock: { now }, ids },
+      { ledger: saleLedger(database, outboxChainKey), restoration, clock: { now }, ids },
       { actorId: signedInUserId, saleId, tendered },
     ),
   );
@@ -1046,7 +1035,7 @@ async function chargeSaleConfirmedByHandFor(
   }
   const guarded = await gate.run({ kind: "sell" }, async ({ signedInUserId }) =>
     charge(
-      { ledger: saleLedger(database, restoration, outboxChainKey), clock: { now }, ids },
+      { ledger: saleLedger(database, outboxChainKey), restoration, clock: { now }, ids },
       { actorId: signedInUserId, saleId, amount },
     ),
   );

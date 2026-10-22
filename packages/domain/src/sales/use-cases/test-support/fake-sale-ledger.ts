@@ -20,6 +20,7 @@ import {
 import type { Clock, OutboxEventDraft } from "../../../shared/index.js";
 import type { SaleWithLines } from "../../model/sale.js";
 import type { ListPrice } from "../../model/sale-line.js";
+import type { RegisterRestoration } from "../register-restoration.js";
 import type {
   CandidatePromotion,
   IdGenerator,
@@ -121,6 +122,7 @@ export class FakeSaleLedger implements SaleLedger {
   barcodeLookups = 0;
   searchableReads = 0;
   failOn: FakeSaleLedgerWrite | undefined;
+  readonly restoration: RegisterRestoration = { evidence: () => this.state.restoration };
 
   constructor(state: Partial<FakeSaleLedgerState> = {}) {
     this.state = {
@@ -163,7 +165,6 @@ export class FakeSaleLedger implements SaleLedger {
     const working = structuredClone(this.state);
     const outcome = work({
       sellerAccess: (userId) => working.accesses[userId],
-      restorationEvidence: () => working.restoration,
       openSession: () => working.session,
       openSale: (sessionId) => {
         const sale = working.sales.find(

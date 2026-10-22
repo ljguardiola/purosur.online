@@ -3,6 +3,7 @@ import { aMercadoPagoChargeInProgress, saleBalance } from "../../payments/index.
 import { buyerIdentificationRefusal } from "../model/buyer-identification-check.js";
 import type { SaleWithLines } from "../model/sale.js";
 import { amountToCharge } from "../model/sale-discount.js";
+import type { RegisterRestoration } from "./register-restoration.js";
 import type { SaleLedgerTransaction, SellingSession } from "./sale-ledger.js";
 import { isRefusal, sellingSession } from "./selling-session.js";
 
@@ -36,8 +37,9 @@ export function chargeableSale(
   actorId: string,
   saleId: string,
   completedAt: Date,
+  restoration: RegisterRestoration,
 ): ChargeableSale | SaleRefusal {
-  const session = sellingSession(tx, actorId);
+  const session = sellingSession(tx, actorId, restoration);
   if (isRefusal(session)) {
     return session;
   }
@@ -73,8 +75,9 @@ export function saleOpenToNewPayment(
   actorId: string,
   saleId: string,
   at: Date,
+  restoration: RegisterRestoration,
 ): ChargeableSale | NewPaymentRefusal {
-  const chargeable = chargeableSale(tx, actorId, saleId, at);
+  const chargeable = chargeableSale(tx, actorId, saleId, at, restoration);
   if (isSaleRefusal(chargeable)) {
     return chargeable;
   }

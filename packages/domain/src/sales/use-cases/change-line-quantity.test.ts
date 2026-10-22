@@ -120,7 +120,7 @@ function change(
   expectedQuantity = storedLine(store, lineId)?.quantity ?? 1,
 ) {
   return changeLineQuantity(
-    { ledger: store, clock: new FixedClock(NOW) },
+    { ledger: store, restoration: store.restoration, clock: new FixedClock(NOW) },
     { actorId, lineId, quantity, expectedQuantity },
   );
 }

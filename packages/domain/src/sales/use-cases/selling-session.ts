@@ -3,6 +3,7 @@ import {
   registerOperationAccess,
   restorationStanding,
 } from "../../register/index.js";
+import type { RegisterRestoration } from "./register-restoration.js";
 import type { SaleLedgerTransaction, SellingSession } from "./sale-ledger.js";
 
 export type SellingSessionRefusal =
@@ -13,12 +14,13 @@ export type SellingSessionRefusal =
 export function sellingSession(
   tx: SaleLedgerTransaction,
   actorId: string,
+  restoration: RegisterRestoration,
 ): SellingSession | SellingSessionRefusal {
   const seller = { id: actorId, access: tx.sellerAccess(actorId) };
   if (registerOperationAccess({ kind: "sell" }, seller).kind !== "permitted") {
     return { kind: "not_permitted" };
   }
-  if (restorationStanding(tx.restorationEvidence()).kind !== "completed") {
+  if (restorationStanding(restoration.evidence()).kind !== "completed") {
     return { kind: "restoration_in_progress" };
   }
   const session = tx.openSession();

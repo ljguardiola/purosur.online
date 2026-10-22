@@ -6,6 +6,7 @@ import { argentinaCalendarDay } from "../../shared/index.js";
 import { type OpenSaleStanding, openSaleStanding } from "../model/open-sale-standing.js";
 import type { LinePromotion, Sale, SaleLine, SaleWithLines } from "../model/sale.js";
 import { amountToCharge } from "../model/sale-discount.js";
+import type { RegisterRestoration } from "./register-restoration.js";
 import { withoutSaleDiscount } from "./remove-sale-discount.js";
 import { saleChargeRefusal } from "./sale-charge-refusal.js";
 import type {
@@ -49,8 +50,9 @@ export function saleToAddTo(
   tx: SaleLedgerTransaction,
   actorId: string,
   clock: Clock,
+  restoration: RegisterRestoration,
 ): SaleAddition | SaleAdditionRefusal {
-  const session = sellingSession(tx, actorId);
+  const session = sellingSession(tx, actorId, restoration);
   if (isRefusal(session)) {
     return session;
   }

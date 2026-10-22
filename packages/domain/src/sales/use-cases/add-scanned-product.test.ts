@@ -100,7 +100,12 @@ function ledger(state: Partial<FakeSaleLedgerState> = {}): FakeSaleLedger {
 
 function scan(store: FakeSaleLedger, code = "7790001", actorId = "cashier") {
   return addScannedProduct(
-    { ledger: store, clock: new FixedClock(NOW), ids: new SequentialIds() },
+    {
+      ledger: store,
+      restoration: store.restoration,
+      clock: new FixedClock(NOW),
+      ids: new SequentialIds(),
+    },
     { actorId, code },
   );
 }
@@ -812,7 +817,12 @@ describe("addScannedProduct", () => {
       });
 
       const outcome = addScannedProduct(
-        { ledger: store, clock: new FixedClock(lateEvening), ids: new SequentialIds() },
+        {
+          ledger: store,
+          restoration: store.restoration,
+          clock: new FixedClock(lateEvening),
+          ids: new SequentialIds(),
+        },
         { actorId: "cashier", code: "7790001" },
       );
 
