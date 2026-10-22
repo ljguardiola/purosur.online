@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { PushedEvent } from "../../sync/index.js";
 import { deferredSaleRecordedEvent } from "../model/deferred-sale-recorded-event.js";
+import { deferredSaleSatisfiedEvent } from "../model/deferred-sale-satisfied-event.js";
 import type { FacturaC } from "../model/pre-emission-gate.js";
 import type { RealTimeAuthorizationAnswer } from "../model/real-time-authorization.js";
 import {
@@ -94,14 +95,16 @@ function request({
   samples = [100, 300, 200],
   waiting = WAITING,
   takenShortCodes = [],
+  existingDeferredSale = null,
 }: {
   answer?: RealTimeAuthorizationAnswer;
   samples?: readonly number[];
   waiting?: RequestedFiscalDocument | null;
   takenShortCodes?: string[];
+  existingDeferredSale?: { id: string } | null;
 } = {}) {
   const clock = new ManualClock(START);
-  const documents = new FakeRealTimeFiscalDocuments(waiting, takenShortCodes);
+  const documents = new FakeRealTimeFiscalDocuments(waiting, takenShortCodes, existingDeferredSale);
   const roundTrips = new FakeRoundTripSamples(samples);
   const taxAuthority = new FakeRealTimeTaxAuthority(answer, () => clock.advanceBy(ANSWER_DELAY_MS));
   const outcome = requestRealTimeAuthorization(
@@ -168,6 +171,7 @@ describe("requestRealTimeAuthorization", () => {
         },
         resolvedAt: new Date(START.getTime() + ANSWER_DELAY_MS),
         deferredSale: null,
+        deferredSaleSatisfied: null,
       },
     ]);
   });
@@ -226,6 +230,7 @@ describe("requestRealTimeAuthorization", () => {
         resolution: { state: "UNKNOWN", deferralReason: "unclear_outcome" },
         resolvedAt: START,
         deferredSale: deferredRecord("unclear_outcome", START),
+        deferredSaleSatisfied: null,
       },
     ]);
   });
@@ -249,6 +254,7 @@ describe("requestRealTimeAuthorization", () => {
         resolution: { state: "UNKNOWN", deferralReason: "unclear_outcome" },
         resolvedAt: START,
         deferredSale: deferredRecord("unclear_outcome", START),
+        deferredSaleSatisfied: null,
       },
     ]);
   });
@@ -293,5 +299,95 @@ describe("requestRealTimeAuthorization", () => {
     expect(documents.resolutions.map(({ deferredSale }) => deferredSale?.sale.shortCode)).toEqual([
       "R3XW8H5N",
     ]);
+  });
+});
+
+describe("requestRealTimeAuthorization for a sale that already has a deferred record", () => {
+  const EXISTING = { id: "deferred-1" };
+  const AUTHORIZED: RealTimeAuthorizationAnswer = {
+    kind: "authorized",
+    authorizationCode: "75123456789012",
+    authorizationCodeDueOn: "2026-10-11",
+  };
+
+  it("satisfies the record with the authorized document and reports it", async () => {
+    const { documents, outcome } = request({
+      answer: AUTHORIZED,
+      existingDeferredSale: EXISTING,
+    });
+
+    await expect(outcome).resolves.toEqual({ kind: "authorized" });
+    expect(documents.resolutions).toEqual([
+      {
+        fiscalDocumentId: FISCAL_DOCUMENT_ID,
+        saleId: "sale-1",
+        resolution: {
+          state: "AUTHORIZED",
+          authorizationCode: "75123456789012",
+          authorizationCodeDueOn: "2026-10-11",
+        },
+        resolvedAt: new Date(START.getTime() + ANSWER_DELAY_MS),
+        deferredSale: null,
+        deferredSaleSatisfied: deferredSaleSatisfiedEvent({
+          eventId: "id-1",
+          ...ORIGIN,
+          deferredSaleId: "deferred-1",
+          saleId: "sale-1",
+          fiscalDocumentId: FISCAL_DOCUMENT_ID,
+          pointOfSale: 12,
+          number: 41,
+          issuedOn: "2026-10-01",
+          satisfiedAt: new Date(START.getTime() + ANSWER_DELAY_MS),
+        }),
+      },
+    ]);
+  });
+
+  it.each([
+    ["rejects", { kind: "rejected", codes: [10015], rejectionClass: "content" }, "REJECTED"],
+    ["is unclear", { kind: "unclear" }, "UNKNOWN"],
+  ] satisfies [string, RealTimeAuthorizationAnswer, string][])(
+    "records nothing new when the tax authority %s",
+    async (_case, answer, state) => {
+      const { documents, outcome } = request({ answer, existingDeferredSale: EXISTING });
+      await outcome;
+
+      expect(
+        documents.resolutions.map((resolved) => [
+          resolved.resolution.state,
+          resolved.deferredSale,
+          resolved.deferredSaleSatisfied,
+        ]),
+      ).toEqual([[state, null, null]]);
+    },
+  );
+
+  it("records nothing new when no call could be made", async () => {
+    const { documents, outcome } = request({ samples: [], existingDeferredSale: EXISTING });
+    await outcome;
+
+    expect(
+      documents.resolutions.map((resolved) => [
+        resolved.deferredSale,
+        resolved.deferredSaleSatisfied,
+      ]),
+    ).toEqual([[null, null]]);
+  });
+});
+
+describe("requestRealTimeAuthorization for a sale with no deferred record", () => {
+  it("reports no satisfaction when the document is authorized", async () => {
+    const { documents, outcome } = request({
+      answer: {
+        kind: "authorized",
+        authorizationCode: "75123456789012",
+        authorizationCodeDueOn: "2026-10-11",
+      },
+    });
+    await outcome;
+
+    expect(documents.resolutions.map(({ deferredSaleSatisfied }) => deferredSaleSatisfied)).toEqual(
+      [null],
+    );
   });
 });
