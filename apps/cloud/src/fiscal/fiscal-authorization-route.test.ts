@@ -465,10 +465,21 @@ describe("POST /fiscal/authorize", () => {
       const { deviceToken } = await enrollRegisterWithPointOfSale();
       await route.issueWsaaToken();
       route.taxAuthority.answer = { kind: "no_answer", rejections: [] };
-      const body = requestBody({ number: 1234567 });
-      body.sale_event.payload = {
-        buyer: { cuit: FICTIONAL_CUIT, name: FICTIONAL_LEGAL_NAME, email: "buyer@example.test" },
-      };
+      const saleId = crypto.randomUUID();
+      const body = requestBody({
+        number: 1234567,
+        sale_id: saleId,
+        sale_event: {
+          ...saleCompletedEvent(saleId),
+          payload: {
+            buyer: {
+              cuit: FICTIONAL_CUIT,
+              name: FICTIONAL_LEGAL_NAME,
+              email: "buyer@example.test",
+            },
+          },
+        },
+      });
 
       await authorize(body, `Bearer ${deviceToken}`);
 

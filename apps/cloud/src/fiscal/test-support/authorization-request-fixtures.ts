@@ -16,7 +16,7 @@ import { DrizzleRegisterPointOfSaleStore } from "../drizzle-register-point-of-sa
 
 export const RECEIVED_AT = new Date("2026-10-06T15:00:00.000Z");
 
-type PushedEvent = AuthorizationRequestRecord["saleEvent"];
+type PushedEvent = NonNullable<AuthorizationRequestRecord["saleEvent"]>;
 
 export function saleCompletedEvent(saleId: string): PushedEvent {
   return {

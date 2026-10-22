@@ -57,6 +57,11 @@ const SALE_EVENT_MISMATCH = cloudError(
   "sale_event must be the completion of sale_id",
 );
 
+const SALE_COMPLETION_NOT_HELD = cloudError(
+  "not_found",
+  "the cloud holds no completion of that sale for this register",
+);
+
 type ToldOutcome = Extract<
   AskAboutUnclearOutcomeOutcome,
   { kind: "answered" | "decided" | "pending" }
@@ -163,6 +168,12 @@ export function registerUnclearOutcomeRoute<TQueryResult extends PgQueryResultHK
         }
         if (outcome.kind === "sale_event_mismatch") {
           await reply.code(cloudErrorStatus(SALE_EVENT_MISMATCH.code)).send(SALE_EVENT_MISMATCH);
+          return;
+        }
+        if (outcome.kind === "sale_completion_not_held") {
+          await reply
+            .code(cloudErrorStatus(SALE_COMPLETION_NOT_HELD.code))
+            .send(SALE_COMPLETION_NOT_HELD);
           return;
         }
         await reply.code(200).send(unclearOutcomeAnswerSchema.parse(toWire(outcome)));
