@@ -212,6 +212,7 @@ describe("nextDeferredBacklogStep", () => {
     expect(nextDeferredBacklogStep([next, blocked], now, null)).toEqual({
       kind: "wait",
       until: new Date(attemptEndedAt.getTime() + DEFERRED_BACKLOG_RETRY_INTERVAL_MS),
+      entry: blocked,
     });
   });
 
