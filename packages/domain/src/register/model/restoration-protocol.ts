@@ -23,13 +23,28 @@ type DeliveredRestorationStep = Exclude<
 
 type RestorationStepEvidence = "completed" | "pending";
 
+type FailableRestorationStep = "restore";
+
+type RestoringStepEvidence<Step extends DeliveredRestorationStep> =
+  Step extends FailableRestorationStep
+    ? RestorationStepEvidence | "failed"
+    : RestorationStepEvidence;
+
+export type CloudEvidence = "reachable" | "unreachable" | "unknown";
+
 export type RestorationEvidence = Readonly<
-  Record<DeliveredRestorationStep, RestorationStepEvidence>
+  { [Step in DeliveredRestorationStep]: RestoringStepEvidence<Step> } & {
+    cloud: CloudEvidence;
+  }
 >;
+
+type HeldRestorationStep = Exclude<RestorationStep, "open_session">;
 
 export type RestorationStanding =
   | { kind: "completed" }
-  | { kind: "in_progress"; step: Exclude<RestorationStep, "open_session"> };
+  | { kind: "in_progress"; step: HeldRestorationStep }
+  | { kind: "without_connection"; step: Exclude<HeldRestorationStep, "enroll"> }
+  | { kind: "failed"; step: FailableRestorationStep };
 
 const DELIVERED_STEPS = [
   "enroll",
@@ -40,6 +55,15 @@ const DELIVERED_STEPS = [
 ] as const satisfies readonly DeliveredRestorationStep[];
 
 export function restorationStanding(evidence: RestorationEvidence): RestorationStanding {
-  const pending = DELIVERED_STEPS.find((step) => evidence[step] === "pending");
-  return pending === undefined ? { kind: "completed" } : { kind: "in_progress", step: pending };
+  const held = DELIVERED_STEPS.find((step) => evidence[step] !== "completed");
+  if (held === undefined) {
+    return { kind: "completed" };
+  }
+  if (held === "restore" && evidence.restore === "failed") {
+    return { kind: "failed", step: held };
+  }
+  if (held !== "enroll" && evidence.cloud === "unreachable") {
+    return { kind: "without_connection", step: held };
+  }
+  return { kind: "in_progress", step: held };
 }
