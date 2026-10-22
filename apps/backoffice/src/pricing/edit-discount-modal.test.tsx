@@ -97,13 +97,13 @@ test("shows the header with the promotion's name, and its values filled in", asy
   expect(dateSegments(dialog, "Desde")).toEqual(["1", "12", "2026"]);
   expect(dateSegments(dialog, "Hasta")).toEqual(["28", "2", "2027"]);
   await expect
-    .element(dialog.getByRole("button", { name: "Lunes" }))
+    .element(dialog.getByRole("button", { name: "Lun, Lunes" }))
     .toHaveAttribute("aria-pressed", "true");
   await expect
-    .element(dialog.getByRole("button", { name: "Martes" }))
+    .element(dialog.getByRole("button", { name: "Mar, Martes" }))
     .toHaveAttribute("aria-pressed", "false");
   await expect
-    .element(dialog.getByRole("button", { name: "Miércoles" }))
+    .element(dialog.getByRole("button", { name: "Mié, Miércoles" }))
     .toHaveAttribute("aria-pressed", "true");
   await expect.element(dialog.getByRole("button", { name: "Cancelar" })).toBeVisible();
   await expect.element(dialog.getByRole("button", { name: "Guardar los cambios" })).toBeVisible();
@@ -292,8 +292,8 @@ test("sends the changes made to the name, the percentage, the dates and the week
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Miércoles de almacén");
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Descuento/ }), "25");
   await typeDate(dialog, "Hasta", "15112026");
-  await userEvent.click(dialog.getByRole("button", { name: "Martes" }));
-  await userEvent.click(dialog.getByRole("button", { name: "Miércoles" }));
+  await userEvent.click(dialog.getByRole("button", { name: "Mar, Martes" }));
+  await userEvent.click(dialog.getByRole("button", { name: "Mié, Miércoles" }));
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
 
   await expect.poll(() => vi.mocked(services.editDiscount).mock.calls.length).toBe(1);
