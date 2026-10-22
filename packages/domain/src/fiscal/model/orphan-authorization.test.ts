@@ -10,7 +10,9 @@ import {
   orphanEvidenceOfRecordedRequest,
   orphanRegularization,
   requestBehindVoucher,
+  type SaleCreditNote,
   type SaleDocument,
+  type VoucherReference,
 } from "./orphan-authorization.js";
 import type { TaxAuthorityVoucher } from "./unclear-outcome-decision.js";
 
@@ -318,10 +320,28 @@ describe("orphanEvidenceOfRecordedRequest", () => {
 });
 
 describe("localStandingOfUnrecordedSale", () => {
+  const OWN_VOUCHER = { voucherType: FACTURA_C_VOUCHER_TYPE, pointOfSale: 12, number: 41 };
+  const CREDITED_VOUCHER = { voucherType: FACTURA_C_VOUCHER_TYPE, pointOfSale: 12, number: 40 };
+  const authorizedAt = (voucher: VoucherReference): SaleDocument => ({
+    kind: "real_time",
+    voucher,
+    outcome: {
+      answer: { kind: "authorized", authorizationCode: "1", authorizationCodeDueOn: "2026-10-11" },
+      decision: null,
+    },
+  });
+  const standing = (otherDocuments: SaleDocument[], creditNotes: SaleCreditNote[] = []) =>
+    localStandingOfUnrecordedSale(
+      { saleId: "sale-1", voucher: OWN_VOUCHER },
+      { otherDocuments, creditNotes },
+    );
+
   it("stands as a local sale with the other authorized voucher when the sale has one", () => {
-    expect(
-      localStandingOfUnrecordedSale("sale-1", [{ kind: "offline", voucher: OFFLINE_VOUCHER }]),
-    ).toEqual({ kind: "local_sale", saleId: "sale-1", otherAuthorizedVoucher: OFFLINE_VOUCHER });
+    expect(standing([{ kind: "offline", voucher: OFFLINE_VOUCHER }])).toEqual({
+      kind: "local_sale",
+      saleId: "sale-1",
+      otherAuthorizedVoucher: OFFLINE_VOUCHER,
+    });
   });
 
   it.each<[string, SaleDocument[]]>([
@@ -340,6 +360,56 @@ describe("localStandingOfUnrecordedSale", () => {
       ],
     ],
   ])("stands as no local sale when the sale has %s", (_case, documents) => {
-    expect(localStandingOfUnrecordedSale("sale-1", documents)).toEqual({ kind: "no_local_sale" });
+    expect(standing(documents)).toEqual({ kind: "no_local_sale" });
+  });
+
+  it("never keeps a voucher a credit note of the sale already credited", () => {
+    expect(
+      standing(
+        [authorizedAt(CREDITED_VOUCHER), { kind: "offline", voucher: OFFLINE_VOUCHER }],
+        [{ creditedVoucher: CREDITED_VOUCHER, keptVoucher: OFFLINE_VOUCHER }],
+      ),
+    ).toEqual({ kind: "local_sale", saleId: "sale-1", otherAuthorizedVoucher: OFFLINE_VOUCHER });
+  });
+
+  it("stands as no local sale when every other authorized voucher was already credited", () => {
+    expect(
+      standing(
+        [authorizedAt(CREDITED_VOUCHER)],
+        [{ creditedVoucher: CREDITED_VOUCHER, keptVoucher: null }],
+      ),
+    ).toEqual({ kind: "no_local_sale" });
+  });
+
+  it("stands as the sale's only receipt when a credit note of the sale kept its voucher", () => {
+    expect(
+      standing(
+        [authorizedAt(CREDITED_VOUCHER)],
+        [{ creditedVoucher: CREDITED_VOUCHER, keptVoucher: OWN_VOUCHER }],
+      ),
+    ).toEqual({ kind: "local_sale", saleId: "sale-1", otherAuthorizedVoucher: null });
+  });
+
+  it.each<[string, VoucherReference]>([
+    ["another number", { ...OWN_VOUCHER, number: 42 }],
+    ["another point of sale", { ...OWN_VOUCHER, pointOfSale: 13 }],
+    ["another voucher type", { ...OWN_VOUCHER, voucherType: 13 }],
+  ])("tells its own voucher from a kept voucher of %s", (_case, keptVoucher) => {
+    expect(
+      standing(
+        [{ kind: "offline", voucher: OFFLINE_VOUCHER }],
+        [{ creditedVoucher: CREDITED_VOUCHER, keptVoucher }],
+      ),
+    ).toEqual({ kind: "local_sale", saleId: "sale-1", otherAuthorizedVoucher: OFFLINE_VOUCHER });
+  });
+
+  it.each<[string, VoucherReference]>([
+    ["another number", { ...CREDITED_VOUCHER, number: 39 }],
+    ["another point of sale", { ...CREDITED_VOUCHER, pointOfSale: 13 }],
+    ["another voucher type", { ...CREDITED_VOUCHER, voucherType: 13 }],
+  ])("still keeps a voucher when the credited one is of %s", (_case, creditedVoucher) => {
+    expect(
+      standing([authorizedAt(CREDITED_VOUCHER)], [{ creditedVoucher, keptVoucher: null }]),
+    ).toEqual({ kind: "local_sale", saleId: "sale-1", otherAuthorizedVoucher: CREDITED_VOUCHER });
   });
 });

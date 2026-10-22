@@ -19,7 +19,6 @@ import {
   insertRegisterWithPointOfSale,
   RECEIVED_AT,
 } from "./test-support/authorization-request-fixtures.js";
-import { insertOfflineFiscalDocument } from "./test-support/offline-fiscal-document-fixtures.js";
 
 const NOW = new Date("2026-10-22T12:00:00.000Z");
 
@@ -97,8 +96,9 @@ async function recordRequest(
   pointOfSale: number,
   number: number,
   columns: Partial<typeof fiscalRequests.$inferInsert> = AUTHORIZED,
+  saleId: string = crypto.randomUUID(),
 ) {
-  const request = authorizationRequestRecord(registerId, { pointOfSale, number });
+  const request = authorizationRequestRecord(registerId, { pointOfSale, number, saleId });
   await db.insert(fiscalRequests).values({ ...request, ...columns });
   return request;
 }
@@ -142,16 +142,10 @@ describe("POST /devices/current/orphan-sweep", () => {
   });
 
   describe("what the sweep answers", () => {
-    it("requests the credit note of an authorized request whose sale has another receipt", async () => {
+    it("requests the credit note of one of two authorized requests of one sale, keeping the other as its receipt", async () => {
       const { registerId, bearer } = await aRegister(7);
       const orphan = await recordRequest(registerId, 7, 41);
-      await insertOfflineFiscalDocument(db, {
-        registerId,
-        saleId: orphan.saleId,
-        pointOfSale: 9,
-        fortnight: { start: "2026-10-01", end: "2026-10-15" },
-        number: 3,
-      });
+      await recordRequest(registerId, 7, 42, AUTHORIZED, orphan.saleId);
 
       const response = await sweep(bearer);
 
@@ -162,10 +156,15 @@ describe("POST /devices/current/orphan-sweep", () => {
         alerted_numbers: [],
       });
       const rows = await db.select().from(creditNotes);
-      expect(rows.map(({ saleId, associatedNumber }) => ({ saleId, associatedNumber }))).toEqual([
-        { saleId: orphan.saleId, associatedNumber: 41 },
-      ]);
+      expect(
+        rows.map(({ saleId, associatedNumber, keptNumber }) => ({
+          saleId,
+          associatedNumber,
+          keptNumber,
+        })),
+      ).toEqual([{ saleId: orphan.saleId, associatedNumber: 41, keptNumber: 42 }]);
       expect(enqueued).toEqual(rows.map(({ id }) => id));
+      expect(await db.select().from(fiscalTasks)).toEqual([]);
     });
 
     it("opens an alert and a task for an authorized request with no sale and no other receipt", async () => {

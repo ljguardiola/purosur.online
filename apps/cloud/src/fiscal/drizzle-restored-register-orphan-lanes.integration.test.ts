@@ -11,6 +11,9 @@ import {
   numberingFreezes,
 } from "../platform/db/schema.js";
 import { postgresDedicatedConnections } from "../platform/dedicated-connections.js";
+import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
+import { insertInboxEvent } from "../sync/test-support/inbox-events.js";
+import { insertQuarantinedEvent } from "../sync/test-support/quarantined-events.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
@@ -31,12 +34,14 @@ import {
   OPENED_AT,
 } from "./test-support/orphan-regularization-fixtures.js";
 import { insertRecordedSale } from "./test-support/recorded-sale-fixtures.js";
+import { insertSaleVoidCreditNote } from "./test-support/sale-void-credit-notes.js";
 
 let integrationDb: IntegrationDatabase;
 let sql: ReturnType<typeof postgres>;
 let db: PostgresJsDatabase<Record<string, never>>;
 let registerId: string;
 let otherRegisterId: string;
+let deviceId: string;
 const creditNotesEnqueued: string[] = [];
 let sequence = 100;
 
@@ -56,6 +61,10 @@ beforeAll(async () => {
     pointOfSaleNumber: 8,
     name: "caja-2",
   });
+  ({ deviceId } = await insertEnrolledInstallation(db, {
+    now: RECEIVED_AT,
+    registerName: "caja-3",
+  }));
 }, 60_000);
 
 afterAll(async () => {
@@ -171,6 +180,36 @@ describe("the restored register orphan lane on a real Postgres", () => {
       expect(found.map(({ number }) => number)).not.toContain(request.number);
     });
 
+    it("leaves out a request whose sale's completion was received and is not applied yet", async () => {
+      const request = await recordRequest(7, AUTHORIZED);
+      await insertInboxEvent(db, deviceId, { aggregateId: request.saleId });
+
+      const found = await inLane(7, (lane) => lane.requestsWithoutRecordedSale());
+
+      expect(found.map(({ number }) => number)).not.toContain(request.number);
+    });
+
+    it("leaves out a request whose sale's completion was received and quarantined", async () => {
+      const request = await recordRequest(7, AUTHORIZED);
+      await insertQuarantinedEvent(db, deviceId, { aggregateId: request.saleId });
+
+      const found = await inLane(7, (lane) => lane.requestsWithoutRecordedSale());
+
+      expect(found.map(({ number }) => number)).not.toContain(request.number);
+    });
+
+    it("gives a request whose sale received only another of its events", async () => {
+      const request = await recordRequest(7, AUTHORIZED);
+      await insertInboxEvent(db, deviceId, {
+        aggregateId: request.saleId,
+        eventType: "sale_print_state_changed",
+      });
+
+      const found = await inLane(7, (lane) => lane.requestsWithoutRecordedSale());
+
+      expect(found.map(({ number }) => number)).toContain(request.number);
+    });
+
     it.each([
       [
         "rejected",
@@ -197,13 +236,13 @@ describe("the restored register orphan lane on a real Postgres", () => {
       ],
       ["not answered", {}],
     ] satisfies [string, Partial<typeof fiscalRequests.$inferInsert>][])(
-      "leaves out a request that is %s",
+      "gives a request that is %s too",
       async (_case, columns) => {
         const request = await recordRequest(7, columns);
 
         const found = await inLane(7, (lane) => lane.requestsWithoutRecordedSale());
 
-        expect(found.map(({ number }) => number)).not.toContain(request.number);
+        expect(found.map(({ number }) => number)).toContain(request.number);
       },
     );
 
@@ -273,6 +312,49 @@ describe("the restored register orphan lane on a real Postgres", () => {
         {
           kind: "offline",
           voucher: { voucherType: FACTURA_C_VOUCHER_TYPE, pointOfSale: 9, number: 3 },
+        },
+      ]);
+    });
+  });
+
+  describe("the credit notes of a sale", () => {
+    it("gives each credit note of the sale with the voucher it credited and the one it kept", async () => {
+      const regularization = creditNoteRegularization({
+        associatedVoucher: { voucherType: FACTURA_C_VOUCHER_TYPE, pointOfSale: 7, number: 90_101 },
+        keptVoucher: { voucherType: FACTURA_C_VOUCHER_TYPE, pointOfSale: 7, number: 90_102 },
+      });
+      await inLane(7, (lane) => lane.recordOrphanRegularization(regularization));
+      await inLane(7, (lane) =>
+        lane.recordOrphanRegularization(
+          creditNoteRegularization({
+            associatedVoucher: {
+              voucherType: FACTURA_C_VOUCHER_TYPE,
+              pointOfSale: 7,
+              number: 90_103,
+            },
+          }),
+        ),
+      );
+
+      expect(await inLane(7, (lane) => lane.creditNotesOfSale(regularization.saleId))).toEqual([
+        {
+          creditedVoucher: { voucherType: FACTURA_C_VOUCHER_TYPE, pointOfSale: 7, number: 90_101 },
+          keptVoucher: { voucherType: FACTURA_C_VOUCHER_TYPE, pointOfSale: 7, number: 90_102 },
+        },
+      ]);
+    });
+
+    it("gives a credit note that kept no voucher with none kept", async () => {
+      const saleId = crypto.randomUUID();
+      await insertSaleVoidCreditNote(db, registerId, saleId, {
+        associatedPointOfSale: 7,
+        associatedNumber: 90_104,
+      });
+
+      expect(await inLane(7, (lane) => lane.creditNotesOfSale(saleId))).toEqual([
+        {
+          creditedVoucher: { voucherType: FACTURA_C_VOUCHER_TYPE, pointOfSale: 7, number: 90_104 },
+          keptVoucher: null,
         },
       ]);
     });

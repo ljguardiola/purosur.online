@@ -93,6 +93,70 @@ describe("sweepRestoredRegisterOrphanAuthorizations", () => {
     });
   });
 
+  it("keeps one of two authorized requests of one unrecorded sale and credits the other", async () => {
+    const { store, ports } = scenario();
+    store.seedUnrecordedRequests(12, [
+      request(41, { saleId: "sale-1" }),
+      request(42, { saleId: "sale-1" }),
+    ]);
+
+    expect(await sweep(ports)).toEqual({
+      kind: "swept",
+      creditNotedNumbers: [41],
+      alertedNumbers: [],
+    });
+    expect(store.regularizations).toEqual([
+      expect.objectContaining({
+        kind: "credit_note",
+        saleId: "sale-1",
+        associatedVoucher: { voucherType: FACTURA_C_VOUCHER_TYPE, pointOfSale: 12, number: 41 },
+        keptVoucher: { voucherType: FACTURA_C_VOUCHER_TYPE, pointOfSale: 12, number: 42 },
+      }),
+    ]);
+  });
+
+  it("credits every other authorized request of the sale against the one it keeps", async () => {
+    const { store, ports } = scenario();
+    store.seedUnrecordedRequests(12, [
+      request(41, { saleId: "sale-1" }),
+      request(42, { saleId: "sale-1" }),
+      request(43, { saleId: "sale-1" }),
+    ]);
+
+    expect(await sweep(ports)).toEqual({
+      kind: "swept",
+      creditNotedNumbers: [41, 43],
+      alertedNumbers: [],
+    });
+    expect(
+      store.regularizations.map((regularization) =>
+        regularization.kind === "credit_note" ? regularization.keptVoucher.number : null,
+      ),
+    ).toEqual([42, 42]);
+  });
+
+  it("leaves alone, with no alert, the request a credit note of its sale kept earlier", async () => {
+    const { store, ports } = scenario();
+    store.seedUnrecordedRequests(12, [
+      request(41, { saleId: "sale-1" }),
+      request(42, { saleId: "sale-1" }),
+    ]);
+    store.seedRequestsAtNumber({ pointOfSale: 12, number: 41 }, { kind: "already_regularized" });
+    store.seedCreditNotes("sale-1", [
+      {
+        creditedVoucher: { voucherType: FACTURA_C_VOUCHER_TYPE, pointOfSale: 12, number: 41 },
+        keptVoucher: { voucherType: FACTURA_C_VOUCHER_TYPE, pointOfSale: 12, number: 42 },
+      },
+    ]);
+
+    expect(await sweep(ports)).toEqual({
+      kind: "swept",
+      creditNotedNumbers: [],
+      alertedNumbers: [],
+    });
+    expect(store.regularizations).toEqual([]);
+  });
+
   it("leaves a request alone whose number was already regularized", async () => {
     const { store, ports } = scenario();
     store.seedUnrecordedRequests(12, [request(41)]);
@@ -114,7 +178,7 @@ describe("sweepRestoredRegisterOrphanAuthorizations", () => {
       { answer: { kind: "rejected", codes: [10016], rejectionClass: "content" }, decision: null },
     ],
     ["was released", { answer: { kind: "unclear" }, decision: { kind: "released" } }],
-  ])("leaves a request alone that %s", async (_case, outcome) => {
+  ])("leaves a request alone that %s, reading nothing more of it", async (_case, outcome) => {
     const { store, ports } = scenario();
     store.seedUnrecordedRequests(12, [request(41, { outcome })]);
 
@@ -124,6 +188,7 @@ describe("sweepRestoredRegisterOrphanAuthorizations", () => {
       alertedNumbers: [],
     });
     expect(store.regularizations).toEqual([]);
+    expect(store.operations).not.toContain("requestsAtNumber");
   });
 
   it("regularizes a request whose authorization was adopted after an unclear answer", async () => {
@@ -236,6 +301,7 @@ describe("sweepRestoredRegisterOrphanAuthorizations", () => {
       "requestsWithoutRecordedSale",
       "requestsAtNumber",
       "otherDocumentsOfSale",
+      "creditNotesOfSale",
       "recordOrphanRegularization",
       "leaveLane:12",
       "enterLane:13",

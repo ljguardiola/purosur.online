@@ -1,7 +1,9 @@
+import { FACTURA_C_VOUCHER_TYPE } from "../../model/factura-c-fiscal-block.js";
 import type { NumberingFreeze } from "../../model/numbering-conflict.js";
 import type {
   OrphanRegularization,
   RequestsAtNumber,
+  SaleCreditNote,
   SaleDocument,
 } from "../../model/orphan-authorization.js";
 import type { AuthorizationNumber } from "../orphan-authorization-ports.js";
@@ -22,6 +24,7 @@ export class FakeRestoredRegisterOrphanSweep
   private readonly unrecorded = new Map<number, UnrecordedSaleRequest[]>();
   private readonly atNumber = new Map<string, RequestsAtNumber>();
   private readonly saleDocuments = new Map<string, SaleDocument[]>();
+  private readonly creditNotes = new Map<string, SaleCreditNote[]>();
 
   seedPointsOfSale(registerId: string, pointsOfSale: number[]) {
     this.points.set(registerId, pointsOfSale);
@@ -41,6 +44,40 @@ export class FakeRestoredRegisterOrphanSweep
 
   seedSaleDocuments(saleId: string, documents: SaleDocument[]) {
     this.saleDocuments.set(saleId, documents);
+  }
+
+  seedCreditNotes(saleId: string, creditNotes: SaleCreditNote[]) {
+    this.creditNotes.set(saleId, creditNotes);
+  }
+
+  private requestsOfSale(saleId: string, excludedFiscalDocumentId: string): SaleDocument[] {
+    return [...this.unrecorded].flatMap(([pointOfSale, requests]) =>
+      requests
+        .filter(
+          (request) =>
+            request.saleId === saleId && request.fiscalDocumentId !== excludedFiscalDocumentId,
+        )
+        .map(
+          (request): SaleDocument => ({
+            kind: "real_time",
+            voucher: { voucherType: FACTURA_C_VOUCHER_TYPE, pointOfSale, number: request.number },
+            outcome: request.outcome,
+          }),
+        ),
+    );
+  }
+
+  private recordedCreditNotesOf(saleId: string): SaleCreditNote[] {
+    return this.regularizations.flatMap((regularization) =>
+      regularization.kind === "credit_note" && regularization.saleId === saleId
+        ? [
+            {
+              creditedVoucher: regularization.associatedVoucher,
+              keptVoucher: regularization.keptVoucher,
+            },
+          ]
+        : [],
+    );
   }
 
   async fiscalPointsOfSaleOf(registerId: string): Promise<number[]> {
@@ -74,9 +111,16 @@ export class FakeRestoredRegisterOrphanSweep
         this.operations.push("requestsAtNumber");
         return this.atNumber.get(`${pointOfSale}/${number}`) ?? { kind: "requests", requests: [] };
       },
-      otherDocumentsOfSale: async (saleId) => {
+      otherDocumentsOfSale: async (saleId, fiscalDocumentId) => {
         this.operations.push("otherDocumentsOfSale");
-        return this.saleDocuments.get(saleId) ?? [];
+        return [
+          ...(this.saleDocuments.get(saleId) ?? []),
+          ...this.requestsOfSale(saleId, fiscalDocumentId),
+        ];
+      },
+      creditNotesOfSale: async (saleId) => {
+        this.operations.push("creditNotesOfSale");
+        return [...(this.creditNotes.get(saleId) ?? []), ...this.recordedCreditNotesOf(saleId)];
       },
       recordOrphanRegularization: async (regularization) => {
         this.operations.push("recordOrphanRegularization");
