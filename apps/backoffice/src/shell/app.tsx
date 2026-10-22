@@ -17,6 +17,8 @@ import type { UserCredentialSectionsServices } from "../credentials/user-credent
 import type { FiscalConfigurationScreenServices } from "../fiscal/fiscal-configuration-services";
 import type { FiscalTasksScreenServices } from "../fiscal/fiscal-tasks-services";
 import type { PointsOfSaleScreenServices } from "../fiscal/points-of-sale-services";
+import type { UnbilledDeferredSalesPillProps } from "../fiscal/unbilled-deferred-sales-pill";
+import type { UnbilledDeferredSalesPillServices } from "../fiscal/unbilled-deferred-sales-pill-services";
 import type { BackofficeHelpCatalog } from "../help/help-catalog";
 import type { HandConfirmedPaymentsScreenServices } from "../payments/hand-confirmed-payments-services";
 import type { MercadoPagoRefundsScreenServices } from "../payments/mercado-pago-refunds-services";
@@ -130,6 +132,8 @@ export type AppServices = {
   screenFailure: ScreenFailureServices;
   homeScreen: HomeScreenServices;
   areaTopBarAlertsCount: ComponentType<AlertsOpenCountLinkProps>;
+  areaTopBarUnbilledDeferredSales: ComponentType<UnbilledDeferredSalesPillProps>;
+  unbilledDeferredSalesPill: UnbilledDeferredSalesPillServices;
   alertsOpenCountLink: AlertsOpenCountLinkServices;
   alertsListScreen: AlertsListScreenServices;
   quarantinedEventsScreen: QuarantinedEventsScreenServices;
@@ -141,6 +145,7 @@ type ShellServiceName =
   | "userDetailCredentialSections"
   | "usersListEndEverySessionSection"
   | "areaTopBarAlertsCount"
+  | "areaTopBarUnbilledDeferredSales"
   | "reportFiltersRegisterFilter"
   | "accountFooter"
   | "screenFailure";
@@ -162,6 +167,10 @@ const defaultRouteServices: RouteServices = {
   areaTopBarAlertsCount: lazyScreen(
     () => import("../alerts/alerts-open-count-link"),
     "AlertsOpenCountLink",
+  ),
+  areaTopBarUnbilledDeferredSales: lazyScreen(
+    () => import("../fiscal/unbilled-deferred-sales-pill"),
+    "UnbilledDeferredSalesPill",
   ),
   reportFiltersRegisterFilter: lazyScreen(
     () => import("../register/report-register-filter"),
