@@ -50,10 +50,10 @@ describe("createCoreClient", () => {
     port.answer({
       type: "enrollment-status",
       request_id: "request-1",
-      standing: { kind: "revoked", reason: "installation_revoked" },
+      standing: { kind: "revoked" },
     });
 
-    expect(await enrolled).toEqual({ kind: "revoked", reason: "installation_revoked" });
+    expect(await enrolled).toEqual({ kind: "revoked" });
     expect(port.started).toBe(true);
     expect(port.posted).toEqual([{ type: "enrollment-status-request", request_id: "request-1" }]);
   });

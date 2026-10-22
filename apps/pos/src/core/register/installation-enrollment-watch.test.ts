@@ -29,7 +29,7 @@ describe("the installation enrollment watch", () => {
   it("says so once when an enrolled installation is revoked", async () => {
     const { watch, onChanged, become } = await watchOver({ kind: "enrolled" });
 
-    become({ kind: "revoked", reason: "installation_revoked" });
+    become({ kind: "revoked" });
     await watch.check();
     await watch.check();
 
@@ -37,24 +37,9 @@ describe("the installation enrollment watch", () => {
   });
 
   it("says so when a revoked installation is enrolled again", async () => {
-    const { watch, onChanged, become } = await watchOver({
-      kind: "revoked",
-      reason: "installation_revoked",
-    });
+    const { watch, onChanged, become } = await watchOver({ kind: "revoked" });
 
     become({ kind: "enrolled" });
-    await watch.check();
-
-    expect(onChanged).toHaveBeenCalledTimes(1);
-  });
-
-  it("says so when only the reason of a revoked installation changes", async () => {
-    const { watch, onChanged, become } = await watchOver({
-      kind: "revoked",
-      reason: "installation_revoked",
-    });
-
-    become({ kind: "revoked", reason: "event_history_broken" });
     await watch.check();
 
     expect(onChanged).toHaveBeenCalledTimes(1);

@@ -44,17 +44,23 @@ describe("the enrollment standing the register answers", () => {
     ).resolves.toEqual({ kind: "enrolled" });
   });
 
-  it.each(["installation_revoked", "event_history_broken"] as const)(
-    "is revoked with its reason when the cloud stopped this installation: %s",
-    async (reason) => {
-      const database = registerOfDevice("device-a");
-      stopOpeningNewSales(database, reason, STOPPED_AT);
+  it("is revoked when the cloud revoked this installation", async () => {
+    const database = registerOfDevice("device-a");
+    stopOpeningNewSales(database, "installation_revoked", STOPPED_AT);
 
-      await expect(
-        enrollmentStandingOf({ readCredentials: credentialsOf("device-a"), database }),
-      ).resolves.toEqual({ kind: "revoked", reason });
-    },
-  );
+    await expect(
+      enrollmentStandingOf({ readCredentials: credentialsOf("device-a"), database }),
+    ).resolves.toEqual({ kind: "revoked" });
+  });
+
+  it("is enrolled when the register stopped its own sales over a broken record of operations", async () => {
+    const database = registerOfDevice("device-a");
+    stopOpeningNewSales(database, "event_history_broken", STOPPED_AT);
+
+    await expect(
+      enrollmentStandingOf({ readCredentials: credentialsOf("device-a"), database }),
+    ).resolves.toEqual({ kind: "enrolled" });
+  });
 
   it("is enrolled again once new credentials of another device are stored", async () => {
     const database = registerOfDevice("device-a");

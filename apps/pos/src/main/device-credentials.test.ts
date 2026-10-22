@@ -55,17 +55,6 @@ describe("createDeviceCredentialsStore", () => {
     expect(JSON.parse(reversingEncryption.decryptString(onDisk))).toEqual(CREDENTIALS);
   });
 
-  it("reports stored credentials as present, even to a store opened afterwards", () => {
-    const file = memoryFile();
-    storeIn(file).store(CREDENTIALS);
-
-    expect(storeIn(file).isPresent()).toBe(true);
-  });
-
-  it("reports no credentials before any were stored", () => {
-    expect(storeIn(memoryFile()).isPresent()).toBe(false);
-  });
-
   it("reads back the credentials it stored, even from a store opened afterwards", () => {
     const file = memoryFile();
     storeIn(file).store(CREDENTIALS);
@@ -110,25 +99,13 @@ describe("createDeviceCredentialsStore", () => {
     const store = storeIn(file, { ...reversingEncryption, isEncryptionAvailable: () => false });
 
     expect(store.store(CREDENTIALS)).toBe(false);
-    expect(storeIn(file).isPresent()).toBe(false);
+    expect(storeIn(file).read()).toBeUndefined();
   });
 
-  it("reports a file it can't decrypt as no credentials", () => {
-    const file = memoryFile("garbage");
-    const failingDecryption = {
-      ...reversingEncryption,
-      decryptString: () => {
-        throw new Error("the data could not be decrypted");
-      },
-    };
-
-    expect(storeIn(file, failingDecryption).isPresent()).toBe(false);
-  });
-
-  it("reports a decrypted file that doesn't hold credentials as no credentials", () => {
+  it("reads nothing from a decrypted file that doesn't hold credentials", () => {
     const file = memoryFile(reversingEncryption.encryptString(JSON.stringify({ device_id: "x" })));
 
-    expect(storeIn(file).isPresent()).toBe(false);
+    expect(storeIn(file).read()).toBeUndefined();
   });
 
   it("answers false when the file can't be written", () => {
@@ -178,7 +155,7 @@ describe("replace", () => {
     const file = memoryFile();
 
     expect(storeIn(file).replace(CREDENTIALS.device_token, NEXT)).toBe("superseded");
-    expect(storeIn(file).isPresent()).toBe(false);
+    expect(storeIn(file).read()).toBeUndefined();
   });
 
   it("says nothing was stored when the operating system can't encrypt", () => {
@@ -223,16 +200,7 @@ describe("answerCoreCredentialsRequest", () => {
         credentials: CREDENTIALS,
       }),
     ).toEqual({ type: "device-credentials-stored", request_id: "r1", stored: true });
-    expect(store.isPresent()).toBe(true);
-  });
-
-  it("tells the core whether credentials are present, never the credentials themselves", () => {
-    const store = storeIn(memoryFile());
-    store.store(CREDENTIALS);
-
-    expect(
-      answerCoreCredentialsRequest(store, { type: "device-credentials-request", request_id: "r2" }),
-    ).toEqual({ type: "device-credentials-presence", request_id: "r2", present: true });
+    expect(store.read()).toEqual(CREDENTIALS);
   });
 
   it("hands the core the stored credentials when it asks to read them", () => {

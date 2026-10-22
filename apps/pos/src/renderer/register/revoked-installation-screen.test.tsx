@@ -5,13 +5,9 @@ import { render } from "vitest-browser-react";
 import { RevokedInstallationScreen } from "./revoked-installation-screen";
 
 describe("RevokedInstallationScreen", () => {
-  it("says the notebook is no longer the register, why, and what it takes to sell again", async () => {
+  it("says the notebook is no longer the register, every way the cloud revokes one, and what it takes to sell again", async () => {
     const screen = await render(
-      <RevokedInstallationScreen
-        registerName="Caja 2"
-        reason="installation_revoked"
-        onEnroll={() => {}}
-      />,
+      <RevokedInstallationScreen registerName="Caja 2" onEnroll={() => {}} />,
     );
 
     await expect.element(screen.getByText("CAJA 2")).toBeVisible();
@@ -21,7 +17,7 @@ describe("RevokedInstallationScreen", () => {
     await expect
       .element(
         screen.getByText(
-          "La caja se dio de alta en otra notebook, o se la dio de baja desde el backoffice.",
+          "La caja se dio de alta en otra notebook, se la dio de baja desde el backoffice o la nube encontró un problema en su registro de operaciones.",
         ),
       )
       .toBeVisible();
@@ -38,45 +34,9 @@ describe("RevokedInstallationScreen", () => {
     await expectNoAccessibilityViolations(screen.container);
   });
 
-  it("gives the same explanation when the reason is not known", async () => {
-    const screen = await render(
-      <RevokedInstallationScreen registerName="Caja 2" reason={null} onEnroll={() => {}} />,
-    );
-
-    await expect
-      .element(
-        screen.getByText(
-          "La caja se dio de alta en otra notebook, o se la dio de baja desde el backoffice.",
-        ),
-      )
-      .toBeVisible();
-  });
-
-  it("explains that the cloud found a problem in the record of operations", async () => {
-    const screen = await render(
-      <RevokedInstallationScreen
-        registerName="Caja 2"
-        reason="event_history_broken"
-        onEnroll={() => {}}
-      />,
-    );
-
-    await expect
-      .element(
-        screen.getByText(
-          "La nube encontró un problema en el registro de operaciones de esta notebook y la dio de baja.",
-        ),
-      )
-      .toBeVisible();
-  });
-
   it("names just the notebook when the register's name is not known", async () => {
     const screen = await render(
-      <RevokedInstallationScreen
-        registerName={null}
-        reason="installation_revoked"
-        onEnroll={() => {}}
-      />,
+      <RevokedInstallationScreen registerName={null} onEnroll={() => {}} />,
     );
 
     await expect.element(screen.getByText("CAJA", { exact: true })).toBeVisible();
@@ -88,11 +48,7 @@ describe("RevokedInstallationScreen", () => {
   it("asks to enroll the register again", async () => {
     const enroll = vi.fn();
     const screen = await render(
-      <RevokedInstallationScreen
-        registerName="Caja 2"
-        reason="installation_revoked"
-        onEnroll={enroll}
-      />,
+      <RevokedInstallationScreen registerName="Caja 2" onEnroll={enroll} />,
     );
 
     await userEvent.click(screen.getByRole("button", { name: "Dar de alta la caja" }));

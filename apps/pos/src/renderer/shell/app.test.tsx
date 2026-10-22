@@ -723,7 +723,7 @@ describe("App", () => {
 
   it("asks a revoked installation to be enrolled again instead of signing in", async () => {
     const { core } = coreAnswering(true);
-    core.enrollmentStatus = async () => ({ kind: "revoked", reason: "installation_revoked" });
+    core.enrollmentStatus = async () => ({ kind: "revoked" });
     const screen = await render(<App core={core} />);
 
     postCoreStatus("up");
@@ -736,7 +736,7 @@ describe("App", () => {
 
   it("goes on to who opens the register once a revoked installation is enrolled again", async () => {
     const { core } = coreAnswering(true);
-    core.enrollmentStatus = async () => ({ kind: "revoked", reason: "installation_revoked" });
+    core.enrollmentStatus = async () => ({ kind: "revoked" });
     const screen = await render(<App core={core} />);
     postCoreStatus("up");
     await userEvent.click(screen.getByRole("button", { name: "Dar de alta la caja" }));
@@ -758,7 +758,7 @@ describe("App", () => {
     postCoreStatus("up");
     await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
 
-    standing = { kind: "revoked", reason: "event_history_broken" };
+    standing = { kind: "revoked" };
     changeEnrollmentStanding();
 
     await expect.element(screen.getByRole("heading", { name: REVOKED_TITLE })).toBeVisible();
@@ -766,7 +766,7 @@ describe("App", () => {
 
   it("keeps asking for the restoration standing and the cash session of a revoked installation", async () => {
     const { core, cashSessionAsks } = coreAnswering(true);
-    core.enrollmentStatus = async () => ({ kind: "revoked", reason: "installation_revoked" });
+    core.enrollmentStatus = async () => ({ kind: "revoked" });
     const restorationStanding = vi.fn<CoreClient["restorationStanding"]>(async () => ({
       kind: "completed",
     }));
