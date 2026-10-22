@@ -898,6 +898,10 @@ describe("startServer", () => {
         db: fakeRecovery.db,
         backofficeOrigin: fakeRecovery.backofficeOrigin,
       },
+      restoredOrphanSweep: {
+        connections: fakeRecovery.connections,
+        enqueueCreditNote: enqueueCreditNoteJob,
+      },
       registers: {
         db: fakeRecovery.db,
         backofficeOrigin: fakeRecovery.backofficeOrigin,
@@ -1561,6 +1565,17 @@ describe("startServer authorizing sales in real time", () => {
       enqueueUnclearOutcome: enqueueUnclearOutcomeJob,
       withdrawUnclearOutcome: withdrawUnclearOutcomeJob,
       enqueueNumberingDiagnosis: enqueueNumberingDiagnosisJob,
+      enqueueCreditNote: enqueueCreditNoteJob,
+    });
+  });
+
+  it("gives the app the restored register orphan sweep route, with a dedicated connection per point of sale lane and the credit note queue", async () => {
+    const { started, buildApp, recovery } = start(env);
+    await started;
+
+    const [options] = buildApp.mock.calls[0] as [BuildAppOptions];
+    expect(options.restoredOrphanSweep).toEqual({
+      connections: recovery.connections,
       enqueueCreditNote: enqueueCreditNoteJob,
     });
   });
