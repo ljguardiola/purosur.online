@@ -113,6 +113,7 @@ describe("deferred sale reference from QR text", () => {
     ["a text with another prefix", "other-prefix:0198-abc:7KQ4M2P9"],
     ["a text without a short code", "purosur-deferred-sale:0198-abc"],
     ["a text without an id", "purosur-deferred-sale::7KQ4M2P9"],
+    ["a text with a code and no separator", "purosur-deferred-sale:7KQ4M2P9"],
     ["a text whose code is too short", "purosur-deferred-sale:0198-abc:7KQ4M2P"],
     ["a text whose code is too long", "purosur-deferred-sale:0198-abc:7KQ4M2P9X"],
     ["a text whose code leaves the alphabet", "purosur-deferred-sale:0198-abc:7KQ4M2P0"],
