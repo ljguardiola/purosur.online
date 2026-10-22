@@ -114,9 +114,9 @@ describe("needsContingencyBackupTicket", () => {
 
 describe("contingencyBackupTicketStanding", () => {
   it("is discarded once discarded, whatever else is true", () => {
-    expect(
-      contingencyBackupTicketStanding(ticket({ discardedAt: AT, printedAt: AT }), 99),
-    ).toBe("discarded");
+    expect(contingencyBackupTicketStanding(ticket({ discardedAt: AT, printedAt: AT }), 99)).toBe(
+      "discarded",
+    );
     expect(contingencyBackupTicketStanding(ticket({ discardedAt: AT }), 0)).toBe("discarded");
   });
 
@@ -131,25 +131,20 @@ describe("contingencyBackupTicketStanding", () => {
 
   it("is no longer needed when not printed and the cloud already has its events", () => {
     expect(contingencyBackupTicketStanding(ticket(), 10)).toBe("no_longer_needed");
-    expect(contingencyBackupTicketStanding(ticket({ sealed: false }), 10)).toBe(
-      "no_longer_needed",
-    );
+    expect(contingencyBackupTicketStanding(ticket({ sealed: false }), 10)).toBe("no_longer_needed");
   });
 
   it("is missing its key when not printed, not synced and not sealed", () => {
     expect(contingencyBackupTicketStanding(ticket({ sealed: false }), 9)).toBe("missing_key");
     expect(
-      contingencyBackupTicketStanding(
-        ticket({ sealed: false, customerDocumentPrinted: false }),
-        9,
-      ),
+      contingencyBackupTicketStanding(ticket({ sealed: false, customerDocumentPrinted: false }), 9),
     ).toBe("missing_key");
   });
 
   it("awaits the customer document when sealed and that document is not printed", () => {
-    expect(
-      contingencyBackupTicketStanding(ticket({ customerDocumentPrinted: false }), 9),
-    ).toBe("awaiting_customer_document");
+    expect(contingencyBackupTicketStanding(ticket({ customerDocumentPrinted: false }), 9)).toBe(
+      "awaiting_customer_document",
+    );
   });
 
   it("is to print when sealed and the customer document is printed", () => {
@@ -243,7 +238,10 @@ describe("contingencyBackupTicketsSummary", () => {
 
   it.each([
     ["to print", ticket({ id: "x", lastDeviceSeq: 20 })],
-    ["awaiting its customer document", ticket({ id: "x", lastDeviceSeq: 20, customerDocumentPrinted: false })],
+    [
+      "awaiting its customer document",
+      ticket({ id: "x", lastDeviceSeq: 20, customerDocumentPrinted: false }),
+    ],
     ["missing its key", ticket({ id: "x", lastDeviceSeq: 20, sealed: false })],
     ["kept", ticket({ id: "x", lastDeviceSeq: 20, printedAt: AT })],
   ])("may not discard while a ticket is %s", (_name, pending) => {

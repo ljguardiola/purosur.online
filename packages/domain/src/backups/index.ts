@@ -1,4 +1,20 @@
 export type {
+  ContingencyBackupOperation,
+  ContingencyBackupPrintFailureReason,
+  ContingencyBackupTicketRecord,
+  ContingencyBackupTicketStanding,
+  ContingencyBackupTicketsSummary,
+  OperationEventRange,
+} from "./model/contingency-backup-ticket.js";
+export {
+  CONTINGENCY_BACKUP_OPERATIONS,
+  CONTINGENCY_BACKUP_PRINT_FAILURE_REASONS,
+  CONTINGENCY_BACKUP_TICKET_STANDINGS,
+  contingencyBackupTicketStanding,
+  contingencyBackupTicketsSummary,
+  needsContingencyBackupTicket,
+} from "./model/contingency-backup-ticket.js";
+export type {
   OffsiteDumpCheckResult,
   OffsiteDumpFailureReason,
   OffsiteDumpReportedFailureReason,
