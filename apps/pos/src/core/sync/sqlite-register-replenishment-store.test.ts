@@ -452,6 +452,79 @@ describe("the register's store for replenishing a restored register", () => {
       expect(count("outbox")).toBe(0);
     });
 
+    it("rebuilds the deferred-sale record of an unclear outcome as the cloud settled it, and again without changing it", async () => {
+      await store.transaction((tx) => tx.applyFact(aCompletedSaleFact({ id: "sale-1" }), SOURCE));
+      const satisfied = aDeferredSaleSatisfiedFact(FICTIONAL_ISSUER);
+      if (satisfied.kind !== "deferred_sale_satisfied") {
+        throw new Error("not a satisfaction");
+      }
+      const { satisfaction } = satisfied;
+      const rebuilt = {
+        deferredSale: {
+          id: "deferred-1",
+          saleId: "sale-1",
+          occurredAt: new Date("2026-10-07T10:00:00.000Z"),
+          total: 12_500,
+          reason: "unclear_outcome" as const,
+          shortCode: "7KQ4M2P9",
+          routedAt: new Date("2026-10-07T10:00:01.000Z"),
+        },
+        authorizedDocument: {
+          id: satisfaction.fiscalDocumentId,
+          saleId: "sale-1",
+          pointOfSale: satisfaction.pointOfSale,
+          number: satisfaction.number,
+          issuedOn: satisfaction.issuedOn,
+          document: satisfaction.document,
+          authorizationCode: satisfaction.authorizationCode,
+          authorizationCodeDueOn: satisfaction.authorizationCodeDueOn,
+          reservedAt: satisfaction.reservedAt,
+          satisfiedAt: satisfaction.satisfiedAt,
+        },
+      };
+
+      expect(await store.transaction((tx) => tx.rebuildUnclearDeferredSale(rebuilt))).toBe(
+        "applied",
+      );
+      expect(await store.transaction((tx) => tx.rebuildUnclearDeferredSale(rebuilt))).toBe(
+        "applied",
+      );
+
+      expect(
+        database
+          .prepare("SELECT id, short_code, satisfied_by_fiscal_document_id FROM deferred_sales")
+          .all(),
+      ).toEqual([
+        { id: "deferred-1", short_code: "7KQ4M2P9", satisfied_by_fiscal_document_id: "document-1" },
+      ]);
+      expect(database.prepare("SELECT id, state FROM fiscal_documents").all()).toEqual([
+        { id: "document-1", state: "AUTHORIZED" },
+      ]);
+      expect(await store.transaction((tx) => tx.holdsDeferredSaleRecord("sale-1"))).toBe(true);
+      expect(count("outbox")).toBe(0);
+      expect(generated).toBe(0);
+    });
+
+    it("cannot rebuild the deferred-sale record of a sale the register does not hold yet", async () => {
+      const rebuilt = {
+        deferredSale: {
+          id: "deferred-1",
+          saleId: "sale-1",
+          occurredAt: new Date("2026-10-07T10:00:00.000Z"),
+          total: 12_500,
+          reason: "unclear_outcome" as const,
+          shortCode: "7KQ4M2P9",
+          routedAt: new Date("2026-10-07T10:00:01.000Z"),
+        },
+        authorizedDocument: null,
+      };
+
+      expect(await store.transaction((tx) => tx.rebuildUnclearDeferredSale(rebuilt))).toBe(
+        "not_yet_applicable",
+      );
+      expect(count("deferred_sales")).toBe(0);
+    });
+
     it("holds no deferred-sale record for a sale until it is rebuilt", async () => {
       await store.transaction((tx) => tx.applyFact(aCompletedSaleFact({ id: "sale-1" }), SOURCE));
 
