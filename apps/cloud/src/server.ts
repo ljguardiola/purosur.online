@@ -823,6 +823,7 @@ export async function startServer(env: ServerEnv, deps: StartServerDeps): Promis
       ? {
           enqueueOfflineAuthorizationCodeRequest,
           enqueueTaxAuthorityCountOnEnrollment: enqueueTaxAuthorityCountJob,
+          enqueueNumberingReconciliationOnEnrollment: enqueueNumberingReconciliationJob,
         }
       : {}),
     ...(database
