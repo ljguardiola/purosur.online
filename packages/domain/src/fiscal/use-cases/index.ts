@@ -470,6 +470,7 @@ export type {
   SaleOrigin,
 } from "./sale-authorization-ports.js";
 export type {
+  AlreadyCreditedRefusal,
   InvoiceAlreadyCredited,
   RequestSaleVoidCreditNotePorts,
   SaleVoidCreditNoteLane,

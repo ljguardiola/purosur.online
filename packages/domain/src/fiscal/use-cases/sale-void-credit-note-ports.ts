@@ -10,6 +10,12 @@ export interface InvoiceAlreadyCredited {
   saleId: string;
 }
 
+export interface AlreadyCreditedRefusal {
+  creditNoteId: string;
+  registerId: string;
+  saleId: string;
+}
+
 export interface SaleVoidCreditNoteRecord {
   creditNoteId: string;
   registerId: string;
@@ -31,6 +37,7 @@ export interface SaleVoidCreditNoteLane {
    */
   recordSaleVoidCreditNote(record: SaleVoidCreditNoteRecord): Promise<void>;
   raiseInvoiceAlreadyCredited(invoice: InvoiceAlreadyCredited, at: Date): Promise<void>;
+  keepAlreadyCreditedRefusal(refusal: AlreadyCreditedRefusal, at: Date): Promise<void>;
 }
 
 export interface SaleVoidCreditNoteLanes {
