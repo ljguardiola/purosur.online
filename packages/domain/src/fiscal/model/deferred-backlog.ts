@@ -14,7 +14,7 @@ export interface DeferredBacklogEntry {
 
 export type DeferredBacklogStep =
   | { kind: "empty" }
-  | { kind: "wait"; until: Date }
+  | { kind: "wait"; until: Date; entry: DeferredBacklogEntry }
   | { kind: "invoice"; entry: DeferredBacklogEntry };
 
 export function isDateOrderBroken(
@@ -75,7 +75,7 @@ export function nextDeferredBacklogStep(
   if (first.lastAttemptEndedAt !== null) {
     const until = new Date(first.lastAttemptEndedAt.getTime() + DEFERRED_BACKLOG_RETRY_INTERVAL_MS);
     if (now.getTime() < until.getTime()) {
-      return { kind: "wait", until };
+      return { kind: "wait", until, entry: first };
     }
   }
   return { kind: "invoice", entry: first };

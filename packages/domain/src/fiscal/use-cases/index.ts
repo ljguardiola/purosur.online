@@ -276,6 +276,11 @@ export type {
   InterruptedRealTimeAuthorizationsTransaction,
 } from "./interrupted-real-time-authorization-ports.js";
 export type {
+  InvoiceDeferredSalesUpToInput,
+  InvoiceDeferredSalesUpToOutcome,
+} from "./invoice-deferred-sales-up-to.js";
+export { invoiceDeferredSalesUpTo } from "./invoice-deferred-sales-up-to.js";
+export type {
   IssueCreditNoteInput,
   IssueCreditNoteOutcome,
 } from "./issue-credit-note.js";

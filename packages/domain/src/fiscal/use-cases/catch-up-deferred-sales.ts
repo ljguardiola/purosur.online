@@ -1,4 +1,8 @@
-import { latestIssuedOn, nextDeferredBacklogStep } from "../model/deferred-backlog.js";
+import {
+  isInDeferredBacklog,
+  latestIssuedOn,
+  nextDeferredBacklogStep,
+} from "../model/deferred-backlog.js";
 import { deferredSaleSatisfiedEvent } from "../model/deferred-sale-satisfied-event.js";
 import { isRegisterFiscallyOnline } from "../model/fiscal-online-signal.js";
 import { FACTURA_C_DOCUMENT_TYPE } from "../model/fiscal-rejection-standing.js";
@@ -31,14 +35,20 @@ export type CatchUpDeferredSalesOutcome =
   | { kind: "completed"; invoiced: readonly string[] }
   | { kind: "stopped"; invoiced: readonly string[]; reason: CatchUpStopReason };
 
+export interface DeferredSalesCatchUpRun {
+  outcome: CatchUpDeferredSalesOutcome;
+  stoppedAtSaleId: string | undefined;
+}
+
 type Round =
   | { kind: "reserved"; saleId: string }
   | { kind: "completed" }
-  | { kind: "stopped"; reason: CatchUpStopReason };
+  | { kind: "stopped"; reason: CatchUpStopReason; atSaleId: string | undefined };
 
 function reserveNext(
   tx: DeferredSaleCatchUpTransaction,
   { clock, ids }: CatchUpDeferredSalesPorts,
+  upToSaleId: string | undefined,
 ): Round {
   const now = clock.now();
   for (const held of tx.deferredSalesHoldingAuthorizedDocument()) {
@@ -58,7 +68,23 @@ function reserveNext(
   }
 
   const series = tx.realTimeSeries();
-  const stopped = (reason: CatchUpStopReason): Round => ({ kind: "stopped", reason });
+  const lastIssuedOn = latestIssuedOn(
+    series.taxAuthorityLastIssuedOn,
+    series.localLastAuthorizedIssuedOn,
+  );
+  if (
+    upToSaleId !== undefined &&
+    !series.deferredBacklog.some(
+      (entry) => entry.saleId === upToSaleId && isInDeferredBacklog(entry, now, lastIssuedOn),
+    )
+  ) {
+    return { kind: "completed" };
+  }
+  const stopped = (reason: CatchUpStopReason, atSaleId?: string): Round => ({
+    kind: "stopped",
+    reason,
+    atSaleId,
+  });
   if (series.pointOfSale === null) {
     return stopped({ kind: "point_of_sale_missing" });
   }
@@ -82,16 +108,12 @@ function reserveNext(
     return stopped({ kind: "tax_authority_count_unknown" });
   }
 
-  const step = nextDeferredBacklogStep(
-    series.deferredBacklog,
-    now,
-    latestIssuedOn(series.taxAuthorityLastIssuedOn, series.localLastAuthorizedIssuedOn),
-  );
+  const step = nextDeferredBacklogStep(series.deferredBacklog, now, lastIssuedOn);
   if (step.kind === "empty") {
     return { kind: "completed" };
   }
   if (step.kind === "wait") {
-    return stopped({ kind: "retry_later", until: step.until });
+    return stopped({ kind: "retry_later", until: step.until }, step.entry.saleId);
   }
   const { entry } = step;
   const gate = preEmissionGate({
@@ -100,7 +122,7 @@ function reserveNext(
     buyerTaxStatuses: tx.buyerTaxStatuses(),
   });
   if (gate.kind === "failed") {
-    return stopped({ kind: "gate_failed", reason: gate.reason });
+    return stopped({ kind: "gate_failed", reason: gate.reason }, entry.saleId);
   }
   tx.reserveFiscalDocument({
     id: ids.next(),
@@ -119,26 +141,42 @@ function reserveNext(
   return { kind: "reserved", saleId: entry.saleId };
 }
 
-export async function catchUpDeferredSales(
+export async function runDeferredSalesCatchUp(
   ports: CatchUpDeferredSalesPorts,
-): Promise<CatchUpDeferredSalesOutcome> {
+  upToSaleId?: string,
+): Promise<DeferredSalesCatchUpRun> {
   const invoiced: string[] = [];
   for (;;) {
-    const round = ports.catchUp.transaction((tx) => reserveNext(tx, ports));
+    const round = ports.catchUp.transaction((tx) => reserveNext(tx, ports, upToSaleId));
     if (round.kind === "completed") {
-      return { kind: "completed", invoiced };
+      return { outcome: { kind: "completed", invoiced }, stoppedAtSaleId: undefined };
     }
     if (round.kind === "stopped") {
-      return { kind: "stopped", invoiced, reason: round.reason };
+      return {
+        outcome: { kind: "stopped", invoiced, reason: round.reason },
+        stoppedAtSaleId: round.atSaleId,
+      };
     }
     const authorization = await requestRealTimeAuthorization(ports, { saleId: round.saleId });
     if (authorization.kind !== "authorized") {
       return {
-        kind: "stopped",
-        invoiced,
-        reason: { kind: "authorization_not_granted", outcome: authorization.kind },
+        outcome: {
+          kind: "stopped",
+          invoiced,
+          reason: { kind: "authorization_not_granted", outcome: authorization.kind },
+        },
+        stoppedAtSaleId: round.saleId,
       };
     }
     invoiced.push(round.saleId);
+    if (round.saleId === upToSaleId) {
+      return { outcome: { kind: "completed", invoiced }, stoppedAtSaleId: undefined };
+    }
   }
+}
+
+export async function catchUpDeferredSales(
+  ports: CatchUpDeferredSalesPorts,
+): Promise<CatchUpDeferredSalesOutcome> {
+  return (await runDeferredSalesCatchUp(ports)).outcome;
 }

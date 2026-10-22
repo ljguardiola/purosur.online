@@ -50,6 +50,7 @@ export type {
 } from "./model/deferred-sale.js";
 export {
   deferredSaleDocumentBlock,
+  deferredSaleReferenceFromQrText,
   isDeferralFinalWhenRecorded,
   isShortCode,
   randomShortCode,
