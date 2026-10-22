@@ -32,6 +32,10 @@ const optionClassName =
   "flex h-control-lg cursor-pointer items-center justify-between rounded-md px-3 text-detail font-semibold " +
   "text-text outline-none data-hovered:bg-surface-subtle data-focus-visible:bg-surface-subtle";
 
+function lastOptionPerValue<O extends { value: string }>(options: readonly O[]): O[] {
+  return [...new Map(options.map((option) => [option.value, option])).values()];
+}
+
 export function ListFilter<V extends string>({
   name,
   label,
@@ -43,6 +47,7 @@ export function ListFilter<V extends string>({
   // it at both spans announces the visible label and chosen value together.
   const labelId = useId();
   const valueId = useId();
+  const uniqueOptions = lastOptionPerValue(options);
 
   return (
     <AriaSelect
@@ -53,7 +58,7 @@ export function ListFilter<V extends string>({
       aria-label={label}
       selectedKey={value}
       onSelectionChange={(key) => {
-        if (isOptionValue(key, options)) {
+        if (isOptionValue(key, uniqueOptions)) {
           onChange(key);
         }
       }}
@@ -66,7 +71,7 @@ export function ListFilter<V extends string>({
           >
             <span id={labelId} className="shrink truncate text-detail text-text-subtle">
               {label}
-            </span>
+            </span>{" "}
             {/* shrink-9999 absorbs the shrink pass before the label's plain `shrink` gives way. */}
             <AriaSelectValue
               id={valueId}
@@ -80,7 +85,7 @@ export function ListFilter<V extends string>({
           </AriaButton>
           <AriaPopover offset={4} className={popoverClassName}>
             <AriaListBox className="flex flex-col gap-1">
-              {options.map((option) => (
+              {uniqueOptions.map((option) => (
                 <AriaListBoxItem
                   key={option.value}
                   id={option.value}

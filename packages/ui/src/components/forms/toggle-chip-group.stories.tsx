@@ -11,13 +11,13 @@ import { ToggleChipGroup, type ToggleChipGroupProps } from "./toggle-chip-group"
 type Day = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
 
 const options: ToggleChipGroupProps<Day>["options"] = [
-  { value: "mon", label: "Lun", accessibleName: "Lunes" },
-  { value: "tue", label: "Mar", accessibleName: "Martes" },
-  { value: "wed", label: "Mié", accessibleName: "Miércoles" },
-  { value: "thu", label: "Jue", accessibleName: "Jueves" },
-  { value: "fri", label: "Vie", accessibleName: "Viernes" },
-  { value: "sat", label: "Sáb", accessibleName: "Sábado" },
-  { value: "sun", label: "Dom", accessibleName: "Domingo" },
+  { value: "mon", label: "Lun", fullLabel: "Lunes" },
+  { value: "tue", label: "Mar", fullLabel: "Martes" },
+  { value: "wed", label: "Mié", fullLabel: "Miércoles" },
+  { value: "thu", label: "Jue", fullLabel: "Jueves" },
+  { value: "fri", label: "Vie", fullLabel: "Viernes" },
+  { value: "sat", label: "Sáb", fullLabel: "Sábado" },
+  { value: "sun", label: "Dom", fullLabel: "Domingo" },
 ];
 
 const meta: Meta<typeof ToggleChipGroup<Day>> = {
@@ -54,15 +54,15 @@ export const WithDescription: Story = {
 };
 
 export const UnselectedHovered: Story = {
-  play: playHoverSetsDataHovered(chip("Martes")),
+  play: playHoverSetsDataHovered(chip("Mar, Martes")),
 };
 
 export const SelectedHovered: Story = {
-  play: playHoverSetsDataHovered(chip("Lunes")),
+  play: playHoverSetsDataHovered(chip("Lun, Lunes")),
 };
 
 export const FocusVisible: Story = {
-  play: playTabReachesFocusVisible(chip("Lunes")),
+  play: playTabReachesFocusVisible(chip("Lun, Lunes")),
 };
 
 export const Invalid: Story = {

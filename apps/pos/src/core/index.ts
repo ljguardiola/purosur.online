@@ -101,6 +101,10 @@ import { refuseNewerDatabase } from "./register/newer-database-refusal";
 import { readReceiptPrinterFor, setReceiptPrinterFor } from "./register/receipt-printer-requests";
 import { registerServiceOf } from "./register/register-service-of-database";
 import { registerStatusFor } from "./register/register-status-requests";
+import {
+  orphanSweepReportOf,
+  regularizeOrphanAuthorizationsStep,
+} from "./register/regularize-orphan-authorizations-step";
 import { restorationStandingFor } from "./register/restoration-standing-requests";
 import { createRestorationStandingWatch } from "./register/restoration-standing-watch";
 import { createSerialDeviceWatch, pathOfMatchingDevice } from "./register/serial-device-watch";
@@ -178,6 +182,7 @@ import { pushDamagedRegisterReport } from "./sync/push-damaged-register-report";
 import { pushForRegisterService } from "./sync/push-for-register-service";
 import { pushResultOf, pushToCloud, pushWarningOf } from "./sync/push-to-cloud";
 import { damagedRegisterTelemetryReader, registerTelemetryReader } from "./sync/register-telemetry";
+import { regularizeAfterSync } from "./sync/regularize-after-sync";
 import { replenishBeforeSync } from "./sync/replenish-before-sync";
 import {
   replenishmentReportOf,
@@ -560,47 +565,71 @@ const syncSchedule = createSyncSchedule({
         }
       },
       onFailure: (error) => reportFailure("the replenishment of the restored register", error),
-      syncOnce: () =>
-        runSyncCycle({
-          checkInstallation: async () => {
-            const attempt = await checkInstallation({
-              readCredentials: () => mainRequests.readCredentials(),
-              installation: localInstallation,
-              adoptDevice: (device) => replica?.adoptDevice(device),
-              getFromCloud:
-                cloudClient === undefined
-                  ? undefined
-                  : (path, headers) => getFromCloud(cloudClient, path, headers),
-            });
-            const warning = installationCheckWarningOf(attempt);
-            if (warning !== undefined) {
-              console.warn(warning, attempt);
-            }
-            return installationCheckResultOf(attempt);
-          },
-          push: pushOutboxToCloud,
-          prune: async () => {
-            await pruneLocalOutbox({ outbox: localOutbox, now });
-          },
-          pull: async () => {
-            const attempt = await pullFromCloud({
-              readCredentials: () => mainRequests.readCredentials(),
-              replica,
-              getFromCloud:
-                cloudClient === undefined
-                  ? undefined
-                  : (path, headers) => getFromCloud(cloudClient, path, headers),
-            });
-            const warning = pullWarningOf(attempt);
-            if (warning !== undefined) {
-              console.warn(warning, attempt);
-            }
-            return pullResultOf(attempt);
-          },
-          onCheckFailure: (error) => reportFailure("the installation check", error),
-          onPushFailure: (error) => reportFailure("the push", error),
-          onPruneFailure: (error) => reportFailure("the outbox pruning", error),
-        }),
+      syncOnce: regularizeAfterSync({
+        regularize: () =>
+          regularizeOrphanAuthorizationsStep({
+            database: localDatabase,
+            evidence: restorationOf,
+            readCredentials: () => mainRequests.readCredentials(),
+            post:
+              cloudClient === undefined
+                ? undefined
+                : (path, bearerToken, body) =>
+                    postToCloudWithBearer(cloudClient, path, bearerToken, body),
+          }),
+        report: (attempt) => {
+          const report = orphanSweepReportOf(attempt);
+          if (report !== undefined) {
+            console.warn(report.message, attempt);
+          }
+        },
+        onFailure: (error) =>
+          reportFailure(
+            "the regularization of the restored register's orphan authorizations",
+            error,
+          ),
+        syncOnce: () =>
+          runSyncCycle({
+            checkInstallation: async () => {
+              const attempt = await checkInstallation({
+                readCredentials: () => mainRequests.readCredentials(),
+                installation: localInstallation,
+                adoptDevice: (device) => replica?.adoptDevice(device),
+                getFromCloud:
+                  cloudClient === undefined
+                    ? undefined
+                    : (path, headers) => getFromCloud(cloudClient, path, headers),
+              });
+              const warning = installationCheckWarningOf(attempt);
+              if (warning !== undefined) {
+                console.warn(warning, attempt);
+              }
+              return installationCheckResultOf(attempt);
+            },
+            push: pushOutboxToCloud,
+            prune: async () => {
+              await pruneLocalOutbox({ outbox: localOutbox, now });
+            },
+            pull: async () => {
+              const attempt = await pullFromCloud({
+                readCredentials: () => mainRequests.readCredentials(),
+                replica,
+                getFromCloud:
+                  cloudClient === undefined
+                    ? undefined
+                    : (path, headers) => getFromCloud(cloudClient, path, headers),
+              });
+              const warning = pullWarningOf(attempt);
+              if (warning !== undefined) {
+                console.warn(warning, attempt);
+              }
+              return pullResultOf(attempt);
+            },
+            onCheckFailure: (error) => reportFailure("the installation check", error),
+            onPushFailure: (error) => reportFailure("the push", error),
+            onPruneFailure: (error) => reportFailure("the outbox pruning", error),
+          }),
+      }),
     }),
   ),
   intervalMs: SYNC_INTERVAL_MS,
@@ -1398,6 +1427,9 @@ startRegisterHealthChecks({
   },
   reportFailure: (error) => reportFailure("the register health check", error),
   afterCheck: () => fiscalModeWatch?.check(),
+  ids: uuidV7Ids,
+  shortCodes: cryptoShortCodes,
+  readOutboxChainKey: async () => (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
 });
 
 const deviceTokenRotation =

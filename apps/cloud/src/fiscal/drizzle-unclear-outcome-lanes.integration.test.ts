@@ -10,6 +10,7 @@ import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { postgresDedicatedConnections } from "../platform/dedicated-connections.js";
+import { DrizzleSaleCompletions } from "../sales/drizzle-sale-completions.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
@@ -81,6 +82,7 @@ function authorizationPorts(taxAuthority: TaxAuthorityInvoicing): AuthorizeFisca
       async () => {},
       async () => {},
     ),
+    saleCompletions: new DrizzleSaleCompletions(db),
     clock: { now: () => RECEIVED_AT },
     tokens: { validToken: async () => TOKEN },
     taxAuthority,

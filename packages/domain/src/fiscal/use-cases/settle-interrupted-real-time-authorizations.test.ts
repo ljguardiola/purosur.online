@@ -19,6 +19,7 @@ const FIRST = {
   origin: ORIGIN,
   reservedAt: FIRST_RESERVED_AT,
   total: 12_500,
+  holdsDeferredSale: false,
 };
 const SECOND = {
   fiscalDocumentId: "doc-2",
@@ -26,6 +27,7 @@ const SECOND = {
   origin: { registerId: "register-1", actorId: "other-cashier" },
   reservedAt: SECOND_RESERVED_AT,
   total: 4_000,
+  holdsDeferredSale: false,
 };
 
 function settle(
@@ -73,6 +75,7 @@ describe("settling the real-time authorizations a stopped register left requesti
         saleId: "sale-1",
         resolution: { state: "UNKNOWN", deferralReason: "unclear_outcome" },
         resolvedAt: STARTED_AT,
+        deferredSaleSatisfied: null,
         deferredSale: {
           sale: firstSale,
           event: deferredSaleRecordedEvent({
@@ -87,6 +90,7 @@ describe("settling the real-time authorizations a stopped register left requesti
         saleId: "sale-2",
         resolution: { state: "UNKNOWN", deferralReason: "unclear_outcome" },
         resolvedAt: STARTED_AT,
+        deferredSaleSatisfied: null,
         deferredSale: {
           sale: secondSale,
           event: deferredSaleRecordedEvent({
@@ -111,6 +115,23 @@ describe("settling the real-time authorizations a stopped register left requesti
     expect(documents.resolutionAttempts.map(({ deferredSale }) => deferredSale?.sale.id)).toEqual([
       "id-1",
       "id-1",
+    ]);
+  });
+
+  it("records no new deferred sale for a document whose sale already holds one", async () => {
+    const { documents, outcome } = settle([{ ...FIRST, holdsDeferredSale: true }]);
+
+    await outcome;
+
+    expect(documents.resolutions).toEqual([
+      {
+        fiscalDocumentId: "doc-1",
+        saleId: "sale-1",
+        resolution: { state: "UNKNOWN", deferralReason: "unclear_outcome" },
+        resolvedAt: STARTED_AT,
+        deferredSale: null,
+        deferredSaleSatisfied: null,
+      },
     ]);
   });
 

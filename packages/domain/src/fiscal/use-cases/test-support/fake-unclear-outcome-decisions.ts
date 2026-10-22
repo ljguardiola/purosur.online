@@ -1,22 +1,22 @@
 import type {
   UnclearDocumentSettled,
+  UnclearFiscalDocument,
   UnclearFiscalDocuments,
   UnclearOutcomeAnswer,
   UnclearOutcomeCloud,
   UnclearOutcomeQuestion,
 } from "../apply-unclear-outcome-decision-ports.js";
-import type { WaitingFiscalDocument } from "../real-time-authorization-ports.js";
 
 export class FakeUnclearFiscalDocuments implements UnclearFiscalDocuments {
   settlements: readonly UnclearDocumentSettled[] = [];
   failOnDocument: string | undefined;
-  private readonly unclear: readonly WaitingFiscalDocument[];
+  private readonly unclear: readonly UnclearFiscalDocument[];
 
-  constructor(unclear: readonly WaitingFiscalDocument[]) {
+  constructor(unclear: readonly UnclearFiscalDocument[]) {
     this.unclear = unclear;
   }
 
-  async unclearDocuments(): Promise<readonly WaitingFiscalDocument[]> {
+  async unclearDocuments(): Promise<readonly UnclearFiscalDocument[]> {
     return this.unclear;
   }
 

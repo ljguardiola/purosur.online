@@ -252,6 +252,8 @@ const SERIES = {
   clockMark: null,
   taxAuthorityLastIssuedOn: null,
   clockCorrections: [],
+  localLastAuthorizedIssuedOn: null,
+  deferredBacklog: [],
 };
 const OFFLINE_SERIES = {
   pointOfSale: 7,
@@ -760,6 +762,7 @@ describe("OFFLINE_AUTHORIZATION_CAUSES", () => {
       "unclear_outcome",
       "numbering_conflict",
       "clock_correction_lapse",
+      "deferred_backlog",
     ]);
   });
 });
@@ -808,6 +811,7 @@ describe("DEFERRAL_REASONS", () => {
       "unclear_outcome",
       "numbering_frozen",
       "clock_behind",
+      "deferred_backlog",
     ]);
   });
 });
@@ -1051,5 +1055,159 @@ describe("saleAuthorizationPath", () => {
   it("is the path the route follows once the gate passed", () => {
     const changes = { online: { ...ONLINE, arcaReachable: false } };
     expect(decide(changes)).toEqual({ ...pathOf(changes), document: DOCUMENT });
+  });
+});
+
+describe("decideSaleAuthorizationRoute while a deferred-sale backlog is pending", () => {
+  const BACKLOG_ENTRY = {
+    deferredSaleId: "deferred-1",
+    saleId: "sale-1",
+    occurredAt: new Date("2026-10-01T10:00:00.000Z"),
+    routedAt: new Date("2026-10-01T10:00:05.000Z"),
+    total: 1000,
+    lastAttemptEndedAt: null,
+  };
+  const BACKLOG_SERIES = { ...SERIES, deferredBacklog: [BACKLOG_ENTRY] };
+
+  it("issues the sale offline under the backlog cause and reserves no real-time number", () => {
+    expect(decide({ series: BACKLOG_SERIES })).toEqual({
+      kind: "issue_offline",
+      cause: "deferred_backlog",
+      pointOfSale: 7,
+      number: 101,
+      document: DOCUMENT,
+      issuedOn: "2026-10-01",
+      fortnight: OCTOBER_FIRST_FORTNIGHT,
+      offlineAuthorizationCode: CODE,
+    });
+  });
+
+  it("defers the sale as joining the backlog when the register holds no code", () => {
+    expect(decide({ series: BACKLOG_SERIES, offlineAuthorizationCode: null })).toEqual({
+      kind: "defer",
+      reason: "deferred_backlog",
+    });
+  });
+
+  it("defers the sale as joining the backlog when the register has no offline point of sale", () => {
+    expect(
+      decide({
+        series: BACKLOG_SERIES,
+        offlineSeries: { ...OFFLINE_SERIES, pointOfSale: null },
+      }),
+    ).toEqual({ kind: "defer", reason: "deferred_backlog" });
+  });
+
+  it("defers as behind the clock a sale the register's clock mark is ahead of", () => {
+    expect(
+      decide({
+        series: BACKLOG_SERIES,
+        offlineSeries: {
+          ...OFFLINE_SERIES,
+          clockMark: new Date(OCCURRED_AT.getTime() + 3_600_000),
+        },
+      }),
+    ).toEqual({ kind: "defer", reason: "clock_behind" });
+  });
+
+  it("keeps waiting on a document in progress before looking at the backlog", () => {
+    expect(decide({ series: { ...BACKLOG_SERIES, documentRequesting: true } })).toEqual({
+      kind: "defer",
+      reason: "document_waiting",
+    });
+  });
+
+  it("keeps the numbering conflict, the unclear outcome and the connectivity causes ahead of the backlog", () => {
+    expect(decide({ series: { ...BACKLOG_SERIES, numberingFrozen: true } })).toMatchObject({
+      cause: "numbering_conflict",
+    });
+    expect(decide({ series: { ...BACKLOG_SERIES, documentUnknown: true } })).toMatchObject({
+      cause: "unclear_outcome",
+    });
+    expect(
+      decide({ series: BACKLOG_SERIES, online: { ...ONLINE, tokenValid: false } }),
+    ).toMatchObject({ cause: "no_connectivity" });
+  });
+
+  it("looks past a backlog for a register without a point of sale", () => {
+    expect(decide({ series: { ...BACKLOG_SERIES, pointOfSale: null } })).toEqual({
+      kind: "defer",
+      reason: "point_of_sale_missing",
+    });
+  });
+
+  it("reserves as usual once the only pending sale has expired", () => {
+    expect(
+      decide({
+        series: {
+          ...SERIES,
+          deferredBacklog: [{ ...BACKLOG_ENTRY, occurredAt: new Date("2026-09-20T12:00:00.000Z") }],
+        },
+      }),
+    ).toMatchObject({ kind: "reserve", number: 41 });
+  });
+
+  describe("two days later", () => {
+    const TWO_DAYS_LATER = new Date("2026-10-03T12:00:00.000Z");
+    const later = {
+      now: TWO_DAYS_LATER,
+      online: { ...ONLINE, lastHealthCheckOkAt: new Date(TWO_DAYS_LATER.getTime() - 1_000) },
+    };
+
+    it("reserves as usual when the only pending sale is behind the tax authority's last issued day", () => {
+      expect(
+        decide({ ...later, series: { ...BACKLOG_SERIES, taxAuthorityLastIssuedOn: "2026-10-02" } }),
+      ).toMatchObject({ kind: "reserve" });
+    });
+
+    it("reserves as usual when the only pending sale is behind the register's own last authorized day", () => {
+      expect(
+        decide({
+          ...later,
+          series: { ...BACKLOG_SERIES, localLastAuthorizedIssuedOn: "2026-10-02" },
+        }),
+      ).toMatchObject({ kind: "reserve" });
+    });
+
+    it("holds the backlog while the sale is on the last issued day", () => {
+      expect(
+        decide({
+          ...later,
+          series: {
+            ...BACKLOG_SERIES,
+            taxAuthorityLastIssuedOn: "2026-10-01",
+            localLastAuthorizedIssuedOn: "2026-09-30",
+          },
+        }),
+      ).toMatchObject({ cause: "deferred_backlog" });
+    });
+  });
+
+  it("still holds the backlog when one pending sale is dropped and another is not", () => {
+    expect(
+      decide({
+        series: {
+          ...SERIES,
+          deferredBacklog: [
+            {
+              ...BACKLOG_ENTRY,
+              deferredSaleId: "old",
+              occurredAt: new Date("2026-09-20T12:00:00.000Z"),
+            },
+            BACKLOG_ENTRY,
+          ],
+        },
+      }),
+    ).toMatchObject({ cause: "deferred_backlog" });
+  });
+
+  it("reserves as usual with an empty backlog", () => {
+    expect(decide({ series: SERIES })).toMatchObject({ kind: "reserve" });
+  });
+
+  it("defers a sale whose gate failed before looking at the backlog", () => {
+    expect(
+      decide({ gate: { kind: "failed", reason: "legal_name_missing" }, series: BACKLOG_SERIES }),
+    ).toEqual({ kind: "defer", reason: "pre_emission_gate_failed" });
   });
 });

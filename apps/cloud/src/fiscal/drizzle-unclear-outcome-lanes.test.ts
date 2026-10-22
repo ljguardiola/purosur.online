@@ -691,6 +691,20 @@ describe("DrizzleUnclearOutcomeLanes", () => {
       });
     });
 
+    it("is recorded without a sale event when it carries none", async () => {
+      const registerId = await insertRegisterWithPointOfSale(db, {
+        pointOfSaleNumber: 7,
+        name: "caja-1",
+      });
+      const record = { ...(await abandonedRecord(registerId)), saleEvent: null };
+
+      await unclearLanes.inPointOfSaleLane(7, (lane) =>
+        lane.recordAbandonedRequest(record, ABANDONED_AT),
+      );
+
+      expect(await storedRow(record.fiscalDocumentId)).toMatchObject({ saleEvent: null });
+    });
+
     it("enqueues its decision in the transaction that records it", async () => {
       const registerId = await insertRegisterWithPointOfSale(db, {
         pointOfSaleNumber: 7,

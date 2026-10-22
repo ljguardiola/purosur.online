@@ -48,7 +48,7 @@ const TOKEN = {
 function setup() {
   const documents = new FakePointOfSaleLanes([[12, REGISTER_ID]]);
   const store = new FakeUnclearOutcomeStore(documents);
-  const ports = { lanes: store, clock: new ManualClock(NOW) };
+  const ports = { lanes: store, saleCompletions: documents, clock: new ManualClock(NOW) };
   return { documents, store, ports };
 }
 
@@ -93,6 +93,7 @@ describe("askAboutUnclearOutcome", () => {
     const outcome = await authorizeFiscalDocument(
       {
         lanes: documents,
+        saleCompletions: documents,
         clock: ports.clock,
         tokens: new FakeWsaaTokenSource(documents, TOKEN),
         taxAuthority,
@@ -130,6 +131,82 @@ describe("askAboutUnclearOutcome", () => {
       }),
     ).toEqual({ kind: "sale_event_mismatch" });
     expect(documents.lanesEntered).toEqual([]);
+  });
+
+  describe("a question that carries no sale event", () => {
+    const WITHOUT_EVENT = { ...REQUEST, saleEvent: null };
+
+    it("uses the completion the cloud already holds: records the document as abandoned without an event", async () => {
+      const { documents, ports } = setup();
+      documents.seedHeldSaleCompletion(REGISTER_ID, "sale-1");
+
+      expect(
+        await askAboutUnclearOutcome(ports, { registerId: REGISTER_ID, request: WITHOUT_EVENT }),
+      ).toEqual({ kind: "pending" });
+      expect(documents.operations).toEqual([
+        "enterLane",
+        "registerOwnsPointOfSale",
+        "recordedRequest",
+        "holdsSaleCompletion",
+        "recordAbandonedRequest@2026-10-01T12:00:00.000Z",
+        "leaveLane",
+      ]);
+      expect(documents.requests.get(FISCAL_DOCUMENT_ID)?.saleEvent).toBeNull();
+    });
+
+    it("refuses when the cloud holds no completion of that sale, recording nothing", async () => {
+      const { documents, ports } = setup();
+
+      expect(
+        await askAboutUnclearOutcome(ports, { registerId: REGISTER_ID, request: WITHOUT_EVENT }),
+      ).toEqual({ kind: "sale_completion_not_held" });
+      expect(documents.operations).toEqual([
+        "enterLane",
+        "registerOwnsPointOfSale",
+        "recordedRequest",
+        "holdsSaleCompletion",
+        "leaveLane",
+      ]);
+      expect(documents.requests.size).toBe(0);
+    });
+
+    it("does not count another register's completion of the sale", async () => {
+      const { documents, ports } = setup();
+      documents.seedHeldSaleCompletion("register-2", "sale-1");
+
+      expect(
+        await askAboutUnclearOutcome(ports, { registerId: REGISTER_ID, request: WITHOUT_EVENT }),
+      ).toEqual({ kind: "sale_completion_not_held" });
+    });
+
+    it("answers an already recorded document without asking about the completion", async () => {
+      const { documents, store, ports } = setup();
+      store.seed(
+        { ...REQUEST, registerId: REGISTER_ID, notAfter: NOW, receivedAt: NOW },
+        { kind: "unclear" },
+        NOW,
+      );
+
+      await askAboutUnclearOutcome(ports, { registerId: REGISTER_ID, request: WITHOUT_EVENT });
+
+      expect(documents.operations).not.toContain("holdsSaleCompletion");
+    });
+
+    it("refuses a point of sale the register does not own before asking about the completion", async () => {
+      const { documents, ports } = setup();
+
+      expect(
+        await askAboutUnclearOutcome(ports, { registerId: "register-2", request: WITHOUT_EVENT }),
+      ).toEqual({ kind: "point_of_sale_not_owned" });
+      expect(documents.operations).not.toContain("holdsSaleCompletion");
+    });
+  });
+
+  it("never asks whether the cloud holds the completion when the question carries the event", async () => {
+    const { documents, ports } = setup();
+    await askAboutUnclearOutcome(ports, { registerId: REGISTER_ID, request: REQUEST });
+
+    expect(documents.operations).not.toContain("holdsSaleCompletion");
   });
 
   it("answers an already recorded document with the decision recorded for it and records nothing more", async () => {

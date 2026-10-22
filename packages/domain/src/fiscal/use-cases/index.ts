@@ -25,6 +25,7 @@ export type {
   LocalRequestAtNumber,
   OrphanRegularization,
   RequestsAtNumber,
+  SaleCreditNote,
   SaleDocument,
   VoucherReference,
 } from "../model/orphan-authorization.js";
@@ -53,6 +54,7 @@ export type {
 export type {
   ApplyUnclearOutcomeDecisionsPorts,
   UnclearDocumentSettled,
+  UnclearFiscalDocument,
   UnclearFiscalDocuments,
   UnclearOutcomeAnswer,
   UnclearOutcomeCloud,
@@ -119,6 +121,18 @@ export type {
   BuyerTaxStatusStore,
   BuyerTaxStatusStoreTransaction,
 } from "./buyer-tax-status-store.js";
+export type {
+  CatchUpDeferredSalesOutcome,
+  CatchUpStopReason,
+} from "./catch-up-deferred-sales.js";
+export { catchUpDeferredSales } from "./catch-up-deferred-sales.js";
+export type {
+  CatchUpDeferredSalesPorts,
+  DeferredSaleCatchUp,
+  DeferredSaleCatchUpTransaction,
+  DeferredSaleHoldingAuthorizedDocument,
+  DeferredSaleSatisfaction,
+} from "./catch-up-deferred-sales-ports.js";
 export type { CheckArcaVitalityOutcome } from "./check-arca-vitality.js";
 export { checkArcaVitality } from "./check-arca-vitality.js";
 export type {
@@ -333,6 +347,7 @@ export type {
 } from "./read-unknown-fiscal-documents.js";
 export { readUnknownFiscalDocuments } from "./read-unknown-fiscal-documents.js";
 export type {
+  ExistingDeferredSale,
   RealTimeAuthorizationCall,
   RealTimeAuthorizationPorts,
   RealTimeAuthorizationResolved,
@@ -492,6 +507,7 @@ export type {
   SaleAuthorizationTransaction,
   SaleOrigin,
 } from "./sale-authorization-ports.js";
+export type { SaleCompletions } from "./sale-completion-ports.js";
 export type {
   AlreadyCreditedRefusal,
   InvoiceAlreadyCredited,
@@ -508,6 +524,18 @@ export type {
 export { serveRestoredRegisterCreditNoteAnswers } from "./serve-restored-register-credit-note-answers.js";
 export type { SettleInterruptedRealTimeAuthorizationsOutcome } from "./settle-interrupted-real-time-authorizations.js";
 export { settleInterruptedRealTimeAuthorizations } from "./settle-interrupted-real-time-authorizations.js";
+export type {
+  SweepRestoredRegisterOrphanAuthorizationsInput,
+  SweepRestoredRegisterOrphanAuthorizationsOutcome,
+} from "./sweep-restored-register-orphan-authorizations.js";
+export { sweepRestoredRegisterOrphanAuthorizations } from "./sweep-restored-register-orphan-authorizations.js";
+export type {
+  RegisterFiscalPointsOfSale,
+  RestoredRegisterOrphanLane,
+  RestoredRegisterOrphanLanes,
+  SweepRestoredRegisterOrphanAuthorizationsPorts,
+  UnrecordedSaleRequest,
+} from "./sweep-restored-register-orphan-authorizations-ports.js";
 export type {
   LastAuthorizedAnswer,
   LastAuthorizedCount,

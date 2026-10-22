@@ -1,6 +1,7 @@
 import type { RealTimeAuthorizationAnswer } from "../../model/real-time-authorization.js";
 import { ShortCodeTaken } from "../deferred-sale-ports.js";
 import type {
+  ExistingDeferredSale,
   RealTimeAuthorizationCall,
   RealTimeAuthorizationResolved,
   RealTimeFiscalDocuments,
@@ -14,10 +15,20 @@ export class FakeRealTimeFiscalDocuments implements RealTimeFiscalDocuments {
   readonly resolutionAttempts: RealTimeAuthorizationResolved[] = [];
   private readonly waiting: RequestedFiscalDocument | null;
   private readonly takenShortCodes: readonly string[];
+  private readonly existingDeferredSale: ExistingDeferredSale | null;
 
-  constructor(waiting: RequestedFiscalDocument | null, takenShortCodes: readonly string[] = []) {
+  constructor(
+    waiting: RequestedFiscalDocument | null,
+    takenShortCodes: readonly string[] = [],
+    existingDeferredSale: ExistingDeferredSale | null = null,
+  ) {
     this.waiting = waiting;
     this.takenShortCodes = takenShortCodes;
+    this.existingDeferredSale = existingDeferredSale;
+  }
+
+  async deferredSaleOfSale(): Promise<ExistingDeferredSale | null> {
+    return this.existingDeferredSale;
   }
 
   async waitingDocumentOfSale(saleId: string): Promise<RequestedFiscalDocument | null> {

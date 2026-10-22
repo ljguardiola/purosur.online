@@ -46,6 +46,9 @@ const holdPredecessor = () =>
     .prepare("INSERT INTO register_predecessor (device_id, last_acknowledged_seq) VALUES ('d0', 4)")
     .run();
 
+const awaitOrphanSweep = () =>
+  database.exec("INSERT INTO awaiting_orphan_sweep (register_id) VALUES ('r1')");
+
 const holdPointOfSale = (awaiting: boolean) =>
   database.exec(
     `INSERT INTO own_register (id, name, version, removed) VALUES ('r1', 'Caja 1', 1, 0);
@@ -62,6 +65,7 @@ describe("the evidence of the restoration protocol", () => {
       reset_sync_identity: "completed",
       replenish: "completed",
       reconcile_fiscal_counters: "completed",
+      regularize_orphan_authorizations: "completed",
       cloud: "unknown",
     });
   });
@@ -75,6 +79,7 @@ describe("the evidence of the restoration protocol", () => {
       reset_sync_identity: "completed",
       replenish: "completed",
       reconcile_fiscal_counters: "completed",
+      regularize_orphan_authorizations: "completed",
       cloud: "unknown",
     });
   });
@@ -95,6 +100,7 @@ describe("the evidence of the restoration protocol", () => {
       reset_sync_identity: "pending",
       replenish: "completed",
       reconcile_fiscal_counters: "completed",
+      regularize_orphan_authorizations: "completed",
       cloud: "unknown",
     });
   });
@@ -108,6 +114,7 @@ describe("the evidence of the restoration protocol", () => {
       reset_sync_identity: "completed",
       replenish: "pending",
       reconcile_fiscal_counters: "completed",
+      regularize_orphan_authorizations: "completed",
       cloud: "unknown",
     });
   });
@@ -121,6 +128,7 @@ describe("the evidence of the restoration protocol", () => {
       reset_sync_identity: "completed",
       replenish: "completed",
       reconcile_fiscal_counters: "pending",
+      regularize_orphan_authorizations: "completed",
       cloud: "unknown",
     });
   });
@@ -129,6 +137,27 @@ describe("the evidence of the restoration protocol", () => {
     holdPointOfSale(false);
 
     expect(evidence.evidence().reconcile_fiscal_counters).toBe("completed");
+  });
+
+  it("holds the regularization of the orphan authorizations pending while the register awaits its sweep", () => {
+    awaitOrphanSweep();
+
+    expect(evidence.evidence()).toEqual({
+      enroll: "completed",
+      restore: "completed",
+      reset_sync_identity: "completed",
+      replenish: "completed",
+      reconcile_fiscal_counters: "completed",
+      regularize_orphan_authorizations: "pending",
+      cloud: "unknown",
+    });
+  });
+
+  it("holds the regularization of the orphan authorizations completed once the register awaits no sweep", () => {
+    awaitOrphanSweep();
+    database.exec("DELETE FROM awaiting_orphan_sweep");
+
+    expect(evidence.evidence().regularize_orphan_authorizations).toBe("completed");
   });
 
   it("follows the restore as it ends", () => {

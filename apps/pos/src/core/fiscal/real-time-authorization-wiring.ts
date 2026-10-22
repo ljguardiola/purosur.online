@@ -2,6 +2,7 @@ import { REAL_TIME_AUTHORIZATION_TIMEOUT_MS } from "@purosur/domain";
 import {
   applyUnclearOutcomeDecisions,
   type CloudCreditNotes as CloudCreditNotesPort,
+  catchUpDeferredSales,
   type IdGenerator,
   type RealTimeTaxAuthority,
   recordRegisterHealthCheck,
@@ -21,8 +22,10 @@ import { CloudRealTimeTaxAuthority } from "./cloud-real-time-tax-authority";
 import { CloudUnclearOutcomeDecisions } from "./cloud-unclear-outcome-decisions";
 import { authorizeSaleInRealTime } from "./real-time-sale-authorization";
 import { startRegisterHealthMonitor } from "./register-health-monitor";
+import { SqliteDeferredSaleCatchUp } from "./sqlite-deferred-sale-catch-up";
 import { SqliteRealTimeFiscalDocuments } from "./sqlite-real-time-fiscal-documents";
 import { SqliteRegisterHealthChecks } from "./sqlite-register-health-checks";
+import { SqliteRoundTripSamples } from "./sqlite-round-trip-samples";
 import { SqliteVoidCreditNotes } from "./sqlite-void-credit-notes";
 
 export interface RealTimeAuthorizationWiringDeps {
@@ -47,6 +50,19 @@ const UNABLE_TO_ASK: RealTimeTaxAuthority = {
   authorize: async () => ({ kind: "unclear" }),
 };
 
+function realTimeTaxAuthority({
+  cloudClient,
+  readDeviceToken,
+}: Pick<RealTimeAuthorizationWiringDeps, "cloudClient" | "readDeviceToken">): RealTimeTaxAuthority {
+  return cloudClient === undefined
+    ? UNABLE_TO_ASK
+    : new CloudRealTimeTaxAuthority({
+        readDeviceToken,
+        post: (path, bearerToken, body, options) =>
+          postToCloudWithBearer(cloudClient, path, bearerToken, body, options),
+      });
+}
+
 export function createRealTimeAuthorization({
   database,
   cloudClient,
@@ -60,14 +76,7 @@ export function createRealTimeAuthorization({
   if (database === undefined) {
     return { authorizeSale: async () => undefined };
   }
-  const taxAuthority =
-    cloudClient === undefined
-      ? UNABLE_TO_ASK
-      : new CloudRealTimeTaxAuthority({
-          readDeviceToken,
-          post: (path, bearerToken, body, options) =>
-            postToCloudWithBearer(cloudClient, path, bearerToken, body, options),
-        });
+  const taxAuthority = realTimeTaxAuthority({ cloudClient, readDeviceToken });
   return {
     authorizeSale: async (saleId) => {
       try {
@@ -138,20 +147,24 @@ export function startRegisterHealthChecks({
   scheduleNext,
   reportFailure,
   afterCheck,
-}: RealTimeAuthorizationWiringDeps & {
-  scheduleNext: (run: () => void, delayMs: number) => () => void;
-  afterCheck?: () => void;
-}): (() => void) | undefined {
+  ids,
+  shortCodes,
+  readOutboxChainKey,
+}: RealTimeAuthorizationWiringDeps &
+  DeferralIdentities & {
+    scheduleNext: (run: () => void, delayMs: number) => () => void;
+    afterCheck?: () => void;
+  }): (() => void) | undefined {
   if (database === undefined || cloudClient === undefined) {
     return undefined;
   }
   const healthChecks = new SqliteRegisterHealthChecks(database);
-  const documents = new SqliteRealTimeFiscalDocuments(database);
   const cloud = new CloudUnclearOutcomeDecisions({
     readDeviceToken,
     post: (path, bearerToken, body, options) =>
       postToCloudWithBearer(cloudClient, path, bearerToken, body, options),
   });
+  const taxAuthority = realTimeTaxAuthority({ cloudClient, readDeviceToken });
   const creditNotes = new SqliteVoidCreditNotes(database);
   const creditNotesCloud = cloudCreditNotes({ cloudClient, readDeviceToken });
   return startRegisterHealthMonitor({
@@ -162,13 +175,33 @@ export function startRegisterHealthChecks({
         record: (check) => recordRegisterHealthCheck({ healthChecks }, check),
         now,
       }).catch(reportFailure);
+      const outboxChainKey = await readOutboxChainKey().then(
+        (key) => ({ key }),
+        (error: unknown) => {
+          reportFailure(error);
+          return undefined;
+        },
+      );
+      const documents = new SqliteRealTimeFiscalDocuments(database, outboxChainKey?.key);
       const { failed } = await applyUnclearOutcomeDecisions({
         documents,
         cloud,
         clock: { now },
+        ids,
       });
       for (const { error } of failed) {
         reportFailure(error);
+      }
+      if (outboxChainKey !== undefined) {
+        await catchUpDeferredSales({
+          catchUp: new SqliteDeferredSaleCatchUp(database, outboxChainKey.key),
+          documents,
+          roundTrips: new SqliteRoundTripSamples(database),
+          taxAuthority,
+          clock: { now },
+          ids,
+          shortCodes,
+        }).catch(reportFailure);
       }
       if (creditNotesCloud !== undefined) {
         await requestVoidCreditNotes({

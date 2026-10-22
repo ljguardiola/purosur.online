@@ -919,6 +919,8 @@ describe("the register's local migrations", () => {
         "0071_credit_note_reprints",
         "0072_awaiting_restored_numbering",
         "0073_replenished_credit_note_requests",
+        "0074_awaiting_orphan_sweep",
+        "0075_deferred_sale_backlog",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1015,6 +1017,8 @@ describe("the register's local migrations", () => {
         "0071_credit_note_reprints",
         "0072_awaiting_restored_numbering",
         "0073_replenished_credit_note_requests",
+        "0074_awaiting_orphan_sweep",
+        "0075_deferred_sale_backlog",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1106,6 +1110,8 @@ describe("the register's local migrations", () => {
         "0071_credit_note_reprints",
         "0072_awaiting_restored_numbering",
         "0073_replenished_credit_note_requests",
+        "0074_awaiting_orphan_sweep",
+        "0075_deferred_sale_backlog",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1196,6 +1202,8 @@ describe("the register's local migrations", () => {
         "0071_credit_note_reprints",
         "0072_awaiting_restored_numbering",
         "0073_replenished_credit_note_requests",
+        "0074_awaiting_orphan_sweep",
+        "0075_deferred_sale_backlog",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1315,6 +1323,8 @@ describe("the register's local migrations", () => {
         "0071_credit_note_reprints",
         "0072_awaiting_restored_numbering",
         "0073_replenished_credit_note_requests",
+        "0074_awaiting_orphan_sweep",
+        "0075_deferred_sale_backlog",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1424,6 +1434,8 @@ describe("the register's local migrations", () => {
         "0071_credit_note_reprints",
         "0072_awaiting_restored_numbering",
         "0073_replenished_credit_note_requests",
+        "0074_awaiting_orphan_sweep",
+        "0075_deferred_sale_backlog",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1537,6 +1549,8 @@ describe("the register's local migrations", () => {
         "0071_credit_note_reprints",
         "0072_awaiting_restored_numbering",
         "0073_replenished_credit_note_requests",
+        "0074_awaiting_orphan_sweep",
+        "0075_deferred_sale_backlog",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1658,6 +1672,8 @@ describe("the register's local migrations", () => {
         "0071_credit_note_reprints",
         "0072_awaiting_restored_numbering",
         "0073_replenished_credit_note_requests",
+        "0074_awaiting_orphan_sweep",
+        "0075_deferred_sale_backlog",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1746,6 +1762,8 @@ describe("the register's local migrations", () => {
         "0071_credit_note_reprints",
         "0072_awaiting_restored_numbering",
         "0073_replenished_credit_note_requests",
+        "0074_awaiting_orphan_sweep",
+        "0075_deferred_sale_backlog",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -2704,6 +2722,7 @@ describe("the register's local migrations", () => {
           .all(),
       ).toEqual([
         { name: "fiscal_documents_number_in_use" },
+        { name: "fiscal_documents_one_open_per_sale" },
         { name: "fiscal_documents_one_waiting" },
       ]);
       after.close();
@@ -4064,15 +4083,15 @@ describe("the register's local migrations", () => {
       database.close();
     });
 
-    it("give a sale at most one fiscal document, of a known sale", () => {
+    it("give a sale at most one fiscal document waiting for an answer or authorized, of a known sale", () => {
       const database = withSales();
 
-      insertDocument(database, { state: "REJECTED" });
+      insertDocument(database, { state: "AUTHORIZED" });
 
       expect(() => insertDocument(database, { id: "doc-2", number: 42 })).toThrow(/UNIQUE/);
-      expect(() => insertDocument(database, { id: "doc-3", sale_id: "missing" })).toThrow(
-        /FOREIGN KEY/,
-      );
+      expect(() =>
+        insertDocument(database, { id: "doc-3", sale_id: "missing", number: 43 }),
+      ).toThrow(/FOREIGN KEY/);
       database.close();
     });
 
@@ -5870,6 +5889,271 @@ describe("the register's local migrations", () => {
       expect(() => hold.run({ credit_note_id: "note-1" })).not.toThrow();
       expect(() => hold.run({ credit_note_id: "note-1" })).toThrow(/UNIQUE|PRIMARY KEY/);
       expect(() => hold.run({ credit_note_id: "note-unknown" })).toThrow(/FOREIGN KEY/);
+      after.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
+  describe("the deferred-sale backlog", () => {
+    const MIGRATION = "0075_deferred_sale_backlog";
+
+    function databaseHoldingDataBefore(path: string) {
+      const previous = LOCAL_MIGRATIONS.filter((migration) => migration.name < MIGRATION);
+      expect(LOCAL_MIGRATIONS.map((migration) => migration.name)).toContain(MIGRATION);
+      const before = openLocalDatabase(path, previous, migrationClock);
+      before.exec(
+        `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
+         VALUES ('s1', 'r1', 'device-a', 'u1', '2026-10-09T12:00:00.000Z', 0, 'OPEN');
+         INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at)
+         VALUES ('sale-1', 'r1', 'device-a', 's1', 'u1', 'COMPLETED', '2026-10-09T12:05:00.000Z'),
+                ('sale-2', 'r1', 'device-a', 's1', 'u1', 'COMPLETED', '2026-10-09T12:06:00.000Z'),
+                ('sale-3', 'r1', 'device-a', 's1', 'u1', 'COMPLETED', '2026-10-09T12:07:00.000Z');
+         INSERT INTO fiscal_documents (
+           id, sale_id, point_of_sale, document_type, number, issued_on, document, state,
+           authorization_code, authorization_code_due_on, reserved_at, resolved_at
+         ) VALUES
+           ('doc-1', 'sale-1', 12, 'factura_c', 41, '2026-10-09', '{}', 'AUTHORIZED',
+            '75123456789012', '2026-10-19', '2026-10-09T12:05:00.000Z', '2026-10-09T12:05:01.000Z'),
+           ('doc-2', 'sale-2', 12, 'factura_c', 42, '2026-10-09', '{}', 'REJECTED',
+            NULL, NULL, '2026-10-09T12:06:00.000Z', '2026-10-09T12:06:01.000Z');
+         INSERT INTO deferred_sales (
+           id, sale_id, occurred_at, total, reason, short_code, routed_at,
+           satisfied_by_fiscal_document_id, satisfied_at
+         ) VALUES (
+           'd1', 'sale-1', '2026-10-09T12:05:00.000Z', 1500, 'fiscally_offline', '7KQ4M2P9',
+           '2026-10-09T12:05:01.000Z', 'doc-1', '2026-10-09T12:30:00.000Z'
+         );
+         INSERT INTO offline_fiscal_documents (
+           id, sale_id, point_of_sale, document_type, number, issued_on, generated_at, generation_stamp,
+           offline_authorization_code, fortnight_start, fortnight_end, document,
+           buyer_document_type, buyer_document_number, cause
+         ) VALUES (
+           'offline-kept', 'sale-3', 31, 'factura_c', 1, '2026-10-09', '2026-10-09T12:07:00.000Z', '20261009090700',
+           '36251478963214', '2026-10-01', '2026-10-15', '{}', 99, 0, 'unclear_outcome'
+         );`,
+      );
+      before.close();
+      return openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+    }
+
+    function insertDocument(
+      database: ReturnType<typeof openLocalDatabase>,
+      values: { id: string; sale_id: string; number: number; state: string },
+    ) {
+      database
+        .prepare(
+          `INSERT INTO fiscal_documents (
+             id, sale_id, point_of_sale, document_type, number, issued_on, document, state,
+             authorization_code, authorization_code_due_on, reserved_at, resolved_at
+           ) VALUES (
+             @id, @sale_id, 12, 'factura_c', @number, '2026-10-09', '{}', @state,
+             CASE WHEN @state = 'AUTHORIZED' THEN '75123456789012' END,
+             CASE WHEN @state = 'AUTHORIZED' THEN '2026-10-19' END,
+             '2026-10-09T12:06:00.000Z',
+             CASE WHEN @state = 'REQUESTING' THEN NULL ELSE '2026-10-09T12:06:01.000Z' END
+           )`,
+        )
+        .run(values);
+    }
+
+    it("keep the fiscal documents, deferred sales and offline documents a register already holds", () => {
+      const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+      try {
+        const after = databaseHoldingDataBefore(join(folder, "register.sqlite"));
+
+        expect(
+          after
+            .prepare(
+              "SELECT id, sale_id, number, state, authorization_code FROM fiscal_documents ORDER BY id",
+            )
+            .all(),
+        ).toEqual([
+          {
+            id: "doc-1",
+            sale_id: "sale-1",
+            number: 41,
+            state: "AUTHORIZED",
+            authorization_code: "75123456789012",
+          },
+          {
+            id: "doc-2",
+            sale_id: "sale-2",
+            number: 42,
+            state: "REJECTED",
+            authorization_code: null,
+          },
+        ]);
+        expect(
+          after.prepare("SELECT id, satisfied_by_fiscal_document_id FROM deferred_sales").all(),
+        ).toEqual([{ id: "d1", satisfied_by_fiscal_document_id: "doc-1" }]);
+        expect(after.prepare("SELECT id, cause FROM offline_fiscal_documents").all()).toEqual([
+          { id: "offline-kept", cause: "unclear_outcome" },
+        ]);
+        expect(after.pragma("foreign_key_check")).toEqual([]);
+        after.close();
+      } finally {
+        rmSync(folder, { recursive: true, force: true });
+      }
+    });
+
+    it("let a sale hold a rejected, released or conflicting document beside one waiting or authorized", () => {
+      const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+      try {
+        const after = databaseHoldingDataBefore(join(folder, "register.sqlite"));
+
+        expect(() =>
+          insertDocument(after, {
+            id: "doc-3",
+            sale_id: "sale-2",
+            number: 43,
+            state: "REQUESTING",
+          }),
+        ).not.toThrow();
+        expect(() =>
+          insertDocument(after, { id: "doc-4", sale_id: "sale-2", number: 44, state: "RELEASED" }),
+        ).not.toThrow();
+        expect(() =>
+          insertDocument(after, {
+            id: "doc-5",
+            sale_id: "sale-2",
+            number: 45,
+            state: "CONFLICTING",
+          }),
+        ).not.toThrow();
+        expect(after.pragma("foreign_key_check")).toEqual([]);
+        after.close();
+      } finally {
+        rmSync(folder, { recursive: true, force: true });
+      }
+    });
+
+    it.each([
+      ["a second waiting document", "REQUESTING", "UNKNOWN"],
+      ["an authorized document beside a waiting one", "UNKNOWN", "AUTHORIZED"],
+      ["a second authorized document", "AUTHORIZED", "AUTHORIZED"],
+    ])("refuse %s for one sale", (_case, first, second) => {
+      const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+      try {
+        const after = databaseHoldingDataBefore(join(folder, "register.sqlite"));
+        after.exec("DELETE FROM fiscal_documents WHERE id = 'doc-2'");
+
+        insertDocument(after, { id: "doc-3", sale_id: "sale-2", number: 43, state: first });
+
+        expect(() =>
+          insertDocument(after, { id: "doc-4", sale_id: "sale-2", number: 44, state: second }),
+        ).toThrow(/UNIQUE/);
+        after.close();
+      } finally {
+        rmSync(folder, { recursive: true, force: true });
+      }
+    });
+
+    it("keep one waiting document per point of sale and one use of each number", () => {
+      const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+      try {
+        const after = databaseHoldingDataBefore(join(folder, "register.sqlite"));
+
+        insertDocument(after, { id: "doc-3", sale_id: "sale-2", number: 43, state: "REQUESTING" });
+
+        expect(() =>
+          insertDocument(after, {
+            id: "doc-4",
+            sale_id: "sale-3",
+            number: 44,
+            state: "REQUESTING",
+          }),
+        ).toThrow(/UNIQUE/);
+        expect(() =>
+          insertDocument(after, {
+            id: "doc-5",
+            sale_id: "sale-3",
+            number: 41,
+            state: "CONFLICTING",
+          }),
+        ).toThrow(/UNIQUE/);
+        after.close();
+      } finally {
+        rmSync(folder, { recursive: true, force: true });
+      }
+    });
+
+    it("keep satisfying a deferred sale only with an authorized document of its own sale", () => {
+      const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+      try {
+        const after = databaseHoldingDataBefore(join(folder, "register.sqlite"));
+        after.exec(
+          `INSERT INTO deferred_sales (id, sale_id, occurred_at, total, reason, short_code, routed_at)
+           VALUES ('d2', 'sale-2', '2026-10-09T12:06:00.000Z', 900, 'rejected', '7KQ4M2PA', '2026-10-09T12:06:01.000Z')`,
+        );
+
+        expect(() =>
+          after
+            .prepare(
+              "UPDATE deferred_sales SET satisfied_by_fiscal_document_id = 'doc-2', satisfied_at = '2026-10-09T12:40:00.000Z' WHERE id = 'd2'",
+            )
+            .run(),
+        ).toThrow(/an authorized fiscal document of its own sale/);
+        after.close();
+      } finally {
+        rmSync(folder, { recursive: true, force: true });
+      }
+    });
+
+    it("let a sale be deferred, and a document be issued offline, because of the backlog", () => {
+      const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+      try {
+        const after = databaseHoldingDataBefore(join(folder, "register.sqlite"));
+
+        const defer = after.prepare(
+          `INSERT INTO deferred_sales (id, sale_id, occurred_at, total, reason, short_code, routed_at)
+           VALUES ('d2', 'sale-2', '2026-10-09T12:06:00.000Z', 900, @reason, '7KQ4M2PA', '2026-10-09T12:06:01.000Z')`,
+        );
+        expect(() => defer.run({ reason: "forgotten" })).toThrow(/CHECK/);
+        expect(() => defer.run({ reason: "deferred_backlog" })).not.toThrow();
+
+        const issueOffline = after.prepare(
+          `INSERT INTO offline_fiscal_documents (
+             id, sale_id, point_of_sale, document_type, number, issued_on, generated_at, generation_stamp,
+             offline_authorization_code, fortnight_start, fortnight_end, document,
+             buyer_document_type, buyer_document_number, cause
+           ) VALUES (
+             'offline-backlog', 'sale-2', 31, 'factura_c', 2, '2026-10-09', '2026-10-09T12:06:00.000Z', '20261009090600',
+             '36251478963214', '2026-10-01', '2026-10-15', '{}', 99, 0, @cause
+           )`,
+        );
+        expect(() => issueOffline.run({ cause: "other" })).toThrow(/CHECK/);
+        expect(() => issueOffline.run({ cause: "deferred_backlog" })).not.toThrow();
+        after.close();
+      } finally {
+        rmSync(folder, { recursive: true, force: true });
+      }
+    });
+  });
+});
+
+describe("the orphan sweep migration", () => {
+  it("leaves a register that already holds data awaiting no sweep", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.filter(
+        (migration) => migration.name < "0074_awaiting_orphan_sweep",
+      );
+      expect(LOCAL_MIGRATIONS.map((migration) => migration.name)).toContain(
+        "0074_awaiting_orphan_sweep",
+      );
+      const before = openLocalDatabase(path, previous, migrationClock);
+      before.exec(
+        `INSERT INTO own_register (id, name, version, removed) VALUES ('r1', 'Caja 1', 1, 0);
+         INSERT INTO register_point_of_sale (register_id, point_of_sale_number, fiscal_address_id, version)
+         VALUES ('r1', 12, 'address-1', 2);`,
+      );
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+
+      expect(after.prepare("SELECT register_id FROM awaiting_orphan_sweep").all()).toEqual([]);
       after.close();
     } finally {
       rmSync(folder, { recursive: true, force: true });

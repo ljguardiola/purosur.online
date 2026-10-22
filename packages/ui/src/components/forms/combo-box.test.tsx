@@ -48,11 +48,11 @@ function inputElement(screen: Screen): HTMLInputElement {
   return input(screen).element() as HTMLInputElement;
 }
 
-function optionNames(screen: Screen): string[] {
+function optionTexts(screen: Screen): string[] {
   return screen
     .getByRole("option")
     .elements()
-    .flatMap((el) => el.querySelector('[slot="label"]')?.textContent ?? []);
+    .map((el) => el.textContent);
 }
 
 // A locator click scrolls the option into view first, and the scroll event closes a list that does
@@ -141,10 +141,10 @@ test("opens on focus listing every option with its description under the label",
       .elements()
       .map((el) => el.textContent),
   ).toEqual([
-    "Yerba mateHoja Alta · 1 kg",
-    "Yerba mateMonte Güirá · 500 g",
+    "Yerba mate Hoja Alta · 1 kg",
+    "Yerba mate Monte Güirá · 500 g",
     "Café molido",
-    "Miel de abejaCampo Real · 350 g",
+    "Miel de abeja Campo Real · 350 g",
   ]);
 });
 
@@ -153,14 +153,14 @@ test("narrows the list to the options whose label contains what was typed", asyn
 
   await input(screen).fill("mie");
 
-  await expect.poll(() => optionNames(screen)).toEqual(["Miel de abeja"]);
+  await expect.poll(() => optionTexts(screen)).toEqual(["Miel de abeja Campo Real · 350 g"]);
 });
 
 test("ignores case and accents when narrowing", async () => {
   const screen = await render(<ComboBox {...baseProps()} />);
 
   await input(screen).fill("CAFE");
-  await expect.poll(() => optionNames(screen)).toEqual(["Café molido"]);
+  await expect.poll(() => optionTexts(screen)).toEqual(["Café molido"]);
 
   await input(screen).fill("guira");
   await expect.poll(() => screen.getByRole("option").elements().length).toBe(1);
@@ -192,7 +192,7 @@ test("tells the person nothing matches when the typed text matches no option", a
   await input(screen).fill("zzz");
 
   await expect.element(screen.getByText("Sin resultados")).toBeVisible();
-  expect(optionNames(screen)).toEqual([]);
+  expect(optionTexts(screen)).toEqual(["Sin resultados"]);
 });
 
 test("gives the caller the clicked option's value, shows its label and closes the list", async () => {
@@ -279,7 +279,7 @@ test("puts the chosen label back, without reporting a change, on Escape after ty
   const screen = await render(<Harness value="cafe" onPick={onChange} />);
 
   await input(screen).fill("mie");
-  await expect.poll(() => optionNames(screen)).toEqual(["Miel de abeja"]);
+  await expect.poll(() => optionTexts(screen)).toEqual(["Miel de abeja Campo Real · 350 g"]);
   await userEvent.keyboard("{Escape}");
 
   await expect.poll(() => inputElement(screen).value).toBe("Café molido");
@@ -291,7 +291,7 @@ test("puts the chosen label back, without reporting a change, on Enter with no o
   const screen = await render(<Harness value="cafe" onPick={onChange} />);
 
   await input(screen).fill("mie");
-  await expect.poll(() => optionNames(screen)).toEqual(["Miel de abeja"]);
+  await expect.poll(() => optionTexts(screen)).toEqual(["Miel de abeja Campo Real · 350 g"]);
   await userEvent.keyboard("{Enter}");
 
   await expect.poll(() => inputElement(screen).value).toBe("Café molido");
@@ -365,7 +365,7 @@ test("opens from the magnifier button and narrows and picks as the select form d
   await expect.element(screen.getByRole("listbox")).toBeVisible();
 
   await userEvent.fill(input(screen), "caf");
-  expect(optionNames(screen)).toEqual(["Café molido"]);
+  expect(optionTexts(screen)).toEqual(["Café molido"]);
 
   await userEvent.keyboard("{ArrowDown}{Enter}");
   expect(onPick).toHaveBeenCalledWith("cafe");

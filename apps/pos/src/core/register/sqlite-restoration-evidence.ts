@@ -5,6 +5,17 @@ import type { LocalDatabase } from "../platform/local-database";
 import type { CloudReachability } from "../sync/cloud-reachability";
 import { staleSequenceDetected } from "../sync/sqlite-installation-presence";
 
+export function awaitsRestoredNumbering(database: LocalDatabase): boolean {
+  return (
+    database
+      .prepare<[], { awaiting: 1 }>(
+        `SELECT 1 AS awaiting FROM awaiting_restored_numbering
+         JOIN register_point_of_sale USING (register_id) LIMIT 1`,
+      )
+      .get() !== undefined
+  );
+}
+
 export class SqliteRestorationEvidence implements RestorationProtocolEvidence {
   private readonly database: LocalDatabase;
   private readonly restorePending: RestorePending;
@@ -30,7 +41,8 @@ export class SqliteRestorationEvidence implements RestorationProtocolEvidence {
       restore: this.restoreEvidence(restoring),
       reset_sync_identity: restoring ? "pending" : "completed",
       replenish: this.holdsPredecessor() ? "pending" : "completed",
-      reconcile_fiscal_counters: this.awaitsNumbering() ? "pending" : "completed",
+      reconcile_fiscal_counters: awaitsRestoredNumbering(this.database) ? "pending" : "completed",
+      regularize_orphan_authorizations: this.awaitsOrphanSweep() ? "pending" : "completed",
       cloud: this.cloudReachability(),
     };
   }
@@ -42,13 +54,10 @@ export class SqliteRestorationEvidence implements RestorationProtocolEvidence {
     return this.noUsableGeneration() ? "failed" : "pending";
   }
 
-  private awaitsNumbering(): boolean {
+  private awaitsOrphanSweep(): boolean {
     return (
       this.database
-        .prepare<[], { awaiting: 1 }>(
-          `SELECT 1 AS awaiting FROM awaiting_restored_numbering
-           JOIN register_point_of_sale USING (register_id) LIMIT 1`,
-        )
+        .prepare<[], { awaiting: 1 }>("SELECT 1 AS awaiting FROM awaiting_orphan_sweep LIMIT 1")
         .get() !== undefined
     );
   }

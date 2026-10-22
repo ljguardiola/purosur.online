@@ -1,4 +1,5 @@
 import {
+  type DeferredBacklogEntry,
   FACTURA_C_DOCUMENT_TYPE,
   type FiscalDocumentState,
   IN_PROGRESS_FISCAL_DOCUMENT_STATES,
@@ -62,7 +63,51 @@ export function clockCorrectionsOf(
     }));
 }
 
+interface DeferredBacklogRow {
+  deferred_sale_id: string;
+  sale_id: string;
+  occurred_at: string;
+  routed_at: string;
+  total: number;
+  last_attempt_ended_at: string | null;
+}
+
+function readDeferredBacklog(database: LocalDatabase): DeferredBacklogEntry[] {
+  return database
+    .prepare<[], DeferredBacklogRow>(
+      `SELECT deferred_sales.id AS deferred_sale_id,
+              deferred_sales.sale_id,
+              deferred_sales.occurred_at,
+              deferred_sales.routed_at,
+              deferred_sales.total,
+              (SELECT max(attempt.resolved_at) FROM fiscal_documents AS attempt
+                WHERE attempt.sale_id = deferred_sales.sale_id
+                  AND attempt.state IN ('REJECTED', 'RELEASED', 'CONFLICTING')) AS last_attempt_ended_at
+       FROM deferred_sales
+       WHERE deferred_sales.satisfied_at IS NULL
+         AND deferred_sales.cancelled_at IS NULL
+         AND NOT EXISTS (
+           SELECT 1 FROM fiscal_documents AS held
+           WHERE held.sale_id = deferred_sales.sale_id AND held.state = 'AUTHORIZED')
+         AND NOT EXISTS (
+           SELECT 1 FROM offline_fiscal_documents AS offline
+           WHERE offline.sale_id = deferred_sales.sale_id)
+       ORDER BY deferred_sales.occurred_at, deferred_sales.routed_at, deferred_sales.id`,
+    )
+    .all()
+    .map((row) => ({
+      deferredSaleId: row.deferred_sale_id,
+      saleId: row.sale_id,
+      occurredAt: new Date(row.occurred_at),
+      routedAt: new Date(row.routed_at),
+      total: row.total,
+      lastAttemptEndedAt:
+        row.last_attempt_ended_at === null ? null : new Date(row.last_attempt_ended_at),
+    }));
+}
+
 export function readRealTimeSeries(database: LocalDatabase): RealTimeSeries {
+  const deferredBacklog = readDeferredBacklog(database);
   const pointOfSale = database
     .prepare<[], PointOfSaleRow>(
       `SELECT register_point_of_sale.point_of_sale_number AS point_of_sale,
@@ -85,6 +130,8 @@ export function readRealTimeSeries(database: LocalDatabase): RealTimeSeries {
       clockMark: null,
       taxAuthorityLastIssuedOn: null,
       clockCorrections: [],
+      localLastAuthorizedIssuedOn: null,
+      deferredBacklog,
     };
   }
   const local = database
@@ -94,6 +141,12 @@ export function readRealTimeSeries(database: LocalDatabase): RealTimeSeries {
          AND state IN (${placeholdersFor(NUMBER_CONSUMING_STATES)})`,
     )
     .get(pointOfSale.point_of_sale, FACTURA_C_DOCUMENT_TYPE, ...NUMBER_CONSUMING_STATES);
+  const lastAuthorizedIssued = database
+    .prepare<[number, string], { issued_on: string | null }>(
+      `SELECT max(issued_on) AS issued_on FROM fiscal_documents
+       WHERE point_of_sale = ? AND document_type = ? AND state = 'AUTHORIZED'`,
+    )
+    .get(pointOfSale.point_of_sale, FACTURA_C_DOCUMENT_TYPE);
   const waiting = database
     .prepare<(number | string)[], { state: FiscalDocumentState }>(
       `SELECT state FROM fiscal_documents
@@ -113,6 +166,8 @@ export function readRealTimeSeries(database: LocalDatabase): RealTimeSeries {
       pointOfSale.point_of_sale,
       FACTURA_C_DOCUMENT_TYPE,
     ),
+    localLastAuthorizedIssuedOn: lastAuthorizedIssued?.issued_on ?? null,
+    deferredBacklog,
     documentRequesting:
       waiting !== undefined && IN_PROGRESS_FISCAL_DOCUMENT_STATES.includes(waiting.state),
     documentUnknown:
