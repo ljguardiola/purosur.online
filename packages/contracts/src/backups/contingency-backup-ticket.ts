@@ -100,7 +100,7 @@ export function readContingencyBackupTicketQrCode(
   text: string,
 ): ContingencyBackupTicketPart | null {
   const frame = base45Decode(text);
-  if (frame === null || frame.length < HEADER_BYTES || frame[0] !== FRAME_FORMAT) return null;
+  if (frame === null || frame[0] !== FRAME_FORMAT) return null;
   const partIndex = frame[ASSOCIATED_DATA_BYTES] ?? 0;
   const partCount = frame[ASSOCIATED_DATA_BYTES + 1] ?? 0;
   if (partIndex < 1 || partIndex > partCount) return null;
@@ -118,7 +118,7 @@ export function joinContingencyBackupTicketParts(
   parts: readonly ContingencyBackupTicketPart[],
 ): Uint8Array | null {
   const [first] = parts;
-  if (first === undefined || parts.length !== first.partCount) return null;
+  if (first === undefined) return null;
   const ordered = new Array<ContingencyBackupTicketPart | undefined>(first.partCount);
   for (const part of parts) {
     const sameTicket =
