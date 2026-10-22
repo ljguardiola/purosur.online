@@ -82,7 +82,7 @@ describe("clockLoweringsFor against the tax authority's last authorized day", ()
     ]);
   });
 
-  it("lowers from the start of the day, as derived, when the series' mark is exactly that start", () => {
+  it("lowers from the series' mark when that mark is exactly the start of the day", () => {
     const mark = {
       pointOfSale: 12,
       documentType: "factura_c",
@@ -94,7 +94,7 @@ describe("clockLoweringsFor against the tax authority's last authorized day", ()
         pointOfSale: 12,
         documentType: "factura_c",
         previousReading: START_OF_TAX_AUTHORITY_DAY,
-        previousReadingSource: "tax_authority_day",
+        previousReadingSource: "clock_mark",
         correctedReading: READING,
       },
     ]);

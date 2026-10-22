@@ -2125,6 +2125,44 @@ test("names the last day the tax authority authorized, with no time, when the pr
   await expect.element(screen.getByText("Lectura nueva", { exact: true })).toBeVisible();
 });
 
+test("says the register billed with the offline authorization code until the tax authority's day, never that a mark was lowered, when the previous reading was derived from that day", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(
+    ok(
+      baseDetail({
+        kind: "clock_corrected",
+        level: "critical",
+        audience: "all",
+        scope: "register-1",
+        scopeDisplay: "Caja 1",
+        scopeKind: "register",
+        closing: "by_hand",
+        detail: {
+          pointOfSale: 3,
+          documentType: "factura_c",
+          previousReading: "2026-09-16T03:00:00.000Z",
+          previousReadingSource: "tax_authority_day",
+          correctedReading: "2026-09-15T15:10:00.000Z",
+          actorId: "user-2",
+          actorName: "Lucía",
+        },
+      }),
+    ),
+  );
+
+  const screen = await renderModal(services);
+
+  await expect
+    .element(
+      screen.getByText(
+        "Alguien confirmó desde la caja que su hora era correcta, aunque es anterior al último día autorizado por ARCA. Hasta ese día, la caja factura con el CAEA.",
+        { exact: true },
+      ),
+    )
+    .toBeVisible();
+  await expect.element(screen.getByText(/bajó la marca/)).not.toBeInTheDocument();
+});
+
 test("tells which register went more than an hour without a verified backup, when its last one was taken and when its first unbacked change happened", async () => {
   const services = createServices();
   vi.mocked(services.fetchAlert).mockResolvedValue(
