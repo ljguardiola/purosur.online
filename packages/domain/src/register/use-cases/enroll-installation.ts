@@ -1,3 +1,4 @@
+import { restorationNumberingFreeze } from "../../fiscal/index.js";
 import {
   enrollmentAttemptRetryAfterSeconds,
   enrollmentAttemptWindowStart,
@@ -98,7 +99,11 @@ export async function enrollInstallation(
       enrolledAt: now,
     });
     await tx.markEnrollmentCodeRedeemed(matched.registerId, now);
-    await tx.reconcileRealTimeNumbering(matched.registerId, now);
+    const lane = await tx.takeRealTimeNumberingLane(matched.registerId);
+    const freeze = lane && restorationNumberingFreeze(lane.heldCount, now);
+    if (lane && freeze) {
+      await tx.freezeRealTimeNumbering(lane.pointOfSale, freeze);
+    }
     await tx.requireFreshTaxAuthorityCount(matched.registerId);
     await tx.openEnrollmentAlert({
       registerId: matched.registerId,

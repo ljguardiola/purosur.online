@@ -1,3 +1,4 @@
+import type { NumberingFreeze } from "../../fiscal/index.js";
 import type { Clock } from "../../shared/index.js";
 import type { EnrollmentCodeState } from "../model/enrollment-code.js";
 import type { VersionedKey } from "../model/installation-key.js";
@@ -114,6 +115,11 @@ export interface RegisterKeys {
   contingencyTicketKeys: VersionedKey[];
 }
 
+export interface RealTimeNumberingLane {
+  pointOfSale: number;
+  heldCount: number | null;
+}
+
 export interface RegisterStore {
   transaction<TOutcome>(
     work: (tx: RegisterStoreTransaction) => Promise<TOutcome>,
@@ -143,6 +149,7 @@ export interface RegisterStoreTransaction {
   recordContingencyTicketKey(registerId: string, key: VersionedKey): Promise<void>;
   markEnrollmentCodeRedeemed(registerId: string, redeemedAt: Date): Promise<void>;
   openEnrollmentAlert(alert: EnrollmentAlert): Promise<void>;
-  reconcileRealTimeNumbering(registerId: string, at: Date): Promise<void>;
+  takeRealTimeNumberingLane(registerId: string): Promise<RealTimeNumberingLane | null>;
+  freezeRealTimeNumbering(pointOfSale: number, freeze: NumberingFreeze): Promise<void>;
   requireFreshTaxAuthorityCount(registerId: string): Promise<void>;
 }
