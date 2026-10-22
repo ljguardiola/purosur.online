@@ -1738,6 +1738,12 @@ describe("synced event payloads", () => {
       );
     });
 
+    it("accepts the state of a deferred sale's invoice", () => {
+      expect(
+        accepts("sale_print_state_changed", 2, { ...state(), document: "deferred_invoice" }),
+      ).toBe(true);
+    });
+
     it("refuses a document the register does not print", () => {
       expect(accepts("sale_print_state_changed", 2, { ...state(), document: "invoice" })).toBe(
         false,
@@ -1782,6 +1788,12 @@ describe("synced event payloads", () => {
         expect(accepts("reprint_recorded", 2, { ...retry(), document })).toBe(true);
         expect(accepts("reprint_recorded", 2, { ...requested(), document })).toBe(true);
       }
+    });
+
+    it("accepts a copy of a deferred sale's invoice", () => {
+      expect(accepts("reprint_recorded", 2, { ...retry(), document: "deferred_invoice" })).toBe(
+        true,
+      );
     });
 
     it("refuses a document the register does not print", () => {
