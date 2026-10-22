@@ -5608,7 +5608,6 @@ describe("the register's local migrations", () => {
       );
       expect(LOCAL_MIGRATIONS.map((migration) => migration.name)).toContain(
         "0071_credit_note_reprints",
-        "0073_replenished_credit_note_requests",
       );
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
