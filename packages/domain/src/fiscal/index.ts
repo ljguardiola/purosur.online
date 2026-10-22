@@ -27,6 +27,7 @@ export {
   CLOCK_PREVIOUS_READING_SOURCES,
   clockCorrectedEvent,
   clockCorrectionPeriodKey,
+  replayedClockMark,
 } from "./model/clock-correction.js";
 export { selectConsumerBuyerTaxStatus } from "./model/consumer-buyer-tax-status.js";
 export type { CreditNoteReason } from "./model/credit-note.js";

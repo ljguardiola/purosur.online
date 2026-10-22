@@ -87,6 +87,12 @@ export function clockLoweringsFor(
   ];
 }
 
+export function replayedClockMark(mark: Date | null, lowering: ClockLowering): Date {
+  return mark !== null && isBehindClockMark(lowering.previousReading, mark)
+    ? mark
+    : lowering.correctedReading;
+}
+
 export interface ClockCorrectedFact extends ClockLowering {
   registerId: string;
   actorId: string;

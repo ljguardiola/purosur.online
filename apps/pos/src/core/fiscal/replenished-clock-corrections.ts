@@ -1,11 +1,9 @@
-import { clockCorrectionPeriodKey } from "@purosur/domain";
+import { clockCorrectionPeriodKey, replayedClockMark } from "@purosur/domain";
 import type { SyncedFact } from "@purosur/domain/sync/use-cases";
 import type { LocalDatabase } from "../platform/local-database";
-import {
-  cashSessionStanding,
-  insertClockCorrection,
-  lowerClockMark,
-} from "./sqlite-clock-correction";
+import { cashSessionStanding, insertClockCorrection } from "./sqlite-clock-correction";
+import { clockMarkOf } from "./sqlite-fiscal-series";
+import { upsertClockMark } from "./sqlite-sale-authorization";
 
 type ClockCorrectedFact = Extract<SyncedFact, { kind: "clock_corrected" }>;
 
@@ -49,7 +47,11 @@ export function applyReplenishedClockCorrection(
     previousReadingSource,
     correctedReading,
   };
-  lowerClockMark(database, lowering);
+  upsertClockMark(database, {
+    pointOfSale,
+    documentType,
+    reading: replayedClockMark(clockMarkOf(database, pointOfSale, documentType), lowering),
+  });
   insertClockCorrection(database, {
     period: clockCorrectionPeriodKey(cashSessionStanding(database)),
     registerId,
