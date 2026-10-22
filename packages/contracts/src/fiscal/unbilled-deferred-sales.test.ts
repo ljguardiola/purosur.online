@@ -1,3 +1,4 @@
+import { ARGENTINA_TIME_ZONE } from "@purosur/domain";
 import { describe, expect, it } from "vitest";
 import { unbilledDeferredSalesSchema } from "./unbilled-deferred-sales.js";
 
@@ -6,6 +7,12 @@ describe("unbilledDeferredSalesSchema", () => {
     const body = { count: 3, oldest: { occurred_at: "2026-10-10T15:00:00.000Z", age_days: 6 } };
 
     expect(unbilledDeferredSalesSchema.parse(body)).toEqual(body);
+  });
+
+  it("marks the oldest sale's instant as written in Argentina's time zone", () => {
+    const oldest = unbilledDeferredSalesSchema.shape.oldest.unwrap();
+
+    expect(oldest.shape.occurred_at.meta()).toEqual({ timeZone: ARGENTINA_TIME_ZONE });
   });
 
   it("reads none waiting", () => {
