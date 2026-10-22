@@ -1,4 +1,11 @@
-import { type DeferredSale, FACTURA_C_DOCUMENT_TYPE, type OutboxEventDraft } from "@purosur/domain";
+import {
+  type DeferredSale,
+  FACTURA_C_DOCUMENT_TYPE,
+  type FiscalTaskDocumentType,
+  type OfflineCreditNote,
+  type OutboxEventDraft,
+  saleVoidCreditNotePayload,
+} from "@purosur/domain";
 import {
   type ClockMark,
   decideSaleAuthorization,
@@ -20,9 +27,13 @@ import {
   readRealTimeSeries,
 } from "./sqlite-fiscal-series";
 
+type StoredOfflineFiscalDocument = Omit<OfflineFiscalDocument, "documentType"> & {
+  documentType: FiscalTaskDocumentType;
+};
+
 export function insertOfflineFiscalDocument(
   database: LocalDatabase,
-  document: OfflineFiscalDocument,
+  document: StoredOfflineFiscalDocument,
 ): void {
   database
     .prepare(
@@ -55,9 +66,62 @@ export function insertOfflineFiscalDocument(
     });
 }
 
+export function insertOfflineCreditNote(
+  database: LocalDatabase,
+  document: OfflineCreditNote,
+): void {
+  database
+    .prepare(
+      `INSERT INTO offline_fiscal_documents (
+           id, sale_id, point_of_sale, document_type, number, issued_on, generated_at,
+           generation_stamp, offline_authorization_code, fortnight_start, fortnight_end, document,
+           buyer_document_type, buyer_document_number, cause, corrected_voucher_type,
+           corrected_point_of_sale, corrected_number, credit_note_id
+         ) VALUES (
+           @id, @sale_id, @point_of_sale, @document_type, @number, @issued_on, @generated_at,
+           @generation_stamp, @offline_authorization_code, @fortnight_start, @fortnight_end,
+           @document, @buyer_document_type, @buyer_document_number, @cause, @corrected_voucher_type,
+           @corrected_point_of_sale, @corrected_number, @credit_note_id
+         )`,
+    )
+    .run({
+      id: document.id,
+      sale_id: document.saleId,
+      point_of_sale: document.pointOfSale,
+      document_type: document.documentType,
+      number: document.number,
+      issued_on: document.issuedOn,
+      generated_at: document.generatedAt.toISOString(),
+      generation_stamp: document.generationStamp,
+      offline_authorization_code: document.offlineAuthorizationCode,
+      fortnight_start: document.fortnight.start,
+      fortnight_end: document.fortnight.end,
+      document: JSON.stringify(
+        saleVoidCreditNotePayload({
+          creditNoteId: document.creditNoteId,
+          saleId: document.saleId,
+          total: document.total,
+          receiverTaxStatusCode: document.receiverTaxStatusCode,
+          correctedVoucher: document.corrects,
+        }),
+      ),
+      buyer_document_type: document.buyerDocumentType,
+      buyer_document_number: document.buyerDocumentNumber,
+      cause: document.cause,
+      corrected_voucher_type: document.corrects.voucherType,
+      corrected_point_of_sale: document.corrects.pointOfSale,
+      corrected_number: document.corrects.number,
+      credit_note_id: document.creditNoteId,
+    });
+}
+
 export function upsertClockMark(
   database: LocalDatabase,
-  { pointOfSale, documentType, reading }: ClockMark,
+  {
+    pointOfSale,
+    documentType,
+    reading,
+  }: { pointOfSale: number; documentType: FiscalTaskDocumentType; reading: Date },
 ): void {
   database
     .prepare(

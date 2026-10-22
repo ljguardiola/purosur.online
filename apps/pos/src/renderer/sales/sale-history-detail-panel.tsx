@@ -73,7 +73,8 @@ function SaleFooter({
   const refusalReason =
     voidability.kind === "voidable" ? undefined : voidRefusalReason(voidability.refusal);
   const offersVoid = voidability.kind === "voidable" || refusalReason !== undefined;
-  const offersCreditNote = sale.credit_note?.kind === "authorized";
+  const offersCreditNote =
+    sale.credit_note?.kind === "authorized" || sale.credit_note?.kind === "issued_offline";
   const creditNoteIsDuplicate = sale.credit_note_next_copy?.kind === "duplicate";
   if (sale.reprint.kind !== "available" && !offersVoid && !offersCreditNote) {
     return null;

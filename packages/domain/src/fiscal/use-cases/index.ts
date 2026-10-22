@@ -469,6 +469,7 @@ export type {
 } from "./request-void-credit-notes.js";
 export { requestVoidCreditNotes } from "./request-void-credit-notes.js";
 export type {
+  CloudCreditNoteAnswer,
   CloudCreditNoteCall,
   CloudCreditNotes,
   CreditNotePrinter,

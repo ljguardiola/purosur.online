@@ -2,6 +2,7 @@ import {
   type DeferredBacklogEntry,
   FACTURA_C_DOCUMENT_TYPE,
   type FiscalDocumentState,
+  type FiscalTaskDocumentType,
   IN_PROGRESS_FISCAL_DOCUMENT_STATES,
   NUMBER_CONSUMING_STATES,
   type OfflineNumberBlockRange,
@@ -18,6 +19,8 @@ import type { LocalDatabase } from "../platform/local-database";
 function placeholdersFor(states: readonly FiscalDocumentState[]): string {
   return states.map(() => "?").join(", ");
 }
+
+type OfflineSeriesDocumentType = FiscalTaskDocumentType;
 
 interface PointOfSaleRow {
   point_of_sale: number;
@@ -175,13 +178,37 @@ export function readRealTimeSeries(database: LocalDatabase): RealTimeSeries {
   };
 }
 
-export function readOfflineSeries(database: LocalDatabase): OfflineSeries {
+function readOfflineCounts(
+  database: LocalDatabase,
+  documentType: OfflineSeriesDocumentType,
+): OfflinePointOfSaleRow | undefined {
   const offlinePointOfSale = database
     .prepare<[], OfflinePointOfSaleRow>(
       `SELECT point_of_sale_number, tax_authority_last_authorized_number, highest_synced_offline_number
        FROM register_offline_point_of_sale`,
     )
     .get();
+  if (offlinePointOfSale === undefined || documentType === FACTURA_C_DOCUMENT_TYPE) {
+    return offlinePointOfSale;
+  }
+  const counts = database
+    .prepare<[number, string], Omit<OfflinePointOfSaleRow, "point_of_sale_number">>(
+      `SELECT tax_authority_last_authorized_number, highest_synced_offline_number
+       FROM offline_series_counts WHERE point_of_sale = ? AND document_type = ?`,
+    )
+    .get(offlinePointOfSale.point_of_sale_number, documentType);
+  return {
+    point_of_sale_number: offlinePointOfSale.point_of_sale_number,
+    tax_authority_last_authorized_number: counts?.tax_authority_last_authorized_number ?? null,
+    highest_synced_offline_number: counts?.highest_synced_offline_number ?? null,
+  };
+}
+
+export function readOfflineSeries(
+  database: LocalDatabase,
+  documentType: OfflineSeriesDocumentType = FACTURA_C_DOCUMENT_TYPE,
+): OfflineSeries {
+  const offlinePointOfSale = readOfflineCounts(database, documentType);
   if (offlinePointOfSale === undefined) {
     return {
       pointOfSale: null,
@@ -200,20 +227,20 @@ export function readOfflineSeries(database: LocalDatabase): OfflineSeries {
        WHERE point_of_sale = ? AND document_type = ?
        ORDER BY first_number`,
     )
-    .all(pointOfSale, FACTURA_C_DOCUMENT_TYPE);
+    .all(pointOfSale, documentType);
   const lastUsed = database
     .prepare<[number, string], { last_number: number | null }>(
       `SELECT max(number) AS last_number FROM offline_fiscal_documents
        WHERE point_of_sale = ? AND document_type = ?`,
     )
-    .get(pointOfSale, FACTURA_C_DOCUMENT_TYPE);
+    .get(pointOfSale, documentType);
   return {
     pointOfSale,
     blocksInAssignmentOrder: blocks,
     localLastUsed: lastUsed?.last_number ?? null,
     taxAuthorityLastAuthorized: offlinePointOfSale.tax_authority_last_authorized_number,
     highestSyncedNumber: offlinePointOfSale.highest_synced_offline_number,
-    clockMark: clockMarkOf(database, pointOfSale, FACTURA_C_DOCUMENT_TYPE),
+    clockMark: clockMarkOf(database, pointOfSale, documentType),
   };
 }
 

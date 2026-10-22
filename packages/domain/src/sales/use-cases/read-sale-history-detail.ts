@@ -81,7 +81,7 @@ export function readSaleHistoryDetail(
   }
   const { fiscal, voided, inOpenSession, invoices: _invoices, ...shown } = record;
   const creditNoteDelivery =
-    record.creditNote?.kind === "authorized"
+    record.creditNote?.kind === "authorized" || record.creditNote?.kind === "issued_offline"
       ? receiptDeliveryOf({ ledger }, { document: "credit_note", saleId })
       : undefined;
   return {

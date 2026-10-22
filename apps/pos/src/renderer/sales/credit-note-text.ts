@@ -8,6 +8,10 @@ export function creditNoteRow(creditNote: SaleCreditNote): SummaryRowProps {
   switch (creditNote.kind) {
     case "authorized":
       return { label: LABEL, value: creditNoteComprobantePresentation(creditNote).detail };
+    case "issued_offline": {
+      const { name, detail } = creditNoteComprobantePresentation(creditNote);
+      return { label: name, value: detail };
+    }
     case "in_progress":
       return { label: LABEL, value: "En trámite con ARCA" };
     case "rejected":
@@ -24,6 +28,7 @@ export function voidedSaleNotice(creditNote: SaleCreditNote | null): Notice {
   switch (creditNote?.kind) {
     case undefined:
     case "authorized":
+    case "issued_offline":
       return { tone: "success", title, description: "La mercadería volvió al stock." };
     case "in_progress":
       return {

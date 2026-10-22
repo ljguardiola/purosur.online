@@ -1,5 +1,13 @@
-import type { CashMovement, OutboxEventDraft, SaleVoidCreditNote } from "@purosur/domain";
+import {
+  type CashMovement,
+  CREDIT_NOTE_C_DOCUMENT_TYPE,
+  type OfflineCreditNote,
+  type OutboxEventDraft,
+  type SaleVoidCreditNote,
+} from "@purosur/domain";
+import type { Fortnight } from "@purosur/domain/fiscal/use-cases";
 import type {
+  OfflineCreditNoteClockMark,
   SaleRefund,
   SaleStockMovement,
   SaleToVoid,
@@ -11,8 +19,13 @@ import {
   readUncancelledDeferredSaleRecord,
 } from "../fiscal/sqlite-deferred-sales";
 import { readFiscalOnlineEvidence } from "../fiscal/sqlite-fiscal-online-evidence";
+import { readOfflineAuthorizationCodeOf, readOfflineSeries } from "../fiscal/sqlite-fiscal-series";
+import { insertOfflineCreditNote, upsertClockMark } from "../fiscal/sqlite-sale-authorization";
 import { readSaleInvoices } from "../fiscal/sqlite-sale-invoices";
-import { insertPendingCreditNote } from "../fiscal/sqlite-void-credit-notes";
+import {
+  insertCreditNoteIssuedOffline,
+  insertPendingCreditNote,
+} from "../fiscal/sqlite-void-credit-notes";
 import { insertPaymentRefund, readRecordedPayments } from "../payments/sqlite-sale-payments";
 import type { LocalDatabase } from "../platform/local-database";
 import { insertCashMovement, readMovementsOf } from "../register/sqlite-cash-ledger";
@@ -72,6 +85,14 @@ export class SqliteSaleVoidLedger implements SaleVoidLedger {
         cancelDeferredSale(this.database, saleId, cancelledAt),
       recordPendingCreditNote: (creditNote: SaleVoidCreditNote) =>
         insertPendingCreditNote(this.database, creditNote),
+      offlineCreditNoteSeries: () => readOfflineSeries(this.database, CREDIT_NOTE_C_DOCUMENT_TYPE),
+      offlineAuthorizationCodeOf: (fortnight: Fortnight) =>
+        readOfflineAuthorizationCodeOf(this.database, fortnight),
+      issueOfflineCreditNote: (document: OfflineCreditNote) => {
+        insertOfflineCreditNote(this.database, document);
+        insertCreditNoteIssuedOffline(this.database, document);
+      },
+      recordClockMark: (mark: OfflineCreditNoteClockMark) => upsertClockMark(this.database, mark),
       appendOutboxEvent: (draft: OutboxEventDraft) => this.appendOutboxEvent(draft),
     };
   }

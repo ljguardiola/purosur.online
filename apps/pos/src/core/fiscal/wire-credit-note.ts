@@ -4,14 +4,27 @@ import type { VoidCreditNoteStanding } from "@purosur/domain";
 export function toWireCreditNote(creditNote: VoidCreditNoteStanding): SaleCreditNote;
 export function toWireCreditNote(creditNote: VoidCreditNoteStanding | null): SaleCreditNote | null;
 export function toWireCreditNote(creditNote: VoidCreditNoteStanding | null): SaleCreditNote | null {
-  return creditNote?.kind === "authorized"
-    ? {
+  switch (creditNote?.kind) {
+    case "authorized":
+      return {
         kind: "authorized",
         point_of_sale: creditNote.pointOfSale,
         number: creditNote.number,
         issued_on: creditNote.issuedOn,
         authorization_code: creditNote.authorizationCode,
         authorization_code_due_on: creditNote.authorizationCodeDueOn,
-      }
-    : creditNote;
+      };
+    case "issued_offline":
+      return {
+        kind: "issued_offline",
+        point_of_sale: creditNote.pointOfSale,
+        number: creditNote.number,
+        issued_on: creditNote.issuedOn,
+        offline_authorization_code: creditNote.offlineAuthorizationCode,
+        fortnight_start: creditNote.fortnight.start,
+        fortnight_end: creditNote.fortnight.end,
+      };
+    default:
+      return creditNote ?? null;
+  }
 }

@@ -218,7 +218,7 @@ export class SqliteRegisterSalesHistory implements RegisterSalesHistory {
          WHERE sale_id = @sale_id
          UNION ALL
          SELECT 'AUTHORIZED', 'offline_code', point_of_sale, number FROM offline_fiscal_documents
-         WHERE sale_id = @sale_id`,
+         WHERE sale_id = @sale_id AND document_type = 'factura_c'`,
       )
       .get({ sale_id: saleId });
     const deferredRecord = this.database

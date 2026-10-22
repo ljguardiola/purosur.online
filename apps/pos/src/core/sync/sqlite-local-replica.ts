@@ -94,6 +94,7 @@ export class SqliteLocalReplica
         this.database.prepare("DELETE FROM register_point_terminal").run();
         this.database.prepare("DELETE FROM register_qr_point_of_sale").run();
         this.database.prepare("DELETE FROM register_offline_point_of_sale").run();
+        this.database.prepare("DELETE FROM offline_series_counts").run();
         this.database.prepare("DELETE FROM offline_number_blocks").run();
         this.database.prepare("DELETE FROM branch_settings").run();
         this.database.prepare("DELETE FROM branch_first_cash_sessions").run();

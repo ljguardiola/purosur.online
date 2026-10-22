@@ -2,6 +2,7 @@ import {
   type CreditNoteReceiptContent,
   creditNoteCFiscalBlock,
   type FacturaC,
+  offlineCreditNoteCFiscalBlock,
   receiptContent,
 } from "@purosur/domain";
 import { readCreditNoteOfSale } from "../fiscal/sqlite-void-credit-notes";
@@ -22,7 +23,7 @@ function correctedDocument(
          WHERE sale_id = ? AND point_of_sale = ? AND number = ?
        UNION ALL
        SELECT document FROM offline_fiscal_documents
-         WHERE sale_id = ? AND point_of_sale = ? AND number = ?`,
+         WHERE sale_id = ? AND point_of_sale = ? AND number = ? AND document_type = 'factura_c'`,
     )
     .get(saleId, pointOfSale, number, saleId, pointOfSale, number);
   if (row === undefined) {
@@ -48,12 +49,21 @@ export function readCreditNoteReceipt(
   saleId: string,
 ): CreditNoteReceiptContent | null {
   const creditNote = readCreditNoteOfSale(database, saleId);
-  if (creditNote === null || creditNote.answer.kind !== "authorized") {
+  if (
+    creditNote === null ||
+    (creditNote.answer.kind !== "authorized" && creditNote.answer.kind !== "issued_offline")
+  ) {
     return null;
   }
   const { answer, correctedVoucher } = creditNote;
   const { header, operation, lines, totals } = receiptContent(
     readReceiptSource(database, saleId, "VOIDED"),
+  );
+  const document = correctedDocument(
+    database,
+    saleId,
+    correctedVoucher.pointOfSale,
+    correctedVoucher.number,
   );
   return {
     header,
@@ -62,20 +72,27 @@ export function readCreditNoteReceipt(
     lines,
     totals: { subtotal: totals.subtotal, saleDiscount: totals.saleDiscount, total: totals.total },
     refunds: refundsOf(database, saleId),
-    fiscal: creditNoteCFiscalBlock({
-      pointOfSale: answer.pointOfSale,
-      number: answer.number,
-      issuedOn: answer.issuedOn,
-      total: creditNote.total,
-      document: correctedDocument(
-        database,
-        saleId,
-        correctedVoucher.pointOfSale,
-        correctedVoucher.number,
-      ),
-      authorizationCode: answer.authorizationCode,
-      authorizationCodeDueOn: answer.authorizationCodeDueOn,
-      corrects: correctedVoucher,
-    }),
+    fiscal:
+      answer.kind === "authorized"
+        ? creditNoteCFiscalBlock({
+            pointOfSale: answer.pointOfSale,
+            number: answer.number,
+            issuedOn: answer.issuedOn,
+            total: creditNote.total,
+            document,
+            authorizationCode: answer.authorizationCode,
+            authorizationCodeDueOn: answer.authorizationCodeDueOn,
+            corrects: correctedVoucher,
+          })
+        : offlineCreditNoteCFiscalBlock({
+            pointOfSale: answer.pointOfSale,
+            number: answer.number,
+            issuedOn: answer.issuedOn,
+            total: creditNote.total,
+            document,
+            offlineAuthorizationCode: answer.offlineAuthorizationCode,
+            fortnight: answer.fortnight,
+            corrects: correctedVoucher,
+          }),
   };
 }
