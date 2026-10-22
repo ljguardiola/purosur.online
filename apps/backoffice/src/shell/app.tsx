@@ -15,6 +15,7 @@ import type { MyAccountScreenServices } from "../credentials/my-account-services
 import type { RegisterPasskeyScreenServices } from "../credentials/register-passkey-services";
 import type { UserCredentialSectionsServices } from "../credentials/user-credential-sections-services";
 import type { FiscalConfigurationScreenServices } from "../fiscal/fiscal-configuration-services";
+import type { FiscalTasksScreenServices } from "../fiscal/fiscal-tasks-services";
 import type { PointsOfSaleScreenServices } from "../fiscal/points-of-sale-services";
 import type { BackofficeHelpCatalog } from "../help/help-catalog";
 import type { HandConfirmedPaymentsScreenServices } from "../payments/hand-confirmed-payments-services";
@@ -123,6 +124,7 @@ export type AppServices = {
   newPurchaseScreen: NewPurchaseScreenServices;
   initialInventoryScreen: InitialInventoryScreenServices;
   fiscalConfigurationScreen: FiscalConfigurationScreenServices;
+  fiscalTasksScreen: FiscalTasksScreenServices;
   pointsOfSaleScreen: PointsOfSaleScreenServices;
   accountFooter: AccountFooterServices;
   screenFailure: ScreenFailureServices;

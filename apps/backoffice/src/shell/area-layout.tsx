@@ -24,6 +24,7 @@ import {
   canSeeCashArea,
   canSeeCatalogArea,
   canSeeExpiringLots,
+  canSeeFiscalInformation,
   canSeeOrdersArea,
   canSeePricesArea,
   canSeeRefundsArea,
@@ -86,7 +87,11 @@ export function AreaLayout({ area, sectionColumnLabel, sectionColumn, children }
                     : canManageBatches(session)
                       ? "/assembly-batches"
                       : "/initial-inventory";
-  const cashTarget = canSeeCashArea(session) ? "/points-of-sale" : "/refunds/mercado-pago";
+  const cashTarget = canSeeCashArea(session)
+    ? "/points-of-sale"
+    : canSeeRefundsArea(session)
+      ? "/refunds/mercado-pago"
+      : "/fiscal-tasks";
   const stockTargetShown = Boolean(matchRoute({ to: stockTarget }));
   return (
     <Shell
@@ -120,7 +125,9 @@ export function AreaLayout({ area, sectionColumnLabel, sectionColumn, children }
               active={area === "orders"}
             />
           )}
-          {(canSeeCashArea(session) || canSeeRefundsArea(session)) && (
+          {(canSeeCashArea(session) ||
+            canSeeRefundsArea(session) ||
+            canSeeFiscalInformation(session)) && (
             <AreaLink
               to={cashTarget}
               label="Caja"

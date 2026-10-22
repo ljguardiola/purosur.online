@@ -1,7 +1,7 @@
 import { createRoute, Outlet, useMatchRoute } from "@tanstack/react-router";
-import { HandCoins, Landmark, Receipt, SlidersHorizontal } from "lucide-react";
+import { HandCoins, Landmark, ListChecks, Receipt, SlidersHorizontal } from "lucide-react";
 import { AreaLayout, SectionLink } from "./area-layout";
-import { canSeeCashArea, canSeeRefundsArea } from "./backoffice-access";
+import { canSeeCashArea, canSeeFiscalInformation, canSeeRefundsArea } from "./backoffice-access";
 import { signedInRoute } from "./signed-in-route";
 
 export const cashAndFiscalAreaRoute = createRoute({
@@ -15,6 +15,7 @@ function CashAndFiscalArea() {
   const matchRoute = useMatchRoute();
   const mercadoPagoRefundsShown = Boolean(matchRoute({ to: "/refunds/mercado-pago" }));
   const outsideRefundsShown = Boolean(matchRoute({ to: "/refunds/outside-the-system" }));
+  const fiscalTasksShown = Boolean(matchRoute({ to: "/fiscal-tasks" }));
   const pointsOfSaleShown = Boolean(matchRoute({ to: "/points-of-sale" }));
   const fiscalSettingsShown = Boolean(matchRoute({ to: "/fiscal-settings" }));
   return (
@@ -25,28 +26,42 @@ function CashAndFiscalArea() {
         <>
           <h2 className="text-text-accent text-heading">Caja y fiscal</h2>
           <div className="h-2.5" />
-          {canSeeRefundsArea(session) && (
+          {(canSeeRefundsArea(session) || canSeeFiscalInformation(session)) && (
             <>
               <p className="px-3 pt-3 pb-1 font-bold text-text-subtle text-caption tracking-xs">
                 TAREAS
               </p>
               <ul className="flex flex-col gap-1">
-                <li>
-                  <SectionLink
-                    to="/refunds/mercado-pago"
-                    label="Reembolsos de MP"
-                    icon={<HandCoins />}
-                    active={mercadoPagoRefundsShown}
-                  />
-                </li>
-                <li>
-                  <SectionLink
-                    to="/refunds/outside-the-system"
-                    label="Reembolsos sin API"
-                    icon={<Landmark />}
-                    active={outsideRefundsShown}
-                  />
-                </li>
+                {canSeeRefundsArea(session) && (
+                  <>
+                    <li>
+                      <SectionLink
+                        to="/refunds/mercado-pago"
+                        label="Reembolsos de MP"
+                        icon={<HandCoins />}
+                        active={mercadoPagoRefundsShown}
+                      />
+                    </li>
+                    <li>
+                      <SectionLink
+                        to="/refunds/outside-the-system"
+                        label="Reembolsos sin API"
+                        icon={<Landmark />}
+                        active={outsideRefundsShown}
+                      />
+                    </li>
+                  </>
+                )}
+                {canSeeFiscalInformation(session) && (
+                  <li>
+                    <SectionLink
+                      to="/fiscal-tasks"
+                      label="Tareas fiscales"
+                      icon={<ListChecks />}
+                      active={fiscalTasksShown}
+                    />
+                  </li>
+                )}
               </ul>
             </>
           )}
