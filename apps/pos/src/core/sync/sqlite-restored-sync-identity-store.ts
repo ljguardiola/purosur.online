@@ -77,6 +77,8 @@ export class SqliteRestoredSyncIdentityStore implements RestoredSyncIdentityStor
           .run(deviceId);
         database.exec(
           `INSERT OR IGNORE INTO awaiting_restored_numbering (register_id)
+           SELECT register_id FROM register_point_of_sale;
+           INSERT OR IGNORE INTO awaiting_orphan_sweep (register_id)
            SELECT register_id FROM register_point_of_sale`,
         );
       },
