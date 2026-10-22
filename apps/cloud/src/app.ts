@@ -85,6 +85,7 @@ import {
   type FiscalAuthorizationRouteOptions,
   registerFiscalAuthorizationRoute,
 } from "./fiscal/fiscal-authorization-route.js";
+import { registerFiscalTasksListRoute } from "./fiscal/fiscal-tasks-list-route.js";
 import { registerFortnightPresentationsListRoute } from "./fiscal/fortnight-presentations-list-route.js";
 import type { EnqueueOfflineAuthorizationCodeRequest } from "./fiscal/graphile-offline-authorization-code-queue.js";
 import type { EnqueueTaxAuthorityCount } from "./fiscal/graphile-tax-authority-count-queue.js";
@@ -101,6 +102,7 @@ import {
   type RestoredRegisterOrphanSweepRouteOptions,
   registerRestoredRegisterOrphanSweepRoute,
 } from "./fiscal/restored-register-orphan-sweep-route.js";
+import { registerUnbilledDeferredSalesRoute } from "./fiscal/unbilled-deferred-sales-route.js";
 import {
   registerUnclearOutcomeRoute,
   type UnclearOutcomeRouteOptions,
@@ -712,6 +714,8 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
       if (options.registersPointsOfSale) {
         registerRegistersPointsOfSaleListRoute(api, { ...options.registersPointsOfSale, now });
         registerFortnightPresentationsListRoute(api, { ...options.registersPointsOfSale, now });
+        registerFiscalTasksListRoute(api, { ...options.registersPointsOfSale, now });
+        registerUnbilledDeferredSalesRoute(api, { ...options.registersPointsOfSale, now });
         registerRejectedDocumentRemedyRoute(api, { ...options.registersPointsOfSale, now });
         registerBuyerTaxStatusesListRoute(api, { ...options.registersPointsOfSale, now });
         registerClockCorrectionsListRoute(api, { ...options.registersPointsOfSale, now });
