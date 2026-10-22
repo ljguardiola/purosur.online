@@ -20,7 +20,18 @@ export class SqliteRestorationEvidence implements RestorationProtocolEvidence {
       restore: restoring ? "pending" : "completed",
       reset_sync_identity: restoring ? "pending" : "completed",
       replenish: this.holdsPredecessor() ? "pending" : "completed",
+      reconcile_fiscal_counters: this.awaitsNumbering() ? "pending" : "completed",
     };
+  }
+
+  private awaitsNumbering(): boolean {
+    return (
+      this.database
+        .prepare<[], { awaiting: 1 }>(
+          "SELECT 1 AS awaiting FROM register_point_of_sale WHERE awaiting_restored_numbering = 1 LIMIT 1",
+        )
+        .get() !== undefined
+    );
   }
 
   private holdsPredecessor(): boolean {

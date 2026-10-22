@@ -14,6 +14,8 @@ function keepingHighest(table: string, column: string): string {
 
 const COUNT = "tax_authority_last_authorized_number";
 const DAY = "tax_authority_last_authorized_issued_on";
+const AWAITED_FROM_CLOUD = `register_point_of_sale.awaiting_restored_numbering = 1
+           AND excluded.version >= register_point_of_sale.version`;
 
 function latestDay(table: string): string {
   return `CASE
@@ -61,6 +63,7 @@ export function prepareRegisterPageWrites(database: LocalDatabase, mode: PageWri
        fiscal_address_id = CASE WHEN excluded.version > register_point_of_sale.version
          THEN excluded.fiscal_address_id ELSE register_point_of_sale.fiscal_address_id END,
        tax_authority_last_authorized_number = CASE
+         WHEN ${AWAITED_FROM_CLOUD} THEN excluded.tax_authority_last_authorized_number
          WHEN excluded.version = register_point_of_sale.version
            AND excluded.tax_authority_last_authorized_number IS NOT NULL
            AND (register_point_of_sale.tax_authority_last_authorized_number IS NULL
@@ -74,6 +77,7 @@ export function prepareRegisterPageWrites(database: LocalDatabase, mode: PageWri
          THEN register_point_of_sale.tax_authority_last_authorized_number
          ELSE excluded.tax_authority_last_authorized_number END,
        ${DAY} = CASE
+         WHEN ${AWAITED_FROM_CLOUD} THEN excluded.${DAY}
          WHEN excluded.version = register_point_of_sale.version THEN
            CASE
              WHEN excluded.${COUNT} IS NOT NULL
@@ -92,8 +96,14 @@ export function prepareRegisterPageWrites(database: LocalDatabase, mode: PageWri
              ELSE register_point_of_sale.${DAY} END
          ELSE ${latestDay("register_point_of_sale")} END,
        numbering_frozen = excluded.numbering_frozen,
+       awaiting_restored_numbering = CASE
+         WHEN ${AWAITED_FROM_CLOUD}
+           AND excluded.numbering_frozen = 0
+           AND excluded.${COUNT} IS NOT NULL
+         THEN 0 ELSE register_point_of_sale.awaiting_restored_numbering END,
        version = excluded.version
      WHERE excluded.version > register_point_of_sale.version
+       OR (${AWAITED_FROM_CLOUD})
        OR (excluded.version = register_point_of_sale.version
          AND excluded.tax_authority_last_authorized_number IS NOT NULL
          AND (register_point_of_sale.tax_authority_last_authorized_number IS NULL
