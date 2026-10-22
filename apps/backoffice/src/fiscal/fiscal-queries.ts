@@ -6,6 +6,7 @@ import type {
   BuyerIdentificationThresholds,
   fetchBuyerIdentificationThresholds,
 } from "./buyer-identification-threshold-api";
+import type { BuyerTaxStatus, fetchBuyerTaxStatuses } from "./buyer-tax-statuses-api";
 import type { ClockCorrection, fetchClockCorrections } from "./clock-corrections-api";
 import type { FiscalAddress, fetchFiscalAddresses } from "./fiscal-addresses-api";
 import type {
@@ -25,6 +26,7 @@ export const fiscalKeys = {
   registerPointsOfSale: [...fiscalKey, "register-points-of-sale"] as const,
   offlinePointsOfSale: [...fiscalKey, "offline-points-of-sale"] as const,
   fortnightPresentations: [...fiscalKey, "fortnight-presentations"] as const,
+  buyerTaxStatuses: [...fiscalKey, "buyer-tax-statuses"] as const,
   clockCorrections: [...fiscalKey, "clock-corrections"] as const,
 };
 
@@ -179,4 +181,19 @@ export function useReloadOfflinePointsOfSale() {
 export function useReloadFortnightPresentations() {
   const client = useQueryClient();
   return () => client.invalidateQueries({ queryKey: fiscalKey });
+}
+
+export function useBuyerTaxStatusesQuery(params: {
+  fetchBuyerTaxStatuses: typeof fetchBuyerTaxStatuses;
+  enabled: boolean;
+  onSessionEnded: () => void;
+}) {
+  const sendToMyAccount = useSendToMyAccount();
+  return useCloudQuery<BuyerTaxStatus[]>({
+    queryKey: fiscalKeys.buyerTaxStatuses,
+    read: params.fetchBuyerTaxStatuses,
+    enabled: params.enabled,
+    onSessionEnded: params.onSessionEnded,
+    onForbidden: sendToMyAccount,
+  });
 }

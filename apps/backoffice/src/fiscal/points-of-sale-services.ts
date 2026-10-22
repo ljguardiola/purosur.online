@@ -3,6 +3,7 @@ import {
   authorizeSession,
   fetchSessionAuthorizationOptions,
 } from "../platform/session-authorization-api";
+import { fetchBuyerTaxStatuses } from "./buyer-tax-statuses-api";
 import type { EditFiscalAddressModalServices } from "./edit-fiscal-address-modal";
 import type { EditRegisterOfflinePointOfSaleModalServices } from "./edit-register-offline-point-of-sale-modal";
 import type { EditRegisterPointOfSaleModalServices } from "./edit-register-point-of-sale-modal";
@@ -41,6 +42,7 @@ export const defaultPointsOfSaleScreenServices: PointsOfSaleScreenServices = {
   fetchOfflinePointsOfSale,
   retireOfflinePointOfSale,
   remedyRejectedDocument,
+  fetchBuyerTaxStatuses,
   configureRegisterPointOfSale,
   configureRegisterOfflinePointOfSale,
   createFiscalAddress,

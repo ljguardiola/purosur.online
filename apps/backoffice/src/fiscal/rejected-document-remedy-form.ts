@@ -1,6 +1,7 @@
 import { type CalendarDate, parseDate } from "@internationalized/date";
 import type { RejectedDocumentRemedyBody } from "@purosur/contracts";
 import { formatAmountInput, formatCalendarDayRange, parseAmountCents } from "@purosur/ui";
+import type { BuyerTaxStatus } from "./buyer-tax-statuses-api";
 import type { CorrectionRefusal, RejectedDocument } from "./fortnight-presentations-api";
 
 const FINAL_CONSUMER_DOCUMENT_TYPE = 99;
@@ -144,7 +145,27 @@ export function buyerCuitMessage({ buyerCuit }: RemedyFormValues): string {
 }
 
 export function buyerTaxStatusCodeMessage(): string {
-  return "Escribí el código de la condición frente al IVA, solo con números.";
+  return "Elegí la condición frente al IVA.";
+}
+
+type TaxStatusOption = { value: string; label: string };
+
+export function buyerTaxStatusOptions(
+  statuses: readonly BuyerTaxStatus[],
+  presentedCode: number,
+): readonly [TaxStatusOption, ...TaxStatusOption[]] {
+  const printed: TaxStatusOption = {
+    value: String(presentedCode),
+    label: `Código ${presentedCode}`,
+  };
+  const listed = statuses.map(({ code, description }) => ({
+    value: String(code),
+    label: description,
+  }));
+  const [first = printed, ...rest] = statuses.some(({ code }) => code === presentedCode)
+    ? listed
+    : [printed, ...listed];
+  return [first, ...rest];
 }
 
 export function correctionRefusalMessage(

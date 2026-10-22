@@ -8,6 +8,8 @@ import {
   formatNumber,
   formatPointOfSaleNumber,
   InlineNotice,
+  LoadFailure,
+  LoadingPlaceholder,
   Modal,
   plural,
   useRequestForm,
@@ -15,17 +17,21 @@ import {
 import type { startAuthentication } from "@simplewebauthn/browser";
 import { ArrowRight, FilePen, FileX, Info, Receipt, ShieldX, TriangleAlert, X } from "lucide-react";
 import { useEffect, useState } from "react";
+import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import type {
   authorizeSession,
   fetchSessionAuthorizationOptions,
 } from "../platform/session-authorization-api";
 import { useAuthorizedAttempt } from "../platform/use-authorized-attempt";
+import type { fetchBuyerTaxStatuses } from "./buyer-tax-statuses-api";
 import { FixedPair } from "./fiscal-data-pair";
+import { useBuyerTaxStatusesQuery } from "./fiscal-queries";
 import type { RecordedRemedy, remedyRejectedDocument } from "./fortnight-presentations-api";
 import {
   buyerCuitMessage,
   buyerTaxStatusCodeMessage,
+  buyerTaxStatusOptions,
   correctionRefusalField,
   correctionRefusalMessage,
   EMPTY_REMEDY_FORM,
@@ -38,6 +44,7 @@ import {
 
 export type ReviewRejectedDocumentModalServices = {
   remedyRejectedDocument: typeof remedyRejectedDocument;
+  fetchBuyerTaxStatuses: typeof fetchBuyerTaxStatuses;
   fetchSessionAuthorizationOptions: typeof fetchSessionAuthorizationOptions;
   authorizeSession: typeof authorizeSession;
   startAuthentication: typeof startAuthentication;
@@ -94,6 +101,7 @@ export function ReviewRejectedDocumentModal({
 }: ReviewRejectedDocumentModalProps) {
   const {
     remedyRejectedDocument,
+    fetchBuyerTaxStatuses,
     fetchSessionAuthorizationOptions,
     authorizeSession,
     startAuthentication,
@@ -183,8 +191,13 @@ export function ReviewRejectedDocumentModal({
     }
   }, [target, seededFrom, reset]);
 
-  const busy = running || submitting;
   const printed = values.errorIn === "printed";
+  const taxStatuses = useBuyerTaxStatusesQuery({
+    fetchBuyerTaxStatuses,
+    enabled: open && printed,
+    onSessionEnded,
+  });
+  const busy = running || submitting;
   const rejected = target?.rejectedDocument;
 
   return (
@@ -217,6 +230,7 @@ export function ReviewRejectedDocumentModal({
               icon={<ArrowRight />}
               fullWidth
               disabled={busy}
+              {...(printed ? { dataStatus: taxStatuses.status } : {})}
               onPress={() => void submit()}
             >
               {printed ? "Corregir y anular con nota de crédito" : "Corregir el informe"}
@@ -329,15 +343,27 @@ export function ReviewRejectedDocumentModal({
                     )}
                   </form.AppField>
                 ) : null}
-                <form.AppField name="buyerTaxStatusCode">
-                  {(field) => (
-                    <field.TextField
-                      kind="plain-text"
-                      label="Condición frente al IVA (código de ARCA)"
-                      inputMode="numeric"
-                    />
-                  )}
-                </form.AppField>
+                {taxStatuses.status === "loading" ? (
+                  <LoadingPlaceholder variant="form" fields={1} />
+                ) : null}
+                {taxStatuses.status === "failed" ? (
+                  <LoadFailure
+                    {...cloudLoadFailure(taxStatuses, "las condiciones frente al IVA")}
+                  />
+                ) : null}
+                {taxStatuses.status === "loaded" ? (
+                  <form.AppField name="buyerTaxStatusCode">
+                    {(field) => (
+                      <field.Select
+                        label="Condición frente al IVA"
+                        options={buyerTaxStatusOptions(
+                          taxStatuses.value,
+                          rejected.buyerTaxStatusCode,
+                        )}
+                      />
+                    )}
+                  </form.AppField>
+                ) : null}
               </div>
             ) : null}
             <InlineNotice
