@@ -1,5 +1,8 @@
 import type {
   FiscalOnlineSignalEvidence,
+  Fortnight,
+  OfflineCreditNote,
+  OfflineSeries,
   SaleInvoice,
   SaleVoidCreditNote,
 } from "../../../fiscal/index.js";
@@ -7,7 +10,12 @@ import type { CashMovement } from "../../../register/index.js";
 import type { OutboxEventDraft } from "../../../shared/index.js";
 import type { SaleWithLines } from "../../model/sale.js";
 import type { SaleCashMovement, SaleRefund, SaleStockMovement } from "../sale-ledger.js";
-import type { SaleToVoid, SaleVoidLedger, SaleVoidTransaction } from "../void-sale-ports.js";
+import type {
+  OfflineCreditNoteClockMark,
+  SaleToVoid,
+  SaleVoidLedger,
+  SaleVoidTransaction,
+} from "../void-sale-ports.js";
 
 type StoredSale = SaleWithLines & { voidedAt?: Date; authorizedBy?: string };
 
@@ -26,6 +34,10 @@ export interface FakeSaleVoidLedgerState {
   fiscalDocuments: (SaleInvoice & { saleId: string })[];
   fiscalOnlineEvidence: FiscalOnlineSignalEvidence;
   creditNotes: SaleVoidCreditNote[];
+  offlineCreditNoteSeries: OfflineSeries;
+  offlineAuthorizationCodes: Record<string, string>;
+  issuedOfflineCreditNotes: OfflineCreditNote[];
+  clockMarks: OfflineCreditNoteClockMark[];
   deferredRecords: StoredDeferredRecord[];
   stockMovements: StoredStockMovement[];
   stockBalances: Record<string, number>;
@@ -43,6 +55,8 @@ export type FakeSaleVoidLedgerWrite =
   | "addToStockBalance"
   | "cancelDeferredSale"
   | "recordPendingCreditNote"
+  | "issueOfflineCreditNote"
+  | "recordClockMark"
   | "appendOutboxEvent";
 
 export class FakeSaleVoidLedger implements SaleVoidLedger {
@@ -58,6 +72,17 @@ export class FakeSaleVoidLedger implements SaleVoidLedger {
       fiscalDocuments: [],
       fiscalOnlineEvidence: { lastHealthCheckOkAt: null, tokenValid: false, arcaReachable: false },
       creditNotes: [],
+      offlineCreditNoteSeries: {
+        pointOfSale: null,
+        blocksInAssignmentOrder: [],
+        localLastUsed: null,
+        taxAuthorityLastAuthorized: null,
+        highestSyncedNumber: null,
+        clockMark: null,
+      },
+      offlineAuthorizationCodes: {},
+      issuedOfflineCreditNotes: [],
+      clockMarks: [],
       deferredRecords: [],
       stockMovements: [],
       stockBalances: {},
@@ -146,6 +171,21 @@ export class FakeSaleVoidLedger implements SaleVoidLedger {
       recordPendingCreditNote: (creditNote) => {
         this.failIfAsked("recordPendingCreditNote");
         working.creditNotes.push(creditNote);
+      },
+      offlineCreditNoteSeries: () => {
+        const series = structuredClone(working.offlineCreditNoteSeries);
+        const issued = working.issuedOfflineCreditNotes.map(({ number }) => number);
+        return { ...series, localLastUsed: Math.max(series.localLastUsed ?? 0, ...issued) || null };
+      },
+      offlineAuthorizationCodeOf: ({ start }: Fortnight) =>
+        working.offlineAuthorizationCodes[start] ?? null,
+      issueOfflineCreditNote: (document) => {
+        this.failIfAsked("issueOfflineCreditNote");
+        working.issuedOfflineCreditNotes.push(document);
+      },
+      recordClockMark: (mark) => {
+        this.failIfAsked("recordClockMark");
+        working.clockMarks.push(mark);
       },
       appendOutboxEvent: (draft) => {
         this.failIfAsked("appendOutboxEvent");

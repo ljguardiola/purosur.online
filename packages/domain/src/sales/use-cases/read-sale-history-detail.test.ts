@@ -295,7 +295,7 @@ describe("readSaleHistoryDetail", () => {
       });
     });
 
-    it("says a sale that carries an authorized invoice can be voided once the connection is back", () => {
+    it("shows a sale that carries an authorized invoice as voidable without a connection", () => {
       const history = new FakeRegisterSalesHistory([historySale()], {
         ...ONLINE,
         lastHealthCheckOkAt: new Date(NOW.getTime() - 15_001),
@@ -306,11 +306,11 @@ describe("readSaleHistoryDetail", () => {
 
       expect(outcome).toMatchObject({
         kind: "found",
-        detail: { voidability: { kind: "not_voidable", refusal: "invoice_needs_connection" } },
+        detail: { voidability: { kind: "voidable" } },
       });
     });
 
-    it("weighs every fiscal document of the sale: one whose real-time invoice was released and whose contingency document stands can be voided once the connection is back", () => {
+    it("weighs every fiscal document of the sale: one whose real-time invoice was released and whose contingency document stands can be voided, correcting the contingency document", () => {
       expect(
         voidability({
           fiscal: {
@@ -341,7 +341,10 @@ describe("readSaleHistoryDetail", () => {
           ],
           payments: CASH_ONLY,
         }),
-      ).toEqual({ kind: "not_voidable", refusal: "invoice_needs_connection" });
+      ).toMatchObject({
+        kind: "voidable",
+        creditNoteCorrects: { voucherType: 11, pointOfSale: 8, number: 77 },
+      });
     });
 
     it("names the invoice the void's credit note would correct, the one the customer received", () => {
