@@ -250,6 +250,22 @@ describe("contingencyBackupTicketsSummary", () => {
     expect(contingencyBackupTicketsSummary([discardable, pending], 10).mayDiscard).toBe(false);
   });
 
+  it.each([
+    ["to print and awaiting its customer document", "a", "b"],
+    ["awaiting its customer document and missing its key", "b", "c"],
+    ["missing its key and kept", "c", "d"],
+  ])("may not discard while tickets are %s", (_name, first, second) => {
+    const pending = [
+      ticket({ id: "a", lastDeviceSeq: 20 }),
+      ticket({ id: "b", lastDeviceSeq: 20, customerDocumentPrinted: false }),
+      ticket({ id: "c", lastDeviceSeq: 20, sealed: false }),
+      ticket({ id: "d", lastDeviceSeq: 20, printedAt: AT }),
+    ].filter(({ id }) => id === first || id === second);
+    const discardable = ticket({ id: "e", lastDeviceSeq: 5, printedAt: AT });
+
+    expect(contingencyBackupTicketsSummary([discardable, ...pending], 10).mayDiscard).toBe(false);
+  });
+
   it("may not discard when there is nothing to discard", () => {
     expect(contingencyBackupTicketsSummary([], 10).mayDiscard).toBe(false);
   });
