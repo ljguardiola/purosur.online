@@ -1,9 +1,5 @@
 import { type DeferredSaleSatisfied, deferredSaleSatisfiedEvent } from "@purosur/domain";
-import {
-  FICTIONAL_CUIT,
-  FICTIONAL_GROSS_INCOME_REGISTRATION,
-  FICTIONAL_LEGAL_NAME,
-} from "@purosur/domain/fiscal/test-support";
+import { FICTIONAL_CUIT } from "@purosur/domain/fiscal/test-support";
 import {
   catchUpDeferredSales,
   type RealTimeAuthorizationCall,
@@ -17,10 +13,12 @@ import { SqliteRealTimeFiscalDocuments } from "./sqlite-real-time-fiscal-documen
 import { SqliteRoundTripSamples } from "./sqlite-round-trip-samples";
 import {
   FACTURA_C,
+  insertBuyerTaxStatusSet,
   insertCompletedSale,
   insertDeferredSale,
   insertFiscalDocument,
   insertHealthCheck,
+  insertIssuerIdentification,
   insertPointOfSale,
   insertSaleCompletedEvent,
   openFiscalDatabase,
@@ -34,24 +32,6 @@ const SECOND_SALE_AT = new Date("2026-10-09T02:30:00.000Z");
 
 let database: LocalDatabase;
 let catchUp: SqliteDeferredSaleCatchUp;
-
-function addIssuerVersion(): void {
-  database
-    .prepare(
-      `INSERT INTO issuer_identification_versions (
-         version, legal_name, gross_income_registration, activity_start_date, authorized_cuit, tax_status
-       ) VALUES (3, ?, ?, '2020-01-01', ?, 'MONOTRIBUTO')`,
-    )
-    .run(FICTIONAL_LEGAL_NAME, FICTIONAL_GROSS_INCOME_REGISTRATION, FICTIONAL_CUIT);
-}
-
-function addBuyerTaxStatusSet(): void {
-  database
-    .prepare(
-      "INSERT INTO buyer_tax_status_sets (params_version, set_id, options) VALUES (1, 's1', ?)",
-    )
-    .run(JSON.stringify([{ code: 5, description: "Consumidor Final", invoice_class: "C" }]));
-}
 
 function addPendingSale(saleId: string, occurredAt: Date): void {
   insertCompletedSale(database, saleId);
@@ -124,8 +104,8 @@ describe("what the deferred-sale catch-up reads", () => {
   });
 
   it("is the issuer identification and the buyer tax statuses in effect", () => {
-    addIssuerVersion();
-    addBuyerTaxStatusSet();
+    insertIssuerIdentification(database);
+    insertBuyerTaxStatusSet(database);
 
     const [issuer, buyerTaxStatuses] = catchUp.transaction((tx) => [
       tx.issuerIdentification(),
@@ -356,8 +336,8 @@ describe("catching up against the local database", () => {
   beforeEach(() => {
     calls.length = 0;
     insertPointOfSale(database, 100);
-    addIssuerVersion();
-    addBuyerTaxStatusSet();
+    insertIssuerIdentification(database);
+    insertBuyerTaxStatusSet(database);
     insertHealthCheck(database, { checkedAt: "2026-10-12T14:59:58.000Z" });
     addPendingSale("sale-2", SECOND_SALE_AT);
     addPendingSale("sale-1", FIRST_SALE_AT);

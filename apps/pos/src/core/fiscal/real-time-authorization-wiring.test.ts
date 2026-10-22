@@ -14,10 +14,12 @@ import {
 import { insertPendingCreditNote } from "./sqlite-void-credit-notes";
 import {
   FACTURA_C,
+  insertBuyerTaxStatusSet,
   insertCompletedSale,
   insertDeferredSale,
   insertFiscalDocument,
   insertHealthCheck,
+  insertIssuerIdentification,
   insertPointOfSale,
   insertSaleCompletedEvent,
   openFiscalDatabase,
@@ -381,6 +383,8 @@ describe("the register's health checks", () => {
         scheduled.push({ run, delayMs });
         return () => undefined;
       },
+      ...scriptedDeferrals(),
+      readOutboxChainKey: async () => CHAIN_KEY,
       reportFailure: (error) => failures.push(error),
       afterCheck,
     });
@@ -494,6 +498,8 @@ describe("applying the decisions of the documents left with an unclear outcome, 
         scheduled.push({ run, delayMs });
         return () => undefined;
       },
+      ...scriptedDeferrals(),
+      readOutboxChainKey: async () => CHAIN_KEY,
       reportFailure: (error) => failures.push(error),
     });
     async function tick(): Promise<void> {
@@ -751,6 +757,8 @@ describe("asking for the credit notes of voided sales, as the register's health 
         scheduled.push({ run, delayMs });
         return () => undefined;
       },
+      ...scriptedDeferrals(),
+      readOutboxChainKey: async () => CHAIN_KEY,
       reportFailure: (error) => failures.push(error),
     });
     async function tick(): Promise<void> {
@@ -898,5 +906,131 @@ describe("the cloud that issues the credit note of a voided sale", () => {
     expect(sent).toEqual([
       { path: "/api/fiscal/credit-notes", authorization: "Bearer prefix.secret" },
     ]);
+  });
+});
+
+describe("catching up the deferred sales, as the register's health is checked", () => {
+  const UNCLEAR_PATH = "/api/fiscal/unclear-outcomes";
+  const AUTHORIZE_PATH = "/api/fiscal/authorize";
+
+  const healthy = () =>
+    json({
+      status: "ok",
+      version: "abc1234",
+      installation: { revoked: false },
+      arca: { token_valid: true, probe_ok_at: "2026-09-30T12:05:00.000Z", reachable: true },
+    });
+
+  const authorized = () =>
+    json({
+      state: "AUTHORIZED",
+      authorization_code: "75123456789012",
+      authorization_code_due_on: "2026-10-10",
+    });
+
+  function ticking(
+    answers: { unclear?: () => Promise<Response>; authorize?: () => Promise<Response> } = {},
+    failures: unknown[] = [],
+    readOutboxChainKey: () => Promise<string | undefined> = async () => CHAIN_KEY,
+  ) {
+    const { cloud, sent } = cloudAnswering(async (path) => {
+      if (path === UNCLEAR_PATH) {
+        return (answers.unclear ?? (async () => json({ state: "PENDING" })))();
+      }
+      if (path === AUTHORIZE_PATH) {
+        return (answers.authorize ?? authorized)();
+      }
+      return healthy();
+    });
+    const scheduled: { run: () => void; delayMs: number }[] = [];
+    startRegisterHealthChecks({
+      database,
+      cloudClient: cloud,
+      readDeviceToken: async () => "prefix.secret",
+      now: () => NOW,
+      scheduleNext: (run, delayMs) => {
+        scheduled.push({ run, delayMs });
+        return () => undefined;
+      },
+      ...scriptedDeferrals(),
+      readOutboxChainKey,
+      reportFailure: (error) => failures.push(error),
+    });
+    async function tick(): Promise<void> {
+      const before = scheduled.length;
+      scheduled[before - 1]?.run();
+      await vi.waitFor(() => expect(scheduled).toHaveLength(before + 1));
+    }
+    return { sent, tick };
+  }
+
+  function addPendingSale(index: number): void {
+    const saleId = `sale-${index}`;
+    insertCompletedSale(database, saleId);
+    insertSaleCompletedEvent(database, saleId);
+    insertDeferredSale(database, saleId, "fiscally_offline");
+  }
+
+  function documents(): unknown {
+    return database
+      .prepare("SELECT sale_id, number, state FROM fiscal_documents ORDER BY number")
+      .all();
+  }
+
+  beforeEach(() => {
+    insertPointOfSale(database, 100);
+    insertIssuerIdentification(database);
+    insertBuyerTaxStatusSet(database);
+  });
+
+  it("invoices a pending deferred sale and reports its satisfaction once the health check is recorded", async () => {
+    addPendingSale(1);
+    const { sent, tick } = ticking();
+
+    await tick();
+
+    expect(documents()).toEqual([{ sale_id: "sale-1", number: 101, state: "AUTHORIZED" }]);
+    expect(sent.map(({ path }) => path)).toEqual(["/api/health", AUTHORIZE_PATH]);
+    expect(
+      database
+        .prepare(
+          "SELECT event_type, aggregate_id FROM outbox WHERE event_type = 'deferred_sale_satisfied'",
+        )
+        .all(),
+    ).toEqual([{ event_type: "deferred_sale_satisfied", aggregate_id: "sale-1" }]);
+  });
+
+  it("invoices nothing, asking the cloud nothing more, when no deferred sale is pending", async () => {
+    const { sent, tick } = ticking();
+
+    await tick();
+
+    expect(sent.map(({ path }) => path)).toEqual(["/api/health"]);
+    expect(documents()).toEqual([]);
+  });
+
+  it("catches up right after the unclear documents are settled, so a settled one no longer blocks it", async () => {
+    insertCompletedSale(database, "sale-9");
+    insertSaleCompletedEvent(database, "sale-9");
+    insertFiscalDocument(database, { id: "doc-9", saleId: "sale-9", number: 99, state: "UNKNOWN" });
+    insertDeferredSale(database, "sale-9");
+    database.prepare("UPDATE deferred_sales SET satisfied_at = NULL").run();
+    addPendingSale(1);
+    const { sent, tick } = ticking({ unclear: async () => json({ state: "RELEASED" }) });
+
+    await tick();
+
+    expect(sent.map(({ path }) => path)).toEqual(["/api/health", UNCLEAR_PATH, AUTHORIZE_PATH]);
+    expect(documents()).toEqual([{ sale_id: "sale-1", number: 101, state: "AUTHORIZED" }]);
+  });
+
+  it("reports a failure of the catch-up without ending the tick", async () => {
+    addPendingSale(1);
+    const failures: unknown[] = [];
+    const { tick } = ticking({}, failures, async () => undefined);
+
+    await tick();
+
+    expect(failures).toHaveLength(1);
   });
 });

@@ -304,3 +304,21 @@ export function insertDeferredSale(
     .run(id, saleId, occurredAt.toISOString(), FACTURA_C.total, reason, shortCode, routedAt);
   return { id, shortCode };
 }
+
+export function insertIssuerIdentification(database: LocalDatabase): void {
+  database
+    .prepare(
+      `INSERT INTO issuer_identification_versions (
+         version, legal_name, gross_income_registration, activity_start_date, authorized_cuit, tax_status
+       ) VALUES (3, ?, ?, '2020-01-01', ?, 'MONOTRIBUTO')`,
+    )
+    .run(FICTIONAL_LEGAL_NAME, FICTIONAL_GROSS_INCOME_REGISTRATION, FICTIONAL_CUIT);
+}
+
+export function insertBuyerTaxStatusSet(database: LocalDatabase): void {
+  database
+    .prepare(
+      "INSERT INTO buyer_tax_status_sets (params_version, set_id, options) VALUES (1, 'set-1', ?)",
+    )
+    .run(JSON.stringify([{ code: 5, description: "Consumidor Final", invoice_class: "C" }]));
+}
