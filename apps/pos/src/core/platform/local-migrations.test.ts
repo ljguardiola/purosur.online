@@ -918,6 +918,7 @@ describe("the register's local migrations", () => {
         "0070_stale_sequence",
         "0071_credit_note_reprints",
         "0072_awaiting_restored_numbering",
+        "0074_deferred_sale_backlog",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1013,6 +1014,7 @@ describe("the register's local migrations", () => {
         "0070_stale_sequence",
         "0071_credit_note_reprints",
         "0072_awaiting_restored_numbering",
+        "0074_deferred_sale_backlog",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1103,6 +1105,7 @@ describe("the register's local migrations", () => {
         "0070_stale_sequence",
         "0071_credit_note_reprints",
         "0072_awaiting_restored_numbering",
+        "0074_deferred_sale_backlog",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1192,6 +1195,7 @@ describe("the register's local migrations", () => {
         "0070_stale_sequence",
         "0071_credit_note_reprints",
         "0072_awaiting_restored_numbering",
+        "0074_deferred_sale_backlog",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1310,6 +1314,7 @@ describe("the register's local migrations", () => {
         "0070_stale_sequence",
         "0071_credit_note_reprints",
         "0072_awaiting_restored_numbering",
+        "0074_deferred_sale_backlog",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1418,6 +1423,7 @@ describe("the register's local migrations", () => {
         "0070_stale_sequence",
         "0071_credit_note_reprints",
         "0072_awaiting_restored_numbering",
+        "0074_deferred_sale_backlog",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1530,6 +1536,7 @@ describe("the register's local migrations", () => {
         "0070_stale_sequence",
         "0071_credit_note_reprints",
         "0072_awaiting_restored_numbering",
+        "0074_deferred_sale_backlog",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1650,6 +1657,7 @@ describe("the register's local migrations", () => {
         "0070_stale_sequence",
         "0071_credit_note_reprints",
         "0072_awaiting_restored_numbering",
+        "0074_deferred_sale_backlog",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1737,6 +1745,7 @@ describe("the register's local migrations", () => {
         "0070_stale_sequence",
         "0071_credit_note_reprints",
         "0072_awaiting_restored_numbering",
+        "0074_deferred_sale_backlog",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -4055,10 +4064,10 @@ describe("the register's local migrations", () => {
       database.close();
     });
 
-    it("give a sale at most one fiscal document, of a known sale", () => {
+    it("give a sale at most one fiscal document waiting for an answer or authorized, of a known sale", () => {
       const database = withSales();
 
-      insertDocument(database, { state: "REJECTED" });
+      insertDocument(database, { state: "REQUESTING" });
 
       expect(() => insertDocument(database, { id: "doc-2", number: 42 })).toThrow(/UNIQUE/);
       expect(() => insertDocument(database, { id: "doc-3", sale_id: "missing" })).toThrow(
@@ -5989,7 +5998,12 @@ describe("the register's local migrations", () => {
           }),
         ).toThrow(/UNIQUE/);
         expect(() =>
-          insertDocument(after, { id: "doc-5", sale_id: "sale-3", number: 41, state: "RELEASED" }),
+          insertDocument(after, {
+            id: "doc-5",
+            sale_id: "sale-3",
+            number: 41,
+            state: "CONFLICTING",
+          }),
         ).toThrow(/UNIQUE/);
         after.close();
       } finally {
