@@ -14,6 +14,7 @@ import {
   type EventQuarantine,
   FACTURA_C_DOCUMENT_TYPE,
   type FiscalDocumentType,
+  type FiscalTaskDocumentType,
   type JsonValue,
   OFFLINE_AUTHORIZATION_CAUSES,
   OFFLINE_NUMBER_BLOCK_STATUSES,
@@ -1129,7 +1130,7 @@ export const offlineNumberBlocks = pgTable(
     check("offline_number_blocks_mechanism_offline", sql`${table.mechanism} = 'offline'`),
     check(
       "offline_number_blocks_document_type_known",
-      sql`${table.documentType} in (${sql.raw(`'${FACTURA_C_DOCUMENT_TYPE}'`)})`,
+      sql`${table.documentType} in (${sql.raw(`'${FACTURA_C_DOCUMENT_TYPE}', '${CREDIT_NOTE_C_DOCUMENT_TYPE}'`)})`,
     ),
     check(
       "offline_number_blocks_range_valid",
@@ -2306,7 +2307,7 @@ export const fortnightDocumentReports = pgTable(
     ),
     check(
       "fortnight_document_reports_document_type_known",
-      sql`${table.documentType} in (${sql.raw(`'${FACTURA_C_DOCUMENT_TYPE}'`)})`,
+      sql`${table.documentType} in (${sql.raw(`'${FACTURA_C_DOCUMENT_TYPE}', '${CREDIT_NOTE_C_DOCUMENT_TYPE}'`)})`,
     ),
   ],
 );
@@ -2363,12 +2364,12 @@ export const offlineFiscalDocuments = pgTable(
   "offline_fiscal_documents",
   {
     id: uuid("id").primaryKey(),
-    saleId: uuid("sale_id").notNull().unique(),
+    saleId: uuid("sale_id").notNull(),
     registerId: uuid("register_id")
       .notNull()
       .references(() => registers.id),
     pointOfSale: integer("point_of_sale").notNull(),
-    documentType: text("document_type").$type<FiscalDocumentType>().notNull(),
+    documentType: text("document_type").$type<FiscalTaskDocumentType>().notNull(),
     number: integer("number").notNull(),
     issuedOn: date("issued_on", { mode: "string" }).notNull(),
     generatedAt: timestamp("generated_at", { withTimezone: true }).notNull(),
@@ -2383,8 +2384,23 @@ export const offlineFiscalDocuments = pgTable(
     netAmount: bigint("net_amount", { mode: "number" }).notNull(),
     cause: text("cause").$type<OfflineAuthorizationCause>().notNull(),
     recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull(),
+    creditNoteId: uuid("credit_note_id"),
+    correctedVoucherType: integer("corrected_voucher_type"),
+    correctedPointOfSale: integer("corrected_point_of_sale"),
+    correctedNumber: integer("corrected_number"),
   },
   (table) => [
+    unique("offline_fiscal_documents_sale_document_key").on(table.saleId, table.documentType),
+    uniqueIndex("offline_fiscal_documents_corrected_voucher_key")
+      .on(table.correctedVoucherType, table.correctedPointOfSale, table.correctedNumber)
+      .where(sql`${table.documentType} = ${sql.raw(`'${CREDIT_NOTE_C_DOCUMENT_TYPE}'`)}`),
+    check(
+      "offline_fiscal_documents_credit_note_data",
+      sql`(${table.documentType} = ${sql.raw(`'${CREDIT_NOTE_C_DOCUMENT_TYPE}'`)}) = (${table.creditNoteId} is not null)
+        and (${table.creditNoteId} is null) = (${table.correctedVoucherType} is null)
+        and (${table.creditNoteId} is null) = (${table.correctedPointOfSale} is null)
+        and (${table.creditNoteId} is null) = (${table.correctedNumber} is null)`,
+    ),
     unique("offline_fiscal_documents_number_key").on(
       table.pointOfSale,
       table.documentType,
@@ -2392,7 +2408,7 @@ export const offlineFiscalDocuments = pgTable(
     ),
     check(
       "offline_fiscal_documents_document_type_known",
-      sql`${table.documentType} in (${sql.raw(`'${FACTURA_C_DOCUMENT_TYPE}'`)})`,
+      sql`${table.documentType} in (${sql.raw(`'${FACTURA_C_DOCUMENT_TYPE}', '${CREDIT_NOTE_C_DOCUMENT_TYPE}'`)})`,
     ),
     check(
       "offline_fiscal_documents_cause_known",

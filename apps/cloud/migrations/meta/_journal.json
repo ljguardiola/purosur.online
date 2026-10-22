@@ -890,6 +890,13 @@
       "when": 1792678115441,
       "tag": "0133_fiscal_request_without_sale_event",
       "breakpoints": true
+    },
+    {
+      "idx": 127,
+      "version": "7",
+      "when": 1792712869721,
+      "tag": "0134_offline_credit_notes",
+      "breakpoints": true
     }
   ]
 }

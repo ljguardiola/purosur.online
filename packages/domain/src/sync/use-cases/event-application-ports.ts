@@ -1,3 +1,4 @@
+import type { VoucherReference } from "../../fiscal/index.js";
 import type { MercadoPagoOrderTransaction } from "../../payments/index.js";
 import type { CompletedSale, VoidedSale } from "../../sales/index.js";
 import type { Clock, JsonValue } from "../../shared/index.js";
@@ -39,6 +40,25 @@ export interface EventApplicationTransaction {
   aggregateApplied(key: AggregateKey): Promise<boolean>;
   providerTransactionOfPayment(paymentId: string): Promise<ProviderTransactionOfPayment | null>;
   record(fact: SyncedFact, event: UnappliedEvent): Promise<void>;
+  /**
+   * Holds the lock of a corrected voucher until the transaction ends. Whoever credits a voucher
+   * (this application and the cloud's own credit notes) takes it before asking
+   * voucherAlreadyCredited and before recording the credit note, so two of them never both see the
+   * voucher as not credited.
+   */
+  lockCreditedVoucher(voucher: VoucherReference): Promise<void>;
+  /**
+   * Whether a credit note of the cloud, or an offline credit note other than the one named, already
+   * corrects the voucher.
+   */
+  voucherAlreadyCredited(
+    voucher: VoucherReference,
+    exceptOfflineDocumentId: string,
+  ): Promise<boolean>;
+  raiseInvoiceAlreadyCredited(
+    invoice: { voucher: VoucherReference; saleId: string },
+    at: Date,
+  ): Promise<void>;
   requestMercadoPagoRefundFollow(): Promise<void>;
   applySaleStock(
     sale: CompletedSale,

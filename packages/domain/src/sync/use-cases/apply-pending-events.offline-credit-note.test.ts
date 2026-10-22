@@ -42,9 +42,14 @@ function creditNote(
   };
 }
 
+const {
+  corrects: _corrects,
+  creditNoteId: _creditNoteId,
+  ...FACTURA_FIELDS
+} = creditNote("doc-factura").document;
 const factura: Extract<SyncedFact, { kind: "offline_fiscal_document_issued" }> = {
   kind: "offline_fiscal_document_issued",
-  document: { ...creditNote("doc-factura").document, documentType: "factura_c", number: 101 },
+  document: { ...FACTURA_FIELDS, documentType: "factura_c", number: 101 },
 };
 
 const noteEvent = (eventId: string, deviceSeq = 1) =>
