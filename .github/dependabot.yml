@@ -28,9 +28,9 @@ updates:
       # .node-version.
       - dependency-name: "@types/node"
         update-types: ["version-update:semver-major"]
-      # electron-vite 5, the latest stable release, supports vite up to 7, and
-      # @vitejs/plugin-react 6 requires vite 8. Lift both once a stable
-      # electron-vite supports vite 8.
+      # A vite major works only once electron-vite, which builds the register,
+      # and a @vitejs/plugin-react major support it, so both move by hand,
+      # together with electron-vite.
       - dependency-name: "vite"
         update-types: ["version-update:semver-major"]
       - dependency-name: "@vitejs/plugin-react"
