@@ -17,7 +17,7 @@ export type {
   FiscalTaskKind,
 } from "../model/fiscal-task.js";
 export type { Fortnight } from "../model/offline-authorization-code.js";
-export type { OfflineFiscalDocument } from "../model/offline-fiscal-document.js";
+export type { OfflineCreditNote, OfflineFiscalDocument } from "../model/offline-fiscal-document.js";
 export type {
   CreditNoteDecision,
   ExternalBilling,

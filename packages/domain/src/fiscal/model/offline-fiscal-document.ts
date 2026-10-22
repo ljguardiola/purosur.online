@@ -4,10 +4,13 @@ import {
   FINAL_CONSUMER_DOCUMENT_TYPE,
 } from "./factura-c-fiscal-block.js";
 import { FACTURA_C_DOCUMENT_TYPE, type FiscalDocumentType } from "./fiscal-rejection-standing.js";
+import { CREDIT_NOTE_C_DOCUMENT_TYPE, type FiscalTaskDocumentType } from "./fiscal-task.js";
 import { generationStampOf } from "./generation-stamp.js";
 import type { Fortnight } from "./offline-authorization-code.js";
+import type { VoucherReference } from "./orphan-authorization.js";
 import type { FacturaC } from "./pre-emission-gate.js";
 import type { OfflineAuthorizationCause } from "./real-time-authorization.js";
+import { type SaleVoidCreditNote, saleVoidCreditNotePayload } from "./sale-void-credit-note.js";
 
 export const OFFLINE_FISCAL_DOCUMENT_ISSUED_EVENT_TYPE = "offline_fiscal_document_issued";
 
@@ -41,12 +44,45 @@ export function offlineFiscalDocument(issue: OfflineFiscalDocumentIssue): Offlin
   };
 }
 
+export interface OfflineCreditNoteIssue {
+  id: string;
+  saleId: string;
+  creditNoteId: string;
+  pointOfSale: number;
+  number: number;
+  issuedOn: string;
+  generatedAt: Date;
+  offlineAuthorizationCode: string;
+  fortnight: Fortnight;
+  total: number;
+  receiverTaxStatusCode: number;
+  corrects: VoucherReference;
+  cause: OfflineAuthorizationCause;
+}
+
+export interface OfflineCreditNote extends OfflineCreditNoteIssue {
+  documentType: typeof CREDIT_NOTE_C_DOCUMENT_TYPE;
+  generationStamp: string;
+  buyerDocumentType: number;
+  buyerDocumentNumber: number;
+}
+
+export function offlineCreditNote(issue: OfflineCreditNoteIssue): OfflineCreditNote {
+  return {
+    ...issue,
+    documentType: CREDIT_NOTE_C_DOCUMENT_TYPE,
+    generationStamp: generationStampOf(issue.generatedAt),
+    buyerDocumentType: FINAL_CONSUMER_DOCUMENT_TYPE,
+    buyerDocumentNumber: FINAL_CONSUMER_DOCUMENT_NUMBER,
+  };
+}
+
 export interface OfflineFiscalDocumentIssuedFact {
   fiscalDocumentId: string;
   saleId: string;
   registerId: string;
   pointOfSale: number;
-  documentType: FiscalDocumentType;
+  documentType: FiscalTaskDocumentType;
   number: number;
   issuedOn: string;
   generatedAt: Date;
@@ -61,6 +97,8 @@ export interface OfflineFiscalDocumentIssuedFact {
   netAmount: number;
   cause: OfflineAuthorizationCause;
   invoice?: FacturaC;
+  creditNoteId?: string;
+  corrects?: VoucherReference;
 }
 
 export function invoiceRecord(invoice: FacturaC): JsonValue {
@@ -122,6 +160,65 @@ export function offlineFiscalDocumentIssuedEvent({
       net_amount: document.document.netAmount,
       cause: document.cause,
       document: invoiceRecord(document.document),
+    },
+    occurred_at: generatedAt,
+    actor_id: actorId,
+  };
+}
+
+export interface OfflineCreditNoteIssuedEventInput {
+  eventId: string;
+  registerId: string;
+  actorId: string;
+  document: OfflineCreditNote;
+}
+
+export function offlineCreditNoteIssuedEvent({
+  eventId,
+  registerId,
+  actorId,
+  document,
+}: OfflineCreditNoteIssuedEventInput): OutboxEventDraft {
+  const generatedAt = document.generatedAt.toISOString();
+  const creditNote: SaleVoidCreditNote = {
+    creditNoteId: document.creditNoteId,
+    saleId: document.saleId,
+    total: document.total,
+    receiverTaxStatusCode: document.receiverTaxStatusCode,
+    correctedVoucher: document.corrects,
+  };
+  return {
+    event_id: eventId,
+    aggregate_type: "Sale",
+    aggregate_id: document.saleId,
+    event_type: OFFLINE_FISCAL_DOCUMENT_ISSUED_EVENT_TYPE,
+    schema_version: 3,
+    payload: {
+      fiscal_document_id: document.id,
+      sale_id: document.saleId,
+      register_id: registerId,
+      point_of_sale: document.pointOfSale,
+      document_type: document.documentType,
+      number: document.number,
+      issued_on: document.issuedOn,
+      generated_at: generatedAt,
+      generation_stamp: document.generationStamp,
+      offline_authorization_code: document.offlineAuthorizationCode,
+      fortnight_start: document.fortnight.start,
+      fortnight_end: document.fortnight.end,
+      buyer_document_type: document.buyerDocumentType,
+      buyer_document_number: document.buyerDocumentNumber,
+      buyer_tax_status_code: document.receiverTaxStatusCode,
+      total: document.total,
+      net_amount: document.total,
+      cause: document.cause,
+      credit_note_id: document.creditNoteId,
+      corrects: {
+        voucher_type: document.corrects.voucherType,
+        point_of_sale: document.corrects.pointOfSale,
+        number: document.corrects.number,
+      },
+      document: saleVoidCreditNotePayload(creditNote),
     },
     occurred_at: generatedAt,
     actor_id: actorId,

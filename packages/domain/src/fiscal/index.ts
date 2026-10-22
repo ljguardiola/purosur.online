@@ -116,6 +116,7 @@ export type {
 export { FACTURA_C_DOCUMENT_TYPE } from "./model/fiscal-rejection-standing.js";
 export type { FiscalTaskDocumentType } from "./model/fiscal-task.js";
 export { CREDIT_NOTE_C_DOCUMENT_TYPE } from "./model/fiscal-task.js";
+export { voucherTypeOfDocumentType } from "./model/fiscal-voucher-type.js";
 export type {
   FortnightPresentationRefusal,
   FortnightPresentationState,
@@ -165,9 +166,14 @@ export type { OfflineAuthorizationCodeAcquisitionUrgency } from "./model/offline
 export { offlineAuthorizationCodeAcquisitionUrgency } from "./model/offline-authorization-code-acquisition-urgency.js";
 export type { RegisterOfflineAuthorizationCodeHolding } from "./model/offline-authorization-code-holding.js";
 export { mustHoldOfflineAuthorizationCode } from "./model/offline-authorization-code-holding.js";
-export type { OfflineFiscalDocumentIssuedFact } from "./model/offline-fiscal-document.js";
+export type {
+  OfflineCreditNote,
+  OfflineFiscalDocumentIssuedFact,
+} from "./model/offline-fiscal-document.js";
 export {
   OFFLINE_FISCAL_DOCUMENT_ISSUED_EVENT_TYPE,
+  offlineCreditNote,
+  offlineCreditNoteIssuedEvent,
   offlineFiscalDocument,
   offlineFiscalDocumentIssuedEvent,
 } from "./model/offline-fiscal-document.js";
