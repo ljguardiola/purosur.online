@@ -58,7 +58,10 @@ function insertDeferredSale(
   );
 }
 
-function insertDeferredTask(database: SqlOnlyDatabase, extra: { columns?: string; values?: string }) {
+function insertDeferredTask(
+  database: SqlOnlyDatabase,
+  extra: { columns?: string; values?: string },
+) {
   return database.query(
     `insert into fiscal_tasks (id, kind, register_id, reason, created_at${extra.columns ?? ""})
      select gen_random_uuid(), 'deferred_sale_expired', registers.id, '{}', now()${extra.values ?? ""}
@@ -233,7 +236,6 @@ describe("the deferred sales table", { timeout: 30_000 }, () => {
     ["an expired one with a cancellation time", "expired", "cancelled_at = '2026-10-02T12:00:00Z'"],
   ])("refuses %s", async (_name, state, times) => {
     const migrated = await migratedDatabase();
-    await migrated.query(`select 1`);
 
     await expect(insertDeferredSale(migrated, { state, times })).rejects.toThrow();
   });
