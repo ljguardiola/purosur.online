@@ -102,6 +102,7 @@ describe("the register reset response", () => {
       next: { device_id: PREDECESSOR, device_seq: 54 },
       users: [USER],
       credit_notes: [],
+      unrequested_credit_note_ids: [],
     };
 
     expect(registerResetResponseSchema.parse(body)).toEqual(body);
@@ -113,6 +114,7 @@ describe("the register reset response", () => {
       next: null,
       users: [{ ...USER, salt: null, pin_hash: null }],
       credit_notes: [],
+      unrequested_credit_note_ids: [],
     };
 
     expect(registerResetResponseSchema.parse(body)).toEqual(body);
@@ -124,8 +126,13 @@ describe("the register reset response", () => {
     );
 
     expect(
-      registerResetResponseSchema.safeParse({ events, next: null, users: [], credit_notes: [] })
-        .success,
+      registerResetResponseSchema.safeParse({
+        events,
+        next: null,
+        users: [],
+        credit_notes: [],
+        unrequested_credit_note_ids: [],
+      }).success,
     ).toBe(true);
     expect(
       registerResetResponseSchema.safeParse({
@@ -133,14 +140,28 @@ describe("the register reset response", () => {
         next: null,
         users: [],
         credit_notes: [],
+        unrequested_credit_note_ids: [],
       }).success,
     ).toBe(false);
   });
 
   it.each([
-    ["a missing next", { events: [], users: [], credit_notes: [] }],
-    ["a missing users list", { events: [], next: null, credit_notes: [] }],
-    ["a missing credit notes list", { events: [], next: null, users: [] }],
+    [
+      "a missing next",
+      { events: [], users: [], credit_notes: [], unrequested_credit_note_ids: [] },
+    ],
+    [
+      "a missing users list",
+      { events: [], next: null, credit_notes: [], unrequested_credit_note_ids: [] },
+    ],
+    [
+      "a missing credit notes list",
+      { events: [], next: null, users: [], unrequested_credit_note_ids: [] },
+    ],
+    [
+      "a missing list of unrequested credit notes",
+      { events: [], next: null, users: [], credit_notes: [] },
+    ],
     [
       "an event without the installation that produced it",
       {
@@ -148,19 +169,38 @@ describe("the register reset response", () => {
         next: null,
         users: [],
         credit_notes: [],
+        unrequested_credit_note_ids: [],
       },
     ],
     [
       "an event that is not a pushed event",
-      { events: [{ event_id: "x" }], next: null, users: [], credit_notes: [] },
+      {
+        events: [{ event_id: "x" }],
+        next: null,
+        users: [],
+        credit_notes: [],
+        unrequested_credit_note_ids: [],
+      },
     ],
     [
       "a user without its id",
-      { events: [], next: null, users: [{ ...USER, user_id: undefined }], credit_notes: [] },
+      {
+        events: [],
+        next: null,
+        users: [{ ...USER, user_id: undefined }],
+        credit_notes: [],
+        unrequested_credit_note_ids: [],
+      },
     ],
     [
       "a next without its installation",
-      { events: [], next: { device_seq: 3 }, users: [], credit_notes: [] },
+      {
+        events: [],
+        next: { device_seq: 3 },
+        users: [],
+        credit_notes: [],
+        unrequested_credit_note_ids: [],
+      },
     ],
   ])("refuses %s", (_name, body) => {
     expect(registerResetResponseSchema.safeParse(body).success).toBe(false);
@@ -184,6 +224,11 @@ describe("the register reset response", () => {
       answered_at: "2026-10-07T10:30:00.000Z",
       state: "REJECTED",
     };
+    const alreadyCredited = {
+      credit_note_id: CREDIT_NOTE,
+      answered_at: "2026-10-07T10:30:00.000Z",
+      state: "ALREADY_CREDITED",
+    };
     const respondingWith = (creditNote: unknown) => ({
       events: [],
       next: null,
@@ -194,6 +239,7 @@ describe("the register reset response", () => {
     it.each([
       ["authorized", authorized],
       ["rejected", rejected],
+      ["already credited", alreadyCredited],
     ])("holds the voided sales' %s credit notes", (_state, creditNote) => {
       const body = respondingWith(creditNote);
 
@@ -228,6 +274,38 @@ describe("the register reset response", () => {
       ],
     ])("refuses %s", (_name, creditNote) => {
       expect(registerResetResponseSchema.safeParse(respondingWith(creditNote)).success).toBe(false);
+    });
+  });
+
+  describe("the unrequested credit notes", () => {
+    const UNREQUESTED = "5d0c7e19-3a42-4b86-9f1e-6c2b8a4d7e30";
+    const respondingWith = (unrequested: unknown) => ({
+      events: [],
+      next: null,
+      users: [],
+      credit_notes: [],
+      unrequested_credit_note_ids: unrequested,
+    });
+
+    it("holds the ids of the credit notes the cloud never recorded", () => {
+      const body = respondingWith([UNREQUESTED]);
+
+      expect(registerResetResponseSchema.parse(body)).toEqual(body);
+    });
+
+    it("lowercases the ids", () => {
+      const parsed = registerResetResponseSchema.parse(respondingWith([UNREQUESTED.toUpperCase()]));
+
+      expect(parsed.unrequested_credit_note_ids).toEqual([UNREQUESTED]);
+    });
+
+    it.each([
+      ["an id that is not an id", ["not-an-id"]],
+      ["a list that is not a list", UNREQUESTED],
+    ])("refuses %s", (_name, unrequested) => {
+      expect(registerResetResponseSchema.safeParse(respondingWith(unrequested)).success).toBe(
+        false,
+      );
     });
   });
 });
