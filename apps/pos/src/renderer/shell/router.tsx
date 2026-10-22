@@ -95,7 +95,7 @@ import type {
 import { CashCountScreen } from "../register/cash-count-screen";
 import { CashScreen } from "../register/cash-screen";
 import type { CashSessionState } from "../register/cash-session-state";
-import { EnrollmentScreen } from "../register/enrollment-screen";
+import { EnrollmentScreen, ReEnrollmentScreen } from "../register/enrollment-screen";
 import { LockedCloseScreen } from "../register/locked-close-screen";
 import { LockedRegisterScreen } from "../register/locked-register-screen";
 import { NoSessionScreen } from "../register/no-session-screen";
@@ -1064,14 +1064,7 @@ const enrollRoute = createRoute({
   beforeLoad: ({ context }) => requireRoute("/enroll", context),
   component: function EnrollRoute() {
     const { enroll, checkEnrollmentCode } = enrollRoute.useRouteContext();
-    return (
-      <EnrollmentScreen
-        eyebrow="NOTEBOOK NUEVA"
-        status="Sin dar de alta"
-        checkCode={checkEnrollmentCode}
-        enroll={enroll}
-      />
-    );
+    return <EnrollmentScreen checkCode={checkEnrollmentCode} enroll={enroll} />;
   },
 });
 
@@ -1135,11 +1128,9 @@ const reEnrollRoute = createRoute({
   component: function ReEnrollRoute() {
     const { enroll, checkEnrollmentCode } = reEnrollRoute.useRouteContext();
     const navigate = reEnrollRoute.useNavigate();
-    const registerName = useRegisterName();
     return (
-      <EnrollmentScreen
-        eyebrow={registerName === null ? "CAJA" : registerName.toUpperCase()}
-        status="Dar de alta de nuevo"
+      <ReEnrollmentScreen
+        registerName={useRegisterName()}
         checkCode={checkEnrollmentCode}
         enroll={enroll}
         onBack={() => void navigate({ to: "/restore-required" })}

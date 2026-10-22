@@ -1,6 +1,7 @@
 import { Button, InlineNotice, ScreenHeader } from "@purosur/ui";
 import { KeyRound } from "lucide-react";
 import { BrandPanelScreen } from "../shell/brand-panel-screen";
+import { registerEyebrow } from "./register-eyebrow";
 
 export function RestoreRequiredScreen({
   registerName,
@@ -13,7 +14,7 @@ export function RestoreRequiredScreen({
     <BrandPanelScreen>
       <main className="flex w-full max-w-110 flex-col gap-4">
         <ScreenHeader
-          eyebrow={registerName === null ? "CAJA" : registerName.toUpperCase()}
+          eyebrow={registerEyebrow(registerName)}
           title="La caja tiene que volver a darse de alta"
           description="Sus datos quedaron atrás de los de la nube, así que no puede vender hasta restaurarse."
         />

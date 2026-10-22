@@ -19,6 +19,7 @@ import {
   enrollmentRequestSchema,
   INCOMPLETE_CODE_MESSAGE,
 } from "./enrollment-form";
+import { registerEyebrow } from "./register-eyebrow";
 
 type Notice = { icon: Icon; title: string; description: string };
 
@@ -70,21 +71,46 @@ function noticeFor(outcome: EnrollmentOutcome): Notice | undefined {
   }
 }
 
-type EnrollmentScreenProps = {
-  eyebrow: string;
-  status: string;
+type EnrollmentRequests = {
   checkCode: (typedCode: string) => Promise<"code"[]>;
   enroll: (typedCode: string) => Promise<EnrollmentOutcome>;
-  onBack?: () => void;
 };
 
-export function EnrollmentScreen({
+export function EnrollmentScreen({ checkCode, enroll }: EnrollmentRequests) {
+  return (
+    <EnrollmentPanel
+      eyebrow="NOTEBOOK NUEVA"
+      status="Sin dar de alta"
+      checkCode={checkCode}
+      enroll={enroll}
+    />
+  );
+}
+
+export function ReEnrollmentScreen({
+  registerName,
+  checkCode,
+  enroll,
+  onBack,
+}: EnrollmentRequests & { registerName: string | null; onBack: () => void }) {
+  return (
+    <EnrollmentPanel
+      eyebrow={registerEyebrow(registerName)}
+      status="Dar de alta de nuevo"
+      checkCode={checkCode}
+      enroll={enroll}
+      onBack={onBack}
+    />
+  );
+}
+
+function EnrollmentPanel({
   eyebrow,
   status,
   checkCode,
   enroll,
   onBack,
-}: EnrollmentScreenProps) {
+}: EnrollmentRequests & { eyebrow: string; status: string; onBack?: () => void }) {
   const [outcome, setOutcome] = useState<EnrollmentOutcome>();
   const noticeId = useId();
   const { form, submit, submitting } = useRequestForm({
