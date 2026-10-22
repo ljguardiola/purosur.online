@@ -117,13 +117,21 @@ describe("contingencyBackupTicketAssociatedData", () => {
   });
 
   it.each([
-    ["a register id that is not a uuid", { registerId: "register-1" }],
-    ["a negative key version", { keyVersion: -1 }],
-    ["a key version past 32 bits", { keyVersion: 0x100000000 }],
-    ["a fractional key version", { keyVersion: 1.5 }],
-    ["a nonce of 11 bytes", { nonce: new Uint8Array(11) }],
-    ["a nonce of 13 bytes", { nonce: new Uint8Array(13) }],
-  ])("refuses %s", (_name, override) => {
+    [
+      "a register id that is not a uuid",
+      { registerId: "register-1" },
+      "the register id must be a uuid",
+    ],
+    ["a negative key version", { keyVersion: -1 }, "the key version must fit in 32 bits"],
+    [
+      "a key version past 32 bits",
+      { keyVersion: 0x100000000 },
+      "the key version must fit in 32 bits",
+    ],
+    ["a fractional key version", { keyVersion: 1.5 }, "the key version must fit in 32 bits"],
+    ["a nonce of 11 bytes", { nonce: new Uint8Array(11) }, "the nonce must be 12 bytes"],
+    ["a nonce of 13 bytes", { nonce: new Uint8Array(13) }, "the nonce must be 12 bytes"],
+  ])("refuses %s", (_name, override, message) => {
     expect(() =>
       contingencyBackupTicketAssociatedData({
         registerId: REGISTER_ID,
@@ -131,7 +139,17 @@ describe("contingencyBackupTicketAssociatedData", () => {
         nonce: NONCE,
         ...override,
       }),
-    ).toThrow(RangeError);
+    ).toThrow(new RangeError(message));
+  });
+
+  it("accepts a key version of zero", () => {
+    const data = contingencyBackupTicketAssociatedData({
+      registerId: REGISTER_ID,
+      keyVersion: 0,
+      nonce: NONCE,
+    });
+
+    expect([...data.slice(17, 21)]).toEqual([0, 0, 0, 0]);
   });
 });
 
@@ -194,7 +212,9 @@ describe("contingencyBackupTicketQrCodes", () => {
   });
 
   it("refuses a ticket that needs more than 255 parts", () => {
-    expect(() => codesOf(sealedOf(MAX_CHUNK_BYTES * 255 + 1))).toThrow(RangeError);
+    expect(() => codesOf(sealedOf(MAX_CHUNK_BYTES * 255 + 1))).toThrow(
+      new RangeError("the sealed ticket needs more QR codes than a frame can number"),
+    );
     expect(codesOf(sealedOf(MAX_CHUNK_BYTES * 255))).toHaveLength(255);
   });
 });
@@ -282,6 +302,14 @@ describe("joinContingencyBackupTicketParts", () => {
     ).toBeNull();
   });
 
+  it("refuses the last part missing", () => {
+    const [first, second] = parts();
+
+    expect(
+      joinContingencyBackupTicketParts([first, second].flatMap((p) => (p ? [p] : []))),
+    ).toBeNull();
+  });
+
   it("refuses a part read twice", () => {
     const [first, second, third] = parts();
 
@@ -297,6 +325,11 @@ describe("joinContingencyBackupTicketParts", () => {
     ["key version", { keyVersion: 4 }],
     ["nonce", { nonce: new Uint8Array(12) }],
     ["part count", { partCount: 4 }],
+    [
+      "nonce of one byte",
+      { nonce: Uint8Array.from(NONCE, (byte, i) => (i === 0 ? byte + 1 : byte)) },
+    ],
+    ["nonce that is a prefix", { nonce: NONCE.slice(0, 11) }],
   ])("refuses parts of another %s", (_name, override) => {
     const [first, second, third] = parts();
     if (!first || !second || !third) throw new Error("expected three parts");
