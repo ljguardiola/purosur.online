@@ -1,4 +1,4 @@
-import { isInstallationRevoked, type SalesStopState } from "../../sync/index.js";
+import { isInstallationRevoked, type SalesStopState } from "./sales-stop.js";
 
 export type InstallationEnrollment =
   | { kind: "not_enrolled" }

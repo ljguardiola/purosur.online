@@ -64,8 +64,6 @@ export {
 } from "./model/enrollment-code.js";
 export type { CashBreakdown, CashBreakdownLine } from "./model/expected-cash.js";
 export { cashBreakdown, expectedCash } from "./model/expected-cash.js";
-export type { InstallationEnrollment } from "./model/installation-enrollment.js";
-export { installationEnrollment } from "./model/installation-enrollment.js";
 export {
   hasDistinctKeyVersions,
   INSTALLATION_KEY_BYTES,

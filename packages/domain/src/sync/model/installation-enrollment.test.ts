@@ -1,7 +1,7 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import type { SalesStopState } from "../../sync/index.js";
 import { installationEnrollment } from "./installation-enrollment.js";
+import type { SalesStopState } from "./sales-stop.js";
 
 const STOPPED_BY_REVOCATION: SalesStopState = { stopped: true, reason: "installation_revoked" };
 const NOT_STOPPED: SalesStopState = { stopped: false };
