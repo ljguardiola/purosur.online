@@ -285,9 +285,10 @@ describe("requestSaleVoidCreditNote", () => {
           at: RECEIVED_AT,
         },
       ]);
-      expect(store.operations.slice(-3)).toEqual([
+      expect(store.operations.slice(-4)).toEqual([
         "recordSaleVoidCreditNote",
         "raiseInvoiceAlreadyCredited",
+        "keepAlreadyCreditedRefusal",
         "leaveLane",
       ]);
     });
