@@ -87,6 +87,15 @@ describe("asking the cloud to authorize a fiscal document", () => {
     expect(realTimeAuthorizationRequestSchema.safeParse(posts[0]?.body).success).toBe(true);
   });
 
+  it("posts a request that carries no sale event when the register holds none", async () => {
+    const { posts, taxAuthority } = authority(ok({ state: "UNCLEAR" }));
+
+    await taxAuthority.authorize({ ...CALL, saleEvent: null });
+
+    expect(posts[0]?.body).toMatchObject({ sale_id: SALE_ID, sale_event: null });
+    expect(realTimeAuthorizationRequestSchema.safeParse(posts[0]?.body).success).toBe(true);
+  });
+
   it("answers authorized with the code and its expiry", async () => {
     const { taxAuthority } = authority(
       ok({

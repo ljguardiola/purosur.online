@@ -24,7 +24,7 @@ export interface FiscalDocumentAuthorizationRequest extends FiscalDocumentData {
   saleId: string;
   timeoutMs: number;
   roundTripMedianMs: number;
-  saleEvent: PushedEvent;
+  saleEvent: PushedEvent | null;
 }
 
 export interface AuthorizeFiscalDocumentInput {
@@ -42,7 +42,8 @@ export type AuthorizeFiscalDocumentOutcome =
   | { kind: "already_answered"; answer: RealTimeAuthorizationAnswer }
   | { kind: "point_of_sale_not_owned" }
   | { kind: "fiscal_document_not_owned" }
-  | { kind: "sale_event_mismatch" };
+  | { kind: "sale_event_mismatch" }
+  | { kind: "sale_completion_not_held" };
 
 export function solicitationAnswerOf(answer: SolicitationAnswer): RealTimeAuthorizationAnswer {
   switch (answer.kind) {
@@ -84,10 +85,10 @@ function taxAuthorityGaveAnswer(
 }
 
 export async function authorizeFiscalDocument(
-  { lanes, clock, tokens, taxAuthority }: AuthorizeFiscalDocumentPorts,
+  { lanes, saleCompletions, clock, tokens, taxAuthority }: AuthorizeFiscalDocumentPorts,
   { registerId, request, receivedAt }: AuthorizeFiscalDocumentInput,
 ): Promise<AuthorizeFiscalDocumentOutcome> {
-  if (!isCompletionEventOfSale(request.saleEvent, request.saleId)) {
+  if (request.saleEvent !== null && !isCompletionEventOfSale(request.saleEvent, request.saleId)) {
     return { kind: "sale_event_mismatch" };
   }
 
@@ -101,6 +102,13 @@ export async function authorizeFiscalDocument(
       const recorded = await lane.recordedRequest(registerId, request.fiscalDocumentId);
       if (recorded !== null) {
         return { kind: "already_answered", answer: recorded.answer ?? { kind: "unclear" } };
+      }
+
+      if (
+        request.saleEvent === null &&
+        !(await saleCompletions.holdsCompletionOf(registerId, request.saleId))
+      ) {
+        return { kind: "sale_completion_not_held" };
       }
 
       const notAfter = authorizationCallDeadline({

@@ -1,4 +1,4 @@
-import type { Clock } from "../../shared/index.js";
+import type { Clock, OutboxEventDraft } from "../../shared/index.js";
 import type { PushedEvent } from "../../sync/index.js";
 import type { FacturaC } from "../model/pre-emission-gate.js";
 import type {
@@ -30,10 +30,16 @@ export interface RealTimeAuthorizationResolved {
   resolution: RealTimeAuthorizationResolution;
   resolvedAt: Date;
   deferredSale: DeferredSaleRecording | null;
+  deferredSaleSatisfied: OutboxEventDraft | null;
+}
+
+export interface ExistingDeferredSale {
+  id: string;
 }
 
 export interface RealTimeFiscalDocuments {
   waitingDocumentOfSale(saleId: string): Promise<RequestedFiscalDocument | null>;
+  deferredSaleOfSale(saleId: string): Promise<ExistingDeferredSale | null>;
   resolve(resolved: RealTimeAuthorizationResolved): Promise<void>;
 }
 
@@ -41,8 +47,7 @@ export interface RoundTripSamples {
   recent(): Promise<readonly number[]>;
 }
 
-export interface RealTimeAuthorizationCall extends Omit<WaitingFiscalDocument, "saleEvent"> {
-  saleEvent: PushedEvent;
+export interface RealTimeAuthorizationCall extends WaitingFiscalDocument {
   timeoutMs: number;
   roundTripMedianMs: number;
 }

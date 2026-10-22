@@ -24,6 +24,7 @@ import {
   type DeviceTokensOptions,
   installationTokenPorts,
 } from "../register/installation-token-ports.js";
+import { DrizzleSaleCompletions } from "../sales/drizzle-sale-completions.js";
 import { PUBLIC_ACCESS } from "../sessions/route-access.js";
 import { DrizzleRequestAdmission } from "../sync/drizzle-request-admission.js";
 import { clearAuthorizationAnswerToWire } from "./clear-authorization-answer-wire.js";
@@ -66,6 +67,11 @@ const SALE_EVENT_MISMATCH = cloudError(
   "sale_event must be the completion of sale_id",
 );
 
+const SALE_COMPLETION_NOT_HELD = cloudError(
+  "not_found",
+  "the cloud holds no completion of that sale for this register",
+);
+
 function toWire(answer: RealTimeAuthorizationAnswer): RealTimeAuthorizationResponseBody {
   switch (answer.kind) {
     case "authorized":
@@ -97,6 +103,7 @@ export function registerFiscalAuthorizationRoute<TQueryResult extends PgQueryRes
       options.withdrawUnclearOutcome,
       options.enqueueNumberingDiagnosis,
     ),
+    saleCompletions: new DrizzleSaleCompletions(options.db),
     clock,
     tokens: new DrizzleWsaaTokenSource(
       options.db,
@@ -179,6 +186,12 @@ export function registerFiscalAuthorizationRoute<TQueryResult extends PgQueryRes
         }
         if (outcome.kind === "sale_event_mismatch") {
           await reply.code(cloudErrorStatus(SALE_EVENT_MISMATCH.code)).send(SALE_EVENT_MISMATCH);
+          return;
+        }
+        if (outcome.kind === "sale_completion_not_held") {
+          await reply
+            .code(cloudErrorStatus(SALE_COMPLETION_NOT_HELD.code))
+            .send(SALE_COMPLETION_NOT_HELD);
           return;
         }
         if (outcome.kind === "answered" && outcome.answer.kind === "unclear") {

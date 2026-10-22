@@ -121,12 +121,16 @@ class DrizzleNumberingConflictLane<TQueryResult extends PgQueryResultHKT>
     diagnosis,
     diagnosedAt,
     freeze,
+    taxAuthorityCount,
   }: NumberingDiagnosisRecord): Promise<void> {
     await withPendingChanges(this.db, undefined, async (tx, pending) => {
       await tx
         .update(fiscalRequests)
         .set({ diagnosis: diagnosis.kind, diagnosedAt })
         .where(eq(fiscalRequests.fiscalDocumentId, fiscalDocumentId));
+      if (taxAuthorityCount !== null) {
+        await new DrizzleTaxAuthorityCounts(tx, pending).advance(taxAuthorityCount);
+      }
       if (freeze === null) {
         return;
       }

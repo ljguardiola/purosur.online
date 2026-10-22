@@ -111,6 +111,7 @@ async function freeze(pointOfSale: number, countBeforeFreeze: number, numberingL
       diagnosis: { kind: "collision" },
       diagnosedAt: NOW,
       freeze: { countBeforeFreeze, frozenAt: FROZEN_AT },
+      taxAuthorityCount: null,
     }),
   );
   return fiscalDocumentId;
@@ -158,6 +159,7 @@ describe("the numbering conflict lane on a real Postgres", () => {
         diagnosis: { kind: "collision" },
         diagnosedAt: NOW,
         freeze: null,
+        taxAuthorityCount: null,
       }),
     );
 
@@ -180,12 +182,47 @@ describe("the numbering conflict lane on a real Postgres", () => {
         diagnosis: { kind: "date_behind" },
         diagnosedAt: NOW,
         freeze: null,
+        taxAuthorityCount: null,
       }),
     );
 
     expect(
       (await inLane(7, (lane) => lane.numberingConflictRequest(fiscalDocumentId)))?.diagnosis,
     ).toEqual({ kind: "date_behind" });
+  });
+
+  it("keeps the count and its voucher's day read for a diagnosis, together with the diagnosis", async () => {
+    await insertRegisterWithPointOfSale(db, { pointOfSaleNumber: 11, name: "caja-3" });
+    const dateBehind = await recordRequest(11, 503, UNCLEAR_NUMBERING_CONFLICT);
+
+    await inLane(11, (lane) =>
+      lane.recordNumberingDiagnosis({
+        fiscalDocumentId: dateBehind,
+        diagnosis: { kind: "date_behind" },
+        diagnosedAt: NOW,
+        freeze: null,
+        taxAuthorityCount: {
+          pointOfSale: 11,
+          lastAuthorized: 40,
+          issuedOn: "2026-10-05",
+          readAt: NOW,
+        },
+      }),
+    );
+
+    expect(
+      await db
+        .select({
+          lastAuthorized: taxAuthorityLastAuthorizedNumbers.lastAuthorized,
+          issuedOn: taxAuthorityLastAuthorizedNumbers.issuedOn,
+        })
+        .from(taxAuthorityLastAuthorizedNumbers)
+        .where(eq(taxAuthorityLastAuthorizedNumbers.pointOfSaleNumber, 11)),
+    ).toEqual([{ lastAuthorized: 40, issuedOn: "2026-10-05" }]);
+    expect(await diagnosisRowOf(dateBehind)).toEqual({
+      diagnosis: "date_behind",
+      diagnosedAt: NOW,
+    });
   });
 
   describe("settling the documents in a range", () => {

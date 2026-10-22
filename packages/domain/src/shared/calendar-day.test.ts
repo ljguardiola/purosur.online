@@ -1,6 +1,6 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { isCalendarDay, shiftCalendarDay } from "./calendar-day.js";
+import { isCalendarDay, lastDayOfMonth, shiftCalendarDay } from "./calendar-day.js";
 
 const dayNumber = fc.integer({ min: 0, max: 60_000 });
 
@@ -84,5 +84,31 @@ describe("shiftCalendarDay", () => {
     ["2026-10-16", 2, "2026-10-18"],
   ])("moves %s by %i days to %s", (day, days, expected) => {
     expect(shiftCalendarDay(day, days)).toBe(expected);
+  });
+});
+
+describe("lastDayOfMonth", () => {
+  it.each([
+    ["2026-01-15", "2026-01-31"],
+    ["2026-02-01", "2026-02-28"],
+    ["2028-02-10", "2028-02-29"],
+    ["1900-02-10", "1900-02-28"],
+    ["2000-02-10", "2000-02-29"],
+    ["2026-04-30", "2026-04-30"],
+    ["2026-12-01", "2026-12-31"],
+    ["2026-10-31", "2026-10-31"],
+  ])("is the last day of the month of %s: %s", (day, expected) => {
+    expect(lastDayOfMonth(day)).toBe(expected);
+  });
+
+  it("stays in the month of the day, never before it, and the next day starts another month", () => {
+    fc.assert(
+      fc.property(dayBetween("0001-01-01", "9998-12-30"), (day) => {
+        const last = lastDayOfMonth(day);
+        expect(last.slice(0, 7)).toBe(day.slice(0, 7));
+        expect(last >= day).toBe(true);
+        expect(shiftCalendarDay(last, 1).slice(0, 7)).not.toBe(day.slice(0, 7));
+      }),
+    );
   });
 });

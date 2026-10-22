@@ -1,3 +1,4 @@
+import { deferredSaleSatisfiedEvent } from "../model/deferred-sale-satisfied-event.js";
 import {
   medianRoundTripMs,
   REAL_TIME_AUTHORIZATION_TIMEOUT_MS,
@@ -43,7 +44,7 @@ export async function requestRealTimeAuthorization(
   const roundTripMedianMs = medianRoundTripMs(await roundTrips.recent());
   const { saleEvent, reservedAt, origin, ...waitingDocument } = waiting;
   const answer: RealTimeAuthorizationAnswer =
-    roundTripMedianMs === null || saleEvent === null
+    roundTripMedianMs === null
       ? { kind: "not_attempted" }
       : await taxAuthority.authorize({
           ...waitingDocument,
@@ -59,11 +60,34 @@ export async function requestRealTimeAuthorization(
     resolution,
     resolvedAt: clock.now(),
   };
+  const existing = await documents.deferredSaleOfSale(waiting.saleId);
   if (resolution.state === "AUTHORIZED") {
-    await documents.resolve({ ...resolved, deferredSale: null });
-  } else {
+    await documents.resolve({
+      ...resolved,
+      deferredSale: null,
+      deferredSaleSatisfied:
+        existing === null
+          ? null
+          : deferredSaleSatisfiedEvent({
+              eventId: ids.next(),
+              ...origin,
+              deferredSaleId: existing.id,
+              saleId: waiting.saleId,
+              fiscalDocumentId: waiting.fiscalDocumentId,
+              pointOfSale: waiting.pointOfSale,
+              number: waiting.number,
+              issuedOn: waiting.issuedOn,
+              document: waiting.document,
+              authorizationCode: resolution.authorizationCode,
+              authorizationCodeDueOn: resolution.authorizationCodeDueOn,
+              reservedAt,
+              satisfiedAt: resolved.resolvedAt,
+            }),
+    });
+  } else if (existing === null) {
     await recordDeferredSaleAsync(
-      (deferredSale) => documents.resolve({ ...resolved, deferredSale }),
+      (deferredSale) =>
+        documents.resolve({ ...resolved, deferredSale, deferredSaleSatisfied: null }),
       ids,
       shortCodes,
       {
@@ -75,6 +99,8 @@ export async function requestRealTimeAuthorization(
         origin,
       },
     );
+  } else {
+    await documents.resolve({ ...resolved, deferredSale: null, deferredSaleSatisfied: null });
   }
   return outcomeOf(resolution);
 }

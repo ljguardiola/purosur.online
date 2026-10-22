@@ -16,6 +16,7 @@ import type {
   WsaaTokenSource,
 } from "./fiscal-document-authorization-ports.js";
 import type { IdGenerator } from "./sale-authorization-ports.js";
+import type { SaleCompletions } from "./sale-completion-ports.js";
 import type { TaxAuthorityLastAuthorizedLookup } from "./tax-authority-count-ports.js";
 import type { WsaaToken } from "./wsaa-token-ports.js";
 
@@ -94,5 +95,6 @@ export interface DecideUnclearRealTimeOutcomePorts {
 
 export interface AskAboutUnclearOutcomePorts {
   lanes: UnclearOutcomeLanes;
+  saleCompletions: SaleCompletions;
   clock: Clock;
 }

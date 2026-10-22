@@ -9,7 +9,10 @@ import type { RealTimeAuthorizationAnswer } from "../model/real-time-authorizati
 import type { WsaaTokenSource } from "./fiscal-document-authorization-ports.js";
 import type { OrphanStandingReader } from "./orphan-authorization-ports.js";
 import type { IdGenerator } from "./sale-authorization-ports.js";
-import type { TaxAuthorityLastAuthorizedLookup } from "./tax-authority-count-ports.js";
+import type {
+  LastAuthorizedCount,
+  TaxAuthorityLastAuthorizedLookup,
+} from "./tax-authority-count-ports.js";
 import type { TaxAuthorityVoucherLookup } from "./unclear-outcome-ports.js";
 
 export type { NumberingFreeze };
@@ -28,13 +31,14 @@ export interface NumberingDiagnosisRecord {
   diagnosis: NumberingConflictDiagnosis;
   diagnosedAt: Date;
   freeze: NumberingFreeze | null;
+  taxAuthorityCount: LastAuthorizedCount | null;
 }
 
 export interface NumberingConflictLane extends OrphanStandingReader {
   numberingConflictRequest(fiscalDocumentId: string): Promise<NumberingConflictRequest | null>;
   /**
    * Records the diagnosis and, given a freeze, takes it and requests the point of sale's
-   * reconciliation, all or nothing.
+   * reconciliation, and, given a count, advances the tax authority's count to it, all or nothing.
    */
   recordNumberingDiagnosis(record: NumberingDiagnosisRecord): Promise<void>;
   numberingFreeze(): Promise<NumberingFreeze | null>;

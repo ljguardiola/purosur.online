@@ -51,6 +51,10 @@ describe("realTimeAuthorizationRequestSchema", () => {
     },
   );
 
+  it("reads a request that carries no sale event of its own", () => {
+    expect(requestWith({ sale_event: null }).data).toEqual({ ...request, sale_event: null });
+  });
+
   it.each(Object.keys(request))("refuses a request without its %s", (field) => {
     expect(requestWith({ [field]: undefined }).success).toBe(false);
   });

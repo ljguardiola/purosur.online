@@ -79,6 +79,15 @@ describe("asking the cloud about a document left with an unclear outcome", () =>
     expect(unclearOutcomeQuestionSchema.safeParse(posts[0]?.body).success).toBe(true);
   });
 
+  it("posts a question that carries no sale event when the register holds none", async () => {
+    const { posts, decisions } = cloud(ok({ state: "PENDING" }));
+
+    await decisions.outcomeOf({ ...QUESTION, saleEvent: null });
+
+    expect(posts[0]?.body).toMatchObject({ sale_id: SALE_ID, sale_event: null });
+    expect(unclearOutcomeQuestionSchema.safeParse(posts[0]?.body).success).toBe(true);
+  });
+
   it.each([
     [{ state: "PENDING" }, { kind: "pending" }],
     [{ state: "RELEASED" }, { kind: "decided", decision: { kind: "released" } }],
