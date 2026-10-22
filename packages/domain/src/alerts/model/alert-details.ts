@@ -218,6 +218,16 @@ interface FortnightReportDocumentRejectedDetail extends FortnightReportNeedsRegu
   rejectedNumber: number;
 }
 
+export interface DeferredSaleDueDetail {
+  registerId: string;
+  saleId: string;
+  saleOccurredAt: string;
+  total: number;
+  shortCode: string;
+  expiresOn: string;
+  escalatesAt: string;
+}
+
 export interface AlertDetails {
   backoffice_passkey_changed: PasskeyChangedDetail;
   backoffice_recovery_requested: RecoveryRequestedDetail;
@@ -251,6 +261,7 @@ export interface AlertDetails {
   fortnight_report_owed_elsewhere: FortnightReportOwedElsewhereDetail;
   register_backup_overdue: RegisterBackupOverdueDetail;
   fortnight_report_document_rejected: FortnightReportDocumentRejectedDetail;
+  deferred_sale_due: DeferredSaleDueDetail;
 }
 
 export type OpenAlertInput = {
