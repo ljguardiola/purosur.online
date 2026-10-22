@@ -119,6 +119,14 @@ describe("attempting the restore", () => {
 });
 
 describe("what a restore says about the cloud", () => {
+  it("says nothing about the cloud while the restore has not ended", async () => {
+    const { attempts, cloudAnswers } = setup();
+
+    await attempts.attempt();
+
+    expect(cloudAnswers).toEqual([]);
+  });
+
   it("says the cloud was not reached once the restore could not reach it", async () => {
     const { attempts, cloudAnswers } = setup();
     await attempts.attempt();

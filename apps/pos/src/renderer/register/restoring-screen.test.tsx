@@ -65,7 +65,7 @@ describe("RestoringScreen", () => {
     await expect.element(screen.getByRole("button")).not.toBeInTheDocument();
   });
 
-  it("says the register cannot sell without internet and how to get connected", async () => {
+  it("says the register cannot sell without the cloud and how to get connected", async () => {
     const screen = await render(
       <RestoringScreen
         registerName="Caja 2"
@@ -84,7 +84,7 @@ describe("RestoringScreen", () => {
         ),
       )
       .toBeVisible();
-    await expect.element(screen.getByText("Sin conexión a internet")).toBeVisible();
+    await expect.element(screen.getByText("Sin conexión con la nube")).toBeVisible();
     await expect
       .element(
         screen.getByText(
@@ -105,7 +105,7 @@ describe("RestoringScreen", () => {
     );
 
     await expect.element(screen.getByText("CAJA 2 · RESTAURANDO DESDE UNA COPIA")).toBeVisible();
-    await expect.element(screen.getByText("Sin conexión a internet")).toBeVisible();
+    await expect.element(screen.getByText("Sin conexión con la nube")).toBeVisible();
   });
 
   it("says no copy of the register could be restored and to contact support", async () => {
@@ -120,13 +120,13 @@ describe("RestoringScreen", () => {
     await expect
       .element(
         screen.getByText(
-          "Ninguna copia de esta caja se pudo recuperar. Se vuelve a intentar la próxima vez que se abra la caja.",
+          "Ninguna copia de esta caja se pudo recuperar. Se vuelve a intentar la próxima vez que se inicie la aplicación.",
         ),
       )
       .toBeVisible();
     await expect.element(screen.getByText("Contactá a soporte")).toBeVisible();
     await expect.element(screen.getByText("Mientras tanto la caja no puede vender.")).toBeVisible();
-    await expect.element(screen.getByText("Sin conexión a internet")).not.toBeInTheDocument();
+    await expect.element(screen.getByText("Sin conexión con la nube")).not.toBeInTheDocument();
 
     await expectNoAccessibilityViolations(screen.container);
   });

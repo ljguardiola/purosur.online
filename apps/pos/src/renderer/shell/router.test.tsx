@@ -529,6 +529,22 @@ describe("routeFor", () => {
       enrollment: "enrolled",
       person: PERSON,
       cashSession: OPEN_SESSION,
+      restoration: { kind: "without_connection", step: "replenish" },
+      route: "/restoring",
+    },
+    {
+      coreStatus: "up",
+      enrollment: "enrolled",
+      person: PERSON,
+      cashSession: OPEN_SESSION,
+      restoration: { kind: "failed", step: "restore" },
+      route: "/restoring",
+    },
+    {
+      coreStatus: "up",
+      enrollment: "enrolled",
+      person: PERSON,
+      cashSession: OPEN_SESSION,
       restoration: { kind: "in_progress", step: "restore" },
       route: "/restoring",
     },
@@ -631,6 +647,21 @@ describe("the register's router", () => {
       enrollment: "enrolled",
       cashSession: OPEN_SESSION,
       restoration: { kind: "in_progress", step: "replenish" },
+      redirectedTo: "/restoring",
+    },
+    {
+      path: "/session",
+      coreStatus: "up",
+      enrollment: "enrolled",
+      cashSession: OPEN_SESSION,
+      restoration: { kind: "without_connection", step: "replenish" },
+      redirectedTo: "/restoring",
+    },
+    {
+      path: "/",
+      coreStatus: "up",
+      enrollment: "enrolled",
+      restoration: { kind: "without_connection", step: "restore" },
       redirectedTo: "/restoring",
     },
     { path: "/restoring", coreStatus: "up", enrollment: "enrolled", redirectedTo: "/" },
@@ -1140,6 +1171,30 @@ describe("the register's router", () => {
     const screen = await render(<RouterProvider router={router} />);
 
     await expect.element(screen.getByText("RESTAURADA DESDE UNA COPIA")).toBeVisible();
+  });
+
+  it("tells the restoring screen when the register cannot reach the cloud", async () => {
+    const router = routerAt("/restoring", "up", "enrolled", null, NO_SESSION, "in_service", {
+      kind: "without_connection",
+      step: "replenish",
+    });
+
+    const screen = await render(<RouterProvider router={router} />);
+
+    await expect.element(screen.getByText("Sin conexión con la nube")).toBeVisible();
+  });
+
+  it("tells the restoring screen when no copy of the register could be restored", async () => {
+    const router = routerAt("/restoring", "up", "enrolled", null, NO_SESSION, "in_service", {
+      kind: "failed",
+      step: "restore",
+    });
+
+    const screen = await render(<RouterProvider router={router} />);
+
+    await expect
+      .element(screen.getByRole("heading", { name: "No se pudo restaurar la caja" }))
+      .toBeVisible();
   });
 
   it("renders the restore-required screen while the register has to be enrolled again", async () => {
