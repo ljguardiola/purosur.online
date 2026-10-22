@@ -7,6 +7,12 @@ import {
   restorationInProgressOutcomeSchema,
 } from "../shared/index.js";
 import {
+  findDeferredSaleMessageSchema,
+  findDeferredSaleResultMessageSchema,
+  printDeferredSaleInvoiceMessageSchema,
+  printDeferredSaleInvoiceResultMessageSchema,
+} from "./deferred-sale-lookup.js";
+import {
   addProductOutcomeSchema,
   addWeighedProductOutcomeSchema,
   adjustSaleLineOutcomeSchema,
@@ -261,6 +267,8 @@ export const salesRendererToCoreMessageSchema = z.discriminatedUnion("type", [
   cancelLockedSaleMessageSchema,
   receiptPrintStatusMessageSchema,
   printOriginalReceiptMessageSchema,
+  findDeferredSaleMessageSchema,
+  printDeferredSaleInvoiceMessageSchema,
   printCreditNoteMessageSchema,
   reprintSaleReceiptMessageSchema,
   reprintCreditNoteMessageSchema,
@@ -440,6 +448,8 @@ export const salesCoreToRendererMessageSchema = z.discriminatedUnion("type", [
     request_id: requestId,
     outcome: printOriginalReceiptOutcomeSchema,
   }),
+  findDeferredSaleResultMessageSchema,
+  printDeferredSaleInvoiceResultMessageSchema,
   z.object({
     type: z.literal("print-credit-note-result"),
     request_id: requestId,

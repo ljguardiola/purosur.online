@@ -536,6 +536,10 @@ export {
   salesCoreToRendererMessageSchema,
   salesRendererToCoreMessageSchema,
 } from "./sales/core-messages.js";
+export type {
+  FindDeferredSaleOutcome,
+  PrintDeferredSaleInvoiceOutcome,
+} from "./sales/deferred-sale-lookup.js";
 export type { ManualDiscountsBody, ManualDiscountsQuery } from "./sales/manual-discounts.js";
 export { manualDiscountsQuerySchema, manualDiscountsSchema } from "./sales/manual-discounts.js";
 export type {
