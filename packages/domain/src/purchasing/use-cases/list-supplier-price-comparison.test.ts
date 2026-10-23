@@ -105,7 +105,7 @@ describe("listSupplierPriceComparison", () => {
     const reader = new FakeSupplierPriceComparisonReader(
       [YERBA],
       [
-        offer({ supplierId: "a", priceCents: 11_000, pricesIncludeVat: true }),
+        offer({ supplierId: "a", priceCents: 12_000, pricesIncludeVat: true }),
         offer({ supplierId: "b", priceCents: 10_000, pricesIncludeVat: false, vatRate: 1050 }),
       ],
     );
