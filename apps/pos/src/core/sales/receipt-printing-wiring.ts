@@ -11,6 +11,7 @@ import {
   type DeferredSaleInvoiceRequestDeps,
   findDeferredSaleFor,
   printDeferredSaleInvoiceFor,
+  reprintDeferredSaleInvoiceFor,
 } from "./deferred-sale-invoice-requests";
 import {
   type PrintingCompletedSalesDeps,
@@ -85,6 +86,11 @@ export interface ReceiptPrinting {
   printDeferredSaleInvoice:
     | ((saleId: string) => ReturnType<typeof printDeferredSaleInvoiceFor>)
     | undefined;
+  reprintDeferredSaleInvoice:
+    | ((
+        request: Parameters<typeof reprintDeferredSaleInvoiceFor>[1],
+      ) => ReturnType<typeof reprintDeferredSaleInvoiceFor>)
+    | undefined;
   printCreditNote: ((saleId: string) => ReturnType<typeof printCreditNoteFor>) | undefined;
   reprintCreditNote:
     | ((
@@ -116,6 +122,7 @@ export function createReceiptPrinting({
       printOriginalReceipt: undefined,
       findDeferredSale: undefined,
       printDeferredSaleInvoice: undefined,
+      reprintDeferredSaleInvoice: undefined,
       reprintSaleReceipt: undefined,
       printCreditNote: undefined,
       reprintCreditNote: undefined,
@@ -150,6 +157,7 @@ export function createReceiptPrinting({
       deferredSaleInvoicing &&
       ((saleId) =>
         printDeferredSaleInvoiceFor({ ...deps, invoicing: deferredSaleInvoicing }, saleId)),
+    reprintDeferredSaleInvoice: (request) => reprintDeferredSaleInvoiceFor(deps, request),
     reprintSaleReceipt: (request) => reprintSaleReceiptFor(deps, request),
     printCreditNote: (saleId) => printCreditNoteFor(deps, saleId),
     reprintCreditNote: (request) => reprintCreditNoteFor(deps, request),

@@ -1,4 +1,8 @@
-import type { FindDeferredSaleOutcome, PrintDeferredSaleInvoiceOutcome } from "@purosur/contracts";
+import type {
+  FindDeferredSaleOutcome,
+  PrintDeferredSaleInvoiceOutcome,
+  ReprintSaleReceiptOutcome,
+} from "@purosur/contracts";
 import {
   type DeferredSaleInvoicing,
   type FindDeferredSaleInput,
@@ -8,6 +12,8 @@ import {
 import { SqliteDeferredSaleLookup } from "../fiscal/sqlite-deferred-sales";
 import {
   type ReceiptRequestDeps,
+  type ReprintSaleReceiptRequest,
+  reprintFor,
   signedSellerAuthority,
   startOriginalPrint,
 } from "./receipt-requests";
@@ -64,4 +70,11 @@ export async function printDeferredSaleInvoiceFor(
     (ports, watch) =>
       printDeferredSaleInvoice({ ...ports, lookup, invoicing: deps.invoicing }, { saleId }, watch),
   );
+}
+
+export async function reprintDeferredSaleInvoiceFor(
+  deps: ReceiptRequestDeps,
+  { saleId, ...request }: ReprintSaleReceiptRequest,
+): Promise<ReprintSaleReceiptOutcome> {
+  return reprintFor(deps, { document: "deferred_invoice", saleId }, request);
 }

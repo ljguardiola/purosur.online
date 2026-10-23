@@ -191,6 +191,9 @@ export interface RendererRequestDeps {
     | ((saleId: string) => Promise<PrintDeferredSaleInvoiceOutcome>)
     | undefined;
   printCreditNote: ((saleId: string) => Promise<PrintCreditNoteOutcome>) | undefined;
+  reprintDeferredSaleInvoice:
+    | ((request: ReprintSaleReceiptRequest) => Promise<ReprintSaleReceiptOutcome>)
+    | undefined;
   reprintCreditNote:
     | ((request: ReprintSaleReceiptRequest) => Promise<ReprintSaleReceiptOutcome>)
     | undefined;
@@ -972,6 +975,24 @@ export async function answerRendererRequest(
           deps,
           "printing a deferred sale's invoice",
           printDeferredSaleInvoice && (() => printDeferredSaleInvoice(message.sale_id)),
+        ),
+      };
+    }
+    case "reprint-deferred-sale-invoice": {
+      const { reprintDeferredSaleInvoice } = deps;
+      return {
+        type: "reprint-deferred-sale-invoice-result",
+        request_id: message.request_id,
+        outcome: await attemptSaleChange(
+          deps,
+          "reprinting a deferred sale's invoice",
+          reprintDeferredSaleInvoice &&
+            (() =>
+              reprintDeferredSaleInvoice({
+                saleId: message.sale_id,
+                reason: message.reason,
+                authorization: message.authorization,
+              })),
         ),
       };
     }

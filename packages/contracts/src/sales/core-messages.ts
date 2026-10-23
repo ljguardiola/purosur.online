@@ -181,6 +181,14 @@ export const reprintCreditNoteMessageSchema = z.object({
   authorization: authorizationSchema.optional(),
 });
 
+const reprintDeferredSaleInvoiceMessageSchema = z.object({
+  type: z.literal("reprint-deferred-sale-invoice"),
+  request_id: requestId,
+  sale_id: z.string(),
+  reason: z.string(),
+  authorization: authorizationSchema.optional(),
+});
+
 export const reprintSaleReceiptMessageSchema = z.object({
   type: z.literal("reprint-sale-receipt"),
   request_id: requestId,
@@ -272,6 +280,7 @@ export const salesRendererToCoreMessageSchema = z.discriminatedUnion("type", [
   printCreditNoteMessageSchema,
   reprintSaleReceiptMessageSchema,
   reprintCreditNoteMessageSchema,
+  reprintDeferredSaleInvoiceMessageSchema,
   salesHistoryMessageSchema,
   saleHistoryDetailMessageSchema,
 ]);
@@ -462,6 +471,11 @@ export const salesCoreToRendererMessageSchema = z.discriminatedUnion("type", [
   }),
   z.object({
     type: z.literal("reprint-credit-note-result"),
+    request_id: requestId,
+    outcome: reprintSaleReceiptOutcomeSchema,
+  }),
+  z.object({
+    type: z.literal("reprint-deferred-sale-invoice-result"),
     request_id: requestId,
     outcome: reprintSaleReceiptOutcomeSchema,
   }),
