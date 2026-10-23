@@ -2,6 +2,7 @@ import {
   BRANCH_HOURS_RANGES_PER_DAY_MAX,
   BRANCH_SETTINGS_DAYS_MAX,
   BRANCH_SETTINGS_TEXT_MAX_LENGTH,
+  SUPPLIER_PRICE_LIST_DAILY_EXTRACTION_CAP_MAX,
 } from "@purosur/domain";
 import { describe, expect, it } from "vitest";
 import { branchSettingsEditBodySchema } from "./branch-settings-edit.js";
@@ -21,6 +22,7 @@ function validBody(overrides: Record<string, unknown> = {}): Record<string, unkn
     expiring_lot_alert_days: 30,
     unreviewed_price_alert_days: 30,
     good_condition_return_days: 15,
+    supplier_price_list_daily_extraction_cap: 10,
     version: 1,
     ...overrides,
   };
@@ -280,6 +282,32 @@ describe("branchSettingsEditBodySchema, window values in days", () => {
 
   it.each(dayFields)("rejects a %s that isn't a number", (field) => {
     expect(firstFailure(validBody({ [field]: "30" }))).toEqual(daysFailure(field));
+  });
+});
+
+describe("branchSettingsEditBodySchema, supplier price list daily extraction cap", () => {
+  const field = "supplier_price_list_daily_extraction_cap";
+  const failure = {
+    field,
+    message: `${field} must be an integer from 1 to ${SUPPLIER_PRICE_LIST_DAILY_EXTRACTION_CAP_MAX}`,
+  };
+
+  it.each([1, 3, SUPPLIER_PRICE_LIST_DAILY_EXTRACTION_CAP_MAX])("accepts %s", (cap) => {
+    expect(isAccepted(validBody({ [field]: cap }))).toBe(true);
+  });
+
+  it.each([0, -1, SUPPLIER_PRICE_LIST_DAILY_EXTRACTION_CAP_MAX + 1, 1.5, "3", null])(
+    "rejects %s",
+    (cap) => {
+      expect(firstFailure(validBody({ [field]: cap }))).toEqual(failure);
+    },
+  );
+
+  it("rejects a missing cap", () => {
+    const body = validBody();
+    delete body[field];
+
+    expect(firstFailure(body)).toEqual(failure);
   });
 });
 
