@@ -1116,13 +1116,26 @@ describe("the events held above a hole that a push fills", () => {
     expect(inbox.state.brokenChainRevocations).toEqual([{ deviceId: DEVICE, revokedAt: NOW }]);
   });
 
-  it("sets aside every held event a refused push joins, keeping the events below the push and above the next hole", async () => {
+  it("sets aside every event held above the ones a push acknowledged when it refuses a push, those above the next hole included", async () => {
     const inbox = new FakeInbox([{ deviceId: DEVICE, seqs: [1] }]);
     inbox.holdEvents(DEVICE, fakeEvent(3), altered(4), fakeEvent(6));
 
     await receive(inbox, eventsOf(2));
 
-    expect(inbox.receivedSeqs(DEVICE)).toEqual([1, 6]);
+    expect(inbox.receivedSeqs(DEVICE)).toEqual([1]);
+    expect(inbox.state.setAsideHeldEvents).toEqual([
+      { deviceId: DEVICE, events: [fakeEvent(3), altered(4), fakeEvent(6)], refusedAt: NOW },
+    ]);
+  });
+
+  it("keeps in the inbox a held event already applied when it refuses a push, setting it aside with the rest", async () => {
+    const inbox = new FakeInbox([{ deviceId: DEVICE, seqs: [1] }]);
+    inbox.holdAppliedEvents(DEVICE, fakeEvent(3));
+    inbox.holdEvents(DEVICE, altered(4));
+
+    await receive(inbox, eventsOf(2));
+
+    expect(inbox.receivedSeqs(DEVICE)).toEqual([1, 3]);
     expect(inbox.state.setAsideHeldEvents).toEqual([
       { deviceId: DEVICE, events: [fakeEvent(3), altered(4)], refusedAt: NOW },
     ]);

@@ -13,6 +13,7 @@ interface FakeReceivedEvent {
   deviceId: string;
   event: PushedEvent;
   receivedAt: Date;
+  applied?: true;
 }
 
 interface FakePushReport extends PushReport {
@@ -83,6 +84,12 @@ export class FakeInbox implements Inbox {
   holdEvents(deviceId: string, ...events: PushedEvent[]): void {
     for (const event of events) {
       this.state.received.push({ deviceId, event, receivedAt: new Date(0) });
+    }
+  }
+
+  holdAppliedEvents(deviceId: string, ...events: PushedEvent[]): void {
+    for (const event of events) {
+      this.state.received.push({ deviceId, event, receivedAt: new Date(0), applied: true });
     }
   }
 
@@ -162,13 +169,16 @@ export class FakeInbox implements Inbox {
         }
         working.refusedPushes.push({ deviceId, events: structuredClone(events), refusedAt });
       },
-      setAsideUnappliedHeldEvents: async (deviceId, events, refusedAt) => {
-        this.calls.push(`setAsideUnappliedHeldEvents ${deviceId}`);
-        const setAside = new Set(events.map((event) => event.event_id));
-        working.received = working.received.filter(
-          (entry) => entry.deviceId !== deviceId || !setAside.has(entry.event.event_id),
-        );
-        working.setAsideHeldEvents.push({ deviceId, events: structuredClone(events), refusedAt });
+      setAsideHeldEventsAbove: async (deviceId, aboveSeq, refusedAt) => {
+        this.calls.push(`setAsideHeldEventsAbove ${deviceId}`);
+        const heldAbove = (entry: FakeReceivedEvent) =>
+          entry.deviceId === deviceId && entry.event.device_seq > aboveSeq;
+        const events = working.received
+          .filter(heldAbove)
+          .map((entry) => structuredClone(entry.event))
+          .sort((first, second) => first.device_seq - second.device_seq);
+        working.received = working.received.filter((entry) => entry.applied || !heldAbove(entry));
+        working.setAsideHeldEvents.push({ deviceId, events, refusedAt });
       },
       revokeForBrokenChain: async (deviceId, revokedAt) => {
         this.calls.push(`revokeForBrokenChain ${deviceId}`);
