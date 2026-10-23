@@ -38,6 +38,7 @@ const SALE: Sale = {
   next_copy: { kind: "duplicate", order_number: 1 },
   credit_note: null,
   credit_note_next_copy: null,
+  deferred_invoice_next_copy: null,
 };
 
 const WITH_PERMISSION: SignedInPerson = {
@@ -415,6 +416,64 @@ describe("ReprintReceiptModal", () => {
       await expect
         .element(screen.getByRole("alert"))
         .toHaveTextContent("No se pudo reimprimir. Probá de nuevo.");
+    });
+  });
+
+  describe("for the factura of a deferred sale", () => {
+    const INVOICE_SALE: Sale = {
+      ...SALE,
+      deferred_invoice_next_copy: { kind: "duplicate", order_number: 1 },
+      next_copy: { kind: "duplicate", order_number: 2 },
+    };
+
+    it("says the factura comes out as a duplicate, with its legend and its comprobante, and no operation", async () => {
+      const { screen } = await renderModal({
+        document: "deferred_invoice",
+        sale: { ...INVOICE_SALE, next_copy: { kind: "duplicate", order_number: 1 } },
+      });
+
+      await expect
+        .element(screen.getByText("REIMPRIMIR FACTURA DE LA VENTA DE LAS 11:05"))
+        .toBeVisible();
+      await expect
+        .element(screen.getByRole("heading", { name: "Sale como duplicado" }))
+        .toBeVisible();
+      await expect.element(screen.getByText("COPIA DUPLICADA Nº 1")).toBeVisible();
+      await expect
+        .element(screen.getByText("Factura C · PV 00004 · Nº 00000319"))
+        .toBeVisible();
+      await expect.element(screen.getByText("Operación")).not.toBeInTheDocument();
+      await expectNoAccessibilityViolations(document.body);
+    });
+
+    it("sends the reason for the sale's factura and tells the screen it started", async () => {
+      const { screen, reprint, onReprinted } = await renderModal({
+        document: "deferred_invoice",
+        sale: INVOICE_SALE,
+      });
+      await typeReason(screen, "El cliente la perdió");
+
+      await userEvent.click(screen.getByRole("button", { name: REPRINT }));
+
+      expect(reprint).toHaveBeenCalledExactlyOnceWith("sale-1", "El cliente la perdió", undefined);
+      await expect.poll(() => onReprinted.mock.calls.length).toBe(1);
+    });
+
+    it("says a print of the factura may still come out while one waits for the printer", async () => {
+      const { screen } = await renderModal({
+        document: "deferred_invoice",
+        sale: INVOICE_SALE,
+        reprintSaleReceipt: async () => ({ kind: "busy" }),
+      });
+      await typeReason(screen, "Otra copia");
+
+      await userEvent.click(screen.getByRole("button", { name: REPRINT }));
+
+      await expect
+        .element(screen.getByRole("alert"))
+        .toHaveTextContent(
+          "Todavía puede salir una impresión de la factura. Esperá a que termine antes de reimprimir.",
+        );
     });
   });
 

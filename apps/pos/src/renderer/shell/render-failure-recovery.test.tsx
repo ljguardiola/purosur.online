@@ -103,6 +103,7 @@ function buildFailingRouter(shouldThrow: () => boolean) {
       printOriginalReceipt: async () => ({ kind: "unavailable" }),
       findDeferredSale: async () => ({ kind: "not_found" }),
       printDeferredSaleInvoice: async () => ({ kind: "unavailable" }),
+      reprintDeferredSaleInvoice: async () => ({ kind: "unavailable" }),
       printCreditNote: async () => ({ kind: "unavailable" }),
       reprintCreditNote: async () => ({ kind: "unavailable" }),
       convertPaidOrderIntoRefund: async () => ({ kind: "unavailable" }),
