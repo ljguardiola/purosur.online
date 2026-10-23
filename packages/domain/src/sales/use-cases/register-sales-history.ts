@@ -38,6 +38,7 @@ export interface SaleHistoryRecord {
   inOpenSession: boolean;
   invoices: SaleInvoice[];
   creditNote: VoidCreditNoteStanding | null;
+  deferredInvoiceIssued: boolean;
 }
 
 export interface RegisterSalesHistory {

@@ -17,6 +17,7 @@ import type {
   SalesHistoryFilter,
   SalesHistoryPage,
 } from "@purosur/domain/sales/use-cases";
+import { readUncancelledDeferredSaleRecord } from "../fiscal/sqlite-deferred-sales";
 import { readSaleInvoices } from "../fiscal/sqlite-sale-invoices";
 import { readCreditNoteOfSale } from "../fiscal/sqlite-void-credit-notes";
 import { readSalePayments } from "../payments/sqlite-sale-payments";
@@ -160,6 +161,8 @@ export class SqliteRegisterSalesHistory implements RegisterSalesHistory {
       inOpenSession: sale.in_open_session === 1,
       invoices: readSaleInvoices(this.database, sale.id),
       creditNote: readCreditNoteOfSale(this.database, sale.id)?.answer ?? null,
+      deferredInvoiceIssued:
+        readUncancelledDeferredSaleRecord(this.database, sale.id)?.satisfied === true,
     };
   }
 
