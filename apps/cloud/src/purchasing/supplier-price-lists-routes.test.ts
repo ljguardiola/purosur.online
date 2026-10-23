@@ -12,6 +12,7 @@ import { BACKOFFICE_ORIGIN, signedInWith } from "../stock/test-support/stock-rou
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { registerSupplierPriceListsRoutes } from "./supplier-price-lists-routes.js";
+import { FakeSupplierPriceListWebPages } from "./test-support/fake-supplier-price-list-web-pages.js";
 import { fictionalPdf } from "./test-support/fictional-pdf.js";
 import { InMemorySupplierPriceListFiles } from "./test-support/in-memory-supplier-price-list-files.js";
 import { insertActor } from "./test-support/purchasing-fixtures.js";
@@ -29,6 +30,7 @@ let testDatabase: TestDatabase;
 let db: TestDatabase["db"];
 let app: FastifyInstance;
 let files: InMemorySupplierPriceListFiles;
+let webPages: FakeSupplierPriceListWebPages;
 
 beforeAll(async () => {
   testDatabase = await buildTestDatabase();
@@ -42,12 +44,14 @@ afterAll(async () => {
 beforeEach(async () => {
   await testDatabase.clear();
   files = new InMemorySupplierPriceListFiles();
+  webPages = new FakeSupplierPriceListWebPages();
   app = Fastify();
   registerSupplierPriceListsRoutes(app, {
     db,
     backofficeOrigin: BACKOFFICE_ORIGIN,
     now: () => NOW,
     supplierPriceListFiles: files,
+    supplierPriceListWebPages: webPages,
   });
   registerBranchSettingsEditRoute(app, {
     db,
@@ -89,6 +93,8 @@ describe("authorization of every supplier price list route", () => {
     ["GET", `/supplier-price-lists/${MISSING_ID}`],
     ["GET", `/supplier-price-lists/${MISSING_ID}/file`],
     ["POST", `/supplier-price-lists?supplierId=${MISSING_ID}&fileName=lista.pdf`],
+    ["POST", "/supplier-price-lists/web-page"],
+    ["POST", `/supplier-price-lists/${MISSING_ID}/refresh`],
     ["PUT", `/supplier-price-lists/${MISSING_ID}/rows/${MISSING_ID}/price`],
     ["DELETE", `/supplier-price-lists/${MISSING_ID}/rows/${MISSING_ID}`],
     ["POST", `/supplier-price-lists/${MISSING_ID}/confirmation`],
@@ -136,10 +142,10 @@ describe("GET /supplier-price-lists", () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject([
-      { fileName: "abril.pdf", state: "REVIEWED", replaced: false },
+      { source: { kind: "PDF", fileName: "abril.pdf" }, state: "REVIEWED", replaced: false },
       {
         id: older.listId,
-        fileName: "marzo.pdf",
+        source: { kind: "PDF", fileName: "marzo.pdf" },
         replaced: true,
         uploadedAt: "2026-03-02T11:00:00.000Z",
       },
@@ -224,7 +230,7 @@ describe("GET /supplier-price-lists/:id/file", () => {
   it("serves the stored PDF only as a download that is never rendered", async () => {
     const { headers } = await manager();
     const { listId } = await storedList({ fileName: "lista de marzo (ñ).pdf" });
-    files.stored.set(listId, PDF);
+    files.stored.set(listId, { bytes: PDF, contentKind: "PDF" });
 
     const response = await app.inject({
       method: "GET",
@@ -249,6 +255,20 @@ describe("GET /supplier-price-lists/:id/file", () => {
     const response = await app.inject({
       method: "GET",
       url: `/supplier-price-lists/${MISSING_ID}/file`,
+      headers,
+    });
+
+    expect(response.statusCode).toBe(404);
+  });
+
+  it("answers 404 for a list read from a web page, whose kept page is not a file to download", async () => {
+    const { headers } = await manager();
+    const { listId } = await storedList({ sourceUrl: "https://distribuidora-sur.example/lista" });
+    files.stored.set(listId, { bytes: PDF, contentKind: "HTML" });
+
+    const response = await app.inject({
+      method: "GET",
+      url: `/supplier-price-lists/${listId}/file`,
       headers,
     });
 
@@ -495,6 +515,288 @@ describe("POST /supplier-price-lists", () => {
     expect(response.statusCode).toBe(503);
     expect(response.json()).toMatchObject({ code: "supplier_price_list_reading_unavailable" });
     expect(await db.select().from(supplierPriceLists)).toEqual([]);
+  });
+});
+
+const WEB_PAGE_URL = "https://distribuidora-sur.example/lista";
+
+describe("POST /supplier-price-lists/web-page", () => {
+  function loadWebPage(headers: Record<string, string>, payload: unknown) {
+    return app.inject({
+      method: "POST",
+      url: "/supplier-price-lists/web-page",
+      headers,
+      payload: payload as object,
+    });
+  }
+
+  async function expectNothingStored() {
+    expect(await db.select().from(supplierPriceLists)).toEqual([]);
+    expect(files.stored.size).toBe(0);
+  }
+
+  it("rejects an Origin that is not the backoffice's own, reading nothing", async () => {
+    const { headers } = await manager();
+    const supplierId = await storedSupplier();
+
+    const response = await loadWebPage(
+      { ...headers, origin: "https://attacker.example" },
+      { supplierId, url: WEB_PAGE_URL },
+    );
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toMatchObject({ code: "origin_rejected" });
+    expect(webPages.urls).toEqual([]);
+    await expectNothingStored();
+  });
+
+  it.each([
+    ["no supplier", { url: WEB_PAGE_URL }],
+    ["a supplier that is not a record id", { supplierId: "x", url: WEB_PAGE_URL }],
+    ["no address", { supplierId: MISSING_ID }],
+    ["an address that is not http or https", { supplierId: MISSING_ID, url: "ftp://a.example/x" }],
+  ])("answers 400 for %s, reading nothing", async (_name, payload) => {
+    const { headers } = await manager();
+
+    const response = await loadWebPage(headers, payload);
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({ code: "validation_failed" });
+    expect(webPages.urls).toEqual([]);
+  });
+
+  it("reads the page, keeps it with its kind and queues the reading, answering 201 with the list", async () => {
+    const { headers, locationId, userId } = await manager();
+    const supplierId = await storedSupplier();
+
+    const response = await loadWebPage(headers, { supplierId, url: WEB_PAGE_URL });
+
+    expect(response.statusCode).toBe(201);
+    const { listId } = response.json();
+    expect(webPages.urls).toEqual([WEB_PAGE_URL]);
+    expect(await listRow(listId)).toMatchObject({
+      supplierId,
+      locationId,
+      sourceKind: "WEB_PAGE",
+      sourceUrl: WEB_PAGE_URL,
+      fileName: null,
+      fileContentKind: "HTML",
+      state: "READING",
+      uploadedBy: userId,
+    });
+    expect(files.stored.get(listId)).toEqual({
+      bytes: expect.any(Uint8Array),
+      contentKind: "HTML",
+    });
+  });
+
+  it("answers 404 supplier_not_found for a supplier that does not exist, reading nothing", async () => {
+    const { headers } = await manager();
+
+    const response = await loadWebPage(headers, { supplierId: MISSING_ID, url: WEB_PAGE_URL });
+
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toMatchObject({ code: "supplier_not_found" });
+    expect(webPages.urls).toEqual([]);
+    await expectNothingStored();
+  });
+
+  it("answers 409 supplier_inactive for a deactivated supplier, reading nothing", async () => {
+    const { headers } = await manager();
+    const supplierId = await storedSupplier(false);
+
+    const response = await loadWebPage(headers, { supplierId, url: WEB_PAGE_URL });
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({ code: "supplier_inactive" });
+    expect(webPages.urls).toEqual([]);
+  });
+
+  it("answers 409 daily_cap_reached with the cap, reading nothing", async () => {
+    const { headers, locationId } = await manager();
+    const supplierId = await storedSupplier();
+    await storedList({ state: "READING" });
+    await db.insert(supplierPriceListExtractionCaps).values({ locationId, dailyCap: 1 });
+
+    const response = await loadWebPage(headers, { supplierId, url: WEB_PAGE_URL });
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toEqual({
+      code: "daily_cap_reached",
+      message: expect.any(String),
+      cap: 1,
+    });
+    expect(webPages.urls).toEqual([]);
+    expect(await db.select().from(supplierPriceLists)).toHaveLength(1);
+  });
+
+  it("answers 422 page_refused with the reason when the page cannot be read, storing nothing", async () => {
+    const { headers } = await manager();
+    const supplierId = await storedSupplier();
+    webPages.answer = { kind: "refused", reason: "address_not_public" };
+
+    const response = await loadWebPage(headers, { supplierId, url: WEB_PAGE_URL });
+
+    expect(response.statusCode).toBe(422);
+    expect(response.json()).toEqual({
+      code: "page_refused",
+      message: expect.any(String),
+      reason: "address_not_public",
+    });
+    await expectNothingStored();
+  });
+
+  it("answers 503 supplier_price_list_reading_unavailable when reading is not configured, reading nothing", async () => {
+    const unconfigured = Fastify();
+    registerSupplierPriceListsRoutes(unconfigured, {
+      db,
+      backofficeOrigin: BACKOFFICE_ORIGIN,
+      now: () => NOW,
+    });
+    const { headers } = await manager();
+    const supplierId = await storedSupplier();
+
+    const response = await unconfigured.inject({
+      method: "POST",
+      url: "/supplier-price-lists/web-page",
+      headers,
+      payload: { supplierId, url: WEB_PAGE_URL },
+    });
+    await unconfigured.close();
+
+    expect(response.statusCode).toBe(503);
+    expect(response.json()).toMatchObject({ code: "supplier_price_list_reading_unavailable" });
+    expect(await db.select().from(supplierPriceLists)).toEqual([]);
+  });
+});
+
+describe("POST /supplier-price-lists/:id/refresh", () => {
+  function refresh(headers: Record<string, string>, listId: string) {
+    return app.inject({
+      method: "POST",
+      url: `/supplier-price-lists/${listId}/refresh`,
+      headers,
+    });
+  }
+
+  async function webPageList() {
+    const { headers, locationId, userId } = await manager();
+    const supplierId = await storedSupplier();
+    const listId = await insertPriceList(db, {
+      supplierId,
+      locationId,
+      actorId: userId,
+      sourceUrl: WEB_PAGE_URL,
+      state: "REVIEWED",
+    });
+    return { headers, locationId, supplierId, listId };
+  }
+
+  it("rejects an Origin that is not the backoffice's own, reading nothing", async () => {
+    const { headers, listId } = await webPageList();
+
+    const response = await refresh({ ...headers, origin: "https://attacker.example" }, listId);
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toMatchObject({ code: "origin_rejected" });
+    expect(webPages.urls).toEqual([]);
+  });
+
+  it("answers 400 for an id that is not a record id", async () => {
+    const { headers } = await manager();
+
+    const response = await refresh(headers, "not-an-id");
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({ code: "validation_failed" });
+  });
+
+  it("reads the stored address again into a new list of the same supplier, answering 201", async () => {
+    const { headers, locationId, supplierId, listId } = await webPageList();
+
+    const response = await refresh(headers, listId);
+
+    expect(response.statusCode).toBe(201);
+    const { listId: refreshedId } = response.json();
+    expect(refreshedId).not.toBe(listId);
+    expect(webPages.urls).toEqual([WEB_PAGE_URL]);
+    expect(await listRow(refreshedId)).toMatchObject({
+      supplierId,
+      locationId,
+      sourceKind: "WEB_PAGE",
+      sourceUrl: WEB_PAGE_URL,
+      state: "READING",
+    });
+    expect(files.stored.get(refreshedId)?.contentKind).toBe("HTML");
+    expect((await listRow(listId))?.state).toBe("REVIEWED");
+  });
+
+  it("answers 404 not_found for a list that does not exist, reading nothing", async () => {
+    const { headers } = await manager();
+
+    const response = await refresh(headers, MISSING_ID);
+
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toMatchObject({ code: "not_found" });
+    expect(webPages.urls).toEqual([]);
+  });
+
+  it("answers 409 not_a_web_page for a list read from a file, reading nothing", async () => {
+    const { headers } = await manager();
+    const { listId } = await storedList();
+
+    const response = await refresh(headers, listId);
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({ code: "not_a_web_page" });
+    expect(webPages.urls).toEqual([]);
+  });
+
+  it("answers 409 daily_cap_reached with the cap, reading nothing", async () => {
+    const { headers, locationId, listId } = await webPageList();
+    await db.insert(supplierPriceListExtractionCaps).values({ locationId, dailyCap: 1 });
+    await db
+      .update(supplierPriceLists)
+      .set({ state: "READING" })
+      .where(eq(supplierPriceLists.id, listId));
+
+    const response = await refresh(headers, listId);
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({ code: "daily_cap_reached", cap: 1 });
+    expect(webPages.urls).toEqual([]);
+  });
+
+  it("answers 422 page_refused with the reason when the page cannot be read", async () => {
+    const { headers, listId } = await webPageList();
+    webPages.answer = { kind: "refused", reason: "too_large" };
+
+    const response = await refresh(headers, listId);
+
+    expect(response.statusCode).toBe(422);
+    expect(response.json()).toMatchObject({ code: "page_refused", reason: "too_large" });
+    expect(await db.select().from(supplierPriceLists)).toHaveLength(1);
+    expect(files.stored.size).toBe(0);
+  });
+
+  it("answers 503 supplier_price_list_reading_unavailable when reading is not configured", async () => {
+    const unconfigured = Fastify();
+    registerSupplierPriceListsRoutes(unconfigured, {
+      db,
+      backofficeOrigin: BACKOFFICE_ORIGIN,
+      now: () => NOW,
+    });
+    const { headers, listId } = await webPageList();
+
+    const response = await unconfigured.inject({
+      method: "POST",
+      url: `/supplier-price-lists/${listId}/refresh`,
+      headers,
+    });
+    await unconfigured.close();
+
+    expect(response.statusCode).toBe(503);
+    expect(response.json()).toMatchObject({ code: "supplier_price_list_reading_unavailable" });
   });
 });
 

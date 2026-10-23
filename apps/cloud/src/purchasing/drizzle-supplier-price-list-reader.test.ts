@@ -95,8 +95,7 @@ describe("listing the supplier price lists", () => {
       {
         id: listId,
         supplier: { id: supplierId, name: "Distribuidora Sur" },
-        sourceKind: "PDF",
-        fileName: "lista-marzo.pdf",
+        source: { kind: "PDF", fileName: "lista-marzo.pdf" },
         listDate: "2026-03-01",
         rowCount: 3,
         unpricedRowCount: 2,
@@ -108,8 +107,7 @@ describe("listing the supplier price lists", () => {
       {
         id: failedId,
         supplier: { id: supplierId, name: "Distribuidora Sur" },
-        sourceKind: "PDF",
-        fileName: "lista.pdf",
+        source: { kind: "PDF", fileName: "lista.pdf" },
         listDate: null,
         rowCount: 0,
         unpricedRowCount: 0,
@@ -119,6 +117,22 @@ describe("listing the supplier price lists", () => {
         confirmedAt: null,
       },
     ]);
+  });
+
+  it("describes a list read from a web page by its address", async () => {
+    const listId = await insertPriceList(db, {
+      supplierId,
+      locationId,
+      actorId,
+      sourceUrl: "https://distribuidora-sur.example/lista",
+    });
+
+    const [list] = await reader().lists();
+
+    expect(list).toMatchObject({
+      id: listId,
+      source: { kind: "WEB_PAGE", url: "https://distribuidora-sur.example/lista" },
+    });
   });
 
   it("lists nothing when no list was uploaded", async () => {
@@ -191,6 +205,25 @@ describe("reviewing a list", () => {
     expect((await reader().review(listId))?.list.pricesIncludeVat).toBeNull();
   });
 
+  it("answers where the list came from", async () => {
+    const pdfId = await insertPriceList(db, { supplierId, locationId, actorId });
+    const webPageId = await insertPriceList(db, {
+      supplierId,
+      locationId,
+      actorId,
+      sourceUrl: "https://distribuidora-sur.example/lista",
+    });
+
+    expect((await reader().review(pdfId))?.list.source).toEqual({
+      kind: "PDF",
+      fileName: "lista.pdf",
+    });
+    expect((await reader().review(webPageId))?.list.source).toEqual({
+      kind: "WEB_PAGE",
+      url: "https://distribuidora-sur.example/lista",
+    });
+  });
+
   it("answers nothing for a list that does not exist", async () => {
     expect(await reader().review("00000000-0000-4000-8000-000000000000")).toBeUndefined();
   });
@@ -206,6 +239,17 @@ describe("the file name of a list", () => {
     });
 
     expect(await reader().fileName(listId)).toBe("lista-marzo.pdf");
+  });
+
+  it("answers nothing for a list read from a web page", async () => {
+    const listId = await insertPriceList(db, {
+      supplierId,
+      locationId,
+      actorId,
+      sourceUrl: "https://distribuidora-sur.example/lista",
+    });
+
+    expect(await reader().fileName(listId)).toBeUndefined();
   });
 
   it("answers nothing for a list that does not exist", async () => {

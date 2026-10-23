@@ -5,6 +5,7 @@ import {
 } from "@purosur/domain";
 import { beforeEach, describe, expect, it } from "vitest";
 import { GuardedWebPageReader } from "./guarded-web-page-reader.js";
+import { deferred } from "./test-support/deferred.js";
 import { FakeTimer, FakeWebPageNetwork, text } from "./test-support/fake-web-page-network.js";
 
 const PUBLIC_ADDRESS = "93.184.216.34";
@@ -373,7 +374,7 @@ describe("GuardedWebPageReader", () => {
 
     it("refuses as too slow when the time runs out while connecting, aborting the connection", async () => {
       let signalOfConnection: AbortSignal | undefined;
-      const connecting = Promise.withResolvers<void>();
+      const connecting = deferred();
       const slow = new FakeWebPageNetwork();
       slow.answerLookups("supplier.example", [PUBLIC_ADDRESS]);
       const slowReader = new GuardedWebPageReader({
@@ -396,7 +397,7 @@ describe("GuardedWebPageReader", () => {
     });
 
     it("refuses as too slow when the time runs out while resolving the name", async () => {
-      const lookingUp = Promise.withResolvers<void>();
+      const lookingUp = deferred();
       const slowReader = new GuardedWebPageReader({
         resolve: async () => {
           lookingUp.resolve();
@@ -415,7 +416,7 @@ describe("GuardedWebPageReader", () => {
     });
 
     it("refuses as too slow when the time runs out while reading the body", async () => {
-      const reading = Promise.withResolvers<void>();
+      const reading = deferred();
       let signalOfConnection: AbortSignal | undefined;
       network.servePage(PAGE, {
         contentType: "text/html",

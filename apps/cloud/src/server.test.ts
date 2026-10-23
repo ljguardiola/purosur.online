@@ -1885,7 +1885,7 @@ describe("startServer reading supplier price lists", () => {
       enqueueMissingCreditNotes: vi.fn().mockResolvedValue(undefined),
     });
     const [appOptions] = buildApp.mock.calls[0] as [
-      { purchasing?: { supplierPriceListFiles?: unknown } },
+      { purchasing?: { supplierPriceListFiles?: unknown; supplierPriceListWebPages?: unknown } },
     ];
     return { backgroundJobsEnv: setUp.mock.calls[0]?.[0] as SetUpBackgroundJobsEnv, appOptions };
   }
@@ -1907,11 +1907,20 @@ describe("startServer reading supplier price lists", () => {
     );
   });
 
-  it("gives the purchasing routes no files without the AI key", async () => {
+  it("gives the purchasing routes a reader of web pages when the AI key and the bucket are configured", async () => {
+    const { appOptions } = await startedWith({ ...env, ...aiKey, ...priceListsBucket });
+
+    expect(appOptions.purchasing?.supplierPriceListWebPages).toEqual(
+      expect.objectContaining({ read: expect.any(Function) }),
+    );
+  });
+
+  it("gives the purchasing routes no files and no reader of web pages without the AI key", async () => {
     const { appOptions } = await startedWith({ ...env, ...priceListsBucket });
 
     expect(appOptions.purchasing).toBeDefined();
     expect(appOptions.purchasing).not.toHaveProperty("supplierPriceListFiles");
+    expect(appOptions.purchasing).not.toHaveProperty("supplierPriceListWebPages");
   });
 
   it("gives the setup of the background job infrastructure the files and the extractor when the AI key and the bucket are configured", async () => {

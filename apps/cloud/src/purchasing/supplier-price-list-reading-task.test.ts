@@ -1,4 +1,8 @@
-import type { PriceListExtraction, PriceListSource } from "@purosur/domain/purchasing/use-cases";
+import type {
+  PriceListExtraction,
+  PriceListSource,
+  StoredSupplierPriceListFile,
+} from "@purosur/domain/purchasing/use-cases";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { supplierPriceListRows, supplierPriceLists } from "../platform/db/schema.js";
@@ -40,7 +44,10 @@ beforeEach(async () => {
 function jobsAnswering(
   extraction: PriceListExtraction,
   received: PriceListSource[] = [],
-  read: () => Promise<Uint8Array | null> = async () => PDF,
+  read: () => Promise<StoredSupplierPriceListFile | null> = async () => ({
+    bytes: PDF,
+    contentKind: "PDF",
+  }),
 ) {
   return supplierPriceListReadingJobs({
     now: () => NOW,
@@ -75,7 +82,7 @@ async function readList() {
   return list;
 }
 
-function unreadableBucket(): Promise<Uint8Array | null> {
+function unreadableBucket(): Promise<StoredSupplierPriceListFile | null> {
   return Promise.reject(new Error("bucket unavailable"));
 }
 

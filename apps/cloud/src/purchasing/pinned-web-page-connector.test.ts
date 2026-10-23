@@ -2,6 +2,7 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import type { AddressInfo } from "node:net";
 import { afterEach, describe, expect, it } from "vitest";
 import { connectPinned } from "./pinned-web-page-connector.js";
+import { deferred } from "./test-support/deferred.js";
 
 let server: Server | undefined;
 
@@ -125,7 +126,7 @@ describe("connectPinned", () => {
   });
 
   it("fails when the signal aborts before the server answers", async () => {
-    const requestArrived = Promise.withResolvers<void>();
+    const requestArrived = deferred();
     const port = await serve(() => requestArrived.resolve());
     const controller = new AbortController();
 
