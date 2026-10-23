@@ -9,12 +9,14 @@ export interface Contingency {
   notice: boolean;
 }
 
-export function isConnectivityGap(mode: FiscalEmissionMode): boolean {
+export function isConnectivityGap(
+  mode: FiscalEmissionMode,
+): mode is Exclude<FiscalEmissionMode, { kind: "real_time" }> {
   return mode.kind !== "real_time";
 }
 
 export function contingencyOf(mode: FiscalEmissionMode): Contingency | null {
-  if (mode.kind === "real_time") return null;
+  if (!isConnectivityGap(mode)) return null;
   const gateFailed = mode.kind === "deferring" && mode.reason === "pre_emission_gate_failed";
   return { kind: mode.kind, notice: !gateFailed };
 }
