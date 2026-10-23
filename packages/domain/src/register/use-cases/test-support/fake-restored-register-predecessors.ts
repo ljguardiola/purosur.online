@@ -13,7 +13,6 @@ export class FakeRestoredRegisterPredecessors implements RestoredRegisterPredece
   standings = new Map<string, PredecessorStanding>();
   refusedCursorDeviceIds = new Set<string>();
   cursorChecks: CursorCheck[] = [];
-  firstRevoked = new Map<string, string>();
 
   async predecessorStanding(
     registerId: string,
@@ -31,11 +30,7 @@ export class FakeRestoredRegisterPredecessors implements RestoredRegisterPredece
     return !this.refusedCursorDeviceIds.has(cursorDeviceId);
   }
 
-  async firstRevokedInstallation(
-    registerId: string,
-    currentDeviceId: string,
-  ): Promise<string | undefined> {
-    const first = this.firstRevoked.get(registerId);
-    return first === currentDeviceId ? undefined : first;
+  async firstRevokedInstallation(): Promise<string | undefined> {
+    return undefined;
   }
 }

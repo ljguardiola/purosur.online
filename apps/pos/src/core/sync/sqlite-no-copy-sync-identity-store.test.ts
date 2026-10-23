@@ -47,7 +47,7 @@ describe("the sync identity store of a register reinstalled with no copy", () =>
     expect(await store.transaction((tx) => tx.heldDeviceId())).toBe("held-device");
   });
 
-  it("adopts the installation with a fresh chain and the pull cursor at zero, records the first installation not from a copy, and holds the numbering", async () => {
+  it("adopts the installation with a fresh chain and the pull cursor at zero, records the first installation, and holds the numbering and the sweep as not from a copy", async () => {
     const outcome = await resetSyncIdentityWithoutCopy({ store }, INPUT);
 
     expect(outcome).toEqual({ kind: "reset", predecessorDeviceId: "first-device" });
@@ -60,13 +60,13 @@ describe("the sync identity store of a register reinstalled with no copy", () =>
       sales_stopped_reason: null,
     });
     expect(database.prepare("SELECT * FROM register_predecessor").all()).toEqual([
-      { device_id: "first-device", last_acknowledged_seq: 0, from_copy: 0 },
+      { device_id: "first-device", last_acknowledged_seq: 0 },
     ]);
     expect(database.prepare("SELECT register_id FROM awaiting_restored_numbering").all()).toEqual([
       { register_id: "register-1" },
     ]);
-    expect(database.prepare("SELECT register_id FROM awaiting_orphan_sweep").all()).toEqual([
-      { register_id: "register-1" },
+    expect(database.prepare("SELECT * FROM awaiting_orphan_sweep").all()).toEqual([
+      { register_id: "register-1", from_copy: 0 },
     ]);
   });
 

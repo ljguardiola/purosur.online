@@ -2165,6 +2165,8 @@ describe("restoration standing messages", () => {
     { kind: "failed" },
     { kind: "failed", step: "replenish" },
     { kind: "in_progress", step: "replenish", origin: "somewhere_else" },
+    { kind: "in_progress", step: "replenish" },
+    { kind: "without_connection", step: "replenish" },
   ])("rejects the restoration standing %j", (standing) => {
     const message = { type: "restoration-standing", request_id: REQUEST_ID, standing };
 
