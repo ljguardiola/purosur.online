@@ -415,6 +415,9 @@ function Register({ core }: { core: CoreClient }) {
       authorization: Authorization | undefined,
     ) => core.voidSale(saleId, pendingRefundsConfirmed, authorization),
     receiptPrintStatus: (saleId: string) => core.receiptPrintStatus(saleId),
+    contingencyBackupTickets: () => core.contingencyBackupTickets(),
+    contingencyBackupTicketOfSale: (saleId: string) => core.contingencyBackupTicketOfSale(saleId),
+    discardContingencyBackupTickets: () => core.discardContingencyBackupTickets(),
     printOriginalReceipt: (saleId: string) => core.printOriginalReceipt(saleId),
     printCreditNote: (saleId: string) => core.printCreditNote(saleId),
     reprintCreditNote: (saleId: string, reason: string, authorization: Authorization | undefined) =>

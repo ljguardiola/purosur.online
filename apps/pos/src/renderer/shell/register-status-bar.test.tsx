@@ -519,7 +519,7 @@ describe("RegisterStatusBar", () => {
       });
 
       await userEvent.click(screen.getByRole("button", { name: "1 aviso" }));
-      await userEvent.click(screen.getByRole("button", { name: "Cerrar" }));
+      await userEvent.click(screen.getByRole("button", { name: "Cerrar" }).last());
 
       expect(onDiscardBackupTickets).toHaveBeenCalledOnce();
     });

@@ -546,11 +546,17 @@ describe("SaleCompletedModal", () => {
           found("printed", { printed: true, comprobante: FISCAL_OFFLINE }),
       });
 
-      const rows = documents.getByRole("listitem").elements();
-      expect(rows.map((row) => row.textContent)).toEqual([
-        expect.stringContaining("Factura C"),
-        expect.stringContaining("Ticket de respaldo de contingencia"),
-      ]);
+      await expect
+        .poll(() =>
+          documents
+            .getByRole("listitem")
+            .elements()
+            .map((row) => row.textContent),
+        )
+        .toEqual([
+          expect.stringContaining("Factura C"),
+          expect.stringContaining("Ticket de respaldo de contingencia"),
+        ]);
     });
 
     it.each([

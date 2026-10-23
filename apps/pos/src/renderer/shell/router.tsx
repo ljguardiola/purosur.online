@@ -22,6 +22,7 @@ import type {
   CoreStatusMessage,
   CorrectRegisterClockOutcome,
   CurrentSaleAnswer,
+  DiscardContingencyBackupTicketsAnswer,
   EnrollmentOutcome,
   FindCountableProductOutcome,
   FirstPinCodeRequestOutcome,
@@ -38,6 +39,8 @@ import type {
   PrintCreditNoteOutcome,
   PrintOriginalReceiptOutcome,
   ReadClockGuardOutcome,
+  ReadContingencyBackupTicketOfSaleOutcome,
+  ReadContingencyBackupTicketsOutcome,
   ReadInitialCountOutcome,
   ReadReceiptPrinterOutcome,
   ReadSerialDevicesOutcome,
@@ -251,6 +254,11 @@ export interface RouterContext {
     authorization: Authorization | undefined,
   ) => Promise<VoidSaleOutcome>;
   receiptPrintStatus: (saleId: string) => Promise<ReceiptPrintStatusOutcome>;
+  contingencyBackupTickets: () => Promise<ReadContingencyBackupTicketsOutcome>;
+  contingencyBackupTicketOfSale: (
+    saleId: string,
+  ) => Promise<ReadContingencyBackupTicketOfSaleOutcome>;
+  discardContingencyBackupTickets: () => Promise<DiscardContingencyBackupTicketsAnswer>;
   printOriginalReceipt: (saleId: string) => Promise<PrintOriginalReceiptOutcome>;
   printCreditNote: (saleId: string) => Promise<PrintCreditNoteOutcome>;
   reprintCreditNote: (
@@ -451,9 +459,21 @@ const statusBarRoute = createRoute({
   getParentRoute: () => sessionEyebrowRoute,
   id: "status-bar",
   component: function StatusBarRoute() {
-    const { person, cashSession, registerStatus } = statusBarRoute.useRouteContext();
+    const {
+      person,
+      cashSession,
+      registerStatus,
+      contingencyBackupTickets,
+      discardContingencyBackupTickets,
+    } = statusBarRoute.useRouteContext();
     return (
-      <StatusBarLayout person={person} cashSession={cashSession} readStatus={registerStatus} />
+      <StatusBarLayout
+        person={person}
+        cashSession={cashSession}
+        readStatus={registerStatus}
+        readBackupTickets={contingencyBackupTickets}
+        discardBackupTickets={discardContingencyBackupTickets}
+      />
     );
   },
 });
@@ -813,6 +833,8 @@ const chargeRoute = createRoute({
       followMercadoPagoCharge,
       abandonMercadoPagoCharge,
       receiptPrintStatus,
+      contingencyBackupTicketOfSale,
+      contingencyBackupTickets,
       refreshCashSession,
     } = chargeRoute.useRouteContext();
     const registerName = useRegisterName();
@@ -832,6 +854,8 @@ const chargeRoute = createRoute({
         followMercadoPagoCharge={followMercadoPagoCharge}
         abandonMercadoPagoCharge={abandonMercadoPagoCharge}
         receiptPrintStatus={receiptPrintStatus}
+        contingencyBackupTicketOfSale={contingencyBackupTicketOfSale}
+        contingencyBackupTickets={contingencyBackupTickets}
         onSessionInvalid={() => void refreshCashSession()}
       />
     );
@@ -1260,6 +1284,9 @@ export function createAppRouter(
     | "cancelPaidSale"
     | "voidSale"
     | "receiptPrintStatus"
+    | "contingencyBackupTickets"
+    | "contingencyBackupTicketOfSale"
+    | "discardContingencyBackupTickets"
     | "printOriginalReceipt"
     | "printCreditNote"
     | "reprintCreditNote"

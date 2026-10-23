@@ -2039,12 +2039,11 @@ describe("App", () => {
   });
 
   it("shows the contingency backup tickets notice the core reports in the status bar, and discards them when it is closed", async () => {
-    const answering = coreAnswering(true);
     const discard = vi.fn(
       async (): Promise<DiscardContingencyBackupTicketsAnswer> => ({ kind: "discarded", count: 2 }),
     );
     const core: CoreClient = {
-      ...answering.core,
+      ...enrolledCore,
       async contingencyBackupTickets() {
         return {
           kind: "read",
@@ -2063,7 +2062,9 @@ describe("App", () => {
     };
     const screen = await render(<App core={core} />);
     postCoreStatus("up");
-    await resumeLockedRegister(screen);
+    await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
+    await userEvent.type(screen.getByLabelText("PIN"), "1234");
+    await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
 
     await userEvent.click(
       screen
@@ -2073,7 +2074,7 @@ describe("App", () => {
     await expect
       .element(screen.getByText("Ya podés descartar los tickets de respaldo"))
       .toBeVisible();
-    await userEvent.click(screen.getByRole("button", { name: "Cerrar" }));
+    await userEvent.click(screen.getByRole("button", { name: "Cerrar" }).last());
 
     await expect.poll(() => discard.mock.calls.length).toBe(1);
   });

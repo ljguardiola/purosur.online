@@ -5,6 +5,8 @@ import type {
   AdjustSaleLineOutcome,
   ApplySaleDiscountOutcome,
   Authorization,
+  BackupsCoreToRendererMessage,
+  BackupsRendererToCoreMessage,
   CancelLockedSaleOutcome,
   CancelPaidSaleOutcome,
   CancelSaleOutcome,
@@ -23,6 +25,7 @@ import type {
   CredentialsCoreToRendererMessage,
   CredentialsRendererToCoreMessage,
   CurrentSaleAnswer,
+  DiscardContingencyBackupTicketsAnswer,
   EnrollmentOutcome,
   FindCountableProductOutcome,
   FirstPinCodeRequestOutcome,
@@ -44,6 +47,8 @@ import type {
   PrintCreditNoteOutcome,
   PrintOriginalReceiptOutcome,
   ReadClockGuardOutcome,
+  ReadContingencyBackupTicketOfSaleOutcome,
+  ReadContingencyBackupTicketsOutcome,
   ReadInitialCountOutcome,
   ReadReceiptPrinterOutcome,
   ReadSerialDevicesOutcome,
@@ -85,6 +90,7 @@ import type {
   WithdrawInitialCountLineOutcome,
 } from "@purosur/contracts";
 import {
+  backupsCoreToRendererMessageSchema,
   credentialsCoreToRendererMessageSchema,
   fiscalCoreToRendererMessageSchema,
   paymentsCoreToRendererMessageSchema,
@@ -105,6 +111,7 @@ const coreToRendererMessageSchema = z.discriminatedUnion("type", [
   paymentsCoreToRendererMessageSchema,
   stockCoreToRendererMessageSchema,
   fiscalCoreToRendererMessageSchema,
+  backupsCoreToRendererMessageSchema,
   syncCoreToRendererMessageSchema,
 ]);
 
@@ -116,6 +123,7 @@ type CoreToRendererMessage =
   | PaymentsCoreToRendererMessage
   | StockCoreToRendererMessage
   | FiscalCoreToRendererMessage
+  | BackupsCoreToRendererMessage
   | SyncCoreToRendererMessage;
 
 type RendererToCoreMessage =
@@ -125,7 +133,8 @@ type RendererToCoreMessage =
   | SalesRendererToCoreMessage
   | PaymentsRendererToCoreMessage
   | StockRendererToCoreMessage
-  | FiscalRendererToCoreMessage;
+  | FiscalRendererToCoreMessage
+  | BackupsRendererToCoreMessage;
 
 export interface CorePort {
   postMessage(message: unknown): void;
@@ -235,6 +244,9 @@ export interface CoreClient {
     authorization: Authorization | undefined,
   ): Promise<VoidSaleOutcome>;
   receiptPrintStatus(saleId: string): Promise<ReceiptPrintStatusOutcome>;
+  contingencyBackupTickets(): Promise<ReadContingencyBackupTicketsOutcome>;
+  contingencyBackupTicketOfSale(saleId: string): Promise<ReadContingencyBackupTicketOfSaleOutcome>;
+  discardContingencyBackupTickets(): Promise<DiscardContingencyBackupTicketsAnswer>;
   printOriginalReceipt(saleId: string): Promise<PrintOriginalReceiptOutcome>;
   printCreditNote(saleId: string): Promise<PrintCreditNoteOutcome>;
   reprintCreditNote(
@@ -713,6 +725,33 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
       return ask(
         { type: "receipt-print-status", request_id: deps.newRequestId(), sale_id: saleId },
         (answer) => (answer.type === "receipt-print-status-result" ? answer.outcome : undefined),
+      );
+    },
+    contingencyBackupTickets() {
+      return ask(
+        { type: "read-contingency-backup-tickets", request_id: deps.newRequestId() },
+        (answer) =>
+          answer.type === "read-contingency-backup-tickets-result" ? answer.outcome : undefined,
+      );
+    },
+    contingencyBackupTicketOfSale(saleId) {
+      return ask(
+        {
+          type: "read-contingency-backup-ticket-of-sale",
+          request_id: deps.newRequestId(),
+          sale_id: saleId,
+        },
+        (answer) =>
+          answer.type === "read-contingency-backup-ticket-of-sale-result"
+            ? answer.outcome
+            : undefined,
+      );
+    },
+    discardContingencyBackupTickets() {
+      return ask(
+        { type: "discard-contingency-backup-tickets", request_id: deps.newRequestId() },
+        (answer) =>
+          answer.type === "discard-contingency-backup-tickets-result" ? answer.outcome : undefined,
       );
     },
     printOriginalReceipt(saleId) {
