@@ -39,6 +39,7 @@ export interface ContingencyBackupTicketsDeps {
 export interface ContingencyBackupTickets {
   ticketed: TicketedOperations["ticketed"];
   ticketedSettlement: TicketedOperations["ticketedSettlement"];
+  ticketedSteps: TicketedOperations["ticketedSteps"];
   requests: ContingencyBackupTicketRequests;
   worker: ContingencyBackupTicketWorker;
 }
@@ -76,7 +77,7 @@ export function createContingencyBackupTickets({
     reportFailure,
     intervalMs,
   });
-  const { ticketed, ticketedSettlement } = createTicketedOperations({
+  const { ticketed, ticketedSettlement, ticketedSteps } = createTicketedOperations({
     readLastDeviceSeq: () =>
       database
         .prepare<[], { last_device_seq: number }>("SELECT last_device_seq FROM sync_state")
@@ -89,6 +90,7 @@ export function createContingencyBackupTickets({
   return {
     ticketed,
     ticketedSettlement,
+    ticketedSteps,
     requests: createContingencyBackupTicketRequests({
       tickets: store,
       clock,

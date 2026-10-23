@@ -28,7 +28,14 @@ export interface TicketedOperations {
   ticketedSettlement<TArgs extends unknown[], TSettlement extends { kind: string }>(
     settle: (...args: TArgs) => TSettlement,
   ): (...args: TArgs) => TSettlement;
+  ticketedSteps<TOutcome>(
+    operation: ContingencyBackupOperation,
+    subjectId: string | null,
+    operate: (ticketedStep: TicketedStep) => Promise<TOutcome>,
+  ): Promise<TOutcome>;
 }
+
+export type TicketedStep = <TStep>(step: () => TStep) => TStep;
 
 function completedSaleOf(settlement: { kind: string }): string | null {
   return settlement.kind === "completed" &&
@@ -116,5 +123,21 @@ export function createTicketedOperations({
 
     ticketedSettlement: (settle) =>
       ticketedNow("sale", settle, (_args, settlement) => completedSaleOf(settlement)),
+
+    async ticketedSteps(operation, subjectId, operate) {
+      const steps: [Reading, Reading | undefined][] = [];
+      try {
+        return await operate((step) => {
+          const before = read();
+          const outcome = step();
+          if (before !== undefined) steps.push([before, read()]);
+          return outcome;
+        });
+      } finally {
+        for (const [before, after] of steps) {
+          await recordAround(operation, () => subjectId, before, after);
+        }
+      }
+    },
   };
 }

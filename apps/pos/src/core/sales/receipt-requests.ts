@@ -18,6 +18,7 @@ import {
   receiptDeliveryOf,
   reprintReceipt,
 } from "@purosur/domain/sales/use-cases";
+import type { TicketedOperations, TicketedStep } from "../backups/ticketed-operation";
 import type { LocalDatabase } from "../platform/local-database";
 import type { ActionGate } from "../sessions/action-gate";
 import type { ReceiptPrintJobs } from "./receipt-print-jobs";
@@ -36,10 +37,7 @@ export interface ReceiptRequestDeps {
   signedInUserId: () => string | undefined;
   printers: ReceiptPrinters;
   jobs: ReceiptPrintJobs;
-  ticketedReprint: <TOutcome>(
-    saleId: string,
-    reprint: () => Promise<TOutcome>,
-  ) => Promise<TOutcome>;
+  ticketedSteps: TicketedOperations["ticketedSteps"];
 }
 
 export interface ReprintSaleReceiptRequest {
@@ -211,6 +209,19 @@ export async function printOriginalReceiptFor(
   );
 }
 
+function sendingThrough(printers: ReceiptPrinters, ticketedStep: TicketedStep): ReceiptPrinters {
+  return {
+    configured() {
+      const printer = printers.configured();
+      return (
+        printer && {
+          print: (watch, sending) => printer.print(watch, () => ticketedStep(sending)),
+        }
+      );
+    },
+  };
+}
+
 export async function reprintFor(
   deps: ReceiptRequestDeps,
   key: PrintedDocumentKey,
@@ -239,9 +250,14 @@ export async function reprintFor(
     },
   };
   const start = await deps.jobs.start(jobKeyOf(key), ({ watch, printers }) =>
-    deps.ticketedReprint(key.saleId, () =>
+    deps.ticketedSteps("reprint", key.saleId, (ticketedStep) =>
       reprintReceipt(
-        printingPorts(deps, chainKey, authority, printers(deps.printers)),
+        printingPorts(
+          deps,
+          chainKey,
+          authority,
+          sendingThrough(printers(deps.printers), ticketedStep),
+        ),
         { ...key, reason },
         watch,
       ),

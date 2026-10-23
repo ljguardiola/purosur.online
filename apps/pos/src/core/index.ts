@@ -700,6 +700,9 @@ const ticketed: TicketedOperations["ticketed"] =
   contingencyBackupTickets?.ticketed ?? ((_operation, handler) => handler);
 const ticketedSettlement: TicketedOperations["ticketedSettlement"] =
   contingencyBackupTickets?.ticketedSettlement ?? ((settle) => settle);
+const ticketedSteps: TicketedOperations["ticketedSteps"] =
+  contingencyBackupTickets?.ticketedSteps ??
+  ((_operation, _subjectId, operate) => operate((step) => step()));
 
 const mercadoPagoCharging = createMercadoPagoCharging({
   database: localDatabase,
@@ -729,7 +732,7 @@ const receiptPrinting = createReceiptPrinting({
     syncSchedule.syncNow();
     void contingencyBackupTickets?.worker.kick();
   },
-  ticketedReprint: (saleId, reprint) => ticketed("reprint", reprint, () => saleId)(),
+  ticketedSteps,
 });
 
 const interruptedCharges = createInterruptedChargesWiring({
