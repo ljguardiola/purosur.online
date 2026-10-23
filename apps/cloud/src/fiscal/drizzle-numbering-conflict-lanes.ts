@@ -158,7 +158,12 @@ class DrizzleNumberingConflictLane<TQueryResult extends PgQueryResultHKT>
     const [row] = await this.db
       .select({ lastAuthorized: taxAuthorityLastAuthorizedNumbers.lastAuthorized })
       .from(taxAuthorityLastAuthorizedNumbers)
-      .where(eq(taxAuthorityLastAuthorizedNumbers.pointOfSaleNumber, this.pointOfSale));
+      .where(
+        and(
+          eq(taxAuthorityLastAuthorizedNumbers.pointOfSaleNumber, this.pointOfSale),
+          eq(taxAuthorityLastAuthorizedNumbers.documentType, FACTURA_C_DOCUMENT_TYPE),
+        ),
+      );
     return row?.lastAuthorized ?? 0;
   }
 
