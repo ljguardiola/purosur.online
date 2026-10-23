@@ -30,6 +30,7 @@ function createServices(
   return {
     fetchSupplierPriceLists: vi.fn(),
     uploadSupplierPriceList: vi.fn(),
+    loadSupplierPriceListWebPage: vi.fn(),
     fetchSuppliers: vi.fn().mockResolvedValue({ kind: "ok", value: [] }),
     ...overrides,
   };
