@@ -203,4 +203,116 @@ describe("reportFortnights, for a fortnight with offline credit notes", () => {
 
     expect(presentationOutcomes(result)).toMatchObject([{ outcome: { kind: "accepted" } }]);
   });
+
+  it("sends a credit note that names no corrected voucher, which no invoice report can hold", async () => {
+    const setup = setUp([offlineDocument(1, { documentType: "credit_note_c" })]);
+
+    const result = await setup.run();
+
+    expect(presentationOutcomes(result)).toMatchObject([{ outcome: { kind: "accepted" } }]);
+  });
+
+  it("holds nothing of the facturas, whatever voucher a factura might name", async () => {
+    const setup = setUp([
+      offlineDocument(1, { corrects: { voucherType: 11, pointOfSale: POINT_OF_SALE, number: 9 } }),
+    ]);
+    invoiceOf(setup, 9, { fortnight: EARLIER_FORTNIGHT, reportAccepted: false });
+
+    const result = await setup.run();
+
+    expect(presentationOutcomes(result)).toMatchObject([
+      { documentType: "factura_c", outcome: { kind: "accepted" } },
+    ]);
+  });
+
+  it("records the held presentation up to the last credit note the tax authority already holds", async () => {
+    const setup = setUp([creditNote(1), creditNote(2), creditNote(3)]);
+    setup.documentReports.hold(POINT_OF_SALE, "credit_note_c", 2);
+    invoiceOf(setup, 3, { fortnight: EARLIER_FORTNIGHT, reportAccepted: false });
+
+    await setup.run();
+
+    expect(setup.documentReports.reports).toEqual([]);
+    expect(setup.reports.documentTypeChanges.map(({ change }) => change).at(-1)).toEqual({
+      documentType: "credit_note_c",
+      state: "awaiting_invoice_report",
+      at: ON_OCTOBER_3,
+      reportedThrough: 2,
+    });
+  });
+});
+
+describe("reportFortnights, with the presentations of two document types in different standing", () => {
+  const REJECTIONS = [{ code: 1439, message: "El campo 'Importe Total' ImpTotal, debe ser igual" }];
+  const KEY = { pointOfSaleNumber: POINT_OF_SALE, fortnight: SEPTEMBER_SECOND_HALF };
+
+  function refusedRow(documentType: "factura_c" | "credit_note_c", rejectedNumber: number) {
+    return {
+      documentType,
+      state: "refused" as const,
+      reportedThrough: rejectedNumber - 1,
+      rejectedNumber,
+      lastAttemptAt: ON_OCTOBER_3,
+      rejections: REJECTIONS,
+      remedy: null,
+    };
+  }
+
+  it("awaits the remedy of the factura alone when the credit notes were accepted", async () => {
+    const setup = setUp([factura(1), factura(2), creditNote(1)]);
+    setup.reports.seedDocumentTypeReport(KEY, refusedRow("factura_c", 2));
+    setup.reports.seedDocumentTypeReport(KEY, {
+      ...refusedRow("credit_note_c", 2),
+      state: "accepted",
+      reportedThrough: 1,
+      rejectedNumber: null,
+      rejections: [],
+    });
+
+    const result = await setup.run();
+
+    expect(presentationOutcomes(result)).toMatchObject([
+      { documentType: "factura_c", outcome: { kind: "awaiting_remedy", number: 2 } },
+    ]);
+    expect(setup.operations.filter((operation) => operation.startsWith("tax authority"))).toEqual(
+      [],
+    );
+  });
+
+  it("awaits the remedy of the type that needs one and presents the other type whose remedy is recorded", async () => {
+    const setup = setUp([factura(1), factura(2), creditNote(1)]);
+    setup.reports.seedDocumentTypeReport(KEY, refusedRow("factura_c", 2));
+    setup.reports.seedDocumentTypeReport(KEY, refusedRow("credit_note_c", 1));
+    setup.reports.recordRemedy(KEY, "credit_note_c", { number: 1, rejectedAt: ON_OCTOBER_3 });
+    setup.documentReports.hold(POINT_OF_SALE, "factura_c", 1);
+
+    const result = await setup.run();
+
+    expect(
+      presentationOutcomes(result).map(({ documentType, outcome }) => [documentType, outcome.kind]),
+    ).toEqual([
+      ["factura_c", "awaiting_remedy"],
+      ["credit_note_c", "accepted"],
+    ]);
+  });
+
+  it("keeps the presentation listed as owed while one of its types could not be presented", async () => {
+    const setup = setUp([factura(1), creditNote(1)]);
+    setup.owedPresentations.entries = [KEY];
+    setup.documentReports.lastReportedAnswer = ({ documentType }) =>
+      documentType === "credit_note_c" ? { kind: "no_answer" } : { kind: "read", number: 0 };
+
+    await setup.run();
+
+    expect(setup.owedPresentations.resolutions).toEqual([]);
+  });
+
+  it("resolves the presentation listed as owed once every type is presented", async () => {
+    const setup = setUp([factura(1), creditNote(1)]);
+    setup.owedPresentations.entries = [KEY];
+
+    await setup.run();
+
+    expect(setup.owedPresentations.resolutions).toEqual([KEY]);
+  });
 });
