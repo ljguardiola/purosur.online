@@ -107,7 +107,7 @@ describe("the background worker the server sets up on a real Postgres", () => {
         },
       }),
     ];
-    const recovery = await setUpBackgroundJobs(
+    const backgroundJobs = await setUpBackgroundJobs(
       {
         databaseUrl: integrationDb.databaseUrl,
         emailSender: { transport: "log" },
@@ -139,7 +139,7 @@ describe("the background worker the server sets up on a real Postgres", () => {
       const received = await db.select().from(inbox).where(eq(inbox.deviceId, deviceId));
       expect(received.map((row) => row.appliedAt)).toEqual([NOW, NOW]);
     } finally {
-      await recovery.close();
+      await backgroundJobs.close();
     }
   }, 60_000);
 });

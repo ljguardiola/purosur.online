@@ -151,7 +151,7 @@ async function startRealServer(
 ): Promise<StartedFixture> {
   const port = await findFreePort();
   let currentTime = NOW.getTime();
-  let recovery: BackgroundJobInfrastructure | undefined;
+  let backgroundJobs: BackgroundJobInfrastructure | undefined;
   let app: Awaited<ReturnType<typeof startServer>>;
   try {
     app = await startServer(
@@ -171,20 +171,20 @@ async function startRealServer(
       {
         now: () => new Date(currentTime),
         arcaEndpoints: unreachableArcaEndpoints,
-        setUpBackgroundJobs: async (recoveryEnv, now) => {
-          recovery = await setUpBackgroundJobs(recoveryEnv, now, {
+        setUpBackgroundJobs: async (backgroundJobsEnv, now) => {
+          backgroundJobs = await setUpBackgroundJobs(backgroundJobsEnv, now, {
             emailSender,
             createJobQueuePool,
             schedules: false,
           });
-          return recovery;
+          return backgroundJobs;
         },
       },
     );
   } catch (error) {
-    // `recovery` can be set even though `startServer` never returned (e.g. `app.listen` failing
+    // `backgroundJobs` can be set even though `startServer` never returned (e.g. `app.listen` failing
     // after setup resolved), which would otherwise leave its worker running with no close() called.
-    await rethrowAfter(error, () => (recovery ? recovery.close() : Promise.resolve()));
+    await rethrowAfter(error, () => (backgroundJobs ? backgroundJobs.close() : Promise.resolve()));
   }
   return {
     origin: `http://127.0.0.1:${port}`,

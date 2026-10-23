@@ -88,7 +88,7 @@ beforeEach(async () => {
   fakeWsfe.requests.length = 0;
 });
 
-function recoveryEnv() {
+function backgroundJobsEnv() {
   return {
     databaseUrl: integrationDb.databaseUrl,
     emailSender: { transport: "log" as const },
@@ -106,12 +106,12 @@ function recoveryEnv() {
 }
 
 async function reportOnDemand(expectedRequests: number) {
-  const recovery = await setUpBackgroundJobs(recoveryEnv(), () => NOW, {
+  const backgroundJobs = await setUpBackgroundJobs(backgroundJobsEnv(), () => NOW, {
     emailSender: UNUSED_EMAIL_SENDER,
     schedules: false,
   });
   try {
-    await recovery.workerUtils.addJob(FORTNIGHT_REPORT_TASK_IDENTIFIER, {});
+    await backgroundJobs.workerUtils.addJob(FORTNIGHT_REPORT_TASK_IDENTIFIER, {});
     await vi.waitFor(
       async () => {
         expect(await sql`select 1 from fortnight_reports`).toHaveLength(1);
@@ -120,17 +120,17 @@ async function reportOnDemand(expectedRequests: number) {
       { timeout: 20_000, interval: 100 },
     );
   } finally {
-    await recovery.close();
+    await backgroundJobs.close();
   }
 }
 
 async function reportOnDemandUntilDone() {
-  const recovery = await setUpBackgroundJobs(recoveryEnv(), () => NOW, {
+  const backgroundJobs = await setUpBackgroundJobs(backgroundJobsEnv(), () => NOW, {
     emailSender: UNUSED_EMAIL_SENDER,
     schedules: false,
   });
   try {
-    await recovery.workerUtils.addJob(FORTNIGHT_REPORT_TASK_IDENTIFIER, {});
+    await backgroundJobs.workerUtils.addJob(FORTNIGHT_REPORT_TASK_IDENTIFIER, {});
     await vi.waitFor(
       async () => {
         expect(
@@ -140,7 +140,7 @@ async function reportOnDemandUntilDone() {
       { timeout: 20_000, interval: 100 },
     );
   } finally {
-    await recovery.close();
+    await backgroundJobs.close();
   }
 }
 
@@ -289,12 +289,12 @@ describe("the fortnight report the server sets up on a real Postgres", () => {
       number: 1,
     });
 
-    const recovery = await setUpBackgroundJobs(recoveryEnv(), () => NOW, {
+    const backgroundJobs = await setUpBackgroundJobs(backgroundJobsEnv(), () => NOW, {
       emailSender: UNUSED_EMAIL_SENDER,
       schedules: false,
     });
     try {
-      await recovery.workerUtils.addJob(FORTNIGHT_REPORT_TASK_IDENTIFIER, {});
+      await backgroundJobs.workerUtils.addJob(FORTNIGHT_REPORT_TASK_IDENTIFIER, {});
       await vi.waitFor(
         async () => {
           expect(await sql`select state from fortnight_reports`).toEqual([
@@ -304,7 +304,7 @@ describe("the fortnight report the server sets up on a real Postgres", () => {
         { timeout: 20_000, interval: 100 },
       );
     } finally {
-      await recovery.close();
+      await backgroundJobs.close();
     }
 
     expect(fakeWsfe.requests).toEqual([]);
@@ -320,12 +320,12 @@ describe("the fortnight report the server sets up on a real Postgres", () => {
               values (8, '2026-10-01', ${NOW.toISOString()}::timestamptz)`;
     fakeWsfe.behave(answersInTurn("fe-caea-sin-movimiento-consultar-held.xml"));
 
-    const recovery = await setUpBackgroundJobs(recoveryEnv(), () => NOW, {
+    const backgroundJobs = await setUpBackgroundJobs(backgroundJobsEnv(), () => NOW, {
       emailSender: UNUSED_EMAIL_SENDER,
       schedules: false,
     });
     try {
-      await recovery.workerUtils.addJob(FORTNIGHT_REPORT_TASK_IDENTIFIER, {});
+      await backgroundJobs.workerUtils.addJob(FORTNIGHT_REPORT_TASK_IDENTIFIER, {});
       await vi.waitFor(
         async () => {
           expect(await sql`select 1 from tax_authority_owed_presentations`).toHaveLength(0);
@@ -333,7 +333,7 @@ describe("the fortnight report the server sets up on a real Postgres", () => {
         { timeout: 20_000, interval: 100 },
       );
     } finally {
-      await recovery.close();
+      await backgroundJobs.close();
     }
 
     expect(fakeWsfe.requests).toHaveLength(1);

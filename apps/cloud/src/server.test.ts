@@ -748,12 +748,12 @@ describe("startServer", () => {
     expect(buildApp).not.toHaveBeenCalled();
   });
 
-  it("wires the resolved recovery infrastructure into the app and closes it when the app closes", async () => {
+  it("wires the resolved background job infrastructure into the app and closes it when the app closes", async () => {
     const listen = vi.fn().mockResolvedValue(undefined);
     const fakeApp = appListeningBy(listen);
     const buildApp = vi.fn().mockReturnValue(fakeApp);
     const close = vi.fn().mockResolvedValue(undefined);
-    const fakeRecovery = {
+    const fakeBackgroundJobs = {
       db: { marker: "fake-db" },
       connections: { withConnection: vi.fn() },
       jobQueue: { enqueueRecoveryRequest: vi.fn() },
@@ -762,7 +762,7 @@ describe("startServer", () => {
       workerUtils: { addJob: vi.fn() },
       close,
     };
-    const setUpBackgroundJobs = vi.fn().mockResolvedValue(fakeRecovery);
+    const setUpBackgroundJobs = vi.fn().mockResolvedValue(fakeBackgroundJobs);
 
     const env = {
       DATABASE_URL: "postgres://user:pass@db/purosur",
@@ -814,154 +814,157 @@ describe("startServer", () => {
       edgeOriginSecret: "edge-secret",
       staticDir: undefined,
       recovery: {
-        db: fakeRecovery.db,
-        jobQueue: fakeRecovery.jobQueue,
-        backofficeOrigin: fakeRecovery.backofficeOrigin,
+        db: fakeBackgroundJobs.db,
+        jobQueue: fakeBackgroundJobs.jobQueue,
+        backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
       },
       session: {
-        db: fakeRecovery.db,
-        backofficeOrigin: fakeRecovery.backofficeOrigin,
+        db: fakeBackgroundJobs.db,
+        backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
       },
       passkeys: {
-        db: fakeRecovery.db,
-        backofficeOrigin: fakeRecovery.backofficeOrigin,
+        db: fakeBackgroundJobs.db,
+        backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
       },
       users: {
-        db: fakeRecovery.db,
-        backofficeOrigin: fakeRecovery.backofficeOrigin,
+        db: fakeBackgroundJobs.db,
+        backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
       },
       registersPointsOfSale: {
-        db: fakeRecovery.db,
-        backofficeOrigin: fakeRecovery.backofficeOrigin,
+        db: fakeBackgroundJobs.db,
+        backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
       },
       roles: {
-        db: fakeRecovery.db,
-        backofficeOrigin: fakeRecovery.backofficeOrigin,
+        db: fakeBackgroundJobs.db,
+        backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
       },
       branchSettings: {
-        db: fakeRecovery.db,
-        backofficeOrigin: fakeRecovery.backofficeOrigin,
+        db: fakeBackgroundJobs.db,
+        backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
       },
       issuerIdentification: {
-        db: fakeRecovery.db,
-        backofficeOrigin: fakeRecovery.backofficeOrigin,
+        db: fakeBackgroundJobs.db,
+        backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
         authorizedCuit: FICTIONAL_CERTIFICATE_CUIT,
       },
       buyerIdentificationThresholds: {
-        db: fakeRecovery.db,
-        backofficeOrigin: fakeRecovery.backofficeOrigin,
+        db: fakeBackgroundJobs.db,
+        backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
       },
       fiscalAddresses: {
-        db: fakeRecovery.db,
-        backofficeOrigin: fakeRecovery.backofficeOrigin,
+        db: fakeBackgroundJobs.db,
+        backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
       },
       categories: {
-        db: fakeRecovery.db,
-        backofficeOrigin: fakeRecovery.backofficeOrigin,
+        db: fakeBackgroundJobs.db,
+        backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
       },
       brands: {
-        db: fakeRecovery.db,
-        backofficeOrigin: fakeRecovery.backofficeOrigin,
+        db: fakeBackgroundJobs.db,
+        backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
       },
       tags: {
-        db: fakeRecovery.db,
-        backofficeOrigin: fakeRecovery.backofficeOrigin,
+        db: fakeBackgroundJobs.db,
+        backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
       },
       products: {
-        db: fakeRecovery.db,
-        backofficeOrigin: fakeRecovery.backofficeOrigin,
+        db: fakeBackgroundJobs.db,
+        backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
       },
       alerts: {
-        db: fakeRecovery.db,
-        backofficeOrigin: fakeRecovery.backofficeOrigin,
+        db: fakeBackgroundJobs.db,
+        backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
       },
       quarantinedEvents: {
-        db: fakeRecovery.db,
-        backofficeOrigin: fakeRecovery.backofficeOrigin,
+        db: fakeBackgroundJobs.db,
+        backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
       },
       registersBelowMinimum: {
-        db: fakeRecovery.db,
+        db: fakeBackgroundJobs.db,
         releaseCheckToken: "release-check-token",
       },
       readableEventVersions: {
         releaseCheckToken: "release-check-token",
       },
       offsiteDumpChecks: {
-        db: fakeRecovery.db,
+        db: fakeBackgroundJobs.db,
         offsiteDumpCheckToken: "offsite-dump-check-token",
       },
       prices: {
-        db: fakeRecovery.db,
-        backofficeOrigin: fakeRecovery.backofficeOrigin,
+        db: fakeBackgroundJobs.db,
+        backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
       },
       discounts: {
-        db: fakeRecovery.db,
-        backofficeOrigin: fakeRecovery.backofficeOrigin,
+        db: fakeBackgroundJobs.db,
+        backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
       },
       restoredOrphanSweep: {
-        connections: fakeRecovery.connections,
+        connections: fakeBackgroundJobs.connections,
         enqueueCreditNote: enqueueCreditNoteJob,
       },
       registers: {
-        db: fakeRecovery.db,
-        backofficeOrigin: fakeRecovery.backofficeOrigin,
+        db: fakeBackgroundJobs.db,
+        backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
       },
       snapshotBackups: {
-        db: fakeRecovery.db,
-        backofficeOrigin: fakeRecovery.backofficeOrigin,
+        db: fakeBackgroundJobs.db,
+        backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
         keysEncryptionKey: KEYS_ENCRYPTION_KEY_BYTES,
       },
       registerRevocations: {
-        db: fakeRecovery.db,
-        backofficeOrigin: fakeRecovery.backofficeOrigin,
+        db: fakeBackgroundJobs.db,
+        backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
         keysEncryptionKey: KEYS_ENCRYPTION_KEY_BYTES,
       },
       compromiseResponses: {
-        db: fakeRecovery.db,
-        backofficeOrigin: fakeRecovery.backofficeOrigin,
+        db: fakeBackgroundJobs.db,
+        backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
         keysEncryptionKey: KEYS_ENCRYPTION_KEY_BYTES,
       },
       bitlockerRecoveryKeys: {
-        db: fakeRecovery.db,
-        backofficeOrigin: fakeRecovery.backofficeOrigin,
+        db: fakeBackgroundJobs.db,
+        backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
         keysEncryptionKey: KEYS_ENCRYPTION_KEY_BYTES,
       },
       stock: {
-        db: fakeRecovery.db,
-        backofficeOrigin: fakeRecovery.backofficeOrigin,
+        db: fakeBackgroundJobs.db,
+        backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
       },
       purchasing: {
-        db: fakeRecovery.db,
-        backofficeOrigin: fakeRecovery.backofficeOrigin,
+        db: fakeBackgroundJobs.db,
+        backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
       },
       salesReports: {
-        db: fakeRecovery.db,
-        backofficeOrigin: fakeRecovery.backofficeOrigin,
+        db: fakeBackgroundJobs.db,
+        backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
       },
       paymentsReports: {
-        db: fakeRecovery.db,
-        backofficeOrigin: fakeRecovery.backofficeOrigin,
+        db: fakeBackgroundJobs.db,
+        backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
       },
       refunds: {
-        db: fakeRecovery.db,
-        backofficeOrigin: fakeRecovery.backofficeOrigin,
+        db: fakeBackgroundJobs.db,
+        backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
       },
       devices: {
-        db: fakeRecovery.db,
+        db: fakeBackgroundJobs.db,
         rotationKey: ROTATION_KEY_BYTES,
         keysEncryptionKey: KEYS_ENCRYPTION_KEY_BYTES,
       },
       firstPinCodes: {
-        db: fakeRecovery.db,
+        db: fakeBackgroundJobs.db,
         rotationKey: ROTATION_KEY_BYTES,
         keysEncryptionKey: KEYS_ENCRYPTION_KEY_BYTES,
       },
       health: {
-        db: fakeRecovery.db,
+        db: fakeBackgroundJobs.db,
         certificateFingerprint: new X509Certificate(VALID_ARCA_CERTIFICATE).fingerprint256,
       },
-      mercadoPagoOrders: { connections: fakeRecovery.connections },
-      mercadoPagoNotifications: { db: fakeRecovery.db, connections: fakeRecovery.connections },
+      mercadoPagoOrders: { connections: fakeBackgroundJobs.connections },
+      mercadoPagoNotifications: {
+        db: fakeBackgroundJobs.db,
+        connections: fakeBackgroundJobs.connections,
+      },
     });
 
     await fakeApp.close();
@@ -1022,8 +1025,8 @@ describe("startServer checking the offsite dump", () => {
   it("sets up no detection without the token, so no alert is ever raised there", async () => {
     const { setUpBackgroundJobs } = await start({});
 
-    const [recoveryEnv] = setUpBackgroundJobs.mock.calls[0] as [Record<string, unknown>];
-    expect(recoveryEnv).not.toHaveProperty("offsiteDumpCheck");
+    const [backgroundJobsEnv] = setUpBackgroundJobs.mock.calls[0] as [Record<string, unknown>];
+    expect(backgroundJobsEnv).not.toHaveProperty("offsiteDumpCheck");
   });
 
   it("gives the report route no token when it is not configured", async () => {
@@ -1121,7 +1124,7 @@ describe("startServer checking the certificate's expiry", () => {
         steps.push("listen");
       }),
     );
-    const recovery = {
+    const backgroundJobs = {
       db: { marker: "fake-db" },
       jobQueue: { enqueueRecoveryRequest: vi.fn() },
       backofficeOrigin: "https://staging.purosur.online",
@@ -1137,7 +1140,7 @@ describe("startServer checking the certificate's expiry", () => {
       arcaEndpoints: unreachableArcaEndpoints,
       initSentry: vi.fn(),
       buildApp: vi.fn().mockReturnValue(fakeApp),
-      setUpBackgroundJobs: vi.fn().mockResolvedValue(recovery),
+      setUpBackgroundJobs: vi.fn().mockResolvedValue(backgroundJobs),
       recordAuthorizedCuit: vi.fn().mockResolvedValue(undefined),
       enqueueMissingTaxAuthorityCounts: vi.fn().mockResolvedValue(undefined),
       enqueueMissingUnclearOutcomes: vi.fn().mockResolvedValue(undefined),
@@ -1146,7 +1149,7 @@ describe("startServer checking the certificate's expiry", () => {
       enqueueArcaCertificateExpiryCheck,
     });
 
-    expect(enqueueArcaCertificateExpiryCheck).toHaveBeenCalledWith(recovery.workerUtils);
+    expect(enqueueArcaCertificateExpiryCheck).toHaveBeenCalledWith(backgroundJobs.workerUtils);
     expect(steps).toEqual(["enqueueArcaCertificateExpiryCheck", "listen"]);
   });
 
@@ -1295,8 +1298,8 @@ describe("startServer with the ARCA private key", () => {
     const { started, setUpBackgroundJobs } = start(baseEnv);
     await started;
 
-    const [recoveryEnv] = setUpBackgroundJobs.mock.calls[0] as [Record<string, unknown>];
-    expect(recoveryEnv).not.toHaveProperty("arcaWsaa");
+    const [backgroundJobsEnv] = setUpBackgroundJobs.mock.calls[0] as [Record<string, unknown>];
+    expect(backgroundJobsEnv).not.toHaveProperty("arcaWsaa");
     expect(warn).toHaveBeenCalledTimes(1);
     expect(warn).toHaveBeenCalledWith(expect.stringContaining("ARCA_PRIVATE_KEY"));
   });
@@ -1385,7 +1388,7 @@ describe("startServer fetching the buyer tax-status values", () => {
         steps.push("listen");
       }),
     );
-    const recovery = {
+    const backgroundJobs = {
       db: {},
       jobQueue: { enqueueRecoveryRequest: vi.fn() },
       backofficeOrigin: "https://staging.purosur.online",
@@ -1393,7 +1396,7 @@ describe("startServer fetching the buyer tax-status values", () => {
       workerUtils: { addJob: vi.fn() },
       close: vi.fn(),
     };
-    const setUpBackgroundJobs = vi.fn().mockResolvedValue(recovery);
+    const setUpBackgroundJobs = vi.fn().mockResolvedValue(backgroundJobs);
     const enqueueBuyerTaxStatusFetch = vi.fn(async () => {
       steps.push("enqueueBuyerTaxStatusFetch");
     });
@@ -1409,7 +1412,7 @@ describe("startServer fetching the buyer tax-status values", () => {
       enqueueMissingCreditNotes: vi.fn().mockResolvedValue(undefined),
       enqueueBuyerTaxStatusFetch,
     });
-    return { started, steps, recovery, setUpBackgroundJobs, enqueueBuyerTaxStatusFetch };
+    return { started, steps, backgroundJobs, setUpBackgroundJobs, enqueueBuyerTaxStatusFetch };
   }
 
   afterEach(() => {
@@ -1436,13 +1439,13 @@ describe("startServer fetching the buyer tax-status values", () => {
   });
 
   it("fetches once on the started job queue before it starts listening", async () => {
-    const { started, steps, recovery, enqueueBuyerTaxStatusFetch } = start({
+    const { started, steps, backgroundJobs, enqueueBuyerTaxStatusFetch } = start({
       ...env,
       ARCA_PRIVATE_KEY: credentials.privateKeyPem,
     });
     await started;
 
-    expect(enqueueBuyerTaxStatusFetch).toHaveBeenCalledWith(recovery.workerUtils);
+    expect(enqueueBuyerTaxStatusFetch).toHaveBeenCalledWith(backgroundJobs.workerUtils);
     expect(steps).toEqual(["enqueueBuyerTaxStatusFetch", "listen"]);
   });
 
@@ -1451,8 +1454,8 @@ describe("startServer fetching the buyer tax-status values", () => {
     const { started, setUpBackgroundJobs, enqueueBuyerTaxStatusFetch } = start(env);
     await started;
 
-    const [recoveryEnv] = setUpBackgroundJobs.mock.calls[0] as [Record<string, unknown>];
-    expect(recoveryEnv).not.toHaveProperty("arcaBuyerTaxStatus");
+    const [backgroundJobsEnv] = setUpBackgroundJobs.mock.calls[0] as [Record<string, unknown>];
+    expect(backgroundJobsEnv).not.toHaveProperty("arcaBuyerTaxStatus");
     expect(enqueueBuyerTaxStatusFetch).not.toHaveBeenCalled();
   });
 });
@@ -1479,7 +1482,7 @@ describe("startServer authorizing sales in real time", () => {
         steps.push("listen");
       }),
     );
-    const recovery = {
+    const backgroundJobs = {
       db: {},
       connections: { withConnection: vi.fn() },
       jobQueue: { enqueueRecoveryRequest: vi.fn() },
@@ -1488,7 +1491,7 @@ describe("startServer authorizing sales in real time", () => {
       workerUtils: { addJob: vi.fn() },
       close: vi.fn(),
     };
-    const setUpBackgroundJobs = vi.fn().mockResolvedValue(recovery);
+    const setUpBackgroundJobs = vi.fn().mockResolvedValue(backgroundJobs);
     const buildApp = vi.fn().mockReturnValue(fakeApp);
     const enqueueMissingTaxAuthorityCounts = vi.fn(async () => {
       steps.push("enqueueMissingTaxAuthorityCounts");
@@ -1517,7 +1520,7 @@ describe("startServer authorizing sales in real time", () => {
     return {
       started,
       steps,
-      recovery,
+      backgroundJobs,
       setUpBackgroundJobs,
       buildApp,
       enqueueMissingTaxAuthorityCounts,
@@ -1551,7 +1554,7 @@ describe("startServer authorizing sales in real time", () => {
   });
 
   it("gives the app the authorization route, with a dedicated connection per point of sale lane, the WSFE invoicing and the certificate's fingerprint", async () => {
-    const { started, buildApp, recovery } = start({
+    const { started, buildApp, backgroundJobs } = start({
       ...env,
       ARCA_PRIVATE_KEY: credentials.privateKeyPem,
     });
@@ -1559,7 +1562,7 @@ describe("startServer authorizing sales in real time", () => {
 
     const [options] = buildApp.mock.calls[0] as [BuildAppOptions];
     expect(options.fiscalAuthorization).toEqual({
-      connections: recovery.connections,
+      connections: backgroundJobs.connections,
       taxAuthority: expect.any(WsfeTaxAuthorityInvoicing),
       certificateFingerprint: credentials.fingerprint,
       enqueueUnclearOutcome: enqueueUnclearOutcomeJob,
@@ -1570,18 +1573,18 @@ describe("startServer authorizing sales in real time", () => {
   });
 
   it("gives the app the restored register orphan sweep route, with a dedicated connection per point of sale lane and the credit note queue", async () => {
-    const { started, buildApp, recovery } = start(env);
+    const { started, buildApp, backgroundJobs } = start(env);
     await started;
 
     const [options] = buildApp.mock.calls[0] as [BuildAppOptions];
     expect(options.restoredOrphanSweep).toEqual({
-      connections: recovery.connections,
+      connections: backgroundJobs.connections,
       enqueueCreditNote: enqueueCreditNoteJob,
     });
   });
 
   it("has the configuration of a register's point of sale enqueue the tax authority's count", async () => {
-    const { started, buildApp, recovery } = start({
+    const { started, buildApp, backgroundJobs } = start({
       ...env,
       ARCA_PRIVATE_KEY: credentials.privateKeyPem,
     });
@@ -1589,7 +1592,7 @@ describe("startServer authorizing sales in real time", () => {
 
     const [options] = buildApp.mock.calls[0] as [BuildAppOptions];
     expect(options.registersPointsOfSale).toEqual({
-      db: recovery.db,
+      db: backgroundJobs.db,
       backofficeOrigin: "https://staging.purosur.online",
       enqueueTaxAuthorityCount: enqueueTaxAuthorityCountJob,
     });
@@ -1633,13 +1636,13 @@ describe("startServer authorizing sales in real time", () => {
   });
 
   it("asks again for the count of every claimed point of sale that has none before it starts listening", async () => {
-    const { started, steps, recovery, enqueueMissingTaxAuthorityCounts } = start({
+    const { started, steps, backgroundJobs, enqueueMissingTaxAuthorityCounts } = start({
       ...env,
       ARCA_PRIVATE_KEY: credentials.privateKeyPem,
     });
     await started;
 
-    expect(enqueueMissingTaxAuthorityCounts).toHaveBeenCalledWith(recovery.db);
+    expect(enqueueMissingTaxAuthorityCounts).toHaveBeenCalledWith(backgroundJobs.db);
     expect(steps).toEqual([
       "enqueueMissingTaxAuthorityCounts",
       "enqueueMissingUnclearOutcomes",
@@ -1650,33 +1653,33 @@ describe("startServer authorizing sales in real time", () => {
   });
 
   it("asks again for the decision of every unclear document that is still undecided", async () => {
-    const { started, recovery, enqueueMissingUnclearOutcomes } = start({
+    const { started, backgroundJobs, enqueueMissingUnclearOutcomes } = start({
       ...env,
       ARCA_PRIVATE_KEY: credentials.privateKeyPem,
     });
     await started;
 
-    expect(enqueueMissingUnclearOutcomes).toHaveBeenCalledWith(recovery.db);
+    expect(enqueueMissingUnclearOutcomes).toHaveBeenCalledWith(backgroundJobs.db);
   });
 
   it("asks again for the numbering conflict work still owed before it starts listening", async () => {
-    const { started, recovery, enqueueMissingNumberingConflicts } = start({
+    const { started, backgroundJobs, enqueueMissingNumberingConflicts } = start({
       ...env,
       ARCA_PRIVATE_KEY: credentials.privateKeyPem,
     });
     await started;
 
-    expect(enqueueMissingNumberingConflicts).toHaveBeenCalledWith(recovery.db);
+    expect(enqueueMissingNumberingConflicts).toHaveBeenCalledWith(backgroundJobs.db);
   });
 
   it("asks again for every credit note still to be issued before it starts listening", async () => {
-    const { started, recovery, enqueueMissingCreditNotes } = start({
+    const { started, backgroundJobs, enqueueMissingCreditNotes } = start({
       ...env,
       ARCA_PRIVATE_KEY: credentials.privateKeyPem,
     });
     await started;
 
-    expect(enqueueMissingCreditNotes).toHaveBeenCalledWith(recovery.db);
+    expect(enqueueMissingCreditNotes).toHaveBeenCalledWith(backgroundJobs.db);
   });
 
   it("wires none of it without the key, as no WSAA token is ever renewed to ask with", async () => {
@@ -1690,8 +1693,8 @@ describe("startServer authorizing sales in real time", () => {
     } = start(env);
     await started;
 
-    const [recoveryEnv] = setUpBackgroundJobs.mock.calls[0] as [Record<string, unknown>];
-    expect(recoveryEnv).not.toHaveProperty("arcaInvoicing");
+    const [backgroundJobsEnv] = setUpBackgroundJobs.mock.calls[0] as [Record<string, unknown>];
+    expect(backgroundJobsEnv).not.toHaveProperty("arcaInvoicing");
     const [options] = buildApp.mock.calls[0] as [BuildAppOptions];
     expect(options).not.toHaveProperty("fiscalAuthorization");
     expect(options.registersPointsOfSale).not.toHaveProperty("enqueueTaxAuthorityCount");
@@ -1719,7 +1722,7 @@ describe("startServer creating Mercado Pago QR orders", () => {
   };
 
   function start(startEnv: Record<string, string>) {
-    const recovery = {
+    const backgroundJobs = {
       db: {},
       connections: { withConnection: vi.fn() },
       jobQueue: { enqueueRecoveryRequest: vi.fn() },
@@ -1729,7 +1732,7 @@ describe("startServer creating Mercado Pago QR orders", () => {
       close: vi.fn(),
     };
     const buildApp = vi.fn().mockReturnValue(appListeningBy(vi.fn()));
-    const setUp = vi.fn().mockResolvedValue(recovery);
+    const setUp = vi.fn().mockResolvedValue(backgroundJobs);
     const started = startServer(startEnv, {
       arcaEndpoints: arcaEndpointsOf,
       initSentry: vi.fn(),
@@ -1742,7 +1745,7 @@ describe("startServer creating Mercado Pago QR orders", () => {
       enqueueMissingNumberingConflicts: vi.fn().mockResolvedValue(undefined),
       enqueueMissingCreditNotes: vi.fn().mockResolvedValue(undefined),
     });
-    return { started, buildApp, recovery, setUp };
+    return { started, buildApp, backgroundJobs, setUp };
   }
 
   afterEach(() => {
@@ -1750,7 +1753,7 @@ describe("startServer creating Mercado Pago QR orders", () => {
   });
 
   it("gives the app the payment route with a dedicated connection per transaction lane and the Mercado Pago orders when both variables are set", async () => {
-    const { started, buildApp, recovery } = start({
+    const { started, buildApp, backgroundJobs } = start({
       ...env,
       MERCADOPAGO_ACCESS_TOKEN: "APP_USR-fictional-access-token",
       MERCADOPAGO_WEBHOOK_SECRET: "fictional-webhook-secret",
@@ -1768,16 +1771,19 @@ describe("startServer creating Mercado Pago QR orders", () => {
       refundOrder: expect.any(Function),
       readOrderRefunds: expect.any(Function),
     };
-    expect(options.mercadoPagoOrders).toEqual({ connections: recovery.connections, mercadoPago });
+    expect(options.mercadoPagoOrders).toEqual({
+      connections: backgroundJobs.connections,
+      mercadoPago,
+    });
     expect(options.mercadoPagoNotifications).toEqual({
-      db: recovery.db,
-      connections: recovery.connections,
+      db: backgroundJobs.db,
+      connections: backgroundJobs.connections,
       mercadoPago,
       webhookSecret: "fictional-webhook-secret",
     });
   });
 
-  it("gives the setup of the recovery infrastructure the Mercado Pago orders, so the pending check runs, when all variables are set", async () => {
+  it("gives the setup of the background job infrastructure the Mercado Pago orders, so the pending check runs, when all variables are set", async () => {
     const { started, setUp } = start({
       ...env,
       MERCADOPAGO_ACCESS_TOKEN: "APP_USR-fictional-access-token",
@@ -1785,8 +1791,8 @@ describe("startServer creating Mercado Pago QR orders", () => {
     });
     await started;
 
-    const [recoveryEnv] = setUp.mock.calls[0] as [SetUpBackgroundJobsEnv];
-    expect(recoveryEnv.mercadoPago).toEqual({
+    const [backgroundJobsEnv] = setUp.mock.calls[0] as [SetUpBackgroundJobsEnv];
+    expect(backgroundJobsEnv.mercadoPago).toEqual({
       longestCallMs: expect.any(Number),
       createQrOrder: expect.any(Function),
       createPointOrder: expect.any(Function),
@@ -1798,23 +1804,23 @@ describe("startServer creating Mercado Pago QR orders", () => {
     });
   });
 
-  it("gives the setup of the recovery infrastructure no Mercado Pago orders when the variables are not set", async () => {
+  it("gives the setup of the background job infrastructure no Mercado Pago orders when the variables are not set", async () => {
     const { started, setUp } = start(env);
     await started;
 
-    const [recoveryEnv] = setUp.mock.calls[0] as [SetUpBackgroundJobsEnv];
-    expect(recoveryEnv).not.toHaveProperty("mercadoPago");
+    const [backgroundJobsEnv] = setUp.mock.calls[0] as [SetUpBackgroundJobsEnv];
+    expect(backgroundJobsEnv).not.toHaveProperty("mercadoPago");
   });
 
   it("gives the app the payment route without Mercado Pago when neither variable is set", async () => {
-    const { started, buildApp, recovery } = start(env);
+    const { started, buildApp, backgroundJobs } = start(env);
     await started;
 
     const [options] = buildApp.mock.calls[0] as [BuildAppOptions];
-    expect(options.mercadoPagoOrders).toEqual({ connections: recovery.connections });
+    expect(options.mercadoPagoOrders).toEqual({ connections: backgroundJobs.connections });
     expect(options.mercadoPagoNotifications).toEqual({
-      db: recovery.db,
-      connections: recovery.connections,
+      db: backgroundJobs.db,
+      connections: backgroundJobs.connections,
     });
   });
 
@@ -1855,7 +1861,7 @@ describe("startServer reading supplier price lists", () => {
   const aiKey = { ANTHROPIC_API_KEY: "fictional-anthropic-key" };
 
   async function startedWith(startEnv: Record<string, string>) {
-    const recovery = {
+    const backgroundJobs = {
       db: {},
       connections: { withConnection: vi.fn() },
       jobQueue: { enqueueRecoveryRequest: vi.fn() },
@@ -1864,7 +1870,7 @@ describe("startServer reading supplier price lists", () => {
       workerUtils: { addJob: vi.fn() },
       close: vi.fn(),
     };
-    const setUp = vi.fn().mockResolvedValue(recovery);
+    const setUp = vi.fn().mockResolvedValue(backgroundJobs);
     const buildApp = vi.fn().mockReturnValue(appListeningBy(vi.fn()));
     await startServer(startEnv, {
       arcaEndpoints: arcaEndpointsOf,
@@ -1881,15 +1887,15 @@ describe("startServer reading supplier price lists", () => {
     const [appOptions] = buildApp.mock.calls[0] as [
       { purchasing?: { supplierPriceListFiles?: unknown } },
     ];
-    return { recoveryEnv: setUp.mock.calls[0]?.[0] as SetUpBackgroundJobsEnv, appOptions };
+    return { backgroundJobsEnv: setUp.mock.calls[0]?.[0] as SetUpBackgroundJobsEnv, appOptions };
   }
 
-  async function recoveryEnvFor(startEnv: Record<string, string>) {
-    return (await startedWith(startEnv)).recoveryEnv;
+  async function backgroundJobsEnvFor(startEnv: Record<string, string>) {
+    return (await startedWith(startEnv)).backgroundJobsEnv;
   }
 
   it("gives the purchasing routes the same files the reading job reads when the AI key and the bucket are configured", async () => {
-    const { recoveryEnv, appOptions } = await startedWith({
+    const { backgroundJobsEnv, appOptions } = await startedWith({
       ...env,
       ...aiKey,
       ...priceListsBucket,
@@ -1897,7 +1903,7 @@ describe("startServer reading supplier price lists", () => {
 
     expect(appOptions.purchasing?.supplierPriceListFiles).toBeDefined();
     expect(appOptions.purchasing?.supplierPriceListFiles).toBe(
-      recoveryEnv.supplierPriceListReading?.files,
+      backgroundJobsEnv.supplierPriceListReading?.files,
     );
   });
 
@@ -1908,25 +1914,25 @@ describe("startServer reading supplier price lists", () => {
     expect(appOptions.purchasing).not.toHaveProperty("supplierPriceListFiles");
   });
 
-  it("gives the setup of the recovery infrastructure the files and the extractor when the AI key and the bucket are configured", async () => {
-    const recoveryEnv = await recoveryEnvFor({ ...env, ...aiKey, ...priceListsBucket });
+  it("gives the setup of the background job infrastructure the files and the extractor when the AI key and the bucket are configured", async () => {
+    const backgroundJobsEnv = await backgroundJobsEnvFor({ ...env, ...aiKey, ...priceListsBucket });
 
-    expect(recoveryEnv.supplierPriceListReading).toEqual({
+    expect(backgroundJobsEnv.supplierPriceListReading).toEqual({
       files: expect.objectContaining({ store: expect.any(Function), read: expect.any(Function) }),
       extractor: expect.objectContaining({ extract: expect.any(Function) }),
     });
   });
 
   it("reads no supplier price list without the AI key", async () => {
-    const recoveryEnv = await recoveryEnvFor({ ...env, ...priceListsBucket });
+    const backgroundJobsEnv = await backgroundJobsEnvFor({ ...env, ...priceListsBucket });
 
-    expect(recoveryEnv).not.toHaveProperty("supplierPriceListReading");
+    expect(backgroundJobsEnv).not.toHaveProperty("supplierPriceListReading");
   });
 
   it("reads no supplier price list without the bucket", async () => {
-    const recoveryEnv = await recoveryEnvFor({ ...env, ...aiKey });
+    const backgroundJobsEnv = await backgroundJobsEnvFor({ ...env, ...aiKey });
 
-    expect(recoveryEnv).not.toHaveProperty("supplierPriceListReading");
+    expect(backgroundJobsEnv).not.toHaveProperty("supplierPriceListReading");
   });
 });
 
@@ -2051,7 +2057,7 @@ describe("createBackgroundJobQueuePool", () => {
 });
 
 describe("closeBackgroundJobResources", () => {
-  function recoveryResources(events: string[]) {
+  function backgroundJobResources(events: string[]) {
     return {
       worker: {
         stop: vi.fn().mockImplementation(async () => {
@@ -2079,7 +2085,7 @@ describe("closeBackgroundJobResources", () => {
   it("releases the job-queue utilities before ending the pool they use, the worker first and the database client last", async () => {
     const events: string[] = [];
 
-    await closeBackgroundJobResources(recoveryResources(events));
+    await closeBackgroundJobResources(backgroundJobResources(events));
 
     expect(events).toEqual([
       "worker stopped",
@@ -2091,7 +2097,7 @@ describe("closeBackgroundJobResources", () => {
 
   it("still closes every later resource when two of them fail, then rejects with both failures", async () => {
     const events: string[] = [];
-    const resources = recoveryResources(events);
+    const resources = backgroundJobResources(events);
     resources.worker.stop.mockRejectedValue(new Error("worker stop failed"));
     resources.jobQueuePool.end.mockImplementation(async () => {
       events.push("job-queue pool ended");

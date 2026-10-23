@@ -66,7 +66,7 @@ describe("the background worker the server sets up on a real Postgres", () => {
     if (!overdue || !dueLater) {
       throw new Error("test setup: inserting the alerts returned no rows");
     }
-    const recovery = await setUpBackgroundJobs(
+    const backgroundJobs = await setUpBackgroundJobs(
       {
         databaseUrl: integrationDb.databaseUrl,
         emailSender: { transport: "log" },
@@ -93,7 +93,7 @@ describe("the background worker the server sets up on a real Postgres", () => {
       const [notYetDue] = await db.select().from(alerts).where(eq(alerts.id, dueLater.id));
       expect(notYetDue?.level).toBe("warning");
     } finally {
-      await recovery.close();
+      await backgroundJobs.close();
     }
   }, 60_000);
 });

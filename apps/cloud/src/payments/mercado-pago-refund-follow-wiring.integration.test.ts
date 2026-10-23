@@ -47,7 +47,7 @@ function scheduledFollows() {
 describe("the Mercado Pago refund follow the server sets up on a real Postgres", () => {
   it("has the watchdog start the chain when none is scheduled", async () => {
     await sql`delete from graphile_worker._private_jobs`;
-    const recovery = await setUpBackgroundJobs(
+    const backgroundJobs = await setUpBackgroundJobs(
       {
         databaseUrl: integrationDb.databaseUrl,
         emailSender: { transport: "log" },
@@ -62,14 +62,14 @@ describe("the Mercado Pago refund follow the server sets up on a real Postgres",
       { emailSender: UNUSED_EMAIL_SENDER, schedules: false },
     );
     try {
-      await recovery.workerUtils.addJob(WATCHDOG_TASK_IDENTIFIER, {});
+      await backgroundJobs.workerUtils.addJob(WATCHDOG_TASK_IDENTIFIER, {});
 
       await vi.waitFor(async () => expect(await scheduledFollows()).toHaveLength(1), {
         timeout: 20_000,
         interval: 100,
       });
     } finally {
-      await recovery.close();
+      await backgroundJobs.close();
     }
   }, 90_000);
 });

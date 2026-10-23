@@ -84,7 +84,7 @@ describe("the background worker the server sets up with a snapshots bucket on a 
       { ...common, id: FAILED_ID, status: "failed", failureReason: "hash_mismatch" },
     ]);
     const removed: string[] = [];
-    const recovery = await setUpBackgroundJobs(
+    const backgroundJobs = await setUpBackgroundJobs(
       {
         databaseUrl: integrationDb.databaseUrl,
         emailSender: { transport: "log" },
@@ -125,7 +125,7 @@ describe("the background worker the server sets up with a snapshots bucket on a 
       );
       expect(removed).toEqual([FAILED_ID]);
     } finally {
-      await recovery.close();
+      await backgroundJobs.close();
     }
   }, 60_000);
 });

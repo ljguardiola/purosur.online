@@ -117,7 +117,7 @@ beforeEach(async () => {
 });
 
 async function runReportTask() {
-  const recovery = await setUpBackgroundJobs(
+  const backgroundJobs = await setUpBackgroundJobs(
     {
       databaseUrl: integrationDb.databaseUrl,
       emailSender: { transport: "log" as const },
@@ -136,7 +136,7 @@ async function runReportTask() {
     { emailSender: UNUSED_EMAIL_SENDER, schedules: false },
   );
   try {
-    await recovery.workerUtils.addJob(FORTNIGHT_REPORT_TASK_IDENTIFIER, {});
+    await backgroundJobs.workerUtils.addJob(FORTNIGHT_REPORT_TASK_IDENTIFIER, {});
     await vi.waitFor(
       async () => {
         expect(
@@ -146,7 +146,7 @@ async function runReportTask() {
       { timeout: 20_000, interval: 100 },
     );
   } finally {
-    await recovery.close();
+    await backgroundJobs.close();
   }
 }
 
