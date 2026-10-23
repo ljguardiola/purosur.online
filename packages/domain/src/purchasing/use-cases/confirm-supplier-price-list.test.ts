@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { SUPPLIER_PRICE_LIST_STATES } from "../model/supplier-price-list.js";
 import { confirmSupplierPriceList } from "./confirm-supplier-price-list.js";
+import type { SupplierItemLink } from "./supplier-price-list-store.js";
 import { FakeSupplierPriceListStore } from "./test-support/fake-supplier-price-list-store.js";
 
 const NOW = new Date("2026-03-12T15:00:00Z");
@@ -160,13 +161,17 @@ describe("confirmSupplierPriceList", () => {
 });
 
 describe("confirmSupplierPriceList and the supplier's items", () => {
-  const LINK = { productId: "product-1", packagingId: "packaging-1", vatRate: 2100 };
+  const LINK: SupplierItemLink = {
+    productId: "product-1",
+    packagingId: "packaging-1",
+    vatRate: 2100,
+  };
 
   type SeededRow = {
     code?: string | null;
     description: string;
     priceCents: number | null;
-    link?: typeof LINK | null;
+    link?: SupplierItemLink | null;
   };
 
   function setupRows(rows: SeededRow[]) {
