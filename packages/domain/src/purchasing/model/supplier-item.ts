@@ -29,6 +29,12 @@ export function sameSupplierItemKey(a: SupplierItemKey, b: SupplierItemKey): boo
   return a.kind === b.kind && a.value === b.value;
 }
 
+// The item's description follows its current price: the latest list by date, a tie going to the
+// list confirmed later, which is the one being confirmed now.
+export function supersedesCurrentPrice(listDate: string, currentListDate: string | null): boolean {
+  return currentListDate === null || listDate >= currentListDate;
+}
+
 // Basis points, so a rate is exact: 2100 is 21% and 1050 is 10.5%.
 export const SUPPLIER_ITEM_VAT_RATES = [2100, 1050] as const;
 

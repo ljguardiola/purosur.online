@@ -1,4 +1,8 @@
-import { lastRowOfEachItem, sameSupplierItemKey } from "../model/supplier-item.js";
+import {
+  lastRowOfEachItem,
+  sameSupplierItemKey,
+  supersedesCurrentPrice,
+} from "../model/supplier-item.js";
 import {
   decideConfirmation,
   isSupplierPriceListUnderReview,
@@ -65,7 +69,9 @@ export function confirmSupplierPriceList(
       let itemId: string;
       if (item) {
         itemId = item.id;
-        await tx.describeSupplierItem(itemId, row.description);
+        if (supersedesCurrentPrice(decision.listDate, item.currentListDate)) {
+          await tx.describeSupplierItem(itemId, row.description);
+        }
         if (link) {
           await tx.rememberSupplierItemLink(itemId, link);
         }
