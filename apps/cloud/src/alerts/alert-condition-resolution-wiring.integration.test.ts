@@ -534,6 +534,96 @@ describe("the background worker the server sets up on a real Postgres", () => {
     }
   }, 90_000);
 
+  it("keeps the alert of a presentation with a rejected credit note open until its remedy is recorded, then clears it", async () => {
+    const registerId = await configureOfflinePointOfSale(db, {
+      registerName: "Caja con nota rechazada",
+      realTimePointOfSale: 17,
+      offlinePointOfSale: 18,
+      now: NOW,
+    });
+    const fortnight = { start: "2019-12-01", end: "2019-12-15" };
+    await new DrizzleOfflineAuthorizationCodeStore(db).holdAcquisition(fortnight, (acquisition) =>
+      acquisition.keep({
+        code: { code: "36123456789099", fortnight, reportDeadline: "2020-01-20" },
+        obtainedAt: new Date("2019-12-10T12:00:00.000Z"),
+        obtainedThrough: "requested",
+      }),
+    );
+    await db.insert(fortnightDocumentReports).values({
+      pointOfSaleNumber: 18,
+      fortnightStart: fortnight.start,
+      fortnightEnd: fortnight.end,
+      documentType: "credit_note_c",
+      state: "refused",
+      reportedThrough: 2,
+      rejectedNumber: 3,
+      rejections: [{ code: 10016, message: "Fictional observation" }],
+      lastAttemptAt: new Date("2020-01-03T12:00:00.000Z"),
+      recordedAt: new Date("2020-01-03T12:00:00.000Z"),
+    });
+    const recovery = await setUpRecovery(
+      {
+        databaseUrl: integrationDb.databaseUrl,
+        emailSender: { transport: "log" },
+        emailFrom: FICTIONAL_RECOVERY_SENDER,
+        emailReplyTo: FICTIONAL_RECOVERY_REPLY_TO,
+        backofficeOrigin: "https://staging.purosur.online",
+        arcaCertificate: { environment: "production", notAfter: new Date("2126-09-01T19:42:17Z") },
+        arcaVitality: { endpoint: UNREACHABLE_WSFE_ENDPOINT },
+      },
+      () => NOW,
+      { emailSender: UNUSED_EMAIL_SENDER, schedules: false },
+    );
+    const scope = "18:2019-12-01:credit_note_c";
+
+    try {
+      await sql`select graphile_worker.add_job('alert-condition-resolution')`;
+      await vi.waitFor(
+        async () => {
+          const rows = await db.select().from(alerts).where(eq(alerts.scope, scope));
+          expect(rows).toMatchObject([
+            {
+              kind: "fortnight_report_document_rejected",
+              level: "critical",
+              audience: "all",
+              resolvedAt: null,
+              conditionClearedAt: null,
+              detail: {
+                pointOfSaleNumber: 18,
+                registerId,
+                fortnightStart: "2019-12-01",
+                fortnightEnd: "2019-12-15",
+                documentType: "credit_note_c",
+                rejectedNumber: 3,
+              },
+            },
+          ]);
+        },
+        { timeout: 20_000, interval: 100 },
+      );
+
+      await insertRejectedDocumentRemedy(db, {
+        pointOfSale: 18,
+        fortnight,
+        number: 3,
+        correction: null,
+        documentType: "credit_note_c",
+        rejectedAt: new Date("2020-01-03T12:00:00.000Z"),
+        recordedAt: new Date("2020-01-04T12:00:00.000Z"),
+      });
+      await sql`select graphile_worker.add_job('alert-condition-resolution')`;
+      await vi.waitFor(
+        async () => {
+          const rows = await db.select().from(alerts).where(eq(alerts.scope, scope));
+          expect(rows[0]?.conditionClearedAt).toEqual(NOW);
+        },
+        { timeout: 20_000, interval: 100 },
+      );
+    } finally {
+      await recovery.close();
+    }
+  }, 90_000);
+
   it("opens the alert of a register whose changes have gone more than an hour without a verified generation", async () => {
     const overdue = await insertEnrolledInstallation(db, {
       now: NOW,
