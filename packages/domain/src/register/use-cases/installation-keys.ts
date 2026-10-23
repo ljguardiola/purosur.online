@@ -1,4 +1,6 @@
-import { FIRST_KEY_VERSION, inVersionOrder, latestKey } from "../model/installation-key.js";
+import { contingencyTicketSealingKey } from "../../backups/index.js";
+import { inVersionOrder, latestKey } from "../../shared/index.js";
+import { FIRST_KEY_VERSION } from "../model/installation-key.js";
 import type {
   InstallationKeyGenerator,
   RegisterStoreTransaction,
@@ -44,7 +46,7 @@ export async function registerKeysHandedOver(
       ? snapshotKeysStillNeeded(held.snapshotKeys, held.retainedSnapshotKeyVersions)
       : [await firstKey(keys, (key) => tx.recordSnapshotKey(registerId, key))];
   const contingencyTicketKey =
-    latestKey(held.contingencyTicketKeys) ??
+    contingencyTicketSealingKey(held.contingencyTicketKeys) ??
     (await firstKey(keys, (key) => tx.recordContingencyTicketKey(registerId, key)));
   return { snapshotKeyVersions, contingencyTicketKey };
 }

@@ -8,6 +8,8 @@ import type {
   FollowMercadoPagoChargeOutcome,
   OpenSale,
   PaymentMethodAvailability,
+  ReadContingencyBackupTicketOfSaleOutcome,
+  ReadContingencyBackupTicketsOutcome,
   ReceiptPrintStatusOutcome,
   StartMercadoPagoChargeOutcome,
 } from "@purosur/contracts";
@@ -115,6 +117,10 @@ export type ChargeScreenProps = {
     paymentTransactionId: string,
   ) => Promise<AbandonMercadoPagoChargeOutcome>;
   receiptPrintStatus: (saleId: string) => Promise<ReceiptPrintStatusOutcome>;
+  contingencyBackupTicketOfSale: (
+    saleId: string,
+  ) => Promise<ReadContingencyBackupTicketOfSaleOutcome>;
+  contingencyBackupTickets: () => Promise<ReadContingencyBackupTicketsOutcome>;
   onSessionInvalid: () => void;
 };
 
@@ -133,6 +139,8 @@ export function ChargeScreen({
   followMercadoPagoCharge,
   abandonMercadoPagoCharge,
   receiptPrintStatus,
+  contingencyBackupTicketOfSale,
+  contingencyBackupTickets,
   onSessionInvalid,
 }: ChargeScreenProps) {
   const navigate = useNavigate();
@@ -359,6 +367,8 @@ export function ChargeScreen({
           saleId={step.sale.id}
           payment={step.payment}
           readReceiptStatus={receiptPrintStatus}
+          readBackupTicket={contingencyBackupTicketOfSale}
+          readBackupTickets={contingencyBackupTickets}
           mayChangePrinter={mayChangePrinter}
           onNewSale={backToSale}
         />

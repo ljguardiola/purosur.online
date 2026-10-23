@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { VersionedKey } from "../model/installation-key.js";
+import type { VersionedKey } from "../../shared/index.js";
 import { revokeInstallationAndRotateKeys } from "./revoke-installation-and-rotate-keys.js";
 import { FakeEveryInstallationRevocationStore } from "./test-support/fake-every-installation-revocation-store.js";
 import { SequentialInstallationKeys } from "./test-support/fake-register-store.js";

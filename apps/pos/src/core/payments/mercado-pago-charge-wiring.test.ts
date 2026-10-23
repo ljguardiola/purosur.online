@@ -15,6 +15,7 @@ import {
 } from "./test-support/mercado-pago-charge-requests";
 
 const NOW = new Date("2026-10-09T12:00:00.000Z");
+const UNTICKETED = <TSettle>(settle: TSettle) => settle;
 const PROVIDER_UNAVAILABLE = { status: 503, code: "payment_provider_unavailable" };
 
 let database: LocalDatabase;
@@ -64,6 +65,7 @@ describe("the register's Mercado Pago QR charging", () => {
       readOutboxChainKey: async () => undefined,
       now: () => NOW,
       ids: { next: () => "id" },
+      ticketedSettlement: UNTICKETED,
     };
 
     for (const charging of [
@@ -110,6 +112,7 @@ describe("the register's Mercado Pago QR charging", () => {
       readOutboxChainKey: async () => "key",
       now: () => NOW,
       ids: { next: () => "point-1" },
+      ticketedSettlement: UNTICKETED,
     });
 
     expect(await charging.start?.({ saleId, method: "POINT", amount: 3000 })).toEqual({
@@ -178,6 +181,7 @@ describe("the register's Mercado Pago QR charging", () => {
       readOutboxChainKey: async () => "key",
       now: () => NOW,
       ids: { next: () => POINT_PAYMENT_ID },
+      ticketedSettlement: UNTICKETED,
     });
 
     expect(await charging.start?.({ saleId, method: "POINT", amount: 3000 })).toMatchObject({
@@ -230,6 +234,7 @@ describe("the register's Mercado Pago QR charging", () => {
       readOutboxChainKey: async () => "key",
       now: () => NOW,
       ids: { next: () => "id" },
+      ticketedSettlement: UNTICKETED,
     });
 
     expect(await charging.follow?.({ paymentTransactionId: "qr-1" })).toEqual({
@@ -267,6 +272,7 @@ describe("the register's Mercado Pago QR charging", () => {
       readOutboxChainKey: async () => "key",
       now: () => NOW,
       ids: { next: () => "id" },
+      ticketedSettlement: UNTICKETED,
     });
 
     expect(await charging.followInterrupted?.(charging.chargesLeftPending?.() ?? [])).toEqual({
@@ -315,6 +321,7 @@ describe("the register's Mercado Pago QR charging", () => {
       readOutboxChainKey: async () => Buffer.alloc(32, 7).toString("base64"),
       now: () => NOW,
       ids: { next: () => "id" },
+      ticketedSettlement: UNTICKETED,
     });
 
     expect(await charging.abandon?.({ paymentTransactionId: "qr-1" })).toEqual({
