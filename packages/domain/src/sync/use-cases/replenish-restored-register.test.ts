@@ -1,5 +1,15 @@
 import { describe, expect, it } from "vitest";
-import type { RestoredCreditNoteAnswer, SaleVoidCreditNote } from "../../fiscal/index.js";
+import type {
+  FacturaC,
+  RestoredCreditNoteAnswer,
+  RestoredUnclearDeferral,
+  SaleVoidCreditNote,
+} from "../../fiscal/index.js";
+import {
+  FICTIONAL_CUIT,
+  FICTIONAL_GROSS_INCOME_REGISTRATION,
+  FICTIONAL_LEGAL_NAME,
+} from "../../fiscal/test-support/fictional-tax-identities.js";
 import type { SyncedFact } from "../model/synced-fact.js";
 import {
   A_CLOCK_CORRECTED_FACT,
@@ -16,6 +26,23 @@ import {
   FakeRegisterReplenishmentStore,
 } from "./test-support/fake-register-replenishment.js";
 import { anEvent, aSaleVoidedEvent } from "./test-support/fake-restored-register-replenishment.js";
+
+const A_FACTURA_C: FacturaC = {
+  invoiceClass: "C",
+  total: 1200,
+  netAmount: 1200,
+  vatAmount: 0,
+  issuer: {
+    legalName: FICTIONAL_LEGAL_NAME,
+    cuit: FICTIONAL_CUIT,
+    taxStatus: "MONOTRIBUTO",
+    grossIncomeRegistration: FICTIONAL_GROSS_INCOME_REGISTRATION,
+    activityStartDate: "2020-01-01",
+    version: 3,
+  },
+  buyerTaxStatusCode: 5,
+  buyerTaxStatusDescription: "Consumidor Final",
+};
 
 const PREDECESSOR = { deviceId: "device-old", lastAcknowledgedSeq: 52 };
 
@@ -313,6 +340,7 @@ describe("replenishRestoredRegister", () => {
       appliedEventIds: [],
       creditNoteAnswers: [],
       heldCreditNotes: [],
+      rebuiltUnclearDeferrals: [],
     });
   });
 
@@ -687,7 +715,7 @@ describe("replenishRestoredRegister", () => {
       expect(store.state.appliedEventIds).toEqual([record.event.event_id, failure.event.event_id]);
     });
 
-    it("writes no record of an unclear outcome, reporting it as partially replenished, while it rebuilds a record of another reason", async () => {
+    it("writes no record of an unclear outcome that names no waiting document, reporting it as partially replenished, while it rebuilds a record of another reason", async () => {
       const { feed, store, decoder, record, run } = aGateFailureWithItsRecord();
       const unclear = anEvent("device-old", 55);
       const unclearRecord: SyncedFact = {
@@ -701,6 +729,7 @@ describe("replenishRestoredRegister", () => {
           shortCode: "9XP2M4QK",
           routedAt: new Date("2026-10-07T11:00:01.000Z"),
         },
+        unclearDocument: null,
       };
       decoder.facts.set(unclear.event.event_id, unclearRecord);
       feed.answers = [aPage([record, unclear])];
@@ -728,6 +757,230 @@ describe("replenishRestoredRegister", () => {
       expect(
         store.state.facts.filter(({ fact }) => fact.kind === "deferred_sale_recorded"),
       ).toHaveLength(1);
+    });
+  });
+
+  describe("the deferred-sale record of an unclear outcome", () => {
+    function anUnclearOutcomeRecord(saleId: string, number: number): SyncedFact {
+      return {
+        kind: "deferred_sale_recorded",
+        deferredSale: {
+          id: `deferred-of-${saleId}`,
+          saleId,
+          occurredAt: new Date("2026-10-07T11:00:00.000Z"),
+          total: 1200,
+          reason: "unclear_outcome",
+          shortCode: `CODE-${saleId}`,
+          routedAt: new Date("2026-10-07T11:00:01.000Z"),
+        },
+        unclearDocument: {
+          fiscalDocumentId: `document-of-${saleId}`,
+          pointOfSale: 7,
+          number,
+          issuedOn: "2026-10-07",
+          document: A_FACTURA_C,
+          reservedAt: new Date("2026-10-07T10:59:58.000Z"),
+        },
+      };
+    }
+
+    const UNSETTLED = (saleId: string): RestoredUnclearDeferral => ({
+      fiscalDocumentId: `document-of-${saleId}`,
+      answer: { kind: "unsettled" },
+    });
+    const REJECTED = (saleId: string): RestoredUnclearDeferral => ({
+      fiscalDocumentId: `document-of-${saleId}`,
+      answer: { kind: "rejected" },
+    });
+    const AUTHORIZED = (saleId: string): RestoredUnclearDeferral => ({
+      fiscalDocumentId: `document-of-${saleId}`,
+      answer: {
+        kind: "authorized",
+        authorizationCode: "75123456789012",
+        authorizationCodeDueOn: "2026-10-18",
+        answeredAt: new Date("2026-10-08T15:00:00.000Z"),
+      },
+    });
+
+    function anUnclearOutcomeRegister(saleId = "sale-2") {
+      const run = aRestoredRegister();
+      const record = anEvent("device-old", 53);
+      const fact = anUnclearOutcomeRecord(saleId, 42);
+      run.decoder.facts.set(record.event.event_id, fact);
+      return { ...run, record, fact };
+    }
+
+    function deferredSaleOf(fact: SyncedFact) {
+      if (fact.kind !== "deferred_sale_recorded") {
+        throw new Error("not a deferred-sale record");
+      }
+      return fact.deferredSale;
+    }
+
+    it("rebuilds a record the cloud never settled as pending, with the identifier and short code it was issued with", async () => {
+      const { feed, store, record, fact, run } = anUnclearOutcomeRegister();
+      feed.answers = [aPage([record], null, [], [], [], [UNSETTLED("sale-2")])];
+
+      const outcome = await run();
+
+      expect(outcome).toEqual({ kind: "replenished" });
+      expect(store.state.rebuiltUnclearDeferrals).toEqual([
+        { deferredSale: deferredSaleOf(fact), authorizedDocument: null },
+      ]);
+      expect(store.state.facts).toEqual([]);
+      expect(store.state.appliedEventIds).toEqual([record.event.event_id]);
+    });
+
+    it("rebuilds a record the tax authority rejected with the rejection as its reason and the short code it was issued with", async () => {
+      const { feed, store, record, fact, run } = anUnclearOutcomeRegister();
+      feed.answers = [aPage([record], null, [], [], [], [REJECTED("sale-2")])];
+
+      const outcome = await run();
+
+      expect(outcome).toEqual({ kind: "replenished" });
+      expect(store.state.rebuiltUnclearDeferrals).toEqual([
+        { deferredSale: { ...deferredSaleOf(fact), reason: "rejected" }, authorizedDocument: null },
+      ]);
+    });
+
+    it("rebuilds a record the tax authority authorized together with the authorized document that satisfies it", async () => {
+      const { feed, store, record, fact, run } = anUnclearOutcomeRegister();
+      feed.answers = [aPage([record], null, [], [], [], [AUTHORIZED("sale-2")])];
+
+      const outcome = await run();
+
+      expect(outcome).toEqual({ kind: "replenished" });
+      expect(store.state.rebuiltUnclearDeferrals).toEqual([
+        {
+          deferredSale: deferredSaleOf(fact),
+          authorizedDocument: {
+            id: "document-of-sale-2",
+            saleId: "sale-2",
+            pointOfSale: 7,
+            number: 42,
+            issuedOn: "2026-10-07",
+            document: A_FACTURA_C,
+            authorizationCode: "75123456789012",
+            authorizationCodeDueOn: "2026-10-18",
+            reservedAt: new Date("2026-10-07T10:59:58.000Z"),
+            satisfiedAt: new Date("2026-10-08T15:00:00.000Z"),
+          },
+        },
+      ]);
+    });
+
+    it("rebuilds each record with the answer of its own document", async () => {
+      const { feed, store, decoder, record, run } = anUnclearOutcomeRegister("sale-2");
+      const second = anEvent("device-old", 54);
+      decoder.facts.set(second.event.event_id, anUnclearOutcomeRecord("sale-3", 43));
+      feed.answers = [
+        aPage([record, second], null, [], [], [], [AUTHORIZED("sale-3"), REJECTED("sale-2")]),
+      ];
+
+      await run();
+
+      expect(
+        store.state.rebuiltUnclearDeferrals.map(({ deferredSale, authorizedDocument }) => [
+          deferredSale.saleId,
+          deferredSale.reason,
+          authorizedDocument?.id ?? null,
+        ]),
+      ).toEqual([
+        ["sale-2", "rejected", null],
+        ["sale-3", "unclear_outcome", "document-of-sale-3"],
+      ]);
+    });
+
+    it("leaves the record unchanged when the same page is applied again", async () => {
+      const { feed, store, record, run } = anUnclearOutcomeRegister();
+      const answers = [AUTHORIZED("sale-2")];
+      feed.answers = [
+        aPage([record], { deviceId: "device-old", deviceSeq: 53 }, [], [], [], answers),
+        { kind: "unreachable" },
+        aPage([record], null, [], [], [], answers),
+      ];
+      await run();
+      const once = structuredClone(store.state.rebuiltUnclearDeferrals);
+
+      const outcome = await run();
+
+      expect(outcome).toEqual({ kind: "replenished" });
+      expect(store.state.rebuiltUnclearDeferrals).toEqual(once);
+    });
+
+    it("reports a record the cloud sent no answer for as partially replenished, leaving its event unrecorded", async () => {
+      const { feed, store, record, run } = anUnclearOutcomeRegister();
+      feed.answers = [aPage([record], null, [], [], [], [UNSETTLED("sale-3")])];
+
+      const outcome = await run();
+
+      expect(outcome).toEqual({ kind: "partially_replenished", unapplied: 1 });
+      expect(store.state.rebuiltUnclearDeferrals).toEqual([]);
+      expect(store.state.appliedEventIds).toEqual([]);
+      expect(store.state.predecessor).toEqual(PREDECESSOR);
+    });
+
+    it("reports a record whose sale the register does not hold yet as partially replenished", async () => {
+      const { feed, store, record, run } = anUnclearOutcomeRegister();
+      store.salesNotYetHeld.add("sale-2");
+      feed.answers = [aPage([record], null, [], [], [], [UNSETTLED("sale-2")])];
+
+      const outcome = await run();
+
+      expect(outcome).toEqual({ kind: "partially_replenished", unapplied: 1 });
+      expect(store.state.appliedEventIds).toEqual([]);
+    });
+
+    it("applies the satisfaction of a record that follows it in the same run", async () => {
+      const { feed, store, decoder, record, run } = anUnclearOutcomeRegister();
+      const satisfied = anEvent("device-old", 54);
+      decoder.facts.set(satisfied.event.event_id, {
+        kind: "deferred_sale_satisfied",
+        satisfaction: {
+          id: "deferred-of-sale-2",
+          saleId: "sale-2",
+          fiscalDocumentId: "document-of-sale-2",
+          pointOfSale: 7,
+          number: 42,
+          issuedOn: "2026-10-07",
+          document: A_FACTURA_C,
+          authorizationCode: "75123456789012",
+          authorizationCodeDueOn: "2026-10-18",
+          reservedAt: new Date("2026-10-07T10:59:58.000Z"),
+          satisfiedAt: new Date("2026-10-08T15:00:00.000Z"),
+        },
+      });
+      feed.answers = [aPage([record, satisfied], null, [], [], [], [AUTHORIZED("sale-2")])];
+
+      const outcome = await run();
+
+      expect(outcome).toEqual({ kind: "replenished" });
+      expect(store.state.appliedEventIds).toEqual([
+        record.event.event_id,
+        satisfied.event.event_id,
+      ]);
+    });
+
+    it("lets a gate failure of the sale apply once its unclear record is rebuilt", async () => {
+      const { feed, decoder, record, run } = anUnclearOutcomeRegister("sale-1");
+      const failure = anEvent("device-old", 54);
+      decoder.facts.set(failure.event.event_id, A_GATE_FAILED_FACT);
+      feed.answers = [aPage([record, failure], null, [], [], [], [UNSETTLED("sale-1")])];
+
+      const outcome = await run();
+
+      expect(outcome).toEqual({ kind: "replenished" });
+    });
+
+    it("leaves nothing behind of a page whose rebuild fails", async () => {
+      const { feed, store, record, run } = anUnclearOutcomeRegister();
+      store.failAt = { operation: "rebuildUnclearDeferredSale" };
+      feed.answers = [aPage([record], null, [], [], [], [UNSETTLED("sale-2")])];
+
+      await expect(run()).rejects.toThrow("storage unavailable");
+
+      expect(store.state.rebuiltUnclearDeferrals).toEqual([]);
+      expect(store.state.appliedEventIds).toEqual([]);
     });
   });
 });

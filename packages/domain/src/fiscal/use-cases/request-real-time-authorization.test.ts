@@ -44,7 +44,12 @@ function deferredRecord(
   };
   return {
     sale,
-    event: deferredSaleRecordedEvent({ eventId: "id-2", ...ORIGIN, deferredSale: sale }),
+    event: deferredSaleRecordedEvent({
+      eventId: "id-2",
+      ...ORIGIN,
+      deferredSale: sale,
+      unclearDocument: reason === "unclear_outcome" ? UNCLEAR_DOCUMENT : null,
+    }),
   };
 }
 
@@ -88,6 +93,15 @@ const WAITING = {
   reservedAt: RESERVED_AT,
   origin: ORIGIN,
   saleEvent: SALE_EVENT,
+};
+
+const UNCLEAR_DOCUMENT = {
+  fiscalDocumentId: FISCAL_DOCUMENT_ID,
+  pointOfSale: 12,
+  number: 41,
+  issuedOn: "2026-10-01",
+  document: DOCUMENT,
+  reservedAt: RESERVED_AT,
 };
 
 function request({
