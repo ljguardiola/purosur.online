@@ -36,7 +36,7 @@ function loggerReportingFatalErrors(deps: ReportErrorDeps): Logger {
     const logToConsole = consoleLogFactory(scope);
     return (level, message, { fatalError }) => {
       if (level === "error" && fatalError !== undefined) {
-        reportError(`recovery worker: ${message}`, fatalError, deps);
+        reportError(`background job runner: ${message}`, fatalError, deps);
       } else {
         logToConsole(level, message, {});
       }
@@ -53,7 +53,7 @@ export async function startBackgroundJobRunner(
     deps.createPool ?? ((connectionString: string) => new pg.Pool({ connectionString }));
 
   const pool = doCreatePool(options.databaseUrl);
-  reportPoolErrors(pool, "recovery worker");
+  reportPoolErrors(pool, "background job runner");
 
   // graphile-worker 0.18 rejects a second stop() once its pool or cron already exited, emitting
   // "stop" synchronously on the events emitter when that happens.
@@ -77,14 +77,14 @@ export async function startBackgroundJobRunner(
     taskList: Object.assign({}, ...options.jobs.map((job) => job.taskList)),
   });
   runner.promise.catch((error: unknown) => {
-    reportError("recovery worker: runner exited with an error", error, deps);
+    reportError("background job runner: runner exited with an error", error, deps);
   });
 
   return {
     async stop() {
       await runShutdownSteps([
         {
-          label: "recovery runner",
+          label: "background job runner",
           run: async () => {
             // runner.promise settles once graphile-worker's pool and cron exit, so a draining
             // job never sees the pool close from under it.
@@ -97,7 +97,7 @@ export async function startBackgroundJobRunner(
             }
           },
         },
-        { label: "recovery worker pool", run: () => pool.end() },
+        { label: "background job runner pool", run: () => pool.end() },
       ]);
     },
   };

@@ -474,7 +474,7 @@ export function createRecoveryJobQueuePool(
 ): Pick<pg.Pool, "on" | "end"> {
   const doCreatePool = deps.createPool ?? ((url: string) => new pg.Pool({ connectionString: url }));
   const pool = doCreatePool(connectionString);
-  reportPoolErrors(pool, "recovery job queue");
+  reportPoolErrors(pool, "background job queue");
   return pool;
 }
 
@@ -492,7 +492,7 @@ export async function closeRecoveryResources({
   sql,
 }: RecoveryResources): Promise<void> {
   await runShutdownSteps([
-    { label: "recovery worker", run: () => worker.stop() },
+    { label: "background job runner", run: () => worker.stop() },
     { label: "job-queue utilities", run: async () => void (await workerUtils.release()) },
     { label: "job-queue pool", run: () => jobQueuePool.end() },
     { label: "database client", run: () => sql.end({ timeout: 1 }) },
