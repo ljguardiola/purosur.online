@@ -348,7 +348,7 @@ describe("DrizzleFortnightPresentationReader.branchPresentations", () => {
       ]);
     });
 
-    it("counts the facturas of the presentation and none of its credit notes", async () => {
+    it("answers the credit notes of a presentation as a row of their own, apart from the facturas", async () => {
       await issueFacturaC(registerId, OCTOBER_FIRST_HALF, [1, 2]);
       await insertOfflineCreditNote(db, {
         registerId,
@@ -359,9 +359,42 @@ describe("DrizzleFortnightPresentationReader.branchPresentations", () => {
       });
       await recordFacturaC(OCTOBER_FIRST_HALF, { state: "accepted", reportedThrough: 2 });
 
+      const listed = await presentations("2026-10-16");
+
+      expect(
+        listed.map(({ documentType, documentCount }) => [documentType, documentCount]),
+      ).toEqual([
+        ["factura_c", 2],
+        ["credit_note_c", 1],
+      ]);
+    });
+
+    it("shows the credit notes held for the report of their invoice with that state", async () => {
+      await insertOfflineCreditNote(db, {
+        registerId,
+        pointOfSale: OFFLINE_POINT_OF_SALE,
+        fortnight: OCTOBER_FIRST_HALF,
+        number: 1,
+        corrects: { voucherType: 11, pointOfSale: OFFLINE_POINT_OF_SALE, number: 1 },
+      });
+      await new DrizzleFortnightReportStore(db, WITHOUT_CREDIT_NOTES).holdReport(
+        { pointOfSaleNumber: OFFLINE_POINT_OF_SALE, fortnight: OCTOBER_FIRST_HALF },
+        (report) =>
+          report.recordDocumentType({
+            documentType: "credit_note_c",
+            state: "awaiting_invoice_report",
+            at: AT,
+            reportedThrough: 0,
+          }),
+      );
+
       const [presentation] = await presentations("2026-10-16");
 
-      expect(presentation).toMatchObject({ documentType: "factura_c", documentCount: 2 });
+      expect(presentation).toMatchObject({
+        documentType: "credit_note_c",
+        state: "awaiting_invoice_report",
+        documentCount: 1,
+      });
     });
 
     it("gives the rejected document as presented, its rejections, how many documents after it were left unprocessed and that its remedy awaits a person", async () => {

@@ -278,4 +278,21 @@ describe("the offline credit notes migration applied over a database that alread
       ),
     ).rejects.toThrow(/fortnight_document_reports_document_type_known/);
   });
+
+  it("lets a document type and a fortnight be held for the report of an invoice", async () => {
+    const { database } = await migrated();
+    await database.query(
+      `insert into fortnight_reports
+         (point_of_sale_number, fortnight_start, fortnight_end, state, recorded_at)
+       values (7, '2026-10-01', '2026-10-15', 'awaiting_invoice_report', '2026-10-16T12:00:00Z')`,
+    );
+    await database.query(
+      `insert into fortnight_document_reports
+         (point_of_sale_number, fortnight_start, fortnight_end, document_type, state, reported_through, recorded_at)
+       values (7, '2026-10-01', '2026-10-15', 'credit_note_c', 'awaiting_invoice_report', 0, '2026-10-16T12:00:00Z')`,
+    );
+
+    const { rows } = await database.query("select state from fortnight_document_reports");
+    expect(rows).toEqual([{ state: "awaiting_invoice_report" }]);
+  });
 });

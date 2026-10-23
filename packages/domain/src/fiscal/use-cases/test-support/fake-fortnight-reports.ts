@@ -1,5 +1,5 @@
 import type { InstallationStreamReach } from "../../../sync/index.js";
-import type { FiscalDocumentType } from "../../model/fiscal-rejection-standing.js";
+import type { FiscalTaskDocumentType as FiscalDocumentType } from "../../model/fiscal-task.js";
 import {
   isFortnightPresentationOwed,
   isOfflineDocumentReported,

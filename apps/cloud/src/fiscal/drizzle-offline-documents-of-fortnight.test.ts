@@ -91,13 +91,7 @@ describe("DrizzleOfflineDocumentsOfFortnight", () => {
     ).toEqual([3]);
   });
 
-  it("leaves out the credit notes issued under the fortnight's code, which the report does not present yet", async () => {
-    await insertOfflineFiscalDocument(db, {
-      registerId,
-      pointOfSale: 8,
-      fortnight: OCTOBER_FIRST_HALF,
-      number: 1,
-    });
+  it("reads the credit notes issued under the fortnight's code after the facturas, with the voucher each corrects", async () => {
     await insertOfflineCreditNote(db, {
       registerId,
       pointOfSale: 8,
@@ -105,14 +99,23 @@ describe("DrizzleOfflineDocumentsOfFortnight", () => {
       number: 1,
       corrects: { voucherType: 11, pointOfSale: 8, number: 1 },
     });
+    await insertOfflineFiscalDocument(db, {
+      registerId,
+      pointOfSale: 8,
+      fortnight: OCTOBER_FIRST_HALF,
+      number: 1,
+    });
 
     const documents = await new DrizzleOfflineDocumentsOfFortnight(db).documentsOn(
       8,
       OCTOBER_FIRST_HALF,
     );
 
-    expect(documents.map(({ documentType, number }) => [documentType, number])).toEqual([
-      ["factura_c", 1],
+    expect(
+      documents.map(({ documentType, number, corrects }) => [documentType, number, corrects]),
+    ).toEqual([
+      ["credit_note_c", 1, { voucherType: 11, pointOfSale: 8, number: 1 }],
+      ["factura_c", 1, undefined],
     ]);
   });
 

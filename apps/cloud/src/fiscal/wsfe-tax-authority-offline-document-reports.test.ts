@@ -35,6 +35,14 @@ function document(number: number, total = 12_345): OfflineDocumentOfFortnight {
   };
 }
 
+function creditNote(number: number, invoiceNumber: number): OfflineDocumentOfFortnight {
+  return {
+    ...document(number),
+    documentType: "credit_note_c",
+    corrects: { voucherType: 11, pointOfSale: 8, number: invoiceNumber },
+  };
+}
+
 const lastReportedCall = { token, pointOfSaleNumber: 8, documentType: "factura_c" } as const;
 const reportCall = {
   ...lastReportedCall,
@@ -135,6 +143,47 @@ describe("WsfeTaxAuthorityOfflineDocumentReports.lastReported", () => {
     expect(await reportsAt(UNREACHABLE_WSFE_ENDPOINT).lastReported(lastReportedCall)).toEqual({
       kind: "no_answer",
     });
+  });
+});
+
+describe("WsfeTaxAuthorityOfflineDocumentReports of credit notes", () => {
+  it("asks for the last credit note C ARCA holds for the point of sale", async () => {
+    server.behave(answers("fe-comp-ultimo-autorizado-credit-note.xml"));
+
+    await reportsAt(server.endpoint).lastReported({
+      ...lastReportedCall,
+      documentType: "credit_note_c",
+    });
+
+    const [request] = server.requests;
+    expect(sentValue(request, "PtoVta")).toBe("8");
+    expect(sentValue(request, "CbteTipo")).toBe("13");
+  });
+
+  it("reports them as credit notes C, each naming the voucher it corrects", async () => {
+    server.behave(answers("fe-caea-reg-informativo-synthesized-credit-note-accepted.xml"));
+
+    const answer = await reportsAt(server.endpoint).report({
+      ...reportCall,
+      documentType: "credit_note_c",
+      documents: [creditNote(3, 11), creditNote(4, 12)],
+    });
+
+    expect(answer).toEqual({ kind: "accepted" });
+    const [request] = server.requests;
+    expect(sentValue(request, "CbteTipo")).toBe("13");
+    expect(sentValues(request, "CbteDesde")).toEqual(["3", "4"]);
+    expect(sentValues(request, "Tipo")).toEqual(["11", "11"]);
+    expect(sentValues(request, "Nro")).toEqual(["11", "12"]);
+    expect(sentValues(request, "CAEA")).toEqual(["36123456789012", "36123456789012"]);
+  });
+
+  it("sends no associated voucher with a factura", async () => {
+    server.behave(answers("fe-caea-reg-informativo-accepted.xml"));
+
+    await reportsAt(server.endpoint).report(reportCall);
+
+    expect(server.requests[0]).not.toContain("CbtesAsoc");
   });
 });
 

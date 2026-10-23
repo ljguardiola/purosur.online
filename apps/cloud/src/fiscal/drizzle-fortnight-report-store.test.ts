@@ -490,7 +490,7 @@ describe("DrizzleFortnightReportStore.acceptedWithUnreportedDocuments", () => {
     },
   );
 
-  it("lists nothing for a credit note issued offline that no report covers yet", async () => {
+  it("lists an accepted presentation holding a credit note issued offline that its type has not reported", async () => {
     await document(1);
     await insertOfflineCreditNote(db, {
       registerId,
@@ -501,7 +501,7 @@ describe("DrizzleFortnightReportStore.acceptedWithUnreportedDocuments", () => {
     });
     await accept("documents", 1);
 
-    expect(await newStore().acceptedWithUnreportedDocuments()).toEqual([]);
+    expect(await newStore().acceptedWithUnreportedDocuments()).toHaveLength(1);
   });
 
   it("lists an accepted presentation whose document type has no report at all", async () => {
@@ -879,5 +879,89 @@ describe("DrizzleFortnightReportStore.creditCorrectedDocument", () => {
     );
 
     expect(await db.select().from(creditNotes)).toHaveLength(2);
+  });
+});
+
+describe("DrizzleFortnightReportStore.contingencyInvoiceReportOf", () => {
+  const INVOICE = { voucherType: 11, pointOfSale: OFFLINE_POINT_OF_SALE, number: 5 };
+  let registerId: string;
+
+  beforeEach(async () => {
+    registerId = await seedOfflinePointOfSale(db);
+    await claimedAt(new Date("2026-09-20T12:00:00.000Z"));
+    await keepCode(OCTOBER_FIRST_HALF, "36123456789012");
+  });
+
+  function read(invoice = INVOICE) {
+    return newStore().holdReport(KEY, (report) => report.contingencyInvoiceReportOf(invoice));
+  }
+
+  it("is none for a voucher that is no contingency invoice of the cloud", async () => {
+    expect(await read()).toBeNull();
+  });
+
+  it("reads the fortnight of the contingency invoice and that its report is not accepted while the type has not reported it", async () => {
+    await insertOfflineFiscalDocument(db, {
+      registerId,
+      pointOfSale: OFFLINE_POINT_OF_SALE,
+      fortnight: OCTOBER_FIRST_HALF,
+      number: 5,
+    });
+
+    expect(await read()).toEqual({ fortnight: OCTOBER_FIRST_HALF, reportAccepted: false });
+  });
+
+  it("reads the report as accepted once the factura type of that fortnight is accepted through the invoice", async () => {
+    await insertOfflineFiscalDocument(db, {
+      registerId,
+      pointOfSale: OFFLINE_POINT_OF_SALE,
+      fortnight: OCTOBER_FIRST_HALF,
+      number: 5,
+    });
+    await newStore().holdReport(
+      { pointOfSaleNumber: OFFLINE_POINT_OF_SALE, fortnight: OCTOBER_FIRST_HALF },
+      (report) =>
+        report.recordDocumentType({
+          documentType: "factura_c",
+          state: "accepted",
+          at: AT,
+          reportedThrough: 5,
+        }),
+    );
+
+    expect(await read()).toEqual({ fortnight: OCTOBER_FIRST_HALF, reportAccepted: true });
+  });
+
+  it("reads the report as not accepted while the type was accepted only up to an earlier number", async () => {
+    await insertOfflineFiscalDocument(db, {
+      registerId,
+      pointOfSale: OFFLINE_POINT_OF_SALE,
+      fortnight: OCTOBER_FIRST_HALF,
+      number: 5,
+    });
+    await newStore().holdReport(
+      { pointOfSaleNumber: OFFLINE_POINT_OF_SALE, fortnight: OCTOBER_FIRST_HALF },
+      (report) =>
+        report.recordDocumentType({
+          documentType: "factura_c",
+          state: "refused",
+          at: AT,
+          reportedThrough: 4,
+        }),
+    );
+
+    expect(await read()).toEqual({ fortnight: OCTOBER_FIRST_HALF, reportAccepted: false });
+  });
+
+  it("is none for a credit note's number that shares the invoice's point of sale and number", async () => {
+    await insertOfflineCreditNote(db, {
+      registerId,
+      pointOfSale: OFFLINE_POINT_OF_SALE,
+      fortnight: OCTOBER_FIRST_HALF,
+      number: 5,
+      corrects: { voucherType: 11, pointOfSale: OFFLINE_POINT_OF_SALE, number: 9 },
+    });
+
+    expect(await read()).toBeNull();
   });
 });
