@@ -1,13 +1,15 @@
-import { isCalendarDay } from "@purosur/domain";
 import { z } from "zod";
-import { discountBenefitSchema, discountTargetSchema } from "../shared/index.js";
+import {
+  answeredRangeSchema,
+  discountBenefitSchema,
+  discountTargetSchema,
+} from "../shared/index.js";
 
-const calendarDay = z.string().refine(isCalendarDay);
 const count = z.int().nonnegative();
 const cents = z.int().nonnegative();
 
 export const salesByPromotionSchema = z.object({
-  range: z.object({ from: calendarDay, to: calendarDay }),
+  range: answeredRangeSchema,
   rows: z.array(
     z.object({
       promotion_id: z.string().min(1),

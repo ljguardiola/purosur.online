@@ -1,9 +1,7 @@
-import { isCalendarDay } from "@purosur/domain";
 import { z } from "zod";
-import { recordIdSchema, reportQuerySchema } from "../shared/index.js";
+import { answeredRangeSchema, recordIdSchema, reportQuerySchema } from "../shared/index.js";
 import { salesReportGroupSchema } from "./sales-report-group.js";
 
-const calendarDay = z.string().refine(isCalendarDay);
 const count = z.int().nonnegative();
 const cents = z.int().nonnegative();
 
@@ -12,7 +10,7 @@ export const salesByProductAndCategoryQuerySchema = reportQuerySchema.and(
 );
 
 export const salesByProductAndCategorySchema = z.object({
-  range: z.object({ from: calendarDay, to: calendarDay }),
+  range: answeredRangeSchema,
   group: salesReportGroupSchema,
   rows: z.array(
     z.object({

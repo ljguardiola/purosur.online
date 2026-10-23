@@ -219,6 +219,9 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
     handConfirmedPaymentsScreen: {
       fetchHandConfirmedPayments: vi.fn().mockReturnValue(new Promise(() => {})),
     },
+    cashSessionClosesScreen: {
+      fetchCashSessionCloses: vi.fn().mockReturnValue(new Promise(() => {})),
+    },
     reportFiltersRegisterFilter: ReportRegisterFilter,
     reportRegisterFilter: {
       fetchReportRegisters: vi.fn().mockReturnValue(new Promise(() => {})),

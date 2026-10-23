@@ -27,7 +27,11 @@ import {
   supplierPriceListsRoute,
   suppliersListRoute,
 } from "../purchasing/routes";
-import { registersListRoute, snapshotBackupsRoute } from "../register/routes";
+import {
+  cashSessionClosesRoute,
+  registersListRoute,
+  snapshotBackupsRoute,
+} from "../register/routes";
 import {
   averageTicketRoute,
   manualDiscountsRoute,
@@ -113,6 +117,7 @@ const routeTree = rootRoute.addChildren([
       salesByDayRoute,
       salesByPaymentMethodRoute,
       handConfirmedPaymentsRoute,
+      cashSessionClosesRoute,
       salesByProductAndCategoryRoute,
       salesByCashierRoute,
       averageTicketRoute,

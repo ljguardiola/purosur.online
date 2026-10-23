@@ -1,3 +1,4 @@
+export { answeredRangeSchema } from "./answered-range.js";
 export type { Authorization, AuthorizationRefusal, AuthorizedBy } from "./authorization.js";
 export {
   authorizationRefusalSchema,

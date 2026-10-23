@@ -569,6 +569,7 @@ export type {
   CashMovementKind,
   CashMovementType,
   CashSession,
+  CashSessionClose,
   CashSessionState,
   ClosedCashSession,
   CriticalBatteryAction,

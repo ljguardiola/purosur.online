@@ -32,6 +32,7 @@ import type { PurchasesListScreenServices } from "../purchasing/purchases-list-s
 import type { SupplierPriceListReviewScreenServices } from "../purchasing/supplier-price-list-review-services";
 import type { SupplierPriceListsScreenServices } from "../purchasing/supplier-price-lists-services";
 import type { SuppliersListScreenServices } from "../purchasing/suppliers-list-services";
+import type { CashSessionClosesScreenServices } from "../register/cash-session-closes-services";
 import type { RegistersListScreenServices } from "../register/registers-list-services";
 import type { ReportRegisterFilterProps } from "../register/report-register-filter";
 import type { ReportRegisterFilterServices } from "../register/report-register-filter-services";
@@ -104,6 +105,7 @@ export type AppServices = {
   averageTicketScreen: AverageTicketScreenServices;
   salesByPaymentMethodScreen: SalesByPaymentMethodScreenServices;
   handConfirmedPaymentsScreen: HandConfirmedPaymentsScreenServices;
+  cashSessionClosesScreen: CashSessionClosesScreenServices;
   reportFiltersRegisterFilter: ComponentType<ReportRegisterFilterProps>;
   reportRegisterFilter: ReportRegisterFilterServices;
   mercadoPagoRefundsScreen: MercadoPagoRefundsScreenServices;
