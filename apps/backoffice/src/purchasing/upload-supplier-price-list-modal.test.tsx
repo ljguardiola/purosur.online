@@ -37,7 +37,6 @@ function renderModal({
   services = createServices(),
   open = true,
   initialSupplierId = null,
-  initialWebPageUrl = null,
   onUploaded = () => {},
   onClose = () => {},
   onSessionEnded = () => {},
@@ -45,7 +44,6 @@ function renderModal({
   services?: UploadSupplierPriceListModalServices;
   open?: boolean;
   initialSupplierId?: string | null;
-  initialWebPageUrl?: string | null;
   onUploaded?: () => void;
   onClose?: () => void;
   onSessionEnded?: () => void;
@@ -56,7 +54,6 @@ function renderModal({
         <UploadSupplierPriceListModal
           open={open}
           initialSupplierId={initialSupplierId}
-          initialWebPageUrl={initialWebPageUrl}
           services={services}
           onUploaded={onUploaded}
           onClose={onClose}
@@ -357,15 +354,6 @@ test("asks for the address of the page instead of a file when the list comes fro
       ),
     )
     .toBeVisible();
-});
-
-test("opens on the web page option with its address when it is given one", async () => {
-  const screen = await renderModal({ initialWebPageUrl: PAGE_ADDRESS });
-
-  await expect
-    .element(screen.getByRole("dialog").getByRole("radio", { name: "Página web" }))
-    .toBeChecked();
-  await expect.element(addressInput(screen)).toHaveValue(PAGE_ADDRESS);
 });
 
 test("loads the page for the chosen supplier and reports it without uploading a file", async () => {
