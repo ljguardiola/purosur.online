@@ -31,7 +31,6 @@ function deps(): SalesHistoryRequestDeps {
       hashPin: async () => "hash-of-a-pin",
       now: () => new Date("2026-10-08T12:00:00.000Z"),
     }),
-    now: () => NOW,
   };
 }
 

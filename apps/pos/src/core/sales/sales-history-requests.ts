@@ -20,7 +20,6 @@ import { toWireCopy } from "./wire-receipt-copy";
 export interface SalesHistoryRequestDeps {
   database: LocalDatabase;
   gate: ActionGate;
-  now: () => Date;
 }
 
 export interface SalesHistoryRequest {
@@ -91,7 +90,7 @@ export async function salesHistoryFor(
 }
 
 export async function saleHistoryDetailFor(
-  { database, gate, now }: SalesHistoryRequestDeps,
+  { database, gate }: SalesHistoryRequestDeps,
   saleId: string,
 ): Promise<SaleHistoryDetailOutcome> {
   const guarded = await gate.run({ kind: "view_sales_history" }, async ({ signedInUserId }) => ({
