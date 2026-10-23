@@ -92,6 +92,13 @@ describe("deferred sale reference from QR text", () => {
     });
   });
 
+  it("reads an id of a single character", () => {
+    expect(deferredSaleReferenceFromQrText("purosur-deferred-sale:a:7KQ4M2P9")).toEqual({
+      id: "a",
+      shortCode: "7KQ4M2P9",
+    });
+  });
+
   it("is the inverse of the QR text for any reference", () => {
     fc.assert(
       fc.property(fc.uuid(), fc.integer({ min: 0, max: 2 ** 40 }), (id, seed) => {
