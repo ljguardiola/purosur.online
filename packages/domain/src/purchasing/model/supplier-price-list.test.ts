@@ -8,10 +8,12 @@ import {
   decideConfirmation,
   isPriceListRowPrice,
   isSourcePage,
+  isSupplierPriceListDailyExtractionCap,
   isSupplierPriceListDiscardable,
   isSupplierPriceListFileNameTooLong,
   isSupplierPriceListPdfTooLarge,
   isSupplierPriceListUnderReview,
+  SUPPLIER_PRICE_LIST_DAILY_EXTRACTION_CAP_MAX,
   SUPPLIER_PRICE_LIST_FILE_NAME_MAX_LENGTH,
   SUPPLIER_PRICE_LIST_PDF_MAX_BYTES,
   SUPPLIER_PRICE_LIST_READ_FAILURES,
@@ -122,6 +124,20 @@ describe("dailyExtractionCapReached", () => {
     expect(dailyExtractionCapReached(9, 10)).toBe(false);
     expect(dailyExtractionCapReached(10, 10)).toBe(true);
     expect(dailyExtractionCapReached(11, 10)).toBe(true);
+  });
+});
+
+describe("isSupplierPriceListDailyExtractionCap", () => {
+  it("allows at most 100 extractions a day", () => {
+    expect(SUPPLIER_PRICE_LIST_DAILY_EXTRACTION_CAP_MAX).toBe(100);
+  });
+
+  it.each([1, 3, DEFAULT_SUPPLIER_PRICE_LIST_DAILY_EXTRACTION_CAP, 100])("accepts %s", (cap) => {
+    expect(isSupplierPriceListDailyExtractionCap(cap)).toBe(true);
+  });
+
+  it.each([0, -1, 101, 1.5, Number.NaN, Number.POSITIVE_INFINITY])("refuses %s", (cap) => {
+    expect(isSupplierPriceListDailyExtractionCap(cap)).toBe(false);
   });
 });
 
