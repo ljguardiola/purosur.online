@@ -134,7 +134,7 @@ export function FortnightReportsSection({ data, onReview }: FortnightReportsSect
           tone="warning"
           icon={<CircleAlert />}
           title="ARCA todavía no aceptó el informe de una quincena anterior"
-          description={`Las notas de crédito del informe ${fortnightOf(item)} del punto de venta ${formatPointOfSaleNumber(item.pointOfSaleNumber)} corrigen facturas de ese informe y se pueden presentar cuando ARCA lo acepte.`}
+          description={`Las notas de crédito del informe ${fortnightOf(item)} del punto de venta ${formatPointOfSaleNumber(item.pointOfSaleNumber)} corrigen facturas de una quincena anterior y se presentan cuando ARCA acepte el informe de esas facturas.`}
         />
       ))}
       {awaitingRemedy.map((item) => (
