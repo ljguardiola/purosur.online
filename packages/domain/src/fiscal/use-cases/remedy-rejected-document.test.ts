@@ -340,3 +340,50 @@ describe("remedyRejectedDocument, scoped to the branch", () => {
     expect((await remedy(store)).kind).toBe("remedied");
   });
 });
+
+describe("remedyRejectedDocument, for a rejected credit note", () => {
+  const NOTE = "credit_note_c" as const;
+
+  function setUpNote() {
+    const store = setUp(rejection({ documentType: NOTE }));
+    store.seedDocuments(7, FORTNIGHT, [
+      offlineDocument(3, { documentType: NOTE, issuedOn: "2026-09-20" }),
+    ]);
+    return store;
+  }
+
+  it("accepts the remedy of reporting it again, recorded and audited as for a factura", async () => {
+    const store = setUpNote();
+
+    const outcome = await remedy(store, { documentType: NOTE });
+
+    expect(outcome).toEqual({ kind: "remedied" });
+    expect(store.snapshot().remedies).toMatchObject([
+      { documentType: NOTE, number: 3, remedy: { kind: "report" } },
+    ]);
+    expect(store.snapshot().audits).toMatchObject([{ documentType: NOTE, kind: "report" }]);
+  });
+
+  it("refuses the remedy of correcting what was printed as not offered, recording nothing and throwing nothing", async () => {
+    const store = setUpNote();
+
+    const outcome = await remedy(store, {
+      documentType: NOTE,
+      remedy: { kind: "printed", correction: { total: 9_900 } },
+    });
+
+    expect(outcome).toEqual({ kind: "remedy_not_offered" });
+    expect(store.snapshot()).toEqual({ remedies: [], audits: [] });
+  });
+
+  it("still tells a credit note that is not rejected apart from a remedy that is not offered", async () => {
+    const store = setUp(null);
+
+    const outcome = await remedy(store, {
+      documentType: NOTE,
+      remedy: { kind: "printed", correction: { total: 9_900 } },
+    });
+
+    expect(outcome).toEqual({ kind: "remedy_not_offered" });
+  });
+});

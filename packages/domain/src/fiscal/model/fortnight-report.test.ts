@@ -750,7 +750,17 @@ describe("fortnightPresentationRows", () => {
         buyerTaxStatusCode: 6,
         rejections: REJECTIONS,
         remedy: "awaiting_remedy",
+        remedies: ["report", "printed"],
       });
+    });
+
+    it("offers a rejected credit note only the remedy of reporting it again", () => {
+      expect(
+        rejectedRow({ documentType: "credit_note_c" }, [
+          presentable({ documentType: "credit_note_c", number: 1 }),
+          presentable({ documentType: "credit_note_c", number: 2 }),
+        ])?.remedies,
+      ).toEqual(["report"]);
     });
 
     it("shows the document as presented, with the correction already entered", () => {
