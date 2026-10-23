@@ -1027,39 +1027,101 @@ describe("changesPageSchema", () => {
       ),
     ],
     [
-      "an offline point of sale with a negative tax authority count",
+      "an offline point of sale with a negative tax authority count in its factura series",
       pageOf(
-        change(1, "register_offline_point_of_sale", {
-          ...offlinePointOfSaleRow,
-          tax_authority_last_authorized_number: -1,
-        }),
+        change(
+          1,
+          "register_offline_point_of_sale",
+          offlinePointOfSaleWith({
+            ...facturaSeriesCount,
+            tax_authority_last_authorized_number: -1,
+          }),
+        ),
       ),
     ],
     [
-      "an offline point of sale with a fractional tax authority count",
+      "an offline point of sale with a fractional tax authority count in its factura series",
       pageOf(
-        change(1, "register_offline_point_of_sale", {
-          ...offlinePointOfSaleRow,
-          tax_authority_last_authorized_number: 1.5,
-        }),
+        change(
+          1,
+          "register_offline_point_of_sale",
+          offlinePointOfSaleWith({
+            ...facturaSeriesCount,
+            tax_authority_last_authorized_number: 1.5,
+          }),
+        ),
       ),
     ],
     [
-      "an offline point of sale with a negative highest synced offline number",
+      "an offline point of sale with a negative highest synced offline number in its factura series",
       pageOf(
-        change(1, "register_offline_point_of_sale", {
-          ...offlinePointOfSaleRow,
-          highest_synced_offline_number: -1,
-        }),
+        change(
+          1,
+          "register_offline_point_of_sale",
+          offlinePointOfSaleWith({ ...facturaSeriesCount, highest_synced_offline_number: -1 }),
+        ),
       ),
     ],
     [
-      "an offline point of sale with a fractional highest synced offline number",
+      "an offline point of sale with a fractional highest synced offline number in its factura series",
       pageOf(
-        change(1, "register_offline_point_of_sale", {
-          ...offlinePointOfSaleRow,
-          highest_synced_offline_number: 1.5,
-        }),
+        change(
+          1,
+          "register_offline_point_of_sale",
+          offlinePointOfSaleWith({ ...facturaSeriesCount, highest_synced_offline_number: 1.5 }),
+        ),
+      ),
+    ],
+    [
+      "an offline point of sale with a negative tax authority count in its credit note series",
+      pageOf(
+        change(
+          1,
+          "register_offline_point_of_sale",
+          offlinePointOfSaleWith(facturaSeriesCount, {
+            ...creditNoteSeriesCount,
+            tax_authority_last_authorized_number: -1,
+          }),
+        ),
+      ),
+    ],
+    [
+      "an offline point of sale with a fractional tax authority count in its credit note series",
+      pageOf(
+        change(
+          1,
+          "register_offline_point_of_sale",
+          offlinePointOfSaleWith(facturaSeriesCount, {
+            ...creditNoteSeriesCount,
+            tax_authority_last_authorized_number: 1.5,
+          }),
+        ),
+      ),
+    ],
+    [
+      "an offline point of sale with a negative highest synced offline number in its credit note series",
+      pageOf(
+        change(
+          1,
+          "register_offline_point_of_sale",
+          offlinePointOfSaleWith(facturaSeriesCount, {
+            ...creditNoteSeriesCount,
+            highest_synced_offline_number: -1,
+          }),
+        ),
+      ),
+    ],
+    [
+      "an offline point of sale with a fractional highest synced offline number in its credit note series",
+      pageOf(
+        change(
+          1,
+          "register_offline_point_of_sale",
+          offlinePointOfSaleWith(facturaSeriesCount, {
+            ...creditNoteSeriesCount,
+            highest_synced_offline_number: 1.5,
+          }),
+        ),
       ),
     ],
     [
