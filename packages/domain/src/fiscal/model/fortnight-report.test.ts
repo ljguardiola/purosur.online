@@ -1038,6 +1038,20 @@ describe("offlineDocumentPresentations of facturas and credit notes", () => {
   });
 });
 
+describe("offlineDocumentPresentations of a type that is neither", () => {
+  it("presents it after the credit notes", () => {
+    const documents = [
+      { documentType: "another_type", number: 1 },
+      { documentType: "credit_note_c", number: 1 },
+      { documentType: "factura_c", number: 1 },
+    ];
+
+    expect(offlineDocumentPresentations(documents).map(({ documentType }) => documentType)).toEqual(
+      ["factura_c", "credit_note_c", "another_type"],
+    );
+  });
+});
+
 describe("isHeldForInvoiceReport", () => {
   const THIS_FORTNIGHT = { start: "2026-10-01", end: "2026-10-15" };
   const EARLIER = { start: "2026-09-16", end: "2026-09-30" };
