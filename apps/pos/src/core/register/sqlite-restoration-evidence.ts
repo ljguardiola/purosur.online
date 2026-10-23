@@ -65,7 +65,7 @@ export class SqliteRestorationEvidence implements RestorationProtocolEvidence {
 
   private replenishmentOrigin(): "copy" | "no_copy" {
     const row = this.database
-      .prepare<[], { from_copy: number }>("SELECT from_copy FROM register_predecessor LIMIT 1")
+      .prepare<[], { from_copy: number }>("SELECT from_copy FROM awaiting_orphan_sweep LIMIT 1")
       .get();
     return row?.from_copy === 0 ? "no_copy" : "copy";
   }

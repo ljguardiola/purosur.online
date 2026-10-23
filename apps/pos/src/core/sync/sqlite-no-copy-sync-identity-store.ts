@@ -37,7 +37,7 @@ export class SqliteNoCopySyncIdentityStore implements NoCopySyncIdentityStore {
       async recordPredecessor(predecessor) {
         database
           .prepare(
-            "INSERT INTO register_predecessor (device_id, last_acknowledged_seq, from_copy) VALUES (?, ?, 0)",
+            "INSERT INTO register_predecessor (device_id, last_acknowledged_seq) VALUES (?, ?)",
           )
           .run(predecessor.deviceId, predecessor.lastAcknowledgedSeq);
       },
@@ -56,7 +56,9 @@ export class SqliteNoCopySyncIdentityStore implements NoCopySyncIdentityStore {
           .prepare("INSERT OR IGNORE INTO awaiting_restored_numbering (register_id) VALUES (?)")
           .run(registerId);
         database
-          .prepare("INSERT OR IGNORE INTO awaiting_orphan_sweep (register_id) VALUES (?)")
+          .prepare(
+            "INSERT OR IGNORE INTO awaiting_orphan_sweep (register_id, from_copy) VALUES (?, 0)",
+          )
           .run(registerId);
       },
     };

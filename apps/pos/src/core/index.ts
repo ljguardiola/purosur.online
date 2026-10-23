@@ -17,7 +17,6 @@ import {
   REGISTER_UPDATE_HOLD_LIMIT_MS,
   STORAGE_READ_INTERVAL_MS,
 } from "@purosur/domain";
-import { resetSyncIdentityWithoutCopy } from "@purosur/domain/sync/use-cases";
 import * as Sentry from "@sentry/electron/utility";
 import { net } from "electron";
 import {
@@ -27,6 +26,7 @@ import {
   sentryEnvironmentFromCoreArguments,
 } from "../shared/channel";
 import { adoptStagedSnapshot } from "./backups/adopt-restored-snapshot";
+import { resetWithoutCopy } from "./backups/reset-without-copy";
 import { createRestoreAttempts } from "./backups/restore-attempts";
 import { createRestoreLaunch } from "./backups/restore-launch";
 import { afterEnrollment, storingEnrollmentCredentials } from "./backups/restore-on-enrollment";
@@ -115,7 +115,7 @@ import { listSerialPorts, serialportEnumeration } from "./register/serialport-en
 import { snapshotCorruptionReportSending } from "./register/snapshot-corruption-report-sending";
 import type { SnapshotCycleSchedule } from "./register/snapshot-cycle-schedule";
 import { startSnapshotCycle } from "./register/snapshot-cycle-wiring";
-import { readOpenSession } from "./register/sqlite-cash-ledger";
+import { readOpenSession, readRegisterIdentity } from "./register/sqlite-cash-ledger";
 import { localDatabaseDamageIn } from "./register/sqlite-local-database-health";
 import { SqliteRestorationEvidence } from "./register/sqlite-restoration-evidence";
 import { SqliteSerialDeviceRegistrations } from "./register/sqlite-serial-device-registrations";
@@ -193,7 +193,6 @@ import { SqliteAcceptedPushLog } from "./sync/sqlite-accepted-push-log";
 import { SqliteLocalInstallation, salesStopOf } from "./sync/sqlite-local-installation";
 import { SqliteLocalOutbox } from "./sync/sqlite-local-outbox";
 import { SqliteLocalReplica } from "./sync/sqlite-local-replica";
-import { SqliteNoCopySyncIdentityStore } from "./sync/sqlite-no-copy-sync-identity-store";
 import {
   nodeStorageFileSystem,
   storageReadingReader,
@@ -284,20 +283,11 @@ const restoreAttempts = createRestoreAttempts({
   cloudAnswered: (reachable) => {
     cloudReachability = reachable ? "reachable" : "unreachable";
   },
-  resetWithoutCopy: async (firstInstallation) => {
-    const credentials = await mainRequests.readCredentials();
-    if (credentials === undefined || localDatabase === undefined) {
-      throw new Error("the register cannot record its first installation yet");
-    }
-    await resetSyncIdentityWithoutCopy(
-      { store: new SqliteNoCopySyncIdentityStore(localDatabase) },
-      {
-        deviceId: credentials.device_id,
-        registerId: firstInstallation.register_id,
-        firstInstallationId: firstInstallation.installation_id,
-      },
-    );
-  },
+  resetWithoutCopy: (firstInstallation) =>
+    resetWithoutCopy(
+      { database: localDatabase, readCredentials: () => mainRequests.readCredentials() },
+      firstInstallation,
+    ),
 });
 
 async function startLocalDatabaseFile(): Promise<StartedLocalDatabase | undefined> {
@@ -557,6 +547,8 @@ const syncSchedule = createSyncSchedule({
     restorePending.isPending,
     () => void restoreAttempts.attempt(),
     replenishBeforeSync({
+      holdsRegisterIdentity: () =>
+        localDatabase !== undefined && readRegisterIdentity(localDatabase) !== undefined,
       replenish: () =>
         replenishRestoredRegisterStep({
           database: localDatabase,
