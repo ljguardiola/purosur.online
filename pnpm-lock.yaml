@@ -243,8 +243,8 @@ importers:
         specifier: ^0.31.11
         version: 0.31.11
       nid-webauthn-emulator:
-        specifier: ^0.2.15
-        version: 0.2.15
+        specifier: ^0.2.16
+        version: 0.2.16
 
   apps/pos:
     dependencies:
@@ -4983,8 +4983,8 @@ packages:
     engines: {node: ^10 || ^12 || ^13.7 || ^14 || >=15.0.1}
     hasBin: true
 
-  nid-webauthn-emulator@0.2.15:
-    resolution: {integrity: sha512-lGbWCacTbXn5HBH+Rm8TlDKUsUBjpmIJTt7PHgeK0Cp7awh8jmdc2S06UDbZzg4Z7FWr4vIghvOgg7vN6d949Q==}
+  nid-webauthn-emulator@0.2.16:
+    resolution: {integrity: sha512-UbKsyehTxs9Rp80LqmbPDAFDuEFJyeIDYg8qr/57HQR8cMs2IrfCLG4/by4IPcvWkFkrPkMHO2tmC0/Yn55mIw==}
 
   node-abi@4.35.0:
     resolution: {integrity: sha512-ymk4aIzxdPopw2giv8Fs1Ec6vybGkjmyxUwVqhkI4MCy2tVfXdkOGGWieWVjL0THgH+7a8lRdevyupoYj3Js/Q==}
@@ -5890,11 +5890,11 @@ packages:
     resolution: {integrity: sha512-u8KszXvGfU68hVcZpRHKG28T0krMuv2G5nDhiHaMLen/gIuFEgIJhaJuO69qjnXg5paSrbPMFfx3brNuN8eVSg==}
     engines: {node: '>=14.0.0'}
 
-  tldts-core@7.4.13:
-    resolution: {integrity: sha512-mbYsrih5FRtGxs3Usvl/PqwJsNpp+jsmrdFviiK02teHDG0/HebBG/pqCylje3kzgXYzuLoHJF/0mz9W53t8Xg==}
+  tldts-core@7.4.19:
+    resolution: {integrity: sha512-goNXV6Ho9TIOfpJZanTd6CKG5DyYgYAL+k+22T0SLh8l6+KHIfBUPFuePuSZv05UttIaaLmI9tb7TmGIdK5AkQ==}
 
-  tldts@7.1.2:
-    resolution: {integrity: sha512-RUX5sQm8bl03ycwQ6nSgJiKw9FZWhA8GBzxX6X1lsG3xKzFIW+lYLLpM30FQbDD6XjTWa/VkF15VxjnAMWYJAQ==}
+  tldts@7.4.16:
+    resolution: {integrity: sha512-QwBER5KMR86IIjpIiO7H/Z3IMJPsZ1A6RKPAqzTTgOyUQUSt9FdnKcqhTaJmkY6HVrgouZHZR0ncK5QxvmnQeg==}
     hasBin: true
 
   tmp-promise@3.0.3:
@@ -10604,9 +10604,9 @@ snapshots:
 
   nanoid@3.3.20: {}
 
-  nid-webauthn-emulator@0.2.15:
+  nid-webauthn-emulator@0.2.16:
     dependencies:
-      tldts: 7.1.2
+      tldts: 7.4.16
 
   node-abi@4.35.0:
     dependencies:
@@ -11748,11 +11748,11 @@ snapshots:
 
   tinyspy@4.0.6: {}
 
-  tldts-core@7.4.13: {}
+  tldts-core@7.4.19: {}
 
-  tldts@7.1.2:
+  tldts@7.4.16:
     dependencies:
-      tldts-core: 7.4.13
+      tldts-core: 7.4.19
 
   tmp-promise@3.0.3:
     dependencies:
