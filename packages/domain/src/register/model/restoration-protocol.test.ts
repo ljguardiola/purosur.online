@@ -90,6 +90,7 @@ describe("restorationStanding", () => {
       expect(restorationStanding({ ...ALL_COMPLETED, [step]: "pending" })).toEqual({
         kind: "in_progress",
         step,
+        origin: "copy",
       });
     }
   });

@@ -927,7 +927,11 @@ describe("answerRendererRequest", () => {
   });
 
   it("answers the restoration standing as the core reads it", async () => {
-    const standing: RestorationStandingAnswer = { kind: "in_progress", step: "replenish" };
+    const standing: RestorationStandingAnswer = {
+      kind: "in_progress",
+      step: "replenish",
+      origin: "copy",
+    };
 
     expect(
       await answerRendererRequest(deps(true, { restorationStanding: () => standing }).deps, {

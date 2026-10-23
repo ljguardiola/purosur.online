@@ -128,7 +128,7 @@ describe("the restored sync identity store", () => {
       last_accepted_push_at: null,
     });
     expect(database.prepare("SELECT * FROM register_predecessor").all()).toEqual([
-      { device_id: OLD_DEVICE, last_acknowledged_seq: 4 },
+      { device_id: OLD_DEVICE, last_acknowledged_seq: 4, from_copy: 1 },
     ]);
     expect(count("outbox")).toBe(0);
     expect(count("pin_verifiers")).toBe(0);

@@ -17,6 +17,7 @@ import {
   REGISTER_UPDATE_HOLD_LIMIT_MS,
   STORAGE_READ_INTERVAL_MS,
 } from "@purosur/domain";
+import { resetSyncIdentityWithoutCopy } from "@purosur/domain/sync/use-cases";
 import * as Sentry from "@sentry/electron/utility";
 import { net } from "electron";
 import {
@@ -192,6 +193,7 @@ import { SqliteAcceptedPushLog } from "./sync/sqlite-accepted-push-log";
 import { SqliteLocalInstallation, salesStopOf } from "./sync/sqlite-local-installation";
 import { SqliteLocalOutbox } from "./sync/sqlite-local-outbox";
 import { SqliteLocalReplica } from "./sync/sqlite-local-replica";
+import { SqliteNoCopySyncIdentityStore } from "./sync/sqlite-no-copy-sync-identity-store";
 import {
   nodeStorageFileSystem,
   storageReadingReader,
@@ -281,6 +283,20 @@ const restoreAttempts = createRestoreAttempts({
   },
   cloudAnswered: (reachable) => {
     cloudReachability = reachable ? "reachable" : "unreachable";
+  },
+  resetWithoutCopy: async (firstInstallation) => {
+    const credentials = await mainRequests.readCredentials();
+    if (credentials === undefined || localDatabase === undefined) {
+      throw new Error("the register cannot record its first installation yet");
+    }
+    await resetSyncIdentityWithoutCopy(
+      { store: new SqliteNoCopySyncIdentityStore(localDatabase) },
+      {
+        deviceId: credentials.device_id,
+        registerId: firstInstallation.register_id,
+        firstInstallationId: firstInstallation.installation_id,
+      },
+    );
   },
 });
 
@@ -1498,7 +1514,9 @@ deliverMessagesFromMain((event) => {
       updateHold.release();
     } else if (message.type === "snapshot-worker-exited") {
       void snapshotCycle?.workerExited(message.copy_failed_stage);
-      restoreAttempts.workerExited(message.restore_outcome);
+      restoreAttempts
+        .workerExited(message.restore_outcome, message.first_installation)
+        .catch((error: unknown) => reportFailure("recording the first installation", error));
       restorationStandingWatch?.check();
       if (deviceTokenRotation !== undefined) {
         refreshKeysWhenAnnounced(message.latest_announced_key_version, {
