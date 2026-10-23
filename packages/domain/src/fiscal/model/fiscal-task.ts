@@ -9,10 +9,6 @@ export type FiscalTaskState = (typeof FISCAL_TASK_STATES)[number];
 
 export const FISCAL_TASK_CLOSING_NOTE_MAX_LENGTH = 500;
 
-export function isFiscalTaskClosingNoteGiven(note: string): boolean {
-  return note.trim().length > 0;
-}
-
 export function isFiscalTaskClosingNoteTooLong(note: string): boolean {
   return codePointLength(note) > FISCAL_TASK_CLOSING_NOTE_MAX_LENGTH;
 }

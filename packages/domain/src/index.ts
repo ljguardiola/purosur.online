@@ -321,7 +321,6 @@ export {
   isDeferredSaleExpired,
   isFiscalAddressNameTooLong,
   isFiscalAddressStreetAddressTooLong,
-  isFiscalTaskClosingNoteGiven,
   isFiscalTaskClosingNoteTooLong,
   isFortnightPresentationOwed,
   isInDeferredBacklog,

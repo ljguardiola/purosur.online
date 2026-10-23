@@ -140,7 +140,6 @@ export {
   FISCAL_TASK_CLOSING_NOTE_MAX_LENGTH,
   FISCAL_TASK_KINDS,
   FISCAL_TASK_STATES,
-  isFiscalTaskClosingNoteGiven,
   isFiscalTaskClosingNoteTooLong,
   OPEN_FISCAL_TASK_STATE,
 } from "./model/fiscal-task.js";

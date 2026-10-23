@@ -10,7 +10,6 @@ import {
   type FiscalTask,
   type FiscalTaskKind,
   type FiscalTaskState,
-  isFiscalTaskClosingNoteGiven,
   isFiscalTaskClosingNoteTooLong,
   OPEN_FISCAL_TASK_STATE,
 } from "./fiscal-task.js";
@@ -95,16 +94,6 @@ describe("the closing note of a fiscal task", () => {
     expect(FISCAL_TASK_CLOSING_NOTE_MAX_LENGTH).toBe(500);
   });
 
-  it.each([
-    ["a sentence", "Regularized with the accountant", true],
-    ["a single character", "a", true],
-    ["a note padded with whitespace", "  ok  ", true],
-    ["an empty note", "", false],
-    ["spaces only", "   ", false],
-    ["whitespace of every kind", " \t\n\u00a0 ", false],
-  ])("treats %s as given or not", (_case, note, given) => {
-    expect(isFiscalTaskClosingNoteGiven(note)).toBe(given);
-  });
 
   it("accepts a note of exactly the maximum length and refuses one character more", () => {
     expect(isFiscalTaskClosingNoteTooLong("a".repeat(500))).toBe(false);
