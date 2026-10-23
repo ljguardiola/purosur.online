@@ -29,7 +29,7 @@ type RestoringStepEvidence<Step extends DeliveredRestorationStep> =
     ? RestorationStepEvidence | "failed"
     : RestorationStepEvidence;
 
-export type ReplenishmentOrigin = "copy" | "no_copy";
+type ReplenishmentOrigin = "copy" | "no_copy";
 
 type CloudEvidence = "reachable" | "unreachable" | "unknown";
 
