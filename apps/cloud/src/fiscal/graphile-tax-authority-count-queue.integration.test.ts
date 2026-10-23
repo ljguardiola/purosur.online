@@ -334,6 +334,7 @@ describe("the tax authority count jobs on a real Postgres", () => {
 
       expect(outcome.kind).toBe("configured");
       expect(await pendingCountJobs()).toEqual([
+        { pointOfSale: 42, documentType: "credit_note_c", attempts: 0, maxAttempts: 25 },
         { pointOfSale: 42, documentType: "factura_c", attempts: 0, maxAttempts: 25 },
       ]);
     });
