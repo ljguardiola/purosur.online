@@ -168,6 +168,69 @@ describe("observeRegisterStops", () => {
     ]);
   });
 
+  it.each(["refused", "unreadable_event"] as const)(
+    "opens an alert for a register that reports its replenishment failed as %s",
+    async (failure) => {
+      await observeRegisterStops(
+        db,
+        {
+          registerId: REGISTER,
+          deviceId: DEVICE,
+          locationId: location,
+          report: { ...REPORT, replenishment_failed: failure },
+        },
+        NOW,
+      );
+
+      expect(await alertsOfKind("register_replenishment_failed")).toEqual([
+        expect.objectContaining({ detail: { deviceId: DEVICE, failure }, resolvedAt: null }),
+      ]);
+    },
+  );
+
+  it("clears the register's open replenishment alert once it reports its replenishment completed", async () => {
+    await observeRegisterStops(
+      db,
+      {
+        registerId: REGISTER,
+        deviceId: DEVICE,
+        locationId: location,
+        report: { ...REPORT, replenishment_failed: "refused" },
+      },
+      NOW,
+    );
+
+    await observeRegisterStops(
+      db,
+      {
+        registerId: REGISTER,
+        deviceId: DEVICE,
+        locationId: location,
+        report: { ...REPORT, replenishment_failed: false },
+      },
+      LATER,
+    );
+
+    expect(await alertsOfKind("register_replenishment_failed")).toEqual([
+      expect.objectContaining({ conditionClearedAt: LATER }),
+    ]);
+  });
+
+  it("opens nothing for a register that reports its replenishment has not failed", async () => {
+    await observeRegisterStops(
+      db,
+      {
+        registerId: REGISTER,
+        deviceId: DEVICE,
+        locationId: location,
+        report: { ...REPORT, replenishment_failed: false },
+      },
+      NOW,
+    );
+
+    expect(await db.select().from(alerts)).toEqual([]);
+  });
+
   it("opens nothing for a register that reports its clock within tolerance", async () => {
     await observeRegisterStops(
       db,

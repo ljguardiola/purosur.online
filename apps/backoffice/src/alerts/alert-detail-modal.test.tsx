@@ -1464,6 +1464,43 @@ test("names a register whose clock is off by what happened when the alert is not
     .toBeVisible();
 });
 
+test.each([
+  [
+    "refused",
+    "La nube rechazó ponerla al día. La caja «Caja 1» no puede vender hasta que un Administrador la dé de alta de nuevo.",
+  ],
+  [
+    "unreadable_event",
+    "La caja «Caja 1» recibió un evento que su versión no puede leer. No puede vender hasta que se actualice; después lo intenta sola.",
+  ],
+] as const)(
+  "tells a register whose replenishment failed as %s and that the alert closes by itself",
+  async (failure, description) => {
+    const services = createServices();
+    vi.mocked(services.fetchAlert).mockResolvedValue(
+      ok(
+        baseDetail({
+          kind: "register_replenishment_failed",
+          level: "critical",
+          audience: "all",
+          closing: "by_itself",
+          scope: "register-1",
+          scopeDisplay: "Caja 1",
+          detail: { deviceId: "device-1", failure },
+        }),
+      ),
+    );
+
+    const screen = await renderModal(services);
+
+    await expect
+      .element(screen.getByText("Caja sin poder ponerse al día", { exact: true }))
+      .toBeVisible();
+    await expect.element(screen.getByText(description)).toBeVisible();
+    expect(screen.getByText(/No se cierra sola/).query()).toBeNull();
+  },
+);
+
 test("names a register whose fiscal emission is stopped by what happened when the alert is not for the Local audience", async () => {
   const services = createServices();
   vi.mocked(services.fetchAlert).mockResolvedValue(

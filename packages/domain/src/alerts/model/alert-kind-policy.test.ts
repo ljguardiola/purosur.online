@@ -82,6 +82,7 @@ describe("alertKindPolicy", () => {
     ["sales_denied", "critical", null, "local", "register", true],
     ["fiscal_emission_stopped", "critical", null, "local", "register", true],
     ["clock_drift", "critical", null, "local", "register", true],
+    ["register_replenishment_failed", "critical", null, "all", "register", true],
     ["fiscal_rejected", "critical", null, "all", "pointOfSaleDocumentType", true],
     ["offline_authorization_code_missing", "informational", null, "all", "registerFortnight", true],
     [
@@ -132,6 +133,7 @@ describe("alertKindPolicy", () => {
       "offline_authorization_code_missing",
       "fiscal_emission_stopped",
       "clock_drift",
+      "register_replenishment_failed",
       "lots_expiring",
       "offsite_dump_unverified",
       "fortnight_report_pending",
@@ -174,6 +176,7 @@ describe("alertClosing", () => {
       fiscal_unknown: "when_its_document_is_resolved",
       fiscal_emission_stopped: "by_itself",
       clock_drift: "by_itself",
+      register_replenishment_failed: "by_itself",
       outbox_chain_broken: "by_hand",
       lots_expiring: "by_itself",
       offsite_dump_unverified: "by_itself",
@@ -217,6 +220,7 @@ describe("alertKindsWithScope", () => {
       "sales_denied",
       "fiscal_emission_stopped",
       "clock_drift",
+      "register_replenishment_failed",
       "clock_corrected",
       "register_backup_overdue",
     ]);

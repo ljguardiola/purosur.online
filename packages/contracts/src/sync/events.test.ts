@@ -201,6 +201,25 @@ describe("push events request", () => {
     expect(requestWith({ telemetry: reported }).data?.telemetry).toEqual(reported);
   });
 
+  it.each([false, "refused", "unreadable_event"])(
+    "accepts a register that reports its replenishment failed as %s",
+    (failed) => {
+      const reported = { ...telemetry, replenishment_failed: failed };
+
+      expect(requestWith({ telemetry: reported }).data?.telemetry).toEqual(reported);
+    },
+  );
+
+  it("accepts a register that reports nothing about its replenishment", () => {
+    expect(requestWith({ telemetry }).data?.telemetry).toEqual(telemetry);
+  });
+
+  it.each([true, "lost", "yes"])("refuses a replenishment_failed of %s", (failed) => {
+    expect(requestWith({ telemetry: { ...telemetry, replenishment_failed: failed } }).success).toBe(
+      false,
+    );
+  });
+
   it("refuses a clock_drift that is not a boolean", () => {
     expect(requestWith({ telemetry: { ...telemetry, clock_drift: "yes" } }).success).toBe(false);
   });
