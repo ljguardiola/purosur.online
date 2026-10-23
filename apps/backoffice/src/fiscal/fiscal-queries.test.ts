@@ -68,3 +68,14 @@ test("invalidating the fiscal key marks the buyer tax statuses stale too", async
 
   expect(client.getQueryState(fiscalKeys.buyerTaxStatuses)?.isInvalidated).toBe(true);
 });
+
+test("invalidating the fiscal key marks the fiscal tasks and the unbilled deferred sales stale too", async () => {
+  const client = new QueryClient();
+  client.setQueryData(fiscalKeys.fiscalTasks, {});
+  client.setQueryData(fiscalKeys.unbilledDeferredSales, {});
+
+  await client.invalidateQueries({ queryKey: fiscalKey, refetchType: "none" });
+
+  expect(client.getQueryState(fiscalKeys.fiscalTasks)?.isInvalidated).toBe(true);
+  expect(client.getQueryState(fiscalKeys.unbilledDeferredSales)?.isInvalidated).toBe(true);
+});

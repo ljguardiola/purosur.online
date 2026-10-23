@@ -4,6 +4,7 @@ import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import type { AccessEmailSender } from "../credentials/recovery-email-sender.js";
 import { DrizzleOfflineAuthorizationCodeStore } from "../fiscal/drizzle-offline-authorization-code-store.js";
+import { insertDeferredSaleRow } from "../fiscal/test-support/deferred-sale-fixtures.js";
 import { UNREACHABLE_WSFE_ENDPOINT } from "../fiscal/test-support/fake-wsfe-server.js";
 import { configureOfflinePointOfSale } from "../fiscal/test-support/offline-point-of-sale-fixtures.js";
 import { insertRejectedDocumentRemedy } from "../fiscal/test-support/rejected-document-remedy-fixtures.js";
@@ -11,7 +12,9 @@ import {
   alerts,
   branchHours,
   categories,
+  deferredSales,
   deviceState,
+  fiscalTasks,
   fortnightDocumentReports,
   locations,
   lots,
@@ -152,6 +155,58 @@ describe("the background worker the server sets up on a real Postgres", () => {
             locationId: quiet.locationId,
             resolvedAt: null,
           });
+        },
+        { timeout: 20_000, interval: 100 },
+      );
+    } finally {
+      await recovery.close();
+    }
+  }, 60_000);
+
+  it("alerts on a deferred sale nearing its expiry and turns one past it into a regularization task whose alert never opens", async () => {
+    const installation = await insertEnrolledInstallation(db, {
+      now: NOW,
+      registerName: "Caja diferidas",
+    });
+    const nearing = await insertDeferredSaleRow(db, {
+      ...installation,
+      occurredAt: new Date("2020-01-01T15:00:00.000Z"),
+    });
+    const expired = await insertDeferredSaleRow(db, {
+      ...installation,
+      occurredAt: new Date("2019-12-20T15:00:00.000Z"),
+    });
+    const recovery = await setUpRecovery(
+      {
+        databaseUrl: integrationDb.databaseUrl,
+        emailSender: { transport: "log" },
+        emailFrom: FICTIONAL_RECOVERY_SENDER,
+        emailReplyTo: FICTIONAL_RECOVERY_REPLY_TO,
+        backofficeOrigin: "https://staging.purosur.online",
+        arcaCertificate: { environment: "production", notAfter: new Date("2126-09-01T19:42:17Z") },
+        arcaVitality: { endpoint: UNREACHABLE_WSFE_ENDPOINT },
+      },
+      () => NOW,
+      { emailSender: UNUSED_EMAIL_SENDER, schedules: false },
+    );
+
+    try {
+      await sql`select graphile_worker.add_job('alert-condition-resolution')`;
+
+      await vi.waitFor(
+        async () => {
+          const [alert] = await db.select().from(alerts).where(eq(alerts.scope, nearing.id));
+          expect(alert).toMatchObject({ kind: "deferred_sale_due", resolvedAt: null });
+          const [record] = await db
+            .select()
+            .from(deferredSales)
+            .where(eq(deferredSales.id, expired.id));
+          expect(record).toMatchObject({ state: "expired" });
+          const tasks = await db.select().from(fiscalTasks);
+          expect(tasks).toMatchObject([
+            { kind: "deferred_sale_expired", deferredSaleId: expired.id },
+          ]);
+          expect(await db.select().from(alerts).where(eq(alerts.scope, expired.id))).toEqual([]);
         },
         { timeout: 20_000, interval: 100 },
       );

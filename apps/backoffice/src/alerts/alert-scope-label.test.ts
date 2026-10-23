@@ -81,3 +81,9 @@ test.each(["3:factura_z:41", "3:factura_c", "x:factura_c:41", "3:factura_c:x"])(
     expect(alertScopeLabel("pointOfSaleDocumentNumber", scopeDisplay)).toBe(scopeDisplay);
   },
 );
+
+test("names the deferred sale of an alert instead of showing its id", () => {
+  expect(alertScopeLabel("deferredSale", "3f2b8c1e-5d4a-4b7e-9c10-a1b2c3d4e5f6")).toBe(
+    "Venta diferida",
+  );
+});

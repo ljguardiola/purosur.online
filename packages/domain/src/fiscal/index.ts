@@ -55,7 +55,21 @@ export {
   randomShortCode,
   SHORT_CODE_ALPHABET,
 } from "./model/deferred-sale.js";
+export { deferredSaleAgeInDays } from "./model/deferred-sale-age.js";
 export { deferredSaleExpiresOn, isDeferredSaleExpired } from "./model/deferred-sale-expiry.js";
+export type {
+  DeferredSaleRegularizationTask,
+  DeferredSaleState,
+  PendingDeferredSale,
+} from "./model/deferred-sale-record.js";
+export {
+  DEFERRED_SALE_STATES,
+  deferredSaleRegularizationTask,
+  deferredSaleSettlement,
+  EXPIRED_DEFERRED_SALE_STATE,
+  isUnbilledDeferredSale,
+  PENDING_DEFERRED_SALE_STATE,
+} from "./model/deferred-sale-record.js";
 export {
   deferredSaleRecordedEvent,
   type UnclearDeferralDocument,
@@ -118,7 +132,13 @@ export type {
 } from "./model/fiscal-rejection-standing.js";
 export { FACTURA_C_DOCUMENT_TYPE } from "./model/fiscal-rejection-standing.js";
 export type { FiscalTaskDocumentType } from "./model/fiscal-task.js";
-export { CREDIT_NOTE_C_DOCUMENT_TYPE } from "./model/fiscal-task.js";
+export {
+  CLOSED_FISCAL_TASK_STATE,
+  CREDIT_NOTE_C_DOCUMENT_TYPE,
+  FISCAL_TASK_KINDS,
+  FISCAL_TASK_STATES,
+  OPEN_FISCAL_TASK_STATE,
+} from "./model/fiscal-task.js";
 export type {
   FortnightPresentationRefusal,
   FortnightPresentationState,
