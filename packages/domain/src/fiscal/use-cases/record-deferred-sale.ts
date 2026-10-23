@@ -1,6 +1,9 @@
 import type { OutboxEventDraft } from "../../shared/index.js";
 import { type DeferredSale, randomShortCode, SHORT_CODE_ATTEMPTS } from "../model/deferred-sale.js";
-import { deferredSaleRecordedEvent } from "../model/deferred-sale-recorded-event.js";
+import {
+  deferredSaleRecordedEvent,
+  type UnclearDeferralDocument,
+} from "../model/deferred-sale-recorded-event.js";
 import type { DeferralReason } from "../model/real-time-authorization.js";
 import { type ShortCodeRandomness, ShortCodeTaken } from "./deferred-sale-ports.js";
 import type { IdGenerator, SaleOrigin } from "./sale-authorization-ports.js";
@@ -12,6 +15,7 @@ export interface DeferredSaleFacts {
   reason: DeferralReason;
   routedAt: Date;
   origin: SaleOrigin;
+  unclearDocument: UnclearDeferralDocument | null;
 }
 
 export interface DeferredSaleRecording {
@@ -23,10 +27,13 @@ function recordingWith(
   id: string,
   eventId: string,
   shortCode: string,
-  { origin, ...facts }: DeferredSaleFacts,
+  { origin, unclearDocument, ...facts }: DeferredSaleFacts,
 ): DeferredSaleRecording {
   const sale = { id, shortCode, ...facts };
-  return { sale, event: deferredSaleRecordedEvent({ eventId, ...origin, deferredSale: sale }) };
+  return {
+    sale,
+    event: deferredSaleRecordedEvent({ eventId, ...origin, deferredSale: sale, unclearDocument }),
+  };
 }
 
 export function recordDeferredSale(

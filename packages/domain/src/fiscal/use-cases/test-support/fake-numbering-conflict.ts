@@ -5,6 +5,7 @@ import type {
 import type {
   OrphanRegularization,
   RequestsAtNumber,
+  SaleCreditNote,
   SaleDocument,
 } from "../../model/orphan-authorization.js";
 import type { RealTimeAuthorizationAnswer } from "../../model/real-time-authorization.js";
@@ -24,6 +25,7 @@ import type {
 } from "../tax-authority-count-ports.js";
 import type { TaxAuthorityVoucherLookup, VoucherAnswer } from "../unclear-outcome-ports.js";
 import type { WsaaToken } from "../wsaa-token-ports.js";
+import { creditNotesRecordedFor } from "./recorded-credit-notes.js";
 
 export interface SeededNumberingRequest {
   fiscalDocumentId: string;
@@ -42,6 +44,7 @@ interface StoreState {
   documents: Map<number, NumberingReconciliationDocument[]>;
   requestsAtNumber: Map<string, RequestsAtNumber>;
   saleDocuments: Map<string, SaleDocument[]>;
+  creditNotes: Map<string, SaleCreditNote[]>;
   regularizations: OrphanRegularization[];
   reconciliationRequests: number[];
   recordedCounts: LastAuthorizedCount[];
@@ -61,6 +64,7 @@ export class FakeNumberingConflictStore
     documents: new Map(),
     requestsAtNumber: new Map(),
     saleDocuments: new Map(),
+    creditNotes: new Map(),
     regularizations: [],
     reconciliationRequests: [],
     recordedCounts: [],
@@ -89,6 +93,10 @@ export class FakeNumberingConflictStore
 
   seedSaleDocuments(saleId: string, documents: SaleDocument[]) {
     this.state.saleDocuments.set(saleId, documents);
+  }
+
+  seedCreditNotes(saleId: string, creditNotes: SaleCreditNote[]) {
+    this.state.creditNotes.set(saleId, creditNotes);
   }
 
   freezeOf(pointOfSale: number): NumberingFreeze | undefined {
@@ -242,6 +250,14 @@ class FakeNumberingConflictLane implements NumberingConflictLane {
   async otherDocumentsOfSale(saleId: string, _fiscalDocumentId: string): Promise<SaleDocument[]> {
     this.store.record("otherDocumentsOfSale");
     return this.store.current.saleDocuments.get(saleId) ?? [];
+  }
+
+  async creditNotesOfSale(saleId: string): Promise<SaleCreditNote[]> {
+    this.store.record("creditNotesOfSale");
+    return [
+      ...(this.store.current.creditNotes.get(saleId) ?? []),
+      ...creditNotesRecordedFor(saleId, this.store.current.regularizations),
+    ];
   }
 
   async settleNumberingReconciliation({

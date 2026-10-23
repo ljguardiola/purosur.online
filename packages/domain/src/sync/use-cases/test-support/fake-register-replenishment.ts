@@ -1,4 +1,9 @@
-import type { RestoredCreditNoteAnswer, SaleVoidCreditNote } from "../../../fiscal/index.js";
+import type {
+  RebuiltUnclearDeferral,
+  RestoredCreditNoteAnswer,
+  RestoredUnclearDeferral,
+  SaleVoidCreditNote,
+} from "../../../fiscal/index.js";
 import type { ReplenishedUser } from "../../../users/index.js";
 import type { SyncedFact } from "../../model/synced-fact.js";
 import { A_SESSION_OPENED_FACT } from "../../model/test-support/synced-facts.js";
@@ -50,6 +55,7 @@ export function aPage(
   users: ReplenishedUser[] = [],
   creditNoteAnswers: RestoredCreditNoteAnswer[] = [],
   unrequestedCreditNoteIds: string[] = [],
+  unclearDeferralAnswers: RestoredUnclearDeferral[] = [],
 ): RegisterReplenishmentFeedAnswer<FakeFailure> {
   const page: ReplenishmentPage = {
     events,
@@ -57,6 +63,7 @@ export function aPage(
     next,
     creditNoteAnswers,
     unrequestedCreditNoteIds,
+    unclearDeferralAnswers,
   };
   return { kind: "page", page };
 }
@@ -103,6 +110,7 @@ export interface ReplenishingRegisterState {
   appliedEventIds: string[];
   creditNoteAnswers: RecordedCreditNoteAnswer[];
   heldCreditNotes: HeldCreditNote[];
+  rebuiltUnclearDeferrals: RebuiltUnclearDeferral[];
 }
 
 export type FakeStoreOperation =
@@ -110,6 +118,7 @@ export type FakeStoreOperation =
   | "applyFact"
   | "recordCreditNoteAnswer"
   | "holdCreditNoteToRequest"
+  | "rebuildUnclearDeferredSale"
   | "recordEventApplied"
   | "finish";
 
@@ -117,6 +126,7 @@ export class FakeRegisterReplenishmentStore implements RegisterReplenishmentStor
   state: ReplenishingRegisterState;
   transactions = 0;
   notYetApplicable = new Set<string>();
+  salesNotYetHeld = new Set<string>();
   failAt: { operation: FakeStoreOperation; eventId?: string } | undefined;
 
   constructor(predecessor: RegisterPredecessor | undefined) {
@@ -127,6 +137,7 @@ export class FakeRegisterReplenishmentStore implements RegisterReplenishmentStor
       appliedEventIds: [],
       creditNoteAnswers: [],
       heldCreditNotes: [],
+      rebuiltUnclearDeferrals: [],
     };
   }
 
@@ -151,11 +162,22 @@ export class FakeRegisterReplenishmentStore implements RegisterReplenishmentStor
         throw new Error("storage unavailable");
       }
     };
+    const holdsDeferredSaleRecord = (saleId: string) =>
+      working.facts.some(
+        ({ fact }) => fact.kind === "deferred_sale_recorded" && fact.deferredSale.saleId === saleId,
+      ) ||
+      working.rebuiltUnclearDeferrals.some(({ deferredSale }) => deferredSale.saleId === saleId);
     const tx: RegisterReplenishmentTransaction = {
       eventApplied: async (eventId) => working.appliedEventIds.includes(eventId),
       applyFact: async (fact, source): Promise<ReplenishedEventApplication> => {
         failIf("applyFact", source.eventId);
         if (this.notYetApplicable.has(source.eventId)) {
+          return "not_yet_applicable";
+        }
+        if (
+          fact.kind === "deferred_sale_satisfied" &&
+          !holdsDeferredSaleRecord(fact.satisfaction.saleId)
+        ) {
           return "not_yet_applicable";
         }
         working.facts.push({ fact, source });
@@ -181,11 +203,17 @@ export class FakeRegisterReplenishmentStore implements RegisterReplenishmentStor
           working.heldCreditNotes.push({ creditNote, event });
         }
       },
-      holdsDeferredSaleRecord: async (saleId) =>
-        working.facts.some(
-          ({ fact }) =>
-            fact.kind === "deferred_sale_recorded" && fact.deferredSale.saleId === saleId,
-        ),
+      rebuildUnclearDeferredSale: async (rebuilt): Promise<ReplenishedEventApplication> => {
+        failIf("rebuildUnclearDeferredSale");
+        if (this.salesNotYetHeld.has(rebuilt.deferredSale.saleId)) {
+          return "not_yet_applicable";
+        }
+        if (!holdsDeferredSaleRecord(rebuilt.deferredSale.saleId)) {
+          working.rebuiltUnclearDeferrals.push(rebuilt);
+        }
+        return "applied";
+      },
+      holdsDeferredSaleRecord: async (saleId) => holdsDeferredSaleRecord(saleId),
       recordEventApplied: async (eventId) => {
         failIf("recordEventApplied", eventId);
         working.appliedEventIds.push(eventId);

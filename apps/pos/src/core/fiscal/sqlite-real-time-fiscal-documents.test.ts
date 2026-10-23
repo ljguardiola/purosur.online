@@ -169,17 +169,23 @@ describe("the documents still requesting their answer", () => {
       {
         fiscalDocumentId: "doc-1",
         saleId: "sale-1",
+        pointOfSale: POINT_OF_SALE,
+        number: 41,
+        issuedOn: "2026-09-30",
+        document: FACTURA_C,
         origin: { registerId: "register-1", actorId: "u1" },
         reservedAt: SALE_COMPLETED_AT,
-        total: FACTURA_C.total,
         holdsDeferredSale: false,
       },
       {
         fiscalDocumentId: "doc-2",
         saleId: "sale-2",
+        pointOfSale: 13,
+        number: 41,
+        issuedOn: "2026-09-30",
+        document: FACTURA_C,
         origin: { registerId: "register-1", actorId: "u1" },
         reservedAt: SALE_COMPLETED_AT,
-        total: FACTURA_C.total,
         holdsDeferredSale: false,
       },
     ]);
@@ -328,6 +334,7 @@ describe("resolving a waiting document", () => {
           reason: "unclear_outcome",
           short_code: "7KQ4M2P9",
           routed_at: RESOLVED_AT.toISOString(),
+          unclear_document: null,
         },
       },
     ]);

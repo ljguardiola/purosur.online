@@ -188,8 +188,76 @@ describe("regularizeOrphanAuthorization", () => {
       "voucherAt",
       "requestsAtNumber",
       "otherDocumentsOfSale",
+      "creditNotesOfSale",
       "recordOrphanRegularization",
       "leaveLane",
     ]);
+  });
+
+  describe("two authorized requests of one sale", () => {
+    const FIRST: LocalRequestAtNumber = { ...SALE_REQUEST, fiscalDocumentId: "document-41" };
+    const SECOND: LocalRequestAtNumber = { ...SALE_REQUEST, fiscalDocumentId: "document-42" };
+    const authorizedAt = (number: number): SaleDocument => ({
+      kind: "real_time",
+      voucher: { voucherType: 11, pointOfSale: 12, number },
+      outcome: {
+        answer: {
+          kind: "authorized",
+          authorizationCode: "1",
+          authorizationCodeDueOn: "2026-10-11",
+        },
+        decision: null,
+      },
+    });
+
+    function twoAuthorizedRequests() {
+      const { store, ports } = scenario();
+      store.seedRequestsAtNumber({ pointOfSale: 12, number: 41 }, requestsAt(FIRST));
+      store.seedRequestsAtNumber({ pointOfSale: 12, number: 42 }, requestsAt(SECOND));
+      store.seedSaleDocumentsSeenFrom("sale-1", "document-41", [authorizedAt(42)]);
+      store.seedSaleDocumentsSeenFrom("sale-1", "document-42", [authorizedAt(41)]);
+      return { store, ports };
+    }
+
+    it.each<[string, number[], number, number]>([
+      ["41 then 42", [41, 42], 41, 42],
+      ["42 then 41", [42, 41], 42, 41],
+    ])(
+      "ends with one credit note, leaving the sale one receipt, when regularized %s",
+      async (_order, numbers, credited, kept) => {
+        const { store, ports } = twoAuthorizedRequests();
+
+        for (const number of numbers) {
+          await regularizeOrphanAuthorization(ports, { pointOfSale: 12, number });
+        }
+
+        expect(store.regularizations).toMatchObject([
+          {
+            kind: "credit_note",
+            associatedVoucher: { voucherType: 11, pointOfSale: 12, number: credited },
+            keptVoucher: { voucherType: 11, pointOfSale: 12, number: kept },
+          },
+        ]);
+      },
+    );
+
+    it("regularizes nothing for a voucher a credit note already kept, even with another valid voucher", async () => {
+      const { store, ports } = twoAuthorizedRequests();
+      store.seedSaleDocumentsSeenFrom("sale-1", "document-41", [
+        authorizedAt(42),
+        authorizedAt(43),
+      ]);
+      store.seedCreditNotes("sale-1", [
+        {
+          creditedVoucher: { voucherType: 11, pointOfSale: 12, number: 42 },
+          keptVoucher: { voucherType: 11, pointOfSale: 12, number: 41 },
+        },
+      ]);
+
+      expect(await regularizeOrphanAuthorization(ports, { pointOfSale: 12, number: 41 })).toEqual({
+        kind: "nothing_to_regularize",
+      });
+      expect(store.regularizations).toEqual([]);
+    });
   });
 });

@@ -569,6 +569,33 @@ describe("the numbering conflict lane on a real Postgres", () => {
     });
   });
 
+  describe("the credit notes of a sale", () => {
+    it("gives each credit note of the sale with the voucher it credited and the one it kept", async () => {
+      const saleId = crypto.randomUUID();
+      await settle(7, {
+        regularizations: [
+          creditNoteRegularization({
+            saleId,
+            associatedVoucher: {
+              voucherType: FACTURA_C_VOUCHER_TYPE,
+              pointOfSale: 7,
+              number: 3_101,
+            },
+            keptVoucher: { voucherType: FACTURA_C_VOUCHER_TYPE, pointOfSale: 7, number: 3_102 },
+          }),
+        ],
+        lastAuthorized: 0,
+      });
+
+      expect(await inLane(7, (lane) => lane.creditNotesOfSale(saleId))).toEqual([
+        {
+          creditedVoucher: { voucherType: FACTURA_C_VOUCHER_TYPE, pointOfSale: 7, number: 3_101 },
+          keptVoucher: { voucherType: FACTURA_C_VOUCHER_TYPE, pointOfSale: 7, number: 3_102 },
+        },
+      ]);
+    });
+  });
+
   describe("settling a reconciliation with credit notes", () => {
     it("keeps each credit note request and asks for it to be issued, together with the count and the lifted freeze", async () => {
       creditNotesEnqueued.length = 0;

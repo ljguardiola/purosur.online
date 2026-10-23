@@ -1,4 +1,8 @@
-import type { OrphanRegularization, SaleDocument } from "../../model/orphan-authorization.js";
+import type {
+  OrphanRegularization,
+  SaleCreditNote,
+  SaleDocument,
+} from "../../model/orphan-authorization.js";
 import type { RealTimeAuthorizationAnswer } from "../../model/real-time-authorization.js";
 import type {
   RecordedRequestOutcome,
@@ -20,6 +24,7 @@ import type {
 } from "../unclear-outcome-ports.js";
 import type { WsaaToken } from "../wsaa-token-ports.js";
 import type { FakePointOfSaleLanes } from "./fake-fiscal-document-authorization.js";
+import { creditNotesRecordedFor } from "./recorded-credit-notes.js";
 
 export class FakeUnclearOutcomeStore implements UnclearOutcomeLanes, UnclearOutcomeRequests {
   readonly documents: FakePointOfSaleLanes;
@@ -31,6 +36,7 @@ export class FakeUnclearOutcomeStore implements UnclearOutcomeLanes, UnclearOutc
     clearedAt: Date;
   }[] = [];
   readonly saleDocuments = new Map<string, SaleDocument[]>();
+  readonly creditNotes = new Map<string, SaleCreditNote[]>();
   readonly regularizations: (OrphanRegularization | null)[] = [];
   readonly otherVoucherAsks: { saleId: string; fiscalDocumentId: string }[] = [];
   vanishAfterLookup = false;
@@ -139,6 +145,14 @@ class FakeUnclearOutcomeLane implements UnclearOutcomeLane {
     this.store.otherVoucherAsks.push({ saleId, fiscalDocumentId });
     this.store.documents.operations.push("otherDocumentsOfSale");
     return this.store.saleDocuments.get(saleId) ?? [];
+  }
+
+  async creditNotesOfSale(saleId: string): Promise<SaleCreditNote[]> {
+    this.store.documents.operations.push("creditNotesOfSale");
+    return [
+      ...(this.store.creditNotes.get(saleId) ?? []),
+      ...creditNotesRecordedFor(saleId, this.store.regularizations),
+    ];
   }
 
   async registerOwnsPointOfSale(registerId: string, pointOfSale: number): Promise<boolean> {

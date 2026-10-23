@@ -15,6 +15,7 @@ import { applyReplenishedDeferredSaleSatisfaction } from "../fiscal/replenished-
 import {
   applyReplenishedDeferredSale,
   holdsDeferredSaleRecord,
+  rebuildReplenishedUnclearDeferredSale,
 } from "../fiscal/replenished-deferred-sales";
 import { applyReplenishedGateFailure } from "../fiscal/replenished-gate-failures";
 import { applyReplenishedOfflineFiscalDocument } from "../fiscal/replenished-offline-fiscal-documents";
@@ -106,6 +107,9 @@ export class SqliteRegisterReplenishmentStore implements RegisterReplenishmentSt
       },
       async holdCreditNoteToRequest(creditNote, event) {
         holdReplenishedCreditNoteToRequest(database, creditNote, event);
+      },
+      async rebuildUnclearDeferredSale(rebuilt) {
+        return rebuildReplenishedUnclearDeferredSale(database, rebuilt);
       },
       async holdsDeferredSaleRecord(saleId) {
         return holdsDeferredSaleRecord(database, saleId);
