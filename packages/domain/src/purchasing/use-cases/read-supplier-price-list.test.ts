@@ -12,6 +12,7 @@ import { FakeSupplierPriceListStore } from "./test-support/fake-supplier-price-l
 const NOW = new Date("2026-03-11T01:30:00Z");
 const SENT_ON = "2026-03-10";
 const PDF = new Uint8Array([37, 80, 68, 70, 45]);
+const HTML = new Uint8Array([60, 104, 116, 109, 108, 62]);
 
 function setup(
   listFields: Parameters<FakeSupplierPriceListStore["seedList"]>[0] = { id: "list-1" },
@@ -140,6 +141,39 @@ describe("readSupplierPriceList", () => {
       await readSupplierPriceList(ports, input);
 
       expect(extractor.received).toEqual([{ kind: "pdf", bytes: PDF }]);
+    });
+
+    it("sends the extractor a kept PDF as a PDF, even when it was read from a web page", async () => {
+      const { store, files, extractor, ports } = setup();
+      store.seedList({
+        id: "list-2",
+        sourceKind: "WEB_PAGE",
+        fileName: null,
+        sourceUrl: "https://distribuidora-sur.example/lista.pdf",
+      });
+      await files.store("list-2", PDF, "PDF");
+      extractor.answer = answer;
+
+      await readSupplierPriceList(ports, { ...input, listId: "list-2" });
+
+      expect(extractor.received).toEqual([{ kind: "pdf", bytes: PDF }]);
+    });
+
+    it("sends the extractor a kept HTML page as a web page and nothing else", async () => {
+      const { store, files, extractor, ports } = setup();
+      store.seedList({
+        id: "list-2",
+        sourceKind: "WEB_PAGE",
+        fileName: null,
+        sourceUrl: "https://distribuidora-sur.example/lista",
+        contentKind: "HTML",
+      });
+      await files.store("list-2", HTML, "HTML");
+      extractor.answer = answer;
+
+      await readSupplierPriceList(ports, { ...input, listId: "list-2" });
+
+      expect(extractor.received).toEqual([{ kind: "web_page", html: HTML }]);
     });
 
     it("records the send, on the Argentina day, before calling the extractor", async () => {
