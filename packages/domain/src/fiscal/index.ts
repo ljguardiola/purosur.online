@@ -59,7 +59,6 @@ export { deferredSaleAgeInDays } from "./model/deferred-sale-age.js";
 export { deferredSaleExpiresOn, isDeferredSaleExpired } from "./model/deferred-sale-expiry.js";
 export type {
   DeferredSaleRegularizationTask,
-  DeferredSaleSettling,
   DeferredSaleState,
   PendingDeferredSale,
 } from "./model/deferred-sale-record.js";

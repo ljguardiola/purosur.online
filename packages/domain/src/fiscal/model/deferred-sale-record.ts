@@ -19,7 +19,7 @@ export function isUnbilledDeferredSale({
   );
 }
 
-export type DeferredSaleSettling = "satisfied" | "cancelled";
+type DeferredSaleSettling = "satisfied" | "cancelled";
 
 export function deferredSaleSettlement(
   state: DeferredSaleState,

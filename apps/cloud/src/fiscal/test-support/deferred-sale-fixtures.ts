@@ -4,7 +4,7 @@ import type { SyncedFact } from "@purosur/domain/sync/use-cases";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { deferredSales, fiscalTasks } from "../../platform/db/schema.js";
 
-export const DEFERRED_SALE_OCCURRED_AT = new Date("2026-10-01T15:00:00.000Z");
+const DEFERRED_SALE_OCCURRED_AT = new Date("2026-10-01T15:00:00.000Z");
 
 type DeferredSaleRecordedFact = Extract<SyncedFact, { kind: "deferred_sale_recorded" }>;
 type DeferredSaleSatisfiedFact = Extract<SyncedFact, { kind: "deferred_sale_satisfied" }>;

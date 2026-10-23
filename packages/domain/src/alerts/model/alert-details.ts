@@ -218,7 +218,7 @@ interface FortnightReportDocumentRejectedDetail extends FortnightReportNeedsRegu
   rejectedNumber: number;
 }
 
-export interface DeferredSaleDueDetail {
+interface DeferredSaleDueDetail {
   registerId: string;
   saleId: string;
   saleOccurredAt: string;
