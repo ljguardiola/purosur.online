@@ -51,7 +51,10 @@ function daysSchema(field: string) {
 
 function extractionCapSchema(field: string) {
   const message = `${field} must be an integer from 1 to ${SUPPLIER_PRICE_LIST_DAILY_EXTRACTION_CAP_MAX}`;
-  return z.number({ error: message }).refine(isSupplierPriceListDailyExtractionCap, message);
+  return z
+    .number({ error: message })
+    .refine(isSupplierPriceListDailyExtractionCap, message)
+    .meta({ maximum: SUPPLIER_PRICE_LIST_DAILY_EXTRACTION_CAP_MAX });
 }
 
 export const branchSettingsEditBodySchema = z.object({
