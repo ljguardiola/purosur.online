@@ -47,6 +47,13 @@ const CUSTOMER_DOCUMENT_PRINTED = `
     )
   END`;
 
+const TICKET_COLUMNS = `
+  SELECT tickets.id AS id, tickets.last_device_seq AS last_device_seq,
+         (tickets.qr_codes IS NOT NULL) AS sealed,
+         ${CUSTOMER_DOCUMENT_PRINTED} AS customer_document_printed,
+         tickets.printed_at AS printed_at, tickets.discarded_at AS discarded_at
+    FROM contingency_backup_tickets AS tickets`;
+
 function recordOf(row: TicketRow): ContingencyBackupTicketRecord {
   return {
     id: row.id,
@@ -63,12 +70,21 @@ export class SqliteContingencyBackupTickets
   implements ContingencyBackupTicketStore<ContingencyBackupTicketsTransaction>
 {
   private readonly database: LocalDatabase;
+  private queue: Promise<unknown> = Promise.resolve();
 
   constructor(database: LocalDatabase) {
     this.database = database;
   }
 
-  async transaction<TOutcome>(
+  transaction<TOutcome>(
+    work: (tx: ContingencyBackupTicketsTransaction) => Promise<TOutcome>,
+  ): Promise<TOutcome> {
+    const outcome = this.queue.then(() => this.runTransaction(work));
+    this.queue = outcome.catch(() => undefined);
+    return outcome;
+  }
+
+  private async runTransaction<TOutcome>(
     work: (tx: ContingencyBackupTicketsTransaction) => Promise<TOutcome>,
   ): Promise<TOutcome> {
     this.database.exec("BEGIN IMMEDIATE");
@@ -80,6 +96,18 @@ export class SqliteContingencyBackupTickets
       this.database.exec("ROLLBACK");
       throw error;
     }
+  }
+
+  async ticketOfSubject(subjectId: string): Promise<ContingencyBackupTicketRecord | undefined> {
+    const row = this.database
+      .prepare<[string], TicketRow>(
+        `${TICKET_COLUMNS}
+          WHERE tickets.subject_id = ?
+          ORDER BY tickets.created_at DESC, tickets.id DESC
+          LIMIT 1`,
+      )
+      .get(subjectId);
+    return row === undefined ? undefined : recordOf(row);
   }
 
   private scope(): ContingencyBackupTicketsTransaction {
@@ -110,11 +138,7 @@ export class SqliteContingencyBackupTickets
       async ticketsToConsider() {
         return database
           .prepare<[], TicketRow>(
-            `SELECT tickets.id AS id, tickets.last_device_seq AS last_device_seq,
-                    (tickets.qr_codes IS NOT NULL) AS sealed,
-                    ${CUSTOMER_DOCUMENT_PRINTED} AS customer_document_printed,
-                    tickets.printed_at AS printed_at, tickets.discarded_at AS discarded_at
-               FROM contingency_backup_tickets AS tickets
+            `${TICKET_COLUMNS}
               WHERE tickets.discarded_at IS NULL
               ORDER BY tickets.created_at, tickets.id`,
           )
