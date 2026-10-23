@@ -1,7 +1,12 @@
+import type { SaleVoidCreditNote } from "@purosur/domain";
+import { nextOfflineNumber } from "@purosur/domain";
 import type { SyncedFact } from "@purosur/domain/sync/use-cases";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { LocalDatabase } from "../platform/local-database";
+import { recordReplenishedCreditNoteAnswer } from "./replenished-credit-note-answers";
+import { holdReplenishedCreditNoteToRequest } from "./replenished-credit-note-requests";
 import { applyReplenishedOfflineFiscalDocument } from "./replenished-offline-fiscal-documents";
+import { readOfflineSeries } from "./sqlite-fiscal-series";
 import {
   FACTURA_C,
   insertCompletedSale,
@@ -184,5 +189,188 @@ describe("replenishing an offline fiscal document into a restored register", () 
     expect(applyReplenishedOfflineFiscalDocument(database, issued({}, false))).toBe("applied");
 
     expect({ documents: documents(), marks: clockMarks() }).toEqual(before);
+  });
+});
+
+describe("replenishing a credit note issued offline into a restored register", () => {
+  const CREDIT_NOTE: SaleVoidCreditNote = {
+    creditNoteId: "note-1",
+    saleId: "sale-1",
+    total: 12_500,
+    receiverTaxStatusCode: 5,
+    correctedVoucher: { voucherType: 11, pointOfSale: OFFLINE_POINT_OF_SALE, number: 7 },
+  };
+  const ISSUED_OFFLINE_ANSWER = {
+    creditNoteId: "note-1",
+    answeredAt: GENERATED_AT,
+    answer: {
+      kind: "issued_offline" as const,
+      pointOfSale: OFFLINE_POINT_OF_SALE,
+      number: 3,
+      issuedOn: "2026-09-30",
+      issuedAt: GENERATED_AT,
+      offlineAuthorizationCode: OFFLINE_CODE,
+      fortnight: { start: "2026-09-16", end: "2026-09-30" },
+    },
+  };
+  const VOID_EVENT = {
+    event_id: "void-event",
+    device_seq: 4,
+    aggregate_type: "Sale",
+    aggregate_id: "sale-1",
+    event_type: "sale_voided",
+    schema_version: 3,
+    payload: {},
+    occurred_at: "2026-09-30T12:30:00.000Z",
+    actor_id: "u1",
+    chain_hmac: "hmac",
+  };
+
+  function creditNote(overrides: Partial<OfflineDocumentFact["document"]> = {}) {
+    return issued(
+      {
+        fiscalDocumentId: "note-doc-1",
+        documentType: "credit_note_c",
+        number: 3,
+        creditNoteId: "note-1",
+        corrects: CREDIT_NOTE.correctedVoucher,
+        ...overrides,
+      },
+      false,
+    );
+  }
+
+  function voidSale(): void {
+    database
+      .prepare(
+        "UPDATE sales SET state = 'VOIDED', voided_at = '2026-09-30T12:30:00.000Z' WHERE id = 'sale-1'",
+      )
+      .run();
+  }
+
+  function notes() {
+    return database
+      .prepare(
+        "SELECT id, state, offline_fiscal_document_id, total, corrected_number FROM sale_void_credit_notes",
+      )
+      .all();
+  }
+
+  function requests() {
+    return database.prepare("SELECT credit_note_id FROM replenished_credit_note_requests").all();
+  }
+
+  const NOTE_ISSUED = [
+    {
+      id: "note-1",
+      state: "ISSUED_OFFLINE",
+      offline_fiscal_document_id: "note-doc-1",
+      total: 12_500,
+      corrected_number: 7,
+    },
+  ];
+
+  it("holds the credit note C with its credit note and the voucher it corrects, and records the void's credit note as issued offline", () => {
+    voidSale();
+
+    expect(applyReplenishedOfflineFiscalDocument(database, creditNote())).toBe("applied");
+
+    expect(
+      database
+        .prepare(
+          `SELECT document_type, number, credit_note_id, corrected_voucher_type,
+                  corrected_point_of_sale, corrected_number FROM offline_fiscal_documents`,
+        )
+        .all(),
+    ).toEqual([
+      {
+        document_type: "credit_note_c",
+        number: 3,
+        credit_note_id: "note-1",
+        corrected_voucher_type: 11,
+        corrected_point_of_sale: OFFLINE_POINT_OF_SALE,
+        corrected_number: 7,
+      },
+    ]);
+    expect(notes()).toEqual(NOTE_ISSUED);
+  });
+
+  it("raises the clock mark of the credit note series, not the invoice series'", () => {
+    applyReplenishedOfflineFiscalDocument(database, creditNote());
+
+    expect(clockMarks()).toEqual([
+      {
+        point_of_sale: OFFLINE_POINT_OF_SALE,
+        document_type: "credit_note_c",
+        reading: "2026-09-30T12:05:00.000Z",
+      },
+    ]);
+  });
+
+  it("is idempotent when the credit note is replayed", () => {
+    applyReplenishedOfflineFiscalDocument(database, creditNote());
+    const before = { notes: notes(), marks: clockMarks() };
+
+    expect(applyReplenishedOfflineFiscalDocument(database, creditNote())).toBe("applied");
+
+    expect({ notes: notes(), marks: clockMarks() }).toEqual(before);
+    expect(database.prepare("SELECT 1 FROM offline_fiscal_documents").all()).toHaveLength(1);
+  });
+
+  it("leaves it issued offline when the void's answer comes after the credit note", () => {
+    voidSale();
+    applyReplenishedOfflineFiscalDocument(database, creditNote());
+
+    recordReplenishedCreditNoteAnswer(database, CREDIT_NOTE, ISSUED_OFFLINE_ANSWER);
+
+    expect(notes()).toEqual(NOTE_ISSUED);
+    expect(requests()).toEqual([]);
+  });
+
+  it("leaves it issued offline when the void's answer comes before the credit note", () => {
+    voidSale();
+
+    recordReplenishedCreditNoteAnswer(database, CREDIT_NOTE, ISSUED_OFFLINE_ANSWER);
+    applyReplenishedOfflineFiscalDocument(database, creditNote());
+
+    expect(notes()).toEqual(NOTE_ISSUED);
+    expect(requests()).toEqual([]);
+  });
+
+  it("turns a credit note the backup holds in progress, and its replenished request, into one issued offline", () => {
+    voidSale();
+    holdReplenishedCreditNoteToRequest(database, CREDIT_NOTE, VOID_EVENT);
+
+    applyReplenishedOfflineFiscalDocument(database, creditNote());
+
+    expect(notes()).toEqual(NOTE_ISSUED);
+    expect(requests()).toEqual([]);
+  });
+
+  it("never holds the credit note of a void for the cloud to issue once it was issued offline", () => {
+    voidSale();
+    applyReplenishedOfflineFiscalDocument(database, creditNote());
+
+    holdReplenishedCreditNoteToRequest(database, CREDIT_NOTE, VOID_EVENT);
+
+    expect(notes()).toEqual(NOTE_ISSUED);
+    expect(requests()).toEqual([]);
+  });
+
+  it("continues the credit note series above the numbers replayed", () => {
+    insertOfflineNumberBlock(
+      database,
+      "note-block",
+      1,
+      1000,
+      OFFLINE_POINT_OF_SALE,
+      "credit_note_c",
+    );
+    applyReplenishedOfflineFiscalDocument(database, creditNote());
+
+    const series = readOfflineSeries(database, "credit_note_c");
+
+    expect(series.localLastUsed).toBe(3);
+    expect(nextOfflineNumber(series)).toBe(4);
   });
 });
