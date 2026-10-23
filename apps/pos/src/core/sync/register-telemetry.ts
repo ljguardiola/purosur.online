@@ -4,6 +4,8 @@ import {
   fiscalEmissionStoppedReportOf,
   type LatestPreEmissionGateOutcome,
   type RegisterTelemetry,
+  type ReplenishmentFailure,
+  replenishmentFailedReportOf,
   SALES_DENIED_FOR_DAMAGED_LOCAL_DATABASE,
   type SalesStopState,
   type SerialDevicesReport,
@@ -26,6 +28,7 @@ export function registerTelemetryReader(
   readLocalDatabaseDamaged: () => boolean = () => false,
   readBatteryCritical: () => boolean = () => false,
   readClockOffsetMs: () => number | null = () => null,
+  readReplenishmentFailure: () => ReplenishmentFailure | undefined = () => undefined,
 ): () => Promise<RegisterTelemetry> {
   return async () => ({
     ...(await readStorage()),
@@ -37,6 +40,7 @@ export function registerTelemetryReader(
     ),
     ...fiscalEmissionStoppedReportOf(readLatestPreEmissionGate()),
     ...clockDriftReportOf(readClockOffsetMs()),
+    ...replenishmentFailedReportOf(readReplenishmentFailure()),
     serial_devices: readSerialDevices(),
     ...batteryTelemetryOf(readBattery()),
   });

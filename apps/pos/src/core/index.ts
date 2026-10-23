@@ -198,6 +198,7 @@ import { SqliteAcceptedPushLog } from "./sync/sqlite-accepted-push-log";
 import { SqliteLocalInstallation, salesStopOf } from "./sync/sqlite-local-installation";
 import { SqliteLocalOutbox } from "./sync/sqlite-local-outbox";
 import { SqliteLocalReplica } from "./sync/sqlite-local-replica";
+import { readReplenishmentFailure } from "./sync/sqlite-register-replenishment-store";
 import {
   nodeStorageFileSystem,
   storageReadingReader,
@@ -513,6 +514,7 @@ async function pushOutboxToCloud() {
                 localDatabaseDamaged,
                 batteryShutdown.newSalesStoppedByBattery,
                 () => readLatestClockOffsetMs(localDatabase),
+                () => readReplenishmentFailure(localDatabase),
               ),
         acceptedPush:
           localDatabase === undefined
@@ -565,6 +567,7 @@ const syncSchedule = createSyncSchedule({
               : (path, bearerToken, body) =>
                   postToCloudWithBearer(cloudClient, path, bearerToken, body),
           ids: uuidV7Ids,
+          appVersion: appVersionFromCoreArguments(process.argv),
         }),
       report: (attempt) => {
         const report = replenishmentReportOf(attempt);
