@@ -24,6 +24,7 @@ export function aDeferredSaleRecordedFact(
       routedAt: new Date("2026-10-01T15:00:01.000Z"),
       ...overrides,
     },
+    unclearDocument: null,
   };
 }
 
