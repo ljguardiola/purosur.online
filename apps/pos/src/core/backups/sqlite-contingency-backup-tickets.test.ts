@@ -205,3 +205,32 @@ describe("a transaction", () => {
     await expect(record(ticket())).rejects.toThrow();
   });
 });
+
+describe("the ticket of a subject", () => {
+  it("is the latest one recorded for it, discarded or not", async () => {
+    await record(
+      ticket({ id: "first", subjectId: "sale-1", createdAt: new Date("2026-10-09T12:00:00.000Z") }),
+      ticket({
+        id: "second",
+        subjectId: "sale-1",
+        createdAt: new Date("2026-10-09T12:05:00.000Z"),
+      }),
+      ticket({ id: "other", subjectId: "sale-2", createdAt: new Date("2026-10-09T12:09:00.000Z") }),
+    );
+    await tickets.transaction((tx) => tx.markDiscarded(["second"], new Date()));
+
+    expect((await tickets.ticketOfSubject("sale-1"))?.id).toBe("second");
+    expect((await tickets.ticketOfSubject("sale-1"))?.discardedAt).toBeInstanceOf(Date);
+  });
+
+  it("carries the same facts as a ticket to consider", async () => {
+    insertVoidedSale(database);
+    await record(ticket({ id: "a", operation: "sale", subjectId: "sale-1" }));
+
+    expect(await tickets.ticketOfSubject("sale-1")).toEqual((await consider())[0]);
+  });
+
+  it("is none for a subject without a ticket", async () => {
+    expect(await tickets.ticketOfSubject("sale-9")).toBeUndefined();
+  });
+});
