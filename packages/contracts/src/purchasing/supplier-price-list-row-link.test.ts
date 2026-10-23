@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { supplierPriceListRowLinkBodySchema } from "./supplier-price-list-row-link.js";
 
-const body = { version: 3, productId: "product-1", packagingId: "packaging-1", vatRate: 2100 };
+const PRODUCT_ID = "0b8f6c1e-2d4a-4a57-9a3e-5f1d7c9b2e10";
+const PACKAGING_ID = "7c1a9e52-3b6d-4f08-8d2a-1e4b5c6d7f80";
+const body = { version: 3, productId: PRODUCT_ID, packagingId: PACKAGING_ID, vatRate: 2100 };
 
 describe("supplierPriceListRowLinkBodySchema", () => {
   it("reads the version loaded, the product, its packaging and the rate", () => {
