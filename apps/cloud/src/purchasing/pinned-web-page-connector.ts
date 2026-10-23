@@ -4,7 +4,11 @@ import type { LookupFunction } from "node:net";
 
 export interface WebPageConnection {
   status: number;
-  headers: { location?: string; contentType?: string; contentLength?: number };
+  headers: {
+    location?: string | undefined;
+    contentType?: string | undefined;
+    contentLength?: number | undefined;
+  };
   body: AsyncIterable<Uint8Array>;
 }
 

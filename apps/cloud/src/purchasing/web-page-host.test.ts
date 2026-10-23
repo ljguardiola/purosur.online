@@ -145,15 +145,18 @@ describe("checkWebPageHost", () => {
       ["http://134744072/", "8.8.8.8", 4],
       ["http://[2606:4700:4700::1111]:8080/", "2606:4700:4700::1111", 6],
       ["http://[::ffff:8.8.8.8]/", "::ffff:808:808", 6],
-    ] as const)("checks %s as the public address %s without asking the resolver", async (raw, address, family) => {
-      const resolve = vi.fn(publicResolver);
+    ] as const)(
+      "checks %s as the public address %s without asking the resolver",
+      async (raw, address, family) => {
+        const resolve = vi.fn(publicResolver);
 
-      expect(await checkWebPageHost(admitted(raw), resolve)).toEqual({
-        kind: "checked",
-        address,
-        family,
-      });
-      expect(resolve).not.toHaveBeenCalled();
-    });
+        expect(await checkWebPageHost(admitted(raw), resolve)).toEqual({
+          kind: "checked",
+          address,
+          family,
+        });
+        expect(resolve).not.toHaveBeenCalled();
+      },
+    );
   });
 });
