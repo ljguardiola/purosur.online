@@ -31,6 +31,17 @@ export {
   contingencyBackupTicketsAnswerSchema,
   discardContingencyBackupTicketsOutcomeSchema,
 } from "./backups/contingency-backup-ticket-answers.js";
+export type {
+  BackupsCoreToRendererMessage,
+  BackupsRendererToCoreMessage,
+  DiscardContingencyBackupTicketsAnswer,
+  ReadContingencyBackupTicketOfSaleOutcome,
+  ReadContingencyBackupTicketsOutcome,
+} from "./backups/core-messages.js";
+export {
+  backupsCoreToRendererMessageSchema,
+  backupsRendererToCoreMessageSchema,
+} from "./backups/core-messages.js";
 export type { OffsiteDumpCheckRecorded } from "./backups/offsite-dump-check-recorded.js";
 export { offsiteDumpCheckRecordedSchema } from "./backups/offsite-dump-check-recorded.js";
 export type { OffsiteDumpCheckReport } from "./backups/offsite-dump-check-report.js";
