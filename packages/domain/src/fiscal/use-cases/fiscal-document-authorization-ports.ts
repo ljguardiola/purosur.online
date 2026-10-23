@@ -5,6 +5,7 @@ import type {
   TaxAuthorityRejection,
 } from "../model/fiscal-rejection-standing.js";
 import type { RealTimeAuthorizationAnswer } from "../model/real-time-authorization.js";
+import type { AttachedSaleEvents } from "./attached-sale-event-ports.js";
 import type { SaleCompletions } from "./sale-completion-ports.js";
 import type { LastAuthorizedCount } from "./tax-authority-count-ports.js";
 import type { WsaaToken } from "./wsaa-token-ports.js";
@@ -83,6 +84,7 @@ export interface TaxAuthorityInvoicing {
 export interface AuthorizeFiscalDocumentPorts {
   lanes: PointOfSaleLanes;
   saleCompletions: SaleCompletions;
+  attachedSaleEvents: AttachedSaleEvents;
   clock: Clock;
   tokens: WsaaTokenSource;
   taxAuthority: TaxAuthorityInvoicing;

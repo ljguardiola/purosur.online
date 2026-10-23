@@ -95,6 +95,7 @@ export type {
   AssignOfflineNumberBlockInput,
 } from "./assign-offline-number-block.js";
 export { assignFirstOfflineNumberBlock } from "./assign-offline-number-block.js";
+export type { AttachedSaleEvents } from "./attached-sale-event-ports.js";
 export type {
   AuthorizeFiscalDocumentInput,
   AuthorizeFiscalDocumentOutcome,
