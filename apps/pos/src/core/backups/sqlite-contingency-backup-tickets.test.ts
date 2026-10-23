@@ -199,6 +199,18 @@ describe("a transaction", () => {
     expect(await consider()).toEqual([]);
   });
 
+  it("waits for the one before it when started at the same time", async () => {
+    const first = tickets.transaction(async (tx) => {
+      await tx.recordTicket(ticket({ id: "a" }));
+      await Promise.resolve();
+      await tx.recordTicket(ticket({ id: "b" }));
+    });
+    const second = tickets.transaction((tx) => tx.ticketsToConsider());
+
+    await first;
+    expect((await second).map(({ id }) => id)).toEqual(["a", "b"]);
+  });
+
   it("refuses a ticket recorded twice", async () => {
     await record(ticket());
 

@@ -164,7 +164,7 @@ describe("discarding the tickets", () => {
   it("discards nothing while a ticket still waits", async () => {
     await record(ticket("a", 1), ticket("b", 2));
     await print("a");
-    await cloudAcknowledgesThrough(2);
+    await cloudAcknowledgesThrough(1);
 
     expect(await requests().discard()).toEqual({ kind: "not_yet" });
   });
