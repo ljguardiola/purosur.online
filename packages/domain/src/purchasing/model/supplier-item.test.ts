@@ -5,11 +5,15 @@ import {
   compareFractions,
   DEFAULT_SUPPLIER_ITEM_VAT_RATE,
   isSupplierItemVatRate,
+  lastRowOfEachItem,
+  needsReview,
   normalizeSupplierItemDescription,
   pricePerSaleUnit,
   requiresVatRate,
   SUPPLIER_ITEM_VAT_RATES,
+  SUPPLIER_PRICE_LIST_ROW_STATUSES,
   supplierItemKey,
+  supplierPriceListRowStatus,
 } from "./supplier-item.js";
 
 describe("normalizeSupplierItemDescription", () => {
@@ -259,5 +263,147 @@ describe("cheapestOffer", () => {
     const offers = [offer("a", 2n, 4n), offer("b", 1n, 2n), offer("c", 1n, 2n)];
 
     expect(cheapestOffer(offers)?.name).toBe("a");
+  });
+});
+
+describe("supplierPriceListRowStatus", () => {
+  const earlier = { description: "Yerba 1 kg", priceCents: 1_000 };
+  const row = {
+    reviewed: false,
+    description: "Yerba 1 kg",
+    priceCents: 1_000 as number | null,
+    link: { vatRate: null as number | null } as { vatRate: number | null } | null,
+    earlier: earlier as { description: string; priceCents: number } | null,
+    requiresVatRate: false,
+  };
+
+  it("names the statuses", () => {
+    expect(SUPPLIER_PRICE_LIST_ROW_STATUSES).toEqual([
+      "new",
+      "linked",
+      "price_changed",
+      "description_changed",
+      "unlinked",
+      "vat_rate_missing",
+      "reviewed",
+    ]);
+  });
+
+  it("is new when no earlier list of the supplier had the item", () => {
+    expect(supplierPriceListRowStatus({ ...row, earlier: null, link: null })).toBe("new");
+  });
+
+  it("is linked when a remembered link meets the same price and description", () => {
+    expect(supplierPriceListRowStatus(row)).toBe("linked");
+  });
+
+  it("is unlinked when the item was seen before but never linked", () => {
+    expect(supplierPriceListRowStatus({ ...row, link: null })).toBe("unlinked");
+  });
+
+  it("is unlinked even when the price changed, since the link is what is missing", () => {
+    expect(supplierPriceListRowStatus({ ...row, link: null, priceCents: 1_100 })).toBe("unlinked");
+  });
+
+  it("is price_changed when the price differs", () => {
+    expect(supplierPriceListRowStatus({ ...row, priceCents: 1_001 })).toBe("price_changed");
+  });
+
+  it("is price_changed when the row lost its price", () => {
+    expect(supplierPriceListRowStatus({ ...row, priceCents: null })).toBe("price_changed");
+  });
+
+  it("is description_changed for any difference in the printed description", () => {
+    expect(supplierPriceListRowStatus({ ...row, description: "yerba 1 kg" })).toBe(
+      "description_changed",
+    );
+    expect(supplierPriceListRowStatus({ ...row, description: "Yerba 1 kg " })).toBe(
+      "description_changed",
+    );
+  });
+
+  it("checks the price before the description", () => {
+    expect(
+      supplierPriceListRowStatus({ ...row, priceCents: 1_100, description: "Yerba 500 g" }),
+    ).toBe("price_changed");
+  });
+
+  it("is vat_rate_missing when the list needs a rate and the remembered link has none", () => {
+    expect(supplierPriceListRowStatus({ ...row, requiresVatRate: true })).toBe("vat_rate_missing");
+  });
+
+  it("is linked when the list needs a rate and the remembered link has one", () => {
+    expect(
+      supplierPriceListRowStatus({ ...row, requiresVatRate: true, link: { vatRate: 1050 } }),
+    ).toBe("linked");
+  });
+
+  it("is linked without a rate when the list's prices include VAT", () => {
+    expect(supplierPriceListRowStatus({ ...row, requiresVatRate: false })).toBe("linked");
+  });
+
+  it("reports a changed price before a missing rate", () => {
+    expect(supplierPriceListRowStatus({ ...row, requiresVatRate: true, priceCents: 1_100 })).toBe(
+      "price_changed",
+    );
+  });
+
+  it("is reviewed once a person linked the row or marked it reviewed, whatever else is true", () => {
+    for (const changes of [
+      {},
+      { earlier: null, link: null },
+      { link: null },
+      { priceCents: 5 },
+      { description: "otra" },
+      { requiresVatRate: true },
+    ]) {
+      expect(supplierPriceListRowStatus({ ...row, ...changes, reviewed: true })).toBe("reviewed");
+    }
+  });
+});
+
+describe("needsReview", () => {
+  it("is false only for a row linked automatically and one a person reviewed", () => {
+    expect(SUPPLIER_PRICE_LIST_ROW_STATUSES.filter((status) => needsReview(status))).toEqual([
+      "new",
+      "price_changed",
+      "description_changed",
+      "unlinked",
+      "vat_rate_missing",
+    ]);
+  });
+});
+
+describe("lastRowOfEachItem", () => {
+  const row = (id: string, code: string | null, description: string) => ({
+    id,
+    code,
+    description,
+  });
+
+  it("keeps one row per item, the last by position, in order of first appearance", () => {
+    const rows = [
+      row("1", "A", "Yerba"),
+      row("2", null, "Azúcar  1 kg"),
+      row("3", "A", "Yerba nueva"),
+      row("4", null, "azucar 1 KG"),
+      row("5", "B", "Fideos"),
+    ];
+
+    expect(lastRowOfEachItem(rows)).toEqual([
+      { key: { kind: "code", value: "A" }, row: rows[2] },
+      { key: { kind: "description", value: "azucar 1 kg" }, row: rows[3] },
+      { key: { kind: "code", value: "B" }, row: rows[4] },
+    ]);
+  });
+
+  it("keeps a code and a description equal to it as different items", () => {
+    const rows = [row("1", "yerba", "x"), row("2", null, "yerba")];
+
+    expect(lastRowOfEachItem(rows)).toHaveLength(2);
+  });
+
+  it("answers nothing for no rows", () => {
+    expect(lastRowOfEachItem([])).toEqual([]);
   });
 });

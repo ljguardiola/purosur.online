@@ -13,6 +13,7 @@ import {
   isSupplierPriceListFileNameTooLong,
   isSupplierPriceListPdfTooLarge,
   isSupplierPriceListUnderReview,
+  maySupplierPriceListRowBeLinked,
   SUPPLIER_PRICE_LIST_CONTENT_KINDS,
   SUPPLIER_PRICE_LIST_DAILY_EXTRACTION_CAP_MAX,
   SUPPLIER_PRICE_LIST_DAILY_EXTRACTION_CAP_MIN,
@@ -323,5 +324,13 @@ describe("currentConfirmedListId", () => {
         { id: "second", listDate: "2026-03-01", confirmedAt: new Date(sameInstant) },
       ]),
     ).toBe("first");
+  });
+});
+
+describe("maySupplierPriceListRowBeLinked", () => {
+  it("is true of a list under review and of a confirmed one", () => {
+    expect(
+      SUPPLIER_PRICE_LIST_STATES.filter((state) => maySupplierPriceListRowBeLinked(state)),
+    ).toEqual(["EXTRACTED", "REVIEWED"]);
   });
 });
