@@ -391,6 +391,7 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
       },
       initialCount: undefined,
       clockGuard: undefined,
+      contingencyBackupTickets: undefined,
       currentSale: async (): Promise<OpenSale | null> => {
         saleLookups.push("read");
         return null;
@@ -1853,6 +1854,28 @@ describe("answerRendererRequest", () => {
       type: "correct-register-clock-result",
       request_id: "r94",
       outcome: { kind: "not_behind" },
+    });
+  });
+
+  it("answers a request about the contingency backup tickets with the outcome of the core's request", async () => {
+    const { deps: withTickets } = deps(true, {
+      contingencyBackupTickets: {
+        read: async () => ({ kind: "unavailable" }),
+        ofSale: async () => ({ kind: "read", ticket: { standing: "to_print" } }),
+        discard: async () => ({ kind: "not_yet" }),
+      },
+    });
+
+    expect(
+      await answerRendererRequest(withTickets, {
+        type: "read-contingency-backup-ticket-of-sale",
+        request_id: "r95",
+        sale_id: "sale-1",
+      }),
+    ).toEqual({
+      type: "read-contingency-backup-ticket-of-sale-result",
+      request_id: "r95",
+      outcome: { kind: "read", ticket: { standing: "to_print" } },
     });
   });
 

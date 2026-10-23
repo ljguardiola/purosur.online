@@ -1,5 +1,8 @@
 import { encodePinHash } from "@purosur/contracts";
+import type { FiscalEmissionMode } from "@purosur/domain";
+import type { RecordContingencyBackupTicketInput } from "@purosur/domain/backups/use-cases";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { createTicketedOperations } from "../backups/ticketed-operation";
 import { derivePinVerifier } from "../credentials/pin-verifier";
 import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
@@ -8,6 +11,7 @@ import { openLocalDatabase } from "../platform/test-support/open-local-database"
 import { createActionGate } from "../sessions/action-gate";
 import { createSignedInPerson, type SignedInPerson } from "../sessions/signed-in-person";
 import { SqliteSignInStore } from "../sessions/sqlite-sign-in-store";
+import { appendOutboxEvent } from "../sync/sqlite-outbox";
 import { createReceiptPrintJobs } from "./receipt-print-jobs";
 import {
   printCompletedSaleReceiptFor,
@@ -26,6 +30,7 @@ const PEPPER = Buffer.alloc(32, 7).toString("base64url");
 const PIN_HASH = "argon2id$v=19$m=65536,t=3,p=4$c2FsdA$aGFzaC1vZi10aGUtcGlu";
 const AUTHORIZER_PIN = "1234";
 const NO_PRINTERS = { configured: () => undefined };
+const OFFLINE: FiscalEmissionMode = { kind: "offline_code", cause: "no_connectivity" };
 
 let database: LocalDatabase;
 let signedInPerson: SignedInPerson;
@@ -59,6 +64,7 @@ function deps(overrides: Partial<ReceiptRequestDeps> = {}): ReceiptRequestDeps {
     signedInUserId: () => signedInPerson.userId(),
     printers: { configured: () => printer },
     jobs,
+    ticketedSteps: (_operation, _subjectId, operate) => operate((step) => step()),
     ...overrides,
   };
 }
@@ -119,6 +125,43 @@ function reprints(): unknown[] {
       "SELECT order_number, requested_by, authorized_by, reason_kind, reason_text FROM sale_reprints ORDER BY order_number",
     )
     .all();
+}
+
+function lastDeviceSeq(): number {
+  return (
+    database
+      .prepare<[], { last_device_seq: number }>("SELECT last_device_seq FROM sync_state")
+      .get()?.last_device_seq ?? 0
+  );
+}
+
+function appendEventsOfAnotherOperation(count: number): void {
+  for (let index = 0; index < count; index += 1) {
+    appendOutboxEvent(database, CHAIN_KEY, {
+      event_id: `another-operation-${index}`,
+      aggregate_type: "Sale",
+      aggregate_id: "sale-2",
+      event_type: "sale_completed",
+      schema_version: 2,
+      payload: {},
+      occurred_at: COMPLETED_AT,
+      actor_id: "cashier",
+    });
+  }
+}
+
+function recordingTickets() {
+  const recorded: (RecordContingencyBackupTicketInput & { handedCopies: number })[] = [];
+  const ticketing = createTicketedOperations({
+    readLastDeviceSeq: lastDeviceSeq,
+    readEmissionMode: () => OFFLINE,
+    record: async (input) => {
+      recorded.push({ ...input, handedCopies: printer.handed.length });
+    },
+    afterRecorded: () => {},
+    reportFailure: (_context, error) => failures.push(error),
+  });
+  return { ticketing, recorded };
 }
 
 async function printedAndSent(saleId = "sale-1"): Promise<void> {
@@ -429,6 +472,89 @@ describe("reprinting a sale's receipt from the history", () => {
         reason_text: REASON,
       },
     ]);
+  });
+
+  it("tickets the reprint of the sale with only its own event, once the duplicate was handed to the printer", async () => {
+    await printedAndSent();
+    signedInPerson.set("supervisor");
+    const { ticketing, recorded } = recordingTickets();
+
+    await reprintSaleReceiptFor(deps({ ticketedSteps: ticketing.ticketedSteps }), {
+      saleId: "sale-1",
+      reason: REASON,
+    });
+    await printer.whenWaiting(2);
+    printer.report("paper_out");
+    appendEventsOfAnotherOperation(3);
+    const reprintSeq = lastDeviceSeq() + 1;
+    expect(recorded).toEqual([]);
+    printer.becomeReady();
+
+    await vi.waitFor(() =>
+      expect(recorded).toEqual([
+        {
+          operation: "reprint",
+          subjectId: "sale-1",
+          modesAround: [OFFLINE, OFFLINE],
+          range: { firstDeviceSeq: reprintSeq, lastDeviceSeq: reprintSeq },
+          handedCopies: 2,
+        },
+      ]),
+    );
+  });
+
+  it("tickets with the reprint's event the print state it records for a sale whose original was attempted but never recorded printed", async () => {
+    database
+      .prepare("UPDATE sales SET print_attempted_at = ? WHERE id = 'sale-1'")
+      .run(COMPLETED_AT);
+    signedInPerson.set("supervisor");
+    const { ticketing, recorded } = recordingTickets();
+
+    await reprintSaleReceiptFor(deps({ ticketedSteps: ticketing.ticketedSteps }), {
+      saleId: "sale-1",
+      reason: REASON,
+    });
+    await printer.whenWaiting(1);
+    appendEventsOfAnotherOperation(3);
+    const reprintSeq = lastDeviceSeq() + 1;
+    printer.becomeReady();
+
+    await vi.waitFor(() =>
+      expect(recorded).toEqual([
+        {
+          operation: "reprint",
+          subjectId: "sale-1",
+          modesAround: [OFFLINE, OFFLINE, OFFLINE, OFFLINE],
+          range: { firstDeviceSeq: reprintSeq, lastDeviceSeq: reprintSeq + 1 },
+          handedCopies: 1,
+        },
+      ]),
+    );
+    expect(deliveryOf("sale-1")).toMatchObject({ printed_at: START.toISOString() });
+  });
+
+  it("leaves out of the reprint's tickets the events another operation appends between handing the duplicate and recording it printed", async () => {
+    database
+      .prepare("UPDATE sales SET print_attempted_at = ? WHERE id = 'sale-1'")
+      .run(COMPLETED_AT);
+    signedInPerson.set("supervisor");
+    const { ticketing, recorded } = recordingTickets();
+
+    await reprintSaleReceiptFor(deps({ ticketedSteps: ticketing.ticketedSteps }), {
+      saleId: "sale-1",
+      reason: REASON,
+    });
+    await printer.whenWaiting(1);
+    const reprintSeq = lastDeviceSeq() + 1;
+    printer.becomeReady();
+    appendEventsOfAnotherOperation(2);
+
+    await vi.waitFor(() =>
+      expect(recorded).toMatchObject([
+        { range: { firstDeviceSeq: reprintSeq, lastDeviceSeq: reprintSeq } },
+        { range: { firstDeviceSeq: reprintSeq + 3, lastDeviceSeq: reprintSeq + 3 } },
+      ]),
+    );
   });
 
   it("asks another person's authorization from a person without the permission", async () => {

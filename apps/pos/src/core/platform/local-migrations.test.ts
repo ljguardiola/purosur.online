@@ -2,7 +2,7 @@ import { mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { DEFERRAL_REASONS } from "@purosur/domain";
+import { CONTINGENCY_BACKUP_OPERATIONS, DEFERRAL_REASONS } from "@purosur/domain";
 import { describe, expect, it } from "vitest";
 import { LOCAL_MIGRATIONS } from "./local-migrations";
 import { migrationClock } from "./test-support/migration-clock";
@@ -922,6 +922,7 @@ describe("the register's local migrations", () => {
         "0074_awaiting_orphan_sweep",
         "0075_deferred_sale_backlog",
         "0076_awaiting_orphan_sweep_origin",
+        "0077_contingency_backup_tickets",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1021,6 +1022,7 @@ describe("the register's local migrations", () => {
         "0074_awaiting_orphan_sweep",
         "0075_deferred_sale_backlog",
         "0076_awaiting_orphan_sweep_origin",
+        "0077_contingency_backup_tickets",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1115,6 +1117,7 @@ describe("the register's local migrations", () => {
         "0074_awaiting_orphan_sweep",
         "0075_deferred_sale_backlog",
         "0076_awaiting_orphan_sweep_origin",
+        "0077_contingency_backup_tickets",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1208,6 +1211,7 @@ describe("the register's local migrations", () => {
         "0074_awaiting_orphan_sweep",
         "0075_deferred_sale_backlog",
         "0076_awaiting_orphan_sweep_origin",
+        "0077_contingency_backup_tickets",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1330,6 +1334,7 @@ describe("the register's local migrations", () => {
         "0074_awaiting_orphan_sweep",
         "0075_deferred_sale_backlog",
         "0076_awaiting_orphan_sweep_origin",
+        "0077_contingency_backup_tickets",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1442,6 +1447,7 @@ describe("the register's local migrations", () => {
         "0074_awaiting_orphan_sweep",
         "0075_deferred_sale_backlog",
         "0076_awaiting_orphan_sweep_origin",
+        "0077_contingency_backup_tickets",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1558,6 +1564,7 @@ describe("the register's local migrations", () => {
         "0074_awaiting_orphan_sweep",
         "0075_deferred_sale_backlog",
         "0076_awaiting_orphan_sweep_origin",
+        "0077_contingency_backup_tickets",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1682,6 +1689,7 @@ describe("the register's local migrations", () => {
         "0074_awaiting_orphan_sweep",
         "0075_deferred_sale_backlog",
         "0076_awaiting_orphan_sweep_origin",
+        "0077_contingency_backup_tickets",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1773,6 +1781,7 @@ describe("the register's local migrations", () => {
         "0074_awaiting_orphan_sweep",
         "0075_deferred_sale_backlog",
         "0076_awaiting_orphan_sweep_origin",
+        "0077_contingency_backup_tickets",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -6196,6 +6205,144 @@ describe("the orphan sweep migration", () => {
 
       expect(after.prepare("SELECT register_id FROM awaiting_orphan_sweep").all()).toEqual([]);
       after.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("the contingency backup tickets migration", () => {
+  const ticket = {
+    id: "ticket-1",
+    operation: "sale",
+    subject_id: "sale-1",
+    first_device_seq: 4,
+    last_device_seq: 6,
+    created_at: "2026-10-09T12:00:00.000Z",
+    key_version: 1,
+    qr_codes: '["AB"]',
+  };
+  const insertTicket = `INSERT INTO contingency_backup_tickets (
+       id, operation, subject_id, first_device_seq, last_device_seq, created_at, key_version, qr_codes
+     ) VALUES (
+       @id, @operation, @subject_id, @first_device_seq, @last_device_seq, @created_at, @key_version, @qr_codes
+     )`;
+
+  it("adds the tickets table, empty, to a register that already holds data", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.filter(
+        (migration) => migration.name < "0077_contingency_backup_tickets",
+      );
+      const before = openLocalDatabase(path, previous, migrationClock);
+      before.prepare("UPDATE sync_state SET pull_cursor = 7 WHERE id = 1").run();
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+
+      expect(after.prepare("SELECT pull_cursor FROM sync_state").all()).toEqual([
+        { pull_cursor: 7 },
+      ]);
+      expect(after.prepare("SELECT id FROM contingency_backup_tickets").all()).toEqual([]);
+      after.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
+  it("accepts a ticket of every operation of the domain and refuses any other", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const database = openLocalDatabase(
+        join(folder, "register.sqlite"),
+        LOCAL_MIGRATIONS,
+        migrationClock,
+      );
+      const insert = database.prepare(insertTicket);
+
+      for (const [index, operation] of CONTINGENCY_BACKUP_OPERATIONS.entries()) {
+        expect(() => insert.run({ ...ticket, id: `ticket-${index}`, operation })).not.toThrow();
+      }
+      expect(() => insert.run({ ...ticket, id: "other", operation: "refund" })).toThrow(/CHECK/);
+      database.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
+  it("holds a ticket without subject, without key and not printed, and one printed and discarded", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const database = openLocalDatabase(
+        join(folder, "register.sqlite"),
+        LOCAL_MIGRATIONS,
+        migrationClock,
+      );
+
+      database
+        .prepare(insertTicket)
+        .run({ ...ticket, subject_id: null, key_version: null, qr_codes: null });
+      database.prepare(insertTicket).run({ ...ticket, id: "ticket-2" });
+      database
+        .prepare(
+          `UPDATE contingency_backup_tickets
+              SET printed_at = '2026-10-09T12:01:00.000Z', discarded_at = '2026-10-10T12:00:00.000Z'
+            WHERE id = 'ticket-2'`,
+        )
+        .run();
+
+      expect(
+        database
+          .prepare(
+            "SELECT id, printed_at, discarded_at FROM contingency_backup_tickets ORDER BY id",
+          )
+          .all(),
+      ).toEqual([
+        { id: "ticket-1", printed_at: null, discarded_at: null },
+        {
+          id: "ticket-2",
+          printed_at: "2026-10-09T12:01:00.000Z",
+          discarded_at: "2026-10-10T12:00:00.000Z",
+        },
+      ]);
+      database.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
+  it("refuses a key version without its QR codes, and QR codes without their key version", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const database = openLocalDatabase(
+        join(folder, "register.sqlite"),
+        LOCAL_MIGRATIONS,
+        migrationClock,
+      );
+      const insert = database.prepare(insertTicket);
+
+      expect(() => insert.run({ ...ticket, qr_codes: null })).toThrow(/CHECK/);
+      expect(() => insert.run({ ...ticket, key_version: null })).toThrow(/CHECK/);
+      database.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
+  it("refuses a ticket whose last event comes before its first", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const database = openLocalDatabase(
+        join(folder, "register.sqlite"),
+        LOCAL_MIGRATIONS,
+        migrationClock,
+      );
+
+      expect(() =>
+        database.prepare(insertTicket).run({ ...ticket, first_device_seq: 7, last_device_seq: 6 }),
+      ).toThrow(/CHECK/);
+      database.close();
     } finally {
       rmSync(folder, { recursive: true, force: true });
     }

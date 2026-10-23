@@ -1,6 +1,8 @@
 import type {
   AbandonMercadoPagoChargeOutcome,
   CashChargeAnswer,
+  ContingencyBackupTicketOfSaleAnswer,
+  ContingencyBackupTicketsAnswer,
   CurrentSaleAnswer,
   FollowMercadoPagoChargeOutcome,
   ManualAdjustmentRequest,
@@ -8,6 +10,8 @@ import type {
   PaymentMethodAvailability,
   PreviewSaleDiscountOutcome,
   PreviewSaleLineAdjustmentOutcome,
+  ReadContingencyBackupTicketOfSaleOutcome,
+  ReadContingencyBackupTicketsOutcome,
   ReceiptPrintStatusOutcome,
   SaleDiscountRequest,
   SaleHistoryDetailOutcome,
@@ -46,6 +50,8 @@ export const salesKeys = {
   qrCharge: (paymentTransactionId: string) =>
     [...salesKey, "qr-charge", paymentTransactionId] as const,
   receiptPrintStatus: (saleId: string) => [...salesKey, "receipt-print-status", saleId] as const,
+  backupTicket: (saleId: string) => [...salesKey, "backup-ticket", saleId] as const,
+  backupPrinterFailure: [...salesKey, "backup-printer-failure"] as const,
   historyRoot: [...salesKey, "history"] as const,
   history: ({ session, state, page }: SalesHistoryQuery) =>
     [...salesKey, "history", session, state, page] as const,
@@ -154,6 +160,49 @@ export function useReceiptPrintStatusQuery({
       status?.standing === "printer_not_configured"
         ? false
         : RECEIPT_PRINT_POLL_MILLISECONDS,
+  });
+}
+
+const BACKUP_TICKET_POLL_MILLISECONDS = 1000;
+const BACKUP_PRINTER_FAILURE_POLL_MILLISECONDS = 5000;
+
+export function useBackupTicketOfSaleQuery({
+  saleId,
+  read,
+}: {
+  saleId: string;
+  read: (saleId: string) => Promise<ReadContingencyBackupTicketOfSaleOutcome>;
+}): CoreData<ContingencyBackupTicketOfSaleAnswer> {
+  return useCoreQuery({
+    queryKey: salesKeys.backupTicket(saleId),
+    read: async () => {
+      const outcome = await read(saleId);
+      return outcome.kind === "read" ? outcome.ticket : "unavailable";
+    },
+    refetchInterval: (answer) =>
+      answer === undefined ||
+      answer.standing === "to_print" ||
+      answer.standing === "awaiting_customer_document"
+        ? BACKUP_TICKET_POLL_MILLISECONDS
+        : false,
+  });
+}
+
+export function useBackupPrinterFailureQuery({
+  read,
+  enabled,
+}: {
+  read: () => Promise<ReadContingencyBackupTicketsOutcome>;
+  enabled: boolean;
+}): CoreData<ContingencyBackupTicketsAnswer["printer"]> {
+  return useCoreQuery({
+    queryKey: salesKeys.backupPrinterFailure,
+    read: async () => {
+      const outcome = await read();
+      return outcome.kind === "read" ? outcome.tickets.printer : "unavailable";
+    },
+    enabled,
+    refetchInterval: () => BACKUP_PRINTER_FAILURE_POLL_MILLISECONDS,
   });
 }
 

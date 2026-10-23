@@ -2,6 +2,7 @@ import type {
   Authorization,
   CashBalance,
   CloseCashSessionOutcome,
+  DiscardContingencyBackupTicketsAnswer,
   EnrollmentOutcome,
   EnrollmentStandingAnswer,
   ListedCashMovement,
@@ -323,6 +324,15 @@ function coreAnswering(
             comprobante: { kind: "none" },
           }
         : sales.receiptPrintStatus(saleId);
+    },
+    async contingencyBackupTickets() {
+      return { kind: "unavailable" };
+    },
+    async contingencyBackupTicketOfSale() {
+      return { kind: "unavailable" };
+    },
+    async discardContingencyBackupTickets() {
+      return { kind: "unavailable" };
     },
     async printCreditNote() {
       return { kind: "unavailable" };
@@ -2120,6 +2130,48 @@ describe("App", () => {
           .getByRole("button", { name: "1 aviso" }),
       )
       .toBeVisible();
+  });
+
+  it("shows the contingency backup tickets notice the core reports in the status bar, and discards them when it is closed", async () => {
+    const discard = vi.fn(
+      async (): Promise<DiscardContingencyBackupTicketsAnswer> => ({ kind: "discarded", count: 2 }),
+    );
+    const core: CoreClient = {
+      ...enrolledCore,
+      async contingencyBackupTickets() {
+        return {
+          kind: "read",
+          tickets: {
+            to_print: 0,
+            awaiting_customer_document: 0,
+            missing_key: 0,
+            kept: 0,
+            discardable: 2,
+            may_discard: true,
+            discard_permitted: true,
+            printer: null,
+          },
+        };
+      },
+      discardContingencyBackupTickets: discard,
+    };
+    const screen = await render(<App core={core} />);
+    postCoreStatus("up");
+    await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
+    await userEvent.type(screen.getByLabelText("PIN"), "1234");
+    await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
+
+    await userEvent.click(
+      screen
+        .getByRole("region", { name: "Estado de la caja" })
+        .getByRole("button", { name: "1 aviso" }),
+    );
+    await expect
+      .element(screen.getByText("Ya podés descartar los tickets de respaldo"))
+      .toBeVisible();
+    await userEvent.click(screen.getByRole("button", { name: "Cerrar" }).last());
+
+    await expect.poll(() => discard.mock.calls.length).toBe(1);
   });
 
   it("shows no line of the sale that was just charged when a new sale starts", async () => {

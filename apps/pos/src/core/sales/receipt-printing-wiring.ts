@@ -25,7 +25,7 @@ import {
   reprintSaleReceiptFor,
 } from "./receipt-requests";
 
-function savedReceiptPrinters(
+export function savedReceiptPrinters(
   settings: SqliteReceiptPrinterSettings,
   connect: TcpReceiptPrinterOptions["connect"],
 ): ReceiptPrinters {
@@ -52,6 +52,7 @@ export interface ReceiptPrintingWiringDeps {
   beforePrinting: (saleId: string) => Promise<void>;
   reportFailure: (context: string, error: unknown) => void;
   syncNow: () => void;
+  ticketedSteps: ReceiptRequestDeps["ticketedSteps"];
 }
 
 export interface ReceiptPrinting {
@@ -90,6 +91,7 @@ export function createReceiptPrinting({
   beforePrinting,
   reportFailure,
   syncNow,
+  ticketedSteps,
 }: ReceiptPrintingWiringDeps): ReceiptPrinting {
   if (database === undefined || gate === undefined) {
     return {
@@ -113,6 +115,7 @@ export function createReceiptPrinting({
     signedInUserId,
     printers: savedReceiptPrinters(new SqliteReceiptPrinterSettings(database), connectPrinter),
     jobs,
+    ticketedSteps,
   };
   const printing: PrintingCompletedSalesDeps = {
     beforePrinting,

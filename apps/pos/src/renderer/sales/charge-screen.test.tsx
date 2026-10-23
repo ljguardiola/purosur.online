@@ -174,6 +174,17 @@ describe("ChargeScreen", () => {
     expect(receiptPrintStatus).toHaveBeenCalledWith("sale-1");
   });
 
+  it("asks the core for the contingency backup ticket of the sale it completed and lists it", async () => {
+    const { screen, contingencyBackupTicketOfSale } = await renderScreen({
+      contingencyBackupTicketOfSale: async () => ({ kind: "read", ticket: { standing: "kept" } }),
+    });
+
+    await chargeInCash(screen, "5.000,00");
+
+    await expect.element(screen.getByText("Ticket de respaldo de contingencia")).toBeVisible();
+    expect(contingencyBackupTicketOfSale).toHaveBeenCalledWith("sale-1");
+  });
+
   it("asks the core for the print status of the sale it completed, after a transfer", async () => {
     const { screen, receiptPrintStatus } = await renderScreen();
 
