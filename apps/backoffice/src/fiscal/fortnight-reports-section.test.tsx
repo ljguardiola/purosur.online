@@ -207,7 +207,7 @@ test("explains above the table why the credit notes of a presentation wait", asy
   await expect
     .element(
       screen.getByText(
-        `Las notas de crédito del informe ${formatCalendarDayRange("2026-09-01", "2026-09-15")} del punto de venta 00004 corrigen facturas de ese informe y se pueden presentar cuando ARCA lo acepte.`,
+        `Las notas de crédito del informe ${formatCalendarDayRange("2026-09-01", "2026-09-15")} del punto de venta 00004 corrigen facturas de una quincena anterior y se presentan cuando ARCA acepte el informe de esas facturas.`,
         { exact: true },
       ),
     )
