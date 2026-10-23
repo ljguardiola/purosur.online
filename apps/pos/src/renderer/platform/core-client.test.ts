@@ -403,7 +403,7 @@ describe("createCoreClient", () => {
     const client = clientWithSequentialIds();
     const port = new FakePort();
     client.connect(port);
-    const standing = { kind: "in_progress", step: "replenish" };
+    const standing = { kind: "in_progress", step: "replenish", origin: "copy" };
 
     const asked = client.restorationStanding();
     port.answer({ type: "restoration-standing", request_id: "request-1", standing });

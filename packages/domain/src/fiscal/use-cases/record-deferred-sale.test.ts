@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { type DeferredSale, SHORT_CODE_ATTEMPTS } from "../model/deferred-sale.js";
-import { deferredSaleRecordedEvent } from "../model/deferred-sale-recorded-event.js";
+import {
+  deferredSaleRecordedEvent,
+  type UnclearDeferralDocument,
+} from "../model/deferred-sale-recorded-event.js";
+import {
+  FICTIONAL_CUIT,
+  FICTIONAL_GROSS_INCOME_REGISTRATION,
+  FICTIONAL_LEGAL_NAME,
+} from "../test-support/fictional-tax-identities.js";
 import { ShortCodeTaken } from "./deferred-sale-ports.js";
 import {
   type DeferredSaleRecording,
@@ -17,12 +25,46 @@ const FACTS = {
   reason: "fiscally_offline",
   routedAt: new Date("2026-10-02T02:30:01.000Z"),
   origin: { registerId: "register-1", actorId: "cashier" },
+  unclearDocument: null,
+} as const;
+
+const UNCLEAR_DOCUMENT = {
+  fiscalDocumentId: "document-1",
+  pointOfSale: 7,
+  number: 42,
+  issuedOn: "2026-10-02",
+  document: {
+    invoiceClass: "C",
+    total: 12_500,
+    netAmount: 12_500,
+    vatAmount: 0,
+    issuer: {
+      legalName: FICTIONAL_LEGAL_NAME,
+      cuit: FICTIONAL_CUIT,
+      taxStatus: "MONOTRIBUTO",
+      grossIncomeRegistration: FICTIONAL_GROSS_INCOME_REGISTRATION,
+      activityStartDate: "2020-01-01",
+      version: 3,
+    },
+    buyerTaxStatusCode: 5,
+    buyerTaxStatusDescription: "Consumidor Final",
+  },
+  reservedAt: new Date("2026-10-02T02:29:58.000Z"),
 } as const;
 
 const CODES = ["7KQ4M2P9", "R3XW8H5N", "ABCDEFGH", "JKLMNPQR", "STUVWXYZ"];
 
-function eventOf(sale: DeferredSale, eventId: string) {
-  return deferredSaleRecordedEvent({ eventId, ...FACTS.origin, deferredSale: sale });
+function eventOf(
+  sale: DeferredSale,
+  eventId: string,
+  unclearDocument: UnclearDeferralDocument | null = null,
+) {
+  return deferredSaleRecordedEvent({
+    eventId,
+    ...FACTS.origin,
+    deferredSale: sale,
+    unclearDocument,
+  });
 }
 
 function takenUntil(accepted: number, taken: DeferredSaleRecording[] = []) {
@@ -49,9 +91,28 @@ describe("recordDeferredSale", () => {
       FACTS,
     );
 
-    const { origin: _origin, ...recordedFacts } = FACTS;
+    const { origin: _origin, unclearDocument: _unclearDocument, ...recordedFacts } = FACTS;
     expect(sale).toEqual({ ...recordedFacts, id: "id-1", shortCode: "7KQ4M2P9" });
     expect(recorded).toEqual([{ sale, event: eventOf(sale, "id-2") }]);
+  });
+
+  it("hands the fiscal document an unclear outcome left waiting to the event, and not to the sale", () => {
+    const recorded: DeferredSaleRecording[] = [];
+    const facts = {
+      ...FACTS,
+      reason: "unclear_outcome",
+      unclearDocument: UNCLEAR_DOCUMENT,
+    } as const;
+
+    const sale = recordDeferredSale(
+      (recording) => recorded.push(recording),
+      new SequentialIds(),
+      new ScriptedShortCodes(CODES),
+      facts,
+    );
+
+    expect(sale).not.toHaveProperty("unclearDocument");
+    expect(recorded).toEqual([{ sale, event: eventOf(sale, "id-2", UNCLEAR_DOCUMENT) }]);
   });
 
   it("draws another short code, keeping the identifiers, when the short code is already taken", () => {
@@ -123,9 +184,30 @@ describe("recordDeferredSaleAsync", () => {
       FACTS,
     );
 
-    const { origin: _origin, ...recordedFacts } = FACTS;
+    const { origin: _origin, unclearDocument: _unclearDocument, ...recordedFacts } = FACTS;
     expect(sale).toEqual({ ...recordedFacts, id: "id-1", shortCode: "7KQ4M2P9" });
     expect(recorded).toEqual([{ sale, event: eventOf(sale, "id-2") }]);
+  });
+
+  it("hands the fiscal document an unclear outcome left waiting to the event, and not to the sale", async () => {
+    const recorded: DeferredSaleRecording[] = [];
+    const facts = {
+      ...FACTS,
+      reason: "unclear_outcome",
+      unclearDocument: UNCLEAR_DOCUMENT,
+    } as const;
+
+    const sale = await recordDeferredSaleAsync(
+      async (recording) => {
+        recorded.push(recording);
+      },
+      new SequentialIds(),
+      new ScriptedShortCodes(CODES),
+      facts,
+    );
+
+    expect(sale).not.toHaveProperty("unclearDocument");
+    expect(recorded).toEqual([{ sale, event: eventOf(sale, "id-2", UNCLEAR_DOCUMENT) }]);
   });
 
   it("draws another short code, keeping the identifiers, when the short code is already taken", async () => {

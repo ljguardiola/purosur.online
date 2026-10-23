@@ -20,9 +20,12 @@ export async function settleInterruptedRealTimeAuthorizations({
     for (const {
       fiscalDocumentId,
       saleId,
+      pointOfSale,
+      number,
+      issuedOn,
+      document,
       origin,
       reservedAt,
-      total,
       holdsDeferredSale,
     } of requesting) {
       if (holdsDeferredSale) {
@@ -51,10 +54,18 @@ export async function settleInterruptedRealTimeAuthorizations({
         {
           saleId,
           occurredAt: reservedAt,
-          total,
+          total: document.total,
           reason: resolution.deferralReason,
           routedAt: resolvedAt,
           origin,
+          unclearDocument: {
+            fiscalDocumentId,
+            pointOfSale,
+            number,
+            issuedOn,
+            document,
+            reservedAt,
+          },
         },
       );
     }

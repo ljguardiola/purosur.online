@@ -14,6 +14,7 @@ const ALL_COMPLETED: RestorationEvidence = {
   replenish: "completed",
   reconcile_fiscal_counters: "completed",
   regularize_orphan_authorizations: "completed",
+  origin: "copy",
   cloud: "unknown",
 };
 
@@ -51,6 +52,7 @@ describe("restorationStanding", () => {
     expect(restorationStanding(evidence({ enroll: "pending" }))).toEqual({
       kind: "in_progress",
       step: "enroll",
+      origin: "copy",
     });
   });
 
@@ -58,6 +60,7 @@ describe("restorationStanding", () => {
     expect(restorationStanding(evidence({ restore: "pending" }))).toEqual({
       kind: "in_progress",
       step: "restore",
+      origin: "copy",
     });
   });
 
@@ -65,6 +68,7 @@ describe("restorationStanding", () => {
     expect(restorationStanding(evidence({ reset_sync_identity: "pending" }))).toEqual({
       kind: "in_progress",
       step: "reset_sync_identity",
+      origin: "copy",
     });
   });
 
@@ -72,6 +76,7 @@ describe("restorationStanding", () => {
     expect(restorationStanding(evidence({ replenish: "pending" }))).toEqual({
       kind: "in_progress",
       step: "replenish",
+      origin: "copy",
     });
   });
 
@@ -85,6 +90,7 @@ describe("restorationStanding", () => {
       expect(restorationStanding({ ...ALL_COMPLETED, [step]: "pending" })).toEqual({
         kind: "in_progress",
         step,
+        origin: "copy",
       });
     }
   });
@@ -93,6 +99,7 @@ describe("restorationStanding", () => {
     expect(restorationStanding(evidence({ reconcile_fiscal_counters: "pending" }))).toEqual({
       kind: "in_progress",
       step: "reconcile_fiscal_counters",
+      origin: "copy",
     });
   });
 
@@ -100,6 +107,7 @@ describe("restorationStanding", () => {
     expect(restorationStanding(evidence({ regularize_orphan_authorizations: "pending" }))).toEqual({
       kind: "in_progress",
       step: "regularize_orphan_authorizations",
+      origin: "copy",
     });
   });
 
@@ -107,6 +115,7 @@ describe("restorationStanding", () => {
     expect(restorationStanding(evidence({ enroll: "pending", replenish: "pending" }))).toEqual({
       kind: "in_progress",
       step: "enroll",
+      origin: "copy",
     });
   });
 
@@ -128,6 +137,7 @@ describe("restorationStanding", () => {
             replenish,
             reconcile_fiscal_counters: counters,
             regularize_orphan_authorizations: orphans,
+            origin: "copy",
             cloud: "unknown",
           };
           const [firstPending] = RESTORATION_STEPS.filter(
@@ -137,7 +147,7 @@ describe("restorationStanding", () => {
           expect(restorationStanding(combination)).toEqual(
             firstPending === undefined
               ? { kind: "completed" }
-              : { kind: "in_progress", step: firstPending },
+              : { kind: "in_progress", step: firstPending, origin: "copy" },
           );
         },
       ),
@@ -159,6 +169,7 @@ describe("restorationStanding without the cloud", () => {
       expect(restorationStanding(evidence({ [step]: "pending", cloud: "unreachable" }))).toEqual({
         kind: "without_connection",
         step,
+        origin: "copy",
       });
     }
   });
@@ -168,6 +179,7 @@ describe("restorationStanding without the cloud", () => {
       expect(restorationStanding(evidence({ replenish: "pending", cloud }))).toEqual({
         kind: "in_progress",
         step: "replenish",
+        origin: "copy",
       });
     }
   });
@@ -176,6 +188,7 @@ describe("restorationStanding without the cloud", () => {
     expect(restorationStanding(evidence({ enroll: "pending", cloud: "unreachable" }))).toEqual({
       kind: "in_progress",
       step: "enroll",
+      origin: "copy",
     });
   });
 
@@ -184,11 +197,29 @@ describe("restorationStanding without the cloud", () => {
       restorationStanding(
         evidence({ reset_sync_identity: "pending", replenish: "pending", cloud: "unreachable" }),
       ),
-    ).toEqual({ kind: "without_connection", step: "reset_sync_identity" });
+    ).toEqual({ kind: "without_connection", step: "reset_sync_identity", origin: "copy" });
   });
 
   it("is completed when nothing is pending even if the cloud is unreachable", () => {
     expect(restorationStanding(evidence({ cloud: "unreachable" }))).toEqual({ kind: "completed" });
+  });
+});
+
+describe("restorationStanding of a register reinstalled with no copy", () => {
+  it("carries that origin while the replenishment is pending", () => {
+    expect(restorationStanding(evidence({ replenish: "pending", origin: "no_copy" }))).toEqual({
+      kind: "in_progress",
+      step: "replenish",
+      origin: "no_copy",
+    });
+  });
+
+  it("carries that origin without the cloud", () => {
+    expect(
+      restorationStanding(
+        evidence({ replenish: "pending", origin: "no_copy", cloud: "unreachable" }),
+      ),
+    ).toEqual({ kind: "without_connection", step: "replenish", origin: "no_copy" });
   });
 });
 
@@ -213,6 +244,7 @@ describe("restorationStanding when the restore failed", () => {
     expect(restorationStanding(evidence({ enroll: "pending", restore: "failed" }))).toEqual({
       kind: "in_progress",
       step: "enroll",
+      origin: "copy",
     });
   });
 });

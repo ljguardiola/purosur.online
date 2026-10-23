@@ -118,6 +118,7 @@ export {
   fiscalCoreToRendererMessageSchema,
   fiscalRendererToCoreMessageSchema,
 } from "./fiscal/clock-guard-core-messages.js";
+export { deferredSaleUnclearDocumentEventSchema } from "./fiscal/deferred-sale-unclear-document.js";
 export type { FiscalAddressBody } from "./fiscal/fiscal-address.js";
 export { fiscalAddressListSchema, fiscalAddressSchema } from "./fiscal/fiscal-address.js";
 export type { FiscalAddressCreationBody } from "./fiscal/fiscal-address-creation.js";
@@ -505,6 +506,7 @@ export {
   snapshotVerificationQuerySchema,
 } from "./register/snapshot-verification.js";
 export type {
+  RestoreFirstInstallation,
   SnapshotRestoreOutcomeKind,
   SnapshotWorkerJobMessage,
   SnapshotWorkerLaunchRequest,

@@ -63,6 +63,29 @@ describe("mainToCoreMessageSchema", () => {
     },
   );
 
+  it("accepts the notice that carries the first installation the restore found", () => {
+    const message = {
+      type: "snapshot-worker-exited",
+      restore_outcome: "no_generation",
+      first_installation: {
+        installation_id: "3b241101-e2bb-4255-8caf-4136c566a962",
+        register_id: "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+      },
+    };
+
+    expect(mainToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("refuses a first installation without its register", () => {
+    expect(
+      mainToCoreMessageSchema.safeParse({
+        type: "snapshot-worker-exited",
+        restore_outcome: "no_generation",
+        first_installation: { installation_id: "3b241101-e2bb-4255-8caf-4136c566a962" },
+      }).success,
+    ).toBe(false);
+  });
+
   it("refuses a restore outcome that does not exist", () => {
     expect(
       mainToCoreMessageSchema.safeParse({

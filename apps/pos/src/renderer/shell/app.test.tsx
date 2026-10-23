@@ -642,7 +642,11 @@ describe("App", () => {
 
   it("shows that the register cannot sell yet while it catches up with the cloud", async () => {
     const { core } = coreAnswering(true);
-    core.restorationStanding = async () => ({ kind: "in_progress", step: "replenish" });
+    core.restorationStanding = async () => ({
+      kind: "in_progress",
+      step: "replenish",
+      origin: "copy",
+    });
     const screen = await render(<App core={core} />);
 
     postCoreStatus("up");
@@ -654,14 +658,18 @@ describe("App", () => {
   });
 
   it("tells the restoring screen once the core says the register cannot reach the cloud", async () => {
-    let standing: RestorationStandingAnswer = { kind: "in_progress", step: "replenish" };
+    let standing: RestorationStandingAnswer = {
+      kind: "in_progress",
+      step: "replenish",
+      origin: "copy",
+    };
     const { core, changeRestorationStanding } = coreAnswering(true);
     core.restorationStanding = async () => standing;
     const screen = await render(<App core={core} />);
     postCoreStatus("up");
     await expect.element(screen.getByText(RESTORING_TITLE)).toBeVisible();
 
-    standing = { kind: "without_connection", step: "replenish" };
+    standing = { kind: "without_connection", step: "replenish", origin: "copy" };
     changeRestorationStanding();
 
     await expect.element(screen.getByText("Sin conexión con la nube")).toBeVisible();
@@ -672,7 +680,11 @@ describe("App", () => {
     const { core } = coreAnswering(true, undefined, undefined, {
       cashSession: async () => GRACE_SESSION,
     });
-    core.restorationStanding = async () => ({ kind: "in_progress", step: "restore" });
+    core.restorationStanding = async () => ({
+      kind: "in_progress",
+      step: "restore",
+      origin: "copy",
+    });
     const screen = await render(<App core={core} />);
 
     postCoreStatus("up");
@@ -685,7 +697,11 @@ describe("App", () => {
 
   it("asks a register restored from a copy to be enrolled again", async () => {
     const { core } = coreAnswering(true);
-    core.restorationStanding = async () => ({ kind: "in_progress", step: "enroll" });
+    core.restorationStanding = async () => ({
+      kind: "in_progress",
+      step: "enroll",
+      origin: "copy",
+    });
     const screen = await render(<App core={core} />);
 
     postCoreStatus("up");
@@ -708,7 +724,11 @@ describe("App", () => {
   });
 
   it("goes on to sign in once the core says the restoration completed", async () => {
-    let standing: RestorationStandingAnswer = { kind: "in_progress", step: "replenish" };
+    let standing: RestorationStandingAnswer = {
+      kind: "in_progress",
+      step: "replenish",
+      origin: "copy",
+    };
     const { core, changeRestorationStanding } = coreAnswering(true);
     core.restorationStanding = async () => standing;
     const screen = await render(<App core={core} />);

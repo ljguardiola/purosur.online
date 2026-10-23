@@ -26,6 +26,7 @@ import {
   sentryEnvironmentFromCoreArguments,
 } from "../shared/channel";
 import { adoptStagedSnapshot } from "./backups/adopt-restored-snapshot";
+import { resetWithoutCopy } from "./backups/reset-without-copy";
 import { createRestoreAttempts } from "./backups/restore-attempts";
 import { createRestoreLaunch } from "./backups/restore-launch";
 import { afterEnrollment, storingEnrollmentCredentials } from "./backups/restore-on-enrollment";
@@ -114,7 +115,7 @@ import { listSerialPorts, serialportEnumeration } from "./register/serialport-en
 import { snapshotCorruptionReportSending } from "./register/snapshot-corruption-report-sending";
 import type { SnapshotCycleSchedule } from "./register/snapshot-cycle-schedule";
 import { startSnapshotCycle } from "./register/snapshot-cycle-wiring";
-import { readOpenSession } from "./register/sqlite-cash-ledger";
+import { readOpenSession, readRegisterIdentity } from "./register/sqlite-cash-ledger";
 import { localDatabaseDamageIn } from "./register/sqlite-local-database-health";
 import { SqliteRestorationEvidence } from "./register/sqlite-restoration-evidence";
 import { SqliteSerialDeviceRegistrations } from "./register/sqlite-serial-device-registrations";
@@ -282,6 +283,11 @@ const restoreAttempts = createRestoreAttempts({
   cloudAnswered: (reachable) => {
     cloudReachability = reachable ? "reachable" : "unreachable";
   },
+  resetWithoutCopy: (firstInstallation) =>
+    resetWithoutCopy(
+      { database: localDatabase, readCredentials: () => mainRequests.readCredentials() },
+      firstInstallation,
+    ),
 });
 
 async function startLocalDatabaseFile(): Promise<StartedLocalDatabase | undefined> {
@@ -541,6 +547,8 @@ const syncSchedule = createSyncSchedule({
     restorePending.isPending,
     () => void restoreAttempts.attempt(),
     replenishBeforeSync({
+      holdsRegisterIdentity: () =>
+        localDatabase !== undefined && readRegisterIdentity(localDatabase) !== undefined,
       replenish: () =>
         replenishRestoredRegisterStep({
           database: localDatabase,
@@ -1498,7 +1506,9 @@ deliverMessagesFromMain((event) => {
       updateHold.release();
     } else if (message.type === "snapshot-worker-exited") {
       void snapshotCycle?.workerExited(message.copy_failed_stage);
-      restoreAttempts.workerExited(message.restore_outcome);
+      restoreAttempts
+        .workerExited(message.restore_outcome, message.first_installation)
+        .catch((error: unknown) => reportFailure("recording the first installation", error));
       restorationStandingWatch?.check();
       if (deviceTokenRotation !== undefined) {
         refreshKeysWhenAnnounced(message.latest_announced_key_version, {

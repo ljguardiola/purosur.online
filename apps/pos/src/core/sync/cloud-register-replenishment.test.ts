@@ -57,6 +57,7 @@ describe("the cloud's replenishment of a restored register, as the register read
         users: [],
         credit_notes: [],
         unrequested_credit_note_ids: [],
+        unclear_deferrals: [],
       },
     });
 
@@ -84,6 +85,7 @@ describe("the cloud's replenishment of a restored register, as the register read
         users: [],
         credit_notes: [],
         unrequested_credit_note_ids: [],
+        unclear_deferrals: [],
       },
     });
 
@@ -106,6 +108,7 @@ describe("the cloud's replenishment of a restored register, as the register read
         users: [WIRE_USER],
         credit_notes: [],
         unrequested_credit_note_ids: [],
+        unclear_deferrals: [],
       },
     });
 
@@ -134,6 +137,7 @@ describe("the cloud's replenishment of a restored register, as the register read
         ],
         creditNoteAnswers: [],
         unrequestedCreditNoteIds: [],
+        unclearDeferralAnswers: [],
       },
     });
   });
@@ -147,6 +151,7 @@ describe("the cloud's replenishment of a restored register, as the register read
         users: [{ ...WIRE_USER, salt: null, pin_hash: null }],
         credit_notes: [],
         unrequested_credit_note_ids: [],
+        unclear_deferrals: [],
       },
     });
 
@@ -214,6 +219,7 @@ describe("the cloud's replenishment of a restored register, as the register read
         users: [],
         credit_notes: [],
         unrequested_credit_note_ids: [],
+        unclear_deferrals: [],
       },
     });
 
@@ -242,6 +248,7 @@ describe("the cloud's replenishment of a restored register, as the register read
           users: [],
           credit_notes: creditNotes,
           unrequested_credit_note_ids: [],
+          unclear_deferrals: [],
         },
       }).feed.pageAfter(PREDECESSOR, undefined);
     }
@@ -340,6 +347,7 @@ describe("the cloud's replenishment of a restored register, as the register read
           users: [],
           credit_notes: [],
           unrequested_credit_note_ids: [CREDIT_NOTE, OTHER_CREDIT_NOTE],
+          unclear_deferrals: [],
         },
       });
 
@@ -355,6 +363,78 @@ describe("the cloud's replenishment of a restored register, as the register read
         answered_at: "2026-10-07T10:30:00.000Z",
         state: "IN_PROGRESS",
       });
+
+      expect(answer).toEqual({ kind: "failed", failure: { kind: "unreadable" } });
+    });
+  });
+
+  describe("the unclear deferral answers", () => {
+    const DOCUMENT = "3c8e1f5a-9b27-4d60-8a41-7e2d6b0c9f58";
+    const OTHER_DOCUMENT = "6a1d4e7b-5c30-4f92-8e6a-2b9d0c3f7a15";
+
+    function pageWith(...unclearDeferrals: unknown[]) {
+      return feedAnswering({
+        kind: "ok",
+        body: {
+          events: [],
+          next: null,
+          users: [],
+          credit_notes: [],
+          unrequested_credit_note_ids: [],
+          unclear_deferrals: unclearDeferrals,
+        },
+      }).feed.pageAfter(PREDECESSOR, undefined);
+    }
+
+    it("reads the authorization the tax authority gave a document an unclear outcome left waiting", async () => {
+      const answer = await pageWith({
+        fiscal_document_id: DOCUMENT,
+        state: "AUTHORIZED",
+        authorization_code: "75123456789012",
+        authorization_code_due_on: "2026-10-18",
+        answered_at: "2026-10-08T15:00:00.000Z",
+      });
+
+      expect(answer).toMatchObject({
+        kind: "page",
+        page: {
+          unclearDeferralAnswers: [
+            {
+              fiscalDocumentId: DOCUMENT,
+              answer: {
+                kind: "authorized",
+                authorizationCode: "75123456789012",
+                authorizationCodeDueOn: "2026-10-18",
+                answeredAt: new Date("2026-10-08T15:00:00.000Z"),
+              },
+            },
+          ],
+        },
+      });
+    });
+
+    it("reads the rejection and the unsettled answer, in the order the cloud sent them", async () => {
+      const answer = await pageWith(
+        { fiscal_document_id: DOCUMENT, state: "REJECTED" },
+        { fiscal_document_id: OTHER_DOCUMENT, state: "UNSETTLED" },
+      );
+
+      expect(answer).toMatchObject({
+        kind: "page",
+        page: {
+          unclearDeferralAnswers: [
+            {
+              fiscalDocumentId: DOCUMENT,
+              answer: { kind: "rejected" },
+            },
+            { fiscalDocumentId: OTHER_DOCUMENT, answer: { kind: "unsettled" } },
+          ],
+        },
+      });
+    });
+
+    it("fails on an answer of a state nobody gives", async () => {
+      const answer = await pageWith({ fiscal_document_id: DOCUMENT, state: "RELEASED" });
 
       expect(answer).toEqual({ kind: "failed", failure: { kind: "unreadable" } });
     });

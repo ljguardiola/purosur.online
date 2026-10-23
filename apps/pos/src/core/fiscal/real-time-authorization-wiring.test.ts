@@ -23,6 +23,7 @@ import {
   insertPointOfSale,
   insertSaleCompletedEvent,
   openFiscalDatabase,
+  POINT_OF_SALE,
   SALE_COMPLETED_AT,
 } from "./test-support/real-time-authorization-database";
 import { SCRIPTED_SHORT_CODES, scriptedDeferrals } from "./test-support/scripted-deferrals";
@@ -161,6 +162,28 @@ describe("authorizing a completed sale in real time", () => {
     ]);
   });
 
+  it("carries, in the event of an unclear outcome's deferred record, the document left waiting", async () => {
+    const { cloud } = cloudAnswering(async () => json({ state: "UNCLEAR" }));
+
+    await authorization(cloud).authorizeSale("sale-1");
+
+    expect(deferredSaleEvents()).toMatchObject([
+      {
+        payload: {
+          reason: "unclear_outcome",
+          unclear_document: {
+            fiscal_document_id: "doc-1",
+            point_of_sale: POINT_OF_SALE,
+            number: 41,
+            issued_on: "2026-09-30",
+            document: { total: FACTURA_C.total },
+            reserved_at: SALE_COMPLETED_AT.toISOString(),
+          },
+        },
+      },
+    ]);
+  });
+
   it("settles the document as unclear and reports it when asking the cloud fails", async () => {
     const { cloud } = cloudAnswering(async () => json({ state: "UNCLEAR" }));
     const failure = new Error("the credentials cannot be read");
@@ -292,7 +315,11 @@ describe("settling, as the register starts, the authorizations its last run left
       {
         event_id: "deferred-2",
         aggregate_id: "sale-1",
-        payload: { id: "deferred-1", short_code: SCRIPTED_SHORT_CODES[0] },
+        payload: {
+          id: "deferred-1",
+          short_code: SCRIPTED_SHORT_CODES[0],
+          unclear_document: { fiscal_document_id: "doc-1", number: 41 },
+        },
       },
     ]);
   });

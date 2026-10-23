@@ -50,13 +50,7 @@ interface UnclearDocumentRow extends WaitingDocumentRow {
   deferred_sale_id: string | null;
 }
 
-interface RequestingDocumentRow {
-  id: string;
-  sale_id: string;
-  reserved_at: string;
-  document: string;
-  register_id: string;
-  actor_id: string;
+interface RequestingDocumentRow extends RequestedDocumentRow {
   holds_deferred_sale: 0 | 1;
 }
 
@@ -211,8 +205,8 @@ export class SqliteRealTimeFiscalDocuments
   private requestingDocuments(): readonly InterruptedRealTimeAuthorization[] {
     return this.database
       .prepare<string[], RequestingDocumentRow>(
-        `SELECT fiscal_documents.id, fiscal_documents.sale_id, reserved_at, document,
-                sales.register_id, sales.actor_id,
+        `SELECT fiscal_documents.id, fiscal_documents.sale_id, point_of_sale, number, issued_on,
+                document, reserved_at, sales.register_id, sales.actor_id,
                 EXISTS (SELECT 1 FROM deferred_sales WHERE deferred_sales.sale_id = fiscal_documents.sale_id)
                   AS holds_deferred_sale
          FROM fiscal_documents JOIN sales ON sales.id = fiscal_documents.sale_id
@@ -223,9 +217,12 @@ export class SqliteRealTimeFiscalDocuments
       .map((row) => ({
         fiscalDocumentId: row.id,
         saleId: row.sale_id,
+        pointOfSale: row.point_of_sale,
+        number: row.number,
+        issuedOn: row.issued_on,
+        document: JSON.parse(row.document) as FacturaC,
         origin: { registerId: row.register_id, actorId: row.actor_id },
         reservedAt: new Date(row.reserved_at),
-        total: (JSON.parse(row.document) as FacturaC).total,
         holdsDeferredSale: row.holds_deferred_sale === 1,
       }));
   }

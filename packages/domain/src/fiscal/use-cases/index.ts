@@ -503,6 +503,11 @@ export type {
   ServeRestoredRegisterCreditNoteAnswersPorts,
 } from "./restored-register-credit-note-answers-ports.js";
 export type {
+  RecordedUnclearOutcomeOfRegister,
+  RestoredRegisterUnclearDeferralAnswers,
+  ServeRestoredRegisterUnclearDeferralAnswersPorts,
+} from "./restored-register-unclear-deferral-answers-ports.js";
+export type {
   RetireOfflinePointOfSaleInput,
   RetireOfflinePointOfSaleOutcome,
   RetireOfflinePointOfSalePorts,
@@ -536,6 +541,8 @@ export type {
   ServeRestoredRegisterCreditNoteAnswersInput,
 } from "./serve-restored-register-credit-note-answers.js";
 export { serveRestoredRegisterCreditNoteAnswers } from "./serve-restored-register-credit-note-answers.js";
+export type { ServeRestoredRegisterUnclearDeferralAnswersInput } from "./serve-restored-register-unclear-deferral-answers.js";
+export { serveRestoredRegisterUnclearDeferralAnswers } from "./serve-restored-register-unclear-deferral-answers.js";
 export type { SettleInterruptedRealTimeAuthorizationsOutcome } from "./settle-interrupted-real-time-authorizations.js";
 export { settleInterruptedRealTimeAuthorizations } from "./settle-interrupted-real-time-authorizations.js";
 export type {

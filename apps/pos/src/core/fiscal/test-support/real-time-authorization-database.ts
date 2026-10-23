@@ -5,6 +5,7 @@ import type {
   FacturaC,
   FiscalDocumentState,
   OfflineAuthorizationCause,
+  UnclearDeferralDocument,
 } from "@purosur/domain";
 import { deferredSaleRecordedEvent } from "@purosur/domain";
 import {
@@ -265,6 +266,7 @@ export function deferredSaleOf(overrides: Partial<DeferredSale> = {}): DeferredS
 
 export function deferredSaleRecordingOf(
   overrides: Partial<DeferredSale> = {},
+  unclearDocument: UnclearDeferralDocument | null = null,
 ): DeferredSaleRecording {
   const deferredSale = deferredSaleOf(overrides);
   return {
@@ -274,6 +276,7 @@ export function deferredSaleRecordingOf(
       registerId: "register-1",
       actorId: "u1",
       deferredSale,
+      unclearDocument,
     }),
   };
 }

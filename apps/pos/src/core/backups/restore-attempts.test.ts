@@ -2,9 +2,10 @@ import { describe, expect, it } from "vitest";
 import { createRestoreAttempts } from "./restore-attempts";
 import type { RestorePending } from "./restore-pending";
 
-function setup({ pendingNow = true, launches = true } = {}) {
+function setup({ pendingNow = true, launches = true, resetFails = false } = {}) {
   const calls: string[] = [];
   const cloudAnswers: boolean[] = [];
+  const resets: { installation_id: string; register_id: string }[] = [];
   let pending = pendingNow;
   const restorePending: RestorePending = {
     isPending: () => pending,
@@ -29,8 +30,15 @@ function setup({ pendingNow = true, launches = true } = {}) {
     resumeSync: () => calls.push("sync"),
     reportNoUsableGeneration: () => calls.push("report"),
     cloudAnswered: (reachable) => cloudAnswers.push(reachable),
+    resetWithoutCopy: async (firstInstallation) => {
+      calls.push("reset");
+      resets.push(firstInstallation);
+      if (resetFails) {
+        throw new Error("storage unavailable");
+      }
+    },
   });
-  return { attempts, calls, cloudAnswers };
+  return { attempts, calls, cloudAnswers, resets };
 }
 
 describe("attempting the restore", () => {
@@ -115,6 +123,59 @@ describe("attempting the restore", () => {
     await attempts.attempt();
 
     expect(calls).toEqual(["launch", "clear", "sync"]);
+  });
+});
+
+describe("a restore that finds no copy of a register that had a first installation", () => {
+  const FIRST = { installation_id: "installation-1", register_id: "register-1" };
+
+  it("records the first installation as the predecessor, then clears the restore and resumes syncing", async () => {
+    const { attempts, calls, resets } = setup();
+    await attempts.attempt();
+
+    await attempts.workerExited("no_generation", FIRST);
+
+    expect(resets).toEqual([FIRST]);
+    expect(calls).toEqual(["launch", "reset", "clear", "sync"]);
+  });
+
+  it("keeps the restore pending and resumes nothing when recording the predecessor fails", async () => {
+    const { attempts, calls } = setup({ resetFails: true });
+    await attempts.attempt();
+
+    await expect(attempts.workerExited("no_generation", FIRST)).rejects.toThrow(
+      "storage unavailable",
+    );
+
+    expect(calls).toEqual(["launch", "reset"]);
+  });
+
+  it("launches the restore again after recording the predecessor failed", async () => {
+    const { attempts, calls } = setup({ resetFails: true });
+    await attempts.attempt();
+    await attempts.workerExited("no_generation", FIRST).catch(() => undefined);
+
+    await attempts.attempt();
+
+    expect(calls).toEqual(["launch", "reset", "launch"]);
+  });
+
+  it("records no predecessor for any other outcome", async () => {
+    const { attempts, resets } = setup();
+    await attempts.attempt();
+
+    await attempts.workerExited("unreachable", FIRST);
+
+    expect(resets).toEqual([]);
+  });
+
+  it("records no predecessor when the register had no first installation", async () => {
+    const { attempts, resets } = setup();
+    await attempts.attempt();
+
+    await attempts.workerExited("no_generation", undefined);
+
+    expect(resets).toEqual([]);
   });
 });
 
