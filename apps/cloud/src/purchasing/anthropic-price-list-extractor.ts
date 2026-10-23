@@ -18,6 +18,7 @@ import { declaresEncryption } from "./opens-as-pdf.js";
 export const SUPPLIER_PRICE_LIST_READING_MODEL = "claude-sonnet-5-5";
 
 const MAX_OUTPUT_TOKENS = 64_000;
+const REQUEST_TIMEOUT_MS = 10 * 60 * 1000;
 const PAGES_PER_RANGE = 5;
 const RANGES_READ_AT_ONCE = 3;
 
@@ -204,12 +205,7 @@ export class AnthropicPriceListExtractor implements PriceListExtractor {
   private readonly client: Anthropic;
 
   constructor({ apiKey, fetch }: AnthropicPriceListExtractorDeps) {
-    this.client = new Anthropic({
-      apiKey,
-      fetch,
-      maxRetries: 0,
-      timeout: SUPPLIER_PRICE_LIST_READING_TIME_LIMIT_MS,
-    });
+    this.client = new Anthropic({ apiKey, fetch, maxRetries: 0, timeout: REQUEST_TIMEOUT_MS });
   }
 
   async extract(source: PriceListSource): Promise<PriceListExtraction> {
