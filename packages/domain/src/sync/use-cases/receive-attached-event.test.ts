@@ -240,6 +240,46 @@ describe("receiving an event a register attached to a request", () => {
     expect(inbox.receivedSeqs(DEVICE)).toEqual([3, 1, 2]);
   });
 
+  it("answers chain_broken, changing nothing, when it fills a hole below a held event altered after it was chained", async () => {
+    const inbox = new FakeInbox([{ deviceId: DEVICE, seqs: [1] }]);
+    inbox.holdEvents(DEVICE, { ...fakeEvent(3), payload: { seq: 99 } });
+    const before = structuredClone(inbox.state);
+
+    const outcome = await receiveAttached(inbox, fakeEvent(2));
+
+    expect(outcome).toEqual({ kind: "chain_broken" });
+    expect(inbox.state).toEqual(before);
+  });
+
+  it("receives an event that fills a hole below held events that chain from it", async () => {
+    const inbox = new FakeInbox([{ deviceId: DEVICE, seqs: [1] }]);
+    inbox.holdEvents(DEVICE, fakeEvent(3), fakeEvent(4));
+
+    const outcome = await receiveAttached(inbox, fakeEvent(2));
+
+    expect(outcome).toEqual({ kind: "received" });
+    expect(inbox.receivedSeqs(DEVICE)).toEqual([1, 3, 4, 2]);
+  });
+
+  it("leaves the push that fills the hole below an altered event refusing it", async () => {
+    const inbox = new FakeInbox();
+    await receiveAttached(inbox, { ...fakeEvent(3), payload: { seq: 99 } });
+
+    const outcome = await push(inbox, [fakeEvent(1), fakeEvent(2)]);
+
+    expect(outcome).toEqual({ kind: "chain_broken" });
+    expect(inbox.state.brokenChainRevocations).toEqual([{ deviceId: DEVICE, revokedAt: NOW }]);
+  });
+
+  it("leaves the push that fills the hole below it acknowledging it", async () => {
+    const inbox = new FakeInbox();
+    await receiveAttached(inbox, fakeEvent(3));
+
+    const outcome = await push(inbox, [fakeEvent(1), fakeEvent(2)]);
+
+    expect(outcome).toEqual({ kind: "received", ackSeq: 3 });
+  });
+
   it("lets the push that fills the hole refuse a held event whose link no longer holds", async () => {
     const inbox = new FakeInbox();
     await receiveAttached(inbox, { ...fakeEvent(2), chain_hmac: "unverifiable" });

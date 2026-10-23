@@ -715,26 +715,6 @@ describe("POST /fiscal/authorize", () => {
       expect(await route.db.select().from(inbox)).toHaveLength(1);
     });
 
-    it("is received once and acknowledged when the register later pushes everything up to it", async () => {
-      const { installation, device } = await registerPushingSales();
-      const sessionId = crypto.randomUUID();
-      const saleId = crypto.randomUUID();
-      const events = device.chain([
-        cashSessionOpened(sessionId, "2026-10-06T11:00:00.000Z"),
-        completedSale(saleId, sessionId),
-      ]);
-      await authorize(
-        requestBody({ sale_id: saleId, sale_event: events[1] ?? null }),
-        `Bearer ${installation.deviceToken}`,
-      );
-
-      const pushed = await device.send(events);
-
-      expect(pushed.ack_seq).toBe(2);
-      const held = await route.db.select().from(inbox);
-      expect(held.map((row) => row.deviceSeq).sort()).toEqual([1, 2]);
-    });
-
     it("is applied without waiting for an earlier event the register has not pushed, when what it needs was applied", async () => {
       const { installation, device } = await registerPushingSales();
       const sessionId = crypto.randomUUID();

@@ -208,6 +208,42 @@ describe("the inbox on a real Postgres, as the role the deployed cloud connects 
     expect(positions).toEqual(new Map());
   });
 
+  it("reads whole, in seq order, the events it holds of one installation above a seq and up to another", async () => {
+    const first = await insertEnrolledInstallation();
+    const second = await insertEnrolledInstallation();
+    const held = linked(
+      event(1),
+      event(2),
+      {
+        ...event(3),
+        occurred_at: "2026-10-01T09:00:00.123Z",
+        payload: { z: 1, a: { y: [3, 2], x: null }, note: "ñ" },
+      },
+      event(4),
+      event(5),
+    );
+    await db.insert(inbox).values([...held].reverse().map((one) => storedRow(first.deviceId, one)));
+    await db.insert(inbox).values(storedRow(second.deviceId, event(3)));
+
+    const between = await new DrizzleInbox(db, CIPHER, NO_JOB).transaction((tx) =>
+      tx.receivedEventsBetween(first.deviceId, 2, 4),
+    );
+
+    expect(between).toEqual(held.slice(2, 4));
+  });
+
+  it("checks the link of an event held above a hole as the database returns it, when a push fills the hole", async () => {
+    const { deviceId } = await insertEnrolledInstallation();
+    const [first = event(1), second = event(2), third = event(3)] = linked(event(1), event(2), {
+      ...event(3),
+      occurred_at: "2026-10-01T09:00:00.123Z",
+      payload: { z: 1, a: { y: [3, 2], x: null }, note: "ñ" },
+    });
+    await db.insert(inbox).values(storedRow(deviceId, third));
+
+    expect(await push(deviceId, [first, second])).toEqual({ kind: "received", ackSeq: 3 });
+  });
+
   it("skips an event pushed again whole as it was stored, however the database returns its date and payload", async () => {
     const { deviceId } = await insertEnrolledInstallation();
     const [pushed = event(1)] = linked({

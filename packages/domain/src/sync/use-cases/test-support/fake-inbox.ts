@@ -135,6 +135,18 @@ export class FakeInbox implements Inbox {
             ]),
         );
       },
+      receivedEventsBetween: async (deviceId, aboveSeq, upToSeq) => {
+        this.calls.push(`receivedEventsBetween ${deviceId}`);
+        return working.received
+          .filter(
+            (entry) =>
+              entry.deviceId === deviceId &&
+              entry.event.device_seq > aboveSeq &&
+              entry.event.device_seq <= upToSeq,
+          )
+          .map((entry) => structuredClone(entry.event))
+          .sort((first, second) => first.device_seq - second.device_seq);
+      },
       receivedChainLink: async (deviceId, deviceSeq) => {
         this.calls.push(`receivedChainLink ${deviceId}`);
         return working.received.find(

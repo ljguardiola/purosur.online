@@ -5,8 +5,19 @@ import {
 } from "@purosur/contracts";
 import { eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  type Mock,
+  vi,
+} from "vitest";
 import { fiscalRequests, inbox, installationRequestAttempts } from "../platform/db/schema.js";
+import type { reportError } from "../platform/error-reporting.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { registerRouteAccess } from "../sessions/route-access.js";
 import { registerEventsRoute } from "../sync/events-route.js";
@@ -33,6 +44,7 @@ const NOW = new Date("2026-10-06T15:00:00.000Z");
 let testDatabase: TestDatabase;
 let app: FastifyInstance;
 let enqueuedUnclearOutcomes: string[];
+let report: Mock<typeof reportError>;
 
 beforeAll(async () => {
   testDatabase = await buildTestDatabase();
@@ -45,6 +57,7 @@ afterAll(async () => {
 beforeEach(async () => {
   await testDatabase.clear();
   enqueuedUnclearOutcomes = [];
+  report = vi.fn<typeof reportError>();
   app = Fastify();
   registerRouteAccess(app);
   registerUnclearOutcomeRoute(app, {
@@ -58,6 +71,7 @@ beforeEach(async () => {
     },
     enqueueCreditNote: async () => {},
     enqueueEventApplication: async () => {},
+    report,
   });
   registerEventsRoute(app, {
     db: testDatabase.db,
@@ -416,19 +430,57 @@ describe("POST /fiscal/unclear-outcomes", () => {
       expect(await testDatabase.db.select().from(inbox)).toHaveLength(1);
     });
 
-    it("is received once and acknowledged when the register later pushes everything up to it", async () => {
+    it("reports an event the inbox refuses for a broken chain, with how it was refused", async () => {
       const { installation, device } = await installationPushingSales();
       const { saleId, events } = chainedSale(device);
+      const renumberedFirst = { ...(events[1] ?? saleCompletedEvent(saleId)), device_seq: 1 };
+
       await ask(
-        questionBody({ sale_id: saleId, sale_event: events[1] ?? null }),
+        questionBody({ sale_id: saleId, sale_event: renumberedFirst }),
         `Bearer ${installation.deviceToken}`,
       );
 
-      const pushed = await device.send(events);
+      expect(report).toHaveBeenCalledWith(expect.any(String), expect.any(Error), {
+        context: {
+          deviceId: installation.deviceId,
+          eventId: renumberedFirst.event_id,
+          outcome: "chain_broken",
+        },
+      });
+    });
 
-      expect(pushed.ack_seq).toBe(2);
-      const held = await testDatabase.db.select().from(inbox);
-      expect(held.map((row) => row.deviceSeq).sort()).toEqual([1, 2]);
+    it("reports an event the inbox refuses as held at another position, with how it was refused", async () => {
+      const { installation, device } = await installationPushingSales();
+      const { saleId, events } = chainedSale(device);
+      const saleEvent = events[1] ?? saleCompletedEvent(saleId);
+      await ask(
+        questionBody({ sale_id: saleId, sale_event: saleEvent }),
+        `Bearer ${installation.deviceToken}`,
+      );
+
+      await ask(
+        questionBody({ sale_id: saleId, sale_event: { ...saleEvent, device_seq: 3 } }),
+        `Bearer ${installation.deviceToken}`,
+      );
+
+      expect(report).toHaveBeenCalledWith(expect.any(String), expect.any(Error), {
+        context: {
+          deviceId: installation.deviceId,
+          eventId: saleEvent.event_id,
+          outcome: "misplaced",
+        },
+      });
+    });
+
+    it("reports nothing of an event the inbox holds, the first time or again", async () => {
+      const { installation, device } = await installationPushingSales();
+      const { saleId, events } = chainedSale(device);
+      const body = questionBody({ sale_id: saleId, sale_event: events[1] ?? null });
+
+      await ask(body, `Bearer ${installation.deviceToken}`);
+      await ask(body, `Bearer ${installation.deviceToken}`);
+
+      expect(report).not.toHaveBeenCalled();
     });
 
     it("holds nothing when the question carries none", async () => {

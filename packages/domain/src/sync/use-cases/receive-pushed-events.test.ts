@@ -1088,3 +1088,72 @@ describe("checking the chain of the events a register pushes", () => {
     expect(inbox.state.brokenChainRevocations).toEqual([]);
   });
 });
+
+describe("the events held above a hole that a push fills", () => {
+  const REFUSED = { kind: "chain_broken" };
+
+  function altered(deviceSeq: number): PushedEvent {
+    return { ...fakeEvent(deviceSeq), payload: { seq: 99 } };
+  }
+
+  it("refuses a push that fills the hole below an event altered after it was chained, setting the push aside and revoking", async () => {
+    const inbox = new FakeInbox();
+    inbox.holdEvents(DEVICE, altered(3));
+    const pushed = eventsOf(1, 2);
+
+    const outcome = await receive(inbox, pushed);
+
+    expect(outcome).toEqual(REFUSED);
+    expect(inbox.receivedSeqs(DEVICE)).toEqual([3]);
+    expect(inbox.state.refusedPushes).toEqual([
+      { deviceId: DEVICE, events: pushed, refusedAt: NOW },
+    ]);
+    expect(inbox.state.brokenChainRevocations).toEqual([{ deviceId: DEVICE, revokedAt: NOW }]);
+  });
+
+  it("refuses a push carrying the original of an event whose held copy was altered after it was chained", async () => {
+    const inbox = new FakeInbox();
+    inbox.holdEvents(DEVICE, altered(3));
+
+    const outcome = await receive(inbox, eventsOf(1, 2, 3));
+
+    expect(outcome).toEqual(REFUSED);
+  });
+
+  it("refuses a push when any held event it joins without a hole was altered", async () => {
+    const inbox = new FakeInbox([{ deviceId: DEVICE, seqs: [1] }]);
+    inbox.holdEvents(DEVICE, fakeEvent(3), altered(4));
+
+    const outcome = await receive(inbox, eventsOf(2));
+
+    expect(outcome).toEqual(REFUSED);
+  });
+
+  it("refuses a push when the held events it joins do not chain from the last event it carries", async () => {
+    const inbox = new FakeInbox([{ deviceId: DEVICE, seqs: [1] }]);
+    inbox.holdEvents(DEVICE, chainedFrom(null, unchainedFakeEvent(3)));
+
+    const outcome = await receive(inbox, eventsOf(2));
+
+    expect(outcome).toEqual(REFUSED);
+  });
+
+  it("acknowledges the held events it joins when they chain from it", async () => {
+    const inbox = new FakeInbox();
+    inbox.holdEvents(DEVICE, fakeEvent(3), fakeEvent(4));
+
+    const outcome = await receive(inbox, eventsOf(1, 2));
+
+    expect(outcome).toEqual({ kind: "received", ackSeq: 4 });
+    expect(inbox.state.brokenChainRevocations).toEqual([]);
+  });
+
+  it("leaves a held event above the next hole to the push that fills that hole", async () => {
+    const inbox = new FakeInbox();
+    inbox.holdEvents(DEVICE, fakeEvent(3), altered(5));
+
+    const outcome = await receive(inbox, eventsOf(1, 2));
+
+    expect(outcome).toEqual({ kind: "received", ackSeq: 3 });
+  });
+});
