@@ -69,6 +69,14 @@ describe("productLinkCandidates", () => {
     expect(productLinkCandidates([product("1", "Mermelada")], "ME durazno")).toEqual([]);
   });
 
+  it("matches a text word of exactly three letters that starts a product word", () => {
+    expect(productLinkCandidates([product("1", "Mermelada")], "mer durazno")).toHaveLength(1);
+  });
+
+  it("does not count a combining mark standing alone as a word", () => {
+    expect(productLinkCandidates([product("1", "\u0301 sal")], "\u0301 pan")).toEqual([]);
+  });
+
   it("does not match a text word longer than the product word", () => {
     expect(productLinkCandidates([product("1", "Sal")], "salsa")).toEqual([]);
   });
