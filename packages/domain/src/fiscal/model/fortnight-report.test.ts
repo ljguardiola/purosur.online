@@ -553,6 +553,7 @@ describe("fortnightPresentationRows", () => {
     buyerTaxStatusCode: 5,
     rejections: [],
     remedy: "awaiting_remedy",
+    remedies: ["report", "printed"],
   });
 
   it("is one row without a document type, declaring no movement, when the fortnight issued no documents and was accepted", () => {
