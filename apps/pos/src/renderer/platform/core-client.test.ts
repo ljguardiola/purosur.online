@@ -2060,6 +2060,71 @@ describe("createCoreClient", () => {
     ]);
   });
 
+  it("asks the core to find a deferred sale from the code the cashier typed", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const found = client.findDeferredSale({ kind: "typed", code: "7kq4-m2p9" });
+    port.answer({
+      type: "find-deferred-sale-result",
+      request_id: "request-1",
+      outcome: { kind: "not_found" },
+    });
+
+    expect(await found).toEqual({ kind: "not_found" });
+    expect(port.posted).toEqual([
+      {
+        type: "find-deferred-sale",
+        request_id: "request-1",
+        reading: { kind: "typed", code: "7kq4-m2p9" },
+      },
+    ]);
+  });
+
+  it("asks the core to find a deferred sale from the text of the QR the reader scanned", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const found = client.findDeferredSale({
+      kind: "scanned",
+      text: "purosur-deferred-sale:0198-abc:7KQ4M2P9",
+    });
+    port.answer({
+      type: "find-deferred-sale-result",
+      request_id: "request-1",
+      outcome: { kind: "voided" },
+    });
+
+    expect(await found).toEqual({ kind: "voided" });
+    expect(port.posted).toEqual([
+      {
+        type: "find-deferred-sale",
+        request_id: "request-1",
+        reading: { kind: "scanned", text: "purosur-deferred-sale:0198-abc:7KQ4M2P9" },
+      },
+    ]);
+  });
+
+  it("asks the core to print a deferred sale's invoice as an original", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const printed = client.printDeferredSaleInvoice("sale-1");
+    port.answer({
+      type: "print-deferred-sale-invoice-result",
+      request_id: "request-1",
+      outcome: { kind: "not_yet", cause: "cannot_authorize" },
+    });
+
+    expect(await printed).toEqual({ kind: "not_yet", cause: "cannot_authorize" });
+    expect(port.posted).toEqual([
+      { type: "print-deferred-sale-invoice", request_id: "request-1", sale_id: "sale-1" },
+    ]);
+  });
+
   it("asks the core for a page of the sales history and resolves with the outcome", async () => {
     const client = clientWithSequentialIds();
     const port = new FakePort();
