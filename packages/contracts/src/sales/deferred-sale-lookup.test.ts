@@ -128,6 +128,7 @@ describe("the result of finding a deferred sale", () => {
     { kind: "expired" },
     { kind: "not_signed_in" },
     { kind: "lacks_permission" },
+    { kind: "unavailable" },
   ])("accepts the outcome $kind", (outcome) => {
     const message = { type: "find-deferred-sale-result", request_id: REQUEST_ID, outcome };
 
