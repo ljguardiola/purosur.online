@@ -1,3 +1,4 @@
+import type { SaleUnit } from "../../catalog/index.js";
 import type {
   SupplierPriceListReadFailure,
   SupplierPriceListState,
@@ -21,6 +22,13 @@ export interface SupplierPriceListListing {
   confirmedAt: Date | null;
 }
 
+export interface SupplierPriceListReviewRowLink {
+  product: { id: string; name: string; saleUnit: SaleUnit };
+  packaging: { id: string; name: string; quantityPerPackage: number };
+  // In basis points, null for an item whose list prices include VAT.
+  vatRate: number | null;
+}
+
 export interface SupplierPriceListReviewRow {
   id: string;
   description: string;
@@ -28,6 +36,13 @@ export interface SupplierPriceListReviewRow {
   presentation: string | null;
   priceCents: number | null;
   page: number | null;
+  barcode: string | null;
+  link: SupplierPriceListReviewRowLink | null;
+  // Whether a person linked the row or marked it reviewed in this list.
+  reviewed: boolean;
+  // The description and price the supplier's other confirmed lists last recorded for the row's
+  // item, null when none did.
+  earlier: { description: string; priceCents: number } | null;
 }
 
 export interface SupplierPriceListReview {

@@ -1,3 +1,5 @@
+import type { SaleUnit } from "../../catalog/index.js";
+import type { SupplierItemKey } from "../model/supplier-item.js";
 import type {
   SupplierPriceListContentKind,
   SupplierPriceListReadFailure,
@@ -26,8 +28,55 @@ export type FindSupplierPriceListSourceResult =
       source: { kind: "PDF" } | { kind: "WEB_PAGE"; url: string };
     };
 
+// The catalog product and purchase presentation a supplier's item stands for. The rate is in basis
+// points and is null for an item whose list prices include VAT.
+export interface SupplierItemLink {
+  productId: string;
+  packagingId: string;
+  vatRate: number | null;
+}
+
+export interface SupplierItem {
+  id: string;
+  key: SupplierItemKey;
+  description: string;
+  link: SupplierItemLink | null;
+}
+
+export interface NewSupplierItemFields {
+  supplierId: string;
+  key: SupplierItemKey;
+  description: string;
+  link: SupplierItemLink | null;
+}
+
+export interface SupplierItemPriceEntry {
+  itemId: string;
+  listId: string;
+  priceCents: number;
+  listDate: string;
+  pricesIncludeVat: boolean;
+}
+
+export interface StoredPriceListRow {
+  id: string;
+  description: string;
+  code: string | null;
+  priceCents: number | null;
+  link: SupplierItemLink | null;
+}
+
+export type LockProductPackagingResult =
+  | { kind: "not_found" }
+  | {
+      kind: "locked";
+      product: { active: boolean; saleUnit: SaleUnit };
+      packaging: { productId: string; active: boolean; saleUnit: SaleUnit };
+    };
+
 export interface LockedSupplierPriceList {
   id: string;
+  supplierId: string;
   sourceKind: SupplierPriceListSourceKind;
   contentKind: SupplierPriceListContentKind;
   state: SupplierPriceListState;
@@ -45,7 +94,9 @@ export type LockSupplierPriceListResult =
   | { kind: "not_found" }
   | { kind: "locked"; list: LockedSupplierPriceList };
 
-export type LockSupplierPriceListRowResult = { kind: "not_found" } | { kind: "locked" };
+export type LockSupplierPriceListRowResult =
+  | { kind: "not_found" }
+  | { kind: "locked"; row: { description: string; code: string | null } };
 
 export interface ProposedPriceListRow {
   description: string;
@@ -53,6 +104,9 @@ export interface ProposedPriceListRow {
   presentation: string | null;
   priceCents: number | null;
   page: number | null;
+  barcode: string | null;
+  // The link remembered for the row's item, copied when the list was read.
+  link: SupplierItemLink | null;
 }
 
 export interface SupplierPriceListStoreTransaction {
@@ -76,7 +130,22 @@ export interface SupplierPriceListStoreTransaction {
   ): Promise<void>;
   recordReadFailure(listId: string, reason: SupplierPriceListReadFailure): Promise<void>;
   lockRow(listId: string, rowId: string): Promise<LockSupplierPriceListRowResult>;
+  // The list's rows in the order the reading found them.
+  listRows(listId: string): Promise<StoredPriceListRow[]>;
+  // The supplier's remembered items among the keys, those never seen left out.
+  supplierItems(supplierId: string, keys: SupplierItemKey[]): Promise<SupplierItem[]>;
+  // Like supplierItems, and serializes the writers of the supplier's items, those not yet
+  // remembered included.
+  lockSupplierItems(supplierId: string, keys: SupplierItemKey[]): Promise<SupplierItem[]>;
+  lockProductPackaging(productId: string, packagingId: string): Promise<LockProductPackagingResult>;
+  addSupplierItem(fields: NewSupplierItemFields): Promise<{ id: string }>;
+  describeSupplierItem(itemId: string, description: string): Promise<void>;
+  rememberSupplierItemLink(itemId: string, link: SupplierItemLink): Promise<void>;
+  // Appends to the item's price history, which keeps one entry per confirmed list.
+  recordSupplierItemPrice(entry: SupplierItemPriceEntry): Promise<void>;
   // Every change of the review advances the list's version.
+  linkRow(listId: string, rowId: string, link: SupplierItemLink, actorId: string): Promise<void>;
+  markRowReviewed(listId: string, rowId: string, actorId: string): Promise<void>;
   setRowPrice(listId: string, rowId: string, priceCents: number, actorId: string): Promise<void>;
   removeRow(listId: string, rowId: string, actorId: string): Promise<void>;
   confirmList(
