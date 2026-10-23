@@ -86,3 +86,64 @@ export function cheapestOffer<T extends { pricePerSaleUnit: Fraction }>(
   }
   return cheapest;
 }
+
+export const SUPPLIER_PRICE_LIST_ROW_STATUSES = [
+  "new",
+  "linked",
+  "price_changed",
+  "description_changed",
+  "unlinked",
+  "vat_rate_missing",
+  "reviewed",
+] as const;
+
+export type SupplierPriceListRowStatus = (typeof SUPPLIER_PRICE_LIST_ROW_STATUSES)[number];
+
+// `earlier` is what the supplier's earlier lists recorded for the row's item, null when none did.
+export function supplierPriceListRowStatus(row: {
+  reviewed: boolean;
+  description: string;
+  priceCents: number | null;
+  link: { vatRate: number | null } | null;
+  earlier: { description: string; priceCents: number } | null;
+  requiresVatRate: boolean;
+}): SupplierPriceListRowStatus {
+  if (row.reviewed) {
+    return "reviewed";
+  }
+  if (row.earlier === null) {
+    return "new";
+  }
+  if (row.link === null) {
+    return "unlinked";
+  }
+  if (row.priceCents !== row.earlier.priceCents) {
+    return "price_changed";
+  }
+  if (row.description !== row.earlier.description) {
+    return "description_changed";
+  }
+  return row.requiresVatRate && row.link.vatRate === null ? "vat_rate_missing" : "linked";
+}
+
+export function needsReview(status: SupplierPriceListRowStatus): boolean {
+  return status !== "linked" && status !== "reviewed";
+}
+
+// Several rows of one list may print the same item; the list records it once, as its last row says.
+export function lastRowOfEachItem<T extends { code: string | null; description: string }>(
+  rows: readonly T[],
+): { key: SupplierItemKey; row: T }[] {
+  const byKey = new Map<string, { key: SupplierItemKey; row: T }>();
+  for (const row of rows) {
+    const key = supplierItemKey(row);
+    const mapKey = JSON.stringify([key.kind, key.value]);
+    const existing = byKey.get(mapKey);
+    if (existing) {
+      existing.row = row;
+    } else {
+      byKey.set(mapKey, { key, row });
+    }
+  }
+  return [...byKey.values()];
+}

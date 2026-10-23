@@ -64,6 +64,10 @@ export function isSupplierPriceListUnderReview(state: SupplierPriceListState): b
   return state === "EXTRACTED";
 }
 
+export function maySupplierPriceListRowBeLinked(state: SupplierPriceListState): boolean {
+  return state === "EXTRACTED" || state === "REVIEWED";
+}
+
 export function isSupplierPriceListDiscardable(state: SupplierPriceListState): boolean {
   return state === "EXTRACTED" || state === "READ_FAILED";
 }
