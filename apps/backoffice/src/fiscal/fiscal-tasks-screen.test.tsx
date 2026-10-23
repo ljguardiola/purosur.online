@@ -2,7 +2,7 @@ import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, onTestFinished, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
-import { deferred } from "../payments/test-support/deferred";
+import { deferred } from "../platform/test-support/deferred";
 import type { BackofficeAccess } from "../shell/backoffice-access";
 import { accessWith, NO_CAPABILITIES_ACCESS } from "../shell/test-support/backoffice-access";
 import { render } from "../shell/test-support/render-with-router";

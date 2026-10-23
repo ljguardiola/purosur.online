@@ -73,6 +73,17 @@ test("tells a task that was already closed from one that is not there", async ()
   expect(await closeFiscalTask("task-1", { note: "Listo" })).toEqual({ kind: "not_found" });
 });
 
+test("returns the field a 400 validation_failed names when closing a task", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    jsonResponse(400, { code: "validation_failed", details: [{ field: "note" }] }),
+  );
+
+  expect(await closeFiscalTask("task-1", { note: "Listo" })).toEqual({
+    kind: "validation_failed",
+    field: "note",
+  });
+});
+
 test.each([
   [401, { kind: "unauthenticated" }],
   [403, { kind: "forbidden" }],

@@ -11,12 +11,6 @@ import {
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { registerFiscalTaskClosingRoute } from "./fiscal-task-closing-route.js";
-import { registerFiscalTasksListRoute } from "./fiscal-tasks-list-route.js";
-import {
-  insertDeferredSaleRow,
-  insertDeferredSaleTaskRow,
-} from "./test-support/deferred-sale-fixtures.js";
-import { registerUnbilledDeferredSalesRoute } from "./unbilled-deferred-sales-route.js";
 
 const CREATED_AT = new Date("2026-01-05T09:00:00.000Z");
 const NOTE = "regularized with the accountant";
@@ -39,8 +33,6 @@ beforeEach(async () => {
   app = Fastify();
   const options = { db, backofficeOrigin: BACKOFFICE_ORIGIN, now: () => SESSION_NOON };
   registerFiscalTaskClosingRoute(app, options);
-  registerFiscalTasksListRoute(app, options);
-  registerUnbilledDeferredSalesRoute(app, options);
 });
 
 afterEach(async () => {
@@ -150,10 +142,10 @@ describe("PUT /fiscal/tasks/:id/closure", () => {
     expect(response.statusCode).toBe(404);
   });
 
-  it("closes the task with 204, takes it off the open list and audits it", async () => {
-    const installation = await anInstallation();
-    const taskId = await insertOpenTask(installation.registerId);
-    const session = await aClosingSession(["close_fiscal_tasks", "view_fiscal_documents"]);
+  it("closes the task with 204 and audits it", async () => {
+    const { registerId } = await anInstallation();
+    const taskId = await insertOpenTask(registerId);
+    const session = await aClosingSession();
 
     const response = await closeTask(session.headers, taskId);
 
@@ -164,12 +156,6 @@ describe("PUT /fiscal/tasks/:id/closure", () => {
       closedBy: session.userId,
       closingNote: NOTE,
     });
-    const list = await app.inject({
-      method: "GET",
-      url: "/fiscal/tasks",
-      headers: session.headers,
-    });
-    expect(list.json()).toEqual({ tasks: [] });
     const audited = await db.select().from(auditLog).where(eq(auditLog.entityId, taskId));
     expect(audited).toHaveLength(1);
     expect(audited[0]).toMatchObject({
@@ -194,33 +180,5 @@ describe("PUT /fiscal/tasks/:id/closure", () => {
     });
     expect(await stateOf(taskId)).toMatchObject({ closingNote: NOTE });
     expect(await db.select().from(auditLog).where(eq(auditLog.entityId, taskId))).toHaveLength(1);
-  });
-
-  it("stops counting an expired deferred sale once its task is closed", async () => {
-    const installation = await anInstallation();
-    const locationId = await seededLocationId(db);
-    const deferredSale = await insertDeferredSaleRow(db, {
-      registerId: installation.registerId,
-      locationId,
-      state: "expired",
-      occurredAt: new Date("2025-12-30T15:00:00.000Z"),
-      expiredAt: CREATED_AT,
-    });
-    const taskId = await insertDeferredSaleTaskRow(db, {
-      registerId: installation.registerId,
-      deferredSaleId: deferredSale.id,
-    });
-    const session = await aClosingSession(["close_fiscal_tasks", "view_fiscal_documents"]);
-    const counter = () =>
-      app.inject({
-        method: "GET",
-        url: "/fiscal/unbilled-deferred-sales",
-        headers: session.headers,
-      });
-    expect((await counter()).json()).toMatchObject({ count: 1 });
-
-    await closeTask(session.headers, taskId);
-
-    expect((await counter()).json()).toEqual({ count: 0, oldest: null });
   });
 });

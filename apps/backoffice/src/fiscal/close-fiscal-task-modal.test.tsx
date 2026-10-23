@@ -1,8 +1,9 @@
 import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
+import { useState } from "react";
 import { expect, test, vi } from "vitest";
 import { type Locator, userEvent } from "vitest/browser";
-import { deferred } from "../payments/test-support/deferred";
+import { deferred } from "../platform/test-support/deferred";
 import { render } from "../shell/test-support/render-with-router";
 import { CloseFiscalTaskModal, type CloseFiscalTaskModalServices } from "./close-fiscal-task-modal";
 import type { CloseFiscalTaskOutcome } from "./fiscal-tasks-api";
@@ -37,6 +38,60 @@ async function renderModal(services: CloseFiscalTaskModalServices, handlers: Han
   const dialog = screen.getByRole("dialog", { name: "Cerrar tarea fiscal" });
   await expect.element(dialog).toBeVisible();
   return { screen, dialog };
+}
+
+function ReopenableModal({
+  services,
+  reload,
+}: {
+  services: CloseFiscalTaskModalServices;
+  reload: () => Promise<unknown>;
+}) {
+  const [target, setTarget] = useState<typeof externalInvoicingTask | null>(externalInvoicingTask);
+  return (
+    <FieldSizeProvider size="backoffice">
+      <main>
+        <button type="button" onClick={() => setTarget(externalInvoicingTask)}>
+          Abrir la tarea
+        </button>
+        <CloseFiscalTaskModal
+          target={target}
+          onClose={() => setTarget(null)}
+          onClosed={() => setTarget(null)}
+          reload={reload}
+          onSessionEnded={() => {}}
+          services={services}
+        />
+      </main>
+    </FieldSizeProvider>
+  );
+}
+
+async function renderReopenableModal(
+  services: CloseFiscalTaskModalServices,
+  reload: () => Promise<unknown> = () => Promise.resolve(),
+) {
+  const element = <ReopenableModal services={services} reload={reload} />;
+  const screen = await render(element);
+  return Object.assign(screen, { settle: () => screen.rerender(element) });
+}
+
+type ReopenableScreen = Awaited<ReturnType<typeof renderReopenableModal>>;
+
+function openDialog(screen: ReopenableScreen) {
+  return screen.getByRole("dialog", { name: "Cerrar tarea fiscal" });
+}
+
+async function closeModal(screen: ReopenableScreen) {
+  await userEvent.click(openDialog(screen).getByRole("button", { name: "Cerrar", exact: true }));
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+}
+
+async function reopenModal(screen: ReopenableScreen) {
+  await userEvent.click(screen.getByRole("button", { name: "Abrir la tarea" }));
+  const dialog = openDialog(screen);
+  await expect.element(dialog).toBeVisible();
+  return dialog;
 }
 
 async function closeWith(dialog: Locator, note: string) {
@@ -185,4 +240,57 @@ test("sends the person to Mi cuenta when the cloud refuses the capability", asyn
   await closeWith(dialog, "Listo");
 
   await expect.poll(() => window.location.pathname).toBe("/account");
+});
+
+test("shows the message of the note the cloud refused", async () => {
+  const services = createServices();
+  vi.mocked(services.closeFiscalTask).mockResolvedValue({
+    kind: "validation_failed",
+    field: "note",
+  });
+  const onClosed = vi.fn();
+  const { dialog } = await renderModal(services, { onClosed });
+
+  await closeWith(dialog, "Listo");
+
+  await expect.element(dialog.getByText("Ese texto es demasiado largo.")).toBeVisible();
+  await expect.element(dialog.getByText("No se pudo cerrar la tarea")).not.toBeInTheDocument();
+  expect(onClosed).not.toHaveBeenCalled();
+});
+
+test("an answer that arrives after the modal was closed leaves no notice on the next opening", async () => {
+  const services = createServices();
+  const sending = deferred<CloseFiscalTaskOutcome>();
+  vi.mocked(services.closeFiscalTask).mockReturnValue(sending.promise);
+  const reload = vi.fn().mockResolvedValue(undefined);
+  const screen = await renderReopenableModal(services, reload);
+  await closeWith(openDialog(screen), "Listo");
+  await closeModal(screen);
+
+  sending.resolve({ kind: "already_closed" });
+  await screen.settle();
+  const dialog = await reopenModal(screen);
+
+  await expect.poll(() => reload.mock.calls.length).toBe(1);
+  await expect
+    .element(dialog.getByText("Esta tarea ya estaba cerrada.").first())
+    .not.toBeInTheDocument();
+  await expect.element(dialog.getByRole("button", { name: "Cerrar tarea" })).toBeEnabled();
+});
+
+test("a success from an earlier opening reloads the list and leaves the next opening open", async () => {
+  const services = createServices();
+  const sending = deferred<CloseFiscalTaskOutcome>();
+  vi.mocked(services.closeFiscalTask).mockReturnValue(sending.promise);
+  const reload = vi.fn().mockResolvedValue(undefined);
+  const screen = await renderReopenableModal(services, reload);
+  await closeWith(openDialog(screen), "Listo");
+  await closeModal(screen);
+  const dialog = await reopenModal(screen);
+
+  sending.resolve({ kind: "ok" });
+  await screen.settle();
+
+  await expect.poll(() => reload.mock.calls.length).toBe(1);
+  await expect.element(dialog).toBeVisible();
 });

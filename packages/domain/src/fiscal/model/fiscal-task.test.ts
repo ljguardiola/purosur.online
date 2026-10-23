@@ -94,7 +94,6 @@ describe("the closing note of a fiscal task", () => {
     expect(FISCAL_TASK_CLOSING_NOTE_MAX_LENGTH).toBe(500);
   });
 
-
   it("accepts a note of exactly the maximum length and refuses one character more", () => {
     expect(isFiscalTaskClosingNoteTooLong("a".repeat(500))).toBe(false);
     expect(isFiscalTaskClosingNoteTooLong("a".repeat(501))).toBe(true);
