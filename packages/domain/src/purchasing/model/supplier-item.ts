@@ -130,19 +130,21 @@ export function needsReview(status: SupplierPriceListRowStatus): boolean {
   return status !== "linked" && status !== "reviewed";
 }
 
-// Several rows of one list may print the same item; the list records it once, as its last row says.
+// Several rows of one list may print the same item; the list records it once, as its last row
+// says, and `rows` keeps all of them in position order.
 export function lastRowOfEachItem<T extends { code: string | null; description: string }>(
   rows: readonly T[],
-): { key: SupplierItemKey; row: T }[] {
-  const byKey = new Map<string, { key: SupplierItemKey; row: T }>();
+): { key: SupplierItemKey; row: T; rows: T[] }[] {
+  const byKey = new Map<string, { key: SupplierItemKey; row: T; rows: T[] }>();
   for (const row of rows) {
     const key = supplierItemKey(row);
     const mapKey = JSON.stringify([key.kind, key.value]);
     const existing = byKey.get(mapKey);
     if (existing) {
       existing.row = row;
+      existing.rows.push(row);
     } else {
-      byKey.set(mapKey, { key, row });
+      byKey.set(mapKey, { key, row, rows: [row] });
     }
   }
   return [...byKey.values()];
