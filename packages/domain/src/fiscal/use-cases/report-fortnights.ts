@@ -385,15 +385,7 @@ async function presentDocuments(
     );
     const outcome: FortnightPresentationOutcome =
       awaiting === undefined
-        ? await presentDocumentType(
-            ports,
-            token,
-            owed,
-            report,
-            documentType,
-            documents,
-            typeReports,
-          )
+        ? await presentDocumentType(ports, token, owed, report, documentType, documents)
         : { kind: "awaiting_remedy", number: awaiting.rejectedNumber ?? 0 };
     presentations.push({ ...fortnightPresentation(owed, outcome), documentType });
     const state = documentTypeStateOf(outcome);
@@ -459,9 +451,7 @@ async function firstHeldCreditNote(
   fortnight: Fortnight,
   documents: OfflineDocumentOfFortnight[],
 ): Promise<number | null> {
-  for (const { documentType, number, corrects } of [...documents].sort(
-    (left, right) => left.number - right.number,
-  )) {
+  for (const { documentType, number, corrects } of documents) {
     if (
       documentType === CREDIT_NOTE_C_DOCUMENT_TYPE &&
       corrects !== undefined &&
@@ -480,7 +470,6 @@ async function presentDocumentType(
   report: HeldFortnightReport,
   documentType: FiscalDocumentType,
   issued: OfflineDocumentOfFortnight[],
-  typeReports: RecordedDocumentTypeReport[],
 ): Promise<FortnightPresentationOutcome> {
   const { documentReports, clock } = ports;
   const presented = issued.map(presentedOfflineDocument);
@@ -496,9 +485,8 @@ async function presentDocumentType(
     });
     return { kind: "awaiting_invoice_report" } as const;
   };
-  if (heldFrom !== null && documents.length === 0) {
-    const recorded = typeReports.find((typeReport) => typeReport.documentType === documentType);
-    return recordHeld(recorded?.reportedThrough ?? 0);
+  if (documents.length === 0) {
+    return recordHeld(0);
   }
   const realTimePointsOfSale = new Map<string, number | null>();
   let acceptedThrough = 0;
@@ -521,7 +509,7 @@ async function presentDocumentType(
     }
     const pending = nextOfflineDocumentBatch(documents, last.number, Number.POSITIVE_INFINITY);
     if (pending.kind === "all_reported" && heldFrom !== null) {
-      return recordHeld(Math.max(documents.at(-1)?.number ?? 0, last.number));
+      return recordHeld(documents.at(-1)?.number ?? 0);
     }
     if (pending.kind === "all_reported") {
       const reportedThrough = documents.at(-1)?.number ?? last.number;
