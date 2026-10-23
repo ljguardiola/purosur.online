@@ -10,6 +10,7 @@ const CORE_START_ENDINGS = [
   "core: the local database could not be opened",
   "core: no local data folder was handed over",
   "core process: restart attempts exhausted",
+  "core process: not ready within",
 ] as const;
 
 export function startEndingsIn(output: string): string[] {
