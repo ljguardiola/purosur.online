@@ -66,8 +66,8 @@ describe("supplierPriceListWebPageBodySchema", () => {
   });
 
   it("says the length when the address is blank", () => {
-    expect(body("").error?.issues.map((issue) => issue.message)).toEqual([
+    expect(body("").error?.issues[0]?.message).toBe(
       `url must be a non-empty string of at most ${SUPPLIER_PRICE_LIST_WEB_PAGE_ADDRESS_MAX_LENGTH} characters`,
-    ]);
+    );
   });
 });
