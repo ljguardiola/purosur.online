@@ -503,6 +503,60 @@ describe("reprinting a sale's receipt from the history", () => {
     );
   });
 
+  it("tickets with the reprint's event the print state it records for a sale whose original was attempted but never recorded printed", async () => {
+    database
+      .prepare("UPDATE sales SET print_attempted_at = ? WHERE id = 'sale-1'")
+      .run(COMPLETED_AT);
+    signedInPerson.set("supervisor");
+    const { ticketing, recorded } = recordingTickets();
+
+    await reprintSaleReceiptFor(deps({ ticketedSteps: ticketing.ticketedSteps }), {
+      saleId: "sale-1",
+      reason: REASON,
+    });
+    await printer.whenWaiting(1);
+    appendEventsOfAnotherOperation(3);
+    const reprintSeq = lastDeviceSeq() + 1;
+    printer.becomeReady();
+
+    await vi.waitFor(() =>
+      expect(recorded).toEqual([
+        {
+          operation: "reprint",
+          subjectId: "sale-1",
+          modesAround: [OFFLINE, OFFLINE, OFFLINE, OFFLINE],
+          range: { firstDeviceSeq: reprintSeq, lastDeviceSeq: reprintSeq + 1 },
+          handedCopies: 1,
+        },
+      ]),
+    );
+    expect(deliveryOf("sale-1")).toMatchObject({ printed_at: START.toISOString() });
+  });
+
+  it("leaves out of the reprint's tickets the events another operation appends between handing the duplicate and recording it printed", async () => {
+    database
+      .prepare("UPDATE sales SET print_attempted_at = ? WHERE id = 'sale-1'")
+      .run(COMPLETED_AT);
+    signedInPerson.set("supervisor");
+    const { ticketing, recorded } = recordingTickets();
+
+    await reprintSaleReceiptFor(deps({ ticketedSteps: ticketing.ticketedSteps }), {
+      saleId: "sale-1",
+      reason: REASON,
+    });
+    await printer.whenWaiting(1);
+    const reprintSeq = lastDeviceSeq() + 1;
+    printer.becomeReady();
+    appendEventsOfAnotherOperation(2);
+
+    await vi.waitFor(() =>
+      expect(recorded).toMatchObject([
+        { range: { firstDeviceSeq: reprintSeq, lastDeviceSeq: reprintSeq } },
+        { range: { firstDeviceSeq: reprintSeq + 3, lastDeviceSeq: reprintSeq + 3 } },
+      ]),
+    );
+  });
+
   it("asks another person's authorization from a person without the permission", async () => {
     await printedAndSent();
 

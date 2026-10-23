@@ -261,6 +261,59 @@ describe("an operation whose ticket covers only some of its steps", () => {
     expect(log.at(-1)).toBe("kick");
   });
 
+  it("records one ticket over consecutive steps no other operation appended events between", async () => {
+    const { ticketing, recorded } = setup({
+      seqs: [10, 11, 11, 13],
+      modes: [REAL_TIME, REAL_TIME, OFFLINE, REAL_TIME],
+    });
+
+    await ticketing.ticketedSteps("reprint", "sale-1", async (ticketedStep) => {
+      ticketedStep(() => "handed");
+      ticketedStep(() => "printed");
+    });
+
+    expect(recorded).toEqual([
+      {
+        operation: "reprint",
+        subjectId: "sale-1",
+        modesAround: [REAL_TIME, REAL_TIME, OFFLINE, REAL_TIME],
+        range: { firstDeviceSeq: 11, lastDeviceSeq: 13 },
+      },
+    ]);
+  });
+
+  it("records a separate ticket for each run of steps another operation appended events between", async () => {
+    const { ticketing, recorded } = setup({
+      seqs: [10, 11, 14, 15],
+      modes: [OFFLINE, OFFLINE, OFFLINE, OFFLINE],
+    });
+
+    await ticketing.ticketedSteps("reprint", "sale-1", async (ticketedStep) => {
+      ticketedStep(() => "handed");
+      ticketedStep(() => "printed");
+    });
+
+    expect(recorded).toMatchObject([
+      { range: { firstDeviceSeq: 11, lastDeviceSeq: 11 } },
+      { range: { firstDeviceSeq: 15, lastDeviceSeq: 15 } },
+    ]);
+  });
+
+  it("records nothing for a step that appended no event", async () => {
+    const { ticketing, recorded, log } = setup({
+      seqs: [10, 10, 12, 12],
+      modes: [OFFLINE, OFFLINE, OFFLINE, OFFLINE],
+    });
+
+    await ticketing.ticketedSteps("reprint", "sale-1", async (ticketedStep) => {
+      ticketedStep(() => "decided");
+      ticketedStep(() => "printed");
+    });
+
+    expect(recorded).toEqual([]);
+    expect(log).not.toContain("kick");
+  });
+
   it("records nothing when no step was ticketed", async () => {
     const { ticketing, recorded, log } = setup();
 
