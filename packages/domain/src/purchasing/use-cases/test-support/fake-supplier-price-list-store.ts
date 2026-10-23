@@ -63,7 +63,7 @@ export interface FakePriceListRow extends ProposedPriceListRow {
   reviewed: boolean;
 }
 
-export interface FakeSupplierItem extends SupplierItem {
+export interface FakeSupplierItem extends Omit<SupplierItem, "currentListDate"> {
   supplierId: string;
 }
 
@@ -309,7 +309,16 @@ class FakeSupplierPriceListStoreTransaction implements SupplierPriceListStoreTra
           item.supplierId === supplierId &&
           keys.some((key) => key.kind === item.key.kind && key.value === item.key.value),
       )
-      .map(({ supplierId: _supplierId, ...item }) => ({ ...item, link: cloneLink(item.link) }));
+      .map(({ supplierId: _supplierId, ...item }) => ({
+        ...item,
+        link: cloneLink(item.link),
+        currentListDate:
+          this.state.itemPrices
+            .filter((entry) => entry.itemId === item.id)
+            .map((entry) => entry.listDate)
+            .sort()
+            .at(-1) ?? null,
+      }));
   }
 
   async lockSupplierItems(supplierId: string, keys: SupplierItemKey[]): Promise<SupplierItem[]> {
@@ -549,6 +558,10 @@ export class FakeSupplierPriceListStore implements SupplierPriceListStore {
       id,
     });
     return id;
+  }
+
+  seedSupplierItemPrice(entry: SupplierItemPriceEntry): void {
+    this.state.itemPrices.push({ ...entry });
   }
 
   seedProduct(product: Partial<FakeCatalogProduct> & { id: string }): void {

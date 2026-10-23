@@ -41,6 +41,8 @@ export interface SupplierItem {
   key: SupplierItemKey;
   description: string;
   link: SupplierItemLink | null;
+  // The list date of the item's latest recorded price, null while it has none.
+  currentListDate: string | null;
 }
 
 export interface NewSupplierItemFields {
