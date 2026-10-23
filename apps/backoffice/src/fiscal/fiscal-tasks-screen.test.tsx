@@ -1,7 +1,7 @@
 import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
-import { beforeEach, expect, test, vi } from "vitest";
-import { userEvent } from "vitest/browser";
+import { beforeEach, expect, onTestFinished, test, vi } from "vitest";
+import { page, userEvent } from "vitest/browser";
 import { deferred } from "../payments/test-support/deferred";
 import { render } from "../shell/test-support/render-with-router";
 import { FiscalTasksScreen } from "./fiscal-tasks-screen";
@@ -15,8 +15,10 @@ import {
 } from "./test-support/fiscal-task-fixtures";
 import { createFiscalTasksServices } from "./test-support/fiscal-tasks-screen-services";
 
-beforeEach(() => {
+beforeEach(async () => {
   window.history.pushState(null, "", "/");
+  await page.viewport(1280, 800);
+  onTestFinished(() => page.viewport(414, 896));
 });
 
 function renderScreen(services: FiscalTasksScreenServices, onSessionEnded = () => {}) {
