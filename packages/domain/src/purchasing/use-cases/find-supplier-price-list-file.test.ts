@@ -11,8 +11,7 @@ function setup() {
       {
         id: "list-1",
         supplier: { id: "supplier-a", name: "Distribuidora Sur" },
-        sourceKind: "PDF",
-        fileName: "lista-marzo.pdf",
+        source: { kind: "PDF", fileName: "lista-marzo.pdf" },
         listDate: null,
         rowCount: 0,
         unpricedRowCount: 0,
@@ -36,6 +35,31 @@ describe("findSupplierPriceListFile", () => {
       kind: "found",
       fileName: "lista-marzo.pdf",
       bytes: PDF,
+    });
+  });
+
+  it("answers not_found for a list read from a web page, which has no uploaded file", async () => {
+    const reader = new FakeSupplierPriceListReader({
+      lists: [
+        {
+          id: "web-list",
+          supplier: { id: "supplier-a", name: "Distribuidora Sur" },
+          source: { kind: "WEB_PAGE", url: "https://distribuidora-sur.example/lista" },
+          listDate: null,
+          rowCount: 0,
+          unpricedRowCount: 0,
+          state: "READING",
+          readFailure: null,
+          uploadedAt: new Date("2026-03-01T12:00:00Z"),
+          confirmedAt: null,
+        },
+      ],
+    });
+    const { files } = setup();
+    files.stored.set("web-list", PDF);
+
+    expect(await findSupplierPriceListFile({ reader, files }, "web-list")).toEqual({
+      kind: "not_found",
     });
   });
 
