@@ -53,7 +53,6 @@ type Admitted<TStop> =
   | { kind: "stop"; outcome: LoadWebPageOutcome | TStop }
   | { kind: "admitted"; supplierId: string; url: string };
 
-// The page is read between two transactions, so no connection is held while the network answers.
 export async function loadWebPage<TStop>(
   { store, files, webPages }: LoadWebPagePorts,
   request: LoadWebPageRequest,
