@@ -512,6 +512,7 @@ describe("PUT /locations/current/settings", () => {
       expiring_lot_alert_days: 30,
       unreviewed_price_alert_days: 30,
       good_condition_return_days: 15,
+      supplier_price_list_daily_extraction_cap: 10,
       version: 1,
     };
 
