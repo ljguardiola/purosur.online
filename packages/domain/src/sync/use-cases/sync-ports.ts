@@ -153,11 +153,19 @@ export interface InboxTransaction {
   recordCaughtUp(deviceId: string, at: Date): Promise<void>;
   outboxChainKey(deviceId: string): Promise<string | undefined>;
   receivedChainLink(deviceId: string, deviceSeq: number): Promise<string | undefined>;
+  receivedEventsBetween(
+    deviceId: string,
+    aboveSeq: number,
+    upToSeq: number,
+  ): Promise<PushedEvent[]>;
   setAsideRefusedPush(
     deviceId: string,
     events: readonly PushedEvent[],
     refusedAt: Date,
   ): Promise<void>;
+  // An event the cloud already applied stays held, since what it derived from it cannot be undone,
+  // but it is set aside as much as the rest: no replenishment serves it again.
+  setAsideHeldEventsAbove(deviceId: string, aboveSeq: number, refusedAt: Date): Promise<void>;
   revokeForBrokenChain(deviceId: string, revokedAt: Date): Promise<void>;
 }
 

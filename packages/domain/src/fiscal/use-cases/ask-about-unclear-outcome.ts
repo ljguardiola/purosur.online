@@ -10,6 +10,7 @@ import type {
 } from "./unclear-outcome-ports.js";
 
 export interface AskAboutUnclearOutcomeInput {
+  deviceId: string;
   registerId: string;
   request: Omit<AbandonedRequestRecord, "registerId">;
 }
@@ -22,11 +23,14 @@ export type AskAboutUnclearOutcomeOutcome =
   | { kind: "sale_completion_not_held" };
 
 export async function askAboutUnclearOutcome(
-  { lanes, saleCompletions, clock }: AskAboutUnclearOutcomePorts,
-  { registerId, request }: AskAboutUnclearOutcomeInput,
+  { lanes, saleCompletions, attachedSaleEvents, clock }: AskAboutUnclearOutcomePorts,
+  { deviceId, registerId, request }: AskAboutUnclearOutcomeInput,
 ): Promise<AskAboutUnclearOutcomeOutcome> {
   if (request.saleEvent !== null && !isCompletionEventOfSale(request.saleEvent, request.saleId)) {
     return { kind: "sale_event_mismatch" };
+  }
+  if (request.saleEvent !== null) {
+    await attachedSaleEvents.record(deviceId, request.saleEvent);
   }
 
   return lanes.inPointOfSaleLane<AskAboutUnclearOutcomeOutcome>(

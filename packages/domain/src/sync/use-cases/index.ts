@@ -49,6 +49,11 @@ export type {
   ReleaseQuarantinedEventPorts,
 } from "./quarantine-release-ports.js";
 export type {
+  ReceiveAttachedEventInput,
+  ReceiveAttachedEventOutcome,
+} from "./receive-attached-event.js";
+export { receiveAttachedEvent } from "./receive-attached-event.js";
+export type {
   ReceivePushedEventsInput,
   ReceivePushedEventsOutcome,
 } from "./receive-pushed-events.js";
@@ -96,6 +101,7 @@ export type {
 } from "./reset-sync-identity-without-copy-ports.js";
 export type {
   EventPosition,
+  InstallationReceivedSeqs,
   ReplenishedEvent,
   ReplenishmentPosition,
   RestoredRegisterReplenishment,
