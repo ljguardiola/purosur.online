@@ -12,8 +12,7 @@ import {
 const extracted = {
   id: "list-1",
   supplier: { id: "s-1", name: "Distribuidora Sur" },
-  sourceKind: "PDF",
-  fileName: "lista-marzo.pdf",
+  source: { kind: "PDF", fileName: "lista-marzo.pdf" },
   listDate: "2026-03-01",
   rowCount: 12,
   unpricedRowCount: 2,
@@ -54,10 +53,19 @@ describe("supplierPriceListSummarySchema", () => {
     expect(supplierPriceListSummarySchema.safeParse({ ...extracted, state }).success).toBe(true);
   });
 
-  it.each(SUPPLIER_PRICE_LIST_SOURCE_KINDS)("accepts the source kind %s", (sourceKind) => {
-    expect(supplierPriceListSummarySchema.safeParse({ ...extracted, sourceKind }).success).toBe(
-      true,
-    );
+  it.each([
+    ["PDF", { kind: "PDF", fileName: "lista.pdf" }],
+    ["WEB_PAGE", { kind: "WEB_PAGE", url: "https://distribuidora-sur.example/lista" }],
+  ])("accepts the source kind %s", (kind, source) => {
+    expect(SUPPLIER_PRICE_LIST_SOURCE_KINDS).toContain(kind);
+    expect(supplierPriceListSummarySchema.safeParse({ ...extracted, source }).data).toEqual({
+      ...extracted,
+      source,
+    });
+  });
+
+  it("describes a source for exactly the source kinds the domain names", () => {
+    expect(SUPPLIER_PRICE_LIST_SOURCE_KINDS).toEqual(["PDF", "WEB_PAGE"]);
   });
 
   it.each(SUPPLIER_PRICE_LIST_READ_FAILURES)("accepts the read failure %s", (readFailure) => {
@@ -68,7 +76,12 @@ describe("supplierPriceListSummarySchema", () => {
 
   it.each([
     ["state", "CONFIRMED"],
-    ["sourceKind", "XLSX"],
+    ["source", { kind: "XLSX", fileName: "lista.xlsx" }],
+    ["source", { kind: "PDF" }],
+    ["source", { kind: "PDF", url: "https://distribuidora-sur.example/lista" }],
+    ["source", { kind: "WEB_PAGE" }],
+    ["source", { kind: "WEB_PAGE", fileName: "lista.pdf" }],
+    ["source", "PDF"],
     ["readFailure", "timeout"],
     ["rowCount", 1.5],
     ["unpricedRowCount", "2"],
