@@ -1,14 +1,14 @@
 import { argentinaCalendarDay, argentinaInstant, shiftCalendarDay } from "../../shared/index.js";
 import { isInstallationActiveDuring, streamReachesPast } from "../../sync/index.js";
-import type {
-  FiscalDocumentType,
-  TaxAuthorityRejection,
-} from "../model/fiscal-rejection-standing.js";
+import type { TaxAuthorityRejection } from "../model/fiscal-rejection-standing.js";
+import type { FiscalTaskDocumentType as FiscalDocumentType } from "../model/fiscal-task.js";
+import { CREDIT_NOTE_C_DOCUMENT_TYPE } from "../model/fiscal-task.js";
 import {
   type DocumentTypeReportState,
   fortnightClosesAt,
   fortnightReportStateOfDocumentTypes,
   isFortnightReportRetryDue,
+  isHeldForInvoiceReport,
   nextOfflineDocumentBatch,
   offlineDocumentPresentations,
   remedyForUnreportedDocuments,
@@ -54,7 +54,8 @@ export type FortnightPresentationOutcome =
   | { kind: "gap"; expectedNumber: number }
   | { kind: "unclear" }
   | { kind: "needs_regularization" }
-  | { kind: "awaiting_remedy"; number: number };
+  | { kind: "awaiting_remedy"; number: number }
+  | { kind: "awaiting_invoice_report" };
 
 export interface FortnightPresentation {
   pointOfSaleNumber: number;
@@ -384,7 +385,15 @@ async function presentDocuments(
     );
     const outcome: FortnightPresentationOutcome =
       awaiting === undefined
-        ? await presentDocumentType(ports, token, owed, report, documentType, documents)
+        ? await presentDocumentType(
+            ports,
+            token,
+            owed,
+            report,
+            documentType,
+            documents,
+            typeReports,
+          )
         : { kind: "awaiting_remedy", number: awaiting.rejectedNumber ?? 0 };
     presentations.push({ ...fortnightPresentation(owed, outcome), documentType });
     const state = documentTypeStateOf(outcome);
@@ -438,9 +447,30 @@ function documentTypeStateOf(
       return "refused";
     case "unclear":
       return "submitting";
+    case "awaiting_invoice_report":
+      return "awaiting_invoice_report";
     default:
       return null;
   }
+}
+
+async function firstHeldCreditNote(
+  report: HeldFortnightReport,
+  fortnight: Fortnight,
+  documents: OfflineDocumentOfFortnight[],
+): Promise<number | null> {
+  for (const { documentType, number, corrects } of [...documents].sort(
+    (left, right) => left.number - right.number,
+  )) {
+    if (
+      documentType === CREDIT_NOTE_C_DOCUMENT_TYPE &&
+      corrects !== undefined &&
+      isHeldForInvoiceReport(fortnight, await report.contingencyInvoiceReportOf(corrects))
+    ) {
+      return number;
+    }
+  }
+  return null;
 }
 
 async function presentDocumentType(
@@ -450,9 +480,26 @@ async function presentDocumentType(
   report: HeldFortnightReport,
   documentType: FiscalDocumentType,
   issued: OfflineDocumentOfFortnight[],
+  typeReports: RecordedDocumentTypeReport[],
 ): Promise<FortnightPresentationOutcome> {
   const { documentReports, clock } = ports;
-  const documents = issued.map(presentedOfflineDocument);
+  const presented = issued.map(presentedOfflineDocument);
+  const heldFrom = await firstHeldCreditNote(report, code.fortnight, presented);
+  const documents =
+    heldFrom === null ? presented : presented.filter(({ number }) => number < heldFrom);
+  const recordHeld = async (reportedThrough: number) => {
+    await report.recordDocumentType({
+      documentType,
+      state: "awaiting_invoice_report",
+      at: clock.now(),
+      reportedThrough,
+    });
+    return { kind: "awaiting_invoice_report" } as const;
+  };
+  if (heldFrom !== null && documents.length === 0) {
+    const recorded = typeReports.find((typeReport) => typeReport.documentType === documentType);
+    return recordHeld(recorded?.reportedThrough ?? 0);
+  }
   const realTimePointsOfSale = new Map<string, number | null>();
   let acceptedThrough = 0;
   for (;;) {
@@ -473,6 +520,9 @@ async function presentDocumentType(
       return { kind: "unclear" };
     }
     const pending = nextOfflineDocumentBatch(documents, last.number, Number.POSITIVE_INFINITY);
+    if (pending.kind === "all_reported" && heldFrom !== null) {
+      return recordHeld(Math.max(documents.at(-1)?.number ?? 0, last.number));
+    }
     if (pending.kind === "all_reported") {
       const reportedThrough = documents.at(-1)?.number ?? last.number;
       await report.recordDocumentType({

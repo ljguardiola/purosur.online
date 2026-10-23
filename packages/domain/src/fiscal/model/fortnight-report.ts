@@ -16,7 +16,8 @@ export type FortnightReportState =
   | "submitting"
   | "refused"
   | "accepted"
-  | "needs_regularization";
+  | "needs_regularization"
+  | "awaiting_invoice_report";
 
 export type DocumentTypeReportState = Exclude<
   FortnightReportState,
@@ -113,6 +114,29 @@ export function isOfflineDocumentReported(number: number, reportedThrough: numbe
   return reportedThrough !== null && number <= reportedThrough;
 }
 
+const PRESENTATION_ORDER = ["factura_c", "credit_note_c"];
+
+function presentationRank(documentType: string): number {
+  const rank = PRESENTATION_ORDER.indexOf(documentType);
+  return rank === -1 ? PRESENTATION_ORDER.length : rank;
+}
+
+export interface ContingencyInvoiceReport {
+  fortnight: Fortnight;
+  reportAccepted: boolean;
+}
+
+export function isHeldForInvoiceReport(
+  creditNoteFortnight: Fortnight,
+  invoiceReport: ContingencyInvoiceReport | null,
+): boolean {
+  return (
+    invoiceReport !== null &&
+    invoiceReport.fortnight.start < creditNoteFortnight.start &&
+    !invoiceReport.reportAccepted
+  );
+}
+
 export function offlineDocumentPresentations<
   TDocument extends { documentType: string; number: number },
 >(documents: TDocument[]): { documentType: TDocument["documentType"]; documents: TDocument[] }[] {
@@ -121,7 +145,10 @@ export function offlineDocumentPresentations<
     byType.set(document.documentType, [...(byType.get(document.documentType) ?? []), document]);
   }
   return [...byType.entries()]
-    .sort(([left], [right]) => left.localeCompare(right))
+    .sort(
+      ([left], [right]) =>
+        presentationRank(left) - presentationRank(right) || left.localeCompare(right),
+    )
     .map(([documentType, presented]) => ({
       documentType,
       documents: presented.sort((left, right) => left.number - right.number),
@@ -152,7 +179,12 @@ export function nextOfflineDocumentBatch<TDocument extends { number: number }>(
 export function fortnightReportStateOfDocumentTypes(
   states: DocumentTypeReportState[],
 ): DocumentTypeReportState {
-  for (const state of ["refused", "missing_document", "submitting"] as const) {
+  for (const state of [
+    "refused",
+    "missing_document",
+    "awaiting_invoice_report",
+    "submitting",
+  ] as const) {
     if (states.includes(state)) {
       return state;
     }

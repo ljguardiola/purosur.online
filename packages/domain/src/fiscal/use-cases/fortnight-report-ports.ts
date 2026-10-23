@@ -1,15 +1,15 @@
 import type { Clock } from "../../shared/index.js";
 import type { InstallationStreamReach } from "../../sync/index.js";
+import type { TaxAuthorityRejection } from "../model/fiscal-rejection-standing.js";
+import type { FiscalTaskDocumentType as FiscalDocumentType } from "../model/fiscal-task.js";
 import type {
-  FiscalDocumentType,
-  TaxAuthorityRejection,
-} from "../model/fiscal-rejection-standing.js";
-import type {
+  ContingencyInvoiceReport,
   DocumentTypeReportState,
   FortnightReportMovement,
   FortnightReportState,
 } from "../model/fortnight-report.js";
 import type { Fortnight } from "../model/offline-authorization-code.js";
+import type { VoucherReference } from "../model/orphan-authorization.js";
 import type { WithOwedPresentations } from "../model/owed-presentation-list.js";
 import type {
   OfflineDocumentCorrection,
@@ -75,6 +75,11 @@ export interface HeldFortnightReport {
   recordDocumentType(change: DocumentTypeReportChange): Promise<void>;
   realTimePointOfSaleOf(registerId: string): Promise<number | null>;
   /**
+   * The fortnight a contingency invoice was issued in and whether the report of its factura type
+   * for that fortnight is accepted; null when the voucher is no contingency invoice.
+   */
+  contingencyInvoiceReportOf(invoice: VoucherReference): Promise<ContingencyInvoiceReport | null>;
+  /**
    * Records the credit note for the corrected document it names, once per corrected voucher:
    * deciding it again for a voucher that already has one, or that a credit note issued offline
    * corrects, changes nothing. It checks and records under the lock of the corrected voucher that
@@ -93,6 +98,8 @@ export interface FortnightReportStore {
   ): Promise<TOutcome>;
 }
 
+export type { ContingencyInvoiceReport };
+
 export interface OfflineDocumentOfFortnight {
   id: string;
   saleId: string;
@@ -107,6 +114,7 @@ export interface OfflineDocumentOfFortnight {
   total: number;
   netAmount: number;
   correction: OfflineDocumentCorrection | null;
+  corrects?: VoucherReference;
 }
 
 export interface OfflineDocumentsOfFortnight {
