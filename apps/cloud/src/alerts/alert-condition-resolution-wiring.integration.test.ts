@@ -176,7 +176,7 @@ describe("the background worker the server sets up on a real Postgres", () => {
       ...installation,
       occurredAt: new Date("2019-12-20T15:00:00.000Z"),
     });
-    const recovery = await setUpRecovery(
+    const backgroundJobs = await setUpBackgroundJobs(
       {
         databaseUrl: integrationDb.databaseUrl,
         emailSender: { transport: "log" },
@@ -211,7 +211,7 @@ describe("the background worker the server sets up on a real Postgres", () => {
         { timeout: 20_000, interval: 100 },
       );
     } finally {
-      await recovery.close();
+      await backgroundJobs.close();
     }
   }, 60_000);
 
