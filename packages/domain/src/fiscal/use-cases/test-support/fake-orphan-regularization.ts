@@ -1,8 +1,9 @@
-import type {
-  OrphanRegularization,
-  RequestsAtNumber,
-  SaleCreditNote,
-  SaleDocument,
+import {
+  creditNotesDecidedFor,
+  type OrphanRegularization,
+  type RequestsAtNumber,
+  type SaleCreditNote,
+  type SaleDocument,
 } from "../../model/orphan-authorization.js";
 import type { WsaaTokenSource } from "../fiscal-document-authorization-ports.js";
 import type {
@@ -12,7 +13,6 @@ import type {
 } from "../orphan-authorization-ports.js";
 import type { TaxAuthorityVoucherLookup, VoucherAnswer } from "../unclear-outcome-ports.js";
 import type { WsaaToken } from "../wsaa-token-ports.js";
-import { creditNotesRecordedFor } from "./recorded-credit-notes.js";
 
 export class FakeOrphanRegularizationStore implements OrphanRegularizationLanes {
   readonly operations: string[] = [];
@@ -86,7 +86,7 @@ class FakeOrphanRegularizationLane implements OrphanRegularizationLane {
     this.store.operations.push("creditNotesOfSale");
     return [
       ...(this.store.creditNotes.get(saleId) ?? []),
-      ...creditNotesRecordedFor(saleId, this.store.regularizations),
+      ...creditNotesDecidedFor(saleId, this.store.regularizations),
     ];
   }
 

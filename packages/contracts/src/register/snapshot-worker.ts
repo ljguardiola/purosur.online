@@ -59,6 +59,13 @@ export const snapshotRestoreOutcomeSchema = z.enum([
   "unreachable",
 ]);
 
+export const restoreFirstInstallationSchema = z.strictObject({
+  installation_id: recordIdSchema(),
+  register_id: recordIdSchema(),
+});
+
+export type RestoreFirstInstallation = z.output<typeof restoreFirstInstallationSchema>;
+
 export type SnapshotRestoreOutcomeKind = z.output<typeof snapshotRestoreOutcomeSchema>;
 
 export const snapshotWorkerMessageSchema = z.discriminatedUnion("type", [
@@ -73,6 +80,7 @@ export const snapshotWorkerMessageSchema = z.discriminatedUnion("type", [
   z.strictObject({
     type: z.literal("snapshot-restore-finished"),
     outcome: snapshotRestoreOutcomeSchema,
+    first_installation: restoreFirstInstallationSchema.optional(),
   }),
 ]);
 

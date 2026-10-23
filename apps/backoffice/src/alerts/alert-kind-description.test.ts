@@ -141,3 +141,9 @@ test("describes a presentation whose document ARCA rejected and that waits for i
     "ARCA rechazó un comprobante de una quincena y los que le siguen quedan sin procesar hasta que se corrija",
   );
 });
+
+test("describes a deferred sale that is not invoiced yet and nears the day it can no longer be", () => {
+  expect(alertKindDescription("deferred_sale_due")).toBe(
+    "Una venta diferida todavía no se facturó y se acerca el día en que ya no podrá facturarse.",
+  );
+});

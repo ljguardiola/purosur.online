@@ -2,7 +2,7 @@ import type {
   PredecessorStanding,
   RestoredRegisterPredecessors,
 } from "@purosur/domain/register/use-cases";
-import { and, eq, gt } from "drizzle-orm";
+import { and, asc, eq, gt, isNotNull, ne } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { registerInstallations } from "../platform/db/schema.js";
 
@@ -65,5 +65,24 @@ export class DrizzleRestoredRegisterPredecessors<TQueryResult extends PgQueryRes
         ),
       );
     return installation !== undefined;
+  }
+
+  async firstRevokedInstallation(
+    registerId: string,
+    currentDeviceId: string,
+  ): Promise<string | undefined> {
+    const [first] = await this.db
+      .select({ id: registerInstallations.id })
+      .from(registerInstallations)
+      .where(
+        and(
+          eq(registerInstallations.registerId, registerId),
+          ne(registerInstallations.id, currentDeviceId),
+          isNotNull(registerInstallations.revokedAt),
+        ),
+      )
+      .orderBy(asc(registerInstallations.enrolledAt))
+      .limit(1);
+    return first?.id;
   }
 }

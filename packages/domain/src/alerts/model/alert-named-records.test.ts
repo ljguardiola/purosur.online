@@ -17,7 +17,8 @@ const kindsScopedTo = (
     | "refund"
     | "syncDevice"
     | "branch"
-    | "pointOfSaleFortnight",
+    | "pointOfSaleFortnight"
+    | "deferredSale",
 ) => ALERT_KINDS.filter((kind) => alertKindPolicy(kind).scopeKind === scopeKind);
 
 describe("alertNamedRecordIds", () => {
@@ -187,5 +188,19 @@ describe("a point-of-sale fortnight scope", () => {
     expect(
       alertNamedRecordIds({ kind: "fortnight_report_pending", scope, detail: { registerId: 7 } }),
     ).toEqual([]);
+  });
+});
+
+describe("a deferred sale scope", () => {
+  it("names the register of the detail, since the scope is the deferred sale and no record to name", () => {
+    expect(kindsScopedTo("deferredSale")).toEqual(["deferred_sale_due"]);
+    expect(alertScopeRecordId({ kind: "deferred_sale_due", scope: SCOPE })).toBeUndefined();
+    expect(
+      alertNamedRecordIds({
+        kind: "deferred_sale_due",
+        scope: SCOPE,
+        detail: { registerId: ACTOR_ID },
+      }),
+    ).toEqual([ACTOR_ID]);
   });
 });

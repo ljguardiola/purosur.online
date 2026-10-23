@@ -1,9 +1,14 @@
-import type { ReportRegisterListBody } from "@purosur/contracts";
+import type {
+  CashSessionClosesBody,
+  ReportQuery,
+  ReportRegisterListBody,
+} from "@purosur/contracts";
 import type { PermissionKey } from "@purosur/domain";
 import { useQueryClient } from "@tanstack/react-query";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { fetchCloudQuery, useCloudQuery } from "../platform/use-cloud-query";
+import type { fetchCashSessionCloses } from "./cash-session-closes-api";
 import type {
   fetchRegisterCoverage,
   fetchRegisterSyncStatus,
@@ -26,6 +31,14 @@ export const registerKeys = {
   coverage: [...registerKey, "coverage"] as const,
   syncStatus: [...registerKey, "sync-status"] as const,
   reportRegisters: [...registerKey, "report-registers"] as const,
+  cashSessionCloses: (query: ReportQuery) =>
+    [
+      ...registerKey,
+      "cash-session-closes",
+      query.from ?? "",
+      query.to ?? "",
+      query.register_id ?? "",
+    ] as const,
   snapshotBackupRegisters: [...registerKey, "snapshot-backup-registers"] as const,
   snapshotBackups: (registerId: string) =>
     [...registerKey, "snapshot-backups", registerId] as const,
@@ -78,6 +91,21 @@ export function useReportRegistersQuery(params: {
   return useCloudQuery<ReportRegisterListBody>({
     queryKey: registerKeys.reportRegisters,
     read: params.fetchReportRegisters,
+    onSessionEnded: params.onSessionEnded,
+    onForbidden: sendToMyAccount,
+  });
+}
+
+export function useCashSessionClosesQuery(params: {
+  query: ReportQuery;
+  fetchCashSessionCloses: typeof fetchCashSessionCloses;
+  onSessionEnded: () => void;
+}) {
+  const sendToMyAccount = useSendToMyAccount();
+  return useCloudQuery<CashSessionClosesBody>({
+    queryKey: registerKeys.cashSessionCloses(params.query),
+    keepPreviousData: true,
+    read: () => params.fetchCashSessionCloses(params.query),
     onSessionEnded: params.onSessionEnded,
     onForbidden: sendToMyAccount,
   });

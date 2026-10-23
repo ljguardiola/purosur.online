@@ -1,5 +1,5 @@
 {
-  "id": "3f7d147b-d290-4ca4-9c82-4a14a8fe58f1",
+  "id": "5816cacb-6c54-450e-9351-21c6146cf70d",
   "prevId": "30c006c4-b725-4c30-8a28-591b3d4c6aaf",
   "version": "7",
   "dialect": "postgresql",
@@ -2209,6 +2209,187 @@
       },
       "isRLSEnabled": false
     },
+    "public.deferred_sales": {
+      "name": "deferred_sales",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "sale_id": {
+          "name": "sale_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "register_id": {
+          "name": "register_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "location_id": {
+          "name": "location_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "occurred_at": {
+          "name": "occurred_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "total": {
+          "name": "total",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reason": {
+          "name": "reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "short_code": {
+          "name": "short_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "routed_at": {
+          "name": "routed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "state": {
+          "name": "state",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "satisfied_at": {
+          "name": "satisfied_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cancelled_at": {
+          "name": "cancelled_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "expired_at": {
+          "name": "expired_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "deferred_sales_pending_idx": {
+          "name": "deferred_sales_pending_idx",
+          "columns": [
+            {
+              "expression": "occurred_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "where": "\"deferred_sales\".\"state\" = 'pending'",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "deferred_sales_unbilled_idx": {
+          "name": "deferred_sales_unbilled_idx",
+          "columns": [
+            {
+              "expression": "location_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "occurred_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "where": "\"deferred_sales\".\"state\" in ('pending', 'expired')",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "deferred_sales_sale_idx": {
+          "name": "deferred_sales_sale_idx",
+          "columns": [
+            {
+              "expression": "sale_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "deferred_sales_register_id_registers_id_fk": {
+          "name": "deferred_sales_register_id_registers_id_fk",
+          "tableFrom": "deferred_sales",
+          "tableTo": "registers",
+          "columnsFrom": ["register_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "deferred_sales_location_id_locations_id_fk": {
+          "name": "deferred_sales_location_id_locations_id_fk",
+          "tableFrom": "deferred_sales",
+          "tableTo": "locations",
+          "columnsFrom": ["location_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "deferred_sales_state_check": {
+          "name": "deferred_sales_state_check",
+          "value": "\"deferred_sales\".\"state\" in ('pending', 'satisfied', 'cancelled', 'expired')"
+        },
+        "deferred_sales_satisfied_time_check": {
+          "name": "deferred_sales_satisfied_time_check",
+          "value": "(\"deferred_sales\".\"state\" = 'satisfied') = (\"deferred_sales\".\"satisfied_at\" is not null)"
+        },
+        "deferred_sales_cancelled_time_check": {
+          "name": "deferred_sales_cancelled_time_check",
+          "value": "(\"deferred_sales\".\"state\" = 'cancelled') = (\"deferred_sales\".\"cancelled_at\" is not null)"
+        },
+        "deferred_sales_expired_time_check": {
+          "name": "deferred_sales_expired_time_check",
+          "value": "(\"deferred_sales\".\"state\" = 'expired' and \"deferred_sales\".\"expired_at\" is not null) or (\"deferred_sales\".\"state\" = 'pending' and \"deferred_sales\".\"expired_at\" is null) or \"deferred_sales\".\"state\" in ('satisfied', 'cancelled')"
+        }
+      },
+      "isRLSEnabled": false
+    },
     "public.device_state": {
       "name": "device_state",
       "schema": "",
@@ -2870,22 +3051,28 @@
           "name": "point_of_sale",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "document_type": {
           "name": "document_type",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "number": {
           "name": "number",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "credit_note_id": {
           "name": "credit_note_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "deferred_sale_id": {
+          "name": "deferred_sale_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": false
@@ -2959,6 +3146,21 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "fiscal_tasks_deferred_sale_key": {
+          "name": "fiscal_tasks_deferred_sale_key",
+          "columns": [
+            {
+              "expression": "deferred_sale_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {
@@ -2979,6 +3181,15 @@
           "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
+        },
+        "fiscal_tasks_deferred_sale_id_deferred_sales_id_fk": {
+          "name": "fiscal_tasks_deferred_sale_id_deferred_sales_id_fk",
+          "tableFrom": "fiscal_tasks",
+          "tableTo": "deferred_sales",
+          "columnsFrom": ["deferred_sale_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -2987,11 +3198,19 @@
       "checkConstraints": {
         "fiscal_tasks_kind_check": {
           "name": "fiscal_tasks_kind_check",
-          "value": "\"fiscal_tasks\".\"kind\" in ('external_invoicing', 'credit_note_rejected')"
+          "value": "\"fiscal_tasks\".\"kind\" in ('external_invoicing', 'credit_note_rejected', 'deferred_sale_expired')"
         },
         "fiscal_tasks_credit_note_check": {
           "name": "fiscal_tasks_credit_note_check",
           "value": "(\"fiscal_tasks\".\"kind\" = 'credit_note_rejected') = (\"fiscal_tasks\".\"credit_note_id\" is not null)"
+        },
+        "fiscal_tasks_deferred_sale_check": {
+          "name": "fiscal_tasks_deferred_sale_check",
+          "value": "(\"fiscal_tasks\".\"kind\" = 'deferred_sale_expired') = (\"fiscal_tasks\".\"deferred_sale_id\" is not null)"
+        },
+        "fiscal_tasks_voucher_check": {
+          "name": "fiscal_tasks_voucher_check",
+          "value": "(\"fiscal_tasks\".\"kind\" = 'deferred_sale_expired' and \"fiscal_tasks\".\"point_of_sale\" is null and \"fiscal_tasks\".\"document_type\" is null and \"fiscal_tasks\".\"number\" is null) or (\"fiscal_tasks\".\"kind\" <> 'deferred_sale_expired' and \"fiscal_tasks\".\"point_of_sale\" is not null and \"fiscal_tasks\".\"document_type\" is not null and \"fiscal_tasks\".\"number\" is not null)"
         },
         "fiscal_tasks_document_type_check": {
           "name": "fiscal_tasks_document_type_check",
@@ -3110,7 +3329,7 @@
         },
         "fortnight_document_reports_document_type_known": {
           "name": "fortnight_document_reports_document_type_known",
-          "value": "\"fortnight_document_reports\".\"document_type\" in ('factura_c', 'credit_note_c')"
+          "value": "\"fortnight_document_reports\".\"document_type\" in ('factura_c')"
         }
       },
       "isRLSEnabled": false
@@ -4324,62 +4543,9 @@
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true
-        },
-        "credit_note_id": {
-          "name": "credit_note_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "corrected_voucher_type": {
-          "name": "corrected_voucher_type",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "corrected_point_of_sale": {
-          "name": "corrected_point_of_sale",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "corrected_number": {
-          "name": "corrected_number",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
         }
       },
-      "indexes": {
-        "offline_fiscal_documents_corrected_voucher_idx": {
-          "name": "offline_fiscal_documents_corrected_voucher_idx",
-          "columns": [
-            {
-              "expression": "corrected_voucher_type",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "corrected_point_of_sale",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "corrected_number",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "where": "\"offline_fiscal_documents\".\"document_type\" = 'credit_note_c'",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
+      "indexes": {},
       "foreignKeys": {
         "offline_fiscal_documents_register_id_registers_id_fk": {
           "name": "offline_fiscal_documents_register_id_registers_id_fk",
@@ -4393,10 +4559,10 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
-        "offline_fiscal_documents_sale_document_key": {
-          "name": "offline_fiscal_documents_sale_document_key",
+        "offline_fiscal_documents_sale_id_unique": {
+          "name": "offline_fiscal_documents_sale_id_unique",
           "nullsNotDistinct": false,
-          "columns": ["sale_id", "document_type"]
+          "columns": ["sale_id"]
         },
         "offline_fiscal_documents_number_key": {
           "name": "offline_fiscal_documents_number_key",
@@ -4406,13 +4572,9 @@
       },
       "policies": {},
       "checkConstraints": {
-        "offline_fiscal_documents_credit_note_data": {
-          "name": "offline_fiscal_documents_credit_note_data",
-          "value": "(\"offline_fiscal_documents\".\"document_type\" = 'credit_note_c') = (\"offline_fiscal_documents\".\"credit_note_id\" is not null)\n        and (\"offline_fiscal_documents\".\"credit_note_id\" is null) = (\"offline_fiscal_documents\".\"corrected_voucher_type\" is null)\n        and (\"offline_fiscal_documents\".\"credit_note_id\" is null) = (\"offline_fiscal_documents\".\"corrected_point_of_sale\" is null)\n        and (\"offline_fiscal_documents\".\"credit_note_id\" is null) = (\"offline_fiscal_documents\".\"corrected_number\" is null)"
-        },
         "offline_fiscal_documents_document_type_known": {
           "name": "offline_fiscal_documents_document_type_known",
-          "value": "\"offline_fiscal_documents\".\"document_type\" in ('factura_c', 'credit_note_c')"
+          "value": "\"offline_fiscal_documents\".\"document_type\" in ('factura_c')"
         },
         "offline_fiscal_documents_cause_known": {
           "name": "offline_fiscal_documents_cause_known",
@@ -4527,7 +4689,7 @@
         },
         "offline_number_blocks_document_type_known": {
           "name": "offline_number_blocks_document_type_known",
-          "value": "\"offline_number_blocks\".\"document_type\" in ('factura_c', 'credit_note_c')"
+          "value": "\"offline_number_blocks\".\"document_type\" in ('factura_c')"
         },
         "offline_number_blocks_range_valid": {
           "name": "offline_number_blocks_range_valid",
@@ -10809,7 +10971,7 @@
     "public.document_type_report_state": {
       "name": "document_type_report_state",
       "schema": "public",
-      "values": ["submitting", "refused", "accepted", "missing_document", "awaiting_invoice_report"]
+      "values": ["submitting", "refused", "accepted", "missing_document"]
     },
     "public.fortnight_report_movement": {
       "name": "fortnight_report_movement",
@@ -10825,8 +10987,7 @@
         "refused",
         "accepted",
         "needs_regularization",
-        "missing_document",
-        "awaiting_invoice_report"
+        "missing_document"
       ]
     },
     "public.installation_request_endpoint": {

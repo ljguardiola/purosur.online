@@ -10,6 +10,7 @@ import {
   DEVICE_TOKEN,
   encryptedSnapshot,
   FakeRestorableCloud,
+  REGISTER_ID,
   sha256Of,
 } from "./test-support/restorable-snapshot-cloud";
 import { sqliteFileBytes, validSqliteBytes } from "./test-support/sqlite-fixtures";
@@ -94,6 +95,18 @@ describe("the restore job", () => {
   it("finds nothing to restore when the cloud holds no generation, staging nothing", async () => {
     expect(await run()).toEqual({ kind: "no_generation" });
     expect(existsSync(stagedPath)).toBe(false);
+  });
+
+  it("reports the register's first installation when the cloud holds no generation", async () => {
+    cloud.firstInstallationId = "3b241101-e2bb-4255-8caf-4136c566a962";
+
+    expect(await run()).toEqual({
+      kind: "no_generation",
+      firstInstallation: {
+        installationId: "3b241101-e2bb-4255-8caf-4136c566a962",
+        registerId: REGISTER_ID,
+      },
+    });
   });
 
   it("finds no usable generation when every one fails, staging nothing", async () => {

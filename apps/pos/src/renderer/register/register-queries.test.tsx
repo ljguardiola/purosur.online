@@ -421,10 +421,15 @@ describe("restoration standing query", () => {
     const screen = await renderRestoration(async () => ({
       kind: "in_progress",
       step: "replenish",
+      origin: "copy",
     }));
 
     await expect
-      .element(screen.getByText(JSON.stringify({ kind: "in_progress", step: "replenish" })))
+      .element(
+        screen.getByText(
+          JSON.stringify({ kind: "in_progress", step: "replenish", origin: "copy" }),
+        ),
+      )
       .toBeVisible();
   });
 

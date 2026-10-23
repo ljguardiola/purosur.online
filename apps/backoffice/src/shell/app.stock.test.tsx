@@ -334,6 +334,10 @@ test("shows no alerts count in a Stock screen's top bar while no alert is open",
       informational: { openCount: 0, kinds: [] },
     },
   });
+  vi.mocked(services.unbilledDeferredSalesPill.fetchUnbilledDeferredSales).mockResolvedValue({
+    kind: "ok",
+    value: { count: 0, oldest: null },
+  });
   window.history.pushState(null, "", "/inventory");
 
   const screen = await render(<App help={emptyHelp} services={services} />);

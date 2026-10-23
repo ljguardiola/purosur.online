@@ -253,6 +253,17 @@ const fortnightReportNeedsRegularizationDetailSchema =
     registerName: z.string().optional(),
   });
 
+const deferredSaleDueDetailSchema = z.object({
+  registerId: z.string(),
+  registerName: z.string().optional(),
+  saleId: z.string(),
+  saleOccurredAt: z.string(),
+  total: z.int(),
+  shortCode: z.string(),
+  expiresOn: z.string(),
+  escalatesAt: z.string(),
+});
+
 const fortnightReportDocumentRejectedDetailSchema =
   fortnightReportNeedsRegularizationDetailSchema.extend({
     documentType: z.literal(FACTURA_C_DOCUMENT_TYPE),
@@ -445,6 +456,11 @@ const alertDetailKinds = [
     ...alertBase,
     kind: z.literal("fortnight_report_document_rejected" satisfies AlertKind),
     detail: fortnightReportDocumentRejectedDetailSchema,
+  }),
+  z.object({
+    ...alertBase,
+    kind: z.literal("deferred_sale_due" satisfies AlertKind),
+    detail: deferredSaleDueDetailSchema,
   }),
 ] as const;
 

@@ -1,7 +1,7 @@
 import {
   type BranchSettingsEditBody,
   branchSettingsEditBodySchema,
-  branchSettingsSchema,
+  editableBranchSettingsSchema,
 } from "@purosur/contracts";
 import { type BranchHoursRange, editBranchSettings } from "@purosur/domain/branch/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
@@ -15,7 +15,7 @@ import {
   routeSessionSource,
 } from "../sessions/route-access.js";
 import type { BranchSettingsRouteOptions } from "./branch-settings-read-route.js";
-import { toBranchSettingsWire } from "./branch-settings-wire.js";
+import { toEditableBranchSettingsWire } from "./branch-settings-wire.js";
 import { DrizzleBranchSettingsStore } from "./drizzle-branch-settings-store.js";
 
 const STALE_VERSION_RESPONSE = {
@@ -66,6 +66,7 @@ export function registerBranchSettingsEditRoute<TQueryResult extends PgQueryResu
         expiringLotAlertDays: body.expiring_lot_alert_days,
         unreviewedPriceAlertDays: body.unreviewed_price_alert_days,
         goodConditionReturnDays: body.good_condition_return_days,
+        supplierPriceListDailyExtractionCap: body.supplier_price_list_daily_extraction_cap,
         version: body.version,
       });
 
@@ -76,7 +77,7 @@ export function registerBranchSettingsEditRoute<TQueryResult extends PgQueryResu
 
       await reply
         .code(200)
-        .send(branchSettingsSchema.parse(toBranchSettingsWire(outcome.settings)));
+        .send(editableBranchSettingsSchema.parse(toEditableBranchSettingsWire(outcome.settings)));
     },
   );
 }

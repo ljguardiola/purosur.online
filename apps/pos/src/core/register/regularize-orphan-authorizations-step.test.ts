@@ -23,6 +23,7 @@ const AT_THE_SWEEP: RestorationEvidence = {
   replenish: "completed",
   reconcile_fiscal_counters: "completed",
   regularize_orphan_authorizations: "pending",
+  origin: "copy",
   cloud: "unknown",
 };
 

@@ -16,6 +16,7 @@ import {
   FakeNumberingConflictStore,
   FakeNumberingTaxAuthority,
   FakeNumberingTokens,
+  type SeededSaleDocument,
 } from "./test-support/fake-numbering-conflict.js";
 import { SequentialIds } from "./test-support/fake-sale-authorization.js";
 import type { VoucherAnswer } from "./unclear-outcome-ports.js";
@@ -55,7 +56,7 @@ interface Scenario {
   count?: number;
   voucher?: VoucherAnswer | ((number: number) => VoucherAnswer);
   standings?: [number, RequestsAtNumber][];
-  saleDocuments?: [string, SaleDocument[]][];
+  saleDocuments?: [string, SeededSaleDocument[]][];
 }
 
 function scenario({
@@ -373,6 +374,153 @@ describe("reconcileNumberingConflict", () => {
           receiverTaxStatusCode: 5,
         },
       ]);
+    });
+
+    const releasedAt = (number: number): SeededSaleDocument => ({
+      fiscalDocumentId: `document-${number}`,
+      kind: "real_time",
+      voucher: { voucherType: 11, pointOfSale: 12, number },
+      outcome: { answer: { kind: "unclear" }, decision: { kind: "released" } },
+    });
+
+    it("credits the lower and keeps the higher of two confirmed authorizations of one sale whose local requests were both released", async () => {
+      const { store, ports } = scenario({
+        ...gaps,
+        standings: [
+          [12, requestsAt({ ...SALE_9_REQUEST, fiscalDocumentId: "document-12" })],
+          [13, requestsAt({ ...SALE_9_REQUEST, fiscalDocumentId: "document-13" })],
+        ],
+        saleDocuments: [["sale-9", [releasedAt(12), releasedAt(13)]]],
+      });
+
+      expect(await reconcile(ports)).toEqual({
+        kind: "reconciled",
+        lastAuthorized: 14,
+        alertedNumbers: [],
+        creditNotedNumbers: [12],
+      });
+      expect(store.creditNotes).toEqual([
+        expect.objectContaining({
+          saleId: "sale-9",
+          associatedVoucher: { voucherType: 11, pointOfSale: 12, number: 12 },
+          keptVoucher: { voucherType: 11, pointOfSale: 12, number: 13 },
+        }),
+      ]);
+    });
+
+    it("credits both confirmed authorizations of one sale keeping the voucher the sale had authorized on its own", async () => {
+      const { store, ports } = scenario({
+        ...gaps,
+        standings: [
+          [12, requestsAt({ ...SALE_9_REQUEST, fiscalDocumentId: "document-12" })],
+          [13, requestsAt({ ...SALE_9_REQUEST, fiscalDocumentId: "document-13" })],
+        ],
+        saleDocuments: [
+          [
+            "sale-9",
+            [
+              releasedAt(12),
+              releasedAt(13),
+              {
+                fiscalDocumentId: "document-14",
+                kind: "real_time",
+                voucher: { voucherType: 11, pointOfSale: 12, number: 14 },
+                outcome: {
+                  answer: { kind: "unclear" },
+                  decision: {
+                    kind: "adopted",
+                    authorizationCode: VOUCHER.authorizationCode,
+                    authorizationCodeDueOn: VOUCHER.authorizationCodeDueOn,
+                  },
+                },
+              },
+            ],
+          ],
+        ],
+      });
+
+      expect(await reconcile(ports)).toEqual({
+        kind: "reconciled",
+        lastAuthorized: 14,
+        alertedNumbers: [],
+        creditNotedNumbers: [12, 13],
+      });
+      expect(store.creditNotes).toEqual([
+        expect.objectContaining({
+          associatedVoucher: { voucherType: 11, pointOfSale: 12, number: 12 },
+          keptVoucher: { voucherType: 11, pointOfSale: 12, number: 14 },
+        }),
+        expect.objectContaining({
+          associatedVoucher: { voucherType: 11, pointOfSale: 12, number: 13 },
+          keptVoucher: { voucherType: 11, pointOfSale: 12, number: 14 },
+        }),
+      ]);
+    });
+
+    it("credits nothing for two requests of one sale at the same confirmed number", async () => {
+      const releasedRequestAt12 = (fiscalDocumentId: string): SeededSaleDocument => ({
+        ...releasedAt(12),
+        fiscalDocumentId,
+      });
+      const { store, ports } = scenario({
+        ...gaps,
+        standings: [
+          [
+            12,
+            requestsAt(
+              { ...SALE_9_REQUEST, fiscalDocumentId: "document-12a" },
+              { ...SALE_9_REQUEST, fiscalDocumentId: "document-12b" },
+            ),
+          ],
+          [13, { kind: "already_regularized" }],
+        ],
+        saleDocuments: [
+          ["sale-9", [releasedRequestAt12("document-12a"), releasedRequestAt12("document-12b")]],
+        ],
+      });
+
+      expect(await reconcile(ports)).toEqual({
+        kind: "reconciled",
+        lastAuthorized: 14,
+        alertedNumbers: [],
+        creditNotedNumbers: [],
+      });
+      expect(store.creditNotes).toEqual([]);
+    });
+
+    it("credits nothing for a released document of the sale whose number the tax authority confirmed for another sale", async () => {
+      const { ports } = scenario({
+        ...gaps,
+        standings: [
+          [12, requestsAt({ ...SALE_9_REQUEST, fiscalDocumentId: "document-12" })],
+          [
+            13,
+            requestsAt(
+              { ...SALE_9_REQUEST, fiscalDocumentId: "document-13", total: 1 },
+              { ...SALE_9_REQUEST, fiscalDocumentId: "document-8", saleId: "sale-8" },
+            ),
+          ],
+        ],
+        saleDocuments: [
+          [
+            "sale-9",
+            [
+              {
+                kind: "real_time",
+                voucher: { voucherType: 11, pointOfSale: 12, number: 13 },
+                outcome: { answer: { kind: "unclear" }, decision: { kind: "released" } },
+              },
+            ],
+          ],
+        ],
+      });
+
+      expect(await reconcile(ports)).toEqual({
+        kind: "reconciled",
+        lastAuthorized: 14,
+        alertedNumbers: [],
+        creditNotedNumbers: [],
+      });
     });
 
     it.each<[string, RequestsAtNumber]>([

@@ -75,6 +75,7 @@ function listedGeneration(snapshot: EncryptedSnapshot) {
 export class FakeRestorableCloud {
   snapshots: EncryptedSnapshot[] = [];
   listing: "reachable" | "unreachable" | "refused" = "reachable";
+  firstInstallationId: string | null = null;
   objectAnswer: "served" | "unreachable" | "missing" = "served";
   tampered = new Map<string, Buffer>();
   requests: { url: string; authorization: string | null }[] = [];
@@ -94,6 +95,7 @@ export class FakeRestorableCloud {
       }
       return Response.json({
         register_id: REGISTER_ID,
+        first_installation_id: this.firstInstallationId,
         generations: this.snapshots.map(listedGeneration),
       });
     }

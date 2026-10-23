@@ -12,6 +12,8 @@ export type { OffsiteDumpManifest } from "./backups/offsite-dump-manifest.js";
 export { offsiteDumpManifestSchema } from "./backups/offsite-dump-manifest.js";
 export type { BranchSettingsEditBody } from "./branch/branch-settings-edit.js";
 export { branchSettingsEditBodySchema } from "./branch/branch-settings-edit.js";
+export type { EditableBranchSettingsBody } from "./branch/editable-branch-settings.js";
+export { editableBranchSettingsSchema } from "./branch/editable-branch-settings.js";
 export type { BrandCreationBody } from "./catalog/brand-creation.js";
 export { brandCreationBodySchema } from "./catalog/brand-creation.js";
 export type { BrandEditBody } from "./catalog/brand-edit.js";
@@ -125,6 +127,8 @@ export type { FiscalAddressCreationBody } from "./fiscal/fiscal-address-creation
 export { fiscalAddressCreationBodySchema } from "./fiscal/fiscal-address-creation.js";
 export type { FiscalAddressEditBody } from "./fiscal/fiscal-address-edit.js";
 export { fiscalAddressEditBodySchema } from "./fiscal/fiscal-address-edit.js";
+export type { FiscalTaskItem, FiscalTasks } from "./fiscal/fiscal-tasks.js";
+export { fiscalTaskItemSchema, fiscalTasksSchema } from "./fiscal/fiscal-tasks.js";
 export type { FortnightPresentationBody } from "./fiscal/fortnight-presentation.js";
 export {
   fortnightPresentationListSchema,
@@ -173,6 +177,8 @@ export {
   saleVoidCreditNoteResponseSchema,
   saleVoidedEventCreditNoteSchema,
 } from "./fiscal/sale-void-credit-note.js";
+export type { UnbilledDeferredSales } from "./fiscal/unbilled-deferred-sales.js";
+export { unbilledDeferredSalesSchema } from "./fiscal/unbilled-deferred-sales.js";
 export type {
   UnclearOutcomeAnswerBody,
   UnclearOutcomeQuestionBody,
@@ -364,6 +370,8 @@ export {
   bitlockerRecoveryKeySchema,
   bitlockerRecoveryKeyShapeSchema,
 } from "./register/bitlocker-recovery-key.js";
+export type { CashSessionClosesBody } from "./register/cash-session-closes.js";
+export { cashSessionClosesSchema } from "./register/cash-session-closes.js";
 export type { CloudError, CloudErrorCode } from "./register/cloud-error.js";
 export {
   cloudError,
@@ -502,6 +510,7 @@ export {
   snapshotVerificationQuerySchema,
 } from "./register/snapshot-verification.js";
 export type {
+  RestoreFirstInstallation,
   SnapshotRestoreOutcomeKind,
   SnapshotWorkerJobMessage,
   SnapshotWorkerLaunchRequest,
