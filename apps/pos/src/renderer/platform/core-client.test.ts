@@ -2075,6 +2075,57 @@ describe("createCoreClient", () => {
     ]);
   });
 
+  it("asks the core to reprint a deferred sale's invoice with its reason and the authorization given", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+    const authorization = { user_id: "u2", pin: "1234" };
+
+    const reprinted = client.reprintDeferredSaleInvoice("sale-1", "El cliente la perdió", authorization);
+    port.answer({
+      type: "reprint-deferred-sale-invoice-result",
+      request_id: "request-1",
+      outcome: { kind: "started", copy: { kind: "duplicate", order_number: 1 } },
+    });
+
+    expect(await reprinted).toEqual({
+      kind: "started",
+      copy: { kind: "duplicate", order_number: 1 },
+    });
+    expect(port.posted).toEqual([
+      {
+        type: "reprint-deferred-sale-invoice",
+        request_id: "request-1",
+        sale_id: "sale-1",
+        reason: "El cliente la perdió",
+        authorization,
+      },
+    ]);
+  });
+
+  it("asks the core to reprint a deferred sale's invoice without an authorization when none is given", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const reprinted = client.reprintDeferredSaleInvoice("sale-1", "Otra copia", undefined);
+    port.answer({
+      type: "reprint-deferred-sale-invoice-result",
+      request_id: "request-1",
+      outcome: { kind: "busy" },
+    });
+
+    expect(await reprinted).toEqual({ kind: "busy" });
+    expect(port.posted).toEqual([
+      {
+        type: "reprint-deferred-sale-invoice",
+        request_id: "request-1",
+        sale_id: "sale-1",
+        reason: "Otra copia",
+      },
+    ]);
+  });
+
   it("asks the core to reprint a sale's receipt with its reason and the authorization given", async () => {
     const client = clientWithSequentialIds();
     const port = new FakePort();
