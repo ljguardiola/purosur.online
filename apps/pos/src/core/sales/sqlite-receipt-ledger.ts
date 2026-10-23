@@ -34,10 +34,11 @@ export function markPrintAttempted(
   key: PrintedDocumentKey,
   at: Date,
 ): void {
-  if (key.document === "credit_note") {
+  const table = printsTableOf(key.document);
+  if (table !== undefined) {
     database
       .prepare(
-        `INSERT INTO credit_note_prints (sale_id, print_attempted_at) VALUES (?, ?)
+        `INSERT INTO ${table} (sale_id, print_attempted_at) VALUES (?, ?)
          ON CONFLICT (sale_id) DO UPDATE SET print_attempted_at = excluded.print_attempted_at`,
       )
       .run(key.saleId, at.toISOString());
@@ -49,9 +50,10 @@ export function markPrintAttempted(
 }
 
 export function markPrinted(database: LocalDatabase, key: PrintedDocumentKey, at: Date): void {
-  if (key.document === "credit_note") {
+  const table = printsTableOf(key.document);
+  if (table !== undefined) {
     database
-      .prepare("UPDATE credit_note_prints SET printed_at = ? WHERE sale_id = ?")
+      .prepare(`UPDATE ${table} SET printed_at = ? WHERE sale_id = ?`)
       .run(at.toISOString(), key.saleId);
     return;
   }
@@ -114,11 +116,17 @@ export class SqliteReceiptLedger implements ReceiptLedger {
   private receiptDelivery({ document, saleId }: PrintedDocumentKey): ReceiptDelivery | undefined {
     const row = this.database
       .prepare<{ sale_id: string; document: string }, DeliveryRow>(
-        `SELECT CASE WHEN @document = 'credit_note'
-                  THEN (SELECT print_attempted_at FROM credit_note_prints WHERE sale_id = sales.id)
+        `SELECT CASE @document
+                  WHEN 'credit_note'
+                    THEN (SELECT print_attempted_at FROM credit_note_prints WHERE sale_id = sales.id)
+                  WHEN 'deferred_invoice'
+                    THEN (SELECT print_attempted_at FROM deferred_invoice_prints WHERE sale_id = sales.id)
                   ELSE print_attempted_at END AS print_attempted_at,
-                CASE WHEN @document = 'credit_note'
-                  THEN (SELECT printed_at FROM credit_note_prints WHERE sale_id = sales.id)
+                CASE @document
+                  WHEN 'credit_note'
+                    THEN (SELECT printed_at FROM credit_note_prints WHERE sale_id = sales.id)
+                  WHEN 'deferred_invoice'
+                    THEN (SELECT printed_at FROM deferred_invoice_prints WHERE sale_id = sales.id)
                   ELSE printed_at END AS printed_at,
                 (SELECT count(*) FROM sale_reprints
                   WHERE sale_reprints.sale_id = sales.id AND sale_reprints.document = @document) AS reprint_count,
@@ -193,6 +201,24 @@ export class SqliteReceiptLedger implements ReceiptLedger {
   }
 }
 
+function printsTableOf(document: PrintedDocumentKey["document"]): string | undefined {
+  switch (document) {
+    case "credit_note":
+      return "credit_note_prints";
+    case "deferred_invoice":
+      return "deferred_invoice_prints";
+    case "sale_receipt":
+      return undefined;
+  }
+}
+
 function storedTableOf(document: PrintedDocumentKey["document"]): string {
-  return document === "credit_note" ? "credit_note_receipts" : "sale_receipts";
+  switch (document) {
+    case "credit_note":
+      return "credit_note_receipts";
+    case "deferred_invoice":
+      return "deferred_invoice_receipts";
+    case "sale_receipt":
+      return "sale_receipts";
+  }
 }
