@@ -2,9 +2,10 @@ import {
   PRICE_LIST_EXTRACTION_MAX_DESCRIPTION_LENGTH,
   PRICE_LIST_EXTRACTION_MAX_ROWS,
   PRICE_LIST_EXTRACTION_MAX_SHORT_TEXT_LENGTH,
+  SUPPLIER_PRICE_LIST_READING_TIME_LIMIT_MS,
 } from "@purosur/domain";
 import { PDFDocument } from "pdf-lib";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   AnthropicPriceListExtractor,
   SUPPLIER_PRICE_LIST_READING_MODEL,
@@ -724,6 +725,81 @@ describe("a range that throws an unexpected error", () => {
       [6, 7, 8, 9, 10],
       [11, 12, 13, 14, 15],
     ]);
+  });
+});
+
+describe("the time a reading has", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  function extractorAnsweringEachRangeAfter(delayMs: number) {
+    const requests: RecordedRequest[] = [];
+    const extractor = new AnthropicPriceListExtractor({
+      apiKey: "fictional-api-key-for-tests",
+      fetch: async (input, init) => {
+        const request = {
+          url: String(input),
+          headers: new Headers(init?.headers),
+          body: JSON.parse(String(init?.body)),
+        };
+        requests.push(request);
+        await new Promise<void>((resolve, reject) => {
+          const timer = setTimeout(resolve, delayMs);
+          init?.signal?.addEventListener("abort", () => {
+            clearTimeout(timer);
+            reject(init.signal?.reason);
+          });
+        });
+        return answerWithRowsOfEachPage(request);
+      },
+    });
+    return { extractor, requests };
+  }
+
+  async function extractedAfter(
+    extractor: AnthropicPriceListExtractor,
+    pageCount: number,
+    elapsedMs: number,
+  ) {
+    const source = await sourceOfPages(pageCount);
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    let settled = false;
+    const extraction = extractor.extract(source).finally(() => {
+      settled = true;
+    });
+    await vi.advanceTimersByTimeAsync(elapsedMs);
+    return { extraction, settled: () => settled };
+  }
+
+  it("gives up on a list as unavailable once its ranges together pass the time, starting no other range", async () => {
+    const { extractor, requests } = extractorAnsweringEachRangeAfter(
+      SUPPLIER_PRICE_LIST_READING_TIME_LIMIT_MS * 0.4,
+    );
+
+    const { extraction, settled } = await extractedAfter(
+      extractor,
+      40,
+      SUPPLIER_PRICE_LIST_READING_TIME_LIMIT_MS,
+    );
+
+    expect(settled()).toBe(true);
+    expect(await extraction).toEqual({ kind: "unavailable" });
+    expect(requests).toHaveLength(8);
+  });
+
+  it("keeps reading a list whose ranges together take less than the time", async () => {
+    const { extractor } = extractorAnsweringEachRangeAfter(
+      SUPPLIER_PRICE_LIST_READING_TIME_LIMIT_MS * 0.3,
+    );
+
+    const { extraction } = await extractedAfter(
+      extractor,
+      40,
+      SUPPLIER_PRICE_LIST_READING_TIME_LIMIT_MS * 0.9,
+    );
+
+    expect(await extraction).toMatchObject({ kind: "extracted" });
   });
 });
 
