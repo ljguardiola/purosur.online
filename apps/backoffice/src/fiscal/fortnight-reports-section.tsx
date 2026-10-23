@@ -86,8 +86,8 @@ export function FortnightReportsSection({ data, onReview }: FortnightReportsSect
       header: "Acciones",
       actions: [
         (item: FortnightPresentation) => {
-          const { rejectedDocument } = item;
-          return rejectedDocument?.remedy === "awaiting_remedy"
+          const { rejectedDocument, documentType } = item;
+          return rejectedDocument?.remedy === "awaiting_remedy" && documentType !== null
             ? {
                 icon: <FileSearch />,
                 "aria-label": `Revisar el rechazo del informe ${fortnightOf(item)} del punto de venta ${formatPointOfSaleNumber(item.pointOfSaleNumber)}`,
@@ -95,6 +95,7 @@ export function FortnightReportsSection({ data, onReview }: FortnightReportsSect
                   onReview({
                     pointOfSaleNumber: item.pointOfSaleNumber,
                     fortnight: item.fortnight,
+                    documentType,
                     rejectedDocument,
                   }),
               }

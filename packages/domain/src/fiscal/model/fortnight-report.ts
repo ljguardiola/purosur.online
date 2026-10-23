@@ -8,6 +8,8 @@ import {
   type PresentableOfflineDocument,
   presentedOfflineDocument,
   type RecordedRemedy,
+  type RejectedDocumentRemedy,
+  remediesOfferedFor,
 } from "./rejected-document-remedy.js";
 
 export type FortnightReportState =
@@ -213,6 +215,7 @@ export interface RejectedDocumentOfPresentation {
   buyerTaxStatusCode: number;
   rejections: TaxAuthorityRejection[];
   remedy: RejectedDocumentRemedyState;
+  remedies: RejectedDocumentRemedy["kind"][];
 }
 
 export interface FortnightPresentationRow<TDocumentType extends string> {
@@ -243,6 +246,7 @@ function rejectedDocumentOf<TDocumentType extends string>(
     buyerTaxStatusCode: presented.buyerTaxStatusCode,
     rejections: report.rejections,
     remedy: awaitsRemedy(report, report.remedy) ? "awaiting_remedy" : "awaiting_resend",
+    remedies: remediesOfferedFor(report.documentType),
   };
 }
 

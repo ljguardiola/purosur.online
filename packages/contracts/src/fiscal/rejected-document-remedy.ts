@@ -1,5 +1,6 @@
 import {
   type CorrectedBuyer,
+  CREDIT_NOTE_C_DOCUMENT_TYPE,
   FACTURA_C_DOCUMENT_TYPE,
   isCalendarDay,
   type OfflineDocumentBuyer,
@@ -40,7 +41,7 @@ const rejectedDocumentRemedySchema = z.discriminatedUnion("kind", [
 export const rejectedDocumentRemedyBodySchema = z.object({
   point_of_sale_number: pointOfSaleNumberSchema,
   fortnight_start: calendarDaySchema,
-  document_type: z.literal(FACTURA_C_DOCUMENT_TYPE),
+  document_type: z.enum([FACTURA_C_DOCUMENT_TYPE, CREDIT_NOTE_C_DOCUMENT_TYPE]),
   number: z.number().int().positive(),
   remedy: rejectedDocumentRemedySchema,
 });

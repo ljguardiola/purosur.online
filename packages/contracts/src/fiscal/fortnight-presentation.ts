@@ -45,6 +45,7 @@ const rejectedDocumentSchema = z.object({
   buyer_tax_status_code: z.number().int(),
   rejections: z.array(z.object({ code: z.number().int(), message: z.string() })),
   remedy: rejectedDocumentRemedyStateSchema,
+  remedies: z.array(z.enum(["report", "printed"])),
 });
 
 export const fortnightPresentationSchema = z.object({

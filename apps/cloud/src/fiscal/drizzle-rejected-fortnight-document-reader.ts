@@ -1,4 +1,4 @@
-import { awaitsRemedy, FACTURA_C_DOCUMENT_TYPE } from "@purosur/domain";
+import { awaitsRemedy } from "@purosur/domain";
 import type {
   FortnightPresentationAwaitingRemedy,
   RejectedFortnightDocumentReader,
@@ -41,7 +41,6 @@ export class DrizzleRejectedFortnightDocumentReader<TQueryResult extends PgQuery
     return refused.flatMap(
       ({ rejectedNumber, fortnightStart, fortnightEnd, documentType, ...rejection }) =>
         rejectedNumber !== null &&
-        documentType === FACTURA_C_DOCUMENT_TYPE &&
         awaitsRemedy(
           { ...rejection, rejectedNumber },
           remedyOf({

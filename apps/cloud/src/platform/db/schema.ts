@@ -2327,7 +2327,7 @@ export const rejectedDocumentRemedies = pgTable(
       .notNull()
       .references(() => pointOfSaleClaims.pointOfSaleNumber),
     fortnightStart: date("fortnight_start", { mode: "string" }).notNull(),
-    documentType: text("document_type").$type<FiscalDocumentType>().notNull(),
+    documentType: text("document_type").$type<FiscalTaskDocumentType>().notNull(),
     number: integer("number").notNull(),
     kind: text("kind").$type<RejectedDocumentRemedy["kind"]>().notNull(),
     correction: jsonb("correction").$type<OfflineDocumentCorrection>(),
