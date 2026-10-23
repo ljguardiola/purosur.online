@@ -17,7 +17,7 @@ function watchOver(initial: RestorationStandingAnswer) {
 
 describe("the restoration standing watch", () => {
   it("says nothing while the standing stays the one it started with", () => {
-    const { watch, onChanged } = watchOver({ kind: "in_progress", step: "enroll" });
+    const { watch, onChanged } = watchOver({ kind: "in_progress", step: "enroll", origin: "copy" });
 
     watch.check();
     watch.check();
@@ -26,9 +26,13 @@ describe("the restoration standing watch", () => {
   });
 
   it("says so once when the standing moves to another step", () => {
-    const { watch, onChanged, become } = watchOver({ kind: "in_progress", step: "enroll" });
+    const { watch, onChanged, become } = watchOver({
+      kind: "in_progress",
+      step: "enroll",
+      origin: "copy",
+    });
 
-    become({ kind: "in_progress", step: "restore" });
+    become({ kind: "in_progress", step: "restore", origin: "copy" });
     watch.check();
     watch.check();
 
@@ -38,7 +42,7 @@ describe("the restoration standing watch", () => {
   it("says so when the register goes from completed to in progress and back", () => {
     const { watch, onChanged, become } = watchOver({ kind: "completed" });
 
-    become({ kind: "in_progress", step: "enroll" });
+    become({ kind: "in_progress", step: "enroll", origin: "copy" });
     watch.check();
     become({ kind: "completed" });
     watch.check();
@@ -47,7 +51,11 @@ describe("the restoration standing watch", () => {
   });
 
   it("starts from the standing it reads when it is built, not from an assumed one", () => {
-    const { watch, onChanged } = watchOver({ kind: "in_progress", step: "replenish" });
+    const { watch, onChanged } = watchOver({
+      kind: "in_progress",
+      step: "replenish",
+      origin: "copy",
+    });
 
     watch.check();
 
@@ -55,16 +63,24 @@ describe("the restoration standing watch", () => {
   });
 
   it("says so when the standing moves from in progress to without connection at the same step", () => {
-    const { watch, onChanged, become } = watchOver({ kind: "in_progress", step: "replenish" });
+    const { watch, onChanged, become } = watchOver({
+      kind: "in_progress",
+      step: "replenish",
+      origin: "copy",
+    });
 
-    become({ kind: "without_connection", step: "replenish" });
+    become({ kind: "without_connection", step: "replenish", origin: "copy" });
     watch.check();
 
     expect(onChanged).toHaveBeenCalledTimes(1);
   });
 
   it("says so when the standing moves from in progress to failed at the same step", () => {
-    const { watch, onChanged, become } = watchOver({ kind: "in_progress", step: "restore" });
+    const { watch, onChanged, become } = watchOver({
+      kind: "in_progress",
+      step: "restore",
+      origin: "copy",
+    });
 
     become({ kind: "failed", step: "restore" });
     watch.check();
@@ -76,9 +92,10 @@ describe("the restoration standing watch", () => {
     const { watch, onChanged, become } = watchOver({
       kind: "without_connection",
       step: "restore",
+      origin: "copy",
     });
 
-    become({ kind: "without_connection", step: "replenish" });
+    become({ kind: "without_connection", step: "replenish", origin: "copy" });
     watch.check();
 
     expect(onChanged).toHaveBeenCalledTimes(1);

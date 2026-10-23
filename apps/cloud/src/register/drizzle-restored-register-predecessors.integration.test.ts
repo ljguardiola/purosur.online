@@ -110,3 +110,30 @@ describe("whether a cursor belongs to a replenishment", () => {
     }
   });
 });
+
+describe("the first revoked installation of a register", () => {
+  it("is the earliest enrolled installation other than the calling one", async () => {
+    const { registerId, predecessor, third } = await aRegisterRestoredTwice(db);
+
+    expect(await predecessors.firstRevokedInstallation(registerId, third)).toBe(predecessor);
+  });
+
+  it("is none for a register whose only installation is the calling one", async () => {
+    const registerId = await insertRegister(db, await insertBranch(db));
+    const calling = await insertInstallation(db, registerId, { enrolledAt: T0 });
+
+    expect(await predecessors.firstRevokedInstallation(registerId, calling)).toBeUndefined();
+  });
+
+  it("never names an installation of another register", async () => {
+    const branchId = await insertBranch(db);
+    const registerId = await insertRegister(db, branchId);
+    const calling = await insertInstallation(db, registerId, { enrolledAt: hoursAfter(T0, 5) });
+    await insertInstallation(db, await insertRegister(db, branchId), {
+      enrolledAt: T0,
+      revokedAt: hoursAfter(T0, 1),
+    });
+
+    expect(await predecessors.firstRevokedInstallation(registerId, calling)).toBeUndefined();
+  });
+});

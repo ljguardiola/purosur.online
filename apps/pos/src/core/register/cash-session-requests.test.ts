@@ -1,5 +1,6 @@
 import { encodePinHash } from "@purosur/contracts";
 import { REGISTER_ABILITIES } from "@purosur/domain";
+import { resetSyncIdentityWithoutCopy } from "@purosur/domain/sync/use-cases";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { restorePendingIn } from "../backups/restore-pending";
 import { derivePinVerifier } from "../credentials/pin-verifier";
@@ -10,6 +11,7 @@ import { openLocalDatabase } from "../platform/test-support/open-local-database"
 import { createActionGate } from "../sessions/action-gate";
 import { createSignedInPerson, type SignedInPerson } from "../sessions/signed-in-person";
 import { SqliteSignInStore } from "../sessions/sqlite-sign-in-store";
+import { SqliteNoCopySyncIdentityStore } from "../sync/sqlite-no-copy-sync-identity-store";
 import {
   cashBalanceFor,
   cashCountPreviewFor,
@@ -185,6 +187,16 @@ describe("opening a cash session on the register", () => {
     database
       .prepare("UPDATE sync_state SET stale_sequence_detected_at = '2026-09-30T08:00:00.000Z'")
       .run();
+
+    expect(await openCashSessionFor(deps(), 5000)).toEqual({ kind: "restoration_in_progress" });
+    expect(openedSessions()).toEqual([]);
+  });
+
+  it("refuses to open a session of a register reinstalled with no copy until its replenishment ends", async () => {
+    await resetSyncIdentityWithoutCopy(
+      { store: new SqliteNoCopySyncIdentityStore(database) },
+      { deviceId: "new-device", registerId: "register-1", firstInstallationId: "first-device" },
+    );
 
     expect(await openCashSessionFor(deps(), 5000)).toEqual({ kind: "restoration_in_progress" });
     expect(openedSessions()).toEqual([]);

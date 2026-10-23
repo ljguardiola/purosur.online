@@ -24,6 +24,7 @@ import { readValidatedBody } from "../platform/request-body-schema.js";
 import { PUBLIC_ACCESS } from "../sessions/route-access.js";
 import { answerErrorsWithCloudEnvelope } from "./cloud-error-handler.js";
 import { authenticateDevice } from "./device-authentication.js";
+import { DrizzleRestoredRegisterPredecessors } from "./drizzle-restored-register-predecessors.js";
 import { DrizzleSnapshotStore } from "./drizzle-snapshot-store.js";
 import { type DeviceTokensOptions, installationTokenPorts } from "./installation-token-ports.js";
 
@@ -77,6 +78,7 @@ export function registerRegisterSnapshotRoutes<TQueryResult extends PgQueryResul
 ): void {
   const tokenPorts = installationTokenPorts(options);
   const store = new DrizzleSnapshotStore(options.db);
+  const predecessors = new DrizzleRestoredRegisterPredecessors(options.db);
   const clock = { now: options.now };
 
   async function authenticated(
@@ -252,6 +254,11 @@ export function registerRegisterSnapshotRoutes<TQueryResult extends PgQueryResul
           );
           const answer = restorableSnapshotsSchema.parse({
             register_id: register.registerId,
+            first_installation_id:
+              (await predecessors.firstRevokedInstallation(
+                register.registerId,
+                register.deviceId,
+              )) ?? null,
             generations: await Promise.all(
               generations.map(async (generation) => ({
                 generation_id: generation.generationId,

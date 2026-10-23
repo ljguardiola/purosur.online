@@ -90,6 +90,16 @@ export type {
 } from "./reset-restored-sync-identity.js";
 export { resetRestoredSyncIdentity } from "./reset-restored-sync-identity.js";
 export type {
+  ResetSyncIdentityWithoutCopyInput,
+  ResetSyncIdentityWithoutCopyOutcome,
+} from "./reset-sync-identity-without-copy.js";
+export { resetSyncIdentityWithoutCopy } from "./reset-sync-identity-without-copy.js";
+export type {
+  NoCopySyncIdentityStore,
+  NoCopySyncIdentityTransaction,
+  ResetSyncIdentityWithoutCopyPorts,
+} from "./reset-sync-identity-without-copy-ports.js";
+export type {
   EventPosition,
   ReplenishedEvent,
   ReplenishmentPosition,

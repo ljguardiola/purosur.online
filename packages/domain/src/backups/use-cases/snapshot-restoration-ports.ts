@@ -9,8 +9,17 @@ export interface RestorableGeneration {
   keyVersion: number;
 }
 
+export interface FirstInstallation {
+  installationId: string;
+  registerId: string;
+}
+
 export type RestorableGenerationsAnswer =
-  | { kind: "listed"; generations: readonly RestorableGeneration[] }
+  | {
+      kind: "listed";
+      generations: readonly RestorableGeneration[];
+      firstInstallation?: FirstInstallation;
+    }
   | { kind: "unreachable" };
 
 // Only generations the cloud verified and has not pruned, in no particular order.

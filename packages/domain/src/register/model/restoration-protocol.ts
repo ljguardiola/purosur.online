@@ -29,10 +29,13 @@ type RestoringStepEvidence<Step extends DeliveredRestorationStep> =
     ? RestorationStepEvidence | "failed"
     : RestorationStepEvidence;
 
+type ReplenishmentOrigin = "copy" | "no_copy";
+
 type CloudEvidence = "reachable" | "unreachable" | "unknown";
 
 export type RestorationEvidence = Readonly<
   { [Step in DeliveredRestorationStep]: RestoringStepEvidence<Step> } & {
+    origin: ReplenishmentOrigin;
     cloud: CloudEvidence;
   }
 >;
@@ -41,8 +44,12 @@ type HeldRestorationStep = Exclude<RestorationStep, "open_session">;
 
 export type RestorationStanding =
   | { kind: "completed" }
-  | { kind: "in_progress"; step: HeldRestorationStep }
-  | { kind: "without_connection"; step: Exclude<HeldRestorationStep, "enroll"> }
+  | { kind: "in_progress"; step: HeldRestorationStep; origin: ReplenishmentOrigin }
+  | {
+      kind: "without_connection";
+      step: Exclude<HeldRestorationStep, "enroll">;
+      origin: ReplenishmentOrigin;
+    }
   | { kind: "failed"; step: FailableRestorationStep };
 
 const DELIVERED_STEPS = [
@@ -63,7 +70,7 @@ export function restorationStanding(evidence: RestorationEvidence): RestorationS
     return { kind: "failed", step: held };
   }
   if (held !== "enroll" && evidence.cloud === "unreachable") {
-    return { kind: "without_connection", step: held };
+    return { kind: "without_connection", step: held, origin: evidence.origin };
   }
-  return { kind: "in_progress", step: held };
+  return { kind: "in_progress", step: held, origin: evidence.origin };
 }

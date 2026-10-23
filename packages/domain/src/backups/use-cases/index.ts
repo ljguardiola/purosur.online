@@ -20,6 +20,7 @@ export type {
 } from "./restore-newest-snapshot-generation.js";
 export { restoreNewestSnapshotGeneration } from "./restore-newest-snapshot-generation.js";
 export type {
+  FirstInstallation,
   RestorableGeneration,
   RestorableGenerations,
   RestorableGenerationsAnswer,

@@ -161,6 +161,7 @@ function settingsEdit(locationId: string, actorId: string, version: number, addr
     expiringLotAlertDays: 30,
     unreviewedPriceAlertDays: 30,
     goodConditionReturnDays: 15,
+    supplierPriceListDailyExtractionCap: 10,
     version,
   };
 }

@@ -178,6 +178,33 @@ describe("snapshotWorkerMessageSchema", () => {
     },
   );
 
+  it("reads the message that the restore found no generation of a register that had a first installation", () => {
+    const message = {
+      type: "snapshot-restore-finished",
+      outcome: "no_generation",
+      first_installation: {
+        installation_id: "3b241101-e2bb-4255-8caf-4136c566a962",
+        register_id: "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+      },
+    };
+
+    expect(snapshotWorkerMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each([
+    { installation_id: "3b241101-e2bb-4255-8caf-4136c566a962" },
+    { register_id: "7c9e6679-7425-40de-944b-e07fc1f90ae7" },
+    { installation_id: "i1", register_id: "7c9e6679-7425-40de-944b-e07fc1f90ae7" },
+  ])("refuses a first installation of %j", (firstInstallation) => {
+    expect(
+      snapshotWorkerMessageSchema.safeParse({
+        type: "snapshot-restore-finished",
+        outcome: "no_generation",
+        first_installation: firstInstallation,
+      }).success,
+    ).toBe(false);
+  });
+
   it.each([
     { type: "snapshot-restore-finished" },
     { type: "snapshot-restore-finished", outcome: "half_restored" },

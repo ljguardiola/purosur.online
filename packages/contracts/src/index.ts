@@ -12,6 +12,8 @@ export type { OffsiteDumpManifest } from "./backups/offsite-dump-manifest.js";
 export { offsiteDumpManifestSchema } from "./backups/offsite-dump-manifest.js";
 export type { BranchSettingsEditBody } from "./branch/branch-settings-edit.js";
 export { branchSettingsEditBodySchema } from "./branch/branch-settings-edit.js";
+export type { EditableBranchSettingsBody } from "./branch/editable-branch-settings.js";
+export { editableBranchSettingsSchema } from "./branch/editable-branch-settings.js";
 export type { BrandCreationBody } from "./catalog/brand-creation.js";
 export { brandCreationBodySchema } from "./catalog/brand-creation.js";
 export type { BrandEditBody } from "./catalog/brand-edit.js";
@@ -502,6 +504,7 @@ export {
   snapshotVerificationQuerySchema,
 } from "./register/snapshot-verification.js";
 export type {
+  RestoreFirstInstallation,
   SnapshotRestoreOutcomeKind,
   SnapshotWorkerJobMessage,
   SnapshotWorkerLaunchRequest,
