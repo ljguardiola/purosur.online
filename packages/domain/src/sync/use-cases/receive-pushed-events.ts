@@ -1,6 +1,6 @@
 import { OFFLINE_FISCAL_DOCUMENT_ISSUED_EVENT_TYPE } from "../../fiscal/index.js";
-import { canonicalOutboxEvent } from "../../shared/index.js";
 import { highestContiguousSeq } from "../model/contiguous-seq.js";
+import { eventLinkHolds, placementOfEvent } from "../model/event-placement.js";
 import type { PushedEvent, RegisterTelemetry } from "../model/push-batch.js";
 import { registerVersionAccepted } from "../model/register-version.js";
 import type { EventChain, InboxTransaction, ReceivePorts } from "./sync-ports.js";
@@ -66,21 +66,18 @@ export async function receivePushedEvents(
         return keptInService({ kind: "gap", ackSeq, expectedSeq });
       }
       const reference = references.get(event.device_seq);
-      if (reference !== undefined && reference.eventId !== event.event_id) {
+      const position = positions.get(event.event_id);
+      const placement = placementOfEvent(deviceId, event, reference?.eventId, position);
+      if (placement.stale) {
         return keptInService({ kind: "stale_device", ackSeq });
       }
-      if (reference === undefined) {
+      if (!placement.held) {
         toReceive.push(event);
         references.set(event.device_seq, { eventId: event.event_id, link: event.chain_hmac });
       }
-      const position = positions.get(event.event_id);
       const batchSeq = batchSeqOfEventId.get(event.event_id);
       batchSeqOfEventId.set(event.event_id, batchSeq ?? event.device_seq);
-      if (
-        (position !== undefined &&
-          (position.deviceId !== deviceId || position.deviceSeq !== event.device_seq)) ||
-        (batchSeq !== undefined && batchSeq !== event.device_seq)
-      ) {
+      if (placement.misplaced || (batchSeq !== undefined && batchSeq !== event.device_seq)) {
         misplaced = true;
       }
       if (event.device_seq === expectedSeq) {
@@ -131,7 +128,7 @@ async function chainHolds(
   if (chainKey === undefined) {
     return false;
   }
-  for (const { chain_hmac: pushedLink, ...event } of events) {
+  for (const event of events) {
     const expectedLink = references.get(event.device_seq)?.link;
     const previousSeq = event.device_seq - 1;
     const previousLink =
@@ -141,8 +138,8 @@ async function chainHolds(
           (await tx.receivedChainLink(deviceId, previousSeq)));
     if (
       previousLink === undefined ||
-      pushedLink !== expectedLink ||
-      eventChain.link(chainKey, previousLink, canonicalOutboxEvent(event)) !== expectedLink
+      event.chain_hmac !== expectedLink ||
+      !eventLinkHolds(eventChain, chainKey, previousLink, event)
     ) {
       return false;
     }
