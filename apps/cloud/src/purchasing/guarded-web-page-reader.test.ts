@@ -315,10 +315,12 @@ describe("GuardedWebPageReader", () => {
       network.servePage(PAGE, {
         contentType: "text/html",
         contentLength: SUPPLIER_PRICE_LIST_WEB_PAGE_MAX_BYTES + 1,
-        body: () => {
-          bodyRequested = true;
-          return (async function* () {})();
-        },
+        body: () => ({
+          [Symbol.asyncIterator]: () => {
+            bodyRequested = true;
+            return { next: async () => ({ done: true, value: undefined }) };
+          },
+        }),
       });
 
       expect(await reader.read(PAGE)).toEqual({ kind: "refused", reason: "too_large" });

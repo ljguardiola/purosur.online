@@ -1,14 +1,11 @@
-import type {
-  WebPageConnectionRequest,
-  WebPageConnector,
-} from "../pinned-web-page-connector.js";
+import type { WebPageConnectionRequest, WebPageConnector } from "../pinned-web-page-connector.js";
 import type { WebPageHostResolver } from "../web-page-host.js";
 
 export interface FakePage {
   status?: number;
-  location?: string;
-  contentType?: string;
-  contentLength?: number;
+  location?: string | undefined;
+  contentType?: string | undefined;
+  contentLength?: number | undefined;
   chunks?: readonly Uint8Array[];
   body?: (signal: AbortSignal) => AsyncIterable<Uint8Array>;
 }
@@ -31,7 +28,10 @@ export class FakeWebPageNetwork {
 
   readonly resolve: WebPageHostResolver = async (hostname) => {
     const answers = this.addresses.get(hostname) ?? [];
-    const answer = answers[Math.min(this.lookups.filter((name) => name === hostname).length, answers.length - 1)];
+    const answer =
+      answers[
+        Math.min(this.lookups.filter((name) => name === hostname).length, answers.length - 1)
+      ];
     this.lookups.push(hostname);
     if (answer === undefined) {
       throw new Error("ENOTFOUND");
@@ -53,7 +53,11 @@ export class FakeWebPageNetwork {
         contentType: page.contentType,
         contentLength: page.contentLength,
       },
-      body: page.body?.(request.signal) ?? (async function* () { yield* chunks; })(),
+      body:
+        page.body?.(request.signal) ??
+        (async function* () {
+          yield* chunks;
+        })(),
     };
   };
 }
