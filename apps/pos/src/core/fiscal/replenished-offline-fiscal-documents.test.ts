@@ -10,6 +10,7 @@ import { readOfflineSeries } from "./sqlite-fiscal-series";
 import {
   FACTURA_C,
   insertCompletedSale,
+  insertOfflineCreditNoteSeriesCount,
   insertOfflineNumberBlock,
   insertOfflinePointOfSale,
   OFFLINE_CODE,
@@ -366,6 +367,7 @@ describe("replenishing a credit note issued offline into a restored register", (
       OFFLINE_POINT_OF_SALE,
       "credit_note_c",
     );
+    insertOfflineCreditNoteSeriesCount(database, OFFLINE_POINT_OF_SALE, 0);
     applyReplenishedOfflineFiscalDocument(database, creditNote());
 
     const series = readOfflineSeries(database, "credit_note_c");

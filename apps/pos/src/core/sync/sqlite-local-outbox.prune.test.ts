@@ -321,7 +321,7 @@ describe("forgetting the acknowledged events after a register session", () => {
       expect(heldSeqs(session).length).toBeLessThan(outboxBefore.length);
       expect(
         session.prepare("SELECT state FROM sale_void_credit_notes ORDER BY state").all(),
-      ).toEqual([{ state: "AUTHORIZED" }, { state: "IN_PROGRESS" }]);
+      ).toEqual([{ state: "AUTHORIZED" }, { state: "IN_PROGRESS" }, { state: "ISSUED_OFFLINE" }]);
       expect(contentsOfEveryTableButTheOutbox(session)).toEqual(before);
       for (const table of ["sales", "payment_transactions", "cash_sessions", "cash_movements"]) {
         expect(before[table]?.length, table).toBeGreaterThan(0);
