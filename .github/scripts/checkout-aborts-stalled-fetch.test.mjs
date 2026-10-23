@@ -118,6 +118,34 @@ test("flags a value that is not a whole number", () => {
   assert.equal(findCheckoutSteps(source)[0].abortsStalledFetch, false);
 });
 
+test("flags a negative value", () => {
+  const source = [
+    "jobs:",
+    "  build:",
+    "    steps:",
+    "      - uses: actions/checkout@SHA1",
+    "        env:",
+    '          GIT_HTTP_LOW_SPEED_LIMIT: "-1000"',
+    '          GIT_HTTP_LOW_SPEED_TIME: "30"',
+  ].join("\n");
+
+  assert.equal(findCheckoutSteps(source)[0].abortsStalledFetch, false);
+});
+
+test("flags a value with a prefix before the digits", () => {
+  const source = [
+    "jobs:",
+    "  build:",
+    "    steps:",
+    "      - uses: actions/checkout@SHA1",
+    "        env:",
+    '          GIT_HTTP_LOW_SPEED_LIMIT: "1000"',
+    '          GIT_HTTP_LOW_SPEED_TIME: "x30"',
+  ].join("\n");
+
+  assert.equal(findCheckoutSteps(source)[0].abortsStalledFetch, false);
+});
+
 test("flags the variables written in another case, which git does not read", () => {
   const source = [
     "jobs:",
