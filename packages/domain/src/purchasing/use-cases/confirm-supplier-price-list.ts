@@ -60,7 +60,7 @@ export function confirmSupplierPriceList(
       groups.map((group) => group.key),
     );
     for (const { key, row, rows } of groups) {
-      const link = rows.findLast((other) => other.link !== null)?.link ?? null;
+      const link = rows.filter((other) => other.link !== null).at(-1)?.link ?? null;
       const item = items.find(
         (other) => other.key.kind === key.kind && other.key.value === key.value,
       );

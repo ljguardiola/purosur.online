@@ -28,7 +28,10 @@ export type {
   FoundSupplierPriceListFile,
 } from "./find-supplier-price-list-file.js";
 export { findSupplierPriceListFile } from "./find-supplier-price-list-file.js";
-export type { FoundSupplierPriceListReview } from "./find-supplier-price-list-review.js";
+export type {
+  FoundSupplierPriceListReview,
+  FoundSupplierPriceListReviewRow,
+} from "./find-supplier-price-list-review.js";
 export { findSupplierPriceListReview } from "./find-supplier-price-list-review.js";
 export type {
   FreightListing,
@@ -47,6 +50,11 @@ export type {
   LockFreightResult,
   NewFreightFields,
 } from "./freight-store.js";
+export type {
+  LinkSupplierPriceListRowInput,
+  LinkSupplierPriceListRowOutcome,
+} from "./link-supplier-price-list-row.js";
+export { linkSupplierPriceListRow } from "./link-supplier-price-list-row.js";
 export type { ListedFreights } from "./list-freights.js";
 export { listFreights } from "./list-freights.js";
 export type { LinkablePurchase, LinkablePurchasesQuery } from "./list-linkable-purchases.js";
@@ -57,6 +65,11 @@ export type { PurchaseChoices } from "./list-purchase-choices.js";
 export { listPurchaseChoices } from "./list-purchase-choices.js";
 export type { ListedPurchase, ListedPurchaseLine } from "./list-purchases.js";
 export { findPurchaseListing, listPurchases } from "./list-purchases.js";
+export type {
+  ComparedOffer,
+  ComparedProduct,
+} from "./list-supplier-price-comparison.js";
+export { listSupplierPriceComparison } from "./list-supplier-price-comparison.js";
 export type { ListedSupplierPriceList } from "./list-supplier-price-lists.js";
 export { listSupplierPriceLists } from "./list-supplier-price-lists.js";
 export { listSuppliers } from "./list-suppliers.js";
@@ -67,11 +80,27 @@ export type {
 } from "./load-supplier-price-list-web-page.js";
 export { loadSupplierPriceListWebPage } from "./load-supplier-price-list-web-page.js";
 export type {
+  MarkSupplierPriceListRowReviewedInput,
+  MarkSupplierPriceListRowReviewedOutcome,
+} from "./mark-supplier-price-list-row-reviewed.js";
+export { markSupplierPriceListRowReviewed } from "./mark-supplier-price-list-row-reviewed.js";
+export type {
   ExtractedPriceListRow,
   PriceListExtraction,
   PriceListExtractor,
   PriceListSource,
 } from "./price-list-extractor.js";
+export type {
+  ProductChoice,
+  ProductChoiceCandidate,
+  ProductChooser,
+} from "./product-chooser.js";
+export type {
+  ProposeSupplierItemLinkInput,
+  ProposeSupplierItemLinkOutcome,
+  ProposeSupplierItemLinkPorts,
+} from "./propose-supplier-item-link.js";
+export { proposeSupplierItemLink } from "./propose-supplier-item-link.js";
 export type {
   PackagingListing,
   PurchaseLineListing,
@@ -140,12 +169,23 @@ export type {
 } from "./set-supplier-price-list-row-price.js";
 export { setSupplierPriceListRowPrice } from "./set-supplier-price-list-row-price.js";
 export { settleAbandonedSupplierPriceListReadings } from "./settle-abandoned-supplier-price-list-readings.js";
+export type {
+  ProposalProduct,
+  ProposalRow,
+  SupplierItemLinkProposalReader,
+} from "./supplier-item-link-proposal-reader.js";
+export type {
+  ComparableProduct,
+  SupplierOffer,
+  SupplierPriceComparisonReader,
+} from "./supplier-price-comparison-reader.js";
 export type { SupplierPriceListFiles } from "./supplier-price-list-files.js";
 export type {
   SupplierPriceListListing,
   SupplierPriceListReader,
   SupplierPriceListReview,
   SupplierPriceListReviewRow,
+  SupplierPriceListReviewRowLink,
   SupplierPriceListSource,
 } from "./supplier-price-list-reader.js";
 export type {
@@ -156,10 +196,16 @@ export type {
   FindPriceListSupplierResult,
   FindSupplierPriceListSourceResult,
   LockedSupplierPriceList,
+  LockProductPackagingResult,
   LockSupplierPriceListResult,
   LockSupplierPriceListRowResult,
+  NewSupplierItemFields,
   NewSupplierPriceListFields,
   ProposedPriceListRow,
+  StoredPriceListRow,
+  SupplierItem,
+  SupplierItemLink,
+  SupplierItemPriceEntry,
   SupplierPriceListStore,
   SupplierPriceListStoreTransaction,
 } from "./supplier-price-list-store.js";

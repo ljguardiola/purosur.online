@@ -51,6 +51,18 @@ export {
   SUPPLIER_NOTE_MAX_LENGTH,
 } from "./model/supplier.js";
 export type {
+  SupplierItemKey,
+  SupplierItemVatRate,
+  SupplierPriceListRowStatus,
+} from "./model/supplier-item.js";
+export {
+  DEFAULT_SUPPLIER_ITEM_VAT_RATE,
+  isSupplierItemVatRate,
+  SUPPLIER_ITEM_VAT_RATES,
+  SUPPLIER_PRICE_LIST_ROW_STATUSES,
+  supplierItemKey,
+} from "./model/supplier-item.js";
+export type {
   SupplierPriceListContentKind,
   SupplierPriceListReadFailure,
   SupplierPriceListSourceKind,

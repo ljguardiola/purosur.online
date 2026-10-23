@@ -44,10 +44,7 @@ export {
 } from "./model/product.js";
 export type { ProductActivityScope } from "./model/product-activity.js";
 export { isInActivityScope } from "./model/product-activity.js";
-export {
-  PRODUCT_LINK_CANDIDATE_LIMIT,
-  productLinkCandidates,
-} from "./model/product-link-candidates.js";
+export { productLinkCandidates } from "./model/product-link-candidates.js";
 export type { NameMatch } from "./model/product-name-match.js";
 export type { SearchableProduct } from "./model/product-search.js";
 export { rankProductSearch, SEARCH_RESULT_LIMIT } from "./model/product-search.js";
