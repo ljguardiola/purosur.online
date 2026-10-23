@@ -403,9 +403,17 @@ describe("the tax authority count jobs on a real Postgres", () => {
       ]);
     });
 
-    it("forgets both counts of the offline point of sale of the register and enqueues the read of each", async () => {
-      const { locationId, actorId, registerIds } = await seedRegisters(1);
+    it("forgets both counts of the offline point of sale of the register and enqueues the read of each, beside its real-time one", async () => {
+      const { locationId, actorId, fiscalAddressId, registerIds } = await seedRegisters(1);
       const registerId = registerIds[0] as string;
+      await configureRegisterPointOfSale(new DrizzleRegisterPointOfSaleStore(db, () => NOW), {
+        locationId,
+        registerId,
+        pointOfSaleNumber: 60,
+        fiscalAddressId,
+        version: 0,
+        actorId,
+      });
       await configureRegisterOfflinePointOfSale(
         new DrizzleRegisterOfflinePointOfSaleStore(db, () => NOW),
         { locationId, registerId, pointOfSaleNumber: 61, version: 0, actorId },
@@ -423,6 +431,7 @@ describe("the tax authority count jobs on a real Postgres", () => {
 
       expect(await db.select().from(taxAuthorityLastAuthorizedNumbers)).toEqual([]);
       expect((await pendingCountJobs()).map((job) => [job.pointOfSale, job.documentType])).toEqual([
+        [60, "factura_c"],
         [61, "credit_note_c"],
         [61, "factura_c"],
       ]);
