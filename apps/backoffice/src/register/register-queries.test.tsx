@@ -64,3 +64,28 @@ test("reads the backups of the chosen register", async () => {
   await expect.element(screen.getByText("5 recientes")).toBeVisible();
   expect(read).toHaveBeenCalledExactlyOnceWith("register-1");
 });
+
+test("each range and register has its own cash session closes key", () => {
+  const keys = [
+    registerKeys.cashSessionCloses({}),
+    registerKeys.cashSessionCloses({ from: "2026-10-01", to: "2026-10-07" }),
+    registerKeys.cashSessionCloses({ from: "2026-10-01", to: "2026-10-08" }),
+    registerKeys.cashSessionCloses({ register_id: "register-1" }),
+    registerKeys.cashSessionCloses({
+      from: "2026-10-01",
+      to: "2026-10-07",
+      register_id: "register-1",
+    }),
+  ];
+
+  expect(new Set(keys.map((key) => JSON.stringify(key))).size).toBe(keys.length);
+});
+
+test("invalidating the register key marks the cash session closes stale", async () => {
+  const client = new QueryClient();
+  client.setQueryData(registerKeys.cashSessionCloses({}), {});
+
+  await client.invalidateQueries({ queryKey: registerKey, refetchType: "none" });
+
+  expect(client.getQueryState(registerKeys.cashSessionCloses({}))?.isInvalidated).toBe(true);
+});

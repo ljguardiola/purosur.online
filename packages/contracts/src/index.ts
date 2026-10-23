@@ -370,6 +370,8 @@ export {
   bitlockerRecoveryKeySchema,
   bitlockerRecoveryKeyShapeSchema,
 } from "./register/bitlocker-recovery-key.js";
+export type { CashSessionClosesBody } from "./register/cash-session-closes.js";
+export { cashSessionClosesSchema } from "./register/cash-session-closes.js";
 export type { CloudError, CloudErrorCode } from "./register/cloud-error.js";
 export {
   cloudError,
