@@ -5,6 +5,7 @@ import {
 } from "@purosur/domain/backups/use-cases";
 import type { ReceiptPrinters } from "@purosur/domain/sales/use-cases";
 import type { LocalDatabase } from "../platform/local-database";
+import type { ActionGate } from "../sessions/action-gate";
 import { SqliteLocalOutbox } from "../sync/sqlite-local-outbox";
 import {
   type ContingencyBackupTicketWorker,
@@ -31,6 +32,8 @@ export interface ContingencyBackupTicketsDeps {
   scheduleNext: (run: () => void, delayMs: number) => () => void;
   intervalMs: number;
   reportFailure: (context: string, error: unknown) => void;
+  signedInUserId: () => string | undefined;
+  gate: Pick<ActionGate, "run">;
 }
 
 export interface ContingencyBackupTickets {
@@ -50,6 +53,8 @@ export function createContingencyBackupTickets({
   scheduleNext,
   intervalMs,
   reportFailure,
+  signedInUserId,
+  gate,
 }: ContingencyBackupTicketsDeps): ContingencyBackupTickets {
   const clock = { now };
   const store = new SqliteContingencyBackupTickets(database);
@@ -86,6 +91,8 @@ export function createContingencyBackupTickets({
       tickets: store,
       clock,
       printerFailure: printing.printerFailure,
+      signedInUserId,
+      gate,
     }),
     worker,
   };

@@ -20,9 +20,11 @@ export const backupsRendererToCoreMessageSchema = z.discriminatedUnion("type", [
 export type BackupsRendererToCoreMessage = z.infer<typeof backupsRendererToCoreMessageSchema>;
 
 const unavailableOutcome = z.object({ kind: z.literal("unavailable") });
+const notSignedInOutcome = z.object({ kind: z.literal("not_signed_in") });
 
 const readContingencyBackupTicketsOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("read"), tickets: contingencyBackupTicketsAnswerSchema }),
+  notSignedInOutcome,
   unavailableOutcome,
 ]);
 export type ReadContingencyBackupTicketsOutcome = z.infer<
@@ -31,6 +33,7 @@ export type ReadContingencyBackupTicketsOutcome = z.infer<
 
 const readContingencyBackupTicketOfSaleOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("read"), ticket: contingencyBackupTicketOfSaleAnswerSchema }),
+  notSignedInOutcome,
   unavailableOutcome,
 ]);
 export type ReadContingencyBackupTicketOfSaleOutcome = z.infer<
@@ -39,6 +42,8 @@ export type ReadContingencyBackupTicketOfSaleOutcome = z.infer<
 
 const discardContingencyBackupTicketsAnswerSchema = z.discriminatedUnion("kind", [
   ...discardContingencyBackupTicketsOutcomeSchema.options,
+  notSignedInOutcome,
+  z.object({ kind: z.literal("lacks_permission") }),
   unavailableOutcome,
 ]);
 export type DiscardContingencyBackupTicketsAnswer = z.infer<

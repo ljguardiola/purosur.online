@@ -684,7 +684,7 @@ const mercadoPagoCharging = createMercadoPagoCharging({
 });
 
 const contingencyBackupTickets =
-  localDatabase === undefined
+  localDatabase === undefined || actionGate === undefined
     ? undefined
     : createContingencyBackupTickets({
         database: localDatabase,
@@ -701,6 +701,8 @@ const contingencyBackupTickets =
         },
         intervalMs: CONTINGENCY_BACKUP_TICKET_RETRY_MS,
         reportFailure,
+        signedInUserId: () => signedInPerson.userId(),
+        gate: actionGate,
       });
 contingencyBackupTickets?.worker.start();
 

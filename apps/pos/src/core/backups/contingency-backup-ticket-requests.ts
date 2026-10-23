@@ -11,12 +11,15 @@ import {
   contingencyBackupTicketsSummary,
 } from "@purosur/domain";
 import { discardContingencyBackupTickets } from "@purosur/domain/backups/use-cases";
+import type { ActionGate } from "../sessions/action-gate";
 import type { SqliteContingencyBackupTickets } from "./sqlite-contingency-backup-tickets";
 
 export interface ContingencyBackupTicketRequestsDeps {
   tickets: Pick<SqliteContingencyBackupTickets, "transaction" | "ticketOfSubject">;
   clock: { now: () => Date };
   printerFailure: () => ContingencyBackupPrintFailureReason | null;
+  signedInUserId: () => string | undefined;
+  gate: Pick<ActionGate, "run">;
 }
 
 export interface ContingencyBackupTicketRequests {
@@ -29,9 +32,12 @@ export function createContingencyBackupTicketRequests({
   tickets,
   clock,
   printerFailure,
+  signedInUserId,
+  gate,
 }: ContingencyBackupTicketRequestsDeps): ContingencyBackupTicketRequests {
   return {
     async read() {
+      if (signedInUserId() === undefined) return { kind: "not_signed_in" };
       const summary = await tickets.transaction(async (tx) =>
         contingencyBackupTicketsSummary(
           await tx.ticketsToConsider(),
@@ -53,6 +59,7 @@ export function createContingencyBackupTicketRequests({
     },
 
     async ofSale(saleId) {
+      if (signedInUserId() === undefined) return { kind: "not_signed_in" };
       const ticket = await tickets.ticketOfSubject(saleId);
       if (ticket === undefined) return { kind: "read", ticket: { standing: null } };
       const acknowledged = await tickets.transaction((tx) => tx.acknowledgedThroughSeq());
@@ -62,8 +69,11 @@ export function createContingencyBackupTicketRequests({
       };
     },
 
-    discard() {
-      return discardContingencyBackupTickets({ clock, store: tickets });
+    async discard() {
+      const guarded = await gate.run({ kind: "sell" }, () =>
+        discardContingencyBackupTickets({ clock, store: tickets }),
+      );
+      return guarded.kind === "performed" ? guarded.result : guarded;
     },
   };
 }
