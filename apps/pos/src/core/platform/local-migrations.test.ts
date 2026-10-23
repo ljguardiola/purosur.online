@@ -921,7 +921,7 @@ describe("the register's local migrations", () => {
         "0073_replenished_credit_note_requests",
         "0074_awaiting_orphan_sweep",
         "0075_deferred_sale_backlog",
-        "0077_awaiting_orphan_sweep_origin",
+        "0076_awaiting_orphan_sweep_origin",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1020,7 +1020,7 @@ describe("the register's local migrations", () => {
         "0073_replenished_credit_note_requests",
         "0074_awaiting_orphan_sweep",
         "0075_deferred_sale_backlog",
-        "0077_awaiting_orphan_sweep_origin",
+        "0076_awaiting_orphan_sweep_origin",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1114,7 +1114,7 @@ describe("the register's local migrations", () => {
         "0073_replenished_credit_note_requests",
         "0074_awaiting_orphan_sweep",
         "0075_deferred_sale_backlog",
-        "0077_awaiting_orphan_sweep_origin",
+        "0076_awaiting_orphan_sweep_origin",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1207,7 +1207,7 @@ describe("the register's local migrations", () => {
         "0073_replenished_credit_note_requests",
         "0074_awaiting_orphan_sweep",
         "0075_deferred_sale_backlog",
-        "0077_awaiting_orphan_sweep_origin",
+        "0076_awaiting_orphan_sweep_origin",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1329,7 +1329,7 @@ describe("the register's local migrations", () => {
         "0073_replenished_credit_note_requests",
         "0074_awaiting_orphan_sweep",
         "0075_deferred_sale_backlog",
-        "0077_awaiting_orphan_sweep_origin",
+        "0076_awaiting_orphan_sweep_origin",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1441,7 +1441,7 @@ describe("the register's local migrations", () => {
         "0073_replenished_credit_note_requests",
         "0074_awaiting_orphan_sweep",
         "0075_deferred_sale_backlog",
-        "0077_awaiting_orphan_sweep_origin",
+        "0076_awaiting_orphan_sweep_origin",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1557,7 +1557,7 @@ describe("the register's local migrations", () => {
         "0073_replenished_credit_note_requests",
         "0074_awaiting_orphan_sweep",
         "0075_deferred_sale_backlog",
-        "0077_awaiting_orphan_sweep_origin",
+        "0076_awaiting_orphan_sweep_origin",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1681,7 +1681,7 @@ describe("the register's local migrations", () => {
         "0073_replenished_credit_note_requests",
         "0074_awaiting_orphan_sweep",
         "0075_deferred_sale_backlog",
-        "0077_awaiting_orphan_sweep_origin",
+        "0076_awaiting_orphan_sweep_origin",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1772,7 +1772,7 @@ describe("the register's local migrations", () => {
         "0073_replenished_credit_note_requests",
         "0074_awaiting_orphan_sweep",
         "0075_deferred_sale_backlog",
-        "0077_awaiting_orphan_sweep_origin",
+        "0076_awaiting_orphan_sweep_origin",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -5423,10 +5423,10 @@ describe("the register's local migrations", () => {
     try {
       const path = join(folder, "register.sqlite");
       const previous = LOCAL_MIGRATIONS.filter(
-        (migration) => migration.name < "0077_awaiting_orphan_sweep_origin",
+        (migration) => migration.name < "0076_awaiting_orphan_sweep_origin",
       );
       expect(LOCAL_MIGRATIONS.map((migration) => migration.name)).toContain(
-        "0077_awaiting_orphan_sweep_origin",
+        "0076_awaiting_orphan_sweep_origin",
       );
       const before = openLocalDatabase(path, previous, migrationClock);
       before.prepare("INSERT INTO awaiting_orphan_sweep (register_id) VALUES ('register-a')").run();
