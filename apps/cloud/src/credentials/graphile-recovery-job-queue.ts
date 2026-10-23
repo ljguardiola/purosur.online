@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { WorkerUtils } from "graphile-worker";
-import { RECOVERY_REQUEST_TASK_IDENTIFIER } from "../platform/background-job-runner.js";
+import { RECOVERY_REQUEST_TASK_IDENTIFIER } from "./access-email-task.js";
 import type { RecoveryJobQueue } from "./recovery-job-queue.js";
 import { recoveryRequestJobPayloadSchema } from "./recovery-request-job-payload.js";
 

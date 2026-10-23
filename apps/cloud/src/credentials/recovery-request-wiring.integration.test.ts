@@ -6,7 +6,6 @@ import pg from "pg";
 import postgres from "postgres";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { unreachableArcaEndpoints } from "../fiscal/test-support/unreachable-arca-endpoints.js";
-import { RECOVERY_REQUEST_TASK_IDENTIFIER } from "../platform/background-job-runner.js";
 import {
   auditLog,
   recoveryRejectedAttemptAccumulator,
@@ -28,6 +27,7 @@ import {
   FICTIONAL_RECOVERY_SENDER,
 } from "../test-support/recovery-email.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
+import { RECOVERY_REQUEST_TASK_IDENTIFIER } from "./access-email-task.js";
 import type { AccessEmailSender, SendRecoveryLinkInput } from "./recovery-email-sender.js";
 import { hashDestinationAddress } from "./recovery-rate-limiter.js";
 import { hashRecoveryToken } from "./recovery-token-hash.js";

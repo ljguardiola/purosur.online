@@ -1,55 +1,29 @@
 import { EventEmitter } from "node:events";
-import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { Runner, RunnerOptions } from "graphile-worker";
 import { consoleLogFactory, Logger, run } from "graphile-worker";
-import pg, { type Pool, type PoolClient } from "pg";
-import {
-  processRecoveryRequestJob,
-  recordRecoveryLinkSentJob,
-} from "../credentials/process-recovery-request-job.js";
-import type { AccessEmailSender } from "../credentials/recovery-email-sender.js";
-import { flushClosedRecoveryRejectedAttemptWindows } from "../credentials/recovery-rejected-attempt-flush.js";
-import { recoveryRequestJobPayloadSchema } from "../credentials/recovery-request-job-payload.js";
-import {
-  findPinCodeByCode,
-  sendFirstPinCodeEmailJob,
-} from "../credentials/send-first-pin-code-email-job.js";
-import { type BackgroundJobs, databaseOfClient } from "./background-jobs.js";
+import pg, { type Pool } from "pg";
+import type { BackgroundJobs } from "./background-jobs.js";
 import { type ReportErrorDeps, reportError } from "./error-reporting.js";
 import { reportPoolErrors } from "./pool-connection-error-handler.js";
 import { runShutdownSteps } from "./run-shutdown-steps.js";
-
-export const RECOVERY_REQUEST_TASK_IDENTIFIER = "recovery-request";
-export const RECOVERY_REJECTED_ATTEMPT_FLUSH_TASK_IDENTIFIER = "recovery-rejected-attempt-flush";
-export const FIRST_PIN_CODE_EMAIL_TASK_IDENTIFIER = "first-pin-code-email";
-
-const RECOVERY_REJECTED_ATTEMPT_FLUSH_CRONTAB_LINE = `*/5 * * * * ${RECOVERY_REJECTED_ATTEMPT_FLUSH_TASK_IDENTIFIER}`;
 
 // Jobs for the same account still serialize on their own advisory lock, so a slow job never
 // blocks jobs for other accounts.
 const WORKER_CONCURRENCY = 2;
 
-export interface RecoveryWorkerHandle {
+export interface BackgroundJobRunnerHandle {
   stop(): Promise<void>;
 }
 
-export interface StartRecoveryWorkerOptions {
+export interface StartBackgroundJobRunnerOptions {
   databaseUrl: string;
-  backofficeOrigin: string;
-  emailSender: AccessEmailSender;
-  now: () => Date;
-  jobs?: readonly BackgroundJobs[];
+  jobs: readonly BackgroundJobs[];
   /** Only a test turns these off, so graphile-worker's wall-clock crontab never adds a run the test did not ask for. */
   schedules?: boolean;
 }
 
-export interface StartRecoveryWorkerDeps extends ReportErrorDeps {
+export interface StartBackgroundJobRunnerDeps extends ReportErrorDeps {
   runWorker?: (options: RunnerOptions) => Promise<Runner>;
-  createDatabase?: (client: PoolClient) => NodePgDatabase<Record<string, never>>;
-  processJob?: typeof processRecoveryRequestJob;
-  recordLinkSent?: typeof recordRecoveryLinkSentJob;
-  flush?: typeof flushClosedRecoveryRejectedAttemptWindows;
-  findPinCode?: typeof findPinCodeByCode;
   /**
    * Owned here, not by graphile-worker's pool: it removes error handlers and calls `pgPool.end()`
    * without awaiting it once the runner stops, crashing on a client that disconnects mid-shutdown.
@@ -70,20 +44,13 @@ function loggerReportingFatalErrors(deps: ReportErrorDeps): Logger {
   });
 }
 
-export async function startRecoveryWorker(
-  options: StartRecoveryWorkerOptions,
-  deps: StartRecoveryWorkerDeps = {},
-): Promise<RecoveryWorkerHandle> {
+export async function startBackgroundJobRunner(
+  options: StartBackgroundJobRunnerOptions,
+  deps: StartBackgroundJobRunnerDeps = {},
+): Promise<BackgroundJobRunnerHandle> {
   const doRun = deps.runWorker ?? run;
-  const doCreateDatabase = deps.createDatabase ?? databaseOfClient;
-  const doProcessJob = deps.processJob ?? processRecoveryRequestJob;
-  const doRecordLinkSent = deps.recordLinkSent ?? recordRecoveryLinkSentJob;
-  const doFlush = deps.flush ?? flushClosedRecoveryRejectedAttemptWindows;
-  const doFindPinCode = deps.findPinCode ?? findPinCodeByCode;
   const doCreatePool =
     deps.createPool ?? ((connectionString: string) => new pg.Pool({ connectionString }));
-  const { now } = options;
-  const jobs = options.jobs ?? [];
 
   const pool = doCreatePool(options.databaseUrl);
   reportPoolErrors(pool, "recovery worker");
@@ -104,45 +71,10 @@ export async function startRecoveryWorker(
       ? { parsedCronItems: [] }
       : {
           // graphile-worker 0.18's RunnerOptions takes this crontab string in place of a crontab file.
-          crontab: [
-            RECOVERY_REJECTED_ATTEMPT_FLUSH_CRONTAB_LINE,
-            ...jobs.flatMap((job) => job.crontab),
-          ].join("\n"),
+          crontab: options.jobs.flatMap((job) => job.crontab).join("\n"),
         }),
     events,
-    taskList: {
-      ...Object.assign({}, ...jobs.map((job) => job.taskList)),
-      [RECOVERY_REQUEST_TASK_IDENTIFIER]: async (rawPayload, helpers) => {
-        const parsed = recoveryRequestJobPayloadSchema.safeParse(rawPayload);
-        if (!parsed.success) {
-          throw new Error(`${RECOVERY_REQUEST_TASK_IDENTIFIER}: malformed job payload`);
-        }
-        const payload = parsed.data;
-        const result = await helpers.withPgClient((client) =>
-          doProcessJob(doCreateDatabase(client), payload, {
-            now,
-            backofficeOrigin: options.backofficeOrigin,
-          }),
-        );
-        if (result.send) {
-          const { email, tokenId } = result.send;
-          await options.emailSender.sendRecoveryLink(email);
-          await helpers.withPgClient((client) =>
-            doRecordLinkSent(doCreateDatabase(client), tokenId, { now }),
-          );
-        }
-      },
-      [FIRST_PIN_CODE_EMAIL_TASK_IDENTIFIER]: (payload, helpers) =>
-        sendFirstPinCodeEmailJob(payload, {
-          emailSender: options.emailSender,
-          now,
-          findPinCode: (code) =>
-            helpers.withPgClient((client) => doFindPinCode(doCreateDatabase(client), code)),
-        }),
-      [RECOVERY_REJECTED_ATTEMPT_FLUSH_TASK_IDENTIFIER]: async (_payload, helpers) => {
-        await helpers.withPgClient((client) => doFlush(doCreateDatabase(client), { now }));
-      },
-    },
+    taskList: Object.assign({}, ...options.jobs.map((job) => job.taskList)),
   });
   runner.promise.catch((error: unknown) => {
     reportError("recovery worker: runner exited with an error", error, deps);

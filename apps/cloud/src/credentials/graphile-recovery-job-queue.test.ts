@@ -1,6 +1,6 @@
 import { recordIdSchema } from "@purosur/contracts";
 import { describe, expect, it, vi } from "vitest";
-import { RECOVERY_REQUEST_TASK_IDENTIFIER } from "../platform/background-job-runner.js";
+import { RECOVERY_REQUEST_TASK_IDENTIFIER } from "./access-email-task.js";
 import { createGraphileRecoveryJobQueue } from "./graphile-recovery-job-queue.js";
 
 describe("createGraphileRecoveryJobQueue", () => {

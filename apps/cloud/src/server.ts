@@ -33,6 +33,7 @@ import {
   buildApp,
   databaseRouteOptions,
 } from "./app.js";
+import { accessEmailJobs } from "./credentials/access-email-task.js";
 import { createGraphileRecoveryJobQueue } from "./credentials/graphile-recovery-job-queue.js";
 import type { AccessEmailSender } from "./credentials/recovery-email-sender.js";
 import type { RecoveryJobQueue } from "./credentials/recovery-job-queue.js";
@@ -88,9 +89,9 @@ import { createMercadoPagoOrdersClient } from "./payments/mercado-pago-orders-cl
 import { mercadoPagoPendingCheckJobs } from "./payments/mercado-pago-pending-check-task.js";
 import { mercadoPagoRefundFollowJobs } from "./payments/mercado-pago-refund-follow-task.js";
 import {
-  type RecoveryWorkerHandle,
-  type StartRecoveryWorkerOptions,
-  startRecoveryWorker,
+  type BackgroundJobRunnerHandle,
+  type StartBackgroundJobRunnerOptions,
+  startBackgroundJobRunner,
 } from "./platform/background-job-runner.js";
 import {
   type DedicatedConnections,
@@ -458,7 +459,7 @@ export interface RecoveryInfrastructure {
   jobQueue: RecoveryJobQueue;
   workerUtils: Pick<WorkerUtils, "addJob">;
   backofficeOrigin: string;
-  worker: RecoveryWorkerHandle;
+  worker: BackgroundJobRunnerHandle;
   close(): Promise<void>;
 }
 
@@ -478,7 +479,7 @@ export function createRecoveryJobQueuePool(
 }
 
 export interface RecoveryResources {
-  worker: Pick<RecoveryWorkerHandle, "stop">;
+  worker: Pick<BackgroundJobRunnerHandle, "stop">;
   workerUtils: Pick<WorkerUtils, "release">;
   jobQueuePool: Pick<pg.Pool, "end">;
   sql: Pick<postgres.Sql, "end">;
@@ -503,7 +504,7 @@ export interface SetUpRecoveryDeps {
   emailSender?: AccessEmailSender;
   /** Lets a test give the job-queue pool a `pg.Pool` with no idle reaper, so it doesn't race pg-pool's own idle timeout. */
   createJobQueuePool?: CreateRecoveryJobQueuePoolDeps["createPool"];
-  schedules?: StartRecoveryWorkerOptions["schedules"];
+  schedules?: StartBackgroundJobRunnerOptions["schedules"];
 }
 
 /**
@@ -525,13 +526,11 @@ export async function setUpRecovery(
       emailFrom: recoveryEnv.emailFrom,
       emailReplyTo: recoveryEnv.emailReplyTo,
     });
-  const worker = await startRecoveryWorker({
+  const worker = await startBackgroundJobRunner({
     databaseUrl: recoveryEnv.databaseUrl,
-    backofficeOrigin: recoveryEnv.backofficeOrigin,
-    emailSender,
-    now,
     ...(deps.schedules === undefined ? {} : { schedules: deps.schedules }),
     jobs: [
+      accessEmailJobs({ now, backofficeOrigin: recoveryEnv.backofficeOrigin, emailSender }),
       alertEscalationJobs({ now }),
       alertConditionResolutionJobs({ now }),
       arcaCertificateExpiryJobs({ now, ...recoveryEnv.arcaCertificate }),
