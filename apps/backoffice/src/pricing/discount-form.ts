@@ -211,13 +211,13 @@ export const DISCOUNT_TARGET_KIND_OPTIONS = [
 ] as const satisfies Options<Option<DiscountTargetKind>>;
 
 export const WEEKDAY_OPTIONS = [
-  { value: "1", label: "Lun", accessibleName: "Lunes" },
-  { value: "2", label: "Mar", accessibleName: "Martes" },
-  { value: "3", label: "Mié", accessibleName: "Miércoles" },
-  { value: "4", label: "Jue", accessibleName: "Jueves" },
-  { value: "5", label: "Vie", accessibleName: "Viernes" },
-  { value: "6", label: "Sáb", accessibleName: "Sábado" },
-  { value: "7", label: "Dom", accessibleName: "Domingo" },
+  { value: "1", label: "Lun", fullLabel: "Lunes" },
+  { value: "2", label: "Mar", fullLabel: "Martes" },
+  { value: "3", label: "Mié", fullLabel: "Miércoles" },
+  { value: "4", label: "Jue", fullLabel: "Jueves" },
+  { value: "5", label: "Vie", fullLabel: "Viernes" },
+  { value: "6", label: "Sáb", fullLabel: "Sábado" },
+  { value: "7", label: "Dom", fullLabel: "Domingo" },
 ] as const;
 
 const INACTIVE_TARGET_STATUS = "Inactivo";

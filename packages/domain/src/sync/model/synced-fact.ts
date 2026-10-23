@@ -5,6 +5,7 @@ import type {
   OfflineFiscalDocumentIssuedFact,
   PreEmissionGateFailureReason,
   SaleVoidCreditNote,
+  UnclearDeferralDocument,
 } from "../../fiscal/index.js";
 import { approvedPaymentsCoverTotal, refundsSettleApprovedPayments } from "../../payments/index.js";
 import type {
@@ -44,7 +45,11 @@ export type SyncedFact =
     }
   | { kind: "offline_fiscal_document_issued"; document: OfflineFiscalDocumentIssuedFact }
   | { kind: "clock_corrected"; correction: ClockCorrectedFact }
-  | { kind: "deferred_sale_recorded"; deferredSale: DeferredSale }
+  | {
+      kind: "deferred_sale_recorded";
+      deferredSale: DeferredSale;
+      unclearDocument: UnclearDeferralDocument | null;
+    }
   | { kind: "deferred_sale_satisfied"; satisfaction: DeferredSaleSatisfiedFact };
 
 export interface AggregateKey {

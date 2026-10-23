@@ -58,6 +58,7 @@ export function decideSaleAuthorization(
       reason: route.reason,
       routedAt: decidedAt,
       origin: tx.originOfSale(saleId),
+      unclearDocument: null,
     });
     return { kind: "deferred", reason: route.reason };
   }

@@ -24,6 +24,7 @@ import type {
   CredentialsRendererToCoreMessage,
   CurrentSaleAnswer,
   EnrollmentOutcome,
+  EnrollmentStandingAnswer,
   FindCountableProductOutcome,
   FirstPinCodeRequestOutcome,
   FiscalCoreToRendererMessage,
@@ -153,7 +154,7 @@ export type MercadoPagoMethod = Extract<
 
 export interface CoreClient {
   connect(port: CorePort): void;
-  enrollmentStatus(): Promise<boolean>;
+  enrollmentStatus(): Promise<EnrollmentStandingAnswer>;
   registerService(): Promise<"in_service" | "out_of_service">;
   registerName(): Promise<string | null>;
   enroll(typedCode: string): Promise<EnrollmentOutcome>;
@@ -289,6 +290,7 @@ export interface CoreClient {
   onBatteryStandingChanged(listener: () => void): () => void;
   onFiscalModeChanged(listener: () => void): () => void;
   onRestorationStandingChanged(listener: () => void): () => void;
+  onEnrollmentStandingChanged(listener: () => void): () => void;
   onBarcodeRead(listener: (code: string) => void): () => void;
 }
 
@@ -312,6 +314,7 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
   const batteryStandingChangedListeners = new Set<() => void>();
   const fiscalModeChangedListeners = new Set<() => void>();
   const restorationStandingChangedListeners = new Set<() => void>();
+  const enrollmentStandingChangedListeners = new Set<() => void>();
   const barcodeReadListeners = new Set<(code: string) => void>();
 
   function receive(port: CorePort, data: unknown): void {
@@ -354,6 +357,12 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
     }
     if (answer.data.type === "restoration-standing-changed") {
       for (const listener of restorationStandingChangedListeners) {
+        listener();
+      }
+      return;
+    }
+    if (answer.data.type === "enrollment-standing-changed") {
+      for (const listener of enrollmentStandingChangedListeners) {
         listener();
       }
       return;
@@ -426,7 +435,7 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
     enrollmentStatus() {
       return ask(
         { type: "enrollment-status-request", request_id: deps.newRequestId() },
-        (answer) => (answer.type === "enrollment-status" ? answer.enrolled : undefined),
+        (answer) => (answer.type === "enrollment-status" ? answer.standing : undefined),
       );
     },
     registerService() {
@@ -1096,6 +1105,12 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
       restorationStandingChangedListeners.add(listener);
       return () => {
         restorationStandingChangedListeners.delete(listener);
+      };
+    },
+    onEnrollmentStandingChanged(listener) {
+      enrollmentStandingChangedListeners.add(listener);
+      return () => {
+        enrollmentStandingChangedListeners.delete(listener);
       };
     },
     onBarcodeRead(listener) {

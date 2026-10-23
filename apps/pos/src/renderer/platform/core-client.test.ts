@@ -41,15 +41,19 @@ const KINDS = {
 } as const;
 
 describe("createCoreClient", () => {
-  it("asks the core whether this installation is enrolled and resolves with its answer", async () => {
+  it("asks the core for the enrollment standing of this installation and resolves with its answer", async () => {
     const client = clientWithSequentialIds();
     const port = new FakePort();
     client.connect(port);
 
     const enrolled = client.enrollmentStatus();
-    port.answer({ type: "enrollment-status", request_id: "request-1", enrolled: true });
+    port.answer({
+      type: "enrollment-status",
+      request_id: "request-1",
+      standing: { kind: "revoked" },
+    });
 
-    expect(await enrolled).toBe(true);
+    expect(await enrolled).toEqual({ kind: "revoked" });
     expect(port.started).toBe(true);
     expect(port.posted).toEqual([{ type: "enrollment-status-request", request_id: "request-1" }]);
   });
@@ -1785,10 +1789,14 @@ describe("createCoreClient", () => {
     const port = new FakePort();
 
     client.connect(port);
-    port.answer({ type: "enrollment-status", request_id: "request-1", enrolled: false });
+    port.answer({
+      type: "enrollment-status",
+      request_id: "request-1",
+      standing: { kind: "not_enrolled" },
+    });
 
     expect(port.posted).toEqual([{ type: "enrollment-status-request", request_id: "request-1" }]);
-    expect(await enrolled).toBe(false);
+    expect(await enrolled).toEqual({ kind: "not_enrolled" });
   });
 
   it("ignores an answer that doesn't follow the contract or answers no request", async () => {
@@ -1797,16 +1805,24 @@ describe("createCoreClient", () => {
     client.connect(port);
 
     const enrolled = client.enrollmentStatus();
-    port.answer({ type: "enrollment-status", request_id: "request-1", enrolled: "yes" });
-    port.answer({ type: "enrollment-status", request_id: "request-9", enrolled: false });
+    port.answer({ type: "enrollment-status", request_id: "request-1", standing: "yes" });
+    port.answer({
+      type: "enrollment-status",
+      request_id: "request-9",
+      standing: { kind: "not_enrolled" },
+    });
     port.answer({
       type: "enrollment-result",
       request_id: "request-1",
       outcome: { kind: "enrolled" },
     });
-    port.answer({ type: "enrollment-status", request_id: "request-1", enrolled: true });
+    port.answer({
+      type: "enrollment-status",
+      request_id: "request-1",
+      standing: { kind: "enrolled" },
+    });
 
-    expect(await enrolled).toBe(true);
+    expect(await enrolled).toEqual({ kind: "enrolled" });
   });
 
   it("fails a request the replaced connection can no longer answer, and closes that port", async () => {
@@ -1840,10 +1856,18 @@ describe("createCoreClient", () => {
     client.connect(next);
 
     const enrolled = client.enrollmentStatus();
-    previous.answer({ type: "enrollment-status", request_id: "request-1", enrolled: false });
-    next.answer({ type: "enrollment-status", request_id: "request-1", enrolled: true });
+    previous.answer({
+      type: "enrollment-status",
+      request_id: "request-1",
+      standing: { kind: "not_enrolled" },
+    });
+    next.answer({
+      type: "enrollment-status",
+      request_id: "request-1",
+      standing: { kind: "enrolled" },
+    });
 
-    expect(await enrolled).toBe(true);
+    expect(await enrolled).toEqual({ kind: "enrolled" });
   });
 
   it("tells each listener every time the core finishes a pull, until it stops listening", () => {
@@ -2271,6 +2295,27 @@ describe("createCoreClient", () => {
     port.answer({ type: "restoration-standing-changed" });
     stopFirst();
     port.answer({ type: "restoration-standing-changed" });
+
+    expect(first).toBe(1);
+    expect(second).toBe(2);
+  });
+
+  it("tells each listener every time the enrollment standing changes, until it stops listening", () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+    let first = 0;
+    let second = 0;
+    const stopFirst = client.onEnrollmentStandingChanged(() => {
+      first += 1;
+    });
+    client.onEnrollmentStandingChanged(() => {
+      second += 1;
+    });
+
+    port.answer({ type: "enrollment-standing-changed" });
+    stopFirst();
+    port.answer({ type: "enrollment-standing-changed" });
 
     expect(first).toBe(1);
     expect(second).toBe(2);

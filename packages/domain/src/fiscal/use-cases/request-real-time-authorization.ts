@@ -97,6 +97,17 @@ export async function requestRealTimeAuthorization(
         reason: resolution.deferralReason,
         routedAt: resolved.resolvedAt,
         origin,
+        unclearDocument:
+          resolution.deferralReason === "unclear_outcome"
+            ? {
+                fiscalDocumentId: waiting.fiscalDocumentId,
+                pointOfSale: waiting.pointOfSale,
+                number: waiting.number,
+                issuedOn: waiting.issuedOn,
+                document: waiting.document,
+                reservedAt,
+              }
+            : null,
       },
     );
   } else {

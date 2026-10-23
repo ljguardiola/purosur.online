@@ -67,9 +67,6 @@ export function readDeviceCredentialsRequest(
   if (typeof requestId !== "string") {
     return undefined;
   }
-  if (fields?.["type"] === "device-credentials-request") {
-    return { type: "device-credentials-request", request_id: requestId };
-  }
   if (fields?.["type"] === "device-credentials-read-request") {
     return { type: "device-credentials-read-request", request_id: requestId };
   }

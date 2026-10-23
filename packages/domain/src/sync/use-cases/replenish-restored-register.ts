@@ -1,7 +1,14 @@
-import { isDeferralFinalWhenRecorded, type RestoredCreditNoteAnswer } from "../../fiscal/index.js";
+import {
+  isDeferralFinalWhenRecorded,
+  type RestoredCreditNoteAnswer,
+  type RestoredUnclearDeferral,
+  rebuiltUnclearDeferral,
+} from "../../fiscal/index.js";
 import type { SyncedFact } from "../model/synced-fact.js";
 import type {
   RegisterPredecessor,
+  RegisterReplenishmentTransaction,
+  ReplenishedEventApplication,
   ReplenishmentPage,
   ReplenishmentRefusal,
   ReplenishRestoredRegisterPorts,
@@ -41,16 +48,37 @@ function decodedPage<TFailure>(
   return { kind: "decoded", events: decoded };
 }
 
+async function rebuildUnclearDeferral(
+  tx: RegisterReplenishmentTransaction,
+  { deferredSale, unclearDocument }: Extract<SyncedFact, { kind: "deferred_sale_recorded" }>,
+  answers: readonly RestoredUnclearDeferral[],
+): Promise<ReplenishedEventApplication> {
+  const unclear =
+    unclearDocument === null
+      ? undefined
+      : answers.find(
+          ({ fiscalDocumentId }) => fiscalDocumentId === unclearDocument.fiscalDocumentId,
+        );
+  if (unclearDocument === null || unclear === undefined) {
+    return "not_yet_applicable";
+  }
+  return tx.rebuildUnclearDeferredSale(
+    rebuiltUnclearDeferral(deferredSale, unclearDocument, unclear.answer),
+  );
+}
+
 async function applyPage<TFailure>(
   { store }: ReplenishRestoredRegisterPorts<TFailure>,
   {
     events,
     creditNoteAnswers,
     unrequestedCreditNoteIds,
+    unclearDeferralAnswers,
   }: {
     events: readonly DecodedPageEvent[];
     creditNoteAnswers: readonly RestoredCreditNoteAnswer[];
     unrequestedCreditNoteIds: readonly string[];
+    unclearDeferralAnswers: readonly RestoredUnclearDeferral[];
   },
 ): Promise<number> {
   return store.transaction(async (tx) => {
@@ -64,7 +92,12 @@ async function applyPage<TFailure>(
         fact.kind === "deferred_sale_recorded" &&
         !isDeferralFinalWhenRecorded(fact.deferredSale.reason)
       ) {
-        unapplied += 1;
+        const rebuilt = await rebuildUnclearDeferral(tx, fact, unclearDeferralAnswers);
+        if (rebuilt === "not_yet_applicable") {
+          unapplied += 1;
+          continue;
+        }
+        await tx.recordEventApplied(event.event_id);
         continue;
       }
       const application = await tx.applyFact(fact, { eventId: event.event_id, deviceId });
@@ -126,6 +159,7 @@ export async function replenishRestoredRegister<TFailure>(
       events: decoded.events,
       creditNoteAnswers: answer.page.creditNoteAnswers,
       unrequestedCreditNoteIds: answer.page.unrequestedCreditNoteIds,
+      unclearDeferralAnswers: answer.page.unclearDeferralAnswers,
     });
     if (answer.page.next === null) {
       break;

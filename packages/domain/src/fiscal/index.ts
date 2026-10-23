@@ -56,7 +56,10 @@ export {
   SHORT_CODE_ALPHABET,
 } from "./model/deferred-sale.js";
 export { deferredSaleExpiresOn, isDeferredSaleExpired } from "./model/deferred-sale-expiry.js";
-export { deferredSaleRecordedEvent } from "./model/deferred-sale-recorded-event.js";
+export {
+  deferredSaleRecordedEvent,
+  type UnclearDeferralDocument,
+} from "./model/deferred-sale-recorded-event.js";
 export {
   type DeferredSaleSatisfied,
   type DeferredSaleSatisfiedFact,
@@ -241,6 +244,11 @@ export {
   buyerIdentificationOf,
   remedyAwaitsResend,
 } from "./model/rejected-document-remedy.js";
+export type {
+  RebuiltUnclearDeferral,
+  RestoredUnclearDeferral,
+} from "./model/restored-unclear-deferral.js";
+export { rebuiltUnclearDeferral } from "./model/restored-unclear-deferral.js";
 export type {
   CreditNoteAnswer,
   CreditNoteIssuedOffline,

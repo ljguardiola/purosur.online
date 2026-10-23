@@ -99,36 +99,6 @@ describe("replenishing a deferred sale satisfied by an authorized invoice", () =
     });
   });
 
-  it("raises the clock mark of the point of sale to when the document was reserved", () => {
-    applyReplenishedDeferredSaleSatisfaction(database, SATISFIED);
-
-    expect(clockMarks()).toEqual([
-      {
-        point_of_sale: POINT_OF_SALE,
-        document_type: "factura_c",
-        reading: "2026-10-09T09:59:58.000Z",
-      },
-    ]);
-  });
-
-  it("keeps a later clock mark it already holds", () => {
-    database
-      .prepare(
-        "INSERT INTO register_clock_marks (point_of_sale, document_type, reading) VALUES (?, 'factura_c', ?)",
-      )
-      .run(POINT_OF_SALE, "2026-10-11T00:00:00.000Z");
-
-    applyReplenishedDeferredSaleSatisfaction(database, SATISFIED);
-
-    expect(clockMarks()).toEqual([
-      {
-        point_of_sale: POINT_OF_SALE,
-        document_type: "factura_c",
-        reading: "2026-10-11T00:00:00.000Z",
-      },
-    ]);
-  });
-
   it("changes nothing when applied again", () => {
     applyReplenishedDeferredSaleSatisfaction(database, SATISFIED);
     const heldDocuments = documents();

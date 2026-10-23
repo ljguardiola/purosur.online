@@ -13,6 +13,7 @@ import type {
   RestoredRegisterOrphanLanes,
   UnrecordedSaleRequest,
 } from "../sweep-restored-register-orphan-authorizations-ports.js";
+import { creditNotesRecordedFor } from "./recorded-credit-notes.js";
 
 export class FakeRestoredRegisterOrphanSweep
   implements RestoredRegisterOrphanLanes, RegisterFiscalPointsOfSale
@@ -67,19 +68,6 @@ export class FakeRestoredRegisterOrphanSweep
     );
   }
 
-  private recordedCreditNotesOf(saleId: string): SaleCreditNote[] {
-    return this.regularizations.flatMap((regularization) =>
-      regularization.kind === "credit_note" && regularization.saleId === saleId
-        ? [
-            {
-              creditedVoucher: regularization.associatedVoucher,
-              keptVoucher: regularization.keptVoucher,
-            },
-          ]
-        : [],
-    );
-  }
-
   async fiscalPointsOfSaleOf(registerId: string): Promise<number[]> {
     this.operations.push("fiscalPointsOfSaleOf");
     return this.points.get(registerId) ?? [];
@@ -120,7 +108,10 @@ export class FakeRestoredRegisterOrphanSweep
       },
       creditNotesOfSale: async (saleId) => {
         this.operations.push("creditNotesOfSale");
-        return [...(this.creditNotes.get(saleId) ?? []), ...this.recordedCreditNotesOf(saleId)];
+        return [
+          ...(this.creditNotes.get(saleId) ?? []),
+          ...creditNotesRecordedFor(saleId, this.regularizations),
+        ];
       },
       recordOrphanRegularization: async (regularization) => {
         this.operations.push("recordOrphanRegularization");

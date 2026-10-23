@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { deferredSaleRecordedEvent } from "../model/deferred-sale-recorded-event.js";
+import type { FacturaC } from "../model/pre-emission-gate.js";
+import {
+  FICTIONAL_CUIT,
+  FICTIONAL_GROSS_INCOME_REGISTRATION,
+  FICTIONAL_LEGAL_NAME,
+} from "../test-support/fictional-tax-identities.js";
 import { settleInterruptedRealTimeAuthorizations } from "./settle-interrupted-real-time-authorizations.js";
 import { ManualClock } from "./test-support/fake-arca-vitality.js";
 import { FakeInterruptedRealTimeAuthorizations } from "./test-support/fake-interrupted-real-time-authorizations.js";
@@ -13,22 +19,58 @@ const SHORT_CODES = ["7KQ4M2P9", "R3XW8H5N", "ABCDEFGH"];
 
 const ORIGIN = { registerId: "register-1", actorId: "cashier" };
 
+function invoiceOf(total: number): FacturaC {
+  return {
+    invoiceClass: "C",
+    total,
+    netAmount: total,
+    vatAmount: 0,
+    issuer: {
+      legalName: FICTIONAL_LEGAL_NAME,
+      cuit: FICTIONAL_CUIT,
+      taxStatus: "MONOTRIBUTO",
+      grossIncomeRegistration: FICTIONAL_GROSS_INCOME_REGISTRATION,
+      activityStartDate: "2020-01-01",
+      version: 3,
+    },
+    buyerTaxStatusCode: 5,
+    buyerTaxStatusDescription: "Consumidor Final",
+  };
+}
+
 const FIRST = {
   fiscalDocumentId: "doc-1",
   saleId: "sale-1",
+  pointOfSale: 12,
+  number: 41,
+  issuedOn: "2026-10-01",
+  document: invoiceOf(12_500),
   origin: ORIGIN,
   reservedAt: FIRST_RESERVED_AT,
-  total: 12_500,
   holdsDeferredSale: false,
 };
 const SECOND = {
   fiscalDocumentId: "doc-2",
   saleId: "sale-2",
+  pointOfSale: 12,
+  number: 42,
+  issuedOn: "2026-10-01",
+  document: invoiceOf(4_000),
   origin: { registerId: "register-1", actorId: "other-cashier" },
   reservedAt: SECOND_RESERVED_AT,
-  total: 4_000,
   holdsDeferredSale: false,
 };
+
+function waitingDocumentOf({
+  fiscalDocumentId,
+  pointOfSale,
+  number,
+  issuedOn,
+  document,
+  reservedAt,
+}: typeof FIRST) {
+  return { fiscalDocumentId, pointOfSale, number, issuedOn, document, reservedAt };
+}
 
 function settle(
   requesting: (typeof FIRST)[],
@@ -82,6 +124,7 @@ describe("settling the real-time authorizations a stopped register left requesti
             eventId: "id-2",
             ...ORIGIN,
             deferredSale: firstSale,
+            unclearDocument: waitingDocumentOf(FIRST),
           }),
         },
       },
@@ -98,6 +141,7 @@ describe("settling the real-time authorizations a stopped register left requesti
             registerId: "register-1",
             actorId: "other-cashier",
             deferredSale: secondSale,
+            unclearDocument: waitingDocumentOf(SECOND),
           }),
         },
       },

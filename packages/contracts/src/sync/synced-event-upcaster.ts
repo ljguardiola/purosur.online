@@ -7,6 +7,7 @@ import type {
   PrintedDocument,
   SaleDiscount,
   SaleVoidCreditNote,
+  UnclearDeferralDocument,
 } from "@purosur/domain";
 import type {
   DecodedEvent,
@@ -297,6 +298,25 @@ function invoiceOf(
   };
 }
 
+function deferredSaleRecorded(
+  payload: SyncedEventPayloads["deferred_sale_recorded@1"],
+  unclearDocument: UnclearDeferralDocument | null,
+): SyncedFact {
+  return {
+    kind: "deferred_sale_recorded",
+    deferredSale: {
+      id: payload.id,
+      saleId: payload.sale_id,
+      occurredAt: new Date(payload.occurred_at),
+      total: payload.total,
+      reason: payload.reason,
+      shortCode: payload.short_code,
+      routedAt: new Date(payload.routed_at),
+    },
+    unclearDocument,
+  };
+}
+
 function printStateChanged(
   payload: SyncedEventPayloads["sale_print_state_changed@1"],
   document: PrintedDocument,
@@ -466,18 +486,19 @@ const FACT_OF: {
       evaluatedAt: new Date(payload.evaluated_at),
     },
   }),
-  "deferred_sale_recorded@1": (payload) => ({
-    kind: "deferred_sale_recorded",
-    deferredSale: {
-      id: payload.id,
-      saleId: payload.sale_id,
-      occurredAt: new Date(payload.occurred_at),
-      total: payload.total,
-      reason: payload.reason,
-      shortCode: payload.short_code,
-      routedAt: new Date(payload.routed_at),
-    },
-  }),
+  "deferred_sale_recorded@1": (payload) => deferredSaleRecorded(payload, null),
+  "deferred_sale_recorded@2": (payload) =>
+    deferredSaleRecorded(
+      payload,
+      payload.unclear_document && {
+        fiscalDocumentId: payload.unclear_document.fiscal_document_id,
+        pointOfSale: payload.unclear_document.point_of_sale,
+        number: payload.unclear_document.number,
+        issuedOn: payload.unclear_document.issued_on,
+        document: invoiceOf(payload.unclear_document.document),
+        reservedAt: new Date(payload.unclear_document.reserved_at),
+      },
+    ),
   "deferred_sale_satisfied@1": (payload) => ({
     kind: "deferred_sale_satisfied",
     satisfaction: {

@@ -97,12 +97,6 @@ describe("mainToCoreMessageSchema", () => {
     expect(mainToCoreMessageSchema.parse(message)).toEqual(message);
   });
 
-  it.each([true, false])("accepts whether credentials are present: %s", (present) => {
-    const message = { type: "device-credentials-presence", request_id: "r2", present };
-
-    expect(mainToCoreMessageSchema.parse(message)).toEqual(message);
-  });
-
   it.each(["replaced", "superseded", "not_stored"])(
     "accepts how main answered a replace request: %s",
     (outcome) => {
@@ -211,10 +205,6 @@ describe("mainToCoreMessageSchema", () => {
       { type: "device-credentials-stored", request_id: "r", stored: "yes" },
     ],
     [
-      "a presence answer without presence",
-      { type: "device-credentials-presence", request_id: "r" },
-    ],
-    [
       "a storable answer without whether it can store",
       { type: "device-credentials-storable", request_id: "r" },
     ],
@@ -222,7 +212,7 @@ describe("mainToCoreMessageSchema", () => {
       "a replace answer with an outcome it doesn't know",
       { type: "device-credentials-replaced", request_id: "r", outcome: "maybe" },
     ],
-    ["a request main would answer", { type: "device-credentials-request", request_id: "r" }],
+    ["a request main would answer", { type: "device-credentials-read-request", request_id: "r" }],
     ["any other message type", { type: "ping" }],
     ["an empty message", {}],
     ["undefined", undefined],

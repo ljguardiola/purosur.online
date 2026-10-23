@@ -249,18 +249,22 @@ export function ComboBox<V extends string>(props: ComboBoxProps<V>) {
                 {({ isSelected }) => (
                   <>
                     <span className="flex min-w-0 flex-col">
-                      <AriaText slot="label" className="flex min-w-0 items-center gap-2">
+                      <span className="flex min-w-0 items-center gap-2">
                         <span className="truncate">{option.label}</span>
                         {option.status !== undefined ? (
-                          <Tag tone="neutral" variant="status">
-                            {option.status}
-                          </Tag>
+                          <>
+                            {" "}
+                            <Tag tone="neutral" variant="status">
+                              {option.status}
+                            </Tag>
+                          </>
                         ) : null}
-                      </AriaText>
+                      </span>
                       {option.description !== undefined ? (
-                        <AriaText slot="description" className={optionDescriptionClassName}>
-                          {option.description}
-                        </AriaText>
+                        <>
+                          {" "}
+                          <span className={optionDescriptionClassName}>{option.description}</span>
+                        </>
                       ) : null}
                     </span>
                     {isSelected ? (

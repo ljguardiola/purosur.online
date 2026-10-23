@@ -490,6 +490,19 @@ const invoiceSchema = z.object({
   buyer_tax_status_description: z.string(),
 });
 
+const deferredSaleRecordedV2Schema = deferredSaleRecordedSchema.extend({
+  unclear_document: z
+    .object({
+      fiscal_document_id: recordIdSchema(),
+      point_of_sale: pointOfSaleNumberSchema,
+      number: z.int().positive(),
+      issued_on: z.string().refine(isCalendarDay),
+      document: invoiceSchema,
+      reserved_at: instant,
+    })
+    .nullable(),
+});
+
 const deferredSaleSatisfiedSchema = z.object({
   id: text,
   sale_id: text,
@@ -594,6 +607,7 @@ const PAYLOAD_SCHEMAS = {
   "cash_movement_recorded@1": cashMovementRecordedSchema,
   "fiscal_gate_failed@1": fiscalGateFailedSchema,
   "deferred_sale_recorded@1": deferredSaleRecordedSchema,
+  "deferred_sale_recorded@2": deferredSaleRecordedV2Schema,
   "deferred_sale_satisfied@1": deferredSaleSatisfiedSchema,
   "offline_fiscal_document_issued@1": offlineFiscalDocumentIssuedSchema,
   "offline_fiscal_document_issued@2": offlineFiscalDocumentIssuedV2Schema,
