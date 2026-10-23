@@ -305,6 +305,19 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
         saleChanges.push(["credit-note-print", saleId].join(" "));
         return { kind: "not_found" };
       },
+      reprintDeferredSaleInvoice: async (
+        request: ReprintSaleReceiptRequest,
+      ): Promise<ReprintSaleReceiptOutcome> => {
+        saleChanges.push(
+          [
+            "deferred-invoice-reprint",
+            request.saleId,
+            request.reason,
+            request.authorization?.user_id ?? "alone",
+          ].join(" "),
+        );
+        return { kind: "busy" };
+      },
       reprintCreditNote: async (
         request: ReprintSaleReceiptRequest,
       ): Promise<ReprintSaleReceiptOutcome> => {
@@ -2946,6 +2959,19 @@ describe("answerRendererRequest", () => {
         "printing a deferred sale's invoice",
         "deferred-invoice-print s1",
         "print-deferred-sale-invoice-result",
+      ],
+      [
+        "reprint-deferred-sale-invoice",
+        {
+          type: "reprint-deferred-sale-invoice",
+          sale_id: "s1",
+          reason: "se mojó",
+          authorization: { user_id: "u2", pin: "1234" },
+        } as const,
+        "reprintDeferredSaleInvoice",
+        "reprinting a deferred sale's invoice",
+        "deferred-invoice-reprint s1 se mojó u2",
+        "reprint-deferred-sale-invoice-result",
       ],
       [
         "print-credit-note",
