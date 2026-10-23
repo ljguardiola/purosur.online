@@ -375,6 +375,36 @@ describe("reconcileNumberingConflict", () => {
       ]);
     });
 
+    it("credits the lower and keeps the higher of two confirmed authorizations of one sale whose local requests were both released", async () => {
+      const releasedAt = (number: number): SaleDocument => ({
+        kind: "real_time",
+        voucher: { voucherType: 11, pointOfSale: 12, number },
+        outcome: { answer: { kind: "unclear" }, decision: { kind: "released" } },
+      });
+      const { store, ports } = scenario({
+        ...gaps,
+        standings: [
+          [12, requestsAt({ ...SALE_9_REQUEST, fiscalDocumentId: "document-12" })],
+          [13, requestsAt({ ...SALE_9_REQUEST, fiscalDocumentId: "document-13" })],
+        ],
+        saleDocuments: [["sale-9", [releasedAt(12), releasedAt(13)]]],
+      });
+
+      expect(await reconcile(ports)).toEqual({
+        kind: "reconciled",
+        lastAuthorized: 14,
+        alertedNumbers: [],
+        creditNotedNumbers: [12],
+      });
+      expect(store.creditNotes).toEqual([
+        expect.objectContaining({
+          saleId: "sale-9",
+          associatedVoucher: { voucherType: 11, pointOfSale: 12, number: 12 },
+          keptVoucher: { voucherType: 11, pointOfSale: 12, number: 13 },
+        }),
+      ]);
+    });
+
     it.each<[string, RequestsAtNumber]>([
       ["the only voucher of its sale", requestsAt(SALE_9_REQUEST)],
       ["already regularized", { kind: "already_regularized" }],
