@@ -74,6 +74,7 @@ export const WEB_LIST: SupplierPriceListSummary = {
 export const WEB_READING_LIST: SupplierPriceListSummary = {
   ...WEB_LIST,
   id: "5b100000-0000-4000-8000-000000000008",
+  supplier: { id: "5a900000-0000-4000-8000-000000000008", name: "Frutos del Litoral" },
   listDate: null,
   rowCount: 0,
   unpricedRowCount: 0,
@@ -83,6 +84,7 @@ export const WEB_READING_LIST: SupplierPriceListSummary = {
 export const WEB_FAILED_LIST: SupplierPriceListSummary = {
   ...WEB_LIST,
   id: "5b100000-0000-4000-8000-000000000009",
+  supplier: { id: "5a900000-0000-4000-8000-000000000009", name: "Almacén Patagonia" },
   listDate: null,
   rowCount: 0,
   unpricedRowCount: 0,
