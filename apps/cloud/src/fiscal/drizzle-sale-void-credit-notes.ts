@@ -20,6 +20,7 @@ import {
   saleVoidCreditNoteRefusals,
 } from "../platform/db/schema.js";
 import type { DedicatedConnections } from "../platform/dedicated-connections.js";
+import { lockCreditedVoucher, voucherCreditedOffline } from "./credited-voucher.js";
 import { creditNoteOf } from "./drizzle-credit-notes.js";
 import type { EnqueueCreditNote } from "./enqueue-credit-note.js";
 import { withPointOfSaleLaneLock } from "./point-of-sale-lane-lock.js";
@@ -76,6 +77,10 @@ class DrizzleSaleVoidCreditNoteLane<TQueryResult extends PgQueryResultHKT>
   async recordSaleVoidCreditNote(record: SaleVoidCreditNoteRecord): Promise<void> {
     try {
       await this.db.transaction(async (tx) => {
+        await lockCreditedVoucher(tx, record.correctedVoucher);
+        if (await voucherCreditedOffline(tx, record.correctedVoucher)) {
+          throw new VoucherAlreadyCredited();
+        }
         await tx.insert(creditNotes).values({
           id: record.creditNoteId,
           registerId: record.registerId,

@@ -1,8 +1,9 @@
-import type { FiscalDocumentType } from "../model/fiscal-rejection-standing.js";
+import type { FiscalTaskDocumentType } from "../model/fiscal-task.js";
 import type { FortnightPresentationRow } from "../model/fortnight-report.js";
 import type { Fortnight } from "../model/offline-authorization-code.js";
 
-export interface BranchFortnightPresentation extends FortnightPresentationRow<FiscalDocumentType> {
+export interface BranchFortnightPresentation
+  extends FortnightPresentationRow<FiscalTaskDocumentType> {
   registerId: string;
   pointOfSaleNumber: number;
   fortnight: Fortnight;

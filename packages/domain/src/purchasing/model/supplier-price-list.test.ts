@@ -13,6 +13,7 @@ import {
   isSupplierPriceListFileNameTooLong,
   isSupplierPriceListPdfTooLarge,
   isSupplierPriceListUnderReview,
+  SUPPLIER_PRICE_LIST_CONTENT_KINDS,
   SUPPLIER_PRICE_LIST_DAILY_EXTRACTION_CAP_MAX,
   SUPPLIER_PRICE_LIST_DAILY_EXTRACTION_CAP_MIN,
   SUPPLIER_PRICE_LIST_FILE_NAME_MAX_LENGTH,
@@ -31,7 +32,8 @@ describe("supplier price list constants", () => {
       "REVIEWED",
       "DISCARDED",
     ]);
-    expect(SUPPLIER_PRICE_LIST_SOURCE_KINDS).toEqual(["PDF"]);
+    expect(SUPPLIER_PRICE_LIST_SOURCE_KINDS).toEqual(["PDF", "WEB_PAGE"]);
+    expect(SUPPLIER_PRICE_LIST_CONTENT_KINDS).toEqual(["PDF", "HTML"]);
     expect(SUPPLIER_PRICE_LIST_READ_FAILURES).toEqual([
       "unreadable_document",
       "no_items_found",

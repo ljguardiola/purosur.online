@@ -1,11 +1,8 @@
+import { latestKey, type VersionedKey } from "../../shared/index.js";
+
 export const INSTALLATION_KEY_BYTES = 32;
 
 export const FIRST_KEY_VERSION = 1;
-
-export interface VersionedKey {
-  version: number;
-  key: string;
-}
 
 // 32 bytes are 43 base64 characters and one "=": the last character carries 4 bits and 2 zero
 // bits of padding, so only the characters whose value is a multiple of 4 can stand there.
@@ -17,14 +14,6 @@ export function isWellFormedInstallationKey(encoded: string): boolean {
 
 export function hasDistinctKeyVersions(keys: readonly VersionedKey[]): boolean {
   return new Set(keys.map((key) => key.version)).size === keys.length;
-}
-
-export function inVersionOrder(keys: readonly VersionedKey[]): VersionedKey[] {
-  return [...keys].sort((a, b) => a.version - b.version);
-}
-
-export function latestKey(keys: readonly VersionedKey[]): VersionedKey | undefined {
-  return inVersionOrder(keys).at(-1);
 }
 
 export function latestKeyVersion(versions: readonly number[]): number | undefined {

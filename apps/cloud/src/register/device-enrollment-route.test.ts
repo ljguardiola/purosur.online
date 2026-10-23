@@ -237,7 +237,7 @@ describe("POST /devices", () => {
     });
     await db
       .insert(taxAuthorityLastAuthorizedNumbers)
-      .values({ pointOfSaleNumber: 7, lastAuthorized: 11, readAt: NOW });
+      .values({ pointOfSaleNumber: 7, documentType: "factura_c", lastAuthorized: 11, readAt: NOW });
 
     const response = await enroll();
 

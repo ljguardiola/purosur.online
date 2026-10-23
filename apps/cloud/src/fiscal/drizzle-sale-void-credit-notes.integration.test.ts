@@ -22,6 +22,7 @@ import {
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { DrizzleSaleVoidCreditNoteLanes } from "./drizzle-sale-void-credit-notes.js";
 import { insertRegisterWithPointOfSale } from "./test-support/authorization-request-fixtures.js";
+import { insertOfflineCreditNote } from "./test-support/offline-fiscal-document-fixtures.js";
 
 const RECEIVED_AT = new Date("2026-10-08T01:00:00.000Z");
 
@@ -179,6 +180,26 @@ describe("the credit notes of voided sales on a real Postgres", () => {
     expect(enqueued).toEqual([]);
     expect(
       await db.select().from(creditNotes).where(eq(creditNotes.id, again.creditNoteId)),
+    ).toEqual([]);
+  });
+
+  it("refuses a credit note for a voucher a credit note issued offline already corrects, keeping nothing of it", async () => {
+    await insertOfflineCreditNote(db, {
+      registerId,
+      pointOfSale: 7,
+      fortnight: { start: "2026-10-01", end: "2026-10-15" },
+      number: 1,
+      corrects: { voucherType: 11, pointOfSale: 31, number: 90 },
+    });
+    const asked = aRecord(undefined, 90);
+
+    await expect(inLane((lane) => lane.recordSaleVoidCreditNote(asked))).rejects.toBeInstanceOf(
+      VoucherAlreadyCredited,
+    );
+
+    expect(enqueued).toEqual([]);
+    expect(
+      await db.select().from(creditNotes).where(eq(creditNotes.id, asked.creditNoteId)),
     ).toEqual([]);
   });
 

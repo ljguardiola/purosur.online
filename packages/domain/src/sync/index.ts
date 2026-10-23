@@ -23,6 +23,7 @@ export { isLeftBehindByMinimum, isWellFormedRegisterVersion } from "./model/regi
 export { REPLENISHMENT_PAGE_MAX_EVENTS } from "./model/replenishment-page.js";
 export type { SalesDenial, SalesStopReason, SalesStopState } from "./model/sales-stop.js";
 export {
+  areNewSalesStopped,
   isInstallationRevoked,
   isSalesStopReason,
   SALES_DENIED_FOR_DAMAGED_LOCAL_DATABASE,

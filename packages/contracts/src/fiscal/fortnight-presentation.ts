@@ -1,4 +1,5 @@
 import {
+  CREDIT_NOTE_C_DOCUMENT_TYPE,
   FACTURA_C_DOCUMENT_TYPE,
   type FortnightPresentationRefusal,
   type FortnightPresentationState,
@@ -16,6 +17,7 @@ const fortnightPresentationStateSchema: z.ZodType<FortnightPresentationState> = 
   "refused",
   "accepted",
   "needs_regularization",
+  "awaiting_invoice_report",
   "listed_as_owed",
 ]);
 
@@ -43,6 +45,7 @@ const rejectedDocumentSchema = z.object({
   buyer_tax_status_code: z.number().int(),
   rejections: z.array(z.object({ code: z.number().int(), message: z.string() })),
   remedy: rejectedDocumentRemedyStateSchema,
+  remedies: z.array(z.enum(["report", "printed"])),
 });
 
 export const fortnightPresentationSchema = z.object({
@@ -51,7 +54,7 @@ export const fortnightPresentationSchema = z.object({
   fortnight_start: z.string(),
   fortnight_end: z.string(),
   deadline: z.string(),
-  document_type: z.literal(FACTURA_C_DOCUMENT_TYPE).nullable(),
+  document_type: z.enum([FACTURA_C_DOCUMENT_TYPE, CREDIT_NOTE_C_DOCUMENT_TYPE]).nullable(),
   document_count: z.number().int().nonnegative(),
   rejected_document: rejectedDocumentSchema.nullable(),
   movement: fortnightReportMovementSchema.nullable(),

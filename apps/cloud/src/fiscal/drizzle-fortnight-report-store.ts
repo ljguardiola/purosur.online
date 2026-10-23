@@ -1,5 +1,11 @@
-import { FACTURA_C_VOUCHER_TYPE, isOfflineDocumentReported } from "@purosur/domain";
+import {
+  FACTURA_C_DOCUMENT_TYPE,
+  FACTURA_C_VOUCHER_TYPE,
+  isOfflineDocumentReported,
+  type VoucherReference,
+} from "@purosur/domain";
 import type {
+  ContingencyInvoiceReport,
   DocumentTypeReportChange,
   FortnightReportChange,
   FortnightReportKey,
@@ -20,6 +26,7 @@ import {
   registerPointsOfSale,
   rejectedDocumentRemedies,
 } from "../platform/db/schema.js";
+import { lockCreditedVoucher, voucherCreditedOffline } from "./credited-voucher.js";
 import { recordedDocumentTypeReports } from "./drizzle-recorded-document-type-reports.js";
 import type { EnqueueCreditNote } from "./enqueue-credit-note.js";
 import { fortnightReportLock } from "./fortnight-report-lock.js";
@@ -141,9 +148,54 @@ class DrizzleHeldFortnightReport<TQueryResult extends PgQueryResultHKT>
     return row?.pointOfSaleNumber ?? null;
   }
 
+  async contingencyInvoiceReportOf(
+    invoice: VoucherReference,
+  ): Promise<ContingencyInvoiceReport | null> {
+    const [issued] = await this.db
+      .select({
+        fortnightStart: offlineFiscalDocuments.fortnightStart,
+        fortnightEnd: offlineFiscalDocuments.fortnightEnd,
+      })
+      .from(offlineFiscalDocuments)
+      .where(
+        and(
+          eq(offlineFiscalDocuments.documentType, FACTURA_C_DOCUMENT_TYPE),
+          eq(offlineFiscalDocuments.pointOfSale, invoice.pointOfSale),
+          eq(offlineFiscalDocuments.number, invoice.number),
+        ),
+      );
+    if (issued === undefined || invoice.voucherType !== FACTURA_C_VOUCHER_TYPE) {
+      return null;
+    }
+    const [report] = await this.db
+      .select({
+        state: fortnightDocumentReports.state,
+        reportedThrough: fortnightDocumentReports.reportedThrough,
+      })
+      .from(fortnightDocumentReports)
+      .where(
+        and(
+          eq(fortnightDocumentReports.pointOfSaleNumber, invoice.pointOfSale),
+          eq(fortnightDocumentReports.fortnightStart, issued.fortnightStart),
+          eq(fortnightDocumentReports.documentType, FACTURA_C_DOCUMENT_TYPE),
+        ),
+      );
+    return {
+      fortnight: { start: issued.fortnightStart, end: issued.fortnightEnd },
+      reportAccepted:
+        report !== undefined &&
+        report.state === "accepted" &&
+        isOfflineDocumentReported(invoice.number, report.reportedThrough),
+    };
+  }
+
   async creditCorrectedDocument(creditNote: RejectedDocumentCreditNote): Promise<void> {
     const { associatedVoucher } = creditNote;
     await this.db.transaction(async (tx) => {
+      await lockCreditedVoucher(tx, associatedVoucher);
+      if (await voucherCreditedOffline(tx, associatedVoucher)) {
+        return;
+      }
       const [holder] = await tx
         .select({ registerId: registerPointsOfSale.registerId })
         .from(registerPointsOfSale)

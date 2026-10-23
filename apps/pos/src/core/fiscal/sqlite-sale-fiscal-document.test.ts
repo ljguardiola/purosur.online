@@ -6,6 +6,7 @@ import {
   insertCompletedSale,
   insertDeferredSale,
   insertFiscalDocument,
+  insertOfflineCreditNote,
   insertOfflineFiscalDocument,
   OFFLINE_CODE,
   OFFLINE_POINT_OF_SALE,
@@ -53,6 +54,26 @@ describe("the fiscal document of a sale", () => {
         offlineAuthorizationCode: OFFLINE_CODE,
         fortnight: { start: "2026-09-16", end: "2026-09-30" },
       },
+    });
+  });
+
+  it("is the factura C of the sale, never its credit note issued under a pre-obtained code", () => {
+    insertOfflineCreditNote(database, { number: 3 });
+    insertOfflineFiscalDocument(database, { number: 7 });
+
+    expect(readSaleFiscalDocument(database, "sale-1")).toMatchObject({
+      kind: "offline_authorized",
+      authorized: { number: 7, document: FACTURA_C },
+    });
+  });
+
+  it("is the authorized factura C of a sale whose only contingency document is its credit note", () => {
+    insertFiscalDocument(database, { state: "AUTHORIZED", pointOfSale: 12, number: 41 });
+    insertOfflineCreditNote(database, { number: 3 });
+
+    expect(readSaleFiscalDocument(database, "sale-1")).toMatchObject({
+      kind: "authorized",
+      authorized: { pointOfSale: 12, number: 41 },
     });
   });
 

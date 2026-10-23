@@ -1,3 +1,4 @@
+import { FACTURA_C_DOCUMENT_TYPE } from "@purosur/domain";
 import type {
   AuthorizationNumber,
   NumberingConflictLane,
@@ -157,7 +158,12 @@ class DrizzleNumberingConflictLane<TQueryResult extends PgQueryResultHKT>
     const [row] = await this.db
       .select({ lastAuthorized: taxAuthorityLastAuthorizedNumbers.lastAuthorized })
       .from(taxAuthorityLastAuthorizedNumbers)
-      .where(eq(taxAuthorityLastAuthorizedNumbers.pointOfSaleNumber, this.pointOfSale));
+      .where(
+        and(
+          eq(taxAuthorityLastAuthorizedNumbers.pointOfSaleNumber, this.pointOfSale),
+          eq(taxAuthorityLastAuthorizedNumbers.documentType, FACTURA_C_DOCUMENT_TYPE),
+        ),
+      );
     return row?.lastAuthorized ?? 0;
   }
 
@@ -202,6 +208,7 @@ class DrizzleNumberingConflictLane<TQueryResult extends PgQueryResultHKT>
       }
       await new DrizzleTaxAuthorityCounts(tx, pending).advance({
         pointOfSale: this.pointOfSale,
+        documentType: FACTURA_C_DOCUMENT_TYPE,
         lastAuthorized,
         readAt: this.now(),
       });

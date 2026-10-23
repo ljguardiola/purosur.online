@@ -19,6 +19,7 @@ export const PULLED_TABLES = {
   register_point_terminal: "register_point_terminal",
   register_qr_point_of_sale: "register_qr_point_of_sale",
   register_offline_point_of_sale: "register_offline_point_of_sale",
+  offline_series_counts: "register_offline_point_of_sale",
   discounts: "discount",
   issuer_identification_versions: "issuer_identification",
   buyer_identification_thresholds: "buyer_identification_threshold",

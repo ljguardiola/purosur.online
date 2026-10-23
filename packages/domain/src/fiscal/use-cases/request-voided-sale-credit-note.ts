@@ -33,7 +33,7 @@ export async function requestVoidedSaleCreditNote(
   } catch (error) {
     return { kind: "failed", answer: IN_PROGRESS, error };
   }
-  if (answer.kind === "authorized") {
+  if (answer.kind === "authorized" || answer.kind === "issued_offline") {
     printer.startPrinting(saleId);
   }
   return { kind: "answered", answer };

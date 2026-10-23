@@ -901,8 +901,22 @@
     {
       "idx": 128,
       "version": "7",
-      "when": 1792770782587,
-      "tag": "0135_deferred_invoice_prints",
+      "when": 1792771456909,
+      "tag": "0135_supplier_price_list_web_pages",
+      "breakpoints": true
+    },
+    {
+      "idx": 129,
+      "version": "7",
+      "when": 1792788410344,
+      "tag": "0136_offline_credit_notes",
+      "breakpoints": true
+    },
+    {
+      "idx": 130,
+      "version": "7",
+      "when": 1792792325546,
+      "tag": "0137_deferred_invoice_prints",
       "breakpoints": true
     }
   ]

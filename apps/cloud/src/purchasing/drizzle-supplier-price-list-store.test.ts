@@ -161,6 +161,7 @@ describe("inserting and locking a list", () => {
         locationId,
         sourceKind: "PDF",
         fileName: "lista.pdf",
+        contentKind: "PDF",
         byteSize: 2_048,
         uploadedAt: NOW,
         actorId,
@@ -172,6 +173,8 @@ describe("inserting and locking a list", () => {
       locationId,
       sourceKind: "PDF",
       fileName: "lista.pdf",
+      sourceUrl: null,
+      fileContentKind: "PDF",
       fileByteSize: 2_048,
       state: "READING",
       version: 1,
@@ -181,6 +184,57 @@ describe("inserting and locking a list", () => {
       sentOn: null,
       listDate: null,
     });
+  });
+
+  it("inserts a list read from a web page with its address and the kind of page kept", async () => {
+    const { id } = await store().transaction((tx) =>
+      tx.insertList({
+        supplierId,
+        locationId,
+        sourceKind: "WEB_PAGE",
+        sourceUrl: "https://distribuidora-sur.example/lista",
+        contentKind: "HTML",
+        byteSize: 4_096,
+        uploadedAt: NOW,
+        actorId,
+      }),
+    );
+
+    expect(await listRow(id)).toMatchObject({
+      sourceKind: "WEB_PAGE",
+      fileName: null,
+      sourceUrl: "https://distribuidora-sur.example/lista",
+      fileContentKind: "HTML",
+      fileByteSize: 4_096,
+      state: "READING",
+      version: 1,
+    });
+  });
+
+  it("finds where a list came from: a file, or the address of a web page", async () => {
+    const pdfId = await insertPriceList(db, { supplierId, locationId, actorId });
+    const webPageId = await insertPriceList(db, {
+      supplierId,
+      locationId,
+      actorId,
+      sourceUrl: "https://distribuidora-sur.example/lista",
+    });
+
+    const [pdf, webPage, missing] = await store().transaction((tx) =>
+      Promise.all([
+        tx.findListSource(pdfId),
+        tx.findListSource(webPageId),
+        tx.findListSource("00000000-0000-4000-8000-000000000000"),
+      ]),
+    );
+
+    expect(pdf).toEqual({ kind: "found", supplierId, source: { kind: "PDF" } });
+    expect(webPage).toEqual({
+      kind: "found",
+      supplierId,
+      source: { kind: "WEB_PAGE", url: "https://distribuidora-sur.example/lista" },
+    });
+    expect(missing).toEqual({ kind: "not_found" });
   });
 
   it("locks a list with its state, version, dates and the prices of its rows in order", async () => {
@@ -204,6 +258,7 @@ describe("inserting and locking a list", () => {
       list: {
         id: listId,
         sourceKind: "PDF",
+        contentKind: "PDF",
         state: "EXTRACTED",
         version: 4,
         listDate: "2026-03-01",
@@ -211,6 +266,23 @@ describe("inserting and locking a list", () => {
         sentAt: NOW,
         rowPrices: [500, null],
       },
+    });
+  });
+
+  it("locks a list read from a web page with the kind of content kept for it", async () => {
+    const listId = await insertPriceList(db, {
+      supplierId,
+      locationId,
+      actorId,
+      sourceUrl: "https://distribuidora-sur.example/lista",
+      contentKind: "HTML",
+    });
+
+    const locked = await store().transaction((tx) => tx.lockList(listId));
+
+    expect(locked).toMatchObject({
+      kind: "locked",
+      list: { sourceKind: "WEB_PAGE", contentKind: "HTML" },
     });
   });
 

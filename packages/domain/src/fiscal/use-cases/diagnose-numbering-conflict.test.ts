@@ -212,7 +212,13 @@ describe("diagnoseNumberingConflict", () => {
     await diagnose(ports);
 
     expect(store.recordedCounts).toEqual([
-      { pointOfSale: 12, lastAuthorized: 40, issuedOn: "2026-10-02", readAt: NOW },
+      {
+        pointOfSale: 12,
+        documentType: "factura_c",
+        lastAuthorized: 40,
+        issuedOn: "2026-10-02",
+        readAt: NOW,
+      },
     ]);
   });
 

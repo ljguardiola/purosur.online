@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  areNewSalesStopped,
   isInstallationRevoked,
   isSalesStopReason,
   SALES_DENIED_FOR_DAMAGED_LOCAL_DATABASE,
@@ -241,5 +242,47 @@ describe("isInstallationRevoked", () => {
 
   it("is false for a register stopped for a reason it did not record", () => {
     expect(isInstallationRevoked({ stopped: true, reason: undefined })).toBe(false);
+  });
+});
+
+describe("areNewSalesStopped", () => {
+  it("is false for a register still opening new sales, with nothing else denying them", () => {
+    expect(areNewSalesStopped({ stopped: false }, undefined, false, false)).toBe(false);
+  });
+
+  it("is true for a register stopped from opening new sales, whatever the reason", () => {
+    expect(
+      areNewSalesStopped(
+        { stopped: true, reason: "event_history_broken" },
+        undefined,
+        false,
+        false,
+      ),
+    ).toBe(true);
+    expect(
+      areNewSalesStopped(
+        { stopped: true, reason: "installation_revoked" },
+        undefined,
+        false,
+        false,
+      ),
+    ).toBe(true);
+    expect(areNewSalesStopped({ stopped: true, reason: undefined }, undefined, false, false)).toBe(
+      true,
+    );
+  });
+
+  it("is true while its storage stops new sales", () => {
+    expect(areNewSalesStopped({ stopped: false }, { reason: "disk_full" }, false, false)).toBe(
+      true,
+    );
+  });
+
+  it("is true while its local database is damaged", () => {
+    expect(areNewSalesStopped({ stopped: false }, undefined, true, false)).toBe(true);
+  });
+
+  it("is true while its battery is critically low", () => {
+    expect(areNewSalesStopped({ stopped: false }, undefined, false, true)).toBe(true);
   });
 });

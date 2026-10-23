@@ -1,12 +1,14 @@
 import {
   countsTowardDailyExtractionCap,
   DEFAULT_SUPPLIER_PRICE_LIST_DAILY_EXTRACTION_CAP,
+  type SupplierPriceListContentKind,
   type SupplierPriceListReadFailure,
   type SupplierPriceListSourceKind,
   type SupplierPriceListState,
 } from "@purosur/domain";
 import type {
   FindPriceListSupplierResult,
+  FindSupplierPriceListSourceResult,
   LockSupplierPriceListResult,
   LockSupplierPriceListRowResult,
   NewSupplierPriceListFields,
@@ -76,6 +78,24 @@ class DrizzleSupplierPriceListStoreTransaction<TQueryResult extends PgQueryResul
     return supplier ? { kind: "found", supplier } : { kind: "not_found" };
   }
 
+  async findListSource(listId: string): Promise<FindSupplierPriceListSourceResult> {
+    const [list] = await this.tx
+      .select({
+        supplierId: supplierPriceLists.supplierId,
+        sourceUrl: supplierPriceLists.sourceUrl,
+      })
+      .from(supplierPriceLists)
+      .where(eq(supplierPriceLists.id, listId));
+    if (!list) {
+      return { kind: "not_found" };
+    }
+    return {
+      kind: "found",
+      supplierId: list.supplierId,
+      source: list.sourceUrl === null ? { kind: "PDF" } : { kind: "WEB_PAGE", url: list.sourceUrl },
+    };
+  }
+
   async insertList(fields: NewSupplierPriceListFields): Promise<{ id: string }> {
     const [list] = await this.tx
       .insert(supplierPriceLists)
@@ -83,7 +103,10 @@ class DrizzleSupplierPriceListStoreTransaction<TQueryResult extends PgQueryResul
         supplierId: fields.supplierId,
         locationId: fields.locationId,
         sourceKind: fields.sourceKind,
-        fileName: fields.fileName,
+        ...(fields.sourceKind === "PDF"
+          ? { fileName: fields.fileName, sourceUrl: null }
+          : { fileName: null, sourceUrl: fields.sourceUrl }),
+        fileContentKind: fields.contentKind,
         fileByteSize: fields.byteSize,
         state: "READING",
         uploadedAt: fields.uploadedAt,
@@ -128,6 +151,7 @@ class DrizzleSupplierPriceListStoreTransaction<TQueryResult extends PgQueryResul
       list: {
         id: list.id,
         sourceKind: list.sourceKind as SupplierPriceListSourceKind,
+        contentKind: list.fileContentKind as SupplierPriceListContentKind,
         state: list.state as SupplierPriceListState,
         version: list.version,
         listDate: list.listDate,

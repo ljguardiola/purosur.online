@@ -1,4 +1,4 @@
-import type { FiscalDocumentType } from "../model/fiscal-rejection-standing.js";
+import type { FiscalTaskDocumentType } from "../model/fiscal-task.js";
 import {
   isOfflineNumberBlockUsedUp,
   nextOfflineNumberBlock,
@@ -9,7 +9,7 @@ import type { RegisterOfflinePointOfSaleStoreTransaction } from "./register-offl
 
 export interface AssignNextOfflineNumberBlockInput {
   pointOfSaleNumber: number;
-  documentType: FiscalDocumentType;
+  documentType: FiscalTaskDocumentType;
 }
 
 export type AssignNextOfflineNumberBlockOutcome =

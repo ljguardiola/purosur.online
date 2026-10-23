@@ -475,7 +475,7 @@ describe("deciding a sale's authorization when the register holds a code for its
     it("continues after the tax authority's last authorized number when it is above the documents issued", () => {
       database
         .prepare(
-          "UPDATE register_offline_point_of_sale SET tax_authority_last_authorized_number = 40",
+          "UPDATE offline_series_counts SET tax_authority_last_authorized_number = 40 WHERE document_type = 'factura_c'",
         )
         .run();
       database
@@ -559,7 +559,7 @@ describe("deciding a sale's authorization when the register holds a code for its
         () =>
           database
             .prepare(
-              "UPDATE register_offline_point_of_sale SET tax_authority_last_authorized_number = NULL",
+              "UPDATE offline_series_counts SET tax_authority_last_authorized_number = NULL WHERE document_type = 'factura_c'",
             )
             .run(),
       ],

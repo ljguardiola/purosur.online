@@ -1,12 +1,15 @@
 import {
   type SupplierPriceListConfirmationBody,
   type SupplierPriceListDiscardBody,
+  type SupplierPriceListPageRefused,
   type SupplierPriceListReview,
   type SupplierPriceListRowPriceBody,
   type SupplierPriceListRowRemovalBody,
   type SupplierPriceListSummary,
   type SupplierPriceListUploadQuery,
+  type SupplierPriceListWebPageBody,
   supplierPriceListListSchema,
+  supplierPriceListPageRefusedSchema,
   supplierPriceListReviewSchema,
   supplierPriceListUploadedSchema,
 } from "@purosur/contracts";
@@ -41,6 +44,20 @@ export type UploadSupplierPriceListOutcome =
   | { kind: "daily_cap_reached"; cap: number }
   | { kind: "file_too_large" }
   | { kind: "not_a_pdf" }
+  | { kind: "reading_unavailable" }
+  | RequestRefusal;
+
+export type WebPageRefusalReason = SupplierPriceListPageRefused["reason"];
+
+export type ReadSupplierPriceListWebPageOutcome =
+  | { kind: "ok" }
+  | { kind: "validation_failed"; field: string }
+  | { kind: "not_found" }
+  | { kind: "supplier_not_found" }
+  | { kind: "supplier_inactive" }
+  | { kind: "not_a_web_page" }
+  | { kind: "daily_cap_reached"; cap: number }
+  | { kind: "page_refused"; reason: WebPageRefusalReason }
   | { kind: "reading_unavailable" }
   | RequestRefusal;
 
@@ -84,7 +101,9 @@ function refusal(response: Response): RequestRefusal {
   return { kind: "failed" };
 }
 
-async function readBody(response: Response): Promise<{ code?: unknown; cap?: unknown }> {
+async function readBody(
+  response: Response,
+): Promise<{ code?: unknown; cap?: unknown; reason?: unknown }> {
   const body: unknown = await response.json().catch(() => undefined);
   return typeof body === "object" && body !== null ? body : {};
 }
@@ -169,6 +188,70 @@ export async function uploadSupplierPriceList(
     return { kind: "reading_unavailable" };
   }
   return refusal(response);
+}
+
+async function readWebPage(
+  path: string,
+  init: RequestInit,
+): Promise<ReadSupplierPriceListWebPageOutcome> {
+  let response: Response;
+  try {
+    response = await fetch(path, init);
+  } catch {
+    return { kind: "failed" };
+  }
+  if (response.ok) {
+    const queued = supplierPriceListUploadedSchema.safeParse(
+      await response.json().catch(() => undefined),
+    );
+    return queued.success ? { kind: "ok" } : { kind: "failed" };
+  }
+  if (response.status === 400) {
+    return validationFailed(response);
+  }
+  if (response.status === 404) {
+    const { code } = await readBody(response);
+    if (code === "supplier_not_found") {
+      return { kind: "supplier_not_found" };
+    }
+    return code === "not_found" ? { kind: "not_found" } : { kind: "failed" };
+  }
+  if (response.status === 409) {
+    const { code, cap } = await readBody(response);
+    if (code === "supplier_inactive" || code === "not_a_web_page") {
+      return { kind: code };
+    }
+    return code === "daily_cap_reached" && typeof cap === "number"
+      ? { kind: "daily_cap_reached", cap }
+      : { kind: "failed" };
+  }
+  if (response.status === 422) {
+    const refused = supplierPriceListPageRefusedSchema.safeParse(await readBody(response));
+    return refused.success
+      ? { kind: "page_refused", reason: refused.data.reason }
+      : { kind: "failed" };
+  }
+  if (response.status === 503) {
+    return { kind: "reading_unavailable" };
+  }
+  return refusal(response);
+}
+
+export function loadSupplierPriceListWebPage(
+  input: SupplierPriceListWebPageBody,
+): Promise<ReadSupplierPriceListWebPageOutcome> {
+  const body: SupplierPriceListWebPageBody = { supplierId: input.supplierId, url: input.url };
+  return readWebPage("/api/supplier-price-lists/web-page", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+export function refreshSupplierPriceList(
+  listId: string,
+): Promise<ReadSupplierPriceListWebPageOutcome> {
+  return readWebPage(`/api/supplier-price-lists/${listId}/refresh`, { method: "POST" });
 }
 
 async function changeReview<Conflict extends string>(

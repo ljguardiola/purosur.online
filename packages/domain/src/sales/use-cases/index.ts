@@ -274,6 +274,7 @@ export type {
 } from "./void-sale.js";
 export { voidSale } from "./void-sale.js";
 export type {
+  OfflineCreditNoteClockMark,
   SaleToVoid,
   SaleVoidLedger,
   SaleVoidTransaction,

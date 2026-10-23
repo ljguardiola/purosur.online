@@ -11,6 +11,7 @@ import {
   correctionRefusalMessage,
   issuedOnMessage,
   type RemedyFormValues,
+  type RemedyTarget,
   remedyFormValuesFrom,
   remedyRequestFrom,
   totalMessage,
@@ -32,9 +33,15 @@ const rejectedDocument: RejectedDocument = {
   buyerTaxStatusCode: 5,
   rejections: [{ code: 10016, message: "Fictional observation" }],
   remedy: "awaiting_remedy",
+  remedies: ["report", "printed"],
 };
 
-const target = { pointOfSaleNumber: 4, fortnight, rejectedDocument };
+const target: RemedyTarget = {
+  pointOfSaleNumber: 4,
+  fortnight,
+  documentType: "factura_c",
+  rejectedDocument,
+};
 
 function valuesWith(overrides: Partial<RemedyFormValues> = {}): RemedyFormValues {
   return { ...remedyFormValuesFrom(target), ...overrides };
@@ -87,6 +94,21 @@ test("asks for the document to be reported as presented when the error is in the
     point_of_sale_number: 4,
     fortnight_start: "2026-09-01",
     document_type: "factura_c",
+    number: 298,
+    remedy: { kind: "report" },
+  });
+  expect(rejectedDocumentRemedyBodySchema.safeParse(request).success).toBe(true);
+});
+
+test("asks for the credit note to be reported again as presented, naming its type", () => {
+  const request = remedyRequestFrom(
+    remedyFormValuesFrom({ ...target, documentType: "credit_note_c" }),
+  );
+
+  expect(request).toEqual({
+    point_of_sale_number: 4,
+    fortnight_start: "2026-09-01",
+    document_type: "credit_note_c",
     number: 298,
     remedy: { kind: "report" },
   });

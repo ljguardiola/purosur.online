@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { DrizzleOfflineAuthorizationCodeStore } from "../fiscal/drizzle-offline-authorization-code-store.js";
+import { DrizzleRegisterOfflinePointOfSaleStore } from "../fiscal/drizzle-register-offline-point-of-sale-store.js";
 import { configureOfflinePointOfSale } from "../fiscal/test-support/offline-point-of-sale-fixtures.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
@@ -111,6 +112,50 @@ describe("GET /changes carrying the offline number blocks", () => {
         version: 1,
       },
     ]);
+  });
+});
+
+describe("GET /changes carrying the offline number blocks of both series", () => {
+  it("gives a register the credit note block of its offline point of sale beside its factura block", async () => {
+    const registerId = await configureOfflinePointOfSale(db, {
+      registerName: "Caja 1",
+      realTimePointOfSale: 7,
+      offlinePointOfSale: 8,
+      now: NOW,
+    });
+    const { deviceToken } = await insertEnrolledInstallation(db, {
+      now: NOW,
+      existingRegisterId: registerId,
+    });
+    await new DrizzleRegisterOfflinePointOfSaleStore(db, () => NOW).transaction((tx) =>
+      tx.recordOfflineNumberBlock({
+        pointOfSaleNumber: 8,
+        documentType: "credit_note_c",
+        registerId,
+        range: { firstNumber: 5, lastNumber: 1004 },
+        status: "in_use",
+      }),
+    );
+
+    const rows = await pulledRows(deviceToken, "offline_number_block");
+
+    expect(rows).toHaveLength(2);
+    expect(rows).toContainEqual({
+      point_of_sale_number: 8,
+      document_type: "factura_c",
+      first_number: 1,
+      last_number: 1000,
+      status: "in_use",
+      version: 1,
+    });
+    expect(rows).toContainEqual({
+      point_of_sale_number: 8,
+      document_type: "credit_note_c",
+      first_number: 5,
+      last_number: 1004,
+      status: "in_use",
+      version: 1,
+    });
   });
 });
 

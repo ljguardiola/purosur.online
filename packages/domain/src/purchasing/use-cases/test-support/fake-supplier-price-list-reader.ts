@@ -41,6 +41,7 @@ export class FakeSupplierPriceListReader implements SupplierPriceListReader {
   }
 
   async fileName(listId: string): Promise<string | undefined> {
-    return this.data.lists.find((row) => row.id === listId)?.fileName;
+    const source = this.data.lists.find((row) => row.id === listId)?.source;
+    return source?.kind === "PDF" ? source.fileName : undefined;
   }
 }

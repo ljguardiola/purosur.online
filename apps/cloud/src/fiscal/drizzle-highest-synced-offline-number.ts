@@ -1,5 +1,5 @@
 import { syncedEventUpcaster } from "@purosur/contracts";
-import type { FiscalDocumentType } from "@purosur/domain";
+import type { FiscalTaskDocumentType } from "@purosur/domain";
 import { and, eq, isNull, max } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { inbox, offlineFiscalDocuments } from "../platform/db/schema.js";
@@ -10,7 +10,7 @@ const OFFLINE_DOCUMENT_EVENT_TYPE = "offline_fiscal_document_issued";
 export async function highestSyncedOfflineNumber<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   pointOfSaleNumber: number,
-  documentType: FiscalDocumentType,
+  documentType: FiscalTaskDocumentType,
 ): Promise<number | null> {
   const [recorded] = await db
     .select({ highest: max(offlineFiscalDocuments.number) })

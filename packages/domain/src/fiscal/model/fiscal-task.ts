@@ -1,6 +1,5 @@
 import type { FiscalDocumentType, TaxAuthorityRejection } from "./fiscal-rejection-standing.js";
-
-export const CREDIT_NOTE_C_DOCUMENT_TYPE = "credit_note_c";
+import { CREDIT_NOTE_C_DOCUMENT_TYPE } from "./fiscal-voucher-type.js";
 
 export const OPEN_FISCAL_TASK_STATE = "open";
 export const CLOSED_FISCAL_TASK_STATE = "closed";

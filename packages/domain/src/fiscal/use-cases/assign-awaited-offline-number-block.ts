@@ -1,4 +1,4 @@
-import { FACTURA_C_DOCUMENT_TYPE } from "../model/fiscal-rejection-standing.js";
+import type { FiscalTaskDocumentType } from "../model/fiscal-task.js";
 import {
   type AssignFirstOfflineNumberBlockOutcome,
   assignFirstOfflineNumberBlockLocked,
@@ -7,6 +7,7 @@ import type { RegisterOfflinePointOfSaleStore } from "./register-offline-point-o
 
 export interface AssignAwaitedOfflineNumberBlockInput {
   pointOfSaleNumber: number;
+  documentType: FiscalTaskDocumentType;
 }
 
 export type AssignAwaitedOfflineNumberBlockOutcome =
@@ -15,17 +16,17 @@ export type AssignAwaitedOfflineNumberBlockOutcome =
 
 export function assignAwaitedOfflineNumberBlock(
   store: RegisterOfflinePointOfSaleStore,
-  { pointOfSaleNumber }: AssignAwaitedOfflineNumberBlockInput,
+  { pointOfSaleNumber, documentType }: AssignAwaitedOfflineNumberBlockInput,
 ): Promise<AssignAwaitedOfflineNumberBlockOutcome> {
   return store.transaction<AssignAwaitedOfflineNumberBlockOutcome>(async (tx) => {
-    await tx.lockOfflineNumberBlocks(pointOfSaleNumber, FACTURA_C_DOCUMENT_TYPE);
+    await tx.lockOfflineNumberBlocks(pointOfSaleNumber, documentType);
     const registerId = await tx.offlineRegisterOf(pointOfSaleNumber);
     if (registerId === null) {
       return { kind: "no_offline_register" };
     }
     return assignFirstOfflineNumberBlockLocked(tx, {
       pointOfSaleNumber,
-      documentType: FACTURA_C_DOCUMENT_TYPE,
+      documentType,
       registerId,
     });
   });

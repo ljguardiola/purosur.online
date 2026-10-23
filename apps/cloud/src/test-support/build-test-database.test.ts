@@ -681,6 +681,7 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
       .values({ lastCallOkAt: new Date("2026-01-05T12:00:00.000Z") });
     await db.insert(taxAuthorityLastAuthorizedNumbers).values({
       pointOfSaleNumber: 7,
+      documentType: "factura_c",
       lastAuthorized: 41,
       readAt: new Date("2026-01-05T12:00:00.000Z"),
     });
@@ -977,6 +978,7 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
         locationId: await seededLocationId(db),
         sourceKind: "PDF",
         fileName: "lista.pdf",
+        fileContentKind: "PDF",
         fileByteSize: 1_000,
         state: "EXTRACTED",
         uploadedAt: new Date("2026-10-14T09:00:00.000Z"),

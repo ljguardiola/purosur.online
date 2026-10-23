@@ -60,7 +60,7 @@ function documentComprobante(
   sale: ReprintableSale,
 ): { name: string; detail: string } | undefined {
   if (document === "credit_note") {
-    return sale.credit_note?.kind === "authorized"
+    return sale.credit_note?.kind === "authorized" || sale.credit_note?.kind === "issued_offline"
       ? creditNoteComprobantePresentation(sale.credit_note)
       : undefined;
   }

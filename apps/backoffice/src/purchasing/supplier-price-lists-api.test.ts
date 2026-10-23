@@ -4,6 +4,8 @@ import {
   discardSupplierPriceList,
   fetchSupplierPriceListReview,
   fetchSupplierPriceLists,
+  loadSupplierPriceListWebPage,
+  refreshSupplierPriceList,
   removeSupplierPriceListRow,
   setSupplierPriceListRowPrice,
   uploadSupplierPriceList,
@@ -194,6 +196,169 @@ describe("uploadSupplierPriceList", () => {
     vi.mocked(fetch).mockRejectedValue(new Error("network down"));
 
     expect(await uploadSupplierPriceList(query, file)).toEqual({ kind: "failed" });
+  });
+});
+
+const WEB_PAGE_REFUSAL_REASONS = [
+  "invalid_address",
+  "address_not_public",
+  "too_many_redirects",
+  "too_large",
+  "too_slow",
+  "unsupported_content",
+  "unreachable",
+] as const;
+
+const webPageReadAnswers: [number, object, object][] = [
+  [409, { code: "supplier_inactive" }, { kind: "supplier_inactive" }],
+  [409, { code: "daily_cap_reached", cap: 10 }, { kind: "daily_cap_reached", cap: 10 }],
+  [503, { code: "supplier_price_list_reading_unavailable" }, { kind: "reading_unavailable" }],
+];
+
+describe("loadSupplierPriceListWebPage", () => {
+  const body = { supplierId: "supplier-1", url: "https://distribuidora-sur.example/precios" };
+
+  test("posts the supplier and the address as JSON and returns ok when the list was queued", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(201, { listId: "list-1" }));
+
+    expect(await loadSupplierPriceListWebPage(body)).toEqual({ kind: "ok" });
+    expect(fetch).toHaveBeenCalledWith("/api/supplier-price-lists/web-page", {
+      method: "POST",
+      ...JSON_BODY,
+      body: JSON.stringify(body),
+    });
+  });
+
+  test("returns failed for a 201 without the list's id", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(201, {}));
+
+    expect(await loadSupplierPriceListWebPage(body)).toEqual({ kind: "failed" });
+  });
+
+  test("returns validation_failed with the field the cloud refused", async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      jsonResponse(400, { code: "validation_failed", details: [{ field: "url" }] }),
+    );
+
+    expect(await loadSupplierPriceListWebPage(body)).toEqual({
+      kind: "validation_failed",
+      field: "url",
+    });
+  });
+
+  test.each<[number, object, object]>([
+    [404, { code: "supplier_not_found" }, { kind: "supplier_not_found" }],
+    ...webPageReadAnswers,
+  ])("answers a %i with %j as %j", async (status, answer, outcome) => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(status, answer));
+
+    expect(await loadSupplierPriceListWebPage(body)).toEqual(outcome);
+  });
+
+  test.each(WEB_PAGE_REFUSAL_REASONS)("answers a refused page for %s", async (reason) => {
+    vi.mocked(fetch).mockResolvedValue(
+      jsonResponse(422, { code: "page_refused", message: "the page could not be read", reason }),
+    );
+
+    expect(await loadSupplierPriceListWebPage(body)).toEqual({ kind: "page_refused", reason });
+  });
+
+  test("returns failed for a 422 that is not a page refusal", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(422, { reason: "too_large" }));
+
+    expect(await loadSupplierPriceListWebPage(body)).toEqual({ kind: "failed" });
+  });
+
+  test("returns failed for a 422 with a reason it does not know", async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      jsonResponse(422, {
+        code: "page_refused",
+        message: "the page could not be read",
+        reason: "x",
+      }),
+    );
+
+    expect(await loadSupplierPriceListWebPage(body)).toEqual({ kind: "failed" });
+  });
+
+  test("returns failed on a 409 with another code or a cap that is not a number", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code: "daily_cap_reached", cap: "x" }));
+    expect(await loadSupplierPriceListWebPage(body)).toEqual({ kind: "failed" });
+
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code: "other" }));
+    expect(await loadSupplierPriceListWebPage(body)).toEqual({ kind: "failed" });
+  });
+
+  test.each(refusals)("answers a %i as %j", async (status, outcome) => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(status));
+
+    expect(await loadSupplierPriceListWebPage(body)).toEqual(outcome);
+  });
+
+  test("returns rate_limited with the Retry-After header on 429", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(429, undefined, { "Retry-After": "60" }));
+
+    expect(await loadSupplierPriceListWebPage(body)).toEqual({
+      kind: "rate_limited",
+      retryAfterSeconds: 60,
+    });
+  });
+
+  test("returns failed when the request throws", async () => {
+    vi.mocked(fetch).mockRejectedValue(new Error("network down"));
+
+    expect(await loadSupplierPriceListWebPage(body)).toEqual({ kind: "failed" });
+  });
+});
+
+describe("refreshSupplierPriceList", () => {
+  test("posts to the list's refresh and returns ok when the list was queued again", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(201, { listId: "list-2" }));
+
+    expect(await refreshSupplierPriceList("list-1")).toEqual({ kind: "ok" });
+    expect(fetch).toHaveBeenCalledWith("/api/supplier-price-lists/list-1/refresh", {
+      method: "POST",
+    });
+  });
+
+  test.each<[number, object, object]>([
+    [404, { code: "not_found" }, { kind: "not_found" }],
+    [404, { code: "supplier_not_found" }, { kind: "supplier_not_found" }],
+    [409, { code: "not_a_web_page" }, { kind: "not_a_web_page" }],
+    ...webPageReadAnswers,
+  ])("answers a %i with %j as %j", async (status, answer, outcome) => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(status, answer));
+
+    expect(await refreshSupplierPriceList("list-1")).toEqual(outcome);
+  });
+
+  test.each(WEB_PAGE_REFUSAL_REASONS)("answers a refused page for %s", async (reason) => {
+    vi.mocked(fetch).mockResolvedValue(
+      jsonResponse(422, { code: "page_refused", message: "the page could not be read", reason }),
+    );
+
+    expect(await refreshSupplierPriceList("list-1")).toEqual({ kind: "page_refused", reason });
+  });
+
+  test.each(refusals)("answers a %i as %j", async (status, outcome) => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(status));
+
+    expect(await refreshSupplierPriceList("list-1")).toEqual(outcome);
+  });
+
+  test("returns rate_limited with the Retry-After header on 429", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(429, undefined, { "Retry-After": "30" }));
+
+    expect(await refreshSupplierPriceList("list-1")).toEqual({
+      kind: "rate_limited",
+      retryAfterSeconds: 30,
+    });
+  });
+
+  test("returns failed when the request throws", async () => {
+    vi.mocked(fetch).mockRejectedValue(new Error("network down"));
+
+    expect(await refreshSupplierPriceList("list-1")).toEqual({ kind: "failed" });
   });
 });
 

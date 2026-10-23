@@ -26,7 +26,12 @@ export async function otherDocumentsOfSale<TQueryResult extends PgQueryResultHKT
       number: offlineFiscalDocuments.number,
     })
     .from(offlineFiscalDocuments)
-    .where(eq(offlineFiscalDocuments.saleId, saleId))
+    .where(
+      and(
+        eq(offlineFiscalDocuments.saleId, saleId),
+        eq(offlineFiscalDocuments.documentType, FACTURA_C_DOCUMENT_TYPE),
+      ),
+    )
     .orderBy(asc(offlineFiscalDocuments.number));
   const realTime = await db
     .select()

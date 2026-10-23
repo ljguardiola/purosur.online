@@ -1,5 +1,6 @@
 import type { JsonValue } from "../../shared/index.js";
 import { FACTURA_C_VOUCHER_TYPE } from "./factura-c-fiscal-block.js";
+import type { Fortnight } from "./offline-authorization-code.js";
 import type { VoucherReference } from "./orphan-authorization.js";
 import type { FiscalDocumentState } from "./real-time-authorization.js";
 
@@ -37,14 +38,32 @@ export type CreditNoteAnswer =
   | { kind: "rejected" }
   | { kind: "in_progress" };
 
-export type VoidCreditNoteStanding = CreditNoteAnswer | { kind: "already_credited" };
+export interface CreditNoteIssuedOffline {
+  kind: "issued_offline";
+  pointOfSale: number;
+  number: number;
+  issuedOn: string;
+  issuedAt: Date;
+  offlineAuthorizationCode: string;
+  fortnight: Fortnight;
+}
+
+export type VoidCreditNoteStanding =
+  | CreditNoteAnswer
+  | { kind: "already_credited" }
+  | CreditNoteIssuedOffline;
+
+export type RequestedCreditNoteAnswer = Exclude<
+  VoidCreditNoteStanding,
+  { kind: "in_progress" | "issued_offline" }
+>;
 
 type ConfirmedCreditNoteAnswer = Exclude<CreditNoteAnswer, { kind: "in_progress" }>;
 
 export interface RestoredCreditNoteAnswer {
   creditNoteId: string;
   answeredAt: Date;
-  answer: ConfirmedCreditNoteAnswer | { kind: "already_credited" };
+  answer: ConfirmedCreditNoteAnswer | { kind: "already_credited" } | CreditNoteIssuedOffline;
 }
 
 export type CreditNoteStanding =
@@ -99,7 +118,11 @@ export type RestoredCreditNoteSettlement =
 export function restoredCreditNoteSettlement(
   recorded: { standing: CreditNoteStanding; pointOfSale: number } | null,
   alreadyCreditedRefusalKept: boolean,
+  issuedOffline: CreditNoteIssuedOffline | null = null,
 ): RestoredCreditNoteSettlement {
+  if (issuedOffline !== null) {
+    return { kind: "answered", answer: issuedOffline };
+  }
   if (recorded !== null) {
     const answer = confirmedCreditNoteAnswer(recorded.standing, recorded.pointOfSale);
     return answer === null ? { kind: "unsettled" } : { kind: "answered", answer };

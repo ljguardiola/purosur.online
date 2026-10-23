@@ -125,7 +125,7 @@ export class SqliteReceiptLedger implements ReceiptLedger {
                 (state = 'VOIDED') AS voided,
                 EXISTS (SELECT 1 FROM sale_void_credit_notes
                   WHERE sale_void_credit_notes.sale_id = sales.id
-                    AND sale_void_credit_notes.state = 'AUTHORIZED') AS credit_note_authorized
+                    AND sale_void_credit_notes.state IN ('AUTHORIZED', 'ISSUED_OFFLINE')) AS credit_note_authorized
          FROM sales WHERE id = @sale_id AND state IN ('COMPLETED', 'VOIDED')`,
       )
       .get({ sale_id: saleId, document });

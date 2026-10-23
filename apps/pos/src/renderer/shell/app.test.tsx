@@ -232,7 +232,7 @@ function coreAnswering(
         cloud: "reachable",
         serial_devices: { scale: "matching", reader: "matching" },
         serial_devices_setup_offered: serialDevicesSetupOffered,
-        fiscal_mode: "real_time",
+        contingency: null,
       };
     },
     async recordCashMovement(input) {
@@ -2112,7 +2112,7 @@ describe("App", () => {
           cloud: "unreachable",
           serial_devices: { scale: "matching", reader: "matching" },
           serial_devices_setup_offered: false,
-          fiscal_mode: "real_time",
+          contingency: null,
         };
       },
     };

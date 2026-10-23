@@ -155,9 +155,12 @@ describe("numberingConflictJobs", () => {
       await issueWsaaToken();
       const registerId = await registerOfPointOfSale();
       const fiscalDocumentId = await recordRequest(registerId, 40, numberingConflict(40));
-      await testDatabase.db
-        .insert(taxAuthorityLastAuthorizedNumbers)
-        .values({ pointOfSaleNumber: 7, lastAuthorized: 12, readAt: FROZEN_AT });
+      await testDatabase.db.insert(taxAuthorityLastAuthorizedNumbers).values({
+        pointOfSaleNumber: 7,
+        documentType: "factura_c",
+        lastAuthorized: 12,
+        readAt: FROZEN_AT,
+      });
       server.behave(answersInTurn("fe-comp-ultimo-autorizado.xml", "fe-comp-consultar-found.xml"));
       const { diagnose } = tasksUnderTest();
       const { helpers, addJob } = buildJobHelpers();
@@ -254,6 +257,7 @@ describe("numberingConflictJobs", () => {
         .values({ pointOfSaleNumber: 7, countBeforeFreeze, frozenAt: FROZEN_AT });
       await testDatabase.db.insert(taxAuthorityLastAuthorizedNumbers).values({
         pointOfSaleNumber: 7,
+        documentType: "factura_c",
         lastAuthorized: countBeforeFreeze,
         issuedOn: "2026-10-05",
         readAt: FROZEN_AT,
@@ -294,7 +298,13 @@ describe("numberingConflictJobs", () => {
         },
       ]);
       expect(await testDatabase.db.select().from(taxAuthorityLastAuthorizedNumbers)).toEqual([
-        { pointOfSaleNumber: 7, lastAuthorized: 3, issuedOn: "2026-10-05", readAt: NOW },
+        {
+          pointOfSaleNumber: 7,
+          documentType: "factura_c",
+          lastAuthorized: 3,
+          issuedOn: "2026-10-05",
+          readAt: NOW,
+        },
       ]);
       expect(await freezes()).toEqual([]);
     });

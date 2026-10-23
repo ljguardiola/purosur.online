@@ -4,6 +4,7 @@ import {
   insertFiscalDocument,
   insertOfflineFiscalDocument,
   insertOfflinePointOfSale,
+  OFFLINE_CODE,
 } from "../fiscal/test-support/real-time-authorization-database";
 import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
@@ -14,6 +15,7 @@ import {
   ANSWERED_AT,
   ISSUED_AT,
   insertCreditNote,
+  insertCreditNoteIssuedOffline,
   insertVoidedSale,
 } from "./test-support/credit-note-receipt-database";
 
@@ -159,6 +161,71 @@ describe("the receipt of the credit note of a voided sale", () => {
     expect(readCreditNoteReceipt(database, "sale-1")?.fiscal).toMatchObject({
       issuer: { cuit: FICTIONAL_CUIT },
       corrects: { pointOfSale: 31, number: 8 },
+    });
+  });
+
+  describe("issued offline", () => {
+    it("carries the contingency document's number, its code and fortnight and the invoice it corrects", () => {
+      insertFiscalDocument(database, { saleId: "sale-1", state: "AUTHORIZED", number: 41 });
+      insertOfflinePointOfSale(database, 31);
+      insertCreditNoteIssuedOffline(database, { pointOfSale: 31, number: 9 });
+
+      const receipt = readCreditNoteReceipt(database, "sale-1");
+
+      expect(receipt).toMatchObject({
+        operation: { occurredAt: new Date("2026-09-30T12:30:00.000Z"), operationNumber: 482 },
+        issuedOn: "2026-09-30",
+        totals: { total: 1190000 },
+        refunds: [
+          { method: "CASH", amount: 700000 },
+          { method: "TRANSFER", amount: 490000 },
+        ],
+        fiscal: {
+          voucherTypeCode: 13,
+          issuer: { legalName: FICTIONAL_LEGAL_NAME, cuit: FICTIONAL_CUIT },
+          buyerTaxStatusDescription: "Consumidor Final",
+          pointOfSale: 31,
+          number: 9,
+          authorizationCode: OFFLINE_CODE,
+          fortnight: { start: "2026-09-16", end: "2026-09-30" },
+          corrects: { voucherType: 11, pointOfSale: 12, number: 41 },
+        },
+      });
+      expect(receipt?.fiscal).not.toHaveProperty("authorizationCodeDueOn");
+    });
+
+    it("encodes the contingency code in the QR", () => {
+      insertFiscalDocument(database, { saleId: "sale-1", state: "AUTHORIZED", number: 41 });
+      insertOfflinePointOfSale(database, 31);
+      insertCreditNoteIssuedOffline(database, { pointOfSale: 31, number: 9 });
+
+      const qr = JSON.parse(
+        atob(readCreditNoteReceipt(database, "sale-1")?.fiscal.qrText.split("?p=")[1] ?? ""),
+      );
+
+      expect(qr).toMatchObject({
+        tipoCmp: 13,
+        ptoVta: 31,
+        nroCmp: 9,
+        importe: 11900,
+        tipoCodAut: "A",
+        codAut: Number(OFFLINE_CODE),
+      });
+    });
+
+    it("reads the issuer from the contingency invoice, not from a credit note that shares its point of sale and number", () => {
+      insertOfflinePointOfSale(database, 31);
+      insertOfflineFiscalDocument(database, { saleId: "sale-1", pointOfSale: 31, number: 8 });
+      insertCreditNoteIssuedOffline(
+        database,
+        { pointOfSale: 31, number: 8 },
+        { pointOfSale: 31, number: 8 },
+      );
+
+      expect(readCreditNoteReceipt(database, "sale-1")?.fiscal).toMatchObject({
+        issuer: { cuit: FICTIONAL_CUIT },
+        corrects: { pointOfSale: 31, number: 8 },
+      });
     });
   });
 });

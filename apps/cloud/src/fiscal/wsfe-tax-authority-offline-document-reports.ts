@@ -1,4 +1,4 @@
-import { FACTURA_C_VOUCHER_TYPE, generationStampOf } from "@purosur/domain";
+import { generationStampOf, voucherTypeOfDocumentType } from "@purosur/domain";
 import type {
   OfflineDocumentBatchLimitAnswer,
   OfflineDocumentLastReportedAnswer,
@@ -10,7 +10,7 @@ import type {
 } from "@purosur/domain/fiscal/use-cases";
 import type { Client } from "soap";
 import { createWsfeClient, rejectionsOf } from "./wsfe-client.js";
-import { facturaCDetail } from "./wsfe-factura-c-detail.js";
+import { associatedVoucherDetail, facturaCDetail } from "./wsfe-factura-c-detail.js";
 import { owedPresentationsOf } from "./wsfe-owed-presentations.js";
 
 const OFFLINE_DOCUMENT_REPORT_TIMEOUT_MS = 30_000;
@@ -66,10 +66,11 @@ export class WsfeTaxAuthorityOfflineDocumentReports implements TaxAuthorityOffli
   async lastReported({
     token,
     pointOfSaleNumber,
+    documentType,
   }: OfflineDocumentLastReportedCall): Promise<OfflineDocumentLastReportedAnswer> {
     const result = await this.call<LastReportedResult>("FECompUltimoAutorizado", token, {
       PtoVta: pointOfSaleNumber,
-      CbteTipo: FACTURA_C_VOUCHER_TYPE,
+      CbteTipo: voucherTypeOfDocumentType(documentType),
     });
     if (result === undefined) {
       return NO_ANSWER;
@@ -102,6 +103,7 @@ export class WsfeTaxAuthorityOfflineDocumentReports implements TaxAuthorityOffli
   async report({
     token,
     pointOfSaleNumber,
+    documentType,
     code,
     documents,
   }: OfflineDocumentReportCall): Promise<OfflineDocumentReportAnswer> {
@@ -110,11 +112,12 @@ export class WsfeTaxAuthorityOfflineDocumentReports implements TaxAuthorityOffli
         FeCabReq: {
           CantReg: documents.length,
           PtoVta: pointOfSaleNumber,
-          CbteTipo: FACTURA_C_VOUCHER_TYPE,
+          CbteTipo: voucherTypeOfDocumentType(documentType),
         },
         FeDetReq: {
           FECAEADetRequest: documents.map((document) => ({
             ...facturaCDetail(document),
+            ...(document.corrects === undefined ? {} : associatedVoucherDetail(document.corrects)),
             CAEA: code,
             CbteFchHsGen: generationStampOf(document.generatedAt),
           })),

@@ -1,4 +1,9 @@
-import { isPointOfSaleNumber } from "@purosur/domain";
+import {
+  CREDIT_NOTE_C_DOCUMENT_TYPE,
+  FACTURA_C_DOCUMENT_TYPE,
+  type FiscalTaskDocumentType,
+  isPointOfSaleNumber,
+} from "@purosur/domain";
 import {
   assignAwaitedOfflineNumberBlock,
   recordTaxAuthorityLastAuthorized,
@@ -26,15 +31,21 @@ export interface TaxAuthorityCountJobsDeps {
   createDatabase?: (client: PoolClient) => PgDatabase<PgQueryResultHKT>;
 }
 
-function pointOfSaleOf(payload: unknown): number {
-  const pointOfSale =
+function seriesOf(payload: unknown): {
+  pointOfSale: number;
+  documentType: FiscalTaskDocumentType;
+} {
+  const { pointOfSale, documentType } =
     typeof payload === "object" && payload !== null
-      ? (payload as { pointOfSale?: unknown }).pointOfSale
-      : undefined;
+      ? (payload as { pointOfSale?: unknown; documentType?: unknown })
+      : { pointOfSale: undefined, documentType: undefined };
   if (typeof pointOfSale !== "number" || !isPointOfSaleNumber(pointOfSale)) {
     throw new Error("the job names no point of sale");
   }
-  return pointOfSale;
+  if (documentType !== FACTURA_C_DOCUMENT_TYPE && documentType !== CREDIT_NOTE_C_DOCUMENT_TYPE) {
+    throw new Error("the job names no known document type");
+  }
+  return { pointOfSale, documentType };
 }
 
 export function taxAuthorityCountJobs(
@@ -45,7 +56,7 @@ export function taxAuthorityCountJobs(
   return {
     taskList: {
       [TAX_AUTHORITY_COUNT_TASK_IDENTIFIER]: async (payload, helpers) => {
-        const pointOfSale = pointOfSaleOf(payload);
+        const { pointOfSale, documentType } = seriesOf(payload);
         await helpers.withPgClient(async (client) => {
           const db = doCreateDatabase(client);
           const outcome = await recordTaxAuthorityLastAuthorized(
@@ -56,18 +67,16 @@ export function taxAuthorityCountJobs(
               counts: new DrizzleTaxAuthorityCounts(db),
               clock: { now },
             },
-            { pointOfSale },
+            { pointOfSale, documentType },
           );
           if (outcome.kind !== "recorded") {
             throw new Error(
-              `the tax authority's last authorized number of point of sale ${pointOfSale} was not read: ${outcome.kind}`,
+              `the tax authority's last authorized ${documentType} number of point of sale ${pointOfSale} was not read: ${outcome.kind}`,
             );
           }
           await assignAwaitedOfflineNumberBlock(
             new DrizzleRegisterOfflinePointOfSaleStore(db, now),
-            {
-              pointOfSaleNumber: pointOfSale,
-            },
+            { pointOfSaleNumber: pointOfSale, documentType },
           );
         });
       },

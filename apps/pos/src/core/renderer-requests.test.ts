@@ -177,7 +177,7 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
         cloud: "unknown",
         serial_devices: { scale: "not_registered", reader: "not_registered" },
         serial_devices_setup_offered: false,
-        fiscal_mode: "real_time",
+        contingency: null,
       }),
       restorationStanding: (): RestorationStandingAnswer => ({ kind: "completed" }),
       recordCashMovement: async (
@@ -905,7 +905,7 @@ describe("answerRendererRequest", () => {
       cloud: "unreachable",
       serial_devices: { scale: "matching", reader: "not_detected" },
       serial_devices_setup_offered: false,
-      fiscal_mode: "real_time",
+      contingency: null,
     };
 
     expect(

@@ -183,6 +183,8 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
     supplierPriceListsScreen: {
       fetchSupplierPriceLists: vi.fn().mockReturnValue(new Promise(() => {})),
       uploadSupplierPriceList: vi.fn(),
+      loadSupplierPriceListWebPage: vi.fn(),
+      refreshSupplierPriceList: vi.fn(),
       fetchSuppliers: vi.fn().mockReturnValue(new Promise(() => {})),
     },
     supplierPriceListReviewScreen: {

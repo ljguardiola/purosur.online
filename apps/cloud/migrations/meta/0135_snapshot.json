@@ -1,5 +1,5 @@
 {
-  "id": "1fd06487-16c1-4cbd-b1cc-d0a4a97aba59",
+  "id": "120736dd-4dbd-4299-9006-3179562f6cb8",
   "prevId": "5816cacb-6c54-450e-9351-21c6146cf70d",
   "version": "7",
   "dialect": "postgresql",
@@ -8888,7 +8888,7 @@
       "checkConstraints": {
         "sale_reprints_document_check": {
           "name": "sale_reprints_document_check",
-          "value": "\"sale_reprints\".\"document\" in ('sale_receipt', 'credit_note', 'deferred_invoice')"
+          "value": "\"sale_reprints\".\"document\" in ('sale_receipt', 'credit_note')"
         },
         "sale_reprints_order_number_positive_check": {
           "name": "sale_reprints_order_number_positive_check",
@@ -9094,18 +9094,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "deferred_invoice_print_attempted_at": {
-          "name": "deferred_invoice_print_attempted_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "deferred_invoice_printed_at": {
-          "name": "deferred_invoice_printed_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
         "applied_at": {
           "name": "applied_at",
           "type": "timestamp with time zone",
@@ -9167,10 +9155,6 @@
         "sales_credit_note_printed_only_after_attempted_check": {
           "name": "sales_credit_note_printed_only_after_attempted_check",
           "value": "\"sales\".\"credit_note_printed_at\" is null or \"sales\".\"credit_note_print_attempted_at\" is not null"
-        },
-        "sales_deferred_invoice_printed_only_after_attempted_check": {
-          "name": "sales_deferred_invoice_printed_only_after_attempted_check",
-          "value": "\"sales\".\"deferred_invoice_printed_at\" is null or \"sales\".\"deferred_invoice_print_attempted_at\" is not null"
         },
         "sales_state_check": {
           "name": "sales_state_check",
@@ -10182,6 +10166,18 @@
           "name": "file_name",
           "type": "text",
           "primaryKey": false,
+          "notNull": false
+        },
+        "source_url": {
+          "name": "source_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "file_content_kind": {
+          "name": "file_content_kind",
+          "type": "text",
+          "primaryKey": false,
           "notNull": true
         },
         "file_byte_size": {
@@ -10373,7 +10369,15 @@
       "checkConstraints": {
         "supplier_price_lists_source_kind_check": {
           "name": "supplier_price_lists_source_kind_check",
-          "value": "\"supplier_price_lists\".\"source_kind\" in ('PDF')"
+          "value": "\"supplier_price_lists\".\"source_kind\" in ('PDF', 'WEB_PAGE')"
+        },
+        "supplier_price_lists_file_content_kind_check": {
+          "name": "supplier_price_lists_file_content_kind_check",
+          "value": "\"supplier_price_lists\".\"file_content_kind\" in ('PDF', 'HTML')"
+        },
+        "supplier_price_lists_source_check": {
+          "name": "supplier_price_lists_source_check",
+          "value": "(\"supplier_price_lists\".\"source_kind\" = 'PDF' and \"supplier_price_lists\".\"file_name\" is not null and \"supplier_price_lists\".\"source_url\" is null) or (\"supplier_price_lists\".\"source_kind\" = 'WEB_PAGE' and \"supplier_price_lists\".\"source_url\" is not null and \"supplier_price_lists\".\"file_name\" is null)"
         },
         "supplier_price_lists_state_check": {
           "name": "supplier_price_lists_state_check",

@@ -1,5 +1,6 @@
 import type { VoidCreditNoteStanding } from "../../model/sale-void-credit-note.js";
 import type {
+  CloudCreditNoteAnswer,
   CloudCreditNoteCall,
   CloudCreditNotes,
   CreditNotePrinter,
@@ -7,7 +8,7 @@ import type {
   RegisterVoidCreditNotes,
 } from "../request-void-credit-notes-ports.js";
 
-export type CloudReply = VoidCreditNoteStanding | null;
+export type CloudReply = CloudCreditNoteAnswer | null;
 
 export class FakeRegisterVoidCreditNotes implements RegisterVoidCreditNotes {
   readonly answered = new Map<string, { answer: VoidCreditNoteStanding; answeredAt: Date }>();

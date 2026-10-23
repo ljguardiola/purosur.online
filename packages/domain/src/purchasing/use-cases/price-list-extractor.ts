@@ -1,5 +1,7 @@
 // What the AI service receives is the source and nothing else: no supplier, branch or person.
-export type PriceListSource = { kind: "pdf"; bytes: Uint8Array };
+export type PriceListSource =
+  | { kind: "pdf"; bytes: Uint8Array }
+  | { kind: "web_page"; html: Uint8Array };
 
 export interface ExtractedPriceListRow {
   description: string;

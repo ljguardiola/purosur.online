@@ -263,7 +263,11 @@ describe("POST /api/devices", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(enqueueTaxAuthorityCountOnEnrollment).toHaveBeenCalledWith(expect.anything(), 7);
+    expect(enqueueTaxAuthorityCountOnEnrollment).toHaveBeenCalledWith(
+      expect.anything(),
+      7,
+      "factura_c",
+    );
   });
 });
 
@@ -281,9 +285,12 @@ describe("POST /api/devices numbering reconciliation", () => {
       issuedAt: APP_CLOCK,
       expiresAt: new Date(APP_CLOCK.getTime() + 10 * 60 * 1000),
     });
-    await testDatabase.db
-      .insert(taxAuthorityLastAuthorizedNumbers)
-      .values({ pointOfSaleNumber: 7, lastAuthorized: 11, readAt: APP_CLOCK });
+    await testDatabase.db.insert(taxAuthorityLastAuthorizedNumbers).values({
+      pointOfSaleNumber: 7,
+      documentType: "factura_c",
+      lastAuthorized: 11,
+      readAt: APP_CLOCK,
+    });
     const enqueueNumberingReconciliationOnEnrollment = vi.fn(async () => undefined);
     const app = buildApp({
       now: () => APP_CLOCK,
@@ -1372,6 +1379,12 @@ describe("wiring the purchasing routes", () => {
         url: `/api/supplier-price-lists/${ID}/discard`,
         headers: ORIGIN,
       }),
+      app.inject({ method: "POST", url: "/api/supplier-price-lists/web-page", headers: ORIGIN }),
+      app.inject({
+        method: "POST",
+        url: `/api/supplier-price-lists/${ID}/refresh`,
+        headers: ORIGIN,
+      }),
     ]);
     return responses.map((response) => response.statusCode);
   }
@@ -1379,7 +1392,7 @@ describe("wiring the purchasing routes", () => {
   it("does not register the purchasing routes when no purchasing option is given", async () => {
     const app = buildApp({ now: () => APP_CLOCK, version: "abc1234" });
 
-    expect(await purchasingResponses(app)).toEqual(Array(25).fill(404));
+    expect(await purchasingResponses(app)).toEqual(Array(27).fill(404));
   });
 
   it("registers the purchasing routes when a purchasing option is given", async () => {
@@ -1389,7 +1402,7 @@ describe("wiring the purchasing routes", () => {
       purchasing: { db: testDatabase.db, backofficeOrigin: "https://staging.purosur.online" },
     });
 
-    expect(await purchasingResponses(app)).toEqual(Array(25).fill(401));
+    expect(await purchasingResponses(app)).toEqual(Array(27).fill(401));
   });
 });
 
@@ -2684,6 +2697,16 @@ describe("the route access inventory", () => {
       {
         method: "POST",
         url: "/api/supplier-price-lists/:id/discard",
+        access: capabilityAccess("supplier_price_lists"),
+      },
+      {
+        method: "POST",
+        url: "/api/supplier-price-lists/web-page",
+        access: capabilityAccess("supplier_price_lists"),
+      },
+      {
+        method: "POST",
+        url: "/api/supplier-price-lists/:id/refresh",
         access: capabilityAccess("supplier_price_lists"),
       },
       {

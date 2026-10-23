@@ -10,7 +10,24 @@ const AUTHORIZED = {
   authorization_code_due_on: "2026-10-19",
 } as const;
 
+const ISSUED_OFFLINE = {
+  kind: "issued_offline",
+  point_of_sale: 9,
+  number: 41,
+  issued_on: "2026-10-09",
+  offline_authorization_code: "71234567890123",
+  fortnight_start: "2026-10-01",
+  fortnight_end: "2026-10-15",
+} as const;
+
 describe("creditNoteRow", () => {
+  it("names a credit note issued under the contingency code with its point of sale and number", () => {
+    expect(creditNoteRow(ISSUED_OFFLINE)).toEqual({
+      label: "Nota de crédito C · CAEA",
+      value: "PV 00009 · Nº 00000041",
+    });
+  });
+
   it("names the point of sale and number of an authorized credit note", () => {
     expect(creditNoteRow(AUTHORIZED)).toEqual({
       label: "Nota de crédito C",
@@ -34,13 +51,16 @@ describe("creditNoteRow", () => {
 });
 
 describe("voidedSaleNotice", () => {
-  it.each([null, AUTHORIZED])("only says the merchandise went back to stock: %j", (creditNote) => {
-    expect(voidedSaleNotice(creditNote)).toEqual({
-      tone: "success",
-      title: "Venta anulada",
-      description: "La mercadería volvió al stock.",
-    });
-  });
+  it.each([null, AUTHORIZED, ISSUED_OFFLINE])(
+    "only says the merchandise went back to stock: %j",
+    (creditNote) => {
+      expect(voidedSaleNotice(creditNote)).toEqual({
+        tone: "success",
+        title: "Venta anulada",
+        description: "La mercadería volvió al stock.",
+      });
+    },
+  );
 
   it("says the credit note is printed from the history once it is known", () => {
     expect(voidedSaleNotice({ kind: "in_progress" })).toEqual({

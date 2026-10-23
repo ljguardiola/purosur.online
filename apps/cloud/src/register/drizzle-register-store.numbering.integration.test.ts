@@ -88,9 +88,12 @@ async function freezeOf(pointOfSale: number) {
 }
 
 async function holdCount(pointOfSale: number, lastAuthorized: number) {
-  await db
-    .insert(taxAuthorityLastAuthorizedNumbers)
-    .values({ pointOfSaleNumber: pointOfSale, lastAuthorized, readAt: ENROLLED_AT });
+  await db.insert(taxAuthorityLastAuthorizedNumbers).values({
+    pointOfSaleNumber: pointOfSale,
+    documentType: "factura_c",
+    lastAuthorized,
+    readAt: ENROLLED_AT,
+  });
 }
 
 describe("reconciling a register's real-time numbering on a real Postgres", () => {
@@ -295,7 +298,12 @@ describe("reconciling a register's real-time numbering on a real Postgres", () =
                 }
                 return async (enrolledRegisterId: string) => {
                   advance = new DrizzleTaxAuthorityCounts(drizzle(counting))
-                    .advance({ pointOfSale: 58, lastAuthorized: 26, readAt: ENROLLED_AT })
+                    .advance({
+                      pointOfSale: 58,
+                      documentType: "factura_c",
+                      lastAuthorized: 26,
+                      readAt: ENROLLED_AT,
+                    })
                     .then(
                       () => {
                         advanced = true;

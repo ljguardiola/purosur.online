@@ -20,6 +20,7 @@ import {
   NUMBER_CONSUMING_STATES,
   nextInvoiceNumber,
   OFFLINE_AUTHORIZATION_CAUSES,
+  offlineRoute,
   REAL_TIME_AUTHORIZATION_TIMEOUT_MS,
   ROUND_TRIP_SAMPLE_SIZE,
   realTimeAuthorizationResolution,
@@ -1209,5 +1210,57 @@ describe("decideSaleAuthorizationRoute while a deferred-sale backlog is pending"
     expect(
       decide({ gate: { kind: "failed", reason: "legal_name_missing" }, series: BACKLOG_SERIES }),
     ).toEqual({ kind: "defer", reason: "pre_emission_gate_failed" });
+  });
+});
+
+describe("offlineRoute", () => {
+  function route(changes: Partial<Parameters<typeof offlineRoute>[0]> = {}) {
+    return offlineRoute({
+      occurredAt: OCCURRED_AT,
+      series: OFFLINE_SERIES,
+      offlineAuthorizationCode: CODE,
+      ...changes,
+    });
+  }
+
+  it("issues the next number of the series under the fortnight's code", () => {
+    expect(route()).toEqual({
+      kind: "issue_offline",
+      pointOfSale: 7,
+      number: 101,
+      issuedOn: "2026-10-01",
+      fortnight: OCTOBER_FIRST_FORTNIGHT,
+      offlineAuthorizationCode: CODE,
+    });
+  });
+
+  it("continues after the numbers the register already used", () => {
+    expect(route({ series: { ...OFFLINE_SERIES, localLastUsed: 104 } })).toMatchObject({
+      number: 105,
+    });
+  });
+
+  it.each([
+    ["the point of sale is missing", { ...OFFLINE_SERIES, pointOfSale: null }, CODE],
+    [
+      "the tax authority's count is unknown",
+      { ...OFFLINE_SERIES, taxAuthorityLastAuthorized: null },
+      CODE,
+    ],
+    ["the block is exhausted", { ...OFFLINE_SERIES, localLastUsed: 1100 }, CODE],
+    ["the fortnight has no code", OFFLINE_SERIES, null],
+  ])("is unavailable when %s", (_case, series, offlineAuthorizationCode) => {
+    expect(route({ series, offlineAuthorizationCode })).toEqual({
+      kind: "unavailable",
+      reason: "unavailable",
+    });
+  });
+
+  it("is unavailable behind the series' own clock mark", () => {
+    expect(
+      route({
+        series: { ...OFFLINE_SERIES, clockMark: MORE_THAN_A_MINUTE_AHEAD_OF_OCCURRED_AT },
+      }),
+    ).toEqual({ kind: "unavailable", reason: "clock_behind" });
   });
 });

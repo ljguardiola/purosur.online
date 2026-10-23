@@ -53,7 +53,9 @@ export class FakeTaxAuthorityCounts implements TaxAuthorityCounts {
   }
 
   async advance(count: LastAuthorizedCount): Promise<void> {
-    const index = this.stored.findIndex((held) => held.pointOfSale === count.pointOfSale);
+    const index = this.stored.findIndex(
+      (held) => held.pointOfSale === count.pointOfSale && held.documentType === count.documentType,
+    );
     const held = this.stored[index];
     const issuedOn = [count.issuedOn ?? null, held?.issuedOn ?? null]
       .filter((day) => day !== null)

@@ -45,3 +45,50 @@ export async function insertOfflineFiscalDocument<TQueryResult extends PgQueryRe
   });
   return { id, saleId };
 }
+
+export async function insertOfflineCreditNote<TQueryResult extends PgQueryResultHKT>(
+  db: PgDatabase<TQueryResult>,
+  {
+    registerId,
+    pointOfSale,
+    fortnight,
+    number,
+    corrects,
+    saleId = randomUUID(),
+  }: {
+    registerId: string;
+    pointOfSale: number;
+    fortnight: Fortnight;
+    number: number;
+    corrects: { voucherType: number; pointOfSale: number; number: number };
+    saleId?: string;
+  },
+): Promise<{ id: string; saleId: string }> {
+  const id = randomUUID();
+  await db.insert(offlineFiscalDocuments).values({
+    id,
+    saleId,
+    registerId,
+    pointOfSale,
+    documentType: "credit_note_c",
+    number,
+    issuedOn: fortnight.start,
+    generatedAt: new Date(`${fortnight.start}T13:00:00.000Z`),
+    generationStamp: `${fortnight.start.replaceAll("-", "")}100000`,
+    offlineAuthorizationCode: "36123456789012",
+    fortnightStart: fortnight.start,
+    fortnightEnd: fortnight.end,
+    buyerDocumentType: 99,
+    buyerDocumentNumber: 0,
+    buyerTaxStatusCode: 5,
+    total: 10_000,
+    netAmount: 10_000,
+    cause: "no_connectivity",
+    recordedAt: new Date(`${fortnight.start}T13:00:00.000Z`),
+    creditNoteId: randomUUID(),
+    correctedVoucherType: corrects.voucherType,
+    correctedPointOfSale: corrects.pointOfSale,
+    correctedNumber: corrects.number,
+  });
+  return { id, saleId };
+}
