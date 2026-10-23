@@ -7,13 +7,13 @@ import {
   Modal,
   useRequestForm,
 } from "@purosur/ui";
-import { Check, FileText, Globe, ShieldX, TriangleAlert, Truck, Upload, X } from "lucide-react";
+import { Check, FileText, Globe, Truck, Upload, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
-import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { purchaseSupplierOptions } from "./purchase-form";
 import { useSuppliersQuery } from "./purchasing-queries";
+import { type ReadNotice, readNoticeContent } from "./supplier-price-list-read-notice";
 import { webPageRefusalMessage } from "./supplier-price-list-web-page-refusal";
 import type {
   loadSupplierPriceListWebPage,
@@ -45,16 +45,6 @@ type UploadSupplierPriceListModalProps = {
   onSessionEnded: () => void;
 };
 
-type Notice =
-  | { kind: "attemptFailed" }
-  | { kind: "rateLimited"; retryAfterSeconds: number }
-  | { kind: "dailyCapReached" }
-  | { kind: "fileTooLarge" }
-  | { kind: "notAPdf" }
-  | { kind: "supplierInactive" }
-  | { kind: "supplierNotFound" }
-  | { kind: "readingUnavailable" };
-
 const SOURCE_OPTIONS = [
   {
     value: "PDF" as const satisfies UploadSource,
@@ -70,83 +60,8 @@ const SOURCE_OPTIONS = [
   },
 ] as const;
 
-function UploadNotice({ notice }: { notice: Notice | null }) {
-  switch (notice?.kind) {
-    case undefined:
-      return null;
-    case "dailyCapReached":
-      return (
-        <InlineNotice
-          tone="warning"
-          icon={<TriangleAlert />}
-          title="Por hoy no se pueden leer más listas"
-          description="Se llegó al tope de lecturas del día de esta sucursal. La lista se puede cargar mañana."
-        />
-      );
-    case "fileTooLarge":
-      return (
-        <InlineNotice
-          tone="error"
-          icon={<TriangleAlert />}
-          title="El archivo es demasiado grande"
-          description="Elegí un PDF más liviano."
-        />
-      );
-    case "notAPdf":
-      return (
-        <InlineNotice
-          tone="error"
-          icon={<TriangleAlert />}
-          title="El archivo no es un PDF válido"
-          description="Elegí otro archivo."
-        />
-      );
-    case "supplierInactive":
-      return (
-        <InlineNotice
-          tone="error"
-          icon={<TriangleAlert />}
-          title="Este proveedor está desactivado"
-          description="Elegí otro proveedor."
-        />
-      );
-    case "supplierNotFound":
-      return (
-        <InlineNotice
-          tone="error"
-          icon={<TriangleAlert />}
-          title="Este proveedor ya no existe"
-          description="Elegí otro proveedor."
-        />
-      );
-    case "readingUnavailable":
-      return (
-        <InlineNotice
-          tone="error"
-          icon={<TriangleAlert />}
-          title="La lectura de listas no está disponible"
-          description="Volvé a intentarlo más tarde."
-        />
-      );
-    case "rateLimited":
-      return (
-        <InlineNotice
-          tone="error"
-          icon={<ShieldX />}
-          title="Demasiadas solicitudes"
-          description={retryAfterDetail(notice.retryAfterSeconds)}
-        />
-      );
-    case "attemptFailed":
-      return (
-        <InlineNotice
-          tone="error"
-          icon={<TriangleAlert />}
-          title="No se cargó la lista"
-          description="Volvé a intentarlo."
-        />
-      );
-  }
+function UploadNotice({ notice }: { notice: ReadNotice | null }) {
+  return notice === null ? null : <InlineNotice {...readNoticeContent(notice)} />;
 }
 
 export function UploadSupplierPriceListModal({
@@ -158,7 +73,7 @@ export function UploadSupplierPriceListModal({
   onSessionEnded,
 }: UploadSupplierPriceListModalProps) {
   const sendToMyAccount = useSendToMyAccount();
-  const [notice, setNotice] = useState<Notice | null>(null);
+  const [notice, setNotice] = useState<ReadNotice | null>(null);
   const [refusedPage, setRefusedPage] = useState<{
     reason: WebPageRefusalReason;
     url: string;
