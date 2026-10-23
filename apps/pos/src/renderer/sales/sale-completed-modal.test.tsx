@@ -559,13 +559,7 @@ describe("SaleCompletedModal", () => {
         ]);
     });
 
-    it.each([
-      ["kept"],
-      ["discardable"],
-      ["discarded"],
-      ["to_print"],
-      ["awaiting_customer_document"],
-    ] as const)(
+    it.each([["kept"], ["to_print"], ["awaiting_customer_document"]] as const)(
       "tells the cashier to keep the ticket in the register's box when it is %s",
       async (standing) => {
         const { screen } = await renderWithTicket(standing);
@@ -584,6 +578,8 @@ describe("SaleCompletedModal", () => {
     it.each([
       ["no_longer_needed", "No hace falta"],
       ["missing_key", "Sin clave de respaldo"],
+      ["discardable", "Impreso"],
+      ["discarded", "Impreso"],
     ] as const)("tells nothing to keep when the ticket is %s", async (standing, status) => {
       const { screen, documents } = await renderWithTicket(standing);
 

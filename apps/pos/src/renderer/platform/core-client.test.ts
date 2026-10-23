@@ -1907,6 +1907,7 @@ describe("createCoreClient", () => {
         kept: 3,
         discardable: 0,
         may_discard: false,
+        discard_permitted: true,
         printer: "paper_out",
       },
     } as const;

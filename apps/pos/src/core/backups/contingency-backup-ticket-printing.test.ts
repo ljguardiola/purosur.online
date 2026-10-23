@@ -101,15 +101,17 @@ describe("printing a ticket on the receipt printer", () => {
     expect(await printing).toEqual({ kind: "not_sent", reason: "failed" });
   });
 
-  it("reports a ticket it cannot render and says it was not sent", async () => {
+  it("reports a ticket it cannot render and says so, blaming nothing on the printer", async () => {
+    const device = new ControllableReceiptPrinter();
     const { printer, reported, printerFailure } = printerWith(
-      () => new ControllableReceiptPrinter(),
+      () => device,
       () => undefined,
     );
 
-    expect(await printer.print("ticket-1")).toEqual({ kind: "not_sent", reason: "failed" });
+    expect(await printer.print("ticket-1")).toEqual({ kind: "unrenderable" });
     expect(reported).toHaveLength(1);
-    expect(printerFailure()).toBe("failed");
+    expect(printerFailure()).toBeNull();
+    expect(device.handed).toHaveLength(0);
   });
 });
 

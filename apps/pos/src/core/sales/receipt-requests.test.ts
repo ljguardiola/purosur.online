@@ -59,6 +59,7 @@ function deps(overrides: Partial<ReceiptRequestDeps> = {}): ReceiptRequestDeps {
     signedInUserId: () => signedInPerson.userId(),
     printers: { configured: () => printer },
     jobs,
+    ticketedReprint: (_saleId, reprint) => reprint(),
     ...overrides,
   };
 }
@@ -429,6 +430,31 @@ describe("reprinting a sale's receipt from the history", () => {
         reason_text: REASON,
       },
     ]);
+  });
+
+  it("leaves the reprint to its ticketing until the duplicate was handed to the printer and recorded", async () => {
+    await printedAndSent();
+    signedInPerson.set("supervisor");
+    const ticketed: unknown[] = [];
+
+    const outcome = await reprintSaleReceiptFor(
+      deps({
+        ticketedReprint: async (saleId, reprint) => {
+          const reprinted = await reprint();
+          ticketed.push({ saleId, handed: printer.handed.length, reprints: reprints().length });
+          return reprinted;
+        },
+      }),
+      { saleId: "sale-1", reason: REASON },
+    );
+    expect(outcome).toEqual({ kind: "started", copy: { kind: "duplicate", order_number: 1 } });
+    expect(ticketed).toEqual([]);
+    await printer.whenWaiting(2);
+    printer.becomeReady();
+
+    await vi.waitFor(() =>
+      expect(ticketed).toEqual([{ saleId: "sale-1", handed: 2, reprints: 1 }]),
+    );
   });
 
   it("asks another person's authorization from a person without the permission", async () => {

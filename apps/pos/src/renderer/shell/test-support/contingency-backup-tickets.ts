@@ -10,6 +10,7 @@ export function backupTickets(
     kept: 0,
     discardable: 0,
     may_discard: false,
+    discard_permitted: true,
     printer: null,
     ...overrides,
   };

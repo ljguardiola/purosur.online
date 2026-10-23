@@ -123,16 +123,20 @@ export class FakeContingencyBackupTicketPrinter implements ContingencyBackupTick
 
   private readonly store: FakeContingencyBackupTicketStore;
   private readonly answer: ContingencyBackupTicketPrinting;
+  private readonly unrenderable: readonly string[];
 
   constructor(
     store: FakeContingencyBackupTicketStore,
     answer: ContingencyBackupTicketPrinting = { kind: "sent" },
+    unrenderable: readonly string[] = [],
   ) {
     this.store = store;
     this.answer = answer;
+    this.unrenderable = unrenderable;
   }
 
   async print(ticketId: string): Promise<ContingencyBackupTicketPrinting> {
+    if (this.unrenderable.includes(ticketId)) return { kind: "unrenderable" };
     this.printed.push(ticketId);
     this.transactionOpenWhilePrinting ||= this.store.transactionOpen;
     return this.answer;

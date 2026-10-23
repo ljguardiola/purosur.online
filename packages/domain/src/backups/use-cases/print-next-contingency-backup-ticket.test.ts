@@ -25,9 +25,10 @@ function setup(
   tickets: ContingencyBackupTicketRecord[],
   acknowledgedThrough = 0,
   printing?: ContingencyBackupTicketPrinting,
+  unrenderable: readonly string[] = [],
 ) {
   const store = new FakeContingencyBackupTicketStore(tickets, acknowledgedThrough);
-  const printer = new FakeContingencyBackupTicketPrinter(store, printing);
+  const printer = new FakeContingencyBackupTicketPrinter(store, printing, unrenderable);
   return { store, printer, ports: { clock: { now: () => NOW }, printer, store } };
 }
 
@@ -87,6 +88,35 @@ describe("printNextContingencyBackupTicket", () => {
 
     expect(outcome).toEqual({ kind: "not_printed", ticketId: "first", reason: "paper_out" });
     expect(store.snapshot()[0]?.printedAt).toBeNull();
+  });
+
+  it("prints the next ticket when an older one cannot be rendered, leaving that one to print", async () => {
+    const { ports, store, printer } = setup(
+      [ticket({ id: "unrenderable" }), ticket({ id: "next" })],
+      0,
+      undefined,
+      ["unrenderable"],
+    );
+
+    const outcome = await printNextContingencyBackupTicket(ports);
+
+    expect(outcome).toEqual({ kind: "printed", ticketId: "next" });
+    expect(printer.printed).toEqual(["next"]);
+    expect(store.snapshot().map(({ id, printedAt }) => [id, printedAt])).toEqual([
+      ["unrenderable", null],
+      ["next", NOW],
+    ]);
+  });
+
+  it("has nothing to print when no ticket to print can be rendered", async () => {
+    const { ports, printer } = setup([ticket({ id: "unrenderable" })], 0, undefined, [
+      "unrenderable",
+    ]);
+
+    const outcome = await printNextContingencyBackupTicket(ports);
+
+    expect(outcome).toEqual({ kind: "nothing_to_print" });
+    expect(printer.printed).toEqual([]);
   });
 
   it("holds no storage transaction while the printer prints", async () => {

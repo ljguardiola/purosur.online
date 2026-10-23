@@ -97,6 +97,7 @@ describe("reading the tickets", () => {
         kept: 1,
         discardable: 1,
         may_discard: false,
+        discard_permitted: true,
         printer: "paper_out",
       },
     });
@@ -113,6 +114,18 @@ describe("reading the tickets", () => {
     });
   });
 
+  it("tells a person who may not sell that they may not discard them", async () => {
+    signedIn = "without_permission";
+    await record(ticket("a", 1));
+    await print("a");
+    await cloudAcknowledgesThrough(1);
+
+    expect(await requests().read()).toMatchObject({
+      kind: "read",
+      tickets: { discardable: 1, may_discard: true, discard_permitted: false },
+    });
+  });
+
   it("counts nothing when there is no ticket", async () => {
     expect(await requests().read()).toEqual({
       kind: "read",
@@ -123,6 +136,7 @@ describe("reading the tickets", () => {
         kept: 0,
         discardable: 0,
         may_discard: false,
+        discard_permitted: true,
         printer: null,
       },
     });

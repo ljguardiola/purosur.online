@@ -1,6 +1,6 @@
 import type { FiscalEmissionMode } from "@purosur/domain";
 import type { RecordContingencyBackupTicketInput } from "@purosur/domain/backups/use-cases";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createTicketedOperations } from "./ticketed-operation";
 
 const REAL_TIME: FiscalEmissionMode = { kind: "real_time" };
@@ -149,5 +149,84 @@ describe("an operation that leaves a ticket in a connectivity gap", () => {
     const { ticketing } = setup();
 
     expect(ticketing.ticketed("sale", undefined)).toBeUndefined();
+  });
+});
+
+describe("a step that completes at once and leaves a ticket in a connectivity gap", () => {
+  it("answers at once and records the events it appended, with its subject, then kicks the printing", async () => {
+    const { ticketing, recorded, log } = setup();
+    const settle = ticketing.ticketedNow(
+      "sale",
+      (payment: { paymentTransactionId: string }) => ({
+        kind: "completed",
+        saleId: `sale-of-${payment.paymentTransactionId}`,
+      }),
+      (_args, outcome) => outcome.saleId,
+    );
+
+    expect(settle({ paymentTransactionId: "pay-1" })).toEqual({
+      kind: "completed",
+      saleId: "sale-of-pay-1",
+    });
+    await vi.waitFor(() => expect(log.at(-1)).toBe("kick"));
+    expect(recorded).toEqual([
+      {
+        operation: "sale",
+        subjectId: "sale-of-pay-1",
+        modesAround: [REAL_TIME, OFFLINE],
+        range: { firstDeviceSeq: 11, lastDeviceSeq: 12 },
+      },
+    ]);
+  });
+
+  it("reports a ticket it could not record without touching the answer", async () => {
+    const { ticketing, reported, state, log } = setup();
+    state.recordFails = true;
+
+    expect(ticketing.ticketedNow("sale", () => ({ kind: "completed" }))()).toEqual({
+      kind: "completed",
+    });
+    await vi.waitFor(() =>
+      expect(reported.map(({ context }) => context)).toEqual([
+        "recording a contingency backup ticket",
+      ]),
+    );
+    expect(log).not.toContain("kick");
+  });
+
+  it("rethrows what the step throws, recording nothing", () => {
+    const { ticketing, recorded, reported } = setup();
+    const settle = ticketing.ticketedNow("sale", () => {
+      throw new Error("the step failed");
+    });
+
+    expect(() => settle()).toThrow("the step failed");
+    expect(recorded).toEqual([]);
+    expect(reported).toEqual([]);
+  });
+});
+
+describe("a settlement that leaves a sale's ticket in a connectivity gap", () => {
+  it("records a sale ticket of the sale it completes", async () => {
+    const { ticketing, recorded } = setup();
+    const settle = ticketing.ticketedSettlement((paymentTransactionId: string) => ({
+      kind: "completed",
+      saleId: `sale-of-${paymentTransactionId}`,
+    }));
+
+    expect(settle("pay-1")).toEqual({ kind: "completed", saleId: "sale-of-pay-1" });
+    await vi.waitFor(() =>
+      expect(recorded).toMatchObject([{ operation: "sale", subjectId: "sale-of-pay-1" }]),
+    );
+  });
+
+  it("records a sale ticket with no subject for a settlement that completes no sale", async () => {
+    const { ticketing, recorded } = setup();
+
+    ticketing.ticketedSettlement(() => ({ kind: "partially_paid" }))();
+
+    await vi.waitFor(() =>
+      expect(recorded).toMatchObject([{ operation: "sale", subjectId: null }]),
+    );
   });
 });

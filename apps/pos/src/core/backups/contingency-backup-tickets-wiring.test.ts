@@ -4,7 +4,12 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { LocalDatabase } from "../platform/local-database";
 import { ControllableReceiptPrinter } from "../sales/test-support/controllable-receipt-printer";
 import { ManualTimers } from "../sales/test-support/manual-timers";
-import { appendOutboxEvents, openOutboxDatabase } from "../sync/test-support/sqlite-local-outbox";
+import { appendOutboxEvent } from "../sync/sqlite-outbox";
+import {
+  CHAIN_KEY,
+  openOutboxDatabase,
+  outboxEventDraft,
+} from "../sync/test-support/sqlite-local-outbox";
 import { createContingencyBackupTickets } from "./contingency-backup-tickets-wiring";
 
 const NOW = new Date("2026-10-09T15:07:00.000Z");
@@ -17,6 +22,7 @@ let key: { version: number; key: string } | undefined;
 let reported: { context: string; error: unknown }[];
 let timers: ManualTimers;
 let nextId: number;
+let eventCount: number;
 
 function tickets() {
   return createContingencyBackupTickets({
@@ -42,7 +48,10 @@ function tickets() {
 
 function appendingEvents(count: number) {
   return async () => {
-    appendOutboxEvents(database, count);
+    for (let appended = 0; appended < count; appended += 1) {
+      eventCount += 1;
+      appendOutboxEvent(database, CHAIN_KEY, outboxEventDraft(eventCount));
+    }
     return { kind: "recorded" } as const;
   };
 }
@@ -60,6 +69,7 @@ beforeEach(() => {
   reported = [];
   timers = new ManualTimers();
   nextId = 0;
+  eventCount = 0;
 });
 
 afterEach(() => {
@@ -134,5 +144,19 @@ describe("the contingency backup tickets of the register", () => {
     await worker.kick();
 
     expect(await requests.read()).toMatchObject({ tickets: { to_print: 0, kept: 1 } });
+  });
+
+  it("prints a later ticket while an earlier one cannot be rendered", async () => {
+    const { ticketed, requests, worker } = tickets();
+
+    await ticketed("sale", appendingEvents(1))?.();
+    await ticketed("clock_correction", appendingEvents(1))?.();
+    await device?.whenWaiting();
+    device?.becomeReady();
+    await worker.kick();
+
+    expect(device?.handed).toHaveLength(1);
+    expect(Buffer.from(device?.handed[0] ?? []).toString("latin1")).toContain("Correcci");
+    expect(await requests.read()).toMatchObject({ tickets: { to_print: 1, kept: 1 } });
   });
 });

@@ -8,6 +8,7 @@ import {
   type ContingencyBackupTicketRecord,
   contingencyBackupTicketStanding,
   contingencyBackupTicketsSummary,
+  customerDocumentPrinted,
   needsContingencyBackupTicket,
 } from "./contingency-backup-ticket.js";
 
@@ -268,5 +269,35 @@ describe("contingencyBackupTicketsSummary", () => {
 
   it("may not discard when there is nothing to discard", () => {
     expect(contingencyBackupTicketsSummary([], 10).mayDiscard).toBe(false);
+  });
+});
+
+describe("customerDocumentPrinted", () => {
+  const PRINTS = [true, false, null] as const;
+
+  it("waits for the sale's receipt for a sale", () => {
+    for (const saleReceipt of PRINTS) {
+      expect(customerDocumentPrinted("sale", { saleReceipt, voidCreditNote: !saleReceipt })).toBe(
+        saleReceipt,
+      );
+    }
+  });
+
+  it("waits for the credit note of a void, and for nothing when the void has none", () => {
+    for (const voidCreditNote of PRINTS) {
+      expect(
+        customerDocumentPrinted("sale_void", { saleReceipt: !voidCreditNote, voidCreditNote }),
+      ).toBe(voidCreditNote);
+    }
+  });
+
+  it.each(
+    CONTINGENCY_BACKUP_OPERATIONS.filter(
+      (operation) => operation !== "sale" && operation !== "sale_void",
+    ),
+  )("waits for no customer document for %s", (operation) => {
+    expect(customerDocumentPrinted(operation, { saleReceipt: false, voidCreditNote: false })).toBe(
+      null,
+    );
   });
 });

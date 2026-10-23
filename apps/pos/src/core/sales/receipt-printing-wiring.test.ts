@@ -41,6 +41,7 @@ describe("the register's receipt printing without a local database", () => {
     beforePrinting: async () => undefined,
     reportFailure: () => {},
     syncNow: () => {},
+    ticketedReprint: (_saleId, reprint) => reprint(),
   });
 
   it("offers no request to answer", () => {
@@ -104,6 +105,7 @@ describe("the register's receipt printing over its local database", () => {
       syncNow: () => {
         syncs += 1;
       },
+      ticketedReprint: (_saleId, reprint) => reprint(),
     });
   }
 

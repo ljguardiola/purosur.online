@@ -55,6 +55,7 @@ function deps(overrides: Partial<ReceiptRequestDeps> = {}): ReceiptRequestDeps {
     signedInUserId: () => signedInPerson.userId(),
     printers: { configured: () => printer },
     jobs,
+    ticketedReprint: (_saleId, reprint) => reprint(),
     ...overrides,
   };
 }

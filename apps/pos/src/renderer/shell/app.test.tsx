@@ -2054,6 +2054,7 @@ describe("App", () => {
             kept: 0,
             discardable: 2,
             may_discard: true,
+            discard_permitted: true,
             printer: null,
           },
         };

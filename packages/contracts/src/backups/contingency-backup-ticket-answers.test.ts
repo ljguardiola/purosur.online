@@ -12,6 +12,7 @@ const answer = {
   kept: 3,
   discardable: 4,
   may_discard: false,
+  discard_permitted: true,
   printer: null,
 };
 
@@ -34,6 +35,7 @@ describe("contingencyBackupTicketsAnswerSchema", () => {
     ["a fractional count", { to_print: 1.5 }],
     ["a printer failure that does not exist", { printer: "on_fire" }],
     ["a missing may discard", { may_discard: undefined }],
+    ["a missing discard permitted", { discard_permitted: undefined }],
     ["a missing printer", { printer: undefined }],
   ])("refuses %s", (_name, override) => {
     expect(contingencyBackupTicketsAnswerSchema.safeParse({ ...answer, ...override }).success).toBe(

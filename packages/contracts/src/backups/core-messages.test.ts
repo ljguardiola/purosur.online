@@ -13,6 +13,7 @@ const TICKETS = {
   kept: 2,
   discardable: 3,
   may_discard: false,
+  discard_permitted: true,
   printer: "paper_out",
 };
 

@@ -2,8 +2,8 @@ import { expectNoAccessibilityViolations, tokenRgb } from "@purosur/ui/test";
 import { describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
-import { ContingencyBackupTicketsNoticeCard } from "./contingency-backup-tickets-notice-card";
 import { backupTickets } from "../shell/test-support/contingency-backup-tickets";
+import { ContingencyBackupTicketsNoticeCard } from "./contingency-backup-tickets-notice-card";
 
 type Tickets = Parameters<typeof backupTickets>[0];
 
@@ -146,6 +146,23 @@ describe("ContingencyBackupTicketsNoticeCard", () => {
           ),
         )
         .toBeVisible();
+    });
+
+    it("offers no close to a person the core would not let discard them", async () => {
+      const { screen } = await renderCard({
+        discardable: 3,
+        may_discard: true,
+        discard_permitted: false,
+      });
+
+      await expect
+        .element(screen.getByText("Ya podés descartar los tickets de respaldo"))
+        .toBeVisible();
+      await expect
+        .element(screen.getByText("Tiralos. Este aviso lo cierra quien venda en esta caja."))
+        .toBeVisible();
+      expect(screen.getByRole("button", { name: "Cerrar" }).elements()).toHaveLength(0);
+      await expectNoAccessibilityViolations(screen.container);
     });
 
     it("shows no discard notice while the core does not allow it", async () => {
