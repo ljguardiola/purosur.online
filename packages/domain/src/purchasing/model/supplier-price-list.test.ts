@@ -14,6 +14,7 @@ import {
   isSupplierPriceListPdfTooLarge,
   isSupplierPriceListUnderReview,
   maySupplierPriceListRowBeLinked,
+  pricedRows,
   SUPPLIER_PRICE_LIST_CONTENT_KINDS,
   SUPPLIER_PRICE_LIST_DAILY_EXTRACTION_CAP_MAX,
   SUPPLIER_PRICE_LIST_DAILY_EXTRACTION_CAP_MIN,
@@ -332,5 +333,17 @@ describe("maySupplierPriceListRowBeLinked", () => {
     expect(
       SUPPLIER_PRICE_LIST_STATES.filter((state) => maySupplierPriceListRowBeLinked(state)),
     ).toEqual(["EXTRACTED", "REVIEWED"]);
+  });
+});
+
+describe("pricedRows", () => {
+  it("keeps the rows that have a price, free ones included, in their order", () => {
+    const rows = [
+      { id: "a", priceCents: 100 },
+      { id: "b", priceCents: null },
+      { id: "c", priceCents: 0 },
+    ];
+
+    expect(pricedRows(rows)).toEqual([rows[0], rows[2]]);
   });
 });
