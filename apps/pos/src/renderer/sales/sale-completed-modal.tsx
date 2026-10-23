@@ -16,12 +16,12 @@ import {
 import { useNavigate } from "@tanstack/react-router";
 import { ArrowRight, CircleCheck, Plus, Printer, TriangleAlert } from "lucide-react";
 import { backupPrinterState } from "../shell/contingency-backup-printer-failure-text";
-import {
-  useContingencyBackupTicketOfSaleQuery,
-  useContingencyBackupTicketsQuery,
-} from "../shell/contingency-backup-tickets-queries";
 import type { ReceiptPrintStatus } from "./sales-queries";
-import { useReceiptPrintStatusQuery } from "./sales-queries";
+import {
+  useBackupPrinterFailureQuery,
+  useBackupTicketOfSaleQuery,
+  useReceiptPrintStatusQuery,
+} from "./sales-queries";
 
 type FailedStanding =
   | "cover_open"
@@ -141,9 +141,9 @@ export function SaleCompletedModal(props: SaleCompletedModalProps) {
   const navigate = useNavigate();
   const change = "change" in props ? props.change : 0;
   const receipt = useReceiptPrintStatusQuery({ saleId, read: readReceiptStatus });
-  const backupTicket = useContingencyBackupTicketOfSaleQuery({ saleId, read: readBackupTicket });
+  const backupTicket = useBackupTicketOfSaleQuery({ saleId, read: readBackupTicket });
   const backupStanding = backupTicket.status === "loaded" ? backupTicket.value.standing : null;
-  const backupTickets = useContingencyBackupTicketsQuery({
+  const backupPrinterFailure = useBackupPrinterFailureQuery({
     read: readBackupTickets,
     enabled: backupStanding === "to_print",
   });
@@ -245,7 +245,7 @@ export function SaleCompletedModal(props: SaleCompletedModalProps) {
           detail: "Queda en el local",
           status: backupTicketStatus(
             backupStanding,
-            backupTickets.status === "loaded" ? backupTickets.value.printer : null,
+            backupPrinterFailure.status === "loaded" ? backupPrinterFailure.value : null,
           ),
         },
   ].filter((row) => row !== undefined);

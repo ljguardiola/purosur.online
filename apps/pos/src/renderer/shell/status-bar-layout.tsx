@@ -4,12 +4,12 @@ import type {
   RegisterStatus,
 } from "@purosur/contracts";
 import { Outlet } from "@tanstack/react-router";
-import type { CashSessionState } from "../register/cash-session-state";
-import { useRegisterStatusQuery } from "../register/register-queries";
 import {
   useContingencyBackupTicketsQuery,
   useDiscardContingencyBackupTickets,
-} from "./contingency-backup-tickets-queries";
+} from "../backups/backups-queries";
+import type { CashSessionState } from "../register/cash-session-state";
+import { useRegisterStatusQuery } from "../register/register-queries";
 import { RegisterStatusBar } from "./register-status-bar";
 import type { SignedInPerson } from "./signed-in-person";
 
@@ -29,7 +29,7 @@ export function StatusBarLayout({
   discardBackupTickets,
 }: StatusBarLayoutProps) {
   const status = useRegisterStatusQuery(readStatus);
-  const backupTickets = useContingencyBackupTicketsQuery({ read: readBackupTickets });
+  const backupTickets = useContingencyBackupTicketsQuery(readBackupTickets);
   const discard = useDiscardContingencyBackupTickets(discardBackupTickets);
   return (
     <div className="flex h-full w-full flex-col">
