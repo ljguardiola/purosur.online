@@ -60,6 +60,25 @@ export interface ContingencyBackupTicketsSummary {
   mayDiscard: boolean;
 }
 
+export interface CustomerDocumentPrints {
+  saleReceipt: boolean | null;
+  voidCreditNote: boolean | null;
+}
+
+export function customerDocumentPrinted(
+  operation: ContingencyBackupOperation,
+  { saleReceipt, voidCreditNote }: CustomerDocumentPrints,
+): boolean | null {
+  switch (operation) {
+    case "sale":
+      return saleReceipt;
+    case "sale_void":
+      return voidCreditNote;
+    default:
+      return null;
+  }
+}
+
 export function needsContingencyBackupTicket({
   modesAround,
   range,

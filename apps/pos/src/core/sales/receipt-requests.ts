@@ -36,6 +36,10 @@ export interface ReceiptRequestDeps {
   signedInUserId: () => string | undefined;
   printers: ReceiptPrinters;
   jobs: ReceiptPrintJobs;
+  ticketedReprint: <TOutcome>(
+    saleId: string,
+    reprint: () => Promise<TOutcome>,
+  ) => Promise<TOutcome>;
 }
 
 export interface ReprintSaleReceiptRequest {
@@ -235,10 +239,12 @@ export async function reprintFor(
     },
   };
   const start = await deps.jobs.start(jobKeyOf(key), ({ watch, printers }) =>
-    reprintReceipt(
-      printingPorts(deps, chainKey, authority, printers(deps.printers)),
-      { ...key, reason },
-      watch,
+    deps.ticketedReprint(key.saleId, () =>
+      reprintReceipt(
+        printingPorts(deps, chainKey, authority, printers(deps.printers)),
+        { ...key, reason },
+        watch,
+      ),
     ),
   );
   switch (start.kind) {

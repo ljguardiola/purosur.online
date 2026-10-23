@@ -91,6 +91,7 @@ export {
   classifyOffsiteDumpCheck,
   contingencyBackupTicketStanding,
   contingencyBackupTicketsSummary,
+  customerDocumentPrinted,
   dueOffsiteDumpNight,
   isOffsiteDumpNight,
   OFFSITE_DUMP_FAILURE_REASONS,

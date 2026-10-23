@@ -11,6 +11,7 @@ export const contingencyBackupTicketsAnswerSchema = z.object({
   kept: z.int().nonnegative(),
   discardable: z.int().nonnegative(),
   may_discard: z.boolean(),
+  discard_permitted: z.boolean(),
   printer: z.enum(CONTINGENCY_BACKUP_PRINT_FAILURE_REASONS).nullable(),
 });
 

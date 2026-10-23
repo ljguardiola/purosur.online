@@ -38,6 +38,8 @@ export function createContingencyBackupTicketRequests({
   return {
     async read() {
       if (signedInUserId() === undefined) return { kind: "not_signed_in" };
+      const discardPermitted =
+        (await gate.run({ kind: "sell" }, async () => true)).kind === "performed";
       const summary = await tickets.transaction(async (tx) =>
         contingencyBackupTicketsSummary(
           await tx.ticketsToConsider(),
@@ -53,6 +55,7 @@ export function createContingencyBackupTicketRequests({
           kept: summary.kept,
           discardable: summary.discardable,
           may_discard: summary.mayDiscard,
+          discard_permitted: discardPermitted,
           printer: printerFailure(),
         },
       };

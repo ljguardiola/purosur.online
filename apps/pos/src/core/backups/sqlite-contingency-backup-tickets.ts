@@ -1,4 +1,9 @@
-import type { ContingencyBackupTicketRecord } from "@purosur/domain";
+import {
+  CONTINGENCY_BACKUP_OPERATIONS,
+  type ContingencyBackupOperation,
+  type ContingencyBackupTicketRecord,
+  customerDocumentPrinted,
+} from "@purosur/domain";
 import type {
   ContingencyBackupTicketStore,
   DiscardContingencyBackupTicketsTransaction,
@@ -14,9 +19,11 @@ type ContingencyBackupTicketsTransaction = RecordContingencyBackupTicketTransact
 
 interface TicketRow {
   id: string;
+  operation: string;
   last_device_seq: number;
   sealed: 0 | 1;
-  customer_document_printed: 0 | 1 | null;
+  sale_receipt_printed: 0 | 1 | null;
+  void_credit_note_printed: 0 | 1 | null;
   printed_at: string | null;
   discarded_at: string | null;
 }
@@ -26,41 +33,47 @@ interface AcknowledgedRow {
   last_device_seq: number;
 }
 
-// The customer's own document is the sale's receipt for a sale, and the credit note for the void
-// of a sale that has an authorized one; no other operation waits for a document.
-const CUSTOMER_DOCUMENT_PRINTED = `
-  CASE tickets.operation
-    WHEN 'sale' THEN (
-      SELECT sales.printed_at IS NOT NULL FROM sales WHERE sales.id = tickets.subject_id
-    )
-    WHEN 'sale_void' THEN (
-      SELECT COALESCE(
-        (SELECT credit_note_prints.printed_at IS NOT NULL FROM credit_note_prints
-          WHERE credit_note_prints.sale_id = tickets.subject_id),
-        0
-      )
-      WHERE EXISTS (
-        SELECT 1 FROM sale_void_credit_notes
-         WHERE sale_void_credit_notes.sale_id = tickets.subject_id
-           AND sale_void_credit_notes.state = 'AUTHORIZED'
-      )
-    )
-  END`;
-
 const TICKET_COLUMNS = `
-  SELECT tickets.id AS id, tickets.last_device_seq AS last_device_seq,
+  SELECT tickets.id AS id, tickets.operation AS operation,
+         tickets.last_device_seq AS last_device_seq,
          (tickets.qr_codes IS NOT NULL) AS sealed,
-         ${CUSTOMER_DOCUMENT_PRINTED} AS customer_document_printed,
+         (SELECT sales.printed_at IS NOT NULL FROM sales WHERE sales.id = tickets.subject_id)
+           AS sale_receipt_printed,
+         (SELECT COALESCE(
+             (SELECT credit_note_prints.printed_at IS NOT NULL FROM credit_note_prints
+               WHERE credit_note_prints.sale_id = tickets.subject_id),
+             0
+           )
+           WHERE EXISTS (
+             SELECT 1 FROM sale_void_credit_notes
+              WHERE sale_void_credit_notes.sale_id = tickets.subject_id
+                AND sale_void_credit_notes.state = 'AUTHORIZED'
+           )
+         ) AS void_credit_note_printed,
          tickets.printed_at AS printed_at, tickets.discarded_at AS discarded_at
     FROM contingency_backup_tickets AS tickets`;
+
+function printedOf(value: 0 | 1 | null): boolean | null {
+  return value === null ? null : value === 1;
+}
+
+function operationOf(row: TicketRow): ContingencyBackupOperation {
+  const operation = CONTINGENCY_BACKUP_OPERATIONS.find((known) => known === row.operation);
+  if (operation === undefined) {
+    throw new Error(`contingency backup ticket ${row.id} has an unknown operation`);
+  }
+  return operation;
+}
 
 function recordOf(row: TicketRow): ContingencyBackupTicketRecord {
   return {
     id: row.id,
     lastDeviceSeq: row.last_device_seq,
     sealed: row.sealed === 1,
-    customerDocumentPrinted:
-      row.customer_document_printed === null ? null : row.customer_document_printed === 1,
+    customerDocumentPrinted: customerDocumentPrinted(operationOf(row), {
+      saleReceipt: printedOf(row.sale_receipt_printed),
+      voidCreditNote: printedOf(row.void_credit_note_printed),
+    }),
     printedAt: row.printed_at === null ? null : new Date(row.printed_at),
     discardedAt: row.discarded_at === null ? null : new Date(row.discarded_at),
   };

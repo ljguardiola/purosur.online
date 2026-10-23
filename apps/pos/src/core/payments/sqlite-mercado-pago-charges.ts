@@ -43,6 +43,16 @@ export class SqliteMercadoPagoCharges implements MercadoPagoCharges {
     };
   }
 
+  saleOfCharge(paymentTransactionId: string): string | null {
+    return (
+      this.database
+        .prepare<[string], { sale_id: string }>(
+          "SELECT sale_id FROM payment_transactions WHERE id = ?",
+        )
+        .get(paymentTransactionId)?.sale_id ?? null
+    );
+  }
+
   pendingCharges(): InterruptedMercadoPagoCharge[] {
     return this.database
       .prepare<[], { id: string; actor_id: string }>(

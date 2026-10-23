@@ -20,6 +20,22 @@ export interface TicketedOperations {
       outcome: Awaited<ReturnType<NonNullable<THandler>>>,
     ) => string | null,
   ): THandler;
+  ticketedNow<TArgs extends unknown[], TOutcome>(
+    operation: ContingencyBackupOperation,
+    step: (...args: TArgs) => TOutcome,
+    subjectOf?: (args: TArgs, outcome: TOutcome) => string | null,
+  ): (...args: TArgs) => TOutcome;
+  ticketedSettlement<TArgs extends unknown[], TSettlement extends { kind: string }>(
+    settle: (...args: TArgs) => TSettlement,
+  ): (...args: TArgs) => TSettlement;
+}
+
+function completedSaleOf(settlement: { kind: string }): string | null {
+  return settlement.kind === "completed" &&
+    "saleId" in settlement &&
+    typeof settlement.saleId === "string"
+    ? settlement.saleId
+    : null;
 }
 
 interface Reading {
@@ -43,6 +59,41 @@ export function createTicketedOperations({
     }
   }
 
+  async function recordAround(
+    operation: ContingencyBackupOperation,
+    subjectOf: () => string | null,
+    before: Reading,
+    after: Reading | undefined,
+  ): Promise<void> {
+    if (after === undefined) return;
+    try {
+      await record({
+        operation,
+        subjectId: subjectOf(),
+        modesAround: [before.mode, after.mode],
+        range: { firstDeviceSeq: before.lastDeviceSeq + 1, lastDeviceSeq: after.lastDeviceSeq },
+      });
+      afterRecorded();
+    } catch (error) {
+      reportFailure("recording a contingency backup ticket", error);
+    }
+  }
+
+  function ticketedNow<TArgs extends unknown[], TOutcome>(
+    operation: ContingencyBackupOperation,
+    step: (...args: TArgs) => TOutcome,
+    subjectOf?: (args: TArgs, outcome: TOutcome) => string | null,
+  ): (...args: TArgs) => TOutcome {
+    return (...args) => {
+      const before = read();
+      const outcome = step(...args);
+      if (before !== undefined) {
+        void recordAround(operation, () => subjectOf?.(args, outcome) ?? null, before, read());
+      }
+      return outcome;
+    };
+  }
+
   return {
     ticketed(operation, handler, subjectOf) {
       if (handler === undefined) return handler;
@@ -50,22 +101,20 @@ export function createTicketedOperations({
         const before = read();
         const outcome = await handler(...args);
         if (before === undefined) return outcome;
-        try {
-          const after = read();
-          if (after === undefined) return outcome;
-          await record({
-            operation,
-            subjectId: subjectOf?.(args, outcome as never) ?? null,
-            modesAround: [before.mode, after.mode],
-            range: { firstDeviceSeq: before.lastDeviceSeq + 1, lastDeviceSeq: after.lastDeviceSeq },
-          });
-          afterRecorded();
-        } catch (error) {
-          reportFailure("recording a contingency backup ticket", error);
-        }
+        await recordAround(
+          operation,
+          () => subjectOf?.(args, outcome as never) ?? null,
+          before,
+          read(),
+        );
         return outcome;
       };
       return ticketedHandler as typeof handler;
     },
+
+    ticketedNow,
+
+    ticketedSettlement: (settle) =>
+      ticketedNow("sale", settle, (_args, settlement) => completedSaleOf(settlement)),
   };
 }

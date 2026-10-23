@@ -251,11 +251,10 @@ export function SaleCompletedModal(props: SaleCompletedModalProps) {
   ].filter((row) => row !== undefined);
   const [firstDocument, ...otherDocuments] = documentRows;
   const keepNotice =
-    backupStanding === null ||
-    backupStanding === "no_longer_needed" ||
-    backupStanding === "missing_key"
-      ? undefined
-      : deferred
+    backupStanding === "kept" ||
+    backupStanding === "to_print" ||
+    backupStanding === "awaiting_customer_document"
+      ? deferred
         ? {
             title: "Pedile al cliente que vuelva por su factura",
             description:
@@ -264,7 +263,8 @@ export function SaleCompletedModal(props: SaleCompletedModalProps) {
         : {
             title: "Guardá el ticket de respaldo en la caja del local",
             description: "Queda ahí hasta que esta caja vuelva a sincronizar con la nube.",
-          };
+          }
+      : undefined;
 
   return (
     <Modal

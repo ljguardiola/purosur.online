@@ -25,7 +25,8 @@ export interface ContingencyBackupTicketSealer {
 
 export type ContingencyBackupTicketPrinting =
   | { kind: "sent" }
-  | { kind: "not_sent"; reason: ContingencyBackupPrintFailureReason };
+  | { kind: "not_sent"; reason: ContingencyBackupPrintFailureReason }
+  | { kind: "unrenderable" };
 
 export interface ContingencyBackupTicketPrinter {
   print(ticketId: string): Promise<ContingencyBackupTicketPrinting>;

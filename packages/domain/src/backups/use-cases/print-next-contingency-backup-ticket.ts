@@ -12,18 +12,21 @@ export async function printNextContingencyBackupTicket({
   printer,
   store,
 }: PrintNextContingencyBackupTicketPorts): Promise<PrintNextContingencyBackupTicketOutcome> {
-  const next = await store.transaction(async (tx) => {
+  const toPrint = await store.transaction(async (tx) => {
     const acknowledged = await tx.acknowledgedThroughSeq();
-    return (await tx.ticketsToConsider()).find(
+    return (await tx.ticketsToConsider()).filter(
       (ticket) => contingencyBackupTicketStanding(ticket, acknowledged) === "to_print",
     );
   });
-  if (next === undefined) return { kind: "nothing_to_print" };
 
-  const printing = await printer.print(next.id);
-  if (printing.kind === "not_sent") {
-    return { kind: "not_printed", ticketId: next.id, reason: printing.reason };
+  for (const next of toPrint) {
+    const printing = await printer.print(next.id);
+    if (printing.kind === "unrenderable") continue;
+    if (printing.kind === "not_sent") {
+      return { kind: "not_printed", ticketId: next.id, reason: printing.reason };
+    }
+    await store.transaction((tx) => tx.markPrinted(next.id, clock.now()));
+    return { kind: "printed", ticketId: next.id };
   }
-  await store.transaction((tx) => tx.markPrinted(next.id, clock.now()));
-  return { kind: "printed", ticketId: next.id };
+  return { kind: "nothing_to_print" };
 }

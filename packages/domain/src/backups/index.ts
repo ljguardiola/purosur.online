@@ -11,6 +11,7 @@ export {
   CONTINGENCY_BACKUP_TICKET_STANDINGS,
   contingencyBackupTicketStanding,
   contingencyBackupTicketsSummary,
+  customerDocumentPrinted,
 } from "./model/contingency-backup-ticket.js";
 export type {
   OffsiteDumpCheckResult,

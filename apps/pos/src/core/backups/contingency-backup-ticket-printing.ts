@@ -49,7 +49,11 @@ export function createContingencyBackupTicketPrinter({
         try {
           const printout = printoutOf(ticketId);
           if (printout === undefined) {
-            throw new Error("the ticket cannot be rendered");
+            reportFailure(
+              "printing a contingency backup ticket",
+              new Error(`the contingency backup ticket ${ticketId} cannot be rendered`),
+            );
+            return { kind: "unrenderable" };
           }
           const device = printers.configured();
           if (device === undefined) return notSent("printer_not_configured");
