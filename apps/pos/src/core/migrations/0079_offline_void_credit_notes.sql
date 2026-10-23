@@ -89,13 +89,27 @@ ALTER TABLE register_clock_marks_rebuilt RENAME TO register_clock_marks;
 
 CREATE TABLE offline_series_counts (
   point_of_sale INTEGER NOT NULL CHECK (point_of_sale BETWEEN 1 AND 99999),
-  document_type TEXT NOT NULL CHECK (document_type IN ('credit_note_c')),
+  document_type TEXT NOT NULL CHECK (document_type IN ('factura_c', 'credit_note_c')),
   tax_authority_last_authorized_number INTEGER
     CHECK (tax_authority_last_authorized_number IS NULL OR tax_authority_last_authorized_number >= 0),
   highest_synced_offline_number INTEGER
     CHECK (highest_synced_offline_number IS NULL OR highest_synced_offline_number >= 0),
   PRIMARY KEY (point_of_sale, document_type)
 );
+
+INSERT INTO offline_series_counts (
+  point_of_sale, document_type, tax_authority_last_authorized_number, highest_synced_offline_number
+)
+SELECT point_of_sale_number, 'factura_c', tax_authority_last_authorized_number, highest_synced_offline_number
+FROM register_offline_point_of_sale
+WHERE tax_authority_last_authorized_number IS NOT NULL OR highest_synced_offline_number IS NOT NULL;
+
+ALTER TABLE register_offline_point_of_sale DROP COLUMN tax_authority_last_authorized_number;
+
+ALTER TABLE register_offline_point_of_sale DROP COLUMN highest_synced_offline_number;
+
+INSERT INTO pulled_table_redeliveries (table_name) VALUES ('register_offline_point_of_sale')
+  ON CONFLICT (table_name) DO UPDATE SET cursor = 0;
 
 CREATE TABLE sale_void_credit_notes_held AS
   SELECT id, sale_id, total, receiver_tax_status_code, corrected_voucher_type, corrected_point_of_sale,

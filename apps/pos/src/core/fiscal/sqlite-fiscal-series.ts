@@ -183,13 +183,12 @@ function readOfflineCounts(
   documentType: OfflineSeriesDocumentType,
 ): OfflinePointOfSaleRow | undefined {
   const offlinePointOfSale = database
-    .prepare<[], OfflinePointOfSaleRow>(
-      `SELECT point_of_sale_number, tax_authority_last_authorized_number, highest_synced_offline_number
-       FROM register_offline_point_of_sale`,
+    .prepare<[], { point_of_sale_number: number }>(
+      "SELECT point_of_sale_number FROM register_offline_point_of_sale",
     )
     .get();
-  if (offlinePointOfSale === undefined || documentType === FACTURA_C_DOCUMENT_TYPE) {
-    return offlinePointOfSale;
+  if (offlinePointOfSale === undefined) {
+    return undefined;
   }
   const counts = database
     .prepare<[number, string], Omit<OfflinePointOfSaleRow, "point_of_sale_number">>(
