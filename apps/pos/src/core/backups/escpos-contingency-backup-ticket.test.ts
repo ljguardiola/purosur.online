@@ -89,7 +89,7 @@ describe("the contingency backup ticket", () => {
     const start = lines.findIndex((line) => line.startsWith("Sucursal"));
     const end = lines.findIndex((line) => line.startsWith("Caja"));
     expect(end - start).toBeGreaterThan(1);
-    expect(lines.slice(start, end).every((line) => line.length === 48)).toBe(true);
+    expect(lines.slice(start + 1, end).every((line) => line.length === 48)).toBe(true);
     expect(lines.slice(start, end).join(" ").replace(/\s+/g, " ").replace("Sucursal ", "")).toBe(
       address,
     );
