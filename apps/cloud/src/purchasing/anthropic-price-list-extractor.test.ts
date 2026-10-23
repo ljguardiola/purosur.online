@@ -912,3 +912,240 @@ describe("a document the extractor cannot split into ranges", () => {
     });
   });
 });
+
+describe("a web page", () => {
+  const PAGE_ADDRESS = "https://distribuidora-sur.example/lista-de-precios";
+  const PAGE = `<html>
+    <head>
+      <title>Lista de precios</title>
+      <link rel="canonical" href="${PAGE_ADDRESS}">
+      <script>window.token = "secreto-del-proveedor";</script>
+    </head>
+    <body>
+      <h1>Lista de precios marzo</h1>
+      <table>
+        <tr><th>Código</th><th>Descripción</th><th>Precio</th></tr>
+        <tr><td>Y-01</td><td>Yerba mate 1 kg</td><td>$ 1.234,50</td></tr>
+      </table>
+      <a href="${PAGE_ADDRESS}/contacto">Contacto</a>
+    </body>
+  </html>`;
+  const PAGE_TEXT =
+    "Lista de precios marzo\nCódigo\tDescripción\tPrecio\nY-01\tYerba mate 1 kg\t$ 1.234,50\nContacto";
+  const WEB_PAGE = { kind: "web_page", html: new TextEncoder().encode(PAGE) } as const;
+
+  function webPageOfLines(lineCount: number) {
+    const lines = Array.from(
+      { length: lineCount },
+      (_, index) => `Item ${index} ${"x".repeat(60)}`,
+    );
+    const html = `<body>${lines.map((line) => `<p>${line}</p>`).join("")}</body>`;
+    return { lines, source: { kind: "web_page", html: new TextEncoder().encode(html) } as const };
+  }
+
+  function textSent(request: RecordedRequest): string {
+    const messages = request.body["messages"] as {
+      content: { type: string; source?: { data: string } }[];
+    }[];
+    return messages[0]?.content[0]?.source?.data ?? "";
+  }
+
+  function rowsOfText(request: RecordedRequest) {
+    return textSent(request)
+      .split("\n")
+      .map((line) => ({ ...ROW, description: line, page: 4 }));
+  }
+
+  it("is read into the rows the model gives, with no page", async () => {
+    const { extractor } = extractorAnswering(() =>
+      streamedJsonResponse({
+        listDate: "2026-03-01",
+        pricesIncludeVat: true,
+        rows: [ROW, { ...ROW, description: "Azúcar 1 kg", page: null }],
+      }),
+    );
+
+    expect(await extractor.extract(WEB_PAGE)).toEqual({
+      kind: "extracted",
+      listDate: "2026-03-01",
+      pricesIncludeVat: true,
+      rows: [
+        { ...ROW, page: null },
+        { ...ROW, description: "Azúcar 1 kg", page: null },
+      ],
+    });
+  });
+
+  it("sends the visible text of the page as plain text with a fixed instruction, and nothing else", async () => {
+    const { extractor, requests } = extractorAnswering(() =>
+      streamedJsonResponse({ listDate: null, pricesIncludeVat: null, rows: [ROW] }),
+    );
+
+    await extractor.extract(WEB_PAGE);
+
+    const [request] = requests as [RecordedRequest];
+    const messages = request.body["messages"] as { role: string; content: unknown[] }[];
+    expect(requests).toHaveLength(1);
+    expect(messages).toHaveLength(1);
+    expect(messages[0]?.role).toBe("user");
+    expect(messages[0]?.content).toEqual([
+      { type: "document", source: { type: "text", media_type: "text/plain", data: PAGE_TEXT } },
+      { type: "text", text: expect.any(String) },
+    ]);
+    expect(request.body).not.toHaveProperty("tools");
+  });
+
+  it("sends neither the address of the page nor what the page does not show", async () => {
+    const { extractor, requests } = extractorAnswering(() =>
+      streamedJsonResponse({ listDate: null, pricesIncludeVat: null, rows: [ROW] }),
+    );
+
+    await extractor.extract(WEB_PAGE);
+
+    const sent = JSON.stringify(requests[0]?.body);
+    expect(sent).not.toContain("distribuidora-sur.example");
+    expect(sent).not.toContain("secreto-del-proveedor");
+    expect(sent).not.toContain("<");
+  });
+
+  it("tells the model that what the page says is data to extract and never instructions", async () => {
+    const { extractor, requests } = extractorAnswering(() =>
+      streamedJsonResponse({ listDate: null, pricesIncludeVat: null, rows: [] }),
+    );
+
+    await extractor.extract(WEB_PAGE);
+
+    const system = requests[0]?.body["system"] as { text: string }[];
+    expect(system[0]?.text).toMatch(/web page/i);
+    expect(system[0]?.text).toMatch(/never instructions/i);
+  });
+
+  it("is extracted with no rows, asking nothing, when the page shows no text", async () => {
+    const { extractor, requests } = extractorAnswering(() =>
+      streamedJsonResponse({ listDate: null, pricesIncludeVat: null, rows: [ROW] }),
+    );
+
+    const result = await extractor.extract({
+      kind: "web_page",
+      html: new TextEncoder().encode("<html><body><script>1</script></body></html>"),
+    });
+
+    expect(result).toEqual({ kind: "extracted", listDate: null, pricesIncludeVat: null, rows: [] });
+    expect(requests).toHaveLength(0);
+  });
+
+  it("is read in one request when its text is short", async () => {
+    const { source } = webPageOfLines(50);
+    const { extractor, requests } = extractorAnswering(() =>
+      streamedJsonResponse({ listDate: null, pricesIncludeVat: null, rows: [] }),
+    );
+
+    await extractor.extract(source);
+
+    expect(requests).toHaveLength(1);
+  });
+
+  it("is read in parts cut between lines when its text is long, keeping the rows in the order of the page", async () => {
+    const { lines, source } = webPageOfLines(3_000);
+    const { extractor, requests } = extractorAnswering(async (request) => {
+      if (textSent(request).startsWith("Item 0 ")) {
+        await aBriefPause();
+        await aBriefPause();
+      }
+      return streamedJsonResponse({
+        listDate: null,
+        pricesIncludeVat: null,
+        rows: rowsOfText(request),
+      });
+    });
+
+    const result = await extractor.extract(source);
+
+    expect(requests.length).toBeGreaterThan(1);
+    expect(requests.map(textSent).join("\n")).toBe(lines.join("\n"));
+    expect(result.kind === "extracted" ? result.rows.map((row) => row.description) : []).toEqual(
+      lines,
+    );
+    expect(result.kind === "extracted" ? new Set(result.rows.map((row) => row.page)) : []).toEqual(
+      new Set([null]),
+    );
+  });
+
+  it("takes the first date and the first VAT answer given in the order of the page", async () => {
+    const { source } = webPageOfLines(3_000);
+    let answered = 0;
+    const { extractor } = extractorAnswering(() => {
+      answered += 1;
+      return streamedJsonResponse({
+        listDate: answered === 1 ? null : "2026-03-0" + answered,
+        pricesIncludeVat: answered === 1 ? null : false,
+        rows: [],
+      });
+    });
+
+    const result = await extractor.extract(source);
+
+    expect(result).toMatchObject({ kind: "extracted", pricesIncludeVat: false });
+  });
+
+  it("is read again in halves cut between lines when a part is too long for one answer", async () => {
+    const { lines, source } = webPageOfLines(3_000);
+    const wholePageText = lines.join("\n");
+    const { extractor, requests } = extractorAnswering((request) => {
+      const text = textSent(request);
+      return text.length > wholePageText.length / 8
+        ? streamedAnswerResponse({ textParts: [], stopReason: "max_tokens", withTextBlock: false })
+        : streamedJsonResponse({
+            listDate: null,
+            pricesIncludeVat: null,
+            rows: rowsOfText(request),
+          });
+    });
+
+    const result = await extractor.extract(source);
+
+    expect(requests.length).toBeGreaterThan(2);
+    expect(result.kind === "extracted" ? result.rows.map((row) => row.description) : []).toEqual(
+      lines,
+    );
+  });
+
+  it("is unreadable when one line alone does not fit an answer", async () => {
+    const { extractor } = extractorAnswering(() =>
+      streamedAnswerResponse({ textParts: [], stopReason: "max_tokens", withTextBlock: false }),
+    );
+
+    expect(await extractor.extract(WEB_PAGE)).toEqual({ kind: "unreadable" });
+  });
+
+  it("is unreadable when its rows together pass the limit of one list", async () => {
+    const { source } = webPageOfLines(3_000);
+    const half = Array.from({ length: PRICE_LIST_EXTRACTION_MAX_ROWS / 2 + 1 }, () => ROW);
+    const { extractor } = extractorAnswering(() =>
+      streamedJsonResponse({ listDate: null, pricesIncludeVat: null, rows: half }),
+    );
+
+    expect(await extractor.extract(source)).toEqual({ kind: "unreadable" });
+  });
+
+  it("is unreadable when the answer is not accepted", async () => {
+    const { extractor } = extractorAnswering(() =>
+      streamedJsonResponse({
+        listDate: null,
+        pricesIncludeVat: null,
+        rows: [{ ...ROW, description: "" }],
+      }),
+    );
+
+    expect(await extractor.extract(WEB_PAGE)).toEqual({ kind: "unreadable" });
+  });
+
+  it.each([
+    [400, "invalid_request_error", "unreadable"],
+    [500, "api_error", "unavailable"],
+  ])("reads an HTTP %i as the page being %s", async (status, type, kind) => {
+    const { extractor } = extractorAnswering(() => apiErrorResponse(status, type));
+
+    expect(await extractor.extract(WEB_PAGE)).toEqual({ kind });
+  });
+});
