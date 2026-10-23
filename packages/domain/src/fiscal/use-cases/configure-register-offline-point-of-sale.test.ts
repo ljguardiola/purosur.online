@@ -127,7 +127,9 @@ describe("configureRegisterOfflinePointOfSale", () => {
       { registerId: "register-1", pointOfSaleNumber: 14, version: 1, recordedBy: ACTOR },
     ]);
     expect(state.offlineNumberBlocks).toEqual([]);
-    expect(state.requiredTaxAuthorityCounts).toEqual([14]);
+    expect(state.requiredTaxAuthorityCounts).toEqual([
+      { pointOfSaleNumber: 14, documentType: "factura_c" },
+    ]);
   });
 
   it("assigns the blocks of two registers' points of sale each from 1, never overlapping within one", async () => {

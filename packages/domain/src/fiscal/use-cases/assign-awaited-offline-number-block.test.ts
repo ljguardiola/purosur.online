@@ -13,8 +13,11 @@ function storeWithOfflineRegister(): FakeRegisterPointOfSaleStore {
   return store;
 }
 
-function assignAwaited(store: FakeRegisterPointOfSaleStore) {
-  return assignAwaitedOfflineNumberBlock(store.offline, { pointOfSaleNumber: 12 });
+function assignAwaited(
+  store: FakeRegisterPointOfSaleStore,
+  documentType: "factura_c" | "credit_note_c" = "factura_c",
+) {
+  return assignAwaitedOfflineNumberBlock(store.offline, { pointOfSaleNumber: 12, documentType });
 }
 
 describe("assignAwaitedOfflineNumberBlock", () => {
@@ -110,5 +113,78 @@ describe("assignAwaitedOfflineNumberBlock", () => {
       "recordOfflineNumberBlock",
     ]);
     expect(store.transactionCount).toBe(1);
+  });
+
+  describe("for the credit notes of the point of sale", () => {
+    it("assigns the first credit note block right after the tax authority's last credit note, whatever the factura count", async () => {
+      const store = storeWithOfflineRegister();
+      store.seedTaxAuthorityCount(12, 900);
+      store.seedTaxAuthorityCount(12, 6, "credit_note_c");
+
+      const outcome = await assignAwaited(store, "credit_note_c");
+
+      expect(outcome).toEqual({ kind: "assigned", range: { firstNumber: 7, lastNumber: 1006 } });
+      expect(store.snapshot().offlineNumberBlocks).toEqual([
+        {
+          pointOfSaleNumber: 12,
+          documentType: "credit_note_c",
+          registerId: "register-1",
+          range: { firstNumber: 7, lastNumber: 1006 },
+          status: "in_use",
+        },
+      ]);
+    });
+
+    it("waits for the credit note count while only the factura count is known, and asks for it", async () => {
+      const store = storeWithOfflineRegister();
+      store.seedTaxAuthorityCount(12, 900);
+
+      const outcome = await assignAwaited(store, "credit_note_c");
+
+      expect(outcome).toEqual({ kind: "tax_authority_count_unknown" });
+      expect(store.snapshot().offlineNumberBlocks).toEqual([]);
+      expect(store.snapshot().requiredTaxAuthorityCounts).toEqual([
+        { pointOfSaleNumber: 12, documentType: "credit_note_c" },
+      ]);
+    });
+
+    it("starts right after the highest credit note synced when it is above the count", async () => {
+      const store = storeWithOfflineRegister();
+      store.seedTaxAuthorityCount(12, 6, "credit_note_c");
+      store.seedHighestSyncedOfflineNumber(12, 30, "credit_note_c");
+      store.seedHighestSyncedOfflineNumber(12, 500);
+
+      const outcome = await assignAwaited(store, "credit_note_c");
+
+      expect(outcome).toEqual({ kind: "assigned", range: { firstNumber: 31, lastNumber: 1030 } });
+    });
+
+    it("locks the credit note series, not the factura one", async () => {
+      const store = storeWithOfflineRegister();
+      store.seedTaxAuthorityCount(12, 6, "credit_note_c");
+
+      await assignAwaited(store, "credit_note_c");
+
+      expect(store.offlineNumberBlockLocks).toEqual([
+        { pointOfSaleNumber: 12, documentType: "credit_note_c" },
+      ]);
+    });
+
+    it("assigns a credit note block beside the factura block already in use", async () => {
+      const store = storeWithOfflineRegister();
+      store.seedTaxAuthorityCount(12, 6, "credit_note_c");
+      store.seedOfflineNumberBlock({
+        pointOfSaleNumber: 12,
+        documentType: "factura_c",
+        registerId: "register-1",
+        range: { firstNumber: 38, lastNumber: 1037 },
+        status: "in_use",
+      });
+
+      const outcome = await assignAwaited(store, "credit_note_c");
+
+      expect(outcome.kind).toBe("assigned");
+      expect(store.snapshot().offlineNumberBlocks).toHaveLength(2);
+    });
   });
 });

@@ -1,4 +1,5 @@
 import type { FiscalDocumentType } from "../../model/fiscal-rejection-standing.js";
+import type { FiscalTaskDocumentType } from "../../model/fiscal-task.js";
 import type { PointOfSaleMechanism } from "../../model/point-of-sale.js";
 import type {
   OfflineNumberBlockRecord,
@@ -30,6 +31,8 @@ import type {
 import {
   FakeOfflineNumberBlocks,
   type LockedOfflineNumberSeries,
+  type RequiredTaxAuthorityCount,
+  seriesKey,
 } from "./fake-offline-number-blocks.js";
 
 export interface FakeBranchRegister {
@@ -66,9 +69,9 @@ export interface FakeRegisterPointOfSaleState {
   pointOfSaleClaims: FakePointOfSaleClaim[];
   pointOfSaleRetirements: FakePointOfSaleRetirement[];
   offlineNumberBlocks: OfflineNumberBlockRecord[];
-  taxAuthorityCounts: [pointOfSaleNumber: number, lastAuthorized: number][];
-  requiredTaxAuthorityCounts: number[];
-  highestSyncedNumbers: [pointOfSaleNumber: number, highest: number][];
+  taxAuthorityCounts: [series: string, lastAuthorized: number][];
+  requiredTaxAuthorityCounts: RequiredTaxAuthorityCount[];
+  highestSyncedNumbers: [series: string, highest: number][];
 }
 
 type WriteOperation =
@@ -187,12 +190,18 @@ class FakeRegisterOfflinePointOfSaleStoreTransaction
     );
   }
 
-  taxAuthorityLastAuthorized(pointOfSaleNumber: number): Promise<number | null> {
-    return this.blocks.taxAuthorityLastAuthorized(pointOfSaleNumber);
+  taxAuthorityLastAuthorized(
+    pointOfSaleNumber: number,
+    documentType: FiscalTaskDocumentType,
+  ): Promise<number | null> {
+    return this.blocks.taxAuthorityLastAuthorized(pointOfSaleNumber, documentType);
   }
 
-  requireTaxAuthorityCount(pointOfSaleNumber: number): Promise<void> {
-    return this.blocks.requireTaxAuthorityCount(pointOfSaleNumber);
+  requireTaxAuthorityCount(
+    pointOfSaleNumber: number,
+    documentType: FiscalTaskDocumentType,
+  ): Promise<void> {
+    return this.blocks.requireTaxAuthorityCount(pointOfSaleNumber, documentType);
   }
 
   async lockPointOfSale(pointOfSaleNumber: number): Promise<void> {
@@ -338,12 +347,23 @@ export class FakeRegisterPointOfSaleStore
     this.state.offlineNumberBlocks.push(structuredClone(block));
   }
 
-  seedTaxAuthorityCount(pointOfSaleNumber: number, lastAuthorized: number): void {
-    this.state.taxAuthorityCounts.push([pointOfSaleNumber, lastAuthorized]);
+  seedTaxAuthorityCount(
+    pointOfSaleNumber: number,
+    lastAuthorized: number,
+    documentType: FiscalTaskDocumentType = "factura_c",
+  ): void {
+    this.state.taxAuthorityCounts.push([
+      seriesKey(pointOfSaleNumber, documentType),
+      lastAuthorized,
+    ]);
   }
 
-  seedHighestSyncedOfflineNumber(pointOfSaleNumber: number, highest: number): void {
-    this.state.highestSyncedNumbers.push([pointOfSaleNumber, highest]);
+  seedHighestSyncedOfflineNumber(
+    pointOfSaleNumber: number,
+    highest: number,
+    documentType: FiscalTaskDocumentType = "factura_c",
+  ): void {
+    this.state.highestSyncedNumbers.push([seriesKey(pointOfSaleNumber, documentType), highest]);
   }
 
   snapshot(): FakeRegisterPointOfSaleState {
