@@ -1,3 +1,4 @@
+import type { PrintedDocumentKey } from "@purosur/domain";
 import { aCompletedSaleFact } from "@purosur/domain/sync/test-support";
 import type { SyncedFact } from "@purosur/domain/sync/use-cases";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -17,7 +18,7 @@ function printState(
   saleId: string,
   attemptedAt: string,
   printedAt: string | null,
-  document: "sale_receipt" | "credit_note" = "sale_receipt",
+  document: PrintedDocumentKey["document"] = "sale_receipt",
 ): ReceiptFact {
   return {
     kind: "sale_print_state_changed",
@@ -34,7 +35,7 @@ function reprint(
   orderNumber: number,
   reason: Extract<ReceiptFact, { kind: "reprint_recorded" }>["reprint"]["reason"],
   saleId = "sale-1",
-  document: "sale_receipt" | "credit_note" = "sale_receipt",
+  document: PrintedDocumentKey["document"] = "sale_receipt",
 ): ReceiptFact {
   return {
     kind: "reprint_recorded",
@@ -247,6 +248,101 @@ describe("replenishing the credit note of a sale into a restored register", () =
       applyReplenishedReceiptFact(
         database,
         printState("sale-9", "2026-10-07T11:00:05.000Z", null, "credit_note"),
+      ),
+    ).toThrow("sale sale-9 is not held");
+  });
+});
+
+describe("replenishing the invoice of a deferred sale into a restored register", () => {
+  function invoicePrinting() {
+    return database
+      .prepare(
+        "SELECT print_attempted_at, printed_at FROM deferred_invoice_prints WHERE sale_id = 'sale-1'",
+      )
+      .get();
+  }
+
+  it("holds when the invoice was sent to the printer and printed, apart from the sale receipt's", () => {
+    applyReplenishedReceiptFact(
+      database,
+      printState("sale-1", "2026-10-08T11:00:05.000Z", "2026-10-08T11:00:09.000Z", "deferred_invoice"),
+    );
+
+    expect(invoicePrinting()).toEqual({
+      print_attempted_at: "2026-10-08T11:00:05.000Z",
+      printed_at: "2026-10-08T11:00:09.000Z",
+    });
+    expect(printing()).toEqual({ print_attempted_at: null, printed_at: null });
+  });
+
+  it("keeps the later attempt the snapshot already holds over an earlier one", () => {
+    applyReplenishedReceiptFact(
+      database,
+      printState("sale-1", "2026-10-08T11:09:00.000Z", "2026-10-08T11:09:03.000Z", "deferred_invoice"),
+    );
+
+    applyReplenishedReceiptFact(
+      database,
+      printState("sale-1", "2026-10-08T11:00:05.000Z", "2026-10-08T11:00:09.000Z", "deferred_invoice"),
+    );
+
+    expect(invoicePrinting()).toEqual({
+      print_attempted_at: "2026-10-08T11:09:00.000Z",
+      printed_at: "2026-10-08T11:09:03.000Z",
+    });
+  });
+
+  it("holds an attempt that was not printed without a printed moment", () => {
+    applyReplenishedReceiptFact(
+      database,
+      printState("sale-1", "2026-10-08T11:00:05.000Z", null, "deferred_invoice"),
+    );
+
+    expect(invoicePrinting()).toEqual({
+      print_attempted_at: "2026-10-08T11:00:05.000Z",
+      printed_at: null,
+    });
+  });
+
+  it("leaves the sale receipt's print state as it was when the invoice's fact comes after it", () => {
+    applyReplenishedReceiptFact(
+      database,
+      printState("sale-1", "2026-10-07T11:00:05.000Z", "2026-10-07T11:00:09.000Z"),
+    );
+
+    applyReplenishedReceiptFact(
+      database,
+      printState("sale-1", "2026-10-08T11:00:05.000Z", null, "deferred_invoice"),
+    );
+
+    expect(printing()).toEqual({
+      print_attempted_at: "2026-10-07T11:00:05.000Z",
+      printed_at: "2026-10-07T11:00:09.000Z",
+    });
+  });
+
+  it("holds a reprint of the invoice beside a reprint of the receipt with the same order number", () => {
+    applyReplenishedReceiptFact(database, reprint(1, { kind: "retry" }));
+    applyReplenishedReceiptFact(
+      database,
+      reprint(1, { kind: "retry" }, "sale-1", "deferred_invoice"),
+    );
+    applyReplenishedReceiptFact(
+      database,
+      reprint(1, { kind: "retry" }, "sale-1", "deferred_invoice"),
+    );
+
+    expect(database.prepare("SELECT document FROM sale_reprints ORDER BY document").all()).toEqual([
+      { document: "deferred_invoice" },
+      { document: "sale_receipt" },
+    ]);
+  });
+
+  it("is refused for a sale the register does not hold", () => {
+    expect(() =>
+      applyReplenishedReceiptFact(
+        database,
+        printState("sale-9", "2026-10-08T11:00:05.000Z", null, "deferred_invoice"),
       ),
     ).toThrow("sale sale-9 is not held");
   });
