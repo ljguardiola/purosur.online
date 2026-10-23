@@ -19,11 +19,15 @@ export interface BranchSettings {
   version: number;
 }
 
-export interface BranchSettingsReader {
-  currentBranchSettings(locationId: string): Promise<BranchSettings>;
+export interface EditableBranchSettings extends BranchSettings {
+  supplierPriceListDailyExtractionCap: number;
 }
 
-export interface NewBranchSettingsVersion extends BranchSettings {
+export interface BranchSettingsReader {
+  currentBranchSettings(locationId: string): Promise<EditableBranchSettings>;
+}
+
+export interface NewBranchSettingsVersion extends EditableBranchSettings {
   locationId: string;
   recordedBy: string;
 }
@@ -39,9 +43,9 @@ export interface BranchSettingsStore {
 }
 
 export interface BranchSettingsStoreTransaction {
-  lockCurrentBranchSettings(locationId: string): Promise<BranchSettings>;
+  lockCurrentBranchSettings(locationId: string): Promise<EditableBranchSettings>;
   recordBranchSettingsVersion(
     next: NewBranchSettingsVersion,
-    previous: BranchSettings,
+    previous: EditableBranchSettings,
   ): Promise<void>;
 }

@@ -2,6 +2,7 @@ import { SUPPLIER_PRICE_LIST_PDF_MAX_BYTES } from "@purosur/domain";
 import { eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { registerBranchSettingsEditRoute } from "../branch/branch-settings-edit-route.js";
 import {
   supplierPriceListExtractionCaps,
   supplierPriceListRows,
@@ -47,6 +48,11 @@ beforeEach(async () => {
     backofficeOrigin: BACKOFFICE_ORIGIN,
     now: () => NOW,
     supplierPriceListFiles: files,
+  });
+  registerBranchSettingsEditRoute(app, {
+    db,
+    backofficeOrigin: BACKOFFICE_ORIGIN,
+    now: () => NOW,
   });
 });
 
@@ -397,6 +403,75 @@ describe("POST /supplier-price-lists", () => {
     });
     expect(await db.select().from(supplierPriceLists)).toHaveLength(1);
     expect(files.stored.size).toBe(0);
+  });
+
+  describe("after the branch's cap is set through its settings", () => {
+    function putBranchSettings(headers: Record<string, string>, cap: number) {
+      const hours = [{ opens_at: "09:00", closes_at: "19:00" }];
+      return app.inject({
+        method: "PUT",
+        url: "/locations/current/settings",
+        headers,
+        payload: {
+          address: "",
+          whatsapp_number: "",
+          instagram_handle: "",
+          monday_hours: hours,
+          tuesday_hours: [],
+          wednesday_hours: [],
+          thursday_hours: [],
+          friday_hours: [],
+          saturday_hours: [],
+          sunday_hours: [],
+          expiring_lot_alert_days: 30,
+          unreviewed_price_alert_days: 30,
+          good_condition_return_days: 15,
+          supplier_price_list_daily_extraction_cap: cap,
+          version: 1,
+        },
+      });
+    }
+
+    it("answers 409 daily_cap_reached with the new cap once that many extractions are counted", async () => {
+      const { headers } = await signedInWith(
+        db,
+        ["manage_supplier_price_lists", "configure_branch"],
+        NOW,
+      );
+      const supplierId = await storedSupplier();
+      for (let counted = 0; counted < 3; counted += 1) {
+        await storedList({ state: "READING" });
+      }
+      expect((await putBranchSettings(headers, 3)).statusCode).toBe(200);
+
+      const response = await upload(headers, { supplierId, fileName: "lista.pdf" });
+
+      expect(response.statusCode).toBe(409);
+      expect(response.json()).toEqual({
+        code: "daily_cap_reached",
+        message: expect.any(String),
+        cap: 3,
+      });
+    });
+
+    it("keeps the lists already counted when the cap is lowered below their number", async () => {
+      const { headers } = await signedInWith(
+        db,
+        ["manage_supplier_price_lists", "configure_branch"],
+        NOW,
+      );
+      const supplierId = await storedSupplier();
+      for (let counted = 0; counted < 5; counted += 1) {
+        await storedList({ state: "READING" });
+      }
+      expect((await putBranchSettings(headers, 3)).statusCode).toBe(200);
+
+      const response = await upload(headers, { supplierId, fileName: "lista.pdf" });
+
+      expect(response.statusCode).toBe(409);
+      expect(response.json()).toMatchObject({ code: "daily_cap_reached", cap: 3 });
+      expect(await db.select().from(supplierPriceLists)).toHaveLength(5);
+    });
   });
 
   it("answers 503 supplier_price_list_reading_unavailable when reading is not configured, storing nothing", async () => {

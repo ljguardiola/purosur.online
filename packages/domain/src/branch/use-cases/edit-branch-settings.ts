@@ -1,8 +1,8 @@
 import type {
   BranchDayHoursRange,
   BranchHoursRange,
-  BranchSettings,
   BranchSettingsPorts,
+  EditableBranchSettings,
 } from "./branch-settings-store.js";
 
 export interface EditBranchSettingsInput {
@@ -21,13 +21,14 @@ export interface EditBranchSettingsInput {
   expiringLotAlertDays: number;
   unreviewedPriceAlertDays: number;
   goodConditionReturnDays: number;
+  supplierPriceListDailyExtractionCap: number;
   version: number;
 }
 
 export type EditBranchSettingsOutcome =
   | { kind: "stale_version" }
-  | { kind: "unchanged"; settings: BranchSettings }
-  | { kind: "edited"; settings: BranchSettings };
+  | { kind: "unchanged"; settings: EditableBranchSettings }
+  | { kind: "edited"; settings: EditableBranchSettings };
 
 function hoursOf(input: EditBranchSettingsInput): BranchDayHoursRange[] {
   const days = [
@@ -64,7 +65,10 @@ function isSameHours(current: BranchDayHoursRange[], next: BranchDayHoursRange[]
   );
 }
 
-function isSameBranchSettings(current: BranchSettings, next: Omit<BranchSettings, "version">) {
+function isSameBranchSettings(
+  current: EditableBranchSettings,
+  next: Omit<EditableBranchSettings, "version">,
+) {
   return (
     current.address === next.address &&
     current.whatsappNumber === next.whatsappNumber &&
@@ -72,6 +76,7 @@ function isSameBranchSettings(current: BranchSettings, next: Omit<BranchSettings
     current.expiringLotAlertDays === next.expiringLotAlertDays &&
     current.unreviewedPriceAlertDays === next.unreviewedPriceAlertDays &&
     current.goodConditionReturnDays === next.goodConditionReturnDays &&
+    current.supplierPriceListDailyExtractionCap === next.supplierPriceListDailyExtractionCap &&
     isSameHours(current.hours, next.hours)
   );
 }
@@ -93,6 +98,7 @@ export async function editBranchSettings(
       expiringLotAlertDays: input.expiringLotAlertDays,
       unreviewedPriceAlertDays: input.unreviewedPriceAlertDays,
       goodConditionReturnDays: input.goodConditionReturnDays,
+      supplierPriceListDailyExtractionCap: input.supplierPriceListDailyExtractionCap,
     };
     if (isSameBranchSettings(current, next)) {
       return { kind: "unchanged", settings: current };

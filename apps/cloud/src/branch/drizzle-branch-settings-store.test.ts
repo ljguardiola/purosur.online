@@ -2,7 +2,12 @@ import { editBranchSettings } from "@purosur/domain/branch/use-cases";
 import { eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { afterAll, beforeAll, beforeEach, describe, expect, expectTypeOf, it } from "vitest";
-import { auditLog, branchHours, users } from "../platform/db/schema.js";
+import {
+  auditLog,
+  branchHours,
+  supplierPriceListExtractionCaps,
+  users,
+} from "../platform/db/schema.js";
 import { changesLoggedAfter, lastLoggedChangeSeq } from "../sync/test-support/logged-changes.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
@@ -65,6 +70,7 @@ function edit(
       expiringLotAlertDays: 30,
       unreviewedPriceAlertDays: 30,
       goodConditionReturnDays: 15,
+      supplierPriceListDailyExtractionCap: 10,
       version,
       ...overrides,
     },
@@ -97,6 +103,7 @@ describe("editing the branch settings through DrizzleBranchSettingsStore", () =>
       expiringLotAlertDays: 30,
       unreviewedPriceAlertDays: 30,
       goodConditionReturnDays: 15,
+      supplierPriceListDailyExtractionCap: 10,
       version: 2,
     });
   });
@@ -121,6 +128,41 @@ describe("editing the branch settings through DrizzleBranchSettingsStore", () =>
         ],
       },
     });
+  });
+
+  it("keeps the branch without a cap of its own while a save leaves the cap at the default", async () => {
+    const locationId = await seededLocationId(db);
+    const actorId = await insertActor(locationId);
+
+    await edit(locationId, actorId, 1);
+
+    expect(await db.select().from(supplierPriceListExtractionCaps)).toEqual([]);
+  });
+
+  it("stores a changed cap, replaces it on a later change, and audits the cap before and after", async () => {
+    const locationId = await seededLocationId(db);
+    const actorId = await insertActor(locationId);
+
+    await edit(locationId, actorId, 1, { supplierPriceListDailyExtractionCap: 3 });
+    await edit(locationId, actorId, 2, { supplierPriceListDailyExtractionCap: 5 });
+
+    expect(await db.select().from(supplierPriceListExtractionCaps)).toEqual([
+      { locationId, dailyCap: 5 },
+    ]);
+    const entries = await db.select().from(auditLog).where(eq(auditLog.entityId, locationId));
+    expect(entries).toHaveLength(2);
+    expect(entries).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          previousValue: expect.objectContaining({ supplier_price_list_daily_extraction_cap: 10 }),
+          newValue: expect.objectContaining({ supplier_price_list_daily_extraction_cap: 3 }),
+        }),
+        expect.objectContaining({
+          previousValue: expect.objectContaining({ supplier_price_list_daily_extraction_cap: 3 }),
+          newValue: expect.objectContaining({ supplier_price_list_daily_extraction_cap: 5 }),
+        }),
+      ]),
+    );
   });
 
   it("logs the new version as a change, and nothing for an unchanged save", async () => {
