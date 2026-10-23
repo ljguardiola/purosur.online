@@ -29,6 +29,8 @@ export const SUPPLIER_PRICE_LIST_FILE_NAME_MAX_LENGTH = 255;
 
 export const DEFAULT_SUPPLIER_PRICE_LIST_DAILY_EXTRACTION_CAP = 10;
 
+export const SUPPLIER_PRICE_LIST_DAILY_EXTRACTION_CAP_MAX = 100;
+
 export const PRICE_LIST_EXTRACTION_MAX_ROWS = 5_000;
 
 export const PRICE_LIST_EXTRACTION_MAX_DESCRIPTION_LENGTH = 500;
@@ -62,6 +64,12 @@ export function isSupplierPriceListDiscardable(state: SupplierPriceListState): b
 
 export function dailyExtractionCapReached(countedToday: number, cap: number): boolean {
   return countedToday >= cap;
+}
+
+export function isSupplierPriceListDailyExtractionCap(value: number): boolean {
+  return (
+    Number.isInteger(value) && value >= 1 && value <= SUPPLIER_PRICE_LIST_DAILY_EXTRACTION_CAP_MAX
+  );
 }
 
 export function isPriceListRowPrice(cents: number): boolean {
