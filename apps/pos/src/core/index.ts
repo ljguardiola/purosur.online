@@ -38,9 +38,11 @@ import { pinPolicy } from "./credentials/pin-policy";
 import { applyRedeemedPin } from "./credentials/redeemed-pin";
 import { createClockGuardRequests } from "./fiscal/clock-guard-answers";
 import { cryptoShortCodes } from "./fiscal/crypto-short-codes";
+import { createDeferredBacklogSerializer } from "./fiscal/deferred-backlog-serializer";
 import { createFiscalModeWatch } from "./fiscal/fiscal-mode-watch";
 import {
   cloudCreditNotes,
+  createDeferredSaleInvoicing,
   createRealTimeAuthorization,
   settleInterruptedAuthorizations,
   startRegisterHealthChecks,
@@ -660,6 +662,7 @@ const realTimeAuthorization = createRealTimeAuthorization({
   shortCodes: cryptoShortCodes,
   readOutboxChainKey: async () => (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
 });
+const deferredBacklogSerializer = createDeferredBacklogSerializer();
 const fiscalModeWatch =
   localDatabase === undefined
     ? undefined
@@ -709,6 +712,17 @@ const receiptPrinting = createReceiptPrinting({
   ids: uuidV7Ids,
   readOutboxChainKey: async () => (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
   signedInUserId: () => signedInPerson.userId(),
+  deferredSaleInvoicing: createDeferredSaleInvoicing({
+    database: localDatabase,
+    cloudClient,
+    readDeviceToken,
+    now,
+    reportFailure: (error) => reportFailure("invoicing a deferred sale", error),
+    ids: uuidV7Ids,
+    shortCodes: cryptoShortCodes,
+    readOutboxChainKey: async () => (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
+    serialize: deferredBacklogSerializer,
+  }),
   beforePrinting: async (saleId) => {
     await realTimeAuthorization.authorizeSale(saleId);
     fiscalModeWatch?.check();
@@ -1393,6 +1407,8 @@ const rendererRequestDeps: RendererRequestDeps = {
           ),
   receiptPrintStatus: receiptPrinting.receiptPrintStatus,
   printOriginalReceipt: receiptPrinting.printOriginalReceipt,
+  findDeferredSale: receiptPrinting.findDeferredSale,
+  printDeferredSaleInvoice: receiptPrinting.printDeferredSaleInvoice,
   reprintSaleReceipt: receiptPrinting.reprintSaleReceipt,
   printCreditNote: receiptPrinting.printCreditNote,
   reprintCreditNote: receiptPrinting.reprintCreditNote,
@@ -1430,6 +1446,7 @@ startRegisterHealthChecks({
   ids: uuidV7Ids,
   shortCodes: cryptoShortCodes,
   readOutboxChainKey: async () => (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
+  serialize: deferredBacklogSerializer,
 });
 
 const deviceTokenRotation =

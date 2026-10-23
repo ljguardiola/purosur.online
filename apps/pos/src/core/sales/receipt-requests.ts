@@ -1,6 +1,7 @@
 import type {
   Authorization,
   PrintOriginalReceiptOutcome,
+  ReceiptCopyShown,
   ReceiptPrintStatusOutcome,
   ReprintSaleReceiptOutcome,
 } from "@purosur/contracts";
@@ -14,6 +15,8 @@ import {
   printSaleReceipt,
   type ReceiptPrinters,
   type ReceiptPrintGrant,
+  type ReceiptPrintOutcome,
+  type ReceiptPrintWatch,
   readSaleComprobante,
   receiptDeliveryOf,
   reprintReceipt,
@@ -63,7 +66,14 @@ type SellerRefusal = Extract<
 >;
 
 function jobKeyOf({ document, saleId }: PrintedDocumentKey): string {
-  return document === "credit_note" ? `credit-note:${saleId}` : saleId;
+  switch (document) {
+    case "credit_note":
+      return `credit-note:${saleId}`;
+    case "deferred_invoice":
+      return `deferred-invoice:${saleId}`;
+    case "sale_receipt":
+      return saleId;
+  }
 }
 
 export async function receiptPrintStatusFor(
@@ -94,7 +104,7 @@ interface Started {
   copy: ReceiptCopy | undefined;
 }
 
-function printingPorts<Refusal>(
+export function printingPorts<Refusal>(
   deps: ReceiptRequestDeps,
   chainKey: string | undefined,
   authority: OperationAuthority<ReceiptPrintGrant, Refusal>,
@@ -115,7 +125,7 @@ function copyAfterGrant(deps: ReceiptRequestDeps, key: PrintedDocumentKey, start
   started.copy = delivery.kind === "found" ? delivery.nextCopy : undefined;
 }
 
-function signedSellerAuthority(
+export function signedSellerAuthority(
   deps: ReceiptRequestDeps,
   onGrant: () => void,
 ): OperationAuthority<ReceiptPrintGrant, SellerRefusal> {
@@ -157,25 +167,36 @@ export async function printCompletedSaleReceiptFor(
   );
 }
 
-export async function printOriginalFor<Refusal extends PrintOriginalReceiptOutcome>(
+type PrintedOrAbandoned = Extract<ReceiptPrintOutcome, { kind: "printed" | "abandoned" }>;
+
+function isPrintedOrAbandoned(outcome: { kind: string }): outcome is PrintedOrAbandoned {
+  return outcome.kind === "printed" || outcome.kind === "abandoned";
+}
+
+export async function startOriginalPrint<Refusal, TOther extends { kind: string }>(
   deps: ReceiptRequestDeps,
   key: PrintedDocumentKey,
   authority: (onGrant: () => void) => OperationAuthority<ReceiptPrintGrant, Refusal>,
+  run: (
+    ports: ReturnType<typeof printingPorts<Refusal>>,
+    watch: ReceiptPrintWatch,
+  ) => Promise<PrintedOrAbandoned | TOther>,
   options?: { unattended: boolean },
-): Promise<PrintOriginalReceiptOutcome> {
+): Promise<
+  { kind: "busy" } | { kind: "unavailable" } | { kind: "started"; copy: ReceiptCopyShown } | TOther
+> {
   const chainKey = await deps.readOutboxChainKey();
   const started: Started = { copy: undefined };
   const start = await deps.jobs.start(
     jobKeyOf(key),
     ({ watch, printers }) =>
-      printOriginalReceipt(
+      run(
         printingPorts(
           deps,
           chainKey,
           authority(() => copyAfterGrant(deps, key, started)),
           printers(deps.printers),
         ),
-        key,
         watch,
       ),
     options,
@@ -191,11 +212,26 @@ export async function printOriginalFor<Refusal extends PrintOriginalReceiptOutco
         : { kind: "started", copy: toWireCopy(started.copy) };
     case "answered": {
       const { outcome } = start;
-      return outcome.kind === "printed" || outcome.kind === "abandoned"
+      return isPrintedOrAbandoned(outcome)
         ? { kind: "started", copy: toWireCopy(outcome.copy) }
         : outcome;
     }
   }
+}
+
+export async function printOriginalFor<Refusal extends PrintOriginalReceiptOutcome>(
+  deps: ReceiptRequestDeps,
+  key: PrintedDocumentKey,
+  authority: (onGrant: () => void) => OperationAuthority<ReceiptPrintGrant, Refusal>,
+  options?: { unattended: boolean },
+): Promise<PrintOriginalReceiptOutcome> {
+  return startOriginalPrint(
+    deps,
+    key,
+    authority,
+    (ports, watch) => printOriginalReceipt(ports, key, watch),
+    options,
+  );
 }
 
 export async function printOriginalReceiptFor(
