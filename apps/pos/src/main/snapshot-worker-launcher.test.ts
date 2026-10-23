@@ -211,6 +211,43 @@ describe("createSnapshotWorkerLauncher", () => {
     },
   );
 
+  it("tells the core the register's first installation the restore found", () => {
+    const { launcher, workers, notices } = setup();
+    launcher.handleCoreMessage(LAUNCH);
+    const firstInstallation = { installation_id: "installation-1", register_id: "register-1" };
+
+    workers[0]?.say({
+      type: "snapshot-restore-finished",
+      outcome: "no_generation",
+      first_installation: firstInstallation,
+    });
+    workers[0]?.exit(null);
+
+    expect(notices).toEqual([
+      { ...EXITED, restore_outcome: "no_generation", first_installation: firstInstallation },
+    ]);
+  });
+
+  it.each([
+    ["without its register", { installation_id: "installation-1" }],
+    ["that is text", "installation-1"],
+  ])(
+    "tells the core only the restore outcome when the first installation is %s",
+    (_name, firstInstallation) => {
+      const { launcher, workers, notices } = setup();
+      launcher.handleCoreMessage(LAUNCH);
+
+      workers[0]?.say({
+        type: "snapshot-restore-finished",
+        outcome: "no_generation",
+        first_installation: firstInstallation,
+      });
+      workers[0]?.exit(null);
+
+      expect(notices).toEqual([{ ...EXITED, restore_outcome: "no_generation" }]);
+    },
+  );
+
   it("does not carry the restore outcome of one worker over to the exit of the next", () => {
     const { launcher, workers, notices } = setup();
     launcher.handleCoreMessage(LAUNCH);
