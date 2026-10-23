@@ -13,7 +13,6 @@ export interface MainRequests {
     expectedDeviceToken: string,
     credentials: DeviceCredentials,
   ): Promise<CredentialsReplacement>;
-  credentialsPresent(): Promise<boolean>;
   readCredentials(): Promise<DeviceCredentials | undefined>;
   receive(message: MainToCoreMessage): void;
 }
@@ -66,12 +65,6 @@ export function createMainRequests(deps: {
           credentials,
         }),
         (answer) => (answer.type === "device-credentials-replaced" ? answer.outcome : undefined),
-      );
-    },
-    credentialsPresent() {
-      return ask(
-        (requestId) => ({ type: "device-credentials-request", request_id: requestId }),
-        (answer) => (answer.type === "device-credentials-presence" ? answer.present : undefined),
       );
     },
     async readCredentials() {

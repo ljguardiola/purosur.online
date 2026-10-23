@@ -2,6 +2,7 @@ import type { Clock } from "../../shared/index.js";
 import type {
   OrphanRegularization,
   RequestsAtNumber,
+  SaleCreditNote,
   SaleDocument,
 } from "../model/orphan-authorization.js";
 import type { WsaaTokenSource } from "./fiscal-document-authorization-ports.js";
@@ -16,6 +17,7 @@ export interface AuthorizationNumber {
 export interface OrphanStandingReader {
   requestsAtNumber(authorization: AuthorizationNumber): Promise<RequestsAtNumber>;
   otherDocumentsOfSale(saleId: string, fiscalDocumentId: string): Promise<SaleDocument[]>;
+  creditNotesOfSale(saleId: string): Promise<SaleCreditNote[]>;
 }
 
 export interface OrphanRegularizationLane extends OrphanStandingReader {

@@ -14,7 +14,6 @@ import type {
 import { and, asc, eq, isNull, notExists, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import {
-  creditNotes,
   fiscalRequests,
   inbox,
   numberingFreezes,
@@ -24,7 +23,11 @@ import {
 import type { DedicatedConnections } from "../platform/dedicated-connections.js";
 import type { EnqueueCreditNote } from "./enqueue-credit-note.js";
 import { answerOf, decisionOf } from "./fiscal-request-answer.js";
-import { otherDocumentsOfSale, requestsAtNumber } from "./orphan-local-standing.js";
+import {
+  creditNotesOfSale,
+  otherDocumentsOfSale,
+  requestsAtNumber,
+} from "./orphan-local-standing.js";
 import { withPointOfSaleLaneLock } from "./point-of-sale-lane-lock.js";
 import { recordOrphanRegularization } from "./record-orphan-regularization.js";
 
@@ -111,34 +114,8 @@ class DrizzleRestoredRegisterOrphanLane<TQueryResult extends PgQueryResultHKT>
     }));
   }
 
-  async creditNotesOfSale(saleId: string): Promise<SaleCreditNote[]> {
-    const rows = await this.db
-      .select({
-        associatedVoucherType: creditNotes.associatedVoucherType,
-        associatedPointOfSale: creditNotes.associatedPointOfSale,
-        associatedNumber: creditNotes.associatedNumber,
-        keptVoucherType: creditNotes.keptVoucherType,
-        keptPointOfSale: creditNotes.keptPointOfSale,
-        keptNumber: creditNotes.keptNumber,
-      })
-      .from(creditNotes)
-      .where(eq(creditNotes.saleId, saleId))
-      .orderBy(asc(creditNotes.createdAt), asc(creditNotes.id));
-    return rows.map((row) => ({
-      creditedVoucher: {
-        voucherType: row.associatedVoucherType,
-        pointOfSale: row.associatedPointOfSale,
-        number: row.associatedNumber,
-      },
-      keptVoucher:
-        row.keptVoucherType === null || row.keptPointOfSale === null || row.keptNumber === null
-          ? null
-          : {
-              voucherType: row.keptVoucherType,
-              pointOfSale: row.keptPointOfSale,
-              number: row.keptNumber,
-            },
-    }));
+  creditNotesOfSale(saleId: string): Promise<SaleCreditNote[]> {
+    return creditNotesOfSale(this.db, saleId);
   }
 
   requestsAtNumber(authorization: AuthorizationNumber): Promise<RequestsAtNumber> {

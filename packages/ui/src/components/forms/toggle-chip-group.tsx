@@ -18,7 +18,7 @@ import {
 import type { NarrowedOption } from "./option";
 
 export type ToggleChipOption<V extends string> = NarrowedOption<V> & {
-  accessibleName?: string;
+  fullLabel?: string;
 };
 
 export type ToggleChipGroupProps<V extends string> = FieldErrorProps & {
@@ -81,7 +81,9 @@ export function ToggleChipGroup<V extends string>(props: ToggleChipGroupProps<V>
           <AriaToggleButton
             key={option.value}
             id={option.value}
-            aria-label={option.accessibleName ?? option.label}
+            {...(option.fullLabel !== undefined
+              ? { "aria-label": `${option.label}, ${option.fullLabel}` }
+              : {})}
             className={`${chipClassName} ${invalid ? invalidChipClassName : ""}`}
           >
             {option.label}

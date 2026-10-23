@@ -381,6 +381,7 @@ export type {
   CloseCashSessionOutcome,
   CloseLockedCashSessionOutcome,
   EnrollmentOutcome,
+  EnrollmentStandingAnswer,
   IdentifyLockedCloserOutcome,
   ListedCashMovement,
   OpenCashSessionOutcome,

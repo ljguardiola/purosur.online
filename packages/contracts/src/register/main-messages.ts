@@ -44,7 +44,6 @@ export type DeviceCredentialsRequest =
       expected_device_token: string;
       credentials: DeviceCredentials;
     }
-  | { type: "device-credentials-request"; request_id: string }
   | { type: "device-credentials-read-request"; request_id: string }
   | { type: "device-credentials-storable-request"; request_id: string };
 
@@ -53,11 +52,6 @@ export const deviceCredentialsAnswerSchema = z.discriminatedUnion("type", [
     type: z.literal("device-credentials-stored"),
     request_id: requestIdSchema,
     stored: z.boolean(),
-  }),
-  z.object({
-    type: z.literal("device-credentials-presence"),
-    request_id: requestIdSchema,
-    present: z.boolean(),
   }),
   z.object({
     type: z.literal("device-credentials-replaced"),

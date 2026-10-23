@@ -1,6 +1,7 @@
+import { FACTURA_C_VOUCHER_TYPE } from "../model/factura-c-fiscal-block.js";
 import {
-  authorizedVoucherAmong,
   type LocalStanding,
+  otherVoucherToKeep,
   requestBehindVoucher,
 } from "../model/orphan-authorization.js";
 import type { TaxAuthorityVoucher } from "../model/unclear-outcome-decision.js";
@@ -22,8 +23,12 @@ export async function localStandingBehindVoucher(
   return {
     kind: "local_sale",
     saleId: request.saleId,
-    otherAuthorizedVoucher: authorizedVoucherAmong(
-      await reader.otherDocumentsOfSale(request.saleId, request.fiscalDocumentId),
+    otherAuthorizedVoucher: otherVoucherToKeep(
+      { voucherType: FACTURA_C_VOUCHER_TYPE, ...authorization },
+      {
+        otherDocuments: await reader.otherDocumentsOfSale(request.saleId, request.fiscalDocumentId),
+        creditNotes: await reader.creditNotesOfSale(request.saleId),
+      },
     ),
   };
 }

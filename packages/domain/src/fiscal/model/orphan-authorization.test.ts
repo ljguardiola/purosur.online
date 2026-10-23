@@ -3,12 +3,14 @@ import { FACTURA_C_VOUCHER_TYPE } from "./factura-c-fiscal-block.js";
 import {
   authorizedVoucherAmong,
   decideOrphanAuthorization,
+  isKeptByCreditNote,
   type LocalRequestAtNumber,
   type LocalStanding,
   localStandingOfUnrecordedSale,
   type OrphanEvidence,
   orphanEvidenceOfRecordedRequest,
   orphanRegularization,
+  otherVoucherToKeep,
   requestBehindVoucher,
   type SaleCreditNote,
   type SaleDocument,
@@ -411,5 +413,66 @@ describe("localStandingOfUnrecordedSale", () => {
     expect(
       standing([authorizedAt(CREDITED_VOUCHER)], [{ creditedVoucher, keptVoucher: null }]),
     ).toEqual({ kind: "local_sale", saleId: "sale-1", otherAuthorizedVoucher: CREDITED_VOUCHER });
+  });
+});
+
+describe("the other voucher a credit note must keep", () => {
+  const OWN_VOUCHER = { voucherType: FACTURA_C_VOUCHER_TYPE, pointOfSale: 12, number: 41 };
+  const CREDITED_VOUCHER = { voucherType: FACTURA_C_VOUCHER_TYPE, pointOfSale: 12, number: 40 };
+  const SECOND_VOUCHER = { voucherType: FACTURA_C_VOUCHER_TYPE, pointOfSale: 12, number: 42 };
+  const offlineAt = (voucher: VoucherReference): SaleDocument => ({ kind: "offline", voucher });
+
+  it("is the first authorized document of the sale", () => {
+    expect(
+      otherVoucherToKeep(OWN_VOUCHER, {
+        otherDocuments: [offlineAt(CREDITED_VOUCHER), offlineAt(SECOND_VOUCHER)],
+        creditNotes: [],
+      }),
+    ).toEqual(CREDITED_VOUCHER);
+  });
+
+  it("skips a document a credit note of the sale already credited", () => {
+    expect(
+      otherVoucherToKeep(OWN_VOUCHER, {
+        otherDocuments: [offlineAt(CREDITED_VOUCHER), offlineAt(SECOND_VOUCHER)],
+        creditNotes: [{ creditedVoucher: CREDITED_VOUCHER, keptVoucher: OWN_VOUCHER }],
+      }),
+    ).toBeNull();
+    expect(
+      otherVoucherToKeep(OWN_VOUCHER, {
+        otherDocuments: [offlineAt(CREDITED_VOUCHER), offlineAt(SECOND_VOUCHER)],
+        creditNotes: [{ creditedVoucher: CREDITED_VOUCHER, keptVoucher: null }],
+      }),
+    ).toEqual(SECOND_VOUCHER);
+  });
+
+  it("is none when a credit note of the sale already kept the voucher", () => {
+    expect(
+      otherVoucherToKeep(OWN_VOUCHER, {
+        otherDocuments: [offlineAt(SECOND_VOUCHER)],
+        creditNotes: [{ creditedVoucher: CREDITED_VOUCHER, keptVoucher: OWN_VOUCHER }],
+      }),
+    ).toBeNull();
+  });
+
+  it("is none when the sale has no other authorized document", () => {
+    expect(otherVoucherToKeep(OWN_VOUCHER, { otherDocuments: [], creditNotes: [] })).toBeNull();
+  });
+
+  it.each<[string, VoucherReference, boolean]>([
+    ["the same voucher", OWN_VOUCHER, true],
+    ["another number", { ...OWN_VOUCHER, number: 42 }, false],
+    ["another point of sale", { ...OWN_VOUCHER, pointOfSale: 13 }, false],
+    ["another voucher type", { ...OWN_VOUCHER, voucherType: 13 }, false],
+  ])("tells whether a credit note kept the voucher: %s", (_case, keptVoucher, kept) => {
+    expect(
+      isKeptByCreditNote(OWN_VOUCHER, [{ creditedVoucher: CREDITED_VOUCHER, keptVoucher }]),
+    ).toBe(kept);
+  });
+
+  it("is not kept by a credit note that kept nothing", () => {
+    expect(
+      isKeptByCreditNote(OWN_VOUCHER, [{ creditedVoucher: CREDITED_VOUCHER, keptVoucher: null }]),
+    ).toBe(false);
   });
 });

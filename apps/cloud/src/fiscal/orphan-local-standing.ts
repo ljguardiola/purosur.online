@@ -2,6 +2,7 @@ import { FACTURA_C_DOCUMENT_TYPE, FACTURA_C_VOUCHER_TYPE } from "@purosur/domain
 import type {
   AuthorizationNumber,
   RequestsAtNumber,
+  SaleCreditNote,
   SaleDocument,
 } from "@purosur/domain/fiscal/use-cases";
 import { and, asc, eq, ne } from "drizzle-orm";
@@ -102,4 +103,37 @@ export async function requestsAtNumber<TQueryResult extends PgQueryResultHKT>(
       answer: answerOf(row),
     })),
   };
+}
+
+export async function creditNotesOfSale<TQueryResult extends PgQueryResultHKT>(
+  db: PgDatabase<TQueryResult>,
+  saleId: string,
+): Promise<SaleCreditNote[]> {
+  const rows = await db
+    .select({
+      associatedVoucherType: creditNotes.associatedVoucherType,
+      associatedPointOfSale: creditNotes.associatedPointOfSale,
+      associatedNumber: creditNotes.associatedNumber,
+      keptVoucherType: creditNotes.keptVoucherType,
+      keptPointOfSale: creditNotes.keptPointOfSale,
+      keptNumber: creditNotes.keptNumber,
+    })
+    .from(creditNotes)
+    .where(eq(creditNotes.saleId, saleId))
+    .orderBy(asc(creditNotes.createdAt), asc(creditNotes.id));
+  return rows.map((row) => ({
+    creditedVoucher: {
+      voucherType: row.associatedVoucherType,
+      pointOfSale: row.associatedPointOfSale,
+      number: row.associatedNumber,
+    },
+    keptVoucher:
+      row.keptVoucherType === null || row.keptPointOfSale === null || row.keptNumber === null
+        ? null
+        : {
+            voucherType: row.keptVoucherType,
+            pointOfSale: row.keptPointOfSale,
+            number: row.keptNumber,
+          },
+  }));
 }

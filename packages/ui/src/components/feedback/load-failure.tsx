@@ -24,8 +24,7 @@ export function LoadFailure({
   if (variant === "pill") {
     const pill = (
       <PillButton tone="error" icon={icon} aria-label={`${title}. Reintentar`} onPress={onRetry}>
-        {title}
-        <span className="underline">Reintentar</span>
+        {title} <span className="underline">Reintentar</span>
       </PillButton>
     );
     return description === undefined ? pill : <Tooltip description={description}>{pill}</Tooltip>;
