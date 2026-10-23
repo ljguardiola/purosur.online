@@ -11,7 +11,10 @@ import { buildTestDatabase, type TestDatabase } from "../test-support/build-test
 import { DrizzleFortnightReportStore } from "./drizzle-fortnight-report-store.js";
 import { DrizzleOfflineAuthorizationCodeStore } from "./drizzle-offline-authorization-code-store.js";
 import { DrizzleOwedPresentationList } from "./drizzle-owed-presentation-list.js";
-import { insertOfflineFiscalDocument } from "./test-support/offline-fiscal-document-fixtures.js";
+import {
+  insertOfflineCreditNote,
+  insertOfflineFiscalDocument,
+} from "./test-support/offline-fiscal-document-fixtures.js";
 import {
   retireOfflinePointOfSaleAt,
   seedOfflinePointOfSale,
@@ -487,6 +490,20 @@ describe("DrizzleFortnightReportStore.acceptedWithUnreportedDocuments", () => {
     },
   );
 
+  it("lists nothing for a credit note issued offline that no report covers yet", async () => {
+    await document(1);
+    await insertOfflineCreditNote(db, {
+      registerId,
+      pointOfSale: OFFLINE_POINT_OF_SALE,
+      fortnight: OCTOBER_FIRST_HALF,
+      number: 1,
+      corrects: { voucherType: 11, pointOfSale: OFFLINE_POINT_OF_SALE, number: 1 },
+    });
+    await accept("documents", 1);
+
+    expect(await newStore().acceptedWithUnreportedDocuments()).toEqual([]);
+  });
+
   it("lists an accepted presentation whose document type has no report at all", async () => {
     await document(1);
     await accept("none");
@@ -824,6 +841,21 @@ describe("DrizzleFortnightReportStore.creditCorrectedDocument", () => {
     expect(await db.select({ id: creditNotes.id }).from(creditNotes)).toEqual([
       { id: "0199b7a0-0000-7000-8000-000000000009" },
     ]);
+    expect(enqueuedCreditNotes).toEqual([]);
+  });
+
+  it("asks for nothing when a credit note issued offline already corrects the voucher, the customer holding it already", async () => {
+    await insertOfflineCreditNote(db, {
+      registerId,
+      pointOfSale: OFFLINE_POINT_OF_SALE,
+      fortnight: OCTOBER_FIRST_HALF,
+      number: 1,
+      corrects: creditNote.associatedVoucher,
+    });
+
+    await credit();
+
+    expect(await db.select({ id: creditNotes.id }).from(creditNotes)).toEqual([]);
     expect(enqueuedCreditNotes).toEqual([]);
   });
 

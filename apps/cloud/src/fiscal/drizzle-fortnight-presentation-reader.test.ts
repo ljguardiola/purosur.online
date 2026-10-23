@@ -8,7 +8,10 @@ import { DrizzleFortnightPresentationReader } from "./drizzle-fortnight-presenta
 import { DrizzleFortnightReportStore } from "./drizzle-fortnight-report-store.js";
 import { DrizzleOfflineAuthorizationCodeStore } from "./drizzle-offline-authorization-code-store.js";
 import { DrizzleOwedPresentationList } from "./drizzle-owed-presentation-list.js";
-import { insertOfflineFiscalDocument } from "./test-support/offline-fiscal-document-fixtures.js";
+import {
+  insertOfflineCreditNote,
+  insertOfflineFiscalDocument,
+} from "./test-support/offline-fiscal-document-fixtures.js";
 import {
   retireOfflinePointOfSaleAt,
   seedOfflinePointOfSale,
@@ -343,6 +346,22 @@ describe("DrizzleFortnightPresentationReader.branchPresentations", () => {
         ["2026-10-16", null],
         ["2026-10-01", "blocked"],
       ]);
+    });
+
+    it("counts the facturas of the presentation and none of its credit notes", async () => {
+      await issueFacturaC(registerId, OCTOBER_FIRST_HALF, [1, 2]);
+      await insertOfflineCreditNote(db, {
+        registerId,
+        pointOfSale: OFFLINE_POINT_OF_SALE,
+        fortnight: OCTOBER_FIRST_HALF,
+        number: 1,
+        corrects: { voucherType: 11, pointOfSale: OFFLINE_POINT_OF_SALE, number: 1 },
+      });
+      await recordFacturaC(OCTOBER_FIRST_HALF, { state: "accepted", reportedThrough: 2 });
+
+      const [presentation] = await presentations("2026-10-16");
+
+      expect(presentation).toMatchObject({ documentType: "factura_c", documentCount: 2 });
     });
 
     it("gives the rejected document as presented, its rejections, how many documents after it were left unprocessed and that its remedy awaits a person", async () => {
