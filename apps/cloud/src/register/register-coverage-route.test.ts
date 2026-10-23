@@ -153,7 +153,7 @@ describe("GET /registers/coverage", () => {
     expect(response.json()).toMatchObject({ code: "origin_rejected" });
   });
 
-  it("rejects a user without the enroll_register_devices permission with 403 forbidden", async () => {
+  it("rejects a user without any register permission with 403 forbidden", async () => {
     const locationId = await seededLocationId(db);
     const roleId = await insertRole("Cajera", ["sell_and_charge"]);
     const rawSessionId = await insertSession(await insertUser({ roleId, locationId }));
@@ -163,6 +163,19 @@ describe("GET /registers/coverage", () => {
     expect(response.statusCode).toBe(403);
     expect(response.json()).toMatchObject({ code: "forbidden" });
   });
+
+  it.each(["enroll_register_devices", "view_bitlocker_key", "revoke_register_devices"])(
+    "answers a user holding only %s",
+    async (permission) => {
+      const locationId = await seededLocationId(db);
+      const roleId = await insertRole("Encargada", [permission]);
+      const rawSessionId = await insertSession(await insertUser({ roleId, locationId }));
+
+      const response = await getCoverage(rawSessionId);
+
+      expect(response.statusCode).toBe(200);
+    },
+  );
 
   it("lists the register permissions no active user of the branch holds through their role", async () => {
     const locationId = await seededLocationId(db);
