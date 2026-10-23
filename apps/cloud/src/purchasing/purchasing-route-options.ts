@@ -1,4 +1,7 @@
-import type { SupplierPriceListFiles } from "@purosur/domain/purchasing/use-cases";
+import type {
+  SupplierPriceListFiles,
+  SupplierPriceListWebPages,
+} from "@purosur/domain/purchasing/use-cases";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 
 export interface PurchasingRouteOptions<TQueryResult extends PgQueryResultHKT> {
@@ -7,4 +10,5 @@ export interface PurchasingRouteOptions<TQueryResult extends PgQueryResultHKT> {
   now: () => Date;
   // Present only when the AI reading of supplier price lists is configured.
   supplierPriceListFiles?: SupplierPriceListFiles;
+  supplierPriceListWebPages?: SupplierPriceListWebPages;
 }

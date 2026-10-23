@@ -1,8 +1,4 @@
-import type {
-  SupplierPriceListReadFailure,
-  SupplierPriceListSourceKind,
-  SupplierPriceListState,
-} from "@purosur/domain";
+import type { SupplierPriceListReadFailure, SupplierPriceListState } from "@purosur/domain";
 import type {
   SupplierPriceListListing,
   SupplierPriceListReader,
@@ -19,8 +15,8 @@ const listingColumns = {
   id: supplierPriceLists.id,
   supplierId: suppliers.id,
   supplierName: suppliers.name,
-  sourceKind: supplierPriceLists.sourceKind,
   fileName: supplierPriceLists.fileName,
+  sourceUrl: supplierPriceLists.sourceUrl,
   listDate: supplierPriceLists.listDate,
   rowCount,
   unpricedRowCount,
@@ -34,8 +30,8 @@ function toListing(row: {
   id: string;
   supplierId: string;
   supplierName: string;
-  sourceKind: string;
-  fileName: string;
+  fileName: string | null;
+  sourceUrl: string | null;
   listDate: string | null;
   rowCount: number;
   unpricedRowCount: number;
@@ -47,8 +43,10 @@ function toListing(row: {
   return {
     id: row.id,
     supplier: { id: row.supplierId, name: row.supplierName },
-    sourceKind: row.sourceKind as SupplierPriceListSourceKind,
-    fileName: row.fileName,
+    source:
+      row.sourceUrl === null
+        ? { kind: "PDF", fileName: row.fileName as string }
+        : { kind: "WEB_PAGE", url: row.sourceUrl },
     listDate: row.listDate,
     rowCount: row.rowCount,
     unpricedRowCount: row.unpricedRowCount,
@@ -117,6 +115,6 @@ export class DrizzleSupplierPriceListReader<TQueryResult extends PgQueryResultHK
       .select({ fileName: supplierPriceLists.fileName })
       .from(supplierPriceLists)
       .where(eq(supplierPriceLists.id, listId));
-    return list?.fileName;
+    return list?.fileName ?? undefined;
   }
 }

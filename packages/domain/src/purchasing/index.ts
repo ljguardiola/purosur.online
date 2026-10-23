@@ -51,6 +51,7 @@ export {
   SUPPLIER_NOTE_MAX_LENGTH,
 } from "./model/supplier.js";
 export type {
+  SupplierPriceListContentKind,
   SupplierPriceListReadFailure,
   SupplierPriceListSourceKind,
   SupplierPriceListState,
@@ -64,6 +65,7 @@ export {
   PRICE_LIST_EXTRACTION_MAX_DESCRIPTION_LENGTH,
   PRICE_LIST_EXTRACTION_MAX_ROWS,
   PRICE_LIST_EXTRACTION_MAX_SHORT_TEXT_LENGTH,
+  SUPPLIER_PRICE_LIST_CONTENT_KINDS,
   SUPPLIER_PRICE_LIST_DAILY_EXTRACTION_CAP_MAX,
   SUPPLIER_PRICE_LIST_DAILY_EXTRACTION_CAP_MIN,
   SUPPLIER_PRICE_LIST_FILE_NAME_MAX_LENGTH,
@@ -76,3 +78,14 @@ export {
   SUPPLIER_PRICE_LIST_ABANDONED_READING_CHECK_INTERVAL_MS,
   SUPPLIER_PRICE_LIST_READING_TIME_LIMIT_MS,
 } from "./model/supplier-price-list-reading.js";
+export type { SupplierPriceListWebPageRefusal } from "./model/supplier-price-list-web-page.js";
+export {
+  isSupplierPriceListWebPageAddressTooLong,
+  isSupplierPriceListWebPageScheme,
+  SUPPLIER_PRICE_LIST_WEB_PAGE_ADDRESS_MAX_LENGTH,
+  SUPPLIER_PRICE_LIST_WEB_PAGE_MAX_BYTES,
+  SUPPLIER_PRICE_LIST_WEB_PAGE_MAX_REDIRECTS,
+  SUPPLIER_PRICE_LIST_WEB_PAGE_REFUSALS,
+  SUPPLIER_PRICE_LIST_WEB_PAGE_SCHEMES,
+  SUPPLIER_PRICE_LIST_WEB_PAGE_TIME_LIMIT_MS,
+} from "./model/supplier-price-list-web-page.js";

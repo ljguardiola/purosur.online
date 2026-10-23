@@ -103,6 +103,7 @@ import { runShutdownSteps } from "./platform/run-shutdown-steps.js";
 import { initSentry } from "./platform/sentry.js";
 import { AnthropicPriceListExtractor } from "./purchasing/anthropic-price-list-extractor.js";
 import { BucketSupplierPriceListFiles } from "./purchasing/bucket-supplier-price-list-files.js";
+import { createGuardedWebPageReader } from "./purchasing/guarded-web-page-reader.js";
 import { supplierPriceListReadingJobs } from "./purchasing/supplier-price-list-reading-task.js";
 import { resolveSupplierPriceListsBucketConfig } from "./purchasing/supplier-price-lists-bucket-config.js";
 import { BucketRegisterReleases } from "./register/bucket-register-releases.js";
@@ -801,7 +802,10 @@ export async function startServer(env: ServerEnv, deps: StartServerDeps): Promis
           releaseCheckToken: env.RELEASE_CHECK_TOKEN,
           offsiteDumpCheckToken: env.OFFSITE_DUMP_CHECK_TOKEN,
           ...(supplierPriceListReading
-            ? { supplierPriceListFiles: supplierPriceListReading.files }
+            ? {
+                supplierPriceListFiles: supplierPriceListReading.files,
+                supplierPriceListWebPages: createGuardedWebPageReader(),
+              }
             : {}),
           ...(invoicing ? { enqueueTaxAuthorityCount: enqueueTaxAuthorityCountJob } : {}),
           ...(mercadoPago

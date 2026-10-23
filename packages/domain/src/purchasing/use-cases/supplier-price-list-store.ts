@@ -1,26 +1,35 @@
 import type {
+  SupplierPriceListContentKind,
   SupplierPriceListReadFailure,
   SupplierPriceListSourceKind,
   SupplierPriceListState,
 } from "../model/supplier-price-list.js";
 
-export interface NewSupplierPriceListFields {
+export type NewSupplierPriceListFields = {
   supplierId: string;
   locationId: string;
-  sourceKind: "PDF";
-  fileName: string;
+  contentKind: SupplierPriceListContentKind;
   byteSize: number;
   uploadedAt: Date;
   actorId: string;
-}
+} & ({ sourceKind: "PDF"; fileName: string } | { sourceKind: "WEB_PAGE"; sourceUrl: string });
 
 export type FindPriceListSupplierResult =
   | { kind: "not_found" }
   | { kind: "found"; supplier: { id: string; active: boolean } };
 
+export type FindSupplierPriceListSourceResult =
+  | { kind: "not_found" }
+  | {
+      kind: "found";
+      supplierId: string;
+      source: { kind: "PDF" } | { kind: "WEB_PAGE"; url: string };
+    };
+
 export interface LockedSupplierPriceList {
   id: string;
   sourceKind: SupplierPriceListSourceKind;
+  contentKind: SupplierPriceListContentKind;
   state: SupplierPriceListState;
   version: number;
   // The date the reading found, null when it found none.
@@ -53,6 +62,7 @@ export interface SupplierPriceListStoreTransaction {
   // How many extractions count toward the branch's cap on the Argentina calendar day.
   extractionsCountedOn(locationId: string, day: string): Promise<number>;
   findSupplier(supplierId: string): Promise<FindPriceListSupplierResult>;
+  findListSource(listId: string): Promise<FindSupplierPriceListSourceResult>;
   insertList(fields: NewSupplierPriceListFields): Promise<{ id: string }>;
   // Queues the background reading of the list within the same transaction that inserted it.
   enqueueReading(listId: string): Promise<void>;

@@ -8,8 +8,7 @@ function listing(
 ): SupplierPriceListListing {
   return {
     supplier: { id: "supplier-a", name: "Distribuidora Sur" },
-    sourceKind: "PDF",
-    fileName: "lista.pdf",
+    source: { kind: "PDF", fileName: "lista.pdf" },
     listDate: "2026-03-01",
     rowCount: 12,
     unpricedRowCount: 0,
@@ -29,7 +28,7 @@ describe("listSupplierPriceLists", () => {
         listing({
           id: "new",
           supplier: { id: "supplier-b", name: "Norte" },
-          fileName: "norte.pdf",
+          source: { kind: "WEB_PAGE", url: "https://norte.example/lista" },
           listDate: null,
           rowCount: 0,
           unpricedRowCount: 0,
@@ -44,8 +43,7 @@ describe("listSupplierPriceLists", () => {
       {
         id: "new",
         supplier: { id: "supplier-b", name: "Norte" },
-        sourceKind: "PDF",
-        fileName: "norte.pdf",
+        source: { kind: "WEB_PAGE", url: "https://norte.example/lista" },
         listDate: null,
         rowCount: 0,
         unpricedRowCount: 0,

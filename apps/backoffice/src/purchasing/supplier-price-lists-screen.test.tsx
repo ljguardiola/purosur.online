@@ -17,6 +17,9 @@ import {
   READING_LIST,
   REPLACED_LIST,
   REVIEWED_LIST,
+  WEB_FAILED_LIST,
+  WEB_LIST,
+  WEB_READING_LIST,
 } from "./test-support/supplier-price-lists";
 
 beforeEach(() => {
@@ -29,6 +32,8 @@ function createServices(
   return {
     fetchSupplierPriceLists: vi.fn(),
     uploadSupplierPriceList: vi.fn(),
+    loadSupplierPriceListWebPage: vi.fn(),
+    refreshSupplierPriceList: vi.fn(),
     fetchSuppliers: vi.fn().mockResolvedValue({ kind: "ok", value: [] }),
     ...overrides,
   };
@@ -118,6 +123,24 @@ test("shows the heading under Pedidos and every list with its supplier, file, da
   const granos = rowOf(screen, "Granos del Valle");
   await expect.element(granos.getByText("212")).toBeVisible();
   await expect.element(granos.getByText("Revisada")).toBeVisible();
+});
+
+test("shows a list read from a web page by its address without the scheme, marked as a web page", async () => {
+  const services = createServices();
+  const screen = await loaded(services, [WEB_LIST]);
+
+  const row = rowOf(screen, "Distribuidora del Sur");
+  await expect.element(row.getByText("distribuidora-sur.example/precios")).toBeVisible();
+  await expect.element(row.getByText("Página web")).toBeVisible();
+});
+
+test("finds a list read from a web page by its address", async () => {
+  const services = createServices();
+  const screen = await loaded(services, [READ_LIST, WEB_LIST], {
+    filters: supplierPriceListsFilters.parse({ search: "distribuidora-sur" }),
+  });
+
+  await expect.poll(() => supplierNames(screen)).toEqual(["Distribuidora del Sur"]);
 });
 
 test("shows a dash for a list without a date, and every other state with its own label", async () => {
@@ -290,6 +313,166 @@ test("uploading a list closes the modal, reads the lists again and says it was l
   await expect.element(screen.getByText("Lista cargada")).toBeVisible();
   await expect.element(screen.getByText("Cerealera del Norte")).toBeVisible();
   expect(screen.getByRole("dialog").query()).toBeNull();
+});
+
+function refreshButton(screen: Screen, supplier: string) {
+  return rowOf(screen, supplier).getByRole("button", {
+    name: `Actualizar la lista de ${supplier}`,
+  });
+}
+
+test("offers to refresh the lists read from a web page, unless they are being read", async () => {
+  const services = createServices();
+  const screen = await loaded(services, [READ_LIST, WEB_LIST, WEB_READING_LIST, WEB_FAILED_LIST]);
+
+  await expect.element(refreshButton(screen, "Distribuidora del Sur")).toBeVisible();
+  await expect.element(refreshButton(screen, "Almacén Patagonia")).toBeVisible();
+  expect(refreshButton(screen, "Frutos del Litoral").query()).toBeNull();
+  expect(
+    rowOf(screen, "Distribuidora Andina")
+      .getByRole("button", { name: /^Actualizar/ })
+      .query(),
+  ).toBeNull();
+});
+
+test("a failed web page list is refreshed instead of loaded again", async () => {
+  const services = createServices();
+  const screen = await loaded(services, [WEB_FAILED_LIST, FAILED_LIST]);
+
+  await expect.element(refreshButton(screen, "Almacén Patagonia")).toBeVisible();
+  expect(
+    rowOf(screen, "Almacén Patagonia")
+      .getByRole("button", { name: /^Cargar de nuevo/ })
+      .query(),
+  ).toBeNull();
+  await expect
+    .element(rowOf(screen, "Molinos San Javier").getByRole("button", { name: /^Cargar de nuevo/ }))
+    .toBeVisible();
+});
+
+test("refreshing a list reads the lists again and says it was loaded", async () => {
+  const services = createServices();
+  vi.mocked(services.refreshSupplierPriceList).mockResolvedValue({ kind: "ok" });
+  const screen = await loaded(services, [WEB_LIST]);
+  vi.mocked(services.fetchSupplierPriceLists).mockResolvedValue({
+    kind: "ok",
+    value: [WEB_READING_LIST],
+  });
+
+  await userEvent.click(refreshButton(screen, "Distribuidora del Sur"));
+
+  expect(services.refreshSupplierPriceList).toHaveBeenCalledWith(WEB_LIST.id);
+  await expect.element(screen.getByText("Lista cargada")).toBeVisible();
+  await expect
+    .element(screen.getByText("Se está leyendo. Cuando termine, se puede revisar."))
+    .toBeVisible();
+  await expect.element(screen.getByText("Leyendo la lista")).toBeVisible();
+});
+
+test("does not ask for the same list again while its page is being loaded", async () => {
+  const services = createServices();
+  const refresh = deferred<Awaited<ReturnType<typeof services.refreshSupplierPriceList>>>();
+  vi.mocked(services.refreshSupplierPriceList).mockReturnValue(refresh.promise);
+  const screen = await loaded(services, [WEB_LIST]);
+
+  await userEvent.click(refreshButton(screen, "Distribuidora del Sur"));
+  await userEvent.click(refreshButton(screen, "Distribuidora del Sur"));
+  refresh.resolve({ kind: "ok" });
+
+  await expect.element(screen.getByText("Lista cargada")).toBeVisible();
+  expect(services.refreshSupplierPriceList).toHaveBeenCalledTimes(1);
+});
+
+test("refreshes another list while the page of the first is being loaded", async () => {
+  const services = createServices();
+  const first = deferred<Awaited<ReturnType<typeof services.refreshSupplierPriceList>>>();
+  vi.mocked(services.refreshSupplierPriceList)
+    .mockReturnValueOnce(first.promise)
+    .mockResolvedValueOnce({ kind: "ok" });
+  const screen = await loaded(services, [WEB_LIST, WEB_FAILED_LIST]);
+
+  await userEvent.click(refreshButton(screen, "Distribuidora del Sur"));
+  await userEvent.click(refreshButton(screen, "Almacén Patagonia"));
+
+  expect(services.refreshSupplierPriceList).toHaveBeenCalledWith(WEB_FAILED_LIST.id);
+  await expect.element(screen.getByText("Lista cargada")).toBeVisible();
+  first.resolve({ kind: "ok" });
+});
+
+test("says why the page was refused", async () => {
+  const services = createServices();
+  vi.mocked(services.refreshSupplierPriceList).mockResolvedValue({
+    kind: "page_refused",
+    reason: "too_large",
+  });
+  const screen = await loaded(services, [WEB_LIST]);
+
+  await userEvent.click(refreshButton(screen, "Distribuidora del Sur"));
+
+  await expect.element(screen.getByText("No se pudo leer la página")).toBeVisible();
+  await expect.element(screen.getByText("La página es demasiado pesada.")).toBeVisible();
+  expect(screen.getByText("Lista cargada").query()).toBeNull();
+});
+
+test.each([
+  [
+    { kind: "daily_cap_reached", cap: 10 },
+    "Por hoy no se pueden leer más listas",
+    "Se llegó al tope de lecturas del día de esta sucursal. La lista se puede cargar mañana.",
+  ],
+  [
+    { kind: "supplier_inactive" },
+    "Este proveedor está desactivado",
+    "Reactivalo en Proveedores para volver a leer su página.",
+  ],
+  [
+    { kind: "supplier_not_found" },
+    "Este proveedor ya no existe",
+    "Su lista ya no se puede actualizar.",
+  ],
+  [
+    { kind: "reading_unavailable" },
+    "La lectura de listas no está disponible",
+    "Volvé a intentarlo más tarde.",
+  ],
+  [{ kind: "failed" }, "No se cargó la lista", "Volvé a intentarlo."],
+  [{ kind: "not_found" }, "No se cargó la lista", "Volvé a intentarlo."],
+  [
+    { kind: "rate_limited", retryAfterSeconds: 60 },
+    "Demasiadas solicitudes",
+    "Se puede volver a intentar en 1 minuto.",
+  ],
+] as const)("shows %j when refreshing a list", async (outcome, title, description) => {
+  const services = createServices();
+  vi.mocked(services.refreshSupplierPriceList).mockResolvedValue(outcome);
+  const screen = await loaded(services, [WEB_LIST]);
+
+  await userEvent.click(refreshButton(screen, "Distribuidora del Sur"));
+
+  await expect.element(screen.getByText(title)).toBeVisible();
+  await expect.element(screen.getByText(description)).toBeVisible();
+});
+
+test("ends the session when refreshing finds no open session", async () => {
+  const services = createServices();
+  vi.mocked(services.refreshSupplierPriceList).mockResolvedValue({ kind: "unauthenticated" });
+  const onSessionEnded = vi.fn();
+  const screen = await loaded(services, [WEB_LIST], { onSessionEnded });
+
+  await userEvent.click(refreshButton(screen, "Distribuidora del Sur"));
+
+  await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
+});
+
+test("navigates to Mi cuenta when refreshing comes back forbidden", async () => {
+  window.history.pushState(null, "", "/supplier-price-lists");
+  const services = createServices();
+  vi.mocked(services.refreshSupplierPriceList).mockResolvedValue({ kind: "forbidden" });
+  const screen = await loaded(services, [WEB_LIST]);
+
+  await userEvent.click(refreshButton(screen, "Distribuidora del Sur"));
+
+  await expect.poll(() => window.location.pathname).toBe("/account");
 });
 
 test("the upload action stays available while the lists load and after they fail", async () => {
