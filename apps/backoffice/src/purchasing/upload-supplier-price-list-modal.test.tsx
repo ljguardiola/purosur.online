@@ -313,7 +313,15 @@ function addressInput(screen: ModalScreen) {
 }
 
 async function chooseWebPage(screen: ModalScreen) {
-  await userEvent.click(screen.getByRole("dialog").getByRole("radio", { name: "Página web" }));
+  const label = screen
+    .getByRole("dialog")
+    .getByRole("radio", { name: "Página web" })
+    .element()
+    .closest("label");
+  if (!label) {
+    throw new Error("no label for the web page card");
+  }
+  await userEvent.click(label);
 }
 
 async function submitWebPage(screen: ModalScreen, address: string = PAGE_ADDRESS) {
