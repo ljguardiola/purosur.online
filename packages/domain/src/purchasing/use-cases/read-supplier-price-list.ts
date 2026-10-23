@@ -1,5 +1,5 @@
 import { argentinaCalendarDay, isCalendarDay } from "../../shared/index.js";
-import { supplierItemKey } from "../model/supplier-item.js";
+import { sameSupplierItemKey, supplierItemKey } from "../model/supplier-item.js";
 import {
   isPriceListRowPrice,
   isSourcePage,
@@ -59,9 +59,7 @@ async function withRememberedLinks(
   const remembered = await tx.supplierItems(supplierId, rows.map(supplierItemKey));
   return rows.map((row) => {
     const key = supplierItemKey(row);
-    const item = remembered.find(
-      (other) => other.key.kind === key.kind && other.key.value === key.value,
-    );
+    const item = remembered.find((other) => sameSupplierItemKey(other.key, key));
     return { ...row, link: item?.link ?? null };
   });
 }

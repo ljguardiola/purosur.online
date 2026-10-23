@@ -1,4 +1,4 @@
-import { lastRowOfEachItem } from "../model/supplier-item.js";
+import { lastRowOfEachItem, sameSupplierItemKey } from "../model/supplier-item.js";
 import {
   decideConfirmation,
   isSupplierPriceListUnderReview,
@@ -61,9 +61,7 @@ export function confirmSupplierPriceList(
     );
     for (const { key, row, rows } of groups) {
       const link = rows.filter((other) => other.link !== null).at(-1)?.link ?? null;
-      const item = items.find(
-        (other) => other.key.kind === key.kind && other.key.value === key.value,
-      );
+      const item = items.find((other) => sameSupplierItemKey(other.key, key));
       let itemId: string;
       if (item) {
         itemId = item.id;

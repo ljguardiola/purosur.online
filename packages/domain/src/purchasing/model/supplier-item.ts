@@ -25,6 +25,10 @@ export function supplierItemKey(item: {
     : { kind: "code", value: code };
 }
 
+export function sameSupplierItemKey(a: SupplierItemKey, b: SupplierItemKey): boolean {
+  return a.kind === b.kind && a.value === b.value;
+}
+
 // Basis points, so a rate is exact: 2100 is 21% and 1050 is 10.5%.
 export const SUPPLIER_ITEM_VAT_RATES = [2100, 1050] as const;
 
