@@ -6355,6 +6355,9 @@ describe("the contingency backup tickets migration", () => {
     } finally {
       rmSync(folder, { recursive: true, force: true });
     }
+  });
+});
+
 describe("the offline void credit notes migration", () => {
   const MIGRATION = "0078_offline_void_credit_notes";
 
