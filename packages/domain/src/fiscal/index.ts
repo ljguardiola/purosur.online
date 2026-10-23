@@ -134,7 +134,7 @@ export type {
   TaxAuthorityRejection,
 } from "./model/fiscal-rejection-standing.js";
 export { FACTURA_C_DOCUMENT_TYPE } from "./model/fiscal-rejection-standing.js";
-export type { FiscalTaskDocumentType } from "./model/fiscal-task.js";
+export type { FiscalTaskDocumentType, FiscalTaskState } from "./model/fiscal-task.js";
 export {
   CLOSED_FISCAL_TASK_STATE,
   FISCAL_TASK_CLOSING_NOTE_MAX_LENGTH,

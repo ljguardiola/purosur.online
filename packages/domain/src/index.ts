@@ -221,6 +221,7 @@ export type {
   FiscalEmissionStoppedReport,
   FiscalOnlineSignalEvidence,
   FiscalTaskDocumentType,
+  FiscalTaskState,
   FortnightPresentationRefusal,
   FortnightPresentationState,
   FortnightReportMovement,
