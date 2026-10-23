@@ -1,4 +1,4 @@
-import { isNewerRegisterVersion } from "./register-version.js";
+import { isVersionTextNewer } from "./register-version.js";
 
 export type ReplenishmentRefusal =
   | "predecessor_not_of_register"
@@ -23,7 +23,7 @@ export function isReplenishmentRetryable(
   return (
     failure.appVersion !== null &&
     currentAppVersion !== null &&
-    isNewerRegisterVersion(failure.appVersion, currentAppVersion)
+    isVersionTextNewer(failure.appVersion, currentAppVersion)
   );
 }
 

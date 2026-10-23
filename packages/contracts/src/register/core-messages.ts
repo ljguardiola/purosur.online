@@ -396,7 +396,7 @@ const enrollmentStandingSchema = z.discriminatedUnion("kind", [
 ]);
 export type EnrollmentStandingAnswer = z.infer<typeof enrollmentStandingSchema>;
 
-const restorationStandingSchema = z.discriminatedUnion("kind", [
+const restorationStandingSchema = z.union([
   z.object({ kind: z.literal("completed") }),
   z.object({
     kind: z.literal("in_progress"),
