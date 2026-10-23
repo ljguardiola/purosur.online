@@ -188,8 +188,11 @@ export function SupplierPriceListsScreen({
             ? {
                 icon: <RefreshCw />,
                 "aria-label": `Actualizar la lista de ${item.supplier.name}`,
-                disabled: refresh.isPending && refresh.variables === item.id,
-                onPress: () => refresh.mutate(item.id),
+                onPress: () => {
+                  if (!refresh.isPending) {
+                    refresh.mutate(item.id);
+                  }
+                },
               }
             : undefined,
         (item: SupplierPriceListSummary) =>
