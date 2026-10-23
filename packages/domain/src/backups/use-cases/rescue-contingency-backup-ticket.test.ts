@@ -8,6 +8,7 @@ import { rescueContingencyBackupTicket } from "./rescue-contingency-backup-ticke
 import {
   FakeContingencyBackupTicketOpener,
   FakeRescuedEventDecoder,
+  FakeRescuedTicketAudit,
   FakeRescuedTicketEvents,
   rescuedEvent,
 } from "./test-support/fake-rescue-contingency-backup-ticket.js";
@@ -35,7 +36,8 @@ function setup(
   const opener = new FakeContingencyBackupTicketOpener(opening);
   const events = new FakeRescuedTicketEvents(delivery);
   const decoder = new FakeRescuedEventDecoder(new Map(facts));
-  return { opener, events, decoder, ports: { opener, events, decoder } };
+  const audit = new FakeRescuedTicketAudit();
+  return { opener, events, decoder, audit, ports: { opener, events, decoder, audit } };
 }
 
 describe("rescuing a contingency backup ticket", () => {
@@ -46,7 +48,7 @@ describe("rescuing a contingency backup ticket", () => {
       alreadyReceived: 0,
     });
 
-    await rescueContingencyBackupTicket(ports, { qrCodes: QR_CODES });
+    await rescueContingencyBackupTicket(ports, { qrCodes: QR_CODES, actorId: "user-1" });
 
     expect(opener.opened).toEqual([QR_CODES]);
     expect(events.delivered).toEqual([
@@ -66,7 +68,7 @@ describe("rescuing a contingency backup ticket", () => {
       ],
     ]);
 
-    const outcome = await rescueContingencyBackupTicket(ports, { qrCodes: QR_CODES });
+    const outcome = await rescueContingencyBackupTicket(ports, { qrCodes: QR_CODES, actorId: "user-1" });
 
     expect(outcome).toEqual({
       kind: "rescued",
@@ -86,7 +88,7 @@ describe("rescuing a contingency backup ticket", () => {
   it("summarizes a ticket whose events it cannot read without them", async () => {
     const { ports } = setup(OPENED, { kind: "delivered", received: 2, alreadyReceived: 0 });
 
-    const outcome = await rescueContingencyBackupTicket(ports, { qrCodes: QR_CODES });
+    const outcome = await rescueContingencyBackupTicket(ports, { qrCodes: QR_CODES, actorId: "user-1" });
 
     expect(outcome).toMatchObject({
       kind: "rescued",
@@ -102,7 +104,7 @@ describe("rescuing a contingency backup ticket", () => {
   ] as const)("answers %s and delivers nothing when the codes cannot be opened that way", async (kind) => {
     const { ports, events } = setup({ kind });
 
-    const outcome = await rescueContingencyBackupTicket(ports, { qrCodes: QR_CODES });
+    const outcome = await rescueContingencyBackupTicket(ports, { qrCodes: QR_CODES, actorId: "user-1" });
 
     expect(outcome).toEqual({ kind });
     expect(events.delivered).toEqual([]);
@@ -114,8 +116,50 @@ describe("rescuing a contingency backup ticket", () => {
   ] as const)("answers %s when the inbox refuses the events that way", async (kind) => {
     const { ports } = setup(OPENED, { kind });
 
-    const outcome = await rescueContingencyBackupTicket(ports, { qrCodes: QR_CODES });
+    const outcome = await rescueContingencyBackupTicket(ports, { qrCodes: QR_CODES, actorId: "user-1" });
 
     expect(outcome).toEqual({ kind });
+  });
+
+  it("records who rescued the ticket and what it brought in", async () => {
+    const { ports, audit } = setup(OPENED, { kind: "delivered", received: 1, alreadyReceived: 1 });
+
+    await rescueContingencyBackupTicket(ports, { qrCodes: QR_CODES, actorId: "user-1" });
+
+    expect(audit.entries).toEqual([
+      { registerId: "register-1", actorId: "user-1", received: 1, alreadyReceived: 1 },
+    ]);
+  });
+
+  it("records a rescue that brought nothing new", async () => {
+    const { ports, audit } = setup(OPENED, { kind: "delivered", received: 0, alreadyReceived: 2 });
+
+    await rescueContingencyBackupTicket(ports, { qrCodes: QR_CODES, actorId: "user-1" });
+
+    expect(audit.entries).toHaveLength(1);
+  });
+
+  it.each([
+    { kind: "unreadable" },
+    { kind: "incomplete" },
+    { kind: "unknown_key" },
+    { kind: "not_authentic" },
+  ] as const)("records nothing when the codes answer $kind", async (opening) => {
+    const { ports, audit } = setup(opening);
+
+    await rescueContingencyBackupTicket(ports, { qrCodes: QR_CODES, actorId: "user-1" });
+
+    expect(audit.entries).toEqual([]);
+  });
+
+  it.each([
+    "foreign_installation",
+    "conflicting",
+  ] as const)("records nothing when the inbox answers %s", async (kind) => {
+    const { ports, audit } = setup(OPENED, { kind });
+
+    await rescueContingencyBackupTicket(ports, { qrCodes: QR_CODES, actorId: "user-1" });
+
+    expect(audit.entries).toEqual([]);
   });
 });

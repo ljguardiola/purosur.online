@@ -4,6 +4,8 @@ import type {
   ContingencyBackupTicketOpener,
   ContingencyBackupTicketOpening,
   RescuedEventDecoder,
+  RescuedTicketAudit,
+  RescuedTicketAuditEntry,
   RescuedTicketDelivery,
   RescuedTicketDeliveryAnswer,
   RescuedTicketEvents,
@@ -57,5 +59,13 @@ export class FakeRescuedTicketEvents implements RescuedTicketEvents {
   async deliver(delivery: RescuedTicketDelivery): Promise<RescuedTicketDeliveryAnswer> {
     this.delivered.push(delivery);
     return this.answer;
+  }
+}
+
+export class FakeRescuedTicketAudit implements RescuedTicketAudit {
+  readonly entries: RescuedTicketAuditEntry[] = [];
+
+  async recordRescue(entry: RescuedTicketAuditEntry): Promise<void> {
+    this.entries.push(entry);
   }
 }
