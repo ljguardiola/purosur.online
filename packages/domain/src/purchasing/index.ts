@@ -72,3 +72,7 @@ export {
   SUPPLIER_PRICE_LIST_SOURCE_KINDS,
   SUPPLIER_PRICE_LIST_STATES,
 } from "./model/supplier-price-list.js";
+export {
+  SUPPLIER_PRICE_LIST_ABANDONED_READING_CHECK_INTERVAL_MS,
+  SUPPLIER_PRICE_LIST_READING_TIME_LIMIT_MS,
+} from "./model/supplier-price-list-reading.js";

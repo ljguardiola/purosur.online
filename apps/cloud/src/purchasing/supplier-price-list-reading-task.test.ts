@@ -80,11 +80,12 @@ function unreadableBucket(): Promise<Uint8Array | null> {
 }
 
 describe("supplierPriceListReadingJobs", () => {
-  it("registers the reading task and schedules nothing", () => {
+  it("registers the reading task and checks every minute for readings a stopped cloud abandoned", () => {
     const jobs = jobsAnswering({ kind: "unavailable" });
 
     expect(jobs.taskList[SUPPLIER_PRICE_LIST_READING_TASK_IDENTIFIER]).toBeInstanceOf(Function);
-    expect(jobs.crontab).toEqual([]);
+    expect(jobs.taskList["supplier-price-list-abandoned-reading-check"]).toBeInstanceOf(Function);
+    expect(jobs.crontab).toEqual(["* * * * * supplier-price-list-abandoned-reading-check"]);
   });
 
   it("reads the list it is given and leaves its proposed rows for review", async () => {
