@@ -11,6 +11,7 @@ import {
   insertBuyerTaxStatusSet,
   insertCompletedSale,
   insertDeferredSale,
+  insertHealthCheck,
   insertIssuerIdentification,
   insertPointOfSale,
   insertSaleCompletedEvent,
@@ -25,6 +26,7 @@ let database: LocalDatabase;
 
 beforeEach(() => {
   database = openFiscalDatabase();
+  insertHealthCheck(database);
   insertPointOfSale(database, 100);
   insertIssuerIdentification(database);
   insertBuyerTaxStatusSet(database);

@@ -90,7 +90,7 @@ beforeEach(() => {
   addPerson("clerk", ["view_sales_history"]);
   database.exec(
     `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
-     VALUES ('s1', 'r1', 'device-1', 'cashier', '2026-10-07T08:00:00.000Z', 0, 'CLOSED');`,
+     VALUES ('s1', 'r1', 'device-1', 'cashier', '2026-10-07T08:00:00.000Z', 0, 'OPEN');`,
   );
   signedInPerson = createSignedInPerson();
   signedInPerson.set("cashier");
