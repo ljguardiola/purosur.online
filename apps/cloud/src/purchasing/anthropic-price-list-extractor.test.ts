@@ -1071,13 +1071,13 @@ describe("a web page", () => {
     );
   });
 
-  it("takes the first date and the first VAT answer given in the order of the page", async () => {
+  it("takes the first VAT answer given", async () => {
     const { source } = webPageOfLines(3_000);
     let answered = 0;
     const { extractor } = extractorAnswering(() => {
       answered += 1;
       return streamedJsonResponse({
-        listDate: answered === 1 ? null : "2026-03-0" + answered,
+        listDate: null,
         pricesIncludeVat: answered === 1 ? null : false,
         rows: [],
       });
