@@ -1,4 +1,3 @@
-import { supplierPriceListUploadQuerySchema } from "@purosur/contracts";
 import {
   Button,
   EmptyState,
@@ -8,24 +7,32 @@ import {
   Modal,
   useRequestForm,
 } from "@purosur/ui";
-import { Check, ShieldX, TriangleAlert, Truck, Upload, X } from "lucide-react";
+import { Check, FileText, Globe, ShieldX, TriangleAlert, Truck, Upload, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { purchaseSupplierOptions } from "./purchase-form";
 import { useSuppliersQuery } from "./purchasing-queries";
-import type { uploadSupplierPriceList } from "./supplier-price-lists-api";
+import { webPageRefusalMessage } from "./supplier-price-list-web-page-refusal";
+import type {
+  loadSupplierPriceListWebPage,
+  uploadSupplierPriceList,
+  WebPageRefusalReason,
+} from "./supplier-price-lists-api";
 import type { fetchSuppliers } from "./suppliers-api";
 import {
   EMPTY_UPLOAD_FORM,
   UPLOAD_FIELD_MESSAGES,
   UPLOAD_FIELDS,
+  type UploadSource,
   uploadRequestFrom,
+  uploadRequestSchema,
 } from "./upload-supplier-price-list-form";
 
 export type UploadSupplierPriceListModalServices = {
   uploadSupplierPriceList: typeof uploadSupplierPriceList;
+  loadSupplierPriceListWebPage: typeof loadSupplierPriceListWebPage;
   fetchSuppliers: typeof fetchSuppliers;
 };
 
@@ -47,6 +54,21 @@ type Notice =
   | { kind: "supplierInactive" }
   | { kind: "supplierNotFound" }
   | { kind: "readingUnavailable" };
+
+const SOURCE_OPTIONS = [
+  {
+    value: "PDF" as const satisfies UploadSource,
+    label: "Archivo PDF",
+    description: "Se sube desde la computadora",
+    icon: <FileText />,
+  },
+  {
+    value: "WEB_PAGE" as const satisfies UploadSource,
+    label: "Página web",
+    description: "Se lee al tocar Actualizar",
+    icon: <Globe />,
+  },
+] as const;
 
 function UploadNotice({ notice }: { notice: Notice | null }) {
   switch (notice?.kind) {
@@ -137,22 +159,41 @@ export function UploadSupplierPriceListModal({
 }: UploadSupplierPriceListModalProps) {
   const sendToMyAccount = useSendToMyAccount();
   const [notice, setNotice] = useState<Notice | null>(null);
+  const [refusedPage, setRefusedPage] = useState<{
+    reason: WebPageRefusalReason;
+    url: string;
+  } | null>(null);
   const suppliers = useSuppliersQuery({
     fetchSuppliers: services.fetchSuppliers,
     enabled: open,
     onSessionEnded,
   });
-  const { form, submit, submitting, reset } = useRequestForm({
+  const { form, submit, submitting, reset, values } = useRequestForm({
     defaultValues: EMPTY_UPLOAD_FORM,
-    request: { schema: supplierPriceListUploadQuerySchema, from: uploadRequestFrom },
+    request: { schema: uploadRequestSchema, from: uploadRequestFrom },
     fields: UPLOAD_FIELDS,
     messages: UPLOAD_FIELD_MESSAGES,
-    onSubmit: async (_request, { parsed, values, showWireFieldError }) => {
-      if (parsed === undefined || values.file === null) {
+    onSubmit: async (_request, { parsed, values, showWireFieldError, showFieldError }) => {
+      if (parsed === undefined) {
         return;
       }
       setNotice(null);
-      const outcome = await services.uploadSupplierPriceList(parsed, values.file);
+      setRefusedPage(null);
+      const outcome =
+        parsed.source === "WEB_PAGE"
+          ? await services.loadSupplierPriceListWebPage({
+              supplierId: parsed.supplierId,
+              url: parsed.url,
+            })
+          : values.file === null
+            ? undefined
+            : await services.uploadSupplierPriceList(
+                { supplierId: parsed.supplierId, fileName: parsed.fileName },
+                values.file,
+              );
+      if (outcome === undefined) {
+        return;
+      }
       switch (outcome.kind) {
         case "ok":
           onUploaded();
@@ -170,6 +211,10 @@ export function UploadSupplierPriceListModal({
           return;
         case "daily_cap_reached":
           setNotice({ kind: "dailyCapReached" });
+          return;
+        case "page_refused":
+          showFieldError("url", webPageRefusalMessage(outcome.reason));
+          setRefusedPage({ reason: outcome.reason, url: values.url });
           return;
         case "file_too_large":
           setNotice({ kind: "fileTooLarge" });
@@ -189,6 +234,8 @@ export function UploadSupplierPriceListModal({
         case "rate_limited":
           setNotice({ kind: "rateLimited", retryAfterSeconds: outcome.retryAfterSeconds });
           return;
+        case "not_found":
+        case "not_a_web_page":
         case "failed":
           setNotice({ kind: "attemptFailed" });
           return;
@@ -200,6 +247,7 @@ export function UploadSupplierPriceListModal({
     if (open) {
       reset({ ...EMPTY_UPLOAD_FORM, supplierId: initialSupplierId });
       setNotice(null);
+      setRefusedPage(null);
     }
   }, [open, initialSupplierId, reset]);
 
@@ -272,20 +320,38 @@ export function UploadSupplierPriceListModal({
             )}
           </form.AppField>
         )}
-        <form.AppField name="file">
+        <form.AppField name="source">
           {(field) => (
-            <field.FilePicker
-              label="Archivo"
+            <field.OptionCardGroup
+              label="De dónde sale la lista"
+              options={SOURCE_OPTIONS}
               required
-              accept="application/pdf,.pdf"
-              chooseText="Elegir un archivo"
-              chooseAnotherText="Elegir otro archivo"
             />
           )}
         </form.AppField>
+        {values.source === "PDF" ? (
+          <form.AppField name="file">
+            {(field) => (
+              <field.FilePicker
+                label="Archivo"
+                required
+                accept="application/pdf,.pdf"
+                chooseText="Elegir un archivo"
+                chooseAnotherText="Elegir otro archivo"
+              />
+            )}
+          </form.AppField>
+        ) : (
+          <form.AppField name="url">
+            {(field) => (
+              <field.TextField kind="plain-text" label="Dirección de la página" required />
+            )}
+          </form.AppField>
+        )}
         <p className="text-detail text-text-subtle">
-          Se leen los ítems, las presentaciones y los precios. Nada se guarda hasta revisar cada
-          ítem.
+          {values.source === "WEB_PAGE" && refusedPage?.url === values.url
+            ? "Tampoco se lee una página que redirige más de 3 veces, tarda demasiado, es muy pesada o no es PDF ni una página web."
+            : "Se leen los ítems, las presentaciones y los precios. Nada se guarda hasta revisar cada ítem."}
         </p>
       </div>
     </Modal>
