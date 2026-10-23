@@ -541,7 +541,7 @@ describe("the background worker the server sets up on a real Postgres", () => {
       offlinePointOfSale: 18,
       now: NOW,
     });
-    const fortnight = { start: "2019-12-01", end: "2019-12-15" };
+    const fortnight = { start: "2019-11-16", end: "2019-11-30" };
     await new DrizzleOfflineAuthorizationCodeStore(db).holdAcquisition(fortnight, (acquisition) =>
       acquisition.keep({
         code: { code: "36123456789099", fortnight, reportDeadline: "2020-01-20" },
@@ -574,7 +574,7 @@ describe("the background worker the server sets up on a real Postgres", () => {
       () => NOW,
       { emailSender: UNUSED_EMAIL_SENDER, schedules: false },
     );
-    const scope = "18:2019-12-01:credit_note_c";
+    const scope = "18:2019-11-16:credit_note_c";
 
     try {
       await sql`select graphile_worker.add_job('alert-condition-resolution')`;
@@ -591,8 +591,8 @@ describe("the background worker the server sets up on a real Postgres", () => {
               detail: {
                 pointOfSaleNumber: 18,
                 registerId,
-                fortnightStart: "2019-12-01",
-                fortnightEnd: "2019-12-15",
+                fortnightStart: "2019-11-16",
+                fortnightEnd: "2019-11-30",
                 documentType: "credit_note_c",
                 rejectedNumber: 3,
               },
