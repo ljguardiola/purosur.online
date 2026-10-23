@@ -253,6 +253,18 @@ describe("the register reset response", () => {
       answered_at: "2026-10-07T10:30:00.000Z",
       state: "ALREADY_CREDITED",
     };
+    const issuedOffline = {
+      credit_note_id: CREDIT_NOTE,
+      answered_at: "2026-10-07T10:29:00.000Z",
+      state: "ISSUED_OFFLINE",
+      point_of_sale: 31,
+      number: 4,
+      issued_on: "2026-10-07",
+      issued_at: "2026-10-07T10:29:00.000Z",
+      offline_authorization_code: "71234567890123",
+      fortnight_start: "2026-10-01",
+      fortnight_end: "2026-10-15",
+    };
     const respondingWith = (creditNote: unknown) => ({
       events: [],
       next: null,
@@ -266,6 +278,7 @@ describe("the register reset response", () => {
       ["authorized", authorized],
       ["rejected", rejected],
       ["already credited", alreadyCredited],
+      ["issued offline", issuedOffline],
     ])("holds the voided sales' %s credit notes", (_state, creditNote) => {
       const body = respondingWith(creditNote);
 
@@ -297,6 +310,23 @@ describe("the register reset response", () => {
       [
         "an authorization issued on a day that does not exist",
         { ...authorized, issued_on: "2026-02-30" },
+      ],
+      ["a credit note issued offline without its number", { ...issuedOffline, number: undefined }],
+      [
+        "a credit note issued offline without its contingency code",
+        { ...issuedOffline, offline_authorization_code: "" },
+      ],
+      [
+        "a credit note issued offline without its fortnight",
+        { ...issuedOffline, fortnight_end: undefined },
+      ],
+      [
+        "a credit note issued offline in a fortnight that is not a day",
+        { ...issuedOffline, fortnight_start: "soon" },
+      ],
+      [
+        "a credit note issued offline at a moment that is not a date",
+        { ...issuedOffline, issued_at: "soon" },
       ],
     ])("refuses %s", (_name, creditNote) => {
       expect(registerResetResponseSchema.safeParse(respondingWith(creditNote)).success).toBe(false);
