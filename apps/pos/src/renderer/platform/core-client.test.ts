@@ -1894,6 +1894,93 @@ describe("createCoreClient", () => {
     },
   );
 
+  it("asks the core for the contingency backup tickets summary and resolves with the outcome", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+    const outcome = {
+      kind: "read",
+      tickets: {
+        to_print: 2,
+        awaiting_customer_document: 1,
+        missing_key: 0,
+        kept: 3,
+        discardable: 0,
+        may_discard: false,
+        printer: "paper_out",
+      },
+    } as const;
+
+    const tickets = client.contingencyBackupTickets();
+    port.answer({
+      type: "read-contingency-backup-tickets-result",
+      request_id: "request-1",
+      outcome,
+    });
+
+    expect(await tickets).toEqual(outcome);
+    expect(port.posted).toEqual([
+      { type: "read-contingency-backup-tickets", request_id: "request-1" },
+    ]);
+  });
+
+  it.each([
+    { kind: "read", ticket: { standing: "to_print" } },
+    { kind: "read", ticket: { standing: null } },
+    { kind: "not_signed_in" },
+    { kind: "unavailable" },
+  ] as const)(
+    "asks the core for the contingency backup ticket of a sale and resolves with the outcome: %j",
+    async (outcome) => {
+      const client = clientWithSequentialIds();
+      const port = new FakePort();
+      client.connect(port);
+
+      const ticket = client.contingencyBackupTicketOfSale("sale-1");
+      port.answer({
+        type: "read-contingency-backup-ticket-of-sale-result",
+        request_id: "request-1",
+        outcome,
+      });
+
+      expect(await ticket).toEqual(outcome);
+      expect(port.posted).toEqual([
+        {
+          type: "read-contingency-backup-ticket-of-sale",
+          request_id: "request-1",
+          sale_id: "sale-1",
+        },
+      ]);
+    },
+  );
+
+  it.each([
+    { kind: "discarded", count: 4 },
+    { kind: "not_yet" },
+    { kind: "not_signed_in" },
+    { kind: "lacks_permission" },
+    { kind: "unavailable" },
+  ] as const)(
+    "asks the core to discard the contingency backup tickets and resolves with the outcome: %j",
+    async (outcome) => {
+      const client = clientWithSequentialIds();
+      const port = new FakePort();
+      client.connect(port);
+
+      const discarded = client.discardContingencyBackupTickets();
+      port.answer({
+        type: "discard-contingency-backup-tickets-result",
+        request_id: "request-1",
+        outcome,
+      });
+
+      expect(await discarded).toEqual(outcome);
+      expect(port.posted).toEqual([
+        { type: "discard-contingency-backup-tickets", request_id: "request-1" },
+      ]);
+    },
+  );
+
   it("asks the core to print the credit note of a voided sale", async () => {
     const client = clientWithSequentialIds();
     const port = new FakePort();
