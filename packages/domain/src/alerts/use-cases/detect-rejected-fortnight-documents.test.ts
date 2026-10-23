@@ -118,7 +118,7 @@ describe("detectRejectedFortnightDocuments", () => {
 
     expect(await outcome).toBe(2);
     expect(
-      alerts.observed.map((observation) => observation.holds && observation.alert.scope),
+      alerts.observations.map((observation) => observation.holds && observation.alert.scope),
     ).toEqual(["9:2026-09-01:factura_c", "9:2026-09-01:credit_note_c"]);
   });
 });
