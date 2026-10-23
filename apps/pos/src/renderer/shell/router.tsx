@@ -268,6 +268,11 @@ export interface RouterContext {
   printOriginalReceipt: (saleId: string) => Promise<PrintOriginalReceiptOutcome>;
   findDeferredSale: (reading: DeferredSaleReading) => Promise<FindDeferredSaleOutcome>;
   printDeferredSaleInvoice: (saleId: string) => Promise<PrintDeferredSaleInvoiceOutcome>;
+  reprintDeferredSaleInvoice: (
+    saleId: string,
+    reason: string,
+    authorization: Authorization | undefined,
+  ) => Promise<ReprintSaleReceiptOutcome>;
   printCreditNote: (saleId: string) => Promise<PrintCreditNoteOutcome>;
   reprintCreditNote: (
     saleId: string,
@@ -890,6 +895,7 @@ const historyRoute = createRoute({
       voidSale,
       printCreditNote,
       reprintCreditNote,
+      reprintDeferredSaleInvoice,
       authorizers,
       refreshCashSession,
     } = historyRoute.useRouteContext();
@@ -907,6 +913,7 @@ const historyRoute = createRoute({
         voidSale={voidSale}
         printCreditNote={printCreditNote}
         reprintCreditNote={reprintCreditNote}
+        reprintDeferredSaleInvoice={reprintDeferredSaleInvoice}
         loadAuthorizers={authorizers}
         onSessionInvalid={() => void refreshCashSession()}
       />
@@ -925,6 +932,8 @@ const deferredSaleRoute = createRoute({
       signOut,
       findDeferredSale,
       printDeferredSaleInvoice,
+      reprintDeferredSaleInvoice,
+      authorizers,
       refreshCashSession,
     } = deferredSaleRoute.useRouteContext();
     const registerName = useRegisterName();
@@ -936,6 +945,8 @@ const deferredSaleRoute = createRoute({
         lock={signOut}
         findDeferredSale={findDeferredSale}
         printDeferredSaleInvoice={printDeferredSaleInvoice}
+        reprintDeferredSaleInvoice={reprintDeferredSaleInvoice}
+        loadAuthorizers={authorizers}
         onSessionInvalid={() => void refreshCashSession()}
       />
     );
@@ -1348,6 +1359,7 @@ export function createAppRouter(
     | "printOriginalReceipt"
     | "findDeferredSale"
     | "printDeferredSaleInvoice"
+    | "reprintDeferredSaleInvoice"
     | "printCreditNote"
     | "reprintCreditNote"
     | "convertPaidOrderIntoRefund"

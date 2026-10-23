@@ -41,7 +41,7 @@ const REFUSALS: Record<
   already_printed: {
     tone: "info",
     title: "La factura ya se imprimió",
-    description: "Si el cliente la perdió, reimprimí un duplicado desde el historial.",
+    description: "Si el cliente la perdió, reimprimí un duplicado.",
   },
   not_a_deferred_sale_qr: {
     tone: "error",

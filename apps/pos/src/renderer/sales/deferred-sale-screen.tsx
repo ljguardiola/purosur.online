@@ -1,4 +1,12 @@
-import type { FindDeferredSaleOutcome, PrintDeferredSaleInvoiceOutcome } from "@purosur/contracts";
+import type {
+  Authorization,
+  FindDeferredSaleOutcome,
+  PrintDeferredSaleInvoiceOutcome,
+  ReceiptCopyShown,
+  ReprintSaleReceiptOutcome,
+  SignInUser,
+} from "@purosur/contracts";
+import type { AuthorizablePermissionKey } from "@purosur/domain";
 import {
   Button,
   Card,
@@ -18,6 +26,8 @@ import type { DeferredSaleReading } from "../platform/core-client";
 import { useBarcodeReadings } from "../shell/barcode-readings";
 import { NoSessionRail } from "../shell/no-session-rail";
 import { OpenSessionRail } from "../shell/open-session-rail";
+import { ReprintReceiptModal } from "../shell/reprint-receipt-modal";
+import { receiptCopyPresentation } from "../shell/sale-receipt-text";
 import type { SignedInPerson } from "../shell/signed-in-person";
 import {
   deferredSaleFormRequestSchema,
@@ -37,6 +47,12 @@ export type DeferredSaleScreenProps = {
   lock: () => void;
   findDeferredSale: (reading: DeferredSaleReading) => Promise<FindDeferredSaleOutcome>;
   printDeferredSaleInvoice: (saleId: string) => Promise<PrintDeferredSaleInvoiceOutcome>;
+  reprintDeferredSaleInvoice: (
+    saleId: string,
+    reason: string,
+    authorization: Authorization | undefined,
+  ) => Promise<ReprintSaleReceiptOutcome>;
+  loadAuthorizers: (permission: AuthorizablePermissionKey) => Promise<SignInUser[]>;
   onSessionInvalid: () => void;
 };
 
@@ -47,11 +63,16 @@ export function DeferredSaleScreen({
   lock,
   findDeferredSale,
   printDeferredSaleInvoice,
+  reprintDeferredSaleInvoice,
+  loadAuthorizers,
   onSessionInvalid,
 }: DeferredSaleScreenProps) {
   const [refusal, setRefusal] = useState<DeferredSaleRefusalKind>();
   const [found, setFound] = useState<FoundDeferredSale>();
   const [printed, setPrinted] = useState(false);
+  const [printedSale, setPrintedSale] = useState<FoundDeferredSale>();
+  const [reprinting, setReprinting] = useState(false);
+  const [reprinted, setReprinted] = useState<ReceiptCopyShown>();
   const finding = useRef(false);
 
   async function look(reading: DeferredSaleReading) {
@@ -60,6 +81,7 @@ export function DeferredSaleScreen({
     }
     finding.current = true;
     setRefusal(undefined);
+    setPrintedSale(undefined);
     const outcome = await findDeferredSale(reading)
       .catch((): "failed" => "failed")
       .finally(() => {
@@ -73,6 +95,7 @@ export function DeferredSaleScreen({
       case "found":
         if (outcome.original_printed) {
           setRefusal("already_printed");
+          setPrintedSale(outcome);
         } else {
           setFound(outcome);
         }
@@ -179,6 +202,17 @@ export function DeferredSaleScreen({
             description={notice.description}
           />
         )}
+        {refusal === "already_printed" && printedSale !== undefined ? (
+          <Button
+            variant="secondary"
+            size="large"
+            fullWidth
+            icon={<Printer />}
+            onPress={() => setReprinting(true)}
+          >
+            {receiptCopyPresentation({ kind: "duplicate" }).printButton}
+          </Button>
+        ) : null}
       </SidePanel>
       {found === undefined ? null : (
         <DeferredSaleInvoiceModal
@@ -194,6 +228,48 @@ export function DeferredSaleScreen({
           }}
           onSessionInvalid={onSessionInvalid}
           onClose={() => setFound(undefined)}
+        />
+      )}
+      {reprinting && printedSale !== undefined && printedSale.invoice.kind === "issued" ? (
+        <ReprintReceiptModal
+          document="deferred_invoice"
+          sale={{
+            sale_id: printedSale.sale_id,
+            occurred_at: printedSale.occurred_at,
+            comprobante: {
+              kind: "fiscal",
+              document_type: "factura_c",
+              authorization: "real_time",
+              point_of_sale: printedSale.invoice.point_of_sale,
+              number: printedSale.invoice.number,
+            },
+            next_copy: { kind: "duplicate" },
+          }}
+          person={person}
+          loadAuthorizers={loadAuthorizers}
+          reprint={reprintDeferredSaleInvoice}
+          onReprinted={(copy) => {
+            setReprinting(false);
+            setPrintedSale(undefined);
+            setRefusal(undefined);
+            setReprinted(copy);
+          }}
+          onSaleGone={() => {
+            setReprinting(false);
+            setPrintedSale(undefined);
+            setRefusal("not_found");
+          }}
+          onSessionInvalid={onSessionInvalid}
+          onClose={() => setReprinting(false)}
+        />
+      ) : null}
+      {reprinted === undefined ? null : (
+        <FloatingNotification
+          tone="success"
+          icon={<Printer />}
+          title="La reimpresión de la factura sale en cuanto la impresora esté lista"
+          description={`${receiptCopyPresentation(reprinted).comesOutAs}.`}
+          onDismiss={() => setReprinted(undefined)}
         />
       )}
       {printed ? (
