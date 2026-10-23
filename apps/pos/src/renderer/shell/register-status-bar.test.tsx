@@ -3,11 +3,11 @@ import { expectNoAccessibilityViolations, tokenRgb } from "@purosur/ui/test";
 import { describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
-import { backupTickets } from "../backups/test-support/contingency-backup-tickets";
 import type { CoreData } from "../platform/use-core-query";
 import type { CashSessionState } from "../register/cash-session-state";
 import { RegisterStatusBar } from "./register-status-bar";
 import type { SignedInPerson } from "./signed-in-person";
+import { backupTickets } from "./test-support/contingency-backup-tickets";
 
 const PERSON: SignedInPerson = {
   user_id: "u1",

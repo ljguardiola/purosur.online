@@ -4,12 +4,12 @@ import type {
   RegisterStatus,
 } from "@purosur/contracts";
 import { Outlet } from "@tanstack/react-router";
+import type { CashSessionState } from "../register/cash-session-state";
+import { useRegisterStatusQuery } from "../register/register-queries";
 import {
   useContingencyBackupTicketsQuery,
   useDiscardContingencyBackupTickets,
-} from "../backups/contingency-backup-tickets-queries";
-import type { CashSessionState } from "../register/cash-session-state";
-import { useRegisterStatusQuery } from "../register/register-queries";
+} from "./contingency-backup-tickets-queries";
 import { RegisterStatusBar } from "./register-status-bar";
 import type { SignedInPerson } from "./signed-in-person";
 

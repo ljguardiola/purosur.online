@@ -15,11 +15,11 @@ import {
 } from "@purosur/ui";
 import { useNavigate } from "@tanstack/react-router";
 import { ArrowRight, CircleCheck, Plus, Printer, TriangleAlert } from "lucide-react";
-import { backupPrinterState } from "../backups/contingency-backup-printer-failure-text";
+import { backupPrinterState } from "../shell/contingency-backup-printer-failure-text";
 import {
   useContingencyBackupTicketOfSaleQuery,
   useContingencyBackupTicketsQuery,
-} from "../backups/contingency-backup-tickets-queries";
+} from "../shell/contingency-backup-tickets-queries";
 import type { ReceiptPrintStatus } from "./sales-queries";
 import { useReceiptPrintStatusQuery } from "./sales-queries";
 

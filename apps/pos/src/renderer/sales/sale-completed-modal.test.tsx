@@ -6,7 +6,7 @@ import type {
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
-import { backupTickets } from "../backups/test-support/contingency-backup-tickets";
+import { backupTickets } from "../shell/test-support/contingency-backup-tickets";
 import { render } from "../shell/test-support/render-with-router";
 import { SaleCompletedModal } from "./sale-completed-modal";
 

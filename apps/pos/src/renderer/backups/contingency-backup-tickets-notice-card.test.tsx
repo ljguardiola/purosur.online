@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { ContingencyBackupTicketsNoticeCard } from "./contingency-backup-tickets-notice-card";
-import { backupTickets } from "./test-support/contingency-backup-tickets";
+import { backupTickets } from "../shell/test-support/contingency-backup-tickets";
 
 type Tickets = Parameters<typeof backupTickets>[0];
 

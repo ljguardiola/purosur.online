@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { backupTickets } from "../shell/test-support/contingency-backup-tickets";
 import { contingencyBackupTicketsNoticeCount } from "./contingency-backup-tickets-notice-count";
-import { backupTickets } from "./test-support/contingency-backup-tickets";
 
 describe("contingencyBackupTicketsNoticeCount", () => {
   it("counts no notice when nothing needs attention", () => {

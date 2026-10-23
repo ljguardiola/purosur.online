@@ -1,7 +1,7 @@
 import type { ContingencyBackupTicketsAnswer } from "@purosur/contracts";
 import { NotificationCard, plural } from "@purosur/ui";
 import { CircleCheck, KeyRound, Printer } from "lucide-react";
-import { backupPrinterWhatToDo } from "./contingency-backup-printer-failure-text";
+import { backupPrinterWhatToDo } from "../shell/contingency-backup-printer-failure-text";
 import { hasPendingBackupTickets } from "./contingency-backup-tickets-notice-count";
 
 export function ContingencyBackupTicketsNoticeCard({
