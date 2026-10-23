@@ -185,14 +185,14 @@ test("does not accept npm_config_audit set under with: instead of env:", () => {
   assert.equal(findPnpmSetupSteps(source)[0].skipsNpmAudit, false);
 });
 
-test("flags an expression value, which cannot be known to be false", () => {
+test("flags a value that is not literally false", () => {
   const source = [
     "jobs:",
     "  build:",
     "    steps:",
     "      - uses: pnpm/action-setup@SHA1",
     "        env:",
-    '          npm_config_audit: "${{ vars.NPM_AUDIT }}"',
+    '          npm_config_audit: "true && false"',
   ].join("\n");
 
   assert.equal(findPnpmSetupSteps(source)[0].skipsNpmAudit, false);
@@ -524,7 +524,7 @@ test("every pnpm/action-setup step in every workflow sets npm_config_audit to fa
     violations.map(describeViolation),
     [],
     "pnpm/action-setup installs its bootstrap pnpm with npm ci, and npm's audit request inside " +
-      "that install can hang for minutes and time out the job; set npm_config_audit: \"false\" " +
+      'that install can hang for minutes and time out the job; set npm_config_audit: "false" ' +
       "in the env of the step, its job or the workflow.",
   );
 });
