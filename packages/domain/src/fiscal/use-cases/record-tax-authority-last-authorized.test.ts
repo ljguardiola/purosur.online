@@ -168,7 +168,7 @@ describe("recordTaxAuthorityLastAuthorized", () => {
   });
 
   it("leaves the count of another point of sale as it was", async () => {
-    const other = {
+    const other: LastAuthorizedCount = {
       pointOfSale: 13,
       documentType: "factura_c",
       lastAuthorized: 90,
