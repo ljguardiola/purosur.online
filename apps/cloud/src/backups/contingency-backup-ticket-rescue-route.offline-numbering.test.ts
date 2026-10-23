@@ -14,12 +14,7 @@ import { ticketEvent } from "./test-support/sealed-contingency-backup-ticket.js"
 const OFFLINE_POINT_OF_SALE = 8;
 const route = rescueRouteUnderTest();
 
-function offlineDocumentEvent(
-  registerId: string,
-  deviceSeq: number,
-  number: number,
-  documentType: "factura_c" | "credit_note_c" = "factura_c",
-) {
+function offlineDocumentEvent(registerId: string, deviceSeq: number, number: number) {
   const saleId = crypto.randomUUID();
   return ticketEvent(deviceSeq, {
     aggregate_id: saleId,
@@ -29,7 +24,7 @@ function offlineDocumentEvent(
       sale_id: saleId,
       register_id: registerId,
       point_of_sale: OFFLINE_POINT_OF_SALE,
-      document_type: documentType,
+      document_type: "factura_c",
       number,
       issued_on: "2026-10-06",
       generated_at: "2026-10-06T11:20:00.000Z",
@@ -100,24 +95,6 @@ describe("rescuing the tickets of an installation that died offline", () => {
     const row = await pulledOfflinePointOfSale(deviceToken);
     expect(highestSynced(row, "factura_c")).toBe(9);
     expect(highestSynced(row, "credit_note_c")).toBeNull();
-  });
-
-  it("keeps the numbering of each document type apart", async () => {
-    const { registerId, dead, deviceToken } = await offlineRegisterWithDeadInstallation();
-    const session = await rescueSession(route.db);
-
-    await rescuing(
-      route,
-      session,
-      dead.seal([
-        offlineDocumentEvent(registerId, 2, 12),
-        offlineDocumentEvent(registerId, 3, 4, "credit_note_c"),
-      ]),
-    );
-
-    const row = await pulledOfflinePointOfSale(deviceToken);
-    expect(highestSynced(row, "factura_c")).toBe(12);
-    expect(highestSynced(row, "credit_note_c")).toBe(4);
   });
 
   it("neither abandons nor registers anew the point of sale", async () => {

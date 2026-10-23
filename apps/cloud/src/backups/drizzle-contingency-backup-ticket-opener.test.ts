@@ -178,7 +178,10 @@ describe("opening the QR codes of a contingency backup ticket", () => {
   });
 
   it("answers not_authentic when the ticket carries events of another register", async () => {
-    const other = await insertEnrolledInstallation(testDatabase.db, { now: NOW });
+    const other = await insertEnrolledInstallation(testDatabase.db, {
+      now: NOW,
+      registerName: "Caja 2",
+    });
     const codes = sealedWith(ticketContent(other.registerId, deviceId, [ticketEvent(1)]));
 
     expect(await opener.open(codes)).toEqual({ kind: "not_authentic" });
