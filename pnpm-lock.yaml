@@ -76,8 +76,8 @@ importers:
         specifier: ^1.64.1
         version: 1.64.1
       railway:
-        specifier: 3.11.0
-        version: 3.11.0
+        specifier: 3.16.0
+        version: 3.16.0
       testcontainers:
         specifier: ^12.1.0
         version: 12.1.0(supports-color@10.2.2)
@@ -5352,8 +5352,8 @@ packages:
     resolution: {integrity: sha512-WuyALRjWPDGtt/wzJiadO5AXY+8hZ80hVpe6MyivgraREW751X3SbhRvG3eLKOYN+8VEvqLcf3wdnt44Z4S4SA==}
     engines: {node: '>=10'}
 
-  railway@3.11.0:
-    resolution: {integrity: sha512-ehLFHCxV+gITWeBlIVaXulXaVRg4LCxqm0bq64iXSwYL1DESd0pUeLYMP/BMBhnZWeFFBYyJCREaq+Nka7Wgmw==}
+  railway@3.16.0:
+    resolution: {integrity: sha512-//vKXubZpO07iJgNyoS+9Ee3pKk+3wE+0KAJPI28GuSKqXG30UeWT4xBkkd6TYuZ4HNh7QPvkVR72Swbmq5kXw==}
     engines: {node: '>=22'}
     hasBin: true
 
@@ -11052,11 +11052,10 @@ snapshots:
 
   quick-lru@5.1.1: {}
 
-  railway@3.11.0:
+  railway@3.16.0:
     dependencies:
       '@graphql-typed-document-node/core': 3.2.0(graphql@16.14.2)
       graphql: 16.14.2
-      tsx: 4.23.15
 
   rc-config-loader@4.1.4(supports-color@10.2.2):
     dependencies:
