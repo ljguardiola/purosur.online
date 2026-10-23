@@ -6,12 +6,14 @@ import {
   owesFortnightReport,
 } from "../../model/fortnight-report.js";
 import type { Fortnight } from "../../model/offline-authorization-code.js";
+import type { VoucherReference } from "../../model/orphan-authorization.js";
 import { listsOwedPresentation } from "../../model/owed-presentation-list.js";
 import type {
   RecordedRemedy,
   RejectedDocumentCreditNote,
 } from "../../model/rejected-document-remedy.js";
 import type {
+  ContingencyInvoiceReport,
   DocumentTypeReportChange,
   FortnightReportChange,
   FortnightReportKey,
@@ -127,6 +129,17 @@ class FakeHeldReport implements HeldFortnightReport {
     return this.store.realTimePointsOfSale.get(registerId) ?? null;
   }
 
+  async contingencyInvoiceReportOf(
+    invoice: VoucherReference,
+  ): Promise<ContingencyInvoiceReport | null> {
+    this.store.operations.push(`read invoice report ${invoice.number}`);
+    return (
+      this.store.contingencyInvoiceReports.get(
+        `${invoice.voucherType}:${invoice.pointOfSale}:${invoice.number}`,
+      ) ?? null
+    );
+  }
+
   async creditCorrectedDocument(creditNote: RejectedDocumentCreditNote): Promise<void> {
     const { pointOfSale, number } = creditNote.associatedVoucher;
     this.store.operations.push(`credit corrected document ${number}`);
@@ -146,6 +159,7 @@ export class FakeFortnightReportStore implements FortnightReportStore {
   readonly realTimePointsOfSale = new Map<string, number>();
   readonly realTimePointOfSaleReads: string[] = [];
   readonly creditNotes = new Map<string, RejectedDocumentCreditNote>();
+  readonly contingencyInvoiceReports = new Map<string, ContingencyInvoiceReport>();
   pointsOfSale: OfflinePointOfSaleOfRegister[] = [];
   private readonly codes: FakeOfflineAuthorizationCodeStore;
   private readonly documents: FakeOfflineDocumentsOfFortnight;
