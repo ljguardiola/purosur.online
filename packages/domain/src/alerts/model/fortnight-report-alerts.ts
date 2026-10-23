@@ -1,5 +1,5 @@
 import {
-  type FiscalDocumentType,
+  type FiscalTaskDocumentType,
   type Fortnight,
   type FortnightReportState,
   fortnightContaining,
@@ -33,7 +33,7 @@ export function pointOfSaleFortnightScopeDisplay(scope: string): string {
 export function rejectedDocumentScope(
   pointOfSaleNumber: number,
   fortnightStart: string,
-  documentType: FiscalDocumentType,
+  documentType: FiscalTaskDocumentType,
 ): string {
   return `${pointOfSaleFortnightScope(pointOfSaleNumber, fortnightStart)}:${documentType}`;
 }
@@ -153,7 +153,7 @@ export function fortnightReportDocumentRejectedObservation({
   pointOfSaleNumber: number;
   registerId: string;
   fortnight: Fortnight;
-  documentType: FiscalDocumentType;
+  documentType: FiscalTaskDocumentType;
   rejectedNumber: number;
 }): AlertConditionObservation {
   return {

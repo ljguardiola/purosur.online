@@ -1,3 +1,4 @@
+import { insertOfflineCreditNote } from "../../fiscal/test-support/real-time-authorization-database";
 import type { LocalDatabase } from "../../platform/local-database";
 
 const SOLD_AT = "2026-09-30T15:05:00.000Z";
@@ -68,4 +69,31 @@ export function insertCreditNote(
       answered_at: ANSWERED_AT,
       ...answer,
     });
+}
+
+export function insertCreditNoteIssuedOffline(
+  database: LocalDatabase,
+  { pointOfSale, number }: { pointOfSale: number; number: number },
+  corrects = { pointOfSale: 12, number: 41 },
+): void {
+  insertOfflineCreditNote(database, {
+    id: "offline-note-1",
+    saleId: "sale-1",
+    creditNoteId: "note-1",
+    pointOfSale,
+    number,
+    corrects: { voucherType: 11, ...corrects },
+  });
+  database
+    .prepare(
+      `INSERT INTO sale_void_credit_notes (
+         id, sale_id, total, receiver_tax_status_code, corrected_voucher_type,
+         corrected_point_of_sale, corrected_number, state, recorded_at, answered_at,
+         offline_fiscal_document_id
+       ) VALUES (
+         'note-1', 'sale-1', 1190000, 5, 11, @corrected_point_of_sale, @corrected_number,
+         'ISSUED_OFFLINE', '${VOIDED_AT}', '${VOIDED_AT}', 'offline-note-1'
+       )`,
+    )
+    .run({ corrected_point_of_sale: corrects.pointOfSale, corrected_number: corrects.number });
 }

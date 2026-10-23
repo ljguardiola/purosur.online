@@ -42,6 +42,7 @@ describe("fortnightPresentationListSchema", () => {
     "refused",
     "accepted",
     "needs_regularization",
+    "awaiting_invoice_report",
     "listed_as_owed",
   ] as const)("reads the %s state", (state) => {
     expect(fortnightPresentationListSchema.parse([{ ...presentation, state }])).toEqual([
@@ -88,7 +89,31 @@ describe("fortnightPresentationListSchema", () => {
     buyer_tax_status_code: 5,
     rejections: [{ code: 10016, message: "Fecha de comprobante fuera de rango" }],
     remedy: "awaiting_remedy",
+    remedies: ["report", "printed"],
   };
+
+  it("reads the remedies a rejected credit note is offered", () => {
+    const list = [
+      {
+        ...presentation,
+        document_type: "credit_note_c",
+        rejected_document: { ...rejectedDocument, remedies: ["report"] },
+      },
+    ];
+
+    expect(fortnightPresentationListSchema.parse(list)).toEqual(list);
+  });
+
+  it.each([{ remedies: ["resend"] }, { remedies: undefined }, { remedies: "report" }])(
+    "refuses the rejected document fields %j",
+    (fields) => {
+      expect(
+        fortnightPresentationListSchema.safeParse([
+          { ...presentation, rejected_document: { ...rejectedDocument, ...fields } },
+        ]).success,
+      ).toBe(false);
+    },
+  );
 
   it("reads the document the tax authority rejected as presented, with its rejections and how many were left unprocessed", () => {
     const list = [
@@ -120,6 +145,12 @@ describe("fortnightPresentationListSchema", () => {
       { ...presentation, state: "refused", refusal: "partial" },
       { ...presentation, state: "refused", refusal: "whole" },
     ];
+
+    expect(fortnightPresentationListSchema.parse(list)).toEqual(list);
+  });
+
+  it("reads the presentation of the credit notes of a fortnight", () => {
+    const list = [{ ...presentation, document_type: "credit_note_c" }];
 
     expect(fortnightPresentationListSchema.parse(list)).toEqual(list);
   });

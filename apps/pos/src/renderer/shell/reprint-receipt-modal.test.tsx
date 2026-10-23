@@ -454,6 +454,28 @@ describe("ReprintReceiptModal", () => {
       await expectNoAccessibilityViolations(document.body);
     });
 
+    it("names a credit note issued under the contingency code as such", async () => {
+      const { screen } = await renderModal({
+        document: "credit_note",
+        sale: {
+          ...CREDIT_NOTE_SALE,
+          credit_note: {
+            kind: "issued_offline",
+            point_of_sale: 9,
+            number: 41,
+            issued_on: "2026-10-09",
+            offline_authorization_code: "71234567890123",
+            fortnight_start: "2026-10-01",
+            fortnight_end: "2026-10-15",
+          },
+        },
+      });
+
+      await expect
+        .element(screen.getByText("Nota de crédito C · CAEA · PV 00009 · Nº 00000041"))
+        .toBeVisible();
+    });
+
     it("names only the credit note, not the sale's invoice nor its operation", async () => {
       const { screen } = await renderModal({
         document: "credit_note",

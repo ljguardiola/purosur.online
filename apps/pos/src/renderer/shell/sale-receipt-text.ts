@@ -26,11 +26,17 @@ export function comprobantePresentation(
 
 export const CREDIT_NOTE_NAME = "Nota de crédito C";
 
-export function creditNoteComprobantePresentation(
-  creditNote: Extract<NonNullable<SaleDetail["credit_note"]>, { kind: "authorized" }>,
-): { name: string; detail: string } {
+export type PrintableCreditNote = Extract<
+  NonNullable<SaleDetail["credit_note"]>,
+  { kind: "authorized" | "issued_offline" }
+>;
+
+export function creditNoteComprobantePresentation(creditNote: PrintableCreditNote): {
+  name: string;
+  detail: string;
+} {
   return {
-    name: CREDIT_NOTE_NAME,
+    name: creditNote.kind === "issued_offline" ? `${CREDIT_NOTE_NAME} · CAEA` : CREDIT_NOTE_NAME,
     detail: `PV ${formatPointOfSaleNumber(creditNote.point_of_sale)} · Nº ${formatInvoiceNumber(creditNote.number)}`,
   };
 }

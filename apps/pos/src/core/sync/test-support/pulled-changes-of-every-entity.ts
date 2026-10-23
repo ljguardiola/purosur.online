@@ -120,8 +120,18 @@ function upsertOf(entity: PulledEntity, changeSeq: number): SyncChange {
         entity,
         row: {
           point_of_sale_number: 31,
-          tax_authority_last_authorized_number: 4,
-          highest_synced_offline_number: null,
+          series_counts: [
+            {
+              document_type: "factura_c",
+              tax_authority_last_authorized_number: 4,
+              highest_synced_offline_number: null,
+            },
+            {
+              document_type: "credit_note_c",
+              tax_authority_last_authorized_number: 2,
+              highest_synced_offline_number: null,
+            },
+          ],
           version: 1,
         },
       };

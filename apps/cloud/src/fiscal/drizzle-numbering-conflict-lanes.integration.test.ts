@@ -203,6 +203,7 @@ describe("the numbering conflict lane on a real Postgres", () => {
         freeze: null,
         taxAuthorityCount: {
           pointOfSale: 11,
+          documentType: "factura_c",
           lastAuthorized: 40,
           issuedOn: "2026-10-05",
           readAt: NOW,
@@ -415,6 +416,17 @@ describe("the numbering conflict lane on a real Postgres", () => {
       expect(await inLane(9, (lane) => lane.taxAuthorityCount())).toBe(0);
     });
 
+    it("reads the factura count whatever credit note count the point of sale holds", async () => {
+      await db.insert(taxAuthorityLastAuthorizedNumbers).values([
+        { pointOfSaleNumber: 12, documentType: "credit_note_c", lastAuthorized: 90, readAt: NOW },
+        { pointOfSaleNumber: 12, documentType: "factura_c", lastAuthorized: 20, readAt: NOW },
+        { pointOfSaleNumber: 13, documentType: "credit_note_c", lastAuthorized: 90, readAt: NOW },
+      ]);
+
+      expect(await inLane(12, (lane) => lane.taxAuthorityCount())).toBe(20);
+      expect(await inLane(13, (lane) => lane.taxAuthorityCount())).toBe(0);
+    });
+
     it("continues the series right after the number, and never lowers a count already held", async () => {
       await settle(8, { regularizations: [], lastAuthorized: 20 });
       expect(await inLane(8, (lane) => lane.taxAuthorityCount())).toBe(20);
@@ -426,7 +438,13 @@ describe("the numbering conflict lane on a real Postgres", () => {
       expect(await inLane(8, (lane) => lane.taxAuthorityCount())).toBe(25);
       const rows = await db.select().from(taxAuthorityLastAuthorizedNumbers);
       expect(rows.filter((row) => row.pointOfSaleNumber === 8)).toEqual([
-        { pointOfSaleNumber: 8, lastAuthorized: 25, issuedOn: null, readAt: NOW },
+        {
+          pointOfSaleNumber: 8,
+          documentType: "factura_c",
+          lastAuthorized: 25,
+          issuedOn: null,
+          readAt: NOW,
+        },
       ]);
     });
 

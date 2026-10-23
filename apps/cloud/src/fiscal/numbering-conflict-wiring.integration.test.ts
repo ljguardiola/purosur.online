@@ -88,9 +88,12 @@ async function registerHoldingPointOfSale(pointOfSale: number, count: number) {
     pointOfSaleNumber: pointOfSale,
     name: `caja-${pointOfSale}`,
   });
-  await db
-    .insert(taxAuthorityLastAuthorizedNumbers)
-    .values({ pointOfSaleNumber: pointOfSale, lastAuthorized: count, readAt: ANSWERED_AT });
+  await db.insert(taxAuthorityLastAuthorizedNumbers).values({
+    pointOfSaleNumber: pointOfSale,
+    documentType: "factura_c",
+    lastAuthorized: count,
+    readAt: ANSWERED_AT,
+  });
   const { deviceToken } = await insertEnrolledInstallation(db, {
     now: NOW,
     existingRegisterId: registerId,

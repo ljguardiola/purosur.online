@@ -1,3 +1,4 @@
+import type { VoucherReference } from "../../fiscal/index.js";
 import {
   isRefundSentByCloud,
   mercadoPagoPaymentIsBacked,
@@ -107,12 +108,33 @@ async function applyStock(application: Promise<StockApplication>): Promise<void>
   }
 }
 
+async function recordOfflineCreditNote(
+  tx: EventApplicationTransaction,
+  fact: Extract<SyncedFact, { kind: "offline_fiscal_document_issued" }>,
+  corrects: VoucherReference,
+  event: UnappliedEvent,
+  now: Date,
+): Promise<void> {
+  const { fiscalDocumentId, saleId } = fact.document;
+  await tx.lockCreditedVoucher(corrects);
+  const alreadyCredited = await tx.voucherAlreadyCredited(corrects, fiscalDocumentId);
+  await tx.record(fact, event);
+  if (alreadyCredited) {
+    await tx.raiseInvoiceAlreadyCredited({ voucher: corrects, saleId }, now);
+  }
+}
+
 async function recordFact(
   tx: EventApplicationTransaction,
   fact: SyncedFact,
   event: UnappliedEvent,
+  now: Date,
 ): Promise<void> {
   switch (fact.kind) {
+    case "offline_fiscal_document_issued":
+      return fact.document.corrects === undefined
+        ? tx.record(fact, event)
+        : recordOfflineCreditNote(tx, fact, fact.document.corrects, event, now);
     case "opening_count_recorded":
       return applyStock(tx.applyOpeningCount(fact.count, event));
     case "opening_count_withdrawn":
@@ -162,7 +184,7 @@ async function applyEvent(
   if (fact.kind === "sale_completed" || fact.kind === "sale_cancelled") {
     await requireMercadoPagoPaymentsBacked(tx, fact.sale);
   }
-  await recordFact(tx, fact, event);
+  await recordFact(tx, fact, event, now);
   await tx.markApplied(event.eventId, now);
   const breaks = invariantBreaksOf(fact);
   if (breaks.length > 0) {

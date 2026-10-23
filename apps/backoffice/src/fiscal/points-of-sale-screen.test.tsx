@@ -516,6 +516,7 @@ const partlyRejectedPresentation = {
     buyerTaxStatusCode: 5,
     rejections: [{ code: 10016, message: "El importe total no coincide con la suma." }],
     remedy: "awaiting_remedy",
+    remedies: ["report", "printed"],
   },
   movement: "documents",
   refusal: "partial",
@@ -555,6 +556,7 @@ test("correcting the report reads the presentations again and announces it", asy
           rejectedDocument: {
             ...partlyRejectedPresentation.rejectedDocument,
             remedy: "awaiting_resend",
+            remedies: ["report", "printed"],
           },
         },
       ] as never,

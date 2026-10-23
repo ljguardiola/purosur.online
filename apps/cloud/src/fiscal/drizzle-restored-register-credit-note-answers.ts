@@ -1,11 +1,17 @@
+import { CREDIT_NOTE_C_DOCUMENT_TYPE } from "@purosur/domain";
 import type {
+  IssuedOfflineCreditNoteOfRegister,
   KeptAlreadyCreditedRefusalOfRegister,
   RestoredRegisterCreditNoteAnswers,
   SaleVoidCreditNoteOfRegister,
 } from "@purosur/domain/fiscal/use-cases";
 import { and, eq, inArray } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { creditNotes, saleVoidCreditNoteRefusals } from "../platform/db/schema.js";
+import {
+  creditNotes,
+  offlineFiscalDocuments,
+  saleVoidCreditNoteRefusals,
+} from "../platform/db/schema.js";
 import { creditNoteOf } from "./drizzle-credit-notes.js";
 
 export class DrizzleRestoredRegisterCreditNoteAnswers<TQueryResult extends PgQueryResultHKT>
@@ -59,5 +65,36 @@ export class DrizzleRestoredRegisterCreditNoteAnswers<TQueryResult extends PgQue
           inArray(saleVoidCreditNoteRefusals.creditNoteId, [...creditNoteIds]),
         ),
       );
+  }
+
+  async issuedOfflineOf(
+    registerId: string,
+    creditNoteIds: readonly string[],
+  ): Promise<IssuedOfflineCreditNoteOfRegister[]> {
+    const rows = await this.db
+      .select()
+      .from(offlineFiscalDocuments)
+      .where(
+        and(
+          eq(offlineFiscalDocuments.registerId, registerId),
+          eq(offlineFiscalDocuments.documentType, CREDIT_NOTE_C_DOCUMENT_TYPE),
+          inArray(offlineFiscalDocuments.creditNoteId, [...creditNoteIds]),
+        ),
+      );
+    return rows.flatMap((row) =>
+      row.creditNoteId === null
+        ? []
+        : [
+            {
+              creditNoteId: row.creditNoteId,
+              pointOfSale: row.pointOfSale,
+              number: row.number,
+              issuedOn: row.issuedOn,
+              issuedAt: row.generatedAt,
+              offlineAuthorizationCode: row.offlineAuthorizationCode,
+              fortnight: { start: row.fortnightStart, end: row.fortnightEnd },
+            },
+          ],
+    );
   }
 }

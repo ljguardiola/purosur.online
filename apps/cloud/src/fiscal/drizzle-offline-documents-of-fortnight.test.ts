@@ -1,7 +1,10 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { DrizzleOfflineDocumentsOfFortnight } from "./drizzle-offline-documents-of-fortnight.js";
-import { insertOfflineFiscalDocument } from "./test-support/offline-fiscal-document-fixtures.js";
+import {
+  insertOfflineCreditNote,
+  insertOfflineFiscalDocument,
+} from "./test-support/offline-fiscal-document-fixtures.js";
 import { seedOfflinePointOfSale } from "./test-support/offline-point-of-sale-fixtures.js";
 import { insertRejectedDocumentRemedy } from "./test-support/rejected-document-remedy-fixtures.js";
 
@@ -86,6 +89,34 @@ describe("DrizzleOfflineDocumentsOfFortnight", () => {
     expect(
       (await documents.documentsOn(8, OCTOBER_SECOND_HALF)).map(({ number }) => number),
     ).toEqual([3]);
+  });
+
+  it("reads the credit notes issued under the fortnight's code after the facturas, with the voucher each corrects", async () => {
+    await insertOfflineCreditNote(db, {
+      registerId,
+      pointOfSale: 8,
+      fortnight: OCTOBER_FIRST_HALF,
+      number: 1,
+      corrects: { voucherType: 11, pointOfSale: 8, number: 1 },
+    });
+    await insertOfflineFiscalDocument(db, {
+      registerId,
+      pointOfSale: 8,
+      fortnight: OCTOBER_FIRST_HALF,
+      number: 1,
+    });
+
+    const documents = await new DrizzleOfflineDocumentsOfFortnight(db).documentsOn(
+      8,
+      OCTOBER_FIRST_HALF,
+    );
+
+    expect(
+      documents.map(({ documentType, number, corrects }) => [documentType, number, corrects]),
+    ).toEqual([
+      ["credit_note_c", 1, { voucherType: 11, pointOfSale: 8, number: 1 }],
+      ["factura_c", 1, undefined],
+    ]);
   });
 
   it("reads the correction of the newest remedy that corrected the document, whatever remedies came after it", async () => {

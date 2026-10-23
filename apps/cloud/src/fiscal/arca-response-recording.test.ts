@@ -79,6 +79,8 @@ const OFFLINE_DOCUMENT_REPORT_ANSWERS = [
   "fe-caea-reg-informativo-refused.xml",
   "fe-caea-reg-informativo-token-error.xml",
   "fe-comp-consultar-found.xml",
+  "fe-comp-ultimo-autorizado-credit-note.xml",
+  "fe-caea-reg-informativo-synthesized-credit-note-accepted.xml",
 ];
 const FIRST_OFFLINE_AUTHORIZATION_CODE_CALL = INVOICING_ANSWERS.length;
 const FIRST_OFFLINE_DOCUMENT_REPORT_CALL =
@@ -204,10 +206,10 @@ describe("recordArcaResponses", () => {
     }
   });
 
-  it("makes exactly one FEDummy call, two logins, two buyer tax-status calls, one last-authorized call, three invoice calls, six offline authorization code calls and nine offline document report calls", async () => {
+  it("makes exactly one FEDummy call, two logins, two buyer tax-status calls, one last-authorized call, three invoice calls, six offline authorization code calls and eleven offline document report calls", async () => {
     await record();
 
-    expect(wsfe.requests).toHaveLength(22);
+    expect(wsfe.requests).toHaveLength(24);
     expect(wsfe.requests.map(operationOf)).toEqual([
       "FEDummy",
       "FEParamGetCondicionIvaReceptor",
@@ -231,6 +233,8 @@ describe("recordArcaResponses", () => {
       "FECAEARegInformativo",
       "FECAEARegInformativo",
       "FECompConsultar",
+      "FECompUltimoAutorizado",
+      "FECAEARegInformativo",
     ]);
     expect(wsaa.requests).toHaveLength(2);
   });
@@ -363,6 +367,8 @@ describe("recordArcaResponses", () => {
       "fe-caea-consultar-token-error.scrubbed.xml",
       "fe-caea-reg-informativo-accepted.raw.xml",
       "fe-caea-reg-informativo-accepted.scrubbed.xml",
+      "fe-caea-reg-informativo-credit-note-accepted.raw.xml",
+      "fe-caea-reg-informativo-credit-note-accepted.scrubbed.xml",
       "fe-caea-reg-informativo-partly-rejected.raw.xml",
       "fe-caea-reg-informativo-partly-rejected.scrubbed.xml",
       "fe-caea-reg-informativo-refused.raw.xml",
@@ -381,6 +387,8 @@ describe("recordArcaResponses", () => {
       "fe-comp-tot-x-request-token-error.scrubbed.xml",
       "fe-comp-tot-x-request.raw.xml",
       "fe-comp-tot-x-request.scrubbed.xml",
+      "fe-comp-ultimo-autorizado-offline-credit-note.raw.xml",
+      "fe-comp-ultimo-autorizado-offline-credit-note.scrubbed.xml",
       "fe-comp-ultimo-autorizado-offline.raw.xml",
       "fe-comp-ultimo-autorizado-offline.scrubbed.xml",
       "fe-comp-ultimo-autorizado.raw.xml",
@@ -474,6 +482,14 @@ describe("recordArcaResponses", () => {
       {
         file: "fe-comp-consultar-caea-found.scrubbed.xml",
         replacements: [{ field: "CodAutorizacion", count: 1 }],
+      },
+      { file: "fe-comp-ultimo-autorizado-offline-credit-note.scrubbed.xml", replacements: [] },
+      {
+        file: "fe-caea-reg-informativo-credit-note-accepted.scrubbed.xml",
+        replacements: [
+          { field: "CAEA", count: 2 },
+          { field: "CUIT", count: 1 },
+        ],
       },
       { file: "login-cms-already-authenticated.scrubbed.xml", replacements: [] },
     ]);
@@ -746,9 +762,23 @@ describe("recordArcaResponses offline authorization code calls", () => {
 
 describe("recordArcaResponses offline document report calls", () => {
   const reportCalls = () =>
-    wsfe.requests.slice(FIRST_OFFLINE_DOCUMENT_REPORT_CALL, FIRST_OFFLINE_DOCUMENT_REPORT_CALL + 9);
-  const [TOT_X, TOT_X_UNISSUED, LOOKUP, LAST, ACCEPTED, PARTLY_REJECTED, REFUSED, UNISSUED, FOUND] =
-    [0, 1, 2, 3, 4, 5, 6, 7, 8] as const;
+    wsfe.requests.slice(
+      FIRST_OFFLINE_DOCUMENT_REPORT_CALL,
+      FIRST_OFFLINE_DOCUMENT_REPORT_CALL + 11,
+    );
+  const [
+    TOT_X,
+    TOT_X_UNISSUED,
+    LOOKUP,
+    LAST,
+    ACCEPTED,
+    PARTLY_REJECTED,
+    REFUSED,
+    UNISSUED,
+    FOUND,
+    CREDIT_NOTE_LAST,
+    CREDIT_NOTE,
+  ] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const;
   const requestsOf = (...positions: number[]) =>
     positions.map((position) => reportCalls()[position] as string);
 
@@ -827,6 +857,35 @@ describe("recordArcaResponses offline document report calls", () => {
     expect(sent(found, "CbteNro")).toBe("10");
   });
 
+  it("reads the last authorized number of Nota de Crédito C on the offline point of sale", async () => {
+    await record();
+
+    const [last] = requestsOf(CREDIT_NOTE_LAST);
+    expect(last).toContain(ORIGINAL_TOKEN);
+    expect(sent(last, "PtoVta")).toBe("8");
+    expect(sent(last, "CbteTipo")).toBe("13");
+  });
+
+  it("reports a credit note numbered after the last one, correcting the invoice ARCA accepted, with the current code", async () => {
+    await record();
+
+    const [creditNote] = requestsOf(CREDIT_NOTE);
+    expect(creditNote).toContain(ORIGINAL_TOKEN);
+    expect(sent(creditNote, "PtoVta")).toBe("8");
+    expect(sent(creditNote, "CbteTipo")).toBe("13");
+    expect(sent(creditNote, "CantReg")).toBe("1");
+    expect(sent(creditNote, "CbteDesde")).toBe("5");
+    expect(creditNote).toContain(`<CAEA>${OFFLINE_AUTHORIZATION_CODE}</CAEA>`);
+    expect(sent(creditNote, "ImpTotal")).toBe("100.00");
+    expect(sent(creditNote, "CbteFch")).toBe("20261001");
+    const corrected = /<(?:\w+:)?CbteAsoc>([\s\S]*?)<\/(?:\w+:)?CbteAsoc>/.exec(
+      creditNote ?? "",
+    )?.[1];
+    expect(sent(corrected, "Tipo")).toBe("11");
+    expect(sent(corrected, "PtoVta")).toBe("8");
+    expect(sent(corrected, "Nro")).toBe("10");
+  });
+
   it("saves the raw answer of each offline document report call", async () => {
     await record();
 
@@ -839,6 +898,11 @@ describe("recordArcaResponses offline document report calls", () => {
       ["fe-caea-reg-informativo-refused", "fe-caea-reg-informativo-refused"],
       ["fe-caea-reg-informativo-token-error", "fe-caea-reg-informativo-token-error"],
       ["fe-comp-consultar-caea-found", "fe-comp-consultar-found"],
+      ["fe-comp-ultimo-autorizado-offline-credit-note", "fe-comp-ultimo-autorizado-credit-note"],
+      [
+        "fe-caea-reg-informativo-credit-note-accepted",
+        "fe-caea-reg-informativo-synthesized-credit-note-accepted",
+      ],
     ]) {
       expect(readFileSync(join(outDir, `${name}.raw.xml`), "utf8")).toBe(
         fixture("wsfe-responses", `${served}.xml`),
@@ -882,6 +946,8 @@ describe("recordArcaResponses offline document report calls", () => {
         "fe-caea-reg-informativo-refused.xml",
         "fe-caea-reg-informativo-token-error.xml",
         "fe-comp-consultar-found.xml",
+        "fe-comp-ultimo-autorizado-credit-note.xml",
+        "fe-caea-reg-informativo-synthesized-credit-note-accepted.xml",
       ),
     );
 

@@ -166,8 +166,11 @@ function toChangeWire(change: PulledCloudChange): ChangesPage["changes"][number]
         entity_id,
         row: {
           point_of_sale_number: change.row.pointOfSaleNumber,
-          tax_authority_last_authorized_number: change.row.taxAuthorityLastAuthorizedNumber,
-          highest_synced_offline_number: change.row.highestSyncedOfflineNumber,
+          series_counts: change.row.seriesCounts.map((count) => ({
+            document_type: count.documentType,
+            tax_authority_last_authorized_number: count.taxAuthorityLastAuthorizedNumber,
+            highest_synced_offline_number: count.highestSyncedOfflineNumber,
+          })),
           version: change.row.version,
         },
       };

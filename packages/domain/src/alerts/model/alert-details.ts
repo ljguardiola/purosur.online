@@ -214,7 +214,7 @@ interface FortnightReportPendingDetail extends FortnightReportOverdueDetail {
 }
 
 interface FortnightReportDocumentRejectedDetail extends FortnightReportNeedsRegularizationDetail {
-  documentType: FiscalDocumentType;
+  documentType: FiscalTaskDocumentType;
   rejectedNumber: number;
 }
 

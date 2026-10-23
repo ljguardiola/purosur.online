@@ -263,7 +263,11 @@ describe("POST /api/devices", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(enqueueTaxAuthorityCountOnEnrollment).toHaveBeenCalledWith(expect.anything(), 7);
+    expect(enqueueTaxAuthorityCountOnEnrollment).toHaveBeenCalledWith(
+      expect.anything(),
+      7,
+      "factura_c",
+    );
   });
 });
 
@@ -281,9 +285,12 @@ describe("POST /api/devices numbering reconciliation", () => {
       issuedAt: APP_CLOCK,
       expiresAt: new Date(APP_CLOCK.getTime() + 10 * 60 * 1000),
     });
-    await testDatabase.db
-      .insert(taxAuthorityLastAuthorizedNumbers)
-      .values({ pointOfSaleNumber: 7, lastAuthorized: 11, readAt: APP_CLOCK });
+    await testDatabase.db.insert(taxAuthorityLastAuthorizedNumbers).values({
+      pointOfSaleNumber: 7,
+      documentType: "factura_c",
+      lastAuthorized: 11,
+      readAt: APP_CLOCK,
+    });
     const enqueueNumberingReconciliationOnEnrollment = vi.fn(async () => undefined);
     const app = buildApp({
       now: () => APP_CLOCK,

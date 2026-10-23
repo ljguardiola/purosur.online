@@ -33,6 +33,17 @@ export interface OfflineAuthorizedFacturaC {
   fortnight: Fortnight;
 }
 
+export interface OfflineAuthorizedCreditNoteC {
+  pointOfSale: number;
+  number: number;
+  issuedOn: string;
+  total: number;
+  document: FacturaC;
+  offlineAuthorizationCode: string;
+  fortnight: Fortnight;
+  corrects: VoucherReference;
+}
+
 export interface OfflineFacturaCFiscalBlock {
   invoiceClass: "C";
   voucherTypeCode: number;
@@ -75,6 +86,10 @@ export interface AuthorizedCreditNoteC {
 }
 
 export interface CreditNoteCFiscalBlock extends FacturaCFiscalBlock {
+  corrects: VoucherReference;
+}
+
+export interface OfflineCreditNoteCFiscalBlock extends OfflineFacturaCFiscalBlock {
   corrects: VoucherReference;
 }
 
@@ -170,6 +185,30 @@ export function offlineFacturaCFiscalBlock(
     fortnight: authorized.fortnight,
     qrText: qrText(
       { ...authorized, voucherType: FACTURA_C_VOUCHER_TYPE, total: document.total },
+      AUTHORIZATION_CODE_TYPE_CAEA,
+      authorized.offlineAuthorizationCode,
+    ),
+  };
+}
+
+export function offlineCreditNoteCFiscalBlock(
+  authorized: OfflineAuthorizedCreditNoteC,
+): OfflineCreditNoteCFiscalBlock {
+  const { document } = authorized;
+  const { legalName, cuit, taxStatus, grossIncomeRegistration, activityStartDate } =
+    document.issuer;
+  return {
+    invoiceClass: "C",
+    voucherTypeCode: CREDIT_NOTE_C_VOUCHER_TYPE,
+    issuer: { legalName, cuit, taxStatus, grossIncomeRegistration, activityStartDate },
+    buyerTaxStatusDescription: document.buyerTaxStatusDescription,
+    pointOfSale: authorized.pointOfSale,
+    number: authorized.number,
+    authorizationCode: authorized.offlineAuthorizationCode,
+    fortnight: authorized.fortnight,
+    corrects: authorized.corrects,
+    qrText: qrText(
+      { ...authorized, voucherType: CREDIT_NOTE_C_VOUCHER_TYPE },
       AUTHORIZATION_CODE_TYPE_CAEA,
       authorized.offlineAuthorizationCode,
     ),

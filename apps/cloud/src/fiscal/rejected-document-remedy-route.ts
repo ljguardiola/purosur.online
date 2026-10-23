@@ -42,6 +42,11 @@ const DOCUMENT_NOT_FOUND_RESPONSE = {
   message: "the presentation has no document with that number",
 } as const;
 
+const REMEDY_NOT_OFFERED_RESPONSE = {
+  code: "remedy_not_offered",
+  message: "that remedy is not offered for that type of document",
+} as const;
+
 function remedyOf(wire: RejectedDocumentRemedyBody["remedy"]): RejectedDocumentRemedy {
   if (wire.kind === "report") {
     return { kind: "report" };
@@ -114,6 +119,9 @@ export function registerRejectedDocumentRemedyRoute<TQueryResult extends PgQuery
           return;
         case "document_not_found":
           await reply.code(404).send(DOCUMENT_NOT_FOUND_RESPONSE);
+          return;
+        case "remedy_not_offered":
+          await reply.code(422).send(REMEDY_NOT_OFFERED_RESPONSE);
           return;
         case "correction_refused":
           await reply.code(422).send(correctionRefusedResponse(outcome.refusal));

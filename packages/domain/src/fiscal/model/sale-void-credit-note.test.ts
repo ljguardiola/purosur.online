@@ -231,3 +231,36 @@ describe("restoredCreditNoteSettlement", () => {
     ).toEqual({ kind: "answered", answer: { kind: "rejected" } });
   });
 });
+
+describe("restoredCreditNoteSettlement of a credit note the cloud holds as issued offline", () => {
+  const ISSUED_OFFLINE = {
+    kind: "issued_offline",
+    pointOfSale: 31,
+    number: 4,
+    issuedOn: "2026-10-07",
+    issuedAt: new Date("2026-10-07T10:29:00.000Z"),
+    offlineAuthorizationCode: "71234567890123",
+    fortnight: { start: "2026-10-01", end: "2026-10-15" },
+  } as const;
+
+  it("answers it as issued offline, never as one still to request", () => {
+    expect(restoredCreditNoteSettlement(null, false, ISSUED_OFFLINE)).toEqual({
+      kind: "answered",
+      answer: ISSUED_OFFLINE,
+    });
+  });
+
+  it("answers it as issued offline whatever the cloud's own credit notes and refusals say", () => {
+    expect(
+      restoredCreditNoteSettlement(
+        { standing: { kind: "rejected" }, pointOfSale: 12 },
+        true,
+        ISSUED_OFFLINE,
+      ),
+    ).toEqual({ kind: "answered", answer: ISSUED_OFFLINE });
+  });
+
+  it("leaves the other settlements as they were when the cloud holds none", () => {
+    expect(restoredCreditNoteSettlement(null, false, null)).toEqual({ kind: "never_requested" });
+  });
+});

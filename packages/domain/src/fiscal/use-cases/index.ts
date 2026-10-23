@@ -18,7 +18,7 @@ export type {
   FiscalTaskKind,
 } from "../model/fiscal-task.js";
 export type { Fortnight } from "../model/offline-authorization-code.js";
-export type { OfflineFiscalDocument } from "../model/offline-fiscal-document.js";
+export type { OfflineCreditNote, OfflineFiscalDocument } from "../model/offline-fiscal-document.js";
 export type {
   CreditNoteDecision,
   ExternalBilling,
@@ -248,6 +248,7 @@ export type {
   FortnightRegularizationReader,
 } from "./fortnight-regularization-reader.js";
 export type {
+  ContingencyInvoiceReport,
   DocumentTypeReportChange,
   FortnightReportChange,
   FortnightReportKey,
@@ -484,6 +485,7 @@ export type {
 } from "./request-void-credit-notes.js";
 export { requestVoidCreditNotes } from "./request-void-credit-notes.js";
 export type {
+  CloudCreditNoteAnswer,
   CloudCreditNoteCall,
   CloudCreditNotes,
   CreditNotePrinter,
@@ -498,6 +500,7 @@ export type {
 } from "./request-voided-sale-credit-note.js";
 export { requestVoidedSaleCreditNote } from "./request-voided-sale-credit-note.js";
 export type {
+  IssuedOfflineCreditNoteOfRegister,
   KeptAlreadyCreditedRefusalOfRegister,
   RestoredRegisterCreditNoteAnswers,
   SaleVoidCreditNoteOfRegister,

@@ -32,19 +32,24 @@ function latestDay(table: string): string {
          ELSE excluded.${DAY} END`;
 }
 
-function redeliveredPointOfSale(table: string, fiscalAddress: boolean): string {
-  const keptNumbers = [
-    keepingHighest(table, COUNT),
-    ...(fiscalAddress ? [`${DAY} = ${latestDay(table)}`] : []),
-    ...(fiscalAddress ? [] : [keepingHighest(table, "highest_synced_offline_number")]),
-  ];
+function redeliveredPointOfSale(): string {
+  const table = "register_point_of_sale";
   return `ON CONFLICT (register_id) DO UPDATE SET
        point_of_sale_number = excluded.point_of_sale_number,
-       ${fiscalAddress ? "fiscal_address_id = excluded.fiscal_address_id," : ""}
-       ${fiscalAddress ? "numbering_frozen = excluded.numbering_frozen," : ""}
-       ${keptNumbers.join(",\n       ")},
+       fiscal_address_id = excluded.fiscal_address_id,
+       numbering_frozen = excluded.numbering_frozen,
+       ${keepingHighest(table, COUNT)},
+       ${DAY} = ${latestDay(table)},
        version = excluded.version
      WHERE excluded.version >= ${table}.version`;
+}
+
+function keepingHigher(column: string): string {
+  return `${column} = CASE
+         WHEN excluded.${column} IS NOT NULL
+           AND (offline_series_counts.${column} IS NULL OR excluded.${column} > offline_series_counts.${column})
+         THEN excluded.${column}
+         ELSE offline_series_counts.${column} END`;
 }
 
 export function prepareRegisterPageWrites(database: LocalDatabase, mode: PageWriteMode) {
@@ -112,7 +117,7 @@ export function prepareRegisterPageWrites(database: LocalDatabase, mode: PageWri
            OR excluded.${DAY} > register_point_of_sale.${DAY}))
        OR (excluded.version = register_point_of_sale.version
          AND excluded.numbering_frozen <> register_point_of_sale.numbering_frozen)`
-      : redeliveredPointOfSale("register_point_of_sale", true);
+      : redeliveredPointOfSale();
   const savePointOfSale = database.prepare(
     `INSERT INTO register_point_of_sale (
        register_id, point_of_sale_number, fiscal_address_id, tax_authority_last_authorized_number,
@@ -131,33 +136,29 @@ export function prepareRegisterPageWrites(database: LocalDatabase, mode: PageWri
          WHERE register_id = @register_id AND version = @version
            AND numbering_frozen = 0 AND ${COUNT} IS NOT NULL)`,
   );
-  const saveOfflinePointOfSaleConflict =
-    mode === "pull"
-      ? `ON CONFLICT (register_id) DO UPDATE SET
-       point_of_sale_number = CASE WHEN excluded.version > register_offline_point_of_sale.version
-         THEN excluded.point_of_sale_number ELSE register_offline_point_of_sale.point_of_sale_number END,
-       ${keepingHighest("register_offline_point_of_sale", "tax_authority_last_authorized_number")},
-       ${keepingHighest("register_offline_point_of_sale", "highest_synced_offline_number")},
-       version = excluded.version
-     WHERE excluded.version > register_offline_point_of_sale.version
-       OR (excluded.version = register_offline_point_of_sale.version
-         AND excluded.tax_authority_last_authorized_number IS NOT NULL
-         AND (register_offline_point_of_sale.tax_authority_last_authorized_number IS NULL
-           OR excluded.tax_authority_last_authorized_number > register_offline_point_of_sale.tax_authority_last_authorized_number))
-       OR (excluded.version = register_offline_point_of_sale.version
-         AND excluded.highest_synced_offline_number IS NOT NULL
-         AND (register_offline_point_of_sale.highest_synced_offline_number IS NULL
-           OR excluded.highest_synced_offline_number > register_offline_point_of_sale.highest_synced_offline_number))`
-      : redeliveredPointOfSale("register_offline_point_of_sale", false);
   const saveOfflinePointOfSale = database.prepare(
-    `INSERT INTO register_offline_point_of_sale (
-       register_id, point_of_sale_number, tax_authority_last_authorized_number,
-       highest_synced_offline_number, version
+    `INSERT INTO register_offline_point_of_sale (register_id, point_of_sale_number, version)
+     VALUES (@register_id, @point_of_sale_number, @version)
+     ON CONFLICT (register_id) DO UPDATE SET
+       point_of_sale_number = CASE WHEN ${
+         mode === "pull" ? "excluded.version > register_offline_point_of_sale.version" : "1"
+       }
+         THEN excluded.point_of_sale_number ELSE register_offline_point_of_sale.point_of_sale_number END,
+       version = excluded.version
+     WHERE excluded.version >= register_offline_point_of_sale.version`,
+  );
+  const heldOfflineVersion = database.prepare<[string], { version: number }>(
+    "SELECT version FROM register_offline_point_of_sale WHERE register_id = ?",
+  );
+  const saveOfflineSeriesCount = database.prepare(
+    `INSERT INTO offline_series_counts (
+       point_of_sale, document_type, tax_authority_last_authorized_number, highest_synced_offline_number
      ) VALUES (
-       @register_id, @point_of_sale_number, @tax_authority_last_authorized_number,
-       @highest_synced_offline_number, @version
+       @point_of_sale, @document_type, @tax_authority_last_authorized_number, @highest_synced_offline_number
      )
-     ${saveOfflinePointOfSaleConflict}`,
+     ON CONFLICT (point_of_sale, document_type) DO UPDATE SET
+       ${keepingHigher("tax_authority_last_authorized_number")},
+       ${keepingHigher("highest_synced_offline_number")}`,
   );
   const saveFirstCashSession = database.prepare(
     `INSERT INTO branch_first_cash_sessions (location_id, opened_at) VALUES (@location_id, @opened_at)
@@ -197,10 +198,19 @@ export function prepareRegisterPageWrites(database: LocalDatabase, mode: PageWri
       saveOfflinePointOfSale.run({
         register_id: entity_id,
         point_of_sale_number: row.point_of_sale_number,
-        tax_authority_last_authorized_number: row.tax_authority_last_authorized_number,
-        highest_synced_offline_number: row.highest_synced_offline_number,
         version: row.version,
       });
+      if (heldOfflineVersion.get(entity_id)?.version !== row.version) {
+        return;
+      }
+      for (const count of row.series_counts) {
+        saveOfflineSeriesCount.run({
+          point_of_sale: row.point_of_sale_number,
+          document_type: count.document_type,
+          tax_authority_last_authorized_number: count.tax_authority_last_authorized_number,
+          highest_synced_offline_number: count.highest_synced_offline_number,
+        });
+      }
     },
 
     removal({ entity_id, version }: RemovalOf<"register">): void {

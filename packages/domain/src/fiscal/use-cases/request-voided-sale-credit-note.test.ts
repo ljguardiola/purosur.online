@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { PushedEvent } from "../../sync/index.js";
-import type { CreditNoteAnswer, VoidCreditNoteStanding } from "../model/sale-void-credit-note.js";
+import type {
+  CreditNoteAnswer,
+  RequestedCreditNoteAnswer,
+  VoidCreditNoteStanding,
+} from "../model/sale-void-credit-note.js";
 import type { PendingCreditNote } from "./request-void-credit-notes-ports.js";
 import { requestVoidedSaleCreditNote } from "./request-voided-sale-credit-note.js";
 import { ManualClock } from "./test-support/fake-arca-vitality.js";
@@ -49,6 +53,16 @@ const AUTHORIZED: CreditNoteAnswer = {
   authorizationCodeDueOn: "2026-10-17",
 };
 
+const ISSUED_OFFLINE: VoidCreditNoteStanding = {
+  kind: "issued_offline",
+  pointOfSale: 9,
+  number: 41,
+  issuedOn: "2026-10-07",
+  issuedAt: new Date("2026-10-07T15:30:00.000Z"),
+  offlineAuthorizationCode: "71234567890123",
+  fortnight: { start: "2026-10-01", end: "2026-10-15" },
+};
+
 function register(
   replies: CloudReply[] = [AUTHORIZED],
   { pointOfSale = 12 as number | null, pending = [pendingNote(1), pendingNote(2)] } = {},
@@ -86,7 +100,7 @@ describe("requestVoidedSaleCreditNote", () => {
     expect(printer.started).toEqual(["sale-1"]);
   });
 
-  it.each<[string, VoidCreditNoteStanding]>([
+  it.each<[string, RequestedCreditNoteAnswer]>([
     ["rejected", { kind: "rejected" }],
     ["refused because its invoice already had one", { kind: "already_credited" }],
   ])("records a credit note %s and answers it, printing nothing", async (_case, reply) => {
@@ -150,6 +164,15 @@ describe("requestVoidedSaleCreditNote", () => {
       expect(cloud.calls).toEqual([]);
       expect(printer.started).toEqual(["sale-1"]);
     });
+  });
+
+  it("answers a credit note issued offline from the register's record, printing it without asking the cloud", async () => {
+    const { creditNotes, cloud, printer, run } = register([AUTHORIZED]);
+    creditNotes.answered.set("credit-note-1", { answer: ISSUED_OFFLINE, answeredAt: NOW });
+
+    expect(await run()).toEqual({ kind: "answered", answer: ISSUED_OFFLINE });
+    expect(cloud.calls).toEqual([]);
+    expect(printer.started).toEqual(["sale-1"]);
   });
 
   it("leaves the credit note in progress, printing nothing, and gives the failure when asking for it fails", async () => {

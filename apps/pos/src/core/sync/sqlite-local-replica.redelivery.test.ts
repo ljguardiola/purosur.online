@@ -202,12 +202,6 @@ const STALE_COLUMNS: [Entity, string, string, string][] = [
     "point_of_sale_number",
     "99",
   ],
-  [
-    "register_offline_point_of_sale",
-    "register_offline_point_of_sale",
-    "tax_authority_last_authorized_number",
-    "NULL",
-  ],
   ["discount", "discounts", "name", "'stale'"],
   ["issuer_identification", "issuer_identification_versions", "legal_name", "'stale'"],
   ["buyer_identification_threshold", "buyer_identification_thresholds", "amount", "1"],
@@ -415,51 +409,70 @@ describe("what a register owns, kept by a redelivered page", () => {
     ]);
   });
 
-  it.each([
-    ["register_point_of_sale", "register_point_of_sale"],
-    ["register_offline_point_of_sale", "register_offline_point_of_sale"],
-  ] as const)("never takes the count of the %s back", async (entity, table) => {
-    const change = upsertOf(entity);
+  it("never takes the count of the register_point_of_sale back", async () => {
+    const change = upsertOf("register_point_of_sale");
+    const count = () => column("register_point_of_sale", "tax_authority_last_authorized_number");
     await savePulledChanges(replica, withRow(change, { tax_authority_last_authorized_number: 12 }));
 
-    await redeliver(entity, withRow(change, { tax_authority_last_authorized_number: null }));
-    expect(column(table, "tax_authority_last_authorized_number")).toBe(12);
+    await redeliver(
+      "register_point_of_sale",
+      withRow(change, { tax_authority_last_authorized_number: null }),
+    );
+    expect(count()).toBe(12);
 
-    await redeliver(entity, withRow(change, { tax_authority_last_authorized_number: 9 }));
-    expect(column(table, "tax_authority_last_authorized_number")).toBe(12);
+    await redeliver(
+      "register_point_of_sale",
+      withRow(change, { tax_authority_last_authorized_number: 9 }),
+    );
+    expect(count()).toBe(12);
 
-    await redeliver(entity, withRow(change, { tax_authority_last_authorized_number: 15 }));
-    expect(column(table, "tax_authority_last_authorized_number")).toBe(15);
+    await redeliver(
+      "register_point_of_sale",
+      withRow(change, { tax_authority_last_authorized_number: 15 }),
+    );
+    expect(count()).toBe(15);
   });
 
-  it("brings in the highest synced offline number of the offline point of sale and never takes it back", async () => {
-    const change = upsertOf("register_offline_point_of_sale");
-    const highestSynced = () =>
-      column("register_offline_point_of_sale", "highest_synced_offline_number");
-    await savePulledChanges(replica, withRow(change, { highest_synced_offline_number: null }));
+  describe.each([
+    ["factura_c", "tax_authority_last_authorized_number"],
+    ["factura_c", "highest_synced_offline_number"],
+    ["credit_note_c", "tax_authority_last_authorized_number"],
+    ["credit_note_c", "highest_synced_offline_number"],
+  ] as const)("the %s series' %s of the offline point of sale", (documentType, field) => {
+    const change = () => upsertOf("register_offline_point_of_sale");
+    const withCount = (value: number | null) =>
+      withRow(change(), {
+        series_counts: [
+          {
+            document_type: documentType,
+            tax_authority_last_authorized_number: null,
+            highest_synced_offline_number: null,
+            [field]: value,
+          },
+        ],
+      });
+    const held = () =>
+      database
+        .prepare<[string], { value: number | null }>(
+          `SELECT ${field} AS value FROM offline_series_counts WHERE document_type = ?`,
+        )
+        .all(documentType)
+        .map((row) => row.value);
 
-    await redeliver(
-      "register_offline_point_of_sale",
-      withRow(change, { highest_synced_offline_number: 12 }),
-    );
-    expect(highestSynced()).toBe(12);
+    it("is brought in and never taken back", async () => {
+      await savePulledChanges(replica, withCount(null));
 
-    await redeliver(
-      "register_offline_point_of_sale",
-      withRow(change, { highest_synced_offline_number: null }),
-    );
-    expect(highestSynced()).toBe(12);
+      await redeliver("register_offline_point_of_sale", withCount(12));
+      expect(held()).toEqual([12]);
 
-    await redeliver(
-      "register_offline_point_of_sale",
-      withRow(change, { highest_synced_offline_number: 9 }),
-    );
-    expect(highestSynced()).toBe(12);
+      await redeliver("register_offline_point_of_sale", withCount(null));
+      expect(held()).toEqual([12]);
 
-    await redeliver(
-      "register_offline_point_of_sale",
-      withRow(change, { highest_synced_offline_number: 15 }),
-    );
-    expect(highestSynced()).toBe(15);
+      await redeliver("register_offline_point_of_sale", withCount(9));
+      expect(held()).toEqual([12]);
+
+      await redeliver("register_offline_point_of_sale", withCount(15));
+      expect(held()).toEqual([15]);
+    });
   });
 });

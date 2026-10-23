@@ -1,3 +1,4 @@
+import type { VoucherReference } from "../../fiscal/index.js";
 import type { MercadoPagoOrderTransaction } from "../../payments/index.js";
 import type { CompletedSale, VoidedSale } from "../../sales/index.js";
 import type { Clock, JsonValue } from "../../shared/index.js";
@@ -39,6 +40,19 @@ export interface EventApplicationTransaction {
   aggregateApplied(key: AggregateKey): Promise<boolean>;
   providerTransactionOfPayment(paymentId: string): Promise<ProviderTransactionOfPayment | null>;
   record(fact: SyncedFact, event: UnappliedEvent): Promise<void>;
+  lockCreditedVoucher(voucher: VoucherReference): Promise<void>;
+  /**
+   * Whether a credit note of the cloud, or an offline credit note other than the one named, already
+   * corrects the voucher.
+   */
+  voucherAlreadyCredited(
+    voucher: VoucherReference,
+    exceptOfflineDocumentId: string,
+  ): Promise<boolean>;
+  raiseInvoiceAlreadyCredited(
+    invoice: { voucher: VoucherReference; saleId: string },
+    at: Date,
+  ): Promise<void>;
   requestMercadoPagoRefundFollow(): Promise<void>;
   applySaleStock(
     sale: CompletedSale,

@@ -14,6 +14,7 @@ import {
   isFortnightPresentationOwed,
   isFortnightReportOutstanding,
   isFortnightReportRetryDue,
+  isHeldForInvoiceReport,
   isOfflineDocumentReported,
   nextOfflineDocumentBatch,
   offlineDocumentPresentations,
@@ -552,6 +553,7 @@ describe("fortnightPresentationRows", () => {
     buyerTaxStatusCode: 5,
     rejections: [],
     remedy: "awaiting_remedy",
+    remedies: ["report", "printed"],
   });
 
   it("is one row without a document type, declaring no movement, when the fortnight issued no documents and was accepted", () => {
@@ -702,7 +704,7 @@ describe("fortnightPresentationRows", () => {
     const AT = new Date("2026-10-03T15:00:00.000Z");
     const REJECTIONS = [{ code: 1439, message: "El campo 'Importe Total' ImpTotal" }];
     const refusedReport = {
-      documentType: "factura_c" as const,
+      documentType: "factura_c" as "factura_c" | "credit_note_c",
       state: "refused" as const,
       reportedThrough: 1,
       rejectedNumber: 2,
@@ -713,7 +715,7 @@ describe("fortnightPresentationRows", () => {
 
     function rejectedRow(
       documentReport: Partial<typeof refusedReport> | Record<string, unknown> = {},
-      documents = [
+      documents: ReturnType<typeof presentable<"factura_c" | "credit_note_c">>[] = [
         presentable({ documentType: "factura_c", number: 1 }),
         presentable({ documentType: "factura_c", number: 2 }),
       ],
@@ -749,7 +751,17 @@ describe("fortnightPresentationRows", () => {
         buyerTaxStatusCode: 6,
         rejections: REJECTIONS,
         remedy: "awaiting_remedy",
+        remedies: ["report", "printed"],
       });
+    });
+
+    it("offers a rejected credit note only the remedy of reporting it again", () => {
+      expect(
+        rejectedRow({ documentType: "credit_note_c" }, [
+          presentable({ documentType: "credit_note_c", number: 1 }),
+          presentable({ documentType: "credit_note_c", number: 2 }),
+        ])?.remedies,
+      ).toEqual(["report"]);
     });
 
     it("shows the document as presented, with the correction already entered", () => {
@@ -1006,5 +1018,98 @@ describe("owedFortnightPresentationState", () => {
     "needs_regularization",
   ] as const)("keeps a report the tax authority does not list that is %s", (state) => {
     expect(owedFortnightPresentationState({ state, listed: false })).toBe(state);
+  });
+});
+
+describe("offlineDocumentPresentations of facturas and credit notes", () => {
+  it("presents the facturas of a fortnight before its credit notes, each type in consecutive numbers", () => {
+    const documents = [
+      { documentType: "credit_note_c", number: 2 },
+      { documentType: "factura_c", number: 3 },
+      { documentType: "credit_note_c", number: 1 },
+      { documentType: "factura_c", number: 2 },
+    ];
+
+    expect(offlineDocumentPresentations(documents)).toEqual([
+      {
+        documentType: "factura_c",
+        documents: [
+          { documentType: "factura_c", number: 2 },
+          { documentType: "factura_c", number: 3 },
+        ],
+      },
+      {
+        documentType: "credit_note_c",
+        documents: [
+          { documentType: "credit_note_c", number: 1 },
+          { documentType: "credit_note_c", number: 2 },
+        ],
+      },
+    ]);
+  });
+});
+
+describe("offlineDocumentPresentations of a type that is neither", () => {
+  it("presents it after the credit notes", () => {
+    const documents = [
+      { documentType: "another_type", number: 1 },
+      { documentType: "credit_note_c", number: 1 },
+      { documentType: "factura_c", number: 1 },
+    ];
+
+    expect(offlineDocumentPresentations(documents).map(({ documentType }) => documentType)).toEqual(
+      ["factura_c", "credit_note_c", "another_type"],
+    );
+  });
+});
+
+describe("isHeldForInvoiceReport", () => {
+  const THIS_FORTNIGHT = { start: "2026-10-01", end: "2026-10-15" };
+  const EARLIER = { start: "2026-09-16", end: "2026-09-30" };
+
+  it("holds a credit note whose contingency invoice belongs to an earlier fortnight whose report is not accepted", () => {
+    expect(
+      isHeldForInvoiceReport(THIS_FORTNIGHT, { fortnight: EARLIER, reportAccepted: false }),
+    ).toBe(true);
+  });
+
+  it("releases it once that report is accepted", () => {
+    expect(
+      isHeldForInvoiceReport(THIS_FORTNIGHT, { fortnight: EARLIER, reportAccepted: true }),
+    ).toBe(false);
+  });
+
+  it("never holds a credit note of an invoice of its own fortnight", () => {
+    expect(
+      isHeldForInvoiceReport(THIS_FORTNIGHT, { fortnight: THIS_FORTNIGHT, reportAccepted: false }),
+    ).toBe(false);
+  });
+
+  it("never holds a credit note of an invoice that is not a contingency document", () => {
+    expect(isHeldForInvoiceReport(THIS_FORTNIGHT, null)).toBe(false);
+  });
+});
+
+describe("the awaiting invoice report state", () => {
+  it("keeps a fortnight outstanding, below a refusal and a missing document and above a presentation under way", () => {
+    expect(fortnightReportStateOfDocumentTypes(["accepted", "awaiting_invoice_report"])).toBe(
+      "awaiting_invoice_report",
+    );
+    expect(fortnightReportStateOfDocumentTypes(["awaiting_invoice_report", "submitting"])).toBe(
+      "awaiting_invoice_report",
+    );
+    expect(
+      fortnightReportStateOfDocumentTypes(["awaiting_invoice_report", "missing_document"]),
+    ).toBe("missing_document");
+    expect(fortnightReportStateOfDocumentTypes(["awaiting_invoice_report", "refused"])).toBe(
+      "refused",
+    );
+    expect(isFortnightReportOutstanding("awaiting_invoice_report")).toBe(true);
+  });
+
+  it("is shown as the state of the document type it was recorded for", () => {
+    expect(documentTypePresentationState("awaiting_invoice_report", null)).toBe(
+      "awaiting_invoice_report",
+    );
   });
 });

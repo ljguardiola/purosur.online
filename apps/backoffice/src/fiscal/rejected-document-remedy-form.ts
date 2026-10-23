@@ -11,6 +11,7 @@ type PresentedValues = Pick<
 
 export type RemedyFormValues = {
   pointOfSaleNumber: number;
+  documentType: RejectedDocumentRemedyBody["document_type"];
   fortnightStart: string;
   number: number;
   presented: PresentedValues;
@@ -25,11 +26,13 @@ export type RemedyFormValues = {
 export type RemedyTarget = {
   pointOfSaleNumber: number;
   fortnight: { start: string; end: string };
+  documentType: RejectedDocumentRemedyBody["document_type"];
   rejectedDocument: RejectedDocument;
 };
 
 export const EMPTY_REMEDY_FORM: RemedyFormValues = {
   pointOfSaleNumber: 0,
+  documentType: "factura_c",
   fortnightStart: "",
   number: 0,
   presented: {
@@ -49,11 +52,13 @@ export const EMPTY_REMEDY_FORM: RemedyFormValues = {
 export function remedyFormValuesFrom({
   pointOfSaleNumber,
   fortnight,
+  documentType,
   rejectedDocument,
 }: RemedyTarget): RemedyFormValues {
   const { buyer } = rejectedDocument;
   return {
     pointOfSaleNumber,
+    documentType,
     fortnightStart: fortnight.start,
     number: rejectedDocument.number,
     presented: {
@@ -113,7 +118,7 @@ export function remedyRequestFrom(values: RemedyFormValues): RejectedDocumentRem
   return {
     point_of_sale_number: values.pointOfSaleNumber,
     fortnight_start: values.fortnightStart,
-    document_type: "factura_c",
+    document_type: values.documentType,
     number: values.number,
     remedy:
       values.errorIn === "report"

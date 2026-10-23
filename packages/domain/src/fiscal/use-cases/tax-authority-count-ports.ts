@@ -1,4 +1,5 @@
 import type { Clock } from "../../shared/index.js";
+import type { FiscalTaskDocumentType } from "../model/fiscal-task.js";
 import type { WsaaTokenSource } from "./fiscal-document-authorization-ports.js";
 import type { TaxAuthorityVoucherLookup } from "./unclear-outcome-ports.js";
 import type { WsaaToken } from "./wsaa-token-ports.js";
@@ -15,6 +16,7 @@ export interface TaxAuthorityLastAuthorizedLookup {
 
 export interface LastAuthorizedCount {
   pointOfSale: number;
+  documentType: FiscalTaskDocumentType;
   lastAuthorized: number;
   issuedOn?: string | null;
   readAt: Date;

@@ -16,7 +16,8 @@ export function readSaleInvoices(database: LocalDatabase, saleId: string): SaleI
          FROM fiscal_documents WHERE sale_id = @sale_id
        UNION ALL
        SELECT 'offline' AS origin, 'AUTHORIZED' AS state, point_of_sale, number, document
-         FROM offline_fiscal_documents WHERE sale_id = @sale_id`,
+         FROM offline_fiscal_documents
+         WHERE sale_id = @sale_id AND document_type = 'factura_c'`,
     )
     .all({ sale_id: saleId })
     .map(({ origin, state, point_of_sale, number, document }) => ({

@@ -134,7 +134,12 @@ function offlinePointOfSalePage(
         entity_id: POINT_OF_SALE_ID,
         row: {
           point_of_sale_number: 31,
-          tax_authority_last_authorized_number: taxAuthorityLastAuthorizedNumber,
+          series_counts: [
+            {
+              document_type: "factura_c",
+              tax_authority_last_authorized_number: taxAuthorityLastAuthorizedNumber,
+            },
+          ],
           version: 1,
         },
       })),
@@ -476,7 +481,7 @@ describe("a register migrated past the offline point of sale's tax authority cou
       expect(
         database
           .prepare(
-            "SELECT tax_authority_last_authorized_number AS count FROM register_offline_point_of_sale",
+            "SELECT tax_authority_last_authorized_number AS count FROM offline_series_counts WHERE point_of_sale = 31 AND document_type = 'factura_c'",
           )
           .all(),
       ).toEqual([{ count: 40 }]);

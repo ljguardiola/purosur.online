@@ -214,10 +214,6 @@ describe("SaleHistoryDetailPanel", () => {
       "invoice_in_flight",
       "La factura se está pidiendo a ARCA. Vas a poder anular cuando termine el trámite.",
     ],
-    [
-      "invoice_needs_connection",
-      "Sin conexión con ARCA, la venta con factura se anula cuando vuelva la conexión.",
-    ],
   ] as const)(
     "locks voiding and says why only in its tooltip when the sale cannot be voided: %s",
     async (refusal, reason) => {
@@ -278,6 +274,16 @@ describe("SaleHistoryDetailPanel", () => {
       authorization_code_due_on: "2026-10-19",
     } as const;
 
+    const ISSUED_OFFLINE = {
+      kind: "issued_offline",
+      point_of_sale: 9,
+      number: 41,
+      issued_on: "2026-10-09",
+      offline_authorization_code: "71234567890123",
+      fortnight_start: "2026-10-01",
+      fortnight_end: "2026-10-15",
+    } as const;
+
     it("shows the point of sale and number of an authorized one and prints it from its button", async () => {
       const { screen, onPrintCreditNote } = await renderPanel({
         read: async () => ({ kind: "found", detail: { ...VOIDED, credit_note: AUTHORIZED } }),
@@ -290,6 +296,24 @@ describe("SaleHistoryDetailPanel", () => {
       expect(onPrintCreditNote).toHaveBeenCalledExactlyOnceWith(
         expect.objectContaining({ sale_id: "sale-1" }),
       );
+      await expectNoAccessibilityViolations(screen.container);
+    });
+
+    it("names a credit note issued under the contingency code and prints it from its button", async () => {
+      const { screen, onPrintCreditNote } = await renderPanel({
+        read: async () => ({
+          kind: "found",
+          detail: { ...VOIDED, credit_note: ISSUED_OFFLINE },
+        }),
+      });
+
+      await expect
+        .element(screen.getByText("Nota de crédito C · CAEA", { exact: true }))
+        .toBeVisible();
+      await expect.element(screen.getByText("PV 00009 · Nº 00000041")).toBeVisible();
+      await userEvent.click(screen.getByRole("button", { name: "Imprimir nota de crédito" }));
+
+      expect(onPrintCreditNote).toHaveBeenCalledOnce();
       await expectNoAccessibilityViolations(screen.container);
     });
 

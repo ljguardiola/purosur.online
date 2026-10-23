@@ -603,6 +603,19 @@ describe("alertDetailSchema", () => {
       expect(alertDetailSchema.safeParse(alert).data).toEqual(alert);
     });
 
+    it("accepts a rejected document alert about a credit note, and refuses one about another type", () => {
+      const rejected = (documentType: string) => ({
+        ...base,
+        kind: "fortnight_report_document_rejected",
+        detail: { ...detailOf.fortnight_report_document_rejected, documentType },
+      });
+
+      expect(alertDetailSchema.safeParse(rejected("credit_note_c")).data).toEqual(
+        rejected("credit_note_c"),
+      );
+      expect(alertDetailSchema.safeParse(rejected("factura_a")).success).toBe(false);
+    });
+
     it.each(["blocked", "missing_document", "refused", "pending"])(
       "accepts a pending fortnight report alert waiting for the reason %s",
       (reason) => {

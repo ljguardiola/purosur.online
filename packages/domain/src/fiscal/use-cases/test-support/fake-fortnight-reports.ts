@@ -1,17 +1,19 @@
 import type { InstallationStreamReach } from "../../../sync/index.js";
-import type { FiscalDocumentType } from "../../model/fiscal-rejection-standing.js";
+import type { OfflineSeriesDocumentType } from "../../model/fiscal-voucher-type.js";
 import {
   isFortnightPresentationOwed,
   isOfflineDocumentReported,
   owesFortnightReport,
 } from "../../model/fortnight-report.js";
 import type { Fortnight } from "../../model/offline-authorization-code.js";
+import type { VoucherReference } from "../../model/orphan-authorization.js";
 import { listsOwedPresentation } from "../../model/owed-presentation-list.js";
 import type {
   RecordedRemedy,
   RejectedDocumentCreditNote,
 } from "../../model/rejected-document-remedy.js";
 import type {
+  ContingencyInvoiceReport,
   DocumentTypeReportChange,
   FortnightReportChange,
   FortnightReportKey,
@@ -127,6 +129,17 @@ class FakeHeldReport implements HeldFortnightReport {
     return this.store.realTimePointsOfSale.get(registerId) ?? null;
   }
 
+  async contingencyInvoiceReportOf(
+    invoice: VoucherReference,
+  ): Promise<ContingencyInvoiceReport | null> {
+    this.store.operations.push(`read invoice report ${invoice.number}`);
+    return (
+      this.store.contingencyInvoiceReports.get(
+        `${invoice.voucherType}:${invoice.pointOfSale}:${invoice.number}`,
+      ) ?? null
+    );
+  }
+
   async creditCorrectedDocument(creditNote: RejectedDocumentCreditNote): Promise<void> {
     const { pointOfSale, number } = creditNote.associatedVoucher;
     this.store.operations.push(`credit corrected document ${number}`);
@@ -146,6 +159,7 @@ export class FakeFortnightReportStore implements FortnightReportStore {
   readonly realTimePointsOfSale = new Map<string, number>();
   readonly realTimePointOfSaleReads: string[] = [];
   readonly creditNotes = new Map<string, RejectedDocumentCreditNote>();
+  readonly contingencyInvoiceReports = new Map<string, ContingencyInvoiceReport>();
   pointsOfSale: OfflinePointOfSaleOfRegister[] = [];
   private readonly codes: FakeOfflineAuthorizationCodeStore;
   private readonly documents: FakeOfflineDocumentsOfFortnight;
@@ -172,17 +186,21 @@ export class FakeFortnightReportStore implements FortnightReportStore {
     this.reportedThrough.set(typeKeyOf(key, row.documentType), row.reportedThrough);
   }
 
-  recordRemedy(key: FortnightReportKey, documentType: FiscalDocumentType, remedy: RecordedRemedy) {
+  recordRemedy(
+    key: FortnightReportKey,
+    documentType: OfflineSeriesDocumentType,
+    remedy: RecordedRemedy,
+  ) {
     this.remedies.set(typeKeyOf(key, documentType), remedy);
   }
 
-  rejectionAt(key: FortnightReportKey, documentType: FiscalDocumentType): Date | null {
+  rejectionAt(key: FortnightReportKey, documentType: OfflineSeriesDocumentType): Date | null {
     return this.documentTypeRows.get(typeKeyOf(key, documentType))?.lastAttemptAt ?? null;
   }
 
   seedReportedThrough(
     key: FortnightReportKey,
-    documentType: FiscalDocumentType,
+    documentType: OfflineSeriesDocumentType,
     reportedThrough: number,
   ): void {
     this.reportedThrough.set(typeKeyOf(key, documentType), reportedThrough);
@@ -346,7 +364,7 @@ export class FakeTaxAuthorityOfflineDocumentReports implements TaxAuthorityOffli
     this.operations = operations;
   }
 
-  hold(pointOfSaleNumber: number, documentType: FiscalDocumentType, number: number): void {
+  hold(pointOfSaleNumber: number, documentType: OfflineSeriesDocumentType, number: number): void {
     this.held.set(`${pointOfSaleNumber}:${documentType}`, number);
   }
 

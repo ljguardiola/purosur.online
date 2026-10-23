@@ -266,7 +266,7 @@ const deferredSaleDueDetailSchema = z.object({
 
 const fortnightReportDocumentRejectedDetailSchema =
   fortnightReportNeedsRegularizationDetailSchema.extend({
-    documentType: z.literal(FACTURA_C_DOCUMENT_TYPE),
+    documentType: z.enum([FACTURA_C_DOCUMENT_TYPE, CREDIT_NOTE_C_DOCUMENT_TYPE]),
     rejectedNumber: z.int(),
   });
 

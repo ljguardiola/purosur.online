@@ -1,4 +1,4 @@
-import type { CreditNoteCFiscalBlock } from "../../fiscal/index.js";
+import type { CreditNoteCFiscalBlock, OfflineCreditNoteCFiscalBlock } from "../../fiscal/index.js";
 import type { ReceiptContent } from "./receipt-content.js";
 
 export interface CreditNoteReceiptContent {
@@ -8,5 +8,5 @@ export interface CreditNoteReceiptContent {
   lines: ReceiptContent["lines"];
   totals: Pick<ReceiptContent["totals"], "subtotal" | "saleDiscount" | "total">;
   refunds: { method: ReceiptContent["totals"]["payments"][number]["method"]; amount: number }[];
-  fiscal: CreditNoteCFiscalBlock;
+  fiscal: CreditNoteCFiscalBlock | OfflineCreditNoteCFiscalBlock;
 }

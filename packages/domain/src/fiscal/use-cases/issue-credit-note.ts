@@ -6,11 +6,8 @@ import {
   settleUnclearCreditNote,
 } from "../model/credit-note.js";
 import type { TaxAuthorityRejection } from "../model/fiscal-rejection-standing.js";
-import {
-  CREDIT_NOTE_C_DOCUMENT_TYPE,
-  creditNoteRejectedTask,
-  externalInvoicingTask,
-} from "../model/fiscal-task.js";
+import { creditNoteRejectedTask, externalInvoicingTask } from "../model/fiscal-task.js";
+import { CREDIT_NOTE_C_DOCUMENT_TYPE } from "../model/fiscal-voucher-type.js";
 import type { CreditNoteAnswer } from "../model/sale-void-credit-note.js";
 import {
   hasUnclearOutcomeSettled,

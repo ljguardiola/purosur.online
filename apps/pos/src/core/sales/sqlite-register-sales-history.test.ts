@@ -1,6 +1,10 @@
 import { type FiscalDocumentState, type SaleStanding, saleStandingOf } from "@purosur/domain";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { uniqueShortCode } from "../fiscal/test-support/real-time-authorization-database";
+import {
+  insertOfflineCreditNote,
+  insertOfflineFiscalDocument,
+  uniqueShortCode,
+} from "../fiscal/test-support/real-time-authorization-database";
 import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import { migrationClock } from "../platform/test-support/migration-clock";
@@ -401,6 +405,23 @@ describe("SqliteRegisterSalesHistory", () => {
       });
     });
 
+    it("shows the factura of a sale, not the credit note issued under a pre-obtained code", () => {
+      addSale({ id: "sale-1", state: "VOIDED" });
+      insertOfflineCreditNote(database, { saleId: "sale-1", pointOfSale: 8, number: 3 });
+      insertOfflineFiscalDocument(database, { saleId: "sale-1", pointOfSale: 8, number: 412 });
+
+      expect(new SqliteRegisterSalesHistory(database).fiscalFactsOfSale("sale-1")).toEqual({
+        deferred: false,
+        fiscalDocument: {
+          state: "AUTHORIZED",
+          documentType: "factura_c",
+          authorization: "offline_code",
+          pointOfSale: 8,
+          number: 412,
+        },
+      });
+    });
+
     it("shows a voided sale as voided", () => {
       addSale({ id: "sale-1", state: "VOIDED" });
 
@@ -739,29 +760,6 @@ describe("SqliteRegisterSalesHistory", () => {
       addCreditNote("gone", { state: "REJECTED", answered_at: "2026-10-08T12:31:00.000Z" });
 
       expect(history.saleOfRegister("gone")?.creditNote).toEqual({ kind: "rejected" });
-    });
-  });
-
-  describe("the evidence that the register is fiscally online", () => {
-    it("is that of the latest health check", () => {
-      database.exec(
-        `INSERT INTO register_health_checks (checked_at, round_trip_ms, token_valid, arca_reachable)
-         VALUES ('2026-10-08T12:00:00.000Z', 100, 0, 0), ('2026-10-08T12:00:05.000Z', 100, 1, 1)`,
-      );
-
-      expect(history.fiscalOnlineEvidence()).toEqual({
-        lastHealthCheckOkAt: new Date("2026-10-08T12:00:05.000Z"),
-        tokenValid: true,
-        arcaReachable: true,
-      });
-    });
-
-    it("is none while the register never checked its health", () => {
-      expect(history.fiscalOnlineEvidence()).toEqual({
-        lastHealthCheckOkAt: null,
-        tokenValid: false,
-        arcaReachable: false,
-      });
     });
   });
 });

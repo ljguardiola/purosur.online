@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { facturaCDetail } from "./wsfe-factura-c-detail.js";
+import { associatedVoucherDetail, facturaCDetail } from "./wsfe-factura-c-detail.js";
 
 const source = {
   number: 42,
@@ -52,6 +52,14 @@ describe("facturaCDetail", () => {
     expect(facturaCDetail({ ...source, total: cents, netAmount: cents })).toMatchObject({
       ImpTotal: pesos,
       ImpNeto: pesos,
+    });
+  });
+});
+
+describe("associatedVoucherDetail", () => {
+  it("names the voucher a credit note corrects by its type, point of sale and number", () => {
+    expect(associatedVoucherDetail({ voucherType: 11, pointOfSale: 31, number: 7 })).toEqual({
+      CbtesAsoc: { CbteAsoc: { Tipo: 11, PtoVta: 31, Nro: 7 } },
     });
   });
 });
