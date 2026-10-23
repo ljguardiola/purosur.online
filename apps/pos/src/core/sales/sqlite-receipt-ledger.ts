@@ -201,7 +201,7 @@ export class SqliteReceiptLedger implements ReceiptLedger {
   }
 }
 
-function printsTableOf(document: PrintedDocumentKey["document"]): string | undefined {
+export function printsTableOf(document: PrintedDocumentKey["document"]): string | undefined {
   switch (document) {
     case "credit_note":
       return "credit_note_prints";

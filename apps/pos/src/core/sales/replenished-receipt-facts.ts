@@ -1,7 +1,12 @@
 import type { PrintedDocumentKey } from "@purosur/domain";
 import type { SyncedFact } from "@purosur/domain/sync/use-cases";
 import type { LocalDatabase } from "../platform/local-database";
-import { insertReprint, markPrintAttempted, markPrinted } from "./sqlite-receipt-ledger";
+import {
+  insertReprint,
+  markPrintAttempted,
+  markPrinted,
+  printsTableOf,
+} from "./sqlite-receipt-ledger";
 
 type ReceiptFact = Extract<SyncedFact, { kind: "sale_print_state_changed" | "reprint_recorded" }>;
 
@@ -15,13 +20,19 @@ function heldPrinting(database: LocalDatabase, { document, saleId }: PrintedDocu
   if (sale === undefined) {
     throw new Error(`sale ${saleId} is not held`);
   }
-  const table = document === "credit_note" ? "credit_note_prints" : "sales";
-  const key = document === "credit_note" ? "sale_id" : "id";
-  const held = database
-    .prepare<[string], Printing>(
-      `SELECT print_attempted_at, printed_at FROM ${table} WHERE ${key} = ?`,
-    )
-    .get(saleId);
+  const table = printsTableOf(document);
+  const held =
+    table === undefined
+      ? database
+          .prepare<[string], Printing>(
+            "SELECT print_attempted_at, printed_at FROM sales WHERE id = ?",
+          )
+          .get(saleId)
+      : database
+          .prepare<[string], Printing>(
+            `SELECT print_attempted_at, printed_at FROM ${table} WHERE sale_id = ?`,
+          )
+          .get(saleId);
   return held ?? { print_attempted_at: null, printed_at: null };
 }
 
