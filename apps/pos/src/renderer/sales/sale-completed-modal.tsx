@@ -251,7 +251,9 @@ export function SaleCompletedModal(props: SaleCompletedModalProps) {
   ].filter((row) => row !== undefined);
   const [firstDocument, ...otherDocuments] = documentRows;
   const keepNotice =
-    backupStanding === null || backupStanding === "no_longer_needed"
+    backupStanding === null ||
+    backupStanding === "no_longer_needed" ||
+    backupStanding === "missing_key"
       ? undefined
       : deferred
         ? {
