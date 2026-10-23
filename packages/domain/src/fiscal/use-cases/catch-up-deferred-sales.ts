@@ -169,9 +169,6 @@ export async function runDeferredSalesCatchUp(
       };
     }
     invoiced.push(round.saleId);
-    if (round.saleId === upToSaleId) {
-      return { outcome: { kind: "completed", invoiced }, stoppedAtSaleId: undefined };
-    }
   }
 }
 
