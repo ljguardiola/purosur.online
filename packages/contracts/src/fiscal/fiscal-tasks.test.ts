@@ -50,6 +50,12 @@ describe("fiscalTasksSchema", () => {
     expect(fiscalTaskItemSchema.parse(task).id).toBe("5b9e2f4a-7c1d-4e83-a6f0-3d8c1b7e9a42");
   });
 
+  it("reads a task whose id is a GUID of any version or variant", () => {
+    const task = { ...deferredSaleExpired, id: "0123abcd-ef01-4567-f9ab-cdef01234567" };
+
+    expect(fiscalTaskItemSchema.parse(task).id).toBe("0123abcd-ef01-4567-f9ab-cdef01234567");
+  });
+
   it("reads a list with no task", () => {
     expect(fiscalTasksSchema.parse({ tasks: [] })).toEqual({ tasks: [] });
   });
