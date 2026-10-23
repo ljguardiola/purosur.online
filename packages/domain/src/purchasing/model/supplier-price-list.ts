@@ -92,6 +92,12 @@ export function isSourcePage(page: number): boolean {
   return Number.isInteger(page) && page > 0;
 }
 
+export function pricedRows<T extends { priceCents: number | null }>(
+  rows: readonly T[],
+): (T & { priceCents: number })[] {
+  return rows.filter((row): row is T & { priceCents: number } => row.priceCents !== null);
+}
+
 type ConfirmationRefusal = "no_rows" | "unpriced_rows" | "list_date_missing" | "vat_missing";
 
 export type ConfirmationDecision =

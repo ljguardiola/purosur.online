@@ -1,6 +1,8 @@
+import { lastRowOfEachItem } from "../model/supplier-item.js";
 import {
   decideConfirmation,
   isSupplierPriceListUnderReview,
+  pricedRows,
 } from "../model/supplier-price-list.js";
 import type { SupplierPriceListStore } from "./supplier-price-list-store.js";
 
@@ -50,6 +52,42 @@ export function confirmSupplierPriceList(
     });
     if (decision.kind === "refused") {
       return { kind: decision.reason };
+    }
+
+    const groups = lastRowOfEachItem(pricedRows(await tx.listRows(input.listId)));
+    const items = await tx.lockSupplierItems(
+      locked.list.supplierId,
+      groups.map((group) => group.key),
+    );
+    for (const { key, row, rows } of groups) {
+      const link = rows.findLast((other) => other.link !== null)?.link ?? null;
+      const item = items.find(
+        (other) => other.key.kind === key.kind && other.key.value === key.value,
+      );
+      let itemId: string;
+      if (item) {
+        itemId = item.id;
+        await tx.describeSupplierItem(itemId, row.description);
+        if (link) {
+          await tx.rememberSupplierItemLink(itemId, link);
+        }
+      } else {
+        itemId = (
+          await tx.addSupplierItem({
+            supplierId: locked.list.supplierId,
+            key,
+            description: row.description,
+            link,
+          })
+        ).id;
+      }
+      await tx.recordSupplierItemPrice({
+        itemId,
+        listId: input.listId,
+        priceCents: row.priceCents,
+        listDate: decision.listDate,
+        pricesIncludeVat: decision.pricesIncludeVat,
+      });
     }
 
     await tx.confirmList(
