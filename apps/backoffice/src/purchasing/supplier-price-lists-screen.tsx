@@ -12,16 +12,20 @@ import {
   Table,
   useTableModel,
 } from "@purosur/ui";
+import { useMutation } from "@tanstack/react-query";
 import { deepEqual } from "@tanstack/react-router";
-import { Check, Eye, FileText, Search, SearchX, Upload } from "lucide-react";
+import { Check, Eye, FileText, RefreshCw, Search, SearchX, Upload } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { formatDisplayDate } from "../platform/display-date";
+import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { AreaTopBar } from "../shell/area-top-bar";
 import { ScreenLayout } from "../shell/screen-layout";
 import { useRefreshPurchasing, useSupplierPriceListsQuery } from "./purchasing-queries";
+import { type ReadNotice, readNoticeContent } from "./supplier-price-list-read-notice";
 import { supplierPriceListOriginOf } from "./supplier-price-list-source";
 import { supplierPriceListStatusOf } from "./supplier-price-list-status";
+import type { ReadSupplierPriceListWebPageOutcome } from "./supplier-price-lists-api";
 import type { SupplierPriceListsFilters } from "./supplier-price-lists-filters";
 import type { SupplierPriceListsScreenServices } from "./supplier-price-lists-services";
 import { UploadSupplierPriceListModal } from "./upload-supplier-price-list-modal";
@@ -54,6 +58,33 @@ function itemsOf(list: SupplierPriceListSummary): string {
     : formatNumber(list.rowCount);
 }
 
+function readNoticeOf(
+  outcome: Exclude<
+    ReadSupplierPriceListWebPageOutcome,
+    { kind: "ok" | "unauthenticated" | "forbidden" }
+  >,
+): ReadNotice {
+  switch (outcome.kind) {
+    case "daily_cap_reached":
+      return { kind: "dailyCapReached" };
+    case "supplier_inactive":
+      return { kind: "supplierInactive" };
+    case "supplier_not_found":
+      return { kind: "supplierNotFound" };
+    case "reading_unavailable":
+      return { kind: "readingUnavailable" };
+    case "page_refused":
+      return { kind: "pageRefused", reason: outcome.reason };
+    case "rate_limited":
+      return { kind: "rateLimited", retryAfterSeconds: outcome.retryAfterSeconds };
+    case "validation_failed":
+    case "not_found":
+    case "not_a_web_page":
+    case "failed":
+      return { kind: "attemptFailed" };
+  }
+}
+
 export function SupplierPriceListsScreen({
   filters,
   onFiltersChange,
@@ -66,10 +97,30 @@ export function SupplierPriceListsScreen({
     onSessionEnded,
   });
   const refreshPurchasing = useRefreshPurchasing();
+  const sendToMyAccount = useSendToMyAccount();
   const [search, setSearch] = useState(filters.search);
   const [stateFilter, setStateFilter] = useState<StateFilter>(filters.state);
   const [upload, setUpload] = useState<{ supplierId: string | null } | null>(null);
-  const [uploaded, setUploaded] = useState(false);
+  const [notice, setNotice] = useState<ReadNotice | "loaded" | null>(null);
+  const refresh = useMutation({
+    mutationFn: (listId: string) => services.refreshSupplierPriceList(listId),
+    onSuccess: (outcome) => {
+      switch (outcome.kind) {
+        case "ok":
+          setNotice("loaded");
+          void refreshPurchasing();
+          return;
+        case "unauthenticated":
+          onSessionEnded();
+          return;
+        case "forbidden":
+          sendToMyAccount();
+          return;
+        default:
+          setNotice(readNoticeOf(outcome));
+      }
+    },
+  });
   const reportFilters = useEffectEvent(onFiltersChange);
 
   useEffect(() => {
@@ -133,6 +184,15 @@ export function SupplierPriceListsScreen({
       header: "Acciones",
       actions: [
         (item: SupplierPriceListSummary) =>
+          item.source.kind === "WEB_PAGE" && item.state !== "READING"
+            ? {
+                icon: <RefreshCw />,
+                "aria-label": `Actualizar la lista de ${item.supplier.name}`,
+                disabled: refresh.isPending && refresh.variables === item.id,
+                onPress: () => refresh.mutate(item.id),
+              }
+            : undefined,
+        (item: SupplierPriceListSummary) =>
           item.state === "READING"
             ? undefined
             : {
@@ -141,7 +201,7 @@ export function SupplierPriceListsScreen({
                 onPress: () => onOpenReview(item.id),
               },
         (item: SupplierPriceListSummary) =>
-          item.state === "READ_FAILED"
+          item.state === "READ_FAILED" && item.source.kind === "PDF"
             ? {
                 icon: <Upload />,
                 "aria-label": `Cargar de nuevo la lista de ${item.supplier.name}`,
@@ -229,21 +289,23 @@ export function SupplierPriceListsScreen({
         services={services}
         onUploaded={() => {
           setUpload(null);
-          setUploaded(true);
+          setNotice("loaded");
           void refreshPurchasing();
         }}
         onClose={() => setUpload(null)}
         onSessionEnded={onSessionEnded}
       />
-      {uploaded ? (
+      {notice === "loaded" ? (
         <FloatingNotification
           tone="success"
           icon={<Check />}
           title="Lista cargada"
           description="Se está leyendo. Cuando termine, se puede revisar."
-          onDismiss={() => setUploaded(false)}
+          onDismiss={() => setNotice(null)}
         />
-      ) : null}
+      ) : notice === null ? null : (
+        <FloatingNotification {...readNoticeContent(notice)} onDismiss={() => setNotice(null)} />
+      )}
     </>
   );
 }
