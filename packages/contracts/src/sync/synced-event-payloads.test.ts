@@ -159,6 +159,7 @@ describe("synced event payloads", () => {
       "fiscal_gate_failed@1",
       "offline_fiscal_document_issued@1",
       "offline_fiscal_document_issued@2",
+      "offline_fiscal_document_issued@3",
       "opening_count_recorded@1",
       "opening_count_withdrawn@1",
       "qr_payment_replaced@1",
