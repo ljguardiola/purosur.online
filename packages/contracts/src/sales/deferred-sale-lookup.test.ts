@@ -64,6 +64,29 @@ describe("finding a deferred sale from its scanned QR", () => {
   });
 });
 
+describe("why a reading of a deferred sale is refused", () => {
+  function messagesOf(reading: unknown): string[] {
+    const result = salesRendererToCoreMessageSchema.safeParse(finding(reading));
+    return result.success ? [] : result.error.issues.map(({ message }) => message);
+  }
+
+  it.each([
+    ["a malformed code", "7KQ4-M2P0"],
+    ["a code that is not text", 7_000_000],
+  ])("names the short code for %s", (_case, code) => {
+    expect(messagesOf({ kind: "typed", code })).toEqual([
+      "code must be a deferred sale's short code",
+    ]);
+  });
+
+  it.each([
+    ["a text that is not a deferred sale's QR", "https://example.test/qr"],
+    ["a text that is not text", 42],
+  ])("names the QR for %s", (_case, text) => {
+    expect(messagesOf({ kind: "scanned", text })).toEqual(["text must be a deferred sale's QR"]);
+  });
+});
+
 describe("the request to find a deferred sale", () => {
   it.each([
     [
