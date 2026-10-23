@@ -107,6 +107,7 @@ jobs:
       - name: Dependency audit
         run: pnpm audit
         continue-on-error: true
+        timeout-minutes: 2
 
       - run: ${{ matrix.command }}
         env:
