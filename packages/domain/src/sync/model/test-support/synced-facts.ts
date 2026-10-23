@@ -211,6 +211,7 @@ export const A_DEFERRED_SALE_RECORDED_FACT: SyncedFact = {
     shortCode: "7KQ4M2P9",
     routedAt: new Date("2026-10-07T10:00:01.000Z"),
   },
+  unclearDocument: null,
 };
 
 export const A_CLOCK_CORRECTED_FACT: SyncedFact = {

@@ -6,6 +6,7 @@ import {
   weekHandConfirmedReport,
   weekPaymentsReport,
 } from "../payments/test-support/payments-report-fixtures";
+import { weekCashSessionClosesReport } from "../register/test-support/cash-session-closes-fixtures";
 import {
   ANA_USER_ID,
   averageTicketReport,
@@ -30,6 +31,7 @@ opensOnlyScreens([
   "/reports/sales-by-day",
   "/reports/sales-by-payment-method",
   "/reports/hand-confirmed-payments",
+  "/reports/cash-session-closes",
   "/reports/sales-by-product-and-category",
   "/reports/sales-by-cashier",
   "/reports/sales-by-promotion",
@@ -62,6 +64,10 @@ function reportsServices(capabilities: Capability[]) {
   vi.mocked(services.handConfirmedPaymentsScreen.fetchHandConfirmedPayments).mockResolvedValue({
     kind: "ok",
     value: weekHandConfirmedReport,
+  });
+  vi.mocked(services.cashSessionClosesScreen.fetchCashSessionCloses).mockResolvedValue({
+    kind: "ok",
+    value: weekCashSessionClosesReport,
   });
   vi.mocked(
     services.salesByProductAndCategoryScreen.fetchSalesByProductAndCategory,
@@ -109,6 +115,7 @@ test("opens the list of reports from the rail's Reportes item", async () => {
   await expect
     .element(sections.getByRole("link", { name: "Pagos confirmados a mano" }))
     .toBeVisible();
+  await expect.element(sections.getByRole("link", { name: "Cierres de sesión" })).toBeVisible();
   await expect
     .element(sections.getByRole("link", { name: "Ventas por producto y por categoría" }))
     .toBeVisible();
@@ -168,6 +175,22 @@ test("opens the payments confirmed by hand report from the list and reads it fro
   await expect.element(screen.getByText("Operación 000007")).toBeVisible();
   expect(services.handConfirmedPaymentsScreen.fetchHandConfirmedPayments).toHaveBeenCalledWith({});
   expect(document.title).toBe("Pagos confirmados a mano · Puro Sur");
+});
+
+test("opens the cash session closes report from the list and reads it from the cloud", async () => {
+  const services = reportsServices(["reports_area"]);
+  window.history.pushState(null, "", "/reports");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await userEvent.click(screen.getByRole("main").getByRole("link", { name: "Cierres de sesión" }));
+
+  await expect
+    .element(screen.getByRole("heading", { name: "Cierres de sesión", level: 1 }))
+    .toBeVisible();
+  expect(window.location.pathname).toBe("/reports/cash-session-closes");
+  await expect.element(screen.getByText("Cerró: Beto")).toBeVisible();
+  expect(services.cashSessionClosesScreen.fetchCashSessionCloses).toHaveBeenCalledWith({});
+  expect(document.title).toBe("Cierres de sesión · Puro Sur");
 });
 
 test("keeps the method of the payments confirmed by hand report in the address", async () => {
@@ -567,6 +590,7 @@ test.each([
   "/reports/sales-by-day",
   "/reports/sales-by-payment-method",
   "/reports/hand-confirmed-payments",
+  "/reports/cash-session-closes",
   "/reports/sales-by-product-and-category",
   "/reports/sales-by-cashier",
   "/reports/sales-by-promotion",
@@ -582,6 +606,7 @@ test.each([
   expect(services.salesByDayScreen.fetchSalesReport).not.toHaveBeenCalled();
   expect(services.salesByPaymentMethodScreen.fetchSalesByPaymentMethod).not.toHaveBeenCalled();
   expect(services.handConfirmedPaymentsScreen.fetchHandConfirmedPayments).not.toHaveBeenCalled();
+  expect(services.cashSessionClosesScreen.fetchCashSessionCloses).not.toHaveBeenCalled();
   expect(
     services.salesByProductAndCategoryScreen.fetchSalesByProductAndCategory,
   ).not.toHaveBeenCalled();

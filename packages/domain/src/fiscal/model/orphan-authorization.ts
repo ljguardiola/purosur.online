@@ -47,7 +47,8 @@ export type RequestsAtNumber =
 
 export type SaleDocument =
   | { kind: "offline"; voucher: VoucherReference }
-  | { kind: "real_time"; voucher: VoucherReference; outcome: RecordedRequestOutcome };
+  | { kind: "real_time"; voucher: VoucherReference; outcome: RecordedRequestOutcome }
+  | { kind: "confirmed"; voucher: VoucherReference };
 
 export function requestBehindVoucher(
   voucher: TaxAuthorityVoucher,
@@ -61,7 +62,7 @@ export function requestBehindVoucher(
 }
 
 function isAuthorizedDocument(document: SaleDocument): boolean {
-  if (document.kind === "offline") {
+  if (document.kind !== "real_time") {
     return true;
   }
   const told = outcomeToldToAskingRegister(document.outcome);
@@ -128,27 +129,58 @@ function sameVoucher(one: VoucherReference, other: VoucherReference): boolean {
   );
 }
 
-export function localStandingOfUnrecordedSale(
-  { saleId, voucher }: { saleId: string; voucher: VoucherReference },
+export function withVouchersConfirmedAuthorized(
+  voucher: VoucherReference,
+  documents: readonly SaleDocument[],
+  confirmedVouchers: readonly VoucherReference[],
+): SaleDocument[] {
+  const isConfirmed = (document: SaleDocument) =>
+    !sameVoucher(document.voucher, voucher) &&
+    confirmedVouchers.some((confirmed) => sameVoucher(confirmed, document.voucher));
+  return [
+    ...documents.filter((document) => !isConfirmed(document)),
+    ...documents.flatMap((document): SaleDocument[] =>
+      isConfirmed(document) ? [{ kind: "confirmed", voucher: document.voucher }] : [],
+    ),
+  ];
+}
+
+export function isKeptByCreditNote(
+  voucher: VoucherReference,
+  creditNotes: readonly SaleCreditNote[],
+): boolean {
+  return creditNotes.some(
+    ({ keptVoucher }) => keptVoucher !== null && sameVoucher(keptVoucher, voucher),
+  );
+}
+
+export function otherVoucherToKeep(
+  voucher: VoucherReference,
   {
     otherDocuments,
     creditNotes,
   }: { otherDocuments: readonly SaleDocument[]; creditNotes: readonly SaleCreditNote[] },
-): LocalStanding {
-  if (
-    creditNotes.some(({ keptVoucher }) => keptVoucher !== null && sameVoucher(keptVoucher, voucher))
-  ) {
-    return { kind: "local_sale", saleId, otherAuthorizedVoucher: null };
+): VoucherReference | null {
+  if (isKeptByCreditNote(voucher, creditNotes)) {
+    return null;
   }
-  const otherAuthorizedVoucher = authorizedVoucherAmong(
+  return authorizedVoucherAmong(
     otherDocuments.filter(
       (document) =>
         !creditNotes.some(({ creditedVoucher }) => sameVoucher(creditedVoucher, document.voucher)),
     ),
   );
-  return otherAuthorizedVoucher === null
-    ? { kind: "no_local_sale" }
-    : { kind: "local_sale", saleId, otherAuthorizedVoucher };
+}
+
+export function localStandingOfUnrecordedSale(
+  { saleId, voucher }: { saleId: string; voucher: VoucherReference },
+  sale: { otherDocuments: readonly SaleDocument[]; creditNotes: readonly SaleCreditNote[] },
+): LocalStanding {
+  const otherAuthorizedVoucher = otherVoucherToKeep(voucher, sale);
+  if (otherAuthorizedVoucher === null && !isKeptByCreditNote(voucher, sale.creditNotes)) {
+    return { kind: "no_local_sale" };
+  }
+  return { kind: "local_sale", saleId, otherAuthorizedVoucher };
 }
 
 export interface CreditNoteDecision {
@@ -246,4 +278,20 @@ export function orphanRegularization(
       };
     }
   }
+}
+
+export function creditNotesDecidedFor(
+  saleId: string,
+  regularizations: readonly (OrphanRegularization | null)[],
+): SaleCreditNote[] {
+  return regularizations.flatMap((regularization) =>
+    regularization?.kind === "credit_note" && regularization.saleId === saleId
+      ? [
+          {
+            creditedVoucher: regularization.associatedVoucher,
+            keptVoucher: regularization.keptVoucher,
+          },
+        ]
+      : [],
+  );
 }

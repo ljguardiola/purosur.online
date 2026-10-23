@@ -1,8 +1,7 @@
-import { ARGENTINA_TIME_ZONE, isCalendarDay } from "@purosur/domain";
+import { ARGENTINA_TIME_ZONE } from "@purosur/domain";
 import { z } from "zod";
-import { recordIdSchema, reportQuerySchema } from "../shared/index.js";
+import { answeredRangeSchema, recordIdSchema, reportQuerySchema } from "../shared/index.js";
 
-const calendarDay = z.string().refine(isCalendarDay);
 const count = z.int().nonnegative();
 const cents = z.int().nonnegative();
 const person = z.object({ id: z.string().min(1), name: z.string().nullable() });
@@ -39,7 +38,7 @@ const lineDiscountRow = z.object({
 });
 
 export const manualDiscountsSchema = z.object({
-  range: z.object({ from: calendarDay, to: calendarDay }),
+  range: answeredRangeSchema,
   rows: z.array(z.discriminatedUnion("kind", [saleDiscountRow, lineDiscountRow])),
   totals: z.object({
     discounted: cents,

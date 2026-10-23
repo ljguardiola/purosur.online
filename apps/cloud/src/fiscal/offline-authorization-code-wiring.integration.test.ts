@@ -3,7 +3,7 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import type { AccessEmailSender } from "../credentials/recovery-email-sender.js";
-import { setUpRecovery } from "../server.js";
+import { setUpBackgroundJobs } from "../server.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
@@ -52,7 +52,7 @@ afterAll(async () => {
   await integrationDb.close();
 });
 
-function recoveryEnv() {
+function backgroundJobsEnv() {
   return {
     databaseUrl: integrationDb.databaseUrl,
     emailSender: { transport: "log" as const },
@@ -70,12 +70,12 @@ function recoveryEnv() {
 }
 
 async function acquireOnDemand() {
-  const recovery = await setUpRecovery(recoveryEnv(), () => NOW, {
+  const backgroundJobs = await setUpBackgroundJobs(backgroundJobsEnv(), () => NOW, {
     emailSender: UNUSED_EMAIL_SENDER,
     schedules: false,
   });
   try {
-    await recovery.workerUtils.addJob(OFFLINE_AUTHORIZATION_CODE_TASK_IDENTIFIER, {});
+    await backgroundJobs.workerUtils.addJob(OFFLINE_AUTHORIZATION_CODE_TASK_IDENTIFIER, {});
     await vi.waitFor(
       async () => {
         expect(await sql`select 1 from caea_codes`).toHaveLength(1);
@@ -83,7 +83,7 @@ async function acquireOnDemand() {
       { timeout: 20_000, interval: 100 },
     );
   } finally {
-    await recovery.close();
+    await backgroundJobs.close();
   }
 }
 

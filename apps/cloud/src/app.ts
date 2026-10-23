@@ -85,6 +85,7 @@ import {
   type FiscalAuthorizationRouteOptions,
   registerFiscalAuthorizationRoute,
 } from "./fiscal/fiscal-authorization-route.js";
+import { registerFiscalTasksListRoute } from "./fiscal/fiscal-tasks-list-route.js";
 import { registerFortnightPresentationsListRoute } from "./fiscal/fortnight-presentations-list-route.js";
 import type { EnqueueOfflineAuthorizationCodeRequest } from "./fiscal/graphile-offline-authorization-code-queue.js";
 import type { EnqueueTaxAuthorityCount } from "./fiscal/graphile-tax-authority-count-queue.js";
@@ -101,6 +102,7 @@ import {
   type RestoredRegisterOrphanSweepRouteOptions,
   registerRestoredRegisterOrphanSweepRoute,
 } from "./fiscal/restored-register-orphan-sweep-route.js";
+import { registerUnbilledDeferredSalesRoute } from "./fiscal/unbilled-deferred-sales-route.js";
 import {
   registerUnclearOutcomeRoute,
   type UnclearOutcomeRouteOptions,
@@ -150,6 +152,7 @@ import {
   type BitlockerRecoveryKeyRouteOptions,
   registerBitlockerRecoveryKeyRoute,
 } from "./register/bitlocker-recovery-key-route.js";
+import { registerCashSessionClosesReportRoute } from "./register/cash-session-closes-report-route.js";
 import { authenticateDevice } from "./register/device-authentication.js";
 import { registerDeviceEnrollmentRoute } from "./register/device-enrollment-route.js";
 import { registerDeviceTokenRotationRoute } from "./register/device-token-rotation-route.js";
@@ -685,6 +688,7 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
       if (options.registers) {
         registerRegistersListRoute(api, { ...options.registers, now });
         registerReportRegistersRoute(api, { ...options.registers, now });
+        registerCashSessionClosesReportRoute(api, { ...options.registers, now });
         registerRegisterSyncStatusRoute(api, { ...options.registers, now });
         registerRegisterCreationRoute(api, { ...options.registers, now });
         registerRegisterCoverageRoute(api, { ...options.registers, now });
@@ -712,6 +716,8 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
       if (options.registersPointsOfSale) {
         registerRegistersPointsOfSaleListRoute(api, { ...options.registersPointsOfSale, now });
         registerFortnightPresentationsListRoute(api, { ...options.registersPointsOfSale, now });
+        registerFiscalTasksListRoute(api, { ...options.registersPointsOfSale, now });
+        registerUnbilledDeferredSalesRoute(api, { ...options.registersPointsOfSale, now });
         registerRejectedDocumentRemedyRoute(api, { ...options.registersPointsOfSale, now });
         registerBuyerTaxStatusesListRoute(api, { ...options.registersPointsOfSale, now });
         registerClockCorrectionsListRoute(api, { ...options.registersPointsOfSale, now });

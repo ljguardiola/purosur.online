@@ -1,4 +1,4 @@
-import type { SnapshotRestoreOutcomeKind } from "@purosur/contracts";
+import type { RestoreFirstInstallation, SnapshotRestoreOutcomeKind } from "@purosur/contracts";
 import type { RestorePending } from "./restore-pending";
 
 export interface RestoreAttemptsDeps {
@@ -8,11 +8,15 @@ export interface RestoreAttemptsDeps {
   resumeSync: () => void;
   reportNoUsableGeneration: () => void;
   cloudAnswered: (reachable: boolean) => void;
+  resetWithoutCopy: (firstInstallation: RestoreFirstInstallation) => Promise<void>;
 }
 
 export interface RestoreAttempts {
   attempt(): Promise<void>;
-  workerExited(outcome: SnapshotRestoreOutcomeKind | undefined): void;
+  workerExited(
+    outcome: SnapshotRestoreOutcomeKind | undefined,
+    firstInstallation?: RestoreFirstInstallation,
+  ): Promise<void>;
   noUsableGeneration(): boolean;
 }
 
@@ -33,7 +37,7 @@ export function createRestoreAttempts(deps: RestoreAttemptsDeps): RestoreAttempt
         running = launched;
       }
     },
-    workerExited(outcome) {
+    async workerExited(outcome, firstInstallation) {
       running = false;
       if (outcome !== undefined) {
         deps.cloudAnswered(outcome !== "unreachable");
@@ -41,6 +45,9 @@ export function createRestoreAttempts(deps: RestoreAttemptsDeps): RestoreAttempt
       if (outcome === "restored") {
         deps.restartCore();
       } else if (outcome === "no_generation") {
+        if (firstInstallation !== undefined) {
+          await deps.resetWithoutCopy(firstInstallation);
+        }
         deps.pending.clear();
         deps.resumeSync();
       } else if (outcome === "none_usable") {

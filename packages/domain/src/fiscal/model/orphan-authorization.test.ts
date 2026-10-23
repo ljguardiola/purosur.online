@@ -2,17 +2,21 @@ import { describe, expect, it } from "vitest";
 import { FACTURA_C_VOUCHER_TYPE } from "./factura-c-fiscal-block.js";
 import {
   authorizedVoucherAmong,
+  creditNotesDecidedFor,
   decideOrphanAuthorization,
+  isKeptByCreditNote,
   type LocalRequestAtNumber,
   type LocalStanding,
   localStandingOfUnrecordedSale,
   type OrphanEvidence,
   orphanEvidenceOfRecordedRequest,
   orphanRegularization,
+  otherVoucherToKeep,
   requestBehindVoucher,
   type SaleCreditNote,
   type SaleDocument,
   type VoucherReference,
+  withVouchersConfirmedAuthorized,
 } from "./orphan-authorization.js";
 import type { TaxAuthorityVoucher } from "./unclear-outcome-decision.js";
 
@@ -259,6 +263,10 @@ describe("authorizedVoucherAmong", () => {
     ).toEqual(AT_21);
   });
 
+  it("takes a document the tax authority confirmed authorized as authorized", () => {
+    expect(authorizedVoucherAmong([{ kind: "confirmed", voucher: AT_20 }])).toEqual(AT_20);
+  });
+
   it("finds none in a sale with no other document", () => {
     expect(authorizedVoucherAmong([])).toBeNull();
   });
@@ -411,5 +419,133 @@ describe("localStandingOfUnrecordedSale", () => {
     expect(
       standing([authorizedAt(CREDITED_VOUCHER)], [{ creditedVoucher, keptVoucher: null }]),
     ).toEqual({ kind: "local_sale", saleId: "sale-1", otherAuthorizedVoucher: CREDITED_VOUCHER });
+  });
+});
+
+describe("the other voucher a credit note must keep", () => {
+  const OWN_VOUCHER = { voucherType: FACTURA_C_VOUCHER_TYPE, pointOfSale: 12, number: 41 };
+  const CREDITED_VOUCHER = { voucherType: FACTURA_C_VOUCHER_TYPE, pointOfSale: 12, number: 40 };
+  const SECOND_VOUCHER = { voucherType: FACTURA_C_VOUCHER_TYPE, pointOfSale: 12, number: 42 };
+  const offlineAt = (voucher: VoucherReference): SaleDocument => ({ kind: "offline", voucher });
+
+  it("is the first authorized document of the sale", () => {
+    expect(
+      otherVoucherToKeep(OWN_VOUCHER, {
+        otherDocuments: [offlineAt(CREDITED_VOUCHER), offlineAt(SECOND_VOUCHER)],
+        creditNotes: [],
+      }),
+    ).toEqual(CREDITED_VOUCHER);
+  });
+
+  it("skips a document a credit note of the sale already credited", () => {
+    expect(
+      otherVoucherToKeep(OWN_VOUCHER, {
+        otherDocuments: [offlineAt(CREDITED_VOUCHER), offlineAt(SECOND_VOUCHER)],
+        creditNotes: [{ creditedVoucher: CREDITED_VOUCHER, keptVoucher: OWN_VOUCHER }],
+      }),
+    ).toBeNull();
+    expect(
+      otherVoucherToKeep(OWN_VOUCHER, {
+        otherDocuments: [offlineAt(CREDITED_VOUCHER), offlineAt(SECOND_VOUCHER)],
+        creditNotes: [{ creditedVoucher: CREDITED_VOUCHER, keptVoucher: null }],
+      }),
+    ).toEqual(SECOND_VOUCHER);
+  });
+
+  it("is none when a credit note of the sale already kept the voucher", () => {
+    expect(
+      otherVoucherToKeep(OWN_VOUCHER, {
+        otherDocuments: [offlineAt(SECOND_VOUCHER)],
+        creditNotes: [{ creditedVoucher: CREDITED_VOUCHER, keptVoucher: OWN_VOUCHER }],
+      }),
+    ).toBeNull();
+  });
+
+  it("is none when the sale has no other authorized document", () => {
+    expect(otherVoucherToKeep(OWN_VOUCHER, { otherDocuments: [], creditNotes: [] })).toBeNull();
+  });
+
+  it.each<[string, VoucherReference, boolean]>([
+    ["the same voucher", OWN_VOUCHER, true],
+    ["another number", { ...OWN_VOUCHER, number: 42 }, false],
+    ["another point of sale", { ...OWN_VOUCHER, pointOfSale: 13 }, false],
+    ["another voucher type", { ...OWN_VOUCHER, voucherType: 13 }, false],
+  ])("tells whether a credit note kept the voucher: %s", (_case, keptVoucher, kept) => {
+    expect(
+      isKeptByCreditNote(OWN_VOUCHER, [{ creditedVoucher: CREDITED_VOUCHER, keptVoucher }]),
+    ).toBe(kept);
+  });
+
+  it("is not kept by a credit note that kept nothing", () => {
+    expect(
+      isKeptByCreditNote(OWN_VOUCHER, [{ creditedVoucher: CREDITED_VOUCHER, keptVoucher: null }]),
+    ).toBe(false);
+  });
+});
+
+describe("the documents of a sale with the vouchers the tax authority confirmed", () => {
+  const ASKING = { voucherType: FACTURA_C_VOUCHER_TYPE, pointOfSale: 12, number: 19 };
+  const AT_20 = { voucherType: FACTURA_C_VOUCHER_TYPE, pointOfSale: 12, number: 20 };
+  const AT_21 = { voucherType: FACTURA_C_VOUCHER_TYPE, pointOfSale: 12, number: 21 };
+  const releasedAt = (voucher: VoucherReference): SaleDocument => ({
+    kind: "real_time",
+    voucher,
+    outcome: { answer: { kind: "unclear" }, decision: { kind: "released" } },
+  });
+
+  it("takes a document at a confirmed voucher as confirmed", () => {
+    expect(withVouchersConfirmedAuthorized(ASKING, [releasedAt(AT_20)], [AT_20])).toEqual([
+      { kind: "confirmed", voucher: AT_20 },
+    ]);
+  });
+
+  it.each<[string, VoucherReference]>([
+    ["another number", { ...AT_20, number: 21 }],
+    ["another point of sale", { ...AT_20, pointOfSale: 13 }],
+    ["another voucher type", { ...AT_20, voucherType: 13 }],
+  ])("keeps a document whose voucher was not confirmed: %s", (_case, confirmed) => {
+    expect(withVouchersConfirmedAuthorized(ASKING, [releasedAt(AT_20)], [confirmed])).toEqual([
+      releasedAt(AT_20),
+    ]);
+  });
+
+  it("never confirms another document at the asking voucher", () => {
+    expect(withVouchersConfirmedAuthorized(ASKING, [releasedAt(ASKING)], [ASKING])).toEqual([
+      releasedAt(ASKING),
+    ]);
+  });
+
+  it("puts the documents only confirmed after the others", () => {
+    const offlineAt21: SaleDocument = { kind: "offline", voucher: AT_21 };
+
+    expect(
+      withVouchersConfirmedAuthorized(ASKING, [releasedAt(AT_20), offlineAt21], [AT_20]),
+    ).toEqual([offlineAt21, { kind: "confirmed", voucher: AT_20 }]);
+  });
+});
+
+describe("the credit notes decided for a sale", () => {
+  const CREDITED = { voucherType: FACTURA_C_VOUCHER_TYPE, pointOfSale: 12, number: 20 };
+  const KEPT = { voucherType: FACTURA_C_VOUCHER_TYPE, pointOfSale: 12, number: 21 };
+  const creditNoteOf = (saleId: string) => ({
+    kind: "credit_note" as const,
+    creditNoteId: `credit-note-${saleId}`,
+    saleId,
+    pointOfSale: 12,
+    associatedVoucher: CREDITED,
+    keptVoucher: KEPT,
+    total: 12_500,
+    receiverTaxStatusCode: 5,
+  });
+
+  it("takes the credited and the kept voucher of each credit note of the sale, skipping other sales and alerts", () => {
+    const alert = orphanRegularization(
+      decideOrphanAuthorization({ evidence: CONFIRMED, local: { kind: "no_local_sale" } }),
+      { creditNoteId: "unused", now: new Date("2026-10-01T12:00:00.000Z") },
+    );
+
+    expect(
+      creditNotesDecidedFor("sale-1", [creditNoteOf("sale-2"), alert, creditNoteOf("sale-1")]),
+    ).toEqual([{ creditedVoucher: CREDITED, keptVoucher: KEPT }]);
   });
 });

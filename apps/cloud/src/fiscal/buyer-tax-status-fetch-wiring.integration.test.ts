@@ -2,7 +2,7 @@ import { FICTIONAL_CERTIFICATE_CUIT } from "@purosur/domain/fiscal/test-support"
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import type { AccessEmailSender } from "../credentials/recovery-email-sender.js";
-import { setUpRecovery } from "../server.js";
+import { setUpBackgroundJobs } from "../server.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
@@ -65,7 +65,7 @@ describe("the buyer tax-status fetch the server sets up on a real Postgres", () 
       values ('wsfe', ${FINGERPRINT}, 'FICTIONAL-TOKEN-0001', 'FICTIONAL-SIGN-0001',
               ${new Date("2125-12-31T18:00:00.000Z")}, ${new Date("2126-01-01T06:00:00.000Z")})
     `;
-    const recovery = await setUpRecovery(
+    const backgroundJobs = await setUpBackgroundJobs(
       {
         databaseUrl: integrationDb.databaseUrl,
         emailSender: { transport: "log" },
@@ -84,7 +84,7 @@ describe("the buyer tax-status fetch the server sets up on a real Postgres", () 
       { emailSender: UNUSED_EMAIL_SENDER, schedules: false },
     );
     try {
-      await enqueueBuyerTaxStatusFetch(recovery.workerUtils);
+      await enqueueBuyerTaxStatusFetch(backgroundJobs.workerUtils);
 
       await vi.waitFor(
         async () => {
@@ -106,7 +106,7 @@ describe("the buyer tax-status fetch the server sets up on a real Postgres", () 
       );
       expect(fakeWsfe.requests[0]).toContain("FICTIONAL-TOKEN-0001");
     } finally {
-      await recovery.close();
+      await backgroundJobs.close();
     }
   }, 90_000);
 });

@@ -1,7 +1,9 @@
-import type {
-  OrphanRegularization,
-  RequestsAtNumber,
-  SaleDocument,
+import {
+  creditNotesDecidedFor,
+  type OrphanRegularization,
+  type RequestsAtNumber,
+  type SaleCreditNote,
+  type SaleDocument,
 } from "../../model/orphan-authorization.js";
 import type { WsaaTokenSource } from "../fiscal-document-authorization-ports.js";
 import type {
@@ -17,6 +19,8 @@ export class FakeOrphanRegularizationStore implements OrphanRegularizationLanes 
   readonly regularizations: OrphanRegularization[] = [];
   readonly requestsAtNumber = new Map<string, RequestsAtNumber>();
   readonly saleDocuments = new Map<string, SaleDocument[]>();
+  readonly creditNotes = new Map<string, SaleCreditNote[]>();
+  readonly saleDocumentsSeenFrom = new Map<string, SaleDocument[]>();
   readonly saleDocumentAsks: { saleId: string; fiscalDocumentId: string }[] = [];
   held = false;
 
@@ -26,6 +30,14 @@ export class FakeOrphanRegularizationStore implements OrphanRegularizationLanes 
 
   seedSaleDocuments(saleId: string, documents: SaleDocument[]) {
     this.saleDocuments.set(saleId, documents);
+  }
+
+  seedCreditNotes(saleId: string, creditNotes: SaleCreditNote[]) {
+    this.creditNotes.set(saleId, creditNotes);
+  }
+
+  seedSaleDocumentsSeenFrom(saleId: string, fiscalDocumentId: string, documents: SaleDocument[]) {
+    this.saleDocumentsSeenFrom.set(`${saleId}/${fiscalDocumentId}`, documents);
   }
 
   async inPointOfSaleLane<TOutcome>(
@@ -63,7 +75,19 @@ class FakeOrphanRegularizationLane implements OrphanRegularizationLane {
   async otherDocumentsOfSale(saleId: string, fiscalDocumentId: string): Promise<SaleDocument[]> {
     this.store.operations.push("otherDocumentsOfSale");
     this.store.saleDocumentAsks.push({ saleId, fiscalDocumentId });
-    return this.store.saleDocuments.get(saleId) ?? [];
+    return (
+      this.store.saleDocumentsSeenFrom.get(`${saleId}/${fiscalDocumentId}`) ??
+      this.store.saleDocuments.get(saleId) ??
+      []
+    );
+  }
+
+  async creditNotesOfSale(saleId: string): Promise<SaleCreditNote[]> {
+    this.store.operations.push("creditNotesOfSale");
+    return [
+      ...(this.store.creditNotes.get(saleId) ?? []),
+      ...creditNotesDecidedFor(saleId, this.store.regularizations),
+    ];
   }
 
   async recordOrphanRegularization(regularization: OrphanRegularization): Promise<void> {

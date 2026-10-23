@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { AccountFooter } from "./account-footer";
+import { AreaTopBarUnbilledDeferredSales } from "./area-top-bar-unbilled-deferred-sales";
 import {
   canManageBatches,
   canManageFreights,
@@ -24,6 +25,7 @@ import {
   canSeeCashArea,
   canSeeCatalogArea,
   canSeeExpiringLots,
+  canSeeFiscalInformation,
   canSeeOrdersArea,
   canSeePricesArea,
   canSeeRefundsArea,
@@ -58,6 +60,7 @@ export type AreaLayoutProps = {
 
 export function AreaLayout({ area, sectionColumnLabel, sectionColumn, children }: AreaLayoutProps) {
   const { session, services, sessionActions } = signedInRoute.useRouteContext();
+  const UnbilledDeferredSales = services.areaTopBarUnbilledDeferredSales;
   const matchRoute = useMatchRoute();
   const catalogTarget = canManageProductsAndCategories(session)
     ? "/products"
@@ -86,7 +89,11 @@ export function AreaLayout({ area, sectionColumnLabel, sectionColumn, children }
                     : canManageBatches(session)
                       ? "/assembly-batches"
                       : "/initial-inventory";
-  const cashTarget = canSeeCashArea(session) ? "/points-of-sale" : "/refunds/mercado-pago";
+  const cashTarget = canSeeCashArea(session)
+    ? "/points-of-sale"
+    : canSeeRefundsArea(session)
+      ? "/refunds/mercado-pago"
+      : "/fiscal-tasks";
   const stockTargetShown = Boolean(matchRoute({ to: stockTarget }));
   return (
     <Shell
@@ -120,7 +127,9 @@ export function AreaLayout({ area, sectionColumnLabel, sectionColumn, children }
               active={area === "orders"}
             />
           )}
-          {(canSeeCashArea(session) || canSeeRefundsArea(session)) && (
+          {(canSeeCashArea(session) ||
+            canSeeRefundsArea(session) ||
+            canSeeFiscalInformation(session)) && (
             <AreaLink
               to={cashTarget}
               label="Caja"
@@ -151,7 +160,18 @@ export function AreaLayout({ area, sectionColumnLabel, sectionColumn, children }
       }
       sectionColumn={sectionColumn}
     >
-      {children}
+      <AreaTopBarUnbilledDeferredSales
+        value={
+          canSeeFiscalInformation(session) ? (
+            <UnbilledDeferredSales
+              onSessionEnded={sessionActions.sessionEnded}
+              services={services.unbilledDeferredSalesPill}
+            />
+          ) : null
+        }
+      >
+        {children}
+      </AreaTopBarUnbilledDeferredSales>
     </Shell>
   );
 }

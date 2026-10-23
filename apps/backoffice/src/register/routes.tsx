@@ -1,7 +1,9 @@
 import { createRoute, stripSearchParams } from "@tanstack/react-router";
 import { z } from "zod";
-import { canSeeBackupsArea, canSeeRegistersArea } from "../shell/backoffice-access";
+import { canSeeBackupsArea, canSeeRegistersArea, canSeeReports } from "../shell/backoffice-access";
 import { lazyScreen } from "../shell/lazy-screen";
+import { reportFiltersSearch } from "../shell/report-filters-search";
+import { reportsAreaRoute } from "../shell/reports-area";
 import { settingsAreaRoute } from "../shell/settings-area";
 import { refuseWithout } from "../shell/signed-in-route";
 
@@ -25,4 +27,13 @@ export const snapshotBackupsRoute = createRoute({
   validateSearch: snapshotBackupsFilters,
   search: { middlewares: [stripSearchParams(snapshotBackupsFilters.parse({}))] },
   component: lazyScreen(() => import("./snapshot-backups-page"), "SnapshotBackupsPage"),
+});
+
+export const cashSessionClosesRoute = createRoute({
+  getParentRoute: () => reportsAreaRoute,
+  path: "reports/cash-session-closes",
+  beforeLoad: ({ context: { session } }) => refuseWithout(session, canSeeReports),
+  validateSearch: reportFiltersSearch,
+  search: { middlewares: [stripSearchParams(reportFiltersSearch.parse({}))] },
+  component: lazyScreen(() => import("./cash-session-closes-page"), "CashSessionClosesPage"),
 });

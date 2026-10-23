@@ -24,6 +24,7 @@ import type {
   CurrentSaleAnswer,
   DiscardContingencyBackupTicketsAnswer,
   EnrollmentOutcome,
+  EnrollmentStandingAnswer,
   FindCountableProductOutcome,
   FirstPinCodeRequestOutcome,
   FollowMercadoPagoChargeOutcome,
@@ -116,6 +117,7 @@ import {
 import { RestoreRequiredScreen } from "../register/restore-required-screen";
 import type { RestoringStanding } from "../register/restoring-screen";
 import { RestoringScreen } from "../register/restoring-screen";
+import { RevokedInstallationScreen } from "../register/revoked-installation-screen";
 import { mayConfigureSerialDevices } from "../register/serial-devices-offer";
 import { SerialDevicesScreen } from "../register/serial-devices-screen";
 import { StartupPendingScreen } from "../register/startup-pending-screen";
@@ -136,7 +138,7 @@ import { StatusBarLayout } from "./status-bar-layout";
 
 export type CoreStatus = CoreStatusMessage["status"];
 
-export type Enrollment = "unknown" | "enrolled" | "not_enrolled";
+export type Enrollment = "unknown" | EnrollmentStandingAnswer["kind"];
 
 export type Restoration = RestorationStandingAnswer | "unknown";
 
@@ -313,6 +315,7 @@ type ScreenPath =
   | "/out-of-service"
   | "/restoring"
   | "/restore-required"
+  | "/revoked"
   | "/older-version";
 
 // Until the core says whether the register is in service and then whether this installation is
@@ -347,8 +350,11 @@ export function routeFor({
   if (enrollment === "unknown") {
     return "/starting";
   }
-  if (enrollment !== "enrolled") {
+  if (enrollment === "not_enrolled") {
     return "/enroll";
+  }
+  if (enrollment === "revoked" && person === undefined) {
+    return "/revoked";
   }
   if (restoration === "unknown") {
     return "/starting";
@@ -1159,19 +1165,35 @@ const restoreRequiredRoute = createRoute({
   },
 });
 
+const revokedRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/revoked",
+  beforeLoad: ({ context }) => requireRoute("/revoked", context),
+  component: function RevokedRoute() {
+    const navigate = revokedRoute.useNavigate();
+    return (
+      <RevokedInstallationScreen
+        registerName={useRegisterName()}
+        onEnroll={() => void navigate({ to: "/re-enroll" })}
+      />
+    );
+  },
+});
+
 const reEnrollRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/re-enroll",
-  beforeLoad: ({ context }) => requireRoute("/restore-required", context),
+  beforeLoad: ({ context }) => requireRoute(["/restore-required", "/revoked"], context),
   component: function ReEnrollRoute() {
-    const { enroll, checkEnrollmentCode } = reEnrollRoute.useRouteContext();
+    const context = reEnrollRoute.useRouteContext();
+    const { enroll, checkEnrollmentCode } = context;
     const navigate = reEnrollRoute.useNavigate();
     return (
       <ReEnrollmentScreen
         registerName={useRegisterName()}
         checkCode={checkEnrollmentCode}
         enroll={enroll}
-        onBack={() => void navigate({ to: "/restore-required" })}
+        onBack={() => void navigate({ to: routeFor(context) })}
       />
     );
   },
@@ -1213,6 +1235,7 @@ export const routeTree = rootRoute.addChildren([
   restoringRoute,
   restoreRequiredRoute,
   reEnrollRoute,
+  revokedRoute,
   olderVersionRoute,
 ]);
 

@@ -489,6 +489,7 @@ describe("GET /devices/current/snapshots", () => {
     expect(response.statusCode).toBe(200);
     expect(restorableSnapshotsSchema.parse(response.json())).toEqual({
       register_id: installation.registerId,
+      first_installation_id: null,
       generations: [
         {
           generation_id: OTHER_GENERATION_ID,
@@ -525,8 +526,67 @@ describe("GET /devices/current/snapshots", () => {
 
     expect(restorableSnapshotsSchema.parse(response.json())).toEqual({
       register_id: registerId,
+      first_installation_id: null,
       generations: [],
     });
+  });
+
+  it("names the earliest revoked installation of the register other than the calling one, even when no generation is held", async () => {
+    const first = await insertEnrolledInstallation(db, {
+      now: NOW,
+      enrolledAt: new Date("2026-09-01T10:00:00.000Z"),
+      revokedAt: new Date("2026-09-10T10:00:00.000Z"),
+    });
+    await insertEnrolledInstallation(db, {
+      now: NOW,
+      existingRegisterId: first.registerId,
+      enrolledAt: new Date("2026-09-11T10:00:00.000Z"),
+      revokedAt: new Date("2026-09-20T10:00:00.000Z"),
+    });
+    const calling = await insertEnrolledInstallation(db, {
+      now: NOW,
+      existingRegisterId: first.registerId,
+      enrolledAt: new Date("2026-09-21T10:00:00.000Z"),
+    });
+    build();
+
+    const response = await call("GET", "/devices/current/snapshots", {
+      authorization: `Bearer ${calling.deviceToken}`,
+    });
+
+    expect(restorableSnapshotsSchema.parse(response.json())).toEqual({
+      register_id: first.registerId,
+      first_installation_id: first.deviceId,
+      generations: [],
+    });
+  });
+
+  it("names no first installation for a register enrolled for the first time", async () => {
+    const { deviceToken } = await enrolled();
+    build();
+
+    const response = await call("GET", "/devices/current/snapshots", {
+      authorization: `Bearer ${deviceToken}`,
+    });
+
+    expect(restorableSnapshotsSchema.parse(response.json()).first_installation_id).toBeNull();
+  });
+
+  it("names no installation of another register as the first installation", async () => {
+    await insertEnrolledInstallation(db, {
+      now: NOW,
+      registerName: "Caja 2",
+      enrolledAt: new Date("2026-09-01T10:00:00.000Z"),
+      revokedAt: new Date("2026-09-10T10:00:00.000Z"),
+    });
+    const { deviceToken } = await enrolled();
+    build();
+
+    const response = await call("GET", "/devices/current/snapshots", {
+      authorization: `Bearer ${deviceToken}`,
+    });
+
+    expect(restorableSnapshotsSchema.parse(response.json()).first_installation_id).toBeNull();
   });
 
   it("answers snapshot_backups_unavailable, reporting why, when the bucket cannot presign", async () => {

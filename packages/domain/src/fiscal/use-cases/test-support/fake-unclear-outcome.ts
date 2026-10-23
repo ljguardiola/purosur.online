@@ -1,4 +1,9 @@
-import type { OrphanRegularization, SaleDocument } from "../../model/orphan-authorization.js";
+import {
+  creditNotesDecidedFor,
+  type OrphanRegularization,
+  type SaleCreditNote,
+  type SaleDocument,
+} from "../../model/orphan-authorization.js";
 import type { RealTimeAuthorizationAnswer } from "../../model/real-time-authorization.js";
 import type {
   RecordedRequestOutcome,
@@ -31,6 +36,7 @@ export class FakeUnclearOutcomeStore implements UnclearOutcomeLanes, UnclearOutc
     clearedAt: Date;
   }[] = [];
   readonly saleDocuments = new Map<string, SaleDocument[]>();
+  readonly creditNotes = new Map<string, SaleCreditNote[]>();
   readonly regularizations: (OrphanRegularization | null)[] = [];
   readonly otherVoucherAsks: { saleId: string; fiscalDocumentId: string }[] = [];
   vanishAfterLookup = false;
@@ -139,6 +145,14 @@ class FakeUnclearOutcomeLane implements UnclearOutcomeLane {
     this.store.otherVoucherAsks.push({ saleId, fiscalDocumentId });
     this.store.documents.operations.push("otherDocumentsOfSale");
     return this.store.saleDocuments.get(saleId) ?? [];
+  }
+
+  async creditNotesOfSale(saleId: string): Promise<SaleCreditNote[]> {
+    this.store.documents.operations.push("creditNotesOfSale");
+    return [
+      ...(this.store.creditNotes.get(saleId) ?? []),
+      ...creditNotesDecidedFor(saleId, this.store.regularizations),
+    ];
   }
 
   async registerOwnsPointOfSale(registerId: string, pointOfSale: number): Promise<boolean> {

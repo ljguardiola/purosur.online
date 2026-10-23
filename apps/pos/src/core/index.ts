@@ -27,6 +27,7 @@ import {
 } from "../shared/channel";
 import { adoptStagedSnapshot } from "./backups/adopt-restored-snapshot";
 import { createContingencyBackupTickets } from "./backups/contingency-backup-tickets-wiring";
+import { resetWithoutCopy } from "./backups/reset-without-copy";
 import { createRestoreAttempts } from "./backups/restore-attempts";
 import { createRestoreLaunch } from "./backups/restore-launch";
 import { afterEnrollment, storingEnrollmentCredentials } from "./backups/restore-on-enrollment";
@@ -98,6 +99,8 @@ import {
   fileSnapshotCorruptionReports,
   SNAPSHOT_CORRUPTION_UNREPORTED_FILE,
 } from "./register/file-snapshot-corruption-reports";
+import { enrollmentStandingOf } from "./register/installation-enrollment-requests";
+import { createInstallationEnrollmentWatch } from "./register/installation-enrollment-watch";
 import { type StartedLocalDatabase, startLocalDatabase } from "./register/local-database-startup";
 import { refuseNewerDatabase } from "./register/newer-database-refusal";
 import { readReceiptPrinterFor, setReceiptPrinterFor } from "./register/receipt-printer-requests";
@@ -116,7 +119,7 @@ import { listSerialPorts, serialportEnumeration } from "./register/serialport-en
 import { snapshotCorruptionReportSending } from "./register/snapshot-corruption-report-sending";
 import type { SnapshotCycleSchedule } from "./register/snapshot-cycle-schedule";
 import { startSnapshotCycle } from "./register/snapshot-cycle-wiring";
-import { readOpenSession } from "./register/sqlite-cash-ledger";
+import { readOpenSession, readRegisterIdentity } from "./register/sqlite-cash-ledger";
 import { localDatabaseDamageIn } from "./register/sqlite-local-database-health";
 import { SqliteReceiptPrinterSettings } from "./register/sqlite-receipt-printer-settings";
 import { SqliteRestorationEvidence } from "./register/sqlite-restoration-evidence";
@@ -253,6 +256,9 @@ const FISCAL_MODE_CHANGED_NOTICE: CoreToRendererMessage = { type: "fiscal-mode-c
 const RESTORATION_STANDING_CHANGED_NOTICE: CoreToRendererMessage = {
   type: "restoration-standing-changed",
 };
+const ENROLLMENT_STANDING_CHANGED_NOTICE: CoreToRendererMessage = {
+  type: "enrollment-standing-changed",
+};
 const QUIT_REGISTER_MESSAGE: QuitRegisterMessage = { type: "quit-register" };
 const SERIAL_DEVICE_CHECK_INTERVAL_MS = 3_000;
 const BARCODE_READER_RETRY_MS = 3_000;
@@ -283,6 +289,11 @@ const restoreAttempts = createRestoreAttempts({
   cloudAnswered: (reachable) => {
     cloudReachability = reachable ? "reachable" : "unreachable";
   },
+  resetWithoutCopy: (firstInstallation) =>
+    resetWithoutCopy(
+      { database: localDatabase, readCredentials: () => mainRequests.readCredentials() },
+      firstInstallation,
+    ),
 });
 
 async function startLocalDatabaseFile(): Promise<StartedLocalDatabase | undefined> {
@@ -511,6 +522,7 @@ async function pushOutboxToCloud() {
   });
   cloudReachability = nextCloudReachability(cloudReachability, attempt);
   restorationStandingWatch?.check();
+  checkEnrollmentStanding();
   const warning = pushWarningOf(attempt);
   if (warning !== undefined) {
     console.warn(warning, attempt);
@@ -541,6 +553,8 @@ const syncSchedule = createSyncSchedule({
     restorePending.isPending,
     () => void restoreAttempts.attempt(),
     replenishBeforeSync({
+      holdsRegisterIdentity: () =>
+        localDatabase !== undefined && readRegisterIdentity(localDatabase) !== undefined,
       replenish: () =>
         replenishRestoredRegisterStep({
           database: localDatabase,
@@ -645,6 +659,7 @@ const syncSchedule = createSyncSchedule({
     interruptedCharges.afterEachSync();
     paidOrderDiscovery.afterEachSync();
     restorationStandingWatch?.check();
+    checkEnrollmentStanding();
   },
 });
 
@@ -704,6 +719,23 @@ const ticketedSteps: TicketedOperations["ticketedSteps"] =
   contingencyBackupTickets?.ticketedSteps ??
   ((_operation, _subjectId, operate) => operate((step) => step()));
 
+const readEnrollmentStanding = () =>
+  enrollmentStandingOf({
+    readCredentials: () => mainRequests.readCredentials(),
+    database: localDatabase,
+  });
+const enrollmentWatch = createInstallationEnrollmentWatch({
+  read: readEnrollmentStanding,
+  onChanged: () => rendererConnection.tell(ENROLLMENT_STANDING_CHANGED_NOTICE),
+});
+function checkEnrollmentStanding(): void {
+  enrollmentWatch
+    .check()
+    .catch((error: unknown) => reportFailure("watching the enrollment standing", error));
+}
+enrollmentWatch
+  .start()
+  .catch((error: unknown) => reportFailure("reading the enrollment standing", error));
 const mercadoPagoCharging = createMercadoPagoCharging({
   database: localDatabase,
   gate: actionGate,
@@ -775,7 +807,7 @@ const startupRecovery = recoverAtStartup({
 await startupRecovery.authorizationsSettled;
 
 const rendererRequestDeps: RendererRequestDeps = {
-  credentialsPresent: () => mainRequests.credentialsPresent(),
+  enrollmentStanding: readEnrollmentStanding,
   registerStatus:
     localDatabase === undefined || serialDeviceWatch === undefined || storageWatch === undefined
       ? undefined
@@ -818,6 +850,7 @@ const rendererRequestDeps: RendererRequestDeps = {
       typedCode,
     );
     if (outcome.kind === "enrolled") {
+      checkEnrollmentStanding();
       afterEnrollment({
         pending: restorePending,
         restartCore,
@@ -1526,7 +1559,9 @@ deliverMessagesFromMain((event) => {
       updateHold.release();
     } else if (message.type === "snapshot-worker-exited") {
       void snapshotCycle?.workerExited(message.copy_failed_stage);
-      restoreAttempts.workerExited(message.restore_outcome);
+      restoreAttempts
+        .workerExited(message.restore_outcome, message.first_installation)
+        .catch((error: unknown) => reportFailure("recording the first installation", error));
       restorationStandingWatch?.check();
       if (deviceTokenRotation !== undefined) {
         refreshKeysWhenAnnounced(message.latest_announced_key_version, {

@@ -44,6 +44,7 @@ describe("ALERT_KINDS", () => {
       "fortnight_report_owed_elsewhere",
       "register_backup_overdue",
       "fortnight_report_document_rejected",
+      "deferred_sale_due",
     ]);
   });
 });

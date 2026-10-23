@@ -163,6 +163,7 @@ describe("authorizing a completed sale in real time", () => {
           reason: "rejected",
           short_code: "7KQ4M2P9",
           routed_at: ANSWERED_AT.toISOString(),
+          unclear_document: null,
         },
       },
     ]);

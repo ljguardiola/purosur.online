@@ -1,5 +1,16 @@
-import { describe, expect, it } from "vitest";
-import { creditNoteRejectedTask, externalInvoicingTask } from "./fiscal-task.js";
+import { describe, expect, expectTypeOf, it } from "vitest";
+import type { DeferredSaleRegularizationTask } from "./deferred-sale-record.js";
+import {
+  CLOSED_FISCAL_TASK_STATE,
+  creditNoteRejectedTask,
+  externalInvoicingTask,
+  FISCAL_TASK_KINDS,
+  FISCAL_TASK_STATES,
+  type FiscalTask,
+  type FiscalTaskKind,
+  type FiscalTaskState,
+  OPEN_FISCAL_TASK_STATE,
+} from "./fiscal-task.js";
 
 const CREATED_AT = new Date("2026-10-02T15:00:00.000Z");
 
@@ -49,5 +60,29 @@ describe("creditNoteRejectedTask", () => {
       rejections: [{ code: 10015, message: "invalid receiver" }],
       createdAt: CREATED_AT,
     });
+  });
+});
+
+describe("FISCAL_TASK_KINDS", () => {
+  it("lists every kind of fiscal task, the expired deferred sale's included", () => {
+    expect(FISCAL_TASK_KINDS).toEqual([
+      "external_invoicing",
+      "credit_note_rejected",
+      "deferred_sale_expired",
+    ]);
+    expectTypeOf<FiscalTaskKind>().toEqualTypeOf<(typeof FISCAL_TASK_KINDS)[number]>();
+    expectTypeOf<FiscalTaskKind>().toEqualTypeOf<
+      FiscalTask["kind"] | DeferredSaleRegularizationTask["kind"]
+    >();
+  });
+});
+
+describe("fiscal task states", () => {
+  it("is open until it is closed", () => {
+    expect(FISCAL_TASK_STATES).toEqual(["open", "closed"]);
+    expect(OPEN_FISCAL_TASK_STATE).toBe("open");
+    expect(CLOSED_FISCAL_TASK_STATE).toBe("closed");
+    expectTypeOf<FiscalTaskState>().toEqualTypeOf<(typeof FISCAL_TASK_STATES)[number]>();
+    expectTypeOf<FiscalTask["state"]>().toEqualTypeOf<typeof OPEN_FISCAL_TASK_STATE>();
   });
 });

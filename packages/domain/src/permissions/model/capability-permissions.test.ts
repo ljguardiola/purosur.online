@@ -21,7 +21,7 @@ const CAPABILITIES_GRANTED_BY: readonly [PermissionKey, readonly Capability[]][]
   ["view_all_alerts", ["alerts_area"]],
   ["dismiss_alerts_manually", ["close_alerts_manually"]],
   ["enroll_register_devices", ["registers_area", "enroll_registers"]],
-  ["revoke_register_devices", ["revoke_installations"]],
+  ["revoke_register_devices", ["registers_area", "revoke_installations"]],
   ["view_bitlocker_key", ["registers_area", "bitlocker_recovery_key"]],
   ["release_quarantined_events", ["quarantined_events"]],
   ["manage_suppliers", ["suppliers", "stock_area"]],
@@ -40,6 +40,7 @@ const CAPABILITIES_GRANTED_BY: readonly [PermissionKey, readonly Capability[]][]
   ["view_reports", ["reports_area"]],
   ["confirm_refunds", ["refunds_area"]],
   ["view_backups_and_rotate_key", ["backups_area"]],
+  ["view_fiscal_documents", ["fiscal_information"]],
 ];
 
 function inCapabilityOrder(capabilities: readonly Capability[]): Capability[] {
@@ -99,6 +100,38 @@ describe("the reports_area capability", () => {
           permissionKeys: PERMISSION_KEYS.filter((key) => key !== "view_reports"),
         },
         "reports_area",
+      ),
+    ).toBe(false);
+  });
+});
+
+describe("the registers_area capability", () => {
+  it.each(["enroll_register_devices", "view_bitlocker_key", "revoke_register_devices"] as const)(
+    "is granted to whoever holds only %s",
+    (permission) => {
+      expect(
+        grantsCapability(
+          { isAdministrator: false, permissionKeys: [permission] },
+          "registers_area",
+        ),
+      ).toBe(true);
+    },
+  );
+
+  it("is granted to no one holding every other permission", () => {
+    const registerPermissions: readonly PermissionKey[] = [
+      "enroll_register_devices",
+      "view_bitlocker_key",
+      "revoke_register_devices",
+    ];
+
+    expect(
+      grantsCapability(
+        {
+          isAdministrator: false,
+          permissionKeys: PERMISSION_KEYS.filter((key) => !registerPermissions.includes(key)),
+        },
+        "registers_area",
       ),
     ).toBe(false);
   });

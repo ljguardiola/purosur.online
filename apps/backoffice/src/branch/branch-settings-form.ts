@@ -14,6 +14,7 @@ export type BranchSettingsValues = Record<BranchDay, DayValues> & {
   expiringLotAlertDays: string;
   unreviewedPriceAlertDays: string;
   goodConditionReturnDays: string;
+  supplierPriceListDailyExtractionCap: string;
   version: number;
 };
 
@@ -40,6 +41,7 @@ export const EMPTY_VALUES: BranchSettingsValues = {
   expiringLotAlertDays: "",
   unreviewedPriceAlertDays: "",
   goodConditionReturnDays: "",
+  supplierPriceListDailyExtractionCap: "",
   version: 0,
 };
 
@@ -64,6 +66,7 @@ export function valuesFrom(settings: BranchSettings): BranchSettingsValues {
     expiringLotAlertDays: String(settings.expiringLotAlertDays),
     unreviewedPriceAlertDays: String(settings.unreviewedPriceAlertDays),
     goodConditionReturnDays: String(settings.goodConditionReturnDays),
+    supplierPriceListDailyExtractionCap: String(settings.supplierPriceListDailyExtractionCap),
     version: settings.version,
   };
 }
@@ -81,7 +84,7 @@ function wireHours({ closed, ranges }: DayValues): BranchSettingsEditBody["monda
       }));
 }
 
-function wireDays(text: string): number {
+function wireWholeNumber(text: string): number {
   const trimmed = text.trim();
   return /^\d+$/.test(trimmed) ? Number(trimmed) : Number.NaN;
 }
@@ -98,9 +101,12 @@ export function requestFrom(values: BranchSettingsValues): BranchSettingsEditBod
     friday_hours: wireHours(values.friday),
     saturday_hours: wireHours(values.saturday),
     sunday_hours: wireHours(values.sunday),
-    expiring_lot_alert_days: wireDays(values.expiringLotAlertDays),
-    unreviewed_price_alert_days: wireDays(values.unreviewedPriceAlertDays),
-    good_condition_return_days: wireDays(values.goodConditionReturnDays),
+    expiring_lot_alert_days: wireWholeNumber(values.expiringLotAlertDays),
+    unreviewed_price_alert_days: wireWholeNumber(values.unreviewedPriceAlertDays),
+    good_condition_return_days: wireWholeNumber(values.goodConditionReturnDays),
+    supplier_price_list_daily_extraction_cap: wireWholeNumber(
+      values.supplierPriceListDailyExtractionCap,
+    ),
     version: values.version,
   };
 }
@@ -119,6 +125,7 @@ export const REQUEST_FIELDS = {
   expiring_lot_alert_days: "expiringLotAlertDays",
   unreviewed_price_alert_days: "unreviewedPriceAlertDays",
   good_condition_return_days: "goodConditionReturnDays",
+  supplier_price_list_daily_extraction_cap: "supplierPriceListDailyExtractionCap",
   version: null,
 } as const;
 
@@ -152,7 +159,7 @@ const DAYS_WIRE_FIELDS = {
 
 function daysMessage(field: DaysField) {
   return (values: BranchSettingsValues): string => {
-    const days = wireDays(values[field]);
+    const days = wireWholeNumber(values[field]);
     const result = branchSettingsEditBodySchema.shape[DAYS_WIRE_FIELDS[field]].safeParse(days);
     if (result.success) {
       return "Revisá el número de días.";
@@ -162,6 +169,14 @@ function daysMessage(field: DaysField) {
       ? "Ingresá un número de días más chico."
       : "Ingresá un número entero de 0 días o más.";
   };
+}
+
+function extractionCapMessage(values: BranchSettingsValues): string {
+  const shape = branchSettingsEditBodySchema.shape.supplier_price_list_daily_extraction_cap;
+  const limits = shape.meta();
+  return shape.safeParse(wireWholeNumber(values.supplierPriceListDailyExtractionCap)).success
+    ? "Revisá la cantidad de listas por día."
+    : `Ingresá un número entero de listas, de ${schemaLimit(limits?.["minimum"])} a ${schemaLimit(limits?.["maximum"])}.`;
 }
 
 function hoursMessage(day: BranchDay) {
@@ -195,4 +210,5 @@ export const MESSAGES = {
   expiringLotAlertDays: daysMessage("expiringLotAlertDays"),
   unreviewedPriceAlertDays: daysMessage("unreviewedPriceAlertDays"),
   goodConditionReturnDays: daysMessage("goodConditionReturnDays"),
+  supplierPriceListDailyExtractionCap: extractionCapMessage,
 };

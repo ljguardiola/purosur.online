@@ -1,5 +1,9 @@
-import type { BranchSettingsBody } from "@purosur/contracts";
-import type { BranchDayHoursRange, BranchSettings } from "@purosur/domain/branch/use-cases";
+import type { BranchSettingsBody, EditableBranchSettingsBody } from "@purosur/contracts";
+import type {
+  BranchDayHoursRange,
+  BranchSettings,
+  EditableBranchSettings,
+} from "@purosur/domain/branch/use-cases";
 
 // Monday..Sunday order, matching how `day_of_week` numbers them in `branch_hours` (1 = Monday).
 const BRANCH_SETTINGS_DAY_FIELDS = [
@@ -38,4 +42,13 @@ export function toBranchSettingsWire(settings: BranchSettings): BranchSettingsBo
     wire[field] = dayHoursWireInPositionOrder(settings.hours, index + 1);
   });
   return wire;
+}
+
+export function toEditableBranchSettingsWire(
+  settings: EditableBranchSettings,
+): EditableBranchSettingsBody {
+  return {
+    ...toBranchSettingsWire(settings),
+    supplier_price_list_daily_extraction_cap: settings.supplierPriceListDailyExtractionCap,
+  };
 }

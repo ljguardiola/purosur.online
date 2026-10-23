@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type {
   LocalRequestAtNumber,
   RequestsAtNumber,
+  SaleCreditNote,
   SaleDocument,
 } from "../model/orphan-authorization.js";
 import type { TaxAuthorityVoucher } from "../model/unclear-outcome-decision.js";
@@ -40,6 +41,7 @@ const requestsAt = (...requests: LocalRequestAtNumber[]): RequestsAtNumber => ({
 function standingOf(
   standing: RequestsAtNumber | undefined,
   saleDocuments: [string, SaleDocument[]][] = [],
+  creditNotes: [string, SaleCreditNote[]][] = [],
 ) {
   const store = new FakeOrphanRegularizationStore();
   if (standing !== undefined) {
@@ -47,6 +49,9 @@ function standingOf(
   }
   for (const [saleId, documents] of saleDocuments) {
     store.seedSaleDocuments(saleId, documents);
+  }
+  for (const [saleId, notes] of creditNotes) {
+    store.seedCreditNotes(saleId, notes);
   }
   const answer = store.inPointOfSaleLane(AUTHORIZATION.pointOfSale, (lane) =>
     localStandingBehindVoucher(lane, AUTHORIZATION, VOUCHER),
@@ -111,6 +116,61 @@ describe("localStandingBehindVoucher", () => {
       kind: "local_sale",
       saleId: "sale-1",
       otherAuthorizedVoucher: null,
+    });
+  });
+
+  it("answers a local sale with no other voucher when a credit note of the sale kept the voucher, even with another valid voucher", async () => {
+    const { answer } = standingOf(
+      requestsAt(SALE_REQUEST),
+      [
+        [
+          "sale-1",
+          [
+            { kind: "offline", voucher: KEPT_VOUCHER },
+            { kind: "offline", voucher: { ...KEPT_VOUCHER, number: 8 } },
+          ],
+        ],
+      ],
+      [
+        [
+          "sale-1",
+          [
+            {
+              creditedVoucher: KEPT_VOUCHER,
+              keptVoucher: { voucherType: 11, pointOfSale: 12, number: 41 },
+            },
+          ],
+        ],
+      ],
+    );
+
+    expect(await answer).toEqual({
+      kind: "local_sale",
+      saleId: "sale-1",
+      otherAuthorizedVoucher: null,
+    });
+  });
+
+  it("never answers a document a credit note of the sale already credited as the other voucher", async () => {
+    const secondVoucher = { voucherType: 11, pointOfSale: 13, number: 8 };
+    const { answer } = standingOf(
+      requestsAt(SALE_REQUEST),
+      [
+        [
+          "sale-1",
+          [
+            { kind: "offline", voucher: KEPT_VOUCHER },
+            { kind: "offline", voucher: secondVoucher },
+          ],
+        ],
+      ],
+      [["sale-1", [{ creditedVoucher: KEPT_VOUCHER, keptVoucher: null }]]],
+    );
+
+    expect(await answer).toEqual({
+      kind: "local_sale",
+      saleId: "sale-1",
+      otherAuthorizedVoucher: secondVoucher,
     });
   });
 });

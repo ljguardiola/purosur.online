@@ -21,6 +21,7 @@ import type {
   ConvertPaidOrderIntoRefundOutcome,
   CurrentSaleAnswer,
   EnrollmentOutcome,
+  EnrollmentStandingAnswer,
   FirstPinCodeRequestOutcome,
   FollowMercadoPagoChargeOutcome,
   IdentifyLockedCloserOutcome,
@@ -88,7 +89,7 @@ import {
 } from "./stock/initial-count-answers";
 
 export interface RendererRequestDeps {
-  credentialsPresent: () => Promise<boolean>;
+  enrollmentStanding: () => Promise<EnrollmentStandingAnswer>;
   registerService: RegisterService;
   registerName: () => string | undefined;
   enroll: (typedCode: string) => Promise<EnrollmentOutcome>;
@@ -646,7 +647,7 @@ export async function answerRendererRequest(
       return {
         type: "enrollment-status",
         request_id: message.request_id,
-        enrolled: await deps.credentialsPresent(),
+        standing: await deps.enrollmentStanding(),
       };
     case "register-service-request":
       return {

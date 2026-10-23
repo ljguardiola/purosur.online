@@ -86,6 +86,22 @@ describe("restoreNewestSnapshotGeneration", () => {
     expect(staging.attempted).toEqual([]);
   });
 
+  it("reports the register's first installation with the absence of a generation", async () => {
+    const staging = new FakeSnapshotStaging();
+    const firstInstallation = { installationId: "installation-1", registerId: "register-1" };
+
+    const outcome = await restoreNewestSnapshotGeneration({
+      generations: new FakeRestorableGenerations({
+        kind: "listed",
+        generations: [],
+        firstInstallation,
+      }),
+      staging,
+    });
+
+    expect(outcome).toEqual({ kind: "no_generation", firstInstallation });
+  });
+
   it("reports none usable with every failure when every generation fails", async () => {
     const staging = new FakeSnapshotStaging({
       "generation-a": { kind: "failed", stage: "download" },

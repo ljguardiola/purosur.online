@@ -63,6 +63,29 @@ describe("mainToCoreMessageSchema", () => {
     },
   );
 
+  it("accepts the notice that carries the first installation the restore found", () => {
+    const message = {
+      type: "snapshot-worker-exited",
+      restore_outcome: "no_generation",
+      first_installation: {
+        installation_id: "3b241101-e2bb-4255-8caf-4136c566a962",
+        register_id: "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+      },
+    };
+
+    expect(mainToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("refuses a first installation without its register", () => {
+    expect(
+      mainToCoreMessageSchema.safeParse({
+        type: "snapshot-worker-exited",
+        restore_outcome: "no_generation",
+        first_installation: { installation_id: "3b241101-e2bb-4255-8caf-4136c566a962" },
+      }).success,
+    ).toBe(false);
+  });
+
   it("refuses a restore outcome that does not exist", () => {
     expect(
       mainToCoreMessageSchema.safeParse({
@@ -93,12 +116,6 @@ describe("mainToCoreMessageSchema", () => {
 
   it.each([true, false])("accepts whether credentials can be stored: %s", (storable) => {
     const message = { type: "device-credentials-storable", request_id: "r3", storable };
-
-    expect(mainToCoreMessageSchema.parse(message)).toEqual(message);
-  });
-
-  it.each([true, false])("accepts whether credentials are present: %s", (present) => {
-    const message = { type: "device-credentials-presence", request_id: "r2", present };
 
     expect(mainToCoreMessageSchema.parse(message)).toEqual(message);
   });
@@ -211,10 +228,6 @@ describe("mainToCoreMessageSchema", () => {
       { type: "device-credentials-stored", request_id: "r", stored: "yes" },
     ],
     [
-      "a presence answer without presence",
-      { type: "device-credentials-presence", request_id: "r" },
-    ],
-    [
       "a storable answer without whether it can store",
       { type: "device-credentials-storable", request_id: "r" },
     ],
@@ -222,7 +235,7 @@ describe("mainToCoreMessageSchema", () => {
       "a replace answer with an outcome it doesn't know",
       { type: "device-credentials-replaced", request_id: "r", outcome: "maybe" },
     ],
-    ["a request main would answer", { type: "device-credentials-request", request_id: "r" }],
+    ["a request main would answer", { type: "device-credentials-read-request", request_id: "r" }],
     ["any other message type", { type: "ping" }],
     ["an empty message", {}],
     ["undefined", undefined],

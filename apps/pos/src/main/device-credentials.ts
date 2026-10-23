@@ -26,7 +26,6 @@ export interface DeviceCredentialsStore {
   store(credentials: DeviceCredentials): boolean;
   replace(expectedDeviceToken: string, credentials: DeviceCredentials): CredentialsReplacement;
   read(): DeviceCredentials | undefined;
-  isPresent(): boolean;
 }
 
 export interface DurableFileSystem {
@@ -146,9 +145,6 @@ export function createDeviceCredentialsStore(deps: {
       }
       return this.store(credentials) ? "replaced" : "not_stored";
     },
-    isPresent() {
-      return this.read() !== undefined;
-    },
   };
 }
 
@@ -177,15 +173,8 @@ export function answerCoreCredentialsRequest(
       storable: store.canStore(),
     };
   }
-  if (message.type === "device-credentials-read-request") {
-    const credentials = store.read();
-    return credentials === undefined
-      ? { type: "device-credentials-read", request_id: message.request_id }
-      : { type: "device-credentials-read", request_id: message.request_id, credentials };
-  }
-  return {
-    type: "device-credentials-presence",
-    request_id: message.request_id,
-    present: store.isPresent(),
-  };
+  const credentials = store.read();
+  return credentials === undefined
+    ? { type: "device-credentials-read", request_id: message.request_id }
+    : { type: "device-credentials-read", request_id: message.request_id, credentials };
 }

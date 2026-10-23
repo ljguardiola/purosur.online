@@ -389,15 +389,24 @@ const registerStatusSchema = z.object({
 });
 export type RegisterStatus = z.infer<typeof registerStatusSchema>;
 
+const enrollmentStandingSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("not_enrolled") }),
+  z.object({ kind: z.literal("enrolled") }),
+  z.object({ kind: z.literal("revoked") }),
+]);
+export type EnrollmentStandingAnswer = z.infer<typeof enrollmentStandingSchema>;
+
 const restorationStandingSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("completed") }),
   z.object({
     kind: z.literal("in_progress"),
     step: z.enum(RESTORATION_STEPS).exclude(["open_session"]),
+    origin: z.enum(["copy", "no_copy"]),
   }),
   z.object({
     kind: z.literal("without_connection"),
     step: z.enum(RESTORATION_STEPS).exclude(["open_session", "enroll"]),
+    origin: z.enum(["copy", "no_copy"]),
   }),
   z.object({ kind: z.literal("failed"), step: z.literal("restore") }),
 ]);
@@ -459,7 +468,11 @@ const registerSerialDevicesOutcomeSchema = z.discriminatedUnion("kind", [
 export type RegisterSerialDevicesOutcome = z.infer<typeof registerSerialDevicesOutcomeSchema>;
 
 export const registerCoreToRendererMessageSchema = z.discriminatedUnion("type", [
-  z.object({ type: z.literal("enrollment-status"), request_id: requestId, enrolled: z.boolean() }),
+  z.object({
+    type: z.literal("enrollment-status"),
+    request_id: requestId,
+    standing: enrollmentStandingSchema,
+  }),
   z.object({
     type: z.literal("register-service"),
     request_id: requestId,
@@ -591,6 +604,7 @@ export const registerCoreToRendererMessageSchema = z.discriminatedUnion("type", 
   z.object({ type: z.literal("battery-standing-changed") }),
   z.object({ type: z.literal("fiscal-mode-changed") }),
   z.object({ type: z.literal("restoration-standing-changed") }),
+  z.object({ type: z.literal("enrollment-standing-changed") }),
   z.object({ type: z.literal("refused-while-updating"), request_id: requestId }),
 ]);
 export type RegisterCoreToRendererMessage = z.infer<typeof registerCoreToRendererMessageSchema>;

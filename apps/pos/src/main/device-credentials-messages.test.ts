@@ -160,12 +160,6 @@ describe("readDeviceCredentialsRequest", () => {
     ).toBeUndefined();
   });
 
-  it("reads the core's question of whether credentials are stored", () => {
-    const message = { type: "device-credentials-request", request_id: "r2" };
-
-    expect(readDeviceCredentialsRequest(message)).toEqual(message);
-  });
-
   it.each(["device_id", "device_token", "pepper"])(
     "reads nothing from credentials without a %s",
     (field) => {
@@ -184,7 +178,7 @@ describe("readDeviceCredentialsRequest", () => {
   it.each([
     ["a message that isn't an object", "store-device-credentials"],
     ["null", null],
-    ["a request without its id", { type: "device-credentials-request" }],
+    ["a request without its id", { type: "device-credentials-read-request" }],
     ["a store request without credentials", { type: "store-device-credentials", request_id: "r" }],
     ["another message", { type: "core-ready" }],
   ])("reads nothing from %s", (_case, message) => {

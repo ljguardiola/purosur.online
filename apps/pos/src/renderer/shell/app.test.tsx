@@ -4,6 +4,7 @@ import type {
   CloseCashSessionOutcome,
   DiscardContingencyBackupTicketsAnswer,
   EnrollmentOutcome,
+  EnrollmentStandingAnswer,
   ListedCashMovement,
   OpenCashSession,
   OpenCashSessionOutcome,
@@ -150,12 +151,13 @@ function coreAnswering(
   const batteryStandingChangedListeners = new Set<() => void>();
   const fiscalModeChangedListeners = new Set<() => void>();
   const restorationStandingChangedListeners = new Set<() => void>();
+  const enrollmentStandingChangedListeners = new Set<() => void>();
   const barcodeReadListeners = new Set<(code: string) => void>();
   const core: CoreClient = {
     connect() {},
     async enrollmentStatus() {
       asked.push("enrollment-status");
-      return enrolled;
+      return { kind: enrolled ? "enrolled" : "not_enrolled" };
     },
     async registerService() {
       asked.push("register-service");
@@ -506,6 +508,12 @@ function coreAnswering(
         restorationStandingChangedListeners.delete(listener);
       };
     },
+    onEnrollmentStandingChanged(listener) {
+      enrollmentStandingChangedListeners.add(listener);
+      return () => {
+        enrollmentStandingChangedListeners.delete(listener);
+      };
+    },
     onFiscalModeChanged(listener) {
       fiscalModeChangedListeners.add(listener);
       return () => {
@@ -544,6 +552,11 @@ function coreAnswering(
       listener();
     }
   }
+  function changeEnrollmentStanding() {
+    for (const listener of enrollmentStandingChangedListeners) {
+      listener();
+    }
+  }
   function changeRestorationStanding() {
     for (const listener of restorationStandingChangedListeners) {
       listener();
@@ -571,10 +584,13 @@ function coreAnswering(
     changeBatteryStanding,
     changeFiscalMode,
     changeRestorationStanding,
+    changeEnrollmentStanding,
     readBarcode,
     usersLoads: () => usersLoads,
   };
 }
+
+const REVOKED_TITLE = "Esta notebook dejó de ser una caja";
 
 const enrolledCore = coreAnswering(true).core;
 
@@ -636,7 +652,11 @@ describe("App", () => {
 
   it("shows that the register cannot sell yet while it catches up with the cloud", async () => {
     const { core } = coreAnswering(true);
-    core.restorationStanding = async () => ({ kind: "in_progress", step: "replenish" });
+    core.restorationStanding = async () => ({
+      kind: "in_progress",
+      step: "replenish",
+      origin: "copy",
+    });
     const screen = await render(<App core={core} />);
 
     postCoreStatus("up");
@@ -648,14 +668,18 @@ describe("App", () => {
   });
 
   it("tells the restoring screen once the core says the register cannot reach the cloud", async () => {
-    let standing: RestorationStandingAnswer = { kind: "in_progress", step: "replenish" };
+    let standing: RestorationStandingAnswer = {
+      kind: "in_progress",
+      step: "replenish",
+      origin: "copy",
+    };
     const { core, changeRestorationStanding } = coreAnswering(true);
     core.restorationStanding = async () => standing;
     const screen = await render(<App core={core} />);
     postCoreStatus("up");
     await expect.element(screen.getByText(RESTORING_TITLE)).toBeVisible();
 
-    standing = { kind: "without_connection", step: "replenish" };
+    standing = { kind: "without_connection", step: "replenish", origin: "copy" };
     changeRestorationStanding();
 
     await expect.element(screen.getByText("Sin conexión con la nube")).toBeVisible();
@@ -666,7 +690,11 @@ describe("App", () => {
     const { core } = coreAnswering(true, undefined, undefined, {
       cashSession: async () => GRACE_SESSION,
     });
-    core.restorationStanding = async () => ({ kind: "in_progress", step: "restore" });
+    core.restorationStanding = async () => ({
+      kind: "in_progress",
+      step: "restore",
+      origin: "copy",
+    });
     const screen = await render(<App core={core} />);
 
     postCoreStatus("up");
@@ -679,7 +707,11 @@ describe("App", () => {
 
   it("asks a register restored from a copy to be enrolled again", async () => {
     const { core } = coreAnswering(true);
-    core.restorationStanding = async () => ({ kind: "in_progress", step: "enroll" });
+    core.restorationStanding = async () => ({
+      kind: "in_progress",
+      step: "enroll",
+      origin: "copy",
+    });
     const screen = await render(<App core={core} />);
 
     postCoreStatus("up");
@@ -702,7 +734,11 @@ describe("App", () => {
   });
 
   it("goes on to sign in once the core says the restoration completed", async () => {
-    let standing: RestorationStandingAnswer = { kind: "in_progress", step: "replenish" };
+    let standing: RestorationStandingAnswer = {
+      kind: "in_progress",
+      step: "replenish",
+      origin: "copy",
+    };
     const { core, changeRestorationStanding } = coreAnswering(true);
     core.restorationStanding = async () => standing;
     const screen = await render(<App core={core} />);
@@ -713,6 +749,64 @@ describe("App", () => {
     changeRestorationStanding();
 
     await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
+  });
+
+  it("asks a revoked installation to be enrolled again instead of signing in", async () => {
+    const { core } = coreAnswering(true);
+    core.enrollmentStatus = async () => ({ kind: "revoked" });
+    const screen = await render(<App core={core} />);
+
+    postCoreStatus("up");
+
+    await expect.element(screen.getByRole("heading", { name: REVOKED_TITLE })).toBeVisible();
+    await expect
+      .element(screen.getByRole("heading", { name: SIGN_IN_TITLE }))
+      .not.toBeInTheDocument();
+  });
+
+  it("goes on to who opens the register once a revoked installation is enrolled again", async () => {
+    const { core } = coreAnswering(true);
+    core.enrollmentStatus = async () => ({ kind: "revoked" });
+    const screen = await render(<App core={core} />);
+    postCoreStatus("up");
+    await userEvent.click(screen.getByRole("button", { name: "Dar de alta la caja" }));
+
+    await userEvent.fill(
+      screen.getByRole("textbox", { name: "Código de alta" }),
+      "P4NX7KWE2QRT6MZD",
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Dar de alta" }));
+
+    await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
+  });
+
+  it("moves to the revoked installation screen when the core says the installation was revoked", async () => {
+    let standing: EnrollmentStandingAnswer = { kind: "enrolled" };
+    const { core, changeEnrollmentStanding } = coreAnswering(true);
+    core.enrollmentStatus = async () => standing;
+    const screen = await render(<App core={core} />);
+    postCoreStatus("up");
+    await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
+
+    standing = { kind: "revoked" };
+    changeEnrollmentStanding();
+
+    await expect.element(screen.getByRole("heading", { name: REVOKED_TITLE })).toBeVisible();
+  });
+
+  it("keeps asking for the restoration standing and the cash session of a revoked installation", async () => {
+    const { core, cashSessionAsks } = coreAnswering(true);
+    core.enrollmentStatus = async () => ({ kind: "revoked" });
+    const restorationStanding = vi.fn<CoreClient["restorationStanding"]>(async () => ({
+      kind: "completed",
+    }));
+    core.restorationStanding = restorationStanding;
+    await render(<App core={core} />);
+
+    postCoreStatus("up");
+
+    await expect.poll(() => restorationStanding.mock.calls.length).toBeGreaterThan(0);
+    await expect.poll(() => cashSessionAsks.length).toBeGreaterThan(0);
   });
 
   it("does not ask for the restoration standing while the installation isn't enrolled", async () => {

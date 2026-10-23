@@ -41,6 +41,19 @@ test("does not offer revoking without the capability to revoke registers", async
     .toBeVisible();
 });
 
+test("offers a person who may only revoke registers revoking, but neither a new register nor an enrollment code", async () => {
+  const { screen } = await renderRegisters(
+    [enrolledRegister],
+    accessWith("registers_area", "revoke_installations"),
+  );
+
+  await expect.element(screen.getByRole("button", revokeAction)).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Nueva caja" })).not.toBeInTheDocument();
+  await expect
+    .element(screen.getByRole("button", { name: "Emitir código de alta para Caja 3" }))
+    .not.toBeInTheDocument();
+});
+
 test("has no accessibility violations with the revoke action", async () => {
   const { screen } = await renderRegisters([enrolledRegister]);
 

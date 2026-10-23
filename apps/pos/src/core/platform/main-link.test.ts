@@ -78,16 +78,16 @@ describe("the register core's link to main", () => {
     const first = { data: { type: "update-hold-release" }, ports: [] };
     const second = { data: { type: "health-check" }, ports: [] };
 
-    const present = mainRequests.credentialsPresent();
+    const storable = mainRequests.canStoreCredentials();
     arrive(first);
     arrive({
-      data: { type: "device-credentials-presence", request_id: "request-1", present: true },
+      data: { type: "device-credentials-storable", request_id: "request-1", storable: true },
       ports: [],
     });
     arrive(second);
     deliverTo((event) => delivered.push(event));
 
-    expect(await settled(present)).toEqual({ value: true });
+    expect(await settled(storable)).toEqual({ value: true });
     expect(delivered).toEqual([first, second]);
   });
 });
