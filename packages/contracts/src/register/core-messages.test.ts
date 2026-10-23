@@ -2145,6 +2145,9 @@ describe("restoration standing messages", () => {
     { kind: "without_connection", step: "restore" },
     { kind: "without_connection", step: "replenish" },
     { kind: "without_connection", step: "reconcile_fiscal_counters" },
+    { kind: "in_progress", step: "replenish", origin: "copy" },
+    { kind: "in_progress", step: "replenish", origin: "no_copy" },
+    { kind: "without_connection", step: "replenish", origin: "no_copy" },
     { kind: "failed", step: "restore" },
   ])("accepts the restoration standing %j", (standing) => {
     const message = { type: "restoration-standing", request_id: REQUEST_ID, standing };
@@ -2161,6 +2164,7 @@ describe("restoration standing messages", () => {
     { kind: "without_connection", step: "open_session" },
     { kind: "failed" },
     { kind: "failed", step: "replenish" },
+    { kind: "in_progress", step: "replenish", origin: "somewhere_else" },
   ])("rejects the restoration standing %j", (standing) => {
     const message = { type: "restoration-standing", request_id: REQUEST_ID, standing };
 

@@ -46,6 +46,13 @@ const holdPredecessor = () =>
     .prepare("INSERT INTO register_predecessor (device_id, last_acknowledged_seq) VALUES ('d0', 4)")
     .run();
 
+const holdPredecessorWithoutCopy = () =>
+  database
+    .prepare(
+      "INSERT INTO register_predecessor (device_id, last_acknowledged_seq, from_copy) VALUES ('d0', 0, 0)",
+    )
+    .run();
+
 const awaitOrphanSweep = () =>
   database.exec("INSERT INTO awaiting_orphan_sweep (register_id) VALUES ('r1')");
 
@@ -66,6 +73,7 @@ describe("the evidence of the restoration protocol", () => {
       replenish: "completed",
       reconcile_fiscal_counters: "completed",
       regularize_orphan_authorizations: "completed",
+      origin: "copy",
       cloud: "unknown",
     });
   });
@@ -80,6 +88,7 @@ describe("the evidence of the restoration protocol", () => {
       replenish: "completed",
       reconcile_fiscal_counters: "completed",
       regularize_orphan_authorizations: "completed",
+      origin: "copy",
       cloud: "unknown",
     });
   });
@@ -101,6 +110,7 @@ describe("the evidence of the restoration protocol", () => {
       replenish: "completed",
       reconcile_fiscal_counters: "completed",
       regularize_orphan_authorizations: "completed",
+      origin: "copy",
       cloud: "unknown",
     });
   });
@@ -115,8 +125,21 @@ describe("the evidence of the restoration protocol", () => {
       replenish: "pending",
       reconcile_fiscal_counters: "completed",
       regularize_orphan_authorizations: "completed",
+      origin: "copy",
       cloud: "unknown",
     });
+  });
+
+  it("holds that the register came from a copy while the predecessor was recorded from one", () => {
+    holdPredecessor();
+
+    expect(evidence.evidence().origin).toBe("copy");
+  });
+
+  it("holds that the register was reinstalled with no copy while the predecessor was recorded without one", () => {
+    holdPredecessorWithoutCopy();
+
+    expect(evidence.evidence()).toMatchObject({ replenish: "pending", origin: "no_copy" });
   });
 
   it("holds the reconciliation of the fiscal counters pending while a point of sale awaits its numbering", () => {
@@ -129,6 +152,7 @@ describe("the evidence of the restoration protocol", () => {
       replenish: "completed",
       reconcile_fiscal_counters: "pending",
       regularize_orphan_authorizations: "completed",
+      origin: "copy",
       cloud: "unknown",
     });
   });
@@ -149,6 +173,7 @@ describe("the evidence of the restoration protocol", () => {
       replenish: "completed",
       reconcile_fiscal_counters: "completed",
       regularize_orphan_authorizations: "pending",
+      origin: "copy",
       cloud: "unknown",
     });
   });

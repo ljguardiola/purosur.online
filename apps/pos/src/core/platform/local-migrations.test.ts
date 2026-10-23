@@ -5409,6 +5409,42 @@ describe("the register's local migrations", () => {
     });
   });
 
+  it("tell a predecessor recorded without a copy from one recorded from a copy, keeping the ones already held as from a copy", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.filter(
+        (migration) => migration.name < "0077_register_predecessor_origin",
+      );
+      expect(LOCAL_MIGRATIONS.map((migration) => migration.name)).toContain(
+        "0077_register_predecessor_origin",
+      );
+      const before = openLocalDatabase(path, previous, migrationClock);
+      before
+        .prepare(
+          "INSERT INTO register_predecessor (device_id, last_acknowledged_seq) VALUES ('device-a', 4)",
+        )
+        .run();
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+
+      expect(after.prepare("SELECT * FROM register_predecessor").all()).toEqual([
+        { device_id: "device-a", last_acknowledged_seq: 4, from_copy: 1 },
+      ]);
+      expect(() =>
+        after
+          .prepare(
+            "INSERT INTO register_predecessor (device_id, last_acknowledged_seq, from_copy) VALUES ('device-b', 0, 2)",
+          )
+          .run(),
+      ).toThrow(/CHECK/);
+      after.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
   it("record the predecessor installations of a restored register, keeping the sync state a register already holds", () => {
     const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
     try {

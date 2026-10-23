@@ -54,6 +54,42 @@ describe("RestoringScreen", () => {
     await expect.element(screen.getByText("RESTAURANDO DESDE UNA COPIA")).toBeVisible();
   });
 
+  it("says the register was reinstalled with no copy, with the same hold on selling", async () => {
+    const screen = await render(
+      <RestoringScreen
+        registerName="Caja 2"
+        standing={{ kind: "in_progress", step: "replenish", origin: "no_copy" }}
+      />,
+    );
+
+    await expect.element(screen.getByText("CAJA 2 · REINSTALADA SIN COPIA")).toBeVisible();
+    await expect
+      .element(screen.getByRole("heading", { name: "La caja no puede vender todavía" }))
+      .toBeVisible();
+    await expect
+      .element(
+        screen.getByText(
+          "Antes de vender tiene que ponerse al día con la nube, para no repetir números de factura.",
+        ),
+      )
+      .toBeVisible();
+    await expect
+      .element(screen.getByText("CAJA 2 · RESTAURADA DESDE UNA COPIA"))
+      .not.toBeInTheDocument();
+  });
+
+  it("says the register reinstalled with no copy also needs the connection", async () => {
+    const screen = await render(
+      <RestoringScreen
+        registerName={null}
+        standing={{ kind: "without_connection", step: "replenish", origin: "no_copy" }}
+      />,
+    );
+
+    await expect.element(screen.getByText("REINSTALADA SIN COPIA")).toBeVisible();
+    await expect.element(screen.getByText("Sin conexión con la nube")).toBeVisible();
+  });
+
   it("offers nothing to press", async () => {
     const screen = await render(
       <RestoringScreen
