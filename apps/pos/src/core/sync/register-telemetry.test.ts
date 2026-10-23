@@ -68,6 +68,7 @@ describe("the register's telemetry", () => {
       ...STORAGE,
       sales_denied: false,
       fiscal_emission_stopped: false,
+      replenishment_failed: false,
       serial_devices: SERIAL_DEVICES,
     });
   });
@@ -83,6 +84,7 @@ describe("the register's telemetry", () => {
       sales_denied: false,
       fiscal_emission_stopped: true,
       fiscal_emission_stopped_reason: "gross_income_registration_missing",
+      replenishment_failed: false,
       serial_devices: SERIAL_DEVICES,
     });
   });
@@ -108,6 +110,7 @@ describe("the register's telemetry", () => {
       sales_denied: true,
       sales_denied_reason: "event_history_broken",
       fiscal_emission_stopped: false,
+      replenishment_failed: false,
       serial_devices: SERIAL_DEVICES,
     });
   });
@@ -116,6 +119,7 @@ describe("the register's telemetry", () => {
     expect(await readerStopped({ stopped: true, reason: "installation_revoked" })()).toEqual({
       ...STORAGE,
       fiscal_emission_stopped: false,
+      replenishment_failed: false,
       serial_devices: SERIAL_DEVICES,
     });
   });

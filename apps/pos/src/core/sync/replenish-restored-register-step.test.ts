@@ -120,7 +120,7 @@ function pageOf(
   };
 }
 
-function step(answers: CloudResponse[], appVersion: string | undefined = "1.4.0") {
+function step(answers: CloudResponse[], appVersion: string | null = "1.4.0") {
   let answered = 0;
   return replenishRestoredRegisterStep({
     database,
@@ -134,7 +134,7 @@ function step(answers: CloudResponse[], appVersion: string | undefined = "1.4.0"
       return answer;
     },
     ids: { next: () => crypto.randomUUID() },
-    appVersion,
+    appVersion: appVersion ?? undefined,
   });
 }
 
@@ -368,7 +368,7 @@ describe("replenishing a restored register from the cloud", () => {
       device_seq: 99,
       schema_version: 99,
     };
-    await step([ok([unreadable])], undefined);
+    await step([ok([unreadable])], null);
 
     expect(await step([], "9.9.9")).toMatchObject({ kind: "held_failure" });
   });
