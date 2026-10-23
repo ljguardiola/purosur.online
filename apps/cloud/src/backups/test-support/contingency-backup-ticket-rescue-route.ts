@@ -21,7 +21,7 @@ import {
 } from "./sealed-contingency-backup-ticket.js";
 
 export const RESCUE_URL = "/contingency-backup-tickets/rescue";
-export const RESCUE_PERMISSION = "recover_contingency_receipts";
+const RESCUE_PERMISSION = "recover_contingency_receipts";
 export const TICKET_KEY_VERSION = 1;
 
 export interface RescueRouteUnderTest {

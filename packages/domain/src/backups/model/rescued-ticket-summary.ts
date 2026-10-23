@@ -12,7 +12,7 @@ export type RescuedTicketFact =
     }
   | { kind: Exclude<SyncedFact["kind"], RelevantFactKind> };
 
-export interface RescuedTicketVoucher {
+interface RescuedTicketVoucher {
   pointOfSale: number;
   documentType: OfflineSeriesDocumentType;
   number: number;

@@ -31,9 +31,3 @@ export {
   isOffsiteDumpNight,
 } from "./model/offsite-dump-deadline.js";
 export type { RegisterBackupStanding } from "./model/register-backup-overdue.js";
-export type {
-  RescuedTicketFact,
-  RescuedTicketSummary,
-  RescuedTicketVoucher,
-} from "./model/rescued-ticket-summary.js";
-export { rescuedTicketSummary } from "./model/rescued-ticket-summary.js";
