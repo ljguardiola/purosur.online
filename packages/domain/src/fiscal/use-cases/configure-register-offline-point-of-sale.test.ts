@@ -128,7 +128,44 @@ describe("configureRegisterOfflinePointOfSale", () => {
     ]);
     expect(state.offlineNumberBlocks).toEqual([]);
     expect(state.requiredTaxAuthorityCounts).toEqual([
+      { pointOfSaleNumber: 14, documentType: "credit_note_c" },
       { pointOfSaleNumber: 14, documentType: "factura_c" },
+    ]);
+  });
+
+  it("assigns the first credit note block right after the credit note count the cloud holds, beside the factura block", async () => {
+    const store = storeWithRegisters();
+    store.seedTaxAuthorityCount(14, 37);
+    store.seedTaxAuthorityCount(14, 4, "credit_note_c");
+
+    await configure(store, { pointOfSaleNumber: 14 });
+
+    expect(store.snapshot().offlineNumberBlocks).toEqual([
+      expect.objectContaining({
+        documentType: "credit_note_c",
+        registerId: "register-1",
+        range: { firstNumber: 5, lastNumber: 1004 },
+      }),
+      expect.objectContaining({
+        documentType: "factura_c",
+        registerId: "register-1",
+        range: { firstNumber: 38, lastNumber: 1037 },
+      }),
+    ]);
+    expect(store.snapshot().requiredTaxAuthorityCounts).toEqual([]);
+  });
+
+  it("assigns the factura block and asks only for the credit note count while that count is unknown", async () => {
+    const store = storeWithRegisters();
+    store.seedTaxAuthorityCount(14, 37);
+
+    await configure(store, { pointOfSaleNumber: 14 });
+
+    expect(store.snapshot().offlineNumberBlocks.map((block) => block.documentType)).toEqual([
+      "factura_c",
+    ]);
+    expect(store.snapshot().requiredTaxAuthorityCounts).toEqual([
+      { pointOfSaleNumber: 14, documentType: "credit_note_c" },
     ]);
   });
 
@@ -153,7 +190,7 @@ describe("configureRegisterOfflinePointOfSale", () => {
     expect(store.snapshot().registerPointsOfSale).toEqual(before);
   });
 
-  it("locks the register, its real-time setup, its offline setup and the number, its claim, in that order, before it writes, in one transaction", async () => {
+  it("locks the register, its real-time setup, its offline setup and the number, its claim, in that order, before it writes, then the credit note series before the factura series, in one transaction", async () => {
     const store = storeWithRegisters();
 
     await configure(store);
@@ -169,8 +206,16 @@ describe("configureRegisterOfflinePointOfSale", () => {
       "lockOfflineNumberBlocks",
       "offlineNumberBlockInUse",
       "taxAuthorityLastAuthorized",
+      "requireTaxAuthorityCount",
+      "lockOfflineNumberBlocks",
+      "offlineNumberBlockInUse",
+      "taxAuthorityLastAuthorized",
       "highestSyncedOfflineNumber",
       "recordOfflineNumberBlock",
+    ]);
+    expect(store.offlineNumberBlockLocks).toEqual([
+      { pointOfSaleNumber: 12, documentType: "credit_note_c" },
+      { pointOfSaleNumber: 12, documentType: "factura_c" },
     ]);
     expect(store.transactionCount).toBe(1);
   });
