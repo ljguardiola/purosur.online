@@ -984,6 +984,14 @@ describe("voidSale", () => {
       expect(store.state.clockMarks).toEqual([]);
     });
 
+    it("reads the credit note series only for a sale that has a credit note to issue", async () => {
+      const store = offlineLedger({ fiscalDocuments: [invoice("REJECTED")] });
+
+      await void_(store);
+
+      expect(store.offlineSeriesReads).toBe(0);
+    });
+
     it("issues no second credit note when the void is repeated", async () => {
       const store = offlineLedger();
       await void_(store);

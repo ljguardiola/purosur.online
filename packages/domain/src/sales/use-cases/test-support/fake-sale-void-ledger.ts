@@ -62,6 +62,7 @@ export type FakeSaleVoidLedgerWrite =
 export class FakeSaleVoidLedger implements SaleVoidLedger {
   state: FakeSaleVoidLedgerState;
   transactions = 0;
+  offlineSeriesReads = 0;
   failOn: FakeSaleVoidLedgerWrite | undefined;
 
   constructor(state: Partial<FakeSaleVoidLedgerState> = {}) {
@@ -173,6 +174,7 @@ export class FakeSaleVoidLedger implements SaleVoidLedger {
         working.creditNotes.push(creditNote);
       },
       offlineCreditNoteSeries: () => {
+        this.offlineSeriesReads += 1;
         const series = structuredClone(working.offlineCreditNoteSeries);
         const issued = working.issuedOfflineCreditNotes.map(({ number }) => number);
         return { ...series, localLastUsed: Math.max(series.localLastUsed ?? 0, ...issued) || null };
