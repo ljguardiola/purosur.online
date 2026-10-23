@@ -1,7 +1,7 @@
 import type {
-  EditableBranchSettings,
   BranchSettingsStore,
   BranchSettingsStoreTransaction,
+  EditableBranchSettings,
   NewBranchSettingsVersion,
 } from "../branch-settings-store.js";
 
