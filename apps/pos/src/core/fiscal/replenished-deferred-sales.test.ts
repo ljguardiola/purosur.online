@@ -19,6 +19,7 @@ import {
   holdsDeferredSaleRecord,
   rebuildReplenishedUnclearDeferredSale,
 } from "./replenished-deferred-sales";
+import { SqliteDeferredSaleLookup } from "./sqlite-deferred-sales";
 
 type DeferredSaleFact = Extract<SyncedFact, { kind: "deferred_sale_recorded" }>;
 
@@ -288,5 +289,48 @@ describe("rebuilding the deferred-sale record of an unclear outcome in a restore
     rebuildReplenishedUnclearDeferredSale(database, AUTHORIZED);
 
     expect(database.prepare("SELECT count(*) AS total FROM outbox").get()).toEqual({ total: 0 });
+  });
+
+  describe("finding the rebuilt record from the customer's non-fiscal document", () => {
+    const lookup = () => new SqliteDeferredSaleLookup(database);
+
+    it("finds a pending record by the short code and the reference it was issued with", () => {
+      rebuildReplenishedUnclearDeferredSale(database, PENDING);
+
+      const pending = {
+        deferredSaleId: "deferred-1",
+        saleId: "sale-1",
+        shortCode: "7KQ4M2P9",
+        invoice: { kind: "pending" },
+      };
+      expect(lookup().find({ kind: "short_code", shortCode: "7KQ4M2P9" })).toMatchObject(pending);
+      expect(
+        lookup().find({ kind: "reference", id: "deferred-1", shortCode: "7KQ4M2P9" }),
+      ).toMatchObject(pending);
+    });
+
+    it("finds a record the tax authority rejected as still waiting for its invoice", () => {
+      rebuildReplenishedUnclearDeferredSale(database, {
+        deferredSale: { ...UNCLEAR_RECORD, reason: "rejected" },
+        authorizedDocument: null,
+      });
+
+      expect(lookup().find({ kind: "short_code", shortCode: "7KQ4M2P9" })).toMatchObject({
+        deferredSaleId: "deferred-1",
+        invoice: { kind: "pending" },
+      });
+    });
+
+    it("finds an authorized record issued with the cloud's number and never printed", () => {
+      rebuildReplenishedUnclearDeferredSale(database, AUTHORIZED);
+
+      expect(
+        lookup().find({ kind: "reference", id: "deferred-1", shortCode: "7KQ4M2P9" }),
+      ).toMatchObject({
+        deferredSaleId: "deferred-1",
+        invoice: { kind: "issued", pointOfSale: 7, number: 42 },
+        originalPrintAttempted: false,
+      });
+    });
   });
 });
