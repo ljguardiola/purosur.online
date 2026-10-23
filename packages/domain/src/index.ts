@@ -237,6 +237,7 @@ export type {
   OfflineFiscalDocumentIssuedFact,
   OfflineNumberBlockRange,
   OfflineNumberBlockStatus,
+  OfflineSeriesDocumentType,
   PreEmissionGateFailureReason,
   PreEmissionGateOutcome,
   RealTimeAuthorizationAnswer,

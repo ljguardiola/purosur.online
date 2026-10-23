@@ -1,4 +1,4 @@
-import type { FiscalTaskDocumentType as FiscalDocumentType } from "../model/fiscal-task.js";
+import type { OfflineSeriesDocumentType } from "../model/fiscal-voucher-type.js";
 import { fortnightContaining } from "../model/offline-authorization-code.js";
 import {
   awaitsRemedy,
@@ -18,7 +18,7 @@ export interface RemedyRejectedDocumentInput {
   locationId: string;
   pointOfSaleNumber: number;
   fortnightStart: string;
-  documentType: FiscalDocumentType;
+  documentType: OfflineSeriesDocumentType;
   number: number;
   remedy: RejectedDocumentRemedy;
   actorId: string;

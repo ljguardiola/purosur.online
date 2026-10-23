@@ -1,7 +1,7 @@
 import type { Clock } from "../../shared/index.js";
 import type { InstallationStreamReach } from "../../sync/index.js";
 import type { TaxAuthorityRejection } from "../model/fiscal-rejection-standing.js";
-import type { FiscalTaskDocumentType as FiscalDocumentType } from "../model/fiscal-task.js";
+import type { OfflineSeriesDocumentType } from "../model/fiscal-voucher-type.js";
 import type {
   ContingencyInvoiceReport,
   DocumentTypeReportState,
@@ -50,7 +50,7 @@ export interface FortnightReportChange {
 }
 
 export interface DocumentTypeReportChange {
-  documentType: FiscalDocumentType;
+  documentType: OfflineSeriesDocumentType;
   state: DocumentTypeReportState;
   at: Date;
   reportedThrough: number;
@@ -59,7 +59,7 @@ export interface DocumentTypeReportChange {
 }
 
 export interface RecordedDocumentTypeReport {
-  documentType: FiscalDocumentType;
+  documentType: OfflineSeriesDocumentType;
   state: DocumentTypeReportState;
   reportedThrough: number;
   rejectedNumber: number | null;
@@ -82,8 +82,7 @@ export interface HeldFortnightReport {
   /**
    * Records the credit note for the corrected document it names, once per corrected voucher:
    * deciding it again for a voucher that already has one, or that a credit note issued offline
-   * corrects, changes nothing. It checks and records under the lock of the corrected voucher that
-   * the application of an offline credit note takes too.
+   * corrects, changes nothing.
    */
   creditCorrectedDocument(creditNote: RejectedDocumentCreditNote): Promise<void>;
 }
@@ -104,7 +103,7 @@ export interface OfflineDocumentOfFortnight {
   id: string;
   saleId: string;
   registerId: string;
-  documentType: FiscalDocumentType;
+  documentType: OfflineSeriesDocumentType;
   number: number;
   issuedOn: string;
   generatedAt: Date;
@@ -153,7 +152,7 @@ export interface TaxAuthorityNoMovementDeclarations {
 export interface OfflineDocumentLastReportedCall {
   token: WsaaToken;
   pointOfSaleNumber: number;
-  documentType: FiscalDocumentType;
+  documentType: OfflineSeriesDocumentType;
 }
 
 export type OfflineDocumentLastReportedAnswer =
@@ -169,7 +168,7 @@ export type OfflineDocumentBatchLimitAnswer =
 export interface OfflineDocumentReportCall {
   token: WsaaToken;
   pointOfSaleNumber: number;
-  documentType: FiscalDocumentType;
+  documentType: OfflineSeriesDocumentType;
   code: string;
   documents: OfflineDocumentOfFortnight[];
 }

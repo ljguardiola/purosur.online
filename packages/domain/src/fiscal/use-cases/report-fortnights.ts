@@ -1,8 +1,10 @@
 import { argentinaCalendarDay, argentinaInstant, shiftCalendarDay } from "../../shared/index.js";
 import { isInstallationActiveDuring, streamReachesPast } from "../../sync/index.js";
 import type { TaxAuthorityRejection } from "../model/fiscal-rejection-standing.js";
-import type { FiscalTaskDocumentType as FiscalDocumentType } from "../model/fiscal-task.js";
-import { CREDIT_NOTE_C_DOCUMENT_TYPE } from "../model/fiscal-voucher-type.js";
+import {
+  CREDIT_NOTE_C_DOCUMENT_TYPE,
+  type OfflineSeriesDocumentType,
+} from "../model/fiscal-voucher-type.js";
 import {
   type DocumentTypeReportState,
   fortnightClosesAt,
@@ -60,7 +62,7 @@ export type FortnightPresentationOutcome =
 export interface FortnightPresentation {
   pointOfSaleNumber: number;
   fortnight: Fortnight;
-  documentType: FiscalDocumentType | null;
+  documentType: OfflineSeriesDocumentType | null;
   outcome: FortnightPresentationOutcome;
 }
 
@@ -468,7 +470,7 @@ async function presentDocumentType(
   token: WsaaToken,
   { pointOfSaleNumber, code }: OwedFortnightReport,
   report: HeldFortnightReport,
-  documentType: FiscalDocumentType,
+  documentType: OfflineSeriesDocumentType,
   issued: OfflineDocumentOfFortnight[],
 ): Promise<FortnightPresentationOutcome> {
   const { documentReports, clock } = ports;

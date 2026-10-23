@@ -69,7 +69,6 @@ export type VoidSaleOutcome<Grant extends VoidSaleGrant> =
       refunds: SaleRefund[];
       grant: Grant;
       creditNote: SaleVoidCreditNote | null;
-      creditNoteIssuedOffline: boolean;
     };
 
 export async function voidSale<Grant extends VoidSaleGrant, Refusal>(
@@ -199,13 +198,7 @@ export async function voidSale<Grant extends VoidSaleGrant, Refusal>(
         }),
       );
     }
-    return {
-      kind: "voided",
-      refunds,
-      grant,
-      creditNote,
-      creditNoteIssuedOffline: offline?.kind === "issue_offline",
-    };
+    return { kind: "voided", refunds, grant, creditNote };
   });
 }
 

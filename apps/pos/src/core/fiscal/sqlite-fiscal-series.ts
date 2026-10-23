@@ -2,10 +2,10 @@ import {
   type DeferredBacklogEntry,
   FACTURA_C_DOCUMENT_TYPE,
   type FiscalDocumentState,
-  type FiscalTaskDocumentType,
   IN_PROGRESS_FISCAL_DOCUMENT_STATES,
   NUMBER_CONSUMING_STATES,
   type OfflineNumberBlockRange,
+  type OfflineSeriesDocumentType,
   SERIES_WAITING_STATES,
 } from "@purosur/domain";
 import type {
@@ -19,8 +19,6 @@ import type { LocalDatabase } from "../platform/local-database";
 function placeholdersFor(states: readonly FiscalDocumentState[]): string {
   return states.map(() => "?").join(", ");
 }
-
-type OfflineSeriesDocumentType = FiscalTaskDocumentType;
 
 interface PointOfSaleRow {
   point_of_sale: number;

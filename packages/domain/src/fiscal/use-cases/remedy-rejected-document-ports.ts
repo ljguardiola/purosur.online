@@ -1,5 +1,5 @@
 import type { Clock } from "../../shared/index.js";
-import type { FiscalTaskDocumentType as FiscalDocumentType } from "../model/fiscal-task.js";
+import type { OfflineSeriesDocumentType } from "../model/fiscal-voucher-type.js";
 import type { Fortnight } from "../model/offline-authorization-code.js";
 import type {
   DocumentFieldChange,
@@ -14,7 +14,7 @@ import type {
 export interface RejectedDocumentRemedyRecord {
   pointOfSaleNumber: number;
   fortnight: Fortnight;
-  documentType: FiscalDocumentType;
+  documentType: OfflineSeriesDocumentType;
   number: number;
   remedy: RejectedDocumentRemedy;
   rejectedAt: Date | null;
@@ -24,7 +24,7 @@ export interface RejectedDocumentRemedyRecord {
 export interface RejectedDocumentRemedyAudit {
   pointOfSaleNumber: number;
   fortnight: Fortnight;
-  documentType: FiscalDocumentType;
+  documentType: OfflineSeriesDocumentType;
   number: number;
   kind: RejectedDocumentRemedy["kind"];
   actorId: string;
@@ -40,7 +40,7 @@ export interface RemedyRejectedDocumentStoreTransaction {
   holdFortnightPresentation(key: FortnightReportKey): Promise<void>;
   documentTypeReport(
     key: FortnightReportKey,
-    documentType: FiscalDocumentType,
+    documentType: OfflineSeriesDocumentType,
     locationId: string,
   ): Promise<RecordedDocumentTypeReport | null>;
   documentsOn(

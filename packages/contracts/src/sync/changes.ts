@@ -211,11 +211,31 @@ const offlineSeriesCountSchema = z.object({
 const registerOfflinePointOfSaleChangeSchema = z.object({
   ...pulledChangeShape,
   entity: z.literal("register_offline_point_of_sale"),
-  row: z.object({
-    point_of_sale_number: pointOfSaleNumberSchema,
-    series_counts: z.array(offlineSeriesCountSchema),
-    version: z.int().positive(),
-  }),
+  row: z
+    .object({
+      point_of_sale_number: pointOfSaleNumberSchema,
+      series_counts: z.array(offlineSeriesCountSchema).optional(),
+      tax_authority_last_authorized_number: z.int().nonnegative().nullable().default(null),
+      highest_synced_offline_number: z.int().nonnegative().nullable().default(null),
+      version: z.int().positive(),
+    })
+    .transform(
+      ({
+        series_counts,
+        tax_authority_last_authorized_number,
+        highest_synced_offline_number,
+        ...row
+      }) => ({
+        ...row,
+        series_counts: series_counts ?? [
+          {
+            document_type: FACTURA_C_DOCUMENT_TYPE,
+            tax_authority_last_authorized_number,
+            highest_synced_offline_number,
+          },
+        ],
+      }),
+    ),
 });
 
 const offlineAuthorizationCodeChangeSchema = z.object({
