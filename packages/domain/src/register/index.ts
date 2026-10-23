@@ -70,7 +70,6 @@ export {
   INSTALLATION_KEY_BYTES,
   isHeldSnapshotKeyOutdated,
   isWellFormedInstallationKey,
-  latestKey,
   latestKeyVersion,
 } from "./model/installation-key.js";
 export {
