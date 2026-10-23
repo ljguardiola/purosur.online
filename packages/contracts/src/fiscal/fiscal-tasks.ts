@@ -8,13 +8,13 @@ import {
   isShortCode,
 } from "@purosur/domain";
 import { z } from "zod";
-import { pointOfSaleNumberSchema } from "../shared/index.js";
+import { pointOfSaleNumberSchema, recordIdSchema } from "../shared/index.js";
 
 const instantSchema = z.iso.datetime().meta({ timeZone: ARGENTINA_TIME_ZONE });
 const centsSchema = z.int().nonnegative();
 
 const taskBase = {
-  id: z.uuid(),
+  id: recordIdSchema(),
   register_id: z.string(),
   register_name: z.string(),
   created_at: instantSchema,
