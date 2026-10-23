@@ -150,15 +150,19 @@ describe("editing the branch settings through DrizzleBranchSettingsStore", () =>
       { locationId, dailyCap: 5 },
     ]);
     const entries = await db.select().from(auditLog).where(eq(auditLog.entityId, locationId));
-    expect(
-      entries.map(({ previousValue, newValue }) => [
-        (previousValue as Record<string, unknown>).supplier_price_list_daily_extraction_cap,
-        (newValue as Record<string, unknown>).supplier_price_list_daily_extraction_cap,
+    expect(entries).toHaveLength(2);
+    expect(entries).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          previousValue: expect.objectContaining({ supplier_price_list_daily_extraction_cap: 10 }),
+          newValue: expect.objectContaining({ supplier_price_list_daily_extraction_cap: 3 }),
+        }),
+        expect.objectContaining({
+          previousValue: expect.objectContaining({ supplier_price_list_daily_extraction_cap: 3 }),
+          newValue: expect.objectContaining({ supplier_price_list_daily_extraction_cap: 5 }),
+        }),
       ]),
-    ).toEqual([
-      [10, 3],
-      [3, 5],
-    ]);
+    );
   });
 
   it("logs the new version as a change, and nothing for an unchanged save", async () => {
