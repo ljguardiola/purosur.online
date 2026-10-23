@@ -115,6 +115,12 @@ export type {
 } from "./record-freight.js";
 export { recordFreight } from "./record-freight.js";
 export type {
+  RefreshSupplierPriceListWebPageInput,
+  RefreshSupplierPriceListWebPageOutcome,
+  RefreshSupplierPriceListWebPagePorts,
+} from "./refresh-supplier-price-list-web-page.js";
+export { refreshSupplierPriceListWebPage } from "./refresh-supplier-price-list-web-page.js";
+export type {
   RegisteredPurchase,
   RegisteredPurchaseLine,
   RegisterPurchaseInput,
