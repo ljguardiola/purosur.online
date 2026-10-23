@@ -254,7 +254,13 @@ describe("discovering the paid orders while the register is being restored", () 
     database.close();
   });
 
-  async function discoveryOverAnApprovedOrder() {
+  type TicketedSettlement = Parameters<
+    typeof createPaidOrderDiscoveryWiring
+  >[0]["ticketedSettlement"];
+
+  async function discoveryOverAnApprovedOrder(
+    ticketedSettlement: TicketedSettlement = (settle) => settle,
+  ) {
     const signedInPerson = createSignedInPerson();
     signedInPerson.set("u1");
     const saleId = await openSaleOfTwoYerbas({ database, signedInPerson }, uuidV7Ids);
@@ -266,6 +272,7 @@ describe("discovering the paid orders while the register is being restored", () 
         new FakeMercadoPagoOrders(() => database),
       ).gate,
       printing: NOT_PRINTING,
+      ticketedSettlement,
       cloudClient: {
         cloudUrl: "https://cloud.example",
         fetch: async () => {
@@ -320,6 +327,24 @@ describe("discovering the paid orders while the register is being restored", () 
     expect(heldPayments()).toEqual([]);
     expect(unmatchedOrders()).toEqual([]);
     expect(saleState(saleId)).toEqual({ state: "OPEN" });
+  });
+
+  it("leaves each sale it completes to the ticketing of its settlement", async () => {
+    const ticketed: unknown[] = [];
+    const { discovery, saleId } = await discoveryOverAnApprovedOrder((settle) => (...args) => {
+      const settlement = settle(...args);
+      ticketed.push({
+        settlement,
+        sale: database.prepare("SELECT state FROM sales").get(),
+      });
+      return settlement;
+    });
+
+    await discovery.discoverAtStartup();
+
+    expect(ticketed).toEqual([
+      { settlement: { kind: "completed", saleId }, sale: { state: "COMPLETED" } },
+    ]);
   });
 
   it("settles the order on the synchronization after the restoration completes", async () => {

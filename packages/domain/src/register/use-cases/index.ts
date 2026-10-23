@@ -57,6 +57,10 @@ export type {
   RegisterIdentity,
 } from "./cash-ledger.js";
 export type {
+  CashSessionClosesQuery,
+  CashSessionClosesReportReader,
+} from "./cash-session-closes-report-reader.js";
+export type {
   ChangeSnapshotLifecycleRulesInput,
   ChangeSnapshotLifecycleRulesOutcome,
 } from "./change-snapshot-lifecycle-rules.js";
@@ -155,6 +159,11 @@ export type {
   PruneSnapshotGenerationsOnDiskPorts,
 } from "./prune-snapshot-generations-on-disk.js";
 export { pruneSnapshotGenerationsOnDisk } from "./prune-snapshot-generations-on-disk.js";
+export type {
+  CashSessionClosesReport,
+  ReadCashSessionClosesInput,
+} from "./read-cash-session-closes.js";
+export { readCashSessionCloses } from "./read-cash-session-closes.js";
 export type {
   ReadReceiptPrinterAddressOutcome,
   ReadReceiptPrinterAddressPorts,

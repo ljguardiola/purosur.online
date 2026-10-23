@@ -22,6 +22,8 @@ async function renderModal(payment: CompletedPayment) {
       saleId="sale-1"
       payment={payment}
       readReceiptStatus={vi.fn(async () => PRINTED)}
+      readBackupTicket={vi.fn(async () => ({ kind: "unavailable" as const }))}
+      readBackupTickets={vi.fn(async () => ({ kind: "unavailable" as const }))}
       mayChangePrinter={false}
       onNewSale={vi.fn()}
     />,

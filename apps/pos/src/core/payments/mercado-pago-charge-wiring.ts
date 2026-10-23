@@ -6,6 +6,7 @@ import type {
 import type { InterruptedMercadoPagoCharge } from "@purosur/domain/payments/use-cases";
 import type { RestorationProtocolEvidence } from "@purosur/domain/register/use-cases";
 import type { IdGenerator } from "@purosur/domain/sales/use-cases";
+import type { TicketedOperations } from "../backups/ticketed-operation";
 import {
   type CloudClientDeps,
   getFromCloud,
@@ -33,6 +34,7 @@ export interface MercadoPagoChargingWiringDeps {
   now: () => Date;
   ids: IdGenerator;
   restoration: RestorationProtocolEvidence | undefined;
+  ticketedSettlement: TicketedOperations["ticketedSettlement"];
 }
 
 export interface MercadoPagoCharging {
@@ -66,6 +68,7 @@ export function createMercadoPagoCharging({
   now,
   ids,
   restoration,
+  ticketedSettlement,
 }: MercadoPagoChargingWiringDeps): MercadoPagoCharging {
   if (
     database === undefined ||
@@ -102,6 +105,7 @@ export function createMercadoPagoCharging({
     follow: (request) => followMercadoPagoChargeFor(deps, request),
     abandon: (request) => abandonMercadoPagoChargeFor(deps, request),
     chargesLeftPending: () => mercadoPagoChargesLeftPendingFor(deps),
-    followInterrupted: (interrupted) => followInterruptedMercadoPagoChargesFor(deps, interrupted),
+    followInterrupted: (interrupted) =>
+      followInterruptedMercadoPagoChargesFor(deps, interrupted, ticketedSettlement),
   };
 }

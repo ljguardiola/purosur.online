@@ -13,6 +13,7 @@ import {
   type OperationAuthorization,
   printOriginalReceipt,
   printSaleReceipt,
+  type ReceiptLedger,
   type ReceiptPrinters,
   type ReceiptPrintGrant,
   type ReceiptPrintOutcome,
@@ -21,6 +22,7 @@ import {
   receiptDeliveryOf,
   reprintReceipt,
 } from "@purosur/domain/sales/use-cases";
+import type { TicketedOperations, TicketedStep } from "../backups/ticketed-operation";
 import type { LocalDatabase } from "../platform/local-database";
 import type { ActionGate } from "../sessions/action-gate";
 import type { ReceiptPrintJobs } from "./receipt-print-jobs";
@@ -39,6 +41,7 @@ export interface ReceiptRequestDeps {
   signedInUserId: () => string | undefined;
   printers: ReceiptPrinters;
   jobs: ReceiptPrintJobs;
+  ticketedSteps: TicketedOperations["ticketedSteps"];
 }
 
 export interface ReprintSaleReceiptRequest {
@@ -243,6 +246,10 @@ export async function printOriginalReceiptFor(
   );
 }
 
+function ticketedLedger(ledger: ReceiptLedger, ticketedStep: TicketedStep): ReceiptLedger {
+  return { transaction: (work) => ticketedStep(() => ledger.transaction(work)) };
+}
+
 export async function reprintFor(
   deps: ReceiptRequestDeps,
   key: PrintedDocumentKey,
@@ -271,11 +278,14 @@ export async function reprintFor(
     },
   };
   const start = await deps.jobs.start(jobKeyOf(key), ({ watch, printers }) =>
-    reprintReceipt(
-      printingPorts(deps, chainKey, authority, printers(deps.printers)),
-      { ...key, reason },
-      watch,
-    ),
+    deps.ticketedSteps("reprint", key.saleId, (ticketedStep) => {
+      const ports = printingPorts(deps, chainKey, authority, printers(deps.printers));
+      return reprintReceipt(
+        { ...ports, ledger: ticketedLedger(ports.ledger, ticketedStep) },
+        { ...key, reason },
+        watch,
+      );
+    }),
   );
   switch (start.kind) {
     case "busy":

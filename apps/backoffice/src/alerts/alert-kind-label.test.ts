@@ -77,3 +77,7 @@ test("names the alert of a presentation whose document ARCA rejected", () => {
     "Comprobante rechazado en un informe quincenal",
   );
 });
+
+test("names the alert of a deferred sale that is close to the end of its time to be invoiced", () => {
+  expect(alertKindLabel("deferred_sale_due")).toBe("Venta diferida por vencer");
+});

@@ -85,7 +85,7 @@ test("groups the cash reports in a card titled Caja", async () => {
 
   const cash = screen.getByRole("region", { name: "Caja" });
   await expect.element(cash).toBeVisible();
-  expect(cash.getByRole("link").elements()).toHaveLength(1);
+  expect(cash.getByRole("link").elements()).toHaveLength(2);
 });
 
 test("lists the payments confirmed by hand report as a link to it", async () => {
@@ -94,4 +94,12 @@ test("lists the payments confirmed by hand report as a link to it", async () => 
   await expect
     .element(screen.getByRole("link", { name: "Pagos confirmados a mano" }))
     .toHaveAttribute("href", "/reports/hand-confirmed-payments");
+});
+
+test("lists the cash session closes report as a link to it", async () => {
+  const screen = await renderScreen();
+
+  await expect
+    .element(screen.getByRole("link", { name: "Cierres de sesión" }))
+    .toHaveAttribute("href", "/reports/cash-session-closes");
 });

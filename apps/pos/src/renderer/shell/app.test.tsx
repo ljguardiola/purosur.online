@@ -2,6 +2,7 @@ import type {
   Authorization,
   CashBalance,
   CloseCashSessionOutcome,
+  DiscardContingencyBackupTicketsAnswer,
   EnrollmentOutcome,
   EnrollmentStandingAnswer,
   ListedCashMovement,
@@ -323,6 +324,15 @@ function coreAnswering(
             comprobante: { kind: "none" },
           }
         : sales.receiptPrintStatus(saleId);
+    },
+    async contingencyBackupTickets() {
+      return { kind: "unavailable" };
+    },
+    async contingencyBackupTicketOfSale() {
+      return { kind: "unavailable" };
+    },
+    async discardContingencyBackupTickets() {
+      return { kind: "unavailable" };
     },
     async printCreditNote() {
       return { kind: "unavailable" };
@@ -648,7 +658,11 @@ describe("App", () => {
 
   it("shows that the register cannot sell yet while it catches up with the cloud", async () => {
     const { core } = coreAnswering(true);
-    core.restorationStanding = async () => ({ kind: "in_progress", step: "replenish" });
+    core.restorationStanding = async () => ({
+      kind: "in_progress",
+      step: "replenish",
+      origin: "copy",
+    });
     const screen = await render(<App core={core} />);
 
     postCoreStatus("up");
@@ -660,14 +674,18 @@ describe("App", () => {
   });
 
   it("tells the restoring screen once the core says the register cannot reach the cloud", async () => {
-    let standing: RestorationStandingAnswer = { kind: "in_progress", step: "replenish" };
+    let standing: RestorationStandingAnswer = {
+      kind: "in_progress",
+      step: "replenish",
+      origin: "copy",
+    };
     const { core, changeRestorationStanding } = coreAnswering(true);
     core.restorationStanding = async () => standing;
     const screen = await render(<App core={core} />);
     postCoreStatus("up");
     await expect.element(screen.getByText(RESTORING_TITLE)).toBeVisible();
 
-    standing = { kind: "without_connection", step: "replenish" };
+    standing = { kind: "without_connection", step: "replenish", origin: "copy" };
     changeRestorationStanding();
 
     await expect.element(screen.getByText("Sin conexión con la nube")).toBeVisible();
@@ -678,7 +696,11 @@ describe("App", () => {
     const { core } = coreAnswering(true, undefined, undefined, {
       cashSession: async () => GRACE_SESSION,
     });
-    core.restorationStanding = async () => ({ kind: "in_progress", step: "restore" });
+    core.restorationStanding = async () => ({
+      kind: "in_progress",
+      step: "restore",
+      origin: "copy",
+    });
     const screen = await render(<App core={core} />);
 
     postCoreStatus("up");
@@ -691,7 +713,11 @@ describe("App", () => {
 
   it("asks a register restored from a copy to be enrolled again", async () => {
     const { core } = coreAnswering(true);
-    core.restorationStanding = async () => ({ kind: "in_progress", step: "enroll" });
+    core.restorationStanding = async () => ({
+      kind: "in_progress",
+      step: "enroll",
+      origin: "copy",
+    });
     const screen = await render(<App core={core} />);
 
     postCoreStatus("up");
@@ -714,7 +740,11 @@ describe("App", () => {
   });
 
   it("goes on to sign in once the core says the restoration completed", async () => {
-    let standing: RestorationStandingAnswer = { kind: "in_progress", step: "replenish" };
+    let standing: RestorationStandingAnswer = {
+      kind: "in_progress",
+      step: "replenish",
+      origin: "copy",
+    };
     const { core, changeRestorationStanding } = coreAnswering(true);
     core.restorationStanding = async () => standing;
     const screen = await render(<App core={core} />);
@@ -2106,6 +2136,48 @@ describe("App", () => {
           .getByRole("button", { name: "1 aviso" }),
       )
       .toBeVisible();
+  });
+
+  it("shows the contingency backup tickets notice the core reports in the status bar, and discards them when it is closed", async () => {
+    const discard = vi.fn(
+      async (): Promise<DiscardContingencyBackupTicketsAnswer> => ({ kind: "discarded", count: 2 }),
+    );
+    const core: CoreClient = {
+      ...enrolledCore,
+      async contingencyBackupTickets() {
+        return {
+          kind: "read",
+          tickets: {
+            to_print: 0,
+            awaiting_customer_document: 0,
+            missing_key: 0,
+            kept: 0,
+            discardable: 2,
+            may_discard: true,
+            discard_permitted: true,
+            printer: null,
+          },
+        };
+      },
+      discardContingencyBackupTickets: discard,
+    };
+    const screen = await render(<App core={core} />);
+    postCoreStatus("up");
+    await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
+    await userEvent.type(screen.getByLabelText("PIN"), "1234");
+    await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
+
+    await userEvent.click(
+      screen
+        .getByRole("region", { name: "Estado de la caja" })
+        .getByRole("button", { name: "1 aviso" }),
+    );
+    await expect
+      .element(screen.getByText("Ya podés descartar los tickets de respaldo"))
+      .toBeVisible();
+    await userEvent.click(screen.getByRole("button", { name: "Cerrar" }).last());
+
+    await expect.poll(() => discard.mock.calls.length).toBe(1);
   });
 
   it("shows no line of the sale that was just charged when a new sale starts", async () => {

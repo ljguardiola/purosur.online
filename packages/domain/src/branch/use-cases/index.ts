@@ -6,6 +6,7 @@ export type {
   BranchSettingsReader,
   BranchSettingsStore,
   BranchSettingsStoreTransaction,
+  EditableBranchSettings,
   NewBranchSettingsVersion,
 } from "./branch-settings-store.js";
 export type {

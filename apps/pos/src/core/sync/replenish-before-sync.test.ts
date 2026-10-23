@@ -3,11 +3,15 @@ import { replenishBeforeSync } from "./replenish-before-sync";
 import type { ReplenishAttempt } from "./replenish-restored-register-step";
 import type { SyncResult } from "./sync-schedule";
 
-function wiring(replenish: () => Promise<ReplenishAttempt>) {
+function wiring(
+  replenish: () => Promise<ReplenishAttempt>,
+  identity: { held: boolean; pulledBySync: boolean } = { held: true, pulledBySync: false },
+) {
   const calls: string[] = [];
   const reported: ReplenishAttempt[] = [];
   const failures: unknown[] = [];
   const run = replenishBeforeSync({
+    holdsRegisterIdentity: () => identity.held,
     replenish: async () => {
       calls.push("replenish");
       return replenish();
@@ -16,6 +20,7 @@ function wiring(replenish: () => Promise<ReplenishAttempt>) {
     onFailure: (error) => failures.push(error),
     syncOnce: async (): Promise<SyncResult> => {
       calls.push("sync");
+      identity.held ||= identity.pulledBySync;
       return { kind: "succeeded" };
     },
   });
@@ -56,5 +61,28 @@ describe("replenishing a restored register before each sync", () => {
     expect(failures).toEqual([error]);
     expect(reported).toEqual([]);
     expect(calls).toEqual(["replenish", "sync"]);
+  });
+
+  it("syncs first and replenishes right after when the register's own identity is not pulled yet", async () => {
+    const { run, calls, failures } = wiring(async () => ({ kind: "replenished" }), {
+      held: false,
+      pulledBySync: true,
+    });
+
+    expect(await run()).toEqual({ kind: "succeeded" });
+    expect(calls).toEqual(["sync", "replenish"]);
+    expect(failures).toEqual([]);
+  });
+
+  it("leaves the replenishment for a later cycle while the sync has not pulled the register's own identity", async () => {
+    const { run, calls, reported, failures } = wiring(async () => ({ kind: "replenished" }), {
+      held: false,
+      pulledBySync: false,
+    });
+
+    expect(await run()).toEqual({ kind: "succeeded" });
+    expect(calls).toEqual(["sync"]);
+    expect(reported).toEqual([]);
+    expect(failures).toEqual([]);
   });
 });

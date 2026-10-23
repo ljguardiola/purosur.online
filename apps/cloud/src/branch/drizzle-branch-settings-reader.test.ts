@@ -1,11 +1,17 @@
 import {
   DEFAULT_EXPIRING_LOT_ALERT_DAYS,
   DEFAULT_GOOD_CONDITION_RETURN_DAYS,
+  DEFAULT_SUPPLIER_PRICE_LIST_DAILY_EXTRACTION_CAP,
   DEFAULT_UNREVIEWED_PRICE_ALERT_DAYS,
 } from "@purosur/domain";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { branchHours, branchSettings, locations } from "../platform/db/schema.js";
+import {
+  branchHours,
+  branchSettings,
+  locations,
+  supplierPriceListExtractionCaps,
+} from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { seededPriceListId } from "../test-support/seeded-price-list.js";
@@ -39,8 +45,25 @@ describe("DrizzleBranchSettingsReader", () => {
       expiringLotAlertDays: DEFAULT_EXPIRING_LOT_ALERT_DAYS,
       unreviewedPriceAlertDays: DEFAULT_UNREVIEWED_PRICE_ALERT_DAYS,
       goodConditionReturnDays: DEFAULT_GOOD_CONDITION_RETURN_DAYS,
+      supplierPriceListDailyExtractionCap: DEFAULT_SUPPLIER_PRICE_LIST_DAILY_EXTRACTION_CAP,
       version: 1,
     });
+  });
+
+  it("answers the cap the branch has set for supplier price lists, not another branch's", async () => {
+    const locationId = await seededLocationId(db);
+    const [otherLocation] = await db.insert(locations).values({}).returning({ id: locations.id });
+    if (!otherLocation) {
+      throw new Error("test setup: seeding the other location returned no row");
+    }
+    await db.insert(supplierPriceListExtractionCaps).values([
+      { locationId, dailyCap: 4 },
+      { locationId: otherLocation.id, dailyCap: 7 },
+    ]);
+
+    const settings = await new DrizzleBranchSettingsReader(db).currentBranchSettings(locationId);
+
+    expect(settings.supplierPriceListDailyExtractionCap).toBe(4);
   });
 
   it("answers the hours by day then position, each time as HH:MM", async () => {

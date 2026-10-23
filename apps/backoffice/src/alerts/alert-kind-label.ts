@@ -33,6 +33,7 @@ const ALERT_KIND_LABELS = {
   fortnight_report_document_rejected: "Comprobante rechazado en un informe quincenal",
   register_backup_overdue: "Caja sin backup verificado",
   clock_drift: "Reloj de la caja desajustado",
+  deferred_sale_due: "Venta diferida por vencer",
 } satisfies Record<AlertKind, string>;
 
 export function alertKindLabel(kind: string): string {

@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
 import type { WorkerUtils } from "graphile-worker";
+import { RECOVERY_REQUEST_TASK_IDENTIFIER } from "./access-email-task.js";
 import type { RecoveryJobQueue } from "./recovery-job-queue.js";
 import { recoveryRequestJobPayloadSchema } from "./recovery-request-job-payload.js";
-import { RECOVERY_REQUEST_TASK_IDENTIFIER } from "./recovery-worker.js";
 
 export function createGraphileRecoveryJobQueue(
   workerUtils: Pick<WorkerUtils, "addJob">,

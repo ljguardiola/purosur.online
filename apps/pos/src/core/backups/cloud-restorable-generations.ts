@@ -36,6 +36,12 @@ export function createCloudRestorableGenerations({
         }
         return {
           kind: "listed",
+          ...(listing.data.first_installation_id !== null && {
+            firstInstallation: {
+              installationId: listing.data.first_installation_id,
+              registerId: listing.data.register_id,
+            },
+          }),
           generations: listing.data.generations.map((generation) => ({
             generationId: generation.generation_id,
             registerId: listing.data.register_id,

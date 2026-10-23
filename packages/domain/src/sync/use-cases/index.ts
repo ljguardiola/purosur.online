@@ -49,6 +49,11 @@ export type {
   ReleaseQuarantinedEventPorts,
 } from "./quarantine-release-ports.js";
 export type {
+  ReceiveAttachedEventInput,
+  ReceiveAttachedEventOutcome,
+} from "./receive-attached-event.js";
+export { receiveAttachedEvent } from "./receive-attached-event.js";
+export type {
   ReceivePushedEventsInput,
   ReceivePushedEventsOutcome,
 } from "./receive-pushed-events.js";
@@ -85,7 +90,18 @@ export type {
 } from "./reset-restored-sync-identity.js";
 export { resetRestoredSyncIdentity } from "./reset-restored-sync-identity.js";
 export type {
+  ResetSyncIdentityWithoutCopyInput,
+  ResetSyncIdentityWithoutCopyOutcome,
+} from "./reset-sync-identity-without-copy.js";
+export { resetSyncIdentityWithoutCopy } from "./reset-sync-identity-without-copy.js";
+export type {
+  NoCopySyncIdentityStore,
+  NoCopySyncIdentityTransaction,
+  ResetSyncIdentityWithoutCopyPorts,
+} from "./reset-sync-identity-without-copy-ports.js";
+export type {
   EventPosition,
+  InstallationReceivedSeqs,
   ReplenishedEvent,
   ReplenishmentPosition,
   RestoredRegisterReplenishment,

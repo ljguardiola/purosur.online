@@ -43,6 +43,7 @@ const RESTORATION_COMPLETED: RestorationEvidence = {
   replenish: "completed",
   reconcile_fiscal_counters: "completed",
   regularize_orphan_authorizations: "completed",
+  origin: "copy",
   cloud: "unknown",
 };
 

@@ -477,3 +477,37 @@ describe("an invoice already credited alert", () => {
     }>().not.toExtend<OpenAlertInput>();
   });
 });
+
+describe("a deferred sale due alert", () => {
+  it("accepts the register, the sale, its date and total, its short code, its expiry day and the instant it escalates", () => {
+    expectTypeOf<{
+      kind: "deferred_sale_due";
+      scope: string;
+      locationId: string;
+      detail: {
+        registerId: string;
+        saleId: string;
+        saleOccurredAt: string;
+        total: number;
+        shortCode: string;
+        expiresOn: string;
+        escalatesAt: string;
+      };
+    }>().toExtend<OpenAlertInput>();
+  });
+
+  it("refuses one without the day the sale expires", () => {
+    expectTypeOf<{
+      kind: "deferred_sale_due";
+      scope: string;
+      detail: {
+        registerId: string;
+        saleId: string;
+        saleOccurredAt: string;
+        total: number;
+        shortCode: string;
+        escalatesAt: string;
+      };
+    }>().not.toExtend<OpenAlertInput>();
+  });
+});

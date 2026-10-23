@@ -1,5 +1,5 @@
 import { createRoute } from "@tanstack/react-router";
-import { canSeeCashArea } from "../shell/backoffice-access";
+import { canSeeCashArea, canSeeFiscalInformation } from "../shell/backoffice-access";
 import { cashAndFiscalAreaRoute } from "../shell/cash-and-fiscal-area";
 import { lazyScreen } from "../shell/lazy-screen";
 import { refuseWithout } from "../shell/signed-in-route";
@@ -16,4 +16,11 @@ export const pointsOfSaleRoute = createRoute({
   path: "points-of-sale",
   beforeLoad: ({ context: { session } }) => refuseWithout(session, canSeeCashArea),
   component: lazyScreen(() => import("./points-of-sale-page"), "PointsOfSalePage"),
+});
+
+export const fiscalTasksRoute = createRoute({
+  getParentRoute: () => cashAndFiscalAreaRoute,
+  path: "fiscal-tasks",
+  beforeLoad: ({ context: { session } }) => refuseWithout(session, canSeeFiscalInformation),
+  component: lazyScreen(() => import("./fiscal-tasks-page"), "FiscalTasksPage"),
 });

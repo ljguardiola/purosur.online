@@ -275,6 +275,9 @@ function contextWith(
     cancelPaidSale: async () => ({ kind: "unavailable" }),
     voidSale: async () => ({ kind: "unavailable" }),
     receiptPrintStatus: async () => ({ kind: "unavailable" }),
+    contingencyBackupTickets: async () => ({ kind: "unavailable" }),
+    contingencyBackupTicketOfSale: async () => ({ kind: "unavailable" }),
+    discardContingencyBackupTickets: async () => ({ kind: "unavailable" }),
     printOriginalReceipt: async () => ({ kind: "unavailable" }),
     findDeferredSale: async () => ({ kind: "not_found" }),
     printDeferredSaleInvoice: async () => ({ kind: "unavailable" }),
@@ -531,7 +534,7 @@ describe("routeFor", () => {
       coreStatus: "up",
       enrollment: "enrolled",
       person: undefined,
-      restoration: { kind: "in_progress", step: "enroll" },
+      restoration: { kind: "in_progress", step: "enroll", origin: "copy" },
       route: "/restore-required",
     },
     ...(
@@ -547,7 +550,7 @@ describe("routeFor", () => {
       coreStatus: "up" as const,
       enrollment: "enrolled" as const,
       person: PERSON,
-      restoration: { kind: "in_progress" as const, step },
+      restoration: { kind: "in_progress" as const, step, origin: "copy" as const },
       route: "/restoring" as const,
     })),
     {
@@ -555,7 +558,7 @@ describe("routeFor", () => {
       enrollment: "enrolled",
       person: PERSON,
       cashSession: OPEN_SESSION,
-      restoration: { kind: "without_connection", step: "replenish" },
+      restoration: { kind: "without_connection", step: "replenish", origin: "copy" },
       route: "/restoring",
     },
     {
@@ -571,7 +574,7 @@ describe("routeFor", () => {
       enrollment: "enrolled",
       person: PERSON,
       cashSession: OPEN_SESSION,
-      restoration: { kind: "in_progress", step: "restore" },
+      restoration: { kind: "in_progress", step: "restore", origin: "copy" },
       route: "/restoring",
     },
     {
@@ -579,7 +582,7 @@ describe("routeFor", () => {
       enrollment: "enrolled",
       person: undefined,
       cashSession: OPEN_SESSION,
-      restoration: { kind: "in_progress", step: "enroll" },
+      restoration: { kind: "in_progress", step: "enroll", origin: "copy" },
       route: "/restore-required",
     },
     {
@@ -608,14 +611,14 @@ describe("routeFor", () => {
       enrollment: "enrolled",
       person: PERSON,
       registerService: "out_of_service",
-      restoration: { kind: "in_progress", step: "restore" },
+      restoration: { kind: "in_progress", step: "restore", origin: "copy" },
       route: "/out-of-service",
     },
     {
       coreStatus: "down",
       enrollment: "enrolled",
       person: PERSON,
-      restoration: { kind: "in_progress", step: "restore" },
+      restoration: { kind: "in_progress", step: "restore", origin: "copy" },
       route: "/core-down",
     },
   ])(
@@ -656,7 +659,7 @@ describe("the register's router", () => {
       path: "/",
       coreStatus: "up",
       enrollment: "enrolled",
-      restoration: { kind: "in_progress", step: "restore" },
+      restoration: { kind: "in_progress", step: "restore", origin: "copy" },
       redirectedTo: "/restoring",
     },
     {
@@ -664,7 +667,7 @@ describe("the register's router", () => {
       coreStatus: "up",
       enrollment: "enrolled",
       person: null,
-      restoration: { kind: "in_progress", step: "enroll" },
+      restoration: { kind: "in_progress", step: "enroll", origin: "copy" },
       redirectedTo: "/restore-required",
     },
     {
@@ -672,7 +675,7 @@ describe("the register's router", () => {
       coreStatus: "up",
       enrollment: "enrolled",
       cashSession: OPEN_SESSION,
-      restoration: { kind: "in_progress", step: "replenish" },
+      restoration: { kind: "in_progress", step: "replenish", origin: "copy" },
       redirectedTo: "/restoring",
     },
     {
@@ -680,14 +683,14 @@ describe("the register's router", () => {
       coreStatus: "up",
       enrollment: "enrolled",
       cashSession: OPEN_SESSION,
-      restoration: { kind: "without_connection", step: "replenish" },
+      restoration: { kind: "without_connection", step: "replenish", origin: "copy" },
       redirectedTo: "/restoring",
     },
     {
       path: "/",
       coreStatus: "up",
       enrollment: "enrolled",
-      restoration: { kind: "without_connection", step: "restore" },
+      restoration: { kind: "without_connection", step: "restore", origin: "copy" },
       redirectedTo: "/restoring",
     },
     { path: "/restoring", coreStatus: "up", enrollment: "enrolled", redirectedTo: "/" },
@@ -695,14 +698,14 @@ describe("the register's router", () => {
       path: "/restore-required",
       coreStatus: "up",
       enrollment: "enrolled",
-      restoration: { kind: "in_progress", step: "restore" },
+      restoration: { kind: "in_progress", step: "restore", origin: "copy" },
       redirectedTo: "/restoring",
     },
     {
       path: "/re-enroll",
       coreStatus: "up",
       enrollment: "enrolled",
-      restoration: { kind: "in_progress", step: "restore" },
+      restoration: { kind: "in_progress", step: "restore", origin: "copy" },
       redirectedTo: "/restoring",
     },
     { path: "/re-enroll", coreStatus: "up", enrollment: "enrolled", redirectedTo: "/" },
@@ -1205,6 +1208,7 @@ describe("the register's router", () => {
     const router = routerAt("/restoring", "up", "enrolled", null, NO_SESSION, "in_service", {
       kind: "in_progress",
       step: "replenish",
+      origin: "copy",
     });
 
     const screen = await render(<RouterProvider router={router} />);
@@ -1216,6 +1220,7 @@ describe("the register's router", () => {
     const router = routerAt("/restoring", "up", "enrolled", null, NO_SESSION, "in_service", {
       kind: "in_progress",
       step: "restore",
+      origin: "copy",
     });
 
     const screen = await render(<RouterProvider router={router} />);
@@ -1227,6 +1232,7 @@ describe("the register's router", () => {
     const router = routerAt("/restoring", "up", "enrolled", null, NO_SESSION, "in_service", {
       kind: "in_progress",
       step: "reset_sync_identity",
+      origin: "copy",
     });
 
     const screen = await render(<RouterProvider router={router} />);
@@ -1238,6 +1244,7 @@ describe("the register's router", () => {
     const router = routerAt("/restoring", "up", "enrolled", null, NO_SESSION, "in_service", {
       kind: "without_connection",
       step: "replenish",
+      origin: "copy",
     });
 
     const screen = await render(<RouterProvider router={router} />);
@@ -1262,6 +1269,7 @@ describe("the register's router", () => {
     const router = routerAt("/restore-required", "up", "enrolled", null, NO_SESSION, "in_service", {
       kind: "in_progress",
       step: "enroll",
+      origin: "copy",
     });
 
     const screen = await render(<RouterProvider router={router} />);
@@ -1277,6 +1285,7 @@ describe("the register's router", () => {
         ...contextWith("up", "enrolled", null, undefined, NO_SESSION, "in_service", {
           kind: "in_progress",
           step: "enroll",
+          origin: "copy",
         }),
         enroll,
         checkEnrollmentCode: async () => [],
@@ -1311,6 +1320,7 @@ describe("the register's router", () => {
         ...contextWith("up", "enrolled", null, undefined, NO_SESSION, "in_service", {
           kind: "in_progress",
           step: "enroll",
+          origin: "copy",
         }),
         registerName: async () => "Caja 2",
       },
@@ -1330,6 +1340,7 @@ describe("the register's router", () => {
     const router = routerAt("/re-enroll", "up", "enrolled", null, NO_SESSION, "in_service", {
       kind: "in_progress",
       step: "enroll",
+      origin: "copy",
     });
     const screen = await render(<RouterProvider router={router} />);
 

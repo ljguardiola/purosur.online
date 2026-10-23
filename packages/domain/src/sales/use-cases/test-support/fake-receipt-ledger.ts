@@ -10,7 +10,7 @@ import type {
   StoredReceipt,
 } from "../receipt-ports.js";
 
-export interface FakeDocumentPrinting {
+interface FakeDocumentPrinting {
   printAttemptedAt: Date | null;
   printedAt: Date | null;
   stored: StoredReceipt | undefined;

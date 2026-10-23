@@ -18,10 +18,13 @@ export const RECEIVED_AT = new Date("2026-10-06T15:00:00.000Z");
 
 type PushedEvent = NonNullable<AuthorizationRequestRecord["saleEvent"]>;
 
+let completedEvents = 0;
+
 export function saleCompletedEvent(saleId: string): PushedEvent {
+  completedEvents += 1;
   return {
     event_id: crypto.randomUUID(),
-    device_seq: 7,
+    device_seq: completedEvents * 10,
     aggregate_type: "sale",
     aggregate_id: saleId,
     event_type: "sale_completed",

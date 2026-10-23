@@ -1,4 +1,4 @@
-import type { RegisterStatus } from "@purosur/contracts";
+import type { ContingencyBackupTicketsAnswer, RegisterStatus } from "@purosur/contracts";
 import { expectNoAccessibilityViolations, tokenRgb } from "@purosur/ui/test";
 import { describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
@@ -7,6 +7,7 @@ import type { CoreData } from "../platform/use-core-query";
 import type { CashSessionState } from "../register/cash-session-state";
 import { RegisterStatusBar } from "./register-status-bar";
 import type { SignedInPerson } from "./signed-in-person";
+import { backupTickets } from "./test-support/contingency-backup-tickets";
 
 const PERSON: SignedInPerson = {
   user_id: "u1",
@@ -48,6 +49,8 @@ function renderBar(
     person?: SignedInPerson | undefined;
     cashSession?: CashSessionState;
     status?: CoreData<RegisterStatus>;
+    backupTickets?: CoreData<ContingencyBackupTicketsAnswer>;
+    onDiscardBackupTickets?: () => void;
   } = {},
 ) {
   return render(
@@ -55,8 +58,16 @@ function renderBar(
       person={"person" in props ? props.person : PERSON}
       cashSession={props.cashSession ?? NO_SESSION}
       status={props.status ?? loaded()}
+      backupTickets={props.backupTickets ?? loadedTickets()}
+      onDiscardBackupTickets={props.onDiscardBackupTickets ?? (() => {})}
     />,
   );
+}
+
+function loadedTickets(
+  tickets: Partial<ContingencyBackupTicketsAnswer> = {},
+): CoreData<ContingencyBackupTicketsAnswer> {
+  return { status: "loaded", value: backupTickets(tickets), refreshing: false };
 }
 
 function noticeCard(panel: Element): HTMLElement {
@@ -469,5 +480,58 @@ describe("RegisterStatusBar", () => {
     const screen = await renderBar({ status: loaded({ fiscal_mode: "real_time" }) });
 
     await expect.element(screen.getByRole("button", { name: /aviso/ })).not.toBeInTheDocument();
+  });
+  describe("contingency backup tickets", () => {
+    it("counts a notice for tickets that did not print, whatever the fiscal mode", async () => {
+      const screen = await renderBar({
+        status: loaded({ fiscal_mode: "real_time" }),
+        backupTickets: loadedTickets({ to_print: 2 }),
+      });
+
+      await userEvent.click(screen.getByRole("button", { name: "1 aviso" }));
+
+      await expect.element(screen.getByText("Tickets de respaldo sin imprimir")).toBeVisible();
+    });
+
+    it("counts them beside the conditions and the contingency", async () => {
+      const screen = await renderBar({
+        status: loaded({
+          fiscal_mode: "offline_code",
+          conditions: [{ kind: "serial_device_missing", level: "warning" }],
+        }),
+        backupTickets: loadedTickets({ to_print: 1, missing_key: 1 }),
+      });
+
+      await userEvent.click(screen.getByRole("button", { name: "4 avisos" }));
+
+      await expect.element(screen.getByText("Tickets de respaldo sin imprimir")).toBeVisible();
+      await expect
+        .element(screen.getByText("No se pudo armar el ticket de respaldo"))
+        .toBeVisible();
+      await expect.element(screen.getByText("Facturación en modo de respaldo")).toBeVisible();
+    });
+
+    it("discards the tickets when the person closes the discard notice", async () => {
+      const onDiscardBackupTickets = vi.fn();
+      const screen = await renderBar({
+        backupTickets: loadedTickets({ discardable: 2, may_discard: true }),
+        onDiscardBackupTickets,
+      });
+
+      await userEvent.click(screen.getByRole("button", { name: "1 aviso" }));
+      await userEvent.click(screen.getByRole("button", { name: "Cerrar" }).last());
+
+      expect(onDiscardBackupTickets).toHaveBeenCalledOnce();
+    });
+
+    it.each([
+      ["loading", { status: "loading" }],
+      ["failed", { status: "failed", retry: () => {} }],
+      ["quiet", loadedTickets({ kept: 3 })],
+    ] as const)("shows no notice while the tickets are %s", async (_name, backupTicketsData) => {
+      const screen = await renderBar({ backupTickets: backupTicketsData });
+
+      await expect.element(screen.getByRole("button", { name: /aviso/ })).not.toBeInTheDocument();
+    });
   });
 });

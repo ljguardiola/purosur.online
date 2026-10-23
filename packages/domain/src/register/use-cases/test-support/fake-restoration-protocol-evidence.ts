@@ -8,6 +8,7 @@ export const COMPLETED_RESTORATION: RestorationEvidence = {
   replenish: "completed",
   reconcile_fiscal_counters: "completed",
   regularize_orphan_authorizations: "completed",
+  origin: "copy",
   cloud: "unknown",
 };
 

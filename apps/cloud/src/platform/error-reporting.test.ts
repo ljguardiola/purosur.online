@@ -20,13 +20,13 @@ describe("reportError", () => {
     const error = new Error("connection terminated unexpectedly");
 
     expect(() =>
-      reportError("recovery worker: idle database client failed", error, {
+      reportError("background job runner: idle database client failed", error, {
         captureException,
       }),
     ).not.toThrow();
 
     expect(consoleError).toHaveBeenCalledExactlyOnceWith(
-      "recovery worker: idle database client failed",
+      "background job runner: idle database client failed",
       error,
     );
     expect(captureException).toHaveBeenCalledExactlyOnceWith(error);
@@ -56,13 +56,13 @@ describe("reportError", () => {
     const error = new Error("connection terminated unexpectedly");
 
     expect(() =>
-      reportError("recovery worker: idle database client failed", error, {
+      reportError("background job runner: idle database client failed", error, {
         captureException,
       }),
     ).not.toThrow();
 
     expect(consoleError).toHaveBeenCalledExactlyOnceWith(
-      "recovery worker: idle database client failed",
+      "background job runner: idle database client failed",
       error,
     );
     expect(captureException).toHaveBeenCalledExactlyOnceWith(error);
@@ -76,7 +76,7 @@ describe("reportError", () => {
     const error = new Error("connection terminated unexpectedly");
 
     expect(() =>
-      reportError("recovery worker: idle database client failed", error, {
+      reportError("background job runner: idle database client failed", error, {
         captureException,
       }),
     ).not.toThrow();
@@ -89,7 +89,9 @@ describe("reportError", () => {
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
     const error = new Error("connection terminated unexpectedly");
 
-    expect(() => reportError("recovery worker: idle database client failed", error)).not.toThrow();
+    expect(() =>
+      reportError("background job runner: idle database client failed", error),
+    ).not.toThrow();
 
     expect(captureException).toHaveBeenCalledExactlyOnceWith(error);
     expect(consoleError).toHaveBeenCalledWith(expect.any(String), error);

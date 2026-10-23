@@ -1,5 +1,8 @@
 import type { SnapshotRestoreFailureStage } from "../model/snapshot-restore-failure.js";
-import type { RestoreNewestSnapshotGenerationPorts } from "./snapshot-restoration-ports.js";
+import type {
+  FirstInstallation,
+  RestoreNewestSnapshotGenerationPorts,
+} from "./snapshot-restoration-ports.js";
 
 export interface FailedSnapshotGeneration {
   generationId: string;
@@ -8,7 +11,7 @@ export interface FailedSnapshotGeneration {
 
 export type RestoreNewestSnapshotGenerationOutcome =
   | { kind: "restored"; generationId: string; failures: FailedSnapshotGeneration[] }
-  | { kind: "no_generation" }
+  | { kind: "no_generation"; firstInstallation?: FirstInstallation }
   | { kind: "none_usable"; failures: FailedSnapshotGeneration[] }
   | { kind: "unreachable" };
 
@@ -21,7 +24,9 @@ export async function restoreNewestSnapshotGeneration({
     return { kind: "unreachable" };
   }
   if (listing.generations.length === 0) {
-    return { kind: "no_generation" };
+    return listing.firstInstallation === undefined
+      ? { kind: "no_generation" }
+      : { kind: "no_generation", firstInstallation: listing.firstInstallation };
   }
 
   const failures: FailedSnapshotGeneration[] = [];

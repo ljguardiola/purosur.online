@@ -10,6 +10,7 @@ import type {
   TaxAuthorityVoucher,
   UnclearOutcomeDecision,
 } from "../model/unclear-outcome-decision.js";
+import type { AttachedSaleEvents } from "./attached-sale-event-ports.js";
 import type {
   AuthorizationRequestRecord,
   FiscalDocumentData,
@@ -96,5 +97,6 @@ export interface DecideUnclearRealTimeOutcomePorts {
 export interface AskAboutUnclearOutcomePorts {
   lanes: UnclearOutcomeLanes;
   saleCompletions: SaleCompletions;
+  attachedSaleEvents: AttachedSaleEvents;
   clock: Clock;
 }

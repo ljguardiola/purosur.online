@@ -11,8 +11,11 @@ import {
   DEFAULT_EXPIRING_LOT_ALERT_DAYS,
   DEFAULT_GOOD_CONDITION_RETURN_DAYS,
   DEFAULT_UNREVIEWED_PRICE_ALERT_DAYS,
+  DEFERRED_SALE_STATES,
   type EventQuarantine,
   FACTURA_C_DOCUMENT_TYPE,
+  FISCAL_TASK_KINDS,
+  FISCAL_TASK_STATES,
   type FiscalDocumentType,
   type JsonValue,
   OFFLINE_AUTHORIZATION_CAUSES,
@@ -2642,10 +2645,62 @@ export const numberingFreezes = pgTable(
   (table) => [check("numbering_freezes_non_negative_check", sql`${table.countBeforeFreeze} >= 0`)],
 );
 
-// A task for a person: an authorization the tax authority holds that this system did not issue, or
-// a credit note it rejected. One per voucher held outside the register and one per rejected credit
-// note, so detecting either again opens nothing new; credit notes rejected at the same number each
-// keep their own. The register is the one that holds the point of sale when the task is opened.
+// The cloud's copy of a deferred sale a register recorded, kept up to date from the register's
+// synchronized events: pending until a fiscal document satisfies it, its sale is voided, or its
+// expiry passes. It keeps the time it expired at even when a document satisfies it afterwards.
+export const deferredSales = pgTable(
+  "deferred_sales",
+  {
+    id: uuid("id").primaryKey(),
+    saleId: uuid("sale_id").notNull(),
+    registerId: uuid("register_id")
+      .notNull()
+      .references(() => registers.id),
+    locationId: uuid("location_id")
+      .notNull()
+      .references(() => locations.id),
+    occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull(),
+    total: bigint("total", { mode: "number" }).notNull(),
+    reason: text("reason").notNull(),
+    shortCode: text("short_code").notNull(),
+    routedAt: timestamp("routed_at", { withTimezone: true }).notNull(),
+    state: text("state").notNull(),
+    satisfiedAt: timestamp("satisfied_at", { withTimezone: true }),
+    cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
+    expiredAt: timestamp("expired_at", { withTimezone: true }),
+  },
+  (table) => [
+    index("deferred_sales_pending_idx").on(table.occurredAt).where(sql`${table.state} = 'pending'`),
+    index("deferred_sales_unbilled_idx")
+      .on(table.locationId, table.occurredAt)
+      .where(sql`${table.state} in ('pending', 'expired')`),
+    index("deferred_sales_sale_idx").on(table.saleId),
+    check(
+      "deferred_sales_state_check",
+      sql`${table.state} in (${sql.raw(DEFERRED_SALE_STATES.map((state) => `'${state}'`).join(", "))})`,
+    ),
+    check(
+      "deferred_sales_satisfied_time_check",
+      sql`(${table.state} = 'satisfied') = (${table.satisfiedAt} is not null)`,
+    ),
+    check(
+      "deferred_sales_cancelled_time_check",
+      sql`(${table.state} = 'cancelled') = (${table.cancelledAt} is not null)`,
+    ),
+    check(
+      "deferred_sales_expired_time_check",
+      sql`(${table.state} = 'expired' and ${table.expiredAt} is not null) or (${table.state} = 'pending' and ${table.expiredAt} is null) or ${table.state} in ('satisfied', 'cancelled')`,
+    ),
+  ],
+);
+
+// A task for a person: an authorization the tax authority holds that this system did not issue, a
+// credit note it rejected, or a deferred sale that expired without being invoiced. One per voucher
+// held outside the register, one per rejected credit note and one per expired deferred sale, so
+// detecting any of them again opens nothing new; credit notes rejected at the same number each
+// keep their own. A task about a voucher names the register that holds its point of sale when the
+// task is opened; a task about a deferred sale names the register that recorded the sale, and no
+// voucher: none was ever issued for it.
 export const fiscalTasks = pgTable(
   "fiscal_tasks",
   {
@@ -2654,10 +2709,11 @@ export const fiscalTasks = pgTable(
     registerId: uuid("register_id")
       .notNull()
       .references(() => registers.id),
-    pointOfSale: integer("point_of_sale").notNull(),
-    documentType: text("document_type").notNull(),
-    number: integer("number").notNull(),
+    pointOfSale: integer("point_of_sale"),
+    documentType: text("document_type"),
+    number: integer("number"),
     creditNoteId: uuid("credit_note_id").references(() => creditNotes.id),
+    deferredSaleId: uuid("deferred_sale_id").references(() => deferredSales.id),
     reason: jsonb("reason").$type<JsonValue>().notNull(),
     state: text("state").notNull().default("open"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
@@ -2668,19 +2724,31 @@ export const fiscalTasks = pgTable(
       .on(table.pointOfSale, table.documentType, table.number)
       .where(sql`${table.kind} = 'external_invoicing'`),
     uniqueIndex("fiscal_tasks_credit_note_key").on(table.creditNoteId),
+    uniqueIndex("fiscal_tasks_deferred_sale_key").on(table.deferredSaleId),
     check(
       "fiscal_tasks_kind_check",
-      sql`${table.kind} in ('external_invoicing', 'credit_note_rejected')`,
+      sql`${table.kind} in (${sql.raw(FISCAL_TASK_KINDS.map((kind) => `'${kind}'`).join(", "))})`,
     ),
     check(
       "fiscal_tasks_credit_note_check",
       sql`(${table.kind} = 'credit_note_rejected') = (${table.creditNoteId} is not null)`,
     ),
     check(
+      "fiscal_tasks_deferred_sale_check",
+      sql`(${table.kind} = 'deferred_sale_expired') = (${table.deferredSaleId} is not null)`,
+    ),
+    check(
+      "fiscal_tasks_voucher_check",
+      sql`(${table.kind} = 'deferred_sale_expired' and ${table.pointOfSale} is null and ${table.documentType} is null and ${table.number} is null) or (${table.kind} <> 'deferred_sale_expired' and ${table.pointOfSale} is not null and ${table.documentType} is not null and ${table.number} is not null)`,
+    ),
+    check(
       "fiscal_tasks_document_type_check",
       sql`${table.documentType} in (${sql.raw(`'${FACTURA_C_DOCUMENT_TYPE}', '${CREDIT_NOTE_C_DOCUMENT_TYPE}'`)})`,
     ),
-    check("fiscal_tasks_state_check", sql`${table.state} in ('open', 'closed')`),
+    check(
+      "fiscal_tasks_state_check",
+      sql`${table.state} in (${sql.raw(FISCAL_TASK_STATES.map((state) => `'${state}'`).join(", "))})`,
+    ),
     check(
       "fiscal_tasks_closed_time_check",
       sql`(${table.state} = 'closed') = (${table.closedAt} is not null)`,

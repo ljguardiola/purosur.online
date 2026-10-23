@@ -43,6 +43,7 @@ function deps(): DeferredSaleInvoiceRequestDeps {
     signedInUserId: () => signedInPerson.userId(),
     printers: { configured: () => new ControllableReceiptPrinter() },
     jobs,
+    ticketedSteps: (_operation, _subjectId, operate) => operate((step) => step()),
     invoicing,
   };
 }

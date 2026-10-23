@@ -1829,6 +1829,8 @@ describe("wiring the register point of sale routes", () => {
   it.each([
     ["GET", "/api/registers/points-of-sale"],
     ["GET", "/api/registers/fortnight-presentations"],
+    ["GET", "/api/fiscal/tasks"],
+    ["GET", "/api/fiscal/unbilled-deferred-sales"],
     ["POST", "/api/registers/fortnight-presentations/rejected-document-remedies"],
     ["GET", "/api/registers/buyer-tax-statuses"],
     ["PUT", "/api/registers/00000000-0000-0000-0000-000000000000/point-of-sale"],
@@ -2979,6 +2981,11 @@ describe("the route access inventory", () => {
       },
       {
         method: "GET",
+        url: "/api/reports/cash-session-closes",
+        access: capabilityAccess("reports_area"),
+      },
+      {
+        method: "GET",
         url: "/api/registers/sync-status",
         access: OPEN_SESSION_ACCESS,
       },
@@ -3086,6 +3093,16 @@ describe("the route access inventory", () => {
         method: "GET",
         url: "/api/registers/fortnight-presentations",
         access: capabilityAccess("cash_area"),
+      },
+      {
+        method: "GET",
+        url: "/api/fiscal/tasks",
+        access: capabilityAccess("fiscal_information"),
+      },
+      {
+        method: "GET",
+        url: "/api/fiscal/unbilled-deferred-sales",
+        access: capabilityAccess("fiscal_information"),
       },
       {
         method: "POST",

@@ -43,6 +43,8 @@ const ALERT_KIND_DESCRIPTIONS = {
   register_backup_overdue:
     "Una caja registró cambios y lleva más de una hora sin un backup verificado",
   clock_drift: "La hora de una caja difiere en más de un minuto de la hora real",
+  deferred_sale_due:
+    "Una venta diferida todavía no se facturó y se acerca el día en que ya no podrá facturarse.",
 } satisfies Record<AlertKind, string>;
 
 export const DESCRIBED_ALERT_KINDS: readonly string[] = Object.keys(ALERT_KIND_DESCRIPTIONS);

@@ -5,7 +5,7 @@ import postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AccessEmailSender } from "../credentials/recovery-email-sender.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
-import { setUpRecovery } from "../server.js";
+import { setUpBackgroundJobs } from "../server.js";
 import { insertInboxEvent } from "../sync/test-support/inbox-events.js";
 import {
   createIntegrationDatabase,
@@ -117,7 +117,7 @@ beforeEach(async () => {
 });
 
 async function runReportTask() {
-  const recovery = await setUpRecovery(
+  const backgroundJobs = await setUpBackgroundJobs(
     {
       databaseUrl: integrationDb.databaseUrl,
       emailSender: { transport: "log" as const },
@@ -136,7 +136,7 @@ async function runReportTask() {
     { emailSender: UNUSED_EMAIL_SENDER, schedules: false },
   );
   try {
-    await recovery.workerUtils.addJob(FORTNIGHT_REPORT_TASK_IDENTIFIER, {});
+    await backgroundJobs.workerUtils.addJob(FORTNIGHT_REPORT_TASK_IDENTIFIER, {});
     await vi.waitFor(
       async () => {
         expect(
@@ -146,7 +146,7 @@ async function runReportTask() {
       { timeout: 20_000, interval: 100 },
     );
   } finally {
-    await recovery.close();
+    await backgroundJobs.close();
   }
 }
 
