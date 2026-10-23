@@ -339,27 +339,14 @@ class DrizzleInboxTransaction<TQueryResult extends PgQueryResultHKT> implements 
     );
   }
 
-  async setAsideUnappliedHeldEvents(
+  async setAsideHeldEventsAbove(
     deviceId: string,
-    events: readonly PushedEvent[],
+    aboveSeq: number,
     refusedAt: Date,
   ): Promise<void> {
-    if (events.length === 0) {
-      return;
-    }
+    const heldAbove = and(eq(inbox.deviceId, deviceId), gt(inbox.deviceSeq, aboveSeq));
     const setAside = await this.tx
-      .delete(inbox)
-      .where(
-        and(
-          eq(inbox.deviceId, deviceId),
-          inArray(
-            inbox.eventId,
-            events.map((event) => event.event_id),
-          ),
-          isNull(inbox.appliedAt),
-        ),
-      )
-      .returning({
+      .select({
         eventId: inbox.eventId,
         deviceSeq: inbox.deviceSeq,
         aggregateType: inbox.aggregateType,
@@ -370,13 +357,16 @@ class DrizzleInboxTransaction<TQueryResult extends PgQueryResultHKT> implements 
         occurredAt: inbox.occurredAt,
         actorId: inbox.actorId,
         chainHmac: inbox.chainHmac,
-      });
+      })
+      .from(inbox)
+      .where(heldAbove);
     if (setAside.length === 0) {
       return;
     }
     await this.tx
       .insert(refusedEvents)
       .values(setAside.map((row) => ({ ...row, deviceId, refusedAt })));
+    await this.tx.delete(inbox).where(and(heldAbove, isNull(inbox.appliedAt)));
   }
 
   async revokeForBrokenChain(deviceId: string, revokedAt: Date): Promise<void> {

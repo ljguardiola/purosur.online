@@ -4,9 +4,11 @@ import type {
   ReplenishmentPosition,
   RestoredRegisterReplenishment,
 } from "@purosur/domain/sync/use-cases";
-import { and, asc, eq, gt, or } from "drizzle-orm";
-import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { inbox, registerInstallations } from "../platform/db/schema.js";
+import { and, asc, eq, gt, lte, notExists, or, sql } from "drizzle-orm";
+import { alias, type PgDatabase, type PgQueryResultHKT } from "drizzle-orm/pg-core";
+import { inbox, refusedEvents, registerInstallations } from "../platform/db/schema.js";
+
+const heldBelow = alias(inbox, "held_below");
 
 export class DrizzleRegisterReplenishment<TQueryResult extends PgQueryResultHKT>
   implements RestoredRegisterReplenishment
@@ -61,6 +63,7 @@ export class DrizzleRegisterReplenishment<TQueryResult extends PgQueryResultHKT>
                 ),
               )
             : undefined,
+          notExists(this.setAsideByARefusedPush()),
         ),
       )
       .orderBy(
@@ -84,6 +87,30 @@ export class DrizzleRegisterReplenishment<TQueryResult extends PgQueryResultHKT>
         chain_hmac: row.chainHmac,
       },
     }));
+  }
+
+  // A refused push also keeps the acknowledged events it carried again; only those above the hole
+  // it left were set aside.
+  private setAsideByARefusedPush() {
+    return this.db
+      .select({ eventId: refusedEvents.eventId })
+      .from(refusedEvents)
+      .where(
+        and(
+          eq(refusedEvents.deviceId, inbox.deviceId),
+          eq(refusedEvents.eventId, inbox.eventId),
+          eq(refusedEvents.deviceSeq, inbox.deviceSeq),
+          sql`(${this.db
+            .select({ held: sql`count(*)` })
+            .from(heldBelow)
+            .where(
+              and(
+                eq(heldBelow.deviceId, inbox.deviceId),
+                lte(heldBelow.deviceSeq, inbox.deviceSeq),
+              ),
+            )}) < ${inbox.deviceSeq}`,
+        ),
+      );
   }
 
   private async enrolledAtOf(registerId: string, deviceId: string): Promise<Date> {
