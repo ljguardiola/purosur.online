@@ -82,10 +82,24 @@ const SALE = "0f0f0f0f-0f0f-4f0f-8f0f-0f0f0f0f0f0f";
 const NOTE = "1a1a1a1a-1a1a-4a1a-8a1a-1a1a1a1a1a1a";
 const CORRECTS = { type: 11, pointOfSale: 7, number: 1 };
 
+function insertFacturaBeforeMigration(client: SqlOnlyDatabase, registerId: string) {
+  return client.query(
+    `insert into offline_fiscal_documents
+       (id, sale_id, register_id, point_of_sale, document_type, number, issued_on,
+        generated_at, generation_stamp, offline_authorization_code, fortnight_start,
+        fortnight_end, buyer_document_type, buyer_document_number, buyer_tax_status_code,
+        total, net_amount, cause, recorded_at)
+     values (gen_random_uuid(), $2::uuid, $1, 7, 'factura_c', 1, '2026-10-06',
+             '2026-10-06T11:20:00Z', '20261006082000', '21403471111111', '2026-10-01',
+             '2026-10-15', 99, 0, 5, 4800, 4800, 'no_connectivity', '2026-10-06T15:00:00Z')`,
+    [registerId, SALE],
+  );
+}
+
 async function migrated() {
   const database = await databaseBeforeMigration(TAG);
   const registerId = await seedRegisterAndClaim(database);
-  await insertDocument(database, registerId, { saleId: SALE, number: 1 });
+  await insertFacturaBeforeMigration(database, registerId);
   const after = await database.applyMigration();
   return { database: after, registerId };
 }

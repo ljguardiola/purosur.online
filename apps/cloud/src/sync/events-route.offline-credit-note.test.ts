@@ -81,6 +81,7 @@ async function enrolledWithSale() {
   const { deviceId, deviceToken, registerId } = await insertEnrolledInstallation(route.db, {
     now: NOW,
     outboxChainKey: CHAIN_KEY,
+    registerName: "Caja del mostrador",
   });
   await applyCompletedSale(route.db, {
     deviceId,
