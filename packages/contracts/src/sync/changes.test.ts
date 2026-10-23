@@ -739,12 +739,45 @@ describe("changesPageSchema", () => {
     ).toThrow();
   });
 
-  it("refuses an offline point of sale that carries no series counts", () => {
-    const { series_counts: _counts, ...withoutCounts } = offlinePointOfSaleRow;
+  it("reads the offline point of sale of a cloud that predates series counts as its factura C series, the credit note series unknown", () => {
+    const legacyRow = {
+      point_of_sale_number: 20,
+      tax_authority_last_authorized_number: 38,
+      highest_synced_offline_number: 240,
+      version: 1,
+    };
 
-    expect(() =>
-      changesPageSchema.parse(pageOf(change(1, "register_offline_point_of_sale", withoutCounts))),
-    ).toThrow();
+    expect(
+      changesPageSchema.parse(pageOf(change(1, "register_offline_point_of_sale", legacyRow)))
+        .changes[0],
+    ).toEqual(
+      change(1, "register_offline_point_of_sale", {
+        point_of_sale_number: 20,
+        series_counts: [facturaSeriesCount],
+        version: 1,
+      }),
+    );
+  });
+
+  it("reads the offline point of sale of a cloud that predates series counts and sends no count as a factura C series whose counts are unknown", () => {
+    const legacyRow = { point_of_sale_number: 20, version: 1 };
+
+    expect(
+      changesPageSchema.parse(pageOf(change(1, "register_offline_point_of_sale", legacyRow)))
+        .changes[0],
+    ).toEqual(
+      change(1, "register_offline_point_of_sale", {
+        point_of_sale_number: 20,
+        series_counts: [
+          {
+            document_type: "factura_c",
+            tax_authority_last_authorized_number: null,
+            highest_synced_offline_number: null,
+          },
+        ],
+        version: 1,
+      }),
+    );
   });
 
   it("reads a threshold of a cloud that does not send its revision yet as the first of its day", () => {

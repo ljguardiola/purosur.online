@@ -273,7 +273,7 @@ describe("readSaleHistoryDetail", () => {
       });
     });
 
-    it("shows a sale that carries an authorized invoice as voidable while the tax authority can be reached", () => {
+    it("shows a sale that carries an authorized invoice as voidable", () => {
       const history = new FakeRegisterSalesHistory([historySale()]);
       const ledger = new FakeReceiptLedger({ sales: [completedSale()] });
 

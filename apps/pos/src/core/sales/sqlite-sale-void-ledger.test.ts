@@ -649,9 +649,8 @@ describe("the credit note of a sale voided without a connection", () => {
   it("is issued under the fortnight's code, numbered in the credit note series of the offline point of sale", async () => {
     const saleId = invoicedSaleWithOfflineCreditNoteSeries();
 
-    const outcome = await voidIt(saleId);
+    await voidIt(saleId);
 
-    expect(outcome).toMatchObject({ kind: "voided", creditNoteIssuedOffline: true });
     expect(
       database
         .prepare(
@@ -752,9 +751,8 @@ describe("the credit note of a sale voided without a connection", () => {
     const saleId = invoicedSaleWithOfflineCreditNoteSeries();
     database.exec("DELETE FROM offline_number_blocks");
 
-    const outcome = await voidIt(saleId);
+    await voidIt(saleId);
 
-    expect(outcome).toMatchObject({ kind: "voided", creditNoteIssuedOffline: false });
     expect(database.prepare("SELECT state FROM sale_void_credit_notes").all()).toEqual([
       { state: "IN_PROGRESS" },
     ]);

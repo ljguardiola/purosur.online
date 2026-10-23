@@ -376,7 +376,7 @@ describe("remedyRejectedDocument, for a rejected credit note", () => {
     expect(store.snapshot()).toEqual({ remedies: [], audits: [] });
   });
 
-  it("still tells a credit note that is not rejected apart from a remedy that is not offered", async () => {
+  it("refuses a remedy not offered for a credit note before looking up whether it was rejected", async () => {
     const store = setUp(null);
 
     const outcome = await remedy(store, {
@@ -385,5 +385,6 @@ describe("remedyRejectedDocument, for a rejected credit note", () => {
     });
 
     expect(outcome).toEqual({ kind: "remedy_not_offered" });
+    expect(store.operationOrder).toEqual([]);
   });
 });

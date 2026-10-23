@@ -244,7 +244,6 @@ describe("voidSale", () => {
         refunds: [CASH_REFUND],
         grant: OWN_GRANT,
         creditNote: null,
-        creditNoteIssuedOffline: false,
       });
       expect(store.state.sales).toEqual([{ ...COMPLETED_SALE, state: "VOIDED", voidedAt: NOW }]);
       expect(store.state.refunds).toEqual([CASH_REFUND]);
@@ -843,7 +842,6 @@ describe("voidSale", () => {
       expect(outcome).toMatchObject({
         kind: "voided",
         creditNote: CREDIT_NOTE,
-        creditNoteIssuedOffline: true,
       });
       expect(store.state.issuedOfflineCreditNotes).toEqual([OFFLINE_CREDIT_NOTE]);
       expect(store.transactions).toBe(1);
@@ -956,7 +954,6 @@ describe("voidSale", () => {
       expect(outcome).toMatchObject({
         kind: "voided",
         creditNote: CREDIT_NOTE,
-        creditNoteIssuedOffline: false,
       });
       expect(store.state.creditNotes).toEqual([CREDIT_NOTE]);
       expect(store.state.issuedOfflineCreditNotes).toEqual([]);
@@ -969,7 +966,7 @@ describe("voidSale", () => {
 
       const outcome = await void_(store);
 
-      expect(outcome).toMatchObject({ kind: "voided", creditNoteIssuedOffline: false });
+      expect(outcome).toMatchObject({ kind: "voided" });
       expect(store.state.creditNotes).toEqual([CREDIT_NOTE]);
       expect(store.state.issuedOfflineCreditNotes).toEqual([]);
     });

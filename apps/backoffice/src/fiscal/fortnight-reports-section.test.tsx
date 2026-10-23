@@ -199,17 +199,17 @@ test("explains above the table why the credit notes of a presentation wait", asy
     .toBeVisible();
   await expect
     .element(
-      screen.getByText(
-        `Las notas de crédito del informe ${formatCalendarDayRange("2026-09-01", "2026-09-15")} del punto de venta 00004 esperan el informe de la factura que corrigen`,
-        { exact: true },
-      ),
+      screen.getByText("ARCA todavía no aceptó el informe de una quincena anterior", {
+        exact: true,
+      }),
     )
     .toBeVisible();
   await expect
     .element(
-      screen.getByText("Se presentan cuando ARCA acepte ese informe, de una quincena anterior.", {
-        exact: true,
-      }),
+      screen.getByText(
+        `Las notas de crédito del informe ${formatCalendarDayRange("2026-09-01", "2026-09-15")} del punto de venta 00004 corrigen facturas de ese informe y se pueden presentar cuando ARCA lo acepte.`,
+        { exact: true },
+      ),
     )
     .toBeVisible();
 });

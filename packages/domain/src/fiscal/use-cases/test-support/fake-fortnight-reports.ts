@@ -1,5 +1,5 @@
 import type { InstallationStreamReach } from "../../../sync/index.js";
-import type { FiscalTaskDocumentType as FiscalDocumentType } from "../../model/fiscal-task.js";
+import type { OfflineSeriesDocumentType } from "../../model/fiscal-voucher-type.js";
 import {
   isFortnightPresentationOwed,
   isOfflineDocumentReported,
@@ -186,17 +186,21 @@ export class FakeFortnightReportStore implements FortnightReportStore {
     this.reportedThrough.set(typeKeyOf(key, row.documentType), row.reportedThrough);
   }
 
-  recordRemedy(key: FortnightReportKey, documentType: FiscalDocumentType, remedy: RecordedRemedy) {
+  recordRemedy(
+    key: FortnightReportKey,
+    documentType: OfflineSeriesDocumentType,
+    remedy: RecordedRemedy,
+  ) {
     this.remedies.set(typeKeyOf(key, documentType), remedy);
   }
 
-  rejectionAt(key: FortnightReportKey, documentType: FiscalDocumentType): Date | null {
+  rejectionAt(key: FortnightReportKey, documentType: OfflineSeriesDocumentType): Date | null {
     return this.documentTypeRows.get(typeKeyOf(key, documentType))?.lastAttemptAt ?? null;
   }
 
   seedReportedThrough(
     key: FortnightReportKey,
-    documentType: FiscalDocumentType,
+    documentType: OfflineSeriesDocumentType,
     reportedThrough: number,
   ): void {
     this.reportedThrough.set(typeKeyOf(key, documentType), reportedThrough);
@@ -360,7 +364,7 @@ export class FakeTaxAuthorityOfflineDocumentReports implements TaxAuthorityOffli
     this.operations = operations;
   }
 
-  hold(pointOfSaleNumber: number, documentType: FiscalDocumentType, number: number): void {
+  hold(pointOfSaleNumber: number, documentType: OfflineSeriesDocumentType, number: number): void {
     this.held.set(`${pointOfSaleNumber}:${documentType}`, number);
   }
 
