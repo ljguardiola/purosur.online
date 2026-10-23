@@ -2,11 +2,12 @@ import type {
   NumberingConflictDiagnosis,
   NumberingReconciliationDocument,
 } from "../../model/numbering-conflict.js";
-import type {
-  OrphanRegularization,
-  RequestsAtNumber,
-  SaleCreditNote,
-  SaleDocument,
+import {
+  creditNotesDecidedFor,
+  type OrphanRegularization,
+  type RequestsAtNumber,
+  type SaleCreditNote,
+  type SaleDocument,
 } from "../../model/orphan-authorization.js";
 import type { RealTimeAuthorizationAnswer } from "../../model/real-time-authorization.js";
 import type { WsaaTokenSource } from "../fiscal-document-authorization-ports.js";
@@ -25,7 +26,6 @@ import type {
 } from "../tax-authority-count-ports.js";
 import type { TaxAuthorityVoucherLookup, VoucherAnswer } from "../unclear-outcome-ports.js";
 import type { WsaaToken } from "../wsaa-token-ports.js";
-import { creditNotesRecordedFor } from "./recorded-credit-notes.js";
 
 export type SeededSaleDocument = SaleDocument & { fiscalDocumentId?: string };
 
@@ -261,7 +261,7 @@ class FakeNumberingConflictLane implements NumberingConflictLane {
     this.store.record("creditNotesOfSale");
     return [
       ...(this.store.current.creditNotes.get(saleId) ?? []),
-      ...creditNotesRecordedFor(saleId, this.store.current.regularizations),
+      ...creditNotesDecidedFor(saleId, this.store.current.regularizations),
     ];
   }
 

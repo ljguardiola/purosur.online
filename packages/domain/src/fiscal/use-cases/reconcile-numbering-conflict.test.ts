@@ -408,7 +408,7 @@ describe("reconcileNumberingConflict", () => {
     });
 
     it("credits nothing for a released document of the sale whose number the tax authority confirmed for another sale", async () => {
-      const { store, ports } = scenario({
+      const { ports } = scenario({
         ...gaps,
         standings: [
           [12, requestsAt({ ...SALE_9_REQUEST, fiscalDocumentId: "document-12" })],
