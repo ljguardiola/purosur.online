@@ -3,8 +3,7 @@ import type { SupplierPriceListReview, SupplierPriceListSummary } from "@purosur
 export const READ_LIST: SupplierPriceListSummary = {
   id: "5b100000-0000-4000-8000-000000000001",
   supplier: { id: "5a900000-0000-4000-8000-000000000001", name: "Distribuidora Andina" },
-  sourceKind: "PDF",
-  fileName: "lista-septiembre-2026.pdf",
+  source: { kind: "PDF", fileName: "lista-septiembre-2026.pdf" },
   listDate: "2026-09-25",
   rowCount: 14,
   unpricedRowCount: 2,
@@ -18,7 +17,7 @@ export const REVIEWED_LIST: SupplierPriceListSummary = {
   ...READ_LIST,
   id: "5b100000-0000-4000-8000-000000000002",
   supplier: { id: "5a900000-0000-4000-8000-000000000002", name: "Granos del Valle" },
-  fileName: "precios-granos.pdf",
+  source: { kind: "PDF", fileName: "precios-granos.pdf" },
   listDate: "2026-08-10",
   rowCount: 212,
   unpricedRowCount: 0,
@@ -29,7 +28,7 @@ export const READING_LIST: SupplierPriceListSummary = {
   ...READ_LIST,
   id: "5b100000-0000-4000-8000-000000000003",
   supplier: { id: "5a900000-0000-4000-8000-000000000003", name: "Cerealera del Norte" },
-  fileName: "lista-cerealera.pdf",
+  source: { kind: "PDF", fileName: "lista-cerealera.pdf" },
   listDate: null,
   rowCount: 0,
   unpricedRowCount: 0,
@@ -40,7 +39,7 @@ export const FAILED_LIST: SupplierPriceListSummary = {
   ...READ_LIST,
   id: "5b100000-0000-4000-8000-000000000004",
   supplier: { id: "5a900000-0000-4000-8000-000000000004", name: "Molinos San Javier" },
-  fileName: "precios-molino.pdf",
+  source: { kind: "PDF", fileName: "precios-molino.pdf" },
   listDate: null,
   rowCount: 0,
   unpricedRowCount: 0,
@@ -51,16 +50,44 @@ export const FAILED_LIST: SupplierPriceListSummary = {
 export const DISCARDED_LIST: SupplierPriceListSummary = {
   ...READ_LIST,
   id: "5b100000-0000-4000-8000-000000000005",
-  fileName: "lista-vieja.pdf",
+  source: { kind: "PDF", fileName: "lista-vieja.pdf" },
   state: "DISCARDED",
 };
 
 export const REPLACED_LIST: SupplierPriceListSummary = {
   ...REVIEWED_LIST,
   id: "5b100000-0000-4000-8000-000000000006",
-  fileName: "precios-granos-julio.pdf",
+  source: { kind: "PDF", fileName: "precios-granos-julio.pdf" },
   listDate: "2026-07-10",
   replaced: true,
+};
+
+export const WEB_PAGE_URL = "https://distribuidoradelsur.com.ar/precios";
+
+export const WEB_LIST: SupplierPriceListSummary = {
+  ...READ_LIST,
+  id: "5b100000-0000-4000-8000-000000000007",
+  supplier: { id: "5a900000-0000-4000-8000-000000000007", name: "Distribuidora del Sur" },
+  source: { kind: "WEB_PAGE", url: WEB_PAGE_URL },
+};
+
+export const WEB_READING_LIST: SupplierPriceListSummary = {
+  ...WEB_LIST,
+  id: "5b100000-0000-4000-8000-000000000008",
+  listDate: null,
+  rowCount: 0,
+  unpricedRowCount: 0,
+  state: "READING",
+};
+
+export const WEB_FAILED_LIST: SupplierPriceListSummary = {
+  ...WEB_LIST,
+  id: "5b100000-0000-4000-8000-000000000009",
+  listDate: null,
+  rowCount: 0,
+  unpricedRowCount: 0,
+  state: "READ_FAILED",
+  readFailure: "unreadable_document",
 };
 
 type ReviewActions = SupplierPriceListReview["actions"];

@@ -17,6 +17,7 @@ import {
   READING_LIST,
   REPLACED_LIST,
   REVIEWED_LIST,
+  WEB_LIST,
 } from "./test-support/supplier-price-lists";
 
 beforeEach(() => {
@@ -118,6 +119,24 @@ test("shows the heading under Pedidos and every list with its supplier, file, da
   const granos = rowOf(screen, "Granos del Valle");
   await expect.element(granos.getByText("212")).toBeVisible();
   await expect.element(granos.getByText("Revisada")).toBeVisible();
+});
+
+test("shows a list read from a web page by its address without the scheme, marked as a web page", async () => {
+  const services = createServices();
+  const screen = await loaded(services, [WEB_LIST]);
+
+  const row = rowOf(screen, "Distribuidora del Sur");
+  await expect.element(row.getByText("distribuidoradelsur.com.ar/precios")).toBeVisible();
+  await expect.element(row.getByText("Página web")).toBeVisible();
+});
+
+test("finds a list read from a web page by its address", async () => {
+  const services = createServices();
+  const screen = await loaded(services, [READ_LIST, WEB_LIST], {
+    filters: supplierPriceListsFilters.parse({ search: "distribuidoradelsur" }),
+  });
+
+  expect(supplierNames(screen)).toEqual(["Distribuidora del Sur"]);
 });
 
 test("shows a dash for a list without a date, and every other state with its own label", async () => {
