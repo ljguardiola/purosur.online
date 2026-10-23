@@ -58,6 +58,11 @@ export type {
   ReceivePushedEventsOutcome,
 } from "./receive-pushed-events.js";
 export { receivePushedEvents } from "./receive-pushed-events.js";
+export type {
+  ReceiveRescuedEventsInput,
+  ReceiveRescuedEventsOutcome,
+} from "./receive-rescued-events.js";
+export { receiveRescuedEvents } from "./receive-rescued-events.js";
 export type { AcceptedPushLog, RecordAcceptedPushPorts } from "./record-accepted-push.js";
 export { recordAcceptedPush } from "./record-accepted-push.js";
 export type { RedeliveryOutcome } from "./redeliver-pulled-entities.js";

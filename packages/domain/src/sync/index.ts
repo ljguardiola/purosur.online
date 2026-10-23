@@ -21,6 +21,7 @@ export { PUSH_BATCH_MAX_EVENTS } from "./model/push-batch.js";
 export { isQuarantined } from "./model/quarantine-release.js";
 export { isLeftBehindByMinimum, isWellFormedRegisterVersion } from "./model/register-version.js";
 export { REPLENISHMENT_PAGE_MAX_EVENTS } from "./model/replenishment-page.js";
+export type { SyncedFact } from "./model/synced-fact.js";
 export type { SalesDenial, SalesStopReason, SalesStopState } from "./model/sales-stop.js";
 export {
   areNewSalesStopped,
