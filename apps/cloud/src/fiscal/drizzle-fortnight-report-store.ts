@@ -1,4 +1,8 @@
-import { FACTURA_C_VOUCHER_TYPE, isOfflineDocumentReported } from "@purosur/domain";
+import {
+  FACTURA_C_DOCUMENT_TYPE,
+  FACTURA_C_VOUCHER_TYPE,
+  isOfflineDocumentReported,
+} from "@purosur/domain";
 import type {
   DocumentTypeReportChange,
   FortnightReportChange,
@@ -20,6 +24,7 @@ import {
   registerPointsOfSale,
   rejectedDocumentRemedies,
 } from "../platform/db/schema.js";
+import { lockCreditedVoucher, voucherCreditedOffline } from "./credited-voucher.js";
 import { recordedDocumentTypeReports } from "./drizzle-recorded-document-type-reports.js";
 import type { EnqueueCreditNote } from "./enqueue-credit-note.js";
 import { fortnightReportLock } from "./fortnight-report-lock.js";
@@ -144,6 +149,10 @@ class DrizzleHeldFortnightReport<TQueryResult extends PgQueryResultHKT>
   async creditCorrectedDocument(creditNote: RejectedDocumentCreditNote): Promise<void> {
     const { associatedVoucher } = creditNote;
     await this.db.transaction(async (tx) => {
+      await lockCreditedVoucher(tx, associatedVoucher);
+      if (await voucherCreditedOffline(tx, associatedVoucher)) {
+        return;
+      }
       const [holder] = await tx
         .select({ registerId: registerPointsOfSale.registerId })
         .from(registerPointsOfSale)
@@ -228,9 +237,12 @@ export class DrizzleFortnightReportStore<TQueryResult extends PgQueryResultHKT>
       })
       .from(offlineFiscalDocuments)
       .where(
-        inArray(
-          offlineFiscalDocuments.fortnightStart,
-          accepted.map(({ fortnightStart }) => fortnightStart),
+        and(
+          inArray(
+            offlineFiscalDocuments.fortnightStart,
+            accepted.map(({ fortnightStart }) => fortnightStart),
+          ),
+          eq(offlineFiscalDocuments.documentType, FACTURA_C_DOCUMENT_TYPE),
         ),
       );
     const reports = await this.db

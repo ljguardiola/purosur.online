@@ -1,4 +1,4 @@
-import type { FiscalDocumentType } from "@purosur/domain";
+import type { FiscalTaskDocumentType } from "@purosur/domain";
 import type {
   LockBranchRegisterResult,
   OfflineNumberBlockRecord,
@@ -32,7 +32,7 @@ import { NEVER_CONFIGURED_VERSION } from "./register-point-of-sale-version.js";
 
 function offlineNumberBlocksLockKey(
   pointOfSaleNumber: number,
-  documentType: FiscalDocumentType,
+  documentType: FiscalTaskDocumentType,
 ): string {
   return `offline_number_blocks:${pointOfSaleNumber}:${documentType}`;
 }
@@ -131,7 +131,7 @@ export class DrizzleRegisterOfflinePointOfSaleStoreTransaction<
 
   async lockOfflineNumberBlocks(
     pointOfSaleNumber: number,
-    documentType: FiscalDocumentType,
+    documentType: FiscalTaskDocumentType,
   ): Promise<void> {
     const key = offlineNumberBlocksLockKey(pointOfSaleNumber, documentType);
     await this.tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${key}, 0))`);
@@ -139,7 +139,7 @@ export class DrizzleRegisterOfflinePointOfSaleStoreTransaction<
 
   async offlineNumberBlockInUse(
     pointOfSaleNumber: number,
-    documentType: FiscalDocumentType,
+    documentType: FiscalTaskDocumentType,
   ): Promise<OfflineNumberBlockRecord | null> {
     const [block] = await this.tx
       .select({
@@ -169,7 +169,7 @@ export class DrizzleRegisterOfflinePointOfSaleStoreTransaction<
 
   highestSyncedOfflineNumber(
     pointOfSaleNumber: number,
-    documentType: FiscalDocumentType,
+    documentType: FiscalTaskDocumentType,
   ): Promise<number | null> {
     return highestSyncedOfflineNumber(this.tx, pointOfSaleNumber, documentType);
   }

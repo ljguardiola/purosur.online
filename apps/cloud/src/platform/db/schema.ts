@@ -2391,7 +2391,7 @@ export const offlineFiscalDocuments = pgTable(
   },
   (table) => [
     unique("offline_fiscal_documents_sale_document_key").on(table.saleId, table.documentType),
-    uniqueIndex("offline_fiscal_documents_corrected_voucher_key")
+    index("offline_fiscal_documents_corrected_voucher_idx")
       .on(table.correctedVoucherType, table.correctedPointOfSale, table.correctedNumber)
       .where(sql`${table.documentType} = ${sql.raw(`'${CREDIT_NOTE_C_DOCUMENT_TYPE}'`)}`),
     check(

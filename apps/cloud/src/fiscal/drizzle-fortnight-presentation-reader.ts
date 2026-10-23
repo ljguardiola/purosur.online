@@ -1,9 +1,13 @@
-import { fortnightPresentationRows, fortnightReportDeadline } from "@purosur/domain";
+import {
+  FACTURA_C_DOCUMENT_TYPE,
+  fortnightPresentationRows,
+  fortnightReportDeadline,
+} from "@purosur/domain";
 import type {
   BranchFortnightPresentation,
   FortnightPresentationReader,
 } from "@purosur/domain/fiscal/use-cases";
-import { inArray } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { fortnightDocumentReports, offlineFiscalDocuments } from "../platform/db/schema.js";
 import { recordedRemedies, remedyKey } from "./drizzle-rejected-document-remedies.js";
@@ -42,7 +46,12 @@ export class DrizzleFortnightPresentationReader<TQueryResult extends PgQueryResu
               buyerTaxStatusCode: offlineFiscalDocuments.buyerTaxStatusCode,
             })
             .from(offlineFiscalDocuments)
-            .where(inArray(offlineFiscalDocuments.pointOfSale, pointsOfSale));
+            .where(
+              and(
+                inArray(offlineFiscalDocuments.pointOfSale, pointsOfSale),
+                eq(offlineFiscalDocuments.documentType, FACTURA_C_DOCUMENT_TYPE),
+              ),
+            );
     const documentReports =
       pointsOfSale.length === 0
         ? []
@@ -69,6 +78,7 @@ export class DrizzleFortnightPresentationReader<TQueryResult extends PgQueryResu
           movement,
           documents: documents.filter(isOfThisPresentation).map((document) => ({
             ...document,
+            documentType: FACTURA_C_DOCUMENT_TYPE as typeof FACTURA_C_DOCUMENT_TYPE,
             correction:
               corrections.get(
                 remedyKey(

@@ -1,4 +1,4 @@
-import type { FiscalDocumentType } from "../model/fiscal-rejection-standing.js";
+import type { FiscalTaskDocumentType } from "../model/fiscal-task.js";
 import type {
   OfflineNumberBlockRange,
   OfflineNumberBlockStatus,
@@ -6,7 +6,7 @@ import type {
 
 export interface OfflineNumberBlockRecord {
   pointOfSaleNumber: number;
-  documentType: FiscalDocumentType;
+  documentType: FiscalTaskDocumentType;
   registerId: string;
   range: OfflineNumberBlockRange;
   status: OfflineNumberBlockStatus;
@@ -15,15 +15,15 @@ export interface OfflineNumberBlockRecord {
 export interface OfflineNumberBlockStore {
   lockOfflineNumberBlocks(
     pointOfSaleNumber: number,
-    documentType: FiscalDocumentType,
+    documentType: FiscalTaskDocumentType,
   ): Promise<void>;
   offlineNumberBlockInUse(
     pointOfSaleNumber: number,
-    documentType: FiscalDocumentType,
+    documentType: FiscalTaskDocumentType,
   ): Promise<OfflineNumberBlockRecord | null>;
   highestSyncedOfflineNumber(
     pointOfSaleNumber: number,
-    documentType: FiscalDocumentType,
+    documentType: FiscalTaskDocumentType,
   ): Promise<number | null>;
   markOfflineNumberBlockUsedUp(block: OfflineNumberBlockRecord): Promise<void>;
   taxAuthorityLastAuthorized(pointOfSaleNumber: number): Promise<number | null>;

@@ -76,7 +76,9 @@ export interface HeldFortnightReport {
   realTimePointOfSaleOf(registerId: string): Promise<number | null>;
   /**
    * Records the credit note for the corrected document it names, once per corrected voucher:
-   * deciding it again for a voucher that already has one changes nothing.
+   * deciding it again for a voucher that already has one, or that a credit note issued offline
+   * corrects, changes nothing. It checks and records under the lock of the corrected voucher that
+   * the application of an offline credit note takes too.
    */
   creditCorrectedDocument(creditNote: RejectedDocumentCreditNote): Promise<void>;
 }

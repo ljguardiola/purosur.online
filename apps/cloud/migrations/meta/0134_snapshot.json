@@ -4351,8 +4351,8 @@
         }
       },
       "indexes": {
-        "offline_fiscal_documents_corrected_voucher_key": {
-          "name": "offline_fiscal_documents_corrected_voucher_key",
+        "offline_fiscal_documents_corrected_voucher_idx": {
+          "name": "offline_fiscal_documents_corrected_voucher_idx",
           "columns": [
             {
               "expression": "corrected_voucher_type",
@@ -4373,7 +4373,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": true,
+          "isUnique": false,
           "where": "\"offline_fiscal_documents\".\"document_type\" = 'credit_note_c'",
           "concurrently": false,
           "method": "btree",
