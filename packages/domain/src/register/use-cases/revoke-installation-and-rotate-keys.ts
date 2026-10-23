@@ -1,4 +1,5 @@
-import { latestKey, nextKeyVersion } from "../model/installation-key.js";
+import { latestKey } from "../../shared/index.js";
+import { nextKeyVersion } from "../model/installation-key.js";
 import type {
   InstallationRevocationTransaction,
   KeyVersionChange,
