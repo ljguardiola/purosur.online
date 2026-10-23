@@ -1,4 +1,4 @@
-import type { BranchSettingsBody } from "@purosur/contracts";
+import type { EditableBranchSettingsBody } from "@purosur/contracts";
 import {
   DEFAULT_EXPIRING_LOT_ALERT_DAYS,
   DEFAULT_GOOD_CONDITION_RETURN_DAYS,
@@ -7,7 +7,7 @@ import {
 import type { BranchHoursRange } from "@purosur/domain/branch/use-cases";
 import { asc, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { toBranchSettingsWire } from "../branch/branch-settings-wire.js";
+import { toEditableBranchSettingsWire } from "../branch/branch-settings-wire.js";
 import { branchHours, branchSettings } from "../platform/db/schema.js";
 import { SAMPLE_BRANCH_SETTINGS } from "./sample-catalog.js";
 
@@ -120,8 +120,8 @@ export async function branchSettingsEqualSampleValues<TQueryResult extends PgQue
   );
 }
 
-export function sampleBranchSettingsAuditValue(): Omit<BranchSettingsBody, "version"> {
-  const { version: _version, ...value } = toBranchSettingsWire({
+export function sampleBranchSettingsAuditValue(): Omit<EditableBranchSettingsBody, "version"> {
+  const { version: _version, ...value } = toEditableBranchSettingsWire({
     ...SAMPLE_BRANCH_SETTINGS,
     version: 0,
     hours: SAMPLE_HOURS_BY_DAY.flatMap((ranges, dayIndex) =>
