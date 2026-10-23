@@ -9,6 +9,7 @@ import {
 import type { LocalDatabase } from "../platform/local-database";
 import {
   insertCreditNote,
+  insertCreditNoteIssuedOffline,
   insertVoidedSale,
 } from "../sales/test-support/credit-note-receipt-database";
 import { appendOutboxEvent } from "../sync/sqlite-outbox";
@@ -146,6 +147,16 @@ describe("reading what a ticket prints", () => {
       expect(printout()).toMatchObject({
         operation: { kind: "numbered", operationNumber: 482 },
         backs: { kind: "credit_note", pointOfSale: 12, number: 7 },
+      });
+    });
+
+    it("backs up the credit note issued offline for it, under the offline point of sale and its own series", async () => {
+      insertCreditNoteIssuedOffline(database, { pointOfSale: 31, number: 3 });
+      await record("sale_void", "sale-1");
+
+      expect(printout()).toMatchObject({
+        operation: { kind: "numbered", operationNumber: 482 },
+        backs: { kind: "credit_note", pointOfSale: 31, number: 3 },
       });
     });
 

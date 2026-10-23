@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { LocalDatabase } from "../platform/local-database";
 import {
   insertCreditNote,
+  insertCreditNoteIssuedOffline,
   insertVoidedSale,
 } from "../sales/test-support/credit-note-receipt-database";
 import { SqliteLocalOutbox } from "../sync/sqlite-local-outbox";
@@ -115,6 +116,20 @@ describe("whether the customer's own document was printed", () => {
   it("is the credit note being printed for the void of a sale that has one", async () => {
     insertVoidedSale(database);
     insertCreditNote(database);
+    await record(ticket({ operation: "sale_void", subjectId: "sale-1" }));
+
+    expect((await consider())[0]?.customerDocumentPrinted).toBe(false);
+
+    database.exec(
+      `INSERT INTO credit_note_prints (sale_id, print_attempted_at, printed_at)
+       VALUES ('sale-1', '2026-10-09T12:00:30.000Z', '2026-10-09T12:00:31.000Z')`,
+    );
+    expect((await consider())[0]?.customerDocumentPrinted).toBe(true);
+  });
+
+  it("is the credit note being printed for the void of a sale whose credit note was issued offline", async () => {
+    insertVoidedSale(database);
+    insertCreditNoteIssuedOffline(database, { pointOfSale: 31, number: 3 });
     await record(ticket({ operation: "sale_void", subjectId: "sale-1" }));
 
     expect((await consider())[0]?.customerDocumentPrinted).toBe(false);
