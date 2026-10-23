@@ -565,7 +565,6 @@ describe("SaleCompletedModal", () => {
       ["discarded"],
       ["to_print"],
       ["awaiting_customer_document"],
-      ["missing_key"],
     ] as const)(
       "tells the cashier to keep the ticket in the register's box when it is %s",
       async (standing) => {
@@ -582,9 +581,13 @@ describe("SaleCompletedModal", () => {
       },
     );
 
-    it("tells nothing to keep when the ticket is no longer needed", async () => {
-      const { screen } = await renderWithTicket("no_longer_needed");
+    it.each([
+      ["no_longer_needed", "No hace falta"],
+      ["missing_key", "Sin clave de respaldo"],
+    ] as const)("tells nothing to keep when the ticket is %s", async (standing, status) => {
+      const { screen, documents } = await renderWithTicket(standing);
 
+      await expect.element(documents.getByText(status)).toBeVisible();
       await expect
         .element(screen.getByText("Guardá el ticket de respaldo en la caja del local"))
         .not.toBeInTheDocument();
