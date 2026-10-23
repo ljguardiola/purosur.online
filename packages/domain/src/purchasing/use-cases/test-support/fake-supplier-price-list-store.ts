@@ -1,3 +1,5 @@
+import type { SaleUnit } from "../../../catalog/index.js";
+import { type SupplierItemKey, supplierItemKey } from "../../model/supplier-item.js";
 import {
   countsTowardDailyExtractionCap,
   DEFAULT_SUPPLIER_PRICE_LIST_DAILY_EXTRACTION_CAP,
@@ -9,10 +11,16 @@ import {
 import type {
   FindPriceListSupplierResult,
   FindSupplierPriceListSourceResult,
+  LockProductPackagingResult,
   LockSupplierPriceListResult,
   LockSupplierPriceListRowResult,
+  NewSupplierItemFields,
   NewSupplierPriceListFields,
   ProposedPriceListRow,
+  StoredPriceListRow,
+  SupplierItem,
+  SupplierItemLink,
+  SupplierItemPriceEntry,
   SupplierPriceListStore,
   SupplierPriceListStoreTransaction,
 } from "../supplier-price-list-store.js";
@@ -52,6 +60,24 @@ export interface FakePriceListRow extends ProposedPriceListRow {
   listId: string;
   position: number;
   editedBy: string | null;
+  reviewed: boolean;
+}
+
+export interface FakeSupplierItem extends SupplierItem {
+  supplierId: string;
+}
+
+export interface FakeCatalogProduct {
+  id: string;
+  active: boolean;
+  saleUnit: SaleUnit;
+}
+
+export interface FakeCatalogPackaging {
+  id: string;
+  productId: string;
+  active: boolean;
+  saleUnit: SaleUnit;
 }
 
 export type FakeSupplierPriceListWrite =
@@ -60,6 +86,12 @@ export type FakeSupplierPriceListWrite =
   | "markSent"
   | "recordExtraction"
   | "recordReadFailure"
+  | "linkRow"
+  | "markRowReviewed"
+  | "addSupplierItem"
+  | "describeSupplierItem"
+  | "rememberSupplierItemLink"
+  | "recordSupplierItemPrice"
   | "setRowPrice"
   | "removeRow"
   | "confirmList"
@@ -70,7 +102,15 @@ export interface FakeSupplierPriceListState {
   lists: FakeSupplierPriceListRow[];
   rows: FakePriceListRow[];
   readingQueue: string[];
+  items: FakeSupplierItem[];
+  itemPrices: SupplierItemPriceEntry[];
+  products: FakeCatalogProduct[];
+  packagings: FakeCatalogPackaging[];
   nextId: number;
+}
+
+function cloneLink(link: SupplierItemLink | null): SupplierItemLink | null {
+  return link === null ? null : { ...link };
 }
 
 function cloneState(state: FakeSupplierPriceListState): FakeSupplierPriceListState {
@@ -84,8 +124,16 @@ function cloneState(state: FakeSupplierPriceListState): FakeSupplierPriceListSta
       confirmedAt: instant(row.confirmedAt),
       discardedAt: instant(row.discardedAt),
     })),
-    rows: state.rows.map((row) => ({ ...row })),
+    rows: state.rows.map((row) => ({ ...row, link: cloneLink(row.link) })),
     readingQueue: [...state.readingQueue],
+    items: state.items.map((item) => ({
+      ...item,
+      key: { ...item.key },
+      link: cloneLink(item.link),
+    })),
+    itemPrices: state.itemPrices.map((entry) => ({ ...entry })),
+    products: state.products.map((product) => ({ ...product })),
+    packagings: state.packagings.map((packaging) => ({ ...packaging })),
     nextId: state.nextId,
   };
 }
@@ -179,6 +227,7 @@ class FakeSupplierPriceListStoreTransaction implements SupplierPriceListStoreTra
       kind: "locked",
       list: {
         id: list.id,
+        supplierId: list.supplierId,
         sourceKind: list.sourceKind,
         contentKind: list.contentKind,
         state: list.state,
@@ -219,6 +268,7 @@ class FakeSupplierPriceListStoreTransaction implements SupplierPriceListStoreTra
         listId,
         position,
         editedBy: null,
+        reviewed: false,
       });
     });
   }
@@ -233,9 +283,114 @@ class FakeSupplierPriceListStoreTransaction implements SupplierPriceListStoreTra
 
   async lockRow(listId: string, rowId: string): Promise<LockSupplierPriceListRowResult> {
     this.store.lockCallOrder.push("lockRow");
-    return this.state.rows.some((row) => row.id === rowId && row.listId === listId)
-      ? { kind: "locked" }
+    const row = this.state.rows.find((other) => other.id === rowId && other.listId === listId);
+    return row
+      ? { kind: "locked", row: { description: row.description, code: row.code } }
       : { kind: "not_found" };
+  }
+
+  async listRows(listId: string): Promise<StoredPriceListRow[]> {
+    return this.state.rows
+      .filter((row) => row.listId === listId)
+      .sort((a, b) => a.position - b.position)
+      .map((row) => ({
+        id: row.id,
+        description: row.description,
+        code: row.code,
+        priceCents: row.priceCents,
+        link: cloneLink(row.link),
+      }));
+  }
+
+  async supplierItems(supplierId: string, keys: SupplierItemKey[]): Promise<SupplierItem[]> {
+    return this.state.items
+      .filter(
+        (item) =>
+          item.supplierId === supplierId &&
+          keys.some((key) => key.kind === item.key.kind && key.value === item.key.value),
+      )
+      .map(({ supplierId: _supplierId, ...item }) => ({ ...item, link: cloneLink(item.link) }));
+  }
+
+  async lockSupplierItems(supplierId: string, keys: SupplierItemKey[]): Promise<SupplierItem[]> {
+    this.store.lockCallOrder.push("lockSupplierItems");
+    return this.supplierItems(supplierId, keys);
+  }
+
+  async lockProductPackaging(
+    productId: string,
+    packagingId: string,
+  ): Promise<LockProductPackagingResult> {
+    this.store.lockCallOrder.push("lockProductPackaging");
+    const product = this.state.products.find((row) => row.id === productId);
+    const packaging = this.state.packagings.find((row) => row.id === packagingId);
+    return product && packaging
+      ? {
+          kind: "locked",
+          product: { active: product.active, saleUnit: product.saleUnit },
+          packaging: {
+            productId: packaging.productId,
+            active: packaging.active,
+            saleUnit: packaging.saleUnit,
+          },
+        }
+      : { kind: "not_found" };
+  }
+
+  async addSupplierItem(fields: NewSupplierItemFields): Promise<{ id: string }> {
+    this.beforeWrite("addSupplierItem");
+    const id = `item-${this.state.nextId++}`;
+    this.state.items.push({
+      id,
+      supplierId: fields.supplierId,
+      key: { ...fields.key },
+      description: fields.description,
+      link: cloneLink(fields.link),
+    });
+    return { id };
+  }
+
+  async describeSupplierItem(itemId: string, description: string): Promise<void> {
+    this.beforeWrite("describeSupplierItem");
+    this.itemRow(itemId).description = description;
+  }
+
+  async rememberSupplierItemLink(itemId: string, link: SupplierItemLink): Promise<void> {
+    this.beforeWrite("rememberSupplierItemLink");
+    this.itemRow(itemId).link = cloneLink(link);
+  }
+
+  async recordSupplierItemPrice(entry: SupplierItemPriceEntry): Promise<void> {
+    this.beforeWrite("recordSupplierItemPrice");
+    this.state.itemPrices.push({ ...entry });
+  }
+
+  async linkRow(
+    listId: string,
+    rowId: string,
+    link: SupplierItemLink,
+    actorId: string,
+  ): Promise<void> {
+    this.beforeWrite("linkRow");
+    for (const row of this.state.rows) {
+      if (row.id === rowId && row.listId === listId) {
+        row.link = cloneLink(link);
+        row.reviewed = true;
+        row.editedBy = actorId;
+      }
+    }
+    this.listRow(listId).version += 1;
+  }
+
+  async markRowReviewed(listId: string, rowId: string, actorId: string): Promise<void> {
+    this.beforeWrite("markRowReviewed");
+    for (const row of this.state.rows) {
+      if (row.id === rowId && row.listId === listId) {
+        row.reviewed = true;
+        row.editedBy = actorId;
+      }
+    }
+    this.listRow(listId).version += 1;
   }
 
   async setRowPrice(
@@ -294,6 +449,14 @@ class FakeSupplierPriceListStoreTransaction implements SupplierPriceListStoreTra
     return list;
   }
 
+  private itemRow(itemId: string): FakeSupplierItem {
+    const item = this.state.items.find((row) => row.id === itemId);
+    if (!item) {
+      throw new Error(`no item ${itemId}`);
+    }
+    return item;
+  }
+
   private beforeWrite(operation: FakeSupplierPriceListWrite): void {
     if (this.store.failingWrites.has(operation)) {
       throw new Error(`${operation} failed`);
@@ -307,6 +470,10 @@ export class FakeSupplierPriceListStore implements SupplierPriceListStore {
     lists: [],
     rows: [],
     readingQueue: [],
+    items: [],
+    itemPrices: [],
+    products: [],
+    packagings: [],
     nextId: 1,
   };
 
@@ -362,9 +529,36 @@ export class FakeSupplierPriceListStore implements SupplierPriceListStore {
       presentation: null,
       priceCents: 100,
       page: null,
+      barcode: null,
+      link: null,
       editedBy: null,
+      reviewed: false,
       ...row,
     });
+  }
+
+  seedSupplierItem(
+    item: Partial<FakeSupplierItem> & { description: string; supplierId?: string },
+  ): string {
+    const id = item.id ?? `item-${this.state.nextId++}`;
+    this.state.items.push({
+      supplierId: "supplier-a",
+      key: supplierItemKey({ code: null, description: item.description }),
+      link: null,
+      ...item,
+      id,
+    });
+    return id;
+  }
+
+  seedProduct(product: Partial<FakeCatalogProduct> & { id: string }): void {
+    this.state.products.push({ active: true, saleUnit: "UNIT", ...product });
+  }
+
+  seedPackaging(
+    packaging: Partial<FakeCatalogPackaging> & { id: string; productId: string },
+  ): void {
+    this.state.packagings.push({ active: true, saleUnit: "UNIT", ...packaging });
   }
 
   snapshot(): FakeSupplierPriceListState {

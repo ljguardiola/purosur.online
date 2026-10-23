@@ -45,6 +45,8 @@ function proposedRow(row: ExtractedPriceListRow): ProposedPriceListRow {
     priceCents:
       row.priceCents !== null && isPriceListRowPrice(row.priceCents) ? row.priceCents : null,
     page: row.page !== null && isSourcePage(row.page) ? row.page : null,
+    barcode: null,
+    link: null,
   };
 }
 
