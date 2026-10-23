@@ -97,15 +97,15 @@ async function configureRealTime(input: {
   return configureRegisterPointOfSale(new DrizzleRegisterPointOfSaleStore(db, () => NOON), input);
 }
 
-let enqueuedCounts: number[];
+let enqueuedCounts: [pointOfSale: number, documentType: string][];
 
 function offlineStore() {
   return new DrizzleRegisterOfflinePointOfSaleStore(
     db,
     () => NOON,
     undefined,
-    async (_tx, pos) => {
-      enqueuedCounts.push(pos);
+    async (_tx, pos, documentType) => {
+      enqueuedCounts.push([pos, documentType]);
     },
   );
 }
@@ -120,10 +120,14 @@ function configure(input: {
   return configureRegisterOfflinePointOfSale(offlineStore(), input);
 }
 
-async function seedTaxAuthorityCount(pointOfSaleNumber: number, lastAuthorized: number) {
+async function seedTaxAuthorityCount(
+  pointOfSaleNumber: number,
+  lastAuthorized: number,
+  documentType: "factura_c" | "credit_note_c" = "factura_c",
+) {
   await db
     .insert(taxAuthorityLastAuthorizedNumbers)
-    .values({ pointOfSaleNumber, lastAuthorized, readAt: NOON });
+    .values({ pointOfSaleNumber, documentType, lastAuthorized, readAt: NOON });
 }
 
 async function seedRegisterWithRealTime(number = 7) {
@@ -518,18 +522,39 @@ describe("the tax authority's count behind the offline number blocks", () => {
     expect(outcome.kind).toBe("configured");
     expect(await db.select().from(registerOfflinePointsOfSale)).toHaveLength(1);
     expect(await db.select().from(offlineNumberBlocks)).toEqual([]);
-    expect(enqueuedCounts).toEqual([8]);
+    expect(enqueuedCounts).toEqual([[8, "factura_c"]]);
   });
 
   it("reads the count the cloud holds, and none for a point of sale without one", async () => {
     await seedTaxAuthorityCount(8, 37);
 
     const [held, missing] = await offlineStore().transaction(async (tx) => [
-      await tx.taxAuthorityLastAuthorized(8),
-      await tx.taxAuthorityLastAuthorized(9),
+      await tx.taxAuthorityLastAuthorized(8, "factura_c"),
+      await tx.taxAuthorityLastAuthorized(9, "factura_c"),
     ]);
 
     expect([held, missing]).toEqual([37, null]);
+  });
+
+  it("reads the count of each document type apart", async () => {
+    await seedTaxAuthorityCount(8, 37);
+    await seedTaxAuthorityCount(8, 4, "credit_note_c");
+
+    const [facturas, creditNotes, missing] = await offlineStore().transaction(async (tx) => [
+      await tx.taxAuthorityLastAuthorized(8, "factura_c"),
+      await tx.taxAuthorityLastAuthorized(8, "credit_note_c"),
+      await tx.taxAuthorityLastAuthorized(9, "credit_note_c"),
+    ]);
+
+    expect([facturas, creditNotes, missing]).toEqual([37, 4, null]);
+  });
+
+  it("asks for the count of the document type it is asked about", async () => {
+    await offlineStore().transaction(async (tx) => {
+      await tx.requireTaxAuthorityCount(8, "credit_note_c");
+    });
+
+    expect(enqueuedCounts).toEqual([[8, "credit_note_c"]]);
   });
 
   it("asks for nothing, and still assigns no block, when the store has nowhere to ask for the count", async () => {
@@ -557,13 +582,37 @@ describe("the tax authority's count behind the offline number blocks", () => {
     expect([holder, nobody]).toEqual([registerId, null]);
   });
 
+  it("assigns the first credit note block right after the credit note count, beside the factura block", async () => {
+    const { locationId, actorId, registerId } = await seedRegisterWithRealTime();
+    await seedTaxAuthorityCount(8, 37);
+    await configure({ locationId, registerId, pointOfSaleNumber: 8, version: 0, actorId });
+    await seedTaxAuthorityCount(8, 4, "credit_note_c");
+
+    const outcome = await assignAwaitedOfflineNumberBlock(offlineStore(), {
+      pointOfSaleNumber: 8,
+      documentType: "credit_note_c",
+    });
+
+    expect(outcome.kind).toBe("assigned");
+    expect(await db.select().from(offlineNumberBlocks)).toMatchObject([
+      { documentType: "factura_c", firstNumber: 38, lastNumber: 1037 },
+      { documentType: "credit_note_c", registerId, firstNumber: 5, lastNumber: 1004 },
+    ]);
+  });
+
   it("assigns the awaited block to the register once the count is known, and a second run assigns none", async () => {
     const { locationId, actorId, registerId } = await seedRegisterWithRealTime();
     await configure({ locationId, registerId, pointOfSaleNumber: 8, version: 0, actorId });
     await seedTaxAuthorityCount(8, 37);
 
-    const first = await assignAwaitedOfflineNumberBlock(offlineStore(), { pointOfSaleNumber: 8 });
-    const second = await assignAwaitedOfflineNumberBlock(offlineStore(), { pointOfSaleNumber: 8 });
+    const first = await assignAwaitedOfflineNumberBlock(offlineStore(), {
+      pointOfSaleNumber: 8,
+      documentType: "factura_c",
+    });
+    const second = await assignAwaitedOfflineNumberBlock(offlineStore(), {
+      pointOfSaleNumber: 8,
+      documentType: "factura_c",
+    });
 
     expect([first.kind, second.kind]).toEqual(["assigned", "already_has_block"]);
     expect(await db.select().from(offlineNumberBlocks)).toMatchObject([

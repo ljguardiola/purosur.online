@@ -46,18 +46,23 @@ afterEach(async () => {
 });
 
 async function pendingCountJobs(): Promise<
-  { pointOfSale: number; attempts: number; maxAttempts: number }[]
+  { pointOfSale: number; documentType: string; attempts: number; maxAttempts: number }[]
 > {
   const rows = await sql<
-    { payload: { pointOfSale: number }; attempts: number; max_attempts: number }[]
+    {
+      payload: { pointOfSale: number; documentType: string };
+      attempts: number;
+      max_attempts: number;
+    }[]
   >`
     select j.payload, j.attempts, j.max_attempts
     from graphile_worker._private_jobs j
     join graphile_worker._private_tasks t on t.id = j.task_id
     where t.identifier = ${TAX_AUTHORITY_COUNT_TASK_IDENTIFIER}
-    order by j.payload->>'pointOfSale'`;
+    order by j.payload->>'pointOfSale', j.payload->>'documentType'`;
   return rows.map((row) => ({
     pointOfSale: row.payload.pointOfSale,
+    documentType: row.payload.documentType,
     attempts: row.attempts,
     maxAttempts: row.max_attempts,
   }));
@@ -114,7 +119,9 @@ describe("the tax authority count jobs on a real Postgres", () => {
     });
 
     expect(outcome.kind).toBe("configured");
-    expect(await pendingCountJobs()).toEqual([{ pointOfSale: 21, attempts: 0, maxAttempts: 25 }]);
+    expect(await pendingCountJobs()).toEqual([
+      { pointOfSale: 21, documentType: "factura_c", attempts: 0, maxAttempts: 25 },
+    ]);
   });
 
   it("enqueues nothing when the transaction that configures the point of sale rolls back", async () => {
@@ -183,10 +190,13 @@ describe("the tax authority count jobs on a real Postgres", () => {
       actorId,
     });
 
-    expect((await pendingCountJobs()).map((job) => job.pointOfSale)).toEqual([23, 24]);
+    expect((await pendingCountJobs()).map((job) => [job.pointOfSale, job.documentType])).toEqual([
+      [23, "factura_c"],
+      [24, "factura_c"],
+    ]);
   });
 
-  it("enqueues, at startup, the count of every claimed point of sale, real-time or offline, that has none yet", async () => {
+  it("enqueues, at startup, the count of every claimed point of sale, real-time or offline, that has none yet, and the credit note count of every offline one that has none", async () => {
     const { locationId, actorId, fiscalAddressId, registerIds } = await seedRegisters(2);
     const store = new DrizzleRegisterPointOfSaleStore(db, () => NOW);
     await configureRegisterPointOfSale(store, {
@@ -215,17 +225,24 @@ describe("the tax authority count jobs on a real Postgres", () => {
         actorId,
       },
     );
-    await db
-      .insert(taxAuthorityLastAuthorizedNumbers)
-      .values({ pointOfSaleNumber: 32, lastAuthorized: 5, readAt: NOW });
+    await db.insert(taxAuthorityLastAuthorizedNumbers).values({
+      pointOfSaleNumber: 32,
+      documentType: "factura_c",
+      lastAuthorized: 5,
+      readAt: NOW,
+    });
 
     await enqueueMissingTaxAuthorityCounts(db);
     await enqueueMissingTaxAuthorityCounts(db);
 
-    expect((await pendingCountJobs()).map((job) => job.pointOfSale)).toEqual([31, 33]);
+    expect((await pendingCountJobs()).map((job) => [job.pointOfSale, job.documentType])).toEqual([
+      [31, "factura_c"],
+      [33, "credit_note_c"],
+      [33, "factura_c"],
+    ]);
   });
 
-  it("enqueues, at startup, the count of every offline point of sale whose count is held but that has no number block", async () => {
+  it("enqueues, at startup, the count of every offline point of sale and document type whose count is held but that has no number block", async () => {
     const { locationId, actorId, fiscalAddressId, registerIds } = await seedRegisters(2);
     const offlineStore = new DrizzleRegisterOfflinePointOfSaleStore(db, () => NOW);
     for (const [index, registerId] of registerIds.entries()) {
@@ -248,19 +265,36 @@ describe("the tax authority count jobs on a real Postgres", () => {
     await db.insert(taxAuthorityLastAuthorizedNumbers).values(
       [51, 52, 53, 54].map((pointOfSaleNumber) => ({
         pointOfSaleNumber,
+        documentType: "factura_c" as const,
         lastAuthorized: 7,
+        readAt: NOW,
+      })),
+    );
+    await db.insert(taxAuthorityLastAuthorizedNumbers).values(
+      [53, 54].map((pointOfSaleNumber) => ({
+        pointOfSaleNumber,
+        documentType: "credit_note_c" as const,
+        lastAuthorized: 2,
         readAt: NOW,
       })),
     );
     const assigned = await assignAwaitedOfflineNumberBlock(offlineStore, {
       pointOfSaleNumber: 54,
+      documentType: "factura_c",
+    });
+    const assignedCreditNotes = await assignAwaitedOfflineNumberBlock(offlineStore, {
+      pointOfSaleNumber: 54,
+      documentType: "credit_note_c",
     });
 
     await enqueueMissingTaxAuthorityCounts(db);
     await enqueueMissingTaxAuthorityCounts(db);
 
-    expect(assigned.kind).toBe("assigned");
-    expect((await pendingCountJobs()).map((job) => job.pointOfSale)).toEqual([53]);
+    expect([assigned.kind, assignedCreditNotes.kind]).toEqual(["assigned", "assigned"]);
+    expect((await pendingCountJobs()).map((job) => [job.pointOfSale, job.documentType])).toEqual([
+      [53, "credit_note_c"],
+      [53, "factura_c"],
+    ]);
   });
 
   describe("when an offline point of sale is configured with no count held", () => {
@@ -299,7 +333,9 @@ describe("the tax authority count jobs on a real Postgres", () => {
       });
 
       expect(outcome.kind).toBe("configured");
-      expect(await pendingCountJobs()).toEqual([{ pointOfSale: 42, attempts: 0, maxAttempts: 25 }]);
+      expect(await pendingCountJobs()).toEqual([
+        { pointOfSale: 42, documentType: "factura_c", attempts: 0, maxAttempts: 25 },
+      ]);
     });
 
     it("enqueues nothing when the transaction rolls back", async () => {
@@ -307,12 +343,27 @@ describe("the tax authority count jobs on a real Postgres", () => {
 
       await expect(
         offlineStore().transaction(async (tx) => {
-          await tx.requireTaxAuthorityCount(42);
+          await tx.requireTaxAuthorityCount(42, "factura_c");
           throw new Error("the configuration failed after asking for the count");
         }),
       ).rejects.toThrow("the configuration failed");
 
       expect(await pendingCountJobs()).toEqual([]);
+    });
+
+    it("keeps a pending job for the factura count and another for the credit note count of the same point of sale", async () => {
+      await registerWithRealTimePointOfSale();
+
+      await offlineStore().transaction(async (tx) => {
+        await tx.requireTaxAuthorityCount(42, "factura_c");
+        await tx.requireTaxAuthorityCount(42, "credit_note_c");
+        await tx.requireTaxAuthorityCount(42, "credit_note_c");
+      });
+
+      expect((await pendingCountJobs()).map((job) => [job.pointOfSale, job.documentType])).toEqual([
+        [42, "credit_note_c"],
+        [42, "factura_c"],
+      ]);
     });
   });
 
@@ -330,7 +381,7 @@ describe("the tax authority count jobs on a real Postgres", () => {
       });
       await db
         .insert(taxAuthorityLastAuthorizedNumbers)
-        .values({ pointOfSaleNumber, lastAuthorized: 11, readAt: NOW });
+        .values({ pointOfSaleNumber, documentType: "factura_c", lastAuthorized: 11, readAt: NOW });
       return registerId;
     }
 
@@ -347,7 +398,34 @@ describe("the tax authority count jobs on a real Postgres", () => {
 
       await enrollmentStore().transaction((tx) => tx.requireFreshTaxAuthorityCount(registerId));
 
-      expect(await pendingCountJobs()).toEqual([{ pointOfSale: 31, attempts: 0, maxAttempts: 25 }]);
+      expect(await pendingCountJobs()).toEqual([
+        { pointOfSale: 31, documentType: "factura_c", attempts: 0, maxAttempts: 25 },
+      ]);
+    });
+
+    it("forgets both counts of the offline point of sale of the register and enqueues the read of each", async () => {
+      const { locationId, actorId, registerIds } = await seedRegisters(1);
+      const registerId = registerIds[0] as string;
+      await configureRegisterOfflinePointOfSale(
+        new DrizzleRegisterOfflinePointOfSaleStore(db, () => NOW),
+        { locationId, registerId, pointOfSaleNumber: 61, version: 0, actorId },
+      );
+      await db.insert(taxAuthorityLastAuthorizedNumbers).values(
+        (["factura_c", "credit_note_c"] as const).map((documentType) => ({
+          pointOfSaleNumber: 61,
+          documentType,
+          lastAuthorized: 11,
+          readAt: NOW,
+        })),
+      );
+
+      await enrollmentStore().transaction((tx) => tx.requireFreshTaxAuthorityCount(registerId));
+
+      expect(await db.select().from(taxAuthorityLastAuthorizedNumbers)).toEqual([]);
+      expect((await pendingCountJobs()).map((job) => [job.pointOfSale, job.documentType])).toEqual([
+        [61, "credit_note_c"],
+        [61, "factura_c"],
+      ]);
     });
 
     it("enqueues nothing when the enrollment rolls back", async () => {

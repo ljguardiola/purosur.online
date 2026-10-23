@@ -9,6 +9,7 @@ import {
   insertAppliedOfflineDocument,
   insertReceivedOfflineDocumentEvent,
 } from "../fiscal/test-support/synced-offline-documents.js";
+import { insertOfflineCreditNote } from "../fiscal/test-support/offline-fiscal-document-fixtures.js";
 import { locations } from "../platform/db/schema.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
@@ -194,6 +195,7 @@ describe("GET /changes carrying the register's own point of sale", () => {
 
     await new DrizzleTaxAuthorityCounts(db).advance({
       pointOfSale: 7,
+      documentType: "factura_c",
       lastAuthorized: 41,
       issuedOn: "2026-09-28",
       readAt: NOW,
@@ -212,6 +214,49 @@ describe("GET /changes carrying the register's own point of sale", () => {
         version: 1,
       },
     });
+  });
+
+  it("gives the point of sale once, with its factura count, when a credit note count of the same number is held", async () => {
+    const locationId = await seededLocationId(db);
+    const registerId = await insertRegister(db, locationId, "Caja 1");
+    const fiscalAddressId = await insertFiscalAddress(db);
+    const { deviceToken } = await insertEnrolledInstallation(db, {
+      now: NOW,
+      existingRegisterId: registerId,
+    });
+    await configurePointOfSale(db, NOW, {
+      locationId,
+      registerId,
+      pointOfSaleNumber: 7,
+      fiscalAddressId,
+      version: 0,
+      actorId: await insertActor(db, locationId),
+    });
+    const counts = new DrizzleTaxAuthorityCounts(db);
+    await counts.advance({
+      pointOfSale: 7,
+      documentType: "credit_note_c",
+      lastAuthorized: 3,
+      readAt: NOW,
+    });
+    await counts.advance({
+      pointOfSale: 7,
+      documentType: "factura_c",
+      lastAuthorized: 41,
+      readAt: NOW,
+    });
+
+    const pulled = await pullAfterSeed(deviceToken);
+
+    const pointsOfSale = pulled.filter(({ entity }) => entity === "register_point_of_sale");
+    expect(pointsOfSale.length).toBeGreaterThan(0);
+    expect(
+      pointsOfSale.map((change) =>
+        "tax_authority_last_authorized_number" in change.row
+          ? change.row.tax_authority_last_authorized_number
+          : undefined,
+      ),
+    ).toEqual(pointsOfSale.map(() => 41));
   });
 
   it("gives the point of sale as frozen while its numbering is frozen, at the same version as the count", async () => {
@@ -234,6 +279,7 @@ describe("GET /changes carrying the register's own point of sale", () => {
 
     await new DrizzleTaxAuthorityCounts(db).advance({
       pointOfSale: 7,
+      documentType: "factura_c",
       lastAuthorized: 41,
       readAt: NOW,
     });
@@ -280,6 +326,7 @@ describe("GET /changes carrying the register's own point of sale", () => {
     const lanes = numberingLanes();
     await new DrizzleTaxAuthorityCounts(db).advance({
       pointOfSale: 7,
+      documentType: "factura_c",
       lastAuthorized: 41,
       readAt: NOW,
     });
@@ -340,6 +387,7 @@ describe("GET /changes carrying the register's own point of sale", () => {
 
     await new DrizzleTaxAuthorityCounts(db).advance({
       pointOfSale: 8,
+      documentType: "factura_c",
       lastAuthorized: 99,
       readAt: NOW,
     });
@@ -387,6 +435,24 @@ async function registerWithRealTime(locationId: string, name: string, number: nu
   return { registerId, actorId };
 }
 
+function seriesCounts({
+  factura = {},
+  creditNote = {},
+}: {
+  factura?: { count?: number; highestSynced?: number };
+  creditNote?: { count?: number; highestSynced?: number };
+}) {
+  const entry = (
+    documentType: string,
+    { count, highestSynced }: { count?: number; highestSynced?: number },
+  ) => ({
+    document_type: documentType,
+    tax_authority_last_authorized_number: count ?? null,
+    highest_synced_offline_number: highestSynced ?? null,
+  });
+  return [entry("factura_c", factura), entry("credit_note_c", creditNote)];
+}
+
 describe("GET /changes carrying the register's own offline point of sale", () => {
   it("gives a register its own offline point of sale at its version", async () => {
     const locationId = await seededLocationId(db);
@@ -405,8 +471,7 @@ describe("GET /changes carrying the register's own offline point of sale", () =>
         entity_id: registerId,
         row: {
           point_of_sale_number: 8,
-          tax_authority_last_authorized_number: null,
-          highest_synced_offline_number: null,
+          series_counts: seriesCounts({}),
           version: 1,
         },
       },
@@ -424,6 +489,7 @@ describe("GET /changes carrying the register's own offline point of sale", () =>
 
     await new DrizzleTaxAuthorityCounts(db).advance({
       pointOfSale: 8,
+      documentType: "factura_c",
       lastAuthorized: 41,
       issuedOn: "2026-09-28",
       readAt: NOW,
@@ -437,8 +503,7 @@ describe("GET /changes carrying the register's own offline point of sale", () =>
       entity_id: registerId,
       row: {
         point_of_sale_number: 8,
-        tax_authority_last_authorized_number: 41,
-        highest_synced_offline_number: null,
+        series_counts: seriesCounts({ factura: { count: 41 } }),
         version: 1,
       },
     });
@@ -454,6 +519,7 @@ describe("GET /changes carrying the register's own offline point of sale", () =>
     await configureOffline({ locationId, registerId, pointOfSaleNumber: 8, version: 0, actorId });
     await new DrizzleTaxAuthorityCounts(db).advance({
       pointOfSale: 8,
+      documentType: "factura_c",
       lastAuthorized: 41,
       readAt: NOW,
     });
@@ -471,8 +537,75 @@ describe("GET /changes carrying the register's own offline point of sale", () =>
     ).toMatchObject({
       row: {
         point_of_sale_number: 8,
-        tax_authority_last_authorized_number: 41,
-        highest_synced_offline_number: 63,
+        series_counts: seriesCounts({ factura: { count: 41, highestSynced: 63 } }),
+      },
+    });
+  });
+
+  it("gives the last credit note C the tax authority authorized beside the factura count of the offline point of sale, at the same version", async () => {
+    const locationId = await seededLocationId(db);
+    const { registerId, actorId } = await registerWithRealTime(locationId, "Caja 1", 7);
+    const { deviceToken } = await insertEnrolledInstallation(db, {
+      now: NOW,
+      existingRegisterId: registerId,
+    });
+    await configureOffline({ locationId, registerId, pointOfSaleNumber: 8, version: 0, actorId });
+    const counts = new DrizzleTaxAuthorityCounts(db);
+    await counts.advance({
+      pointOfSale: 8,
+      documentType: "factura_c",
+      lastAuthorized: 41,
+      readAt: NOW,
+    });
+    await counts.advance({
+      pointOfSale: 8,
+      documentType: "credit_note_c",
+      lastAuthorized: 4,
+      readAt: NOW,
+    });
+
+    const pulled = await pullAfterSeed(deviceToken);
+
+    expect(
+      pulled.filter(({ entity }) => entity === "register_offline_point_of_sale").at(-1),
+    ).toEqual({
+      entity: "register_offline_point_of_sale",
+      entity_id: registerId,
+      row: {
+        point_of_sale_number: 8,
+        series_counts: seriesCounts({ factura: { count: 41 }, creditNote: { count: 4 } }),
+        version: 1,
+      },
+    });
+  });
+
+  it("gives the highest credit note number synced apart from the highest factura number", async () => {
+    const locationId = await seededLocationId(db);
+    const { registerId, actorId } = await registerWithRealTime(locationId, "Caja 1", 7);
+    const { deviceToken } = await insertEnrolledInstallation(db, {
+      now: NOW,
+      existingRegisterId: registerId,
+    });
+    await configureOffline({ locationId, registerId, pointOfSaleNumber: 8, version: 0, actorId });
+    await insertAppliedOfflineDocument(db, registerId, { pointOfSale: 8, number: 57 });
+    await insertOfflineCreditNote(db, {
+      registerId,
+      pointOfSale: 8,
+      fortnight: { start: "2026-10-01", end: "2026-10-15" },
+      number: 6,
+      corrects: { voucherType: 11, pointOfSale: 8, number: 57 },
+    });
+
+    const pulled = await pullAfterSeed(deviceToken);
+
+    expect(
+      pulled.filter(({ entity }) => entity === "register_offline_point_of_sale").at(-1),
+    ).toMatchObject({
+      row: {
+        series_counts: seriesCounts({
+          factura: { highestSynced: 57 },
+          creditNote: { highestSynced: 6 },
+        }),
       },
     });
   });
@@ -490,7 +623,7 @@ describe("GET /changes carrying the register's own offline point of sale", () =>
 
     expect(
       pulled.filter(({ entity }) => entity === "register_offline_point_of_sale").at(-1),
-    ).toMatchObject({ row: { highest_synced_offline_number: null } });
+    ).toMatchObject({ row: { series_counts: seriesCounts({}) } });
   });
 
   it("gives the offline point of sale as it is now for every change logged for it", async () => {
@@ -512,8 +645,7 @@ describe("GET /changes carrying the register's own offline point of sale", () =>
         entity_id: registerId,
         row: {
           point_of_sale_number: 9,
-          tax_authority_last_authorized_number: null,
-          highest_synced_offline_number: null,
+          series_counts: seriesCounts({}),
           version: 2,
         },
       }),

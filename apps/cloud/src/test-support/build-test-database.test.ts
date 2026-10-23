@@ -681,6 +681,7 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
       .values({ lastCallOkAt: new Date("2026-01-05T12:00:00.000Z") });
     await db.insert(taxAuthorityLastAuthorizedNumbers).values({
       pointOfSaleNumber: 7,
+      documentType: "factura_c",
       lastAuthorized: 41,
       readAt: new Date("2026-01-05T12:00:00.000Z"),
     });

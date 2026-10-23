@@ -111,7 +111,7 @@ async function giveRealTimePointOfSale(
 async function holdTaxAuthorityCount(pointOfSaleNumber: number, lastAuthorized: number) {
   await db
     .insert(taxAuthorityLastAuthorizedNumbers)
-    .values({ pointOfSaleNumber, lastAuthorized, readAt: SESSION_NOON });
+    .values({ pointOfSaleNumber, documentType: "factura_c", lastAuthorized, readAt: SESSION_NOON });
 }
 
 function configureOffline(

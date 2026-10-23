@@ -96,10 +96,19 @@ function insertFacturaBeforeMigration(client: SqlOnlyDatabase, registerId: strin
   );
 }
 
+function insertCountBeforeMigration(client: SqlOnlyDatabase) {
+  return client.query(
+    `insert into tax_authority_last_authorized_numbers
+       (point_of_sale_number, last_authorized, issued_on, read_at)
+     values (7, 41, '2026-10-05', '2026-10-06T15:00:00Z')`,
+  );
+}
+
 async function migrated() {
   const database = await databaseBeforeMigration(TAG);
   const registerId = await seedRegisterAndClaim(database);
   await insertFacturaBeforeMigration(database, registerId);
+  await insertCountBeforeMigration(database);
   const after = await database.applyMigration();
   return { database: after, registerId };
 }
@@ -294,5 +303,66 @@ describe("the offline credit notes migration applied over a database that alread
 
     const { rows } = await database.query("select state from fortnight_document_reports");
     expect(rows).toEqual([{ state: "awaiting_invoice_report" }]);
+  });
+
+  it("keeps the counts the tax authority was already asked for as facturas C counts", async () => {
+    const { database } = await migrated();
+
+    const { rows } = await database.query(
+      `select point_of_sale_number, document_type, last_authorized, issued_on::text as issued_on
+       from tax_authority_last_authorized_numbers`,
+    );
+
+    expect(rows).toEqual([
+      {
+        point_of_sale_number: 7,
+        document_type: "factura_c",
+        last_authorized: 41,
+        issued_on: "2026-10-05",
+      },
+    ]);
+  });
+
+  it("holds the last credit note C the tax authority authorized beside the factura count of the same point of sale", async () => {
+    const { database } = await migrated();
+
+    await database.query(
+      `insert into tax_authority_last_authorized_numbers
+         (point_of_sale_number, document_type, last_authorized, read_at)
+       values (7, 'credit_note_c', 4, '2026-10-06T15:00:00Z')`,
+    );
+
+    const { rows } = await database.query(
+      `select document_type, last_authorized from tax_authority_last_authorized_numbers
+       order by document_type`,
+    );
+    expect(rows).toEqual([
+      { document_type: "credit_note_c", last_authorized: 4 },
+      { document_type: "factura_c", last_authorized: 41 },
+    ]);
+  });
+
+  it("holds one count per point of sale and document type", async () => {
+    const { database } = await migrated();
+
+    await expect(
+      database.query(
+        `insert into tax_authority_last_authorized_numbers
+           (point_of_sale_number, document_type, last_authorized, read_at)
+         values (7, 'factura_c', 42, '2026-10-06T16:00:00Z')`,
+      ),
+    ).rejects.toThrow();
+  });
+
+  it("refuses a count of a document type other than a factura C or a credit note C", async () => {
+    const { database } = await migrated();
+
+    await expect(
+      database.query(
+        `insert into tax_authority_last_authorized_numbers
+           (point_of_sale_number, document_type, last_authorized, read_at)
+         values (8, 'nota_a', 4, '2026-10-06T15:00:00Z')`,
+      ),
+    ).rejects.toThrow(/tax_authority_last_authorized_numbers_document_type_known/);
   });
 });
