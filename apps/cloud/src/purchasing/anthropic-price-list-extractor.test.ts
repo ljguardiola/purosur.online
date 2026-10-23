@@ -5,7 +5,7 @@ import {
   SUPPLIER_PRICE_LIST_READING_TIME_LIMIT_MS,
 } from "@purosur/domain";
 import { PDFDocument } from "pdf-lib";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   AnthropicPriceListExtractor,
   SUPPLIER_PRICE_LIST_READING_MODEL,
@@ -729,6 +729,14 @@ describe("a range that throws an unexpected error", () => {
 });
 
 describe("the time a reading has", () => {
+  let fiftyPages: Awaited<ReturnType<typeof sourceOfPages>>;
+  let fortyPages: Awaited<ReturnType<typeof sourceOfPages>>;
+
+  beforeAll(async () => {
+    fiftyPages = await sourceOfPages(50);
+    fortyPages = await sourceOfPages(40);
+  });
+
   beforeEach(() => {
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
   });
@@ -763,10 +771,9 @@ describe("the time a reading has", () => {
 
   async function extractedAfter(
     extractor: AnthropicPriceListExtractor,
-    pageCount: number,
+    source: Awaited<ReturnType<typeof sourceOfPages>>,
     elapsedMs: number,
   ) {
-    const source = await sourceOfPages(pageCount);
     let settled = false;
     const extraction = extractor.extract(source).finally(() => {
       settled = true;
@@ -782,7 +789,7 @@ describe("the time a reading has", () => {
 
     const { extraction, settled } = await extractedAfter(
       extractor,
-      50,
+      fiftyPages,
       SUPPLIER_PRICE_LIST_READING_TIME_LIMIT_MS,
     );
 
@@ -798,7 +805,7 @@ describe("the time a reading has", () => {
 
     const { extraction } = await extractedAfter(
       extractor,
-      40,
+      fortyPages,
       SUPPLIER_PRICE_LIST_READING_TIME_LIMIT_MS * 0.9,
     );
 
