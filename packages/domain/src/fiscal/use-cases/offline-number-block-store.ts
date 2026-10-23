@@ -26,7 +26,13 @@ export interface OfflineNumberBlockStore {
     documentType: FiscalTaskDocumentType,
   ): Promise<number | null>;
   markOfflineNumberBlockUsedUp(block: OfflineNumberBlockRecord): Promise<void>;
-  taxAuthorityLastAuthorized(pointOfSaleNumber: number): Promise<number | null>;
-  requireTaxAuthorityCount(pointOfSaleNumber: number): Promise<void>;
+  taxAuthorityLastAuthorized(
+    pointOfSaleNumber: number,
+    documentType: FiscalTaskDocumentType,
+  ): Promise<number | null>;
+  requireTaxAuthorityCount(
+    pointOfSaleNumber: number,
+    documentType: FiscalTaskDocumentType,
+  ): Promise<void>;
   recordOfflineNumberBlock(record: OfflineNumberBlockRecord): Promise<void>;
 }

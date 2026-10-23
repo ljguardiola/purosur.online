@@ -1,4 +1,5 @@
 import { FACTURA_C_VOUCHER_TYPE } from "../model/factura-c-fiscal-block.js";
+import { FACTURA_C_DOCUMENT_TYPE } from "../model/fiscal-rejection-standing.js";
 import {
   diagnoseNumberingConflict as diagnose,
   isNumberingConflictAnswer,
@@ -88,6 +89,7 @@ export async function diagnoseNumberingConflict(
         freeze: null,
         taxAuthorityCount: {
           pointOfSale,
+          documentType: FACTURA_C_DOCUMENT_TYPE,
           lastAuthorized: lastAuthorized.number,
           issuedOn: lastAuthorizedIssuedOn,
           readAt: diagnosedAt,
