@@ -209,11 +209,11 @@ const WEB_PAGE_REFUSAL_REASONS = [
   "unreachable",
 ] as const;
 
-const webPageReadAnswers = [
+const webPageReadAnswers: [number, object, object][] = [
   [409, { code: "supplier_inactive" }, { kind: "supplier_inactive" }],
   [409, { code: "daily_cap_reached", cap: 10 }, { kind: "daily_cap_reached", cap: 10 }],
   [503, { code: "supplier_price_list_reading_unavailable" }, { kind: "reading_unavailable" }],
-] as const;
+];
 
 describe("loadSupplierPriceListWebPage", () => {
   const body = { supplierId: "supplier-1", url: "https://distribuidoradelsur.com.ar/precios" };
@@ -246,7 +246,7 @@ describe("loadSupplierPriceListWebPage", () => {
     });
   });
 
-  test.each([
+  test.each<[number, object, object]>([
     [404, { code: "supplier_not_found" }, { kind: "supplier_not_found" }],
     ...webPageReadAnswers,
   ])("answers a %i with %j as %j", async (status, answer, outcome) => {
@@ -307,7 +307,7 @@ describe("refreshSupplierPriceList", () => {
     });
   });
 
-  test.each([
+  test.each<[number, object, object]>([
     [404, { code: "not_found" }, { kind: "not_found" }],
     [404, { code: "supplier_not_found" }, { kind: "supplier_not_found" }],
     [409, { code: "not_a_web_page" }, { kind: "not_a_web_page" }],
