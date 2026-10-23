@@ -1,9 +1,4 @@
-import {
-  canonicalOutboxEvent,
-  type PushedEvent,
-  type RegisterTelemetry,
-  SALE_COMPLETED_EVENT_TYPE,
-} from "@purosur/domain";
+import { canonicalOutboxEvent, type PushedEvent, type RegisterTelemetry } from "@purosur/domain";
 import { receivePushedEvents } from "@purosur/domain/sync/use-cases";
 import { and, count, eq } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
@@ -26,7 +21,6 @@ import {
 } from "../test-support/integration-database.js";
 import { runQueuedBehindHeldLock } from "../test-support/queued-behind-held-lock.js";
 import { DrizzleInbox } from "./drizzle-inbox.js";
-import { DrizzleRegisterReplenishment } from "./drizzle-register-replenishment.js";
 import { hmacEventChain } from "./hmac-event-chain.js";
 
 const CIPHER = installationKeyCipher(TEST_INSTALLATION_KEYS_ENCRYPTION_KEY);
@@ -402,38 +396,8 @@ describe("the inbox on a real Postgres, as the role the deployed cloud connects 
     );
   });
 
-  it("no longer serves a replenishment the events a refused push set aside, an applied completed sale included, while serving the acknowledged ones", async () => {
-    const { deviceId, registerId } = await insertEnrolledInstallation();
-    const [first, second, third, fourth] = linked(
-      event(1),
-      event(2),
-      { ...event(3), event_type: SALE_COMPLETED_EVENT_TYPE },
-      event(4),
-    );
-    if (!first || !second || !third || !fourth) {
-      throw new Error("test setup: the chain holds four events");
-    }
-    await db
-      .insert(inbox)
-      .values([
-        storedRow(deviceId, first),
-        { ...storedRow(deviceId, third), appliedAt: NOW },
-        storedRow(deviceId, { ...fourth, payload: { quantity: 99 } }),
-      ]);
-
-    await push(deviceId, [second]);
-
-    const served = await new DrizzleRegisterReplenishment(db).ownEventsAbove(
-      registerId,
-      { predecessorDeviceId: deviceId, lastAcknowledgedSeq: 0 },
-      undefined,
-      100,
-    );
-    expect(served).toEqual([{ deviceId, event: first }]);
-  });
-
-  it("still serves a replenishment the acknowledged events a refused push carried again", async () => {
-    const { deviceId, registerId } = await insertEnrolledInstallation();
+  it("keeps the acknowledged events a refused push carried again, recording the whole push among the refused events", async () => {
+    const { deviceId } = await insertEnrolledInstallation();
     const [first, second, third] = linked(event(1), event(2), event(3));
     if (!first || !second || !third) {
       throw new Error("test setup: the chain holds three events");
@@ -444,16 +408,17 @@ describe("the inbox on a real Postgres, as the role the deployed cloud connects 
       kind: "chain_broken",
     });
 
-    const served = await new DrizzleRegisterReplenishment(db).ownEventsAbove(
-      registerId,
-      { predecessorDeviceId: deviceId, lastAcknowledgedSeq: 0 },
-      undefined,
-      100,
+    expect(await storedSeqs(deviceId)).toEqual([1, 2]);
+    const kept = await db
+      .select({ eventId: refusedEvents.eventId, deviceSeq: refusedEvents.deviceSeq })
+      .from(refusedEvents)
+      .where(eq(refusedEvents.deviceId, deviceId));
+    expect(kept.sort((one, other) => one.deviceSeq - other.deviceSeq)).toEqual(
+      [first, second, third].map((refused) => ({
+        eventId: refused.event_id,
+        deviceSeq: refused.device_seq,
+      })),
     );
-    expect(served).toEqual([
-      { deviceId, event: first },
-      { deviceId, event: second },
-    ]);
   });
 
   it("answers revoked to a push queued behind the one whose chain broke, receiving nothing of it", async () => {

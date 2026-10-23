@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import {
   drizzle,
   type PostgresJsDatabase,
@@ -5,6 +6,7 @@ import {
 } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { refusedEvents } from "../platform/db/schema.js";
 import {
   aRegisterRestoredTwice,
   hoursAfter,
@@ -25,6 +27,8 @@ let sql: ReturnType<typeof postgres>;
 let db: PostgresJsDatabase<Record<string, never>>;
 let replenishment: DrizzleRegisterReplenishment<PostgresJsQueryResultHKT>;
 
+const NOTHING_SET_ASIDE: ReadonlyMap<string, number> = new Map();
+
 beforeAll(async () => {
   integrationDb = await createIntegrationDatabase("register_replenishment");
   sql = postgres(integrationDb.databaseUrl, { max: 4 });
@@ -41,6 +45,27 @@ async function insertEvents(deviceId: string, seqs: number[]): Promise<void> {
   for (const deviceSeq of seqs) {
     await insertInboxEvent(db, deviceId, { deviceSeq });
   }
+}
+
+async function insertRefusedCopy(
+  deviceId: string,
+  eventId: string,
+  deviceSeq: number,
+): Promise<void> {
+  await db.insert(refusedEvents).values({
+    deviceId,
+    eventId,
+    deviceSeq,
+    aggregateType: "Sale",
+    aggregateId: randomUUID(),
+    eventType: "sale_completed",
+    schemaVersion: 2,
+    payload: {},
+    occurredAt: T0,
+    actorId: "c7b3e5d2-18a4-4f90-b6d1-2e9f0a8c3d03",
+    chainHmac: "hmac",
+    refusedAt: T0,
+  });
 }
 
 function positionsOf(events: { deviceId: string; event: { device_seq: number } }[]) {
@@ -63,6 +88,7 @@ describe("the events of a register above a predecessor position", () => {
       { predecessorDeviceId: predecessor, lastAcknowledgedSeq: 3 },
       undefined,
       100,
+      NOTHING_SET_ASIDE,
     );
 
     expect(positionsOf(events)).toEqual([
@@ -82,6 +108,7 @@ describe("the events of a register above a predecessor position", () => {
       { predecessorDeviceId: predecessor, lastAcknowledgedSeq: 1 },
       undefined,
       100,
+      NOTHING_SET_ASIDE,
     );
 
     expect(positionsOf(events)).toEqual([
@@ -112,6 +139,7 @@ describe("the events of a register above a predecessor position", () => {
       { predecessorDeviceId: predecessor, lastAcknowledgedSeq: 0 },
       undefined,
       100,
+      NOTHING_SET_ASIDE,
     );
 
     expect(positionsOf(events)).toEqual([[second, 1]]);
@@ -136,6 +164,7 @@ describe("the events of a register above a predecessor position", () => {
       { predecessorDeviceId: predecessor, lastAcknowledgedSeq: 0 },
       undefined,
       100,
+      NOTHING_SET_ASIDE,
     );
 
     expect(events).toEqual([
@@ -166,6 +195,7 @@ describe("the events of a register above a predecessor position", () => {
       { predecessorDeviceId: predecessor, lastAcknowledgedSeq: 0 },
       undefined,
       2,
+      NOTHING_SET_ASIDE,
     );
 
     expect(positionsOf(events)).toEqual([
@@ -186,12 +216,14 @@ describe("the events of a register above a predecessor position", () => {
       position,
       { deviceId: second, deviceSeq: 1 },
       100,
+      NOTHING_SET_ASIDE,
     );
     const acrossInstallations = await replenishment.ownEventsAbove(
       registerId,
       position,
       { deviceId: predecessor, deviceSeq: 2 },
       2,
+      NOTHING_SET_ASIDE,
     );
 
     expect(positionsOf(withinInstallation)).toEqual([
@@ -201,6 +233,120 @@ describe("the events of a register above a predecessor position", () => {
     expect(positionsOf(acrossInstallations)).toEqual([
       [second, 1],
       [second, 2],
+    ]);
+  });
+});
+
+describe("the events a refused push left copies of", () => {
+  it("reads the received sequences of each installation of the register a refused push left events of", async () => {
+    const { registerId, predecessor, second } = await aRegisterRestoredTwice(db);
+    const ofAnotherRegister = await insertInstallation(
+      db,
+      await insertRegister(db, await insertBranch(db)),
+      { enrolledAt: T0 },
+    );
+    await insertInboxEvent(db, predecessor, { deviceSeq: 3, appliedAt: T0 });
+    const refusedSecond = await insertInboxEvent(db, predecessor, { deviceSeq: 2 });
+    await insertInboxEvent(db, predecessor, { deviceSeq: 1 });
+    await insertRefusedCopy(predecessor, refusedSecond, 2);
+    await insertRefusedCopy(predecessor, randomUUID(), 4);
+    await insertEvents(second, [1]);
+    await insertRefusedCopy(
+      ofAnotherRegister,
+      await insertInboxEvent(db, ofAnotherRegister, { deviceSeq: 1 }),
+      1,
+    );
+
+    expect(await replenishment.receivedSeqsOfRefusedInstallations(registerId)).toEqual([
+      { deviceId: predecessor, seqs: [1, 2, 3] },
+    ]);
+  });
+
+  it("leaves out an event whose refused copy lies above the sequence given for its installation, an applied one included, serving those at or below it", async () => {
+    const { registerId, predecessor } = await aRegisterRestoredTwice(db);
+    await insertInboxEvent(db, predecessor, { deviceSeq: 1 });
+    const carriedAgain = await insertInboxEvent(db, predecessor, { deviceSeq: 2 });
+    const applied = await insertInboxEvent(db, predecessor, { deviceSeq: 3, appliedAt: T0 });
+    await insertRefusedCopy(predecessor, carriedAgain, 2);
+    await insertRefusedCopy(predecessor, applied, 3);
+
+    const events = await replenishment.ownEventsAbove(
+      registerId,
+      { predecessorDeviceId: predecessor, lastAcknowledgedSeq: 0 },
+      undefined,
+      100,
+      new Map([[predecessor, 2]]),
+    );
+
+    expect(positionsOf(events)).toEqual([
+      [predecessor, 1],
+      [predecessor, 2],
+    ]);
+  });
+
+  it("serves an event a refused push left a copy of when no sequence is given for its installation", async () => {
+    const { registerId, predecessor } = await aRegisterRestoredTwice(db);
+    await insertInboxEvent(db, predecessor, { deviceSeq: 1 });
+    await insertRefusedCopy(
+      predecessor,
+      await insertInboxEvent(db, predecessor, { deviceSeq: 3 }),
+      3,
+    );
+
+    const events = await replenishment.ownEventsAbove(
+      registerId,
+      { predecessorDeviceId: predecessor, lastAcknowledgedSeq: 0 },
+      undefined,
+      100,
+      NOTHING_SET_ASIDE,
+    );
+
+    expect(positionsOf(events)).toEqual([
+      [predecessor, 1],
+      [predecessor, 3],
+    ]);
+  });
+
+  it("serves an event above the sequence given for its installation when the refused copy at its sequence is of another event", async () => {
+    const { registerId, predecessor } = await aRegisterRestoredTwice(db);
+    await insertEvents(predecessor, [1, 2]);
+    await insertRefusedCopy(predecessor, randomUUID(), 2);
+
+    const events = await replenishment.ownEventsAbove(
+      registerId,
+      { predecessorDeviceId: predecessor, lastAcknowledgedSeq: 0 },
+      undefined,
+      100,
+      new Map([[predecessor, 1]]),
+    );
+
+    expect(positionsOf(events)).toEqual([
+      [predecessor, 1],
+      [predecessor, 2],
+    ]);
+  });
+
+  it("fills the limit with the events it serves, past the ones it leaves out", async () => {
+    const { registerId, predecessor } = await aRegisterRestoredTwice(db);
+    await insertInboxEvent(db, predecessor, { deviceSeq: 1 });
+    await insertRefusedCopy(
+      predecessor,
+      await insertInboxEvent(db, predecessor, { deviceSeq: 2, appliedAt: T0 }),
+      2,
+    );
+    await insertInboxEvent(db, predecessor, { deviceSeq: 3 });
+
+    const events = await replenishment.ownEventsAbove(
+      registerId,
+      { predecessorDeviceId: predecessor, lastAcknowledgedSeq: 0 },
+      undefined,
+      2,
+      new Map([[predecessor, 1]]),
+    );
+
+    expect(positionsOf(events)).toEqual([
+      [predecessor, 1],
+      [predecessor, 3],
     ]);
   });
 });
