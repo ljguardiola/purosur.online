@@ -1,4 +1,5 @@
 import { argentinaCalendarDay, isCalendarDay } from "../../shared/index.js";
+import { supplierItemKey } from "../model/supplier-item.js";
 import {
   isPriceListRowPrice,
   isSourcePage,
@@ -45,9 +46,24 @@ function proposedRow(row: ExtractedPriceListRow): ProposedPriceListRow {
     priceCents:
       row.priceCents !== null && isPriceListRowPrice(row.priceCents) ? row.priceCents : null,
     page: row.page !== null && isSourcePage(row.page) ? row.page : null,
-    barcode: null,
+    barcode: row.barcode?.trim() || null,
     link: null,
   };
+}
+
+async function withRememberedLinks(
+  tx: SupplierPriceListStoreTransaction,
+  supplierId: string,
+  rows: ProposedPriceListRow[],
+): Promise<ProposedPriceListRow[]> {
+  const remembered = await tx.supplierItems(supplierId, rows.map(supplierItemKey));
+  return rows.map((row) => {
+    const key = supplierItemKey(row);
+    const item = remembered.find(
+      (other) => other.key.kind === key.kind && other.key.value === key.value,
+    );
+    return { ...row, link: item?.link ?? null };
+  });
 }
 
 async function extractedOrUnavailable(
@@ -168,7 +184,7 @@ async function readOnce(
       listId,
       listDate,
       extraction.pricesIncludeVat,
-      extraction.rows.map(proposedRow),
+      await withRememberedLinks(tx, locked.list.supplierId, extraction.rows.map(proposedRow)),
     );
     return { kind: "extracted", rowCount: extraction.rows.length };
   });
