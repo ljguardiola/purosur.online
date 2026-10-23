@@ -142,7 +142,10 @@ export {
   FISCAL_TASK_STATES,
   OPEN_FISCAL_TASK_STATE,
 } from "./model/fiscal-task.js";
-export { voucherTypeOfDocumentType } from "./model/fiscal-voucher-type.js";
+export {
+  OFFLINE_SERIES_DOCUMENT_TYPES,
+  voucherTypeOfDocumentType,
+} from "./model/fiscal-voucher-type.js";
 export type {
   FortnightPresentationRefusal,
   FortnightPresentationState,

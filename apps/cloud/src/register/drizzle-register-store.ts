@@ -3,6 +3,7 @@ import {
   enrollmentAttemptWindowStart,
   FACTURA_C_DOCUMENT_TYPE,
   isRetainedSnapshotGeneration,
+  OFFLINE_SERIES_DOCUMENT_TYPES,
 } from "@purosur/domain";
 import type { NumberingFreeze } from "@purosur/domain/fiscal/use-cases";
 import type {
@@ -26,7 +27,6 @@ import { openAlert } from "../alerts/open-alert.js";
 import type { EnqueueNumberingReconciliation } from "../fiscal/enqueue-numbering-conflict.js";
 import { freezePointOfSaleNumbering } from "../fiscal/freeze-point-of-sale-numbering.js";
 import type { EnqueueTaxAuthorityCount } from "../fiscal/graphile-tax-authority-count-queue.js";
-import { OFFLINE_SERIES_DOCUMENT_TYPES } from "../fiscal/offline-series-document-types.js";
 import { pointOfSaleLaneLockKey } from "../fiscal/point-of-sale-lane-lock.js";
 import {
   auditLog,

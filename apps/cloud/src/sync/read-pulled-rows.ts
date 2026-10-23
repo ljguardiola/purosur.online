@@ -2,6 +2,7 @@ import {
   FACTURA_C_DOCUMENT_TYPE,
   type FiscalTaskDocumentType,
   type NetContentUnit,
+  OFFLINE_SERIES_DOCUMENT_TYPES,
   type SaleUnit,
   type StockMovementKind,
 } from "@purosur/domain";
@@ -9,7 +10,6 @@ import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { highestSyncedOfflineNumber as highestSyncedOfflineNumberOf } from "../fiscal/drizzle-highest-synced-offline-number.js";
 import { OFFLINE_AUTHORIZATION_CODE_VERSION } from "../fiscal/offline-authorization-code-version.js";
-import { OFFLINE_SERIES_DOCUMENT_TYPES } from "../fiscal/offline-series-document-types.js";
 import {
   branchFirstCashSessions,
   buyerIdentificationThresholds,
