@@ -142,7 +142,7 @@ describe("ContingencyBackupTicketsNoticeCard", () => {
       await expect
         .element(
           screen.getByText(
-            "Esta caja sincronizó con la nube todo lo de la contingencia: el 1 ticket guardado en la caja del local ya no hace falta.",
+            "Esta caja sincronizó con la nube todo lo de la contingencia: el ticket guardado en la caja del local ya no hace falta.",
           ),
         )
         .toBeVisible();
