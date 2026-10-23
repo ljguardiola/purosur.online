@@ -19,7 +19,7 @@ export const CAPABILITY_PERMISSIONS = {
   cash_area: ["change_fiscal_configuration"],
   alerts_area: ["view_branch_alerts", "view_all_alerts"],
   close_alerts_manually: ["dismiss_alerts_manually"],
-  registers_area: ["enroll_register_devices", "view_bitlocker_key"],
+  registers_area: ["enroll_register_devices", "view_bitlocker_key", "revoke_register_devices"],
   enroll_registers: ["enroll_register_devices"],
   revoke_installations: ["revoke_register_devices"],
   bitlocker_recovery_key: ["view_bitlocker_key"],
