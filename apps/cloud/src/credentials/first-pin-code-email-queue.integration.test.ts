@@ -4,6 +4,10 @@ import { and, eq, isNull } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import {
+  FIRST_PIN_CODE_EMAIL_TASK_IDENTIFIER,
+  startRecoveryWorker,
+} from "../platform/background-job-runner.js";
 import { registers, userPinCodes, users } from "../platform/db/schema.js";
 import { hashSecretCode } from "../platform/secret-code.js";
 import {
@@ -18,7 +22,6 @@ import {
 } from "./graphile-first-pin-code-email-queue.js";
 import { generatePinCode } from "./pin-code-generator.js";
 import type { AccessEmailSender, SendFirstPinCodeInput } from "./recovery-email-sender.js";
-import { FIRST_PIN_CODE_EMAIL_TASK_IDENTIFIER, startRecoveryWorker } from "./recovery-worker.js";
 
 const NOON = new Date("2026-01-05T12:00:00.000Z");
 

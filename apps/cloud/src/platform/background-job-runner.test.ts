@@ -2,11 +2,10 @@ import { EventEmitter } from "node:events";
 import type { RunnerOptions } from "graphile-worker";
 import type { Pool } from "pg";
 import { afterEach, describe, expect, expectTypeOf, it, vi } from "vitest";
-import { auditLog, users } from "../platform/db/schema.js";
+import { processRecoveryRequestJob } from "../credentials/process-recovery-request-job.js";
+import type { AccessEmailSender } from "../credentials/recovery-email-sender.js";
 import { buildTestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
-import { processRecoveryRequestJob } from "./process-recovery-request-job.js";
-import type { AccessEmailSender } from "./recovery-email-sender.js";
 import {
   FIRST_PIN_CODE_EMAIL_TASK_IDENTIFIER,
   RECOVERY_REJECTED_ATTEMPT_FLUSH_TASK_IDENTIFIER,
@@ -14,7 +13,8 @@ import {
   type StartRecoveryWorkerDeps,
   type StartRecoveryWorkerOptions,
   startRecoveryWorker,
-} from "./recovery-worker.js";
+} from "./background-job-runner.js";
+import { auditLog, users } from "./db/schema.js";
 
 const emailSender: AccessEmailSender = { sendRecoveryLink: vi.fn(), sendFirstPinCode: vi.fn() };
 

@@ -3,18 +3,21 @@ import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { Runner, RunnerOptions } from "graphile-worker";
 import { consoleLogFactory, Logger, run } from "graphile-worker";
 import pg, { type Pool, type PoolClient } from "pg";
-import { type BackgroundJobs, databaseOfClient } from "../platform/background-jobs.js";
-import { type ReportErrorDeps, reportError } from "../platform/error-reporting.js";
-import { runShutdownSteps } from "../platform/run-shutdown-steps.js";
-import { reportPoolErrors } from "./pool-connection-error-handler.js";
 import {
   processRecoveryRequestJob,
   recordRecoveryLinkSentJob,
-} from "./process-recovery-request-job.js";
-import type { AccessEmailSender } from "./recovery-email-sender.js";
-import { flushClosedRecoveryRejectedAttemptWindows } from "./recovery-rejected-attempt-flush.js";
-import { recoveryRequestJobPayloadSchema } from "./recovery-request-job-payload.js";
-import { findPinCodeByCode, sendFirstPinCodeEmailJob } from "./send-first-pin-code-email-job.js";
+} from "../credentials/process-recovery-request-job.js";
+import type { AccessEmailSender } from "../credentials/recovery-email-sender.js";
+import { flushClosedRecoveryRejectedAttemptWindows } from "../credentials/recovery-rejected-attempt-flush.js";
+import { recoveryRequestJobPayloadSchema } from "../credentials/recovery-request-job-payload.js";
+import {
+  findPinCodeByCode,
+  sendFirstPinCodeEmailJob,
+} from "../credentials/send-first-pin-code-email-job.js";
+import { type BackgroundJobs, databaseOfClient } from "./background-jobs.js";
+import { type ReportErrorDeps, reportError } from "./error-reporting.js";
+import { reportPoolErrors } from "./pool-connection-error-handler.js";
+import { runShutdownSteps } from "./run-shutdown-steps.js";
 
 export const RECOVERY_REQUEST_TASK_IDENTIFIER = "recovery-request";
 export const RECOVERY_REJECTED_ATTEMPT_FLUSH_TASK_IDENTIFIER = "recovery-rejected-attempt-flush";

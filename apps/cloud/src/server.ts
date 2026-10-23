@@ -34,14 +34,8 @@ import {
   databaseRouteOptions,
 } from "./app.js";
 import { createGraphileRecoveryJobQueue } from "./credentials/graphile-recovery-job-queue.js";
-import { reportPoolErrors } from "./credentials/pool-connection-error-handler.js";
 import type { AccessEmailSender } from "./credentials/recovery-email-sender.js";
 import type { RecoveryJobQueue } from "./credentials/recovery-job-queue.js";
-import {
-  type RecoveryWorkerHandle,
-  type StartRecoveryWorkerOptions,
-  startRecoveryWorker,
-} from "./credentials/recovery-worker.js";
 import {
   type RecoveryEmailSenderEnv,
   selectRecoveryEmailSender,
@@ -94,10 +88,16 @@ import { createMercadoPagoOrdersClient } from "./payments/mercado-pago-orders-cl
 import { mercadoPagoPendingCheckJobs } from "./payments/mercado-pago-pending-check-task.js";
 import { mercadoPagoRefundFollowJobs } from "./payments/mercado-pago-refund-follow-task.js";
 import {
+  type RecoveryWorkerHandle,
+  type StartRecoveryWorkerOptions,
+  startRecoveryWorker,
+} from "./platform/background-job-runner.js";
+import {
   type DedicatedConnections,
   postgresDedicatedConnections,
 } from "./platform/dedicated-connections.js";
 import { normalizePemNewlines } from "./platform/pem-newlines.js";
+import { reportPoolErrors } from "./platform/pool-connection-error-handler.js";
 import { runShutdownSteps } from "./platform/run-shutdown-steps.js";
 import { initSentry } from "./platform/sentry.js";
 import { AnthropicPriceListExtractor } from "./purchasing/anthropic-price-list-extractor.js";

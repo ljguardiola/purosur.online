@@ -13,18 +13,21 @@ import {
 import pg from "pg";
 import postgres from "postgres";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
-import { alerts, auditLog, recoveryTokens, users } from "../platform/db/schema.js";
+import type {
+  AccessEmailSender,
+  SendRecoveryLinkInput,
+} from "../credentials/recovery-email-sender.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
 } from "../test-support/integration-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
-import type { AccessEmailSender, SendRecoveryLinkInput } from "./recovery-email-sender.js";
 import {
   RECOVERY_REJECTED_ATTEMPT_FLUSH_TASK_IDENTIFIER,
   RECOVERY_REQUEST_TASK_IDENTIFIER,
   startRecoveryWorker,
-} from "./recovery-worker.js";
+} from "./background-job-runner.js";
+import { alerts, auditLog, recoveryTokens, users } from "./db/schema.js";
 
 const WAIT_OPTIONS = { timeout: 20_000, interval: 100 };
 const NOW = new Date("2026-01-05T12:00:00.000Z");

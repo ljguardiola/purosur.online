@@ -1,7 +1,7 @@
 import { recordIdSchema } from "@purosur/contracts";
 import { describe, expect, it, vi } from "vitest";
+import { RECOVERY_REQUEST_TASK_IDENTIFIER } from "../platform/background-job-runner.js";
 import { createGraphileRecoveryJobQueue } from "./graphile-recovery-job-queue.js";
-import { RECOVERY_REQUEST_TASK_IDENTIFIER } from "./recovery-worker.js";
 
 describe("createGraphileRecoveryJobQueue", () => {
   it("enqueues a recovery-request job for the given request through the shared worker utils", async () => {
