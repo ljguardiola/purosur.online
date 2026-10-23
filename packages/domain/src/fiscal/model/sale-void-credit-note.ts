@@ -63,7 +63,7 @@ type ConfirmedCreditNoteAnswer = Exclude<CreditNoteAnswer, { kind: "in_progress"
 export interface RestoredCreditNoteAnswer {
   creditNoteId: string;
   answeredAt: Date;
-  answer: ConfirmedCreditNoteAnswer | { kind: "already_credited" };
+  answer: ConfirmedCreditNoteAnswer | { kind: "already_credited" } | CreditNoteIssuedOffline;
 }
 
 export type CreditNoteStanding =
@@ -118,7 +118,11 @@ export type RestoredCreditNoteSettlement =
 export function restoredCreditNoteSettlement(
   recorded: { standing: CreditNoteStanding; pointOfSale: number } | null,
   alreadyCreditedRefusalKept: boolean,
+  issuedOffline: CreditNoteIssuedOffline | null = null,
 ): RestoredCreditNoteSettlement {
+  if (issuedOffline !== null) {
+    return { kind: "answered", answer: issuedOffline };
+  }
   if (recorded !== null) {
     const answer = confirmedCreditNoteAnswer(recorded.standing, recorded.pointOfSale);
     return answer === null ? { kind: "unsettled" } : { kind: "answered", answer };

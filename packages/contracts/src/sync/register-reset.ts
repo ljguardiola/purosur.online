@@ -2,6 +2,7 @@ import { isCalendarDay, REPLENISHMENT_PAGE_MAX_EVENTS } from "@purosur/domain";
 import { z } from "zod";
 import {
   authorizedVoidCreditNoteAnswerSchema,
+  pointOfSaleNumberSchema,
   pushedEventSchema,
   recordIdSchema,
   rejectedVoidCreditNoteAnswerSchema,
@@ -22,6 +23,18 @@ const registerResetCreditNoteSchema = z.discriminatedUnion("state", [
   authorizedVoidCreditNoteAnswerSchema.extend(creditNoteAnswerFields),
   rejectedVoidCreditNoteAnswerSchema.extend(creditNoteAnswerFields),
   z.object({ state: z.literal("ALREADY_CREDITED") }).extend(creditNoteAnswerFields),
+  z
+    .object({
+      state: z.literal("ISSUED_OFFLINE"),
+      point_of_sale: pointOfSaleNumberSchema,
+      number: z.int().positive(),
+      issued_on: z.string().refine(isCalendarDay),
+      issued_at: z.iso.datetime(),
+      offline_authorization_code: z.string().min(1),
+      fortnight_start: z.string().refine(isCalendarDay),
+      fortnight_end: z.string().refine(isCalendarDay),
+    })
+    .extend(creditNoteAnswerFields),
 ]);
 
 const unclearDeferralFields = { fiscal_document_id: recordIdSchema() };

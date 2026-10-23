@@ -484,6 +484,7 @@ export type {
 } from "./request-voided-sale-credit-note.js";
 export { requestVoidedSaleCreditNote } from "./request-voided-sale-credit-note.js";
 export type {
+  IssuedOfflineCreditNoteOfRegister,
   KeptAlreadyCreditedRefusalOfRegister,
   RestoredRegisterCreditNoteAnswers,
   SaleVoidCreditNoteOfRegister,
