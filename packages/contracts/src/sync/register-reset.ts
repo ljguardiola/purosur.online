@@ -28,11 +28,7 @@ const unclearDeferralFields = { fiscal_document_id: recordIdSchema() };
 
 const registerResetUnclearDeferralSchema = z.discriminatedUnion("state", [
   z.object({ state: z.literal("UNSETTLED"), ...unclearDeferralFields }),
-  z.object({
-    state: z.literal("REJECTED"),
-    ...unclearDeferralFields,
-    answered_at: z.iso.datetime(),
-  }),
+  z.object({ state: z.literal("REJECTED"), ...unclearDeferralFields }),
   z.object({
     state: z.literal("AUTHORIZED"),
     ...unclearDeferralFields,

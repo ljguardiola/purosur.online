@@ -233,10 +233,8 @@ export {
   remedyAwaitsResend,
 } from "./model/rejected-document-remedy.js";
 export type {
-  RebuiltAuthorizedDocument,
   RebuiltUnclearDeferral,
   RestoredUnclearDeferral,
-  RestoredUnclearDeferralAnswer,
 } from "./model/restored-unclear-deferral.js";
 export { rebuiltUnclearDeferral } from "./model/restored-unclear-deferral.js";
 export type {

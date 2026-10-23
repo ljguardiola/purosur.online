@@ -9,7 +9,7 @@ import {
 
 export type RestoredUnclearDeferralAnswer =
   | { kind: "unsettled" }
-  | { kind: "rejected"; answeredAt: Date }
+  | { kind: "rejected" }
   | {
       kind: "authorized";
       authorizationCode: string;
@@ -35,21 +35,21 @@ export function restoredUnclearDeferralAnswer(
   if (told.kind === "pending") {
     return UNSETTLED;
   }
-  const answeredAt = told.kind === "answered" ? instants.answeredAt : instants.decidedAt;
-  if (answeredAt === null) {
-    return UNSETTLED;
-  }
   const settlement = unclearDocumentSettlement(told);
   switch (settlement.state) {
-    case "AUTHORIZED":
-      return {
-        kind: "authorized",
-        authorizationCode: settlement.authorizationCode,
-        authorizationCodeDueOn: settlement.authorizationCodeDueOn,
-        answeredAt,
-      };
+    case "AUTHORIZED": {
+      const answeredAt = told.kind === "answered" ? instants.answeredAt : instants.decidedAt;
+      return answeredAt === null
+        ? UNSETTLED
+        : {
+            kind: "authorized",
+            authorizationCode: settlement.authorizationCode,
+            authorizationCodeDueOn: settlement.authorizationCodeDueOn,
+            answeredAt,
+          };
+    }
     case "REJECTED":
-      return { kind: "rejected", answeredAt };
+      return { kind: "rejected" };
     case "UNKNOWN":
     case "RELEASED":
     case "CONFLICTING":
@@ -57,7 +57,7 @@ export function restoredUnclearDeferralAnswer(
   }
 }
 
-export interface RebuiltAuthorizedDocument {
+interface RebuiltAuthorizedDocument {
   id: string;
   saleId: string;
   pointOfSale: number;

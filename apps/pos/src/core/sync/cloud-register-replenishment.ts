@@ -58,10 +58,7 @@ function unclearDeferralOf(deferral: WireUnclearDeferral): RestoredUnclearDeferr
     case "UNSETTLED":
       return { fiscalDocumentId, answer: { kind: "unsettled" } };
     case "REJECTED":
-      return {
-        fiscalDocumentId,
-        answer: { kind: "rejected", answeredAt: new Date(deferral.answered_at) },
-      };
+      return { fiscalDocumentId, answer: { kind: "rejected" } };
     case "AUTHORIZED":
       return {
         fiscalDocumentId,

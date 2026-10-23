@@ -492,7 +492,7 @@ const invoiceSchema = z.object({
 const deferredSaleRecordedV2Schema = deferredSaleRecordedSchema.extend({
   unclear_document: z
     .object({
-      fiscal_document_id: text,
+      fiscal_document_id: recordIdSchema(),
       point_of_sale: pointOfSaleNumberSchema,
       number: z.int().positive(),
       issued_on: z.string().refine(isCalendarDay),

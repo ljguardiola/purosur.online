@@ -81,7 +81,7 @@ function unclearDeferralBody({
     case "unsettled":
       return { ...common, state: "UNSETTLED" };
     case "rejected":
-      return { ...common, state: "REJECTED", answered_at: answer.answeredAt.toISOString() };
+      return { ...common, state: "REJECTED" };
     case "authorized":
       return {
         ...common,
