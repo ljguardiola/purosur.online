@@ -4,7 +4,6 @@ import { afterAll, afterEach, beforeAll, beforeEach, type Mock, vi } from "vites
 import { arcaWsaaTokens } from "../../platform/db/schema.js";
 import type { reportError } from "../../platform/error-reporting.js";
 import { registerRouteAccess } from "../../sessions/route-access.js";
-import { registerEventsRoute } from "../../sync/events-route.js";
 import { buildTestDatabase, type TestDatabase } from "../../test-support/build-test-database.js";
 import { TEST_DEVICE_TOKEN_ROTATION_KEY } from "../../test-support/device-token-rotation-key.js";
 import { TEST_INSTALLATION_KEYS_ENCRYPTION_KEY } from "../../test-support/installation-keys-encryption-key.js";
@@ -73,13 +72,6 @@ export function creditNoteRouteUnderTest(): CreditNoteRouteUnderTest {
       },
       enqueueEventApplication: async () => {},
       report,
-    });
-    registerEventsRoute(app, {
-      db: testDatabase.db,
-      rotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY,
-      keysEncryptionKey: TEST_INSTALLATION_KEYS_ENCRYPTION_KEY,
-      now: () => NOW,
-      enqueueEventApplication: async () => {},
     });
   });
 

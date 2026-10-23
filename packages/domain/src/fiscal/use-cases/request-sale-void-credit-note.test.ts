@@ -196,7 +196,7 @@ describe("requestSaleVoidCreditNote", () => {
         },
       ],
     ])(
-      "answers the state of a credit note %s, recording nothing",
+      "answers the state of a credit note %s, recording no credit note",
       async (_case, standing, answer) => {
         const { store, run } = request({
           seeded: [[REGISTER_ID, { ...STORED, standing }]],
@@ -240,7 +240,7 @@ describe("requestSaleVoidCreditNote", () => {
     });
   });
 
-  it("lets a failure of the storage through, recording nothing", async () => {
+  it("lets a failure of the storage through, recording no credit note", async () => {
     const { store, run } = request();
     store.recordFailure = new Error("the storage is down");
 
@@ -307,7 +307,7 @@ describe("requestSaleVoidCreditNote", () => {
       ["another credit note", "credit-note-2", "sale_void" as const],
       ["an orphan credit note", "credit-note-3", "orphan" as const],
     ])(
-      "refuses a voucher that already has %s, recording nothing",
+      "refuses a voucher that already has %s, recording no credit note",
       async (_case, otherId, reason) => {
         const { store, run } = request({
           seeded: [[REGISTER_ID, { ...STORED, creditNoteId: otherId, reason }]],
