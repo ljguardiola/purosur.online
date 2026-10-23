@@ -377,7 +377,9 @@ describe("applyRegisterStockMovements", () => {
 
       expect(remainingByLot(store)).toEqual({ soon: 2000, late: 2000, newest: 7000 });
       expect(
-        store.snapshot().allocations.filter(({ movementId }) => movementId === "register-movement-9"),
+        store
+          .snapshot()
+          .allocations.filter(({ movementId }) => movementId === "register-movement-9"),
       ).toEqual([
         { movementId: "register-movement-9", lotId: "soon", quantity: 2000 },
         { movementId: "register-movement-9", lotId: "late", quantity: 1000 },

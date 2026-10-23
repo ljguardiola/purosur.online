@@ -8,17 +8,20 @@ import {
   categories,
   inbox,
   locations,
+  lots,
   products,
   stockBalances,
   stockMovements,
   users,
 } from "../platform/db/schema.js";
+import { insertPurchasedLot } from "../stock/test-support/lot-fixtures.js";
 import { eventApplicationUnderTest } from "./test-support/drizzle-event-application.js";
 import { insertInboxEvent } from "./test-support/inbox-events.js";
 import { changesLoggedAfter, lastLoggedChangeSeq } from "./test-support/logged-changes.js";
 import {
   aCashSessionOpenedFact,
   aCompletedSale,
+  aVoidedSaleOf,
   type CompletedSale,
 } from "./test-support/synced-facts.js";
 
@@ -226,6 +229,76 @@ describe("applying the stock a completed sale moved", () => {
       reason: `a sale moved a quantity of product ${productId} it can't be sold in`,
     });
     expect(await system.db.select().from(stockMovements)).toEqual([]);
+  });
+});
+
+describe("applying the stock a voided sale returned", () => {
+  it("gives each lot back what the sale took from it, leaving the product's other lots alone", async () => {
+    const { deviceId, locationId } = await system.enrollInstallation();
+    await insertCashier(locationId);
+    const productId = await insertProduct();
+    const soon = await insertPurchasedLot(system.db, {
+      productId,
+      locationId,
+      actorId: CASHIER,
+      expiresOn: "2027-01-01",
+      remaining: 2000,
+    });
+    const late = await insertPurchasedLot(system.db, {
+      productId,
+      locationId,
+      actorId: CASHIER,
+      expiresOn: "2027-06-01",
+      remaining: 4000,
+    });
+    const newest = await insertPurchasedLot(system.db, {
+      productId,
+      locationId,
+      actorId: CASHIER,
+      expiresOn: "2028-01-01",
+      remaining: 9000,
+      createdAt: new Date("2026-10-05T12:00:00.000Z"),
+    });
+    await system.db.insert(stockBalances).values({ productId, locationId, quantity: 15_000 });
+    const sale = saleOf(productId, -5000);
+    await applySale(deviceId, sale);
+    const remainingByLot = async () =>
+      Object.fromEntries(
+        (await system.db.select({ id: lots.id, remaining: lots.remaining }).from(lots)).map(
+          (lot) => [lot.id, lot.remaining],
+        ),
+      );
+    expect(await remainingByLot()).toEqual({ [soon]: 0, [late]: 1000, [newest]: 9000 });
+    const voided = aVoidedSaleOf(sale, {
+      stockMovements: [
+        { id: randomUUID(), saleLineId: sale.lines[0]?.id as string, productId, delta: 5000 },
+      ],
+    });
+
+    const outcome = await system.application.transaction((tx) =>
+      tx.applySaleVoidStock(
+        voided,
+        voided.stockMovements,
+        unappliedEventOf(
+          {
+            event_id: randomUUID(),
+            device_seq: 2,
+            aggregate_type: "Sale",
+            aggregate_id: sale.id,
+            event_type: "sale_voided",
+            schema_version: 3,
+            payload: {},
+            occurred_at: voided.voidedAt.toISOString(),
+            actor_id: CASHIER,
+            chain_hmac: "hmac",
+          },
+          { deviceId },
+        ),
+      ),
+    );
+
+    expect(outcome).toEqual({ kind: "applied" });
+    expect(await remainingByLot()).toEqual({ [soon]: 2000, [late]: 4000, [newest]: 9000 });
   });
 });
 
