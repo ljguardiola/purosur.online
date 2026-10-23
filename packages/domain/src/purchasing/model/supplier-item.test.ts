@@ -12,6 +12,7 @@ import {
   requiresVatRate,
   SUPPLIER_ITEM_VAT_RATES,
   SUPPLIER_PRICE_LIST_ROW_STATUSES,
+  sameSupplierItemKey,
   supplierItemKey,
   supplierPriceListRowStatus,
 } from "./supplier-item.js";
@@ -409,5 +410,25 @@ describe("lastRowOfEachItem", () => {
 
   it("answers nothing for no rows", () => {
     expect(lastRowOfEachItem([])).toEqual([]);
+  });
+});
+
+describe("sameSupplierItemKey", () => {
+  it("is true for the same kind and value", () => {
+    expect(sameSupplierItemKey({ kind: "code", value: "A" }, { kind: "code", value: "A" })).toBe(
+      true,
+    );
+  });
+
+  it("is false for another value of the same kind", () => {
+    expect(sameSupplierItemKey({ kind: "code", value: "A" }, { kind: "code", value: "B" })).toBe(
+      false,
+    );
+  });
+
+  it("is false for the same value of another kind", () => {
+    expect(
+      sameSupplierItemKey({ kind: "code", value: "a" }, { kind: "description", value: "a" }),
+    ).toBe(false);
   });
 });

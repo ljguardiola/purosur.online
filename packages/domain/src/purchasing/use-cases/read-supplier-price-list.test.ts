@@ -607,4 +607,25 @@ describe("readSupplierPriceList rows of a supplier with remembered items", () =>
 
     expect(rows[0]?.link).toBeNull();
   });
+
+  it("gives each row the link of its own item when the supplier has several", async () => {
+    const other = { productId: "product-2", packagingId: "packaging-2", vatRate: null };
+    const rows = await readRows(
+      [rowOf({ code: "abc", description: "A" }), rowOf({ description: "abc" })],
+      (store) => {
+        store.seedSupplierItem({
+          description: "abc",
+          key: { kind: "description", value: "abc" },
+          link: other,
+        });
+        store.seedSupplierItem({
+          description: "A",
+          key: { kind: "code", value: "abc" },
+          link: LINK,
+        });
+      },
+    );
+
+    expect(rows.map((row) => row.link)).toEqual([LINK, other]);
+  });
 });
