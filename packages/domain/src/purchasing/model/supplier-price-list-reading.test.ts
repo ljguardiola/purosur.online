@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   isSupplierPriceListReadingAbandoned,
+  SUPPLIER_PRICE_LIST_ABANDONED_READING_CHECK_INTERVAL_MS,
   SUPPLIER_PRICE_LIST_READING_ABANDONED_AFTER_MS,
   SUPPLIER_PRICE_LIST_READING_TIME_LIMIT_MS,
 } from "./supplier-price-list-reading.js";
@@ -19,6 +20,10 @@ describe("supplier price list reading limits", () => {
 
   it("gives up on a reading fifteen minutes after it started, past the time the AI service has", () => {
     expect(SUPPLIER_PRICE_LIST_READING_ABANDONED_AFTER_MS).toBe(15 * MINUTE_MS);
+  });
+
+  it("looks for abandoned readings every minute", () => {
+    expect(SUPPLIER_PRICE_LIST_ABANDONED_READING_CHECK_INTERVAL_MS).toBe(MINUTE_MS);
   });
 });
 

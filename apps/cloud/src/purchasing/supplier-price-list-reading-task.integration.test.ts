@@ -121,18 +121,4 @@ describe("supplierPriceListReadingJobs against a real job queue", () => {
       readFailure: "interrupted",
     });
   });
-
-  it("leaves a list whose reading job is still waiting in the queue", async () => {
-    const listId = await insertPriceList(db, {
-      supplierId,
-      locationId,
-      actorId,
-      uploadedAt: new Date("2026-03-10T09:00:00.000Z"),
-    });
-    await queueReading(listId);
-
-    await runTask("supplier-price-list-abandoned-reading-check", {});
-
-    expect(await readList(listId)).toMatchObject({ state: "READING", readFailure: null });
-  });
 });

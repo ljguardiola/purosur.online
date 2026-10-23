@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { settleAbandonedSupplierPriceListReadings } from "./settle-abandoned-supplier-price-list-readings.js";
+import type { SupplierPriceListStore } from "./supplier-price-list-store.js";
 import { FakeSupplierPriceListReadings } from "./test-support/fake-supplier-price-list-readings.js";
 import { FakeSupplierPriceListStore } from "./test-support/fake-supplier-price-list-store.js";
 
@@ -17,6 +18,32 @@ function setup(
   }
   return { store, ports: { store, readings } };
 }
+
+function failingFirstTransactions(
+  store: FakeSupplierPriceListStore,
+  failures: Error[],
+): SupplierPriceListStore {
+  let transactions = 0;
+  return {
+    transaction(work) {
+      const failure = failures[transactions];
+      transactions += 1;
+      return failure === undefined ? store.transaction(work) : Promise.reject(failure);
+    },
+  };
+}
+
+const THREE_ABANDONED_READINGS = [
+  { listId: "list-1", sentAt: TWENTY_MINUTES_AGO, readingStartedAt: TWENTY_MINUTES_AGO },
+  { listId: "list-2", sentAt: TWENTY_MINUTES_AGO, readingStartedAt: TWENTY_MINUTES_AGO },
+  { listId: "list-3", sentAt: TWENTY_MINUTES_AGO, readingStartedAt: TWENTY_MINUTES_AGO },
+];
+
+const THREE_SENT_LISTS = THREE_ABANDONED_READINGS.map(({ listId }) => ({
+  id: listId,
+  sentAt: TWENTY_MINUTES_AGO,
+  sentOn: "2026-03-10",
+}));
 
 describe("settleAbandonedSupplierPriceListReadings", () => {
   it("fails as interrupted a list sent to the AI service fifteen minutes ago or more with no answer", async () => {
@@ -173,5 +200,49 @@ describe("settleAbandonedSupplierPriceListReadings", () => {
       "recordReadFailure failed",
     );
     expect(store.snapshot().lists[0]).toMatchObject({ state: "READING", readFailure: null });
+  });
+
+  it("settles every other abandoned list when settling one fails, then reports that failure", async () => {
+    const { store, ports } = setup(
+      THREE_SENT_LISTS,
+      new FakeSupplierPriceListReadings(THREE_ABANDONED_READINGS),
+    );
+    const failure = new Error("connection lost");
+
+    await expect(
+      settleAbandonedSupplierPriceListReadings(
+        { ...ports, store: failingFirstTransactions(store, [failure]) },
+        { now: NOW },
+      ),
+    ).rejects.toBe(failure);
+    expect(store.snapshot().lists.map((list) => [list.id, list.state])).toEqual([
+      ["list-1", "READING"],
+      ["list-2", "READ_FAILED"],
+      ["list-3", "READ_FAILED"],
+    ]);
+  });
+
+  it("reports every failure together when settling several abandoned lists fails", async () => {
+    const { store, ports } = setup(
+      THREE_SENT_LISTS,
+      new FakeSupplierPriceListReadings(THREE_ABANDONED_READINGS),
+    );
+    const failures = [new Error("connection lost"), new Error("deadlock detected")];
+
+    const settling = settleAbandonedSupplierPriceListReadings(
+      { ...ports, store: failingFirstTransactions(store, failures) },
+      { now: NOW },
+    );
+
+    await expect(settling).rejects.toBeInstanceOf(AggregateError);
+    await expect(settling).rejects.toMatchObject({
+      message: "Settling 2 abandoned supplier price list readings failed",
+      errors: failures,
+    });
+    expect(store.snapshot().lists.map((list) => [list.id, list.state])).toEqual([
+      ["list-1", "READING"],
+      ["list-2", "READING"],
+      ["list-3", "READ_FAILED"],
+    ]);
   });
 });

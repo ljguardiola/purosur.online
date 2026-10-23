@@ -779,13 +779,13 @@ describe("the time a reading has", () => {
 
     const { extraction, settled } = await extractedAfter(
       extractor,
-      40,
+      50,
       SUPPLIER_PRICE_LIST_READING_TIME_LIMIT_MS,
     );
 
     expect(settled()).toBe(true);
     expect(await extraction).toEqual({ kind: "unavailable" });
-    expect(requests).toHaveLength(8);
+    expect(requests).toHaveLength(9);
   });
 
   it("keeps reading a list whose ranges together take less than the time", async () => {
