@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+import { unappliedEventOf } from "@purosur/contracts/sync/test-support/unapplied-event";
 import {
   applyOpeningCount,
   discardExpiredLot,
@@ -20,7 +22,10 @@ import {
   stockMovements,
   users,
 } from "../platform/db/schema.js";
+import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
+import { DrizzleEventApplication } from "../sync/drizzle-event-application.js";
 import { changesLoggedAfter, lastLoggedChangeSeq } from "../sync/test-support/logged-changes.js";
+import { aCashSessionOpenedFact, aCompletedSale } from "../sync/test-support/synced-facts.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { DrizzleStockStore } from "./drizzle-stock-store.js";
@@ -606,6 +611,154 @@ describe("DrizzleStockStore lotAllocationsAfter", () => {
     );
 
     expect(allocated).toEqual(new Map());
+  });
+});
+
+describe("DrizzleStockStore saleLineLotAllocations", () => {
+  const SOLD_AT = new Date("2026-10-06T11:20:00.000Z");
+  const VOIDED_AT = new Date("2026-10-06T11:40:00.000Z");
+
+  async function recordedSale(deviceId: string, productId: string) {
+    const sessionId = randomUUID();
+    const eventOf = (aggregateType: string, aggregateId: string, eventType: string) =>
+      unappliedEventOf(
+        {
+          event_id: randomUUID(),
+          device_seq: 1,
+          aggregate_type: aggregateType,
+          aggregate_id: aggregateId,
+          event_type: eventType,
+          schema_version: 3,
+          payload: {},
+          occurred_at: SOLD_AT.toISOString(),
+          actor_id: "c7b3e5d2-18a4-4f90-b6d1-2e9f0a8c3d03",
+          chain_hmac: "hmac",
+        },
+        { deviceId },
+      );
+    const base = aCompletedSale({ sessionId, completedAt: SOLD_AT });
+    const [line] = base.lines;
+    const sale = {
+      ...base,
+      lines: [
+        { ...(line as NonNullable<typeof line>), id: randomUUID(), productId },
+        { ...(line as NonNullable<typeof line>), id: randomUUID(), productId },
+      ],
+    };
+    const application = new DrizzleEventApplication(
+      db,
+      () => NOW,
+      async () => {},
+    );
+    await application.transaction(async (tx) => {
+      await tx.record(
+        aCashSessionOpenedFact({ id: sessionId, openedAt: SOLD_AT }),
+        eventOf("CashSession", sessionId, "cash_session_opened"),
+      );
+      await tx.record({ kind: "sale_completed", sale }, eventOf("Sale", sale.id, "sale_completed"));
+    });
+    return sale.lines.map((line) => line.id);
+  }
+
+  async function allocatedBy(params: {
+    productId: string;
+    locationId: string;
+    actorId: string;
+    kind: "sale" | "sale_void";
+    saleLineId: string;
+    allocations: { lotId: string; quantity: number }[];
+  }): Promise<void> {
+    const { allocations, ...movement } = params;
+    const [recorded] = await db
+      .insert(stockMovements)
+      .values({
+        ...movement,
+        reason: null,
+        delta: allocations.reduce((sum, allocation) => sum + allocation.quantity, 0),
+        occurredAt: params.kind === "sale" ? SOLD_AT : VOIDED_AT,
+      })
+      .returning({ id: stockMovements.id });
+    for (const allocation of allocations) {
+      await db.insert(lotAllocations).values({ movementId: recorded?.id as string, ...allocation });
+    }
+  }
+
+  it("answers the allocations of the sale movements of that sale line, product and branch, and no other", async () => {
+    const { deviceId, locationId } = await insertEnrolledInstallation(db, { now: NOW });
+    const otherLocationId = await insertLocation();
+    const productId = await insertProduct();
+    const otherProductId = await insertProduct();
+    const actorId = await insertUser(locationId);
+    const [thisLine, otherLine] = await recordedSale(deviceId, productId);
+    const lotId = await insertPurchasedLot(db, { productId, locationId, actorId });
+    const otherLotId = await insertPurchasedLot(db, { productId, locationId, actorId });
+    const sold = { productId, locationId, actorId, kind: "sale" } as const;
+    await allocatedBy({
+      ...sold,
+      saleLineId: thisLine as string,
+      allocations: [
+        { lotId, quantity: -1000 },
+        { lotId: otherLotId, quantity: -500 },
+      ],
+    });
+    await allocatedBy({
+      ...sold,
+      saleLineId: otherLine as string,
+      allocations: [{ lotId, quantity: -7000 }],
+    });
+    await allocatedBy({
+      ...sold,
+      locationId: otherLocationId,
+      saleLineId: thisLine as string,
+      allocations: [{ lotId, quantity: -8000 }],
+    });
+    await allocatedBy({
+      ...sold,
+      productId: otherProductId,
+      saleLineId: thisLine as string,
+      allocations: [{ lotId, quantity: -9000 }],
+    });
+    await allocatedBy({
+      ...sold,
+      kind: "sale_void",
+      saleLineId: thisLine as string,
+      allocations: [{ lotId, quantity: 4000 }],
+    });
+    const store = new DrizzleStockStore(db);
+
+    const allocations = await store.transaction((tx) =>
+      tx.saleLineLotAllocations({ productId, locationId }, thisLine as string),
+    );
+
+    expect(allocations).toHaveLength(2);
+    expect(allocations).toEqual(
+      expect.arrayContaining([
+        { lotId, quantity: -1000 },
+        { lotId: otherLotId, quantity: -500 },
+      ]),
+    );
+  });
+
+  it("answers nothing for a sale line whose movement made no allocation", async () => {
+    const { deviceId, locationId } = await insertEnrolledInstallation(db, { now: NOW });
+    const productId = await insertProduct();
+    const actorId = await insertUser(locationId);
+    const [saleLineId] = await recordedSale(deviceId, productId);
+    await allocatedBy({
+      productId,
+      locationId,
+      actorId,
+      kind: "sale",
+      saleLineId: saleLineId as string,
+      allocations: [],
+    });
+    const store = new DrizzleStockStore(db);
+
+    const allocations = await store.transaction((tx) =>
+      tx.saleLineLotAllocations({ productId, locationId }, saleLineId as string),
+    );
+
+    expect(allocations).toEqual([]);
   });
 });
 
