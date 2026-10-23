@@ -300,7 +300,12 @@ describe("reportFortnights, with the presentations of two document types in diff
     const setup = setUp([factura(1), creditNote(1)]);
     setup.owedPresentations.entries = [KEY];
     setup.documentReports.lastReportedAnswer = ({ documentType }) =>
-      documentType === "credit_note_c" ? { kind: "no_answer" } : { kind: "read", number: 0 };
+      documentType === "credit_note_c"
+        ? { kind: "no_answer" }
+        : {
+            kind: "read",
+            number: setup.documentReports.held.get(`${POINT_OF_SALE}:factura_c`) ?? 0,
+          };
 
     await setup.run();
 
