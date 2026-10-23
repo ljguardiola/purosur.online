@@ -136,7 +136,7 @@ test("finds a list read from a web page by its address", async () => {
     filters: supplierPriceListsFilters.parse({ search: "distribuidoradelsur" }),
   });
 
-  expect(supplierNames(screen)).toEqual(["Distribuidora del Sur"]);
+  await expect.poll(() => supplierNames(screen)).toEqual(["Distribuidora del Sur"]);
 });
 
 test("shows a dash for a list without a date, and every other state with its own label", async () => {
