@@ -420,6 +420,8 @@ export type { InstallationKeysBody } from "./register/installation-keys.js";
 export type {
   CoreReadyMessage,
   CoreRefusedMessage,
+  CoreStartupStep,
+  CoreStartupStepMessage,
   CoreStatusMessage,
   CoreStatusRequest,
   CredentialsReplacement,
@@ -431,6 +433,8 @@ export type {
   UpdateSafeMomentAnswer,
 } from "./register/main-messages.js";
 export {
+  CORE_STARTUP_STEPS,
+  coreStartupStepMessageSchema,
   coreStatusMessageSchema,
   deviceCredentialsAnswerSchema,
   mainToCoreMessageSchema,
