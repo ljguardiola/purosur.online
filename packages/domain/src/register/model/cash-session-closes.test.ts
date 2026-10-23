@@ -155,6 +155,20 @@ describe("cashSessionClosesSummary", () => {
     }
   });
 
+  it("keeps closes of the same instant and id in the order they come in", () => {
+    const first = aClose({ id: "same", registerName: "Caja 1" });
+    const second = aClose({ id: "same", registerName: "Caja 2" });
+
+    for (const input of [
+      [first, second],
+      [second, first],
+    ]) {
+      expect(
+        cashSessionClosesSummary(input).closes.map(({ registerName }) => registerName),
+      ).toEqual(input.map(({ registerName }) => registerName));
+    }
+  });
+
   it("counts a cashier whose closes were all exact as absent", () => {
     const { totals } = cashSessionClosesSummary([aClose({ difference: 0 })]);
 
