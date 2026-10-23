@@ -921,6 +921,7 @@ describe("the register's local migrations", () => {
         "0073_replenished_credit_note_requests",
         "0074_awaiting_orphan_sweep",
         "0075_deferred_sale_backlog",
+        "0076_deferred_sale_invoice_prints",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1019,6 +1020,7 @@ describe("the register's local migrations", () => {
         "0073_replenished_credit_note_requests",
         "0074_awaiting_orphan_sweep",
         "0075_deferred_sale_backlog",
+        "0076_deferred_sale_invoice_prints",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1112,6 +1114,7 @@ describe("the register's local migrations", () => {
         "0073_replenished_credit_note_requests",
         "0074_awaiting_orphan_sweep",
         "0075_deferred_sale_backlog",
+        "0076_deferred_sale_invoice_prints",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1204,6 +1207,7 @@ describe("the register's local migrations", () => {
         "0073_replenished_credit_note_requests",
         "0074_awaiting_orphan_sweep",
         "0075_deferred_sale_backlog",
+        "0076_deferred_sale_invoice_prints",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1325,6 +1329,7 @@ describe("the register's local migrations", () => {
         "0073_replenished_credit_note_requests",
         "0074_awaiting_orphan_sweep",
         "0075_deferred_sale_backlog",
+        "0076_deferred_sale_invoice_prints",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1436,6 +1441,7 @@ describe("the register's local migrations", () => {
         "0073_replenished_credit_note_requests",
         "0074_awaiting_orphan_sweep",
         "0075_deferred_sale_backlog",
+        "0076_deferred_sale_invoice_prints",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1551,6 +1557,7 @@ describe("the register's local migrations", () => {
         "0073_replenished_credit_note_requests",
         "0074_awaiting_orphan_sweep",
         "0075_deferred_sale_backlog",
+        "0076_deferred_sale_invoice_prints",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1674,6 +1681,7 @@ describe("the register's local migrations", () => {
         "0073_replenished_credit_note_requests",
         "0074_awaiting_orphan_sweep",
         "0075_deferred_sale_backlog",
+        "0076_deferred_sale_invoice_prints",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1764,6 +1772,7 @@ describe("the register's local migrations", () => {
         "0073_replenished_credit_note_requests",
         "0074_awaiting_orphan_sweep",
         "0075_deferred_sale_backlog",
+        "0076_deferred_sale_invoice_prints",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
