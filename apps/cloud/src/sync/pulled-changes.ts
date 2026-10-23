@@ -1,5 +1,4 @@
 import type {
-  FiscalDocumentType,
   FiscalTaskDocumentType,
   NetContentUnit,
   OfflineNumberBlockStatus,
@@ -112,7 +111,7 @@ export interface OfflineAuthorizationCodeRow {
 
 export interface OfflineNumberBlockRow {
   pointOfSaleNumber: number;
-  documentType: FiscalDocumentType;
+  documentType: FiscalTaskDocumentType;
   firstNumber: number;
   lastNumber: number;
   status: OfflineNumberBlockStatus;

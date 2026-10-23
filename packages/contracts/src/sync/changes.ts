@@ -197,8 +197,13 @@ const registerQrPointOfSaleChangeSchema = z.object({
   }),
 });
 
+const offlineSeriesDocumentTypeSchema = z.enum([
+  FACTURA_C_DOCUMENT_TYPE,
+  CREDIT_NOTE_C_DOCUMENT_TYPE,
+]);
+
 const offlineSeriesCountSchema = z.object({
-  document_type: z.enum([FACTURA_C_DOCUMENT_TYPE, CREDIT_NOTE_C_DOCUMENT_TYPE]),
+  document_type: offlineSeriesDocumentTypeSchema,
   tax_authority_last_authorized_number: z.int().nonnegative().nullable().default(null),
   highest_synced_offline_number: z.int().nonnegative().nullable().default(null),
 });
@@ -230,7 +235,7 @@ const offlineNumberBlockChangeSchema = z.object({
   entity: z.literal("offline_number_block"),
   row: z.object({
     point_of_sale_number: pointOfSaleNumberSchema,
-    document_type: z.literal(FACTURA_C_DOCUMENT_TYPE),
+    document_type: offlineSeriesDocumentTypeSchema,
     first_number: z.int().positive(),
     last_number: z.int().positive(),
     status: z.enum(OFFLINE_NUMBER_BLOCK_STATUSES),

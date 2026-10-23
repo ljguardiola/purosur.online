@@ -1,6 +1,6 @@
 import {
   FACTURA_C_DOCUMENT_TYPE,
-  type FiscalDocumentType,
+  type FiscalTaskDocumentType,
   type NetContentUnit,
   type SaleUnit,
   type StockMovementKind,
@@ -490,7 +490,7 @@ export async function readOfflineNumberBlocks<TQueryResult extends PgQueryResult
   return new Map(
     rows.map(({ id, documentType, ...row }) => [
       id,
-      { ...row, documentType: documentType as FiscalDocumentType },
+      { ...row, documentType: documentType as FiscalTaskDocumentType },
     ]),
   );
 }
