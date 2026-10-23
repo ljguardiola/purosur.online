@@ -14,6 +14,7 @@ export type BranchSettingsValues = Record<BranchDay, DayValues> & {
   expiringLotAlertDays: string;
   unreviewedPriceAlertDays: string;
   goodConditionReturnDays: string;
+  supplierPriceListDailyExtractionCap: string;
   version: number;
 };
 
@@ -40,6 +41,7 @@ export const EMPTY_VALUES: BranchSettingsValues = {
   expiringLotAlertDays: "",
   unreviewedPriceAlertDays: "",
   goodConditionReturnDays: "",
+  supplierPriceListDailyExtractionCap: "",
   version: 0,
 };
 
@@ -64,6 +66,7 @@ export function valuesFrom(settings: BranchSettings): BranchSettingsValues {
     expiringLotAlertDays: String(settings.expiringLotAlertDays),
     unreviewedPriceAlertDays: String(settings.unreviewedPriceAlertDays),
     goodConditionReturnDays: String(settings.goodConditionReturnDays),
+    supplierPriceListDailyExtractionCap: String(settings.supplierPriceListDailyExtractionCap),
     version: settings.version,
   };
 }
@@ -101,6 +104,7 @@ export function requestFrom(values: BranchSettingsValues): BranchSettingsEditBod
     expiring_lot_alert_days: wireDays(values.expiringLotAlertDays),
     unreviewed_price_alert_days: wireDays(values.unreviewedPriceAlertDays),
     good_condition_return_days: wireDays(values.goodConditionReturnDays),
+    supplier_price_list_daily_extraction_cap: wireDays(values.supplierPriceListDailyExtractionCap),
     version: values.version,
   };
 }
@@ -119,6 +123,7 @@ export const REQUEST_FIELDS = {
   expiring_lot_alert_days: "expiringLotAlertDays",
   unreviewed_price_alert_days: "unreviewedPriceAlertDays",
   good_condition_return_days: "goodConditionReturnDays",
+  supplier_price_list_daily_extraction_cap: "supplierPriceListDailyExtractionCap",
   version: null,
 } as const;
 
@@ -164,6 +169,13 @@ function daysMessage(field: DaysField) {
   };
 }
 
+function extractionCapMessage(values: BranchSettingsValues): string {
+  const shape = branchSettingsEditBodySchema.shape.supplier_price_list_daily_extraction_cap;
+  return shape.safeParse(wireDays(values.supplierPriceListDailyExtractionCap)).success
+    ? "Revisá la cantidad de listas por día."
+    : `Ingresá un número entero de listas, de 1 a ${schemaLimit(shape.meta()?.["maximum"])}.`;
+}
+
 function hoursMessage(day: BranchDay) {
   const shape = branchSettingsEditBodySchema.shape[`${day}_hours`];
   return (values: BranchSettingsValues): string => {
@@ -195,4 +207,5 @@ export const MESSAGES = {
   expiringLotAlertDays: daysMessage("expiringLotAlertDays"),
   unreviewedPriceAlertDays: daysMessage("unreviewedPriceAlertDays"),
   goodConditionReturnDays: daysMessage("goodConditionReturnDays"),
+  supplierPriceListDailyExtractionCap: extractionCapMessage,
 };

@@ -1,7 +1,7 @@
 import {
-  type BranchSettingsBody,
   type BranchSettingsEditBody,
-  branchSettingsSchema,
+  type EditableBranchSettingsBody,
+  editableBranchSettingsSchema,
 } from "@purosur/contracts";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { rateLimitOutcome } from "../platform/rate-limit-outcome";
@@ -36,10 +36,11 @@ export type BranchSettings = {
   expiringLotAlertDays: number;
   unreviewedPriceAlertDays: number;
   goodConditionReturnDays: number;
+  supplierPriceListDailyExtractionCap: number;
   version: number;
 };
 
-type BranchHoursRangeWire = BranchSettingsBody["monday_hours"][number];
+type BranchHoursRangeWire = EditableBranchSettingsBody["monday_hours"][number];
 
 type BranchSettingsDayField =
   | "monday_hours"
@@ -74,7 +75,7 @@ function rangesFromWire(ranges: BranchHoursRangeWire[]): BranchHoursRange[] {
   return ranges.map((range) => ({ opensAt: range.opens_at, closesAt: range.closes_at }));
 }
 
-function branchSettingsFromWire(row: BranchSettingsBody): BranchSettings {
+function branchSettingsFromWire(row: EditableBranchSettingsBody): BranchSettings {
   const hours = {} as Record<BranchDay, BranchHoursRange[]>;
   for (const day of BRANCH_DAYS) {
     hours[day] = rangesFromWire(row[DAY_FIELD_OF[day]]);
@@ -87,6 +88,7 @@ function branchSettingsFromWire(row: BranchSettingsBody): BranchSettings {
     expiringLotAlertDays: row.expiring_lot_alert_days,
     unreviewedPriceAlertDays: row.unreviewed_price_alert_days,
     goodConditionReturnDays: row.good_condition_return_days,
+    supplierPriceListDailyExtractionCap: row.supplier_price_list_daily_extraction_cap,
     version: row.version,
   };
 }
@@ -110,7 +112,9 @@ export async function fetchBranchSettings(): Promise<FetchBranchSettingsOutcome>
   if (!response.ok) {
     return { kind: "failed" };
   }
-  const parsed = branchSettingsSchema.safeParse(await response.json().catch(() => undefined));
+  const parsed = editableBranchSettingsSchema.safeParse(
+    await response.json().catch(() => undefined),
+  );
   if (!parsed.success) {
     return { kind: "failed" };
   }
