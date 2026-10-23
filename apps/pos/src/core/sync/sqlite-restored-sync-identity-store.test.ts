@@ -127,9 +127,9 @@ describe("the restored sync identity store", () => {
       sales_stopped_reason: null,
       last_accepted_push_at: null,
     });
-    expect(database.prepare("SELECT * FROM register_predecessor").all()).toEqual([
-      { device_id: OLD_DEVICE, last_acknowledged_seq: 4 },
-    ]);
+    expect(
+      database.prepare("SELECT device_id, last_acknowledged_seq FROM register_predecessor").all(),
+    ).toEqual([{ device_id: OLD_DEVICE, last_acknowledged_seq: 4 }]);
     expect(count("outbox")).toBe(0);
     expect(count("pin_verifiers")).toBe(0);
     expect(count("pin_sign_in_failures")).toBe(0);
