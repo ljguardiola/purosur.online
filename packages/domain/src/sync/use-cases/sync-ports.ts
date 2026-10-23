@@ -153,6 +153,11 @@ export interface InboxTransaction {
   recordCaughtUp(deviceId: string, at: Date): Promise<void>;
   outboxChainKey(deviceId: string): Promise<string | undefined>;
   receivedChainLink(deviceId: string, deviceSeq: number): Promise<string | undefined>;
+  receivedEventsBetween(
+    deviceId: string,
+    aboveSeq: number,
+    upToSeq: number,
+  ): Promise<PushedEvent[]>;
   setAsideRefusedPush(
     deviceId: string,
     events: readonly PushedEvent[],

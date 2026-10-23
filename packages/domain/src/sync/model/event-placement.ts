@@ -1,4 +1,5 @@
 import { canonicalOutboxEvent } from "../../shared/index.js";
+import { highestContiguousSeq } from "./contiguous-seq.js";
 import type { PushedEvent } from "./push-batch.js";
 
 interface EventPosition {
@@ -27,11 +28,41 @@ export function placementOfEvent(
   };
 }
 
+interface Chain {
+  link(chainKey: string, previousLink: string | null, canonicalEvent: string): string;
+}
+
 export function eventLinkHolds(
-  chain: { link(chainKey: string, previousLink: string | null, canonicalEvent: string): string },
+  chain: Chain,
   chainKey: string,
   previousLink: string | null,
   { chain_hmac: link, ...event }: PushedEvent,
 ): boolean {
   return chain.link(chainKey, previousLink, canonicalOutboxEvent(event)) === link;
+}
+
+export function chainedEventsHold(
+  chain: Chain,
+  chainKey: string,
+  previousLink: string | null,
+  events: readonly PushedEvent[],
+): boolean {
+  let link = previousLink;
+  for (const event of events) {
+    if (!eventLinkHolds(chain, chainKey, link, event)) {
+      return false;
+    }
+    link = event.chain_hmac;
+  }
+  return true;
+}
+
+export function seqsJoinedBy(
+  heldSeqs: readonly number[],
+  arrivingSeqs: readonly number[],
+): { above: number; upTo: number } {
+  return {
+    above: highestContiguousSeq(heldSeqs),
+    upTo: highestContiguousSeq([...heldSeqs, ...arrivingSeqs]),
+  };
 }

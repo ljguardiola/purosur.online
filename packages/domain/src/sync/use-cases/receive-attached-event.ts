@@ -1,5 +1,5 @@
 import { OFFLINE_FISCAL_DOCUMENT_ISSUED_EVENT_TYPE } from "../../fiscal/index.js";
-import { eventLinkHolds, placementOfEvent } from "../model/event-placement.js";
+import { chainedEventsHold, placementOfEvent, seqsJoinedBy } from "../model/event-placement.js";
 import type { PushedEvent } from "../model/push-batch.js";
 import type { ReceivePorts } from "./sync-ports.js";
 
@@ -46,7 +46,14 @@ export async function receiveAttachedEvent(
       previousSeq === 0 ? null : await tx.receivedChainLink(deviceId, previousSeq);
     if (previousLink !== undefined) {
       const chainKey = await tx.outboxChainKey(deviceId);
-      if (chainKey === undefined || !eventLinkHolds(eventChain, chainKey, previousLink, event)) {
+      const { above, upTo } = seqsJoinedBy(await tx.receivedDeviceSeqs(deviceId), [
+        event.device_seq,
+      ]);
+      const heldJoined = await tx.receivedEventsBetween(deviceId, above, upTo);
+      if (
+        chainKey === undefined ||
+        !chainedEventsHold(eventChain, chainKey, previousLink, [event, ...heldJoined])
+      ) {
         return { kind: "chain_broken" };
       }
     }

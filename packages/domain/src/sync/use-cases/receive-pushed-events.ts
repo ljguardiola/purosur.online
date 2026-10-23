@@ -1,6 +1,6 @@
 import { OFFLINE_FISCAL_DOCUMENT_ISSUED_EVENT_TYPE } from "../../fiscal/index.js";
 import { highestContiguousSeq } from "../model/contiguous-seq.js";
-import { eventLinkHolds, placementOfEvent } from "../model/event-placement.js";
+import { eventLinkHolds, placementOfEvent, seqsJoinedBy } from "../model/event-placement.js";
 import type { PushedEvent, RegisterTelemetry } from "../model/push-batch.js";
 import { registerVersionAccepted } from "../model/register-version.js";
 import type { EventChain, InboxTransaction, ReceivePorts } from "./sync-ports.js";
@@ -43,7 +43,8 @@ export async function receivePushedEvents(
       await tx.recordRegisterStops({ registerId, deviceId, locationId, report: telemetry }, now);
       return outcome;
     };
-    const ackSeq = highestContiguousSeq(await tx.receivedDeviceSeqs(deviceId));
+    const heldSeqs = await tx.receivedDeviceSeqs(deviceId);
+    const ackSeq = highestContiguousSeq(heldSeqs);
     if (!versionAccepted) {
       return keptInService({ kind: "update_required", ackSeq });
     }
@@ -85,7 +86,19 @@ export async function receivePushedEvents(
       }
     }
 
-    if (misplaced || !(await chainHolds(tx, eventChain, deviceId, events, references))) {
+    const { above, upTo } = seqsJoinedBy(
+      heldSeqs,
+      events.map((event) => event.device_seq),
+    );
+    const heldJoined = await tx.receivedEventsBetween(deviceId, above, upTo);
+    for (const held of heldJoined) {
+      references.set(held.device_seq, { eventId: held.event_id, link: held.chain_hmac });
+    }
+
+    if (
+      misplaced ||
+      !(await chainHolds(tx, eventChain, deviceId, [...events, ...heldJoined], references))
+    ) {
       await tx.setAsideRefusedPush(deviceId, events, now);
       await tx.revokeForBrokenChain(deviceId, now);
       return { kind: "chain_broken" };
