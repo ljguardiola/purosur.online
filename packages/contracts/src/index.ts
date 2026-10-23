@@ -4,6 +4,44 @@ export type { AlertListPage, AlertSummary } from "./alerts/alert-summary.js";
 export { alertListPageSchema, alertSummarySchema } from "./alerts/alert-summary.js";
 export type { AlertsOverview } from "./alerts/alerts-overview.js";
 export { alertsOverviewSchema } from "./alerts/alerts-overview.js";
+export {
+  base45Decode,
+  base45Encode,
+} from "./backups/base45.js";
+export type {
+  ContingencyBackupTicketContent,
+  ContingencyBackupTicketHeader,
+  ContingencyBackupTicketPart,
+} from "./backups/contingency-backup-ticket.js";
+export {
+  CONTINGENCY_BACKUP_QR_MAX_BYTES,
+  contingencyBackupTicketAssociatedData,
+  contingencyBackupTicketContentSchema,
+  contingencyBackupTicketQrCodes,
+  joinContingencyBackupTicketParts,
+  readContingencyBackupTicketQrCode,
+} from "./backups/contingency-backup-ticket.js";
+export type {
+  ContingencyBackupTicketOfSaleAnswer,
+  ContingencyBackupTicketsAnswer,
+  DiscardContingencyBackupTicketsOutcome,
+} from "./backups/contingency-backup-ticket-answers.js";
+export {
+  contingencyBackupTicketOfSaleAnswerSchema,
+  contingencyBackupTicketsAnswerSchema,
+  discardContingencyBackupTicketsOutcomeSchema,
+} from "./backups/contingency-backup-ticket-answers.js";
+export type {
+  BackupsCoreToRendererMessage,
+  BackupsRendererToCoreMessage,
+  DiscardContingencyBackupTicketsAnswer,
+  ReadContingencyBackupTicketOfSaleOutcome,
+  ReadContingencyBackupTicketsOutcome,
+} from "./backups/core-messages.js";
+export {
+  backupsCoreToRendererMessageSchema,
+  backupsRendererToCoreMessageSchema,
+} from "./backups/core-messages.js";
 export type { OffsiteDumpCheckRecorded } from "./backups/offsite-dump-check-recorded.js";
 export { offsiteDumpCheckRecordedSchema } from "./backups/offsite-dump-check-recorded.js";
 export type { OffsiteDumpCheckReport } from "./backups/offsite-dump-check-report.js";

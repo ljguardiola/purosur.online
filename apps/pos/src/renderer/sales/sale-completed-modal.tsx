@@ -1,4 +1,8 @@
-import type { ReceiptPrintStatusOutcome } from "@purosur/contracts";
+import type {
+  ReadContingencyBackupTicketOfSaleOutcome,
+  ReadContingencyBackupTicketsOutcome,
+  ReceiptPrintStatusOutcome,
+} from "@purosur/contracts";
 import {
   Button,
   DocumentList,
@@ -11,8 +15,13 @@ import {
 } from "@purosur/ui";
 import { useNavigate } from "@tanstack/react-router";
 import { ArrowRight, CircleCheck, Plus, Printer, TriangleAlert } from "lucide-react";
+import { backupPrinterState } from "../shell/contingency-backup-printer-failure-text";
 import type { ReceiptPrintStatus } from "./sales-queries";
-import { useReceiptPrintStatusQuery } from "./sales-queries";
+import {
+  useBackupPrinterFailureQuery,
+  useBackupTicketOfSaleQuery,
+  useReceiptPrintStatusQuery,
+} from "./sales-queries";
 
 type FailedStanding =
   | "cover_open"
@@ -71,10 +80,44 @@ function receiptRowValue(receipt: ReturnType<typeof useReceiptPrintStatusQuery>)
   return receipt.status === "loaded" && receipt.value.printed ? "Impreso" : "Imprimiendo";
 }
 
+type BackupStanding = NonNullable<
+  Extract<ReadContingencyBackupTicketOfSaleOutcome, { kind: "read" }>["ticket"]["standing"]
+>;
+
+type PrinterFailure = Extract<
+  ReadContingencyBackupTicketsOutcome,
+  { kind: "read" }
+>["tickets"]["printer"];
+
+function backupTicketStatus(standing: BackupStanding, printerFailure: PrinterFailure) {
+  switch (standing) {
+    case "kept":
+    case "discardable":
+    case "discarded":
+      return <Tag tone="success">Impreso</Tag>;
+    case "no_longer_needed":
+      return <Tag tone="neutral">No hace falta</Tag>;
+    case "missing_key":
+      return <Tag tone="warning">Sin clave de respaldo</Tag>;
+    case "to_print": {
+      const failure = printerFailure === null ? undefined : backupPrinterState(printerFailure);
+      return failure === undefined ? (
+        <Tag tone="info">Imprimiendo</Tag>
+      ) : (
+        <Tag tone="warning">{failure}</Tag>
+      );
+    }
+    case "awaiting_customer_document":
+      return <Tag tone="info">Imprimiendo</Tag>;
+  }
+}
+
 export type SaleCompletedModalProps = {
   saleId: string;
   total: number;
   readReceiptStatus: (saleId: string) => Promise<ReceiptPrintStatusOutcome>;
+  readBackupTicket: (saleId: string) => Promise<ReadContingencyBackupTicketOfSaleOutcome>;
+  readBackupTickets: () => Promise<ReadContingencyBackupTicketsOutcome>;
   mayChangePrinter: boolean;
   onNewSale: () => void;
 } & (
@@ -86,10 +129,24 @@ export type SaleCompletedModalProps = {
 );
 
 export function SaleCompletedModal(props: SaleCompletedModalProps) {
-  const { saleId, total, readReceiptStatus, mayChangePrinter, onNewSale } = props;
+  const {
+    saleId,
+    total,
+    readReceiptStatus,
+    readBackupTicket,
+    readBackupTickets,
+    mayChangePrinter,
+    onNewSale,
+  } = props;
   const navigate = useNavigate();
   const change = "change" in props ? props.change : 0;
   const receipt = useReceiptPrintStatusQuery({ saleId, read: readReceiptStatus });
+  const backupTicket = useBackupTicketOfSaleQuery({ saleId, read: readBackupTicket });
+  const backupStanding = backupTicket.status === "loaded" ? backupTicket.value.standing : null;
+  const backupPrinterFailure = useBackupPrinterFailureQuery({
+    read: readBackupTickets,
+    enabled: backupStanding === "to_print",
+  });
   const paymentRow =
     props.method === "TRANSFER"
       ? { label: "Transferencia", value: formatCents(props.amount) }
@@ -161,7 +218,53 @@ export function SaleCompletedModal(props: SaleCompletedModalProps) {
     receipt.value.comprobante.authorization === "offline_code"
       ? receipt.value
       : undefined;
+  const deferred =
+    receipt.status === "loaded" && receipt.value.comprobante.kind === "deferred_non_fiscal";
   const printState = receiptRowValue(receipt);
+  const printed = receipt.status === "loaded" && receipt.value.printed;
+  const customerDocument =
+    contingency !== undefined
+      ? { title: "Factura C", detail: "Para el cliente" }
+      : deferred
+        ? {
+            title: "Documento no válido como factura",
+            detail: "Para el cliente · con la indicación de volver por la factura",
+          }
+        : undefined;
+  const documentRows = [
+    customerDocument === undefined
+      ? undefined
+      : {
+          ...customerDocument,
+          status: <Tag tone={printed ? "success" : "info"}>{printState}</Tag>,
+        },
+    backupStanding === null
+      ? undefined
+      : {
+          title: "Ticket de respaldo de contingencia",
+          detail: "Queda en el local",
+          status: backupTicketStatus(
+            backupStanding,
+            backupPrinterFailure.status === "loaded" ? backupPrinterFailure.value : null,
+          ),
+        },
+  ].filter((row) => row !== undefined);
+  const [firstDocument, ...otherDocuments] = documentRows;
+  const keepNotice =
+    backupStanding === "kept" ||
+    backupStanding === "to_print" ||
+    backupStanding === "awaiting_customer_document"
+      ? deferred
+        ? {
+            title: "Pedile al cliente que vuelva por su factura",
+            description:
+              "Guardá el ticket de respaldo en la caja del local hasta que esta caja vuelva a sincronizar.",
+          }
+        : {
+            title: "Guardá el ticket de respaldo en la caja del local",
+            description: "Queda ahí hasta que esta caja vuelva a sincronizar con la nube.",
+          }
+      : undefined;
 
   return (
     <Modal
@@ -185,24 +288,28 @@ export function SaleCompletedModal(props: SaleCompletedModalProps) {
           rows={[
             { label: "Total", value: formatCents(total) },
             paymentRow,
-            contingency === undefined
-              ? { label: "Ticket", value: printState }
-              : {
+            contingency !== undefined
+              ? {
                   label: "Modo fiscal",
                   value: <Tag tone="warning">Contingencia con CAEA</Tag>,
-                },
+                }
+              : deferred
+                ? {
+                    label: "Modo fiscal",
+                    value: <Tag tone="warning">Venta diferida · sin factura en el momento</Tag>,
+                  }
+                : { label: "Ticket", value: printState },
           ]}
         />
-        {contingency === undefined ? null : (
-          <DocumentList
-            label="Documentos para el cliente"
-            rows={[
-              {
-                title: "Factura C",
-                detail: "Para el cliente",
-                status: <Tag tone={contingency.printed ? "success" : "info"}>{printState}</Tag>,
-              },
-            ]}
+        {firstDocument === undefined ? null : (
+          <DocumentList label="Documentos" rows={[firstDocument, ...otherDocuments]} />
+        )}
+        {keepNotice === undefined ? null : (
+          <InlineNotice
+            tone="warning"
+            icon={<TriangleAlert />}
+            title={keepNotice.title}
+            description={keepNotice.description}
           />
         )}
       </div>

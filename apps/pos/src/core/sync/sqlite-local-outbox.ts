@@ -18,6 +18,13 @@ const EVENTS_BYTE_BUDGET = PUSH_EVENTS_REQUEST_MAX_BYTES - REQUEST_ENVELOPE_MARG
 
 const CURRENT_INSTALLATION = "device_id = (SELECT device_id FROM sync_state)";
 
+const PUSHED_COLUMNS = `event_id, device_seq, aggregate_type, aggregate_id, event_type, schema_version,
+                payload, occurred_at, actor_id, chain_hmac`;
+
+function pushedEvent(row: OutboxRow): PushedEvent {
+  return { ...row, payload: JSON.parse(row.payload) };
+}
+
 function withinByteBudget(events: PushedEvent[]): PushedEvent[] {
   let bytes = 0;
   const firstOver = events.findIndex((event) => {
@@ -39,16 +46,27 @@ export class SqliteLocalOutbox implements LocalOutbox, OutboxPruning {
   async unacknowledged(limit: number): Promise<PushedEvent[]> {
     const events = this.database
       .prepare<[number], OutboxRow>(
-        `SELECT event_id, device_seq, aggregate_type, aggregate_id, event_type, schema_version,
-                payload, occurred_at, actor_id, chain_hmac
+        `SELECT ${PUSHED_COLUMNS}
            FROM outbox
           WHERE ${CURRENT_INSTALLATION} AND acked_at IS NULL
           ORDER BY device_seq
           LIMIT ?`,
       )
       .all(limit)
-      .map((row): PushedEvent => ({ ...row, payload: JSON.parse(row.payload) }));
+      .map(pushedEvent);
     return withinByteBudget(events);
+  }
+
+  async eventsInRange(firstDeviceSeq: number, lastDeviceSeq: number): Promise<PushedEvent[]> {
+    return this.database
+      .prepare<[number, number], OutboxRow>(
+        `SELECT ${PUSHED_COLUMNS}
+           FROM outbox
+          WHERE ${CURRENT_INSTALLATION} AND device_seq BETWEEN ? AND ?
+          ORDER BY device_seq`,
+      )
+      .all(firstDeviceSeq, lastDeviceSeq)
+      .map(pushedEvent);
   }
 
   async acknowledgeThrough(deviceSeq: number): Promise<void> {

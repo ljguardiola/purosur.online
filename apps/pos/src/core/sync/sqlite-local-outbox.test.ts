@@ -267,3 +267,33 @@ describe("recording that the outbox lost events", () => {
     expect(salesStopOf(database)).toEqual({ stopped: true, reason: "event_history_broken" });
   });
 });
+
+describe("the events of a range of sequence numbers", () => {
+  it("hands over those of the range as they would be pushed, acknowledged or not", async () => {
+    appendOutboxEvents(database, 5);
+    await outbox.acknowledgeThrough(3);
+
+    const events = await outbox.eventsInRange(2, 4);
+
+    expect(events.map((event) => event.device_seq)).toEqual([2, 3, 4]);
+    expect(events[2]).toEqual((await outbox.unacknowledged(1))[0]);
+    expect(events[0]).toEqual({
+      ...outboxEventDraft(2),
+      device_seq: 2,
+      chain_hmac: expect.stringMatching(/^[A-Za-z0-9+/]+=*$/),
+    });
+  });
+
+  it("hands over nothing for a range no event falls in", async () => {
+    appendOutboxEvents(database, 2);
+
+    expect(await outbox.eventsInRange(3, 5)).toEqual([]);
+  });
+
+  it("leaves out the events of another installation", async () => {
+    appendOutboxEvents(database, 2);
+    adoptDevice(database, "device-b");
+
+    expect(await outbox.eventsInRange(1, 2)).toEqual([]);
+  });
+});

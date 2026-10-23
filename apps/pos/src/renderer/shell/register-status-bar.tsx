@@ -1,4 +1,4 @@
-import type { RegisterStatus } from "@purosur/contracts";
+import type { ContingencyBackupTicketsAnswer, RegisterStatus } from "@purosur/contracts";
 import type { Icon } from "@purosur/ui";
 import {
   formatClockTime,
@@ -26,8 +26,9 @@ import {
   TriangleAlert,
   Unplug,
 } from "lucide-react";
+import { ContingencyBackupTicketsNoticeCard } from "../backups/contingency-backup-tickets-notice-card";
+import { contingencyBackupTicketsNoticeCount } from "../backups/contingency-backup-tickets-notice-count";
 import { ContingencyNoticeCard } from "../fiscal/contingency-notice-card";
-import { isInContingency } from "../fiscal/fiscal-contingency";
 import { FiscalModeIndicator } from "../fiscal/fiscal-mode-indicator";
 import type { CoreData } from "../platform/use-core-query";
 import type { CashSessionState } from "../register/cash-session-state";
@@ -39,6 +40,8 @@ export type RegisterStatusBarProps = {
   person: SignedInPerson | undefined;
   cashSession: CashSessionState;
   status: CoreData<RegisterStatus>;
+  backupTickets: CoreData<ContingencyBackupTicketsAnswer>;
+  onDiscardBackupTickets: () => void;
 };
 
 function sessionText(cashSession: CashSessionState): string | undefined {
@@ -89,14 +92,23 @@ function conditionTone(condition: Condition): "error" | "warning" {
 function NoticesPill({
   conditions,
   contingency,
+  backupTickets,
+  onDiscardBackupTickets,
 }: {
   conditions: RegisterStatus["conditions"];
-  contingency: boolean;
+  contingency: RegisterStatus["contingency"];
+  backupTickets: ContingencyBackupTicketsAnswer | undefined;
+  onDiscardBackupTickets: () => void;
 }) {
-  const tone = conditions.some((condition) => conditionTone(condition) === "error")
-    ? "error"
-    : "warning";
-  const count = conditions.length + (contingency ? 1 : 0);
+  const tone =
+    conditions.some((condition) => conditionTone(condition) === "error") ||
+    (backupTickets?.missing_key ?? 0) > 0
+      ? "error"
+      : "warning";
+  const count =
+    conditions.length +
+    (contingency?.notice ? 1 : 0) +
+    (backupTickets === undefined ? 0 : contingencyBackupTicketsNoticeCount(backupTickets));
   return (
     <NotificationPanel
       title="Avisos de esta caja"
@@ -119,7 +131,13 @@ function NoticesPill({
           />
         );
       })}
-      {contingency ? <ContingencyNoticeCard /> : null}
+      {contingency?.notice ? <ContingencyNoticeCard kind={contingency.kind} /> : null}
+      {backupTickets === undefined ? null : (
+        <ContingencyBackupTicketsNoticeCard
+          tickets={backupTickets}
+          onDiscard={onDiscardBackupTickets}
+        />
+      )}
     </NotificationPanel>
   );
 }
@@ -135,8 +153,22 @@ function SerialDeviceIndicator({
   return <StatusIndicator tone={tone}>{text}</StatusIndicator>;
 }
 
-export function RegisterStatusBar({ person, cashSession, status }: RegisterStatusBarProps) {
+export function RegisterStatusBar({
+  person,
+  cashSession,
+  status,
+  backupTickets,
+  onDiscardBackupTickets,
+}: RegisterStatusBarProps) {
   const session = sessionText(cashSession);
+  const loadedBackupTickets = backupTickets.status === "loaded" ? backupTickets.value : undefined;
+  const noticeCount =
+    (status.status === "loaded"
+      ? status.value.conditions.length + (status.value.contingency?.notice ? 1 : 0)
+      : 0) +
+    (loadedBackupTickets === undefined
+      ? 0
+      : contingencyBackupTicketsNoticeCount(loadedBackupTickets));
   return (
     <section
       aria-label="Estado de la caja"
@@ -149,7 +181,7 @@ export function RegisterStatusBar({ person, cashSession, status }: RegisterStatu
         {session === undefined ? null : <p className="text-text-subtle text-detail">{session}</p>}
         {status.status === "loaded" ? <CloudIndicator cloud={status.value.cloud} /> : null}
         {status.status === "loaded" ? (
-          <FiscalModeIndicator mode={status.value.fiscal_mode} />
+          <FiscalModeIndicator contingency={status.value.contingency} />
         ) : null}
         {status.status === "loaded" ? (
           <>
@@ -157,11 +189,12 @@ export function RegisterStatusBar({ person, cashSession, status }: RegisterStatu
             <SerialDeviceIndicator device="reader" standing={status.value.serial_devices.reader} />
           </>
         ) : null}
-        {status.status === "loaded" &&
-        status.value.conditions.length + (isInContingency(status.value.fiscal_mode) ? 1 : 0) > 0 ? (
+        {noticeCount > 0 ? (
           <NoticesPill
-            conditions={status.value.conditions}
-            contingency={isInContingency(status.value.fiscal_mode)}
+            conditions={status.status === "loaded" ? status.value.conditions : []}
+            contingency={status.status === "loaded" ? status.value.contingency : null}
+            backupTickets={loadedBackupTickets}
+            onDiscardBackupTickets={onDiscardBackupTickets}
           />
         ) : null}
       </div>

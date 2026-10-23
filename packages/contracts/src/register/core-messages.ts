@@ -4,7 +4,7 @@ import {
   CASH_MOVEMENT_DIRECTIONS,
   CASH_MOVEMENT_KINDS,
   CASH_MOVEMENT_TYPES,
-  FISCAL_EMISSION_MODE_KINDS,
+  CONTINGENCY_KINDS,
   isAuthorizablePermissionKey,
   REGISTER_OWN_CONDITIONS,
   RESTORATION_STEPS,
@@ -385,7 +385,7 @@ const registerStatusSchema = z.object({
     reader: z.enum(SERIAL_DEVICE_STANDING_KINDS),
   }),
   serial_devices_setup_offered: z.boolean(),
-  fiscal_mode: z.enum(FISCAL_EMISSION_MODE_KINDS),
+  contingency: z.object({ kind: z.enum(CONTINGENCY_KINDS), notice: z.boolean() }).nullable(),
 });
 export type RegisterStatus = z.infer<typeof registerStatusSchema>;
 

@@ -1,7 +1,12 @@
-import type { ReceiptPrintStatusOutcome } from "@purosur/contracts";
+import type {
+  ReadContingencyBackupTicketOfSaleOutcome,
+  ReadContingencyBackupTicketsOutcome,
+  ReceiptPrintStatusOutcome,
+} from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
+import { backupTickets } from "../shell/test-support/contingency-backup-tickets";
 import { render } from "../shell/test-support/render-with-router";
 import { SaleCompletedModal } from "./sale-completed-modal";
 
@@ -30,8 +35,19 @@ type Amounts =
   | { total: number; method: "POINT"; amount: number }
   | { total: number; method: "STANDALONE_TERMINAL"; amount: number };
 
+type BackupStanding = Extract<
+  ReadContingencyBackupTicketOfSaleOutcome,
+  { kind: "read" }
+>["ticket"]["standing"];
+
+function ticketOf(standing: BackupStanding): ReadContingencyBackupTicketOfSaleOutcome {
+  return { kind: "read", ticket: { standing } };
+}
+
 type Overrides = {
   readReceiptStatus?: () => Promise<ReceiptPrintStatusOutcome>;
+  readBackupTicket?: () => Promise<ReadContingencyBackupTicketOfSaleOutcome>;
+  readBackupTickets?: () => Promise<ReadContingencyBackupTicketsOutcome>;
   mayChangePrinter?: boolean;
 };
 
@@ -42,16 +58,26 @@ async function renderModal(amounts: Amounts, overrides: Overrides = {}) {
   const readReceiptStatus = vi.fn(
     overrides.readReceiptStatus ?? (async () => found(null, { printed: true })),
   );
+  const readBackupTicket = vi.fn(overrides.readBackupTicket ?? (async () => ticketOf(null)));
+  const readBackupTickets = vi.fn(
+    overrides.readBackupTickets ??
+      (async (): Promise<ReadContingencyBackupTicketsOutcome> => ({
+        kind: "read",
+        tickets: backupTickets(),
+      })),
+  );
   const screen = await render(
     <SaleCompletedModal
       {...amounts}
       saleId="sale-1"
       readReceiptStatus={readReceiptStatus}
+      readBackupTicket={readBackupTicket}
+      readBackupTickets={readBackupTickets}
       mayChangePrinter={overrides.mayChangePrinter ?? false}
       onNewSale={onNewSale}
     />,
   );
-  return { screen, onNewSale, readReceiptStatus };
+  return { screen, onNewSale, readReceiptStatus, readBackupTicket, readBackupTickets };
 }
 
 async function expectAlertText(
@@ -418,21 +444,230 @@ describe("SaleCompletedModal", () => {
       await expect.element(screen.getByText("Para el cliente")).not.toBeInTheDocument();
     });
 
-    it("keeps the ticket row for a deferred sale's non-fiscal document", async () => {
-      const { screen } = await renderModal(CASH, {
-        readReceiptStatus: async () =>
-          found("printed", { printed: true, comprobante: { kind: "deferred_non_fiscal" } }),
-      });
-
-      await expect.element(screen.getByText("Ticket", { exact: true })).toBeVisible();
-      await expect.element(screen.getByText("Modo fiscal")).not.toBeInTheDocument();
-    });
-
     it("keeps the ticket row for a sale with no comprobante", async () => {
       const { screen } = await renderModal(CASH);
 
       await expect.element(screen.getByText("Ticket", { exact: true })).toBeVisible();
       await expect.element(screen.getByText("Modo fiscal")).not.toBeInTheDocument();
+    });
+  });
+  describe("for a deferred sale's non-fiscal document", () => {
+    const DEFERRED = { comprobante: { kind: "deferred_non_fiscal" } } as const;
+
+    it("shows the deferred mode and lists the document that is not valid as a factura", async () => {
+      const { screen } = await renderModal(CASH, {
+        readReceiptStatus: async () => found("printing", DEFERRED),
+      });
+
+      await expect.element(screen.getByText("Modo fiscal")).toBeVisible();
+      await expect
+        .element(screen.getByText("Venta diferida · sin factura en el momento"))
+        .toBeVisible();
+      await expect.element(screen.getByText("Documento no válido como factura")).toBeVisible();
+      await expect
+        .element(screen.getByText("Para el cliente · con la indicación de volver por la factura"))
+        .toBeVisible();
+      await expect.element(screen.getByText("Imprimiendo")).toBeVisible();
+      await expect.element(screen.getByText("Ticket", { exact: true })).not.toBeInTheDocument();
+      await expectNoAccessibilityViolations(screen.container);
+    });
+
+    it("shows the document as printed once it was", async () => {
+      const { screen } = await renderModal(CASH, {
+        readReceiptStatus: async () => found("printed", { printed: true, ...DEFERRED }),
+      });
+
+      await expect.element(screen.getByText("Impreso")).toBeVisible();
+    });
+
+    it("asks the customer to come back for the invoice when the sale has a backup ticket", async () => {
+      const { screen } = await renderModal(CASH, {
+        readReceiptStatus: async () => found("printed", { printed: true, ...DEFERRED }),
+        readBackupTicket: async () => ticketOf("kept"),
+      });
+
+      await expect
+        .element(screen.getByText("Pedile al cliente que vuelva por su factura"))
+        .toBeVisible();
+      await expect
+        .element(
+          screen.getByText(
+            "Guardá el ticket de respaldo en la caja del local hasta que esta caja vuelva a sincronizar.",
+          ),
+        )
+        .toBeVisible();
+      await expect
+        .element(
+          screen.getByText("Guardá el ticket de respaldo en la caja del local", { exact: true }),
+        )
+        .not.toBeInTheDocument();
+    });
+  });
+
+  describe("for a sale with a contingency backup ticket", () => {
+    const FISCAL_OFFLINE: Comprobante = {
+      kind: "fiscal",
+      document_type: "factura_c",
+      authorization: "offline_code",
+      point_of_sale: 8,
+      number: 412,
+    };
+
+    async function renderWithTicket(standing: BackupStanding, overrides: Overrides = {}) {
+      const rendered = await renderModal(CASH, {
+        readReceiptStatus: async () => found("printed", { printed: true }),
+        readBackupTicket: async () => ticketOf(standing),
+        ...overrides,
+      });
+      const documents = rendered.screen.getByRole("list", { name: "Documentos" });
+      return { ...rendered, documents };
+    }
+
+    it.each([
+      ["kept", "Impreso"],
+      ["discardable", "Impreso"],
+      ["discarded", "Impreso"],
+      ["to_print", "Imprimiendo"],
+      ["awaiting_customer_document", "Imprimiendo"],
+      ["no_longer_needed", "No hace falta"],
+      ["missing_key", "Sin clave de respaldo"],
+    ] as const)("lists the ticket as it stands when it is %s", async (standing, status) => {
+      const { screen, documents } = await renderWithTicket(standing);
+
+      await expect.element(documents.getByText("Ticket de respaldo de contingencia")).toBeVisible();
+      await expect.element(documents.getByText("Queda en el local")).toBeVisible();
+      await expect.element(documents.getByText(status)).toBeVisible();
+      await expectNoAccessibilityViolations(screen.container);
+    });
+
+    it("lists it after the customer's document", async () => {
+      const { documents } = await renderWithTicket("kept", {
+        readReceiptStatus: async () =>
+          found("printed", { printed: true, comprobante: FISCAL_OFFLINE }),
+      });
+
+      await expect
+        .poll(() =>
+          documents
+            .getByRole("listitem")
+            .elements()
+            .map((row) => row.textContent),
+        )
+        .toEqual([
+          expect.stringContaining("Factura C"),
+          expect.stringContaining("Ticket de respaldo de contingencia"),
+        ]);
+    });
+
+    it.each([["kept"], ["to_print"], ["awaiting_customer_document"]] as const)(
+      "tells the cashier to keep the ticket in the register's box when it is %s",
+      async (standing) => {
+        const { screen } = await renderWithTicket(standing);
+
+        await expect
+          .element(screen.getByText("Guardá el ticket de respaldo en la caja del local"))
+          .toBeVisible();
+        await expect
+          .element(
+            screen.getByText("Queda ahí hasta que esta caja vuelva a sincronizar con la nube."),
+          )
+          .toBeVisible();
+      },
+    );
+
+    it.each([
+      ["no_longer_needed", "No hace falta"],
+      ["missing_key", "Sin clave de respaldo"],
+      ["discardable", "Impreso"],
+      ["discarded", "Impreso"],
+    ] as const)("tells nothing to keep when the ticket is %s", async (standing, status) => {
+      const { screen, documents } = await renderWithTicket(standing);
+
+      await expect.element(documents.getByText(status)).toBeVisible();
+      await expect
+        .element(screen.getByText("Guardá el ticket de respaldo en la caja del local"))
+        .not.toBeInTheDocument();
+    });
+
+    it.each([
+      ["paper_out", "Sin papel"],
+      ["cover_open", "Tapa abierta"],
+      ["not_responding", "No responde"],
+      ["printer_not_configured", "Sin configurar"],
+    ] as const)("shows the printer failure %s on a ticket still to print", async (printer, tag) => {
+      const { documents } = await renderWithTicket("to_print", {
+        readBackupTickets: async () => ({
+          kind: "read",
+          tickets: backupTickets({ to_print: 1, printer }),
+        }),
+      });
+
+      await expect.element(documents.getByText(tag)).toBeVisible();
+      await expect.element(documents.getByText("Imprimiendo")).not.toBeInTheDocument();
+    });
+
+    it("keeps saying it is printing for a printer failure with no name", async () => {
+      const { documents } = await renderWithTicket("to_print", {
+        readBackupTickets: async () => ({
+          kind: "read",
+          tickets: backupTickets({ to_print: 1, printer: "failed" }),
+        }),
+      });
+
+      await expect.element(documents.getByText("Imprimiendo")).toBeVisible();
+    });
+
+    it("does not ask for the printer's state unless the ticket is still to print", async () => {
+      const { documents, readBackupTickets } = await renderWithTicket("kept");
+
+      await expect.element(documents.getByText("Impreso")).toBeVisible();
+      expect(readBackupTickets).not.toHaveBeenCalled();
+    });
+
+    it("shows no ticket row and no notice when the sale has no ticket", async () => {
+      const { screen } = await renderModal(CASH, {
+        readReceiptStatus: async () => found("printed", { printed: true }),
+        readBackupTicket: async () => ticketOf(null),
+      });
+
+      await expect.element(screen.getByText("Ticket", { exact: true })).toBeVisible();
+      await expect
+        .element(screen.getByText("Ticket de respaldo de contingencia"))
+        .not.toBeInTheDocument();
+      await expect
+        .element(screen.getByText("Guardá el ticket de respaldo en la caja del local"))
+        .not.toBeInTheDocument();
+    });
+
+    it.each([
+      ["unavailable", { kind: "unavailable" }],
+      ["not signed in", { kind: "not_signed_in" }],
+    ] as const)("shows no ticket row when the core answers %s", async (_name, outcome) => {
+      const { screen } = await renderModal(CASH, {
+        readReceiptStatus: async () => found("printed", { printed: true }),
+        readBackupTicket: async () => outcome,
+      });
+
+      await expect.element(screen.getByText("Nueva venta")).toBeVisible();
+      await expect
+        .element(screen.getByText("Ticket de respaldo de contingencia"))
+        .not.toBeInTheDocument();
+    });
+
+    it("asks again while the ticket is not printed and shows it once printed, then stops asking", async () => {
+      vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+      const answers = [ticketOf("to_print"), ticketOf("kept")];
+      const { documents, readBackupTicket } = await renderWithTicket("to_print", {
+        readBackupTicket: async () => answers.shift() ?? ticketOf("kept"),
+      });
+      await expect.element(documents.getByText("Imprimiendo")).toBeVisible();
+
+      await vi.advanceTimersByTimeAsync(2000);
+
+      await expect.element(documents.getByText("Impreso")).toBeVisible();
+      const reads = readBackupTicket.mock.calls.length;
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(readBackupTicket).toHaveBeenCalledTimes(reads);
     });
   });
 });

@@ -3,9 +3,11 @@ import { type PaidOrderDiscoveryState, restorationStanding } from "@purosur/doma
 import {
   type DiscoverPaidOrdersWithoutSaleOutcome,
   discoverPaidOrdersWithoutSale,
+  type PaidOrderSale,
 } from "@purosur/domain/payments/use-cases";
 import type { RestorationProtocolEvidence } from "@purosur/domain/register/use-cases";
 import type { IdGenerator } from "@purosur/domain/sales/use-cases";
+import type { TicketedOperations } from "../backups/ticketed-operation";
 import {
   type CloudClientDeps,
   getFromCloud,
@@ -105,6 +107,16 @@ export interface PaidOrderDiscoveryWiringDeps {
   now: () => Date;
   ids: IdGenerator;
   reportFailure: (activity: string, error: unknown) => void;
+  ticketedSettlement: TicketedOperations["ticketedSettlement"];
+}
+
+function ticketedPaidOrderSale(
+  sale: PaidOrderSale,
+  ticketedSettlement: TicketedOperations["ticketedSettlement"],
+): PaidOrderSale {
+  return {
+    settleApprovedPayment: ticketedSettlement((payment) => sale.settleApprovedPayment(payment)),
+  };
 }
 
 export interface PaidOrderDiscoveryWiring extends PaidOrderDiscovery {
@@ -124,6 +136,7 @@ export function createPaidOrderDiscoveryWiring({
   now,
   ids,
   reportFailure,
+  ticketedSettlement,
 }: PaidOrderDiscoveryWiringDeps): PaidOrderDiscoveryWiring {
   const cloud =
     cloudClient === undefined
@@ -149,13 +162,16 @@ export function createPaidOrderDiscoveryWiring({
         cloud,
         refunds: cloud,
         local: new SqliteLocalPaidOrders({ database }),
-        sale: paidOrderSale({
-          database,
-          outboxChainKey: await readOutboxChainKey(),
-          restoration,
-          now,
-          ids,
-        }),
+        sale: ticketedPaidOrderSale(
+          paidOrderSale({
+            database,
+            outboxChainKey: await readOutboxChainKey(),
+            restoration,
+            now,
+            ids,
+          }),
+          ticketedSettlement,
+        ),
         clock: { now },
       });
     },
