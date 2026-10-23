@@ -71,7 +71,7 @@ describe("checkWebPageHost", () => {
     });
   });
 
-  it("refuses a name that resolves to an internal address after a public one only on the first lookup", async () => {
+  it("looks a name up once, so a later internal answer for it never matters", async () => {
     const resolve = vi
       .fn<WebPageHostResolver>()
       .mockResolvedValueOnce([{ address: "93.184.216.34", family: 4 }])
