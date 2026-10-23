@@ -2135,16 +2135,19 @@ describe("restoration standing messages", () => {
 
   it.each([
     { kind: "completed" },
-    { kind: "in_progress", step: "enroll" },
-    { kind: "in_progress", step: "restore" },
-    { kind: "in_progress", step: "reset_sync_identity" },
-    { kind: "in_progress", step: "replenish" },
-    { kind: "in_progress", step: "recover_contingency_tickets" },
-    { kind: "in_progress", step: "reconcile_fiscal_counters" },
-    { kind: "in_progress", step: "regularize_orphan_authorizations" },
-    { kind: "without_connection", step: "restore" },
-    { kind: "without_connection", step: "replenish" },
-    { kind: "without_connection", step: "reconcile_fiscal_counters" },
+    { kind: "in_progress", step: "enroll", origin: "copy" },
+    { kind: "in_progress", step: "restore", origin: "copy" },
+    { kind: "in_progress", step: "reset_sync_identity", origin: "copy" },
+    { kind: "in_progress", step: "replenish", origin: "copy" },
+    { kind: "in_progress", step: "recover_contingency_tickets", origin: "copy" },
+    { kind: "in_progress", step: "reconcile_fiscal_counters", origin: "copy" },
+    { kind: "in_progress", step: "regularize_orphan_authorizations", origin: "copy" },
+    { kind: "without_connection", step: "restore", origin: "copy" },
+    { kind: "without_connection", step: "replenish", origin: "copy" },
+    { kind: "without_connection", step: "reconcile_fiscal_counters", origin: "copy" },
+    { kind: "in_progress", step: "replenish", origin: "copy" },
+    { kind: "in_progress", step: "replenish", origin: "no_copy" },
+    { kind: "without_connection", step: "replenish", origin: "no_copy" },
     { kind: "failed", step: "restore" },
   ])("accepts the restoration standing %j", (standing) => {
     const message = { type: "restoration-standing", request_id: REQUEST_ID, standing };
@@ -2154,13 +2157,16 @@ describe("restoration standing messages", () => {
 
   it.each([
     { kind: "in_progress" },
-    { kind: "in_progress", step: "open_session" },
-    { kind: "in_progress", step: "somewhere_else" },
+    { kind: "in_progress", step: "open_session", origin: "copy" },
+    { kind: "in_progress", step: "somewhere_else", origin: "copy" },
     { kind: "somewhere_else" },
     { kind: "without_connection" },
-    { kind: "without_connection", step: "open_session" },
+    { kind: "without_connection", step: "open_session", origin: "copy" },
     { kind: "failed" },
     { kind: "failed", step: "replenish" },
+    { kind: "in_progress", step: "replenish", origin: "somewhere_else" },
+    { kind: "in_progress", step: "replenish" },
+    { kind: "without_connection", step: "replenish" },
   ])("rejects the restoration standing %j", (standing) => {
     const message = { type: "restoration-standing", request_id: REQUEST_ID, standing };
 

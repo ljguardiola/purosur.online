@@ -207,7 +207,11 @@ export async function startStandInCloud(
     send(
       response,
       200,
-      restorableSnapshotsSchema.parse({ register_id: randomUUID(), generations: [] }),
+      restorableSnapshotsSchema.parse({
+        register_id: randomUUID(),
+        first_installation_id: null,
+        generations: [],
+      }),
     );
   }
 

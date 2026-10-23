@@ -401,10 +401,12 @@ const restorationStandingSchema = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("in_progress"),
     step: z.enum(RESTORATION_STEPS).exclude(["open_session"]),
+    origin: z.enum(["copy", "no_copy"]),
   }),
   z.object({
     kind: z.literal("without_connection"),
     step: z.enum(RESTORATION_STEPS).exclude(["open_session", "enroll"]),
+    origin: z.enum(["copy", "no_copy"]),
   }),
   z.object({ kind: z.literal("failed"), step: z.literal("restore") }),
 ]);

@@ -11,4 +11,9 @@ export interface RestoredRegisterPredecessors {
     predecessorDeviceId: string,
     cursorDeviceId: string,
   ): Promise<boolean>;
+  // The earliest enrolled installation of the register, other than the one asking, that was revoked.
+  firstRevokedInstallation(
+    registerId: string,
+    currentDeviceId: string,
+  ): Promise<string | undefined>;
 }
