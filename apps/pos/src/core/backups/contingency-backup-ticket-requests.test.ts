@@ -14,12 +14,21 @@ const NOW = new Date("2026-10-10T09:00:00.000Z");
 let database: LocalDatabase;
 let tickets: SqliteContingencyBackupTickets;
 let printerFailure: "paper_out" | null;
+let signedIn: "yes" | "no" | "without_permission";
 
 function requests() {
   return createContingencyBackupTicketRequests({
     tickets,
     clock: { now: () => NOW },
     printerFailure: () => printerFailure,
+    signedInUserId: () => (signedIn === "no" ? undefined : "u1"),
+    gate: {
+      run: async (_operation, perform) => {
+        if (signedIn === "no") return { kind: "not_signed_in" };
+        if (signedIn === "without_permission") return { kind: "lacks_permission" };
+        return { kind: "performed", result: await perform({ signedInUserId: "u1" }) };
+      },
+    },
   });
 }
 
@@ -60,6 +69,7 @@ beforeEach(() => {
   appendOutboxEvents(database, 4);
   tickets = new SqliteContingencyBackupTickets(database);
   printerFailure = null;
+  signedIn = "yes";
 });
 
 afterEach(() => {
@@ -116,6 +126,37 @@ describe("reading the tickets", () => {
         printer: null,
       },
     });
+  });
+});
+
+describe("the requests when nobody is signed in", () => {
+  beforeEach(() => {
+    signedIn = "no";
+  });
+
+  it("refuse to read the tickets", async () => {
+    expect(await requests().read()).toEqual({ kind: "not_signed_in" });
+  });
+
+  it("refuse to read the ticket of a sale", async () => {
+    expect(await requests().ofSale("sale-1")).toEqual({ kind: "not_signed_in" });
+  });
+
+  it("refuse to discard, leaving the tickets", async () => {
+    await record(ticket("a", 1));
+    await print("a");
+    await cloudAcknowledgesThrough(1);
+
+    expect(await requests().discard()).toEqual({ kind: "not_signed_in" });
+
+    signedIn = "yes";
+    expect(await requests().read()).toMatchObject({ tickets: { discardable: 1 } });
+  });
+
+  it("refuse to discard for a person who may not sell", async () => {
+    signedIn = "without_permission";
+
+    expect(await requests().discard()).toEqual({ kind: "lacks_permission" });
   });
 });
 

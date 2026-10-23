@@ -30,6 +30,13 @@ function tickets() {
     scheduleNext: (run, delayMs) => timers.after(delayMs, run),
     intervalMs: INTERVAL_MS,
     reportFailure: (context, error) => reported.push({ context, error }),
+    signedInUserId: () => "u1",
+    gate: {
+      run: async (_operation, perform) => ({
+        kind: "performed",
+        result: await perform({ signedInUserId: "u1" }),
+      }),
+    },
   });
 }
 

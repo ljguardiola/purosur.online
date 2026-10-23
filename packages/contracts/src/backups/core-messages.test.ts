@@ -102,8 +102,18 @@ describe("backupsCoreToRendererMessageSchema", () => {
     "read-contingency-backup-tickets-result",
     "read-contingency-backup-ticket-of-sale-result",
     "discard-contingency-backup-tickets-result",
-  ])("accepts that %s is unavailable", (type) => {
+  ])("accepts that %s is unavailable or nobody is signed in", (type) => {
     expect(acceptsAnswer(type, { kind: "unavailable" })).toBe(true);
+    expect(acceptsAnswer(type, { kind: "not_signed_in" })).toBe(true);
+  });
+
+  it("accepts that the person may not discard the tickets, and no other answer to read them", () => {
+    expect(
+      acceptsAnswer("discard-contingency-backup-tickets-result", { kind: "lacks_permission" }),
+    ).toBe(true);
+    expect(
+      acceptsAnswer("read-contingency-backup-tickets-result", { kind: "lacks_permission" }),
+    ).toBe(false);
   });
 
   it("rejects any other message type", () => {
