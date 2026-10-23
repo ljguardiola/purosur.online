@@ -16,4 +16,9 @@ ALTER TABLE "offline_fiscal_documents" ADD CONSTRAINT "offline_fiscal_documents_
 ALTER TABLE "offline_fiscal_documents" ADD CONSTRAINT "offline_fiscal_documents_document_type_known" CHECK ("offline_fiscal_documents"."document_type" in ('factura_c', 'credit_note_c'));--> statement-breakpoint
 ALTER TABLE "offline_number_blocks" ADD CONSTRAINT "offline_number_blocks_document_type_known" CHECK ("offline_number_blocks"."document_type" in ('factura_c', 'credit_note_c'));--> statement-breakpoint
 ALTER TYPE "public"."document_type_report_state" ADD VALUE 'awaiting_invoice_report';--> statement-breakpoint
-ALTER TYPE "public"."fortnight_report_state" ADD VALUE 'awaiting_invoice_report';
+ALTER TYPE "public"."fortnight_report_state" ADD VALUE 'awaiting_invoice_report';--> statement-breakpoint
+ALTER TABLE "tax_authority_last_authorized_numbers" DROP CONSTRAINT "tax_authority_last_authorized_numbers_pkey";--> statement-breakpoint
+ALTER TABLE "tax_authority_last_authorized_numbers" ADD COLUMN "document_type" text DEFAULT 'factura_c' NOT NULL;--> statement-breakpoint
+ALTER TABLE "tax_authority_last_authorized_numbers" ALTER COLUMN "document_type" DROP DEFAULT;--> statement-breakpoint
+ALTER TABLE "tax_authority_last_authorized_numbers" ADD CONSTRAINT "tax_authority_last_authorized_numbers_pkey" PRIMARY KEY("point_of_sale_number","document_type");--> statement-breakpoint
+ALTER TABLE "tax_authority_last_authorized_numbers" ADD CONSTRAINT "tax_authority_last_authorized_numbers_document_type_known" CHECK ("tax_authority_last_authorized_numbers"."document_type" in ('factura_c', 'credit_note_c'));

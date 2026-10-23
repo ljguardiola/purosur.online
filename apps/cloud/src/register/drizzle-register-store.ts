@@ -1,5 +1,9 @@
 import { randomUUID } from "node:crypto";
-import { enrollmentAttemptWindowStart, isRetainedSnapshotGeneration } from "@purosur/domain";
+import {
+  enrollmentAttemptWindowStart,
+  FACTURA_C_DOCUMENT_TYPE,
+  isRetainedSnapshotGeneration,
+} from "@purosur/domain";
 import type { NumberingFreeze } from "@purosur/domain/fiscal/use-cases";
 import type {
   EnrollmentAlert,
@@ -22,6 +26,7 @@ import { openAlert } from "../alerts/open-alert.js";
 import type { EnqueueNumberingReconciliation } from "../fiscal/enqueue-numbering-conflict.js";
 import { freezePointOfSaleNumbering } from "../fiscal/freeze-point-of-sale-numbering.js";
 import type { EnqueueTaxAuthorityCount } from "../fiscal/graphile-tax-authority-count-queue.js";
+import { OFFLINE_SERIES_DOCUMENT_TYPES } from "../fiscal/offline-series-document-types.js";
 import { pointOfSaleLaneLockKey } from "../fiscal/point-of-sale-lane-lock.js";
 import {
   auditLog,
@@ -373,7 +378,12 @@ class DrizzleRegisterStoreTransaction<TQueryResult extends PgQueryResultHKT>
     const [held] = await this.tx
       .select({ lastAuthorized: taxAuthorityLastAuthorizedNumbers.lastAuthorized })
       .from(taxAuthorityLastAuthorizedNumbers)
-      .where(eq(taxAuthorityLastAuthorizedNumbers.pointOfSaleNumber, realTime.pointOfSale));
+      .where(
+        and(
+          eq(taxAuthorityLastAuthorizedNumbers.pointOfSaleNumber, realTime.pointOfSale),
+          eq(taxAuthorityLastAuthorizedNumbers.documentType, FACTURA_C_DOCUMENT_TYPE),
+        ),
+      );
     return { pointOfSale: realTime.pointOfSale, heldCount: held?.lastAuthorized ?? null };
   }
 
@@ -401,13 +411,15 @@ class DrizzleRegisterStoreTransaction<TQueryResult extends PgQueryResultHKT>
       .from(registerOfflinePointsOfSale)
       .where(eq(registerOfflinePointsOfSale.registerId, registerId));
     if (realTime !== undefined) {
-      await this.enqueueTaxAuthorityCount(this.tx, realTime.pointOfSale);
+      await this.enqueueTaxAuthorityCount(this.tx, realTime.pointOfSale, FACTURA_C_DOCUMENT_TYPE);
     }
     if (offline !== undefined) {
       await this.tx
         .delete(taxAuthorityLastAuthorizedNumbers)
         .where(eq(taxAuthorityLastAuthorizedNumbers.pointOfSaleNumber, offline.pointOfSale));
-      await this.enqueueTaxAuthorityCount(this.tx, offline.pointOfSale);
+      for (const documentType of OFFLINE_SERIES_DOCUMENT_TYPES) {
+        await this.enqueueTaxAuthorityCount(this.tx, offline.pointOfSale, documentType);
+      }
     }
   }
 

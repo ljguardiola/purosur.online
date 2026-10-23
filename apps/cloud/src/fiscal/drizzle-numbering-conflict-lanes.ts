@@ -1,3 +1,4 @@
+import { FACTURA_C_DOCUMENT_TYPE } from "@purosur/domain";
 import type {
   AuthorizationNumber,
   NumberingConflictLane,
@@ -202,6 +203,7 @@ class DrizzleNumberingConflictLane<TQueryResult extends PgQueryResultHKT>
       }
       await new DrizzleTaxAuthorityCounts(tx, pending).advance({
         pointOfSale: this.pointOfSale,
+        documentType: FACTURA_C_DOCUMENT_TYPE,
         lastAuthorized,
         readAt: this.now(),
       });

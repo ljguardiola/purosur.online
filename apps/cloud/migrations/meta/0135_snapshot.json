@@ -10602,7 +10602,13 @@
         "point_of_sale_number": {
           "name": "point_of_sale_number",
           "type": "integer",
-          "primaryKey": true,
+          "primaryKey": false,
+          "notNull": true
+        },
+        "document_type": {
+          "name": "document_type",
+          "type": "text",
+          "primaryKey": false,
           "notNull": true
         },
         "last_authorized": {
@@ -10626,10 +10632,19 @@
       },
       "indexes": {},
       "foreignKeys": {},
-      "compositePrimaryKeys": {},
+      "compositePrimaryKeys": {
+        "tax_authority_last_authorized_numbers_pkey": {
+          "name": "tax_authority_last_authorized_numbers_pkey",
+          "columns": ["point_of_sale_number", "document_type"]
+        }
+      },
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {
+        "tax_authority_last_authorized_numbers_document_type_known": {
+          "name": "tax_authority_last_authorized_numbers_document_type_known",
+          "value": "\"tax_authority_last_authorized_numbers\".\"document_type\" in ('factura_c', 'credit_note_c')"
+        },
         "tax_authority_last_authorized_numbers_non_negative_check": {
           "name": "tax_authority_last_authorized_numbers_non_negative_check",
           "value": "\"tax_authority_last_authorized_numbers\".\"last_authorized\" >= 0"

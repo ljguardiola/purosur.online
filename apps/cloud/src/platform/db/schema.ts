@@ -2630,12 +2630,21 @@ export const arcaInvoicingEvidence = pgTable(
 export const taxAuthorityLastAuthorizedNumbers = pgTable(
   "tax_authority_last_authorized_numbers",
   {
-    pointOfSaleNumber: integer("point_of_sale_number").primaryKey(),
+    pointOfSaleNumber: integer("point_of_sale_number").notNull(),
+    documentType: text("document_type").$type<FiscalTaskDocumentType>().notNull(),
     lastAuthorized: integer("last_authorized").notNull(),
     issuedOn: date("issued_on", { mode: "string" }),
     readAt: timestamp("read_at", { withTimezone: true }).notNull(),
   },
   (table) => [
+    primaryKey({
+      name: "tax_authority_last_authorized_numbers_pkey",
+      columns: [table.pointOfSaleNumber, table.documentType],
+    }),
+    check(
+      "tax_authority_last_authorized_numbers_document_type_known",
+      sql`${table.documentType} in (${sql.raw(`'${FACTURA_C_DOCUMENT_TYPE}', '${CREDIT_NOTE_C_DOCUMENT_TYPE}'`)})`,
+    ),
     check(
       "tax_authority_last_authorized_numbers_non_negative_check",
       sql`${table.lastAuthorized} >= 0`,

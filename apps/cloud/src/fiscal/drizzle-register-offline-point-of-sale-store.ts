@@ -62,16 +62,27 @@ export class DrizzleRegisterOfflinePointOfSaleStoreTransaction<
     this.enqueueTaxAuthorityCount = enqueueTaxAuthorityCount;
   }
 
-  async taxAuthorityLastAuthorized(pointOfSaleNumber: number): Promise<number | null> {
+  async taxAuthorityLastAuthorized(
+    pointOfSaleNumber: number,
+    documentType: FiscalTaskDocumentType,
+  ): Promise<number | null> {
     const [count] = await this.tx
       .select({ lastAuthorized: taxAuthorityLastAuthorizedNumbers.lastAuthorized })
       .from(taxAuthorityLastAuthorizedNumbers)
-      .where(eq(taxAuthorityLastAuthorizedNumbers.pointOfSaleNumber, pointOfSaleNumber));
+      .where(
+        and(
+          eq(taxAuthorityLastAuthorizedNumbers.pointOfSaleNumber, pointOfSaleNumber),
+          eq(taxAuthorityLastAuthorizedNumbers.documentType, documentType),
+        ),
+      );
     return count?.lastAuthorized ?? null;
   }
 
-  async requireTaxAuthorityCount(pointOfSaleNumber: number): Promise<void> {
-    await this.enqueueTaxAuthorityCount?.(this.tx, pointOfSaleNumber);
+  async requireTaxAuthorityCount(
+    pointOfSaleNumber: number,
+    documentType: FiscalTaskDocumentType,
+  ): Promise<void> {
+    await this.enqueueTaxAuthorityCount?.(this.tx, pointOfSaleNumber, documentType);
   }
 
   async offlineRegisterOf(pointOfSaleNumber: number): Promise<string | null> {
