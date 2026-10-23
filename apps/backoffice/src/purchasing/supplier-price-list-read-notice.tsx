@@ -12,6 +12,8 @@ export type ReadNotice =
   | { kind: "notAPdf" }
   | { kind: "supplierInactive" }
   | { kind: "supplierNotFound" }
+  | { kind: "refreshedSupplierInactive" }
+  | { kind: "refreshedSupplierNotFound" }
   | { kind: "readingUnavailable" }
   | { kind: "pageRefused"; reason: WebPageRefusalReason };
 
@@ -44,6 +46,13 @@ export function readNoticeContent(notice: ReadNotice): ReadNoticeContent {
       return problem("Este proveedor está desactivado", "Elegí otro proveedor.");
     case "supplierNotFound":
       return problem("Este proveedor ya no existe", "Elegí otro proveedor.");
+    case "refreshedSupplierInactive":
+      return problem(
+        "Este proveedor está desactivado",
+        "Reactivalo en Proveedores para volver a leer su página.",
+      );
+    case "refreshedSupplierNotFound":
+      return problem("Este proveedor ya no existe", "Su lista ya no se puede actualizar.");
     case "readingUnavailable":
       return problem("La lectura de listas no está disponible", "Volvé a intentarlo más tarde.");
     case "pageRefused":

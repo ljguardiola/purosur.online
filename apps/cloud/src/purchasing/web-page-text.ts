@@ -48,10 +48,19 @@ const BLOCK_ELEMENTS = new Set([
 
 const CELL_ELEMENTS = new Set(["td", "th"]);
 
+export const UTF8_BYTE_ORDER_MARK = [0xef, 0xbb, 0xbf] as const;
+
+export function startsWithUtf8ByteOrderMark(bytes: Uint8Array): boolean {
+  return UTF8_BYTE_ORDER_MARK.every((byte, index) => bytes[index] === byte);
+}
+
 const CHARSET_DECLARATION = /<meta[^>]+charset\s*=\s*["']?\s*([\w:.-]+)/i;
 const BYTES_TO_SEARCH_FOR_CHARSET = 2048;
 
 function decoderOf(html: Uint8Array): TextDecoder {
+  if (startsWithUtf8ByteOrderMark(html)) {
+    return new TextDecoder();
+  }
   const head = Buffer.from(html.subarray(0, BYTES_TO_SEARCH_FOR_CHARSET)).toString("latin1");
   const label = CHARSET_DECLARATION.exec(head)?.[1];
   try {

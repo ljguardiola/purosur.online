@@ -7,5 +7,5 @@ export function supplierPriceListOriginOf(
 ): SupplierPriceListOrigin {
   return source.kind === "PDF"
     ? { name: source.fileName, detail: "PDF" }
-    : { name: source.url.replace(/^https?:\/\//, ""), detail: "Página web" };
+    : { name: source.url.replace(/^https?:\/\//i, ""), detail: "Página web" };
 }

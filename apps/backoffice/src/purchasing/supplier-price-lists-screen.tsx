@@ -68,9 +68,9 @@ function readNoticeOf(
     case "daily_cap_reached":
       return { kind: "dailyCapReached" };
     case "supplier_inactive":
-      return { kind: "supplierInactive" };
+      return { kind: "refreshedSupplierInactive" };
     case "supplier_not_found":
-      return { kind: "supplierNotFound" };
+      return { kind: "refreshedSupplierNotFound" };
     case "reading_unavailable":
       return { kind: "readingUnavailable" };
     case "page_refused":
@@ -102,8 +102,12 @@ export function SupplierPriceListsScreen({
   const [stateFilter, setStateFilter] = useState<StateFilter>(filters.state);
   const [upload, setUpload] = useState<{ supplierId: string | null } | null>(null);
   const [notice, setNotice] = useState<ReadNotice | "loaded" | null>(null);
+  const [refreshing, setRefreshing] = useState<ReadonlySet<string>>(new Set());
   const refresh = useMutation({
     mutationFn: (listId: string) => services.refreshSupplierPriceList(listId),
+    onSettled: (_outcome, _error, listId) => {
+      setRefreshing((ids) => new Set([...ids].filter((id) => id !== listId)));
+    },
     onSuccess: (outcome) => {
       switch (outcome.kind) {
         case "ok":
@@ -189,7 +193,8 @@ export function SupplierPriceListsScreen({
                 icon: <RefreshCw />,
                 "aria-label": `Actualizar la lista de ${item.supplier.name}`,
                 onPress: () => {
-                  if (!refresh.isPending) {
+                  if (!refreshing.has(item.id)) {
+                    setRefreshing((ids) => new Set([...ids, item.id]));
                     refresh.mutate(item.id);
                   }
                 },

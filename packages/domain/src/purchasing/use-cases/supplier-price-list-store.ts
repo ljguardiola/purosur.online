@@ -29,6 +29,7 @@ export type FindSupplierPriceListSourceResult =
 export interface LockedSupplierPriceList {
   id: string;
   sourceKind: SupplierPriceListSourceKind;
+  contentKind: SupplierPriceListContentKind;
   state: SupplierPriceListState;
   version: number;
   // The date the reading found, null when it found none.

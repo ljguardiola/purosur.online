@@ -362,7 +362,10 @@ export type { SupplierPriceListUploadQuery } from "./purchasing/supplier-price-l
 export { supplierPriceListUploadQuerySchema } from "./purchasing/supplier-price-list-upload-query.js";
 export { supplierPriceListUploadedSchema } from "./purchasing/supplier-price-list-uploaded.js";
 export type { SupplierPriceListWebPageBody } from "./purchasing/supplier-price-list-web-page-body.js";
-export { supplierPriceListWebPageBodySchema } from "./purchasing/supplier-price-list-web-page-body.js";
+export {
+  supplierPriceListWebPageAddressSchema,
+  supplierPriceListWebPageBodySchema,
+} from "./purchasing/supplier-price-list-web-page-body.js";
 export type { SupplierSummary } from "./purchasing/supplier-summary.js";
 export { supplierListSchema, supplierSummarySchema } from "./purchasing/supplier-summary.js";
 export type {

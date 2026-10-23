@@ -1,5 +1,6 @@
 import {
   supplierPriceListUploadQuerySchema,
+  supplierPriceListWebPageAddressSchema,
   supplierPriceListWebPageBodySchema,
 } from "@purosur/contracts";
 import { z } from "zod";
@@ -38,14 +39,23 @@ export function uploadRequestFrom({ supplierId, source, file, url }: UploadFormV
     : { source, supplierId: supplierId ?? "", url };
 }
 
+function addressMessage(url: string): string {
+  if (url.trim() === "") {
+    return "Escribí la dirección de la página.";
+  }
+  if (!supplierPriceListWebPageAddressSchema.safeParse(url).success) {
+    return "Escribí la dirección completa de la página, empezando con http:// o https://.";
+  }
+  return supplierPriceListWebPageBodySchema.shape.url.safeParse(url).success
+    ? "Revisá la dirección."
+    : "La dirección es demasiado larga.";
+}
+
 export const UPLOAD_FIELD_MESSAGES = {
   supplierId: "Elegí el proveedor.",
   file: ({ file }: UploadFormValues) =>
     file === null
       ? "Elegí el archivo PDF de la lista."
       : "El nombre del archivo es demasiado largo.",
-  url: ({ url }: UploadFormValues) =>
-    url.trim() === ""
-      ? "Escribí la dirección de la página."
-      : "Escribí la dirección completa de la página, empezando con http:// o https://.",
+  url: ({ url }: UploadFormValues) => addressMessage(url),
 };

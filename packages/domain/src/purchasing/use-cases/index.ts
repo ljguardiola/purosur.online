@@ -140,10 +140,7 @@ export type {
 } from "./set-supplier-price-list-row-price.js";
 export { setSupplierPriceListRowPrice } from "./set-supplier-price-list-row-price.js";
 export { settleAbandonedSupplierPriceListReadings } from "./settle-abandoned-supplier-price-list-readings.js";
-export type {
-  StoredSupplierPriceListFile,
-  SupplierPriceListFiles,
-} from "./supplier-price-list-files.js";
+export type { SupplierPriceListFiles } from "./supplier-price-list-files.js";
 export type {
   SupplierPriceListListing,
   SupplierPriceListReader,

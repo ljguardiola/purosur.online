@@ -1,8 +1,5 @@
 import type { SupplierPriceListContentKind } from "@purosur/domain";
-import type {
-  StoredSupplierPriceListFile,
-  SupplierPriceListFiles,
-} from "@purosur/domain/purchasing/use-cases";
+import type { SupplierPriceListFiles } from "@purosur/domain/purchasing/use-cases";
 import { AwsClient } from "aws4fetch";
 import type { SupplierPriceListsBucketConfig } from "./supplier-price-lists-bucket-config.js";
 
@@ -15,8 +12,6 @@ const OBJECT_TYPES = {
   PDF: { extension: "pdf", mediaType: "application/pdf" },
   HTML: { extension: "html", mediaType: "text/html" },
 } as const satisfies Record<SupplierPriceListContentKind, { extension: string; mediaType: string }>;
-
-const CONTENT_KINDS_IN_READING_ORDER = ["PDF", "HTML"] as const;
 
 function amzDate(date: Date): string {
   return date.toISOString().replace(/[-:]|\.\d{3}/g, "");
@@ -57,17 +52,7 @@ export class BucketSupplierPriceListFiles implements SupplierPriceListFiles {
     }
   }
 
-  async read(listId: string): Promise<StoredSupplierPriceListFile | null> {
-    for (const contentKind of CONTENT_KINDS_IN_READING_ORDER) {
-      const bytes = await this.readObject(listId, contentKind);
-      if (bytes !== null) {
-        return { bytes, contentKind };
-      }
-    }
-    return null;
-  }
-
-  private async readObject(
+  async read(
     listId: string,
     contentKind: SupplierPriceListContentKind,
   ): Promise<Uint8Array | null> {

@@ -18,6 +18,6 @@ export async function findSupplierPriceListFile(
   if (fileName === undefined) {
     return { kind: "not_found" };
   }
-  const file = await files.read(listId);
-  return file === null ? { kind: "not_found" } : { kind: "found", fileName, bytes: file.bytes };
+  const bytes = await files.read(listId, "PDF");
+  return bytes === null ? { kind: "not_found" } : { kind: "found", fileName, bytes };
 }

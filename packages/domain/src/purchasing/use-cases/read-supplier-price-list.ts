@@ -2,6 +2,7 @@ import { argentinaCalendarDay, isCalendarDay } from "../../shared/index.js";
 import {
   isPriceListRowPrice,
   isSourcePage,
+  type SupplierPriceListContentKind,
   type SupplierPriceListReadFailure,
 } from "../model/supplier-price-list.js";
 import type {
@@ -10,10 +11,7 @@ import type {
   PriceListExtractor,
   PriceListSource,
 } from "./price-list-extractor.js";
-import type {
-  StoredSupplierPriceListFile,
-  SupplierPriceListFiles,
-} from "./supplier-price-list-files.js";
+import type { SupplierPriceListFiles } from "./supplier-price-list-files.js";
 import type {
   ProposedPriceListRow,
   SupplierPriceListStore,
@@ -61,7 +59,10 @@ async function extractedOrUnavailable(
   }
 }
 
-function priceListSource({ bytes, contentKind }: StoredSupplierPriceListFile): PriceListSource {
+function priceListSource(
+  contentKind: SupplierPriceListContentKind,
+  bytes: Uint8Array,
+): PriceListSource {
   return contentKind === "HTML" ? { kind: "web_page", html: bytes } : { kind: "pdf", bytes };
 }
 
@@ -98,7 +99,9 @@ async function readOnce(
   { store, files, extractor }: ReadSupplierPriceListPorts,
   { listId, now }: ReadSupplierPriceListInput,
 ): Promise<ReadSupplierPriceListOutcome> {
-  const claim = await store.transaction<Stop | { kind: "go" }>(async (tx) => {
+  const claim = await store.transaction<
+    Stop | { kind: "go"; contentKind: SupplierPriceListContentKind }
+  >(async (tx) => {
     const locked = await tx.lockList(listId);
     if (locked.kind === "not_found") {
       return { kind: "stop", outcome: { kind: "not_found" } };
@@ -110,13 +113,13 @@ async function readOnce(
       await tx.recordReadFailure(listId, "interrupted");
       return { kind: "stop", outcome: { kind: "interrupted" } };
     }
-    return { kind: "go" };
+    return { kind: "go", contentKind: locked.list.contentKind };
   });
   if (claim.kind === "stop") {
     return claim.outcome;
   }
 
-  const file = await files.read(listId);
+  const file = await files.read(listId, claim.contentKind);
 
   const sent = await store.transaction<Stop | { kind: "sent"; source: PriceListSource }>(
     async (tx) => {
@@ -129,7 +132,7 @@ async function readOnce(
       }
       const sentAt = now();
       await tx.markSent(listId, sentAt, argentinaCalendarDay(sentAt));
-      return { kind: "sent", source: priceListSource(file) };
+      return { kind: "sent", source: priceListSource(claim.contentKind, file) };
     },
   );
   if (sent.kind === "stop") {

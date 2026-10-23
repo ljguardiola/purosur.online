@@ -1,6 +1,7 @@
 import {
   countsTowardDailyExtractionCap,
   DEFAULT_SUPPLIER_PRICE_LIST_DAILY_EXTRACTION_CAP,
+  type SupplierPriceListContentKind,
   type SupplierPriceListReadFailure,
   type SupplierPriceListSourceKind,
   type SupplierPriceListState,
@@ -150,6 +151,7 @@ class DrizzleSupplierPriceListStoreTransaction<TQueryResult extends PgQueryResul
       list: {
         id: list.id,
         sourceKind: list.sourceKind as SupplierPriceListSourceKind,
+        contentKind: list.fileContentKind as SupplierPriceListContentKind,
         state: list.state as SupplierPriceListState,
         version: list.version,
         listDate: list.listDate,

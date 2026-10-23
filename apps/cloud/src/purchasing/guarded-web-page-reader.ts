@@ -16,6 +16,7 @@ import {
   type WebPageConnector,
 } from "./pinned-web-page-connector.js";
 import { admitWebPageUrl, checkWebPageHost, type WebPageHostResolver } from "./web-page-host.js";
+import { startsWithUtf8ByteOrderMark, UTF8_BYTE_ORDER_MARK } from "./web-page-text.js";
 
 export interface GuardedWebPageReaderDependencies {
   resolve: WebPageHostResolver;
@@ -138,7 +139,25 @@ async function readPage(connection: WebPageConnection): Promise<SupplierPriceLis
   if (contentKind === "PDF" && !hasPdfSignature(bytes)) {
     return refused("unsupported_content");
   }
-  return { kind: "read", contentKind, bytes };
+  return {
+    kind: "read",
+    contentKind,
+    bytes: contentKind === "HTML" ? inUtf8(bytes, contentType ?? "") : bytes,
+  };
+}
+
+function inUtf8(html: Uint8Array, contentType: string): Uint8Array {
+  const label = /;\s*charset\s*=\s*"?([^";\s]+)/i.exec(contentType)?.[1];
+  if (label === undefined || startsWithUtf8ByteOrderMark(html)) {
+    return html;
+  }
+  let decoded: string;
+  try {
+    decoded = new TextDecoder(label).decode(html);
+  } catch {
+    return html;
+  }
+  return Uint8Array.from([...UTF8_BYTE_ORDER_MARK, ...new TextEncoder().encode(decoded)]);
 }
 
 function refused(reason: SupplierPriceListWebPageRefusal): SupplierPriceListWebPageRead {

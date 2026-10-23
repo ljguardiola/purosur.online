@@ -14,7 +14,7 @@ import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { purchaseSupplierOptions } from "./purchase-form";
 import { useSuppliersQuery } from "./purchasing-queries";
 import { type ReadNotice, readNoticeContent } from "./supplier-price-list-read-notice";
-import { webPageRefusalMessage } from "./supplier-price-list-web-page-refusal";
+import { webPageRefusalHint, webPageRefusalMessage } from "./supplier-price-list-web-page-refusal";
 import type {
   loadSupplierPriceListWebPage,
   uploadSupplierPriceList,
@@ -55,7 +55,7 @@ const SOURCE_OPTIONS = [
   {
     value: "WEB_PAGE" as const satisfies UploadSource,
     label: "Página web",
-    description: "Se lee al tocar Actualizar",
+    description: "Se lee desde su dirección en internet",
     icon: <Globe />,
   },
 ] as const;
@@ -166,6 +166,11 @@ export function UploadSupplierPriceListModal({
     }
   }, [open, initialSupplierId, reset]);
 
+  const hint =
+    values.source === "WEB_PAGE" && refusedPage?.url === values.url
+      ? webPageRefusalHint(refusedPage.reason)
+      : "Se leen los ítems, las presentaciones y los precios. Nada se guarda hasta revisar cada ítem.";
+
   const supplierOptions =
     suppliers.status === "loaded"
       ? purchaseSupplierOptions(suppliers.value.filter((supplier) => supplier.active))
@@ -263,11 +268,7 @@ export function UploadSupplierPriceListModal({
             )}
           </form.AppField>
         )}
-        <p className="text-detail text-text-subtle">
-          {values.source === "WEB_PAGE" && refusedPage?.url === values.url
-            ? "Tampoco se lee una página que redirige más de 3 veces, tarda demasiado, es muy pesada o no es PDF ni una página web."
-            : "Se leen los ítems, las presentaciones y los precios. Nada se guarda hasta revisar cada ítem."}
-        </p>
+        {hint === undefined ? null : <p className="text-detail text-text-subtle">{hint}</p>}
       </div>
     </Modal>
   );
