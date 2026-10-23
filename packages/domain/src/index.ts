@@ -75,10 +75,12 @@ export {
 export type {
   ContingencyBackupOperation,
   ContingencyBackupPrintFailureReason,
+  ContingencyBackupTicketRecord,
   ContingencyBackupTicketStanding,
   OffsiteDumpCheckResult,
   OffsiteDumpFailureReason,
   OffsiteDumpReportedFailureReason,
+  OperationEventRange,
   RegisterBackupStanding,
   ReportedOffsiteDumpCheck,
 } from "./backups/index.js";
@@ -87,6 +89,8 @@ export {
   CONTINGENCY_BACKUP_PRINT_FAILURE_REASONS,
   CONTINGENCY_BACKUP_TICKET_STANDINGS,
   classifyOffsiteDumpCheck,
+  contingencyBackupTicketStanding,
+  contingencyBackupTicketsSummary,
   dueOffsiteDumpNight,
   isOffsiteDumpNight,
   OFFSITE_DUMP_FAILURE_REASONS,
