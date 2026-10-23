@@ -121,7 +121,7 @@ test("says the task was already closed, reloads the list and offers no second at
 
   await closeWith(dialog, "Listo");
 
-  await expect.element(dialog.getByText("Esta tarea ya estaba cerrada.")).toBeVisible();
+  await expect.element(dialog.getByText("Esta tarea ya estaba cerrada.").first()).toBeVisible();
   expect(reload).toHaveBeenCalledTimes(1);
   expect(onClosed).not.toHaveBeenCalled();
   await expect.element(dialog.getByRole("button", { name: "Cerrar tarea" })).toBeDisabled();
@@ -135,7 +135,7 @@ test("says the task is no longer there and reloads the list", async () => {
 
   await closeWith(dialog, "Listo");
 
-  await expect.element(dialog.getByText("Esta tarea ya no está disponible.")).toBeVisible();
+  await expect.element(dialog.getByText("Esta tarea ya no está disponible.").first()).toBeVisible();
   expect(reload).toHaveBeenCalledTimes(1);
   await expect.element(dialog.getByRole("button", { name: "Cerrar tarea" })).toBeDisabled();
 });

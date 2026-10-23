@@ -10,12 +10,11 @@ test("starts with no note", () => {
   expect(EMPTY_FISCAL_TASK_CLOSING_FORM).toEqual({ note: "" });
 });
 
-test("builds the request with the note the person typed", () => {
-  const request = fiscalTaskClosingRequestFrom({ note: "Regularizada con el contador" });
+test("builds the request with the note the person typed, without the spaces around it", () => {
+  const request = fiscalTaskClosingRequestFrom({ note: "  Regularizada con el contador " });
 
-  expect(fiscalTaskClosingBodySchema.parse(request)).toEqual({
-    note: "Regularizada con el contador",
-  });
+  expect(request).toEqual({ note: "Regularizada con el contador" });
+  expect(fiscalTaskClosingBodySchema.parse(request)).toEqual(request);
 });
 
 test("asks for the note when it is blank", () => {
