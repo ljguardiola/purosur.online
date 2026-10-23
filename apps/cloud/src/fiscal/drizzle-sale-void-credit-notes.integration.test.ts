@@ -189,9 +189,9 @@ describe("the credit notes of voided sales on a real Postgres", () => {
       pointOfSale: 7,
       fortnight: { start: "2026-10-01", end: "2026-10-15" },
       number: 1,
-      corrects: { voucherType: 11, pointOfSale: 31, number: 70 },
+      corrects: { voucherType: 11, pointOfSale: 31, number: 90 },
     });
-    const asked = aRecord(undefined, 70);
+    const asked = aRecord(undefined, 90);
 
     await expect(inLane((lane) => lane.recordSaleVoidCreditNote(asked))).rejects.toBeInstanceOf(
       VoucherAlreadyCredited,
