@@ -15,8 +15,11 @@ export function isConnectivityGap(
   return mode.kind !== "real_time";
 }
 
-export function contingencyOf(mode: FiscalEmissionMode): Contingency | null {
+export function contingencyOf(
+  mode: FiscalEmissionMode,
+  newSalesStopped: boolean,
+): Contingency | null {
   if (!isConnectivityGap(mode)) return null;
   const gateFailed = mode.kind === "deferring" && mode.reason === "pre_emission_gate_failed";
-  return { kind: mode.kind, notice: !gateFailed };
+  return { kind: mode.kind, notice: !gateFailed && !newSalesStopped };
 }

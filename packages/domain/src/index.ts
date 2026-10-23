@@ -905,6 +905,7 @@ export type {
   StorageTelemetry,
 } from "./sync/index.js";
 export {
+  areNewSalesStopped,
   canonicalOutboxEvent,
   canonicalOutboxPayload,
   FIRST_PULL_CURSOR,
