@@ -306,7 +306,7 @@ test("cancel closes the modal without calling the cloud", async () => {
   expect(services.uploadSupplierPriceList).not.toHaveBeenCalled();
 });
 
-const PAGE_ADDRESS = "https://distribuidoradelsur.com.ar/precios";
+const PAGE_ADDRESS = "https://distribuidora-sur.example/precios";
 
 function addressInput(screen: ModalScreen) {
   return screen.getByRole("dialog").getByLabelText("Dirección de la página");
@@ -343,7 +343,7 @@ test("offers a PDF file or a web page as where the list comes from, starting wit
   await expect.element(dialog.getByRole("radio", { name: "Archivo PDF" })).toBeChecked();
   await expect.element(dialog.getByText("Se sube desde la computadora")).toBeVisible();
   await expect.element(dialog.getByRole("radio", { name: "Página web" })).not.toBeChecked();
-  await expect.element(dialog.getByText("Se lee al tocar Actualizar")).toBeVisible();
+  await expect.element(dialog.getByText("Se lee desde su dirección en internet")).toBeVisible();
   expect(dialog.getByLabelText("Dirección de la página").query()).toBeNull();
 });
 
@@ -422,7 +422,7 @@ test("marks the address as refused with the reason, followed by what else is not
   await expect
     .element(
       dialog.getByText(
-        "No se pudo leer: la dirección no es de una página pública. Tiene que ser la página del proveedor en internet.",
+        "La dirección no es de una página pública. Tiene que ser la página del proveedor en internet.",
       ),
     )
     .toBeVisible();
@@ -430,12 +430,27 @@ test("marks the address as refused with the reason, followed by what else is not
   await expect
     .element(
       dialog.getByText(
-        "Tampoco se lee una página que redirige más de 3 veces, tarda demasiado, es muy pesada o no es PDF ni una página web.",
+        "Tampoco se lee una página que redirige demasiadas veces, tarda demasiado, es muy pesada o no es PDF ni una página web.",
       ),
     )
     .toBeVisible();
   expect(dialog.getByText(/^Se leen los ítems/).query()).toBeNull();
   await expect.element(dialog.getByRole("button", { name: "Leer la lista" })).toBeEnabled();
+});
+
+test("marks the address as refused with the reason alone when the reason is one of what else is not read", async () => {
+  const services = createServices();
+  vi.mocked(services.loadSupplierPriceListWebPage).mockResolvedValue({
+    kind: "page_refused",
+    reason: "too_large",
+  });
+  const screen = await renderModal({ services });
+
+  const dialog = await submitWebPage(screen);
+
+  await expect.element(dialog.getByText("La página es demasiado pesada.")).toBeVisible();
+  expect(dialog.getByText(/^Tampoco se lee/).query()).toBeNull();
+  expect(dialog.getByText(/^Se leen los ítems/).query()).toBeNull();
 });
 
 test("goes back to the first hint once the address is edited after a refusal", async () => {
@@ -452,7 +467,7 @@ test("goes back to the first hint once the address is edited after a refusal", a
 
   await expect.element(dialog.getByText(/^Se leen los ítems/)).toBeVisible();
   expect(dialog.getByText(/^Tampoco se lee/).query()).toBeNull();
-  expect(dialog.getByText(/^No se pudo leer:/).query()).toBeNull();
+  expect(dialog.getByText("La página no respondió. Revisá la dirección.").query()).toBeNull();
 });
 
 test("says the day's reading limit was reached when loading a page", async () => {
@@ -494,13 +509,8 @@ test("shows the cloud's refusal of the address under the address", async () => {
 
   const dialog = await submitWebPage(screen);
 
-  await expect
-    .element(
-      dialog.getByText(
-        "Escribí la dirección completa de la página, empezando con http:// o https://.",
-      ),
-    )
-    .toBeVisible();
+  await expect.element(dialog.getByText("Revisá la dirección.")).toBeVisible();
+  await expect.element(addressInput(screen)).toBeInvalid();
 });
 
 test("ends the session when loading a page finds no open session", async () => {

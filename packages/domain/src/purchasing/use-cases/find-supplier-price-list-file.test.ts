@@ -36,6 +36,7 @@ describe("findSupplierPriceListFile", () => {
       fileName: "lista-marzo.pdf",
       bytes: PDF,
     });
+    expect(files.reads).toEqual([{ listId: "list-1", contentKind: "PDF" }]);
   });
 
   it("answers not_found for a list read from a web page, which has no uploaded file", async () => {

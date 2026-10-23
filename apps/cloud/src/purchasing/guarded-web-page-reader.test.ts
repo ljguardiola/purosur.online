@@ -88,6 +88,36 @@ describe("GuardedWebPageReader", () => {
       expect(await reader.read(PAGE)).toMatchObject({ kind: "read", contentKind: "HTML" });
     });
 
+    it.each([
+      "text/html; charset=iso-8859-1",
+      'text/html; Charset="ISO-8859-1"',
+      "text/html;charset=windows-1252",
+    ])(
+      "keeps an HTML page served as %s in UTF-8 marked by its byte order mark",
+      async (contentType) => {
+        const latin1 = '<meta charset="utf-8"><p>Azúcar 1 kg</p>';
+        network.servePage(PAGE, {
+          contentType,
+          chunks: [Uint8Array.from(Buffer.from(latin1, "latin1"))],
+        });
+
+        expect(await reader.read(PAGE)).toEqual({
+          kind: "read",
+          contentKind: "HTML",
+          bytes: Uint8Array.from([0xef, 0xbb, 0xbf, ...text(latin1)]),
+        });
+      },
+    );
+
+    it("keeps the bytes of an HTML page whose Content-Type names an unknown encoding", async () => {
+      network.servePage(PAGE, {
+        contentType: "text/html; charset=no-such-encoding",
+        chunks: [text("<p>Azúcar</p>")],
+      });
+
+      expect(await reader.read(PAGE)).toMatchObject({ bytes: text("<p>Azúcar</p>") });
+    });
+
     it.each(["application/pdf", "Application/PDF; charset=binary"])(
       "reads %s as a PDF when it starts with the PDF signature",
       async (contentType) => {

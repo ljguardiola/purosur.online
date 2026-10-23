@@ -120,6 +120,17 @@ describe("the text of a web page", () => {
     expect(webPageText(latin1)).toBe("Azúcar 1 kg");
   });
 
+  it("reads a page that starts with a UTF-8 byte order mark as UTF-8, whatever it declares", () => {
+    const marked = Uint8Array.from([
+      0xef,
+      0xbb,
+      0xbf,
+      ...new TextEncoder().encode('<meta charset="iso-8859-1"><p>Azúcar 1 kg</p>'),
+    ]);
+
+    expect(webPageText(marked)).toBe("Azúcar 1 kg");
+  });
+
   it("reads a page as UTF-8 when it declares nothing or an encoding that does not exist", () => {
     expect(textOf("<p>Azúcar</p>")).toBe("Azúcar");
     expect(textOf('<meta charset="no-such-encoding"><p>Azúcar</p>')).toBe("Azúcar");

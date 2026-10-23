@@ -216,7 +216,7 @@ const webPageReadAnswers: [number, object, object][] = [
 ];
 
 describe("loadSupplierPriceListWebPage", () => {
-  const body = { supplierId: "supplier-1", url: "https://distribuidoradelsur.com.ar/precios" };
+  const body = { supplierId: "supplier-1", url: "https://distribuidora-sur.example/precios" };
 
   test("posts the supplier and the address as JSON and returns ok when the list was queued", async () => {
     vi.mocked(fetch).mockResolvedValue(jsonResponse(201, { listId: "list-1" }));

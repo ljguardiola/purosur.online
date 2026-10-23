@@ -180,6 +180,7 @@ class FakeSupplierPriceListStoreTransaction implements SupplierPriceListStoreTra
       list: {
         id: list.id,
         sourceKind: list.sourceKind,
+        contentKind: list.contentKind,
         state: list.state,
         version: list.version,
         listDate: list.listDate,

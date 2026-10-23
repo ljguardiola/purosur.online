@@ -176,6 +176,25 @@ describe("readSupplierPriceList", () => {
       expect(extractor.received).toEqual([{ kind: "web_page", html: HTML }]);
     });
 
+    it.each(["PDF", "HTML"] as const)(
+      "reads the kept file of the %s content kind the list records",
+      async (contentKind) => {
+        const { store, files, extractor, ports } = setup();
+        store.seedList({
+          id: "list-2",
+          sourceKind: "WEB_PAGE",
+          fileName: null,
+          sourceUrl: "https://distribuidora-sur.example/lista",
+          contentKind,
+        });
+        extractor.answer = answer;
+
+        await readSupplierPriceList(ports, { ...input, listId: "list-2" });
+
+        expect(files.reads).toEqual([{ listId: "list-2", contentKind }]);
+      },
+    );
+
     it("records the send, on the Argentina day, before calling the extractor", async () => {
       const { store, extractor, ports } = setup();
       extractor.answer = answer;

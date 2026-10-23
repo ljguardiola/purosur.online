@@ -1,6 +1,9 @@
 import { SUPPLIER_PRICE_LIST_WEB_PAGE_ADDRESS_MAX_LENGTH } from "@purosur/domain";
 import { describe, expect, it } from "vitest";
-import { supplierPriceListWebPageBodySchema } from "./supplier-price-list-web-page-body.js";
+import {
+  supplierPriceListWebPageAddressSchema,
+  supplierPriceListWebPageBodySchema,
+} from "./supplier-price-list-web-page-body.js";
 
 const SUPPLIER_ID = "11111111-1111-4111-8111-111111111111";
 const URL = "https://distribuidora-sur.example/lista";
@@ -65,9 +68,29 @@ describe("supplierPriceListWebPageBodySchema", () => {
     ]);
   });
 
-  it("says the length when the address is blank", () => {
-    expect(body("").error?.issues[0]?.message).toBe(
+  it("says both the length and the web address when the address is blank", () => {
+    expect(body("").error?.issues.map((issue) => issue.message)).toEqual([
       `url must be a non-empty string of at most ${SUPPLIER_PRICE_LIST_WEB_PAGE_ADDRESS_MAX_LENGTH} characters`,
-    );
+      "url must be a web address starting with http:// or https://",
+    ]);
   });
+});
+
+describe("supplierPriceListWebPageAddressSchema", () => {
+  it("accepts a web address of any length, trimmed", () => {
+    const long = `https://distribuidora-sur.example/${"a".repeat(SUPPLIER_PRICE_LIST_WEB_PAGE_ADDRESS_MAX_LENGTH)}`;
+
+    expect(supplierPriceListWebPageAddressSchema.safeParse(` ${long} `).data).toBe(long);
+  });
+
+  it.each(["ftp://distribuidora-sur.example/lista", "distribuidora-sur.example/lista", "", 42])(
+    "refuses %j, which is not a web address",
+    (url) => {
+      expect(
+        supplierPriceListWebPageAddressSchema
+          .safeParse(url)
+          .error?.issues.map((issue) => issue.message),
+      ).toEqual(["url must be a web address starting with http:// or https://"]);
+    },
+  );
 });

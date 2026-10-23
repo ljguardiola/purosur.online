@@ -29,12 +29,12 @@ describe("uploadRequestFrom", () => {
         supplierId: "supplier-1",
         source: "WEB_PAGE",
         file: pdf,
-        url: "https://distribuidoradelsur.com.ar/precios",
+        url: "https://distribuidora-sur.example/precios",
       }),
     ).toEqual({
       source: "WEB_PAGE",
       supplierId: "supplier-1",
-      url: "https://distribuidoradelsur.com.ar/precios",
+      url: "https://distribuidora-sur.example/precios",
     });
   });
 });
@@ -75,5 +75,22 @@ describe("UPLOAD_FIELD_MESSAGES", () => {
     expect(UPLOAD_FIELD_MESSAGES.url({ ...EMPTY_UPLOAD_FORM, url: "precios" })).toBe(
       "Escribí la dirección completa de la página, empezando con http:// o https://.",
     );
+  });
+
+  test("says the address is too long once a complete web address is typed", () => {
+    const url = `https://distribuidora-sur.example/${"a".repeat(2100)}`;
+
+    expect(UPLOAD_FIELD_MESSAGES.url({ ...EMPTY_UPLOAD_FORM, url })).toBe(
+      "La dirección es demasiado larga.",
+    );
+  });
+
+  test("asks to check an address the form itself accepts", () => {
+    expect(
+      UPLOAD_FIELD_MESSAGES.url({
+        ...EMPTY_UPLOAD_FORM,
+        url: "https://distribuidora-sur.example/",
+      }),
+    ).toBe("Revisá la dirección.");
   });
 });

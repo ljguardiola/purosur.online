@@ -9,11 +9,13 @@ test("names a PDF list by its file", () => {
 });
 
 test.each([
-  ["https://distribuidoradelsur.com.ar/precios", "distribuidoradelsur.com.ar/precios"],
+  ["https://distribuidora-sur.example/precios", "distribuidora-sur.example/precios"],
   [
-    "http://distribuidoradelsur.com.ar/precios?pagina=2",
-    "distribuidoradelsur.com.ar/precios?pagina=2",
+    "http://distribuidora-sur.example/precios?pagina=2",
+    "distribuidora-sur.example/precios?pagina=2",
   ],
+  ["HTTPS://distribuidora-sur.example/precios", "distribuidora-sur.example/precios"],
+  ["Http://distribuidora-sur.example/precios", "distribuidora-sur.example/precios"],
 ])("names a web page list by its address %s without the scheme", (url, name) => {
   expect(supplierPriceListOriginOf({ kind: "WEB_PAGE", url })).toEqual({
     name,

@@ -56,7 +56,7 @@ function jobs() {
   return supplierPriceListReadingJobs({
     now: () => NOW,
     db,
-    files: { store: async () => {}, read: async () => ({ bytes: PDF, contentKind: "PDF" }) },
+    files: { store: async () => {}, read: async () => PDF },
     extractor: {
       extract: async (source) => {
         received.push(source);

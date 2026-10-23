@@ -258,6 +258,7 @@ describe("inserting and locking a list", () => {
       list: {
         id: listId,
         sourceKind: "PDF",
+        contentKind: "PDF",
         state: "EXTRACTED",
         version: 4,
         listDate: "2026-03-01",
@@ -265,6 +266,23 @@ describe("inserting and locking a list", () => {
         sentAt: NOW,
         rowPrices: [500, null],
       },
+    });
+  });
+
+  it("locks a list read from a web page with the kind of content kept for it", async () => {
+    const listId = await insertPriceList(db, {
+      supplierId,
+      locationId,
+      actorId,
+      sourceUrl: "https://distribuidora-sur.example/lista",
+      contentKind: "HTML",
+    });
+
+    const locked = await store().transaction((tx) => tx.lockList(listId));
+
+    expect(locked).toMatchObject({
+      kind: "locked",
+      list: { sourceKind: "WEB_PAGE", contentKind: "HTML" },
     });
   });
 

@@ -68,52 +68,39 @@ describe("BucketSupplierPriceListFiles.store", () => {
 });
 
 describe("BucketSupplierPriceListFiles.read", () => {
-  it("gets the bytes kept for the list", async () => {
+  it("gets the PDF kept for the list", async () => {
     const { files, requests } = bucketAnswering(() => new Response(PDF, { status: 200 }));
 
-    const file = await files.read(LIST_ID);
+    const bytes = await files.read(LIST_ID, "PDF");
 
-    expect(file).toEqual({ bytes: PDF, contentKind: "PDF" });
+    expect(bytes).toEqual(PDF);
     expect(requests).toHaveLength(1);
     expect(requests[0]?.method).toBe("GET");
     expect(requests[0]?.url).toBe(OBJECT_URL);
   });
 
-  it("gets a kept web page from its html key when no PDF is kept", async () => {
-    const { files, requests } = bucketAnswering((request) =>
-      request.url === HTML_OBJECT_URL
-        ? new Response(HTML, { status: 200 })
-        : new Response("", { status: 404 }),
-    );
+  it("gets a kept web page from its html key alone", async () => {
+    const { files, requests } = bucketAnswering(() => new Response(HTML, { status: 200 }));
 
-    const file = await files.read(LIST_ID);
+    const bytes = await files.read(LIST_ID, "HTML");
 
-    expect(file).toEqual({ bytes: HTML, contentKind: "HTML" });
-    expect(requests.map((request) => request.url)).toEqual([OBJECT_URL, HTML_OBJECT_URL]);
+    expect(bytes).toEqual(HTML);
+    expect(requests.map((request) => request.url)).toEqual([HTML_OBJECT_URL]);
   });
 
-  it("answers nothing when no file is kept for the list", async () => {
-    const { files } = bucketAnswering(() => new Response("", { status: 404 }));
+  it.each(["PDF", "HTML"] as const)(
+    "answers nothing when no %s is kept for the list",
+    async (contentKind) => {
+      const { files } = bucketAnswering(() => new Response("", { status: 404 }));
 
-    expect(await files.read(LIST_ID)).toBeNull();
-  });
-
-  it("fails when the bucket cannot answer about the html key", async () => {
-    const { files } = bucketAnswering((request) =>
-      request.url === OBJECT_URL
-        ? new Response("", { status: 404 })
-        : new Response("", { status: 500 }),
-    );
-
-    await expect(files.read(LIST_ID)).rejects.toThrow(
-      "the supplier price lists bucket answered HTTP 500",
-    );
-  });
+      expect(await files.read(LIST_ID, contentKind)).toBeNull();
+    },
+  );
 
   it("fails when the bucket cannot answer", async () => {
     const { files } = bucketAnswering(() => new Response("", { status: 500 }));
 
-    await expect(files.read(LIST_ID)).rejects.toThrow(
+    await expect(files.read(LIST_ID, "PDF")).rejects.toThrow(
       "the supplier price lists bucket answered HTTP 500",
     );
   });

@@ -1088,6 +1088,31 @@ describe("a web page", () => {
     expect(result).toMatchObject({ kind: "extracted", pricesIncludeVat: false });
   });
 
+  it("takes the first date given in the order of the page, whichever part answers first", async () => {
+    const { source } = webPageOfLines(3_000);
+    const firstItemOf = (request: RecordedRequest) =>
+      Number(/^Item (\d+) /.exec(textSent(request))?.[1]);
+    const dateOf = (item: number) =>
+      new Date(Date.UTC(2026, 0, 1) + item * 86_400_000).toISOString().slice(0, 10);
+    const { extractor, requests } = extractorAnswering(async (request) => {
+      const item = firstItemOf(request);
+      for (let pause = 0; pause < Math.ceil((3_000 - item) / 100); pause += 1) {
+        await aBriefPause();
+      }
+      return streamedJsonResponse({
+        listDate: item === 0 ? null : dateOf(item),
+        pricesIncludeVat: null,
+        rows: [],
+      });
+    });
+
+    const result = await extractor.extract(source);
+
+    const secondPart = Math.min(...requests.map(firstItemOf).filter((item) => item > 0));
+    expect(requests.length).toBeGreaterThan(2);
+    expect(result).toMatchObject({ kind: "extracted", listDate: dateOf(secondPart) });
+  });
+
   it("is read again in halves cut between lines when a part is too long for one answer", async () => {
     const { lines, source } = webPageOfLines(3_000);
     const wholePageText = lines.join("\n");

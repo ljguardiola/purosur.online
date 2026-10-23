@@ -62,7 +62,7 @@ export const REPLACED_LIST: SupplierPriceListSummary = {
   replaced: true,
 };
 
-export const WEB_PAGE_URL = "https://distribuidoradelsur.com.ar/precios";
+export const WEB_PAGE_URL = "https://distribuidora-sur.example/precios";
 
 export const WEB_LIST: SupplierPriceListSummary = {
   ...READ_LIST,

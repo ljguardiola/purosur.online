@@ -130,14 +130,14 @@ test("shows a list read from a web page by its address without the scheme, marke
   const screen = await loaded(services, [WEB_LIST]);
 
   const row = rowOf(screen, "Distribuidora del Sur");
-  await expect.element(row.getByText("distribuidoradelsur.com.ar/precios")).toBeVisible();
+  await expect.element(row.getByText("distribuidora-sur.example/precios")).toBeVisible();
   await expect.element(row.getByText("Página web")).toBeVisible();
 });
 
 test("finds a list read from a web page by its address", async () => {
   const services = createServices();
   const screen = await loaded(services, [READ_LIST, WEB_LIST], {
-    filters: supplierPriceListsFilters.parse({ search: "distribuidoradelsur" }),
+    filters: supplierPriceListsFilters.parse({ search: "distribuidora-sur" }),
   });
 
   await expect.poll(() => supplierNames(screen)).toEqual(["Distribuidora del Sur"]);
@@ -383,6 +383,22 @@ test("does not ask for the same list again while its page is being loaded", asyn
   expect(services.refreshSupplierPriceList).toHaveBeenCalledTimes(1);
 });
 
+test("refreshes another list while the page of the first is being loaded", async () => {
+  const services = createServices();
+  const first = deferred<Awaited<ReturnType<typeof services.refreshSupplierPriceList>>>();
+  vi.mocked(services.refreshSupplierPriceList)
+    .mockReturnValueOnce(first.promise)
+    .mockResolvedValueOnce({ kind: "ok" });
+  const screen = await loaded(services, [WEB_LIST, WEB_FAILED_LIST]);
+
+  await userEvent.click(refreshButton(screen, "Distribuidora del Sur"));
+  await userEvent.click(refreshButton(screen, "Almacén Patagonia"));
+
+  expect(services.refreshSupplierPriceList).toHaveBeenCalledWith(WEB_FAILED_LIST.id);
+  await expect.element(screen.getByText("Lista cargada")).toBeVisible();
+  first.resolve({ kind: "ok" });
+});
+
 test("says why the page was refused", async () => {
   const services = createServices();
   vi.mocked(services.refreshSupplierPriceList).mockResolvedValue({
@@ -394,9 +410,7 @@ test("says why the page was refused", async () => {
   await userEvent.click(refreshButton(screen, "Distribuidora del Sur"));
 
   await expect.element(screen.getByText("No se pudo leer la página")).toBeVisible();
-  await expect
-    .element(screen.getByText("No se pudo leer: la página pesa más de 10 MB."))
-    .toBeVisible();
+  await expect.element(screen.getByText("La página es demasiado pesada.")).toBeVisible();
   expect(screen.getByText("Lista cargada").query()).toBeNull();
 });
 
@@ -406,7 +420,16 @@ test.each([
     "Por hoy no se pueden leer más listas",
     "Se llegó al tope de lecturas del día de esta sucursal. La lista se puede cargar mañana.",
   ],
-  [{ kind: "supplier_inactive" }, "Este proveedor está desactivado", "Elegí otro proveedor."],
+  [
+    { kind: "supplier_inactive" },
+    "Este proveedor está desactivado",
+    "Reactivalo en Proveedores para volver a leer su página.",
+  ],
+  [
+    { kind: "supplier_not_found" },
+    "Este proveedor ya no existe",
+    "Su lista ya no se puede actualizar.",
+  ],
   [
     { kind: "reading_unavailable" },
     "La lectura de listas no está disponible",
