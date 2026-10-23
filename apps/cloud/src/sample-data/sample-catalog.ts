@@ -1,5 +1,6 @@
 import {
   appendEan13CheckDigit,
+  DEFAULT_SUPPLIER_PRICE_LIST_DAILY_EXTRACTION_CAP,
   type DiscountBenefit,
   type NetContentUnit,
   PRODUCT_NAME_MAX_LENGTH,
@@ -585,6 +586,7 @@ export const SAMPLE_BRANCH_SETTINGS = {
   expiringLotAlertDays: 30,
   unreviewedPriceAlertDays: 30,
   goodConditionReturnDays: 15,
+  supplierPriceListDailyExtractionCap: DEFAULT_SUPPLIER_PRICE_LIST_DAILY_EXTRACTION_CAP,
 };
 
 // RFC 5737 reserves these ranges for documentation, so no real visitor's address is ever named.
