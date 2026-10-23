@@ -1,4 +1,9 @@
-import type { FindDeferredSaleOutcome, PrintDeferredSaleInvoiceOutcome } from "@purosur/contracts";
+import type {
+  FindDeferredSaleOutcome,
+  PrintDeferredSaleInvoiceOutcome,
+  ReprintSaleReceiptOutcome,
+  SignInUser,
+} from "@purosur/contracts";
 import { onTestFinished, vi } from "vitest";
 import { page } from "vitest/browser";
 import { BarcodeReadings } from "../../shell/barcode-readings";
@@ -26,7 +31,7 @@ export const FOUND_ISSUED: Extract<FindDeferredSaleOutcome, { kind: "found" }> =
 const CASHIER: DeferredSaleScreenProps["person"] = {
   user_id: "u1",
   first_name: "Tomás",
-  abilities: ["invoice_deferred_sale"],
+  abilities: ["invoice_deferred_sale", "reprint_receipt"],
 };
 
 type Overrides = Partial<Omit<DeferredSaleScreenProps, "registerName">>;
@@ -45,6 +50,15 @@ export async function renderScreen(overrides: Overrides = {}) {
         copy: { kind: "original" },
       }),
     );
+  const reprintDeferredSaleInvoice =
+    overrides.reprintDeferredSaleInvoice ??
+    vi.fn(
+      async (): Promise<ReprintSaleReceiptOutcome> => ({
+        kind: "started",
+        copy: { kind: "duplicate", order_number: 1 },
+      }),
+    );
+  const authorizers: SignInUser[] = [{ id: "u2", first_name: "Grace" }];
   const onSessionInvalid = overrides.onSessionInvalid ?? vi.fn();
   const readers = new Set<(code: string) => void>();
   const screen = await render(
@@ -63,6 +77,8 @@ export async function renderScreen(overrides: Overrides = {}) {
         lock={overrides.lock ?? (() => {})}
         findDeferredSale={findDeferredSale}
         printDeferredSaleInvoice={printDeferredSaleInvoice}
+        reprintDeferredSaleInvoice={reprintDeferredSaleInvoice}
+        loadAuthorizers={overrides.loadAuthorizers ?? (async () => authorizers)}
         onSessionInvalid={onSessionInvalid}
       />
     </BarcodeReadings>,
@@ -72,6 +88,7 @@ export async function renderScreen(overrides: Overrides = {}) {
     codeField: screen.getByRole("textbox", { name: "Código de consulta" }),
     findDeferredSale,
     printDeferredSaleInvoice,
+    reprintDeferredSaleInvoice,
     onSessionInvalid,
     readBarcode(code: string) {
       for (const listener of readers) listener(code);

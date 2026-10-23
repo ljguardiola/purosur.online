@@ -111,7 +111,7 @@ describe("DeferredSaleScreen reading the customer's document", () => {
     [
       { ...FOUND_ISSUED, original_printed: true },
       "La factura ya se imprimió",
-      "Si el cliente la perdió, reimprimí un duplicado desde el historial.",
+      "Si el cliente la perdió, reimprimí un duplicado.",
     ],
     [
       { kind: "lacks_permission" },
