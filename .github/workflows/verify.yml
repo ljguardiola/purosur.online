@@ -28,7 +28,7 @@ jobs:
   scope:
     name: scope
     runs-on: ubuntu-24.04
-    timeout-minutes: 4
+    timeout-minutes: 8
     outputs:
       docs_only: ${{ steps.scope.outputs.docs_only }}
       tests_needed: ${{ steps.scope.outputs.tests_needed }}
