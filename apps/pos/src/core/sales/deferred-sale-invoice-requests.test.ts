@@ -2,6 +2,7 @@ import { encodePinHash } from "@purosur/contracts";
 import type { DeferredSaleInvoicing } from "@purosur/domain/sales/use-cases";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { derivePinVerifier } from "../credentials/pin-verifier";
+import { insertFiscalDocument } from "../fiscal/test-support/real-time-authorization-database";
 import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import { migrationClock } from "../platform/test-support/migration-clock";
@@ -15,6 +16,7 @@ import {
   printDeferredSaleInvoiceFor,
 } from "./deferred-sale-invoice-requests";
 import { createReceiptPrintJobs } from "./receipt-print-jobs";
+import { printCompletedSaleReceiptFor, reprintSaleReceiptFor } from "./receipt-requests";
 import { ControllableReceiptPrinter } from "./test-support/controllable-receipt-printer";
 
 const NOW = new Date("2026-10-08T12:00:00.000Z");
@@ -26,8 +28,12 @@ let database: LocalDatabase;
 let signedInPerson: SignedInPerson;
 let invoicing: { invoiceUpTo: ReturnType<typeof vi.fn> } & DeferredSaleInvoicing;
 let jobs: ReturnType<typeof createReceiptPrintJobs>;
+let printer: ControllableReceiptPrinter;
+let idCount: number;
 
-function deps(): DeferredSaleInvoiceRequestDeps {
+function deps(
+  overrides: Partial<DeferredSaleInvoiceRequestDeps> = {},
+): DeferredSaleInvoiceRequestDeps {
   return {
     database,
     gate: createActionGate({
@@ -38,13 +44,14 @@ function deps(): DeferredSaleInvoiceRequestDeps {
       now: () => NOW,
     }),
     now: () => NOW,
-    ids: { next: () => "id-1" },
+    ids: { next: () => `id-${(idCount += 1)}` },
     readOutboxChainKey: async () => CHAIN_KEY,
     signedInUserId: () => signedInPerson.userId(),
-    printers: { configured: () => new ControllableReceiptPrinter() },
+    printers: { configured: () => printer },
     jobs,
     ticketedSteps: (_operation, _subjectId, operate) => operate((step) => step()),
     invoicing,
+    ...overrides,
   };
 }
 
@@ -77,8 +84,28 @@ function addDeferredSale(saleId: string, shortCode: string, { occurredAt = SOLD_
     `INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at, operation_number)
      VALUES ('${saleId}', 'r1', 'device-1', 's1', 'cashier', 'COMPLETED', '${occurredAt}', (SELECT 482 + count(*) FROM sales));
      INSERT INTO deferred_sales (id, sale_id, occurred_at, total, reason, short_code, routed_at)
-     VALUES ('deferred-of-${saleId}', '${saleId}', '${occurredAt}', 3000, 'fiscally_offline', '${shortCode}', '${occurredAt}');`,
+     VALUES ('deferred-of-${saleId}', '${saleId}', '${occurredAt}', 3000, 'fiscally_offline', '${shortCode}', '${occurredAt}');
+     INSERT OR IGNORE INTO products (id, name, category_id, sale_unit, active, version)
+     VALUES ('p1', 'Yerba del catalogo', 'c', 'UNIT', 1, 1);
+     INSERT INTO sale_lines (id, sale_id, position, product_id, product_name, quantity, list_unit_price, price_list_id, promotion_id, discount_amount, line_total)
+     VALUES ('line-${saleId}', '${saleId}', 1, 'p1', 'Yerba', 2, 1500, 'list-1', NULL, 0, 3000);
+     INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, tendered, authorized_by, confirmed_at, state, occurred_at)
+     VALUES ('pay-${saleId}', '${saleId}', 'SALE', 'CASH', 'NONE', 3000, 3000, NULL, NULL, 'APPROVED', '${occurredAt}');`,
   );
+}
+
+function invoiceSale(saleId: string): void {
+  const documentId = `doc-of-${saleId}`;
+  insertFiscalDocument(database, { id: documentId, saleId, state: "AUTHORIZED", number: 41 });
+  database
+    .prepare(
+      "UPDATE deferred_sales SET satisfied_by_fiscal_document_id = ?, satisfied_at = ? WHERE sale_id = ?",
+    )
+    .run(documentId, NOW.toISOString(), saleId);
+}
+
+function printedText(index: number): string {
+  return Buffer.from(printer.handed[index] ?? []).toString("latin1");
 }
 
 beforeEach(() => {
@@ -89,14 +116,19 @@ beforeEach(() => {
   );
   addPerson("cashier", ["sell_and_charge"]);
   addPerson("clerk", ["view_sales_history"]);
+  addPerson("supervisor", ["reprint_receipt"]);
   database.exec(
-    `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
+    `INSERT INTO branch_settings (location_id, address, whatsapp_number, instagram_handle, weekly_hours, expiring_lot_alert_days, unreviewed_price_alert_days, good_condition_return_days, version)
+     VALUES ('location-1', 'Av. Belgrano 1450', '11 5555-0100', '@puro.sur', '{}', 30, 30, 15, 1);
+     INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
      VALUES ('s1', 'r1', 'device-1', 'cashier', '2026-10-07T08:00:00.000Z', 0, 'OPEN');`,
   );
   signedInPerson = createSignedInPerson();
   signedInPerson.set("cashier");
   invoicing = { invoiceUpTo: vi.fn(async () => ({ kind: "invoiced" as const })) };
   jobs = createReceiptPrintJobs({ reportFailure: () => undefined });
+  printer = new ControllableReceiptPrinter();
+  idCount = 0;
 });
 
 afterEach(() => {
@@ -243,5 +275,113 @@ describe("printing a deferred sale's invoice as an original", () => {
     void jobs.start("deferred-invoice:sale-1", () => new Promise(() => undefined));
 
     expect(await printDeferredSaleInvoiceFor(deps(), "sale-1")).toEqual({ kind: "busy" });
+  });
+});
+
+describe("printing a deferred sale's invoice end to end", () => {
+  const FACTURA_TEXT = "CAE 75123456789012";
+  const NOT_AN_INVOICE_TEXT = "DOCUMENTO NO VALIDO COMO FACTURA";
+
+  function invoicingTheSale(): void {
+    invoicing.invoiceUpTo.mockImplementation(async (saleId: string) => {
+      invoiceSale(saleId);
+      return { kind: "invoiced" as const };
+    });
+  }
+
+  function invoicePrints(): unknown[] {
+    return database
+      .prepare("SELECT sale_id, print_attempted_at, printed_at FROM deferred_invoice_prints")
+      .all();
+  }
+
+  it("starts the factura C of the sale as an original and keeps its print state apart from the sale's", async () => {
+    addDeferredSale("sale-1", "7KQ4M2P9");
+    invoicingTheSale();
+
+    expect(await printDeferredSaleInvoiceFor(deps(), "sale-1")).toEqual({
+      kind: "started",
+      copy: { kind: "original" },
+    });
+    printer.becomeReady();
+    await vi.waitFor(() => expect(jobs.standingOf("deferred-invoice:sale-1")).toBe("printed"));
+
+    expect(printedText(0)).toContain(FACTURA_TEXT);
+    expect(printedText(0)).not.toContain(NOT_AN_INVOICE_TEXT);
+    expect(invoicePrints()).toEqual([
+      { sale_id: "sale-1", print_attempted_at: NOW.toISOString(), printed_at: NOW.toISOString() },
+    ]);
+    expect(
+      database.prepare("SELECT print_attempted_at, printed_at FROM sales WHERE id = 'sale-1'").get(),
+    ).toEqual({ print_attempted_at: null, printed_at: null });
+    expect(database.prepare("SELECT count(*) AS count FROM sale_receipts").get()).toEqual({
+      count: 0,
+    });
+  });
+
+  it("answers already_printed once the original was attempted, printing nothing more", async () => {
+    addDeferredSale("sale-1", "7KQ4M2P9");
+    invoicingTheSale();
+    await printDeferredSaleInvoiceFor(deps(), "sale-1");
+    printer.becomeReady();
+    await vi.waitFor(() => expect(jobs.standingOf("deferred-invoice:sale-1")).toBe("printed"));
+
+    expect(await printDeferredSaleInvoiceFor(deps(), "sale-1")).toEqual({
+      kind: "already_printed",
+    });
+    expect(printer.waiting).toHaveLength(1);
+    expect(database.prepare("SELECT count(*) AS count FROM sale_reprints").get()).toEqual({
+      count: 0,
+    });
+  });
+
+  it("answers printer_not_configured and records no attempt, so a later print is still the original", async () => {
+    addDeferredSale("sale-1", "7KQ4M2P9");
+    invoicingTheSale();
+
+    expect(
+      await printDeferredSaleInvoiceFor(
+        deps({ printers: { configured: () => undefined } }),
+        "sale-1",
+      ),
+    ).toEqual({ kind: "printer_not_configured" });
+    expect(invoicePrints()).toEqual([]);
+
+    expect(await printDeferredSaleInvoiceFor(deps(), "sale-1")).toEqual({
+      kind: "started",
+      copy: { kind: "original" },
+    });
+  });
+
+  it("prints as an original a sale the backlog catch-up already invoiced but never printed", async () => {
+    addDeferredSale("sale-1", "7KQ4M2P9");
+    invoiceSale("sale-1");
+
+    expect(await printDeferredSaleInvoiceFor(deps(), "sale-1")).toEqual({
+      kind: "started",
+      copy: { kind: "original" },
+    });
+    printer.becomeReady();
+    await vi.waitFor(() => expect(jobs.standingOf("deferred-invoice:sale-1")).toBe("printed"));
+
+    expect(invoicing.invoiceUpTo).not.toHaveBeenCalled();
+    expect(printedText(0)).toContain(FACTURA_TEXT);
+  });
+
+  it("leaves the sale's own ticket as it was printed when its duplicate comes out after the sale was invoiced", async () => {
+    addDeferredSale("sale-1", "7KQ4M2P9");
+    await printCompletedSaleReceiptFor(deps(), "sale-1");
+    printer.becomeReady();
+    await vi.waitFor(() => expect(jobs.standingOf("sale-1")).toBe("printed"));
+    invoiceSale("sale-1");
+    signedInPerson.set("supervisor");
+
+    await reprintSaleReceiptFor(deps(), { saleId: "sale-1", reason: "el cliente la perdió" });
+    printer.becomeReady();
+    await vi.waitFor(() => expect(printer.handed).toHaveLength(2));
+
+    expect(printedText(0)).toContain(NOT_AN_INVOICE_TEXT);
+    expect(printedText(1)).toContain(NOT_AN_INVOICE_TEXT);
+    expect(printedText(1)).not.toContain(FACTURA_TEXT);
   });
 });
