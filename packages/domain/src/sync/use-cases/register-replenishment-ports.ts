@@ -66,6 +66,9 @@ export interface RegisterReplenishmentTransaction {
 
 export interface RegisterReplenishmentStore {
   predecessor(): Promise<RegisterPredecessor | undefined>;
+  lastFailure(): Promise<ReplenishmentFailure | undefined>;
+  recordFailure(failure: ReplenishmentFailure): Promise<void>;
+  clearFailure(): Promise<void>;
   // All or nothing, in a local transaction of its own.
   applyUsers(users: readonly ReplenishedUser[]): Promise<void>;
   // All or nothing: a page that fails leaves no fact or applied event behind.
@@ -83,4 +86,5 @@ export interface ReplenishRestoredRegisterPorts<TFailure> {
   feed: RegisterReplenishmentFeed<TFailure>;
   store: RegisterReplenishmentStore;
   decoder: RegisterReplenishmentDecoder;
+  appVersion: string | null;
 }
