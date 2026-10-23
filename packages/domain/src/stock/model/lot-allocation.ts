@@ -108,3 +108,15 @@ export function receiptAllocations(
     ...inDebt.map((lot) => ({ target: lotTarget(lot.id), quantity: -lot.remaining })),
   ];
 }
+
+export function saleVoidAllocations(
+  saleAllocations: readonly { lotId: string; quantity: number }[],
+): PlannedLotAllocation[] {
+  const returned = new Map<string, number>();
+  for (const { lotId, quantity } of saleAllocations) {
+    returned.set(lotId, (returned.get(lotId) ?? 0) - quantity);
+  }
+  return [...returned]
+    .filter(([, quantity]) => quantity !== 0)
+    .map(([lotId, quantity]) => ({ target: lotTarget(lotId), quantity }));
+}
